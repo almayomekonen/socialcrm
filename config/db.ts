@@ -1,12 +1,17 @@
 import knex from 'knex'
-
 import dotenv from 'dotenv'
-dotenv.config()
+
+dotenv.config({ path: '.env.local' })
 
 export const db = knex({
   client: 'pg',
   connection: {
-    connectionString: process.env.DB_PROD_URL || process.env.DB_DEV_URL || process.env.DB_LOCAL_URL,
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  },
+  pool: {
+    min: 0,
+    max: 10,
   },
 })
 

@@ -1,6 +1,7 @@
 'use client'
 
 import Script from 'next/script'
+import { useRouter } from 'next/navigation'
 import { jwtDecode } from 'jwt-decode'
 import { checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
@@ -10,7 +11,7 @@ declare global {
 }
 
 export default function Login({ user }: { user?: { name?: string; gglName?: string } | null }) {
-  // GOOGLE LOGIN
+  const router = useRouter()
   const client_id = process.env.NEXT_PUBLIC_GGLID
 
   async function callback(gglUser) {
@@ -26,6 +27,8 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
       })
 
       if (res.fail) return toast('error', res.msg)
+
+      router.push('/')
     } catch (error) {}
   }
 
