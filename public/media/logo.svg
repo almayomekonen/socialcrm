@@ -1,0 +1,17 @@
+<svg width="220" height="60" viewBox="0 0 220 60" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Icon -->
+  <rect x="10" y="10" width="40" height="40" rx="12" fill="#111827"/>
+
+  <circle cx="25" cy="30" r="4" fill="#22c55e"/>
+  <circle cx="35" cy="22" r="4" fill="#3b82f6"/>
+  <circle cx="35" cy="38" r="4" fill="#a855f7"/>
+
+  <line x1="25" y1="30" x2="35" y2="22" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="25" y1="30" x2="35" y2="38" stroke="#94a3b8" stroke-width="2"/>
+
+  <!-- Text -->
+  <text x="70" y="36" font-family="Inter, Arial, sans-serif" font-size="24" fill="#111827">
+    SocialCRM
+  </text>
+</svg>

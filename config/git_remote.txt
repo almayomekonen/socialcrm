@@ -1,0 +1,9 @@
+
+# PROD repo
+git remote set-url origin https://github.com/zvijude/allin_app.git
+
+# DEV repo
+git remote set-url origin https://github.com/zvijude/allin_test.git
+
+# show current origin
+git remote -v

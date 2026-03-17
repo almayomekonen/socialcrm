@@ -1,0 +1,62 @@
+@utility anim-slide-down {
+  /* animation: slide-down var(--anim-duration, 0.15s) ease-in-out; */
+  animation: slide-down var(--anim-duration, 0.15s) cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@utility anim-slide-up {
+  animation: slide-up var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-fade-in {
+  animation: fade-in var(--anim-duration, 0.1s) ease-in-out;
+}
+
+@utility anim-tooltip {
+  animation: tooltip var(--anim-duration, 0.2s);
+}
+
+/* ---------------------------- */
+/* Keyframes */
+/* ---------------------------- */
+
+@keyframes tooltip {
+  from {
+    opacity: 0;
+    transform: translateY(10%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

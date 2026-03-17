@@ -1,0 +1,251 @@
+@import 'tailwindcss';
+@import './anim.css';
+@import './animations.css';
+@import './base.css';
+@import './elements.css';
+@config "../../tailwind.config.ts";
+
+@theme {
+  --color-solid: #3f20f5;
+  --color-dark: #171424;
+  --color-soft: #4020f515;
+  --color-softy: #f3f2ff;
+  --color-soft-green: #6eabb4;
+  --color-solid-green: #298290;
+  --color-gray: #f9f9f9;
+
+  --text-md: 15px;
+}
+
+button:disabled {
+  @apply pointer-events-none opacity-60 shadow-none;
+}
+
+html {
+  scroll-behavior: smooth !important;
+}
+
+body {
+  @apply bg-gray  text-gray-800 overflow-x-hidden;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    color: rgb(35, 32, 50);
+    background: rgba(35, 32, 50, 1);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(119, 119, 119, 0.1);
+  }
+}
+
+.wrap {
+  @apply px-8;
+}
+.unwrap {
+  @apply -mx-8;
+}
+
+@utility num-box {
+  @apply min-w-48 py-4 px-5 rounded-md bg-white border text-start;
+  span {
+    @apply mb-2 inline-block font-bold;
+  }
+  > h2 {
+    @apply text-2xl;
+  }
+}
+
+@utility modal_pop {
+  max-height: 90svh;
+  overflow-y: auto;
+  background-color: #fff;
+  padding: 2rem;
+  padding-bottom: 0;
+  animation: pop-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  margin: 0 auto;
+  /* top: 0; */
+  @apply rounded-b-md shadow-md;
+  &::backdrop {
+    animation: fade-in 0.2s ease-in;
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+}
+
+.title {
+  @apply text-2xl font-bold;
+}
+
+@utility card {
+  @apply p-6 bg-white rounded-md border shadow-1 m-1;
+}
+
+@keyframes skeleton-progress {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+@utility skeleton {
+  background: linear-gradient(90deg, #fff 25%, #eee 50%, #fff 75%);
+  background-size: 200% 100%;
+  animation: skeleton-progress 1.5s infinite linear;
+}
+
+@utility mid-step {
+  clip-path: polygon(100% 0%, calc(100% - 8px) 50%, 100% 100%, 8px 100%, 0% 50%, 8px 0);
+}
+
+@utility end-step {
+  clip-path: polygon(0% 0%, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0% 100%);
+}
+
+@utility start-step {
+  clip-path: polygon(8px 0%, 100% 0%, 100% 100%, 8px 100%, 0% 50%);
+}
+
+/* 
+@utility mid-step {
+  clip-path: polygon(100% 0%, 92% 50%, 100% 100%, 8% 100%, 0% 50%, 8% 0);
+}
+
+@utility end-step {
+  clip-path: polygon(0% 0%, 100% 0, 79% 50%, 100% 100%, 0% 100%);
+}
+
+@utility start-step {
+  clip-path: polygon(10% 0%, 100% 0%, 100% 100%, 10% 100%, 0% 50%);
+} */
+
+/* .full-bleed {
+  width: calc(100vw - 50px);
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: calc(-50vw + 25px);
+} */
+
+@utility full-bleed {
+  position: relative;
+  right: calc(-1 * var(--spacing) * 8);
+  width: calc(100% + (var(--spacing) * 8 * 2));
+}
+
+.task_grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem 2rem;
+
+  grid-template-areas:
+    'header header events'
+    'stepper stepper events'
+    'subtasks notes events'
+    'files notes events';
+}
+
+/* MEDIA QUERIES */
+@media (width < 700px) {
+  .wrap {
+    @apply px-4;
+  }
+
+  .unwrap {
+    @apply -mx-4;
+  }
+
+  .num-box {
+    @apply p-4 min-w-40 h-full;
+    span {
+      @apply mb-2 inline-block;
+    }
+    > h2 {
+      @apply text-xl;
+    }
+  }
+}
+
+@utility btn {
+  @apply flex cursor-pointer border px-4 min-w-fit h-10 justify-center bg-white font-semibold rounded-md shadow hover:shadow-lg active:shadow-none transition-shadow disabled:pointer-events-none disabled:opacity-50;
+}
+
+@utility accordion {
+  @apply bg-white rounded-lg border overflow-hidden;
+
+  details::details-content {
+    block-size: 0;
+    transition:
+      block-size 0.3s,
+      content-visibility 0.3s;
+    transition-behavior: allow-discrete;
+    overflow: hidden;
+  }
+
+  details {
+    summary {
+      @apply list-none w-full font-semibold flex justify-between cursor-pointer p-4 hover:bg-gray-100 [&::-webkit-details-marker]:hidden;
+    }
+  }
+
+  details:open::details-content {
+    /* opacity: 1; */
+    block-size: auto;
+    block-size: calc-size(auto, size);
+  }
+
+  details[open] {
+    summary {
+      @apply bg-white;
+    }
+  }
+}
+
+.pop {
+  max-height: 88vh;
+  overflow-y: auto;
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 6px;
+  animation: fade-scale-in 0.15s ease-out;
+  box-shadow:
+    0px 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0px 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0px 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+.pop,
+.pop-bg {
+  &::backdrop {
+    animation: fade-in 0.2s ease-in;
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(1px);
+  }
+}
+
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]:not([data-tip=''])::before {
+  content: attr(data-tip);
+  pointer-events: none;
+
+  @apply absolute right-0 bottom-[60%];
+  @apply opacity-0 transition-all;
+
+  @apply mb-2.5 bg-white shadow-xl border w-max max-w-[min(20rem,90vw)] rounded-lg px-2 py-1 text-sm font-normal  z-10;
+}
+
+[data-tip]:not([data-tip='']):hover::before {
+  @apply opacity-100 bottom-full;
+}
+
+.lbl {
+  @apply text-gray-600 text-sm;
+}

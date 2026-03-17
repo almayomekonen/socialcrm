@@ -1,0 +1,21 @@
+{
+  "name": "Allin Crm",
+  "short_name": "Allin",
+  "description": "Insurance Sales Management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#232032",
+  "theme_color": "#232032",
+  "icons": [
+    {
+      "src": "/media/fav.svg",
+      "sizes": "192x192",
+      "type": "image/svg"
+    },
+    {
+      "src": "/media/fav.svg",
+      "sizes": "512x512",
+      "type": "image/svg"
+    }
+  ]
+}

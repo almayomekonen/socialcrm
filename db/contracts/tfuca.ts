@@ -1,0 +1,28 @@
+import { db } from '@/config/db'
+import { getAgencyId } from '../agencies'
+
+const SOCIAL_CRM_BRANCHES = ['שירותים', 'מוצרים', 'קורסים', 'מנויים', 'חבילות', 'ייעוץ', 'אחר']
+
+export async function getTotalTfuca(branch, userId) {
+  if (!SOCIAL_CRM_BRANCHES.includes(branch)) return 0
+
+  const sql = db('_flat_sales')
+    .where({ branch })
+    .andWhere('agencyId', await getAgencyId())
+    .sum('tfuca')
+    .first()
+  if (userId) sql.where({ userId })
+
+  return (await sql)?.sum || 0
+}
+
+export function getTfuca(prdct) {
+  const { prdctType, amount: rawAmount } = prdct
+  const amount = parseFloat(rawAmount) || 0
+
+  // Recurring: any monthly payment type
+  if (prdctType.includes('חודשי')) return { monthly: amount, yearly: amount * 12 }
+
+  // One-time: everything else
+  return { monthly: 0, yearly: amount }
+}

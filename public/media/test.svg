@@ -1,0 +1,36 @@
+<svg width="1536" height="1536" viewBox="0 0 1536 1536" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+<linearGradient id="g1" x1="0" y1="0" x2="1536" y2="1536">
+<stop offset="0%" stop-color="#6366F1"/>
+<stop offset="100%" stop-color="#22D3EE"/>
+</linearGradient>
+
+<linearGradient id="g2" x1="1536" y1="0" x2="0" y2="1536">
+<stop offset="0%" stop-color="#F59E0B"/>
+<stop offset="100%" stop-color="#FB7185"/>
+</linearGradient>
+
+<linearGradient id="g3" x1="0" y1="1536" x2="1536" y2="0">
+<stop offset="0%" stop-color="#10B981"/>
+<stop offset="100%" stop-color="#34D399"/>
+</linearGradient>
+</defs>
+
+<!-- central network circle -->
+<circle cx="768" cy="768" r="260" fill="url(#g1)"/>
+
+<!-- connection arms -->
+<rect x="748" y="260" width="40" height="300" rx="20" fill="url(#g2)"/>
+<rect x="748" y="976" width="40" height="300" rx="20" fill="url(#g2)"/>
+
+<rect x="976" y="748" width="300" height="40" rx="20" fill="url(#g3)"/>
+<rect x="260" y="748" width="300" height="40" rx="20" fill="url(#g3)"/>
+
+<!-- outer nodes -->
+<circle cx="768" cy="180" r="120" fill="url(#g2)"/>
+<circle cx="768" cy="1356" r="120" fill="url(#g2)"/>
+<circle cx="180" cy="768" r="120" fill="url(#g3)"/>
+<circle cx="1356" cy="768" r="120" fill="url(#g3)"/>
+
+</svg>

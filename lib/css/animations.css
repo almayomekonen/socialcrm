@@ -1,0 +1,114 @@
+@utility anim-popanchor-in {
+  animation: popanchor-in var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-slide-down {
+  animation: slide-down var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-slide-left {
+  animation: slide-left var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-slide-right {
+  animation: slide-right var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-slide-up {
+  animation: slide-up var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-fade-scale-in {
+  animation: fade-scale-in var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-fade-in {
+  animation: fade-in var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@utility anim-scale-in {
+  animation: scale-in var(--anim-duration, 0.15s) ease-in-out;
+}
+
+@keyframes slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0%);
+  }
+}
+
+@keyframes slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0%);
+  }
+}
+@keyframes popanchor-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0%);
+  }
+}
+
+@keyframes fade-scale-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    scale: 0.9;
+  }
+  to {
+    scale: 1;
+  }
+}
