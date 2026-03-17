@@ -1,19 +1,19 @@
 import { db } from '@/config/db'
-import { getTfuca, getTotalTfuca } from './tfuca'
+import { getAnnualValue, getTotalAnnualValue } from './tfuca'
 import { roundOrZero } from '@/lib/funcs'
 import { CalcContResType } from '@/types/global'
 
 export async function calcContracts(sale, users): Promise<CalcContResType> {
-  const tfuca = getTfuca(sale)
+  const annualValue = getAnnualValue(sale)
   const { branch, amount } = sale
-  const totalTfuca = ['סיכונים', 'פיננסי', 'פנסיוני'].includes(branch) ? await getTotalTfuca(branch, null) : 0
+  const totalAnnualValue = ['סיכונים', 'פיננסי', 'פנסיוני'].includes(branch) ? await getTotalAnnualValue(branch, null) : 0
 
   if (users.user2Id && users.user2Prcnt > 0) {
-    const { tfuca1, tfuca2 } = getUsersTfuca(tfuca, users)
+    const { annualValue1, annualValue2 } = getUsersAnnualValue(annualValue, users)
     const amount1 = amount * (users.userPrcnt / 100)
 
-    const res = await calcSingleContract({ ...sale, amount: amount1 }, tfuca1, branch, totalTfuca, users.userId)
-    const res2 = await calcSingleContract({ ...sale, amount: amount - amount1 }, tfuca2, branch, totalTfuca, users.user2Id)
+    const res = await calcSingleContract({ ...sale, amount: amount1 }, annualValue1, branch, totalAnnualValue, users.userId)
+    const res2 = await calcSingleContract({ ...sale, amount: amount - amount1 }, annualValue2, branch, totalAnnualValue, users.user2Id)
 
     return {
       user: res.user,
@@ -22,22 +22,22 @@ export async function calcContracts(sale, users): Promise<CalcContResType> {
   }
 
   // only one user
-  return await calcSingleContract(sale, tfuca, branch, totalTfuca, users.userId)
+  return await calcSingleContract(sale, annualValue, branch, totalAnnualValue, users.userId)
 }
 
-async function calcSingleContract(sale, tfuca, branch, totalTfuca, userId) {
+async function calcSingleContract(sale, annualValue, branch, totalAnnualValue, userId) {
   const { userCntrct, mngrCntrct, agencyCntrct } = await getUserCntrct(userId)
 
-  const userTotalTfuca = ['סיכונים', 'פיננסי', 'פנסיוני'].includes(branch) ? await getTotalTfuca(branch, userId) : 0
+  const userTotalAnnualValue = ['סיכונים', 'פיננסי', 'פנסיוני'].includes(branch) ? await getTotalAnnualValue(branch, userId) : 0
 
   const userMonthlyPrcnt = await getPrcnt(sale, userCntrct?.id)
-  const userYearlyPrcnt = await getPrcnt(sale, userCntrct?.id, userTotalTfuca)
+  const userYearlyPrcnt = await getPrcnt(sale, userCntrct?.id, userTotalAnnualValue)
 
   const monthlyPrcnt = await getPrcnt(sale, agencyCntrct?.id)
-  const yearlyPrcnt = await getPrcnt(sale, agencyCntrct?.id, totalTfuca)
+  const yearlyPrcnt = await getPrcnt(sale, agencyCntrct?.id, totalAnnualValue)
 
-  const monthlyCmsn = roundOrZero(userMonthlyPrcnt * tfuca.monthly)
-  const yearlyCmsn = roundOrZero(userYearlyPrcnt * tfuca.yearly)
+  const monthlyCmsn = roundOrZero(userMonthlyPrcnt * annualValue.monthly)
+  const yearlyCmsn = roundOrZero(userYearlyPrcnt * annualValue.yearly)
 
   if (mngrCntrct) {
     const mngrMonthlyPrcnt = await getPrcnt(sale, mngrCntrct?.id)
@@ -46,19 +46,19 @@ async function calcSingleContract(sale, tfuca, branch, totalTfuca, userId) {
     console.log('mngrMonthlyPrcnt', mngrMonthlyPrcnt)
     console.log('mngrYearlyPrcnt', mngrYearlyPrcnt)
 
-    const mngrMonthlyCmsn = roundOrZero(mngrMonthlyPrcnt * tfuca.monthly)
-    const mngrYearlyCmsn = roundOrZero(mngrYearlyPrcnt * tfuca.yearly)
+    const mngrMonthlyCmsn = roundOrZero(mngrMonthlyPrcnt * annualValue.monthly)
+    const mngrYearlyCmsn = roundOrZero(mngrYearlyPrcnt * annualValue.yearly)
 
-    const agencyMonthlyCmsn = roundOrZero((monthlyPrcnt - mngrMonthlyPrcnt - userMonthlyPrcnt) * tfuca.monthly)
-    const agencyYearlyCmsn = roundOrZero((yearlyPrcnt - mngrYearlyPrcnt - userYearlyPrcnt) * tfuca.yearly)
+    const agencyMonthlyCmsn = roundOrZero((monthlyPrcnt - mngrMonthlyPrcnt - userMonthlyPrcnt) * annualValue.monthly)
+    const agencyYearlyCmsn = roundOrZero((yearlyPrcnt - mngrYearlyPrcnt - userYearlyPrcnt) * annualValue.yearly)
 
     return {
       user: { monthlyCmsn, yearlyCmsn, mngrMonthlyCmsn, mngrYearlyCmsn, agencyMonthlyCmsn, agencyYearlyCmsn },
     }
   }
 
-  const agencyMonthlyCmsn = roundOrZero((monthlyPrcnt - userMonthlyPrcnt) * tfuca.monthly)
-  const agencyYearlyCmsn = roundOrZero((yearlyPrcnt - userYearlyPrcnt) * tfuca.yearly)
+  const agencyMonthlyCmsn = roundOrZero((monthlyPrcnt - userMonthlyPrcnt) * annualValue.monthly)
+  const agencyYearlyCmsn = roundOrZero((yearlyPrcnt - userYearlyPrcnt) * annualValue.yearly)
 
   return { user: { monthlyCmsn, yearlyCmsn, agencyMonthlyCmsn, agencyYearlyCmsn } }
 }
@@ -72,17 +72,17 @@ async function getUserCntrct(userId) {
   }
 }
 
-function getUsersTfuca(tfuca, users) {
+function getUsersAnnualValue(annualValue, users) {
   const multiplier = users.userPrcnt / 100
-  const tfuca1 = {
-    monthly: tfuca.monthly * multiplier,
-    yearly: tfuca.yearly * multiplier,
+  const annualValue1 = {
+    monthly: annualValue.monthly * multiplier,
+    yearly: annualValue.yearly * multiplier,
   }
-  const tfuca2 = {
-    monthly: tfuca.monthly * (1 - multiplier),
-    yearly: tfuca.yearly * (1 - multiplier),
+  const annualValue2 = {
+    monthly: annualValue.monthly * (1 - multiplier),
+    yearly: annualValue.yearly * (1 - multiplier),
   }
-  return { tfuca1, tfuca2 }
+  return { annualValue1, annualValue2 }
 }
 
 async function getPrcnt(sale, contractId, total = null) {

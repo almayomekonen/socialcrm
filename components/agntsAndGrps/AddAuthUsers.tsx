@@ -17,7 +17,7 @@ export default function AddAuthUsersComp({ users, user, gavePerm }) {
     <div className='  w-fit'>
       <div className='mb-4'>
         <p className='text-gray-600 text-sm'>
-          משתמש אשר תתן לו הרשאה יוכל לצפות במכירות שלך <br /> ולהקים מכירות בשמך
+          משתמש אשר תתן לו הרשאה יוכל לצפות בלידים שלך <br /> ולהוסיף לידים בשמך
         </p>
       </div>
 

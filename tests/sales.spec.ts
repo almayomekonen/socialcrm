@@ -36,8 +36,8 @@ async function fillClientAndProduct(page: Page, amount = round(Math.random() * 9
 
 async function addCollab(page: Page) {
   await page.getByRole('button', { name: 'שת"פ' }).click()
-  await page.getByRole('textbox', { name: 'חיפוש סוכן' }).nth(1).click()
-  await page.getByRole('textbox', { name: 'חיפוש סוכן' }).nth(1).fill('')
+  await page.getByRole('textbox', { name: 'חיפוש נציג' }).nth(1).click()
+  await page.getByRole('textbox', { name: 'חיפוש נציג' }).nth(1).fill('')
   await page.getByRole('button', { name: 'אורי מונרוב' }).click() // Adjust agent name as needed
   await page.locator('#userPrcnt').click()
   await page.locator('#userPrcnt').fill('77')

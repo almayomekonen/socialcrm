@@ -3,7 +3,7 @@
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { getCmsnRules } from '@/db/cmsnRules'
-import { calcUsersCmsn } from '@/components/sales/saleForm/funcs/calcCmsn'
+import { calculateCommission } from '@/components/sales/saleForm/funcs/calcCmsn'
 import { saleObj } from '@/types/types'
 import { calcContracts } from '@/db/contracts/calc_cont'
 import { formatSaleAmountType, insertSaleUsers } from '@/components/sales/saleForm/funcs/insertSale'
@@ -39,7 +39,7 @@ export async function insertSale(data: saleObj) {
       // add calc when contracts are implemented
       const cntrctRes = { user: {}, user2: {} } //  await calcContracts(sale, users)
 
-      const cmsnRes = calcUsersCmsn(sale, cmsnRules, users)
+      const cmsnRes = calculateCommission(sale, cmsnRules, users)
 
       sale = { rwrd: data.rwrd, cmsn: cmsnRes.cmsn, ...sale, agencyId: await getAgencyId() }
 

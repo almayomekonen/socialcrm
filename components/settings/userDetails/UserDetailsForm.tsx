@@ -19,13 +19,13 @@ export default function UserDetailsForm({ user }) {
       <div data-prefix='userData' className='grid grid-cols-2 gap-4 '>
         <Input name='firstName' lbl='שם פרטי' defaultValue={user.firstName} />
         <Input name='lastName' lbl='שם משפחה' defaultValue={user.lastName} />
-        <Input name='email' lbl='מייל' defaultValue={user.email} />
+        <Input name='email' lbl='אימייל' defaultValue={user.email} />
         <Input name='idNum' lbl="מס' תעודת זהות" defaultValue={user.idNum} required={false} />
       </div>
       <div data-prefix='userInfoData' className='grid grid-cols-2 mt-4 gap-4 '>
-        <Input name='tifulEmail' lbl='מייל -תפעול' defaultValue={user.tifulEmail} required={false} />
+        <Input name='tifulEmail' lbl='אימייל עסקי' defaultValue={user.tifulEmail} required={false} />
       </div>
-      <Btn lbl='שמירה' className='w-full mt-4' />
+      <Btn lbl='שמור שינויים' className='w-full mt-4' />
     </form>
   )
 }

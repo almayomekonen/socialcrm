@@ -11,6 +11,7 @@ import SalesNav from '@/components/sales/SalesNav'
 import SalesSection from '@/components/sales/SalesSection'
 import PieWrapper from '@/components/sumSales/PieWrapper'
 import DashboardSummary from '@/components/dashboard/DashboardSummary'
+import Link from 'next/link'
 
 const Filter = dynamic(() => import('@/components/filter'))
 
@@ -52,6 +53,27 @@ export default async function SalesPage({ searchParams }) {
         <DashboardSummary user={user} />
       </Suspense>
 
+      {tblData.length === 0 && (
+        <div className='rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-6 mb-6 text-center'>
+          <p className='font-semibold text-lg mb-1'>ברוך הבא! עדיין אין לידים במערכת</p>
+          <p className='text-gray-500 text-sm mb-4'>כדי להתחיל לעבוד, הוסף את הלידים הראשונים שלך</p>
+          <div className='flex gap-3 justify-center flex-wrap'>
+            <Link
+              href='/settings/self_edit?tab=upload'
+              className='inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors'
+            >
+              העלה קובץ לידים
+            </Link>
+            <Link
+              href='/?saleId=new'
+              className='inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors'
+            >
+              הוסף ליד ידנית
+            </Link>
+          </div>
+          <p className='text-gray-400 text-xs mt-3'>💡 הדרך הכי מהירה להתחיל: העלה קובץ Excel עם הלידים שלך</p>
+        </div>
+      )}
       <SalesNav user={user} />
       <div className='flex items-start mt-4'>
         <Suspense fallback={<div className='h-68 w-full animate-pulse bg-gray-100 rounded-lg' />}>

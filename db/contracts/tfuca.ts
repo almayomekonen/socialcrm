@@ -3,10 +3,11 @@ import { getAgencyId } from '../agencies'
 
 const SOCIAL_CRM_BRANCHES = ['שירותים', 'מוצרים', 'קורסים', 'מנויים', 'חבילות', 'ייעוץ', 'אחר']
 
-export async function getTotalTfuca(branch, userId) {
+export async function getTotalAnnualValue(branch, userId) {
   if (!SOCIAL_CRM_BRANCHES.includes(branch)) return 0
 
-  const sql = db('_flat_sales')
+  // Cast to any: 'tfuca' is the real DB column name; TypeScript alias is 'annualValue'
+  const sql = (db('_flat_sales') as any)
     .where({ branch })
     .andWhere('agencyId', await getAgencyId())
     .sum('tfuca')
@@ -16,7 +17,7 @@ export async function getTotalTfuca(branch, userId) {
   return (await sql)?.sum || 0
 }
 
-export function getTfuca(prdct) {
+export function getAnnualValue(prdct) {
   const { prdctType, amount: rawAmount } = prdct
   const amount = parseFloat(rawAmount) || 0
 

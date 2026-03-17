@@ -23,7 +23,7 @@ export default function ExtUserForm({ user, setCurUser }) {
       <div className='grid grid-cols-2 mt-4 gap-4'>
         {user && <Btn variant='outline' lbl='ביטול' icon='xmark' onClick={() => setCurUser(null)} />}
         <Btn
-          lbl={user?.id ? 'עריכה' : 'שמירה'}
+          lbl={user?.id ? 'שמור עריכה' : 'הוסף נציג'}
           icon={user?.id ? 'floppy-disk-pen' : 'floppy-disk'}
           className={user?.id ? '' : 'col-span-2'}
         />

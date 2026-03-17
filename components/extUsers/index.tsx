@@ -33,8 +33,8 @@ function ExtChip({ user, setCurUser }) {
     const res = await api(deleteExtUser, [user.id])
     if (res.err)
       alert(`
-      המשתמש ${user.name} לא נמחק, מכיוון שיש מכירות על שמו.
-      מחק את המכירות
+      המשתמש ${user.name} לא נמחק, מכיוון שיש לידים על שמו.
+      מחק את הלידים
       או העבר אותם לנציג אחר
       ונסה שוב`)
   }
@@ -48,7 +48,7 @@ function ExtChip({ user, setCurUser }) {
       <p className='me-2'>{user.name}</p>
       <Btn variant='outline' icon='pen' onClick={onEdit} title='עריכה' />
       <Btn variant='outline' icon='xmark' onClick={onDelete} className='bg-red-400' title='מחיקה' />
-      <Btn variant='outline' icon='right-left' onClick={onTransferSales} title='העברת מכירות' popoverTarget='transferSales' />
+      <Btn variant='outline' icon='right-left' onClick={onTransferSales} title='העברת לידים' popoverTarget='transferSales' />
     </div>
   )
 }

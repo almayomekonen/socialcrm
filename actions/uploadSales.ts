@@ -1,6 +1,6 @@
 'use server'
 
-import { calcUsersCmsn } from '@/components/sales/saleForm/funcs/calcCmsn'
+import { calculateCommission } from '@/components/sales/saleForm/funcs/calcCmsn'
 import { formatSaleAmountType } from '@/components/sales/saleForm/funcs/insertSale'
 import { salesData } from '@/components/sales/salesdata'
 import { db } from '@/config/db'
@@ -39,7 +39,7 @@ export async function uploadSalesData() {
         }
 
         // const contRes = await calcContracts(tmp, users)
-        const cmsnRes = calcUsersCmsn(tmp, cmsnRules, users)
+        const cmsnRes = calculateCommission(tmp, cmsnRules, users)
         const sale = { rwrd: data.rwrd, cmsn: cmsnRes.cmsn, ...tmp }
 
         uploadSales.push(sale)

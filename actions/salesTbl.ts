@@ -93,5 +93,5 @@ export async function updateManySaleStatus(saleIds: number[], status: string) {
 }
 
 export async function saveReward(saleId: number, checked: boolean) {
-  await db('sales').where({ id: saleId }).update({ rwrd: checked })
+  await db('sales').where({ id: saleId }).update('rwrd', checked)
 }

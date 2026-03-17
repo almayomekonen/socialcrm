@@ -16,7 +16,7 @@ export async function clientbelongsToUser({ sale, allAgents }) {
   if (client.userId !== Number(sale.users.userId)) {
     const createdUserName = allAgents.find((a) => a.id == client.userId)?.name
 
-    const isConfirm = confirm(`לקוח ${client.firstName} ${client.lastName} שייך לסוכן ${createdUserName} \n האם ברצונך להמשיך?`)
+    const isConfirm = confirm(`לקוח ${client.firstName} ${client.lastName} שייך לנציג ${createdUserName} \n האם ברצונך להמשיך?`)
     return isConfirm
   }
   return true
@@ -31,7 +31,7 @@ export async function hasSaleOnClient({ sale }) {
     const branches = delDups(sales.map((s) => s.branch)).join(', ')
     const users = delDups(sales.map((s) => s.userName)).join(', ')
     const isConfirm = confirm(
-      `לפני שאנחנו ממשיכים\n\nללקוח: ${sales[0].clientData}\nיש מכירות בענפים: ${branches}\n\nע"י הסוכנים: ${users}\n\nהאם להמשיך?`,
+      `לפני שאנחנו ממשיכים\n\nללקוח: ${sales[0].clientData}\nיש מכירות בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
     )
 
     return isConfirm

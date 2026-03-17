@@ -17,8 +17,10 @@ export async function _flat_sales() {
         s.action,
         s.prdct,
         s.replace,
+        s.replace        AS "isUpgrade",
         s."clientId",
         su.tfuca,
+        su.tfuca         AS "annualValue",
         s."agencyId",
         s."saleDt"
       FROM users u
@@ -32,6 +34,11 @@ export async function _sales() {
       CREATE OR REPLACE VIEW _sales AS
       SELECT
           s.*,
+          s.rwrd           AS bonus,
+          s.replace        AS "isUpgrade",
+          s.renew          AS "isRenewal",
+          s."polisaNum"    AS "contractNum",
+          s."polisaEndDt"  AS "contractEndDate",
           c.details AS "clientData",
           ru.name AS "handlerName",
           SUM(su."monthlyCmsn") as "monthlyCmsn",

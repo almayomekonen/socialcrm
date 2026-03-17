@@ -66,7 +66,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
     const sale = getObjFormData(e)
     console.log('sale', sale)
 
-    if (!sale.users?.userId) return alert('שגיאה, יש לבחור סוכן')
+    if (!sale.users?.userId) return alert('שגיאה, יש לבחור נציג')
 
     if (!sale.clientId) return alert('שגיאה, יש לבחור לקוח')
 
@@ -74,14 +74,14 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
 
     if (isAmountHigh(sale.prdcts)) return alert('שגיאה, סכום המכירה גבוה מדי')
 
-    if (isSameUser(sale.users)) return alert('שגיאה, לא ניתן לבצע שת"פ עם אותו הסוכן')
+    if (isSameUser(sale.users)) return alert('שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג')
 
-    const toReturn = await hasSaleOnClient({ sale }) //clientbelongsToUser({ sale, allAgents })
+    const toReturn = await hasSaleOnClient({ sale });
     if (!toReturn) return
 
     if (curSale?.id) {
       sale.saleId = curSale.id
-      sale.rwrd = curSale.rwrd as any
+      sale.rwrd = curSale.bonus as any
     }
 
     if (sale.clientId) {

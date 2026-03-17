@@ -19,7 +19,7 @@ export function saleTableHeaders(user) {
     { key: 'cmsn', label: 'עמלה', format: 'formatRoundCurrency' },
     { key: 'saleDt', label: 'תאריך סגירה', format: 'formatDate' },
     { key: 'action', label: 'סוג' },
-    { key: 'rwrd', label: 'בונוס', format: 'formatReward' },
+    { key: 'bonus', label: 'בונוס', format: 'formatReward' },
     { key: 'handlerName', label: 'אחראי' },
     { key: 'leadSource', label: 'מקור' },
     { key: 'bizNum', label: 'ח.פ. / ע.מ.' },

@@ -340,14 +340,14 @@ export interface Sale {
   favSalesId?: number | null
   amount?: number
   cmsn?: number | null
-  polisaNum?: string | null
-  polisaEndDt?: Date | null
-  renew?: boolean
-  replace?: boolean
+  contractNum?: string | null
+  contractEndDate?: Date | null
+  isRenewal?: boolean
+  isUpgrade?: boolean
   handlerId?: number | null
-  rwrd?: boolean
+  bonus?: boolean
   leadSource?: string | null
-  tfuca?: number | null
+  annualValue?: number | null
   agencyId?: number
 }
 
@@ -496,11 +496,11 @@ export interface FlatSalesView {
   offrDt: Date | null
   action: string | null
   prdct: string | null
-  replace: boolean | null
+  isUpgrade: boolean | null
   clientId: number | null
   userMonthlyCmsn: number | null
   userYearlyCmsn: number | null
-  tfuca: number | null
+  annualValue: number | null
 }
 
 export interface TeamsView {
@@ -531,19 +531,19 @@ export interface SalesView {
   amount: number
   cmsn: number | null
   notes: string | null
-  rwrd: boolean
+  bonus: boolean
   userId: number
   user2Id: number | null
-  renew: boolean
-  polisaEndDt: Date | null
-  tfuca: number | null
+  isRenewal: boolean
+  contractEndDate: Date | null
+  annualValue: number | null
   userIds: number[]
-  polisaNum: string | null
+  contractNum: string | null
   updatedAt: Date | null
   clientId: number
   handlerName: string | null
   handlerId: number | null
-  replace: boolean
+  isUpgrade: boolean
   leadSource: string | null
   yearlyCmsn: number | null
   monthlyCmsn: number | null

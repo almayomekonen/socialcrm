@@ -70,7 +70,7 @@ export default function SalesTable({ props }: SaleTableProps) {
           onChange={(e) => {
             api(saveReward, [obj.id, e.target.checked], 'תוגמל עודכן בהצלחה')
             const sale = data.find((i) => i.id === obj.id)
-            sale.rwrd = e.target.checked
+            sale.bonus = e.target.checked
             setState(data)
           }}
         />

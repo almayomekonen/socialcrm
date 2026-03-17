@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import FileUploader from '@/components/files/FileUploader'
 import { addClients, uploadClientData } from '@/actions/clients'
 
@@ -30,7 +31,7 @@ export default function UploadClientData() {
       <div className='grid gap-8 grid-cols-2 mt-4'>
         {clients && (
           <div>
-            <h1 className='underline mb-1 text-green-800 font-semibold'>לקוחות שנשמרו בהצלחה</h1>
+            <h1 className='underline mb-1 text-green-800 font-semibold'>לידים שנשמרו בהצלחה</h1>
             {clients?.map((c, i) => (
               <div key={i} className='flex gap-2'>
                 <p>{c.firstName}</p>
@@ -38,6 +39,17 @@ export default function UploadClientData() {
                 <p>{c.idNum}</p>
               </div>
             ))}
+            {clients.length > 0 && (
+              <div className='mt-4 p-4 bg-green-50 border border-green-200 rounded-lg'>
+                <p className='font-semibold text-green-800 mb-2'>יובאו בהצלחה {clients.length} לידים 🎉</p>
+                <Link
+                  href='/leads'
+                  className='inline-flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-colors'
+                >
+                  צפה בלידים שלך
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
