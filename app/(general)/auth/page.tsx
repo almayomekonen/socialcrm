@@ -1,9 +1,11 @@
 import Login from '@/components/auth/Login'
 import LoginMagicLink from '@/components/auth/LoginMagicLink'
 import Link from 'next/link'
+import { getUser } from '@/db/auth'
 
 export default async function AuthPage({ searchParams }) {
   const { error } = await searchParams
+  const user = await getUser()
 
   return (
     <div className='grid lg:grid-cols-2   w-screen bg-white place-items-center'>
@@ -13,7 +15,7 @@ export default async function AuthPage({ searchParams }) {
         בלי לפספס אף אחד.</p>
         <div className='grid'>
           <p className='mb-1'>התחברות עם גוגל</p>
-          <Login />
+          <Login user={user} />
           <p className='text-gray-500 text-xs text-center mt-2'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
           <LoginMagicLink error={error} />
 

@@ -117,7 +117,7 @@ export async function getExtUsersCreatedByUser(userId) {
 
 export async function getDefaultSettings(userId) {
   const res = await db('default_settings').where({ userId }).first()
-  return res
+  return res ?? { bronze: null, gold: null }
 }
 
 export async function getIpAddress() {

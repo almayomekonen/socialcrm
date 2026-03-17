@@ -12,7 +12,7 @@ import { daysFromNow } from '@/lib/dates'
 
 const Bucket = process.env.S3_BUCKET_NAME
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpg', 'image/jpeg']
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 
 export async function getPresigned({ metadat, folderPath }: Props) {

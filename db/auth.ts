@@ -12,7 +12,7 @@ async function getCachedUser(userId: number) {
 
   if (!userId) return null
   return await db('users')
-    .select('id', 'email', 'name', 'role', 'suspended', 'tblPref', 'savedFilters', 'agencyId')
+    .select('id', 'email', 'name', 'gglName', 'picture', 'role', 'suspended', 'tblPref', 'savedFilters', 'agencyId')
     .where({ id: userId })
     .first()
 }
@@ -69,6 +69,7 @@ export type UserDb = {
   id: number
   email: string
   name: string
+  gglName?: string | null
   picture: string
   role: Roles
   suspended?: boolean

@@ -9,7 +9,7 @@ declare global {
   const google: any
 }
 
-export default function Login() {
+export default function Login({ user }: { user?: { name?: string; gglName?: string } | null }) {
   // GOOGLE LOGIN
   const client_id = process.env.NEXT_PUBLIC_GGLID
 
@@ -43,6 +43,7 @@ export default function Login() {
 
   return (
     <div className=''>
+      {user && <p className='text-sm text-gray-600 mb-1'>כניסה בשם {user.name || user.gglName}</p>}
       <Script src='https://accounts.google.com/gsi/client' onLoad={initGoogle} strategy='lazyOnload' />
 
       <div id='gglBtn'></div>

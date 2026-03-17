@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { revalidateTag } from 'next/cache'
 import { db } from '@/config/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { Roles } from '@/types/roles'
@@ -25,6 +26,7 @@ export async function checkUser(user) {
   if (userExist.fail) return { fail: true, msg: userExist.msg }
 
   await db('users').where({ id: userExist.id }).update({ gglName: user.gglName, picture: user.picture, gglSub: user.gglSub })
+  revalidateTag('user' + userExist.id, 'default')
 
   await createCookie(userExist.id)
   redirect('/')
@@ -104,4 +106,3 @@ export async function sendToken(email: string) {
   })
   return res
 }
-

@@ -33,7 +33,7 @@ export function UserNAgency({ user, className = null }) {
         ) : (
           <div className='bg-solid text-white size-6 text-center rounded-full'>{user?.name?.[0]}</div>
         )}
-        <p className='text-sm'>{`${user?.name} - ${MapRoles[user?.role]}`}</p>
+        <p className='text-sm'>{`${user?.name || user?.gglName} - ${MapRoles[user?.role]}`}</p>
       </Link>
     </div>
   )

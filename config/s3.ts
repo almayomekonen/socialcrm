@@ -1,11 +1,12 @@
 import { S3Client } from '@aws-sdk/client-s3'
 
 export const s3 = new S3Client({
-  region: process.env.S3_REGION,
+  region: process.env.AWS_DEFAULT_REGION,
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID,
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 })
 
-export const s3PublicUrl = 'https://allin-storage.s3.il-central-1.amazonaws.com/'
+export const s3PublicUrl = 'https://socialcrm-storage.s3.eu-north-1.amazonaws.com/'
+  
