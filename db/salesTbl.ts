@@ -30,6 +30,13 @@ export async function getSaleTableData(
   return { tblData, count: countRes?.count || 0, sqlExport }
 }
 
+export async function getTotalSaleCount(gotPermIds: number[]) {
+  const query = db('_sales')
+  if (gotPermIds?.length) query.whereRaw(`"userIds" && ARRAY[${gotPermIds}]::INT[]`)
+  const res = await query.count('id').first()
+  return Number(res?.count || 0)
+}
+
 export async function getTablePref() {
   const user = await getUser()
   const res = await db('users').select('tblPref').where({ id: user.id }).first()

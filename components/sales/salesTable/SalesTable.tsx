@@ -31,17 +31,30 @@ export type SaleTableProps = {
     setCurSale: (sale: any) => void
     setOpenForm: (open: boolean) => void
     curSale: any
+    isSystemEmpty?: boolean
   }
 }
 
 export default function SalesTable({ props }: SaleTableProps) {
-  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale } = props
+  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale, isSystemEmpty } = props
   const { isFav } = params
   const tblId = 'saleTable376'
   useKeepTblScrollPos(tblId)
   const [state, setState] = useState(data)
 
   const [columns, setColumns] = useState(user?.tblPref?.[tblId] || saleTableHeaders(user))
+
+  if (isSystemEmpty) {
+    return (
+      <div className='text-center py-8 border rounded-lg bg-white flex flex-col items-center gap-4'>
+        <p className='text-lg font-semibold'>עדיין אין לידים במערכת</p>
+        <div className='flex gap-3 justify-center'>
+          <Btn lbl='העלה לידים' variant='soft' href='/settings/self_edit?tab=upload' />
+          <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
+        </div>
+      </div>
+    )
+  }
 
   function selectStatus(status, item) {
     return (
@@ -138,10 +151,9 @@ export default function SalesTable({ props }: SaleTableProps) {
 
         <Table config={config} tblCls='mb-0 rounded-b-none' />
         {state.length === 0 && (
-          <div className='text-center py-16 border border-t-0 rounded-b-lg bg-white'>
-            <p className='text-xl font-semibold mb-2'>אין עסקאות להצגה</p>
-            <p className='text-gray-500 mb-4'>צור את העסקה הראשונה שלך</p>
-            <Btn lbl='הוספת מכירה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
+          <div className='text-center py-8 border border-t-0 rounded-b-lg bg-white flex flex-col items-center gap-3'>
+            <p className='text-lg font-semibold'>לא נמצאו תוצאות עבור הסינון</p>
+            <Btn lbl='נקה סינון' variant='soft' href='/' />
           </div>
         )}
         <TableFooter />

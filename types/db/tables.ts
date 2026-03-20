@@ -8,7 +8,7 @@ export type Json = any // string | number | boolean | null | { [key: string]: Js
 export type Role = 'ADMIN' | 'MNGR' | 'AGNT' | 'OFFICE' | 'GM' | 'EXT'
 export type FamilyStatus = 'רווק' | 'רווקה' | 'נשוי' | 'נשואה' | 'גרוש' | 'גרושה' | 'אלמן' | 'אלמנה'
 export type Gender = 'זכר' | 'נקבה'
-export type HebrewRole = 'אדמין' | 'סוכן' | 'מנהל' | 'מתפעל' // Different from the system `Role`
+export type HebrewRole = 'אדמין' | 'נציג' | 'מנהל' | 'מתפעל' // Different from the system `Role`
 export type TagmulType = 'היקף' | 'נפרעים'
 export type QnaType = 'RISK' | 'GEN' // Changed to CAPITALIZED
 

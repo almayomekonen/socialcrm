@@ -105,7 +105,7 @@ async function checkIfUsersOrMngrExists(data, contracts) {
       if (c.type === data.type && data.userIds.includes(String(id)) && c.id != data.id) {
         const userName = await fetchUserNameById(id)
         const contractName = c.name
-        return { valid: true, userName, contractName, type: 'סוכן' }
+        return { valid: true, userName, contractName, type: 'נציג' }
       }
     }
   }

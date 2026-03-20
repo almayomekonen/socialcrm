@@ -40,7 +40,7 @@ export async function uploadClientData(file) {
     if (header == 'חברה') return 'company'
     if (header == 'מספר פוליסה') return 'polisaNum'
     if (header == 'סוג המוצר') return 'prdct'
-    if (header == 'שם סוכן') return 'leadSource'
+    if (header == 'שם נציג') return 'leadSource'
     if (header == 'שם המטפל') return 'handlerId'
     return header
   })

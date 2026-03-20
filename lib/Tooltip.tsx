@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 type ToolTipProps = {
@@ -9,6 +12,8 @@ type ToolTipProps = {
 }
 
 export function ToolTip({ children, lbl, className, pos = 'top', stayOnHover = false }: ToolTipProps) {
+  const [hovered, setHovered] = useState(false)
+
   const posClasses = {
     top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
     bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
@@ -17,15 +22,18 @@ export function ToolTip({ children, lbl, className, pos = 'top', stayOnHover = f
   }
 
   return (
-    <div className='relative inline-flex w-fit font-medium'>
-      <span className='peer inline-flex w-fit'>{children}</span>
+    <div
+      className='relative inline-flex w-fit font-medium'
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
 
-      {lbl && (
+      {lbl && hovered && (
         <div
           role='tooltip'
           className={twMerge(
-            'invisible absolute border z-999 whitespace-nowrap rounded-lg bg-white px-3 py-2 text-sm text-black opacity-0 shadow-xl transition-all peer-hover:visible peer-hover:opacity-100  ',
-            stayOnHover && 'hover:visible hover:opacity-100',
+            'absolute border z-999 whitespace-nowrap rounded-lg bg-white px-3 py-2 text-sm text-black shadow-xl',
             !stayOnHover && 'pointer-events-none',
             posClasses[pos],
             className

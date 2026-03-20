@@ -54,7 +54,7 @@ async function insertSaleUsers() {
       FROM sales s
       WHERE s."agnt2Id" IS NOT NULL;
     `
-  // לפעמים מכניסים סוכן עם חלוקה 0 אבל זה עדיין רלוונטי
+  // לפעמים מכניסים נציג עם חלוקה 0 אבל זה עדיין רלוונטי
   // AND s."agnt2Share" > 0
 
   const insertedSecondaryAgents = await db.raw(insertSecondaryAgentsQuery)

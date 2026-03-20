@@ -13,7 +13,13 @@ export async function calcContracts(sale, users): Promise<CalcContResType> {
     const amount1 = amount * (users.userPrcnt / 100)
 
     const res = await calcSingleContract({ ...sale, amount: amount1 }, annualValue1, branch, totalAnnualValue, users.userId)
-    const res2 = await calcSingleContract({ ...sale, amount: amount - amount1 }, annualValue2, branch, totalAnnualValue, users.user2Id)
+    const res2 = await calcSingleContract(
+      { ...sale, amount: amount - amount1 },
+      annualValue2,
+      branch,
+      totalAnnualValue,
+      users.user2Id,
+    )
 
     return {
       user: res.user,
@@ -66,8 +72,8 @@ async function calcSingleContract(sale, annualValue, branch, totalAnnualValue, u
 async function getUserCntrct(userId) {
   const contracts = await db('contracts').whereRaw(`${userId} = ANY("userIds")`)
   return {
-    userCntrct: contracts.find((contract) => contract.type === 'סוכן'),
-    mngrCntrct: contracts.find((contract) => contract.type === 'מפקח'),
+    userCntrct: contracts.find((contract) => contract.type === 'נציג'),
+    mngrCntrct: contracts.find((contract) => contract.type === 'מנהל'),
     agencyCntrct: contracts.find((contract) => contract.type === 'ראשי'),
   }
 }

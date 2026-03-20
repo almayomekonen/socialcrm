@@ -17,7 +17,6 @@ export default function ExtUserForm({ user, setCurUser }) {
 
   return (
     <form className='max-w-72 ' key={user?.id} onSubmit={onSave}>
-      {/* {user?.id && <Title lbl={`${user?.id ? 'עריכת סוכן חיצוני' : ''}`} flip iconClassName='size-5' className='mb-4' />} */}
       <Input lbl='שם פרטי' name='firstName' defaultValue={user?.firstName} className=' mb-1' />
       <Input lbl='שם משפחה' name='lastName' defaultValue={user?.lastName} required={false} />
       <div className='grid grid-cols-2 mt-4 gap-4'>

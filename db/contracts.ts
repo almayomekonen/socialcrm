@@ -13,7 +13,7 @@ export async function getContractPrdcts(contractId) {
   return res
 }
 
-export async function getContracts(type?: 'ראשי' | 'סוכן' | 'מפקח') {
+export async function getContracts(type?: 'ראשי' | 'נציג' | 'מנהל') {
   const agencyId = await getAgencyId()
   const sql = db('contracts').where('agencyId', agencyId)
 

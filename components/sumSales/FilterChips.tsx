@@ -78,9 +78,14 @@ export function FilterChips({ filter }) {
             ) : (
               <ToolTip
                 pos='bottom'
-                lbl={values.map((value) => (
-                  <p key={value}>{value}</p>
-                ))}
+                lbl={
+                  <>
+                    {values.slice(0, 8).map((value) => (
+                      <p key={value}>{value}</p>
+                    ))}
+                    {values.length > 8 && <p className='text-gray-400'>+{values.length - 8} נוספים</p>}
+                  </>
+                }
               >
                 {label} {values.length > 1 ? `(${values.length})` : ''}
               </ToolTip>
@@ -88,7 +93,7 @@ export function FilterChips({ filter }) {
             <Btn
               variant='sign'
               size='icon'
-              className='bg-gray-100 absolute -left-1 border-1 border-gray-300 -top-1 rounded-full size-3.5 shadow-1 flex justify-center'
+              className='bg-gray-100 absolute -left-1 border  border-gray-300 -top-1 rounded-full size-3.5 shadow-1 flex justify-center'
               icon='xmark'
               iconClassName='size-2.5'
               onClick={() => handleRemoveFilter(label)}

@@ -11,13 +11,13 @@ import { getAgencyId } from './agencies'
 import { removeSqlField } from './helpers/funcs'
 
 export async function getSumBranchesByUser({ sql, userIds }: WithSql) {
-  sql.table('_flat_sales').select('name as סוכן', db.raw(branchesSum)).groupBy('userId', 'name').orderBy('משוקלל', 'desc')
+  sql.table('_flat_sales').select('name as נציג', db.raw(branchesSum)).groupBy('userId', 'name').orderBy('משוקלל', 'desc')
   const res = await sql
 
   return addNotIncludedUsers({ res, userIds })
 }
 
-export async function addNotIncludedUsers({ res, userIds, nameKey = 'סוכן' }) {
+export async function addNotIncludedUsers({ res, userIds, nameKey = 'נציג' }) {
   const usersIn = res.map((r) => r[nameKey]) || []
   const sqlUsers = db('users')
     .select(`name as ${nameKey}`)
@@ -97,14 +97,14 @@ export async function getGoalsAndTotals(userId) {
   // SocialCRM branches — one entry per branch in types/lists.ts BRANCHES
   // משוקלל uses cmsn (commission total); all others use tfuca (deal revenue)
   const branches = [
-    { branch: 'משוקלל', val: 'cmsn',   cond: null },
+    { branch: 'משוקלל', val: 'cmsn', cond: null },
     { branch: 'שירותים', val: 'tfuca', cond: "branch = 'שירותים'" },
-    { branch: 'מוצרים',  val: 'tfuca', cond: "branch = 'מוצרים'" },
-    { branch: 'קורסים',  val: 'tfuca', cond: "branch = 'קורסים'" },
-    { branch: 'מנויים',  val: 'tfuca', cond: "branch = 'מנויים'" },
-    { branch: 'חבילות',  val: 'tfuca', cond: "branch = 'חבילות'" },
-    { branch: 'ייעוץ',   val: 'tfuca', cond: "branch = 'ייעוץ'" },
-    { branch: 'אחר',     val: 'tfuca', cond: "branch = 'אחר'" },
+    { branch: 'מוצרים', val: 'tfuca', cond: "branch = 'מוצרים'" },
+    { branch: 'קורסים', val: 'tfuca', cond: "branch = 'קורסים'" },
+    { branch: 'מנויים', val: 'tfuca', cond: "branch = 'מנויים'" },
+    { branch: 'חבילות', val: 'tfuca', cond: "branch = 'חבילות'" },
+    { branch: 'ייעוץ', val: 'tfuca', cond: "branch = 'ייעוץ'" },
+    { branch: 'אחר', val: 'tfuca', cond: "branch = 'אחר'" },
   ]
 
   // Helper to build the SQL columns
@@ -152,4 +152,3 @@ export async function getGoalsAndTotals(userId) {
     goals: user?.goals,
   }
 }
-

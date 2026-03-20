@@ -1,6 +1,5 @@
 import { getGoalsAndTotals, getSaleStats } from '@/db/sumSales'
 import { getPromos, getPromosByUserId } from '@/db/promos'
-import { getTasks } from '@/db/tasks'
 import { getPermsAndFilter } from '@/db/filter'
 import { formatCurrency } from '@/lib/funcs'
 import { isAdmin } from '@/types/roles'
@@ -9,11 +8,10 @@ import Link from 'next/link'
 export default async function DashboardSummary({ user }) {
   const { sqlFilter, gotPermIds } = await getPermsAndFilter({ user, filter: undefined })
 
-  const [stats, goalsAndTotals, allPromos, tasks] = await Promise.all([
+  const [stats, goalsAndTotals, allPromos] = await Promise.all([
     getSaleStats(sqlFilter),
     getGoalsAndTotals(user.id),
     isAdmin(user.role) ? getPromos() : getPromosByUserId(user.id, gotPermIds),
-    getTasks(user, { skip: 0 }),
   ])
 
   const today = new Date()
@@ -33,24 +31,6 @@ export default async function DashboardSummary({ user }) {
         <StatCard title='קמפיינים פעילים' value={activePromos.length} href='/promotion' />
       </div>
 
-      {tasks.length > 0 && (
-        <div className='bg-white rounded-md border'>
-          <div className='flex justify-between items-center px-5 py-3 border-b'>
-            <span className='font-bold'>משימות אחרונות</span>
-            <Link href='/tasks' className='text-sm text-solid'>
-              כל המשימות
-            </Link>
-          </div>
-          <div>
-            {tasks.slice(0, 3).map((task) => (
-              <div key={task.id} className='flex justify-between items-center px-5 py-3 text-sm border-b last:border-b-0 hover:bg-gray-50'>
-                <span className='font-bold'>{task.title}</span>
-                <span className='text-gray-500'>{task.clientName}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

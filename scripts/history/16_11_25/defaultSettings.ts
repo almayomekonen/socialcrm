@@ -68,7 +68,7 @@ async function addAgentLicenseTypeToUsersTable() {
 async function addLicenseTypeToAllUsers() {
   const users = await db('users').select('id')
   for (const user of users) {
-    await db('users_info').update({ agentLicenseType: 'סוכן ביטוח פנסיוני' }).where('id', user.id)
+    await db('users_info').update({ agentLicenseType: 'נציג ביטוח פנסיוני' }).where('id', user.id)
   }
 }
 

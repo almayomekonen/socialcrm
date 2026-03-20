@@ -36,7 +36,7 @@ export function calculateCommission(sale, cmsnRules, users) {
 }
 
 export function getCmsnRate(sale, cmsnRules) {
-  if (sale.action === 'מינוי סוכן') return null
+  if (sale.action === 'מינוי נציג') return null
 
   const rule = cmsnRules.find(
     (r) =>

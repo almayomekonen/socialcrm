@@ -78,7 +78,7 @@ run()
 
 async function getUserSales() {
   const res = await db('sales')
-    .where({ otherAgnt: 'משה סנג׳רו', action: 'מינוי סוכן' })
+    .where({ otherAgnt: 'משה סנג׳רו', action: 'מינוי נציג' })
     .select('id', 'otherAgnt', 'action', 'status')
   console.log('user sales', res)
   console.log('length', res.length)
