@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    scope: 'public_profile',
+    scope: 'pages_show_list',
     state,
     response_type: 'code',
   })
