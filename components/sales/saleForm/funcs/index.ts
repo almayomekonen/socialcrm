@@ -1,4 +1,4 @@
-import { getClientById, getClientSales } from '@/actions/clients'
+import { getLeadById, getLeadDeals } from '@/actions/clients'
 import { delDups } from '@/lib/funcs'
 import { PRDCT_TYPES } from '@/types/lists'
 
@@ -9,21 +9,21 @@ export function isPayExist(data) {
 
 export const getEntries = (fd) => Object.fromEntries(new FormData(fd))
 
-export async function clientbelongsToUser({ sale, allAgents }) {
-  const client = await getClientById(sale.clientId)
+export async function clientbelongsToUser({ sale, allReps }) {
+  const client = await getLeadById(sale.clientId)
   if (!client?.id) return true
 
   if (client.userId !== Number(sale.users.userId)) {
-    const createdUserName = allAgents.find((a) => a.id == client.userId)?.name
+    const createdUserName = allReps.find((a) => a.id == client.userId)?.name
 
-    const isConfirm = confirm(`לקוח ${client.firstName} ${client.lastName} שייך לנציג ${createdUserName} \n האם ברצונך להמשיך?`)
+    const isConfirm = confirm(`ליד ${client.firstName} ${client.lastName} שייך לנציג ${createdUserName} \n האם ברצונך להמשיך?`)
     return isConfirm
   }
   return true
 }
 
 export async function hasSaleOnClient({ sale }) {
-  const sales = await getClientSales(sale.clientId)
+  const sales = await getLeadDeals(sale.clientId)
   if (sales.length == 0) return true
   const res = sales.find((s) => s.userIds?.includes(Number(sale.users.userId)))
 
@@ -31,7 +31,7 @@ export async function hasSaleOnClient({ sale }) {
     const branches = delDups(sales.map((s) => s.branch)).join(', ')
     const users = delDups(sales.map((s) => s.userName)).join(', ')
     const isConfirm = confirm(
-      `לפני שאנחנו ממשיכים\n\nללקוח: ${sales[0].clientData}\nיש מכירות בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
+      `לפני שאנחנו ממשיכים\n\nלליד: ${sales[0].clientData}\nיש דילים בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
     )
 
     return isConfirm

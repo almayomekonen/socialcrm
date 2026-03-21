@@ -5,8 +5,8 @@ import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { toIso } from '@/lib/dates'
 
-// get sales table data for export, without limit but with filters
-export async function getSaleDataToExport(sqlExport) {
+// get deals table data for export, without limit but with filters
+export async function getDealDataToExport(sqlExport) {
   const sql = (sqlExport.sql || '').trim()
   const upper = sql.toUpperCase()
 
@@ -20,52 +20,52 @@ export async function getSaleDataToExport(sqlExport) {
   return res.rows
 }
 
-export async function addFavSales(saleIds: number[]) {
+export async function addFavDeals(dealIds: number[]) {
   const user = await getUser()
 
   await db('users')
     .where({ id: user.id })
     .update({
-      favSaleIds: db.raw(`ARRAY(SELECT DISTINCT UNNEST("favSaleIds" || ?::integer[]))`, [saleIds]),
+      favSaleIds: db.raw(`ARRAY(SELECT DISTINCT UNNEST("favSaleIds" || ?::integer[]))`, [dealIds]),
     })
 
   revalidatePath('/')
 }
 
-export async function removeFavSales(saleIds: number[]) {
+export async function removeFavDeals(dealIds: number[]) {
   const user = await getUser()
 
   await db('users')
     .where({ id: user.id })
     .update({
-      favSaleIds: db.raw(`ARRAY(SELECT UNNEST("favSaleIds") EXCEPT SELECT UNNEST(?::integer[]))`, [saleIds]),
+      favSaleIds: db.raw(`ARRAY(SELECT UNNEST("favSaleIds") EXCEPT SELECT UNNEST(?::integer[]))`, [dealIds]),
     })
 
   revalidatePath('/')
 }
 
-export async function removeFavSale(saleId: number) {
+export async function removeFavDeal(dealId: number) {
   const user = await getUser()
 
   await db('users')
     .where({ id: user.id })
     .update({
-      favSaleIds: db.raw(`ARRAY_REMOVE("favSaleIds", ?::integer)`, saleId),
+      favSaleIds: db.raw(`ARRAY_REMOVE("favSaleIds", ?::integer)`, dealId),
     })
 
   revalidatePath('/')
 }
 
-// מחיקת מכירות
-export async function deleteSales(ids: number[]) {
+// מחיקת עסקאות
+export async function deleteDeals(ids: number[]) {
   const deletedById = (await getUser())?.id
   const res = await db.raw(`select delete_sales(?, ?)`, [ids, deletedById])
   revalidatePath('/')
   return res?.rowCount
 }
 
-// מחיקת מכירות
-export async function deleteSale(id: number) {
+// מחיקת עסקה
+export async function deleteDeal(id: number) {
   const deletedById = (await getUser())?.id
   const res = await db.raw('SELECT delete_sales(?, ?)', [[id], deletedById])
 
@@ -73,25 +73,25 @@ export async function deleteSale(id: number) {
   return res?.rowCount
 }
 
-export async function updateSaleDt(saleId: number, saleDt: string) {
-  await db('sales').where({ id: saleId }).update({ saleDt })
+export async function updateDealDt(dealId: number, saleDt: string) {
+  await db('sales').where({ id: dealId }).update({ saleDt })
   revalidatePath('/')
 }
 
-// עדכון סטטוס למכירות
-export async function updateSaleStatus(saleId: number, status: string) {
+// עדכון סטטוס לעסקאות
+export async function updateDealStatus(dealId: number, status: string) {
   const obj = { status } as any
   if (status === 'הופק') obj.saleDt = toIso(new Date())
-  await db('sales').where({ id: saleId }).update(obj)
+  await db('sales').where({ id: dealId }).update(obj)
 }
 
-// עדכון סטטוס למכירות
-export async function updateManySaleStatus(saleIds: number[], status: string) {
-  const res = await db('sales').whereIn('id', saleIds).update({ status })
+// עדכון סטטוס לעסקאות
+export async function updateManyDealStatus(dealIds: number[], status: string) {
+  const res = await db('sales').whereIn('id', dealIds).update({ status })
   revalidatePath('/')
   return res
 }
 
-export async function saveReward(saleId: number, checked: boolean) {
-  await db('sales').where({ id: saleId }).update('rwrd', checked)
+export async function saveReward(dealId: number, checked: boolean) {
+  await db('sales').where({ id: dealId }).update('rwrd', checked)
 }

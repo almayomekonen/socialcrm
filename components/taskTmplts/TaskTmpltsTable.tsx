@@ -72,5 +72,5 @@ function AddTaskTmpltBtn() {
   }
 
   // return <SubmitButton lbl='יצירת תבנית משימה חדשה' onClick={addAndRedirect} />
-  return <Btn lbl='יצירת תבנית משימה חדשה' icon='plus' onClick={addAndRedirect} />
+  return <Btn lbl='יצירת תבנית מעקב חדשה' icon='plus' onClick={addAndRedirect} />
 }

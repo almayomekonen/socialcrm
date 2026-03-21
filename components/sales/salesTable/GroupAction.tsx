@@ -1,7 +1,7 @@
 import { STATUS_LIST } from '@/types/lists'
 import { toast } from '@/lib/toast'
 import { checkedIds } from '@/lib/table/funcs'
-import { addFavSales, deleteSales, removeFavSales, updateManySaleStatus } from '@/actions/salesTbl'
+import { addFavDeals, deleteDeals, removeFavDeals, updateManyDealStatus } from '@/actions/salesTbl'
 import { Select } from '@/lib/form'
 
 export default function GroupAction({ isFav }) {
@@ -16,35 +16,35 @@ export default function GroupAction({ isFav }) {
 
   const selectGrp = [
     { head: 'עדכון סטטוס', grp: STATUS_LIST },
-    { head: 'מחיקה', grp: ['מחיקת המכירות'] },
+    { head: 'מחיקה', grp: ['מחיקת הדילים'] },
     { head: 'מועדפים', grp: isFav ? ['הסרה ממועדפים'] : ['הוספה למועדפים'] },
   ]
   return <Select options={selectGrp} onChange={onGroupAction} placeholder='פעולות' className='w-32' />
 }
 
 const actions = {
-  'מחיקת המכירות': async (ids) => {
-    if (!confirm('בטוח למחוק את המכירות?')) return
+  'מחיקת הדילים': async (ids) => {
+    if (!confirm('בטוח למחוק את הדילים?')) return
     toast('loading')
-    const rowsDeleted = await deleteSales(ids)
-    rowsDeleted > 0 ? toast('success', 'המכירות נמחקו בהצלחה') : toast('error', 'שגיאה, המכירות לא נמחקו')
+    const rowsDeleted = await deleteDeals(ids)
+    rowsDeleted > 0 ? toast('success', 'הדילים נמחקו בהצלחה') : toast('error', 'שגיאה, הדילים לא נמחקו')
   },
   'הוספה למועדפים': async (ids) => {
     toast('loading')
-    if (!confirm('בטוח להוסיף את המכירות למועדפים?')) return
-    await addFavSales(ids)
-    toast('success', 'המכירות נוספו למועדפים')
+    if (!confirm('בטוח להוסיף את הדילים למועדפים?')) return
+    await addFavDeals(ids)
+    toast('success', 'הדילים נוספו למועדפים')
   },
   'הסרה ממועדפים': async (ids) => {
     toast('loading')
-    if (!confirm('בטוח להסיר את המכירות ממועדפים?')) return
-    await removeFavSales(ids)
-    toast('success', 'המכירות הוסרו ממועדפים')
+    if (!confirm('בטוח להסיר את הדילים ממועדפים?')) return
+    await removeFavDeals(ids)
+    toast('success', 'הדילים הוסרו ממועדפים')
   },
   default: async (ids, val) => {
-    if (!confirm('לשנות את סטטוס המכירות ל' + val + '?')) return
+    if (!confirm('לשנות את סטטוס הדילים ל' + val + '?')) return
     toast('loading')
-    await updateManySaleStatus(ids, val)
+    await updateManyDealStatus(ids, val)
     toast('success', 'סטטוס עודכן בהצלחה')
   },
 }

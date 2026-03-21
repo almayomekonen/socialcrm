@@ -226,3 +226,11 @@ If no match exists:
 → do NOT introduce a new design system
 
 The product must feel consistent across all screens.
+
+## Entity Rule
+
+Do not create separate views or pages for "Clients".
+
+All users are displayed as Leads.
+
+Different states are represented only by status.

@@ -108,7 +108,7 @@ export default function FilesTable({ data, tasks, clients }) {
               onChange={(e) => onFilterChange(e, 'type')}
             />
             <Select options={fileSizes} placeholder='גודל' onChange={onSizeChange} />
-            <Select id='clients' options={clients} placeholder='לקוח' onChange={onClientChange} />
+            <Select id='clients' options={clients} placeholder='ליד' onChange={onClientChange} />
           </div>
 
           <div className='flex justify-between gap-2'>
@@ -134,8 +134,8 @@ function formatFileSize(mb) {
 export const headers = [
   { key: 'type', label: 'סוג קובץ', format: 'formatFileType' },
   { key: 'name', label: 'שם המסמך', format: 'formatFileName' },
-  { key: 'clientName', label: 'לקוח', format: 'formatClientName' },
-  { key: 'taskId', label: 'משימה', format: 'formatTask' },
+  { key: 'clientName', label: 'ליד', format: 'formatClientName' },
+  { key: 'taskId', label: 'מעקב', format: 'formatTask' },
   { key: 'createdAt', label: 'מועד יצירה', format: 'formatDate' },
   { key: 'size', label: 'גודל ', format: 'formatFileSize' },
   { key: 'createdByName', label: 'הועלה ע"י' },

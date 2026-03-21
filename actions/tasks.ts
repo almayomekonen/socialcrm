@@ -29,6 +29,21 @@ export async function updateFullTask(task) {
     })
 }
 
+export async function createTask(data: { clientId: number; title: string; userId: number; _system?: boolean }) {
+  if (!data._system) await requireUser()
+  const { _system, ...insertData } = data
+  const res = await db('tasks')
+    .insert({
+      ...insertData,
+      dueDate: new Date().toISOString().split('T')[0],
+      tasks: [] as any,
+      notes: [] as any,
+      files: [],
+    })
+    .returning('id')
+  return res[0].id
+}
+
 export async function addTask(clientId, user) {
   await requireUser()
   const res = await db('tasks')

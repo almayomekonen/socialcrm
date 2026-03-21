@@ -10,8 +10,8 @@ export default function ClientNav({ id }) {
   const isActive = (href) => pathname.includes(href)
 
   const links = [
-    { href: 'summary', title: 'סיכום לקוח' },
-    { href: 'tasks', title: 'משימות' },
+    { href: 'summary', title: 'סיכום ליד' },
+    { href: 'tasks', title: 'מעקבים' },
     { href: 'files', title: 'קבצים' },
   ]
 

@@ -33,7 +33,7 @@ export function FilterChips({ filter }) {
     { label: 'חברות', getValues: (f) => f?.company || [], keysToRemove: ['company'] },
     { label: 'סטטוס', getValues: (f) => f?.status || [], keysToRemove: ['status'] },
     {
-      label: 'לקוחות',
+      label: 'לידים',
       getValues: (f) => f?.clientNames || [],
       keysToRemove: ['clientNames', 'clientIds'],
     },

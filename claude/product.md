@@ -152,3 +152,10 @@ Avoid building or designing anything that causes:
 - **Multi-step flows for simple tasks** — adding a lead should take under 10 seconds
 - **Unclear status labels** — every lead status must be obvious: new, contacted, closed, lost
 - **Any UI that makes the user think** — if they have to figure it out, it's already wrong
+
+## Core Data Model
+
+There is only ONE entity in the system: Lead.
+
+"Client" is not a separate entity.
+It is a Lead with status = "closed".

@@ -27,7 +27,7 @@ export default async function DashboardSummary({ user }) {
       <div className='flex gap-4 mobile:grid grid-cols-2 mb-6'>
         <StatCard title='הכנסות החודש' value={formatCurrency(monthlyRevenue)} />
         <StatCard title='סה"כ עסקאות' value={stats.prdctsCount ?? 0} />
-        <StatCard title='לקוחות פעילים' value={stats.clientsWithSales ?? 0} />
+        <StatCard title='לידים פעילים' value={stats.clientsWithSales ?? 0} />
         <StatCard title='קמפיינים פעילים' value={activePromos.length} href='/promotion' />
       </div>
 

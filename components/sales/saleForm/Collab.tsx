@@ -5,14 +5,14 @@ import { getUserDefault } from './SaleForm'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 
 type Props = {
-  allAgents: any[]
-  allAgentsWithExt: any[]
+  allReps: any[]
+  allRepsWithExt: any[]
   user: any
   curSale?: any
   officeGotPerm: userType[]
 }
 
-export default function Collab({ allAgents, allAgentsWithExt, user, curSale, officeGotPerm }: Props) {
+export default function Collab({ allReps, allRepsWithExt, user, curSale, officeGotPerm }: Props) {
   const prcnt1Ref = useRef(null)
   const prcnt2Ref = useRef(null)
 
@@ -25,7 +25,7 @@ export default function Collab({ allAgents, allAgentsWithExt, user, curSale, off
           <SelectSearch
             lbl='נציג 1'
             name='users.userId'
-            options={user.role === 'OFFICE' ? officeGotPerm : allAgents}
+            options={user.role === 'OFFICE' ? officeGotPerm : allReps}
             placeholder='חיפוש נציג...'
             className='w-[168px]'
             inputCls='rounded-l-none border-l-0'
@@ -60,11 +60,11 @@ export default function Collab({ allAgents, allAgentsWithExt, user, curSale, off
           <SelectSearch
             lbl='נציג 2'
             name='users.user2Id'
-            options={allAgentsWithExt}
+            options={allRepsWithExt}
             placeholder='חיפוש נציג...'
             className='w-[168px] border-0'
             inputCls='rounded-l-none border-l-0'
-            selected={curSale?.userIds?.[1] || allAgentsWithExt[0]?.id}
+            selected={curSale?.userIds?.[1] || allRepsWithExt[0]?.id}
           />
 
           <div className='bg-gray-100 flex gap-0 p-1  rounded-l'>

@@ -1,5 +1,5 @@
 import { STATUS_LIST } from '@/types/lists'
-import { saveReward, updateSaleStatus } from '@/actions/salesTbl'
+import { saveReward, updateDealStatus } from '@/actions/salesTbl'
 import { Select } from '@/lib/form'
 import { isAdmin } from '@/types/roles'
 
@@ -8,7 +8,7 @@ import { isAdmin } from '@/types/roles'
 export function saleTableHeaders(user) {
   let columns = [
     { key: 'offrDt', label: 'תאריך פנייה', format: 'formatDate' },
-    { key: 'clientData', label: 'לקוח' },
+    { key: 'clientData', label: 'ליד' },
     { key: 'status', label: 'שלב', format: 'selectStatus' },
     { key: 'company', label: 'ספק' },
     { key: 'branch', label: 'קטגוריה' },

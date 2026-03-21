@@ -1,7 +1,7 @@
 {
-  "name": "Allin Crm",
-  "short_name": "Allin",
-  "description": "Insurance Sales Management",
+  "name": "SocialCRM",
+  "short_name": "SocialCRM",
+  "description": "Social CRM - ניהול לידים, שיחות ועסקאות",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#232032",

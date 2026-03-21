@@ -23,7 +23,7 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
   }
 
   function onDelete() {
-    if (!confirm(`האם ברצנוך למחוק את המשימה "${task.title}"?`)) return
+    if (!confirm(`האם ברצנוך למחוק את המעקב "${task.title}"?`)) return
     deleteTask(task)
     render()
     onTaskChange()

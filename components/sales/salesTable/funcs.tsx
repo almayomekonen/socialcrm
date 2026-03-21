@@ -2,7 +2,7 @@ import { Select } from '@/lib/form'
 import { checkedIds } from '@/lib/table/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { setPosAndPop } from '@/lib/funcs'
-import { addFavSales, deleteSale, removeFavSale } from '@/actions/salesTbl'
+import { addFavDeals, deleteDeal, removeFavDeal } from '@/actions/salesTbl'
 import { api } from '@/lib/funcs'
 import { toast } from '@/lib/toast'
 
@@ -61,15 +61,15 @@ export function ActionsMenu({ id, children }) {
 
 async function onDel(sale) {
   console.log('onDel: ', sale)
-  if (!confirm(`בטוח למחוק מכירה של ${sale?.clientData} ?`)) return
-  await api(deleteSale, sale?.id, 'המכירה נמחקה בהצלחה')
+  if (!confirm(`בטוח למחוק דיל של ${sale?.clientData} ?`)) return
+  await api(deleteDeal, sale?.id, 'הדיל נמחק בהצלחה')
 }
 function addOrRemoveFav(sale, isFav) {
   if (isFav) {
-    removeFavSale(sale.id)
-    toast('success', 'המכירה הוסרה ממועדפים')
+    removeFavDeal(sale.id)
+    toast('success', 'הדיל הוסר ממועדפים')
   } else {
-    addFavSales([sale.id])
-    toast('success', 'המכירה נוספה למועדפים')
+    addFavDeals([sale.id])
+    toast('success', 'הדיל נוסף למועדפים')
   }
 }

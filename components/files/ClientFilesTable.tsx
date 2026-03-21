@@ -124,7 +124,7 @@ function formatFileSize(mb) {
 export const headers = [
   { key: 'type', label: 'סוג קובץ', format: 'formatFileType' },
   { key: 'name', label: 'שם המסמך', format: 'formatFileName' },
-  { key: 'taskId', label: 'משימה', format: 'formatTask' },
+  { key: 'taskId', label: 'מעקב', format: 'formatTask' },
   { key: 'createdAt', label: 'מועד יצירה', format: 'formatDate' },
   { key: 'size', label: 'גודל ', format: 'formatFileSize' },
   { key: 'createdByName', label: 'הועלה ע"י' },

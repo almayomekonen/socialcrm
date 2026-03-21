@@ -11,9 +11,9 @@ export default async function page() {
   return (
     <div>
       <h1 className='title'>נתוני ברירת מחדל</h1>
-      <h1 className='text-xl font-bold mt-12'>הגדרות סיווג לקוח</h1>
+      <h1 className='text-xl font-bold mt-12'>הגדרות סיווג ליד</h1>
       <div className='accordion border rounded-lg my-6 max-w-3xl bg-white'>
-        <AccordionItem bodyClass={bodyClass} title='עדכון הגדרות סיווג לקוח'>
+        <AccordionItem bodyClass={bodyClass} title='עדכון הגדרות סיווג ליד'>
           <ClientSivugForm data={data} userId={user.id} />
         </AccordionItem>
       </div>

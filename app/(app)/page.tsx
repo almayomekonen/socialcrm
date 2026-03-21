@@ -5,7 +5,7 @@ import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import { isAdmin } from '@/types/roles'
 import { getPermsAndFilter } from '@/db/filter'
-import { getSaleTableData } from '@/db/salesTbl'
+import { getDealTableData } from '@/db/salesTbl'
 import { Provider } from '@/lib/hooksNEvents'
 import { getUsers } from '@/db/usersNTeams'
 import SalesNav from '@/components/sales/SalesNav'
@@ -33,7 +33,7 @@ export default async function SalesPage({ searchParams }) {
 
   // OPTIMIZATION: Removed getPieData and getGoalsAndTotals from here
   const [{ tblData, count, sqlExport }, allUsers] = await Promise.all([
-    getSaleTableData(sqlFilter, { pageNum, tableLimit }),
+    getDealTableData(sqlFilter, { pageNum, tableLimit }),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
   ])
 

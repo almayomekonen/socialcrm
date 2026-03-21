@@ -28,9 +28,9 @@ function ClientsBoxes({ details }) {
 
   return (
     <div className='flex gap-4 mobile:grid grid-cols-2'>
-      <NumboxPrecent title='לקוחות פעילים' num={clientsWithSales} />
+      <NumboxPrecent title='לידים פעילים' num={clientsWithSales} />
       <NumboxPrecent title='עסקאות' num={prdctsCount} />
-      <NumboxPrecent title='עסקאות ממוצע ללקוח' num={avgSalesPerClient} />
+      <NumboxPrecent title='דילים ממוצע לליד' num={avgSalesPerClient} />
       <NumboxPrecent title='הצעות שנשלחו' num={inHafakaCount} total={prdctsCount} />
       <NumboxPrecent title='עסקאות שנסגרו' num={hofakCount} total={prdctsCount} />
       <NumboxPrecent title='עסקאות ששולמו' num={hafkadaCount} total={prdctsCount} />

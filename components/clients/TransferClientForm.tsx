@@ -3,7 +3,7 @@ import Title from '@/lib/Title'
 import { getFormData2 } from '@/lib/form/funcs'
 import { api } from '@/lib/funcs'
 import { useState } from 'react'
-import { transferClientToUser } from '@/actions/clients'
+import { transferLeadToRep } from '@/actions/clients'
 import { useProps } from '@/lib/hooksNEvents'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 
@@ -13,13 +13,13 @@ export default function TransferClientForm({ client }) {
 
   async function onSubmit(e) {
     const data = getFormData2(e)
-    if (!confirm(`האם להעביר לקוח ${client.name} לנציג ${userName} ?`)) return
-    await api(transferClientToUser, [client.id, data.userId])
+    if (!confirm(`האם להעביר ליד ${client.name} לנציג ${userName} ?`)) return
+    await api(transferLeadToRep, [client.id, data.userId])
   }
 
   return (
     <div>
-      <Title lbl={`העברת לקוח מהנציג ${client.userName}`} className='mb-6' />
+      <Title lbl={`העברת ליד מהנציג ${client.userName}`} className='mb-6' />
       <form id='transferClientForm' onSubmit={onSubmit}>
         <SelectSearch name='userId' lbl='בחר נציג' options={users} onSelectOpt={(user) => setUserName(user.name)} />
         <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />

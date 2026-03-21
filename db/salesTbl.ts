@@ -3,7 +3,7 @@ import { db } from '@/config/db'
 import { WithSql } from '@/types/global'
 import { removeSqlField } from './helpers/funcs'
 
-export async function getSaleTableData(
+export async function getDealTableData(
   { sql, userIds, handlerIds, clientId, isCollab }: WithSql,
   { pageNum = 1, tableLimit = 100 },
 ) {
@@ -30,7 +30,7 @@ export async function getSaleTableData(
   return { tblData, count: countRes?.count || 0, sqlExport }
 }
 
-export async function getTotalSaleCount(gotPermIds: number[]) {
+export async function getTotalDealCount(gotPermIds: number[]) {
   const query = db('_sales')
   if (gotPermIds?.length) query.whereRaw(`"userIds" && ARRAY[${gotPermIds}]::INT[]`)
   const res = await query.count('id').first()
@@ -44,26 +44,8 @@ export async function getTablePref() {
   return res?.tblPref
 }
 
-export async function getFavSales() {
+export async function getFavDeals() {
   const user = await getUser()
   const res = await db('users').select('favSaleIds').where({ id: user.id }).first()
   return res?.favSaleIds?.length ? await db('_sales').whereIn('id', res.favSaleIds) : []
 }
-
-// export async function getSaleTableData({ where, userIds, handlerIds, clientId }, { pageNum = 1, tableLimit = 100 }) {
-//   const sql = db('_sales').where(where)
-
-//   if (clientId) sql.where('clientId', clientId)
-
-//   if (userIds?.length) sql.whereRaw(`"userIds" && ARRAY[${userIds}]::INT[]`)
-//   if (handlerIds?.length) sql.whereIn('handlerId', handlerIds)
-
-//   const { count } = await sql.clone().count('id').first()
-
-//   const res = await sql
-//     .limit(tableLimit)
-//     .offset((pageNum - 1) * tableLimit)
-//     .orderBy('updatedAt', 'desc')
-
-//   return { tblData: res, count, pageNum, tableLimit }
-// }

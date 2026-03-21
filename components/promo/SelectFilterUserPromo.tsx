@@ -34,7 +34,7 @@ export default function SelectFilterUserPromo({ data, setState }) {
         returnShow='userNames'
         selected={selectedUsers}
         className='rounded-e-none'
-        placeholder='סינון סוכנים...'
+        placeholder='סינון נציגים...'
       />
       {selectedUsers.length > 0 && (
         <Btn
@@ -46,7 +46,7 @@ export default function SelectFilterUserPromo({ data, setState }) {
           onClick={clearFilters}
         />
       )}
-      <Btn title='סינון סוכנים' variant='outline' size='icon' className='rounded-s-none border-s-0 shadow-none' icon='filter' />
+      <Btn title='סינון נציגים' variant='outline' size='icon' className='rounded-s-none border-s-0 shadow-none' icon='filter' />
     </form>
   )
 }

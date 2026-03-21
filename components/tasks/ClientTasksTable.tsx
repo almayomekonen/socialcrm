@@ -83,7 +83,7 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
         <div className='flex gap-4 items-end mb-2'>
           {/* <Btn variant='outline' lbl='איפוס סינון' icon='eraser' href='?' className='gap-4' /> */}
           {/* <FilterBtn /> */}
-          <Btn lbl='צור משימה חדשה' icon='plus' popoverTarget='chooseTaskTmplt' />
+          <Btn lbl='צור מעקב חדש' icon='plus' popoverTarget='chooseTaskTmplt' />
           {/* <Btn lbl='הוספת משימה' popoverTarget='popSaleForm' icon='plus' /> */}
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
 }
 
 async function onDel(sale) {
-  if (!confirm(`בטוח למחוק מכירה של ${sale?.clientData} ?`)) return
+  if (!confirm(`בטוח למחוק דיל של ${sale?.clientData} ?`)) return
   //   await api(deleteSale, sale?.id, 'המכירה נמחקה בהצלחה')
 }
 

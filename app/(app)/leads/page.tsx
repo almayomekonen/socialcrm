@@ -1,5 +1,5 @@
 import { getUser } from '@/db/auth'
-import { getClientLists, getClientsTable } from '@/db/clients'
+import { getLeadLists, getLeadsTable } from '@/db/clients'
 import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import { Provider } from '@/lib/hooksNEvents'
@@ -14,8 +14,8 @@ export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
   const handlers = await getPerms(user)
-  const clients = await getClientsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds })
-  const clientLists = await getClientLists(user.id)
+  const clients = await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds })
+  const clientLists = await getLeadLists(user.id)
   return (
     <Provider
       props={{

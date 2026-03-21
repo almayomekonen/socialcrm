@@ -16,7 +16,7 @@ import { isPrdctsExists, insertSale } from '@/actions/saleForm'
 import ClientDataForm from './ClientDataForm'
 import Title from '@/lib/Title'
 import { isPayExist, isAmountHigh, isSameUser, hasSaleOnClient } from './funcs'
-import { SalesView } from '@/types/db/tables'
+import { DealsView } from '@/types/db/tables'
 import { api } from '@/lib/funcs'
 import { SubmitButton } from '@/lib/btns/SubmitBtn'
 import { omitOffice, omitOfficeExt } from '@/lib/funcs'
@@ -33,15 +33,15 @@ type Props = {
     allUsersNoOffice: any[]
     allUsers: any[]
   }
-  curSale?: SalesView
+  curSale?: DealsView 
   onClose: () => void
 }
 
 export default function SaleForm({ props, curSale, onClose }: Props) {
   const { user, officeGotPerm, allUsers } = props
 
-  const allAgents = omitOfficeExt(allUsers)
-  const allAgentsWithExt = omitOffice(allUsers)
+  const allReps = omitOfficeExt(allUsers)
+  const allRepsWithExt = omitOffice(allUsers)
 
   const [isAsignUser, setIsAsignUser] = useState(curSale?.action === 'הצטרפות')
   const [otherSource, setOtherSource] = useState(curSale?.leadSource && !leadSources.includes(curSale.leadSource))
@@ -68,11 +68,11 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
 
     if (!sale.users?.userId) return alert('שגיאה, יש לבחור נציג')
 
-    if (!sale.clientId) return alert('שגיאה, יש לבחור לקוח')
+    if (!sale.clientId) return alert('שגיאה, יש לבחור ליד')
 
     if (isPayExist(sale)) return alert('שגיאה, יש למלא סכום לפחות למוצר אחד')
 
-    if (isAmountHigh(sale.prdcts)) return alert('שגיאה, סכום המכירה גבוה מדי')
+    if (isAmountHigh(sale.prdcts)) return alert('שגיאה, סכום הדיל גבוה מדי')
 
     if (isSameUser(sale.users)) return alert('שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג')
 
@@ -121,8 +121,8 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
             <>
               <Collab
                 officeGotPerm={officeGotPerm}
-                allAgentsWithExt={allAgentsWithExt}
-                allAgents={allAgents}
+                allRepsWithExt={allRepsWithExt}
+                allReps={allReps}
                 user={user}
                 curSale={curSale}
               />
@@ -142,9 +142,9 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
             <>
               <SelectSearch
                 name='users.userId'
-                options={user.role === 'OFFICE' ? officeGotPerm : allAgents}
+                options={user.role === 'OFFICE' ? officeGotPerm : allReps}
                 placeholder='חיפוש נציג...'
-                lbl='נציג מכירות'
+                lbl='נציג'
                 className='w-52'
                 selected={getUserDefault(curSale, user, officeGotPerm)}
               />
@@ -238,7 +238,7 @@ export function getUserDefault(curSale, user, officeGotPerm) {
   else return user.role === 'OFFICE' ? officeGotPerm[0]?.id : user?.id
 }
 
-function PrdctComp({ i, isAsignUser, curSale }: { i: number; isAsignUser: boolean; curSale?: SalesView }) {
+function PrdctComp({ i, isAsignUser, curSale }: { i: number; isAsignUser: boolean; curSale?: DealsView }) {
   const curLists = isAsignUser ? prdctOptByBranchAsignUser[curSale?.branch] : prdctOptByBranch[curSale?.branch]
 
   const [prdct, setPrdct] = useState({

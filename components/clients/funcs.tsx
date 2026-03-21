@@ -1,4 +1,4 @@
-import { deleteClient } from '../../actions/clients'
+import { deleteLead } from '../../actions/clients'
 import { api } from '@/lib/funcs'
 import { Select } from '@/lib/form'
 import { checkedIds } from '@/lib/table/funcs'
@@ -18,7 +18,7 @@ export const getActions = () => ({
   //   func: onTransferSales,
   // },
 
-  'העברת לקוח לנציג אחר': {
+  'העברת ליד לנציג אחר': {
     func: () => {},
   },
 })
@@ -64,9 +64,9 @@ export function ActionsMenu({ id, children }) {
 // ------------------------------
 
 async function onDel(client) {
-  if (!confirm(`האם למחוק לקוח ${client.name} ?`)) return
-  const res = await api(deleteClient, client.id)
-  if (res?.err) return alert('לא ניתן למחוק לקוח עם מכירות, העבר את המכירות ללקוח אחר ונסה שוב')
+  if (!confirm(`האם למחוק ליד ${client.name} ?`)) return
+  const res = await api(deleteLead, client.id)
+  if (res?.err) return alert('לא ניתן למחוק ליד עם דילים, העבר את הדילים לליד אחר ונסה שוב')
 }
 
 async function onTransferSales(client) {

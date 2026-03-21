@@ -52,7 +52,7 @@ export default function TasksTable({ data, users, filter, user }) {
 
             <form onSubmit={onFilter} className='flex items-end gap-2'>
               <SelectTasksStatus defaultValue={filter.status} />
-              <SelectSearch lbl='סוכנים' name='userId' options={users} selected={filter.userId} className='w-52' />
+              <SelectSearch lbl='נציגים' name='userId' options={users} selected={filter.userId} className='w-52' />
               <div className='flex gap-0'>
                 <Btn className='rounded-e-none gap-4 px-6' type='submit' lbl='סינון' variant='outline' />
                 <Btn variant='outline' size='icon' icon='eraser' href='?' scroll={false} className='rounded-s-none border-s-0' />
@@ -62,7 +62,7 @@ export default function TasksTable({ data, users, filter, user }) {
 
           <div className='flex '>
             <ExportTable data={state} columns={columns} />
-            <Btn lbl='משימה חדשה' icon='plus' popoverTarget='chooseTaskTmplt' />
+            <Btn lbl='מעקב חדש' icon='plus' popoverTarget='chooseTaskTmplt' />
           </div>
         </div>
 
@@ -74,9 +74,9 @@ export default function TasksTable({ data, users, filter, user }) {
 }
 
 export const headers = [
-  { key: 'title', label: 'משימה', format: 'formatTitle' },
+  { key: 'title', label: 'מעקב', format: 'formatTitle' },
   { key: 'status', label: 'סטטוס' },
-  { key: 'clientName', label: 'לקוח' },
+  { key: 'clientName', label: 'ליד' },
   { key: 'completed', label: 'הושלם' },
   { key: 'userName', label: 'גורם מטפל' },
   { key: 'dueDate', label: 'תאריך יעד', format: 'isDatePassed' },

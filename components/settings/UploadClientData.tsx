@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import FileUploader from '@/components/files/FileUploader'
-import { addClients, uploadClientData } from '@/actions/clients'
+import { addLeads, uploadLeadData } from '@/actions/clients'
 
 export default function UploadClientData() {
   const [clients, setClients] = useState<Record<string, any>[]>()
@@ -11,11 +11,11 @@ export default function UploadClientData() {
   async function onChange(files: any[]) {
     const file = files[0]
     if (!file) return
-    const { data, wrongData } = await uploadClientData(file)
+    const { data, wrongData } = await uploadLeadData(file)
 
     setClients(data)
     setWrongClients(wrongData)
-    if (data.length) await addClients(data)
+    if (data.length) await addLeads(data)
   }
 
   return (

@@ -14,7 +14,7 @@ export default function FileForm({ clientId, tasks }) {
   async function onSubmit(e) {
     const data = getFormData2(e)
     data.files = JSON.parse(data.files)
-    if (!data.taskId) return alert('יש לבחור משימה')
+    if (!data.taskId) return alert('יש לבחור מעקב')
     if (!data.files.length) return alert('יש להעלות קבצים')
 
     api(addFilesToTask, [data, clientId])
@@ -25,14 +25,14 @@ export default function FileForm({ clientId, tasks }) {
       <Btn variant='sign' size='sign' className='absolute top-4 left-4' icon='circle-x' popoverTarget='filePopover' />
       <form onSubmit={onSubmit} className='space-y-4'>
         <Title lbl='הוספת קבצים חדשים' />
-        <p className='col-span-2 pt-4 py-1'> קישור למשימה:</p>
+        <p className='col-span-2 pt-4 py-1'> קישור למעקב:</p>
         <SelectSearch
           onSelectOpt={(task) => setTaskId(task.id)}
           name='taskId'
           options={tasks}
           show='title'
           val='id'
-          lbl='משימה'
+          lbl='מעקב'
           key={`tasks-${tasks.length}`}
         />
         <FileUploader tooltipClass='h-30' disabled={!taskId} path={`${clientId}/${taskId}`} clientId={clientId} taskId={taskId} />

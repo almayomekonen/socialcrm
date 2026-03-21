@@ -10,8 +10,8 @@ import TaskLists from '@/components/tasks/TaskLists'
 const AddTaskForm = dynamic(() => import('@/components/tasks/addTaskForm'))
 
 export const metadata: Metadata = {
-  title: 'משימות',
-  description: 'כל משימות הלקוחות',
+  title: 'מעקבים',
+  description: 'כל מעקבי הלידים',
 }
 
 export default async function TasksPage({ searchParams }) {
@@ -27,7 +27,7 @@ export default async function TasksPage({ searchParams }) {
 
   return (
     <div className='mb-8'>
-      <h1 className='title mb-2'>משימות</h1>
+      <h1 className='title mb-2'>מעקבים</h1>
       <TaskLists />
       <TasksTable user={user} key={Math.random()} data={tasks} users={users} filter={filter} />
       <Suspense>

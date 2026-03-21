@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { notesBtn, saleTableHeaders } from './saleHeaders'
-import { getSaleDataToExport, saveReward, updateSaleStatus } from '@/actions/salesTbl'
+import { getDealDataToExport, saveReward, updateDealStatus } from '@/actions/salesTbl'
 import { saveTblPref } from '@/actions/global'
 import { api } from '@/lib/funcs'
 import { redirect } from 'next/navigation'
@@ -15,7 +15,7 @@ import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './func
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import { searchClients } from '@/actions/clients'
+import { searchContacts } from '@/actions/clients'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
 
@@ -62,7 +62,7 @@ export default function SalesTable({ props }: SaleTableProps) {
         key={item.id}
         defaultValue={status}
         onChange={(e) => {
-          api(updateSaleStatus, [item.id, e.target.value], 'סטטוס עודכן בהצלחה')
+          api(updateDealStatus, [item.id, e.target.value], 'סטטוס עודכן בהצלחה')
           const sale = data.find((i) => i.id === item.id)
           sale.status = e.target.value
           if (e.target.value === 'הופק') sale.saleDt = new Date()
@@ -138,14 +138,14 @@ export default function SalesTable({ props }: SaleTableProps) {
       <div className='my-8 grid'>
         <div className='flex justify-between gap-4 items-end'>
           <div className='flex gap-3 items-end mb-2'>
-            <SelectSearch placeholder='חיפוש לקוח' show='details' searchFunc={searchClients} onSelectOpt={getSelectedClient} />
+            <SelectSearch placeholder='חיפוש ליד' show='details' searchFunc={searchContacts} onSelectOpt={getSelectedClient} />
             <GroupAction isFav={isFav} />
           </div>
 
           <div className='flex gap-2 items-end mb-2'>
             <ShowColumns config={config} />
-            <ExportTable dataToFetch={getSaleDataToExport} columns={columns} />
-            <Btn lbl='הוספת מכירה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} className='ms-4' />
+            <ExportTable dataToFetch={getDealDataToExport} columns={columns} />
+            <Btn lbl='הוספת דיל' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} className='ms-4' />
           </div>
         </div>
 

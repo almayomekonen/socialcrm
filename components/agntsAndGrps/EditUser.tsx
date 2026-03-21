@@ -28,7 +28,7 @@ export default function EditUser({ user, agnts, teams }) {
         const userHaveSales = await fetchIsUserHaveSales(user.id)
         if (userHaveSales) {
           return alert(`
-            לא ניתן להחליף את הנציג למתפעל, כיוון שיש לנציג מכירות. העבר את המכירות לנציג אחר ונסה שוב.
+            לא ניתן להחליף את הנציג למתפעל, כיוון שיש לנציג דילים. העבר את הדילים לנציג אחר ונסה שוב.
          `)
         }
       }
@@ -52,13 +52,13 @@ export default function EditUser({ user, agnts, teams }) {
     const userHaveSales = await fetchIsUserHaveSales(user?.id)
     if (userHaveSales) {
       return alert(`
-      המשתמש ${user.name} לא נמחק, מכיוון שיש מכירות על שמו.
-      מחק את המכירות
+      המשתמש ${user.name} לא נמחק, מכיוון שיש דילים על שמו.
+      מחק את הדילים
       או העבר אותם לנציג אחר
       ונסה שוב`)
     }
 
-    await api(deleteUser, user?.id, null, 'לא ניתן למחוק את הנציג כי מקושרים אליו לקוחות')
+    await api(deleteUser, user?.id, null, 'לא ניתן למחוק את הנציג כי מקושרים אליו לידים')
   }
 
   const isExtOrOffice = [Roles.OFFICE, Roles.EXT].includes(role)
@@ -69,7 +69,7 @@ export default function EditUser({ user, agnts, teams }) {
         <Title lbl={`${user?.name || 'הוספת משתמש'}`} icon='user' />
         <div className='flex gap-2 flex-nowrap'>
           {user?.id && role !== 'OFFICE' && (
-            <Btn variant='outline' size='icon' title='העברת מכירות לנציג אחר' icon='right-left' popoverTarget='transferSales' />
+            <Btn variant='outline' size='icon' title='העברת דילים לנציג אחר' icon='right-left' popoverTarget='transferSales' />
           )}
           {user?.id && <Btn variant='outline' size='icon' icon='trash' onClick={onDelete} />}
         </div>

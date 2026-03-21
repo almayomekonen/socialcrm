@@ -216,7 +216,7 @@ export interface DefaultSettings {
   isRiskMutzarKayam: boolean
   isMahalotKashotMutzarKayam: boolean
 }
-export interface Client {
+export interface Lead {
   id: number
   firstName: string
   lastName: string
@@ -245,7 +245,7 @@ export interface Client {
   lead: boolean
 }
 
-export interface ClientsInfo {
+export interface LeadInfo {
   id: number
   idFiles: number[] | null
   countryOfBirth: string | null
@@ -322,7 +322,7 @@ export interface Bituchim {
   updatedAt: Date
 }
 
-export interface Sale {
+export interface Deal {
   id?: number
   status?: string
   action?: string | null
@@ -351,7 +351,7 @@ export interface Sale {
   agencyId?: number
 }
 
-export interface SaleUsers {
+export interface DealUsers {
   id: number
   saleId: number
   userId: number
@@ -379,12 +379,12 @@ export interface CmsnRule {
   agencyId: number
 }
 
-export interface DeletedSale {
+export interface DeletedDeal {
   id: number
   createdAt: Date | null
   updatedAt: Date | null
   deletedById: number
-  sale: Json // contains the full sale object as JSON
+  sale: Json // contains the full deal object as JSON
 }
 
 export interface Promo {
@@ -405,7 +405,7 @@ export interface Promo {
   agencyId: number
 }
 
-export interface ClientList {
+export interface LeadList {
   id: number
   userId: number
   title: string
@@ -484,7 +484,7 @@ export interface AllUsersView {
   suspended: boolean | null
 }
 
-export interface FlatSalesView {
+export interface FlatDealsView {
   userId: number | null
   name: string | null
   cmsn: number | null
@@ -516,7 +516,7 @@ export interface TeamsView {
   offices: { id: number; name: string }[] | null
 }
 
-export interface SalesView {
+export interface DealsView {
   id: number
   offrDt: Date
   clientData: string | null

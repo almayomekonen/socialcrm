@@ -58,7 +58,7 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
         <p style="color: #d63384; font-size: 14px; text-align: center;">הקישור יפוג בעוד 7 ימים.</p>
       </div>
       <div style="text-align: center; padding: 15px; border-top: 1px solid #eee; background: #f8f9fa;">
-        <p style="margin: 0; color: #666; font-size: 12px;">מערכת ניהול מכירות ALLIN</p>
+        <p style="margin: 0; color: #666; font-size: 12px;">SocialCRM</p>
       </div>
     </div>
   `,

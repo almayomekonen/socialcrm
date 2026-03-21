@@ -9,6 +9,7 @@ export default async function SettingLayout({ children }) {
     <div className='px-4 grid grid-cols-[auto_1fr] gap-12 mobile:grid-cols-1 mobile:gap-4'>
       <div className='sticky mt-8 grid gap-1 h-fit max-w-52 mobile:max-w-full'>
         <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
+        <SettingsLink href='/settings/facebook' icon='facebook' title='חיבור פייסבוק' />
 
         {user.role == 'ADMIN' && (
           <>
@@ -18,7 +19,7 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/edit_promotions' icon='trophy-star' title='קמפיינים' />
             <SettingsLink href='/settings/calc_commission' icon='calculator' title='חישוב עמלות' />
             <SettingsLink href='/settings/edit_contracts' icon='file-contract' title='הסכמי עמלה' />
-            <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
+            <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות מעקב' />
             <Seperator className='my-2' />
             <SettingsLink href='/settings/update_agency' icon='diamond' title='פרטי העסק' />
             <SettingsLink href='/settings/update_user_details' icon='user' title='פרטי נציג' />

@@ -2,7 +2,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { Input } from '@/lib/form'
 import { getFormData2 } from '@/lib/form/funcs'
 import Title from '@/lib/Title'
-import { deleteClientList, upsertClientList } from '../../actions/clients'
+import { deleteLeadList, upsertLeadList } from '../../actions/clients'
 import { useUser } from '@/lib/hooksNEvents'
 import { useProps } from '@/lib/hooksNEvents'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
@@ -15,11 +15,11 @@ export default function ListForm() {
 
   async function onSubmit(e) {
     const data = getFormData2(e) as any
-    if (!data?.clientIds || data.clientIds.length === 0) return toast('error', 'יש לבחור לקוחות')
+    if (!data?.clientIds || data.clientIds.length === 0) return toast('error', 'יש לבחור לידים')
 
     data.id = selectedList?.id
 
-    await upsertClientList(user.id, data)
+    await upsertLeadList(user.id, data)
     toast('success')
   }
 
@@ -28,7 +28,7 @@ export default function ListForm() {
       <form onSubmit={onSubmit}>
         <div className='flex justify-between items-center'>
           <Title lbl={selectedList ? 'עריכת רשימה' : 'יצירת רשימה חדשה'} />
-          {selectedList && <Btn variant='outline' size='icon' icon='trash' onClick={() => deleteClientList(selectedList.id)} />}
+          {selectedList && <Btn variant='outline' size='icon' icon='trash' onClick={() => deleteLeadList(selectedList.id)} />}
         </div>
 
         <div className='py-4'>
@@ -37,7 +37,7 @@ export default function ListForm() {
             name='clientIds'
             options={clients}
             placeholder='חיפוש'
-            lbl='בחר לקוחות'
+            lbl='בחר לידים'
             selected={selectedList?.clientIds}
             key={Math.random()}
           />

@@ -3,11 +3,11 @@ import { isAdmin } from '@/types/roles'
 import { getAgencyId } from './agencies'
 import { getPerms } from './filter'
 import { filesJsonAgg } from './helpers/aggregations'
-import { Client, ClientsInfo } from '@/types/db/tables'
+import { Lead, LeadInfo } from '@/types/db/tables'
 
-export type ClientKey = keyof Client | keyof ClientsInfo
+export type LeadKey = keyof Lead | keyof LeadInfo
 
-export async function getFullClient({ id, select }: { id: number; select?: ClientKey[] }) {
+export async function getFullLead({ id, select }: { id: number; select?: LeadKey[] }) {
   let query = db('clients as c').join('clients_info as ci', 'c.id', 'ci.id').where('c.id', id)
 
   const columnsToSelect = select ? select.filter((col) => col !== 'idFiles') : ['c.*', 'ci.*']
@@ -20,14 +20,14 @@ export async function getFullClient({ id, select }: { id: number; select?: Clien
       .select(
         db.raw(`
        ${filesJsonAgg} AS "idFiles"
-      `)
+      `),
       )
       .groupBy('c.id', 'ci.id')
   }
 
-  const client = await query.first()
+  const lead = await query.first()
 
-  return client ? { ...client, id: id } : undefined
+  return lead ? { ...lead, id: id } : undefined
 }
 
 export async function getFamMembers(clientId) {
@@ -41,7 +41,7 @@ export async function getFamMembers(clientId) {
   return { famMembers, familyId }
 }
 
-export async function getClientsByUser(user) {
+export async function getLeadsByRep(user) {
   const { gotPermIds } = await getPerms(user)
 
   const res = await db('clients').select('id', 'details').whereIn('userId', gotPermIds)
@@ -49,11 +49,11 @@ export async function getClientsByUser(user) {
   return res
 }
 
-export async function getClientLists(userId) {
+export async function getLeadLists(userId) {
   return await db('client_lists').where({ userId })
 }
 
-export async function getClientsTable({ user, params, leads = false, gotPermIds }) {
+export async function getLeadsTable({ user, params, leads = false, gotPermIds }) {
   const agencyId = await getAgencyId()
 
   let { filter, listId, pageNum, tableLimit, clientId } = params
@@ -85,7 +85,7 @@ export async function getClientsTable({ user, params, leads = false, gotPermIds 
   return res
 }
 
-export async function getClientNameByIdNum(idNum) {
+export async function getLeadNameByIdNum(idNum) {
   const agencyId = await getAgencyId()
   const res = await db('clients').where('idNum', idNum).where('agencyId', agencyId).select('name').first()
   return res?.name

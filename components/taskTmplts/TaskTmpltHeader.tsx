@@ -40,7 +40,7 @@ export default function TaskTmpltHeader({ taskTmplt }: TaskTmpltHeaderProps) {
 
 function HeaderPopMenu({ taskTmplt, render }) {
   function onDelete() {
-    if (!confirm(`האם ברצנוך למחוק את תבנית המשימה "${taskTmplt.title}"?`)) return
+    if (!confirm(`האם ברצנוך למחוק את תבנית המעקב "${taskTmplt.title}"?`)) return
     // delete task template
     deleteTaskTmplt(taskTmplt)
     render()

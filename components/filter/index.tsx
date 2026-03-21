@@ -12,7 +12,7 @@ import { omitOffice } from '@/lib/funcs'
 import { Route } from 'next'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import { getFormData2 } from '@/lib/form/funcs'
-import { searchClients } from '@/actions/clients'
+import { searchContacts } from '@/actions/clients'
 
 type Props = {
   props: {
@@ -93,12 +93,12 @@ export default function Filter({ props }: Props) {
             <div className='col-span-2'>
               <MultiSelectSearch
                 selected={rawFilter.clientIds}
-                searchFunc={searchClients}
+                searchFunc={searchContacts}
                 selectedShow={rawFilter.clientNames}
                 name='clientIds'
                 returnShow='clientNames'
                 show='details'
-                lbl='לקוחות'
+                lbl='לידים'
               />
             </div>
           )}

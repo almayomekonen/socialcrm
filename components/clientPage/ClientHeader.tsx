@@ -49,7 +49,7 @@ export default function ClientHeader({ client, user, handlerName, family, client
           <p>{client.phone}</p>
           {handlerName && (
             <div className='flex items-end gap-2'>
-              <h2>אחראי לקוח:</h2>
+              <h2>אחראי ליד:</h2>
               <p className='font-bold'>{handlerName}</p>
             </div>
           )}

@@ -52,7 +52,7 @@ export default function TaskTmpltStepper({ tasks, taskTmpltIdProp }) {
         </button>
       </div>
       {crntTask && (
-        <Btn variant='outline' lbl='תת-משימה' icon='plus' className='my-1' size='small' popoverTarget='subTaskFormTmplt' />
+        <Btn variant='outline' lbl='תת-מעקב' icon='plus' className='my-1' size='small' popoverTarget='subTaskFormTmplt' />
       )}
       <div className='max-h-72 h-72 overflow-y-auto ' key={crntTask?.title}>
         {crntTask &&
@@ -127,7 +127,7 @@ function ChecklistItem({ subtask, tasks, ...props }) {
 
 function StepMenuPop({ tasks, render }) {
   function onDelete() {
-    if (!confirm(`האם למחוק את המשימה "${editTask?.title}"?`)) return
+    if (!confirm(`האם למחוק את המעקב "${editTask?.title}"?`)) return
     // delete task
     tasks.splice(tasks.indexOf(editTask), 1)
     render()
@@ -157,7 +157,7 @@ function StepMenuPop({ tasks, render }) {
 
 function SubTaskMenuPop({ tasks, render }) {
   function onDelete() {
-    if (!confirm(`האם למחוק את המשימה "${editSubTask?.title}"?`)) return
+    if (!confirm(`האם למחוק את המעקב "${editSubTask?.title}"?`)) return
     // delete task
     crntTask.subTasks.splice(crntTask.subTasks.indexOf(editSubTask), 1)
     render()
@@ -228,7 +228,7 @@ function SubTaskFormPop({ tasks, render }) {
 
   return (
     <div popover='auto' id='subTaskFormTmplt' className='pop p-4'>
-      <Input lbl='כותרת תת-המשימה' defaultValue={editSubTask?.title} id='subTaskTitleTmplt' />
+      <Input lbl='כותרת תת-המעקב' defaultValue={editSubTask?.title} id='subTaskTitleTmplt' />
       <Input as='textarea' lbl='תיאור' defaultValue={editSubTask?.desc} id='subTaskDescTmplt' rows={3} />
       <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
     </div>

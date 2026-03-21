@@ -8,7 +8,7 @@ import { isIdNumValid } from '@/lib/funcs'
 import * as XLSX from 'xlsx'
 import { requireUser } from '@/lib/requireUser'
 
-export async function deleteClient(clientId) {
+export async function deleteLead(clientId) {
   await requireUser()
   const res = await db('sales').where('clientId', clientId).first()
   if (res) {
@@ -20,29 +20,31 @@ export async function deleteClient(clientId) {
   revalidatePath('/clients')
 }
 
-export async function upsertClient(userId, data, clientId, revalidate = true) {
-  await requireUser()
+export async function upsertLead(userId, data, clientId, revalidate = true) {
+  if (!data._system) await requireUser()
+  const isSystem = data._system
+  delete data._system
   try {
-    let client = null
+    let lead = null
 
     if (clientId) {
-      client = (await db('clients').where({ id: clientId }).update(data).returning('*'))[0]
+      lead = (await db('clients').where({ id: clientId }).update(data).returning('*'))[0]
     } else {
-      data.agencyId = await getAgencyId()
+      if (!isSystem) data.agencyId = await getAgencyId()
       data.createdById = userId
-      client = (await db('clients').insert(data).returning('*'))[0]
+      lead = (await db('clients').insert(data).returning('*'))[0]
     }
 
     if (revalidate) revalidatePath('/clients')
 
-    return client
+    return lead
   } catch (error) {
     console.error(error)
     return { err: true, msg: 'שגיאה בשמירת לקוח' }
   }
 }
 
-export async function upsertClientList(userId, data) {
+export async function upsertLeadList(userId, data) {
   await requireUser()
   if (data.id) await db('client_lists').where({ id: data.id }).update(data)
   else await db('client_lists').insert({ userId, ...data })
@@ -50,26 +52,26 @@ export async function upsertClientList(userId, data) {
   revalidatePath('/clients')
 }
 
-export async function deleteClientList(id) {
+export async function deleteLeadList(id) {
   await requireUser()
   await db('client_lists').where({ id }).delete()
 
   revalidatePath('/clients')
 }
 
-export async function transferSalesToClient(fromClientId, toClientId) {
+export async function transferDealsToLead(fromClientId, toClientId) {
   await requireUser()
   await db('sales').where('clientId', fromClientId).update({ clientId: toClientId })
   revalidatePath('/clients')
 }
 
-export async function transferClientToUser(clientId, userId) {
+export async function transferLeadToRep(clientId, userId) {
   await requireUser()
   await db('clients').where('id', clientId).update({ userId })
   revalidatePath('/clients')
 }
 
-async function searchClientsBase(val, isLead) {
+async function searchBase(val, isLead) {
   const terms = val.split(' ').filter((term) => term)
 
   const query = db('clients')
@@ -101,15 +103,15 @@ async function searchClientsBase(val, isLead) {
   return res
 }
 
-export async function searchClients(val) {
-  return searchClientsBase(val, false)
+export async function searchContacts(val) {
+  return searchBase(val, false)
 }
 
 export async function searchLeads(val) {
-  return searchClientsBase(val, true)
+  return searchBase(val, true)
 }
 
-export async function getClientById(clientId) {
+export async function getLeadById(clientId) {
   const res = await db('clients')
     .where('id', clientId)
     .first()
@@ -117,7 +119,7 @@ export async function getClientById(clientId) {
   return res
 }
 
-export async function updateClient(data) {
+export async function updateLead(data) {
   await requireUser()
   const res = await db('clients')
     .where({ id: data.id })
@@ -128,7 +130,7 @@ export async function updateClient(data) {
   return res
 }
 
-export async function getClientByIdNum(idNum: string) {
+export async function getLeadByIdNum(idNum: string) {
   const agencyId = await getAgencyId()
 
   const res = await db('clients')
@@ -138,7 +140,7 @@ export async function getClientByIdNum(idNum: string) {
   return res
 }
 
-export async function uploadClientData(file) {
+export async function uploadLeadData(file) {
   const fileStream = file.stream()
   const chunks = []
 
@@ -180,15 +182,15 @@ export async function uploadClientData(file) {
   return { data: mappedData, wrongData: mappedCancelData }
 }
 
-export async function addClients(clients) {
+export async function addLeads(leads) {
   const { id: userId } = await getUser()
   const agencyId = await getAgencyId()
-  const formatClients = clients.map((client) => {
+  const formatLeads = leads.map((lead) => {
     return {
       createdById: userId,
       handlerId: userId,
       userId,
-      ...client,
+      ...lead,
       agencyId,
     }
   })
@@ -197,15 +199,15 @@ export async function addClients(clients) {
     .select('idNum')
     .whereIn(
       'idNum',
-      formatClients.map((client) => client.idNum),
+      formatLeads.map((lead) => lead.idNum),
     )
-  const newClients = formatClients.filter((client) => !existingIdNums.some((idNum) => idNum.idNum === client.idNum))
+  const newLeads = formatLeads.filter((lead) => !existingIdNums.some((idNum) => idNum.idNum === lead.idNum))
 
-  await db('clients').insert(newClients)
+  await db('clients').insert(newLeads)
 }
 
-export async function getClientSales(clientId) {
+export async function getLeadDeals(clientId) {
   await requireUser()
-  const sales = await db('_sales').where('clientId', clientId)
-  return sales
+  const deals = await db('_sales').where('clientId', clientId)
+  return deals
 }

@@ -79,7 +79,7 @@ export default function TaskStepper({ task, initIndex }: Props) {
           />
         ))}
         {crntTask && (
-          <Btn variant='outline' lbl='תת-משימה' icon='plus' className='my-2' size='small' popoverTarget='subTaskForm' />
+          <Btn variant='outline' lbl='תת-מעקב' icon='plus' className='my-2' size='small' popoverTarget='subTaskForm' />
         )}
       </div>
 
@@ -157,7 +157,7 @@ function ChecklistItem({ crntTask, subtask, tasks, ...props }: ChecklistItemProp
 
 function StepMenuPop({ tasks, render }: { tasks: TaskItem[]; render: () => void }) {
   function onDelete() {
-    if (!confirm(`האם למחוק את המשימה "${editTask?.title}"?`)) return
+    if (!confirm(`האם למחוק את המעקב "${editTask?.title}"?`)) return
     // delete task
     tasks.splice(tasks.indexOf(editTask), 1)
     render()
@@ -187,7 +187,7 @@ function StepMenuPop({ tasks, render }: { tasks: TaskItem[]; render: () => void 
 
 function SubTaskMenuPop({ crntTask, render }: { crntTask: TaskItem; render: () => void }) {
   function onDelete() {
-    if (!confirm(`האם למחוק את המשימה "${editSubTask?.title}"?`)) return
+    if (!confirm(`האם למחוק את המעקב "${editSubTask?.title}"?`)) return
     // delete task
     crntTask.subTasks.splice(crntTask.subTasks.indexOf(editSubTask), 1)
     render()
