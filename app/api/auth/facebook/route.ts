@@ -18,12 +18,14 @@ export async function GET(req: NextRequest) {
   })
 
   const params = new URLSearchParams({
-    client_id: process.env.FACEBOOK_APP_ID!,
-    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/facebook/callback`,
-    scope: 'email,public_profile',
+    client_id: process.env.META_APP_ID!,
+    redirect_uri: process.env.META_REDIRECT_URI!,
+    scope: 'pages_show_list,pages_read_engagement,pages_manage_metadata,leads_retrieval',
     state,
     response_type: 'code',
   })
+
+  console.log('[FacebookOAuth] Redirecting to OAuth dialog — appId:', process.env.META_APP_ID, 'redirectUri:', process.env.META_REDIRECT_URI)
 
   return NextResponse.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`)
 }

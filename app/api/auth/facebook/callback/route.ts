@@ -30,9 +30,11 @@ export async function GET(req: NextRequest) {
 
   if (!code) return failed(req, 'no_code')
 
-  const appId = process.env.FACEBOOK_APP_ID!
-  const appSecret = process.env.FACEBOOK_APP_SECRET!
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/facebook/callback`
+  const appId = process.env.META_APP_ID!
+  const appSecret = process.env.META_APP_SECRET!
+  const redirectUri = process.env.META_REDIRECT_URI!
+
+  console.log('[FacebookOAuth] Callback received — code present:', !!code, 'appId:', appId, 'redirectUri:', redirectUri)
 
   // Step 1: Exchange code for short-lived user token
   let shortToken: string
