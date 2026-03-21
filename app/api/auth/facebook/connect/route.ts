@@ -56,6 +56,17 @@ export async function POST(req: NextRequest) {
       console.error(`[FacebookConnect] Page subscription failed [pageId=${pageId}]:`, await res.text())
     } else {
       console.log(`[FacebookConnect] Page subscribed to leadgen [pageId=${pageId}]`)
+
+      // Verify subscription is active
+      try {
+        const verifyRes = await fetch(
+          `https://graph.facebook.com/v18.0/${pageId}/subscribed_apps?access_token=${pageAccessToken}`,
+        )
+        const verifyData = await verifyRes.json()
+        console.log(`[FacebookConnect] Active subscriptions [pageId=${pageId}]:`, JSON.stringify(verifyData))
+      } catch (verifyErr) {
+        console.warn(`[FacebookConnect] Subscription verify threw [pageId=${pageId}]:`, verifyErr)
+      }
     }
   } catch (err) {
     console.error(`[FacebookConnect] Page subscription threw [pageId=${pageId}]:`, err)

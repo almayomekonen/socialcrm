@@ -18,7 +18,9 @@
     "test.codegen": "playwright codegen --project=ADMIN http://localhost:3000",
     "migrate": "knex --knexfile knexfile.cjs migrate:latest",
     "migrate:rollback": "knex --knexfile knexfile.cjs migrate:rollback",
-    "migrate:make": "knex --knexfile knexfile.cjs migrate:make"
+    "migrate:make": "knex --knexfile knexfile.cjs migrate:make",
+    "db:migrate": "node scripts/migrate.cjs",
+    "db:migrate:prod": "DATABASE_URL=$PROD_DATABASE_URL node scripts/migrate.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
