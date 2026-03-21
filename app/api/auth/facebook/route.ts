@@ -20,12 +20,17 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    scope: 'pages_show_list,pages_read_engagement,pages_manage_metadata,leads_retrieval',
+    scope: 'public_profile',
     state,
     response_type: 'code',
   })
 
-  console.log('[FacebookOAuth] Redirecting to OAuth dialog — appId:', process.env.META_APP_ID, 'redirectUri:', process.env.META_REDIRECT_URI)
+  console.log(
+    '[FacebookOAuth] Redirecting to OAuth dialog — appId:',
+    process.env.META_APP_ID,
+    'redirectUri:',
+    process.env.META_REDIRECT_URI,
+  )
 
   return NextResponse.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`)
 }
