@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   let shortToken: string
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`,
+      `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`,
     )
     if (!res.ok) {
       console.error('[FacebookOAuth] Short token exchange failed:', await res.text())
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   let longToken: string
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`,
+      `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`,
     )
     if (!res.ok) {
       console.error('[FacebookOAuth] Long token exchange failed:', await res.text())
@@ -64,6 +64,12 @@ export async function GET(req: NextRequest) {
     }
     const data = await res.json()
     longToken = data.access_token
+    // Inspect what scopes this token actually has
+    const debugRes = await fetch(
+      `https://graph.facebook.com/v19.0/debug_token?input_token=${longToken}&access_token=${appId}|${appSecret}`,
+    )
+    const debugData = await debugRes.json()
+    console.log('[FacebookOAuth] Token debug:', JSON.stringify(debugData?.data ?? debugData))
   } catch (err) {
     console.error('[FacebookOAuth] Long token exchange threw:', err)
     return failed(req, 'token')
