@@ -36,7 +36,6 @@ export async function GET(req: NextRequest) {
 
   console.log('[FacebookOAuth] Callback received — code present:', !!code, 'appId:', appId, 'redirectUri:', redirectUri)
 
-  // Step 1: Exchange code for short-lived user token
   let shortToken: string
   try {
     const res = await fetch(
@@ -54,7 +53,6 @@ export async function GET(req: NextRequest) {
     return failed(req, 'token')
   }
 
-  // Step 2: Exchange short-lived token for long-lived token (~60 days)
   let longToken: string
   try {
     const res = await fetch(
@@ -71,34 +69,48 @@ export async function GET(req: NextRequest) {
     return failed(req, 'token')
   }
 
-  // Step 3: Fetch user's pages (page tokens derived from long-lived token don't expire)
-  let pages: { id: string; name: string; access_token: string }[]
-  try {
-    const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${longToken}&fields=id,name,access_token`)
-    if (!res.ok) {
-      console.error('[FacebookOAuth] Fetch pages failed:', await res.text())
-      return failed(req, 'pages')
+  let pages: { id: string; name: string; access_token: string }[] = []
+
+  if (process.env.META_PAGE_ID) {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${process.env.META_PAGE_ID}?fields=id,name,access_token&access_token=${longToken}`,
+      )
+      const page = await res.json()
+      console.log('[FacebookOAuth] PAGE DATA:', JSON.stringify(page))
+      if (res.ok && page.access_token) {
+        pages = [{ id: page.id, name: page.name, access_token: page.access_token }]
+      } else {
+        console.error('[FacebookOAuth] Direct page fetch did not return access_token:', JSON.stringify(page))
+      }
+    } catch (err) {
+      console.error('[FacebookOAuth] Direct page fetch threw:', err)
     }
-    const data = await res.json()
-    console.log('[FacebookOAuth] /me/accounts raw response:', JSON.stringify(data))
-    pages = data.data ?? []
-  } catch (err) {
-    console.error('[FacebookOAuth] Fetch pages threw:', err)
-    return failed(req, 'pages')
+  }
+
+  // Fallback to /me/accounts when META_PAGE_ID is not set or direct fetch failed
+  if (pages.length === 0) {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/me/accounts?access_token=${longToken}&fields=id,name,access_token`,
+      )
+      const data = await res.json()
+      console.log('[FacebookOAuth] /me/accounts response:', JSON.stringify(data))
+      if (res.ok) {
+        pages = data.data ?? []
+      } else {
+        console.error('[FacebookOAuth] /me/accounts failed:', JSON.stringify(data))
+      }
+    } catch (err) {
+      console.error('[FacebookOAuth] /me/accounts threw:', err)
+    }
   }
 
   if (pages.length === 0) {
-    // Most common cause: page is managed via Business Manager only, not as a direct personal admin.
-    // Fix: add yourself as a direct admin on the Page (Page Settings → Page Access → Add New).
-    console.warn(
-      '[FacebookOAuth] /me/accounts returned 0 pages for userId:',
-      user.id,
-      '— likely cause: page is managed through Business Manager only, not a direct personal admin',
-    )
+    console.warn('[FacebookOAuth] No page access token found for userId:', user.id)
     return failed(req, 'no_pages')
   }
 
-  // Store pages in encrypted short-lived cookie — userId bound to prevent session swap attacks
   const encrypted = await encrypt({ pages, userId: user.id })
   cookieStore.set('fb_pages', encrypted, {
     httpOnly: true,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser, encrypt } from '@/db/auth'
+import { getUser } from '@/db/auth'
 import { cookies } from 'next/headers'
 
 export async function GET(req: NextRequest) {
@@ -20,9 +20,10 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    scope: 'pages_show_list,pages_read_engagement',
+    scope: 'pages_show_list,pages_read_engagement,pages_manage_metadata,leads_retrieval',
     state,
     response_type: 'code',
+    auth_type: 'rerequest',
   })
 
   console.log(
