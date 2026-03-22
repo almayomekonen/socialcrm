@@ -51,8 +51,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    // REAL_TEST_ leads: skip Graph API, inject mock field_data to validate full pipeline
+    if (leadId.startsWith('REAL_TEST_')) {
+      console.log(`[FacebookWebhook] Real test lead — injecting mock field_data for leadId=${leadId}`)
+      const connection = await db('facebook_pages').where({ page_id: pageId }).first()
+      if (!connection) {
+        console.warn(`[FacebookWebhook] No DB connection for pageId=${pageId}`)
+        return NextResponse.json({ ok: true })
+      }
+      const mockFieldData = [
+        { name: 'full_name', values: ['Test User'] },
+        { name: 'email', values: ['test@example.com'] },
+        { name: 'phone_number', values: ['0501234567'] },
+      ]
+      console.log(`[FacebookWebhook] Mock field_data:`, JSON.stringify(mockFieldData))
+      const { firstName, lastName, phone, email } = parseFacebookLead(mockFieldData)
+      const lead = await createLeadFromWebhook({
+        firstName,
+        lastName,
+        phone,
+        email,
+        leadId,
+        agencyId: connection.agency_id,
+        userId: connection.user_id,
+      })
+      console.log(lead ? `[FacebookWebhook] Test lead created — id=${lead.id}` : `[FacebookWebhook] Test lead skipped (dedup)`)
+      return NextResponse.json({ ok: true })
+    }
+
     // Step 1: Early idempotency check — skip Graph API call if lead already exists
-    const existing = await db('clients').where({ leadSource: `facebook:${leadId}` }).first()
+    const existing = await db('clients')
+      .where({ leadSource: `facebook:${leadId}` })
+      .first()
     if (existing) {
       console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Already exists (id=${existing.id}) — skipping`)
       return NextResponse.json({ ok: true })
