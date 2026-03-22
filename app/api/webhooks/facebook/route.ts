@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
 
 // POST — incoming lead notification from Meta
 export async function POST(req: NextRequest) {
-  // Guard 1: safe JSON parsing
   let body: any
   try {
     body = await req.json()
@@ -30,9 +29,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  console.log('[FacebookWebhook] Raw payload:', JSON.stringify(body))
-
-  // Guard 2: validate payload structure before deep access
   if (!body?.entry?.[0]?.changes?.[0]?.value) {
     console.warn('[FacebookWebhook] Invalid payload structure')
     return NextResponse.json({ ok: true })
@@ -40,21 +36,40 @@ export async function POST(req: NextRequest) {
 
   try {
     const leadId: string | undefined = body.entry[0].changes[0].value.leadgen_id
-    if (!leadId) {
-      console.warn('[FacebookWebhook] No leadgen_id in payload — ignoring')
+    const pageId: string | undefined = body.entry[0].id
+
+    console.log(`[FacebookWebhook] Received — leadId=${leadId}, pageId=${pageId}`)
+
+    if (!leadId || !pageId) {
+      console.warn(`[FacebookWebhook] Missing leadId or pageId — ignoring`)
       return NextResponse.json({ ok: true })
     }
 
-    // Fetch full lead data from Meta Graph API with 6s timeout
+    // Step 1: Early idempotency check — skip Graph API call if lead already exists
+    const existing = await db('clients').where({ leadSource: `facebook:${leadId}` }).first()
+    if (existing) {
+      console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Already exists (id=${existing.id}) — skipping`)
+      return NextResponse.json({ ok: true })
+    }
+
+    // Step 2: Resolve page connection — must exist before any Graph API call
+    const connection = await db('facebook_pages').where({ page_id: pageId }).first()
+    if (!connection) {
+      console.warn(`[FacebookWebhook] No DB connection for pageId=${pageId} — ignoring leadId=${leadId}`)
+      return NextResponse.json({ ok: true })
+    }
+
+    console.log(`[FacebookWebhook][routing][leadId=${leadId}] Resolved — pageId=${pageId}, userId=${connection.user_id}`)
+
+    // Step 3: Fetch lead field_data with the correct page access token — single call
     let metaData: any
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 6000)
-
       let metaRes: Response
       try {
         metaRes = await fetch(
-          `https://graph.facebook.com/v18.0/${leadId}?fields=field_data&access_token=${process.env.META_PAGE_ACCESS_TOKEN}`,
+          `https://graph.facebook.com/v19.0/${leadId}?fields=field_data&access_token=${connection.page_access_token}`,
           { signal: controller.signal },
         )
       } finally {
@@ -62,8 +77,10 @@ export async function POST(req: NextRequest) {
       }
 
       if (!metaRes!.ok) {
-        const text = await metaRes!.text()
-        console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}, body:`, text)
+        console.error(
+          `[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}`,
+          await metaRes!.text(),
+        )
         return NextResponse.json({ ok: true })
       }
 
@@ -78,68 +95,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    if (!metaData?.field_data) {
-      console.warn(`[FacebookWebhook][fetch][leadId=${leadId}] No field_data in Meta response — ignoring`)
+    if (!Array.isArray(metaData?.field_data) || metaData.field_data.length === 0) {
+      console.warn(`[FacebookWebhook][fetch][leadId=${leadId}] field_data missing or empty — ignoring`)
       return NextResponse.json({ ok: true })
     }
 
-    // Resolve userId, agencyId, and page token — prefer DB lookup over global env vars
-    const pageId: string | undefined = body.entry[0].id
-    let agencyId: number
-    let userId: number
-    let pageAccessToken: string
+    // Step 4: Parse and create lead
+    const { firstName, lastName, phone, email } = parseFacebookLead(metaData.field_data)
 
-    const connection = pageId ? await db('facebook_pages').where({ page_id: pageId }).first() : null
+    const lead = await createLeadFromWebhook({
+      firstName,
+      lastName,
+      phone,
+      email,
+      leadId,
+      agencyId: connection.agency_id,
+      userId: connection.user_id,
+    })
 
-    if (connection) {
-      agencyId = connection.agency_id
-      userId = connection.user_id
-      pageAccessToken = connection.page_access_token
-      console.log(`[FacebookWebhook][routing][leadId=${leadId}] Routed via DB — pageId=${pageId}, userId=${userId}`)
-    } else {
-      // Fallback to env vars for accounts not yet migrated to per-user connections
-      agencyId = Number(process.env.META_AGENCY_ID)
-      userId = Number(process.env.META_DEFAULT_USER_ID)
-      pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN ?? ''
-      if (!agencyId || !userId) {
-        console.error(
-          `[FacebookWebhook][create][leadId=${leadId}] No DB connection for pageId=${pageId} and env fallback vars are missing`,
-        )
-        return NextResponse.json({ ok: true })
-      }
-      console.log(`[FacebookWebhook][routing][leadId=${leadId}] Routed via env fallback — pageId=${pageId}`)
-    }
-
-    // Re-fetch lead data using the resolved page token if it differs from the global env token
-    // (already fetched above using META_PAGE_ACCESS_TOKEN — re-fetch only when using per-user token)
-    let resolvedMetaData = metaData
-    if (connection) {
-      try {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 6000)
-        let refetchRes: Response
-        try {
-          refetchRes = await fetch(
-            `https://graph.facebook.com/v18.0/${leadId}?fields=field_data&access_token=${pageAccessToken}`,
-            { signal: controller.signal },
-          )
-        } finally {
-          clearTimeout(timeout)
-        }
-        if (refetchRes!.ok) {
-          resolvedMetaData = await refetchRes!.json()
-        }
-      } catch (refetchErr) {
-        console.warn(
-          `[FacebookWebhook][refetch][leadId=${leadId}] Refetch with page token failed, using original data:`,
-          refetchErr,
-        )
-      }
-    }
-
-    const { firstName, lastName, phone, email } = parseFacebookLead(resolvedMetaData.field_data ?? metaData.field_data)
-
-    const lead = await createLeadFromWebhook({ firstName, lastName, phone, email, leadId, agencyId, userId })
     if (!lead) {
       console.error(`[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null`)
     }
@@ -147,7 +120,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[FacebookWebhook] Unhandled error:', err)
-    // Always return 200 — Meta will retry on non-2xx and flood the endpoint
     return NextResponse.json({ ok: true })
   }
 }
