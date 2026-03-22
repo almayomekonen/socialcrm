@@ -45,6 +45,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    // Skip test leads — Graph API returns code 100 for synthetic leadgen_ids
+    if (leadId.startsWith('test_')) {
+      console.log(`[FacebookWebhook] Skipping test lead — leadId=${leadId}`)
+      return NextResponse.json({ ok: true })
+    }
+
     // Step 1: Early idempotency check — skip Graph API call if lead already exists
     const existing = await db('clients').where({ leadSource: `facebook:${leadId}` }).first()
     if (existing) {
