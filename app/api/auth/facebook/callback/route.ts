@@ -64,51 +64,50 @@ export async function GET(req: NextRequest) {
     }
     const data = await res.json()
     longToken = data.access_token
-    // Inspect what scopes this token actually has
-    const debugRes = await fetch(
-      `https://graph.facebook.com/v19.0/debug_token?input_token=${longToken}&access_token=${appId}|${appSecret}`,
-    )
-    const debugData = await debugRes.json()
-    console.log('[FacebookOAuth] Token debug:', JSON.stringify(debugData?.data ?? debugData))
   } catch (err) {
     console.error('[FacebookOAuth] Long token exchange threw:', err)
     return failed(req, 'token')
   }
 
-  let pages: { id: string; name: string; access_token: string }[] = []
+  // Step 3: Discover which page IDs the token has access to via debug_token granular_scopes.
+  // This is the reliable modern approach — granular_scopes.target_ids contains the exact
+  // page IDs the user approved, regardless of NPE or Business Manager setup.
+  let pageIds: string[] = []
+  try {
+    const debugRes = await fetch(
+      `https://graph.facebook.com/v19.0/debug_token?input_token=${longToken}&access_token=${appId}|${appSecret}`,
+    )
+    const debugData = await debugRes.json()
+    console.log('[FacebookOAuth] Token debug:', JSON.stringify(debugData?.data ?? debugData))
 
-  if (process.env.META_PAGE_ID) {
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/v19.0/${process.env.META_PAGE_ID}?fields=id,name,access_token&access_token=${longToken}`,
-      )
-      const page = await res.json()
-      console.log('[FacebookOAuth] PAGE DATA:', JSON.stringify(page))
-      if (res.ok && page.access_token) {
-        pages = [{ id: page.id, name: page.name, access_token: page.access_token }]
-      } else {
-        console.error('[FacebookOAuth] Direct page fetch did not return access_token:', JSON.stringify(page))
-      }
-    } catch (err) {
-      console.error('[FacebookOAuth] Direct page fetch threw:', err)
-    }
+    const granularScopes: { scope: string; target_ids?: string[] }[] = debugData?.data?.granular_scopes ?? []
+    const pagesEntry = granularScopes.find((s) => s.scope === 'pages_show_list' || s.scope === 'pages_read_engagement')
+    pageIds = pagesEntry?.target_ids ?? []
+    console.log('[FacebookOAuth] Page IDs from granular_scopes:', pageIds)
+  } catch (err) {
+    console.error('[FacebookOAuth] debug_token threw:', err)
   }
 
-  // Fallback to /me/accounts when META_PAGE_ID is not set or direct fetch failed
-  if (pages.length === 0) {
+  // Fallback: use META_PAGE_ID env var if granular_scopes returned nothing
+  if (pageIds.length === 0 && process.env.META_PAGE_ID) {
+    console.warn('[FacebookOAuth] granular_scopes empty — falling back to META_PAGE_ID env var')
+    pageIds = [process.env.META_PAGE_ID]
+  }
+
+  // Step 4: Fetch page access token for each discovered page ID
+  let pages: { id: string; name: string; access_token: string }[] = []
+  for (const pageId of pageIds) {
     try {
-      const res = await fetch(
-        `https://graph.facebook.com/v19.0/me/accounts?access_token=${longToken}&fields=id,name,access_token`,
-      )
-      const data = await res.json()
-      console.log('[FacebookOAuth] /me/accounts response:', JSON.stringify(data))
-      if (res.ok) {
-        pages = data.data ?? []
+      const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=id,name,access_token&access_token=${longToken}`)
+      const page = await res.json()
+      console.log(`[FacebookOAuth] PAGE DATA [${pageId}]:`, JSON.stringify(page))
+      if (res.ok && page.access_token) {
+        pages.push({ id: page.id, name: page.name, access_token: page.access_token })
       } else {
-        console.error('[FacebookOAuth] /me/accounts failed:', JSON.stringify(data))
+        console.error(`[FacebookOAuth] No access_token for page ${pageId}:`, JSON.stringify(page))
       }
     } catch (err) {
-      console.error('[FacebookOAuth] /me/accounts threw:', err)
+      console.error(`[FacebookOAuth] Page fetch threw for ${pageId}:`, err)
     }
   }
 
