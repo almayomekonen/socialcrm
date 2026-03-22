@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
+import type { FacebookHealthStatus } from '@/lib/facebook/health'
 
 type Page = { id: string; name: string; access_token: string }
 type Connection = { pageId: string; pageName: string }
@@ -10,6 +11,7 @@ type Connection = { pageId: string; pageName: string }
 type Props = {
   connection: Connection | null
   pendingPages: Page[] | null
+  health: FacebookHealthStatus | null
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -20,7 +22,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   no_pages: 'לא נמצאו דפים בחשבון הפייסבוק. יש לוודא שיש לך גישת מנהל לדף.',
 }
 
-export default function FacebookConnect({ connection, pendingPages }: Props) {
+export default function FacebookConnect({ connection, pendingPages, health }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('error')
@@ -31,11 +33,25 @@ export default function FacebookConnect({ connection, pendingPages }: Props) {
 
   // State C: Already connected
   if (connection) {
+    const needsReconnect = health?.needsReconnect ?? false
+    const subscriptionIssue = health && !health.needsReconnect && !health.subscribed
+    const isHealthy = health && health.tokenValid && health.permissionsOk && health.subscribed
+
     return (
       <div className='grid gap-4'>
         <p className='text-sm text-gray-600'>
           מחובר לדף: <strong>{connection.pageName}</strong>
         </p>
+        {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
+        {needsReconnect && (
+          <p className='text-sm text-red-600'>החיבור לפייסבוק פג תוקף יש לחבר מחדש</p>
+        )}
+        {subscriptionIssue && (
+          <p className='text-sm text-amber-600'>מנוי לאירועי לידים אינו פעיל מתבצע תיקון אוטומטי</p>
+        )}
+        {needsReconnect && (
+          <Btn lbl='חבר מחדש לפייסבוק' icon='facebook' href='/api/auth/facebook' className='w-fit' />
+        )}
         <Btn
           lbl='נתק דף'
           variant='destructive'

@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import AccordionItem from '@/lib/AccordionItem'
 import FacebookConnect from '@/components/settings/FacebookConnect'
+import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 
 export default async function page() {
   const user = await getUser()
@@ -26,7 +27,15 @@ export default async function page() {
     }
   }
 
-  const errorParam = null // errors are handled client-side via query params read in the component
+  // Run health check server-side if a connection exists
+  let health: FacebookHealthStatus | null = null
+  if (connection) {
+    try {
+      health = await checkFacebookConnection(connection.page_id, connection.page_access_token)
+    } catch {
+      // Non-critical — page still renders without health data
+    }
+  }
 
   return (
     <div>
@@ -36,6 +45,7 @@ export default async function page() {
           <FacebookConnect
             connection={connection ? { pageId: connection.page_id, pageName: connection.page_name } : null}
             pendingPages={pendingPages}
+            health={health}
           />
         </AccordionItem>
       </div>

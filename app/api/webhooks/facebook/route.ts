@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
+import { repairFacebookConnection } from '@/lib/facebook/health'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -51,34 +52,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // REAL_TEST_ leads: skip Graph API, inject mock field_data to validate full pipeline
-    if (leadId.startsWith('REAL_TEST_')) {
-      console.log(`[FacebookWebhook] Real test lead — injecting mock field_data for leadId=${leadId}`)
-      const connection = await db('facebook_pages').where({ page_id: pageId }).first()
-      if (!connection) {
-        console.warn(`[FacebookWebhook] No DB connection for pageId=${pageId}`)
-        return NextResponse.json({ ok: true })
-      }
-      const mockFieldData = [
-        { name: 'full_name', values: ['Test User'] },
-        { name: 'email', values: ['test@example.com'] },
-        { name: 'phone_number', values: ['0501234567'] },
-      ]
-      console.log(`[FacebookWebhook] Mock field_data:`, JSON.stringify(mockFieldData))
-      const { firstName, lastName, phone, email } = parseFacebookLead(mockFieldData)
-      const lead = await createLeadFromWebhook({
-        firstName,
-        lastName,
-        phone,
-        email,
-        leadId,
-        agencyId: connection.agency_id,
-        userId: connection.user_id,
-      })
-      console.log(lead ? `[FacebookWebhook] Test lead created — id=${lead.id}` : `[FacebookWebhook] Test lead skipped (dedup)`)
-      return NextResponse.json({ ok: true })
-    }
-
     // Step 1: Early idempotency check — skip Graph API call if lead already exists
     const existing = await db('clients')
       .where({ leadSource: `facebook:${leadId}` })
@@ -113,10 +86,15 @@ export async function POST(req: NextRequest) {
       }
 
       if (!metaRes!.ok) {
-        console.error(
-          `[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}`,
-          await metaRes!.text(),
-        )
+        const errBody = await metaRes!.text()
+        console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}`, errBody)
+
+        if (metaRes!.status === 401 || metaRes!.status === 403) {
+          repairFacebookConnection(pageId).catch((err) =>
+            console.error(`[FacebookWebhook] Background repair threw [pageId=${pageId}]:`, err),
+          )
+          return NextResponse.json({ ok: false }, { status: 500 })
+        }
         return NextResponse.json({ ok: true })
       }
 
@@ -150,7 +128,10 @@ export async function POST(req: NextRequest) {
     })
 
     if (!lead) {
-      console.error(`[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null`)
+      console.error(
+        `[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null — returning 500 for Meta retry`,
+      )
+      return NextResponse.json({ ok: false }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
