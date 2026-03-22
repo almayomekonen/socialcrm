@@ -40,6 +40,9 @@ export async function createLeadFromWebhook({ firstName, lastName, phone, email,
       }
     }
 
+    const idNum = `FB_${leadId}`
+    console.log(`[FacebookWebhook][create][leadId=${leadId}] Using fallback idNum:`, idNum)
+
     const lead = await upsertLead(
       userId,
       {
@@ -47,6 +50,7 @@ export async function createLeadFromWebhook({ firstName, lastName, phone, email,
         lastName,
         phone,
         email,
+        idNum,
         lead: true,
         leadSource: `facebook:${leadId}`,
         agencyId,
