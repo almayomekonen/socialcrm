@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
     }
     const data = await res.json()
     shortToken = data.access_token
+    console.log('FB ACCESS TOKEN:', data.access_token)
   } catch (err) {
     console.error('[FacebookOAuth] Short token exchange threw:', err)
     return failed(req, 'token')
@@ -79,6 +80,7 @@ export async function GET(req: NextRequest) {
       return failed(req, 'pages')
     }
     const data = await res.json()
+    console.log('[FacebookOAuth] /me/accounts raw response:', JSON.stringify(data))
     pages = data.data ?? []
   } catch (err) {
     console.error('[FacebookOAuth] Fetch pages threw:', err)
@@ -86,7 +88,13 @@ export async function GET(req: NextRequest) {
   }
 
   if (pages.length === 0) {
-    console.warn('[FacebookOAuth] No pages found for user:', user.id)
+    // Most common cause: page is managed via Business Manager only, not as a direct personal admin.
+    // Fix: add yourself as a direct admin on the Page (Page Settings → Page Access → Add New).
+    console.warn(
+      '[FacebookOAuth] /me/accounts returned 0 pages for userId:',
+      user.id,
+      '— likely cause: page is managed through Business Manager only, not a direct personal admin',
+    )
     return failed(req, 'no_pages')
   }
 
