@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
@@ -22,9 +23,34 @@ export async function GET(req: NextRequest) {
 
 // POST — incoming lead notification from Meta
 export async function POST(req: NextRequest) {
+  // Validate X-Hub-Signature-256 before processing anything
+  const appSecret = process.env.META_APP_SECRET
+  if (!appSecret) {
+    console.error('[FacebookWebhook] META_APP_SECRET is not set')
+    return new NextResponse('Internal Server Error', { status: 500 })
+  }
+
+  const rawBody = await req.text()
+  const signature = req.headers.get('x-hub-signature-256')
+
+  if (!signature) {
+    console.warn('[FacebookWebhook] Missing X-Hub-Signature-256 header — rejecting')
+    return new NextResponse('Forbidden', { status: 403 })
+  }
+
+  const expected = 'sha256=' + createHmac('sha256', appSecret).update(rawBody).digest('hex')
+  const sigBuffer = Buffer.from(signature)
+  const expectedBuffer = Buffer.from(expected)
+  const signatureValid = sigBuffer.length === expectedBuffer.length && timingSafeEqual(sigBuffer, expectedBuffer)
+
+  if (!signatureValid) {
+    console.warn('[FacebookWebhook] Signature mismatch — rejecting')
+    return new NextResponse('Forbidden', { status: 403 })
+  }
+
   let body: any
   try {
-    body = await req.json()
+    body = JSON.parse(rawBody)
   } catch {
     console.warn('[FacebookWebhook] Invalid JSON body')
     return NextResponse.json({ ok: true })
@@ -77,10 +103,10 @@ export async function POST(req: NextRequest) {
       const timeout = setTimeout(() => controller.abort(), 6000)
       let metaRes: Response
       try {
-        metaRes = await fetch(
-          `https://graph.facebook.com/v19.0/${leadId}?fields=field_data&access_token=${connection.page_access_token}`,
-          { signal: controller.signal },
-        )
+        metaRes = await fetch(`https://graph.facebook.com/v19.0/${leadId}?fields=field_data`, {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${connection.page_access_token}` },
+        })
       } finally {
         clearTimeout(timeout)
       }
@@ -90,22 +116,40 @@ export async function POST(req: NextRequest) {
         console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}`, errBody)
 
         if (metaRes!.status === 401 || metaRes!.status === 403) {
+          await Promise.allSettled([
+            db('facebook_pages')
+              .where({ page_id: pageId })
+              .update({ health_status: 'token_expired', health_checked_at: new Date() }),
+            db('webhook_failures').insert({
+              lead_id: leadId,
+              page_id: pageId,
+              error_type: 'token_expired',
+              error_detail: `HTTP ${metaRes!.status}`,
+            }),
+          ])
           repairFacebookConnection(pageId).catch((err) =>
             console.error(`[FacebookWebhook] Background repair threw [pageId=${pageId}]:`, err),
           )
-          return NextResponse.json({ ok: false }, { status: 500 })
+          return NextResponse.json({ ok: true })
         }
+
+        await db('webhook_failures')
+          .insert({ lead_id: leadId, page_id: pageId, error_type: 'graph_api_error', error_detail: `HTTP ${metaRes!.status}` })
+          .catch(() => {})
         return NextResponse.json({ ok: true })
       }
 
       metaData = await metaRes!.json()
-      console.log(`[FacebookWebhook][fetch][leadId=${leadId}] Meta response:`, JSON.stringify(metaData))
+      console.log(`[FacebookWebhook][fetch][leadId=${leadId}] Lead fetched — fieldsCount=${metaData?.field_data?.length ?? 0}`)
     } catch (fetchErr: any) {
       if (fetchErr?.name === 'AbortError') {
         console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API timeout`)
       } else {
         console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API fetch threw:`, fetchErr)
       }
+      await db('webhook_failures')
+        .insert({ lead_id: leadId, page_id: pageId, error_type: 'timeout' })
+        .catch(() => {})
       return NextResponse.json({ ok: true })
     }
 
@@ -114,7 +158,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // Step 4: Parse and create lead
     const { firstName, lastName, phone, email } = parseFacebookLead(metaData.field_data)
 
     const lead = await createLeadFromWebhook({
@@ -128,10 +171,18 @@ export async function POST(req: NextRequest) {
     })
 
     if (!lead) {
-      console.error(
-        `[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null — returning 500 for Meta retry`,
-      )
-      return NextResponse.json({ ok: false }, { status: 500 })
+      console.error(`[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null — logging failure`)
+      await db('webhook_failures')
+        .insert({ lead_id: leadId, page_id: pageId, error_type: 'db_error' })
+        .catch(() => {})
+      return NextResponse.json({ ok: true })
+    }
+
+    if (connection.health_status !== 'healthy') {
+      await db('facebook_pages')
+        .where({ page_id: pageId })
+        .update({ health_status: 'healthy', health_checked_at: new Date() })
+        .catch(() => {})
     }
 
     return NextResponse.json({ ok: true })

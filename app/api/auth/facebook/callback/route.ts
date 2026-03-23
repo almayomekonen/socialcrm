@@ -47,7 +47,6 @@ export async function GET(req: NextRequest) {
     }
     const data = await res.json()
     shortToken = data.access_token
-    console.log('FB ACCESS TOKEN:', data.access_token)
   } catch (err) {
     console.error('[FacebookOAuth] Short token exchange threw:', err)
     return failed(req, 'token')
@@ -78,8 +77,6 @@ export async function GET(req: NextRequest) {
   }
 
   const pagesData = await pagesRes.json()
-
-  console.log('[FacebookOAuth] /me/accounts:', JSON.stringify(pagesData))
 
   const pages: { id: string; name: string; access_token: string }[] = (pagesData.data || []).map(
     (p: { id: string; name: string; access_token: string }) => ({

@@ -12,69 +12,62 @@ type WebhookLeadInput = {
   userId: number
 }
 
-const inFlightLeads = new Map<string, boolean>()
-
 export async function createLeadFromWebhook({ firstName, lastName, phone, email, leadId, agencyId, userId }: WebhookLeadInput) {
-  if (inFlightLeads.has(leadId)) {
-    console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate in-flight lead — skipping`)
-    return null
+  // Priority 1: dedup by leadId — stored as 'facebook:{leadId}' in leadSource
+  const existingByLeadId = await db('clients')
+    .where({ leadSource: `facebook:${leadId}` })
+    .first()
+  if (existingByLeadId) {
+    console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by leadId — skipping. lead id: ${existingByLeadId.id}`)
+    return existingByLeadId
   }
-  inFlightLeads.set(leadId, true)
 
-  try {
-    // Priority 1: dedup by leadId — stored as 'facebook:{leadId}' in leadSource (no externalId column)
-    const existingByLeadId = await db('clients')
+  // Priority 2: fallback dedup by phone — only when phone is present
+  if (phone) {
+    const existingByPhone = await db('clients').where({ phone }).whereLike('leadSource', 'facebook:%').first()
+    if (existingByPhone) {
+      console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by phone — skipping. lead id: ${existingByPhone.id}`)
+      return existingByPhone
+    }
+  }
+
+  const lead = await upsertLead(
+    userId,
+    {
+      firstName,
+      lastName,
+      phone,
+      email,
+      idNum: `FB_${leadId}`,
+      lead: true,
+      leadSource: `facebook:${leadId}`,
+      agencyId,
+      handlerId: userId,
+      _system: true,
+    },
+    null,
+    false,
+  )
+
+  if (!lead || lead.err) {
+    // The unique index on clients."leadSource" means a concurrent insert for the same leadId
+    // will cause upsertLead to fail. Re-check the DB before treating this as a real error.
+    const concurrentLead = await db('clients')
       .where({ leadSource: `facebook:${leadId}` })
       .first()
-    if (existingByLeadId) {
-      console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by leadId — skipping. lead id: ${existingByLeadId.id}`)
-      return existingByLeadId
+    if (concurrentLead) {
+      console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Concurrent insert resolved — lead id: ${concurrentLead.id}`)
+      return concurrentLead
     }
-
-    // Priority 2: fallback dedup by phone — only when phone is present
-    if (phone) {
-      const existingByPhone = await db('clients').where({ phone }).whereLike('leadSource', 'facebook:%').first()
-      if (existingByPhone) {
-        console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by phone — skipping. lead id: ${existingByPhone.id}`)
-        return existingByPhone
-      }
-    }
-
-    const idNum = `FB_${leadId}`
-    console.log(`[FacebookWebhook][create][leadId=${leadId}] Using fallback idNum:`, idNum)
-
-    const lead = await upsertLead(
-      userId,
-      {
-        firstName,
-        lastName,
-        phone,
-        email,
-        idNum,
-        lead: true,
-        leadSource: `facebook:${leadId}`,
-        agencyId,
-        handlerId: userId,
-        _system: true,
-      },
-      null,
-      false,
-    )
-
-    if (!lead || lead.err) {
-      console.error(`[FacebookWebhook][create][leadId=${leadId}] upsertLead failed:`, lead)
-      return null
-    }
-
-    console.log(`[FacebookWebhook][create][leadId=${leadId}] Lead created — id: ${lead.id}`)
-
-    await createTask({ clientId: lead.id, title: 'ליד חדש מפייסבוק', userId, _system: true })
-
-    console.log(`[FacebookWebhook][create][leadId=${leadId}] Follow-up created for lead id: ${lead.id}`)
-    console.log(`[FacebookWebhook][success][leadId=${leadId}]`)
-
-    return lead
-  } finally {
-    inFlightLeads.delete(leadId)
+    console.error(`[FacebookWebhook][create][leadId=${leadId}] upsertLead failed:`, lead)
+    return null
   }
+
+  console.log(`[FacebookWebhook][create][leadId=${leadId}] Lead created — id: ${lead.id}`)
+
+  await createTask({ clientId: lead.id, title: 'ליד חדש מפייסבוק', userId, _system: true })
+
+  console.log(`[FacebookWebhook][success][leadId=${leadId}]`)
+
+  return lead
 }

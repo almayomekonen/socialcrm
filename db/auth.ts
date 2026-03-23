@@ -40,8 +40,10 @@ export async function getUser() {
   return (await getCachedUser(userId)) as UserDb | null
 }
 
-const secretKey = process.env.JWT_SECRET ?? 'dev-fallback-change-in-production'
-const key = new TextEncoder().encode(secretKey)
+if (!process.env.JWT_SECRET) {
+  throw new Error('[auth] JWT_SECRET is not set')
+}
+const key = new TextEncoder().encode(process.env.JWT_SECRET)
 
 export async function decrypt(input: string): Promise<any> {
   const { payload } = await jwtVerify(input, key, {
