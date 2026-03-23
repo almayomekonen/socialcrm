@@ -20,10 +20,12 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    scope: 'pages_show_list,pages_read_engagement,pages_manage_metadata,leads_retrieval',
+    scope: ['pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'leads_retrieval', 'business_management'].join(','),
     state,
     response_type: 'code',
     auth_type: 'rerequest',
+    display: 'popup',
+    auth_nonce: crypto.randomUUID(),
   })
 
   console.log(
