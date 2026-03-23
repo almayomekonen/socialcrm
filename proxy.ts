@@ -1,11 +1,17 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Public marketing/SEO pages — accessible without authentication
+const PUBLIC_ROUTES = ['/crm', '/features', '/facebook-leads', '/whatsapp-leads', '/crm-vs-excel']
+
 export async function proxy(request: NextRequest) {
   const user = request.cookies.get('user')?.value
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/ipuy')) return NextResponse.next()
   if (pathname.startsWith('/thank-you')) return NextResponse.next()
+
+  // Allow public marketing pages (exact match or nested paths)
+  if (PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()
 
   if (!user && !pathname.startsWith('/auth')) return Response.redirect(new URL('/auth', request.url))
 

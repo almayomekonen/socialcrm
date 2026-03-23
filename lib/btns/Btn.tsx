@@ -15,7 +15,7 @@ const buttonVariants = cva('flex min-w-fit justify-center font-semibold rounded-
       sign: 'hover:opacity-85',
       simple:
         'hover:bg-solid leading-tight active:opacity-95 hover:text-white block w-full text-start disabled:pointer-events-none disabled:opacity-50',
-      destructive: 'bg-red-50 text-white hover:bg-red-100',
+      destructive: 'bg-red-600 text-white hover:bg-red-700',
       ghost: 'bg-transparent text-black hover:bg-gray-100/60',
     },
     size: {

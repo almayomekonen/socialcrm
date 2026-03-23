@@ -1,9 +1,9 @@
 import { Metadata } from 'next'
 
 const APP_NAME = 'SocialCRM'
-const APP_TITLE_TEMPLATE = '%s - SocialCRM'
-const APP_DESCRIPTION = 'מערכת ניהול לידים ומכירות לעסקים'
-const APP_URL = 'https://allin.org.il'
+const APP_TITLE_TEMPLATE = '%s | SocialCRM'
+const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.'
+const APP_URL = 'https://socialcrm.vercel.app'
 
 export const metaData: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -38,13 +38,16 @@ export const metaData: Metadata = {
     images: [
       {
         url: '/media/og.png',
-        alt: APP_NAME,
+        alt: 'SocialCRM — מערכת ניהול לידים לעסקים קטנים',
+        width: 1200,
+        height: 630,
       },
     ],
     description: APP_DESCRIPTION,
+    locale: 'he_IL',
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: {
       default: APP_NAME,
       template: APP_TITLE_TEMPLATE,
@@ -53,13 +56,15 @@ export const metaData: Metadata = {
     images: [
       {
         url: '/media/og.png',
-        alt: APP_NAME,
+        alt: 'SocialCRM — מערכת ניהול לידים לעסקים קטנים',
+        width: 1200,
+        height: 630,
       },
     ],
   },
 }
 
-export const baseUrl = process.env.NODE_ENV === 'production' ? 'https://www.allin.org.il' : 'http://localhost:3000'
+export const baseUrl = process.env.NODE_ENV === 'production' ? 'https://socialcrm.vercel.app' : 'http://localhost:3000'
 
 export const fileSizes = [
   {
