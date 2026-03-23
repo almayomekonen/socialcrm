@@ -18,6 +18,9 @@ const FOOTER_LINKS = [
   { label: 'לידים מוואטסאפ', href: '/whatsapp-leads' },
   { label: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
   { label: 'הרשמה', href: '/auth/register' },
+  { label: 'מדיניות פרטיות', href: '/privacy' },
+  { label: 'מחיקת נתונים', href: '/data-deletion' },
+  { label: 'תנאי שירות', href: '/terms' },
 ]
 
 export function MarketingLayout({ children }: { children: React.ReactNode }) {
