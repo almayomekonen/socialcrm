@@ -46,6 +46,9 @@ export const metaData: Metadata = {
     description: APP_DESCRIPTION,
     locale: 'he_IL',
   },
+  verification: {
+    google: 'x7wFbbGsjeTClNQbHJI5b7mg2btRMEF-9KdUSwkNN7I',
+  },
   twitter: {
     card: 'summary_large_image',
     title: {
