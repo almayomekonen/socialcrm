@@ -13,7 +13,8 @@ import { redirect, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import { searchContacts, searchLeads } from '@/actions/clients'
+import { deleteLead, searchContacts, searchLeads } from '@/actions/clients'
+import { api } from '@/lib/funcs'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
 import { saveTblPref } from '@/actions/global'
@@ -156,6 +157,24 @@ export default function ClientsTable({ data, user, leads = false }) {
             )}
           </div>
         ))}
+        <div>
+          <div className='h-px bg-gray-200 w-full' />
+          <Btn
+            variant='simple'
+            size='simple'
+            lbl='מחיקה'
+            className='text-red-600 hover:bg-red-600'
+            onClick={async () => {
+              if (!confirm(`האם למחוק ליד ${curClient?.name}?`)) return
+              const res = await api(deleteLead, curClient.id)
+              if (res?.err) {
+                alert('לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב')
+                return
+              }
+              setState((prev) => prev.filter((c) => c.id !== curClient.id))
+            }}
+          />
+        </div>
       </ActionsMenu>
     </>
   )
