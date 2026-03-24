@@ -5,8 +5,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/auth', '/auth/register', '/features', '/facebook-leads'],
+        allow: '/',
         disallow: [
+          '/auth/',
           '/clients/',
           '/leads/',
           '/tasks/',
@@ -20,6 +21,5 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     sitemap: 'https://socialcrm.vercel.app/sitemap.xml',
-    host: 'https://socialcrm.vercel.app',
   }
 }
