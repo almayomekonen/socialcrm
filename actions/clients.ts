@@ -211,3 +211,143 @@ export async function getLeadDeals(clientId) {
   const deals = await db('_sales').where('clientId', clientId)
   return deals
 }
+
+function parseCSVLine(line: string, delim: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+      } else inQuotes = !inQuotes
+    } else if (ch === delim && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  result.push(current.trim())
+  return result
+}
+
+export async function importLeadsFromCsv(file: File) {
+  await requireUser()
+  const { id: userId } = await getUser()
+  const agencyId = await getAgencyId()
+
+  const chunks: Buffer[] = []
+  for await (const chunk of (file as any).stream()) chunks.push(chunk)
+  const buf = Buffer.concat(chunks)
+  const nullRatio = buf.subarray(0, 200).filter((b) => b === 0).length / 200
+  const text = nullRatio > 0.2 ? buf.toString('utf16le') : buf.toString('utf-8')
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  if (lines.length < 2) return { inserted: 0, updated: 0, unchanged: 0, invalid: 0 }
+
+  const delim = lines[0].includes('\t') ? '\t' : ','
+  const headers = parseCSVLine(lines[0], delim).map((h) =>
+    h
+      .toLowerCase()
+      .replace(/^["']|["']$/g, '')
+      .replace(/_/g, ' '),
+  )
+  const idx = (keywords: string[]) => headers.findIndex((h) => keywords.some((k) => h.includes(k)))
+  const nameIdx = idx(['שם', 'name', 'full name'])
+  const phoneIdx = idx(['טלפון', 'נייד', 'phone', 'mobile', 'tel'])
+  const emailIdx = idx(['מייל', 'אימייל', 'email', 'mail'])
+  if (phoneIdx === -1) console.log('[importLeadsFromCsv] headers:', headers)
+
+  const valid: { firstName: string; lastName: string; phone: string | null; email: string | null }[] = []
+  let invalid = 0
+
+  for (const line of lines.slice(1)) {
+    const cols = parseCSVLine(line, delim).map((c) => c.replace(/^["']|["']$/g, ''))
+
+    const rawPhone = phoneIdx >= 0 ? cols[phoneIdx] : ''
+    const rawEmail = emailIdx >= 0 ? cols[emailIdx] : ''
+    const rawName = nameIdx >= 0 ? cols[nameIdx] : ''
+
+    if (!rawPhone && !rawEmail) {
+      invalid++
+      continue
+    }
+
+    // normalize phone → 972XXXXXXXXX
+    let phone: string | null = null
+    if (rawPhone) {
+      const digits = rawPhone.replace(/\D/g, '')
+      if (digits.length >= 9) {
+        phone = digits.startsWith('972') ? digits : '972' + digits.replace(/^0/, '')
+      }
+    }
+
+    const email = rawEmail ? rawEmail.toLowerCase() : null
+
+    if (!phone && !email) {
+      invalid++
+      continue
+    }
+
+    const parts = rawName.trim().split(/\s+/)
+    valid.push({ firstName: parts[0] || '', lastName: parts.slice(1).join(' '), phone, email })
+  }
+
+  let inserted = 0
+  let updated = 0
+  let unchanged = 0
+
+  for (const lead of valid) {
+    try {
+      const exists = await db('clients')
+        .where({ agencyId })
+        .where((q) => {
+          if (lead.phone) q.orWhere('phone', lead.phone)
+          if (lead.email) q.orWhere('email', lead.email)
+        })
+        .first()
+
+      if (!exists) {
+        await upsertLead(userId, { ...lead, lead: true, userId, handlerId: userId }, null, false)
+        inserted++
+        continue
+      }
+
+      // fill only empty fields — never overwrite existing values
+      const patch: Record<string, string> = {}
+      if (!exists.firstName && lead.firstName) patch.firstName = lead.firstName
+      if (!exists.lastName && lead.lastName) patch.lastName = lead.lastName
+      if (!exists.phone && lead.phone) patch.phone = lead.phone
+      if (!exists.email && lead.email) patch.email = lead.email
+
+      if (Object.keys(patch).length === 0) {
+        unchanged++
+      } else {
+        await db('clients').where({ id: exists.id }).update(patch)
+        updated++
+      }
+    } catch {
+      unchanged++
+    }
+  }
+
+  if (inserted > 0 || updated > 0) revalidatePath('/leads')
+  return { inserted, updated, unchanged, invalid }
+}
+
+export async function fetchLeadsSince(sinceId: number) {
+  const agencyId = await getAgencyId()
+  return db('clients')
+    .where({ 'clients.agencyId': agencyId, lead: true })
+    .where('clients.id', '>', sinceId)
+    .leftJoin({ handler: 'users' }, 'clients.handlerId', 'handler.id')
+    .leftJoin({ creator: 'users' }, 'clients.userId', 'creator.id')
+    .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')
+    .orderBy('clients.id', 'desc')
+}

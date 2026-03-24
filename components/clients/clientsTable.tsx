@@ -5,7 +5,7 @@ import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
 import { ActionsMenu, DotsMenu, FormatRank, getActions, SelectClientGrpActions } from './funcs'
 import SelectClientLists from './SelectClientLists'
-import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
+import { useKeepTblScrollPos, useLeadPolling } from '@/lib/hooksNEvents'
 import ClientFormPop from './ClientFormPop'
 import ModalPop from '../../lib/modals/ModalPop'
 import TransferSalesClient from './TransferSalesClient'
@@ -33,6 +33,14 @@ export default function ClientsTable({ data, user, leads = false }) {
   const clientId = searchParams.get('clientId')
 
   useKeepTblScrollPos(tblId)
+  const initialMaxId = data.length > 0 ? Math.max(...data.map((d) => d.id)) : 0
+  useLeadPolling((newLeads) => {
+    setState((prev) => {
+      const existingIds = new Set(prev.map((c) => c.id))
+      const fresh = newLeads.filter((l) => !existingIds.has(l.id))
+      return fresh.length > 0 ? [...fresh, ...prev] : prev
+    })
+  }, leads, initialMaxId)
   function moreRows(client) {
     return (
       <td className='sticky left-0 z-10 bg-white'>

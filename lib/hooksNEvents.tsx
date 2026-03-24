@@ -3,6 +3,8 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
 import { UserDb } from '@/db/auth'
 import { createContext, useContext } from 'react'
+import { fetchLeadsSince } from '@/actions/clients'
+import { toast } from '@/lib/toast'
 
 // events:
 
@@ -58,6 +60,26 @@ export function debounce(callback, delay = 1000) {
       callback(...args)
     }, delay)
   }
+}
+
+export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = true, initialMaxId = 0) {
+  const maxIdRef = useRef(initialMaxId)
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const poll = async () => {
+      if (document.visibilityState !== 'visible') return
+      const newLeads = await fetchLeadsSince(maxIdRef.current)
+      if (newLeads.length === 0) return
+      maxIdRef.current = Math.max(...newLeads.map((l) => l.id))
+      onNewLeads(newLeads)
+      toast('success', newLeads.length === 1 ? 'ליד חדש הגיע' : `${newLeads.length} לידים חדשים הגיעו`)
+    }
+
+    const interval = setInterval(poll, 15_000)
+    return () => clearInterval(interval)
+  }, [enabled])
 }
 
 export function useKeepTblScrollPos(tblId: string) {

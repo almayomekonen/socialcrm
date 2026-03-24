@@ -12,7 +12,19 @@ type WebhookLeadInput = {
   userId: number
 }
 
-export async function createLeadFromWebhook({ firstName, lastName, phone, email, leadId, agencyId, userId }: WebhookLeadInput) {
+export async function createLeadFromWebhook({
+  firstName,
+  lastName,
+  phone: rawPhone,
+  email,
+  leadId,
+  agencyId,
+  userId,
+}: WebhookLeadInput) {
+  // Normalize phone → 972XXXXXXXXX before any dedup check or insert
+  const digits = rawPhone?.replace(/\D/g, '') ?? ''
+  const phone = digits.length >= 9 ? (digits.startsWith('972') ? digits : '972' + digits.replace(/^0/, '')) : null
+
   // Priority 1: dedup by leadId — stored as 'facebook:{leadId}' in leadSource
   const existingByLeadId = await db('clients')
     .where({ leadSource: `facebook:${leadId}` })

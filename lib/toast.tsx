@@ -6,6 +6,7 @@ import Icon from './Icon'
 type PopIcon = 'success' | 'error' | 'loading' | 'ban' | 'hide'
 
 let popEl: HTMLElement | null = null
+let closeTimer: ReturnType<typeof setTimeout> | null = null
 export let toast: (icon: PopIcon, msg?: string) => void = () => {}
 
 const defaultMsg: { [key in PopIcon]: string } = {
@@ -27,8 +28,10 @@ export default function ToastMsg() {
   }, [])
 
   toast = function (icon: PopIcon, msg?: string) {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
     setPop({ icon, msg: msg || defaultMsg[icon] })
     popEl?.showPopover()
+    if (icon !== 'loading') closeTimer = setTimeout(() => { popEl?.hidePopover(); closeTimer = null }, 3000)
   }
 
   if (pop.icon === 'hide') return <div className='size-0 opacity-0' popover='auto' id='popMsg' />
