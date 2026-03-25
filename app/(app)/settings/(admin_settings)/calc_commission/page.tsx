@@ -7,6 +7,10 @@ export default async function CalcCmsnPage({ searchParams }) {
   let { rule } = await searchParams
   if (rule) rule = JSON.parse(rule)
 
+  if (cmsnRules.length === 0) {
+    return <div className='flex items-center justify-center h-64 text-gray-400'>אין כללי עמלה עדיין</div>
+  }
+
   return (
     <div>
       <CmsnTable cmsnRules={cmsnRules} />

@@ -39,7 +39,7 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
     const invitationLink = `${baseUrl}/api/invitation?token=${token}`
 
     const { error } = await resend.emails.send({
-      from: 'auth@allin.org.il',
+      from: 'onboarding@resend.dev',
       to: email,
       subject: 'הזמנת הצטרפות לסוכנות ' + agencyName,
       html: `

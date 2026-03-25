@@ -22,14 +22,3 @@ export const db = knex({
     max: 10,
   },
 })
-
-// # DEV repo
-// git remote set-url  origin https://github.com/zvijude/allin_test.git
-
-// # PROD repo
-// git remote set-url origin https://github.com/zvijude/allin_app.git
-
-// # show current remot
-// git remote -v
-
-// buiild

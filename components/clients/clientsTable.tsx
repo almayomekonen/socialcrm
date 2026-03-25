@@ -103,9 +103,8 @@ export default function ClientsTable({ data, user, leads = false }) {
         <Table config={config} tblCls='mb-0 rounded-b-none' />
         {state.length === 0 && (
           <div className='text-center py-16 border border-t-0 rounded-b-lg bg-white'>
-            <p className='text-xl font-semibold mb-2'>{leads ? 'אין עדיין לידים' : 'אין עדיין לידים'}</p>
-            <p className='text-gray-500 mb-4'>{leads ? 'הוסף ליד ראשון כדי להתחיל' : 'הוסף ליד ראשון כדי להתחיל'}</p>
-            <Btn lbl={leads ? 'הוספת ליד חדש' : 'הוספת ליד חדש'} icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+            <p className='text-xl font-semibold mb-2'>אין עדיין לידים</p>
+            <p className='text-gray-500 mb-4'>הוסף ליד ראשון כדי להתחיל</p>
           </div>
         )}
         <TableFooter />

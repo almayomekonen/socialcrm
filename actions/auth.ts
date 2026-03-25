@@ -96,7 +96,7 @@ export async function sendToken(email: string) {
   const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
 
   const res = await resend.emails.send({
-    from: 'auth@allin.org.il',
+    from: 'onboarding@resend.dev',
     to: email,
     subject: 'התחברות ל SocialCRM',
     html: `<p dir="rtl">לחץ על הקישור כדי להתחבר:</p>

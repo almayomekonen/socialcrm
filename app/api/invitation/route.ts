@@ -2,9 +2,6 @@ import { NextRequest } from 'next/server'
 import { db } from '@/config/db'
 import { createCookie } from '@/db/auth'
 import { deleteInvitation } from '@/actions/invitations'
-import { baseUrl } from '@/types/vars'
-
-//https://www.allin.org.il/api/invitation?token=sr29rz1cnzeawy4gnty3f
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

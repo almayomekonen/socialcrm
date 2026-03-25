@@ -1,4 +1,4 @@
-import PoweredByAllin from '@/lib/navs/PoweredByAllin'
+import PoweredBySocialCRM from '@/lib/navs/PoweredBySocialCRM'
 import Icon from '@/lib/Icon'
 
 export default async function ThankYouPage({ searchParams }) {
@@ -19,7 +19,7 @@ export default async function ThankYouPage({ searchParams }) {
           <p className='text-lg mb-8'>{description}</p>
         </div>
       </div>
-      <PoweredByAllin />
+      <PoweredBySocialCRM />
     </div>
   )
 }

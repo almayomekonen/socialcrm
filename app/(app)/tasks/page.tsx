@@ -17,8 +17,7 @@ export const metadata: Metadata = {
 export default async function TasksPage({ searchParams }) {
   const user = await getUser()
   let { filter } = await searchParams
-  filter = filter ? JSON.parse(filter) : { skip: 0 }
-  filter.skip = filter.skip | 0
+  filter = filter ? JSON.parse(filter) : {}
   if (!filter.userId) filter.userId = user.id
 
   const tasks = await getTasks(user, filter)

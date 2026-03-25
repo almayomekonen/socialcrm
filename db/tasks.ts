@@ -3,12 +3,9 @@ import { getAgencyId } from './agencies'
 import { getPerms } from './filter'
 
 export async function getTasks(user, filter) {
-  const limit = 3
   const perms = await getPerms(user)
   // Admins get gotPermIds: [] — fall back to allPermIds so they see all tasks
   const permIds = perms.gotPermIds.length ? perms.gotPermIds : perms.allPermIds
-
-  const totalLimit = limit * (filter.skip + 1 || 1)
 
   const conditions: string[] = []
   const bindings: any[] = [permIds]
@@ -38,11 +35,10 @@ export async function getTasks(user, filter) {
         WHERE c2."createdById" = ANY(?)
     ) ${where}
     ORDER BY t."createdAt" DESC
-    LIMIT ${totalLimit}
+    LIMIT 200
     `,
     bindings
   )
-  // OFFSET ${filter.skip * limit}
 
   return res.rows
 }

@@ -8,8 +8,8 @@ import Table, { ConfigT } from '@/lib/table'
 import { Btn } from '@/lib/btns/Btn'
 import { Select } from '@/lib/form'
 import Link from 'next/link'
-import { isDatePassed } from './ClientTasksTable'
 import { redirect } from 'next/navigation'
+import { isDatePassed } from './ClientTasksTable'
 import SelectTasksStatus from './SelectTasksStatus'
 import { getFormData2 } from '@/lib/form/funcs'
 import { SelectSearch } from '@/lib/form/SelectSearch'
@@ -33,9 +33,6 @@ export default function TasksTable({ data, users, filter, user }) {
     },
   } as ConfigT
 
-  async function loadMore() {
-    redirect(`?filter=${JSON.stringify({ ...filter, skip: filter.skip + 1 })}`)
-  }
   async function onFilter(e) {
     const formData = getFormData2(e) as any
     redirect(`?filter=${JSON.stringify(formData)}`)
@@ -67,7 +64,9 @@ export default function TasksTable({ data, users, filter, user }) {
         </div>
 
         <Table config={config} tblCls='mb-0 rounded-b-none' />
-        <Btn lbl='טען עוד...' size='small' onClick={loadMore} variant='outline' className='mt-2 w-fit' />
+        {state.length === 0 && (
+          <div className='flex items-center justify-center h-48 text-gray-400'>אין משימות עדיין</div>
+        )}
       </div>
     </>
   )

@@ -34,6 +34,14 @@ export default function GeneralTable({ data, tblPref, user, tblId, filterProps }
     },
   } as ConfigT
 
+  if (!data || data.length === 0) {
+    return (
+      <div className='flex items-center justify-center h-64 text-gray-400'>
+        אין נתונים להצגה
+      </div>
+    )
+  }
+
   return (
     <>
       <div className='my-8 grid'>

@@ -25,7 +25,7 @@ export default async function PromotionPage() {
           <p className='text-gray-500 text-sm leading-relaxed'>
             קמפיינים הם תחרויות מכירה פנימיות בין הנציגים.
             <br />
-            המנהל יוצר קמפיין עם יעדים ופרסים — ואתה רואה כאן את ההתקדמות שלך.
+            המנהל יוצר קמפיין עם יעדים ופרסים ואתה רואה כאן את ההתקדמות שלך.
           </p>
         </div>
       </div>

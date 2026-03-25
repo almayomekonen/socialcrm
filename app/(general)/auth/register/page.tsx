@@ -2,7 +2,8 @@ import AddAgencyForm from '@/components/agencies/AddAgencyForm'
 import Icon from '@/lib/Icon'
 import Link from 'next/link'
 
-export default function page() {
+export default async function page({ searchParams }) {
+  const { email, name } = await searchParams
   return (
     <div className='fixed top-0 right-0'>
       <div className='grid lg:grid-cols-2  w-screen bg-white place-items-center'>
@@ -12,7 +13,7 @@ export default function page() {
             חזור אחורה
           </Link>
           <h1 className='text-5xl font-bold'>מתחילים כאן</h1>
-          <AddAgencyForm />
+          <AddAgencyForm defaultEmail={email} defaultName={name} />
         </div>
         <img src='/media/auth.jpg' alt='' className='w-full h-screen' />
       </div>

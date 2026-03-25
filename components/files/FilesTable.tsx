@@ -120,6 +120,9 @@ export default function FilesTable({ data, tasks, clients }) {
         </div>
 
         <Table config={config} tblCls='mb-0 rounded-b-none' key={Math.random()} />
+        {state.length === 0 && (
+          <div className='flex items-center justify-center h-48 text-gray-400'>אין קבצים עדיין</div>
+        )}
       </div>
 
       {/* <FileForm clientId={clientId} tasks={tasks} /> */}

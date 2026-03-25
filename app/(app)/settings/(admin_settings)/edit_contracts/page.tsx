@@ -1,6 +1,6 @@
+
 import ContractForm from '@/components/contracts/ContractForm'
 import DeleteContractButton from '@/components/contracts/DeleteContractButton'
-import { db } from '@/config/db'
 import { getContracts } from '@/db/contracts'
 import { getUsers } from '@/db/usersNTeams'
 import { Btn } from '@/lib/btns/Btn'
@@ -21,6 +21,10 @@ export default async function ContractsPage() {
       <div id='contract-popover' popover='auto' className='pop'>
         <ContractForm contracts={contracts} users={users} />
       </div>
+
+      {contracts.length === 0 && (
+        <div className='flex items-center justify-center h-48 text-gray-400'>אין חוזים עדיין</div>
+      )}
 
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
         {contracts.map((contract) => (

@@ -26,7 +26,11 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
         gglSub: user.sub,
       })
 
-      if (res.fail) return toast('error', res.msg)
+      if (res.fail) {
+        if (res.msg === 'המשתמש מושהה') return toast('error', res.msg)
+        router.push(`/auth/register?email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`)
+        return
+      }
 
       router.push('/')
     } catch (error) {}
