@@ -4,6 +4,7 @@ import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import { Provider } from '@/lib/hooksNEvents'
 import { getPerms } from '@/db/filter'
+import LeadsTabs from './LeadsTabs'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -12,9 +13,10 @@ export const metadata: Metadata = {
 
 export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
+  const closed = params.closed === 'true'
   const user = await getUser()
   const handlers = await getPerms(user)
-  const clients = await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds })
+  const clients = await getLeadsTable({ user, params, leads: !closed, gotPermIds: handlers.gotPermIds })
   const clientLists = await getLeadLists(user.id)
   return (
     <Provider
@@ -27,9 +29,12 @@ export default async function LeadsPage({ searchParams }) {
       }}
       className='mb-8'
     >
-      <h1 className='title mb-2'>לידים</h1>
+      <div className='flex items-center justify-between mb-2'>
+        <h1 className='title'>{closed ? 'סגורים' : 'לידים'}</h1>
+        <LeadsTabs />
+      </div>
 
-      <ClientsTable leads={true} data={clients} user={user} key={Math.random()} />
+      <ClientsTable leads={!closed} data={clients} user={user} key={String(closed)} />
     </Provider>
   )
 }

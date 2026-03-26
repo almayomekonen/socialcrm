@@ -79,8 +79,8 @@ export const headers = [
   { key: 'completed', label: 'הושלם' },
   { key: 'userName', label: 'גורם מטפל' },
   { key: 'dueDate', label: 'תאריך יעד', format: 'isDatePassed' },
-  { key: 'createdAt', label: 'תאריך יצירה', format: 'formatDate' },
-  { key: 'updatedAt', label: 'תאריך פעילות אחרון', format: 'formatDate' },
+  { key: 'createdAt', label: 'תאריך יצירה', format: 'formatDate', noShow: true },
+  { key: 'updatedAt', label: 'תאריך פעילות אחרון', format: 'formatDate', noShow: true },
 ]
 
 function formatTitle(_, obj) {

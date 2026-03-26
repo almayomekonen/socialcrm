@@ -58,7 +58,7 @@ const pageSchema = {
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/' },
       { '@type': 'ListItem', position: 2, name: 'ניהול לידים', item: 'https://socialcrm.vercel.app/crm' },
       { '@type': 'ListItem', position: 3, name: 'לידים מוואטסאפ', item: 'https://socialcrm.vercel.app/whatsapp-leads' },
     ],
@@ -111,13 +111,13 @@ export default function WhatsAppLeadsPage() {
       <MarketingLayout>
         <Hero
           breadcrumbs={[
-            { label: 'דף הבית', href: '/auth' },
+            { label: 'דף הבית', href: '/' },
             { label: 'ניהול לידים', href: '/crm' },
             { label: 'לידים מוואטסאפ', href: '/whatsapp-leads' },
           ]}
           title='לידים מוואטסאפ, נהל אותם, אל תאבד אותם'
           subtitle='לידים שמגיעים בוואטסאפ נשכחים בקלות בתוך ערימת ההודעות. SocialCRM נותנת להם מקום, ומוודאת שכל אחד מטופל.'
-          cta={{ label: 'התחל לנהל לידים מוואטסאפ', href: '/auth' }}
+          cta={{ label: 'התחל לנהל לידים מוואטסאפ', href: '/auth/register' }}
           secondaryCta={{ label: 'ראה את כל הפיצ\'רים', href: '/features' }}
         />
 

@@ -119,14 +119,41 @@ export async function getLeadById(clientId) {
   return res
 }
 
+export async function recordActivity(leadId: number) {
+  await requireUser()
+  await db('clients').where('id', leadId).update({ lastActivityAt: new Date() })
+}
+
+export async function recordOutcome(leadId: number, outcome: 'talked' | 'no-answer' | 'snooze') {
+  await requireUser()
+  const agencyId = await getAgencyId()
+
+  const before = await db('clients').where('id', leadId).select('id', 'rank', 'userId', 'agencyId').first()
+  console.log('BEFORE:', before)
+
+  const now = new Date()
+  await db('clients').where('id', leadId).update({ lastActivityAt: now, lastOutcomeType: outcome, updatedAt: now })
+
+  const after = await db('clients').where('id', leadId).select('id', 'rank', 'userId', 'agencyId').first()
+  console.log('AFTER:', after)
+
+  const inPipeline = await db('clients')
+    .where('id', leadId)
+    .where('agencyId', agencyId)
+    .where(function () {
+      this.where('rank', '<=', 4).orWhereNull('rank')
+    })
+    .first()
+  console.log('IN PIPELINE:', !!inPipeline)
+
+  revalidatePath('/')
+}
+
 export async function updateLead(data) {
   await requireUser()
-  const res = await db('clients')
-    .where({ id: data.id })
-    .update(data)
-    .catch(() => null)
-
-  revalidatePath('/settings/self_edit')
+  const { id, ...rest } = data
+  const res = await db('clients').where({ id }).update(rest)
+  revalidatePath('/')
   return res
 }
 
@@ -344,8 +371,11 @@ export async function importLeadsFromCsv(file: File) {
 export async function fetchLeadsSince(sinceId: number) {
   const agencyId = await getAgencyId()
   return db('clients')
-    .where({ 'clients.agencyId': agencyId, lead: true })
+    .where('clients.agencyId', agencyId)
     .where('clients.id', '>', sinceId)
+    .where(function () {
+      this.where('rank', '<=', 4).orWhereNull('rank')
+    })
     .leftJoin({ handler: 'users' }, 'clients.handlerId', 'handler.id')
     .leftJoin({ creator: 'users' }, 'clients.userId', 'creator.id')
     .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')

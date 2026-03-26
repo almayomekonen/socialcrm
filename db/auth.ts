@@ -18,6 +18,7 @@ async function getCachedUser(userId: number) {
 }
 
 export async function getUser() {
+  // רועי
   const cokis = await cookies()
 
   const session = cokis.get('user')?.value

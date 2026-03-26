@@ -86,7 +86,7 @@ const webPageSchema = {
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/' },
       { '@type': 'ListItem', position: 2, name: 'פיצ\'רים', item: 'https://socialcrm.vercel.app/features' },
     ],
   },
@@ -141,7 +141,7 @@ export default function FeaturesPage() {
         {/* Hero */}
         <section className='py-20 px-8 text-center' style={{ backgroundColor: '#f3f2ff' }}>
           <nav aria-label='breadcrumb' className='text-sm text-gray-400 mb-6'>
-            <Link href='/auth' className='hover:underline'>דף הבית</Link>
+            <Link href='/' className='hover:underline'>דף הבית</Link>
             <span className='mx-2'>/</span>
             <span>פיצ'רים</span>
           </nav>
@@ -152,7 +152,7 @@ export default function FeaturesPage() {
             כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות. בלי לפספס אף ליד.
           </p>
           <Link
-            href='/auth'
+            href='/auth/register'
             className='inline-block px-8 py-3 rounded-lg text-white font-semibold text-lg'
             style={{ backgroundColor: '#3f20f5' }}
           >

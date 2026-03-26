@@ -73,12 +73,22 @@ async function onTransferSales(client) {
   console.log('onTransferSales: ', client)
 }
 
-export function FormatRank({ rank }) {
-  const colors = {
-    '1': ' from-yellow-300 via-yellow-500 to-yellow-700 shadow-yellow-500/30',
-    '2': ' from-gray-300 via-gray-400 to-gray-600 shadow-gray-400/30',
-    '3': ' from-amber-600 via-orange-800 to-amber-900 shadow-xl shadow-amber-700/30',
-  }
+export const RANK_MAP: Record<string, { label: string; dot: string; color: string }> = {
+  '1': { label: 'חדש', dot: 'from-blue-300 via-blue-500 to-blue-700 shadow-blue-400/40', color: '#3b82f6' },
+  '2': { label: 'דיברתי', dot: 'from-yellow-300 via-yellow-500 to-yellow-600 shadow-yellow-500/40', color: '#eab308' },
+  '3': { label: 'בשיחה', dot: 'from-orange-300 via-orange-500 to-orange-700 shadow-orange-500/40', color: '#f97316' },
+  '4': { label: 'מתעניין', dot: 'from-green-300 via-green-500 to-green-700 shadow-green-500/40', color: '#22c55e' },
+  '5': { label: 'סגור', dot: 'from-gray-300 via-gray-400 to-gray-600 shadow-gray-400/40', color: '#9ca3af' },
+  '6': { label: 'אבוד', dot: 'from-red-300 via-red-500 to-red-700 shadow-red-500/40', color: '#ef4444' },
+}
 
-  return <div className={`w-3 h-3 rounded-full bg-linear-to-br ${colors[rank]}`} />
+export function FormatRank({ rank }) {
+  const mapped = RANK_MAP[String(rank)]
+  if (!mapped) return null
+  return (
+    <span className='inline-flex items-center gap-1.5 whitespace-nowrap'>
+      <span className={`shrink-0 w-2.5 h-2.5 rounded-full bg-linear-to-br shadow-sm ${mapped.dot}`} />
+      <span className='text-xs font-medium text-gray-700'>{mapped.label}</span>
+    </span>
+  )
 }

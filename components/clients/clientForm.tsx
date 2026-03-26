@@ -52,7 +52,20 @@ export default function ClientForm({ data, prefix = '' }) {
         </div>
 
         <div className='flex'>
-          <Select options={['1', '2', '3']} name='rank' lbl='סיווג' defaultValue={data?.rank?.toString()} required={false} />
+          <Select
+            options={[
+              { id: '1', name: 'חדש' },
+              { id: '2', name: 'דיברתי' },
+              { id: '3', name: 'בשיחה' },
+              { id: '4', name: 'מתעניין' },
+              { id: '5', name: 'סגור' },
+              { id: '6', name: 'אבוד' },
+            ]}
+            name='rank'
+            lbl='שלב'
+            defaultValue={data?.rank?.toString()}
+            required={false}
+          />
           <Input name='leadSource' lbl='מקור הליד' defaultValue={data?.leadSource} required={false} />
 
           <Select

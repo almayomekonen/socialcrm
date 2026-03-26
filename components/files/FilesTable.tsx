@@ -140,8 +140,8 @@ export const headers = [
   { key: 'clientName', label: 'ליד', format: 'formatClientName' },
   { key: 'taskId', label: 'מעקב', format: 'formatTask' },
   { key: 'createdAt', label: 'מועד יצירה', format: 'formatDate' },
-  { key: 'size', label: 'גודל ', format: 'formatFileSize' },
-  { key: 'createdByName', label: 'הועלה ע"י' },
+  { key: 'size', label: 'גודל', format: 'formatFileSize', noShow: true },
+  { key: 'createdByName', label: 'הועלה ע"י', noShow: true },
 ]
 
 function formatFileName(_, obj) {

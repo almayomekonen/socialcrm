@@ -11,7 +11,7 @@ const NAV_LINKS = [
 ]
 
 const FOOTER_LINKS = [
-  { label: 'דף הבית', href: '/auth' },
+  { label: 'דף הבית', href: '/' },
   { label: 'ניהול לידים', href: '/crm' },
   { label: "פיצ'רים", href: '/features' },
   { label: 'לידים מפייסבוק', href: '/facebook-leads' },
@@ -27,7 +27,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className='min-h-screen bg-white'>
       <header className='flex items-center justify-between px-8 py-4 border-b border-gray-100 bg-white'>
-        <Link href='/auth' className='font-bold text-xl' style={{ color: '#3f20f5' }}>
+        <Link href='/' className='font-bold text-xl' style={{ color: '#3f20f5' }}>
           SocialCRM
         </Link>
         <nav className='hidden lg:flex gap-6 text-sm' aria-label='ניווט ראשי'>

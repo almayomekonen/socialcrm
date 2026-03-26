@@ -62,6 +62,22 @@ export function debounce(callback, delay = 1000) {
   }
 }
 
+export function useSnoozedReturn(snoozed: any[], onReturn: (item: any) => void) {
+  const snoozedRef = useRef(snoozed)
+  snoozedRef.current = snoozed
+
+  useEffect(() => {
+    const check = () => {
+      const now = Date.now()
+      snoozedRef.current.forEach((item) => {
+        if (new Date(item.snoozeUntil).getTime() <= now) onReturn(item)
+      })
+    }
+    const interval = setInterval(check, 30_000)
+    return () => clearInterval(interval)
+  }, [])
+}
+
 export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = true, initialMaxId = 0) {
   const maxIdRef = useRef(initialMaxId)
 

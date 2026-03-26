@@ -114,10 +114,17 @@
     @apply min-w-full;
   }
   tr {
-    @apply border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800;
+    @apply border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100;
   }
   td {
-    @apply px-4 py-3 text-sm;
+    @apply px-4 py-3 text-sm text-gray-500;
+  }
+  td[data-col='clientData'] {
+    @apply font-semibold text-gray-900 text-sm;
+  }
+  td[data-col='amount'],
+  td[data-col='cmsn'] {
+    @apply text-gray-700;
   }
 
   input[type='checkbox'] {

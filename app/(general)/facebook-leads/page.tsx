@@ -117,7 +117,7 @@ const webPageSchema = {
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/' },
       { '@type': 'ListItem', position: 2, name: 'ניהול לידים מפייסבוק', item: 'https://socialcrm.vercel.app/facebook-leads' },
     ],
   },
@@ -134,7 +134,7 @@ export default function FacebookLeadsPage() {
         {/* Hero */}
         <section className='py-20 px-8 text-center' style={{ backgroundColor: '#f3f2ff' }}>
           <nav aria-label='breadcrumb' className='text-sm text-gray-400 mb-6'>
-            <Link href='/auth' className='hover:underline'>דף הבית</Link>
+            <Link href='/' className='hover:underline'>דף הבית</Link>
             <span className='mx-2'>/</span>
             <span>ניהול לידים מפייסבוק</span>
           </nav>
@@ -145,7 +145,7 @@ export default function FacebookLeadsPage() {
             חיבור של 5 דקות. מאותו רגע כל ליד שממלא טופס Facebook Lead Ad מגיע ישירות ל-SocialCRM, בלי העתקה ידנית, בלי שכחה.
           </p>
           <Link
-            href='/auth'
+            href='/auth/register'
             className='inline-block px-8 py-3 rounded-lg text-white font-semibold text-lg'
             style={{ backgroundColor: '#3f20f5' }}
           >

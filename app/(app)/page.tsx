@@ -1,90 +1,58 @@
-import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
 import { redirect } from 'next/navigation'
 import { Metadata } from 'next'
-import dynamic from 'next/dynamic'
 import { isAdmin } from '@/types/roles'
-import { getPermsAndFilter } from '@/db/filter'
-import { getDealTableData } from '@/db/salesTbl'
+import { getPerms } from '@/db/filter'
+import { getLeadStats, getPipelineLeads, getLeadLists } from '@/db/clients'
 import { Provider } from '@/lib/hooksNEvents'
-import { getUsers } from '@/db/usersNTeams'
-import SalesNav from '@/components/sales/SalesNav'
-import SalesSection from '@/components/sales/SalesSection'
-import PieWrapper from '@/components/sumSales/PieWrapper'
-import DashboardSummary from '@/components/dashboard/DashboardSummary'
-
-const Filter = dynamic(() => import('@/components/filter'))
+import ClientsTable from '@/components/clients/clientsTable'
 
 export const metadata: Metadata = {
-  title: 'עסקאות',
-  description: 'ניהול עסקאות ולידים',
+  title: 'פיפליין',
+  description: 'לידים פעילים',
 }
 
-export default async function SalesPage({ searchParams }) {
-  const { filter, saleId, isFav, pageNum, tableLimit } = await searchParams
+export default async function PipelinePage({ searchParams }) {
+  const params = (await searchParams) || {}
   const user = await getUser()
   if (!user) redirect('/auth')
-  const { rawFilter, sqlFilter, gotPermUsers, gotPermTeams, gotPermIds, allPermUsers } = await getPermsAndFilter({
-    user,
-    filter,
-  })
 
-  const handlers = isAdmin(user.role) ? gotPermUsers : allPermUsers
+  const handlers = await getPerms(user)
 
-  // OPTIMIZATION: Removed getPieData and getGoalsAndTotals from here
-  const [{ tblData, count, sqlExport }, allUsers] = await Promise.all([
-    getDealTableData(sqlFilter, { pageNum, tableLimit }),
-    getUsers({ withOfficeUsers: true, withExtUsers: true }),
+  const [stats, leads, clientLists] = await Promise.all([
+    getLeadStats(),
+    getPipelineLeads({ gotPermIds: handlers.gotPermIds, isAdminUser: isAdmin(user.role) }),
+    getLeadLists(user.id),
   ])
-
-  const formProps = { user, officeGotPerm: gotPermUsers, saleId, allUsers }
 
   return (
     <Provider
-      className='relative'
+      className='mb-8'
       props={{
-        tableLength: tblData.length,
-        count,
-        sqlExport,
-        params: { filter, saleId, isFav, pageNum, tableLimit },
-        gotPermIds,
+        tableLength: leads.length,
+        params,
+        clientLists,
+        clients: leads,
+        handlers: handlers.allPermUsers,
       }}
     >
-      <Suspense fallback={<DashboardSummaryFallback />}>
-        <DashboardSummary user={user} />
-      </Suspense>
-
-
-      <SalesNav user={user} />
-
-      <Suspense>
-        <Filter props={{ users: gotPermUsers, teams: gotPermTeams, rawFilter, handlers }} key={filter} />
-      </Suspense>
-
-      <Suspense fallback={<div className='h-32 animate-pulse bg-gray-100 rounded-lg mt-8' />}>
-        <SalesSection props={{ formProps, data: tblData, rawFilter, params: { saleId, isFav }, user }} />
-      </Suspense>
-
-      <div className='flex items-start mt-4'>
-        <Suspense fallback={<div className='h-68 w-full animate-pulse bg-gray-100 rounded-lg' />}>
-          <PieWrapper sqlFilter={sqlFilter} rawFilter={rawFilter} userId={user.id} />
-        </Suspense>
+      <div className='flex gap-4 mobile:grid grid-cols-2 mb-6'>
+        <div className='num-box'>
+          <span>לידים חדשים</span>
+          <h2>{stats.newLeads}</h2>
+        </div>
+        <div className='num-box'>
+          <span>בתהליך</span>
+          <h2>{stats.inProgress}</h2>
+        </div>
+        <div className='num-box'>
+          <span>סגרו החודש</span>
+          <h2>{stats.closedThisMonth}</h2>
+        </div>
       </div>
+
+      <h1 className='title mb-2'>פיפליין</h1>
+      <ClientsTable leads={true} data={leads.map((l, i) => ({ ...l, _priority: i + 1 }))} user={user} compact={true} />
     </Provider>
-  )
-}
-
-function DashboardSummaryFallback() {
-  return (
-    <div className='mb-6'>
-      <div className='grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6'>
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className='num-box animate-pulse'>
-            <div className='h-3 bg-gray-200 rounded w-24 mb-3' />
-            <div className='h-7 bg-gray-200 rounded w-16' />
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }

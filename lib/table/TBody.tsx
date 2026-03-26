@@ -36,6 +36,7 @@ export default function TBody({ config }: { config: ConfigT }) {
             return (
               <td
                 key={col.key + i}
+                data-col={col.key}
                 className='truncate max-w-64'
                 title={typeof getCell(item, col) == 'string' ? getCell(item, col) : ''}
               >

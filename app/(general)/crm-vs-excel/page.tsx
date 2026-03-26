@@ -78,7 +78,7 @@ const pageSchema = {
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/' },
       { '@type': 'ListItem', position: 2, name: 'ניהול לידים', item: 'https://socialcrm.vercel.app/crm' },
       { '@type': 'ListItem', position: 3, name: 'CRM לעומת אקסל', item: 'https://socialcrm.vercel.app/crm-vs-excel' },
     ],
@@ -96,13 +96,13 @@ export default function CRMvsExcelPage() {
       <MarketingLayout>
         <Hero
           breadcrumbs={[
-            { label: 'דף הבית', href: '/auth' },
+            { label: 'דף הבית', href: '/' },
             { label: 'ניהול לידים', href: '/crm' },
             { label: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
           ]}
           title='CRM לעומת אקסל, מה עדיף לניהול לידים?'
           subtitle='אקסל עובד עד נקודה מסוימת. ראה בדיוק מה הפרש בין ניהול לידים באקסל לבין מערכת CRM ייעודית, ומתי הזמן לעבור.'
-          cta={{ label: 'נסה SocialCRM בחינם', href: '/auth' }}
+          cta={{ label: 'נסה SocialCRM בחינם', href: '/auth/register' }}
           secondaryCta={{ label: 'ראה את כל הפיצ\'רים', href: '/features' }}
         />
 

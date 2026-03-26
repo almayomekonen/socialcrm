@@ -3,20 +3,19 @@ import dotenv from 'dotenv'
 
 dotenv.config({ path: '.env.local' })
 
-// Strip sslmode from the URL — pg-connection-string warns on 'require'/'prefer'/'verify-ca'
-// in upcoming pg v9. SSL is fully controlled by the explicit ssl object below.
-function getConnectionString() {
+function getConnectionConfig() {
   const url = new URL(process.env.DATABASE_URL ?? '')
+  const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
   url.searchParams.delete('sslmode')
-  return url.toString()
+  return {
+    connectionString: url.toString(),
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+  }
 }
 
 export const db = knex({
   client: 'pg',
-  connection: {
-    connectionString: getConnectionString(),
-    ssl: { rejectUnauthorized: false },
-  },
+  connection: getConnectionConfig(),
   pool: {
     min: 0,
     max: 10,

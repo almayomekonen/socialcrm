@@ -43,9 +43,7 @@ export async function getFamMembers(clientId) {
 
 export async function getLeadsByRep(user) {
   const { gotPermIds } = await getPerms(user)
-
   const res = await db('clients').select('id', 'details').whereIn('userId', gotPermIds)
-
   return res
 }
 
@@ -58,13 +56,26 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds })
 
   let { filter, listId, pageNum, tableLimit, clientId } = params
   const sql = db('clients')
+
   pageNum = Number(pageNum) || 1
   tableLimit = Number(tableLimit) || 100
 
   sql.where('clients.agencyId', agencyId)
-  sql.where('lead', leads)
 
-  if (gotPermIds && !isAdmin(user.role)) sql.whereIn('clients.userId', gotPermIds)
+  if (leads) {
+    sql.where(function () {
+      this.where('rank', '<=', 4).orWhereNull('rank')
+    })
+  } else {
+    sql.where('rank', '>=', 5)
+  }
+
+  // ✅ FIX: לא להעלים לידים בלי owner
+  if (gotPermIds && !isAdmin(user.role)) {
+    sql.where(function () {
+      this.whereIn('clients.userId', gotPermIds).orWhereNull('clients.userId')
+    })
+  }
 
   if (clientId) sql.where('clients.id', clientId)
   else if (listId) {
@@ -80,9 +91,73 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds })
     .limit(tableLimit)
     .offset((pageNum - 1) * tableLimit)
 
-  const res = await sql
+  return await sql
+}
 
-  return res
+export async function getLeadStats() {
+  const agencyId = await getAgencyId()
+  const base = () => db('clients').where('agencyId', agencyId)
+
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+
+  const [newLeads, inProgress, closedThisMonth] = await Promise.all([
+    base().where('rank', 1).count('id').first(),
+    base().whereBetween('rank', [2, 4]).count('id').first(),
+    base().where('rank', 5).where('updatedAt', '>=', startOfMonth).count('id').first(),
+  ])
+
+  return {
+    newLeads: Number(newLeads?.count || 0),
+    inProgress: Number(inProgress?.count || 0),
+    closedThisMonth: Number(closedThisMonth?.count || 0),
+  }
+}
+
+export async function getPipelineLeads({ gotPermIds, isAdminUser }: { gotPermIds: number[]; isAdminUser: boolean }) {
+  const agencyId = await getAgencyId()
+
+  const sql = db('clients')
+    .where('clients.agencyId', agencyId)
+    .where(function () {
+      this.where('rank', '<=', 4).orWhereNull('rank')
+    })
+    .leftJoin({ handler: 'users' }, 'clients.handlerId', 'handler.id')
+    .leftJoin({ creator: 'users' }, 'clients.userId', 'creator.id')
+    .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')
+    .orderBy('clients.rank', 'asc')
+    .orderBy('clients.createdAt', 'asc') // 🔥 חזרה למצב יציב
+    .limit(15) // 🔥 כמו שהיה
+
+  // ✅ FIX: לא להעלים לידים בלי owner
+  if (gotPermIds?.length && !isAdminUser) {
+    sql.where(function () {
+      this.whereIn('clients.userId', gotPermIds).orWhereNull('clients.userId')
+    })
+  }
+
+  return sql
+}
+
+export async function getSnoozedLeads({ gotPermIds, isAdminUser }: { gotPermIds: number[]; isAdminUser: boolean }) {
+  const agencyId = await getAgencyId()
+  const sql = db('clients')
+    .where('clients.agencyId', agencyId)
+    .where('clients.snoozeUntil', '>', db.fn.now())
+    .leftJoin({ handler: 'users' }, 'clients.handlerId', 'handler.id')
+    .leftJoin({ creator: 'users' }, 'clients.userId', 'creator.id')
+    .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')
+    .orderBy('clients.snoozeUntil', 'asc')
+    .limit(20)
+
+  if (gotPermIds?.length && !isAdminUser) {
+    sql.where(function () {
+      this.whereIn('clients.userId', gotPermIds).orWhereNull('clients.userId')
+    })
+  }
+
+  return sql
 }
 
 export async function getLeadNameByIdNum(idNum) {

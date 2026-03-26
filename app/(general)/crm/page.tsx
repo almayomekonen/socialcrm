@@ -73,7 +73,7 @@ const pageSchema = {
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/' },
       { '@type': 'ListItem', position: 2, name: 'ניהול לידים', item: 'https://socialcrm.vercel.app/crm' },
     ],
   },
@@ -136,13 +136,13 @@ export default function CRMPage() {
       <MarketingLayout>
         <Hero
           breadcrumbs={[
-            { label: 'דף הבית', href: '/auth' },
+            { label: 'דף הבית', href: '/' },
             { label: 'ניהול לידים', href: '/crm' },
           ]}
           badge='מדריך מלא'
           title='ניהול לידים לעסקים קטנים'
           subtitle='כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. מעקב, עדכון סטטוס, וסגירת עסקאות. בלי לפספס אף ליד.'
-          cta={{ label: 'התחל לנהל לידים בחינם', href: '/auth' }}
+          cta={{ label: 'התחל לנהל לידים בחינם', href: '/auth/register' }}
           secondaryCta={{ label: "צפה בפיצ'רים", href: '/features' }}
         />
 
