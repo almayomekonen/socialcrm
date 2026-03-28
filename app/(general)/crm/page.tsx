@@ -4,7 +4,10 @@ import { buildFAQSchema } from '@/components/seo/FAQ'
 import { FAQ } from '@/components/ui/faq-tabs'
 import { HeroSection } from '@/components/ui/hero-section'
 import type { HeroSectionComponentData } from '@/components/ui/hero-section'
-import { Features7Section, OrbitalFeaturesSection, HowItWorksSection, StatsSection, LeadSourcesSection, TestimonialsSection, FinalCTA } from '@/components/seo/CRMSections'
+import { Features7Section, OrbitalFeaturesSection, HowItWorksSection, StatsSection, LeadSourcesSection, FinalCTA } from '@/components/seo/CRMSections'
+import dynamic from 'next/dynamic'
+
+const TestimonialsSection = dynamic(() => import('@/components/seo/CRMSections').then(m => ({ default: m.TestimonialsSection })), { ssr: false })
 import { AnimatedCta } from '@/components/ui/animated-cta'
 
 const heroData: HeroSectionComponentData = {

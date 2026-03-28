@@ -11,43 +11,50 @@ const testimonials = [
     tempId: 0,
     testimonial: 'לפני SocialCRM הייתי מאבד לידים כל יום. היום פותח את המערכת בבוקר ויודע בדיוק מה צריך טיפול. שום דבר לא נופל בין הכיסאות.',
     by: 'רועי כהן, בעל עסק לשיפוצים',
-    imgSrc: 'https://i.pravatar.cc/150?img=11',
+    initials: 'רכ',
+    color: '#3f20f5',
   },
   {
     tempId: 1,
     testimonial: 'ייבאתי 200 לידים מאקסל תוך דקה אחת. כל הנציגים עובדים ממקום אחד ולא מפספסים שום ליד. שיפרנו את אחוז הסגירה ב-30%.',
     by: 'מיכל לוי, מנהלת מכירות בחברת נדל"ן',
-    imgSrc: 'https://i.pravatar.cc/150?img=5',
+    initials: 'מל',
+    color: '#7c3aed',
   },
   {
     tempId: 2,
     testimonial: 'חיברנו את דף הפייסבוק ומאז כל ליד מגיע ישירות למערכת. לא צריך יותר להעתיק שמות ומספרים ידנית.',
     by: 'אמיר בן דוד, מנהל קמפיינים דיגיטליים',
-    imgSrc: 'https://i.pravatar.cc/150?img=15',
+    initials: 'אב',
+    color: '#0369a1',
   },
   {
     tempId: 3,
     testimonial: 'הנציגים שלי סוף סוף יודעים מה שלהם ומה לא. אין יותר בלבול על מי מטפל במי. פשוט עובד.',
     by: 'שירה אבגי, מנהלת צוות מכירות',
-    imgSrc: 'https://i.pravatar.cc/150?img=47',
+    initials: 'שא',
+    color: '#0f766e',
   },
   {
     tempId: 4,
     testimonial: 'תוך שבוע ראיתי שיש לנו עשרות לידים שאף אחד לא טיפל בהם. עם SocialCRM אין יותר לידים שנשכחים.',
     by: 'יוני פרץ, יועץ פיננסי',
-    imgSrc: 'https://i.pravatar.cc/150?img=33',
+    initials: 'יפ',
+    color: '#b45309',
   },
   {
     tempId: 5,
     testimonial: 'ניסיתי אקסל, ניסיתי מחברת, ניסיתי קבוצת וואטסאפ. כלום לא עבד. SocialCRM הוא הדבר הראשון שבאמת עוזר.',
     by: 'נטע גולן, עצמאית בתחום הנדל"ן',
-    imgSrc: 'https://i.pravatar.cc/150?img=44',
+    initials: 'נג',
+    color: '#be185d',
   },
   {
     tempId: 6,
     testimonial: 'ההגדרה הייתה פשוטה, ובפחות מ-5 דקות כבר ראיתי את כל הלידים שלי מאורגנים. לא ציפיתי שיהיה כל כך קל.',
     by: 'דרור שמש, בעל מכון כושר',
-    imgSrc: 'https://i.pravatar.cc/150?img=52',
+    initials: 'דש',
+    color: '#15803d',
   },
 ]
 
@@ -94,12 +101,12 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({ position, testimonial
           backgroundColor: isCenter ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
         }}
       />
-      <img
-        src={testimonial.imgSrc}
-        alt={testimonial.by.split(',')[0]}
-        className='mb-4 h-14 w-12 object-cover object-top'
-        style={{ boxShadow: '3px 3px 0px rgba(0,0,0,0.4)' }}
-      />
+      <div
+        className='mb-4 flex h-14 w-12 items-center justify-center text-lg font-bold text-white'
+        style={{ backgroundColor: testimonial.color, boxShadow: '3px 3px 0px rgba(0,0,0,0.4)' }}
+      >
+        {testimonial.initials}
+      </div>
       <h3 className={cn('text-base sm:text-xl font-medium leading-relaxed', isCenter ? 'text-white' : 'text-white/70')}>
         &ldquo;{testimonial.testimonial}&rdquo;
       </h3>
