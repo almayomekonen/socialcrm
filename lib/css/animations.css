@@ -112,3 +112,53 @@
     scale: 1;
   }
 }
+
+@keyframes dashMove {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  25% {
+    stroke-dashoffset: 300;
+  }
+  50% {
+    stroke-dashoffset: 600;
+  }
+  75% {
+    stroke-dashoffset: 900;
+  }
+  100% {
+    stroke-dashoffset: 1200;
+  }
+}
+
+@keyframes slideMask {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.line-background {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
+  fill: none;
+}
+
+.line-animation-path {
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-dasharray: var(--path-length, 500);
+  stroke-dashoffset: 0;
+  animation: dashMove 4s linear infinite;
+}
+
+.line-animation-path.reverse {
+  animation-direction: reverse;
+}
+
+.mask-rect {
+  animation: slideMask 3s linear infinite;
+}

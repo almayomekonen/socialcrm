@@ -1,91 +1,125 @@
 import Link from 'next/link'
 import { Metadata } from 'next'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
-import { FAQSection, buildFAQSchema } from '@/components/seo/FAQ'
-import { Hero } from '@/components/seo/Hero'
+import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
+import { FinalCTA } from '@/components/seo/CRMSections'
+import { FAQ } from '@/components/ui/faq-tabs'
+import { AnimatedCta } from '@/components/ui/animated-cta'
+import { CRMComparisonTable } from '@/components/ui/crm-comparison-table'
+import { FeatureGrid } from '@/components/ui/feature-section'
+import { buildFAQSchema } from '@/components/seo/FAQ'
+import Icon from '@/lib/Icon'
 
 export const metadata: Metadata = {
-  title: 'CRM לעומת אקסל לניהול לידים, השוואה מלאה | SocialCRM',
+  title: 'CRM vs אקסל לניהול לידים מה עדיף? | SocialCRM',
   description:
-    'השוואה ישירה: CRM לעומת אקסל לניהול לידים. מה אקסל נותן, מה הוא לא יכול לעשות, ומתי כדאי לעסק קטן לעבור למערכת CRM.',
+    'משווים CRM לאקסל לניהול לידים: אינטגרציה עם פייסבוק, מעקב, תזכורות, ניהול צוות ועוד. ראה 16 נקודות השוואה ותחליט.',
   alternates: { canonical: 'https://socialcrm.vercel.app/crm-vs-excel' },
   openGraph: {
-    title: 'CRM לעומת אקסל, מה עדיף לניהול לידים?',
-    description: 'השוואה מלאה: CRM לעומת אקסל. ראה בדיוק מה אתה מפסיד כשמנהלים לידים באקסל.',
+    title: 'CRM vs אקסל לניהול לידים | SocialCRM',
+    description: 'אקסל מספיק לניהול לידים? 16 נקודות השוואה שיגידו לך את האמת.',
     url: 'https://socialcrm.vercel.app/crm-vs-excel',
   },
 }
 
 const faqItems = [
   {
-    question: 'האם אפשר לנהל לידים באקסל?',
-    answer:
-      'כן, אפשר, אבל רק עד נקודה מסוימת. אקסל עובד כשיש מעט לידים ונציג אחד. כשהנפח גדל, מתחילות הבעיות: כפילויות, עדכונים שנשכחים, ואין חיבור אוטומטי למקורות הלידים.',
+    question: 'מתי כדאי לעבור מאקסל ל-CRM?',
+    answer: 'כשיש יותר מ-30 לידים בחודש, כשיש יותר מנציג אחד, או כשלידים מתחילים להישכח — זה הזמן. אם פתחת את האקסל ולא ידעת מי צריך טיפול, עברת את הגבול.',
   },
   {
-    question: 'מתי כדאי לעבור מאקסל למערכת CRM?',
-    answer:
-      'כשמגיעים ל-30+ לידים בחודש, כשיש יותר מנציג אחד, או כשמרגישים שלידים הולכים לאיבוד, הגיע הזמן לעבור. מערכת CRM חוסכת זמן ומונעת אובדן עסקאות.',
+    question: 'האם אפשר לייבא את הנתונים מהאקסל הישן?',
+    answer: 'כן. מעלים את הקובץ הקיים ל-SocialCRM, המערכת ממפה את העמודות אוטומטית ומייבאת הכל תוך דקות. אין צורך להזין מחדש.',
   },
   {
-    question: 'כמה זמן לוקח לייבא לידים מאקסל ל-SocialCRM?',
-    answer:
-      'כמה דקות. מעלים את קובץ האקסל, ממפים את העמודות, ומאשרים. כל הלידים מגיעים מיידית למערכת.',
+    question: 'האם SocialCRM יקר יותר מאקסל?',
+    answer: 'אקסל נראה בחינם, אבל לידים שנשכחים עולים הרבה יותר. כל ליד שהמערכת מונעת מלהיאבד — משלם את עצמה. SocialCRM מתחיל בחינם.',
   },
   {
-    question: 'האם איבד נתונים כשעוברים מאקסל ל-CRM?',
-    answer:
-      'לא. ניתן לייבא את כל הלידים הקיימים מהאקסל ל-SocialCRM. כל הנתונים עוברים, שם, טלפון, מייל ועוד.',
-  },
-  {
-    question: 'מה עדיף, Google Sheets או CRM?',
-    answer:
-      'Google Sheets עדיף על אקסל כי הוא משותף, אבל עדיין סובל מאותן בעיות: אין חיבור לפייסבוק, אין תזכורות, אין שיוך נציגים. CRM ייעודי עדיף לכל הגדלים מעל 20 לידים בחודש.',
+    question: 'מה ההבדל הכי גדול בין אקסל ל-CRM?',
+    answer: 'אקסל מאחסן נתונים. CRM מניע פעולה. אין לאקסל תזכורות, שיוך לנציג, או סינכרון אוטומטי מפייסבוק. זה ההבדל בין כלי כתיבה לכלי מכירות.',
   },
 ]
 
-// Comparison data, the most AIO-valuable asset on this page
-const COMPARISON_ROWS = [
-  { feature: 'מרכוז לידים ממקורות שונים', excel: false, crm: true },
-  { feature: 'חיבור אוטומטי לפייסבוק Lead Ads', excel: false, crm: true },
-  { feature: 'עדכון סטטוס לכל ליד', excel: 'ידני', crm: true },
-  { feature: 'שיוך לנציגים שונים', excel: false, crm: true },
-  { feature: 'תזכורות ומעקב', excel: false, crm: true },
-  { feature: 'היסטוריה של שיחות והערות', excel: false, crm: true },
-  { feature: 'גישה מניידים', excel: 'מוגבל', crm: true },
-  { feature: 'מניעת כפילויות', excel: false, crm: true },
-  { feature: 'דוחות ביצועים', excel: 'ידני', crm: true },
-  { feature: 'ייבוא לידים מאקסל', excel: true, crm: true },
-  { feature: 'שיתוף צוות בזמן אמת', excel: 'מוגבל', crm: true },
-  { feature: 'עלות', excel: 'חינם', crm: 'נמוכה' },
-]
-
-function CellValue({ val }: { val: boolean | string }) {
-  if (val === true) return <span className='text-green-600 font-bold text-lg'>✓</span>
-  if (val === false) return <span className='text-red-400 font-bold text-lg'>✗</span>
-  return <span className='text-yellow-600 text-sm font-medium'>{val}</span>
-}
+const faqSchema = buildFAQSchema(faqItems)
 
 const pageSchema = {
   '@context': 'https://schema.org',
-  '@type': 'Article',
+  '@type': 'WebPage',
   '@id': 'https://socialcrm.vercel.app/crm-vs-excel',
-  headline: 'CRM לעומת אקסל לניהול לידים, השוואה מלאה',
-  description: 'השוואה ישירה בין מערכת CRM לאקסל לניהול לידים. מתי כדאי לעבור, ומה מפסידים בכל בחירה.',
-  inLanguage: 'he',
   url: 'https://socialcrm.vercel.app/crm-vs-excel',
-  publisher: { '@id': 'https://socialcrm.vercel.app/#organization' },
-  breadcrumb: {
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
-      { '@type': 'ListItem', position: 2, name: 'ניהול לידים', item: 'https://socialcrm.vercel.app/crm' },
-      { '@type': 'ListItem', position: 3, name: 'CRM לעומת אקסל', item: 'https://socialcrm.vercel.app/crm-vs-excel' },
-    ],
-  },
+  name: 'CRM vs אקסל לניהול לידים | SocialCRM',
+  inLanguage: 'he',
+  isPartOf: { '@id': 'https://socialcrm.vercel.app/#website' },
 }
 
-const faqSchema = buildFAQSchema(faqItems)
+const faqData = {
+  general: faqItems.slice(0, 2),
+  decision: faqItems.slice(2),
+}
+
+const featureCategories = [
+  {
+    icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
+    title: 'ייבוא אוטומטי ממדיה חברתית',
+    items: [
+      { text: 'פייסבוק Lead Ads ישירות למערכת' },
+      { text: 'טפסי אינסטגרם אוטומטית' },
+      { text: 'ללא העתקה ידנית' },
+    ],
+  },
+  {
+    icon: <Icon name='upload' className='size-6 bg-primary' />,
+    title: 'ייבוא מאקסל קיים',
+    items: [
+      { text: 'העלאת קובץ אקסל' },
+      { text: 'מיפוי עמודות אוטומטי' },
+      { text: 'ללא אובדן נתונים' },
+    ],
+  },
+  {
+    icon: <Icon name='circle-check' className='size-6 bg-primary' />,
+    title: 'עדכון סטטוס ומעקב',
+    items: [
+      { text: 'סטטוס בקליק — חדש, בטיפול, סגור' },
+      { text: 'היסטוריה מלאה של כל ליד' },
+      { text: 'תזכורות מעקב אוטומטי' },
+    ],
+  },
+  {
+    icon: <Icon name='users' className='size-6 bg-primary' />,
+    title: 'ניהול צוות',
+    items: [
+      { text: 'שיוך לידים לנציגים' },
+      { text: 'כל נציג רואה רק את שלו' },
+      { text: 'מנהל רואה הכל' },
+    ],
+  },
+  {
+    icon: <Icon name='magnifying-glass' className='size-6 bg-primary' />,
+    title: 'חיפוש וסינון',
+    items: [
+      { text: 'חיפוש לפי שם וטלפון' },
+      { text: 'סינון לפי מקור, נציג, סטטוס' },
+      { text: 'תצוגה מסוננת' },
+    ],
+  },
+  {
+    icon: <Icon name='chart-line' className='size-6 bg-primary' />,
+    title: 'ביצועים ודוחות',
+    items: [
+      { text: 'אחוז סגירה לפי מקור' },
+      { text: 'ביצועי נציגים' },
+      { text: 'דוחות חודשיים' },
+    ],
+  },
+]
+
+const STATS = [
+  { value: '×3', label: 'יותר לידים שנסגרים', sub: 'לעסקים שעברו מאקסל ל-CRM' },
+  { value: '5 דק׳', label: 'חיסכון לכל ליד', sub: 'זמן שחוזר לטיפול עצמי' },
+  { value: '0', label: 'לידים שנשכחים', sub: 'כשיש תזכורות ומעקב אוטומטי' },
+]
 
 export default function CRMvsExcelPage() {
   return (
@@ -94,177 +128,111 @@ export default function CRMvsExcelPage() {
       <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       <MarketingLayout>
-        <Hero
-          breadcrumbs={[
-            { label: 'דף הבית', href: '/auth' },
-            { label: 'ניהול לידים', href: '/crm' },
-            { label: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
-          ]}
-          title='CRM לעומת אקסל, מה עדיף לניהול לידים?'
-          subtitle='אקסל עובד עד נקודה מסוימת. ראה בדיוק מה הפרש בין ניהול לידים באקסל לבין מערכת CRM ייעודית, ומתי הזמן לעבור.'
-          cta={{ label: 'נסה SocialCRM בחינם', href: '/auth' }}
-          secondaryCta={{ label: 'ראה את כל הפיצ\'רים', href: '/features' }}
+
+        {/* Hero */}
+        <div className='relative bg-blue-50 overflow-hidden font-sans pb-8 px-4'>
+          <div>
+            <div className='absolute inset-0 bg-linear-to-br from-transparent via-transparent to-blue-700 opacity-50 z-0' />
+            <div className='absolute bottom-0 right-0 w-3/4 h-3/4 bg-blue-600 transform origin-bottom-right rotate-12 translate-y-1/3 -translate-x-1/4 opacity-90 z-0' />
+            <div className='absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-700 opacity-80 z-0' />
+            <div className='absolute top-0 left-0 w-1/2 h-full bg-blue-400 transform -skew-y-6 origin-top-left -translate-y-1/4 opacity-30 z-0' />
+          </div>
+
+          <MarketingNavbar />
+
+          <div className='relative z-10 max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden'>
+            <div className='flex flex-col items-center text-center p-8 lg:px-12 lg:pt-8 lg:pb-16' dir='rtl'>
+              <span
+                className='inline-block px-3 py-1 rounded-full text-xs font-semibold mb-6 text-white'
+                style={{ backgroundColor: '#217346' }}
+              >
+                <span dir='ltr'>CRM vs אקסל</span>
+              </span>
+              <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
+                אקסל מספיק לניהול לידים?
+                <br />
+                <span className='text-gray-500'>הנה מה שאתה מפסיד</span>
+              </h1>
+              <p className='text-lg text-gray-700 mb-8 max-w-xl'>
+                אקסל מצוין לנתונים. גרוע לניהול לידים. הנה 16 נקודות השוואה שמראות בדיוק איפה הפער.
+              </p>
+              <div className='flex flex-col sm:flex-row items-center gap-4'>
+                <Link
+                  href='/features'
+                  className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
+                >
+                  ראה את כל הפיצ׳רים
+                </Link>
+                <Link
+                  href='/auth/register'
+                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
+                  style={{ backgroundColor: '#3f20f5' }}
+                >
+                  עבור ל-SocialCRM בחינם
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <section className='px-8 py-14' style={{ backgroundColor: '#0a0a0a' }}>
+          <div className='max-w-5xl mx-auto' dir='rtl'>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+              {STATS.map((s) => (
+                <div
+                  key={s.value}
+                  className='rounded-2xl p-8 text-center'
+                  style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <p className='text-5xl font-bold text-white mb-2'>{s.value}</p>
+                  <p className='text-white font-semibold mb-1'>{s.label}</p>
+                  <p className='text-white/40 text-sm'>{s.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Comparison table */}
+        <div className='bg-white'>
+          <CRMComparisonTable />
+        </div>
+
+        {/* Feature Grid — what SocialCRM does instead */}
+        <div className='bg-white'>
+          <FeatureGrid
+            className='pb-0'
+            title={<span>מה SocialCRM עושה <span style={{ color: '#3f20f5' }}>במקום אקסל</span></span>}
+            subtitle='כל הכלים שאקסל לא יכול לתת לך — בממשק אחד, פשוט ומהיר.'
+            categories={featureCategories}
+            buttonText='עבור ל-SocialCRM בחינם'
+            buttonHref='/auth/register'
+          />
+        </div>
+
+        {/* Animated CTA */}
+        <AnimatedCta
+          title='מפסיקים לנהל לידים באקסל'
+          highlight='מתחילים לנהל אותם נכון'
+          buttonText='עבור ל-SocialCRM בחינם'
+          buttonHref='/auth/register'
         />
 
-        {/* Excel pros & cons, AIO entity definition */}
-        <section className='py-16 px-8 max-w-4xl mx-auto'>
-          <h2 className='text-2xl font-bold mb-8'>ניהול לידים באקסל, היתרונות והחסרונות</h2>
-          <div className='grid md:grid-cols-2 gap-8'>
-            <div>
-              <h3 className='font-bold text-lg mb-4 text-green-700'>יתרונות אקסל</h3>
-              <ul className='grid gap-3'>
-                {[
-                  'חינמי לגמרי',
-                  'מוכר לכולם, אין צורך להתאמן',
-                  'גמיש, כל עמודה שרוצים',
-                  'אפשר לשתף בגוגל שיטס',
-                ].map((item) => (
-                  <li key={item} className='flex gap-2 items-start text-gray-600 text-sm'>
-                    <span className='text-green-500 mt-0.5'>✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className='font-bold text-lg mb-4 text-red-600'>חסרונות אקסל לניהול לידים</h3>
-              <ul className='grid gap-3'>
-                {[
-                  'לידים מפייסבוק לא מגיעים אוטומטית, צריך להעתיק ידנית',
-                  'אין תזכורות, נשכח לחזור ללידים',
-                  'אין שיוך נציגים, בלאגן כשיש צוות',
-                  'כפילויות, אותו ליד פעמיים ואף אחד לא יודע',
-                  'אין היסטוריה, מה דיברתם? לא ידוע',
-                  'אין דוחות אמיתיים, צריך לחשב ידנית',
-                ].map((item) => (
-                  <li key={item} className='flex gap-2 items-start text-gray-600 text-sm'>
-                    <span className='text-red-400 mt-0.5'>✗</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Comparison table, the AIO goldmine */}
-        <section className='py-16 px-8' style={{ backgroundColor: '#f9f9f9' }}>
-          <div className='max-w-3xl mx-auto'>
-            <h2 className='text-2xl font-bold text-center mb-2'>השוואה ישירה: CRM לעומת אקסל</h2>
-            <p className='text-gray-500 text-center mb-8'>כל מה שחשוב, שורה אחרי שורה</p>
-
-            <div className='overflow-x-auto rounded-xl shadow-sm'>
-              <table className='w-full bg-white' aria-label='השוואת CRM לעומת אקסל לניהול לידים'>
-                <thead>
-                  <tr style={{ backgroundColor: '#171424' }}>
-                    <th className='text-right text-white text-sm font-semibold py-4 px-6'>יכולת</th>
-                    <th className='text-center text-white text-sm font-semibold py-4 px-4'>אקסל / Sheets</th>
-                    <th className='text-center text-white text-sm font-semibold py-4 px-4'>SocialCRM</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMPARISON_ROWS.map((row, i) => (
-                    <tr
-                      key={row.feature}
-                      className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                    >
-                      <td className='text-sm text-gray-700 py-3 px-6'>{row.feature}</td>
-                      <td className='text-center py-3 px-4'>
-                        <CellValue val={row.excel} />
-                      </td>
-                      <td className='text-center py-3 px-4'>
-                        <CellValue val={row.crm} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        {/* When to switch */}
-        <section className='py-16 px-8 max-w-3xl mx-auto'>
-          <h2 className='text-2xl font-bold mb-6'>מתי כדאי לעבור מאקסל ל-CRM?</h2>
-          <p className='text-gray-600 leading-relaxed mb-6'>
-            אקסל מספיק לעסק בתחילת דרכו עם מעט לידים ונציג אחד. אבל ברגע שאחד מהתנאים הבאים מתקיים, הגיע הזמן לעבור:
-          </p>
-          <ul className='grid gap-4'>
-            {[
-              { trigger: 'יש יותר מ-30 לידים בחודש', why: 'כשהנפח גדל, אקסל נהיה כבד לעבודה ומועד לטעויות.' },
-              { trigger: 'יש יותר מנציג מכירות אחד', why: 'שיתוף פעולה על אקסל מוביל לכפילויות ולבלאגן.' },
-              { trigger: 'לידים "נעלמים" או לא מטופלים', why: 'אם מרגישים שמפספסים לידים, זה כבר קרה.' },
-              { trigger: 'לידים מגיעים מפייסבוק', why: 'העתקה ידנית מפייסבוק לאקסל בזבוז זמן ומועדת לשגיאות.' },
-              { trigger: 'רוצים לדעת כמה הרווחנו מלידים', why: 'דוחות אמיתיים דורשים מערכת, לא טבלאות ידניות.' },
-            ].map((item) => (
-              <li key={item.trigger} className='flex gap-4 items-start p-4 bg-gray-50 rounded-lg'>
-                <span className='text-xl mt-0.5' aria-hidden='true'>→</span>
-                <div>
-                  <span className='font-semibold'>{item.trigger}</span>
-                  <p className='text-gray-500 text-sm mt-0.5'>{item.why}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* Migration section */}
-        <section className='py-16 px-8' style={{ backgroundColor: '#f3f2ff' }}>
-          <div className='max-w-3xl mx-auto text-center'>
-            <h2 className='text-2xl font-bold mb-4'>עוברים מאקסל? תוך 5 דקות.</h2>
-            <p className='text-gray-500 mb-8 max-w-lg mx-auto leading-relaxed'>
-              לא צריך להזין מחדש. מעלים את קובץ האקסל, ממפים שם + טלפון, ולחיצה אחת, כל הלידים מגיעים ל-SocialCRM.
-            </p>
-            <div className='flex flex-wrap gap-3 justify-center'>
-              <Link
-                href='/auth/register'
-                className='inline-block px-8 py-3 rounded-lg text-white font-semibold'
-                style={{ backgroundColor: '#3f20f5' }}
-              >
-                ייבא את האקסל שלך עכשיו
-              </Link>
-              <Link
-                href='/features'
-                className='inline-block px-8 py-3 rounded-lg font-semibold border'
-                style={{ borderColor: '#3f20f5', color: '#3f20f5' }}
-              >
-                ראה איך ייבוא עובד
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <FAQSection title='שאלות נפוצות, CRM לעומת אקסל' items={faqItems} />
-
-        {/* Related links, internal linking */}
-        <section className='py-12 px-8 max-w-4xl mx-auto'>
-          <h2 className='text-lg font-bold mb-4'>קרא גם</h2>
-          <div className='grid md:grid-cols-3 gap-4'>
-            {[
-              { title: 'ניהול לידים, המדריך המלא', href: '/crm', desc: 'כל מה שצריך לדעת על ניהול לידים לעסקים קטנים.' },
-              { title: 'לידים מפייסבוק, אוטומטי', href: '/facebook-leads', desc: 'חיבור של 5 דקות. לידים מגיעים ישירות למערכת.' },
-              { title: 'לידים מוואטסאפ', href: '/whatsapp-leads', desc: 'ייבא ונהל לידים שמגיעים בוואטסאפ.' },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className='block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors'>
-                <h3 className='font-semibold mb-1 text-sm'>{item.title}</h3>
-                <p className='text-gray-500 text-xs'>{item.desc}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {/* FAQ */}
+        <FAQ
+          title='שאלות נפוצות'
+          subtitle='שאלות על המעבר מאקסל ל-CRM'
+          categories={{
+            general: 'מתי לעבור',
+            decision: 'עלות ונתונים',
+          }}
+          faqData={faqData}
+        />
 
         {/* CTA */}
-        <section className='py-20 px-8 text-center' style={{ backgroundColor: '#171424' }}>
-          <h2 className='text-3xl font-bold text-white mb-4'>מוכן לעזוב את האקסל?</h2>
-          <p className='text-gray-400 mb-8'>הרשמה בחינם. ייבוא מאקסל בשניות. לא צריך כרטיס אשראי.</p>
-          <Link
-            href='/auth/register'
-            className='inline-block px-8 py-3 rounded-lg text-white font-semibold text-lg'
-            style={{ backgroundColor: '#3f20f5' }}
-          >
-            התחל בחינם עכשיו
-          </Link>
-        </section>
+        <FinalCTA />
+
       </MarketingLayout>
     </>
   )

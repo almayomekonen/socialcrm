@@ -1,8 +1,14 @@
 import Link from 'next/link'
 import { Metadata } from 'next'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
-import { FAQSection, buildFAQSchema } from '@/components/seo/FAQ'
-import { Hero } from '@/components/seo/Hero'
+import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
+import { FinalCTA } from '@/components/seo/CRMSections'
+import { FAQ } from '@/components/ui/faq-tabs'
+import { AnimatedCta } from '@/components/ui/animated-cta'
+import { MagnifiedBento } from '@/components/ui/magnified-bento'
+import { FeatureGrid } from '@/components/ui/feature-section'
+import { buildFAQSchema } from '@/components/seo/FAQ'
+import Icon from '@/lib/Icon'
 
 export const metadata: Metadata = {
   title: 'ניהול לידים מוואטסאפ | SocialCRM',
@@ -19,28 +25,23 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     question: 'איך מייבאים לידים מוואטסאפ ל-SocialCRM?',
-    answer:
-      'ניתן להוסיף לידים מוואטסאפ בשתי דרכים: הוספה ידנית מהירה (שם + טלפון בשניות), או ייבוא מאקסל אם יש רשימה של מספרים.',
+    answer: 'ניתן להוסיף לידים מוואטסאפ בשתי דרכים: הוספה ידנית מהירה (שם + טלפון בשניות), או ייבוא מאקסל אם יש רשימה של מספרים.',
   },
   {
     question: 'האם יש אינטגרציה ישירה עם וואטסאפ?',
-    answer:
-      'SocialCRM לא קוראת את ההודעות בוואטסאפ. במקום זאת, מוסיפים לידים מוואטסאפ ידנית (מהיר מאוד) ואז כל התקשורת והמעקב מתנהלים בתוך SocialCRM.',
+    answer: 'SocialCRM לא קוראת את ההודעות בוואטסאפ. במקום זאת, מוסיפים לידים מוואטסאפ ידנית (מהיר מאוד) ואז כל התקשורת והמעקב מתנהלים בתוך SocialCRM.',
   },
   {
     question: 'מהי הדרך הכי מהירה להוסיף ליד מוואטסאפ?',
-    answer:
-      'לוחצים "הוסף ליד", מזינים שם ומספר טלפון (10 שניות), ובוחרים מקור "וואטסאפ". הליד מיד מופיע ברשימה ומחכה לטיפול.',
+    answer: 'לוחצים "הוסף ליד", מזינים שם ומספר טלפון (10 שניות), ובוחרים מקור "וואטסאפ". הליד מיד מופיע ברשימה ומחכה לטיפול.',
   },
   {
     question: 'איך מבדילים בין לידים מוואטסאפ ללידים מפייסבוק?',
-    answer:
-      'כל ליד ב-SocialCRM מוגדר עם מקור. ניתן לסנן ולראות רק לידים מוואטסאפ, רק מפייסבוק, או הכל יחד.',
+    answer: 'כל ליד ב-SocialCRM מוגדר עם מקור. ניתן לסנן ולראות רק לידים מוואטסאפ, רק מפייסבוק, או הכל יחד.',
   },
   {
     question: 'מה עושים עם ליד שפנה בוואטסאפ ולא מוכר לקנות עכשיו?',
-    answer:
-      'מוסיפים תזכורת, "לחזור עוד שבועיים". המערכת תזכיר. כך לא מפספסים לידים שרק צריכים יותר זמן.',
+    answer: 'מוסיפים תזכורת, "לחזור עוד שבועיים". המערכת תזכיר. כך לא מפספסים לידים שרק צריכים יותר זמן.',
   },
 ]
 
@@ -52,53 +53,75 @@ const pageSchema = {
   '@id': 'https://socialcrm.vercel.app/whatsapp-leads',
   url: 'https://socialcrm.vercel.app/whatsapp-leads',
   name: 'ניהול לידים מוואטסאפ | SocialCRM',
-  description: 'ייבא ונהל לידים שמגיעים בוואטסאפ עם SocialCRM.',
   inLanguage: 'he',
   isPartOf: { '@id': 'https://socialcrm.vercel.app/#website' },
-  breadcrumb: {
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
-      { '@type': 'ListItem', position: 2, name: 'ניהול לידים', item: 'https://socialcrm.vercel.app/crm' },
-      { '@type': 'ListItem', position: 3, name: 'לידים מוואטסאפ', item: 'https://socialcrm.vercel.app/whatsapp-leads' },
-    ],
-  },
 }
 
-const WHATSAPP_PROBLEMS = [
-  {
-    title: 'לידים קבורים בהיסטוריית שיחות',
-    desc: 'ליד פנה לפני שבוע, ועכשיו צריך לגלול 200 הודעות כדי למצוא אותו.',
-  },
-  {
-    title: 'אין מעקב אחרי מי עדיין ממתין',
-    desc: 'מי חיכה למחיר? מי רצה שנחזור? אין דרך לדעת מבלי לקרוא את כל השיחות.',
-  },
-  {
-    title: 'לידים שנשכחים',
-    desc: 'הבטחת לחזור אליו ביום שלישי. שכחת. הליד עבר למתחרה.',
-  },
-  {
-    title: 'אי אפשר לשתף עם נציג',
-    desc: 'כשמעבירים שיחת וואטסאפ לנציג, הקשר הולך לאיבוד. אין היסטוריה.',
-  },
+const faqData = {
+  general: faqItems.slice(0, 3),
+  setup: faqItems.slice(3),
+}
+
+const STATS = [
+  { value: '10 שנ׳', label: 'להוסיף ליד חדש', sub: 'שם, טלפון, מקור — וסיימנו' },
+  { value: '0', label: 'לידים שנשכחים', sub: 'כשיש תזכורות ומעקב' },
+  { value: '×3', label: 'יותר לידים נסגרים', sub: 'לעסקים שעברו לניהול ממוקד' },
 ]
 
-const ADD_METHODS = [
+const featureCategories = [
   {
-    title: 'הוספה ידנית מהירה',
-    desc: 'לוחצים "הוסף ליד", מזינים שם ומספר, בוחרים מקור "וואטסאפ". 10 שניות.',
-    badge: 'הכי נפוץ',
+    icon: <Icon name='whatsapp' className='size-6 bg-primary' />,
+    title: 'הוספת לידים מוואטסאפ',
+    items: [
+      { text: 'הוספה ידנית ב-10 שניות' },
+      { text: 'ייבוא מספרי טלפון' },
+      { text: 'מקור מוואטסאפ מזוהה' },
+    ],
   },
   {
+    icon: <Icon name='upload' className='size-6 bg-primary' />,
     title: 'ייבוא מאקסל',
-    desc: 'יש רשימת מספרים? מעלים קובץ אקסל עם שמות ומספרים, הכל מגיע בבת אחת.',
-    badge: null,
+    items: [
+      { text: 'קובץ אקסל קיים' },
+      { text: 'מיפוי עמודות אוטומטי' },
+      { text: '200 לידים תוך דקה' },
+    ],
   },
   {
-    title: 'ייבוא מספרי טלפון',
-    desc: 'מעתיקים רשימת מספרים ישירות, המערכת יוצרת ליד לכל מספר.',
-    badge: null,
+    icon: <Icon name='circle-check' className='size-6 bg-primary' />,
+    title: 'מעקב וסטטוס',
+    items: [
+      { text: 'עדכון סטטוס בקליק' },
+      { text: 'היסטוריה מלאה' },
+      { text: 'ראה מי ממתין לטיפול' },
+    ],
+  },
+  {
+    icon: <Icon name='bell' className='size-6 bg-primary' />,
+    title: 'תזכורות ומעקב',
+    items: [
+      { text: 'קבע תזכורת לכל ליד' },
+      { text: 'אל תפספס פולואו-אפ' },
+      { text: 'התראות על לידים שלא טופלו' },
+    ],
+  },
+  {
+    icon: <Icon name='users' className='size-6 bg-primary' />,
+    title: 'ניהול צוות',
+    items: [
+      { text: 'שיוך לידים לנציגים' },
+      { text: 'כל נציג רואה רק את שלו' },
+      { text: 'מנהל רואה הכל' },
+    ],
+  },
+  {
+    icon: <Icon name='chart-line' className='size-6 bg-primary' />,
+    title: 'ביצועים',
+    items: [
+      { text: 'אחוז סגירה לפי מקור' },
+      { text: 'ביצועי נציגים' },
+      { text: 'דוחות חודשיים' },
+    ],
   },
 ]
 
@@ -109,125 +132,136 @@ export default function WhatsAppLeadsPage() {
       <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       <MarketingLayout>
-        <Hero
-          breadcrumbs={[
-            { label: 'דף הבית', href: '/auth' },
-            { label: 'ניהול לידים', href: '/crm' },
-            { label: 'לידים מוואטסאפ', href: '/whatsapp-leads' },
-          ]}
-          title='לידים מוואטסאפ, נהל אותם, אל תאבד אותם'
-          subtitle='לידים שמגיעים בוואטסאפ נשכחים בקלות בתוך ערימת ההודעות. SocialCRM נותנת להם מקום, ומוודאת שכל אחד מטופל.'
-          cta={{ label: 'התחל לנהל לידים מוואטסאפ', href: '/auth' }}
-          secondaryCta={{ label: 'ראה את כל הפיצ\'רים', href: '/features' }}
-        />
 
-        {/* Problem definition */}
-        <section className='py-16 px-8 max-w-4xl mx-auto'>
-          <h2 className='text-2xl font-bold text-center mb-2'>הבעיה עם ניהול לידים בוואטסאפ</h2>
-          <p className='text-gray-500 text-center mb-10 max-w-2xl mx-auto'>
-            וואטסאפ הוא כלי תקשורת מעולה, אבל כלי ניהול לידים גרוע. הנה למה:
-          </p>
-          <div className='grid md:grid-cols-2 gap-5'>
-            {WHATSAPP_PROBLEMS.map((item) => (
-              <article key={item.title} className='p-5 rounded-lg border border-gray-100 border-r-4' style={{ borderRightColor: '#3f20f5' }}>
-                <h3 className='font-bold mb-2'>{item.title}</h3>
-                <p className='text-gray-500 text-sm leading-relaxed'>{item.desc}</p>
-              </article>
-            ))}
+        {/* Hero */}
+        <div className='relative bg-blue-50 overflow-hidden font-sans pb-8 px-4'>
+          <div>
+            <div className='absolute inset-0 bg-linear-to-br from-transparent via-transparent to-blue-700 opacity-50 z-0' />
+            <div className='absolute bottom-0 right-0 w-3/4 h-3/4 bg-blue-600 transform origin-bottom-right rotate-12 translate-y-1/3 -translate-x-1/4 opacity-90 z-0' />
+            <div className='absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-700 opacity-80 z-0' />
+            <div className='absolute top-0 left-0 w-1/2 h-full bg-blue-400 transform -skew-y-6 origin-top-left -translate-y-1/4 opacity-30 z-0' />
           </div>
-        </section>
 
-        {/* How to add WhatsApp leads */}
-        <section className='py-16 px-8' style={{ backgroundColor: '#f9f9f9' }}>
-          <div className='max-w-4xl mx-auto'>
-            <h2 className='text-2xl font-bold text-center mb-2'>איך מוסיפים לידים מוואטסאפ ל-SocialCRM?</h2>
-            <p className='text-gray-500 text-center mb-10'>שלוש דרכים, בחר מה שנוח לך</p>
-            <div className='grid md:grid-cols-3 gap-6'>
-              {ADD_METHODS.map((m) => (
-                <article key={m.title} className='bg-white rounded-lg p-6 shadow-sm relative'>
-                  {m.badge && (
-                    <span
-                      className='absolute top-4 left-4 text-xs px-2 py-0.5 rounded-full text-white font-medium'
-                      style={{ backgroundColor: '#3f20f5' }}
-                    >
-                      {m.badge}
-                    </span>
-                  )}
-                  <h3 className='font-bold text-lg mb-2 mt-2'>{m.title}</h3>
-                  <p className='text-gray-500 text-sm leading-relaxed'>{m.desc}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+          <MarketingNavbar />
 
-        {/* After adding, what happens */}
-        <section className='py-16 px-8 max-w-3xl mx-auto'>
-          <h2 className='text-2xl font-bold text-center mb-10'>אחרי שמוסיפים, מה מקבלים?</h2>
-          <ol className='grid md:grid-cols-2 gap-5'>
-            {[
-              { n: 1, title: 'ליד מופיע ברשימה', desc: 'שם, טלפון, מקור "וואטסאפ", סטטוס "חדש". ברור ומאורגן.' },
-              { n: 2, title: 'מוסיפים הערות', desc: 'מה הוא ביקש? מה עוד רלוונטי? הכל נשמר על הליד לצמיתות.' },
-              { n: 3, title: 'מגדירים תזכורת', desc: '"לחזור ב-15 לחודש", המערכת תזכיר. לא שוכחים יותר.' },
-              { n: 4, title: 'מעדכנים סטטוס', desc: 'ליד סגר עסקה? לחיצה אחת, "סגור". הנתונים מתעדכנים מיידית בדוחות.' },
-            ].map((item) => (
-              <li key={item.n} className='flex gap-4 items-center bg-white rounded-lg p-6 shadow-sm border border-gray-100'>
-                <div
-                  className='size-9 rounded-full flex items-center justify-center font-bold text-white shrink-0 text-sm'
+          <div className='relative z-10 max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden'>
+            <div className='flex flex-col items-center text-center p-8 lg:px-12 lg:pt-8 lg:pb-16' dir='rtl'>
+              <span
+                className='inline-block px-3 py-1 rounded-full text-xs font-semibold mb-6 text-white'
+                style={{ backgroundColor: '#25D366' }}
+              >
+                וואטסאפ
+              </span>
+              <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
+                לידים מוואטסאפ נהל אותם, אל תאבד אותם
+              </h1>
+              <p className='text-lg text-gray-700 mb-8 max-w-xl'>
+                לידים שמגיעים בוואטסאפ נשכחים בקלות בתוך ערימת ההודעות. SocialCRM נותנת להם מקום, ומוודאת שכל אחד מטופל.
+              </p>
+              <div className='flex flex-col sm:flex-row items-center gap-4'>
+                <Link
+                  href='/features'
+                  className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
+                >
+                  ראה את כל הפיצ׳רים
+                </Link>
+                <Link
+                  href='/auth/register'
+                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
-                  {item.n}
-                </div>
-                <div className='flex-1'>
-                  <h3 className='font-bold'>{item.title}</h3>
-                  <p className='text-gray-500 text-sm mt-0.5'>{item.desc}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* Cross-channel teaser */}
-        <section className='py-12 px-8' style={{ backgroundColor: '#f3f2ff' }}>
-          <div className='max-w-4xl mx-auto'>
-            <h2 className='text-xl font-bold text-center mb-6'>מנהלים לידים מכל הערוצים, ביחד</h2>
-            <div className='grid md:grid-cols-3 gap-4'>
-              {[
-                { source: 'פייסבוק', desc: 'לידים מגיעים אוטומטית מ-Lead Ads', href: '/facebook-leads', active: false },
-                { source: 'וואטסאפ', desc: 'מוסיפים ידנית או מייבאים', href: '/whatsapp-leads', active: true },
-                { source: 'אקסל', desc: 'ייבוא לידים קיימים בקובץ', href: '/features', active: false },
-              ].map((ch) => (
-                <Link
-                  key={ch.source}
-                  href={ch.href}
-                  className='block p-4 rounded-lg text-center transition-colors'
-                  style={{
-                    backgroundColor: ch.active ? '#3f20f5' : 'white',
-                    color: ch.active ? 'white' : '#171424',
-                  }}
-                >
-                  <div className='font-bold mb-1'>{ch.source}</div>
-                  <div className={`text-xs ${ch.active ? 'text-purple-200' : 'text-gray-500'}`}>{ch.desc}</div>
+                  התחל לנהל לידים מוואטסאפ
                 </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <section className='px-8 py-14' style={{ backgroundColor: '#0a0a0a' }}>
+          <div className='max-w-5xl mx-auto' dir='rtl'>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+              {STATS.map((s) => (
+                <div
+                  key={s.value}
+                  className='rounded-2xl p-8 text-center'
+                  style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <p className='text-5xl font-bold text-white mb-2'>{s.value}</p>
+                  <p className='text-white font-semibold mb-1'>{s.label}</p>
+                  <p className='text-white/40 text-sm'>{s.sub}</p>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <FAQSection title='שאלות נפוצות על לידים מוואטסאפ' items={faqItems} />
+        {/* MagnifiedBento — interactive */}
+        <section className='px-8 py-16' style={{ backgroundColor: '#0a0a0a' }}>
+          <div className='max-w-5xl mx-auto mb-10 text-center' dir='rtl'>
+            <h2 className='text-3xl font-bold text-white mb-3'>כל ליד מוואטסאפ, מנוהל נכון</h2>
+            <p className='text-white/50 max-w-xl mx-auto'>מרשימת הודעות כאוטית לרשימה ברורה עם סטטוס, נציג ומעקב.</p>
+          </div>
+          <div className='max-w-5xl mx-auto flex justify-center'>
+            <MagnifiedBento />
+          </div>
+        </section>
+
+        {/* Feature Grid */}
+        <div className='bg-white'>
+          <FeatureGrid
+            className='pb-0'
+            title={
+              <span>
+                כל מה שצריך כדי{' '}
+                <span className='relative inline-block'>
+                  לא לפספס ליד
+                  <svg
+                    viewBox='0 0 160 6'
+                    className='absolute left-0 bottom-0 -mb-1 w-full'
+                    aria-hidden='true'
+                  >
+                    <path
+                      d='M1 4.5C34 1.63 126 1.39 159 4.5'
+                      stroke='#3f20f5'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      fill='none'
+                    />
+                  </svg>
+                </span>
+              </span>
+            }
+            subtitle='מוואטסאפ, אקסל וייבוא ידני כל הלידים שלך מנוהלים במקום אחד.'
+            categories={featureCategories}
+            buttonText='התחל לנהל לידים מוואטסאפ'
+            buttonHref='/auth/register'
+          />
+        </div>
+
+        {/* Animated CTA */}
+        <AnimatedCta
+          title='מפסיקים לאבד לידים בוואטסאפ'
+          highlight='מתחילים לנהל אותם נכון'
+          buttonText='התחל בחינם עכשיו'
+          buttonHref='/auth/register'
+        />
+
+        {/* FAQ */}
+        <FAQ
+          title='שאלות נפוצות'
+          subtitle='שאלות על ניהול לידים מוואטסאפ'
+          categories={{
+            general: 'כללי',
+            setup: 'הוספה וייבוא',
+          }}
+          faqData={faqData}
+        />
 
         {/* CTA */}
-        <section className='py-20 px-8 text-center' style={{ backgroundColor: '#171424' }}>
-          <h2 className='text-3xl font-bold text-white mb-4'>מפסיקים לאבד לידים בוואטסאפ</h2>
-          <p className='text-gray-400 mb-8'>הרשמה בחינם. תוסיף את הליד הראשון תוך דקה.</p>
-          <Link
-            href='/auth/register'
-            className='inline-block px-8 py-3 rounded-lg text-white font-semibold text-lg'
-            style={{ backgroundColor: '#3f20f5' }}
-          >
-            התחל בחינם עכשיו
-          </Link>
-        </section>
+        <FinalCTA />
+
       </MarketingLayout>
     </>
   )

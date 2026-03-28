@@ -1,16 +1,19 @@
 import Link from 'next/link'
 import { Metadata } from 'next'
-import AccordionItem from '@/lib/AccordionItem'
 import Icon from '@/lib/Icon'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
+import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
+import { StatsSection, FinalCTA } from '@/components/seo/CRMSections'
+import { FAQ } from '@/components/ui/faq-tabs'
+import { buildFAQSchema } from '@/components/seo/FAQ'
+import { FeatureGrid } from '@/components/ui/feature-section'
+import { AnimatedCta } from '@/components/ui/animated-cta'
 
 export const metadata: Metadata = {
   title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
   description:
     'SocialCRM, מערכת CRM בעברית לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ. ייבוא מאקסל, מעקב מכירות, ניהול נציגים. התחל בחינם.',
-  alternates: {
-    canonical: 'https://socialcrm.vercel.app/features',
-  },
+  alternates: { canonical: 'https://socialcrm.vercel.app/features' },
   openGraph: {
     title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
     description: 'כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות.',
@@ -18,116 +21,95 @@ export const metadata: Metadata = {
   },
 }
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'מה זה מערכת CRM לעסקים קטנים?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'מערכת CRM (ניהול קשרי לקוחות) לעסקים קטנים היא תוכנה שמאגדת את כל הלידים ואנשי הקשר של העסק במקום אחד. היא מאפשרת לנהל סטטוס, לשייך נציגים, לעקוב אחר התקדמות ולסגור יותר עסקאות.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם SocialCRM מתחבר לפייסבוק?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. SocialCRM מתחבר ישירות לדף העסקי בפייסבוק ומביא כל ליד שממלא טופס מודעה ישירות למערכת, אוטומטית, בלי העתקה ידנית.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'איך מייבאים לידים מאקסל?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'מעלים קובץ אקסל עם עמודות שם, טלפון ומקור. המערכת מייבאת את כל הלידים בכמה שניות ומאפשרת להתחיל לעבוד מיד.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם אפשר לנהל צוות נציגים במערכת?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. ניתן לשייך לידים לנציגים ספציפיים, לראות את ביצועי כל נציג, ולנהל צוותי מכירות שלמים מממשק אחד.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'כמה זמן לוקח להתחיל לעבוד עם המערכת?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'ההרשמה לוקחת פחות מדקה. ניתן להוסיף לידים ולהתחיל לעבוד מיד. חיבור לפייסבוק לוקח כ-5 דקות.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'מה ההבדל בין SocialCRM למערכות CRM אחרות?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'SocialCRM בנויה ספציפית לעסקים קטנים שמקבלים לידים ממדיה חברתית. היא פשוטה, בעברית, ומותאמת לשוק הישראלי, בלי עומס של פיצ\'רים שלא צריכים.',
-      },
-    },
-  ],
+const faqItems = [
+  {
+    question: 'מה זה מערכת CRM לעסקים קטנים?',
+    answer: 'מערכת CRM לעסקים קטנים היא תוכנה שמאגדת את כל הלידים ואנשי הקשר של העסק במקום אחד. היא מאפשרת לנהל סטטוס, לשייך נציגים, לעקוב אחר התקדמות ולסגור יותר עסקאות.',
+  },
+  {
+    question: 'האם SocialCRM מתחבר לפייסבוק?',
+    answer: 'כן. SocialCRM מתחבר ישירות לדף העסקי בפייסבוק ומביא כל ליד שממלא טופס מודעה ישירות למערכת, אוטומטית, בלי העתקה ידנית.',
+  },
+  {
+    question: 'איך מייבאים לידים מאקסל?',
+    answer: 'מעלים קובץ אקסל עם עמודות שם, טלפון ומקור. המערכת מייבאת את כל הלידים בכמה שניות ומאפשרת להתחיל לעבוד מיד.',
+  },
+  {
+    question: 'האם אפשר לנהל צוות נציגים במערכת?',
+    answer: 'כן. ניתן לשייך לידים לנציגים ספציפיים, לראות את ביצועי כל נציג, ולנהל צוותי מכירות שלמים מממשק אחד.',
+  },
+  {
+    question: 'כמה זמן לוקח להתחיל לעבוד עם המערכת?',
+    answer: 'ההרשמה לוקחת פחות מדקה. ניתן להוסיף לידים ולהתחיל לעבוד מיד. חיבור לפייסבוק לוקח כ-5 דקות.',
+  },
+  {
+    question: 'מה ההבדל בין SocialCRM למערכות CRM אחרות?',
+    answer: "SocialCRM בנויה ספציפית לעסקים קטנים שמקבלים לידים ממדיה חברתית. היא פשוטה, בעברית, ומותאמת לשוק הישראלי, בלי עומס של פיצ'רים שלא צריכים.",
+  },
+]
+
+const faqSchema = buildFAQSchema(faqItems)
+
+const faqData = {
+  general: [faqItems[0], faqItems[4], faqItems[5]],
+  features: [faqItems[2], faqItems[3]],
+  integrations: [faqItems[1]],
 }
 
-const webPageSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'WebPage',
-  '@id': 'https://socialcrm.vercel.app/features',
-  url: 'https://socialcrm.vercel.app/features',
-  name: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
-  description: 'SocialCRM, מערכת CRM בעברית לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ.',
-  inLanguage: 'he',
-  isPartOf: { '@id': 'https://socialcrm.vercel.app/#website' },
-  about: { '@id': 'https://socialcrm.vercel.app/#software' },
-  breadcrumb: {
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
-      { '@type': 'ListItem', position: 2, name: 'פיצ\'רים', item: 'https://socialcrm.vercel.app/features' },
+const featureCategories = [
+  {
+    icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
+    title: 'חיבור לפייסבוק ואינסטגרם',
+    items: [
+      { text: 'לידים מ-Lead Ads אוטומטית' },
+      { text: 'חיבור לדף העסקי בלחיצה' },
+      { text: 'עדכון בזמן אמת' },
     ],
   },
-}
-
-const features = [
   {
-    title: 'חיבור אוטומטי לפייסבוק',
-    description:
-      'מחברים את דף הפייסבוק העסקי פעם אחת. מאותו רגע כל ליד שממלא טופס מגיע ישירות למערכת, בלי העתקה ידנית, בלי שכחה.',
-    icon: 'plug' as const,
+    icon: <Icon name='whatsapp' className='size-6 bg-primary' />,
+    title: 'לידים מוואטסאפ',
+    items: [
+      { text: 'הוספה ידנית ב-10 שניות' },
+      { text: 'ייבוא מספרי טלפון' },
+      { text: 'מקור מזוהה אוטומטית' },
+    ],
   },
   {
-    title: 'ייבוא לידים מאקסל',
-    description:
-      'יש רשימת לידים ישנה? מעלים קובץ אקסל ובשניות כל הלידים מאורגנים במערכת עם סטטוס, שם ומספר טלפון.',
-    icon: 'file-excel' as const,
+    icon: <Icon name='upload' className='size-6 bg-primary' />,
+    title: 'ייבוא מאקסל',
+    items: [
+      { text: 'העלאת קובץ קיים' },
+      { text: 'מיפוי עמודות אוטומטי' },
+      { text: '200 לידים תוך דקה' },
+    ],
   },
   {
-    title: 'ניהול סטטוס ומעקב',
-    description:
-      'כל ליד עובר בין סטטוסים: חדש, בטיפול, סגור, אבוד. תמיד ברור מה הצעד הבא ומי צריך טיפול דחוף.',
-    icon: 'circle-check' as const,
+    icon: <Icon name='users' className='size-6 bg-primary' />,
+    title: 'ניהול צוות',
+    items: [
+      { text: 'שיוך לידים לנציגים' },
+      { text: 'כל נציג רואה רק את שלו' },
+      { text: 'מנהל רואה הכל' },
+    ],
   },
   {
-    title: 'שיוך לנציגים',
-    description:
-      'שייך כל ליד לנציג מכירות ספציפי. כל נציג רואה רק את הלידים שלו. מנהל רואה את כולם.',
-    icon: 'user-tie' as const,
+    icon: <Icon name='circle-check' className='size-6 bg-primary' />,
+    title: 'מעקב וסגירה',
+    items: [
+      { text: 'עדכון סטטוס בקליק' },
+      { text: 'היסטוריה מלאה לכל ליד' },
+      { text: 'תזכורות פולואו-אפ' },
+    ],
   },
   {
-    title: 'מעקב ומשימות',
-    description:
-      'מוסיפים תזכורות ומשימות לכל ליד. המערכת תזכיר מתי לחזור, כך שאף ליד לא נשכח.',
-    icon: 'bell' as const,
-  },
-  {
-    title: 'דוחות מכירות',
-    description:
-      'ראה כמה לידים נסגרו, מי הנציג הכי יעיל, ואיזה מקור מביא הכי הרבה עסקאות, הכל בדוח אחד.',
-    icon: 'chart-line' as const,
+    icon: <Icon name='chart-line' className='size-6 bg-primary' />,
+    title: 'ביצועים ודוחות',
+    items: [
+      { text: 'אחוז סגירה לפי מקור' },
+      { text: 'ביצועי נציגים' },
+      { text: 'דוחות חודשיים' },
+    ],
   },
 ]
 
@@ -135,126 +117,113 @@ export default function FeaturesPage() {
   return (
     <>
       <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
 
       <MarketingLayout>
+
         {/* Hero */}
-        <section className='py-20 px-8 text-center' style={{ backgroundColor: '#f3f2ff' }}>
-          <nav aria-label='breadcrumb' className='text-sm text-gray-400 mb-6'>
-            <Link href='/auth' className='hover:underline'>דף הבית</Link>
-            <span className='mx-2'>/</span>
-            <span>פיצ'רים</span>
-          </nav>
-          <h1 className='text-4xl lg:text-5xl font-bold mb-4' style={{ color: '#171424' }}>
-            מערכת ניהול לידים לעסקים קטנים
-          </h1>
-          <p className='text-gray-500 text-lg max-w-2xl mx-auto mb-8'>
-            כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות. בלי לפספס אף ליד.
-          </p>
-          <Link
-            href='/auth'
-            className='inline-block px-8 py-3 rounded-lg text-white font-semibold text-lg'
-            style={{ backgroundColor: '#3f20f5' }}
-          >
-            התחל בחינם עכשיו
-          </Link>
-        </section>
-
-        {/* Problem section */}
-        <section className='py-16 px-8 max-w-4xl mx-auto'>
-          <h2 className='text-2xl font-bold text-center mb-4'>למה לידים הולכים לאיבוד?</h2>
-          <p className='text-gray-500 text-center max-w-2xl mx-auto mb-10'>
-            ליד מגיע מפייסבוק, נשכח בווטסאפ. עוד ליד נכנס למייל, לא מטופל. אקסל מתעדכן רק כשזוכרים. התוצאה, עסקאות שהולכות לאיבוד.
-          </p>
-
-          <div className='grid md:grid-cols-3 gap-6 text-center'>
-            {[
-              { stat: '78%', label: 'מהלידים לא מקבלים מענה תוך 5 דקות' },
-              { stat: '44%', label: 'מהלידים נשכחים לחלוטין ללא מעקב' },
-              { stat: '3x', label: 'יותר סיכוי לסגור ליד שמטופל מיד' },
-            ].map((item) => (
-              <div key={item.stat} className='p-6 rounded-lg border border-gray-100'>
-                <div className='text-4xl font-bold mb-2' style={{ color: '#3f20f5' }}>{item.stat}</div>
-                <div className='text-gray-500 text-sm'>{item.label}</div>
-              </div>
-            ))}
+        <div className='relative bg-blue-50 overflow-hidden font-sans pb-8 px-4'>
+          <div>
+            <div className='absolute inset-0 bg-linear-to-br from-transparent via-transparent to-blue-700 opacity-50 z-0' />
+            <div className='absolute bottom-0 right-0 w-3/4 h-3/4 bg-blue-600 transform origin-bottom-right rotate-12 translate-y-1/3 -translate-x-1/4 opacity-90 z-0' />
+            <div className='absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-700 opacity-80 z-0' />
+            <div className='absolute top-0 left-0 w-1/2 h-full bg-blue-400 transform -skew-y-6 origin-top-left -translate-y-1/4 opacity-30 z-0' />
           </div>
-        </section>
 
-        {/* Features */}
-        <section className='py-16 px-8' style={{ backgroundColor: '#f9f9f9' }}>
-          <div className='max-w-4xl mx-auto'>
-            <h2 className='text-2xl font-bold text-center mb-2'>הכל שצריך לנהל לידים</h2>
-            <p className='text-gray-500 text-center mb-10'>פשוט, ברור, ויעיל, בלי עודף פיצ'רים שלא צריך</p>
+          <MarketingNavbar />
 
-            <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-6'>
-              {features.map((f) => (
-                <article key={f.title} className='bg-white rounded-lg p-6 shadow-sm'>
-                  <Icon name={f.icon} className='size-6 mb-3' style={{ color: '#3f20f5' }} />
-                  <h3 className='font-bold text-lg mb-2'>{f.title}</h3>
-                  <p className='text-gray-500 text-sm leading-relaxed'>{f.description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* How it works */}
-        <section className='py-16 px-8 max-w-3xl mx-auto'>
-          <h2 className='text-2xl font-bold text-center mb-10'>איך זה עובד?</h2>
-          <ol className='grid md:grid-cols-2 gap-6'>
-            {[
-              { step: '1', title: 'נרשמים', desc: 'הרשמה עם גוגל, פחות מדקה, בלי כרטיס אשראי.' },
-              { step: '2', title: 'מחברים את הלידים', desc: 'מחברים דף פייסבוק או מעלים אקסל עם הלידים הקיימים.' },
-              { step: '3', title: 'מתחילים לעבוד', desc: 'רואים את כל הלידים, מעדכנים סטטוס, מתקשרים, וסוגרים עסקאות.' },
-            ].map((item) => (
-              <li key={item.step} className='flex gap-4 items-center bg-white rounded-lg p-6 shadow-sm border border-gray-100'>
-                <div
-                  className='size-10 rounded-full flex items-center justify-center font-bold text-white shrink-0'
+          <div className='relative z-10 max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden'>
+            <div className='flex flex-col items-center text-center p-8 lg:px-12 lg:pt-8 lg:pb-16' dir='rtl'>
+              <span
+                className='inline-block px-3 py-1 rounded-full text-xs font-semibold mb-6 text-white'
+                style={{ backgroundColor: '#3f20f5' }}
+              >
+                הפיצ׳רים
+              </span>
+              <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
+                כל מה שצריך כדי לא לפספס אף ליד
+              </h1>
+              <p className='text-lg text-gray-700 mb-8 max-w-xl'>
+                מרכוז, מעקב, וסגירת עסקאות מכל מקור שהלידים שלך מגיעים ממנו.
+              </p>
+              <div className='flex flex-col sm:flex-row items-center gap-4'>
+                <Link
+                  href='/crm'
+                  className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
+                >
+                  קרא עוד על ניהול לידים
+                </Link>
+                <Link
+                  href='/auth/register'
+                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
-                  {item.step}
-                </div>
-                <div className='flex-1'>
-                  <h3 className='font-bold text-lg'>{item.title}</h3>
-                  <p className='text-gray-500 text-sm mt-1'>{item.desc}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* FAQ */}
-        <section className='py-16 px-8' style={{ backgroundColor: '#f9f9f9' }}>
-          <div className='max-w-2xl mx-auto'>
-            <h2 className='text-2xl font-bold text-center mb-8'>שאלות נפוצות</h2>
-            <div className='bg-white rounded-lg shadow-sm overflow-hidden'>
-              {faqSchema.mainEntity.map((item) => (
-                <AccordionItem
-                  key={item.name}
-                  title={item.name}
-                  className='flex items-center justify-between px-5 py-4 cursor-pointer select-none'
-                  bodyClass='px-5 pb-4 text-gray-500 text-sm leading-relaxed'
-                >
-                  {item.acceptedAnswer.text}
-                </AccordionItem>
-              ))}
+                  התחל בחינם עכשיו
+                </Link>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
+
+        {/* Feature Grid */}
+        <div className='bg-white'>
+          <FeatureGrid
+            className='pb-0'
+            title={
+              <span>
+                כל הפיצ׳רים שצריך{' '}
+                <span className='relative inline-block'>
+                  לסגור יותר עסקאות
+                  <svg
+                    viewBox='0 0 200 6'
+                    className='absolute left-0 bottom-0 -mb-1 w-full'
+                    aria-hidden='true'
+                  >
+                    <path
+                      d='M1 4.5C50 1.63 150 1.39 199 4.5'
+                      stroke='#3f20f5'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      fill='none'
+                    />
+                  </svg>
+                </span>
+              </span>
+            }
+            subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל — כל הלידים שלך מנוהלים במקום אחד.'
+            categories={featureCategories}
+            buttonText='התחל בחינם עכשיו'
+            buttonHref='/auth/register'
+          />
+        </div>
+
+        {/* Animated CTA */}
+        <AnimatedCta
+          title='מפסיקים לפספס לידים'
+          highlight='מתחילים לנהל אותם נכון'
+          buttonText='התחל בחינם עכשיו'
+          buttonHref='/auth/register'
+        />
+
+        {/* Stats */}
+        <div className='border-b border-gray-200'>
+          <StatsSection />
+        </div>
+
+        {/* FAQ */}
+        <FAQ
+          title='שאלות נפוצות'
+          subtitle="שאלות נפוצות על המערכת"
+          categories={{
+            general: 'כללי',
+            features: "פיצ'רים",
+            integrations: 'חיבורים',
+          }}
+          faqData={faqData}
+        />
 
         {/* CTA */}
-        <section className='py-20 px-8 text-center' style={{ backgroundColor: '#171424' }}>
-          <h2 className='text-3xl font-bold text-white mb-4'>מוכן להפסיק לפספס לידים?</h2>
-          <p className='text-gray-400 mb-8'>הרשמה בחינם, לא צריך כרטיס אשראי.</p>
-          <Link
-            href='/auth/register'
-            className='inline-block px-8 py-3 rounded-lg text-white font-semibold text-lg'
-            style={{ backgroundColor: '#3f20f5' }}
-          >
-            התחל בחינם עכשיו
-          </Link>
-        </section>
+        <FinalCTA />
 
       </MarketingLayout>
     </>
