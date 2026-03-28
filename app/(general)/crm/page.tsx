@@ -7,7 +7,7 @@ import type { HeroSectionComponentData } from '@/components/ui/hero-section'
 import { Features7Section, OrbitalFeaturesSection, HowItWorksSection, StatsSection, LeadSourcesSection, FinalCTA } from '@/components/seo/CRMSections'
 import dynamic from 'next/dynamic'
 
-const TestimonialsSection = dynamic(() => import('@/components/seo/CRMSections').then(m => ({ default: m.TestimonialsSection })), { ssr: false })
+const TestimonialsSection = dynamic(() => import('@/components/seo/CRMSections').then(m => ({ default: m.TestimonialsSection })))
 import { AnimatedCta } from '@/components/ui/animated-cta'
 
 const heroData: HeroSectionComponentData = {
