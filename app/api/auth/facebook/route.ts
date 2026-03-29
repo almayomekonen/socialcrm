@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
 import { cookies } from 'next/headers'
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const user = await getUser()
-  if (!user) return NextResponse.redirect(new URL('/auth', req.url))
+  if (!user) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/auth`)
 
   // Generate CSRF state token and store in short-lived cookie
   const state = crypto.randomUUID()
@@ -19,8 +19,10 @@ export async function GET(req: NextRequest) {
 
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
-    redirect_uri: process.env.META_REDIRECT_URI!,
-    scope: ['pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'leads_retrieval', 'business_management'].join(','),
+    redirect_uri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/facebook/callback`,
+    scope: ['pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'leads_retrieval', 'business_management'].join(
+      ',',
+    ),
     state,
     response_type: 'code',
     auth_type: 'rerequest',
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
     '[FacebookOAuth] Redirecting to OAuth dialog — appId:',
     process.env.META_APP_ID,
     'redirectUri:',
-    process.env.META_REDIRECT_URI,
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/facebook/callback`,
   )
 
   return NextResponse.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`)

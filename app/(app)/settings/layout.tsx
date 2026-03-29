@@ -9,7 +9,7 @@ export default async function SettingLayout({ children }) {
     <div className='px-4 grid grid-cols-[auto_1fr] gap-12 mobile:grid-cols-1 mobile:gap-4'>
       <div className='sticky mt-8 grid gap-1 h-fit max-w-52 mobile:max-w-full'>
         <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
-        <SettingsLink href='/settings/facebook' icon='facebook' title='חיבור פייסבוק' />
+        <SettingsLink href='/settings/facebook' icon='comment-dots' title='ערוצי לידים' />
 
         {user.role == 'ADMIN' && (
           <>
