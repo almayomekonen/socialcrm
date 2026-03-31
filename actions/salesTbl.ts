@@ -83,6 +83,7 @@ export async function updateDealStatus(dealId: number, status: string) {
   const obj = { status } as any
   if (status === 'הופק') obj.saleDt = toIso(new Date())
   await db('sales').where({ id: dealId }).update(obj)
+  revalidatePath('/')
 }
 
 // עדכון סטטוס לעסקאות
