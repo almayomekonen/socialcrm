@@ -1,5 +1,7 @@
 /** @param {import('knex').Knex} knex */
 exports.up = async function (knex) {
+  const exists = await knex.schema.hasTable('whatsapp_connections')
+  if (exists) return
   await knex.schema.createTable('whatsapp_connections', (table) => {
     table.increments('id').primary()
     table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')

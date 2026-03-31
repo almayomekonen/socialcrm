@@ -19,15 +19,81 @@ const daysFromNow = (n: number) => new Date(Date.now() + n * 864e5)
 const monthsAgo = (n: number) => new Date(Date.now() - n * 30 * 864e5)
 
 // ── data pools ────────────────────────────────────────────────────────────────
-const firstNames = ['נועה', 'אייל', 'שירה', 'יוסי', 'מיה', 'דן', 'תמר', 'אורן', 'ליאת', 'גל',
-  'רון', 'הילה', 'ניר', 'דנה', 'עמית', 'יעל', 'אסף', 'מור', 'נתן', 'שני',
-  'לירון', 'אבי', 'רחל', 'מתן', 'אדם', 'חן', 'בר', 'טל', 'עדן', 'אלון',
-  'מיכל', 'יונתן', 'שרה', 'איתי', 'רוני', 'גיא', 'שקד', 'נבו', 'מאיה', 'אור']
+const firstNames = [
+  'נועה',
+  'אייל',
+  'שירה',
+  'יוסי',
+  'מיה',
+  'דן',
+  'תמר',
+  'אורן',
+  'ליאת',
+  'גל',
+  'רון',
+  'הילה',
+  'ניר',
+  'דנה',
+  'עמית',
+  'יעל',
+  'אסף',
+  'מור',
+  'נתן',
+  'שני',
+  'לירון',
+  'אבי',
+  'רחל',
+  'מתן',
+  'אדם',
+  'חן',
+  'בר',
+  'טל',
+  'עדן',
+  'אלון',
+  'מיכל',
+  'יונתן',
+  'שרה',
+  'איתי',
+  'רוני',
+  'גיא',
+  'שקד',
+  'נבו',
+  'מאיה',
+  'אור',
+]
 
-const lastNames = ['לוי', 'כהן', 'מזרחי', 'פרץ', 'ביטון', 'אברהם', 'שפירו', 'רוזן', 'גרינברג',
-  'אדרי', 'פרידמן', 'אלוני', 'שמש', 'דגן', 'קפלן', 'סגל', 'נחום', 'חזן',
-  'יוסף', 'אלקבץ', 'בן דוד', 'נוי', 'שלום', 'גולן', 'אמסלם', 'בר', 'נגר',
-  'סרוסי', 'מלכה', 'עזרא']
+const lastNames = [
+  'לוי',
+  'כהן',
+  'מזרחי',
+  'פרץ',
+  'ביטון',
+  'אברהם',
+  'שפירו',
+  'רוזן',
+  'גרינברג',
+  'אדרי',
+  'פרידמן',
+  'אלוני',
+  'שמש',
+  'דגן',
+  'קפלן',
+  'סגל',
+  'נחום',
+  'חזן',
+  'יוסף',
+  'אלקבץ',
+  'בן דוד',
+  'נוי',
+  'שלום',
+  'גולן',
+  'אמסלם',
+  'בר',
+  'נגר',
+  'סרוסי',
+  'מלכה',
+  'עזרא',
+]
 
 const leadSources = ['Facebook', 'Instagram', 'WhatsApp', 'אתר', 'המלצה', 'פרסום ממומן', 'אורגני']
 const leadStatuses = ['new', 'new', 'new', 'contacted', 'contacted', 'interested', 'closed', 'lost']
@@ -35,9 +101,17 @@ const leadStatuses = ['new', 'new', 'new', 'contacted', 'contacted', 'interested
 const dealStatuses = ['חדש', 'חדש', 'חדש', 'בהצעה', 'בהצעה', 'במו"מ', 'במו"מ', 'ממתין לתשלום', 'שולם', 'שולם', 'בוטל']
 
 const notes = [
-  'לקוח מאוד מעוניין, לחזור בשבוע הבא', 'ממתין לאישור מנהל', 'שלחנו הצעה מפורטת',
-  'לקוח ביקש הנחה נוספת', 'חוזה נחתם, ממתין לתשלום', 'הפניה מלקוח קיים',
-  'ניהול משא ומתן על תנאים', 'בקשה לשדרוג חבילה קיימת', null, null, null,
+  'לקוח מאוד מעוניין, לחזור בשבוע הבא',
+  'ממתין לאישור מנהל',
+  'שלחנו הצעה מפורטת',
+  'לקוח ביקש הנחה נוספת',
+  'חוזה נחתם, ממתין לתשלום',
+  'הפניה מלקוח קיים',
+  'ניהול משא ומתן על תנאים',
+  'בקשה לשדרוג חבילה קיימת',
+  null,
+  null,
+  null,
 ]
 
 const deals = [
@@ -99,29 +173,34 @@ async function seedLeads(userId: number, agencyId: number, count: number): Promi
   console.log(`\n🌱 Seeding ${count} leads...`)
   const ids: number[] = []
 
+  // Unique base per run so re-runs don't collide
+  const seedBase = Date.now() % 9000000
+
   for (let i = 0; i < count; i++) {
     const firstName = firstNames[i % firstNames.length]
     const lastName = lastNames[i % lastNames.length]
-    const phone = `0521${String(1000000 + i).padStart(7, '0')}`
-    const email = `lead.seed.${i + 1}@example.com`
+    const phone = `052${String(1000000 + seedBase + i).slice(-7)}`
+    const email = `seed.${seedBase}.${i}@example-crm.com`
     const status = rand(leadStatuses)
     const statusChangedAt = daysAgo(randNum(0, 90))
 
     try {
-      const [row] = await db('clients').insert({
-        firstName,
-        lastName,
-        phone,
-        email,
-        lead: true,
-        leadSource: rand(leadSources),
-        status,
-        statusChangedAt,
-        userId,
-        handlerId: userId,
-        createdById: userId,
-        agencyId,
-      }).returning('id')
+      const [row] = await db('clients')
+        .insert({
+          firstName,
+          lastName,
+          phone,
+          email,
+          lead: true,
+          leadSource: rand(leadSources),
+          status,
+          statusChangedAt,
+          userId,
+          handlerId: userId,
+          createdById: userId,
+          agencyId,
+        })
+        .returning('id')
 
       ids.push(row.id)
       if ((i + 1) % 20 === 0) console.log(`  ${i + 1}/${count}`)
@@ -150,23 +229,25 @@ async function seedDeals(userId: number, agencyId: number, clientIds: number[], 
     const saleDt = status === 'שולם' ? daysAgo(randNum(1, 60)) : null
 
     try {
-      const [sale] = await db('sales').insert({
-        status,
-        action: 'מכירה',
-        company: deal.company,
-        branch: deal.branch,
-        prdct: deal.prdct,
-        prdctType: deal.prdctType,
-        offrDt,
-        saleDt,
-        clientId: rand(clientIds),
-        createdById: userId,
-        handlerId: userId,
-        amount: deal.amount,
-        cmsn,
-        notes: rand(notes),
-        agencyId,
-      }).returning('id')
+      const [sale] = await db('sales')
+        .insert({
+          status,
+          action: 'מכירה',
+          company: deal.company,
+          branch: deal.branch,
+          prdct: deal.prdct,
+          prdctType: deal.prdctType,
+          offrDt,
+          saleDt,
+          clientId: rand(clientIds),
+          createdById: userId,
+          handlerId: userId,
+          amount: deal.amount,
+          cmsn,
+          notes: rand(notes),
+          agencyId,
+        })
+        .returning('id')
 
       await db('sale_users').insert({
         saleId: sale.id,
@@ -240,7 +321,7 @@ async function seedPromos(userId: number, agencyId: number, count: number) {
     const p = promos[i % promos.length]
     const startMonth = i % 6
     try {
-      await db('promos').insert({
+      await db('promo').insert({
         title: p.title,
         desc: `יעד: ${p.target}₪ ב${p.branch}. הנציג המוביל יקבל בונוס מיוחד.`,
         start: monthsAgo(startMonth + 1),

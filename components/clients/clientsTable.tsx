@@ -216,7 +216,6 @@ export default function ClientsTable({ data, user, leads = false }) {
 
 export function getHeaders(leads) {
   const headers = [
-    { key: 'state', label: 'מצב', format: 'formatState' },
     { key: 'name', label: 'שם מלא', format: 'formatName' },
     { key: 'phone', label: 'מספר טלפון' },
     { key: 'status', label: 'סטטוס', format: 'formatStatus' },
