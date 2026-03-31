@@ -30,6 +30,19 @@
   animation: scale-in var(--anim-duration, 0.15s) ease-in-out;
 }
 
+@utility anim-flash {
+  animation: row-flash 600ms ease-out forwards;
+}
+
+@keyframes row-flash {
+  0% {
+    background-color: rgb(220 252 231);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 @keyframes slide-left {
   from {
     opacity: 0;

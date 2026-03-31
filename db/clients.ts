@@ -53,36 +53,108 @@ export async function getLeadLists(userId) {
   return await db('client_lists').where({ userId })
 }
 
-export async function getLeadsTable({ user, params, leads = false, gotPermIds }) {
+export async function getLeadsTable({ user, params, leads = false, gotPermIds, settings = null }) {
   const agencyId = await getAgencyId()
 
-  let { filter, listId, pageNum, tableLimit, clientId } = params
-  const sql = db('clients')
+  let { listId, pageNum, tableLimit, clientId } = params
   pageNum = Number(pageNum) || 1
   tableLimit = Number(tableLimit) || 100
 
-  sql.where('clients.agencyId', agencyId)
-  sql.where('lead', leads)
-
-  if (gotPermIds && !isAdmin(user.role)) sql.whereIn('clients.userId', gotPermIds)
-
-  if (clientId) sql.where('clients.id', clientId)
-  else if (listId) {
-    const list = await db('client_lists').where({ id: listId }).first()
-    sql.whereIn('clients.id', list.clientIds)
-  }
-
-  sql
+  const base = db('clients')
+    .where('clients.agencyId', agencyId)
+    .where('lead', leads)
     .leftJoin({ handler: 'users' }, 'clients.handlerId', 'handler.id')
     .leftJoin({ creator: 'users' }, 'clients.userId', 'creator.id')
-    .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')
-    .orderBy('clients.updatedAt', 'desc')
+    .select(
+      'clients.*',
+      'handler.name as handlerName',
+      'creator.name as userName',
+      db.raw(`EXTRACT(EPOCH FROM (NOW() - clients."statusChangedAt")) / 3600.0 AS elapsed_hours`),
+      db.raw(
+        `CASE clients.status WHEN 'new' THEN 2.0 WHEN 'contacted' THEN 24.0 WHEN 'interested' THEN 72.0 ELSE NULL END AS sla_hours`,
+      ),
+    )
+
+  if (gotPermIds && !isAdmin(user.role)) base.whereIn('clients.userId', gotPermIds)
+
+  if (clientId) {
+    base.where('clients.id', clientId)
+  } else if (listId) {
+    const list = await db('client_lists').where({ id: listId }).first()
+    base.whereIn('clients.id', list.clientIds)
+  }
+
+  if (settings) {
+    const coldMonths = Number(settings.monthsLidimSheloHufku) || 8
+    const stuckMonths = Number(settings.monthsUpdated) || 24
+    base.select(
+      db.raw(`CASE WHEN ? AND clients."updatedAt" < NOW() - (? * INTERVAL '1 month') THEN true ELSE false END AS is_cold`, [
+        !!settings.isRiskUpdated,
+        coldMonths,
+      ]),
+      db.raw(`CASE WHEN ? AND clients."updatedAt" < NOW() - (? * INTERVAL '1 month') THEN true ELSE false END AS is_stuck`, [
+        !!settings.isMahalotKashotUpdated,
+        stuckMonths,
+      ]),
+      db.raw(`CASE WHEN ? AND clients."handlerId" IS NULL THEN true ELSE false END AS is_unassigned`, [
+        !!settings.isBituachHaimMutzarHaser,
+      ]),
+    )
+  }
+
+  return db
+    .with('with_elapsed', base)
+    .with(
+      'with_computed',
+      db.raw(`
+      SELECT
+        *,
+        CASE
+          WHEN sla_hours IS NULL THEN NULL
+          WHEN elapsed_hours >= sla_hours THEN elapsed_hours / sla_hours
+          ELSE 0
+        END AS "overdueRatio",
+        CASE
+          WHEN status IN ('closed', 'lost') THEN NULL
+          WHEN sla_hours IS NULL THEN NULL
+          WHEN elapsed_hours >= sla_hours THEN 'cold'
+          ELSE 'updated'
+        END AS state,
+        CASE
+          WHEN status IN ('closed', 'lost') OR sla_hours IS NULL OR elapsed_hours < sla_hours THEN NULL
+          WHEN elapsed_hours / sla_hours < 2 THEN 1
+          WHEN elapsed_hours / sla_hours < 4 THEN 2
+          ELSE 3
+        END AS severity,
+        CASE
+          WHEN sla_hours IS NULL THEN NULL
+          WHEN elapsed_hours >= sla_hours THEN 0
+          ELSE sla_hours - elapsed_hours
+        END AS "slaRemainingHours",
+        CASE WHEN status = 'new' AND elapsed_hours < 2 THEN true ELSE false END AS "isNewBadge",
+        CASE status
+          WHEN 'new' THEN 'התקשר עכשיו'
+          WHEN 'contacted' THEN 'עקוב אחרי'
+          WHEN 'interested' THEN 'סגור עסקה'
+          ELSE NULL
+        END AS "nextAction",
+        CASE
+          WHEN status IN ('closed', 'lost') THEN 0
+          WHEN elapsed_hours / NULLIF(sla_hours, 0) > 3 THEN
+            200 + CASE status WHEN 'new' THEN 40 WHEN 'contacted' THEN 30 WHEN 'interested' THEN 20 ELSE 0 END
+          ELSE
+            CASE status WHEN 'new' THEN 40 WHEN 'contacted' THEN 30 WHEN 'interested' THEN 20 ELSE 0 END
+            + LEAST(COALESCE(elapsed_hours / NULLIF(sla_hours, 0), 0), 5)
+              * CASE status WHEN 'new' THEN 10 WHEN 'contacted' THEN 5 WHEN 'interested' THEN 3 ELSE 0 END
+        END AS priority
+      FROM with_elapsed
+    `),
+    )
+    .select('*')
+    .from('with_computed')
+    .orderByRaw('priority DESC, "statusChangedAt" ASC')
     .limit(tableLimit)
     .offset((pageNum - 1) * tableLimit)
-
-  const res = await sql
-
-  return res
 }
 
 export async function getLeadNameByIdNum(idNum) {

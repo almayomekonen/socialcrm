@@ -1,28 +1,21 @@
 import { STATUS_LIST } from '@/types/lists'
-import { saveReward, updateDealStatus } from '@/actions/salesTbl'
 import { Select } from '@/lib/form'
-import { isAdmin } from '@/types/roles'
 
 // import { isAdmin, Roles } from '@/db/types'
 
 export function saleTableHeaders(user) {
   let columns = [
     { key: 'offrDt', label: 'תאריך פנייה', format: 'formatDate' },
-    { key: 'clientData', label: 'ליד' },
-    { key: 'status', label: 'שלב', format: 'selectStatus' },
+    { key: 'clientData', label: 'לקוח' },
+    { key: 'status', label: 'סטטוס', format: 'selectStatus' },
     { key: 'company', label: 'ספק' },
-    { key: 'branch', label: 'קטגוריה' },
-    { key: 'prdct', label: 'מוצר / שירות' },
-    { key: 'prdctType', label: 'סוג עסקה' },
+    { key: 'prdct', label: 'שירות' },
     { key: 'userName', label: 'נציג' },
-    { key: 'amount', label: 'סכום', format: 'formatCurrency' },
-    { key: 'cmsn', label: 'עמלה', format: 'formatRoundCurrency' },
-    { key: 'saleDt', label: 'תאריך סגירה', format: 'formatDate' },
+    { key: 'amount', label: 'סכום עסקה', format: 'formatCurrency' },
+    { key: 'saleDt', label: 'תאריך עסקה', format: 'formatDate' },
     { key: 'action', label: 'סוג' },
-    { key: 'bonus', label: 'בונוס', format: 'formatReward' },
     { key: 'handlerName', label: 'אחראי' },
     { key: 'leadSource', label: 'מקור' },
-    { key: 'bizNum', label: 'ח.פ. / ע.מ.' },
     { key: 'bizName', label: 'שם עסק' },
     { key: 'notes', label: 'הערות', format: 'notesBtn', noShow: true },
   ]

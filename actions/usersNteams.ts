@@ -8,6 +8,7 @@ import { getAgencyId } from '@/db/agencies'
 import { Roles } from '@/types/roles'
 import { getUserNameById } from '@/db/usersNTeams'
 import { requireUser } from '@/lib/requireUser'
+import { normalizeDefaultSettings } from '@/lib/form/funcs'
 
 export async function upsertUserNPerms(data, id) {
   await requireUser()
@@ -31,17 +32,14 @@ export async function upsertUserNPerms(data, id) {
 
   if (gotPermIds) {
     await db.transaction(async (trx) => {
-      // 1. Delete ALL existing permissions where I am the receiver
       await trx('user_perms').where('gotId', userId).del()
 
-      // 2. Insert ALL permissions from the new list
       if (gotPermIds.length > 0) {
         const permsToInsert = gotPermIds.map((gaveId: number) => ({
           gotId: userId,
           gaveId,
         }))
 
-        // Using insert without onConflict is safe because we just deleted everything for this gotId
         await trx('user_perms').insert(permsToInsert)
       }
     })
@@ -188,9 +186,18 @@ export async function updateUserInfoData(data, userId) {
   revalidatePath('/settings/update_user_details')
 }
 
-export async function updateDefaultSettings(data, userId) {
+export async function updateDefaultSettings(data: Record<string, unknown>, userId: number) {
   await requireUser()
-  await db('default_settings').where({ userId }).update(data)
+
+  const normalized = normalizeDefaultSettings(data)
+
+  const existing = await db('default_settings').where({ userId }).first()
+  if (existing) {
+    await db('default_settings').where({ userId }).update(normalized)
+  } else {
+    await db('default_settings').insert({ userId, ...normalized })
+  }
+
   revalidatePath('/settings/update_default')
 }
 

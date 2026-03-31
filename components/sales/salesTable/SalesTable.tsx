@@ -3,14 +3,14 @@
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { notesBtn, saleTableHeaders } from './saleHeaders'
-import { getDealDataToExport, saveReward, updateDealStatus } from '@/actions/salesTbl'
+import { getDealDataToExport, updateDealStatus } from '@/actions/salesTbl'
 import { saveTblPref } from '@/actions/global'
 import { api } from '@/lib/funcs'
 import { redirect } from 'next/navigation'
 import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
 import TableFooter from '@/lib/table/TableFooter'
 import { Select } from '@/lib/form'
-import { STATUS_LIST } from '@/types/lists'
+import { STATUS_LIST, normalizeStatus } from '@/types/lists'
 import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './funcs'
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
@@ -42,7 +42,10 @@ export default function SalesTable({ props }: SaleTableProps) {
   useKeepTblScrollPos(tblId)
   const [state, setState] = useState(data)
 
-  const [columns, setColumns] = useState(user?.tblPref?.[tblId] || saleTableHeaders(user))
+  const validHeaders = saleTableHeaders(user)
+  const validKeys = new Set(validHeaders.map((h) => h.key))
+  const savedPref = user?.tblPref?.[tblId]?.filter((col) => validKeys.has(col.key))
+  const [columns, setColumns] = useState(savedPref?.length ? savedPref : validHeaders)
 
   if (isSystemEmpty) {
     return (
@@ -60,35 +63,17 @@ export default function SalesTable({ props }: SaleTableProps) {
     return (
       <Select
         key={item.id}
-        defaultValue={status}
+        defaultValue={normalizeStatus(status)}
         onChange={(e) => {
           api(updateDealStatus, [item.id, e.target.value], 'סטטוס עודכן בהצלחה')
           const sale = data.find((i) => i.id === item.id)
           sale.status = e.target.value
-          if (e.target.value === 'הופק') sale.saleDt = new Date()
+          if (e.target.value === 'שולם') sale.saleDt = new Date()
           setState([...data])
         }}
         options={STATUS_LIST}
         className='min-w-28'
       />
-    )
-  }
-
-  function formatReward(rwrd, obj) {
-    return (
-      <label className='flex flex-nowrap gap-2' key={obj.id}>
-        <input
-          type='checkbox'
-          defaultChecked={rwrd}
-          onChange={(e) => {
-            api(saveReward, [obj.id, e.target.checked], 'תוגמל עודכן בהצלחה')
-            const sale = data.find((i) => i.id === obj.id)
-            sale.bonus = e.target.checked
-            setState(data)
-          }}
-        />
-        <p>תוגמל</p>
-      </label>
     )
   }
 
@@ -115,7 +100,7 @@ export default function SalesTable({ props }: SaleTableProps) {
     setState,
     moreHeads,
     moreRows,
-    funcs: { selectStatus, notesBtn, formatReward },
+    funcs: { selectStatus, notesBtn },
     getColumns(columns) {
       saveTblPref(tblId, columns)
     },

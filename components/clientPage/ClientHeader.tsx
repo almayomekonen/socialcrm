@@ -34,7 +34,6 @@ export default function ClientHeader({ client, user, handlerName, family, client
 
           <p>{formatDateAge(client.birthDate)}</p>
           <p>{client.gender}</p>
-          <p>{client.familyStatus}</p>
 
           {client.email && (
             <div

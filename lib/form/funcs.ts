@@ -1,3 +1,44 @@
+import { DefaultSettings } from '@/types/db/tables'
+
+const BOOL_FIELDS: Array<keyof DefaultSettings> = [
+  'isRiskUpdated',
+  'isMahalotKashotUpdated',
+  'isBituachHaimMutzarHaser',
+  'isBituachBriutMutzarHaser',
+  'isMahalotKashotMutzarHaser',
+  'isGemelLehashkaaMutzarHaser',
+]
+
+// Stored as text in the DB but represent positive integers.
+// Fallbacks match the form's defaultValue props.
+const NUM_FIELDS: Array<{ key: keyof DefaultSettings; fallback: string }> = [
+  { key: 'monthsLidimSheloHufku', fallback: '3' },
+  { key: 'monthsUpdated', fallback: '2' },
+]
+
+// Normalizes raw FormData output for default_settings:
+// - CheckboxBool sends 'false' (string) when unchecked → coerce to boolean
+// - Numeric text fields: validate, guard NaN, keep as string (matches text DB column)
+// - Only touches fields present in the input (disabled inputs are absent from FormData)
+export function normalizeDefaultSettings(data: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...data }
+
+  for (const field of BOOL_FIELDS) {
+    if (field in result) {
+      result[field] = result[field] === true || result[field] === 'true'
+    }
+  }
+
+  for (const { key, fallback } of NUM_FIELDS) {
+    if (key in result) {
+      const n = Number(result[key])
+      result[key] = !isNaN(n) && n >= 1 ? String(n) : fallback
+    }
+  }
+
+  return result
+}
+
 export function onlyVals(obj: any) {
   return Object.fromEntries(Object.entries(obj).filter(([k, v]) => v))
 }

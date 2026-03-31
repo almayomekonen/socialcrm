@@ -10,7 +10,6 @@ import { Provider } from '@/lib/hooksNEvents'
 import { getUsers } from '@/db/usersNTeams'
 import SalesNav from '@/components/sales/SalesNav'
 import SalesSection from '@/components/sales/SalesSection'
-import PieWrapper from '@/components/sumSales/PieWrapper'
 import DashboardSummary from '@/components/dashboard/DashboardSummary'
 
 const Filter = dynamic(() => import('@/components/filter'))
@@ -65,11 +64,6 @@ export default async function SalesPage({ searchParams }) {
         <SalesSection props={{ formProps, data: tblData, rawFilter, params: { saleId, isFav }, user }} />
       </Suspense>
 
-      <div className='flex items-start mt-4'>
-        <Suspense fallback={<div className='h-68 w-full animate-pulse bg-gray-100 rounded-lg' />}>
-          <PieWrapper sqlFilter={sqlFilter} rawFilter={rawFilter} userId={user.id} />
-        </Suspense>
-      </div>
     </Provider>
   )
 }

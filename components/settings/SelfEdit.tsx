@@ -43,7 +43,7 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
           title='הרשאות גישה'
           badge={<Badge label='מתקדם' variant='muted' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>שליטה בגישה ללידים שלך — קבע מי רשאי לצפות ולטפל בהם</p>
+          <p className='text-gray-500 text-sm mb-4'>שליטה בגישה ללידים שלך קבע מי רשאי לצפות ולטפל בהם</p>
           <AddAuthUsersComp users={users} gavePerm={gavePerm} user={user} />
         </AccordionItem>
         <AccordionItem
@@ -53,7 +53,7 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
           open={tab === 'ext_users'}
           badge={<Badge label='אופציונלי' variant='muted' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>ניהול אנשים שעובדים איתך — הוסף נציגים ושייך אליהם לידים</p>
+          <p className='text-gray-500 text-sm mb-4'>ניהול אנשים שעובדים איתך הוסף נציגים ושייך אליהם לידים</p>
           <ExtUsers extUsers={extUsers} users={allUsers} />
         </AccordionItem>
         <AccordionItem

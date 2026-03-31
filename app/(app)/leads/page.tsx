@@ -4,6 +4,7 @@ import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import { Provider } from '@/lib/hooksNEvents'
 import { getPerms } from '@/db/filter'
+import { getDefaultSettings } from '@/db/usersNTeams'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -13,9 +14,12 @@ export const metadata: Metadata = {
 export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
-  const handlers = await getPerms(user)
-  const clients = await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds })
-  const clientLists = await getLeadLists(user.id)
+  const [handlers, settings, clientLists] = await Promise.all([
+    getPerms(user),
+    getDefaultSettings(user.id),
+    getLeadLists(user.id),
+  ])
+  const clients = await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds, settings })
   return (
     <Provider
       props={{
@@ -29,7 +33,7 @@ export default async function LeadsPage({ searchParams }) {
     >
       <h1 className='title mb-2'>לידים</h1>
 
-      <ClientsTable leads={true} data={clients} user={user} key={Math.random()} />
+      <ClientsTable leads={true} data={clients} user={user} />
     </Provider>
   )
 }

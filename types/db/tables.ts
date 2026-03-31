@@ -212,9 +212,9 @@ export interface DefaultSettings {
   isBituachBriutMutzarHaser: boolean
   isMahalotKashotMutzarHaser: boolean
   isGemelLehashkaaMutzarHaser: boolean
-  monthsMutzarKayam: string
-  isRiskMutzarKayam: boolean
-  isMahalotKashotMutzarKayam: boolean
+  monthsUpdated: string
+  isRiskUpdated: boolean
+  isMahalotKashotUpdated: boolean
 }
 export interface Lead {
   id: number
@@ -226,7 +226,7 @@ export interface Lead {
   name: string // Generated column
   details: string // Generated column
   rank: number | null // decimal is number in JS
-  status: boolean
+  status: string | null
   email: string | null
   phone: string | null
   secPhone: string | null
@@ -243,6 +243,15 @@ export interface Lead {
   userId: number | null
   agencyId: number
   lead: boolean
+  statusChangedAt: Date
+  // computed fields from getLeadsTable CTE
+  state?: 'updated' | 'cold' | null
+  priority?: number
+  overdueRatio?: number | null
+  slaRemainingHours?: number | null
+  severity?: 1 | 2 | 3 | null
+  isNewBadge?: boolean
+  nextAction?: string | null
 }
 
 export interface LeadInfo {

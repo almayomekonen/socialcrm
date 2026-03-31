@@ -3,17 +3,17 @@
 import { useState } from 'react'
 import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
-import { ActionsMenu, DotsMenu, FormatRank, getActions, SelectClientGrpActions } from './funcs'
+import { ActionsMenu, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
 import SelectClientLists from './SelectClientLists'
 import { useKeepTblScrollPos, useLeadPolling } from '@/lib/hooksNEvents'
 import ClientFormPop from './ClientFormPop'
 import ModalPop from '../../lib/modals/ModalPop'
-import TransferSalesClient from './TransferSalesClient'
 import { redirect, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
+import { Select } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import { deleteLead, searchContacts, searchLeads } from '@/actions/clients'
+import { deleteLead, searchContacts, searchLeads, updateLead } from '@/actions/clients'
 import { api } from '@/lib/funcs'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
@@ -23,12 +23,16 @@ export default function ClientsTable({ data, user, leads = false }) {
   const [state, setState] = useState(data)
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
 
-  const [columns, setColumns] = useState(user?.tblPref?.[tblId] || getHeaders(leads))
+  const validHeaders = getHeaders(leads)
+  const validKeys = new Set(validHeaders.map((h) => h.key))
+  const savedPref = user?.tblPref?.[tblId]?.filter((col) => validKeys.has(col.key))
+  const [columns, setColumns] = useState(savedPref?.length ? savedPref : validHeaders)
 
   const [curClient, setCurClient] = useState(null)
   const [openForm, setOpenForm] = useState(false)
-  const [openTransferSalesForm, setOpenTransferSalesForm] = useState(false)
   const [openTransferClientForm, setOpenTransferClientForm] = useState(false)
+  const [updatingId, setUpdatingId] = useState<number | null>(null)
+  const [highlightedId, setHighlightedId] = useState<number | null>(null)
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
 
@@ -41,6 +45,7 @@ export default function ClientsTable({ data, user, leads = false }) {
       return fresh.length > 0 ? [...fresh, ...prev] : prev
     })
   }, leads, initialMaxId)
+
   function moreRows(client) {
     return (
       <td className='sticky left-0 z-10 bg-white'>
@@ -53,16 +58,45 @@ export default function ClientsTable({ data, user, leads = false }) {
     return <th className='sticky left-0 z-10 bg-gray-100 text-center'>פעולות</th>
   }
 
+  function formatStatus(status, obj) {
+    const isUpdating = updatingId === obj.id
+    const s = STATUS_STYLES[status ?? 'new'] || STATUS_STYLES.new
+    return (
+      <Select
+        options={STATUS_OPTIONS}
+        val='value'
+        show='label'
+        value={status ?? 'new'}
+        required={false}
+        className={`min-w-28 ${s.bg} ${s.text} ${s.border} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
+        onChange={async (e) => {
+          const newStatus = e.target.value
+          const snapshot = state
+          setState((s) => s.map((row) => (row.id === obj.id ? { ...row, status: newStatus } : row)))
+          setUpdatingId(obj.id)
+          const res = await api(updateLead, { id: obj.id, status: newStatus }, 'סטטוס עודכן')
+          setUpdatingId(null)
+          if (!res || res?.err) {
+            setState(snapshot)
+          } else {
+            setHighlightedId(obj.id)
+            setTimeout(() => setHighlightedId(null), 2500)
+          }
+        }}
+      />
+    )
+  }
+
   const config = {
     tblId,
     columns,
     setColumns,
-    data,
     state,
     setState,
     moreHeads,
     moreRows,
-    funcs: { formatName, formatRank, formatStatus, formatLeadSource },
+    funcs: { formatName, formatStatus, formatLeadSource, formatLeadStatus, formatState, formatNextAction },
+    addTrCls: (item) => item.id === highlightedId ? 'bg-green-50 transition-all duration-500' : '',
     getColumns(columns) {
       saveTblPref(tblId, columns)
     },
@@ -118,10 +152,6 @@ export default function ClientsTable({ data, user, leads = false }) {
         <TransferClientForm client={curClient} />
       </ModalPop>
 
-      <ModalPop open={openTransferSalesForm} pos='middle' onClose={() => (setCurClient(null), setOpenTransferSalesForm(false))}>
-        <TransferSalesClient client={curClient} />
-      </ModalPop>
-
       <ActionsMenu id='clientActions'>
         {curClient?.phone && (
           <>
@@ -147,9 +177,6 @@ export default function ClientsTable({ data, user, leads = false }) {
                   switch (lbl) {
                     case 'עריכה':
                       setOpenForm(true)
-                      break
-                    case 'העברת מכירות ללקוח אחר':
-                      setOpenTransferSalesForm(true)
                       break
                     case 'העברת ליד לנציג אחר':
                       setOpenTransferClientForm(true)
@@ -189,40 +216,33 @@ export default function ClientsTable({ data, user, leads = false }) {
 
 export function getHeaders(leads) {
   const headers = [
-    { key: 'rank', label: 'סיווג', format: 'formatRank' },
+    { key: 'state', label: 'מצב', format: 'formatState' },
     { key: 'name', label: 'שם מלא', format: 'formatName' },
-    { key: 'idNum', label: 'ת"ז' },
-    { key: 'status', label: 'סטטוס', format: 'formatStatus' },
-    { key: 'userName', label: 'נציג' },
-    { key: 'handlerName', label: 'אחראי' },
     { key: 'phone', label: 'מספר טלפון' },
-    { key: 'email', label: 'מייל' },
+    { key: 'status', label: 'סטטוס', format: 'formatStatus' },
+    { key: 'nextAction', label: 'פעולה הבאה', format: 'formatNextAction' },
     { key: 'leadSource', label: 'מקור', format: 'formatLeadSource' },
-    // { key: 'updatedAt', label: 'תאריך פעילות אחרון', format: 'formatDate' },
+    { key: 'userName', label: 'נציג' },
+    { key: 'handlerName', label: 'מנהל' },
+    { key: 'email', label: 'מייל' },
   ]
   if (leads) {
     headers.push(
-      { key: 'masleka', label: 'ערוץ א' },
-      { key: 'harHabituach', label: 'ערוץ ב' },
-      { key: 'polisot', label: 'מוצרים פעילים' },
+      { key: 'leadStatus', label: 'מצב ליד', format: 'formatLeadStatus' },
     )
   }
   return headers
 }
 
-const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-  new: { label: 'חדש', cls: 'bg-blue-100 text-blue-700' },
-  contacted: { label: 'דיברתי', cls: 'bg-yellow-100 text-yellow-700' },
-  interested: { label: 'מתעניין', cls: 'bg-green-100 text-green-700' },
-  closed: { label: 'סגור', cls: 'bg-gray-100 text-gray-600' },
-  lost: { label: 'אבוד', cls: 'bg-red-100 text-red-600' },
+const STATUS_STYLES: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
+  new:       { label: 'חדש',     bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500' },
+  contacted: { label: 'בטיפול',  bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
+  interested:{ label: 'מעוניין', bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200',  dot: 'bg-green-500' },
+  closed:    { label: 'סגור',    bg: 'bg-gray-100',  text: 'text-gray-600',   border: 'border-gray-200',   dot: 'bg-gray-400' },
+  lost:      { label: 'אבוד',    bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200',    dot: 'bg-red-500' },
 }
 
-function formatStatus(status) {
-  const mapped = STATUS_MAP[status]
-  if (mapped) return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${mapped.cls}`}>{mapped.label}</span>
-  return <span className='text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'>{status ? 'פעיל' : 'לא פעיל'}</span>
-}
+const STATUS_OPTIONS = Object.entries(STATUS_STYLES).map(([value, { label }]) => ({ value, label }))
 
 const SOURCE_STYLES: Record<string, string> = {
   facebook: 'bg-blue-100 text-blue-700',
@@ -246,6 +266,35 @@ function formatName(name, obj) {
     <p>{name}</p>
   )
 }
-function formatRank(rank) {
-  return <FormatRank rank={rank} />
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_STYLES[status]
+  if (!s) return null
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${s.bg} ${s.text} ${s.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      {s.label}
+    </span>
+  )
+}
+
+
+function formatLeadStatus(_: unknown, obj: Record<string, unknown>) {
+  return <StatusBadge status={obj.status as string} />
+}
+
+function getNextActionFromStatus(status: string | null): string | null {
+  if (status === 'new') return 'התקשר עכשיו'
+  if (status === 'contacted') return 'עקוב אחרי'
+  if (status === 'interested') return 'סגור עסקה'
+  return null
+}
+
+function formatState(_: unknown, obj: Record<string, unknown>) {
+  return <StatusBadge status={obj.status as string} />
+}
+
+function formatNextAction(_: unknown, obj: Record<string, unknown>) {
+  const nextAction = getNextActionFromStatus(obj.status as string | null)
+  if (!nextAction) return null
+  return <span className='text-xs font-medium text-gray-700'>{nextAction}</span>
 }

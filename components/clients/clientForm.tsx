@@ -1,7 +1,7 @@
 'use client'
 
 import { Input, Select } from '@/lib/form'
-import { familyStatusOpt, genderOpt } from '@/types/lists'
+import { genderOpt } from '@/types/lists'
 import { useProps } from '@/lib/hooksNEvents'
 import { isExtOffice } from '@/types/roles'
 import { useUser } from '@/lib/hooksNEvents'
@@ -27,22 +27,10 @@ export default function ClientForm({ data, prefix = '' }) {
           <Input name='firstName' lbl='שם פרטי' defaultValue={data?.firstName} />
           <Input name='lastName' lbl='שם משפחה' defaultValue={data?.lastName} />
           <Input name='idNum' type='number' lbl="מס' תעודת זהות" defaultValue={data?.idNum} />
-          <Input name='idNumDate' type='date' lbl='תאריך הנפקת ת.ז' defaultValue={data?.idNumDate} required={false} />
-        </div>
-        <div className='flex'>
-          <Input name='passportNum' type='number' lbl='מספר דרכון' defaultValue={data?.passportNum} required={false} />
-          <Input name='licenseNum' type='number' lbl='מספר רישיון נהיגה' defaultValue={data?.licenseNum} required={false} />
         </div>
         <div className='flex'>
           <Input name='birthDate' lbl='תאריך לידה' type='date' defaultValue={data?.birthDate} required={false} />
           <Select lbl='מין' name='gender' options={genderOpt} defaultValue={data?.gender} required={false} />
-          <Select
-            lbl='מצב משפחתי'
-            name='familyStatus'
-            options={familyStatusOpt}
-            defaultValue={data?.familyStatus}
-            required={false}
-          />
         </div>
 
         <div className='flex'>
@@ -52,11 +40,10 @@ export default function ClientForm({ data, prefix = '' }) {
         </div>
 
         <div className='flex'>
-          <Select options={['1', '2', '3']} name='rank' lbl='סיווג' defaultValue={data?.rank?.toString()} required={false} />
           <Input name='leadSource' lbl='מקור הליד' defaultValue={data?.leadSource} required={false} />
 
           <Select
-            lbl='אחראי'
+            lbl='מנהל'
             name='handlerId'
             options={handlers}
             defaultValue={data?.handlerId ?? user.id}

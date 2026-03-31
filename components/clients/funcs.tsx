@@ -14,10 +14,6 @@ export const getActions = () => ({
     func: () => {},
   },
 
-  // 'העברת מכירות ללקוח אחר': {
-  //   func: onTransferSales,
-  // },
-
   'העברת ליד לנציג אחר': {
     func: () => {},
   },
@@ -69,16 +65,3 @@ async function onDel(client) {
   if (res?.err) return alert('לא ניתן למחוק ליד עם דילים, העבר את הדילים לליד אחר ונסה שוב')
 }
 
-async function onTransferSales(client) {
-  console.log('onTransferSales: ', client)
-}
-
-export function FormatRank({ rank }) {
-  const colors = {
-    '1': ' from-yellow-300 via-yellow-500 to-yellow-700 shadow-yellow-500/30',
-    '2': ' from-gray-300 via-gray-400 to-gray-600 shadow-gray-400/30',
-    '3': ' from-amber-600 via-orange-800 to-amber-900 shadow-xl shadow-amber-700/30',
-  }
-
-  return <div className={`w-3 h-3 rounded-full bg-linear-to-br ${colors[rank]}`} />
-}

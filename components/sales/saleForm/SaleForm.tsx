@@ -8,6 +8,7 @@ import {
   prdctOptByBranch,
   prdctOptByBranchAsignUser,
   STATUS_LIST,
+  normalizeStatus,
 } from '@/types/lists'
 import Collab from './Collab'
 import { userType } from '@/types/types'
@@ -322,7 +323,7 @@ function PrdctComp({ i, isAsignUser, curSale }: { i: number; isAsignUser: boolea
           </>
         )}
 
-        <Select lbl='שלב בצנרת' name={`${prefix}.status`} options={STATUS_LIST} required defaultValue={curSale?.status} />
+        <Select lbl='שלב בצנרת' name={`${prefix}.status`} options={STATUS_LIST} required defaultValue={normalizeStatus(curSale?.status)} />
 
         <Input required={false} lbl='תאריך סגירה' name={`${prefix}.saleDt`} type='date' defaultValue={curSale?.saleDt} />
         <span className='col-span-3 mobile:col-span-2'>

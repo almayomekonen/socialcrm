@@ -17,7 +17,7 @@ export async function deleteLead(clientId) {
 
   await db('clients').where('id', clientId).del()
 
-  revalidatePath('/clients')
+  revalidatePath('/leads')
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {
@@ -35,7 +35,7 @@ export async function upsertLead(userId, data, clientId, revalidate = true) {
       lead = (await db('clients').insert(data).returning('*'))[0]
     }
 
-    if (revalidate) revalidatePath('/clients')
+    if (revalidate) revalidatePath('/leads')
 
     return lead
   } catch (error) {
@@ -49,26 +49,26 @@ export async function upsertLeadList(userId, data) {
   if (data.id) await db('client_lists').where({ id: data.id }).update(data)
   else await db('client_lists').insert({ userId, ...data })
 
-  revalidatePath('/clients')
+  revalidatePath('/leads')
 }
 
 export async function deleteLeadList(id) {
   await requireUser()
   await db('client_lists').where({ id }).delete()
 
-  revalidatePath('/clients')
+  revalidatePath('/leads')
 }
 
 export async function transferDealsToLead(fromClientId, toClientId) {
   await requireUser()
   await db('sales').where('clientId', fromClientId).update({ clientId: toClientId })
-  revalidatePath('/clients')
+  revalidatePath('/leads')
 }
 
 export async function transferLeadToRep(clientId, userId) {
   await requireUser()
   await db('clients').where('id', clientId).update({ userId })
-  revalidatePath('/clients')
+  revalidatePath('/leads')
 }
 
 async function searchBase(val, isLead) {
@@ -121,13 +121,18 @@ export async function getLeadById(clientId) {
 
 export async function updateLead(data) {
   await requireUser()
+  const { id, ...updateData } = data
+  if ('status' in updateData) {
+    updateData.statusChangedAt = new Date()
+  }
   const res = await db('clients')
-    .where({ id: data.id })
-    .update(data)
+    .where({ id })
+    .update(updateData)
+    .returning('*')
     .catch(() => null)
 
-  revalidatePath('/settings/self_edit')
-  return res
+  revalidatePath('/leads')
+  return res?.[0] ?? null
 }
 
 export async function getLeadByIdNum(idNum: string) {

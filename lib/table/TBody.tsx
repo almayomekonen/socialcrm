@@ -11,7 +11,7 @@ export default function TBody({ config }: { config: ConfigT }) {
   function getCell(item: any, col: ConfigT['columns'][number]) {
     const value = getNestedValue(item, col.key)
     if (col.format == 'img') return <img src={value} alt='' className='size-10 rounded' />
-    if (col.format) return funcs[col.format](value, item, col)
+    if (col.format && funcs[col.format]) return funcs[col.format](value, item, col)
     if (typeof value == 'boolean') return value ? <Icon name='check' /> : <Icon name='xmark' className='size-4' />
 
     return value

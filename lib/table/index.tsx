@@ -26,7 +26,7 @@ export type ConfigT = {
     noShow?: boolean
   }[]
   setColumns: (headers: { key: string; label: string; format?: string }[]) => void
-  data: any[]
+  data?: any[]
   onRowClick?: (item: any) => void
   noCheckboxs?: boolean
   moreRows?: (item: any, index: number) => ReactNode

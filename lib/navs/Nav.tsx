@@ -73,7 +73,7 @@ export default function Nav({ user }) {
 
       {/* desktop nav */}
       <div
-        className={`hidden desktop:block h-[100vh] w-[50px] overflow-x-hidden fixed top-0 transition-all duration-300 ease-in-out hover:w-48 `}
+        className={`hidden desktop:block h-screen w-[50px] overflow-x-hidden fixed top-0 transition-all duration-300 ease-in-out hover:w-48 `}
       >
         <nav className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
           <div className='w-full'>
@@ -120,7 +120,6 @@ function getNavLinks(user) {
       href: '/sum_sales',
       title: 'דוחות',
     },
-    { icon: 'users', href: '/clients', title: 'לקוחות' },
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
     notOffice && { icon: 'trophy-star', href: '/promotion', title: 'קמפיינים' },
