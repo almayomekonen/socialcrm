@@ -5,7 +5,6 @@ import { formatDateAge } from '@/lib/dates'
 import { usePathname, useRouter } from 'next/navigation'
 import { Select } from '@/lib/form'
 import Icon from '@/lib/Icon'
-import { FormatRank } from '../clients/funcs'
 
 export default function ClientHeader({ client, user, handlerName, family, clientId }) {
   const router = useRouter()
@@ -16,7 +15,6 @@ export default function ClientHeader({ client, user, handlerName, family, client
       <div className='overflow-x-auto '>
         <div className='flex gap-8 py-2.5 justify-between font-medium min-w-max'>
           <div className='flex items-center gap-4 '>
-            <FormatRank rank={client.rank} />
             <p className='font-bold  w-28'>{client.name}</p>
             {family.length > 0 && (
               <Select
