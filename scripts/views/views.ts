@@ -36,17 +36,8 @@ export async function _sales() {
           s.*,
           s.rwrd           AS bonus,
           s.replace        AS "isUpgrade",
-          s.renew          AS "isRenewal",
-          s."polisaNum"    AS "contractNum",
-          s."polisaEndDt"  AS "contractEndDate",
           c.details AS "clientData",
           ru.name AS "handlerName",
-          SUM(su."monthlyCmsn") as "monthlyCmsn",
-          SUM(su."yearlyCmsn") as "yearlyCmsn",
-          SUM(su."agencyMonthlyCmsn") as "agencyMonthlyCmsn",
-          SUM(su."agencyYearlyCmsn") as "agencyYearlyCmsn",
-          SUM(su."mngrMonthlyCmsn") as "mngrMonthlyCmsn",
-          SUM(su."mngrYearlyCmsn") as "mngrYearlyCmsn",
           CASE
             WHEN COUNT(su."userId") > 1 THEN
                 STRING_AGG(CONCAT(u.name, '(', su.prcnt, '%)'), ' & ' ORDER BY su.prcnt DESC)

@@ -114,13 +114,13 @@ function getNavLinks(user) {
   const admin = isAdmin(user.role)
   const notOffice = user.role !== Roles.OFFICE
   return [
-    { icon: 'dollar-sign', href: '/', title: 'עסקאות' },
+    notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
+    { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
     {
       icon: 'chart-pie',
       href: '/sum_sales',
       title: 'דוחות',
     },
-    notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
     notOffice && { icon: 'trophy-star', href: '/promotion', title: 'קמפיינים' },
     admin && { icon: 'file', href: '/files', title: 'קבצים' },

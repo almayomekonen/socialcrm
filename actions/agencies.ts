@@ -32,7 +32,7 @@ export async function addAgency(data) {
 export async function updatePkg(pkg) {
   const user = await getUser()
   await db('agencies').where({ id: user.agencyId }).update({ pkg })
-  revalidatePath('/')
+  revalidatePath('/deals')
   revalidatePath('/settings/update_payment')
 }
 

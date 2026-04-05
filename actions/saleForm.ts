@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { getCmsnRules } from '@/db/cmsnRules'
 import { calculateCommission } from '@/components/sales/saleForm/funcs/calcCmsn'
 import { saleObj } from '@/types/types'
-import { calcContracts } from '@/db/contracts/calc_cont'
 import { formatSaleAmountType, insertSaleUsers } from '@/components/sales/saleForm/funcs/insertSale'
 import { formatCurrency, omit } from '@/lib/funcs'
 import { getUser } from '@/db/auth'
@@ -36,8 +35,7 @@ export async function insertSale(data: saleObj) {
         createdById: user.id,
       }
 
-      // add calc when contracts are implemented
-      const cntrctRes = { user: {}, user2: {} } //  await calcContracts(sale, users)
+      const cntrctRes = { user: {}, user2: {} }
 
       const cmsnRes = calculateCommission(sale, cmsnRules, users)
 
@@ -48,7 +46,7 @@ export async function insertSale(data: saleObj) {
     }
   })
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 export async function isPrdctsExists(sale): Promise<any> {

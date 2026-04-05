@@ -38,7 +38,6 @@ export async function uploadSalesData() {
           createdById: 33,
         }
 
-        // const contRes = await calcContracts(tmp, users)
         const cmsnRes = calculateCommission(tmp, cmsnRules, users)
         const sale = { rwrd: data.rwrd, cmsn: cmsnRes.cmsn, ...tmp }
 

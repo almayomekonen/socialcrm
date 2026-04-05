@@ -69,7 +69,7 @@ export function SelectSearch({
     if (prevSelectedRef.current !== selected) {
       prevSelectedRef.current = selected
 
-      const newShow = initShow || (selected ? opts.find((el) => el[val] === selected)?.[show] : '')
+      const newShow = initShow || (selected ? opts.find((el) => el[val] === selected)?.[show] ?? '' : '')
       const showChanged = inputRef.current?.value !== newShow
       const valueChanged = valueRef.current?.value !== selected
 

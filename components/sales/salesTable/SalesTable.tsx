@@ -15,6 +15,8 @@ import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './func
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import UploadClientData from '@/components/settings/UploadClientData'
+import ModalPop from '@/lib/modals/ModalPop'
 import { searchContacts } from '@/actions/clients'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
@@ -36,7 +38,7 @@ export type SaleTableProps = {
 }
 
 export default function SalesTable({ props }: SaleTableProps) {
-  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale, isSystemEmpty } = props
+  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale } = props
   const { isFav } = params
   const tblId = 'saleTable376'
   useKeepTblScrollPos(tblId)
@@ -46,18 +48,18 @@ export default function SalesTable({ props }: SaleTableProps) {
   const validKeys = new Set(validHeaders.map((h) => h.key))
   const savedPref = user?.tblPref?.[tblId]?.filter((col) => validKeys.has(col.key))
   const [columns, setColumns] = useState(savedPref?.length ? savedPref : validHeaders)
+  const [openUpload, setOpenUpload] = useState(false)
 
-  if (isSystemEmpty) {
-    return (
-      <div className='text-center py-8 border rounded-lg bg-white flex flex-col items-center gap-4'>
-        <p className='text-lg font-semibold'>עדיין אין לידים במערכת</p>
-        <div className='flex gap-3 justify-center'>
-          <Btn lbl='העלה לידים' variant='soft' href='/settings/self_edit?tab=upload' />
-          <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
-        </div>
+  const emptyState = state.length === 0 ? (
+    <div className='text-center py-8 flex flex-col items-center gap-4'>
+      <p className='text-lg font-semibold'>אין עדיין נתונים</p>
+      <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
+      <div className='flex gap-3 justify-center'>
+        <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
+        <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
       </div>
-    )
-  }
+    </div>
+  ) : null
 
   function selectStatus(status, item) {
     return (
@@ -104,6 +106,7 @@ export default function SalesTable({ props }: SaleTableProps) {
     getColumns(columns) {
       saveTblPref(tblId, columns)
     },
+    emptyState,
   } as ConfigT
 
   function getSelectedClient(client) {
@@ -134,15 +137,13 @@ export default function SalesTable({ props }: SaleTableProps) {
           </div>
         </div>
 
-        <Table config={config} tblCls='mb-0 rounded-b-none' />
-        {state.length === 0 && (
-          <div className='text-center py-8 border border-t-0 rounded-b-lg bg-white flex flex-col items-center gap-3'>
-            <p className='text-lg font-semibold'>לא נמצאו תוצאות עבור הסינון</p>
-            <Btn lbl='נקה סינון' variant='soft' href='/' />
-          </div>
-        )}
+        <Table config={config} tblCls='mb-0' />
         <TableFooter />
       </div>
+
+      <ModalPop open={openUpload} pos='middle' onClose={() => setOpenUpload(false)}>
+        <UploadClientData />
+      </ModalPop>
 
       <ActionsMenu id='saleActions'>
         {Object.entries(getActions()).map(([lbl, action]) => (

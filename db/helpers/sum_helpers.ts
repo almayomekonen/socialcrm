@@ -31,8 +31,18 @@ export const sumByMonths = `
 `
 
 export const hebrewMonths = [
-  'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
-  'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר',
+  'ינואר',
+  'פברואר',
+  'מרץ',
+  'אפריל',
+  'מאי',
+  'יוני',
+  'יולי',
+  'אוגוסט',
+  'ספטמבר',
+  'אוקטובר',
+  'נובמבר',
+  'דצמבר',
 ]
 
 export interface BranchesSumType {
@@ -47,13 +57,14 @@ export interface BranchesSumType {
 }
 
 export const saleStats = `
-  COUNT(DISTINCT "clientId")                                                        AS "clientsWithSales",
-  COUNT(*)                                                                           AS "prdctsCount",
-  COUNT(CASE WHEN status IN ('הצעה נשלחה')                                    THEN 1 END) AS "inHafakaCount",
-  COUNT(CASE WHEN status IN ('הושלם', 'שולם במלואו')                          THEN 1 END) AS "hofakCount",
-  COUNT(CASE WHEN status IN ('תשלום ראשון התקבל')                             THEN 1 END) AS "hafkadaCount",
-  COUNT(CASE WHEN status IN ('בטיפול','ממתין לפרטים','ממתין למסמכים','בבדיקה','ממתין להעברה') THEN 1 END) AS "inProcessCount",
-  COUNT(CASE WHEN status IN ('בוטל', 'נגנז')                                   THEN 1 END) AS "canceledCount",
-  COUNT(CASE WHEN replace = true                                               THEN 1 END) AS "replaceCount",
-  COALESCE(SUM(tfuca), 0)::INT                                                      AS "totalRevenue"
+  COUNT(DISTINCT "clientId")                                                                        AS "clientsWithSales",
+  COUNT(*)                                                                                           AS "prdctsCount",
+  COUNT(CASE WHEN status IN ('בהצעה')                                                          THEN 1 END) AS "inHafakaCount",
+  COUNT(CASE WHEN status IN ('שולם')                                                           THEN 1 END) AS "hofakCount",
+  COUNT(CASE WHEN status IN ('שולם')                                                           THEN 1 END) AS "hafkadaCount",
+  COUNT(CASE WHEN status IN ('חדש', 'במו"מ')                                                   THEN 1 END) AS "inProcessCount",
+  COUNT(CASE WHEN status IN ('בוטל')                                                           THEN 1 END) AS "canceledCount",
+  COUNT(CASE WHEN replace = true                                                               THEN 1 END) AS "replaceCount",
+  COALESCE(SUM(CASE WHEN status = 'שולם' THEN tfuca ELSE 0 END), 0)::INT                      AS "totalRevenue",
+  COALESCE(SUM(CASE WHEN status IN ('חדש','בהצעה','במו"מ','ממתין לתשלום') THEN tfuca ELSE 0 END), 0)::INT AS "pipelineValue"
 `

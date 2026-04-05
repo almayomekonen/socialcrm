@@ -4,9 +4,6 @@ const BOOL_FIELDS: Array<keyof DefaultSettings> = [
   'isRiskUpdated',
   'isMahalotKashotUpdated',
   'isBituachHaimMutzarHaser',
-  'isBituachBriutMutzarHaser',
-  'isMahalotKashotMutzarHaser',
-  'isGemelLehashkaaMutzarHaser',
 ]
 
 // Stored as text in the DB but represent positive integers.

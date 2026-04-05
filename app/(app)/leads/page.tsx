@@ -33,7 +33,7 @@ export default async function LeadsPage({ searchParams }) {
     >
       <h1 className='title mb-2'>לידים</h1>
 
-      <ClientsTable leads={true} data={clients} user={user} />
+      <ClientsTable leads={true} data={clients} user={user} key={params.clientId ?? 'all'} />
     </Provider>
   )
 }

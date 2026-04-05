@@ -17,6 +17,18 @@ export default function TBody({ config }: { config: ConfigT }) {
     return value
   }
 
+  if (state.length === 0 && config.emptyState) {
+    return (
+      <tbody className={config.clsBody || ''}>
+        <tr>
+          <td colSpan={100} className='p-0'>
+            {config.emptyState}
+          </td>
+        </tr>
+      </tbody>
+    )
+  }
+
   return (
     <tbody className={config.clsBody || ''}>
       {state.map((item, index) => (

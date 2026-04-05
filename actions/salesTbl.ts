@@ -29,7 +29,7 @@ export async function addFavDeals(dealIds: number[]) {
       favSaleIds: db.raw(`ARRAY(SELECT DISTINCT UNNEST("favSaleIds" || ?::integer[]))`, [dealIds]),
     })
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 export async function removeFavDeals(dealIds: number[]) {
@@ -41,7 +41,7 @@ export async function removeFavDeals(dealIds: number[]) {
       favSaleIds: db.raw(`ARRAY(SELECT UNNEST("favSaleIds") EXCEPT SELECT UNNEST(?::integer[]))`, [dealIds]),
     })
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 export async function removeFavDeal(dealId: number) {
@@ -53,14 +53,14 @@ export async function removeFavDeal(dealId: number) {
       favSaleIds: db.raw(`ARRAY_REMOVE("favSaleIds", ?::integer)`, dealId),
     })
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 // מחיקת עסקאות
 export async function deleteDeals(ids: number[]) {
   const deletedById = (await getUser())?.id
   const res = await db.raw(`select delete_sales(?, ?)`, [ids, deletedById])
-  revalidatePath('/')
+  revalidatePath('/deals')
   return res?.rowCount
 }
 
@@ -69,13 +69,13 @@ export async function deleteDeal(id: number) {
   const deletedById = (await getUser())?.id
   const res = await db.raw('SELECT delete_sales(?, ?)', [[id], deletedById])
 
-  revalidatePath('/')
+  revalidatePath('/deals')
   return res?.rowCount
 }
 
 export async function updateDealDt(dealId: number, saleDt: string) {
   await db('sales').where({ id: dealId }).update({ saleDt })
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 // עדכון סטטוס לעסקאות
@@ -83,13 +83,13 @@ export async function updateDealStatus(dealId: number, status: string) {
   const obj = { status } as any
   if (status === 'הופק') obj.saleDt = toIso(new Date())
   await db('sales').where({ id: dealId }).update(obj)
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 // עדכון סטטוס לעסקאות
 export async function updateManyDealStatus(dealIds: number[], status: string) {
   const res = await db('sales').whereIn('id', dealIds).update({ status })
-  revalidatePath('/')
+  revalidatePath('/deals')
   return res
 }
 

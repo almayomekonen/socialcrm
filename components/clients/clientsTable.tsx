@@ -8,6 +8,7 @@ import SelectClientLists from './SelectClientLists'
 import { useKeepTblScrollPos, useLeadPolling } from '@/lib/hooksNEvents'
 import ClientFormPop from './ClientFormPop'
 import ModalPop from '../../lib/modals/ModalPop'
+import UploadClientData from '@/components/settings/UploadClientData'
 import { redirect, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
@@ -31,10 +32,12 @@ export default function ClientsTable({ data, user, leads = false }) {
   const [curClient, setCurClient] = useState(null)
   const [openForm, setOpenForm] = useState(false)
   const [openTransferClientForm, setOpenTransferClientForm] = useState(false)
+  const [openUpload, setOpenUpload] = useState(false)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [highlightedId, setHighlightedId] = useState<number | null>(null)
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
+  const clientDetails = searchParams.get('clientDetails')
 
   useKeepTblScrollPos(tblId)
   const initialMaxId = data.length > 0 ? Math.max(...data.map((d) => d.id)) : 0
@@ -87,6 +90,17 @@ export default function ClientsTable({ data, user, leads = false }) {
     )
   }
 
+  const emptyState = state.length === 0 ? (
+    <div className='text-center py-8 flex flex-col items-center gap-4'>
+      <p className='text-lg font-semibold'>אין עדיין נתונים</p>
+      <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
+      <div className='flex gap-3 justify-center'>
+        <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+        <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
+      </div>
+    </div>
+  ) : null
+
   const config = {
     tblId,
     columns,
@@ -100,6 +114,7 @@ export default function ClientsTable({ data, user, leads = false }) {
     getColumns(columns) {
       saveTblPref(tblId, columns)
     },
+    emptyState,
   } as ConfigT
 
   function getSelectedClient(client) {
@@ -122,6 +137,7 @@ export default function ClientsTable({ data, user, leads = false }) {
               inputCls='w-52 rounded-e-none'
               searchFunc={leads ? searchLeads : searchContacts}
               onSelectOpt={getSelectedClient}
+              initShow={clientDetails}
             />
             <Btn variant='outline' size='icon' icon='eraser' href='?' scroll={false} className='rounded-s-none border-s-0' />
           </div>
@@ -134,13 +150,7 @@ export default function ClientsTable({ data, user, leads = false }) {
             <Btn lbl='ליד חדש' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
           </div>
         </div>
-        <Table config={config} tblCls='mb-0 rounded-b-none' />
-        {state.length === 0 && (
-          <div className='text-center py-16 border border-t-0 rounded-b-lg bg-white'>
-            <p className='text-xl font-semibold mb-2'>אין עדיין לידים</p>
-            <p className='text-gray-500 mb-4'>הוסף ליד ראשון כדי להתחיל</p>
-          </div>
-        )}
+        <Table config={config} tblCls='mb-0' />
         <TableFooter />
       </div>
 
@@ -150,6 +160,10 @@ export default function ClientsTable({ data, user, leads = false }) {
 
       <ModalPop open={openTransferClientForm} pos='middle' onClose={() => (setCurClient(null), setOpenTransferClientForm(false))}>
         <TransferClientForm client={curClient} />
+      </ModalPop>
+
+      <ModalPop open={openUpload} pos='middle' onClose={() => setOpenUpload(false)}>
+        <UploadClientData />
       </ModalPop>
 
       <ActionsMenu id='clientActions'>

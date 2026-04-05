@@ -18,21 +18,3 @@ export type Promo = {
   isPromoGrp: boolean
 }
 
-export type CalcContResType = {
-  user: {
-    monthlyCmsn: number
-    yearlyCmsn: number
-    mngrMonthlyCmsn?: number
-    mngrYearlyCmsn?: number
-    agencyMonthlyCmsn?: number
-    agencyYearlyCmsn?: number
-  }
-  user2?: {
-    monthlyCmsn: number
-    yearlyCmsn: number
-    mngrMonthlyCmsn?: number
-    mngrYearlyCmsn?: number
-    agencyMonthlyCmsn?: number
-    agencyYearlyCmsn?: number
-  }
-}

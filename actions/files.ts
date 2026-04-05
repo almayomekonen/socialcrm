@@ -12,7 +12,15 @@ import { daysFromNow } from '@/lib/dates'
 
 const Bucket = process.env.S3_BUCKET_NAME
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/png',
+  'image/jpg',
+  'image/jpeg',
+  'image/webp',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+]
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 
 export async function getPresigned({ metadat, folderPath }: Props) {
@@ -92,9 +100,9 @@ export async function addIpuyFile({ presigned, data, type }: { presigned: any; d
   const newFiles = await db('files').insert(files).returning('*')
 
   const expiresAt = {
-    masleka: daysFromNow(90),
-    harHabituach: daysFromNow(5),
-    polisot: daysFromNow(30),
+    reports: daysFromNow(90),
+    documents: daysFromNow(5),
+    files: daysFromNow(30),
   }
 
   await db('clients_info')

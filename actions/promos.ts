@@ -10,10 +10,10 @@ export async function upsertPromo(promo, id) {
     ? (res = await db('promo').update(promo).where({ id }))
     : (res = await db('promo').insert({ ...promo, agencyId: await getAgencyId() }))
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 export async function deletePromo(id) {
   await db('promo').delete().where({ id })
-  revalidatePath('/')
+  revalidatePath('/deals')
 }

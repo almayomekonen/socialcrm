@@ -6,10 +6,7 @@ const ALL_USERS = [237, 208, 219, 234, 114, 72, 86]
 const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
 const daysAgo = (n: number) => new Date(Date.now() - n * 864e5)
 
-const statuses = [
-  'הצעה נשלחה', 'ממתין לפרטים', 'תשלום ראשון התקבל',
-  'בטיפול', 'בבדיקה', 'הושלם', 'שולם במלואו', 'בוטל', 'נגנז',
-]
+const statuses = ['הצעה נשלחה', 'ממתין לפרטים', 'תשלום ראשון התקבל', 'בטיפול', 'בבדיקה', 'הושלם', 'שולם במלואו', 'בוטל', 'נגנז']
 
 const deals = [
   { branch: 'שירותים', prdct: 'ניהול מדיה חברתית', prdctType: 'תשלום חודשי', company: 'Meta', amount: 3500 },
@@ -42,10 +39,7 @@ const deals = [
 async function seed() {
   console.log('🌱 Seeding 25 more deals...')
 
-  const clients = await db('clients')
-    .where('agencyId', AGENCY_ID)
-    .whereRaw('"idNum" LIKE \'9999%\'')
-    .select('id')
+  const clients = await db('clients').where('agencyId', AGENCY_ID).whereRaw('"idNum" LIKE \'9999%\'').select('id')
 
   if (clients.length === 0) {
     console.log('⚠ No seeded clients found. Run seed_clients.ts first.')
@@ -67,23 +61,25 @@ async function seed() {
       const tfuca = deal.prdctType === 'תשלום חודשי' ? deal.amount * 12 : deal.amount
       const cmsn = Math.round(tfuca * 0.1)
 
-      const [sale] = await db('sales').insert({
-        status,
-        action: 'מכירה',
-        company: deal.company,
-        branch: deal.branch,
-        prdct: deal.prdct,
-        prdctType: deal.prdctType,
-        offrDt,
-        saleDt,
-        clientId,
-        createdById: userId,
-        handlerId: userId,
-        amount: deal.amount,
-        cmsn,
-        leadSource: rand(['Instagram', 'Facebook', 'WhatsApp', 'אתר', 'המלצה']),
-        agencyId: AGENCY_ID,
-      }).returning('id')
+      const [sale] = await db('sales')
+        .insert({
+          status,
+          action: 'מכירה',
+          company: deal.company,
+          branch: deal.branch,
+          prdct: deal.prdct,
+          prdctType: deal.prdctType,
+          offrDt,
+          saleDt,
+          clientId,
+          createdById: userId,
+          handlerId: userId,
+          amount: deal.amount,
+          cmsn,
+          leadSource: rand(['Instagram', 'Facebook', 'WhatsApp', 'אתר', 'המלצה']),
+          agencyId: AGENCY_ID,
+        })
+        .returning('id')
 
       await db('sale_users').insert({
         saleId: sale.id,
@@ -92,8 +88,6 @@ async function seed() {
         amount: deal.amount,
         cmsn,
         tfuca,
-        monthlyCmsn: deal.prdctType === 'תשלום חודשי' ? cmsn / 12 : 0,
-        yearlyCmsn: cmsn,
       })
 
       console.log(`  ✓ ${deal.branch} | ${deal.prdct} | ${deal.amount}₪ → user ${userId}`)

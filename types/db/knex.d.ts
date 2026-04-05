@@ -24,7 +24,6 @@ declare module 'knex/types/tables' {
     tasks: DB.Task
     sale_users: DB.SaleUsers
     default_settings: DB.DefaultSettings
-    bituchim: DB.Bituchim
     user_perms: DB.UserPerm
     user_teams: DB.UserTeam
 

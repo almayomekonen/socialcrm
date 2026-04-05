@@ -24,11 +24,12 @@ function ClientsBoxes({ details }) {
     canceledCount,
     inProcessCount,
     totalRevenue,
+    pipelineValue,
   } = details
 
   return (
     <div className='flex gap-4 mobile:grid grid-cols-2'>
-      <NumboxPrecent title='לידים פעילים' num={clientsWithSales} />
+      <NumboxPrecent title='לידים עם עסקאות' num={clientsWithSales} />
       <NumboxPrecent title='עסקאות' num={prdctsCount} />
       <NumboxPrecent title='דילים ממוצע לליד' num={avgSalesPerClient} />
       <NumboxPrecent title='הצעות שנשלחו' num={inHafakaCount} total={prdctsCount} />
@@ -37,7 +38,8 @@ function ClientsBoxes({ details }) {
       <NumboxPrecent title='עסקאות עודכנו' num={replaceCount} total={prdctsCount} />
       <NumboxPrecent title='עסקאות שבוטלו/נגנזו' num={canceledCount} total={prdctsCount} />
       <NumboxPrecent title='עסקאות בתהליך' num={inProcessCount} total={prdctsCount} />
-      <NumboxPrecent title='סך הכנסות' num={formatCurrency(totalRevenue)} />
+      <NumboxPrecent title='סך הכנסות (שולם)' num={formatCurrency(totalRevenue)} />
+      <NumboxPrecent title='פייפליין' num={formatCurrency(pipelineValue)} />
     </div>
   )
 }

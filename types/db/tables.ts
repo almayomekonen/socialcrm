@@ -10,7 +10,6 @@ export type FamilyStatus = 'רווק' | 'רווקה' | 'נשוי' | 'נשואה'
 export type Gender = 'זכר' | 'נקבה'
 export type HebrewRole = 'אדמין' | 'נציג' | 'מנהל' | 'מתפעל' // Different from the system `Role`
 export type TagmulType = 'היקף' | 'נפרעים'
-export type QnaType = 'RISK' | 'GEN' // Changed to CAPITALIZED
 
 // --------------------------------------------------
 // JSONS
@@ -50,16 +49,6 @@ export interface UserOtp {
   tokenExpiry: Date
 }
 
-export interface HealthStatus {
-  kupatHolim: string
-  shaban: string
-  height: number
-  weight: number
-  bmi: number
-  smoker: boolean
-  cigarettesPerDay: number
-}
-
 export interface Address {
   city: string
   street: string
@@ -71,31 +60,6 @@ export interface JobContactInfo {
   mail: string
   fax: string
 }
-export interface Heir {
-  relationType: string
-  firstName: string
-  lastName: string
-  idNum: string
-  birthDate: Date
-  gender: Gender
-  city: string
-  street: string
-  houseNum: string
-  zip: string
-  prcnt: number
-}
-
-export interface RequestedSum {
-  type: string
-  crnt: number
-  ideal: string
-}
-
-export interface Ip {
-  ip: string
-  date: Date
-}
-
 type Job = {
   address: Address | null
   employer: string | null
@@ -195,23 +159,8 @@ export interface DefaultSettings {
   userId: number
   bronze: string
   gold: string
-  achuzHafkadaPensia: string
-  achuzDmeiNihulKupatGemelTzvira: string
-  achuzDmeiNihulKupatGemelHafkada: string
-  achuzDmeiNihulKerenHishtalmutTzvira: string
-  achuzDmeiNihulKerenHishtalmutHafkada: string
-  achuzDmeiNihulPensiaTzvira: string
-  achuzDmeiNihulPensiaHafkada: string
-  achuzDmeiNihulMenahalimTzvira: string
-  monthsLoButzaPgishatSherutTkufatit: string
-  achuzKfitzatPremiaBitucheiPrat: string
   monthsLidimSheloHufku: string
-  schumKerenHishtalmutHafkadaAtzmaiLeloHafkada: string
-  achuzPensiaHafkadaAtzmaiLeloHafkada: string
   isBituachHaimMutzarHaser: boolean
-  isBituachBriutMutzarHaser: boolean
-  isMahalotKashotMutzarHaser: boolean
-  isGemelLehashkaaMutzarHaser: boolean
   monthsUpdated: string
   isRiskUpdated: boolean
   isMahalotKashotUpdated: boolean
@@ -265,70 +214,7 @@ export interface LeadInfo {
   houseNum: string | null
   zip: string | null
   job: Job | null
-  healthStatus: HealthStatus | null
-  dangerousHobbies: string[] | null
-  heirs: Heir[] | null
-  generalGoals: string[] | null
-  savingGoals: string[] | null
-  insuranceGoals: string[] | null
   ipuyFiles: Json | null
-}
-
-export interface Qna {
-  clientId: number
-  q: string
-  a: string
-  desc: string
-  type: QnaType
-}
-
-export interface Savings {
-  id: number
-  clientId: number
-  sikum: Json | null
-  tzvirot: Json | null
-  itrotLefiTkufa: Json[] | null
-  kisuim: Json[] | null
-  mutavimSheerim: Json[] | null
-  tviot: Json[] | null
-  mitryot: Json[] | null
-  maasikim: Json[] | null
-  pirteiKisuiKerenPensia: Json[] | null
-  gilPrisha: Json | null
-  tsua: Json | null
-  halvaot: Json[] | null
-  masluleiHashkaa: Json[] | null
-  hafkadot: Json[] | null
-  mutavim: Json[] | null
-  gvia: Json | null
-  createdAt: Date | null
-  updatedAt: Date | null
-}
-
-export interface Bituchim {
-  id: number
-  clientId: number
-  polisa: string | null
-  mutzar: string | null
-  sugMutzar: string | null
-  status: boolean | null
-  taarichTchilatBituach: Date | null
-  taarichSiumBituach: Date | null
-  tkufatBituach: string | null
-  mevutach: string | null
-  hevra: string | null
-  schumBituach: number | null
-  sugPremia: string | null
-  premia: number | null
-  meashen: boolean | null
-  tosafot: string | null
-  taarichNechonut: Date | null
-  tz: string | null
-  anaf: string | null
-  sivug: string | null
-  kisuim: Json[] | null
-  createdAt: Date
-  updatedAt: Date
 }
 
 export interface Deal {
@@ -349,9 +235,6 @@ export interface Deal {
   favSalesId?: number | null
   amount?: number
   cmsn?: number | null
-  contractNum?: string | null
-  contractEndDate?: Date | null
-  isRenewal?: boolean
   isUpgrade?: boolean
   handlerId?: number | null
   bonus?: boolean
@@ -368,12 +251,6 @@ export interface DealUsers {
   prcnt: number
   cmsn: number | null
   tfuca: number | null
-  monthlyCmsn: number | null
-  yearlyCmsn: number | null
-  agencyMonthlyCmsn: number | null
-  agencyYearlyCmsn: number | null
-  mngrMonthlyCmsn: number | null
-  mngrYearlyCmsn: number | null
 }
 
 export interface CmsnRule {
@@ -507,8 +384,6 @@ export interface FlatDealsView {
   prdct: string | null
   isUpgrade: boolean | null
   clientId: number | null
-  userMonthlyCmsn: number | null
-  userYearlyCmsn: number | null
   annualValue: number | null
 }
 
@@ -543,23 +418,14 @@ export interface DealsView {
   bonus: boolean
   userId: number
   user2Id: number | null
-  isRenewal: boolean
-  contractEndDate: Date | null
   annualValue: number | null
   userIds: number[]
-  contractNum: string | null
   updatedAt: Date | null
   clientId: number
   handlerName: string | null
   handlerId: number | null
   isUpgrade: boolean
   leadSource: string | null
-  yearlyCmsn: number | null
-  monthlyCmsn: number | null
-  userYearlyCmsn: number | null
-  userMonthlyCmsn: number | null
-  mngrYearlyCmsn: number | null
-  mngrMonthlyCmsn: number | null
   bizNum: string | null
   bizName: string | null
 }

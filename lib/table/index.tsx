@@ -38,4 +38,5 @@ export type ConfigT = {
   clsBody?: string
   clsHead?: string
   skeleton?: boolean
+  emptyState?: ReactNode
 }

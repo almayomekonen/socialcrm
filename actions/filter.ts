@@ -10,7 +10,7 @@ export async function addSavedFilters({ data, id }: { data: { name: string; href
       savedFilters: db.raw('jsonb_insert("savedFilters", \'{0}\', ?::jsonb, true)', [JSON.stringify(data)]),
     })
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }
 
 export async function updateSavedFilters({ data, id }: { data: { name: string; href: string }; id: number }) {
@@ -20,5 +20,5 @@ export async function updateSavedFilters({ data, id }: { data: { name: string; h
       savedFilters: JSON.stringify(data),
     })
 
-  revalidatePath('/')
+  revalidatePath('/deals')
 }

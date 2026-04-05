@@ -1,8 +1,6 @@
 import { STATUS_LIST } from '@/types/lists'
 import { Select } from '@/lib/form'
 
-// import { isAdmin, Roles } from '@/db/types'
-
 export function saleTableHeaders(user) {
   let columns = [
     { key: 'offrDt', label: 'תאריך פנייה', format: 'formatDate' },
@@ -19,26 +17,6 @@ export function saleTableHeaders(user) {
     { key: 'bizName', label: 'שם עסק' },
     { key: 'notes', label: 'הערות', format: 'notesBtn', noShow: true },
   ]
-
-  // if (isAdmin(user.role)) {
-  //   const adminColumns = [
-  //     { key: 'agencyMonthlyCmsn', label: 'נפרעים סוכנות', format: 'formatCurrency' },
-  //     { key: 'agencyYearlyCmsn', label: 'היקף סוכנות', format: 'formatCurrency' },
-  //     { key: 'mngrMonthlyCmsn', label: 'נפרעים מפקח', format: 'formatCurrency' },
-  //     { key: 'mngrYearlyCmsn', label: 'היקף מפקח', format: 'formatCurrency' },
-  //   ]
-
-  //   columns = [...columns, ...adminColumns]
-  // }
-
-  // if (user.role === Roles.MNGR) {
-  //   const mngrColumns = [
-  //     { key: 'mngrMonthlyCmsn', label: 'נפרעים מפקח', format: 'formatCurrency' },
-  //     { key: 'mngrYearlyCmsn', label: 'היקף מפקח', format: 'formatCurrency' },
-  //   ]
-
-  //   columns = [...columns, ...mngrColumns]
-  // }
 
   return columns
 }

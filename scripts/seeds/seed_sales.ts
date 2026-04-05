@@ -101,10 +101,6 @@ const deals = [
   { branch: 'חבילות', prdct: 'חבילת גדילה', prdctType: 'תשלום חודשי', company: 'ללא ספק', amount: 6500 },
 ]
 
-function genContractNum() {
-  return `CT-${randNum(1000, 9999)}-${randNum(100, 999)}`
-}
-
 async function seed() {
   console.log('🌱 Seeding 100 sales...')
 
@@ -134,23 +130,11 @@ async function seed() {
       const tfuca = isMonthly ? deal.amount * 12 : deal.amount
       const cmsnRate = randNum(8, 15) / 100
       const cmsn = Math.round(tfuca * cmsnRate)
-      const monthlyCmsn = isMonthly ? Math.round(cmsn / 12) : 0
-      const yearlyCmsn = cmsn
-      const isRenewal = randBool(0.2)
       const isUpgrade = randBool(0.15)
       const rwrd = randBool(0.1)
-      const hasContract = isCompleted && randBool(0.7)
-      const contractNum = hasContract ? genContractNum() : null
-      const contractEndDate = hasContract ? daysFromNow(randNum(30, 365)) : null
       const notes = rand(noteOptions)
       const leadSource = rand(leadSources)
       const action = rand(['מכירה', 'ליד', 'חידוש', 'שדרוג'])
-
-      // agency gets ~30% of cmsn, manager gets ~20%
-      const agencyMonthlyCmsn = isMonthly ? Math.round(monthlyCmsn * 0.3) : 0
-      const agencyYearlyCmsn = Math.round(yearlyCmsn * 0.3)
-      const mngrMonthlyCmsn = isMonthly ? Math.round(monthlyCmsn * 0.2) : 0
-      const mngrYearlyCmsn = Math.round(yearlyCmsn * 0.2)
 
       const [sale] = await db('sales')
         .insert({
@@ -168,9 +152,6 @@ async function seed() {
           amount: deal.amount,
           cmsn,
           notes,
-          polisaNum: contractNum,
-          polisaEndDt: contractEndDate,
-          renew: isRenewal,
           replace: isUpgrade,
           rwrd,
           leadSource,
@@ -185,12 +166,6 @@ async function seed() {
         amount: deal.amount,
         cmsn,
         tfuca,
-        monthlyCmsn,
-        yearlyCmsn,
-        agencyMonthlyCmsn,
-        agencyYearlyCmsn,
-        mngrMonthlyCmsn,
-        mngrYearlyCmsn,
       })
 
       inserted++
