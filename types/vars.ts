@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 
 const APP_NAME = 'SocialCRM'
 const APP_TITLE_TEMPLATE = '%s | SocialCRM'
-const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.'
+const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.'
 const APP_URL = 'https://socialcrm.vercel.app'
 
 export const metaData: Metadata = {

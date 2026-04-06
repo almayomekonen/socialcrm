@@ -95,4 +95,5 @@ export async function updateManyDealStatus(dealIds: number[], status: string) {
 
 export async function saveReward(dealId: number, checked: boolean) {
   await db('sales').where({ id: dealId }).update('rwrd', checked)
+  revalidatePath('/deals')
 }
