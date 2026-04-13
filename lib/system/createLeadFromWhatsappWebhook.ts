@@ -27,7 +27,9 @@ export async function createLeadFromWhatsappWebhook({
     .where({ leadSource: `whatsapp:${messageId}` })
     .first()
   if (existingByMessageId) {
-    console.log(`[WhatsappWebhook][dedup][msgId=${messageId}] Duplicate by messageId — skipping. lead id: ${existingByMessageId.id}`)
+    console.log(
+      `[WhatsappWebhook][dedup][msgId=${messageId}] Duplicate by messageId — skipping. lead id: ${existingByMessageId.id}`,
+    )
     return existingByMessageId
   }
 

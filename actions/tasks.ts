@@ -29,8 +29,10 @@ function sanitizeTaskUpdate(input: any): TaskUpdateInput {
 
 async function assertTaskAccess(taskId: number, user: { agencyId?: number }) {
   if (!user.agencyId) throw new Error('Forbidden')
-  const task = await db('tasks').where('id', taskId).where('agencyId', user.agencyId).first()
+  const task = await db('tasks').where('id', taskId).first()
   if (!task) throw new Error('Forbidden')
+  const client = await db('clients').where('id', task.clientId).where('agencyId', user.agencyId).first()
+  if (!client) throw new Error('Forbidden')
 }
 
 async function assertClientAccess(clientId: number, user: { agencyId?: number }) {
@@ -76,7 +78,7 @@ export async function updateFullTask(task) {
   revalidatePath('/clients')
 }
 
-export async function createTask(data: { clientId: number; title: string }) {
+export async function createTask(data: { clientId: number; title: string; userId?: number; _system?: boolean }) {
   const user = await requireUser()
   await assertClientAccess(data.clientId, user)
   const res = await db('tasks')
