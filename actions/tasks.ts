@@ -1,119 +1,207 @@
 'use server'
 
-import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/requireUser'
 
+type TaskUpdateInput = {
+  title?: string
+  status?: string
+  dueDate?: string
+  completed?: boolean
+  notes?: any[]
+  tasks?: any[]
+  files?: any[]
+}
+
+function sanitizeTaskUpdate(input: any): TaskUpdateInput {
+  const allowed: (keyof TaskUpdateInput)[] = ['title', 'status', 'dueDate', 'completed', 'notes', 'tasks', 'files']
+  const result: any = {}
+  for (const key of allowed) {
+    if (key in input && input[key] !== undefined) {
+      result[key] = input[key] as any
+    }
+  }
+  return result
+}
+
+async function assertTaskAccess(taskId: number, user: { agencyId?: number }) {
+  if (!user.agencyId) throw new Error('Forbidden')
+  const task = await db('tasks').where('id', taskId).where('agencyId', user.agencyId).first()
+  if (!task) throw new Error('Forbidden')
+}
+
+async function assertClientAccess(clientId: number, user: { agencyId?: number }) {
+  if (!user.agencyId) throw new Error('Forbidden')
+  const client = await db('clients').where('id', clientId).where('agencyId', user.agencyId).first()
+  if (!client) throw new Error('Forbidden')
+}
+
+async function assertTemplateAccess(tmpltId: number, user: { agencyId?: number }) {
+  if (!user.agencyId) throw new Error('Forbidden')
+  const tmplt = await db('task_tmplts').where('id', tmpltId).where('agencyId', user.agencyId).first()
+  if (!tmplt) throw new Error('Forbidden')
+}
+
 export async function deleteTask(task) {
-  await requireUser()
-  await db('files').where({ taskId: task.id }).del()
-  await db('tasks').where({ id: task.id }).del()
+  const user = await requireUser()
+  await assertTaskAccess(task.id, user)
+  await db.transaction(async (trx) => {
+    await trx('tasks').where({ id: task.id }).del()
+    await trx('files').where({ taskId: task.id }).del()
+  })
   redirect(`/clients/${task.clientId}/tasks`)
 }
 
 export async function updateFullTask(task) {
-  await requireUser()
-  const taskList = Array.isArray(task.tasks) ? task.tasks : []
+  const user = await requireUser()
+  await assertTaskAccess(task.id, user)
+  const safe = sanitizeTaskUpdate(task)
+  const taskList = Array.isArray(safe.tasks) ? safe.tasks : []
   const allSubtasksCompleted = taskList.every((mainTask) => mainTask.subTasks?.every((subTask) => subTask.isCompleted))
 
   await db('tasks')
     .where({ id: task.id })
     .update({
-      ...task,
-      tasks: JSON.stringify(task.tasks),
-      notes: JSON.stringify(task.notes),
-      files: task.files.map((f) => f.id),
-      completed: task.completed ?? allSubtasksCompleted,
+      ...safe,
+      tasks: JSON.stringify(safe.tasks) as any,
+      notes: JSON.stringify(safe.notes) as any,
+      files: Array.isArray(safe.files) ? safe.files.map((f) => f.id) : [],
+      completed: safe.completed ?? allSubtasksCompleted,
     })
 
   revalidatePath('/tasks')
   revalidatePath('/clients')
 }
 
-export async function createTask(data: { clientId: number; title: string; userId: number; _system?: boolean }) {
-  if (!data._system) await requireUser()
-  const { _system, ...insertData } = data
+export async function createTask(data: { clientId: number; title: string }) {
+  const user = await requireUser()
+  await assertClientAccess(data.clientId, user)
   const res = await db('tasks')
     .insert({
-      ...insertData,
+      clientId: data.clientId,
+      title: data.title,
+      userId: user.id,
+      agencyId: user.agencyId,
       dueDate: new Date().toISOString().split('T')[0],
       tasks: [] as any,
       notes: [] as any,
       files: [],
-    })
+    } as any)
     .returning('id')
   return res[0].id
 }
 
-export async function addTask(clientId, user, title = 'כתוב כותרת') {
-  await requireUser()
+export async function addTask(clientId, _user: unknown, title = 'כתוב כותרת') {
+  const authedUser = await requireUser()
+  await assertClientAccess(clientId, authedUser)
   const res = await db('tasks')
     .insert({
       title,
-      userId: user.id,
+      clientId,
+      userId: authedUser.id,
+      agencyId: authedUser.agencyId,
       dueDate: new Date().toISOString().split('T')[0],
       tasks: [],
-      clientId,
-    })
+    } as any)
     .returning('id')
 
   return res[0].id
 }
 
 export async function saveFiles(uploadFiles, isTmplt, task) {
-  await requireUser()
+  const user = await requireUser()
+
+  if (!Array.isArray(uploadFiles) || uploadFiles.length === 0) throw new Error('Invalid files')
+
   if (isTmplt) {
-    await db('files').insert(uploadFiles)
+    await assertTemplateAccess(task.id, user)
+
+    const safeFiles = uploadFiles.map((f) => {
+      if (!f.name || !f.path) throw new Error('Invalid file')
+      return {
+        name: String(f.name),
+        type: String(f.type ?? ''),
+        size: Number(f.size ?? 0),
+        path: String(f.path),
+        agencyId: user.agencyId,
+        createdById: user.id,
+      }
+    })
+
+    await db('files').insert(safeFiles)
     revalidatePath(`/settings/edit_tmplts/${task.id}`)
   } else {
-    await db('files').insert(uploadFiles)
+    await assertTaskAccess(task.id, user)
+    await assertClientAccess(task.clientId, user)
+
+    const safeFiles = uploadFiles.map((f) => {
+      if (!f.name || !f.path) throw new Error('Invalid file')
+      return {
+        name: String(f.name),
+        type: String(f.type ?? ''),
+        size: Number(f.size ?? 0),
+        path: String(f.path),
+        taskId: task.id,
+        clientId: task.clientId,
+        agencyId: user.agencyId,
+        createdById: user.id,
+      }
+    })
+
+    await db('files').insert(safeFiles)
     revalidatePath(`/clients/${task.clientId}/tasks/${task.id}`)
   }
 }
 
 export async function addTaskFromTmplt(clientId, taskTmpltId) {
-  const user = await getUser()
+  const user = await requireUser()
+  await assertClientAccess(clientId, user)
+
+  await assertTemplateAccess(taskTmpltId, user)
   const taskTmplt = await db('task_tmplts').where({ id: taskTmpltId }).first()
-  const res = await db('tasks')
-    .insert({
-      title: taskTmplt.title,
-      userId: user.id,
-      dueDate: new Date().toISOString().split('T')[0],
-      tasks: JSON.stringify(taskTmplt.tasks) as any,
-      notes: JSON.stringify(taskTmplt.notes) as any,
-      files: [],
-      tmpltId: taskTmpltId,
-      clientId,
-    })
-    .returning('id')
 
-  const newTaskId = res[0].id
+  const newTaskId = await db.transaction(async (trx) => {
+    const res = await trx('tasks')
+      .insert({
+        title: taskTmplt.title,
+        userId: user.id,
+        dueDate: new Date().toISOString().split('T')[0],
+        tasks: JSON.stringify(taskTmplt.tasks) as any,
+        notes: JSON.stringify(taskTmplt.notes) as any,
+        files: [],
+        tmpltId: taskTmpltId,
+        clientId,
+      })
+      .returning('id')
 
-  if (taskTmplt.files && taskTmplt.files.length > 0) {
-    const originalFiles = await db('files').whereIn('id', taskTmplt.files).select('*')
+    const newTaskId = res[0].id
 
-    const newFiles = originalFiles.map((file) => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      path: file.path,
-      createdById: user.id,
-      createdAt: new Date(),
-      taskId: newTaskId,
-      clientId,
-      agencyId: file.agencyId,
-    }))
+    if (taskTmplt.files && taskTmplt.files.length > 0) {
+      const originalFiles = await trx('files').whereIn('id', taskTmplt.files).select('*')
 
-    const insertedFiles = await db('files').insert(newFiles).returning('id')
-    const newFileIds = insertedFiles.map((f) => f.id)
+      const newFiles = originalFiles.map((file) => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        path: file.path,
+        createdById: user.id,
+        createdAt: new Date(),
+        taskId: newTaskId,
+        clientId,
+        agencyId: file.agencyId,
+      }))
 
-    await db('tasks').where({ id: newTaskId }).update({
-      files: newFileIds,
-    })
-  }
+      const insertedFiles = await trx('files').insert(newFiles).returning('id')
+      const newFileIds = insertedFiles.map((f) => f.id)
+
+      await trx('tasks').where({ id: newTaskId }).update({ files: newFileIds })
+    }
+
+    return newTaskId
+  })
 
   return newTaskId
 }
@@ -135,19 +223,21 @@ export async function addTaskTmplt() {
 }
 
 export async function deleteTaskTmplt(taskTmplt) {
-  await requireUser()
+  const user = await requireUser()
+  await assertTemplateAccess(taskTmplt.id, user)
   await db('task_tmplts').where({ id: taskTmplt.id }).del()
   redirect(`/settings/edit_tmplts`)
 }
 
 export async function updateFullTaskTmplt(taskTmplt) {
-  await requireUser()
-  const res = await db('task_tmplts')
+  const user = await requireUser()
+  await assertTemplateAccess(taskTmplt.id, user)
+  await db('task_tmplts')
     .where({ id: taskTmplt.id })
     .update({
-      ...taskTmplt,
-      tasks: JSON.stringify(taskTmplt.tasks),
-      notes: JSON.stringify(taskTmplt.notes),
+      title: taskTmplt.title,
+      tasks: JSON.stringify(taskTmplt.tasks) as any,
+      notes: JSON.stringify(taskTmplt.notes) as any,
       files: taskTmplt.files.map((f) => f.id),
     })
 }

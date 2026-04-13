@@ -8,10 +8,10 @@ const NAV_LINKS: { text: ReactNode; href: string }[] = [
   { text: 'פייסבוק', href: '/facebook-leads' },
   { text: 'וואטסאפ', href: '/whatsapp-leads' },
   { text: <span dir='ltr'>CRM vs אקסל</span>, href: '/crm-vs-excel' },
+  { text: 'מחירים', href: '/pricing' },
 ]
 
 const AUTH_LINKS = [
-  { type: 'link' as const, text: 'התחבר', href: '/auth' },
   { type: 'button-primary' as const, text: 'התחל בחינם', href: '/auth/register' },
 ]
 
@@ -40,13 +40,6 @@ export function MarketingNavbar() {
 
           <div className='hidden lg:flex items-center space-x-4'>
             {AUTH_LINKS.map((link, index) => {
-              if (link.type === 'link') {
-                return (
-                  <a key={index} href={link.href} className='text-gray-600 hover:text-blue-600'>
-                    {link.text}
-                  </a>
-                )
-              }
               if (link.type === 'button-primary') {
                 return (
                   <a key={index} href={link.href} className='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold'>
@@ -103,18 +96,6 @@ export function MarketingNavbar() {
 
         <div className='flex flex-col space-y-4 mt-8 pt-6 border-t border-gray-200'>
           {AUTH_LINKS.map((link, index) => {
-            if (link.type === 'link') {
-              return (
-                <a
-                  key={index}
-                  href={link.href}
-                  className='text-gray-600 hover:text-blue-600 text-lg'
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.text}
-                </a>
-              )
-            }
             if (link.type === 'button-primary') {
               return (
                 <a

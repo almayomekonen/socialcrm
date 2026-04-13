@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest) {
 
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
-    redirect_uri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/facebook/callback`,
+    redirect_uri: process.env.META_REDIRECT_URI!,
     scope: ['pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'leads_retrieval', 'business_management'].join(
       ',',
     ),
@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest) {
     '[FacebookOAuth] Redirecting to OAuth dialog — appId:',
     process.env.META_APP_ID,
     'redirectUri:',
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/facebook/callback`,
+    process.env.META_REDIRECT_URI,
   )
 
   return NextResponse.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`)

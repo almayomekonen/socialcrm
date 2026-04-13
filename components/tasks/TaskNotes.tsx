@@ -6,17 +6,19 @@ import { formatDateTime } from '@/lib/dates'
 import { Input } from '@/lib/form'
 import { updateFullTask, updateFullTaskTmplt } from '../../actions/tasks'
 import { api } from '@/lib/funcs'
-
-let editNote, ctxMenu
+import { useAction } from '@/lib/useAction'
 
 export default function TaskNotes({ task, userName, type = 'task' }: { task: any; userName: string; type?: 'task' | 'template' }) {
   const notes = task.notes
   const [state, setState] = useState(false)
-  const ref = useRef(null)
-  const render = () => setState(!state)
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const editNoteRef = useRef<any>(null)
+  const ctxMenuRef = useRef<HTMLElement | null>(null)
+  const render = () => setState((s) => !s)
+  const { loading, error, setError, run } = useAction()
 
   useEffect(() => {
-    ctxMenu = document.getElementById('noteCtxMenu')
+    ctxMenuRef.current = document.getElementById('noteCtxMenu')
   }, [])
 
   async function save() {
@@ -30,41 +32,45 @@ export default function TaskNotes({ task, userName, type = 'task' }: { task: any
   async function onAddNote() {
     const el = ref.current
     const content = el.value.trim()
-    if (!content) return alert('יש להזין תוכן להערה')
+    if (!content) { setError('יש להזין תוכן להערה'); return }
 
-    if (!editNote) notes.push({ userName, content, createdAt: new Date() })
-    else {
-      editNote.content = content
-      editNote.userName = userName
-      editNote.createdAt = new Date()
-    }
+    await run(async () => {
+      if (!editNoteRef.current) {
+        notes.push({ userName, content, createdAt: new Date() })
+      } else {
+        editNoteRef.current.content = content
+        editNoteRef.current.userName = userName
+        editNoteRef.current.createdAt = new Date()
+      }
 
-    el.value = ''
-    el.dispatchEvent(new Event('input', { bubbles: true }))
-    editNote = null
-    render()
-    await save()
+      el.value = ''
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+      editNoteRef.current = null
+      render()
+      await save()
+    })
   }
 
   async function deleteNote(note) {
-    if (!confirm(`האם למחוק הערה זו?`)) return
-    notes.splice(notes.indexOf(note), 1)
-    render()
-    if (ctxMenu) { ctxMenu.hidePopover(); editNote = null }
-    await save()
+    await run(async () => {
+      notes.splice(notes.indexOf(note), 1)
+      render()
+      if (ctxMenuRef.current) { ctxMenuRef.current.hidePopover(); editNoteRef.current = null }
+      await save()
+    })
   }
 
   function onCancel() {
-    editNote = null
+    editNoteRef.current = null
     ref.current.value = ''
     ref.current.dispatchEvent(new Event('input', { bubbles: true }))
     render()
   }
 
   function onEdit() {
-    ref.current.value = editNote.content
+    ref.current.value = editNoteRef.current.content
     ref.current.dispatchEvent(new Event('input', { bubbles: true }))
-    ctxMenu.hidePopover()
+    ctxMenuRef.current?.hidePopover()
     render()
   }
 
@@ -74,33 +80,35 @@ export default function TaskNotes({ task, userName, type = 'task' }: { task: any
 
       <div className='flex flex-col gap-2 mb-4'>
         {notes?.map((note, i) => (
-          <NoteItem key={i} note={note} onDelete={() => deleteNote(note)} />
+          <NoteItem key={i} note={note} onDelete={() => deleteNote(note)} onContextMenu={(e) => {
+            e.preventDefault()
+            editNoteRef.current = note
+            if (ctxMenuRef.current) {
+              ctxMenuRef.current.style.left = `${e.clientX}px`
+              ctxMenuRef.current.style.top = `${e.clientY}px`
+              ctxMenuRef.current.showPopover()
+            }
+          }} />
         ))}
       </div>
 
       <Input as='resizeTextarea' className='w-full' placeholder='כתיבת הערה חדשה...' rows={1} name='note' ref={ref} />
 
+      {error && <p className='text-sm text-red-500 mt-1'>{error}</p>}
+
       <div className='flex gap-2 justify-end mt-2'>
-        {editNote && <button onClick={onCancel} className='text-sm text-gray-500 hover:text-gray-700'>ביטול</button>}
-        <button onClick={onAddNote} className='text-sm font-semibold text-solid hover:opacity-80'>
-          {editNote ? 'שמירה' : 'הוספה'}
+        {editNoteRef.current && <button onClick={onCancel} className='text-sm text-gray-500 hover:text-gray-700'>ביטול</button>}
+        <button onClick={onAddNote} disabled={loading} className='text-sm font-semibold text-solid hover:opacity-80 disabled:opacity-40'>
+          {loading ? '...' : editNoteRef.current ? 'שמירה' : 'הוספה'}
         </button>
       </div>
 
-      <NoteCtxMenu onDelete={() => deleteNote(editNote)} onEdit={onEdit} />
+      <NoteCtxMenu onDelete={() => deleteNote(editNoteRef.current)} onEdit={onEdit} />
     </div>
   )
 }
 
-function NoteItem({ note, onDelete }: { note: any; onDelete: () => void }) {
-  function onContextMenu(e) {
-    e.preventDefault()
-    editNote = note
-    ctxMenu.style.left = `${e.clientX}px`
-    ctxMenu.style.top = `${e.clientY}px`
-    ctxMenu.showPopover()
-  }
-
+function NoteItem({ note, onDelete, onContextMenu }: { note: any; onDelete: () => void; onContextMenu: (e: React.MouseEvent) => void }) {
   return (
     <div onContextMenu={onContextMenu} className='group rounded-md p-3 bg-gray-50 border border-gray-100 w-full'>
       <div className='flex justify-between items-start gap-2'>

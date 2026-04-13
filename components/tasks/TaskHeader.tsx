@@ -3,12 +3,13 @@
 import { Input } from '@/lib/form'
 import { deleteTask, updateFullTask } from '../../actions/tasks'
 import { useState } from 'react'
-
+import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { statusOptions } from './SelectTasksStatus'
 import { api } from '@/lib/funcs'
 import { onTaskChange, onTaskCtxMenu, TaskCtxMenu } from './utils'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import { useAction } from '@/lib/useAction'
 
 type TaskHeaderProps = {
   task: any
@@ -18,7 +19,10 @@ type TaskHeaderProps = {
 export default function TaskHeader({ task, users }: TaskHeaderProps) {
   const [state, setState] = useState(false)
   const [completed, setCompleted] = useState(task.completed)
+  const router = useRouter()
+  const { run } = useAction()
   const render = () => setState(!state)
+
   async function autoSave() {
     await api(updateFullTask, task)
     onTaskChange()
@@ -29,14 +33,15 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
     task.completed = next
     setCompleted(next)
     await api(updateFullTask, task)
-    window.location.href = '/tasks'
+    router.push('/tasks')
   }
 
   function onDelete() {
-    if (!confirm(`האם ברצנוך למחוק את המעקב "${task.title}"?`)) return
-    deleteTask(task)
-    render()
-    onTaskChange()
+    run(async () => {
+      deleteTask(task)
+      render()
+      onTaskChange()
+    })
   }
 
   return (
@@ -93,19 +98,24 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
 }
 
 function TaskTitleFormPop({ task, autoSave, render }) {
+  const { loading, error, setError, run } = useAction()
+
   async function onSave() {
     const title = (document.getElementById('taskTitle') as HTMLInputElement).value.trim()
-    if (!title) return alert('יש להזין כותרת')
-
-    task.title = title
-    render()
-    await autoSave()
+    if (!title) { setError('יש להזין כותרת'); return }
+    await run(async () => {
+      task.title = title
+      render()
+      await autoSave()
+      document.getElementById('taskTitleForm')?.hidePopover()
+    })
   }
 
   return (
     <div popover='auto' id='taskTitleForm' className='pop p-4'>
       <Input lbl='כותרת' defaultValue={task?.title} id='taskTitle' />
-      <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      {error && <p className='text-sm text-red-500 mt-1'>{error}</p>}
+      <Btn lbl={loading ? '...' : 'שמירה'} icon='floppy-disk' className='mt-2 w-full' onClick={onSave} disabled={loading} />
     </div>
   )
 }
