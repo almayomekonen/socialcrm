@@ -195,6 +195,7 @@ export async function addLeads(leads) {
       createdById: userId,
       handlerId: userId,
       userId,
+      lead: true,
       ...lead,
       agencyId,
     }
@@ -208,7 +209,9 @@ export async function addLeads(leads) {
     )
   const newLeads = formatLeads.filter((lead) => !existingIdNums.some((idNum) => idNum.idNum === lead.idNum))
 
+  if (!newLeads.length) return
   await db('clients').insert(newLeads)
+  revalidatePath('/leads')
 }
 
 export async function getLeadDeals(clientId) {

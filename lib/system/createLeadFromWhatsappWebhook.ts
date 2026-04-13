@@ -35,7 +35,7 @@ export async function createLeadFromWhatsappWebhook({
 
   // Priority 2: dedup by phone — global across all sources
   if (phone) {
-    const existingByPhone = await db('clients').where({ phone }).first()
+    const existingByPhone = await db('clients').where({ phone, agencyId }).first()
     if (existingByPhone) {
       console.log(`[WhatsappWebhook][dedup][msgId=${messageId}] Duplicate by phone — skipping. lead id: ${existingByPhone.id}`)
       return existingByPhone
@@ -54,6 +54,7 @@ export async function createLeadFromWhatsappWebhook({
       leadSource: `whatsapp:${messageId}`,
       agencyId,
       handlerId: userId,
+      userId,
       _system: true,
     },
     null,

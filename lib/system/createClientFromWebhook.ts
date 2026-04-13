@@ -55,6 +55,7 @@ export async function createLeadFromWebhook({
       leadSource: `facebook:${leadId}`,
       agencyId,
       handlerId: userId,
+      userId,
       _system: true,
     },
     null,

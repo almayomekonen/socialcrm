@@ -62,7 +62,7 @@ export default async function page() {
               health={health}
             />
           </AccordionItem>
-          <AccordionItem bodyClass='p-6' title='וואטסאפ' icon='whatsapp'>
+          <AccordionItem bodyClass='p-6' title='וואטסאפ ממש בקרוב...' icon='whatsapp'>
             <WhatsappConnect
               connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
               pendingPhones={pendingPhones}
