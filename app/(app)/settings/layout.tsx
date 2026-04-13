@@ -17,9 +17,8 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/edit_teams' icon='users' title='צוותים' />
             <SettingsLink href='/settings/edit_users' icon='user-pen' title='משתמשים' />
             <SettingsLink href='/settings/edit_promotions' icon='trophy-star' title='קמפיינים' />
-            <SettingsLink href='/settings/calc_commission' icon='calculator' title='חישוב עמלות' />
-            <SettingsLink href='/settings/edit_contracts' icon='file-contract' title='הסכמי עמלה' />
-            <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות מעקב' />
+
+            <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
             <Seperator className='my-2' />
             <SettingsLink href='/settings/update_agency' icon='diamond' title='פרטי העסק' />
             <SettingsLink href='/settings/update_user_details' icon='user' title='פרטי נציג' />

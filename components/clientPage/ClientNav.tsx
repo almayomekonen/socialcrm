@@ -11,7 +11,7 @@ export default function ClientNav({ id }) {
 
   const links = [
     { href: 'summary', title: 'סיכום ליד' },
-    { href: 'tasks', title: 'מעקבים' },
+    { href: 'tasks', title: 'משימות' },
     { href: 'files', title: 'קבצים' },
   ]
 

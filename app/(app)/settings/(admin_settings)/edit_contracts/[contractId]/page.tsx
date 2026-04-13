@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import ContractForm from '@/components/contracts/ContractForm'
 import ContractPrdctsForm from '@/components/contracts/ContractPrdctsForm'
 import { getContractById, getContractPrdcts, getContracts } from '@/db/contracts'
@@ -6,7 +7,8 @@ import { Btn } from '@/lib/btns/Btn'
 import Link from 'next/link'
 
 export default async function ContractsPage({ params }) {
-  const { contractId } = await params
+  redirect('/settings')
+  const { contractId } = await params;
 
   const contract = await getContractById(contractId)
   if (!contract) return <div>חוזה לא נמצא</div>

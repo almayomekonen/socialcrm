@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { addTask, addTaskFromTmplt } from '../../../actions/tasks'
 import { Btn } from '@/lib/btns/Btn'
-import { Select } from '@/lib/form'
+import { Input, Select } from '@/lib/form'
 import { getFormData2 } from '@/lib/form/funcs'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import Title from '@/lib/Title'
@@ -18,41 +18,45 @@ interface Props {
 }
 
 export default function AddTaskForm({ clientId, taskTmplts, clients, user }: Props) {
+  function getTitle() {
+    const title = (document.getElementById('newTaskTitle') as HTMLInputElement)?.value?.trim()
+    if (!title) { alert('יש להזין כותרת למעקב'); return null }
+    return title
+  }
+
+  function getSelectedClientId() {
+    const id = (document.getElementsByName('selectedClientId')?.[0] as any)?.value
+    if (!id) { alert('יש לבחור ליד'); return null }
+    return id
+  }
+
   async function addAndRedirect() {
-    if (clientId) {
-      const id = await addTask(clientId, user)
-      redirect(`/clients/${clientId}/tasks/${id}`)
-    } else {
-      const selectedClientId = (document.getElementsByName('selectedClientId')?.[0] as any).value
-      if (!selectedClientId) return alert('יש לבחור ליד')
-      const id = await addTask(selectedClientId, user)
-      redirect(`/clients/${selectedClientId}/tasks/${id}`)
-    }
+    const title = getTitle()
+    if (!title) return
+
+    const resolvedClientId = clientId || getSelectedClientId()
+    if (!resolvedClientId) return
+
+    const id = await addTask(resolvedClientId, user, title)
+    redirect(`/clients/${resolvedClientId}/tasks/${id}`)
   }
 
   async function addAndRedirectFromTmplt(e) {
     const formData = getFormData2(e) as any
-    if (clientId) {
-      const id = await addTaskFromTmplt(clientId, formData.taskTmpltId)
-      redirect(`/clients/${clientId}/tasks/${id}`)
-    } else {
-      const selectedClientId = (document.getElementsByName('selectedClientId')?.[0] as any).value
-      if (!selectedClientId) return alert('יש לבחור ליד')
-      const id = await addTaskFromTmplt(selectedClientId, formData.taskTmpltId)
-      redirect(`/clients/${selectedClientId}/tasks/${id}`)
-    }
+    const resolvedClientId = clientId || getSelectedClientId()
+    if (!resolvedClientId) return
+
+    const id = await addTaskFromTmplt(resolvedClientId, formData.taskTmpltId)
+    redirect(`/clients/${resolvedClientId}/tasks/${id}`)
   }
 
   const searchFunc = isAdmin(user.role) ? searchContacts : null
   const options = isAdmin(user.role) ? [] : clients
 
-  console.log('searchFunc', searchFunc)
-  console.log('options', options)
-
   return (
     <>
       <div popover='auto' id='chooseTaskTmplt' className='pop p-4 w-96'>
-        <Title lbl='יצירת מעקב חדש' />
+        <Title lbl='יצירת משימה חדשה' />
         <div className='grid gap-4 mt-4'>
           {!clientId && (
             <SelectSearch
@@ -66,12 +70,16 @@ export default function AddTaskForm({ clientId, taskTmplts, clients, user }: Pro
             />
           )}
 
-          <form onSubmit={addAndRedirectFromTmplt} className='w-full'>
-            <Select options={taskTmplts} name='taskTmpltId' lbl='בחר מעקב מתבנית' val='id' show='title' />
-            <Btn lbl='יצירת מעקב מתבנית' className='mt-2 w-full ' />
-          </form>
+          <Input id='newTaskTitle' lbl='כותרת המעקב' placeholder='לדוגמה: מעקב אחר הצעת מחיר' />
 
-          <Btn lbl='יצירת מעקב חדש' variant='outline' className='mt-4 w-full' onClick={addAndRedirect} />
+          <Btn lbl='יצירת משימה חדשה' className='w-full' onClick={addAndRedirect} />
+
+          {taskTmplts?.length > 0 && (
+            <form onSubmit={addAndRedirectFromTmplt} className='w-full'>
+              <Select options={taskTmplts} name='taskTmpltId' lbl='או בחר מתבנית' val='id' show='title' />
+              <Btn lbl='יצירת משימה מתבנית' variant='outline' className='mt-2 w-full' />
+            </form>
+          )}
         </div>
       </div>
     </>

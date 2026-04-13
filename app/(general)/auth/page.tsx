@@ -3,6 +3,7 @@ import LoginMagicLink from '@/components/auth/LoginMagicLink'
 import { getUser } from '@/db/auth'
 import { Metadata } from 'next'
 import AccordionItem from '@/lib/AccordionItem'
+import HeroScroll from '@/components/auth/HeroScroll'
 
 export const metadata: Metadata = {
   title: 'התחברות | SocialCRM — מערכת ניהול לידים',
@@ -110,37 +111,13 @@ export default async function AuthPage({ searchParams }) {
         </div>
 
         {/* SEO content — visible to crawlers and AI engines, useful for users */}
-        <section aria-label='מידע על המערכת' className='bg-gray-50 border-t border-gray-100 py-16 px-8'>
-          <div className='max-w-4xl mx-auto'>
-            <h2 className='text-2xl font-bold text-center mb-2'>למה עסקים בוחרים ב-SocialCRM?</h2>
-            <p className='text-gray-500 text-center mb-10'>
-              מערכת ניהול לידים שמתחברת לפייסבוק, מייבאת מאקסל, ועוזרת לסגור יותר עסקאות
-            </p>
+        <section aria-label='מידע על המערכת' className='bg-white border-t border-gray-100'>
+          <HeroScroll />
 
-            <div className='grid md:grid-cols-3 gap-6 mb-14'>
-              <div className='bg-white rounded-lg p-6 shadow-sm'>
-                <h3 className='font-bold text-lg mb-2'>חיבור לפייסבוק</h3>
-                <p className='text-gray-500 text-sm'>
-                  לידים מטפסי פייסבוק מגיעים ישירות למערכת אוטומטית, בלי העתקה ידנית.
-                </p>
-              </div>
-              <div className='bg-white rounded-lg p-6 shadow-sm'>
-                <h3 className='font-bold text-lg mb-2'>ייבוא מאקסל</h3>
-                <p className='text-gray-500 text-sm'>
-                  יש לך רשימת לידים באקסל? מעלים קובץ אחד ובשניות הכל מאורגן במערכת.
-                </p>
-              </div>
-              <div className='bg-white rounded-lg p-6 shadow-sm'>
-                <h3 className='font-bold text-lg mb-2'>מעקב ומכירה</h3>
-                <p className='text-gray-500 text-sm'>
-                  עדכן סטטוס, הוסף הערות, שייך נציג כל ליד מנוהל עד לסגירה.
-                </p>
-              </div>
-            </div>
-
+          <div className='max-w-4xl mx-auto px-8 pb-16'>
             <div className='max-w-2xl mx-auto'>
               <h2 className='text-xl font-bold mb-6'>שאלות נפוצות</h2>
-              <div className='bg-white rounded-lg shadow-sm overflow-hidden'>
+              <div className='bg-white rounded-lg overflow-hidden border border-gray-100 shadow-sm'>
                 {faqSchema.mainEntity.map((item) => (
                   <AccordionItem
                     key={item.name}

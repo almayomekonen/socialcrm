@@ -44,6 +44,9 @@ importers:
       fast-xml-parser:
         specifier: ^5.3.3
         version: 5.3.3
+      framer-motion:
+        specifier: ^12.38.0
+        version: 12.38.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13

@@ -83,7 +83,7 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
         <div className='flex gap-4 items-end mb-2'>
           {/* <Btn variant='outline' lbl='איפוס סינון' icon='eraser' href='?' className='gap-4' /> */}
           {/* <FilterBtn /> */}
-          <Btn lbl='צור מעקב חדש' icon='plus' popoverTarget='chooseTaskTmplt' />
+          <Btn lbl='צור משימה חדשה' icon='plus' popoverTarget='chooseTaskTmplt' /> 
           {/* <Btn lbl='הוספת משימה' popoverTarget='popSaleForm' icon='plus' /> */}
         </div>
       </div>

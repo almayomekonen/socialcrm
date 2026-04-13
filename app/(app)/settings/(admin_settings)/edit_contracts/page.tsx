@@ -1,4 +1,4 @@
-
+import { redirect } from 'next/navigation'
 import ContractForm from '@/components/contracts/ContractForm'
 import DeleteContractButton from '@/components/contracts/DeleteContractButton'
 import { getContracts } from '@/db/contracts'
@@ -6,6 +6,7 @@ import { getUsers } from '@/db/usersNTeams'
 import { Btn } from '@/lib/btns/Btn'
 
 export default async function ContractsPage() {
+  redirect('/settings')
   const contracts = await getContracts()
   console.log('contracts:" ')
 

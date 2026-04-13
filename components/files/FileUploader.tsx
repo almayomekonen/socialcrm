@@ -30,6 +30,8 @@ export default function FileUploader({
   const [files, setFiles] = useState(single && initialFiles ? [initialFiles] : initialFiles || [])
   const user = useUser()
 
+  if (!user) return null
+
   async function onRemove(fileToRemove) {
     if (!confirm(`להסיר את הקובץ?`)) return
 

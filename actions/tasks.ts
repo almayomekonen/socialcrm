@@ -16,7 +16,8 @@ export async function deleteTask(task) {
 
 export async function updateFullTask(task) {
   await requireUser()
-  const allSubtasksCompleted = task.tasks.every((mainTask) => mainTask.subTasks.every((subTask) => subTask.isCompleted))
+  const taskList = Array.isArray(task.tasks) ? task.tasks : []
+  const allSubtasksCompleted = taskList.every((mainTask) => mainTask.subTasks?.every((subTask) => subTask.isCompleted))
 
   await db('tasks')
     .where({ id: task.id })
@@ -25,8 +26,11 @@ export async function updateFullTask(task) {
       tasks: JSON.stringify(task.tasks),
       notes: JSON.stringify(task.notes),
       files: task.files.map((f) => f.id),
-      completed: allSubtasksCompleted,
+      completed: task.completed ?? allSubtasksCompleted,
     })
+
+  revalidatePath('/tasks')
+  revalidatePath('/clients')
 }
 
 export async function createTask(data: { clientId: number; title: string; userId: number; _system?: boolean }) {
@@ -44,11 +48,11 @@ export async function createTask(data: { clientId: number; title: string; userId
   return res[0].id
 }
 
-export async function addTask(clientId, user) {
+export async function addTask(clientId, user, title = 'כתוב כותרת') {
   await requireUser()
   const res = await db('tasks')
     .insert({
-      title: 'כתוב כותרת',
+      title,
       userId: user.id,
       dueDate: new Date().toISOString().split('T')[0],
       tasks: [],
@@ -162,12 +166,4 @@ export async function unlinkFileFromTaskTmplt(fileId: number, taskTmpltId: numbe
   `,
     [taskTmpltId, fileId],
   )
-}
-
-export async function bdikatTikTkufatitTaskExistInRange(clientId, months) {
-  const tasks = await db('tasks')
-    .where({ clientId })
-    .where('createdAt', '>=', new Date(new Date().setMonth(new Date().getMonth() - months)))
-    .where('title', '=', 'בדיקת תיק תקופתית ללקוח קיים')
-  return tasks.length > 0
 }

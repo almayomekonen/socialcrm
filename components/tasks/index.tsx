@@ -2,30 +2,13 @@
 
 import TaskNotes from '@/components/tasks/TaskNotes'
 import TaskHeader from '@/components/tasks/TaskHeader'
-import TaskStepper from '@/components/tasks/TaskStepper'
-import TaskFiles from '@/components/tasks/TaskFiles'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { updateFullTask } from '@/actions/tasks'
 import { TaskPageEvents } from './utils'
 
 export default function TaskIndex({ task, user, users }) {
-  const router = useRouter()
-
-  let initIndex = task.tasks.findIndex((t) => !t.isCompleted)
-  if (initIndex < 0) initIndex = task.tasks.length - 1
-
   return (
     <div className='paper my-4'>
-      <div className='task_grid' key={Math.random()}>
-        <TaskHeader task={task} users={users} />
-        <TaskStepper task={task} initIndex={initIndex} />
-        <TaskFiles task={task} />
-
-        <TaskNotes notes={task.notes} userName={user.name} />
-
-        <div style={{ gridArea: 'events' }}></div>
-      </div>
+      <TaskHeader task={task} users={users} />
+      <TaskNotes task={task} userName={user.name} />
       <TaskPageEvents task={task} />
     </div>
   )

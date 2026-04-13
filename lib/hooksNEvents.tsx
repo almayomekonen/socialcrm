@@ -131,9 +131,9 @@ export function UserProvider({ children, user }) {
 
 export function useUser() {
   const context = useContext(UserContext)
-  if (context === null) throw new Error('useUser must be used within a UserProvider')
+  if (context === null && typeof window !== 'undefined') throw new Error('useUser must be used within a UserProvider')
 
-  return context
+  return context as UserDb
 }
 
 // pos

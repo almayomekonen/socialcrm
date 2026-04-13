@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import FileUploader from '../files/FileUploader'
+import dynamic from 'next/dynamic'
+
+const FileUploader = dynamic(() => import('../files/FileUploader'), { ssr: false })
 
 export default function TaskFiles({ task }) {
   const [files, setFiles] = useState(task.files || [])

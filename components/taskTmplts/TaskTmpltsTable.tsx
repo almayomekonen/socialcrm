@@ -3,11 +3,10 @@
 import { useState } from 'react'
 import Table, { ConfigT } from '@/lib/table'
 import Link from 'next/link'
-// import AddTaskTmpltBtn from './AddTaskTmpltBtn'
 import Search from '@/lib/table/Search'
 import { redirect } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
-import { addTaskTmplt } from '@/actions/tasks'
+import { addTaskTmplt, deleteTaskTmplt } from '@/actions/tasks'
 
 export type SaleTableProps = {
   props: {
@@ -21,8 +20,22 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
 
   const tblId = 'taskTmpltsTable12'
   const [state, setState] = useState([...data])
-
+  const [selected, setSelected] = useState<any>(null)
   const [columns, setColumns] = useState(tblPref?.[tblId] || saleTableHeaders)
+
+  function onCheckboxChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.name !== 'checkRow') return
+    const id = Number(e.target.id)
+    setSelected(e.target.checked ? state.find((t) => t.id === id) ?? null : null)
+  }
+
+  async function onDelete() {
+    if (!selected) return
+    if (!confirm(`האם למחוק את התבנית "${selected.title}"?`)) return
+    setState((prev) => prev.filter((t) => t.id !== selected.id))
+    setSelected(null)
+    await deleteTaskTmplt(selected)
+  }
 
   const config = {
     columns,
@@ -30,9 +43,7 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
     data,
     state,
     setState,
-    funcs: {
-      formatTitle,
-    },
+    funcs: { formatTitle },
   } as ConfigT
 
   return (
@@ -40,14 +51,18 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
       <div className='flex justify-between gap-4'>
         <div className='flex gap-3 items-end mb-2'>
           <Search config={config} />
+          {selected && (
+            <Btn lbl='מחק תבנית' icon='trash' variant='outline' onClick={onDelete} className='text-red-500 border-red-300 hover:bg-red-50' />
+          )}
         </div>
-
         <div className='flex gap-4 items-end mb-2'>
           <AddTaskTmpltBtn />
         </div>
       </div>
 
-      <Table config={config} tblCls='mb-0 rounded-b-none' />
+      <div onChange={onCheckboxChange as any}>
+        <Table config={config} tblCls='mb-0 rounded-b-none' />
+      </div>
     </div>
   )
 }
@@ -71,6 +86,5 @@ function AddTaskTmpltBtn() {
     redirect(`/settings/edit_tmplts/${id}`)
   }
 
-  // return <SubmitButton lbl='יצירת תבנית משימה חדשה' onClick={addAndRedirect} />
-  return <Btn lbl='יצירת תבנית מעקב חדשה' icon='plus' onClick={addAndRedirect} />
+  return <Btn lbl='יצירת תבנית משימה חדשה' icon='plus' onClick={addAndRedirect} />
 }

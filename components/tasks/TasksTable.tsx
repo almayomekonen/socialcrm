@@ -59,7 +59,7 @@ export default function TasksTable({ data, users, filter, user }) {
 
           <div className='flex '>
             <ExportTable data={state} columns={columns} />
-            <Btn lbl='מעקב חדש' icon='plus' popoverTarget='chooseTaskTmplt' />
+            <Btn lbl='משימה חדשה' icon='plus' popoverTarget='chooseTaskTmplt' />
           </div>
         </div>
 

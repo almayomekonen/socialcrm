@@ -23,7 +23,7 @@ export default async function TmpltTaskPage({ params }) {
           <TaskFiles task={taskTmplt} />
         </div>
         <div className='xl:col-span-1'>
-          <TaskNotes notes={taskTmplt.notes} userName={user.name} />
+          <TaskNotes task={taskTmplt} userName={user.name} type='template' />
         </div>
       </div>
     </div>

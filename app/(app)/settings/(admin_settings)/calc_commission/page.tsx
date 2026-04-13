@@ -1,7 +1,9 @@
+import { redirect } from 'next/navigation'
 import CmsnTable from '@/components/cmsnRules/CmsnTable'
 import { getCmsnRules } from '@/db/cmsnRules'
 
 export default async function CalcCmsnPage({ searchParams }) {
+  redirect('/settings')
   const cmsnRules = await getCmsnRules()
 
   let { rule } = await searchParams
