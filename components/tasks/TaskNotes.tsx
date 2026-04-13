@@ -11,7 +11,7 @@ import { useAction } from '@/lib/useAction'
 export default function TaskNotes({ task, userName, type = 'task' }: { task: any; userName: string; type?: 'task' | 'template' }) {
   const notes = task.notes
   const [state, setState] = useState(false)
-  const ref = useRef<HTMLTextAreaElement>(null)
+  const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null)
   const editNoteRef = useRef<any>(null)
   const ctxMenuRef = useRef<HTMLElement | null>(null)
   const render = () => setState((s) => !s)
