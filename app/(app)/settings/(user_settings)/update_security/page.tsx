@@ -16,8 +16,6 @@ export default async function page() {
       'phone',
       'fax',
       'officePhone',
-      'agentLicenseNum',
-      'agentLicenseFiles',
       'logoutMinutes',
     ],
   })

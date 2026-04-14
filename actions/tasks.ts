@@ -245,7 +245,13 @@ export async function updateFullTaskTmplt(taskTmplt) {
 }
 export async function saveFilesTmplt(uploadFiles) {
   await requireUser()
-  await db('files').insert(uploadFiles)
+  const safeFiles = uploadFiles.map((f: any) => ({
+    name: String(f.name ?? ''),
+    path: String(f.path ?? ''),
+    size: Number(f.size ?? 0),
+    type: String(f.type ?? ''),
+  }))
+  await db('files').insert(safeFiles)
 }
 
 export async function unlinkFileFromTaskTmplt(fileId: number, taskTmpltId: number) {

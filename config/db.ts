@@ -1,7 +1,7 @@
 import knex from 'knex'
 import dotenv from 'dotenv'
 
-dotenv.config({ path: '.env.local' })
+dotenv.config({ path: '.env.local', override: true })
 
 const rawUrl = process.env.DATABASE_URL ?? ''
 

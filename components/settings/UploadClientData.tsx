@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FileUploader from '@/components/files/FileUploader'
 import { addLeads, importLeadsFromCsv, uploadLeadData } from '@/actions/clients'
 
 export default function UploadClientData() {
+  const router = useRouter()
   const [clients, setClients] = useState<Record<string, any>[]>()
   const [wrongClients, setWrongClients] = useState<Record<string, any>[]>()
   const [csvResult, setCsvResult] = useState<{ inserted: number; updated: number; unchanged: number; invalid: number } | null>(null)
@@ -18,7 +20,10 @@ export default function UploadClientData() {
 
     setClients(data)
     setWrongClients(wrongData)
-    if (data.length) await addLeads(data)
+    if (data.length) {
+      await addLeads(data)
+      router.refresh()
+    }
   }
 
   async function onCsvChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -29,6 +34,7 @@ export default function UploadClientData() {
     try {
       const result = await importLeadsFromCsv(file)
       setCsvResult(result)
+      if (result.inserted > 0) router.refresh()
     } finally {
       setCsvLoading(false)
       e.target.value = ''

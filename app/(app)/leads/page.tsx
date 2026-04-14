@@ -1,5 +1,5 @@
 import { getUser } from '@/db/auth'
-import { getLeadLists, getLeadsTable } from '@/db/clients'
+import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt } from '@/db/clients'
 import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import { Provider } from '@/lib/hooksNEvents'
@@ -14,10 +14,11 @@ export const metadata: Metadata = {
 export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
-  const [handlers, settings, clientLists] = await Promise.all([
+  const [handlers, settings, clientLists, globalLatestUpdatedAt] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
     getLeadLists(user.id),
+    getGlobalLatestUpdatedAt(),
   ])
   const clients = await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds, settings })
   return (
@@ -28,12 +29,13 @@ export default async function LeadsPage({ searchParams }) {
         clientLists,
         clients,
         handlers: handlers.allPermUsers,
+        users: handlers.allPermUsers,
       }}
       className='mb-8'
     >
       <h1 className='title mb-2'>לידים</h1>
 
-      <ClientsTable leads={true} data={clients} user={user} key={params.clientId ?? 'all'} />
+      <ClientsTable leads={true} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} key={params.clientId ?? 'all'} />
     </Provider>
   )
 }

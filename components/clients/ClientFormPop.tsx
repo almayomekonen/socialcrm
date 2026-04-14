@@ -6,22 +6,24 @@ import ClientForm from './clientForm'
 import { getFormData2 } from '@/lib/form/funcs'
 import { api, isIdNumValid } from '@/lib/funcs'
 
-export default function ClientFormPop({ client }) {
+export default function ClientFormPop({ client, onClose }: { client?: any; onClose?: () => void }) {
   const user = useUser()
 
   async function onSubmit(e) {
     const clientData = getFormData2(e) as any
-    if (!clientData.userId && !client?.id) return alert('יש לבחור נציג')
+    if (!clientData.userId) clientData.userId = user.id
 
-    if (!client?.id) {
+    if (!client?.id && clientData.idNum) {
       const existingClient = await getLeadByIdNum(clientData.idNum)
       if (existingClient) return alert(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
     }
 
-    if (!isIdNumValid(clientData.idNum)) return alert('תעודת זהות לא תקינה')
+    if (clientData.idNum && !isIdNumValid(clientData.idNum)) return alert('תעודת זהות לא תקינה')
 
     const res = await api(upsertLead, [user.id, clientData, client?.id])
     if (res.err) return alert(res.msg)
+
+    onClose?.()
   }
 
   return (

@@ -4,7 +4,6 @@ import { useRef, useCallback, useEffect, useState } from 'react'
 import { UserDb } from '@/db/auth'
 import { createContext, useContext } from 'react'
 import { fetchLeadsSince } from '@/actions/clients'
-import { toast } from '@/lib/toast'
 
 // events:
 
@@ -62,19 +61,22 @@ export function debounce(callback, delay = 1000) {
   }
 }
 
-export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = true, initialMaxId = 0) {
-  const maxIdRef = useRef(initialMaxId)
+export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = true, initialLastSeenAt?: string) {
+  const lastSeenAtRef = useRef(initialLastSeenAt ?? new Date().toISOString())
 
   useEffect(() => {
     if (!enabled) return
 
     const poll = async () => {
       if (document.visibilityState !== 'visible') return
-      const newLeads = await fetchLeadsSince(maxIdRef.current)
-      if (newLeads.length === 0) return
-      maxIdRef.current = Math.max(...newLeads.map((l) => l.id))
-      onNewLeads(newLeads)
-      toast('success', newLeads.length === 1 ? 'ליד חדש הגיע' : `${newLeads.length} לידים חדשים הגיעו`)
+      const leads = await fetchLeadsSince(lastSeenAtRef.current)
+      if (leads.length === 0) return
+      // Advance cursor to the most recent updatedAt in this batch
+      lastSeenAtRef.current = leads.reduce((max, l) => {
+        const ts = new Date(l.updatedAt).toISOString()
+        return ts > max ? ts : max
+      }, lastSeenAtRef.current)
+      onNewLeads(leads)
     }
 
     const interval = setInterval(poll, 15_000)

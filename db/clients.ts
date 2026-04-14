@@ -4,11 +4,13 @@ import { getAgencyId } from './agencies'
 import { getPerms } from './filter'
 import { filesJsonAgg } from './helpers/aggregations'
 import { Lead, LeadInfo } from '@/types/db/tables'
+import { requireUser } from '@/lib/requireUser'
 
 export type LeadKey = keyof Lead | keyof LeadInfo
 
 export async function getFullLead({ id, select }: { id: number; select?: LeadKey[] }) {
-  let query = db('clients as c').join('clients_info as ci', 'c.id', 'ci.id').where('c.id', id)
+  const user = await requireUser()
+  let query = db('clients as c').join('clients_info as ci', 'c.id', 'ci.id').where('c.id', id).where('c.agencyId', user.agencyId)
 
   const columnsToSelect = select ? select.filter((col) => col !== 'idFiles') : ['c.*', 'ci.*']
 
@@ -31,26 +33,40 @@ export async function getFullLead({ id, select }: { id: number; select?: LeadKey
 }
 
 export async function getFamMembers(clientId) {
-  const familyId = (await db('clients').where('id', clientId).select('familyId').first())?.familyId
+  const user = await requireUser()
+  const familyId = (await db('clients').where({ id: clientId, agencyId: user.agencyId }).select('familyId').first())?.familyId
   if (!familyId) return { famMembers: [], familyId: null }
 
   const famMembers = await db('clients')
-    .where({ familyId })
+    .where({ familyId, agencyId: user.agencyId })
     .select('id', 'name', 'idNum', 'birthDate', 'gender', 'familyStatus', 'phone', 'email', 'familyId')
 
   return { famMembers, familyId }
 }
 
 export async function getLeadsByRep(user) {
+  const authedUser = await requireUser()
   const { gotPermIds } = await getPerms(user)
 
-  const res = await db('clients').select('id', 'details').whereIn('userId', gotPermIds)
+  const res = await db('clients').select('id', 'details').where({ agencyId: authedUser.agencyId }).whereIn('userId', gotPermIds)
 
   return res
 }
 
 export async function getLeadLists(userId) {
   return await db('client_lists').where({ userId })
+}
+
+export async function getGlobalMaxLeadId(): Promise<number> {
+  const agencyId = await getAgencyId()
+  const result = await db('clients').where({ agencyId, lead: true }).max('id as maxId').first()
+  return Number(result?.maxId ?? 0)
+}
+
+export async function getGlobalLatestUpdatedAt(): Promise<string> {
+  const agencyId = await getAgencyId()
+  const result = await db('clients').where({ agencyId, lead: true }).max('updatedAt as maxUpdatedAt').first()
+  return result?.maxUpdatedAt ? new Date(result.maxUpdatedAt).toISOString() : new Date(0).toISOString()
 }
 
 export async function getLeadsTable({ user, params, leads = false, gotPermIds, settings = null }) {

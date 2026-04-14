@@ -3,6 +3,7 @@
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
+import { requireUser } from '@/lib/requireUser'
 
 export async function upsertCont(data: any) {
   if (data.id) {
@@ -32,8 +33,11 @@ export async function duplicateCont(data: any) {
 }
 
 export async function deleteCont(contId: number) {
+  const user = await requireUser()
+  const contract = await db('contracts').where({ id: contId, agencyId: user.agencyId }).first()
+  if (!contract) throw new Error('Forbidden')
   await db('contract_prdcts').where({ contractId: contId }).del()
-  await db('contracts').where({ id: contId }).del()
+  await db('contracts').where({ id: contId, agencyId: user.agencyId }).del()
 
   revalidatePath('/settings/edit_contracts')
 }
@@ -45,6 +49,11 @@ export async function upsertContPrdcts(data: any) {
 }
 
 export async function deleteContPrdct(id: number) {
+  const user = await requireUser()
+  const prdct = await db('contract_prdcts').where({ id }).select('contractId').first()
+  if (!prdct) throw new Error('Forbidden')
+  const contract = await db('contracts').where({ id: prdct.contractId, agencyId: user.agencyId }).first()
+  if (!contract) throw new Error('Forbidden')
   await db('contract_prdcts').where({ id }).del()
   revalidatePath('/settings/edit_contracts/[id]')
 }

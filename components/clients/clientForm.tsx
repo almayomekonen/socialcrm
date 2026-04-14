@@ -10,23 +10,29 @@ import { SelectSearch } from '@/lib/form/SelectSearch'
 export default function ClientForm({ data, prefix = '' }) {
   const user = useUser()
   const { handlers, users } = useProps()
-  console.log('the client is', data)
+  const hasMultipleUsers = users && users.length > 1
   return (
     <div className='max-w-4xl' data-prefix={prefix}>
       <div className='flex  items-start flex-col gap-4'>
         {!data?.id && (
-          <SelectSearch
-            name='userId'
-            lbl='נציג'
-            className='w-52'
-            options={users || []}
-            selected={!isExtOffice(user.role) ? user.id : null}
-          />
+          <>
+            {hasMultipleUsers ? (
+              <SelectSearch
+                name='userId'
+                lbl='נציג'
+                className='w-52'
+                options={users}
+                selected={!isExtOffice(user.role) ? user.id : null}
+              />
+            ) : (
+              <input type='hidden' name='userId' value={user.id} />
+            )}
+          </>
         )}
         <div className='flex'>
           <Input name='firstName' lbl='שם פרטי' defaultValue={data?.firstName} />
           <Input name='lastName' lbl='שם משפחה' defaultValue={data?.lastName} />
-          <Input name='idNum' type='number' lbl="מס' תעודת זהות" defaultValue={data?.idNum} />
+          <Input name='idNum' type='number' lbl="מס' תעודת זהות" defaultValue={data?.idNum} required={false} />
         </div>
         <div className='flex'>
           <Input name='birthDate' lbl='תאריך לידה' type='date' defaultValue={data?.birthDate} required={false} />
@@ -51,18 +57,15 @@ export default function ClientForm({ data, prefix = '' }) {
           />
           <Select
             options={[
-              {
-                name: 'לא פעיל',
-                id: false,
-              },
-              {
-                name: 'פעיל',
-                id: true,
-              },
+              { name: 'חדש', id: 'new' },
+              { name: 'בטיפול', id: 'contacted' },
+              { name: 'מתעניין', id: 'interested' },
+              { name: 'נסגר', id: 'closed' },
+              { name: 'לא רלוונטי', id: 'lost' },
             ]}
             name='status'
-            lbl='פעילות'
-            defaultValue={data?.status ?? true}
+            lbl='סטטוס'
+            defaultValue={data?.status ?? 'new'}
             required={false}
           />
           <Select
@@ -78,7 +81,7 @@ export default function ClientForm({ data, prefix = '' }) {
             ]}
             name='lead'
             lbl='סטטוס'
-            defaultValue={data?.lead}
+            defaultValue={data?.lead ?? true}
             required={false}
           />
         </div>

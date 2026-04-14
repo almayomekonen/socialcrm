@@ -16,6 +16,7 @@
     "test": "playwright test",
     "test.ui": "playwright test --ui",
     "test.codegen": "playwright codegen --project=ADMIN http://localhost:3000",
+    "test:integration": "vitest run __tests__",
     "migrate": "knex --knexfile knexfile.cjs migrate:latest",
     "migrate:rollback": "knex --knexfile knexfile.cjs migrate:rollback",
     "migrate:make": "knex --knexfile knexfile.cjs migrate:make",
@@ -73,7 +74,8 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
   },
   "type": "module"
 }

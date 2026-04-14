@@ -3,6 +3,7 @@
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { getAgencyId } from './agencies'
+import { requireUser } from '@/lib/requireUser'
 
 export async function getCmsnRules() {
   const cmsnRules = await db('cmsn_rules').where('agencyId', await getAgencyId())
@@ -25,7 +26,8 @@ export async function addCmsnRule(data) {
 }
 
 export async function deleteCmsnRule(id: number) {
-  const cmsnRule = await db('cmsn_rules').where({ id }).del()
+  const user = await requireUser()
+  const cmsnRule = await db('cmsn_rules').where({ id, agencyId: user.agencyId }).del()
 
   revalidatePath('/settings/calc_commission')
   return cmsnRule

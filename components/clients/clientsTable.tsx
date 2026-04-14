@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
 import { ActionsMenu, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
@@ -15,13 +15,23 @@ import { Btn } from '@/lib/btns/Btn'
 import { Select } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { deleteLead, searchContacts, searchLeads, updateLead } from '@/actions/clients'
+import { toast } from '@/lib/toast'
 import { api } from '@/lib/funcs'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
 import { saveTblPref } from '@/actions/global'
 
-export default function ClientsTable({ data, user, leads = false }) {
-  const [state, setState] = useState(data)
+export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '' }) {
+  const [liveLeads, setLiveLeads] = useState<any[]>([])
+  const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
+  const [activeTab, setActiveTab] = useState('new')
+  const mergedState = [
+    ...liveLeads,
+    ...data.filter((d) => !liveLeads.some((l) => l.id === d.id) && !deletedIds.has(d.id)),
+  ]
+  const filteredData = leads
+    ? mergedState.filter((lead) => lead.status === activeTab)
+    : mergedState
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
 
   const validHeaders = getHeaders(leads)
@@ -35,19 +45,49 @@ export default function ClientsTable({ data, user, leads = false }) {
   const [openUpload, setOpenUpload] = useState(false)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [highlightedId, setHighlightedId] = useState<number | null>(null)
+  const [newLeadsCount, setNewLeadsCount] = useState(0)
+  const dataRef = useRef(data)
+  useEffect(() => { dataRef.current = data }, [data])
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
   const clientDetails = searchParams.get('clientDetails')
 
   useKeepTblScrollPos(tblId)
-  const initialMaxId = data.length > 0 ? Math.max(...data.map((d) => d.id)) : 0
-  useLeadPolling((newLeads) => {
-    setState((prev) => {
-      const existingIds = new Set(prev.map((c) => c.id))
-      const fresh = newLeads.filter((l) => !existingIds.has(l.id))
-      return fresh.length > 0 ? [...fresh, ...prev] : prev
+  useLeadPolling((polledLeads) => {
+    setLiveLeads((prev) => {
+      const prevMap = new Map(prev.map((c) => [c.id, c]))
+      const existingIds = new Set([
+        ...prev.map((p) => p.id),
+        ...dataRef.current.map((d) => d.id),
+      ])
+
+      let newCount = 0
+      const next = [...prev]
+
+      for (const lead of polledLeads) {
+        if (prevMap.has(lead.id)) {
+          // Update an existing liveLeads entry in-place
+          const idx = next.findIndex((r) => r.id === lead.id)
+          next[idx] = lead
+        } else {
+          // Not yet in liveLeads — prepend (new lead or update promoted from data)
+          if (!existingIds.has(lead.id)) newCount++
+          next.unshift(lead)
+        }
+      }
+
+      if (newCount > 0) setNewLeadsCount(newCount)
+
+      return next
     })
-  }, leads, initialMaxId)
+  }, leads, globalLatestUpdatedAt)
+
+  useEffect(() => {
+    if (newLeadsCount > 0) {
+      toast('success', newLeadsCount === 1 ? 'ליד חדש הגיע' : `${newLeadsCount} לידים חדשים הגיעו`)
+      setNewLeadsCount(0)
+    }
+  }, [newLeadsCount])
 
   function moreRows(client) {
     return (
@@ -74,13 +114,18 @@ export default function ClientsTable({ data, user, leads = false }) {
         className={`min-w-28 ${s.bg} ${s.text} ${s.border} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
         onChange={async (e) => {
           const newStatus = e.target.value
-          const snapshot = state
-          setState((s) => s.map((row) => (row.id === obj.id ? { ...row, status: newStatus } : row)))
+          const snapshotLiveLeads = liveLeads
+          const sourceLead = liveLeads.find((r) => r.id === obj.id) ?? data.find((d) => d.id === obj.id)
+          setLiveLeads((prev) => {
+            const exists = prev.some((r) => r.id === obj.id)
+            if (exists) return prev.map((row) => (row.id === obj.id ? { ...row, status: newStatus } : row))
+            return sourceLead ? [{ ...sourceLead, status: newStatus }, ...prev] : prev
+          })
           setUpdatingId(obj.id)
           const res = await api(updateLead, { id: obj.id, status: newStatus }, 'סטטוס עודכן')
           setUpdatingId(null)
           if (!res || res?.err) {
-            setState(snapshot)
+            setLiveLeads(snapshotLiveLeads)
           } else {
             setHighlightedId(obj.id)
             setTimeout(() => setHighlightedId(null), 2500)
@@ -90,14 +135,20 @@ export default function ClientsTable({ data, user, leads = false }) {
     )
   }
 
-  const emptyState = state.length === 0 ? (
+  const emptyState = filteredData.length === 0 ? (
     <div className='text-center py-8 flex flex-col items-center gap-4'>
-      <p className='text-lg font-semibold'>אין עדיין נתונים</p>
-      <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
-      <div className='flex gap-3 justify-center'>
-        <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
-        <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
-      </div>
+      {mergedState.length === 0 ? (
+        <>
+          <p className='text-lg font-semibold'>אין עדיין נתונים</p>
+          <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
+          <div className='flex gap-3 justify-center'>
+            <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+            <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
+          </div>
+        </>
+      ) : (
+        <p className='text-sm text-gray-500'>אין לידים בסטטוס זה</p>
+      )}
     </div>
   ) : null
 
@@ -105,8 +156,8 @@ export default function ClientsTable({ data, user, leads = false }) {
     tblId,
     columns,
     setColumns,
-    state,
-    setState,
+    state: filteredData,
+    setState: setLiveLeads,
     moreHeads,
     moreRows,
     funcs: { formatName, formatStatus, formatLeadSource, formatLeadStatus, formatState, formatNextAction },
@@ -127,6 +178,32 @@ export default function ClientsTable({ data, user, leads = false }) {
   return (
     <>
       <div className='grid'>
+        {leads && (
+          <div className='flex gap-1 mb-3 border-b border-gray-200' dir='rtl'>
+            {Object.entries(STATUS_STYLES).map(([key, { label, dot, text, bg, border }]) => {
+              const count = mergedState.filter((l) => l.status === key).length
+              const isActive = activeTab === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-md border border-b-0 -mb-px transition-colors
+                    ${isActive
+                      ? `${bg} ${text} ${border} bg-white`
+                      : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-200 hover:bg-gray-50'
+                    }`}
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                  {label}
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium
+                    ${isActive ? `${text} opacity-70` : 'bg-gray-100 text-gray-500'}`}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
         <div className='flex justify-between gap-2 mb-2 items-end '>
           <div className='flex gap-0 items-end'>
             <SelectSearch
@@ -146,7 +223,7 @@ export default function ClientsTable({ data, user, leads = false }) {
             <ShowColumns config={config} />
             <SelectClientGrpActions user={user} />
             <SelectClientLists />
-            <ExportTable data={state} columns={columns} />
+            <ExportTable data={mergedState} columns={columns} />
             <Btn lbl='ליד חדש' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
           </div>
         </div>
@@ -155,7 +232,7 @@ export default function ClientsTable({ data, user, leads = false }) {
       </div>
 
       <ModalPop open={openForm} pos='middle' onClose={() => (setCurClient(null), setOpenForm(false))}>
-        <ClientFormPop client={curClient} />
+        <ClientFormPop client={curClient} onClose={() => (setCurClient(null), setOpenForm(false))} />
       </ModalPop>
 
       <ModalPop open={openTransferClientForm} pos='middle' onClose={() => (setCurClient(null), setOpenTransferClientForm(false))}>
@@ -219,7 +296,8 @@ export default function ClientsTable({ data, user, leads = false }) {
                 alert('לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב')
                 return
               }
-              setState((prev) => prev.filter((c) => c.id !== curClient.id))
+              setLiveLeads((prev) => prev.filter((c) => c.id !== curClient.id))
+              setDeletedIds((prev) => new Set([...prev, curClient.id]))
             }}
           />
         </div>

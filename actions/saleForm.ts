@@ -7,13 +7,13 @@ import { calculateCommission } from '@/components/sales/saleForm/funcs/calcCmsn'
 import { saleObj } from '@/types/types'
 import { formatSaleAmountType, insertSaleUsers } from '@/components/sales/saleForm/funcs/insertSale'
 import { formatCurrency, omit } from '@/lib/funcs'
-import { getUser } from '@/db/auth'
 import { getAgencyId } from '@/db/agencies'
+import { requireUser } from '@/lib/requireUser'
 
 export async function insertSale(data: saleObj) {
-  const user = await getUser()
+  const user = await requireUser()
   await db.transaction(async (trx) => {
-    if (data.saleId) await db('sales').where({ id: data.saleId }).del()
+    if (data.saleId) await db('sales').where({ id: data.saleId, agencyId: user.agencyId }).del()
 
     const { prdcts, users, clientId } = data
 
@@ -39,7 +39,7 @@ export async function insertSale(data: saleObj) {
 
       const cmsnRes = calculateCommission(sale, cmsnRules, users)
 
-      sale = { rwrd: data.rwrd, cmsn: cmsnRes.cmsn, ...sale, agencyId: await getAgencyId() }
+      sale = { rwrd: data.rwrd, cmsn: cmsnRes.cmsn, ...sale, agencyId: user.agencyId }
 
       const saleId = (await trx('sales').insert(sale).returning('id'))?.[0].id
       await insertSaleUsers(trx, saleId, users, cmsnRes, cntrctRes)

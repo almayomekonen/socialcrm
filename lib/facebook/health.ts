@@ -40,8 +40,13 @@ export async function checkFacebookConnection(pageId: string, pageAccessToken: s
       console.warn(`[FacebookHealth] Token invalid [pageId=${pageId}]:`, JSON.stringify(data).slice(0, 200))
     }
   } catch (err: any) {
-    errors.push(err?.name === 'AbortError' ? 'token_check_timeout' : 'token_check_failed')
-    console.error(`[FacebookHealth] Token check error [pageId=${pageId}]:`, err?.message)
+    const isAbort = err?.name === 'AbortError'
+    errors.push(isAbort ? 'token_check_timeout' : 'token_check_failed')
+    if (isAbort) {
+      console.warn(`[FacebookHealth] Token check timeout [pageId=${pageId}]`)
+    } else {
+      console.error(`[FacebookHealth] Token check error [pageId=${pageId}]:`, err?.message)
+    }
   }
 
   if (tokenValid) {
@@ -67,8 +72,13 @@ export async function checkFacebookConnection(pageId: string, pageAccessToken: s
         console.warn(`[FacebookHealth] Subscription check failed [pageId=${pageId}]`)
       }
     } catch (err: any) {
-      errors.push(err?.name === 'AbortError' ? 'subscription_check_timeout' : 'subscription_check_failed')
-      console.error(`[FacebookHealth] Subscription check error [pageId=${pageId}]:`, err?.message)
+      const isAbort = err?.name === 'AbortError'
+      errors.push(isAbort ? 'subscription_check_timeout' : 'subscription_check_failed')
+      if (isAbort) {
+        console.warn(`[FacebookHealth] Subscription check timeout [pageId=${pageId}]`)
+      } else {
+        console.error(`[FacebookHealth] Subscription check error [pageId=${pageId}]:`, err?.message)
+      }
     }
   }
 

@@ -2,10 +2,12 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
+import { requireUser } from '@/lib/requireUser'
 
-export async function addSavedFilters({ data, id }: { data: { name: string; href: string }; id: number }) {
-  const res = await db('users')
-    .where({ id })
+export async function addSavedFilters({ data }: { data: { name: string; href: string }; id?: number }) {
+  const user = await requireUser()
+  await db('users')
+    .where({ id: user.id })
     .update({
       savedFilters: db.raw('jsonb_insert("savedFilters", \'{0}\', ?::jsonb, true)', [JSON.stringify(data)]),
     })
@@ -13,9 +15,10 @@ export async function addSavedFilters({ data, id }: { data: { name: string; href
   revalidatePath('/deals')
 }
 
-export async function updateSavedFilters({ data, id }: { data: { name: string; href: string }; id: number }) {
+export async function updateSavedFilters({ data }: { data: { name: string; href: string }; id?: number }) {
+  const user = await requireUser()
   await db('users')
-    .where({ id })
+    .where({ id: user.id })
     .update({
       savedFilters: JSON.stringify(data),
     })

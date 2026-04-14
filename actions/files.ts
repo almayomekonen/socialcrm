@@ -9,6 +9,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { genId } from '@/lib/funcs'
 import { getAgencyId } from '@/db/agencies'
 import { daysFromNow } from '@/lib/dates'
+import { requireUser } from '@/lib/requireUser'
 
 const Bucket = process.env.S3_BUCKET_NAME
 
@@ -37,7 +38,7 @@ export async function getPresigned({ metadat, folderPath }: Props) {
     metadat.map((m) => {
       const path = `uploads/${folderPath}/${genId()}_${m.name}`
       const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: m.type, ContentLength: m.size })
-      return getSignedUrl(s3, cmd, { expiresIn: 60 }).then((url) => ({ url, path, ...m }))
+      return getSignedUrl(s3 as any, cmd as any, { expiresIn: 60 }).then((url) => ({ url, path, ...m }))
     }),
   )
   return urls
@@ -49,6 +50,11 @@ interface Props {
 }
 
 export async function addFilesToTask(data, clientId) {
+  const user = await requireUser()
+  const task = await db('tasks').where({ id: data.taskId }).select('clientId').first()
+  if (!task) throw new Error('Forbidden')
+  const client = await db('clients').where({ id: task.clientId, agencyId: user.agencyId }).first()
+  if (!client) throw new Error('Forbidden')
   await db('tasks')
     .where({ id: data.taskId })
     .update({
@@ -59,7 +65,10 @@ export async function addFilesToTask(data, clientId) {
 }
 
 export async function getUserImgs(userId) {
-  const images = await db('files').where({ createdById: userId, type: 'image/webp' }).orderBy('createdAt', 'desc')
+  const user = await requireUser()
+  const images = await db('files')
+    .where({ createdById: userId, agencyId: user.agencyId, type: 'image/webp' })
+    .orderBy('createdAt', 'desc')
   return images
 }
 
@@ -82,19 +91,25 @@ export async function addFiles({ presigned, taskId = null, clientId }) {
 }
 
 export async function deleteFile(file) {
+  const user = await requireUser()
+  const existing = await db('files').where({ id: file.id, agencyId: user.agencyId }).first()
+  if (!existing) throw new Error('Forbidden')
   await db('files').where({ id: file.id }).delete()
   revalidatePath(`/clients/${file.clientId}/files`)
   revalidatePath(`/files`)
 }
 
 export async function addIpuyFile({ presigned, data, type }: { presigned: any; data: any; type: string }) {
+  const user = await requireUser()
+  const client = await db('clients').where({ id: data.clientId, agencyId: user.agencyId }).first()
+  if (!client) throw new Error('Forbidden')
   presigned.map((p) => delete p.url)
   const files = presigned.map((p) => ({
     ...p,
     clientId: data.clientId,
-    createdById: data.userId,
+    createdById: user.id,
     createdAt: new Date(),
-    agencyId: data.agencyId,
+    agencyId: user.agencyId,
   }))
 
   const newFiles = await db('files').insert(files).returning('*')

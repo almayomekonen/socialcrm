@@ -116,7 +116,7 @@ export default async function AuthPage({ searchParams }) {
 
           <div className='max-w-4xl mx-auto px-8 pb-16'>
             <div className='max-w-2xl mx-auto'>
-              <h2 className='text-xl font-bold mb-6'>שאלות נפוצות</h2>
+              <h2 className='text-2xl text-center font-bold mb-6'>שאלות נפוצות</h2>
               <div className='bg-white rounded-lg overflow-hidden border border-gray-100 shadow-sm'>
                 {faqSchema.mainEntity.map((item) => (
                   <AccordionItem

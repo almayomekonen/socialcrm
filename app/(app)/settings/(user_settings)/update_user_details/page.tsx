@@ -1,5 +1,4 @@
 import { getUser } from '@/db/auth'
-import UserAgntLicenseForm from '@/components/settings/userDetails/UserAgentLicenseForm'
 import UserDetailsForm from '@/components/settings/userDetails/UserDetailsForm'
 import UserContactForm from '@/components/settings/userDetails/UserPhonesForm'
 import { getFullUser } from '@/db/usersNTeams'
@@ -17,10 +16,6 @@ export default async function page() {
       'phone',
       'fax',
       'officePhone',
-      'agentLicenseNum',
-      'agentLicenseType',
-      'agentLicenseName',
-      'agentLicenseFiles',
       'tifulEmail',
     ],
   })
@@ -35,9 +30,6 @@ export default async function page() {
         </AccordionItem>
         <AccordionItem bodyClass={bodyClass} title='עדכון פרטי התקשרות'>
           <UserContactForm user={res} />
-        </AccordionItem>
-        <AccordionItem bodyClass={bodyClass} title='עדכון רישיון'>
-          <UserAgntLicenseForm user={res} />
         </AccordionItem>
       </div>
     </div>

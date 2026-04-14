@@ -1,6 +1,7 @@
 import { db } from '@/config/db'
 import { getAgencyId } from './agencies'
 import { getPerms } from './filter'
+import { requireUser } from '@/lib/requireUser'
 
 export async function getTasks(user, filter) {
   const perms = await getPerms(user)
@@ -62,6 +63,7 @@ export async function getTasksTbl(clientId) {
 }
 
 export async function getTaskById(taskId) {
+  const user = await requireUser()
   const res = await db.raw(
     `
     SELECT 
@@ -69,10 +71,10 @@ export async function getTaskById(taskId) {
       COALESCE(json_agg(f.*) FILTER (WHERE f.id IS NOT NULL), '[]') as files
     FROM tasks t
     LEFT JOIN files f ON f.id = ANY(t.files)
-    WHERE t.id = ?
+    WHERE t.id = ? AND t."agencyId" = ?
     GROUP BY t.id
   `,
-    [taskId]
+    [taskId, user.agencyId]
   )
 
   return res.rows[0]
@@ -84,6 +86,7 @@ export async function getTaskTmplts() {
 }
 
 export async function getTaskTmpltById(tmpltTaskId) {
+  const user = await requireUser()
   const res = await db.raw(
     `
     SELECT 
@@ -91,10 +94,10 @@ export async function getTaskTmpltById(tmpltTaskId) {
       COALESCE(json_agg(f.*) FILTER (WHERE f.id IS NOT NULL), '[]') as files
     FROM task_tmplts t
     LEFT JOIN files f ON f.id = ANY(t.files)
-    WHERE t.id = ?
+    WHERE t.id = ? AND t."agencyId" = ?
     GROUP BY t.id
   `,
-    [tmpltTaskId]
+    [tmpltTaskId, user.agencyId]
   )
 
   return res.rows[0]

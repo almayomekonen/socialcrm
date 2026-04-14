@@ -7,28 +7,36 @@ import { revalidatePath } from 'next/cache'
 import { isIdNumValid } from '@/lib/funcs'
 import * as XLSX from 'xlsx'
 import { requireUser } from '@/lib/requireUser'
+import { getPerms } from '@/db/filter'
+import { isAdmin } from '@/types/roles'
 
 export async function deleteLead(clientId) {
-  await requireUser()
+  const user = await requireUser()
   const res = await db('sales').where('clientId', clientId).first()
   if (res) {
     throw new Error('לא ניתן למחוק לקוח עם מכירות')
   }
 
-  await db('clients').where('id', clientId).del()
+  const { gotPermIds } = await getPerms(user)
+  const query = db('clients').where({ id: clientId, agencyId: user.agencyId })
+  if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
+  await query.del()
 
   revalidatePath('/leads')
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {
-  if (!data._system) await requireUser()
+  let user = null
+  if (!data._system) user = await requireUser()
   const isSystem = data._system
   delete data._system
   try {
     let lead = null
 
     if (clientId) {
-      lead = (await db('clients').where({ id: clientId }).update(data).returning('*'))[0]
+      const q = db('clients').where({ id: clientId })
+      if (!isSystem && user) q.where({ agencyId: user.agencyId })
+      lead = (await q.update(data).returning('*'))[0]
     } else {
       if (!isSystem) data.agencyId = await getAgencyId()
       data.createdById = userId
@@ -60,14 +68,18 @@ export async function deleteLeadList(id) {
 }
 
 export async function transferDealsToLead(fromClientId, toClientId) {
-  await requireUser()
+  const user = await requireUser()
+  const from = await db('clients').where({ id: fromClientId, agencyId: user.agencyId }).first()
+  if (!from) throw new Error('Forbidden')
+  const to = await db('clients').where({ id: toClientId, agencyId: user.agencyId }).first()
+  if (!to) throw new Error('Forbidden')
   await db('sales').where('clientId', fromClientId).update({ clientId: toClientId })
   revalidatePath('/leads')
 }
 
 export async function transferLeadToRep(clientId, userId) {
-  await requireUser()
-  await db('clients').where('id', clientId).update({ userId })
+  const user = await requireUser()
+  await db('clients').where({ id: clientId, agencyId: user.agencyId }).update({ userId })
   revalidatePath('/leads')
 }
 
@@ -77,7 +89,12 @@ async function searchBase(val, isLead) {
   const query = db('clients')
     .select('id', 'details', 'firstName', 'lastName', 'idNum', 'userId')
     .where('agencyId', await getAgencyId())
-  query.where('lead', isLead)
+  if (isLead === true) {
+    query.where('lead', true)
+  } else {
+    // deals search — include both leads and clients so newly created leads are findable
+    query.whereIn('lead', [true, false])
+  }
 
   terms.forEach((term) => {
     query.where((builder) => {
@@ -120,13 +137,16 @@ export async function getLeadById(clientId) {
 }
 
 export async function updateLead(data) {
-  await requireUser()
+  const user = await requireUser()
   const { id, ...updateData } = data
   if ('status' in updateData) {
     updateData.statusChangedAt = new Date()
   }
-  const res = await db('clients')
-    .where({ id })
+  updateData.updatedAt = new Date()
+  const { gotPermIds } = await getPerms(user)
+  const query = db('clients').where({ id, agencyId: user.agencyId })
+  if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
+  const res = await query
     .update(updateData)
     .returning('*')
     .catch(() => null)
@@ -349,13 +369,24 @@ export async function importLeadsFromCsv(file: File) {
   return { inserted, updated, unchanged, invalid }
 }
 
-export async function fetchLeadsSince(sinceId: number) {
-  const agencyId = await getAgencyId()
-  return db('clients')
+export async function fetchLeadsSince(lastSeenAt: string) {
+  const user = await requireUser()
+  const agencyId = user.agencyId
+  // The updatedAt column is `timestamp without time zone` stored in local (Jerusalem)
+  // time. Sending an ISO string with 'Z' causes PostgreSQL to strip the timezone on
+  // cast, shifting the cursor 3 hours behind and matching the same rows on every poll.
+  // Casting both sides to timestamptz forces a correct timezone-aware comparison.
+  const query = db('clients')
     .where({ 'clients.agencyId': agencyId, lead: true })
-    .where('clients.id', '>', sinceId)
+    .whereRaw('"clients"."updatedAt"::timestamptz > ?::timestamptz', [lastSeenAt])
     .leftJoin({ handler: 'users' }, 'clients.handlerId', 'handler.id')
     .leftJoin({ creator: 'users' }, 'clients.userId', 'creator.id')
     .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')
-    .orderBy('clients.id', 'desc')
+    .orderBy('clients.updatedAt', 'asc')
+    .limit(100)
+  if (!isAdmin(user.role)) {
+    const { gotPermIds } = await getPerms(user)
+    query.whereIn('clients.userId', gotPermIds)
+  }
+  return query
 }
