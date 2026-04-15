@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     canonical: 'https://socialcrm.vercel.app/auth',
   },
   openGraph: {
-    title: 'SocialCRM — כל הלידים שלך במקום אחד',
+    title: 'SocialCRM כל הלידים שלך במקום אחד',
     description: 'נהל את כל הלידים מפייסבוק, אינסטגרם ווואטסאפ ממקום אחד. התחל עכשיו בחינם.',
     url: 'https://socialcrm.vercel.app/auth',
   },
