@@ -5,7 +5,6 @@ import Topbar from '@/lib/navs/Topbar'
 import Nav from '@/lib/navs/Nav'
 import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
 import { redirect } from 'next/navigation'
-import MobileBlock from '@/components/layout/MobileBlock'
 // 1. Move the async data fetching into a separate component
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -16,7 +15,6 @@ async function LayoutContent({ children }) {
   return (
     <UserProvider user={user}>
       <PosProvider>
-        <MobileBlock />
         <div className='desktop:grid grid-cols-[50px_1fr]'>
           <Nav user={user} />
           <div>
