@@ -21,6 +21,136 @@ export async function GET(req: NextRequest) {
   return new NextResponse('Forbidden', { status: 403 })
 }
 
+// FIX 4: extracted fetch helper so retry can call the same logic
+async function fetchLeadWithTimeout(leadId: string, accessToken: string): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 6000)
+  try {
+    return await fetch(`https://graph.facebook.com/v19.0/${leadId}?fields=field_data`, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+// FIX 1: extracted to a function so the outer loop can call it per lead
+async function processSingleLead(leadId: string, pageId: string): Promise<void> {
+  // Skip test leads — Graph API returns code 100 for synthetic leadgen_ids
+  if (leadId.startsWith('test_')) {
+    console.log(`[FacebookWebhook] Skipping test lead — leadId=${leadId}`)
+    return
+  }
+
+  // Step 1: Early idempotency check — skip Graph API call if lead already exists
+  const existing = await db('clients').where({ leadSource: `facebook:${leadId}` }).first()
+  if (existing) {
+    console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Already exists (id=${existing.id}) — skipping`)
+    return
+  }
+
+  // Step 2: Resolve page connection — must exist before any Graph API call
+  const connection = await db('facebook_pages').where({ page_id: pageId }).first()
+  if (!connection) {
+    console.warn(`[FacebookWebhook] No DB connection for pageId=${pageId} — ignoring leadId=${leadId}`)
+    return
+  }
+
+  console.log(`[FacebookWebhook][routing][leadId=${leadId}] Resolved — pageId=${pageId}, userId=${connection.user_id}`)
+
+  // Step 3: Fetch lead field_data — FIX 4: retry once on timeout
+  let metaRes: Response
+  try {
+    metaRes = await fetchLeadWithTimeout(leadId, connection.page_access_token)
+  } catch (firstErr: any) {
+    if (firstErr?.name !== 'AbortError') {
+      console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Fetch threw:`, firstErr)
+      await db('webhook_failures')
+        .insert({ lead_id: leadId, page_id: pageId, error_type: 'fetch_error', error_detail: String(firstErr) })
+        .catch(() => {})
+      return
+    }
+    // Timeout on first attempt — retry once
+    console.warn(`[FacebookWebhook][fetch][leadId=${leadId}] Timeout on attempt 1 — retrying`)
+    try {
+      metaRes = await fetchLeadWithTimeout(leadId, connection.page_access_token)
+    } catch (retryErr: any) {
+      const isAbort = retryErr?.name === 'AbortError'
+      console.error(`[FacebookWebhook][fetch][leadId=${leadId}] ${isAbort ? 'Timeout' : 'Error'} on retry — giving up`)
+      await db('webhook_failures')
+        .insert({ lead_id: leadId, page_id: pageId, error_type: 'timeout' })
+        .catch(() => {})
+      return
+    }
+  }
+
+  if (!metaRes!.ok) {
+    const errBody = await metaRes!.text()
+    console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}`, errBody)
+
+    if (metaRes!.status === 401 || metaRes!.status === 403) {
+      await Promise.allSettled([
+        db('facebook_pages')
+          .where({ page_id: pageId })
+          .update({ health_status: 'token_expired', health_checked_at: new Date() }),
+        db('webhook_failures').insert({
+          lead_id: leadId,
+          page_id: pageId,
+          error_type: 'token_expired',
+          error_detail: `HTTP ${metaRes!.status}`,
+        }),
+      ])
+      repairFacebookConnection(pageId).catch((err) =>
+        console.error(`[FacebookWebhook] Background repair threw [pageId=${pageId}]:`, err),
+      )
+      return
+    }
+
+    await db('webhook_failures')
+      .insert({ lead_id: leadId, page_id: pageId, error_type: 'graph_api_error', error_detail: `HTTP ${metaRes!.status}` })
+      .catch(() => {})
+    return
+  }
+
+  const metaData = await metaRes!.json()
+  console.log(`[FacebookWebhook][fetch][leadId=${leadId}] Lead fetched — fieldsCount=${metaData?.field_data?.length ?? 0}`)
+
+  if (!Array.isArray(metaData?.field_data) || metaData.field_data.length === 0) {
+    console.warn(`[FacebookWebhook][fetch][leadId=${leadId}] field_data missing or empty — ignoring`)
+    return
+  }
+
+  const { firstName, lastName, phone, email } = parseFacebookLead(metaData.field_data)
+
+  const lead = await createLeadFromWebhook({
+    firstName,
+    lastName,
+    phone,
+    email,
+    leadId,
+    agencyId: connection.agency_id,
+    userId: connection.user_id,
+  })
+
+  if (!lead) {
+    console.error(`[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null — logging failure`)
+    await db('webhook_failures')
+      .insert({ lead_id: leadId, page_id: pageId, error_type: 'db_error' })
+      .catch(() => {})
+    return
+  }
+
+  if (connection.health_status !== 'healthy') {
+    await db('facebook_pages')
+      .where({ page_id: pageId })
+      .update({ health_status: 'healthy', health_checked_at: new Date() })
+      .catch(() => {})
+  }
+
+  console.log(`[FacebookWebhook][success][leadId=${leadId}]`)
+}
+
 // POST — incoming lead notification from Meta
 export async function POST(req: NextRequest) {
   // Validate X-Hub-Signature-256 before processing anything
@@ -56,138 +186,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  if (!body?.entry?.[0]?.changes?.[0]?.value) {
-    console.warn('[FacebookWebhook] Invalid payload structure')
+  // FIX 1: validate that entries array exists
+  if (!Array.isArray(body?.entry) || body.entry.length === 0) {
+    console.warn('[FacebookWebhook] Invalid payload structure — no entries')
     return NextResponse.json({ ok: true })
   }
 
-  try {
-    const leadId: string | undefined = body.entry[0].changes[0].value.leadgen_id
-    const pageId: string | undefined = body.entry[0].id
+  // FIX 1: loop through ALL entries and ALL changes — Meta can batch multiple leads per delivery
+  for (const entry of body.entry) {
+    const pageId: string | undefined = entry.id
+    if (!Array.isArray(entry.changes)) continue
 
-    console.log(`[FacebookWebhook] Received — leadId=${leadId}, pageId=${pageId}`)
+    for (const change of entry.changes) {
+      const leadId: string | undefined = change.value?.leadgen_id
+      console.log(`[FacebookWebhook] Received — leadId=${leadId}, pageId=${pageId}`)
 
-    if (!leadId || !pageId) {
-      console.warn(`[FacebookWebhook] Missing leadId or pageId — ignoring`)
-      return NextResponse.json({ ok: true })
-    }
+      if (!leadId || !pageId) {
+        console.warn(`[FacebookWebhook] Missing leadId or pageId — skipping change`)
+        continue
+      }
 
-    // Skip test leads — Graph API returns code 100 for synthetic leadgen_ids
-    if (leadId.startsWith('test_')) {
-      console.log(`[FacebookWebhook] Skipping test lead — leadId=${leadId}`)
-      return NextResponse.json({ ok: true })
-    }
-
-    // Step 1: Early idempotency check — skip Graph API call if lead already exists
-    const existing = await db('clients')
-      .where({ leadSource: `facebook:${leadId}` })
-      .first()
-    if (existing) {
-      console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Already exists (id=${existing.id}) — skipping`)
-      return NextResponse.json({ ok: true })
-    }
-
-    // Step 2: Resolve page connection — must exist before any Graph API call
-    const connection = await db('facebook_pages').where({ page_id: pageId }).first()
-    if (!connection) {
-      console.warn(`[FacebookWebhook] No DB connection for pageId=${pageId} — ignoring leadId=${leadId}`)
-      return NextResponse.json({ ok: true })
-    }
-
-    console.log(`[FacebookWebhook][routing][leadId=${leadId}] Resolved — pageId=${pageId}, userId=${connection.user_id}`)
-
-    // Step 3: Fetch lead field_data with the correct page access token — single call
-    let metaData: any
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 6000)
-      let metaRes: Response
       try {
-        metaRes = await fetch(`https://graph.facebook.com/v19.0/${leadId}?fields=field_data`, {
-          signal: controller.signal,
-          headers: { Authorization: `Bearer ${connection.page_access_token}` },
-        })
-      } finally {
-        clearTimeout(timeout)
-      }
-
-      if (!metaRes!.ok) {
-        const errBody = await metaRes!.text()
-        console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API error — status: ${metaRes!.status}`, errBody)
-
-        if (metaRes!.status === 401 || metaRes!.status === 403) {
-          await Promise.allSettled([
-            db('facebook_pages')
-              .where({ page_id: pageId })
-              .update({ health_status: 'token_expired', health_checked_at: new Date() }),
-            db('webhook_failures').insert({
-              lead_id: leadId,
-              page_id: pageId,
-              error_type: 'token_expired',
-              error_detail: `HTTP ${metaRes!.status}`,
-            }),
-          ])
-          repairFacebookConnection(pageId).catch((err) =>
-            console.error(`[FacebookWebhook] Background repair threw [pageId=${pageId}]:`, err),
-          )
-          return NextResponse.json({ ok: true })
-        }
-
+        await processSingleLead(leadId, pageId)
+      } catch (err) {
+        // Catch unhandled errors per-lead so one failure does not stop other leads in the batch
+        console.error(`[FacebookWebhook] Unhandled error for leadId=${leadId}:`, err)
         await db('webhook_failures')
-          .insert({ lead_id: leadId, page_id: pageId, error_type: 'graph_api_error', error_detail: `HTTP ${metaRes!.status}` })
+          .insert({ lead_id: leadId, page_id: pageId ?? 'unknown', error_type: 'unhandled_error', error_detail: String(err) })
           .catch(() => {})
-        return NextResponse.json({ ok: true })
       }
-
-      metaData = await metaRes!.json()
-      console.log(`[FacebookWebhook][fetch][leadId=${leadId}] Lead fetched — fieldsCount=${metaData?.field_data?.length ?? 0}`)
-    } catch (fetchErr: any) {
-      if (fetchErr?.name === 'AbortError') {
-        console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API timeout`)
-      } else {
-        console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Graph API fetch threw:`, fetchErr)
-      }
-      await db('webhook_failures')
-        .insert({ lead_id: leadId, page_id: pageId, error_type: 'timeout' })
-        .catch(() => {})
-      return NextResponse.json({ ok: true })
     }
-
-    if (!Array.isArray(metaData?.field_data) || metaData.field_data.length === 0) {
-      console.warn(`[FacebookWebhook][fetch][leadId=${leadId}] field_data missing or empty — ignoring`)
-      return NextResponse.json({ ok: true })
-    }
-
-    const { firstName, lastName, phone, email } = parseFacebookLead(metaData.field_data)
-
-    const lead = await createLeadFromWebhook({
-      firstName,
-      lastName,
-      phone,
-      email,
-      leadId,
-      agencyId: connection.agency_id,
-      userId: connection.user_id,
-    })
-
-    if (!lead) {
-      console.error(`[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null — logging failure`)
-      await db('webhook_failures')
-        .insert({ lead_id: leadId, page_id: pageId, error_type: 'db_error' })
-        .catch(() => {})
-      return NextResponse.json({ ok: true })
-    }
-
-    if (connection.health_status !== 'healthy') {
-      await db('facebook_pages')
-        .where({ page_id: pageId })
-        .update({ health_status: 'healthy', health_checked_at: new Date() })
-        .catch(() => {})
-    }
-
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    console.error('[FacebookWebhook] Unhandled error:', err)
-    return NextResponse.json({ ok: true })
   }
+
+  return NextResponse.json({ ok: true })
 }

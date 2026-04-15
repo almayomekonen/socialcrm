@@ -68,6 +68,29 @@ export async function GET(req: NextRequest) {
     return failed(req, 'token')
   }
 
+  // FIX 3: Verify that leads_retrieval was actually granted before proceeding.
+  // Facebook allows users to uncheck individual scopes during OAuth — the token exchange
+  // still succeeds, but without leads_retrieval the integration is silently broken.
+  try {
+    const permRes = await fetch(`https://graph.facebook.com/v19.0/me/permissions?access_token=${longToken}`)
+    if (!permRes.ok) {
+      console.error('[FacebookOAuth] Permission check failed:', await permRes.text())
+      return failed(req, 'token')
+    }
+    const permData = await permRes.json()
+    const leadsRetrieval = (permData.data ?? []).find(
+      (p: { permission: string; status: string }) => p.permission === 'leads_retrieval' && p.status === 'granted',
+    )
+    if (!leadsRetrieval) {
+      console.warn('[FacebookOAuth] leads_retrieval not granted — userId:', user.id)
+      return failed(req, 'missing_permission')
+    }
+    console.log('[FacebookOAuth] leads_retrieval confirmed granted — userId:', user.id)
+  } catch (err) {
+    console.error('[FacebookOAuth] Permission check threw:', err)
+    return failed(req, 'token')
+  }
+
   // Step 3: Fetch all pages the user has access to via /me/accounts
   const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${longToken}`)
 

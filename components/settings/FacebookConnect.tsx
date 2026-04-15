@@ -20,6 +20,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   token: 'שגיאה בהתחברות לפייסבוק. אנא נסה שוב.',
   pages: 'לא ניתן לטעון את הדפים. אנא נסה שוב.',
   no_pages: 'לא נמצאו דפים בחשבון הפייסבוק. יש לוודא שיש לך גישת מנהל לדף.',
+  missing_permission: 'יש לאשר הרשאת גישה ללידים בעת החיבור לפייסבוק. אנא נסה שוב ואשר את כל ההרשאות המבוקשות.',
 }
 
 export default function FacebookConnect({ connection, pendingPages, health }: Props) {
@@ -112,7 +113,13 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
             if (res.ok) {
               router.refresh()
             } else {
-              setConnectError('שגיאה בחיבור הדף. אנא נסה שוב.')
+              // FIX 2: surface subscription failure specifically so user understands why it failed
+              const errData = await res.json().catch(() => ({}))
+              if (errData.error === 'subscription_failed') {
+                setConnectError('הרישום לקבלת לידים נכשל. אנא נתק וחבר מחדש, או בדוק שלדף יש הרשאות מנהל.')
+              } else {
+                setConnectError('שגיאה בחיבור הדף. אנא נסה שוב.')
+              }
               setLoading(false)
             }
           }}
