@@ -1,7 +1,9 @@
 import { Metadata } from 'next'
 
 const APP_NAME = 'SocialCRM'
-const APP_TITLE_TEMPLATE = '%s | SocialCRM'
+const APP_OG_TITLE = 'כל הלידים שלך. מסודרים. סגורים.'
+const APP_OG_DESCRIPTION = 'הפסק לפספס לידים. קבל שליטה מלאה על כל הפניות שלך ותתחיל לסגור יותר עסקאות — כבר מהיום.'
+const APP_TWITTER_DESCRIPTION = 'הפסק לפספס לידים ותתחיל לסגור יותר עסקאות.'
 const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.'
 const APP_URL = 'https://socialcrm.vercel.app'
 
@@ -31,19 +33,16 @@ export const metaData: Metadata = {
     url: APP_URL,
     type: 'website',
     siteName: APP_NAME,
-    title: {
-      default: APP_NAME,
-      template: APP_TITLE_TEMPLATE,
-    },
+    title: APP_OG_TITLE,
     images: [
       {
         url: '/media/og.png',
-        alt: 'SocialCRM — מערכת ניהול לידים לעסקים קטנים',
+        alt: APP_OG_TITLE,
         width: 1200,
         height: 630,
       },
     ],
-    description: APP_DESCRIPTION,
+    description: APP_OG_DESCRIPTION,
     locale: 'he_IL',
   },
   verification: {
@@ -51,15 +50,12 @@ export const metaData: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: {
-      default: APP_NAME,
-      template: APP_TITLE_TEMPLATE,
-    },
-    description: APP_DESCRIPTION,
+    title: APP_OG_TITLE,
+    description: APP_TWITTER_DESCRIPTION,
     images: [
       {
         url: '/media/og.png',
-        alt: 'SocialCRM — מערכת ניהול לידים לעסקים קטנים',
+        alt: APP_OG_TITLE,
         width: 1200,
         height: 630,
       },
