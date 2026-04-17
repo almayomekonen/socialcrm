@@ -8,6 +8,7 @@ import { api, isIdNumValid } from '@/lib/funcs'
 
 export default function ClientFormPop({ client, onClose }: { client?: any; onClose?: () => void }) {
   const user = useUser()
+  if (!user) return null
 
   async function onSubmit(e) {
     const clientData = getFormData2(e) as any

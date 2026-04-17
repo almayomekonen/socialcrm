@@ -9,6 +9,7 @@ import { SelectSearch } from '@/lib/form/SelectSearch'
 
 export default function ClientForm({ data, prefix = '' }) {
   const user = useUser()
+  if (!user) return null
   const { handlers, users } = useProps()
   const hasMultipleUsers = users && users.length > 1
   return (

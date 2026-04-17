@@ -6,14 +6,12 @@ import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/requireUser'
 
 export async function addAgency(data) {
-  console.log('REGISTER DATA:', data)
   let success = false
   try {
     await db.transaction(async (trx) => {
       const agency = await trx('agencies').insert(data.agency).returning('id')
       const agencyId = agency[0]?.id
 
-      console.log('USER DATA:', data.user)
       const [user] = await trx('users')
         .insert({
           ...data.user,
@@ -27,14 +25,10 @@ export async function addAgency(data) {
       success = true
     })
   } catch (err: any) {
-    console.error('REGISTER ERROR:', err)
     if (err?.code === '23505') {
-      if (err?.constraint?.includes('email') || err?.detail?.includes('email')) {
-        return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
-      }
-      return { error: `כשל אילוץ ייחודי: ${err?.constraint} — ${err?.detail}` }
+      return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
     }
-    return { error: err?.message || JSON.stringify(err) }
+    return { error: 'אירעה שגיאה, נסה שוב' }
   }
 
   if (success) {

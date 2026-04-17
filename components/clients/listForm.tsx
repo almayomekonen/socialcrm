@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast'
 
 export default function ListForm() {
   const user = useUser()
+  if (!user) return null
   const { clients, params, clientLists } = useProps()
   const selectedList = clientLists.find((list) => list.id === Number(params.listId))
 

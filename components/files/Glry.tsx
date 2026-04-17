@@ -5,9 +5,9 @@ import { Btn } from '@/lib/btns/Btn'
 
 export default function Glry({ onSelect }) {
   const user = useUser()
-
   const [imgs, setImgs] = useState([])
   useEffect(() => {
+    if (!user) return
     getUserImgs(user.id).then((imgs) => setImgs(imgs))
   }, [])
 

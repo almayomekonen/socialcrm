@@ -15,6 +15,7 @@ type Props = {
 export default function ClientDataForm({ curSale }: Props) {
   console.log('curSale', curSale)
   const user = useUser()
+  if (!user) return null
   const [client, setClient] = useState(curSale ? { details: curSale?.clientData, id: curSale?.clientId } : null)
   return (
     <div>
