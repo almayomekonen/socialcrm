@@ -21,7 +21,7 @@ export async function addAgency(data) {
           role: 'ADMIN',
         })
         .returning('*')
-      await trx('users_info').insert({ id: user.id })
+      await trx('users_info').insert({ id: user.id }).onConflict('id').merge()
       await trx('default_settings').insert({ userId: user.id })
       await createCookie(user.id)
       success = true
