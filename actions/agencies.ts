@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/requireUser'
 
 export async function addAgency(data) {
+  console.log('REGISTER DATA:', data)
   let success = false
   try {
     await db.transaction(async (trx) => {
@@ -13,6 +14,7 @@ export async function addAgency(data) {
       const agencyId = agency[0]?.id
 
       const { firstName, lastName, ...userFields } = data.user
+      console.log('USER DATA:', { firstName, lastName, userFields })
       const fullName = `${firstName ?? ''} ${lastName ?? ''}`.trim()
       const [user] = await trx('users')
         .insert({
@@ -28,10 +30,11 @@ export async function addAgency(data) {
       success = true
     })
   } catch (err: any) {
+    console.error('REGISTER ERROR:', err)
     if (err?.code === '23505') {
       return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
     }
-    return { error: 'אירעה שגיאה, נסה שוב' }
+    return { error: err?.message || JSON.stringify(err) }
   }
 
   if (success) {
