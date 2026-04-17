@@ -29,7 +29,10 @@ export async function addAgency(data) {
   } catch (err: any) {
     console.error('REGISTER ERROR:', err)
     if (err?.code === '23505') {
-      return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
+      if (err?.constraint?.includes('email') || err?.detail?.includes('email')) {
+        return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
+      }
+      return { error: `כשל אילוץ ייחודי: ${err?.constraint} — ${err?.detail}` }
     }
     return { error: err?.message || JSON.stringify(err) }
   }
