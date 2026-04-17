@@ -81,6 +81,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
               const res = await fetch('/api/auth/facebook/disconnect', { method: 'POST' })
               if (!res.ok) throw new Error('disconnect failed')
               toast('success', 'הדף נותק בהצלחה')
+              setLoading(false)
               router.refresh()
             } catch {
               toast('error', 'שגיאה בניתוק הדף. אנא נסה שוב.')
