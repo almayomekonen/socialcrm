@@ -6,7 +6,8 @@ import FacebookConnect from '@/components/settings/FacebookConnect'
 import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 
-export default async function page() {
+export default async function page({ searchParams }) {
+  const { error: fbError } = (await searchParams) || {}
   const user = await getUser()
 
   // Facebook connection
@@ -55,7 +56,12 @@ export default async function page() {
       <h1 className='title'>ערוצי לידים</h1>
       <div className='my-6 max-w-lg'>
         <div className='accordion border rounded-lg bg-white'>
-          <AccordionItem bodyClass='p-6' title='פייסבוק' icon='facebook'>
+          <AccordionItem
+            bodyClass='p-6'
+            title='פייסבוק'
+            icon='facebook'
+            open={!!fbConnection || !!pendingPages || !!fbError}
+          >
             <FacebookConnect
               connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
               pendingPages={pendingPages}
