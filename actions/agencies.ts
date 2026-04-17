@@ -7,21 +7,28 @@ import { requireUser } from '@/lib/requireUser'
 
 export async function addAgency(data) {
   let success = false
-  await db.transaction(async (trx) => {
-    const agency = await trx('agencies').insert(data.agency).returning('id')
-    const agencyId = agency[0]?.id
+  try {
+    await db.transaction(async (trx) => {
+      const agency = await trx('agencies').insert(data.agency).returning('id')
+      const agencyId = agency[0]?.id
 
-    const user = await trx('users')
-      .insert({
-        ...data.user,
-        agencyId,
-        role: 'ADMIN',
-      })
-      .returning('id')
-    await trx('default_settings').insert({ userId: user[0]?.id })
-    await createCookie(user[0]?.id)
-    success = true
-  })
+      const user = await trx('users')
+        .insert({
+          ...data.user,
+          agencyId,
+          role: 'ADMIN',
+        })
+        .returning('id')
+      await trx('default_settings').insert({ userId: user[0]?.id })
+      await createCookie(user[0]?.id)
+      success = true
+    })
+  } catch (err: any) {
+    if (err?.code === '23505') {
+      return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
+    }
+    return { error: 'אירעה שגיאה, נסה שוב' }
+  }
 
   if (success) {
     redirect('/')

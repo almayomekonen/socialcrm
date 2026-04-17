@@ -179,8 +179,13 @@ export async function uploadLeadData(file) {
   const worksheet = workbook.Sheets[firstSheetName]
   const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
-  let headers = jsonData[0] as string[]
-  headers = headers.map((header) => header.trim())
+  let headers = (jsonData[0] as string[]).map((h) => (typeof h === 'string' ? h.trim() : ''))
+
+  const requiredHeaders = ['שם פרטי', 'שם משפחה', 'תעודת זהות']
+  const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h))
+  if (missingHeaders.length > 0) {
+    return { data: [], wrongData: [], error: `העמודות הבאות חסרות בקובץ: ${missingHeaders.join(', ')}` }
+  }
 
   const dataRows = jsonData.slice(1) as any[][]
   const mappedData = []
@@ -217,6 +222,7 @@ export async function addLeads(leads) {
       userId,
       lead: true,
       ...lead,
+      status: 'new',
       agencyId,
     }
   })
@@ -342,7 +348,7 @@ export async function importLeadsFromCsv(file: File) {
         .first()
 
       if (!exists) {
-        await upsertLead(userId, { ...lead, lead: true, userId, handlerId: userId }, null, false)
+        await upsertLead(userId, { ...lead, lead: true, status: 'new', userId, handlerId: userId }, null, false)
         inserted++
         continue
       }
@@ -372,10 +378,6 @@ export async function importLeadsFromCsv(file: File) {
 export async function fetchLeadsSince(lastSeenAt: string) {
   const user = await requireUser()
   const agencyId = user.agencyId
-  // The updatedAt column is `timestamp without time zone` stored in local (Jerusalem)
-  // time. Sending an ISO string with 'Z' causes PostgreSQL to strip the timezone on
-  // cast, shifting the cursor 3 hours behind and matching the same rows on every poll.
-  // Casting both sides to timestamptz forces a correct timezone-aware comparison.
   const query = db('clients')
     .where({ 'clients.agencyId': agencyId, lead: true })
     .whereRaw('"clients"."updatedAt"::timestamptz > ?::timestamptz', [lastSeenAt])

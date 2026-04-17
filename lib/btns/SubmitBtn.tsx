@@ -12,11 +12,11 @@ export function SubmitButton({
 }: {
   className?: string
   lbl?: string
-  icon?: IconNames
+  icon?: IconNames | false
   disabled?: boolean
 }) {
   const res = useFormStatus()
   const pending = res.pending
 
-  return <Btn lbl={pending ? 'טוען...' : lbl || 'שמירה'} icon={icon} disabled={pending || disabled} className={className} />
+  return <Btn lbl={pending ? 'טוען...' : lbl || 'שמירה'} icon={icon || undefined} disabled={pending || disabled} className={className} />
 }

@@ -16,7 +16,12 @@ export default function UploadClientData() {
   async function onChange(files: any[]) {
     const file = files[0]
     if (!file) return
-    const { data, wrongData } = await uploadLeadData(file)
+    const { data, wrongData, error } = await uploadLeadData(file)
+
+    if (error) {
+      alert(error)
+      return
+    }
 
     setClients(data)
     setWrongClients(wrongData)
