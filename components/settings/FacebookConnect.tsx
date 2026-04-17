@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
+import { useAction } from '@/lib/useAction'
 import { toast } from '@/lib/toast'
+import { wait } from '@/lib/funcs'
 import type { FacebookHealthStatus } from '@/lib/facebook/health'
 
 type Page = { id: string; name: string; access_token: string }
@@ -28,10 +30,54 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('error')
-
   const [selectedPageId, setSelectedPageId] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [connectError, setConnectError] = useState<string | null>(null)
+  const { loading, error, setError, run } = useAction()
+
+  const redirectToOAuth = () =>
+    run(async () => {
+      window.location.href = '/api/auth/facebook'
+      await wait(30_000)
+    })
+
+  const disconnectPage = () => {
+    if (!connection) return
+    if (!confirm(`לנתק את הדף "${connection.pageName}"?`)) return
+    run(async () => {
+      const res = await fetch('/api/auth/facebook/disconnect', { method: 'POST' })
+      if (!res.ok) {
+        toast('error', 'שגיאה בניתוק הדף')
+        return
+      }
+      toast('success', 'הדף נותק בהצלחה')
+      router.refresh()
+    })
+  }
+
+  const connectPage = (page: Page) => {
+    setError(null)
+    run(async () => {
+      const res = await fetch('/api/auth/facebook/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageId: page.id,
+          pageName: page.name,
+          pageAccessToken: page.access_token,
+        }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        setError(
+          errData.error === 'subscription_failed'
+            ? 'הרישום לקבלת לידים נכשל. אנא נתק וחבר מחדש, או בדוק שלדף יש הרשאות מנהל.'
+            : 'שגיאה בחיבור הדף. אנא נסה שוב.'
+        )
+        return
+      }
+      toast('success', `הדף "${page.name}" חובר בהצלחה`)
+      router.refresh()
+    })
+  }
 
   // State C: Already connected
   if (connection) {
@@ -58,11 +104,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
             iconClassName={loading ? 'animate-spin' : undefined}
             disabled={loading}
             className='w-fit'
-            onClick={() => {
-              setLoading(true)
-              toast('loading', 'מעביר לפייסבוק...')
-              window.location.href = '/api/auth/facebook'
-            }}
+            onClick={redirectToOAuth}
           />
         )}
         <Btn
@@ -73,21 +115,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
           size='small'
           className='w-fit'
           disabled={loading}
-          onClick={async () => {
-            if (!confirm(`לנתק את הדף "${connection.pageName}"?`)) return
-            setLoading(true)
-            toast('loading', 'מנתק דף...')
-            try {
-              const res = await fetch('/api/auth/facebook/disconnect', { method: 'POST' })
-              if (!res.ok) throw new Error('disconnect failed')
-              toast('success', 'הדף נותק בהצלחה')
-              setLoading(false)
-              router.refresh()
-            } catch {
-              toast('error', 'שגיאה בניתוק הדף. אנא נסה שוב.')
-              setLoading(false)
-            }
-          }}
+          onClick={disconnectPage}
         />
       </div>
     )
@@ -100,7 +128,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
     return (
       <div className='grid gap-4'>
         <p className='text-sm text-gray-600'>בחר את הדף שברצונך לחבר:</p>
-        <FormField lbl='דף פייסבוק' error={connectError ?? undefined}>
+        <FormField lbl='דף פייסבוק' error={error ?? undefined}>
           <select
             className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-blue-200'
             value={selectedPageId}
@@ -121,41 +149,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
           size='medium'
           disabled={!selectedPageId || loading}
           className='w-fit'
-          onClick={async () => {
-            if (!selected) return
-            setLoading(true)
-            setConnectError(null)
-            toast('loading', 'מחבר דף...')
-            try {
-              const res = await fetch('/api/auth/facebook/connect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  pageId: selected.id,
-                  pageName: selected.name,
-                  pageAccessToken: selected.access_token,
-                }),
-              })
-              if (res.ok) {
-                toast('success', `הדף "${selected.name}" חובר בהצלחה`)
-                setLoading(false)
-                router.refresh()
-              } else {
-                const errData = await res.json().catch(() => ({}))
-                if (errData.error === 'subscription_failed') {
-                  setConnectError('הרישום לקבלת לידים נכשל. אנא נתק וחבר מחדש, או בדוק שלדף יש הרשאות מנהל.')
-                } else {
-                  setConnectError('שגיאה בחיבור הדף. אנא נסה שוב.')
-                }
-                toast('error', 'שגיאה בחיבור הדף')
-                setLoading(false)
-              }
-            } catch {
-              setConnectError('שגיאה בחיבור הדף. אנא נסה שוב.')
-              toast('error', 'שגיאה בחיבור הדף')
-              setLoading(false)
-            }
-          }}
+          onClick={() => selected && connectPage(selected)}
         />
       </div>
     )
@@ -174,11 +168,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
         iconClassName={loading ? 'animate-spin' : undefined}
         disabled={loading}
         className='w-fit'
-        onClick={() => {
-          setLoading(true)
-          toast('loading', 'מעביר לפייסבוק...')
-          window.location.href = '/api/auth/facebook'
-        }}
+        onClick={redirectToOAuth}
       />
     </div>
   )
