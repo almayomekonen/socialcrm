@@ -12,10 +12,11 @@ export async function addAgency(data) {
       const agency = await trx('agencies').insert(data.agency).returning('id')
       const agencyId = agency[0]?.id
 
-      const fullName = `${data.user.firstName ?? ''} ${data.user.lastName ?? ''}`.trim()
+      const { firstName, lastName, ...userFields } = data.user
+      const fullName = `${firstName ?? ''} ${lastName ?? ''}`.trim()
       const [user] = await trx('users')
         .insert({
-          ...data.user,
+          ...userFields,
           name: fullName || 'User',
           agencyId,
           role: 'ADMIN',
