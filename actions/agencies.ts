@@ -12,15 +12,18 @@ export async function addAgency(data) {
       const agency = await trx('agencies').insert(data.agency).returning('id')
       const agencyId = agency[0]?.id
 
-      const user = await trx('users')
+      const fullName = `${data.user.firstName ?? ''} ${data.user.lastName ?? ''}`.trim()
+      const [user] = await trx('users')
         .insert({
           ...data.user,
+          name: fullName || 'User',
           agencyId,
           role: 'ADMIN',
         })
-        .returning('id')
-      await trx('default_settings').insert({ userId: user[0]?.id })
-      await createCookie(user[0]?.id)
+        .returning('*')
+      await trx('users_info').insert({ id: user.id })
+      await trx('default_settings').insert({ userId: user.id })
+      await createCookie(user.id)
       success = true
     })
   } catch (err: any) {

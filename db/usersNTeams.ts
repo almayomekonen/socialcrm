@@ -86,7 +86,7 @@ export async function getUserNameById(userId) {
 export type UserKey = keyof User | keyof UserInfo
 
 export async function getFullUser({ id, select }: { id: number; select?: UserKey[] }) {
-  let query = db('users as u').join('users_info as ui', 'u.id', 'ui.id').where('u.id', id)
+  let query = db('users as u').leftJoin('users_info as ui', 'u.id', 'ui.id').where('u.id', id)
 
   const columnsToSelect = select ? select.filter((col) => col !== 'agentLicenseFiles') : ['u.*', 'ui.*']
 

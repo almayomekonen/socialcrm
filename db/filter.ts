@@ -94,8 +94,8 @@ export async function getPerms(user) {
     else gaveMap.set(perm.id, { id: perm.id, name: perm.name })
   }
 
-  const gotPermUsers = Array.from(gotMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-  const gavePermUsers = Array.from(gaveMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  const gotPermUsers = Array.from(gotMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+  const gavePermUsers = Array.from(gaveMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 
   return {
     gotPermIds: gotPermUsers.length ? gotPermUsers.map((u) => u.id) : [0],
