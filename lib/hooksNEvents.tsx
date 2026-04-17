@@ -133,8 +133,6 @@ export function UserProvider({ children, user }) {
 
 export function useUser() {
   const context = useContext(UserContext)
-  if (context === null && typeof window !== 'undefined') throw new Error('useUser must be used within a UserProvider')
-
   return context as UserDb
 }
 
@@ -159,8 +157,6 @@ export function PosProvider({ children }: Props) {
 
 export function usePos() {
   const context = useContext(PosCtx)
-  if (context === null) throw new Error('usePos must be used within a PosProvider')
-
   return context
 }
 
@@ -189,7 +185,5 @@ export function Provider({ children, props, className }: ProviderProps) {
 
 export function useProps() {
   const context = useContext(PageCtx)
-  if (context === null) throw new Error('useProps must be used within a Provider')
-
   return context
 }

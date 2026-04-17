@@ -11,6 +11,7 @@ export default async function TmpltTaskPage({ params }) {
   const taskTmplt = await getTaskTmpltById(tmpltTaskId)
   const user = await getUser()
 
+  if (!taskTmplt) return null
   if (!Array.isArray(taskTmplt.tasks)) taskTmplt.tasks = []
   if (!Array.isArray(taskTmplt.notes)) taskTmplt.notes = []
 
@@ -23,7 +24,7 @@ export default async function TmpltTaskPage({ params }) {
           <TaskFiles task={taskTmplt} />
         </div>
         <div className='xl:col-span-1'>
-          <TaskNotes task={taskTmplt} userName={user.name} type='template' />
+          <TaskNotes task={taskTmplt} userName={user?.name ?? ''} type='template' />
         </div>
       </div>
     </div>

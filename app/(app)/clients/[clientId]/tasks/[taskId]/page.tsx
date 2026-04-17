@@ -13,12 +13,13 @@ export default async function TaskPage({ params }) {
   const user = await getUser()
   const { allPermUsers } = await getPerms(user)
 
-  if (!Array.isArray(task?.notes)) task.notes = []
+  if (!task) return null
+  if (!Array.isArray(task.notes)) task.notes = []
 
   return (
     <div className='paper my-4 p-6'>
       <TaskHeader task={task} users={allPermUsers} />
-      <TaskNotes task={task} userName={user.name} />
+      <TaskNotes task={task} userName={user?.name ?? ''} />
       <TaskPageEvents task={task} />
     </div>
   )

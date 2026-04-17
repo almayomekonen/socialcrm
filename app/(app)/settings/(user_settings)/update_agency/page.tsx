@@ -4,7 +4,7 @@ import EditAgency from '@/components/settings/agency/EditAgency'
 
 export default async function page() {
   const user = await getUser()
-  if (user.role != 'ADMIN') {
+  if (!user || user.role != 'ADMIN') {
     return <div>אין לך הרשאה לצפות בדף זה</div>
   }
   const agency = await getAgencyById(user.agencyId)

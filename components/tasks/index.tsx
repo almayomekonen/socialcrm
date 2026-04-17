@@ -8,7 +8,7 @@ export default function TaskIndex({ task, user, users }) {
   return (
     <div className='paper my-4'>
       <TaskHeader task={task} users={users} />
-      <TaskNotes task={task} userName={user.name} />
+      <TaskNotes task={task} userName={user?.name ?? ''} />
       <TaskPageEvents task={task} />
     </div>
   )
