@@ -1,6 +1,7 @@
 import '@/lib/css/main.css'
 import LayoutPageEvents from '@/lib/hooksNEvents'
 import ToastMsg from '@/lib/toast'
+import ChunkReloader from '@/lib/ChunkReloader'
 import { metaData } from '@/types/vars'
 import { Assistant } from 'next/font/google'
 import MobileBlock from '@/components/layout/MobileBlock'
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }) {
         <MobileBlock />
         <LayoutPageEvents />
         <ToastMsg />
+        <ChunkReloader />
         <main>{children}</main>
       </body>
     </html>
