@@ -10,19 +10,81 @@ import { requireUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 
-export async function deleteLead(clientId) {
+export type DeleteLeadResult = { success: true } | { error: true; reason: 'has_sales' | 'no_permission' | 'not_found' }
+
+export async function deleteLead(clientId): Promise<DeleteLeadResult> {
   const user = await requireUser()
-  const res = await db('sales').where('clientId', clientId).first()
-  if (res) {
-    throw new Error('לא ניתן למחוק לקוח עם מכירות')
+
+  const hasSale = await db('sales').where('clientId', clientId).first()
+  if (hasSale) {
+    return { error: true, reason: 'has_sales' }
   }
 
   const { gotPermIds } = await getPerms(user)
   const query = db('clients').where({ id: clientId, agencyId: user.agencyId })
   if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
-  await query.del()
+  const affected = await query.del()
+
+  if (affected === 0) {
+    // Differentiate: does the row exist in this agency (→ permission-scoped)
+    // or is it truly missing / cross-agency (→ not_found from this user's POV).
+    const exists = await db('clients').where({ id: clientId, agencyId: user.agencyId }).first()
+    return { error: true, reason: exists ? 'no_permission' : 'not_found' }
+  }
 
   revalidatePath('/leads')
+  return { success: true }
+}
+
+export type DeleteManyLeadsResult = {
+  deleted: number
+  skipped: number
+  blockedBySales: number
+}
+
+export async function deleteManyLeads(ids: number[]): Promise<DeleteManyLeadsResult> {
+  const user = await requireUser()
+  if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0, blockedBySales: 0 }
+
+  // Permission scope — identical rules to deleteLead (agency + lead=true + userId in gotPermIds for non-admin).
+  const { gotPermIds } = await getPerms(user)
+
+  const inScopeQ = db('clients')
+    .whereIn('id', ids)
+    .andWhere({ agencyId: user.agencyId, lead: true })
+  if (!isAdmin(user.role)) inScopeQ.whereIn('userId', gotPermIds)
+  const inScopeRows = await inScopeQ.select('id')
+  const inScopeIds: number[] = inScopeRows.map((r) => Number(r.id))
+
+  if (inScopeIds.length === 0) {
+    return { deleted: 0, skipped: ids.length, blockedBySales: 0 }
+  }
+
+  // Sales safeguard — mirrors deleteLead: cannot hard-delete a lead that owns sales.
+  const withSalesRows = await db('sales').whereIn('clientId', inScopeIds).distinct('clientId')
+  const withSalesSet = new Set<number>(withSalesRows.map((r: any) => Number(r.clientId)))
+  const deletableIds = inScopeIds.filter((id) => !withSalesSet.has(id))
+
+  if (deletableIds.length === 0) {
+    return {
+      deleted: 0,
+      skipped: ids.length - withSalesSet.size,
+      blockedBySales: withSalesSet.size,
+    }
+  }
+
+  const deleteQ = db('clients')
+    .whereIn('id', deletableIds)
+    .andWhere({ agencyId: user.agencyId, lead: true })
+  if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
+  const deleted = await deleteQ.del()
+
+  revalidatePath('/leads')
+  return {
+    deleted,
+    skipped: ids.length - deletableIds.length - withSalesSet.size,
+    blockedBySales: withSalesSet.size,
+  }
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {
@@ -269,9 +331,15 @@ function parseCSVLine(line: string, delim: string): string[] {
 }
 
 export async function importLeadsFromCsv(file: File) {
-  await requireUser()
+  const user = await requireUser()
   const { id: userId } = await getUser()
   const agencyId = await getAgencyId()
+  // ── DEBUG: agency scope trace ──────────────────────────────────────────
+  console.log('[importLeadsFromCsv][debug] user.agencyId:', user.agencyId)
+  console.log('[importLeadsFromCsv][debug] user.id:', user.id, 'user.email:', user.email)
+  console.log('[importLeadsFromCsv][debug] getUser().id:', userId)
+  console.log('[importLeadsFromCsv][debug] getAgencyId():', agencyId)
+  // ───────────────────────────────────────────────────────────────────────
 
   const chunks: Buffer[] = []
   for await (const chunk of (file as any).stream()) chunks.push(chunk)
@@ -296,6 +364,14 @@ export async function importLeadsFromCsv(file: File) {
   const nameIdx = idx(['שם', 'name', 'full name'])
   const phoneIdx = idx(['טלפון', 'נייד', 'phone', 'mobile', 'tel'])
   const emailIdx = idx(['מייל', 'אימייל', 'email', 'mail'])
+  // ── DEBUG: CSV header parsing trace ────────────────────────────────────
+  console.log('[importLeadsFromCsv][debug] rawHeaderLine:', JSON.stringify(lines[0]))
+  console.log('[importLeadsFromCsv][debug] delimiter:', JSON.stringify(delim))
+  console.log('[importLeadsFromCsv][debug] headers:', headers)
+  console.log('[importLeadsFromCsv][debug] phoneIdx:', phoneIdx, '→', phoneIdx >= 0 ? headers[phoneIdx] : '(not found)')
+  console.log('[importLeadsFromCsv][debug] emailIdx:', emailIdx, '→', emailIdx >= 0 ? headers[emailIdx] : '(not found)')
+  console.log('[importLeadsFromCsv][debug] nameIdx:', nameIdx, '→', nameIdx >= 0 ? headers[nameIdx] : '(not found)')
+  // ───────────────────────────────────────────────────────────────────────
   if (phoneIdx === -1) console.log('[importLeadsFromCsv] headers:', headers)
 
   const valid: { firstName: string; lastName: string; phone: string | null; email: string | null }[] = []

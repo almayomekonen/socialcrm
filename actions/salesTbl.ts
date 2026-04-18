@@ -79,6 +79,26 @@ export async function deleteDeals(ids: number[]) {
   return res?.rowCount
 }
 
+export type DeleteManyDealsResult = { deleted: number; skipped: number }
+
+// Bulk delete entry point for table UIs.
+// Reuses the canonical delete_sales() stored function path used by deleteDeals
+// to preserve FK cascades across sale_users and related rows.
+// Permissive toward stale ids: filters by agency ownership first, deletes the owned subset,
+// reports the skipped count instead of throwing (unlike deleteDeals which hard-throws Forbidden).
+export async function deleteManyDeals(ids: number[]): Promise<DeleteManyDealsResult> {
+  const user = await requireUser()
+  if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0 }
+
+  const owned = await db('sales').whereIn('id', ids).where({ agencyId: user.agencyId }).select('id')
+  const ownedIds: number[] = owned.map((r: any) => Number(r.id))
+  if (ownedIds.length === 0) return { deleted: 0, skipped: ids.length }
+
+  await db.raw(`select delete_sales(?, ?)`, [ownedIds, user.id])
+  revalidatePath('/deals')
+  return { deleted: ownedIds.length, skipped: ids.length - ownedIds.length }
+}
+
 // מחיקת עסקה
 export async function deleteDeal(id: number) {
   const user = await requireUser()

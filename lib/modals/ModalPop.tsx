@@ -8,7 +8,7 @@ export default function ModalPop({ children, className, onClose, open, closeOuts
   return (
     <div
       onClick={closeOutside ? onClose : null}
-      className={`flex  justify-center fixed top-0 left-0 size-full bg-black/15 z-[99999] anim-fade-in ${
+      className={`flex  justify-center fixed top-0 left-0 size-full bg-black/15 z-99999 anim-fade-in ${
         pos === 'middle' ? 'items-center' : 'items-start'
       }`}
     >

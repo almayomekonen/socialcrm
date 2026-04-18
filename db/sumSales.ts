@@ -95,16 +95,16 @@ export async function getSaleStats({ sql }: WithSql) {
 
 export async function getGoalsAndTotals(userId) {
   // SocialCRM branches — one entry per branch in types/lists.ts BRANCHES
-  // משוקלל uses cmsn (commission total); all others use tfuca (deal revenue)
+  // Legacy insurance columns (cmsn / tfuca) neutralized — all totals use `amount`.
   const branches = [
-    { branch: 'משוקלל', val: 'cmsn', cond: null },
-    { branch: 'שירותים', val: 'tfuca', cond: "branch = 'שירותים'" },
-    { branch: 'מוצרים', val: 'tfuca', cond: "branch = 'מוצרים'" },
-    { branch: 'קורסים', val: 'tfuca', cond: "branch = 'קורסים'" },
-    { branch: 'מנויים', val: 'tfuca', cond: "branch = 'מנויים'" },
-    { branch: 'חבילות', val: 'tfuca', cond: "branch = 'חבילות'" },
-    { branch: 'ייעוץ', val: 'tfuca', cond: "branch = 'ייעוץ'" },
-    { branch: 'אחר', val: 'tfuca', cond: "branch = 'אחר'" },
+    { branch: 'משוקלל', val: 'amount', cond: null },
+    { branch: 'שירותים', val: 'amount', cond: "branch = 'שירותים'" },
+    { branch: 'מוצרים', val: 'amount', cond: "branch = 'מוצרים'" },
+    { branch: 'קורסים', val: 'amount', cond: "branch = 'קורסים'" },
+    { branch: 'מנויים', val: 'amount', cond: "branch = 'מנויים'" },
+    { branch: 'חבילות', val: 'amount', cond: "branch = 'חבילות'" },
+    { branch: 'ייעוץ', val: 'amount', cond: "branch = 'ייעוץ'" },
+    { branch: 'אחר', val: 'amount', cond: "branch = 'אחר'" },
   ]
 
   // Helper to build the SQL columns

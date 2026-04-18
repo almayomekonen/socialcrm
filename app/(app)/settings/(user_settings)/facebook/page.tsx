@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
@@ -56,17 +57,21 @@ export default async function page() {
       <div className='my-6 max-w-lg'>
         <div className='accordion border rounded-lg bg-white'>
           <AccordionItem bodyClass='p-6' title='פייסבוק' icon='facebook' open={true}>
-            <FacebookConnect
-              connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
-              pendingPages={pendingPages}
-              health={health}
-            />
+            <Suspense fallback={null}>
+              <FacebookConnect
+                connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
+                pendingPages={pendingPages}
+                health={health}
+              />
+            </Suspense>
           </AccordionItem>
           <AccordionItem bodyClass='p-6' title='וואטסאפ ממש בקרוב...' icon='whatsapp'>
-            <WhatsappConnect
-              connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
-              pendingPhones={pendingPhones}
-            />
+            <Suspense fallback={null}>
+              <WhatsappConnect
+                connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
+                pendingPhones={pendingPhones}
+              />
+            </Suspense>
           </AccordionItem>
         </div>
       </div>

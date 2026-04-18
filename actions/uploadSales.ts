@@ -4,7 +4,6 @@ import { calculateCommission } from '@/components/sales/saleForm/funcs/calcCmsn'
 import { formatSaleAmountType } from '@/components/sales/saleForm/funcs/insertSale'
 import { salesData } from '@/components/sales/salesdata'
 import { db } from '@/config/db'
-import { getCmsnRules } from '@/db/cmsnRules'
 import { omit } from '@/lib/funcs'
 
 export async function uploadSalesData() {
@@ -12,7 +11,8 @@ export async function uploadSalesData() {
   let uploadSales = []
   let uploadUsers = []
   await db.transaction(async (trx) => {
-    const cmsnRules = await getCmsnRules()
+    // Commission rules removed — calculator neutralized. Signature of calculateCommission preserved.
+    const cmsnRules: any[] = []
     let clients = []
     for (const data of arr) {
       clients.push({ ...data.client, createdById: 33 })
@@ -47,13 +47,8 @@ export async function uploadSalesData() {
           users,
           cmsnRes,
         })
-
-        // const saleId = (await trx('sales').insert(sale).returning('id'))?.[0].id
-        // await insertSaleUsers(trx, saleId, users, cmsnRes, contRes)
       }
     }
-
-    // uploadSales = uploadSales.slice(0, 3)
 
     let ids = await trx('sales').insert(uploadSales).returning('id')
     ids = ids.map((id) => id.id)
@@ -70,10 +65,6 @@ export async function uploadSalesData() {
     }
     await trx('sale_users').insert(uploadSaleUsers)
     console.log('done')
-    // console.log(
-    //   'cmsnres',
-    //   uploadUsers.map((item) => item.cmsnRes)
-    // )
   })
 }
 

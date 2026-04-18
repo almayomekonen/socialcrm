@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getExtUsersCreatedByUser, getFullUser, getUsers } from '@/db/usersNTeams'
 import { Roles } from '@/types/roles'
 import { getPerms } from '@/db/filter'
@@ -15,5 +16,9 @@ export default async function SelfEditPage() {
   const allUsers = await getUsers({ withExtUsers: true })
   const gavePerm = (await getPerms(user)).gavePermUsers
 
-  return <SelfEdit curUser={curUser} users={users} extUsers={extUsers} allUsers={allUsers} user={user} gavePerm={gavePerm} />
+  return (
+    <Suspense fallback={null}>
+      <SelfEdit curUser={curUser} users={users} extUsers={extUsers} allUsers={allUsers} user={user} gavePerm={gavePerm} />
+    </Suspense>
+  )
 }

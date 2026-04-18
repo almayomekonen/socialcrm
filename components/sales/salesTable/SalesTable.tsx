@@ -1,16 +1,16 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { notesBtn, saleTableHeaders } from './saleHeaders'
-import { getDealDataToExport, updateDealStatus } from '@/actions/salesTbl'
+import { deleteManyDeals, getDealDataToExport, updateDealStatus } from '@/actions/salesTbl'
 import { saveTblPref } from '@/actions/global'
 import { api } from '@/lib/funcs'
 import { redirect } from 'next/navigation'
 import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
 import TableFooter from '@/lib/table/TableFooter'
 import { Select } from '@/lib/form'
-import { STATUS_LIST, normalizeStatus } from '@/types/lists'
+import { DEAL_STATUS_OPTIONS, normalizeStatus } from '@/types/lists'
 import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './funcs'
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
@@ -20,6 +20,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { searchContacts } from '@/actions/clients'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
+import { checkedIds } from '@/lib/table/funcs'
 
 const ExportTable = dynamic(() => import('@/lib/table/export'), { ssr: false })
 
@@ -50,28 +51,67 @@ export default function SalesTable({ props }: SaleTableProps) {
   const savedPref = user?.tblPref?.[tblId]?.filter((col) => validKeys.has(col.key))
   const [columns, setColumns] = useState(savedPref?.length ? savedPref : validHeaders)
   const [openUpload, setOpenUpload] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+  // DOM-sourced selection, mirrored into state so the bulk bar can react.
+  // Same contract as SelectSalesGrpActions → checkedIds().
+  useEffect(() => {
+    const el = document.getElementById(tblId)
+    if (!el) return
+    const sync = () => setSelectedIds(checkedIds())
+    el.addEventListener('change', sync)
+    return () => el.removeEventListener('change', sync)
+  }, [tblId])
+
+  // Drop ids that are no longer visible (filter/sort/pagination changes).
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visibleIds = new Set(state.map((r: any) => Number(r.id)))
+      return prev.filter((id) => visibleIds.has(id))
+    })
+  }, [state.length])
+
+  function clearDomChecks() {
+    const all = document.getElementById('checkAll') as HTMLInputElement | null
+    if (all) all.checked = false
+    document
+      .querySelectorAll<HTMLInputElement>("[name='checkRow']")
+      .forEach((cb) => (cb.checked = false))
+    setSelectedIds([])
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedIds.length) return
+    if (!confirm(`למחוק ${selectedIds.length} עסקאות?`)) return
+
+    const res = await api(deleteManyDeals, [selectedIds], 'העסקאות נמחקו')
+    if (res?.err) return
+
+    const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
+    const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
+
+    if (deleted > 0) {
+      const deletedSet = new Set<number>(
+        deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted),
+      )
+      setState((prev) => prev.filter((r: any) => !deletedSet.has(Number(r.id))))
+    }
+
+    clearDomChecks()
+
+    if (skipped > 0) alert(`${skipped} עסקאות לא נמחקו (ללא הרשאה או לא נמצאו)`)
+  }
 
   const emptyState = state.length === 0 ? (
     <div className='text-center py-8 flex flex-col items-center gap-4'>
       <p className='text-lg font-semibold'>אין עדיין עסקאות</p>
-      {!hasLeads ? (
-        <>
-          <p className='text-sm text-gray-500'>
-            עסקה נרשמת כשסוגרים מכירה עם ליד.
-            <br />
-            קודם צריך להוסיף לידים כדי להתחיל.
-          </p>
-          <Btn lbl='מעבר ללידים' href='/leads' />
-        </>
-      ) : (
-        <>
-          <p className='text-sm text-gray-500'>בחר ליד שסגר איתך ופתח עסקה.</p>
-          <div className='flex gap-3 justify-center items-center'>
-            <Btn lbl='הוסף עסקה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
-            <Btn lbl='מעבר ללידים' variant='ghost' href='/leads' />
-          </div>
-        </>
-      )}
+      <p className='text-sm text-gray-500'>כדי להתחיל, עבור ללידים וסגור עסקה</p>
+      <div className='flex gap-3 justify-center items-center'>
+        <Btn lbl='מעבר ללידים' href='/leads' />
+        {hasLeads && (
+          <Btn lbl='הוסף עסקה' icon='plus' variant='ghost' onClick={() => (setOpenForm(true), setCurSale(null))} />
+        )}
+      </div>
     </div>
   ) : null
 
@@ -87,7 +127,9 @@ export default function SalesTable({ props }: SaleTableProps) {
           if (e.target.value === 'שולם') sale.saleDt = new Date()
           setState([...data])
         }}
-        options={STATUS_LIST}
+        options={DEAL_STATUS_OPTIONS}
+        val='value'
+        show='label'
         className='min-w-28'
       />
     )
@@ -145,6 +187,18 @@ export default function SalesTable({ props }: SaleTableProps) {
           </div>
 
           <div className='flex gap-2 items-end mb-2'>
+            {selectedIds.length > 0 && (
+              <Btn
+                variant='destructive'
+                icon='trash'
+                lbl={
+                  selectedIds.length === state.length
+                    ? `מחק הכל (${selectedIds.length})`
+                    : `מחק (${selectedIds.length})`
+                }
+                onClick={handleBulkDelete}
+              />
+            )}
             <ShowColumns config={config} />
             <ExportTable dataToFetch={getDealDataToExport} columns={columns} />
             {hasLeads && <Btn lbl='הוסף עסקה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} className='ms-4' />}

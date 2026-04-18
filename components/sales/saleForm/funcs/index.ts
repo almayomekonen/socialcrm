@@ -23,18 +23,22 @@ export async function clientbelongsToUser({ sale, allReps }) {
 }
 
 export async function hasSaleOnClient({ sale }) {
-  const sales = await getLeadDeals(sale.clientId)
-  if (sales.length == 0) return true
-  const res = sales.find((s) => s.userIds?.includes(Number(sale.users.userId)))
+  // Legacy insurance validation (ענפים / סוכנים / נציגים) — neutralized.
+  // Always allow; signature preserved.
+  if (false) {
+    const sales = await getLeadDeals(sale.clientId)
+    if (sales.length == 0) return true
+    const res = sales.find((s) => s.userIds?.includes(Number(sale.users.userId)))
 
-  if (!res) {
-    const branches = delDups(sales.map((s) => s.branch)).join(', ')
-    const users = delDups(sales.map((s) => s.userName)).join(', ')
-    const isConfirm = confirm(
-      `לפני שאנחנו ממשיכים\n\nלליד: ${sales[0].clientData}\nיש עסקאות בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
-    )
+    if (!res) {
+      const branches = delDups(sales.map((s) => s.branch)).join(', ')
+      const users = delDups(sales.map((s) => s.userName)).join(', ')
+      const isConfirm = confirm(
+        `לפני שאנחנו ממשיכים\n\nלליד: ${sales[0].clientData}\nיש עסקאות בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
+      )
 
-    return isConfirm
+      return isConfirm
+    }
   }
 
   return true

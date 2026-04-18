@@ -1,13 +1,14 @@
 // SocialCRM branch aggregation — one column per branch from types/lists.ts BRANCHES
+// Legacy insurance columns (cmsn / tfuca) neutralized — totals now use `amount` only.
 export const branchesSum = `
-  COALESCE(SUM(cmsn), 0)::INT AS "משוקלל",
-  SUM(CASE WHEN branch = 'שירותים' THEN "tfuca" ELSE 0 END)::INT AS "שירותים",
-  SUM(CASE WHEN branch = 'מוצרים'  THEN "tfuca" ELSE 0 END)::INT AS "מוצרים",
-  SUM(CASE WHEN branch = 'קורסים'  THEN "tfuca" ELSE 0 END)::INT AS "קורסים",
-  SUM(CASE WHEN branch = 'מנויים'  THEN "tfuca" ELSE 0 END)::INT AS "מנויים",
-  SUM(CASE WHEN branch = 'חבילות'  THEN "tfuca" ELSE 0 END)::INT AS "חבילות",
-  SUM(CASE WHEN branch = 'ייעוץ'   THEN "tfuca" ELSE 0 END)::INT AS "ייעוץ",
-  SUM(CASE WHEN branch = 'אחר'     THEN "tfuca" ELSE 0 END)::INT AS "אחר"
+  COALESCE(SUM(amount), 0)::INT AS "משוקלל",
+  SUM(CASE WHEN branch = 'שירותים' THEN amount ELSE 0 END)::INT AS "שירותים",
+  SUM(CASE WHEN branch = 'מוצרים'  THEN amount ELSE 0 END)::INT AS "מוצרים",
+  SUM(CASE WHEN branch = 'קורסים'  THEN amount ELSE 0 END)::INT AS "קורסים",
+  SUM(CASE WHEN branch = 'מנויים'  THEN amount ELSE 0 END)::INT AS "מנויים",
+  SUM(CASE WHEN branch = 'חבילות'  THEN amount ELSE 0 END)::INT AS "חבילות",
+  SUM(CASE WHEN branch = 'ייעוץ'   THEN amount ELSE 0 END)::INT AS "ייעוץ",
+  SUM(CASE WHEN branch = 'אחר'     THEN amount ELSE 0 END)::INT AS "אחר"
 `
 
 // Same as branchesSum — kept as a named alias used in asign-user context
@@ -65,6 +66,6 @@ export const saleStats = `
   COUNT(CASE WHEN status IN ('חדש', 'במו"מ')                                                   THEN 1 END) AS "inProcessCount",
   COUNT(CASE WHEN status IN ('בוטל')                                                           THEN 1 END) AS "canceledCount",
   COUNT(CASE WHEN replace = true                                                               THEN 1 END) AS "replaceCount",
-  COALESCE(SUM(CASE WHEN status = 'שולם' THEN tfuca ELSE 0 END), 0)::INT                      AS "totalRevenue",
-  COALESCE(SUM(CASE WHEN status IN ('חדש','בהצעה','במו"מ','ממתין לתשלום') THEN tfuca ELSE 0 END), 0)::INT AS "pipelineValue"
+  COALESCE(SUM(CASE WHEN status = 'שולם' THEN amount ELSE 0 END), 0)::INT                      AS "totalRevenue",
+  COALESCE(SUM(CASE WHEN status IN ('חדש','בהצעה','במו"מ','ממתין לתשלום') THEN amount ELSE 0 END), 0)::INT AS "pipelineValue"
 `

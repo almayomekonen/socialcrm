@@ -78,5 +78,16 @@ export function ActionsMenu({ id, children }) {
 async function onDel(client) {
   if (!confirm(`האם למחוק ליד ${client.name} ?`)) return
   const res = await api(deleteLead, client.id)
-  if (res?.err) return alert('לא ניתן למחוק ליד עם עסקאות, העבר את העסקאות לליד אחר ונסה שוב')
+  if (res?.err || res?.error) {
+    const reason = res?.reason
+    const msg =
+      reason === 'has_sales'
+        ? 'לא ניתן למחוק ליד עם עסקאות, העבר את העסקאות לליד אחר ונסה שוב'
+        : reason === 'no_permission'
+        ? 'אין לך הרשאה למחוק ליד זה'
+        : reason === 'not_found'
+        ? 'הליד לא נמצא או כבר נמחק'
+        : res?.msg || 'שגיאה במחיקת הליד'
+    return alert(msg)
+  }
 }

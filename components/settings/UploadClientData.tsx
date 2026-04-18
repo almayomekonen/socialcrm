@@ -106,14 +106,52 @@ export default function UploadClientData() {
           {csvLoading ? 'מעבד...' : 'העלאת קובץ CSV'}
         </label>
 
-        {csvResult && (
-          <div className='mt-4 space-y-1 text-sm'>
-            <p className='text-green-700 font-medium'>יובאו בהצלחה: {csvResult.inserted} לידים</p>
-            {csvResult.updated > 0 && <p className='text-blue-600'>עודכנו: {csvResult.updated} לידים</p>}
-            {csvResult.unchanged > 0 && <p className='text-gray-500'>קיימים ללא שינוי: {csvResult.unchanged}</p>}
-            {csvResult.invalid > 0 && <p className='text-red-600'>שורות לא תקינות: {csvResult.invalid}</p>}
-          </div>
-        )}
+        {csvResult && (() => {
+          const { inserted, updated, unchanged, invalid } = csvResult
+
+          let headline: { text: string; cls: string } | null = null
+          let subline: string | null = null
+
+          if (inserted === 0 && unchanged > 0) {
+            headline = { text: '⚠️ כל הלידים כבר קיימים במערכת', cls: 'text-amber-700' }
+            subline = 'נראה שהקובץ כבר הועלה בעבר'
+          } else if (inserted > 0 && unchanged > 0) {
+            headline = { text: `✔ נוספו ${inserted} לידים חדשים`, cls: 'text-green-700' }
+            subline = `⚠️ ${unchanged} לידים כבר קיימים ולא שונו`
+          } else if (inserted > 0 && unchanged === 0) {
+            headline = { text: '✔ כל הלידים נוספו בהצלחה', cls: 'text-green-700' }
+          } else if (inserted === 0 && unchanged === 0 && invalid > 0) {
+            headline = { text: '⚠️ לא נוספו לידים', cls: 'text-amber-700' }
+            subline = 'בדוק שהקובץ כולל עמודת טלפון או מייל'
+          }
+
+          const canViewLeads = inserted > 0 || updated > 0
+
+          return (
+            <div className='mt-4 space-y-3 text-sm'>
+              {headline && (
+                <div className='space-y-0.5'>
+                  <p className={`font-semibold ${headline.cls}`}>{headline.text}</p>
+                  {subline && <p className='text-gray-600'>{subline}</p>}
+                </div>
+              )}
+
+              <div className='space-y-0.5 text-gray-600'>
+                {updated > 0 && <p className='text-blue-600'>עודכנו פרטים ב-{updated} לידים קיימים</p>}
+                {invalid > 0 && <p className='text-red-600'>שורות לא תקינות: {invalid}</p>}
+              </div>
+
+              {canViewLeads && (
+                <Link
+                  href='/leads'
+                  className='inline-flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-colors'
+                >
+                  צפה בלידים
+                </Link>
+              )}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

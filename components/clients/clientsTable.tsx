@@ -15,11 +15,12 @@ import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
 import { Select } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import { deleteLead, searchContacts, searchLeads, updateLead } from '@/actions/clients'
+import { deleteLead, deleteManyLeads, searchContacts, searchLeads, updateLead } from '@/actions/clients'
 import { toast } from '@/lib/toast'
 import { api } from '@/lib/funcs'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
+import { checkedIds } from '@/lib/table/funcs'
 import { saveTblPref } from '@/actions/global'
 
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null }) {
@@ -48,6 +49,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [highlightedId, setHighlightedId] = useState<number | null>(null)
   const [newLeadsCount, setNewLeadsCount] = useState(0)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
   const dataRef = useRef(data)
   useEffect(() => { dataRef.current = data }, [data])
   const searchParams = useSearchParams()
@@ -90,6 +92,65 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       setNewLeadsCount(0)
     }
   }, [newLeadsCount])
+
+  useEffect(() => {
+    const el = document.getElementById(tblId)
+    if (!el) return
+    const sync = () => setSelectedIds(checkedIds())
+    el.addEventListener('change', sync)
+    return () => el.removeEventListener('change', sync)
+  }, [tblId])
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visibleIds = new Set(filteredData.map((r: any) => Number(r.id)))
+      return prev.filter((id) => visibleIds.has(id))
+    })
+  }, [filteredData.length, activeTab])
+
+  function clearDomChecks() {
+    const all = document.getElementById('checkAll') as HTMLInputElement | null
+    if (all) all.checked = false
+    document
+      .querySelectorAll<HTMLInputElement>("[name='checkRow']")
+      .forEach((cb) => (cb.checked = false))
+    setSelectedIds([])
+  }
+
+  async function handleBulkDelete() {
+    if (!leads) return
+    if (!selectedIds.length) return
+    if (!confirm(`למחוק ${selectedIds.length} לידים?`)) return
+
+    const res = await api(deleteManyLeads, [selectedIds], 'הלידים נמחקו')
+    if (res?.err) return
+
+    const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
+    const blockedBySales: number = typeof res?.blockedBySales === 'number' ? res.blockedBySales : 0
+    const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
+
+    const deletedSet = new Set<number>(
+      deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted),
+    )
+
+    if (deletedSet.size > 0) {
+      setLiveLeads((prev) => prev.filter((c) => !deletedSet.has(Number(c.id))))
+      setDeletedIds((prev) => {
+        const next = new Set(prev)
+        deletedSet.forEach((id) => next.add(id))
+        return next
+      })
+    }
+
+    clearDomChecks()
+
+    if (blockedBySales > 0 || skipped > 0) {
+      const parts: string[] = []
+      if (blockedBySales > 0) parts.push(`${blockedBySales} לידים עם עסקאות לא נמחקו`)
+      if (skipped > 0) parts.push(`${skipped} ללא הרשאה או לא נמצאו`)
+      alert(parts.join(' · '))
+    }
+  }
 
   function moreRows(client) {
     return (
@@ -140,16 +201,79 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const emptyState = filteredData.length === 0 ? (
     <div className='text-center py-8 flex flex-col items-center gap-4'>
       {mergedState.length === 0 ? (
-        <>
-          <p className='text-lg font-semibold'>אין עדיין נתונים</p>
-          <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
-          <div className='flex gap-3 justify-center'>
-            <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
-            <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
-          </div>
-        </>
+        leads ? (
+          <>
+            <p className='text-lg font-semibold'>אין עדיין לידים</p>
+            <p className='text-sm text-gray-500'>חבר פייסבוק או הוסף ליד ידנית</p>
+            <div className='flex gap-3 justify-center'>
+              <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+              <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className='text-lg font-semibold'>אין עדיין נתונים</p>
+            <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
+            <div className='flex gap-3 justify-center'>
+              <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+              <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
+            </div>
+          </>
+        )
       ) : (
-        <p className='text-sm text-gray-500'>אין לידים בסטטוס זה</p>
+        (() => {
+          const countByStatus = Object.keys(STATUS_STYLES).reduce(
+            (acc, key) => ({ ...acc, [key]: mergedState.filter((l) => l.status === key).length }),
+            {} as Record<string, number>,
+          )
+          // Non-actionable statuses (סגור / אבוד) — excluded from primary suggestion.
+          const NON_ACTIONABLE = new Set(['closed', 'lost'])
+          const actionableTop = Object.keys(STATUS_STYLES)
+            .filter((k) => k !== activeTab && !NON_ACTIONABLE.has(k) && countByStatus[k] > 0)
+            .sort((a, b) => countByStatus[b] - countByStatus[a])[0]
+          // Fallback: first status with leads (even if non-actionable).
+          const fallbackWithLeads = Object.keys(STATUS_STYLES).find(
+            (k) => k !== activeTab && countByStatus[k] > 0,
+          )
+          const topStatus = actionableTop ?? fallbackWithLeads
+          const firstWithLeads =
+            Object.keys(STATUS_STYLES).find((k) => countByStatus[k] > 0) ?? topStatus
+          return (
+            <>
+              <p className='text-sm text-gray-500'>אין לידים בסטטוס זה כרגע</p>
+              {topStatus && (
+                <div className='flex gap-3 justify-center'>
+                  <Btn
+                    lbl={`הצג לידים ב"${STATUS_STYLES[topStatus].label}" (${countByStatus[topStatus]})`}
+                    onClick={() => setActiveTab(topStatus)}
+                  />
+                  <Btn
+                    variant='outline'
+                    lbl='הצג את כל הלידים'
+                    onClick={() => firstWithLeads && setActiveTab(firstWithLeads)}
+                  />
+                </div>
+              )}
+              <p className='text-sm text-gray-600'>
+                <button
+                  type='button'
+                  className='underline hover:text-gray-800'
+                  onClick={() => (setOpenForm(true), setCurClient(null))}
+                >
+                  הוסף ליד ידנית
+                </button>
+                {' או '}
+                <button
+                  type='button'
+                  className='underline hover:text-gray-800'
+                  onClick={() => setOpenUpload(true)}
+                >
+                  העלה קובץ לידים
+                </button>
+              </p>
+            </>
+          )
+        })()
       )}
     </div>
   ) : null
@@ -222,6 +346,18 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
           </div>
 
           <div className='flex gap-2 items-end'>
+            {leads && selectedIds.length > 0 && (
+              <Btn
+                variant='destructive'
+                icon='trash'
+                lbl={
+                  selectedIds.length === filteredData.length
+                    ? `מחק הכל (${selectedIds.length})`
+                    : `מחק (${selectedIds.length})`
+                }
+                onClick={handleBulkDelete}
+              />
+            )}
             <ShowColumns config={config} />
             <SelectClientGrpActions user={user} />
             <SelectClientLists />
@@ -308,8 +444,17 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             onClick={async () => {
               if (!confirm(`האם למחוק ליד ${curClient?.name}?`)) return
               const res = await api(deleteLead, curClient.id)
-              if (res?.err) {
-                alert('לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב')
+              if (res?.err || res?.error) {
+                const reason = res?.reason
+                const msg =
+                  reason === 'has_sales'
+                    ? 'לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב'
+                    : reason === 'no_permission'
+                    ? 'אין לך הרשאה למחוק ליד זה'
+                    : reason === 'not_found'
+                    ? 'הליד לא נמצא או כבר נמחק'
+                    : res?.msg || 'שגיאה במחיקת הליד'
+                alert(msg)
                 return
               }
               setLiveLeads((prev) => prev.filter((c) => c.id !== curClient.id))

@@ -24,13 +24,15 @@ export async function getPieData(serializedSql) {
 
   const query = getBaseQuery(serializedSql)
 
+  // Legacy insurance columns (cmsn / tfuca) neutralized — totals use `amount`.
+  // Aliases kept as "annualValue" and "cmsn" so downstream UI keys stay unchanged.
   const rawData: DbRow[] = await query
     .select(
       'branch',
       'prdct',
       'prdctType',
-      db.raw('COALESCE(SUM(tfuca), 0)::INT as "annualValue"'),
-      db.raw('COALESCE(SUM(cmsn), 0)::INT as cmsn'),
+      db.raw('COALESCE(SUM(amount), 0)::INT as "annualValue"'),
+      db.raw('COALESCE(SUM(amount), 0)::INT as cmsn'),
     )
     .groupBy('branch', 'prdct', 'prdctType')
 

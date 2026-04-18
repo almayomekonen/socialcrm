@@ -56,7 +56,9 @@ export default async function SalesPage({ searchParams }) {
         <DashboardSummary user={user} />
       </Suspense>
 
-      <SalesNav user={user} isSystemEmpty={isSystemEmpty} />
+      <Suspense fallback={null}>
+        <SalesNav user={user} isSystemEmpty={isSystemEmpty} />
+      </Suspense>
 
       {!isSystemEmpty && (
         <Suspense>

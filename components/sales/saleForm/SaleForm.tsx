@@ -93,7 +93,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
       }
     }
 
-    api(insertSale, sale)
+    api(insertSale, sale, curSale?.id ? 'העסקה עודכנה בהצלחה' : 'העסקה נוספה בהצלחה')
     reset()
   }
 
@@ -115,8 +115,8 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
         iconClassName='size-7'
       />
 
-      {/* SECTION: Users Details */}
-      <section>
+      {/* SECTION: Users Details — hidden for SocialCRM simplified flow. Inputs stay mounted so defaults submit. */}
+      <section className='hidden'>
         <div className='my-6 flex gap-3 items-end'>
           {share ? (
             <>
@@ -275,7 +275,7 @@ function PrdctComp({ i, isAsignUser, curSale }: { i: number; isAsignUser: boolea
   return (
     <Fieldset legend={`מוצר ${i + 1}`} className='mt-8 mb-4 border p-4 rounded-lg'>
       <div className='grid grid-cols-3 gap-x-8 gap-y-6 relative mobile:grid-cols-2 mobile:w-full mobile:gap-4'>
-        <Select lbl='ספק' name={`${prefix}.company`} options={COMPANIES} required defaultValue={curSale?.company} />
+        <Select lbl='ספק' name={`${prefix}.company`} options={COMPANIES} required={false} defaultValue={curSale?.company} />
         <Select
           lbl='קטגוריה'
           name={`${prefix}.branch`}
@@ -288,11 +288,11 @@ function PrdctComp({ i, isAsignUser, curSale }: { i: number; isAsignUser: boolea
                 : { branch: e.target.value, ...prdctOptByBranch[e.target.value] },
             )
           }
-          required
+          required={false}
           defaultValue={curSale?.branch}
         />
-        <Select lbl='מוצר / שירות' name={`${prefix}.prdct`} options={prdct.prdctList} required defaultValue={curSale?.prdct} />
-        {prdct.prdctTypeList?.length > 1 && prdct.branch !== 'אלמנטרי' ? (
+        <Select lbl='מוצר / שירות' name={`${prefix}.prdct`} options={prdct.prdctList} required={false} defaultValue={curSale?.prdct} />
+        {false && prdct.prdctTypeList?.length > 1 && prdct.branch !== 'אלמנטרי' ? (
           prdct.prdctTypeList.map((prdctType) => (
             <Input
               dir='ltr'
@@ -306,20 +306,26 @@ function PrdctComp({ i, isAsignUser, curSale }: { i: number; isAsignUser: boolea
           ))
         ) : (
           <>
-            <Select
-              lbl='סוג עסקה'
-              name={`${prefix}.prdctType`}
-              options={prdct.prdctTypeList}
-              defaultValue={curSale?.prdctType}
-            />
+            {/* prdctType hidden — SocialCRM simplified flow. Kept mounted so default submits. */}
+            <div className='hidden'>
+              <Select
+                lbl='סוג עסקה'
+                name={`${prefix}.prdctType`}
+                options={prdct.prdctTypeList}
+                defaultValue={curSale?.prdctType}
+              />
+            </div>
             <Input lbl='סכום עסקה' name={`${prefix}.amount`} type='number' defaultValue={curSale?.amount} />
 
-            {prdct.branch === 'אלמנטרי' && (
-              <>
-                <Input lbl='מספר עוסק' name={`${prefix}.bizNum`} type='number' defaultValue={curSale?.bizNum} required={false} />
-                <Input lbl='שם עסק' name={`${prefix}.bizName`} defaultValue={curSale?.bizName} required={false} />
-              </>
-            )}
+            {/* bizNum / bizName hidden — insurance-era fields. */}
+            <div className='hidden'>
+              {prdct.branch === 'אלמנטרי' && (
+                <>
+                  <Input lbl='מספר עוסק' name={`${prefix}.bizNum`} type='number' defaultValue={curSale?.bizNum} required={false} />
+                  <Input lbl='שם עסק' name={`${prefix}.bizName`} defaultValue={curSale?.bizName} required={false} />
+                </>
+              )}
+            </div>
           </>
         )}
 

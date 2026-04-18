@@ -22,6 +22,27 @@ export function normalizeStatus(status: string | null | undefined): string {
   return STATUS_LEGACY_MAP[status] ?? 'חדש'
 }
 
+// SocialCRM simplified visible labels. Backend values stay untouched.
+// חדש → חדש, בהצעה/במו"מ/ממתין לתשלום → בטיפול, שולם → סגור, בוטל → אבוד
+export const DEAL_STATUS_DISPLAY_MAP: Record<string, string> = {
+  'חדש': 'חדש',
+  'בהצעה': 'בטיפול',
+  'במו"מ': 'בטיפול',
+  'ממתין לתשלום': 'בטיפול',
+  'שולם': 'סגור',
+  'בוטל': 'אבוד',
+}
+
+export function displayStatus(status: string | null | undefined): string {
+  const s = normalizeStatus(status)
+  return DEAL_STATUS_DISPLAY_MAP[s] ?? s
+}
+
+export const DEAL_STATUS_OPTIONS = STATUS_LIST.map((value) => ({
+  value,
+  label: DEAL_STATUS_DISPLAY_MAP[value] ?? value,
+}))
+
 export const COMPANIES = ['ללא ספק', 'אחר']
 
 export const PRDCT_TYPES = ['העברה', 'תשלום חודשי', 'תשלום חד פעמי']

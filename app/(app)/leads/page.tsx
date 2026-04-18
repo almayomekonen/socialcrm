@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
 import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt } from '@/db/clients'
 import { Metadata } from 'next'
@@ -37,7 +38,9 @@ export default async function LeadsPage({ searchParams }) {
     >
       <h1 className='title mb-2'>לידים</h1>
 
-      <ClientsTable leads={true} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
+      <Suspense fallback={null}>
+        <ClientsTable leads={true} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
+      </Suspense>
     </Provider>
   )
 }

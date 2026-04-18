@@ -2,7 +2,6 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { getCmsnRules } from '@/db/cmsnRules'
 import { calculateCommission } from '@/components/sales/saleForm/funcs/calcCmsn'
 import { saleObj } from '@/types/types'
 import { formatSaleAmountType, insertSaleUsers } from '@/components/sales/saleForm/funcs/insertSale'
@@ -19,11 +18,7 @@ export async function insertSale(data: saleObj) {
 
     omit(data, ['prdcts', 'client', 'users', 'saleId', 'clientId'])
 
-    let rules = await getCmsnRules()
-    const cmsnRules = rules.map((rule) => ({
-      ...rule,
-      cmsnRate: rule.cmsnRate / 100, // devide by 100 to get the correct cmsn rate (for 100% it will be 1 for eg)
-    }))
+    const cmsnRules: any[] = []
 
     const flatPrdcts = formatSaleAmountType(prdcts)
 

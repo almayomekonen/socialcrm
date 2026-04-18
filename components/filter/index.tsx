@@ -150,11 +150,13 @@ export default function Filter({ props }: Props) {
 }
 
 function getShow(pathName) {
+  // SocialCRM simplified filter — branch/product/company hidden from UI.
+  // Existing conditionals in the form already respect these flags; logic kept intact.
   let res = {
-    branchArea: true,
+    branchArea: false,
     handlers: true,
     clients: true,
-    company: true,
+    company: false,
     users: true,
     teams: true,
   }
