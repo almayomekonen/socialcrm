@@ -34,11 +34,12 @@ export type SaleTableProps = {
     setOpenForm: (open: boolean) => void
     curSale: any
     isSystemEmpty?: boolean
+    hasLeads?: boolean
   }
 }
 
 export default function SalesTable({ props }: SaleTableProps) {
-  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale } = props
+  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale, hasLeads } = props
   const { isFav } = params
   const tblId = 'saleTable376'
   useKeepTblScrollPos(tblId)
@@ -52,12 +53,25 @@ export default function SalesTable({ props }: SaleTableProps) {
 
   const emptyState = state.length === 0 ? (
     <div className='text-center py-8 flex flex-col items-center gap-4'>
-      <p className='text-lg font-semibold'>אין עדיין נתונים</p>
-      <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
-      <div className='flex gap-3 justify-center'>
-        <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
-        <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
-      </div>
+      <p className='text-lg font-semibold'>אין עדיין עסקאות</p>
+      {!hasLeads ? (
+        <>
+          <p className='text-sm text-gray-500'>
+            עסקה נרשמת כשסוגרים מכירה עם ליד.
+            <br />
+            קודם צריך להוסיף לידים כדי להתחיל.
+          </p>
+          <Btn lbl='מעבר ללידים' href='/leads' />
+        </>
+      ) : (
+        <>
+          <p className='text-sm text-gray-500'>בחר ליד שסגר איתך ופתח עסקה.</p>
+          <div className='flex gap-3 justify-center items-center'>
+            <Btn lbl='הוסף עסקה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} />
+            <Btn lbl='מעבר ללידים' variant='ghost' href='/leads' />
+          </div>
+        </>
+      )}
     </div>
   ) : null
 
@@ -126,14 +140,14 @@ export default function SalesTable({ props }: SaleTableProps) {
       <div className='my-8 grid'>
         <div className='flex justify-between gap-4 items-end'>
           <div className='flex gap-3 items-end mb-2'>
-            <SelectSearch placeholder='חיפוש ליד' show='details' searchFunc={searchContacts} onSelectOpt={getSelectedClient} />
+            <SelectSearch placeholder='חיפוש עסקה' show='details' searchFunc={searchContacts} onSelectOpt={getSelectedClient} />
             <GroupAction isFav={isFav} />
           </div>
 
           <div className='flex gap-2 items-end mb-2'>
             <ShowColumns config={config} />
             <ExportTable dataToFetch={getDealDataToExport} columns={columns} />
-            <Btn lbl='הוספת דיל' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} className='ms-4' />
+            {hasLeads && <Btn lbl='הוסף עסקה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} className='ms-4' />}
           </div>
         </div>
 

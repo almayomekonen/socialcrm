@@ -5,8 +5,9 @@ import { formatDateAge } from '@/lib/dates'
 import { usePathname, useRouter } from 'next/navigation'
 import { Select } from '@/lib/form'
 import Icon from '@/lib/Icon'
+import CloseDealBtn from './CloseDealBtn'
 
-export default function ClientHeader({ client, user, handlerName, family, clientId }) {
+export default function ClientHeader({ client, user, handlerName, family, clientId, formProps }) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -50,6 +51,8 @@ export default function ClientHeader({ client, user, handlerName, family, client
               <p className='font-bold'>{handlerName}</p>
             </div>
           )}
+
+          {formProps && <CloseDealBtn clientId={clientId} clientName={client.name} formProps={formProps} />}
 
           {/* <Icon name='ellipsis-vertical' className='size-8' /> */}
         </div>

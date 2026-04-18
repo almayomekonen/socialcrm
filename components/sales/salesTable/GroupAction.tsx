@@ -16,33 +16,33 @@ export default function GroupAction({ isFav }) {
 
   const selectGrp = [
     { head: 'עדכון סטטוס', grp: STATUS_LIST },
-    { head: 'מחיקה', grp: ['מחיקת הדילים'] },
+    { head: 'מחיקה', grp: ['מחיקת העסקאות'] },
     { head: 'מועדפים', grp: isFav ? ['הסרה ממועדפים'] : ['הוספה למועדפים'] },
   ]
   return <Select options={selectGrp} onChange={onGroupAction} placeholder='פעולות' className='w-32' />
 }
 
 const actions = {
-  'מחיקת הדילים': async (ids) => {
-    if (!confirm('בטוח למחוק את הדילים?')) return
+  'מחיקת העסקאות': async (ids) => {
+    if (!confirm('בטוח למחוק את העסקאות?')) return
     toast('loading')
     const rowsDeleted = await deleteDeals(ids)
-    rowsDeleted > 0 ? toast('success', 'הדילים נמחקו בהצלחה') : toast('error', 'שגיאה, הדילים לא נמחקו')
+    rowsDeleted > 0 ? toast('success', 'העסקאות נמחקו בהצלחה') : toast('error', 'שגיאה, העסקאות לא נמחקו')
   },
   'הוספה למועדפים': async (ids) => {
     toast('loading')
-    if (!confirm('בטוח להוסיף את הדילים למועדפים?')) return
+    if (!confirm('בטוח להוסיף את העסקאות למועדפים?')) return
     await addFavDeals(ids)
-    toast('success', 'הדילים נוספו למועדפים')
+    toast('success', 'העסקאות נוספו למועדפים')
   },
   'הסרה ממועדפים': async (ids) => {
     toast('loading')
-    if (!confirm('בטוח להסיר את הדילים ממועדפים?')) return
+    if (!confirm('בטוח להסיר את העסקאות ממועדפים?')) return
     await removeFavDeals(ids)
-    toast('success', 'הדילים הוסרו ממועדפים')
+    toast('success', 'העסקאות הוסרו ממועדפים')
   },
   default: async (ids, val) => {
-    if (!confirm('לשנות את סטטוס הדילים ל' + val + '?')) return
+    if (!confirm('לשנות את סטטוס העסקאות ל' + val + '?')) return
     toast('loading')
     await updateManyDealStatus(ids, val)
     toast('success', 'סטטוס עודכן בהצלחה')

@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
-import { ActionsMenu, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
+import { ActionsMenu, DEAL_ACTION_LABELS, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
 import SelectClientLists from './SelectClientLists'
 import { useKeepTblScrollPos, useLeadPolling } from '@/lib/hooksNEvents'
 import ClientFormPop from './ClientFormPop'
 import ModalPop from '../../lib/modals/ModalPop'
+import SaleForm from '@/components/sales/saleForm/SaleForm'
 import UploadClientData from '@/components/settings/UploadClientData'
 import { redirect, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
@@ -21,7 +22,7 @@ import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
 import { saveTblPref } from '@/actions/global'
 
-export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '' }) {
+export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null }) {
   const [liveLeads, setLiveLeads] = useState<any[]>([])
   const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
   const [activeTab, setActiveTab] = useState('new')
@@ -42,6 +43,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [curClient, setCurClient] = useState(null)
   const [openForm, setOpenForm] = useState(false)
   const [openTransferClientForm, setOpenTransferClientForm] = useState(false)
+  const [openSaleForm, setOpenSaleForm] = useState(false)
   const [openUpload, setOpenUpload] = useState(false)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [highlightedId, setHighlightedId] = useState<number | null>(null)
@@ -243,6 +245,16 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         <UploadClientData />
       </ModalPop>
 
+      {formProps && (
+        <ModalPop open={openSaleForm} onClose={() => (setCurClient(null), setOpenSaleForm(false))}>
+          <SaleForm
+            props={formProps}
+            curSale={curClient ? ({ clientId: curClient.id, clientData: curClient.name } as any) : undefined}
+            onClose={() => (setCurClient(null), setOpenSaleForm(false))}
+          />
+        </ModalPop>
+      )}
+
       <ActionsMenu id='clientActions'>
         {curClient?.phone && (
           <>
@@ -256,7 +268,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             </div>
           </>
         )}
-        {Object.entries(getActions()).map(([lbl, action]) => (
+        {Object.entries(getActions(curClient?.status)).map(([lbl, action]) => (
           <div key={lbl}>
             <div className='h-px bg-gray-200 w-full' />
             {action.func ? (
@@ -265,6 +277,10 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 size='simple'
                 lbl={lbl}
                 onClick={() => {
+                  if (DEAL_ACTION_LABELS.includes(lbl)) {
+                    setOpenSaleForm(true)
+                    return
+                  }
                   switch (lbl) {
                     case 'עריכה':
                       setOpenForm(true)

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { isAdmin } from '@/types/roles'
 import { getPermsAndFilter } from '@/db/filter'
 import { getDealTableData } from '@/db/salesTbl'
+import { hasAnyLeads } from '@/db/clients'
 import { Provider } from '@/lib/hooksNEvents'
 import { getUsers } from '@/db/usersNTeams'
 import SalesNav from '@/components/sales/SalesNav'
@@ -30,9 +31,10 @@ export default async function SalesPage({ searchParams }) {
 
   const handlers = isAdmin(user.role) ? gotPermUsers : allPermUsers
 
-  const [{ tblData, count, sqlExport }, allUsers] = await Promise.all([
+  const [{ tblData, count, sqlExport }, allUsers, hasLeads] = await Promise.all([
     getDealTableData(sqlFilter, { pageNum, tableLimit }),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
+    hasAnyLeads(user.agencyId, gotPermIds),
   ])
 
   const isSystemEmpty = tblData.length === 0 && !filter
@@ -63,7 +65,7 @@ export default async function SalesPage({ searchParams }) {
       )}
 
       <Suspense fallback={<div className='h-32 animate-pulse bg-gray-100 rounded-lg mt-8' />}>
-        <SalesSection props={{ formProps, data: tblData, rawFilter, params: { saleId, isFav }, user, isSystemEmpty }} />
+        <SalesSection props={{ formProps, data: tblData, rawFilter, params: { saleId, isFav }, user, isSystemEmpty, hasLeads }} />
       </Suspense>
 
     </Provider>

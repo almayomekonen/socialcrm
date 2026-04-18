@@ -44,6 +44,11 @@ export async function getFamMembers(clientId) {
   return { famMembers, familyId }
 }
 
+export async function hasAnyLeads(agencyId: number, gotPermIds: number[]): Promise<boolean> {
+  const res = await db('clients').where({ agencyId }).whereIn('userId', gotPermIds).count('id').first()
+  return Number(res?.count || 0) > 0
+}
+
 export async function getLeadsByRep(user) {
   const authedUser = await requireUser()
   const { gotPermIds } = await getPerms(user)

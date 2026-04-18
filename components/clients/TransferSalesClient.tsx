@@ -13,13 +13,13 @@ export default function TransferSalesClient({ client }) {
 
   async function onSubmit(e) {
     const data = getFormData2(e)
-    if (!confirm(`האם להעביר דילים של ליד ${client.name} לליד ${clientName} ?`)) return
+    if (!confirm(`האם להעביר עסקאות של ליד ${client.name} לליד ${clientName} ?`)) return
     await api(transferDealsToLead, [client.id, data.clientId])
   }
 
   return (
     <div>
-      <Title lbl={`העברת דילים מהליד ${client.name}`} className='mb-6' />
+      <Title lbl={`העברת עסקאות מהליד ${client.name}`} className='mb-6' />
       <form id='transferSalesForm' onSubmit={onSubmit}>
         <SelectSearch
           name='clientId'

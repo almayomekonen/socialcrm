@@ -4,7 +4,7 @@ import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'דוחות',
-  description: 'דוחות דילים ועסקאות',
+  description: 'דוחות עסקאות',
 }
 
 export default async function SumSalesLayout({ children }: { children: React.ReactNode }) {

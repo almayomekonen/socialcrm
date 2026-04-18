@@ -31,7 +31,7 @@ export async function hasSaleOnClient({ sale }) {
     const branches = delDups(sales.map((s) => s.branch)).join(', ')
     const users = delDups(sales.map((s) => s.userName)).join(', ')
     const isConfirm = confirm(
-      `לפני שאנחנו ממשיכים\n\nלליד: ${sales[0].clientData}\nיש דילים בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
+      `לפני שאנחנו ממשיכים\n\nלליד: ${sales[0].clientData}\nיש עסקאות בענפים: ${branches}\n\nע"י הנציגים: ${users}\n\nהאם להמשיך?`,
     )
 
     return isConfirm

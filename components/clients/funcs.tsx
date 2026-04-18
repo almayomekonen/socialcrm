@@ -5,17 +5,33 @@ import { checkedIds } from '@/lib/table/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { setPosAndPop } from '@/lib/funcs'
 
-export const getActions = () => ({
+export function getDealActionLabel(status?: string) {
+  if (status === 'closed') return 'הוסף עסקה נוספת'
+  if (status === 'lost') return 'הוסף עסקה (ליד אבוד)'
+  return 'סגור עסקה'
+}
+
+export const DEAL_ACTION_LABELS: string[] = [
+  'סגור עסקה',
+  'הוסף עסקה נוספת',
+  'הוסף עסקה (ליד אבוד)',
+]
+
+export const getActions = (status?: string) => ({
   // מחיקה: {
   //   func: onDel,
   // },
 
   עריכה: {
-    func: () => {},
+    func: (..._args: any[]) => {},
+  },
+
+  [getDealActionLabel(status)]: {
+    func: (..._args: any[]) => {},
   },
 
   'העברת ליד לנציג אחר': {
-    func: () => {},
+    func: (..._args: any[]) => {},
   },
 })
 
@@ -26,7 +42,7 @@ export function SelectClientGrpActions({ user }) {
 
     e.target.value = ''
     if (!ids.length) return alert('לא נבחרו רשומות מהטבלה')
-    await getActions()[val].func(ids, user)
+    await getActions()[val].func(ids, user) 
   }
 
   return <Select options={Object.keys(getActions())} placeholder='פעולות' onChange={onGroupAction} />
@@ -62,6 +78,5 @@ export function ActionsMenu({ id, children }) {
 async function onDel(client) {
   if (!confirm(`האם למחוק ליד ${client.name} ?`)) return
   const res = await api(deleteLead, client.id)
-  if (res?.err) return alert('לא ניתן למחוק ליד עם דילים, העבר את הדילים לליד אחר ונסה שוב')
+  if (res?.err) return alert('לא ניתן למחוק ליד עם עסקאות, העבר את העסקאות לליד אחר ונסה שוב')
 }
-

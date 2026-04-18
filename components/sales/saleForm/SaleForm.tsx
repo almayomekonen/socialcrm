@@ -46,7 +46,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
 
   const [isAsignUser, setIsAsignUser] = useState(curSale?.action === 'הצטרפות')
   const [otherSource, setOtherSource] = useState(curSale?.leadSource && !leadSources.includes(curSale.leadSource))
-  const [share, setShare] = useState(Boolean(curSale?.userIds[1]))
+  const [share, setShare] = useState(Boolean(curSale?.userIds?.[1]))
 
   const formRef = useRef(null)
 
@@ -73,7 +73,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
 
     if (isPayExist(sale)) return alert('שגיאה, יש למלא סכום לפחות למוצר אחד')
 
-    if (isAmountHigh(sale.prdcts)) return alert('שגיאה, סכום הדיל גבוה מדי')
+    if (isAmountHigh(sale.prdcts)) return alert('שגיאה, סכום העסקה גבוה מדי')
 
     if (isSameUser(sale.users)) return alert('שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג')
 
@@ -109,7 +109,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   return (
     <form ref={formRef} onSubmit={handleSave} className='max-w-3xl'>
       <Title
-        lbl={curSale ? 'עריכת עסקה' : 'עסקה חדשה'}
+        lbl={curSale?.id ? 'עריכת עסקה' : 'עסקה חדשה'}
         icon='money-check-dollar-pen'
         className='w-full border-gray-200'
         iconClassName='size-7'

@@ -28,7 +28,7 @@ export default function EditUser({ user, agnts, teams }) {
         const userHaveSales = await fetchIsUserHaveSales(user.id)
         if (userHaveSales) {
           return alert(`
-            לא ניתן להחליף את הנציג למתפעל, כיוון שיש לנציג דילים. העבר את הדילים לנציג אחר ונסה שוב.
+            לא ניתן להחליף את הנציג למתפעל, כיוון שיש לנציג עסקאות. העבר את העסקאות לנציג אחר ונסה שוב.
          `)
         }
       }
@@ -52,9 +52,9 @@ export default function EditUser({ user, agnts, teams }) {
     const userHaveSales = await fetchIsUserHaveSales(user?.id)
     if (userHaveSales) {
       return alert(`
-      המשתמש ${user.name} לא נמחק, מכיוון שיש דילים על שמו.
-      מחק את הדילים
-      או העבר אותם לנציג אחר
+      המשתמש ${user.name} לא נמחק, מכיוון שיש עסקאות על שמו.
+      מחק את העסקאות
+      או העבר אותן לנציג אחר
       ונסה שוב`)
     }
 
@@ -69,7 +69,7 @@ export default function EditUser({ user, agnts, teams }) {
         <Title lbl={`${user?.name || 'הוספת משתמש'}`} icon='user' />
         <div className='flex gap-2 flex-nowrap'>
           {user?.id && role !== 'OFFICE' && (
-            <Btn variant='outline' size='icon' title='העברת דילים לנציג אחר' icon='right-left' popoverTarget='transferSales' />
+            <Btn variant='outline' size='icon' title='העברת עסקאות לנציג אחר' icon='right-left' popoverTarget='transferSales' />
           )}
           {user?.id && <Btn variant='outline' size='icon' icon='trash' onClick={onDelete} />}
         </div>
@@ -146,24 +146,3 @@ export default function EditUser({ user, agnts, teams }) {
     </div>
   )
 }
-
-// OLD CODE
-// const goals = {
-//   סיכונים: fd.סיכונים,
-//   פיננסים: fd.פיננסים,
-//   פנסיוני: fd.פנסיוני,
-// }
-// // continue from here
-// const rate = {
-//   סיכונים: 1,
-//   פיננסים: 0.01,
-//   פנסיוני: 0.1,
-// }
-
-// let totalCmsn = 0
-// for (const key in goals) {
-//   if (goals[key]) totalCmsn += goals[key] * rate[key]
-// }
-
-// fd.goals = { ...goals, משוקלל: totalCmsn }
-// omit(fd, ['סיכונים', 'פיננסים', 'פנסיוני', 'פנסיוני_ניוד', 'פיננסים_שוטף', 'אלמנטרי'])

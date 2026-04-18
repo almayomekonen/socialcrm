@@ -95,7 +95,7 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
 }
 
 async function onDel(sale) {
-  if (!confirm(`בטוח למחוק דיל של ${sale?.clientData} ?`)) return
+  if (!confirm(`בטוח למחוק עסקה של ${sale?.clientData} ?`)) return
   //   await api(deleteSale, sale?.id, 'המכירה נמחקה בהצלחה')
 }
 

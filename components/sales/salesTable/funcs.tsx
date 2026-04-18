@@ -61,15 +61,15 @@ export function ActionsMenu({ id, children }) {
 
 async function onDel(sale) {
   console.log('onDel: ', sale)
-  if (!confirm(`בטוח למחוק דיל של ${sale?.clientData} ?`)) return
-  await api(deleteDeal, sale?.id, 'הדיל נמחק בהצלחה')
+  if (!confirm(`בטוח למחוק עסקה של ${sale?.clientData} ?`)) return
+  await api(deleteDeal, sale?.id, 'העסקה נמחקה בהצלחה')
 }
 function addOrRemoveFav(sale, isFav) {
   if (isFav) {
     removeFavDeal(sale.id)
-    toast('success', 'הדיל הוסר ממועדפים')
+    toast('success', 'העסקה הוסרה ממועדפים')
   } else {
     addFavDeals([sale.id])
-    toast('success', 'הדיל נוסף למועדפים')
+    toast('success', 'העסקה נוספה למועדפים')
   }
 }
