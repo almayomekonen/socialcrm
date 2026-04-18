@@ -22,9 +22,10 @@ let selectedUser = ''
 
 export default function ClientTasksTable({ props }: SaleTableProps) {
   const { data, tblPref, users, clientId, taskTmplts } = props
+  const safeData = Array.isArray(data) ? data : []
 
   const tblId = 'clientTasksTable12'
-  const [state, setState] = useState([...data])
+  const [state, setState] = useState<any[]>([...safeData])
 
   const [columns, setColumns] = useState(tblPref?.[tblId] || saleTableHeaders)
 
@@ -33,10 +34,10 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
     selectedStatus = status
     if (!status || status === 'סטטוס') {
       // Show all data when no status is selected or default option is selected
-      setState([...data])
+      setState([...safeData])
     } else {
       // Filter data based on selected status
-      const filteredData = data.filter((item) => item.status === status)
+      const filteredData = safeData.filter((item) => item.status === status)
       setState(filteredData)
     }
   }
@@ -44,9 +45,9 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
   const handleUserFilter = (e) => {
     selectedUser = e.target.value
     if (!selectedUser || selectedUser === 'גורם מטפל') {
-      setState([...data])
+      setState([...safeData])
     } else {
-      const filteredData = data.filter((item) => item.userName === selectedUser)
+      const filteredData = safeData.filter((item) => item.userName === selectedUser)
       setState(filteredData)
     }
   }
@@ -54,7 +55,7 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
   const config = {
     columns,
     setColumns,
-    data,
+    data: safeData,
     state,
     setState,
     funcs: {

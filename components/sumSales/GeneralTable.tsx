@@ -11,10 +11,11 @@ const ExportTable = dynamic(() => import('@/lib/table/export'), { ssr: false })
 const Filter = dynamic(() => import('@/components/filter'), { ssr: false })
 
 export default function GeneralTable({ data, tblPref, user, tblId, filterProps }) {
-  const [state, setState] = useState(data)
+  const safeData = Array.isArray(data) ? data : []
+  const [state, setState] = useState<any[]>(safeData)
 
   function headers() {
-    const cols = Object.keys(data[0] || [])
+    const cols = Object.keys(safeData[0] || {})
     return cols.map((col) => ({ key: col, label: col, format: 'formatCurrency' }))
   }
 
@@ -24,7 +25,7 @@ export default function GeneralTable({ data, tblPref, user, tblId, filterProps }
     tblId,
     columns,
     setColumns,
-    data,
+    data: safeData,
     state,
     setState,
     noCheckboxs: true,
@@ -34,7 +35,7 @@ export default function GeneralTable({ data, tblPref, user, tblId, filterProps }
     },
   } as ConfigT
 
-  if (!data || data.length === 0) {
+  if (safeData.length === 0) {
     return (
       <div className='flex items-center justify-center h-64 text-gray-400'>
         אין נתונים להצגה

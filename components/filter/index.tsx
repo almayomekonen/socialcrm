@@ -25,7 +25,8 @@ type Props = {
 export default function Filter({ props }: Props) {
   const show = getShow(usePathname())
   const router = useRouter()
-  const { users, teams, rawFilter, handlers } = props
+  const { users, teams, handlers } = props || ({} as any)
+  const rawFilter = (props?.rawFilter ?? {}) as any
 
   const filterPrdct = rawFilter?.branch ? prdctOptByBranch[rawFilter.branch] : ({} as any)
   const [prdct, setPrdct] = useState({
@@ -103,7 +104,7 @@ export default function Filter({ props }: Props) {
             </div>
           )}
 
-          {users?.length > 0 && show.users && (
+          {Array.isArray(users) && users.length > 0 && show.users && (
             <div className='col-span-2'>
               <MultiSelectSearch
                 name='userIds'
@@ -115,7 +116,7 @@ export default function Filter({ props }: Props) {
             </div>
           )}
 
-          {teams?.length > 0 && show.teams && (
+          {Array.isArray(teams) && teams.length > 0 && show.teams && (
             <div className='col-span-2'>
               <MultiSelectSearch
                 name='teamIds'

@@ -24,12 +24,13 @@ import { checkedIds } from '@/lib/table/funcs'
 import { saveTblPref } from '@/actions/global'
 
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null }) {
+  const safeData = Array.isArray(data) ? data : []
   const [liveLeads, setLiveLeads] = useState<any[]>([])
   const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
   const [activeTab, setActiveTab] = useState('new')
   const mergedState = [
     ...liveLeads,
-    ...data.filter((d) => !liveLeads.some((l) => l.id === d.id) && !deletedIds.has(d.id)),
+    ...safeData.filter((d) => !liveLeads.some((l) => l.id === d.id) && !deletedIds.has(d.id)),
   ]
   const filteredData = leads
     ? mergedState.filter((lead) => lead.status === activeTab)
@@ -50,8 +51,8 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [highlightedId, setHighlightedId] = useState<number | null>(null)
   const [newLeadsCount, setNewLeadsCount] = useState(0)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
-  const dataRef = useRef(data)
-  useEffect(() => { dataRef.current = data }, [data])
+  const dataRef = useRef<any[]>(safeData)
+  useEffect(() => { dataRef.current = safeData }, [data])
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
   const clientDetails = searchParams.get('clientDetails')
@@ -62,7 +63,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       const prevMap = new Map(prev.map((c) => [c.id, c]))
       const existingIds = new Set([
         ...prev.map((p) => p.id),
-        ...dataRef.current.map((d) => d.id),
+        ...(Array.isArray(dataRef.current) ? dataRef.current : []).map((d) => d.id),
       ])
 
       let newCount = 0
@@ -178,7 +179,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         onChange={async (e) => {
           const newStatus = e.target.value
           const snapshotLiveLeads = liveLeads
-          const sourceLead = liveLeads.find((r) => r.id === obj.id) ?? data.find((d) => d.id === obj.id)
+          const sourceLead = liveLeads.find((r) => r.id === obj.id) ?? safeData.find((d) => d.id === obj.id)
           setLiveLeads((prev) => {
             const exists = prev.some((r) => r.id === obj.id)
             if (exists) return prev.map((row) => (row.id === obj.id ? { ...row, status: newStatus } : row))

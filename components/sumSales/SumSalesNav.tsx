@@ -16,12 +16,15 @@ export default function SumSalesNav({ user }) {
 
   let jsonObj = {}
   try { if (rawFilter) jsonObj = JSON.parse(rawFilter) } catch { /* keep empty filter */ }
+
+  if (!user) return null
+
   return (
     <div className='flex items-end justify-between py-1 unwrap wrap  border-b-2 sticky top-0 bg-gray z-500 '>
       <div className='flex -mb-1 overflow-x-auto '>
         <div className='flex gap-0 flex-nowrap'>
           <SimpleLink href={`/sum_sales${filter}`} lbl='סיכום' />
-          {isMngr(user.role) && (
+          {isMngr(user?.role) && (
             <>
               <SimpleLink href={`/sum_sales/agents${filter}`} lbl='נציגים' />
               <SimpleLink href={`/sum_sales/teams${filter}`} lbl='צוותים' />

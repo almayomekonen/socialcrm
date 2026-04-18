@@ -4,8 +4,9 @@ import { formatCurrency } from '@/lib/funcs'
 
 export default function GoalsAndTotals({ user, data }) {
   if (!user || !isAgentOrMngr(user.role)) return null
+  if (!data) return null
 
-  const { goals, monthly_totals, yearly_totals } = data
+  const { goals = {}, monthly_totals = {}, yearly_totals = {} } = data || {}
   let thereAreGoals = false
   for (const key in goals) {
     if (goals[key] && goals[key] !== '0' && goals[key] !== 0) {
@@ -53,7 +54,7 @@ export default function GoalsAndTotals({ user, data }) {
           // Hide row if monthly total is 0 AND there's no valid goal
           if (monthlyTotal === 0 && !hasValidGoal) return null
 
-          const yearlyTotal = yearly_totals[key]
+          const yearlyTotal = yearly_totals?.[key] ?? 0
 
           const precent = hasValidGoal ? Math.round((monthlyTotal / (Number(goal) / 12)) * 100) + '%' : null
           const rythem = hasValidGoal ? getRythem(Number(goal), yearlyTotal) : null

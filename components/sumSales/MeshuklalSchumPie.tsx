@@ -10,13 +10,15 @@ import { BRANCHES } from '@/types/lists'
 
 export default function MeshuklalSchumPie({ data, goalsAndTotals, rawFilter, className = '' }) {
   const user = useUser()
-  const { meshuklal, tfuca, cmsnPrdcts, tfucaPrdcts } = data
+  const { meshuklal = [], tfuca = [], cmsnPrdcts = {}, tfucaPrdcts = {} } = data || {}
 
   const ketzevShnati = {}
   const yearDaysPassed = getYearDaysPassed() || 1
-  tfuca.forEach((item) => {
-    ketzevShnati[item.name] = (item.value / yearDaysPassed) * 365
-  })
+  if (Array.isArray(tfuca)) {
+    tfuca.forEach((item) => {
+      ketzevShnati[item.name] = (item.value / yearDaysPassed) * 365
+    })
+  }
 
   const onClick = Object.fromEntries(
     BRANCHES.map((branch) => [branch, () => redirectFilter(rawFilter, branch, null, null)]),

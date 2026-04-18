@@ -16,7 +16,8 @@ import { SelectSearch } from '@/lib/form/SelectSearch'
 import { saveTblPref } from '@/actions/global'
 
 export default function TasksTable({ data, users, filter, user }) {
-  const [state, setState] = useState(data)
+  const safeData = Array.isArray(data) ? data : []
+  const [state, setState] = useState<any[]>(safeData)
   const tblId = 'tasksTable435'
   const [columns, setColumns] = useState(user?.tblPref?.[tblId] || headers)
 
@@ -24,7 +25,7 @@ export default function TasksTable({ data, users, filter, user }) {
     tblId,
     columns,
     setColumns,
-    data,
+    data: safeData,
     state,
     setState,
     funcs: { formatTitle, isDatePassed },
@@ -64,7 +65,7 @@ export default function TasksTable({ data, users, filter, user }) {
         </div>
 
         <Table config={config} tblCls='mb-0 rounded-b-none' />
-        {state.length === 0 && (
+        {(state?.length ?? 0) === 0 && (
           <div className='flex items-center justify-center h-48 text-gray-400'>אין משימות עדיין</div>
         )}
       </div>

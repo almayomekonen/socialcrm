@@ -25,7 +25,7 @@ function ClientsBoxes({ details }) {
     inProcessCount,
     totalRevenue,
     pipelineValue,
-  } = details
+  } = details || {}
 
   return (
     <div className='flex gap-4 mobile:grid grid-cols-2'>

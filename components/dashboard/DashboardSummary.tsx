@@ -11,7 +11,8 @@ export default async function DashboardSummary({ user }) {
     getGoalsAndTotals(user.id),
   ])
 
-  const monthlyRevenue = Object.entries(goalsAndTotals.monthly_totals)
+  const monthlyTotals = goalsAndTotals?.monthly_totals ?? {}
+  const monthlyRevenue = Object.entries(monthlyTotals)
     .filter(([key]) => key !== 'משוקלל')
     .reduce((sum, [, val]) => sum + Number(val), 0)
 
@@ -19,7 +20,7 @@ export default async function DashboardSummary({ user }) {
     <div className='mb-6'>
       <div className='flex gap-4 mobile:grid grid-cols-2 mb-6'>
         <StatCard title='הכנסות החודש' value={formatCurrency(monthlyRevenue)} />
-        <StatCard title='סה"כ עסקאות' value={stats.prdctsCount ?? 0} />
+        <StatCard title='סה"כ עסקאות' value={stats?.prdctsCount ?? 0} />
       </div>
 
     </div>

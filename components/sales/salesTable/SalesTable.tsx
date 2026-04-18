@@ -41,10 +41,11 @@ export type SaleTableProps = {
 
 export default function SalesTable({ props }: SaleTableProps) {
   const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale, hasLeads } = props
-  const { isFav } = params
+  const safeData = Array.isArray(data) ? data : []
+  const { isFav } = params || {}
   const tblId = 'saleTable376'
   useKeepTblScrollPos(tblId)
-  const [state, setState] = useState(data)
+  const [state, setState] = useState<any[]>(safeData)
 
   const validHeaders = saleTableHeaders(user)
   const validKeys = new Set(validHeaders.map((h) => h.key))
@@ -66,10 +67,10 @@ export default function SalesTable({ props }: SaleTableProps) {
   // Drop ids that are no longer visible (filter/sort/pagination changes).
   useEffect(() => {
     setSelectedIds((prev) => {
-      const visibleIds = new Set(state.map((r: any) => Number(r.id)))
+      const visibleIds = new Set((Array.isArray(state) ? state : []).map((r: any) => Number(r.id)))
       return prev.filter((id) => visibleIds.has(id))
     })
-  }, [state.length])
+  }, [state?.length])
 
   function clearDomChecks() {
     const all = document.getElementById('checkAll') as HTMLInputElement | null
@@ -102,7 +103,7 @@ export default function SalesTable({ props }: SaleTableProps) {
     if (skipped > 0) alert(`${skipped} עסקאות לא נמחקו (ללא הרשאה או לא נמצאו)`)
   }
 
-  const emptyState = state.length === 0 ? (
+  const emptyState = (state?.length ?? 0) === 0 ? (
     <div className='text-center py-8 flex flex-col items-center gap-4'>
       <p className='text-lg font-semibold'>אין עדיין עסקאות</p>
       <p className='text-sm text-gray-500'>כדי להתחיל, עבור ללידים וסגור עסקה</p>
@@ -122,10 +123,11 @@ export default function SalesTable({ props }: SaleTableProps) {
         defaultValue={normalizeStatus(status)}
         onChange={(e) => {
           api(updateDealStatus, [item.id, e.target.value], 'סטטוס עודכן בהצלחה')
-          const sale = data.find((i) => i.id === item.id)
+          const sale = safeData.find((i) => i.id === item.id)
+          if (!sale) return
           sale.status = e.target.value
           if (e.target.value === 'שולם') sale.saleDt = new Date()
-          setState([...data])
+          setState([...safeData])
         }}
         options={DEAL_STATUS_OPTIONS}
         val='value'
@@ -192,7 +194,7 @@ export default function SalesTable({ props }: SaleTableProps) {
                 variant='destructive'
                 icon='trash'
                 lbl={
-                  selectedIds.length === state.length
+                  selectedIds.length === (state?.length ?? 0)
                     ? `מחק הכל (${selectedIds.length})`
                     : `מחק (${selectedIds.length})`
                 }
