@@ -26,8 +26,6 @@ export async function deleteLead(clientId): Promise<DeleteLeadResult> {
   const affected = await query.del()
 
   if (affected === 0) {
-    // Differentiate: does the row exist in this agency (→ permission-scoped)
-    // or is it truly missing / cross-agency (→ not_found from this user's POV).
     const exists = await db('clients').where({ id: clientId, agencyId: user.agencyId }).first()
     return { error: true, reason: exists ? 'no_permission' : 'not_found' }
   }
@@ -49,9 +47,7 @@ export async function deleteManyLeads(ids: number[]): Promise<DeleteManyLeadsRes
   // Permission scope — identical rules to deleteLead (agency + lead=true + userId in gotPermIds for non-admin).
   const { gotPermIds } = await getPerms(user)
 
-  const inScopeQ = db('clients')
-    .whereIn('id', ids)
-    .andWhere({ agencyId: user.agencyId, lead: true })
+  const inScopeQ = db('clients').whereIn('id', ids).andWhere({ agencyId: user.agencyId, lead: true })
   if (!isAdmin(user.role)) inScopeQ.whereIn('userId', gotPermIds)
   const inScopeRows = await inScopeQ.select('id')
   const inScopeIds: number[] = inScopeRows.map((r) => Number(r.id))
@@ -73,9 +69,7 @@ export async function deleteManyLeads(ids: number[]): Promise<DeleteManyLeadsRes
     }
   }
 
-  const deleteQ = db('clients')
-    .whereIn('id', deletableIds)
-    .andWhere({ agencyId: user.agencyId, lead: true })
+  const deleteQ = db('clients').whereIn('id', deletableIds).andWhere({ agencyId: user.agencyId, lead: true })
   if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
   const deleted = await deleteQ.del()
 
@@ -205,9 +199,6 @@ export async function updateLead(data) {
     updateData.statusChangedAt = new Date()
   }
   updateData.updatedAt = new Date()
-  // DEBUG: value entering the DB update.
-  // eslint-disable-next-line no-console
-  console.log('SERVER BEFORE UPDATE', { id, status: updateData.status })
   const { gotPermIds } = await getPerms(user)
   const query = db('clients').where({ id, agencyId: user.agencyId })
   if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
@@ -218,9 +209,6 @@ export async function updateLead(data) {
       console.error('updateLead failed', err)
       throw err
     })
-  // DEBUG: row(s) returned from the UPDATE.
-  // eslint-disable-next-line no-console
-  console.log('SERVER AFTER UPDATE RESULT', res)
 
   if (!res || res.length === 0) {
     throw new Error('No rows updated')

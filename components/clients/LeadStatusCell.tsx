@@ -20,7 +20,7 @@ type Props = {
   onStatusChange: (obj: any, newStatus: string) => void | Promise<void>
 }
 
-export default function LeadStatusCell({ status, obj, updatingId, onStatusChange }: Props) {
+function LeadStatusCell({ status, obj, updatingId, onStatusChange }: Props) {
   const isUpdating = updatingId === obj.id
   const s = STATUS_STYLES[status ?? 'new'] || STATUS_STYLES.new
   return (
@@ -28,10 +28,12 @@ export default function LeadStatusCell({ status, obj, updatingId, onStatusChange
       options={STATUS_OPTIONS}
       val='value'
       show='label'
-      value={status ?? 'new'}
+      value={status}
       required={false}
       className={`min-w-28 ${s.bg} ${s.text} ${s.border} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
       onChange={(e) => onStatusChange(obj, e.target.value)}
     />
   )
 }
+
+export default React.memo(LeadStatusCell)

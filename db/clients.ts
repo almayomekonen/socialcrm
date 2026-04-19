@@ -173,7 +173,7 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds, s
     )
     .select('*')
     .from('with_computed')
-    .orderByRaw('priority DESC, "statusChangedAt" ASC')
+    .orderByRaw('priority DESC, "statusChangedAt" DESC')
     .limit(tableLimit)
     .offset((pageNum - 1) * tableLimit)
 }
