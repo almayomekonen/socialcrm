@@ -33,7 +33,7 @@ export default function TBody({ config }: { config: ConfigT }) {
     <tbody className={config.clsBody || ''}>
       {state.map((item, index) => (
         <tr
-          key={index}
+          key={item.id}
           onClick={() => config.onRowClick?.(item)}
           className={`${config.onRowClick && 'cursor-pointer'} ${config.addTrCls && config.addTrCls(item)}`}
         >

@@ -63,10 +63,13 @@
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.19.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.2.3",
+    "jsdom": "^29.0.2",
     "kanel": "^3.16.0",
     "kanel-knex": "^2.6.0",
     "postcss": "^8.5.6",

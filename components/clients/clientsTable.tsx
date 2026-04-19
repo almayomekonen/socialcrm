@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
 import { ActionsMenu, DEAL_ACTION_LABELS, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
 import SelectClientLists from './SelectClientLists'
-import { useKeepTblScrollPos, useLeadPolling } from '@/lib/hooksNEvents'
+import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
 import ClientFormPop from './ClientFormPop'
 import ModalPop from '../../lib/modals/ModalPop'
 import SaleForm from '@/components/sales/saleForm/SaleForm'
@@ -13,29 +13,43 @@ import UploadClientData from '@/components/settings/UploadClientData'
 import { redirect, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
-import { Select } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import { deleteLead, deleteManyLeads, searchContacts, searchLeads, updateLead } from '@/actions/clients'
-import { toast } from '@/lib/toast'
+import { deleteLead, searchContacts, searchLeads } from '@/actions/clients'
 import { api } from '@/lib/funcs'
-import Table, { ConfigT } from '@/lib/table'
+import { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
-import { checkedIds } from '@/lib/table/funcs'
 import { saveTblPref } from '@/actions/global'
+import LeadStatusCell, { STATUS_STYLES } from './LeadStatusCell'
+import LeadsTableView from './LeadsTableView'
+import { useLeadsState } from './hooks/useLeadsState'
+import { useLeadActions } from './hooks/useLeadActions'
+import { useLeadSelection } from './hooks/useLeadSelection'
 
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null }) {
-  const safeData = Array.isArray(data) ? data : []
-  const [liveLeads, setLiveLeads] = useState<any[]>([])
-  const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
   const [activeTab, setActiveTab] = useState('new')
-  const mergedState = [
-    ...liveLeads,
-    ...safeData.filter((d) => !liveLeads.some((l) => l.id === d.id) && !deletedIds.has(d.id)),
-  ]
-  const filteredData = leads
-    ? mergedState.filter((lead) => lead.status === activeTab)
-    : mergedState
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
+
+  const {
+    setLiveLeads,
+    setDeletedIds,
+    setOptimisticStatuses,
+    mergedState,
+    filteredData,
+  } = useLeadsState({ data, leads, activeTab, globalLatestUpdatedAt })
+
+  const { updatingId, highlightedId, handleStatusChange } = useLeadActions({
+    setActiveTab,
+    setOptimisticStatuses,
+  })
+
+  const { selectedIds, handleBulkDelete } = useLeadSelection({
+    leads,
+    tblId,
+    filteredData,
+    activeTab,
+    setLiveLeads,
+    setDeletedIds,
+  })
 
   const validHeaders = getHeaders(leads)
   const validKeys = new Set(validHeaders.map((h) => h.key))
@@ -47,111 +61,12 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [openTransferClientForm, setOpenTransferClientForm] = useState(false)
   const [openSaleForm, setOpenSaleForm] = useState(false)
   const [openUpload, setOpenUpload] = useState(false)
-  const [updatingId, setUpdatingId] = useState<number | null>(null)
-  const [highlightedId, setHighlightedId] = useState<number | null>(null)
-  const [newLeadsCount, setNewLeadsCount] = useState(0)
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
-  const dataRef = useRef<any[]>(safeData)
-  useEffect(() => { dataRef.current = safeData }, [data])
+
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
   const clientDetails = searchParams.get('clientDetails')
 
   useKeepTblScrollPos(tblId)
-  useLeadPolling((polledLeads) => {
-    setLiveLeads((prev) => {
-      const prevMap = new Map(prev.map((c) => [c.id, c]))
-      const existingIds = new Set([
-        ...prev.map((p) => p.id),
-        ...(Array.isArray(dataRef.current) ? dataRef.current : []).map((d) => d.id),
-      ])
-
-      let newCount = 0
-      const next = [...prev]
-
-      for (const lead of polledLeads) {
-        if (prevMap.has(lead.id)) {
-          // Update an existing liveLeads entry in-place
-          const idx = next.findIndex((r) => r.id === lead.id)
-          next[idx] = lead
-        } else {
-          // Not yet in liveLeads — prepend (new lead or update promoted from data)
-          if (!existingIds.has(lead.id)) newCount++
-          next.unshift(lead)
-        }
-      }
-
-      if (newCount > 0) setNewLeadsCount(newCount)
-
-      return next
-    })
-  }, leads, globalLatestUpdatedAt)
-
-  useEffect(() => {
-    if (newLeadsCount > 0) {
-      toast('success', newLeadsCount === 1 ? 'ליד חדש הגיע' : `${newLeadsCount} לידים חדשים הגיעו`)
-      setNewLeadsCount(0)
-    }
-  }, [newLeadsCount])
-
-  useEffect(() => {
-    const el = document.getElementById(tblId)
-    if (!el) return
-    const sync = () => setSelectedIds(checkedIds())
-    el.addEventListener('change', sync)
-    return () => el.removeEventListener('change', sync)
-  }, [tblId])
-
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      const visibleIds = new Set(filteredData.map((r: any) => Number(r.id)))
-      return prev.filter((id) => visibleIds.has(id))
-    })
-  }, [filteredData.length, activeTab])
-
-  function clearDomChecks() {
-    const all = document.getElementById('checkAll') as HTMLInputElement | null
-    if (all) all.checked = false
-    document
-      .querySelectorAll<HTMLInputElement>("[name='checkRow']")
-      .forEach((cb) => (cb.checked = false))
-    setSelectedIds([])
-  }
-
-  async function handleBulkDelete() {
-    if (!leads) return
-    if (!selectedIds.length) return
-    if (!confirm(`למחוק ${selectedIds.length} לידים?`)) return
-
-    const res = await api(deleteManyLeads, [selectedIds], 'הלידים נמחקו')
-    if (res?.err) return
-
-    const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
-    const blockedBySales: number = typeof res?.blockedBySales === 'number' ? res.blockedBySales : 0
-    const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
-
-    const deletedSet = new Set<number>(
-      deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted),
-    )
-
-    if (deletedSet.size > 0) {
-      setLiveLeads((prev) => prev.filter((c) => !deletedSet.has(Number(c.id))))
-      setDeletedIds((prev) => {
-        const next = new Set(prev)
-        deletedSet.forEach((id) => next.add(id))
-        return next
-      })
-    }
-
-    clearDomChecks()
-
-    if (blockedBySales > 0 || skipped > 0) {
-      const parts: string[] = []
-      if (blockedBySales > 0) parts.push(`${blockedBySales} לידים עם עסקאות לא נמחקו`)
-      if (skipped > 0) parts.push(`${skipped} ללא הרשאה או לא נמצאו`)
-      alert(parts.join(' · '))
-    }
-  }
 
   function moreRows(client) {
     return (
@@ -166,35 +81,12 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   }
 
   function formatStatus(status, obj) {
-    const isUpdating = updatingId === obj.id
-    const s = STATUS_STYLES[status ?? 'new'] || STATUS_STYLES.new
     return (
-      <Select
-        options={STATUS_OPTIONS}
-        val='value'
-        show='label'
-        value={status ?? 'new'}
-        required={false}
-        className={`min-w-28 ${s.bg} ${s.text} ${s.border} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
-        onChange={async (e) => {
-          const newStatus = e.target.value
-          const snapshotLiveLeads = liveLeads
-          const sourceLead = liveLeads.find((r) => r.id === obj.id) ?? safeData.find((d) => d.id === obj.id)
-          setLiveLeads((prev) => {
-            const exists = prev.some((r) => r.id === obj.id)
-            if (exists) return prev.map((row) => (row.id === obj.id ? { ...row, status: newStatus } : row))
-            return sourceLead ? [{ ...sourceLead, status: newStatus }, ...prev] : prev
-          })
-          setUpdatingId(obj.id)
-          const res = await api(updateLead, { id: obj.id, status: newStatus }, 'סטטוס עודכן')
-          setUpdatingId(null)
-          if (!res || res?.err) {
-            setLiveLeads(snapshotLiveLeads)
-          } else {
-            setHighlightedId(obj.id)
-            setTimeout(() => setHighlightedId(null), 2500)
-          }
-        }}
+      <LeadStatusCell
+        status={status}
+        obj={obj}
+        updatingId={updatingId}
+        onStatusChange={handleStatusChange}
       />
     )
   }
@@ -305,68 +197,50 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   return (
     <>
       <div className='grid'>
-        {leads && (
-          <div className='flex gap-1 mb-3 border-b border-gray-200' dir='rtl'>
-            {Object.entries(STATUS_STYLES).map(([key, { label, dot, text, bg, border }]) => {
-              const count = mergedState.filter((l) => l.status === key).length
-              const isActive = activeTab === key
-              return (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-md border border-b-0 -mb-px transition-colors
-                    ${isActive
-                      ? `${bg} ${text} ${border} bg-white`
-                      : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-200 hover:bg-gray-50'
-                    }`}
-                >
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-                  {label}
-                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium
-                    ${isActive ? `${text} opacity-70` : 'bg-gray-100 text-gray-500'}`}>
-                    {count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-        <div className='flex justify-between gap-2 mb-2 items-end '>
-          <div className='flex gap-0 items-end'>
-            <SelectSearch
-              options={[]}
-              show='details'
-              selected={clientId}
-              val='id'
-              inputCls='w-52 rounded-e-none'
-              searchFunc={leads ? searchLeads : searchContacts}
-              onSelectOpt={getSelectedClient}
-              initShow={clientDetails}
-            />
-            <Btn variant='outline' size='icon' icon='eraser' href='?' scroll={false} className='rounded-s-none border-s-0' />
-          </div>
-
-          <div className='flex gap-2 items-end'>
-            {leads && selectedIds.length > 0 && (
-              <Btn
-                variant='destructive'
-                icon='trash'
-                lbl={
-                  selectedIds.length === filteredData.length
-                    ? `מחק הכל (${selectedIds.length})`
-                    : `מחק (${selectedIds.length})`
-                }
-                onClick={handleBulkDelete}
+        <LeadsTableView
+          leads={leads}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          filteredData={filteredData}
+          mergedState={mergedState}
+          config={config}
+        >
+          <div className='flex justify-between gap-2 mb-2 items-end '>
+            <div className='flex gap-0 items-end'>
+              <SelectSearch
+                options={[]}
+                show='details'
+                selected={clientId}
+                val='id'
+                inputCls='w-52 rounded-e-none'
+                searchFunc={leads ? searchLeads : searchContacts}
+                onSelectOpt={getSelectedClient}
+                initShow={clientDetails}
               />
-            )}
-            <ShowColumns config={config} />
-            <SelectClientGrpActions user={user} />
-            <SelectClientLists />
-            <ExportTable data={mergedState} columns={columns} />
-            <Btn lbl='ליד חדש' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+              <Btn variant='outline' size='icon' icon='eraser' href='?' scroll={false} className='rounded-s-none border-s-0' />
+            </div>
+
+            <div className='flex gap-2 items-end'>
+              {leads && selectedIds.length > 0 && (
+                <Btn
+                  variant='destructive'
+                  icon='trash'
+                  lbl={
+                    selectedIds.length === filteredData.length
+                      ? `מחק הכל (${selectedIds.length})`
+                      : `מחק (${selectedIds.length})`
+                  }
+                  onClick={handleBulkDelete}
+                />
+              )}
+              <ShowColumns config={config} />
+              <SelectClientGrpActions user={user} />
+              <SelectClientLists />
+              <ExportTable data={mergedState} columns={columns} />
+              <Btn lbl='ליד חדש' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+            </div>
           </div>
-        </div>
-        <Table config={config} tblCls='mb-0' />
+        </LeadsTableView>
         <TableFooter />
       </div>
 
@@ -486,16 +360,6 @@ export function getHeaders(leads) {
   }
   return headers
 }
-
-const STATUS_STYLES: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
-  new:       { label: 'חדש',     bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500' },
-  contacted: { label: 'בטיפול',  bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
-  interested:{ label: 'מעוניין', bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200',  dot: 'bg-green-500' },
-  closed:    { label: 'סגור',    bg: 'bg-gray-100',  text: 'text-gray-600',   border: 'border-gray-200',   dot: 'bg-gray-400' },
-  lost:      { label: 'אבוד',    bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200',    dot: 'bg-red-500' },
-}
-
-const STATUS_OPTIONS = Object.entries(STATUS_STYLES).map(([value, { label }]) => ({ value, label }))
 
 const SOURCE_STYLES: Record<string, string> = {
   facebook: 'bg-blue-100 text-blue-700',

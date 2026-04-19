@@ -205,6 +205,9 @@ export async function updateLead(data) {
     updateData.statusChangedAt = new Date()
   }
   updateData.updatedAt = new Date()
+  // DEBUG: value entering the DB update.
+  // eslint-disable-next-line no-console
+  console.log('SERVER BEFORE UPDATE', { id, status: updateData.status })
   const { gotPermIds } = await getPerms(user)
   const query = db('clients').where({ id, agencyId: user.agencyId })
   if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
@@ -212,6 +215,9 @@ export async function updateLead(data) {
     .update(updateData)
     .returning('*')
     .catch(() => null)
+  // DEBUG: row(s) returned from the UPDATE.
+  // eslint-disable-next-line no-console
+  console.log('SERVER AFTER UPDATE RESULT', res)
 
   revalidatePath('/leads')
   return res?.[0] ?? null
