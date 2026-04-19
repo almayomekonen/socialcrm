@@ -214,13 +214,20 @@ export async function updateLead(data) {
   const res = await query
     .update(updateData)
     .returning('*')
-    .catch(() => null)
+    .catch((err) => {
+      console.error('updateLead failed', err)
+      throw err
+    })
   // DEBUG: row(s) returned from the UPDATE.
   // eslint-disable-next-line no-console
   console.log('SERVER AFTER UPDATE RESULT', res)
 
+  if (!res || res.length === 0) {
+    throw new Error('No rows updated')
+  }
+
   revalidatePath('/leads')
-  return res?.[0] ?? null
+  return res[0]
 }
 
 export async function getLeadByIdNum(idNum: string) {

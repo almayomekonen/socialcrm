@@ -24,7 +24,7 @@ export function useLeadActions({ setActiveTab, setOptimisticStatuses }: Args) {
     setUpdatingId(obj.id)
     const res = await api(updateLead, { id: obj.id, status: newStatus }, 'סטטוס עודכן')
     setUpdatingId(null)
-    if (!res || res?.err) {
+    if (res?.err) {
       setOptimisticStatuses((prev) => {
         if (!prev.has(obj.id)) return prev
         const next = new Map(prev)
