@@ -9,4 +9,3 @@ export const s3 = new S3Client({
 })
 
 export const s3PublicUrl = 'https://socialcrm-storage.s3.eu-north-1.amazonaws.com/'
-  
