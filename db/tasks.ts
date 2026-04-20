@@ -66,12 +66,13 @@ export async function getTaskById(taskId) {
   const user = await requireUser()
   const res = await db.raw(
     `
-    SELECT 
+    SELECT
       t.*,
       COALESCE(json_agg(f.*) FILTER (WHERE f.id IS NOT NULL), '[]') as files
     FROM tasks t
+    JOIN clients c ON c.id = t."clientId"
     LEFT JOIN files f ON f.id = ANY(t.files)
-    WHERE t.id = ? AND t."agencyId" = ?
+    WHERE t.id = ? AND c."agencyId" = ?
     GROUP BY t.id
   `,
     [taskId, user.agencyId]

@@ -13,14 +13,21 @@ import { toMB } from '@/lib/funcs'
 import { deleteFile } from '../../actions/files'
 import { api } from '@/lib/funcs'
 import { fileSizes } from '@/types/vars'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function ClientFilesTable({ clientId, data, tasks }) {
   const [state, setState] = useState(data)
   const [columns, setColumns] = useState(headers)
+  const [fileToDelete, setFileToDelete] = useState<any>(null)
 
-  async function onDel(file) {
-    if (!confirm(`האם למחוק מסמך ${file?.name} ?`)) return
+  function onDel(file) {
+    setFileToDelete(file)
+  }
 
+  async function performDelete() {
+    const file = fileToDelete
+    setFileToDelete(null)
+    if (!file) return
     await api(deleteFile, [file])
   }
 
@@ -113,6 +120,13 @@ export default function ClientFilesTable({ clientId, data, tasks }) {
       </div>
 
       <FileForm clientId={clientId} tasks={tasks} />
+      <ConfirmPop
+        open={!!fileToDelete}
+        destructive
+        onClose={() => setFileToDelete(null)}
+        onConfirm={performDelete}
+        msg={`האם למחוק מסמך ${fileToDelete?.name} ?`}
+      />
     </>
   )
 }

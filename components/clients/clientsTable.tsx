@@ -8,6 +8,7 @@ import SelectClientLists from './SelectClientLists'
 import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
 import ClientFormPop from './ClientFormPop'
 import ModalPop from '../../lib/modals/ModalPop'
+import ConfirmPop from '../../lib/modals/ConfirmPop'
 import SaleForm from '@/components/sales/saleForm/SaleForm'
 import UploadClientData from '@/components/settings/UploadClientData'
 import { redirect, useSearchParams } from 'next/navigation'
@@ -42,7 +43,13 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setOptimisticStatuses,
   })
 
-  const { selectedIds, handleBulkDelete } = useLeadSelection({
+  const {
+    selectedIds,
+    handleBulkDelete,
+    bulkConfirmOpen,
+    closeBulkConfirm,
+    performBulkDelete,
+  } = useLeadSelection({
     leads,
     tblId,
     filteredData,
@@ -61,6 +68,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [openTransferClientForm, setOpenTransferClientForm] = useState(false)
   const [openSaleForm, setOpenSaleForm] = useState(false)
   const [openUpload, setOpenUpload] = useState(false)
+  const [confirmDeleteLead, setConfirmDeleteLead] = useState(null)
 
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
@@ -316,28 +324,49 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             size='simple'
             lbl='מחיקה'
             className='text-red-600 hover:bg-red-600'
-            onClick={async () => {
-              if (!confirm(`האם למחוק ליד ${curClient?.name}?`)) return
-              const res = await api(deleteLead, curClient.id)
-              if (res?.err || res?.error) {
-                const reason = res?.reason
-                const msg =
-                  reason === 'has_sales'
-                    ? 'לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב'
-                    : reason === 'no_permission'
-                    ? 'אין לך הרשאה למחוק ליד זה'
-                    : reason === 'not_found'
-                    ? 'הליד לא נמצא או כבר נמחק'
-                    : res?.msg || 'שגיאה במחיקת הליד'
-                alert(msg)
-                return
-              }
-              setLiveLeads((prev) => prev.filter((c) => c.id !== curClient.id))
-              setDeletedIds((prev) => new Set([...prev, curClient.id]))
-            }}
+            onClick={() => setConfirmDeleteLead(curClient)}
           />
         </div>
       </ActionsMenu>
+
+      <ConfirmPop
+        open={bulkConfirmOpen}
+        destructive
+        confirmLbl='מחיקה'
+        msg={`למחוק ${selectedIds.length} לידים?`}
+        onClose={closeBulkConfirm}
+        onConfirm={performBulkDelete}
+      />
+
+      <ConfirmPop
+        open={!!confirmDeleteLead}
+        destructive
+        confirmLbl='מחיקה'
+        msg={`האם למחוק ליד ${confirmDeleteLead?.name}?`}
+        onClose={() => setConfirmDeleteLead(null)}
+        onConfirm={async () => {
+          const target = confirmDeleteLead
+          if (!target) return
+          const res = await api(deleteLead, target.id)
+          if (res?.err || res?.error) {
+            const reason = res?.reason
+            const msg =
+              reason === 'has_sales'
+                ? 'לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב'
+                : reason === 'no_permission'
+                ? 'אין לך הרשאה למחוק ליד זה'
+                : reason === 'not_found'
+                ? 'הליד לא נמצא או כבר נמחק'
+                : res?.msg || 'שגיאה במחיקת הליד'
+            alert(msg)
+            setConfirmDeleteLead(null)
+            return
+          }
+          setLiveLeads((prev) => prev.filter((c) => c.id !== target.id))
+          setDeletedIds((prev) => new Set([...prev, target.id]))
+          setConfirmDeleteLead(null)
+        }}
+      />
     </>
   )
 }

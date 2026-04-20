@@ -17,6 +17,9 @@ const nextConfig = {
   turbopack: {},
   serverExternalPackages: ['knex'],
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    '**/*': ['./migrations/**/*'],
+  },
 }
 
 export default nextConfig

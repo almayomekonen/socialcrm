@@ -6,15 +6,23 @@ import { api } from '@/lib/funcs'
 import { transferDealsToLead } from '../../actions/clients'
 import { useState } from 'react'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function TransferSalesClient({ client }) {
   const { clients } = useProps()
   const [clientName, setClientName] = useState('')
+  const [pending, setPending] = useState<{ clientId: any } | null>(null)
 
-  async function onSubmit(e) {
+  function onSubmit(e) {
+    e.preventDefault()
     const data = getFormData2(e)
-    if (!confirm(`האם להעביר עסקאות של ליד ${client.name} לליד ${clientName} ?`)) return
-    await api(transferDealsToLead, [client.id, data.clientId])
+    setPending({ clientId: data.clientId })
+  }
+
+  async function onConfirm() {
+    if (!pending) return
+    await api(transferDealsToLead, [client.id, pending.clientId])
+    setPending(null)
   }
 
   return (
@@ -29,6 +37,12 @@ export default function TransferSalesClient({ client }) {
         />
         <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
       </form>
+      <ConfirmPop
+        open={!!pending}
+        onClose={() => setPending(null)}
+        onConfirm={onConfirm}
+        msg={`האם להעביר עסקאות של ליד ${client.name} לליד ${clientName} ?`}
+      />
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { Input } from '@/lib/form'
 import { deleteTask, updateFullTask } from '../../actions/tasks'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { statusOptions } from './SelectTasksStatus'
@@ -16,24 +16,96 @@ type TaskHeaderProps = {
   users: any[]
 }
 
+type SavePayload = Partial<{
+  title: string
+  status: string
+  completed: boolean
+  userId: number
+  dueDate: string
+}>
+
 export default function TaskHeader({ task, users }: TaskHeaderProps) {
   const [state, setState] = useState(false)
-  const [completed, setCompleted] = useState(task.completed)
+  const [title, setTitle] = useState<string>(task.title)
+  const [status, setStatus] = useState<string>(task.status)
+  const [completed, setCompleted] = useState<boolean>(task.completed)
+  const [saving, setSaving] = useState(false)
   const router = useRouter()
   const { run } = useAction()
-  const render = () => setState(!state)
+  const render = () => setState((s) => !s)
 
-  async function autoSave() {
-    await api(updateFullTask, task)
+  const prevTaskId = useRef(task.id)
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (task.id !== prevTaskId.current) {
+      prevTaskId.current = task.id
+      setTitle(task.title)
+      setStatus(task.status)
+      setCompleted(task.completed)
+    }
+  }, [task.id])
+
+  async function autoSave(payload: SavePayload = {}) {
+    await api(updateFullTask, { ...task, ...payload })
     onTaskChange()
+    router.refresh()
+  }
+
+  async function handleStatusChange(newStatus: string) {
+    if (saving) return
+    setSaving(true)
+    try {
+      setStatus(newStatus)
+      setCompleted(false)
+      await autoSave({ status: newStatus, completed: false })
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function toggleComplete() {
-    const next = !completed
-    task.completed = next
-    setCompleted(next)
-    await api(updateFullTask, task)
-    router.push('/tasks')
+    if (saving) return
+    setSaving(true)
+    try {
+      const next = !completed
+      setCompleted(next)
+      await autoSave({ completed: next })
+      router.push('/tasks')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleUserChange(userId: number) {
+    if (saving) return
+    setSaving(true)
+    try {
+      await autoSave({ userId })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDueDateChange(dueDate: string) {
+    if (saving) return
+    setSaving(true)
+    try {
+      await autoSave({ dueDate })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleTitleSave(newTitle: string) {
+    if (saving) return
+    setSaving(true)
+    try {
+      setTitle(newTitle)
+      await autoSave({ title: newTitle })
+    } finally {
+      setSaving(false)
+    }
   }
 
   function onDelete() {
@@ -45,10 +117,13 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
   }
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-5'>
       <div className='flex items-start justify-between gap-4'>
-        <h2 onContextMenu={onTaskCtxMenu} className='text-2xl font-bold leading-tight'>
-          {task.title}
+        <h2
+          onContextMenu={onTaskCtxMenu}
+          className='text-2xl font-semibold leading-tight tracking-tight text-gray-900'
+        >
+          {title}
         </h2>
         <Btn
           lbl={completed ? 'בטל סימון' : 'סמן כבוצע'}
@@ -56,66 +131,73 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
           icon={completed ? 'x' : 'check'}
           variant={completed ? 'soft' : undefined}
           onClick={toggleComplete}
+          disabled={saving}
         />
       </div>
 
-      <div className='flex flex-wrap gap-3 items-center'>
+      <div className='flex flex-wrap gap-3 items-center rounded-xl bg-gray-50 border border-gray-100 p-3'>
         <SelectSearch
           name='userId'
-          placeholder='גורם מטפל'
+          placeholder='נציג'
           options={users}
           selected={task.userId}
-          onSelectOpt={async (user) => {
-            task.userId = user.id
-            await autoSave()
-          }}
+          onSelectOpt={(user) => handleUserChange(user.id)}
         />
         <SelectSearch
           name='status'
           placeholder='סטטוס'
           options={statusOptions}
-          selected={task.status}
-          onSelectOpt={async (status) => {
-            task.status = status.name
-            await autoSave()
-          }}
+          selected={status}
+          onSelectOpt={(opt) => handleStatusChange(opt.name)}
         />
         <Input
           type='date'
           defaultValue={task.dueDate}
-          onChange={async (e) => {
-            task.dueDate = e.target.value
-            await autoSave()
-          }}
-          className='h-9'
+          onChange={(e) => handleDueDateChange(e.target.value)}
+          className='h-10'
         />
       </div>
 
-      <TaskTitleFormPop task={task} autoSave={autoSave} render={render} />
+      <TaskTitleFormPop title={title} onSave={handleTitleSave} saving={saving} />
       <TaskCtxMenu render={render} onDelete={onDelete} editPopId='taskTitleForm' />
     </div>
   )
 }
 
-function TaskTitleFormPop({ task, autoSave, render }) {
+function TaskTitleFormPop({
+  title,
+  onSave,
+  saving,
+}: {
+  title: string
+  onSave: (title: string) => Promise<void>
+  saving: boolean
+}) {
   const { loading, error, setError, run } = useAction()
 
-  async function onSave() {
-    const title = (document.getElementById('taskTitle') as HTMLInputElement).value.trim()
-    if (!title) { setError('יש להזין כותרת'); return }
+  async function handleSave() {
+    const newTitle = (document.getElementById('taskTitle') as HTMLInputElement).value.trim()
+    if (!newTitle) {
+      setError('יש להזין כותרת')
+      return
+    }
     await run(async () => {
-      task.title = title
-      render()
-      await autoSave()
+      await onSave(newTitle)
       document.getElementById('taskTitleForm')?.hidePopover()
     })
   }
 
   return (
     <div popover='auto' id='taskTitleForm' className='pop p-4'>
-      <Input lbl='כותרת' defaultValue={task?.title} id='taskTitle' />
+      <Input key={title} lbl='כותרת' defaultValue={title} id='taskTitle' />
       {error && <p className='text-sm text-red-500 mt-1'>{error}</p>}
-      <Btn lbl={loading ? '...' : 'שמירה'} icon='floppy-disk' className='mt-2 w-full' onClick={onSave} disabled={loading} />
+      <Btn
+        lbl={loading || saving ? '...' : 'שמירה'}
+        icon='floppy-disk'
+        className='mt-2 w-full'
+        onClick={handleSave}
+        disabled={loading || saving}
+      />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { FileDisplay, uploadS3 } from './funcs'
 import { useUser } from '@/lib/hooksNEvents'
 import dynamic from 'next/dynamic'
 import { twMerge } from 'tailwind-merge'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 const Glry = dynamic(() => import('./Glry'), { ssr: false })
 type folderPath = 'display' | 'docs'
@@ -28,15 +29,20 @@ export default function FileUploader({
   clientId = null,
 }: Props) {
   const [files, setFiles] = useState(single && initialFiles ? [initialFiles] : initialFiles || [])
+  const [fileToRemove, setFileToRemove] = useState<any>(null)
   const user = useUser()
 
   if (!user) return null
 
-  async function onRemove(fileToRemove) {
-    if (!confirm(`להסיר את הקובץ?`)) return
+  function onRemove(file) {
+    setFileToRemove(file)
+  }
 
-    const updatedFiles = files.filter((file) => file.id !== fileToRemove.id)
-
+  function performRemove() {
+    const target = fileToRemove
+    setFileToRemove(null)
+    if (!target) return
+    const updatedFiles = files.filter((file) => file.id !== target.id)
     setFiles(updatedFiles)
     onFilesChange(updatedFiles)
   }
@@ -85,6 +91,13 @@ export default function FileUploader({
           type='hidden'
         />
       </div>
+      <ConfirmPop
+        open={!!fileToRemove}
+        destructive
+        onClose={() => setFileToRemove(null)}
+        onConfirm={performRemove}
+        msg='להסיר את הקובץ?'
+      />
     </div>
   )
 }

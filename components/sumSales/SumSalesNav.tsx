@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import FilterBtn from '@/components/filter/FilterBtn'
 
-export default function SumSalesNav({ user }) {
+export default function SumSalesNav({ user, showAgents = false }: { user: any; showAgents?: boolean }) {
   const pathname = usePathname()
 
   const searchParams = useSearchParams()
@@ -24,14 +24,10 @@ export default function SumSalesNav({ user }) {
       <div className='flex -mb-1 overflow-x-auto '>
         <div className='flex gap-0 flex-nowrap'>
           <SimpleLink href={`/sum_sales${filter}`} lbl='סיכום' />
-          {isMngr(user?.role) && (
-            <>
-              <SimpleLink href={`/sum_sales/agents${filter}`} lbl='נציגים' />
-              <SimpleLink href={`/sum_sales/teams${filter}`} lbl='צוותים' />
-            </>
+          {isMngr(user?.role) && showAgents && (
+            <SimpleLink href={`/sum_sales/agents${filter}`} lbl='נציגים' />
           )}
           <SimpleLink href={`/sum_sales/months${filter}`} lbl='חודשים' />
-          <SimpleLink href={`/sum_sales/companies${filter}`} lbl='ספקים' />
         </div>
       </div>
 

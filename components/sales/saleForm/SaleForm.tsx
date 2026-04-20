@@ -26,6 +26,7 @@ import { Checkbox, Input, Select } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { getObjFormData } from '@/lib/form/funcs'
 import AccordionItem from '@/lib/AccordionItem'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Props = {
   props: {
@@ -47,6 +48,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   const [isAsignUser, setIsAsignUser] = useState(curSale?.action === 'הצטרפות')
   const [otherSource, setOtherSource] = useState(curSale?.leadSource && !leadSources.includes(curSale.leadSource))
   const [share, setShare] = useState(Boolean(curSale?.userIds?.[1]))
+  const [prdctExistsConfirm, setPrdctExistsConfirm] = useState<{ sale: any; msg: string } | null>(null)
 
   const formRef = useRef(null)
 
@@ -88,13 +90,24 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
     if (sale.clientId) {
       const productExists = await isPrdctsExists(sale)
       if (productExists) {
-        const ok = confirm(productExists)
-        if (!ok) return
+        setPrdctExistsConfirm({ sale, msg: productExists })
+        return
       }
     }
 
+    saveSale(sale)
+  }
+
+  function saveSale(sale: any) {
     api(insertSale, sale, curSale?.id ? 'העסקה עודכנה בהצלחה' : 'העסקה נוספה בהצלחה')
     reset()
+  }
+
+  function onPrdctExistsConfirm() {
+    const pending = prdctExistsConfirm
+    setPrdctExistsConfirm(null)
+    if (!pending) return
+    saveSale(pending.sale)
   }
 
   function addProduct() {
@@ -230,6 +243,13 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
 
       {/* SECTION 4: Submission Button */}
       <SubmitButton className='w-full mt-8' />
+
+      <ConfirmPop
+        open={!!prdctExistsConfirm}
+        onClose={() => setPrdctExistsConfirm(null)}
+        onConfirm={onPrdctExistsConfirm}
+        msg={prdctExistsConfirm?.msg ?? ''}
+      />
     </form>
   )
 }

@@ -7,6 +7,7 @@ import Search from '@/lib/table/Search'
 import { redirect } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { addTaskTmplt, deleteTaskTmplt } from '@/actions/tasks'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export type SaleTableProps = {
   props: {
@@ -21,6 +22,7 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
   const tblId = 'taskTmpltsTable12'
   const [state, setState] = useState([...data])
   const [selected, setSelected] = useState<any>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [columns, setColumns] = useState(tblPref?.[tblId] || saleTableHeaders)
 
   function onCheckboxChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -29,12 +31,18 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
     setSelected(e.target.checked ? state.find((t) => t.id === id) ?? null : null)
   }
 
-  async function onDelete() {
+  function onDelete() {
     if (!selected) return
-    if (!confirm(`האם למחוק את התבנית "${selected.title}"?`)) return
-    setState((prev) => prev.filter((t) => t.id !== selected.id))
+    setConfirmDelete(true)
+  }
+
+  async function performDelete() {
+    const target = selected
+    setConfirmDelete(false)
+    if (!target) return
+    setState((prev) => prev.filter((t) => t.id !== target.id))
     setSelected(null)
-    await deleteTaskTmplt(selected)
+    await deleteTaskTmplt(target)
   }
 
   const config = {
@@ -63,6 +71,14 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
       <div onChange={onCheckboxChange as any}>
         <Table config={config} tblCls='mb-0 rounded-b-none' />
       </div>
+
+      <ConfirmPop
+        open={confirmDelete}
+        destructive
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={performDelete}
+        msg={`האם למחוק את התבנית "${selected?.title}"?`}
+      />
     </div>
   )
 }

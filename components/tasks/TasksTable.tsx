@@ -78,7 +78,7 @@ export const headers = [
   { key: 'status', label: 'סטטוס' },
   { key: 'clientName', label: 'ליד' },
   { key: 'completed', label: 'הושלם' },
-  { key: 'userName', label: 'גורם מטפל' },
+  { key: 'userName', label: 'נציג' },
   { key: 'dueDate', label: 'תאריך יעד', format: 'isDatePassed' },
   { key: 'createdAt', label: 'תאריך יצירה', format: 'formatDate' },
   { key: 'updatedAt', label: 'תאריך פעילות אחרון', format: 'formatDate' },

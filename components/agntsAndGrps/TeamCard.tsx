@@ -6,18 +6,24 @@ import EditTeamForm from './EditTeamForm'
 import { deleteTeam } from '../../actions/usersNteams'
 import { api } from '@/lib/funcs'
 import ModalPop from '../../lib/modals/ModalPop'
+import ConfirmPop from '../../lib/modals/ConfirmPop'
 
 export default function TeamCard({ teams, users, mngrs, offices }) {
   const [curTeam, setCurTeam] = useState(null)
+  const [teamToDelete, setTeamToDelete] = useState<{ id: any; name: string } | null>(null)
 
   function onClose() {
     setCurTeam(null)
   }
 
-  async function onDelete(id, name) {
-    const isDel = confirm('בטוח למחוק את הצוות ' + name + ' ?')
+  function onDelete(id, name) {
+    setTeamToDelete({ id, name })
+  }
 
-    if (isDel) api(deleteTeam, id)
+  async function performTeamDelete() {
+    if (!teamToDelete) return
+    await api(deleteTeam, teamToDelete.id)
+    setTeamToDelete(null)
   }
 
   return (
@@ -48,6 +54,14 @@ export default function TeamCard({ teams, users, mngrs, offices }) {
       <ModalPop className='w-xl' pos='middle' open={!!curTeam} onClose={onClose}>
         <EditTeamForm teams={teams} team={curTeam} users={users} mngrs={mngrs} offices={offices} onClose={onClose} />
       </ModalPop>
+
+      <ConfirmPop
+        open={!!teamToDelete}
+        destructive
+        onClose={() => setTeamToDelete(null)}
+        onConfirm={performTeamDelete}
+        msg={'בטוח למחוק את הצוות ' + (teamToDelete?.name ?? '') + ' ?'}
+      />
     </>
   )
 }

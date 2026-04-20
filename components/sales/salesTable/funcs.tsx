@@ -2,13 +2,13 @@ import { Select } from '@/lib/form'
 import { checkedIds } from '@/lib/table/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { setPosAndPop } from '@/lib/funcs'
-import { addFavDeals, deleteDeal, removeFavDeal } from '@/actions/salesTbl'
-import { api } from '@/lib/funcs'
+import { addFavDeals, removeFavDeal } from '@/actions/salesTbl'
 import { toast } from '@/lib/toast'
 
 export const getActions = () => ({
   מחיקה: {
-    func: onDel,
+    // Deletion UX is owned by `SalesTable` via `ConfirmPop` (lbl intercept).
+    func: (..._args: any[]) => {},
   },
   עריכה: {
     func: () => {},
@@ -59,11 +59,7 @@ export function ActionsMenu({ id, children }) {
 // Functions
 // ------------------------------
 
-async function onDel(sale) {
-  console.log('onDel: ', sale)
-  if (!confirm(`בטוח למחוק עסקה של ${sale?.clientData} ?`)) return
-  await api(deleteDeal, sale?.id, 'העסקה נמחקה בהצלחה')
-}
+// `onDel` (sale delete) is owned by `SalesTable` via `ConfirmPop`.
 function addOrRemoveFav(sale, isFav) {
   if (isFav) {
     removeFavDeal(sale.id)

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { Input } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { useDrag } from '@/lib/hooksNEvents'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 let crntTask = null,
   editTask = null,
@@ -126,13 +127,23 @@ function ChecklistItem({ subtask, tasks, ...props }) {
 }
 
 function StepMenuPop({ tasks, render }) {
+  const [confirmDel, setConfirmDel] = useState<any>(null)
+
   function onDelete() {
-    if (!confirm(`האם למחוק את המעקב "${editTask?.title}"?`)) return
-    // delete task
-    tasks.splice(tasks.indexOf(editTask), 1)
+    const target = editTask
+    stepMenu?.hidePopover?.()
+    setConfirmDel(target)
+  }
+
+  function performDelete() {
+    const target = confirmDel
+    setConfirmDel(null)
+    if (!target) return
+    tasks.splice(tasks.indexOf(target), 1)
     render()
     clearPopover()
   }
+
   return (
     <>
       <div
@@ -145,41 +156,67 @@ function StepMenuPop({ tasks, render }) {
             <Icon name='pen' className='size-3' />
             <p>עריכה</p>
           </button>
-          <button className='flex gap-2 hover:!bg-red-100' onClick={onDelete}>
+          <button className='flex gap-2 hover:!bg-red-100!' onClick={onDelete}>
             <Icon name='trash' className='size-3' />
             <p>מחיקה</p>
           </button>
         </div>
       </div>
+      <ConfirmPop
+        open={!!confirmDel}
+        destructive
+        onClose={() => setConfirmDel(null)}
+        onConfirm={performDelete}
+        msg={`האם למחוק את המעקב "${confirmDel?.title}"?`}
+      />
     </>
   )
 }
 
 function SubTaskMenuPop({ tasks, render }) {
+  const [confirmDel, setConfirmDel] = useState<any>(null)
+
   function onDelete() {
-    if (!confirm(`האם למחוק את המעקב "${editSubTask?.title}"?`)) return
-    // delete task
-    crntTask.subTasks.splice(crntTask.subTasks.indexOf(editSubTask), 1)
+    const target = editSubTask
+    subTaskMenu?.hidePopover?.()
+    setConfirmDel(target)
+  }
+
+  function performDelete() {
+    const target = confirmDel
+    setConfirmDel(null)
+    if (!target) return
+    crntTask.subTasks.splice(crntTask.subTasks.indexOf(target), 1)
     render()
     clearPopover()
   }
+
   return (
-    <div
-      popover='auto'
-      id='subTaskMenuTmplt'
-      className='bg-white/70 backdrop-blur border rounded-xl shadow-2xl m-0 inset-auto absolute overflow-hidden'
-    >
-      <div className='*:border-b text-sm *:hover:bg-gray-200 *:justify-center *:w-full w-21 *:py-2 *:last:border-b-0'>
-        <button className='flex gap-2' popoverTarget='subTaskFormTmplt' onClick={render}>
-          <Icon name='pen' className='size-3' />
-          <p>עריכה</p>
-        </button>
-        <button className='flex gap-2 hover:!bg-red-100' onClick={onDelete}>
-          <Icon name='trash' className='size-3' />
-          <p>מחיקה</p>
-        </button>
+    <>
+      <div
+        popover='auto'
+        id='subTaskMenuTmplt'
+        className='bg-white/70 backdrop-blur border rounded-xl shadow-2xl m-0 inset-auto absolute overflow-hidden'
+      >
+        <div className='*:border-b text-sm *:hover:bg-gray-200 *:justify-center *:w-full w-21 *:py-2 *:last:border-b-0'>
+          <button className='flex gap-2' popoverTarget='subTaskFormTmplt' onClick={render}>
+            <Icon name='pen' className='size-3' />
+            <p>עריכה</p>
+          </button>
+          <button className='flex gap-2 hover:!bg-red-100!' onClick={onDelete}>
+            <Icon name='trash' className='size-3' />
+            <p>מחיקה</p>
+          </button>
+        </div>
       </div>
-    </div>
+      <ConfirmPop
+        open={!!confirmDel}
+        destructive
+        onClose={() => setConfirmDel(null)}
+        onConfirm={performDelete}
+        msg={`האם למחוק את המעקב "${confirmDel?.title}"?`}
+      />
+    </>
   )
 }
 

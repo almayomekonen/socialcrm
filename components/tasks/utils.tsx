@@ -1,7 +1,6 @@
 'use client'
 
 import Icon from '@/lib/Icon'
-import { updateFullTask } from '../../actions/tasks'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -47,7 +46,7 @@ export function onTaskChange() {
   localStorage.hasChanges = 'true'
 }
 
-export function TaskPageEvents({ task }) {
+export function TaskPageEvents({ task: _task }) {
   const router = useRouter()
 
   useEffect(() => {
@@ -55,26 +54,7 @@ export function TaskPageEvents({ task }) {
       setTimeout(() => router.refresh(), 100)
       localStorage.removeItem('needsRefresh')
     }
-
-    window.addEventListener('pagehide', saveTaskOnExit)
-    window.addEventListener('visibilitychange', saveTaskOnExit)
-
-    return () => {
-      window.removeEventListener('pagehide', saveTaskOnExit)
-      window.removeEventListener('visibilitychange', saveTaskOnExit)
-      updateFullTask(task)
-    }
   }, [])
-
-  function saveTaskOnExit(e) {
-    if (e.type === 'pagehide' && localStorage.hasChanges) localStorage.needsRefresh = 'true'
-
-    if (localStorage.hasChanges && document.visibilityState === 'hidden') {
-      navigator.sendBeacon('/api/saveTask', JSON.stringify(task))
-      // localStorage.needsRefresh = 'true'
-      localStorage.removeItem('hasChanges')
-    }
-  }
 
   return null
 }

@@ -12,21 +12,26 @@ import { deleteInvitation, sendInvitation } from '@/actions/invitations'
 import { api } from '@/lib/funcs'
 import { isUserExists } from '@/actions/auth'
 import { getFormData2 } from '@/lib/form/funcs'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function InvitationsTable({ data, tblPref }) {
   const tblId = 'invitationsTable194'
   const [state, setState] = useState(data)
   const [columns, setColumns] = useState(tblPref?.[tblId] || usersTableHeaders)
+  const [invitationToDelete, setInvitationToDelete] = useState<any>(null)
+
+  async function performInvitationDelete() {
+    if (!invitationToDelete) return
+    const id = invitationToDelete.id
+    setInvitationToDelete(null)
+    await api(deleteInvitation, [id])
+  }
 
   function moreRows(invitation) {
-    async function onDelete() {
-      if (!confirm('האם למחוק את ההזמנה?')) return
-      await api(deleteInvitation, [invitation.id])
-    }
     return (
       <>
         <td className='sticky left-0 z-10 bg-white'>
-          <Btn variant='outline' size='icon' icon='trash' onClick={() => onDelete()} />
+          <Btn variant='outline' size='icon' icon='trash' onClick={() => setInvitationToDelete(invitation)} />
         </td>
       </>
     )
@@ -80,6 +85,14 @@ export default function InvitationsTable({ data, tblPref }) {
 
         <Table config={config} tblCls='mb-0 rounded-b-none' />
       </div>
+
+      <ConfirmPop
+        open={!!invitationToDelete}
+        destructive
+        onClose={() => setInvitationToDelete(null)}
+        onConfirm={performInvitationDelete}
+        msg='האם למחוק את ההזמנה?'
+      />
     </>
   )
 }

@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { notesBtn, saleTableHeaders } from './saleHeaders'
-import { deleteManyDeals, getDealDataToExport, updateDealStatus } from '@/actions/salesTbl'
+import { deleteDeal, deleteManyDeals, getDealDataToExport, updateDealStatus } from '@/actions/salesTbl'
 import { saveTblPref } from '@/actions/global'
 import { api } from '@/lib/funcs'
 import { redirect } from 'next/navigation'
@@ -17,6 +17,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import UploadClientData from '@/components/settings/UploadClientData'
 import ModalPop from '@/lib/modals/ModalPop'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { searchContacts } from '@/actions/clients'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
@@ -53,6 +54,8 @@ export default function SalesTable({ props }: SaleTableProps) {
   const [columns, setColumns] = useState(savedPref?.length ? savedPref : validHeaders)
   const [openUpload, setOpenUpload] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [confirmDeleteSale, setConfirmDeleteSale] = useState<any>(null)
 
   // DOM-sourced selection, mirrored into state so the bulk bar can react.
   // Same contract as SelectSalesGrpActions → checkedIds().
@@ -81,11 +84,20 @@ export default function SalesTable({ props }: SaleTableProps) {
     setSelectedIds([])
   }
 
-  async function handleBulkDelete() {
+  function handleBulkDelete() {
     if (!selectedIds.length) return
-    if (!confirm(`למחוק ${selectedIds.length} עסקאות?`)) return
+    setConfirmBulkDelete(true)
+  }
 
-    const res = await api(deleteManyDeals, [selectedIds], 'העסקאות נמחקו')
+  async function performBulkDelete() {
+    const ids = selectedIds
+    if (!ids.length) {
+      setConfirmBulkDelete(false)
+      return
+    }
+
+    const res = await api(deleteManyDeals, [ids], 'העסקאות נמחקו')
+    setConfirmBulkDelete(false)
     if (res?.err) return
 
     const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
@@ -93,7 +105,7 @@ export default function SalesTable({ props }: SaleTableProps) {
 
     if (deleted > 0) {
       const deletedSet = new Set<number>(
-        deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted),
+        deleted === ids.length ? ids : ids.slice(0, deleted),
       )
       setState((prev) => prev.filter((r: any) => !deletedSet.has(Number(r.id))))
     }
@@ -101,6 +113,18 @@ export default function SalesTable({ props }: SaleTableProps) {
     clearDomChecks()
 
     if (skipped > 0) alert(`${skipped} עסקאות לא נמחקו (ללא הרשאה או לא נמצאו)`)
+  }
+
+  async function performSaleDelete() {
+    const target = confirmDeleteSale
+    if (!target?.id) {
+      setConfirmDeleteSale(null)
+      return
+    }
+    const res = await api(deleteDeal, target.id, 'העסקה נמחקה בהצלחה')
+    setConfirmDeleteSale(null)
+    if (res?.err || res?.error) return
+    setState((prev) => prev.filter((r: any) => Number(r.id) !== Number(target.id)))
   }
 
   const emptyState = (state?.length ?? 0) === 0 ? (
@@ -230,6 +254,10 @@ export default function SalesTable({ props }: SaleTableProps) {
                       setOpenForm(true)
                       break
 
+                    case 'מחיקה':
+                      setConfirmDeleteSale(curSale)
+                      break
+
                     default:
                       action.func(curSale, isFav)
                   }
@@ -241,6 +269,24 @@ export default function SalesTable({ props }: SaleTableProps) {
           </div>
         ))}
       </ActionsMenu>
+
+      <ConfirmPop
+        open={confirmBulkDelete}
+        destructive
+        confirmLbl='מחיקה'
+        msg={`למחוק ${selectedIds.length} עסקאות?`}
+        onClose={() => setConfirmBulkDelete(false)}
+        onConfirm={performBulkDelete}
+      />
+
+      <ConfirmPop
+        open={!!confirmDeleteSale}
+        destructive
+        confirmLbl='מחיקה'
+        msg={`בטוח למחוק עסקה של ${confirmDeleteSale?.clientData} ?`}
+        onClose={() => setConfirmDeleteSale(null)}
+        onConfirm={performSaleDelete}
+      />
     </>
   )
 }

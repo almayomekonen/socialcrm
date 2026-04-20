@@ -48,10 +48,18 @@ export function useLeadSelection({
     setSelectedIds([])
   }
 
-  async function handleBulkDelete() {
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+
+  function handleBulkDelete() {
     if (!leads) return
     if (!selectedIds.length) return
-    if (!confirm(`למחוק ${selectedIds.length} לידים?`)) return
+    setBulkConfirmOpen(true)
+  }
+
+  async function performBulkDelete() {
+    setBulkConfirmOpen(false)
+    if (!leads) return
+    if (!selectedIds.length) return
 
     const res = await api(deleteManyLeads, [selectedIds], 'הלידים נמחקו')
     if (res?.err) return
@@ -83,5 +91,12 @@ export function useLeadSelection({
     }
   }
 
-  return { selectedIds, handleBulkDelete, clearDomChecks }
+  return {
+    selectedIds,
+    handleBulkDelete,
+    clearDomChecks,
+    bulkConfirmOpen,
+    closeBulkConfirm: () => setBulkConfirmOpen(false),
+    performBulkDelete,
+  }
 }

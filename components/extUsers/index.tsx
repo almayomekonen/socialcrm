@@ -6,6 +6,7 @@ import { api } from '@/lib/funcs'
 import TransferSalesForm from '../agntsAndGrps/TransferSalesForm'
 import { deleteExtUser } from '@/actions/usersNteams'
 import { Btn } from '@/lib/btns/Btn'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function ExtUsers({ extUsers, users }) {
   const [curUser, setCurUser] = useState(null)
@@ -25,11 +26,14 @@ export default function ExtUsers({ extUsers, users }) {
 }
 
 function ExtChip({ user, setCurUser }) {
+  const [confirmDel, setConfirmDel] = useState(false)
+
   async function onEdit() {
     setCurUser(user)
   }
-  async function onDelete() {
-    if (!confirm(`האם למחוק את ${user.name}?`)) return
+
+  async function performDelete() {
+    setConfirmDel(false)
     const res = await api(deleteExtUser, [user.id])
     if (res.err)
       alert(`
@@ -47,8 +51,15 @@ function ExtChip({ user, setCurUser }) {
     <div className='border rounded-full py-2 flex gap-4 px-4 bg-white'>
       <p className='me-2'>{user.name}</p>
       <Btn variant='outline' icon='pen' onClick={onEdit} title='עריכה' />
-      <Btn variant='outline' icon='xmark' onClick={onDelete} className='bg-red-400' title='מחיקה' />
+      <Btn variant='outline' icon='xmark' onClick={() => setConfirmDel(true)} className='bg-red-400' title='מחיקה' />
       <Btn variant='outline' icon='right-left' onClick={onTransferSales} title='העברת לידים' popoverTarget='transferSales' />
+      <ConfirmPop
+        open={confirmDel}
+        destructive
+        onClose={() => setConfirmDel(false)}
+        onConfirm={performDelete}
+        msg={`האם למחוק את ${user.name}?`}
+      />
     </div>
   )
 }

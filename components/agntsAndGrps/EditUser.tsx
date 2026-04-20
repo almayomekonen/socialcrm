@@ -10,9 +10,11 @@ import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import { getFormData2 } from '@/lib/form/funcs'
 import { Input, Select } from '@/lib/form'
 import { Btn } from '@/lib/btns/Btn'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function EditUser({ user, agnts, teams }) {
   const [role, setRole] = useState<Roles>(user?.role)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     setRole(user?.role)
@@ -47,8 +49,12 @@ export default function EditUser({ user, agnts, teams }) {
     api(upsertUser, [fd, user?.id])
   }
 
-  async function onDelete() {
-    if (!confirm(`בטוח למחוק את ${user?.name}?`)) return
+  function onDelete() {
+    setConfirmDelete(true)
+  }
+
+  async function performDelete() {
+    setConfirmDelete(false)
     const userHaveSales = await fetchIsUserHaveSales(user?.id)
     if (userHaveSales) {
       return alert(`
@@ -143,6 +149,13 @@ export default function EditUser({ user, agnts, teams }) {
 
         <Btn lbl='שמור פרטים' icon='floppy-disk' className='w-full my-8' />
       </form>
+      <ConfirmPop
+        open={confirmDelete}
+        destructive
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={performDelete}
+        msg={`בטוח למחוק את ${user?.name}?`}
+      />
     </div>
   )
 }

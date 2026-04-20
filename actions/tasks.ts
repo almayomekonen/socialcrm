@@ -75,7 +75,7 @@ export async function updateFullTask(task) {
     })
 
   revalidatePath('/tasks')
-  revalidatePath('/clients')
+  revalidatePath('/clients', 'layout')
 }
 
 export async function createTask(data: { clientId: number; title: string; userId?: number; _system?: boolean }) {
@@ -86,7 +86,6 @@ export async function createTask(data: { clientId: number; title: string; userId
       clientId: data.clientId,
       title: data.title,
       userId: user.id,
-      agencyId: user.agencyId,
       dueDate: new Date().toISOString().split('T')[0],
       tasks: [] as any,
       notes: [] as any,
@@ -104,7 +103,6 @@ export async function addTask(clientId, _user: unknown, title = 'כתוב כות
       title,
       clientId,
       userId: authedUser.id,
-      agencyId: authedUser.agencyId,
       dueDate: new Date().toISOString().split('T')[0],
       tasks: [],
     } as any)

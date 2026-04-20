@@ -7,6 +7,7 @@ import { useAction } from '@/lib/useAction'
 import { toast } from '@/lib/toast'
 import { wait } from '@/lib/funcs'
 import type { FacebookHealthStatus } from '@/lib/facebook/health'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Page = { id: string; name: string; access_token: string }
 type Connection = { pageId: string; pageName: string }
@@ -31,6 +32,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
   const searchParams = useSearchParams()
   const urlError = searchParams.get('error')
   const [selectedPageId, setSelectedPageId] = useState('')
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
 
   const redirectToOAuth = () =>
@@ -41,7 +43,11 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
 
   const disconnectPage = () => {
     if (!connection) return
-    if (!confirm(`לנתק את הדף "${connection.pageName}"?`)) return
+    setConfirmDisconnect(true)
+  }
+
+  const performDisconnect = () => {
+    setConfirmDisconnect(false)
     run(async () => {
       const res = await fetch('/api/auth/facebook/disconnect', { method: 'POST' })
       if (!res.ok) {
@@ -116,6 +122,13 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
           className='w-fit'
           disabled={loading}
           onClick={disconnectPage}
+        />
+        <ConfirmPop
+          open={confirmDisconnect}
+          destructive
+          onClose={() => setConfirmDisconnect(false)}
+          onConfirm={performDisconnect}
+          msg={`לנתק את הדף "${connection.pageName}"?`}
         />
       </div>
     )

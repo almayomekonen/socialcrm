@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string; accessToken: string }
 type Connection = { phoneNumberId: string }
@@ -28,6 +29,14 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
   const [selectedPhoneId, setSelectedPhoneId] = useState('')
   const [loading, setLoading] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
+
+  async function performDisconnect() {
+    setConfirmDisconnect(false)
+    setLoading(true)
+    await fetch('/api/auth/whatsapp/disconnect', { method: 'POST' })
+    router.refresh()
+  }
 
   // State C: Already connected
   if (connection) {
@@ -43,12 +52,14 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
           size='small'
           className='w-fit'
           disabled={loading}
-          onClick={async () => {
-            if (!confirm('לנתק את חיבור הוואטסאפ?')) return
-            setLoading(true)
-            await fetch('/api/auth/whatsapp/disconnect', { method: 'POST' })
-            router.refresh()
-          }}
+          onClick={() => setConfirmDisconnect(true)}
+        />
+        <ConfirmPop
+          open={confirmDisconnect}
+          destructive
+          onClose={() => setConfirmDisconnect(false)}
+          onConfirm={performDisconnect}
+          msg='לנתק את חיבור הוואטסאפ?'
         />
       </div>
     )

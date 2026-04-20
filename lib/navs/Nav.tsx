@@ -119,7 +119,7 @@ function getNavLinks(user) {
     {
       icon: 'chart-pie',
       href: '/sum_sales',
-      title: 'דוחות',
+      title: 'ביצועים',
     },
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
     notOffice && { icon: 'trophy-star', href: '/promotion', title: 'קמפיינים' },
