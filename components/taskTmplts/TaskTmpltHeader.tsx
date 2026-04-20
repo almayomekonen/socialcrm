@@ -83,10 +83,12 @@ function HeaderPopMenu({ taskTmplt, render }) {
 }
 
 function TaskTmpltTitleFormPop({ taskTmplt, render }) {
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+
   function onSave() {
     const title = (document.getElementById('taskTmpltTitle') as HTMLInputElement).value.trim()
 
-    if (!title) return alert('יש להזין כותרת')
+    if (!title) return setErrMsg('יש להזין כותרת')
 
     taskTmplt.title = title
     // update task template
@@ -99,6 +101,13 @@ function TaskTmpltTitleFormPop({ taskTmplt, render }) {
     <div popover='auto' id='taskTmpltTitleForm' className='pop p-4'>
       <Input lbl='כותרת' defaultValue={taskTmplt?.title} id='taskTmpltTitle' />
       <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

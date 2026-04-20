@@ -7,17 +7,18 @@ import { api } from '@/lib/funcs'
 import FileUploader from './FileUploader'
 import { useState } from 'react'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function FileForm({ clientId, tasks }) {
   const [taskId, setTaskId] = useState(null)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onSubmit(e) {
     const data = getFormData2(e)
     data.files = JSON.parse(data.files)
-    if (!data.taskId) return alert('יש לבחור מעקב')
-    if (!data.files.length) return alert('יש להעלות קבצים')
+    if (!data.files.length) return setErrMsg('יש להעלות קבצים')
 
-    api(addFilesToTask, [data, clientId])
+    if (data.taskId) api(addFilesToTask, [data, clientId])
   }
 
   return (
@@ -25,7 +26,7 @@ export default function FileForm({ clientId, tasks }) {
       <Btn variant='sign' size='sign' className='absolute top-4 left-4' icon='circle-x' popoverTarget='filePopover' />
       <form onSubmit={onSubmit} className='space-y-4'>
         <Title lbl='הוספת קבצים חדשים' />
-        <p className='col-span-2 pt-4 py-1'> קישור למעקב:</p>
+        <p className='col-span-2 pt-4 py-1'>קישור למעקב (אופציונלי):</p>
         <SelectSearch
           onSelectOpt={(task) => setTaskId(task.id)}
           name='taskId'
@@ -35,9 +36,16 @@ export default function FileForm({ clientId, tasks }) {
           lbl='מעקב'
           key={`tasks-${tasks.length}`}
         />
-        <FileUploader tooltipClass='h-30' disabled={!taskId} path={`${clientId}/${taskId}`} clientId={clientId} taskId={taskId} />
+        <FileUploader tooltipClass='h-30' path={`${clientId}/${taskId ?? 'unassigned'}`} clientId={clientId} taskId={taskId} />
         <Btn lbl='הוספה' className='w-full' />
       </form>
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

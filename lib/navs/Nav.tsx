@@ -123,7 +123,6 @@ function getNavLinks(user) {
     },
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
     notOffice && { icon: 'trophy-star', href: '/promotion', title: 'קמפיינים' },
-    admin && { icon: 'file', href: '/files', title: 'קבצים' },
     notOffice && { icon: 'gear', href: '/settings/self_edit', title: 'הגדרות' },
   ] as { icon: IconNames; href: Route; title: string }[]
 }

@@ -12,6 +12,7 @@ import FileUploader from '../files/FileUploader'
 import Fieldset from '@/lib/Fieldset'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import SelectStartEndDate from '../filter/SelectStartEndDate'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
   const goalKeys = Object.keys(promo?.goals?.target || {})
@@ -27,10 +28,11 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
   const [goalLength, setGoalLength] = useState(promo?.goals?.target?.[firstGoalKey]?.length || 1)
 
   const [isPromoGrp, setIsPromoGrp] = useState(promo.isPromoGrp)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onSubmit(e) {
     const data = getPromoFormData(e)
-    if (!data?.grpIds?.length && !data?.userIds?.length) return alert('יש לבחור צוותים או נציגים')
+    if (!data?.grpIds?.length && !data?.userIds?.length) return setErrMsg('יש לבחור צוותים או נציגים')
 
     data.files = JSON.parse(data.files)
     data.img = JSON.parse(data.img)
@@ -104,6 +106,13 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
 
         <SubmitButton lbl='שמור קמפיין' icon='floppy-disk' className='col-span-2 mt-4' />
       </form>
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

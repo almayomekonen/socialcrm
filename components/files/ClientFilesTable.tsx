@@ -99,6 +99,7 @@ export default function ClientFilesTable({ clientId, data, tasks }) {
   return (
     <>
       <div className='grid py-4'>
+        <h2 className='text-xl font-semibold mb-3'>קבצים של הליד</h2>
         <div className='flex justify-between gap-2'>
           <div className='flex gap-2 items-end mb-2 mobile:gap-2'>
             <Search config={config} />

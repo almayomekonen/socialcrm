@@ -27,6 +27,7 @@ export default function ExtUsers({ extUsers, users }) {
 
 function ExtChip({ user, setCurUser }) {
   const [confirmDel, setConfirmDel] = useState(false)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onEdit() {
     setCurUser(user)
@@ -36,11 +37,10 @@ function ExtChip({ user, setCurUser }) {
     setConfirmDel(false)
     const res = await api(deleteExtUser, [user.id])
     if (res.err)
-      alert(`
-      המשתמש ${user.name} לא נמחק, מכיוון שיש לידים על שמו.
-      מחק את הלידים
-      או העבר אותם לנציג אחר
-      ונסה שוב`)
+      setErrMsg(`המשתמש ${user.name} לא נמחק, מכיוון שיש לידים על שמו.
+מחק את הלידים
+או העבר אותם לנציג אחר
+ונסה שוב`)
   }
 
   async function onTransferSales() {
@@ -59,6 +59,13 @@ function ExtChip({ user, setCurUser }) {
         onClose={() => setConfirmDel(false)}
         onConfirm={performDelete}
         msg={`האם למחוק את ${user.name}?`}
+      />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
       />
     </div>
   )

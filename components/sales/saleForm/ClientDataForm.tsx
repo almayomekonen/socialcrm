@@ -1,3 +1,4 @@
+'use client'
 import { Deal } from '@/types/db/tables'
 import { useRef, useState } from 'react'
 import { getLeadByIdNum, searchContacts, upsertLead } from '@/actions/clients'
@@ -7,6 +8,7 @@ import Title from '@/lib/Title'
 import { Input } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { isIdNumValid } from '@/lib/funcs'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Props = {
   curSale?: Deal & { clientData: string }
@@ -48,6 +50,7 @@ function ClientSaleFormPop({ user, setClient }) {
   const firstNameRef = useRef(null)
   const lastNameRef = useRef(null)
   const idNumRef = useRef(null)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onSubmit() {
     const data = {
@@ -58,13 +61,13 @@ function ClientSaleFormPop({ user, setClient }) {
       handlerId: user.id,
     }
 
-    if (!data.firstName || !data.lastName || !data.idNum) return alert('יש למלא את כל השדות')
-    if (!isIdNumValid(data.idNum)) return alert('תעודת זהות לא תקינה')
+    if (!data.firstName || !data.lastName || !data.idNum) return setErrMsg('יש למלא את כל השדות')
+    if (!isIdNumValid(data.idNum)) return setErrMsg('תעודת זהות לא תקינה')
     const existingClient = await getLeadByIdNum(data.idNum)
-    if (existingClient) return alert(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
+    if (existingClient) return setErrMsg(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
 
     const res = await upsertLead(user.id, data, null, false)
-    if (res.err) return alert(res.msg)
+    if (res.err) return setErrMsg(res.msg)
 
     setClient(res)
     // reset form
@@ -82,6 +85,13 @@ function ClientSaleFormPop({ user, setClient }) {
         <Input type='number' name='idNum' ref={idNumRef} lbl='תעודת זהות' required={false} />
       </div>
       <Btn type='button' className='mt-4 w-full' lbl='שמירה' onClick={onSubmit} icon='floppy-disk' />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

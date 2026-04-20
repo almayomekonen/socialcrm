@@ -49,6 +49,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   const [otherSource, setOtherSource] = useState(curSale?.leadSource && !leadSources.includes(curSale.leadSource))
   const [share, setShare] = useState(Boolean(curSale?.userIds?.[1]))
   const [prdctExistsConfirm, setPrdctExistsConfirm] = useState<{ sale: any; msg: string } | null>(null)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   const formRef = useRef(null)
 
@@ -69,15 +70,15 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
     const sale = getObjFormData(e)
     console.log('sale', sale)
 
-    if (!sale.users?.userId) return alert('שגיאה, יש לבחור נציג')
+    if (!sale.users?.userId) return setErrMsg('שגיאה, יש לבחור נציג')
 
-    if (!sale.clientId) return alert('שגיאה, יש לבחור ליד')
+    if (!sale.clientId) return setErrMsg('שגיאה, יש לבחור ליד')
 
-    if (isPayExist(sale)) return alert('שגיאה, יש למלא סכום לפחות למוצר אחד')
+    if (isPayExist(sale)) return setErrMsg('שגיאה, יש למלא סכום לפחות למוצר אחד')
 
-    if (isAmountHigh(sale.prdcts)) return alert('שגיאה, סכום העסקה גבוה מדי')
+    if (isAmountHigh(sale.prdcts)) return setErrMsg('שגיאה, סכום העסקה גבוה מדי')
 
-    if (isSameUser(sale.users)) return alert('שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג')
+    if (isSameUser(sale.users)) return setErrMsg('שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג')
 
     const toReturn = await hasSaleOnClient({ sale });
     if (!toReturn) return
@@ -249,6 +250,14 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
         onClose={() => setPrdctExistsConfirm(null)}
         onConfirm={onPrdctExistsConfirm}
         msg={prdctExistsConfirm?.msg ?? ''}
+      />
+
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
       />
     </form>
   )

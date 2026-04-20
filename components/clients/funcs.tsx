@@ -1,7 +1,10 @@
+'use client'
+import { useState } from 'react'
 import { Select } from '@/lib/form'
 import { checkedIds } from '@/lib/table/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { setPosAndPop } from '@/lib/funcs'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export function getDealActionLabel(status?: string) {
   if (status === 'closed') return 'הוסף עסקה נוספת'
@@ -34,16 +37,29 @@ export const getActions = (status?: string) => ({
 })
 
 export function SelectClientGrpActions({ user }) {
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+
   const onGroupAction = async (e) => {
     const val = e.target.value
     const ids = checkedIds()
 
     e.target.value = ''
-    if (!ids.length) return alert('לא נבחרו רשומות מהטבלה')
-    await getActions()[val].func(ids, user) 
+    if (!ids.length) return setErrMsg('לא נבחרו רשומות מהטבלה')
+    await getActions()[val].func(ids, user)
   }
 
-  return <Select options={Object.keys(getActions())} placeholder='פעולות' onChange={onGroupAction} />
+  return (
+    <>
+      <Select options={Object.keys(getActions())} placeholder='פעולות' onChange={onGroupAction} />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
+    </>
+  )
 }
 
 export function DotsMenu({ id, onClick }) {

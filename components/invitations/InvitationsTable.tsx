@@ -116,11 +116,13 @@ function formatStatus(_, obj) {
 }
 
 function InvitationsForm() {
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+
   async function handleSubmit(e) {
     const data = getFormData2(e)
     console.log('data:', data)
     const res = (await isUserExists(data.email)) as any
-    if (res.id) return alert('המשתמש כבר קיים')
+    if (res.id) return setErrMsg('המשתמש כבר קיים')
     await api(sendInvitation, [data])
   }
   return (
@@ -134,6 +136,13 @@ function InvitationsForm() {
         <Select lbl='תפקיד' name='role' options={rolesOpt} defaultValue={Roles.AGNT} />
         <Btn lbl='שליחת הזמנה' className='col-span-2' />
       </form>
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

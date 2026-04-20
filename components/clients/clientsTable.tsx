@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
 import { ActionsMenu, DEAL_ACTION_LABELS, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
@@ -11,7 +12,7 @@ import ModalPop from '../../lib/modals/ModalPop'
 import ConfirmPop from '../../lib/modals/ConfirmPop'
 import SaleForm from '@/components/sales/saleForm/SaleForm'
 import UploadClientData from '@/components/settings/UploadClientData'
-import { redirect, useSearchParams } from 'next/navigation'
+import { redirect, useRouter, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
@@ -49,6 +50,8 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     bulkConfirmOpen,
     closeBulkConfirm,
     performBulkDelete,
+    bulkInfoMsg,
+    closeBulkInfo,
   } = useLeadSelection({
     leads,
     tblId,
@@ -69,7 +72,9 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [openSaleForm, setOpenSaleForm] = useState(false)
   const [openUpload, setOpenUpload] = useState(false)
   const [confirmDeleteLead, setConfirmDeleteLead] = useState(null)
+  const [deleteErrMsg, setDeleteErrMsg] = useState<string | null>(null)
 
+  const router = useRouter()
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
   const clientDetails = searchParams.get('clientDetails')
@@ -275,6 +280,16 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       )}
 
       <ActionsMenu id='clientActions'>
+        {curClient && (
+          <div>
+            <Btn
+              variant='simple'
+              size='simple'
+              lbl='פתח ליד'
+              onClick={() => router.push(`/clients/${curClient.id}/summary`)}
+            />
+          </div>
+        )}
         {curClient?.phone && (
           <>
             <div>
@@ -358,7 +373,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 : reason === 'not_found'
                 ? 'הליד לא נמצא או כבר נמחק'
                 : res?.msg || 'שגיאה במחיקת הליד'
-            alert(msg)
+            setDeleteErrMsg(msg)
             setConfirmDeleteLead(null)
             return
           }
@@ -366,6 +381,22 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
           setDeletedIds((prev) => new Set([...prev, target.id]))
           setConfirmDeleteLead(null)
         }}
+      />
+
+      <ConfirmPop
+        open={!!deleteErrMsg}
+        hideCancel
+        onClose={() => setDeleteErrMsg(null)}
+        onConfirm={() => setDeleteErrMsg(null)}
+        msg={deleteErrMsg ?? ''}
+      />
+
+      <ConfirmPop
+        open={!!bulkInfoMsg}
+        hideCancel
+        onClose={closeBulkInfo}
+        onConfirm={closeBulkInfo}
+        msg={bulkInfoMsg ?? ''}
       />
     </>
   )
@@ -406,10 +437,9 @@ function formatLeadSource(source) {
 
 function formatName(name, obj) {
   return (
-    // <Link href={`/clients/${obj.id}/tasks`} className='underline font-bold'>
-    //   {name}
-    // </Link>
-    <p>{name}</p>
+    <Link href={`/clients/${obj.id}/summary`} className='underline font-semibold'>
+      {name}
+    </Link>
   )
 }
 function StatusBadge({ status }: { status: string }) {

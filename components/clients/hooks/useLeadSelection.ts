@@ -49,6 +49,7 @@ export function useLeadSelection({
   }
 
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+  const [bulkInfoMsg, setBulkInfoMsg] = useState<string | null>(null)
 
   function handleBulkDelete() {
     if (!leads) return
@@ -87,7 +88,7 @@ export function useLeadSelection({
       const parts: string[] = []
       if (blockedBySales > 0) parts.push(`${blockedBySales} לידים עם עסקאות לא נמחקו`)
       if (skipped > 0) parts.push(`${skipped} ללא הרשאה או לא נמצאו`)
-      alert(parts.join(' · '))
+      setBulkInfoMsg(parts.join(' · '))
     }
   }
 
@@ -98,5 +99,7 @@ export function useLeadSelection({
     bulkConfirmOpen,
     closeBulkConfirm: () => setBulkConfirmOpen(false),
     performBulkDelete,
+    bulkInfoMsg,
+    closeBulkInfo: () => setBulkInfoMsg(null),
   }
 }

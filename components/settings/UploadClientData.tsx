@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FileUploader from '@/components/files/FileUploader'
 import { addLeads, importLeadsFromCsv, uploadLeadData } from '@/actions/clients'
+import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 export default function UploadClientData() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function UploadClientData() {
   const [wrongClients, setWrongClients] = useState<Record<string, any>[]>()
   const [csvResult, setCsvResult] = useState<{ inserted: number; updated: number; unchanged: number; invalid: number } | null>(null)
   const [csvLoading, setCsvLoading] = useState(false)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onChange(files: any[]) {
     const file = files[0]
@@ -19,7 +21,7 @@ export default function UploadClientData() {
     const { data, wrongData, error } = await uploadLeadData(file)
 
     if (error) {
-      alert(error)
+      setErrMsg(String(error))
       return
     }
 
@@ -153,6 +155,13 @@ export default function UploadClientData() {
           )
         })()}
       </div>
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

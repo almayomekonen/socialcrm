@@ -15,6 +15,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 export default function EditUser({ user, agnts, teams }) {
   const [role, setRole] = useState<Roles>(user?.role)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
 
   useEffect(() => {
     setRole(user?.role)
@@ -29,9 +30,7 @@ export default function EditUser({ user, agnts, teams }) {
       if (user?.id && user.role !== Roles.OFFICE) {
         const userHaveSales = await fetchIsUserHaveSales(user.id)
         if (userHaveSales) {
-          return alert(`
-            לא ניתן להחליף את הנציג למתפעל, כיוון שיש לנציג עסקאות. העבר את העסקאות לנציג אחר ונסה שוב.
-         `)
+          return setErrMsg('לא ניתן להחליף את הנציג למתפעל, כיוון שיש לנציג עסקאות. העבר את העסקאות לנציג אחר ונסה שוב.')
         }
       }
 
@@ -57,11 +56,10 @@ export default function EditUser({ user, agnts, teams }) {
     setConfirmDelete(false)
     const userHaveSales = await fetchIsUserHaveSales(user?.id)
     if (userHaveSales) {
-      return alert(`
-      המשתמש ${user.name} לא נמחק, מכיוון שיש עסקאות על שמו.
-      מחק את העסקאות
-      או העבר אותן לנציג אחר
-      ונסה שוב`)
+      return setErrMsg(`המשתמש ${user.name} לא נמחק, מכיוון שיש עסקאות על שמו.
+מחק את העסקאות
+או העבר אותן לנציג אחר
+ונסה שוב`)
     }
 
     await api(deleteUser, user?.id, null, 'לא ניתן למחוק את הנציג כי מקושרים אליו לידים')
@@ -155,6 +153,13 @@ export default function EditUser({ user, agnts, teams }) {
         onClose={() => setConfirmDelete(false)}
         onConfirm={performDelete}
         msg={`בטוח למחוק את ${user?.name}?`}
+      />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
       />
     </div>
   )

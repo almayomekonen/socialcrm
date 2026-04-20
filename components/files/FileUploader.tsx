@@ -30,6 +30,7 @@ export default function FileUploader({
 }: Props) {
   const [files, setFiles] = useState(single && initialFiles ? [initialFiles] : initialFiles || [])
   const [fileToRemove, setFileToRemove] = useState<any>(null)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
   const user = useUser()
 
   if (!user) return null
@@ -53,7 +54,7 @@ export default function FileUploader({
     getFiles(e.target.files)
 
     const newFiles = (await uploadS3(e, folderPath, taskId, clientId)) as any
-    if (newFiles.err) return alert('העלאת הקבצים נכשלה: ' + newFiles.msg)
+    if (newFiles.err) return setErrMsg('העלאת הקבצים נכשלה: ' + newFiles.msg)
 
     const obj = single ? [newFiles[0]] : [...files, ...newFiles]
     setFiles(obj)
@@ -97,6 +98,13 @@ export default function FileUploader({
         onClose={() => setFileToRemove(null)}
         onConfirm={performRemove}
         msg='להסיר את הקובץ?'
+      />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
       />
     </div>
   )

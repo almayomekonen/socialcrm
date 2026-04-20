@@ -56,6 +56,7 @@ export default function SalesTable({ props }: SaleTableProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [confirmDeleteSale, setConfirmDeleteSale] = useState<any>(null)
+  const [bulkInfoMsg, setBulkInfoMsg] = useState<string | null>(null)
 
   // DOM-sourced selection, mirrored into state so the bulk bar can react.
   // Same contract as SelectSalesGrpActions → checkedIds().
@@ -112,7 +113,7 @@ export default function SalesTable({ props }: SaleTableProps) {
 
     clearDomChecks()
 
-    if (skipped > 0) alert(`${skipped} עסקאות לא נמחקו (ללא הרשאה או לא נמצאו)`)
+    if (skipped > 0) setBulkInfoMsg(`${skipped} עסקאות לא נמחקו (ללא הרשאה או לא נמצאו)`)
   }
 
   async function performSaleDelete() {
@@ -286,6 +287,14 @@ export default function SalesTable({ props }: SaleTableProps) {
         msg={`בטוח למחוק עסקה של ${confirmDeleteSale?.clientData} ?`}
         onClose={() => setConfirmDeleteSale(null)}
         onConfirm={performSaleDelete}
+      />
+
+      <ConfirmPop
+        open={!!bulkInfoMsg}
+        hideCancel
+        onClose={() => setBulkInfoMsg(null)}
+        onConfirm={() => setBulkInfoMsg(null)}
+        msg={bulkInfoMsg ?? ''}
       />
     </>
   )

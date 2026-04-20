@@ -221,12 +221,14 @@ function SubTaskMenuPop({ tasks, render }) {
 }
 
 function StepFormPop({ tasks, render }) {
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+
   function onSave() {
     const title = (document.getElementById('stepTitleTmplt') as HTMLInputElement).value.trim()
 
-    if (!title) return alert('יש להזין כותרת')
+    if (!title) return setErrMsg('יש להזין כותרת')
     // check if task title is unique
-    if (title !== editTask?.title && tasks.some((t) => t.title === title)) return alert(`הכותרת "${title}" כבר קיימת`)
+    if (title !== editTask?.title && tasks.some((t) => t.title === title)) return setErrMsg(`הכותרת "${title}" כבר קיימת`)
 
     editTask ? (editTask.title = title) : tasks.push({ title, subTasks: [] })
     // update task
@@ -240,16 +242,25 @@ function StepFormPop({ tasks, render }) {
     <div popover='auto' id='stepFormTmplt' className='pop p-4'>
       <Input lbl='כותרת השלב' defaultValue={editTask?.title} id='stepTitleTmplt' />
       <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }
 
 function SubTaskFormPop({ tasks, render }) {
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+
   function onSave() {
     const title = (document.getElementById('subTaskTitleTmplt') as HTMLInputElement).value.trim()
     const desc = (document.getElementById('subTaskDescTmplt') as HTMLTextAreaElement).value.trim()
 
-    if (!title) return alert('יש להזין כותרת')
+    if (!title) return setErrMsg('יש להזין כותרת')
 
     if (editSubTask) {
       editSubTask.title = title
@@ -268,6 +279,13 @@ function SubTaskFormPop({ tasks, render }) {
       <Input lbl='כותרת תת-המעקב' defaultValue={editSubTask?.title} id='subTaskTitleTmplt' />
       <Input as='textarea' lbl='תיאור' defaultValue={editSubTask?.desc} id='subTaskDescTmplt' rows={3} />
       <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      <ConfirmPop
+        open={!!errMsg}
+        hideCancel
+        onClose={() => setErrMsg(null)}
+        onConfirm={() => setErrMsg(null)}
+        msg={errMsg ?? ''}
+      />
     </div>
   )
 }

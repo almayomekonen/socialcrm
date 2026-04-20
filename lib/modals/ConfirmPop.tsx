@@ -12,6 +12,7 @@ type Props = {
   confirmLbl?: string
   cancelLbl?: string
   destructive?: boolean
+  hideCancel?: boolean
 }
 
 export default function ConfirmPop({
@@ -22,6 +23,7 @@ export default function ConfirmPop({
   confirmLbl = 'אישור',
   cancelLbl = 'ביטול',
   destructive = false,
+  hideCancel = false,
 }: Props): JSX.Element {
   const [busy, setBusy] = useState(false)
 
@@ -42,7 +44,7 @@ export default function ConfirmPop({
       <div className='flex flex-col gap-6 min-w-[320px] pt-4'>
         <p className='font-semibold whitespace-pre-line pe-6'>{msg}</p>
         <div className='flex justify-end gap-2'>
-          <Btn variant='outline' lbl={cancelLbl} onClick={safeClose} disabled={busy} />
+          {!hideCancel && <Btn variant='outline' lbl={cancelLbl} onClick={safeClose} disabled={busy} />}
           <Btn
             variant={destructive ? 'destructive' : 'solid'}
             lbl={confirmLbl}
