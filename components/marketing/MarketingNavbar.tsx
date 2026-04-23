@@ -24,7 +24,7 @@ export function MarketingNavbar() {
     <div className='pt-6 pb-3 px-4'>
       <nav className='bg-white rounded-xl relative z-10 max-w-6xl mx-auto flex items-center justify-between py-4 px-8 lg:px-12 lg:py-4'>
         <div className='flex items-center space-x-2'>
-          <span className='text-xl font-bold text-gray-800'>{LOGO_TEXT}</span>
+          <a href='/crm' className='text-xl font-bold text-gray-800 hover:text-blue-600'>{LOGO_TEXT}</a>
         </div>
 
         <div className='flex items-center space-x-6 text-gray-600 text-sm'>
@@ -69,7 +69,7 @@ export function MarketingNavbar() {
         } lg:hidden overflow-y-auto p-8`}
       >
         <div className='flex items-center justify-between mb-8'>
-          <span className='text-xl font-bold text-gray-800'>{LOGO_TEXT}</span>
+          <a href='/crm' className='text-xl font-bold text-gray-800 hover:text-blue-600' onClick={() => setMobileOpen(false)}>{LOGO_TEXT}</a>
           <button
             className='text-gray-600 hover:text-blue-600 focus:outline-none'
             onClick={() => setMobileOpen(false)}

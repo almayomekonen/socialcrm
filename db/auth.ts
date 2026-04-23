@@ -5,39 +5,60 @@ import { cookies } from 'next/headers'
 import { daysFromNow } from '@/lib/dates'
 import { cacheTag } from 'next/cache'
 
-async function getCachedUser(userId: number) {
-  'use cache'
+const USER_COLUMNS = [
+  'id',
+  'email',
+  'name',
+  'gglName',
+  'picture',
+  'role',
+  'suspended',
+  'tblPref',
+  'savedFilters',
+  'agencyId',
+] as const
 
-  cacheTag('user' + userId, 'users')
-
+async function fetchUserById(userId: number): Promise<UserDb | null> {
   if (!userId) return null
-  return await db('users')
-    .select('id', 'email', 'name', 'gglName', 'picture', 'role', 'suspended', 'tblPref', 'savedFilters', 'agencyId')
+  const row = await db('users')
+    .select(...USER_COLUMNS)
     .where({ id: userId })
     .first()
+  return (row ?? null) as UserDb | null
 }
 
-export async function getUser() {
+export async function getCachedUser(userId: number): Promise<UserDb | null> {
+  'use cache'
+  cacheTag('user' + userId, 'users')
+  return fetchUserById(userId)
+}
+
+export async function getUser(): Promise<UserDb | null> {
   const cokis = await cookies()
 
   const session = cokis.get('user')?.value
   if (!session) return null
 
-  let decryptUser: any
+  let payload: any
   try {
-    decryptUser = await decrypt(session)
-  } catch {
-    // Cookie signed with old key or otherwise invalid — return null to trigger re-login
+    payload = await decrypt(session)
+  } catch (err) {
+    console.warn('[auth] cookie verify failed', { reason: (err as Error)?.message })
     return null
   }
 
-  const userId = decryptUser?.id
+  const userId = payload?.id
   if (!userId) {
     cokis.delete('user')
     return null
   }
 
-  return (await getCachedUser(userId)) as UserDb | null
+  try {
+    return await fetchUserById(userId)
+  } catch (err) {
+    console.error('[auth] user fetch failed', { userId, reason: (err as Error)?.message })
+    return null
+  }
 }
 
 if (!process.env.JWT_SECRET) {

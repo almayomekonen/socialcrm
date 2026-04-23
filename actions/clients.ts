@@ -9,8 +9,52 @@ import * as XLSX from 'xlsx'
 import { requireUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
+import { assertLeadQuota, QuotaExceededError, getAgencyPlan, withAgencyQuotaLock } from '@/lib/quota'
+import type { QuotaErrorResult } from '@/lib/quota'
 
 export type DeleteLeadResult = { success: true } | { error: true; reason: 'has_sales' | 'no_permission' | 'not_found' }
+
+export type AddLeadsResult = { success: true; inserted: number } | (QuotaErrorResult & { wouldInsert: number })
+
+// Whitelist of columns a client is allowed to write on `clients`.
+// System-controlled columns (agencyId, createdById, overQuota, createdAt,
+// updatedAt, statusChangedAt, id) and the internal `_system` flag are
+// deliberately absent; they are set by the server or not at all.
+const CLIENT_WRITABLE_LEAD_FIELDS = new Set<string>([
+  'firstName',
+  'lastName',
+  'idNum',
+  'idNumDate',
+  'birthDate',
+  'gender',
+  'familyStatus',
+  'familyId',
+  'passportNum',
+  'licenseNum',
+  'phone',
+  'secPhone',
+  'email',
+  'leadSource',
+  'handlerId',
+  'userId',
+  'status',
+  'lead',
+  'details',
+  'rank',
+])
+
+function pickLeadFields<T extends Record<string, any>>(data: T): Partial<T> {
+  const out: Partial<T> = {}
+  if (!data || typeof data !== 'object') return out
+  for (const key of Object.keys(data) as (keyof T)[]) {
+    if (CLIENT_WRITABLE_LEAD_FIELDS.has(key as string)) out[key] = data[key]
+  }
+  return out
+}
+
+function isLeadTrue(val: unknown): boolean {
+  return val === true || val === 'true'
+}
 
 export async function deleteLead(clientId): Promise<DeleteLeadResult> {
   const user = await requireUser()
@@ -82,27 +126,44 @@ export async function deleteManyLeads(ids: number[]): Promise<DeleteManyLeadsRes
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {
-  let user = null
-  if (!data._system) user = await requireUser()
-  const isSystem = data._system
-  delete data._system
+  const user = await requireUser()
+  const safeData = pickLeadFields(data ?? {})
+
   try {
     let lead = null
 
     if (clientId) {
-      const q = db('clients').where({ id: clientId })
-      if (!isSystem && user) q.where({ agencyId: user.agencyId })
-      lead = (await q.update(data).returning('*'))[0]
+      if (isLeadTrue(safeData.lead)) {
+        const existing = await db('clients').where({ id: clientId, agencyId: user.agencyId }).first('lead')
+        if (existing && existing.lead === false) {
+          await assertLeadQuota(user.agencyId, 1)
+        }
+      }
+      const q = db('clients').where({ id: clientId, agencyId: user.agencyId })
+      lead = (await q.update(safeData).returning('*'))[0]
     } else {
-      if (!isSystem) data.agencyId = await getAgencyId()
-      data.createdById = userId
-      lead = (await db('clients').insert(data).returning('*'))[0]
+      const agencyId = await getAgencyId()
+      lead = await withAgencyQuotaLock(agencyId, async (trx) => {
+        await assertLeadQuota(agencyId, 1, trx)
+        const rows = await trx('clients')
+          .insert({ ...safeData, agencyId, createdById: userId })
+          .returning('*')
+        return rows[0]
+      })
     }
 
     if (revalidate) revalidatePath('/leads')
 
     return lead
   } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return {
+        error: 'quota_exceeded' as const,
+        current: error.current,
+        limit: error.limit,
+        attempted: error.attempted,
+      }
+    }
     console.error(error)
     return { err: true, msg: 'שגיאה בשמירת לקוח' }
   }
@@ -142,9 +203,10 @@ export async function transferLeadToRep(clientId, userId) {
 async function searchBase(val, isLead) {
   const terms = val.split(' ').filter((term) => term)
 
-  const query = db('clients')
-    .select('id', 'details', 'firstName', 'lastName', 'idNum', 'userId')
-    .where('agencyId', await getAgencyId())
+  const agencyId = await getAgencyId()
+  const plan = await getAgencyPlan(agencyId)
+  const query = db('clients').select('id', 'details', 'firstName', 'lastName', 'idNum', 'userId').where('agencyId', agencyId)
+  if (plan === 'free') query.where('overQuota', false)
   if (isLead === true) {
     query.where('lead', true)
   } else {
@@ -194,16 +256,26 @@ export async function getLeadById(clientId) {
 
 export async function updateLead(data) {
   const user = await requireUser()
-  const { id, ...updateData } = data
-  if ('status' in updateData) {
-    updateData.statusChangedAt = new Date()
+  const { id } = data ?? {}
+  const safeData: Record<string, any> = pickLeadFields(data ?? {})
+
+  if (isLeadTrue(safeData.lead)) {
+    const existing = await db('clients').where({ id, agencyId: user.agencyId }).first('lead')
+    if (existing && existing.lead === false) {
+      await assertLeadQuota(user.agencyId, 1)
+    }
   }
-  updateData.updatedAt = new Date()
+
+  if ('status' in safeData) {
+    safeData.statusChangedAt = new Date()
+  }
+  safeData.updatedAt = new Date()
+
   const { gotPermIds } = await getPerms(user)
   const query = db('clients').where({ id, agencyId: user.agencyId })
   if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
   const res = await query
-    .update(updateData)
+    .update(safeData)
     .returning('*')
     .catch((err) => {
       console.error('updateLead failed', err)
@@ -275,16 +347,17 @@ export async function uploadLeadData(file) {
   return { data: mappedData, wrongData: mappedCancelData }
 }
 
-export async function addLeads(leads) {
+export async function addLeads(leads): Promise<AddLeadsResult> {
   const { id: userId } = await getUser()
   const agencyId = await getAgencyId()
-  const formatLeads = leads.map((lead) => {
+  const safeLeads: any[] = Array.isArray(leads) ? leads.map((lead) => pickLeadFields(lead ?? {})) : []
+  const formatLeads: any[] = safeLeads.map((lead) => {
     return {
-      createdById: userId,
       handlerId: userId,
       userId,
       lead: true,
       ...lead,
+      createdById: userId,
       status: 'new',
       agencyId,
     }
@@ -298,9 +371,28 @@ export async function addLeads(leads) {
     )
   const newLeads = formatLeads.filter((lead) => !existingIdNums.some((idNum) => idNum.idNum === lead.idNum))
 
-  if (!newLeads.length) return
-  await db('clients').insert(newLeads)
+  if (!newLeads.length) return { success: true, inserted: 0 }
+
+  try {
+    await withAgencyQuotaLock(agencyId, async (trx) => {
+      await assertLeadQuota(agencyId, newLeads.length, trx)
+      await trx('clients').insert(newLeads)
+    })
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return {
+        error: 'quota_exceeded' as const,
+        current: error.current,
+        limit: error.limit,
+        attempted: leads.length,
+        wouldInsert: newLeads.length,
+      }
+    }
+    throw error
+  }
+
   revalidatePath('/leads')
+  return { success: true, inserted: newLeads.length }
 }
 
 export async function getLeadDeals(clientId) {
@@ -425,7 +517,21 @@ export async function importLeadsFromCsv(file: File) {
         .first()
 
       if (!exists) {
-        await upsertLead(userId, { ...lead, lead: true, status: 'new', userId, handlerId: userId }, null, false)
+        const res = await upsertLead(userId, { ...lead, lead: true, status: 'new', userId, handlerId: userId }, null, false)
+        if (res && (res as any).error === 'quota_exceeded') {
+          if (inserted > 0 || updated > 0) revalidatePath('/leads')
+          return {
+            error: 'quota_exceeded' as const,
+            current: (res as any).current,
+            limit: (res as any).limit,
+            attempted: valid.length,
+            wouldInsert: valid.length - inserted - updated - unchanged,
+            inserted,
+            updated,
+            unchanged,
+            invalid,
+          }
+        }
         inserted++
         continue
       }
@@ -455,6 +561,7 @@ export async function importLeadsFromCsv(file: File) {
 export async function fetchLeadsSince(lastSeenAt: string) {
   const user = await requireUser()
   const agencyId = user.agencyId
+  const plan = await getAgencyPlan(agencyId)
   const query = db('clients')
     .where({ 'clients.agencyId': agencyId, lead: true })
     .whereRaw('"clients"."updatedAt"::timestamptz > ?::timestamptz', [lastSeenAt])
@@ -463,6 +570,7 @@ export async function fetchLeadsSince(lastSeenAt: string) {
     .select('clients.*', 'handler.name as handlerName', 'creator.name as userName')
     .orderBy('clients.updatedAt', 'asc')
     .limit(100)
+  if (plan === 'free') query.where('clients.overQuota', false)
   if (!isAdmin(user.role)) {
     const { gotPermIds } = await getPerms(user)
     query.whereIn('clients.userId', gotPermIds)

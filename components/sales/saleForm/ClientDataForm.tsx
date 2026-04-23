@@ -9,6 +9,7 @@ import { Input } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { isIdNumValid } from '@/lib/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 
 type Props = {
   curSale?: Deal & { clientData: string }
@@ -51,6 +52,7 @@ function ClientSaleFormPop({ user, setClient }) {
   const lastNameRef = useRef(null)
   const idNumRef = useRef(null)
   const [errMsg, setErrMsg] = useState<string | null>(null)
+  const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
 
   async function onSubmit() {
     const data = {
@@ -67,6 +69,9 @@ function ClientSaleFormPop({ user, setClient }) {
     if (existingClient) return setErrMsg(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
 
     const res = await upsertLead(user.id, data, null, false)
+    if ((res as any)?.error === 'quota_exceeded') {
+      return setPaywall({ current: (res as any).current, limit: (res as any).limit, attempted: (res as any).attempted })
+    }
     if (res.err) return setErrMsg(res.msg)
 
     setClient(res)
@@ -92,6 +97,7 @@ function ClientSaleFormPop({ user, setClient }) {
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
       />
+      <QuotaPaywallModal state={paywall} onClose={() => setPaywall(null)} />
     </div>
   )
 }

@@ -12,9 +12,13 @@ import { AnimatedCta } from '@/components/ui/animated-cta'
 
 const heroData: HeroSectionComponentData = {
   heroContent: {
-    subheadline: 'מערכת ניהול לידים לעסקים קטנים',
-    headline: 'כל הלידים שלך, במקום אחד',
-    description: 'לידים מפייסבוק, אינסטגרם ווואטסאפ מגיעים אוטומטית למערכת. עדכן סטטוס, שייך נציגים, וסגור יותר עסקאות. בלי לפספס אף ליד.',
+    subheadline: 'SocialCRM ניהול לידים חכם לעסקים',
+    headline: (
+      <>
+        <span className='text-blue-600'>SocialCRM</span> ניהול לידים במקום אחד
+      </>
+    ),
+    description: 'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד.',
     secondaryCtaText: "צפה בפיצ'רים",
     secondaryCtaLink: '/features',
     primaryCtaText: 'התחל לנהל לידים בחינם',
@@ -56,14 +60,17 @@ const heroData: HeroSectionComponentData = {
 }
 
 export const metadata: Metadata = {
-  title: 'ניהול לידים לעסקים קטנים, המדריך המלא | SocialCRM',
+  title: 'SocialCRM – ניהול לידים חכם לעסקים',
   description:
-    'כל מה שצריך לדעת על ניהול לידים לעסקים קטנים. מה זה CRM, איך מנהלים לידים מפייסבוק ווואטסאפ, ולמה עסקים קטנים עוברים ממקסל למערכת ייעודית.',
+    'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. עדכן סטטוסים, שייך נציגים וסגור יותר עסקאות, בלי לפספס אף ליד.',
   alternates: { canonical: 'https://socialcrm.vercel.app/crm' },
   openGraph: {
-    title: 'ניהול לידים לעסקים קטנים, המדריך המלא',
-    description: 'המדריך המלא לניהול לידים: מה זה CRM, איך מתחילים, ואיך לא לפספס אף עסקה.',
+    title: 'SocialCRM – ניהול לידים חכם לעסקים',
+    description:
+      'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. בלי לפספס אף ליד.',
     url: 'https://socialcrm.vercel.app/crm',
+    siteName: 'SocialCRM',
+    type: 'website',
   },
 }
 
@@ -112,22 +119,30 @@ const faqItems = [
 
 const pageSchema = {
   '@context': 'https://schema.org',
-  '@type': 'Article',
-  '@id': 'https://socialcrm.vercel.app/crm',
-  headline: 'ניהול לידים לעסקים קטנים, המדריך המלא',
-  description:
-    'המדריך המקיף לניהול לידים לעסקים קטנים: מה זה CRM, מאיפה מגיעים הלידים, וכיצד SocialCRM עוזרת לסגור יותר עסקאות.',
-  inLanguage: 'he',
+  '@type': 'SoftwareApplication',
+  '@id': 'https://socialcrm.vercel.app/#software',
+  name: 'SocialCRM',
+  alternateName: 'SocialCRM – ניהול לידים חכם לעסקים',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
   url: 'https://socialcrm.vercel.app/crm',
-  publisher: { '@id': 'https://socialcrm.vercel.app/#organization' },
-  about: { '@id': 'https://socialcrm.vercel.app/#software' },
-  breadcrumb: {
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
-      { '@type': 'ListItem', position: 2, name: 'ניהול לידים', item: 'https://socialcrm.vercel.app/crm' },
-    ],
+  inLanguage: 'he',
+  description:
+    'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. עדכן סטטוסים, שייך נציגים וסגור יותר עסקאות, בלי לפספס אף ליד.',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'ILS',
+    availability: 'https://schema.org/InStock',
   },
+  featureList: [
+    'ניהול לידים ממדיה חברתית',
+    'חיבור אוטומטי לפייסבוק ואינסטגרם',
+    'ייבוא לידים מאקסל',
+    'מעקב אחר מכירות',
+    'ניהול נציגים וצוותים',
+  ],
+  publisher: { '@id': 'https://socialcrm.vercel.app/#organization' },
 }
 
 const howToSchema = {

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import FileUploader from '@/components/files/FileUploader'
 import { addLeads, importLeadsFromCsv, uploadLeadData } from '@/actions/clients'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 
 export default function UploadClientData() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function UploadClientData() {
   const [csvResult, setCsvResult] = useState<{ inserted: number; updated: number; unchanged: number; invalid: number } | null>(null)
   const [csvLoading, setCsvLoading] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
+  const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
 
   async function onChange(files: any[]) {
     const file = files[0]
@@ -28,7 +30,11 @@ export default function UploadClientData() {
     setClients(data)
     setWrongClients(wrongData)
     if (data.length) {
-      await addLeads(data)
+      const res = await addLeads(data)
+      if ((res as any)?.error === 'quota_exceeded') {
+        setPaywall({ current: (res as any).current, limit: (res as any).limit, attempted: (res as any).attempted })
+        return
+      }
       router.refresh()
     }
   }
@@ -40,8 +46,13 @@ export default function UploadClientData() {
     setCsvResult(null)
     try {
       const result = await importLeadsFromCsv(file)
-      setCsvResult(result)
-      if (result.inserted > 0) router.refresh()
+      if ((result as any)?.error === 'quota_exceeded') {
+        setPaywall({ current: (result as any).current, limit: (result as any).limit, attempted: (result as any).attempted })
+        if ((result as any).inserted > 0 || (result as any).updated > 0) router.refresh()
+        return
+      }
+      setCsvResult(result as any)
+      if ((result as any).inserted > 0) router.refresh()
     } finally {
       setCsvLoading(false)
       e.target.value = ''
@@ -162,6 +173,7 @@ export default function UploadClientData() {
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
       />
+      <QuotaPaywallModal state={paywall} onClose={() => setPaywall(null)} />
     </div>
   )
 }

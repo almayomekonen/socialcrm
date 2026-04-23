@@ -242,11 +242,18 @@ export function delDups<T>(arr: T[]): T[] {
   return [...new Set(arr)]
 }
 
-export async function api(func: (...args: any[]) => Promise<any>, data: any | any[], msg?: string, errMsg?: string) {
+export async function api(
+  func: (...args: any[]) => Promise<any>,
+  data: any | any[],
+  msg?: string,
+  errMsg?: string,
+  options?: { silentSuccess?: boolean },
+) {
+  const silent = !!options?.silentSuccess
   try {
-    toast('loading')
+    if (!silent) toast('loading')
     const res = Array.isArray(data) ? await func(...data) : await func(data)
-    toast('success', msg)
+    if (!silent) toast('success', msg)
     return res
   } catch (err: any) {
     toast('error', errMsg)

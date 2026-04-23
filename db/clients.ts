@@ -5,6 +5,7 @@ import { getPerms } from './filter'
 import { filesJsonAgg } from './helpers/aggregations'
 import { Lead, LeadInfo } from '@/types/db/tables'
 import { requireUser } from '@/lib/requireUser'
+import { getAgencyPlan } from '@/lib/quota'
 
 export type LeadKey = keyof Lead | keyof LeadInfo
 
@@ -45,7 +46,10 @@ export async function getFamMembers(clientId) {
 }
 
 export async function hasAnyLeads(agencyId: number, gotPermIds: number[]): Promise<boolean> {
-  const res = await db('clients').where({ agencyId }).whereIn('userId', gotPermIds).count('id').first()
+  const plan = await getAgencyPlan(agencyId)
+  const q = db('clients').where({ agencyId }).whereIn('userId', gotPermIds)
+  if (plan === 'free') q.where('overQuota', false)
+  const res = await q.count('id').first()
   return Number(res?.count || 0) > 0
 }
 
@@ -53,9 +57,11 @@ export async function getLeadsByRep(user) {
   const authedUser = await requireUser()
   const { gotPermIds } = await getPerms(user)
 
-  const res = await db('clients').select('id', 'details').where({ agencyId: authedUser.agencyId }).whereIn('userId', gotPermIds)
+  const plan = await getAgencyPlan(authedUser.agencyId)
+  const q = db('clients').select('id', 'details').where({ agencyId: authedUser.agencyId }).whereIn('userId', gotPermIds)
+  if (plan === 'free') q.where('overQuota', false)
 
-  return res
+  return await q
 }
 
 export async function getLeadLists(userId) {
@@ -76,6 +82,7 @@ export async function getGlobalLatestUpdatedAt(): Promise<string> {
 
 export async function getLeadsTable({ user, params, leads = false, gotPermIds, settings = null }) {
   const agencyId = await getAgencyId()
+  const plan = await getAgencyPlan(agencyId)
 
   let { listId, pageNum, tableLimit, clientId } = params
   pageNum = Number(pageNum) || 1
@@ -97,6 +104,7 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds, s
     )
 
   if (gotPermIds && !isAdmin(user.role)) base.whereIn('clients.userId', gotPermIds)
+  if (plan === 'free') base.where('clients.overQuota', false)
 
   if (clientId) {
     base.where('clients.id', clientId)

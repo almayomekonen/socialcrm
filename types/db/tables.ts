@@ -8,7 +8,7 @@ export type Json = any // string | number | boolean | null | { [key: string]: Js
 export type Role = 'ADMIN' | 'MNGR' | 'AGNT' | 'OFFICE' | 'GM' | 'EXT'
 export type FamilyStatus = 'רווק' | 'רווקה' | 'נשוי' | 'נשואה' | 'גרוש' | 'גרושה' | 'אלמן' | 'אלמנה'
 export type Gender = 'זכר' | 'נקבה'
-export type HebrewRole = 'אדמין' | 'נציג' | 'מנהל' | 'מתפעל' // Different from the system `Role`
+export type HebrewRole = 'אדמין' | 'נציג' | 'מנהל' | 'מתפעל'
 export type TagmulType = 'היקף' | 'נפרעים'
 
 // --------------------------------------------------
@@ -86,7 +86,7 @@ export interface User {
   gglName: string | null
   gglSub: string | null
   picture: string | null
-  suspended: boolean // defaultTo implies it will likely be present
+  suspended: boolean
   createdAt: Date
   updatedAt: Date
   tblPref: Json | null
@@ -94,7 +94,7 @@ export interface User {
   goals: Json | null
   savedFilters: Json | null
   favClientIds: number[]
-  name: string // Generated column
+  name: string
   otp: UserOtp | null
   createdById: number
   agencyId: number
@@ -137,6 +137,8 @@ export interface Agency {
   name: string
   img: number | File | null
   pkg: string | null
+  plan: 'free' | 'pro'
+  planReason: string | null
 }
 
 export interface Invitation {
@@ -172,9 +174,9 @@ export interface Lead {
   idNum: string
   idNumDate: Date | null
   createdById: number
-  name: string // Generated column
-  details: string // Generated column
-  rank: number | null // decimal is number in JS
+  name: string
+  details: string
+  rank: number | null
   status: string | null
   email: string | null
   phone: string | null
@@ -192,8 +194,8 @@ export interface Lead {
   userId: number | null
   agencyId: number
   lead: boolean
+  overQuota: boolean
   statusChangedAt: Date
-  // computed fields from getLeadsTable CTE
   state?: 'updated' | 'cold' | null
   priority?: number
   overdueRatio?: number | null
@@ -270,7 +272,7 @@ export interface DeletedDeal {
   createdAt: Date | null
   updatedAt: Date | null
   deletedById: number
-  sale: Json // contains the full deal object as JSON
+  sale: Json
 }
 
 export interface Promo {

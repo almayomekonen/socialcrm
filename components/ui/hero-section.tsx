@@ -5,7 +5,7 @@ import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 
 interface HeroContentData {
   subheadline: string
-  headline: string
+  headline: React.ReactNode
   description: string
   secondaryCtaText: string
   secondaryCtaLink: string
@@ -86,9 +86,9 @@ const HeroContent: React.FC<HeroContentData> = ({
 }) => {
   return (
     <div className='flex flex-col items-center text-center p-8 lg:px-12 lg:pt-8' dir='rtl'>
-      <div className='w-full max-w-2xl'>
+      <div className='w-full max-w-5xl'>
         {subheadline && <p className='text-sm text-gray-600 mb-4'>{subheadline}</p>}
-        <h1 className='text-4xl md:text-[57px] font-bold text-gray-900 mb-6 leading-tight text-center'>{headline}</h1>
+        <h1 className='text-4xl md:text-[60px] font-bold text-gray-900 mb-6 leading-tight text-center'>{headline}</h1>
         <p className='text-lg text-gray-700 mb-8'>{description}</p>
         <div className='flex flex-col sm:flex-row items-center justify-center gap-4 mb-8'>
           {secondaryCtaText && (
