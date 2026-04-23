@@ -14,23 +14,17 @@ type Args = {
   setDeletedIds: React.Dispatch<React.SetStateAction<Set<number>>>
 }
 
-export function useLeadSelection({
-  leads,
-  tblId,
-  filteredData,
-  activeTab,
-  setLiveLeads,
-  setDeletedIds,
-}: Args) {
+export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiveLeads, setDeletedIds }: Args) {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
 
   useEffect(() => {
     const el = document.getElementById(tblId)
     if (!el) return
-    const sync = () => setSelectedIds(checkedIds())
+    const sync = () => setSelectedIds(checkedIds(el))
     el.addEventListener('change', sync)
+    sync()
     return () => el.removeEventListener('change', sync)
-  }, [tblId])
+  }, [tblId, filteredData.length, activeTab])
 
   useEffect(() => {
     setSelectedIds((prev) => {
@@ -42,9 +36,7 @@ export function useLeadSelection({
   function clearDomChecks() {
     const all = document.getElementById('checkAll') as HTMLInputElement | null
     if (all) all.checked = false
-    document
-      .querySelectorAll<HTMLInputElement>("[name='checkRow']")
-      .forEach((cb) => (cb.checked = false))
+    document.querySelectorAll<HTMLInputElement>("[name='checkRow']").forEach((cb) => (cb.checked = false))
     setSelectedIds([])
   }
 
@@ -52,26 +44,22 @@ export function useLeadSelection({
   const [bulkInfoMsg, setBulkInfoMsg] = useState<string | null>(null)
 
   function handleBulkDelete() {
-    if (!leads) return
     if (!selectedIds.length) return
     setBulkConfirmOpen(true)
   }
 
   async function performBulkDelete() {
     setBulkConfirmOpen(false)
-    if (!leads) return
     if (!selectedIds.length) return
 
-    const res = await api(deleteManyLeads, [selectedIds], 'הלידים נמחקו')
+    const successMsg = leads ? 'הלידים נמחקו' : 'הלקוחות נמחקו'
+    const res = await api(deleteManyLeads, [selectedIds, leads], successMsg)
     if (res?.err) return
 
     const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
-    const blockedBySales: number = typeof res?.blockedBySales === 'number' ? res.blockedBySales : 0
     const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
 
-    const deletedSet = new Set<number>(
-      deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted),
-    )
+    const deletedSet = new Set<number>(deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted))
 
     if (deletedSet.size > 0) {
       setLiveLeads((prev) => prev.filter((c) => !deletedSet.has(Number(c.id))))
@@ -84,11 +72,8 @@ export function useLeadSelection({
 
     clearDomChecks()
 
-    if (blockedBySales > 0 || skipped > 0) {
-      const parts: string[] = []
-      if (blockedBySales > 0) parts.push(`${blockedBySales} לידים עם עסקאות לא נמחקו`)
-      if (skipped > 0) parts.push(`${skipped} ללא הרשאה או לא נמצאו`)
-      setBulkInfoMsg(parts.join(' · '))
+    if (skipped > 0) {
+      setBulkInfoMsg(`${skipped} ללא הרשאה או לא נמצאו`)
     }
   }
 

@@ -100,6 +100,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         obj={obj}
         updatingId={updatingId}
         onStatusChange={handleStatusChange}
+        leads={leads}
       />
     )
   }
@@ -118,7 +119,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
           </>
         ) : (
           <>
-            <p className='text-lg font-semibold'>אין עדיין נתונים</p>
+            <p className='text-lg font-semibold'>אין לקוחות עדיין</p>
             <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
             <div className='flex gap-3 justify-center'>
               <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
@@ -234,14 +235,16 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             </div>
 
             <div className='flex gap-2 items-end'>
-              {leads && selectedIds.length > 0 && (
+              {selectedIds.length > 0 && (
                 <Btn
                   variant='destructive'
                   icon='trash'
                   lbl={
-                    selectedIds.length === filteredData.length
-                      ? `מחק הכל (${selectedIds.length})`
-                      : `מחק (${selectedIds.length})`
+                    leads
+                      ? selectedIds.length === filteredData.length
+                        ? `מחק הכל (${selectedIds.length})`
+                        : `מחק (${selectedIds.length})`
+                      : `מחק לקוחות (${selectedIds.length})`
                   }
                   onClick={handleBulkDelete}
                 />
@@ -250,7 +253,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
               <SelectClientGrpActions user={user} />
               <SelectClientLists />
               <ExportTable data={mergedState} columns={columns} />
-              <Btn lbl='ליד חדש' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+              <Btn lbl={leads ? 'ליד חדש' : 'לקוח חדש'} icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
             </div>
           </div>
         </LeadsTableView>
@@ -348,7 +351,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         open={bulkConfirmOpen}
         destructive
         confirmLbl='מחיקה'
-        msg={`למחוק ${selectedIds.length} לידים?`}
+        msg={`למחוק ${selectedIds.length} ${leads ? 'לידים' : 'לקוחות'}?`}
         onClose={closeBulkConfirm}
         onConfirm={performBulkDelete}
       />
@@ -366,9 +369,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
           if (res?.err || res?.error) {
             const reason = res?.reason
             const msg =
-              reason === 'has_sales'
-                ? 'לא ניתן למחוק ליד עם מכירות, העבר את המכירות ונסה שוב'
-                : reason === 'no_permission'
+              reason === 'no_permission'
                 ? 'אין לך הרשאה למחוק ליד זה'
                 : reason === 'not_found'
                 ? 'הליד לא נמצא או כבר נמחק'
@@ -437,9 +438,16 @@ function formatLeadSource(source) {
 
 function formatName(name, obj) {
   return (
-    <Link href={`/clients/${obj.id}/summary`} className='underline font-semibold'>
-      {name}
-    </Link>
+    <span className='inline-flex items-center gap-2'>
+      <Link href={`/clients/${obj.id}/summary`} className='underline font-semibold'>
+        {name}
+      </Link>
+      {obj.lead === false && (
+        <span className='text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium whitespace-nowrap'>
+          לקוח
+        </span>
+      )}
+    </span>
   )
 }
 function StatusBadge({ status }: { status: string }) {

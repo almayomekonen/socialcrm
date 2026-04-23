@@ -18,14 +18,18 @@ type Props = {
   obj: any
   updatingId: number | null
   onStatusChange: (obj: any, newStatus: string) => void | Promise<void>
+  leads?: boolean
 }
 
-function LeadStatusCell({ status, obj, updatingId, onStatusChange }: Props) {
+const CLIENT_STATUS_OPTIONS = STATUS_OPTIONS.map((o) => (o.value === 'new' ? { ...o, label: 'לקוח' } : o))
+
+function LeadStatusCell({ status, obj, updatingId, onStatusChange, leads = true }: Props) {
   const isUpdating = updatingId === obj.id
   const s = STATUS_STYLES[status ?? 'new'] || STATUS_STYLES.new
+  const options = leads ? STATUS_OPTIONS : CLIENT_STATUS_OPTIONS
   return (
     <Select
-      options={STATUS_OPTIONS}
+      options={options}
       val='value'
       show='label'
       value={status}

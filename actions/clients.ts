@@ -12,14 +12,10 @@ import { isAdmin } from '@/types/roles'
 import { assertLeadQuota, QuotaExceededError, getAgencyPlan, withAgencyQuotaLock } from '@/lib/quota'
 import type { QuotaErrorResult } from '@/lib/quota'
 
-export type DeleteLeadResult = { success: true } | { error: true; reason: 'has_sales' | 'no_permission' | 'not_found' }
+export type DeleteLeadResult = { success: true } | { error: true; reason: 'no_permission' | 'not_found' }
 
 export type AddLeadsResult = { success: true; inserted: number } | (QuotaErrorResult & { wouldInsert: number })
 
-// Whitelist of columns a client is allowed to write on `clients`.
-// System-controlled columns (agencyId, createdById, overQuota, createdAt,
-// updatedAt, statusChangedAt, id) and the internal `_system` flag are
-// deliberately absent; they are set by the server or not at all.
 const CLIENT_WRITABLE_LEAD_FIELDS = new Set<string>([
   'firstName',
   'lastName',
@@ -56,73 +52,81 @@ function isLeadTrue(val: unknown): boolean {
   return val === true || val === 'true'
 }
 
+async function hardDeleteSalesForClients(trx: import('knex').Knex.Transaction, clientIds: number[], agencyId: number) {
+  if (clientIds.length === 0) return
+  const saleRows = await trx('sales').whereIn('clientId', clientIds).andWhere({ agencyId }).select('id')
+  const saleIds: number[] = saleRows.map((r: any) => Number(r.id))
+  if (saleIds.length === 0) return
+
+  await trx('sale_users').whereIn('saleId', saleIds).del()
+
+  await trx('users')
+    .whereRaw('"favSaleIds" && ?::integer[]', [saleIds])
+    .update({
+      favSaleIds: trx.raw(`ARRAY(SELECT UNNEST("favSaleIds") EXCEPT SELECT UNNEST(?::integer[]))`, [saleIds]),
+    })
+
+  await trx('sales').whereIn('id', saleIds).del()
+}
+
 export async function deleteLead(clientId): Promise<DeleteLeadResult> {
   const user = await requireUser()
-
-  const hasSale = await db('sales').where('clientId', clientId).first()
-  if (hasSale) {
-    return { error: true, reason: 'has_sales' }
-  }
-
   const { gotPermIds } = await getPerms(user)
-  const query = db('clients').where({ id: clientId, agencyId: user.agencyId })
-  if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
-  const affected = await query.del()
 
-  if (affected === 0) {
-    const exists = await db('clients').where({ id: clientId, agencyId: user.agencyId }).first()
-    return { error: true, reason: exists ? 'no_permission' : 'not_found' }
-  }
+  const result = await db.transaction(async (trx) => {
+    const scopeQ = trx('clients').where({ id: clientId, agencyId: user.agencyId })
+    if (!isAdmin(user.role)) scopeQ.whereIn('userId', gotPermIds)
+    const scoped = await scopeQ.first('id')
 
-  revalidatePath('/leads')
-  return { success: true }
+    if (!scoped) {
+      const exists = await trx('clients').where({ id: clientId, agencyId: user.agencyId }).first('id')
+      return { error: true, reason: exists ? 'no_permission' : 'not_found' } as const
+    }
+
+    await hardDeleteSalesForClients(trx, [Number(scoped.id)], user.agencyId)
+
+    await trx('clients').where({ id: clientId, agencyId: user.agencyId }).del()
+
+    return { success: true } as const
+  })
+
+  if ('success' in result) revalidatePath('/leads')
+  return result
 }
 
 export type DeleteManyLeadsResult = {
   deleted: number
   skipped: number
-  blockedBySales: number
 }
 
-export async function deleteManyLeads(ids: number[]): Promise<DeleteManyLeadsResult> {
+export async function deleteManyLeads(ids: number[], leads: boolean = true): Promise<DeleteManyLeadsResult> {
   const user = await requireUser()
-  if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0, blockedBySales: 0 }
+  if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0 }
 
-  // Permission scope — identical rules to deleteLead (agency + lead=true + userId in gotPermIds for non-admin).
   const { gotPermIds } = await getPerms(user)
 
-  const inScopeQ = db('clients').whereIn('id', ids).andWhere({ agencyId: user.agencyId, lead: true })
-  if (!isAdmin(user.role)) inScopeQ.whereIn('userId', gotPermIds)
-  const inScopeRows = await inScopeQ.select('id')
-  const inScopeIds: number[] = inScopeRows.map((r) => Number(r.id))
+  const result = await db.transaction(async (trx) => {
+    const inScopeQ = trx('clients').whereIn('id', ids).andWhere({ agencyId: user.agencyId, lead: leads })
+    if (!isAdmin(user.role)) inScopeQ.whereIn('userId', gotPermIds)
+    const inScopeRows = await inScopeQ.select('id')
+    const inScopeIds: number[] = inScopeRows.map((r: any) => Number(r.id))
 
-  if (inScopeIds.length === 0) {
-    return { deleted: 0, skipped: ids.length, blockedBySales: 0 }
+    if (inScopeIds.length === 0) return { deleted: 0, skipped: ids.length }
+
+    await hardDeleteSalesForClients(trx, inScopeIds, user.agencyId)
+
+    const deleteQ = trx('clients').whereIn('id', inScopeIds).andWhere({ agencyId: user.agencyId, lead: leads })
+    if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
+    const deleted = await deleteQ.del()
+
+    return { deleted, skipped: ids.length - deleted }
+  })
+
+  if (result.deleted > 0) {
+    revalidatePath('/leads')
+    revalidatePath('/clients')
   }
-
-  // Sales safeguard — mirrors deleteLead: cannot hard-delete a lead that owns sales.
-  const withSalesRows = await db('sales').whereIn('clientId', inScopeIds).distinct('clientId')
-  const withSalesSet = new Set<number>(withSalesRows.map((r: any) => Number(r.clientId)))
-  const deletableIds = inScopeIds.filter((id) => !withSalesSet.has(id))
-
-  if (deletableIds.length === 0) {
-    return {
-      deleted: 0,
-      skipped: ids.length - withSalesSet.size,
-      blockedBySales: withSalesSet.size,
-    }
-  }
-
-  const deleteQ = db('clients').whereIn('id', deletableIds).andWhere({ agencyId: user.agencyId, lead: true })
-  if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
-  const deleted = await deleteQ.del()
-
-  revalidatePath('/leads')
-  return {
-    deleted,
-    skipped: ids.length - deletableIds.length - withSalesSet.size,
-    blockedBySales: withSalesSet.size,
-  }
+  return result
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {

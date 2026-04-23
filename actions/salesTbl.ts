@@ -24,8 +24,6 @@ export async function getDealDataToExport(sqlExport) {
   // Only _sales is permitted — reject anything else
   if (!/\bFROM\s+"?_sales"?\b/i.test(sql)) throw new Error('Invalid export query')
 
-  // Hard-enforce agency isolation: wrap the inner query and filter by the
-  // authenticated user's agencyId regardless of what the inner SQL specifies.
   const res = await db.raw(`SELECT * FROM (${sql}) AS _export WHERE "agencyId" = ?`, [
     ...(sqlExport.bindings || []),
     user.agencyId,
@@ -69,23 +67,41 @@ export async function removeFavDeal(dealId: number) {
   revalidatePath('/deals')
 }
 
+async function hardDeleteSales(saleIds: number[], agencyId: number): Promise<number> {
+  if (saleIds.length === 0) return 0
+  return db.transaction(async (trx): Promise<number> => {
+    const ownedRows = await trx('sales').whereIn('id', saleIds).andWhere({ agencyId }).select('id')
+    const ownedIds: number[] = ownedRows.map((r: any) => Number(r.id))
+    if (ownedIds.length === 0) return 0
+
+    await trx('sale_users').whereIn('saleId', ownedIds).del()
+
+    await trx('users')
+      .whereRaw('"favSaleIds" && ?::integer[]', [ownedIds])
+      .update({
+        favSaleIds: trx.raw(`ARRAY(SELECT UNNEST("favSaleIds") EXCEPT SELECT UNNEST(?::integer[]))`, [ownedIds]),
+      })
+
+    const deleted = await trx('sales').whereIn('id', ownedIds).del()
+    return Number(deleted)
+  })
+}
+
 // מחיקת עסקאות
 export async function deleteDeals(ids: number[]) {
   const user = await requireUser()
   const owned = await db('sales').whereIn('id', ids).where({ agencyId: user.agencyId }).select('id')
   if (owned.length !== ids.length) throw new Error('Forbidden')
-  const res = await db.raw(`select delete_sales(?, ?)`, [ids, user.id])
+  const deleted = await hardDeleteSales(
+    owned.map((r: any) => Number(r.id)),
+    user.agencyId,
+  )
   revalidatePath('/deals')
-  return res?.rowCount
+  return deleted
 }
 
 export type DeleteManyDealsResult = { deleted: number; skipped: number }
 
-// Bulk delete entry point for table UIs.
-// Reuses the canonical delete_sales() stored function path used by deleteDeals
-// to preserve FK cascades across sale_users and related rows.
-// Permissive toward stale ids: filters by agency ownership first, deletes the owned subset,
-// reports the skipped count instead of throwing (unlike deleteDeals which hard-throws Forbidden).
 export async function deleteManyDeals(ids: number[]): Promise<DeleteManyDealsResult> {
   const user = await requireUser()
   if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0 }
@@ -94,9 +110,9 @@ export async function deleteManyDeals(ids: number[]): Promise<DeleteManyDealsRes
   const ownedIds: number[] = owned.map((r: any) => Number(r.id))
   if (ownedIds.length === 0) return { deleted: 0, skipped: ids.length }
 
-  await db.raw(`select delete_sales(?, ?)`, [ownedIds, user.id])
+  const deleted = await hardDeleteSales(ownedIds, user.agencyId)
   revalidatePath('/deals')
-  return { deleted: ownedIds.length, skipped: ids.length - ownedIds.length }
+  return { deleted, skipped: ids.length - deleted }
 }
 
 // מחיקת עסקה
@@ -104,10 +120,10 @@ export async function deleteDeal(id: number) {
   const user = await requireUser()
   const owned = await db('sales').where({ id, agencyId: user.agencyId }).first()
   if (!owned) throw new Error('Forbidden')
-  const res = await db.raw('SELECT delete_sales(?, ?)', [[id], user.id])
+  const deleted = await hardDeleteSales([id], user.agencyId)
 
   revalidatePath('/deals')
-  return res?.rowCount
+  return deleted
 }
 
 export async function updateDealDt(dealId: number, saleDt: string) {

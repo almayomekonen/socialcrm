@@ -115,6 +115,7 @@ function getNavLinks(user) {
   const notOffice = user.role !== Roles.OFFICE
   return [
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
+    notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
     { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
     {
       icon: 'chart-pie',

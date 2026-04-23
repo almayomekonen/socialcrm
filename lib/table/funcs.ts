@@ -1,8 +1,9 @@
 import { formatDate, formatDateTime } from '../dates'
 import { formatCurrency, formatPrecent, formatRoundCurrency, formatShortCurrency } from '../funcs'
 
-export function checkedIds() {
-  const checkItems = document.querySelectorAll("[name='checkRow']:checked") as NodeListOf<HTMLInputElement>
+export function checkedIds(container?: HTMLElement | Document | null) {
+  const root: ParentNode = container ?? document
+  const checkItems = root.querySelectorAll("[name='checkRow']:checked") as NodeListOf<HTMLInputElement>
 
   return Array.from(checkItems).map((item) => Number(item.id))
 }
@@ -19,11 +20,18 @@ export function sortTable(col, direction, data) {
   return sortedArray
 }
 
-export function onCheckAll() {
-  const checked = (document.getElementById('checkAll') as HTMLInputElement).checked
-  const checkItems = document.querySelectorAll("[name='checkRow']") as NodeListOf<HTMLInputElement>
+export function onCheckAll(e?: { currentTarget?: HTMLInputElement }) {
+  const header =
+    (e?.currentTarget as HTMLInputElement | undefined) ?? (document.getElementById('checkAll') as HTMLInputElement | null)
+  if (!header) return
+  const checked = header.checked
+  const scope: ParentNode = (header.closest('.tbl') as HTMLElement | null) ?? document
+  const checkItems = scope.querySelectorAll("[name='checkRow']") as NodeListOf<HTMLInputElement>
   checkItems.forEach((item) => {
-    item.checked = checked
+    if (item.checked !== checked) {
+      item.checked = checked
+      item.dispatchEvent(new Event('change', { bubbles: true }))
+    }
   })
 }
 
