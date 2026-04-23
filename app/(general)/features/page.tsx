@@ -190,7 +190,7 @@ export default function FeaturesPage() {
                 </span>
               </span>
             }
-            subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל — כל הלידים שלך מנוהלים במקום אחד.'
+            subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל כל הלידים שלך מנוהלים במקום אחד.'
             categories={featureCategories}
             buttonText='התחל בחינם עכשיו'
             buttonHref='/auth/register'

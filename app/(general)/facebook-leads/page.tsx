@@ -258,7 +258,7 @@ export default function FacebookLeadsPage() {
         <section className='px-8 py-16' style={{ backgroundColor: '#0a0a0a' }}>
           <div className='max-w-5xl mx-auto mb-10 text-center' dir='rtl'>
             <h2 className='text-3xl font-bold text-white mb-3'>כל הלידים שלך, ממקום אחד</h2>
-            <p className='text-white/50 max-w-xl mx-auto'>מפייסבוק, אינסטגרם, וואטסאפ ואקסל — הכל מגיע ישירות למערכת.</p>
+            <p className='text-white/50 max-w-xl mx-auto'>מפייסבוק, אינסטגרם, וואטסאפ ואקסל הכל מגיע ישירות למערכת.</p>
           </div>
           <div className='max-w-5xl mx-auto flex justify-center'>
             <MagnifiedBento />

@@ -7,11 +7,14 @@ import { useUser } from '@/lib/hooksNEvents'
 import ClientForm from './clientForm'
 import { getFormData2 } from '@/lib/form/funcs'
 import { api, isIdNumValid } from '@/lib/funcs'
+import { toast } from '@/lib/toast'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 
 export default function ClientFormPop({ client, onClose }: { client?: any; onClose?: () => void }) {
   const user = useUser()
   const [errMsg, setErrMsg] = useState<string | null>(null)
+  const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
   if (!user) return null
 
   async function onSubmit(e) {
@@ -25,9 +28,13 @@ export default function ClientFormPop({ client, onClose }: { client?: any; onClo
 
     if (clientData.idNum && !isIdNumValid(clientData.idNum)) return setErrMsg('תעודת זהות לא תקינה')
 
-    const res = await api(upsertLead, [user.id, clientData, client?.id])
+    const res = await api(upsertLead, [user.id, clientData, client?.id], undefined, undefined, { silentSuccess: true })
+    if (res?.error === 'quota_exceeded') {
+      return setPaywall({ current: res.current, limit: res.limit, attempted: res.attempted })
+    }
     if (res.err) return setErrMsg(res.msg)
 
+    toast('success')
     onClose?.()
   }
 
@@ -45,6 +52,7 @@ export default function ClientFormPop({ client, onClose }: { client?: any; onClo
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
       />
+      <QuotaPaywallModal state={paywall} onClose={() => setPaywall(null)} />
     </div>
   )
 }

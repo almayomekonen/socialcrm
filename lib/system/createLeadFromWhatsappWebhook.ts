@@ -1,6 +1,7 @@
 import { db } from '@/config/db'
-import { upsertLead } from '@/actions/clients'
+import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { createTask } from '@/actions/tasks'
+import { getQuotaStatus } from '@/lib/quota'
 
 type WhatsappWebhookLeadInput = {
   firstName: string
@@ -42,26 +43,24 @@ export async function createLeadFromWhatsappWebhook({
     }
   }
 
-  const lead = await upsertLead(
-    userId,
-    {
-      firstName,
-      lastName,
-      phone,
-      email: null,
-      idNum: `WA_${messageId}`,
-      lead: true,
-      leadSource: `whatsapp:${messageId}`,
-      agencyId,
-      handlerId: userId,
-      userId,
-      _system: true,
-    },
-    null,
-    false,
-  )
+  const quota = await getQuotaStatus(agencyId)
+  const overQuota = quota.plan === 'free' && quota.limit !== null && quota.used >= quota.limit
 
-  if (!lead || lead.err) {
+  const lead = await insertLeadSystem({
+    firstName,
+    lastName,
+    phone,
+    email: null,
+    idNum: `WA_${messageId}`,
+    lead: true,
+    leadSource: `whatsapp:${messageId}`,
+    agencyId,
+    handlerId: userId,
+    userId,
+    overQuota,
+  })
+
+  if (!lead) {
     // Concurrent insert guard — same as Facebook pattern
     const concurrentLead = await db('clients')
       .where({ leadSource: `whatsapp:${messageId}` })
@@ -70,7 +69,7 @@ export async function createLeadFromWhatsappWebhook({
       console.log(`[WhatsappWebhook][dedup][msgId=${messageId}] Concurrent insert resolved — lead id: ${concurrentLead.id}`)
       return concurrentLead
     }
-    console.error(`[WhatsappWebhook][create][msgId=${messageId}] upsertLead failed:`, lead)
+    console.error(`[WhatsappWebhook][create][msgId=${messageId}] insertLeadSystem failed`)
     return null
   }
 

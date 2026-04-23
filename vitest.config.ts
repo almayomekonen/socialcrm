@@ -7,7 +7,8 @@ export default defineConfig({
     // Each test file gets its own isolated module registry so vi.mock hoisting works
     isolate: true,
     testTimeout: 30_000,
-    hookTimeout: 30_000,
+    hookTimeout: 60_000,
+    setupFiles: ['./__tests__/setup.ts'],
   },
   resolve: {
     alias: {

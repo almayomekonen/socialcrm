@@ -1,6 +1,7 @@
 import { db } from '@/config/db'
-import { upsertLead } from '@/actions/clients'
+import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { createTask } from '@/actions/tasks'
+import { getQuotaStatus } from '@/lib/quota'
 
 type WebhookLeadInput = {
   firstName: string
@@ -43,28 +44,26 @@ export async function createLeadFromWebhook({
     }
   }
 
-  const lead = await upsertLead(
-    userId,
-    {
-      firstName,
-      lastName,
-      phone,
-      email,
-      idNum: `FB_${leadId}`,
-      lead: true,
-      leadSource: `facebook:${leadId}`,
-      agencyId,
-      handlerId: userId,
-      userId,
-      _system: true,
-    },
-    null,
-    false,
-  )
+  const quota = await getQuotaStatus(agencyId)
+  const overQuota = quota.plan === 'free' && quota.limit !== null && quota.used >= quota.limit
 
-  if (!lead || lead.err) {
+  const lead = await insertLeadSystem({
+    firstName,
+    lastName,
+    phone,
+    email,
+    idNum: `FB_${leadId}`,
+    lead: true,
+    leadSource: `facebook:${leadId}`,
+    agencyId,
+    handlerId: userId,
+    userId,
+    overQuota,
+  })
+
+  if (!lead) {
     // The unique index on clients."leadSource" means a concurrent insert for the same leadId
-    // will cause upsertLead to fail. Re-check the DB before treating this as a real error.
+    // will cause insertLeadSystem to fail. Re-check the DB before treating this as a real error.
     const concurrentLead = await db('clients')
       .where({ leadSource: `facebook:${leadId}` })
       .first()
@@ -72,7 +71,7 @@ export async function createLeadFromWebhook({
       console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Concurrent insert resolved — lead id: ${concurrentLead.id}`)
       return concurrentLead
     }
-    console.error(`[FacebookWebhook][create][leadId=${leadId}] upsertLead failed:`, lead)
+    console.error(`[FacebookWebhook][create][leadId=${leadId}] insertLeadSystem failed`)
     return null
   }
 
