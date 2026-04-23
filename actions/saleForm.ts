@@ -12,7 +12,7 @@ import { requireUser } from '@/lib/requireUser'
 export async function insertSale(data: saleObj) {
   const user = await requireUser()
   await db.transaction(async (trx) => {
-    if (data.saleId) await db('sales').where({ id: data.saleId, agencyId: user.agencyId }).del()
+    if (data.saleId) await trx('sales').where({ id: data.saleId, agencyId: user.agencyId }).del()
 
     const { prdcts, users, clientId } = data
 
@@ -39,9 +39,17 @@ export async function insertSale(data: saleObj) {
       const saleId = (await trx('sales').insert(sale).returning('id'))?.[0].id
       await insertSaleUsers(trx, saleId, users, cmsnRes, cntrctRes)
     }
+
+    if (clientId) {
+      await trx('clients')
+        .where({ id: clientId, agencyId: user.agencyId })
+        .update({ lead: false, updatedAt: new Date() })
+    }
   })
 
   revalidatePath('/deals')
+  revalidatePath('/clients')
+  revalidatePath('/leads')
 }
 
 export async function isPrdctsExists(sale): Promise<any> {

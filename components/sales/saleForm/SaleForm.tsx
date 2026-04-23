@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   BRANCHES,
   COMPANIES,
@@ -41,6 +42,7 @@ type Props = {
 
 export default function SaleForm({ props, curSale, onClose }: Props) {
   const { user, officeGotPerm, allUsers } = props
+  const router = useRouter()
 
   const allReps = omitOfficeExt(allUsers)
   const allRepsWithExt = omitOffice(allUsers)
@@ -99,9 +101,11 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
     saveSale(sale)
   }
 
-  function saveSale(sale: any) {
-    api(insertSale, sale, curSale?.id ? 'העסקה עודכנה בהצלחה' : 'העסקה נוספה בהצלחה')
+  async function saveSale(sale: any) {
+    const res = await api(insertSale, sale, curSale?.id ? 'העסקה עודכנה בהצלחה' : 'העסקה נוספה בהצלחה')
+    if (res?.err) return
     reset()
+    router.push('/deals')
   }
 
   function onPrdctExistsConfirm() {

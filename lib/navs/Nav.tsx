@@ -114,6 +114,7 @@ function getNavLinks(user) {
   const admin = isAdmin(user.role)
   const notOffice = user.role !== Roles.OFFICE
   return [
+    notOffice && { icon: 'house', href: '/', title: 'היום' },
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
     { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },

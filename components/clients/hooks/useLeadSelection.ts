@@ -12,9 +12,10 @@ type Args = {
   activeTab: string
   setLiveLeads: React.Dispatch<React.SetStateAction<any[]>>
   setDeletedIds: React.Dispatch<React.SetStateAction<Set<number>>>
+  setDeleting: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiveLeads, setDeletedIds }: Args) {
+export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiveLeads, setDeletedIds, setDeleting }: Args) {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
 
   useEffect(() => {
@@ -52,28 +53,33 @@ export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiv
     setBulkConfirmOpen(false)
     if (!selectedIds.length) return
 
-    const successMsg = leads ? 'הלידים נמחקו' : 'הלקוחות נמחקו'
-    const res = await api(deleteManyLeads, [selectedIds, leads], successMsg)
-    if (res?.err) return
+    setDeleting(true)
+    try {
+      const successMsg = leads ? 'הלידים נמחקו' : 'הלקוחות נמחקו'
+      const res = await api(deleteManyLeads, [selectedIds, leads], successMsg)
+      if (res?.err) return
 
-    const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
-    const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
+      const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
+      const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
 
-    const deletedSet = new Set<number>(deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted))
+      const deletedSet = new Set<number>(deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted))
 
-    if (deletedSet.size > 0) {
-      setLiveLeads((prev) => prev.filter((c) => !deletedSet.has(Number(c.id))))
-      setDeletedIds((prev) => {
-        const next = new Set(prev)
-        deletedSet.forEach((id) => next.add(id))
-        return next
-      })
-    }
+      if (deletedSet.size > 0) {
+        setLiveLeads((prev) => prev.filter((c) => !deletedSet.has(Number(c.id))))
+        setDeletedIds((prev) => {
+          const next = new Set(prev)
+          deletedSet.forEach((id) => next.add(id))
+          return next
+        })
+      }
 
-    clearDomChecks()
+      clearDomChecks()
 
-    if (skipped > 0) {
-      setBulkInfoMsg(`${skipped} ללא הרשאה או לא נמצאו`)
+      if (skipped > 0) {
+        setBulkInfoMsg(`${skipped} ללא הרשאה או לא נמצאו`)
+      }
+    } finally {
+      setDeleting(false)
     }
   }
 

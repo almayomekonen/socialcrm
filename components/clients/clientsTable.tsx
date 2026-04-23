@@ -44,6 +44,8 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setOptimisticStatuses,
   })
 
+  const [deleting, setDeleting] = useState(false)
+
   const {
     selectedIds,
     handleBulkDelete,
@@ -59,6 +61,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     activeTab,
     setLiveLeads,
     setDeletedIds,
+    setDeleting,
   })
 
   const validHeaders = getHeaders(leads)
@@ -199,6 +202,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       saveTblPref(tblId, columns)
     },
     emptyState,
+    clsBody: deleting ? 'opacity-50 pointer-events-none' : '',
   } as ConfigT
 
   function getSelectedClient(client) {
@@ -238,13 +242,17 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
               {selectedIds.length > 0 && (
                 <Btn
                   variant='destructive'
-                  icon='trash'
+                  icon={deleting ? 'spinner' : 'trash'}
+                  iconClassName={deleting ? 'animate-spin' : ''}
+                  disabled={deleting}
                   lbl={
-                    leads
-                      ? selectedIds.length === filteredData.length
-                        ? `מחק הכל (${selectedIds.length})`
-                        : `מחק (${selectedIds.length})`
-                      : `מחק לקוחות (${selectedIds.length})`
+                    deleting
+                      ? `מוחק... (${selectedIds.length})`
+                      : leads
+                        ? selectedIds.length === filteredData.length
+                          ? `מחק הכל (${selectedIds.length})`
+                          : `מחק (${selectedIds.length})`
+                        : `מחק לקוחות (${selectedIds.length})`
                   }
                   onClick={handleBulkDelete}
                 />
