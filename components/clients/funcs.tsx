@@ -31,7 +31,7 @@ export const getActions = (status?: string) => ({
     func: (..._args: any[]) => {},
   },
 
-  'העברת ליד לנציג אחר': {
+  'העברה לבעל ליד אחר': {
     func: (..._args: any[]) => {},
   },
 })
@@ -84,10 +84,3 @@ export function ActionsMenu({ id, children }) {
     </div>
   )
 }
-
-// ------------------------------
-// Functions
-// ------------------------------
-
-// `onDel` (lead delete) is owned by `ClientsTable` via `ConfirmPop`; the old
-// action entry is retained (commented out in `getActions`) for historical ref.

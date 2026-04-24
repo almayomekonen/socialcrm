@@ -27,16 +27,16 @@ export default function TransferClientForm({ client }) {
 
   return (
     <div>
-      <Title lbl={`העברת ליד מהנציג ${client.userName}`} className='mb-6' />
+      <Title lbl={`העברת ליד מבעל הליד ${client.userName}`} className='mb-6' />
       <form id='transferClientForm' onSubmit={onSubmit}>
-        <SelectSearch name='userId' lbl='בחר נציג' options={users} onSelectOpt={(user) => setUserName(user.name)} />
+        <SelectSearch name='userId' lbl='בחר בעל ליד חדש' options={users} onSelectOpt={(user) => setUserName(user.name)} />
         <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
       </form>
       <ConfirmPop
         open={!!pending}
         onClose={() => setPending(null)}
         onConfirm={onConfirm}
-        msg={`האם להעביר ליד ${client.name} לנציג ${userName} ?`}
+        msg={`האם להעביר ליד ${client.name} לבעל ליד ${userName} ?`}
       />
     </div>
   )

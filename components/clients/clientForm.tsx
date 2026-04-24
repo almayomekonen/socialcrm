@@ -11,7 +11,7 @@ export default function ClientForm({ data, prefix = '' }) {
   const user = useUser()
   if (!user) return null
   const { handlers, users } = useProps()
-  const hasMultipleUsers = users && users.length > 1
+  const hasMultipleUsers = false
   return (
     <div className='max-w-4xl' data-prefix={prefix}>
       <div className='flex  items-start flex-col gap-4'>
@@ -20,7 +20,7 @@ export default function ClientForm({ data, prefix = '' }) {
             {hasMultipleUsers ? (
               <SelectSearch
                 name='userId'
-                lbl='נציג'
+                lbl='בעל הליד'
                 className='w-52'
                 options={users}
                 selected={!isExtOffice(user.role) ? user.id : null}
@@ -49,13 +49,15 @@ export default function ClientForm({ data, prefix = '' }) {
         <div className='flex'>
           <Input name='leadSource' lbl='מקור הליד' defaultValue={data?.leadSource} required={false} />
 
-          <Select
-            lbl='מנהל'
-            name='handlerId'
-            options={handlers}
-            defaultValue={data?.handlerId ?? user.id}
-            required={false}
-          />
+          {hasMultipleUsers && (
+            <Select
+              lbl='אחראי נוסף (לא חובה)'
+              name='handlerId'
+              options={handlers}
+              defaultValue={data?.handlerId ?? user.id}
+              required={false}
+            />
+          )}
           <Select
             options={[
               { name: 'חדש', id: 'new' },

@@ -30,6 +30,7 @@ import { useLeadSelection } from './hooks/useLeadSelection'
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null }) {
   const [activeTab, setActiveTab] = useState('new')
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
+  const hasMultipleUsers = false
 
   const {
     setLiveLeads,
@@ -64,10 +65,13 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setDeleting,
   })
 
-  const validHeaders = getHeaders(leads)
+  const validHeaders = getHeaders(leads, hasMultipleUsers)
   const validKeys = new Set(validHeaders.map((h) => h.key))
   const savedPref = user?.tblPref?.[tblId]?.filter((col) => validKeys.has(col.key))
-  const [columns, setColumns] = useState(savedPref?.length ? savedPref : validHeaders)
+  const savedKeys = new Set(savedPref?.map((c) => c.key) || [])
+  const missingFromPref = validHeaders.filter((h) => !savedKeys.has(h.key))
+  const initialColumns = savedPref?.length ? [...savedPref, ...missingFromPref] : validHeaders
+  const [columns, setColumns] = useState(initialColumns)
 
   const [curClient, setCurClient] = useState(null)
   const [openForm, setOpenForm] = useState(false)
@@ -196,7 +200,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setState: setLiveLeads,
     moreHeads,
     moreRows,
-    funcs: { formatName, formatStatus, formatLeadSource, formatLeadStatus, formatState, formatNextAction },
+    funcs: { formatName, formatStatus, formatLeadSource, formatLeadStatus, formatState, formatNextAction, formatLastContact },
     addTrCls: (item) => item.id === highlightedId ? 'bg-green-50 transition-all duration-500' : '',
     getColumns(columns) {
       saveTblPref(tblId, columns)
@@ -313,36 +317,38 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             </div>
           </>
         )}
-        {Object.entries(getActions(curClient?.status)).map(([lbl, action]) => (
-          <div key={lbl}>
-            <div className='h-px bg-gray-200 w-full' />
-            {action.func ? (
-              <Btn
-                variant='simple'
-                size='simple'
-                lbl={lbl}
-                onClick={() => {
-                  if (DEAL_ACTION_LABELS.includes(lbl)) {
-                    setOpenSaleForm(true)
-                    return
-                  }
-                  switch (lbl) {
-                    case 'עריכה':
-                      setOpenForm(true)
-                      break
-                    case 'העברת ליד לנציג אחר':
-                      setOpenTransferClientForm(true)
-                      break
-                    default:
-                      action.func()
-                  }
-                }}
-              />
-            ) : (
-              <Btn variant='simple' size='simple' lbl={lbl} />
-            )}
-          </div>
-        ))}
+        {Object.entries(getActions(curClient?.status))
+          .filter(([lbl]) => hasMultipleUsers || lbl !== 'העברה לבעל ליד אחר')
+          .map(([lbl, action]) => (
+            <div key={lbl}>
+              <div className='h-px bg-gray-200 w-full' />
+              {action.func ? (
+                <Btn
+                  variant='simple'
+                  size='simple'
+                  lbl={lbl}
+                  onClick={() => {
+                    if (DEAL_ACTION_LABELS.includes(lbl)) {
+                      setOpenSaleForm(true)
+                      return
+                    }
+                    switch (lbl) {
+                      case 'עריכה':
+                        setOpenForm(true)
+                        break
+                      case 'העברה לבעל ליד אחר':
+                        setOpenTransferClientForm(true)
+                        break
+                      default:
+                        action.func()
+                    }
+                  }}
+                />
+              ) : (
+                <Btn variant='simple' size='simple' lbl={lbl} />
+              )}
+            </div>
+          ))}
         <div>
           <div className='h-px bg-gray-200 w-full' />
           <Btn
@@ -411,15 +417,19 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   )
 }
 
-export function getHeaders(leads) {
+export function getHeaders(leads, hasMultipleUsers = true) {
   const headers = [
     { key: 'name', label: 'שם מלא', format: 'formatName' },
     { key: 'phone', label: 'מספר טלפון' },
     { key: 'status', label: 'סטטוס', format: 'formatStatus' },
     { key: 'nextAction', label: 'פעולה הבאה', format: 'formatNextAction' },
     { key: 'leadSource', label: 'מקור', format: 'formatLeadSource' },
-    { key: 'userName', label: 'נציג' },
-    { key: 'handlerName', label: 'מנהל' },
+    ...(hasMultipleUsers
+      ? [
+          { key: 'userName', label: 'בעל הליד' },
+          { key: 'handlerName', label: 'אחראי נוסף (לא חובה)' },
+        ]
+      : []),
     { key: 'email', label: 'מייל' },
   ]
   if (leads) {
@@ -427,6 +437,7 @@ export function getHeaders(leads) {
       { key: 'leadStatus', label: 'מצב ליד', format: 'formatLeadStatus' },
     )
   }
+  headers.push({ key: 'lastContact', label: 'מגע אחרון', format: 'formatLastContact' })
   return headers
 }
 
@@ -489,4 +500,13 @@ function formatNextAction(_: unknown, obj: Record<string, unknown>) {
   const nextAction = getNextActionFromStatus(obj.status as string | null)
   if (!nextAction) return null
   return <span className='text-xs font-medium text-gray-700'>{nextAction}</span>
+}
+
+function formatLastContact(_: unknown, obj: Record<string, unknown>) {
+  const raw = (obj.updatedAt as string | null) || (obj.createdAt as string | null)
+  if (!raw) return null
+  const days = Math.floor((Date.now() - new Date(raw).getTime()) / 86400000)
+  const label = days <= 0 ? 'היום' : days === 1 ? 'אתמול' : `לפני ${days} ימים`
+  const isStale = days > 14
+  return <span className={isStale ? 'text-xs font-medium text-amber-600' : 'text-xs font-medium text-gray-700'}>{label}</span>
 }
