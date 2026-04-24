@@ -5,6 +5,9 @@ const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env.local'
 dotenv.config({ path: envFile, override: true })
 
 const rawUrl = process.env.DATABASE_URL ?? ''
+if ((process.env.APP_ENV === 'test' || process.env.NODE_ENV === 'test') && !rawUrl) {
+  throw new Error('Test environment requires DATABASE_URL')
+}
 
 const sslMode = new URL(rawUrl).searchParams.get('sslmode') ?? 'disable'
 const useSSL = ['require', 'verify-ca', 'verify-full'].includes(sslMode)

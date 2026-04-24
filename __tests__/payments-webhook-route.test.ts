@@ -30,11 +30,15 @@ vi.mock('@/lib/requireUser', async () => {
 const TOKEN_SECRET = 'test_token_secret_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const WEBHOOK_SECRET = 'test_webhook_secret_cccccccccccccccccccccccccccccccc'
 const PAYMENT_LINK = 'https://pay.grow.link/test-link-id'
+const APP_HOST = 'localhost:3000'
 
 const TEST_TAG = '__test_payments_' + Date.now() + '_'
 let agencyIds: number[] = []
 
 beforeAll(async () => {
+  process.env.APP_ENV = 'production'
+  process.env.GROW_MODE = 'production'
+  process.env.APP_HOST = APP_HOST
   process.env.GROW_TOKEN_SECRET = TOKEN_SECRET
   process.env.GROW_WEBHOOK_SECRET = WEBHOOK_SECRET
   process.env.GROW_PAYMENT_LINK = PAYMENT_LINK
@@ -49,6 +53,12 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  process.env.APP_ENV = 'production'
+  process.env.GROW_MODE = 'production'
+  process.env.APP_HOST = APP_HOST
+  process.env.GROW_TOKEN_SECRET = TOKEN_SECRET
+  process.env.GROW_WEBHOOK_SECRET = WEBHOOK_SECRET
+  process.env.GROW_PAYMENT_LINK = PAYMENT_LINK
   vi.mocked(requireUser).mockReset()
 })
 
@@ -69,12 +79,8 @@ async function seedAgency(): Promise<number> {
   return id
 }
 
-function buildReq(opts: {
-  body: unknown
-  signature?: string | null
-  bodyOverride?: string
-}) {
-  const headers: Record<string, string> = { 'content-type': 'application/json' }
+function buildReq(opts: { body: unknown; signature?: string | null; bodyOverride?: string }) {
+  const headers: Record<string, string> = { 'content-type': 'application/json', host: APP_HOST }
   if (opts.signature !== null) headers['x-grow-signature'] = opts.signature ?? WEBHOOK_SECRET
   return new NextRequest('http://localhost:3000/api/payments/grow', {
     method: 'POST',
@@ -109,9 +115,7 @@ describe('POST /api/payments/grow — happy path', () => {
     const externalId = signToken(agencyId)
     const transactionId = 'tx_nested_' + Date.now()
 
-    const res = await POST(
-      buildReq({ body: { data: { transactionId, status: 'success', external_id: externalId } } }),
-    )
+    const res = await POST(buildReq({ body: { data: { transactionId, status: 'success', external_id: externalId } } }))
 
     expect(res.status).toBe(200)
     const agency = await db('agencies').where({ id: agencyId }).first()
@@ -155,6 +159,55 @@ describe('POST /api/payments/grow — idempotency', () => {
 })
 
 describe('POST /api/payments/grow — security', () => {
+  it('rejects production webhooks when host does not match APP_HOST', async () => {
+    process.env.APP_HOST = 'socialcrm.example'
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_host_mismatch_' + Date.now()
+
+    const res = await POST(buildReq({ body: { transactionId, status: 'success', external_id: externalId } }))
+
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('Webhook misconfigured')
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('free')
+  })
+
+  it('rejects when GROW_WEBHOOK_SECRET is missing', async () => {
+    delete process.env.GROW_WEBHOOK_SECRET
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_missing_secret_' + Date.now()
+
+    const res = await POST(buildReq({ body: { transactionId, status: 'success', external_id: externalId } }))
+
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('Server misconfigured')
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('free')
+  })
+
+  it('rejects local-environment webhooks before touching DB', async () => {
+    process.env.APP_ENV = 'local'
+    process.env.GROW_MODE = 'sandbox'
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_local_' + Date.now()
+
+    const res = await POST(buildReq({ body: { transactionId, status: 'success', external_id: externalId } }))
+
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe('Webhook disabled')
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('free')
+  })
+
   it('rejects request with no signature header (401)', async () => {
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
@@ -194,9 +247,7 @@ describe('POST /api/payments/grow — security', () => {
     // Attacker constructs a JSON-looking blob — without GROW_TOKEN_SECRET they cannot sign it
     const forged = Buffer.from(JSON.stringify({ a: agencyId, t: Date.now() })).toString('base64url') + '.fake_sig'
 
-    const res = await POST(
-      buildReq({ body: { transactionId: 'tx_forge', status: 'success', external_id: forged } }),
-    )
+    const res = await POST(buildReq({ body: { transactionId: 'tx_forge', status: 'success', external_id: forged } }))
 
     expect(res.status).toBe(400)
     const agency = await db('agencies').where({ id: agencyId }).first()
@@ -207,15 +258,11 @@ describe('POST /api/payments/grow — security', () => {
     const agencyId = await seedAgency()
     // Hand-craft an expired but signed token
     const { createHmac } = await import('crypto')
-    const payloadB64 = Buffer.from(JSON.stringify({ a: agencyId, t: Date.now() - 60 * 60 * 1000 - 1000 })).toString(
-      'base64url',
-    )
+    const payloadB64 = Buffer.from(JSON.stringify({ a: agencyId, t: Date.now() - 60 * 60 * 1000 - 1000 })).toString('base64url')
     const sig = createHmac('sha256', TOKEN_SECRET).update(payloadB64).digest('base64url')
     const expired = `${payloadB64}.${sig}`
 
-    const res = await POST(
-      buildReq({ body: { transactionId: 'tx_exp', status: 'success', external_id: expired } }),
-    )
+    const res = await POST(buildReq({ body: { transactionId: 'tx_exp', status: 'success', external_id: expired } }))
 
     expect(res.status).toBe(400)
   })
@@ -243,9 +290,7 @@ describe('POST /api/payments/grow — validation', () => {
     const externalId = signToken(agencyId)
     const transactionId = 'tx_pending_' + Date.now()
 
-    const res = await POST(
-      buildReq({ body: { transactionId, status: 'pending', external_id: externalId } }),
-    )
+    const res = await POST(buildReq({ body: { transactionId, status: 'pending', external_id: externalId } }))
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true, ignored: true })
@@ -264,7 +309,7 @@ describe('Full flow integration', () => {
 
     // 1. User clicks upgrade
     const upgradeRes = await UPGRADE_GET(
-      new NextRequest('http://localhost:3000/api/payments/upgrade', { method: 'GET' }),
+      new NextRequest('http://localhost:3000/api/payments/upgrade', { method: 'GET', headers: { host: APP_HOST } }),
     )
     expect(upgradeRes.status).toBe(302)
     const growUrl = new URL(upgradeRes.headers.get('location')!)
@@ -273,9 +318,7 @@ describe('Full flow integration', () => {
 
     // 2. Grow processes payment, fires webhook back at us with the same external_id
     const transactionId = 'tx_e2e_' + Date.now()
-    const webhookRes = await POST(
-      buildReq({ body: { transactionId, status: 'success', external_id: externalId } }),
-    )
+    const webhookRes = await POST(buildReq({ body: { transactionId, status: 'success', external_id: externalId } }))
     expect(webhookRes.status).toBe(200)
 
     // 3. Side effects observable in DB

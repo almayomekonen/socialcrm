@@ -1,27 +1,28 @@
 'use client'
-import { updatePkg } from '@/actions/agencies'
-import { api } from '@/lib/funcs'
 import { twMerge } from 'tailwind-merge'
 import { Btn } from '@/lib/btns/Btn'
 
-export default function Packages({ curPkg = null }) {
-  const isSelected = (pkg) => curPkg === pkg.name
+type PackagesProps = { plan?: string }
+
+export default function Packages({ plan = 'free' }: PackagesProps) {
   return (
-    <>
-      {!curPkg && <div className='text-2xl font-bold my-6'>בחר חבילה</div>}
-      <div className='my-6 grid lg:grid-cols-3 gap-8  max-w-6xl '>
-        {packages.map((pkg) => (
-          <Package key={pkg.name} pkg={pkg} isSelected={isSelected(pkg)} />
-        ))}
-      </div>
-    </>
+    <div className='my-6 grid lg:grid-cols-3 gap-8  max-w-6xl '>
+      {packages.map((pkg) => (
+        <Package key={pkg.name} pkg={pkg} plan={plan} />
+      ))}
+    </div>
   )
 }
 
-export function Package({ pkg, isSelected }) {
-  async function PkgSelected(pkg) {
-    api(updatePkg, [pkg])
-  }
+export function Package({ pkg, plan }: { pkg: typeof packages[number]; plan: string }) {
+  const isPro = plan === 'pro'
+  const isFreeTier = pkg.pricePerMonth === 0
+  const isPaidTier = pkg.pricePerMonth !== null && pkg.pricePerMonth > 0
+  const isCustomTier = pkg.pricePerMonth === null
+
+  // Free plan → free tier is "current".
+  // Pro plan  → no specific paid tier is known; no "current" label.
+  const isSelected = !isPro && isFreeTier
 
   return (
     <fieldset
@@ -47,18 +48,23 @@ export function Package({ pkg, isSelected }) {
         </ul>
       </div>
 
-      {!isSelected && (
+      {isPro && (isPaidTier || isCustomTier) && (
+        <p className='mt-4 text-sm font-semibold text-green-700'>פעיל במסלול Pro</p>
+      )}
+
+      {!isPro && (isPaidTier || isCustomTier) && (
         <Btn
-          lbl={pkg.name === 'שגשוג' ? 'קבלת הצעה' : 'בחירת חבילה'}
+          lbl={isCustomTier ? 'קבלת הצעה' : 'שדרג למסלול Pro'}
           className={twMerge('w-full', pkg.name === 'שגשוג' && 'bg-orange-600 hover:bg-orange-600')}
           onClick={() => {
-            PkgSelected(pkg.name)
+            window.location.href = '/api/payments/upgrade'
           }}
         />
       )}
     </fieldset>
   )
 }
+
 export const packages = [
   {
     name: 'ניצן',

@@ -10,6 +10,9 @@
  */
 import knex from 'knex'
 import path from 'path'
+import dotenv from 'dotenv'
+
+dotenv.config({ path: '.env.test', override: true })
 
 // 1. Environment guard
 if (process.env.NODE_ENV !== 'test') {
@@ -18,7 +21,7 @@ if (process.env.NODE_ENV !== 'test') {
 
 const url = process.env.DATABASE_URL ?? ''
 if (!url) {
-  throw new Error('[test setup] DATABASE_URL is not set — create .env.test (see .env.test.example)')
+  throw new Error('Test environment requires DATABASE_URL')
 }
 
 // 2. Safety guard — refuse anything that smells like a remote/prod DB.

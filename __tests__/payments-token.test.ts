@@ -62,8 +62,7 @@ describe('payments/token', () => {
     expect(() => verifyToken('')).toThrow()
     expect(() => verifyToken('no-dot')).toThrow()
     expect(() => verifyToken('a.b.c')).toThrow()
-    // @ts-expect-error
-    expect(() => verifyToken(null)).toThrow()
+    expect(() => verifyToken(null as unknown as string)).toThrow()
   })
 
   it('rejects invalid agencyId at sign time', () => {
