@@ -1,7 +1,7 @@
 'use server'
 import { db } from '@/config/db'
 import { genToken } from '@/lib/funcs'
-import resend from '@/config/resend'
+import { sendEmail } from '@/lib/email/sender'
 import { getUser } from '@/db/auth'
 import { getAgencyById } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
@@ -25,26 +25,8 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
   email = normalizeEmail(email)
 
-  try {
-    await db('invitations').insert({
-      email,
-      token,
-      role,
-      firstName,
-      lastName,
-      phone,
-      createdById: user.id,
-      agencyId: user.agencyId,
-      expiresAt,
-    })
-
-    const invitationLink = `${baseUrl}/api/invitation?token=${token}`
-
-    const { error } = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: 'הזמנת הצטרפות לסוכנות ' + agencyName,
-      html: `
+  const invitationLink = `${baseUrl}/api/invitation?token=${token}`
+  const html = `
     <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: white; border: 1px solid #ddd; border-radius: 8px;">
       <div style="text-align: center; padding: 20px; border-bottom: 1px solid #eee;">
         <h2 style="margin: 0; color: #333;">${agencyName}</h2>
@@ -63,19 +45,39 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
         <p style="margin: 0; color: #666; font-size: 12px;">SocialCRM</p>
       </div>
     </div>
-  `,
+  `
+
+  try {
+    await db.transaction(async (trx) => {
+      await trx('invitations').insert({
+        email,
+        token,
+        role,
+        firstName,
+        lastName,
+        phone,
+        createdById: user.id,
+        agencyId: user.agencyId,
+        expiresAt,
+      })
+
+      const result = await sendEmail({
+        to: email,
+        subject: 'הזמנת הצטרפות לסוכנות ' + agencyName,
+        html,
+      })
+
+      if ('error' in result) {
+        throw new Error(`send-failed: ${result.error}`)
+      }
     })
 
-    if (error) {
-      console.error('Failed to send email:', error)
-      return { error: 'Failed to send invitation email.' }
-    }
     revalidatePath('/settings/edit_users')
-
     return { success: true }
-  } catch (err) {
+  } catch (err: any) {
+    const isSendFailure = typeof err?.message === 'string' && err.message.startsWith('send-failed:')
     console.error('Failed to create invitation:', err)
-    return { error: 'A database error occurred.' }
+    return { error: isSendFailure ? 'שליחת ההזמנה נכשלה. נסה שוב.' : 'אירעה שגיאה ביצירת ההזמנה.' }
   }
 }
 

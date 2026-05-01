@@ -10,7 +10,7 @@ import { createCookie, decrypt, encrypt, getUserByEmail } from '../db/auth'
 import { daysFromNow } from '@/lib/dates'
 import { genToken } from '@/lib/funcs'
 import { baseUrl } from '@/types/vars'
-import resend from '@/config/resend'
+import { sendEmail } from '@/lib/email/sender'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 
 export async function checkUserSuspended(user) {
@@ -88,16 +88,15 @@ export type UserDb = {
   agencyId?: number
 }
 
-export async function sendToken(email: string) {
+export async function sendToken(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  email = normalizeEmail(email)
   const token = genToken()
   const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000)
-  email = normalizeEmail(email)
   await db('users').where('email', email).update({ otp: { token, tokenExpiry } })
 
   const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
 
-  const res = await resend.emails.send({
-    from: 'onboarding@resend.dev',
+  const result = await sendEmail({
     to: email,
     subject: 'התחברות ל SocialCRM',
     html: `<p dir="rtl">לחץ על הקישור כדי להתחבר:</p>
@@ -105,5 +104,11 @@ export async function sendToken(email: string) {
     <p dir="rtl">הקישור יפוג בעוד 15 דקות</p>
     `,
   })
-  return res
+
+  if (!result.ok) {
+    await db('users').where('email', email).update({ otp: null })
+    return { ok: false, error: 'שליחת קישור ההתחברות נכשלה. נסה שוב בעוד רגע.' }
+  }
+
+  return { ok: true }
 }

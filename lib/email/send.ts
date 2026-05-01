@@ -1,11 +1,10 @@
-import resend from '@/config/resend'
 import { baseUrl } from '@/types/vars'
 import WelcomeEmail from '@/emails/templates/WelcomeEmail'
 import { renderEmail } from './render'
+import { sendEmail } from './sender'
+import { EMAIL_ENABLED, IS_PROD } from './config'
 
 const LOG_PREFIX = '[welcome-email]'
-
-const FALLBACK_FROM = 'SocialCRM <onboarding@resend.dev>'
 
 type WelcomeRecipient = {
   email: string
@@ -19,11 +18,17 @@ export async function sendWelcomeEmail(user: WelcomeRecipient): Promise<void> {
       return
     }
 
-    const enabled = process.env.WELCOME_EMAIL_ENABLED === 'true'
-    const isProd = process.env.NODE_ENV === 'production'
-    const testRecipient = process.env.WELCOME_EMAIL_TEST_RECIPIENT?.trim() || null
-
-    const recipient = !isProd && testRecipient ? testRecipient : user.email
+    if (!IS_PROD || !EMAIL_ENABLED) {
+      console.log(
+        `${LOG_PREFIX}:mock`,
+        JSON.stringify({
+          reason: !IS_PROD ? 'NODE_ENV is not production' : 'WELCOME_EMAIL_ENABLED is not "true"',
+          to: user.email,
+          firstName: user.firstName ?? null,
+        }),
+      )
+      return
+    }
 
     const subject = 'ברוך הבא ל-SocialCRM'
     const html = await renderEmail(
@@ -33,40 +38,10 @@ export async function sendWelcomeEmail(user: WelcomeRecipient): Promise<void> {
       }),
     )
 
-    // TEMPORARY DEV TESTING: gating on WELCOME_EMAIL_ENABLED only, ignoring NODE_ENV.
-    // REVERT BEFORE PRODUCTION DEPLOY: restore `if (!isProd || !enabled)` to prevent
-    // accidental real sends from dev/test environments.
-    if (!enabled) {
-      console.log(
-        `${LOG_PREFIX}:mock`,
-        JSON.stringify({
-          reason: 'WELCOME_EMAIL_ENABLED is not "true"',
-          to: recipient,
-          subject,
-          firstName: user.firstName ?? null,
-        }),
-      )
-      return
+    const result = await sendEmail({ to: user.email, subject, html })
+    if ('error' in result) {
+      console.error(`${LOG_PREFIX} failed`, { to: user.email, error: result.error })
     }
-
-    const from = process.env.WELCOME_EMAIL_FROM?.trim() || FALLBACK_FROM
-
-    const { error } = await resend.emails.send({
-      from,
-      to: recipient,
-      subject,
-      html,
-    })
-
-    if (error) {
-      console.error(`${LOG_PREFIX} resend returned error`, {
-        to: recipient,
-        reason: (error as { message?: string })?.message ?? error,
-      })
-      return
-    }
-
-    console.log(`${LOG_PREFIX} sent`, { to: recipient })
   } catch (err) {
     console.error(`${LOG_PREFIX} dispatch threw — swallowed to protect auth flow`, {
       reason: (err as Error)?.message,

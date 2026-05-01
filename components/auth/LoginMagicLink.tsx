@@ -20,7 +20,11 @@ export default function LoginMagicLink({ error }) {
       router.push(`/auth/register?email=${encodeURIComponent(data.email)}`)
       return
     }
-    await sendToken(data.email)
+    const sendResult = await sendToken(data.email)
+    if ('error' in sendResult) {
+      setMsg(sendResult.error)
+      return
+    }
     setMsg('לינק לאימות נשלח למייל')
   }
   return (

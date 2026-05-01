@@ -63,7 +63,18 @@ export const metaData: Metadata = {
   },
 }
 
-export const baseUrl = process.env.NODE_ENV === 'production' ? 'https://socialcrm.vercel.app' : 'http://localhost:3000'
+function resolveBaseUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+
+  const vercel = process.env.VERCEL_URL?.trim()
+  if (vercel) return `https://${vercel}`
+
+  if (process.env.NODE_ENV === 'production') return 'https://socialcrm.vercel.app'
+  return 'http://localhost:3000'
+}
+
+export const baseUrl = resolveBaseUrl()
 
 export const fileSizes = [
   {
