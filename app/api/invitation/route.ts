@@ -1,7 +1,9 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, after } from 'next/server'
 import { db } from '@/config/db'
 import { createCookie } from '@/db/auth'
 import { deleteInvitation } from '@/actions/invitations'
+import { sendWelcomeEmail } from '@/lib/email/send'
+import { normalizeEmail } from '@/lib/normalizeEmail'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -16,13 +18,14 @@ export async function GET(request: NextRequest) {
   if (!invitation) return failed('Invitation not found')
   if (new Date(invitation.expiresAt) < new Date()) return failed('Invitation has expired')
 
-  const existingUser = await db('users').where({ email: invitation.email }).first()
+  const normalizedEmail = normalizeEmail(invitation.email)
+  const existingUser = await db('users').whereILike('email', normalizedEmail).first()
   if (existingUser) return failed('A user with this email already exists.')
 
   try {
     const [newUser] = await db('users')
       .insert({
-        email: invitation.email,
+        email: normalizedEmail,
         firstName: invitation.firstName,
         lastName: invitation.lastName,
         phone: invitation.phone,
@@ -36,6 +39,13 @@ export async function GET(request: NextRequest) {
     await deleteInvitation(invitation.id)
 
     await createCookie(newUser.id)
+
+    after(() =>
+      sendWelcomeEmail({
+        email: newUser.email,
+        firstName: newUser.firstName,
+      }),
+    )
 
     return new Response(null, {
       status: 302,

@@ -3,10 +3,14 @@ import { createCookie, getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { after } from 'next/server'
 import { requireUser } from '@/lib/requireUser'
+import { normalizeEmail } from '@/lib/normalizeEmail'
+import { sendWelcomeEmail } from '@/lib/email/send'
 
 export async function addAgency(data) {
   let success = false
+  let newUser: { email: string; firstName: string } | null = null
   try {
     await db.transaction(async (trx) => {
       const agency = await trx('agencies').insert(data.agency).returning('id')
@@ -15,6 +19,7 @@ export async function addAgency(data) {
       const [user] = await trx('users')
         .insert({
           ...data.user,
+          email: normalizeEmail(data.user.email),
           agencyId,
           role: 'ADMIN',
         })
@@ -22,6 +27,7 @@ export async function addAgency(data) {
       await trx('users_info').insert({ id: user.id }).onConflict('id').merge()
       await trx('default_settings').insert({ userId: user.id })
       await createCookie(user.id)
+      newUser = { email: user.email, firstName: user.firstName }
       success = true
     })
   } catch (err: any) {
@@ -31,7 +37,8 @@ export async function addAgency(data) {
     return { error: 'אירעה שגיאה, נסה שוב' }
   }
 
-  if (success) {
+  if (success && newUser) {
+    after(() => sendWelcomeEmail(newUser!))
     redirect('/')
   }
   return success

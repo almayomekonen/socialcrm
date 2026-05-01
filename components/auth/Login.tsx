@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { jwtDecode } from 'jwt-decode'
 import { checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
+import { normalizeEmail } from '@/lib/normalizeEmail'
 
 declare global {
   const google: any
@@ -20,7 +21,7 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
       user = jwtDecode(gglUser.credential)
 
       const res = await checkUser({
-        email: user.email,
+        email: normalizeEmail(user.email),
         gglName: user.name,
         picture: user.picture,
         gglSub: user.sub,

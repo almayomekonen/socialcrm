@@ -11,6 +11,7 @@ import { daysFromNow } from '@/lib/dates'
 import { genToken } from '@/lib/funcs'
 import { baseUrl } from '@/types/vars'
 import resend from '@/config/resend'
+import { normalizeEmail } from '@/lib/normalizeEmail'
 
 export async function checkUserSuspended(user) {
   const cokis = await cookies()
@@ -22,7 +23,7 @@ export async function checkUserSuspended(user) {
 }
 
 export async function checkUser(user) {
-  const userExist = (await isUserExists(user.email)) as any
+  const userExist = (await isUserExists(normalizeEmail(user.email))) as any
   if (userExist.fail) return { fail: true, msg: userExist.msg }
 
   await db('users').where({ id: userExist.id }).update({ gglName: user.gglName, picture: user.picture, gglSub: user.gglSub })
@@ -90,7 +91,7 @@ export type UserDb = {
 export async function sendToken(email: string) {
   const token = genToken()
   const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000)
-  email = email.toLowerCase()
+  email = normalizeEmail(email)
   await db('users').where('email', email).update({ otp: { token, tokenExpiry } })
 
   const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`

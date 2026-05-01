@@ -7,6 +7,15 @@ export const MapRoles = {
   EXT: 'שותף חיצוני',
 }
 
+export const RoleLabels: Record<string, string> = {
+  ADMIN: 'מנהל המערכת',
+  GM: 'מנהל המערכת',
+  MNGR: 'מנהל צוות',
+  AGNT: 'נציג',
+  OFFICE: 'תפעול',
+  EXT: 'שותף חיצוני',
+}
+
 export const HE_ROLES = {
   'נציג מכירות': 'AGNT',
   מנהל: 'MNGR',

@@ -7,6 +7,7 @@ import { getAgencyById } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { MapRoles } from '@/types/roles'
 import { baseUrl } from '@/types/vars'
+import { normalizeEmail } from '@/lib/normalizeEmail'
 
 interface SendInvitationArgs {
   email: string
@@ -22,6 +23,7 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
   const { name: agencyName } = await getAgencyById(user.agencyId)
   const token = genToken()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+  email = normalizeEmail(email)
 
   try {
     await db('invitations').insert({
