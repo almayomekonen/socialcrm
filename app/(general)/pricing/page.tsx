@@ -6,11 +6,11 @@ export const metadata: Metadata = {
   title: 'מחירים | SocialCRM — מערכת ניהול לידים',
   description:
     'תוכניות מחיר גמישות לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ. התחל בחינם, שדרג כשתצמח. ללא התחייבות.',
-  alternates: { canonical: 'https://socialcrm.vercel.app/pricing' },
+  alternates: { canonical: 'https://getsocialcrm.com/pricing' },
   openGraph: {
     title: 'מחירים | SocialCRM',
     description: 'התחל בחינם. שדרג כשתצמח. נהל לידים מכל מקור במקום אחד.',
-    url: 'https://socialcrm.vercel.app/pricing',
+    url: 'https://getsocialcrm.com/pricing',
   },
 }
 

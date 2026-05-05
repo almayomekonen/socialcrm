@@ -14,11 +14,11 @@ export const metadata: Metadata = {
   title: 'ניהול לידים מוואטסאפ | SocialCRM',
   description:
     'ייבא ונהל לידים שמגיעים בוואטסאפ. הוסף ידנית, ייבא מספרים, ונהל הכל מתוך SocialCRM, מערכת ניהול לידים לעסקים קטנים.',
-  alternates: { canonical: 'https://socialcrm.vercel.app/whatsapp-leads' },
+  alternates: { canonical: 'https://getsocialcrm.com/whatsapp-leads' },
   openGraph: {
     title: 'ניהול לידים מוואטסאפ | SocialCRM',
     description: 'לידים מוואטסאפ? מייבאים, מנהלים, ומוודאים שאף אחד לא נשכח.',
-    url: 'https://socialcrm.vercel.app/whatsapp-leads',
+    url: 'https://getsocialcrm.com/whatsapp-leads',
   },
 }
 
@@ -50,11 +50,11 @@ const faqSchema = buildFAQSchema(faqItems)
 const pageSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
-  '@id': 'https://socialcrm.vercel.app/whatsapp-leads',
-  url: 'https://socialcrm.vercel.app/whatsapp-leads',
+  '@id': 'https://getsocialcrm.com/whatsapp-leads',
+  url: 'https://getsocialcrm.com/whatsapp-leads',
   name: 'ניהול לידים מוואטסאפ | SocialCRM',
   inLanguage: 'he',
-  isPartOf: { '@id': 'https://socialcrm.vercel.app/#website' },
+  isPartOf: { '@id': 'https://getsocialcrm.com/#website' },
 }
 
 const faqData = {

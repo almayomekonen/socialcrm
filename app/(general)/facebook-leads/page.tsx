@@ -14,12 +14,12 @@ export const metadata: Metadata = {
   description:
     'חבר את דף הפייסבוק שלך ל-SocialCRM וקבל כל ליד שממלא טופס מודעה, ישירות למערכת, אוטומטית. בלי העתקה ידנית, בלי שכחה.',
   alternates: {
-    canonical: 'https://socialcrm.vercel.app/facebook-leads',
+    canonical: 'https://getsocialcrm.com/facebook-leads',
   },
   openGraph: {
     title: 'ניהול לידים מפייסבוק, אוטומטי וחכם | SocialCRM',
     description: 'לידים מטפסי פייסבוק מגיעים ישירות למערכת. חיבור של 5 דקות, חיסכון של שעות.',
-    url: 'https://socialcrm.vercel.app/facebook-leads',
+    url: 'https://getsocialcrm.com/facebook-leads',
   },
 }
 
@@ -95,16 +95,16 @@ const howToSchema = {
 const webPageSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
-  '@id': 'https://socialcrm.vercel.app/facebook-leads',
-  url: 'https://socialcrm.vercel.app/facebook-leads',
+  '@id': 'https://getsocialcrm.com/facebook-leads',
+  url: 'https://getsocialcrm.com/facebook-leads',
   name: 'ניהול לידים מפייסבוק, SocialCRM',
   inLanguage: 'he',
-  isPartOf: { '@id': 'https://socialcrm.vercel.app/#website' },
+  isPartOf: { '@id': 'https://getsocialcrm.com/#website' },
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://socialcrm.vercel.app/auth' },
-      { '@type': 'ListItem', position: 2, name: 'ניהול לידים מפייסבוק', item: 'https://socialcrm.vercel.app/facebook-leads' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://getsocialcrm.com/auth' },
+      { '@type': 'ListItem', position: 2, name: 'ניהול לידים מפייסבוק', item: 'https://getsocialcrm.com/facebook-leads' },
     ],
   },
 }

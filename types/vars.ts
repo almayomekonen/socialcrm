@@ -5,7 +5,7 @@ const APP_OG_TITLE = 'כל הלידים שלך. מסודרים. סגורים.'
 const APP_OG_DESCRIPTION = 'הפסק לפספס לידים. קבל שליטה מלאה על כל הפניות שלך ותתחיל לסגור יותר עסקאות — כבר מהיום.'
 const APP_TWITTER_DESCRIPTION = 'הפסק לפספס לידים ותתחיל לסגור יותר עסקאות.'
 const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.'
-const APP_URL = 'https://socialcrm.vercel.app'
+const APP_URL = 'https://getsocialcrm.com'
 
 export const metaData: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -70,7 +70,7 @@ function resolveBaseUrl(): string {
   const vercel = process.env.VERCEL_URL?.trim()
   if (vercel) return `https://${vercel}`
 
-  if (process.env.NODE_ENV === 'production') return 'https://socialcrm.vercel.app'
+  if (process.env.NODE_ENV === 'production') return 'https://getsocialcrm.com'
   return 'http://localhost:3000'
 }
 

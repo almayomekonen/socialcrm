@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   description:
     'התחבר ל-SocialCRM — מערכת ניהול הלידים לעסקים קטנים. כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
   alternates: {
-    canonical: 'https://socialcrm.vercel.app/auth',
+    canonical: 'https://getsocialcrm.com/auth',
   },
   openGraph: {
     title: 'SocialCRM כל הלידים שלך במקום אחד',
     description: 'נהל את כל הלידים מפייסבוק, אינסטגרם ווואטסאפ ממקום אחד. התחל עכשיו בחינם.',
-    url: 'https://socialcrm.vercel.app/auth',
+    url: 'https://getsocialcrm.com/auth',
   },
 }
 
@@ -69,12 +69,12 @@ const faqSchema = {
 const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  '@id': 'https://socialcrm.vercel.app/#website',
-  url: 'https://socialcrm.vercel.app',
+  '@id': 'https://getsocialcrm.com/#website',
+  url: 'https://getsocialcrm.com',
   name: 'SocialCRM',
   description: 'מערכת ניהול לידים לעסקים קטנים',
   inLanguage: 'he',
-  publisher: { '@id': 'https://socialcrm.vercel.app/#organization' },
+  publisher: { '@id': 'https://getsocialcrm.com/#organization' },
 }
 
 export default async function AuthPage({ searchParams }) {

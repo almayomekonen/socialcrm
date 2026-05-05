@@ -14,11 +14,11 @@ export const metadata: Metadata = {
   title: 'CRM vs אקסל לניהול לידים מה עדיף? | SocialCRM',
   description:
     'משווים CRM לאקסל לניהול לידים: אינטגרציה עם פייסבוק, מעקב, תזכורות, ניהול צוות ועוד. ראה 16 נקודות השוואה ותחליט.',
-  alternates: { canonical: 'https://socialcrm.vercel.app/crm-vs-excel' },
+  alternates: { canonical: 'https://getsocialcrm.com/crm-vs-excel' },
   openGraph: {
     title: 'CRM vs אקסל לניהול לידים | SocialCRM',
     description: 'אקסל מספיק לניהול לידים? 16 נקודות השוואה שיגידו לך את האמת.',
-    url: 'https://socialcrm.vercel.app/crm-vs-excel',
+    url: 'https://getsocialcrm.com/crm-vs-excel',
   },
 }
 
@@ -46,11 +46,11 @@ const faqSchema = buildFAQSchema(faqItems)
 const pageSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
-  '@id': 'https://socialcrm.vercel.app/crm-vs-excel',
-  url: 'https://socialcrm.vercel.app/crm-vs-excel',
+  '@id': 'https://getsocialcrm.com/crm-vs-excel',
+  url: 'https://getsocialcrm.com/crm-vs-excel',
   name: 'CRM vs אקסל לניהול לידים | SocialCRM',
   inLanguage: 'he',
-  isPartOf: { '@id': 'https://socialcrm.vercel.app/#website' },
+  isPartOf: { '@id': 'https://getsocialcrm.com/#website' },
 }
 
 const faqData = {

@@ -20,6 +20,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://socialcrm.vercel.app/sitemap.xml',
+    sitemap: 'https://getsocialcrm.com/sitemap.xml',
   }
 }

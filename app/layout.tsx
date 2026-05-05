@@ -19,12 +19,12 @@ const schemaOrg = {
   '@graph': [
     {
       '@type': 'Organization',
-      '@id': 'https://socialcrm.vercel.app/#organization',
+      '@id': 'https://getsocialcrm.com/#organization',
       name: 'SocialCRM',
-      url: 'https://socialcrm.vercel.app',
+      url: 'https://getsocialcrm.com',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://socialcrm.vercel.app/media/logo.svg',
+        url: 'https://getsocialcrm.com/media/logo.svg',
         width: 200,
         height: 60,
       },
@@ -34,11 +34,11 @@ const schemaOrg = {
     },
     {
       '@type': 'SoftwareApplication',
-      '@id': 'https://socialcrm.vercel.app/#software',
+      '@id': 'https://getsocialcrm.com/#software',
       name: 'SocialCRM',
       operatingSystem: 'Web',
       applicationCategory: 'BusinessApplication',
-      url: 'https://socialcrm.vercel.app',
+      url: 'https://getsocialcrm.com',
       description:
         'מערכת ניהול לידים לעסקים קטנים — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
       inLanguage: 'he',
@@ -55,7 +55,7 @@ const schemaOrg = {
         'מעקב אחר מכירות',
         'ניהול נציגים וצוותים',
       ],
-      publisher: { '@id': 'https://socialcrm.vercel.app/#organization' },
+      publisher: { '@id': 'https://getsocialcrm.com/#organization' },
     },
   ],
 }

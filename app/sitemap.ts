@@ -1,6 +1,6 @@
 import { MetadataRoute } from 'next'
 
-const BASE_URL = 'https://socialcrm.vercel.app'
+const BASE_URL = 'https://getsocialcrm.com'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
   description:
     'SocialCRM, מערכת CRM בעברית לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ. ייבוא מאקסל, מעקב מכירות, ניהול נציגים. התחל בחינם.',
-  alternates: { canonical: 'https://socialcrm.vercel.app/features' },
+  alternates: { canonical: 'https://getsocialcrm.com/features' },
   openGraph: {
     title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
     description: 'כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות.',
-    url: 'https://socialcrm.vercel.app/features',
+    url: 'https://getsocialcrm.com/features',
   },
 }
 

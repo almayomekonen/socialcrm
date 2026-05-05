@@ -63,12 +63,12 @@ export const metadata: Metadata = {
   title: 'SocialCRM – ניהול לידים חכם לעסקים',
   description:
     'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. עדכן סטטוסים, שייך נציגים וסגור יותר עסקאות, בלי לפספס אף ליד.',
-  alternates: { canonical: 'https://socialcrm.vercel.app/crm' },
+  alternates: { canonical: 'https://getsocialcrm.com/crm' },
   openGraph: {
     title: 'SocialCRM – ניהול לידים חכם לעסקים',
     description:
       'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. בלי לפספס אף ליד.',
-    url: 'https://socialcrm.vercel.app/crm',
+    url: 'https://getsocialcrm.com/crm',
     siteName: 'SocialCRM',
     type: 'website',
   },
@@ -120,12 +120,12 @@ const faqItems = [
 const pageSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  '@id': 'https://socialcrm.vercel.app/#software',
+  '@id': 'https://getsocialcrm.com/#software',
   name: 'SocialCRM',
   alternateName: 'SocialCRM – ניהול לידים חכם לעסקים',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
-  url: 'https://socialcrm.vercel.app/crm',
+  url: 'https://getsocialcrm.com/crm',
   inLanguage: 'he',
   description:
     'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. עדכן סטטוסים, שייך נציגים וסגור יותר עסקאות, בלי לפספס אף ליד.',
@@ -142,7 +142,7 @@ const pageSchema = {
     'מעקב אחר מכירות',
     'ניהול נציגים וצוותים',
   ],
-  publisher: { '@id': 'https://socialcrm.vercel.app/#organization' },
+  publisher: { '@id': 'https://getsocialcrm.com/#organization' },
 }
 
 const howToSchema = {

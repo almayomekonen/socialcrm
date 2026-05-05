@@ -9,7 +9,7 @@ async function run() {
 }
 run()
 
-const baseUrl = 'https://socialcrm.vercel.app'
+const baseUrl = 'https://getsocialcrm.com'
 // const baseUrl = 'http://localhost:3000'
 
 export async function tblPref() {
