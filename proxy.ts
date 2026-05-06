@@ -1,7 +1,17 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Public marketing/SEO pages — accessible without authentication
-const PUBLIC_ROUTES = ['/crm', '/features', '/facebook-leads', '/whatsapp-leads', '/crm-vs-excel']
+const PUBLIC_ROUTES = [
+  '/crm',
+  '/features',
+  '/facebook-leads',
+  '/whatsapp-leads',
+  '/crm-vs-excel',
+  '/pricing',
+  '/privacy',
+  '/terms',
+  '/data-deletion',
+]
 
 export async function proxy(request: NextRequest) {
   const user = request.cookies.get('user')?.value
