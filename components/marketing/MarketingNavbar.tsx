@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, type ReactNode } from 'react'
 
 const NAV_LINKS: { text: ReactNode; href: string }[] = [
@@ -11,44 +12,41 @@ const NAV_LINKS: { text: ReactNode; href: string }[] = [
   { text: 'מחירים', href: '/pricing' },
 ]
 
-const AUTH_LINKS = [
-  { type: 'button-primary' as const, text: 'התחל בחינם', href: '/auth/register' },
-]
-
 const LOGO_TEXT = 'SocialCRM'
 
-export function MarketingNavbar() {
+interface MarketingNavbarProps {
+  isAuthenticated?: boolean
+}
+
+export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  const cta = isAuthenticated
+    ? { text: 'פתח את האפליקציה', href: '/' }
+    : { text: 'התחל בחינם', href: '/auth/register' }
 
   return (
     <div className='pt-6 pb-3 px-4'>
       <nav className='bg-white rounded-xl relative z-10 max-w-6xl mx-auto flex items-center justify-between py-4 px-8 lg:px-12 lg:py-4'>
         <div className='flex items-center space-x-2'>
-          <a href='/crm' className='text-xl font-bold text-gray-800 hover:text-blue-600'>{LOGO_TEXT}</a>
+          <Link href='/' className='text-xl font-bold text-gray-800 hover:text-blue-600'>{LOGO_TEXT}</Link>
         </div>
 
         <div className='flex items-center space-x-6 text-gray-600 text-sm'>
           <ul className='hidden lg:flex items-center space-x-6'>
             {NAV_LINKS.map((link, index) => (
               <li key={index}>
-                <a href={link.href} className='hover:text-blue-600'>
+                <Link href={link.href} className='hover:text-blue-600'>
                   {link.text}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
 
           <div className='hidden lg:flex items-center space-x-4'>
-            {AUTH_LINKS.map((link, index) => {
-              if (link.type === 'button-primary') {
-                return (
-                  <a key={index} href={link.href} className='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold'>
-                    {link.text}
-                  </a>
-                )
-              }
-              return null
-            })}
+            <Link href={cta.href} className='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold'>
+              {cta.text}
+            </Link>
           </div>
         </div>
 
@@ -69,7 +67,7 @@ export function MarketingNavbar() {
         } lg:hidden overflow-y-auto p-8`}
       >
         <div className='flex items-center justify-between mb-8'>
-          <a href='/crm' className='text-xl font-bold text-gray-800 hover:text-blue-600' onClick={() => setMobileOpen(false)}>{LOGO_TEXT}</a>
+          <Link href='/' className='text-xl font-bold text-gray-800 hover:text-blue-600' onClick={() => setMobileOpen(false)}>{LOGO_TEXT}</Link>
           <button
             className='text-gray-600 hover:text-blue-600 focus:outline-none'
             onClick={() => setMobileOpen(false)}
@@ -83,33 +81,25 @@ export function MarketingNavbar() {
 
         <div className='flex flex-col space-y-4 mt-8'>
           {NAV_LINKS.map((link, index) => (
-            <a
+            <Link
               key={index}
               href={link.href}
               className='text-gray-800 text-lg font-medium hover:text-blue-600'
               onClick={() => setMobileOpen(false)}
             >
               {link.text}
-            </a>
+            </Link>
           ))}
         </div>
 
         <div className='flex flex-col space-y-4 mt-8 pt-6 border-t border-gray-200'>
-          {AUTH_LINKS.map((link, index) => {
-            if (link.type === 'button-primary') {
-              return (
-                <a
-                  key={index}
-                  href={link.href}
-                  className='px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg'
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.text}
-                </a>
-              )
-            }
-            return null
-          })}
+          <Link
+            href={cta.href}
+            className='px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg'
+            onClick={() => setMobileOpen(false)}
+          >
+            {cta.text}
+          </Link>
         </div>
       </div>
     </div>
