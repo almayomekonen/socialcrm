@@ -20,7 +20,6 @@ const resources = [
 ]
 
 const company = [
-  { text: 'אודות', href: '/auth' },
   { text: 'הרשמה בחינם', href: '/auth/register' },
   { text: 'מדיניות פרטיות', href: '/privacy' },
   { text: 'תנאי שירות', href: '/terms' },
