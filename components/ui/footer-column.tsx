@@ -114,7 +114,7 @@ export default function Footer4Col() {
         {/* Bottom bar */}
         <div className='mt-16 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4'>
           <p className='text-white/30 text-sm'>
-            &copy; {new Date().getFullYear()} SocialCRM. כל הזכויות שמורות.
+            &copy; 2026 SocialCRM. כל הזכויות שמורות.
           </p>
           <div className='flex items-center gap-6 text-sm text-white/30'>
             <Link href='/terms' className='hover:text-white transition-colors'>תנאי שירות</Link>
