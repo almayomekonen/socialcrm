@@ -4,7 +4,6 @@ import ToastMsg from '@/lib/toast'
 import ChunkReloader from '@/lib/ChunkReloader'
 import { metaData } from '@/types/vars'
 import { Assistant } from 'next/font/google'
-import MobileBlock from '@/components/layout/MobileBlock'
 
 const font = Assistant({
   subsets: ['latin'],
@@ -70,7 +69,6 @@ export default async function RootLayout({ children }) {
         />
       </head>
       <body className={font.className}>
-        <MobileBlock />
         <LayoutPageEvents />
         <ToastMsg />
         <ChunkReloader />
