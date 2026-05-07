@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Metadata } from 'next'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
+import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { FinalCTA } from '@/components/seo/CRMSections'
 import { FAQ } from '@/components/ui/faq-tabs'
 import { MagnifiedBento } from '@/components/ui/magnified-bento'
@@ -198,6 +199,8 @@ export default function FacebookLeadsPage() {
             <div className='absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-700 opacity-80 z-0' />
             <div className='absolute top-0 left-0 w-1/2 h-full bg-blue-400 transform -skew-y-6 origin-top-left -translate-y-1/4 opacity-30 z-0' />
           </div>
+
+          <MarketingNavbar />
 
           <div className='relative z-10 max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden'>
             <div className='flex flex-col items-center text-center p-8 lg:px-12 lg:pt-8 lg:pb-16' dir='rtl'>
