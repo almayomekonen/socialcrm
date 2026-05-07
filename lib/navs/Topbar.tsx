@@ -15,7 +15,7 @@ import Icon from '@/lib/Icon'
         <div className='hidden desktop:block'>
           <UserNAgency user={user} />
         </div>
-        <Link href='/' className='flex items-center gap-2'>
+        <Link href='/dashboard' className='flex items-center gap-2'>
           <img src='/media/fav.svg' alt='SocialCRM' className='h-6' />
           <span className='font-bold text-lg tracking-tight text-gray-800'>SocialCRM</span>
         </Link>
