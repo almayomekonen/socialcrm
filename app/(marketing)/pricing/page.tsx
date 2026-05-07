@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import PricingPageComponent from '@/components/ui/pricing-card'
 
 export const metadata: Metadata = {
@@ -15,12 +14,5 @@ export const metadata: Metadata = {
 }
 
 export default function PricingPage() {
-  return (
-    <>
-      <div className='bg-white'>
-        <MarketingNavbar />
-      </div>
-      <PricingPageComponent />
-    </>
-  )
+  return <PricingPageComponent />
 }
