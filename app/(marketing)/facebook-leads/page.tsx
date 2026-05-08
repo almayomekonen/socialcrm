@@ -285,6 +285,24 @@ export default function FacebookLeadsPage() {
           faqData={faqData}
         />
 
+        {/* ראה גם */}
+        <section className='px-8 py-12' style={{ backgroundColor: '#0a0a0a' }} dir='rtl'>
+          <div className='max-w-3xl mx-auto text-center'>
+            <p className='text-white/50 text-sm mb-4'>ראה גם</p>
+            <div className='flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm'>
+              <Link href='/instagram-leads-crm' className='text-white/80 hover:text-white underline'>
+                CRM ללידים מאינסטגרם
+              </Link>
+              <Link href='/crm-for-whatsapp-business' className='text-white/80 hover:text-white underline'>
+                CRM ל-WhatsApp Business
+              </Link>
+              <Link href='/crm-vs-excel' className='text-white/80 hover:text-white underline'>
+                CRM לעומת אקסל
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* CTA */}
         <FinalCTA />
 

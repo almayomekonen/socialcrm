@@ -17,6 +17,8 @@ const resources = [
   { text: 'ניהול לידים המדריך', href: '/crm' },
   { text: 'לידים ממדיה חברתית', href: '/facebook-leads' },
   { text: 'ייבוא מאקסל', href: '/features' },
+  { text: 'CRM ל-WhatsApp Business', href: '/crm-for-whatsapp-business' },
+  { text: 'CRM ללידים מאינסטגרם', href: '/instagram-leads-crm' },
 ]
 
 const company = [
