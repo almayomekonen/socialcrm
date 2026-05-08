@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { Metadata } from 'next'
 import Icon from '@/lib/Icon'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { StatsSection, FinalCTA } from '@/components/seo/CRMSections'
@@ -9,17 +10,13 @@ import { buildFAQSchema } from '@/components/seo/FAQ'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { AnimatedCta } from '@/components/ui/animated-cta'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/features',
   title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
   description:
     'SocialCRM, מערכת CRM בעברית לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ. ייבוא מאקסל, מעקב מכירות, ניהול נציגים. התחל בחינם.',
-  alternates: { canonical: 'https://getsocialcrm.com/features' },
-  openGraph: {
-    title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
-    description: 'כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות.',
-    url: 'https://getsocialcrm.com/features',
-  },
-}
+  ogDescription: 'כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות.',
+})
 
 const faqItems = [
   {
@@ -116,7 +113,7 @@ const featureCategories = [
 export default function FeaturesPage() {
   return (
     <>
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <JsonLd data={faqSchema} />
 
       <MarketingLayout>
 

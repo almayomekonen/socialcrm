@@ -1,82 +1,55 @@
 import Link from 'next/link'
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { FinalCTA } from '@/components/seo/CRMSections'
 import { FAQ } from '@/components/ui/faq-tabs'
+import { buildFAQSchema } from '@/components/seo/FAQ'
 import { MagnifiedBento } from '@/components/ui/magnified-bento'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { AnimatedCta } from '@/components/ui/animated-cta'
 import Icon from '@/lib/Icon'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/facebook-leads',
   title: 'ניהול לידים מפייסבוק, אוטומטי וחכם | SocialCRM',
   description:
     'חבר את דף הפייסבוק שלך ל-SocialCRM וקבל כל ליד שממלא טופס מודעה, ישירות למערכת, אוטומטית. בלי העתקה ידנית, בלי שכחה.',
-  alternates: {
-    canonical: 'https://getsocialcrm.com/facebook-leads',
-  },
-  openGraph: {
-    title: 'ניהול לידים מפייסבוק, אוטומטי וחכם | SocialCRM',
-    description: 'לידים מטפסי פייסבוק מגיעים ישירות למערכת. חיבור של 5 דקות, חיסכון של שעות.',
-    url: 'https://getsocialcrm.com/facebook-leads',
-  },
-}
+  ogDescription: 'לידים מטפסי פייסבוק מגיעים ישירות למערכת. חיבור של 5 דקות, חיסכון של שעות.',
+})
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'איך מחברים לידים מפייסבוק למערכת?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'נכנסים להגדרות, בוחרים "חבר פייסבוק", ומתחברים עם חשבון הפייסבוק העסקי. מאותו רגע כל ליד שממלא טופס מגיע אוטומטית למערכת.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'כמה זמן לוקח להגדיר את האינטגרציה עם פייסבוק?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כ-5 דקות. מתחברים עם חשבון פייסבוק, בוחרים את הדף העסקי, ומאשרים הרשאות. זהו.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם כל הלידים מפייסבוק מגיעים אוטומטית?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. כל ליד שממלא טופס Lead Ad בפייסבוק מגיע למערכת תוך שניות, כולל השם, הטלפון, ופרטים נוספים שהגדרת בטופס.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם אפשר לחבר כמה דפי פייסבוק?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. ניתן לחבר מספר דפי פייסבוק לאותה מערכת. כל ליד מזוהה לפי הדף שממנו הגיע.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'מה קורה אם הקישור לפייסבוק מתנתק?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'המערכת מזהה ניתוק ומיידעת אותך. ניתן לחבר מחדש בלחיצה אחת מהגדרות החשבון.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם SocialCRM עובד עם מודעות Lead Ads בפייסבוק?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. SocialCRM מתחבר ישירות ל-Facebook Lead Ads API ומביא כל ליד חדש שמגיע מטפסי המודעות שלך.',
-      },
-    },
-  ],
-}
+const faqItems = [
+  {
+    question: 'איך מחברים לידים מפייסבוק למערכת?',
+    answer:
+      'נכנסים להגדרות, בוחרים "חבר פייסבוק", ומתחברים עם חשבון הפייסבוק העסקי. מאותו רגע כל ליד שממלא טופס מגיע אוטומטית למערכת.',
+  },
+  {
+    question: 'כמה זמן לוקח להגדיר את האינטגרציה עם פייסבוק?',
+    answer: 'כ-5 דקות. מתחברים עם חשבון פייסבוק, בוחרים את הדף העסקי, ומאשרים הרשאות. זהו.',
+  },
+  {
+    question: 'האם כל הלידים מפייסבוק מגיעים אוטומטית?',
+    answer:
+      'כן. כל ליד שממלא טופס Lead Ad בפייסבוק מגיע למערכת תוך שניות, כולל השם, הטלפון, ופרטים נוספים שהגדרת בטופס.',
+  },
+  {
+    question: 'האם אפשר לחבר כמה דפי פייסבוק?',
+    answer: 'כן. ניתן לחבר מספר דפי פייסבוק לאותה מערכת. כל ליד מזוהה לפי הדף שממנו הגיע.',
+  },
+  {
+    question: 'מה קורה אם הקישור לפייסבוק מתנתק?',
+    answer: 'המערכת מזהה ניתוק ומיידעת אותך. ניתן לחבר מחדש בלחיצה אחת מהגדרות החשבון.',
+  },
+  {
+    question: 'האם SocialCRM עובד עם מודעות Lead Ads בפייסבוק?',
+    answer:
+      'כן. SocialCRM מתחבר ישירות ל-Facebook Lead Ads API ומביא כל ליד חדש שמגיע מטפסי המודעות שלך.',
+  },
+]
+
+const faqSchema = buildFAQSchema(faqItems)
 
 const howToSchema = {
   '@context': 'https://schema.org',
@@ -103,16 +76,11 @@ const webPageSchema = {
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://getsocialcrm.com/auth' },
+      { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://getsocialcrm.com/' },
       { '@type': 'ListItem', position: 2, name: 'ניהול לידים מפייסבוק', item: 'https://getsocialcrm.com/facebook-leads' },
     ],
   },
 }
-
-const faqItems = faqSchema.mainEntity.map((item) => ({
-  question: item.name,
-  answer: item.acceptedAnswer.text,
-}))
 
 const faqData = {
   general: faqItems.slice(0, 3),
@@ -185,9 +153,9 @@ const featureCategories = [
 export default function FacebookLeadsPage() {
   return (
     <>
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <JsonLd data={faqSchema} />
+      <JsonLd data={howToSchema} />
+      <JsonLd data={webPageSchema} />
 
       <MarketingLayout>
 

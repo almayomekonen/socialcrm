@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { FinalCTA } from '@/components/seo/CRMSections'
@@ -10,17 +11,13 @@ import { FeatureGrid } from '@/components/ui/feature-section'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import Icon from '@/lib/Icon'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/whatsapp-leads',
   title: 'ניהול לידים מוואטסאפ | SocialCRM',
   description:
     'ייבא ונהל לידים שמגיעים בוואטסאפ. הוסף ידנית, ייבא מספרים, ונהל הכל מתוך SocialCRM, מערכת ניהול לידים לעסקים קטנים.',
-  alternates: { canonical: 'https://getsocialcrm.com/whatsapp-leads' },
-  openGraph: {
-    title: 'ניהול לידים מוואטסאפ | SocialCRM',
-    description: 'לידים מוואטסאפ? מייבאים, מנהלים, ומוודאים שאף אחד לא נשכח.',
-    url: 'https://getsocialcrm.com/whatsapp-leads',
-  },
-}
+  ogDescription: 'לידים מוואטסאפ? מייבאים, מנהלים, ומוודאים שאף אחד לא נשכח.',
+})
 
 const faqItems = [
   {
@@ -128,8 +125,8 @@ const featureCategories = [
 export default function WhatsAppLeadsPage() {
   return (
     <>
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <JsonLd data={pageSchema} />
+      <JsonLd data={faqSchema} />
 
       <MarketingLayout>
 

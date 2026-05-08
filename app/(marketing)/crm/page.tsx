@@ -1,4 +1,5 @@
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import { FAQ } from '@/components/ui/faq-tabs'
@@ -59,20 +60,14 @@ const heroData: HeroSectionComponentData = {
   },
 }
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/crm',
   title: 'SocialCRM – ניהול לידים חכם לעסקים',
   description:
     'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. עדכן סטטוסים, שייך נציגים וסגור יותר עסקאות, בלי לפספס אף ליד.',
-  alternates: { canonical: 'https://getsocialcrm.com/crm' },
-  openGraph: {
-    title: 'SocialCRM – ניהול לידים חכם לעסקים',
-    description:
-      'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. בלי לפספס אף ליד.',
-    url: 'https://getsocialcrm.com/crm',
-    siteName: 'SocialCRM',
-    type: 'website',
-  },
-}
+  ogDescription:
+    'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. בלי לפספס אף ליד.',
+})
 
 const faqItems = [
   {
@@ -166,9 +161,9 @@ const faqSchema = buildFAQSchema(faqItems)
 export default function CRMPage() {
   return (
     <>
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <JsonLd data={pageSchema} />
+      <JsonLd data={howToSchema} />
+      <JsonLd data={faqSchema} />
 
       <MarketingLayout>
         <HeroSection data={heroData} />

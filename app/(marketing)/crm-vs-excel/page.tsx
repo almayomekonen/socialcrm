@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { FinalCTA } from '@/components/seo/CRMSections'
@@ -10,17 +11,14 @@ import { FeatureGrid } from '@/components/ui/feature-section'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import Icon from '@/lib/Icon'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/crm-vs-excel',
   title: 'CRM vs אקסל לניהול לידים מה עדיף? | SocialCRM',
   description:
     'משווים CRM לאקסל לניהול לידים: אינטגרציה עם פייסבוק, מעקב, תזכורות, ניהול צוות ועוד. ראה 16 נקודות השוואה ותחליט.',
-  alternates: { canonical: 'https://getsocialcrm.com/crm-vs-excel' },
-  openGraph: {
-    title: 'CRM vs אקסל לניהול לידים | SocialCRM',
-    description: 'אקסל מספיק לניהול לידים? 16 נקודות השוואה שיגידו לך את האמת.',
-    url: 'https://getsocialcrm.com/crm-vs-excel',
-  },
-}
+  ogTitle: 'CRM vs אקסל לניהול לידים | SocialCRM',
+  ogDescription: 'אקסל מספיק לניהול לידים? 16 נקודות השוואה שיגידו לך את האמת.',
+})
 
 const faqItems = [
   {
@@ -124,8 +122,8 @@ const STATS = [
 export default function CRMvsExcelPage() {
   return (
     <>
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <JsonLd data={pageSchema} />
+      <JsonLd data={faqSchema} />
 
       <MarketingLayout>
 
