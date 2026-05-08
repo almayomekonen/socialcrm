@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     if (err instanceof AuthError) {
       console.warn('[upgrade] auth failed', { reason: err.reason })
-      const loginUrl = new URL('/login', req.url)
+      const loginUrl = new URL('/auth', req.url)
       loginUrl.searchParams.set('next', '/api/payments/upgrade')
       return NextResponse.redirect(loginUrl, 302)
     }
