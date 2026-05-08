@@ -34,7 +34,7 @@ export async function sendWelcomeEmail(user: WelcomeRecipient): Promise<void> {
     const html = await renderEmail(
       WelcomeEmail({
         firstName: user.firstName ?? '',
-        ctaUrl: baseUrl,
+        ctaUrl: `${baseUrl}/dashboard`,
       }),
     )
 

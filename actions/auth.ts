@@ -30,7 +30,7 @@ export async function checkUser(user) {
   revalidateTag('user' + userExist.id, 'default')
 
   await createCookie(userExist.id)
-  redirect('/')
+  redirect('/dashboard')
 }
 
 export async function isUserExists(email: string) {
@@ -49,7 +49,7 @@ export async function deleteUserCookie() {
 export async function logout() {
   const cokis = await cookies()
   cokis.delete('user')
-  redirect('/auth')
+  redirect('/')
 }
 
 export async function updateSession(request: NextRequest) {

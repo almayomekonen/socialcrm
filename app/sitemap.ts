@@ -4,7 +4,8 @@ const BASE_URL = 'https://getsocialcrm.com'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { url: `${BASE_URL}/crm`, lastModified: new Date(), changeFrequency: 'monthly', priority: 1.0 },
+    { url: `${BASE_URL}/`, lastModified: new Date(), changeFrequency: 'monthly', priority: 1.0 },
+    { url: `${BASE_URL}/crm`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE_URL}/features`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.85 },
     { url: `${BASE_URL}/facebook-leads`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.85 },
     { url: `${BASE_URL}/whatsapp-leads`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 // Public marketing/SEO pages — accessible without authentication
 const PUBLIC_ROUTES = [
+  '/',
   '/crm',
   '/features',
   '/facebook-leads',
@@ -25,7 +26,7 @@ export async function middleware(request: NextRequest) {
 
   if (!user && !pathname.startsWith('/auth')) return Response.redirect(new URL('/auth', request.url))
 
-  if (user && pathname.startsWith('/auth')) return Response.redirect(new URL('/', request.url))
+  if (user && pathname.startsWith('/auth')) return Response.redirect(new URL('/dashboard', request.url))
 
   return NextResponse.next()
 }

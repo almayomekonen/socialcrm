@@ -6,7 +6,7 @@ import { round } from '@/lib/funcs'
 test.beforeEach(async ({ page }) => {
   page.on('dialog', (dialog) => dialog.accept())
   // await loginAs(page, role)
-  await page.goto('/')
+  await page.goto('/dashboard')
   await page.getByRole('button', { name: 'הוספת מכירה' }).click()
   await fillClientAndProduct(page)
 })

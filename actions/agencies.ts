@@ -39,7 +39,7 @@ export async function addAgency(data) {
 
   if (success && newUser) {
     after(() => sendWelcomeEmail(newUser!))
-    redirect('/')
+    redirect('/dashboard')
   }
   return success
 }

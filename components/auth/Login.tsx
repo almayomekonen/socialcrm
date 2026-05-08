@@ -33,7 +33,7 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
         return
       }
 
-      router.push('/')
+      router.push('/dashboard')
     } catch (error) {}
   }
 
