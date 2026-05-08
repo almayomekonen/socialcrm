@@ -67,6 +67,7 @@ export const metadata = buildPageMetadata({
     'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. עדכן סטטוסים, שייך נציגים וסגור יותר עסקאות, בלי לפספס אף ליד.',
   ogDescription:
     'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד. בלי לפספס אף ליד.',
+  canonical: 'https://getsocialcrm.com/',
 })
 
 const faqItems = [
