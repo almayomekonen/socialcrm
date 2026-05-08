@@ -1,10 +1,11 @@
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/privacy',
   title: 'מדיניות פרטיות | SocialCRM Platform',
   description: 'מדיניות הפרטיות של SocialCRM Platform — כיצד אנו אוספים, משתמשים ומגנים על המידע שלך.',
-}
+})
 
 export default function PrivacyPage() {
   return (

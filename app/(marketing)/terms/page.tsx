@@ -1,10 +1,11 @@
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/terms',
   title: 'תנאי שימוש | SocialCRM Platform',
   description: 'תנאי השימוש של מערכת SocialCRM Platform.',
-}
+})
 
 export default function TermsPage() {
   return (

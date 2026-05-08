@@ -1,5 +1,13 @@
 import PoweredBySocialCRM from '@/lib/navs/PoweredBySocialCRM'
 import Icon from '@/lib/Icon'
+import { buildPageMetadata } from '@/lib/seo/metadata'
+
+export const metadata = buildPageMetadata({
+  path: '/thank-you',
+  title: 'תודה | SocialCRM',
+  description: 'הפעולה בוצעה בהצלחה.',
+  noindex: true,
+})
 
 export default async function ThankYouPage({ searchParams }) {
   const params = await searchParams

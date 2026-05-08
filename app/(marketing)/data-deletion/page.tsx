@@ -1,10 +1,11 @@
-import { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo/metadata'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
+  path: '/data-deletion',
   title: 'מחיקת נתונים | SocialCRM Platform',
   description: 'כיצד לבקש מחיקת המידע האישי שלך ממערכת SocialCRM Platform.',
-}
+})
 
 export default function DataDeletionPage() {
   return (

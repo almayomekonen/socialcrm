@@ -66,26 +66,12 @@ const faqSchema = {
   ],
 }
 
-const websiteSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  '@id': 'https://getsocialcrm.com/#website',
-  url: 'https://getsocialcrm.com',
-  name: 'SocialCRM',
-  description: 'מערכת ניהול לידים לעסקים קטנים',
-  inLanguage: 'he',
-  publisher: { '@id': 'https://getsocialcrm.com/#organization' },
-}
-
 export default async function AuthPage({ searchParams }) {
   const { error } = await searchParams
   const user = await getUser()
 
   return (
     <>
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
-
       <div className='min-h-screen bg-white'>
         {/* Login section */}
         <div className='grid lg:grid-cols-2 w-screen place-items-center'>
