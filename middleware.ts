@@ -13,7 +13,7 @@ const PUBLIC_ROUTES = [
   '/data-deletion',
 ]
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const user = request.cookies.get('user')?.value
   const { pathname } = request.nextUrl
 
