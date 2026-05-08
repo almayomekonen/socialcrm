@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { Input } from '@/lib/form'
 import { getMultiObjFormData } from '@/lib/form/funcs'
 import { SubmitButton } from '@/lib/btns/SubmitBtn'
@@ -27,6 +28,12 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
       </div>
       {error && <p className='text-sm text-red-500 mt-2'>{error}</p>}
       <SubmitButton lbl='המשך' className='w-full mt-4' icon={false} />
+      <p className='text-gray-500 text-xs text-center mt-2'>
+        כבר יש לך חשבון?{' '}
+        <Link href='/auth' className='underline font-semibold'>
+          התחבר
+        </Link>
+      </p>
     </form>
   )
 }
