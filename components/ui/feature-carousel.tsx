@@ -37,7 +37,7 @@ const FEATURES = [
 ]
 
 const AUTO_PLAY_INTERVAL = 3000
-const ITEM_HEIGHT = 65
+const ITEM_HEIGHT = 88
 
 const wrap = (min: number, max: number, v: number) => {
   const rangeSize = max - min
@@ -121,7 +121,7 @@ export function FeatureCarousel() {
                     onMouseLeave={() => setIsPaused(false)}
                     dir='rtl'
                     className={cn(
-                      'relative  flex items-center gap-3 px-6 md:px-8 lg:px-7 py-3.5 md:py-4 rounded-full transition-all duration-700 text-right group border',
+                      'relative flex items-center justify-center gap-3 min-w-[200px] md:min-w-[240px] lg:min-w-[260px] px-8 md:px-10 lg:px-12 py-4 md:py-5 rounded-full transition-all duration-700 text-right group border',
                       isActive
                         ? 'bg-white border-white z-10'
                         : 'bg-transparent text-white/60 border-white/20 hover:border-white/40 hover:text-white',
@@ -130,13 +130,13 @@ export function FeatureCarousel() {
                     <Icon
                       name={feature.iconName}
                       className={cn(
-                        'size-[16px] shrink-0 transition-colors duration-500',
+                        'size-[18px] shrink-0 transition-colors duration-500',
                         isActive ? 'bg-solid' : 'bg-white/50',
                       )}
                     />
                     <span
                       className={cn(
-                        'text-sm md:text tracking-tight whitespace-nowrap uppercase font-medium',
+                        'text-base md:text-lg tracking-tight whitespace-nowrap uppercase font-medium',
                         isActive ? 'text-solid' : 'text-white/60',
                       )}
                     >

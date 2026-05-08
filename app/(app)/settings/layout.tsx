@@ -16,7 +16,6 @@ export default async function SettingLayout({ children }) {
             <Seperator className='my-2' />
             <SettingsLink href='/settings/edit_teams' icon='users' title='צוותים' />
             <SettingsLink href='/settings/edit_users' icon='user-pen' title='משתמשים' />
-            <SettingsLink href='/settings/edit_promotions' icon='trophy-star' title='קמפיינים' />
 
             <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
             <Seperator className='my-2' />
