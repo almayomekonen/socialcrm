@@ -2,7 +2,7 @@ export const IS_PROD = process.env.NODE_ENV === 'production'
 
 export const EMAIL_ENABLED = process.env.WELCOME_EMAIL_ENABLED === 'true'
 
-function resolveEmailFrom(): string {
+export function getEmailFrom(): string {
   const fromEnv = process.env.WELCOME_EMAIL_FROM?.trim()
   if (fromEnv) return fromEnv
   if (IS_PROD) {
@@ -10,7 +10,5 @@ function resolveEmailFrom(): string {
   }
   return 'SocialCRM <onboarding@resend.dev>'
 }
-
-export const EMAIL_FROM = resolveEmailFrom()
 
 export const TRANSIENT_RESEND_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])

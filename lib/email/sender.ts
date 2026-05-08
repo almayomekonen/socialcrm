@@ -1,5 +1,5 @@
 import resend from '@/config/resend'
-import { EMAIL_FROM, TRANSIENT_RESEND_STATUSES } from './config'
+import { getEmailFrom, TRANSIENT_RESEND_STATUSES } from './config'
 
 const LOG_PREFIX = '[email-send]'
 const RETRY_DELAY_MS = 500
@@ -22,7 +22,7 @@ function errorMessage(error: unknown): string {
 }
 
 export async function sendEmail({ to, subject, html }: SendInput): Promise<SendResult> {
-  const attempt = () => resend.emails.send({ from: EMAIL_FROM, to, subject, html })
+  const attempt = () => resend.emails.send({ from: getEmailFrom(), to, subject, html })
 
   let res = await attempt()
 
