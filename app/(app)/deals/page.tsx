@@ -43,7 +43,7 @@ export default async function SalesPage({ searchParams }) {
 
   return (
     <Provider
-      className='relative'
+      className='mb-8 relative'
       props={{
         tableLength: tblData.length,
         count,

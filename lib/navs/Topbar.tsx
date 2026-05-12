@@ -3,16 +3,21 @@ import { RoleLabels } from '@/types/roles'
 import Link from 'next/link'
 import { twMerge } from 'tailwind-merge'
 import Icon from '@/lib/Icon'
+import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
 
   export default function Topbar({ user }) {
   if (!user) return null
   return (
-    <div className='w-full'>
-      <div className='flex justify-between items-center h-10 wrap bg-white/90 backdrop-blur-lg  top-0 left-0 z-888  border-b'>
+    <div className='w-full sticky top-0 z-888 ps-[50px]'>
+      <div className='flex justify-between items-center h-10 wrap bg-white/90 backdrop-blur-lg border-b'>
         <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop'>
           <Icon name='bars' type='reg' />
         </button>
-        <div className='hidden desktop:block'>
+        {/* Inline-start cluster (visual right in RTL): copilot trigger at the
+            outermost corner, then user identity. Treats the copilot as a
+            system-level workspace control, not a navigation item. */}
+        <div className='hidden desktop:flex items-center gap-3'>
+          <CopilotTopbarTrigger />
           <UserNAgency user={user} />
         </div>
         <Link href='/dashboard' className='flex items-center gap-2'>

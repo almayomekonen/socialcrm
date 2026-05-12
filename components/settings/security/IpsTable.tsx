@@ -46,6 +46,7 @@ export default function IpsTable({ data }) {
 }
 
 export const headers = [
-  { key: 'ip', label: 'IP' },
-  { key: 'date', label: 'תאריך התחברות', format: 'formatDate' },
+  { key: 'device', label: 'מכשיר / דפדפן' },
+  { key: 'ip', label: 'כתובת IP' },
+  { key: 'at', label: 'מתי', format: 'formatDateTime' },
 ]

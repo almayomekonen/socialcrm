@@ -33,7 +33,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // matcher: ['/((?!api|_next/static|_next/image|.*\\.png$|manifest\\.json).*)'],
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.css$|.*\\.png$|.*\\.jpg$|.*\\.webp$|manifest\\.json).*)'],
+  // .mjs is excluded so static module assets like /copilot/pdf.worker.min.mjs
+  // are served directly without going through auth — they're public worker
+  // bundles, not protected routes.
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.css$|.*\\.mjs$|.*\\.png$|.*\\.jpg$|.*\\.webp$|manifest\\.json).*)'],
 }
 
 // includes auth pages

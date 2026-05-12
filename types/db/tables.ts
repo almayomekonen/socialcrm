@@ -196,6 +196,8 @@ export interface Lead {
   lead: boolean
   overQuota: boolean
   statusChangedAt: Date
+  lastActivityAt: Date | null
+  lastOutcomeType: string | null
   state?: 'updated' | 'cold' | null
   priority?: number
   overdueRatio?: number | null

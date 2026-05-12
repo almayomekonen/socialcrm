@@ -1,9 +1,10 @@
 import { db } from '@/config/db'
 import { Roles } from '@/types/roles'
 import { jwtVerify, SignJWT } from 'jose'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { daysFromNow } from '@/lib/dates'
 import { cacheTag } from 'next/cache'
+import { recordLoginActivity } from './loginActivity'
 
 const USER_COLUMNS = [
   'id',
@@ -78,6 +79,17 @@ export async function createCookie(userId) {
   const expires = daysFromNow(365)
   const userToken = await encrypt({ id: userId, expires })
   cokis.set('user', userToken, { expires, httpOnly: true, secure: true, sameSite: 'lax' })
+
+  // Login-activity capture must never break login: any failure is swallowed.
+  try {
+    const h = await headers()
+    const xff = h.get('x-forwarded-for') ?? ''
+    const ip = xff.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+    const userAgent = h.get('user-agent') ?? ''
+    await recordLoginActivity(userId, { ip, userAgent })
+  } catch (err) {
+    console.warn('[login-activity] capture failed', { userId, reason: (err as Error)?.message })
+  }
 }
 
 export async function getUserByEmail(email: string) {

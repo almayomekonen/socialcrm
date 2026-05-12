@@ -1,9 +1,11 @@
 import { getUser } from '@/db/auth'
 import SettingsLink from '@/lib/navs/SettingsLink'
 import { Seperator } from '@/lib/Seperator'
+import { isCopilotInspectorEnabled } from '@/lib/ai/flags'
 
 export default async function SettingLayout({ children }) {
   const user = await getUser()
+  const inspectorVisible = user.role === 'ADMIN' && isCopilotInspectorEnabled()
 
   return (
     <div className='px-4 grid grid-cols-[auto_1fr] gap-12 mobile:grid-cols-1 mobile:gap-4'>
@@ -24,6 +26,9 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/update_default' icon='folders' title='הגדרות מערכת' />
             <SettingsLink href='/settings/update_security' icon='shield' title='אבטחה' />
             <SettingsLink href='/settings/update_payment' icon='credit-card' title='מנוי ותשלום' />
+            {inspectorVisible && (
+              <SettingsLink href='/settings/ai-inspector' icon='brain' title='AI Inspector' />
+            )}
           </>
         )}
       </div>

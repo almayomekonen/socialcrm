@@ -4,7 +4,10 @@ import { getUser } from '@/db/auth'
 import { getPerms } from '@/db/filter'
 import { getDefaultSettings } from '@/db/usersNTeams'
 import { getLeadsTable } from '@/db/clients'
+import { getLeadFollowUpSignals } from '@/db/followUpSignals'
+import { followUpPulse, type FollowUpResult, type FollowUpSignals } from '@/lib/ai/followUpRules'
 import LeadQuickActions from '@/components/home/LeadQuickActions'
+import FollowUpPulseChip from '@/components/ai/FollowUpPulseChip'
 
 type Row = {
   id: number
@@ -16,6 +19,8 @@ type Row = {
   nextAction: string | null
   leadSource: string | null
 }
+
+type RowWithPulse = Row & { pulse: FollowUpResult | null }
 
 function bucket(rows: Row[]) {
   const overdue: Row[] = []
@@ -31,7 +36,7 @@ function bucket(rows: Row[]) {
   return { overdue: overdue.slice(0, 5), today: today.slice(0, 5), fresh: fresh.slice(0, 5) }
 }
 
-function Card({ title, subtitle, rows, emptyMsg }: { title: string; subtitle: string; rows: Row[]; emptyMsg: string }) {
+function Card({ title, subtitle, rows, emptyMsg }: { title: string; subtitle: string; rows: RowWithPulse[]; emptyMsg: string }) {
   return (
     <div className='bg-white px-5 py-4 rounded-lg border border-gray-200'>
       <div className='flex items-baseline justify-between mb-3'>
@@ -49,9 +54,12 @@ function Card({ title, subtitle, rows, emptyMsg }: { title: string; subtitle: st
           {rows.map((r) => (
             <li key={r.id} className='py-2 flex items-center justify-between gap-3'>
               <div className='min-w-0'>
-                <Link href={`/clients/${r.id}/summary`} className='block font-semibold truncate underline'>
-                  {r.name || '—'}
-                </Link>
+                <div className='flex items-center gap-2 min-w-0'>
+                  <Link href={`/clients/${r.id}/summary`} className='font-semibold truncate underline'>
+                    {r.name || '—'}
+                  </Link>
+                  {r.pulse && <FollowUpPulseChip pulse={r.pulse.pulse} label={r.pulse.label} />}
+                </div>
                 <p className='text-xs text-gray-500 truncate'>
                   {r.phone || 'ללא טלפון'}
                   {r.nextAction ? ` · ${r.nextAction}` : ''}
@@ -81,6 +89,22 @@ export default async function DashboardPage() {
 
   const { overdue, today, fresh } = bucket(rows)
 
+  const visibleIds = [...overdue, ...today, ...fresh].map((r) => r.id)
+  let signals: Map<number, FollowUpSignals>
+  try {
+    signals = await getLeadFollowUpSignals(visibleIds)
+  } catch {
+    signals = new Map()
+  }
+
+  const attachPulse = (r: Row): RowWithPulse => {
+    const s = signals.get(r.id)
+    return { ...r, pulse: s ? followUpPulse(s) : null }
+  }
+  const overdueWithPulse = overdue.map(attachPulse)
+  const todayWithPulse = today.map(attachPulse)
+  const freshWithPulse = fresh.map(attachPulse)
+
   return (
     <div className='mb-8'>
       <h1 className='title mb-1'>היום</h1>
@@ -90,19 +114,19 @@ export default async function DashboardPage() {
         <Card
           title='דורש טיפול'
           subtitle='חרגו מזמן תגובה'
-          rows={overdue}
+          rows={overdueWithPulse}
           emptyMsg='אין לידים באיחור'
         />
         <Card
           title='היום'
           subtitle='לפנות ב־24 השעות הקרובות'
-          rows={today}
+          rows={todayWithPulse}
           emptyMsg='אין לידים דחופים להיום'
         />
         <Card
           title='חדשים'
           subtitle='לידים שטרם נפתחו'
-          rows={fresh}
+          rows={freshWithPulse}
           emptyMsg='אין לידים חדשים'
         />
       </div>

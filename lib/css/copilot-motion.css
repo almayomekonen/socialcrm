@@ -1,0 +1,107 @@
+/* Copilot motion primitives — single source of truth for keyframes and
+ * animation utility classes used across the Copilot panel.
+ *
+ * Doctrine:
+ *   - Component-level <style> blocks are forbidden. They drifted in early
+ *     phases and produced motion-feel divergence between surfaces. This file
+ *     replaces them with named classes + named keyframes consumers attach by
+ *     className alone.
+ *   - All reduced-motion overrides live at the bottom of this file so the
+ *     accessibility contract is auditable in one place.
+ *
+ * Class catalog:
+ *   .copilot-shell                — fixed-side panel transitions
+ *   .copilot-shell-open / -closed — visibility states paired with .copilot-shell
+ *   .cp-cursor                    — typing-cursor blink (assistant body reveal)
+ *   .cp-spark                     — active-generation sparkle (rotate + pulse)
+ *   .cp-spark-text                — active-generation label fade-in
+ *   [data-cp-reveal] > *          — assistant body section stagger (fresh-only)
+ */
+
+/* ── Shell transitions ─────────────────────────────────────────────────── */
+
+.copilot-shell {
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  transition-duration: 220ms;
+  will-change: transform, opacity;
+}
+[dir='rtl'] .copilot-shell-closed { transform: translateX(-12px); }
+[dir='ltr'] .copilot-shell-closed,
+.copilot-shell-closed             { transform: translateX(12px); }
+.copilot-shell-closed {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: 160ms;
+}
+.copilot-shell-open {
+  transform: translateX(0);
+  opacity: 1;
+  transition-duration: 220ms;
+}
+
+/* ── Progressive reveal (assistant body typing cursor) ─────────────────── */
+
+.cp-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 0.85em;
+  background: #9ca3af;
+  margin-left: 1px;
+  vertical-align: -0.05em;
+  border-radius: 1px;
+  animation: cp-cursor-blink 900ms step-end infinite;
+}
+@keyframes cp-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ── Stagger reveal (assistant body section entrance, fresh-only) ──────── */
+
+[data-cp-reveal] > * {
+  opacity: 0;
+  animation: cp-fade-in 240ms ease-out forwards;
+}
+[data-cp-reveal] > *:nth-child(1) { animation-delay: 0ms;   }
+[data-cp-reveal] > *:nth-child(2) { animation-delay: 70ms;  }
+[data-cp-reveal] > *:nth-child(3) { animation-delay: 140ms; }
+[data-cp-reveal] > *:nth-child(4) { animation-delay: 210ms; }
+@keyframes cp-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Active generation sparkle ─────────────────────────────────────────── */
+
+.cp-spark {
+  animation:
+    cp-spark-rotate 10s linear infinite,
+    cp-spark-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+}
+.cp-spark-text {
+  animation: cp-spark-text-in 260ms ease-out;
+}
+@keyframes cp-spark-pulse {
+  0%, 100% { opacity: 0.72; }
+  50%      { opacity: 1; }
+}
+@keyframes cp-spark-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes cp-spark-text-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Reduced motion contract ───────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-shell       { transition: none !important; }
+  .cp-cursor           { display: none; }
+  [data-cp-reveal] > * { animation: none; opacity: 1; }
+  .cp-spark            { animation: none; opacity: 0.85; }
+  .cp-spark-text       { animation: none; }
+}

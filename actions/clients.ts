@@ -11,6 +11,7 @@ import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { assertLeadQuota, QuotaExceededError, getAgencyPlan, withAgencyQuotaLock } from '@/lib/quota'
 import type { QuotaErrorResult } from '@/lib/quota'
+import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
 
 export type DeleteLeadResult = { success: true } | { error: true; reason: 'no_permission' | 'not_found' }
 
@@ -291,6 +292,7 @@ export async function updateLead(data) {
   }
 
   revalidatePath('/leads')
+  scheduleLeadIntelWarm(id, { reason: 'lead.update' })
   return res[0]
 }
 

@@ -4,11 +4,11 @@ import PricingPageComponent from '@/components/ui/pricing-card'
 
 export const metadata = buildPageMetadata({
   path: '/pricing',
-  title: 'מחירים | SocialCRM — מערכת ניהול לידים',
+  title: 'מחירים | SocialCRM | CRM חינם עם שכבת AI אופרטיבית',
   description:
-    'תוכניות מחיר גמישות לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ. התחל בחינם, שדרג כשתצמח. ללא התחייבות.',
-  ogTitle: 'מחירים | SocialCRM',
-  ogDescription: 'התחל בחינם. שדרג כשתצמח. נהל לידים מכל מקור במקום אחד.',
+    'ה-CRM חינמי לתמיד וכולל ניהול לידים ללא הגבלה מפייסבוק, אינסטגרם ו-וואטסאפ. השדרוג ל-Pro פותח את שכבת ה-AI שמלווה כל ליד עם ניסוח הודעות, המלצות והיסטוריה תפעולית. ₪149 לסביבת עבודה הכוללת את כל הצוות.',
+  ogTitle: 'CRM חינמי עם שכבת AI אופרטיבית ב-Pro | SocialCRM',
+  ogDescription: 'CRM מלא וחינמי לתמיד. שכבת AI אופרטיבית שזוכרת כל ליד זמינה ב-Pro.',
 })
 
 export default function PricingPage() {

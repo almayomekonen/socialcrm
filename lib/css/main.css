@@ -3,6 +3,7 @@
 @import './animations.css';
 @import './base.css';
 @import './elements.css';
+@import './copilot-motion.css';
 @config "../../tailwind.config.ts";
 
 @theme {
@@ -110,28 +111,6 @@ body {
 @utility start-step {
   clip-path: polygon(8px 0%, 100% 0%, 100% 100%, 8px 100%, 0% 50%);
 }
-
-/* 
-@utility mid-step {
-  clip-path: polygon(100% 0%, 92% 50%, 100% 100%, 8% 100%, 0% 50%, 8% 0);
-}
-
-@utility end-step {
-  clip-path: polygon(0% 0%, 100% 0, 79% 50%, 100% 100%, 0% 100%);
-}
-
-@utility start-step {
-  clip-path: polygon(10% 0%, 100% 0%, 100% 100%, 10% 100%, 0% 50%);
-} */
-
-/* .full-bleed {
-  width: calc(100vw - 50px);
-  position: relative;
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw;
-  margin-right: calc(-50vw + 25px);
-} */
 
 @utility full-bleed {
   position: relative;
@@ -248,4 +227,164 @@ body {
 
 .lbl {
   @apply text-gray-600 text-sm;
+}
+
+.workspace-grid {
+  grid-template-columns: 50px 1fr 0px;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  transition: grid-template-columns 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.workspace-grid.copilot-open {
+  grid-template-columns: 50px 1fr 320px;
+}
+
+.workspace-rail {
+  position: fixed;
+  inset-inline-end: 320px;
+  top: 2.5rem;
+  bottom: 2.5rem;
+  width: 1px;
+  background: transparent;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 80ms ease-out;
+}
+
+.workspace-grid.copilot-open + .workspace-rail {
+  opacity: 1;
+  transition: opacity 60ms ease-out;
+  transition-delay: 160ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-grid,
+  .workspace-rail {
+    transition: none;
+  }
+}
+
+.copilot-trigger-btn {
+  position: relative;
+  isolation: isolate;
+  transition: box-shadow 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Outer bloom — wide corona that breathes outward */
+.copilot-trigger-btn::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.1) 40%, transparent 70%);
+  opacity: 0;
+  transform: scale(0.45);
+  transition:
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Inner shine — tighter, slightly brighter center for depth */
+.copilot-trigger-btn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(129, 140, 248, 0.22) 0%, transparent 65%);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.copilot-trigger-btn:hover {
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.18);
+}
+
+.copilot-trigger-btn:hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copilot-trigger-btn:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Active/press: faster collapse, slight compression */
+.copilot-trigger-btn:active {
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.12);
+  transition-duration: 80ms;
+}
+
+.copilot-trigger-btn:active::before {
+  transform: scale(0.78);
+  opacity: 0.7;
+  transition-duration: 80ms;
+}
+
+.copilot-trigger-btn:active::after {
+  transform: scale(0.85);
+  opacity: 0.6;
+  transition-duration: 80ms;
+}
+
+/* Open state: bloom pinned at partial intensity — readable "selected" signal */
+.copilot-trigger-open {
+  background-color: rgba(99, 102, 241, 0.08);
+}
+
+.copilot-trigger-open::before {
+  opacity: 0.5;
+  transform: scale(0.68);
+}
+
+.copilot-trigger-open::after {
+  opacity: 0.4;
+  transform: scale(0.8);
+}
+
+.copilot-trigger-open:hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copilot-trigger-open:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Icon: slightly elastic ease gives the "wakes up" feeling —
+   not a bounce, just enough spring to feel alive */
+.copilot-trigger-icon {
+  transition:
+    transform 320ms cubic-bezier(0.34, 1.36, 0.64, 1),
+    background-color 200ms ease;
+  will-change: transform;
+}
+
+.copilot-trigger-btn:hover .copilot-trigger-icon {
+  transform: rotate(14deg);
+}
+
+.copilot-trigger-btn:active .copilot-trigger-icon {
+  transform: rotate(7deg) scale(0.9);
+  transition-duration: 80ms;
+  transition-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-trigger-btn,
+  .copilot-trigger-btn::before,
+  .copilot-trigger-btn::after,
+  .copilot-trigger-icon {
+    transition: none !important;
+    animation: none !important;
+  }
 }

@@ -58,8 +58,6 @@ export default function SalesTable({ props }: SaleTableProps) {
   const [confirmDeleteSale, setConfirmDeleteSale] = useState<any>(null)
   const [bulkInfoMsg, setBulkInfoMsg] = useState<string | null>(null)
 
-  // DOM-sourced selection, mirrored into state so the bulk bar can react.
-  // Same contract as SelectSalesGrpActions → checkedIds().
   useEffect(() => {
     const el = document.getElementById(tblId)
     if (!el) return
@@ -206,7 +204,7 @@ export default function SalesTable({ props }: SaleTableProps) {
   }
   return (
     <>
-      <div className='my-8 grid'>
+      <div className='flex flex-col'>
         <div className='flex justify-between gap-4 items-end'>
           <div className='flex gap-3 items-end mb-2'>
             <SelectSearch placeholder='חיפוש עסקה' show='details' searchFunc={searchContacts} onSelectOpt={getSelectedClient} />
@@ -232,7 +230,7 @@ export default function SalesTable({ props }: SaleTableProps) {
           </div>
         </div>
 
-        <Table config={config} tblCls='mb-0' />
+        <Table config={config} tblCls='mb-0 !max-h-[32rem] !rounded-b-none' />
         <TableFooter />
       </div>
 

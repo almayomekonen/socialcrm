@@ -1,9 +1,11 @@
+import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
 import ClientHeader from '@/components/clientPage/ClientHeader'
 import ClientNav from '@/components/clientPage/ClientNav'
 import { getFullLead, getFamMembers } from '@/db/clients'
 import { getUserNameById, getUsers } from '@/db/usersNTeams'
 import { getPerms } from '@/db/filter'
+import CopilotLeadContext from '@/components/copilot/CopilotLeadContext'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -43,6 +45,9 @@ export default async function layout({ children, params }) {
       />
       <ClientNav id={clientId} />
       {children}
+      <Suspense fallback={null}>
+        <CopilotLeadContext leadId={clientId} />
+      </Suspense>
     </div>
   )
 }

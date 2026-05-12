@@ -23,7 +23,7 @@ export default function TableFooter() {
   }
 
   return (
-    <div className='flex justify-between p-4 bg-white border border-t-0 rounded-b-md'>
+    <div className='flex justify-between p-4 bg-white border border-t-0 rounded-b-md w-full'>
       <div className='flex'>
         <Select options={['100', '500', '1000']} onChange={onQnttChange} defaultValue={tableLimit} />
         <p>{`${tableLength} רשומות` + (count ? ` מתוך ${count}` : '')}</p>

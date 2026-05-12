@@ -2,113 +2,141 @@
 import { twMerge } from 'tailwind-merge'
 import { Btn } from '@/lib/btns/Btn'
 
+/**
+ * In-app pricing surface shown under settings/update_payment.
+ *
+ * Reflects the binary monetization model: Free (everything in the CRM works,
+ * with a small AI taste) vs. Pro (the AI brain). Workspace-priced — no
+ * per-seat math, no enterprise tier on this surface.
+ *
+ * Pricing UX phase only — the upgrade button hits the existing
+ * /api/payments/upgrade route; no entitlement/Stripe wiring is added here.
+ */
+
 type PackagesProps = { plan?: string }
 
 export default function Packages({ plan = 'free' }: PackagesProps) {
   return (
-    <div className='my-6 grid lg:grid-cols-3 gap-8  max-w-6xl '>
+    <div className='my-6 grid md:grid-cols-2 gap-6 max-w-3xl'>
       {packages.map((pkg) => (
-        <Package key={pkg.name} pkg={pkg} plan={plan} />
+        <PackageCard key={pkg.id} pkg={pkg} currentPlan={plan} />
       ))}
     </div>
   )
 }
 
-export function Package({ pkg, plan }: { pkg: typeof packages[number]; plan: string }) {
-  const isPro = plan === 'pro'
-  const isFreeTier = pkg.pricePerMonth === 0
-  const isPaidTier = pkg.pricePerMonth !== null && pkg.pricePerMonth > 0
-  const isCustomTier = pkg.pricePerMonth === null
+type Pkg = {
+  id: 'free' | 'pro'
+  name: string
+  pricePerMonth: number
+  tagline: string
+  included: string[]
+}
 
-  // Free plan → free tier is "current".
-  // Pro plan  → no specific paid tier is known; no "current" label.
-  const isSelected = !isPro && isFreeTier
+function PackageCard({ pkg, currentPlan }: { pkg: Pkg; currentPlan: string }) {
+  const isProPlan = currentPlan === 'pro'
+  const isThisPlan = (pkg.id === 'pro' && isProPlan) || (pkg.id === 'free' && !isProPlan)
+  const isProCard = pkg.id === 'pro'
 
   return (
     <fieldset
-      className={twMerge('bg-white max-w-sm  p-6 border rounded-lg  flex flex-col justify-between', isSelected && 'border-solid')}
+      className={twMerge(
+        'p-6 rounded-2xl flex flex-col justify-between transition-colors',
+        isProCard ? 'bg-gray-900 text-white border border-gray-900' : 'bg-white border border-gray-200',
+      )}
     >
-      {isSelected && <legend className='bg-solid text-white rounded-full px-4 text-center'>החבילה שלך</legend>}
+      {isThisPlan && (
+        <legend
+          className={twMerge(
+            'rounded-full px-3 py-0.5 text-xs font-semibold',
+            isProCard ? 'bg-white text-gray-900' : 'bg-gray-900 text-white',
+          )}
+        >
+          התוכנית הנוכחית שלך
+        </legend>
+      )}
 
       <div className='space-y-2'>
-        <h2 className='text-2xl font-bold'>{pkg.name}</h2>
-        {pkg.pricePerMonth !== null && (
-          <p className='text-2xl font-bold'>
-            ₪{pkg.pricePerMonth} <span className='text-lg'>/ לחודש</span>
+        <h2 className='text-xl font-bold'>{pkg.name}</h2>
+        <p className={twMerge('text-2xl font-extrabold', isProCard ? 'text-white' : 'text-gray-900')}>
+          {pkg.pricePerMonth === 0 ? (
+            'חינם'
+          ) : (
+            <>
+              ₪{pkg.pricePerMonth}
+              <span className={twMerge('text-sm font-normal', isProCard ? 'text-white/50' : 'text-gray-400')}>
+                {' '}
+                / לחודש
+              </span>
+            </>
+          )}
+        </p>
+        <p className={twMerge('text-sm', isProCard ? 'text-white/70' : 'text-gray-500')}>{pkg.tagline}</p>
+        {pkg.pricePerMonth > 0 && (
+          <p className={twMerge('text-[11px]', isProCard ? 'text-white/40' : 'text-gray-400')}>
+            לסביבת עבודה, כולל את כל הצוות.
           </p>
         )}
-        <div className='border-t border-b py-2 my-4'>
-          <p className={twMerge('font-semibold', pkg.name === 'שגשוג' ? 'text-orange-600' : 'text-solid')}>{pkg.description}</p>
-        </div>
-        <h3 className='font-bold '>מה כלול:</h3>
-        <ul className='list-disc px-4'>
+
+        <ul className='mt-4 space-y-2'>
           {pkg.included.map((item) => (
-            <li key={item}>{item}</li>
+            <li
+              key={item}
+              className={twMerge('text-sm flex items-start gap-2', isProCard ? 'text-white/90' : 'text-gray-700')}
+            >
+              <span className={twMerge('shrink-0', isProCard ? 'text-white' : 'text-gray-900')}>✓</span>
+              <span>{item}</span>
+            </li>
           ))}
         </ul>
       </div>
 
-      {isPro && (isPaidTier || isCustomTier) && (
-        <p className='mt-4 text-sm font-semibold text-green-700'>פעיל במסלול Pro</p>
-      )}
-
-      {!isPro && (isPaidTier || isCustomTier) && (
-        <Btn
-          lbl={isCustomTier ? 'קבלת הצעה' : 'שדרג למסלול Pro'}
-          className={twMerge('w-full', pkg.name === 'שגשוג' && 'bg-orange-600 hover:bg-orange-600')}
-          onClick={() => {
-            window.location.href = '/api/payments/upgrade'
-          }}
-        />
-      )}
+      <div className='mt-6'>
+        {isThisPlan ? (
+          <p
+            className={twMerge('text-sm font-semibold text-center', isProCard ? 'text-white/80' : 'text-green-700')}
+          >
+            פעיל
+          </p>
+        ) : isProCard ? (
+          <Btn
+            lbl='שדרג ל-Pro'
+            className='w-full bg-white text-gray-900 hover:bg-gray-100'
+            onClick={() => {
+              window.location.href = '/api/payments/upgrade'
+            }}
+          />
+        ) : null}
+      </div>
     </fieldset>
   )
 }
 
-export const packages = [
+export const packages: Pkg[] = [
   {
-    name: 'ניצן',
+    id: 'free',
+    name: 'Free',
     pricePerMonth: 0,
-    description: 'מערכת בסיסית למעקב לידים ולקוחות',
-    included: ['מערכת לניהול לקוחות ומשימות', 'ייבוא לידים ממקורות חיצוניים', 'ניהול פייפליין מכירות'],
-  },
-  {
-    name: 'מקפצה',
-    pricePerMonth: 59,
-    description: 'מערכת מלאה לטיפול בלידים ולקוחות',
+    tagline: 'ה-CRM כולו חינמי לתמיד.',
     included: [
-      'מערכת לניהול לקוחות ומשימות',
-      'ייבוא לידים ממקורות חיצוניים',
-      'ניהול פייפליין מכירות',
-      'אוטומציות ייבוא וטיפול בלידים',
-      'הצטרפות לידים אוטומטית',
-      'בוטים',
-      'תובנות AI',
-      'אוטומציות',
+      'לידים ללא הגבלה',
+      'משתמשים ללא הגבלה',
+      'חיבור פייסבוק, אינסטגרם ו-וואטסאפ',
+      'ייבוא לידים מאקסל',
+      '10 פעולות AI בחודש במצב מהיר',
     ],
   },
   {
-    name: 'פריחה',
-    pricePerMonth: 120,
-    description: 'כל מה שעסק קטן צריך במערכת אחת',
+    id: 'pro',
+    name: 'Pro',
+    pricePerMonth: 149,
+    tagline: 'שכבת ה-AI שמלווה את כל ה-CRM שלך.',
     included: [
-      'מערכת לניהול לקוחות ומשימות',
-      'ייבוא לידים ממקורות חיצוניים',
-      'ניהול פייפליין מכירות',
-      'אוטומציות ייבוא וטיפול בלידים',
-      'הצטרפות לידים אוטומטית',
-      'בוטים',
-      'תובנות AI',
-      'אוטומציות',
-      'יצירת מסמכים',
-      'מעקב עלויות החזר',
-      'הסכמי עמלה',
+      'AI ללא הגבלה במצב מהיר ובמצב חכם',
+      'מצב AI מתקדם לניתוח מעמיק',
+      'היסטוריית AI מלאה לכל ליד',
+      'ניסוח הודעות, המלצות וצעדים הבאים',
+      'תכונות AI עתידיות בלי תוספת תשלום',
     ],
-  },
-  {
-    name: 'שגשוג',
-    pricePerMonth: null, // התאמה אישית
-    description: 'חבילה מותאמת אישית עבור עסקים',
-    included: ['שיחה עם מומחה להצלחת לקוח לבניית תוכנית שמותאמת בדיוק עבור הצרכים שלכם'],
   },
 ]

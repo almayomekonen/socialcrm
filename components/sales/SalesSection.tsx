@@ -10,12 +10,12 @@ export default function SalesSection({ props }) {
   const [curSale, setCurSale] = useState(null)
 
   return (
-    <div>
+    <>
       <SalesTable props={{ ...props, setCurSale, setOpenForm, curSale }} key={JSON.stringify(props.data)} />
 
       <ModalPop open={openForm} onClose={() => (setOpenForm(false), setCurSale(null))}>
         <SaleForm props={props.formProps} curSale={curSale} onClose={() => (setOpenForm(false), setCurSale(null))} />
       </ModalPop>
-    </div>
+    </>
   )
 }
