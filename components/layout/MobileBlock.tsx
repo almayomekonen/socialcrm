@@ -251,7 +251,7 @@ function HeroLogo() {
           ].join(', '),
         }}
       >
-        <img src='/media/fav.svg' alt='SocialCRM' className='size-24 block' draggable={false} />
+        <img src='/media/fav.svg' alt='SocialCRM' width={96} height={96} className='size-24 block' draggable={false} />
       </div>
     </div>
   )
