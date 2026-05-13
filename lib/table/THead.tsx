@@ -50,7 +50,7 @@ export default function THead({ config }: { config: ConfigT }) {
               onDragEnd={onDragEnd}
               onDragOver={(e) => e.preventDefault()}
             >
-              <span className='flex gap-2 flex-nowrap'>
+              <span className='flex items-center gap-2 flex-nowrap'>
                 {col.label}
 
                 <Icon

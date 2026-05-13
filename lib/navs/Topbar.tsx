@@ -32,7 +32,7 @@ import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
 export function UserNAgency({ user, className = null }) {
   return (
     <div className={twMerge('flex', className)}>
-      <Link href='/settings/self_edit' className='flex gap-3' onClick={() => document.getElementById('navPop')?.hidePopover()}>
+      <Link href='/settings/self_edit' className='flex items-center gap-3' onClick={() => document.getElementById('navPop')?.hidePopover()}>
         {user?.picture ? (
           <img src={user?.picture} alt='' className='size-6 rounded-full' />
         ) : (

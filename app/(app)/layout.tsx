@@ -24,7 +24,7 @@ async function LayoutContent({ children }) {
       <PosProvider>
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
-            <div className='flex flex-col h-dvh min-h-0'>
+            <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <Topbar user={user} />
               <WorkspaceGrid>
                 <Nav user={user} />

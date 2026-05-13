@@ -6,7 +6,7 @@ import Link, { LinkProps } from 'next/link'
 import { useFormStatus } from 'react-dom'
 import Icon, { IconNames } from '../Icon'
 
-const buttonVariants = cva('flex min-w-fit justify-center font-semibold rounded-md flex-nowrap', {
+const buttonVariants = cva('flex items-center min-w-fit justify-center font-semibold rounded-md flex-nowrap', {
   variants: {
     variant: {
       solid: 'bg-solid text-white hover:bg-solid/85',

@@ -204,7 +204,7 @@ export default function SalesTable({ props }: SaleTableProps) {
   }
   return (
     <>
-      <div className='flex flex-col'>
+      <div className='flex flex-col items-stretch gap-0'>
         <div className='flex justify-between gap-4 items-end'>
           <div className='flex gap-3 items-end mb-2'>
             <SelectSearch placeholder='חיפוש עסקה' show='details' searchFunc={searchContacts} onSelectOpt={getSelectedClient} />

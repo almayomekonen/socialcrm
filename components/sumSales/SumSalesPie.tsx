@@ -24,11 +24,11 @@ export default function SumSalesPie({ pieData, goalsAndTotals, rawFilter, filter
     <>
       <Filter props={filterProps} key={JSON.stringify(filterProps?.rawFilter)} />
 
-      <div className='flex items-stretch gap-2 mt-4'>
+      <div className='flex items-stretch gap-2 mt-4 min-w-0'>
         <MeshuklalSchumPie data={pieData} rawFilter={rawFilter} goalsAndTotals={goalsAndTotals} />
       </div>
 
-      <div className='flex items-stretch gap-2 flex-wrap mt-2'>
+      <div className='flex items-stretch gap-2 flex-wrap mt-2 min-w-0'>
         {BRANCHES.map((branch) => {
           const branchData = pieData[branch] || []
           if (branchData.every((item) => item.value === 0)) return null

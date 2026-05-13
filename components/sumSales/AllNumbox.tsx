@@ -6,7 +6,7 @@ export default async function AllNumbox({ props }) {
   const details = await getSaleStats(sqlFilter)
 
   return (
-    <div className='my-8'>
+    <div className='my-8 w-full min-w-0'>
       <ClientsBoxes details={details} />
     </div>
   )
@@ -16,7 +16,7 @@ function ClientsBoxes({ details }) {
   const { hofakCount, inProcessCount, totalRevenue, pipelineValue } = details || {}
 
   return (
-    <div className='flex gap-4 mobile:grid grid-cols-2'>
+    <div className='flex flex-wrap gap-4 min-w-0 mobile:grid grid-cols-2'>
       <NumboxPrecent title='סך הכנסות (שולם)' num={formatCurrency(totalRevenue)} className='bg-softy border-soft text-solid font-bold' />
       <NumboxPrecent title='עסקאות שנסגרו' num={hofakCount} />
       <NumboxPrecent title='פייפליין' num={formatCurrency(pipelineValue)} />
@@ -30,7 +30,7 @@ function NumboxPrecent({ title, num, className = '', total = null }) {
   else num = Number(num) || num || 0
 
   return (
-    <div className={`num-box min-w-60 py-6 px-6 ${className}`}>
+    <div className={`num-box py-6 px-6 ${className}`}>
       <span>{title}</span>
       <div className='flex justify-between *:text-3xl'>
         <h2>{num}</h2>
