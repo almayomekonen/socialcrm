@@ -3,7 +3,6 @@ import { getUser } from '@/db/auth'
 import { getAgencyById } from '@/db/agencies'
 import Topbar from '@/lib/navs/Topbar'
 import Nav from '@/lib/navs/Nav'
-import MobileBlock from '@/components/layout/MobileBlock'
 import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
 import { CopilotProvider } from '@/lib/copilot/useCopilot'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
@@ -23,7 +22,6 @@ async function LayoutContent({ children }) {
   return (
     <UserProvider user={user}>
       <PosProvider>
-        <MobileBlock />
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
             <div className='flex flex-col h-dvh min-h-0'>

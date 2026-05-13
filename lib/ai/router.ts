@@ -6,6 +6,8 @@ import { logAiRequest } from './logger'
 import { getProviderChain } from './providers'
 import { estimateCostUsd, getTaskConfig } from './tasks'
 import { AiRunResult, ModelRole, ProviderName, TaskKind } from './types'
+import { evaluateShadowGate } from '@/lib/entitlements'
+import type { CopilotModeId } from './copilotModes'
 
 export type RunStructuredOptions<S extends FlexibleSchema<unknown>> = {
   kind: TaskKind
@@ -19,13 +21,8 @@ export type RunStructuredOptions<S extends FlexibleSchema<unknown>> = {
   agencyId?: number | null
   leadId?: number | null
   bypassAllowlist?: boolean
-  /**
-   * Optional override for the provider chain role. Used by surfaces that
-   * expose user-selectable AI modes (Copilot composer) without leaking the
-   * underlying provider/model identifiers. The task's default role from
-   * `getTaskConfig(kind).role` is used when this is undefined.
-   */
   roleOverride?: ModelRole
+  copilotModeId?: CopilotModeId
 }
 
 export type RunStructuredImageAttachment = {
@@ -68,7 +65,21 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
     return { ok: false, reason: 'disabled' }
   }
 
-  if (!opts.bypassAllowlist && !isAgencyAllowlisted(opts.agencyId)) {
+  // OLD production gate. Phase B observes — does NOT replace — this decision.
+  const allowlisted = isAgencyAllowlisted(opts.agencyId)
+  const oldAllowed = opts.bypassAllowlist === true || allowlisted
+
+  await evaluateShadowGate({
+    surface: opts.bypassAllowlist === true ? 'router.runStructured.bypass' : 'router.runStructured',
+    agencyId: opts.agencyId ?? null,
+    oldAllowed,
+    copilotModeId: opts.copilotModeId ?? null,
+    taskKind: opts.kind,
+    role: opts.roleOverride ?? null,
+    bypassAllowlist: opts.bypassAllowlist ?? false,
+  })
+
+  if (!oldAllowed) {
     return { ok: false, reason: 'forbidden' }
   }
 
@@ -89,8 +100,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
 
   let lastErrorMessage: string | undefined
   let lastErrorCode: string | undefined
-  // TEMPORARY: tracks the previous provider so [FALLBACK] can be emitted when
-  // the chain advances. Remove with the AI_TRACE block below after audit.
+
   let previousProvider: ProviderName | null = null
   const aiTrace = process.env.AI_TRACE === '1'
 

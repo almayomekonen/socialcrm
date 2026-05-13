@@ -68,6 +68,7 @@ export async function askLeadQuestion(
   const lenses = normalizeLenses(lensesRaw)
   const rawAttachments = normalizeAttachmentPayloads(attachmentsRaw)
   const roleOverride = resolveCopilotModeRole(modeRaw)
+  const copilotModeId = isCopilotModeId(modeRaw) ? modeRaw : undefined
 
   const user = await requireAgencyUser()
 
@@ -153,6 +154,7 @@ export async function askLeadQuestion(
     leadId,
     agencyId: user.agencyId,
     roleOverride,
+    copilotModeId,
   })
 
   const persistMode = isCopilotModeId(modeRaw) ? modeRaw : DEFAULT_COPILOT_MODE_ID

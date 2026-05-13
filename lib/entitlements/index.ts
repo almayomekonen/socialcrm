@@ -1,0 +1,7 @@
+export { getEntitlements } from './getEntitlements'
+export { isPro, canUseAiMode, utilizationRatio } from './predicates'
+export { getMonthlyAiUsage, aiUsageTag } from './aiUsage'
+export { getMonthlyLimit, isModeAvailableOnPlan } from './limits'
+export { evaluateShadowGate } from './shadow'
+export type { ShadowGateInput, ShadowSurface } from './shadow'
+export type { Plan, PlanSource, AiModeId, AiModeQuota, AiAccess, Entitlements } from './types'

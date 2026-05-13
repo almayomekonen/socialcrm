@@ -4,6 +4,7 @@
 @import './base.css';
 @import './elements.css';
 @import './copilot-motion.css';
+@import './mobile-block.css';
 @config "../../tailwind.config.ts";
 
 @theme {

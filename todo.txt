@@ -1,0 +1,159 @@
+We are currently between:
+
+# Phase B (shadow telemetry)
+
+and
+
+# Phase C (real entitlement enforcement)
+
+Current status:
+Phase A and Phase B are fully landed.
+
+---
+
+# What already exists
+
+## Payments
+
+Existing Grow payment flow remains unchanged:
+
+* user pays
+* webhook succeeds
+* agencies.plan becomes 'pro'
+
+No Stripe migration.
+No billing rewrite.
+
+---
+
+## Entitlement foundation
+
+We now have:
+
+```txt id="x7m2pk"
+lib/entitlements/
+```
+
+including:
+
+* getEntitlements()
+* usage aggregation from ai_runs
+* mode predicates
+* limits
+* request-scoped caching
+* shadow telemetry infrastructure
+
+All architecture boundaries are preserved.
+
+AI remains provider-blind and payment-provider-blind.
+
+---
+
+## Shadow telemetry (Phase B)
+
+The AI router now performs:
+
+* old gating evaluation
+* new entitlement evaluation
+* divergence comparison
+* structured telemetry logging
+
+BUT:
+production behavior is still controlled ONLY by the legacy allowlist logic.
+
+No enforcement exists yet.
+
+No user-facing behavior has changed.
+
+---
+
+# Why we paused
+
+We intentionally stopped BEFORE Phase C because:
+
+* Phase C introduces real enforcement
+* users can begin getting blocked
+* entitlement mistakes become user-visible
+* rollout safety matters
+
+We wanted time to:
+
+* test the system manually
+* observe telemetry
+* inspect divergences
+* validate assumptions
+* ensure quotas and plan logic behave correctly
+* avoid accidental production regressions
+
+---
+
+# What to monitor before continuing
+
+Watch for:
+
+* old=true / new=false divergences
+* old=false / new=true divergences
+* weird allowlist states
+* paid workspaces missing access
+* free workspaces silently using Pro modes
+* quota anomalies
+* stale entitlement snapshots
+* unexpected healthcheck noise
+* bypassAllowlist edge cases
+
+---
+
+# Phase C Goal (NEXT STEP)
+
+Phase C will:
+
+* replace legacy allowlist enforcement
+* make entitlements authoritative
+* move real AI gating to the new system
+* begin real free/pro behavior separation
+
+This is the FIRST phase that changes production behavior.
+
+Therefore:
+Phase C must remain:
+
+* gradual
+* observable
+* reversible
+* low-risk
+
+---
+
+# Important architectural doctrine
+
+AI code must NEVER:
+
+* import payment logic
+* know about Grow
+* read agencies.plan directly
+* implement its own gating
+* bypass lib/entitlements
+
+AI asks ONE question only:
+
+```ts id="f3v8dk"
+getEntitlements(agencyId)
+```
+
+Everything else is implementation detail.
+
+---
+
+# Before starting Phase C
+
+Reconfirm:
+
+* telemetry is stable
+* divergences are understood
+* logs are clean
+* entitlement math is trusted
+* usage aggregation behaves correctly
+* no hidden production edge cases remain
+
+Only then:
+begin authoritative enforcement rollout.

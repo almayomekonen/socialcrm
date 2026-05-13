@@ -8,7 +8,7 @@ export default function PkgDetails({ curPkg }) {
   return (
     <div className='space-y-1'>
       <p className='font-bold'>{pkg.name}</p>
-      <p className='font-semibold'>{pkg.description}</p>
+      <p className='font-semibold'>{pkg.tagline}</p>
       {pkg.included.map((item, i) => (
         <span key={item}>
           {item}
