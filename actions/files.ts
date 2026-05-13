@@ -30,18 +30,6 @@ function trunc(s: unknown, n = 200): string {
 }
 
 export async function getPresigned({ metadat, folderPath }: Props) {
-  const count = metadat.length
-  const totalBytes = metadat.reduce((sum, m) => sum + (m.size ?? 0), 0)
-  const mimeCounts = metadat.reduce<Record<string, number>>((acc, m) => {
-    acc[m.type] = (acc[m.type] ?? 0) + 1
-    return acc
-  }, {})
-
-  console.info(
-    '[upload] presign.start',
-    JSON.stringify({ count, totalBytes, mimeCounts, bucketPresent: Boolean(Bucket), folderPath }),
-  )
-
   for (const m of metadat) {
     if (!ALLOWED_MIME_TYPES.includes(m.type)) {
       console.warn('[upload] presign.validation.fail', JSON.stringify({ reason: 'mime-not-allowed', mime: m.type, size: m.size }))
@@ -57,15 +45,13 @@ export async function getPresigned({ metadat, folderPath }: Props) {
   }
 
   try {
-    const urls = await Promise.all(
+    return await Promise.all(
       metadat.map((m) => {
         const path = `uploads/${folderPath}/${genId()}_${m.name}`
         const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: m.type, ContentLength: m.size })
         return getSignedUrl(s3 as any, cmd as any, { expiresIn: 60 }).then((url) => ({ url, path, ...m }))
       }),
     )
-    console.info('[upload] presign.ok', JSON.stringify({ count, totalBytes }))
-    return urls
   } catch (err) {
     // S3 SDK errors carry useful $metadata.httpStatusCode + name (e.g.
     // 'CredentialsProviderError', 'AccessDenied', 'NoSuchBucket').
@@ -73,7 +59,7 @@ export async function getPresigned({ metadat, folderPath }: Props) {
     console.error(
       '[upload] presign.s3.fail',
       JSON.stringify({
-        count,
+        count: metadat.length,
         name: e?.name ?? null,
         httpStatus: e?.$metadata?.httpStatusCode ?? null,
         message: trunc(e?.message),
@@ -109,7 +95,6 @@ export async function addFilesToTask(data, clientId) {
       })
 
     revalidatePath(`/clients/${clientId}/files`)
-    console.info('[upload] addFilesToTask.ok', JSON.stringify({ taskId: data.taskId, fileCount }))
   } catch (err) {
     const e = err as { message?: string }
     // Avoid double-logging Forbidden errors we already logged above.
@@ -153,7 +138,6 @@ export async function addFiles({ presigned, taskId = null, clientId }) {
     }))
 
     const newFiles = await db('files').insert(files).returning('*')
-    console.info('[upload] addFiles.ok', JSON.stringify({ count: newFiles.length, taskId, clientId: clientId ?? null }))
     return newFiles
   } catch (err) {
     const e = err as { code?: string; message?: string }
@@ -211,8 +195,6 @@ export async function addIpuyFile({ presigned, data, type }: { presigned: any; d
           }),
         ]),
       })
-
-    console.info('[upload] addIpuyFile.ok', JSON.stringify({ count: newFiles.length, clientId: data.clientId, type }))
   } catch (err) {
     const e = err as { code?: string; message?: string }
     if (e?.message !== 'Forbidden') {

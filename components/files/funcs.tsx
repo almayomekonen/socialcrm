@@ -107,24 +107,6 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
     if (fileList.length == 0) throw new Error('לא נבחרו קבצים')
 
     const uploadedFiles = Array.from(fileList) as any[]
-    const totalBytes = uploadedFiles.reduce((s, f) => s + (f?.size ?? 0), 0)
-    const mimeCounts = uploadedFiles.reduce<Record<string, number>>((acc, f) => {
-      const t = f?.type ?? 'unknown'
-      acc[t] = (acc[t] ?? 0) + 1
-      return acc
-    }, {})
-    console.info(
-      '[upload] s3.start',
-      JSON.stringify({
-        surface: 'generic',
-        count: uploadedFiles.length,
-        totalBytes,
-        mimeCounts,
-        folderPath,
-        taskId: taskId ?? null,
-        clientId: clientId ?? null,
-      }),
-    )
 
     const convertedFiles: File[] = await Promise.all(
       uploadedFiles.map((f) => {
@@ -141,7 +123,6 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
     let presigned: Awaited<ReturnType<typeof getPresigned>>
     try {
       presigned = await getPresigned({ metadat, folderPath })
-      console.info('[upload] s3.presign.ok', JSON.stringify({ count: presigned.length }))
     } catch (err) {
       console.error(
         '[upload] s3.presign.fail',
@@ -178,15 +159,9 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
         }
       }),
     )
-    console.info('[upload] s3.put.ok', JSON.stringify({ count: presigned.length }))
 
     try {
-      const saved = await addFiles({ presigned, taskId, clientId })
-      console.info(
-        '[upload] s3.done',
-        JSON.stringify({ count: Array.isArray(saved) ? saved.length : 0, taskId: taskId ?? null, clientId: clientId ?? null }),
-      )
-      return saved
+      return await addFiles({ presigned, taskId, clientId })
     } catch (err) {
       console.error(
         '[upload] s3.addFiles.fail',
@@ -195,10 +170,8 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
       throw err
     }
   } catch (error: any) {
-    // Keep the same return contract (caller checks `.err`); the lifecycle
-    // logs above already pinpointed the failing stage, so this is just the
-    // final ledger entry.
-    console.warn('[upload] s3.fatal', JSON.stringify({ message: trunc(error?.message) }))
+    // Final catch-all. The stage logs above pinpoint the failing step;
+    // callers continue to check `.err` on the returned object.
     return { err: true, msg: error.message }
   }
 }

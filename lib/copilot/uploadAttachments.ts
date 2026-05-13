@@ -42,63 +42,30 @@ export async function uploadCopilotAttachments({
   const limited = items.slice(0, COPILOT_MAX_ATTACHMENTS)
   if (limited.length === 0) return []
 
-  console.info(
-    '[upload] copilot.start',
-    JSON.stringify({
-      surface: 'copilot',
-      requested: items.length,
-      accepted: limited.length,
-      leadId,
-      totalBytes: limited.reduce((sum, i) => sum + (i.file?.size ?? 0), 0),
+  const uploadFiles = await Promise.all(
+    limited.map(async ({ file }) => {
+      if (file.size > COPILOT_MAX_FILE_BYTES) {
+        console.warn(
+          '[upload] copilot.prepare.fail',
+          JSON.stringify({ reason: 'file-too-large', size: file.size, max: COPILOT_MAX_FILE_BYTES }),
+        )
+        throw new Error('file-too-large')
+      }
+      const mediaType = inferCopilotMediaType(file.name, file.type)
+      const normalized = mediaType && mediaType !== file.type ? new File([file], file.name, { type: mediaType }) : file
+      return mediaType.startsWith('image') ? convertToWebP(normalized) : normalized
     }),
   )
-
-  let uploadFiles: File[]
-  try {
-    uploadFiles = await Promise.all(
-      limited.map(async ({ file }) => {
-        if (file.size > COPILOT_MAX_FILE_BYTES) {
-          console.warn(
-            '[upload] copilot.prepare.fail',
-            JSON.stringify({ reason: 'file-too-large', size: file.size, max: COPILOT_MAX_FILE_BYTES }),
-          )
-          throw new Error('file-too-large')
-        }
-        const mediaType = inferCopilotMediaType(file.name, file.type)
-        const normalized = mediaType && mediaType !== file.type ? new File([file], file.name, { type: mediaType }) : file
-        return mediaType.startsWith('image') ? convertToWebP(normalized) : normalized
-      }),
-    )
-  } catch (err) {
-    console.error(
-      '[upload] copilot.prepare.fail',
-      JSON.stringify({ reason: 'throw', message: trunc((err as Error)?.message) }),
-    )
-    throw err
-  }
 
   const metadat = uploadFiles.map((file) => ({
     name: sanitizeName(file.name),
     type: file.type,
     size: file.size,
   }))
-  const mimeCounts = metadat.reduce<Record<string, number>>((acc, m) => {
-    acc[m.type] = (acc[m.type] ?? 0) + 1
-    return acc
-  }, {})
-  console.info(
-    '[upload] copilot.prepared',
-    JSON.stringify({
-      count: metadat.length,
-      mimeCounts,
-      totalBytes: metadat.reduce((s, m) => s + m.size, 0),
-    }),
-  )
 
   let presigned: Awaited<ReturnType<typeof getPresigned>>
   try {
     presigned = await getPresigned({ metadat, folderPath: `${userId}/docs` })
-    console.info('[upload] copilot.presign.ok', JSON.stringify({ count: presigned.length }))
   } catch (err) {
     console.error(
       '[upload] copilot.presign.fail',
@@ -107,8 +74,6 @@ export async function uploadCopilotAttachments({
     throw err
   }
 
-  // Track each PUT individually so we know which file/index failed, the HTTP
-  // status from S3, and whether the URL even reached the network layer.
   await Promise.all(
     presigned.map(async (p, index) => {
       const startedAt = Date.now()
@@ -139,12 +104,10 @@ export async function uploadCopilotAttachments({
       }
     }),
   )
-  console.info('[upload] copilot.s3.put.ok', JSON.stringify({ count: presigned.length }))
 
   let saved: PersistedFile[]
   try {
     saved = (await addFiles({ presigned, clientId: leadId })) as PersistedFile[]
-    console.info('[upload] copilot.addFiles.ok', JSON.stringify({ count: saved.length, leadId }))
   } catch (err) {
     console.error(
       '[upload] copilot.addFiles.fail',
@@ -153,15 +116,9 @@ export async function uploadCopilotAttachments({
     throw err
   }
 
-  const payloads = limited
+  return limited
     .map((item, index) => toPayload(item.extracted, saved[index]))
     .filter((item): item is CopilotAttachmentPayload => Boolean(item))
-
-  console.info(
-    '[upload] copilot.done',
-    JSON.stringify({ requested: items.length, persisted: saved.length, payloads: payloads.length }),
-  )
-  return payloads
 }
 
 function toPayload(extracted: ExtractedAttachment, persisted?: PersistedFile): CopilotAttachmentPayload | null {
