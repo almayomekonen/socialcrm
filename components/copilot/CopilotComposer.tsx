@@ -216,7 +216,22 @@ export default function CopilotComposer({
       setValue('')
       setLenses([])
       setAttachedFiles([])
-    } catch {
+    } catch (err) {
+      // The lifecycle logs in uploadCopilotAttachments already pinpoint the
+      // failing stage (prepare / presign / s3.put / addFiles). This is the
+      // last-chance surface log so the user-facing error has at least one
+      // entry that matches what they saw in the UI.
+      const e = err as { message?: string; name?: string }
+      const msg = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(err)
+      console.warn(
+        '[upload] copilot.fatal',
+        JSON.stringify({
+          where: 'CopilotComposer.submit',
+          name: e?.name ?? null,
+          message: msg,
+          fileCount: files.length,
+        }),
+      )
       setFileError('העלאת הקבצים נכשלה. נסה שוב.')
       setAttachedFiles((prev) => prev.map((item) => ({ ...item, status: 'error' })))
     } finally {

@@ -24,24 +24,63 @@ const ALLOWED_MIME_TYPES = [
 ]
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 
+function trunc(s: unknown, n = 200): string {
+  const v = typeof s === 'string' ? s : String(s ?? '')
+  return v.length > n ? v.slice(0, n) + '…' : v
+}
+
 export async function getPresigned({ metadat, folderPath }: Props) {
+  const count = metadat.length
+  const totalBytes = metadat.reduce((sum, m) => sum + (m.size ?? 0), 0)
+  const mimeCounts = metadat.reduce<Record<string, number>>((acc, m) => {
+    acc[m.type] = (acc[m.type] ?? 0) + 1
+    return acc
+  }, {})
+
+  console.info(
+    '[upload] presign.start',
+    JSON.stringify({ count, totalBytes, mimeCounts, bucketPresent: Boolean(Bucket), folderPath }),
+  )
+
   for (const m of metadat) {
     if (!ALLOWED_MIME_TYPES.includes(m.type)) {
+      console.warn('[upload] presign.validation.fail', JSON.stringify({ reason: 'mime-not-allowed', mime: m.type, size: m.size }))
       throw new Error(`File type "${m.type}" is not allowed. Allowed types: PDF, PNG, JPG.`)
     }
     if (m.size > MAX_FILE_SIZE) {
+      console.warn(
+        '[upload] presign.validation.fail',
+        JSON.stringify({ reason: 'size-too-large', size: m.size, max: MAX_FILE_SIZE }),
+      )
       throw new Error(`File "${m.name}" exceeds the 10 MB size limit.`)
     }
   }
 
-  const urls = await Promise.all(
-    metadat.map((m) => {
-      const path = `uploads/${folderPath}/${genId()}_${m.name}`
-      const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: m.type, ContentLength: m.size })
-      return getSignedUrl(s3 as any, cmd as any, { expiresIn: 60 }).then((url) => ({ url, path, ...m }))
-    }),
-  )
-  return urls
+  try {
+    const urls = await Promise.all(
+      metadat.map((m) => {
+        const path = `uploads/${folderPath}/${genId()}_${m.name}`
+        const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: m.type, ContentLength: m.size })
+        return getSignedUrl(s3 as any, cmd as any, { expiresIn: 60 }).then((url) => ({ url, path, ...m }))
+      }),
+    )
+    console.info('[upload] presign.ok', JSON.stringify({ count, totalBytes }))
+    return urls
+  } catch (err) {
+    // S3 SDK errors carry useful $metadata.httpStatusCode + name (e.g.
+    // 'CredentialsProviderError', 'AccessDenied', 'NoSuchBucket').
+    const e = err as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } }
+    console.error(
+      '[upload] presign.s3.fail',
+      JSON.stringify({
+        count,
+        name: e?.name ?? null,
+        httpStatus: e?.$metadata?.httpStatusCode ?? null,
+        message: trunc(e?.message),
+      }),
+    )
+    throw err
+  }
 }
 
 interface Props {
@@ -50,18 +89,38 @@ interface Props {
 }
 
 export async function addFilesToTask(data, clientId) {
-  const user = await requireUser()
-  const task = await db('tasks').where({ id: data.taskId }).select('clientId').first()
-  if (!task) throw new Error('Forbidden')
-  const client = await db('clients').where({ id: task.clientId, agencyId: user.agencyId }).first()
-  if (!client) throw new Error('Forbidden')
-  await db('tasks')
-    .where({ id: data.taskId })
-    .update({
-      files: db.raw('COALESCE(files, ARRAY[]::integer[]) || ?', [data.files]),
-    })
+  const fileCount = Array.isArray(data?.files) ? data.files.length : 0
+  try {
+    const user = await requireUser()
+    const task = await db('tasks').where({ id: data.taskId }).select('clientId').first()
+    if (!task) {
+      console.warn('[upload] addFilesToTask.fail', JSON.stringify({ reason: 'task-not-found', taskId: data?.taskId, fileCount }))
+      throw new Error('Forbidden')
+    }
+    const client = await db('clients').where({ id: task.clientId, agencyId: user.agencyId }).first()
+    if (!client) {
+      console.warn('[upload] addFilesToTask.fail', JSON.stringify({ reason: 'agency-mismatch', taskId: data?.taskId, fileCount }))
+      throw new Error('Forbidden')
+    }
+    await db('tasks')
+      .where({ id: data.taskId })
+      .update({
+        files: db.raw('COALESCE(files, ARRAY[]::integer[]) || ?', [data.files]),
+      })
 
-  revalidatePath(`/clients/${clientId}/files`)
+    revalidatePath(`/clients/${clientId}/files`)
+    console.info('[upload] addFilesToTask.ok', JSON.stringify({ taskId: data.taskId, fileCount }))
+  } catch (err) {
+    const e = err as { message?: string }
+    // Avoid double-logging Forbidden errors we already logged above.
+    if (e?.message !== 'Forbidden') {
+      console.error(
+        '[upload] addFilesToTask.fail',
+        JSON.stringify({ reason: 'throw', taskId: data?.taskId, fileCount, message: trunc(e?.message) }),
+      )
+    }
+    throw err
+  }
 }
 
 export async function getUserImgs(userId) {
@@ -73,21 +132,34 @@ export async function getUserImgs(userId) {
 }
 
 export async function addFiles({ presigned, taskId = null, clientId }) {
+  const count = Array.isArray(presigned) ? presigned.length : 0
   const user = await getUser()
 
-  presigned.map((p) => delete p.url)
-  const agencyId = await getAgencyId()
-  const files = presigned.map((p) => ({
-    ...p,
-    taskId,
-    clientId,
-    createdById: user.id,
-    createdAt: new Date(),
-    agencyId,
-  }))
+  if (!user) {
+    console.warn('[upload] addFiles.fail', JSON.stringify({ reason: 'no-user', count }))
+    throw new Error('Forbidden')
+  }
 
-  const newFiles = await db('files').insert(files).returning('*')
-  return newFiles
+  try {
+    presigned.map((p) => delete p.url)
+    const agencyId = await getAgencyId()
+    const files = presigned.map((p) => ({
+      ...p,
+      taskId,
+      clientId,
+      createdById: user.id,
+      createdAt: new Date(),
+      agencyId,
+    }))
+
+    const newFiles = await db('files').insert(files).returning('*')
+    console.info('[upload] addFiles.ok', JSON.stringify({ count: newFiles.length, taskId, clientId: clientId ?? null }))
+    return newFiles
+  } catch (err) {
+    const e = err as { code?: string; message?: string }
+    console.error('[upload] addFiles.db.fail', JSON.stringify({ count, code: e?.code ?? null, message: trunc(e?.message) }))
+    throw err
+  }
 }
 
 export async function deleteFile(file) {
@@ -100,35 +172,62 @@ export async function deleteFile(file) {
 }
 
 export async function addIpuyFile({ presigned, data, type }: { presigned: any; data: any; type: string }) {
-  const user = await requireUser()
-  const client = await db('clients').where({ id: data.clientId, agencyId: user.agencyId }).first()
-  if (!client) throw new Error('Forbidden')
-  presigned.map((p) => delete p.url)
-  const files = presigned.map((p) => ({
-    ...p,
-    clientId: data.clientId,
-    createdById: user.id,
-    createdAt: new Date(),
-    agencyId: user.agencyId,
-  }))
+  const count = Array.isArray(presigned) ? presigned.length : 0
+  try {
+    const user = await requireUser()
+    const client = await db('clients').where({ id: data.clientId, agencyId: user.agencyId }).first()
+    if (!client) {
+      console.warn(
+        '[upload] addIpuyFile.fail',
+        JSON.stringify({ reason: 'client-not-found-or-agency-mismatch', clientId: data?.clientId, type, count }),
+      )
+      throw new Error('Forbidden')
+    }
+    presigned.map((p) => delete p.url)
+    const files = presigned.map((p) => ({
+      ...p,
+      clientId: data.clientId,
+      createdById: user.id,
+      createdAt: new Date(),
+      agencyId: user.agencyId,
+    }))
 
-  const newFiles = await db('files').insert(files).returning('*')
+    const newFiles = await db('files').insert(files).returning('*')
 
-  const expiresAt = {
-    reports: daysFromNow(90),
-    documents: daysFromNow(5),
-    files: daysFromNow(30),
-  }
+    const expiresAt = {
+      reports: daysFromNow(90),
+      documents: daysFromNow(5),
+      files: daysFromNow(30),
+    }
 
-  await db('clients_info')
-    .where({ id: data.clientId })
-    .update({
-      ipuyFiles: db.raw(`jsonb_set(COALESCE("ipuyFiles", '{}'::jsonb), ?, ?::jsonb)`, [
-        `{${type}}`,
+    await db('clients_info')
+      .where({ id: data.clientId })
+      .update({
+        ipuyFiles: db.raw(`jsonb_set(COALESCE("ipuyFiles", '{}'::jsonb), ?, ?::jsonb)`, [
+          `{${type}}`,
+          JSON.stringify({
+            url: newFiles[0].url,
+            expiresAt: expiresAt[type],
+          }),
+        ]),
+      })
+
+    console.info('[upload] addIpuyFile.ok', JSON.stringify({ count: newFiles.length, clientId: data.clientId, type }))
+  } catch (err) {
+    const e = err as { code?: string; message?: string }
+    if (e?.message !== 'Forbidden') {
+      console.error(
+        '[upload] addIpuyFile.fail',
         JSON.stringify({
-          url: newFiles[0].url,
-          expiresAt: expiresAt[type],
+          reason: 'throw',
+          clientId: data?.clientId,
+          type,
+          count,
+          code: e?.code ?? null,
+          message: trunc(e?.message),
         }),
-      ]),
-    })
+      )
+    }
+    throw err
+  }
 }

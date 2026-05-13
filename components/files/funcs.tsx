@@ -96,26 +96,109 @@ export function ImgTooltip({ src, className = '' }) {
   )
 }
 
+function trunc(s: unknown, n = 200): string {
+  const v = typeof s === 'string' ? s : String(s ?? '')
+  return v.length > n ? v.slice(0, n) + '…' : v
+}
+
 export async function uploadS3(e, folderPath, taskId, clientId) {
   try {
     const fileList = e.target.files
     if (fileList.length == 0) throw new Error('לא נבחרו קבצים')
 
     const uploadedFiles = Array.from(fileList) as any[]
+    const totalBytes = uploadedFiles.reduce((s, f) => s + (f?.size ?? 0), 0)
+    const mimeCounts = uploadedFiles.reduce<Record<string, number>>((acc, f) => {
+      const t = f?.type ?? 'unknown'
+      acc[t] = (acc[t] ?? 0) + 1
+      return acc
+    }, {})
+    console.info(
+      '[upload] s3.start',
+      JSON.stringify({
+        surface: 'generic',
+        count: uploadedFiles.length,
+        totalBytes,
+        mimeCounts,
+        folderPath,
+        taskId: taskId ?? null,
+        clientId: clientId ?? null,
+      }),
+    )
 
     const convertedFiles: File[] = await Promise.all(
       uploadedFiles.map((f) => {
-        if (f.size > 10000000) throw new Error('קובץ גדול מדי')
+        if (f.size > 10000000) {
+          console.warn('[upload] s3.prepare.fail', JSON.stringify({ reason: 'file-too-large', size: f.size }))
+          throw new Error('קובץ גדול מדי')
+        }
         return f.type.startsWith('image') ? convertToWebP(f) : f
       })
     )
 
     const metadat = convertedFiles.map((f) => ({ name: sanitizeName(f.name), type: f.type, size: f.size }))
 
-    const presigned = await getPresigned({ metadat, folderPath })
-    await Promise.all(presigned.map((p, i) => axios.put(p.url, convertedFiles[i], { headers: { 'Content-Type': p.type } })))
-    return await addFiles({ presigned, taskId, clientId })
+    let presigned: Awaited<ReturnType<typeof getPresigned>>
+    try {
+      presigned = await getPresigned({ metadat, folderPath })
+      console.info('[upload] s3.presign.ok', JSON.stringify({ count: presigned.length }))
+    } catch (err) {
+      console.error(
+        '[upload] s3.presign.fail',
+        JSON.stringify({ count: metadat.length, message: trunc((err as Error)?.message) }),
+      )
+      throw err
+    }
+
+    await Promise.all(
+      presigned.map(async (p, i) => {
+        const startedAt = Date.now()
+        try {
+          await axios.put(p.url, convertedFiles[i], { headers: { 'Content-Type': p.type } })
+        } catch (err) {
+          const ex = err as {
+            response?: { status?: number; statusText?: string }
+            code?: string
+            message?: string
+          }
+          console.error(
+            '[upload] s3.put.fail',
+            JSON.stringify({
+              index: i,
+              size: convertedFiles[i]?.size ?? null,
+              mime: p.type,
+              httpStatus: ex?.response?.status ?? null,
+              httpStatusText: trunc(ex?.response?.statusText, 80),
+              code: ex?.code ?? null,
+              message: trunc(ex?.message),
+              latencyMs: Date.now() - startedAt,
+            }),
+          )
+          throw err
+        }
+      }),
+    )
+    console.info('[upload] s3.put.ok', JSON.stringify({ count: presigned.length }))
+
+    try {
+      const saved = await addFiles({ presigned, taskId, clientId })
+      console.info(
+        '[upload] s3.done',
+        JSON.stringify({ count: Array.isArray(saved) ? saved.length : 0, taskId: taskId ?? null, clientId: clientId ?? null }),
+      )
+      return saved
+    } catch (err) {
+      console.error(
+        '[upload] s3.addFiles.fail',
+        JSON.stringify({ count: presigned.length, message: trunc((err as Error)?.message) }),
+      )
+      throw err
+    }
   } catch (error: any) {
+    // Keep the same return contract (caller checks `.err`); the lifecycle
+    // logs above already pinpointed the failing stage, so this is just the
+    // final ledger entry.
+    console.warn('[upload] s3.fatal', JSON.stringify({ message: trunc(error?.message) }))
     return { err: true, msg: error.message }
   }
 }
