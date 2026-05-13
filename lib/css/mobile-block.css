@@ -68,3 +68,32 @@
   .mb-fade-up-d2,
   .mb-fade-up-d3   { animation: none !important; opacity: 1; transform: none; }
 }
+
+/* ── True viewport lock when the blocker is active (mobile range) ──────────
+ *
+ * Scoped to the exact range where MobileBlock is visible (matches the
+ * `desktop:hidden` Tailwind variant — `min-width: 1000px` is `desktop`, so
+ * everything below is the blocker range). On desktop these rules do not
+ * apply.
+ *
+ * - html, body get overflow:hidden + overscroll-behavior:none to freeze the
+ *   document and disable iOS rubber-band.
+ * - body becomes position:fixed inset:0 so iOS Safari can't reveal content
+ *   through momentum scrolling or address-bar collapse on touch.
+ * - touch-action: none on body blocks all touch panning/zooming on the
+ *   underlying document. Click/tap events still fire on the overlay button.
+ */
+@media (max-width: 999.98px) {
+  html,
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
+    height: 100%;
+  }
+  body {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    touch-action: none;
+  }
+}

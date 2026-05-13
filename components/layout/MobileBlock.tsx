@@ -27,6 +27,8 @@ export default function MobileBlock() {
       style={{
         background:
           'radial-gradient(ellipse 120% 80% at 50% 0%, #0c0a1f 0%, #06081a 50%, #04050f 100%)',
+        touchAction: 'none',
+        overscrollBehavior: 'none',
       }}
       aria-hidden='false'
       role='dialog'
