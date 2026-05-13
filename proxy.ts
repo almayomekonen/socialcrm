@@ -36,7 +36,7 @@ export const config = {
   // .mjs is excluded so static module assets like /copilot/pdf.worker.min.mjs
   // are served directly without going through auth — they're public worker
   // bundles, not protected routes.
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.css$|.*\\.mjs$|.*\\.png$|.*\\.jpg$|.*\\.webp$|manifest\\.json).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.css$|.*\\.mjs$|.*\\.png$|.*\\.jpg$|.*\\.webp$|.*\\.svg$|manifest\\.json).*)'],
 }
 
 // includes auth pages
