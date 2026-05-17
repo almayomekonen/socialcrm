@@ -13,6 +13,7 @@ export default function ClientNav({ id }) {
     { href: 'summary', title: 'סיכום ליד' },
     { href: 'tasks', title: 'משימות' },
     { href: 'files', title: 'קבצים' },
+    { href: 'billing', title: 'חיוב' },
   ]
 
   return (

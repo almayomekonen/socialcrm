@@ -11,7 +11,18 @@ import { toast } from '@/lib/toast'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 
-export default function ClientFormPop({ client, onClose }: { client?: any; onClose?: () => void }) {
+export default function ClientFormPop({
+  client,
+  onClose,
+  onCreated,
+}: {
+  client?: any
+  onClose?: () => void
+  /** Called after a successful upsert with the lead's id. Lets callers
+   *  (e.g. the billing flow) navigate into the new lead's workspace
+   *  without re-fetching. Fires on both insert and update. */
+  onCreated?: (leadId: number) => void
+}) {
   const user = useUser()
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
@@ -35,6 +46,7 @@ export default function ClientFormPop({ client, onClose }: { client?: any; onClo
     if (res.err) return setErrMsg(res.msg)
 
     toast('success')
+    if (onCreated && res?.id) onCreated(res.id)
     onClose?.()
   }
 

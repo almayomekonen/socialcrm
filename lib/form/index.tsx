@@ -84,7 +84,9 @@ export function Input({ as = 'input', lbl, info, href, error, className, require
     target.style.height = `${target.scrollHeight}px`
   }
 
-  props.defaultValue = props.type == 'date' ? toInputDate(props.defaultValue) : props.defaultValue
+  if (props.type === 'date' && props.defaultValue !== undefined && props.value === undefined) {
+    props.defaultValue = toInputDate(props.defaultValue)
+  }
 
   return (
     <FormField lbl={lbl} info={info} href={href} error={error} tooltip={tooltip}>

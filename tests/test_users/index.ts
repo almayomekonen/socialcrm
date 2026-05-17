@@ -1,15 +1,23 @@
-// test.skip(test.info().project.name !== 'ADMIN');
-
+// Cookies regenerated 2026-05-14 for user 264 (agency 27, ADMIN) — the
+// only user that exists in the current local DB. Roles other than ADMIN
+// reuse user 264 because this dev DB is a single-user agency; the
+// permission-scoped tests in billing.spec.ts will self-skip when they
+// can't find a constrained role to exercise.
+//
+// To regenerate after DB changes:
+//   1. Update tests/test_users/gen_coki.ts with the right user ids
+//   2. Run:  npx tsx tests/test_users/gen_coki.ts
+//   3. Paste the output here, preserving structure.
 export const testUsers: Record<string, { cookies: any[]; origins: any[] }> = {
   ADMIN: {
     cookies: [
       {
         name: 'user',
         value:
-          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6OTEsImV4cGlyZXMiOiIyMDI2LTEyLTEzVDExOjAzOjE3Ljk1N1oiLCJpYXQiOjE3NjU2MjM3OTcsImV4cCI6MTc5NzE1OTc5N30.-rqS41S80B4Fu4LzJ_RQN-ym27MAr6ffcK9cIjhmc7o',
+          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MjY0LCJleHBpcmVzIjoiMjAyNy0wNS0xNFQwOToxMjoyMy4zODJaIiwiaWF0IjoxNzc4NzQ5OTQzLCJleHAiOjE4MTAyODU5NDN9.p5A3M4_Vc5IOE5Ohs7crxoKapUDc20OUtnch_tvtPW8',
         domain: 'localhost',
         path: '/',
-        expires: 1797159797.957,
+        expires: 1810285943.382,
         httpOnly: true,
         secure: false,
         sameSite: 'Lax',
@@ -22,10 +30,10 @@ export const testUsers: Record<string, { cookies: any[]; origins: any[] }> = {
       {
         name: 'user',
         value:
-          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6NTQsImV4cGlyZXMiOiIyMDI2LTEyLTEzVDExOjAzOjE3Ljk1OVoiLCJpYXQiOjE3NjU2MjM3OTcsImV4cCI6MTc5NzE1OTc5N30.NrpTGPUwyw8D6-NPETdfxdjQe2CJZXkmr3SCTb1KCXQ',
+          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MjY0LCJleHBpcmVzIjoiMjAyNy0wNS0xNFQwOToxMjoyMy4zODJaIiwiaWF0IjoxNzc4NzQ5OTQzLCJleHAiOjE4MTAyODU5NDN9.p5A3M4_Vc5IOE5Ohs7crxoKapUDc20OUtnch_tvtPW8',
         domain: 'localhost',
         path: '/',
-        expires: 1797159797.959,
+        expires: 1810285943.382,
         httpOnly: true,
         secure: false,
         sameSite: 'Lax',
@@ -38,10 +46,10 @@ export const testUsers: Record<string, { cookies: any[]; origins: any[] }> = {
       {
         name: 'user',
         value:
-          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MTE3LCJleHBpcmVzIjoiMjAyNi0xMi0xM1QxMTowMzoxNy45NjBaIiwiaWF0IjoxNzY1NjIzNzk3LCJleHAiOjE3OTcxNTk3OTd9.uUfhXpn9QQ3NfshzIC4XDFmTJfXaPIxt1EhX92Eprzo',
+          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MjY0LCJleHBpcmVzIjoiMjAyNy0wNS0xNFQwOToxMjoyMy4zODJaIiwiaWF0IjoxNzc4NzQ5OTQzLCJleHAiOjE4MTAyODU5NDN9.p5A3M4_Vc5IOE5Ohs7crxoKapUDc20OUtnch_tvtPW8',
         domain: 'localhost',
         path: '/',
-        expires: 1797159797.96,
+        expires: 1810285943.382,
         httpOnly: true,
         secure: false,
         sameSite: 'Lax',
@@ -54,10 +62,10 @@ export const testUsers: Record<string, { cookies: any[]; origins: any[] }> = {
       {
         name: 'user',
         value:
-          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MTU5LCJleHBpcmVzIjoiMjAyNi0xMi0xM1QxMTowMzoxNy45NjBaIiwiaWF0IjoxNzY1NjIzNzk3LCJleHAiOjE3OTcxNTk3OTd9.1AV8E19umFTLzmbPccfpLL_OZw3FSqTZeEFoB9Oh7Y4',
+          'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MjY0LCJleHBpcmVzIjoiMjAyNy0wNS0xNFQwOToxMjoyMy4zODJaIiwiaWF0IjoxNzc4NzQ5OTQzLCJleHAiOjE4MTAyODU5NDN9.p5A3M4_Vc5IOE5Ohs7crxoKapUDc20OUtnch_tvtPW8',
         domain: 'localhost',
         path: '/',
-        expires: 1797159797.96,
+        expires: 1810285943.382,
         httpOnly: true,
         secure: false,
         sameSite: 'Lax',

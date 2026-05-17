@@ -15,10 +15,10 @@ const nextConfig = {
     return config
   },
   turbopack: {},
-  serverExternalPackages: ['knex'],
+  serverExternalPackages: ['knex', 'puppeteer-core', '@sparticuz/chromium-min'],
   poweredByHeader: false,
   outputFileTracingIncludes: {
-    '**/*': ['./migrations/**/*'],
+    '**/*': ['./migrations/**/*', './public/fonts/**/*'],
   },
 }
 

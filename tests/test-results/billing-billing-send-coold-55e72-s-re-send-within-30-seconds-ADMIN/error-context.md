@@ -1,0 +1,160 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - heading "טוען..." [level=3] [ref=e5]
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - button "עוזר חכם" [ref=e11] [cursor=pointer]
+          - link "אלמיו מקונן Mekonen - מנהל המערכת" [ref=e14] [cursor=pointer]:
+            - /url: /settings/self_edit
+            - paragraph [ref=e15]: אלמיו מקונן Mekonen - מנהל המערכת
+        - link "SocialCRM SocialCRM" [ref=e16] [cursor=pointer]:
+          - /url: /dashboard
+          - img "SocialCRM" [ref=e17]
+          - generic [ref=e18]: SocialCRM
+      - generic [ref=e19]:
+        - navigation [ref=e22]:
+          - generic [ref=e23]:
+            - link "היום" [ref=e24] [cursor=pointer]:
+              - /url: /dashboard
+              - paragraph [ref=e27]: היום
+            - link "לידים" [ref=e28] [cursor=pointer]:
+              - /url: /leads
+              - paragraph [ref=e31]: לידים
+            - link "לקוחות" [ref=e32] [cursor=pointer]:
+              - /url: /clients
+              - paragraph [ref=e35]: לקוחות
+            - link "עסקאות" [ref=e36] [cursor=pointer]:
+              - /url: /deals
+              - paragraph [ref=e39]: עסקאות
+            - link "ביצועים" [ref=e40] [cursor=pointer]:
+              - /url: /sum_sales
+              - paragraph [ref=e43]: ביצועים
+            - link "משימות" [ref=e44] [cursor=pointer]:
+              - /url: /tasks
+              - paragraph [ref=e47]: משימות
+            - link "הגדרות" [ref=e48] [cursor=pointer]:
+              - /url: /settings/self_edit
+              - paragraph [ref=e51]: הגדרות
+          - button "התנתקות" [ref=e52] [cursor=pointer]:
+            - paragraph [ref=e55]: התנתקות
+        - main [ref=e56]:
+          - generic [ref=e58]:
+            - generic [ref=e61]:
+              - paragraph [ref=e63]: fasika fasikain827@gmail.com
+              - paragraph [ref=e64]: 14/5/2026 (0)
+              - paragraph [ref=e65]: נקבה
+              - generic [ref=e66] [cursor=pointer]: fasikain827@gmail.com
+              - paragraph [ref=e68]: "0535317356"
+              - button "סגור עסקה" [ref=e69] [cursor=pointer]:
+                - generic [ref=e71]: סגור עסקה
+            - generic [ref=e72]:
+              - link "סיכום ליד" [ref=e73] [cursor=pointer]:
+                - /url: /clients/14767/summary
+              - link "משימות" [ref=e74] [cursor=pointer]:
+                - /url: /clients/14767/tasks
+              - link "קבצים" [ref=e75] [cursor=pointer]:
+                - /url: /clients/14767/files
+              - link "חיוב" [ref=e76] [cursor=pointer]:
+                - /url: /clients/14767/billing
+            - generic [ref=e77]:
+              - generic [ref=e79]:
+                - generic [ref=e80]:
+                  - heading "INV-2026-00014" [level=2] [ref=e81]
+                  - generic [ref=e82]:
+                    - link "fasika fasikain827@gmail.com" [ref=e83] [cursor=pointer]:
+                      - /url: /clients/14767
+                    - generic [ref=e84]: ·
+                    - generic [ref=e85]: ‏94.4 ‏₪
+                    - generic [ref=e86]: ·
+                    - generic [ref=e87]: 14/5/2026
+                - generic [ref=e88]:
+                  - button "שלח חשבונית" [ref=e89] [cursor=pointer]:
+                    - generic [ref=e90]: שלח חשבונית
+                  - button "צור חשבונית חדשה מבוססת על זו" [ref=e91] [cursor=pointer]:
+                    - generic [ref=e92]: צור חשבונית חדשה מבוססת על זו
+              - generic [ref=e93]:
+                - generic [ref=e94]: הונפקה
+                - generic [ref=e95]: ממתינה לתשלום
+                - generic [ref=e96]: מופק כעת
+                - generic [ref=e97]: הונפקה ב-14/5/2026
+              - generic [ref=e98]:
+                - paragraph [ref=e99]: לכבוד (חתום במסמך)
+                - paragraph [ref=e100]: fasika fasikain827@gmail.com
+              - generic [ref=e101]:
+                - heading "פריטים" [level=3] [ref=e102]
+                - table [ref=e104]:
+                  - rowgroup [ref=e105]:
+                    - row "תיאור כמות מחיר יחידה הנחה סה\"כ שורה" [ref=e106]:
+                      - columnheader "תיאור" [ref=e107]
+                      - columnheader "כמות" [ref=e108]
+                      - columnheader "מחיר יחידה" [ref=e109]
+                      - columnheader "הנחה" [ref=e110]
+                      - columnheader "סה\"כ שורה" [ref=e111]
+                  - rowgroup [ref=e112]:
+                    - row "QA-send-1778749990963 1 ‏80 ‏₪ — ‏94.4 ‏₪" [ref=e113]:
+                      - cell "QA-send-1778749990963" [ref=e114]:
+                        - generic [ref=e115]: QA-send-1778749990963
+                      - cell "1" [ref=e116]
+                      - cell "‏80 ‏₪" [ref=e117]
+                      - cell "—" [ref=e118]
+                      - cell "‏94.4 ‏₪" [ref=e119]
+              - generic [ref=e121]:
+                - term [ref=e122]: סכום ביניים
+                - definition [ref=e123]: ‏80 ‏₪
+                - term [ref=e124]: מע"מ
+                - definition [ref=e125]: ‏14.4 ‏₪
+                - term [ref=e126]: סה"כ לתשלום
+                - definition [ref=e127]: ‏94.4 ‏₪
+                - term [ref=e128]: יתרה לתשלום
+                - definition [ref=e129]: ‏94.4 ‏₪
+              - generic [ref=e130]:
+                - heading "פעילות" [level=3] [ref=e131]
+                - list [ref=e132]:
+                  - listitem [ref=e133]:
+                    - paragraph [ref=e135]: הונפקה חשבונית INV-2026-00014 · סכום ‏94.4 ‏₪
+                    - time [ref=e136]: 14/5/2026, 12:13
+        - complementary:
+          - generic:
+            - generic:
+              - button
+            - generic:
+              - generic:
+                - paragraph: חיפוש מידע על הליד
+                - paragraph: שאל שאלה או בחר פעולה
+            - generic:
+              - generic:
+                - generic:
+                  - textbox:
+                    - /placeholder: שאל משהו על fasika fasikain827@gmail.com
+                  - generic:
+                    - button
+                    - button
+                    - generic:
+                      - button:
+                        - generic: חכם
+                      - button [disabled]
+                - button
+  - alert [ref=e137]
+  - generic [ref=e139]:
+    - button "יציאה ללא שמירה" [ref=e140] [cursor=pointer]
+    - generic [ref=e142]:
+      - generic [ref=e143]:
+        - img "SocialCRM" [ref=e145]
+        - generic [ref=e146]:
+          - paragraph [ref=e147]: שליחת חשבונית
+          - heading "INV-2026-00014" [level=3] [ref=e148]
+          - paragraph [ref=e149]: הקובץ יישלח כקישור מאובטח לכתובת הלקוח
+      - generic [ref=e150]:
+        - paragraph [ref=e152]: כתובת מייל של הלקוח
+        - textbox "client@example.com" [ref=e153]: qa-test@example.com
+      - button "אפשרויות נוספות" [ref=e154] [cursor=pointer]
+      - generic [ref=e155]:
+        - button "ביטול" [disabled]:
+          - generic: ביטול
+        - button "שלח חשבונית" [disabled]:
+          - generic: שלח חשבונית
+```

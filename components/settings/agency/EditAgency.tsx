@@ -1,26 +1,29 @@
 'use client'
-import { Input } from '@/lib/form'
-import { getFormData2 } from '@/lib/form/funcs'
-import { Btn } from '@/lib/btns/Btn'
-import { api } from '@/lib/funcs'
-import FileUploader from '@/components/files/FileUploader'
-import { updateAgency } from '@/actions/agencies'
 
-export default function EditAgency({ agency }) {
-  async function onSubmit(e) {
-    const data = getFormData2(e)
-    console.log(data)
-    data.img = JSON.parse(data.img)
-    api(updateAgency, [data, agency.id])
+import { useState } from 'react'
+import { api } from '@/lib/funcs'
+import IssuerIdentityForm from '@/components/billing/issuer/IssuerIdentityForm'
+import { fieldsByTier, type IssuerData } from '@/lib/billing/issuer/fields'
+import { updateIssuerIdentityAction } from '@/actions/billing/issuer'
+
+
+export default function EditAgency({ issuer }: { issuer: IssuerData }) {
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(values: Record<string, unknown>) {
+    if (busy) return
+    setBusy(true)
+    await api(updateIssuerIdentityAction, [values], 'הפרטים נשמרו', 'שמירת הפרטים נכשלה')
+    setBusy(false)
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <div className='grid grid-cols-1 gap-4'>
-        <Input name='name' lbl='שם העסק' defaultValue={agency.name} />
-        <FileUploader name='img' single type='image' tooltipClass='h-20' initialFiles={agency.img} title='העלאת לוגו העסק' />
-      </div>
-      <Btn lbl='שמירה' className='w-full mt-4' />
-    </form>
+    <IssuerIdentityForm
+      fields={fieldsByTier([1, 2])}
+      initialValues={issuer}
+      onSubmit={handleSubmit}
+      submitLabel='שמור פרטים'
+      busy={busy}
+    />
   )
 }

@@ -2,10 +2,10 @@ import { encrypt } from '@/db/auth'
 import { daysFromNow } from '@/lib/dates'
 
 const ROLE_IDS = {
-  ADMIN: 91,
-  MNGR: 54,
-  AGNT: 117,
-  OFFICE: 159,
+  ADMIN: 264,
+  MNGR: 264,
+  AGNT: 264,
+  OFFICE: 264,
 }
 
 async function generate() {

@@ -157,3 +157,7 @@ Reconfirm:
 
 Only then:
 begin authoritative enforcement rollout.
+
+
+// להוסיף עוד מעט
+RESEND_FROM="SocialCRM <hello@getsocialcrm.com>"
