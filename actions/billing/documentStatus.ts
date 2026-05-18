@@ -17,29 +17,14 @@ export async function getInvoicePdfStatusAction(invoiceId: number): Promise<Invo
   const current = await db('bill_documents')
     .where({ agencyId: user.agencyId, invoiceId, isCurrent: true })
     .first('status', 'url', 'errorReason')
-  if (current) {
-    const out = shape(current)
-    console.log(
-      '[billing.pdf-status] hit-current',
-      JSON.stringify({ invoiceId, agencyId: user.agencyId, status: out.status, hasUrl: !!out.url }),
-    )
-    return out
-  }
+  if (current) return shape(current)
 
   const latest = await db('bill_documents')
     .where({ agencyId: user.agencyId, invoiceId })
     .orderBy('createdAt', 'desc')
     .first('status', 'url', 'errorReason')
-  if (latest) {
-    const out = shape(latest)
-    console.log(
-      '[billing.pdf-status] hit-latest',
-      JSON.stringify({ invoiceId, agencyId: user.agencyId, status: out.status, hasUrl: !!out.url }),
-    )
-    return out
-  }
+  if (latest) return shape(latest)
 
-  console.log('[billing.pdf-status] none', JSON.stringify({ invoiceId, agencyId: user.agencyId }))
   return { status: 'none', url: null, errorReason: null }
 }
 
