@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readDiag, clearDiag } from '@/lib/billing/pdf/diag'
+import { db } from '@/config/db'
 
 export async function GET(request: NextRequest) {
   const expected = process.env.RENDER_DIAG_SECRET?.trim()
@@ -12,13 +12,35 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'forbidden' }, { status: 401 })
   }
 
-  const contents = readDiag()
-  const shouldClear = request.nextUrl.searchParams.get('clear') === '1'
-  if (shouldClear) {
-    clearDiag()
+  const invoiceIdParam = request.nextUrl.searchParams.get('invoiceId')
+  const documentIdParam = request.nextUrl.searchParams.get('documentId')
+  const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit') ?? 5), 1), 20)
+
+  let query = db('bill_documents').select('id', 'agencyId', 'invoiceId', 'status', 'errorReason', 'metadata', 'createdAt', 'renderedAt')
+
+  if (documentIdParam) {
+    query = query.where({ id: Number(documentIdParam) })
+  } else if (invoiceIdParam) {
+    query = query.where({ invoiceId: Number(invoiceIdParam) })
   }
-  return new NextResponse(contents, {
-    status: 200,
-    headers: { 'content-type': 'text/plain; charset=utf-8' },
-  })
+
+  const rows = await query.orderBy('id', 'desc').limit(limit)
+
+  return NextResponse.json(
+    {
+      ok: true,
+      count: rows.length,
+      documents: rows.map((r: Record<string, unknown>) => ({
+        id: Number(r.id),
+        invoiceId: Number(r.invoiceId),
+        agencyId: Number(r.agencyId),
+        status: r.status,
+        errorReason: r.errorReason,
+        createdAt: r.createdAt,
+        renderedAt: r.renderedAt,
+        diag: ((r.metadata as Record<string, unknown> | null)?.diag as unknown[]) ?? [],
+      })),
+    },
+    { status: 200 },
+  )
 }

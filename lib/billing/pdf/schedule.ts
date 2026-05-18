@@ -8,7 +8,7 @@ import type { BillInvoiceRow, BillInvoiceLineRow } from '@/db/billing/invoices'
 import { getIssuerForRender } from '@/db/billing/issuer'
 import { resolveIssuerForRender } from '@/lib/billing/issuer/resolveForRender'
 import { renderInvoicePdf } from './renderInvoicePdf'
-import { diag, clearDiag } from './diag'
+import { diagDb, type DiagCtx } from './diag'
 
 export type ScheduleInvoicePdfRenderInput = {
   invoiceId: number
@@ -19,11 +19,10 @@ export type ScheduleInvoicePdfRenderInput = {
 
 export async function scheduleInvoicePdfRender(input: ScheduleInvoicePdfRenderInput): Promise<void> {
   try {
-    clearDiag()
-    diag('schedule.enter', { invoiceId: input.invoiceId, force: !!input.force })
+    console.log('[billing.pdf] schedule.enter', JSON.stringify({ invoiceId: input.invoiceId, force: !!input.force }))
 
     if (!input.force && (await hasReadyDocument(input.agencyId, input.invoiceId))) {
-      diag('schedule.skip_already_ready', { invoiceId: input.invoiceId })
+      console.log('[billing.pdf] schedule.skip_already_ready', JSON.stringify({ invoiceId: input.invoiceId }))
       return
     }
 
@@ -32,7 +31,8 @@ export async function scheduleInvoicePdfRender(input: ScheduleInvoicePdfRenderIn
       invoiceId: input.invoiceId,
       renderedByUserId: input.renderedByUserId ?? null,
     })
-    diag('schedule.pending_doc_created', { documentId })
+    const ctx: DiagCtx = { documentId, agencyId: input.agencyId }
+    await diagDb(ctx, 'schedule.pending_doc_created', { documentId })
 
     const job = () =>
       runRender({
@@ -41,29 +41,28 @@ export async function scheduleInvoicePdfRender(input: ScheduleInvoicePdfRenderIn
         agencyId: input.agencyId,
       }).catch(async (err) => {
         const message = err instanceof Error ? err.message : String(err)
-        diag('schedule.job.outer_catch', { error: message })
+        await diagDb(ctx, 'schedule.job.outer_catch', { error: message.slice(0, 200) })
         console.error('[billing.pdf] render.fatal', JSON.stringify({ invoiceId: input.invoiceId, message: trunc(message) }))
         try {
           await markDocumentFailed(documentId, input.agencyId, 'render_error')
-          diag('schedule.job.mark_failed_ok')
+          await diagDb(ctx, 'schedule.job.mark_failed_ok')
         } catch (markErr) {
-          diag('schedule.job.mark_failed_error', { error: markErr instanceof Error ? markErr.message : String(markErr) })
+          await diagDb(ctx, 'schedule.job.mark_failed_error', { error: markErr instanceof Error ? markErr.message : String(markErr) })
         }
       })
 
     try {
-      after(() => {
-        diag('schedule.after.fire')
+      after(async () => {
+        await diagDb(ctx, 'schedule.after.fire')
         void job()
       })
-      diag('schedule.after.registered')
+      await diagDb(ctx, 'schedule.after.registered')
     } catch {
-      diag('schedule.microtask_fallback')
+      await diagDb(ctx, 'schedule.microtask_fallback')
       void Promise.resolve().then(job)
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    diag('schedule.outer_catch', { error: message })
     console.error('[billing.pdf] schedule.fail', JSON.stringify({ invoiceId: input.invoiceId, message: trunc(message) }))
   }
 }
@@ -77,11 +76,12 @@ export async function rerenderInvoicePdf(input: {
 }
 
 async function runRender(input: { documentId: number; invoiceId: number; agencyId: number }): Promise<void> {
+  const ctx: DiagCtx = { documentId: input.documentId, agencyId: input.agencyId }
   let invoice: BillInvoiceRow | null = null
   try {
-    diag('runRender.enter', { invoiceId: input.invoiceId, documentId: input.documentId })
+    await diagDb(ctx, 'runRender.enter', { invoiceId: input.invoiceId, documentId: input.documentId })
     invoice = await loadInvoice(input.agencyId, input.invoiceId)
-    diag('runRender.invoice_loaded', { found: !!invoice, docState: invoice?.docState })
+    await diagDb(ctx, 'runRender.invoice_loaded', { found: !!invoice, docState: invoice?.docState })
     if (!invoice) {
       await markDocumentFailed(input.documentId, input.agencyId, 'invoice_not_found')
       return
@@ -92,25 +92,25 @@ async function runRender(input: { documentId: number; invoiceId: number; agencyI
     }
 
     const lines = await loadLines(input.agencyId, input.invoiceId)
-    diag('runRender.lines_loaded', { count: lines.length })
+    await diagDb(ctx, 'runRender.lines_loaded', { count: lines.length })
 
     const [liveIssuer, fallbackName] = await Promise.all([getIssuerForRender(input.agencyId), loadAgencyName(input.agencyId)])
     const issuer = resolveIssuerForRender({ invoice, liveIssuer, fallbackAgencyName: fallbackName })
-    diag('runRender.issuer_resolved', { hasIssuer: !!issuer, fallbackName })
+    await diagDb(ctx, 'runRender.issuer_resolved', { hasIssuer: !!issuer, fallbackName })
 
-    diag('runRender.renderInvoicePdf.before')
-    const rendered = await renderInvoicePdf({ invoice, lines, issuer, fallbackName })
-    diag('runRender.renderInvoicePdf.after', { byteSize: rendered.byteSize })
+    await diagDb(ctx, 'runRender.renderInvoicePdf.before')
+    const rendered = await renderInvoicePdf({ invoice, lines, issuer, fallbackName, diagCtx: ctx })
+    await diagDb(ctx, 'runRender.renderInvoicePdf.after', { byteSize: rendered.byteSize })
 
     const objectPath = `bill/${input.agencyId}/invoice/${input.invoiceId}/${genId()}.pdf`
     const bucket = process.env.S3_BUCKET_NAME
     if (!bucket) {
-      diag('runRender.no_s3_bucket')
+      await diagDb(ctx, 'runRender.no_s3_bucket')
       await markDocumentFailed(input.documentId, input.agencyId, 's3_bucket_not_configured')
       return
     }
 
-    diag('runRender.s3.put.before', { bucket, key: objectPath })
+    await diagDb(ctx, 'runRender.s3.put.before', { bucket, key: objectPath })
     await s3.send(
       new PutObjectCommand({
         Bucket: bucket,
@@ -120,9 +120,9 @@ async function runRender(input: { documentId: number; invoiceId: number; agencyI
         ContentLength: rendered.byteSize,
       }),
     )
-    diag('runRender.s3.put.after')
+    await diagDb(ctx, 'runRender.s3.put.after')
 
-    diag('runRender.markDocumentReady.before')
+    await diagDb(ctx, 'runRender.markDocumentReady.before')
     await markDocumentReady({
       documentId: input.documentId,
       agencyId: input.agencyId,
@@ -132,16 +132,15 @@ async function runRender(input: { documentId: number; invoiceId: number; agencyI
       contentHash: rendered.contentHash,
       byteSize: rendered.byteSize,
     })
-    diag('runRender.markDocumentReady.after')
-    diag('runRender.complete')
+    await diagDb(ctx, 'runRender.markDocumentReady.after')
+    await diagDb(ctx, 'runRender.complete')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const reason = classifyError(message)
-    diag('runRender.error', { reason, message: message.slice(0, 200) })
+    await diagDb(ctx, 'runRender.error', { reason, message: message.slice(0, 200) })
     try {
       await markDocumentFailed(input.documentId, input.agencyId, reason)
-    } catch {
-    }
+    } catch {}
     console.error('[billing.pdf] render.fail', JSON.stringify({ invoiceId: input.invoiceId, reason, message: trunc(message) }))
   }
 }

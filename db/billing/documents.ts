@@ -92,6 +92,26 @@ export async function markDocumentFailed(documentId: number, agencyId: number, e
   })
 }
 
+export async function appendDocumentDiagStep(
+  documentId: number,
+  agencyId: number,
+  step: string,
+  detail?: Record<string, unknown>,
+): Promise<void> {
+  const entry = { t: new Date().toISOString(), step, ...(detail ?? {}) }
+  await db.raw(
+    `update bill_documents
+     set metadata = jsonb_set(
+       coalesce(metadata, '{}'::jsonb),
+       '{diag}',
+       coalesce(metadata->'diag', '[]'::jsonb) || ?::jsonb,
+       true
+     )
+     where id = ? and "agencyId" = ?`,
+    [JSON.stringify(entry), documentId, agencyId],
+  )
+}
+
 export async function getCurrentDocumentForInvoice(invoiceId: number): Promise<BillDocumentRow | null> {
   const user = await requireUser()
   const row = await db('bill_documents').where({ agencyId: user.agencyId, invoiceId, isCurrent: true }).first()

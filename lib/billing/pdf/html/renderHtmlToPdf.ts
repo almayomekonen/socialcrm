@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
-import { diag } from '../diag'
+import { diagDb, type DiagCtx } from '../diag'
 
 const LOCAL_ARGS = ['--no-sandbox', '--disable-setuid-sandbox']
 
@@ -45,60 +45,59 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
   }
 }
 
-function detectLocalChromePath(): string | null {
-  diag('detectLocalChromePath.enter')
+async function detectLocalChromePath(ctx: DiagCtx | null): Promise<string | null> {
+  await diagDb(ctx, 'detectLocalChromePath.enter')
   for (const candidate of LOCAL_CHROME_PATHS) {
     try {
       if (existsSync(candidate)) {
-        diag('detectLocalChromePath.hit', { candidate })
+        await diagDb(ctx, 'detectLocalChromePath.hit', { candidate })
         return candidate
       }
-    } catch {
-    }
+    } catch {}
   }
-  diag('detectLocalChromePath.miss')
+  await diagDb(ctx, 'detectLocalChromePath.miss')
   return null
 }
 
-async function resolveExecutablePath(): Promise<{ path: string; source: string }> {
-  diag('resolveExecutablePath.enter')
+async function resolveExecutablePath(ctx: DiagCtx | null): Promise<{ path: string; source: string }> {
+  await diagDb(ctx, 'resolveExecutablePath.enter')
 
   const envPath = process.env.CHROMIUM_EXECUTABLE_PATH?.trim()
   if (envPath) {
-    diag('resolveExecutablePath.env_hit', { envPath })
+    await diagDb(ctx, 'resolveExecutablePath.env_hit', { envPath })
     return { path: envPath, source: 'env' }
   }
-  diag('resolveExecutablePath.env_miss')
+  await diagDb(ctx, 'resolveExecutablePath.env_miss')
 
-  const detected = detectLocalChromePath()
+  const detected = await detectLocalChromePath(ctx)
   if (detected) {
-    diag('resolveExecutablePath.local_hit', { detected })
+    await diagDb(ctx, 'resolveExecutablePath.local_hit', { detected })
     return { path: detected, source: 'local' }
   }
-  diag('resolveExecutablePath.local_miss')
+  await diagDb(ctx, 'resolveExecutablePath.local_miss')
 
   log('chromium.extract.start')
-  diag('chromium.executablePath.before')
+  await diagDb(ctx, 'chromium.executablePath.before')
   let path: string
   try {
     path = await withTimeout(chromium.executablePath(), LAUNCH_TIMEOUT_MS, 'extract')
   } catch (err) {
-    diag('chromium.executablePath.error', { error: err instanceof Error ? err.message : String(err) })
+    await diagDb(ctx, 'chromium.executablePath.error', { error: err instanceof Error ? err.message : String(err) })
     throw err
   }
-  diag('chromium.executablePath.after', { path })
+  await diagDb(ctx, 'chromium.executablePath.after', { path })
   log('chromium.extract.done', { path })
   return { path, source: 'chromium-bundled' }
 }
 
-async function launchBrowser(): Promise<Browser> {
-  diag('launchBrowser.enter')
-  const { path: executablePath, source } = await resolveExecutablePath()
-  diag('launchBrowser.executable_resolved', { executablePath, source })
+async function launchBrowser(ctx: DiagCtx | null): Promise<Browser> {
+  await diagDb(ctx, 'launchBrowser.enter')
+  const { path: executablePath, source } = await resolveExecutablePath(ctx)
+  await diagDb(ctx, 'launchBrowser.executable_resolved', { executablePath, source })
   log('chromium.launch.start', { executablePath, source })
 
   const useLambdaArgs = source === 'chromium-bundled'
-  diag('puppeteer.launch.before', { useLambdaArgs })
+  await diagDb(ctx, 'puppeteer.launch.before', { useLambdaArgs })
 
   let browser: Browser
   try {
@@ -113,69 +112,68 @@ async function launchBrowser(): Promise<Browser> {
       'launch',
     )
   } catch (err) {
-    diag('puppeteer.launch.error', { error: err instanceof Error ? err.message : String(err) })
+    await diagDb(ctx, 'puppeteer.launch.error', { error: err instanceof Error ? err.message : String(err) })
     throw err
   }
-  diag('puppeteer.launch.after')
+  await diagDb(ctx, 'puppeteer.launch.after')
   log('chromium.launch.ok', { source })
   return browser
 }
 
-async function getBrowser(): Promise<Browser> {
-  diag('getBrowser.enter', { hasCachedPromise: !!browserPromise })
+async function getBrowser(ctx: DiagCtx | null): Promise<Browser> {
+  await diagDb(ctx, 'getBrowser.enter', { hasCachedPromise: !!browserPromise })
   if (browserPromise) {
     try {
       const existing = await browserPromise
       if (existing.connected) {
-        diag('getBrowser.cache_hit')
+        await diagDb(ctx, 'getBrowser.cache_hit')
         return existing
       }
-      diag('getBrowser.cache_disconnected')
+      await diagDb(ctx, 'getBrowser.cache_disconnected')
     } catch {
-      diag('getBrowser.cache_rejected')
+      await diagDb(ctx, 'getBrowser.cache_rejected')
     }
     browserPromise = null
   }
-  browserPromise = launchBrowser().catch((err) => {
-    diag('getBrowser.launch_chain_rejected', { error: err instanceof Error ? err.message : String(err) })
+  browserPromise = launchBrowser(ctx).catch((err) => {
     browserPromise = null
     throw err
   })
-  diag('getBrowser.awaiting_new_launch')
+  await diagDb(ctx, 'getBrowser.awaiting_new_launch')
   const result = await browserPromise
-  diag('getBrowser.new_launch_ready')
+  await diagDb(ctx, 'getBrowser.new_launch_ready')
   return result
 }
 
-export async function htmlToPdfBytes(html: string): Promise<HtmlToPdfResult> {
+export async function htmlToPdfBytes(html: string, ctx: DiagCtx | null = null): Promise<HtmlToPdfResult> {
   const t0 = Date.now()
   log('render.start', { htmlBytes: html.length })
-  diag('htmlToPdfBytes.enter', { htmlBytes: html.length })
+  await diagDb(ctx, 'htmlToPdfBytes.enter', { htmlBytes: html.length })
 
-  const browser = await getBrowser()
-  diag('htmlToPdfBytes.browser_ready')
+  const browser = await getBrowser(ctx)
+  await diagDb(ctx, 'htmlToPdfBytes.browser_ready')
 
-  diag('newPage.before')
+  await diagDb(ctx, 'newPage.before')
   let page: Page
   try {
     page = await browser.newPage()
   } catch (err) {
-    diag('newPage.error', { error: err instanceof Error ? err.message : String(err) })
+    await diagDb(ctx, 'newPage.error', { error: err instanceof Error ? err.message : String(err) })
     throw err
   }
-  diag('newPage.after')
+  await diagDb(ctx, 'newPage.after')
 
   try {
-    diag('setContent.before')
+    await diagDb(ctx, 'setContent.before')
     try {
       await withTimeout(page.setContent(html, { waitUntil: 'domcontentloaded' }), RENDER_TIMEOUT_MS, 'setContent')
     } catch (err) {
-      diag('setContent.error', { error: err instanceof Error ? err.message : String(err) })
+      await diagDb(ctx, 'setContent.error', { error: err instanceof Error ? err.message : String(err) })
       throw err
     }
-    diag('setContent.after')
+    await diagDb(ctx, 'setContent.after')
 
-    diag('pagePdf.before')
+    await diagDb(ctx, 'pagePdf.before')
     let buffer: Uint8Array
     try {
       buffer = await withTimeout(
@@ -189,14 +187,14 @@ export async function htmlToPdfBytes(html: string): Promise<HtmlToPdfResult> {
         'pdf',
       )
     } catch (err) {
-      diag('pagePdf.error', { error: err instanceof Error ? err.message : String(err) })
+      await diagDb(ctx, 'pagePdf.error', { error: err instanceof Error ? err.message : String(err) })
       throw err
     }
-    diag('pagePdf.after', { byteLength: buffer.byteLength })
+    await diagDb(ctx, 'pagePdf.after', { byteLength: buffer.byteLength })
 
     const bytes = new Uint8Array(buffer)
     const contentHash = createHash('sha256').update(bytes).digest('hex')
-    diag('htmlToPdfBytes.success', { byteSize: bytes.byteLength, durationMs: Date.now() - t0 })
+    await diagDb(ctx, 'htmlToPdfBytes.success', { byteSize: bytes.byteLength, durationMs: Date.now() - t0 })
     log('render.ok', { byteSize: bytes.byteLength, durationMs: Date.now() - t0 })
     return { bytes, contentHash, byteSize: bytes.byteLength }
   } catch (err) {

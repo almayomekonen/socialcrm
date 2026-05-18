@@ -2,6 +2,7 @@ import type { BillInvoiceRow, BillInvoiceLineRow } from '@/db/billing/invoices'
 import type { IssuerData } from '@/lib/billing/issuer/fields'
 import { renderInvoiceHtml } from './html/InvoiceTemplate'
 import { htmlToPdfBytes } from './html/renderHtmlToPdf'
+import type { DiagCtx } from './diag'
 
 // Public renderer. Internals migrated from pdf-lib's character-reversal
 // approach to HTML → headless Chromium → PDF — see lib/billing/pdf/html/*.
@@ -23,6 +24,7 @@ export type RenderInvoicePdfInput = {
    */
   fallbackName?: string
   agencyLogoPng?: Uint8Array
+  diagCtx?: DiagCtx | null
 }
 
 export type RenderInvoicePdfResult = {
@@ -44,5 +46,5 @@ export async function renderInvoicePdf(input: RenderInvoicePdfInput): Promise<Re
     agencyLogoPng: input.agencyLogoPng ?? null,
   })
 
-  return htmlToPdfBytes(html)
+  return htmlToPdfBytes(html, input.diagCtx ?? null)
 }
