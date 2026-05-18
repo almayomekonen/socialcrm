@@ -11,28 +11,35 @@ export type InvoicePdfStatusSnapshot = {
   errorReason: string | null
 }
 
-/**
- * Lightweight read-only probe used by the client poller while a fresh
- * PDF is being rendered. Returns the same shape regardless of whether the
- * current document exists yet (returns 'none' if no row at all).
- *
- * Cheap: one indexed SELECT, no joins. Designed for ~every 1.5s during
- * the rendering window.
- */
 export async function getInvoicePdfStatusAction(invoiceId: number): Promise<InvoicePdfStatusSnapshot> {
   const user = await requireUser()
 
   const current = await db('bill_documents')
     .where({ agencyId: user.agencyId, invoiceId, isCurrent: true })
     .first('status', 'url', 'errorReason')
-  if (current) return shape(current)
+  if (current) {
+    const out = shape(current)
+    console.log(
+      '[billing.pdf-status] hit-current',
+      JSON.stringify({ invoiceId, agencyId: user.agencyId, status: out.status, hasUrl: !!out.url }),
+    )
+    return out
+  }
 
   const latest = await db('bill_documents')
     .where({ agencyId: user.agencyId, invoiceId })
     .orderBy('createdAt', 'desc')
     .first('status', 'url', 'errorReason')
-  if (latest) return shape(latest)
+  if (latest) {
+    const out = shape(latest)
+    console.log(
+      '[billing.pdf-status] hit-latest',
+      JSON.stringify({ invoiceId, agencyId: user.agencyId, status: out.status, hasUrl: !!out.url }),
+    )
+    return out
+  }
 
+  console.log('[billing.pdf-status] none', JSON.stringify({ invoiceId, agencyId: user.agencyId }))
   return { status: 'none', url: null, errorReason: null }
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { getInvoicePdfStatusAction, type InvoicePdfStatusSnapshot, type InvoicePdfStatusValue } from '@/actions/billing/documentStatus'
 
 const FAST_INTERVAL_MS = 1500
@@ -29,16 +30,23 @@ export function InvoicePdfStatusProvider({
   initial: InvoicePdfStatusSnapshot
   children: React.ReactNode
 }) {
+  const router = useRouter()
   const [snapshot, setSnapshot] = useState<InvoicePdfStatusSnapshot>(initial)
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot
 
   useEffect(() => {
-    if (isTerminal(initial.status)) return
+    if (isTerminal(initial.status)) {
+      console.log('[invoice-pdf-live] terminal initial state, no polling', { invoiceId, status: initial.status })
+      return
+    }
+
+    console.log('[invoice-pdf-live] polling started', { invoiceId, initial: initial.status })
 
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const startedAt = Date.now()
+    let tickCount = 0
 
     function intervalFor(elapsed: number): number {
       return elapsed < SLOW_AFTER_MS ? FAST_INTERVAL_MS : SLOW_INTERVAL_MS
@@ -47,21 +55,32 @@ export function InvoicePdfStatusProvider({
     async function tick() {
       if (cancelled) return
       const elapsed = Date.now() - startedAt
-      if (elapsed > HARD_STOP_MS) return
+      if (elapsed > HARD_STOP_MS) {
+        console.warn('[invoice-pdf-live] hard stop reached', { invoiceId, elapsed })
+        return
+      }
       if (typeof document !== 'undefined' && document.hidden) {
         timer = setTimeout(tick, intervalFor(elapsed))
         return
       }
+      tickCount += 1
       try {
         const next = await getInvoicePdfStatusAction(invoiceId)
         if (cancelled) return
         const prev = snapshotRef.current
+        console.log('[invoice-pdf-live] tick', { invoiceId, tick: tickCount, elapsed, prev: prev.status, next: next.status, url: next.url ? 'present' : 'null' })
         if (next.status !== prev.status || next.url !== prev.url || next.errorReason !== prev.errorReason) {
           setSnapshot(next)
+          if (isTerminal(next.status)) {
+            router.refresh()
+          }
         }
-        if (isTerminal(next.status)) return
-      } catch {
-        // Transient errors are ignored; next tick retries.
+        if (isTerminal(next.status)) {
+          console.log('[invoice-pdf-live] terminal reached, stopping', { invoiceId, status: next.status })
+          return
+        }
+      } catch (err) {
+        console.warn('[invoice-pdf-live] tick error (will retry)', { invoiceId, err: err instanceof Error ? err.message : String(err) })
       }
       timer = setTimeout(tick, intervalFor(Date.now() - startedAt))
     }
@@ -85,15 +104,11 @@ export function InvoicePdfStatusProvider({
         document.removeEventListener('visibilitychange', onVisibility)
       }
     }
-  }, [invoiceId, initial.status])
+  }, [invoiceId, initial.status, router])
 
   return <InvoicePdfStatusContext.Provider value={snapshot}>{children}</InvoicePdfStatusContext.Provider>
 }
 
-/**
- * Reactive status chip - same visual as <PdfStatusChip> but driven by the
- * live snapshot from context instead of an immutable server prop.
- */
 const STATUS_LABELS: Record<InvoicePdfStatusValue, string> = {
   none: 'PDF בקרוב',
   rendering: 'מופק כעת',
