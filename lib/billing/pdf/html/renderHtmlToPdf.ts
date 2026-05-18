@@ -29,6 +29,40 @@ export type HtmlToPdfResult = {
 
 let browserPromise: Promise<Browser> | null = null
 
+let lastDiagCtxForCrashHandler: DiagCtx | null = null
+let globalCrashHandlersInstalled = false
+
+function memSnapshot(): Record<string, number> {
+  const m = process.memoryUsage()
+  return {
+    rssMB: Math.round(m.rss / 1024 / 1024),
+    heapUsedMB: Math.round(m.heapUsed / 1024 / 1024),
+    heapTotalMB: Math.round(m.heapTotal / 1024 / 1024),
+    externalMB: Math.round(m.external / 1024 / 1024),
+  }
+}
+
+function installGlobalCrashHandlers(): void {
+  if (globalCrashHandlersInstalled) return
+  globalCrashHandlersInstalled = true
+  process.on('uncaughtException', (err) => {
+    const ctx = lastDiagCtxForCrashHandler
+    const payload = {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? (err.stack ?? '').slice(0, 600) : '',
+    }
+    console.error('[billing.pdf] process.uncaughtException', JSON.stringify(payload))
+    if (ctx) void diagDb(ctx, 'process.uncaughtException', payload)
+  })
+  process.on('unhandledRejection', (reason) => {
+    const ctx = lastDiagCtxForCrashHandler
+    const msg = reason instanceof Error ? reason.message : String(reason)
+    const stack = reason instanceof Error ? (reason.stack ?? '').slice(0, 600) : ''
+    console.error('[billing.pdf] process.unhandledRejection', JSON.stringify({ error: msg, stack }))
+    if (ctx) void diagDb(ctx, 'process.unhandledRejection', { error: msg, stack })
+  })
+}
+
 function log(stage: string, payload: Record<string, unknown> = {}): void {
   console.log(`[billing.pdf] ${stage}`, JSON.stringify(payload))
 }
@@ -91,31 +125,67 @@ async function resolveExecutablePath(ctx: DiagCtx | null): Promise<{ path: strin
 }
 
 async function launchBrowser(ctx: DiagCtx | null): Promise<Browser> {
+  installGlobalCrashHandlers()
+  lastDiagCtxForCrashHandler = ctx
+
   await diagDb(ctx, 'launchBrowser.enter')
   const { path: executablePath, source } = await resolveExecutablePath(ctx)
   await diagDb(ctx, 'launchBrowser.executable_resolved', { executablePath, source })
   log('chromium.launch.start', { executablePath, source })
 
   const useLambdaArgs = source === 'chromium-bundled'
-  await diagDb(ctx, 'puppeteer.launch.before', { useLambdaArgs })
+  const headlessMode: 'shell' | true = useLambdaArgs ? 'shell' : true
+  const launchArgs = useLambdaArgs ? puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }) : LOCAL_ARGS
+  const defaultViewport = useLambdaArgs ? { width: 1280, height: 1696 } : null
+
+  await diagDb(ctx, 'puppeteer.launch.options', {
+    useLambdaArgs,
+    headless: headlessMode,
+    argsCount: launchArgs.length,
+    args: launchArgs,
+    executablePath,
+    defaultViewport,
+    timeoutMs: LAUNCH_TIMEOUT_MS,
+    mem: memSnapshot(),
+    lambdaMemMB: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE ?? null,
+    region: process.env.AWS_REGION ?? null,
+    nodeVersion: process.version,
+  })
+
+  let heartbeats = 0
+  const heartbeat = setInterval(() => {
+    heartbeats += 1
+    void diagDb(ctx, 'puppeteer.launch.heartbeat', { tick: heartbeats, mem: memSnapshot() })
+  }, 1000)
+
+  await diagDb(ctx, 'puppeteer.launch.before', { useLambdaArgs, headless: headlessMode })
 
   let browser: Browser
   try {
     browser = await withTimeout(
       puppeteer.launch({
-        args: useLambdaArgs ? chromium.args : LOCAL_ARGS,
-        defaultViewport: useLambdaArgs ? chromium.defaultViewport : null,
+        args: launchArgs,
+        defaultViewport,
         executablePath,
-        headless: true,
+        headless: headlessMode,
+        dumpio: true,
+        protocolTimeout: LAUNCH_TIMEOUT_MS,
       }),
       LAUNCH_TIMEOUT_MS,
       'launch',
     )
   } catch (err) {
-    await diagDb(ctx, 'puppeteer.launch.error', { error: err instanceof Error ? err.message : String(err) })
+    clearInterval(heartbeat)
+    await diagDb(ctx, 'puppeteer.launch.error', {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? (err.stack ?? '').slice(0, 600) : '',
+      heartbeats,
+      mem: memSnapshot(),
+    })
     throw err
   }
-  await diagDb(ctx, 'puppeteer.launch.after')
+  clearInterval(heartbeat)
+  await diagDb(ctx, 'puppeteer.launch.after', { heartbeats, mem: memSnapshot() })
   log('chromium.launch.ok', { source })
   return browser
 }
