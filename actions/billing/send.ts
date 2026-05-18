@@ -42,6 +42,13 @@ export async function sendInvoiceEmailAction(input: {
   customMessage?: string
 }): Promise<SendInvoiceResult> {
   const user = await requireUser()
+  console.log('[billing.send] action.start', {
+    invoiceId: input.invoiceId,
+    leadId: input.leadId,
+    recipientInput: input.recipientEmail,
+    userId: user.id,
+    agencyId: user.agencyId,
+  })
   if (!canReadBilling(user)) return { error: true, reason: 'no_permission' }
 
   const recipient = String(input.recipientEmail ?? '').trim()
@@ -147,8 +154,23 @@ export async function sendInvoiceEmailAction(input: {
 
   const subject = `${documentIdentity} מ-${agencyName}`
 
+  console.log('[billing.send] before.sendEmail', {
+    invoiceId: input.invoiceId,
+    to: recipient,
+    subject,
+    agencyName,
+    documentIdentity,
+    htmlBytes: html.length,
+  })
+
   try {
     const result = await sendEmail({ to: recipient, subject, html })
+    console.log('[billing.send] after.sendEmail', {
+      invoiceId: input.invoiceId,
+      ok: result.ok,
+      id: 'id' in result ? result.id : null,
+      error: 'error' in result ? result.error : null,
+    })
     if (!result.ok) {
       const transportError = 'error' in result ? result.error : 'unknown_send_failure'
       logActionError('billing.action.send.transport_fail', new Error(transportError), {
