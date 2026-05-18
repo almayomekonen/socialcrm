@@ -84,8 +84,8 @@ Resources:
       Family: socialcrm-gotenberg
       RequiresCompatibilities: [FARGATE]
       NetworkMode: awsvpc
-      Cpu: '512'
-      Memory: '1024'
+      Cpu: '2048'
+      Memory: '4096'
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
       ContainerDefinitions:
         - Name: gotenberg
@@ -104,6 +104,8 @@ Resources:
             - gotenberg
             - --api-port=3000
             - --api-timeout=60s
+            - --chromium-disable-javascript=true
+            - --api-disable-health-check-logging=true
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
