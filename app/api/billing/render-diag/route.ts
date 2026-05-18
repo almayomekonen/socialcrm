@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readDiag, clearDiag } from '@/lib/billing/pdf/diag'
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
-
 export async function GET(request: NextRequest) {
   const expected = process.env.RENDER_DIAG_SECRET?.trim()
   const provided = request.headers.get('x-render-diag-secret') ?? request.nextUrl.searchParams.get('secret')
