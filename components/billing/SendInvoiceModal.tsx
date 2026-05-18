@@ -4,11 +4,27 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { Input } from '@/lib/form'
-import { api } from '@/lib/funcs'
+import { toast } from '@/lib/toast'
 import ModalPop from '@/lib/modals/ModalPop'
 import type { BillInvoiceRow } from '@/db/billing/invoices'
-import { sendInvoiceEmailAction } from '@/actions/billing/send'
+import { sendInvoiceEmailAction, type SendInvoiceErrorReason, type SendInvoiceResult } from '@/actions/billing/send'
 import { formatInvoiceNumber } from './funcs'
+
+// Map every server-side error reason to a clear Hebrew message. Without
+// this, the `api()` helper showed a success toast on EVERY non-thrown
+// return — including `{ error: true, reason: 'pdf_not_ready' }` — leaving
+// the user thinking the email was sent when it wasn't.
+const SEND_ERROR_MESSAGES: Record<SendInvoiceErrorReason, string> = {
+  no_permission: 'אין הרשאה לשליחת חשבוניות',
+  lead_not_found: 'הליד לא נמצא',
+  invoice_not_found: 'החשבונית לא נמצאה',
+  invoice_not_issued: 'החשבונית עדיין טיוטה',
+  pdf_not_ready: 'קובץ ה-PDF עדיין לא מוכן',
+  invalid_email: 'כתובת המייל אינה תקינה',
+  rate_limited: 'נשלחה בקשה לאחרונה — נסו שוב בעוד מספר שניות',
+  transport_failed: 'שירות המייל סירב — בדקו את הלוגים',
+  failed: 'שליחת החשבונית נכשלה',
+}
 
 export default function SendInvoiceModal({
   invoice,
@@ -35,24 +51,38 @@ export default function SendInvoiceModal({
   async function onSend() {
     if (busy || !isValid) return
     setBusy(true)
-    const result = await api(
-      sendInvoiceEmailAction,
-      [
-        {
-          invoiceId: invoice.id,
-          leadId: invoice.leadId,
-          recipientEmail: trimmed,
-          customMessage: customMessage.trim() || undefined,
-        },
-      ],
-      'החשבונית נשלחה',
-      'שליחת החשבונית נכשלה',
-    )
+    toast('loading')
+
+    let result: SendInvoiceResult
+    try {
+      result = await sendInvoiceEmailAction({
+        invoiceId: invoice.id,
+        leadId: invoice.leadId,
+        recipientEmail: trimmed,
+        customMessage: customMessage.trim() || undefined,
+      })
+    } catch (err) {
+      setBusy(false)
+      toast('error', 'שליחת החשבונית נכשלה')
+      console.error('[send-modal] threw', err)
+      return
+    }
+
     setBusy(false)
-    if (result && 'success' in result && result.success) {
+
+    if ('success' in result && result.success) {
+      toast('success', 'החשבונית נשלחה')
       onClose()
       router.refresh()
+      return
     }
+
+    // Error path — surface the specific reason so the user understands
+    // WHY the send didn't happen (was the PDF not ready? is the lead
+    // missing? etc.). Previously the api() helper hid this entirely.
+    const reason = (result as { reason?: SendInvoiceErrorReason }).reason
+    const message = reason ? SEND_ERROR_MESSAGES[reason] : SEND_ERROR_MESSAGES.failed
+    toast('error', message)
   }
 
   return (

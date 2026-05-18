@@ -49,16 +49,30 @@ export async function sendInvoiceEmailAction(input: {
     userId: user.id,
     agencyId: user.agencyId,
   })
-  if (!canReadBilling(user)) return { error: true, reason: 'no_permission' }
+  if (!canReadBilling(user)) {
+    console.log('[billing.send] gate.no_permission', { userId: user.id, role: user.role })
+    return { error: true, reason: 'no_permission' }
+  }
 
   const recipient = String(input.recipientEmail ?? '').trim()
-  if (!isValidEmail(recipient)) return { error: true, reason: 'invalid_email' }
+  if (!isValidEmail(recipient)) {
+    console.log('[billing.send] gate.invalid_email', { recipient })
+    return { error: true, reason: 'invalid_email' }
+  }
 
   const { gotPermIds } = await getPerms(user)
   const leadQ = db('clients').where({ id: input.leadId, agencyId: user.agencyId })
   if (!isAdmin(user.role)) leadQ.whereIn('userId', gotPermIds)
   const lead = await leadQ.first('id')
-  if (!lead) return { error: true, reason: 'lead_not_found' }
+  if (!lead) {
+    console.log('[billing.send] gate.lead_not_found', {
+      leadId: input.leadId,
+      agencyId: user.agencyId,
+      isAdmin: isAdmin(user.role),
+      gotPermIdsCount: gotPermIds?.length ?? null,
+    })
+    return { error: true, reason: 'lead_not_found' }
+  }
 
   const invoice = await db('bill_invoices')
     .where({ id: input.invoiceId, agencyId: user.agencyId, leadId: input.leadId })
@@ -81,13 +95,50 @@ export async function sendInvoiceEmailAction(input: {
       'issuerPhoneSnapshot',
       'issuerEmailSnapshot',
     )
-  if (!invoice) return { error: true, reason: 'invoice_not_found' }
-  if (invoice.docState === 'draft') return { error: true, reason: 'invoice_not_issued' }
+  if (!invoice) {
+    console.log('[billing.send] gate.invoice_not_found', {
+      invoiceId: input.invoiceId,
+      leadId: input.leadId,
+      agencyId: user.agencyId,
+    })
+    return { error: true, reason: 'invoice_not_found' }
+  }
+  if (invoice.docState === 'draft') {
+    console.log('[billing.send] gate.invoice_not_issued', {
+      invoiceId: input.invoiceId,
+      docState: invoice.docState,
+    })
+    return { error: true, reason: 'invoice_not_issued' }
+  }
 
+  // Probe ALL document rows for this invoice — not just the ready ones —
+  // so when the ready-row lookup misses we can tell whether the render is
+  // still pending, failed, or never scheduled.
   const document = await db('bill_documents')
     .where({ agencyId: user.agencyId, invoiceId: input.invoiceId, isCurrent: true, status: 'ready' })
     .first('url', 'path')
-  if (!document?.url) return { error: true, reason: 'pdf_not_ready' }
+  if (!document?.url) {
+    const latestDoc = await db('bill_documents')
+      .where({ agencyId: user.agencyId, invoiceId: input.invoiceId })
+      .orderBy('id', 'desc')
+      .first('id', 'status', 'isCurrent', 'url', 'errorReason', 'createdAt')
+    console.log('[billing.send] gate.pdf_not_ready', {
+      invoiceId: input.invoiceId,
+      readyRow: !!document,
+      hadUrl: !!document?.url,
+      latestDoc: latestDoc
+        ? {
+            id: latestDoc.id,
+            status: latestDoc.status,
+            isCurrent: latestDoc.isCurrent,
+            hasUrl: !!latestDoc.url,
+            errorReason: latestDoc.errorReason ?? null,
+            createdAt: latestDoc.createdAt,
+          }
+        : null,
+    })
+    return { error: true, reason: 'pdf_not_ready' }
+  }
 
   const lastSent = await db('bill_financial_events')
     .where({
@@ -102,6 +153,11 @@ export async function sendInvoiceEmailAction(input: {
     if (Number.isFinite(lastSentMs)) {
       const sinceMs = Date.now() - lastSentMs
       if (sinceMs >= 0 && sinceMs < SEND_COOLDOWN_SECONDS * 1000) {
+        console.log('[billing.send] gate.rate_limited', {
+          invoiceId: input.invoiceId,
+          sinceMs,
+          cooldownMs: SEND_COOLDOWN_SECONDS * 1000,
+        })
         return { error: true, reason: 'rate_limited' }
       }
     }
