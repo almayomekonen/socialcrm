@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import puppeteer, { type Browser } from 'puppeteer-core'
 import chromium from '@sparticuz/chromium-min'
 
-const DEFAULT_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.x64.tar'
+const DEFAULT_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
 const LOCAL_ARGS = ['--no-sandbox', '--disable-setuid-sandbox']
 
@@ -21,6 +21,9 @@ const LOCAL_CHROME_PATHS = [
 
 const LAUNCH_TIMEOUT_MS = Number(process.env.PDF_LAUNCH_TIMEOUT_MS ?? 30_000)
 const RENDER_TIMEOUT_MS = Number(process.env.PDF_RENDER_TIMEOUT_MS ?? 30_000)
+const PREFLIGHT_TIMEOUT_MS = Number(process.env.PDF_PREFLIGHT_TIMEOUT_MS ?? 10_000)
+
+const MIN_PACK_BYTES = 5_000_000
 
 export type HtmlToPdfResult = {
   bytes: Uint8Array
@@ -29,6 +32,10 @@ export type HtmlToPdfResult = {
 }
 
 let browserPromise: Promise<Browser> | null = null
+
+function log(stage: string, payload: Record<string, unknown> = {}): void {
+  console.log(`[billing.pdf] ${stage}`, JSON.stringify(payload))
+}
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -46,11 +53,48 @@ function detectLocalChromePath(): string | null {
   for (const candidate of LOCAL_CHROME_PATHS) {
     try {
       if (existsSync(candidate)) return candidate
-    } catch {
-      // Permission error on a path we can't reach — keep scanning.
-    }
+    } catch {}
   }
   return null
+}
+
+async function preflightChromiumPack(url: string): Promise<void> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), PREFLIGHT_TIMEOUT_MS)
+  let res: Response
+  try {
+    res = await fetch(url, { method: 'HEAD', signal: controller.signal, redirect: 'follow' })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    log('chromium.pack.preflight.network_fail', { url, error: message })
+    throw new Error(`billing.pdf.chromium_pack_unreachable:${message}`)
+  } finally {
+    clearTimeout(timer)
+  }
+
+  const status = res.status
+  const contentType = res.headers.get('content-type') ?? ''
+  const contentLengthRaw = res.headers.get('content-length')
+  const contentLength = contentLengthRaw ? Number(contentLengthRaw) : NaN
+
+  log('chromium.pack.preflight', {
+    url,
+    status,
+    contentType,
+    contentLength: Number.isFinite(contentLength) ? contentLength : null,
+  })
+
+  if (!res.ok) {
+    throw new Error(`billing.pdf.chromium_pack_http:${status}`)
+  }
+
+  if (contentType.toLowerCase().startsWith('text/html')) {
+    throw new Error('billing.pdf.chromium_pack_html_body')
+  }
+
+  if (Number.isFinite(contentLength) && contentLength < MIN_PACK_BYTES) {
+    throw new Error(`billing.pdf.chromium_pack_too_small:${contentLength}`)
+  }
 }
 
 async function resolveExecutablePath(): Promise<{ path: string; source: string }> {
@@ -61,6 +105,10 @@ async function resolveExecutablePath(): Promise<{ path: string; source: string }
   if (detected) return { path: detected, source: 'local' }
 
   const packUrl = process.env.CHROMIUM_PACK_URL?.trim() || DEFAULT_PACK_URL
+  log('chromium.pack.resolve', { url: packUrl, source: process.env.CHROMIUM_PACK_URL ? 'env' : 'default' })
+
+  await preflightChromiumPack(packUrl)
+
   const path = await chromium.executablePath(packUrl)
   return { path, source: 'chromium-min' }
 }
@@ -68,10 +116,6 @@ async function resolveExecutablePath(): Promise<{ path: string; source: string }
 async function launchBrowser(): Promise<Browser> {
   const { path: executablePath, source } = await resolveExecutablePath()
 
-  // Lambda-tuned chromium.args are only safe with the chromium-min binary.
-  // For desktop Chrome (env path or auto-detected) the minimal sandbox
-  // overrides are enough — Lambda's single-process/headless-old flags
-  // break some desktop builds and produce silent hangs.
   const useLambdaArgs = source === 'chromium-min'
   return withTimeout(
     puppeteer.launch({
@@ -121,8 +165,6 @@ export async function htmlToPdfBytes(html: string): Promise<HtmlToPdfResult> {
     const contentHash = createHash('sha256').update(bytes).digest('hex')
     return { bytes, contentHash, byteSize: bytes.byteLength }
   } finally {
-    // Leave the browser alive for the next render in the same warm
-    // container. The browser closes when the container is recycled.
     await page.close().catch(() => {})
   }
 }
