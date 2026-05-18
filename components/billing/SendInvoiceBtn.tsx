@@ -22,27 +22,44 @@ export default function SendInvoiceBtn({
   invoice,
   fallbackEmail,
   variant = 'default',
+  disabled = false,
+  disabledReason,
 }: {
   invoice: BillInvoiceRow
   fallbackEmail?: string | null
   variant?: 'hero' | 'default'
+  disabled?: boolean
+  disabledReason?: string
 }) {
   const [open, setOpen] = useState(false)
 
   if (invoice.docState === 'draft') return null
+
+  const onClick = () => {
+    if (disabled) return
+    setOpen(true)
+  }
 
   return (
     <>
       {variant === 'hero' ? (
         <button
           type='button'
-          onClick={() => setOpen(true)}
-          className='inline-flex items-center gap-2 h-10 px-4 rounded-md bg-white text-dark hover:bg-white/90 font-semibold transition-colors'
+          onClick={onClick}
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+          className='inline-flex items-center gap-2 h-10 px-4 rounded-md bg-white text-dark hover:bg-white/90 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white'
         >
           <span>שלח חשבונית</span>
         </button>
       ) : (
-        <Btn icon='paper-plane' lbl='שלח חשבונית' onClick={() => setOpen(true)} />
+        <Btn
+          icon='paper-plane'
+          lbl='שלח חשבונית'
+          onClick={onClick}
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+        />
       )}
       <SendInvoiceModal
         invoice={invoice}

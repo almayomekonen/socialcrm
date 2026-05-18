@@ -1,0 +1,128 @@
+'use client'
+
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { getInvoicePdfStatusAction, type InvoicePdfStatusSnapshot, type InvoicePdfStatusValue } from '@/actions/billing/documentStatus'
+
+const FAST_INTERVAL_MS = 1500
+const SLOW_INTERVAL_MS = 5000
+const SLOW_AFTER_MS = 30_000
+const HARD_STOP_MS = 5 * 60 * 1000
+
+function isTerminal(status: InvoicePdfStatusValue): boolean {
+  return status === 'ready' || status === 'failed'
+}
+
+const InvoicePdfStatusContext = createContext<InvoicePdfStatusSnapshot | null>(null)
+
+export function useInvoicePdfStatus(): InvoicePdfStatusSnapshot {
+  const ctx = useContext(InvoicePdfStatusContext)
+  if (!ctx) throw new Error('useInvoicePdfStatus must be used inside <InvoicePdfStatusProvider>')
+  return ctx
+}
+
+export function InvoicePdfStatusProvider({
+  invoiceId,
+  initial,
+  children,
+}: {
+  invoiceId: number
+  initial: InvoicePdfStatusSnapshot
+  children: React.ReactNode
+}) {
+  const [snapshot, setSnapshot] = useState<InvoicePdfStatusSnapshot>(initial)
+  const snapshotRef = useRef(snapshot)
+  snapshotRef.current = snapshot
+
+  useEffect(() => {
+    if (isTerminal(initial.status)) return
+
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const startedAt = Date.now()
+
+    function intervalFor(elapsed: number): number {
+      return elapsed < SLOW_AFTER_MS ? FAST_INTERVAL_MS : SLOW_INTERVAL_MS
+    }
+
+    async function tick() {
+      if (cancelled) return
+      const elapsed = Date.now() - startedAt
+      if (elapsed > HARD_STOP_MS) return
+      if (typeof document !== 'undefined' && document.hidden) {
+        timer = setTimeout(tick, intervalFor(elapsed))
+        return
+      }
+      try {
+        const next = await getInvoicePdfStatusAction(invoiceId)
+        if (cancelled) return
+        const prev = snapshotRef.current
+        if (next.status !== prev.status || next.url !== prev.url || next.errorReason !== prev.errorReason) {
+          setSnapshot(next)
+        }
+        if (isTerminal(next.status)) return
+      } catch {
+        // Transient errors are ignored; next tick retries.
+      }
+      timer = setTimeout(tick, intervalFor(Date.now() - startedAt))
+    }
+
+    timer = setTimeout(tick, FAST_INTERVAL_MS)
+
+    function onVisibility() {
+      if (typeof document === 'undefined' || document.hidden) return
+      if (isTerminal(snapshotRef.current.status)) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(tick, 0)
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility)
+    }
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
+    }
+  }, [invoiceId, initial.status])
+
+  return <InvoicePdfStatusContext.Provider value={snapshot}>{children}</InvoicePdfStatusContext.Provider>
+}
+
+/**
+ * Reactive status chip - same visual as <PdfStatusChip> but driven by the
+ * live snapshot from context instead of an immutable server prop.
+ */
+const STATUS_LABELS: Record<InvoicePdfStatusValue, string> = {
+  none: 'PDF בקרוב',
+  rendering: 'מופק כעת',
+  ready: 'מסמך זמין',
+  failed: 'שגיאה בהפקה',
+}
+
+const STATUS_CLASSES: Record<InvoicePdfStatusValue, string> = {
+  none: 'border-gray-200 bg-gray-50 text-gray-600',
+  rendering: 'border-gray-200 bg-gray-50 text-gray-600',
+  ready: 'border-gray-300 bg-white text-gray-800',
+  failed: 'border-gray-200 bg-gray-100 text-gray-600',
+}
+
+export function InvoicePdfStatusChipLive() {
+  const { status } = useInvoicePdfStatus()
+  return (
+    <span
+      data-pdf-status={status}
+      className={`inline-flex shrink-0 items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-tight font-medium ${STATUS_CLASSES[status]}`}
+    >
+      {status === 'rendering' && <span className='me-1 inline-block size-1.5 rounded-full bg-gray-500 animate-pulse' />}
+      {STATUS_LABELS[status]}
+    </span>
+  )
+}
+
+export function InvoicePdfErrorReasonLive() {
+  const { status, errorReason } = useInvoicePdfStatus()
+  if (status !== 'failed' || !errorReason) return null
+  return <span className='ms-2 text-gray-600'>· שגיאת הפקה: {errorReason}</span>
+}

@@ -6,6 +6,7 @@ import Icon from '@/lib/Icon'
 import type { BillInvoiceRow } from '@/db/billing/invoices'
 import { consumeJustIssuedFlag } from '@/lib/billing/justIssuedFlag'
 import SendInvoiceModal from './SendInvoiceModal'
+import { useInvoicePdfStatus } from './InvoicePdfLive'
 
 /**
  * Post-issue send prompt. Replaces the prior ?send=1 URL-driven auto-open.
@@ -31,6 +32,7 @@ export default function PostIssueSendBanner({
 }) {
   const [visible, setVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const { status } = useInvoicePdfStatus()
 
   useEffect(() => {
     if (invoice.docState === 'draft') return
@@ -40,26 +42,47 @@ export default function PostIssueSendBanner({
   if (!visible) return null
 
   const kindNoun = invoice.kind === 'invoice_receipt' ? 'חשבונית/קבלה' : 'חשבונית'
+  const isRendering = status !== 'ready' && status !== 'failed'
   const readyHeadline = invoice.kind === 'invoice_receipt' ? 'חשבונית/קבלה מוכנה' : 'החשבונית מוכנה'
+  const renderingHeadline = invoice.kind === 'invoice_receipt' ? 'מפיק את החשבונית/קבלה…' : 'מפיק את החשבונית…'
+  const headline = status === 'failed' ? 'הפקת ה-PDF נכשלה' : isRendering ? renderingHeadline : readyHeadline
+  const subline = status === 'failed'
+    ? 'אפשר לנסות להפיק שוב מתפריט הפעולות.'
+    : isRendering
+      ? 'ברגע שהמסמך יהיה מוכן אפשר יהיה לשלוח אותו.'
+      : 'לשלוח ללקוח עכשיו?'
+
+  const accent = status === 'failed'
+    ? { border: 'border-gray-200', bg: 'bg-gray-50', iconBg: 'bg-gray-600', text: 'text-gray-900', textSoft: 'text-gray-600' }
+    : isRendering
+      ? { border: 'border-gray-200', bg: 'bg-gray-50/80', iconBg: 'bg-gray-500', text: 'text-gray-900', textSoft: 'text-gray-600' }
+      : { border: 'border-emerald-200', bg: 'bg-emerald-50/60', iconBg: 'bg-emerald-600', text: 'text-emerald-900', textSoft: 'text-emerald-800/80' }
 
   return (
     <>
       <section
-        className='rounded-xl border border-emerald-200 bg-emerald-50/60 px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3'
+        className={`rounded-xl border ${accent.border} ${accent.bg} px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3`}
         data-testid='post-issue-send-banner'
+        data-pdf-status={status}
       >
-        <div className='size-10 rounded-full bg-white border border-emerald-200 flex items-center justify-center shrink-0'>
-          <Icon name='circle-check' type='sol' className='size-5 bg-emerald-600' />
+        <div className={`size-10 rounded-full bg-white border ${accent.border} flex items-center justify-center shrink-0`}>
+          {isRendering ? (
+            <span className='inline-block size-3 rounded-full bg-gray-500 animate-pulse' />
+          ) : (
+            <Icon name={status === 'failed' ? 'triangle-exclamation' : 'circle-check'} type='sol' className={`size-5 ${accent.iconBg}`} />
+          )}
         </div>
         <div className='min-w-0 flex-1'>
-          <p className='text-base font-semibold text-emerald-900'>{readyHeadline}</p>
-          <p className='text-sm text-emerald-800/80 mt-0.5'>לשלוח ללקוח עכשיו?</p>
+          <p className={`text-base font-semibold ${accent.text}`}>{headline}</p>
+          <p className={`text-sm mt-0.5 ${accent.textSoft}`}>{subline}</p>
         </div>
         <div className='flex items-center gap-2 shrink-0'>
           <Btn
             icon='paper-plane'
             lbl={`שלח ${kindNoun}`}
             onClick={() => setModalOpen(true)}
+            disabled={isRendering || status === 'failed'}
+            title={isRendering ? 'המסמך עדיין מופק…' : status === 'failed' ? 'יש לנסות להפיק את ה-PDF מחדש' : undefined}
             data-testid='post-issue-send-banner-send'
           />
           <Btn

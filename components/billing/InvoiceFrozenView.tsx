@@ -2,18 +2,17 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import type { BillInvoiceRow, BillInvoiceLineRow } from '@/db/billing/invoices'
 import type { BillDocumentRow } from '@/db/billing/documents'
+import type { InvoicePdfStatusSnapshot } from '@/actions/billing/documentStatus'
 import { formatDate } from '@/lib/dates'
 import { formatCurrency } from '@/lib/funcs'
-import Icon from '@/lib/Icon'
-import { DocStateChip, FulfillStateChip, PdfStatusChip, type PdfStatus } from './chips'
+import { DocStateChip, FulfillStateChip } from './chips'
 import { formatInvoiceNumber } from './funcs'
 import { documentKindLabel } from '@/lib/billing/documentKinds'
 import { paymentMethodLabel } from '@/lib/billing/payment/methods'
-import DuplicateInvoiceBtn from './DuplicateInvoiceBtn'
 import InvoiceTimelineList from './InvoiceTimelineList'
 import PostIssueSendBanner from './PostIssueSendBanner'
-import RerenderPdfBtn from './RerenderPdfBtn'
-import SendInvoiceBtn from './SendInvoiceBtn'
+import InvoiceHeroActions from './InvoiceHeroActions'
+import { InvoicePdfStatusProvider, InvoicePdfStatusChipLive, InvoicePdfErrorReasonLive } from './InvoicePdfLive'
 
 
 export default function InvoiceFrozenView({
@@ -25,78 +24,59 @@ export default function InvoiceFrozenView({
   lines: BillInvoiceLineRow[]
   document: BillDocumentRow | null
 }) {
-  const status = pdfStatus(invoice, document)
-  const canDownload = !!document && document.status === 'ready' && document.isCurrent && !!document.url
+  const initialStatus = toInitialStatus(invoice, document)
   const recipientHref = `/clients/${invoice.leadId}` as const
 
   return (
-    <div className='grid gap-6 py-4'>
-      {/* ── Post-issue send prompt (one-shot, dismissible) ──────────── */}
-      <PostIssueSendBanner invoice={invoice} />
+    <InvoicePdfStatusProvider invoiceId={invoice.id} initial={initialStatus}>
+      <div className='grid gap-6 py-4'>
+        {/* ── Post-issue send prompt (one-shot, dismissible) ──────────── */}
+        <PostIssueSendBanner invoice={invoice} />
 
-      {/* ── Operational hero band ──────────────────────────────────── */}
-      <section className='bg-dark text-white rounded-xl px-7 py-6'>
-        <div className='flex items-start justify-between gap-6 flex-wrap'>
-          <div className='min-w-0'>
-            <h2 className='text-3xl font-bold tracking-tight tabular-nums'>
-              {formatInvoiceNumber(invoice)}
-            </h2>
-            <div className='mt-2 flex items-center gap-x-3 gap-y-1 text-base text-white/70 flex-wrap'>
-              <Link
-                href={recipientHref as any}
-                className='font-medium text-white hover:underline underline-offset-2'
-              >
-                {invoice.legalNameSnapshot.trim() || 'ללא שם'}
-              </Link>
-              <span className='text-white/40'>·</span>
-              <span className='font-semibold text-white tabular-nums'>
-                {formatCurrency(invoice.totalAmount)}
-              </span>
-              {invoice.issuedAt && (
-                <>
-                  <span className='text-white/40'>·</span>
-                  <span className='tabular-nums'>{formatDate(invoice.issuedAt)}</span>
-                </>
-              )}
+        {/* ── Operational hero band ──────────────────────────────────── */}
+        <section className='bg-dark text-white rounded-xl px-7 py-6'>
+          <div className='flex items-start justify-between gap-6 flex-wrap'>
+            <div className='min-w-0'>
+              <h2 className='text-3xl font-bold tracking-tight tabular-nums'>
+                {formatInvoiceNumber(invoice)}
+              </h2>
+              <div className='mt-2 flex items-center gap-x-3 gap-y-1 text-base text-white/70 flex-wrap'>
+                <Link
+                  href={recipientHref as any}
+                  className='font-medium text-white hover:underline underline-offset-2'
+                >
+                  {invoice.legalNameSnapshot.trim() || 'ללא שם'}
+                </Link>
+                <span className='text-white/40'>·</span>
+                <span className='font-semibold text-white tabular-nums'>
+                  {formatCurrency(invoice.totalAmount)}
+                </span>
+                {invoice.issuedAt && (
+                  <>
+                    <span className='text-white/40'>·</span>
+                    <span className='tabular-nums'>{formatDate(invoice.issuedAt)}</span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className='flex items-center gap-2 shrink-0'>
-            <SendInvoiceBtn invoice={invoice} variant='hero' />
-            {canDownload && document?.url && (
-              <a
-                href={document.url}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='inline-flex items-center gap-2 h-10 px-4 rounded-md border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-colors'
-              >
-                <Icon name='download' type='reg' className='size-4 bg-white' />
-                <span>הורד PDF</span>
-              </a>
-            )}
-            {status === 'failed' && (
-              <RerenderPdfBtn invoiceId={invoice.id} leadId={invoice.leadId} lbl='נסה שוב' />
-            )}
-            <DuplicateInvoiceBtn invoiceId={invoice.id} leadId={invoice.leadId} variant='hero' />
+            <InvoiceHeroActions invoice={invoice} />
           </div>
+        </section>
+
+        {/* ── Metadata strip ─────────────────────────────────────────── */}
+        <div className='flex items-center gap-2 flex-wrap text-sm text-gray-500'>
+          <span className='text-xs font-medium px-2 py-0.5 rounded bg-softy text-gray-700'>
+            {documentKindLabel(invoice.kind)}
+          </span>
+          <DocStateChip state={invoice.docState} />
+          <FulfillStateChip state={invoice.fulfillState} />
+          <InvoicePdfStatusChipLive />
+          {invoice.issuedAt && (
+            <span className='ms-2'>הונפקה ב-{formatDate(invoice.issuedAt)}</span>
+          )}
+          <InvoicePdfErrorReasonLive />
         </div>
-      </section>
-
-      {/* ── Metadata strip ─────────────────────────────────────────── */}
-      <div className='flex items-center gap-2 flex-wrap text-sm text-gray-500'>
-        <span className='text-xs font-medium px-2 py-0.5 rounded bg-softy text-gray-700'>
-          {documentKindLabel(invoice.kind)}
-        </span>
-        <DocStateChip state={invoice.docState} />
-        <FulfillStateChip state={invoice.fulfillState} />
-        <PdfStatusChip status={status} />
-        {invoice.issuedAt && (
-          <span className='ms-2'>הונפקה ב-{formatDate(invoice.issuedAt)}</span>
-        )}
-        {document?.status === 'failed' && document.errorReason && (
-          <span className='ms-2 text-gray-600'>· שגיאת הפקה: {document.errorReason}</span>
-        )}
-      </div>
 
       {/* ── Recipient (calm horizontal strip, not a bordered card) ── */}
       <section className='border-b border-gray-200 pb-5'>
@@ -223,7 +203,8 @@ export default function InvoiceFrozenView({
           <InvoiceTimelineList invoiceId={invoice.id} kind={invoice.kind} />
         </Suspense>
       </section>
-    </div>
+      </div>
+    </InvoicePdfStatusProvider>
   )
 }
 
@@ -235,12 +216,12 @@ function formatLineNum(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2)
 }
 
-function pdfStatus(invoice: BillInvoiceRow, document: BillDocumentRow | null): PdfStatus {
-  if (invoice.docState === 'draft') return 'not_applicable'
-  if (!document) return 'scheduled'
-  if (document.status === 'ready' && document.isCurrent) return 'ready'
-  if (document.status === 'failed') return 'failed'
-  return 'rendering'
+function toInitialStatus(invoice: BillInvoiceRow, document: BillDocumentRow | null): InvoicePdfStatusSnapshot {
+  if (invoice.docState === 'draft') return { status: 'none', url: null, errorReason: null }
+  if (!document) return { status: 'none', url: null, errorReason: null }
+  if (document.status === 'ready' && document.isCurrent) return { status: 'ready', url: document.url, errorReason: null }
+  if (document.status === 'failed') return { status: 'failed', url: null, errorReason: document.errorReason }
+  return { status: 'rendering', url: null, errorReason: null }
 }
 
 function TimelineSkeleton() {
