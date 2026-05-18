@@ -15,6 +15,8 @@ import type { BusinessType } from '@/lib/billing/issuer/fields'
 import InvoiceDraftEditor from '@/components/billing/InvoiceDraftEditor'
 import InvoiceFrozenView from '@/components/billing/InvoiceFrozenView'
 
+export const maxDuration = 60
+
 export default async function InvoiceDetailPage({
   params,
 }: {
@@ -47,10 +49,6 @@ export default async function InvoiceDetailPage({
 
   const profile = await getActiveBillingProfileForLead(leadId)
 
-  // Pass the agency's live business type so the draft preview applies the
-  // same VAT policy (exempt → 0%) that issuance will commit. Without this,
-  // a draft created against an authorized agency that later switched to
-  // exempt would PREVIEW at 18% but ISSUE at 0% — UX shock.
   const agencyRow = await db('agencies').where({ id: user.agencyId }).first('businessType')
   const agencyBusinessType = (agencyRow?.businessType ?? null) as BusinessType | null
 

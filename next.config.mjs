@@ -15,10 +15,15 @@ const nextConfig = {
     return config
   },
   turbopack: {},
-  serverExternalPackages: ['knex', 'puppeteer-core', '@sparticuz/chromium-min'],
+  serverExternalPackages: ['knex', 'puppeteer-core', '@sparticuz/chromium'],
   poweredByHeader: false,
   outputFileTracingIncludes: {
-    '**/*': ['./migrations/**/*', './public/fonts/**/*'],
+    '**/*': [
+      './migrations/**/*',
+      './public/fonts/**/*',
+      './node_modules/@sparticuz/chromium/bin/**/*',
+      './node_modules/.pnpm/@sparticuz+chromium*/node_modules/@sparticuz/chromium/bin/**/*',
+    ],
   },
 }
 

@@ -50,8 +50,8 @@ importers:
       '@simplewebauthn/server':
         specifier: ^13.2.2
         version: 13.2.2
-      '@sparticuz/chromium-min':
-        specifier: ^131.0.1
+      '@sparticuz/chromium':
+        specifier: 131.0.1
         version: 131.0.1
       ai:
         specifier: ^6.0.176
@@ -1882,8 +1882,8 @@ packages:
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
 
-  '@sparticuz/chromium-min@131.0.1':
-    resolution: {integrity: sha512-kQqKflJtjcBb8aA1b6L4dhU/8UbCJHcjb3au8cjBhKAG7nzqh//92rHCB6ULkgV0CMEQmfp3LDBQ/W8Wg2k+Yg==}
+  '@sparticuz/chromium@131.0.1':
+    resolution: {integrity: sha512-VfmHkQmb/Px0zjwdSQwjRMwFw63Qfj+g4Giumz4jiAGEpXHgIZk6xEwlUz6yiUHVDveK2TEgMR2MR6I3okOE7w==}
     engines: {node: '>= 16'}
 
   '@standard-schema/spec@1.1.0':
@@ -6362,7 +6362,7 @@ snapshots:
 
   '@socket.io/component-emitter@3.1.2': {}
 
-  '@sparticuz/chromium-min@131.0.1':
+  '@sparticuz/chromium@131.0.1':
     dependencies:
       follow-redirects: 1.15.11
       tar-fs: 3.1.2
