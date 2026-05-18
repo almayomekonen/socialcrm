@@ -9,17 +9,6 @@ import { getOrCreateDefaultTaxRate, resolveActiveTaxRateForLine } from '@/db/bil
 import InvoiceNewEditor from '@/components/billing/InvoiceNewEditor'
 import type { DocumentKind } from '@/db/billing/invoices'
 
-// `saveAndIssueTransientAction` invoked from this page kicks off
-// `scheduleInvoicePdfRender` → `runRender` via `after()`. The deferred
-// callback runs on the same function invocation and IS bounded by
-// maxDuration. Chromium pack download (~66 MB) + extract + Puppeteer
-// launch needs ~10–15s on a cold start. The default Vercel timeout
-// (10s on Hobby, 15s on Pro default) kills it mid-extract, which is
-// why bill_documents rows were getting stranded at 'rendering'.
-// Requires Vercel Pro (or higher) — Hobby is hard-capped at 10s
-// regardless of this value.
-export const maxDuration = 60
-
 export default async function NewInvoicePage({
   params,
   searchParams,

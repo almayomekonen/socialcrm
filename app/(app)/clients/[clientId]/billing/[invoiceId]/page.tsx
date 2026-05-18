@@ -15,8 +15,6 @@ import type { BusinessType } from '@/lib/billing/issuer/fields'
 import InvoiceDraftEditor from '@/components/billing/InvoiceDraftEditor'
 import InvoiceFrozenView from '@/components/billing/InvoiceFrozenView'
 
-export const maxDuration = 60
-
 export default async function InvoiceDetailPage({
   params,
 }: {
