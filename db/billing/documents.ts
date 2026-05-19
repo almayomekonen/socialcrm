@@ -32,6 +32,10 @@ export type CreatePendingDocumentInput = {
   templateVersionId?: number
   renderedByUserId?: number | null
   metadata?: Record<string, unknown>
+  // Predicted S3 key + URL. Pre-populated so the polling action can do
+  // head_object against the expected key before the render has completed.
+  path?: string | null
+  url?: string | null
 }
 
 export async function createPendingDocument(input: CreatePendingDocumentInput): Promise<number> {
@@ -46,6 +50,8 @@ export async function createPendingDocument(input: CreatePendingDocumentInput): 
       isCurrent: false,
       renderedByUserId: input.renderedByUserId ?? null,
       metadata: JSON.stringify(input.metadata ?? {}),
+      path: input.path ?? null,
+      url: input.url ?? null,
     })
     .returning('id')
 

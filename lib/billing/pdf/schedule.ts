@@ -1,14 +1,17 @@
 import { after } from 'next/server'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { s3, s3PublicUrl } from '@/config/s3'
 import { db } from '@/config/db'
 import { genId } from '@/lib/funcs'
-import { createPendingDocument, hasReadyDocument, markDocumentFailed, markDocumentReady } from '@/db/billing/documents'
+import { createPendingDocument, hasReadyDocument, markDocumentFailed } from '@/db/billing/documents'
 import type { BillInvoiceRow, BillInvoiceLineRow } from '@/db/billing/invoices'
 import { getIssuerForRender } from '@/db/billing/issuer'
 import { resolveIssuerForRender } from '@/lib/billing/issuer/resolveForRender'
 import { renderInvoicePdf } from './renderInvoicePdf'
 import { diagDb, type DiagCtx } from './diag'
+
+const PRESIGN_EXPIRES_S = 5 * 60
 
 export type ScheduleInvoicePdfRenderInput = {
   invoiceId: number
@@ -26,25 +29,41 @@ export async function scheduleInvoicePdfRender(input: ScheduleInvoicePdfRenderIn
       return
     }
 
+    const bucket = process.env.S3_BUCKET_NAME
+    if (!bucket) {
+      console.error('[billing.pdf] schedule.no_s3_bucket')
+      return
+    }
+
+    // Pre-compute the S3 key + URL where the rendered PDF will land.
+    // Stored on the bill_documents row at creation so the polling action
+    // can head_object the predicted key without waiting for any callback.
+    const objectPath = `bill/${input.agencyId}/invoice/${input.invoiceId}/${genId()}.pdf`
+    const objectUrl = `${s3PublicUrl}${objectPath}`
+
     const documentId = await createPendingDocument({
       agencyId: input.agencyId,
       invoiceId: input.invoiceId,
       renderedByUserId: input.renderedByUserId ?? null,
+      path: objectPath,
+      url: objectUrl,
     })
     const ctx: DiagCtx = { documentId, agencyId: input.agencyId }
-    await diagDb(ctx, 'schedule.pending_doc_created', { documentId })
+    await diagDb(ctx, 'schedule.pending_doc_created', { documentId, key: objectPath })
 
     const job = () =>
-      runRender({
+      dispatchRender({
         documentId,
         invoiceId: input.invoiceId,
         agencyId: input.agencyId,
+        bucket,
+        objectPath,
       }).catch(async (err) => {
         const message = err instanceof Error ? err.message : String(err)
         await diagDb(ctx, 'schedule.job.outer_catch', { error: message.slice(0, 200) })
-        console.error('[billing.pdf] render.fatal', JSON.stringify({ invoiceId: input.invoiceId, message: trunc(message) }))
+        console.error('[billing.pdf] dispatch.fatal', JSON.stringify({ invoiceId: input.invoiceId, message: trunc(message) }))
         try {
-          await markDocumentFailed(documentId, input.agencyId, 'render_error')
+          await markDocumentFailed(documentId, input.agencyId, 'dispatch_error')
           await diagDb(ctx, 'schedule.job.mark_failed_ok')
         } catch (markErr) {
           await diagDb(ctx, 'schedule.job.mark_failed_error', { error: markErr instanceof Error ? markErr.message : String(markErr) })
@@ -75,13 +94,13 @@ export async function rerenderInvoicePdf(input: {
   return scheduleInvoicePdfRender({ ...input, force: true })
 }
 
-async function runRender(input: { documentId: number; invoiceId: number; agencyId: number }): Promise<void> {
+async function dispatchRender(input: { documentId: number; invoiceId: number; agencyId: number; bucket: string; objectPath: string }): Promise<void> {
   const ctx: DiagCtx = { documentId: input.documentId, agencyId: input.agencyId }
   let invoice: BillInvoiceRow | null = null
   try {
-    await diagDb(ctx, 'runRender.enter', { invoiceId: input.invoiceId, documentId: input.documentId })
+    await diagDb(ctx, 'dispatch.enter', { invoiceId: input.invoiceId, documentId: input.documentId })
     invoice = await loadInvoice(input.agencyId, input.invoiceId)
-    await diagDb(ctx, 'runRender.invoice_loaded', { found: !!invoice, docState: invoice?.docState })
+    await diagDb(ctx, 'dispatch.invoice_loaded', { found: !!invoice, docState: invoice?.docState })
     if (!invoice) {
       await markDocumentFailed(input.documentId, input.agencyId, 'invoice_not_found')
       return
@@ -92,56 +111,43 @@ async function runRender(input: { documentId: number; invoiceId: number; agencyI
     }
 
     const lines = await loadLines(input.agencyId, input.invoiceId)
-    await diagDb(ctx, 'runRender.lines_loaded', { count: lines.length })
+    await diagDb(ctx, 'dispatch.lines_loaded', { count: lines.length })
 
     const [liveIssuer, fallbackName] = await Promise.all([getIssuerForRender(input.agencyId), loadAgencyName(input.agencyId)])
     const issuer = resolveIssuerForRender({ invoice, liveIssuer, fallbackAgencyName: fallbackName })
-    await diagDb(ctx, 'runRender.issuer_resolved', { hasIssuer: !!issuer, fallbackName })
+    await diagDb(ctx, 'dispatch.issuer_resolved', { hasIssuer: !!issuer, fallbackName })
 
-    await diagDb(ctx, 'runRender.renderInvoicePdf.before')
-    const rendered = await renderInvoicePdf({ invoice, lines, issuer, fallbackName, diagCtx: ctx })
-    await diagDb(ctx, 'runRender.renderInvoicePdf.after', { byteSize: rendered.byteSize })
-
-    const objectPath = `bill/${input.agencyId}/invoice/${input.invoiceId}/${genId()}.pdf`
-    const bucket = process.env.S3_BUCKET_NAME
-    if (!bucket) {
-      await diagDb(ctx, 'runRender.no_s3_bucket')
-      await markDocumentFailed(input.documentId, input.agencyId, 's3_bucket_not_configured')
-      return
-    }
-
-    await diagDb(ctx, 'runRender.s3.put.before', { bucket, key: objectPath })
-    await s3.send(
+    // Generate the presigned PUT URL Gotenberg will upload to. The
+    // ContentType MUST match what Gotenberg sends in its webhook PUT
+    // (application/pdf) or S3 will reject the signature.
+    const uploadUrl = await getSignedUrl(
+      s3,
       new PutObjectCommand({
-        Bucket: bucket,
-        Key: objectPath,
-        Body: rendered.bytes,
+        Bucket: input.bucket,
+        Key: input.objectPath,
         ContentType: 'application/pdf',
-        ContentLength: rendered.byteSize,
       }),
+      { expiresIn: PRESIGN_EXPIRES_S },
     )
-    await diagDb(ctx, 'runRender.s3.put.after')
+    await diagDb(ctx, 'dispatch.presigned_url_generated', { expiresIn: PRESIGN_EXPIRES_S })
 
-    await diagDb(ctx, 'runRender.markDocumentReady.before')
-    await markDocumentReady({
-      documentId: input.documentId,
-      agencyId: input.agencyId,
-      invoiceId: input.invoiceId,
-      path: objectPath,
-      url: `${s3PublicUrl}${objectPath}`,
-      contentHash: rendered.contentHash,
-      byteSize: rendered.byteSize,
-    })
-    await diagDb(ctx, 'runRender.markDocumentReady.after')
-    await diagDb(ctx, 'runRender.complete')
+    await diagDb(ctx, 'dispatch.gotenberg.before')
+    await renderInvoicePdf({ invoice, lines, issuer, fallbackName, uploadUrl, diagCtx: ctx })
+    await diagDb(ctx, 'dispatch.gotenberg.after')
+
+    // Completion is now async: Gotenberg renders + uploads to S3 directly.
+    // The polling action observes the upload via head_object and flips
+    // the row to status='ready'. There is no synchronous markDocumentReady
+    // here on purpose.
+    await diagDb(ctx, 'dispatch.complete')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const reason = classifyError(message)
-    await diagDb(ctx, 'runRender.error', { reason, message: message.slice(0, 200) })
+    await diagDb(ctx, 'dispatch.error', { reason, message: message.slice(0, 200) })
     try {
       await markDocumentFailed(input.documentId, input.agencyId, reason)
     } catch {}
-    console.error('[billing.pdf] render.fail', JSON.stringify({ invoiceId: input.invoiceId, reason, message: trunc(message) }))
+    console.error('[billing.pdf] dispatch.fail', JSON.stringify({ invoiceId: input.invoiceId, reason, message: trunc(message) }))
   }
 }
 
@@ -164,9 +170,10 @@ function classifyError(message: string): string {
   if (message.startsWith('billing.pdf.font_missing')) return 'font_missing'
   if (message.startsWith('billing.pdf.draft_not_renderable')) return 'invoice_is_draft'
   if (message.startsWith('billing.pdf.invalid_routing')) return 'invalid_routing'
-  if (message.includes('NoSuchBucket') || message.includes('AccessDenied')) return 's3_access_denied'
-  if (message.includes('CredentialsProviderError')) return 's3_credentials'
-  return 'render_error'
+  if (message.startsWith('billing.pdf.gotenberg_forbidden')) return 'gotenberg_forbidden'
+  if (message.startsWith('billing.pdf.gotenberg_timeout')) return 'gotenberg_timeout'
+  if (message.startsWith('billing.pdf.gotenberg_')) return 'gotenberg_error'
+  return 'dispatch_error'
 }
 
 function trunc(s: string, n = 200): string {

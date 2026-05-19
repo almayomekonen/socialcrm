@@ -212,50 +212,33 @@ describe('renderInvoiceHtml (pure)', () => {
   })
 })
 
-describe('renderInvoicePdf (Chromium)', () => {
+describe('renderInvoicePdf (dispatch path)', () => {
+  // After the Gotenberg + direct-to-S3 migration, renderInvoicePdf
+  // dispatches to Gotenberg and returns void. The PDF bytes are
+  // produced by Gotenberg and uploaded to S3 directly via a presigned
+  // PUT URL; the Vercel function never materializes them. Live
+  // dispatch tests would require a reachable Gotenberg endpoint and
+  // are therefore skipped in unit-test runs - they belong in the
+  // production smoke check.
   const maybe = RUN_CHROMIUM ? it : it.skip
 
-  maybe('renders a plain invoice', async () => {
-    const result = await renderInvoicePdf({
-      invoice: makeInvoice(),
-      lines: oneLine,
-      fallbackName: 'העסק שלי',
-    })
-    expect(result.byteSize).toBeGreaterThan(0)
-    expect(result.bytes.byteLength).toBe(result.byteSize)
-    expect(result.contentHash).toMatch(/^[a-f0-9]{64}$/)
-    expect(String.fromCharCode(...result.bytes.slice(0, 4))).toBe('%PDF')
-  })
-
-  maybe('renders a combined invoice/receipt with different bytes than plain', async () => {
-    const plain = await renderInvoicePdf({
-      invoice: makeInvoice(),
-      lines: oneLine,
-      fallbackName: 'העסק שלי',
-    })
-    const combined = await renderInvoicePdf({
-      invoice: makeInvoice({
-        kind: 'invoice_receipt',
-        fulfillState: 'paid',
-        outstandingAmount: 0,
-        paymentReceived: true,
-        paymentMethodSnapshot: 'cash',
-        paymentAmountSnapshot: 118,
-        paymentDateSnapshot: '2026-05-14',
+  maybe('dispatches a render to Gotenberg', async () => {
+    await expect(
+      renderInvoicePdf({
+        invoice: makeInvoice(),
+        lines: oneLine,
+        fallbackName: 'העסק שלי',
+        uploadUrl: 'https://example.invalid/presigned-put',
       }),
-      lines: oneLine,
-      fallbackName: 'העסק שלי',
-    })
-    expect(combined.byteSize).toBeGreaterThan(0)
-    expect(String.fromCharCode(...combined.bytes.slice(0, 4))).toBe('%PDF')
-    expect(combined.contentHash).not.toBe(plain.contentHash)
+    ).resolves.toBeUndefined()
   })
 
-  it('rejects drafts without launching Chromium', async () => {
+  it('rejects drafts without dispatching to Gotenberg', async () => {
     await expect(
       renderInvoicePdf({
         invoice: makeInvoice({ docState: 'draft', fulfillState: null }),
         lines: oneLine,
+        uploadUrl: 'https://example.invalid/presigned-put',
       }),
     ).rejects.toThrow('billing.pdf.draft_not_renderable')
   })
