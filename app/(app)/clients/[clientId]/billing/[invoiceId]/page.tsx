@@ -15,10 +15,8 @@ import type { BusinessType } from '@/lib/billing/issuer/fields'
 import InvoiceDraftEditor from '@/components/billing/InvoiceDraftEditor'
 import InvoiceFrozenView from '@/components/billing/InvoiceFrozenView'
 
-// Rerender action also fires scheduleInvoicePdfRender via `after()`.
-// Bound to maxDuration like the new-invoice page - see that file for the
-// reasoning. Default 15s is too tight for a cold Gotenberg round-trip.
 export const maxDuration = 60
+export const preferredRegion = 'arn1'
 
 export default async function InvoiceDetailPage({
   params,

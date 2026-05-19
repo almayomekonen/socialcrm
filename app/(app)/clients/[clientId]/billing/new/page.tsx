@@ -9,12 +9,9 @@ import { getOrCreateDefaultTaxRate, resolveActiveTaxRateForLine } from '@/db/bil
 import InvoiceNewEditor from '@/components/billing/InvoiceNewEditor'
 import type { DocumentKind } from '@/db/billing/invoices'
 
-// Issuing kicks off scheduleInvoicePdfRender via `after()`. The deferred
-// callback runs inside this function and is bounded by maxDuration. A
-// cold Gotenberg render + S3 upload + DB update lands around 15-25s, so
-// the default 15s on Pro is too tight - renders silently die mid-fetch
-// and leave bill_documents stuck at status='rendering'.
 export const maxDuration = 60
+
+export const preferredRegion = 'arn1'
 
 export default async function NewInvoicePage({
   params,
