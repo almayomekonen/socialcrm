@@ -7,13 +7,6 @@ import RerenderPdfBtn from './RerenderPdfBtn'
 import SendInvoiceBtn from './SendInvoiceBtn'
 import { useInvoicePdfStatus } from './InvoicePdfLive'
 
-/**
- * Hero-band action row. Reacts to the live PDF status so the user never
- * has to refresh after issuance:
- *   - while rendering: Send disabled, "מופק כעת" pill instead of Download
- *   - on ready: Send enabled, Download anchor visible
- *   - on failed: Rerender visible, Send disabled
- */
 export default function InvoiceHeroActions({ invoice }: { invoice: BillInvoiceRow }) {
   const { status, url } = useInvoicePdfStatus()
   const ready = status === 'ready' && !!url
@@ -26,7 +19,7 @@ export default function InvoiceHeroActions({ invoice }: { invoice: BillInvoiceRo
 
       {ready && url && (
         <a
-          href={url}
+          href={`/api/billing/invoice/${invoice.id}/download`}
           target='_blank'
           rel='noopener noreferrer'
           className='inline-flex items-center gap-2 h-10 px-4 rounded-md border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-colors'
