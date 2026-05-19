@@ -131,8 +131,19 @@ async function dispatchRender(input: { documentId: number; invoiceId: number; ag
     )
     await diagDb(ctx, 'dispatch.presigned_url_generated', { expiresIn: PRESIGN_EXPIRES_S })
 
+    // Gotenberg v8 requires an error callback URL paired with the
+    // success webhook. Auth via the same shared secret the diag readback
+    // route uses.
+    const appHost = process.env.APP_HOST?.trim() || 'getsocialcrm.com'
+    const callbackToken = process.env.RENDER_DIAG_SECRET?.trim() || ''
+    const errorUrl =
+      `https://${appHost}/api/billing/render-error` +
+      `?documentId=${input.documentId}` +
+      `&agencyId=${input.agencyId}` +
+      `&token=${encodeURIComponent(callbackToken)}`
+
     await diagDb(ctx, 'dispatch.gotenberg.before')
-    await renderInvoicePdf({ invoice, lines, issuer, fallbackName, uploadUrl, diagCtx: ctx })
+    await renderInvoicePdf({ invoice, lines, issuer, fallbackName, uploadUrl, errorUrl, diagCtx: ctx })
     await diagDb(ctx, 'dispatch.gotenberg.after')
 
     // Completion is now async: Gotenberg renders + uploads to S3 directly.

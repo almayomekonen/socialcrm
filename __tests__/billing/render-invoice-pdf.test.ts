@@ -229,6 +229,7 @@ describe('renderInvoicePdf (dispatch path)', () => {
         lines: oneLine,
         fallbackName: 'העסק שלי',
         uploadUrl: 'https://example.invalid/presigned-put',
+      errorUrl: 'https://example.invalid/render-error',
       }),
     ).resolves.toBeUndefined()
   })
@@ -239,6 +240,7 @@ describe('renderInvoicePdf (dispatch path)', () => {
         invoice: makeInvoice({ docState: 'draft', fulfillState: null }),
         lines: oneLine,
         uploadUrl: 'https://example.invalid/presigned-put',
+      errorUrl: 'https://example.invalid/render-error',
       }),
     ).rejects.toThrow('billing.pdf.draft_not_renderable')
   })

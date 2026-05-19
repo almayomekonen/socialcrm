@@ -5,6 +5,7 @@ const DISPATCH_TIMEOUT_MS = Number(process.env.PDF_RENDER_TIMEOUT_MS ?? 30_000)
 export type DispatchInput = {
   html: string
   webhookUrl: string
+  errorUrl: string
 }
 
 function readConfig(): { url: string; token: string } {
@@ -30,7 +31,7 @@ function log(stage: string, payload: Record<string, unknown> = {}): void {
  * the PDF flows Gotenberg (eu-north-1) -> S3 (eu-north-1) without ever
  * crossing the Atlantic or transiting through this function.
  */
-export async function dispatchHtmlToPdf({ html, webhookUrl }: DispatchInput, ctx: DiagCtx | null = null): Promise<void> {
+export async function dispatchHtmlToPdf({ html, webhookUrl, errorUrl }: DispatchInput, ctx: DiagCtx | null = null): Promise<void> {
   const t0 = Date.now()
   const { url, token } = readConfig()
   const endpoint = `${url}/forms/chromium/convert/html`
@@ -58,6 +59,8 @@ export async function dispatchHtmlToPdf({ html, webhookUrl }: DispatchInput, ctx
         'Gotenberg-Webhook-Url': webhookUrl,
         'Gotenberg-Webhook-Method': 'PUT',
         'Gotenberg-Webhook-Extra-Http-Headers': JSON.stringify({ 'Content-Type': 'application/pdf' }),
+        'Gotenberg-Webhook-Error-Url': errorUrl,
+        'Gotenberg-Webhook-Error-Method': 'POST',
       },
       body: form,
       signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
