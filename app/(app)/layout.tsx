@@ -28,7 +28,9 @@ async function LayoutContent({ children }) {
               <Topbar user={user} />
               <WorkspaceGrid>
                 <Nav user={user} />
-                <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>{children}</main>
+                <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>
+                  <div className='bg-white border rounded-md'>{children}</div>
+                </main>
                 <CopilotShell />
               </WorkspaceGrid>
             </div>
