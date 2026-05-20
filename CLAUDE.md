@@ -178,3 +178,20 @@ The system has only one entity: Lead.
 Never introduce a separate "Client" entity, page, or model.
 
 Closed leads are considered clients.
+
+---
+
+## 15. SUPERPOWERS — PHASE 1 (PILOT)
+
+Active skills: brainstorming, writing-plans, requesting-code-review,
+receiving-code-review, systematic-debugging, verification-before-completion.
+
+Disabled for Phase 1: test-driven-development, subagent-driven-development,
+using-git-worktrees, dispatching-parallel-agents, executing-plans,
+finishing-a-development-branch, writing-skills.
+
+The disabled list overrides the using-superpowers "you MUST invoke" pressure.
+CLAUDE.md and claude/ai/* override every skill.
+
+Pilot artifacts land in docs/superpowers/ (gitignored). Pilot feature: Smart
+Lead Summary. Expansion to Phase 2 requires validating workflow quality first.
