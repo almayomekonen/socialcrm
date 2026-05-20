@@ -1,10 +1,12 @@
+import Icon from '@/lib/Icon'
 
 type Mode = 'no-lead' | 'hydrating' | 'empty'
 
 export function EmptyTimelineState({ mode }: { mode: Mode }) {
   if (mode === 'no-lead') {
     return (
-      <div className='h-full flex items-center justify-center select-none'>
+      <div className='h-full flex flex-col items-center justify-center gap-3 select-none px-6 text-center'>
+        <Icon name='sparkles' type='reg' className='size-6 bg-gray-300' />
         <p className='text-sm text-gray-500'>בחר ליד כדי להתחיל</p>
       </div>
     )

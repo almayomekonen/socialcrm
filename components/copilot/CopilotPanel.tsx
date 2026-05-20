@@ -235,7 +235,7 @@ export default function CopilotPanel() {
 
   const loadingActionId = inFlight ? inFlight.actionId : null
   const suggestedActions = ctx?.kind === 'lead' ? ctx.suggestedActions : []
-  const composerPlaceholder = ctx?.kind === 'lead' ? `שאל משהו על ${ctx.leadName}` : 'בחר ליד כדי להתחיל'
+  const composerPlaceholder = ctx?.kind === 'lead' ? `שאל משהו על ${ctx.leadName}` : 'שאל את העוזר…'
 
   return (
     <div className='h-full flex flex-col items-stretch'>
@@ -269,12 +269,16 @@ export default function CopilotPanel() {
 
 function TopAnchor({ onClose }: { onClose: () => void }) {
   return (
-    <div className='shrink-0 relative w-full h-8'>
+    <div className='shrink-0 w-full h-8 flex items-center justify-between px-2'>
+      <div className='flex items-center gap-1.5'>
+        <Icon name='sparkles' type='reg' className='size-3.5 bg-gray-400' />
+        <span className='text-[12.5px] font-medium text-gray-700'>עוזר חכם</span>
+      </div>
       <button
         type='button'
         onClick={onClose}
         aria-label='סגור עוזר חכם'
-        className='group absolute top-1 left-2 p-1 rounded-full hover:bg-gray-100 transition-colors duration-150'
+        className='group p-1 rounded-full hover:bg-gray-100 transition-colors duration-150'
       >
         <Icon
           name='xmark'
