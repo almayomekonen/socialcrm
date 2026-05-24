@@ -17,8 +17,17 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
 
   async function callback(gglUser) {
     let user = null
+    let slowTimer: ReturnType<typeof setTimeout> | undefined
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let timedOut = false
     try {
       user = jwtDecode(gglUser.credential)
+
+      slowTimer = setTimeout(() => toast('loading', 'הפעולה לוקחת יותר זמן מהרגיל...'), 10000)
+      retryTimer = setTimeout(() => {
+        timedOut = true
+        toast('error', 'לוקח זמן רב מהרגיל, נסה שוב')
+      }, 20000)
 
       const res = await checkUser({
         email: normalizeEmail(user.email),
@@ -27,6 +36,10 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
         gglSub: user.sub,
       })
 
+      clearTimeout(slowTimer)
+      clearTimeout(retryTimer)
+      if (timedOut) return
+
       if (res.fail) {
         if (res.msg === 'המשתמש מושהה') return toast('error', res.msg)
         router.push(`/auth/register?email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`)
@@ -34,7 +47,12 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
       }
 
       router.push('/dashboard')
-    } catch (error) {}
+    } catch (error) {
+      clearTimeout(slowTimer)
+      clearTimeout(retryTimer)
+      console.error('[AUTH] route=google_check client_error', error)
+      if (!timedOut) toast('error', 'ההתחברות נכשלה, נסה שוב')
+    }
   }
 
   function initGoogle() {
@@ -43,7 +61,6 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
       callback,
     })
 
-    // google.accounts.id.prompt()
     google.accounts.id.renderButton(document.getElementById('gglBtn'), {
       width: 250,
     })

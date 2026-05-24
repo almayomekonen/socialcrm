@@ -4,7 +4,10 @@
       "Bash(psql -U postgres -d socialcrm -c \"\\\\dt\")",
       "Bash(python3 -c 'import json; print\\(json.load\\(open\\(\"/Users/User/Library/Application Support/com.vercel.cli/auth.json\"\\)\\)[\"token\"]\\)')",
       "Bash(curl -sS https://api.vercel.com/v13/deployments/get?url=socialcrm-f3ig0wmzg-almayos-projects.vercel.app -H 'Authorization: Bearer __TRACKED_VAR__')",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(curl -sS -o /dev/null -w \"HTTP:%{http_code}  size_dl:%{size_download}  ttfb:%{time_starttransfer}s  total:%{time_total}s  redirects:%{num_redirects}  final:%{url_effective}\\\\n\" https://getsocialcrm.com/auth)",
+      "Bash(curl -sS -o /dev/null -w \"HTTP:%{http_code}  size_dl:%{size_download}  ttfb:%{time_starttransfer}s  total:%{time_total}s  redirects:%{num_redirects}  final:%{url_effective}\\\\n\" https://getsocialcrm.com/auth/register)",
+      "Bash(wait)"
     ]
   }
 }

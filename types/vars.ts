@@ -64,13 +64,15 @@ export const metaData: Metadata = {
 }
 
 function resolveBaseUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  const explicit = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL)?.trim()
   if (explicit) return explicit.replace(/\/$/, '')
+
+  if (process.env.VERCEL_ENV === 'production') return 'https://getsocialcrm.com'
+  if (process.env.NODE_ENV === 'production') return 'https://getsocialcrm.com'
 
   const vercel = process.env.VERCEL_URL?.trim()
   if (vercel) return `https://${vercel}`
 
-  if (process.env.NODE_ENV === 'production') return 'https://getsocialcrm.com'
   return 'http://localhost:3000'
 }
 

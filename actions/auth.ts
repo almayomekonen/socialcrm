@@ -11,7 +11,11 @@ import { daysFromNow } from '@/lib/dates'
 import { genToken } from '@/lib/funcs'
 import { baseUrl } from '@/types/vars'
 import { sendEmail } from '@/lib/email/sender'
+import { renderEmail } from '@/lib/email/render'
+import MagicLinkEmail from '@/emails/templates/MagicLinkEmail'
 import { normalizeEmail } from '@/lib/normalizeEmail'
+
+const MAGIC_LINK_EXPIRY_MINUTES = 15
 
 export async function checkUserSuspended(user) {
   const cokis = await cookies()
@@ -23,13 +27,19 @@ export async function checkUserSuspended(user) {
 }
 
 export async function checkUser(user) {
-  const userExist = (await isUserExists(normalizeEmail(user.email))) as any
-  if (userExist.fail) return { fail: true, msg: userExist.msg }
+  const start = Date.now()
+  const email = normalizeEmail(user.email)
+  const userExist = (await isUserExists(email)) as any
+  if (userExist.fail) {
+    console.log(`[AUTH] route=google_check email=${email} ms=${Date.now() - start} result=fail reason=${userExist.msg}`)
+    return { fail: true, msg: userExist.msg }
+  }
 
   await db('users').where({ id: userExist.id }).update({ gglName: user.gglName, picture: user.picture, gglSub: user.gglSub })
   revalidateTag('user' + userExist.id, 'default')
 
   await createCookie(userExist.id)
+  console.log(`[AUTH] route=google_check email=${email} ms=${Date.now() - start} result=success`)
   redirect('/dashboard')
 }
 
@@ -89,26 +99,30 @@ export type UserDb = {
 }
 
 export async function sendToken(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const start = Date.now()
   email = normalizeEmail(email)
   const token = genToken()
-  const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000)
+  const tokenExpiry = new Date(Date.now() + MAGIC_LINK_EXPIRY_MINUTES * 60 * 1000)
   await db('users').where('email', email).update({ otp: { token, tokenExpiry } })
 
   const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
 
+  const html = await renderEmail(
+    MagicLinkEmail({ magicUrl: magicLink, expiresInMinutes: MAGIC_LINK_EXPIRY_MINUTES }),
+  )
+
   const result = await sendEmail({
     to: email,
-    subject: 'התחברות ל SocialCRM',
-    html: `<p dir="rtl">לחץ על הקישור כדי להתחבר:</p>
-    <p dir="rtl"><a href="${magicLink}">התחברות למערכת</a></p>
-    <p dir="rtl">הקישור יפוג בעוד 15 דקות</p>
-    `,
+    subject: 'התחברות ל-SocialCRM',
+    html,
   })
 
   if (!result.ok) {
     await db('users').where('email', email).update({ otp: null })
+    console.warn(`[AUTH] route=magic_send email=${email} ms=${Date.now() - start} result=fail reason=email_send_failed`)
     return { ok: false, error: 'שליחת קישור ההתחברות נכשלה. נסה שוב בעוד רגע.' }
   }
 
+  console.log(`[AUTH] route=magic_send email=${email} ms=${Date.now() - start} result=success`)
   return { ok: true }
 }

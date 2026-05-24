@@ -8,6 +8,7 @@ type SendInput = {
   to: string | string[]
   subject: string
   html: string
+  text?: string
 }
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string }
@@ -41,7 +42,7 @@ function fromSource(): string {
   return 'default-constant'
 }
 
-export async function sendEmail({ to, subject, html }: SendInput): Promise<SendResult> {
+export async function sendEmail({ to, subject, html, text }: SendInput): Promise<SendResult> {
   const from = getEmailFrom()
 
   // Pre-flight log: emit the full call shape BEFORE the SDK call so we have
@@ -53,11 +54,15 @@ export async function sendEmail({ to, subject, html }: SendInput): Promise<SendR
     to,
     subject,
     htmlBytes: html.length,
+    textBytes: text?.length ?? 0,
     apiKey: keyPrefix(),
     nodeEnv: process.env.NODE_ENV ?? null,
   })
 
-  const attempt = () => resend.emails.send({ from, to, subject, html })
+  const attempt = () =>
+    text
+      ? resend.emails.send({ from, to, subject, html, text })
+      : resend.emails.send({ from, to, subject, html })
 
   let res = await attempt()
 

@@ -1,6 +1,6 @@
 import { baseUrl } from '@/types/vars'
 import WelcomeEmail from '@/emails/templates/WelcomeEmail'
-import { renderEmail } from './render'
+import { renderEmail, renderEmailText } from './render'
 import { sendEmail } from './sender'
 import { EMAIL_ENABLED, IS_PROD } from './config'
 
@@ -30,15 +30,17 @@ export async function sendWelcomeEmail(user: WelcomeRecipient): Promise<void> {
       return
     }
 
-    const subject = 'ברוך הבא ל-SocialCRM'
-    const html = await renderEmail(
-      WelcomeEmail({
-        firstName: user.firstName ?? '',
-        ctaUrl: `${baseUrl}/dashboard`,
-      }),
-    )
+    const subject = '🚀 ברוך הבא ל-SocialCRM'
+    const props = {
+      firstName: user.firstName ?? '',
+      ctaUrl: `${baseUrl}/dashboard`,
+    }
+    const [html, text] = await Promise.all([
+      renderEmail(WelcomeEmail(props)),
+      renderEmailText(WelcomeEmail(props)),
+    ])
 
-    const result = await sendEmail({ to: user.email, subject, html })
+    const result = await sendEmail({ to: user.email, subject, html, text })
     if ('error' in result) {
       console.error(`${LOG_PREFIX} failed`, { to: user.email, error: result.error })
     }
