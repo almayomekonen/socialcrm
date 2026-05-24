@@ -1,7 +1,7 @@
 'use client'
 
 import Script from 'next/script'
-import { useRouter } from 'next/navigation'
+import { useRouter, unstable_rethrow } from 'next/navigation'
 import { jwtDecode } from 'jwt-decode'
 import { checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
@@ -48,6 +48,8 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
 
       router.push('/dashboard')
     } catch (error) {
+ 
+      unstable_rethrow(error)
       clearTimeout(slowTimer)
       clearTimeout(retryTimer)
       console.error('[AUTH] route=google_check client_error', error)

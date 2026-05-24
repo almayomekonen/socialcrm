@@ -5,6 +5,7 @@ import { getMultiObjFormData } from '@/lib/form/funcs'
 import { SubmitButton } from '@/lib/btns/SubmitBtn'
 import { addAgency } from '@/actions/agencies'
 import { useEffect, useRef, useState } from 'react'
+import { unstable_rethrow } from 'next/navigation'
 import { toast } from '@/lib/toast'
 
 export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEmail?: string; defaultName?: string }) {
@@ -47,6 +48,8 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
         setSubmitting(false)
       }
     } catch (err) {
+
+      unstable_rethrow(err)
       if (reqIdRef.current !== myId) return
       clearTimeout(timersRef.current.slow)
       clearTimeout(timersRef.current.retry)
@@ -68,9 +71,12 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
       </div>
       {error && <p className='text-sm text-red-500 mt-2'>{error}</p>}
       <SubmitButton lbl={submitting ? 'טוען...' : 'המשך'} className='w-full mt-4' icon={false} disabled={submitting} />
-      <p className='text-gray-500 text-xs text-center mt-2'>
+      <p className='text-gray-500 text-xs text-center mt-3'>
         כבר יש לך חשבון?{' '}
-        <Link href='/auth' className='underline font-semibold'>
+        <Link
+          href='/auth'
+          className='text-indigo-600 font-semibold hover:text-indigo-700 transition-colors'
+        >
           התחבר
         </Link>
       </p>
