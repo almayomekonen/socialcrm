@@ -6,8 +6,9 @@ export type TaskKind =
   | 'lead.askQuestion'
   | 'pipeline.weekly'
   | 'health.check'
+  | 'copilot.classifyIntent'
 
-export type ProviderName = 'anthropic' | 'google' | 'openai'
+export type ProviderName = 'anthropic' | 'google' | 'openai' | 'internal'
 
 export type ModelRole = 'primary' | 'volume' | 'heavy' | 'fallback'
 

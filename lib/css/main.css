@@ -153,7 +153,7 @@ body {
 }
 
 @utility btn {
-  @apply flex cursor-pointer border px-4 min-w-fit h-10 justify-center bg-white font-semibold rounded-md shadow hover:shadow-lg active:shadow-none transition-shadow disabled:pointer-events-none disabled:opacity-50;
+  @apply flex items-center gap-4 cursor-pointer border px-4 min-w-fit h-10 justify-center bg-white font-semibold rounded-md shadow hover:shadow-lg active:shadow-none transition-shadow disabled:pointer-events-none disabled:opacity-50;
 }
 
 @utility accordion {

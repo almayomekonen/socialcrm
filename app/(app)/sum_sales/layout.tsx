@@ -22,7 +22,6 @@ export default async function SumSalesLayout({ children }: { children: React.Rea
 
   return (
     <div>
-      <h1 className='title'>ביצועים</h1>
       <Suspense fallback={null}>
         <SumSalesNav user={user} showAgents={showAgents} />
       </Suspense>

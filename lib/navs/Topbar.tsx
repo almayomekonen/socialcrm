@@ -2,14 +2,35 @@
 import { RoleLabels } from '@/types/roles'
 import Link from 'next/link'
 import { twMerge } from 'tailwind-merge'
+import { usePathname } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
 
+type WorkspaceIdentity = { primary: string; secondary?: string }
+
+const WORKSPACE_TITLES: Record<string, WorkspaceIdentity> = {
+  '/leads': { primary: 'לידים', secondary: 'ניהול ומעקב לידים' },
+  '/clients': { primary: 'לקוחות', secondary: 'ניהול קשרי לקוחות' },
+  '/tasks': { primary: 'משימות', secondary: 'המשימות שלך להיום' },
+  '/sum_sales': { primary: 'ביצועים', secondary: 'תובנות ומדדים' },
+}
+
+function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | null {
+  if (!pathname) return null
+  if (WORKSPACE_TITLES[pathname]) return WORKSPACE_TITLES[pathname]
+  for (const path of Object.keys(WORKSPACE_TITLES)) {
+    if (pathname.startsWith(path + '/')) return WORKSPACE_TITLES[path]
+  }
+  return null
+}
+
   export default function Topbar({ user }) {
+  const pathname = usePathname()
   if (!user) return null
+  const title = resolveWorkspaceTitle(pathname)
   return (
     <div className='w-full sticky top-0 z-888 ps-[50px]'>
-      <div className='flex justify-between items-center h-10 wrap bg-white/90 backdrop-blur-lg border-b'>
+      <div className='relative flex justify-between items-center h-10 wrap bg-white/90 backdrop-blur-lg border-b'>
         <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop'>
           <Icon name='bars' type='reg' />
         </button>
@@ -24,6 +45,16 @@ import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
           <img src='/media/fav.svg' alt='SocialCRM' className='h-6' />
           <span className='font-bold text-lg tracking-tight text-gray-800'>SocialCRM</span>
         </Link>
+        {title && (
+          <span className='hidden desktop:flex absolute inset-y-0 left-1/2 -translate-x-1/2 flex-col items-center justify-center pointer-events-none select-none'>
+            <span className='text-base font-semibold tracking-tight text-gray-900 leading-tight'>
+              {title.primary}
+            </span>
+            {title.secondary && (
+              <span className='text-xs text-gray-500 leading-tight'>{title.secondary}</span>
+            )}
+          </span>
+        )}
       </div>
     </div>
   )

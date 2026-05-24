@@ -1,13 +1,18 @@
 import { generateObject } from 'ai'
-import type { FlexibleSchema, InferSchema, ModelMessage } from 'ai'
+import type { FlexibleSchema, InferSchema } from 'ai'
 import { getAiEnv } from './env'
 import { hasAnyProviderConfigured, isAgencyAllowlisted, isAiEnabled } from './flags'
-import { logAiRequest } from './logger'
 import { getProviderChain } from './providers'
 import { estimateCostUsd, getTaskConfig } from './tasks'
 import { AiRunResult, ModelRole, ProviderName, TaskKind } from './types'
 import { evaluateShadowGate } from '@/lib/entitlements'
 import type { CopilotModeId } from './copilotModes'
+import { addDailySpend, getDailySpend } from './router/spend'
+import { buildPrompt } from './router/promptBuilder'
+import { classifyError } from './router/errorClassify'
+import { logAttemptFailure, logAttemptSuccess, logFallbackTrace } from './router/attemptLogger'
+
+export { _resetDailySpendForTests } from './router/spend'
 
 export type RunStructuredOptions<S extends FlexibleSchema<unknown>> = {
   kind: TaskKind
@@ -31,39 +36,13 @@ export type RunStructuredImageAttachment = {
   name?: string | null
 }
 
-type DailyEntry = { dateUtc: string; usd: number }
-const dailySpend = new Map<number, DailyEntry>()
-
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function getDailySpend(agencyId: number): number {
-  const e = dailySpend.get(agencyId)
-  if (!e) return 0
-  if (e.dateUtc !== todayUtc()) {
-    dailySpend.delete(agencyId)
-    return 0
-  }
-  return e.usd
-}
-
-function addDailySpend(agencyId: number, usd: number) {
-  const today = todayUtc()
-  const e = dailySpend.get(agencyId)
-  if (!e || e.dateUtc !== today) dailySpend.set(agencyId, { dateUtc: today, usd })
-  else e.usd += usd
-}
-
 export async function runStructured<S extends FlexibleSchema<unknown>>(
   opts: RunStructuredOptions<S>,
 ): Promise<AiRunResult<InferSchema<S>>> {
   const startedAt = Date.now()
   const env = getAiEnv()
 
-  if (!isAiEnabled()) {
-    return { ok: false, reason: 'disabled' }
-  }
+  if (!isAiEnabled()) return { ok: false, reason: 'disabled' }
 
   // OLD production gate. Phase B observes — does NOT replace — this decision.
   const allowlisted = isAgencyAllowlisted(opts.agencyId)
@@ -79,14 +58,8 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
     bypassAllowlist: opts.bypassAllowlist ?? false,
   })
 
-  if (!oldAllowed) {
-    return { ok: false, reason: 'forbidden' }
-  }
-
-  if (!hasAnyProviderConfigured()) {
-    return { ok: false, reason: 'no-providers' }
-  }
-
+  if (!oldAllowed) return { ok: false, reason: 'forbidden' }
+  if (!hasAnyProviderConfigured()) return { ok: false, reason: 'no-providers' }
   if (opts.agencyId && getDailySpend(opts.agencyId) >= env.dailyUsdCap) {
     return { ok: false, reason: 'over-quota' }
   }
@@ -94,35 +67,41 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
   const cfg = getTaskConfig(opts.kind)
   const effectiveRole = opts.roleOverride ?? cfg.role
   const chain = getProviderChain(effectiveRole)
-  if (chain.length === 0) {
-    return { ok: false, reason: 'no-providers' }
-  }
+  if (chain.length === 0) return { ok: false, reason: 'no-providers' }
 
   let lastErrorMessage: string | undefined
   let lastErrorCode: string | undefined
-
   let previousProvider: ProviderName | null = null
-  const aiTrace = process.env.AI_TRACE === '1'
 
   for (const handle of chain) {
-    if (aiTrace && previousProvider !== null && previousProvider !== handle.provider) {
-      // TEMPORARY [FALLBACK] — chain advanced past the previous provider.
-      console.warn(
-        '[FALLBACK]',
-        JSON.stringify({
-          kind: opts.kind,
-          role: effectiveRole,
-          from: previousProvider,
-          to: handle.provider,
-          toModel: handle.modelId,
-          reason: lastErrorCode ?? 'unknown',
-          message: lastErrorMessage,
-        }),
-      )
+    if (previousProvider !== null && previousProvider !== handle.provider) {
+      logFallbackTrace({
+        kind: opts.kind,
+        effectiveRole,
+        from: previousProvider,
+        to: handle.provider as ProviderName,
+        toModel: handle.modelId,
+        reason: lastErrorCode,
+        message: lastErrorMessage,
+      })
     }
+
     const attempts = cfg.retryOnSameProvider + 1
     for (let attempt = 0; attempt < attempts; attempt++) {
       const callStartedAt = Date.now()
+      const commonCtx = {
+        kind: opts.kind,
+        userId: opts.userId ?? null,
+        agencyId: opts.agencyId ?? null,
+        leadId: opts.leadId ?? null,
+        provider: handle.provider as ProviderName,
+        model: handle.modelId,
+        attempt,
+        effectiveRole,
+        fallbackUsed: previousProvider !== null && previousProvider !== handle.provider,
+        callStartedAt,
+      }
+
       try {
         const prompt = buildPrompt(opts.user, opts.images)
         const result = await generateObject({
@@ -143,37 +122,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         const costUsd = estimateCostUsd(handle.modelId, inputTokens, outputTokens)
         if (opts.agencyId) addDailySpend(opts.agencyId, costUsd)
 
-        logAiRequest({
-          userId: opts.userId ?? null,
-          agencyId: opts.agencyId ?? null,
-          leadId: opts.leadId ?? null,
-          taskKind: opts.kind,
-          provider: handle.provider as ProviderName,
-          model: handle.modelId,
-          inputTokens,
-          outputTokens,
-          costUsd,
-          latencyMs,
-          success: true,
-          errorCode: null,
-        })
-
-        if (aiTrace) {
-          // TEMPORARY [AI ROUTER] — successful attempt resolution.
-          console.info(
-            '[AI ROUTER]',
-            JSON.stringify({
-              kind: opts.kind,
-              role: effectiveRole,
-              provider: handle.provider,
-              model: handle.modelId,
-              attempt,
-              latencyMs,
-              fallbackUsed: previousProvider !== null && previousProvider !== handle.provider,
-              success: true,
-            }),
-          )
-        }
+        logAttemptSuccess({ ...commonCtx, inputTokens, outputTokens, costUsd, latencyMs })
 
         return {
           ok: true,
@@ -187,46 +136,11 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         }
       } catch (err) {
         const message = (err as Error)?.message ?? 'unknown'
-        lastErrorMessage = message
         const errorCode = classifyError(err)
+        lastErrorMessage = message
         lastErrorCode = errorCode
 
-        console.warn(
-          `[ai] router.call.fail provider=${handle.provider} model=${handle.modelId} attempt=${attempt} code=${errorCode} msg=${message}`,
-        )
-
-        if (aiTrace) {
-          // TEMPORARY [AI ROUTER] — failed attempt before retry/fallback.
-          console.warn(
-            '[AI ROUTER]',
-            JSON.stringify({
-              kind: opts.kind,
-              role: effectiveRole,
-              provider: handle.provider,
-              model: handle.modelId,
-              attempt,
-              latencyMs: Date.now() - callStartedAt,
-              fallbackUsed: previousProvider !== null && previousProvider !== handle.provider,
-              success: false,
-              errorCode,
-              message,
-            }),
-          )
-        }
-        logAiRequest({
-          userId: opts.userId ?? null,
-          agencyId: opts.agencyId ?? null,
-          leadId: opts.leadId ?? null,
-          taskKind: opts.kind,
-          provider: handle.provider as ProviderName,
-          model: handle.modelId,
-          inputTokens: 0,
-          outputTokens: 0,
-          costUsd: 0,
-          latencyMs: Date.now() - callStartedAt,
-          success: false,
-          errorCode,
-        })
+        logAttemptFailure({ ...commonCtx, errorCode, message, err })
         if (attempt === attempts - 1) break
       }
     }
@@ -239,51 +153,4 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
     message: lastErrorMessage,
     latencyMs: Date.now() - startedAt,
   }
-}
-
-function buildPrompt(
-  user: string,
-  images: RunStructuredImageAttachment[] | undefined,
-): { prompt: string } | { messages: ModelMessage[] } {
-  const validImages = (images ?? []).filter((image) => isHttpUrl(image.url))
-  if (validImages.length === 0) return { prompt: user }
-
-  const content: ModelMessage[] = [
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: user },
-        ...validImages.map((image) => ({
-          type: 'image' as const,
-          image: new URL(image.url),
-          mediaType: image.mediaType,
-        })),
-      ],
-    },
-  ]
-
-  return { messages: content }
-}
-
-function isHttpUrl(raw: string): boolean {
-  try {
-    const url = new URL(raw)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-function classifyError(err: unknown): string {
-  const msg = ((err as Error)?.message ?? '').toLowerCase()
-  if (msg.includes('abort') || msg.includes('timeout')) return 'timeout'
-  if (msg.includes('rate') && msg.includes('limit')) return 'rate-limit'
-  if (msg.includes('401') || msg.includes('unauthor')) return 'auth'
-  if (msg.includes('400')) return 'bad-request'
-  if (msg.includes('5')) return 'server-error'
-  return 'unknown'
-}
-
-export function _resetDailySpendForTests() {
-  dailySpend.clear()
 }

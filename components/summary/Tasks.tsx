@@ -8,7 +8,7 @@ export default function Tasks({ tasks, clientId }) {
       <h1 className='text-2xl font-bold mt-4'>משימות</h1>
       <div className='grid grid-cols-1 gap-2 my-4'>
         {tasks.map((task) => (
-          <div key={task.id} className='flex justify-between bg-white px-4 py-2 border rounded'>
+          <div key={task.id} className='flex items-center justify-between bg-white px-4 py-2 border rounded'>
             <h1>{task.title}</h1>
             <p>{formatDate(task.dueDate)}</p>
           </div>

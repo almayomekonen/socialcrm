@@ -52,6 +52,12 @@ const TASKS: Record<TaskKind, TaskConfig> = {
     timeoutMs: 4_000,
     retryOnSameProvider: 0,
   },
+  'copilot.classifyIntent': {
+    role: 'volume',
+    maxOutputTokens: 80,
+    timeoutMs: 3_000,
+    retryOnSameProvider: 0,
+  },
 }
 
 export function getTaskConfig(kind: TaskKind): TaskConfig {

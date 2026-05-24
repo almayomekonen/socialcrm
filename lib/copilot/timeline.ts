@@ -2,25 +2,6 @@ import type { CopilotActionId, CopilotResponseErrorReason, CopilotResponsePayloa
 import type { CopilotModeId } from '@/lib/ai/copilotModes'
 import type { AiMessageRow } from '@/db/aiMessages'
 
-/**
- * Phase 2 timeline domain model.
- *
- * A TimelineEntry is what the panel renders. It is NOT the raw DB row. The DB
- * row is a fact about persistence (role, status, structuredPayload, ...). The
- * timeline entry is a fact about rendering (which card variant, which marker
- * text, which retry handler).
- *
- * The mapper `mapMessageRowToTimelineEntry` is the single point that translates
- * between the two. All UI-side code consumes TimelineEntry; no UI-side code
- * inspects `AiMessageRow` directly. This keeps the doctrine intact: the row
- * has columns that should never reach the UI surface (e.g. provider/model live
- * on ai_runs, not here — but the same discipline applies to internal fields).
- */
-
-/** Entry sources:
- *  - `persisted`  — read back from ai_messages
- *  - `optimistic` — synthetic in-flight entry while a server action is mid-call
- */
 export type TimelineEntrySource = 'persisted' | 'optimistic'
 
 type Base = {
@@ -35,13 +16,6 @@ export type UserTimelineEntry = Base & {
   text: string
 }
 
-/**
- * Operational AI event marker. Two cases collapse here:
- *  1. Rows persisted with role='system' (Phase 2 forward writes).
- *  2. Legacy rows persisted with role='user' AND an `actionId` of a predefined
- *     action (Phase 1 writes, before the system-role correction). The legacy
- *     fallback is applied at map-time; no DB migration required.
- */
 export type SystemTimelineEntry = Base & {
   kind: 'system'
   text: string
@@ -82,7 +56,15 @@ export type TimelineEntry =
 const PREDEFINED_ACTION_IDS = new Set<string>(['draft-followup-message', 'next-best-step'])
 
 function asCopilotActionId(raw: string | null): CopilotActionId | null {
-  if (raw === 'draft-followup-message' || raw === 'next-best-step' || raw === 'ask-question') return raw
+  if (
+    raw === 'draft-followup-message' ||
+    raw === 'next-best-step' ||
+    raw === 'ask-question' ||
+    raw === 'drive-results' ||
+    raw === 'conversational'
+  ) {
+    return raw
+  }
   return null
 }
 
@@ -105,12 +87,6 @@ function asErrorReason(raw: string | null): CopilotResponseErrorReason {
   return 'unknown'
 }
 
-/**
- * Map a persisted ai_messages row into a TimelineEntry. Returns null for rows
- * the timeline should ignore (e.g. an assistant row stuck in `pending` —
- * possible only if a future streaming path leaves orphans; Phase 2 should not
- * encounter these in practice).
- */
 export function mapMessageRowToTimelineEntry(row: AiMessageRow): TimelineEntry | null {
   const base: Base = {
     id: row.id,
@@ -119,9 +95,6 @@ export function mapMessageRowToTimelineEntry(row: AiMessageRow): TimelineEntry |
     source: 'persisted',
   }
 
-  // Legacy fallback: predefined-action markers persisted as role='user' under
-  // Phase 1. New writes use role='system'; either way they render as a system
-  // marker. Freeform-ask user rows (actionId='ask-question') stay user.
   const isLegacyPredefinedMarker =
     row.role === 'user' && row.actionId !== null && PREDEFINED_ACTION_IDS.has(row.actionId)
 
@@ -161,8 +134,6 @@ export function mapMessageRowToTimelineEntry(row: AiMessageRow): TimelineEntry |
         }
       }
     }
-    // pending / streaming / corrupted payload — drop. The renderer makes no
-    // assumptions about these in Phase 2.
     return null
   }
 
@@ -178,14 +149,18 @@ function extractAssistantPayload(
   const actionId = typeof candidate.actionId === 'string' ? candidate.actionId : actionIdFallback
   const data = candidate.data
   if (!actionId || data == null) return null
-  if (actionId === 'draft-followup-message' || actionId === 'next-best-step' || actionId === 'ask-question') {
-    // Trust the persisted shape. Zod-validated on the way in.
+  if (
+    actionId === 'draft-followup-message' ||
+    actionId === 'next-best-step' ||
+    actionId === 'ask-question' ||
+    actionId === 'drive-results' ||
+    actionId === 'conversational'
+  ) {
     return { actionId, data } as CopilotResponsePayload
   }
   return null
 }
 
-/* ───────────────────────── Optimistic helpers ───────────────────────── */
 
 let optimisticCounter = 0
 
@@ -194,6 +169,4 @@ export function nextOptimisticId(prefix: string): string {
   return `opt-${prefix}-${optimisticCounter}-${Date.now()}`
 }
 
-/** A sequence value bigger than any persisted entry — keeps optimistic entries
- *  at the end during sorting without contaminating real sequence allocation. */
 export const OPTIMISTIC_SEQUENCE = Number.MAX_SAFE_INTEGER

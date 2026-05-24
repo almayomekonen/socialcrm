@@ -1,36 +1,26 @@
-import { z } from 'zod'
 import type { LeadIntelligenceInputs } from '@/db/aiSummaries'
-import { makeFieldCleaner, pruneAndTranslate } from './leadIntelligence'
+import type { DriveSearchResult } from '@/lib/integrations/google/driveClient'
+import { pruneAndTranslate } from './leadIntelligence'
+import {
+  LENS_LABEL_HE,
+  type LensId,
+} from './leadAskQuestionSchema'
+import { buildAttachmentsBlock, type LeadQuestionAttachmentContext } from './leadAskQuestionAttachments'
+import { buildDriveResultsBlock } from './leadAskQuestionDriveBlock'
 
-export const ASK_QUESTION_PROMPT_VERSION = 2
-
-export const LENS_IDS = ['conversations', 'tasks', 'notes', 'files'] as const
-export type LensId = (typeof LENS_IDS)[number]
-
-const AskSourceCategory = z.enum([
-  'סטטוס הליד',
-  'פעילות אחרונה',
-  'היסטוריית המשימות',
-  'פרטי הליד',
-  'מקור הליד',
-  'הטיפול בליד',
-  'קבצים שצורפו',
-])
-
-const LENS_LABEL_HE: Record<LensId, string> = {
-  conversations: 'שיחות אחרונות וקצב מעקב',
-  tasks: 'משימות ומעקבים',
-  notes: 'הערות מילוליות',
-  files: 'קבצים שצורפו',
-}
-
-export const LeadAskAnswerSchema = z.object({
-  answer: z.string().min(6).max(800).describe('תשובה תפעולית קצרה, 1-3 פסקאות. ללא רשימות אלא אם השאלה מבקשת ניסוח/טיוטה.'),
-  confidence: z.enum(['low', 'medium', 'high']).describe('low אם המידע דליל; medium ברירת מחדל; high רק כשיש דפוס מובהק.'),
-  sources: z.array(AskSourceCategory).max(3).describe('1-3 קטגוריות מהרשימה הקבועה. ריק אם התשובה היא הצהרה כללית.'),
-})
-
-export type LeadAskAnswer = z.infer<typeof LeadAskAnswerSchema>
+// Re-export the public API surface so existing consumers can keep importing
+// from this file. Schema, sanitize, and the attachment context type each
+// live in their own sub-module (see leadAskQuestion*.ts siblings).
+export {
+  ASK_QUESTION_PROMPT_VERSION,
+  LENS_IDS,
+  LeadAskAnswerSchema,
+  isLensId,
+  type LeadAskAnswer,
+  type LensId,
+} from './leadAskQuestionSchema'
+export { sanitizeLeadAskAnswer, type AskQuestionSanitizationReport } from './leadAskQuestionSanitize'
+export type { LeadQuestionAttachmentContext } from './leadAskQuestionAttachments'
 
 export const LEAD_ASK_QUESTION_SYSTEM_PROMPT = `אתה עוזר חכם של נציג מכירות בתוך CRM של לידים מסושיאל. אתה עונה על שאלה אחת קונקרטית של הנציג לגבי ליד מסוים, מבוסס על נתוני הליד.
 
@@ -57,8 +47,18 @@ export const LEAD_ASK_QUESTION_SYSTEM_PROMPT = `אתה עוזר חכם של נצ
 - אם השאלה עוסקת בקובץ ואין תוכן קריא או תמונה זמינה — אמור בקצרה שאין מספיק תוכן קריא מהקובץ. אל תיפול חזרה לסיכום הליד.
 - אם התשובה נשענת על הקובץ, כלול ב-sources את "קבצים שצורפו".
 
+מסמכים מ-Google Drive:
+- **תמיד החזר אובייקט לפי הסכמה.** כל הטקסט (משפט פותח + רשימה) נכנס לשדה "answer". אסור להחזיר טקסט חופשי מחוץ לאובייקט.
+- **פורמט תצוגה**: משפט פותח אחד קצר ולאחריו רשימת קבצים — שורה אחת לכל קובץ, מתחילה בנקודה (•) ואז שם הקובץ בלבד. בלי תאריך, בלי אייקונים, בלי "Open file", בלי URLs. הצ'אט מציג טקסט בלבד, וכל תוספת ויזואלית שוברת את העיצוב.
+- ייתכנו שני סוגי בלוקים:
+  • **חיפוש כללי** — הכותרת מתחילה ב-"נמצאו ב-Google Drive (חיפוש כללי, ...)". פתח במשפט קצר ("נמצאו N קבצים אחרונים ב-Google Drive:") ולאחריו רשימת הקבצים. אל תסנן לפי רלוונטיות לליד. **אל תגיד "לא נמצא קובץ רלוונטי"** — אם הרשימה הגיעה אליך, היא הרלוונטית. הליד אינו נושא השאלה כאן. אם הכותרת מציינת "מציג M ראשונים" מתוך N — שמור את הניסוח הזה במשפט הפותח.
+  • **חיפוש ספציפי** — כותרת "נמצאו ב-Google Drive (N תוצאות)" (בלי "חיפוש כללי"). סקור את הקבצים, בחר את 1-3 הרלוונטיים ביותר לשאלה, וציין אותם באותו פורמט בולטים (שם הקובץ בלבד). אם אף קובץ לא רלוונטי לשאלה הספציפית — התעלם מהרשימה בשקט.
+- אתה רואה רק שם קובץ, סוג ותאריך שינוי. **אסור להמציא תוכן** של הקבצים. אם הנציג שואל "מה כתוב בקובץ" — אמור שאינך קורא את התוכן ושיוכל לפתוח את הקובץ ב-Drive.
+- אם רשימת ה-Drive ריקה לחלוטין (0 תוצאות) או לא הוצגה — אל תמציא קבצים ואל תזכיר את Drive בשתיקה. רק כשרשימה הגיעה ריקה אמור שלא נמצאו קבצים.
+- כשהתשובה נשענת על קבצים מ-Drive, כלול ב-sources את "Google Drive" ו-confidence יכול להיות "high" (הרשימה היא עובדה, לא ניחוש).
+
 הסכמה:
-- answer: 6-800 תווים. תשובה אחת. פסקה אחת בדרך כלל. עד 3 פסקאות אם נדרש.
+- answer: 6-2500 תווים. תשובה אחת. פסקה אחת בדרך כלל. עד 3 פסקאות אם נדרש. רשימה (ממוספרת או נקודות) מותרת רק כשמציגים קבצים מ-Google Drive או כשהשאלה מבקשת ניסוח/טיוטה.
   טוב: "התקשר היום. עברו 18 ימים מאינטראקציה אחרונה ואין משימה פתוחה — בלי מגע פעיל הליד יידעך."
   רע: "ניתוח הליד מצביע על מספר נקודות מעניינות. ראשית, נוכל לראות... שנית..."
 - confidence: low / medium / high.
@@ -93,6 +93,8 @@ export function buildLeadAskQuestionUserMessage(args: {
   question: string
   lenses: LensId[]
   attachments?: LeadQuestionAttachmentContext[]
+  driveResults?: DriveSearchResult[] | null
+  driveMode?: 'specific' | 'generic'
 }): string {
   const shape = pruneAndTranslate(args.inputs)
   const named: Record<string, unknown> = args.leadName ? { 'שם הליד': args.leadName, ...shape } : shape
@@ -100,118 +102,12 @@ export function buildLeadAskQuestionUserMessage(args: {
   const lensLines = args.lenses.length > 0 ? `\nמיקוד מבוקש: ${args.lenses.map((id) => LENS_LABEL_HE[id]).join(' · ')}` : ''
   const attachments = args.attachments ?? []
   const attachmentBlock = buildAttachmentsBlock(attachments)
+  const driveBlock = buildDriveResultsBlock(args.driveResults ?? null, args.driveMode)
   const hasReadableAttachment = attachments.some((a) => (a.kind === 'text' && a.content.trim().length > 0) || a.kind === 'image')
 
   if (hasReadableAttachment) {
-    // Lead with the file. Lead JSON moves below as supporting context only.
-    return `${attachmentBlock.trimStart()}\n\nנתוני הליד (JSON, הקשר משלים בלבד):\n${JSON.stringify(named, null, 2)}${lensLines}\n\nהשאלה של הנציג:\n${args.question}\n\nהנחיה: כש'תוכן שנקרא' של קובץ קיים, ענה מתוכו. אל תתאר את הליד אלא אם הנציג שאל על נתוני הליד במפורש.\n\nהחזר אובייקט לפי הסכמה.`
+    return `${attachmentBlock.trimStart()}\n\nנתוני הליד (JSON, הקשר משלים בלבד):\n${JSON.stringify(named, null, 2)}${lensLines}${driveBlock}\n\nהשאלה של הנציג:\n${args.question}\n\nהנחיה: כש'תוכן שנקרא' של קובץ קיים, ענה מתוכו. אל תתאר את הליד אלא אם הנציג שאל על נתוני הליד במפורש.\n\nהחזר אובייקט לפי הסכמה.`
   }
 
-  return `נתוני הליד (JSON):\n${JSON.stringify(named, null, 2)}${lensLines}${attachmentBlock}\n\nהשאלה של הנציג:\n${args.question}\n\nהחזר אובייקט לפי הסכמה.`
-}
-
-export type LeadQuestionAttachmentContext =
-  | {
-      kind: 'text'
-      name: string
-      mediaType: string
-      size: number
-      content: string
-      partial: boolean
-      originalChars: number
-    }
-  | {
-      kind: 'image'
-      name: string
-      mediaType: string
-      size: number
-    }
-  | {
-      kind: 'unreadable'
-      name: string
-      mediaType: string
-      size: number
-      reason: 'unsupported-type' | 'extraction-failed' | 'empty-text' | 'total-limit'
-    }
-
-const UNREADABLE_REASON_HE: Record<Extract<LeadQuestionAttachmentContext, { kind: 'unreadable' }>['reason'], string> = {
-  'unsupported-type': 'סוג הקובץ לא נתמך לקריאה',
-  'extraction-failed': 'לא ניתן היה לחלץ תוכן מהקובץ',
-  'empty-text': 'לא נמצא תוכן טקסטואלי קריא',
-  'total-limit': 'לא נכלל בגלל מגבלת תוכן לשאלה אחת',
-}
-
-function buildAttachmentsBlock(attachments: LeadQuestionAttachmentContext[]): string {
-  if (attachments.length === 0) return ''
-
-  const shape = attachments.map((attachment) => {
-    const base = {
-      'שם הקובץ': attachment.name,
-      סוג: friendlyMediaType(attachment.mediaType),
-      'גודל בבתים': attachment.size,
-    }
-
-    if (attachment.kind === 'text') {
-      return {
-        ...base,
-        'מצב קריאה': attachment.partial ? 'חלקי' : 'מלא',
-        'תווים במקור': attachment.originalChars,
-        'תוכן שנקרא': attachment.content,
-      }
-    }
-
-    if (attachment.kind === 'image') {
-      return {
-        ...base,
-        'מצב קריאה': 'תמונה נשלחה לקריאה חזותית',
-      }
-    }
-
-    return {
-      ...base,
-      'מצב קריאה': UNREADABLE_REASON_HE[attachment.reason],
-    }
-  })
-
-  return `\n\nקבצים מצורפים לשאלה (JSON):\n${JSON.stringify(shape, null, 2)}`
-}
-
-function friendlyMediaType(mediaType: string): string {
-  const t = mediaType.toLowerCase()
-  if (t === 'application/pdf') return 'PDF'
-  if (t.includes('spreadsheet') || t.includes('excel')) return 'Excel'
-  if (t.startsWith('image/')) return 'תמונה'
-  return 'קובץ'
-}
-
-export type AskQuestionSanitizationReport = {
-  polluted: boolean
-  fields: string[]
-  sample?: string
-}
-
-const POLLUTION_PLACEHOLDER = 'אין מספיק מידע מובהק כדי לענות על השאלה.'
-
-export function sanitizeLeadAskAnswer(out: LeadAskAnswer): {
-  result: LeadAskAnswer
-  report: AskQuestionSanitizationReport
-} {
-  const cleaner = makeFieldCleaner(POLLUTION_PLACEHOLDER)
-  const answer = cleaner.clean(out.answer, 'answer')
-
-  const report = cleaner.finalize()
-  const dedupedSources = Array.from(new Set(out.sources)) as typeof out.sources
-
-  return {
-    result: {
-      answer,
-      confidence: report.polluted ? 'low' : out.confidence,
-      sources: dedupedSources,
-    },
-    report,
-  }
-}
-
-export function isLensId(value: string): value is LensId {
-  return (LENS_IDS as readonly string[]).includes(value)
+  return `נתוני הליד (JSON):\n${JSON.stringify(named, null, 2)}${lensLines}${attachmentBlock}${driveBlock}\n\nהשאלה של הנציג:\n${args.question}\n\nהחזר אובייקט לפי הסכמה.`
 }

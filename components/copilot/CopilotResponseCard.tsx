@@ -3,6 +3,8 @@
 import { FollowupBody } from './bodies/FollowupBody'
 import { NextStepBody } from './bodies/NextStepBody'
 import { AnswerBody } from './bodies/AnswerBody'
+import { DriveResultsBody } from './bodies/DriveResultsBody'
+import { ConversationalBody } from './bodies/ConversationalBody'
 import { ErrorBody } from './bodies/ErrorBody'
 import type { CopilotActionId, CopilotResponseErrorReason, CopilotResponsePayload } from '@/lib/copilot/copilotResponse'
 
@@ -20,6 +22,12 @@ export default function CopilotResponseCard(props: Props) {
   }
   if (props.payload.actionId === 'next-best-step') {
     return <NextStepBody data={props.payload.data} staticRender={staticRender} />
+  }
+  if (props.payload.actionId === 'drive-results') {
+    return <DriveResultsBody data={props.payload.data} />
+  }
+  if (props.payload.actionId === 'conversational') {
+    return <ConversationalBody data={props.payload.data} />
   }
   return <AnswerBody data={props.payload.data} staticRender={staticRender} />
 }

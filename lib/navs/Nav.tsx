@@ -27,7 +27,7 @@ export default function Nav({ user }) {
 
   function LogoutBtn() {
     return (
-      <button className='flex flex-nowrap w-full hover:bg-dark/50 mt-2' onClick={logmeout}>
+      <button className='flex flex-nowrap items-center w-full hover:bg-dark/50 mt-2' onClick={logmeout}>
         <span className='rounded p-2'>
           <Icon name='arrow-right-from-bracket' className='bg-white' type='sol' />
         </span>

@@ -39,10 +39,7 @@ export default async function ClientsPage({ searchParams }) {
       }}
       className='mb-8'
     >
-      <div className='flex items-end justify-between py-1 border-b-2 border-b-gray-200 unwrap wrap sticky top-0 bg-gray z-500'>
-        <h1 className='title -mt-1.5'>לקוחות</h1>
-      </div>
-      <p className='text-sm text-gray-500 mb-2 mt-2'>לקוחות הם לידים שסגרו עסקה</p>
+      <p className='text-sm text-gray-500 mb-2'>לקוחות הם לידים שסגרו עסקה</p>
 
       <OverQuotaBanner count={quota.overQuotaCount} />
 

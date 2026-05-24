@@ -25,8 +25,7 @@ export default async function TasksPage({ searchParams }) {
 
   return (
     <div className='mb-8'>
-      <h1 className='title mb-2'>משימות</h1>
-<TasksTable user={user} key={Math.random()} data={tasks} users={users} filter={filter} />
+      <TasksTable user={user} key={Math.random()} data={tasks} users={users} filter={filter} />
       <Suspense>
         <AddTaskForm clientId={null} />
       </Suspense>

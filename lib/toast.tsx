@@ -38,7 +38,7 @@ export default function ToastMsg() {
 
   return (
     <div className='toast' popover='auto' id='popMsg'>
-      <div className='flex ps-6 pe-9 py-3 font-medium text-white'>
+      <div className='flex items-center gap-4 ps-6 pe-9 py-3 font-medium text-white'>
         {icons[pop.icon]}
         <h3 className='font-medium'>{pop.msg}</h3>
       </div>

@@ -24,14 +24,17 @@ export function AnswerBody({ data, staticRender }: { data: LeadAskAnswer; static
 
   return (
     <div {...reveal} className='pt-1'>
-      <p
-        dir='auto'
+      <div
         className='text-[13px] leading-relaxed text-gray-900 whitespace-pre-wrap wrap-break-word select-text mb-2'
         aria-live={staticRender ? undefined : 'polite'}
       >
-        {revealed}
-        {isRevealing && <span className='cp-cursor' aria-hidden='true' />}
-      </p>
+        {revealed.split('\n').map((line, i, arr) => (
+          <div key={i} dir='auto'>
+            {line || ' '}
+            {isRevealing && i === arr.length - 1 && <span className='cp-cursor' aria-hidden='true' />}
+          </div>
+        ))}
+      </div>
 
       <div
         className='flex items-center justify-between gap-2 mb-1.5'

@@ -23,12 +23,12 @@ export default function TableFooter() {
   }
 
   return (
-    <div className='flex justify-between p-4 bg-white border border-t-0 rounded-b-md w-full'>
-      <div className='flex'>
+    <div className='flex items-center justify-between p-4 bg-white border border-t-0 rounded-b-md w-full'>
+      <div className='flex items-center gap-4'>
         <Select options={['100', '500', '1000']} onChange={onQnttChange} defaultValue={tableLimit} />
         <p>{`${tableLength} רשומות` + (count ? ` מתוך ${count}` : '')}</p>
       </div>
-      <div className='flex gap-4'>
+      <div className='flex items-center gap-4'>
         <Btn
           lbl='הקודם'
           variant='outline'

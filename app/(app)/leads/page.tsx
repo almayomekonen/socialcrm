@@ -39,8 +39,6 @@ export default async function LeadsPage({ searchParams }) {
       }}
       className='mb-8'
     >
-      <h1 className='title mb-2'>לידים</h1>
-
       <OverQuotaBanner count={quota.overQuotaCount} />
 
       <Suspense fallback={null}>

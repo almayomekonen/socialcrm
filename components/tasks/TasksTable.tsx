@@ -58,7 +58,7 @@ export default function TasksTable({ data, users, filter, user }) {
             </form>
           </div>
 
-          <div className='flex '>
+          <div className='flex items-center gap-2'>
             <ExportTable data={state} columns={columns} />
             <Btn lbl='משימה חדשה' icon='plus' popoverTarget='chooseTaskTmplt' />
           </div>

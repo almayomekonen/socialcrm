@@ -14,7 +14,7 @@ export default function ClientHeader({ client, user, handlerName, family, client
   return (
     <div className='bg-[#e8ecf4] px-12 full-bleed  '>
       <div className='overflow-x-auto '>
-        <div className='flex gap-8 py-2.5 justify-between font-medium min-w-max'>
+        <div className='flex items-center gap-8 py-2.5 justify-between font-medium min-w-max'>
           <div className='flex items-center gap-4 '>
             <p className='font-bold  w-28'>{client.name}</p>
             {family.length > 0 && (
