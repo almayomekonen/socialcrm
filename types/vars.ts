@@ -46,7 +46,7 @@ export const metaData: Metadata = {
     locale: 'he_IL',
   },
   verification: {
-    google: 'x7wFbbGsjeTClNQbHJI5b7mg2btRMEF-9KdUSwkNN7I',
+    google: '5PPPOQHX-e0jvKT51ezLsvkfJGA2IHqF2qc0nInkAK0',
   },
   twitter: {
     card: 'summary_large_image',
