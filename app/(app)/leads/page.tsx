@@ -8,6 +8,7 @@ import { getPerms } from '@/db/filter'
 import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
+import WelcomeToast from '@/components/auth/WelcomeToast'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -40,6 +41,7 @@ export default async function LeadsPage({ searchParams }) {
       className='mb-8'
     >
       <OverQuotaBanner count={quota.overQuotaCount} />
+      <WelcomeToast />
 
       <Suspense fallback={null}>
         <ClientsTable leads={true} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />

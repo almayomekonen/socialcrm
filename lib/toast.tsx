@@ -7,7 +7,7 @@ type PopIcon = 'success' | 'error' | 'loading' | 'ban' | 'hide'
 
 let popEl: HTMLElement | null = null
 let closeTimer: ReturnType<typeof setTimeout> | null = null
-export let toast: (icon: PopIcon, msg?: string) => void = () => {}
+export let toast: (icon: PopIcon, msg?: string, durationMs?: number) => void = () => {}
 
 const defaultMsg: { [key in PopIcon]: string } = {
   success: 'בוצע בהצלחה!',
@@ -27,11 +27,11 @@ export default function ToastMsg() {
     popEl = document.getElementById('popMsg')
   }, [])
 
-  toast = function (icon: PopIcon, msg?: string) {
+  toast = function (icon: PopIcon, msg?: string, durationMs?: number) {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
     setPop({ icon, msg: msg || defaultMsg[icon] })
     popEl?.showPopover()
-    if (icon !== 'loading') closeTimer = setTimeout(() => { popEl?.hidePopover(); closeTimer = null }, 3000)
+    if (icon !== 'loading') closeTimer = setTimeout(() => { popEl?.hidePopover(); closeTimer = null }, durationMs ?? 3000)
   }
 
   if (pop.icon === 'hide') return <div className='size-0 opacity-0' popover='auto' id='popMsg' />
@@ -40,7 +40,7 @@ export default function ToastMsg() {
     <div className='toast' popover='auto' id='popMsg'>
       <div className='flex items-center gap-4 ps-6 pe-9 py-3 font-medium text-white'>
         {icons[pop.icon]}
-        <h3 className='font-medium'>{pop.msg}</h3>
+        <h3 className='font-medium whitespace-pre-line leading-snug'>{pop.msg}</h3>
       </div>
     </div>
   )

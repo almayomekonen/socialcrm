@@ -46,7 +46,8 @@ export async function addAgency(data) {
     await createCookie(createdUserId)
     console.log(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=success`)
     after(() => sendWelcomeEmail(newUser!))
-    redirect('/leads')
+    const firstName = (newUser as { firstName: string }).firstName ?? ''
+    redirect(`/leads?welcome=${encodeURIComponent(firstName)}`)
   }
   return success
 }
