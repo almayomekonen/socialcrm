@@ -470,6 +470,116 @@ describe('POST /api/payments/grow — legacy payload compatibility (TEST B)', ()
   })
 })
 
+/**
+ * Field-name tolerance — real PaymentLinks vs docs vs legacy.
+ *
+ * Real production captures revealed that Grow PaymentLinks sends
+ * `transactionCode` (not `transactionId`) and `identifyParam` (not
+ * `externalId`/`external_id`). The handler accepts all variants.
+ */
+describe('POST /api/payments/grow — field-name fallbacks', () => {
+  it('A: PaymentLinks payload with transactionCode + identifyParam', async () => {
+    const agencyId = await seedAgency()
+    const identifyParam = signToken(agencyId)
+    const transactionCode = 'tx_code_pl_' + Date.now()
+
+    const res = await POST(
+      buildReq({
+        body: {
+          data: {
+            transactionCode,
+            identifyParam,
+            // Other real PaymentLinks fields, present but not consumed by the handler:
+            asmachta: '12345',
+            sum: '13',
+            statusCode: '2',
+            status: 'שולם',
+            paymentLinkProcessId: 'plp_1',
+          },
+        },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+    expect(agency.planReason).toBe(`grow:${transactionCode}`)
+
+    // The handler should record the resolved value under transactionId in
+    // the payments table regardless of which field name the source used.
+    const payment = await db('payments').where({ transactionId: transactionCode }).first()
+    expect(payment).toBeTruthy()
+    expect(payment.agencyId).toBe(agencyId)
+  })
+
+  it('B: legacy payload with transactionId + externalId (camelCase)', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_legacy_camel_' + Date.now()
+
+    const res = await POST(buildReq({ body: { data: { transactionId, externalId } } }))
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+
+    const payment = await db('payments').where({ transactionId }).first()
+    expect(payment).toBeTruthy()
+  })
+
+  it('C: mixed payload — transactionId (legacy) + identifyParam (PaymentLinks)', async () => {
+    const agencyId = await seedAgency()
+    const identifyParam = signToken(agencyId)
+    const transactionId = 'tx_mixed_' + Date.now()
+
+    const res = await POST(buildReq({ body: { data: { transactionId, identifyParam } } }))
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+
+    const payment = await db('payments').where({ transactionId }).first()
+    expect(payment).toBeTruthy()
+  })
+
+  it('C2: mixed payload — transactionCode (PaymentLinks) + external_id (legacy snake_case)', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionCode = 'tx_mixed2_' + Date.now()
+
+    const res = await POST(
+      buildReq({ body: { data: { transactionCode, external_id: externalId } } }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+
+    const payment = await db('payments').where({ transactionId: transactionCode }).first()
+    expect(payment).toBeTruthy()
+  })
+
+  it('precedence: when BOTH transactionId and transactionCode are present, transactionId wins', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_precedence_primary_' + Date.now()
+    const transactionCode = 'tx_precedence_fallback_' + Date.now()
+
+    const res = await POST(
+      buildReq({ body: { data: { transactionId, transactionCode, externalId } } }),
+    )
+
+    expect(res.status).toBe(200)
+
+    // Primary value (transactionId) is what gets persisted; the fallback
+    // value (transactionCode) is NOT recorded anywhere.
+    const primary = await db('payments').where({ transactionId }).first()
+    expect(primary).toBeTruthy()
+    const fallbackRow = await db('payments').where({ transactionId: transactionCode }).first()
+    expect(fallbackRow).toBeUndefined()
+  })
+})
+
 describe('Full flow integration', () => {
   it('upgrade route → extract external_id → webhook → DB upgraded', async () => {
     const agencyId = await seedAgency()

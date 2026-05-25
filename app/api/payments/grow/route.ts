@@ -127,11 +127,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const transactionId: unknown = payload?.transactionId
-  // Grow PaymentLinks does not standardize on a casing for the echoed
-  // external identifier. We send `external_id` on the outbound query string;
-  // Grow may echo it back as either casing depending on the flow.
-  const externalId: unknown = payload?.externalId ?? payload?.external_id
+  // Field-name tolerance across Grow webhook formats:
+  //
+  //   transactionId  ← `transactionId`  (docs example, legacy)
+  //                    `transactionCode` (real PaymentLinks production payload)
+  //
+  //   externalId     ← `externalId`     (our convention if Grow echoes camelCase)
+  //                    `external_id`    (legacy snake_case)
+  //                    `identifyParam`  (real PaymentLinks production payload)
+  //
+  // Real-production captures showed `transactionCode` + `identifyParam`;
+  // we keep the older names as primary so legacy formats continue to work.
+  const transactionId: unknown = payload?.transactionId ?? payload?.transactionCode
+  const externalId: unknown = payload?.externalId ?? payload?.external_id ?? payload?.identifyParam
 
   // 5. Required-fields gate.
   if (typeof transactionId !== 'string' || !transactionId || typeof externalId !== 'string' || !externalId) {
