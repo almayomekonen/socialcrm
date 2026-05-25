@@ -6,9 +6,15 @@ import AccordionItem from '@/lib/AccordionItem'
 import Packages from '@/components/settings/payment/Packages'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
 import ProPlanCard from '@/components/settings/payment/ProPlanCard'
+import Icon from '@/lib/Icon'
 import { formatDate } from '@/lib/dates'
 
-export default async function page() {
+type SearchParams = Promise<{ mode?: string | string[] }>
+
+export default async function page({ searchParams }: { searchParams?: SearchParams }) {
+  const sp = searchParams ? await searchParams : {}
+  const isLocalMode = sp.mode === 'local'
+
   const user = await getUser()
   const plan = await getAgencyPlan(user.agencyId)
   const isPro = plan === 'pro'
@@ -22,6 +28,21 @@ export default async function page() {
   return (
     <div>
       <h1 className='title'>פרטי חבילה ותשלום</h1>
+
+      {isLocalMode && (
+        <div
+          role='status'
+          dir='rtl'
+          className='my-6 max-w-3xl p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3'
+        >
+          <Icon name='circle-exclamation' className='bg-amber-700 size-5 mt-0.5 shrink-0' />
+          <div className='space-y-1 text-sm'>
+            <p className='font-semibold text-amber-900'>מצב פיתוח</p>
+            <p className='text-amber-800'>תשלומים אמיתיים אינם זמינים בסביבת פיתוח.</p>
+            <p className='text-amber-800'>כדי לבדוק תשלומים אמיתיים השתמש בפרודקשן.</p>
+          </div>
+        </div>
+      )}
 
       <div className='my-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
         {isPro && subscription ? (
