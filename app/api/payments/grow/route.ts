@@ -59,6 +59,11 @@ export async function POST(req: NextRequest) {
   // ─── TEMP DEBUG LOGGING — remove after webhook flow is verified end-to-end ───
   console.log('[GrowWebhook] request received')
 
+  // TEMP: capture incoming headers from one real Grow delivery to identify
+  // the actual auth contract. Placed BEFORE any authentication checks so
+  // we see headers regardless of which exit path the request takes.
+  console.log('[GrowWebhook] headers:', Object.fromEntries(req.headers))
+
   const host = req.headers.get('host') || ''
   console.log('💳 ENV CHECK:', {
     env: process.env.APP_ENV,
@@ -112,6 +117,17 @@ export async function POST(req: NextRequest) {
   const payload = body?.data ?? body
   console.log('[GrowWebhook] payload:', payload)
   console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
+
+  // TEMP: capture body-side auth fields from one real delivery to confirm
+  // whether Grow PaymentLinks uses `webhookKey` (camelCase, per legacy
+  // formats) or `webhook_key` (snake_case, per the failed-recurring format).
+  // NOTE: this log fires only AFTER the signature check passes; currently
+  // production deliveries 401 before reaching this point. Capture is
+  // contingent on auth passing on at least one real delivery.
+  console.log('[GrowWebhook] auth fields:', {
+    webhookKey: payload?.webhookKey,
+    webhook_key: payload?.webhook_key,
+  })
 
   const transactionId: unknown = payload?.transactionId
   console.log('[GrowWebhook] transactionId:', transactionId)
