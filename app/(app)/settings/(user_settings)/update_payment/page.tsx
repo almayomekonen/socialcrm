@@ -1,15 +1,18 @@
 import { db } from '@/config/db'
 import { getUser } from '@/db/auth'
 import { getAgencyPlan } from '@/lib/quota'
+import { getSubscriptionView } from '@/lib/quota/subscription'
 import AccordionItem from '@/lib/AccordionItem'
 import Packages from '@/components/settings/payment/Packages'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
+import ProPlanCard from '@/components/settings/payment/ProPlanCard'
 import { formatDate } from '@/lib/dates'
 
 export default async function page() {
   const user = await getUser()
   const plan = await getAgencyPlan(user.agencyId)
   const isPro = plan === 'pro'
+  const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
 
   const charges = await db('payments')
     .where({ agencyId: user.agencyId })
@@ -21,14 +24,16 @@ export default async function page() {
       <h1 className='title'>פרטי חבילה ותשלום</h1>
 
       <div className='my-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
-        <div>
-          <p className='text-lg font-semibold'>תוכנית: {isPro ? 'Pro' : 'Free'}</p>
-          <p className='text-sm text-gray-500'>סטטוס: {isPro ? 'פעיל' : 'לא פעיל'}</p>
-        </div>
-        {isPro ? (
-          <span className='text-sm font-semibold text-green-700'>אתה במסלול Pro</span>
+        {isPro && subscription ? (
+          <ProPlanCard subscription={subscription} />
         ) : (
-          <UpgradeBtn />
+          <>
+            <div>
+              <p className='text-lg font-semibold'>תוכנית: Free</p>
+              <p className='text-sm text-gray-500'>סטטוס: לא פעיל</p>
+            </div>
+            <UpgradeBtn />
+          </>
         )}
       </div>
 
