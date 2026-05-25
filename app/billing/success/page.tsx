@@ -4,7 +4,7 @@ import { Btn } from '@/lib/btns/Btn'
 export default function BillingSuccessPage() {
   return (
     <main className='min-h-screen flex items-center justify-center bg-gray-50 px-4'>
-      <meta httpEquiv='refresh' content='5;url=/leads' />
+      <meta httpEquiv='refresh' content='5;url=/settings/update_payment' />
       <div className='w-full max-w-[420px] flex flex-col items-center gap-5 rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-8'>
         <CheckCircle className='size-10 text-green-500' strokeWidth={2} />
 
@@ -19,7 +19,7 @@ export default function BillingSuccessPage() {
 
         <p className='text-xs text-gray-500 text-center'>העמוד יתעדכן אוטומטית בעוד מספר שניות</p>
 
-        <Btn variant='solid' href='/leads' lbl='המשך למערכת' className='w-full' />
+        <Btn variant='solid' href='/settings/update_payment' lbl='המשך למערכת' className='w-full' />
 
         <p className='text-xs text-gray-500 text-center'>רענן אם אינך רואה את השדרוג</p>
       </div>
