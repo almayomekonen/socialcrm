@@ -56,14 +56,6 @@ function assertWebhookEnv(host: string): { env: AppEnv; mode: GrowMode } {
 }
 
 export async function POST(req: NextRequest) {
-  // ─── TEMP DEBUG LOGGING — remove after webhook flow is verified end-to-end ───
-  console.log('[GrowWebhook] request received')
-
-  // TEMP: capture incoming headers from one real Grow delivery to identify
-  // the actual auth contract. Placed BEFORE any authentication checks so
-  // we see headers regardless of which exit path the request takes.
-  console.log('[GrowWebhook] headers:', Object.fromEntries(req.headers))
-
   const host = req.headers.get('host') || ''
   console.log('💳 ENV CHECK:', {
     env: process.env.APP_ENV,
@@ -71,118 +63,112 @@ export async function POST(req: NextRequest) {
     host,
   })
 
+  // 1. Environment guard
   let envInfo: { env: AppEnv; mode: GrowMode }
   try {
     envInfo = assertWebhookEnv(host)
   } catch (err) {
     console.error('[GrowWebhook] env guard tripped', { err: String(err) })
-    console.log('[GrowWebhook] returning:', 'webhook_misconfigured')
     return new NextResponse('Webhook misconfigured', { status: 500 })
   }
 
   if (envInfo.env !== 'production') {
     console.warn('⚠️ Webhook blocked outside production')
-    console.log('[GrowWebhook] returning:', 'webhook_disabled')
     return new Response('Webhook disabled', { status: 400 })
   }
 
-  // 1. Shared-secret configuration must be present for this environment.
-  const secret = process.env.GROW_WEBHOOK_SECRET
-  if (!secret) {
-    console.error('[GrowWebhook] missing GROW_WEBHOOK_SECRET', { env: envInfo.env })
-    console.log('[GrowWebhook] returning:', 'server_misconfigured')
-    return new NextResponse('Server misconfigured', { status: 500 })
-  }
-
-  const sig = req.headers.get('x-grow-signature')
-  if (!sig || !safeEqual(sig, secret)) {
-    console.log('[GrowWebhook] returning:', 'unauthorized')
-    return new NextResponse('Unauthorized', { status: 401 })
-  }
-
-  // 2. Read raw body, then parse
+  // 2. Read raw body, then parse.
+  //
+  //    Parsed BEFORE authentication because Grow PaymentLinks puts its
+  //    (optional) authentication key in the request BODY, not in an HTTP
+  //    header. Production captures of real deliveries confirmed that Grow
+  //    sends no auth-related HTTP header (no x-grow-*, no webhook-key,
+  //    no authorization). The previous header-based check rejected every
+  //    delivery with 401.
   const raw = await req.text()
   let body: any
   try {
     body = JSON.parse(raw)
   } catch {
-    console.log('[GrowWebhook] returning:', 'invalid_json')
     return new NextResponse('Invalid JSON', { status: 400 })
   }
-  console.log('[GrowWebhook] body:', body)
 
   // 3. Defensive payload extraction. Supports the nested { data: {...} } shape
   //    used by Grow PaymentLinks (the new "מערכת בנקאות חדשה") as well as
   //    flat legacy payloads from the older Grow business site.
   const payload = body?.data ?? body
-  console.log('[GrowWebhook] payload:', payload)
   console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
 
-  // TEMP: capture body-side auth fields from one real delivery to confirm
-  // whether Grow PaymentLinks uses `webhookKey` (camelCase, per legacy
-  // formats) or `webhook_key` (snake_case, per the failed-recurring format).
-  // NOTE: this log fires only AFTER the signature check passes; currently
-  // production deliveries 401 before reaching this point. Capture is
-  // contingent on auth passing on at least one real delivery.
-  console.log('[GrowWebhook] auth fields:', {
-    webhookKey: payload?.webhookKey,
-    webhook_key: payload?.webhook_key,
-  })
+  // 4. Optional body-key authentication.
+  //
+  //    Per Grow docs: the older 6 webhook formats include a `webhookKey`
+  //    (camelCase) or `webhook_key` (snake_case) field in the body for
+  //    static-secret auth. The newer PaymentLinks payload example does
+  //    NOT include this field — for that variant Grow relies on URL
+  //    secrecy (the merchant-configured webhook URL is the secret).
+  //
+  //    Strategy: if the payload contains a webhook key, validate it
+  //    against GROW_WEBHOOK_SECRET. If not, allow the request through
+  //    — the per-request `verifyToken(externalId)` at step 6 is the
+  //    integrity check that binds this webhook to a specific agency
+  //    (an attacker who knows the URL still can't forge a valid
+  //    external_id without GROW_TOKEN_SECRET).
+  const webhookKey: unknown = payload?.webhookKey ?? payload?.webhook_key
+  if (webhookKey) {
+    const secret = process.env.GROW_WEBHOOK_SECRET
+    if (!secret) {
+      console.error('[GrowWebhook] payload has webhookKey but GROW_WEBHOOK_SECRET is unset', {
+        env: envInfo.env,
+      })
+      return new NextResponse('Server misconfigured', { status: 500 })
+    }
+    if (typeof webhookKey !== 'string' || !safeEqual(webhookKey, secret)) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+  }
 
   const transactionId: unknown = payload?.transactionId
-  console.log('[GrowWebhook] transactionId:', transactionId)
   // Grow PaymentLinks does not standardize on a casing for the echoed
   // external identifier. We send `external_id` on the outbound query string;
   // Grow may echo it back as either casing depending on the flow.
   const externalId: unknown = payload?.externalId ?? payload?.external_id
-  console.log('[GrowWebhook] externalId:', externalId)
 
-  // 4. Required-fields gate.
-  //
-  //    NOTE: we no longer gate on `payload.status === 'success'`. Real Grow
-  //    PaymentLinks webhooks do not include a literal `'success'` value
-  //    (see official docs: the `data.status` field carries values like
-  //    'שולם' / 'statusCode: "2"', not the English string we used to expect).
-  //    Gating on it was silently ignoring valid webhooks. Grow's webhook
-  //    configuration is responsible for only firing on completed payments.
+  // 5. Required-fields gate.
   if (typeof transactionId !== 'string' || !transactionId || typeof externalId !== 'string' || !externalId) {
-    console.log('[GrowWebhook] returning:', 'missing_fields')
     return new NextResponse('Missing fields', { status: 400 })
   }
 
   console.log('[GrowWebhook] processing transaction:', transactionId)
 
-  // 5. Verify token → agencyId
+  // 6. Verify token → agencyId.
+  //
+  //    `external_id` is an HMAC-signed payload we attached to the outbound
+  //    payment URL. Grow echoes it back; we verify the signature against
+  //    GROW_TOKEN_SECRET. A forged external_id fails this check. This is
+  //    the primary integrity binding between a Grow webhook and an agency,
+  //    independent of the optional body-key check above.
   let agencyId: number
   try {
     agencyId = verifyToken(externalId).agencyId
   } catch {
-    console.log('[GrowWebhook] returning:', 'invalid_token')
     return new NextResponse('Invalid token', { status: 400 })
   }
 
-  // 6. Idempotent: insert payment + upgrade in one transaction.
+  // 7. Idempotent: insert payment + upgrade in one transaction.
   //    Unique (transactionId) makes replay a no-op.
-  console.log('[GrowWebhook] entering transaction')
   try {
     await db.transaction(async (trx) => {
-      console.log('[GrowWebhook] inserting payment')
       await trx('payments').insert({ transactionId, agencyId })
-      console.log('[GrowWebhook] upgrading agency')
       const result = await performAgencyUpgrade(agencyId, `grow:${transactionId}`, trx)
       if ('error' in result) throw new Error(`upgrade_failed:${result.error}`)
     })
   } catch (err: any) {
     if (err?.code === PG_UNIQUE_VIOLATION) {
-      console.log('[GrowWebhook] returning:', 'duplicate')
       return NextResponse.json({ ok: true, duplicate: true })
     }
     console.error('[GrowWebhook] processing failed', { transactionId, agencyId, err: String(err) })
-    console.log('[GrowWebhook] returning:', 'processing_error')
     return new NextResponse('Processing error', { status: 500 })
   }
 
-  console.log('[GrowWebhook] success')
-  console.log('[GrowWebhook] returning:', 'ok')
   return NextResponse.json({ ok: true })
 }

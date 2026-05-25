@@ -79,9 +79,10 @@ async function seedAgency(): Promise<number> {
   return id
 }
 
-function buildReq(opts: { body: unknown; signature?: string | null; bodyOverride?: string }) {
+function buildReq(opts: { body: unknown; bodyOverride?: string }) {
+  // No auth header — production captures confirmed Grow PaymentLinks sends
+  // none. Auth (when present) is body-side via payload.webhookKey.
   const headers: Record<string, string> = { 'content-type': 'application/json', host: APP_HOST }
-  if (opts.signature !== null) headers['x-grow-signature'] = opts.signature ?? WEBHOOK_SECRET
   return new NextRequest('http://localhost:3000/api/payments/grow', {
     method: 'POST',
     headers,
@@ -175,13 +176,15 @@ describe('POST /api/payments/grow — security', () => {
     expect(agency.plan).toBe('free')
   })
 
-  it('rejects when GROW_WEBHOOK_SECRET is missing', async () => {
+  it('rejects with 500 when payload has webhookKey but GROW_WEBHOOK_SECRET is unset', async () => {
     delete process.env.GROW_WEBHOOK_SECRET
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
     const transactionId = 'tx_missing_secret_' + Date.now()
 
-    const res = await POST(buildReq({ body: { transactionId, status: 'success', external_id: externalId } }))
+    const res = await POST(
+      buildReq({ body: { transactionId, external_id: externalId, webhookKey: 'anything' } }),
+    )
 
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Server misconfigured')
@@ -189,6 +192,21 @@ describe('POST /api/payments/grow — security', () => {
     expect(payments).toHaveLength(0)
     const agency = await db('agencies').where({ id: agencyId }).first()
     expect(agency.plan).toBe('free')
+  })
+
+  it('allows webhooks with NO webhookKey when GROW_WEBHOOK_SECRET is unset (URL-secrecy mode)', async () => {
+    // PaymentLinks variant: no webhookKey in payload, no auth header — auth
+    // rests entirely on URL secrecy + HMAC external_id verification.
+    delete process.env.GROW_WEBHOOK_SECRET
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_no_secret_no_key_' + Date.now()
+
+    const res = await POST(buildReq({ body: { transactionId, external_id: externalId } }))
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
   })
 
   it('rejects local-environment webhooks before touching DB', async () => {
@@ -208,38 +226,69 @@ describe('POST /api/payments/grow — security', () => {
     expect(agency.plan).toBe('free')
   })
 
-  it('rejects request with no signature header (401)', async () => {
+  it('rejects with 401 when payload webhookKey does NOT match GROW_WEBHOOK_SECRET', async () => {
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
+    const transactionId = 'tx_badkey_' + Date.now()
 
     const res = await POST(
       buildReq({
-        body: { transactionId: 'tx_nosig', status: 'success', external_id: externalId },
-        signature: null,
+        body: { transactionId, external_id: externalId, webhookKey: 'wrong_key_' + 'x'.repeat(40) },
       }),
     )
 
     expect(res.status).toBe(401)
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
     const agency = await db('agencies').where({ id: agencyId }).first()
     expect(agency.plan).toBe('free')
   })
 
-  it('rejects request with wrong signature (401) and does not touch DB', async () => {
+  it('accepts payload with matching camelCase webhookKey', async () => {
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
+    const transactionId = 'tx_goodkey_camel_' + Date.now()
 
     const res = await POST(
       buildReq({
-        body: { transactionId: 'tx_badsig', status: 'success', external_id: externalId },
-        signature: 'wrong_secret_' + 'x'.repeat(40),
+        body: { transactionId, external_id: externalId, webhookKey: WEBHOOK_SECRET },
       }),
     )
 
-    expect(res.status).toBe(401)
-    const payments = await db('payments').where({ transactionId: 'tx_badsig' })
-    expect(payments).toHaveLength(0)
+    expect(res.status).toBe(200)
     const agency = await db('agencies').where({ id: agencyId }).first()
-    expect(agency.plan).toBe('free')
+    expect(agency.plan).toBe('pro')
+  })
+
+  it('accepts payload with matching snake_case webhook_key', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_goodkey_snake_' + Date.now()
+
+    const res = await POST(
+      buildReq({
+        body: { transactionId, external_id: externalId, webhook_key: WEBHOOK_SECRET },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+  })
+
+  it('ignores absent x-grow-signature header (no longer used)', async () => {
+    // Regression guard: the old header-based check is gone. A request with
+    // no header at all should authenticate purely on body-key (or, when
+    // absent, on URL secrecy + verifyToken).
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_no_header_' + Date.now()
+
+    const res = await POST(buildReq({ body: { transactionId, external_id: externalId } }))
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
   })
 
   it('rejects forged external_id (no valid HMAC) with 400', async () => {
