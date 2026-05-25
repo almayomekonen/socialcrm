@@ -97,25 +97,31 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Invalid JSON', { status: 400 })
   }
 
-  // 3. Defensive payload extraction (supports nested { data: {...} })
+  // 3. Defensive payload extraction. Supports the nested { data: {...} } shape
+  //    used by Grow PaymentLinks (the new "מערכת בנקאות חדשה") as well as
+  //    flat legacy payloads from the older Grow business site.
   const payload = body?.data ?? body
+  console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
+
   const transactionId: unknown = payload?.transactionId
-  const status: unknown = payload?.status
-  const externalId: unknown = payload?.external_id
+  // Grow PaymentLinks does not standardize on a casing for the echoed
+  // external identifier. We send `external_id` on the outbound query string;
+  // Grow may echo it back as either casing depending on the flow.
+  const externalId: unknown = payload?.externalId ?? payload?.external_id
 
-  console.log('📩 Webhook ENV:', {
-    env: envInfo.env,
-    transactionId,
-  })
-
-  // 4. Ignore non-success events idempotently
-  if (status !== 'success') {
-    return NextResponse.json({ ok: true, ignored: true })
-  }
-
+  // 4. Required-fields gate.
+  //
+  //    NOTE: we no longer gate on `payload.status === 'success'`. Real Grow
+  //    PaymentLinks webhooks do not include a literal `'success'` value
+  //    (see official docs: the `data.status` field carries values like
+  //    'שולם' / 'statusCode: "2"', not the English string we used to expect).
+  //    Gating on it was silently ignoring valid webhooks. Grow's webhook
+  //    configuration is responsible for only firing on completed payments.
   if (typeof transactionId !== 'string' || !transactionId || typeof externalId !== 'string' || !externalId) {
     return new NextResponse('Missing fields', { status: 400 })
   }
+
+  console.log('[GrowWebhook] processing transaction:', transactionId)
 
   // 5. Verify token → agencyId
   let agencyId: number

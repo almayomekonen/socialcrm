@@ -280,25 +280,144 @@ describe('POST /api/payments/grow — validation', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 when external_id is missing', async () => {
-    const res = await POST(buildReq({ body: { transactionId: 'tx_x', status: 'success' } }))
+  it('returns 400 when neither externalId nor external_id is present', async () => {
+    const res = await POST(buildReq({ body: { transactionId: 'tx_no_ext_id' } }))
     expect(res.status).toBe(400)
   })
+})
 
-  it('ignores non-success status (200, no DB writes)', async () => {
+/**
+ * Real Grow PaymentLinks payload tests.
+ *
+ * Payload shape is taken verbatim from the official Grow docs ("Regular
+ * Payment Webhook Format via PaymentLinks (New system — מערכת בנקאות
+ * חדשה)"). The example in the docs omits the echoed external identifier;
+ * we include it under `externalId` (camelCase) since that matches the
+ * docs' camelCase convention for the rest of the data fields. The handler
+ * accepts either casing.
+ */
+describe('POST /api/payments/grow — real Grow PaymentLinks payload (TEST A)', () => {
+  function buildRealPaymentLinksPayload(externalId: string, transactionId: string) {
+    return {
+      err: '',
+      status: '1',
+      data: {
+        asmachta: '12345',
+        cardSuffix: '1234',
+        cardType: 'Local',
+        cardTypeCode: '1',
+        cardBrand: 'Visa',
+        cardBrandCode: '3',
+        cardExp: '1127',
+        firstPaymentSum: '0',
+        periodicalPaymentSum: '0',
+        status: 'שולם',
+        statusCode: '2',
+        transactionTypeId: '1',
+        paymentType: '2',
+        sum: '13',
+        paymentsNum: '0',
+        allPaymentsNum: '1',
+        paymentDate: '02/12/24',
+        description: 'תיאור עסקה',
+        fullName: 'דוד דוד',
+        payerPhone: '0501111111',
+        payerEmail: 'test@test.com',
+        transactionId,
+        transactionToken: '818bf8333e7a3f0c53ef8e7',
+        paymentLinkProcessId: '1234567',
+        paymentLinkProcessToken: '7ab1c9133444a8507ebf24ff2',
+        processId: '13809798',
+        processToken: '10e0f8f61fc31b9cfe4f1914762a78a9',
+        externalId,
+      },
+    }
+  }
+
+  it('upgrades agency on real PaymentLinks payload (camelCase externalId, no English "success" status)', async () => {
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
-    const transactionId = 'tx_pending_' + Date.now()
+    const transactionId = 'tx_paymentlinks_' + Date.now()
 
-    const res = await POST(buildReq({ body: { transactionId, status: 'pending', external_id: externalId } }))
+    const res = await POST(buildReq({ body: buildRealPaymentLinksPayload(externalId, transactionId) }))
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ ok: true, ignored: true })
+    expect(await res.json()).toEqual({ ok: true })
 
-    const payments = await db('payments').where({ transactionId })
-    expect(payments).toHaveLength(0)
     const agency = await db('agencies').where({ id: agencyId }).first()
-    expect(agency.plan).toBe('free')
+    expect(agency.plan).toBe('pro')
+    expect(agency.planReason).toBe(`grow:${transactionId}`)
+
+    const payment = await db('payments').where({ transactionId }).first()
+    expect(payment).toBeTruthy()
+    expect(payment.agencyId).toBe(agencyId)
+  })
+
+  it('does NOT ignore the webhook just because status is not the English "success"', async () => {
+    // This is the regression case: previously the handler short-circuited
+    // any payload whose `status` field didn't equal the literal 'success'.
+    // Real PaymentLinks payloads have `status: 'שולם'` or no English status,
+    // which used to silently drop every real webhook.
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_status_hebrew_' + Date.now()
+
+    const res = await POST(
+      buildReq({ body: { data: { transactionId, status: 'שולם', statusCode: '2', externalId } } }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+  })
+
+  it('processes successfully even when payload has no status field at all', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_no_status_' + Date.now()
+
+    const res = await POST(buildReq({ body: { data: { transactionId, externalId } } }))
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+  })
+
+  it('accepts external_id in snake_case (legacy compatibility)', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_snake_ext_' + Date.now()
+
+    const res = await POST(buildReq({ body: { data: { transactionId, external_id: externalId } } }))
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+  })
+})
+
+/**
+ * Legacy payload compatibility (TEST B).
+ *
+ * The pre-existing happy-path tests above already exercise the flat and
+ * the nested-with-snake-case-external_id shapes. This block adds an
+ * explicit test for the flat legacy payload with the `status: 'success'`
+ * English value, confirming we still accept payloads from the older
+ * static-payment-pages flow.
+ */
+describe('POST /api/payments/grow — legacy payload compatibility (TEST B)', () => {
+  it('accepts flat legacy payload with English "success" status', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_legacy_flat_' + Date.now()
+
+    const res = await POST(
+      buildReq({ body: { transactionId, status: 'success', external_id: externalId } }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
   })
 })
 
