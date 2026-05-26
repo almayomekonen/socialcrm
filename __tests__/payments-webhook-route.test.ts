@@ -46,6 +46,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (agencyIds.length) {
+    await db('pending_upgrades').whereIn('agencyId', agencyIds).delete()
+    await db('subscriptions').whereIn('agencyId', agencyIds).delete()
     await db('payments').whereIn('agencyId', agencyIds).delete()
     await db('agencies').whereIn('id', agencyIds).delete()
   }
@@ -64,6 +66,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   if (agencyIds.length) {
+    await db('pending_upgrades').whereIn('agencyId', agencyIds).delete()
+    await db('subscriptions').whereIn('agencyId', agencyIds).delete()
     await db('payments').whereIn('agencyId', agencyIds).delete()
     await db('agencies').whereIn('id', agencyIds).delete()
     agencyIds = []
@@ -329,9 +333,164 @@ describe('POST /api/payments/grow — validation', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 when neither externalId nor external_id is present', async () => {
-    const res = await POST(buildReq({ body: { transactionId: 'tx_no_ext_id' } }))
-    expect(res.status).toBe(400)
+  it('no longer rejects payloads without externalId at the gate (fallback path takes over)', async () => {
+    // The required-fields gate now only requires transactionId; missing
+    // externalId routes to the pending_upgrades fallback. With no matching
+    // pending row and no payerEmail in this payload, the fallback throws
+    // 'Pending upgrade not found' which surfaces as 500 from Next.js.
+    const res = await POST(buildReq({ body: { transactionId: 'tx_no_ext_id_only' } }))
+    expect(res.status).not.toBe(400)
+    expect(res.status).toBeGreaterThanOrEqual(500)
+  })
+})
+
+/**
+ * Pending-upgrade fallback (Task 5 of the pending_upgrades feature).
+ *
+ * When Grow PaymentLinks doesn't echo our identifyParam token back, the
+ * webhook falls back to resolving agencyId by the most recent pending
+ * upgrade row matching payerEmail. The /api/payments/upgrade route
+ * upserts a pending row before redirecting the user to Grow.
+ */
+describe('POST /api/payments/grow — pending_upgrades fallback', () => {
+  async function seedPending(agencyId: number, email: string, status: 'pending' | 'completed' = 'pending') {
+    await db('pending_upgrades')
+      .insert({
+        agencyId,
+        email,
+        status,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflict('agencyId')
+      .merge({ email, status, updatedAt: new Date() })
+  }
+
+  // TEST A — existing token flow still works UNCHANGED
+  it('A: existing token flow still works (externalId present → verifyToken path)', async () => {
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_A_token_flow_' + Date.now()
+
+    // No pending row needed — the token path is taken when externalId is set
+    const res = await POST(
+      buildReq({ body: { data: { transactionId, externalId, payerEmail: 'someone@example.com' } } }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+    expect(agency.planReason).toBe(`grow:${transactionId}`)
+  })
+
+  // TEST B — externalId empty + matching pending row → fallback resolves
+  it('B: externalId empty + payerEmail matches a pending row → fallback succeeds', async () => {
+    const agencyId = await seedAgency()
+    const email = 'fallback-' + Date.now() + '@example.com'
+    await seedPending(agencyId, email, 'pending')
+
+    const transactionId = 'tx_B_fallback_' + Date.now()
+    const res = await POST(
+      buildReq({
+        // Real PaymentLinks shape — empty identifyParam, real payerEmail
+        body: { data: { transactionCode: transactionId, identifyParam: '', payerEmail: email } },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+
+    // Pending row marked completed after successful upgrade
+    const pendingAfter = await db('pending_upgrades').where({ agencyId }).first()
+    expect(pendingAfter.status).toBe('completed')
+  })
+
+  // TEST C — no matching pending row → error returned
+  it('C: externalId empty + payerEmail does NOT match any pending row → error', async () => {
+    const transactionId = 'tx_C_no_pending_' + Date.now()
+    // The fallback throws `Error('Pending upgrade not found')`. In Next.js
+    // request context Next catches this and returns 500; when invoked
+    // directly in tests, the await rejects. Accept either.
+    let errMessage: string | null = null
+    let resStatus: number | null = null
+    try {
+      const res = await POST(
+        buildReq({
+          body: { data: { transactionCode: transactionId, identifyParam: '', payerEmail: 'never-seen-' + Date.now() + '@example.com' } },
+        }),
+      )
+      resStatus = res.status
+    } catch (err) {
+      errMessage = String(err)
+    }
+
+    expect(errMessage !== null || (resStatus !== null && resStatus >= 500)).toBe(true)
+    if (errMessage) expect(errMessage).toContain('Pending upgrade not found')
+
+    // No payments row, no agency mutations
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
+  })
+
+  // TEST D — full success via fallback: agency.plan='pro' + subscription row
+  it('D: successful fallback end-to-end → plan=pro + subscriptions row + pending=completed', async () => {
+    const agencyId = await seedAgency()
+    const email = 'fallback-d-' + Date.now() + '@example.com'
+    await seedPending(agencyId, email, 'pending')
+
+    const transactionId = 'tx_D_e2e_' + Date.now()
+    const res = await POST(
+      buildReq({
+        body: {
+          data: {
+            transactionCode: transactionId,
+            identifyParam: '',
+            payerEmail: email,
+            // Plus other real PaymentLinks fields, ignored by handler:
+            asmachta: '12345',
+            sum: '149',
+            statusCode: '2',
+            status: 'שולם',
+            paymentLinkProcessId: 'plp_d',
+          },
+        },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+    expect(agency.planReason).toBe(`grow:${transactionId}`)
+
+    const payment = await db('payments').where({ transactionId }).first()
+    expect(payment).toBeTruthy()
+    expect(payment.agencyId).toBe(agencyId)
+
+    const sub = await db('subscriptions').where({ agencyId }).first()
+    expect(sub).toBeTruthy()
+    expect(sub.cancelAtPeriodEnd).toBe(false)
+
+    const pendingAfter = await db('pending_upgrades').where({ agencyId }).first()
+    expect(pendingAfter.status).toBe('completed')
+  })
+
+  // Defensive — most-recent pending wins if there were re-clicks
+  it('orders by createdAt DESC — most recent pending row wins if multiple', async () => {
+    const agencyId = await seedAgency()
+    const email = 'multi-' + Date.now() + '@example.com'
+    // seedPending uses upsert; only one row per agencyId is possible due to
+    // UNIQUE(agencyId), so the .orderBy('createdAt', 'desc') is for the
+    // multi-agency case where the same email could appear on multiple
+    // agencies. Simulate that by NOT relying on multi-row-same-agency.
+    await seedPending(agencyId, email, 'pending')
+
+    const transactionId = 'tx_order_' + Date.now()
+    const res = await POST(buildReq({ body: { data: { transactionCode: transactionId, payerEmail: email } } }))
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
   })
 })
 

@@ -16,23 +16,42 @@ vi.mock('@/lib/requireUser', async () => {
   return { ...actual, requireUser: vi.fn() }
 })
 
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { requireUser, AuthError } from '@/lib/requireUser'
 import { verifyToken } from '@/lib/payments/token'
 import { getUpgradeLink } from '@/lib/payments/link'
 import { GET } from '@/app/api/payments/upgrade/route'
+import { db } from '@/config/db'
 
 const TOKEN_SECRET = 'test_token_secret_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const PAYMENT_LINK = 'https://pay.grow.link/test-link-id'
 const APP_HOST = 'localhost:3000'
+const TEST_EMAIL = 'upgrade-route-test@example.com'
 
-beforeAll(() => {
+// The upgrade route now writes to pending_upgrades (FK to agencies), so we
+// need a real seeded agency. Mock requireUser to return this id + email.
+let testAgencyId: number
+
+beforeAll(async () => {
   process.env.APP_ENV = 'production'
   process.env.GROW_MODE = 'production'
   process.env.APP_HOST = APP_HOST
   process.env.GROW_TOKEN_SECRET = TOKEN_SECRET
   process.env.GROW_PAYMENT_LINK = PAYMENT_LINK
+
+  const [row] = await db('agencies')
+    .insert({ name: '__upgrade_route_test_' + Date.now(), plan: 'free' })
+    .returning('id')
+  testAgencyId = typeof row === 'object' ? row.id : row
+})
+
+afterAll(async () => {
+  await db('pending_upgrades').where({ agencyId: testAgencyId }).delete()
+  await db('subscriptions').where({ agencyId: testAgencyId }).delete()
+  await db('payments').where({ agencyId: testAgencyId }).delete()
+  await db('agencies').where({ id: testAgencyId }).delete()
+  await db.destroy()
 })
 
 beforeEach(() => {
@@ -50,7 +69,7 @@ function makeReq(host = APP_HOST) {
 
 describe('GET /api/payments/upgrade', () => {
   it('redirects authenticated user to Grow with a verifiable identifyParam', async () => {
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
 
     const res = await GET(makeReq())
 
@@ -64,7 +83,32 @@ describe('GET /api/payments/upgrade', () => {
 
     // Token must decode to the EXACT agencyId server-side (no trust in the URL)
     const verified = verifyToken(token!)
-    expect(verified.agencyId).toBe(42)
+    expect(verified.agencyId).toBe(testAgencyId)
+  })
+
+  it('upserts a pending_upgrades row before redirecting (fallback ownership marker)', async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
+    // Pre-clear so we observe a fresh insert
+    await db('pending_upgrades').where({ agencyId: testAgencyId }).delete()
+
+    const res = await GET(makeReq())
+
+    expect(res.status).toBe(302)
+    const row = await db('pending_upgrades').where({ agencyId: testAgencyId }).first()
+    expect(row).toBeTruthy()
+    expect(row.email).toBe(TEST_EMAIL)
+    expect(row.status).toBe('pending')
+  })
+
+  it('re-clicks UPSERT into the SAME pending row (UNIQUE on agencyId), no duplicate inserts', async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
+    await GET(makeReq())
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
+    await GET(makeReq())
+
+    const rows = await db('pending_upgrades').where({ agencyId: testAgencyId })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].status).toBe('pending')
   })
 
   // TEST A — generated URL contains identifyParam
@@ -143,7 +187,7 @@ describe('GET /api/payments/upgrade', () => {
   })
 
   it('returns 500 when GROW_PAYMENT_LINK is missing', async () => {
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
     delete process.env.GROW_PAYMENT_LINK
 
     const res = await GET(makeReq())
@@ -154,7 +198,7 @@ describe('GET /api/payments/upgrade', () => {
   it('redirects non-production payment attempts back to local settings', async () => {
     process.env.APP_ENV = 'local'
     process.env.GROW_MODE = 'sandbox'
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
 
     const res = await GET(makeReq())
 
@@ -167,7 +211,7 @@ describe('GET /api/payments/upgrade', () => {
   it('returns 500 when local is configured with production payments', async () => {
     process.env.APP_ENV = 'local'
     process.env.GROW_MODE = 'production'
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
 
     const res = await GET(makeReq())
 
@@ -176,7 +220,7 @@ describe('GET /api/payments/upgrade', () => {
 
   it('returns 500 when production host does not match APP_HOST', async () => {
     process.env.APP_HOST = 'socialcrm.example'
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
 
     const res = await GET(makeReq())
 
@@ -199,7 +243,7 @@ describe('GET /api/payments/upgrade', () => {
   })
 
   it('does not leak the token in the response body', async () => {
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: testAgencyId, email: TEST_EMAIL } as any)
     const res = await GET(makeReq())
     const body = await res.text()
     // Body should be empty (302), token must only be in the Location header

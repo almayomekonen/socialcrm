@@ -112,20 +112,39 @@ export async function POST(req: NextRequest) {
   })
 
   // 5. Required-fields gate.
-  if (typeof transactionId !== 'string' || !transactionId || typeof externalId !== 'string' || !externalId) {
+  // Required-fields gate. transactionId is non-negotiable (idempotency key
+  // for the payments UNIQUE constraint). externalId is now allowed to be
+  // empty so the pending_upgrades fallback (below) can resolve agencyId
+  // by payerEmail when Grow doesn't echo our token back.
+  if (typeof transactionId !== 'string' || !transactionId) {
     return new NextResponse('Missing fields', { status: 400 })
   }
 
   console.log('[GrowWebhook] processing transaction:', transactionId)
 
+  // Resolve agencyId. Two paths:
+  //   1) Existing token flow — externalId present → HMAC verify (unchanged)
+  //   2) NEW fallback — externalId empty → look up most recent pending
+  //      upgrade by payerEmail.
   let agencyId: number
-  try {
-    agencyId = verifyToken(externalId).agencyId
-
-    console.log('[GrowWebhook] token verified')
-  } catch (err) {
-    console.log('[GrowWebhook] token verification failed:', String(err))
-    return new NextResponse('Invalid token', { status: 400 })
+  if (typeof externalId === 'string' && externalId.trim()) {
+    try {
+      agencyId = verifyToken(externalId).agencyId
+      console.log('[GrowWebhook] token verified')
+    } catch (err) {
+      console.log('[GrowWebhook] token verification failed:', String(err))
+      return new NextResponse('Invalid token', { status: 400 })
+    }
+  } else {
+    console.log('[GrowWebhook] token missing, using pending lookup')
+    const pending = await db('pending_upgrades')
+      .where({ email: payload?.payerEmail, status: 'pending' })
+      .orderBy('createdAt', 'desc')
+      .first()
+    if (!pending) {
+      throw new Error('Pending upgrade not found')
+    }
+    agencyId = pending.agencyId
   }
 
   console.log('[GrowWebhook] before transaction')
@@ -142,6 +161,16 @@ export async function POST(req: NextRequest) {
     console.error('[GrowWebhook] processing failed', { transactionId, agencyId, err: String(err) })
     return new NextResponse('Processing error', { status: 500 })
   }
+
+  // After successful upgrade, mark the pending entry as completed.
+  // Uses `db` (not `trx`) — runs after the upgrade transaction commits.
+  // Non-atomic with the upgrade by design; if this UPDATE fails, the
+  // upgrade still stands and pending stays 'pending' (recoverable, harmless
+  // since the next webhook for this agency would also succeed).
+  await db('pending_upgrades').where({ agencyId }).update({
+    status: 'completed',
+    updatedAt: new Date(),
+  })
 
   return NextResponse.json({ ok: true })
 }

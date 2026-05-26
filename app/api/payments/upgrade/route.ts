@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUser, AuthError } from '@/lib/requireUser'
 import { getUpgradeLink } from '@/lib/payments/link'
+import { db } from '@/config/db'
 
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
@@ -84,6 +85,27 @@ export async function GET(req: NextRequest) {
     localUrl.searchParams.set('mode', 'local')
     return NextResponse.redirect(localUrl, 302)
   }
+
+  // Record the upgrade intent. Grow static Payment Links don't reliably
+  // round-trip custom query params (identifyParam arrives empty in the
+  // webhook); the webhook handler uses this row as a fallback ownership
+  // resolver, looking up by payerEmail when externalId is empty.
+  // Upsert on agencyId so re-clicks/refreshes don't pile up rows.
+  const now = new Date()
+  await db('pending_upgrades')
+    .insert({
+      agencyId: user.agencyId,
+      email: user.email,
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflict('agencyId')
+    .merge({
+      email: user.email,
+      status: 'pending',
+      updatedAt: now,
+    })
 
   try {
     const url = getUpgradeLink(user.agencyId)
