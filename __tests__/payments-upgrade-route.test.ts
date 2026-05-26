@@ -49,7 +49,7 @@ function makeReq(host = APP_HOST) {
 }
 
 describe('GET /api/payments/upgrade', () => {
-  it('redirects authenticated user to Grow with a verifiable external_id', async () => {
+  it('redirects authenticated user to Grow with a verifiable identifyParam', async () => {
     vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId: 42 } as any)
 
     const res = await GET(makeReq())
@@ -58,13 +58,62 @@ describe('GET /api/payments/upgrade', () => {
     const location = res.headers.get('location')!
     expect(location).toContain(PAYMENT_LINK)
     const url = new URL(location)
-    const token = url.searchParams.get('external_id')
+    const token = url.searchParams.get('identifyParam')
     expect(token).toBeTruthy()
     expect(url.searchParams.get('return_url')).toBe(`https://${APP_HOST}/billing/success`)
 
     // Token must decode to the EXACT agencyId server-side (no trust in the URL)
     const verified = verifyToken(token!)
     expect(verified.agencyId).toBe(42)
+  })
+
+  // TEST A — generated URL contains identifyParam
+  it('generated URL contains identifyParam with a non-empty HMAC token', () => {
+    const raw = getUpgradeLink(42)
+    const url = new URL(raw)
+
+    expect(url.searchParams.has('identifyParam')).toBe(true)
+    expect(url.searchParams.get('identifyParam')).toBeTruthy()
+    expect(url.searchParams.get('identifyParam')!.length).toBeGreaterThan(20)
+  })
+
+  // TEST B — generated URL does NOT contain external_id (the old, broken param name)
+  it('generated URL does NOT contain external_id', () => {
+    const raw = getUpgradeLink(42)
+    const url = new URL(raw)
+
+    expect(url.searchParams.has('external_id')).toBe(false)
+    // Also confirm the literal substring is absent from the URL string entirely
+    expect(raw).not.toContain('external_id=')
+  })
+
+  // TEST C — token value is preserved exactly between sign and URL placement
+  it('token value placed in identifyParam is identical to the signToken output', async () => {
+    const { signToken } = await import('@/lib/payments/token')
+    // Re-sign in the same window so the embedded timestamp is comparable.
+    // We compare the URL's token via verifyToken: the embedded value must
+    // round-trip back to the same agencyId without mutation.
+    const raw = getUpgradeLink(42)
+    const url = new URL(raw)
+    const tokenFromUrl = url.searchParams.get('identifyParam')!
+
+    // Token format: "<base64url-payload>.<base64url-hmac>" — verifyToken
+    // re-derives the HMAC from the payload and timing-safely compares it.
+    // Any character mutation (URL-encode of '.', truncation, doubled '=',
+    // etc.) would cause verifyToken to throw.
+    const verified = verifyToken(tokenFromUrl)
+    expect(verified.agencyId).toBe(42)
+
+    // Cross-sanity: signToken(42) produces a different timestamp every call
+    // but always the same format/structure, so just confirm shape:
+    const freshlySigned = signToken(42)
+    const [urlPayload, urlSig] = tokenFromUrl.split('.')
+    const [freshPayload, freshSig] = freshlySigned.split('.')
+    expect(urlPayload).toBeTruthy()
+    expect(urlSig).toBeTruthy()
+    expect(freshPayload).toBeTruthy()
+    expect(freshSig).toBeTruthy()
+    expect(urlSig.length).toBe(freshSig.length) // signature size is constant for the same algorithm
   })
 
   it('redirects to /login when no session (AuthError no_session)', async () => {
