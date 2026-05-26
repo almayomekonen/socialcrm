@@ -77,14 +77,6 @@ export async function POST(req: NextRequest) {
     return new Response('Webhook disabled', { status: 400 })
   }
 
-  // 2. Read raw body, then parse.
-  //
-  //    Parsed BEFORE authentication because Grow PaymentLinks puts its
-  //    (optional) authentication key in the request BODY, not in an HTTP
-  //    header. Production captures of real deliveries confirmed that Grow
-  //    sends no auth-related HTTP header (no x-grow-*, no webhook-key,
-  //    no authorization). The previous header-based check rejected every
-  //    delivery with 401.
   const raw = await req.text()
   let body: any
   try {
@@ -93,9 +85,6 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Invalid JSON', { status: 400 })
   }
 
-  // 3. Defensive payload extraction. Supports the nested { data: {...} } shape
-  //    used by Grow PaymentLinks (the new "מערכת בנקאות חדשה") as well as
-  //    flat legacy payloads from the older Grow business site.
   const payload = body?.data ?? body
   console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
 
