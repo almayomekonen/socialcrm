@@ -99,20 +99,6 @@ export async function POST(req: NextRequest) {
   const payload = body?.data ?? body
   console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
 
-  // 4. Optional body-key authentication.
-  //
-  //    Per Grow docs: the older 6 webhook formats include a `webhookKey`
-  //    (camelCase) or `webhook_key` (snake_case) field in the body for
-  //    static-secret auth. The newer PaymentLinks payload example does
-  //    NOT include this field — for that variant Grow relies on URL
-  //    secrecy (the merchant-configured webhook URL is the secret).
-  //
-  //    Strategy: if the payload contains a webhook key, validate it
-  //    against GROW_WEBHOOK_SECRET. If not, allow the request through
-  //    — the per-request `verifyToken(externalId)` at step 6 is the
-  //    integrity check that binds this webhook to a specific agency
-  //    (an attacker who knows the URL still can't forge a valid
-  //    external_id without GROW_TOKEN_SECRET).
   const webhookKey: unknown = payload?.webhookKey ?? payload?.webhook_key
   if (webhookKey) {
     const secret = process.env.GROW_WEBHOOK_SECRET
@@ -127,19 +113,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Field-name tolerance across Grow webhook formats:
-  //
-  //   transactionId  ← `transactionId`  (docs example, legacy)
-  //                    `transactionCode` (real PaymentLinks production payload)
-  //
-  //   externalId     ← `externalId`     (our convention if Grow echoes camelCase)
-  //                    `external_id`    (legacy snake_case)
-  //                    `identifyParam`  (real PaymentLinks production payload)
-  //
-  // Real-production captures showed `transactionCode` + `identifyParam`;
-  // we keep the older names as primary so legacy formats continue to work.
   const transactionId: unknown = payload?.transactionId ?? payload?.transactionCode
   const externalId: unknown = payload?.externalId ?? payload?.external_id ?? payload?.identifyParam
+
+  console.log('[GrowWebhook] resolved fields:', {
+    webhookKey,
+    transactionId,
+    externalId,
+  })
 
   // 5. Required-fields gate.
   if (typeof transactionId !== 'string' || !transactionId || typeof externalId !== 'string' || !externalId) {
@@ -148,22 +129,17 @@ export async function POST(req: NextRequest) {
 
   console.log('[GrowWebhook] processing transaction:', transactionId)
 
-  // 6. Verify token → agencyId.
-  //
-  //    `external_id` is an HMAC-signed payload we attached to the outbound
-  //    payment URL. Grow echoes it back; we verify the signature against
-  //    GROW_TOKEN_SECRET. A forged external_id fails this check. This is
-  //    the primary integrity binding between a Grow webhook and an agency,
-  //    independent of the optional body-key check above.
   let agencyId: number
   try {
     agencyId = verifyToken(externalId).agencyId
-  } catch {
+
+    console.log('[GrowWebhook] token verified')
+  } catch (err) {
+    console.log('[GrowWebhook] token verification failed:', String(err))
     return new NextResponse('Invalid token', { status: 400 })
   }
 
-  // 7. Idempotent: insert payment + upgrade in one transaction.
-  //    Unique (transactionId) makes replay a no-op.
+  console.log('[GrowWebhook] before transaction')
   try {
     await db.transaction(async (trx) => {
       await trx('payments').insert({ transactionId, agencyId })
