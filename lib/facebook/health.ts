@@ -28,11 +28,10 @@ export async function checkFacebookConnection(pageId: string, pageAccessToken: s
   let permissionsOk = false
   let subscribed = false
 
-  // 1. Token validity
   try {
-    const res = await fetchWithTimeout(`${GRAPH_API}/me?access_token=${pageAccessToken}`)
+    const res = await fetchWithTimeout(`${GRAPH_API}/${pageId}/subscribed_apps?access_token=${pageAccessToken}`)
     const data = await res.json()
-    if (res.ok && data?.id) {
+    if (res.ok && Array.isArray(data?.data)) {
       tokenValid = true
       console.log(`[FacebookHealth] Token valid [pageId=${pageId}]`)
     } else {
