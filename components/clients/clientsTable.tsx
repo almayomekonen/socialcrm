@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import ExportTable from '@/lib/table/export'
 import TableFooter from '../../lib/table/TableFooter'
@@ -37,8 +37,19 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setDeletedIds,
     setOptimisticStatuses,
     mergedState,
-    filteredData,
+    filteredData: rawFilteredData,
   } = useLeadsState({ data, leads, activeTab, globalLatestUpdatedAt })
+
+  const [sortMode, setSortMode] = useState<'priority' | 'newest'>('priority')
+  const filteredData = useMemo(
+    () =>
+      sortMode === 'newest'
+        ? [...rawFilteredData].sort(
+            (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+          )
+        : rawFilteredData,
+    [rawFilteredData, sortMode],
+  )
 
   const { updatingId, highlightedId, handleStatusChange } = useLeadActions({
     setActiveTab,
@@ -261,6 +272,15 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                   onClick={handleBulkDelete}
                 />
               )}
+              <select
+                className='h-10 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-blue-200'
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as 'priority' | 'newest')}
+                aria-label='מיון לידים'
+              >
+                <option value='priority'>מיון: דחופים ביותר</option>
+                <option value='newest'>מיון: חדשים ביותר</option>
+              </select>
               <ShowColumns config={config} />
               <SelectClientGrpActions user={user} />
               <SelectClientLists />
@@ -469,6 +489,7 @@ function formatName(name, obj) {
     </span>
   )
 }
+
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_STYLES[status]
   if (!s) return null
@@ -479,7 +500,6 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   )
 }
-
 
 function formatLeadStatus(_: unknown, obj: Record<string, unknown>) {
   return <StatusBadge status={obj.status as string} />

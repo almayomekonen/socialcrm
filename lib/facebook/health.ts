@@ -116,7 +116,6 @@ export async function repairFacebookConnection(pageId: string): Promise<{
     return { repaired: false, needsReconnect: true, status }
   }
 
-  // Token and permissions are OK — attempt to repair missing subscription
   if (!status.subscribed) {
     console.log(`[FacebookRepair] Re-subscribing [pageId=${pageId}]`)
     try {
