@@ -1,0 +1,302 @@
+/* Calendar visual polish — scoped to .calendar-shell so nothing leaks.
+ *
+ * Design philosophy:
+ *   - Restraint over decoration. No glassmorphism, no gradients, no shadows
+ *     past hairlines. Cron / Notion Calendar got premium feel from typography,
+ *     whitespace, and a clean status-accent stripe — not from FX.
+ *   - Tabular numerals everywhere a time appears.
+ *   - Sharp leading accent (status color) + soft background → information
+ *     layered, not flattened into one block.
+ *   - Hover signals interactivity; never required for primary actions.
+ *   - Match the app's existing Btn aesthetic on the FullCalendar toolbar.
+ */
+
+.calendar-shell {
+  /* FullCalendar CSS variables */
+  --fc-border-color: #f1f5f9;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #f8fafc;
+  --fc-list-event-hover-bg-color: #f8fafc;
+  --fc-today-bg-color: rgba(59, 130, 246, 0.04);
+
+  --fc-now-indicator-color: #ef4444;
+
+  --fc-button-bg-color: #ffffff;
+  --fc-button-border-color: #e5e7eb;
+  --fc-button-text-color: #111827;
+  --fc-button-hover-bg-color: #f9fafb;
+  --fc-button-hover-border-color: #d1d5db;
+  --fc-button-active-bg-color: #f3f4f6;
+  --fc-button-active-border-color: #d1d5db;
+
+  /* We render event chips ourselves — strip FullCalendar's defaults. */
+  --fc-event-bg-color: transparent;
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #1f2937;
+  --fc-event-selected-overlay-color: rgba(59, 130, 246, 0.1);
+
+  /* Tabular numerals everywhere — the strongest "premium calendar" tell. */
+  font-feature-settings: "tnum" 1;
+}
+
+/* ───────────── Toolbar — buttons match app's Btn aesthetic ───────────── */
+
+.calendar-shell .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1.25rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.calendar-shell .fc-toolbar-title {
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.calendar-shell .fc-button {
+  height: 2.25rem;
+  padding: 0 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+  box-shadow: none !important;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.calendar-shell .fc-button:focus,
+.calendar-shell .fc-button:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.4);
+  outline-offset: 1px;
+  box-shadow: none !important;
+}
+
+.calendar-shell .fc-button-primary:not(:disabled).fc-button-active {
+  background-color: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
+.calendar-shell .fc-button-primary:not(:disabled).fc-button-active:hover {
+  background-color: #1f2937;
+  border-color: #1f2937;
+}
+
+.calendar-shell .fc-prev-button,
+.calendar-shell .fc-next-button {
+  width: 2.25rem;
+  padding: 0;
+}
+
+.calendar-shell .fc-today-button:disabled {
+  opacity: 0.5;
+}
+
+/* ───────────── Grid: lighter lines, more breathing ───────────── */
+
+.calendar-shell .fc-scrollgrid,
+.calendar-shell .fc-scrollgrid td,
+.calendar-shell .fc-scrollgrid th {
+  border-color: var(--fc-border-color) !important;
+}
+
+.calendar-shell .fc-col-header-cell-cushion {
+  padding: 0.625rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.calendar-shell .fc-daygrid-day-number,
+.calendar-shell .fc-timegrid-slot-label-cushion {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.5rem;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+/* Today's date number gets a clear emphasis treatment */
+.calendar-shell .fc-day-today .fc-daygrid-day-number {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+/* Subtle hover on every interactive cell — affords "click to create" */
+.calendar-shell .fc-daygrid-day,
+.calendar-shell .fc-timegrid-slot {
+  transition: background-color 100ms ease;
+}
+
+.calendar-shell .fc-daygrid-day:hover {
+  background-color: rgba(15, 23, 42, 0.018);
+}
+
+.calendar-shell .fc-timegrid-slot:hover {
+  background-color: rgba(15, 23, 42, 0.018);
+}
+
+/* ───────────── Now indicator — sharp red line, no decoration ───────────── */
+
+.calendar-shell .fc-timegrid-now-indicator-line {
+  border-color: var(--fc-now-indicator-color);
+  border-width: 1.5px;
+  opacity: 0.9;
+}
+
+.calendar-shell .fc-timegrid-now-indicator-arrow {
+  border-color: var(--fc-now-indicator-color);
+}
+
+/* ───────────── "+N more" link in month overflow ───────────── */
+
+.calendar-shell .fc-daygrid-more-link {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #4b5563;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  transition: background-color 120ms ease;
+}
+
+.calendar-shell .fc-daygrid-more-link:hover {
+  background-color: #f3f4f6;
+  text-decoration: none;
+}
+
+/* ───────────── Event chip — neutralize FC defaults; we render our own ───────────── */
+
+.calendar-shell .fc-event,
+.calendar-shell .fc-event:hover,
+.calendar-shell .fc-event-main,
+.calendar-shell .fc-event-main-frame {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.calendar-shell .fc-event-main {
+  padding: 0 !important;
+}
+
+.calendar-shell .fc-h-event,
+.calendar-shell .fc-v-event {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* The actual event chip, applied via .crm-event in eventContent JSX. */
+.crm-event {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  min-height: 1.5rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.625rem;
+  background: var(--crm-event-bg, #eff6ff);
+  color: var(--crm-event-fg, #1e3a8a);
+  border-radius: 0.3125rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+/* Sharp leading accent — the status color as a 2px stripe on the start edge.
+ * Uses logical CSS (inset-inline-start) so RTL flips it to the right edge. */
+.crm-event::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.125rem;
+  inset-inline-start: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--crm-event-accent, #3b82f6);
+}
+
+.crm-event:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 2px 0 rgba(0, 0, 0, 0.05),
+    0 1px 1px 0 rgba(0, 0, 0, 0.03);
+  background: var(--crm-event-bg-hover, #dbeafe);
+}
+
+/* Initial-circle "avatar" — placeholder for lead avatar in Phase 4. */
+.crm-event-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  background: var(--crm-event-accent, #3b82f6);
+  color: #ffffff;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  font-variant-numeric: normal;
+  font-feature-settings: normal;
+}
+
+.crm-event-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.crm-event-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+  font-size: 0.6875rem;
+}
+
+.crm-event-meet {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  opacity: 0.7;
+}
+
+/* In time-grid (week/day) views, events span vertically — let the chip
+ * fill the slot, wrap content top-aligned, and bump title weight/size. */
+.fc-timegrid-event .crm-event {
+  min-height: 100%;
+  align-items: flex-start;
+  padding-top: 0.3125rem;
+  padding-bottom: 0.3125rem;
+  flex-wrap: wrap;
+}
+
+.fc-timegrid-event .crm-event-title {
+  flex-basis: 100%;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  white-space: normal;
+}
+
+.fc-timegrid-event .crm-event-time {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}

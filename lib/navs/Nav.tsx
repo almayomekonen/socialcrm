@@ -124,6 +124,7 @@ function getNavLinks(user) {
       title: 'ביצועים',
     },
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
+    notOffice && { icon: 'calendar', href: '/calendar', title: 'פגישות' },
     notOffice && { icon: 'gear', href: '/settings/self_edit', title: 'הגדרות' },
   ] as { icon: IconNames; href: Route; title: string }[]
 }

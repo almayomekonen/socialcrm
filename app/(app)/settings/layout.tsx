@@ -12,6 +12,7 @@ export default async function SettingLayout({ children }) {
       <div className='sticky mt-8 grid gap-1 h-fit max-w-52 mobile:max-w-full'>
         <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
         <SettingsLink href='/settings/facebook' icon='comment-dots' title='ערוצי לידים' />
+        <SettingsLink href='/settings/calendar' icon='calendar' title='יומן Google' />
 
         {user.role == 'ADMIN' && (
           <>
