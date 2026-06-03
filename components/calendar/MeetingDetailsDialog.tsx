@@ -9,6 +9,7 @@ import { formatDateTime } from '@/lib/dates'
 import type { MeetingSummaryDTO } from '@/actions/calendar'
 import SyncStatusBadge from './SyncStatusBadge'
 import MeetingOutcomeBadge from './MeetingOutcomeBadge'
+import LeadStatusNudge from './LeadStatusNudge'
 import { useMeetingOutcomeActions } from './hooks/useMeetingOutcomeActions'
 
 type Props = {
@@ -31,10 +32,7 @@ export default function MeetingDetailsDialog({
   cancelling,
 }: Props) {
   const [confirmCancel, setConfirmCancel] = useState(false)
-  // Outcome actions are owned by the dialog (not the parent) so CalendarView
-  // doesn't grow further. onSettled closes the dialog right after a
-  // successful mark — matches the "under-2-second" workflow target: click
-  // event → click outcome → done.
+
   const outcome = useMeetingOutcomeActions({ onSettled: onClose })
 
   const canRetry = meeting.syncStatus === 'failed'
@@ -45,7 +43,7 @@ export default function MeetingDetailsDialog({
     <>
       <ModalPop
         open
-        onClose={busy ? () => {} : onClose}
+        onClose={busy ? () => {} : outcome.pendingNudge ? outcome.dismissNudge : onClose}
         pos='middle'
         className='w-[460px] max-w-[95vw]'
       >
@@ -99,10 +97,7 @@ export default function MeetingDetailsDialog({
             </a>
           )}
 
-          {/* Outcome action row — only shown when meeting is still scheduled.
-              Terminal states (completed / no_show / cancelled) replace these
-              buttons with the OutcomeBadge above. Undo lands in Stage 3+. */}
-          {isScheduled && (
+          {isScheduled && !outcome.pendingNudge && (
             <div className='flex gap-2 flex-wrap pt-1'>
               <Btn
                 lbl={outcome.busy === 'completed' ? 'מסמן…' : 'סמן כהושלמה'}
@@ -119,12 +114,27 @@ export default function MeetingDetailsDialog({
             </div>
           )}
 
-          {/* Edit + Cancel are scheduled-only. Terminal-state meetings
-              (completed / no_show) become read-only — the outcome record
-              is locked until undo lands. Retry stays available because
-              it's a sync-correctness action, not a state mutation. */}
+          {outcome.pendingNudge && (
+            <LeadStatusNudge
+              suggested={outcome.pendingNudge.suggested}
+              onApply={outcome.applyNudge}
+              onDismiss={outcome.dismissNudge}
+              busy={outcome.busy === 'nudge'}
+            />
+          )}
+
           <div className='flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap'>
-            <Btn lbl='סגור' variant='outline' onClick={onClose} disabled={busy} />
+            {/* When a nudge is pending the close button routes through
+                dismissNudge so the dismissal is explicit (and so any future
+                telemetry can distinguish "rep declined the suggestion" from
+                "rep closed without seeing it"). Behaviorally identical today
+                — dismissNudge calls onSettled which is onClose. */}
+            <Btn
+              lbl='סגור'
+              variant='outline'
+              onClick={outcome.pendingNudge ? outcome.dismissNudge : onClose}
+              disabled={busy}
+            />
             <div className='flex gap-2 flex-wrap'>
               {canRetry && (
                 <Btn
@@ -134,7 +144,12 @@ export default function MeetingDetailsDialog({
                   disabled={busy}
                 />
               )}
-              {isScheduled && (
+              {/* Edit/Cancel hide while a nudge is pending — the rep just
+                  marked an outcome, so the meeting is no longer in a
+                  scheduled state (the next page refresh will flip
+                  isScheduled to false anyway). Keeping them visible would
+                  also offer a hidden third "exit" from the nudge decision. */}
+              {isScheduled && !outcome.pendingNudge && (
                 <>
                   <Btn lbl='ערוך פגישה' variant='outline' onClick={onEdit} disabled={busy} />
                   <Btn

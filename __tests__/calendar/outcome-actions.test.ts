@@ -39,10 +39,9 @@ vi.mock('@/db/meetingAttendees', () => ({
 }))
 vi.mock('@/db/clients', () => ({ getFullLead: vi.fn() }))
 vi.mock('@/lib/integrations/google/calendarClient', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/integrations/google/calendarClient')>(
-      '@/lib/integrations/google/calendarClient',
-    )
+  const actual = await vi.importActual<typeof import('@/lib/integrations/google/calendarClient')>(
+    '@/lib/integrations/google/calendarClient',
+  )
   return { ...actual, createEvent: vi.fn(), updateEvent: vi.fn(), deleteEvent: vi.fn() }
 })
 
@@ -58,6 +57,7 @@ import {
   type MeetingRow,
   type MeetingStatus,
 } from '@/db/meetings'
+import { getFullLead } from '@/db/clients'
 import {
   markMeetingCompleted,
   markMeetingNoShow,
@@ -167,9 +167,7 @@ describe('markMeetingCompleted action', () => {
 
   describe('ownership', () => {
     it('returns not_owner when organizer differs from current user', async () => {
-      vi.mocked(getMeeting).mockResolvedValueOnce(
-        buildMeetingRow({ organizer_user_id: 999 }),
-      )
+      vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ organizer_user_id: 999 }))
       const r = await markMeetingCompleted({ meetingId: 42 })
       expect(r).toEqual({ ok: false, reason: 'not_owner' })
       expect(dbMarkMeetingCompleted).not.toHaveBeenCalled()
@@ -180,21 +178,27 @@ describe('markMeetingCompleted action', () => {
     it('returns existing completed_at when already completed (DB NOT called)', async () => {
       const existingCompletedAt = new Date('2026-05-31T12:00:00Z')
       vi.mocked(getMeeting).mockResolvedValueOnce(
-        buildMeetingRow({ status: 'completed', completed_at: existingCompletedAt }),
+        buildMeetingRow({
+          status: 'completed',
+          completed_at: existingCompletedAt,
+          lead_id: null,
+        }),
       )
       const r = await markMeetingCompleted({ meetingId: 42 })
+      // Stage 3: shape widened with leadId + suggestedLeadStatus (both null
+      // here because lead_id is null on the row).
       expect(r).toEqual({
         ok: true,
         meetingId: 42,
         completedAt: existingCompletedAt.toISOString(),
+        leadId: null,
+        suggestedLeadStatus: null,
       })
       expect(dbMarkMeetingCompleted).not.toHaveBeenCalled()
     })
 
     it("rejects when meeting is cancelled with reason='already_cancelled'", async () => {
-      vi.mocked(getMeeting).mockResolvedValueOnce(
-        buildMeetingRow({ status: 'cancelled' }),
-      )
+      vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ status: 'cancelled' }))
       const r = await markMeetingCompleted({ meetingId: 42 })
       expect(r).toEqual({ ok: false, reason: 'already_cancelled' })
       expect(dbMarkMeetingCompleted).not.toHaveBeenCalled()
@@ -303,9 +307,7 @@ describe('markMeetingNoShow action', () => {
 
   describe('ownership', () => {
     it('returns not_owner when organizer differs from current user', async () => {
-      vi.mocked(getMeeting).mockResolvedValueOnce(
-        buildMeetingRow({ organizer_user_id: 999 }),
-      )
+      vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ organizer_user_id: 999 }))
       const r = await markMeetingNoShow({ meetingId: 42 })
       expect(r).toEqual({ ok: false, reason: 'not_owner' })
       expect(dbMarkMeetingNoShow).not.toHaveBeenCalled()
@@ -316,21 +318,23 @@ describe('markMeetingNoShow action', () => {
     it('returns existing no_show_at when already no_show (DB NOT called)', async () => {
       const existingNoShowAt = new Date('2026-05-31T12:00:00Z')
       vi.mocked(getMeeting).mockResolvedValueOnce(
-        buildMeetingRow({ status: 'no_show', no_show_at: existingNoShowAt }),
+        buildMeetingRow({ status: 'no_show', no_show_at: existingNoShowAt, lead_id: null }),
       )
       const r = await markMeetingNoShow({ meetingId: 42 })
+      // Stage 3: shape widened with leadId + suggestedLeadStatus. no_show
+      // always returns suggestedLeadStatus: null (no nudge on setbacks).
       expect(r).toEqual({
         ok: true,
         meetingId: 42,
         noShowAt: existingNoShowAt.toISOString(),
+        leadId: null,
+        suggestedLeadStatus: null,
       })
       expect(dbMarkMeetingNoShow).not.toHaveBeenCalled()
     })
 
     it("rejects when meeting is cancelled with reason='already_cancelled'", async () => {
-      vi.mocked(getMeeting).mockResolvedValueOnce(
-        buildMeetingRow({ status: 'cancelled' }),
-      )
+      vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ status: 'cancelled' }))
       const r = await markMeetingNoShow({ meetingId: 42 })
       expect(r).toEqual({ ok: false, reason: 'already_cancelled' })
       expect(dbMarkMeetingNoShow).not.toHaveBeenCalled()
@@ -388,5 +392,135 @@ describe('markMeetingNoShow action', () => {
       const paths = vi.mocked(revalidatePath).mock.calls.map((c) => String(c[0]))
       expect(paths.some((p) => p.startsWith('/clients/'))).toBe(false)
     })
+  })
+})
+
+// ─── Stage 3: lead-status suggestion (leadId + suggestedLeadStatus) ─────────
+//
+// These suites pin the contract the LeadStatusNudge UI relies on:
+//   - `completed` consults getFullLead and maps via suggestNextLeadStatus.
+//   - `no_show` NEVER returns a suggestion (null, regardless of lead status).
+//   - Lead fetch failures (missing row, thrown error) degrade to null — the
+//     outcome write has already committed; the nudge is best-effort.
+//   - The shape (leadId + suggestedLeadStatus) is present on BOTH fresh-write
+//     and idempotent re-mark paths.
+
+function leadRow(status: string): any {
+  return { id: 555, status }
+}
+
+describe('markMeetingCompleted — Stage 3 lead-status suggestion', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    setCurrentUser({ id: 100, agencyId: 1 })
+  })
+
+  it('returns suggestedLeadStatus=null when meeting has no lead_id (getFullLead NOT called)', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: null }))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.leadId).toBeNull()
+    expect(r.suggestedLeadStatus).toBeNull()
+    expect(getFullLead).not.toHaveBeenCalled()
+  })
+
+  it('maps new → interested (meeting attendance beats outreach-stamp)', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockResolvedValueOnce(leadRow('new'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.leadId).toBe(555)
+    expect(r.suggestedLeadStatus).toBe('interested')
+  })
+
+  it('maps contacted → interested', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockResolvedValueOnce(leadRow('contacted'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.suggestedLeadStatus).toBe('interested')
+  })
+
+  it('maps interested → closed', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockResolvedValueOnce(leadRow('interested'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.suggestedLeadStatus).toBe('closed')
+  })
+
+  it('returns null suggestion for terminal closed lead (no funnel-undo nudges)', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockResolvedValueOnce(leadRow('closed'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.suggestedLeadStatus).toBeNull()
+  })
+
+  it('returns null suggestion for terminal lost lead', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockResolvedValueOnce(leadRow('lost'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.suggestedLeadStatus).toBeNull()
+  })
+
+  it('returns null suggestion when getFullLead resolves to null (lead deleted) — outcome still ok', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockResolvedValueOnce(null as any)
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.leadId).toBe(555)
+    expect(r.suggestedLeadStatus).toBeNull()
+  })
+
+  it('returns null suggestion when getFullLead throws — outcome still ok (best-effort nudge)', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    vi.mocked(getFullLead).mockRejectedValueOnce(new Error('db down'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.leadId).toBe(555)
+    expect(r.suggestedLeadStatus).toBeNull()
+  })
+
+  it('idempotent path also includes leadId + suggestion (already-completed return)', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(
+      buildMeetingRow({
+        status: 'completed',
+        completed_at: new Date('2026-05-31T12:00:00Z'),
+        lead_id: 555,
+      }),
+    )
+    vi.mocked(getFullLead).mockResolvedValueOnce(leadRow('contacted'))
+    const r = await markMeetingCompleted({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.leadId).toBe(555)
+    expect(r.suggestedLeadStatus).toBe('interested')
+    expect(dbMarkMeetingCompleted).not.toHaveBeenCalled()
+  })
+})
+
+describe('markMeetingNoShow — Stage 3: never suggests a lead-status change', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    setCurrentUser({ id: 100, agencyId: 1 })
+  })
+
+  it('returns suggestedLeadStatus=null even when lead is new (no_show is a setback, not a signal)', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    const r = await markMeetingNoShow({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.leadId).toBe(555)
+    expect(r.suggestedLeadStatus).toBeNull()
+    // getFullLead is not consulted on the no_show path — the suggestion is
+    // statically null, so no DB round-trip.
+    expect(getFullLead).not.toHaveBeenCalled()
+  })
+
+  it('returns suggestedLeadStatus=null even when lead is interested', async () => {
+    vi.mocked(getMeeting).mockResolvedValueOnce(buildMeetingRow({ lead_id: 555 }))
+    const r = await markMeetingNoShow({ meetingId: 42 })
+    if (!r.ok) throw new Error('expected ok')
+    expect(r.suggestedLeadStatus).toBeNull()
   })
 })
