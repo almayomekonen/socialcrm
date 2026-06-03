@@ -1,0 +1,115 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { requireAgencyUser } from '@/lib/requireUser'
+import { getFullLead } from '@/db/clients'
+import { insertMeeting } from '@/db/meetings'
+import { insertAttendees } from '@/db/meetingAttendees'
+import {
+  INVITE_DIAG,
+  normalizeAttendees,
+  pushMeetingToGoogle,
+  toDate,
+  type ActionError,
+} from './shared'
+
+export type CreateMeetingInput = {
+  leadId?: number | null
+  title: string
+  description?: string | null
+  location?: string | null
+  startAt: string | Date
+  endAt: string | Date
+  timezone: string
+  attendees?: Array<{ email: string; displayName?: string | null }>
+}
+
+export type CreateMeetingResult =
+  | {
+      ok: true
+      meetingId: number
+      meetUrl: string | null
+      syncStatus: 'synced' | 'failed' | 'reauth_required'
+    }
+  | { ok: false; reason: ActionError; details?: string }
+
+export async function createMeeting(input: CreateMeetingInput): Promise<CreateMeetingResult> {
+  const title = input.title?.trim()
+  if (!title) return { ok: false, reason: 'invalid_input', details: 'title' }
+  const startAt = toDate(input.startAt)
+  const endAt = toDate(input.endAt)
+  if (!startAt || !endAt) return { ok: false, reason: 'invalid_input', details: 'dates' }
+  if (endAt.getTime() <= startAt.getTime()) {
+    return { ok: false, reason: 'invalid_input', details: 'end_before_start' }
+  }
+  if (!input.timezone || typeof input.timezone !== 'string') {
+    return { ok: false, reason: 'invalid_input', details: 'timezone' }
+  }
+
+  const user = await requireAgencyUser()
+
+  let leadId: number | null = null
+  if (input.leadId != null) {
+    const id = Number(input.leadId)
+    if (!Number.isFinite(id) || id <= 0) {
+      return { ok: false, reason: 'invalid_input', details: 'lead' }
+    }
+    const lead = await getFullLead({ id, select: ['name'] }).catch(() => null)
+    if (!lead?.name) return { ok: false, reason: 'lead_not_found' }
+    leadId = id
+  }
+
+  const safeTitle = title.slice(0, 255)
+  const safeDescription = input.description?.slice(0, 5000) ?? null
+  const safeLocation = input.location?.slice(0, 255) ?? null
+
+  const meetingId = await insertMeeting({
+    agencyId: user.agencyId,
+    organizerUserId: user.id,
+    leadId,
+    title: safeTitle,
+    description: safeDescription,
+    location: safeLocation,
+    timezone: input.timezone,
+    startAt,
+    endAt,
+  })
+
+  const attendees = normalizeAttendees(input.attendees ?? [])
+  if (attendees.length > 0) {
+    await insertAttendees(meetingId, attendees)
+  }
+
+  if (INVITE_DIAG) {
+    console.info('[calendar.invite.diag] action.createMeeting', {
+      meetingId,
+      userId: user.id,
+      leadId,
+      title: safeTitle,
+      timezone: input.timezone,
+      rawAttendeesInput: input.attendees ?? [],
+      rawAttendeeCount: input.attendees?.length ?? 0,
+      normalizedAttendees: attendees,
+      normalizedAttendeeCount: attendees.length,
+      droppedCount: (input.attendees?.length ?? 0) - attendees.length,
+    })
+  }
+  // === /TEMP DIAG ===
+
+  const outcome = await pushMeetingToGoogle({
+    meetingId,
+    userId: user.id,
+    title: safeTitle,
+    description: safeDescription,
+    location: safeLocation,
+    startAt,
+    endAt,
+    timezone: input.timezone,
+    attendees,
+  })
+
+  revalidatePath('/calendar')
+  if (leadId) revalidatePath(`/clients/${leadId}`)
+
+  return { ok: true, meetingId, meetUrl: outcome.meetUrl, syncStatus: outcome.syncStatus }
+}

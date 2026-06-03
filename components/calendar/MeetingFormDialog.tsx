@@ -94,6 +94,13 @@ export default function MeetingFormDialog({
     if (endAt.getTime() <= startAt.getTime()) {
       return setErrMsg('שעת הסיום חייבת להיות אחרי שעת ההתחלה')
     }
+    // Block past-start creation. Today's calendar query shows past-today
+    // meetings (see app/(app)/calendar/page.tsx), but knowingly creating a
+    // meeting in the past is almost always a fumbled time entry. Mirrors
+    // the drag-to-past guard in CalendarView.tsx.
+    if (startAt.getTime() < Date.now()) {
+      return setErrMsg('לא ניתן ליצור פגישה בתאריך שעבר')
+    }
 
     setBusy(true)
     try {

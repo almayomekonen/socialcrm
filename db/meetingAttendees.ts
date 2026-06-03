@@ -44,6 +44,27 @@ export async function getAttendeesForMeeting(meetingId: number): Promise<Meeting
   return rows as MeetingAttendeeRow[]
 }
 
+/**
+ * Replace the full attendee list for a meeting in a single transaction.
+ * Used by the update path: Google's events.patch contract is that the
+ * `attendees` field, if present in the body, REPLACES the existing list —
+ * we mirror that semantics on our side.
+ *
+ * Attendee lists are small (typically <10), so delete-then-insert is
+ * simpler and correct vs. computing a diff.
+ */
+export async function replaceAttendees(meetingId: number, attendees: AttendeeInput[]): Promise<void> {
+  await db.transaction(async (trx) => {
+    await trx('meeting_attendees').where({ meeting_id: meetingId }).del()
+    if (attendees.length === 0) return
+    const rows = attendees
+      .map((a) => normalizeAttendee(meetingId, a))
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+    if (rows.length === 0) return
+    await trx('meeting_attendees').insert(rows).onConflict(['meeting_id', 'email']).ignore()
+  })
+}
+
 function normalizeAttendee(
   meetingId: number,
   input: AttendeeInput,

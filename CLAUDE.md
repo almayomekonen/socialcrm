@@ -3,6 +3,7 @@
 @claude/ux-guidelines.md
 @claude/product.md
 @claude/do-not-touch.md
+@claude/architecture-rules.md
 
 ---
 

@@ -24,7 +24,15 @@ export default async function CalendarPage() {
     )
   }
 
-  const meetings = await listUpcomingMeetings({ limit: 100 })
+  // Show all of today's meetings (including ones that already ended a few
+  // hours ago) plus everything future. Without the start-of-day anchor, a
+  // meeting created at 14:00 disappears at 14:01 — confusing right after
+  // create. Server-side `new Date()` returns UTC instant; rounding to the
+  // *day boundary* lets local-time renders still show today's events even
+  // when server timezone differs from the user's.
+  const todayStart = new Date()
+  todayStart.setUTCHours(0, 0, 0, 0)
+  const meetings = await listUpcomingMeetings({ limit: 100, fromAt: todayStart })
   const needsReauth = conn.sync_status === 'reauth_required'
 
   return (

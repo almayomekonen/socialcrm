@@ -7,7 +7,9 @@
       "Bash(python3 -c ' *)",
       "Bash(curl -sS -o /dev/null -w \"HTTP:%{http_code}  size_dl:%{size_download}  ttfb:%{time_starttransfer}s  total:%{time_total}s  redirects:%{num_redirects}  final:%{url_effective}\\\\n\" https://getsocialcrm.com/auth)",
       "Bash(curl -sS -o /dev/null -w \"HTTP:%{http_code}  size_dl:%{size_download}  ttfb:%{time_starttransfer}s  total:%{time_total}s  redirects:%{num_redirects}  final:%{url_effective}\\\\n\" https://getsocialcrm.com/auth/register)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(npx tsc *)",
+      "Bash(NODE_ENV=test VITEST_NO_DB=1 pnpm exec vitest run __tests__/calendar/ --no-file-parallelism)"
     ]
   }
 }
