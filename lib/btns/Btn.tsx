@@ -6,12 +6,12 @@ import Link, { LinkProps } from 'next/link'
 import { useFormStatus } from 'react-dom'
 import Icon, { IconNames } from '../Icon'
 
-const buttonVariants = cva('flex items-center min-w-fit justify-center font-semibold rounded-md flex-nowrap', {
+const buttonVariants = cva('flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap', {
   variants: {
     variant: {
       solid: 'bg-solid text-white hover:bg-solid/85',
       soft: 'bg-gray-200 hover:bg-gray-300 text-black',
-      outline: 'border text-black border-gray-300 bg-white hover:bg-gray-100/60',
+      outline: 'border text-black border-gray-200 bg-white hover:bg-gray-100/60',
       sign: 'hover:opacity-85',
       simple:
         'hover:bg-solid leading-tight active:opacity-95 hover:text-white block w-full text-start disabled:pointer-events-none disabled:opacity-50',

@@ -1,15 +1,21 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { getLeadByIdNum, upsertLead } from '../../actions/clients'
+import { findDuplicateLeads } from '../../actions/leadDuplicates'
+import type { DuplicateMatch } from '@/lib/leads/duplicateMatch'
 import Title from '@/lib/Title'
 import { useUser } from '@/lib/hooksNEvents'
 import ClientForm from './clientForm'
+import DuplicateLeadBanner from './DuplicateLeadBanner'
 import { getFormData2 } from '@/lib/form/funcs'
 import { api, isIdNumValid } from '@/lib/funcs'
 import { toast } from '@/lib/toast'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
+
+const DUPLICATE_CHECK_DEBOUNCE_MS = 400
+const CONTACT_FIELDS = ['firstName', 'lastName', 'idNum', 'phone', 'secPhone', 'email'] as const
 
 export default function ClientFormPop({
   client,
@@ -18,14 +24,54 @@ export default function ClientFormPop({
 }: {
   client?: any
   onClose?: () => void
-  /** Called after a successful upsert with the lead's id. Lets callers
-   *  (e.g. the billing flow) navigate into the new lead's workspace
-   *  without re-fetching. Fires on both insert and update. */
   onCreated?: (leadId: number) => void
 }) {
   const user = useUser()
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([])
+  const [dupDismissed, setDupDismissed] = useState(false)
+
+  const contactRef = useRef<Record<string, string>>({
+    firstName: client?.firstName ?? '',
+    lastName: client?.lastName ?? '',
+    idNum: client?.idNum ?? '',
+    phone: client?.phone ?? '',
+    secPhone: client?.secPhone ?? '',
+    email: client?.email ?? '',
+  })
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reqRef = useRef(0)
+
+  useEffect(() => () => debounceRef.current && clearTimeout(debounceRef.current), [])
+
+  function runDuplicateCheck() {
+    const c = contactRef.current
+    const token = ++reqRef.current
+    findDuplicateLeads({
+      phone: c.phone,
+      secPhone: c.secPhone,
+      email: c.email,
+      idNum: c.idNum,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      excludeId: client?.id ?? null,
+    })
+      .then((res) => {
+        if (token !== reqRef.current) return
+        setDuplicates(res)
+        setDupDismissed(false)
+      })
+      .catch(() => {})
+  }
+
+  function onContactBlur(name: string, value: string) {
+    if (!CONTACT_FIELDS.includes(name as (typeof CONTACT_FIELDS)[number])) return
+    contactRef.current[name] = value
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(runDuplicateCheck, DUPLICATE_CHECK_DEBOUNCE_MS)
+  }
+
   if (!user) return null
 
   async function onSubmit(e) {
@@ -53,8 +99,11 @@ export default function ClientFormPop({
   return (
     <div>
       <Title lbl={client?.id ? 'עריכת ליד' : 'הוספת ליד'} className='mb-6' />
+      {!dupDismissed && duplicates.length > 0 && (
+        <DuplicateLeadBanner matches={duplicates} onDismiss={() => setDupDismissed(true)} />
+      )}
       <form id='clientForm' onSubmit={onSubmit}>
-        <ClientForm key={Math.random()} data={client} />
+        <ClientForm key={client?.id ?? 'new'} data={client} onContactBlur={onContactBlur} />
         <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
       </form>
       <ConfirmPop

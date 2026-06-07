@@ -43,21 +43,21 @@ export function AttachPopover({
             className={[
               'group flex items-center gap-2 w-full px-2.5 py-2 rounded-xl text-start',
               'transition-colors duration-150',
-              isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50',
+              isSelected ? 'bg-primary-tint' : 'hover:bg-gray-50',
             ].join(' ')}
           >
             <Icon
               name={LENS_ICON[id]}
               type='reg'
-              className={`size-3.5 shrink-0 transition-colors ${isSelected ? 'bg-indigo-500' : 'bg-gray-400 group-hover:bg-indigo-500'}`}
+              className={`size-3.5 shrink-0 transition-colors ${isSelected ? 'bg-primary' : 'bg-gray-400 group-hover:bg-primary'}`}
             />
             <span
-              className={`text-[12.5px] truncate transition-colors ${isSelected ? 'text-indigo-700' : 'text-gray-700 group-hover:text-gray-900'}`}
+              className={`text-[12.5px] truncate transition-colors ${isSelected ? 'text-primary-text' : 'text-gray-700 group-hover:text-gray-900'}`}
             >
               {LENS_LABEL[id]}
             </span>
             {isSelected && (
-              <Icon name='check' type='reg' className='ms-auto size-3 bg-indigo-500 shrink-0' aria-hidden='true' />
+              <Icon name='check' type='reg' className='ms-auto size-3 bg-primary shrink-0' aria-hidden='true' />
             )}
           </button>
         )
@@ -74,7 +74,7 @@ export function AttachPopover({
         <Icon
           name='arrow-up-from-bracket'
           type='reg'
-          className='size-3.5 shrink-0 bg-gray-400 group-hover:bg-indigo-500 transition-colors'
+          className='size-3.5 shrink-0 bg-gray-400 group-hover:bg-primary transition-colors'
         />
         <span className='text-[12.5px] text-gray-700 group-hover:text-gray-900 truncate'>העלאת קובץ</span>
       </button>

@@ -1,7 +1,8 @@
 import { db } from '@/config/db'
-import { isAdmin } from '@/types/roles'
+import { isAdmin, type Roles } from '@/types/roles'
 import { getAgencyId } from './agencies'
 import { getPerms } from './filter'
+import { applyDueMembership } from './worklist'
 import { filesJsonAgg } from './helpers/aggregations'
 import { Lead, LeadInfo } from '@/types/db/tables'
 import { requireUser } from '@/lib/requireUser'
@@ -33,6 +34,17 @@ export async function getFullLead({ id, select }: { id: number; select?: LeadKey
   return lead ? { ...lead, id: id } : undefined
 }
 
+export async function recordLeadActivity(
+  leadId: number,
+  agencyId: number,
+  opts?: { outcomeType?: string | null; at?: Date },
+): Promise<void> {
+  const at = opts?.at ?? new Date()
+  const patch: Record<string, unknown> = { lastActivityAt: at, updatedAt: at }
+  if (opts && 'outcomeType' in opts) patch.lastOutcomeType = opts.outcomeType ?? null
+  await db('clients').where({ id: leadId, agencyId }).update(patch)
+}
+
 export async function getFamMembers(clientId) {
   const user = await requireUser()
   const familyId = (await db('clients').where({ id: clientId, agencyId: user.agencyId }).select('familyId').first())?.familyId
@@ -45,9 +57,11 @@ export async function getFamMembers(clientId) {
   return { famMembers, familyId }
 }
 
-export async function hasAnyLeads(agencyId: number, gotPermIds: number[]): Promise<boolean> {
+export async function hasAnyLeads(agencyId: number, gotPermIds: number[], role: Roles): Promise<boolean> {
   const plan = await getAgencyPlan(agencyId)
-  const q = db('clients').where({ agencyId }).whereIn('userId', gotPermIds)
+  const q = db('clients').where({ agencyId })
+
+  if (!isAdmin(role)) q.whereIn('userId', gotPermIds)
   if (plan === 'free') q.where('overQuota', false)
   const res = await q.count('id').first()
   return Number(res?.count || 0) > 0
@@ -105,6 +119,8 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds, s
 
   if (gotPermIds && !isAdmin(user.role)) base.whereIn('clients.userId', gotPermIds)
   if (plan === 'free') base.where('clients.overQuota', false)
+
+  if (params.view === 'due') applyDueMembership(base)
 
   if (clientId) {
     base.where('clients.id', clientId)

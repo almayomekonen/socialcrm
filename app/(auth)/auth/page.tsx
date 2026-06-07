@@ -91,7 +91,7 @@ export default async function AuthPage({ searchParams }) {
                 אין לך חשבון?{' '}
                 <Link
                   href='/auth/register'
-                  className='text-indigo-600 font-semibold hover:text-indigo-700 transition-colors'
+                  className='text-primary-text font-semibold hover:text-primary transition-colors'
                 >
                   הצטרף עכשיו
                 </Link>

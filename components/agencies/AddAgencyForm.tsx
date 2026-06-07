@@ -75,7 +75,7 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
         כבר יש לך חשבון?{' '}
         <Link
           href='/auth'
-          className='text-indigo-600 font-semibold hover:text-indigo-700 transition-colors'
+          className='text-primary-text font-semibold hover:text-primary transition-colors'
         >
           התחבר
         </Link>

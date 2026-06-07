@@ -8,13 +8,95 @@
 @config "../../tailwind.config.ts";
 
 @theme {
-  --color-solid: #3f20f5;
-  --color-dark: #171424;
-  --color-soft: #4020f515;
-  --color-softy: #f3f2ff;
+  /* ──────────────────────────────────────────────────────────────────────
+   * Brand palette — Linear × Stripe hybrid (Phase 0 + 1).
+   *
+   * Phase 0: new ROLE-BASED semantic tokens (use these going forward).
+   * Phase 1: the legacy appearance-named tokens (solid/dark/soft/softy/gray)
+   *          are ALIASED to the new ones, so every existing utility
+   *          (bg-solid, bg-dark, bg-soft, bg-softy, bg-gray, accent-solid, …)
+   *          adopts the new palette with NO component changes.
+   *
+   * Reversible: restore the original hex values noted in the trailing
+   * comments to roll the brand back. Borders, focus rings, badges and
+   * hardcoded colors are intentionally untouched here (Phases 2–6).
+   * ────────────────────────────────────────────────────────────────────── */
+
+  /* New semantic tokens */
+  --color-primary: #5e6ad2; /* CTA / active / fills */
+  --color-primary-text: #4b53b8; /* accessible primary for links/small text on white */
+  --color-ink: #0a2540; /* sidebar / headings / ink */
+  --color-accent: #8b91f0; /* selection / AI highlight */
+  --color-bg: #f6f9fc; /* app background */
+  --color-surface: #ffffff; /* cards / panels */
+  --color-border: #e3e8ee; /* hairlines (applied in Phase 3) */
+  --color-success: #1fa971;
+  --color-warning: #e0a33b;
+  --color-error: #df1b41;
+
+  /* Brand tints, regenerated at the new hue */
+  --color-primary-soft: #5e6ad214; /* selected / hover overlay */
+  --color-primary-tint: #eeeffb; /* pale brand surface */
+
+  /* Phase 4: unified status-badge roles (Info/Success/Warning/Error/Neutral).
+     bg/text/border are derived from the base tokens via color-mix — no new hues.
+     One semantic system for sync / meeting / billing / PDF / technical statuses. */
+  --color-info-bg: var(--color-primary-tint);
+  --color-info-text: var(--color-primary-text);
+  --color-info-border: color-mix(in srgb, var(--color-primary) 22%, white);
+  --color-info-dot: var(--color-primary);
+
+  --color-success-bg: color-mix(in srgb, var(--color-success) 12%, white);
+  --color-success-text: color-mix(in srgb, var(--color-success) 72%, black);
+  --color-success-border: color-mix(in srgb, var(--color-success) 26%, white);
+  --color-success-dot: var(--color-success);
+
+  --color-warning-bg: color-mix(in srgb, var(--color-warning) 16%, white);
+  --color-warning-text: color-mix(in srgb, var(--color-warning) 64%, black);
+  --color-warning-border: color-mix(in srgb, var(--color-warning) 30%, white);
+  --color-warning-dot: var(--color-warning);
+
+  --color-error-bg: color-mix(in srgb, var(--color-error) 10%, white);
+  --color-error-text: color-mix(in srgb, var(--color-error) 70%, black);
+  --color-error-border: color-mix(in srgb, var(--color-error) 22%, white);
+  --color-error-dot: var(--color-error);
+
+  --color-neutral-bg: #f3f4f6; /* gray-100 */
+  --color-neutral-text: #4b5563; /* gray-600 */
+  --color-neutral-border: var(--color-border);
+  --color-neutral-dot: #9ca3af; /* gray-400 */
+
+  /* Legacy aliases → new palette (revert these to roll back) */
+  --color-solid: var(--color-primary); /* was #3f20f5 */
+  --color-dark: var(--color-ink); /* was #171424 */
+  --color-soft: var(--color-primary-soft); /* was #4020f515 */
+  --color-softy: var(--color-primary-tint); /* was #f3f2ff */
+  --color-gray: var(--color-bg); /* was #f9f9f9 */
+
+  /* Phase 3: route Tailwind's gray-200 (the global default border + every
+     explicit border-gray-200) to the hairline token, so borders are one tone.
+     Minor collateral: bg-gray-200 fills shift to the same near-identical cool gray. */
+  --color-gray-200: var(--color-border); /* was #e5e7eb */
+
+  /* Teal tokens retained as-is for charts; realigned in Phase 6 */
   --color-soft-green: #6eabb4;
   --color-solid-green: #298290;
-  --color-gray: #f9f9f9;
+
+  /* E0: flat elevation. The Material ramp is retired — resting surfaces are flat
+     (separation comes from the Phase-3 hairline borders); shadows are reserved
+     for floating overlays only. Two soft tokens + remapped legacy shadow scale,
+     so existing shadow utilities flip with no component edits. Reversible: restore
+     the original Material values in base.css / below to roll back. */
+  --shadow-overlay: 0 8px 24px -8px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-modal: 0 16px 48px -12px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  --shadow-1: none; /* cards → flat */
+  --shadow-sm: none;
+  --shadow: none; /* bare `shadow` (e.g. .btn) → flat */
+  --shadow-md: var(--shadow-overlay); /* dropdowns / popovers / tooltips */
+  --shadow-lg: var(--shadow-overlay);
+  --shadow-xl: var(--shadow-overlay);
+  --shadow-2xl: var(--shadow-modal); /* modals / side panels */
 
   --text-md: 15px;
 }
@@ -28,7 +110,7 @@ html {
 }
 
 body {
-  @apply bg-gray  text-gray-800 overflow-x-hidden;
+  @apply bg-gray  text-gray-800 font-normal overflow-x-hidden;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -36,8 +118,8 @@ body {
   }
 
   &::-webkit-scrollbar-thumb {
-    color: rgb(35, 32, 50);
-    background: rgba(35, 32, 50, 1);
+    color: var(--color-ink);
+    background: var(--color-ink);
   }
 
   &::-webkit-scrollbar-track {
@@ -79,11 +161,11 @@ body {
 }
 
 .title {
-  @apply text-2xl font-bold;
+  @apply text-2xl font-semibold;
 }
 
 @utility card {
-  @apply p-6 bg-white rounded-md border shadow-1 m-1;
+  @apply p-6 bg-white rounded-md border m-1;
 }
 
 @keyframes skeleton-progress {
@@ -153,7 +235,7 @@ body {
 }
 
 @utility btn {
-  @apply flex items-center gap-4 cursor-pointer border px-4 min-w-fit h-10 justify-center bg-white font-semibold rounded-md shadow hover:shadow-lg active:shadow-none transition-shadow disabled:pointer-events-none disabled:opacity-50;
+  @apply flex items-center gap-4 cursor-pointer border px-4 min-w-fit h-10 justify-center bg-white font-medium rounded-md disabled:pointer-events-none disabled:opacity-50;
 }
 
 @utility accordion {
@@ -194,10 +276,7 @@ body {
   padding: 2rem;
   border-radius: 6px;
   animation: fade-scale-in 0.15s ease-out;
-  box-shadow:
-    0px 5px 5px -3px rgba(0, 0, 0, 0.2),
-    0px 8px 10px 1px rgba(0, 0, 0, 0.14),
-    0px 3px 14px 2px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-modal);
 }
 .pop,
 .pop-bg {
@@ -278,7 +357,12 @@ body {
   position: absolute;
   inset: -7px;
   border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.1) 40%, transparent 70%);
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--color-primary) 18%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 10%, transparent) 40%,
+    transparent 70%
+  );
   opacity: 0;
   transform: scale(0.45);
   transition:
@@ -294,7 +378,7 @@ body {
   position: absolute;
   inset: -2px;
   border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(129, 140, 248, 0.22) 0%, transparent 65%);
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-accent) 22%, transparent) 0%, transparent 65%);
   opacity: 0;
   transform: scale(0.6);
   transition:
@@ -305,7 +389,7 @@ body {
 }
 
 .copilot-trigger-btn:hover {
-  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
 .copilot-trigger-btn:hover::before {
@@ -320,7 +404,7 @@ body {
 
 /* Active/press: faster collapse, slight compression */
 .copilot-trigger-btn:active {
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
   transition-duration: 80ms;
 }
 
@@ -338,7 +422,7 @@ body {
 
 /* Open state: bloom pinned at partial intensity — readable "selected" signal */
 .copilot-trigger-open {
-  background-color: rgba(99, 102, 241, 0.08);
+  background-color: var(--color-primary-soft);
 }
 
 .copilot-trigger-open::before {

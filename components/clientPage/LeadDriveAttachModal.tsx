@@ -100,7 +100,7 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder='חפש קובץ לפי שם או תוכן…'
-            className='w-full h-10 px-3 ps-9 rounded-md border border-gray-200 text-sm focus:outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100'
+            className='w-full h-10 px-3 ps-9 rounded-md border border-gray-200 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
             autoFocus
           />
           <Icon

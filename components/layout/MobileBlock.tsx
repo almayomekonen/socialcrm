@@ -101,7 +101,7 @@ function CinematicLighting() {
       <div
         className='absolute -bottom-40 -left-32 size-[560px] rounded-full blur-[100px] mb-drift-slow-2'
         style={{
-          background: 'radial-gradient(circle, rgba(99,102,241,0.28) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--color-primary) 28%, transparent) 0%, transparent 70%)',
         }}
       />
       <div

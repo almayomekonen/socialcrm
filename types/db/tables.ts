@@ -198,6 +198,8 @@ export interface Lead {
   statusChangedAt: Date
   lastActivityAt: Date | null
   lastOutcomeType: string | null
+  nextFollowUpAt: Date | null
+  followUpNote: string | null
   state?: 'updated' | 'cold' | null
   priority?: number
   overdueRatio?: number | null

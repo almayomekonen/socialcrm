@@ -49,7 +49,7 @@ export function ToolsPopover({
               <Icon
                 name='sparkles'
                 type='reg'
-                className='size-3 bg-gray-400 group-hover:bg-indigo-500 transition-colors shrink-0'
+                className='size-3 bg-gray-400 group-hover:bg-primary transition-colors shrink-0'
               />
             )}
             <span className='text-[12.5px] text-gray-700 group-hover:text-gray-900 truncate'>{action.label}</span>
@@ -69,7 +69,7 @@ export function ToolsPopover({
       >
         <Icon
           name='google-drive'
-          className='size-3 bg-gray-400 group-hover:bg-indigo-500 transition-colors shrink-0'
+          className='size-3 bg-gray-400 group-hover:bg-primary transition-colors shrink-0'
         />
         <span className='text-[12.5px] text-gray-700 group-hover:text-gray-900 truncate'>Google Drive</span>
       </button>

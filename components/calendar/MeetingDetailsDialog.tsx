@@ -10,6 +10,7 @@ import type { MeetingSummaryDTO } from '@/actions/calendar'
 import SyncStatusBadge from './SyncStatusBadge'
 import MeetingOutcomeBadge from './MeetingOutcomeBadge'
 import LeadStatusNudge from './LeadStatusNudge'
+import FollowUpControl from '@/components/leads/FollowUpControl'
 import { useMeetingOutcomeActions } from './hooks/useMeetingOutcomeActions'
 
 type Props = {
@@ -70,12 +71,12 @@ export default function MeetingDetailsDialog({
           {meeting.leadId && (
             <div className='grid gap-1 text-sm'>
               <div className='text-gray-500 text-xs uppercase tracking-wide'>ליד</div>
-              <Link
-                href={`/clients/${meeting.leadId}`}
-                className='text-blue-700 hover:underline w-fit'
-              >
-                צפה בליד ←
-              </Link>
+              <div className='flex items-center justify-between gap-2'>
+                <Link href={`/clients/${meeting.leadId}`} className='text-blue-700 hover:underline w-fit'>
+                  צפה בליד ←
+                </Link>
+                <FollowUpControl leadId={meeting.leadId} />
+              </div>
             </div>
           )}
 

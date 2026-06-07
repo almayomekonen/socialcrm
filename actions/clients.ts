@@ -273,6 +273,7 @@ export async function updateLead(data) {
 
   if ('status' in safeData) {
     safeData.statusChangedAt = new Date()
+    safeData.lastActivityAt = new Date()
   }
   safeData.updatedAt = new Date()
 

@@ -74,7 +74,7 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
         <p className='text-sm text-gray-600'>בחר את מספר הטלפון שברצונך לחבר:</p>
         <FormField lbl='מספר וואטסאפ עסקי' error={connectError ?? undefined}>
           <select
-            className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-blue-200'
+            className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
             value={selectedPhoneId}
             onChange={(e) => setSelectedPhoneId(e.target.value)}
           >

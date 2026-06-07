@@ -119,7 +119,7 @@ export default function AttendeeChipsInput({
     ? 'opacity-50 pointer-events-none border-gray-200'
     : error
       ? 'border-red-500 focus-within:outline-2 focus-within:outline-red-200'
-      : 'border-gray-200 focus-within:outline-2 focus-within:outline-blue-200'
+      : 'border-gray-200 focus-within:outline-2 focus-within:outline-primary'
 
   return (
     <FormField lbl={lbl} info={info} error={error ?? undefined}>

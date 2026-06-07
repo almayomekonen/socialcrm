@@ -66,11 +66,11 @@ function InvoiceRow({ leadId, invoice }: { leadId: number; invoice: BillInvoiceR
           <FulfillStateChip state={invoice.fulfillState} />
         </div>
       </td>
-      <td className='px-3 py-2'>
+      <td className='px-3 py-2 tabular-nums'>
         {totalForDisplay == null ? <span className='text-gray-400'>—</span> : formatCurrency(totalForDisplay)}
       </td>
-      <td className='px-3 py-2'>{invoice.issuedAt ? formatDate(invoice.issuedAt) : <span className='text-gray-400'>—</span>}</td>
-      <td className='px-3 py-2'>{invoice.dueAt ? formatDate(invoice.dueAt) : <span className='text-gray-400'>—</span>}</td>
+      <td className='px-3 py-2 tabular-nums'>{invoice.issuedAt ? formatDate(invoice.issuedAt) : <span className='text-gray-400'>—</span>}</td>
+      <td className='px-3 py-2 tabular-nums'>{invoice.dueAt ? formatDate(invoice.dueAt) : <span className='text-gray-400'>—</span>}</td>
       <td className='px-3 py-2 text-end'>
         <Link href={detailHref} className='text-solid underline-offset-2 hover:underline'>
           {invoice.docState === 'draft' ? 'ערוך' : 'הצג'}

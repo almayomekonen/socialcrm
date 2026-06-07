@@ -176,7 +176,7 @@ export function MultiSelectSearch({
         <div
           style={{ minWidth: `${inputRef.current?.offsetWidth}px` }}
           ref={popRef}
-          className='absolute top-full right-0 z-999 border border-gray-300 rounded-md  scrollbar-slim max-h-50 overflow-y-auto bg-white'
+          className='absolute top-full right-0 z-999 border border-gray-200 rounded-md  scrollbar-slim max-h-50 overflow-y-auto bg-white'
         >
           <button type='button' onMouseDown={isAllSelected ? onDeselectAll : onSelectAll} className={itemCls}>
             <Icon name={isAllSelected ? 'square-check' : 'square'} />

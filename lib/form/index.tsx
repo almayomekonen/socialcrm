@@ -8,12 +8,12 @@ import { toInputDate } from '../dates'
 
 // 1. Centralized CVA for standard form field styles
 const formFieldVariants = cva(
-  'h-10 w-full rounded-md border border-gray-200 bg-white focus:outline-blue-200 disabled:opacity-50',
+  'h-10 w-full rounded-md border border-gray-200 bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50',
   {
     variants: {
       hasError: {
         true: 'border-red-500 focus:outline-red-200',
-        false: 'border-gray-200 focus:outline-blue-200',
+        false: 'border-gray-200 focus:outline-primary',
       },
     },
     defaultVariants: {
@@ -38,7 +38,7 @@ export function FormField({ children, lbl, info, href, className, error, tooltip
     <div className={twMerge('block ', className)}>
       {lbl && (
         <div className='flex justify-between mb-1 ms-1 items-end '>
-          <p data-tip={tooltip} className='text-gray-600 text-sm '>
+          <p data-tip={tooltip} className='text-gray-600 text-sm font-medium '>
             {lbl}
           </p>
           {info && !href && <p className='text-gray-600 text-sm'>{info}</p>}
@@ -266,7 +266,7 @@ export function InputSides({ lblRight, lblLeft, className = '', ref, inputCls, .
     <label className={twMerge('flex gap-2 flex-nowrap', className)}>
       {lblRight && <p className='text-gray-600 text-sm'>{lblRight}</p>}
       <input
-        className={twMerge('h-10 w-28 rounded-md border border-gray-200 bg-white px-2.5 focus:outline-blue-200', inputCls)}
+        className={twMerge('h-10 w-28 rounded-md border border-gray-200 bg-white px-2.5 focus:outline-2 focus:outline-offset-0 focus:outline-primary', inputCls)}
         required
         ref={ref}
         {...props}

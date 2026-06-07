@@ -143,7 +143,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
         <p className='text-sm text-gray-600'>בחר את הדף שברצונך לחבר:</p>
         <FormField lbl='דף פייסבוק' error={error ?? undefined}>
           <select
-            className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-blue-200'
+            className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
             value={selectedPageId}
             onChange={(e) => setSelectedPageId(e.target.value)}
           >

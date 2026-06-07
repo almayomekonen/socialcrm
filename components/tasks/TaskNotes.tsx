@@ -98,7 +98,7 @@ export default function TaskNotes({ task, userName, type = 'task' }: { task: any
       <div className='space-y-2'>
         <Input
           as='resizeTextarea'
-          className='w-full rounded-xl bg-gray-50 border-gray-200 p-4 min-h-20 focus:outline-blue-200'
+          className='w-full rounded-xl bg-gray-50 border-gray-200 p-4 min-h-20 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
           placeholder='הוסף עדכון מה קרה עם הליד?'
           rows={1}
           name='note'

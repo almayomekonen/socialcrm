@@ -47,7 +47,7 @@ export default function FilterBtn({ user, filter }) {
           val='href'
           show='name'
           onChange={(e) => redirect(e.target.value as any)}
-          className='rounded-s-none rounded-e-none w-8 border-s-0  border-gray-300'
+          className='rounded-s-none rounded-e-none w-8 border-s-0  border-gray-200'
           style={{ backgroundSize: '17px', backgroundPosition: 'center' }}
         />
         <Btn

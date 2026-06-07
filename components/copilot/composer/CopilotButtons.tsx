@@ -16,9 +16,9 @@ export function AttachButton({ open, disabled, onToggle }: { open: boolean; disa
       aria-expanded={open}
       aria-label='הוסף הקשר מהליד'
       title='הוסף הקשר מהליד'
-      className={[ROUND_BTN_BASE, open ? 'bg-indigo-50' : 'hover:bg-gray-50'].join(' ')}
+      className={[ROUND_BTN_BASE, open ? 'bg-primary-tint' : 'hover:bg-gray-50'].join(' ')}
     >
-      <Icon name='plus' type='reg' className={`size-4 transition-colors ${open ? 'bg-indigo-500' : 'bg-gray-500'}`} />
+      <Icon name='plus' type='reg' className={`size-4 transition-colors ${open ? 'bg-primary' : 'bg-gray-500'}`} />
     </button>
   )
 }
@@ -43,7 +43,7 @@ export function ToolsButton({
       aria-expanded={open}
       aria-label='כלים'
       title='כלים'
-      className={[ROUND_BTN_BASE, open ? 'bg-indigo-50' : 'hover:bg-gray-50'].join(' ')}
+      className={[ROUND_BTN_BASE, open ? 'bg-primary-tint' : 'hover:bg-gray-50'].join(' ')}
     >
       {loading ? (
         <span
@@ -54,7 +54,7 @@ export function ToolsButton({
         <Icon
           name='sliders-simple'
           type='reg'
-          className={`size-4 transition-colors ${open ? 'bg-indigo-500' : 'bg-gray-500'}`}
+          className={`size-4 transition-colors ${open ? 'bg-primary' : 'bg-gray-500'}`}
         />
       )}
     </button>
@@ -113,19 +113,19 @@ export function ModeButton({
       className={[
         'shrink-0 inline-flex items-center gap-1 h-7 ps-2 pe-1.5 rounded-full transition-colors duration-150',
         'disabled:opacity-50 disabled:cursor-not-allowed',
-        open ? 'bg-indigo-50' : 'hover:bg-gray-50',
+        open ? 'bg-primary-tint' : 'hover:bg-gray-50',
       ].join(' ')}
     >
-      <Icon name={mode.icon} type='reg' className={`size-3.5 transition-colors ${open ? 'bg-indigo-500' : 'bg-gray-500'}`} />
+      <Icon name={mode.icon} type='reg' className={`size-3.5 transition-colors ${open ? 'bg-primary' : 'bg-gray-500'}`} />
       <span
-        className={`text-[12px] font-medium leading-none transition-colors ${open ? 'text-indigo-700' : 'text-gray-700'}`}
+        className={`text-[12px] font-medium leading-none transition-colors ${open ? 'text-primary-text' : 'text-gray-700'}`}
       >
         {mode.label}
       </span>
       <Icon
         name='chevron-down'
         type='reg'
-        className={`size-2.5 transition-colors ${open ? 'bg-indigo-500' : 'bg-gray-400'}`}
+        className={`size-2.5 transition-colors ${open ? 'bg-primary' : 'bg-gray-400'}`}
       />
     </button>
   )

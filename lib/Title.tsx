@@ -13,7 +13,7 @@ export default function Title({ lbl, icon, className, iconClassName, flip }: Pro
   return (
     <div className={twMerge('inline-flex items-center gap-4 border-b pb-2 border-gray-400', className)}>
       {icon && <Icon name={icon} type='reg' className={iconClassName} flip={flip} />}
-      <p className='text-lg font-medium'>{lbl}</p>
+      <p className='text-lg font-semibold'>{lbl}</p>
     </div>
   )
 }

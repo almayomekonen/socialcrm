@@ -242,7 +242,7 @@ function SuccessView({ data, onClose }: { data: SuccessData; onClose: () => void
       <div className='rounded-lg border border-gray-200 bg-gray-50/60 p-4 grid gap-3'>
         <SummaryRow lbl='כותרת'>{data.title}</SummaryRow>
         <SummaryRow lbl='זמן'>
-          <span className='font-variant-tabular'>
+          <span className='tabular-nums'>
             {formatDateTime(data.startAt)} – {formatDateTime(data.endAt)}
           </span>
         </SummaryRow>

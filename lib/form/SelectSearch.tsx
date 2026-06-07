@@ -143,7 +143,7 @@ export function SelectSearch({
         <div
           style={{ minWidth: `${inputRef.current?.offsetWidth}px` }}
           ref={popRef}
-          className='absolute top-full right-0 z-9999 border border-gray-300 rounded-md  scrollbar-slim max-h-50 overflow-y-auto bg-white'
+          className='absolute top-full right-0 z-9999 border border-gray-200 rounded-md  scrollbar-slim max-h-50 overflow-y-auto bg-white'
         >
           {data.map((el) => (
             <button

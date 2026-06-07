@@ -32,13 +32,13 @@ export type LineFormPayload = {
 export const cellInputCls =
   'w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base ' +
   'hover:bg-white hover:border-gray-300 ' +
-  'focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-blue-100 ' +
+  'focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary ' +
   'transition-colors placeholder:text-gray-400'
 
 export const cellSubInputCls =
   'w-full h-9 mt-1 px-3 rounded-md bg-gray-50 border border-gray-200 ' +
   'hover:bg-white hover:border-gray-300 ' +
-  'focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-blue-100 ' +
+  'focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary ' +
   'transition-colors text-sm text-gray-500 placeholder:text-gray-400'
 
 export function formatField(n: number): string {

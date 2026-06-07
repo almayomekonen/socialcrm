@@ -7,11 +7,22 @@ import { isExtOffice } from '@/types/roles'
 import { useUser } from '@/lib/hooksNEvents'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 
-export default function ClientForm({ data, prefix = '' }) {
+export default function ClientForm({
+  data,
+  prefix = '',
+  onContactBlur,
+}: {
+  data?: any
+  prefix?: string
+  onContactBlur?: (name: string, value: string) => void
+}) {
   const user = useUser()
   if (!user) return null
   const { handlers, users } = useProps()
   const hasMultipleUsers = false
+  const handleBlur = onContactBlur
+    ? (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => onContactBlur(e.target.name, e.target.value)
+    : undefined
   return (
     <div className='max-w-4xl' data-prefix={prefix}>
       <div className='flex  items-start flex-col gap-4'>
@@ -31,9 +42,16 @@ export default function ClientForm({ data, prefix = '' }) {
           </>
         )}
         <div className='flex'>
-          <Input name='firstName' lbl='שם פרטי' defaultValue={data?.firstName} />
-          <Input name='lastName' lbl='שם משפחה' defaultValue={data?.lastName} />
-          <Input name='idNum' type='number' lbl="מס' תעודת זהות" defaultValue={data?.idNum} required={false} />
+          <Input name='firstName' lbl='שם פרטי' defaultValue={data?.firstName} onBlur={handleBlur} />
+          <Input name='lastName' lbl='שם משפחה' defaultValue={data?.lastName} onBlur={handleBlur} />
+          <Input
+            name='idNum'
+            type='number'
+            lbl="מס' תעודת זהות"
+            defaultValue={data?.idNum}
+            required={false}
+            onBlur={handleBlur}
+          />
         </div>
         <div className='flex'>
           <Input name='birthDate' lbl='תאריך לידה' type='date' defaultValue={data?.birthDate} required={false} />
@@ -41,9 +59,23 @@ export default function ClientForm({ data, prefix = '' }) {
         </div>
 
         <div className='flex'>
-          <Input name='phone' lbl='טלפון נייד' type='tel' defaultValue={data?.phone} required={false} />
-          <Input name='secPhone' lbl='טלפון נוסף' type='tel' defaultValue={data?.secPhone} required={false} />
-          <Input name='email' lbl='מייל' type='email' defaultValue={data?.email} required={false} />
+          <Input
+            name='phone'
+            lbl='טלפון נייד'
+            type='tel'
+            defaultValue={data?.phone}
+            required={false}
+            onBlur={handleBlur}
+          />
+          <Input
+            name='secPhone'
+            lbl='טלפון נוסף'
+            type='tel'
+            defaultValue={data?.secPhone}
+            required={false}
+            onBlur={handleBlur}
+          />
+          <Input name='email' lbl='מייל' type='email' defaultValue={data?.email} required={false} onBlur={handleBlur} />
         </div>
 
         <div className='flex'>

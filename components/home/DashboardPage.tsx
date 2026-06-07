@@ -1,135 +1,62 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { getUser } from '@/db/auth'
 import { getPerms } from '@/db/filter'
-import { getDefaultSettings } from '@/db/usersNTeams'
-import { getLeadsTable } from '@/db/clients'
-import { getLeadFollowUpSignals } from '@/db/followUpSignals'
-import { followUpPulse, type FollowUpResult, type FollowUpSignals } from '@/lib/ai/followUpRules'
-import LeadQuickActions from '@/components/home/LeadQuickActions'
-import FollowUpPulseChip from '@/components/ai/FollowUpPulseChip'
-
-type Row = {
-  id: number
-  name: string
-  phone: string | null
-  status: string
-  state: 'cold' | 'updated' | null
-  slaRemainingHours: number | null
-  nextAction: string | null
-  leadSource: string | null
-}
-
-type RowWithPulse = Row & { pulse: FollowUpResult | null }
-
-function bucket(rows: Row[]) {
-  const overdue: Row[] = []
-  const today: Row[] = []
-  const fresh: Row[] = []
-
-  for (const r of rows) {
-    if (r.status === 'closed' || r.status === 'lost') continue
-    if (r.state === 'cold') overdue.push(r)
-    else if (r.slaRemainingHours != null && r.slaRemainingHours <= 24) today.push(r)
-    else if (r.status === 'new') fresh.push(r)
-  }
-  return { overdue: overdue.slice(0, 5), today: today.slice(0, 5), fresh: fresh.slice(0, 5) }
-}
-
-function Card({ title, subtitle, rows, emptyMsg }: { title: string; subtitle: string; rows: RowWithPulse[]; emptyMsg: string }) {
-  return (
-    <div className='bg-white px-5 py-4 rounded-lg border border-gray-200'>
-      <div className='flex items-baseline justify-between mb-3'>
-        <div>
-          <h2 className='text-base font-semibold'>{title}</h2>
-          <p className='text-xs text-gray-500'>{subtitle}</p>
-        </div>
-        <span className='text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'>{rows.length}</span>
-      </div>
-
-      {rows.length === 0 ? (
-        <p className='text-sm text-gray-500 py-4'>{emptyMsg}</p>
-      ) : (
-        <ul className='divide-y divide-gray-100'>
-          {rows.map((r) => (
-            <li key={r.id} className='py-2 flex items-center justify-between gap-3'>
-              <div className='min-w-0'>
-                <div className='flex items-center gap-2 min-w-0'>
-                  <Link href={`/clients/${r.id}/summary`} className='font-semibold truncate underline'>
-                    {r.name || '—'}
-                  </Link>
-                  {r.pulse && <FollowUpPulseChip pulse={r.pulse.pulse} label={r.pulse.label} />}
-                </div>
-                <p className='text-xs text-gray-500 truncate'>
-                  {r.phone || 'ללא טלפון'}
-                  {r.nextAction ? ` · ${r.nextAction}` : ''}
-                </p>
-              </div>
-              <LeadQuickActions id={r.id} phone={r.phone} status={r.status} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+import { hasAnyLeads } from '@/db/clients'
+import { getDueWorklist, getDueWorklistCount, getNewLeads, getNewLeadsCount, getDoneTodayCount } from '@/db/worklist'
+import { getTodaysMeetings } from '@/db/meetings'
+import { getUpcomingFollowUpsCount } from '@/db/followUps'
+import { pickTopRecommended } from '@/lib/leads/recommend'
+import RecommendedLeads from '@/components/home/RecommendedLeads'
+import FollowupsTable from '@/components/home/FollowupsTable'
+import QuickLinks from '@/components/home/QuickLinks'
 
 export default async function DashboardPage() {
   const user = await getUser()
-  const [handlers, settings] = await Promise.all([getPerms(user), getDefaultSettings(user.id)])
-  const rows: Row[] = await getLeadsTable({
-    user,
-    params: { tableLimit: 100 },
-    leads: true,
-    gotPermIds: handlers.gotPermIds,
-    settings,
-  })
+  const { gotPermIds } = await getPerms(user)
 
-  if (!rows || rows.length === 0) redirect('/leads')
+  if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) redirect('/leads')
 
-  const { overdue, today, fresh } = bucket(rows)
+  const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount] = await Promise.all([
+    getDueWorklist({ user, gotPermIds, limit: 100 }),
+    getDueWorklistCount({ user, gotPermIds }),
+    getNewLeads({ user, gotPermIds }),
+    getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
+    getDoneTodayCount({ user, gotPermIds }),
+    getNewLeadsCount({ user, gotPermIds }),
+    getUpcomingFollowUpsCount({ user, gotPermIds }),
+  ])
 
-  const visibleIds = [...overdue, ...today, ...fresh].map((r) => r.id)
-  let signals: Map<number, FollowUpSignals>
-  try {
-    signals = await getLeadFollowUpSignals(visibleIds)
-  } catch {
-    signals = new Map()
-  }
+  const now = Date.now()
+  const recommended = pickTopRecommended(due, newLeads, 3, now)
 
-  const attachPulse = (r: Row): RowWithPulse => {
-    const s = signals.get(r.id)
-    return { ...r, pulse: s ? followUpPulse(s) : null }
-  }
-  const overdueWithPulse = overdue.map(attachPulse)
-  const todayWithPulse = today.map(attachPulse)
-  const freshWithPulse = fresh.map(attachPulse)
+  const recommendedIds = new Set(recommended.map((r) => r.lead.id))
+  const dueIds = new Set(due.map((d) => d.id))
+  const tableRows = due.filter((r) => !recommendedIds.has(r.id))
+  const removedFromDue = recommended.filter((r) => dueIds.has(r.lead.id)).length
+  const tableTotal = dueCount - removedFromDue
+
+  const progressTotal = doneToday + dueCount
+  const progressPct = progressTotal > 0 ? Math.round((doneToday / progressTotal) * 100) : 100
 
   return (
-    <div className='mb-8'>
-      <h1 className='title mb-1'>היום</h1>
-      <p className='text-sm text-gray-500 mb-4'>ממה כדאי להתחיל עכשיו</p>
-
-      <div className='grid grid-cols-1 desktop:grid-cols-3 gap-4'>
-        <Card
-          title='דורש טיפול'
-          subtitle='חרגו מזמן תגובה'
-          rows={overdueWithPulse}
-          emptyMsg='אין לידים באיחור'
-        />
-        <Card
-          title='היום'
-          subtitle='לפנות ב־24 השעות הקרובות'
-          rows={todayWithPulse}
-          emptyMsg='אין לידים דחופים להיום'
-        />
-        <Card
-          title='חדשים'
-          subtitle='לידים שטרם נפתחו'
-          rows={freshWithPulse}
-          emptyMsg='אין לידים חדשים'
-        />
+    <div className='mb-8 grid gap-4'>
+      <div>
+        <h1 className='title mb-1'>היום</h1>
+        <p className='text-sm text-gray-700 tabular-nums'>
+          <span className='font-medium text-gray-900'>{`${doneToday} טופלו`}</span>
+          {` · ${dueCount} נותרו`}
+          {meetings.length > 0 ? ` · ${meetings.length} פגישות` : ''}
+        </p>
+        <div className='mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200'>
+          <div className='h-full rounded-full bg-primary transition-all' style={{ width: `${progressPct}%` }} />
+        </div>
       </div>
+
+      <RecommendedLeads items={recommended.map((r) => ({ lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone }, reason: r.reason }))} />
+
+      <FollowupsTable rows={tableRows} total={tableTotal} />
+
+      <QuickLinks dueCount={dueCount} newCount={newLeadsCount} upcomingCount={upcomingCount} meetingsCount={meetings.length} />
     </div>
   )
 }

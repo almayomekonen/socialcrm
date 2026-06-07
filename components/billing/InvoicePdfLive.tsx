@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getInvoicePdfStatusAction, type InvoicePdfStatusSnapshot, type InvoicePdfStatusValue } from '@/actions/billing/documentStatus'
+import { StatusBadge, type StatusRole } from '@/lib/StatusBadge'
 
 const FAST_INTERVAL_MS = 1500
 const SLOW_INTERVAL_MS = 5000
@@ -104,23 +105,23 @@ const STATUS_LABELS: Record<InvoicePdfStatusValue, string> = {
   failed: 'שגיאה בהפקה',
 }
 
-const STATUS_CLASSES: Record<InvoicePdfStatusValue, string> = {
-  none: 'border-gray-200 bg-gray-50 text-gray-600',
-  rendering: 'border-gray-200 bg-gray-50 text-gray-600',
-  ready: 'border-gray-300 bg-white text-gray-800',
-  failed: 'border-gray-200 bg-gray-100 text-gray-600',
+const STATUS_ROLE: Record<InvoicePdfStatusValue, StatusRole> = {
+  none: 'neutral',
+  rendering: 'info',
+  ready: 'success',
+  failed: 'error',
 }
 
 export function InvoicePdfStatusChipLive() {
   const { status } = useInvoicePdfStatus()
   return (
-    <span
+    <StatusBadge
+      role={STATUS_ROLE[status]}
+      label={STATUS_LABELS[status]}
+      size='xs'
+      pulse={status === 'rendering'}
       data-pdf-status={status}
-      className={`inline-flex shrink-0 items-center px-1.5 py-0.5 rounded-full border text-[10px] leading-tight font-medium ${STATUS_CLASSES[status]}`}
-    >
-      {status === 'rendering' && <span className='me-1 inline-block size-1.5 rounded-full bg-gray-500 animate-pulse' />}
-      {STATUS_LABELS[status]}
-    </span>
+    />
   )
 }
 

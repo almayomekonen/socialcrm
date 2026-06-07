@@ -66,7 +66,7 @@ export default function ChunkReloader() {
       className='fixed inset-0 z-10000 flex items-center justify-center bg-black/40 backdrop-blur-sm'
     >
       <div className='bg-white rounded-xl px-6 py-5 shadow-xl flex items-center gap-3'>
-        <div className='size-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin' />
+        <div className='size-5 border-2 border-primary border-t-transparent rounded-full animate-spin' />
         <p className='text-gray-800 font-medium'>עדכון חדש נטען, מרענן...</p>
       </div>
     </div>

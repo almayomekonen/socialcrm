@@ -32,7 +32,7 @@ export default function ModalPop({ children, className, onClose, open, closeOuts
       <div
         onClick={(e) => e.stopPropagation()}
         className={twMerge(
-          'max-h-[90vh] overflow-y-auto bg-white p-8  shadow-md relative popin overflow-x-hidden scrollbar-slim',
+          'max-h-[90vh] overflow-y-auto bg-white p-8  shadow-2xl relative popin overflow-x-hidden scrollbar-slim',
           pos === 'middle' ? 'rounded-lg' : 'rounded-b-lg',
           className
         )}

@@ -16,6 +16,7 @@ import { redirect, useRouter, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import { Select } from '@/lib/form'
 import { deleteLead, searchContacts, searchLeads } from '@/actions/clients'
 import { api } from '@/lib/funcs'
 import { ConfigT } from '@/lib/table'
@@ -272,15 +273,16 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                   onClick={handleBulkDelete}
                 />
               )}
-              <select
-                className='h-10 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-blue-200'
+              <Select
+                options={[
+                  { id: 'priority', name: 'מיון: דחופים ביותר' },
+                  { id: 'newest', name: 'מיון: חדשים ביותר' },
+                ]}
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as 'priority' | 'newest')}
+                required={false}
                 aria-label='מיון לידים'
-              >
-                <option value='priority'>מיון: דחופים ביותר</option>
-                <option value='newest'>מיון: חדשים ביותר</option>
-              </select>
+              />
               <ShowColumns config={config} />
               <SelectClientGrpActions user={user} />
               <SelectClientLists />

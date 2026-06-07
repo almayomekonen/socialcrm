@@ -104,6 +104,41 @@ export async function markMeetingCancelled(id: number, agencyId: number): Promis
   })
 }
 
+export type TodaysMeeting = {
+  id: number
+  title: string
+  startAt: string
+  leadId: number | null
+  leadName: string | null
+  meetUrl: string | null
+}
+
+/**
+ * Dashboard V2 — the owner's SCHEDULED meetings for today (their own, this
+ * agency), earliest first, with the linked lead's name for the strip.
+ * "Today" is the server-day (date_trunc); a per-user timezone setting could
+ * refine the boundary later — noted, not blocking.
+ */
+export async function getTodaysMeetings(input: { agencyId: number; organizerUserId: number }): Promise<TodaysMeeting[]> {
+  const rows = await db('meetings as m')
+    .leftJoin('clients as c', 'c.id', 'm.lead_id')
+    .where('m.agency_id', input.agencyId)
+    .where('m.organizer_user_id', input.organizerUserId)
+    .where('m.status', 'scheduled')
+    .whereRaw(`m.start_at >= date_trunc('day', NOW()) AND m.start_at < date_trunc('day', NOW()) + INTERVAL '1 day'`)
+    .orderBy('m.start_at', 'asc')
+    .select('m.id', 'm.title', 'm.start_at', 'm.lead_id', 'm.meet_url', 'c.name as lead_name')
+
+  return rows.map((r: { id: number; title: string; start_at: Date | string; lead_id: number | null; meet_url: string | null; lead_name: string | null }) => ({
+    id: r.id,
+    title: r.title,
+    startAt: r.start_at instanceof Date ? r.start_at.toISOString() : r.start_at,
+    leadId: r.lead_id,
+    leadName: r.lead_name ?? null,
+    meetUrl: r.meet_url ?? null,
+  }))
+}
+
 export async function markMeetingCompleted(id: number, agencyId: number): Promise<void> {
   await db('meetings').where({ id, agency_id: agencyId }).update({
     status: 'completed',

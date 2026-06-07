@@ -34,7 +34,7 @@ export default async function SalesPage({ searchParams }) {
   const [{ tblData, count, sqlExport }, allUsers, hasLeads] = await Promise.all([
     getDealTableData(sqlFilter, { pageNum, tableLimit }),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
-    hasAnyLeads(user.agencyId, gotPermIds),
+    hasAnyLeads(user.agencyId, gotPermIds, user.role),
   ])
 
   const isSystemEmpty = tblData.length === 0 && !filter

@@ -35,18 +35,18 @@ export function ModePopover({
             onClick={() => onSelect(mode.id)}
             className={[
               'group flex items-start gap-2 w-full px-2.5 py-2 rounded-xl text-start transition-colors duration-150',
-              isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50',
+              isSelected ? 'bg-primary-tint' : 'hover:bg-gray-50',
             ].join(' ')}
           >
             <Icon
               name={mode.icon}
               type='reg'
-              className={`size-3.5 shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-indigo-500' : 'bg-gray-400 group-hover:bg-indigo-500'}`}
+              className={`size-3.5 shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-primary' : 'bg-gray-400 group-hover:bg-primary'}`}
             />
             <div className='flex-1 min-w-0'>
               <div className='flex items-center gap-1.5'>
                 <span
-                  className={`text-[12.5px] font-medium transition-colors ${isSelected ? 'text-indigo-700' : 'text-gray-700 group-hover:text-gray-900'}`}
+                  className={`text-[12.5px] font-medium transition-colors ${isSelected ? 'text-primary-text' : 'text-gray-700 group-hover:text-gray-900'}`}
                 >
                   {mode.label}
                 </span>
@@ -59,11 +59,11 @@ export function ModePopover({
                   </span>
                 )}
                 {isSelected && (
-                  <Icon name='check' type='reg' className='size-3 bg-indigo-500 shrink-0' aria-hidden='true' />
+                  <Icon name='check' type='reg' className='size-3 bg-primary shrink-0' aria-hidden='true' />
                 )}
               </div>
               <p
-                className={`text-[10.5px] leading-snug mt-0.5 transition-colors ${isSelected ? 'text-indigo-600/80' : 'text-gray-500'}`}
+                className={`text-[10.5px] leading-snug mt-0.5 transition-colors ${isSelected ? 'text-primary-text/80' : 'text-gray-500'}`}
               >
                 {mode.description}
               </p>
