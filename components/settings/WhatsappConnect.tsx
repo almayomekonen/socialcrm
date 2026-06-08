@@ -5,7 +5,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 
-type Phone = { id: string; displayPhone: string; verifiedName: string; accessToken: string }
+type Phone = { id: string; displayPhone: string; verifiedName: string }
 type Connection = { phoneNumberId: string }
 
 type Props = {
@@ -99,10 +99,7 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
             const res = await fetch('/api/auth/whatsapp/connect', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                phoneNumberId: selected.id,
-                accessToken: selected.accessToken,
-              }),
+              body: JSON.stringify({ phoneNumberId: selected.id }),
             })
             if (res.ok) {
               router.refresh()

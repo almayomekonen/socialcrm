@@ -41,11 +41,18 @@ export default async function page() {
   const waConnection = await db('whatsapp_connections').where({ user_id: user.id }).first()
 
   const waPhonesCookie = cookieStore.get('wa_phones')?.value
-  let pendingPhones: { id: string; displayPhone: string; verifiedName: string; accessToken: string }[] | null = null
+  let pendingPhones: { id: string; displayPhone: string; verifiedName: string }[] | null = null
   if (waPhonesCookie) {
     try {
       const payload = await decrypt(waPhonesCookie)
-      if (payload?.userId === user.id) pendingPhones = payload.phones
+      if (payload?.userId === user.id) {
+        // Strip the access token — the client receives display data only. The
+        // token stays in the server-only httpOnly cookie; the connect route
+        // resolves it server-side.
+        pendingPhones = (payload.phones as { id: string; displayPhone: string; verifiedName: string }[]).map(
+          ({ id, displayPhone, verifiedName }) => ({ id, displayPhone, verifiedName }),
+        )
+      }
     } catch {
       // Cookie expired or tampered — ignore
     }

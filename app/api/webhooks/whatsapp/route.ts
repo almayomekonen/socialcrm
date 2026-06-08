@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
 import { createLeadFromWhatsappWebhook } from '@/lib/system/createLeadFromWhatsappWebhook'
+import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
 import { db } from '@/config/db'
 
 // GET — Meta webhook verification handshake
@@ -10,14 +11,6 @@ export async function GET(req: NextRequest) {
   const mode = url.searchParams.get('hub.mode')
   const token = url.searchParams.get('hub.verify_token')
   const challenge = url.searchParams.get('hub.challenge')
-
-  console.log('[WhatsappWebhook] VERIFY HIT', {
-    mode,
-    token,
-    challenge,
-    expected: process.env.META_VERIFY_TOKEN,
-    match: token === process.env.META_VERIFY_TOKEN,
-  })
 
   if (mode === 'subscribe' && token === process.env.META_VERIFY_TOKEN) {
     return new Response(challenge, { status: 200 })
@@ -60,8 +53,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  console.log('[WhatsappWebhook] Full payload:', JSON.stringify(body, null, 2))
-
   const value = body?.entry?.[0]?.changes?.[0]?.value
   if (!value) {
     console.warn('[WhatsappWebhook] Invalid payload structure')
@@ -78,10 +69,7 @@ export async function POST(req: NextRequest) {
   try {
     const messageId: string | undefined = message.id
     const from: string | undefined = message.from
-    const text: string = message.text?.body || ''
     const phoneNumberId: string | undefined = value.metadata?.phone_number_id
-
-    console.log(`[WhatsappWebhook] Received — msgId=${messageId}, from=${from}, phoneNumberId=${phoneNumberId}, text="${text}"`)
 
     if (!messageId || !from || !phoneNumberId) {
       console.warn('[WhatsappWebhook] Missing required fields — ignoring')
@@ -119,6 +107,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[WhatsappWebhook][success][msgId=${messageId}] lead id=${lead.id}`)
+
+    // Additive: persist the message as a conversation attached to the lead.
+    // Isolated so any failure here never affects lead creation or the 200 to Meta.
+    try {
+      const result = await ingestWhatsappInbound({
+        agencyId: connection.agency_id,
+        leadId: lead.id,
+        businessPhoneNumberId: phoneNumberId,
+        customerWaId: from,
+        customerName: profileName,
+        rawMessage: message,
+      })
+      console.log(
+        `[WhatsappWebhook][inbox][msgId=${messageId}] conversation=${result.conversationId} message=${result.messageId} inserted=${result.inserted}`,
+      )
+    } catch (err) {
+      console.error(`[WhatsappWebhook][inbox][msgId=${messageId}] persistence failed:`, err)
+    }
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[WhatsappWebhook] Unhandled error:', err)

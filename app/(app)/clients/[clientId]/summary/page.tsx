@@ -1,7 +1,9 @@
 import { Suspense } from 'react'
 import Activity from '@/components/summary/Activity'
 import Tasks from '@/components/summary/Tasks'
+import WhatsappConversation from '@/components/summary/WhatsappConversation'
 import { get5TasksByClientId } from '@/db/tasks'
+import { listLeadWhatsappMessages } from '@/db/inboxMessages'
 import { getFullLead } from '@/db/clients'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
 import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSkeleton'
@@ -14,9 +16,10 @@ import { formatDate } from '@/lib/dates'
 export default async function page({ params }) {
   const { clientId } = await params
 
-  const [tasks, lead] = await Promise.all([
+  const [tasks, lead, waMessages] = await Promise.all([
     get5TasksByClientId(clientId),
     getFullLead({ id: Number(clientId), select: ['status', 'nextFollowUpAt', 'followUpNote', 'lastOutcomeType', 'lastActivityAt'] }),
+    listLeadWhatsappMessages(Number(clientId)),
   ])
   const nextFollowUpAt = lead?.nextFollowUpAt ?? null
   const lastOutcome = outcomeLabel(lead?.lastOutcomeType)
@@ -57,6 +60,7 @@ export default async function page({ params }) {
       <div className='grid xl:grid-cols-2 gap-8'>
         <Tasks tasks={tasks} clientId={clientId} />
         <Activity clientId={clientId} />
+        <WhatsappConversation messages={waMessages} leadId={Number(clientId)} />
       </div>
     </div>
   )
