@@ -53,20 +53,35 @@ export async function GET(req: NextRequest) {
     return failed(req, 'token')
   }
 
-  const wabaRes = await fetch(`https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?access_token=${longToken}`)
-  if (!wabaRes.ok) return failed(req, 'no_accounts')
-  const wabaData = await wabaRes.json()
-  const wabas: { id: string }[] = wabaData.data || []
-  if (wabas.length === 0) return failed(req, 'no_accounts')
+  let wabaIds: string[] = []
+  try {
+    const appAccessToken = `${appId}|${appSecret}`
+    const dbgRes = await fetch(
+      `https://graph.facebook.com/v19.0/debug_token?input_token=${longToken}&access_token=${encodeURIComponent(appAccessToken)}`,
+    )
+    const dbg = await dbgRes.json()
+    const granular: { scope: string; target_ids?: string[] }[] = dbg?.data?.granular_scopes ?? []
+    console.log('[WhatsappOAuth][temp] granular_scopes:', JSON.stringify(granular))
+    const targetsFor = (scope: string) => granular.find((g) => g.scope === scope)?.target_ids ?? []
+    const ids = new Set<string>(targetsFor('whatsapp_business_management'))
+    if (ids.size === 0) for (const id of targetsFor('whatsapp_business_messaging')) ids.add(id)
+    wabaIds = [...ids]
+  } catch (err) {
+    console.error('[WhatsappOAuth][temp] debug_token introspection failed:', err)
+    return failed(req, 'no_accounts')
+  }
+  console.log('[WhatsappOAuth][temp] discovered WABA IDs:', JSON.stringify(wabaIds))
+  if (wabaIds.length === 0) return failed(req, 'no_accounts')
 
   const phones: { id: string; displayPhone: string; verifiedName: string; accessToken: string }[] = []
-  for (const waba of wabas) {
+  for (const wabaId of wabaIds) {
     try {
       const res = await fetch(
-        `https://graph.facebook.com/v19.0/${waba.id}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${longToken}`,
+        `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${longToken}`,
       )
       if (!res.ok) continue
       const data = await res.json()
+      console.log(`[WhatsappOAuth][temp] phone_numbers for WABA ${wabaId}:`, JSON.stringify(data.data || []))
       for (const p of data.data || []) {
         phones.push({
           id: p.id,
@@ -79,6 +94,10 @@ export async function GET(req: NextRequest) {
       continue
     }
   }
+  console.log(
+    '[WhatsappOAuth][temp] discovered phone numbers:',
+    JSON.stringify(phones.map((p) => ({ id: p.id, displayPhone: p.displayPhone }))),
+  )
 
   if (phones.length === 0) return failed(req, 'no_phones')
 
