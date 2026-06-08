@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import Activity from '@/components/summary/Activity'
 import Tasks from '@/components/summary/Tasks'
 import WhatsappConversation from '@/components/summary/WhatsappConversation'
+import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import { get5TasksByClientId } from '@/db/tasks'
 import { listLeadWhatsappMessages } from '@/db/inboxMessages'
 import { getFullLead } from '@/db/clients'
@@ -26,6 +27,7 @@ export default async function page({ params }) {
   const statusStyle = lead?.status ? STATUS_STYLES[lead.status] : null
   return (
     <div>
+      <ConversationRefreshPoller />
       <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8'>
         <div className='flex items-center justify-between gap-3'>
           {statusStyle ? (
