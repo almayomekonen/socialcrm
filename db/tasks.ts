@@ -5,7 +5,7 @@ import { requireUser } from '@/lib/requireUser'
 
 export async function getTasks(user, filter) {
   const perms = await getPerms(user)
-  // Admins get gotPermIds: [] — fall back to allPermIds so they see all tasks
+
   const permIds = perms.gotPermIds.length ? perms.gotPermIds : perms.allPermIds
 
   const conditions: string[] = []
@@ -38,7 +38,7 @@ export async function getTasks(user, filter) {
     ORDER BY t."createdAt" DESC
     LIMIT 200
     `,
-    bindings
+    bindings,
   )
 
   return res.rows
@@ -75,7 +75,7 @@ export async function getTaskById(taskId) {
     WHERE t.id = ? AND c."agencyId" = ?
     GROUP BY t.id
   `,
-    [taskId, user.agencyId]
+    [taskId, user.agencyId],
   )
 
   return res.rows[0]
@@ -98,7 +98,7 @@ export async function getTaskTmpltById(tmpltTaskId) {
     WHERE t.id = ? AND t."agencyId" = ?
     GROUP BY t.id
   `,
-    [tmpltTaskId, user.agencyId]
+    [tmpltTaskId, user.agencyId],
   )
 
   return res.rows[0]

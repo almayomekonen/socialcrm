@@ -1,6 +1,7 @@
 import { formatDate } from '@/lib/dates'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import WhatsappReplyDraft from '@/components/summary/WhatsappReplyDraft'
+import WhatsappNewMessageNotifier from '@/components/summary/WhatsappNewMessageNotifier'
 
 export default function WhatsappConversation({
   messages,
@@ -9,6 +10,15 @@ export default function WhatsappConversation({
   messages: LeadWhatsappMessage[]
   leadId: number
 }) {
+  // Latest inbound message id (messages are ordered oldest→newest) — drives the
+  // new-inbound-message toast detector.
+  let latestInboundId: number | null = null
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].direction === 'inbound') {
+      latestInboundId = messages[i].id
+      break
+    }
+  }
 
   const last = messages.length > 0 ? messages[messages.length - 1] : null
   const attention =
@@ -20,6 +30,7 @@ export default function WhatsappConversation({
 
   return (
     <div className='xl:p-8'>
+      <WhatsappNewMessageNotifier latestInboundId={latestInboundId} />
       <div className='flex items-center gap-2 my-4'>
         <h1 className='text-2xl font-bold'>שיחת WhatsApp</h1>
         {attention && (
