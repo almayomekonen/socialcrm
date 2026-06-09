@@ -58,6 +58,15 @@ const TASKS: Record<TaskKind, TaskConfig> = {
     timeoutMs: 3_000,
     retryOnSameProvider: 0,
   },
+  // Background worker task, triggered per message burst. One composite call
+  // returns summary + intent + temperature + suggested action. Uses the cheap
+  // 'volume' role (gemini flash-lite → openai fallback), ~$0.00015/analysis.
+  'conversation.analysis': {
+    role: 'volume',
+    maxOutputTokens: 500,
+    timeoutMs: 15_000,
+    retryOnSameProvider: 1,
+  },
 }
 
 export function getTaskConfig(kind: TaskKind): TaskConfig {

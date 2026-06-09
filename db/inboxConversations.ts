@@ -15,6 +15,7 @@ export type InboxConversationRow = {
   lastMessageAt: string | null
   lastInboundAt: string | null
   lastDirection: string | null
+  lastMessageText: string | null
   unreadCount: number
   messageCount: number
   metadata: Record<string, unknown>
@@ -51,30 +52,37 @@ export async function findOrCreateConversation(trx: Knex.Transaction, input: Fin
   return Number(row.id)
 }
 
-export async function bumpConversationOnInbound(trx: Knex.Transaction, conversationId: number, at: Date): Promise<void> {
+export async function bumpConversationOnInbound(
+  trx: Knex.Transaction,
+  conversationId: number,
+  at: Date,
+  lastMessageText?: string | null,
+): Promise<void> {
   await trx('inbox_conversations')
     .where({ id: conversationId })
     .update({
       lastMessageAt: at,
       lastInboundAt: at,
       lastDirection: 'inbound',
+      lastMessageText: lastMessageText ?? null,
       updatedAt: trx.fn.now(),
       messageCount: trx.raw('"messageCount" + 1'),
       unreadCount: trx.raw('"unreadCount" + 1'),
     })
 }
 
-/**
- * Bump thread aggregates after a successful OUTBOUND send. Flips lastDirection to
- * 'outbound' (the attention pill derives from this) and clears unreadCount — the
- * rep just replied, so the thread is handled.
- */
-export async function bumpConversationOnOutbound(trx: Knex.Transaction, conversationId: number, at: Date): Promise<void> {
+export async function bumpConversationOnOutbound(
+  trx: Knex.Transaction,
+  conversationId: number,
+  at: Date,
+  lastMessageText?: string | null,
+): Promise<void> {
   await trx('inbox_conversations')
     .where({ id: conversationId })
     .update({
       lastMessageAt: at,
       lastDirection: 'outbound',
+      lastMessageText: lastMessageText ?? null,
       updatedAt: trx.fn.now(),
       messageCount: trx.raw('"messageCount" + 1'),
       unreadCount: 0,

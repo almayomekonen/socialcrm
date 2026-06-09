@@ -10,14 +10,13 @@ import { UserNAgency } from './Topbar'
 import { twMerge } from 'tailwind-merge'
 import Icon, { IconNames } from '@/lib/Icon'
 
-export default function Nav({ user }) {
+export default function Nav({ user, inboxUnread = 0 }) {
   const pathname = usePathname()
 
   useEffect(() => {
     checkUserSuspended(user)
   })
 
-  // מכיוון שאי אפשר להעביר את הפונקציה, אני קורא לה מכאן
   const logmeout = () => logout()
 
   const getIsActive = (pathname, href) => {
@@ -38,7 +37,6 @@ export default function Nav({ user }) {
 
   return (
     <div className='z-999'>
-      {/* mobile nav */}
       <div popover='auto' id='navPop' className='h-full bg-dark desktop:hidden pop-bg'>
         <div>
           <div className='flex justify-start'>
@@ -47,7 +45,7 @@ export default function Nav({ user }) {
             </button>
           </div>
           <nav className='mt-8 p-8'>
-            {getNavLinks(user).map((link, i) => {
+            {getNavLinks(user, inboxUnread).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -57,8 +55,9 @@ export default function Nav({ user }) {
                   href={link.href}
                   className={twMerge('flex  hover:bg-dark/50 rounded mt-2', isActive ? 'bg-dark/50' : '')}
                 >
-                  <span className={`rounded p-2  ${isActive ? 'bg-white' : ''}`}>
+                  <span className={`relative rounded p-2  ${isActive ? 'bg-white' : ''}`}>
                     <Icon name={link.icon} className={`bg-white   ${isActive ? 'bg-dark' : ''}`} type='sol' />
+                    {link.badge ? <NavBadge count={link.badge} /> : null}
                   </span>
                   <p className='text-white text-nowrap font-semibold'>{link.title}</p>
                 </Link>
@@ -71,13 +70,12 @@ export default function Nav({ user }) {
         </div>
       </div>
 
-      {/* desktop nav */}
       <div
         className={`hidden desktop:block h-screen w-[50px] overflow-x-hidden fixed top-0 start-0 transition-all duration-300 ease-in-out hover:w-48 `}
       >
         <nav className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
           <div className='w-full'>
-            {getNavLinks(user).map((link, i) => {
+            {getNavLinks(user, inboxUnread).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -89,12 +87,13 @@ export default function Nav({ user }) {
                     isActive ? 'bg-dark/50' : '',
                   )}
                 >
-                  <span className={`p-2 rounded  ${isActive ? 'bg-white' : ''}`}>
+                  <span className={`relative p-2 rounded  ${isActive ? 'bg-white' : ''}`}>
                     <Icon
                       name={link.icon}
                       className={`bg-white size-[18px] rtl:scale-x-100 ${isActive ? 'bg-dark' : ''}`}
                       type='sol'
                     />
+                    {link.badge ? <NavBadge count={link.badge} /> : null}
                   </span>
                   <p className='text-white text-nowrap font-semibold'>{link.title}</p>
                 </Link>
@@ -109,7 +108,18 @@ export default function Nav({ user }) {
   )
 }
 
-function getNavLinks(user) {
+function NavBadge({ count }: { count: number }) {
+  return (
+    <span
+      aria-hidden
+      className='absolute -top-1 -end-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white'
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
+function getNavLinks(user, inboxUnread = 0) {
   if (!user) return []
   const admin = isAdmin(user.role)
   const notOffice = user.role !== Roles.OFFICE
@@ -117,6 +127,7 @@ function getNavLinks(user) {
     notOffice && { icon: 'house', href: '/dashboard', title: 'היום' },
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
+    notOffice && { icon: 'comments', href: '/inbox', title: 'שיחות', badge: inboxUnread },
     { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
     {
       icon: 'chart-pie',
@@ -126,5 +137,5 @@ function getNavLinks(user) {
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
     notOffice && { icon: 'calendar', href: '/calendar', title: 'פגישות' },
     notOffice && { icon: 'gear', href: '/settings/self_edit', title: 'הגדרות' },
-  ] as { icon: IconNames; href: Route; title: string }[]
+  ] as { icon: IconNames; href: Route; title: string; badge?: number }[]
 }

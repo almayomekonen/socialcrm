@@ -218,7 +218,7 @@ Premature investment in any of these creates a heavy infra surface that the rest
 
 > **The user picks a capability tier. The router picks the model.** That separation is the architecture rule — not a stylistic preference. A future contributor who deletes the mode selector "to simplify" or replaces it with a vendor-named dropdown is breaking the rule, not cleaning up.
 
-The Copilot composer ships a mode picker with three tiers: **Fast / Smart / Advanced**. This is the *only* sanctioned model-selection surface in the product, and it is intentional. It looks like model selection. It is not. The distinction is structural.
+The Copilot composer ships a mode picker with three tiers: **Fast / Smart / Advanced**. This is the _only_ sanctioned model-selection surface in the product, and it is intentional. It looks like model selection. It is not. The distinction is structural.
 
 ### 10.1 What "capability-oriented" means
 
@@ -226,13 +226,13 @@ The selector exposes operational tiers the rep can reason about: how fast, how t
 
 ### 10.2 Allowed vs forbidden in UI copy
 
-| ✅ Allowed (operational) | ❌ Forbidden (vendor/model) |
-| --- | --- |
-| מהיר / Fast | Claude Sonnet 4.6 |
-| חכם / Smart | GPT-4.1 |
-| מתקדם / Advanced | Gemini 2.5 Flash |
+| ✅ Allowed (operational)    | ❌ Forbidden (vendor/model)          |
+| --------------------------- | ------------------------------------ |
+| מהיר / Fast                 | Claude Sonnet 4.6                    |
+| חכם / Smart                 | GPT-4.1                              |
+| מתקדם / Advanced            | Gemini 2.5 Flash                     |
 | "תשובה זריזה לשאלות פשוטות" | "Anthropic primary, OpenAI fallback" |
-| "ניתוח עמוק לשאלות מורכבות" | "200k context window, 32k output" |
+| "ניתוח עמוק לשאלות מורכבות" | "200k context window, 32k output"    |
 
 A label, description, icon, tooltip, error message, or marketing string that mentions a vendor name or model identifier is a **doctrine violation**. Same posture as [`ai-safety-boundaries.md`](./ai-safety-boundaries.md) §7 (never expose internals) — applied to the selection UI specifically.
 

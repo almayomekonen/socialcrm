@@ -7,6 +7,7 @@ export type TaskKind =
   | 'pipeline.weekly'
   | 'health.check'
   | 'copilot.classifyIntent'
+  | 'conversation.analysis'
 
 export type ProviderName = 'anthropic' | 'google' | 'openai' | 'internal'
 

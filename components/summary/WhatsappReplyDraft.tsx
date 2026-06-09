@@ -8,15 +8,13 @@ import { toast } from '@/lib/toast'
 import { generateWhatsappReplyDraft } from '@/actions/ai/whatsappReplyDraft'
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
 
-// WhatsApp text-message limit. Used only to cap the local draft and show a counter.
 const MAX_CHARS = 4096
 
 export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
   const router = useRouter()
-  // Draft lives in component state only — nothing is persisted until sent.
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition() // AI generate
+  const [pending, startTransition] = useTransition() 
   const [sending, setSending] = useState(false)
 
   const hasDraft = draft.trim().length > 0
@@ -31,7 +29,6 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
     })
   }
 
-  // Reuses the robust clipboard util + the app's existing toast system.
   const handleCopy = async () => {
     const ok = await copyToClipboard(draft)
     if (ok) toast('success', 'הטיוטה הועתקה')
@@ -39,7 +36,7 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
   }
 
   const handleSend = async () => {
-    if (!hasDraft || sending) return // prevent empty + duplicate sends
+    if (!hasDraft || sending) return 
     setSending(true)
     setError(null)
     try {
@@ -47,7 +44,7 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
       if (res.ok) {
         setDraft('')
         toast('success', 'ההודעה נשלחה')
-        router.refresh() // re-fetch conversation: new outbound message + pill flip
+        router.refresh() 
       } else {
         toast('error', 'שליחת ההודעה נכשלה')
       }
@@ -60,36 +57,43 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
 
   return (
     <div className='mt-3'>
-      <div className='flex items-center justify-between mb-1'>
-        <label htmlFor='wa-reply-draft' className='block text-sm font-medium text-gray-700'>
-          טיוטת תשובה
-        </label>
-        <Button type='button' variant='outline' size='sm' onClick={generate} disabled={busy}>
-          {pending ? 'מנסח...' : hasDraft ? 'נסח מחדש עם AI' : 'נסח טיוטה עם AI'}
-        </Button>
-      </div>
+      <label htmlFor='wa-reply-draft' className='block text-sm font-medium text-gray-700 mb-1'>
+        טיוטת תשובה
+      </label>
       <textarea
         id='wa-reply-draft'
         value={draft}
         onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHARS))}
+        onKeyDown={(e) => {
+
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault()
+            handleSend()
+          }
+        }}
         rows={3}
         disabled={sending}
         placeholder='כתוב טיוטה לתשובה...'
         aria-label='טיוטת תשובה בוואטסאפ'
         className='w-full resize-none rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 disabled:opacity-50'
       />
-      <div className='mt-1 flex items-center justify-between'>
+  
+      <div className='mt-2 flex items-center gap-2'>
+        <Button type='button' variant='outline' size='sm' onClick={generate} disabled={busy}>
+          {pending ? 'מנסח...' : hasDraft ? 'נסח מחדש עם AI' : 'נסח טיוטה עם AI'}
+        </Button>
         <Button type='button' variant='outline' size='sm' onClick={handleCopy} disabled={!hasDraft || busy}>
           העתק
         </Button>
-        <span className='text-xs text-gray-500 tabular-nums'>
-          {draft.length} / {MAX_CHARS} תווים
-        </span>
-      </div>
-      <div className='mt-2'>
         <Button type='button' size='sm' onClick={handleSend} disabled={!hasDraft || busy}>
           {sending ? 'שולח...' : 'שלח'}
         </Button>
+      </div>
+
+      <div className='mt-1'>
+        <span className='text-xs text-gray-500 tabular-nums'>
+          {draft.length} / {MAX_CHARS} תווים
+        </span>
       </div>
       {error && <p className='mt-1 text-xs text-red-500'>{error}</p>}
     </div>

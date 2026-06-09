@@ -11,6 +11,7 @@ type WorkspaceIdentity = { primary: string; secondary?: string }
 const WORKSPACE_TITLES: Record<string, WorkspaceIdentity> = {
   '/leads': { primary: 'לידים', secondary: 'ניהול ומעקב לידים' },
   '/clients': { primary: 'לקוחות', secondary: 'ניהול קשרי לקוחות' },
+  '/inbox': { primary: 'שיחות', secondary: 'תיבת שיחות' },
   '/tasks': { primary: 'משימות', secondary: 'המשימות שלך להיום' },
   '/sum_sales': { primary: 'ביצועים', secondary: 'תובנות ומדדים' },
 }

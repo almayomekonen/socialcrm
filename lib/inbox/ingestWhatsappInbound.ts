@@ -3,16 +3,7 @@ import { parseWhatsappMessage } from '@/lib/adapters/whatsappMessage'
 import { findOrCreateConversation, bumpConversationOnInbound } from '@/db/inboxConversations'
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertInboundMessage } from '@/db/inboxMessages'
-
-/**
- * Orchestrates inbound WhatsApp persistence: thread + participants + message,
- * atomically, after the lead has already been resolved by the webhook.
- *
- * This layer is ADDITIVE — it runs after createLeadFromWhatsappWebhook and the
- * webhook wraps it so a failure here never affects the lead flow or the 200.
- * Dedup is by wamid: a retried delivery stores nothing new and does not bump
- * thread counters.
- */
+import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
@@ -20,9 +11,7 @@ export type IngestWhatsappInboundInput = {
   businessPhoneNumberId: string
   customerWaId: string
   customerName: string | null
-  /** Verified WhatsApp business display name, if available. */
   businessName?: string | null
-  /** The raw WhatsApp message object (entry[].changes[].value.messages[0]). */
   rawMessage: unknown
 }
 
@@ -32,9 +21,7 @@ export type IngestWhatsappInboundResult = {
   inserted: boolean
 }
 
-export async function ingestWhatsappInbound(
-  input: IngestWhatsappInboundInput,
-): Promise<IngestWhatsappInboundResult> {
+export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): Promise<IngestWhatsappInboundResult> {
   const parsed = parseWhatsappMessage(input.rawMessage)
 
   return db.transaction(async (trx) => {
@@ -64,7 +51,11 @@ export async function ingestWhatsappInbound(
       leadId: null,
     })
 
-    const { id: messageId, inserted } = await insertInboundMessage(trx, {
+    const {
+      id: messageId,
+      inserted,
+      sequence,
+    } = await insertInboundMessage(trx, {
       conversationId,
       agencyId: input.agencyId,
       leadId: input.leadId,
@@ -79,9 +70,15 @@ export async function ingestWhatsappInbound(
       channelTimestamp: parsed.channelTimestamp,
     })
 
-    // Only advance thread aggregates for genuinely new messages.
     if (inserted) {
-      await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date())
+      await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date(), parsed.text)
+      await enqueueConversationAnalysis(trx, {
+        conversationId,
+        agencyId: input.agencyId,
+        channel: 'whatsapp',
+        triggerSequence: sequence,
+        reason: 'new_message',
+      })
     }
 
     return { conversationId, messageId, inserted }

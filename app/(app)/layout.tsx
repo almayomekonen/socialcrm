@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
 import { getAgencyById } from '@/db/agencies'
+import { countUnreadConversationsForUser } from '@/db/inboxConversationReads'
+import { Roles } from '@/types/roles'
 import Topbar from '@/lib/navs/Topbar'
 import Nav from '@/lib/navs/Nav'
 import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
@@ -19,6 +21,13 @@ async function LayoutContent({ children }) {
 
   const copilotEnabled = isCopilotEnabledForUser(user)
 
+  // Per-user unread conversation count for the nav badge. Office users don't see
+  // the Inbox link, so skip the query for them. Never let it break the layout.
+  let inboxUnread = 0
+  if (user.agencyId && user.role !== Roles.OFFICE) {
+    inboxUnread = await countUnreadConversationsForUser(user.agencyId, user.id).catch(() => 0)
+  }
+
   return (
     <UserProvider user={user}>
       <PosProvider>
@@ -27,7 +36,7 @@ async function LayoutContent({ children }) {
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <Topbar user={user} />
               <WorkspaceGrid>
-                <Nav user={user} />
+                <Nav user={user} inboxUnread={inboxUnread} />
                 <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>{children}</main>
                 <CopilotShell />
               </WorkspaceGrid>

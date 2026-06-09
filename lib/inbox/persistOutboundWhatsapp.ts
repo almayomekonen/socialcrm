@@ -2,13 +2,7 @@ import { db } from '@/config/db'
 import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inboxConversations'
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertOutboundMessage } from '@/db/inboxMessages'
-
-/**
- * Persist a successfully-sent outbound WhatsApp message into the SAME conversation
- * model used for inbound (thread + participants + message + aggregate bump), in one
- * transaction. Mirrors ingestWhatsappInbound. Called ONLY after the Cloud API send
- * returns a wamid, so failed sends never create a conversation entry.
- */
+import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 
 export type PersistOutboundWhatsappInput = {
   agencyId: number
@@ -26,9 +20,7 @@ export type PersistOutboundWhatsappResult = {
   messageId: number
 }
 
-export async function persistOutboundWhatsapp(
-  input: PersistOutboundWhatsappInput,
-): Promise<PersistOutboundWhatsappResult> {
+export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInput): Promise<PersistOutboundWhatsappResult> {
   return db.transaction(async (trx) => {
     const conversationId = await findOrCreateConversation(trx, {
       agencyId: input.agencyId,
@@ -56,7 +48,7 @@ export async function persistOutboundWhatsapp(
       leadId: null,
     })
 
-    const { id: messageId } = await insertOutboundMessage(trx, {
+    const { id: messageId, inserted, sequence } = await insertOutboundMessage(trx, {
       conversationId,
       agencyId: input.agencyId,
       leadId: input.leadId,
@@ -69,7 +61,18 @@ export async function persistOutboundWhatsapp(
       channelTimestamp: new Date(),
     })
 
-    await bumpConversationOnOutbound(trx, conversationId, new Date())
+    await bumpConversationOnOutbound(trx, conversationId, new Date(), input.text)
+
+    // Transactional outbox: a rep reply changes conversation state, so re-analyze.
+    if (inserted) {
+      await enqueueConversationAnalysis(trx, {
+        conversationId,
+        agencyId: input.agencyId,
+        channel: 'whatsapp',
+        triggerSequence: sequence,
+        reason: 'new_message',
+      })
+    }
 
     return { conversationId, messageId }
   })
