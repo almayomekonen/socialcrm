@@ -335,12 +335,11 @@ describe('POST /api/payments/grow — validation', () => {
 
   it('no longer rejects payloads without externalId at the gate (fallback path takes over)', async () => {
     // The required-fields gate now only requires transactionId; missing
-    // externalId routes to the pending_upgrades fallback. With no matching
-    // pending row and no payerEmail in this payload, the fallback throws
-    // 'Pending upgrade not found' which surfaces as 500 from Next.js.
+    // externalId routes to the pending_upgrades fallback. With no pending
+    // rows at all the fallback returns 404 'Pending upgrade not found'.
     const res = await POST(buildReq({ body: { transactionId: 'tx_no_ext_id_only' } }))
     expect(res.status).not.toBe(400)
-    expect(res.status).toBeGreaterThanOrEqual(500)
+    expect(res.status).toBe(404)
   })
 })
 
@@ -406,31 +405,61 @@ describe('POST /api/payments/grow — pending_upgrades fallback', () => {
     expect(pendingAfter.status).toBe('completed')
   })
 
-  // TEST C — no matching pending row → error returned
-  it('C: externalId empty + payerEmail does NOT match any pending row → error', async () => {
+  // TEST C — no pending rows at all → 404 returned
+  it('C: externalId empty + no pending rows exist → 404', async () => {
     const transactionId = 'tx_C_no_pending_' + Date.now()
-    // The fallback throws `Error('Pending upgrade not found')`. In Next.js
-    // request context Next catches this and returns 500; when invoked
-    // directly in tests, the await rejects. Accept either.
-    let errMessage: string | null = null
-    let resStatus: number | null = null
-    try {
-      const res = await POST(
-        buildReq({
-          body: { data: { transactionCode: transactionId, identifyParam: '', payerEmail: 'never-seen-' + Date.now() + '@example.com' } },
-        }),
-      )
-      resStatus = res.status
-    } catch (err) {
-      errMessage = String(err)
-    }
+    const res = await POST(
+      buildReq({
+        body: { data: { transactionCode: transactionId, identifyParam: '', payerEmail: 'never-seen-' + Date.now() + '@example.com' } },
+      }),
+    )
 
-    expect(errMessage !== null || (resStatus !== null && resStatus >= 500)).toBe(true)
-    if (errMessage) expect(errMessage).toContain('Pending upgrade not found')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe('Pending upgrade not found')
 
     // No payments row, no agency mutations
     const payments = await db('payments').where({ transactionId })
     expect(payments).toHaveLength(0)
+  })
+
+  // TEST C2 — payerEmail empty (real Grow shape when checkout collects no
+  // email) but exactly one pending row exists → sole-row fallback resolves
+  it('C2: payerEmail empty + exactly one pending row → sole-pending fallback succeeds', async () => {
+    const agencyId = await seedAgency()
+    await seedPending(agencyId, 'owner-' + Date.now() + '@example.com', 'pending')
+
+    const transactionId = 'tx_C2_sole_pending_' + Date.now()
+    const res = await POST(
+      buildReq({
+        // Observed production shape: empty identifyParam AND empty payerEmail
+        body: { data: { transactionCode: transactionId, identifyParam: '', payerEmail: '' } },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
+
+    const pendingAfter = await db('pending_upgrades').where({ agencyId }).first()
+    expect(pendingAfter.status).toBe('completed')
+  })
+
+  // TEST C3 — email casing differences must not break attribution
+  it('C3: payerEmail matches pending row case-insensitively', async () => {
+    const agencyId = await seedAgency()
+    const email = 'CaseTest-' + Date.now() + '@Example.com'
+    await seedPending(agencyId, email, 'pending')
+
+    const transactionId = 'tx_C3_case_' + Date.now()
+    const res = await POST(
+      buildReq({
+        body: { data: { transactionCode: transactionId, identifyParam: '', payerEmail: email.toUpperCase() } },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('pro')
   })
 
   // TEST D — full success via fallback: agency.plan='pro' + subscription row
@@ -742,7 +771,7 @@ describe('POST /api/payments/grow — field-name fallbacks', () => {
 describe('Full flow integration', () => {
   it('upgrade route → extract external_id → webhook → DB upgraded', async () => {
     const agencyId = await seedAgency()
-    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireUser).mockResolvedValueOnce({ id: 1, agencyId, email: 'e2e-' + Date.now() + '@example.com' } as any)
 
     // 1. User clicks upgrade
     const upgradeRes = await UPGRADE_GET(
@@ -750,7 +779,7 @@ describe('Full flow integration', () => {
     )
     expect(upgradeRes.status).toBe(302)
     const growUrl = new URL(upgradeRes.headers.get('location')!)
-    const externalId = growUrl.searchParams.get('external_id')!
+    const externalId = growUrl.searchParams.get('identifyParam')!
     expect(externalId).toBeTruthy()
 
     // 2. Grow processes payment, fires webhook back at us with the same external_id

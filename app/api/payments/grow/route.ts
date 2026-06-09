@@ -137,12 +137,35 @@ export async function POST(req: NextRequest) {
     }
   } else {
     console.log('[GrowWebhook] token missing, using pending lookup')
-    const pending = await db('pending_upgrades')
-      .where({ email: payload?.payerEmail, status: 'pending' })
-      .orderBy('createdAt', 'desc')
-      .first()
+    const rawEmail = payload?.payerEmail ?? payload?.payer_email ?? payload?.email
+    const payerEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+
+    let pending = payerEmail
+      ? await db('pending_upgrades')
+          .whereRaw('lower(email) = ?', [payerEmail])
+          .where({ status: 'pending' })
+          .orderBy('createdAt', 'desc')
+          .first()
+      : null
+
+    // Grow checkout doesn't always collect the payer's email (observed in
+    // production: real transactions arrive with an empty email field). When
+    // email can't resolve ownership but exactly ONE pending upgrade exists,
+    // attribution is unambiguous — use it.
     if (!pending) {
-      throw new Error('Pending upgrade not found')
+      const candidates = await db('pending_upgrades').where({ status: 'pending' })
+      if (candidates.length === 1) {
+        pending = candidates[0]
+        console.warn('[GrowWebhook] email lookup failed; using sole pending row', {
+          payerEmail,
+          agencyId: pending.agencyId,
+        })
+      }
+    }
+
+    if (!pending) {
+      console.error('[GrowWebhook] no pending upgrade resolved', { payerEmail })
+      return new NextResponse('Pending upgrade not found', { status: 404 })
     }
     agencyId = pending.agencyId
   }
