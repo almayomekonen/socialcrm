@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   const externalId: unknown = payload?.externalId ?? payload?.external_id ?? payload?.identifyParam
 
   console.log('[GrowWebhook] resolved fields:', {
-    webhookKey,
+    webhookKey: webhookKey ? 'present' : 'absent',
     transactionId,
     externalId,
   })

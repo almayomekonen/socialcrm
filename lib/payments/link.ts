@@ -30,10 +30,5 @@ export function getUpgradeLink(agencyId: number): string {
   url.searchParams.set('identifyParam', token)
   url.searchParams.set('return_url', getReturnUrl())
 
-  // TEMP DEBUG — remove once next real Grow delivery confirms the URL
-  // shape Grow received. Lets us see whether the deployment is actually
-  // running ec9500d9 (identifyParam) vs. the prior code (external_id).
-  console.log('[GrowLink] generated URL:', url.toString())
-
   return url.toString()
 }
