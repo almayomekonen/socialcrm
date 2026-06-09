@@ -37,7 +37,6 @@ export type InsertInboundMessageInput = {
 export type InsertMessageResult = {
   id: number
   inserted: boolean
-  /** Per-conversation monotonic sequence of the (new or existing) message. */
   sequence: number
 }
 
