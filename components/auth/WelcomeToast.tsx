@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from '@/lib/toast'
 import { useUser } from '@/lib/hooksNEvents'
+import { trackCompleteRegistration } from '@/lib/facebook/pixelEvents'
 
 const STORAGE_KEY_PREFIX = 'socialcrm:welcomeToastSeen:'
 const TOAST_DURATION_MS = 5000
@@ -33,6 +34,7 @@ export default function WelcomeToast() {
         ? `🚀 ברוך הבא ל-SocialCRM, ${firstName}`
         : '🚀 ברוך הבא ל-SocialCRM'
       toast('success', `${greeting}\nהמערכת שלך מוכנה להתחלה`, TOAST_DURATION_MS)
+      trackCompleteRegistration()
       try {
         window.localStorage.setItem(key, 'true')
       } catch {}
