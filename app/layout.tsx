@@ -24,8 +24,6 @@ export default async function RootLayout({ children }) {
         <ChunkReloader />
         <MetaPixel />
         <main>{children}</main>
-        {/* Platform-wide mobile gate. CSS-only visibility via `desktop:hidden`.
-            Single mount covers every route group — see MobileBlock.tsx. */}
         <MobileBlock />
       </body>
     </html>
