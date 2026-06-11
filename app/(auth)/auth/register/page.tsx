@@ -1,4 +1,5 @@
 import AddAgencyForm from '@/components/agencies/AddAgencyForm'
+import Icon from '@/lib/Icon'
 
 export default async function page({ searchParams }) {
   const { email, name } = await searchParams
@@ -12,6 +13,25 @@ export default async function page({ searchParams }) {
           </div>
           <h1 className='text-3xl lg:text-5xl font-bold text-center'>מתחילים כאן</h1>
           <AddAgencyForm defaultEmail={email} defaultName={name} />
+
+          {/* Mobile-only product preview — the organized lead a new user is signing up for */}
+          <div className='md:hidden w-full mt-2' dir='rtl'>
+            <p className='text-xs text-gray-500 text-center mb-3'>כך ייראה הליד הראשון שלך</p>
+            <div className='rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-3'>
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center gap-2'>
+                  <span className='inline-block w-2.5 h-2.5 bg-blue-500 rounded-full' />
+                  <span className='text-sm font-medium text-gray-900'>דני לוי</span>
+                </div>
+                <span className='inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium'>חדש</span>
+              </div>
+              <p className='text-xs text-gray-500 mt-1.5 mr-[18px]'>050-1234567</p>
+              <div className='flex items-center gap-1.5 mt-1.5 mr-[18px]'>
+                <Icon name='facebook-f' className='size-3 bg-gray-400' />
+                <span className='text-xs text-gray-400'>פייסבוק • לפני 2 דק׳</span>
+              </div>
+            </div>
+          </div>
         </div>
         <img src='/media/auth.jpg' alt='' className='w-full h-screen hidden lg:block' />
       </div>
