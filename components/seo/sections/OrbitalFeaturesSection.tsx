@@ -15,9 +15,6 @@ const crmTimelineData = [
 
 const statusLabel = { completed: 'פעיל', 'in-progress': 'בפיתוח', pending: 'בקרוב' } as const
 
-// Mobile rendering of the same timeline items — the orbital layout has a
-// fixed 200px radius that cannot fit below ~480px, so phones get stacked
-// cards (same visual language as the how-it-works StepCard).
 function MobileFeatureCards() {
   return (
     <div className='md:hidden px-6 pt-6 pb-10 space-y-4 max-w-md mx-auto' dir='rtl'>

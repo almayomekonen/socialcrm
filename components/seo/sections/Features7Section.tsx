@@ -30,24 +30,24 @@ function LeadsMockUI() {
           <span className='px-2 py-1 rounded bg-white/10 text-white/60'>מקור</span>
         </div>
         <div className='flex gap-2'>
-          <span className='px-3 py-1 rounded border border-white/20 text-white/60'>ייבוא</span>
+          <span className='hidden md:inline px-3 py-1 rounded border border-white/20 text-white/60'>ייבוא</span>
           <span className='px-3 py-1 rounded text-white font-semibold' style={{ backgroundColor: '#3f20f5' }}>הוסף ליד</span>
         </div>
       </div>
       {/* header */}
-      <div className='grid grid-cols-5 gap-3 px-4 py-2 text-white/30 font-medium border-b border-white/10 bg-[#16122e]'>
-        <span>שם הליד</span><span>נציג</span><span>סטטוס</span><span>תאריך</span><span>מקור</span>
+      <div className='grid grid-cols-3 md:grid-cols-5 gap-3 px-4 py-2 text-white/30 font-medium border-b border-white/10 bg-[#16122e]'>
+        <span>שם הליד</span><span className='hidden md:block'>נציג</span><span>סטטוס</span><span className='hidden md:block'>תאריך</span><span>מקור</span>
       </div>
       {/* rows */}
       {mockLeads.map((lead, i) => (
-        <div key={i} className={`grid grid-cols-5 gap-3 px-4 py-2.5 items-center border-b border-white/5 hover:bg-white/5 transition-colors ${i === 0 ? 'bg-white/5' : ''}`}>
+        <div key={i} className={`grid grid-cols-3 md:grid-cols-5 gap-3 px-4 py-2.5 items-center border-b border-white/5 hover:bg-white/5 transition-colors ${i === 0 ? 'bg-white/5' : ''}`}>
           <div className='flex items-center gap-2 font-medium text-white/90'>
             <span className={`w-2 h-2 rounded-full shrink-0 ${lead.color}`} />
             {lead.name}
           </div>
-          <span className='text-white/50'>{lead.assignee}</span>
+          <span className='hidden md:block text-white/50'>{lead.assignee}</span>
           <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium w-fit ${lead.badge}`}>{lead.status}</span>
-          <span className='text-white/40'>{lead.date}</span>
+          <span className='hidden md:block text-white/40'>{lead.date}</span>
           <span className='text-white/50'>{lead.source}</span>
         </div>
       ))}
@@ -61,7 +61,7 @@ export function Features7Section() {
       <div className='mx-auto max-w-5xl space-y-10 px-6 md:space-y-14'>
         <FadeIn className='relative z-10 max-w-2xl'>
           <div dir='rtl'>
-            <h2 className='text-4xl font-bold text-white lg:text-5xl leading-tight'>
+            <h2 className='text-3xl md:text-4xl font-bold text-white lg:text-5xl leading-tight'>
               בנוי כדי שלא תפספס<br />אף ליד
             </h2>
             <p className='mt-5 text-lg text-white/50 leading-relaxed'>
@@ -70,10 +70,10 @@ export function Features7Section() {
           </div>
         </FadeIn>
 
-        {/* 3D skewed product preview */}
+        {/* 3D skewed product preview — flat below md for readability */}
         <div className='relative -mx-4 rounded-3xl p-3 md:-mx-8'>
           <div style={{ perspective: '800px' }}>
-            <div style={{ transform: 'skewY(-2deg) skewX(-2deg) rotateX(6deg)' }}>
+            <div className='md:transform-[skewY(-2deg)_skewX(-2deg)_rotateX(6deg)]'>
               <div className='relative'>
                 <div className='absolute inset-0 z-10' style={{ background: 'radial-gradient(ellipse at 75% 25%, transparent 40%, #171424 80%)' }} />
                 <LeadsMockUI />
