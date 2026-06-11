@@ -67,8 +67,8 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
       <div data-prefix='user' className='grid grid-cols-2 gap-4 mt-4'>
         <Input name='firstName' lbl='שם פרטי' defaultValue={defaultName} />
         <Input name='lastName' lbl='שם משפחה' />
-        {/* col-span must sit on the grid child — Input forwards className to the inner input */}
-        <div className='col-span-2'>
+        {/* Full-width on mobile; lg restores the original desktop half-width cell */}
+        <div className='col-span-2 lg:col-span-1'>
           <Input name='email' lbl='אימייל' defaultValue={defaultEmail} />
         </div>
       </div>

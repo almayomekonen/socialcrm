@@ -5,11 +5,11 @@ export default async function page({ searchParams }) {
   return (
     <div className='min-h-screen bg-white lg:fixed lg:top-0 lg:right-0'>
       <div className='grid lg:grid-cols-2  w-screen bg-white place-items-center'>
-        <div className='grid place-items-center py-14 lg:py-0 gap-6 lg:gap-8 w-full max-w-sm px-6 lg:max-w-none lg:px-0'>
-          <h1 className='text-3xl md:text-5xl font-bold text-center'>מתחילים כאן</h1>
+        <div className='grid place-items-center py-14 lg:py-0 gap-6 lg:gap-8 w-full lg:w-auto max-w-sm px-6 lg:max-w-none lg:px-0'>
+          <h1 className='text-3xl lg:text-5xl font-bold text-center'>מתחילים כאן</h1>
           <AddAgencyForm defaultEmail={email} defaultName={name} />
         </div>
-        <img src='/media/auth.jpg' alt='' className='w-full h-screen hidden lg:block object-cover' />
+        <img src='/media/auth.jpg' alt='' className='w-full h-screen hidden lg:block' />
       </div>
     </div>
   )
