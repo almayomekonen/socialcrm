@@ -8,6 +8,8 @@ const PUBLIC_ROUTES = [
   '/facebook-leads',
   '/whatsapp-leads',
   '/crm-vs-excel',
+  '/instagram-leads-crm',
+  '/crm-for-whatsapp-business',
   '/pricing',
   '/privacy',
   '/terms',
