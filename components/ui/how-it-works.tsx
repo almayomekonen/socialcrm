@@ -74,7 +74,7 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({ className, ...props }) =
       dir='rtl'
       {...props}
     >
-      <div className='container mx-auto px-6'>
+      <div className='mx-auto w-full max-w-5xl px-6'>
         {/* Header */}
         <div className='mx-auto mb-16 max-w-4xl text-center'>
           <h2 className='text-4xl font-black tracking-tight text-white sm:text-5xl'>
