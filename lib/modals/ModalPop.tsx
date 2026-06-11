@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 import Icon from '@/lib/Icon'
 
-export default function ModalPop({ children, className, onClose, open, closeOutside = false, pos = 'top' }: Props): JSX.Element {
+export default function ModalPop({ children, className, onClose, open, closeOutside = false, pos = 'top', hideClose = false }: Props): JSX.Element {
   // Portals require `document`, so wait for client-side mount before rendering.
   // Without the gate, SSR would crash on `document.body` and hydration would
   // mismatch on the empty fragment.
@@ -37,9 +37,11 @@ export default function ModalPop({ children, className, onClose, open, closeOuts
           className
         )}
       >
-        <button className='absolute top-2 left-2' title='יציאה ללא שמירה' onClick={onClose}>
-          <Icon name='circle-xmark' className='size-[22px] bg-red-700' />
-        </button>
+        {!hideClose && (
+          <button className='absolute top-2 left-2' title='יציאה ללא שמירה' onClick={onClose}>
+            <Icon name='circle-xmark' className='size-[22px] bg-red-700' />
+          </button>
+        )}
 
         {children}
       </div>
@@ -56,4 +58,5 @@ type Props = {
   open: boolean
   closeOutside?: boolean
   pos?: 'top' | 'middle'
+  hideClose?: boolean
 }
