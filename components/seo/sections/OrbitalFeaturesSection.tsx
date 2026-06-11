@@ -1,6 +1,7 @@
 'use client'
 
 import RadialOrbitalTimeline from '@/components/ui/radial-orbital-timeline'
+import Icon from '@/lib/Icon'
 import { FadeIn } from './shared'
 
 const crmTimelineData = [
@@ -12,6 +13,35 @@ const crmTimelineData = [
   { id: 6, title: 'דוחות', date: 'נראות מלאה', content: 'כמה לידים נסגרו החודש? מה שיעור ההמרה? התשובות בלחיצה.', category: 'ניתוח', iconName: 'chart-line' as const, relatedIds: [5], status: 'pending' as const, energy: 40 },
 ]
 
+const statusLabel = { completed: 'פעיל', 'in-progress': 'בפיתוח', pending: 'בקרוב' } as const
+
+// Mobile rendering of the same timeline items — the orbital layout has a
+// fixed 200px radius that cannot fit below ~480px, so phones get stacked
+// cards (same visual language as the how-it-works StepCard).
+function MobileFeatureCards() {
+  return (
+    <div className='md:hidden px-6 pt-6 pb-10 space-y-4 max-w-md mx-auto' dir='rtl'>
+      {crmTimelineData.map((item, i) => (
+        <FadeIn key={item.id} delay={Math.min(i * 0.05, 0.2)}>
+          <div className='rounded-2xl border border-white/10 p-5 text-white' style={{ backgroundColor: '#141414' }}>
+            <div className='flex items-center justify-between mb-4'>
+              <div className='flex h-11 w-11 items-center justify-center rounded-xl' style={{ backgroundColor: '#1f1f22' }}>
+                <Icon name={item.iconName} className='size-5 bg-white/80' />
+              </div>
+              <span className='px-2 py-0.5 rounded-full text-[11px] font-medium border border-white/15 text-white/60'>
+                {statusLabel[item.status]}
+              </span>
+            </div>
+            <h3 className='text-lg font-bold mb-1'>{item.title}</h3>
+            <p className='text-xs text-white/40 mb-2'>{item.date}</p>
+            <p className='text-sm leading-relaxed text-white/60'>{item.content}</p>
+          </div>
+        </FadeIn>
+      ))}
+    </div>
+  )
+}
+
 export function OrbitalFeaturesSection() {
   return (
     <section className='bg-black py-8'>
@@ -19,10 +49,13 @@ export function OrbitalFeaturesSection() {
         <FadeIn>
           <span className='inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-white/10 text-white/60'>הפיצ׳רים</span>
           <h2 className='text-3xl md:text-4xl font-bold text-white mb-3'>כל מה שצריך, כלום מיותר</h2>
-          <p className='text-white/40 text-base max-w-md mx-auto'>לחץ על כל עיגול כדי לראות פרטים</p>
+          <p className='hidden md:block text-white/40 text-base max-w-md mx-auto'>לחץ על כל עיגול כדי לראות פרטים</p>
         </FadeIn>
       </div>
-      <RadialOrbitalTimeline timelineData={crmTimelineData} />
+      <MobileFeatureCards />
+      <div className='hidden md:block'>
+        <RadialOrbitalTimeline timelineData={crmTimelineData} />
+      </div>
     </section>
   )
 }

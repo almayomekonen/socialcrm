@@ -71,6 +71,8 @@ export default function RadialOrbitalTimeline({ timelineData }: RadialOrbitalTim
 
   useEffect(() => {
     if (!autoRotate) return
+    // The orbital is display:none below md — don't burn CPU rotating it there.
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767.98px)').matches) return
     const timer = setInterval(() => {
       setRotationAngle((prev) => Number(((prev + 0.3) % 360).toFixed(3)))
     }, 50)
