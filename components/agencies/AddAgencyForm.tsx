@@ -67,10 +67,13 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
       <div data-prefix='user' className='grid grid-cols-2 gap-4 mt-4'>
         <Input name='firstName' lbl='שם פרטי' defaultValue={defaultName} />
         <Input name='lastName' lbl='שם משפחה' />
-        <Input name='email' lbl='אימייל' className='col-span-2' defaultValue={defaultEmail} />
+        {/* col-span must sit on the grid child — Input forwards className to the inner input */}
+        <div className='col-span-2'>
+          <Input name='email' lbl='אימייל' defaultValue={defaultEmail} />
+        </div>
       </div>
       {error && <p className='text-sm text-red-500 mt-2'>{error}</p>}
-      <SubmitButton lbl={submitting ? 'טוען...' : 'המשך'} className='w-full mt-4' icon={false} disabled={submitting} />
+      <SubmitButton lbl={submitting ? 'טוען...' : 'צור חשבון'} className='w-full mt-4' icon={false} disabled={submitting} />
       <p className='text-gray-500 text-xs text-center mt-3'>
         כבר יש לך חשבון?{' '}
         <Link
