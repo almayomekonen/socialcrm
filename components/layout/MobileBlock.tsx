@@ -20,7 +20,7 @@ const BACKDROP_DOT: Record<string, string> = {
   gray: 'bg-gray-500/50',
 }
 
-export default function MobileBlock() {
+export default function MobileBlock({ accountSlot }: { accountSlot?: React.ReactNode }) {
   return (
     <div
       dir='rtl'
@@ -74,11 +74,13 @@ export default function MobileBlock() {
 
         <SuccessChecklist />
 
+        {accountSlot}
+
         <p className='mt-4 max-w-[300px] text-[12px] leading-[1.6] text-white/80 mb-fade-up-d3'>
           SocialCRM כוללת ניהול לידים, וואטסאפ, משימות, קבצים ודוחות כדי לספק חוויית עבודה מהירה ונוחה, המערכת המלאה זמינה כרגע במחשב.
         </p>
 
-        <div className='mt-7 flex flex-col items-center gap-3 mb-fade-up-d3'>
+        <div className='mt-6 flex flex-col items-center gap-3 mb-fade-up-d3'>
           <DesktopChip />
           <CopyLinkButton />
         </div>
