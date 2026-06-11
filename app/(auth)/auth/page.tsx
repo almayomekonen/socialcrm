@@ -77,6 +77,10 @@ export default async function AuthPage({ searchParams }) {
         {/* Login section */}
         <div className='grid lg:grid-cols-2 w-screen place-items-center'>
           <div className='grid place-items-center gap-6 lg:gap-8 py-14 lg:py-0 px-6 lg:px-0'>
+            {/* Mobile-only logo — app-login feel for ad traffic; md+ unchanged */}
+            <div className='md:hidden mt-4 flex size-20 items-center justify-center rounded-2xl border border-gray-200 bg-white shadow-sm'>
+              <img src='/media/fav.svg' alt='SocialCRM' className='size-12' />
+            </div>
             <h1 className='text-3xl md:text-5xl font-bold text-center'>SocialCRM הכל במקום אחד</h1>
             <p className='text-gray-500 font-normal text-base mt-2 text-center'>
               כל הלידים שלך במקום אחד. בלי לפספס אף אחד.
@@ -102,7 +106,9 @@ export default async function AuthPage({ searchParams }) {
         </div>
 
         {/* SEO content — visible to crawlers and AI engines, useful for users */}
-        <section aria-label='מידע על המערכת' className='bg-white border-t border-gray-100'>
+        {/* SEO/marketing content — hidden on phones (login stays frictionless for ad
+            traffic); still in the DOM for crawlers, rendered from md up as before */}
+        <section aria-label='מידע על המערכת' className='hidden md:block bg-white border-t border-gray-100'>
           <HeroScroll />
 
           <div className='max-w-4xl mx-auto px-8 pb-16'>
