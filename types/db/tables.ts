@@ -447,3 +447,14 @@ export interface AnalyticsEvent {
   props: Json
   createdAt: Date
 }
+
+export interface TrialStatusView {
+  agencyId: number
+  agencyName: string
+  plan: 'free' | 'pro'
+  trialExempt: boolean
+  trialStartedAt: Date | null
+  trialEndsAt: Date | null
+  status: 'PAID' | 'LEGACY' | 'NEVER_STARTED' | 'TRIAL_ACTIVE' | 'TRIAL_EXPIRED'
+  daysRemaining: number | null
+}

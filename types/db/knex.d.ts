@@ -33,6 +33,7 @@ declare module 'knex/types/tables' {
     _flat_sales: DB.FlatSalesView
     _teams: DB.TeamsView
     _sales: DB.SalesView
+    _trial_status: DB.TrialStatusView
   }
 }
 
