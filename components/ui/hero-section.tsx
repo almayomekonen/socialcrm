@@ -90,7 +90,7 @@ const HeroContent: React.FC<HeroContentData> = ({
         {subheadline && <p className='text-sm text-gray-600 mb-4'>{subheadline}</p>}
         <h1 className='text-4xl md:text-[60px] font-bold text-gray-900 mb-6 leading-tight text-center'>{headline}</h1>
         <p className='text-lg text-gray-700 mb-8'>{description}</p>
-        <div className='flex flex-col sm:flex-row items-center justify-center gap-4 mb-8'>
+        <div className='flex flex-col-reverse sm:flex-row items-center justify-center gap-4 mb-8'>
           {secondaryCtaText && (
             <a href={secondaryCtaLink} className='w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-full text-gray-800 font-semibold hover:bg-gray-50 text-sm'>
               {secondaryCtaText}
@@ -122,7 +122,7 @@ const renderIcon = (iconType?: string) => {
 const AppPreviewHeaderControls: React.FC<AppPreviewHeaderControlsData> = ({ filters, actions }) => {
   return (
     <div className='flex flex-col md:flex-row items-start md:items-center justify-between text-gray-500 text-xs space-y-2 md:space-y-0 w-full' dir='rtl'>
-      <div className='flex flex-wrap items-center gap-2'>
+      <div className='hidden md:flex flex-wrap items-center gap-2'>
         <span className='hidden md:inline-block text-gray-600'>סנן לפי:</span>
         {filters.map((filter, index) => (
           <button key={index} className='flex items-center px-2 py-1 border border-gray-300 rounded text-xs hover:bg-gray-100'>
@@ -151,6 +151,9 @@ const AppPreviewHeaderControls: React.FC<AppPreviewHeaderControlsData> = ({ filt
   )
 }
 
+// Columns hidden below md so the preview stays readable on phones
+const MOBILE_HIDDEN_COLUMNS = new Set(['assignee', 'dueDate', 'phone'])
+
 const AppDataTable: React.FC<AppDataTableData> = ({ headers, data }) => {
   const colorMap: Record<string, { dot: string; badge: string; text: string }> = {
     green: { dot: 'bg-green-500', badge: 'bg-green-100', text: 'text-green-800' },
@@ -162,9 +165,9 @@ const AppDataTable: React.FC<AppDataTableData> = ({ headers, data }) => {
 
   return (
     <div className='bg-white rounded-md shadow-inner overflow-hidden border border-gray-200' dir='rtl'>
-      <div className='grid grid-cols-[1.8fr_1.2fr_0.8fr_1fr_1fr_1.2fr] gap-4 text-xs text-gray-500 px-4 py-2 border-b border-gray-200 bg-gray-100'>
+      <div className='grid grid-cols-[1.6fr_0.9fr_1fr] md:grid-cols-[1.8fr_1.2fr_0.8fr_1fr_1fr_1.2fr] gap-2 md:gap-4 text-xs text-gray-500 px-4 py-2 border-b border-gray-200 bg-gray-100'>
         {headers.map((header) => (
-          <div key={header.id} className='flex items-center'>
+          <div key={header.id} className={`${MOBILE_HIDDEN_COLUMNS.has(header.id) ? 'hidden md:flex' : 'flex'} items-center`}>
             {renderIcon(header.icon)}
             {header.label}
           </div>
@@ -176,21 +179,21 @@ const AppDataTable: React.FC<AppDataTableData> = ({ headers, data }) => {
         return (
           <div
             key={row.id ?? index}
-            className={`grid grid-cols-[1.8fr_1.2fr_0.8fr_1fr_1fr_1.2fr] gap-4 text-sm text-gray-700 px-4 py-2 items-center cursor-pointer hover:bg-gray-50 ${index < data.length - 1 ? 'border-b border-gray-200' : ''}`}
+            className={`grid grid-cols-[1.6fr_0.9fr_1fr] md:grid-cols-[1.8fr_1.2fr_0.8fr_1fr_1fr_1.2fr] gap-2 md:gap-4 text-sm text-gray-700 px-4 py-2 items-center cursor-pointer hover:bg-gray-50 ${index < data.length - 1 ? 'border-b border-gray-200' : ''}`}
           >
             <div className='flex items-center font-medium'>
-              <span className={`inline-block w-2.5 h-2.5 ${colors.dot} rounded-full mr-2`} />
-              {row.name}
+              <span className={`inline-block w-2.5 h-2.5 ${colors.dot} rounded-full mr-2 shrink-0`} />
+              <span className='truncate'>{row.name}</span>
             </div>
-            <div>{row.assignee.join(', ')}</div>
+            <div className='hidden md:block'>{row.assignee.join(', ')}</div>
             <div>
-              <span className={`inline-block px-2 py-0.5 ${colors.badge} ${colors.text} rounded-full text-xs font-medium`}>
+              <span className={`inline-block px-2 py-0.5 ${colors.badge} ${colors.text} rounded-full text-xs font-medium whitespace-nowrap`}>
                 {row.status}
               </span>
             </div>
-            <div className='text-gray-700'>{row.dueDate}</div>
+            <div className='hidden md:block text-gray-700'>{row.dueDate}</div>
             <div className='text-gray-700 truncate'>{row.project}</div>
-            <div className='text-gray-500 text-xs'>{row.phone}</div>
+            <div className='hidden md:block text-gray-500 text-xs'>{row.phone}</div>
           </div>
         )
       })}
@@ -200,7 +203,7 @@ const AppDataTable: React.FC<AppDataTableData> = ({ headers, data }) => {
 
 const AppPreviewSection: React.FC<AppPreviewData> = ({ headerControls, appDataTable }) => {
   return (
-    <div className='relative z-20 px-8 lg:px-12 pb-8 bg-gray-50 rounded-b-xl'>
+    <div className='relative z-20 px-4 md:px-8 lg:px-12 pb-8 bg-gray-50 rounded-b-xl'>
       <div className='flex flex-col md:flex-row items-start md:items-center justify-end text-gray-500 text-xs space-y-4 md:space-y-0 pt-4 mb-4'>
         <AppPreviewHeaderControls filters={headerControls.filters} actions={headerControls.actions} />
       </div>
