@@ -11,6 +11,7 @@ import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
+import MobileBlock from '@/components/layout/MobileBlock'
 import { redirect } from 'next/navigation'
 
 async function LayoutContent({ children }) {
@@ -50,8 +51,11 @@ async function LayoutContent({ children }) {
 
 export default function AppLayout({ children }) {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <LayoutContent>{children}</LayoutContent>
-    </Suspense>
+    <>
+      <Suspense fallback={<div>Loading...</div>}>
+        <LayoutContent>{children}</LayoutContent>
+      </Suspense>
+      <MobileBlock />
+    </>
   )
 }

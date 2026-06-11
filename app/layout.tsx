@@ -3,7 +3,6 @@ import LayoutPageEvents from '@/lib/hooksNEvents'
 import ToastMsg from '@/lib/toast'
 import ChunkReloader from '@/lib/ChunkReloader'
 import MetaPixel from '@/lib/facebook/MetaPixel'
-import MobileBlock from '@/components/layout/MobileBlock'
 import { metaData } from '@/types/vars'
 import { Assistant } from 'next/font/google'
 
@@ -24,7 +23,6 @@ export default async function RootLayout({ children }) {
         <ChunkReloader />
         <MetaPixel />
         <main>{children}</main>
-        <MobileBlock />
       </body>
     </html>
   )
