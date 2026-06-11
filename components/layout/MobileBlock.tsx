@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Icon from '@/lib/Icon'
 import { copyToClipboard } from '@/lib/clipboard'
 
 const BACKDROP_ROWS = [
@@ -32,7 +33,7 @@ export default function MobileBlock() {
       }}
       aria-hidden='false'
       role='dialog'
-      aria-label='SocialCRM נבנה למחשב'
+      aria-label='החשבון שלך מוכן — המערכת המלאה זמינה במחשב'
     >
       <CinematicLighting />
       <AtmosphericProductLayers />
@@ -54,7 +55,7 @@ export default function MobileBlock() {
         <HeroLogo />
 
         <h1
-          className='mt-9 text-[44px] font-bold leading-[1.05] tracking-tight mb-fade-up-d1'
+          className='mt-7 text-[36px] font-bold leading-[1.1] tracking-tight mb-fade-up-d1'
           style={{
             background:
               'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,235,200,0.92) 65%, rgba(252,191,73,0.85) 100%)',
@@ -64,14 +65,20 @@ export default function MobileBlock() {
             textShadow: '0 4px 30px rgba(252,191,73,0.25)',
           }}
         >
-          נבנה למחשב.
+          החשבון שלך מוכן
         </h1>
 
-        <p className='mt-3 max-w-[320px] text-[14px] leading-[1.6] text-white/55 mb-fade-up-d2'>
-          SocialCRM מעניק את חוויית העבודה המלאה מהמחשב.
+        <p className='mt-3 max-w-[320px] text-[14px] leading-[1.6] text-white/60 mb-fade-up-d2'>
+          אפשר להתחיל לעבוד מהמחשב ולקבל את חוויית העבודה המלאה.
         </p>
 
-        <div className='mt-10 flex flex-col items-center gap-3 mb-fade-up-d3'>
+        <SuccessChecklist />
+
+        <p className='mt-4 max-w-[300px] text-[12px] leading-[1.6] text-white/80 mb-fade-up-d3'>
+          SocialCRM כוללת ניהול לידים, וואטסאפ, משימות, קבצים ודוחות כדי לספק חוויית עבודה מהירה ונוחה, המערכת המלאה זמינה כרגע במחשב.
+        </p>
+
+        <div className='mt-7 flex flex-col items-center gap-3 mb-fade-up-d3'>
           <DesktopChip />
           <CopyLinkButton />
         </div>
@@ -254,6 +261,18 @@ function HeroLogo() {
         }}
       >
         <img src='/media/fav.svg' alt='SocialCRM' width={96} height={96} className='size-24 block' draggable={false} />
+
+        {/* Success badge — the celebration accent on the app-icon plate */}
+        <span
+          className='absolute -bottom-2 -right-2 flex size-9 items-center justify-center rounded-full'
+          style={{
+            background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+            border: '3px solid #0a0918',
+            boxShadow: '0 6px 18px rgba(16,185,129,0.45)',
+          }}
+        >
+          <Icon name='check' className='size-4 bg-white' />
+        </span>
       </div>
     </div>
   )
@@ -297,12 +316,41 @@ function OrbitalRing({
   )
 }
 
+/* ───────────────────────────── Success checklist ────────────────────────── */
+
+const CHECKLIST = ['החשבון נוצר', 'כל הנתונים נשמרו', 'אפשר להתחבר מכל מחשב']
+
+function SuccessChecklist() {
+  return (
+    <div
+      className='mt-6 flex flex-col items-start gap-2.5 px-5 py-4 rounded-2xl mb-fade-up-d2'
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(20px)',
+      }}
+    >
+      {CHECKLIST.map((item) => (
+        <div key={item} className='flex items-center gap-2.5'>
+          <span
+            className='flex size-5 items-center justify-center rounded-full flex-none'
+            style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.35)' }}
+          >
+            <Icon name='check' className='size-2.5 bg-emerald-400' />
+          </span>
+          <span className='text-[13px] text-white/75'>{item}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /* ───────────────────────────── Bottom CTA ───────────────────────────────── */
 
 function DesktopChip() {
   return (
     <div
-      className='inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl'
+      className='inline-flex items-center gap-3 px-5 py-3 rounded-2xl'
       style={{
         background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(255,255,255,0.08)',
@@ -310,7 +358,10 @@ function DesktopChip() {
       }}
     >
       <MonitorIcon />
-      <span className='text-[13px] text-white/70'>פתחו מהמחשב לחוויה המלאה</span>
+      <span className='flex flex-col items-start leading-tight'>
+        <span className='text-[13px] font-medium text-white/85'>פתח מהמחשב</span>
+        <span className='text-[11px] text-white/45' dir='ltr'>getsocialcrm.com</span>
+      </span>
     </div>
   )
 }
@@ -349,14 +400,14 @@ function CopyLinkButton() {
       ? 'הקישור הועתק'
       : status === 'error'
         ? 'לא הצלחנו להעתיק'
-        : 'העתק קישור'
+        : 'העתק קישור להתחברות'
 
   const color =
     status === 'success'
       ? 'text-emerald-300'
       : status === 'error'
         ? 'text-red-300'
-        : 'text-white/40 hover:text-white/70'
+        : 'text-white/60 hover:text-white/90'
 
   return (
     <button
