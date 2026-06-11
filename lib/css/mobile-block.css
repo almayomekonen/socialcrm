@@ -73,8 +73,9 @@
  *
  * Scoped to the exact range where MobileBlock is visible (matches the
  * `desktop:hidden` Tailwind variant — `min-width: 1000px` is `desktop`, so
- * everything below is the blocker range). On desktop these rules do not
- * apply.
+ * everything below is the blocker range) AND to pages where MobileBlock is
+ * actually mounted (`:has(.mb-lock)`), so marketing/auth pages scroll
+ * normally on mobile. On desktop these rules do not apply.
  *
  * - html, body get overflow:hidden + overscroll-behavior:none to freeze the
  *   document and disable iOS rubber-band.
@@ -84,13 +85,13 @@
  *   underlying document. Click/tap events still fire on the overlay button.
  */
 @media (max-width: 999.98px) {
-  html,
-  body {
+  html:has(.mb-lock),
+  body:has(.mb-lock) {
     overflow: hidden;
     overscroll-behavior: none;
     height: 100%;
   }
-  body {
+  body:has(.mb-lock) {
     position: fixed;
     inset: 0;
     width: 100%;
