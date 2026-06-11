@@ -1,0 +1,38 @@
+import { db } from '@/config/db'
+
+export type AnalyticsEventName =
+  | 'registration_completed'
+  | 'desktop_first_access'
+  | 'welcome_modal_shown'
+  | 'trial_started'
+  | 'trial_expired'
+  | 'upgrade_clicked'
+  | 'subscription_activated'
+
+type TrackInput = {
+  agencyId: number
+  userId?: number | null
+  event: AnalyticsEventName
+  props?: Record<string, unknown>
+}
+
+/**
+ * Server-side product analytics. Provider-agnostic seam: today an INSERT into
+ * analytics_events; an external provider can be added here later without
+ * touching call sites. Once-per-agency events are deduped by the partial
+ * unique index — bare ON CONFLICT DO NOTHING absorbs exactly those conflicts.
+ * Analytics must never break a business flow: every failure is logged and
+ * swallowed.
+ */
+export async function track({ agencyId, userId, event, props }: TrackInput): Promise<void> {
+  try {
+    await db.raw(
+      `INSERT INTO analytics_events ("agencyId", "userId", event, props)
+       VALUES (?, ?, ?, ?::jsonb)
+       ON CONFLICT DO NOTHING`,
+      [agencyId, userId ?? null, event, JSON.stringify(props ?? {})],
+    )
+  } catch (err) {
+    console.error('[analytics] track failed', { event, agencyId, err: String(err) })
+  }
+}

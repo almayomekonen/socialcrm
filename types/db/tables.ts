@@ -438,3 +438,12 @@ export interface DealsView {
   bizNum: string | null
   bizName: string | null
 }
+
+export interface AnalyticsEvent {
+  id: number
+  agencyId: number
+  userId: number | null
+  event: string
+  props: Json
+  createdAt: Date
+}

@@ -26,6 +26,7 @@ declare module 'knex/types/tables' {
     default_settings: DB.DefaultSettings
     user_perms: DB.UserPerm
     user_teams: DB.UserTeam
+    analytics_events: DB.AnalyticsEvent
 
     // === VIEWS ===
     // Views are treated as read-only tables and also benefit from strong typing.
