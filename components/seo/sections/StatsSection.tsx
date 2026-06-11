@@ -9,7 +9,7 @@ export function StatsSection() {
       <div className='max-w-5xl mx-auto flex flex-col items-center justify-center text-center'>
         <LayoutGroup>
           <motion.div
-            className='flex flex-wrap items-center justify-center gap-x-4 text-4xl sm:text-5xl md:text-6xl font-black text-gray-900 leading-tight'
+            className='flex flex-wrap items-center justify-center gap-x-3 gap-y-2 md:gap-x-4 text-3xl sm:text-5xl md:text-6xl font-black text-gray-900 leading-tight'
             layout
             dir='rtl'
           >

@@ -19,7 +19,7 @@ export function AnimatedCta({ title, highlight, buttonText, buttonHref }: Animat
   }, [])
 
   return (
-    <div className='relative text-white font-sans overflow-x-hidden flex items-center justify-center min-h-[85vh] py-20 px-5' style={{ backgroundColor: '#0a0a0a' }}>
+    <div className='relative text-white font-sans overflow-x-hidden flex items-center justify-center min-h-[55vh] md:min-h-[85vh] py-20 px-5' style={{ backgroundColor: '#0a0a0a' }}>
 
       {/* Decorative lines overlay */}
       <div className='absolute inset-0 z-10 pointer-events-none'>

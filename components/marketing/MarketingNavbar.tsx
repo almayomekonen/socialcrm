@@ -27,7 +27,7 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
 
   return (
     <div className='pt-6 pb-3 px-4'>
-      <nav className='bg-white rounded-xl relative z-10 max-w-6xl mx-auto flex items-center justify-between py-4 px-8 lg:px-12 lg:py-4'>
+      <nav className='bg-white rounded-xl relative z-10 max-w-6xl mx-auto flex items-center justify-between py-4 px-5 md:px-8 lg:px-12 lg:py-4'>
         <div className='flex items-center space-x-2'>
           <Link href='/' className='text-xl font-bold text-gray-800 hover:text-blue-600'>{LOGO_TEXT}</Link>
         </div>
@@ -50,15 +50,20 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
           </div>
         </div>
 
-        <button
-          className='lg:hidden text-gray-600 hover:text-blue-600 focus:outline-none'
-          onClick={() => setMobileOpen(true)}
-          aria-label='פתח תפריט'
-        >
-          <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M4 6h16M4 12h16m-7 6h7' />
-          </svg>
-        </button>
+        <div className='lg:hidden flex items-center gap-3'>
+          <Link href={cta.href} className='px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-sm'>
+            {cta.text}
+          </Link>
+          <button
+            className='text-gray-600 hover:text-blue-600 focus:outline-none p-1'
+            onClick={() => setMobileOpen(true)}
+            aria-label='פתח תפריט'
+          >
+            <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M4 6h16M4 12h16m-7 6h7' />
+            </svg>
+          </button>
+        </div>
       </nav>
 
       <div

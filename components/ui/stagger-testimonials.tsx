@@ -151,15 +151,15 @@ export const StaggerTestimonials: React.FC = () => {
 
   return (
     <div className='relative w-full overflow-hidden' style={{ height: 600, backgroundColor: '#0a0a0a' }}>
-      {/* Left fade */}
+      {/* Left fade — narrower on mobile so the active card reads crisply */}
       <div
-        className='pointer-events-none absolute inset-y-0 left-0 z-20'
-        style={{ width: '20%', background: 'linear-gradient(to right, #0a0a0a 0%, transparent 100%)' }}
+        className='pointer-events-none absolute inset-y-0 left-0 z-20 w-[12%] md:w-[20%]'
+        style={{ background: 'linear-gradient(to right, #0a0a0a 0%, transparent 100%)' }}
       />
       {/* Right fade */}
       <div
-        className='pointer-events-none absolute inset-y-0 right-0 z-20'
-        style={{ width: '20%', background: 'linear-gradient(to left, #0a0a0a 0%, transparent 100%)' }}
+        className='pointer-events-none absolute inset-y-0 right-0 z-20 w-[12%] md:w-[20%]'
+        style={{ background: 'linear-gradient(to left, #0a0a0a 0%, transparent 100%)' }}
       />
       {testimonialsList.map((testimonial, index) => {
         const position =

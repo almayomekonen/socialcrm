@@ -45,7 +45,7 @@ const FAQHeader = ({ title, subtitle }: { title: string; subtitle: string }) => 
     <span className='mb-8 bg-linear-to-r from-primary to-primary/60 bg-clip-text font-medium text-transparent'>
       {subtitle}
     </span>
-    <h2 className='mb-8 text-5xl font-bold'>{title}</h2>
+    <h2 className='mb-8 text-3xl md:text-5xl font-bold'>{title}</h2>
     <span className='absolute -top-[350px] left-[50%] z-0 h-[500px] w-[600px] -translate-x-[50%] rounded-full bg-linear-to-r from-primary/10 to-primary/5 blur-3xl' />
   </div>
 )
@@ -65,7 +65,7 @@ const FAQTabs = ({
         key={key}
         onClick={() => setSelected(key)}
         className={cn(
-          'relative overflow-hidden whitespace-nowrap rounded-md border px-3 py-1.5 text-sm font-medium transition-colors duration-500',
+          'relative overflow-hidden whitespace-nowrap rounded-md border px-4 py-2.5 md:px-3 md:py-1.5 text-sm font-medium transition-colors duration-500',
           selected === key
             ? 'border-primary text-background'
             : 'border-border bg-transparent text-muted-foreground hover:text-foreground',
