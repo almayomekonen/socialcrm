@@ -139,6 +139,9 @@ export interface Agency {
   pkg: string | null
   plan: 'free' | 'pro'
   planReason: string | null
+  trialStartedAt: Date | null
+  trialEndsAt: Date | null
+  trialExempt: boolean
 }
 
 export interface Invitation {
