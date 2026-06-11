@@ -25,11 +25,19 @@ export default async function page({ searchParams }) {
                 </div>
                 <span className='inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium'>חדש</span>
               </div>
-              <p className='text-xs text-gray-500 mt-1.5 mr-[18px]'>050-1234567</p>
-              <div className='flex items-center gap-1.5 mt-1.5 mr-[18px]'>
+              <p className='text-xs text-gray-500 mt-1.5 mr-[18px]'>
+                <span dir='ltr'>054-XXX-XXXX</span>
+              </p>
+              <div className='flex items-center gap-1.5 mt-2 mr-[18px]'>
+                <span className='text-xs text-gray-400'>מקור:</span>
                 <Icon name='facebook-f' className='size-3 bg-gray-400' />
-                <span className='text-xs text-gray-400'>פייסבוק • לפני 2 דק׳</span>
+                <span className='text-xs text-gray-600'>Facebook Lead Ads</span>
               </div>
+              <div className='flex items-center gap-1.5 mt-1.5 mr-[18px]'>
+                <span className='text-xs text-gray-400'>נושא:</span>
+                <span className='text-xs text-gray-600'>מעוניין בשירות</span>
+              </div>
+              <p className='text-xs text-gray-400 mt-2 mr-[18px]'>לפני 2 דקות</p>
             </div>
           </div>
         </div>
