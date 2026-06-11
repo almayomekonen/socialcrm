@@ -76,12 +76,12 @@ export default async function AuthPage({ searchParams }) {
       <div className='min-h-screen bg-white'>
         {/* Login section */}
         <div className='grid lg:grid-cols-2 w-screen place-items-center'>
-          <div className='grid place-items-center gap-6 lg:gap-8 py-14 lg:py-0 px-6'>
+          <div className='grid place-items-center gap-6 lg:gap-8 py-14 lg:py-0 px-6 lg:px-0'>
             <h1 className='text-3xl md:text-5xl font-bold text-center'>SocialCRM הכל במקום אחד</h1>
             <p className='text-gray-500 font-normal text-base mt-2 text-center'>
               כל הלידים שלך במקום אחד. בלי לפספס אף אחד.
             </p>
-            <div className='grid w-full max-w-sm'>
+            <div className='grid w-full max-w-sm lg:w-auto lg:max-w-none'>
               <p className='mb-1'>התחברות עם גוגל</p>
               <Login user={user} />
               <p className='text-gray-500 text-xs text-center mt-2'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
