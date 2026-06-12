@@ -8,13 +8,7 @@ type Props = {
   daysRemaining: number
 }
 
-/**
- * Trial lifecycle card for Settings → Billing. Server component; renders
- * only while the trial is ACTIVE — expired users never reach this page (the
- * layout gate shows TrialExpiredScreen instead) and pre-activation users are
- * behind the welcome modal. "Ending soon" (≤ 2 days) is a visual variant,
- * not a separate state.
- */
+
 export default function TrialStatusCard({ startedAt, endsAt, daysRemaining }: Props) {
   const endingSoon = daysRemaining <= 2
   const totalMs = Math.max(endsAt.getTime() - startedAt.getTime(), 1)
