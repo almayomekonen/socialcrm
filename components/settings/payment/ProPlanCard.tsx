@@ -29,6 +29,9 @@ export default function ProPlanCard({ subscription }: { subscription: Subscripti
     <>
       <div>
         <p className='text-lg font-semibold'>מסלול נוכחי: Pro</p>
+        <p className='text-sm text-gray-500'>
+          תקופת חיוב: {subscription.billingPeriod === 'annual' ? 'שנתית' : 'חודשית'}
+        </p>
         {subscription.expiresAt && (
           <p className='text-sm text-gray-500'>בתוקף עד: {formatDate(subscription.expiresAt)}</p>
         )}

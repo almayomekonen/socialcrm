@@ -11,6 +11,7 @@ import Icon from '@/lib/Icon'
 import { formatDate } from '@/lib/dates'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
+import { isAnnualLinkConfigured } from '@/lib/payments/link'
 
 type SearchParams = Promise<{ mode?: string | string[] }>
 
@@ -95,7 +96,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       </div>
 
       <h2 className='text-xl font-bold mt-12'>חבילות</h2>
-      <Packages plan={plan} />
+      <Packages plan={plan} annualAvailable={isAnnualLinkConfigured()} />
     </div>
   )
 }
