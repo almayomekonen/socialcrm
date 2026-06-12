@@ -6,6 +6,7 @@ import { performAgencyUpgrade } from '@/lib/quota/performUpgrade'
 import { track } from '@/lib/analytics/track'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
+import { resolveBillingPeriod, logPeriodResolution, type PeriodResolution } from '@/lib/payments/resolvePeriod'
 
 const PG_UNIQUE_VIOLATION = '23505'
 
@@ -182,11 +183,32 @@ export async function POST(req: NextRequest) {
     if (trialRow) fromState = getTrialState(trialRow, new Date()).status
   } catch {}
 
+  // Billing-period classification (5-rule chain, lib/payments/resolvePeriod).
+  // Safety requirement: never fail the payment, never block access, never
+  // throw — a resolution failure grants monthly and logs loudly.
+  let resolution: PeriodResolution = {
+    period: 'monthly',
+    resolvedBy: 'fallback',
+    candidates: { payment_link_id: null, amount: null, pending_upgrade: null, existing_subscription: null },
+  }
+  try {
+    resolution = await resolveBillingPeriod(agencyId, payload)
+  } catch (err) {
+    console.error('[GrowWebhook] period resolution crashed — defaulting to monthly', {
+      agencyId,
+      transactionId,
+      err: String(err),
+    })
+  }
+  try {
+    logPeriodResolution({ agencyId, transactionId, payload }, resolution)
+  } catch {}
+
   console.log('[GrowWebhook] before transaction')
   try {
     await db.transaction(async (trx) => {
       await trx('payments').insert({ transactionId, agencyId })
-      const result = await performAgencyUpgrade(agencyId, `grow:${transactionId}`, trx)
+      const result = await performAgencyUpgrade(agencyId, `grow:${transactionId}`, trx, resolution.period)
       if ('error' in result) throw new Error(`upgrade_failed:${result.error}`)
     })
   } catch (err: any) {
@@ -199,7 +221,11 @@ export async function POST(req: NextRequest) {
 
   // Post-commit on purpose: an analytics failure must never roll back a
   // payment. track() also never throws.
-  await track({ agencyId, event: 'subscription_activated', props: { transactionId, fromState } })
+  await track({
+    agencyId,
+    event: 'subscription_activated',
+    props: { transactionId, fromState, period: resolution.period, periodResolvedBy: resolution.resolvedBy },
+  })
 
   // After successful upgrade, mark the pending entry as completed.
   // Uses `db` (not `trx`) — runs after the upgrade transaction commits.

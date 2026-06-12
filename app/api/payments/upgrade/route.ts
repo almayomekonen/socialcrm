@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUser, AuthError } from '@/lib/requireUser'
-import { getUpgradeLink } from '@/lib/payments/link'
+import { getUpgradeLink, isAnnualLinkConfigured } from '@/lib/payments/link'
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
+import type { BillingPeriod } from '@/lib/pricing'
 
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
@@ -69,10 +70,23 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Server error', { status: 500 })
   }
 
+  // Billing period selection. Anything but an exact, configured 'annual'
+  // resolves to monthly — and an unconfigured annual request bounces back to
+  // billing rather than silently charging the monthly link (wrong-amount
+  // charges are the one unforgivable failure).
+  const rawPeriod = req.nextUrl.searchParams.get('period')
+  if (rawPeriod === 'annual' && !isAnnualLinkConfigured()) {
+    console.warn('[upgrade] annual requested but GROW_PAYMENT_LINK_ANNUAL is not configured', {
+      agencyId: user.agencyId,
+    })
+    return NextResponse.redirect(new URL('/settings/update_payment', req.url), 302)
+  }
+  const period: BillingPeriod = rawPeriod === 'annual' ? 'annual' : 'monthly'
+
   // Intent metric, recorded before the env guard on purpose: a click is a
   // click regardless of environment outcome. track() never throws.
   const source = req.nextUrl.searchParams.get('source') ?? 'unknown'
-  await track({ agencyId: user.agencyId, userId: user.id, event: 'upgrade_clicked', props: { source } })
+  await track({ agencyId: user.agencyId, userId: user.id, event: 'upgrade_clicked', props: { source, period } })
 
   let envInfo: { isProd: boolean; env: AppEnv; mode: GrowMode }
   try {
@@ -103,6 +117,7 @@ export async function GET(req: NextRequest) {
       agencyId: user.agencyId,
       email: user.email,
       status: 'pending',
+      billingPeriod: period,
       createdAt: now,
       updatedAt: now,
     })
@@ -110,11 +125,12 @@ export async function GET(req: NextRequest) {
     .merge({
       email: user.email,
       status: 'pending',
+      billingPeriod: period,
       updatedAt: now,
     })
 
   try {
-    const url = getUpgradeLink(user.agencyId)
+    const url = getUpgradeLink(user.agencyId, period)
     return NextResponse.redirect(url, 302)
   } catch (err) {
     console.error('[upgrade] link build failed', { agencyId: user.agencyId, err: String(err) })
