@@ -6,8 +6,11 @@ import AccordionItem from '@/lib/AccordionItem'
 import Packages from '@/components/settings/payment/Packages'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
 import ProPlanCard from '@/components/settings/payment/ProPlanCard'
+import TrialStatusCard from '@/components/trial/TrialStatusCard'
 import Icon from '@/lib/Icon'
 import { formatDate } from '@/lib/dates'
+import { getAgencyTrial } from '@/db/trial'
+import { getTrialState } from '@/lib/trial'
 
 type SearchParams = Promise<{ mode?: string | string[] }>
 
@@ -19,6 +22,13 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const plan = await getAgencyPlan(user.agencyId)
   const isPro = plan === 'pro'
   const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
+
+  // Trial lifecycle for the status card. Only TRIAL_ACTIVE can render here:
+  // expired users are intercepted by the layout gate, pre-activation users
+  // are behind the welcome modal, legacy/pro derive LEGACY/PAID.
+  const trialRow = isPro ? null : await getAgencyTrial(user.agencyId)
+  const trial = trialRow ? getTrialState(trialRow, new Date()) : null
+  const trialActive = trial?.status === 'TRIAL_ACTIVE'
 
   const charges = await db('payments')
     .where({ agencyId: user.agencyId })
@@ -44,6 +54,14 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
         </div>
       )}
 
+      {trialActive && trial?.endsAt && trialRow?.trialStartedAt && (
+        <TrialStatusCard
+          startedAt={new Date(trialRow.trialStartedAt)}
+          endsAt={trial.endsAt}
+          daysRemaining={trial.daysRemaining ?? 0}
+        />
+      )}
+
       <div className='my-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
         {isPro && subscription ? (
           <ProPlanCard subscription={subscription} />
@@ -51,7 +69,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
           <>
             <div>
               <p className='text-lg font-semibold'>תוכנית: Free</p>
-              <p className='text-sm text-gray-500'>סטטוס: לא פעיל</p>
+              <p className='text-sm text-gray-500'>סטטוס: {trialActive ? 'תקופת ניסיון פעילה' : 'לא פעיל'}</p>
             </div>
             <UpgradeBtn />
           </>
