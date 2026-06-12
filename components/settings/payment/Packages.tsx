@@ -1,6 +1,7 @@
 'use client'
 import { twMerge } from 'tailwind-merge'
 import { Btn } from '@/lib/btns/Btn'
+import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
 
 /**
  * In-app pricing surface shown under settings/update_payment.
@@ -74,8 +75,18 @@ function PackageCard({ pkg, currentPlan }: { pkg: Pkg; currentPlan: string }) {
         <p className={twMerge('text-sm', isProCard ? 'text-white/70' : 'text-gray-500')}>{pkg.tagline}</p>
         {pkg.pricePerMonth > 0 && (
           <p className={twMerge('text-[11px]', isProCard ? 'text-white/40' : 'text-gray-400')}>
-            לסביבת עבודה, כולל את כל הצוות.
+            לסביבת עבודה, כולל את כל הצוות. ניתן לבטל בכל רגע.
           </p>
+        )}
+        {/* Annual offer — display-only messaging (single Grow link charges
+            monthly today; annual purchase plumbing is a separate follow-up). */}
+        {isProCard && (
+          <div className='mt-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2'>
+            <p className='text-sm font-semibold text-white'>
+              מסלול שנתי: ₪{PRICING.annual} / לשנה <span className='text-white/60 font-normal'>· ₪{ANNUAL_MONTHLY_EQUIVALENT} לחודש בלבד</span>
+            </p>
+            <p className='text-[11px] text-white/50 mt-0.5'>חיסכון של ₪{ANNUAL_SAVINGS} בשנה לעומת חיוב חודשי</p>
+          </div>
         )}
 
         <ul className='mt-4 space-y-2'>
@@ -129,7 +140,7 @@ export const packages: Pkg[] = [
   {
     id: 'pro',
     name: 'Pro',
-    pricePerMonth: 149,
+    pricePerMonth: PRICING.monthly,
     tagline: 'שכבת ה-AI שמלווה את כל ה-CRM שלך.',
     included: [
       'AI ללא הגבלה במצב מהיר ובמצב חכם',

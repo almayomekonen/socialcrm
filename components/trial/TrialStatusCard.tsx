@@ -1,5 +1,6 @@
 import { formatDate } from '@/lib/dates'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
+import { ANNUAL_SAVINGS } from '@/lib/pricing'
 
 type Props = {
   startedAt: Date
@@ -56,6 +57,7 @@ export default function TrialStatusCard({ startedAt, endsAt, daysRemaining }: Pr
       <div className='flex items-center justify-between gap-4 flex-wrap'>
         <p className='text-sm text-gray-600'>
           בסיום תקופת הניסיון הגישה תושהה עד לשדרוג, כל הלידים והנתונים שלך נשמרים.
+          <span className='block text-xs text-gray-500 mt-0.5'>מסלול שנתי חוסך ₪{ANNUAL_SAVINGS} בשנה — פרטים בחבילות למטה.</span>
         </p>
         <UpgradeBtn source='billing_trial_card' />
       </div>

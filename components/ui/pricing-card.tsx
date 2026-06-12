@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Check } from 'lucide-react'
+import { PRICING, ANNUAL_DISCOUNT_PERCENT } from '@/lib/pricing'
 
 /**
  * AI-first pricing page. Two plans, one decision: do you want the AI layer or not.
@@ -57,8 +58,8 @@ export const israeliPlans: [PriceTier, PriceTier] = [
     id: 'pro',
     name: 'Pro',
     tagline: 'שכבת ה-AI שמלווה את כל ה-CRM שלך.',
-    priceMonthly: 149,
-    priceAnnually: 1520,
+    priceMonthly: PRICING.monthly,
+    priceAnnually: PRICING.annual,
     isFeatured: true,
     badge: 'המומלץ',
     buttonLabel: 'שדרג ל-Pro',
@@ -74,7 +75,6 @@ export const israeliPlans: [PriceTier, PriceTier] = [
   },
 ]
 
-const ANNUAL_DISCOUNT_PERCENT = 15
 
 interface PricingComponentProps extends React.HTMLAttributes<HTMLDivElement> {
   plans: [PriceTier, PriceTier]
@@ -255,7 +255,8 @@ function PlanCard({
 }
 
 export default function PricingPageComponent() {
-  const [cycle, setCycle] = React.useState<BillingCycle>('monthly')
+  // Annual is the recommended option — it opens selected (spec: pricing alignment).
+  const [cycle, setCycle] = React.useState<BillingCycle>('annually')
   const router = useRouter()
 
   const handlePlanSelect = (_planId: PlanId) => {
