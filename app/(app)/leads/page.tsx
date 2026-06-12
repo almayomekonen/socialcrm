@@ -9,6 +9,8 @@ import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import WelcomeToast from '@/components/auth/WelcomeToast'
+import { getAgencyTrial } from '@/db/trial'
+import { getTrialState } from '@/lib/trial'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -18,14 +20,18 @@ export const metadata: Metadata = {
 export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
-  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota] = await Promise.all([
+  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, trialRow] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
     getLeadLists(user.id),
     getGlobalLatestUpdatedAt(),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
     getQuotaStatus(user.agencyId),
+    getAgencyTrial(user.agencyId),
   ])
+  // The Welcome Trial Modal is the welcome for NEVER_STARTED users — the
+  // toast greeting is suppressed (one welcome, one state); pixel still fires.
+  const suppressGreeting = trialRow ? getTrialState(trialRow, new Date()).status === 'NEVER_STARTED' : false
   const clients = await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds, settings })
   const formProps = { user, officeGotPerm: handlers.gotPermUsers, allUsers }
   return (
@@ -41,7 +47,7 @@ export default async function LeadsPage({ searchParams }) {
       className='mb-8'
     >
       <OverQuotaBanner count={quota.overQuotaCount} />
-      <WelcomeToast />
+      <WelcomeToast suppressGreeting={suppressGreeting} />
 
       <Suspense fallback={null}>
         <ClientsTable leads={true} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />

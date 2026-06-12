@@ -9,7 +9,7 @@ import { trackCompleteRegistration } from '@/lib/facebook/pixelEvents'
 const STORAGE_KEY_PREFIX = 'socialcrm:welcomeToastSeen:'
 const TOAST_DURATION_MS = 5000
 
-export default function WelcomeToast() {
+export default function WelcomeToast({ suppressGreeting = false }: { suppressGreeting?: boolean }) {
   const user = useUser()
   const router = useRouter()
   const pathname = usePathname()
@@ -29,11 +29,16 @@ export default function WelcomeToast() {
     } catch {}
 
     if (!alreadySeen) {
-      const firstName = welcomeParam.trim()
-      const greeting = firstName
-        ? `🚀 ברוך הבא ל-SocialCRM, ${firstName}`
-        : '🚀 ברוך הבא ל-SocialCRM'
-      toast('success', `${greeting}\nהמערכת שלך מוכנה להתחלה`, TOAST_DURATION_MS)
+      // When the Welcome Trial Modal is about to show, it IS the welcome —
+      // suppress the toast (one welcome, one state) but keep the pixel and
+      // the seen-marker so registration attribution never depends on trial UI.
+      if (!suppressGreeting) {
+        const firstName = welcomeParam.trim()
+        const greeting = firstName
+          ? `🚀 ברוך הבא ל-SocialCRM, ${firstName}`
+          : '🚀 ברוך הבא ל-SocialCRM'
+        toast('success', `${greeting}\nהמערכת שלך מוכנה להתחלה`, TOAST_DURATION_MS)
+      }
       trackCompleteRegistration()
       try {
         window.localStorage.setItem(key, 'true')

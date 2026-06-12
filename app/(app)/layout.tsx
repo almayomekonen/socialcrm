@@ -14,12 +14,33 @@ import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import MobileBlock from '@/components/layout/MobileBlock'
 import MobileBlockAccount from '@/components/layout/MobileBlockAccount'
 import { redirect } from 'next/navigation'
+import { getAgencyTrial } from '@/db/trial'
+import { getTrialState, type TrialStatus } from '@/lib/trial'
+import { track } from '@/lib/analytics/track'
+import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
+import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
   if (!user) redirect('/auth')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
+
+  // Trial gate. Fail-open: a trial-state read failure must never lock users
+  // out of the CRM — fall back to LEGACY (full access, no trial UI) and log.
+  let trialStatus: TrialStatus = 'LEGACY'
+  try {
+    const trialRow = await getAgencyTrial(user.agencyId)
+    if (trialRow) trialStatus = getTrialState(trialRow, new Date()).status
+  } catch (err) {
+    console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
+  }
+
+  if (trialStatus === 'TRIAL_EXPIRED') {
+    // Lazy one-time emission; deduped by the DB index, track never throws.
+    await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
+    return <TrialExpiredScreen />
+  }
 
   const copilotEnabled = isCopilotEnabledForUser(user)
 
@@ -43,6 +64,7 @@ async function LayoutContent({ children }) {
                 <CopilotShell />
               </WorkspaceGrid>
             </div>
+            {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
           </CopilotContextStoreProvider>
         </CopilotProvider>
       </PosProvider>
