@@ -77,7 +77,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       </div>
 
       <h2 className='text-xl font-bold mt-12'>היסטוריית חיובים</h2>
-      <div className='my-6 max-w-3xl'>
+      <div className='accordion my-6 max-w-3xl'>
         <AccordionItem bodyClass='p-6' title='צפייה בחיובים'>
           {charges.length === 0 ? (
             <p className='text-sm text-gray-500'>אין נתוני חיובים עדיין</p>
