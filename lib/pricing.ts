@@ -1,12 +1,5 @@
-/**
- * Single source of truth for subscription pricing. Every user-facing price
- * MUST come from here — never hardcode amounts in components or copy.
- *
- * Display-only: the amounts actually CHARGED are configured in the Grow
- * dashboard (the static GROW_PAYMENT_LINK). When changing prices here, the
- * Grow link amount must be updated in the same release — and vice versa.
- * Annual is currently messaging only; there is no annual payment link yet.
- */
+export type BillingPeriod = 'monthly' | 'annual'
+
 export const PRICING = {
   currency: '₪',
   monthly: 89,
