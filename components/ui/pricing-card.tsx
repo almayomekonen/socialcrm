@@ -259,11 +259,17 @@ export default function PricingPageComponent() {
   const [cycle, setCycle] = React.useState<BillingCycle>('annually')
   const router = useRouter()
 
-  const handlePlanSelect = (_planId: PlanId) => {
-    // Both plans start at /auth/register today; the Pro upgrade fires in-app
-    // after a free workspace is provisioned. Pricing UX phase — billing
-    // routing is intentionally not implemented here.
-    router.push('/auth/register')
+  const handlePlanSelect = (planId: PlanId, selectedCycle: BillingCycle) => {
+    if (planId === 'free') {
+      // Free plan = registration funnel (unchanged).
+      router.push('/auth/register')
+      return
+    }
+    // Pro: the exact same upgrade mechanism as the billing page. The route
+    // owns auth (anonymous → login redirect), annual-link gating, intent
+    // recording, and analytics — the page only forwards the selection.
+    const period = selectedCycle === 'annually' ? 'annual' : 'monthly'
+    window.location.href = `/api/payments/upgrade?period=${period}&source=marketing_pricing`
   }
 
   return (
