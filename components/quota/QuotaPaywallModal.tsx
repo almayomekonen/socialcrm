@@ -45,7 +45,7 @@ export default function QuotaPaywallModal({ state, onClose }: Props) {
             variant='solid'
             lbl='שדרג עכשיו'
             onClick={() => {
-              window.open('/api/payments/upgrade', '_blank', 'noopener,noreferrer')
+              window.open('/api/payments/upgrade?source=quota_paywall', '_blank', 'noopener,noreferrer')
               onClose()
             }}
           />

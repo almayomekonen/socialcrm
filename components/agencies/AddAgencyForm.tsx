@@ -25,7 +25,11 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
 
     setError(null)
     setSubmitting(true)
-    const data = getMultiObjFormData(e)
+    const data = {
+      ...getMultiObjFormData(e),
+      // Analytics-only hint: which device class completed registration.
+      device: window.matchMedia('(min-width: 1000px)').matches ? 'desktop' : 'mobile',
+    }
     const myId = ++reqIdRef.current
 
     timersRef.current.slow = setTimeout(() => {

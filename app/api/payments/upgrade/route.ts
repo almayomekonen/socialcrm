@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireUser, AuthError } from '@/lib/requireUser'
 import { getUpgradeLink } from '@/lib/payments/link'
 import { db } from '@/config/db'
+import { track } from '@/lib/analytics/track'
 
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
@@ -67,6 +68,11 @@ export async function GET(req: NextRequest) {
     console.error('[upgrade] unexpected auth error', { err: String(err) })
     return new NextResponse('Server error', { status: 500 })
   }
+
+  // Intent metric, recorded before the env guard on purpose: a click is a
+  // click regardless of environment outcome. track() never throws.
+  const source = req.nextUrl.searchParams.get('source') ?? 'unknown'
+  await track({ agencyId: user.agencyId, userId: user.id, event: 'upgrade_clicked', props: { source } })
 
   let envInfo: { isProd: boolean; env: AppEnv; mode: GrowMode }
   try {

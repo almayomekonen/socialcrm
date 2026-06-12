@@ -3,6 +3,9 @@ import { timingSafeEqual } from 'crypto'
 import { db } from '@/config/db'
 import { verifyToken } from '@/lib/payments/token'
 import { performAgencyUpgrade } from '@/lib/quota/performUpgrade'
+import { track } from '@/lib/analytics/track'
+import { getAgencyTrial } from '@/db/trial'
+import { getTrialState } from '@/lib/trial'
 
 const PG_UNIQUE_VIOLATION = '23505'
 
@@ -170,6 +173,15 @@ export async function POST(req: NextRequest) {
     agencyId = pending.agencyId
   }
 
+  // Captured BEFORE the upgrade flips plan to 'pro', so the analytics event
+  // records which state the agency converted from. Read failure must never
+  // block a payment — default to 'unknown'.
+  let fromState = 'unknown'
+  try {
+    const trialRow = await getAgencyTrial(agencyId)
+    if (trialRow) fromState = getTrialState(trialRow, new Date()).status
+  } catch {}
+
   console.log('[GrowWebhook] before transaction')
   try {
     await db.transaction(async (trx) => {
@@ -184,6 +196,10 @@ export async function POST(req: NextRequest) {
     console.error('[GrowWebhook] processing failed', { transactionId, agencyId, err: String(err) })
     return new NextResponse('Processing error', { status: 500 })
   }
+
+  // Post-commit on purpose: an analytics failure must never roll back a
+  // payment. track() also never throws.
+  await track({ agencyId, event: 'subscription_activated', props: { transactionId, fromState } })
 
   // After successful upgrade, mark the pending entry as completed.
   // Uses `db` (not `trx`) — runs after the upgrade transaction commits.

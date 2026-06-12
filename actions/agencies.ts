@@ -7,6 +7,7 @@ import { after } from 'next/server'
 import { requireUser } from '@/lib/requireUser'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 import { sendWelcomeEmail } from '@/lib/email/send'
+import { track } from '@/lib/analytics/track'
 
 export async function addAgency(data) {
   const start = Date.now()
@@ -14,14 +15,23 @@ export async function addAgency(data) {
   let success = false
   let newUser: { email: string; firstName: string } | null = null
   let createdUserId: number | null = null
+  let createdAgencyId: number | null = null
   try {
     await db.transaction(async (trx) => {
-      const agency = await trx('agencies').insert(data.agency).returning('id')
+      // Whitelisted inserts: registration is a public action, so only the
+      // fields the form legitimately collects may reach the DB. A crafted
+      // payload must not be able to set plan, trialExempt, trial timestamps,
+      // role, or any other column — those come from column defaults or are
+      // set explicitly below.
+      const agency = await trx('agencies')
+        .insert({ name: data?.agency?.name })
+        .returning('id')
       const agencyId = agency[0]?.id
 
       const [user] = await trx('users')
         .insert({
-          ...data.user,
+          firstName: data?.user?.firstName,
+          lastName: data?.user?.lastName,
           email,
           agencyId,
           role: 'ADMIN',
@@ -31,6 +41,7 @@ export async function addAgency(data) {
       await trx('default_settings').insert({ userId: user.id })
       newUser = { email: user.email, firstName: user.firstName }
       createdUserId = user.id
+      createdAgencyId = agencyId
       success = true
     })
   } catch (err: any) {
@@ -45,6 +56,13 @@ export async function addAgency(data) {
   if (success && newUser && createdUserId) {
     await createCookie(createdUserId)
     console.log(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=success`)
+    // Analytics-only device hint from the form (never written to any table).
+    const device = data?.device === 'desktop' || data?.device === 'mobile' ? data.device : 'unknown'
+    const agencyIdForEvent = createdAgencyId
+    const userIdForEvent = createdUserId
+    after(() =>
+      track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
+    )
     after(() => sendWelcomeEmail(newUser!))
     const firstName = (newUser as { firstName: string }).firstName ?? ''
     redirect(`/leads?welcome=${encodeURIComponent(firstName)}`)
