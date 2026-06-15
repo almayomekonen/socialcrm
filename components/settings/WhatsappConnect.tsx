@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
+import { useAction } from '@/lib/useAction'
+import { wait } from '@/lib/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string }
@@ -27,15 +29,37 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
   const urlError = searchParams.get('wa_error')
 
   const [selectedPhoneId, setSelectedPhoneId] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [connectError, setConnectError] = useState<string | null>(null)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
+  const { loading, error, setError, run } = useAction()
 
-  async function performDisconnect() {
+  const redirectToOAuth = () =>
+    run(async () => {
+      window.location.href = '/api/auth/whatsapp'
+      await wait(30_000)
+    })
+
+  const performDisconnect = () => {
     setConfirmDisconnect(false)
-    setLoading(true)
-    await fetch('/api/auth/whatsapp/disconnect', { method: 'POST' })
-    router.refresh()
+    run(async () => {
+      await fetch('/api/auth/whatsapp/disconnect', { method: 'POST' })
+      router.refresh()
+    })
+  }
+
+  const connectPhone = (phone: Phone) => {
+    setError(null)
+    run(async () => {
+      const res = await fetch('/api/auth/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumberId: phone.id }),
+      })
+      if (!res.ok) {
+        setError('שגיאה בחיבור. אנא נסה שוב.')
+        return
+      }
+      router.refresh()
+    })
   }
 
   // State C: Already connected
@@ -47,7 +71,9 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
           מספר מזוהה: <strong>{connection.phoneNumberId}</strong>
         </p>
         <Btn
-          lbl='נתק וואטסאפ'
+          lbl={loading ? 'מנתק...' : 'נתק וואטסאפ'}
+          icon={loading ? 'spinner' : undefined}
+          iconClassName={loading ? 'animate-spin' : undefined}
           variant='destructive'
           size='small'
           className='w-fit'
@@ -72,7 +98,7 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
     return (
       <div className='grid gap-4'>
         <p className='text-sm text-gray-600'>בחר את מספר הטלפון שברצונך לחבר:</p>
-        <FormField lbl='מספר וואטסאפ עסקי' error={connectError ?? undefined}>
+        <FormField lbl='מספר וואטסאפ עסקי' error={error ?? undefined}>
           <select
             className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
             value={selectedPhoneId}
@@ -87,27 +113,13 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
           </select>
         </FormField>
         <Btn
-          lbl='חבר וואטסאפ'
-          icon='comment-dots'
+          lbl={loading ? 'מחבר...' : 'חבר וואטסאפ'}
+          icon={loading ? 'spinner' : 'comment-dots'}
+          iconClassName={loading ? 'animate-spin' : undefined}
           size='medium'
           disabled={!selectedPhoneId || loading}
           className='w-fit'
-          onClick={async () => {
-            if (!selected) return
-            setLoading(true)
-            setConnectError(null)
-            const res = await fetch('/api/auth/whatsapp/connect', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phoneNumberId: selected.id }),
-            })
-            if (res.ok) {
-              router.refresh()
-            } else {
-              setConnectError('שגיאה בחיבור. אנא נסה שוב.')
-              setLoading(false)
-            }
-          }}
+          onClick={() => selected && connectPhone(selected)}
         />
       </div>
     )
@@ -120,7 +132,14 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
         <p className='text-sm text-red-600'>{ERROR_MESSAGES[urlError] ?? 'שגיאה בהתחברות לוואטסאפ.'}</p>
       )}
       <p className='text-sm text-gray-500'>חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.</p>
-      <Btn lbl='חבר וואטסאפ עסקי' icon='whatsapp' href='/api/auth/whatsapp' className='w-fit bg-green-600' />
+      <Btn
+        lbl={loading ? 'מעביר לוואטסאפ...' : 'חבר וואטסאפ עסקי'}
+        icon={loading ? 'spinner' : 'whatsapp'}
+        iconClassName={loading ? 'animate-spin' : undefined}
+        disabled={loading}
+        className='w-fit bg-green-600'
+        onClick={redirectToOAuth}
+      />
     </div>
   )
 }

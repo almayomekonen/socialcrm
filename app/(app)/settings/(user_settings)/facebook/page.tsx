@@ -72,7 +72,7 @@ export default async function page() {
               />
             </Suspense>
           </AccordionItem>
-          <AccordionItem bodyClass='p-6' title='וואטסאפ ממש בקרוב...' icon='whatsapp'>
+          <AccordionItem bodyClass='p-6' title='וואטסאפ' icon='whatsapp'>
             <Suspense fallback={null}>
               <WhatsappConnect
                 connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
