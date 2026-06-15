@@ -5,16 +5,24 @@ import Icon from '@/lib/Icon'
 
 type Props = {
   fallbackLabel: string
-  hint: 'attachments' | 'general'
+  hint: 'attachments' | 'general' | 'general-mode'
 }
 
 const GENERAL_STATES = ['מנתח את הקשר הליד', 'סוקר פעילות אחרונה', 'מגבש תשובה']
 const ATTACHMENT_STATES = ['קורא את הקובץ המצורף', 'מנתח את תוכן המסמך', 'מחלץ מידע מהקובץ', 'מגבש תשובה']
+// No-lead General Mode: same animation, lead-free wording.
+const GENERAL_MODE_STATES = ['בודק את הנתונים', 'סוקר את הפעילות', 'מגבש תשובה']
 
 const CYCLE_MS = 2400
 
+function statesFor(hint: Props['hint']): string[] {
+  if (hint === 'attachments') return ATTACHMENT_STATES
+  if (hint === 'general-mode') return GENERAL_MODE_STATES
+  return GENERAL_STATES
+}
+
 export default function ActiveGenerationRow({ fallbackLabel, hint }: Props) {
-  const states = hint === 'attachments' ? ATTACHMENT_STATES : GENERAL_STATES
+  const states = statesFor(hint)
   const [idx, setIdx] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 

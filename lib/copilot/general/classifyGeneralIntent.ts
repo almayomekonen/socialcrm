@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
+import { resolveCopilotModeRole, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { GENERAL_HIGH_CONFIDENCE } from './constants'
 import { BRIEFING_EXAMPLES, BRIEFING_INTENT_IDS, type GeneralIntentId } from './registry'
 import { GUIDE_ENTRIES } from './guideMap'
@@ -27,10 +28,13 @@ export function quickClassifyGeneral(text: string): Classification {
  * existing id — it never invents a capability. On any model failure we return
  * 'unknown', which routes to the capability menu (never a guess).
  */
-export async function classifyGeneralIntent(text: string, agencyId: number): Promise<Classification> {
+export async function classifyGeneralIntent(text: string, agencyId: number, mode?: CopilotModeId): Promise<Classification> {
   const quick = quickClassifyGeneral(text)
   if (quick.confidence >= GENERAL_HIGH_CONFIDENCE) return quick
 
+  // The selected AI mode (Fast/Smart/Advanced) routes the classifier model. The
+  // answer itself stays deterministic — only this disambiguation hop is a model
+  // call. Defaults to the cheap 'volume' tier when no mode is chosen.
   const out = await runStructured({
     kind: 'copilot.classifyIntent',
     schema: z.object({
@@ -43,7 +47,7 @@ export async function classifyGeneralIntent(text: string, agencyId: number): Pro
       'אם אינך בטוח או שאין התאמה — החזר "unknown". אל תמציא קטגוריה.',
     user: `קטגוריות: ${ALL_IDS.join(', ')}\nהודעה: ${text}`,
     agencyId,
-    roleOverride: 'volume',
+    roleOverride: mode ? resolveCopilotModeRole(mode) : 'volume',
   })
   if (!out.ok) return { intent: 'unknown', confidence: 0 }
   return { intent: out.data.intent as GeneralIntentId, confidence: out.data.confidence }

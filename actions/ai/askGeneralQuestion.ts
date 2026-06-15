@@ -15,6 +15,7 @@ import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralInte
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
+import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { Roles } from '@/types/roles'
 
 export type GeneralAnswer =
@@ -38,10 +39,11 @@ async function safeTrack(user: ActingUser, event: AnalyticsEventName, props?: Re
   }
 }
 
-export async function askGeneralQuestion(text: string): Promise<GeneralAnswer> {
+export async function askGeneralQuestion(text: string, modeRaw?: unknown): Promise<GeneralAnswer> {
   const user = await requireAgencyUser()
+  const mode = isCopilotModeId(modeRaw) ? modeRaw : undefined
   try {
-    const answer = await resolveAnswer(text, user)
+    const answer = await resolveAnswer(text, user, mode)
     await safeTrack(user, 'general_mode.question_asked', { len: text.length })
     await safeTrack(user, 'general_mode.answer_rendered', answerProps(answer))
     return answer
@@ -58,8 +60,8 @@ function answerProps(a: GeneralAnswer): Record<string, unknown> {
   return { kind: 'menu', reason: a.reason }
 }
 
-async function resolveAnswer(text: string, user: ActingUser): Promise<GeneralAnswer> {
-  const c = await classifyGeneralIntent(text, user.agencyId)
+async function resolveAnswer(text: string, user: ActingUser, mode?: CopilotModeId): Promise<GeneralAnswer> {
+  const c = await classifyGeneralIntent(text, user.agencyId, mode)
 
   if (c.intent === 'unknown' || c.confidence < GENERAL_HIGH_CONFIDENCE) {
     return { kind: 'menu', reason: c.intent === 'unknown' ? 'unknown' : 'low-confidence' }

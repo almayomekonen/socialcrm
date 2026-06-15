@@ -52,6 +52,18 @@ describe('askGeneralQuestion — closed world', () => {
     expect(res).toEqual({ kind: 'data', intent: 'followups.dueToday', payload: { total: 3, sample: [] } })
   })
 
+  it('threads the selected AI mode into classification', async () => {
+    vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'followups.dueToday', confidence: 0.95 })
+    await askGeneralQuestion('מי צריך מעקב היום', 'advanced')
+    expect(classifyGeneralIntent).toHaveBeenCalledWith('מי צריך מעקב היום', 10, 'advanced')
+  })
+
+  it('ignores an invalid mode (falls back to default tier)', async () => {
+    vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'followups.dueToday', confidence: 0.95 })
+    await askGeneralQuestion('מי צריך מעקב היום', 'nonsense')
+    expect(classifyGeneralIntent).toHaveBeenCalledWith('מי צריך מעקב היום', 10, undefined)
+  })
+
   it('SAFEGUARD: analytics throwing does NOT affect the answer', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'followups.dueToday', confidence: 0.95 })
     vi.mocked(track).mockRejectedValue(new Error('analytics down'))
