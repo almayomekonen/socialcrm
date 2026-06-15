@@ -14,6 +14,9 @@ export type AiEnv = {
   // inspector exposes provider/model identifiers which must never reach a
   // customer-visible deployment.
   copilotInspectorEnabled: boolean
+  // General Mode (no-lead copilot) rollout allowlist. Empty by default, so the
+  // feature is OFF in production until an agency id is opted in (or 'all').
+  generalModeAgencyAllowlist: number[] | 'all'
 }
 
 let cached: AiEnv | null = null
@@ -48,6 +51,7 @@ function loadEnv(): AiEnv {
     copilotPersistenceEnabled,
     copilotInspectorEnabled,
     copilotAgencyAllowlist: parseAgencyAllowlist(process.env.AI_COPILOT_AGENCY_ALLOWLIST),
+    generalModeAgencyAllowlist: parseAgencyAllowlist(process.env.GENERAL_MODE_AGENCY_IDS),
     agencyAllowlist: parseAgencyAllowlist(process.env.AI_AGENCY_ALLOWLIST),
     dailyUsdCap: cap,
     healthSecret: process.env.AI_HEALTH_SECRET?.trim() || null,
