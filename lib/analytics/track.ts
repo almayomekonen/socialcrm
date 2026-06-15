@@ -8,6 +8,11 @@ export type AnalyticsEventName =
   | 'trial_expired'
   | 'upgrade_clicked'
   | 'subscription_activated'
+  | 'general_mode.opened'
+  | 'general_mode.question_asked'
+  | 'general_mode.answer_rendered'
+  | 'general_mode.deeplink_clicked'
+  | 'general_mode.error'
 
 type TrackInput = {
   agencyId: number
