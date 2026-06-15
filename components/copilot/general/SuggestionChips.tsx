@@ -3,9 +3,12 @@
 import { BRIEFING_EXAMPLES, BRIEFING_INTENT_IDS } from '@/lib/copilot/general/registry'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 
-/** First example utterance per briefing intent — the "quick questions" set. */
+/** Phrased to trigger the Drive-search keyword detector (action + drive noun). */
+export const DRIVE_SUGGESTION = 'מצא קובץ ב-Google Drive'
+
+/** First example utterance per briefing intent + Drive — the "quick questions" set. */
 export function briefingSuggestions(): string[] {
-  return BRIEFING_INTENT_IDS.map((id) => BRIEFING_EXAMPLES[id][0])
+  return [...BRIEFING_INTENT_IDS.map((id) => BRIEFING_EXAMPLES[id][0]), DRIVE_SUGGESTION]
 }
 
 /** Full set incl. guide topics — used by the out-of-set capability menu. */

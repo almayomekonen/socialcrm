@@ -14,6 +14,8 @@ import {
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
+import { detectsDriveIntent, maybePrefetchDrive, type DriveSearchOutcome } from '@/lib/copilot/driveIntent'
+import type { DriveResults } from '@/lib/copilot/copilotResponse'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { Roles } from '@/types/roles'
@@ -22,6 +24,7 @@ export type GeneralAnswer =
   | { kind: 'menu'; reason: 'unknown' | 'low-confidence' }
   | { kind: 'guide'; answer: string; route?: string }
   | { kind: 'data'; intent: string; payload: unknown }
+  | { kind: 'drive'; data: DriveResults }
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
@@ -57,10 +60,24 @@ export async function askGeneralQuestion(text: string, modeRaw?: unknown): Promi
 function answerProps(a: GeneralAnswer): Record<string, unknown> {
   if (a.kind === 'data') return { kind: 'data', intent: a.intent }
   if (a.kind === 'guide') return { kind: 'guide' }
+  if (a.kind === 'drive') return { kind: 'drive', count: a.data.results.length }
   return { kind: 'menu', reason: a.reason }
 }
 
 async function resolveAnswer(text: string, user: ActingUser, mode?: CopilotModeId): Promise<GeneralAnswer> {
+  // Drive search is user-scoped + read-only (no lead needed). Detected by the
+  // same keyword rule Lead Mode uses; results are a factual file LIST — no
+  // model produces the facts, so it stays within the deterministic model.
+  if (detectsDriveIntent(text)) {
+    const outcome = await maybePrefetchDrive({ question: text, userId: user.id })
+    if (outcome) return { kind: 'drive', data: toDriveResults(outcome) }
+    // Drive intent but search unavailable (not connected / transient error).
+    return {
+      kind: 'drive',
+      data: { intro: 'לא הצלחתי לחפש ב-Google Drive. ודא שחיברת את החשבון.', mode: 'specific', results: [] },
+    }
+  }
+
   const c = await classifyGeneralIntent(text, user.agencyId, mode)
 
   if (c.intent === 'unknown' || c.confidence < GENERAL_HIGH_CONFIDENCE) {
@@ -105,5 +122,28 @@ async function runIntent(intent: string, user: ActingUser, scope: Scope) {
     }
     default:
       return {}
+  }
+}
+
+/** Maps the read-only Drive search outcome into the renderable card shape. */
+function toDriveResults(outcome: DriveSearchOutcome): DriveResults {
+  const count = outcome.results.length
+  const intro =
+    count === 0
+      ? 'לא נמצאו קבצים תואמים ב-Google Drive.'
+      : outcome.mode === 'generic'
+        ? `הנה ${count} קבצים אחרונים ב-Google Drive שלך:`
+        : `נמצאו ${count} קבצים תואמים ב-Google Drive:`
+  return {
+    intro,
+    mode: outcome.mode,
+    results: outcome.results.map((r) => ({
+      id: r.id,
+      name: r.name,
+      mimeType: r.mimeType,
+      modifiedTime: r.modifiedTime,
+      url: r.webViewLink ?? '',
+      thumbnailUrl: r.thumbnailLink ?? undefined,
+    })),
   }
 }

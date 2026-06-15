@@ -2,9 +2,21 @@
 
 import type { GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
 import type { BriefingLeadList } from '@/db/briefing'
+import { DriveResultsBody } from '../bodies/DriveResultsBody'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import CapabilityMenu from './CapabilityMenu'
+
+/** Deterministic "knowledge source" label per data intent (no model involved). */
+const SOURCE_LABEL: Record<string, string> = {
+  'followups.dueToday': 'הלידים שלך',
+  'leads.notContactedRecently': 'הלידים שלך',
+  'leads.newThisWeek': 'הלידים שלך',
+  'tasks.overdue': 'המשימות שלך',
+  'meetings.today': 'היומן',
+  'inbox.unread': 'התיבה',
+  'crm.attention': 'נתוני ה-CRM שלך',
+}
 
 type MeetingsPayload = { meetings: { id: number; title: string; leadName: string | null }[] }
 type InboxPayload = { conversations: number; unread: number }
@@ -63,9 +75,16 @@ function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; e
   )
 }
 
-/** Renders one Q&A outcome: data card, guide answer, or capability menu. */
+/** Renders one Q&A outcome: data card, drive results, guide answer, or menu. */
 export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; onPick: (text: string) => void }) {
   if (answer.kind === 'menu') return <CapabilityMenu onPick={onPick} />
+  if (answer.kind === 'drive') {
+    return (
+      <div className='rounded-md border border-gray-200 p-2.5'>
+        <DriveResultsBody data={answer.data} />
+      </div>
+    )
+  }
   if (answer.kind === 'guide') {
     return (
       <div className='space-y-1.5'>
@@ -85,6 +104,9 @@ export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; 
   return (
     <div className='rounded-md border border-gray-200 p-2.5'>
       <DataAnswer intent={answer.intent} payload={answer.payload} />
+      {SOURCE_LABEL[answer.intent] && (
+        <p className='mt-2 text-[10px] tracking-wide text-gray-400'>מקור: {SOURCE_LABEL[answer.intent]}</p>
+      )}
     </div>
   )
 }
