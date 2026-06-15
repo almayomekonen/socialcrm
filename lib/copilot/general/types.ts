@@ -1,0 +1,19 @@
+import type { BriefingLeadRow } from '@/db/briefing'
+
+export type BriefingMeetingRow = { id: number; title: string; startAt: string; leadName: string | null }
+
+/**
+ * Every section carries a TRUE `total` and a hard-capped `sample`/scalars. The
+ * UI renders the total as the headline and the sample as the preview list.
+ */
+export type BriefingSection =
+  | { id: 'tasks.overdue'; total: number; sample: BriefingLeadRow[] }
+  | { id: 'followups.dueToday'; total: number; sample: BriefingLeadRow[] }
+  | { id: 'meetings.today'; total: number; sample: BriefingMeetingRow[] }
+  | { id: 'inbox.unread'; conversations: number; unread: number }
+  | { id: 'leads.notContactedRecently'; total: number; sample: BriefingLeadRow[] }
+  | { id: 'leads.newThisWeek'; total: number; sample: BriefingLeadRow[] }
+
+export type BriefingResult =
+  | { kind: 'empty' } // no CRM data → onboarding
+  | { kind: 'briefing'; greeting: string; sections: BriefingSection[] }
