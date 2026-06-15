@@ -3,19 +3,23 @@
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/lib/Icon'
 import { useCopilot } from '@/lib/copilot/useCopilot'
+import type { CopilotModeId } from '@/lib/ai/copilotModes'
 import { recordGeneralModeEvent } from '@/actions/analytics/recordGeneralModeEvent'
 import { getDailyBriefing } from '@/actions/ai/getDailyBriefing'
 import { askGeneralQuestion, type GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
 import type { BriefingResult } from '@/lib/copilot/general/types'
+import ActiveGenerationRow from '../ActiveGenerationRow'
 import GeneralEmptyState from './GeneralEmptyState'
 import BriefingCards from './BriefingCards'
 import AnswerView from './AnswerView'
 import GeneralComposer from './GeneralComposer'
+import SuggestionChips, { briefingSuggestions } from './SuggestionChips'
 
 /**
  * No-lead "General Mode" surface: deterministic Daily Briefing + bounded Q&A +
- * guide. Mounts only when General Mode is enabled and no lead context is
- * published (see CopilotShell), so Lead Mode is never affected.
+ * guide, with the same premium chrome as Lead Mode (mode selector, polished
+ * composer, sparkle loading, quick-question chips). Mounts only when General
+ * Mode is enabled and no lead context is published (see CopilotShell).
  */
 export default function GeneralModePanel() {
   const { closePanel } = useCopilot()
@@ -38,10 +42,10 @@ export default function GeneralModePanel() {
     }
   }, [])
 
-  async function ask(text: string) {
+  async function ask(text: string, mode?: CopilotModeId) {
     setAsking(true)
     try {
-      setAnswer(await askGeneralQuestion(text))
+      setAnswer(await askGeneralQuestion(text, mode))
     } finally {
       setAsking(false)
     }
@@ -57,9 +61,19 @@ export default function GeneralModePanel() {
         {!briefing && <Centered text='טוען…' />}
         {isEmptySystem && <GeneralEmptyState />}
         {briefing?.kind === 'briefing' && (
-          <div className='space-y-2 pb-2'>
+          <div className='space-y-2.5 pb-2'>
             <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
-            {answer && <AnswerView answer={answer} onPick={ask} />}
+
+            {asking ? (
+              <ActiveGenerationRow fallbackLabel='מגבש תשובה' hint='general-mode' />
+            ) : answer ? (
+              <AnswerView answer={answer} onPick={(t) => ask(t)} />
+            ) : (
+              <div className='space-y-1.5'>
+                <p className='text-[12px] text-gray-400'>שאלות מהירות</p>
+                <SuggestionChips items={briefingSuggestions()} onPick={(t) => ask(t)} />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -67,7 +81,7 @@ export default function GeneralModePanel() {
       {/* No composer in the empty-system state — onboarding comes first. */}
       {!isEmptySystem && briefing && (
         <div className='w-full px-3 pb-3 pt-3'>
-          <GeneralComposer onSubmit={ask} busy={asking} />
+          <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />
         </div>
       )}
     </div>
