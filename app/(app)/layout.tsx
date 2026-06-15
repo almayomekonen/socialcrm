@@ -9,6 +9,7 @@ import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
 import { CopilotProvider } from '@/lib/copilot/useCopilot'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
+import { isGeneralModeEnabled } from '@/lib/ai/flags'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import MobileBlock from '@/components/layout/MobileBlock'
@@ -43,6 +44,9 @@ async function LayoutContent({ children }) {
   }
 
   const copilotEnabled = isCopilotEnabledForUser(user)
+  // No-lead General Mode. Off by default (empty allowlist) → CopilotShell keeps
+  // rendering today's CopilotPanel unchanged until an agency is opted in.
+  const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
 
   // Per-user unread conversation count for the nav badge. Office users don't see
   // the Inbox link, so skip the query for them. Never let it break the layout.
@@ -61,7 +65,7 @@ async function LayoutContent({ children }) {
               <WorkspaceGrid>
                 <Nav user={user} inboxUnread={inboxUnread} />
                 <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>{children}</main>
-                <CopilotShell />
+                <CopilotShell generalModeEnabled={generalModeEnabled} />
               </WorkspaceGrid>
             </div>
             {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
