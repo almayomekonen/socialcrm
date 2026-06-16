@@ -20,6 +20,11 @@ export async function proxy(request: NextRequest) {
   const user = request.cookies.get('user')?.value
   const { pathname } = request.nextUrl
 
+  // TEMP deployment marker — confirms this build is live on every /dashboard
+  // request (middleware runs before any redirect and never throws on null user).
+  // Remove after deployment verification. Does not affect auth or redirects.
+  if (pathname.startsWith('/dashboard')) console.log('AUTH_DEBUG_DEPLOYMENT_MARKER_v1')
+
   // Diagnostic-only context (no behavior impact). See [DIAG] logs below.
   const cookiePresent = Boolean(user)
   const ua = request.headers.get('user-agent') ?? ''
