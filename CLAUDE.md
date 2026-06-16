@@ -4,6 +4,7 @@
 @claude/product.md
 @claude/do-not-touch.md
 @claude/architecture-rules.md
+@claude/care-charter.md
 
 ---
 

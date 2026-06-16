@@ -38,26 +38,57 @@ export async function getUser(): Promise<UserDb | null> {
   const cokis = await cookies()
 
   const session = cokis.get('user')?.value
-  if (!session) return null
+  if (!session) {
+    console.log(JSON.stringify({ tag: 'GETUSER', reason: 'no_cookie', ts: new Date().toISOString() }))
+    return null
+  }
 
   let payload: any
   try {
     payload = await decrypt(session)
   } catch (err) {
     console.warn('[auth] cookie verify failed', { reason: (err as Error)?.message })
+    console.log(
+      JSON.stringify({ tag: 'GETUSER', reason: 'decrypt_failed', error: (err as Error)?.message, ts: new Date().toISOString() }),
+    )
     return null
   }
 
   const userId = payload?.id
   if (!userId) {
+    console.log(
+      JSON.stringify({ tag: 'GETUSER', reason: 'missing_payload_id', cookiePayload: payload, ts: new Date().toISOString() }),
+    )
     cokis.delete('user')
     return null
   }
 
   try {
-    return await fetchUserById(userId)
+    const row = await fetchUserById(userId)
+    if (!row) {
+      console.log(
+        JSON.stringify({
+          tag: 'GETUSER',
+          reason: 'db_user_not_found',
+          cookieUserId: userId,
+          cookieExpires: payload?.expires,
+          ts: new Date().toISOString(),
+        }),
+      )
+      return null
+    }
+    return row
   } catch (err) {
     console.error('[auth] user fetch failed', { userId, reason: (err as Error)?.message })
+    console.log(
+      JSON.stringify({
+        tag: 'GETUSER',
+        reason: 'db_exception',
+        cookieUserId: userId,
+        error: (err as Error)?.message,
+        ts: new Date().toISOString(),
+      }),
+    )
     return null
   }
 }
