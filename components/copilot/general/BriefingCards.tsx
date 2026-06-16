@@ -5,6 +5,11 @@ import { SECTION_EMPTY, SECTION_TITLE } from './sectionMeta'
 import LeadRows from './LeadRows'
 import DeepLink from './DeepLink'
 
+// A briefing card is a glanceable PREVIEW, not the full list. Real data showed a
+// section can hold 78 leads; rendering all 50 sampled rows floods the panel.
+// Show a few, lean on the headline count + "ועוד N" for the rest.
+const BRIEFING_PREVIEW = 4
+
 function SectionBody({ section }: { section: BriefingSection }) {
   if (section.id === 'inbox.unread') {
     if (section.unread === 0) return <p className='text-xs text-gray-400'>{SECTION_EMPTY['inbox.unread']}</p>
@@ -16,9 +21,10 @@ function SectionBody({ section }: { section: BriefingSection }) {
   }
   if (section.id === 'meetings.today') {
     if (section.total === 0) return <p className='text-xs text-gray-400'>{SECTION_EMPTY['meetings.today']}</p>
+    const shown = section.sample.slice(0, BRIEFING_PREVIEW)
     return (
       <ul className='space-y-0.5'>
-        {section.sample.map((m) => (
+        {shown.map((m) => (
           <li key={m.id}>
             <DeepLink
               href='/calendar'
@@ -30,12 +36,20 @@ function SectionBody({ section }: { section: BriefingSection }) {
             </DeepLink>
           </li>
         ))}
+        {section.total > shown.length && (
+          <li className='text-[11px] text-gray-400'>ועוד {section.total - shown.length}</li>
+        )}
       </ul>
     )
   }
   // Lead-list sections (overdue / due-today / not-contacted / new-this-week).
   return (
-    <LeadRows total={section.total} sample={section.sample} emptyText={SECTION_EMPTY[section.id]} source='briefing-section' />
+    <LeadRows
+      total={section.total}
+      sample={section.sample.slice(0, BRIEFING_PREVIEW)}
+      emptyText={SECTION_EMPTY[section.id]}
+      source='briefing-section'
+    />
   )
 }
 

@@ -60,8 +60,12 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
   }
   // Lead-list intents (followups.dueToday / leads.* / tasks.overdue).
   const p = payload as BriefingLeadList
-  return <LeadRows total={p.total} sample={p.sample} emptyText='אין תוצאות' source='answer' />
+  return <LeadRows total={p.total} sample={p.sample.slice(0, ANSWER_PREVIEW)} emptyText='אין תוצאות' source='answer' />
 }
+
+// An explicit Q&A can show more than a briefing card, but not all 50.
+const ANSWER_PREVIEW = 12
+const ATTENTION_PREVIEW = 4
 
 function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; empty: string }) {
   return (
@@ -70,7 +74,7 @@ function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; e
         {label}
         {list.total > 0 ? ` · ${list.total}` : ''}
       </p>
-      <LeadRows total={list.total} sample={list.sample} emptyText={empty} source='answer' />
+      <LeadRows total={list.total} sample={list.sample.slice(0, ATTENTION_PREVIEW)} emptyText={empty} source='answer' />
     </div>
   )
 }
