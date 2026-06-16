@@ -23,14 +23,7 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
-  if (!user) {
-    // getUser() already logged the precise null reason (tag: GETUSER).
-    // This records the redirect site so the loop can be stitched together.
-    console.log(
-      JSON.stringify({ tag: 'LAYOUT_REDIRECT', route: '/dashboard', reason: 'getUser_returned_null', ts: new Date().toISOString() }),
-    )
-    redirect('/auth')
-  }
+  if (!user) redirect('/auth')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 

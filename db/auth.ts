@@ -38,27 +38,18 @@ export async function getUser(): Promise<UserDb | null> {
   const cokis = await cookies()
 
   const session = cokis.get('user')?.value
-  if (!session) {
-    console.log(JSON.stringify({ tag: 'GETUSER', reason: 'no_cookie', ts: new Date().toISOString() }))
-    return null
-  }
+  if (!session) return null
 
   let payload: any
   try {
     payload = await decrypt(session)
   } catch (err) {
     console.warn('[auth] cookie verify failed', { reason: (err as Error)?.message })
-    console.log(
-      JSON.stringify({ tag: 'GETUSER', reason: 'decrypt_failed', error: (err as Error)?.message, ts: new Date().toISOString() }),
-    )
     return null
   }
 
   const userId = payload?.id
   if (!userId) {
-    console.log(
-      JSON.stringify({ tag: 'GETUSER', reason: 'missing_payload_id', cookiePayload: payload, ts: new Date().toISOString() }),
-    )
     cokis.delete('user')
     return null
   }
@@ -66,29 +57,17 @@ export async function getUser(): Promise<UserDb | null> {
   try {
     const row = await fetchUserById(userId)
     if (!row) {
-      console.log(
-        JSON.stringify({
-          tag: 'GETUSER',
-          reason: 'db_user_not_found',
-          cookieUserId: userId,
-          cookieExpires: payload?.expires,
-          ts: new Date().toISOString(),
-        }),
-      )
+      // Stale session: the cookie points to a user id that no longer exists
+      // (e.g. a deleted/recreated account). Clear the invalid cookie so the
+      // next request is treated as logged-out — this breaks the /dashboard ⇄
+      // /auth redirect loop and lets the user log in fresh. Mirrors the
+      // !userId branch above.
+      cokis.delete('user')
       return null
     }
     return row
   } catch (err) {
     console.error('[auth] user fetch failed', { userId, reason: (err as Error)?.message })
-    console.log(
-      JSON.stringify({
-        tag: 'GETUSER',
-        reason: 'db_exception',
-        cookieUserId: userId,
-        error: (err as Error)?.message,
-        ts: new Date().toISOString(),
-      }),
-    )
     return null
   }
 }

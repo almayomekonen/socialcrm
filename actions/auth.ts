@@ -21,16 +21,6 @@ export async function checkUserSuspended(user) {
   const cokis = await cookies()
 
   if (user?.suspended) {
-    console.log(
-      JSON.stringify({
-        tag: 'AUTH_REDIRECT',
-        route: 'checkUserSuspended',
-        reason: 'user_suspended',
-        userId: user?.id ?? null,
-        email: user?.email ?? null,
-        ts: new Date().toISOString(),
-      }),
-    )
     cokis.delete('user')
     redirect('/auth')
   }
@@ -50,16 +40,6 @@ export async function checkUser(user) {
 
   await createCookie(userExist.id)
   console.log(`[AUTH] route=google_check email=${email} ms=${Date.now() - start} result=success`)
-  console.log(
-    JSON.stringify({
-      tag: 'DASHBOARD_REDIRECT',
-      route: 'checkUser',
-      reason: 'login_success',
-      userId: userExist.id,
-      email,
-      ts: new Date().toISOString(),
-    }),
-  )
   redirect('/dashboard')
 }
 
