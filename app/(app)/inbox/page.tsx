@@ -23,19 +23,7 @@ type InboxSearchParams = {
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<InboxSearchParams> }) {
   const user = await getUser()
-  if (!user?.agencyId) {
-    console.log(
-      JSON.stringify({
-        tag: 'AUTH_REDIRECT',
-        route: '/inbox',
-        reason: user ? 'missing_agencyId' : 'getUser_returned_null',
-        userId: user?.id ?? null,
-        email: user?.email ?? null,
-        ts: new Date().toISOString(),
-      }),
-    )
-    redirect('/auth')
-  }
+  if (!user?.agencyId) redirect('/auth')
 
   const sp = await searchParams
   const selectedConversationId =

@@ -12,6 +12,8 @@ import QuickLinks from '@/components/home/QuickLinks'
 
 export default async function DashboardPage() {
   const user = await getUser()
+  if (!user) redirect('/auth')
+
   const { gotPermIds } = await getPerms(user)
 
   if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) redirect('/leads')
