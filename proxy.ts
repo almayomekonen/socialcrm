@@ -20,15 +20,45 @@ export async function proxy(request: NextRequest) {
   const user = request.cookies.get('user')?.value
   const { pathname } = request.nextUrl
 
+  // Diagnostic-only context (no behavior impact). See [DIAG] logs below.
+  const cookiePresent = Boolean(user)
+  const ua = request.headers.get('user-agent') ?? ''
+
   if (pathname.startsWith('/ipuy')) return NextResponse.next()
   if (pathname.startsWith('/thank-you')) return NextResponse.next()
 
   // Allow public marketing pages (exact match or nested paths)
   if (PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()
 
-  if (!user && !pathname.startsWith('/auth')) return Response.redirect(new URL('/auth', request.url))
+  if (!user && !pathname.startsWith('/auth')) {
+    console.log(
+      JSON.stringify({
+        tag: 'PROXY',
+        pathname,
+        cookiePresent,
+        redirectTo: '/auth',
+        reason: 'no_cookie_protected_route',
+        ua,
+        ts: new Date().toISOString(),
+      }),
+    )
+    return Response.redirect(new URL('/auth', request.url))
+  }
 
-  if (user && pathname.startsWith('/auth')) return Response.redirect(new URL('/dashboard', request.url))
+  if (user && pathname.startsWith('/auth')) {
+    console.log(
+      JSON.stringify({
+        tag: 'PROXY',
+        pathname,
+        cookiePresent,
+        redirectTo: '/dashboard',
+        reason: 'cookie_present_on_auth',
+        ua,
+        ts: new Date().toISOString(),
+      }),
+    )
+    return Response.redirect(new URL('/dashboard', request.url))
+  }
 
   return NextResponse.next()
 }

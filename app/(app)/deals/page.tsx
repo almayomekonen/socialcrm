@@ -23,7 +23,12 @@ export const metadata: Metadata = {
 export default async function SalesPage({ searchParams }) {
   const { filter, saleId, isFav, pageNum, tableLimit } = await searchParams
   const user = await getUser()
-  if (!user) redirect('/auth')
+  if (!user) {
+    console.log(
+      JSON.stringify({ tag: 'AUTH_REDIRECT', route: '/deals', reason: 'getUser_returned_null', userId: null, email: null, ts: new Date().toISOString() }),
+    )
+    redirect('/auth')
+  }
   const { rawFilter, sqlFilter, gotPermUsers, gotPermTeams, gotPermIds, allPermUsers } = await getPermsAndFilter({
     user,
     filter,
