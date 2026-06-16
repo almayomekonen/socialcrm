@@ -23,7 +23,11 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
-  if (!user) redirect('/auth')
+  // Reaching here means a cookie is present but invalid (the proxy already
+  // sends no-cookie requests to /auth). A Server Component can't delete the
+  // cookie, so route through the Route Handler that can — this breaks the
+  // /dashboard <-> /auth loop. (No-cookie fallthrough is a harmless no-op.)
+  if (!user) redirect('/api/auth/clear')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 
