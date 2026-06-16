@@ -55,17 +55,11 @@ export async function getUser(): Promise<UserDb | null> {
   }
 
   try {
-    const row = await fetchUserById(userId)
-    if (!row) {
-      // Stale session: the cookie points to a user id that no longer exists
-      // (e.g. a deleted/recreated account). Clear the invalid cookie so the
-      // next request is treated as logged-out — this breaks the /dashboard ⇄
-      // /auth redirect loop and lets the user log in fresh. Mirrors the
-      // !userId branch above.
-      cokis.delete('user')
-      return null
-    }
-    return row
+    // A stale cookie — an id with no matching DB row (deleted/recreated
+    // account) — returns null here. The invalid cookie is NOT cleared in this
+    // Server Component (cookie mutation is disallowed); the (app) layout routes
+    // such sessions to the /api/auth/clear Route Handler, which can.
+    return await fetchUserById(userId)
   } catch (err) {
     console.error('[auth] user fetch failed', { userId, reason: (err as Error)?.message })
     return null
