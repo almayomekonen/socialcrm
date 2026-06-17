@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { runStructured } from '@/lib/ai/router'
 import type { AiFailureReason } from '@/lib/ai/types'
 import type { AnalysisMessage } from '@/db/conversationIntelligence'
+import { NOVELTY_VALUES, type NoveltyKind } from '@/db/conversationIntelligence'
 import {
   ACTION_VALUES,
   CONVERSATION_ANALYSIS_PROMPT_VERSION,
@@ -25,7 +26,7 @@ import {
  * recommendation only — nothing executes it.
  */
 
-export const ANALYZER_VERSION = 'analysis-v3'
+export const ANALYZER_VERSION = 'analysis-v4'
 export const ANALYZER_SCHEMA_VERSION = 3
 export const promptVersion = String(CONVERSATION_ANALYSIS_PROMPT_VERSION)
 
@@ -45,7 +46,14 @@ export type ConversationAnalyzerSuccess = {
   summary: { summary: string }
   intent: { intent: ConversationIntent; confidence: string }
   temperature: { temperature: LeadTemperature; confidence: string }
-  action: { suggestedAction: SuggestedAction; confidence: string; reason: string }
+  action: {
+    suggestedAction: SuggestedAction
+    confidence: string
+    reason: string
+    actionMessage: string
+    noveltyKind: NoveltyKind
+    sourceMessageIds: number[]
+  }
   inputHash: string
   modelProvider: string
   modelId: string
@@ -114,6 +122,18 @@ export async function runConversationAnalyzer(input: ConversationAnalyzerInput):
     return { ok: false, reason: 'invalid-output', retryable: true }
   }
 
+  // Operator Take grounding (Law 1): keep only cited sequences that exist in the
+  // analyzed set, then translate to message ids. A take with text but no grounded
+  // citation is dropped to an empty id list here and never surfaces.
+  const seqToId = new Map(input.messages.map((m) => [m.sequence, m.id]))
+  const groundedIds = (Array.isArray(data.sourceSequences) ? data.sourceSequences : [])
+    .filter((s) => seqToId.has(s))
+    .map((s) => seqToId.get(s) as number)
+  const noveltyKind: NoveltyKind = (NOVELTY_VALUES as readonly string[]).includes(data.noveltyKind)
+    ? (data.noveltyKind as NoveltyKind)
+    : 'none'
+  const actionMessage = data.actionMessage?.trim() ?? ''
+
   return {
     ok: true,
     summary: { summary },
@@ -123,6 +143,9 @@ export async function runConversationAnalyzer(input: ConversationAnalyzerInput):
       suggestedAction: data.suggestedAction,
       confidence: data.actionConfidence,
       reason: data.actionReason?.trim() ?? '',
+      actionMessage,
+      noveltyKind,
+      sourceMessageIds: actionMessage && groundedIds.length > 0 ? groundedIds : [],
     },
     inputHash,
     modelProvider: out.provider,
