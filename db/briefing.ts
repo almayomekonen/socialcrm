@@ -4,28 +4,14 @@ import { getAgencyPlan } from '@/lib/quota'
 import { isAdmin, Roles } from '@/types/roles'
 import { BRIEFING_SAMPLE_LIMIT, STALE_DAYS, WEEK_START_SQL } from '@/lib/copilot/general/constants'
 
-// Exported so the Q&A action reuses the EXACT same scope shape (no casts).
 export type Scope = { user: { role: Roles }; gotPermIds: number[] }
 
 export type BriefingLeadRow = { id: number; name: string | null; status: string | null }
 
-/**
- * Every list reader returns a TRUE total plus a hard-capped sample. The total
- * comes from a `COUNT(*) OVER()` window (evaluated before LIMIT), so the
- * headline number is never under-reported even though we cap the rows we ship.
- */
 export type BriefingLeadList = { total: number; sample: BriefingLeadRow[] }
 
 type Row = BriefingLeadRow & { total: number }
 
-/**
- * Scoped lead query — the single permission gate. Non-admins are constrained to
- * `gotPermIds`; the free plan hides over-quota leads. Identical to the existing
- * `getNewLeads` / `hasAnyLeads` pattern; adds NO new join logic.
- *
- * Exported so the catastrophic-risk control can be asserted at the SQL level
- * without a live DB (see __tests__/ai/briefing-scope.test.ts).
- */
 export function scopedLeads(agencyId: number, plan: string, s: Scope) {
   const q = db('clients').where('agencyId', agencyId).where('lead', true)
   if (!isAdmin(s.user.role)) q.whereIn('userId', s.gotPermIds)
@@ -38,7 +24,6 @@ function toList(rows: Row[]): BriefingLeadList {
   return { total, sample: rows.map((r) => ({ id: r.id, name: r.name, status: r.status })) }
 }
 
-/** Leads whose nextFollowUpAt falls within today (not closed/lost). */
 export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
   const plan = await getAgencyPlan(agencyId)
@@ -53,7 +38,6 @@ export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> 
   return toList(rows)
 }
 
-/** Leads not contacted in >= STALE_DAYS (by lastActivityAt), still active. */
 export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
   const plan = await getAgencyPlan(agencyId)
@@ -66,7 +50,6 @@ export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLe
   return toList(rows)
 }
 
-/** Leads created since Sunday 00:00. */
 export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
   const plan = await getAgencyPlan(agencyId)
@@ -78,7 +61,6 @@ export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
   return toList(rows)
 }
 
-/** Open overdue tasks across the user's leads: true count + capped lead sample. */
 export async function getOverdueTaskSummary(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
   const plan = await getAgencyPlan(agencyId)
@@ -94,7 +76,40 @@ export async function getOverdueTaskSummary(s: Scope): Promise<BriefingLeadList>
   return toList(rows)
 }
 
-/** Unread inbound conversations across the user's leads (inbound only). Scalars. */
+export const PROMISED_WAITING_RECENCY_DAYS = 14
+
+export function promisedButWaitingQuery(agencyId: number, plan: string, s: Scope) {
+  const msg = db('inbox_messages as m')
+    .join('inbox_conversations as cv', 'cv.id', 'm.conversationId')
+    .where('m.agencyId', agencyId)
+    .where('m.channel', 'whatsapp')
+    .groupBy('cv.leadId')
+    .select(
+      'cv.leadId as lead_id',
+      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'inbound')  AS last_inbound_at`),
+      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'outbound') AS last_outbound_at`),
+    )
+
+  return scopedLeads(agencyId, plan, s)
+    .join(db.raw('(?) as msg', [msg]), 'msg.lead_id', 'clients.id')
+    .whereNotIn('clients.status', ['closed', 'lost'])
+    .whereNotNull('clients.nextFollowUpAt')
+    .whereRaw(`clients."nextFollowUpAt" < NOW()`)
+    .whereRaw(`msg.last_inbound_at > clients."nextFollowUpAt"`)
+    .whereRaw(`(msg.last_outbound_at IS NULL OR msg.last_outbound_at < msg.last_inbound_at)`)
+    .whereRaw(`msg.last_inbound_at > NOW() - make_interval(days => ?)`, [PROMISED_WAITING_RECENCY_DAYS])
+    .select('clients.id', 'clients.name', 'clients.status', db.raw('COUNT(*) OVER()::int as total'))
+    .orderByRaw(`msg.last_inbound_at ASC`)
+    .limit(BRIEFING_SAMPLE_LIMIT)
+}
+
+export async function getPromisedButWaiting(s: Scope): Promise<BriefingLeadList> {
+  const agencyId = await getAgencyId()
+  const plan = await getAgencyPlan(agencyId)
+  const rows = (await promisedButWaitingQuery(agencyId, plan, s)) as Row[]
+  return toList(rows)
+}
+
 export async function getUnreadInboxSummary(s: Scope): Promise<{ conversations: number; unread: number }> {
   const agencyId = await getAgencyId()
   const plan = await getAgencyPlan(agencyId)

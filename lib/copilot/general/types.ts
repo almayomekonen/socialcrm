@@ -2,11 +2,8 @@ import type { BriefingLeadRow } from '@/db/briefing'
 
 export type BriefingMeetingRow = { id: number; title: string; startAt: string; leadName: string | null }
 
-/**
- * Every section carries a TRUE `total` and a hard-capped `sample`/scalars. The
- * UI renders the total as the headline and the sample as the preview list.
- */
 export type BriefingSection =
+  | { id: 'followups.promisedWaiting'; total: number; sample: BriefingLeadRow[] }
   | { id: 'tasks.overdue'; total: number; sample: BriefingLeadRow[] }
   | { id: 'followups.dueToday'; total: number; sample: BriefingLeadRow[] }
   | { id: 'meetings.today'; total: number; sample: BriefingMeetingRow[] }

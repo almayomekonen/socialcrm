@@ -9,6 +9,7 @@ import {
   getLeadsNotContactedRecently,
   getNewLeadsThisWeek,
   getOverdueTaskSummary,
+  getPromisedButWaiting,
   getUnreadInboxSummary,
   type Scope,
 } from '@/db/briefing'
@@ -16,24 +17,18 @@ import { track } from '@/lib/analytics/track'
 import { BRIEFING_SAMPLE_LIMIT } from '@/lib/copilot/general/constants'
 import type { BriefingResult, BriefingSection } from '@/lib/copilot/general/types'
 
-/**
- * Read-only daily briefing. FULLY DETERMINISTIC — no LLM on this path, so it
- * cannot fail or lag from a model dependency. Analytics is NOT in the success
- * path at all (only the error path emits, and `track` never throws), so a
- * broken analytics layer cannot affect what the user sees.
- */
 export async function getDailyBriefing(): Promise<BriefingResult> {
   const user = await requireAgencyUser()
   try {
     const { gotPermIds } = await getPerms(user)
     const scope: Scope = { user: { role: user.role }, gotPermIds }
 
-    // Empty-system onboarding. The client-side `opened` event already fired.
     if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) {
       return { kind: 'empty' }
     }
 
-    const [dueToday, stale, overdue, meetings, newThisWeek, inbox] = await Promise.all([
+    const [promisedWaiting, dueToday, stale, overdue, meetings, newThisWeek, inbox] = await Promise.all([
+      getPromisedButWaiting(scope).catch(() => ({ total: 0, sample: [] })),
       getFollowUpsDueToday(scope).catch(() => ({ total: 0, sample: [] })),
       getLeadsNotContactedRecently(scope).catch(() => ({ total: 0, sample: [] })),
       getOverdueTaskSummary(scope).catch(() => ({ total: 0, sample: [] })),
@@ -42,13 +37,14 @@ export async function getDailyBriefing(): Promise<BriefingResult> {
       getUnreadInboxSummary(scope).catch(() => ({ conversations: 0, unread: 0 })),
     ])
 
-    // getTodaysMeetings is unbounded; apply the same hard cap here.
     const meetingSample = meetings
       .slice(0, BRIEFING_SAMPLE_LIMIT)
       .map((m) => ({ id: m.id, title: m.title, startAt: m.startAt, leadName: m.leadName }))
 
-    // Urgency-first triage order: overdue → due-today → meetings → inbox → stale → new.
     const sections: BriefingSection[] = [
+      ...(promisedWaiting.total > 0
+        ? [{ id: 'followups.promisedWaiting' as const, total: promisedWaiting.total, sample: promisedWaiting.sample }]
+        : []),
       { id: 'tasks.overdue', total: overdue.total, sample: overdue.sample },
       { id: 'followups.dueToday', total: dueToday.total, sample: dueToday.sample },
       { id: 'meetings.today', total: meetings.length, sample: meetingSample },
@@ -59,17 +55,11 @@ export async function getDailyBriefing(): Promise<BriefingResult> {
 
     return { kind: 'briefing', greeting: buildDeterministicSummary(sections), sections }
   } catch (err) {
-    // Analytics is best-effort and isolated from the thrown failure.
     await track({ agencyId: user.agencyId, userId: user.id, event: 'general_mode.error', props: { stage: 'briefing' } })
     throw err
   }
 }
 
-/**
- * Deterministic one-line Hebrew summary over the TRUE totals only. No LLM → no
- * latency, no token spend, no failure path. Pure interpretation of real
- * numbers; never invents a fact.
- */
 function buildDeterministicSummary(sections: BriefingSection[]): string {
   const parts: string[] = []
   for (const s of sections) {

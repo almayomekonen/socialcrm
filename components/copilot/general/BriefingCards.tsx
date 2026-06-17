@@ -2,6 +2,7 @@
 
 import type { BriefingSection } from '@/lib/copilot/general/types'
 import { SECTION_EMPTY, SECTION_TITLE } from './sectionMeta'
+import { promisedWaitingSentence } from '@/lib/copilot/general/promisedWaiting'
 import LeadRows from './LeadRows'
 import DeepLink from './DeepLink'
 
@@ -54,6 +55,15 @@ function SectionBody({ section }: { section: BriefingSection }) {
 }
 
 function SectionCard({ section }: { section: BriefingSection }) {
+  // The unsolicited save leads with a full operator sentence, not a label+count.
+  if (section.id === 'followups.promisedWaiting') {
+    return (
+      <div className='rounded-md border border-gray-200 p-2.5'>
+        <p className='mb-1.5 text-[13px] font-medium text-gray-800'>{promisedWaitingSentence(section.total)}</p>
+        <SectionBody section={section} />
+      </div>
+    )
+  }
   const headline = section.id === 'inbox.unread' ? section.unread : section.total
   return (
     <div className='rounded-md border border-gray-200 p-2.5'>
