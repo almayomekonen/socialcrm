@@ -13,6 +13,10 @@ export type AnalyticsEventName =
   | 'general_mode.answer_rendered'
   | 'general_mode.deeplink_clicked'
   | 'general_mode.error'
+  | 'operator_take.rendered'
+  | 'operator_take.suppressed'
+  | 'operator_take.citation_opened'
+  | 'operator_take.dismissed'
 
 type TrackInput = {
   agencyId: number
