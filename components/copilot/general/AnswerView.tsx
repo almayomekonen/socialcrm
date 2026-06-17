@@ -6,6 +6,7 @@ import { DriveResultsBody } from '../bodies/DriveResultsBody'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import CapabilityMenu from './CapabilityMenu'
+import { unansweredMessage } from '@/lib/copilot/general/unansweredMessage'
 
 /** Deterministic "knowledge source" label per data intent (no model involved). */
 const SOURCE_LABEL: Record<string, string> = {
@@ -81,7 +82,16 @@ function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; e
 
 /** Renders one Q&A outcome: data card, drive results, guide answer, or menu. */
 export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; onPick: (text: string) => void }) {
-  if (answer.kind === 'menu') return <CapabilityMenu onPick={onPick} />
+  if (answer.kind === 'menu') {
+    // The question could not be answered. Say so explicitly FIRST, then offer the
+    // capability suggestions below as optional follow-ups — never as the answer.
+    return (
+      <div className='space-y-2'>
+        <p className='text-[13px] text-gray-700'>{unansweredMessage(answer.reason)}</p>
+        <CapabilityMenu onPick={onPick} />
+      </div>
+    )
+  }
   if (answer.kind === 'drive') {
     return (
       <div className='rounded-md border border-gray-200 p-2.5'>
