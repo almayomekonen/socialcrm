@@ -268,7 +268,13 @@ function buildIntelligenceRows(
     {
       ...base,
       kind: INTEL_KIND_ACTION,
-      data: { suggestedAction: out.action.suggestedAction, reason: out.action.reason },
+      data: {
+        suggestedAction: out.action.suggestedAction,
+        reason: out.action.reason,
+        actionMessage: out.action.actionMessage,
+        noveltyKind: out.action.noveltyKind,
+        sourceMessageIds: out.action.sourceMessageIds,
+      },
       confidence: out.action.confidence,
     },
   ]
