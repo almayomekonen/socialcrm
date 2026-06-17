@@ -7,8 +7,8 @@ import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import CapabilityMenu from './CapabilityMenu'
 import { unansweredMessage } from '@/lib/copilot/general/unansweredMessage'
+import { attentionAllClear } from '@/lib/copilot/general/attentionState'
 
-/** Deterministic "knowledge source" label per data intent (no model involved). */
 const SOURCE_LABEL: Record<string, string> = {
   'followups.dueToday': 'הלידים שלך',
   'leads.notContactedRecently': 'הלידים שלך',
@@ -51,6 +51,13 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
   }
   if (intent === 'crm.attention') {
     const p = payload as AttentionPayload
+    if (attentionAllClear(p)) {
+      return (
+        <p className='text-[13px] text-gray-500'>
+          הכול תחת שליטה. אין כרגע משימות באיחור, מעקבים פתוחים או לידים שמתקררים.
+        </p>
+      )
+    }
     return (
       <div className='space-y-1.5'>
         <Mini label='משימות באיחור' list={p.overdue} empty='אין משימות באיחור' />
@@ -59,12 +66,11 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
       </div>
     )
   }
-  // Lead-list intents (followups.dueToday / leads.* / tasks.overdue).
+
   const p = payload as BriefingLeadList
   return <LeadRows total={p.total} sample={p.sample.slice(0, ANSWER_PREVIEW)} emptyText='אין תוצאות' source='answer' />
 }
 
-// An explicit Q&A can show more than a briefing card, but not all 50.
 const ANSWER_PREVIEW = 12
 const ATTENTION_PREVIEW = 4
 
@@ -80,11 +86,9 @@ function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; e
   )
 }
 
-/** Renders one Q&A outcome: data card, drive results, guide answer, or menu. */
 export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; onPick: (text: string) => void }) {
   if (answer.kind === 'menu') {
-    // The question could not be answered. Say so explicitly FIRST, then offer the
-    // capability suggestions below as optional follow-ups — never as the answer.
+   
     return (
       <div className='space-y-2'>
         <p className='text-[13px] text-gray-700'>{unansweredMessage(answer.reason)}</p>
