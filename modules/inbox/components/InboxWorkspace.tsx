@@ -3,6 +3,7 @@ import WhatsappConversation from '@/components/summary/WhatsappConversation'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import { SUPPORTED_WORKSPACE_CHANNELS, channelLabel } from '@/modules/inbox/channels'
 import InboxReadMarker from './InboxReadMarker'
+import OperatorTake from './OperatorTake'
 
 export default async function InboxWorkspace({
   conversationId,
@@ -27,6 +28,7 @@ export default async function InboxWorkspace({
     <div className='p-2'>
       <InboxReadMarker conversationId={conversationId} />
       <ConversationRefreshPoller />
+      <OperatorTake conversationId={conversationId} />
       <WhatsappConversation messages={messages} leadId={leadId} />
     </div>
   )
