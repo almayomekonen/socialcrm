@@ -72,7 +72,7 @@ export default function MeetingDetailsDialog({
             <div className='grid gap-1 text-sm'>
               <div className='text-gray-500 text-xs uppercase tracking-wide'>ליד</div>
               <div className='flex items-center justify-between gap-2'>
-                <Link href={`/clients/${meeting.leadId}`} className='text-blue-700 hover:underline w-fit'>
+                <Link href={`/clients/${meeting.leadId}/summary`} className='text-blue-700 hover:underline w-fit'>
                   צפה בליד ←
                 </Link>
                 <FollowUpControl leadId={meeting.leadId} />

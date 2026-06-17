@@ -21,7 +21,7 @@ export default function LeadRows({
       {sample.map((l) => (
         <li key={l.id}>
           <DeepLink
-            href={`/clients/${l.id}`}
+            href={`/clients/${l.id}/summary`}
             source={source}
             className='block truncate text-[13px] text-gray-700 hover:text-gray-900'
           >
