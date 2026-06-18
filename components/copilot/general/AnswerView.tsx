@@ -6,7 +6,6 @@ import { DriveResultsBody } from '../bodies/DriveResultsBody'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import CapabilityMenu from './CapabilityMenu'
-import SuggestionChips from './SuggestionChips'
 import { formatDate } from '@/lib/dates'
 import { unansweredMessage } from '@/lib/copilot/general/unansweredMessage'
 import { attentionAllClear } from '@/lib/copilot/general/attentionState'
@@ -163,10 +162,25 @@ export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; 
     )
   }
   if (answer.kind === 'leadPick') {
+    // Keyed by leadId (unique PK) — fixes the duplicate-name React-key bug. Each
+    // option links straight to its specific lead, so identical names resolve
+    // correctly instead of re-asking the ambiguous name (which would loop).
     return (
       <div className='space-y-1.5'>
         <p className='text-[13px] text-gray-700'>יש כמה לידים בשם "{answer.name}" — על מי?</p>
-        <SuggestionChips items={answer.candidates.map((c) => `מה עם ${c.name}`)} onPick={onPick} />
+        <div className='flex flex-wrap gap-1.5'>
+          {answer.candidates.map((c) => (
+            <DeepLink
+              key={c.leadId}
+              href={`/clients/${c.leadId}/summary`}
+              source='subject-disambiguation'
+              className='rounded-full border border-gray-200 px-2.5 py-1 text-[12px] text-gray-700 transition-colors hover:bg-gray-50'
+            >
+              {c.label}
+              {c.status ? ` — ${c.status}` : ''}
+            </DeepLink>
+          ))}
+        </div>
       </div>
     )
   }

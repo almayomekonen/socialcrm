@@ -25,7 +25,7 @@ export function scopedLeads(agencyId: number, plan: string, s: Scope) {
   return q
 }
 
-export type NamedLead = { id: number; name: string; nextFollowUpAt: string | null }
+export type NamedLead = { id: number; name: string; status: string | null; nextFollowUpAt: string | null }
 
 /**
  * Subject Resolution V1 name lookup — goes through scopedLeads (the gotPermIds
@@ -42,11 +42,14 @@ export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[
   for (const term of terms) {
     q.where((b) => b.where('firstName', 'ilike', `%${term}%`).orWhere('lastName', 'ilike', `%${term}%`))
   }
-  const rows = await q.select('id', 'firstName', 'lastName', 'nextFollowUpAt').limit(10)
-  return rows.map((r: { id: number; firstName: string | null; lastName: string | null; nextFollowUpAt: unknown }) => ({
-    id: Number(r.id),
-    name: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'ליד ללא שם',
-    nextFollowUpAt: r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
+  const rows = await q.select('id', 'firstName', 'lastName', 'status', 'nextFollowUpAt').limit(10)
+  return rows.map(
+    (r: { id: number; firstName: string | null; lastName: string | null; status: string | null; nextFollowUpAt: unknown }) => ({
+      id: Number(r.id),
+      name: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'ליד ללא שם',
+      status: r.status ?? null,
+      nextFollowUpAt:
+        r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
   }))
 }
 

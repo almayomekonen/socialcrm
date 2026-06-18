@@ -44,7 +44,7 @@ export type GeneralAnswer =
   | { kind: 'data'; intent: string; payload: unknown }
   | { kind: 'drive'; data: DriveResults }
   | { kind: 'lead'; lead: LeadCard }
-  | { kind: 'leadPick'; name: string; candidates: { id: number; name: string }[] }
+  | { kind: 'leadPick'; name: string; candidates: { leadId: number; label: string; status: string | null }[] }
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
@@ -119,7 +119,11 @@ async function resolveLeadSubject(text: string, user: ActingUser): Promise<Gener
   const matches = await getLeadsByName({ user: { role: user.role }, gotPermIds }, candidate)
   if (matches.length === 1) return buildLeadCard(matches[0])
   if (matches.length > 1) {
-    return { kind: 'leadPick', name: candidate, candidates: matches.slice(0, 6).map((m) => ({ id: m.id, name: m.name })) }
+    return {
+      kind: 'leadPick',
+      name: candidate,
+      candidates: matches.slice(0, 6).map((m) => ({ leadId: m.id, label: m.name, status: m.status })),
+    }
   }
   return { kind: 'guide', answer: `לא מצאתי ליד בשם "${candidate}".` } // honest miss
 }
