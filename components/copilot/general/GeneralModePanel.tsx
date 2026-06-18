@@ -15,13 +15,15 @@ import AnswerView from './AnswerView'
 import GeneralComposer from './GeneralComposer'
 import SuggestionChips, { briefingSuggestions } from './SuggestionChips'
 
+type Turn = { role: 'user'; text: string } | { role: 'assistant'; answer: GeneralAnswer }
+
 export default function GeneralModePanel() {
   const { closePanel } = useCopilot()
   const startedRef = useRef(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [briefing, setBriefing] = useState<BriefingResult | null>(null)
-  const [answer, setAnswer] = useState<GeneralAnswer | null>(null)
+  const [transcript, setTranscript] = useState<Turn[]>([])
   const [asking, setAsking] = useState(false)
-  const [lastQuestion, setLastQuestion] = useState<string | null>(null)
 
   useEffect(() => {
     if (startedRef.current) return
@@ -38,15 +40,24 @@ export default function GeneralModePanel() {
   }, [])
 
   async function ask(text: string, mode?: CopilotModeId) {
-    setLastQuestion(text)
-    setAnswer(null)
+    setTranscript((t) => [...t, { role: 'user', text }])
     setAsking(true)
     try {
-      setAnswer(await askGeneralQuestion(text, mode))
+      const answer = await askGeneralQuestion(text, mode)
+      setTranscript((t) => [...t, { role: 'assistant', answer }])
     } finally {
       setAsking(false)
     }
   }
+
+  // Keep the newest message visible — but only when already near the bottom, so
+  // we never yank the user while they read scrollback (cf. CopilotTimeline).
+  useEffect(() => {
+    const node = scrollRef.current
+    if (!node) return
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
+    if (distanceFromBottom < 120) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
+  }, [transcript.length, asking])
 
   const isEmptySystem = briefing?.kind === 'empty'
 
@@ -54,32 +65,35 @@ export default function GeneralModePanel() {
     <div className='h-full flex flex-col items-stretch'>
       <Header onClose={closePanel} />
 
-      <div className='flex-1 overflow-y-auto px-3'>
+      <div ref={scrollRef} className='flex-1 overflow-y-auto px-3'>
         {!briefing && <Centered text='טוען…' />}
         {isEmptySystem && <GeneralEmptyState />}
-        {briefing?.kind === 'briefing' && (
-          <div className='space-y-2.5 pb-2'>
-            <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
-
-            {lastQuestion && (asking || answer) && (
-              <p className='text-[13px] text-gray-800'>
-                <span className='font-medium text-gray-500'>אתה: </span>
-                {lastQuestion}
-              </p>
-            )}
-
-            {asking ? (
-              <ActiveGenerationRow fallbackLabel='מגבש תשובה' hint='general-mode' />
-            ) : answer ? (
-              <AnswerView answer={answer} onPick={(t) => ask(t)} />
-            ) : (
+        {briefing?.kind === 'briefing' &&
+          (transcript.length === 0 ? (
+            // Pre-question: Daily Briefing + quick-question chips.
+            <div className='space-y-2.5 pb-2'>
+              <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
               <div className='space-y-1.5'>
                 <p className='text-[12px] text-gray-400'>שאלות מהירות</p>
                 <SuggestionChips items={briefingSuggestions()} onPick={(t) => ask(t)} />
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          ) : (
+            // Conversation: the briefing is replaced by the running transcript.
+            <div className='space-y-2.5 pb-2'>
+              {transcript.map((turn, i) =>
+                turn.role === 'user' ? (
+                  <p key={i} className='text-[13px] text-gray-800'>
+                    <span className='font-medium text-gray-500'>אתה: </span>
+                    {turn.text}
+                  </p>
+                ) : (
+                  <AnswerView key={i} answer={turn.answer} onPick={(t) => ask(t)} />
+                ),
+              )}
+              {asking && <ActiveGenerationRow fallbackLabel='מגבש תשובה' hint='general-mode' />}
+            </div>
+          ))}
       </div>
 
       {!isEmptySystem && briefing && (
