@@ -6,7 +6,7 @@ import { useCopilot } from '@/lib/copilot/useCopilot'
 import type { CopilotModeId } from '@/lib/ai/copilotModes'
 import { recordGeneralModeEvent } from '@/actions/analytics/recordGeneralModeEvent'
 import { getDailyBriefing } from '@/actions/ai/getDailyBriefing'
-import { askGeneralQuestion, type GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
+import { askGeneralQuestion, getLeadCardById, type GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
 import type { BriefingResult } from '@/lib/copilot/general/types'
 import ActiveGenerationRow from '../ActiveGenerationRow'
 import GeneralEmptyState from './GeneralEmptyState'
@@ -44,6 +44,19 @@ export default function GeneralModePanel() {
     setAsking(true)
     try {
       const answer = await askGeneralQuestion(text, mode)
+      setTranscript((t) => [...t, { role: 'assistant', answer }])
+    } finally {
+      setAsking(false)
+    }
+  }
+
+  // Disambiguation selection → resolve the chosen lead INLINE (no navigation).
+  // Step 1: render the card in the transcript. No active subject is stored.
+  async function pickLead(leadId: number, label: string) {
+    setTranscript((t) => [...t, { role: 'user', text: label }])
+    setAsking(true)
+    try {
+      const answer = await getLeadCardById(leadId)
       setTranscript((t) => [...t, { role: 'assistant', answer }])
     } finally {
       setAsking(false)
@@ -88,7 +101,7 @@ export default function GeneralModePanel() {
                     {turn.text}
                   </p>
                 ) : (
-                  <AnswerView key={i} answer={turn.answer} onPick={(t) => ask(t)} />
+                  <AnswerView key={i} answer={turn.answer} onPick={(t) => ask(t)} onPickLead={(id, label) => pickLead(id, label)} />
                 ),
               )}
               {asking && <ActiveGenerationRow fallbackLabel='מגבש תשובה' hint='general-mode' />}

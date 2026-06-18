@@ -10,6 +10,7 @@ import {
   getOverdueTaskSummary,
   getUnreadInboxSummary,
   getLeadsByName,
+  getNamedLeadById,
   type NamedLead,
   type Scope,
 } from '@/db/briefing'
@@ -75,6 +76,21 @@ export async function askGeneralQuestion(text: string, modeRaw?: unknown): Promi
     await safeTrack(user, 'general_mode.error', { stage: 'qa' })
     return { kind: 'menu', reason: 'unknown' }
   }
+}
+
+/**
+ * Resolve a disambiguation selection by leadId → an inline lead card (Step 1).
+ * Permission-checked via getNamedLeadById (gotPermIds gate) — a client-sent id
+ * that is out of scope returns a graceful miss, never another lead's data.
+ */
+export async function getLeadCardById(leadIdRaw: number | string): Promise<GeneralAnswer> {
+  const user = await requireAgencyUser()
+  const leadId = Number(leadIdRaw)
+  if (!Number.isFinite(leadId) || leadId <= 0) return { kind: 'guide', answer: 'לא הצלחתי לטעון את הליד.' }
+  const { gotPermIds } = await getPerms(user)
+  const match = await getNamedLeadById({ user: { role: user.role }, gotPermIds }, leadId)
+  if (!match) return { kind: 'guide', answer: 'לא הצלחתי לטעון את הליד.' }
+  return buildLeadCard(match)
 }
 
 function answerProps(a: GeneralAnswer): Record<string, unknown> {

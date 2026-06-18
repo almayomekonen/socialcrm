@@ -53,6 +53,21 @@ export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[
   }))
 }
 
+/** Scoped fetch of one lead by id — same gotPermIds gate; returns null if out of scope. */
+export async function getNamedLeadById(s: Scope, id: number): Promise<NamedLead | null> {
+  if (!Number.isFinite(id) || id <= 0) return null
+  const agencyId = await getAgencyId()
+  const plan = await getAgencyPlan(agencyId)
+  const r = await scopedLeads(agencyId, plan, s).where('id', id).first('id', 'firstName', 'lastName', 'status', 'nextFollowUpAt')
+  if (!r) return null
+  return {
+    id: Number(r.id),
+    name: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'ליד ללא שם',
+    status: r.status ?? null,
+    nextFollowUpAt: r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
+  }
+}
+
 function toList(rows: Row[]): BriefingLeadList {
   const total = rows.length ? Number(rows[0].total) : 0
   return {

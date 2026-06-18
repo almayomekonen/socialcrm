@@ -106,7 +106,15 @@ function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; e
   )
 }
 
-export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; onPick: (text: string) => void }) {
+export default function AnswerView({
+  answer,
+  onPick,
+  onPickLead,
+}: {
+  answer: GeneralAnswer
+  onPick: (text: string) => void
+  onPickLead: (leadId: number, label: string) => void
+}) {
   if (answer.kind === 'menu') {
    
     return (
@@ -156,29 +164,28 @@ export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; 
           source='subject'
           className='inline-block text-[12.5px] font-medium text-gray-900 underline-offset-2 hover:underline'
         >
-          פתח את {l.name}
+          פתח ליד מלא
         </DeepLink>
       </div>
     )
   }
   if (answer.kind === 'leadPick') {
-    // Keyed by leadId (unique PK) — fixes the duplicate-name React-key bug. Each
-    // option links straight to its specific lead, so identical names resolve
-    // correctly instead of re-asking the ambiguous name (which would loop).
+    // Keyed by leadId (unique PK). Selecting resolves the lead INLINE (onPickLead)
+    // — stays in the conversation instead of navigating away.
     return (
       <div className='space-y-1.5'>
         <p className='text-[13px] text-gray-700'>יש כמה לידים בשם "{answer.name}" — על מי?</p>
         <div className='flex flex-wrap gap-1.5'>
           {answer.candidates.map((c) => (
-            <DeepLink
+            <button
               key={c.leadId}
-              href={`/clients/${c.leadId}/summary`}
-              source='subject-disambiguation'
+              type='button'
+              onClick={() => onPickLead(c.leadId, c.label)}
               className='rounded-full border border-gray-200 px-2.5 py-1 text-[12px] text-gray-700 transition-colors hover:bg-gray-50'
             >
               {c.label}
               {c.status ? ` — ${c.status}` : ''}
-            </DeepLink>
+            </button>
           ))}
         </div>
       </div>
