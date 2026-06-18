@@ -9,7 +9,11 @@ export const BRIEFING_INTENT_IDS = [
 ] as const
 export type BriefingIntentId = (typeof BRIEFING_INTENT_IDS)[number]
 
-export type GeneralIntentId = BriefingIntentId | `guide.${string}` | 'unknown'
+/** A data Q&A intent that is NOT a briefing section: one-line whole-system status. */
+export const SYSTEM_OVERVIEW_ID = 'system.overview' as const
+export const SYSTEM_OVERVIEW_EXAMPLES = ['מה מצב המערכת', 'מה המצב', 'סיכום כללי', 'תמונת מצב', 'מה קורה היום']
+
+export type GeneralIntentId = BriefingIntentId | typeof SYSTEM_OVERVIEW_ID | `guide.${string}` | 'unknown'
 
 /** Hebrew example utterances per briefing intent — feeds the classifier + the menu. */
 export const BRIEFING_EXAMPLES: Record<BriefingIntentId, string[]> = {

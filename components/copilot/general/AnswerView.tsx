@@ -17,6 +17,7 @@ const SOURCE_LABEL: Record<string, string> = {
   'meetings.today': 'היומן',
   'inbox.unread': 'התיבה',
   'crm.attention': 'נתוני ה-CRM שלך',
+  'system.overview': 'נתוני ה-CRM שלך',
 }
 
 type MeetingsPayload = { meetings: { id: number; title: string; leadName: string | null }[] }
@@ -24,6 +25,10 @@ type InboxPayload = { conversations: number; unread: number }
 type AttentionPayload = { overdue: BriefingLeadList; dueToday: BriefingLeadList; stale: BriefingLeadList }
 
 function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
+  if (intent === 'system.overview') {
+    const p = payload as { summary: string }
+    return <p className='text-[13px] text-gray-700'>{p.summary}</p>
+  }
   if (intent === 'inbox.unread') {
     const p = payload as InboxPayload
     if (p.unread === 0) return <p className='text-[13px] text-gray-500'>אין הודעות חדשות</p>

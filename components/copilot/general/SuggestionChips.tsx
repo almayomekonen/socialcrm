@@ -3,20 +3,24 @@
 import { BRIEFING_EXAMPLES, BRIEFING_INTENT_IDS } from '@/lib/copilot/general/registry'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 
-/** Phrased to trigger the Drive-search keyword detector (action + drive noun). */
 export const DRIVE_SUGGESTION = 'מצא קובץ ב-Google Drive'
 
-/** First example utterance per briefing intent + Drive — the "quick questions" set. */
 export function briefingSuggestions(): string[] {
   return [...BRIEFING_INTENT_IDS.map((id) => BRIEFING_EXAMPLES[id][0]), DRIVE_SUGGESTION]
 }
 
-/** Full set incl. guide topics — used by the out-of-set capability menu. */
 export function allSuggestions(): string[] {
   return [...briefingSuggestions(), ...GUIDE_ENTRIES.map((g) => g.examples[0])]
 }
 
-/** Tappable chip row. Reused by the proactive strip and the capability menu. */
+/**
+ * Short curated fallback after an out-of-set question — a few high-value prompts,
+ * not the full catalog. Each phrase classifies deterministically.
+ */
+export function curatedSuggestions(): string[] {
+  return ['מה דורש תשומת לב', 'מי צריך מעקב היום', 'מה מצב המערכת', 'פגישות היום']
+}
+
 export default function SuggestionChips({ items, onPick }: { items: string[]; onPick: (text: string) => void }) {
   return (
     <div className='flex flex-wrap gap-1.5'>

@@ -12,6 +12,7 @@ import {
   type Scope,
 } from '@/db/briefing'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
+import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
 import { detectsDriveIntent, maybePrefetchDrive, type DriveSearchOutcome } from '@/lib/copilot/driveIntent'
@@ -119,6 +120,25 @@ async function runIntent(intent: string, user: ActingUser, scope: Scope) {
       ])
       // Deterministic prioritization: overdue > due-today > stale. No invented facts.
       return { overdue, dueToday, stale }
+    }
+    case 'system.overview': {
+      // One-line whole-system status from existing readers. NOT the briefing cards.
+      const [overdue, meetings, inbox, stale, newLeads] = await Promise.all([
+        getOverdueTaskSummary(scope),
+        getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
+        getUnreadInboxSummary(scope),
+        getLeadsNotContactedRecently(scope),
+        getNewLeadsThisWeek(scope),
+      ])
+      return {
+        summary: composeOverviewSentence({
+          overdueTasks: overdue.total,
+          meetingsToday: meetings.length,
+          waitingConversations: inbox.conversations,
+          staleLeads: stale.total,
+          newLeads: newLeads.total,
+        }),
+      }
     }
     default:
       return {}

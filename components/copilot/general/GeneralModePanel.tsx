@@ -15,18 +15,13 @@ import AnswerView from './AnswerView'
 import GeneralComposer from './GeneralComposer'
 import SuggestionChips, { briefingSuggestions } from './SuggestionChips'
 
-/**
- * No-lead "General Mode" surface: deterministic Daily Briefing + bounded Q&A +
- * guide, with the same premium chrome as Lead Mode (mode selector, polished
- * composer, sparkle loading, quick-question chips). Mounts only when General
- * Mode is enabled and no lead context is published (see CopilotShell).
- */
 export default function GeneralModePanel() {
   const { closePanel } = useCopilot()
   const startedRef = useRef(false)
   const [briefing, setBriefing] = useState<BriefingResult | null>(null)
   const [answer, setAnswer] = useState<GeneralAnswer | null>(null)
   const [asking, setAsking] = useState(false)
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null)
 
   useEffect(() => {
     if (startedRef.current) return
@@ -43,6 +38,8 @@ export default function GeneralModePanel() {
   }, [])
 
   async function ask(text: string, mode?: CopilotModeId) {
+    setLastQuestion(text)
+    setAnswer(null)
     setAsking(true)
     try {
       setAnswer(await askGeneralQuestion(text, mode))
@@ -64,6 +61,13 @@ export default function GeneralModePanel() {
           <div className='space-y-2.5 pb-2'>
             <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
 
+            {lastQuestion && (asking || answer) && (
+              <p className='text-[13px] text-gray-800'>
+                <span className='font-medium text-gray-500'>אתה: </span>
+                {lastQuestion}
+              </p>
+            )}
+
             {asking ? (
               <ActiveGenerationRow fallbackLabel='מגבש תשובה' hint='general-mode' />
             ) : answer ? (
@@ -78,7 +82,6 @@ export default function GeneralModePanel() {
         )}
       </div>
 
-      {/* No composer in the empty-system state — onboarding comes first. */}
       {!isEmptySystem && briefing && (
         <div className='w-full px-3 pb-3 pt-3'>
           <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />

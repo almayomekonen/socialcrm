@@ -1,6 +1,6 @@
 'use client'
 
-import SuggestionChips, { allSuggestions } from './SuggestionChips'
+import SuggestionChips, { curatedSuggestions } from './SuggestionChips'
 
 /**
  * The honest out-of-set fallback: shows exactly what the assistant can answer.
@@ -11,7 +11,7 @@ export default function CapabilityMenu({ onPick }: { onPick: (text: string) => v
   return (
     <div className='space-y-1.5'>
       <p className='text-[12.5px] text-gray-500'>אני יכול לעזור עם:</p>
-      <SuggestionChips items={allSuggestions()} onPick={onPick} />
+      <SuggestionChips items={curatedSuggestions()} onPick={onPick} />
     </div>
   )
 }
