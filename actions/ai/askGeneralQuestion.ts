@@ -9,8 +9,12 @@ import {
   getNewLeadsThisWeek,
   getOverdueTaskSummary,
   getUnreadInboxSummary,
+  getLeadsByName,
+  type NamedLead,
   type Scope,
 } from '@/db/briefing'
+import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
+import { extractLeadCandidate } from '@/lib/copilot/general/subjectResolution'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
@@ -21,11 +25,26 @@ import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { Roles } from '@/types/roles'
 
+/** Deterministic, factual snapshot of one resolved lead (Subject Resolution V1). No LLM. */
+export type LeadCard = {
+  id: number
+  name: string
+  status: string | null
+  leadSource: string | null
+  daysSinceLastInteraction: number | null
+  daysInCurrentStatus: number | null
+  overdueTaskCount: number
+  nextFollowUpAt: string | null
+  recentTasks: { title: string; status: string | null }[]
+}
+
 export type GeneralAnswer =
   | { kind: 'menu'; reason: 'unknown' | 'low-confidence' }
   | { kind: 'guide'; answer: string; route?: string }
   | { kind: 'data'; intent: string; payload: unknown }
   | { kind: 'drive'; data: DriveResults }
+  | { kind: 'lead'; lead: LeadCard }
+  | { kind: 'leadPick'; name: string; candidates: { id: number; name: string }[] }
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
@@ -62,10 +81,55 @@ function answerProps(a: GeneralAnswer): Record<string, unknown> {
   if (a.kind === 'data') return { kind: 'data', intent: a.intent }
   if (a.kind === 'guide') return { kind: 'guide' }
   if (a.kind === 'drive') return { kind: 'drive', count: a.data.results.length }
+  if (a.kind === 'lead') return { kind: 'lead' }
+  if (a.kind === 'leadPick') return { kind: 'leadPick', count: a.candidates.length }
   return { kind: 'menu', reason: a.reason }
 }
 
+/** Build the deterministic lead card from the resolved match + the existing snapshot reader. */
+async function buildLeadCard(match: NamedLead): Promise<GeneralAnswer> {
+  const snap = await getLeadIntelligenceInputs(match.id).catch(() => null)
+  const i = snap?.inputs
+  return {
+    kind: 'lead',
+    lead: {
+      id: match.id,
+      name: match.name,
+      status: i?.status ?? null,
+      leadSource: i?.leadSource ?? null,
+      daysSinceLastInteraction: i?.daysSinceLastInteraction ?? null,
+      daysInCurrentStatus: i?.daysInCurrentStatus ?? null,
+      overdueTaskCount: i?.overdueTaskCount ?? 0,
+      nextFollowUpAt: match.nextFollowUpAt,
+      recentTasks: (i?.recentTasks ?? []).slice(0, 3).map((t) => ({ title: t.title, status: t.status })),
+    },
+  }
+}
+
+/**
+ * Subject Resolution V1 — explicit lead reference → lead answer. Never guesses:
+ * ambiguous → disambiguation, unknown name → honest miss, weak signal → Business.
+ * Routes through getLeadsByName (gotPermIds-scoped), so it can only resolve
+ * leads the user may see.
+ */
+async function resolveLeadSubject(text: string, user: ActingUser): Promise<GeneralAnswer | null> {
+  const candidate = extractLeadCandidate(text)
+  if (!candidate) return null // weak signal → Business
+  const { gotPermIds } = await getPerms(user)
+  const matches = await getLeadsByName({ user: { role: user.role }, gotPermIds }, candidate)
+  if (matches.length === 1) return buildLeadCard(matches[0])
+  if (matches.length > 1) {
+    return { kind: 'leadPick', name: candidate, candidates: matches.slice(0, 6).map((m) => ({ id: m.id, name: m.name })) }
+  }
+  return { kind: 'guide', answer: `לא מצאתי ליד בשם "${candidate}".` } // honest miss
+}
+
 async function resolveAnswer(text: string, user: ActingUser, mode?: CopilotModeId): Promise<GeneralAnswer> {
+  // Subject Resolution V1 — explicit lead reference ("מה עם דנה?") resolves to a
+  // lead answer BEFORE any classification. Default subject (Business) on null.
+  const leadSubject = await resolveLeadSubject(text, user)
+  if (leadSubject) return leadSubject
+
   // Drive search is user-scoped + read-only (no lead needed). Detected by the
   // same keyword rule Lead Mode uses; results are a factual file LIST — no
   // model produces the facts, so it stays within the deterministic model.

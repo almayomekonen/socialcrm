@@ -25,6 +25,31 @@ export function scopedLeads(agencyId: number, plan: string, s: Scope) {
   return q
 }
 
+export type NamedLead = { id: number; name: string; nextFollowUpAt: string | null }
+
+/**
+ * Subject Resolution V1 name lookup — goes through scopedLeads (the gotPermIds
+ * permission gate), so it can only ever return leads the user is allowed to see.
+ * Each whitespace term must match firstName OR lastName (ILIKE), so a full name
+ * narrows. Not status-filtered: a question about a closed lead is still valid.
+ */
+export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[]> {
+  const terms = name.trim().split(/\s+/).filter(Boolean).slice(0, 3)
+  if (terms.length === 0) return []
+  const agencyId = await getAgencyId()
+  const plan = await getAgencyPlan(agencyId)
+  const q = scopedLeads(agencyId, plan, s)
+  for (const term of terms) {
+    q.where((b) => b.where('firstName', 'ilike', `%${term}%`).orWhere('lastName', 'ilike', `%${term}%`))
+  }
+  const rows = await q.select('id', 'firstName', 'lastName', 'nextFollowUpAt').limit(10)
+  return rows.map((r: { id: number; firstName: string | null; lastName: string | null; nextFollowUpAt: unknown }) => ({
+    id: Number(r.id),
+    name: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'ליד ללא שם',
+    nextFollowUpAt: r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
+  }))
+}
+
 function toList(rows: Row[]): BriefingLeadList {
   const total = rows.length ? Number(rows[0].total) : 0
   return {

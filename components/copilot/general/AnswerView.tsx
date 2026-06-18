@@ -6,6 +6,8 @@ import { DriveResultsBody } from '../bodies/DriveResultsBody'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import CapabilityMenu from './CapabilityMenu'
+import SuggestionChips from './SuggestionChips'
+import { formatDate } from '@/lib/dates'
 import { unansweredMessage } from '@/lib/copilot/general/unansweredMessage'
 import { attentionAllClear } from '@/lib/copilot/general/attentionState'
 import { buildAttentionDecision } from '@/lib/copilot/general/attentionDecision'
@@ -135,6 +137,36 @@ export default function AnswerView({ answer, onPick }: { answer: GeneralAnswer; 
             פתח
           </DeepLink>
         )}
+      </div>
+    )
+  }
+  if (answer.kind === 'lead') {
+    const l = answer.lead
+    return (
+      <div className='rounded-md border border-gray-200 p-2.5 space-y-1'>
+        <p className='text-[13px] font-semibold text-gray-900'>{l.name}</p>
+        <div className='space-y-0.5 text-[12px] text-gray-600'>
+          {l.status && <p>סטטוס: {l.status}</p>}
+          {l.daysSinceLastInteraction != null && <p>קשר אחרון: לפני {l.daysSinceLastInteraction} ימים</p>}
+          {l.nextFollowUpAt && <p>מעקב הבא: {formatDate(l.nextFollowUpAt)}</p>}
+          {l.overdueTaskCount > 0 && <p>{l.overdueTaskCount} משימות באיחור</p>}
+          {l.leadSource && <p>מקור: {l.leadSource}</p>}
+        </div>
+        <DeepLink
+          href={`/clients/${l.id}/summary`}
+          source='subject'
+          className='inline-block text-[12.5px] font-medium text-gray-900 underline-offset-2 hover:underline'
+        >
+          פתח את {l.name}
+        </DeepLink>
+      </div>
+    )
+  }
+  if (answer.kind === 'leadPick') {
+    return (
+      <div className='space-y-1.5'>
+        <p className='text-[13px] text-gray-700'>יש כמה לידים בשם "{answer.name}" — על מי?</p>
+        <SuggestionChips items={answer.candidates.map((c) => `מה עם ${c.name}`)} onPick={onPick} />
       </div>
     )
   }
