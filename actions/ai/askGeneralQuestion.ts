@@ -72,8 +72,16 @@ export async function askGeneralQuestion(text: string, modeRaw?: unknown, active
   const activeLeadId = Number.isFinite(n) && n > 0 ? n : undefined
   try {
     const answer = await resolveAnswer(text, user, mode, activeLeadId)
-    await safeTrack(user, 'general_mode.question_asked', { len: text.length })
-    await safeTrack(user, 'general_mode.answer_rendered', answerProps(answer))
+    const subjectActive = activeLeadId != null
+    await safeTrack(user, 'general_mode.question_asked', { qlen: text.length, subjectActive })
+    // One canonical per-question record: resolved path + the question text (capped) +
+    // whether a lead subject was active. The report sessionizes via 'opened' markers.
+    await safeTrack(user, 'general_mode.answer_rendered', {
+      path: resolvedPath(answer),
+      subjectActive,
+      text: text.slice(0, 200),
+      intent: answer.kind === 'data' ? answer.intent : undefined, // which business intent (system.overview / crm.attention / …)
+    })
     return answer
   } catch {
     // Unexpected failure → graceful menu, never an error thrown at the user.
@@ -94,17 +102,30 @@ export async function getLeadCardById(leadIdRaw: number | string): Promise<Gener
   const { gotPermIds } = await getPerms(user)
   const match = await getNamedLeadById({ user: { role: user.role }, gotPermIds }, leadId)
   if (!match) return { kind: 'guide', answer: 'לא הצלחתי לטעון את הליד.' }
+  // A disambiguation pick is a lead_resolution too — record it so the report sees it.
+  await safeTrack(user, 'general_mode.answer_rendered', { path: 'lead_resolution', via: 'pick' })
   return buildLeadCard(match)
 }
 
-function answerProps(a: GeneralAnswer): Record<string, unknown> {
-  if (a.kind === 'data') return { kind: 'data', intent: a.intent }
-  if (a.kind === 'guide') return { kind: 'guide' }
-  if (a.kind === 'drive') return { kind: 'drive', count: a.data.results.length }
-  if (a.kind === 'lead') return { kind: 'lead' }
-  if (a.kind === 'leadPick') return { kind: 'leadPick', count: a.candidates.length }
-  if (a.kind === 'leadAnswer') return { kind: 'leadAnswer' }
-  return { kind: 'menu', reason: a.reason }
+/** Normalize an answer into the resolved-path label used for conversation analytics. */
+function resolvedPath(
+  a: GeneralAnswer,
+): 'business_intent' | 'lead_resolution' | 'lead_followup' | 'drive' | 'guide' | 'unknown' {
+  switch (a.kind) {
+    case 'data':
+      return 'business_intent'
+    case 'lead':
+    case 'leadPick':
+      return 'lead_resolution'
+    case 'leadAnswer':
+      return 'lead_followup'
+    case 'drive':
+      return 'drive'
+    case 'guide':
+      return 'guide'
+    case 'menu':
+      return 'unknown'
+  }
 }
 
 /** Extract a renderable reply from an askLeadQuestion result (answer / reply / drive intro). */
