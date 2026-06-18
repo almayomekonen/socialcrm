@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react'
 import { deleteManyLeads } from '@/actions/clients'
 import { api } from '@/lib/funcs'
 import { checkedIds } from '@/lib/table/funcs'
+import { toast } from '@/lib/toast'
+import { deleteLeadsMessage } from '@/lib/leads/deleteResult'
 
 type Args = {
   leads: boolean
@@ -55,14 +57,16 @@ export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiv
 
     setDeleting(true)
     try {
-      const successMsg = leads ? 'הלידים נמחקו' : 'הלקוחות נמחקו'
-      const res = await api(deleteManyLeads, [selectedIds, leads], successMsg)
+      // silentSuccess: we compose the toast ourselves from the structured result
+      // (success / partial / all-blocked), instead of api's generic success toast.
+      const res = await api(deleteManyLeads, [selectedIds, leads], undefined, undefined, { silentSuccess: true })
       if (res?.err) return
 
-      const deleted: number = typeof res?.deleted === 'number' ? res.deleted : 0
-      const skipped: number = typeof res?.skipped === 'number' ? res.skipped : 0
-
-      const deletedSet = new Set<number>(deleted === selectedIds.length ? selectedIds : selectedIds.slice(0, deleted))
+      const blockedLeads = Array.isArray(res?.blockedLeads) ? res.blockedLeads : []
+      const blockedIds = new Set<number>(blockedLeads.map((b: { id: number }) => Number(b.id)))
+      // Everything selected that wasn't billing-blocked was deleted (the table is
+      // permission-filtered, so selected ⊆ in-scope).
+      const deletedSet = new Set<number>(selectedIds.filter((id) => !blockedIds.has(id)))
 
       if (deletedSet.size > 0) {
         setLiveLeads((prev) => prev.filter((c) => !deletedSet.has(Number(c.id))))
@@ -75,9 +79,12 @@ export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiv
 
       clearDomChecks()
 
-      if (skipped > 0) {
-        setBulkInfoMsg(`${skipped} ללא הרשאה או לא נמצאו`)
-      }
+      const { icon, msg } = deleteLeadsMessage({
+        deletedCount: typeof res?.deletedCount === 'number' ? res.deletedCount : deletedSet.size,
+        blockedCount: typeof res?.blockedCount === 'number' ? res.blockedCount : blockedLeads.length,
+        blockedLeads,
+      })
+      toast(icon, msg)
     } finally {
       setDeleting(false)
     }

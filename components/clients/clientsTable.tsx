@@ -19,6 +19,8 @@ import { SelectSearch } from '@/lib/form/SelectSearch'
 import { Select } from '@/lib/form'
 import { deleteLead, searchContacts, searchLeads } from '@/actions/clients'
 import { api } from '@/lib/funcs'
+import { toast } from '@/lib/toast'
+import { blockReasonText } from '@/lib/leads/deleteResult'
 import { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
 import { saveTblPref } from '@/actions/global'
@@ -401,7 +403,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         onConfirm={async () => {
           const target = confirmDeleteLead
           if (!target) return
-          const res = await api(deleteLead, target.id)
+          const res = await api(deleteLead, target.id, undefined, undefined, { silentSuccess: true })
           if (res?.err || res?.error) {
             const reason = res?.reason
             const msg =
@@ -409,11 +411,14 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 ? 'אין לך הרשאה למחוק ליד זה'
                 : reason === 'not_found'
                 ? 'הליד לא נמצא או כבר נמחק'
+                : reason === 'has_billing'
+                ? `לא ניתן למחוק — ${res?.block ? blockReasonText(res.block) : 'הליד מקושר למערכת החיובים'}`
                 : res?.msg || 'שגיאה במחיקת הליד'
             setDeleteErrMsg(msg)
             setConfirmDeleteLead(null)
             return
           }
+          toast('success', 'הליד נמחק')
           setLiveLeads((prev) => prev.filter((c) => c.id !== target.id))
           setDeletedIds((prev) => new Set([...prev, target.id]))
           setConfirmDeleteLead(null)
