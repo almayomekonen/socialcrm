@@ -8,6 +8,7 @@ import LeadRows from './LeadRows'
 import CapabilityMenu from './CapabilityMenu'
 import { unansweredMessage } from '@/lib/copilot/general/unansweredMessage'
 import { attentionAllClear } from '@/lib/copilot/general/attentionState'
+import { buildAttentionDecision } from '@/lib/copilot/general/attentionDecision'
 
 const SOURCE_LABEL: Record<string, string> = {
   'followups.dueToday': 'הלידים שלך',
@@ -63,8 +64,21 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
         </p>
       )
     }
+    // Deterministic Decision Layer ABOVE the unchanged evidence sections.
+    const decision = buildAttentionDecision(p)
     return (
       <div className='space-y-1.5'>
+        {decision && (
+          <div className='rounded-md bg-gray-50 px-2.5 py-2'>
+            <p className='text-[13px] font-semibold text-gray-900'>הכי דחוף כרגע: {decision.leadName}</p>
+            <p className='text-[12px] text-gray-600'>הסיבה: {decision.reason}</p>
+            {decision.secondary && (
+              <p className='mt-0.5 text-[12px] text-gray-500'>
+                אחריו: {decision.secondary.count} {decision.secondary.area}
+              </p>
+            )}
+          </div>
+        )}
         <Mini label='משימות באיחור' list={p.overdue} empty='אין משימות באיחור' />
         <Mini label='מעקבים להיום' list={p.dueToday} empty='אין מעקבים להיום' />
         <Mini label='לידים שלא בקשר' list={p.stale} empty='הכול בקשר' />

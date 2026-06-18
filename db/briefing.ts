@@ -6,7 +6,13 @@ import { BRIEFING_SAMPLE_LIMIT, STALE_DAYS, WEEK_START_SQL } from '@/lib/copilot
 
 export type Scope = { user: { role: Roles }; gotPermIds: number[] }
 
-export type BriefingLeadRow = { id: number; name: string | null; status: string | null }
+export type BriefingLeadRow = {
+  id: number
+  name: string | null
+  status: string | null
+  /** Optional age signal for the decision layer: days overdue / days since contact. Only set by readers that select it. */
+  ageDays?: number | null
+}
 
 export type BriefingLeadList = { total: number; sample: BriefingLeadRow[] }
 
@@ -21,7 +27,15 @@ export function scopedLeads(agencyId: number, plan: string, s: Scope) {
 
 function toList(rows: Row[]): BriefingLeadList {
   const total = rows.length ? Number(rows[0].total) : 0
-  return { total, sample: rows.map((r) => ({ id: r.id, name: r.name, status: r.status })) }
+  return {
+    total,
+    sample: rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      status: r.status,
+      ageDays: r.ageDays == null ? null : Number(r.ageDays),
+    })),
+  }
 }
 
 export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> {
@@ -44,7 +58,13 @@ export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLe
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereNotIn('status', ['closed', 'lost'])
     .whereRaw(`("lastActivityAt" IS NULL OR "lastActivityAt" < NOW() - make_interval(days => ?))`, [STALE_DAYS])
-    .select('id', 'name', 'status', db.raw('COUNT(*) OVER()::int as total'))
+    .select(
+      'id',
+      'name',
+      'status',
+      db.raw('COUNT(*) OVER()::int as total'),
+      db.raw('(CURRENT_DATE - "lastActivityAt"::date)::int as "ageDays"'), // days since last contact; NULL if never contacted
+    )
     .orderByRaw(`"lastActivityAt" ASC NULLS FIRST`)
     .limit(BRIEFING_SAMPLE_LIMIT)
   return toList(rows)
@@ -70,7 +90,13 @@ export async function getOverdueTaskSummary(s: Scope): Promise<BriefingLeadList>
     .whereIn('t.clientId', sub)
     .where('t.completed', false)
     .whereRaw(`t."dueDate" < CURRENT_DATE`)
-    .select('c.id', 'c.name', 'c.status', db.raw('COUNT(*) OVER()::int as total'))
+    .select(
+      'c.id',
+      'c.name',
+      'c.status',
+      db.raw('COUNT(*) OVER()::int as total'),
+      db.raw('(CURRENT_DATE - t."dueDate"::date)::int as "ageDays"'), // days the task is overdue
+    )
     .orderByRaw(`t."dueDate" ASC`)
     .limit(BRIEFING_SAMPLE_LIMIT)
   return toList(rows)
