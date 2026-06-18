@@ -169,6 +169,9 @@ export default function AnswerView({
       </div>
     )
   }
+  if (answer.kind === 'leadAnswer') {
+    return <p className='whitespace-pre-line text-[13px] text-gray-700'>{answer.text}</p>
+  }
   if (answer.kind === 'leadPick') {
     // Keyed by leadId (unique PK). Selecting resolves the lead INLINE (onPickLead)
     // — stays in the conversation instead of navigating away.

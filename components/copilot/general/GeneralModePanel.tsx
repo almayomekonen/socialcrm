@@ -24,6 +24,8 @@ export default function GeneralModePanel() {
   const [briefing, setBriefing] = useState<BriefingResult | null>(null)
   const [transcript, setTranscript] = useState<Turn[]>([])
   const [asking, setAsking] = useState(false)
+  // Session-only active lead subject (Step 2). Not persisted, no DB, resets on remount.
+  const [subject, setSubject] = useState<{ id: number; name: string } | null>(null)
 
   useEffect(() => {
     if (startedRef.current) return
@@ -39,24 +41,31 @@ export default function GeneralModePanel() {
     }
   }, [])
 
+  // A resolved lead card becomes the active subject (set on a new name OR a pick).
+  function adopt(answer: GeneralAnswer) {
+    if (answer.kind === 'lead') setSubject({ id: answer.lead.id, name: answer.lead.name })
+  }
+
   async function ask(text: string, mode?: CopilotModeId) {
     setTranscript((t) => [...t, { role: 'user', text }])
     setAsking(true)
     try {
-      const answer = await askGeneralQuestion(text, mode)
+      const answer = await askGeneralQuestion(text, mode, subject?.id)
+      adopt(answer)
       setTranscript((t) => [...t, { role: 'assistant', answer }])
     } finally {
       setAsking(false)
     }
   }
 
-  // Disambiguation selection → resolve the chosen lead INLINE (no navigation).
-  // Step 1: render the card in the transcript. No active subject is stored.
+  // Disambiguation selection → resolve the chosen lead INLINE (no navigation) and
+  // make it the active subject.
   async function pickLead(leadId: number, label: string) {
     setTranscript((t) => [...t, { role: 'user', text: label }])
     setAsking(true)
     try {
       const answer = await getLeadCardById(leadId)
+      adopt(answer)
       setTranscript((t) => [...t, { role: 'assistant', answer }])
     } finally {
       setAsking(false)
@@ -111,6 +120,19 @@ export default function GeneralModePanel() {
 
       {!isEmptySystem && briefing && (
         <div className='w-full px-3 pb-3 pt-3'>
+          {subject && (
+            <div className='mb-2 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] text-gray-700'>
+              <span>מדברים על: {subject.name}</span>
+              <button
+                type='button'
+                onClick={() => setSubject(null)}
+                aria-label='נקה נושא'
+                className='text-gray-400 hover:text-gray-700'
+              >
+                ✕
+              </button>
+            </div>
+          )}
           <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />
         </div>
       )}

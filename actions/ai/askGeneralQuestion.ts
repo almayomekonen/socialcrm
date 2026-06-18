@@ -15,6 +15,7 @@ import {
   type Scope,
 } from '@/db/briefing'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
+import { askLeadQuestion } from '@/actions/ai/leadAskQuestion'
 import { extractLeadCandidate } from '@/lib/copilot/general/subjectResolution'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
@@ -46,6 +47,7 @@ export type GeneralAnswer =
   | { kind: 'drive'; data: DriveResults }
   | { kind: 'lead'; lead: LeadCard }
   | { kind: 'leadPick'; name: string; candidates: { leadId: number; label: string; status: string | null }[] }
+  | { kind: 'leadAnswer'; text: string }
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
@@ -63,11 +65,13 @@ async function safeTrack(user: ActingUser, event: AnalyticsEventName, props?: Re
   }
 }
 
-export async function askGeneralQuestion(text: string, modeRaw?: unknown): Promise<GeneralAnswer> {
+export async function askGeneralQuestion(text: string, modeRaw?: unknown, activeLeadIdRaw?: unknown): Promise<GeneralAnswer> {
   const user = await requireAgencyUser()
   const mode = isCopilotModeId(modeRaw) ? modeRaw : undefined
+  const n = Number(activeLeadIdRaw)
+  const activeLeadId = Number.isFinite(n) && n > 0 ? n : undefined
   try {
-    const answer = await resolveAnswer(text, user, mode)
+    const answer = await resolveAnswer(text, user, mode, activeLeadId)
     await safeTrack(user, 'general_mode.question_asked', { len: text.length })
     await safeTrack(user, 'general_mode.answer_rendered', answerProps(answer))
     return answer
@@ -99,7 +103,39 @@ function answerProps(a: GeneralAnswer): Record<string, unknown> {
   if (a.kind === 'drive') return { kind: 'drive', count: a.data.results.length }
   if (a.kind === 'lead') return { kind: 'lead' }
   if (a.kind === 'leadPick') return { kind: 'leadPick', count: a.candidates.length }
+  if (a.kind === 'leadAnswer') return { kind: 'leadAnswer' }
   return { kind: 'menu', reason: a.reason }
+}
+
+/** Extract a renderable reply from an askLeadQuestion result (answer / reply / drive intro). */
+function extractLeadReplyText(data: unknown): string | null {
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>
+    if (typeof d.answer === 'string' && d.answer.trim()) return d.answer.trim()
+    if (typeof d.reply === 'string' && d.reply.trim()) return d.reply.trim()
+    if (typeof d.intro === 'string' && d.intro.trim()) return d.intro.trim()
+  }
+  return null
+}
+
+/**
+ * Priority 3 — active lead subject as a FALLBACK catcher. Only invoked when the
+ * question is otherwise unknown. Re-verifies the (client-supplied) leadId is in
+ * scope before calling askLeadQuestion; returns null to fall through to the menu.
+ */
+async function answerAsLeadFollowup(
+  leadId: number,
+  text: string,
+  user: ActingUser,
+  mode?: CopilotModeId,
+): Promise<GeneralAnswer | null> {
+  const { gotPermIds } = await getPerms(user)
+  const inScope = await getNamedLeadById({ user: { role: user.role }, gotPermIds }, leadId)
+  if (!inScope) return null // out of scope → ignore the subject
+  const res = await askLeadQuestion(leadId, text, [], [], mode)
+  if (!res.ok) return null
+  const replyText = extractLeadReplyText(res.data)
+  return replyText ? { kind: 'leadAnswer', text: replyText } : null
 }
 
 /** Build the deterministic lead card from the resolved match + the existing snapshot reader. */
@@ -144,9 +180,14 @@ async function resolveLeadSubject(text: string, user: ActingUser): Promise<Gener
   return { kind: 'guide', answer: `לא מצאתי ליד בשם "${candidate}".` } // honest miss
 }
 
-async function resolveAnswer(text: string, user: ActingUser, mode?: CopilotModeId): Promise<GeneralAnswer> {
-  // Subject Resolution V1 — explicit lead reference ("מה עם דנה?") resolves to a
-  // lead answer BEFORE any classification. Default subject (Business) on null.
+async function resolveAnswer(
+  text: string,
+  user: ActingUser,
+  mode?: CopilotModeId,
+  activeLeadId?: number,
+): Promise<GeneralAnswer> {
+  // Priority 1 — an explicit lead reference ("מה עם דנה?") always wins and switches
+  // the subject, BEFORE classification. Default subject (Business) on null.
   const leadSubject = await resolveLeadSubject(text, user)
   if (leadSubject) return leadSubject
 
@@ -163,9 +204,16 @@ async function resolveAnswer(text: string, user: ActingUser, mode?: CopilotModeI
     }
   }
 
+  // Priority 2 — a recognized business intent always wins over an active lead.
   const c = await classifyGeneralIntent(text, user.agencyId, mode)
 
   if (c.intent === 'unknown' || c.confidence < GENERAL_HIGH_CONFIDENCE) {
+    // Priority 3 — only an otherwise-unknown question is caught by the active lead
+    // subject and routed to its Q&A. Never overrides Priority 1 or 2.
+    if (activeLeadId) {
+      const leadFollowup = await answerAsLeadFollowup(activeLeadId, text, user, mode)
+      if (leadFollowup) return leadFollowup
+    }
     return { kind: 'menu', reason: c.intent === 'unknown' ? 'unknown' : 'low-confidence' }
   }
 
