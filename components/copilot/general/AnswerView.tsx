@@ -170,7 +170,13 @@ export default function AnswerView({
     )
   }
   if (answer.kind === 'leadAnswer') {
-    return <p className='whitespace-pre-line text-[13px] text-gray-700'>{answer.text}</p>
+    // Visible scope label so a follow-up answer is never silently mis-attributed.
+    return (
+      <p className='whitespace-pre-line text-[13px] text-gray-700'>
+        <span className='font-medium text-gray-500'>לגבי {answer.leadName}: </span>
+        {answer.text}
+      </p>
+    )
   }
   if (answer.kind === 'leadPick') {
     // Keyed by leadId (unique PK). Selecting resolves the lead INLINE (onPickLead)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractLeadCandidate } from '@/lib/copilot/general/subjectResolution'
+import { extractLeadCandidate, isLeadFollowup } from '@/lib/copilot/general/subjectResolution'
 
 describe('extractLeadCandidate — resolves explicit lead names', () => {
   const cases: [string, string][] = [
@@ -40,4 +40,41 @@ describe('extractLeadCandidate — FALSE-POSITIVE GUARD (must return null → Bu
       expect(extractLeadCandidate(q)).toBeNull()
     })
   }
+})
+
+describe('isLeadFollowup — routes to active lead ONLY on a lead signal', () => {
+  const followups = [
+    'מה היא רצתה?', // pronoun
+    'למה הוא לא עונה', // pronoun
+    'מה הסטטוס שלה', // pronoun (שלה)
+    'תכתוב לו הודעה', // draft verb (+pronoun)
+    'נסח תשובה', // draft verb
+    'מה הסטטוס?', // lead noun
+    'תן לי סיכום', // lead noun
+    'מה הצעד הבא?', // lead noun phrase
+    'מתי דיברנו', // lead noun phrase
+  ]
+  for (const q of followups) {
+    it(`follow-up: "${q}" → true`, () => {
+      expect(isLeadFollowup(q)).toBe(true)
+    })
+  }
+
+  // The trust property: business-wide / junk questions carry no lead signal.
+  const notFollowups = [
+    'כמה סגרתי החודש', // business-wide (otherwise unknown) → must NOT route to a lead
+    'מאיזה מקור הכי טוב',
+    'מה השעה עכשיו', // junk
+    'כמה לידים יש לי',
+    'מה דחוף היום',
+  ]
+  for (const q of notFollowups) {
+    it(`NOT follow-up: "${q}" → false`, () => {
+      expect(isLeadFollowup(q)).toBe(false)
+    })
+  }
+
+  it('whole-word only: "בשלה" must not match the pronoun "שלה"', () => {
+    expect(isLeadFollowup('הליד בשלה')).toBe(false)
+  })
 })

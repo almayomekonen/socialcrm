@@ -48,3 +48,36 @@ export function extractLeadCandidate(text: string): string | null {
   const candidate = words.join(' ').trim()
   return candidate.length >= 2 ? candidate : null
 }
+
+// ── Lead follow-up signal (3 deterministic classes; tokenized whole-word only) ──
+// Gates whether an otherwise-unknown question, with a lead subject active, is a
+// follow-up about that lead. Business-wide questions exhibit none of these.
+
+/** Class 1 — person pronouns/possessives. */
+const PRONOUNS = new Set(['היא', 'הוא', 'איתה', 'איתו', 'שלה', 'שלו', 'אותה', 'אותו', 'עליה', 'עליו'])
+/** Class 2 — message draft / contact imperatives (askLeadQuestion serves these). */
+const DRAFT_VERBS = new Set(['תכתוב', 'כתוב', 'תשלח', 'שלח', 'נסח', 'תנסח', 'טיוטה', 'הודעה', 'תתקשר', 'תקבע'])
+/** Class 3 — lead-context nouns (single words + fixed phrases). */
+const LEAD_NOUN_WORDS = new Set(['סטטוס', 'סיכום', 'סכם', 'תסכם', 'היסטוריה', 'פרטים'])
+const LEAD_NOUN_PHRASES = ['הצעד הבא', 'השלב הבא', 'מתי דיברנו', 'מה דיברנו', 'על מה דיברנו']
+
+/**
+ * True only when the text carries a lead-follow-up signal from one of the three
+ * classes. Tokenized whole-word matching — never substring (so "שלה" cannot match
+ * inside "בשלה"). No other heuristics.
+ */
+export function isLeadFollowup(text: string): boolean {
+  const tokens = text
+    .trim()
+    .split(/\s+/u)
+    .map((t) => t.replace(/[?!.,؛;:"'()]+/gu, ''))
+    .filter(Boolean)
+  if (tokens.length === 0) return false
+  // De-article only for the noun class (Hebrew nouns appear as "הסטטוס", not "סטטוס").
+  const deArticle = (w: string) => (w.startsWith('ה') && w.length > 2 ? w.slice(1) : w)
+  for (const w of tokens) {
+    if (PRONOUNS.has(w) || DRAFT_VERBS.has(w) || LEAD_NOUN_WORDS.has(w) || LEAD_NOUN_WORDS.has(deArticle(w))) return true
+  }
+  const joined = ` ${tokens.join(' ')} ` // space-bounded → phrase match stays whole-word
+  return LEAD_NOUN_PHRASES.some((p) => joined.includes(` ${p} `))
+}

@@ -16,7 +16,7 @@ import {
 } from '@/db/briefing'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { askLeadQuestion } from '@/actions/ai/leadAskQuestion'
-import { extractLeadCandidate } from '@/lib/copilot/general/subjectResolution'
+import { extractLeadCandidate, isLeadFollowup } from '@/lib/copilot/general/subjectResolution'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
@@ -47,7 +47,7 @@ export type GeneralAnswer =
   | { kind: 'drive'; data: DriveResults }
   | { kind: 'lead'; lead: LeadCard }
   | { kind: 'leadPick'; name: string; candidates: { leadId: number; label: string; status: string | null }[] }
-  | { kind: 'leadAnswer'; text: string }
+  | { kind: 'leadAnswer'; text: string; leadName: string }
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
@@ -156,7 +156,7 @@ async function answerAsLeadFollowup(
   const res = await askLeadQuestion(leadId, text, [], [], mode)
   if (!res.ok) return null
   const replyText = extractLeadReplyText(res.data)
-  return replyText ? { kind: 'leadAnswer', text: replyText } : null
+  return replyText ? { kind: 'leadAnswer', text: replyText, leadName: inScope.name } : null
 }
 
 /** Build the deterministic lead card from the resolved match + the existing snapshot reader. */
@@ -207,14 +207,8 @@ async function resolveAnswer(
   mode?: CopilotModeId,
   activeLeadId?: number,
 ): Promise<GeneralAnswer> {
-  // Priority 1 — an explicit lead reference ("מה עם דנה?") always wins and switches
-  // the subject, BEFORE classification. Default subject (Business) on null.
-  const leadSubject = await resolveLeadSubject(text, user)
-  if (leadSubject) return leadSubject
-
-  // Drive search is user-scoped + read-only (no lead needed). Detected by the
-  // same keyword rule Lead Mode uses; results are a factual file LIST — no
-  // model produces the facts, so it stays within the deterministic model.
+  // Priority 1 — Drive/file requests always win, even over a named lead
+  // ("החוזה של דנה" is a file request, not a lead lookup). Read-only file LIST.
   if (detectsDriveIntent(text)) {
     const outcome = await maybePrefetchDrive({ question: text, userId: user.id })
     if (outcome) return { kind: 'drive', data: toDriveResults(outcome) }
@@ -225,13 +219,19 @@ async function resolveAnswer(
     }
   }
 
-  // Priority 2 — a recognized business intent always wins over an active lead.
+  // Priority 2 — an explicit lead reference ("מה עם דנה?") switches the subject,
+  // BEFORE classification. Default subject (Business) on null.
+  const leadSubject = await resolveLeadSubject(text, user)
+  if (leadSubject) return leadSubject
+
+  // Priority 3 — a recognized business intent always wins over an active lead.
   const c = await classifyGeneralIntent(text, user.agencyId, mode)
 
   if (c.intent === 'unknown' || c.confidence < GENERAL_HIGH_CONFIDENCE) {
-    // Priority 3 — only an otherwise-unknown question is caught by the active lead
-    // subject and routed to its Q&A. Never overrides Priority 1 or 2.
-    if (activeLeadId) {
+    // Priority 4 — route to the active lead ONLY when the question carries a lead
+    // follow-up signal (isLeadFollowup). A business-wide or junk question has no
+    // such signal → it falls through to the honest fallback, never to the lead.
+    if (activeLeadId && isLeadFollowup(text)) {
       const leadFollowup = await answerAsLeadFollowup(activeLeadId, text, user, mode)
       if (leadFollowup) return leadFollowup
     }
