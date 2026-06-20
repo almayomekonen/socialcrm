@@ -49,7 +49,7 @@ export default function WhatsappConversation({
       ) : (
         <div className='grid grid-cols-1 gap-2 my-4'>
           {messages.map((m) => (
-            <div key={m.id} className='bg-white px-4 py-2 border rounded'>
+            <div key={m.id} id={`msg-${m.id}`} className='bg-white px-4 py-2 border rounded transition-shadow'>
               <div className='flex items-center justify-between gap-3'>
                 <span className='text-xs text-gray-500'>{m.direction === 'inbound' ? 'מהליד' : 'נשלח'}</span>
                 <span className='text-xs text-gray-500 tabular-nums'>{formatDate(m.timestamp)}</span>

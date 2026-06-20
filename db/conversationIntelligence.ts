@@ -12,6 +12,20 @@ export const INTEL_KIND_INTENT = 'intent'
 export const INTEL_KIND_TEMPERATURE = 'temperature'
 export const INTEL_KIND_ACTION = 'suggested_action'
 
+/** Why an Operator Take is worth surfacing. 'none' = mere restatement → never shown. */
+export const NOVELTY_VALUES = ['attention', 'interpretation', 'action', 'none'] as const
+export type NoveltyKind = (typeof NOVELTY_VALUES)[number]
+
+/** Shape persisted in conversation_intelligence.data for kind = INTEL_KIND_ACTION (v4). */
+export type ConversationActionData = {
+  suggestedAction: string
+  reason: string
+  /** v4+ fields. Absent on rows written by analysis-v3 (those never surface a take). */
+  actionMessage?: string
+  noveltyKind?: NoveltyKind
+  sourceMessageIds?: number[]
+}
+
 export type AnalysisJobStatus = 'pending' | 'processing' | 'done' | 'failed' | 'dead'
 export type AnalysisJobReason = 'new_message' | 'manual' | 'version_bump' | 'backfill'
 export type IntelligenceStatus = 'fresh' | 'stale' | 'failed'
@@ -174,7 +188,7 @@ export async function failAnalysisJob(job: ConversationAnalysisJob, error: strin
   return { dead: false }
 }
 
-export type AnalysisMessage = { sequence: number; direction: string; text: string }
+export type AnalysisMessage = { id: number; sequence: number; direction: string; text: string }
 
 export async function getMaxMessageSequence(conversationId: number): Promise<number> {
   const row = await db('inbox_messages').where({ conversationId }).max<{ max: string | number | null }>('sequence as max').first()
@@ -255,9 +269,11 @@ export async function listMessagesForAnalysis(conversationId: number, agencyId: 
     .where({ conversationId, agencyId })
     .orderBy('sequence', 'desc')
     .limit(limit)
-    .select('sequence', 'direction', 'text')
+    .select('id', 'sequence', 'direction', 'text')
 
-  return rows.map((r) => ({ sequence: Number(r.sequence), direction: String(r.direction), text: String(r.text ?? '') })).reverse()
+  return rows
+    .map((r) => ({ id: Number(r.id), sequence: Number(r.sequence), direction: String(r.direction), text: String(r.text ?? '') }))
+    .reverse()
 }
 
 export type UpsertIntelligenceInput = {
@@ -463,6 +479,28 @@ export async function getConversationIntelligence(
     items,
     jobPending: !!job,
     jobStatus: (job?.status as AnalysisJobStatus | undefined) ?? null,
+  }
+}
+
+export type OperatorTakeRow = {
+  data: ConversationActionData
+  status: IntelligenceStatus
+  coveredSequence: number
+  promptVersion: string | null
+}
+
+/** Render-safe: returns the persisted suggested-action intelligence for one conversation, or null. */
+export async function getOperatorTakeData(agencyId: number, conversationId: number): Promise<OperatorTakeRow | null> {
+  const row = await db('conversation_intelligence')
+    .where({ agencyId, conversationId, kind: INTEL_KIND_ACTION })
+    .first('data', 'status', 'coveredSequence', 'promptVersion')
+  if (!row) return null
+  const data = (typeof row.data === 'string' ? safeJson(row.data) : row.data) as ConversationActionData
+  return {
+    data,
+    status: row.status as IntelligenceStatus,
+    coveredSequence: Number(row.coveredSequence),
+    promptVersion: row.promptVersion ?? null,
   }
 }
 

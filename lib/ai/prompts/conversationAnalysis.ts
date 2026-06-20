@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { AnalysisMessage } from '@/db/conversationIntelligence'
+import { NOVELTY_VALUES } from '@/db/conversationIntelligence'
 
 /**
  * Composite conversation analysis prompt (Conversation Intelligence, Phase 3).
@@ -14,8 +15,9 @@ import type { AnalysisMessage } from '@/db/conversationIntelligence'
 /**
  * Versioned prompt fingerprint, persisted to conversation_intelligence.promptVersion.
  * v1 = summary only. v2 = + intent + temperature. v3 = + suggested action.
+ * v4 = + decision-first actionMessage + sourceSequences + noveltyKind (Operator Take).
  */
-export const CONVERSATION_ANALYSIS_PROMPT_VERSION = 3
+export const CONVERSATION_ANALYSIS_PROMPT_VERSION = 4
 
 export const INTENT_VALUES = ['pricing', 'demo', 'signup', 'support', 'followup', 'information', 'other'] as const
 export const TEMPERATURE_VALUES = ['cold', 'warm', 'hot'] as const
@@ -51,6 +53,17 @@ export const ConversationAnalysisSchema = z.object({
     .string()
     .max(140)
     .describe('שורה אחת בעברית — למה זה הצעד הנכון עכשיו, מבוסס על השיחה בלבד'),
+  actionMessage: z
+    .string()
+    .max(140)
+    .describe('משפט החלטה אחד בעברית, בלשון נציג, ציווי שמתחיל בפועל — מה לעשות עכשיו. ריק אם אין צעד לא-מובן-מאליו.'),
+  sourceSequences: z
+    .array(z.number().int())
+    .max(6)
+    .describe('מספרי ה-sequence (מתוך [#מספר] בהודעות) שעליהם מבוססת ההמלצה. ריק אם ההמלצה לא נשענת על תוכן הודעה ספציפי.'),
+  noveltyKind: z
+    .enum(NOVELTY_VALUES)
+    .describe('למה ההמלצה שווה הצגה: attention / interpretation / action / none. none = רק חזרה על מצב גלוי.'),
 })
 
 export type ConversationAnalysis = z.infer<typeof ConversationAnalysisSchema>
@@ -93,6 +106,17 @@ suggestedAction — הצעד הבא המומלץ לנציג (ערך אחד). ז�
 
 actionReason — שורה אחת (עד 140 תווים) בעברית: למה זה הצעד הנכון עכשיו. נמק מתוך השיחה עצמה, לא תיאור כללי של הפעולה.
 
+actionMessage — משפט החלטה אחד (עד 140 תווים), בלשון נציג, ציווי שמתחיל בפועל ("תחזור", "אל תוריד", "שלח"). לא תיאור ולא שאלה רטורית. זו המלצה בלבד — שום דבר לא מתבצע אוטומטית.
+
+sourceSequences — מספרי ה-[#מספר] של ההודעות שעליהן מבוססת ההמלצה. חובה כשההמלצה נשענת על תוכן (גם פרשנות כמו "הוא משווה, לא מתמקח" חייבת לצטט את ההודעות שמהן זה עולה). אם אין בסיס בהודעה ספציפית — החזר רשימה ריקה.
+
+noveltyKind — למה זה שווה הצגה. בחר אחד:
+- attention: מפנה את הנציג למשהו שלא שם לב אליו (שאלה שנקברה, חסם אחר מכפי שחשב).
+- interpretation: משנה את המשמעות שהנציג מייחס למצב ("משווה אלטרנטיבות, לא מתמקח"; "נתקע אחרי ההצעה, לא אחרי המחיר").
+- action: ממליץ על מהלך לא-ברירת-מחדל, כולל מה לא לעשות ("אל תוריד עדיין מחיר").
+- none: ההמלצה רק חוזרת על מצב גלוי וידוע (ממתין לתשובה, עברו כמה ימים, הכדור אצלך). אם זה המצב — החזר none.
+העדף שתיקה על פני המובן מאליו: אם אין מהלך לא-מובן-מאליו ומבוסס-הודעה, החזר noveltyKind=none ו-actionMessage ריק.
+
 confidence (לכוונה, לחום ולהמלצה): low אם ההודעות דלות או דו-משמעיות; medium ברירת מחדל; high רק כשיש בסיס מובהק.
 
 כללים:
@@ -122,12 +146,12 @@ export function buildConversationAnalysisUserMessage(ctx: ConversationAnalysisCo
   for (const m of ctx.messages) {
     const speaker = m.direction === 'inbound' ? 'ליד' : 'נציג'
     const text = m.text.trim() || '[הודעה ללא טקסט — מדיה/קובץ]'
-    lines.push(`${speaker}: ${text}`)
+    lines.push(`[#${m.sequence}] ${speaker}: ${text}`)
   }
 
   lines.push(
     '',
-    'החזר אובייקט לפי הסכמה: summary, intent, intentConfidence, temperature, temperatureConfidence, suggestedAction, actionConfidence, actionReason.',
+    'החזר אובייקט לפי הסכמה: summary, intent, intentConfidence, temperature, temperatureConfidence, suggestedAction, actionConfidence, actionReason, actionMessage, sourceSequences, noveltyKind.',
   )
   return lines.join('\n')
 }

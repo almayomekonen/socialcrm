@@ -29,3 +29,16 @@ export function isCopilotPersistenceEnabled(): boolean {
 export function isCopilotInspectorEnabled(): boolean {
   return getAiEnv().copilotInspectorEnabled
 }
+
+/**
+ * General Mode (no-lead copilot) rollout gate. Defaults OFF: with no agency on
+ * the `GENERAL_MODE_AGENCY_IDS` allowlist, this returns false everywhere, so the
+ * panel keeps today's exact behaviour. Mirrors `isAgencyAllowlisted`.
+ */
+export function isGeneralModeEnabled(agencyId: number | null | undefined): boolean {
+  if (!isAiEnabled()) return false
+  if (!agencyId) return false
+  const list = getAiEnv().generalModeAgencyAllowlist
+  if (list === 'all') return true
+  return list.includes(agencyId)
+}

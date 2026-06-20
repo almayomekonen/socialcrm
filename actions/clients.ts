@@ -12,8 +12,14 @@ import { isAdmin } from '@/types/roles'
 import { assertLeadQuota, QuotaExceededError, getAgencyPlan, withAgencyQuotaLock } from '@/lib/quota'
 import type { QuotaErrorResult } from '@/lib/quota'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
+import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
 
-export type DeleteLeadResult = { success: true } | { error: true; reason: 'no_permission' | 'not_found' }
+export type { DeleteManyLeadsResult } from '@/lib/leads/deleteResult'
+
+export type DeleteLeadResult =
+  | { success: true }
+  | { error: true; reason: 'no_permission' | 'not_found' }
+  | { error: true; reason: 'has_billing'; block: LeadBlockReason }
 
 export type AddLeadsResult = { success: true; inserted: number } | (QuotaErrorResult & { wouldInsert: number })
 
@@ -70,64 +76,115 @@ async function hardDeleteSalesForClients(trx: import('knex').Knex.Transaction, c
   await trx('sales').whereIn('id', saleIds).del()
 }
 
+/** A FK RESTRICT/violation Postgres error — used only to fail safe, never to surface raw. */
+function isFkViolation(err: any): boolean {
+  return err?.code === '23503' || err?.code === '23001'
+}
+
+function leadName(r: any): string | null {
+  const full = (r?.name as string) || [r?.firstName, r?.lastName].filter(Boolean).join(' ')
+  return full || null
+}
+
+/**
+ * Detect leads blocked from deletion by a billing FK (ON DELETE RESTRICT).
+ * Returns leadId → most significant reason (invoices > financial_events > profile).
+ * Scoping by leadId is sufficient — the ids passed in are already agency+permission scoped.
+ * Does NOT touch billing data; read-only existence checks.
+ */
+async function findBillingBlocks(trx: any, leadIds: number[]): Promise<Map<number, LeadBlockReason>> {
+  const map = new Map<number, LeadBlockReason>()
+  if (leadIds.length === 0) return map
+  const [profiles, events, invoices] = await Promise.all([
+    trx('bill_billing_profiles').whereIn('leadId', leadIds).distinct('leadId'),
+    trx('bill_financial_events').whereIn('leadId', leadIds).distinct('leadId'),
+    trx('bill_invoices').whereIn('leadId', leadIds).distinct('leadId'),
+  ])
+  // Last write wins → priority: billing_profile < financial_events < invoices.
+  for (const r of profiles) map.set(Number(r.leadId), 'billing_profile')
+  for (const r of events) map.set(Number(r.leadId), 'financial_events')
+  for (const r of invoices) map.set(Number(r.leadId), 'invoices')
+  return map
+}
+
 export async function deleteLead(clientId): Promise<DeleteLeadResult> {
   const user = await requireUser()
   const { gotPermIds } = await getPerms(user)
 
-  const result = await db.transaction(async (trx) => {
-    const scopeQ = trx('clients').where({ id: clientId, agencyId: user.agencyId })
-    if (!isAdmin(user.role)) scopeQ.whereIn('userId', gotPermIds)
-    const scoped = await scopeQ.first('id')
+  try {
+    const result = await db.transaction(async (trx) => {
+      const scopeQ = trx('clients').where({ id: clientId, agencyId: user.agencyId })
+      if (!isAdmin(user.role)) scopeQ.whereIn('userId', gotPermIds)
+      const scoped = await scopeQ.first('id')
 
-    if (!scoped) {
-      const exists = await trx('clients').where({ id: clientId, agencyId: user.agencyId }).first('id')
-      return { error: true, reason: exists ? 'no_permission' : 'not_found' } as const
-    }
+      if (!scoped) {
+        const exists = await trx('clients').where({ id: clientId, agencyId: user.agencyId }).first('id')
+        return { error: true, reason: exists ? 'no_permission' : 'not_found' } as const
+      }
 
-    await hardDeleteSalesForClients(trx, [Number(scoped.id)], user.agencyId)
+      // Block on billing dependency BEFORE deleting — never hit the RESTRICT FK.
+      const block = (await findBillingBlocks(trx, [Number(scoped.id)])).get(Number(scoped.id))
+      if (block) return { error: true, reason: 'has_billing', block } as const
 
-    await trx('clients').where({ id: clientId, agencyId: user.agencyId }).del()
+      await hardDeleteSalesForClients(trx, [Number(scoped.id)], user.agencyId)
+      await trx('clients').where({ id: clientId, agencyId: user.agencyId }).del()
+      return { success: true } as const
+    })
 
-    return { success: true } as const
-  })
-
-  if ('success' in result) revalidatePath('/leads')
-  return result
-}
-
-export type DeleteManyLeadsResult = {
-  deleted: number
-  skipped: number
+    if ('success' in result) revalidatePath('/leads')
+    return result
+  } catch (err: any) {
+    // Defense in depth: an unknown RESTRICT FK must never reach the UI as a raw error.
+    if (isFkViolation(err)) return { error: true, reason: 'has_billing', block: 'billing_profile' }
+    throw err
+  }
 }
 
 export async function deleteManyLeads(ids: number[], leads: boolean = true): Promise<DeleteManyLeadsResult> {
   const user = await requireUser()
-  if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0 }
+  if (!Array.isArray(ids) || ids.length === 0) return { deletedCount: 0, blockedCount: 0, blockedLeads: [], reason: null }
 
   const { gotPermIds } = await getPerms(user)
 
-  const result = await db.transaction(async (trx) => {
-    const inScopeQ = trx('clients').whereIn('id', ids).andWhere({ agencyId: user.agencyId, lead: leads })
-    if (!isAdmin(user.role)) inScopeQ.whereIn('userId', gotPermIds)
-    const inScopeRows = await inScopeQ.select('id')
-    const inScopeIds: number[] = inScopeRows.map((r: any) => Number(r.id))
+  try {
+    const result = await db.transaction(async (trx): Promise<DeleteManyLeadsResult> => {
+      const inScopeQ = trx('clients').whereIn('id', ids).andWhere({ agencyId: user.agencyId, lead: leads })
+      if (!isAdmin(user.role)) inScopeQ.whereIn('userId', gotPermIds)
+      const inScopeRows = await inScopeQ.select('id', 'name', 'firstName', 'lastName')
+      const inScopeIds: number[] = inScopeRows.map((r: any) => Number(r.id))
+      if (inScopeIds.length === 0) return { deletedCount: 0, blockedCount: 0, blockedLeads: [], reason: null }
 
-    if (inScopeIds.length === 0) return { deleted: 0, skipped: ids.length }
+      // Partition: billing-blocked leads are left untouched; the rest are deleted.
+      const blocks = await findBillingBlocks(trx, inScopeIds)
+      const deletableIds = inScopeIds.filter((id) => !blocks.has(id))
 
-    await hardDeleteSalesForClients(trx, inScopeIds, user.agencyId)
+      if (deletableIds.length > 0) {
+        await hardDeleteSalesForClients(trx, deletableIds, user.agencyId)
+        const deleteQ = trx('clients').whereIn('id', deletableIds).andWhere({ agencyId: user.agencyId, lead: leads })
+        if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
+        await deleteQ.del()
+      }
 
-    const deleteQ = trx('clients').whereIn('id', inScopeIds).andWhere({ agencyId: user.agencyId, lead: leads })
-    if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
-    const deleted = await deleteQ.del()
+      const blockedLeads: BlockedLead[] = inScopeRows
+        .filter((r: any) => blocks.has(Number(r.id)))
+        .map((r: any) => ({ id: Number(r.id), name: leadName(r), reason: blocks.get(Number(r.id))! }))
 
-    return { deleted, skipped: ids.length - deleted }
-  })
+      const reasons = new Set(blockedLeads.map((b) => b.reason))
+      const reason = blockedLeads.length === 0 ? null : reasons.size === 1 ? [...reasons][0] : 'mixed'
 
-  if (result.deleted > 0) {
-    revalidatePath('/leads')
-    revalidatePath('/clients')
+      return { deletedCount: deletableIds.length, blockedCount: blockedLeads.length, blockedLeads, reason }
+    })
+
+    if (result.deletedCount > 0) {
+      revalidatePath('/leads')
+      revalidatePath('/clients')
+    }
+    return result
+  } catch (err: any) {
+    // Unknown RESTRICT FK slipped past the pre-check — fail safe, delete nothing, never throw raw.
+    if (isFkViolation(err)) return { deletedCount: 0, blockedCount: ids.length, blockedLeads: [], reason: 'mixed' }
+    throw err
   }
-  return result
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {

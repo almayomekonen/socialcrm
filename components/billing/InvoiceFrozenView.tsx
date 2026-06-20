@@ -25,7 +25,7 @@ export default function InvoiceFrozenView({
   document: BillDocumentRow | null
 }) {
   const initialStatus = toInitialStatus(invoice, document)
-  const recipientHref = `/clients/${invoice.leadId}` as const
+  const recipientHref = `/clients/${invoice.leadId}/summary` as const
 
   return (
     <InvoicePdfStatusProvider invoiceId={invoice.id} initial={initialStatus}>

@@ -2,10 +2,13 @@
 
 import { useEffect } from 'react'
 import { useCopilot } from '@/lib/copilot/useCopilot'
+import { useCopilotContext } from '@/lib/copilot/copilotContextStore'
 import CopilotPanel from './CopilotPanel'
+import GeneralModePanel from './general/GeneralModePanel'
 
-export default function CopilotShell() {
+export default function CopilotShell({ generalModeEnabled = false }: { generalModeEnabled?: boolean }) {
   const { enabled, open, closePanel } = useCopilot()
+  const ctx = useCopilotContext()
 
   useEffect(() => {
     if (!enabled || !open) return
@@ -30,7 +33,7 @@ export default function CopilotShell() {
         open ? 'copilot-shell-open' : 'copilot-shell-closed'
       }`}
     >
-      <CopilotPanel />
+      {generalModeEnabled && !ctx ? <GeneralModePanel /> : <CopilotPanel />}
     </aside>
   )
 }
