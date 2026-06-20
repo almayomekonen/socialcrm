@@ -23,7 +23,7 @@ export default function LeadRows({
           <DeepLink
             href={`/clients/${l.id}/summary`}
             source={source}
-            className='block truncate text-[13px] text-gray-700 hover:text-gray-900'
+            className='block truncate text-sm text-gray-700 hover:text-gray-900'
           >
             {l.name || 'ללא שם'}
           </DeepLink>

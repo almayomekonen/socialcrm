@@ -37,14 +37,14 @@ export default async function ClientsPage({ searchParams }) {
         handlers: handlers.allPermUsers,
         users: handlers.allPermUsers,
       }}
-      className='mb-8'
+      className='flex flex-col min-h-0 h-full'
     >
-      <p className='text-sm text-gray-500 mb-2'>לקוחות הם לידים שסגרו עסקה</p>
+      <p className='text-sm text-gray-500 mb-2 shrink-0'>לקוחות הם לידים שסגרו עסקה</p>
 
       <OverQuotaBanner count={quota.overQuotaCount} />
 
       <Suspense fallback={null}>
-        <ClientsTable leads={false} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
+        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
       </Suspense>
     </Provider>
   )

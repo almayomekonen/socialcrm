@@ -7,5 +7,9 @@ export default async function layout({ children }) {
 
   const handlers = await getPerms(user)
 
-  return <Provider props={{ handlers: handlers.allPermUsers }}>{children}</Provider>
+  return (
+    <Provider className='flex flex-col min-h-0 h-full' props={{ handlers: handlers.allPermUsers }}>
+      {children}
+    </Provider>
+  )
 }

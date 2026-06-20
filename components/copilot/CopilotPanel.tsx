@@ -173,7 +173,7 @@ function TopAnchor({ onClose }: { onClose: () => void }) {
     <div className='shrink-0 w-full h-8 flex items-center justify-between px-2'>
       <div className='flex items-center gap-1.5'>
         <Icon name='sparkles' type='reg' className='size-3.5 bg-gray-400' />
-        <span className='text-[12.5px] font-medium text-gray-700'>עוזר חכם</span>
+        <span className='text-xs font-medium text-gray-700'>עוזר חכם</span>
       </div>
       <button
         type='button'

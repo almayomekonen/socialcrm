@@ -13,7 +13,7 @@ import { Select } from '@/lib/form'
 import { fileSizes } from '@/types/vars'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 
-export default function FilesTable({ data, tasks, clients }) {
+export default function FilesTable({ data, tasks, clients, fillHeight = false }) {
   const [state, setState] = useState(data)
   const [columns, setColumns] = useState(headers)
   const [fileToDelete, setFileToDelete] = useState<any>(null)
@@ -102,10 +102,10 @@ export default function FilesTable({ data, tasks, clients }) {
 
   return (
     <>
-      <h1 className='title my-6'>קבצים</h1>
+      <h1 className={`title my-6 ${fillHeight ? 'shrink-0' : ''}`}>קבצים</h1>
 
-      <div className='grid'>
-        <div className='flex justify-between'>
+      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'}>
+        <div className={`flex justify-between ${fillHeight ? 'shrink-0' : ''}`}>
           <div className='flex gap-2 items-end mb-2 mobile:gap-2'>
             <Search config={config} />
             {/* <ShowColumns config={config} /> */}
@@ -126,9 +126,9 @@ export default function FilesTable({ data, tasks, clients }) {
           </div>
         </div>
 
-        <Table config={config} tblCls='mb-0 rounded-b-none' key={Math.random()} />
+        <Table config={config} tblCls={fillHeight ? 'mb-0 rounded-b-none tbl-fill' : 'mb-0 rounded-b-none'} key={Math.random()} />
         {state.length === 0 && (
-          <div className='flex items-center justify-center h-48 text-gray-400'>אין קבצים עדיין</div>
+          <div className={`flex items-center justify-center h-48 text-gray-400 ${fillHeight ? 'shrink-0' : ''}`}>אין קבצים עדיין</div>
         )}
       </div>
 

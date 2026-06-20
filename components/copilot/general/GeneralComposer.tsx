@@ -64,7 +64,7 @@ export default function GeneralComposer({
 
   return (
     <div ref={composerRef} className='relative w-full'>
-      <div className='rounded-2xl border border-gray-200 bg-white px-2.5 pt-2 pb-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]'>
+      <div className='rounded-md border border-gray-200 bg-white px-2.5 pt-2 pb-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]'>
         <textarea
           ref={textareaRef}
           rows={1}
@@ -72,7 +72,7 @@ export default function GeneralComposer({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder='שאל את העוזר…'
-          className='block w-full resize-none bg-transparent text-[13px] leading-5 text-gray-800 outline-none placeholder:text-gray-400'
+          className='block w-full resize-none bg-transparent text-sm leading-5 text-gray-800 outline-none placeholder:text-gray-400'
         />
         <div className='mt-1.5 flex items-center justify-between'>
           <ModeButton open={modeOpen} disabled={busy} mode={getCopilotMode(modeId)} onToggle={() => setModeOpen((o) => !o)} />

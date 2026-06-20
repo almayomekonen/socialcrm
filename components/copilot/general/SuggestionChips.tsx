@@ -34,7 +34,7 @@ export default function SuggestionChips({
           type='button'
           disabled={disabled}
           onClick={() => onPick(s)}
-          className='rounded-full border border-gray-200 px-2.5 py-1 text-[12px] text-gray-700 hover:bg-gray-50 transition-colors'
+          className='rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-200 transition-colors'
         >
           {s}
         </button>

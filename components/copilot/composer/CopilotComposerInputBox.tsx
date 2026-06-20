@@ -69,10 +69,10 @@ export function CopilotComposerInputBox(props: {
   return (
     <div
       className={[
-        'block w-full rounded-[10px] bg-white border border-gray-100',
+        'block w-full rounded-md bg-white border border-gray-200',
         'shadow-[0_4px_18px_-8px_rgba(15,23,42,0.12),0_1px_3px_rgba(15,23,42,0.04)]',
-        'focus-within:shadow-[0_6px_22px_-8px_rgba(99,102,241,0.20),0_1px_3px_rgba(15,23,42,0.04)]',
-        'focus-within:border-primary transition-all duration-200',
+        'focus-within:outline-2 focus-within:outline-offset-0 focus-within:outline-primary',
+        'transition-all duration-200',
         'cursor-text',
       ].join(' ')}
       onClick={() => textareaRef.current?.focus()}

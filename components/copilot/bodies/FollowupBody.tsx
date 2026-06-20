@@ -28,7 +28,7 @@ export function FollowupBody({ data, staticRender }: { data: LeadFollowup; stati
     <div {...reveal} className='pt-1'>
       <p
         dir='auto'
-        className='text-[13px] leading-relaxed text-gray-900 whitespace-pre-wrap wrap-break-word select-text mb-2'
+        className='text-sm leading-relaxed text-gray-900 whitespace-pre-wrap wrap-break-word select-text mb-2'
         aria-live={staticRender ? undefined : 'polite'}
       >
         {revealed}
@@ -48,7 +48,7 @@ export function FollowupBody({ data, staticRender }: { data: LeadFollowup; stati
           <Icon name='copy' type='reg' className='size-3 bg-gray-400' />
           <span>{copied ? 'הועתק' : 'העתק'}</span>
         </button>
-        <span className='text-[10px] text-gray-400 truncate'>{meta}</span>
+        <span className='text-xs text-gray-400 truncate'>{meta}</span>
       </div>
 
       <p
@@ -60,7 +60,7 @@ export function FollowupBody({ data, staticRender }: { data: LeadFollowup; stati
 
       {data.sources.length > 0 && (
         <p
-          className='text-[10px] text-gray-400 tracking-wide'
+          className='text-xs text-gray-400 tracking-wide'
           style={{ opacity: isRevealing ? 0 : 1, transition: 'opacity 200ms ease-out 120ms' }}
         >
           מבוסס על {data.sources.join(' · ')}

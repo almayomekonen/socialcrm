@@ -15,7 +15,7 @@ import { getFormData2 } from '@/lib/form/funcs'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { saveTblPref } from '@/actions/global'
 
-export default function TasksTable({ data, users, filter, user }) {
+export default function TasksTable({ data, users, filter, user, fillHeight = false }) {
   const safeData = Array.isArray(data) ? data : []
   const [state, setState] = useState<any[]>(safeData)
   const tblId = 'tasksTable435'
@@ -39,10 +39,15 @@ export default function TasksTable({ data, users, filter, user }) {
     redirect(`?filter=${JSON.stringify(formData)}`)
   }
 
+  const taskCount = state.length
+  const completedCount = state.filter((t) => t.completed).length
+  const activeCount = taskCount - completedCount
+  const overdueCount = state.filter((t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()).length
+
   return (
     <>
-      <div className='grid'>
-        <div className='flex items-end justify-between mb-2'>
+      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'}>
+        <div className={`flex items-end justify-between mb-2 ${fillHeight ? 'shrink-0' : ''}`}>
           <div className='flex gap-2 items-end'>
             <Search config={config} />
             <ShowColumns config={config} />
@@ -64,9 +69,19 @@ export default function TasksTable({ data, users, filter, user }) {
           </div>
         </div>
 
-        <Table config={config} tblCls='mb-0 rounded-b-none' />
+        <Table config={config} tblCls={fillHeight && (state?.length ?? 0) > 0 ? 'mb-0 rounded-b-none tbl-fill' : 'mb-0 rounded-b-none'} />
         {(state?.length ?? 0) === 0 && (
-          <div className='flex items-center justify-center h-48 text-gray-400'>אין משימות עדיין</div>
+          <div className={`flex items-center justify-center text-gray-400 ${fillHeight ? 'flex-1' : 'h-48'}`}>אין משימות עדיין</div>
+        )}
+        {fillHeight && taskCount > 0 && (
+          <div className='shrink-0 flex items-center justify-between p-4 bg-white border border-t-0 rounded-b-md w-full text-sm'>
+            <p className='font-medium'>{`${taskCount} משימות`}</p>
+            <div className='flex items-center gap-4 text-gray-500'>
+              <span>{`${activeCount} פעילות`}</span>
+              <span>{`${completedCount} הושלמו`}</span>
+              {overdueCount > 0 && <span className='font-medium text-red-600'>{`${overdueCount} באיחור`}</span>}
+            </div>
+          </div>
         )}
       </div>
     </>

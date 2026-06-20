@@ -44,13 +44,13 @@ export default async function LeadsPage({ searchParams }) {
         handlers: handlers.allPermUsers,
         users: handlers.allPermUsers,
       }}
-      className='mb-8'
+      className='flex flex-col min-h-0 h-full'
     >
       <OverQuotaBanner count={quota.overQuotaCount} />
       <WelcomeToast suppressGreeting={suppressGreeting} />
 
       <Suspense fallback={null}>
-        <ClientsTable leads={true} data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
+        <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
       </Suspense>
     </Provider>
   )

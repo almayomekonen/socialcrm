@@ -25,7 +25,7 @@ export function AnswerBody({ data, staticRender }: { data: LeadAskAnswer; static
   return (
     <div {...reveal} className='pt-1'>
       <div
-        className='text-[13px] leading-relaxed text-gray-900 whitespace-pre-wrap wrap-break-word select-text mb-2'
+        className='text-sm leading-relaxed text-gray-900 whitespace-pre-wrap wrap-break-word select-text mb-2'
         aria-live={staticRender ? undefined : 'polite'}
       >
         {revealed.split('\n').map((line, i, arr) => (
@@ -49,12 +49,12 @@ export function AnswerBody({ data, staticRender }: { data: LeadAskAnswer; static
           <Icon name='copy' type='reg' className='size-3 bg-gray-400' />
           <span>{copied ? 'הועתק' : 'העתק'}</span>
         </button>
-        <span className='text-[10px] text-gray-400 truncate'>{CONFIDENCE_LABEL[data.confidence]}</span>
+        <span className='text-xs text-gray-400 truncate'>{CONFIDENCE_LABEL[data.confidence]}</span>
       </div>
 
       {data.sources.length > 0 && (
         <p
-          className='text-[10px] text-gray-400 tracking-wide'
+          className='text-xs text-gray-400 tracking-wide'
           style={{ opacity: isRevealing ? 0 : 1, transition: 'opacity 200ms ease-out 60ms' }}
         >
           מבוסס על {data.sources.join(' · ')}

@@ -9,8 +9,8 @@ export default async function FilesPage() {
   clients = [...new Map(clients.map((c) => [c.id, c])).values()]
 
   return (
-    <div>
-      <FilesTable data={files} tasks={[]} clients={clients} key={Math.random()} />
+    <div className='flex flex-col min-h-0 h-full'>
+      <FilesTable data={files} tasks={[]} clients={clients} fillHeight key={Math.random()} />
     </div>
   )
 }

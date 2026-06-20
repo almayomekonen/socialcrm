@@ -66,7 +66,7 @@ export default function ActiveGenerationRow({ fallbackLabel, hint, startPhase = 
 
   return (
     <div
-      className='flex items-center gap-2 px-1 py-2 text-[12.5px] text-gray-500'
+      className='flex items-center gap-2 px-1 py-2 text-xs text-gray-500'
       role='status'
       aria-live='polite'
     >

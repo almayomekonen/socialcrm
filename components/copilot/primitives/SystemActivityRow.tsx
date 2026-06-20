@@ -11,7 +11,7 @@ export function SystemActivityRow({
   createdAt: string
 }) {
   return (
-    <div className='flex items-center gap-1.5 text-[10.5px] text-gray-400 tracking-wide'>
+    <div className='flex items-center gap-1.5 text-xs text-gray-400 tracking-wide'>
       <span className='truncate'>{systemLabel(actionId, text)}</span>
       <span aria-hidden='true' className='text-gray-300'>
         ·

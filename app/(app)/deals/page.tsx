@@ -43,7 +43,7 @@ export default async function SalesPage({ searchParams }) {
 
   return (
     <Provider
-      className='mb-8 relative'
+      className='flex flex-col min-h-0 h-full relative'
       props={{
         tableLength: tblData.length,
         count,
@@ -52,22 +52,28 @@ export default async function SalesPage({ searchParams }) {
         gotPermIds,
       }}
     >
-      <Suspense fallback={<DashboardSummaryFallback />}>
-        <DashboardSummary user={user} />
-      </Suspense>
+      <div className='shrink-0'>
+        <Suspense fallback={<DashboardSummaryFallback />}>
+          <DashboardSummary user={user} />
+        </Suspense>
+      </div>
 
-      <Suspense fallback={null}>
-        <SalesNav user={user} isSystemEmpty={isSystemEmpty} />
-      </Suspense>
+      <div className='shrink-0'>
+        <Suspense fallback={null}>
+          <SalesNav user={user} isSystemEmpty={isSystemEmpty} />
+        </Suspense>
+      </div>
 
       {!isSystemEmpty && (
-        <Suspense>
-          <Filter props={{ users: gotPermUsers, teams: gotPermTeams, rawFilter, handlers }} key={filter} />
-        </Suspense>
+        <div className='shrink-0'>
+          <Suspense>
+            <Filter props={{ users: gotPermUsers, teams: gotPermTeams, rawFilter, handlers }} key={filter} />
+          </Suspense>
+        </div>
       )}
 
       <Suspense fallback={<div className='h-32 animate-pulse bg-gray-100 rounded-lg mt-8' />}>
-        <SalesSection props={{ formProps, data: tblData, rawFilter, params: { saleId, isFav }, user, isSystemEmpty, hasLeads }} />
+        <SalesSection props={{ formProps, data: tblData, rawFilter, params: { saleId, isFav }, user, isSystemEmpty, hasLeads, fillHeight: true }} />
       </Suspense>
 
     </Provider>

@@ -6,7 +6,7 @@ import { ATTACHMENT_STATUS_LABEL, LENS_ICON, LENS_LABEL, type AttachmentItem } f
 
 export function LensChip({ id, onRemove }: { id: LensId; onRemove: () => void }) {
   return (
-    <span className='group inline-flex items-center gap-1 h-6 ps-2 pe-1 rounded-full bg-primary-tint text-primary-text text-[11.5px] font-medium'>
+    <span className='group inline-flex items-center gap-1 h-6 ps-2 pe-1 rounded-full bg-primary-tint text-primary-text text-xs font-medium'>
       <Icon name={LENS_ICON[id]} type='reg' className='size-3 bg-primary' />
       <span className='truncate max-w-[120px]'>{LENS_LABEL[id]}</span>
       <button
@@ -28,12 +28,12 @@ export function FileChip({ item, onRemove }: { item: AttachmentItem; onRemove: (
   const label = ATTACHMENT_STATUS_LABEL[item.status]
   const tone = item.status === 'unreadable' || item.status === 'error' ? 'text-gray-400' : 'text-gray-600'
   return (
-    <span className='group inline-flex items-center gap-1 h-6 ps-2 pe-1 rounded-full bg-gray-100 text-gray-700 text-[11.5px] font-medium'>
+    <span className='group inline-flex items-center gap-1 h-6 ps-2 pe-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium'>
       <Icon name='paperclip' type='reg' className='size-3 bg-gray-500' />
       <span className='truncate max-w-[120px]' title={item.file.name}>
         {item.file.name}
       </span>
-      {label && <span className={`text-[10px] font-normal ${tone}`}>{label}</span>}
+      {label && <span className={`text-xs font-normal ${tone}`}>{label}</span>}
       <button
         type='button'
         onClick={(e) => {

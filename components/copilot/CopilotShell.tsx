@@ -29,7 +29,7 @@ export default function CopilotShell({ generalModeEnabled = false }: { generalMo
       role='complementary'
       aria-label='עוזר חכם'
       aria-hidden={!open}
-      className={`hidden desktop:block fixed top-20 end-0 bottom-8 w-[320px] z-900 bg-white border rounded-s-md rounded-ee-md copilot-shell ${
+      className={`hidden desktop:block h-full min-h-0 w-[320px] bg-white copilot-shell ${
         open ? 'copilot-shell-open' : 'copilot-shell-closed'
       }`}
     >

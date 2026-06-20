@@ -29,25 +29,25 @@ type AttentionPayload = { overdue: BriefingLeadList; dueToday: BriefingLeadList;
 function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
   if (intent === 'system.overview') {
     const p = payload as { summary: string }
-    return <p className='text-[13px] text-gray-700'>{p.summary}</p>
+    return <p className='text-sm text-gray-700'>{p.summary}</p>
   }
   if (intent === 'inbox.unread') {
     const p = payload as InboxPayload
-    if (p.unread === 0) return <p className='text-[13px] text-gray-500'>אין הודעות חדשות</p>
+    if (p.unread === 0) return <p className='text-sm text-gray-500'>אין הודעות חדשות</p>
     return (
-      <DeepLink href='/inbox' source='answer' className='text-[13px] text-gray-700 hover:text-gray-900'>
+      <DeepLink href='/inbox' source='answer' className='text-sm text-gray-700 hover:text-gray-900'>
         {p.unread} הודעות שלא נקראו ב-{p.conversations} שיחות
       </DeepLink>
     )
   }
   if (intent === 'meetings.today') {
     const p = payload as MeetingsPayload
-    if (p.meetings.length === 0) return <p className='text-[13px] text-gray-500'>אין פגישות היום</p>
+    if (p.meetings.length === 0) return <p className='text-sm text-gray-500'>אין פגישות היום</p>
     return (
       <ul className='space-y-0.5'>
         {p.meetings.map((m) => (
           <li key={m.id}>
-            <DeepLink href='/calendar' source='answer' className='block truncate text-[13px] text-gray-700 hover:text-gray-900'>
+            <DeepLink href='/calendar' source='answer' className='block truncate text-sm text-gray-700 hover:text-gray-900'>
               {m.title}
               {m.leadName ? ` · ${m.leadName}` : ''}
             </DeepLink>
@@ -60,7 +60,7 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
     const p = payload as AttentionPayload
     if (attentionAllClear(p)) {
       return (
-        <p className='text-[13px] text-gray-500'>
+        <p className='text-sm text-gray-500'>
           הכול תחת שליטה. אין כרגע משימות באיחור, מעקבים פתוחים או לידים שמתקררים.
         </p>
       )
@@ -71,7 +71,7 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
       <div className='space-y-1.5'>
         {decision && (
           <div className='rounded-md bg-gray-50 px-2.5 py-2'>
-            <p className='text-[13px] font-semibold text-gray-900'>הכי דחוף כרגע: {decision.leadName}</p>
+            <p className='text-sm font-semibold text-gray-900'>הכי דחוף כרגע: {decision.leadName}</p>
             <p className='text-[12px] text-gray-600'>הסיבה: {decision.reason}</p>
             {decision.secondary && (
               <p className='mt-0.5 text-[12px] text-gray-500'>
@@ -97,7 +97,7 @@ const ATTENTION_PREVIEW = 4
 function Mini({ label, list, empty }: { label: string; list: BriefingLeadList; empty: string }) {
   return (
     <div>
-      <p className='text-[11.5px] font-medium text-gray-500'>
+      <p className='text-xs font-medium text-gray-500'>
         {label}
         {list.total > 0 ? ` · ${list.total}` : ''}
       </p>
@@ -119,10 +119,10 @@ export default function AnswerView({
 }) {
   if (answer.kind === 'fallback') {
     const msg = fallbackCopy(answer)
-    if (answer.mode === 'ack') return <p className='text-[13px] text-gray-700'>{msg}</p>
+    if (answer.mode === 'ack') return <p className='text-sm text-gray-700'>{msg}</p>
     return (
       <div className='space-y-2'>
-        <p className='text-[13px] text-gray-700'>{msg}</p>
+        <p className='text-sm text-gray-700'>{msg}</p>
         <SuggestionChips items={curatedSuggestions()} onPick={onPick} disabled={!interactive} />
       </div>
     )
@@ -137,12 +137,12 @@ export default function AnswerView({
   if (answer.kind === 'guide') {
     return (
       <div className='space-y-1.5'>
-        <p className='text-[13px] text-gray-700'>{answer.answer}</p>
+        <p className='text-sm text-gray-700'>{answer.answer}</p>
         {answer.route && (
           <DeepLink
             href={answer.route}
             source='guide'
-            className='inline-block text-[12.5px] font-medium text-gray-900 underline-offset-2 hover:underline'
+            className='inline-block text-xs font-medium text-gray-900 underline-offset-2 hover:underline'
           >
             פתח
           </DeepLink>
@@ -154,7 +154,7 @@ export default function AnswerView({
     const l = answer.lead
     return (
       <div className='rounded-md border border-gray-200 p-2.5 space-y-1'>
-        <p className='text-[13px] font-semibold text-gray-900'>{l.name}</p>
+        <p className='text-sm font-semibold text-gray-900'>{l.name}</p>
         <div className='space-y-0.5 text-[12px] text-gray-600'>
           {l.status && <p>סטטוס: {l.status}</p>}
           {l.daysSinceLastInteraction != null && <p>קשר אחרון: לפני {l.daysSinceLastInteraction} ימים</p>}
@@ -165,7 +165,7 @@ export default function AnswerView({
         <DeepLink
           href={`/clients/${l.id}/summary`}
           source='subject'
-          className='inline-block text-[12.5px] font-medium text-gray-900 underline-offset-2 hover:underline'
+          className='inline-block text-xs font-medium text-gray-900 underline-offset-2 hover:underline'
         >
           פתח ליד מלא
         </DeepLink>
@@ -175,7 +175,7 @@ export default function AnswerView({
   if (answer.kind === 'leadAnswer') {
     // Visible scope label so a follow-up answer is never silently mis-attributed.
     return (
-      <p className='whitespace-pre-line text-[13px] text-gray-700'>
+      <p className='whitespace-pre-line text-sm text-gray-700'>
         <span className='font-medium text-gray-500'>לגבי {answer.leadName}: </span>
         {answer.text}
       </p>
@@ -186,7 +186,7 @@ export default function AnswerView({
     // — stays in the conversation instead of navigating away.
     return (
       <div className='space-y-1.5'>
-        <p className='text-[13px] text-gray-700'>יש כמה לידים בשם "{answer.name}" — על מי?</p>
+        <p className='text-sm text-gray-700'>יש כמה לידים בשם "{answer.name}" — על מי?</p>
         <div className='flex flex-wrap gap-1.5'>
           {answer.candidates.map((c) => (
             <button
@@ -208,7 +208,7 @@ export default function AnswerView({
     <div className='rounded-md border border-gray-200 p-2.5'>
       <DataAnswer intent={answer.intent} payload={answer.payload} />
       {SOURCE_LABEL[answer.intent] && (
-        <p className='mt-2 text-[10px] tracking-wide text-gray-400'>מקור: {SOURCE_LABEL[answer.intent]}</p>
+        <p className='mt-2 text-xs tracking-wide text-gray-400'>מקור: {SOURCE_LABEL[answer.intent]}</p>
       )}
     </div>
   )

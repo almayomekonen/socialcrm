@@ -15,7 +15,7 @@ function SectionBody({ section }: { section: BriefingSection }) {
   if (section.id === 'inbox.unread') {
     if (section.unread === 0) return <p className='text-xs text-gray-400'>{SECTION_EMPTY['inbox.unread']}</p>
     return (
-      <DeepLink href='/inbox' source='briefing-section' className='text-[13px] text-gray-700 hover:text-gray-900'>
+      <DeepLink href='/inbox' source='briefing-section' className='text-sm text-gray-700 hover:text-gray-900'>
         {section.unread} הודעות ב-{section.conversations} שיחות
       </DeepLink>
     )
@@ -30,7 +30,7 @@ function SectionBody({ section }: { section: BriefingSection }) {
             <DeepLink
               href='/calendar'
               source='briefing-section'
-              className='block truncate text-[13px] text-gray-700 hover:text-gray-900'
+              className='block truncate text-sm text-gray-700 hover:text-gray-900'
             >
               {m.title}
               {m.leadName ? ` · ${m.leadName}` : ''}
@@ -58,19 +58,19 @@ function SectionCard({ section }: { section: BriefingSection }) {
   // The unsolicited save leads with a full operator sentence, not a label+count.
   if (section.id === 'followups.promisedWaiting') {
     return (
-      <div className='rounded-md border border-gray-200 p-2.5'>
-        <p className='mb-1.5 text-[13px] font-medium text-gray-800'>{promisedWaitingSentence(section.total)}</p>
+      <div className='py-2.5'>
+        <p className='mb-1.5 text-sm font-medium text-gray-800'>{promisedWaitingSentence(section.total)}</p>
         <SectionBody section={section} />
       </div>
     )
   }
   const headline = section.id === 'inbox.unread' ? section.unread : section.total
   return (
-    <div className='rounded-md border border-gray-200 p-2.5'>
-      <div className='mb-1.5 flex items-center justify-between'>
-        <span className='text-[12.5px] font-medium text-gray-700'>{SECTION_TITLE[section.id]}</span>
-        {headline > 0 && <span className='text-[12px] tabular-nums text-gray-500'>{headline}</span>}
-      </div>
+    <div className='py-2.5'>
+      <p className='mb-1.5 text-xs font-medium text-gray-700'>
+        {SECTION_TITLE[section.id]}
+        {headline > 0 && <span className='font-normal text-gray-400'> · {headline}</span>}
+      </p>
       <SectionBody section={section} />
     </div>
   )
@@ -80,10 +80,12 @@ function SectionCard({ section }: { section: BriefingSection }) {
 export default function BriefingCards({ greeting, sections }: { greeting: string; sections: BriefingSection[] }) {
   return (
     <div className='space-y-2'>
-      {greeting && <p className='px-0.5 text-[13px] text-gray-600'>{greeting}</p>}
-      {sections.map((s) => (
-        <SectionCard key={s.id} section={s} />
-      ))}
+      {greeting && <p className='px-0.5 text-sm text-gray-600'>{greeting}</p>}
+      <div className='divide-y divide-gray-200'>
+        {sections.map((s) => (
+          <SectionCard key={s.id} section={s} />
+        ))}
+      </div>
     </div>
   )
 }

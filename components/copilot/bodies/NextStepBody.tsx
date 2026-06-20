@@ -12,7 +12,7 @@ export function NextStepBody({ data, staticRender }: { data: LeadNextStep; stati
   return (
     <div {...reveal} className='pt-1'>
       <p
-        className='text-[13px] leading-relaxed text-gray-900 mb-1.5'
+        className='text-sm leading-relaxed text-gray-900 mb-1.5'
         aria-live={staticRender ? undefined : 'polite'}
       >
         {revealed}
@@ -20,14 +20,14 @@ export function NextStepBody({ data, staticRender }: { data: LeadNextStep; stati
       </p>
 
       <p
-        className='text-[10px] text-gray-400 mb-2'
+        className='text-xs text-gray-400 mb-2'
         style={{ opacity: isRevealing ? 0 : 1, transition: 'opacity 200ms ease-out' }}
       >
         {meta}
       </p>
 
       <p
-        className='text-[11.5px] text-gray-500 leading-relaxed mb-2'
+        className='text-xs text-gray-500 leading-relaxed mb-2'
         style={{ opacity: isRevealing ? 0 : 1, transition: 'opacity 200ms ease-out 60ms' }}
       >
         {data.rationale}
@@ -35,7 +35,7 @@ export function NextStepBody({ data, staticRender }: { data: LeadNextStep; stati
 
       {data.sources.length > 0 && (
         <p
-          className='text-[10px] text-gray-400 tracking-wide'
+          className='text-xs text-gray-400 tracking-wide'
           style={{ opacity: isRevealing ? 0 : 1, transition: 'opacity 200ms ease-out 120ms' }}
         >
           מבוסס על {data.sources.join(' · ')}

@@ -7,7 +7,7 @@ export function ErrorBody({ reason, onRetry }: { reason: CopilotResponseErrorRea
   const canRetry = reason === 'all-providers-failed' || reason === 'invalid-input' || reason === 'unknown'
   return (
     <div className='text-center pt-8'>
-      <p className='text-[12.5px] text-gray-500 mb-2'>{ERROR_COPY[reason]}</p>
+      <p className='text-xs text-gray-500 mb-2'>{ERROR_COPY[reason]}</p>
       {canRetry && (
         <button
           type='button'

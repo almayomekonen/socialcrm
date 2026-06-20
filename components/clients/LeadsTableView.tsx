@@ -12,6 +12,7 @@ type Props = {
   mergedState: any[]
   config: ConfigT
   children?: React.ReactNode
+  fillHeight?: boolean
 }
 
 export default function LeadsTableView({
@@ -22,11 +23,12 @@ export default function LeadsTableView({
   mergedState,
   config,
   children,
+  fillHeight = false,
 }: Props) {
   return (
     <>
       {leads && (
-        <div className='flex gap-1 mb-3 border-b border-gray-200' dir='rtl'>
+        <div className='flex gap-1 mb-3 border-b border-gray-200 shrink-0' dir='rtl'>
           {Object.entries(STATUS_STYLES).map(([key, { label, dot, text, bg, border }]) => {
             const count = mergedState.filter((l) => l.status === key).length
             const isActive = activeTab === key
@@ -52,7 +54,7 @@ export default function LeadsTableView({
         </div>
       )}
       {children}
-      <Table key={filteredData.length + '-' + activeTab} config={config} tblCls='mb-0' />
+      <Table key={filteredData.length + '-' + activeTab} config={config} tblCls={fillHeight ? 'mb-0 tbl-fill' : 'mb-0'} />
     </>
   )
 }

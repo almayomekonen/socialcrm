@@ -24,8 +24,8 @@ export default async function TasksPage({ searchParams }) {
   const users = [...gotPermUsers, ...gavePermUsers]
 
   return (
-    <div className='mb-8'>
-      <TasksTable user={user} key={Math.random()} data={tasks} users={users} filter={filter} />
+    <div className='flex flex-col min-h-0 h-full'>
+      <TasksTable user={user} fillHeight key={Math.random()} data={tasks} users={users} filter={filter} />
       <Suspense>
         <AddTaskForm clientId={null} />
       </Suspense>

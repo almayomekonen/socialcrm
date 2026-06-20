@@ -20,7 +20,7 @@ export function EmptyTimelineState({ mode }: { mode: Mode }) {
   }
   return (
     <div className='h-full flex flex-col items-center justify-center gap-1.5 text-center px-6 select-none'>
-      <p className='text-[13px] text-gray-500'>חיפוש מידע על הליד</p>
+      <p className='text-sm text-gray-500'>חיפוש מידע על הליד</p>
       <p className='text-[11px] text-gray-400'>שאל שאלה או בחר פעולה</p>
     </div>
   )

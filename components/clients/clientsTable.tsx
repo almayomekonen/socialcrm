@@ -30,7 +30,7 @@ import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
 
-export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null }) {
+export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false }) {
   const [activeTab, setActiveTab] = useState('new')
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
   const hasMultipleUsers = false
@@ -232,7 +232,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
 
   return (
     <>
-      <div className='grid'>
+      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'}>
         <LeadsTableView
           leads={leads}
           activeTab={activeTab}
@@ -240,8 +240,9 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
           filteredData={filteredData}
           mergedState={mergedState}
           config={config}
+          fillHeight={fillHeight}
         >
-          <div className='flex justify-between gap-2 mb-2 items-end '>
+          <div className={`flex justify-between gap-2 mb-2 items-end ${fillHeight ? 'shrink-0' : ''}`}>
             <div className='flex gap-0 items-end'>
               <SelectSearch
                 options={[]}
@@ -293,7 +294,13 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             </div>
           </div>
         </LeadsTableView>
-        <TableFooter />
+        {fillHeight ? (
+          <div className='shrink-0'>
+            <TableFooter />
+          </div>
+        ) : (
+          <TableFooter />
+        )}
       </div>
 
       <ModalPop open={openForm} pos='middle' onClose={() => (setCurClient(null), setOpenForm(false))}>

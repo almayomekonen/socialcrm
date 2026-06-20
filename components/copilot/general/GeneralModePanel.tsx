@@ -160,7 +160,7 @@ export default function GeneralModePanel() {
             <div className='space-y-2.5 pb-2'>
               {transcript.map((turn, i) =>
                 turn.role === 'user' ? (
-                  <p key={i} className='text-[13px] text-gray-800'>
+                  <p key={i} className='text-sm text-gray-800'>
                     <span className='font-medium text-gray-500'>אתה: </span>
                     {turn.text}
                   </p>
@@ -222,7 +222,7 @@ function Header({ onClose }: { onClose: () => void }) {
     <div className='shrink-0 w-full h-8 flex items-center justify-between px-2'>
       <div className='flex items-center gap-1.5'>
         <Icon name='sparkles' type='reg' className='size-3.5 bg-gray-400' />
-        <span className='text-[12.5px] font-medium text-gray-700'>עוזר חכם</span>
+        <span className='text-xs font-medium text-gray-700'>עוזר חכם</span>
       </div>
       <button
         type='button'

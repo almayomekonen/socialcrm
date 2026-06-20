@@ -21,7 +21,7 @@ export function ToolsPopover({
       role='menu'
       className={[
         'absolute bottom-full mb-2 inline-flex flex-col gap-0.5',
-        'rounded-2xl bg-white border border-gray-200 p-1.5 min-w-[200px]',
+        'rounded-lg bg-white border border-gray-200 p-1.5 min-w-[200px]',
         'shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]',
         'start-2',
       ].join(' ')}
@@ -38,7 +38,7 @@ export function ToolsPopover({
             onClick={() => isKnownActionId(action.id) && onSelect(action.id)}
             disabled={loadingId !== null}
             data-action-id={action.id}
-            className='group flex items-center gap-2 w-full px-2.5 py-2 rounded-xl text-start hover:bg-gray-50 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent'
+            className='group flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-start hover:bg-gray-50 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent'
           >
             {isLoading ? (
               <span
@@ -52,7 +52,7 @@ export function ToolsPopover({
                 className='size-3 bg-gray-400 group-hover:bg-primary transition-colors shrink-0'
               />
             )}
-            <span className='text-[12.5px] text-gray-700 group-hover:text-gray-900 truncate'>{action.label}</span>
+            <span className='text-xs text-gray-700 group-hover:text-gray-900 truncate'>{action.label}</span>
           </button>
         )
       })}
@@ -65,13 +65,13 @@ export function ToolsPopover({
         onClick={onConnectDrive}
         disabled={loadingId !== null}
         data-action-id='connect-google-drive'
-        className='group flex items-center gap-2 w-full px-2.5 py-2 rounded-xl text-start hover:bg-gray-50 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent'
+        className='group flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-start hover:bg-gray-50 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent'
       >
         <Icon
           name='google-drive'
           className='size-3 bg-gray-400 group-hover:bg-primary transition-colors shrink-0'
         />
-        <span className='text-[12.5px] text-gray-700 group-hover:text-gray-900 truncate'>Google Drive</span>
+        <span className='text-xs text-gray-700 group-hover:text-gray-900 truncate'>Google Drive</span>
       </button>
     </div>
   )

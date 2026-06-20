@@ -37,11 +37,12 @@ export type SaleTableProps = {
     curSale: any
     isSystemEmpty?: boolean
     hasLeads?: boolean
+    fillHeight?: boolean
   }
 }
 
 export default function SalesTable({ props }: SaleTableProps) {
-  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale, hasLeads } = props
+  const { data, params, rawFilter, user, formProps, setCurSale, setOpenForm, curSale, hasLeads, fillHeight } = props
   const safeData = Array.isArray(data) ? data : []
   const { isFav } = params || {}
   const tblId = 'saleTable376'
@@ -204,8 +205,8 @@ export default function SalesTable({ props }: SaleTableProps) {
   }
   return (
     <>
-      <div className='flex flex-col items-stretch gap-0'>
-        <div className='flex justify-between gap-4 items-end'>
+      <div className={`flex flex-col items-stretch gap-0 ${fillHeight ? 'min-h-0 flex-1' : ''}`}>
+        <div className={`flex justify-between gap-4 items-end ${fillHeight ? 'shrink-0' : ''}`}>
           <div className='flex gap-3 items-end mb-2'>
             <SelectSearch placeholder='חיפוש עסקה' show='details' searchFunc={searchContacts} onSelectOpt={getSelectedClient} />
             <GroupAction isFav={isFav} />
@@ -230,8 +231,14 @@ export default function SalesTable({ props }: SaleTableProps) {
           </div>
         </div>
 
-        <Table config={config} tblCls='mb-0 !max-h-[32rem] !rounded-b-none' />
-        <TableFooter />
+        <Table config={config} tblCls={fillHeight ? 'mb-0 !rounded-b-none tbl-fill' : 'mb-0 !max-h-[32rem] !rounded-b-none'} />
+        {fillHeight ? (
+          <div className='shrink-0'>
+            <TableFooter />
+          </div>
+        ) : (
+          <TableFooter />
+        )}
       </div>
 
       <ModalPop open={openUpload} pos='middle' onClose={() => setOpenUpload(false)}>

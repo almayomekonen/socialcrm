@@ -71,7 +71,7 @@ export function SendButton({ ready, loading, onClick }: { ready: boolean; loadin
       title='שלח (Enter)'
       className={[
         'shrink-0 inline-flex items-center justify-center size-7 rounded-full transition-colors duration-150',
-        ready ? 'bg-gray-900 hover:bg-gray-800 cursor-pointer' : 'bg-gray-100 cursor-not-allowed',
+        ready ? 'bg-solid hover:bg-solid/85 cursor-pointer' : 'bg-gray-100 cursor-not-allowed',
       ].join(' ')}
     >
       {loading ? (
