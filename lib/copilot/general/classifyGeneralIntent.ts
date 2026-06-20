@@ -33,7 +33,7 @@ export function quickClassifyGeneral(text: string): Classification {
  * Closed-world classify: the quick pass first, else a constrained LLM choice
  * limited to the fixed id list (or 'unknown'). The model can ONLY pick an
  * existing id — it never invents a capability. On any model failure we return
- * 'unknown', which routes to the capability menu (never a guess).
+ * 'unknown', which routes to the deterministic fallback (never a guess).
  */
 export async function classifyGeneralIntent(text: string, agencyId: number, mode?: CopilotModeId): Promise<Classification> {
   const quick = quickClassifyGeneral(text)

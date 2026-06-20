@@ -17,6 +17,7 @@ import {
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { askLeadQuestion } from '@/actions/ai/leadAskQuestion'
 import { extractLeadCandidate, isLeadFollowup } from '@/lib/copilot/general/subjectResolution'
+import { classifyFallback, detectKnownGap, type FallbackResult } from '@/lib/copilot/general/fallback'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
@@ -27,7 +28,6 @@ import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { Roles } from '@/types/roles'
 
-/** Deterministic, factual snapshot of one resolved lead (Subject Resolution V1). No LLM. */
 export type LeadCard = {
   id: number
   name: string
@@ -41,7 +41,7 @@ export type LeadCard = {
 }
 
 export type GeneralAnswer =
-  | { kind: 'menu'; reason: 'unknown' | 'low-confidence' }
+  | ({ kind: 'fallback' } & FallbackResult)
   | { kind: 'guide'; answer: string; route?: string }
   | { kind: 'data'; intent: string; payload: unknown }
   | { kind: 'drive'; data: DriveResults }
@@ -51,12 +51,6 @@ export type GeneralAnswer =
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
-/**
- * Analytics is fully isolated from functionality: the user-facing answer is
- * computed FIRST, then events are emitted through `safeTrack`, which can never
- * throw or reject into this flow. A broken analytics layer changes nothing the
- * caller sees. (Proven in __tests__/ai/ask-general-question.test.ts.)
- */
 async function safeTrack(user: ActingUser, event: AnalyticsEventName, props?: Record<string, unknown>): Promise<void> {
   try {
     await track({ agencyId: user.agencyId, userId: user.id, event, props })
@@ -74,27 +68,22 @@ export async function askGeneralQuestion(text: string, modeRaw?: unknown, active
     const answer = await resolveAnswer(text, user, mode, activeLeadId)
     const subjectActive = activeLeadId != null
     await safeTrack(user, 'general_mode.question_asked', { qlen: text.length, subjectActive })
-    // One canonical per-question record: resolved path + the question text (capped) +
-    // whether a lead subject was active. The report sessionizes via 'opened' markers.
+
     await safeTrack(user, 'general_mode.answer_rendered', {
       path: resolvedPath(answer),
       subjectActive,
       text: text.slice(0, 200),
-      intent: answer.kind === 'data' ? answer.intent : undefined, // which business intent (system.overview / crm.attention / …)
+      intent: answer.kind === 'data' ? answer.intent : undefined, // which business intent
+      gap: answer.kind === 'fallback' && answer.mode === 'redirect' ? answer.gap : undefined, // known unmet-demand bucket
     })
     return answer
   } catch {
-    // Unexpected failure → graceful menu, never an error thrown at the user.
+    // Unexpected failure → safe generic redirect, never an error thrown at the user.
     await safeTrack(user, 'general_mode.error', { stage: 'qa' })
-    return { kind: 'menu', reason: 'unknown' }
+    return { kind: 'fallback', mode: 'redirect', gap: null }
   }
 }
 
-/**
- * Resolve a disambiguation selection by leadId → an inline lead card (Step 1).
- * Permission-checked via getNamedLeadById (gotPermIds gate) — a client-sent id
- * that is out of scope returns a graceful miss, never another lead's data.
- */
 export async function getLeadCardById(leadIdRaw: number | string): Promise<GeneralAnswer> {
   const user = await requireAgencyUser()
   const leadId = Number(leadIdRaw)
@@ -102,15 +91,13 @@ export async function getLeadCardById(leadIdRaw: number | string): Promise<Gener
   const { gotPermIds } = await getPerms(user)
   const match = await getNamedLeadById({ user: { role: user.role }, gotPermIds }, leadId)
   if (!match) return { kind: 'guide', answer: 'לא הצלחתי לטעון את הליד.' }
-  // A disambiguation pick is a lead_resolution too — record it so the report sees it.
   await safeTrack(user, 'general_mode.answer_rendered', { path: 'lead_resolution', via: 'pick' })
   return buildLeadCard(match)
 }
 
-/** Normalize an answer into the resolved-path label used for conversation analytics. */
 function resolvedPath(
   a: GeneralAnswer,
-): 'business_intent' | 'lead_resolution' | 'lead_followup' | 'drive' | 'guide' | 'unknown' {
+): 'business_intent' | 'lead_resolution' | 'lead_followup' | 'drive' | 'guide' | 'ack' | 'clarify' | 'redirect' {
   switch (a.kind) {
     case 'data':
       return 'business_intent'
@@ -123,12 +110,11 @@ function resolvedPath(
       return 'drive'
     case 'guide':
       return 'guide'
-    case 'menu':
-      return 'unknown'
+    case 'fallback':
+      return a.mode
   }
 }
 
-/** Extract a renderable reply from an askLeadQuestion result (answer / reply / drive intro). */
 function extractLeadReplyText(data: unknown): string | null {
   if (data && typeof data === 'object') {
     const d = data as Record<string, unknown>
@@ -139,11 +125,6 @@ function extractLeadReplyText(data: unknown): string | null {
   return null
 }
 
-/**
- * Priority 3 — active lead subject as a FALLBACK catcher. Only invoked when the
- * question is otherwise unknown. Re-verifies the (client-supplied) leadId is in
- * scope before calling askLeadQuestion; returns null to fall through to the menu.
- */
 async function answerAsLeadFollowup(
   leadId: number,
   text: string,
@@ -159,7 +140,6 @@ async function answerAsLeadFollowup(
   return replyText ? { kind: 'leadAnswer', text: replyText, leadName: inScope.name } : null
 }
 
-/** Build the deterministic lead card from the resolved match + the existing snapshot reader. */
 async function buildLeadCard(match: NamedLead): Promise<GeneralAnswer> {
   const snap = await getLeadIntelligenceInputs(match.id).catch(() => null)
   const i = snap?.inputs
@@ -179,12 +159,6 @@ async function buildLeadCard(match: NamedLead): Promise<GeneralAnswer> {
   }
 }
 
-/**
- * Subject Resolution V1 — explicit lead reference → lead answer. Never guesses:
- * ambiguous → disambiguation, unknown name → honest miss, weak signal → Business.
- * Routes through getLeadsByName (gotPermIds-scoped), so it can only resolve
- * leads the user may see.
- */
 async function resolveLeadSubject(text: string, user: ActingUser): Promise<GeneralAnswer | null> {
   const candidate = extractLeadCandidate(text)
   if (!candidate) return null // weak signal → Business
@@ -207,40 +181,37 @@ async function resolveAnswer(
   mode?: CopilotModeId,
   activeLeadId?: number,
 ): Promise<GeneralAnswer> {
-  // Priority 1 — Drive/file requests always win, even over a named lead
-  // ("החוזה של דנה" is a file request, not a lead lookup). Read-only file LIST.
   if (detectsDriveIntent(text)) {
     const outcome = await maybePrefetchDrive({ question: text, userId: user.id })
     if (outcome) return { kind: 'drive', data: toDriveResults(outcome) }
-    // Drive intent but search unavailable (not connected / transient error).
     return {
       kind: 'drive',
       data: { intro: 'לא הצלחתי לחפש ב-Google Drive. ודא שחיברת את החשבון.', mode: 'specific', results: [] },
     }
   }
 
-  // Priority 2 — an explicit lead reference ("מה עם דנה?") switches the subject,
-  // BEFORE classification. Default subject (Business) on null.
   const leadSubject = await resolveLeadSubject(text, user)
   if (leadSubject) return leadSubject
 
-  // Priority 3 — a recognized business intent always wins over an active lead.
+  // Known unsupported business questions are intercepted deterministically BEFORE the
+  // classifier, so the constrained LLM can't absorb them into crm.attention. Returns the
+  // exact response the fallback layer produces for that gap (same kind/mode/gap shape).
+  const knownGap = detectKnownGap(text)
+  if (knownGap) return { kind: 'fallback', mode: 'redirect', gap: knownGap }
+
   const c = await classifyGeneralIntent(text, user.agencyId, mode)
 
   if (c.intent === 'unknown' || c.confidence < GENERAL_HIGH_CONFIDENCE) {
-    // Priority 4 — route to the active lead ONLY when the question carries a lead
-    // follow-up signal (isLeadFollowup). A business-wide or junk question has no
-    // such signal → it falls through to the honest fallback, never to the lead.
     if (activeLeadId && isLeadFollowup(text)) {
       const leadFollowup = await answerAsLeadFollowup(activeLeadId, text, user, mode)
       if (leadFollowup) return leadFollowup
     }
-    return { kind: 'menu', reason: c.intent === 'unknown' ? 'unknown' : 'low-confidence' }
+    return { kind: 'fallback', ...classifyFallback(text) }
   }
 
   if (c.intent.startsWith('guide.')) {
     const g = GUIDE_ENTRIES.find((e) => e.id === c.intent)
-    if (!g) return { kind: 'menu', reason: 'unknown' }
+    if (!g) return { kind: 'fallback', mode: 'redirect', gap: null }
     return { kind: 'guide', answer: g.answer, route: g.route }
   }
 
@@ -250,7 +221,6 @@ async function resolveAnswer(
   return { kind: 'data', intent: c.intent, payload }
 }
 
-/** Deterministic, permission-scoped data handlers. No model call in this path. */
 async function runIntent(intent: string, user: ActingUser, scope: Scope) {
   switch (intent) {
     case 'followups.dueToday':
@@ -271,11 +241,9 @@ async function runIntent(intent: string, user: ActingUser, scope: Scope) {
         getOverdueTaskSummary(scope),
         getLeadsNotContactedRecently(scope),
       ])
-      // Deterministic prioritization: overdue > due-today > stale. No invented facts.
       return { overdue, dueToday, stale }
     }
     case 'system.overview': {
-      // One-line whole-system status from existing readers. NOT the briefing cards.
       const [overdue, meetings, inbox, stale, newLeads] = await Promise.all([
         getOverdueTaskSummary(scope),
         getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
@@ -298,7 +266,6 @@ async function runIntent(intent: string, user: ActingUser, scope: Scope) {
   }
 }
 
-/** Maps the read-only Drive search outcome into the renderable card shape. */
 function toDriveResults(outcome: DriveSearchOutcome): DriveResults {
   const count = outcome.results.length
   const intro =

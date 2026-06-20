@@ -34,14 +34,32 @@ beforeEach(() => {
 })
 
 describe('askGeneralQuestion — closed world', () => {
-  it('out-of-set / unknown → capability menu', async () => {
+  it('out-of-set / unknown → redirect fallback', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'unknown', confidence: 0 })
-    expect(await askGeneralQuestion('כמה עולה ביטקוין')).toEqual({ kind: 'menu', reason: 'unknown' })
+    expect(await askGeneralQuestion('כמה עולה ביטקוין')).toEqual({ kind: 'fallback', mode: 'redirect', gap: null })
   })
 
-  it('low confidence → capability menu (no guess)', async () => {
+  it('low confidence → redirect fallback (no guess)', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'tasks.overdue', confidence: 0.4 })
-    expect(await askGeneralQuestion('משהו מעורפל')).toEqual({ kind: 'menu', reason: 'low-confidence' })
+    expect(await askGeneralQuestion('משהו מעורפל')).toEqual({ kind: 'fallback', mode: 'redirect', gap: null })
+  })
+
+  it('known gap (results) → intercepted BEFORE the classifier', async () => {
+    const res = await askGeneralQuestion('כמה סגרתי החודש?')
+    expect(res).toEqual({ kind: 'fallback', mode: 'redirect', gap: 'results' })
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
+  })
+
+  it('known gap (revenue) → intercepted BEFORE the classifier', async () => {
+    const res = await askGeneralQuestion('כמה כסף עשיתי?')
+    expect(res).toEqual({ kind: 'fallback', mode: 'redirect', gap: 'revenue' })
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
+  })
+
+  it('known gap (source) → intercepted BEFORE the classifier', async () => {
+    const res = await askGeneralQuestion('מאיזה מקור מגיעים הלידים הכי טובים?')
+    expect(res).toEqual({ kind: 'fallback', mode: 'redirect', gap: 'source' })
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
   })
 
   it('guide intent → authored answer + route', async () => {

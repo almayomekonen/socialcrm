@@ -15,7 +15,7 @@ export const SYSTEM_OVERVIEW_EXAMPLES = ['מה מצב המערכת', 'מה המ�
 
 export type GeneralIntentId = BriefingIntentId | typeof SYSTEM_OVERVIEW_ID | `guide.${string}` | 'unknown'
 
-/** Hebrew example utterances per briefing intent — feeds the classifier + the menu. */
+/** Hebrew example utterances per briefing intent — feeds the classifier + the fallback chips. */
 export const BRIEFING_EXAMPLES: Record<BriefingIntentId, string[]> = {
   'followups.dueToday': ['מי צריך מעקב היום', 'מעקבים להיום', 'מי לחזור אליו היום'],
   'leads.notContactedRecently': ['מי לא דיברתי איתו מזמן', 'לידים מוזנחים', 'לידים שלא בקשר'],

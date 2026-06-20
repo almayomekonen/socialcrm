@@ -1,7 +1,7 @@
 /** Days since last interaction at/after which a lead is "not contacted recently". */
 export const STALE_DAYS = 7
 
-/** Min classifier confidence to answer in-set; below this we show the menu. */
+/** Min classifier confidence to answer in-set; below this we use the fallback. */
 export const GENERAL_HIGH_CONFIDENCE = 0.9
 
 /**

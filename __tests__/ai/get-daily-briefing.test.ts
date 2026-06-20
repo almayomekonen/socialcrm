@@ -12,6 +12,7 @@ vi.mock('@/db/briefing', () => ({
   getNewLeadsThisWeek: vi.fn(),
   getOverdueTaskSummary: vi.fn(),
   getUnreadInboxSummary: vi.fn(),
+  getPromisedButWaiting: vi.fn(async () => ({ total: 0, sample: [] })),
 }))
 vi.mock('@/lib/analytics/track', () => ({ track: vi.fn() }))
 

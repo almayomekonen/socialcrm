@@ -5,9 +5,9 @@ import type { BriefingLeadList } from '@/db/briefing'
 import { DriveResultsBody } from '../bodies/DriveResultsBody'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
-import CapabilityMenu from './CapabilityMenu'
+import SuggestionChips, { curatedSuggestions } from './SuggestionChips'
 import { formatDate } from '@/lib/dates'
-import { unansweredMessage } from '@/lib/copilot/general/unansweredMessage'
+import { fallbackCopy } from '@/lib/copilot/general/fallback'
 import { attentionAllClear } from '@/lib/copilot/general/attentionState'
 import { buildAttentionDecision } from '@/lib/copilot/general/attentionDecision'
 
@@ -110,17 +110,20 @@ export default function AnswerView({
   answer,
   onPick,
   onPickLead,
+  interactive = true,
 }: {
   answer: GeneralAnswer
   onPick: (text: string) => void
   onPickLead: (leadId: number, label: string) => void
+  interactive?: boolean
 }) {
-  if (answer.kind === 'menu') {
-   
+  if (answer.kind === 'fallback') {
+    const msg = fallbackCopy(answer)
+    if (answer.mode === 'ack') return <p className='text-[13px] text-gray-700'>{msg}</p>
     return (
       <div className='space-y-2'>
-        <p className='text-[13px] text-gray-700'>{unansweredMessage(answer.reason)}</p>
-        <CapabilityMenu onPick={onPick} />
+        <p className='text-[13px] text-gray-700'>{msg}</p>
+        <SuggestionChips items={curatedSuggestions()} onPick={onPick} disabled={!interactive} />
       </div>
     )
   }
@@ -189,6 +192,7 @@ export default function AnswerView({
             <button
               key={c.leadId}
               type='button'
+              disabled={!interactive}
               onClick={() => onPickLead(c.leadId, c.label)}
               className='rounded-full border border-gray-200 px-2.5 py-1 text-[12px] text-gray-700 transition-colors hover:bg-gray-50'
             >
