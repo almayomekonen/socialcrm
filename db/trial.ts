@@ -62,3 +62,105 @@ export async function recordWelcomeModalSeen(agencyId: number, userId?: number |
   await track({ agencyId, userId, event: 'desktop_first_access' })
   await track({ agencyId, userId, event: 'welcome_modal_shown' })
 }
+
+/**
+ * Cross-tenant read for the platform-owner /admin dashboard. Returns the raw
+ * trial fields per agency plus a connected-user count and the agency's admin
+ * contact — status/daysRemaining are NOT computed here on purpose: the page
+ * derives them with getTrialState() (the same pure function the live gate
+ * uses), so the dashboard can never drift from what users actually experience.
+ *
+ * Read-only. Two flat selects aggregated in memory (no per-agency N+1, no
+ * fragile GROUP BY over a text column). Owner-gated at the route.
+ */
+export type AdminAgencyTrial = {
+  agencyId: number
+  agencyName: string | null
+  plan: 'free' | 'pro'
+  trialExempt: boolean
+  trialStartedAt: Date | string | null
+  trialEndsAt: Date | string | null
+  userCount: number
+  adminName: string | null
+  adminEmail: string | null
+}
+
+export async function listAgencyTrialsForAdmin(): Promise<AdminAgencyTrial[]> {
+  const [agencies, users] = await Promise.all([
+    db('agencies').select('id', 'name', 'plan', 'trialExempt', 'trialStartedAt', 'trialEndsAt'),
+    db('users').select('agencyId', 'name', 'email', 'role'),
+  ])
+
+  const byAgency = new Map<number, { count: number; admin?: { name: string; email: string } }>()
+  for (const u of users) {
+    if (u.agencyId == null) continue
+    const entry = byAgency.get(u.agencyId) ?? { count: 0 }
+    entry.count += 1
+    // First ADMIN/GM encountered is treated as the workspace contact.
+    if (!entry.admin && (u.role === 'ADMIN' || u.role === 'GM')) {
+      entry.admin = { name: u.name, email: u.email }
+    }
+    byAgency.set(u.agencyId, entry)
+  }
+
+  return agencies.map((a) => {
+    const agg = byAgency.get(a.id)
+    return {
+      agencyId: a.id,
+      agencyName: a.name ?? null,
+      plan: a.plan,
+      trialExempt: a.trialExempt,
+      trialStartedAt: a.trialStartedAt,
+      trialEndsAt: a.trialEndsAt,
+      userCount: agg?.count ?? 0,
+      adminName: agg?.admin?.name ?? null,
+      adminEmail: agg?.admin?.email ?? null,
+    }
+  })
+}
+
+/**
+ * Invited-but-not-yet-registered people for the /admin dashboard. They live in
+ * `invitations` (not `users`) until they complete Google sign-up, so the agency
+ * reader above never sees them. There is no `status` column: acceptance DELETES
+ * the invitation row (api/invitation), so every row here is outstanding by
+ * definition — expiry is derived from expiresAt. Read-only, owner-gated.
+ */
+export type AdminPendingInvite = {
+  id: number
+  email: string
+  name: string
+  role: string
+  agencyId: number
+  agencyName: string | null
+  expiresAt: Date | string | null
+  createdAt: Date | string | null
+}
+
+export async function listPendingInvitesForAdmin(): Promise<AdminPendingInvite[]> {
+  const rows = await db('invitations as i')
+    .leftJoin('agencies as a', 'a.id', 'i.agencyId')
+    .select(
+      'i.id',
+      'i.email',
+      'i.firstName',
+      'i.lastName',
+      'i.role',
+      'i.agencyId',
+      'i.expiresAt',
+      'i.createdAt',
+      'a.name as agencyName',
+    )
+    .orderBy('i.createdAt', 'desc')
+
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    name: [r.firstName, r.lastName].filter(Boolean).join(' ').trim() || r.email,
+    role: r.role,
+    agencyId: r.agencyId,
+    agencyName: r.agencyName ?? null,
+    expiresAt: r.expiresAt,
+    createdAt: r.createdAt,
+  }))
+}

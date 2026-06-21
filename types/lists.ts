@@ -43,6 +43,20 @@ export const DEAL_STATUS_OPTIONS = STATUS_LIST.map((value) => ({
   label: DEAL_STATUS_DISPLAY_MAP[value] ?? value,
 }))
 
+// Pill colors for the deals status selector. Mirrors the leads palette in
+// components/clients/LeadStatusCell.tsx so both surfaces read identically:
+// חדש→blue (new), בטיפול→yellow (contacted), סגור→gray (closed), אבוד→red (lost).
+export const DEAL_STATUS_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  'חדש':    { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200' },
+  'בטיפול': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+  'סגור':   { bg: 'bg-gray-100',  text: 'text-gray-600',   border: 'border-gray-200' },
+  'אבוד':   { bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200' },
+}
+
+export function dealStatusStyle(status: string | null | undefined) {
+  return DEAL_STATUS_STYLES[displayStatus(status)] ?? DEAL_STATUS_STYLES['חדש']
+}
+
 export const COMPANIES = ['ללא ספק', 'אחר']
 
 export const PRDCT_TYPES = ['העברה', 'תשלום חודשי', 'תשלום חד פעמי']

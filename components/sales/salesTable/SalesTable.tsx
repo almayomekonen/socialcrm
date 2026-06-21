@@ -10,7 +10,7 @@ import { redirect } from 'next/navigation'
 import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
 import TableFooter from '@/lib/table/TableFooter'
 import { Select } from '@/lib/form'
-import { DEAL_STATUS_OPTIONS, normalizeStatus } from '@/types/lists'
+import { DEAL_STATUS_OPTIONS, normalizeStatus, dealStatusStyle } from '@/types/lists'
 import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './funcs'
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
@@ -141,6 +141,7 @@ export default function SalesTable({ props }: SaleTableProps) {
   ) : null
 
   function selectStatus(status, item) {
+    const s = dealStatusStyle(status)
     return (
       <Select
         key={item.id}
@@ -156,7 +157,7 @@ export default function SalesTable({ props }: SaleTableProps) {
         options={DEAL_STATUS_OPTIONS}
         val='value'
         show='label'
-        className='min-w-28'
+        className={`min-w-28 ${s.bg} ${s.text} ${s.border}`}
       />
     )
   }

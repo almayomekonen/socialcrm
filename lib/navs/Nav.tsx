@@ -10,7 +10,7 @@ import { UserNAgency } from './Topbar'
 import { twMerge } from 'tailwind-merge'
 import Icon, { IconNames } from '@/lib/Icon'
 
-export default function Nav({ user, inboxUnread = 0 }) {
+export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
   const pathname = usePathname()
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function Nav({ user, inboxUnread = 0 }) {
             </button>
           </div>
           <nav className='mt-8 p-8'>
-            {getNavLinks(user, inboxUnread).map((link, i) => {
+            {getNavLinks(user, inboxUnread, isOwner).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -75,7 +75,7 @@ export default function Nav({ user, inboxUnread = 0 }) {
       >
         <nav className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
           <div className='w-full'>
-            {getNavLinks(user, inboxUnread).map((link, i) => {
+            {getNavLinks(user, inboxUnread, isOwner).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -119,7 +119,7 @@ function NavBadge({ count }: { count: number }) {
   )
 }
 
-function getNavLinks(user, inboxUnread = 0) {
+function getNavLinks(user, inboxUnread = 0, isOwner = false) {
   if (!user) return []
   const admin = isAdmin(user.role)
   const notOffice = user.role !== Roles.OFFICE
@@ -137,5 +137,7 @@ function getNavLinks(user, inboxUnread = 0) {
     notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
     notOffice && { icon: 'calendar', href: '/calendar', title: 'פגישות' },
     notOffice && { icon: 'gear', href: '/settings/self_edit', title: 'הגדרות' },
+    // Platform-owner only (allowlisted email, resolved server-side in the layout).
+    isOwner && { icon: 'crown', href: '/admin', title: 'ניהול מערכת' },
   ] as { icon: IconNames; href: Route; title: string; badge?: number }[]
 }

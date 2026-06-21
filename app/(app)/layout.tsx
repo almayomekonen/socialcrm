@@ -17,6 +17,7 @@ import MobileBlockAccount from '@/components/layout/MobileBlockAccount'
 import { redirect } from 'next/navigation'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
+import { isPlatformOwner } from '@/lib/auth/platformOwner'
 import { track } from '@/lib/analytics/track'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
@@ -67,7 +68,7 @@ async function LayoutContent({ children }) {
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <Topbar user={user} />
               <WorkspaceGrid>
-                <Nav user={user} inboxUnread={inboxUnread} />
+                <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
                 <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>{children}</main>
                 <CopilotShell generalModeEnabled={generalModeEnabled} />
               </WorkspaceGrid>
