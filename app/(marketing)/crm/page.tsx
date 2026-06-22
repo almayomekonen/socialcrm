@@ -3,62 +3,12 @@ import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import { FAQ } from '@/components/ui/faq-tabs'
-import { HeroSection } from '@/components/ui/hero-section'
-import type { HeroSectionComponentData } from '@/components/ui/hero-section'
+import { HeroSection } from '@/components/ui/hero/HeroSection'
 import { Features7Section, OrbitalFeaturesSection, HowItWorksSection, StatsSection, LeadSourcesSection, FinalCTA } from '@/components/seo/CRMSections'
 import dynamic from 'next/dynamic'
 
 const TestimonialsSection = dynamic(() => import('@/components/seo/CRMSections').then(m => ({ default: m.TestimonialsSection })))
 import { AnimatedCta } from '@/components/ui/animated-cta'
-
-const heroData: HeroSectionComponentData = {
-  heroContent: {
-    subheadline: 'SocialCRM ניהול לידים חכם לעסקים',
-    headline: (
-      <>
-        <span className='text-blue-600'>SocialCRM</span> ניהול לידים במקום אחד
-      </>
-    ),
-    description: 'SocialCRM היא מערכת לניהול לידים מוואטסאפ, אינסטגרם ופייסבוק במקום אחד.',
-    secondaryCtaText: "צפה בפיצ'רים",
-    secondaryCtaLink: '/features',
-    primaryCtaText: 'התחל לנהל לידים בחינם',
-    primaryCtaLink: '/auth/register',
-  },
-  appPreview: {
-    headerControls: {
-      filters: [
-        { label: 'נציג', icon: 'user', dropdown: true },
-        { label: 'סטטוס', icon: 'info', dropdown: true },
-        { label: 'תאריך', icon: 'calendar', dropdown: true },
-        { label: 'מקור', icon: 'folder', dropdown: true },
-      ],
-      actions: [
-        { type: 'button-outline', text: 'ייבוא מאקסל', icon: 'upload' },
-        { type: 'button-primary', text: 'הוסף ליד', icon: 'plus' },
-      ],
-    },
-    appDataTable: {
-      headers: [
-        { id: 'name', label: 'שם הליד', icon: 'document' },
-        { id: 'assignee', label: 'נציג', icon: 'user' },
-        { id: 'status', label: 'סטטוס', icon: 'info' },
-        { id: 'dueDate', label: 'תאריך פנייה', icon: 'calendar' },
-        { id: 'project', label: 'מקור', icon: 'folder' },
-        { id: 'phone', label: 'טלפון', icon: 'user' },
-      ],
-      data: [
-        { id: 1, name: 'דני לוי', assignee: ['יוסי כהן'], status: 'סגור', dueDate: '26/03/2026', project: 'פייסבוק', statusColor: 'green', phone: '050-1234567' },
-        { id: 2, name: 'מיכל אברהם', assignee: ['רחל גולן'], status: 'בטיפול', dueDate: '25/03/2026', project: 'אינסטגרם', statusColor: 'blue', phone: '052-9876543' },
-        { id: 3, name: 'אבי שרון', assignee: ['יוסי כהן'], status: 'ממתין למענה', dueDate: '24/03/2026', project: 'וואטסאפ', statusColor: 'yellow', phone: '054-4561230' },
-        { id: 4, name: 'שרה פרץ', assignee: ['רחל גולן'], status: 'חדש', dueDate: '26/03/2026', project: 'פייסבוק', statusColor: 'blue', phone: '053-7654321' },
-        { id: 5, name: 'נועם ביטון', assignee: ['יוסי כהן'], status: 'אבוד', dueDate: '20/03/2026', project: 'וואטסאפ', statusColor: 'gray', phone: '058-3219870' },
-        { id: 6, name: 'תמר כץ', assignee: ['רחל גולן'], status: 'חדש', dueDate: '27/03/2026', project: 'אינסטגרם', statusColor: 'blue', phone: '050-6543210' },
-        { id: 7, name: 'רון אלון', assignee: ['יוסי כהן'], status: 'בטיפול', dueDate: '26/03/2026', project: 'פייסבוק', statusColor: 'blue', phone: '052-1237890' },
-      ],
-    },
-  },
-}
 
 export const metadata = buildPageMetadata({
   path: '/crm',
@@ -167,7 +117,7 @@ export default function CRMPage() {
       <JsonLd data={faqSchema} />
 
       <MarketingLayout>
-        <HeroSection data={heroData} />
+        <HeroSection />
         <Features7Section />
         <OrbitalFeaturesSection />
         <HowItWorksSection />
