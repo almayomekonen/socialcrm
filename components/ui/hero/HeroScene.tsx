@@ -49,12 +49,11 @@ function FloatCard({ children, className, baseRot, delay, floatY, reduce }: Floa
   )
 }
 
-// The hero visual: a single-silhouette cluster of product cards, with large,
-// low-weight platform glyphs floating around it like the sources the leads come
-// from. The cards overlap tightly and share material/shadow so, zoomed out, they
-// read as one object — HubCard is the focal point, DealWonCard the emphasized
-// payoff. No arrows, no flow lines; depth (scale, z, rotation, overlap) carries
-// the story.
+// The hero visual: a single-silhouette cluster of product cards, with low-weight
+// platform glyphs tucked behind their lead cards as integrated source markers.
+// The cards overlap tightly and share material/shadow so, zoomed out, they read
+// as one object — HubCard is the focal point, DealWonCard the emphasized payoff.
+// No arrows, no flow lines; depth (scale, z, rotation, overlap) carries the story.
 export function HeroScene() {
   const reduce = useReducedMotion() ?? false
 
@@ -62,24 +61,24 @@ export function HeroScene() {
     <div className='relative mx-auto aspect-[4/5] w-full max-w-[440px] sm:aspect-square'>
       <SceneBackdrop />
 
-      {/* Ambient platform sources — float behind the cards (z-[5]), near the lead
-          card they feed. Low opacity, large, never attached to a card. The two
-          trailing ones drop on small screens alongside their cards. */}
-      <FloatCard className='right-[4%] top-[-2%] z-[5]' baseRot={-8} delay={0.1} floatY={10} reduce={reduce}>
+      {/* Platform sources — integrated source markers tucked partially behind the
+          lead card they feed (z-5, behind the cards), each peeking out one edge
+          with a soft glow so it's visible at a glance. The two trailing ones drop
+          on small screens alongside their cards. */}
+      <FloatCard className='right-[-1%] top-[-5%] z-5' baseRot={-8} delay={0.1} floatY={9} reduce={reduce}>
         <PlatformIcon platform='whatsapp' size={72} />
       </FloatCard>
       <FloatCard
-        className='left-[-4%] top-[30%] z-[5] hidden sm:block'
+        className='left-[-3%] top-[13%] z-5 hidden sm:block'
         baseRot={7}
         delay={0.18}
-        floatY={11}
+        floatY={10}
         reduce={reduce}
       >
         <PlatformIcon platform='instagram' size={64} />
       </FloatCard>
-      {/* Facebook glyph tucked just behind the right edge of its lead card */}
       <FloatCard
-        className='right-[-3%] top-[30%] z-[5] hidden sm:block'
+        className='right-[-1%] top-[25%] z-5 hidden sm:block'
         baseRot={-5}
         delay={0.24}
         floatY={9}
