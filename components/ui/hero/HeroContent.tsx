@@ -27,7 +27,7 @@ export function HeroContent() {
       </h1>
 
       <p className='mt-6 max-w-md text-lg text-gray-600'>
-        אוספים לידים מכל ערוץ, עוקבים בזמן וסוגרים יותר עסקאות — עם SocialCRM.
+        אוספים לידים מכל ערוץ, עוקבים בזמן וסוגרים יותר עסקאות עם SocialCRM.
       </p>
 
       <div className='mt-8 flex flex-wrap items-center gap-3'>
