@@ -50,6 +50,7 @@ export async function insertSale(data: saleObj) {
   revalidatePath('/deals')
   revalidatePath('/clients')
   revalidatePath('/leads')
+  revalidatePath('/sum_sales')
 }
 
 export async function isPrdctsExists(sale): Promise<any> {

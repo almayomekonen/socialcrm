@@ -97,6 +97,7 @@ export async function deleteDeals(ids: number[]) {
     user.agencyId,
   )
   revalidatePath('/deals')
+  revalidatePath('/sum_sales')
   return deleted
 }
 
@@ -112,6 +113,7 @@ export async function deleteManyDeals(ids: number[]): Promise<DeleteManyDealsRes
 
   const deleted = await hardDeleteSales(ownedIds, user.agencyId)
   revalidatePath('/deals')
+  revalidatePath('/sum_sales')
   return { deleted, skipped: ids.length - deleted }
 }
 
@@ -123,6 +125,7 @@ export async function deleteDeal(id: number) {
   const deleted = await hardDeleteSales([id], user.agencyId)
 
   revalidatePath('/deals')
+  revalidatePath('/sum_sales')
   return deleted
 }
 
@@ -130,6 +133,7 @@ export async function updateDealDt(dealId: number, saleDt: string) {
   const user = await requireUser()
   await db('sales').where({ id: dealId, agencyId: user.agencyId }).update({ saleDt })
   revalidatePath('/deals')
+  revalidatePath('/sum_sales')
 }
 
 // עדכון סטטוס לעסקאות
@@ -139,6 +143,7 @@ export async function updateDealStatus(dealId: number, status: string) {
   if (status === 'הופק') obj.saleDt = toIso(new Date())
   await db('sales').where({ id: dealId, agencyId: user.agencyId }).update(obj)
   revalidatePath('/deals')
+  revalidatePath('/sum_sales')
 }
 
 // עדכון סטטוס לעסקאות
@@ -146,6 +151,7 @@ export async function updateManyDealStatus(dealIds: number[], status: string) {
   const user = await requireUser()
   const res = await db('sales').whereIn('id', dealIds).where({ agencyId: user.agencyId }).update({ status })
   revalidatePath('/deals')
+  revalidatePath('/sum_sales')
   return res
 }
 
