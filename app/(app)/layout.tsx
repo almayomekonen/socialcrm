@@ -17,6 +17,7 @@ import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import MobileBlock from '@/components/layout/MobileBlock'
 import MobileBlockAccount from '@/components/layout/MobileBlockAccount'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
@@ -45,11 +46,19 @@ async function LayoutContent({ children }) {
   }
 
   // Platform owners are never gated by the trial — they run the app, not a tenant.
-  const trialExpired = trialStatus === 'TRIAL_EXPIRED' && !isPlatformOwner(user.email)
+  const owner = isPlatformOwner(user.email)
+  // Owner-only preview escape hatch: lets the owner force-render the paywall to
+  // inspect it despite the exemption. Set in the browser console with
+  //   document.cookie = 'preview_paywall=1;path=/'
+  // and clear it with
+  //   document.cookie = 'preview_paywall=;path=/;max-age=0'
+  const previewPaywall = owner && (await cookies()).get('preview_paywall')?.value === '1'
+  const trialExpired = (trialStatus === 'TRIAL_EXPIRED' && !owner) || previewPaywall
   let leadPreview = { total: 0, names: [] as string[] }
   if (trialExpired) {
     // Lazy one-time emission; deduped by the DB index, track never throws.
-    await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
+    // Skip for the owner preview so it doesn't pollute analytics.
+    if (!previewPaywall) await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
     // Real lead count + a few names for the paywall card, scoped to what this
     // user is permitted to see. Fail-open to empty so the gate still renders.
     try {
