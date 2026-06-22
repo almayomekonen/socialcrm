@@ -9,6 +9,14 @@ const TINT: Record<Platform, string> = {
   facebook: 'rgba(24,119,242,0.38)',
 }
 
+// Mobile variant — the cluster is tighter and the glyphs read smaller, so they
+// need more presence to stay recognizable at a glance.
+const TINT_STRONG: Record<Platform, string> = {
+  whatsapp: 'rgba(37,211,102,0.62)',
+  instagram: 'rgba(225,48,108,0.58)',
+  facebook: 'rgba(24,119,242,0.58)',
+}
+
 // A faint blurred halo behind the glyph so it stays legible where it peeks out
 // from behind its lead card — kept light/tight so it never washes out the shape.
 const GLOW: Record<Platform, string> = {
@@ -21,9 +29,11 @@ interface PlatformIconProps {
   platform: Platform
   /** Rendered size in px. */
   size?: number
+  /** Higher-opacity tint for the tighter mobile composition. */
+  strong?: boolean
 }
 
-export function PlatformIcon({ platform, size = 88 }: PlatformIconProps) {
+export function PlatformIcon({ platform, size = 88, strong = false }: PlatformIconProps) {
   const src = `/media/social-icons/${platform}.svg`
   return (
     <div aria-hidden='true' className='relative' style={{ width: size, height: size }}>
@@ -34,7 +44,7 @@ export function PlatformIcon({ platform, size = 88 }: PlatformIconProps) {
       <div
         className='absolute inset-0'
         style={{
-          backgroundColor: TINT[platform],
+          backgroundColor: (strong ? TINT_STRONG : TINT)[platform],
           maskImage: `url(${src})`,
           WebkitMaskImage: `url(${src})`,
           maskRepeat: 'no-repeat',

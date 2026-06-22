@@ -11,20 +11,13 @@ import { DealWonCard } from './scenes/DealWonCard'
 
 interface FloatCardProps {
   children: ReactNode
-  /** Absolute-position + z-index utilities placing the item in the cluster. */
   className: string
-  /** Base tilt in degrees — depth cue, no arrows. */
   baseRot: number
-  /** Reveal stagger delay (seconds). */
   delay: number
-  /** Continuous float amplitude (px). Kept small so the cluster moves as one. */
   floatY: number
   reduce: boolean
 }
 
-// Outer motion.div: places + reveals the item (opacity/scale + base rotate).
-// Inner motion.div: gentle continuous float (y only, so it never fights the
-// base rotate). Disabled entirely under prefers-reduced-motion.
 function FloatCard({ children, className, baseRot, delay, floatY, reduce }: FloatCardProps) {
   return (
     <motion.div
@@ -49,23 +42,20 @@ function FloatCard({ children, className, baseRot, delay, floatY, reduce }: Floa
   )
 }
 
-// The hero visual: a single-silhouette cluster of product cards, with low-weight
-// platform glyphs tucked behind their lead cards as integrated source markers.
-// The cards overlap tightly and share material/shadow so, zoomed out, they read
-// as one object — HubCard is the focal point, DealWonCard the emphasized payoff.
-// No arrows, no flow lines; depth (scale, z, rotation, overlap) carries the story.
 export function HeroScene() {
   const reduce = useReducedMotion() ?? false
 
   return (
-    <div className='relative mx-auto aspect-[4/5] w-full max-w-[440px] sm:aspect-square'>
+    <div className='relative mx-auto h-[330px] w-full max-w-[440px] sm:h-auto sm:aspect-square'>
       <SceneBackdrop />
 
-      {/* Platform sources — integrated source markers tucked partially behind the
-          lead card they feed (z-5, behind the cards), each peeking out one edge
-          with a soft glow so it's visible at a glance. The two trailing ones drop
-          on small screens alongside their cards. */}
-      <FloatCard className='right-[-3%] top-[-8%] z-5' baseRot={-8} delay={0.1} floatY={9} reduce={reduce}>
+      <FloatCard
+        className='right-[-3%] top-[-8%] z-5 hidden sm:block'
+        baseRot={-8}
+        delay={0.1}
+        floatY={9}
+        reduce={reduce}
+      >
         <PlatformIcon platform='whatsapp' size={72} />
       </FloatCard>
       <FloatCard
@@ -87,9 +77,23 @@ export function HeroScene() {
         <PlatformIcon platform='facebook' size={68} />
       </FloatCard>
 
-      {/* Incoming channel leads — fanned across the top, tightly overlapping. The
-          two trailing ones drop on small screens so the cluster stays legible. */}
-      <FloatCard className='right-[3%] top-[3%] z-20' baseRot={4} delay={0.14} floatY={5} reduce={reduce}>
+      <FloatCard className='left-[2%] top-[8%] z-10 sm:hidden' baseRot={-8} delay={0.1} floatY={8} reduce={reduce}>
+        <PlatformIcon platform='whatsapp' size={54} strong />
+      </FloatCard>
+      <FloatCard className='right-[2%] top-[8%] z-10 sm:hidden' baseRot={8} delay={0.16} floatY={9} reduce={reduce}>
+        <PlatformIcon platform='facebook' size={52} strong />
+      </FloatCard>
+      <FloatCard className='left-[4%] top-[72%] z-10 sm:hidden' baseRot={6} delay={0.22} floatY={8} reduce={reduce}>
+        <PlatformIcon platform='instagram' size={52} strong />
+      </FloatCard>
+
+      <FloatCard
+        className='left-1/2 top-[6%] z-20 -translate-x-1/2 sm:left-auto sm:right-[3%] sm:top-[3%] sm:translate-x-0'
+        baseRot={4}
+        delay={0.14}
+        floatY={5}
+        reduce={reduce}
+      >
         <NewLeadRow channel='whatsapp' name='דני לוי' message='היי, מעוניין בפרטים' />
       </FloatCard>
       <FloatCard
@@ -111,9 +115,8 @@ export function HeroScene() {
         <NewLeadRow channel='facebook' name='שרה פרץ' message='טופס ליד חדש' />
       </FloatCard>
 
-      {/* Focal point — largest, centered, sits over the channel cards' lower edges */}
       <FloatCard
-        className='left-1/2 top-[38%] z-40 -translate-x-1/2'
+        className='left-1/2 top-[23%] z-40 -translate-x-1/2 sm:top-[38%]'
         baseRot={0}
         delay={0}
         floatY={4}
@@ -122,13 +125,23 @@ export function HeroScene() {
         <HubCard />
       </FloatCard>
 
-      {/* Held follow-up — overlaps the hub's lower-left */}
-      <FloatCard className='left-[2%] top-[60%] z-30' baseRot={-3} delay={0.36} floatY={6} reduce={reduce}>
+      <FloatCard
+        className='left-1/2 top-[50%] z-30 -translate-x-1/2 sm:left-[2%] sm:top-[60%] sm:translate-x-0'
+        baseRot={-3}
+        delay={0.36}
+        floatY={6}
+        reduce={reduce}
+      >
         <ReminderCard />
       </FloatCard>
 
-      {/* Payoff — forward, highest elevation, pulled close under the hub */}
-      <FloatCard className='bottom-[16%] right-[6%] z-50' baseRot={3} delay={0.44} floatY={5} reduce={reduce}>
+      <FloatCard
+        className='left-1/2 top-[68%] z-50 -translate-x-1/2 sm:left-auto sm:top-auto sm:bottom-[16%] sm:right-[6%] sm:translate-x-0'
+        baseRot={3}
+        delay={0.44}
+        floatY={5}
+        reduce={reduce}
+      >
         <DealWonCard />
       </FloatCard>
     </div>
