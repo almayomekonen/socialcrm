@@ -3,6 +3,7 @@
 import { Check } from 'lucide-react'
 import { Btn } from '@/lib/btns/Btn'
 import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
+import LeadEntryToasts from './LeadEntryToasts'
 
 const PRO_BENEFITS = ['AI ללא הגבלה במצב מהיר ובמצב חכם', 'היסטוריית AI מלאה לכל ליד', 'ניסוח הודעות, המלצות וצעדים הבאים']
 
@@ -12,14 +13,16 @@ type Props = {
 }
 
 export default function TrialExpiredScreen({ leadCount = 0, leadNames = [] }: Props) {
-  const hasLeads = leadCount > 0 && leadNames.length > 0
-  const remaining = leadCount - leadNames.length
+  const hasLeads = leadCount > 0
 
   return (
-    <div className='fixed inset-0 z-99999 flex items-center justify-center p-4 bg-gray-950/25 backdrop-blur-sm anim-fade-in'>
+    <div className='fixed inset-0 z-99999 flex items-center justify-center p-4 bg-gray-950/20 backdrop-blur-[2px] anim-fade-in'>
+      {/* Live lead toasts over the blurred dashboard, behind the card. */}
+      <LeadEntryToasts names={leadNames} />
+
       <div
         dir='rtl'
-        className='flex flex-col gap-6 w-full max-w-[440px] bg-gray-900 rounded-2xl p-8 shadow-2xl shadow-gray-900/40'
+        className='relative z-10 flex flex-col gap-6 w-full max-w-[440px] bg-gray-900 rounded-2xl p-8 shadow-2xl shadow-gray-900/40'
       >
         <div>
           <span className='inline-block text-xs font-bold px-3 py-1 bg-white text-gray-900 rounded-full'>Pro</span>
@@ -29,26 +32,12 @@ export default function TrialExpiredScreen({ leadCount = 0, leadNames = [] }: Pr
           <p className='text-sm text-white/70 mt-2 leading-relaxed'>
             הלידים והנתונים שלך נשמרו בדיוק כפי שהשארת אותם. כדי להמשיך לעבוד יש לשדרג.
           </p>
+          {hasLeads && (
+            <p className='text-sm text-white/80 mt-3'>
+              <span className='font-bold text-white'>{leadCount}</span> לידים ממתינים לחזרה שלך
+            </p>
+          )}
         </div>
-
-        {hasLeads && (
-          <div className='flex flex-col gap-1.5'>
-            {leadNames.map((name, i) => (
-              <div
-                key={`${name}-${i}`}
-                className='flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2 anim-fade-scale-in'
-                style={{ ['--anim-duration' as string]: '0.4s', animationDelay: `${i * 110}ms`, animationFillMode: 'backwards' }}
-              >
-                <span className='grid size-7 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white/80'>
-                  {name.trim().charAt(0)}
-                </span>
-                <span className='truncate text-sm text-white/90'>{name}</span>
-                <span className='ms-auto size-1.5 shrink-0 rounded-full bg-emerald-400/80' aria-hidden='true' />
-              </div>
-            ))}
-            {remaining > 0 && <p className='text-xs text-white/50 px-1'>ועוד {remaining} לידים ממתינים לחזרה שלך</p>}
-          </div>
-        )}
 
         <div>
           <p className='text-4xl font-extrabold text-white'>

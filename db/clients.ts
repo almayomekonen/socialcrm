@@ -81,7 +81,7 @@ export async function getTrialPreviewLeads(
 
   const rows = await q
     .orderBy('updatedAt', 'desc')
-    .limit(4)
+    .limit(6)
     .select('name', 'firstName', 'lastName', db.raw('COUNT(*) OVER()::int as total'))
 
   const total = rows.length ? Number(rows[0].total) : 0
