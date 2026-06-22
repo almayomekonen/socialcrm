@@ -88,7 +88,7 @@ export function HeroScene() {
       </FloatCard>
 
       <FloatCard
-        className='left-1/2 top-[6%] z-20 -translate-x-1/2 sm:left-auto sm:right-[3%] sm:top-[3%] sm:translate-x-0'
+        className='left-1/2 top-0 z-20 -translate-x-1/2 sm:left-auto sm:right-[3%] sm:top-[3%] sm:translate-x-0'
         baseRot={4}
         delay={0.14}
         floatY={5}
@@ -116,7 +116,7 @@ export function HeroScene() {
       </FloatCard>
 
       <FloatCard
-        className='left-1/2 top-[23%] z-40 -translate-x-1/2 sm:top-[38%]'
+        className='left-1/2 top-[17%] z-40 -translate-x-1/2 sm:top-[38%]'
         baseRot={0}
         delay={0}
         floatY={4}
@@ -126,7 +126,7 @@ export function HeroScene() {
       </FloatCard>
 
       <FloatCard
-        className='left-1/2 top-[50%] z-30 -translate-x-1/2 sm:left-[2%] sm:top-[60%] sm:translate-x-0'
+        className='left-1/2 top-[44%] z-30 -translate-x-1/2 sm:left-[2%] sm:top-[60%] sm:translate-x-0'
         baseRot={-3}
         delay={0.36}
         floatY={6}
@@ -136,7 +136,7 @@ export function HeroScene() {
       </FloatCard>
 
       <FloatCard
-        className='left-1/2 top-[68%] z-50 -translate-x-1/2 sm:left-auto sm:top-auto sm:bottom-[16%] sm:right-[6%] sm:translate-x-0'
+        className='left-1/2 top-[62%] z-50 -translate-x-1/2 sm:left-auto sm:top-auto sm:bottom-[16%] sm:right-[6%] sm:translate-x-0'
         baseRot={3}
         delay={0.44}
         floatY={5}
