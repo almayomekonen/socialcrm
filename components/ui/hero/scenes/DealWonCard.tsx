@@ -4,9 +4,9 @@ export function DealWonCard() {
   return (
     <div
       dir='rtl'
-      className='flex w-52 items-center gap-3 rounded-2xl border border-emerald-200/70 bg-linear-to-br from-emerald-50 to-white p-3.5 shadow-[0_14px_40px_rgba(16,185,129,0.18)]'
+      className='flex w-56 items-center gap-3 rounded-2xl bg-linear-to-br from-emerald-50 to-white p-4 ring-1 ring-emerald-300/60 shadow-[0_22px_55px_rgba(16,185,129,0.28)]'
     >
-      <span className='flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500'>
+      <span className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-emerald-600 shadow-sm'>
         <Icon name='circle-check' className='size-5 bg-white' />
       </span>
       <div className='min-w-0 flex-1'>

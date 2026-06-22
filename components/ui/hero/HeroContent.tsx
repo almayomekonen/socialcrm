@@ -1,12 +1,11 @@
 import Link from 'next/link'
 
-const CHANNELS = ['וואטסאפ', 'פייסבוק', 'אינסטגרם', 'טיקטוק']
+const CHANNELS = ['וואטסאפ', 'פייסבוק', 'אינסטגרם']
 
-// Hero text column: the promise, then one clear next step.
 export function HeroContent() {
   return (
     <div dir='rtl' className='flex flex-col items-start text-right'>
-      {/* Eyebrow — the channels we cover, as quiet pills (text-labelled, no icons) */}
+
       <div className='mb-6 flex flex-wrap gap-2'>
         {CHANNELS.map((channel) => (
           <span
@@ -27,7 +26,7 @@ export function HeroContent() {
       </h1>
 
       <p className='mt-6 max-w-md text-lg text-gray-600'>
-        אוספים לידים מכל ערוץ, עוקבים בזמן וסוגרים יותר עסקאות עם SocialCRM.
+        כל הלידים מוואטסאפ, פייסבוק ואינסטגרם מרוכזים אצלכם, עוקבים בזמן וסוגרים יותר עסקאות.
       </p>
 
       <div className='mt-8 flex flex-wrap items-center gap-3'>
