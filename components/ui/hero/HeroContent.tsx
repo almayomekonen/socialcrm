@@ -17,7 +17,7 @@ export function HeroContent() {
         ))}
       </div>
 
-      <h1 className='text-[2.65rem] font-black leading-[1.03] text-gray-900 sm:text-4xl sm:leading-[1.1] md:text-6xl'>
+      <h1 className='text-[3.65rem] font-black leading-[1.03] text-gray-900 sm:text-4xl sm:leading-[1.1] md:text-6xl'>
         כל ליד.
         <br />
         במקום אחד.
