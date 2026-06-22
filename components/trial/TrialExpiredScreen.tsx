@@ -8,10 +8,10 @@ const PRO_BENEFITS = ['AI ללא הגבלה במצב מהיר ובמצב חכם'
 
 export default function TrialExpiredScreen() {
   return (
-    <div className='flex h-dvh items-center justify-center bg-gray-50 p-4'>
+    <div className='fixed inset-0 z-99999 flex items-center justify-center p-4 bg-gray-950/30 backdrop-blur-md anim-fade-in'>
       <div
         dir='rtl'
-        className='flex flex-col gap-6 w-full max-w-[440px] bg-gray-900 rounded-2xl p-8 shadow-2xl shadow-gray-900/20'
+        className='flex flex-col gap-6 w-full max-w-[440px] bg-gray-900 rounded-2xl p-8 shadow-2xl shadow-gray-900/40'
       >
         <div>
           <span className='inline-block text-xs font-bold px-3 py-1 bg-white text-gray-900 rounded-full'>Pro</span>

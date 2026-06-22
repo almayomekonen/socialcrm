@@ -42,10 +42,10 @@ async function LayoutContent({ children }) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
   }
 
-  if (trialStatus === 'TRIAL_EXPIRED') {
+  const trialExpired = trialStatus === 'TRIAL_EXPIRED'
+  if (trialExpired) {
     // Lazy one-time emission; deduped by the DB index, track never throws.
     await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
-    return <TrialExpiredScreen />
   }
 
   const copilotEnabled = isCopilotEnabledForUser(user)
@@ -73,6 +73,7 @@ async function LayoutContent({ children }) {
                 <CopilotShell generalModeEnabled={generalModeEnabled} />
               </WorkspaceGrid>
             </div>
+            {trialExpired && <TrialExpiredScreen />}
             {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
           </CopilotContextStoreProvider>
         </CopilotProvider>
