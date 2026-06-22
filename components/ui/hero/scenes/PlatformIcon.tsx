@@ -4,9 +4,9 @@ type Platform = 'whatsapp' | 'instagram' | 'facebook'
 // not a sticker. Rendered as a CSS mask of the existing monochrome SVG — no white
 // circle, no badge, just the tinted silhouette.
 const TINT: Record<Platform, string> = {
-  whatsapp: 'rgba(37,211,102,0.34)',
-  instagram: 'rgba(225,48,108,0.32)',
-  facebook: 'rgba(24,119,242,0.32)',
+  whatsapp: 'rgba(37,211,102,0.22)',
+  instagram: 'rgba(225,48,108,0.20)',
+  facebook: 'rgba(24,119,242,0.20)',
 }
 
 interface PlatformIconProps {

@@ -65,26 +65,27 @@ export function HeroScene() {
       {/* Ambient platform sources — float behind the cards (z-[5]), near the lead
           card they feed. Low opacity, large, never attached to a card. The two
           trailing ones drop on small screens alongside their cards. */}
-      <FloatCard className='right-[4%] top-[-3%] z-[5]' baseRot={-8} delay={0.1} floatY={10} reduce={reduce}>
-        <PlatformIcon platform='whatsapp' size={92} />
+      <FloatCard className='right-[4%] top-[-2%] z-[5]' baseRot={-8} delay={0.1} floatY={10} reduce={reduce}>
+        <PlatformIcon platform='whatsapp' size={72} />
       </FloatCard>
       <FloatCard
-        className='left-[-5%] top-[30%] z-[5] hidden sm:block'
+        className='left-[-4%] top-[30%] z-[5] hidden sm:block'
         baseRot={7}
         delay={0.18}
         floatY={11}
         reduce={reduce}
       >
-        <PlatformIcon platform='instagram' size={84} />
+        <PlatformIcon platform='instagram' size={64} />
       </FloatCard>
+      {/* Facebook glyph tucked just behind the right edge of its lead card */}
       <FloatCard
-        className='bottom-[18%] right-[-5%] z-[5] hidden sm:block'
+        className='right-[-3%] top-[30%] z-[5] hidden sm:block'
         baseRot={-5}
         delay={0.24}
         floatY={9}
         reduce={reduce}
       >
-        <PlatformIcon platform='facebook' size={88} />
+        <PlatformIcon platform='facebook' size={68} />
       </FloatCard>
 
       {/* Incoming channel leads — fanned across the top, tightly overlapping. The
@@ -127,8 +128,8 @@ export function HeroScene() {
         <ReminderCard />
       </FloatCard>
 
-      {/* Payoff — forward, highest elevation, the outcome of the story */}
-      <FloatCard className='bottom-[2%] right-[3%] z-50' baseRot={3} delay={0.44} floatY={5} reduce={reduce}>
+      {/* Payoff — forward, highest elevation, pulled close under the hub */}
+      <FloatCard className='bottom-[16%] right-[6%] z-50' baseRot={3} delay={0.44} floatY={5} reduce={reduce}>
         <DealWonCard />
       </FloatCard>
     </div>
