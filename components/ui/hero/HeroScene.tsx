@@ -65,11 +65,11 @@ export function HeroScene() {
           lead card they feed (z-5, behind the cards), each peeking out one edge
           with a soft glow so it's visible at a glance. The two trailing ones drop
           on small screens alongside their cards. */}
-      <FloatCard className='right-[-1%] top-[-5%] z-5' baseRot={-8} delay={0.1} floatY={9} reduce={reduce}>
+      <FloatCard className='right-[-3%] top-[-8%] z-5' baseRot={-8} delay={0.1} floatY={9} reduce={reduce}>
         <PlatformIcon platform='whatsapp' size={72} />
       </FloatCard>
       <FloatCard
-        className='left-[-3%] top-[13%] z-5 hidden sm:block'
+        className='left-[-6%] top-[12%] z-5 hidden sm:block'
         baseRot={7}
         delay={0.18}
         floatY={10}
@@ -78,7 +78,7 @@ export function HeroScene() {
         <PlatformIcon platform='instagram' size={64} />
       </FloatCard>
       <FloatCard
-        className='right-[-1%] top-[25%] z-5 hidden sm:block'
+        className='right-[-4%] top-[24%] z-5 hidden sm:block'
         baseRot={-5}
         delay={0.24}
         floatY={9}
