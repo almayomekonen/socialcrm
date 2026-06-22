@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
 import { getAgencyById } from '@/db/agencies'
+import { getTrialPreviewLeads } from '@/db/clients'
+import { getPerms } from '@/db/filter'
 import { countUnreadConversationsForUser } from '@/db/inboxConversationReads'
 import { Roles } from '@/types/roles'
 import Topbar from '@/lib/navs/Topbar'
@@ -42,10 +44,20 @@ async function LayoutContent({ children }) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
   }
 
-  const trialExpired = trialStatus === 'TRIAL_EXPIRED'
+  // Platform owners are never gated by the trial — they run the app, not a tenant.
+  const trialExpired = trialStatus === 'TRIAL_EXPIRED' && !isPlatformOwner(user.email)
+  let leadPreview = { total: 0, names: [] as string[] }
   if (trialExpired) {
     // Lazy one-time emission; deduped by the DB index, track never throws.
     await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
+    // Real lead count + a few names for the paywall card, scoped to what this
+    // user is permitted to see. Fail-open to empty so the gate still renders.
+    try {
+      const { gotPermIds } = await getPerms(user)
+      leadPreview = await getTrialPreviewLeads(user.agencyId, gotPermIds, user.role)
+    } catch (err) {
+      console.error('[trial] lead preview read failed', { userId: user.id, err: String(err) })
+    }
   }
 
   const copilotEnabled = isCopilotEnabledForUser(user)
@@ -73,7 +85,7 @@ async function LayoutContent({ children }) {
                 <CopilotShell generalModeEnabled={generalModeEnabled} />
               </WorkspaceGrid>
             </div>
-            {trialExpired && <TrialExpiredScreen />}
+            {trialExpired && <TrialExpiredScreen leadCount={leadPreview.total} leadNames={leadPreview.names} />}
             {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
           </CopilotContextStoreProvider>
         </CopilotProvider>

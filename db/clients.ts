@@ -67,6 +67,29 @@ export async function hasAnyLeads(agencyId: number, gotPermIds: number[], role: 
   return Number(res?.count || 0) > 0
 }
 
+export async function getTrialPreviewLeads(
+  agencyId: number,
+  gotPermIds: number[],
+  role: Roles,
+): Promise<{ total: number; names: string[] }> {
+  // Same permission scoping as hasAnyLeads: reps only ever see their own leads,
+  // and free agencies hide over-quota leads. The paywall must not leak names.
+  const plan = await getAgencyPlan(agencyId)
+  const q = db('clients').where({ agencyId, lead: true })
+  if (!isAdmin(role)) q.whereIn('userId', gotPermIds)
+  if (plan === 'free') q.where('overQuota', false)
+
+  const rows = await q
+    .orderBy('updatedAt', 'desc')
+    .limit(4)
+    .select('name', 'firstName', 'lastName', db.raw('COUNT(*) OVER()::int as total'))
+
+  const total = rows.length ? Number(rows[0].total) : 0
+  const names = rows.map((r: any) => [r.firstName, r.lastName].filter(Boolean).join(' ') || r.name || 'ליד').filter(Boolean)
+
+  return { total, names }
+}
+
 export async function getLeadsByRep(user) {
   const authedUser = await requireUser()
   const { gotPermIds } = await getPerms(user)
