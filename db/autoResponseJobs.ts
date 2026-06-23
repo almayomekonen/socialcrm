@@ -98,7 +98,7 @@ export async function reclaimStaleAutoResponseJobs(leaseMs: number): Promise<num
   return res.rows?.length ?? 0
 }
 
-export async function completeAutoResponseJob(id: number, sentMessageId: number): Promise<void> {
+export async function completeAutoResponseJob(id: number, sentMessageId: number | null): Promise<void> {
   await db('auto_response_jobs').where({ id }).update({
     status: 'sent', sentMessageId, lockedAt: null, lockedBy: null, updatedAt: db.fn.now(),
   })

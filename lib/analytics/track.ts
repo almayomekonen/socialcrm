@@ -17,6 +17,8 @@ export type AnalyticsEventName =
   | 'operator_take.suppressed'
   | 'operator_take.citation_opened'
   | 'operator_take.dismissed'
+  | 'auto_response_sent'
+  | 'auto_response_skipped'
 
 type TrackInput = {
   agencyId: number
