@@ -3,6 +3,7 @@ import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inbox
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertOutboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
+import { resolveOpenRecoveryAlerts } from '@/db/recoveryAlerts'
 
 export type PersistOutboundWhatsappInput = {
   agencyId: number
@@ -48,7 +49,11 @@ export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInpu
       leadId: null,
     })
 
-    const { id: messageId, inserted, sequence } = await insertOutboundMessage(trx, {
+    const {
+      id: messageId,
+      inserted,
+      sequence,
+    } = await insertOutboundMessage(trx, {
       conversationId,
       agencyId: input.agencyId,
       leadId: input.leadId,
@@ -63,7 +68,8 @@ export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInpu
 
     await bumpConversationOnOutbound(trx, conversationId, new Date(), input.text)
 
-    // Transactional outbox: a rep reply changes conversation state, so re-analyze.
+    await resolveOpenRecoveryAlerts(trx, { agencyId: input.agencyId, leadId: input.leadId, at: new Date() })
+
     if (inserted) {
       await enqueueConversationAnalysis(trx, {
         conversationId,
