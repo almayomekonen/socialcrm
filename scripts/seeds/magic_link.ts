@@ -65,7 +65,9 @@ async function run() {
   }
 
   const token = genToken()
-  const tokenExpiry = new Date(Date.now() + EXPIRY_DAYS * 864e5).toISOString()
+  // Date (not ISO string) to match the users.otp column type; knex serializes
+  // it to JSON, and /api/magic parses it back with new Date(...).
+  const tokenExpiry = new Date(Date.now() + EXPIRY_DAYS * 864e5)
   await db('users').where({ id: user.id }).update({ otp: { token, tokenExpiry } })
 
   const link = `${APP_BASE}/api/magic?token=${token}&email=${encodeURIComponent(DEMO_EMAIL)}`

@@ -101,8 +101,9 @@ async function run() {
         appendFileSync(SENT_LOG, `${to}\tok\t${res.id}\n`)
       } else {
         fail++
-        appendFileSync(SENT_LOG, `${to}\tfail\t${res.error}\n`)
-        console.error(`  [${i + 1}/${pending.length}] FAIL ${to}: ${res.error}`)
+        const reason = 'error' in res ? res.error : 'unknown'
+        appendFileSync(SENT_LOG, `${to}\tfail\t${reason}\n`)
+        console.error(`  [${i + 1}/${pending.length}] FAIL ${to}: ${reason}`)
       }
       if ((i + 1) % 25 === 0) console.log(`  progress: ${i + 1}/${pending.length} (ok=${ok} fail=${fail})`)
       await new Promise((r) => setTimeout(r, SEND_DELAY_MS))

@@ -31,7 +31,8 @@ async function run() {
   if (result.ok) {
     console.log(`[feedback-test] SENT ok — message id: ${result.id}`)
   } else {
-    console.error(`[feedback-test] FAILED — ${result.error}`)
+    const reason = 'error' in result ? result.error : 'unknown'
+    console.error(`[feedback-test] FAILED — ${reason}`)
     process.exit(1)
   }
 }
