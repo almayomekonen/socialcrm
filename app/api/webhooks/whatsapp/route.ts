@@ -6,7 +6,8 @@ import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
 import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
 import { db } from '@/config/db'
 
-// GET — Meta webhook verification handshake
+export const maxDuration = 60
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const mode = url.searchParams.get('hub.mode')
@@ -126,9 +127,12 @@ export async function POST(req: NextRequest) {
       // Instant Response Engine: kick the worker AFTER the 200 is flushed so the
       // auto-response goes out in seconds. Primary path; the cron is the backstop.
       if (result.inserted) {
+        // [IRE-OBS] temporary observability — prove the kick fires in prod.
+        console.log(`[IRE] kick triggered conv=${result.conversationId} msg=${result.messageId}`)
         after(async () => {
           try {
-            await runAutoResponseWorker({ limit: 5 })
+            const r = await runAutoResponseWorker({ limit: 5 })
+            console.log(`[IRE] kick worker done conv=${result.conversationId} ${JSON.stringify(r)}`)
           } catch (kickErr) {
             console.error('[auto-response] kick failed', { reason: (kickErr as Error)?.message })
           }

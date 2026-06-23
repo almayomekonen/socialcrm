@@ -1,10 +1,3 @@
-/**
- * Instant Response Engine worker (Phase 1). Drains auto_response_jobs: claim
- * (SKIP LOCKED) → authoritative eligibility re-check → guardrailed AI generate →
- * deterministic validate → send via the existing WhatsApp path → mark + audit.
- * Invoked by the post-commit kick (primary) and the cron backstop. Mirrors
- * lib/inbox/intelligence/worker.ts.
- */
 import { db } from '@/config/db'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
@@ -27,8 +20,6 @@ import { validateAutoResponse } from './validate'
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
 
-// Injectable external seams (default to the real implementations). Lets the E2E
-// harness assert the full sent-path without calling Meta / the AI provider.
 export type WorkerDeps = {
   send: typeof sendWhatsappText
   generate: typeof generateAcknowledgement
@@ -40,9 +31,7 @@ function withinQuietHours(qh: QuietHours | undefined, now: Date): boolean {
   if (qh?.startHour == null || qh?.endHour == null) return false
   const tz = qh.tz || 'Asia/Jerusalem'
   const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: tz }).format(now))
-  return qh.startHour <= qh.endHour
-    ? hour >= qh.startHour && hour < qh.endHour
-    : hour >= qh.startHour || hour < qh.endHour
+  return qh.startHour <= qh.endHour ? hour >= qh.startHour && hour < qh.endHour : hour >= qh.startHour || hour < qh.endHour
 }
 
 type Outcome = 'sent' | 'skipped' | 'failed'
@@ -57,7 +46,8 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   const [master, settings, conv, lead] = await Promise.all([
     getMasterEnabled(job.agencyId),
     getChannelSettings(job.agencyId, job.channel),
-    db('inbox_conversations').where({ id: job.conversationId })
+    db('inbox_conversations')
+      .where({ id: job.conversationId })
       .first('id', 'businessPhoneNumberId', 'customerWaId', 'customerName', 'lastMessageText'),
     db('clients').where({ id: job.leadId }).first('id', 'userId', 'handlerId', 'status'),
   ])
@@ -67,7 +57,10 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
 
   const [outboundExists, humanReplyExists, priorAuto, sentToday] = await Promise.all([
     db('inbox_messages').where({ conversationId: job.conversationId, direction: 'outbound' }).first('id'),
-    db('inbox_messages').where({ conversationId: job.conversationId, direction: 'outbound' }).whereNotNull('sentByUserId').first('id'),
+    db('inbox_messages')
+      .where({ conversationId: job.conversationId, direction: 'outbound' })
+      .whereNotNull('sentByUserId')
+      .first('id'),
     hasSentFirstContact(job.conversationId),
     countSentToday(job.agencyId),
   ])
@@ -84,7 +77,6 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   })
   if (elig.shouldRespond === false) return doSkip(elig.skipReason)
 
-  // Generate, with one retry if the guardrail validator rejects the draft.
   let message: string | null = null
   for (let attempt = 0; attempt < 2 && !message; attempt++) {
     const gen = await deps.generate({
@@ -97,6 +89,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     if (validateAutoResponse(gen.message).ok) message = gen.message
   }
   if (!message) return doSkip('validation_failed')
+  console.log(`[IRE] generated conv=${job.conversationId} len=${message.length}`)
 
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: conv.businessPhoneNumberId, agency_id: job.agencyId })
@@ -105,7 +98,6 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   const to = conv.customerWaId as string | null
   if (!to) return doSkip('no_recipient')
 
-  // SEND first — persist only on a confirmed wamid (same discipline as sendWhatsappReply).
   const sent = await deps.send({
     phoneNumberId: conv.businessPhoneNumberId as string,
     accessToken: connection.access_token,
@@ -131,16 +123,19 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
       text: message,
     })
     messageId = res.messageId
-    // Tag the outbound message as an auto-response (persist takes no metadata arg).
-    await db('inbox_messages').where({ id: messageId }).update({
-      metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify({ source: 'auto_response', reason: job.reason, phase: 1 })]),
-    })
+    await db('inbox_messages')
+      .where({ id: messageId })
+      .update({
+        metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify({ source: 'auto_response', reason: job.reason, phase: 1 })]),
+      })
   } catch (err) {
-    // Delivered at Meta but local persist failed — do NOT retry (would double-send).
     console.error('[auto-response] persist after send failed', { jobId: job.id, err: String(err) })
   }
 
   await completeAutoResponseJob(job.id, messageId)
+  console.log(
+    `[IRE] sent conv=${job.conversationId} job=${job.id} msg=${messageId ?? 'none'} ms=${Date.now() - new Date(job.createdAt).getTime()}`,
+  )
   await track({
     agencyId: job.agencyId,
     userId: sentByUserId ?? null,
@@ -163,6 +158,7 @@ export async function runAutoResponseWorker(
 
   await reclaimStaleAutoResponseJobs(leaseMs)
   const jobs = await claimAutoResponseJobs(workerId, limit)
+  if (jobs.length) console.log(`[IRE] worker start id=${workerId} claimed=${jobs.length}`)
 
   let sent = 0
   let skipped = 0

@@ -1,9 +1,3 @@
-/**
- * Instant Response Engine outbox + audit ledger (Phase 1: first_contact only).
- * Mirrors db/conversationIntelligence.ts: enqueue in the ingest txn, claim with
- * SKIP LOCKED, lease-reclaim, terminal complete/skip/fail. Sent rows are the
- * permanent ledger. No business logic beyond gating the guarded enqueue.
- */
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 
@@ -17,16 +11,9 @@ export interface AutoResponseJob {
   triggerSequence: number
   attempts: number
   maxAttempts: number
+  createdAt: string
 }
 
-/**
- * Guarded enqueue, run inside the inbound-ingest transaction. Inserts a
- * first_contact job ONLY when the workspace master switch AND the channel
- * settings are enabled AND no first_contact job (pending/processing/sent) already
- * exists for the conversation. The in-flight partial unique index + ON CONFLICT
- * DO NOTHING make it race-proof. Authoritative eligibility is re-checked by the
- * worker. Returns the new job id, or null when nothing was enqueued.
- */
 export async function enqueueAutoResponse(
   trx: Knex.Transaction,
   args: { agencyId: number; conversationId: number; leadId: number; channel: string; triggerSequence: number },
@@ -48,7 +35,10 @@ export async function enqueueAutoResponse(
     args,
   )
   const row = res.rows?.[0]
-  return row ? Number(row.id) : null
+  if (!row) return null
+  // [IRE-OBS] temporary observability.
+  console.log(`[IRE] enqueued conv=${args.conversationId} job=${row.id} agency=${args.agencyId}`)
+  return Number(row.id)
 }
 
 export async function claimAutoResponseJobs(workerId: string, limit: number): Promise<AutoResponseJob[]> {
@@ -65,7 +55,7 @@ export async function claimAutoResponseJobs(workerId: string, limit: number): Pr
         LIMIT ?
      )
      RETURNING j.id, j."agencyId", j."conversationId", j."leadId", j.channel, j.reason,
-               j."triggerSequence", j.attempts, j."maxAttempts"
+               j."triggerSequence", j.attempts, j."maxAttempts", j."createdAt"
   `,
     [workerId, limit],
   )
@@ -79,10 +69,10 @@ export async function claimAutoResponseJobs(workerId: string, limit: number): Pr
     triggerSequence: Number(r.triggerSequence),
     attempts: Number(r.attempts),
     maxAttempts: Number(r.maxAttempts),
+    createdAt: new Date(r.createdAt as string | Date).toISOString(),
   }))
 }
 
-/** Return any 'processing' job whose lease expired to 'pending'. Returns count reclaimed. */
 export async function reclaimStaleAutoResponseJobs(leaseMs: number): Promise<number> {
   const cutoff = new Date(Date.now() - leaseMs)
   const res = await db.raw(
@@ -100,13 +90,21 @@ export async function reclaimStaleAutoResponseJobs(leaseMs: number): Promise<num
 
 export async function completeAutoResponseJob(id: number, sentMessageId: number | null): Promise<void> {
   await db('auto_response_jobs').where({ id }).update({
-    status: 'sent', sentMessageId, lockedAt: null, lockedBy: null, updatedAt: db.fn.now(),
+    status: 'sent',
+    sentMessageId,
+    lockedAt: null,
+    lockedBy: null,
+    updatedAt: db.fn.now(),
   })
 }
 
 export async function skipAutoResponseJob(id: number, skipReason: string): Promise<void> {
   await db('auto_response_jobs').where({ id }).update({
-    status: 'skipped', skipReason, lockedAt: null, lockedBy: null, updatedAt: db.fn.now(),
+    status: 'skipped',
+    skipReason,
+    lockedAt: null,
+    lockedBy: null,
+    updatedAt: db.fn.now(),
   })
 }
 
