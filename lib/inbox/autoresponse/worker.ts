@@ -27,6 +27,13 @@ import { validateAutoResponse } from './validate'
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
 
+// Injectable external seams (default to the real implementations). Lets the E2E
+// harness assert the full sent-path without calling Meta / the AI provider.
+export type WorkerDeps = {
+  send: typeof sendWhatsappText
+  generate: typeof generateAcknowledgement
+}
+
 type QuietHours = { tz?: string; startHour?: number; endHour?: number }
 
 function withinQuietHours(qh: QuietHours | undefined, now: Date): boolean {
@@ -40,7 +47,7 @@ function withinQuietHours(qh: QuietHours | undefined, now: Date): boolean {
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
-async function processJob(job: AutoResponseJob): Promise<Outcome> {
+async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outcome> {
   const doSkip = async (reason: string): Promise<Outcome> => {
     await skipAutoResponseJob(job.id, reason)
     await track({ agencyId: job.agencyId, event: 'auto_response_skipped', props: { conversationId: job.conversationId, reason } })
@@ -80,7 +87,7 @@ async function processJob(job: AutoResponseJob): Promise<Outcome> {
   // Generate, with one retry if the guardrail validator rejects the draft.
   let message: string | null = null
   for (let attempt = 0; attempt < 2 && !message; attempt++) {
-    const gen = await generateAcknowledgement({
+    const gen = await deps.generate({
       agencyId: job.agencyId,
       customerName: (conv.customerName as string | null) ?? null,
       lastCustomerMessage: (conv.lastMessageText as string | null) ?? '',
@@ -99,7 +106,7 @@ async function processJob(job: AutoResponseJob): Promise<Outcome> {
   if (!to) return doSkip('no_recipient')
 
   // SEND first — persist only on a confirmed wamid (same discipline as sendWhatsappReply).
-  const sent = await sendWhatsappText({
+  const sent = await deps.send({
     phoneNumberId: conv.businessPhoneNumberId as string,
     accessToken: connection.access_token,
     to,
@@ -144,11 +151,15 @@ async function processJob(job: AutoResponseJob): Promise<Outcome> {
 }
 
 export async function runAutoResponseWorker(
-  opts: { limit?: number; leaseMs?: number; workerId?: string } = {},
+  opts: { limit?: number; leaseMs?: number; workerId?: string; deps?: Partial<WorkerDeps> } = {},
 ): Promise<{ claimed: number; sent: number; skipped: number; failed: number }> {
   const limit = opts.limit ?? 5
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS
   const workerId = opts.workerId ?? `arw-${process.pid}-${Date.now()}`
+  const deps: WorkerDeps = {
+    send: opts.deps?.send ?? sendWhatsappText,
+    generate: opts.deps?.generate ?? generateAcknowledgement,
+  }
 
   await reclaimStaleAutoResponseJobs(leaseMs)
   const jobs = await claimAutoResponseJobs(workerId, limit)
@@ -158,7 +169,7 @@ export async function runAutoResponseWorker(
   let failed = 0
   for (const job of jobs) {
     try {
-      const r = await processJob(job)
+      const r = await processJob(job, deps)
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
       else failed++
