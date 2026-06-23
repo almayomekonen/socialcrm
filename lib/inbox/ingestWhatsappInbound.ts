@@ -4,6 +4,7 @@ import { findOrCreateConversation, bumpConversationOnInbound } from '@/db/inboxC
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertInboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
+import { enqueueAutoResponse } from '@/db/autoResponseJobs'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
@@ -78,6 +79,16 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
         channel: 'whatsapp',
         triggerSequence: sequence,
         reason: 'new_message',
+      })
+      // Instant Response Engine: enqueue a guarded first-contact auto-response in
+      // the same txn. Internally a no-op unless the feature is enabled and this
+      // is genuinely a first contact; the worker re-checks authoritatively.
+      await enqueueAutoResponse(trx, {
+        agencyId: input.agencyId,
+        conversationId,
+        leadId: input.leadId,
+        channel: 'whatsapp',
+        triggerSequence: sequence,
       })
     }
 
