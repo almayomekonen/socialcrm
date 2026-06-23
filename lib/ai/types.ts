@@ -8,6 +8,7 @@ export type TaskKind =
   | 'health.check'
   | 'copilot.classifyIntent'
   | 'conversation.analysis'
+  | 'inbox.autoResponse'
 
 export type ProviderName = 'anthropic' | 'google' | 'openai' | 'internal'
 

@@ -67,6 +67,14 @@ const TASKS: Record<TaskKind, TaskConfig> = {
     timeoutMs: 15_000,
     retryOnSameProvider: 1,
   },
+  // Instant Response Engine: one short guardrailed acknowledgment (greet +
+  // ack + one question, ≤3 sentences). Tiny output; latency matters.
+  'inbox.autoResponse': {
+    role: 'primary',
+    maxOutputTokens: 150,
+    timeoutMs: 12_000,
+    retryOnSameProvider: 1,
+  },
 }
 
 export function getTaskConfig(kind: TaskKind): TaskConfig {
