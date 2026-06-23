@@ -128,6 +128,7 @@ function getNavLinks(user, inboxUnread = 0, isOwner = false) {
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
     notOffice && { icon: 'comments', href: '/inbox', title: 'שיחות', badge: inboxUnread },
+    notOffice && { icon: 'bell-exclamation', href: '/recovery-alerts', title: 'התראות שחזור' },
     { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
     {
       icon: 'chart-pie',
