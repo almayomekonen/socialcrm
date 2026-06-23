@@ -21,6 +21,7 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/edit_users' icon='user-pen' title='משתמשים' />
 
             <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
+            <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
             <Seperator className='my-2' />
             <SettingsLink href='/settings/update_agency' icon='diamond' title='פרטי העסק' />
             <SettingsLink href='/settings/update_user_details' icon='user' title='פרטי נציג' />
