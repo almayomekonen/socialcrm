@@ -28,7 +28,9 @@
 import knex from 'knex'
 import dotenv from 'dotenv'
 
-const TARGET_EMAIL = 'alamayo274@gmail.com'
+// Defaults to the platform owner; override to seed a specific demo account's
+// agency, e.g. SEED_TARGET_EMAIL=yuton@gmail.com
+const TARGET_EMAIL = process.env.SEED_TARGET_EMAIL || 'alamayo274@gmail.com'
 
 // ── resolve prod connection (explicit, never localhost by accident) ───────────
 const prodEnv = dotenv.config({ path: '.env.production.local' }).parsed ?? {}

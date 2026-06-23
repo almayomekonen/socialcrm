@@ -3,11 +3,12 @@
 import { motion, useReducedMotion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { SceneBackdrop } from './scenes/SceneBackdrop'
-import { PlatformIcon } from './scenes/PlatformIcon'
 import { NewLeadRow } from './scenes/NewLeadRow'
-import { HubCard } from './scenes/HubCard'
-import { ReminderCard } from './scenes/ReminderCard'
+import { ScreenshotCard } from './scenes/ScreenshotCard'
 import { DealWonCard } from './scenes/DealWonCard'
+
+const DASHBOARD_SRC = '/media/social-icons/one1.png'
+const LEADS_SRC = '/media/social-icons/two.png'
 
 interface FloatCardProps {
   children: ReactNode
@@ -16,11 +17,14 @@ interface FloatCardProps {
   delay: number
   floatY: number
   reduce: boolean
+  /** Decorative cards (notification popups) are hidden from screen readers. */
+  decorative?: boolean
 }
 
-function FloatCard({ children, className, baseRot, delay, floatY, reduce }: FloatCardProps) {
+function FloatCard({ children, className, baseRot, delay, floatY, reduce, decorative }: FloatCardProps) {
   return (
     <motion.div
+      aria-hidden={decorative || undefined}
       className={`absolute ${className}`}
       style={{ rotate: baseRot }}
       initial={reduce ? false : { opacity: 0, scale: 0.9 }}
@@ -46,101 +50,65 @@ export function HeroScene() {
   const reduce = useReducedMotion() ?? false
 
   return (
-    <div className='relative mx-auto h-[330px] w-full max-w-[440px] sm:h-auto sm:aspect-square'>
+    <div className='relative mx-auto h-[360px] w-full max-w-[460px] sm:h-auto sm:aspect-square sm:max-w-[560px]'>
       <SceneBackdrop />
 
+      {/* Secondary screenshot (leads table) — clearly visible behind the dashboard for depth */}
       <FloatCard
-        className='right-[-3%] top-[-8%] z-5 hidden sm:block'
-        baseRot={-8}
-        delay={0.1}
-        floatY={9}
-        reduce={reduce}
-      >
-        <PlatformIcon platform='whatsapp' size={72} />
-      </FloatCard>
-      <FloatCard
-        className='left-[-6%] top-[12%] z-5 hidden sm:block'
+        className='left-[-7%] top-[4%] z-20 hidden sm:block'
         baseRot={7}
-        delay={0.18}
-        floatY={10}
-        reduce={reduce}
-      >
-        <PlatformIcon platform='instagram' size={64} />
-      </FloatCard>
-      <FloatCard
-        className='right-[-4%] top-[24%] z-5 hidden sm:block'
-        baseRot={-5}
-        delay={0.24}
-        floatY={9}
-        reduce={reduce}
-      >
-        <PlatformIcon platform='facebook' size={68} />
-      </FloatCard>
-
-      <FloatCard className='left-[2%] top-[8%] z-10 sm:hidden' baseRot={-8} delay={0.1} floatY={8} reduce={reduce}>
-        <PlatformIcon platform='whatsapp' size={54} strong />
-      </FloatCard>
-      <FloatCard className='right-[2%] top-[8%] z-10 sm:hidden' baseRot={8} delay={0.16} floatY={9} reduce={reduce}>
-        <PlatformIcon platform='facebook' size={52} strong />
-      </FloatCard>
-      <FloatCard className='left-[4%] top-[72%] z-10 sm:hidden' baseRot={6} delay={0.22} floatY={8} reduce={reduce}>
-        <PlatformIcon platform='instagram' size={52} strong />
-      </FloatCard>
-
-      <FloatCard
-        className='left-1/2 top-0 z-20 -translate-x-1/2 sm:left-auto sm:right-[3%] sm:top-[3%] sm:translate-x-0'
-        baseRot={4}
-        delay={0.14}
-        floatY={5}
-        reduce={reduce}
-      >
-        <NewLeadRow channel='whatsapp' name='דני לוי' message='היי, מעוניין בפרטים' />
-      </FloatCard>
-      <FloatCard
-        className='left-[0%] top-[15%] z-30 hidden sm:block'
-        baseRot={-4}
-        delay={0.22}
+        delay={0.12}
         floatY={6}
         reduce={reduce}
       >
-        <NewLeadRow channel='instagram' name='מיכל אברהם' message='כמה זה עולה?' />
-      </FloatCard>
-      <FloatCard
-        className='right-[6%] top-[27%] z-20 hidden sm:block'
-        baseRot={3}
-        delay={0.3}
-        floatY={5}
-        reduce={reduce}
-      >
-        <NewLeadRow channel='facebook' name='שרה פרץ' message='טופס ליד חדש' />
+        <ScreenshotCard src={LEADS_SRC} alt='רשימת הלידים ב-SocialCRM' className='w-[340px]' />
       </FloatCard>
 
+      {/* Focal screenshot (performance dashboard) — shifted right to fill the gap toward the headline */}
       <FloatCard
-        className='left-1/2 top-[17%] z-40 -translate-x-1/2 sm:top-[38%]'
-        baseRot={0}
+        className='left-1/2 top-[22%] z-30 -translate-x-1/2 sm:left-[54%] sm:top-[27%]'
+        baseRot={-3}
         delay={0}
         floatY={4}
         reduce={reduce}
       >
-        <HubCard />
+        <ScreenshotCard
+          src={DASHBOARD_SRC}
+          alt='לוח הביצועים של SocialCRM'
+          className='w-[310px] sm:w-[500px]'
+          priority
+        />
       </FloatCard>
 
+      {/* Notification popups — decorative, curated so the screenshots stay the star */}
       <FloatCard
-        className='left-1/2 top-[44%] z-30 -translate-x-1/2 sm:left-[2%] sm:top-[60%] sm:translate-x-0'
-        baseRot={-3}
-        delay={0.36}
-        floatY={6}
-        reduce={reduce}
-      >
-        <ReminderCard />
-      </FloatCard>
-
-      <FloatCard
-        className='left-1/2 top-[62%] z-50 -translate-x-1/2 sm:left-auto sm:top-auto sm:bottom-[16%] sm:right-[6%] sm:translate-x-0'
-        baseRot={3}
-        delay={0.44}
+        className='left-1/2 top-[4%] z-50 -translate-x-1/2 sm:left-auto sm:right-[-3%] sm:top-[12%] sm:translate-x-0'
+        baseRot={4}
+        delay={0.34}
         floatY={5}
         reduce={reduce}
+        decorative
+      >
+        <NewLeadRow channel='whatsapp' name='דני לוי' message='היי, מעוניין בפרטים' />
+      </FloatCard>
+      <FloatCard
+        className='left-[-7%] top-[50%] z-50 hidden sm:block'
+        baseRot={-4}
+        delay={0.4}
+        floatY={6}
+        reduce={reduce}
+        decorative
+      >
+        <NewLeadRow channel='instagram' name='מיכל אברהם' message='כמה זה עולה?' />
+      </FloatCard>
+
+      <FloatCard
+        className='left-1/2 bottom-[2%] z-50 -translate-x-1/2 sm:left-[4%] sm:bottom-[6%] sm:translate-x-0'
+        baseRot={3}
+        delay={0.46}
+        floatY={5}
+        reduce={reduce}
+        decorative
       >
         <DealWonCard />
       </FloatCard>

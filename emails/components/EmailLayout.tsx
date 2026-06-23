@@ -1,9 +1,12 @@
 import {
   Body,
+  Column,
   Container,
   Head,
   Html,
+  Img,
   Preview,
+  Row,
   Section,
   Text,
 } from '@react-email/components'
@@ -12,9 +15,15 @@ import { ReactNode } from 'react'
 type Props = {
   preview: string
   children: ReactNode
+  /**
+   * Optional brand mark for the header. When provided, the header renders
+   * logo-left / text-right; when omitted, the header stays text-only so
+   * existing emails (welcome, magic-link, invoice) are unchanged.
+   */
+  logoUrl?: string
 }
 
-export function EmailLayout({ preview, children }: Props) {
+export function EmailLayout({ preview, children, logoUrl }: Props) {
   return (
     <Html lang="he" dir="rtl">
       <Head />
@@ -40,36 +49,83 @@ export function EmailLayout({ preview, children }: Props) {
           }}
         >
           {/* Header */}
-          <Section
-            style={{
-              backgroundColor: '#4f46e5',
-              padding: '32px 24px',
-              textAlign: 'center',
-            }}
-          >
-            <Text
-              dir="ltr"
+          {logoUrl ? (
+            <Section style={{ backgroundColor: '#4f46e5', padding: '20px 24px' }}>
+              {/* dir=ltr forces logo-cell-left / text-cell-right; an RTL table
+                  collapses both cells to the right in Gmail. */}
+              <Row dir="ltr">
+                <Column style={{ width: '56px', verticalAlign: 'middle' }} align="left">
+                  <Img
+                    src={logoUrl}
+                    alt="SocialCRM"
+                    width="44"
+                    height="44"
+                    style={{
+                      display: 'block',
+                      borderRadius: '10px',
+                      backgroundColor: '#ffffff',
+                    }}
+                  />
+                </Column>
+                <Column style={{ verticalAlign: 'middle' }} align="right">
+                  <Text
+                    dir="ltr"
+                    style={{
+                      margin: 0,
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      color: '#ffffff',
+                      textAlign: 'right',
+                    }}
+                  >
+                    SocialCRM
+                  </Text>
+                  <Text
+                    dir="rtl"
+                    style={{
+                      margin: '4px 0 0 0',
+                      fontSize: '13px',
+                      color: '#e0e7ff',
+                      textAlign: 'right',
+                    }}
+                  >
+                    כל הלידים שלך במקום אחד
+                  </Text>
+                </Column>
+              </Row>
+            </Section>
+          ) : (
+            <Section
               style={{
-                margin: 0,
-                fontSize: '22px',
-                fontWeight: 'bold',
-                color: '#ffffff',
+                backgroundColor: '#4f46e5',
+                padding: '32px 24px',
+                textAlign: 'center',
               }}
             >
-              SocialCRM
-            </Text>
+              <Text
+                dir="ltr"
+                style={{
+                  margin: 0,
+                  fontSize: '22px',
+                  fontWeight: 'bold',
+                  color: '#ffffff',
+                }}
+              >
+                SocialCRM
+              </Text>
 
-            <Text
-              dir="rtl"
-              style={{
-                margin: '6px 0 0 0',
-                fontSize: '14px',
-                color: '#e0e7ff',
-              }}
-            >
-              כל הלידים שלך במקום אחד
-            </Text>
-          </Section>
+              <Text
+                dir="rtl"
+                style={{
+                  margin: '6px 0 0 0',
+                  fontSize: '14px',
+                  color: '#e0e7ff',
+                }}
+              >
+                כל הלידים שלך במקום אחד
+              </Text>
+            </Section>
+          )}
 
           {/* Content */}
           <Section

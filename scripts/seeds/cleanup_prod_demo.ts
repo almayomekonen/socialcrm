@@ -8,23 +8,38 @@
 import knex from 'knex'
 import dotenv from 'dotenv'
 
-const AGENCY_ID = 53
+// Override to clean a specific demo agency, e.g. SEED_AGENCY_ID=61
+const AGENCY_ID = Number(process.env.SEED_AGENCY_ID || 53)
 const env = dotenv.config({ path: '.env.production.local' }).parsed ?? {}
 const raw = process.env.SEED_DATABASE_URL || env.DATABASE_URL || ''
-if (!raw) { console.error('❌ no prod DATABASE_URL'); process.exit(1) }
+if (!raw) {
+  console.error('❌ no prod DATABASE_URL')
+  process.exit(1)
+}
 const u = new URL(raw)
 const ssl = ['require', 'verify-ca', 'verify-full'].includes(u.searchParams.get('sslmode') ?? 'disable')
 u.searchParams.delete('sslmode')
 console.log(`\n🎯 Target DB host: ${u.hostname}`)
-if (process.env.SEED_CONFIRM !== 'YES') { console.error('⛔ set SEED_CONFIRM=YES to delete'); process.exit(1) }
+if (process.env.SEED_CONFIRM !== 'YES') {
+  console.error('⛔ set SEED_CONFIRM=YES to delete')
+  process.exit(1)
+}
 
-const db = knex({ client: 'pg', connection: { connectionString: u.toString(), ssl: ssl ? { rejectUnauthorized: false } : false }, pool: { min: 0, max: 5 } })
+const db = knex({
+  client: 'pg',
+  connection: { connectionString: u.toString(), ssl: ssl ? { rejectUnauthorized: false } : false },
+  pool: { min: 0, max: 5 },
+})
 
 ;(async () => {
   const seedClients = await db('clients').where({ agencyId: AGENCY_ID }).whereLike('email', 'seed.%@example-crm.com').select('id')
   const ids = seedClients.map((r: any) => r.id)
   console.log(`Found ${ids.length} seed clients.`)
-  if (ids.length === 0) { console.log('Nothing to clean.'); await db.destroy(); return }
+  if (ids.length === 0) {
+    console.log('Nothing to clean.')
+    await db.destroy()
+    return
+  }
 
   // inbox: conversations by leadId → messages + participants
   const convs = await db('inbox_conversations').whereIn('leadId', ids).select('id')
@@ -56,4 +71,8 @@ const db = knex({ client: 'pg', connection: { connectionString: u.toString(), ss
 
   console.log('\n✅ Cleanup complete.')
   await db.destroy()
-})().catch(async (e) => { console.error('Fatal:', e.message); await db.destroy(); process.exit(1) })
+})().catch(async (e) => {
+  console.error('Fatal:', e.message)
+  await db.destroy()
+  process.exit(1)
+})

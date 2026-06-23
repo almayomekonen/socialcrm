@@ -1,21 +1,11 @@
 import Link from 'next/link'
-
-const CHANNELS = ['וואטסאפ', 'פייסבוק', 'אינסטגרם']
+import { ChannelBadges } from './ChannelBadges'
 
 export function HeroContent() {
   return (
     <div dir='rtl' className='flex flex-col items-start text-right'>
 
-      <div className='mb-6 flex flex-wrap gap-2'>
-        {CHANNELS.map((channel) => (
-          <span
-            key={channel}
-            className='rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-500'
-          >
-            {channel}
-          </span>
-        ))}
-      </div>
+      <ChannelBadges />
 
       <h1 className='text-[3.65rem] font-black leading-[1.03] text-gray-900 sm:text-4xl sm:leading-[1.1] md:text-6xl'>
         כל ליד.

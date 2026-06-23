@@ -45,7 +45,7 @@ export default function TrialExpiredScreen({ leadCount = 0, leadNames = [] }: Pr
             <span className='text-base font-normal text-white/50 mr-1'>/חודש</span>
           </p>
           <p className='text-xs text-white/50 mt-1'>
-            או ₪{PRICING.annual} לשנה (₪{ANNUAL_MONTHLY_EQUIVALENT} לחודש בלבד) — חיסכון ₪{ANNUAL_SAVINGS} בשנה
+            או ₪{PRICING.annual} לשנה (₪{ANNUAL_MONTHLY_EQUIVALENT} לחודש בלבד) חיסכון ₪{ANNUAL_SAVINGS} בשנה
           </p>
         </div>
 
