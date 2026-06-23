@@ -1,8 +1,9 @@
 import { createHmac, timingSafeEqual } from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
 import { createLeadFromWhatsappWebhook } from '@/lib/system/createLeadFromWhatsappWebhook'
 import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
+import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
 import { db } from '@/config/db'
 
 // GET — Meta webhook verification handshake
@@ -122,6 +123,17 @@ export async function POST(req: NextRequest) {
       console.log(
         `[WhatsappWebhook][inbox][msgId=${messageId}] conversation=${result.conversationId} message=${result.messageId} inserted=${result.inserted}`,
       )
+      // Instant Response Engine: kick the worker AFTER the 200 is flushed so the
+      // auto-response goes out in seconds. Primary path; the cron is the backstop.
+      if (result.inserted) {
+        after(async () => {
+          try {
+            await runAutoResponseWorker({ limit: 5 })
+          } catch (kickErr) {
+            console.error('[auto-response] kick failed', { reason: (kickErr as Error)?.message })
+          }
+        })
+      }
     } catch (err) {
       console.error(`[WhatsappWebhook][inbox][msgId=${messageId}] persistence failed:`, err)
     }
