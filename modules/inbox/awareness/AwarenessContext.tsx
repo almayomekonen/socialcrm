@@ -12,16 +12,21 @@ type AwarenessContextValue = {
   /** Live unread count, or null when delta-sync is disabled (badge falls back to the server prop). */
   whatsappUnread: number | null
   /**
-   * The single entry point both feeds call: the global awareness poll (this file)
-   * and the inbox /sync loop (T5). Updates the count and toasts genuinely-new
-   * arrivals. Keeping one merge path = one source of truth for badge + toast.
+   * The single entry point the global awareness poll (this file) calls off-inbox:
+   * updates the count AND toasts genuinely-new arrivals.
    */
   mergeAwareness: (counts: AwarenessCounts, items: AwarenessItem[]) => void
+  /**
+   * Badge-only update the inbox /sync loop (T5) calls: on /inbox the live list IS
+   * the signal, so we move the badge but never toast (no redundant on-screen alert).
+   */
+  setCount: (whatsappUnread: number) => void
 }
 
 const AwarenessContext = createContext<AwarenessContextValue>({
   whatsappUnread: null,
   mergeAwareness: () => {},
+  setCount: () => {},
 })
 
 export function useAwareness(): AwarenessContextValue {
@@ -72,8 +77,10 @@ export function AwarenessProvider({
     [router],
   )
 
+  const setCount = useCallback((n: number) => setWhatsappUnread(n), [])
+
   return (
-    <AwarenessContext.Provider value={{ whatsappUnread, mergeAwareness }}>
+    <AwarenessContext.Provider value={{ whatsappUnread, mergeAwareness, setCount }}>
       {enabled ? <AwarenessPoller onData={mergeAwareness} /> : null}
       {children}
     </AwarenessContext.Provider>

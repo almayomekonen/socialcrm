@@ -1,39 +1,12 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { loadMoreInboxConversations } from '@/modules/inbox/actions'
-import { mergeConversationPages } from '@/modules/inbox/mergeConversationPages'
+import { useInboxStore } from '@/modules/inbox/client/inboxStore'
 import InboxConversationRow from './InboxConversationRow'
-import type { InboxConversationListItem, InboxCursor, InboxListFilters } from '@/modules/inbox/types'
 
-export default function InboxConversationList({
-  initialItems,
-  initialCursor,
-  selectedConversationId,
-  filters,
-}: {
-  initialItems: InboxConversationListItem[]
-  initialCursor: InboxCursor | null
-  selectedConversationId: number | null
-  filters: InboxListFilters
-}) {
-  // `initialItems` is the server's first page — refreshed live by the page-level
-  // poller's router.refresh(). We render directly from it (no frozen useState
-  // snapshot) merged with locally-accumulated "load more" pages.
-  const [extraPages, setExtraPages] = useState<InboxConversationListItem[]>([])
-  const [cursor, setCursor] = useState(initialCursor)
-  const [pending, startTransition] = useTransition()
-
-  const items = useMemo(() => mergeConversationPages(initialItems, extraPages), [initialItems, extraPages])
-
-  const loadMore = () => {
-    if (!cursor || pending) return
-    startTransition(async () => {
-      const page = await loadMoreInboxConversations({ cursor, filters })
-      setExtraPages((prev) => mergeConversationPages(prev, page.items))
-      setCursor(page.nextCursor)
-    })
-  }
+export default function InboxConversationList({ selectedConversationId }: { selectedConversationId: number | null }) {
+  // Single source of truth: the store (seeded from the server's first page,
+  // reconciled by router.refresh, and updated live by the /sync loop when enabled).
+  const { items, cursor, loadingMore, loadMore } = useInboxStore()
 
   return (
     <div className='flex min-h-0 flex-1 flex-col'>
@@ -53,10 +26,10 @@ export default function InboxConversationList({
               <button
                 type='button'
                 onClick={loadMore}
-                disabled={pending}
+                disabled={loadingMore}
                 className='w-full px-3 py-2.5 text-center text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-50'
               >
-                {pending ? 'טוען...' : 'טען עוד'}
+                {loadingMore ? 'טוען...' : 'טען עוד'}
               </button>
             )}
           </>
