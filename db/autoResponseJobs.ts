@@ -1,43 +1,63 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 
+export type AutoResponseReason = 'first_contact' | 'qualify_turn'
+
 export interface AutoResponseJob {
   id: number
   agencyId: number
   conversationId: number
   leadId: number
   channel: string
-  reason: 'first_contact'
+  reason: AutoResponseReason
   triggerSequence: number
   attempts: number
   maxAttempts: number
   createdAt: string
 }
 
+/**
+ * Enqueue an auto-response job. `reason` defaults to 'first_contact' so existing
+ * acknowledge-mode callers are unchanged. For 'qualify_turn' the first-contact
+ * "already acted" guard is skipped (one job per customer turn); the partial unique
+ * index auto_response_jobs_inflight_uniq still enforces at most one in-flight job
+ * per conversation (turn-taking), via ON CONFLICT DO NOTHING.
+ */
 export async function enqueueAutoResponse(
   trx: Knex.Transaction,
-  args: { agencyId: number; conversationId: number; leadId: number; channel: string; triggerSequence: number },
+  args: {
+    agencyId: number
+    conversationId: number
+    leadId: number
+    channel: string
+    triggerSequence: number
+    reason?: AutoResponseReason
+  },
 ): Promise<number | null> {
+  const reason: AutoResponseReason = args.reason ?? 'first_contact'
   const res = await trx.raw(
     `
     INSERT INTO auto_response_jobs
       ("agencyId","conversationId","leadId",channel,reason,"triggerSequence",status,"notBefore")
-    SELECT :agencyId, :conversationId, :leadId, :channel, 'first_contact', :triggerSequence, 'pending', now()
+    SELECT :agencyId, :conversationId, :leadId, :channel, :reason, :triggerSequence, 'pending', now()
     WHERE EXISTS (SELECT 1 FROM agencies a WHERE a.id = :agencyId AND a."autoResponseEnabled" = true)
       AND EXISTS (SELECT 1 FROM auto_response_settings s
                    WHERE s."agencyId" = :agencyId AND s.channel = :channel AND s.enabled = true)
-      AND NOT EXISTS (SELECT 1 FROM auto_response_jobs j
-                       WHERE j."conversationId" = :conversationId AND j.reason = 'first_contact'
-                         AND j.status IN ('pending','processing','sent'))
+      AND (
+        :reason <> 'first_contact'
+        OR NOT EXISTS (SELECT 1 FROM auto_response_jobs j
+                        WHERE j."conversationId" = :conversationId AND j.reason = 'first_contact'
+                          AND j.status IN ('pending','processing','sent'))
+      )
     ON CONFLICT DO NOTHING
     RETURNING id
   `,
-    args,
+    { ...args, reason },
   )
   const row = res.rows?.[0]
   if (!row) return null
   // [IRE-OBS] temporary observability.
-  console.log(`[IRE] enqueued conv=${args.conversationId} job=${row.id} agency=${args.agencyId}`)
+  console.log(`[IRE] enqueued conv=${args.conversationId} job=${row.id} reason=${reason} agency=${args.agencyId}`)
   return Number(row.id)
 }
 
@@ -65,7 +85,7 @@ export async function claimAutoResponseJobs(workerId: string, limit: number): Pr
     conversationId: Number(r.conversationId),
     leadId: Number(r.leadId),
     channel: String(r.channel),
-    reason: 'first_contact' as const,
+    reason: r.reason as AutoResponseReason,
     triggerSequence: Number(r.triggerSequence),
     attempts: Number(r.attempts),
     maxAttempts: Number(r.maxAttempts),
