@@ -163,4 +163,4 @@ begin authoritative enforcement rollout.
 RESEND_FROM="SocialCRM <hello@getsocialcrm.com>"
 
 
-
+postgresql://neondb_owner:npg_vOomFK8Lp9Uy@ep-blue-pond-amx6qyj4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require

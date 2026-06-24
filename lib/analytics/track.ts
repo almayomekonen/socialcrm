@@ -19,6 +19,8 @@ export type AnalyticsEventName =
   | 'operator_take.dismissed'
   | 'auto_response_sent'
   | 'auto_response_skipped'
+  | 'auto_response_escalated'
+  | 'auto_response_draft'
 
 type TrackInput = {
   agencyId: number

@@ -15,6 +15,8 @@ import {
 } from '@/db/autoResponseJobs'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
+import { generateQualifyTurn } from './qualify'
+import { processQualifyJob } from './qualifyWorker'
 import { validateAutoResponse } from './validate'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
@@ -23,11 +25,12 @@ const DEFAULT_LEASE_MS = 60_000
 export type WorkerDeps = {
   send: typeof sendWhatsappText
   generate: typeof generateAcknowledgement
+  generateQualify: typeof generateQualifyTurn
 }
 
 type QuietHours = { tz?: string; startHour?: number; endHour?: number }
 
-function withinQuietHours(qh: QuietHours | undefined, now: Date): boolean {
+export function withinQuietHours(qh: QuietHours | undefined, now: Date): boolean {
   if (qh?.startHour == null || qh?.endHour == null) return false
   const tz = qh.tz || 'Asia/Jerusalem'
   const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: tz }).format(now))
@@ -54,6 +57,31 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   if (!conv) return doSkip('conversation_gone')
   if (!lead) return doSkip('lead_gone')
   if (lead.status && TERMINAL_STATUSES.includes(lead.status)) return doSkip('lead_terminal')
+
+  // Qualify mode (opt-in per agency) branches to its own processor; acknowledge
+  // mode (everything below) is unchanged.
+  if (settings?.mode === 'qualify') {
+    return processQualifyJob(
+      job,
+      {
+        master,
+        settings,
+        conv: {
+          id: Number(conv.id),
+          businessPhoneNumberId: String(conv.businessPhoneNumberId),
+          customerWaId: (conv.customerWaId as string | null) ?? null,
+          customerName: (conv.customerName as string | null) ?? null,
+        },
+        lead: {
+          id: Number(lead.id),
+          userId: (lead.userId as number | null) ?? null,
+          handlerId: (lead.handlerId as number | null) ?? null,
+          status: (lead.status as string | null) ?? null,
+        },
+      },
+      { send: deps.send, generateQualify: deps.generateQualify },
+    )
+  }
 
   const [outboundExists, humanReplyExists, priorAuto, sentToday] = await Promise.all([
     db('inbox_messages').where({ conversationId: job.conversationId, direction: 'outbound' }).first('id'),
@@ -154,6 +182,7 @@ export async function runAutoResponseWorker(
   const deps: WorkerDeps = {
     send: opts.deps?.send ?? sendWhatsappText,
     generate: opts.deps?.generate ?? generateAcknowledgement,
+    generateQualify: opts.deps?.generateQualify ?? generateQualifyTurn,
   }
 
   await reclaimStaleAutoResponseJobs(leaseMs)

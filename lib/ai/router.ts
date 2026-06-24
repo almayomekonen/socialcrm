@@ -44,7 +44,6 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
 
   if (!isAiEnabled()) return { ok: false, reason: 'disabled' }
 
-  // OLD production gate. Phase B observes — does NOT replace — this decision.
   const allowlisted = isAgencyAllowlisted(opts.agencyId)
   const oldAllowed = opts.bypassAllowlist === true || allowlisted
 

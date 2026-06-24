@@ -1,16 +1,7 @@
-/**
- * AI Lead Qualifier — structured turn generation + deterministic helpers.
- * Reuses the cost-capped, allowlisted runStructured router (same `kind` as the
- * acknowledge path). Output is structured: the next reply, fields extracted from
- * what the customer actually said, plus hot-signal and uncertainty flags. The
- * handoff text is a FIXED template (never AI-generated). Strict guardrails: no
- * prices, no promises, no invented facts — escalate instead of guessing.
- */
 import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
 import { QUALIFICATION_FIELDS, type Qualification } from './qualification'
 
-// ── Deterministic helpers (pure, unit-tested) ────────────────────────────────
 const HOT_PATTERNS: RegExp[] = [
   /מחיר|תמחור|הצעת מחיר|עלות|בכמה|כמה.{0,12}עול/, // price ("כמה זה עולה", "כמה עולה", "מחיר", …)
   /דמו|הדגמה/, // demo
@@ -24,14 +15,22 @@ const HOT_PATTERNS: RegExp[] = [
   /talk to (a|someone)|speak (to|with)|call me|representative|\bagent\b|\bhuman\b/i,
 ]
 
-/** Deterministic buying-intent detector — a safety net beside the model's own hotSignal. */
 export function detectHotSignal(text: string): boolean {
   return HOT_PATTERNS.some((re) => re.test(text))
 }
 
-/** Pick the handoff language from the customer's text. */
 export function detectLang(text: string): 'he' | 'en' {
   return /[֐-׿]/.test(text) ? 'he' : 'en'
+}
+
+const OPTOUT_PATTERNS: RegExp[] = [
+  /תפסיק|תפסיקו|הסר אותי|להסיר|תורידו אותי|אל תכתבו|הפסיקו|נמאס לי/,
+  /\bstop\b|unsubscribe|remove me|opt[ -]?out|leave me alone|do not (contact|message)/i,
+]
+
+/** Customer opt-out / unsubscribe request → permanent stop + compliance. */
+export function detectOptOut(text: string): boolean {
+  return OPTOUT_PATTERNS.some((re) => re.test(text))
 }
 
 const HANDOFF = {
@@ -45,13 +44,11 @@ const HANDOFF = {
   },
 }
 
-/** Fixed handoff template by escalation reason + language. Never AI-generated. */
 export function handoffMessage(reason: string, lang: 'he' | 'en'): string {
   const t = reason === 'uncertain' ? HANDOFF.uncertain : HANDOFF.qualified
   return lang === 'en' ? t.en : t.he
 }
 
-// ── Structured generation ────────────────────────────────────────────────────
 const QualifySchema = z.object({
   reply: z.string().describe('ההודעה הבאה לליד: שאלת הבהרה אחת, חמה, 1-2 משפטים'),
   extracted: z
