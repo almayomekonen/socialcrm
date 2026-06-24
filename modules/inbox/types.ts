@@ -1,8 +1,24 @@
 export type InboxChannel = 'whatsapp'
+
 export type InboxAttention = 'needs_reply' | 'replied'
+
 export type InboxConversationState = 'open' | 'archived' | 'closed'
+
 export type InboxStatusFilter = 'all' | InboxConversationState
+
 export type InboxSort = 'latest' | 'oldest' | 'unread' | 'temperature' | 'intent' | 'action'
+
+/**
+ * Intelligence-driven segments (Phase 4). Read from persisted
+ * conversation_intelligence only — never computed at render time.
+ *   hot        — temperature = hot
+ *   attention  — temperature = hot AND awaiting reply (needs immediate attention)
+ *   pricing    — intent = pricing
+ *   demo       — intent = demo
+ *   support    — intent = support
+ *   escalation — suggested action = escalate_support
+ *   followup   — suggested action = follow_up
+ */
 export type InboxIntelFilter = 'all' | 'hot' | 'attention' | 'pricing' | 'demo' | 'support' | 'escalation' | 'followup'
 
 export type InboxListFilters = {
@@ -23,6 +39,7 @@ export const DEFAULT_INBOX_FILTERS: InboxListFilters = {
   sort: 'latest',
 }
 
+/** Counts for the smart sections strip — derived from persisted intelligence. */
 export type InboxSmartCounts = {
   hot: number
   attention: number
@@ -51,6 +68,7 @@ export type InboxCursor = {
   lastMessageAt: string
   id: number
   unread: boolean
+  /** Sort-rank of the last row — present for intelligence sorts (temperature/intent/action). */
   rank?: number
 }
 

@@ -29,9 +29,10 @@ const company = [
 ]
 
 const socialIcons = [
-  { bgImg: '/media/social-icons/facebook-color.svg', label: 'פייסבוק', href: 'https://www.facebook.com/share/1BZNFrLH9R/?mibextid=wwXIfr' },
-  { bgImg: '/media/social-icons/instagram-color.svg', label: 'אינסטגרם', href: 'https://www.instagram.com/socialcrm.ai?igsh=cWVvc2FuMHFtM3R3&utm_source=qr' },
-  { bgImg: '/media/social-icons/gmail.svg', label: 'אימייל', href: 'mailto:alamayo274@gmail.com' },
+  { name: 'square-f' as const, label: 'פייסבוק', href: '#' },
+  { name: 'at' as const, label: 'אינסטגרם', href: '#' },
+  { name: 'comment-dots' as const, label: 'וואטסאפ', href: '#' },
+  { name: 'paper-plane' as const, label: 'מייל', href: 'mailto:hello@socialcrm.co.il' },
 ]
 
 export default function Footer4Col() {
@@ -57,27 +58,15 @@ export default function Footer4Col() {
             </p>
 
             <div className='mt-6 flex items-center gap-5'>
-              {socialIcons.map(({ bgImg, label, href }) => {
-                const isExternal = href.startsWith('http')
-                return (
-                  <Link
-                    key={label}
-                    href={href}
-                    aria-label={label}
-                    {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  >
-                    <span
-                      className='block size-5 opacity-80 hover:opacity-100 transition-opacity'
-                      style={{
-                        backgroundImage: `url(${bgImg})`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'center',
-                        backgroundSize: 'contain',
-                      }}
-                    />
-                  </Link>
-                )
-              })}
+              {socialIcons.map(({ name, label, href }) => (
+                <Link
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                >
+                  <Icon name={name} className='size-5 bg-white/40 hover:bg-white transition-colors' />
+                </Link>
+              ))}
             </div>
           </div>
 
