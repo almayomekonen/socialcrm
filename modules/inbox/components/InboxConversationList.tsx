@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { loadMoreInboxConversations } from '@/modules/inbox/actions'
+import { mergeConversationPages } from '@/modules/inbox/mergeConversationPages'
 import InboxConversationRow from './InboxConversationRow'
 import type { InboxConversationListItem, InboxCursor, InboxListFilters } from '@/modules/inbox/types'
 
@@ -16,18 +17,20 @@ export default function InboxConversationList({
   selectedConversationId: number | null
   filters: InboxListFilters
 }) {
-  const [items, setItems] = useState(initialItems)
+  // `initialItems` is the server's first page — refreshed live by the page-level
+  // poller's router.refresh(). We render directly from it (no frozen useState
+  // snapshot) merged with locally-accumulated "load more" pages.
+  const [extraPages, setExtraPages] = useState<InboxConversationListItem[]>([])
   const [cursor, setCursor] = useState(initialCursor)
   const [pending, startTransition] = useTransition()
+
+  const items = useMemo(() => mergeConversationPages(initialItems, extraPages), [initialItems, extraPages])
 
   const loadMore = () => {
     if (!cursor || pending) return
     startTransition(async () => {
       const page = await loadMoreInboxConversations({ cursor, filters })
-      setItems((prev) => {
-        const seen = new Set(prev.map((p) => p.conversationId))
-        return [...prev, ...page.items.filter((i) => !seen.has(i.conversationId))]
-      })
+      setExtraPages((prev) => mergeConversationPages(prev, page.items))
       setCursor(page.nextCursor)
     })
   }
