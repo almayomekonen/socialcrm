@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useTransition } from 'react'
 import { loadMoreInboxConversations } from '@/modules/inbox/actions'
 import { mergeConversationPages } from '@/modules/inbox/mergeConversationPages'
-import type { InboxConversationListItem, InboxCursor, InboxListFilters } from '@/modules/inbox/types'
+import { compareInboxItems } from './compareInboxItems'
+import type { InboxConversationListItem, InboxCursor, InboxListFilters, InboxSort } from '@/modules/inbox/types'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import InboxSyncLoop from './InboxSyncLoop'
 
@@ -36,14 +37,15 @@ export function useInboxStore(): InboxStoreValue {
   return ctx
 }
 
-/** ISO timestamps sort lexically = chronologically; newest first (the 'latest' view). */
-function upsertByMostRecent(
+/** Upsert delta rows by conversationId, then re-order to match the active server sort. */
+function upsertAndSort(
   base: InboxConversationListItem[],
   changed: InboxConversationListItem[],
+  sort: InboxSort,
 ): InboxConversationListItem[] {
   const map = new Map(base.map((i) => [i.conversationId, i]))
   for (const c of changed) map.set(c.conversationId, c)
-  return [...map.values()].sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''))
+  return [...map.values()].sort(compareInboxItems(sort))
 }
 
 export function InboxStoreProvider({
@@ -87,10 +89,13 @@ export function InboxStoreProvider({
 
   const items = useMemo(() => mergeConversationPages(base, extra), [base, extra])
 
-  const mergeSync = useCallback((changed: InboxConversationListItem[]) => {
-    if (changed.length === 0) return
-    setBase((prev) => upsertByMostRecent(prev, changed))
-  }, [])
+  const mergeSync = useCallback(
+    (changed: InboxConversationListItem[]) => {
+      if (changed.length === 0) return
+      setBase((prev) => upsertAndSort(prev, changed, filters.sort))
+    },
+    [filters.sort],
+  )
 
   // ── Open-thread state ──
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null)
