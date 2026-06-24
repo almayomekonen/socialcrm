@@ -4,6 +4,7 @@ import { getUser } from '@/db/auth'
 import { listInboxConversations, getInboxConversationById, getInboxSmartCounts } from '@/modules/inbox/queries'
 import { parseInboxFilters, inboxFiltersKey } from '@/modules/inbox/filters'
 import InboxConversationList from '@/modules/inbox/components/InboxConversationList'
+import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxToolbar from '@/modules/inbox/components/InboxToolbar'
 import InboxWorkspace from '@/modules/inbox/components/InboxWorkspace'
 import InboxEmptyState from '@/modules/inbox/components/InboxEmptyState'
@@ -38,7 +39,9 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
-      {/* Conversation list */}
+   
+      <ConversationRefreshPoller />
+
       <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
         <InboxToolbar filters={filters} selectedConversation={selectedConversationId} smartCounts={smartCounts} />
         <InboxConversationList
@@ -50,7 +53,6 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         />
       </aside>
 
-      {/* Workspace */}
       <main className='min-w-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white'>
         {selected ? (
           <InboxWorkspace conversationId={selected.conversationId} leadId={selected.leadId} channel={selected.channel} />

@@ -1,6 +1,5 @@
 import { listConversationMessages } from '@/db/inboxMessages'
 import WhatsappConversation from '@/components/summary/WhatsappConversation'
-import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import { SUPPORTED_WORKSPACE_CHANNELS, channelLabel } from '@/modules/inbox/channels'
 import InboxReadMarker from './InboxReadMarker'
 import OperatorTake from './OperatorTake'
@@ -27,7 +26,6 @@ export default async function InboxWorkspace({
   return (
     <div className='p-2'>
       <InboxReadMarker conversationId={conversationId} />
-      <ConversationRefreshPoller />
       <OperatorTake conversationId={conversationId} />
       <WhatsappConversation messages={messages} leadId={leadId} />
     </div>
