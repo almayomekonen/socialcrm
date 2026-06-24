@@ -5,9 +5,15 @@ import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { skipAutoResponseJob, completeAutoResponseJob, countSentToday, type AutoResponseJob } from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
+import {
+  upsertManyConversationIntelligence,
+  getMaxMessageSequence,
+  INTEL_KIND_TEMPERATURE,
+} from '@/db/conversationIntelligence'
 import { mergeQualification, requiredComplete } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import { generateQualifyTurn, handoffMessage, detectLang, detectOptOut, type QualifyGenResult } from './qualify'
+import { buildSummary, type EscalationSummary } from './summary'
 import { validateAutoResponse } from './validate'
 import { withinQuietHours } from './worker'
 
@@ -70,6 +76,30 @@ async function sendAndPersist(
       metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify({ source: 'auto_response', reason: job.reason, phase: 2 })]),
     })
   return { ok: true, messageId: res.messageId }
+}
+
+/**
+ * On escalation: persist the fact-grounded summary + lead temperature into
+ * conversation_intelligence. Temperature drives the inbox badge; the summary is a
+ * dedicated internal kind (never sent to the customer). The operator is notified
+ * by the existing awareness toast/badge — the customer's last inbound keeps the
+ * conversation unread, so it surfaces there with its new hot/warm temperature.
+ */
+async function persistEscalation(conversationId: number, agencyId: number, summary: EscalationSummary): Promise<void> {
+  const coveredSequence = await getMaxMessageSequence(conversationId)
+  const base = {
+    conversationId,
+    agencyId,
+    channel: 'whatsapp',
+    status: 'fresh' as const,
+    schemaVersion: 1,
+    analyzerVersion: 'qualifier-v1',
+    coveredSequence,
+  }
+  await upsertManyConversationIntelligence([
+    { ...base, kind: INTEL_KIND_TEMPERATURE, data: { temperature: summary.temperature } },
+    { ...base, kind: 'qualification_summary', data: { text: summary.text, suggestedAction: summary.suggestedAction } },
+  ])
 }
 
 export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, deps: QualifyDeps): Promise<Outcome> {
@@ -144,12 +174,16 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   })
   const lang = detectLang(lastInbound?.text ?? '')
   const draft = settings.draft
+  const summary =
+    post.action === 'escalate'
+      ? buildSummary({ qualification: merged, reason: post.reason, turnCount: aiState.aiTurnCount + 1, lang })
+      : null
 
-  // ── Draft/canary: never send; record the would-be output for review ──
+  // ── Draft/canary: never send; record the would-be output (incl. summary) for review ──
   if (draft) {
     const drafted = post.action === 'escalate' ? handoffMessage(post.reason, lang) : gen.reply
     console.log(
-      `[IRE-DRAFT] conv=${conv.id} decision=${post.action}:${(post as { reason?: string }).reason ?? ''} reply=${JSON.stringify(drafted)} extracted=${JSON.stringify(gen.extracted)} qualification=${JSON.stringify(merged)}`,
+      `[IRE-DRAFT] conv=${conv.id} decision=${post.action}:${(post as { reason?: string }).reason ?? ''} reply=${JSON.stringify(drafted)} extracted=${JSON.stringify(gen.extracted)} qualification=${JSON.stringify(merged)}${summary ? ` summary=${JSON.stringify(summary.text)}` : ''}`,
     )
     await mergeOnly(conv.id, gen.extracted)
     await track({
@@ -160,8 +194,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return doSkip('draft')
   }
 
-  // ── Escalate: send fixed handoff + mark escalated (T6 adds summary/awareness) ──
-  if (post.action === 'escalate') {
+  // ── Escalate: send fixed handoff + mark escalated + persist summary/temperature ──
+  if (post.action === 'escalate' && summary) {
     const r = await sendAndPersist(job, ctx, deps.send, handoffMessage(post.reason, lang))
     if (r.ok === false) {
       if (r.reason === 'send_failed') return 'failed'
@@ -169,8 +203,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     }
     await mergeOnly(conv.id, gen.extracted)
     await markEscalated(conv.id, post.reason)
+    await persistEscalation(conv.id, job.agencyId, summary)
     await completeAutoResponseJob(job.id, r.messageId)
-    console.log(`[IRE] qualify escalate conv=${conv.id} reason=${post.reason} msg=${r.messageId}`)
+    console.log(`[IRE] qualify escalate conv=${conv.id} reason=${post.reason} temp=${summary.temperature} msg=${r.messageId}`)
     await track({
       agencyId: job.agencyId,
       event: 'auto_response_escalated',
