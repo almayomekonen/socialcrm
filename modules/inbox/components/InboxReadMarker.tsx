@@ -3,10 +3,16 @@
 import { useEffect } from 'react'
 import { markConversationRead } from '@/modules/inbox/actions'
 
-export default function InboxReadMarker({ conversationId }: { conversationId: number }) {
+export default function InboxReadMarker({
+  conversationId,
+  latestMessageId,
+}: {
+  conversationId: number
+  latestMessageId: number | null
+}) {
   useEffect(() => {
     void markConversationRead(conversationId)
-  }, [conversationId])
+  }, [conversationId, latestMessageId])
 
   return null
 }

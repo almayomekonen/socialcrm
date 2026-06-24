@@ -22,10 +22,14 @@ export default async function InboxWorkspace({
   }
 
   const messages = await listConversationMessages(conversationId)
+  // Messages are ordered oldest→newest; the newest id is the read-progress
+  // signal. On each poll refresh this prop advances when a message arrives,
+  // re-firing the read marker so the open conversation never lingers unread.
+  const latestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null
 
   return (
     <div className='p-2'>
-      <InboxReadMarker conversationId={conversationId} />
+      <InboxReadMarker conversationId={conversationId} latestMessageId={latestMessageId} />
       <OperatorTake conversationId={conversationId} />
       <WhatsappConversation messages={messages} leadId={leadId} />
     </div>
