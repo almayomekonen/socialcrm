@@ -11,10 +11,12 @@ export default function InboxConversationRow({
   item: InboxConversationListItem
   selected: boolean
 }) {
+
+  const unread = item.unread && !selected;
+
   const attentionDot =
     item.attention === 'needs_reply' ? 'bg-amber-500' : item.attention === 'replied' ? 'bg-green-500' : 'bg-gray-300'
 
-  // Persisted intelligence (read-only). Values without labels ('other', 'none', null) are hidden.
   const temperatureBadge = item.temperature ? TEMPERATURE_BADGES[item.temperature] : null
   const intentLabel = item.intent ? INTENT_LABELS[item.intent] : null
   const actionLabel = item.suggestedAction ? ACTION_LABELS[item.suggestedAction] : null
@@ -28,7 +30,7 @@ export default function InboxConversationRow({
       <div className='flex items-center justify-between gap-2'>
         <div className='flex min-w-0 items-center gap-1.5'>
           <span className={`size-2 shrink-0 rounded-full ${attentionDot}`} aria-hidden />
-          <span className={`truncate text-sm text-gray-900 ${item.unread ? 'font-bold' : 'font-medium'}`}>
+          <span className={`truncate text-sm text-gray-900 ${unread ? 'font-bold' : 'font-medium'}`}>
             {item.displayName ?? 'ליד'}
           </span>
         </div>
@@ -37,7 +39,7 @@ export default function InboxConversationRow({
         </span>
       </div>
       {item.lastMessagePreview && (
-        <p className={`mt-0.5 truncate pr-3.5 text-xs ${item.unread ? 'text-gray-700' : 'text-gray-400'}`}>
+        <p className={`mt-0.5 truncate pr-3.5 text-xs ${unread ? 'text-gray-700' : 'text-gray-400'}`}>
           {item.lastDirection === 'outbound' ? 'נשלח: ' : ''}
           {item.lastMessagePreview}
         </p>
@@ -59,7 +61,7 @@ export default function InboxConversationRow({
       {actionLabel && <p className='mt-0.5 truncate pr-3.5 text-[11px] text-gray-600'>הצעד הבא: {actionLabel}</p>}
       <div className='mt-0.5 flex items-center justify-between gap-2 pr-3.5'>
         <span className='text-xs text-gray-500'>{channelLabel(item.channel)}</span>
-        {item.unread && (
+        {unread && (
           <span className='inline-flex items-center gap-1 text-[11px] text-red-600'>
             <span className='size-1.5 rounded-full bg-red-500' aria-hidden />
             לא נקרא
