@@ -14,6 +14,7 @@ import { mergeQualification, requiredComplete } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import { generateQualifyTurn, handoffMessage, detectLang, detectOptOut, type QualifyGenResult } from './qualify'
 import { buildSummary, type EscalationSummary } from './summary'
+import { isQualifierEnabled } from './killSwitch'
 import { validateAutoResponse } from './validate'
 import { withinQuietHours } from './worker'
 
@@ -113,6 +114,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
     return 'skipped'
   }
+
+  // Global backstop (env). Per-agency instant levers are the DB flags.
+  if (isQualifierEnabled() === false) return doSkip('qualifier_killed')
 
   // ── Gather facts (recent transcript drives batch + turn-taking + takeover) ──
   const rows = await db('inbox_messages')
