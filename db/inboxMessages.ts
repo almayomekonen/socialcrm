@@ -178,6 +178,30 @@ export async function listLeadWhatsappMessages(leadId: number): Promise<LeadWhat
   }))
 }
 
+/** Thread delta: messages newer than `afterId` for a conversation, agency-scoped. */
+export async function getConversationMessagesAfter(
+  conversationId: number,
+  afterId: number,
+  agencyId: number,
+): Promise<LeadWhatsappMessage[]> {
+  const rows = await db('inbox_messages as m')
+    .where('m.conversationId', conversationId)
+    .andWhere('m.agencyId', agencyId)
+    .andWhere('m.id', '>', afterId)
+    .orderBy('m.id', 'asc')
+    .select('m.id', 'm.direction', 'm.type', 'm.text', 'm.channelTimestamp', 'm.createdAt')
+
+  const toIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : v ? String(v) : '')
+
+  return rows.map((r) => ({
+    id: Number(r.id),
+    direction: r.direction as InboxMessageDirection,
+    type: r.type as InboxMessageType,
+    text: (r.text as string) ?? '',
+    timestamp: toIso(r.channelTimestamp ?? r.createdAt),
+  }))
+}
+
 export async function listConversationMessages(conversationId: number): Promise<LeadWhatsappMessage[]> {
   const user = await getUser()
   if (!user?.agencyId) return []

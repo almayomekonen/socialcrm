@@ -1,4 +1,6 @@
 import { db } from '@/config/db'
+import { countUnreadConversationsForUser } from '@/db/inboxConversationReads'
+import type { AwarenessItem } from './awareness/types'
 import type {
   InboxChannel,
   InboxConversationListItem,
@@ -40,21 +42,12 @@ const truncate = (v: unknown): string | null => {
 
 const toLikePattern = (q: string): string => `%${q.replace(/[\\%_]/g, (ch) => '\\' + ch)}%`
 
-export async function listInboxConversations(
-  agencyId: number,
-  userId: number,
-  opts: { cursor?: InboxCursor | null; limit?: number; filters?: Partial<InboxListFilters> } = {},
-): Promise<InboxConversationsPage> {
-  const limit = Math.min(Math.max(opts.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT)
-  const filters: InboxListFilters = { ...DEFAULT_INBOX_FILTERS, ...opts.filters }
-  const cursor = opts.cursor ?? null
-
-  let q = db('inbox_conversations as cv')
+function inboxSelectQuery(userId: number) {
+  return db('inbox_conversations as cv')
     .leftJoin('clients as c', 'c.id', 'cv.leadId')
     .leftJoin('inbox_conversation_reads as r', function () {
       this.on('r.conversationId', 'cv.id').andOnVal('r.userId', userId)
     })
-
     .leftJoin('conversation_intelligence as it', function () {
       this.on('it.conversationId', 'cv.id').andOnVal('it.kind', 'temperature')
     })
@@ -64,8 +57,6 @@ export async function listInboxConversations(
     .leftJoin('conversation_intelligence as ia', function () {
       this.on('ia.conversationId', 'cv.id').andOnVal('ia.kind', 'suggested_action')
     })
-    .where('cv.agencyId', agencyId)
-    .limit(limit + 1)
     .select(
       'cv.id as conversationId',
       'cv.leadId',
@@ -83,45 +74,87 @@ export async function listInboxConversations(
       db.raw(`${INTENT_SQL} as intent`),
       db.raw(`${ACTION_SQL} as "suggestedAction"`),
     )
+}
 
-  if (filters.status !== 'all') q = q.where('cv.state', filters.status)
-  if (filters.needsReply) q = q.where('cv.lastDirection', 'inbound')
-  if (filters.unread) q = q.whereRaw(UNREAD_SQL)
-
+function applyInboxFilters<Q extends ReturnType<typeof inboxSelectQuery>>(q: Q, filters: InboxListFilters): Q {
+  if (filters.status !== 'all') q.where('cv.state', filters.status)
+  if (filters.needsReply) q.where('cv.lastDirection', 'inbound')
+  if (filters.unread) q.whereRaw(UNREAD_SQL)
   switch (filters.intel) {
     case 'hot':
-      q = q.whereRaw(`${TEMP_SQL} = 'hot'`)
+      q.whereRaw(`${TEMP_SQL} = 'hot'`)
       break
     case 'attention':
-      q = q.whereRaw(`${TEMP_SQL} = 'hot'`).where('cv.lastDirection', 'inbound')
+      q.whereRaw(`${TEMP_SQL} = 'hot'`).where('cv.lastDirection', 'inbound')
       break
     case 'pricing':
-      q = q.whereRaw(`${INTENT_SQL} = 'pricing'`)
+      q.whereRaw(`${INTENT_SQL} = 'pricing'`)
       break
     case 'demo':
-      q = q.whereRaw(`${INTENT_SQL} = 'demo'`)
+      q.whereRaw(`${INTENT_SQL} = 'demo'`)
       break
     case 'support':
-      q = q.whereRaw(`${INTENT_SQL} = 'support'`)
+      q.whereRaw(`${INTENT_SQL} = 'support'`)
       break
     case 'escalation':
-      q = q.whereRaw(`${ACTION_SQL} = 'escalate_support'`)
+      q.whereRaw(`${ACTION_SQL} = 'escalate_support'`)
       break
     case 'followup':
-      q = q.whereRaw(`${ACTION_SQL} = 'follow_up'`)
+      q.whereRaw(`${ACTION_SQL} = 'follow_up'`)
       break
   }
-
   const term = filters.q?.trim()
   if (term) {
     const pattern = toLikePattern(term)
-    q = q.where((b) => {
+    q.where((b) => {
       b.whereILike('c.name', pattern)
         .orWhereILike('cv.customerName', pattern)
         .orWhereILike('cv.customerWaId', pattern)
         .orWhereILike('cv.lastMessageText', pattern)
     })
   }
+  return q
+}
+
+export function computeUnread(r: { lastInboundAt?: unknown; lastReadAt?: unknown }): boolean {
+  const lastInboundMs = r.lastInboundAt ? new Date(r.lastInboundAt as string | Date).getTime() : null
+  const lastReadMs = r.lastReadAt ? new Date(r.lastReadAt as string | Date).getTime() : null
+  return lastInboundMs !== null && (lastReadMs === null || lastInboundMs > lastReadMs)
+}
+
+function mapInboxRow(r: Record<string, unknown>): InboxConversationListItem {
+  const lastDirection = (r.lastDirection ?? null) as 'inbound' | 'outbound' | null
+  return {
+    conversationId: Number(r.conversationId),
+    leadId: Number(r.leadId),
+    channel: r.channel as InboxChannel,
+    displayName: (r.customerName as string) || (r.leadName as string) || (r.customerWaId as string) || null,
+    leadName: (r.leadName as string) ?? null,
+    leadStatus: (r.leadStatus as string) ?? null,
+    lastMessageAt: toIso(r.lastMessageAt),
+    lastDirection,
+    lastMessagePreview: truncate(r.lastMessageText),
+    unread: computeUnread(r),
+    attention: lastDirection === 'inbound' ? 'needs_reply' : lastDirection === 'outbound' ? 'replied' : null,
+    temperature: (r.temperature as InboxConversationListItem['temperature']) ?? null,
+    intent: (r.intent as InboxConversationListItem['intent']) ?? null,
+    suggestedAction: (r.suggestedAction as InboxConversationListItem['suggestedAction']) ?? null,
+  }
+}
+
+export async function listInboxConversations(
+  agencyId: number,
+  userId: number,
+  opts: { cursor?: InboxCursor | null; limit?: number; filters?: Partial<InboxListFilters> } = {},
+): Promise<InboxConversationsPage> {
+  const limit = Math.min(Math.max(opts.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT)
+  const filters: InboxListFilters = { ...DEFAULT_INBOX_FILTERS, ...opts.filters }
+  const cursor = opts.cursor ?? null
+
+  let q = inboxSelectQuery(userId)
+    .where('cv.agencyId', agencyId)
+    .limit(limit + 1)
+  applyInboxFilters(q, filters)
 
   const rankSql = RANK_SQL_BY_SORT[filters.sort]
   if (rankSql) {
@@ -156,31 +189,7 @@ export async function listInboxConversations(
   const hasMore = rows.length > limit
   const pageRows = hasMore ? rows.slice(0, limit) : rows
 
-  const computeUnread = (r: { lastInboundAt?: unknown; lastReadAt?: unknown }): boolean => {
-    const lastInboundMs = r.lastInboundAt ? new Date(r.lastInboundAt as string | Date).getTime() : null
-    const lastReadMs = r.lastReadAt ? new Date(r.lastReadAt as string | Date).getTime() : null
-    return lastInboundMs !== null && (lastReadMs === null || lastInboundMs > lastReadMs)
-  }
-
-  const items: InboxConversationListItem[] = pageRows.map((r) => {
-    const lastDirection = (r.lastDirection ?? null) as 'inbound' | 'outbound' | null
-    return {
-      conversationId: Number(r.conversationId),
-      leadId: Number(r.leadId),
-      channel: r.channel as InboxChannel,
-      displayName: r.customerName || r.leadName || r.customerWaId || null,
-      leadName: r.leadName ?? null,
-      leadStatus: r.leadStatus ?? null,
-      lastMessageAt: toIso(r.lastMessageAt),
-      lastDirection,
-      lastMessagePreview: truncate(r.lastMessageText),
-      unread: computeUnread(r),
-      attention: lastDirection === 'inbound' ? 'needs_reply' : lastDirection === 'outbound' ? 'replied' : null,
-      temperature: r.temperature ?? null,
-      intent: r.intent ?? null,
-      suggestedAction: r.suggestedAction ?? null,
-    }
-  })
+  const items: InboxConversationListItem[] = pageRows.map(mapInboxRow)
 
   const last = pageRows[pageRows.length - 1]
   const lastTs = last ? toIso(last.lastMessageAt) : null
@@ -195,6 +204,58 @@ export async function listInboxConversations(
       : null
 
   return { items, nextCursor }
+}
+
+/** Conversations whose lastMessageAt advanced past `since` (2s overlap), in the active view. */
+export async function getInboxDelta(
+  agencyId: number,
+  userId: number,
+  sinceISO: string | null,
+  filters: InboxListFilters,
+): Promise<{ changed: InboxConversationListItem[]; full: boolean }> {
+  const DELTA_LIMIT = 100
+  const q = inboxSelectQuery(userId).where('cv.agencyId', agencyId)
+  applyInboxFilters(q, filters)
+  if (sinceISO) {
+    q.whereRaw('cv."lastMessageAt" > ?', [new Date(new Date(sinceISO).getTime() - 2000)])
+  }
+  q.orderBy([
+    { column: 'cv.lastMessageAt', order: 'asc' },
+    { column: 'cv.id', order: 'asc' },
+  ]).limit(DELTA_LIMIT + 1)
+  const rows = await q
+  const full = rows.length > DELTA_LIMIT
+  return { changed: (full ? rows.slice(0, DELTA_LIMIT) : rows).map(mapInboxRow), full }
+}
+
+/** Global awareness: per-user unread count + recent unread arrivals (toast/bell items). */
+export async function getInboxAwareness(
+  agencyId: number,
+  userId: number,
+  sinceISO: string | null,
+): Promise<{ counts: { whatsappUnread: number }; items: AwarenessItem[] }> {
+  const whatsappUnread = await countUnreadConversationsForUser(agencyId, userId)
+  const itemsQ = db('inbox_conversations as cv')
+    .leftJoin('clients as c', 'c.id', 'cv.leadId')
+    .leftJoin('inbox_conversation_reads as r', function () {
+      this.on('r.conversationId', 'cv.id').andOnVal('r.userId', userId)
+    })
+    .where('cv.agencyId', agencyId)
+    .whereRaw(UNREAD_SQL)
+    .orderBy('cv.lastInboundAt', 'desc')
+    .limit(20)
+    .select('cv.id as conversationId', 'cv.customerName', 'cv.customerWaId', 'cv.lastInboundAt', 'c.name as leadName')
+  if (sinceISO) {
+    itemsQ.whereRaw('cv."lastInboundAt" > ?', [new Date(new Date(sinceISO).getTime() - 2000)])
+  }
+  const rows = await itemsQ
+  const items: AwarenessItem[] = rows.map((r) => ({
+    type: 'whatsapp_message',
+    conversationId: Number(r.conversationId),
+    contactName: (r.customerName || r.leadName || r.customerWaId || 'ליד') as string,
+    at: toIso(r.lastInboundAt) ?? '',
+  }))
+  return { counts: { whatsappUnread }, items }
 }
 
 export async function getInboxSmartCounts(agencyId: number): Promise<InboxSmartCounts> {
