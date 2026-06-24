@@ -12,6 +12,8 @@ import { CopilotProvider } from '@/lib/copilot/useCopilot'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import { isGeneralModeEnabled } from '@/lib/ai/flags'
+import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
+import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import MobileBlock from '@/components/layout/MobileBlock'
@@ -81,7 +83,10 @@ async function LayoutContent({ children }) {
     inboxUnread = await countUnreadConversationsForUser(user.agencyId, user.id).catch(() => 0)
   }
 
+  const deltaSyncEnabled = isInboxDeltaSyncEnabled()
+
   return (
+    <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
     <UserProvider user={user}>
       <PosProvider>
         <CopilotProvider enabled={copilotEnabled}>
@@ -100,6 +105,7 @@ async function LayoutContent({ children }) {
         </CopilotProvider>
       </PosProvider>
     </UserProvider>
+    </AwarenessProvider>
   )
 }
 

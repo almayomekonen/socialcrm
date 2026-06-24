@@ -9,9 +9,13 @@ import { Route } from 'next'
 import { UserNAgency } from './Topbar'
 import { twMerge } from 'tailwind-merge'
 import Icon, { IconNames } from '@/lib/Icon'
+import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 
 export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
   const pathname = usePathname()
+  // Live unread (delta-sync). null when disabled → fall back to the server-rendered count.
+  const liveUnread = useAwarenessCount()
+  const effectiveUnread = liveUnread ?? inboxUnread
 
   useEffect(() => {
     checkUserSuspended(user)
@@ -45,7 +49,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
             </button>
           </div>
           <nav className='mt-8 p-8'>
-            {getNavLinks(user, inboxUnread, isOwner).map((link, i) => {
+            {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -75,7 +79,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
       >
         <nav className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
           <div className='w-full'>
-            {getNavLinks(user, inboxUnread, isOwner).map((link, i) => {
+            {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
