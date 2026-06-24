@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/analyze-conversations",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/send-auto-responses",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
