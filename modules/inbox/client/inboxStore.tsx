@@ -5,15 +5,27 @@ import { useTransition } from 'react'
 import { loadMoreInboxConversations } from '@/modules/inbox/actions'
 import { mergeConversationPages } from '@/modules/inbox/mergeConversationPages'
 import type { InboxConversationListItem, InboxCursor, InboxListFilters } from '@/modules/inbox/types'
+import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import InboxSyncLoop from './InboxSyncLoop'
 
 type InboxStoreValue = {
+  // ── Conversation list ──
   items: InboxConversationListItem[]
   cursor: InboxCursor | null
   loadingMore: boolean
   loadMore: () => void
   /** Instant local read after a confirmed markConversationRead (no-op when delta-sync is off). */
   applyLocalRead: (conversationId: number) => { wasUnread: boolean }
+  /** List delta from the sync loop. */
+  mergeSync: (changed: InboxConversationListItem[]) => void
+  // ── Open thread ──
+  activeConversationId: number | null
+  activeMessages: LeadWhatsappMessage[]
+  activeLatestMessageId: number | null
+  /** Seed (or re-seed on switch/refresh) the open thread from server messages. */
+  initActiveThread: (conversationId: number, messages: LeadWhatsappMessage[]) => void
+  /** Thread delta from the sync loop (guarded to the still-open conversation). */
+  appendActiveMessages: (conversationId: number, messages: LeadWhatsappMessage[]) => void
 }
 
 const InboxStoreContext = createContext<InboxStoreValue | null>(null)
@@ -39,7 +51,6 @@ export function InboxStoreProvider({
   initialCursor,
   filters,
   filtersKey,
-  selectedConversationId,
   deltaSyncEnabled,
   children,
 }: {
@@ -47,7 +58,6 @@ export function InboxStoreProvider({
   initialCursor: InboxCursor | null
   filters: InboxListFilters
   filtersKey: string
-  selectedConversationId: number | null
   deltaSyncEnabled: boolean
   children: ReactNode
 }) {
@@ -82,6 +92,28 @@ export function InboxStoreProvider({
     setBase((prev) => upsertByMostRecent(prev, changed))
   }, [])
 
+  // ── Open-thread state ──
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null)
+  const [activeMessages, setActiveMessages] = useState<LeadWhatsappMessage[]>([])
+  const activeConvIdRef = useRef<number | null>(null)
+  const activeLatestMessageId = activeMessages.length > 0 ? activeMessages[activeMessages.length - 1].id : null
+
+  const initActiveThread = useCallback((conversationId: number, messages: LeadWhatsappMessage[]) => {
+    activeConvIdRef.current = conversationId
+    setActiveConversationId(conversationId)
+    setActiveMessages(messages)
+  }, [])
+
+  const appendActiveMessages = useCallback((conversationId: number, incoming: LeadWhatsappMessage[]) => {
+    // Guard against a mid-flight conversation switch landing on the wrong thread.
+    if (incoming.length === 0 || activeConvIdRef.current !== conversationId) return
+    setActiveMessages((prev) => {
+      const ids = new Set(prev.map((m) => m.id))
+      const fresh = incoming.filter((m) => !ids.has(m.id))
+      return fresh.length ? [...prev, ...fresh] : prev
+    })
+  }, [])
+
   const applyLocalRead = useCallback(
     (conversationId: number) => {
       if (!deltaSyncEnabled) return { wasUnread: false }
@@ -109,15 +141,37 @@ export function InboxStoreProvider({
   }, [cursor, loadingMore, filters])
 
   const value = useMemo<InboxStoreValue>(
-    () => ({ items, cursor, loadingMore, loadMore, applyLocalRead }),
-    [items, cursor, loadingMore, loadMore, applyLocalRead],
+    () => ({
+      items,
+      cursor,
+      loadingMore,
+      loadMore,
+      applyLocalRead,
+      mergeSync,
+      activeConversationId,
+      activeMessages,
+      activeLatestMessageId,
+      initActiveThread,
+      appendActiveMessages,
+    }),
+    [
+      items,
+      cursor,
+      loadingMore,
+      loadMore,
+      applyLocalRead,
+      mergeSync,
+      activeConversationId,
+      activeMessages,
+      activeLatestMessageId,
+      initActiveThread,
+      appendActiveMessages,
+    ],
   )
 
   return (
     <InboxStoreContext.Provider value={value}>
-      {deltaSyncEnabled ? (
-        <InboxSyncLoop mergeSync={mergeSync} filters={filters} selectedConversationId={selectedConversationId} />
-      ) : null}
+      {deltaSyncEnabled ? <InboxSyncLoop filters={filters} /> : null}
       {children}
     </InboxStoreContext.Provider>
   )

@@ -47,7 +47,6 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       initialCursor={firstPage.nextCursor}
       filters={filters}
       filtersKey={inboxFiltersKey(filters)}
-      selectedConversationId={selectedConversationId}
       deltaSyncEnabled={deltaSyncEnabled}
     >
       <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>

@@ -11,7 +11,11 @@ export default function InboxReadMarker({
   conversationId: number
   latestMessageId: number | null
 }) {
-  const { applyLocalRead } = useInboxStore()
+  const { applyLocalRead, activeConversationId, activeLatestMessageId } = useInboxStore()
+  // Re-mark read when a new message arrives while viewing — use the LIVE latest id
+  // (from the sync loop) for the open thread, falling back to the server value.
+  const liveLatestMessageId =
+    activeConversationId === conversationId && activeLatestMessageId != null ? activeLatestMessageId : latestMessageId
 
   useEffect(() => {
     let cancelled = false
@@ -23,7 +27,7 @@ export default function InboxReadMarker({
     return () => {
       cancelled = true
     }
-  }, [conversationId, latestMessageId, applyLocalRead])
+  }, [conversationId, liveLatestMessageId, applyLocalRead])
 
   return null
 }
