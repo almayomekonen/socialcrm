@@ -5,11 +5,8 @@ import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { skipAutoResponseJob, completeAutoResponseJob, countSentToday, type AutoResponseJob } from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
-import {
-  upsertManyConversationIntelligence,
-  getMaxMessageSequence,
-  INTEL_KIND_TEMPERATURE,
-} from '@/db/conversationIntelligence'
+import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
+import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { mergeQualification, requiredComplete } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import { generateQualifyTurn, handoffMessage, detectLang, detectOptOut, type QualifyGenResult } from './qualify'
@@ -79,13 +76,6 @@ async function sendAndPersist(
   return { ok: true, messageId: res.messageId }
 }
 
-/**
- * On escalation: persist the fact-grounded summary + lead temperature into
- * conversation_intelligence. Temperature drives the inbox badge; the summary is a
- * dedicated internal kind (never sent to the customer). The operator is notified
- * by the existing awareness toast/badge — the customer's last inbound keeps the
- * conversation unread, so it surfaces there with its new hot/warm temperature.
- */
 async function persistEscalation(conversationId: number, agencyId: number, summary: EscalationSummary): Promise<void> {
   const coveredSequence = await getMaxMessageSequence(conversationId)
   const base = {
@@ -183,12 +173,31 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       ? buildSummary({ qualification: merged, reason: post.reason, turnCount: aiState.aiTurnCount + 1, lang })
       : null
 
-  // ── Draft/canary: never send; record the would-be output (incl. summary) for review ──
+  // ── Draft/canary: never send; persist + log the would-be output for review ──
   if (draft) {
     const drafted = post.action === 'escalate' ? handoffMessage(post.reason, lang) : gen.reply
+    const escalationReason = post.action === 'escalate' ? post.reason : null
     console.log(
-      `[IRE-DRAFT] conv=${conv.id} decision=${post.action}:${(post as { reason?: string }).reason ?? ''} reply=${JSON.stringify(drafted)} extracted=${JSON.stringify(gen.extracted)} qualification=${JSON.stringify(merged)}${summary ? ` summary=${JSON.stringify(summary.text)}` : ''}`,
+      `[IRE-DRAFT] conv=${conv.id} decision=${post.action}:${escalationReason ?? ''} reply=${JSON.stringify(drafted)} extracted=${JSON.stringify(gen.extracted)} qualification=${JSON.stringify(merged)}${summary ? ` summary=${JSON.stringify(summary.text)}` : ''}`,
     )
+    // TEMPORARY (P2.5 canary): persist the draft so it is reviewable, not just logged.
+    // Write-only observability — wrapped so a failure can never break send-suppression.
+    try {
+      await insertQualifyDraftReview({
+        conversationId: conv.id,
+        agencyId: job.agencyId,
+        decision: post.action,
+        escalationReason,
+        replyText: drafted,
+        extracted: gen.extracted,
+        qualification: merged,
+        summary,
+        lang,
+        turnCount: aiState.aiTurnCount + 1,
+      })
+    } catch (e) {
+      console.error(`[IRE-DRAFT] persist failed conv=${conv.id}:`, (e as Error).message)
+    }
     await mergeOnly(conv.id, gen.extracted)
     await track({
       agencyId: job.agencyId,
