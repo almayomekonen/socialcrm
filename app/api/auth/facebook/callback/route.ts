@@ -12,7 +12,7 @@ function originOf(req: NextRequest): 'settings' | 'activation' {
 const failed = (req: NextRequest, reason: string) => {
   const url =
     originOf(req) === 'activation'
-      ? `/leads?activation=error&reason=${reason}`
+      ? `/activate?activation=error&reason=${reason}`
       : `/settings/facebook?error=${reason}`
   return NextResponse.redirect(new URL(url, req.url))
 }
@@ -137,6 +137,6 @@ export async function GET(req: NextRequest) {
   })
 
   const successUrl =
-    originOf(req) === 'activation' ? '/leads?activation=select' : '/settings/facebook?select=1'
+    originOf(req) === 'activation' ? '/activate?activation=select' : '/settings/facebook?select=1'
   return NextResponse.redirect(new URL(successUrl, req.url))
 }

@@ -16,7 +16,7 @@ import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
-import ActivationFlow from '@/components/activation/ActivationFlow'
+import { isOnboarded } from '@/lib/activation/onboarding'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -29,6 +29,11 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 async function LayoutContent({ children }) {
   const user = await getUser()
   if (!user) redirect('/api/auth/clear')
+  // Activation gate: the dashboard is earned. A not-yet-onboarded account is sent
+  // to /activate BEFORE any dashboard data loads. Depends only on the onboarding
+  // flag (never an integration table); isOnboarded fails open, so this can never
+  // lock an existing customer out of their workspace.
+  if (!(await isOnboarded(user.agencyId))) redirect('/activate')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 
@@ -99,9 +104,6 @@ export default function AppLayout({ children }) {
     <>
       <Suspense fallback={<div>Loading...</div>}>
         <LayoutContent>{children}</LayoutContent>
-      </Suspense>
-      <Suspense fallback={null}>
-        <ActivationFlow />
       </Suspense>
     </>
   )

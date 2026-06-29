@@ -5,6 +5,7 @@ import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import type { FacebookPage } from '@/lib/activation/activationState'
+import { completeOnboarding as markOnboardingComplete } from '@/lib/activation/onboarding'
 
 /**
  * Emit a KPI-driving activation event. Resolves the user server-side so the
@@ -18,10 +19,8 @@ export async function trackActivation(event: AnalyticsEventName): Promise<void> 
 
 /**
  * The data-dependent facts for the activation flow, resolved OFF the render path.
- * The first screen renders without this; the client fetches it in parallel and
- * only the data-dependent branches (already-connected, page selection, OAuth
- * return) react to the result. Recovery: a missing/expired/invalid/wrong-user
- * cookie yields an empty list — the FSM maps that to a deterministic restart.
+ * Recovery: a missing/expired/invalid/wrong-user cookie yields an empty list —
+ * the FSM maps that to a deterministic restart.
  */
 export async function getActivationData(): Promise<{ alreadyConnected: boolean; pendingPages: FacebookPage[] }> {
   const user = await getUser()
@@ -43,4 +42,15 @@ export async function getActivationData(): Promise<{ alreadyConnected: boolean; 
   }
 
   return { alreadyConnected: !!connection, pendingPages }
+}
+
+/**
+ * Mark onboarding complete for the current user's agency. Idempotent (the write
+ * only transitions NULL → now() once). This releases the dashboard gate — and is
+ * deliberately decoupled from which integration was used.
+ */
+export async function completeOnboarding(): Promise<void> {
+  const user = await getUser()
+  if (!user) return
+  await markOnboardingComplete(user.agencyId)
 }
