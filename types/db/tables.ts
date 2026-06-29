@@ -143,6 +143,7 @@ export interface Agency {
   trialEndsAt: Date | null
   trialExempt: boolean
   autoResponseEnabled: boolean
+  onboardingCompletedAt: Date | null
 }
 
 export interface Invitation {

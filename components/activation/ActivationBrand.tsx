@@ -99,9 +99,11 @@ export function SocialCrmMark({ size = 76 }: { size?: number }) {
   )
 }
 
-export default function ActivationBrand() {
+export default function ActivationBrand({ width = 300 }: { width?: number }) {
+  const height = Math.round((width * 170) / 300)
+  const markSize = Math.round(width * 0.253) // 76/300 — keeps the mark proportional
   return (
-    <div className='relative mx-auto h-[170px] w-full max-w-[300px]' aria-hidden='true'>
+    <div className='relative mx-auto w-full' style={{ maxWidth: width, height }} aria-hidden='true'>
       {/* Converging flow lines — faint amber, with a slow travelling pulse toward the mark */}
       <svg viewBox='0 0 300 170' className='absolute inset-0 h-full w-full' fill='none'>
         {[
@@ -125,7 +127,7 @@ export default function ActivationBrand() {
 
       {/* The workspace they converge into */}
       <div className='absolute left-1/2 -translate-x-1/2' style={{ top: '54%' }}>
-        <SocialCrmMark size={76} />
+        <SocialCrmMark size={markSize} />
       </div>
     </div>
   )
