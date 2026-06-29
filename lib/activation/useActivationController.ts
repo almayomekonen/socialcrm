@@ -18,19 +18,28 @@ import {
 const LOGIN_URL = 'https://getsocialcrm.com'
 const OAUTH_URL = '/api/auth/facebook?origin=activation'
 
-/**
- * Owns all I/O for the activation flow. The reducer stays pure and synchronous;
- * every async operation (OAuth redirect, /connect) is performed explicitly here
- * and its RESULT is dispatched. Analytics is emitted only from this file.
- */
-export function useActivationController({ initialPages }: { initialPages: FacebookPage[] }) {
+function clearActivationParam(): void {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  if (!url.searchParams.has('activation')) return
+  url.searchParams.delete('activation')
+  url.searchParams.delete('reason')
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash)
+}
+
+export function useActivationController({
+  initialPages,
+  alreadyConnected,
+}: {
+  initialPages: FacebookPage[]
+  alreadyConnected: boolean
+}) {
   const params = useSearchParams()
   const [machine, setMachine] = useState<ActivationMachine>(initialMachine)
   const machineRef = useRef<ActivationMachine>(initialMachine)
   const bootRef = useRef(false)
   const connectInFlight = useRef<AbortController | null>(null)
 
-  // Synchronous transition: compute via the pure reducer, store, and return next.
   const apply = useCallback((from: ActivationMachine, event: ActivationEvent): ActivationMachine => {
     const next = reducer(from, event)
     machineRef.current = next
@@ -38,44 +47,50 @@ export function useActivationController({ initialPages }: { initialPages: Facebo
     return next
   }, [])
 
-  // The single /connect call. Locked so repeated taps/retries cannot run concurrently.
-  const performSubscription = useCallback(async (ctx: ActivationContext): Promise<void> => {
-    if (connectInFlight.current) return
-    const page = ctx.pages.find((p) => p.id === ctx.selectedPageId)
-    if (!page) {
-      apply(machineRef.current, { type: 'SUBSCRIBE_FAILED', reason: 'no_page' })
-      void trackActivation('subscription_failed')
-      return
-    }
-    const ac = new AbortController()
-    connectInFlight.current = ac
-    try {
-      const res = await fetch('/api/auth/facebook/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pageId: page.id, pageName: page.name, pageAccessToken: page.access_token }),
-        signal: ac.signal,
-      })
-      if (res.ok) {
-        apply(machineRef.current, { type: 'SUBSCRIBE_OK', pageName: page.name })
-        void trackActivation('subscription_completed')
-      } else {
-        const data = await res.json().catch(() => ({}))
-        apply(machineRef.current, { type: 'SUBSCRIBE_FAILED', reason: data?.error ?? 'connect_failed' })
+  const performSubscription = useCallback(
+    async (ctx: ActivationContext): Promise<void> => {
+      if (connectInFlight.current) return
+      const page = ctx.pages.find((p) => p.id === ctx.selectedPageId)
+      if (!page) {
+        apply(machineRef.current, { type: 'SUBSCRIBE_FAILED', reason: 'no_page' })
         void trackActivation('subscription_failed')
+        return
       }
-    } catch {
-      apply(machineRef.current, { type: 'SUBSCRIBE_FAILED', reason: 'network' })
-      void trackActivation('subscription_failed')
-    } finally {
-      connectInFlight.current = null
-    }
-  }, [apply])
+      const ac = new AbortController()
+      connectInFlight.current = ac
+      try {
+        const res = await fetch('/api/auth/facebook/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: page.id, pageName: page.name, pageAccessToken: page.access_token }),
+          signal: ac.signal,
+        })
+        if (res.ok) {
+          apply(machineRef.current, { type: 'SUBSCRIBE_OK', pageName: page.name })
+          void trackActivation('subscription_completed')
+          clearActivationParam()
+        } else {
+          const data = await res.json().catch(() => ({}))
+          apply(machineRef.current, { type: 'SUBSCRIBE_FAILED', reason: data?.error ?? 'connect_failed' })
+          void trackActivation('subscription_failed')
+        }
+      } catch {
+        apply(machineRef.current, { type: 'SUBSCRIBE_FAILED', reason: 'network' })
+        void trackActivation('subscription_failed')
+      } finally {
+        connectInFlight.current = null
+      }
+    },
+    [apply],
+  )
 
-  // Boot once: hydrate from the OAuth return URL. Fresh entry stays in waitingForActivation.
   useEffect(() => {
     if (bootRef.current) return
     bootRef.current = true
+    if (alreadyConnected) {
+      clearActivationParam()
+      return
+    }
     const event = deriveReturnEvent(new URLSearchParams(params.toString()), initialPages)
     if (!event) return
     const next = apply(oauthPendingMachine, event)
@@ -98,7 +113,6 @@ export function useActivationController({ initialPages }: { initialPages: Facebo
     [apply, performSubscription],
   )
 
-  // Deterministic restart: any failure recovers through a fresh OAuth.
   const retry = useCallback(() => {
     apply(machineRef.current, { type: 'RETRY' })
     startOAuth()

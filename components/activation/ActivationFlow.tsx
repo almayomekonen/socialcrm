@@ -16,7 +16,10 @@ export default function ActivationFlow({
   initialPages: FacebookPage[]
   alreadyConnected: boolean
 }) {
-  const { machine, startOAuth, selectPage, retry, continueDesktop } = useActivationController({ initialPages })
+  const { machine, startOAuth, selectPage, retry, continueDesktop } = useActivationController({
+    initialPages,
+    alreadyConnected,
+  })
 
   return (
     <div
