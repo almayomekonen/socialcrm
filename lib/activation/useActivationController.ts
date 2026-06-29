@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { copyToClipboard } from '@/lib/clipboard'
 import { wait } from '@/lib/funcs'
-import { trackActivation } from '@/actions/activation'
+import { trackActivation, getActivationData } from '@/actions/activation'
 import {
   initialMachine,
   oauthPendingMachine,
@@ -13,7 +13,6 @@ import {
   type ActivationMachine,
   type ActivationEvent,
   type ActivationContext,
-  type FacebookPage,
 } from '@/lib/activation/activationState'
 
 const LOGIN_URL = 'https://getsocialcrm.com'
@@ -21,6 +20,7 @@ const OAUTH_URL = '/api/auth/facebook?origin=activation'
 // Brief, deliberate dwell so the loading button is clearly seen before we leave
 // for Meta. Acknowledges the tap without meaningfully slowing navigation.
 const CTA_DWELL_MS = 200
+const DESKTOP_QUERY = '(min-width: 1000px)'
 
 function clearActivationParam(): void {
   if (typeof window === 'undefined') return
@@ -36,22 +36,18 @@ function isReturnParam(params: URLSearchParams): boolean {
   return a === 'select' || a === 'error'
 }
 
-export function useActivationController({
-  initialPages,
-  alreadyConnected,
-}: {
-  initialPages: FacebookPage[]
-  alreadyConnected: boolean
-}) {
+export function useActivationController() {
   const params = useSearchParams()
-  // When we're returning from Meta, start in the "finishing" loading state — never
-  // in waitingForActivation — so the previous screen can't flash before the boot
-  // effect resolves. Computed identically on server and client (no hydration jump).
+  // The first screen is fully static: a fresh user starts in waitingForActivation,
+  // an OAuth return starts in the 'finishing' loading state. Both are computed
+  // synchronously from the URL (no server data) and need NOTHING async to render —
+  // so the hero appears immediately, with no brand→pause→text stagger.
   const returning = isReturnParam(new URLSearchParams(params.toString()))
-  const [machine, setMachine] = useState<ActivationMachine>(() =>
-    returning ? oauthPendingMachine : initialMachine,
-  )
-  const machineRef = useRef<ActivationMachine>(returning ? oauthPendingMachine : initialMachine)
+  const initial = returning ? oauthPendingMachine : initialMachine
+  const [machine, setMachine] = useState<ActivationMachine>(() => initial)
+  const machineRef = useRef<ActivationMachine>(initial)
+  // null = data not resolved yet (render the flow); true/false once known.
+  const [alreadyConnected, setAlreadyConnected] = useState<boolean | null>(null)
   const bootRef = useRef(false)
   const connectInFlight = useRef<AbortController | null>(null)
 
@@ -99,19 +95,43 @@ export function useActivationController({
     [apply],
   )
 
+  // Resolve the data-dependent facts in parallel, AFTER the static first paint.
+  // Runs once, client-only, and never on desktop (the flow is desktop-hidden).
   useEffect(() => {
     if (bootRef.current) return
     bootRef.current = true
-    if (alreadyConnected) {
-      clearActivationParam()
-      return
+    if (typeof window !== 'undefined' && window.matchMedia(DESKTOP_QUERY).matches) return
+
+    let cancelled = false
+    ;(async () => {
+      let data: { alreadyConnected: boolean; pendingPages: { id: string; name: string; access_token: string }[] }
+      try {
+        data = await getActivationData()
+      } catch {
+        // If the parallel read fails on a return, surface a retryable failure;
+        // a fresh user is unaffected (stays on the static first screen).
+        if (!cancelled && returning) apply(oauthPendingMachine, { type: 'RETURN_CANCELLED', reason: 'data_unavailable' })
+        return
+      }
+      if (cancelled) return
+
+      setAlreadyConnected(data.alreadyConnected)
+      if (data.alreadyConnected) {
+        clearActivationParam()
+        return
+      }
+
+      const event = deriveReturnEvent(new URLSearchParams(params.toString()), data.pendingPages)
+      if (!event) return // fresh user → stay on the static first screen
+      const next = apply(oauthPendingMachine, event)
+      if (event.type === 'RETURN_SUCCEEDED') void trackActivation('oauth_completed')
+      if (event.type === 'RETURN_CANCELLED') void trackActivation('activation_abandoned')
+      if (next.status === 'subscribingPage') void performSubscription(next.context)
+    })()
+
+    return () => {
+      cancelled = true
     }
-    const event = deriveReturnEvent(new URLSearchParams(params.toString()), initialPages)
-    if (!event) return
-    const next = apply(oauthPendingMachine, event)
-    if (event.type === 'RETURN_SUCCEEDED') void trackActivation('oauth_completed')
-    if (event.type === 'RETURN_CANCELLED') void trackActivation('activation_abandoned')
-    if (next.status === 'subscribingPage') void performSubscription(next.context)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -141,5 +161,5 @@ export function useActivationController({
     return copyToClipboard(LOGIN_URL)
   }, [])
 
-  return { machine, startOAuth, selectPage, retry, continueDesktop }
+  return { machine, alreadyConnected, startOAuth, selectPage, retry, continueDesktop }
 }

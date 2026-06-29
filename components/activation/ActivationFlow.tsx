@@ -6,21 +6,16 @@ import ActivationScreen from '@/components/activation/ActivationScreen'
 import ActivationBrand, { ACTIVATION_BG } from '@/components/activation/ActivationBrand'
 import { DESKTOP_HINT_COPY } from '@/lib/activation/activationCopy'
 import { copyToClipboard } from '@/lib/clipboard'
-import type { FacebookPage } from '@/lib/activation/activationState'
 
 const LOGIN_URL = 'https://getsocialcrm.com'
 
-export default function ActivationFlow({
-  initialPages,
-  alreadyConnected,
-}: {
-  initialPages: FacebookPage[]
-  alreadyConnected: boolean
-}) {
-  const { machine, startOAuth, selectPage, retry, continueDesktop } = useActivationController({
-    initialPages,
-    alreadyConnected,
-  })
+/**
+ * Mobile-only activation root. Renders its full first screen immediately (no
+ * async server work on the render path); the data-dependent facts resolve in
+ * parallel inside the controller. `desktop:hidden` keeps the flow off desktop.
+ */
+export default function ActivationFlow() {
+  const { machine, alreadyConnected, startOAuth, selectPage, retry, continueDesktop } = useActivationController()
 
   return (
     <div
@@ -34,7 +29,7 @@ export default function ActivationFlow({
           re-mounts or re-animates between states — the flow feels continuous. */}
       <div className='flex min-h-full flex-col items-center justify-center gap-6 px-6 py-10'>
         <ActivationBrand />
-        {alreadyConnected ? (
+        {alreadyConnected === true ? (
           <ActivatedDesktopHint />
         ) : (
           <ActivationScreen

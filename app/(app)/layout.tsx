@@ -16,8 +16,7 @@ import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
-import MobileActivationGate from '@/components/layout/MobileActivationGate'
-import MobileActivationBackdrop from '@/components/layout/MobileActivationBackdrop'
+import ActivationFlow from '@/components/activation/ActivationFlow'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -29,16 +28,10 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
-  // Reaching here means a cookie is present but invalid (the proxy already
-  // sends no-cookie requests to /auth). A Server Component can't delete the
-  // cookie, so route through the Route Handler that can — this breaks the
-  // /dashboard <-> /auth loop. (No-cookie fallthrough is a harmless no-op.)
   if (!user) redirect('/api/auth/clear')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 
-  // Trial gate. Fail-open: a trial-state read failure must never lock users
-  // out of the CRM — fall back to LEGACY (full access, no trial UI) and log.
   let trialStatus: TrialStatus = 'LEGACY'
   try {
     const trialRow = await getAgencyTrial(user.agencyId)
@@ -58,11 +51,7 @@ async function LayoutContent({ children }) {
   const trialExpired = (trialStatus === 'TRIAL_EXPIRED' && !owner) || previewPaywall
   let leadPreview = { total: 0, names: [] as string[] }
   if (trialExpired) {
-    // Lazy one-time emission; deduped by the DB index, track never throws.
-    // Skip for the owner preview so it doesn't pollute analytics.
     if (!previewPaywall) await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
-    // Real lead count + a few names for the paywall card, scoped to what this
-    // user is permitted to see. Fail-open to empty so the gate still renders.
     try {
       const { gotPermIds } = await getPerms(user)
       leadPreview = await getTrialPreviewLeads(user.agencyId, gotPermIds, user.role)
@@ -72,12 +61,8 @@ async function LayoutContent({ children }) {
   }
 
   const copilotEnabled = isCopilotEnabledForUser(user)
-  // No-lead General Mode. Off by default (empty allowlist) → CopilotShell keeps
-  // rendering today's CopilotPanel unchanged until an agency is opted in.
   const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
 
-  // Per-user unread conversation count for the nav badge. Office users don't see
-  // the Inbox link, so skip the query for them. Never let it break the layout.
   let inboxUnread = 0
   if (user.agencyId && user.role !== Roles.OFFICE) {
     inboxUnread = await countUnreadConversationsForUser(user.agencyId, user.id).catch(() => 0)
@@ -115,8 +100,8 @@ export default function AppLayout({ children }) {
       <Suspense fallback={<div>Loading...</div>}>
         <LayoutContent>{children}</LayoutContent>
       </Suspense>
-      <Suspense fallback={<MobileActivationBackdrop />}>
-        <MobileActivationGate />
+      <Suspense fallback={null}>
+        <ActivationFlow />
       </Suspense>
     </>
   )
