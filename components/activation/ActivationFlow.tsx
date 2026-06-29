@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useActivationController } from '@/lib/activation/useActivationController'
 import ActivationScreen from '@/components/activation/ActivationScreen'
+import ActivationBrand, { ACTIVATION_BG } from '@/components/activation/ActivationBrand'
 import { DESKTOP_HINT_COPY } from '@/lib/activation/activationCopy'
 import { copyToClipboard } from '@/lib/clipboard'
 import type { FacebookPage } from '@/lib/activation/activationState'
@@ -26,24 +27,25 @@ export default function ActivationFlow({
       dir='rtl'
       role='dialog'
       aria-label='הפעלת SocialCRM'
-      className='fixed inset-0 z-9999 flex items-center justify-center overflow-hidden px-6 desktop:hidden'
-      style={{
-        background: 'radial-gradient(ellipse 120% 80% at 50% 0%, #0c0a1f 0%, #06081a 50%, #04050f 100%)',
-        touchAction: 'none',
-        overscrollBehavior: 'none',
-      }}
+      className='fixed inset-0 z-9999 overflow-y-auto desktop:hidden'
+      style={{ background: ACTIVATION_BG, overscrollBehavior: 'none' }}
     >
-      {alreadyConnected ? (
-        <ActivatedDesktopHint />
-      ) : (
-        <ActivationScreen
-          machine={machine}
-          onCta={startOAuth}
-          onSelect={selectPage}
-          onRetry={retry}
-          onContinue={continueDesktop}
-        />
-      )}
+      {/* The brand header is mounted once, above the active screen, so it never
+          re-mounts or re-animates between states — the flow feels continuous. */}
+      <div className='flex min-h-full flex-col items-center justify-center gap-6 px-6 py-10'>
+        <ActivationBrand />
+        {alreadyConnected ? (
+          <ActivatedDesktopHint />
+        ) : (
+          <ActivationScreen
+            machine={machine}
+            onCta={startOAuth}
+            onSelect={selectPage}
+            onRetry={retry}
+            onContinue={continueDesktop}
+          />
+        )}
+      </div>
     </div>
   )
 }

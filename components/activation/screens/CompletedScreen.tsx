@@ -4,7 +4,6 @@ import { useState } from 'react'
 import type { ScreenCopy } from '@/lib/activation/activationCopy'
 import { Btn } from '@/lib/btns/Btn'
 import ActivationProgress from '@/components/activation/ActivationProgress'
-import { SocialCrmMark } from '@/components/activation/ActivationBrand'
 
 export default function CompletedScreen({
   copy,
@@ -27,7 +26,6 @@ export default function CompletedScreen({
 
   return (
     <div className='flex flex-col items-center gap-6 text-center'>
-      <SocialCrmMark size={64} />
       <ActivationProgress label={copy.progressLabel} progress={progress} />
       <h1 className='text-[26px] font-bold text-white'>{copy.heading}</h1>
       {copy.body && <p className='max-w-[320px] text-[14px] text-white/70'>{copy.body}</p>}

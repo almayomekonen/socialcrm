@@ -17,6 +17,7 @@ import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import MobileActivationGate from '@/components/layout/MobileActivationGate'
+import MobileActivationBackdrop from '@/components/layout/MobileActivationBackdrop'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -114,7 +115,7 @@ export default function AppLayout({ children }) {
       <Suspense fallback={<div>Loading...</div>}>
         <LayoutContent>{children}</LayoutContent>
       </Suspense>
-      <Suspense fallback={null}>
+      <Suspense fallback={<MobileActivationBackdrop />}>
         <MobileActivationGate />
       </Suspense>
     </>

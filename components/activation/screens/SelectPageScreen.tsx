@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import type { ScreenCopy } from '@/lib/activation/activationCopy'
 import type { FacebookPage } from '@/lib/activation/activationState'
-import { Btn } from '@/lib/btns/Btn'
 import ActivationProgress from '@/components/activation/ActivationProgress'
+import ActivationCtaButton from '@/components/activation/ActivationCtaButton'
 
 export default function SelectPageScreen({
   copy,
@@ -34,11 +34,11 @@ export default function SelectPageScreen({
           </option>
         ))}
       </select>
-      <Btn
-        lbl={copy.ctaLabel ?? ''}
+      <ActivationCtaButton
+        label={copy.ctaLabel ?? ''}
+        loadingLabel={copy.ctaLoadingLabel ?? ''}
         disabled={!id}
-        onClick={() => id && onSelect(id)}
-        className='w-full max-w-[320px] justify-center'
+        onClick={() => onSelect(id)}
       />
     </div>
   )

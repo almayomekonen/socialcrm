@@ -10,6 +10,10 @@
  * AI is intentionally omitted: it is the assistant, not an inbound channel.
  */
 
+/** The activation surface background — shared by the flow and its loading backdrop. */
+export const ACTIVATION_BG =
+  'radial-gradient(ellipse 120% 80% at 50% 0%, #0c0a1f 0%, #06081a 50%, #04050f 100%)'
+
 const MASK_BASE = {
   maskRepeat: 'no-repeat',
   WebkitMaskRepeat: 'no-repeat',
