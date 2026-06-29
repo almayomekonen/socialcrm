@@ -2,7 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUser, encrypt } from '@/db/auth'
 import { cookies } from 'next/headers'
 
-const failed = (req: NextRequest, reason: string) => NextResponse.redirect(new URL(`/settings/facebook?error=${reason}`, req.url))
+// Option A: the flow origin is the prefix of the `state` param. Reading it for
+// routing is not security-sensitive (the CSRF check below remains exact-match).
+function originOf(req: NextRequest): 'settings' | 'activation' {
+  const state = new URL(req.url).searchParams.get('state') ?? ''
+  return state.startsWith('activation.') ? 'activation' : 'settings'
+}
+
+const failed = (req: NextRequest, reason: string) => {
+  const url =
+    originOf(req) === 'activation'
+      ? `/leads?activation=error&reason=${reason}`
+      : `/settings/facebook?error=${reason}`
+  return NextResponse.redirect(new URL(url, req.url))
+}
 
 export async function GET(req: NextRequest) {
   const user = await getUser()
@@ -123,5 +136,7 @@ export async function GET(req: NextRequest) {
     path: '/',
   })
 
-  return NextResponse.redirect(new URL('/settings/facebook?select=1', req.url))
+  const successUrl =
+    originOf(req) === 'activation' ? '/leads?activation=select' : '/settings/facebook?select=1'
+  return NextResponse.redirect(new URL(successUrl, req.url))
 }

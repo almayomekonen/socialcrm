@@ -6,8 +6,12 @@ export async function GET(_req: NextRequest) {
   const user = await getUser()
   if (!user) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/auth`)
 
-  // Generate CSRF state token and store in short-lived cookie
-  const state = crypto.randomUUID()
+  // Generate CSRF state token and store in short-lived cookie.
+  // Option A: the origin of the flow is carried in the state prefix so the
+  // callback can return to the right surface. Default 'settings' preserves the
+  // existing desktop behavior; 'activation' is the mobile activation flow.
+  const origin = new URL(_req.url).searchParams.get('origin') === 'activation' ? 'activation' : 'settings'
+  const state = `${origin}.${crypto.randomUUID()}`
   const cookieStore = await cookies()
   cookieStore.set('fb_oauth_state', state, {
     httpOnly: true,
