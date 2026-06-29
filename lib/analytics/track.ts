@@ -21,6 +21,11 @@ export type AnalyticsEventName =
   | 'auto_response_skipped'
   | 'auto_response_escalated'
   | 'auto_response_draft'
+  | 'activation_started'
+  | 'oauth_completed'
+  | 'subscription_completed'
+  | 'subscription_failed'
+  | 'activation_abandoned'
 
 type TrackInput = {
   agencyId: number
@@ -29,14 +34,6 @@ type TrackInput = {
   props?: Record<string, unknown>
 }
 
-/**
- * Server-side product analytics. Provider-agnostic seam: today an INSERT into
- * analytics_events; an external provider can be added here later without
- * touching call sites. Once-per-agency events are deduped by the partial
- * unique index — bare ON CONFLICT DO NOTHING absorbs exactly those conflicts.
- * Analytics must never break a business flow: every failure is logged and
- * swallowed.
- */
 export async function track({ agencyId, userId, event, props }: TrackInput): Promise<void> {
   try {
     await db.raw(
