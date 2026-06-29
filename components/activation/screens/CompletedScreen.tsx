@@ -36,7 +36,7 @@ export default function CompletedScreen({
         className='w-full max-w-[320px] justify-center'
       />
       {copy.secondary && (
-        <p className='text-[12px] text-white/45' dir='ltr'>
+        <p className='text-[12px] text-white/45' dir='rtl'>
           {copy.secondary}
         </p>
       )}
