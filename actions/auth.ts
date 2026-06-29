@@ -6,7 +6,7 @@ import { revalidateTag } from 'next/cache'
 import { db } from '@/config/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { Roles } from '@/types/roles'
-import { createCookie, decrypt, encrypt, getUserByEmail } from '../db/auth'
+import { createCookie, decrypt, encrypt, getUser, getUserByEmail } from '../db/auth'
 import { daysFromNow } from '@/lib/dates'
 import { genToken } from '@/lib/funcs'
 import { baseUrl } from '@/types/vars'
@@ -54,6 +54,10 @@ export async function isUserExists(email: string) {
 export async function deleteUserCookie() {
   const cokis = await cookies()
   cokis.delete('user')
+}
+
+export async function getSessionState(): Promise<boolean> {
+  return !!(await getUser())
 }
 
 export async function logout() {
@@ -107,9 +111,7 @@ export async function sendToken(email: string): Promise<{ ok: true } | { ok: fal
 
   const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
 
-  const html = await renderEmail(
-    MagicLinkEmail({ magicUrl: magicLink, expiresInMinutes: MAGIC_LINK_EXPIRY_MINUTES }),
-  )
+  const html = await renderEmail(MagicLinkEmail({ magicUrl: magicLink, expiresInMinutes: MAGIC_LINK_EXPIRY_MINUTES }))
 
   const result = await sendEmail({
     to: email,
