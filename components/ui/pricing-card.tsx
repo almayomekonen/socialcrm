@@ -262,7 +262,7 @@ export default function PricingPageComponent() {
   const handlePlanSelect = (planId: PlanId, selectedCycle: BillingCycle) => {
     if (planId === 'free') {
       // Free plan = registration funnel (unchanged).
-      router.push('/auth/register')
+      router.push('/auth')
       return
     }
     // Pro: the exact same upgrade mechanism as the billing page. The route

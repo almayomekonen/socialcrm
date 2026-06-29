@@ -163,7 +163,7 @@ export default function WhatsAppLeadsPage() {
                   ראה את כל הפיצ׳רים
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -233,7 +233,7 @@ export default function WhatsAppLeadsPage() {
             subtitle='מוואטסאפ, אקסל וייבוא ידני כל הלידים שלך מנוהלים במקום אחד.'
             categories={featureCategories}
             buttonText='התחל לנהל לידים מוואטסאפ'
-            buttonHref='/auth/register'
+            buttonHref='/auth'
           />
         </div>
 
@@ -242,7 +242,7 @@ export default function WhatsAppLeadsPage() {
           title='מפסיקים לאבד לידים בוואטסאפ'
           highlight='מתחילים לנהל אותם נכון'
           buttonText='התחל בחינם עכשיו'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         {/* FAQ */}

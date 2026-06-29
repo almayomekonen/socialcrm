@@ -56,7 +56,7 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
 
   const cta = isAuthenticated
     ? { text: 'פתח את האפליקציה', href: '/' }
-    : { text: 'התחל בחינם', href: '/auth/register' }
+    : { text: 'התחל בחינם', href: '/auth' }
 
   return (
     <div className='pt-6 pb-3 px-4'>

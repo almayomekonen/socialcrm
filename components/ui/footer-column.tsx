@@ -22,7 +22,7 @@ const resources = [
 ]
 
 const company = [
-  { text: 'הרשמה בחינם', href: '/auth/register' },
+  { text: 'הרשמה בחינם', href: '/auth' },
   { text: 'מדיניות פרטיות', href: '/privacy' },
   { text: 'תנאי שירות', href: '/terms' },
   { text: 'מחיקת נתונים', href: '/data-deletion' },

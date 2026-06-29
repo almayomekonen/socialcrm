@@ -184,7 +184,7 @@ export default function InstagramLeadsCrmPage() {
                   ראה את כל הפיצ׳רים
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -305,14 +305,14 @@ export default function InstagramLeadsCrmPage() {
           subtitle='ערוץ אחד עם הרבה צורות פנייה — שכבה ניהולית אחת שמטפלת בכולן.'
           categories={featureCategories}
           buttonText='התחל לנהל לידים מאינסטגרם בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <AnimatedCta
           title='מפסיקים לאבד DMs'
           highlight='מתחילים לסגור יותר עסקאות מאינסטגרם'
           buttonText='התחל בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <FAQ

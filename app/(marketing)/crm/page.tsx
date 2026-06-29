@@ -130,7 +130,7 @@ export default function CRMPage() {
           title='מפסיקים לנהל לידים בצד'
           highlight='מתחילים לנהל אותם נכון'
           buttonText='התחל לנהל לידים בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <FAQ

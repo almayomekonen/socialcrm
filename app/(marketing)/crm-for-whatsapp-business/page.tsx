@@ -181,7 +181,7 @@ export default function CrmForWhatsAppBusinessPage() {
                   ראה את כל הפיצ׳רים
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -299,14 +299,14 @@ export default function CrmForWhatsAppBusinessPage() {
           subtitle='שכבה ניהולית מלאה — בלי לוותר על השיחות שאתה מנהל ב-WhatsApp.'
           categories={featureCategories}
           buttonText='התחל לנהל לידים מ-WhatsApp בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <AnimatedCta
           title='מפסיקים לאבד לידים בצ׳אט'
           highlight='מתחילים לסגור יותר עסקאות'
           buttonText='התחל בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <FAQ

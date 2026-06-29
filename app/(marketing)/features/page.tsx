@@ -150,7 +150,7 @@ export default function FeaturesPage() {
                   קרא עוד על ניהול לידים
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -190,7 +190,7 @@ export default function FeaturesPage() {
             subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל כל הלידים שלך מנוהלים במקום אחד.'
             categories={featureCategories}
             buttonText='התחל בחינם עכשיו'
-            buttonHref='/auth/register'
+            buttonHref='/auth'
           />
         </div>
 
@@ -199,7 +199,7 @@ export default function FeaturesPage() {
           title='מפסיקים לפספס לידים'
           highlight='מתחילים לנהל אותם נכון'
           buttonText='התחל בחינם עכשיו'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         {/* Stats */}

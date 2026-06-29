@@ -32,7 +32,7 @@ export function FinalCTA() {
         <p className='text-white/40 text-base mb-4 px-6 text-center'>תוך 5 דקות תוכל לייבא את הלידים שלך ולהתחיל לעבוד</p>
         <div className='flex flex-wrap gap-4 justify-center w-full px-6 sm:w-auto sm:px-0'>
           <Link
-            href='/auth/register'
+            href='/auth'
             className='w-full sm:w-auto text-center px-8 py-4 rounded-xl text-base font-bold transition-all duration-200 hover:scale-105'
             style={{ backgroundColor: '#3f20f5', color: 'white' }}
           >
