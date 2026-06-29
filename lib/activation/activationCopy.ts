@@ -1,10 +1,5 @@
 import type { ActivationStatus, ActivationContext } from '@/lib/activation/activationState'
 
-/**
- * Every user-facing string for the activation flow. No copy lives in components.
- * Register: calm, factual, operations-manager. Temporal truth is mandatory —
- * pre-auth copy is conditional; post-auth copy is present-tense.
- */
 export type ScreenCopy = {
   progressLabel?: string
   heading: string
@@ -16,6 +11,12 @@ export type ScreenCopy = {
 }
 
 const TRUST = ['חיבור מאובטח דרך Meta', 'הגישה ללידים שלך בלבד', 'המידע שלך נשאר שלך']
+
+export const DESKTOP_HINT_COPY = {
+  heading: 'סביבת העבודה שלך מחכה במחשב.',
+  body: 'הלידים שלך נכנסים אוטומטית. המשך במחשב לחוויה המלאה.',
+  ctaLabel: 'העתק קישור לכניסה מהמחשב',
+} as const
 
 export function copyFor(status: ActivationStatus, _ctx: ActivationContext): ScreenCopy {
   switch (status) {

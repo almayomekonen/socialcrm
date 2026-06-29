@@ -16,8 +16,7 @@ import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
-import MobileBlock from '@/components/layout/MobileBlock'
-import MobileBlockAccount from '@/components/layout/MobileBlockAccount'
+import MobileActivationGate from '@/components/layout/MobileActivationGate'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -115,13 +114,9 @@ export default function AppLayout({ children }) {
       <Suspense fallback={<div>Loading...</div>}>
         <LayoutContent>{children}</LayoutContent>
       </Suspense>
-      <MobileBlock
-        accountSlot={
-          <Suspense fallback={null}>
-            <MobileBlockAccount />
-          </Suspense>
-        }
-      />
+      <Suspense fallback={null}>
+        <MobileActivationGate />
+      </Suspense>
     </>
   )
 }
