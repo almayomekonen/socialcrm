@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { copyToClipboard } from '@/lib/clipboard'
+import { wait } from '@/lib/funcs'
 import { trackActivation } from '@/actions/activation'
 import {
   initialMachine,
@@ -17,6 +18,9 @@ import {
 
 const LOGIN_URL = 'https://getsocialcrm.com'
 const OAUTH_URL = '/api/auth/facebook?origin=activation'
+// Brief, deliberate dwell so the loading button is clearly seen before we leave
+// for Meta. Acknowledges the tap without meaningfully slowing navigation.
+const CTA_DWELL_MS = 200
 
 function clearActivationParam(): void {
   if (typeof window === 'undefined') return
@@ -27,6 +31,11 @@ function clearActivationParam(): void {
   window.history.replaceState({}, '', url.pathname + url.search + url.hash)
 }
 
+function isReturnParam(params: URLSearchParams): boolean {
+  const a = params.get('activation')
+  return a === 'select' || a === 'error'
+}
+
 export function useActivationController({
   initialPages,
   alreadyConnected,
@@ -35,8 +44,14 @@ export function useActivationController({
   alreadyConnected: boolean
 }) {
   const params = useSearchParams()
-  const [machine, setMachine] = useState<ActivationMachine>(initialMachine)
-  const machineRef = useRef<ActivationMachine>(initialMachine)
+  // When we're returning from Meta, start in the "finishing" loading state — never
+  // in waitingForActivation — so the previous screen can't flash before the boot
+  // effect resolves. Computed identically on server and client (no hydration jump).
+  const returning = isReturnParam(new URLSearchParams(params.toString()))
+  const [machine, setMachine] = useState<ActivationMachine>(() =>
+    returning ? oauthPendingMachine : initialMachine,
+  )
+  const machineRef = useRef<ActivationMachine>(returning ? oauthPendingMachine : initialMachine)
   const bootRef = useRef(false)
   const connectInFlight = useRef<AbortController | null>(null)
 
@@ -100,8 +115,11 @@ export function useActivationController({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const startOAuth = useCallback(() => {
+  // Async so the loading button (which awaits this) stays visible for the dwell
+  // before navigation. Navigation still fires as soon as the dwell elapses.
+  const startOAuth = useCallback(async (): Promise<void> => {
     void trackActivation('activation_started')
+    await wait(CTA_DWELL_MS)
     window.location.href = OAUTH_URL
   }, [])
 
@@ -113,9 +131,10 @@ export function useActivationController({
     [apply, performSubscription],
   )
 
-  const retry = useCallback(() => {
+  // Return the promise so the retry button keeps its loading state through the dwell.
+  const retry = useCallback((): Promise<void> => {
     apply(machineRef.current, { type: 'RETRY' })
-    startOAuth()
+    return startOAuth()
   }, [apply, startOAuth])
 
   const continueDesktop = useCallback(async (): Promise<boolean> => {

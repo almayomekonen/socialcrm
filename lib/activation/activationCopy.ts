@@ -30,7 +30,7 @@ export function copyFor(status: ActivationStatus, _ctx: ActivationContext): Scre
         trust: TRUST,
       }
     case 'oauthPending':
-      return { heading: 'עוד רגע — בודקים את ההרשאות שלך…' }
+      return { heading: 'מסיים את החיבור…' }
     case 'selectingPage':
       return {
         progressLabel: 'שלב 2 מתוך 2',
