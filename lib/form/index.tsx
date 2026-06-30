@@ -6,7 +6,6 @@ import React, { ComponentProps } from 'react'
 import { twMerge } from 'tailwind-merge'
 import { toInputDate } from '../dates'
 
-// 1. Centralized CVA for standard form field styles
 const formFieldVariants = cva(
   'h-10 w-full rounded-md border border-gray-200 bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50',
   {
@@ -22,7 +21,6 @@ const formFieldVariants = cva(
   },
 )
 
-// 2. A composable wrapper for labels, info, and error messages
 interface FormFieldProps {
   children: React.ReactNode
   lbl?: string
@@ -31,16 +29,28 @@ interface FormFieldProps {
   className?: string
   error?: string
   tooltip?: React.ReactNode
+  // When provided, the visible label renders as a real <label htmlFor> so it is
+  // programmatically tied to the control. Omitted by direct consumers that pass
+  // non-input children → falls back to a plain <p> (unchanged behavior).
+  htmlFor?: string
+  // id of the error message, so the control can reference it via aria-describedby.
+  errorId?: string
 }
 
-export function FormField({ children, lbl, info, href, className, error, tooltip }: FormFieldProps) {
+export function FormField({ children, lbl, info, href, className, error, tooltip, htmlFor, errorId }: FormFieldProps) {
   return (
     <div className={twMerge('block ', className)}>
       {lbl && (
         <div className='flex justify-between mb-1 ms-1 items-end '>
-          <p data-tip={tooltip} className='text-gray-600 text-sm font-medium '>
-            {lbl}
-          </p>
+          {htmlFor ? (
+            <label htmlFor={htmlFor} data-tip={tooltip} className='text-gray-600 text-sm font-medium '>
+              {lbl}
+            </label>
+          ) : (
+            <p data-tip={tooltip} className='text-gray-600 text-sm font-medium '>
+              {lbl}
+            </p>
+          )}
           {info && !href && <p className='text-gray-600 text-sm'>{info}</p>}
           {href && (
             <Link href={href as any} className='text-blue-700 text-sm underline' target='_blank' rel='noreferrer'>
@@ -50,12 +60,15 @@ export function FormField({ children, lbl, info, href, className, error, tooltip
         </div>
       )}
       {children}
-      {error && <p className='text-red-600 text-sm mt-1 ms-1'>{error}</p>}
+      {error && (
+        <p id={errorId} role='alert' className='text-red-600 text-sm mt-1 ms-1'>
+          {error}
+        </p>
+      )}
     </div>
   )
 }
 
-// 3. Unified Field component for <input> and <textarea>
 interface InputProps
   extends Omit<ComponentProps<'input'> & ComponentProps<'textarea'>, 'as'>, VariantProps<typeof formFieldVariants> {
   as?: 'input' | 'textarea' | 'resizeTextarea'
@@ -67,9 +80,30 @@ interface InputProps
   defaultValue?: any
 }
 
-export function Input({ as = 'input', lbl, info, href, error, className, required = true, tooltip, ...props }: InputProps) {
+export function Input({
+  as = 'input',
+  lbl,
+  info,
+  href,
+  error,
+  className,
+  required = true,
+  tooltip,
+  id,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
+  ...props
+}: InputProps) {
   const isResize = as === 'resizeTextarea'
   const Component = isResize || as === 'textarea' ? 'textarea' : 'input'
+
+  // Stable id so the visible label can target this control via htmlFor. Respect
+  // a caller-supplied id when present.
+  const reactId = React.useId()
+  const fieldId = id ?? reactId
+  const errorId = error ? `${fieldId}-error` : undefined
+  // Merge caller's aria-describedby with our error id (don't clobber it).
+  const describedBy = [ariaDescribedBy, errorId].filter(Boolean).join(' ') || undefined
 
   const fieldClasses = twMerge(
     formFieldVariants({ hasError: !!error }),
@@ -89,9 +123,12 @@ export function Input({ as = 'input', lbl, info, href, error, className, require
   }
 
   return (
-    <FormField lbl={lbl} info={info} href={href} error={error} tooltip={tooltip}>
+    <FormField lbl={lbl} info={info} href={href} error={error} tooltip={tooltip} htmlFor={fieldId} errorId={errorId}>
       <Component
+        id={fieldId}
         className={fieldClasses}
+        aria-invalid={error ? true : ariaInvalid}
+        aria-describedby={describedBy}
         onInput={(e: any) => {
           if (isResize) handleAutoResize(e)
           props.onInput?.(e)
@@ -103,7 +140,6 @@ export function Input({ as = 'input', lbl, info, href, error, className, require
   )
 }
 
-// 4. Shared CVA for Checkbox and Radio button styles
 const selectableBoxClasses =
   'has-[:checked]:bg-solid/5 grid grid-cols-[16px_1fr] items-center gap-4 min-h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto'
 
@@ -151,14 +187,14 @@ export function RadioBtns({ name, options, defaultValue, placeholder, ...props }
   return (
     <>
       {placeholder && (
-        <label className='has-[:checked]:bg-solid/5 flex flex-nowrap items-center gap-4 h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto'>
+        <label className='has-checked:bg-solid/5 flex flex-nowrap items-center gap-4 h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto'>
           <input type='radio' name={name} value='' className='accent-solid' defaultChecked={true} />
           <p>{placeholder}</p>
         </label>
       )}
       {options.map((opt) => (
         <label
-          className='has-[:checked]:bg-solid/5 flex flex-nowrap items-center gap-4 h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto'
+          className='has-checked:bg-solid/5 flex flex-nowrap items-center gap-4 h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto'
           key={opt}
         >
           <input type='radio' name={name} value={opt} className='accent-solid' defaultChecked={defaultValue === opt} {...props} />
@@ -197,8 +233,17 @@ export function Select({
   className,
   returnJson = false,
   required = true,
+  id,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
   ...props
 }: SelectProps) {
+  // Stable id so the visible label targets this control via htmlFor.
+  const reactId = React.useId()
+  const fieldId = id ?? reactId
+  const errorId = error ? `${fieldId}-error` : undefined
+  const describedBy = [ariaDescribedBy, errorId].filter(Boolean).join(' ') || undefined
+
   const renderOption = (option: SelectOption, index: number) => {
     if (typeof option === 'string') {
       return (
@@ -215,9 +260,12 @@ export function Select({
   }
 
   return (
-    <FormField lbl={lbl} info={info} href={href} error={error}>
+    <FormField lbl={lbl} info={info} href={href} error={error} htmlFor={fieldId} errorId={errorId}>
       <select
+        id={fieldId}
         required={required}
+        aria-invalid={error ? true : ariaInvalid}
+        aria-describedby={describedBy}
         className={twMerge(formFieldVariants({ hasError: !!error }), 'pe-8 ps-2', className)}
         {...props}
       >
