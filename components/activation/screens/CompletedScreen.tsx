@@ -23,16 +23,18 @@ export default function CompletedScreen({
 
   return (
     <div className='flex flex-col items-center gap-6 text-center'>
-      <h1 className='text-[26px] font-bold text-white'>{copy.heading}</h1>
-      {copy.body && <p className='max-w-[320px] text-[14px] text-white/70'>{copy.body}</p>}
-      {copy.instruction && <p className='max-w-[320px] text-[14px] text-white/85'>{copy.instruction}</p>}
+      <h1 className='text-[26px] font-bold text-white desktop:text-[#0f1024]'>{copy.heading}</h1>
+      {copy.body && <p className='max-w-[320px] text-[14px] text-white/70 desktop:text-gray-600'>{copy.body}</p>}
+      {copy.instruction && (
+        <p className='max-w-[320px] text-[14px] text-white/85 desktop:text-gray-700'>{copy.instruction}</p>
+      )}
       <Btn
         lbl={copied ? 'הקישור הועתק' : copy.ctaLabel ?? ''}
         onClick={handle}
         className='w-full max-w-[320px] justify-center'
       />
       {copy.secondary && (
-        <p className='text-[12px] text-white/45' dir='rtl'>
+        <p className='text-[12px] text-white/45 desktop:text-gray-400' dir='rtl'>
           {copy.secondary}
         </p>
       )}
