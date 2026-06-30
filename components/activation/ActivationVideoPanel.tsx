@@ -3,11 +3,12 @@
 import { useState } from 'react'
 
 /**
- * The immersive half — the product video as a full-bleed hero surface. No frame,
- * no window chrome, no card: the video IS the experience, edge to edge. A
- * cinematic gradient floor sits beneath it so it's never black (and shows under
- * reduced-motion / load error), and a feathered seam melts the video into the
- * light activation side. The real MP4/WebM drop into /media/video/ — no code change.
+ * The product showcase on an elegant dark stage. The video is NOT full-bleed —
+ * it sits centered with generous whitespace at ~78% of the column, aspect
+ * preserved and object-contain so the whole product is visible and never cropped.
+ * No browser chrome, no device frame, no border — just the video, lifted off the
+ * stage by a soft ambient glow + shadow. The real MP4/WebM drop into /media/video/
+ * with no code change (reduced-motion / load error fall back to the dark stage).
  */
 
 const SOURCES = [
@@ -18,7 +19,7 @@ const POSTER = '/media/video/opening-poster.jpg'
 
 export default function ActivationVideoPanel({
   className = '',
-  seamColor = '#f4f1fb',
+  seamColor = '#f4f0fb',
 }: {
   className?: string
   seamColor?: string
@@ -26,39 +27,54 @@ export default function ActivationVideoPanel({
   const [failed, setFailed] = useState(false)
 
   return (
-    <div className={`relative overflow-hidden ${className}`} aria-hidden='true'>
-      {/* Cinematic floor — never black. */}
+    <div className={`relative flex items-center justify-center overflow-hidden ${className}`} aria-hidden='true'>
+      {/* The dark stage. */}
       <div
         className='absolute inset-0'
-        style={{ background: 'radial-gradient(120% 100% at 32% 30%, #1b1944 0%, #0c0a1f 55%, #060614 100%)' }}
+        style={{ background: 'radial-gradient(120% 100% at 50% 38%, #17153d 0%, #0c0a1f 56%, #070615 100%)' }}
+      />
+      {/* Ambient bloom that pools behind the showcase. */}
+      <div
+        className='absolute'
+        style={{
+          width: '72%',
+          height: '56%',
+          background:
+            'radial-gradient(ellipse, rgba(79,91,213,0.30) 0%, rgba(252,191,73,0.10) 50%, transparent 75%)',
+          filter: 'blur(80px)',
+          animation: 'act-breathe 7s ease-in-out infinite',
+        }}
       />
 
-      {!failed && (
-        <video
-          className='absolute inset-0 h-full w-full object-cover motion-reduce:hidden'
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload='auto'
-          poster={POSTER}
-          onError={() => setFailed(true)}
-        >
-          {SOURCES.map((s) => (
-            <source key={s.src} src={s.src} type={s.type} />
-          ))}
-        </video>
-      )}
+      {/* The showcase — ~78% of the column, full product visible, never cropped. */}
+      <div className='relative z-10 w-[78%] max-w-[680px]' style={{ aspectRatio: '16 / 9' }}>
+        <div
+          className='absolute inset-0 rounded-xl'
+          style={{ background: 'linear-gradient(135deg, #0c0a1f 0%, #15173a 55%, #0c0a1f 100%)' }}
+        />
+        {!failed && (
+          <video
+            className='absolute inset-0 h-full w-full rounded-xl object-contain motion-reduce:hidden'
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload='auto'
+            poster={POSTER}
+            onError={() => setFailed(true)}
+            style={{ boxShadow: '0 44px 110px rgba(0,0,0,0.55), 0 0 80px rgba(79,91,213,0.16)' }}
+          >
+            {SOURCES.map((s) => (
+              <source key={s.src} src={s.src} type={s.type} />
+            ))}
+          </video>
+        )}
+      </div>
 
-      {/* Feathered seam — the video dissolves into the light panel (right edge in RTL). */}
+      {/* Soft seam — the stage melts toward the light panel (right edge in RTL). */}
       <div
-        className='pointer-events-none absolute inset-y-0 right-0 w-[26%]'
+        className='pointer-events-none absolute inset-y-0 right-0 w-[14%]'
         style={{ background: `linear-gradient(to right, transparent, ${seamColor})` }}
-      />
-      {/* Soft top/bottom depth. */}
-      <div
-        className='pointer-events-none absolute inset-0'
-        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.22), transparent 18%, transparent 82%, rgba(0,0,0,0.22))' }}
       />
     </div>
   )
