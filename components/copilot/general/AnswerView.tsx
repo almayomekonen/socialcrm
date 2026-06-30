@@ -65,7 +65,7 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
         </p>
       )
     }
-    // Deterministic Decision Layer ABOVE the unchanged evidence sections.
+
     const decision = buildAttentionDecision(p)
     return (
       <div className='space-y-1.5'>
@@ -173,7 +173,6 @@ export default function AnswerView({
     )
   }
   if (answer.kind === 'leadAnswer') {
-    // Visible scope label so a follow-up answer is never silently mis-attributed.
     return (
       <p className='whitespace-pre-line text-sm text-gray-700'>
         <span className='font-medium text-gray-500'>לגבי {answer.leadName}: </span>
@@ -181,9 +180,8 @@ export default function AnswerView({
       </p>
     )
   }
+  
   if (answer.kind === 'leadPick') {
-    // Keyed by leadId (unique PK). Selecting resolves the lead INLINE (onPickLead)
-    // — stays in the conversation instead of navigating away.
     return (
       <div className='space-y-1.5'>
         <p className='text-sm text-gray-700'>יש כמה לידים בשם "{answer.name}" — על מי?</p>
@@ -201,6 +199,34 @@ export default function AnswerView({
             </button>
           ))}
         </div>
+      </div>
+    )
+  }
+  if (answer.kind === 'reasoned') {
+    return (
+      <div className='rounded-md border border-gray-200 p-2.5 space-y-2'>
+        <p className='text-sm font-semibold text-gray-900'>{answer.executiveDecision}</p>
+        {!answer.allClear && answer.actions.length > 0 && (
+          <ul className='space-y-1.5'>
+            {answer.actions.map((a, i) => (
+              <li key={i} className='space-y-0.5'>
+                {a.leadId != null ? (
+                  <DeepLink
+                    href={`/clients/${a.leadId}/summary`}
+                    source='answer'
+                    className='block text-sm font-medium text-gray-900 hover:text-gray-700'
+                  >
+                    {a.action}
+                  </DeepLink>
+                ) : (
+                  <p className='text-sm font-medium text-gray-900'>{a.action}</p>
+                )}
+                <p className='text-[12px] text-gray-600'>{a.why}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {answer.moreCount > 0 && <p className='text-[11px] text-gray-400'>ועוד {answer.moreCount}</p>}
       </div>
     )
   }

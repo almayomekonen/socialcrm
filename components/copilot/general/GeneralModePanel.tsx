@@ -7,6 +7,7 @@ import type { CopilotModeId } from '@/lib/ai/copilotModes'
 import { recordGeneralModeEvent } from '@/actions/analytics/recordGeneralModeEvent'
 import { getDailyBriefing } from '@/actions/ai/getDailyBriefing'
 import { askGeneralQuestion, getLeadCardById, type GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
+import { toConversationState } from '@/lib/copilot/general/conversationState'
 import type { BriefingResult } from '@/lib/copilot/general/types'
 import ActiveGenerationRow from '../ActiveGenerationRow'
 import GeneralEmptyState from './GeneralEmptyState'
@@ -89,10 +90,22 @@ export default function GeneralModePanel() {
   async function ask(text: string, mode?: CopilotModeId) {
     if (inFlightRef.current) return
     inFlightRef.current = true
+    // Lightweight last-turn snapshot (the previous reasoned answer), for the
+    // Conversation Intent layer. Never sent to the LLM; null unless the prior
+    // turn was a recommendation.
+    const lastReasoned = [...transcript].reverse().find((t) => t.role === 'assistant' && t.answer.kind === 'reasoned')
+    const conversationState = lastReasoned?.role === 'assistant' ? toConversationState(lastReasoned.answer) : null
+    // TEMP DIAGNOSTIC (C9 follow-up reachability) — remove after capture
+    const _prev = lastReasoned?.role === 'assistant' ? lastReasoned.answer : null
+    console.log('[c9-trace] text =', JSON.stringify(text), '| lastAssistant.answer =', _prev)
+    console.log('[c9-trace] conversationState =', conversationState)
+    if (!_prev) console.log('[c9-trace] null cause: no prior assistant turn')
+    else if (_prev.kind !== 'reasoned') console.log('[c9-trace] null cause: answer.kind !== "reasoned" → kind =', _prev.kind)
+    else console.log('[c9-trace] reasoned → allClear =', _prev.allClear, '| actions.length =', _prev.actions.length)
     setTranscript((t) => [...t, { role: 'user', text }])
     setAsking(true)
     try {
-      const answer = await withLoader(true, () => askGeneralQuestion(text, mode, subject?.id))
+      const answer = await withLoader(true, () => askGeneralQuestion(text, mode, subject?.id, conversationState))
       adopt(answer)
       setTranscript((t) => [...t, { role: 'assistant', answer }])
     } finally {

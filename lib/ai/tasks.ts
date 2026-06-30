@@ -5,6 +5,16 @@ export type TaskConfig = {
   maxOutputTokens: number
   timeoutMs: number
   retryOnSameProvider: number
+  /** Interactive policy: hard wall-clock budget across all providers/attempts. Omitted = legacy (unbounded). */
+  deadlineMs?: number
+  /** Interactive policy: on a timeout, skip same-provider retries and fail over / fall back fast. */
+  failFastOnTimeout?: boolean
+  /**
+   * Interactive policy: cap the provider SDK's INTERNAL retries for this task.
+   * Omitted = SDK default (≈2). 0 means one call, no internal backoff — so a dead
+   * provider can't burn the whole interactive deadline before the router fails over.
+   */
+  providerMaxRetries?: number
 }
 
 const TASKS: Record<TaskKind, TaskConfig> = {
@@ -58,17 +68,28 @@ const TASKS: Record<TaskKind, TaskConfig> = {
     timeoutMs: 3_000,
     retryOnSameProvider: 0,
   },
-  // Background worker task, triggered per message burst. One composite call
-  // returns summary + intent + temperature + suggested action. Uses the cheap
-  // 'volume' role (gemini flash-lite → openai fallback), ~$0.00015/analysis.
+
+  'copilot.generalReason': {
+    role: 'primary',
+    maxOutputTokens: 700,
+    timeoutMs: 7_000,
+    retryOnSameProvider: 1,
+    // Interactive: a "what should I do today" answer must be fast or it's worthless.
+    // Hard cap the wall-clock (legacy worst case ~33s) and don't retry a timed-out provider.
+    deadlineMs: 9_000,
+    failFastOnTimeout: true,
+    // No SDK internal retries: a dead provider (billing/quota) must fail in one call
+    // so the router fails over to a healthy provider within the deadline.
+    providerMaxRetries: 0,
+  },
+
   'conversation.analysis': {
     role: 'volume',
     maxOutputTokens: 500,
     timeoutMs: 15_000,
     retryOnSameProvider: 1,
   },
-  // Instant Response Engine: one short guardrailed acknowledgment (greet +
-  // ack + one question, ≤3 sentences). Tiny output; latency matters.
+
   'inbox.autoResponse': {
     role: 'primary',
     maxOutputTokens: 150,

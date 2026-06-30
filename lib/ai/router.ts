@@ -9,8 +9,9 @@ import { evaluateShadowGate } from '@/lib/entitlements'
 import type { CopilotModeId } from './copilotModes'
 import { addDailySpend, getDailySpend } from './router/spend'
 import { buildPrompt } from './router/promptBuilder'
-import { classifyError } from './router/errorClassify'
+import { classifyError, isPermanentError } from './router/errorClassify'
 import { logAttemptFailure, logAttemptSuccess, logFallbackTrace } from './router/attemptLogger'
+import { attemptBudget, skipRetryOnTimeout } from './router/interactivePolicy'
 
 export { _resetDailySpendForTests } from './router/spend'
 
@@ -44,7 +45,6 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
 
   if (!isAiEnabled()) return { ok: false, reason: 'disabled' }
 
-  // OLD production gate. Phase B observes — does NOT replace — this decision.
   const allowlisted = isAgencyAllowlisted(opts.agencyId)
   const oldAllowed = opts.bypassAllowlist === true || allowlisted
 
@@ -73,7 +73,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
   let lastErrorCode: string | undefined
   let previousProvider: ProviderName | null = null
 
-  for (const handle of chain) {
+  providerLoop: for (const handle of chain) {
     if (previousProvider !== null && previousProvider !== handle.provider) {
       logFallbackTrace({
         kind: opts.kind,
@@ -88,6 +88,12 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
 
     const attempts = cfg.retryOnSameProvider + 1
     for (let attempt = 0; attempt < attempts; attempt++) {
+      const budget = attemptBudget(cfg, startedAt, Date.now())
+      if (budget.stop) {
+        lastErrorCode = lastErrorCode ?? 'timeout'
+        lastErrorMessage = lastErrorMessage ?? 'interactive deadline exceeded'
+        break providerLoop
+      }
       const callStartedAt = Date.now()
       const commonCtx = {
         kind: opts.kind,
@@ -113,7 +119,8 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
           system: opts.system,
           ...prompt,
           maxOutputTokens: cfg.maxOutputTokens,
-          abortSignal: AbortSignal.timeout(cfg.timeoutMs),
+          abortSignal: AbortSignal.timeout(budget.timeoutMs),
+          ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
         })
 
         const latencyMs = Date.now() - callStartedAt
@@ -141,6 +148,8 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         lastErrorCode = errorCode
 
         logAttemptFailure({ ...commonCtx, errorCode, message, err })
+        if (isPermanentError(errorCode)) break
+        if (skipRetryOnTimeout(cfg, errorCode)) break
         if (attempt === attempts - 1) break
       }
     }

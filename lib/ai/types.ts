@@ -7,6 +7,7 @@ export type TaskKind =
   | 'pipeline.weekly'
   | 'health.check'
   | 'copilot.classifyIntent'
+  | 'copilot.generalReason'
   | 'conversation.analysis'
   | 'inbox.autoResponse'
 
