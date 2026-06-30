@@ -16,9 +16,8 @@ import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
-import MobileBlock from '@/components/layout/MobileBlock'
-import MobileBlockAccount from '@/components/layout/MobileBlockAccount'
 import { isOnboarded } from '@/lib/activation/onboarding'
+import { isMobileRequest } from '@/lib/device'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -31,6 +30,11 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 async function LayoutContent({ children }) {
   const user = await getUser()
   if (!user) redirect('/api/auth/clear')
+  // Desktop-only product: an authenticated mobile user must never reach the
+  // dashboard. The single mobile experience is the activation flow, so they are
+  // sent to /activate BEFORE any dashboard data loads. This is a device gate,
+  // independent of onboarding — finishing onboarding never unlocks mobile.
+  if (await isMobileRequest()) redirect('/activate')
   // Activation gate: the dashboard is earned. A not-yet-onboarded account is sent
   // to /activate BEFORE any dashboard data loads. Depends only on the onboarding
   // flag (never an integration table); isOnboarded fails open, so this can never
@@ -107,18 +111,6 @@ export default function AppLayout({ children }) {
       <Suspense fallback={<div>Loading...</div>}>
         <LayoutContent>{children}</LayoutContent>
       </Suspense>
-      {/* Desktop-only product: the CRM is not a supported mobile experience.
-          This client-side overlay (desktop:hidden, so it never appears ≥1000px)
-          covers the dashboard on mobile for every authenticated user. It is a
-          separate responsibility from the onboarding gate above — finishing
-          onboarding never unlocks the dashboard on mobile. */}
-      <MobileBlock
-        accountSlot={
-          <Suspense fallback={null}>
-            <MobileBlockAccount />
-          </Suspense>
-        }
-      />
     </>
   )
 }
