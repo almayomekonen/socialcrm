@@ -31,7 +31,7 @@ function ChannelGlyph({ file, background }: { file: string; background: string }
   return (
     <span
       aria-hidden='true'
-      className='size-5'
+      className='size-6'
       style={{
         background,
         maskImage: `url(/media/social-icons/${file})`,
@@ -46,7 +46,7 @@ function ChannelGlyph({ file, background }: { file: string; background: string }
 function ChannelChip({ file, background, style }: { file: string; background: string; style: React.CSSProperties }) {
   return (
     <div
-      className='absolute grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl'
+      className='absolute grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl'
       style={{
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.10)',
@@ -101,7 +101,7 @@ export function SocialCrmMark({ size = 76 }: { size?: number }) {
 
 export default function ActivationBrand({ width = 300 }: { width?: number }) {
   const height = Math.round((width * 170) / 300)
-  const markSize = Math.round(width * 0.253) // 76/300 — keeps the mark proportional
+  const markSize = Math.round(width * 0.29) // ~87/300 — keeps the mark proportional
   return (
     <div className='relative mx-auto w-full' style={{ maxWidth: width, height }} aria-hidden='true'>
       {/* Converging flow lines — faint amber, with a slow travelling pulse toward the mark */}
