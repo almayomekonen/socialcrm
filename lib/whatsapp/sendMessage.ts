@@ -1,16 +1,6 @@
-/**
- * WhatsApp Cloud API transport — outbound text only.
- *
- * Pure transport: builds the POST /{phone_number_id}/messages call (same Graph
- * version as the OAuth/webhook code) and maps the response to a typed result.
- * No DB, no persistence — the caller persists only on { ok: true }.
- */
+import { GRAPH_BASE } from '@/lib/facebook/graph'
 
-const GRAPH_VERSION = 'v19.0'
-
-export type SendWhatsappTextResult =
-  | { ok: true; wamid: string }
-  | { ok: false; error: string; code?: string }
+export type SendWhatsappTextResult = { ok: true; wamid: string } | { ok: false; error: string; code?: string }
 
 export async function sendWhatsappText(args: {
   phoneNumberId: string
@@ -20,7 +10,7 @@ export async function sendWhatsappText(args: {
 }): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, body } = args
   try {
-    const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/messages`, {
+    const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,

@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
 import { useAction } from '@/lib/useAction'
-import { wait } from '@/lib/funcs'
+import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string }
@@ -13,6 +13,10 @@ type Connection = { phoneNumberId: string }
 type Props = {
   connection: Connection | null
   pendingPhones: Phone[] | null
+  appId: string
+  configId: string
+  graphVersion: string
+  messagingReady: boolean
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -21,9 +25,20 @@ const ERROR_MESSAGES: Record<string, string> = {
   token: 'שגיאה בהתחברות לוואטסאפ. אנא נסה שוב.',
   no_accounts: 'לא נמצאו חשבונות וואטסאפ עסקיים. יש לוודא שיש לך גישת מנהל.',
   no_phones: 'לא נמצאו מספרי טלפון בחשבון. יש להוסיף מספר לחשבון וואטסאפ העסקי.',
+  sdk: 'טעינת ההתחברות נכשלה. רענן את העמוד ונסה שוב.',
+  config: 'תצורת ההתחברות חסרה. פנה לתמיכה.',
+  server: 'שגיאה בהתחברות לוואטסאפ. אנא נסה שוב.',
+  network: 'בעיית רשת. אנא נסה שוב.',
 }
 
-export default function WhatsappConnect({ connection, pendingPhones }: Props) {
+export default function WhatsappConnect({
+  connection,
+  pendingPhones,
+  appId,
+  configId,
+  graphVersion,
+  messagingReady,
+}: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('wa_error')
@@ -31,11 +46,19 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
   const [selectedPhoneId, setSelectedPhoneId] = useState('')
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
+  const { launch } = useEmbeddedSignup(appId, configId, graphVersion)
 
-  const redirectToOAuth = () =>
+  const startEmbeddedSignup = () =>
     run(async () => {
-      window.location.href = '/api/auth/whatsapp'
-      await wait(30_000)
+      setError(null)
+      const result = await launch()
+      if (result.ok) {
+        router.refresh()
+        return
+      }
+
+      if (result.error === 'cancelled') return
+      setError(ERROR_MESSAGES[result.error ?? ''] ?? 'שגיאה בהתחברות לוואטסאפ. אנא נסה שוב.')
     })
 
   const performDisconnect = () => {
@@ -66,7 +89,16 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
   if (connection) {
     return (
       <div className='grid gap-4'>
-        <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
+        {messagingReady ? (
+          <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
+        ) : (
+          <div className='rounded-md border border-amber-300 bg-amber-50 p-3'>
+            <p className='text-sm font-medium text-amber-800'>המספר חובר אך עדיין לא פעיל לקבלת הודעות</p>
+            <p className='mt-1 text-sm text-amber-700'>
+              יש להשלים את רישום המספר בוואטסאפ העסקי (אימות מספר והגדרת אימות דו-שלבי). עד להשלמה, הודעות לא יתקבלו.
+            </p>
+          </div>
+        )}
         <p className='text-sm text-gray-600'>
           מספר מזוהה: <strong>{connection.phoneNumberId}</strong>
         </p>
@@ -128,17 +160,17 @@ export default function WhatsappConnect({ connection, pendingPhones }: Props) {
   // State A: Not connected
   return (
     <div className='grid gap-4'>
-      {urlError && (
-        <p className='text-sm text-red-600'>{ERROR_MESSAGES[urlError] ?? 'שגיאה בהתחברות לוואטסאפ.'}</p>
+      {(error || urlError) && (
+        <p className='text-sm text-red-600'>{error ?? ERROR_MESSAGES[urlError!] ?? 'שגיאה בהתחברות לוואטסאפ.'}</p>
       )}
       <p className='text-sm text-gray-500'>חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.</p>
       <Btn
-        lbl={loading ? 'מעביר לוואטסאפ...' : 'חבר וואטסאפ עסקי'}
+        lbl={loading ? 'מתחבר...' : 'חבר וואטסאפ עסקי'}
         icon={loading ? 'spinner' : 'whatsapp'}
         iconClassName={loading ? 'animate-spin' : undefined}
         disabled={loading}
         className='w-fit bg-green-600'
-        onClick={redirectToOAuth}
+        onClick={startEmbeddedSignup}
       />
     </div>
   )

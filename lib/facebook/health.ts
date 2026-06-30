@@ -1,6 +1,5 @@
 import { db } from '@/config/db'
-
-const GRAPH_API = 'https://graph.facebook.com/v19.0'
+import { GRAPH_BASE as GRAPH_API } from '@/lib/facebook/graph'
 
 const FETCH_TIMEOUT_MS = 6000
 
