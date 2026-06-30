@@ -1,0 +1,100 @@
+/* Cinematic mobile-blocker motion primitives.
+ *
+ * Doctrine alignment:
+ *   - Component-level <style> blocks are forbidden; keyframes live in CSS files.
+ *   - All reduced-motion overrides live at the bottom of this file so the
+ *     accessibility contract is auditable in one place.
+ *
+ * Class catalog (mb- = "mobile-block"):
+ *   .mb-orbit          — slow CW orbital rotation (gilded ring sweep)
+ *   .mb-orbit-rev      — slow CCW orbital rotation (counter ring)
+ *   .mb-halo-breathe   — soft halo opacity + scale breathing
+ *   .mb-drift-slow     — gentle position drift (atmospheric layers)
+ *   .mb-drift-slow-2   — same shape, offset phase, slower
+ *   .mb-fade-up        — entrance fade + lift (text reveal on mount)
+ *   .mb-fade-up-d1     — same, with 120ms delay (headline → subline cascade)
+ *   .mb-fade-up-d2     — same, with 240ms delay (subline → CTA cascade)
+ */
+
+@keyframes mb-orbit {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes mb-orbit-rev {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+@keyframes mb-halo-breathe {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 0.7;  transform: scale(1.04); }
+}
+
+@keyframes mb-drift-slow {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(18px, -12px, 0); }
+}
+
+@keyframes mb-drift-slow-2 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(-14px, 16px, 0); }
+}
+
+@keyframes mb-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mb-orbit         { animation: mb-orbit 42s linear infinite; transform-origin: center; }
+.mb-orbit-rev     { animation: mb-orbit-rev 56s linear infinite; transform-origin: center; }
+.mb-halo-breathe  { animation: mb-halo-breathe 8s ease-in-out infinite; will-change: opacity, transform; }
+.mb-drift-slow    { animation: mb-drift-slow 14s ease-in-out infinite; will-change: transform; }
+.mb-drift-slow-2  { animation: mb-drift-slow-2 18s ease-in-out infinite; will-change: transform; }
+
+.mb-fade-up       { animation: mb-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.mb-fade-up-d1    { animation: mb-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both; }
+.mb-fade-up-d2    { animation: mb-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both; }
+.mb-fade-up-d3    { animation: mb-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.36s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-orbit,
+  .mb-orbit-rev,
+  .mb-halo-breathe,
+  .mb-drift-slow,
+  .mb-drift-slow-2 { animation: none !important; }
+  .mb-fade-up,
+  .mb-fade-up-d1,
+  .mb-fade-up-d2,
+  .mb-fade-up-d3   { animation: none !important; opacity: 1; transform: none; }
+}
+
+/* ── True viewport lock when the blocker is active (mobile range) ──────────
+ *
+ * Scoped to the exact range where MobileBlock is visible (matches the
+ * `desktop:hidden` Tailwind variant — `min-width: 1000px` is `desktop`, so
+ * everything below is the blocker range) AND to pages where MobileBlock is
+ * actually mounted (`:has(.mb-lock)`), so marketing/auth pages scroll
+ * normally on mobile. On desktop these rules do not apply.
+ *
+ * - html, body get overflow:hidden + overscroll-behavior:none to freeze the
+ *   document and disable iOS rubber-band.
+ * - body becomes position:fixed inset:0 so iOS Safari can't reveal content
+ *   through momentum scrolling or address-bar collapse on touch.
+ * - touch-action: none on body blocks all touch panning/zooming on the
+ *   underlying document. Click/tap events still fire on the overlay button.
+ */
+@media (max-width: 999.98px) {
+  html:has(.mb-lock),
+  body:has(.mb-lock) {
+    overflow: hidden;
+    overscroll-behavior: none;
+    height: 100%;
+  }
+  body:has(.mb-lock) {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    touch-action: none;
+  }
+}
