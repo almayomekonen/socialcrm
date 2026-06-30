@@ -50,7 +50,7 @@ export function SelectSalesGrpActions({ user, isFav = null }) {
 
 export function DotsMenu({ id, onClick }) {
   return (
-    <Btn variant='outline' size='icon' icon='ellipsis-vertical' type='button' onClick={(e) => setPosAndPop(e, id, onClick)} />
+    <Btn variant='outline' size='icon' icon='ellipsis-vertical' type='button' aria-label='פעולות' aria-haspopup='menu' onClick={(e) => setPosAndPop(e, id, onClick)} />
   )
 }
 

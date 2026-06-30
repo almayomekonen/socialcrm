@@ -86,6 +86,7 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
                 type='button'
                 variant='destructive'
                 size='icon'
+                aria-label={`הסרת תנאי ${i + 1}`}
                 onClick={() => {
                   setConds(conds.filter((_, index) => index !== i))
                 }}

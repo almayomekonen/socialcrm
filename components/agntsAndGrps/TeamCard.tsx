@@ -38,8 +38,8 @@ export default function TeamCard({ teams, users, mngrs, offices }) {
             <div className='flex justify-between items-center border-b pb-4 mb-4'>
               <h3 className='text-xl font-bold text-primary'>{team.name}</h3>
               <div className='flex gap-2'>
-                <Btn variant='outline' size='icon' icon='pen' onClick={() => setCurTeam(team)} />
-                <Btn variant='outline' size='icon' icon='trash' onClick={() => onDelete(team.id, team.name)} />
+                <Btn variant='outline' size='icon' icon='pen' aria-label='עריכת צוות' onClick={() => setCurTeam(team)} />
+                <Btn variant='outline' size='icon' icon='trash' aria-label='מחיקת צוות' onClick={() => onDelete(team.id, team.name)} />
               </div>
             </div>
             <div className='space-y-4'>

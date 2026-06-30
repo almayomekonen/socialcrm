@@ -93,6 +93,7 @@ export function FilterChips({ filter }) {
             <Btn
               variant='sign'
               size='icon'
+              aria-label={`הסרת סינון ${label}`}
               className='bg-gray-100 absolute -left-1 border  border-gray-300 -top-1 rounded-full size-3.5 shadow-1 flex justify-center'
               icon='xmark'
               iconClassName='size-2.5'

@@ -36,6 +36,7 @@ export default function FilterBtn({ user, filter }) {
           variant='outline'
           size='icon'
           icon='eraser'
+          aria-label='ניקוי סינון'
           href='?'
           scroll={false}
           className='rounded-s-none  rounded-e-none shadow-none'

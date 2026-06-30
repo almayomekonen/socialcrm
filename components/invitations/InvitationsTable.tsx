@@ -31,7 +31,7 @@ export default function InvitationsTable({ data, tblPref }) {
     return (
       <>
         <td className='sticky left-0 z-10 bg-white'>
-          <Btn variant='outline' size='icon' icon='trash' onClick={() => setInvitationToDelete(invitation)} />
+          <Btn variant='outline' size='icon' icon='trash' aria-label='מחיקת הזמנה' onClick={() => setInvitationToDelete(invitation)} />
         </td>
       </>
     )

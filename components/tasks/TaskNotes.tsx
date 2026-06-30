@@ -139,7 +139,7 @@ function NoteItem({ note, onDelete, onContextMenu }: { note: any; onDelete: () =
     >
       <div className='flex justify-between items-start gap-2'>
         <p className='whitespace-pre-wrap flex-1 text-gray-800'>{note.content}</p>
-        <button onClick={onDelete} className='invisible group-hover:visible text-gray-400 hover:text-red-500 shrink-0 mt-0.5 transition-colors'>
+        <button onClick={onDelete} aria-label='מחיקת הערה' className='invisible group-hover:visible text-gray-400 hover:text-red-500 shrink-0 mt-0.5 transition-colors'>
           <Icon name='trash' className='size-3' />
         </button>
       </div>
