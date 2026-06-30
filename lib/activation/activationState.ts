@@ -73,7 +73,6 @@ export function reducer(m: ActivationMachine, e: ActivationEvent): ActivationMac
   }
 }
 
-/** Maps the OAuth return URL into an event. Pages are server-injected (httpOnly cookie). */
 export function deriveReturnEvent(params: URLSearchParams, pages: FacebookPage[]): ActivationEvent | null {
   const a = params.get('activation')
   if (a === 'select') return { type: 'RETURN_SUCCEEDED', pages }
@@ -81,7 +80,6 @@ export function deriveReturnEvent(params: URLSearchParams, pages: FacebookPage[]
   return null
 }
 
-/** Progress is derived from state — a single source of truth, no scattered literals. */
 const PROGRESS: Record<ActivationStatus, number> = {
   waitingForActivation: 0.66,
   oauthPending: 0.8,
@@ -94,7 +92,6 @@ export function activationProgress(status: ActivationStatus): number {
   return PROGRESS[status]
 }
 
-/** Which screen a state renders. Pure — keeps business decisions out of the renderer. */
 export type ScreenKind = 'waiting' | 'working' | 'select' | 'completed' | 'retry'
 export function screenKindFor(status: ActivationStatus): ScreenKind {
   switch (status) {

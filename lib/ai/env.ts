@@ -9,14 +9,10 @@ export type AiEnv = {
   copilotEnabled: boolean
   copilotAgencyAllowlist: number[] | 'all'
   copilotPersistenceEnabled: boolean
-  // Phase 1.5 internal inspector surface. Gates /settings/ai-inspector on top
-  // of the ADMIN role check. Only set true in dogfooding environments — the
-  // inspector exposes provider/model identifiers which must never reach a
-  // customer-visible deployment.
   copilotInspectorEnabled: boolean
-  // General Mode (no-lead copilot) rollout allowlist. Empty by default, so the
-  // feature is OFF in production until an agency id is opted in (or 'all').
   generalModeAgencyAllowlist: number[] | 'all'
+  reasonedGeneralAgencyAllowlist: number[] | 'all'
+  synthesisAgencyAllowlist: number[] | 'all'
 }
 
 let cached: AiEnv | null = null
@@ -35,8 +31,7 @@ function loadEnv(): AiEnv {
   const enabled = process.env.AI_ENABLED === 'true' || process.env.AI_ENABLED === '1'
   const copilotEnabled = process.env.AI_COPILOT_ENABLED === 'true' || process.env.AI_COPILOT_ENABLED === '1'
   const copilotPersistenceEnabled = process.env.AI_COPILOT_PERSIST === 'true' || process.env.AI_COPILOT_PERSIST === '1'
-  const copilotInspectorEnabled =
-    process.env.AI_COPILOT_INSPECTOR === 'true' || process.env.AI_COPILOT_INSPECTOR === '1'
+  const copilotInspectorEnabled = process.env.AI_COPILOT_INSPECTOR === 'true' || process.env.AI_COPILOT_INSPECTOR === '1'
 
   const dailyUsdCap = Number(process.env.AI_DAILY_USD_CAP)
   const cap = Number.isFinite(dailyUsdCap) && dailyUsdCap > 0 ? dailyUsdCap : 20
@@ -52,6 +47,8 @@ function loadEnv(): AiEnv {
     copilotInspectorEnabled,
     copilotAgencyAllowlist: parseAgencyAllowlist(process.env.AI_COPILOT_AGENCY_ALLOWLIST),
     generalModeAgencyAllowlist: parseAgencyAllowlist(process.env.GENERAL_MODE_AGENCY_IDS),
+    reasonedGeneralAgencyAllowlist: parseAgencyAllowlist(process.env.REASONED_GENERAL_AGENCY_IDS),
+    synthesisAgencyAllowlist: parseAgencyAllowlist(process.env.SYNTHESIS_AGENCY_IDS),
     agencyAllowlist: parseAgencyAllowlist(process.env.AI_AGENCY_ALLOWLIST),
     dailyUsdCap: cap,
     healthSecret: process.env.AI_HEALTH_SECRET?.trim() || null,

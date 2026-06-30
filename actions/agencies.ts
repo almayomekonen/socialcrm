@@ -18,14 +18,7 @@ export async function addAgency(data) {
   let createdAgencyId: number | null = null
   try {
     await db.transaction(async (trx) => {
-      // Whitelisted inserts: registration is a public action, so only the
-      // fields the form legitimately collects may reach the DB. A crafted
-      // payload must not be able to set plan, trialExempt, trial timestamps,
-      // role, or any other column — those come from column defaults or are
-      // set explicitly below.
-      const agency = await trx('agencies')
-        .insert({ name: data?.agency?.name })
-        .returning('id')
+      const agency = await trx('agencies').insert({ name: data?.agency?.name }).returning('id')
       const agencyId = agency[0]?.id
 
       const [user] = await trx('users')

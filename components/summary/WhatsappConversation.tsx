@@ -10,8 +10,6 @@ export default function WhatsappConversation({
   messages: LeadWhatsappMessage[]
   leadId: number
 }) {
-  // Latest inbound message id (messages are ordered oldest→newest) — drives the
-  // new-inbound-message toast detector.
   let latestInboundId: number | null = null
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].direction === 'inbound') {

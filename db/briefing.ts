@@ -10,8 +10,9 @@ export type BriefingLeadRow = {
   id: number
   name: string | null
   status: string | null
-  /** Optional age signal for the decision layer: days overdue / days since contact. Only set by readers that select it. */
   ageDays?: number | null
+  waitingDays?: number | null
+  freshnessDays?: number | null
 }
 
 export type BriefingLeadList = { total: number; sample: BriefingLeadRow[] }
@@ -27,12 +28,6 @@ export function scopedLeads(agencyId: number, plan: string, s: Scope) {
 
 export type NamedLead = { id: number; name: string; status: string | null; nextFollowUpAt: string | null }
 
-/**
- * Subject Resolution V1 name lookup — goes through scopedLeads (the gotPermIds
- * permission gate), so it can only ever return leads the user is allowed to see.
- * Each whitespace term must match firstName OR lastName (ILIKE), so a full name
- * narrows. Not status-filtered: a question about a closed lead is still valid.
- */
 export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[]> {
   const terms = name.trim().split(/\s+/).filter(Boolean).slice(0, 3)
   if (terms.length === 0) return []
@@ -50,10 +45,10 @@ export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[
       status: r.status ?? null,
       nextFollowUpAt:
         r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
-  }))
+    }),
+  )
 }
 
-/** Scoped fetch of one lead by id — same gotPermIds gate; returns null if out of scope. */
 export async function getNamedLeadById(s: Scope, id: number): Promise<NamedLead | null> {
   if (!Number.isFinite(id) || id <= 0) return null
   const agencyId = await getAgencyId()
@@ -64,7 +59,8 @@ export async function getNamedLeadById(s: Scope, id: number): Promise<NamedLead 
     id: Number(r.id),
     name: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'ליד ללא שם',
     status: r.status ?? null,
-    nextFollowUpAt: r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
+    nextFollowUpAt:
+      r.nextFollowUpAt instanceof Date ? r.nextFollowUpAt.toISOString() : r.nextFollowUpAt ? String(r.nextFollowUpAt) : null,
   }
 }
 
@@ -77,6 +73,8 @@ function toList(rows: Row[]): BriefingLeadList {
       name: r.name,
       status: r.status,
       ageDays: r.ageDays == null ? null : Number(r.ageDays),
+      waitingDays: r.waitingDays == null ? null : Number(r.waitingDays),
+      freshnessDays: r.freshnessDays == null ? null : Number(r.freshnessDays),
     })),
   }
 }
@@ -118,7 +116,13 @@ export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
   const plan = await getAgencyPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereRaw(`"createdAt" >= ${WEEK_START_SQL}`)
-    .select('id', 'name', 'status', db.raw('COUNT(*) OVER()::int as total'))
+    .select(
+      'id',
+      'name',
+      'status',
+      db.raw('COUNT(*) OVER()::int as total'),
+      db.raw('(CURRENT_DATE - "createdAt"::date)::int as "freshnessDays"'), // days since the lead was created
+    )
     .orderBy('createdAt', 'desc')
     .limit(BRIEFING_SAMPLE_LIMIT)
   return toList(rows)
@@ -167,7 +171,13 @@ export function promisedButWaitingQuery(agencyId: number, plan: string, s: Scope
     .whereRaw(`msg.last_inbound_at > clients."nextFollowUpAt"`)
     .whereRaw(`(msg.last_outbound_at IS NULL OR msg.last_outbound_at < msg.last_inbound_at)`)
     .whereRaw(`msg.last_inbound_at > NOW() - make_interval(days => ?)`, [PROMISED_WAITING_RECENCY_DAYS])
-    .select('clients.id', 'clients.name', 'clients.status', db.raw('COUNT(*) OVER()::int as total'))
+    .select(
+      'clients.id',
+      'clients.name',
+      'clients.status',
+      db.raw('COUNT(*) OVER()::int as total'),
+      db.raw('(CURRENT_DATE - msg.last_inbound_at::date)::int as "waitingDays"'), // days since the customer's last inbound
+    )
     .orderByRaw(`msg.last_inbound_at ASC`)
     .limit(BRIEFING_SAMPLE_LIMIT)
 }

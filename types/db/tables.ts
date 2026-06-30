@@ -1,19 +1,9 @@
-// define Json as any to avoid type errors
-export type Json = any // string | number | boolean | null | { [key: string]: Json } | Json[]
-
-// --------------------------------------------------
-// ENUMS
-// --------------------------------------------------
-
+export type Json = any
 export type Role = 'ADMIN' | 'MNGR' | 'AGNT' | 'OFFICE' | 'GM' | 'EXT'
 export type FamilyStatus = 'רווק' | 'רווקה' | 'נשוי' | 'נשואה' | 'גרוש' | 'גרושה' | 'אלמן' | 'אלמנה'
 export type Gender = 'זכר' | 'נקבה'
 export type HebrewRole = 'אדמין' | 'נציג' | 'מנהל' | 'מתפעל'
 export type TagmulType = 'היקף' | 'נפרעים'
-
-// --------------------------------------------------
-// JSONS
-// --------------------------------------------------
 
 export interface TaskItem {
   title: string
@@ -70,10 +60,6 @@ type Job = {
   startDate: Date | null
   contactInfo: JobContactInfo | null
 }
-
-// --------------------------------------------------
-// Tables
-// --------------------------------------------------
 
 export interface User {
   id: number
@@ -368,10 +354,6 @@ export interface GroupPerm {
 export interface Total {
   json_build_object: Json | null
 }
-
-// --------------------------------------------------
-// Views
-// --------------------------------------------------
 
 export interface AllUsersView {
   id: number

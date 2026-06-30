@@ -26,6 +26,14 @@ import { detectsDriveIntent, maybePrefetchDrive, type DriveSearchOutcome } from 
 import type { DriveResults } from '@/lib/copilot/copilotResponse'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
+import { tryReasonedAnswer, shouldReason, type ReasonedAnswer } from '@/lib/copilot/general/reasonedAnswer'
+import { isReasonedGeneralEnabledForUser, isSynthesisEnabledForUser } from '@/lib/copilot/featureFlag'
+import { classifyConversationIntent } from '@/lib/copilot/general/conversationIntent'
+import { gatherTriageFacts } from '@/lib/copilot/general/facts/gatherFacts'
+import { classifyStates } from '@/lib/copilot/general/businessState'
+import { synthesize } from '@/lib/copilot/general/synthesis/synthesize'
+import { traceSynthesis } from '@/lib/copilot/general/synthesis/synthesisTrace'
+import type { ConversationState } from '@/lib/copilot/general/conversationState'
 import { Roles } from '@/types/roles'
 
 export type LeadCard = {
@@ -48,6 +56,7 @@ export type GeneralAnswer =
   | { kind: 'lead'; lead: LeadCard }
   | { kind: 'leadPick'; name: string; candidates: { leadId: number; label: string; status: string | null }[] }
   | { kind: 'leadAnswer'; text: string; leadName: string }
+  | ReasonedAnswer
 
 type ActingUser = { agencyId: number; id: number; role: Roles }
 
@@ -59,13 +68,18 @@ async function safeTrack(user: ActingUser, event: AnalyticsEventName, props?: Re
   }
 }
 
-export async function askGeneralQuestion(text: string, modeRaw?: unknown, activeLeadIdRaw?: unknown): Promise<GeneralAnswer> {
+export async function askGeneralQuestion(
+  text: string,
+  modeRaw?: unknown,
+  activeLeadIdRaw?: unknown,
+  conversationState?: ConversationState | null,
+): Promise<GeneralAnswer> {
   const user = await requireAgencyUser()
   const mode = isCopilotModeId(modeRaw) ? modeRaw : undefined
   const n = Number(activeLeadIdRaw)
   const activeLeadId = Number.isFinite(n) && n > 0 ? n : undefined
   try {
-    const answer = await resolveAnswer(text, user, mode, activeLeadId)
+    const answer = await resolveAnswer(text, user, mode, activeLeadId, conversationState ?? null)
     const subjectActive = activeLeadId != null
     await safeTrack(user, 'general_mode.question_asked', { qlen: text.length, subjectActive })
 
@@ -73,12 +87,11 @@ export async function askGeneralQuestion(text: string, modeRaw?: unknown, active
       path: resolvedPath(answer),
       subjectActive,
       text: text.slice(0, 200),
-      intent: answer.kind === 'data' ? answer.intent : undefined, // which business intent
-      gap: answer.kind === 'fallback' && answer.mode === 'redirect' ? answer.gap : undefined, // known unmet-demand bucket
+      intent: answer.kind === 'data' ? answer.intent : undefined,
+      gap: answer.kind === 'fallback' && answer.mode === 'redirect' ? answer.gap : undefined,
     })
     return answer
   } catch {
-    // Unexpected failure → safe generic redirect, never an error thrown at the user.
     await safeTrack(user, 'general_mode.error', { stage: 'qa' })
     return { kind: 'fallback', mode: 'redirect', gap: null }
   }
@@ -97,8 +110,10 @@ export async function getLeadCardById(leadIdRaw: number | string): Promise<Gener
 
 function resolvedPath(
   a: GeneralAnswer,
-): 'business_intent' | 'lead_resolution' | 'lead_followup' | 'drive' | 'guide' | 'ack' | 'clarify' | 'redirect' {
+): 'business_intent' | 'reasoned' | 'lead_resolution' | 'lead_followup' | 'drive' | 'guide' | 'ack' | 'clarify' | 'redirect' {
   switch (a.kind) {
+    case 'reasoned':
+      return 'reasoned'
     case 'data':
       return 'business_intent'
     case 'lead':
@@ -180,7 +195,35 @@ async function resolveAnswer(
   user: ActingUser,
   mode?: CopilotModeId,
   activeLeadId?: number,
+  conversationState?: ConversationState | null,
 ): Promise<GeneralAnswer> {
+  // TEMP DIAGNOSTIC (C9 follow-up reachability) — remove after capture
+  console.log(
+    '[c9-trace:server] received conversationState =',
+    conversationState,
+    '| intent =',
+    classifyConversationIntent(text),
+    '| entersFollowUpBranch =',
+    !!(conversationState && classifyConversationIntent(text) === 'follow_up'),
+    '| synthesisFlag =',
+    isSynthesisEnabledForUser(user),
+  )
+  if (conversationState && classifyConversationIntent(text) === 'follow_up') {
+    if (isSynthesisEnabledForUser(user)) {
+      const { gotPermIds } = await getPerms(user)
+      const scope: Scope = { user: { role: user.role }, gotPermIds }
+      const states = classifyStates(await gatherTriageFacts(scope))
+      const startedAt = Date.now()
+      const observation = synthesize(states)
+      traceSynthesis({ states, startedAt, now: Date.now() }) // passive observability; never affects the answer
+      if (observation) return { kind: 'guide', answer: observation.statement }
+    }
+    return {
+      kind: 'guide',
+      answer: 'אלה הדברים שהכי חשובים כרגע — השאר יכול לחכות. אם יש משהו ספציפי שתרצה להעמיק בו, תגיד.',
+    }
+  }
+
   if (detectsDriveIntent(text)) {
     const outcome = await maybePrefetchDrive({ question: text, userId: user.id })
     if (outcome) return { kind: 'drive', data: toDriveResults(outcome) }
@@ -193,11 +236,15 @@ async function resolveAnswer(
   const leadSubject = await resolveLeadSubject(text, user)
   if (leadSubject) return leadSubject
 
-  // Known unsupported business questions are intercepted deterministically BEFORE the
-  // classifier, so the constrained LLM can't absorb them into crm.attention. Returns the
-  // exact response the fallback layer produces for that gap (same kind/mode/gap shape).
   const knownGap = detectKnownGap(text)
   if (knownGap) return { kind: 'fallback', mode: 'redirect', gap: knownGap }
+
+  if (isReasonedGeneralEnabledForUser(user) && !(activeLeadId && isLeadFollowup(text)) && shouldReason(text)) {
+    const { gotPermIds } = await getPerms(user)
+    const scope: Scope = { user: { role: user.role }, gotPermIds }
+    const reasoned = await tryReasonedAnswer({ text, scope, agencyId: user.agencyId, userId: user.id, mode })
+    if (reasoned) return reasoned
+  }
 
   const c = await classifyGeneralIntent(text, user.agencyId, mode)
 

@@ -1,11 +1,6 @@
 import type { ModelMessage } from 'ai'
 import type { RunStructuredImageAttachment } from '../router'
 
-/**
- * Builds the prompt payload for `generateObject`: a plain string when no
- * images are attached, or a structured `messages` array carrying text +
- * image parts when one or more valid http(s) image URLs are present.
- */
 export function buildPrompt(
   user: string,
   images: RunStructuredImageAttachment[] | undefined,
