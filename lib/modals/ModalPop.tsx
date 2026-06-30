@@ -39,6 +39,20 @@ export default function ModalPop({
   // close — keyboard/screen-reader users return to where they were.
   const restoreFocusRef = useRef<HTMLElement | null>(null)
 
+  // Dev-only guardrail: the generic fallback name is a defensive safety net, not
+  // the intended solution. Every production dialog should pass a meaningful name.
+  // Warn (never throw, never in production) so new dialogs don't ship nameless.
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return
+    if (open && !label && !labelledBy) {
+      console.warn(
+        '[ModalPop] Dialog is falling back to a generic accessible name. ' +
+          'Pass `labelledBy` (preferred — point it at a visible heading id) or `label` ' +
+          'so screen-reader users hear what this dialog is.',
+      )
+    }
+  }, [open, label, labelledBy])
+
   // Move focus into the dialog on open; restore it to the trigger on close.
   // Container-scoped (not document-wide) so nested dialogs each manage their own
   // focus without fighting each other.
