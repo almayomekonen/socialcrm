@@ -62,7 +62,6 @@ export default function ActivationVideoPanel({
             preload='auto'
             poster={POSTER}
             onError={() => setFailed(true)}
-            style={{ boxShadow: '0 44px 110px rgba(0,0,0,0.55), 0 0 80px rgba(79,91,213,0.16)' }}
           >
             {SOURCES.map((s) => (
               <source key={s.src} src={s.src} type={s.type} />

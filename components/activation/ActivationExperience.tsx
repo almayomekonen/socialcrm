@@ -65,7 +65,7 @@ export default function ActivationExperience() {
       {/* DESKTOP — light activation surface (leading/right in RTL) + full-bleed video (left) */}
       <div className='hidden min-h-dvh desktop:flex'>
         <section
-          className='relative z-10 flex basis-[54%] flex-col items-center justify-center gap-10 px-16 py-14'
+          className='relative z-10 flex basis-[54%] flex-col items-center justify-center gap-4 px-16 py-14'
           style={{ background: PANEL_LIGHT }}
         >
           <ActivationHero />

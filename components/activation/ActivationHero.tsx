@@ -4,8 +4,8 @@
  * Desktop convergence hero, themed for the LIGHT activation surface: the three
  * channels (white cards, brand-colored glyphs) float and converge — with indigo
  * particles streaming down the beams — into the SocialCRM mark on a clean white
- * plate. Big, calm, alive. Keyframes (act-float / act-breathe) are injected once
- * by ActivationExperience. Desktop-only (mobile uses ActivationBrand).
+ * plate. Keyframes (act-float / act-breathe) are injected once by
+ * ActivationExperience. Desktop-only (mobile uses ActivationBrand).
  */
 
 const MASK = {
@@ -20,8 +20,8 @@ const MASK = {
 const INSTAGRAM_GRADIENT =
   'linear-gradient(45deg, #feda75 0%, #fa7e1e 25%, #d62976 50%, #962fbf 75%, #4f5bd5 100%)'
 
-// chip centers → mark center (240, 206) in the 480×400 viewBox
-const BEAMS = ['M 70 86 Q 150 220, 240 212', 'M 240 52 Q 240 140, 240 212', 'M 410 86 Q 330 220, 240 212']
+// chip centers → mark center (240, 196) in the 480×330 viewBox
+const BEAMS = ['M 75 85 Q 150 210, 240 196', 'M 240 53 Q 240 130, 240 196', 'M 405 85 Q 330 210, 240 196']
 
 function Glyph({ file, background, size }: { file: string; background: string; size: number }) {
   return (
@@ -106,8 +106,8 @@ function LightLogo({ size }: { size: number }) {
 
 export default function ActivationHero() {
   return (
-    <div className='relative mx-auto' style={{ width: 480, height: 400 }} aria-hidden='true'>
-      <svg viewBox='0 0 480 400' className='absolute inset-0 h-full w-full' fill='none'>
+    <div className='relative mx-auto' style={{ width: 480, height: 330 }} aria-hidden='true'>
+      <svg viewBox='0 0 480 330' className='absolute inset-0 h-full w-full' fill='none'>
         {BEAMS.map((d, i) => (
           <g key={d}>
             <path d={d} stroke='rgba(63,32,245,0.18)' strokeWidth='1.5' />
@@ -120,11 +120,11 @@ export default function ActivationHero() {
         ))}
       </svg>
 
-      <Chip file='facebook.svg' background='#1877f2' style={{ left: 32, top: 48 }} delay={0} />
+      <Chip file='facebook.svg' background='#1877f2' style={{ left: 34, top: 46 }} delay={0} />
       <Chip file='instagram.svg' background={INSTAGRAM_GRADIENT} style={{ left: '50%', top: 14, marginLeft: -39 }} delay={0.7} />
-      <Chip file='whatsapp.svg' background='#25d366' style={{ right: 32, top: 48 }} delay={1.4} />
+      <Chip file='whatsapp.svg' background='#25d366' style={{ right: 34, top: 46 }} delay={1.4} />
 
-      <div className='absolute left-1/2' style={{ top: '53%', transform: 'translate(-50%, -50%)' }}>
+      <div className='absolute left-1/2' style={{ top: '59%', transform: 'translate(-50%, -50%)' }}>
         <LightLogo size={156} />
       </div>
     </div>
