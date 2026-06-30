@@ -6,6 +6,8 @@ import AccordionItem from '@/lib/AccordionItem'
 import FacebookConnect from '@/components/settings/FacebookConnect'
 import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
+import { GRAPH_VERSION } from '@/lib/facebook/graph'
+import { checkMessagingReady } from '@/lib/whatsapp/registration'
 
 export default async function page() {
   const user = await getUser()
@@ -39,6 +41,13 @@ export default async function page() {
 
   // WhatsApp connection
   const waConnection = await db('whatsapp_connections').where({ user_id: user.id }).first()
+
+  // Live readiness check — a connected row does not guarantee the number is
+  // registered for Cloud API, so never show "active" without verifying status.
+  let waMessagingReady = true
+  if (waConnection) {
+    waMessagingReady = await checkMessagingReady(waConnection.phone_number_id, waConnection.access_token)
+  }
 
   const waPhonesCookie = cookieStore.get('wa_phones')?.value
   let pendingPhones: { id: string; displayPhone: string; verifiedName: string }[] | null = null
@@ -77,6 +86,10 @@ export default async function page() {
               <WhatsappConnect
                 connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
                 pendingPhones={pendingPhones}
+                appId={process.env.META_APP_ID ?? ''}
+                configId={process.env.META_EMBEDDED_SIGNUP_CONFIGURATION_ID ?? ''}
+                graphVersion={GRAPH_VERSION}
+                messagingReady={waMessagingReady}
               />
             </Suspense>
           </AccordionItem>
