@@ -8,6 +8,9 @@ export default function Icon({ name = 'user', type = 'lit', className = '', flip
 
   return (
     <div
+      // Icons are decorative CSS masks with no text — explicitly remove them from
+      // the accessibility tree so icon-only controls must carry their own name.
+      aria-hidden='true'
       className={`${className} ${flip ? '-scale-x-100' : ''}`}
       style={{
         maskImage: `url(${src})`,

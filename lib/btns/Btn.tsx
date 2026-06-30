@@ -69,6 +69,31 @@ const variantToIconType: Record<string, 'reg' | 'sol' | 'lit'> = {
   ghost: 'reg',
 }
 
+// Dev-only: dedupe the icon-only-without-name warning so it fires once per icon
+// instead of on every render.
+const warnedIconOnly = new Set<string>()
+
+function warnIfIconOnlyHasNoName(
+  icon: IconNames | undefined,
+  lbl: string | undefined,
+  as: 'submit' | undefined,
+  rest: { 'aria-label'?: string; 'aria-labelledby'?: string; title?: string },
+) {
+  if (process.env.NODE_ENV === 'production') return
+  // Icon-only = has an icon, renders no visible <span> text (submit always shows
+  // text). Its accessible name must then come from aria-label/aria-labelledby/title.
+  const isIconOnly = !!icon && !lbl && as !== 'submit'
+  const hasName = !!rest['aria-label'] || !!rest['aria-labelledby'] || !!rest.title
+  if (!isIconOnly || hasName) return
+  const key = icon ?? 'unknown'
+  if (warnedIconOnly.has(key)) return
+  warnedIconOnly.add(key)
+  console.warn(
+    `[Btn] Icon-only button (icon="${icon}") has no accessible name. ` +
+      'Add an `aria-label` (preferred) or `title` so screen-reader users know what it does.',
+  )
+}
+
 export function Btn({
   className,
   variant,
@@ -82,6 +107,8 @@ export function Btn({
   iconType = 'sol',
   ...props
 }: ButtonProps) {
+  warnIfIconOnlyHasNoName(icon, lbl, as, props)
+
   const buttonClasses = twMerge(buttonVariants({ variant, size, className }))
 
   let iconClasses = twMerge(iconVariants({ variant, size, className: iconClassName }))
