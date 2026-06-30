@@ -86,7 +86,7 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
       </div>
 
       <div id='exportPdfForm' popover='manual' className='pop max-w-96'>
-        <button className='absolute top-2 left-2 z-10' popoverTarget='exportPdfForm'>
+        <button className='absolute top-2 left-2 z-10' popoverTarget='exportPdfForm' aria-label='סגירה'>
           <Icon name='circle-xmark' className='bg-red-700' />
         </button>
         <form className='grid gap-4' onSubmit={onSubmit}>

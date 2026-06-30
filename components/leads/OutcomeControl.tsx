@@ -77,6 +77,7 @@ export default function OutcomeControl({
         variant='outline'
         size='icon'
         icon='comment-check'
+        aria-label='תיעוד תוצאת שיחה'
         onClick={menu.toggle}
         disabled={pending}
         aria-haspopup='menu'

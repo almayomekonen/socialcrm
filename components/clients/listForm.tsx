@@ -29,7 +29,7 @@ export default function ListForm() {
       <form onSubmit={onSubmit}>
         <div className='flex justify-between items-center'>
           <Title lbl={selectedList ? 'עריכת רשימה' : 'יצירת רשימה חדשה'} />
-          {selectedList && <Btn variant='outline' size='icon' icon='trash' onClick={() => deleteLeadList(selectedList.id)} />}
+          {selectedList && <Btn variant='outline' size='icon' icon='trash' aria-label='מחיקת רשימה' onClick={() => deleteLeadList(selectedList.id)} />}
         </div>
 
         <div className='py-4'>

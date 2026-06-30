@@ -32,7 +32,7 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
   return (
     <div className='w-full sticky top-0 z-888 ps-[50px]'>
       <div className='relative flex justify-between items-center h-10 wrap bg-white/90 backdrop-blur-lg border-b'>
-        <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop'>
+        <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop' aria-label='פתיחת תפריט'>
           <Icon name='bars' type='reg' />
         </button>
         {/* Inline-start cluster (visual right in RTL): copilot trigger at the

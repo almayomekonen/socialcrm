@@ -29,7 +29,7 @@ export default function LeadQuickActions({ id, phone, quiet = false, onCompleted
         ))}
       <OutcomeControl leadId={id} compact onCompleted={onCompleted} />
       <div ref={menu.wrapRef} className='inline-flex'>
-        <Btn variant='outline' size='icon' icon='ellipsis-vertical' onClick={menu.toggle} aria-haspopup='menu' aria-expanded={menu.open} />
+        <Btn variant='outline' size='icon' icon='ellipsis-vertical' aria-label='פעולות' onClick={menu.toggle} aria-haspopup='menu' aria-expanded={menu.open} />
         {menu.open &&
           menu.pos &&
           typeof document !== 'undefined' &&

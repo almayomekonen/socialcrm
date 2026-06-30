@@ -25,7 +25,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
     return (
       <>
         <td className='sticky left-0 z-10 bg-white'>
-          <Btn variant='outline' size='icon' icon='pen' popoverTarget='editUserForm' onClick={() => setCurUser({ ...user })} />
+          <Btn variant='outline' size='icon' icon='pen' aria-label='עריכת נציג' popoverTarget='editUserForm' onClick={() => setCurUser({ ...user })} />
         </td>
       </>
     )

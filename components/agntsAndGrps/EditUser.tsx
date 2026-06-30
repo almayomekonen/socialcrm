@@ -75,7 +75,7 @@ export default function EditUser({ user, agnts, teams }) {
           {user?.id && role !== 'OFFICE' && (
             <Btn variant='outline' size='icon' title='העברת עסקאות לנציג אחר' icon='right-left' popoverTarget='transferSales' />
           )}
-          {user?.id && <Btn variant='outline' size='icon' icon='trash' onClick={onDelete} />}
+          {user?.id && <Btn variant='outline' size='icon' icon='trash' aria-label='מחיקת נציג' onClick={onDelete} />}
         </div>
       </div>
       <form key={user?.id} onSubmit={onSubmit} className='max-w-xl'>

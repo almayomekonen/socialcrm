@@ -17,6 +17,7 @@ export function CopyBtn({ val, lbl = 'העתק' }) {
     <>
       <button
         data-tip={copied ? 'הועתק ללוח' : lbl}
+        aria-label={copied ? 'הועתק ללוח' : lbl}
         onClick={() => clicked()}
         className='bg-softy cursor-pointer rounded-xl p-2 flex items-center gap-2'
       >

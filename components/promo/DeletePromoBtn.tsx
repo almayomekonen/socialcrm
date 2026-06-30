@@ -18,7 +18,7 @@ export default function DeletePromoBtn({ promoId }) {
 
   return (
     <>
-      <Btn variant='outline' size='icon' onClick={() => setOpen(true)} icon='trash' />
+      <Btn variant='outline' size='icon' aria-label='מחיקת קמפיין' onClick={() => setOpen(true)} icon='trash' />
       <ConfirmPop
         open={open}
         destructive

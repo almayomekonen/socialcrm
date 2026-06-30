@@ -19,7 +19,7 @@ export default function PromoCards({ promos, teams, users }) {
             <div className='grid grid-cols-[auto,1fr] gap-2 items-center my-3'>
               <h1 className='text-lg font-semibold'>{promo.title}</h1>
               <span className='flex gap-2 justify-self-end flex-nowrap'>
-                <Btn variant='outline' size='icon' onClick={() => setcurPromo(promo)} icon='pen' />
+                <Btn variant='outline' size='icon' aria-label='עריכת קמפיין' onClick={() => setcurPromo(promo)} icon='pen' />
                 <DeletePromoBtn promoId={promo.id} />
               </span>
             </div>

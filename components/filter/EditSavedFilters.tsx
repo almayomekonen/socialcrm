@@ -28,6 +28,7 @@ export default function EditFilters({ filters, user }) {
               variant='outline'
               size='icon'
               icon='trash'
+              aria-label='מחיקת סינון שמור'
               onClick={() => {
                 filters.splice(i, 1)
                 render()

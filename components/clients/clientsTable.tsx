@@ -254,7 +254,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 onSelectOpt={getSelectedClient}
                 initShow={clientDetails}
               />
-              <Btn variant='outline' size='icon' icon='eraser' href='?' scroll={false} className='rounded-s-none border-s-0' />
+              <Btn variant='outline' size='icon' icon='eraser' aria-label='נקה חיפוש' href='?' scroll={false} className='rounded-s-none border-s-0' />
             </div>
 
             <div className='flex gap-2 items-end'>

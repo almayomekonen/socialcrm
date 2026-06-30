@@ -44,7 +44,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
       <div popover='auto' id='navPop' className='h-full bg-dark desktop:hidden pop-bg'>
         <div>
           <div className='flex justify-start'>
-            <button popoverTarget='navPop' className='hover:bg-dark/50 rounded p-2 m-2'>
+            <button popoverTarget='navPop' className='hover:bg-dark/50 rounded p-2 m-2' aria-label='סגירת תפריט'>
               <Icon name='x' type='sol' className='bg-white' />
             </button>
           </div>

@@ -15,6 +15,7 @@ export default function SidePop({ children, className, id }: Props): JSX.Element
           <Btn
             variant='outline'
             size='icon'
+            aria-label='סגירה'
             className='absolute top-4 left-4 rounded-full z-500 size-8'
             icon='xmark'
             popoverTarget={id}

@@ -58,7 +58,7 @@ export default function TasksTable({ data, users, filter, user, fillHeight = fal
               <SelectSearch lbl='נציגים' name='userId' options={users} selected={filter.userId} className='w-52' />
               <div className='flex gap-0'>
                 <Btn className='rounded-e-none gap-4 px-6' type='submit' lbl='סינון' variant='outline' />
-                <Btn variant='outline' size='icon' icon='eraser' href='?' scroll={false} className='rounded-s-none border-s-0' />
+                <Btn variant='outline' size='icon' icon='eraser' aria-label='נקה חיפוש' href='?' scroll={false} className='rounded-s-none border-s-0' />
               </div>
             </form>
           </div>
