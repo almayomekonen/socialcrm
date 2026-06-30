@@ -13,7 +13,6 @@ import { copyToClipboard } from '@/lib/clipboard'
 
 const DESKTOP_QUERY = '(min-width: 1000px)'
 const PANEL_LIGHT = 'linear-gradient(165deg, #ffffff 0%, #f7f5fc 55%, #f1edfb 100%)'
-const SEAM = '#f4f0fb'
 
 const KEYFRAMES = `
 @keyframes act-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
@@ -72,7 +71,7 @@ export default function ActivationExperience() {
           <div className='flex w-full max-w-[440px] flex-col items-center gap-7 text-center'>{screen}</div>
         </section>
         <section className='relative basis-[46%]'>
-          <ActivationVideoPanel className='absolute inset-0 h-full w-full' seamColor={SEAM} />
+          <ActivationVideoPanel className='absolute inset-0 h-full w-full' />
         </section>
       </div>
 
