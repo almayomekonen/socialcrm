@@ -32,7 +32,7 @@ function LeadStatusCell({ status, obj, updatingId, onStatusChange, leads = true 
       options={options}
       val='value'
       show='label'
-      value={status}
+      value={status ?? ''}
       required={false}
       className={`min-w-28 ${s.bg} ${s.text} ${s.border} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
       onChange={(e) => onStatusChange(obj, e.target.value)}
