@@ -31,7 +31,7 @@ export default function ActivationVideoPanel({ className = '' }: { className?: s
       {/* The showcase — just the video, nothing behind or beside it. */}
       {!failed && (
         <video
-          className='relative z-10 w-[78%] max-w-[680px] rounded-xl object-contain motion-reduce:hidden'
+          className='relative z-10 w-[82%] max-w-[760px] rounded-xl object-contain motion-reduce:hidden'
           style={{ aspectRatio: '16 / 9' }}
           autoPlay
           muted

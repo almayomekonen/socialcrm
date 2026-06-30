@@ -64,13 +64,18 @@ export default function ActivationExperience() {
       {/* DESKTOP — light activation surface (leading/right in RTL) + full-bleed video (left) */}
       <div className='hidden min-h-dvh desktop:flex'>
         <section
-          className='relative z-10 flex basis-[54%] flex-col items-center justify-center gap-4 px-16 py-14'
-          style={{ background: PANEL_LIGHT }}
+          className='relative z-10 flex basis-[48%] flex-col items-center justify-center gap-4 px-12 py-14'
+          style={{
+            background: PANEL_LIGHT,
+            // Whisper-soft join: a barely-there feather at the edge meeting the
+            // dark video, so the halves read as one composition. Almost invisible.
+            boxShadow: 'inset 24px 0 64px -48px rgba(15,16,36,0.4)',
+          }}
         >
           <ActivationHero />
           <div className='flex w-full max-w-[440px] flex-col items-center gap-7 text-center'>{screen}</div>
         </section>
-        <section className='relative basis-[46%]'>
+        <section className='relative basis-[52%]'>
           <ActivationVideoPanel className='absolute inset-0 h-full w-full' />
         </section>
       </div>
