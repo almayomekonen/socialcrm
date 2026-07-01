@@ -16,6 +16,7 @@
 //
 // Runs without a database: `npm run test:a11y` (VITEST_NO_DB=1).
 
+import { describe, afterEach, test, expect, vi } from 'vitest'
 import React from 'react'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import ModalPop from '@/lib/modals/ModalPop'
