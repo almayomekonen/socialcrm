@@ -16,6 +16,7 @@ import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
+import SkipLink from '@/components/layout/SkipLink'
 import MobileActivationGate from '@/components/layout/MobileActivationGate'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
@@ -91,10 +92,13 @@ async function LayoutContent({ children }) {
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
+              <SkipLink />
               <Topbar user={user} />
               <WorkspaceGrid>
                 <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
-                <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>{children}</main>
+                <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
+                  {children}
+                </main>
                 <CopilotShell generalModeEnabled={generalModeEnabled} />
               </WorkspaceGrid>
             </div>
