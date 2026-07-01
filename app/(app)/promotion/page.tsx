@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
 import { getUser } from '@/db/auth'
 import { getPerms } from '@/db/filter'
 import { getPromos, getPromosByUserId } from '@/db/promos'
 import { isAdmin, Roles } from '@/types/roles'
 import Link from 'next/link'
 import AccordionItem from '@/lib/AccordionItem'
+
+export const metadata: Metadata = { title: 'קמפיינים' }
 
 export default async function PromotionPage() {
   const user = await getUser()
