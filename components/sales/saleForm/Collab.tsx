@@ -19,7 +19,7 @@ export default function Collab({ allReps, allRepsWithExt, user, curSale, officeG
   console.log('cursale', curSale)
 
   return (
-    <main className='flex gap-4'>
+    <div className='flex gap-4'>
       <section>
         <div className='inline-flex items-end'>
           <SelectSearch
@@ -89,6 +89,6 @@ export default function Collab({ allReps, allRepsWithExt, user, curSale, officeG
           </div>
         </div>
       </section>
-    </main>
+    </div>
   )
 }

@@ -10,7 +10,7 @@ export default function MarketingLayout({ children }) {
       <JsonLd data={softwareApplicationSchema()} />
       <JsonLd data={websiteSchema()} />
       <Suspense>
-        <div>{children}</div>
+        <main>{children}</main>
       </Suspense>
       <Footer4Col />
     </div>
