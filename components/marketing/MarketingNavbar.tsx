@@ -27,7 +27,7 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
 
   return (
     <div className='pt-6 pb-3 px-4'>
-      <nav className='bg-white rounded-xl relative z-10 max-w-6xl mx-auto flex items-center justify-between py-4 px-5 md:px-8 lg:px-12 lg:py-4'>
+      <nav aria-label='ניווט ראשי' className='bg-white rounded-xl relative z-10 max-w-6xl mx-auto flex items-center justify-between py-4 px-5 md:px-8 lg:px-12 lg:py-4'>
         <div className='flex items-center space-x-2'>
           <Link href='/' className='text-xl font-bold text-gray-800 hover:text-[#3f20f5]'>{LOGO_TEXT}</Link>
         </div>
