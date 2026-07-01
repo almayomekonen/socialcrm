@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { CheckCircle } from 'lucide-react'
 import { Btn } from '@/lib/btns/Btn'
+
+export const metadata: Metadata = { title: 'התשלום בוצע' }
 
 export default function BillingSuccessPage() {
   return (
