@@ -5,6 +5,9 @@ import { isPlatformOwner } from '@/lib/auth/platformOwner'
 import { listAgencyTrialsForAdmin, listPendingInvitesForAdmin } from '@/db/trial'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { MapRoles } from '@/types/roles'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'ניהול מערכת' }
 
 // Under Next's cacheComponents, uncached reads (cookies in getUser, the trial
 // queries) must sit inside a Suspense boundary so they don't block the whole

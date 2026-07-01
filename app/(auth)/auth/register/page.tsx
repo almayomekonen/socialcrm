@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import AddAgencyForm from '@/components/agencies/AddAgencyForm'
 import Icon from '@/lib/Icon'
+
+export const metadata: Metadata = { title: 'הרשמה' }
 
 export default async function page({ searchParams }) {
   const { email, name } = await searchParams
