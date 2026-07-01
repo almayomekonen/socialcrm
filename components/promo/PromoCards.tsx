@@ -28,7 +28,7 @@ export default function PromoCards({ promos, teams, users }) {
         ))}
       </section>
 
-      <ModalPop open={!!curPromo} className='w-[800px]' pos='middle' onClose={() => setcurPromo(false)}>
+      <ModalPop open={!!curPromo} className='w-[800px]' pos='middle' onClose={() => setcurPromo(false)} label='עריכת קמפיין'>
         <AddPromoForm teams={teams} users={users} promo={curPromo} setcurPromo={setcurPromo} />
       </ModalPop>
     </div>

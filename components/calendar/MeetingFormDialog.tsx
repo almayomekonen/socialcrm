@@ -146,7 +146,7 @@ export default function MeetingFormDialog({
   const end = defaultEnd ?? defaultEndDate(start)
 
   return (
-    <ModalPop open={open} onClose={handleClose} pos='middle' className='w-[480px] max-w-[95vw]'>
+    <ModalPop open={open} onClose={handleClose} label='פגישה חדשה' pos='middle' className='w-[480px] max-w-[95vw]'>
       {success ? (
         <SuccessView data={success} onClose={handleClose} />
       ) : (

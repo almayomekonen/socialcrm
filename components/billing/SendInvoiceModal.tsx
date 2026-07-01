@@ -86,7 +86,7 @@ export default function SendInvoiceModal({
   }
 
   return (
-    <ModalPop open={open} onClose={busy ? () => {} : onClose} pos='middle' className='w-[460px] max-w-[92vw]'>
+    <ModalPop open={open} onClose={busy ? () => {} : onClose} label='שליחת חשבונית' pos='middle' className='w-[460px] max-w-[92vw]'>
       <div className='grid gap-4 pt-2'>
         <div className='flex items-start gap-3'>
           <div className='size-11 rounded-lg bg-softy border border-soft flex items-center justify-center shrink-0'>

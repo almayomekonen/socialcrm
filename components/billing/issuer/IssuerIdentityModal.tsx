@@ -41,6 +41,7 @@ export default function IssuerIdentityModal({
       open={open}
       pos='middle'
       onClose={busy ? () => {} : onCancel}
+      label='פרטי העסק'
       className='w-[520px] max-w-[92vw]'
     >
       <div className='pt-2 grid gap-5'>

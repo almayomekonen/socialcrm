@@ -51,7 +51,7 @@ export default function TeamCard({ teams, users, mngrs, offices }) {
         ))}
       </div>
 
-      <ModalPop className='w-xl' pos='middle' open={!!curTeam} onClose={onClose}>
+      <ModalPop className='w-xl' pos='middle' open={!!curTeam} onClose={onClose} label='עריכת צוות'>
         <EditTeamForm teams={teams} team={curTeam} users={users} mngrs={mngrs} offices={offices} onClose={onClose} />
       </ModalPop>
 

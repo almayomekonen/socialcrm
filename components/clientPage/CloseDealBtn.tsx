@@ -12,7 +12,7 @@ export default function CloseDealBtn({ clientId, clientName, formProps }) {
   return (
     <>
       <Btn lbl='סגור עסקה' icon='money-check-dollar-pen' onClick={() => setOpen(true)} />
-      <ModalPop open={open} onClose={close}>
+      <ModalPop open={open} onClose={close} label='סגירת עסקה'>
         <SaleForm
           props={formProps}
           curSale={{ clientId, clientData: clientName } as any}

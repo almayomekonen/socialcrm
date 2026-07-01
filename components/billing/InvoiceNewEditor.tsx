@@ -297,7 +297,7 @@ export default function InvoiceNewEditor({
         msg={'החשבונית תקבל מספר ותיסגר לעריכה.\nאם צריך לתקן משהו בהמשך, אפשר לבטל ולהנפיק חשבונית חדשה.'}
       />
 
-      <ModalPop open={newLeadOpen} pos='middle' onClose={() => setNewLeadOpen(false)}>
+      <ModalPop open={newLeadOpen} pos='middle' onClose={() => setNewLeadOpen(false)} label='ליד חדש'>
         <ClientFormPop
           onCreated={(newLeadId) => {
             setNewLeadOpen(false)

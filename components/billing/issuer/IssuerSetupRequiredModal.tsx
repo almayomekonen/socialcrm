@@ -11,7 +11,7 @@ export default function IssuerSetupRequiredModal({
   onClose: () => void
 }) {
   return (
-    <ModalPop open={open} pos='middle' onClose={onClose} className='w-[460px] max-w-[92vw]'>
+    <ModalPop open={open} pos='middle' onClose={onClose} label='השלמת פרטי עסק' className='w-[460px] max-w-[92vw]'>
       <div className='pt-2 grid gap-6'>
         <div className='grid gap-2.5'>
           <h2 className='text-xl font-bold text-dark'>צריך להשלים קודם פרטי עסק</h2>

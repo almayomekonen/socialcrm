@@ -46,11 +46,12 @@ export default function MeetingDetailsDialog({
         open
         onClose={busy ? () => {} : outcome.pendingNudge ? outcome.dismissNudge : onClose}
         pos='middle'
+        labelledBy='meeting-details-title'
         className='w-[460px] max-w-[95vw]'
       >
         <div className='grid gap-4 pt-2'>
           <div className='flex items-start gap-2 flex-wrap'>
-            <h2 className='text-xl font-bold flex-1 min-w-0 wrap-break-word'>{meeting.title}</h2>
+            <h2 id='meeting-details-title' className='text-xl font-bold flex-1 min-w-0 wrap-break-word'>{meeting.title}</h2>
             <div className='flex items-center gap-1.5 flex-wrap'>
               <MeetingOutcomeBadge
                 status={meeting.status}

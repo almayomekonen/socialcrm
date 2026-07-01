@@ -40,7 +40,7 @@ export default function ConfirmPop({
   const safeClose = busy ? () => {} : onClose
 
   return (
-    <ModalPop open={open} pos='middle' onClose={safeClose}>
+    <ModalPop open={open} pos='middle' onClose={safeClose} label={msg}>
       <div className='flex flex-col gap-6 min-w-[320px] pt-4'>
         <p className='font-semibold whitespace-pre-line pe-6'>{msg}</p>
         <div className='flex justify-end gap-2'>

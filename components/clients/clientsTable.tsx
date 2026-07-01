@@ -303,20 +303,20 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         )}
       </div>
 
-      <ModalPop open={openForm} pos='middle' onClose={() => (setCurClient(null), setOpenForm(false))}>
+      <ModalPop open={openForm} label='פרטי ליד' pos='middle' onClose={() => (setCurClient(null), setOpenForm(false))}>
         <ClientFormPop client={curClient} onClose={() => (setCurClient(null), setOpenForm(false))} />
       </ModalPop>
 
-      <ModalPop open={openTransferClientForm} pos='middle' onClose={() => (setCurClient(null), setOpenTransferClientForm(false))}>
+      <ModalPop open={openTransferClientForm} label='שיוך ליד לנציג' pos='middle' onClose={() => (setCurClient(null), setOpenTransferClientForm(false))}>
         <TransferClientForm client={curClient} />
       </ModalPop>
 
-      <ModalPop open={openUpload} pos='middle' onClose={() => setOpenUpload(false)}>
+      <ModalPop open={openUpload} label='העלאת לידים' pos='middle' onClose={() => setOpenUpload(false)}>
         <UploadClientData />
       </ModalPop>
 
       {formProps && (
-        <ModalPop open={openSaleForm} onClose={() => (setCurClient(null), setOpenSaleForm(false))}>
+        <ModalPop open={openSaleForm} label='טופס עסקה' onClose={() => (setCurClient(null), setOpenSaleForm(false))}>
           <SaleForm
             props={formProps}
             curSale={curClient ? ({ clientId: curClient.id, clientData: curClient.name } as any) : undefined}
