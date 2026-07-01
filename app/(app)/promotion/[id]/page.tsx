@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { getUser } from '@/db/auth'
 import { getPerms } from '@/db/filter'
 import { getPromo, getPromoTotals, getTeamsPromoTotals } from '@/db/promos'
@@ -7,6 +8,8 @@ import UserPromo from '@/components/promo/UserPromo'
 import { db } from '@/config/db'
 import { addNotIncludedUsers } from '@/db/sumSales'
 import { isAdmin } from '@/types/roles'
+
+export const metadata: Metadata = { title: 'פרטי קמפיין' }
 
 export default async function PromotionPage({ params, searchParams }) {
   const user = await getUser()
