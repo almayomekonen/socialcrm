@@ -7,8 +7,8 @@ type PopIcon = 'success' | 'error' | 'loading' | 'ban' | 'hide' | 'message'
 
 let popEl: HTMLElement | null = null
 let closeTimer: ReturnType<typeof setTimeout> | null = null
-// Optional onClick makes a toast actionable (e.g. open a conversation). Backward
-// compatible: existing 3-arg callers pass no handler and render exactly as before.
+let announceTimer: ReturnType<typeof setTimeout> | null = null
+
 export let toast: (icon: PopIcon, msg?: string, durationMs?: number, onClick?: () => void) => void = () => {}
 
 const defaultMsg: { [key in PopIcon]: string } = {
@@ -26,18 +26,23 @@ export default function ToastMsg() {
     msg: defaultMsg['loading'],
   })
 
+  const [live, setLive] = useState('')
+
   useEffect(() => {
     popEl = document.getElementById('popMsg')
   }, [])
 
   toast = function (icon: PopIcon, msg?: string, durationMs?: number, onClick?: () => void) {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
-    setPop({ icon, msg: msg || defaultMsg[icon], onClick })
+    if (announceTimer) { clearTimeout(announceTimer); announceTimer = null }
+    const text = msg || defaultMsg[icon]
+    setPop({ icon, msg: text, onClick })
+    if (icon === 'hide') { popEl?.hidePopover(); setLive(''); return }
     popEl?.showPopover()
+    setLive('')
+    announceTimer = setTimeout(() => { setLive(text); announceTimer = null }, 60)
     if (icon !== 'loading') closeTimer = setTimeout(() => { popEl?.hidePopover(); closeTimer = null }, durationMs ?? 3000)
   }
-
-  if (pop.icon === 'hide') return <div className='size-0 opacity-0' popover='auto' id='popMsg' />
 
   const body = (
     <div className='flex items-center gap-4 ps-6 pe-9 py-3 font-medium text-white'>
@@ -47,22 +52,27 @@ export default function ToastMsg() {
   )
 
   return (
-    <div className='toast' popover='auto' id='popMsg'>
-      {pop.onClick ? (
-        <button
-          type='button'
-          className='w-full cursor-pointer text-start'
-          onClick={() => {
-            pop.onClick?.()
-            popEl?.hidePopover()
-          }}
-        >
-          {body}
-        </button>
-      ) : (
-        body
-      )}
-    </div>
+    <>
+      <div role='status' aria-live='polite' aria-atomic='true' className='sr-only'>
+        {live}
+      </div>
+      <div className='toast' popover='auto' id='popMsg'>
+        {pop.onClick ? (
+          <button
+            type='button'
+            className='w-full cursor-pointer text-start'
+            onClick={() => {
+              pop.onClick?.()
+              popEl?.hidePopover()
+            }}
+          >
+            {body}
+          </button>
+        ) : (
+          body
+        )}
+      </div>
+    </>
   )
 }
 
