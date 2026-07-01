@@ -48,7 +48,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
               <Icon name='x' type='sol' className='bg-white' />
             </button>
           </div>
-          <nav className='mt-8 p-8'>
+          <nav aria-label='ניווט ראשי' className='mt-8 p-8'>
             {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
@@ -77,7 +77,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
       <div
         className={`hidden desktop:block h-screen w-[50px] overflow-x-hidden fixed top-0 start-0 transition-all duration-300 ease-in-out hover:w-48 `}
       >
-        <nav className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
+        <nav aria-label='ניווט ראשי' className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
           <div className='w-full'>
             {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
               if (!link) return null
