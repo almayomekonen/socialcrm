@@ -18,6 +18,7 @@ import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
 import { isMobileRequest } from '@/lib/device'
+import SkipLink from '@/components/layout/SkipLink'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -88,10 +89,13 @@ async function LayoutContent({ children }) {
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
+              <SkipLink />
               <Topbar user={user} />
               <WorkspaceGrid>
                 <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
-                <main className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto'>{children}</main>
+                <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
+                  {children}
+                </main>
                 <CopilotShell generalModeEnabled={generalModeEnabled} />
               </WorkspaceGrid>
             </div>
