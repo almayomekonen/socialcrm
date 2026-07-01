@@ -4,7 +4,7 @@ export default function AuthLayout({ children }) {
   return (
     <div lang='he' dir='rtl' data-scroll-behavior='smooth'>
       <Suspense>
-        <div>{children}</div>
+        <main>{children}</main>
       </Suspense>
     </div>
   )

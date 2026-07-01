@@ -58,7 +58,12 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <InboxConversationList selectedConversationId={selectedConversationId} />
         </aside>
 
-        <main className='min-w-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white'>
+        {/* Center panel is a region inside the app-shell <main>, not a second
+            <main> — labelled so screen readers can jump to the conversation. */}
+        <section
+          aria-label='שיחה'
+          className='min-w-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white'
+        >
           {selected ? (
             <InboxWorkspace
               conversationId={selected.conversationId}
@@ -68,7 +73,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           ) : (
             <InboxEmptyState hasConversations={firstPage.items.length > 0} />
           )}
-        </main>
+        </section>
 
         <aside className='hidden w-80 shrink-0 overflow-y-auto xl:block'>
           {selected ? (
