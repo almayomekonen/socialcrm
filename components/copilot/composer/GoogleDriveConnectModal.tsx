@@ -56,7 +56,7 @@ export function GoogleDriveConnectModal({ open, onClose }: { open: boolean; onCl
 
   return (
     <>
-      <ModalPop open={open} pos='middle' onClose={outerClose} className='w-[440px] max-w-[92vw]'>
+      <ModalPop open={open} pos='middle' onClose={outerClose} label='Google Drive' className='w-[440px] max-w-[92vw]'>
         <div className='pt-2 grid gap-5'>
           <header className='grid gap-2'>
             <div className='flex items-center gap-2.5'>
@@ -129,7 +129,7 @@ function DisconnectConfirmModal({
 }) {
   const safeCancel = busy ? () => {} : onCancel
   return (
-    <ModalPop open={open} pos='middle' onClose={safeCancel} className='w-[420px] max-w-[92vw]'>
+    <ModalPop open={open} pos='middle' onClose={safeCancel} label='ניתוק Google Drive' className='w-[420px] max-w-[92vw]'>
       <div className='pt-2 grid gap-6'>
         <div className='grid gap-2.5'>
           <h2 className='text-xl font-bold text-dark'>לנתק את Google Drive?</h2>

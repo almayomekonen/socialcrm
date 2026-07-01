@@ -196,7 +196,7 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
   }
 
   return (
-    <ModalPop open onClose={handleClose} pos='middle' className='w-[480px] max-w-[95vw]'>
+    <ModalPop open onClose={handleClose} label='עריכת פגישה' pos='middle' className='w-[480px] max-w-[95vw]'>
       {loading ? (
         <div className='grid gap-3 pt-2'>
           <div className='h-6 bg-gray-100 rounded animate-pulse' />

@@ -107,8 +107,6 @@ export default function WelcomeTrialModal() {
         setPending(false)
         return
       }
-      // revalidatePath in the action refreshes the layout (state becomes
-      // TRIAL_ACTIVE and this component unmounts); `done` closes instantly.
       setDone(true)
     } catch {
       setError('אירעה שגיאה ברשת, נסה שוב')
@@ -117,15 +115,8 @@ export default function WelcomeTrialModal() {
   }
 
   return (
-    <ModalPop open={open} pos='middle' onClose={() => {}} hideClose>
-      <div
-        ref={dialogRef}
-        role='dialog'
-        aria-modal='true'
-        aria-labelledby='welcome-trial-title'
-        aria-describedby='welcome-trial-subtitle'
-        className='flex flex-col gap-5 min-w-[340px] max-w-[420px] pt-2'
-      >
+    <ModalPop open={open} pos='middle' onClose={() => {}} hideClose labelledBy='welcome-trial-title' describedBy='welcome-trial-subtitle'>
+      <div ref={dialogRef} className='flex flex-col gap-5 min-w-[340px] max-w-[420px] pt-2'>
         <div>
           <h2 id='welcome-trial-title' className='text-xl font-bold leading-snug'>
             החשבון שלך מוכן

@@ -13,7 +13,7 @@ export default function SalesSection({ props }) {
     <>
       <SalesTable props={{ ...props, setCurSale, setOpenForm, curSale }} key={JSON.stringify(props.data)} />
 
-      <ModalPop open={openForm} onClose={() => (setOpenForm(false), setCurSale(null))}>
+      <ModalPop open={openForm} label='טופס עסקה' onClose={() => (setOpenForm(false), setCurSale(null))}>
         <SaleForm props={props.formProps} curSale={curSale} onClose={() => (setOpenForm(false), setCurSale(null))} />
       </ModalPop>
     </>

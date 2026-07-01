@@ -93,7 +93,7 @@ export default function ManagePlanModal({
   }
 
   return (
-    <ModalPop open={open} onClose={close} pos='middle' className='w-[min(90vw,28rem)]'>
+    <ModalPop open={open} onClose={close} label='ניהול המנוי' pos='middle' className='w-[min(90vw,28rem)]'>
       <div className='space-y-5' dir='rtl'>
         {stage === 'manage' && (
           <ManageBody

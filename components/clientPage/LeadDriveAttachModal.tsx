@@ -84,7 +84,7 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
   }
 
   return (
-    <ModalPop open={open} pos='middle' onClose={onClose} className='w-[520px] max-w-[94vw]'>
+    <ModalPop open={open} pos='middle' onClose={onClose} label='צירוף קובץ מ-Google Drive' className='w-[520px] max-w-[94vw]'>
       <div className='pt-2 grid gap-4'>
         <header className='grid gap-2'>
           <div className='flex items-center gap-2.5'>

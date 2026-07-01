@@ -22,7 +22,7 @@ export default function QuotaPaywallModal({ state, onClose }: Props) {
   const canInsert = Math.max(0, state.limit - state.current)
 
   return (
-    <ModalPop open={!!state} pos='middle' onClose={onClose}>
+    <ModalPop open={!!state} pos='middle' onClose={onClose} label='מכסת הלידים'>
       <div className='flex flex-col gap-5 min-w-[340px] max-w-[420px] pt-2'>
         <div>
           <p className='text-lg font-semibold whitespace-pre-line leading-snug'>

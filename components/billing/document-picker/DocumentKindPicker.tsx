@@ -20,7 +20,7 @@ export default function DocumentKindPicker({
   onPick: (entry: DocumentKindEntry) => void
 }) {
   return (
-    <ModalPop open={open} pos='middle' onClose={onClose} className='w-[460px] max-w-[92vw]'>
+    <ModalPop open={open} pos='middle' onClose={onClose} label='בחירת סוג מסמך' className='w-[460px] max-w-[92vw]'>
       <div className='grid gap-4'>
         <header>
           <h2 className='text-xl font-bold text-dark'>איזה מסמך להפיק?</h2>

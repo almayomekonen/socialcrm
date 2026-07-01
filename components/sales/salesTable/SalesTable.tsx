@@ -242,7 +242,7 @@ export default function SalesTable({ props }: SaleTableProps) {
         )}
       </div>
 
-      <ModalPop open={openUpload} pos='middle' onClose={() => setOpenUpload(false)}>
+      <ModalPop open={openUpload} label='העלאת לידים' pos='middle' onClose={() => setOpenUpload(false)}>
         <UploadClientData />
       </ModalPop>
 
