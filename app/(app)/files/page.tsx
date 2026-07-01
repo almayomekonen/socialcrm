@@ -1,6 +1,9 @@
+import type { Metadata } from 'next'
 import FilesTable from '@/components/files/FilesTable'
 import { getFiles } from '@/db/files'
 import React from 'react'
+
+export const metadata: Metadata = { title: 'קבצים' }
 
 export default async function FilesPage() {
   const files = await getFiles({ creatorName: true, clientName: true, taskTitle: true })

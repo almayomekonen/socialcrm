@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
@@ -23,6 +24,8 @@ type InboxSearchParams = {
   intel?: string
   sort?: string
 }
+
+export const metadata: Metadata = { title: 'שיחות' }
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<InboxSearchParams> }) {
   const user = await getUser()
