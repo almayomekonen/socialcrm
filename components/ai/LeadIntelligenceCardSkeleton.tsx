@@ -1,3 +1,5 @@
+import { Sparkles } from 'lucide-react'
+
 const SKELETON_CSS = `
   /* 5 messages × 1.6s stagger = 8s cycle. Each message is visible ~1.4s with
      small in/out fades and a tiny ±2px drift. Opacity + transform only — both
@@ -60,9 +62,12 @@ export default function LeadIntelligenceCardSkeleton() {
     >
       <style>{SKELETON_CSS}</style>
 
-      <div className='flex items-center justify-between mb-4'>
+      <div className='flex items-center justify-between mb-3'>
         <div className='flex items-center gap-2'>
-          <span className='text-xs font-semibold text-gray-500'>תקציר חכם</span>
+          <span className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
+            <Sparkles aria-hidden className='size-3.5 text-accent' />
+            תקציר חכם
+          </span>
           <span className='ai-skel-pill px-2 py-0.5 text-[11px] rounded-full bg-gray-100 text-gray-500'>
             מנתח…
           </span>

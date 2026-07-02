@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { Search } from 'lucide-react'
+import ChannelIcon from './ChannelIcon'
 import { inboxFiltersToSearchParams } from '@/modules/inbox/filters'
 import type { InboxIntelFilter, InboxListFilters, InboxSmartCounts, InboxSort, InboxStatusFilter } from '@/modules/inbox/types'
 
@@ -76,18 +78,21 @@ export default function InboxToolbar({
   }, [qLocal])
 
   const toggleCls = (active: boolean) =>
-    `rounded-full border px-2.5 py-1 text-xs transition-colors ${
-      active ? 'border-gray-300 bg-solid/10 text-gray-900 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+    `rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+      active ? 'border-info-border bg-primary-tint text-primary-text font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
     }`
 
   const selectCls =
-    'min-w-0 flex-1 rounded border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300'
+    'min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 transition-colors focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
 
   const visibleSections = SMART_SECTIONS.filter((s) => smartCounts[s.countKey] > 0)
 
   return (
     <div className='shrink-0 space-y-2 border-b border-gray-100 p-2'>
-      <div className='px-1 text-sm font-semibold text-gray-700'>שיחות</div>
+      <div className='flex items-center gap-1.5 px-1 text-sm font-semibold text-gray-700'>
+        <ChannelIcon channel='whatsapp' className='size-4' />
+        שיחות
+      </div>
 
       {visibleSections.length > 0 && (
         <div className='flex flex-wrap gap-1.5'>
@@ -109,15 +114,18 @@ export default function InboxToolbar({
         </div>
       )}
 
-      <input
-        type='search'
-        inputMode='search'
-        value={qLocal}
-        onChange={(e) => setQLocal(e.target.value)}
-        placeholder='חיפוש שם, טלפון או הודעה'
-        aria-label='חיפוש שיחות'
-        className='w-full rounded border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300'
-      />
+      <div className='relative'>
+        <Search aria-hidden className='pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-400' />
+        <input
+          type='search'
+          inputMode='search'
+          value={qLocal}
+          onChange={(e) => setQLocal(e.target.value)}
+          placeholder='חיפוש שם, טלפון או הודעה'
+          aria-label='חיפוש שיחות'
+          className='w-full rounded-md border border-gray-200 bg-white py-1.5 pl-2.5 pr-8 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+        />
+      </div>
 
       <div className='flex gap-1'>
         <select

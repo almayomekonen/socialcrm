@@ -28,6 +28,15 @@ export function formatDateTime(dt) {
     .replaceAll('.', '/')
 }
 
+export function formatTime(dt) {
+  if (!dt) return ''
+  const parsedDate = Date.parse(dt)
+  if (isNaN(parsedDate)) return ''
+  if (typeof dt === 'string') dt = new Date(dt)
+
+  return new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(dt)
+}
+
 export function toIso(date) {
   if (!date) return null
   const d = new Date(date)

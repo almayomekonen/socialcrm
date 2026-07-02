@@ -314,5 +314,6 @@ export async function getInboxConversationById(
     displayName: r.customerName || r.leadName || r.customerWaId || null,
     leadName: r.leadName ?? null,
     leadStatus: r.leadStatus ?? null,
+    customerWaId: r.customerWaId ?? null,
   }
 }

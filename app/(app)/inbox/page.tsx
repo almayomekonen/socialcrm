@@ -53,7 +53,6 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       deltaSyncEnabled={deltaSyncEnabled}
     >
       <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
-        {/* Reconcile safety net during the delta-sync soak; removed in T7. */}
         <ConversationRefreshPoller />
 
         <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
@@ -61,17 +60,18 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <InboxConversationList selectedConversationId={selectedConversationId} />
         </aside>
 
-        {/* Center panel is a region inside the app-shell <main>, not a second
-            <main> — labelled so screen readers can jump to the conversation. */}
         <section
           aria-label='שיחה'
-          className='min-w-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white'
+          className='flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'
         >
           {selected ? (
             <InboxWorkspace
               conversationId={selected.conversationId}
               leadId={selected.leadId}
               channel={selected.channel}
+              displayName={selected.displayName}
+              leadStatus={selected.leadStatus}
+              customerWaId={selected.customerWaId}
             />
           ) : (
             <InboxEmptyState hasConversations={firstPage.items.length > 0} />

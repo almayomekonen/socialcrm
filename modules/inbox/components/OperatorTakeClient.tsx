@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { recordOperatorTakeEvent } from '@/actions/analytics/recordOperatorTakeEvent'
 
 type Props = {
@@ -55,9 +56,10 @@ export default function OperatorTakeClient(props: Props) {
   }
 
   return (
-    <div className={`mb-3 rounded border bg-white px-4 py-3 ${stale ? 'opacity-60' : ''}`}>
+    <div className={`mx-4 my-2 shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3 transition-opacity ${stale ? 'opacity-60' : ''}`}>
       <div className='flex items-start justify-between gap-3'>
-        <div>
+        <Sparkles aria-hidden className='mt-0.5 size-4 shrink-0 text-accent' />
+        <div className='min-w-0 flex-1'>
           <p className='text-sm font-semibold text-gray-900'>{actionMessage}</p>
           {reason ? (
             <button type='button' onClick={openCitation} className='mt-1 text-right text-xs text-blue-600 hover:underline'>
