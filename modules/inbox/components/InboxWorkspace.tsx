@@ -8,10 +8,16 @@ export default async function InboxWorkspace({
   conversationId,
   leadId,
   channel,
+  displayName = null,
+  leadStatus = null,
+  customerWaId = null,
 }: {
   conversationId: number
   leadId: number
   channel: string
+  displayName?: string | null
+  leadStatus?: string | null
+  customerWaId?: string | null
 }) {
   if (!SUPPORTED_WORKSPACE_CHANNELS.has(channel)) {
     return (
@@ -25,10 +31,17 @@ export default async function InboxWorkspace({
   const latestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null
 
   return (
-    <div className='p-2'>
+    <div className='flex h-full min-h-0 flex-col'>
       <InboxReadMarker conversationId={conversationId} latestMessageId={latestMessageId} />
-      <OperatorTake conversationId={conversationId} />
-      <InboxThread conversationId={conversationId} leadId={leadId} initialMessages={messages} />
+      <InboxThread
+        conversationId={conversationId}
+        leadId={leadId}
+        initialMessages={messages}
+        displayName={displayName}
+        leadStatus={leadStatus}
+        customerWaId={customerWaId}
+        banner={<OperatorTake conversationId={conversationId} />}
+      />
     </div>
   )
 }

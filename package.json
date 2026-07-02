@@ -55,6 +55,7 @@
     "babel-plugin-react-compiler": "19.1.0-rc.2",
     "class-variance-authority": "^0.7.1",
     "csv-parser": "^3.2.0",
+    "emoji-picker-react": "^4.19.1",
     "fast-xml-parser": "^5.3.3",
     "framer-motion": "^12.38.0",
     "html-to-image": "^1.11.13",

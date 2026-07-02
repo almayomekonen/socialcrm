@@ -1,3 +1,4 @@
+import { AlertCircle, Lightbulb, Sparkles } from 'lucide-react'
 import { getLeadIntelligence } from '@/actions/ai/leadIntelligence'
 import RefreshLeadIntelligenceButton from './RefreshLeadIntelligenceButton'
 
@@ -34,10 +35,16 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
     return (
       <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8' style={{ minHeight: MIN_HEIGHT }}>
         <div className='flex items-center justify-between mb-2'>
-          <p className='text-xs font-semibold text-gray-500'>תקציר חכם</p>
+          <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
+            <Sparkles aria-hidden className='size-3.5 text-accent' />
+            תקציר חכם
+          </p>
           <RefreshLeadIntelligenceButton leadId={leadId} />
         </div>
-        <p className='text-sm text-gray-500'>העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה.</p>
+        <p className='flex items-center gap-1.5 text-sm text-gray-500'>
+          <AlertCircle aria-hidden className='size-4 shrink-0 text-gray-400' />
+          העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה.
+        </p>
       </div>
     )
   }
@@ -50,7 +57,10 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
 
       <div className='flex items-center justify-between mb-3'>
         <div className='flex items-center gap-2'>
-          <p className='text-xs font-semibold text-gray-500'>תקציר חכם</p>
+          <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
+            <Sparkles aria-hidden className='size-3.5 text-accent' />
+            תקציר חכם
+          </p>
           <ConfidencePill confidence={confidence} />
         </div>
         <RefreshLeadIntelligenceButton leadId={leadId} />
@@ -69,8 +79,11 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
           <div />
         )}
 
-        <div className='border-r-2 border-gray-200 pr-3'>
-          <p className='text-xs font-semibold text-gray-500 mb-1'>פעולה מומלצת</p>
+        <div className='border-r-2 border-info-border pr-3'>
+          <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-1'>
+            <Lightbulb aria-hidden className='size-3.5 text-accent' />
+            פעולה מומלצת
+          </p>
           <p className='text-sm font-medium text-gray-900'>{suggestedNextAction.title}</p>
           <p className='text-xs text-gray-500 mt-0.5 leading-relaxed'>{suggestedNextAction.reason}</p>
         </div>

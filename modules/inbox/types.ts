@@ -66,4 +66,5 @@ export type InboxConversationTarget = {
   displayName: string | null
   leadName: string | null
   leadStatus: string | null
+  customerWaId: string | null
 }

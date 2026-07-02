@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache'
+import { Brain, Lightbulb } from 'lucide-react'
 import {
   INTEL_KIND_ACTION,
   INTEL_KIND_INTENT,
@@ -70,7 +71,10 @@ export default async function ConversationIntelligenceCard({
   return (
     <div className='mb-4 rounded-lg border border-gray-200 bg-white p-5'>
       <div className='mb-3 flex items-center justify-between'>
-        <p className='text-xs font-semibold text-gray-500'>ניתוח שיחה</p>
+        <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
+          <Brain aria-hidden className='size-3.5 text-accent' />
+          ניתוח שיחה
+        </p>
         <StatePill state={state} />
       </div>
 
@@ -106,7 +110,10 @@ export default async function ConversationIntelligenceCard({
           {actionLabel && (
             <div className='rounded-md bg-gray-50 p-2.5'>
               <div className='flex items-center justify-between gap-2'>
-                <p className='text-xs font-semibold text-gray-700'>הצעד הבא המומלץ: {actionLabel}</p>
+                <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-700'>
+                  <Lightbulb aria-hidden className='size-3.5 shrink-0 text-accent' />
+                  הצעד הבא המומלץ: {actionLabel}
+                </p>
                 {actionConfidenceLabel && (
                   <span className='shrink-0 text-[10px] text-gray-400'>{actionConfidenceLabel}</span>
                 )}
