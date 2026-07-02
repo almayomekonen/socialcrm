@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
 import { isAgencyAllowlisted } from '@/lib/ai/flags'
+import { isDevBypassAgency } from '@/lib/auth/devBypass'
 import type { Plan, PlanSource } from './types'
 
 /**
@@ -47,7 +48,10 @@ export function derivePlanSource(plan: Plan, planReason: string | null, allowlis
  */
 export async function resolvePlanAndSource(agencyId: number): Promise<{ plan: Plan; planSource: PlanSource }> {
   const row = await readAgencyPlanRow(agencyId)
-  const plan: Plan = row?.plan === 'pro' ? 'pro' : 'free'
+  // Developer plan bypass: allowlisted dev/owner account resolves as Pro
+  // without touching stored subscription (see lib/auth/devBypass.ts).
+  const bypass = await isDevBypassAgency(agencyId)
+  const plan: Plan = bypass || row?.plan === 'pro' ? 'pro' : 'free'
   const allowlisted = isAgencyAllowlisted(agencyId)
   const planSource = derivePlanSource(plan, row?.planReason ?? null, allowlisted)
   return { plan, planSource }
