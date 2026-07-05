@@ -57,8 +57,15 @@ export async function addAgency(data) {
       track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
     )
     after(() => sendWelcomeEmail(newUser!))
-    const firstName = (newUser as { firstName: string }).firstName ?? ''
-    redirect(`/leads?welcome=${encodeURIComponent(firstName)}`)
+    // A brand-new account is never onboarded, so its destination is the
+    // activation flow. Redirect there directly instead of to /leads: routing
+    // new accounts through /leads and relying on the (app) layout's isOnboarded
+    // gate to bounce them is race-prone — isOnboarded fails OPEN on a read
+    // error, and the first request right after account creation is exactly when
+    // a transient/cold DB read is most likely, so the gate can be skipped and
+    // /leads renders (and crashes) for an account that isn't meant to be there.
+    // Going straight to /activate makes the intended flow deterministic.
+    redirect('/activate')
   }
   return success
 }
