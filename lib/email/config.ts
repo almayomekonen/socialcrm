@@ -12,7 +12,7 @@
  *     this rename. Once .env.production is migrated to RESEND_FROM, the
  *     legacy var becomes dead.
  *   - The default — used when neither env is set — is the verified
- *     billing@getsocialcrm.com address. The Resend sandbox sender
+ *     hello@getsocialcrm.com address. The Resend sandbox sender
  *     ('onboarding@resend.dev') is no longer referenced anywhere; the
  *     production domain is verified and accepts sends to arbitrary
  *     external recipients.
@@ -22,7 +22,7 @@ export const IS_PROD = process.env.NODE_ENV === 'production'
 
 export const EMAIL_ENABLED = process.env.WELCOME_EMAIL_ENABLED === 'true'
 
-const DEFAULT_FROM = 'SocialCRM <billing@getsocialcrm.com>'
+const DEFAULT_FROM = 'SocialCRM <hello@getsocialcrm.com>'
 
 export function getEmailFrom(): string {
   const fromEnv =
