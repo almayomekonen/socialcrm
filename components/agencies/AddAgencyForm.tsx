@@ -29,6 +29,7 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
       ...getMultiObjFormData(e),
       // Analytics-only hint: which device class completed registration.
       device: window.matchMedia('(min-width: 1000px)').matches ? 'desktop' : 'mobile',
+      provider: defaultEmail || defaultName ? 'google' : 'email',
     }
     const myId = ++reqIdRef.current
 

@@ -8,6 +8,7 @@ import { requireUser } from '@/lib/requireUser'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 import { sendWelcomeEmail } from '@/lib/email/send'
 import { track } from '@/lib/analytics/track'
+import { emitLifecycleEvent } from '@/lib/events/emit'
 
 export async function addAgency(data) {
   const start = Date.now()
@@ -56,6 +57,19 @@ export async function addAgency(data) {
       track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
     )
     after(() => sendWelcomeEmail(newUser!))
+
+    const provider = data?.provider === 'google' || data?.provider === 'email' ? data.provider : null
+    after(() =>
+      emitLifecycleEvent({
+        type: 'user.registered',
+        userId: userIdForEvent,
+        agencyId: agencyIdForEvent!,
+        email,
+        firstName: newUser!.firstName,
+        plan: null,
+        provider,
+      }),
+    )
 
     redirect('/activate?welcome=1')
   }
