@@ -200,3 +200,37 @@ These rules apply:
 - During code review: any PR that adds lines to a file already over the soft limit must include an extraction plan or a documented exception.
 
 When in doubt: split. Files are cheap. Cognitive load is expensive.
+
+---
+
+## 9. MOBILE-ONLY UI — SERVER-SIDE GATING (NEVER CSS-HIDE)
+
+**Status:** binding. A desktop browser must never receive mobile-only UI in its
+rendered HTML — not even for a single frame.
+
+A "mobile-only component" is a standalone unit whose entire purpose is the
+mobile experience (e.g. a full-screen `fixed inset-0 z-9999` activation /
+"use a computer" overlay). It is NOT responsive styling inside a shared
+component (a hamburger button, a mobile-only label/logo) — those stay as-is.
+
+### The rule
+
+- Mobile-only components MUST be gated at the **server** by device, and return
+  `null` for non-mobile/tablet requests. Use `isMobileOrTabletRequest()`
+  (`lib/device.ts`) — the single source of truth. Phones and tablets render;
+  genuine desktop UAs get nothing in the DOM.
+- Mobile-only components MUST NOT be rendered on the server and then hidden on
+  desktop with CSS — `desktop:hidden`, `hidden`, media queries, `opacity`,
+  `visibility`, animations, or hydration timing. A z-9999 fixed overlay in the
+  desktop DOM can paint for a frame before CSS suppresses it. Prevention by
+  absence, not suppression after the fact.
+- The gate belongs at the component's server render site, BEFORE any data
+  fetching, so desktop does no wasted work.
+- CSS breakpoints (e.g. `desktop:hidden`) MAY remain as a viewport backstop for
+  the mobile/tablet range, but are never the primary mechanism.
+
+### Why
+
+The cost of a mobile-only overlay leaking into desktop HTML is a visible flash
+on every desktop load. CSS hiding is a race the browser sometimes loses; a
+server gate cannot race — the element simply isn't there.

@@ -1,16 +1,17 @@
 import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
+import { isMobileOrTabletRequest } from '@/lib/device'
 import ActivationFlow from '@/components/activation/ActivationFlow'
 import type { FacebookPage } from '@/lib/activation/activationState'
 
-/**
- * Server-side data gate for the mobile activation flow. Reads the existing
- * connection and decrypts the pending-pages cookie, then injects both into the
- * client flow. Recovery: a missing / expired / invalid / wrong-user cookie all
- * resolve to an empty list — the FSM maps that to `failed` → deterministic restart.
- */
+
 export default async function MobileActivationGate() {
+  // Architectural rule (see lib/device.ts): mobile-only UI is gated server-side,
+  // never hidden with CSS. Desktop requests get null, so this fixed z-9999
+  // overlay is absent from the desktop DOM by construction and cannot flash.
+  if (!(await isMobileOrTabletRequest())) return null
+
   const user = await getUser()
   if (!user) return null
 
