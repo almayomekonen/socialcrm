@@ -49,7 +49,6 @@ export async function addAgency(data) {
   if (success && newUser && createdUserId) {
     await createCookie(createdUserId)
     console.log(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=success`)
-    // Analytics-only device hint from the form (never written to any table).
     const device = data?.device === 'desktop' || data?.device === 'mobile' ? data.device : 'unknown'
     const agencyIdForEvent = createdAgencyId
     const userIdForEvent = createdUserId
@@ -57,15 +56,8 @@ export async function addAgency(data) {
       track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
     )
     after(() => sendWelcomeEmail(newUser!))
-    // A brand-new account is never onboarded, so its destination is the
-    // activation flow. Redirect there directly instead of to /leads: routing
-    // new accounts through /leads and relying on the (app) layout's isOnboarded
-    // gate to bounce them is race-prone — isOnboarded fails OPEN on a read
-    // error, and the first request right after account creation is exactly when
-    // a transient/cold DB read is most likely, so the gate can be skipped and
-    // /leads renders (and crashes) for an account that isn't meant to be there.
-    // Going straight to /activate makes the intended flow deterministic.
-    redirect('/activate')
+
+    redirect('/activate?welcome=1')
   }
   return success
 }
