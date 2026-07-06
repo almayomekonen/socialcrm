@@ -7,6 +7,7 @@ import ActivationScreen from '@/components/activation/ActivationScreen'
 import ActivationBrand, { ACTIVATION_BG } from '@/components/activation/ActivationBrand'
 import ActivationHero from '@/components/activation/ActivationHero'
 import ActivationVideoPanel from '@/components/activation/ActivationVideoPanel'
+import Icon from '@/lib/Icon'
 import { DESKTOP_HINT_COPY } from '@/lib/activation/activationCopy'
 import { completeOnboarding } from '@/actions/activation'
 import { copyToClipboard } from '@/lib/clipboard'
@@ -73,7 +74,7 @@ export default function ActivationExperience() {
           }}
         >
           <ActivationHero />
-          <div className='flex w-full max-w-[440px] flex-col items-center gap-7 text-center'>{screen}</div>
+          <div className='flex w-full max-w-[440px] flex-col items-center gap-7 text-center'>{done ? <DesktopComplete /> : screen}</div>
         </section>
         <section className='relative basis-[52%]'>
           <ActivationVideoPanel className='absolute inset-0 h-full w-full' />
@@ -88,6 +89,20 @@ export default function ActivationExperience() {
         <ActivationBrand />
         {screen}
       </div>
+    </div>
+  )
+}
+
+function DesktopComplete() {
+  return (
+    <div className='flex flex-col items-center gap-5 text-center'>
+      <Icon name='spinner' className='size-8 animate-spin bg-[#3f20f5]' />
+      <h1 className='text-[24px] font-bold text-[#0f1024]'>סביבת העבודה שלך מוכנה 🎉</h1>
+      <p className='max-w-[320px] text-[14px] leading-[1.7] text-gray-500'>
+        חשבון ה-Meta שלך חובר בהצלחה.
+        <br />
+        אנחנו מעבירים אותך למערכת...
+      </p>
     </div>
   )
 }
