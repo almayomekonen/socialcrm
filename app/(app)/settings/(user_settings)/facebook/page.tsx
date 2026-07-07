@@ -3,6 +3,7 @@ import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import AccordionItem from '@/lib/AccordionItem'
+import UrlSyncedAccordion from '@/lib/UrlSyncedAccordion'
 import FacebookConnect from '@/components/settings/FacebookConnect'
 import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
@@ -71,8 +72,8 @@ export default async function page({ searchParams }) {
     <div>
       <h1 className='title'>ערוצי לידים</h1>
       <div className='my-6 max-w-lg'>
-        <div className='accordion border rounded-lg bg-white'>
-          <AccordionItem bodyClass='p-6' title='פייסבוק' icon='facebook' open={openFacebook}>
+        <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
+          <AccordionItem id='facebook' bodyClass='p-6' title='פייסבוק' icon='facebook' open={openFacebook}>
             <Suspense fallback={null}>
               <FacebookConnect
                 connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
@@ -81,7 +82,7 @@ export default async function page({ searchParams }) {
               />
             </Suspense>
           </AccordionItem>
-          <AccordionItem bodyClass='p-6' title='וואטסאפ' icon='whatsapp' open={openWhatsapp}>
+          <AccordionItem id='whatsapp' bodyClass='p-6' title='וואטסאפ' icon='whatsapp' open={openWhatsapp}>
             <Suspense fallback={null}>
               <WhatsappConnect
                 connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
@@ -89,7 +90,7 @@ export default async function page({ searchParams }) {
               />
             </Suspense>
           </AccordionItem>
-        </div>
+        </UrlSyncedAccordion>
       </div>
     </div>
   )
