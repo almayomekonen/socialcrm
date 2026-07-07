@@ -7,7 +7,16 @@ import FacebookConnect from '@/components/settings/FacebookConnect'
 import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 
-export default async function page() {
+export default async function page({ searchParams }) {
+  // Deep-link support: /settings/facebook?section=whatsapp opens that section.
+  // Read server-side so refresh + Back/Forward preserve it with no client state.
+  // No param keeps today's default (Facebook open). Generic — a future section
+  // just needs its own AccordionItem with open={activeSection === '<id>'}.
+  const { section } = (await searchParams) || {}
+  const activeSection = typeof section === 'string' ? section : null
+  const openFacebook = activeSection ? activeSection === 'facebook' : true
+  const openWhatsapp = activeSection === 'whatsapp'
+
   const user = await getUser()
 
   // Facebook connection
@@ -63,7 +72,7 @@ export default async function page() {
       <h1 className='title'>ערוצי לידים</h1>
       <div className='my-6 max-w-lg'>
         <div className='accordion border rounded-lg bg-white'>
-          <AccordionItem bodyClass='p-6' title='פייסבוק' icon='facebook' open={true}>
+          <AccordionItem bodyClass='p-6' title='פייסבוק' icon='facebook' open={openFacebook}>
             <Suspense fallback={null}>
               <FacebookConnect
                 connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
@@ -72,7 +81,7 @@ export default async function page() {
               />
             </Suspense>
           </AccordionItem>
-          <AccordionItem bodyClass='p-6' title='וואטסאפ' icon='whatsapp'>
+          <AccordionItem bodyClass='p-6' title='וואטסאפ' icon='whatsapp' open={openWhatsapp}>
             <Suspense fallback={null}>
               <WhatsappConnect
                 connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
