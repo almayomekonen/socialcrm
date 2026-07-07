@@ -8,7 +8,13 @@ import UploadClientData from '@/components/settings/UploadClientData'
 import { MetaLeadAdsBadge } from '@/components/ui/MetaLeadAdsBadge'
 import OnboardingActionCard from './OnboardingActionCard'
 
-export default function LeadsFirstRun({ metaConnected = false }: { metaConnected?: boolean }) {
+export default function LeadsFirstRun({
+  metaConnected = false,
+  whatsappConnected = false,
+}: {
+  metaConnected?: boolean
+  whatsappConnected?: boolean
+}) {
   const router = useRouter();
   const [openForm, setOpenForm] = useState(false);
   const [openUpload, setOpenUpload] = useState(false);
@@ -27,6 +33,10 @@ export default function LeadsFirstRun({ metaConnected = false }: { metaConnected
               </p>
             </header>
 
+            {/* Same grid idiom as below. When WhatsApp is still unconnected we
+                offer it as one more equal card (never a highlighted "next step"),
+                and Import drops to a centered card on its own row — 2 + 1, so
+                three cards stay balanced instead of reading as a checklist. */}
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <OnboardingActionCard
                 onClick={() => setOpenForm(true)}
@@ -35,13 +45,24 @@ export default function LeadsFirstRun({ metaConnected = false }: { metaConnected
                 title='הוסף ליד'
                 description='הוסף ליד ידנית עכשיו'
               />
-              <OnboardingActionCard
-                onClick={() => setOpenUpload(true)}
-                icon='file-excel'
-                tileClass='bg-[#217346]'
-                title='ייבוא מאקסל'
-                description='העבר את כל הלקוחות בשניות'
-              />
+              {!whatsappConnected && (
+                <OnboardingActionCard
+                  href='/settings/facebook'
+                  icon='whatsapp'
+                  tileClass='bg-[#25D366]'
+                  title='חבר וואטסאפ'
+                  description='קבל גם לידים מוואטסאפ אוטומטית'
+                />
+              )}
+              <div className={whatsappConnected ? '' : 'sm:col-span-2 sm:mx-auto sm:w-[calc(50%-0.5rem)]'}>
+                <OnboardingActionCard
+                  onClick={() => setOpenUpload(true)}
+                  icon='file-excel'
+                  tileClass='bg-[#217346]'
+                  title='ייבוא מאקסל'
+                  description='העבר את כל הלקוחות בשניות'
+                />
+              </div>
             </div>
           </>
         ) : (
