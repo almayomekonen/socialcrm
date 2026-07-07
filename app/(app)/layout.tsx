@@ -19,6 +19,7 @@ import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
 import { isMobileRequest } from '@/lib/device'
 import SkipLink from '@/components/layout/SkipLink'
+import Loading from '@/components/ui/Loading'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -31,15 +32,9 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 async function LayoutContent({ children }) {
   const user = await getUser()
   if (!user) redirect('/api/auth/clear')
-  // Desktop-only product: an authenticated mobile user must never reach the
-  // dashboard. The single mobile experience is the activation flow, so they are
-  // sent to /activate BEFORE any dashboard data loads. This is a device gate,
-  // independent of onboarding — finishing onboarding never unlocks mobile.
+
   if (await isMobileRequest()) redirect('/activate')
-  // Activation gate: the dashboard is earned. A not-yet-onboarded account is sent
-  // to /activate BEFORE any dashboard data loads. Depends only on the onboarding
-  // flag (never an integration table); isOnboarded fails open, so this can never
-  // lock an existing customer out of their workspace.
+
   if (!(await isOnboarded(user.agencyId))) redirect('/activate')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
@@ -51,8 +46,7 @@ async function LayoutContent({ children }) {
   } catch (err) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
   }
-
-  // Platform owners are never gated by the trial — they run the app, not a tenant.
+  
   const owner = isPlatformOwner(user.email)
   // Owner-only preview escape hatch: lets the owner force-render the paywall to
   // inspect it despite the exemption. Set in the browser console with
@@ -112,7 +106,7 @@ async function LayoutContent({ children }) {
 export default function AppLayout({ children }) {
   return (
     <>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<Loading />}>
         <LayoutContent>{children}</LayoutContent>
       </Suspense>
     </>
