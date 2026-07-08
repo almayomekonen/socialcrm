@@ -63,43 +63,56 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
 
   const launch = useCallback((): Promise<EmbeddedSignupResult> => {
     return new Promise((resolve) => {
-      if (!window.FB) return resolve({ ok: false, error: 'sdk' })
-      if (!configId) return resolve({ ok: false, error: 'config' })
-      esDataRef.current = {}
-      window.FB.login(
-        async (response) => {
-          const code = response?.authResponse?.code
-          if (!code) return resolve({ ok: false, error: 'cancelled' })
-          try {
-            const res = await fetch('/api/whatsapp/embedded-signup', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code,
-                wabaId: esDataRef.current.waba_id,
-                phoneNumberId: esDataRef.current.phone_number_id,
-              }),
-            })
-            const body = (await res.json().catch(() => ({}))) as {
-              error?: string
-              messagingReady?: boolean
-              reason?: string
-            }
-            if (!res.ok) {
-              return resolve({ ok: false, error: body.error ?? 'server' })
-            }
-            resolve({ ok: true, messagingReady: body.messagingReady, reason: body.reason })
-          } catch {
-            resolve({ ok: false, error: 'network' })
-          }
-        },
-        {
-          config_id: configId,
-          response_type: 'code',
-          override_default_response_type: true,
-          extras: { setup: {}, featureType: '', sessionInfoVersion: '3' },
-        },
-      )
+      try {
+        if (!window.FB) return resolve({ ok: false, error: 'sdk' })
+        if (!configId) return resolve({ ok: false, error: 'config' })
+        esDataRef.current = {}
+        // FB.login requires a SYNCHRONOUS callback. Handing the SDK an async
+        // function makes it throw synchronously, which upstream swallows into a
+        // generic error and the signup popup never opens. Keep the callback sync
+        // and run the async work in an IIFE; resolve() stays in closure scope so
+        // the flow is unchanged.
+        window.FB.login(
+          (response) => {
+            void (async () => {
+              const code = response?.authResponse?.code
+              if (!code) return resolve({ ok: false, error: 'cancelled' })
+              try {
+                const res = await fetch('/api/whatsapp/embedded-signup', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    code,
+                    wabaId: esDataRef.current.waba_id,
+                    phoneNumberId: esDataRef.current.phone_number_id,
+                  }),
+                })
+                const body = (await res.json().catch(() => ({}))) as {
+                  error?: string
+                  messagingReady?: boolean
+                  reason?: string
+                }
+                if (!res.ok) {
+                  return resolve({ ok: false, error: body.error ?? 'server' })
+                }
+                resolve({ ok: true, messagingReady: body.messagingReady, reason: body.reason })
+              } catch {
+                resolve({ ok: false, error: 'network' })
+              }
+            })()
+          },
+          {
+            config_id: configId,
+            response_type: 'code',
+            override_default_response_type: true,
+            extras: { setup: {}, featureType: '', sessionInfoVersion: '3' },
+          },
+        )
+      } catch {
+        // A synchronous throw from FB.login must surface as a real, mappable
+        // error — never the generic "something went wrong".
+        resolve({ ok: false, error: 'sdk' })
+      }
     })
   }, [configId])
 
