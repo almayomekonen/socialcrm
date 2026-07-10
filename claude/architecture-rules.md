@@ -200,3 +200,48 @@ These rules apply:
 - During code review: any PR that adds lines to a file already over the soft limit must include an extraction plan or a documented exception.
 
 When in doubt: split. Files are cheap. Cognitive load is expensive.
+
+---
+
+## 9. BUSINESS-DAY CLASSIFICATION — SINGLE SOURCE OF TRUTH
+
+**Status:** binding. Business-day concepts — "today", "overdue", "due today",
+"from this morning", and the like — MUST have one implementation, and it is
+`lib/time/businessDay.ts`.
+
+This rule exists because a duplicated business-day calculation caused a
+production `/dashboard` crash (React #418): the urgency label was computed
+independently on the server and the client, the Vercel server runs in **UTC**
+while the browser runs in **Asia/Jerusalem**, so the two disagreed on the day
+boundary and rendered different HTML — a hydration mismatch that is fatal in the
+production build.
+
+### Rules
+
+- **One source of truth.** Every business-day boundary/classification goes
+  through `lib/time/businessDay.ts` (`startOfBusinessDay`, `isBeforeBusinessDay`,
+  `classifyUrgency`). Never re-derive a day boundary inline
+  (`new Date().setHours(0, 0, 0, 0)`, a local `startOfDay`/`startOfToday`, etc.) —
+  extend the helper instead.
+- **Never compute the same classification on both sides.** A business-day value
+  is computed exactly once — on the **server** — and passed down as data. Server
+  and client must never each run the logic and hope they agree.
+- **Canonical timezone, not the device.** The business day is defined in
+  `BUSINESS_TZ` (currently `'Asia/Jerusalem'`), never the browser's local
+  timezone. "Overdue/today" is a business-day question, so it follows the
+  business's day regardless of where the rep's browser is. `BUSINESS_TZ` is the
+  single place to change if this ever becomes per-agency.
+- **DST-aware, never a fixed offset.** The helper derives the boundary via the
+  `Intl` API against `BUSINESS_TZ`. Do not hardcode `+2`/`+3` or assume a fixed
+  UTC offset.
+- **Client Components render, they don't classify.** A Client Component MUST NOT
+  call `Date.now()`, `setHours()`, or any business-day logic during render. It
+  receives the precomputed label/tone/flag as a prop and renders it.
+
+### Why
+
+A deterministic, timezone-explicit computation done once on the server is the
+only way server-rendered HTML and client hydration can agree. `businessDay.ts` is
+verified deterministic across Node/browser, process timezone, and locale, and is
+covered by DST unit tests; routing every business-day concept through it is what
+keeps the mismatch from recurring — in the dashboard or anywhere else.
