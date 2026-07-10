@@ -7,6 +7,8 @@
  * It is a SUGGESTION only — the lead also remains visible in its lane.
  */
 
+import { startOfBusinessDay } from '@/lib/time/businessDay'
+
 export type RecommendInput = {
   id: number
   name: string
@@ -19,25 +21,21 @@ export type RecommendInput = {
 
 export type Recommendation = { lead: RecommendInput; reason: string }
 
-function startOfDay(nowMs: number): number {
-  const d = new Date(nowMs)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
-
 function dueMs(lead: RecommendInput, nowMs: number): number | null {
   const fu = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).getTime() : null
   return fu != null && !Number.isNaN(fu) && fu <= nowMs ? fu : null
 }
 
-/** Plain-Hebrew explanation for why this lead is surfaced. */
+/** Plain-Hebrew explanation for why this lead is surfaced. Uses the shared
+ *  business-day (Asia/Jerusalem) boundary so "overdue" / "from this morning" are
+ *  consistent with the rest of the app and correct on the UTC server. */
 export function recommendReason(lead: RecommendInput, nowMs: number): string {
   const due = dueMs(lead, nowMs)
-  if (due != null) return due < startOfDay(nowMs) ? 'מעקב באיחור' : 'מעקב להיום'
+  if (due != null) return due < startOfBusinessDay(nowMs) ? 'מעקב באיחור' : 'מעקב להיום'
 
   if (lead.status === 'new') {
     const created = lead.createdAt ? new Date(lead.createdAt).getTime() : null
-    return created != null && created >= startOfDay(nowMs) ? 'ליד חדש מהבוקר' : 'ליד חדש'
+    return created != null && created >= startOfBusinessDay(nowMs) ? 'ליד חדש מהבוקר' : 'ליד חדש'
   }
 
   if (lead.lastOutcomeType === 'call_no_answer') return 'לא נענה בפעם האחרונה'
@@ -65,7 +63,12 @@ export function pickRecommended(due: RecommendInput[], newLeads: RecommendInput[
  * represented (speed-to-lead) by swapping it into the last slot if none made it.
  * Each item carries its plain-Hebrew reason. Returns up to `n` items.
  */
-export function pickTopRecommended(due: RecommendInput[], newLeads: RecommendInput[], n: number, nowMs: number): Recommendation[] {
+export function pickTopRecommended(
+  due: RecommendInput[],
+  newLeads: RecommendInput[],
+  n: number,
+  nowMs: number,
+): Recommendation[] {
   const items: Recommendation[] = due.slice(0, n).map((lead) => ({ lead, reason: recommendReason(lead, nowMs) }))
 
   if (newLeads.length > 0 && !items.some((it) => it.lead.status === 'new')) {

@@ -6,6 +6,7 @@ import { getDueWorklist, getDueWorklistCount, getNewLeads, getNewLeadsCount, get
 import { getTodaysMeetings } from '@/db/meetings'
 import { getUpcomingFollowUpsCount } from '@/db/followUps'
 import { pickTopRecommended } from '@/lib/leads/recommend'
+import { classifyUrgency } from '@/lib/time/businessDay'
 import RecommendedLeads from '@/components/home/RecommendedLeads'
 import FollowupsTable from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
@@ -34,6 +35,10 @@ export default async function DashboardPage() {
   const recommendedIds = new Set(recommended.map((r) => r.lead.id))
   const dueIds = new Set(due.map((d) => d.id))
   const tableRows = due.filter((r) => !recommendedIds.has(r.id))
+  // Classify urgency on the server (business day, Asia/Jerusalem) and pass it as a
+  // prop so FollowupsTable renders a fixed value — no client-side time math, no
+  // hydration mismatch.
+  const tableRowsWithUrgency = tableRows.map((r) => ({ ...r, urgency: classifyUrgency(r, now) }))
   const removedFromDue = recommended.filter((r) => dueIds.has(r.lead.id)).length
   const tableTotal = dueCount - removedFromDue
 
@@ -56,7 +61,7 @@ export default async function DashboardPage() {
 
       <RecommendedLeads items={recommended.map((r) => ({ lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone }, reason: r.reason }))} />
 
-      <FollowupsTable rows={tableRows} total={tableTotal} />
+      <FollowupsTable rows={tableRowsWithUrgency} total={tableTotal} />
 
       <QuickLinks dueCount={dueCount} newCount={newLeadsCount} upcomingCount={upcomingCount} meetingsCount={meetings.length} />
     </div>

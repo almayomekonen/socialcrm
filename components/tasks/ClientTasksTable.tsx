@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/dates'
 import Link from 'next/link'
 import { Btn } from '@/lib/btns/Btn'
 import SelectTasksStatus from './SelectTasksStatus'
+import { isBeforeBusinessDay } from '@/lib/time/businessDay'
 
 export type SaleTableProps = {
   props: {
@@ -106,9 +107,8 @@ const saleTableHeaders = [
 ]
 
 export function isDatePassed(_, obj) {
-  const today = new Date().setHours(0, 0, 0, 0)
-  const dueDate = new Date(obj.dueDate).setHours(0, 0, 0, 0)
-  const isOver = dueDate < today && !obj.completed
+
+  const isOver = isBeforeBusinessDay(new Date(obj.dueDate).getTime(), Date.now()) && !obj.completed
   return <div className={`${isOver ? 'text-red-500' : ''}`}> {formatDate(obj.dueDate)}</div>
 }
 

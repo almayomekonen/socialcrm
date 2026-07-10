@@ -4,30 +4,21 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import LeadQuickActions from './LeadQuickActions'
 import type { DueWorklistRow } from '@/db/worklist'
+import type { Urgency } from '@/lib/time/businessDay'
+
+// Presentational only. Urgency is classified on the SERVER (DashboardPage) against
+// the business day and passed in as a prop — this component performs NO
+// time-relative computation, which is what previously caused the hydration
+// mismatch (React #418) between the UTC server and the Asia/Jerusalem browser.
+export type FollowupRow = DueWorklistRow & { urgency: Urgency }
 
 const PAGE_SIZE = 8
 
-function startOfToday(): number {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
-
-function urgencyOf(row: DueWorklistRow, nowMs: number): { label: string; tone: string } {
-  const fu = row.nextFollowUpAt ? new Date(row.nextFollowUpAt).getTime() : null
-  if (fu != null && !Number.isNaN(fu) && fu <= nowMs) {
-    return fu < startOfToday() ? { label: 'באיחור', tone: 'text-error-text' } : { label: 'להיום', tone: 'text-warning-text' }
-  }
-  if (row.status === 'new') return { label: 'חדש', tone: 'text-primary-text' }
-  return { label: 'ממתין', tone: 'text-gray-400' }
-}
-
-export default function FollowupsTable({ rows, total }: { rows: DueWorklistRow[]; total: number }) {
+export default function FollowupsTable({ rows, total }: { rows: FollowupRow[]; total: number }) {
   const [page, setPage] = useState(0)
 
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set())
   useEffect(() => setCompletedIds(new Set()), [rows])
-  const now = Date.now()
 
   const visible = rows.filter((r) => !completedIds.has(r.id))
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
@@ -46,7 +37,7 @@ export default function FollowupsTable({ rows, total }: { rows: DueWorklistRow[]
       ) : (
         <ul className='mt-1 h-88 divide-y divide-gray-50 overflow-y-auto'>
           {slice.map((row) => {
-            const u = urgencyOf(row, now)
+            const u = row.urgency
             return (
               <li key={row.id} className='flex items-center justify-between gap-3 px-4 py-2'>
                 <div className='min-w-0 flex items-baseline gap-2'>
