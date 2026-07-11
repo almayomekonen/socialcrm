@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { checkUserSuspended, logout } from '@/actions/auth'
-import { useEffect, useState } from 'react'
+import { logout } from '@/actions/auth'
 import { isAdmin, isMngr, Roles } from '@/types/roles'
 import { Route } from 'next'
 import { UserNAgency } from './Topbar'
@@ -16,10 +15,6 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
   // Live unread (delta-sync). null when disabled → fall back to the server-rendered count.
   const liveUnread = useAwarenessCount()
   const effectiveUnread = liveUnread ?? inboxUnread
-
-  useEffect(() => {
-    checkUserSuspended(user)
-  })
 
   const logmeout = () => logout()
 

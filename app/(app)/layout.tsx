@@ -33,6 +33,8 @@ async function LayoutContent({ children }) {
   const user = await getUser()
   if (!user) redirect('/api/auth/clear')
 
+  if (user.suspended) redirect('/api/auth/clear')
+
   if (await isMobileRequest()) redirect('/activate')
 
   if (!(await isOnboarded(user.agencyId))) redirect('/activate')
