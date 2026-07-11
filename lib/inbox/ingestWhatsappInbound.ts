@@ -83,16 +83,19 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       // Instant Response Engine: enqueue a guarded first-contact auto-response in
       // the same txn. Internally a no-op unless the feature is enabled; the worker
       // re-checks authoritatively. Qualify-mode agencies enqueue one job per turn.
-      const arMode = await trx('auto_response_settings')
+      const arSettings = await trx('auto_response_settings')
         .where({ agencyId: input.agencyId, channel: 'whatsapp' })
-        .first('mode')
+        .first('mode', 'delaySeconds')
+      const delayRaw = Number(arSettings?.delaySeconds ?? 0)
+      const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
       await enqueueAutoResponse(trx, {
         agencyId: input.agencyId,
         conversationId,
         leadId: input.leadId,
         channel: 'whatsapp',
         triggerSequence: sequence,
-        reason: arMode?.mode === 'qualify' ? 'qualify_turn' : 'first_contact',
+        reason: arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact',
+        delaySeconds,
       })
     }
 

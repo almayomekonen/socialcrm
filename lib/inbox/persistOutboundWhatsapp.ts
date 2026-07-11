@@ -3,7 +3,6 @@ import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inbox
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertOutboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
-import { resolveOpenRecoveryAlerts } from '@/db/recoveryAlerts'
 
 export type PersistOutboundWhatsappInput = {
   agencyId: number
@@ -67,8 +66,6 @@ export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInpu
     })
 
     await bumpConversationOnOutbound(trx, conversationId, new Date(), input.text)
-
-    await resolveOpenRecoveryAlerts(trx, { agencyId: input.agencyId, leadId: input.leadId, at: new Date() })
 
     if (inserted) {
       await enqueueConversationAnalysis(trx, {

@@ -32,14 +32,20 @@ export async function enqueueAutoResponse(
     channel: string
     triggerSequence: number
     reason?: AutoResponseReason
+    /** Seconds to wait before the worker may claim the job (uses existing notBefore). */
+    delaySeconds?: number
   },
 ): Promise<number | null> {
   const reason: AutoResponseReason = args.reason ?? 'first_contact'
+  const delaySeconds = Number.isFinite(args.delaySeconds)
+    ? Math.min(Math.max(Math.floor(args.delaySeconds as number), 0), 3600)
+    : 0
   const res = await trx.raw(
     `
     INSERT INTO auto_response_jobs
       ("agencyId","conversationId","leadId",channel,reason,"triggerSequence",status,"notBefore")
-    SELECT :agencyId, :conversationId, :leadId, :channel, :reason, :triggerSequence, 'pending', now()
+    SELECT :agencyId, :conversationId, :leadId, :channel, :reason, :triggerSequence, 'pending',
+           now() + make_interval(secs => :delaySeconds)
     WHERE EXISTS (SELECT 1 FROM agencies a WHERE a.id = :agencyId AND a."autoResponseEnabled" = true)
       AND EXISTS (SELECT 1 FROM auto_response_settings s
                    WHERE s."agencyId" = :agencyId AND s.channel = :channel AND s.enabled = true)
@@ -52,7 +58,7 @@ export async function enqueueAutoResponse(
     ON CONFLICT DO NOTHING
     RETURNING id
   `,
-    { ...args, reason },
+    { agencyId: args.agencyId, conversationId: args.conversationId, leadId: args.leadId, channel: args.channel, triggerSequence: args.triggerSequence, reason, delaySeconds },
   )
   const row = res.rows?.[0]
   if (!row) return null

@@ -18,6 +18,7 @@ import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
 import { processQualifyJob } from './qualifyWorker'
 import { validateAutoResponse } from './validate'
+import { renderFixedReply } from './renderFixedReply'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -52,7 +53,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     db('inbox_conversations')
       .where({ id: job.conversationId })
       .first('id', 'businessPhoneNumberId', 'customerWaId', 'customerName', 'lastMessageText'),
-    db('clients').where({ id: job.leadId }).first('id', 'userId', 'handlerId', 'status'),
+    db('clients').where({ id: job.leadId }).first('id', 'userId', 'handlerId', 'status', 'firstName'),
   ])
   if (!conv) return doSkip('conversation_gone')
   if (!lead) return doSkip('lead_gone')
@@ -105,19 +106,31 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   })
   if (elig.shouldRespond === false) return doSkip(elig.skipReason)
 
+  const replyMode = settings?.replyMode ?? 'ai'
   let message: string | null = null
-  for (let attempt = 0; attempt < 2 && !message; attempt++) {
-    const gen = await deps.generate({
-      agencyId: job.agencyId,
+
+  if (replyMode === 'fixed') {
+    const body = (settings?.fixedBody ?? '').trim()
+    if (!body) return doSkip('fixed_body_empty')
+    message = renderFixedReply(body, {
+      firstName: (lead.firstName as string | null) ?? null,
       customerName: (conv.customerName as string | null) ?? null,
-      lastCustomerMessage: (conv.lastMessageText as string | null) ?? '',
-      guidance: settings?.guidance ?? null,
-    })
-    if (gen.ok === false) return doSkip(gen.skipReason)
-    if (validateAutoResponse(gen.message).ok) message = gen.message
+    }).trim()
+    if (!message) return doSkip('fixed_body_empty')
+  } else {
+    for (let attempt = 0; attempt < 2 && !message; attempt++) {
+      const gen = await deps.generate({
+        agencyId: job.agencyId,
+        customerName: (conv.customerName as string | null) ?? null,
+        lastCustomerMessage: (conv.lastMessageText as string | null) ?? '',
+        guidance: settings?.guidance ?? null,
+      })
+      if (gen.ok === false) return doSkip(gen.skipReason)
+      if (validateAutoResponse(gen.message).ok) message = gen.message
+    }
+    if (!message) return doSkip('validation_failed')
   }
-  if (!message) return doSkip('validation_failed')
-  console.log(`[IRE] generated conv=${job.conversationId} len=${message.length}`)
+  console.log(`[IRE] generated conv=${job.conversationId} mode=${replyMode} len=${message.length}`)
 
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: conv.businessPhoneNumberId, agency_id: job.agencyId })
@@ -168,7 +181,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     agencyId: job.agencyId,
     userId: sentByUserId ?? null,
     event: 'auto_response_sent',
-    props: { conversationId: job.conversationId, leadId: job.leadId, reason: job.reason },
+    props: { conversationId: job.conversationId, leadId: job.leadId, reason: job.reason, replyMode },
   })
   return 'sent'
 }
