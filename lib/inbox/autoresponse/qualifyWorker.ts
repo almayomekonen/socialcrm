@@ -1,8 +1,14 @@
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
-import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
-import { skipAutoResponseJob, completeAutoResponseJob, countSentToday, type AutoResponseJob } from '@/db/autoResponseJobs'
+import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
+import {
+  skipAutoResponseJob,
+  completeAutoResponseJob,
+  failAutoResponseJob,
+  countSentToday,
+  type AutoResponseJob,
+} from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
@@ -55,7 +61,10 @@ async function sendAndPersist(
   if (!to) return { ok: false, reason: 'no_recipient' }
 
   const sent = await send({ phoneNumberId: ctx.conv.businessPhoneNumberId, accessToken: connection.access_token, to, body: text })
-  if (!sent.ok) return { ok: false, reason: 'send_failed' }
+  if (sent.ok === false) {
+    const detail = formatWhatsappSendFailure(sent)
+    return { ok: false, reason: detail }
+  }
 
   const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const res = await persistOutboundWhatsapp({
@@ -211,7 +220,10 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   if (post.action === 'escalate' && summary) {
     const r = await sendAndPersist(job, ctx, deps.send, handoffMessage(post.reason, lang))
     if (r.ok === false) {
-      if (r.reason === 'send_failed') return 'failed'
+      if (r.reason.startsWith('whatsapp_send_failed')) {
+        await failAutoResponseJob(job.id, r.reason)
+        return 'failed'
+      }
       return doSkip(r.reason)
     }
     await mergeOnly(conv.id, gen.extracted)
@@ -230,7 +242,10 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // ── Continue: send one qualifying reply + advance the turn ──
   const r = await sendAndPersist(job, ctx, deps.send, gen.reply)
   if (r.ok === false) {
-    if (r.reason === 'send_failed') return 'failed'
+    if (r.reason.startsWith('whatsapp_send_failed')) {
+      await failAutoResponseJob(job.id, r.reason)
+      return 'failed'
+    }
     return doSkip(r.reason)
   }
   await recordTurn(conv.id, gen.extracted)

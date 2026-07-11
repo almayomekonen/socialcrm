@@ -1,5 +1,5 @@
 import { db } from '@/config/db'
-import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
+import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { track } from '@/lib/analytics/track'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
@@ -145,8 +145,10 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     to,
     body: message,
   })
-  if (!sent.ok) {
-    await failAutoResponseJob(job.id, 'send-failed')
+  if (sent.ok === false) {
+    const detail = formatWhatsappSendFailure(sent)
+    console.error(`[IRE] send failed conv=${job.conversationId} job=${job.id} ${detail}`)
+    await failAutoResponseJob(job.id, detail)
     return 'failed'
   }
 
