@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import OutcomeControl from '@/components/leads/OutcomeControl'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
+import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
 
 type Props = {
   id: number
@@ -16,7 +18,7 @@ type Props = {
 }
 
 export default function LeadQuickActions({ id, phone, quiet = false, onCompleted }: Props) {
-  const waNumber = phone ? `972${phone.replace(/\D/g, '').replace(/^0/, '')}` : ''
+  const router = useRouter()
   const menu = useFloatingMenu()
 
   return (
@@ -41,15 +43,17 @@ export default function LeadQuickActions({ id, phone, quiet = false, onCompleted
               className='flex flex-col gap-0.5 rounded-lg border border-gray-200 bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
             >
               {phone && (
-                <a
-                  href={`https://wa.me/${waNumber}`}
-                  target='_blank'
-                  rel='noreferrer'
+                <button
+                  type='button'
+                  role='menuitem'
                   className='text-right rounded-md px-3 py-2 text-sm hover:bg-gray-50'
-                  onClick={menu.close}
+                  onClick={() => {
+                    menu.close()
+                    void openLeadWhatsappInInbox(id, router.push)
+                  }}
                 >
                   וואטסאפ
-                </a>
+                </button>
               )}
               <Link href={`/clients/${id}/summary`} className='text-right rounded-md px-3 py-2 text-sm hover:bg-gray-50' onClick={menu.close}>
                 פתח ליד

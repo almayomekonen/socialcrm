@@ -29,6 +29,7 @@ import LeadsTableView from './LeadsTableView'
 import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
+import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
 
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false }) {
   const [activeTab, setActiveTab] = useState('new')
@@ -344,7 +345,12 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             </div>
             <div>
               <div className='h-px bg-gray-200 w-full' />
-              <Btn variant='simple' size='simple' lbl='WhatsApp' onClick={() => window.open(`https://wa.me/972${curClient.phone.replace(/\D/g, '').replace(/^0/, '')}`, '_blank')} />
+              <Btn
+                variant='simple'
+                size='simple'
+                lbl='WhatsApp'
+                onClick={() => openLeadWhatsappInInbox(curClient.id, router.push)}
+              />
             </div>
           </>
         )}

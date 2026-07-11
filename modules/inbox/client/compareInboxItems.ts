@@ -9,15 +9,23 @@ const ACTION_RANK: Record<string, number> = { close_lead: 7, send_quote: 6, sche
 
 const rank = (table: Record<string, number>, key: string | null): number => (key ? (table[key] ?? 0) : 0)
 const ts = (i: InboxConversationListItem): string => i.lastMessageAt ?? ''
+const isEmpty = (i: InboxConversationListItem): boolean => !i.lastMessageAt
+
+/** Empty / ensured threads (no lastMessageAt) always sort after active ones. */
+const emptyLast = (a: InboxConversationListItem, b: InboxConversationListItem): number =>
+  Number(isEmpty(a)) - Number(isEmpty(b))
 
 // ISO timestamps compare lexically = chronologically; ties broken by id (newest first).
 const latestDesc = (a: InboxConversationListItem, b: InboxConversationListItem): number =>
-  ts(b).localeCompare(ts(a)) || b.conversationId - a.conversationId
+  emptyLast(a, b) || ts(b).localeCompare(ts(a)) || b.conversationId - a.conversationId
+
+const oldestAsc = (a: InboxConversationListItem, b: InboxConversationListItem): number =>
+  emptyLast(a, b) || ts(a).localeCompare(ts(b)) || a.conversationId - b.conversationId
 
 export function compareInboxItems(sort: InboxSort): (a: InboxConversationListItem, b: InboxConversationListItem) => number {
   switch (sort) {
     case 'oldest':
-      return (a, b) => ts(a).localeCompare(ts(b)) || a.conversationId - b.conversationId
+      return oldestAsc
     case 'unread':
       return (a, b) => Number(b.unread) - Number(a.unread) || latestDesc(a, b)
     case 'temperature':
