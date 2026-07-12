@@ -12,7 +12,6 @@ import { MAX_TEXTAREA_HEIGHT, UPLOAD_ACCEPT } from './composer/constants'
 import { ToolsPopover } from './composer/ToolsPopover'
 import { AttachPopover } from './composer/AttachPopover'
 import { ModePopover } from './composer/ModePopover'
-import { GoogleDriveConnectModal } from './composer/GoogleDriveConnectModal'
 import { useComposerFiles } from './composer/useComposerFiles'
 import { useOutsidePopoverClose } from './composer/useOutsidePopoverClose'
 import { CopilotComposerInputBox } from './composer/CopilotComposerInputBox'
@@ -43,7 +42,6 @@ export default function CopilotComposer({
   const [toolsOpen, setToolsOpen] = useState(false)
   const [attachOpen, setAttachOpen] = useState(false)
   const [modeOpen, setModeOpen] = useState(false)
-  const [driveModalOpen, setDriveModalOpen] = useState(false)
   const [modeId, setModeId] = useState<CopilotModeId>(DEFAULT_COPILOT_MODE_ID)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const composerRef = useRef<HTMLDivElement>(null)
@@ -82,11 +80,6 @@ export default function CopilotComposer({
   function handleSelectAction(id: PredefinedCopilotActionId) {
     setToolsOpen(false)
     onAction(id)
-  }
-
-  function openDriveConnect() {
-    setToolsOpen(false)
-    setDriveModalOpen(true)
   }
 
   function toggleLens(id: LensId) {
@@ -166,15 +159,8 @@ export default function CopilotComposer({
       />
 
       {toolsOpen && !toolsDisabled && (
-        <ToolsPopover
-          actions={actions}
-          loadingId={loadingId}
-          onSelect={handleSelectAction}
-          onConnectDrive={openDriveConnect}
-        />
+        <ToolsPopover actions={actions} loadingId={loadingId} onSelect={handleSelectAction} />
       )}
-
-      <GoogleDriveConnectModal open={driveModalOpen} onClose={() => setDriveModalOpen(false)} />
 
       {attachOpen && !attachDisabled && (
         <AttachPopover selected={lenses} onToggle={toggleLens} onUpload={triggerFilePicker} onClose={() => setAttachOpen(false)} />
