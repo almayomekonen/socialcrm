@@ -55,7 +55,8 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     [rawFilteredData, sortMode],
   )
 
-  const { updatingId, highlightedId, handleStatusChange } = useLeadActions({
+  const { updatingId, highlightedId, statusAnnounce, handleStatusChange } = useLeadActions({
+    activeTab,
     setActiveTab,
     setOptimisticStatuses,
   })
@@ -233,6 +234,15 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
 
   return (
     <>
+      <div
+        className='sr-only'
+        role='status'
+        aria-live='polite'
+        aria-atomic='true'
+        data-testid='lead-status-announce'
+      >
+        {statusAnnounce}
+      </div>
       <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'}>
         <LeadsTableView
           leads={leads}
