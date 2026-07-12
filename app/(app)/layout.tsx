@@ -14,6 +14,7 @@ import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import { isGeneralModeEnabled } from '@/lib/ai/flags'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
+import { CrmSyncHealthProvider } from '@/lib/polling/CrmSyncHealthContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
@@ -79,6 +80,7 @@ async function LayoutContent({ children }) {
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
 
   return (
+    <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
     <UserProvider user={user}>
       <PosProvider>
@@ -102,6 +104,7 @@ async function LayoutContent({ children }) {
       </PosProvider>
     </UserProvider>
     </AwarenessProvider>
+    </CrmSyncHealthProvider>
   )
 }
 

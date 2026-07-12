@@ -11,6 +11,7 @@ import ConversationRefreshPoller from '@/components/summary/ConversationRefreshP
 import InboxToolbar from '@/modules/inbox/components/InboxToolbar'
 import InboxWorkspace from '@/modules/inbox/components/InboxWorkspace'
 import InboxEmptyState from '@/modules/inbox/components/InboxEmptyState'
+import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
 import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSkeleton'
 import ConversationIntelligenceCard from '@/modules/inbox/components/ConversationIntelligenceCard'
@@ -56,6 +57,9 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         <ConversationRefreshPoller />
 
         <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
+          <div data-alert-region='crm-sync' className='shrink-0'>
+            <CrmSyncBanner sources={['inbox-sync']} compact />
+          </div>
           <InboxToolbar filters={filters} selectedConversation={selectedConversationId} smartCounts={smartCounts} />
           <InboxConversationList selectedConversationId={selectedConversationId} />
         </aside>

@@ -10,6 +10,12 @@ import {
   LEAD_POLL_MAX_IDLE,
   nextInterval,
 } from '@/lib/polling/pollSchedule'
+import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
+import {
+  LEAD_RECOVERY_MS,
+  nextConsecutiveFailures,
+  scheduleDelayAfterPoll,
+} from '@/lib/polling/syncFailure'
 
 // events:
 
@@ -71,36 +77,49 @@ export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = tru
   const lastSeenAtRef = useRef(initialLastSeenAt ?? new Date().toISOString())
   const onNewLeadsRef = useRef(onNewLeads)
   onNewLeadsRef.current = onNewLeads
+  const { report } = useCrmSyncHealth()
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      report('leads', 0, null)
+      return
+    }
 
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     let idleStreak = 0
+    let consecutiveFailures = 0
+    let recovering = false
     let inFlight = false
 
-    const schedule = () => {
+    const retryNow = () => {
       if (cancelled) return
-      const ms = nextInterval({
+      if (timer) clearTimeout(timer)
+      void tick()
+    }
+
+    const schedule = (failed: boolean) => {
+      if (cancelled) return
+      const idleMs = nextInterval({
         hidden: typeof document !== 'undefined' && document.hidden,
         idleStreak,
         focusedMs: LEAD_POLL_FOCUSED_MS,
         hiddenMs: LEAD_POLL_HIDDEN_MS,
         maxIdle: LEAD_POLL_MAX_IDLE,
       })
+      const ms = scheduleDelayAfterPoll({ failed, recoveryMs: LEAD_RECOVERY_MS, idleMs })
       if (process.env.NODE_ENV === 'development') {
-        console.debug('[leads.poll]', { ms, idleStreak, hidden: document.hidden })
+        console.debug('[leads.poll]', { ms, idleStreak, failed, hidden: document.hidden })
       }
       timer = setTimeout(() => {
         void tick()
       }, ms)
     }
 
-    const tick = async () => {
+    async function tick() {
       if (cancelled) return
       if (inFlight) {
-        schedule()
+        schedule(recovering)
         return
       }
       inFlight = true
@@ -121,13 +140,15 @@ export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = tru
         console.warn('[leads.poll]', {
           err: err instanceof Error ? err.name : 'unknown',
         })
-        // Transport errors do not count as idle (A6 recovery band owns outages).
       } finally {
         inFlight = false
+        consecutiveFailures = nextConsecutiveFailures(consecutiveFailures, failed)
+        recovering = failed
+        report('leads', consecutiveFailures, retryNow)
         if (!failed) {
           idleStreak = changed ? 0 : idleStreak + 1
         }
-        schedule()
+        schedule(failed)
       }
     }
 
@@ -140,7 +161,6 @@ export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = tru
     }
 
     document.addEventListener('visibilitychange', onVisibility)
-    // First tick shortly after mount — same spirit as inbox adaptive poll.
     timer = setTimeout(() => {
       void tick()
     }, 500)
@@ -149,8 +169,9 @@ export function useLeadPolling(onNewLeads: (leads: any[]) => void, enabled = tru
       cancelled = true
       if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibility)
+      report('leads', 0, null)
     }
-  }, [enabled])
+  }, [enabled, report])
 }
 
 export function useKeepTblScrollPos(tblId: string) {
