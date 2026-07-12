@@ -1,18 +1,40 @@
 'use client' // Error boundaries must be Client Components
 
 import { useEffect } from 'react'
+import { Btn } from '@/lib/btns/Btn'
 
-export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  console.error('error page: ', error)
-
+/**
+ * Segment error boundary for (app). Manual recovery only — ChunkReloader owns
+ * automatic chunk-load reloads. Do not auto-reload here (avoids dual reload loops).
+ * Never surface raw error.message to the UI.
+ */
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
   useEffect(() => {
-    console.error('useEffect error page: ', error)
+    console.error('[app-error]', error?.digest ?? '', error)
   }, [error])
 
   return (
-    <div className='abs-center text-2xl text-red-600 font-bold'>
-      <h2 className='mb-4'>חלה שגיאה במערכת</h2>
-      <button onClick={() => reset()}>נסה שנית</button>
+    <div
+      className='flex min-h-[50vh] w-full items-center justify-center p-6'
+      dir='rtl'
+      role='alert'
+    >
+      <div className='grid w-full max-w-md gap-3 rounded-xl border border-gray-200 bg-white p-7 text-center shadow-sm'>
+        <h2 className='m-0 text-xl font-bold text-gray-900'>חלה שגיאה במערכת</h2>
+        <p className='m-0 text-sm leading-relaxed text-gray-600'>
+          משהו השתבש בטעינת המסך. אפשר לנסות שוב, או לחזור לרשימת הלידים.
+        </p>
+        <div className='mt-2 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center'>
+          <Btn variant='solid' size='large' lbl='נסה שנית' onClick={() => reset()} type='button' />
+          <Btn variant='outline' size='large' lbl='חזרה ללידים' href='/leads' />
+        </div>
+      </div>
     </div>
   )
 }
