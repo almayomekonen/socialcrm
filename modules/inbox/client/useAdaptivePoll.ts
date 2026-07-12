@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { nextInterval, type PollBand } from './pollSchedule'
+import { nextInterval, type PollBand } from '@/lib/polling/pollSchedule'
 
 export interface UseAdaptivePollOpts {
   focusedMs?: PollBand
