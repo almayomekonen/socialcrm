@@ -73,7 +73,7 @@ function asCopilotModeId(raw: string | null): CopilotModeId | null {
   return null
 }
 
-function asErrorReason(raw: string | null): CopilotResponseErrorReason {
+export function asErrorReason(raw: string | null | undefined): CopilotResponseErrorReason {
   if (
     raw === 'disabled' ||
     raw === 'forbidden' ||
@@ -85,6 +85,42 @@ function asErrorReason(raw: string | null): CopilotResponseErrorReason {
     return raw
   }
   return 'unknown'
+}
+
+/** Optimistic failure row when a dispatch throws or returns ok:false before/without a hydrated failed message. */
+export function createOptimisticFailedEntry(
+  actionId: CopilotActionId,
+  errorReason: CopilotResponseErrorReason = 'unknown',
+  mode: CopilotModeId | null = null,
+): AssistantFailedEntry {
+  return {
+    kind: 'assistant-failed',
+    id: nextOptimisticId(`fail-${actionId}`),
+    sequence: OPTIMISTIC_SEQUENCE,
+    createdAt: new Date().toISOString(),
+    source: 'optimistic',
+    actionId,
+    errorReason,
+    mode,
+  }
+}
+
+/**
+ * After a refetch, drop the optimistic failure card when the server returned a
+ * *new* persisted assistant-failed row (same request already hydrated). Keep it
+ * when nothing new failed — e.g. throw before persist, or persistence disabled.
+ */
+export function shouldKeepEphemeralFailed(
+  previousEntries: TimelineEntry[],
+  nextEntries: TimelineEntry[],
+  ephemeral: AssistantFailedEntry | null,
+): boolean {
+  if (!ephemeral) return false
+  const prevIds = new Set(previousEntries.map((e) => e.id))
+  const hasNewPersistedFailed = nextEntries.some(
+    (e) => e.kind === 'assistant-failed' && e.source === 'persisted' && !prevIds.has(e.id),
+  )
+  return !hasNewPersistedFailed
 }
 
 export function mapMessageRowToTimelineEntry(row: AiMessageRow): TimelineEntry | null {
