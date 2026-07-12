@@ -7,6 +7,7 @@ import { useAdaptivePoll } from './useAdaptivePoll'
 import { serializeInboxFilters } from './serializeInboxFilters'
 import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
 import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
+import { shouldApplySyncResponse } from './syncRequestGuard'
 import type { InboxConversationListItem, InboxListFilters } from '@/modules/inbox/types'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 
@@ -48,7 +49,7 @@ export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }
       console.warn('[inbox.sync]', { status: res.status })
       return { changed: false, failed: true }
     }
-    if (filtersKeyRef.current !== requestFiltersKey) {
+    if (!shouldApplySyncResponse(requestFiltersKey, filtersKeyRef.current)) {
       return { changed: false, failed: false }
     }
     const data = (await res.json()) as SyncResponse
