@@ -10,6 +10,10 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     isolate: true,
+    // The runtime tests share one physical test database and each file resets
+    // the ai_* schema in setup; running files in parallel would race on the
+    // (non-atomic) schema reset, so files run sequentially.
+    fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,
     include: ['__tests__/runtime/**/*.test.ts'],
