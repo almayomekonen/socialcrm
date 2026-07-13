@@ -6,10 +6,17 @@ Read this if you are about to build, change, or review anything that touches AI.
 
 ---
 
+## Supreme doctrine (read before everything else)
+
+[**intelligence-constitution.md**](./intelligence-constitution.md) is the highest governing document for all AI work in SocialCRM. It is philosophy only, immutable except by formal amendment, and every other doc, prompt, plan, and implementation here must **conform** to it. If any doc below conflicts with the constitution, the constitution wins and the conflict must be explicitly resolved (never left as silent divergence). See its Article 0 for the amendment and conflict-resolution protocol.
+
+---
+
 ## Where to look first
 
 | Question                                                         | Doc                                                        |
 | ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| What should the intelligence fundamentally be? (supreme)         | [intelligence-constitution.md](./intelligence-constitution.md) |
 | Why is AI in this product at all?                                | [ai-product-philosophy.md](./ai-product-philosophy.md)     |
 | What text should the AI produce? Tone, banned phrases, examples. | [ai-editorial-guidelines.md](./ai-editorial-guidelines.md) |
 | How should the code/infra be structured?                         | [ai-architecture.md](./ai-architecture.md)                 |
@@ -23,6 +30,7 @@ Read this if you are about to build, change, or review anything that touches AI.
 
 ## Reading order for a new contributor
 
+0. `intelligence-constitution.md` — the supreme doctrine; everything below conforms to it
 1. `ai-product-philosophy.md` — calibrate taste
 2. `ai-safety-boundaries.md` — calibrate trust
 3. `ai-editorial-guidelines.md` — calibrate voice

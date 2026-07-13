@@ -1,5 +1,7 @@
 # ai-product-philosophy.md — Why AI Exists in SocialCRM
 
+> **Governed by the constitution.** [`intelligence-constitution.md`](./intelligence-constitution.md) is the supreme, immutable doctrine for what the AI fundamentally *is*. This doc is the applied strategic layer beneath it and must conform to it; where the two ever disagree, the constitution wins and the conflict must be explicitly resolved (Article 0).
+
 This doc owns the **strategic stance**. It does not contain writing rules, code rules, or roadmaps — those live in their own docs.
 
 If you are about to add an AI surface, read this first to calibrate taste. If the surface you are designing does not match this stance, do not build it.
