@@ -21,6 +21,7 @@
     "test:integration": "NODE_ENV=test vitest run __tests__",
     "test:integration:watch": "NODE_ENV=test vitest __tests__",
     "test:unit": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/ai",
+    "test:runtime": "NODE_ENV=test vitest run --config vitest.runtime.config.ts",
     "test:a11y": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/a11y",
     "test:unit:watch": "NODE_ENV=test VITEST_NO_DB=1 vitest __tests__/ai",
     "test:db:create": "createdb socialcrm_test 2>/dev/null || true",
