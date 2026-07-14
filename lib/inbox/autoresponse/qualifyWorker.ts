@@ -1,8 +1,14 @@
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
-import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
-import { skipAutoResponseJob, completeAutoResponseJob, countSentToday, type AutoResponseJob } from '@/db/autoResponseJobs'
+import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
+import {
+  skipAutoResponseJob,
+  completeAutoResponseJob,
+  failAutoResponseJob,
+  countSentToday,
+  type AutoResponseJob,
+} from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
@@ -14,6 +20,7 @@ import { buildSummary, type EscalationSummary } from './summary'
 import { isQualifierEnabled } from './killSwitch'
 import { validateAutoResponse } from './validate'
 import { withinQuietHours } from './worker'
+import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -55,7 +62,10 @@ async function sendAndPersist(
   if (!to) return { ok: false, reason: 'no_recipient' }
 
   const sent = await send({ phoneNumberId: ctx.conv.businessPhoneNumberId, accessToken: connection.access_token, to, body: text })
-  if (!sent.ok) return { ok: false, reason: 'send_failed' }
+  if (sent.ok === false) {
+    const detail = formatWhatsappSendFailure(sent)
+    return { ok: false, reason: detail }
+  }
 
   const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const res = await persistOutboundWhatsapp({
@@ -180,8 +190,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     console.log(
       `[IRE-DRAFT] conv=${conv.id} decision=${post.action}:${escalationReason ?? ''} reply=${JSON.stringify(drafted)} extracted=${JSON.stringify(gen.extracted)} qualification=${JSON.stringify(merged)}${summary ? ` summary=${JSON.stringify(summary.text)}` : ''}`,
     )
-    // TEMPORARY (P2.5 canary): persist the draft so it is reviewable, not just logged.
-    // Write-only observability — wrapped so a failure can never break send-suppression.
+
     try {
       await insertQualifyDraftReview({
         conversationId: conv.id,
@@ -199,6 +208,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       console.error(`[IRE-DRAFT] persist failed conv=${conv.id}:`, (e as Error).message)
     }
     await mergeOnly(conv.id, gen.extracted)
+    // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
+    await shadowIngestQualification({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, extracted: gen.extracted })
     await track({
       agencyId: job.agencyId,
       event: 'auto_response_draft',
@@ -211,10 +222,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   if (post.action === 'escalate' && summary) {
     const r = await sendAndPersist(job, ctx, deps.send, handoffMessage(post.reason, lang))
     if (r.ok === false) {
-      if (r.reason === 'send_failed') return 'failed'
+      if (r.reason.startsWith('whatsapp_send_failed')) {
+        await failAutoResponseJob(job.id, r.reason)
+        return 'failed'
+      }
       return doSkip(r.reason)
     }
     await mergeOnly(conv.id, gen.extracted)
+    // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
+    await shadowIngestQualification({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, extracted: gen.extracted })
     await markEscalated(conv.id, post.reason)
     await persistEscalation(conv.id, job.agencyId, summary)
     await completeAutoResponseJob(job.id, r.messageId)
@@ -230,10 +246,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // ── Continue: send one qualifying reply + advance the turn ──
   const r = await sendAndPersist(job, ctx, deps.send, gen.reply)
   if (r.ok === false) {
-    if (r.reason === 'send_failed') return 'failed'
+    if (r.reason.startsWith('whatsapp_send_failed')) {
+      await failAutoResponseJob(job.id, r.reason)
+      return 'failed'
+    }
     return doSkip(r.reason)
   }
   await recordTurn(conv.id, gen.extracted)
+  // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
+  await shadowIngestQualification({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, extracted: gen.extracted })
   await completeAutoResponseJob(job.id, r.messageId)
   console.log(`[IRE] qualify turn conv=${conv.id} turn=${aiState.aiTurnCount + 1} msg=${r.messageId}`)
   await track({ agencyId: job.agencyId, event: 'auto_response_sent', props: { conversationId: conv.id, reason: 'qualify_turn' } })
