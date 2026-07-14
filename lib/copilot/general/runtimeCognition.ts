@@ -195,3 +195,24 @@ export function formatRuntimeCognitionBlock(c: RuntimeCognition): string | null 
     lines.push('Reasoning: ' + c.reasoningChain.map((r) => `${r.key} → ${r.leaning} (${r.credence.toFixed(2)})`).join('; '))
   return lines.join('\n')
 }
+
+/**
+ * Aggregate the Runtime's per-candidate cognition into one block for the General-
+ * Mode executive synthesis. This is orchestration only — it formats cognition the
+ * Runtime already produced per subject; it performs no ranking, no selection, and
+ * no Runtime call. Selection stays with the CRM situation picture; the Runtime
+ * merely explains each candidate. Returns null when nothing is grounded.
+ */
+export function formatRuntimeCognitionForCandidates(items: Array<{ label: string; cognition: RuntimeCognition }>): string | null {
+  const blocks = items
+    .map(({ label, cognition }) => {
+      const block = formatRuntimeCognitionBlock(cognition)
+      return block ? `• ${label}:\n${block}` : null
+    })
+    .filter((b): b is string => b !== null)
+  if (blocks.length === 0) return null
+  return (
+    'AI Runtime cognition per candidate (understanding only — selection stays with the situation picture; do NOT rank, prioritize, or invent beyond this):\n\n' +
+    blocks.join('\n\n')
+  )
+}

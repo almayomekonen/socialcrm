@@ -1,6 +1,8 @@
 import { inferObjective } from './objective'
 import { classifyFallback } from './fallback'
 import { gatherTriageFacts } from './facts/gatherFacts'
+import { isRuntimeCognitionEnabledForUser } from '@/lib/copilot/featureFlag'
+import { getRuntimeCognition, formatRuntimeCognitionForCandidates } from './runtimeCognition'
 import { reasonOverFacts } from './reason'
 import { validateReasoning } from './validate'
 import { buildDecisionTrace, emitDecisionTrace } from './decisionTrace'
@@ -48,10 +50,33 @@ export async function tryReasonedAnswer(input: TryReasonedInput): Promise<Reason
 
   const facts = await gatherTriageFacts(input.scope)
 
+  // Additive, flag-gated: the CRM situation picture already SELECTED the candidate
+  // subjects (facts.groups[].rows[].refId). Reuse the exact per-subject Runtime
+  // bridge to EXPLAIN each candidate (the Copilot aggregates; the Runtime never
+  // ranks). Fully guarded — off/error → the executive prompt is unchanged.
+  let runtimeCognition: string | undefined
+  if (isRuntimeCognitionEnabledForUser({ agencyId: input.agencyId })) {
+    try {
+      const rows = facts.groups.flatMap((g) => g.rows)
+      const leadIds = Array.from(new Set(rows.map((r) => r.refId))).filter((id) => id.length > 0)
+      if (leadIds.length > 0) {
+        const cognitions = await getRuntimeCognition({ agencyId: input.agencyId }, leadIds)
+        const labelById = new Map(rows.map((r) => [r.refId, r.name]))
+        runtimeCognition =
+          formatRuntimeCognitionForCandidates(
+            cognitions.map((c) => ({ label: labelById.get(c.leadId) ?? c.leadId, cognition: c })),
+          ) ?? undefined
+      }
+    } catch {
+      // cognition is additive enrichment — never break the executive answer path
+    }
+  }
+
   const reasoned = await reasonOverFacts(objective, facts, {
     agencyId: input.agencyId,
     userId: input.userId,
     mode: input.mode,
+    runtimeCognition,
   })
   if (!reasoned) {
     emitDecisionTrace(
