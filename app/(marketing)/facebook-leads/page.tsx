@@ -96,10 +96,19 @@ const STATS = [
 const featureCategories = [
   {
     icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
-    title: 'לידים מפייסבוק ואינסטגרם',
+    title: 'לידים מפייסבוק',
     items: [
       { text: 'קבלה אוטומטית מ-Lead Ads' },
-      { text: 'חיבור יחיד לדף העסקי ב-Meta' },
+      { text: 'חיבור לדף העסקי' },
+      { text: 'זיהוי מקור הקמפיין' },
+    ],
+  },
+  {
+    icon: <Icon name='instagram' className='size-6 bg-primary' />,
+    title: 'לידים מאינסטגרם',
+    items: [
+      { text: 'טפסי מודעות אינסטגרם' },
+      { text: 'לידים מ-DM ופרופיל' },
       { text: 'עדכון אוטומטי בזמן אמת' },
     ],
   },
@@ -183,7 +192,7 @@ export default function FacebookLeadsPage() {
                   ראה איך זה עובד
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -253,7 +262,7 @@ export default function FacebookLeadsPage() {
           subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל כל הלידים שלך מנוהלים במקום אחד.'
           categories={featureCategories}
           buttonText='התחל בחינם עכשיו'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
         </div>
 
@@ -262,7 +271,7 @@ export default function FacebookLeadsPage() {
           title='מפסיקים לפספס לידים מפייסבוק'
           highlight='מתחילים לקבל אותם אוטומטית'
           buttonText='חבר את הפייסבוק שלך עכשיו'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         {/* FAQ */}

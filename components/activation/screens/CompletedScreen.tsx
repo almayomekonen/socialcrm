@@ -3,16 +3,12 @@
 import { useState } from 'react'
 import type { ScreenCopy } from '@/lib/activation/activationCopy'
 import { Btn } from '@/lib/btns/Btn'
-import ActivationProgress from '@/components/activation/ActivationProgress'
-import { SocialCrmMark } from '@/components/activation/ActivationBrand'
 
 export default function CompletedScreen({
   copy,
-  progress,
   onContinue,
 }: {
   copy: ScreenCopy
-  progress: number
   onContinue: () => Promise<boolean>
 }) {
   const [copied, setCopied] = useState(false)
@@ -27,18 +23,18 @@ export default function CompletedScreen({
 
   return (
     <div className='flex flex-col items-center gap-6 text-center'>
-      <SocialCrmMark size={64} />
-      <ActivationProgress label={copy.progressLabel} progress={progress} />
-      <h1 className='text-[26px] font-bold text-white'>{copy.heading}</h1>
-      {copy.body && <p className='max-w-[320px] text-[14px] text-white/70'>{copy.body}</p>}
-      {copy.instruction && <p className='max-w-[320px] text-[14px] text-white/85'>{copy.instruction}</p>}
+      <h1 className='text-[26px] font-bold text-white desktop:text-[#0f1024]'>{copy.heading}</h1>
+      {copy.body && <p className='max-w-[320px] text-[14px] text-white/70 desktop:text-gray-600'>{copy.body}</p>}
+      {copy.instruction && (
+        <p className='max-w-[320px] text-[14px] text-white/85 desktop:text-gray-700'>{copy.instruction}</p>
+      )}
       <Btn
         lbl={copied ? 'הקישור הועתק' : copy.ctaLabel ?? ''}
         onClick={handle}
         className='w-full max-w-[320px] justify-center'
       />
       {copy.secondary && (
-        <p className='text-[12px] text-white/45' dir='ltr'>
+        <p className='text-[12px] text-white/45 desktop:text-gray-400' dir='rtl'>
           {copy.secondary}
         </p>
       )}

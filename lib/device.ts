@@ -2,21 +2,22 @@ import { headers } from 'next/headers'
 import { userAgent } from 'next/server'
 
 /**
- * ARCHITECTURAL RULE — server-side gate for mobile-only UI.
+ * Server-side mobile (phone) detection from the request User-Agent.
  *
- * Mobile-only components (full-screen activation / "use a computer" overlays)
- * must NEVER be rendered into desktop HTML. Hiding them with CSS
- * (`desktop:hidden`, media queries, `hidden`, opacity, visibility, animations,
- * hydration timing) lets a fixed z-9999 overlay paint for a frame on desktop
- * before the browser applies the hide — a flash. Instead, gate the render at
- * the source: a server component calls this and returns `null` for non
- * mobile/tablet requests, so the overlay is absent from the DOM by construction.
+ * The CRM is a desktop-only product. This is the single source of truth for
+ * "is this a phone", used by:
+ *   - the (app) layout — redirect authenticated mobile users to /activate so
+ *     they never reach the dashboard, and
+ *   - the /activate route — so an onboarded mobile user is NOT bounced back to
+ *     the dashboard (which would loop), keeping /activate as the one mobile
+ *     experience.
  *
- * Phones AND tablets keep the mobile experience (this mirrors the `<1000px`
- * `desktop:hidden` breakpoint); only genuine desktop UAs (device.type is
- * `undefined`) are blocked. Never gate mobile-only UI with CSS alone.
+ * `device.type` is 'mobile' for phones (undefined for desktop, 'tablet' for
+ * tablets). We gate on phones only; large/landscape tablets keep the desktop
+ * experience, matching the historical >=1000px behaviour as closely as a
+ * UA-based server redirect can.
  */
-export async function isMobileOrTabletRequest(): Promise<boolean> {
+export async function isMobileRequest(): Promise<boolean> {
   const { device } = userAgent({ headers: await headers() })
-  return device.type === 'mobile' || device.type === 'tablet'
+  return device.type === 'mobile'
 }

@@ -14,14 +14,14 @@ import Icon from '@/lib/Icon'
 const PAGE_PATH = '/instagram-leads-crm'
 const PAGE_TITLE = 'CRM ללידים מאינסטגרם — ניהול DMs, סטוריז וקמפיינים | SocialCRM'
 const PAGE_DESCRIPTION =
-  'לידים מאינסטגרם מגיעים מכל מקום: DMs, סטוריז, קמפיינים. SocialCRM אוסף את כולם למקום אחד עם סטטוס, נציג ותזכורות — כל פנייה הופכת לליד מנוהל שלא נופל בין הכיסאות.'
+  'לידים מאינסטגרם מגיעים מכל מקום: DMs, סטוריז, קמפיינים. SocialCRM אוסף את כולם למקום אחד עם מקור, סטטוס, נציג ותזכורות — ומראה לך איזה קמפיין באמת סוגר.'
 
 export const metadata = buildPageMetadata({
   path: PAGE_PATH,
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   ogTitle: 'CRM ללידים מאינסטגרם | SocialCRM',
-  ogDescription: 'ניהול DMs, סטוריז וקמפיינים מאינסטגרם במקום אחד. בלי לאבד אף פנייה.',
+  ogDescription: 'ניהול DMs, סטוריז וקמפיינים מאינסטגרם במקום אחד. ROI ברור על כל קמפיין IG.',
 })
 
 const faqItems = [
@@ -33,17 +33,17 @@ const faqItems = [
   {
     question: 'איך עובד החיבור לקמפיינים של Instagram?',
     answer:
-      'אינסטגרם רץ דרך Meta, אז כל קמפיין Lead Ads שאתה מריץ באינסטגרם — Stories, Reels או פיד — מתחבר אוטומטית ל-SocialCRM דרך אותו חיבור יחיד ל-Meta (יחד עם קמפיינים בפייסבוק). כל ליד שממלא טופס מודעה נכנס למערכת תוך שניות ומנוהל אוטומטית.',
+      'אינסטגרם רץ דרך Meta, אז כל קמפיין Lead Ads שאתה מריץ באינסטגרם — בין שזה ב-Stories Ads, Reels Ads או פיד — מתחבר אוטומטית ל-SocialCRM דרך החיבור היחיד למטא. כל ליד שממלא טופס מודעה באינסטגרם מגיע למערכת תוך שניות עם הסימון "Instagram" כמקור.',
   },
   {
-    question: 'אפשר לדעת אילו לידים מ-Meta באמת נסגרים?',
+    question: 'אפשר לעקוב אחר ROI של קמפיין באינסטגרם ספציפי?',
     answer:
-      'כן. כל ליד מקבל סטטוס (חדש, בטיפול, נסגר, אבוד), כך שרואים בדיוק כמה מהלידים שנכנסו מ-Lead Ads נסגרו בפועל — לא רק כמה נכנסו. פילוח לפי קמפיין ספציפי נעשה במנהל המודעות של Meta; SocialCRM מתמקד בניהול הליד עצמו כדי שאף אחד לא ייפול בין הכיסאות.',
+      'כן. כל ליד שמגיע מקמפיין IG נושא תיוג של מקור הקמפיין. אפשר לראות בקלות איזה קמפיין הביא 50 לידים אבל סגר רק 2, ואיזה הביא 12 לידים אבל סגר 8. זה הופך את ההחלטה איפה לשים את התקציב להחלטה מבוססת נתונים.',
   },
   {
     question: 'מה ההבדל בין לידים מאינסטגרם ללידים מפייסבוק?',
     answer:
-      'לידים מטפסי מודעה בפייסבוק ובאינסטגרם מגיעים דרך אותו חיבור יחיד ל-Meta ובאותה דרך בדיוק (Facebook & Instagram Lead Ads). Meta לא חושפת לכל ליד בודד אם הוא הגיע מפייסבוק או מאינסטגרם, ולכן אנחנו לא ממציאים תיוג כזה — כל הלידים מרוכזים ומנוהלים יחד במקום אחד, עם סטטוס, נציג ומעקב.',
+      'מבחינת המערכת — שניהם מגיעים דרך החיבור ל-Meta. אבל לידים מאינסטגרם נוטים להיות צעירים יותר, מגיבים מהר יותר ב-DM, ומצפים לתגובה חזותית. סימון המקור נפרד ("Instagram" vs "Facebook") מאפשר לך להגדיר קצב מענה ותסריטי שיחה שונים לכל ערוץ.',
   },
   {
     question: 'מה עם תגובות לסטוריז ול-Reels — איך מנהלים אותן?',
@@ -71,7 +71,7 @@ const faqData = {
 const STATS = [
   { value: '5 דק׳', label: 'לחבר Meta Lead Ads', sub: 'אוטומטית גם לאינסטגרם' },
   { value: '0', label: 'לידים שנעלמים ב-DM', sub: 'כשכל פנייה הופכת לליד מנוהל' },
-  { value: 'סטטוס', label: 'לכל ליד מ-Meta', sub: 'רואים מה נסגר, לא רק כמה נכנס' },
+  { value: 'ROI', label: 'ברור לכל קמפיין IG', sub: 'יודעים איזה קמפיין באמת סוגר' },
 ]
 
 const featureCategories = [
@@ -81,7 +81,7 @@ const featureCategories = [
     items: [
       { text: 'דרך Meta Lead Ads — כיסוי מלא' },
       { text: 'Stories, Reels, Feed Ads' },
-      { text: 'ניהול מיידי מרגע הכניסה' },
+      { text: 'תיוג קמפיין אוטומטי' },
     ],
   },
   {
@@ -89,17 +89,17 @@ const featureCategories = [
     title: 'לידים מ-DMs ותגובות',
     items: [
       { text: 'הוספה ידנית בעשר שניות' },
-      { text: 'רושמים מקור "Instagram" בהוספה' },
+      { text: 'מקור "Instagram" אוטומטית' },
       { text: 'הערה קצרה על ההקשר' },
     ],
   },
   {
     icon: <Icon name='chart-line' className='size-6 bg-primary' />,
-    title: 'מעקב סגירה',
+    title: 'ROI לפי קמפיין',
     items: [
-      { text: 'סטטוס וסגירה לכל ליד' },
-      { text: 'רואים מה נסגר ומה לא' },
-      { text: 'החלטות מבוססות נתונים' },
+      { text: 'לידים נסגרים לפי מקור' },
+      { text: 'השוואה בין קמפיינים' },
+      { text: 'איפה כדאי להשקיע יותר' },
     ],
   },
   {
@@ -173,8 +173,8 @@ export default function InstagramLeadsCrmPage() {
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 לידים מאינסטגרם מגיעים מכל פינה — DMs, תגובות לסטוריז, מודעות Lead Ads.
-                SocialCRM אוסף את כולם למקום אחד, עם סטטוס, נציג ותזכורת לכל ליד — כדי שאף
-                פנייה לא תיפול בין הכיסאות.
+                SocialCRM אוסף את כולם למקום אחד, מתייג את המקור, ומראה לך איזה קמפיין באמת
+                מחזיר את הכסף.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
@@ -184,7 +184,7 @@ export default function InstagramLeadsCrmPage() {
                   ראה את כל הפיצ׳רים
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -263,13 +263,14 @@ export default function InstagramLeadsCrmPage() {
             <h2 className='text-3xl font-bold mb-6'>איך SocialCRM מנהל לידים מאינסטגרם</h2>
             <p className='text-lg text-gray-700 mb-4 leading-relaxed'>
               שני סוגי לידים — שני סוגי טיפול. לידים מ-Lead Ads (סטוריז, Reels, פיד) נכנסים
-              אוטומטית דרך החיבור ל-Meta תוך שניות. לידים מ-DMs ומתגובות לסטוריז נוספים ידנית
-              בעשר שניות, עם מקור "Instagram" ובמידת הצורך גם הערה על איזה תוכן הם הגיבו.
+              אוטומטית דרך החיבור ל-Meta תוך שניות, עם תיוג קמפיין מלא. לידים מ-DMs ומתגובות
+              לסטוריז נוספים ידנית בעשר שניות, עם תיוג מקור "Instagram" ובמידת הצורך גם הערה
+              על איזה תוכן הם הגיבו.
             </p>
             <p className='text-lg text-gray-700 mb-8 leading-relaxed'>
-              מאותו רגע — הכל במסך אחד. סטטוסים, נציגים אחראים, תזכורות מעקב, וסטטוס סגירה לכל
-              ליד — רואים כמה מהפניות באמת נסגרו, לא רק כמה נכנסו. ניהול שמבוסס על מספרים, לא על
-              תחושות.
+              מאותו רגע — הכל במסך אחד. סטטוסים, נציגים אחראים, תזכורות מעקב, ודיווח ברור על איזה
+              קמפיין IG הביא את הסגירות הרבות ביותר. הופך את ההחלטה לאיפה לכוון תקציב פרסום
+              להחלטה שמבוססת על מספרים, לא על תחושות.
             </p>
 
             <div className='grid sm:grid-cols-2 gap-6'>
@@ -277,9 +278,9 @@ export default function InstagramLeadsCrmPage() {
                 <p className='font-semibold mb-2'>לידים מ-Instagram Ads</p>
                 <ul className='text-sm text-gray-600 space-y-1'>
                   <li>✓ אוטומטי דרך Meta Lead Ads</li>
-                  <li>✓ יחד עם קמפיינים בפייסבוק</li>
+                  <li>✓ תיוג קמפיין מובנה</li>
                   <li>✓ זמן הגעה: שניות</li>
-                  <li>✓ סטטוס וסגירה לכל ליד</li>
+                  <li>✓ מדידת ROI לפי קמפיין</li>
                 </ul>
               </div>
               <div
@@ -304,14 +305,14 @@ export default function InstagramLeadsCrmPage() {
           subtitle='ערוץ אחד עם הרבה צורות פנייה — שכבה ניהולית אחת שמטפלת בכולן.'
           categories={featureCategories}
           buttonText='התחל לנהל לידים מאינסטגרם בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <AnimatedCta
           title='מפסיקים לאבד DMs'
           highlight='מתחילים לסגור יותר עסקאות מאינסטגרם'
           buttonText='התחל בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <FAQ

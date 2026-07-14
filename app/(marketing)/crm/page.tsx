@@ -99,7 +99,7 @@ const howToSchema = {
   inLanguage: 'he',
   step: [
     { '@type': 'HowToStep', position: 1, name: 'אוספים את כל הלידים הקיימים', text: 'מייבאים לידים קיימים מאקסל, וואטסאפ ומקורות אחרים למקום אחד.' },
-    { '@type': 'HowToStep', position: 2, name: 'מחברים את מקורות הלידים', text: 'מחברים את דף הפייסבוק (שמחובר גם לאינסטגרם) כך שלידים חדשים מ-Lead Ads יגיעו אוטומטית.' },
+    { '@type': 'HowToStep', position: 2, name: 'מחברים את מקורות הלידים', text: 'מחברים דף פייסבוק ואינסטגרם כך שלידים חדשים יגיעו אוטומטית.' },
     { '@type': 'HowToStep', position: 3, name: 'מגדירים סטטוסים', text: 'קובעים את שלבי המכירה: חדש, בטיפול, הצעת מחיר, סגור, אבוד.' },
     { '@type': 'HowToStep', position: 4, name: 'משייכים לנציגים', text: 'מחלקים לידים בין הנציגים. כל אחד רואה רק את שלו.' },
     { '@type': 'HowToStep', position: 5, name: 'עובדים לפי רשימת עדיפויות', text: 'פותחים את המערכת בכל יום ורואים מיידית מה צריך טיפול דחוף.' },
@@ -127,10 +127,10 @@ export default function CRMPage() {
         <TestimonialsSection />
 
         <AnimatedCta
-          title='מפסיקים לרדוף אחרי לידים'
-          highlight='מתחילים לסגור עסקאות'
+          title='מפסיקים לנהל לידים בצד'
+          highlight='מתחילים לנהל אותם נכון'
           buttonText='התחל לנהל לידים בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         <FAQ

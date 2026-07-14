@@ -22,6 +22,8 @@ export default async function RootLayout({ children }) {
         <ToastMsg />
         <ChunkReloader />
         <MetaPixel />
+        {/* Neutral wrapper only — the <main> landmark is owned by each route
+            group's layout so there is exactly one <main> per document. */}
         <div>{children}</div>
       </body>
     </html>

@@ -9,13 +9,13 @@ import HeroScroll from '@/components/auth/HeroScroll'
 export const metadata: Metadata = {
   title: 'התחברות | SocialCRM — מערכת ניהול לידים',
   description:
-    'התחבר ל-SocialCRM — מערכת ניהול הלידים לעסקים קטנים. כל הלידים מפייסבוק ואינסטגרם ומוואטסאפ במקום אחד. בלי לפספס אף ליד.',
+    'התחבר ל-SocialCRM — מערכת ניהול הלידים לעסקים קטנים. כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
   alternates: {
     canonical: 'https://getsocialcrm.com/auth',
   },
   openGraph: {
     title: 'SocialCRM כל הלידים שלך במקום אחד',
-    description: 'נהל את כל הלידים מפייסבוק ואינסטגרם ומוואטסאפ ממקום אחד. התחל עכשיו בחינם.',
+    description: 'נהל את כל הלידים מפייסבוק, אינסטגרם ווואטסאפ ממקום אחד. התחל עכשיו בחינם.',
     url: 'https://getsocialcrm.com/auth',
   },
 }
@@ -29,7 +29,7 @@ const faqSchema = {
       name: 'מה זה SocialCRM?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'SocialCRM היא מערכת ניהול לידים לעסקים קטנים. היא מאגדת את כל הלידים שמגיעים מפייסבוק ואינסטגרם ומוואטסאפ למקום אחד, כך שלא מפספסים אף ליד.',
+        text: 'SocialCRM היא מערכת ניהול לידים לעסקים קטנים. היא מאגדת את כל הלידים שמגיעים מפייסבוק, אינסטגרם ווואטסאפ למקום אחד, כך שלא מפספסים אף ליד.',
       },
     },
     {

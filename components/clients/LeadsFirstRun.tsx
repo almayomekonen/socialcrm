@@ -33,6 +33,10 @@ export default function LeadsFirstRun({
               </p>
             </header>
 
+            {/* Same grid idiom as below. When WhatsApp is still unconnected we
+                offer it as one more equal card (never a highlighted "next step"),
+                and Import drops to a centered card on its own row — 2 + 1, so
+                three cards stay balanced instead of reading as a checklist. */}
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <OnboardingActionCard
                 onClick={() => setOpenForm(true)}

@@ -49,7 +49,7 @@ export const israeliPlans: [PriceTier, PriceTier] = [
     features: [
       'לידים ללא הגבלה',
       'משתמשים ללא הגבלה',
-      'חיבור לפייסבוק ואינסטגרם ולוואטסאפ',
+      'חיבור פייסבוק, אינסטגרם ו-וואטסאפ',
       'ייבוא לידים מאקסל',
       '10 פעולות AI בחודש במצב מהיר',
     ],
@@ -262,7 +262,7 @@ export default function PricingPageComponent() {
   const handlePlanSelect = (planId: PlanId, selectedCycle: BillingCycle) => {
     if (planId === 'free') {
       // Free plan = registration funnel (unchanged).
-      router.push('/auth/register')
+      router.push('/auth')
       return
     }
     // Pro: the exact same upgrade mechanism as the billing page. The route

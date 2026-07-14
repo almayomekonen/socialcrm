@@ -1,4 +1,4 @@
-import { screenKindFor, activationProgress, type ActivationMachine } from '@/lib/activation/activationState'
+import { screenKindFor, type ActivationMachine } from '@/lib/activation/activationState'
 import { copyFor } from '@/lib/activation/activationCopy'
 import WaitingScreen from '@/components/activation/screens/WaitingScreen'
 import SelectPageScreen from '@/components/activation/screens/SelectPageScreen'
@@ -15,22 +15,22 @@ type Props = {
 }
 
 /**
- * Pure renderer: maps state → screen via screenKindFor. No business decisions —
- * the FSM already decided the state, the copy module owns the words.
+ * Pure renderer: maps state → screen via screenKindFor. No business decisions,
+ * no progress indicator (cinematic, not a wizard) — the FSM decides the state,
+ * the copy module owns the words.
  */
 export default function ActivationScreen({ machine, onCta, onSelect, onRetry, onContinue }: Props) {
   const copy = copyFor(machine.status, machine.context)
-  const progress = activationProgress(machine.status)
 
   switch (screenKindFor(machine.status)) {
     case 'waiting':
-      return <WaitingScreen copy={copy} progress={progress} onCta={onCta} />
+      return <WaitingScreen copy={copy} onCta={onCta} />
     case 'working':
       return <WorkingScreen copy={copy} />
     case 'select':
-      return <SelectPageScreen copy={copy} progress={progress} pages={machine.context.pages} onSelect={onSelect} />
+      return <SelectPageScreen copy={copy} pages={machine.context.pages} onSelect={onSelect} />
     case 'completed':
-      return <CompletedScreen copy={copy} progress={progress} onContinue={onContinue} />
+      return <CompletedScreen copy={copy} onContinue={onContinue} />
     case 'retry':
       return <RetryScreen copy={copy} onRetry={onRetry} />
   }

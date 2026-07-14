@@ -5,6 +5,13 @@ import { placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
 
 export type MenuPos = { top: number; left: number; width: number }
 
+/**
+ * Shared floating-menu mechanics for inline popovers: viewport-aware placement,
+ * portal-friendly `fixed` position, and close on outside-click / Escape /
+ * scroll / resize. Mirrors FollowUpControl's behavior so new triggers (e.g.
+ * OutcomeControl compact) reuse it exactly. (FollowUpControl can migrate to this
+ * later; left untouched for now to avoid regressing a tested surface.)
+ */
 export function useFloatingMenu() {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<MenuPos | null>(null)

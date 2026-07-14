@@ -162,7 +162,7 @@ export default function CRMvsExcelPage() {
                   ראה את כל הפיצ׳רים
                 </Link>
                 <Link
-                  href='/auth/register'
+                  href='/auth'
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
@@ -205,7 +205,7 @@ export default function CRMvsExcelPage() {
             subtitle='כל הכלים שאקסל לא יכול לתת לך — בממשק אחד, פשוט ומהיר.'
             categories={featureCategories}
             buttonText='עבור ל-SocialCRM בחינם'
-            buttonHref='/auth/register'
+            buttonHref='/auth'
           />
         </div>
 
@@ -214,7 +214,7 @@ export default function CRMvsExcelPage() {
           title='מפסיקים לנהל לידים באקסל'
           highlight='מתחילים לנהל אותם נכון'
           buttonText='עבור ל-SocialCRM בחינם'
-          buttonHref='/auth/register'
+          buttonHref='/auth'
         />
 
         {/* FAQ */}

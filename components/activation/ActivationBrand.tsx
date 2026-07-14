@@ -1,14 +1,5 @@
-/**
- * Brand composition for the activation flow — NOT decoration.
- *
- * Communicates the product in under a second: the three lead channels
- * (Facebook, Instagram, WhatsApp) converge into the one SocialCRM workspace.
- * Reuses the product's existing assets only — the `fav.svg` mark, the brand
- * channel glyphs in /media/social-icons, the amber glow + glass vocabulary
- * from the existing premium surface, and the CSS-mask coloring idiom from Icon.tsx.
- *
- * AI is intentionally omitted: it is the assistant, not an inbound channel.
- */
+export const ACTIVATION_BG =
+  'radial-gradient(ellipse 120% 80% at 50% 0%, #0c0a1f 0%, #06081a 50%, #04050f 100%)'
 
 const MASK_BASE = {
   maskRepeat: 'no-repeat',
@@ -22,12 +13,11 @@ const MASK_BASE = {
 const INSTAGRAM_GRADIENT =
   'linear-gradient(45deg, #feda75 0%, #fa7e1e 25%, #d62976 50%, #962fbf 75%, #4f5bd5 100%)'
 
-/** A single channel glyph, recolored to its brand via the existing mask idiom. */
 function ChannelGlyph({ file, background }: { file: string; background: string }) {
   return (
     <span
       aria-hidden='true'
-      className='size-5'
+      className='size-6'
       style={{
         background,
         maskImage: `url(/media/social-icons/${file})`,
@@ -38,11 +28,10 @@ function ChannelGlyph({ file, background }: { file: string; background: string }
   )
 }
 
-/** Glass chip housing a channel glyph — matches the product's existing glass cards. */
 function ChannelChip({ file, background, style }: { file: string; background: string; style: React.CSSProperties }) {
   return (
     <div
-      className='absolute grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl'
+      className='absolute grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl'
       style={{
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.10)',
@@ -55,7 +44,6 @@ function ChannelChip({ file, background, style }: { file: string; background: st
   )
 }
 
-/** The SocialCRM app mark — the existing squircle plate + colored fav logo + amber halo. */
 export function SocialCrmMark({ size = 76 }: { size?: number }) {
   return (
     <div className='relative inline-flex items-center justify-center'>
@@ -95,15 +83,16 @@ export function SocialCrmMark({ size = 76 }: { size?: number }) {
   )
 }
 
-export default function ActivationBrand() {
+export default function ActivationBrand({ width = 300 }: { width?: number }) {
+  const height = Math.round((width * 210) / 300)
+  const markSize = Math.round(width * 0.29)
   return (
-    <div className='relative mx-auto h-[170px] w-full max-w-[300px]' aria-hidden='true'>
-      {/* Converging flow lines — faint amber, with a slow travelling pulse toward the mark */}
-      <svg viewBox='0 0 300 170' className='absolute inset-0 h-full w-full' fill='none'>
+    <div className='relative mx-auto w-full' style={{ maxWidth: width, height }} aria-hidden='true'>
+      <svg viewBox='0 0 300 210' className='absolute inset-0 h-full w-full' fill='none'>
         {[
-          'M 45 40 Q 90 90, 150 92',
-          'M 150 26 Q 150 60, 150 92',
-          'M 255 40 Q 210 90, 150 92',
+          'M 45 36 Q 100 116, 150 122',
+          'M 150 23 Q 150 78, 150 122',
+          'M 255 36 Q 200 116, 150 122',
         ].map((d, i) => (
           <g key={d}>
             <path d={d} stroke='rgba(252,191,73,0.30)' strokeWidth='1.5' />
@@ -114,14 +103,12 @@ export default function ActivationBrand() {
         ))}
       </svg>
 
-      {/* Channels */}
-      <ChannelChip file='facebook.svg' background='#1877f2' style={{ left: '15%', top: '24%' }} />
-      <ChannelChip file='instagram.svg' background={INSTAGRAM_GRADIENT} style={{ left: '50%', top: '15%' }} />
-      <ChannelChip file='whatsapp.svg' background='#25d366' style={{ left: '85%', top: '24%' }} />
+      <ChannelChip file='facebook.svg' background='#1877f2' style={{ left: '15%', top: '17%' }} />
+      <ChannelChip file='instagram.svg' background={INSTAGRAM_GRADIENT} style={{ left: '50%', top: '11%' }} />
+      <ChannelChip file='whatsapp.svg' background='#25d366' style={{ left: '85%', top: '17%' }} />
 
-      {/* The workspace they converge into */}
-      <div className='absolute left-1/2 -translate-x-1/2' style={{ top: '54%' }}>
-        <SocialCrmMark size={76} />
+      <div className='absolute left-1/2 -translate-x-1/2' style={{ top: '58%' }}>
+        <SocialCrmMark size={markSize} />
       </div>
     </div>
   )

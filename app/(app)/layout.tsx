@@ -14,10 +14,13 @@ import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import { isGeneralModeEnabled } from '@/lib/ai/flags'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
+import { CrmSyncHealthProvider } from '@/lib/polling/CrmSyncHealthContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
+import { isOnboarded } from '@/lib/activation/onboarding'
+import { isMobileRequest } from '@/lib/device'
 import SkipLink from '@/components/layout/SkipLink'
-import MobileActivationGate from '@/components/layout/MobileActivationGate'
+import Loading from '@/components/ui/Loading'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -29,8 +32,13 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
-
   if (!user) redirect('/api/auth/clear')
+
+  if (user.suspended) redirect('/api/auth/clear')
+
+  if (await isMobileRequest()) redirect('/activate')
+
+  if (!(await isOnboarded(user.agencyId))) redirect('/activate')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 
@@ -41,8 +49,13 @@ async function LayoutContent({ children }) {
   } catch (err) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
   }
-
+  
   const owner = isPlatformOwner(user.email)
+  // Owner-only preview escape hatch: lets the owner force-render the paywall to
+  // inspect it despite the exemption. Set in the browser console with
+  //   document.cookie = 'preview_paywall=1;path=/'
+  // and clear it with
+  //   document.cookie = 'preview_paywall=;path=/;max-age=0'
   const previewPaywall = owner && (await cookies()).get('preview_paywall')?.value === '1'
   const trialExpired = (trialStatus === 'TRIAL_EXPIRED' && !owner) || previewPaywall
   let leadPreview = { total: 0, names: [] as string[] }
@@ -58,6 +71,7 @@ async function LayoutContent({ children }) {
 
   const copilotEnabled = isCopilotEnabledForUser(user)
   const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
+
   let inboxUnread = 0
   if (user.agencyId && user.role !== Roles.OFFICE) {
     inboxUnread = await countUnreadConversationsForUser(user.agencyId, user.id).catch(() => 0)
@@ -66,6 +80,7 @@ async function LayoutContent({ children }) {
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
 
   return (
+    <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
     <UserProvider user={user}>
       <PosProvider>
@@ -89,17 +104,15 @@ async function LayoutContent({ children }) {
       </PosProvider>
     </UserProvider>
     </AwarenessProvider>
+    </CrmSyncHealthProvider>
   )
 }
 
 export default function AppLayout({ children }) {
   return (
     <>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<Loading />}>
         <LayoutContent>{children}</LayoutContent>
-      </Suspense>
-      <Suspense fallback={null}>
-        <MobileActivationGate />
       </Suspense>
     </>
   )

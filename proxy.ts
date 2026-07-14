@@ -38,7 +38,11 @@ export const config = {
   // .mjs is excluded so static module assets like /copilot/pdf.worker.min.mjs
   // are served directly without going through auth — they're public worker
   // bundles, not protected routes.
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.css$|.*\\.mjs$|.*\\.png$|.*\\.jpg$|.*\\.webp$|.*\\.svg$|manifest\\.json).*)'],
+  // media/video is excluded so the activation hero video (mp4/webm) is served
+  // directly as a static asset — not routed through auth (which 302'd it and
+  // added overhead to range requests). Narrow path exclusion, not a blanket
+  // extension exclusion, so no other content is exposed.
+  matcher: ['/((?!api|_next/static|_next/image|media/video|.*\\.css$|.*\\.mjs$|.*\\.png$|.*\\.jpg$|.*\\.webp$|.*\\.svg$|manifest\\.json).*)'],
 }
 
 // includes auth pages

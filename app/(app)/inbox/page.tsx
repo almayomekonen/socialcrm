@@ -6,11 +6,13 @@ import { listInboxConversations, getInboxConversationById, getInboxSmartCounts }
 import { parseInboxFilters, inboxFiltersKey } from '@/modules/inbox/filters'
 import InboxConversationList from '@/modules/inbox/components/InboxConversationList'
 import { InboxStoreProvider } from '@/modules/inbox/client/inboxStore'
-import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
+import { isInboxDeltaSyncEnabled, getInboxRefreshIntervalMs } from '@/lib/flags/inboxFlags'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
+import InboxLiveModeLog from '@/components/summary/InboxLiveModeLog'
 import InboxToolbar from '@/modules/inbox/components/InboxToolbar'
 import InboxWorkspace from '@/modules/inbox/components/InboxWorkspace'
 import InboxEmptyState from '@/modules/inbox/components/InboxEmptyState'
+import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
 import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSkeleton'
 import ConversationIntelligenceCard from '@/modules/inbox/components/ConversationIntelligenceCard'
@@ -43,6 +45,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   ])
 
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
+  const refreshMs = getInboxRefreshIntervalMs(deltaSyncEnabled)
 
   return (
     <InboxStoreProvider
@@ -53,9 +56,13 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       deltaSyncEnabled={deltaSyncEnabled}
     >
       <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
-        <ConversationRefreshPoller />
+        <InboxLiveModeLog deltaSyncEnabled={deltaSyncEnabled} refreshMs={refreshMs} />
+        {refreshMs != null ? <ConversationRefreshPoller intervalMs={refreshMs} /> : null}
 
         <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
+          <div data-alert-region='crm-sync' className='shrink-0'>
+            <CrmSyncBanner sources={['inbox-sync']} compact />
+          </div>
           <InboxToolbar filters={filters} selectedConversation={selectedConversationId} smartCounts={smartCounts} />
           <InboxConversationList selectedConversationId={selectedConversationId} />
         </aside>

@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { logout, getSessionState } from '@/actions/auth'
 
 const NAV_LINKS: { text: ReactNode; href: string }[] = [
   { text: 'ניהול לידים', href: '/crm' },
@@ -20,10 +21,42 @@ interface MarketingNavbarProps {
 
 export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [authed, setAuthed] = useState(isAuthenticated)
+
+  useEffect(() => {
+    let active = true
+    getSessionState().then((ok) => active && setAuthed(ok))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const scrollY = window.scrollY
+    const body = document.body
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    }
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+    body.style.overflow = 'hidden'
+    return () => {
+      body.style.position = prev.position
+      body.style.top = prev.top
+      body.style.width = prev.width
+      body.style.overflow = prev.overflow
+      window.scrollTo(0, scrollY)
+    }
+  }, [mobileOpen])
 
   const cta = isAuthenticated
     ? { text: 'פתח את האפליקציה', href: '/' }
-    : { text: 'התחל בחינם', href: '/auth/register' }
+    : { text: 'התחל בחינם', href: '/auth' }
 
   return (
     <div className='pt-6 pb-3 px-4'>
@@ -105,6 +138,16 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
           >
             {cta.text}
           </Link>
+          {authed && (
+            <form action={logout}>
+              <button
+                type='submit'
+                className='w-full py-2 text-center text-gray-600 text-base font-medium hover:text-[#3f20f5]'
+              >
+                התנתק
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

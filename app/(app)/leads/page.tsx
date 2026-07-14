@@ -10,6 +10,7 @@ import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import MetaDisconnectedBanner from '@/components/clients/MetaDisconnectedBanner'
+import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
 import WelcomeToast from '@/components/auth/WelcomeToast'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
@@ -59,8 +60,11 @@ export default async function LeadsPage({ searchParams }) {
 
       {hasLeads ? (
         <>
-          <MetaDisconnectedBanner show={meta.needsReconnect} />
-          <OverQuotaBanner count={quota.overQuotaCount} />
+          <div data-alert-region='crm-sync' className='shrink-0'>
+            <MetaDisconnectedBanner show={meta.needsReconnect} />
+            <OverQuotaBanner count={quota.overQuotaCount} />
+            <CrmSyncBanner sources={['leads', 'awareness']} />
+          </div>
           <Suspense fallback={null}>
             <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
           </Suspense>

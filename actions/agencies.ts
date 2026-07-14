@@ -50,7 +50,6 @@ export async function addAgency(data) {
   if (success && newUser && createdUserId) {
     await createCookie(createdUserId)
     console.log(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=success`)
-    // Analytics-only device hint from the form (never written to any table).
     const device = data?.device === 'desktop' || data?.device === 'mobile' ? data.device : 'unknown'
     const agencyIdForEvent = createdAgencyId
     const userIdForEvent = createdUserId
@@ -58,7 +57,7 @@ export async function addAgency(data) {
       track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
     )
     after(() => sendWelcomeEmail(newUser!))
-    const firstName = (newUser as { firstName: string }).firstName ?? ''
+
     const provider = data?.provider === 'google' || data?.provider === 'email' ? data.provider : null
     after(() =>
       emitLifecycleEvent({
@@ -66,12 +65,13 @@ export async function addAgency(data) {
         userId: userIdForEvent,
         agencyId: agencyIdForEvent!,
         email,
-        firstName,
+        firstName: newUser!.firstName,
         plan: null,
         provider,
       }),
     )
-    redirect(`/leads?welcome=${encodeURIComponent(firstName)}`)
+
+    redirect('/activate?welcome=1')
   }
   return success
 }

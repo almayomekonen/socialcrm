@@ -13,6 +13,7 @@ export default async function SettingLayout({ children }) {
         <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
         <SettingsLink href='/settings/facebook' icon='comment-dots' title='ערוצי לידים' />
         <SettingsLink href='/settings/calendar' icon='calendar' title='יומן Google' />
+        <SettingsLink href='/settings/integrations' icon='plug' title='אינטגרציות' />
 
         {user.role == 'ADMIN' && (
           <>

@@ -7,7 +7,6 @@ import { useAction } from '@/lib/useAction'
 import { toast } from '@/lib/toast'
 import { wait } from '@/lib/funcs'
 import type { FacebookHealthStatus } from '@/lib/facebook/health'
-import { MetaLeadAdsBadge } from '@/components/ui/MetaLeadAdsBadge'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Page = { id: string; name: string; access_token: string }
@@ -175,10 +174,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
       {urlError && (
         <p className='text-sm text-red-600'>{ERROR_MESSAGES[urlError] ?? 'שגיאה בהתחברות לפייסבוק.'}</p>
       )}
-      <MetaLeadAdsBadge size='md' />
-      <p className='text-sm text-gray-500'>
-        חבר את דף הפייסבוק שלך כדי לקבל לידים מ‑Lead Ads של פייסבוק ואינסטגרם אוטומטית.
-      </p>
+      <p className='text-sm text-gray-500'>חבר את דף הפייסבוק שלך כדי לקבל לידים אוטומטית.</p>
       <Btn
         lbl={loading ? 'מעביר לפייסבוק...' : 'חבר חשבון פייסבוק'}
         icon={loading ? 'spinner' : 'facebook'}

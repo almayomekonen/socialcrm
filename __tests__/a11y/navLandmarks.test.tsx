@@ -14,6 +14,14 @@ import { render, screen, cleanup } from '@testing-library/react'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/leads' }))
 vi.mock('@/components/copilot/CopilotTopbarTrigger', () => ({ default: () => null }))
+// MarketingNavbar imports server actions from '@/actions/auth', which transitively
+// load config/db and require DATABASE_URL under the no-DB test harness. Stub the
+// module so importing/rendering the component here doesn't touch the database.
+// Test-harness only — no production/accessibility code is affected.
+vi.mock('@/actions/auth', () => ({
+  logout: vi.fn(),
+  getSessionState: vi.fn(() => Promise.resolve(false)),
+}))
 
 import Topbar from '@/lib/navs/Topbar'
 import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'

@@ -17,6 +17,12 @@ export type TrialState = {
 
 const DAY_MS = 86_400_000
 
+/**
+ * The trial state machine, as a pure function. Status is never stored —
+ * always derived. Precedence (spec §5): PAID → LEGACY → NEVER_STARTED →
+ * TRIAL_ACTIVE → TRIAL_EXPIRED. `now` is injected for testability; callers
+ * pass `new Date()` (server time only — client clocks are never consulted).
+ */
 export function getTrialState(row: TrialRow, now: Date): TrialState {
   if (row.plan === 'pro') return { status: 'PAID', endsAt: null, daysRemaining: null }
   if (row.trialExempt) return { status: 'LEGACY', endsAt: null, daysRemaining: null }

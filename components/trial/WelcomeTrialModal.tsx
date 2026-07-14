@@ -7,7 +7,7 @@ import Icon from '@/lib/Icon'
 import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
 
 // Must match the `desktop` breakpoint in tailwind.config.ts — the system's
-// definition of "can use the CRM" (MobileBlock hides at exactly this width).
+// definition of "can use the CRM" on desktop viewports.
 const DESKTOP_QUERY = '(min-width: 1000px)'
 
 const FEATURES = [
@@ -19,8 +19,9 @@ const FEATURES = [
 
 /**
  * Shown while trial status is NEVER_STARTED, on desktop viewports only.
- * The viewport gate MUST be this JS check, not CSS: ModalPop portals at
- * z-99999, above MobileBlock's z-9999, so CSS hiding would be too late.
+ * Mobile users are redirected to /activate by the (app) layout and never reach
+ * this surface; the JS viewport check is a belt-and-suspenders guard for narrow
+ * desktop windows.
  * Non-dismissible by design — the only way through is the CTA, which is the
  * single trigger that starts the trial. Because it is non-dismissible, the
  * dialog traps keyboard focus itself (ModalPop has no trap of its own).

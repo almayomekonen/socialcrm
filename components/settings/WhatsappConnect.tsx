@@ -5,8 +5,6 @@ import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
 import { useAction } from '@/lib/useAction'
 import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
-import { WhatsappBadge } from '@/components/ui/MetaLeadAdsBadge'
-
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string }
@@ -60,10 +58,7 @@ export default function WhatsappConnect({
       }
 
       if (result.error === 'cancelled') return
-      // TEMP DIAGNOSTIC — show the real error/exception instead of the generic message.
-      console.log('[ES DEBUG] startEmbeddedSignup result', result)
-      const mapped = ERROR_MESSAGES[result.error ?? ''] ?? 'שגיאה בהתחברות לוואטסאפ. אנא נסה שוב.'
-      setError(result.detail ? `[${result.error}] ${result.detail}` : mapped)
+      setError(ERROR_MESSAGES[result.error ?? ''] ?? 'שגיאה בהתחברות לוואטסאפ. אנא נסה שוב.')
     })
 
   const performDisconnect = () => {
@@ -168,7 +163,6 @@ export default function WhatsappConnect({
       {(error || urlError) && (
         <p className='text-sm text-red-600'>{error ?? ERROR_MESSAGES[urlError!] ?? 'שגיאה בהתחברות לוואטסאפ.'}</p>
       )}
-      <WhatsappBadge size='md' />
       <p className='text-sm text-gray-500'>חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.</p>
       <Btn
         lbl={loading ? 'מתחבר...' : 'חבר וואטסאפ עסקי'}

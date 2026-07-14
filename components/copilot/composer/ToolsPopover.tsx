@@ -9,12 +9,10 @@ export function ToolsPopover({
   actions,
   loadingId,
   onSelect,
-  onConnectDrive,
 }: {
   actions: CopilotSuggestedAction[]
   loadingId: CopilotActionId | null
   onSelect: (id: PredefinedCopilotActionId) => void
-  onConnectDrive: () => void
 }) {
   return (
     <div
@@ -56,23 +54,6 @@ export function ToolsPopover({
           </button>
         )
       })}
-
-      {actions.length > 0 && <div className='my-1 h-px bg-gray-100' role='separator' aria-hidden='true' />}
-
-      <button
-        type='button'
-        role='menuitem'
-        onClick={onConnectDrive}
-        disabled={loadingId !== null}
-        data-action-id='connect-google-drive'
-        className='group flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-start hover:bg-gray-50 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent'
-      >
-        <Icon
-          name='google-drive'
-          className='size-3 bg-gray-400 group-hover:bg-primary transition-colors shrink-0'
-        />
-        <span className='text-xs text-gray-700 group-hover:text-gray-900 truncate'>Google Drive</span>
-      </button>
     </div>
   )
 }

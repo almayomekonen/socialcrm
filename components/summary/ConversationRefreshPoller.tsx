@@ -3,19 +3,29 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-const POLL_INTERVAL_MS = 5000
+type Props = {
+  /** Milliseconds between router.refresh() calls. */
+  intervalMs?: number
+}
 
-export default function ConversationRefreshPoller() {
+/**
+ * RSC companion refresh for inbox intel / smartCounts.
+ * When delta sync is on, callers pass a slower interval (60s) so list/thread
+ * stay on InboxSyncLoop while intel panels still refresh. Visibility-gated.
+ */
+export default function ConversationRefreshPoller({ intervalMs = 5000 }: Props) {
   const router = useRouter()
 
   useEffect(() => {
+    if (!Number.isFinite(intervalMs) || intervalMs <= 0) return
+
     let timer: ReturnType<typeof setInterval> | null = null
 
     const start = () => {
       if (timer !== null) return
       timer = setInterval(() => {
         router.refresh()
-      }, POLL_INTERVAL_MS)
+      }, intervalMs)
     }
 
     const stop = () => {
@@ -27,7 +37,7 @@ export default function ConversationRefreshPoller() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) stop()
-      else start()  
+      else start()
     }
 
     if (!document.hidden) start()
@@ -37,7 +47,7 @@ export default function ConversationRefreshPoller() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       stop()
     }
-  }, [router])
+  }, [router, intervalMs])
 
   return null
 }

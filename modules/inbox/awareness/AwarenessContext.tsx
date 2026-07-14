@@ -1,9 +1,11 @@
 'use client'
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
 import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
+import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
+import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
 import type { AwarenessItem } from './types'
 
 export type AwarenessCounts = { whatsappUnread: number }
@@ -96,16 +98,38 @@ function AwarenessPoller({ onData }: { onData: AwarenessContextValue['mergeAware
   const pathname = usePathname()
   const isInbox = pathname?.startsWith('/inbox') ?? false
   const since = useRef<string>(new Date().toISOString())
+  const { report } = useCrmSyncHealth()
+  const retryRef = useRef<(() => void) | null>(null)
 
   const poll = useCallback(async () => {
-    const res = await fetch(`/api/inbox/awareness?since=${encodeURIComponent(since.current)}`, { cache: 'no-store' })
-    if (!res.ok) return { changed: false }
+    let res: Response
+    try {
+      res = await fetch(`/api/inbox/awareness?since=${encodeURIComponent(since.current)}`, { cache: 'no-store' })
+    } catch {
+      return { changed: false, failed: true }
+    }
+    if (!res.ok) {
+      console.warn('[inbox.awareness]', { status: res.status })
+      return { changed: false, failed: true }
+    }
     const data = (await res.json()) as { counts: AwarenessCounts; items: AwarenessItem[]; serverTime: string }
     onData(data.counts, data.items)
     since.current = data.serverTime
-    return { changed: data.items.length > 0 }
+    return { changed: data.items.length > 0, failed: false }
   }, [onData])
 
-  useAdaptivePoll(poll, { enabled: !isInbox })
+  useAdaptivePoll(poll, {
+    enabled: !isInbox,
+    recoveryMs: INBOX_RECOVERY_MS,
+    retryRef,
+    onConsecutiveFailures: (failures) => {
+      report('awareness', failures, retryRef.current)
+    },
+  })
+
+  useEffect(() => {
+    if (isInbox) report('awareness', 0, null)
+  }, [isInbox, report])
+
   return null
 }

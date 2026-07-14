@@ -22,7 +22,7 @@ const resources = [
 ]
 
 const company = [
-  { text: 'הרשמה בחינם', href: '/auth/register' },
+  { text: 'הרשמה בחינם', href: '/auth' },
   { text: 'מדיניות פרטיות', href: '/privacy' },
   { text: 'תנאי שירות', href: '/terms' },
   { text: 'מחיקת נתונים', href: '/data-deletion' },
@@ -53,7 +53,7 @@ export default function Footer4Col() {
             </div>
 
             <p className='text-white/40 mt-5 text-sm leading-relaxed max-w-xs'>
-              מערכת ניהול לידים לעסקים קטנים בישראל. מחברים בין פייסבוק ואינסטגרם ווואטסאפ למקום אחד בלי לפספס אף ליד.
+              מערכת ניהול לידים לעסקים קטנים בישראל. מחברים בין פייסבוק, אינסטגרם ווואטסאפ למקום אחד בלי לפספס אף ליד.
             </p>
 
             <div className='mt-6 flex items-center gap-5'>

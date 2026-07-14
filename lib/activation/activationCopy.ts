@@ -5,6 +5,7 @@ export type ScreenCopy = {
   heading: string
   body?: string
   ctaLabel?: string
+  ctaLoadingLabel?: string
   trust?: string[]
   instruction?: string
   secondary?: string
@@ -25,15 +26,17 @@ export function copyFor(status: ActivationStatus, _ctx: ActivationContext): Scre
         progressLabel: 'שלב 2 מתוך 2',
         heading: 'עם סיום השלב הזה, כל ליד חדש יגיע לכאן אוטומטית.',
         ctaLabel: 'התחל לקבל לידים',
+        ctaLoadingLabel: 'מתחבר…',
         trust: TRUST,
       }
     case 'oauthPending':
-      return { heading: 'עוד רגע — בודקים את ההרשאות שלך…' }
+      return { heading: 'מסיים את החיבור…' }
     case 'selectingPage':
       return {
         progressLabel: 'שלב 2 מתוך 2',
         heading: 'איזה דף לחבר?',
         ctaLabel: 'התחל לקבל לידים',
+        ctaLoadingLabel: 'מחבר…',
       }
     case 'subscribingPage':
       return { heading: 'מחבר את מקור הלידים שלך…' }
@@ -51,6 +54,7 @@ export function copyFor(status: ActivationStatus, _ctx: ActivationContext): Scre
         heading: 'החיבור לא הושלם.',
         body: 'אפשר לנסות שוב כדי לקבל לידים אוטומטית.',
         ctaLabel: 'נסה שוב',
+        ctaLoadingLabel: 'מתחבר…',
       }
     default:
       return { heading: '' }
