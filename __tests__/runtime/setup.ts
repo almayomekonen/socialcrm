@@ -48,14 +48,15 @@ const connectionString = (() => {
 })()
 
 const require = createRequire(import.meta.url)
-const migration = require('../../migrations/20260713000001_create_ai_state_management.cjs') as {
-  up: (k: import('knex').Knex) => Promise<void>
-  down: (k: import('knex').Knex) => Promise<void>
-}
+type Migration = { up: (k: import('knex').Knex) => Promise<void>; down: (k: import('knex').Knex) => Promise<void> }
+const stateManagement = require('../../migrations/20260713000001_create_ai_state_management.cjs') as Migration
+const shadowDecisions = require('../../migrations/20260714000001_create_ai_shadow_decisions.cjs') as Migration
 
 const k = knex({ client: 'pg', connection: { connectionString, ssl: false }, pool: { min: 0, max: 5 } })
-await migration.down(k)
-await migration.up(k)
+await shadowDecisions.down(k)
+await stateManagement.down(k)
+await stateManagement.up(k)
+await shadowDecisions.up(k)
 await k.destroy()
 
-console.log(`[runtime test setup] M1 ai_* tables re-created on database '${dbName}'`)
+console.log(`[runtime test setup] M1 + shadow ai_* tables re-created on database '${dbName}'`)

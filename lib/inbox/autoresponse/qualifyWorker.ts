@@ -21,6 +21,7 @@ import { isQualifierEnabled } from './killSwitch'
 import { validateAutoResponse } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
+import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -210,6 +211,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     await mergeOnly(conv.id, gen.extracted)
     // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
     await shadowIngestQualification({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, extracted: gen.extracted })
+    // Shadow-only: run the runtime read spine and record the would-be decision (flag-gated, guarded, no-op off).
+    await shadowReasonAndDecide({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, turnCount: aiState.aiTurnCount })
     await track({
       agencyId: job.agencyId,
       event: 'auto_response_draft',
@@ -231,6 +234,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     await mergeOnly(conv.id, gen.extracted)
     // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
     await shadowIngestQualification({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, extracted: gen.extracted })
+    // Shadow-only: run the runtime read spine and record the would-be decision (flag-gated, guarded, no-op off).
+    await shadowReasonAndDecide({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, turnCount: aiState.aiTurnCount })
     await markEscalated(conv.id, post.reason)
     await persistEscalation(conv.id, job.agencyId, summary)
     await completeAutoResponseJob(job.id, r.messageId)
@@ -255,6 +260,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   await recordTurn(conv.id, gen.extracted)
   // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
   await shadowIngestQualification({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, extracted: gen.extracted })
+  // Shadow-only: run the runtime read spine and record the would-be decision (flag-gated, guarded, no-op off).
+  await shadowReasonAndDecide({ agencyId: job.agencyId, leadId: job.leadId, conversationId: conv.id, turnCount: aiState.aiTurnCount + 1 })
   await completeAutoResponseJob(job.id, r.messageId)
   console.log(`[IRE] qualify turn conv=${conv.id} turn=${aiState.aiTurnCount + 1} msg=${r.messageId}`)
   await track({ agencyId: job.agencyId, event: 'auto_response_sent', props: { conversationId: conv.id, reason: 'qualify_turn' } })
