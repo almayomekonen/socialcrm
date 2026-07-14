@@ -13,6 +13,8 @@ import {
 } from '@/lib/ai/prompts/leadAskQuestion'
 import { getFullLead } from '@/db/clients'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
+import { isRuntimeCognitionEnabledForUser } from '@/lib/copilot/featureFlag'
+import { getRuntimeCognitionForLead, formatRuntimeCognitionBlock } from '@/lib/copilot/general/runtimeCognition'
 import { AiRunResult } from '@/lib/ai/types'
 import { maybePrefetchDrive } from '@/lib/copilot/driveIntent'
 import type { DriveResults } from '@/lib/copilot/copilotResponse'
@@ -149,7 +151,7 @@ export async function askLeadQuestion(
     userId: user.id,
   })
 
-  const userMessage = buildLeadAskQuestionUserMessage({
+  let userMessage = buildLeadAskQuestionUserMessage({
     inputs: snapshot.inputs,
     leadName: (leadMeta.name as string) ?? null,
     question,
@@ -158,6 +160,21 @@ export async function askLeadQuestion(
     driveResults: driveOutcome?.results ?? null,
     driveMode: driveOutcome?.mode,
   })
+
+  // Additive, flag-gated: append the AI Runtime's cognition (beliefs, confidence,
+  // uncertainty, provenance, recommendation) as a parallel input so the LLM
+  // synthesizes CRM facts + Runtime cognition into one answer. Fully guarded — if
+  // the flag is off, the Runtime is ungrounded, or it errors, the prompt is
+  // byte-for-byte the existing message and behaviour is unchanged.
+  if (isRuntimeCognitionEnabledForUser(user)) {
+    try {
+      const cognition = await getRuntimeCognitionForLead({ agencyId: user.agencyId }, leadId)
+      const block = formatRuntimeCognitionBlock(cognition)
+      if (block) userMessage = `${userMessage}\n\n${block}`
+    } catch {
+      // cognition is additive enrichment — never break the answer path
+    }
+  }
 
   const startedAt = new Date()
   const out = await runStructured({
