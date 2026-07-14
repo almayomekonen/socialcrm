@@ -3,6 +3,12 @@
 // ------------------------------
 
 import { toast } from './toast'
+// TODO: placeFollowUpMenu may become a generic shared positioning util.
+import { MENU_MARGIN, placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
+
+/** Compact action-menu width — intentionally tighter than follow-up MENU_WIDTH (224). */
+const ACTION_MENU_WIDTH = 130
+const ACTION_MENU_GAP = 4
 
 export function formatCurrency(num: number) {
   if (!num) num = 0
@@ -202,13 +208,61 @@ export function omitOfficeExt(users: any[]) {
   return users.filter((user) => user.role !== 'OFFICE' && user.role !== 'EXT')
 }
 
+function isUsableMenuPos(pos: { top: number; left: number; width: number } | null | undefined) {
+  return !!pos && Number.isFinite(pos.top) && Number.isFinite(pos.left) && Number.isFinite(pos.width) && pos.width > 0
+}
+
+/** Only touches positioning-related inline styles. */
+function applyMenuPosition(pop: HTMLElement, { top, left, width }: { top: number; left: number; width?: number | null }) {
+  pop.style.inset = 'auto'
+  pop.style.top = `${top}px`
+  pop.style.left = `${left}px`
+  pop.style.right = 'auto'
+  pop.style.bottom = 'auto'
+  // Clear leftover helper width on fallback; set width from placement when provided.
+  pop.style.width = width == null ? '' : `${width}px`
+}
+
 export function setPosAndPop(e, id, onClick = null) {
   onClick?.()
 
-  const pop = document.getElementById(id)
-  pop.style.left = `${e.clientX}px`
-  pop.style.top = `${e.clientY}px`
-  pop.showPopover()
+  const pop = document.getElementById(id) as HTMLElement | null
+  if (!pop) return
+
+  const show = () => {
+    if (typeof pop.showPopover === 'function') pop.showPopover()
+  }
+
+  try {
+    const trigger = e?.currentTarget as HTMLElement | undefined
+    if (trigger && typeof trigger.getBoundingClientRect === 'function') {
+      const triggerRect = trigger.getBoundingClientRect()
+      const pos = placeFollowUpMenu(
+        triggerRect,
+        { width: window.innerWidth, height: window.innerHeight },
+        { width: ACTION_MENU_WIDTH, gap: ACTION_MENU_GAP },
+      )
+      if (isUsableMenuPos(pos)) {
+        applyMenuPosition(pop, pos)
+        show()
+        // Snap to the trigger using the real menu height so above-open isn't
+        // spaced out by the helper's height overestimate.
+        const height = pop.getBoundingClientRect().height
+        if (Number.isFinite(height) && height > 0) {
+          const openedBelow = pos.top >= triggerRect.bottom - 1
+          let top = openedBelow ? triggerRect.bottom + ACTION_MENU_GAP : triggerRect.top - height - ACTION_MENU_GAP
+          top = Math.min(Math.max(top, MENU_MARGIN), Math.max(MENU_MARGIN, window.innerHeight - height - MENU_MARGIN))
+          pop.style.top = `${top}px`
+        }
+        return
+      }
+    }
+  } catch {
+    // Fall through to legacy click-coordinate placement.
+  }
+
+  applyMenuPosition(pop, { top: e.clientY, left: e.clientX, width: null })
+  show()
 }
 
 export const copyToClipboardToast = (text) => {

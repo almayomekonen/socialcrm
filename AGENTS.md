@@ -1,6 +1,7 @@
 # Load additional context
 
 @Codex/ux-guidelines.md
+@claude/frontend-experience-guidelines.md
 @Codex/product.md
 @Codex/do-not-touch.md
 

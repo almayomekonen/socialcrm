@@ -7,18 +7,11 @@ import Icon, { IconNames } from '@/lib/Icon'
 
 const FEATURES = [
   {
-    id: 'facebook',
-    label: 'פייסבוק',
+    id: 'meta',
+    label: 'פייסבוק ואינסטגרם',
     iconName: 'thumbs-up' as IconNames,
     image: '/media/social/facebook.png',
-    description: 'לידים שממלאים טופס Lead Ad מגיעים אוטומטית למערכת תוך שניות מהגשה.',
-  },
-  {
-    id: 'instagram',
-    label: 'אינסטגרם',
-    iconName: 'at' as IconNames,
-    image: '/media/social/instagram.png',
-    description: 'לידים מטפסי Lead Ad באינסטגרם מגיעים ישירות למערכת בלי להעתיק ידנית.',
+    description: 'לידים מטפסי Lead Ad בפייסבוק ובאינסטגרם מגיעים אוטומטית למערכת תוך שניות — דרך חיבור יחיד ל-Meta.',
   },
   {
     id: 'whatsapp',

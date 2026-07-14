@@ -75,6 +75,9 @@ async function main() {
     quietHours: {},
     dailyCap: 200,
     guidance: null,
+    replyMode: 'ai',
+    fixedBody: null,
+    delaySeconds: 0,
     updatedBy: host.id,
   })
 
@@ -158,8 +161,20 @@ async function main() {
   } finally {
     // restore host agency settings
     await setMasterEnabled(agencyId, priorMaster)
-    if (priorSettings) await upsertChannelSettings({ ...priorSettings, updatedBy: host.id })
-    else await db('auto_response_settings').where({ agencyId, channel: 'whatsapp' }).del()
+    if (priorSettings) {
+      await upsertChannelSettings({
+        agencyId: priorSettings.agencyId,
+        channel: priorSettings.channel,
+        enabled: priorSettings.enabled,
+        quietHours: priorSettings.quietHours,
+        dailyCap: priorSettings.dailyCap,
+        guidance: priorSettings.guidance,
+        replyMode: priorSettings.replyMode,
+        fixedBody: priorSettings.fixedBody,
+        delaySeconds: priorSettings.delaySeconds,
+        updatedBy: host.id,
+      })
+    } else await db('auto_response_settings').where({ agencyId, channel: 'whatsapp' }).del()
     await cleanup()
   }
 }

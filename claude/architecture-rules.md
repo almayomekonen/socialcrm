@@ -234,3 +234,92 @@ component (a hamburger button, a mobile-only label/logo) — those stay as-is.
 The cost of a mobile-only overlay leaking into desktop HTML is a visible flash
 on every desktop load. CSS hiding is a race the browser sometimes loses; a
 server gate cannot race — the element simply isn't there.
+
+---
+
+## 10. SHARED UI COMPONENT REGISTRY (REUSE BEFORE CREATING)
+
+**Status:** binding. This is the "no second implementation" rule (§2, §14 of
+CLAUDE.md, §12 of ux-guidelines) made concrete for specific, already-shared
+primitives. When a canonical component is listed here, new onboarding/first-run/
+settings work MUST reuse or extend it — never fork a parallel implementation.
+
+Before adding a component that renders an onboarding action tile or a Meta/
+platform brand mark, the answer is already in the tree. Check here first.
+
+### Canonical components
+
+| Concern | Canonical component | Reuse for | Do NOT |
+| --- | --- | --- | --- |
+| Onboarding / first-run **action tile** (icon or custom tile + title + description + optional badge, rendered as a `Link` **or** `<button>`, with hover/focus states) | `components/clients/OnboardingActionCard.tsx` | Any onboarding, first-run, empty-state, or "next action" card — e.g. `LeadsFirstRun`'s connect/add/import actions | Re-create a clickable icon-tile card, or wrap `ui/card.tsx` into a near-duplicate |
+| **Meta Lead Ads badge** (overlapping Facebook + Instagram brand tiles; sibling `WhatsappBadge`), sized `sm`/`md`/`lg`, drawn with the app `@/lib/Icon` font | `components/ui/MetaLeadAdsBadge.tsx` (exports `MetaLeadAdsBadge`, `WhatsappBadge`) | Any **application** UI that shows the Meta/WhatsApp lead-source mark — onboarding, settings (`FacebookConnect`, `WhatsappConnect`, the FB settings page), lead-source labels | Inline a new FB/IG/WA glyph, or re-derive brand tiles in app UI |
+
+### Rules
+
+- **Reuse first.** If one of these fits, use it. If it *almost* fits, **extend
+  it** (add a prop / variant) rather than creating a sibling — the way State 2
+  was added to `LeadsFirstRun` and the `metaConnected` variant threaded through,
+  not a second empty-state component.
+- **One implementation per pattern.** These are the sole implementations of their
+  patterns in application code; keep it that way.
+- **Marketing is a deliberate exception, not a precedent.** The marketing hero
+  has its own brand-glyph renderers (`components/ui/hero/scenes/PlatformIcon.tsx`,
+  `components/ui/hero/ChannelBadges.tsx`) that draw platforms from
+  `/media/social-icons/*.svg` masks with marketing-specific visuals (glow, hover,
+  fixed chip set). They are **not** interchangeable with `MetaLeadAdsBadge` and
+  must not be "unified" — consolidation would change rendering and appearance.
+  App UI uses `MetaLeadAdsBadge`; marketing keeps its own. Do not cross-import.
+
+### Why
+
+These two were audited against the existing card and brand-mark inventory
+(`ui/card.tsx`, `QuickActions`, the `*Card` family, `PlatformIcon`,
+`ChannelBadges`) before being kept: no existing component solved the app-side
+need. Documenting them here closes the loop so the next onboarding/settings task
+reuses them by default instead of re-auditing — or worse, forking a third
+"platform brand mark" renderer and fragmenting the pattern further.
+
+---
+
+## 11. BUSINESS-DAY CLASSIFICATION — SINGLE SOURCE OF TRUTH
+
+**Status:** binding. Business-day concepts — "today", "overdue", "due today",
+"from this morning", and the like — MUST have one implementation, and it is
+`lib/time/businessDay.ts`.
+
+This rule exists because a duplicated business-day calculation caused a
+production `/dashboard` crash (React #418): the urgency label was computed
+independently on the server and the client, the Vercel server runs in **UTC**
+while the browser runs in **Asia/Jerusalem**, so the two disagreed on the day
+boundary and rendered different HTML — a hydration mismatch that is fatal in the
+production build.
+
+### Rules
+
+- **One source of truth.** Every business-day boundary/classification goes
+  through `lib/time/businessDay.ts` (`startOfBusinessDay`, `isBeforeBusinessDay`,
+  `classifyUrgency`). Never re-derive a day boundary inline
+  (`new Date().setHours(0, 0, 0, 0)`, a local `startOfDay`/`startOfToday`, etc.) —
+  extend the helper instead.
+- **Never compute the same classification on both sides.** A business-day value
+  is computed exactly once — on the **server** — and passed down as data. Server
+  and client must never each run the logic and hope they agree.
+- **Canonical timezone, not the device.** The business day is defined in
+  `BUSINESS_TZ` (currently `'Asia/Jerusalem'`), never the browser's local
+  timezone. "Overdue/today" is a business-day question, so it follows the
+  business's day regardless of where the rep's browser is. `BUSINESS_TZ` is the
+  single place to change if this ever becomes per-agency.
+- **DST-aware, never a fixed offset.** The helper derives the boundary via the
+  `Intl` API against `BUSINESS_TZ`. Do not hardcode `+2`/`+3` or assume a fixed
+  UTC offset.
+- **Client Components render, they don't classify.** A Client Component MUST NOT
+  call `Date.now()`, `setHours()`, or any business-day logic during render. It
+  receives the precomputed label/tone/flag as a prop and renders it.
+
+### Why
+
+A deterministic, timezone-explicit computation done once on the server is the
+only way server-rendered HTML and client hydration can agree. `businessDay.ts` is
+verified deterministic across Node/browser, process timezone, and locale, and is
+covered by DST unit tests; routing every business-day concept through it is what
+keeps the mismatch from recurring — in the dashboard or anywhere else.

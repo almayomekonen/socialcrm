@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { AuthError, requireAgencyUser, type AuthenticatedAgencyUser } from '@/lib/requireUser'
 import { decryptSecret } from '@/lib/crypto/secrets'
-import {
-  deleteDriveConnectionByUserId,
-  getDriveConnectionByUserId,
-} from '@/db/googleDriveConnections'
+import { deleteDriveConnectionByUserId, getDriveConnectionByUserId } from '@/db/googleDriveConnections'
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'

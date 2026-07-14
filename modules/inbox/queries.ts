@@ -157,19 +157,20 @@ export async function listInboxConversations(
   applyInboxFilters(q, filters)
 
   const rankSql = RANK_SQL_BY_SORT[filters.sort]
+  // Empty / ensured threads (lastMessageAt IS NULL) must sort AFTER active
+  // conversations — deliberate product rule, not PG NULLS FIRST on DESC.
   if (rankSql) {
-    q = q.select(db.raw(`${rankSql} as "sortRank"`)).orderByRaw(`${rankSql} DESC, cv."lastMessageAt" DESC, cv.id DESC`)
+    q = q
+      .select(db.raw(`${rankSql} as "sortRank"`))
+      .orderByRaw(`${rankSql} DESC, cv."lastMessageAt" DESC NULLS LAST, cv.id DESC`)
     if (cursor) {
       q = q.whereRaw(`(${rankSql}, cv."lastMessageAt", cv.id) < (?, ?, ?)`, [cursor.rank ?? 0, cursor.lastMessageAt, cursor.id])
     }
   } else if (filters.sort === 'oldest') {
-    q = q.orderBy([
-      { column: 'cv.lastMessageAt', order: 'asc' },
-      { column: 'cv.id', order: 'asc' },
-    ])
+    q = q.orderByRaw('cv."lastMessageAt" ASC NULLS LAST, cv.id ASC')
     if (cursor) q = q.whereRaw('(cv."lastMessageAt", cv.id) > (?, ?)', [cursor.lastMessageAt, cursor.id])
   } else if (filters.sort === 'unread') {
-    q = q.orderByRaw(`${UNREAD_SQL} DESC, cv."lastMessageAt" DESC, cv.id DESC`)
+    q = q.orderByRaw(`${UNREAD_SQL} DESC, cv."lastMessageAt" DESC NULLS LAST, cv.id DESC`)
     if (cursor) {
       q = q.whereRaw(`((CASE WHEN ${UNREAD_SQL} THEN 1 ELSE 0 END), cv."lastMessageAt", cv.id) < (?, ?, ?)`, [
         cursor.unread ? 1 : 0,
@@ -178,10 +179,7 @@ export async function listInboxConversations(
       ])
     }
   } else {
-    q = q.orderBy([
-      { column: 'cv.lastMessageAt', order: 'desc' },
-      { column: 'cv.id', order: 'desc' },
-    ])
+    q = q.orderByRaw('cv."lastMessageAt" DESC NULLS LAST, cv.id DESC')
     if (cursor) q = q.whereRaw('(cv."lastMessageAt", cv.id) < (?, ?)', [cursor.lastMessageAt, cursor.id])
   }
 
@@ -307,13 +305,57 @@ export async function getInboxConversationById(
 
   if (!r) return null
 
+  return mapConversationTarget(r)
+}
+
+/**
+ * Canonical Lead → WhatsApp conversation lookup.
+ *
+ * Prefer this (or `resolveLeadWhatsappConversation`) for any feature that needs
+ * to open or resolve a lead's Inbox WhatsApp thread. Do not re-implement
+ * `inbox_conversations` filters by leadId elsewhere.
+ *
+ * When no row exists yet, callers that need a navigable Inbox thread should use
+ * `resolveLeadWhatsappConversation` (ensures via `findOrCreateConversation`).
+ *
+ * When multiple WhatsApp rows exist for a lead, returns the latest by lastMessageAt.
+ */
+export async function getInboxConversationByLeadId(
+  agencyId: number,
+  leadId: number,
+): Promise<InboxConversationTarget | null> {
+  if (!Number.isFinite(leadId) || leadId <= 0) return null
+
+  const r = await db('inbox_conversations as cv')
+    .leftJoin('clients as c', 'c.id', 'cv.leadId')
+    .where('cv.leadId', leadId)
+    .andWhere('cv.agencyId', agencyId)
+    .andWhere('cv.channel', 'whatsapp')
+    .orderByRaw('cv."lastMessageAt" DESC NULLS LAST')
+    .orderBy('cv.id', 'desc')
+    .first(
+      'cv.id as conversationId',
+      'cv.leadId',
+      'cv.channel',
+      'cv.customerName',
+      'cv.customerWaId',
+      'c.name as leadName',
+      'c.status as leadStatus',
+    )
+
+  if (!r) return null
+
+  return mapConversationTarget(r)
+}
+
+function mapConversationTarget(r: Record<string, unknown>): InboxConversationTarget {
   return {
     conversationId: Number(r.conversationId),
     leadId: Number(r.leadId),
     channel: r.channel as InboxChannel,
-    displayName: r.customerName || r.leadName || r.customerWaId || null,
-    leadName: r.leadName ?? null,
-    leadStatus: r.leadStatus ?? null,
-    customerWaId: r.customerWaId ?? null,
+    displayName: (r.customerName as string | null) || (r.leadName as string | null) || (r.customerWaId as string | null) || null,
+    leadName: (r.leadName as string | null) ?? null,
+    leadStatus: (r.leadStatus as string | null) ?? null,
+    customerWaId: (r.customerWaId as string | null) ?? null,
   }
 }

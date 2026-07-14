@@ -29,16 +29,11 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
-  // Reaching here means a cookie is present but invalid (the proxy already
-  // sends no-cookie requests to /auth). A Server Component can't delete the
-  // cookie, so route through the Route Handler that can — this breaks the
-  // /dashboard <-> /auth loop. (No-cookie fallthrough is a harmless no-op.)
+
   if (!user) redirect('/api/auth/clear')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 
-  // Trial gate. Fail-open: a trial-state read failure must never lock users
-  // out of the CRM — fall back to LEGACY (full access, no trial UI) and log.
   let trialStatus: TrialStatus = 'LEGACY'
   try {
     const trialRow = await getAgencyTrial(user.agencyId)
@@ -47,22 +42,12 @@ async function LayoutContent({ children }) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
   }
 
-  // Platform owners are never gated by the trial — they run the app, not a tenant.
   const owner = isPlatformOwner(user.email)
-  // Owner-only preview escape hatch: lets the owner force-render the paywall to
-  // inspect it despite the exemption. Set in the browser console with
-  //   document.cookie = 'preview_paywall=1;path=/'
-  // and clear it with
-  //   document.cookie = 'preview_paywall=;path=/;max-age=0'
   const previewPaywall = owner && (await cookies()).get('preview_paywall')?.value === '1'
   const trialExpired = (trialStatus === 'TRIAL_EXPIRED' && !owner) || previewPaywall
   let leadPreview = { total: 0, names: [] as string[] }
   if (trialExpired) {
-    // Lazy one-time emission; deduped by the DB index, track never throws.
-    // Skip for the owner preview so it doesn't pollute analytics.
     if (!previewPaywall) await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
-    // Real lead count + a few names for the paywall card, scoped to what this
-    // user is permitted to see. Fail-open to empty so the gate still renders.
     try {
       const { gotPermIds } = await getPerms(user)
       leadPreview = await getTrialPreviewLeads(user.agencyId, gotPermIds, user.role)
@@ -72,12 +57,7 @@ async function LayoutContent({ children }) {
   }
 
   const copilotEnabled = isCopilotEnabledForUser(user)
-  // No-lead General Mode. Off by default (empty allowlist) → CopilotShell keeps
-  // rendering today's CopilotPanel unchanged until an agency is opted in.
   const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
-
-  // Per-user unread conversation count for the nav badge. Office users don't see
-  // the Inbox link, so skip the query for them. Never let it break the layout.
   let inboxUnread = 0
   if (user.agencyId && user.role !== Roles.OFFICE) {
     inboxUnread = await countUnreadConversationsForUser(user.agencyId, user.id).catch(() => 0)

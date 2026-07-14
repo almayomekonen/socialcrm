@@ -1,10 +1,12 @@
 # Load additional context
 
 @claude/ux-guidelines.md
+@claude/frontend-experience-guidelines.md
 @claude/product.md
 @claude/do-not-touch.md
 @claude/architecture-rules.md
 @claude/care-charter.md
+@claude/release-deployment-workflow.md
 
 ---
 
@@ -193,7 +195,7 @@ using-git-worktrees, dispatching-parallel-agents, executing-plans,
 finishing-a-development-branch, writing-skills.
 
 The disabled list overrides the using-superpowers "you MUST invoke" pressure.
-CLAUDE.md and claude/ai/* override every skill.
+CLAUDE.md and claude/ai/\* override every skill.
 
 Pilot artifacts land in docs/superpowers/ (gitignored). Pilot feature: Smart
 Lead Summary. Expansion to Phase 2 requires validating workflow quality first.

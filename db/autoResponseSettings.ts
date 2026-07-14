@@ -1,10 +1,23 @@
 /**
- * Instant Response Engine settings (Phase 1). Workspace master switch lives on
+ * Instant Response Engine settings. Workspace master switch lives on
  * agencies.autoResponseEnabled; per-channel config in auto_response_settings.
- * Additive, read/write only — no business logic. Re-engage fields (mode,
- * cooldown) are Phase 2.
+ * Additive, read/write only — no business logic.
  */
 import { db } from '@/config/db'
+import {
+  parseReplyMode,
+  clampDelaySeconds,
+  MAX_FIXED_BODY_LENGTH,
+  type AutoResponseReplyMode,
+} from '@/lib/inbox/autoresponse/replyMode'
+
+export type { AutoResponseReplyMode }
+export {
+  parseReplyMode,
+  clampDelaySeconds,
+  MAX_FIXED_BODY_LENGTH,
+  MAX_DELAY_SECONDS,
+} from '@/lib/inbox/autoresponse/replyMode'
 
 export interface CollectFields {
   required: string[]
@@ -23,6 +36,9 @@ export interface AutoResponseSettings {
   maxTurns: number
   collectFields: CollectFields
   draft: boolean
+  replyMode: AutoResponseReplyMode
+  fixedBody: string | null
+  delaySeconds: number
 }
 
 interface SettingsRow {
@@ -36,6 +52,9 @@ interface SettingsRow {
   maxTurns: number | null
   collectFields: CollectFields | string | null
   draft: boolean | null
+  replyMode: string | null
+  fixedBody: string | null
+  delaySeconds: number | null
 }
 
 const DEFAULT_COLLECT: CollectFields = { required: ['name', 'need', 'urgency'], optional: ['budget', 'location', 'callback'] }
@@ -64,15 +83,23 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
     maxTurns: row.maxTurns ?? 5,
     collectFields: (typeof cf === 'string' ? JSON.parse(cf) : (cf ?? DEFAULT_COLLECT)) as CollectFields,
     draft: row.draft ?? false,
+    replyMode: parseReplyMode(row.replyMode),
+    fixedBody: row.fixedBody ?? null,
+    delaySeconds: clampDelaySeconds(row.delaySeconds ?? 0),
   }
 }
 
 export type UpsertChannelSettingsInput = Pick<
   AutoResponseSettings,
-  'agencyId' | 'channel' | 'enabled' | 'quietHours' | 'dailyCap' | 'guidance'
+  'agencyId' | 'channel' | 'enabled' | 'quietHours' | 'dailyCap' | 'guidance' | 'replyMode' | 'fixedBody' | 'delaySeconds'
 > & { updatedBy: number }
 
 export async function upsertChannelSettings(input: UpsertChannelSettingsInput): Promise<void> {
+  const replyMode = parseReplyMode(input.replyMode)
+  const delaySeconds = clampDelaySeconds(input.delaySeconds)
+  const fixedBody =
+    replyMode === 'fixed' ? (input.fixedBody ?? '').trim().slice(0, MAX_FIXED_BODY_LENGTH) || null : input.fixedBody
+
   await db('auto_response_settings')
     .insert({
       agencyId: input.agencyId,
@@ -81,6 +108,9 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
       quietHours: JSON.stringify(input.quietHours ?? {}),
       dailyCap: input.dailyCap,
       guidance: input.guidance,
+      replyMode,
+      fixedBody,
+      delaySeconds,
       updatedBy: input.updatedBy,
       updatedAt: db.fn.now(),
     })
@@ -90,6 +120,9 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
       quietHours: JSON.stringify(input.quietHours ?? {}),
       dailyCap: input.dailyCap,
       guidance: input.guidance,
+      replyMode,
+      fixedBody,
+      delaySeconds,
       updatedBy: input.updatedBy,
       updatedAt: db.fn.now(),
     })

@@ -22,11 +22,9 @@ export async function createLeadFromWebhook({
   agencyId,
   userId,
 }: WebhookLeadInput) {
-  // Normalize phone → 972XXXXXXXXX before any dedup check or insert
   const digits = rawPhone?.replace(/\D/g, '') ?? ''
   const phone = digits.length >= 9 ? (digits.startsWith('972') ? digits : '972' + digits.replace(/^0/, '')) : null
 
-  // Priority 1: dedup by leadId — stored as 'facebook:{leadId}' in leadSource
   const existingByLeadId = await db('clients')
     .where({ leadSource: `facebook:${leadId}` })
     .first()
@@ -35,7 +33,6 @@ export async function createLeadFromWebhook({
     return existingByLeadId
   }
 
-  // Priority 2: fallback dedup by phone — only when phone is present
   if (phone) {
     const existingByPhone = await db('clients').where({ phone }).whereLike('leadSource', 'facebook:%').first()
     if (existingByPhone) {
@@ -62,8 +59,6 @@ export async function createLeadFromWebhook({
   })
 
   if (!lead) {
-    // The unique index on clients."leadSource" means a concurrent insert for the same leadId
-    // will cause insertLeadSystem to fail. Re-check the DB before treating this as a real error.
     const concurrentLead = await db('clients')
       .where({ leadSource: `facebook:${leadId}` })
       .first()

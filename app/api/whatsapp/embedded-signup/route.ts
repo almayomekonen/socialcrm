@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
+import { emitLifecycleEvent } from '@/lib/events/emit'
 
 export async function POST(req: NextRequest) {
   const user = await getUser()
@@ -70,6 +71,17 @@ export async function POST(req: NextRequest) {
   }
 
   const readiness = await ensureMessagingReady(phoneNumberId, accessToken)
+
+  after(() =>
+    emitLifecycleEvent({
+      type: 'user.meta_connected',
+      userId: user.id,
+      agencyId: user.agencyId!,
+      email: user.email,
+      channel: 'whatsapp',
+      messagingReady: readiness.ready,
+    }),
+  )
 
   return NextResponse.json({ ok: true, messagingReady: readiness.ready, reason: readiness.reason })
 }

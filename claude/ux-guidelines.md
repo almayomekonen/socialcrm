@@ -1,5 +1,10 @@
 # ux-guidelines.md — UX Rules & Standards
 
+> Interaction feel, loading, optimistic updates, polling, toasts, and the PR merge
+> checklist live in [`frontend-experience-guidelines.md`](./frontend-experience-guidelines.md).
+> This file remains the product clarity / terminology / empty-state content standard.
+> Both are binding.
+
 ## 1. CORE UX PRINCIPLES
 
 These are non-negotiable. Every screen, component, and interaction must follow them.

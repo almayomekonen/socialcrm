@@ -4,7 +4,7 @@ const APP_NAME = 'SocialCRM'
 const APP_OG_TITLE = 'כל הלידים שלך. מסודרים. סגורים.'
 const APP_OG_DESCRIPTION = 'הפסק לפספס לידים. קבל שליטה מלאה על כל הפניות שלך ותתחיל לסגור יותר עסקאות — כבר מהיום.'
 const APP_TWITTER_DESCRIPTION = 'הפסק לפספס לידים ותתחיל לסגור יותר עסקאות.'
-const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.'
+const APP_DESCRIPTION = 'מערכת ניהול לידים לעסקים קטנים כל הלידים מפייסבוק ואינסטגרם ומוואטסאפ במקום אחד. בלי לפספס אף ליד.'
 const APP_URL = 'https://getsocialcrm.com'
 
 export const metaData: Metadata = {

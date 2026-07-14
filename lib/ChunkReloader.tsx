@@ -1,58 +1,41 @@
 'use client'
 
+// Recovers from chunk-load failures that happen AFTER a healthy mount — e.g. a
+// lazy import triggered by a later click/navigation whose chunk 404s because a
+// deploy landed mid-session. Failures during the INITIAL render/hydration are
+// handled by app/global-error.tsx instead; both share the same loop guard in
+// lib/chunkRecovery so they can never double-reload.
+
 import { useEffect, useState } from 'react'
-
-
-const CHUNK_ERROR_PATTERNS = [
-  'Loading chunk',
-  'ChunkLoadError',
-  'Failed to fetch dynamically imported module',
-  'error loading dynamically imported module',
-  'Importing a module script failed',
-]
-
-const RELOAD_FLAG = '__chunk_reload_attempted__'
-
-function isChunkError(message: unknown): boolean {
-  if (typeof message !== 'string') return false
-  return CHUNK_ERROR_PATTERNS.some((p) => message.includes(p))
-}
+import { isChunkError, markChunkReloadAttempt, clearChunkReloadFlag } from './chunkRecovery'
 
 export default function ChunkReloader() {
   const [reloading, setReloading] = useState(false)
 
   useEffect(() => {
-    const clearTimer = setTimeout(() => {
-      try { sessionStorage.removeItem(RELOAD_FLAG) } catch {}
-    }, 5000)
+    // This component only mounts on a healthy render, which proves the current
+    // document and its chunks are in sync. Clear the guard so a future
+    // (different-deploy) chunk error is allowed to auto-recover once more.
+    clearChunkReloadFlag()
 
-    function triggerReload() {
-      try {
-        if (sessionStorage.getItem(RELOAD_FLAG)) return
-        sessionStorage.setItem(RELOAD_FLAG, String(Date.now()))
-      } catch {}
+    function recover(candidate: unknown) {
+      if (!isChunkError(candidate)) return
+      if (!markChunkReloadAttempt()) return // already reloaded once this window — do not loop
       setReloading(true)
-      setTimeout(() => {
-        try { window.location.reload() } catch {}
-      }, 800)
+      window.setTimeout(() => {
+        try {
+          window.location.reload()
+        } catch {}
+      }, 600)
     }
 
-    function onError(e: ErrorEvent) {
-      const msg = e?.message || e?.error?.message
-      if (isChunkError(msg)) triggerReload()
-    }
-
-    function onRejection(e: PromiseRejectionEvent) {
-      const reason = e?.reason
-      const msg = typeof reason === 'string' ? reason : reason?.message
-      if (isChunkError(msg)) triggerReload()
-    }
+    const onError = (e: ErrorEvent) => recover(e?.error ?? e?.message)
+    const onRejection = (e: PromiseRejectionEvent) => recover(e?.reason)
 
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
 
     return () => {
-      clearTimeout(clearTimer)
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
     }

@@ -15,9 +15,12 @@ export const MENU_MARGIN = 8
 export type Rect = { top: number; bottom: number; left: number; right: number }
 export type Viewport = { width: number; height: number }
 export type MenuPosition = { top: number; left: number; width: number }
+export type PlaceMenuOpts = { width?: number; gap?: number; estHeight?: number }
 
-export function placeFollowUpMenu(trigger: Rect, vp: Viewport): MenuPosition {
-  const width = Math.min(MENU_WIDTH, vp.width - MENU_MARGIN * 2)
+export function placeFollowUpMenu(trigger: Rect, vp: Viewport, opts?: PlaceMenuOpts): MenuPosition {
+  const width = Math.min(opts?.width ?? MENU_WIDTH, vp.width - MENU_MARGIN * 2)
+  const gap = opts?.gap ?? 4
+  const estHeight = opts?.estHeight ?? MENU_EST_HEIGHT
 
   // Horizontal: align right edge to the trigger (extend left, RTL). If that
   // clips the left edge, anchor to the trigger's left (extend right). Then clamp.
@@ -26,10 +29,10 @@ export function placeFollowUpMenu(trigger: Rect, vp: Viewport): MenuPosition {
   left = Math.min(Math.max(left, MENU_MARGIN), vp.width - width - MENU_MARGIN)
 
   // Vertical: open below; flip above when there isn't room; clamp inside.
-  let top = trigger.bottom + 4
-  if (top + MENU_EST_HEIGHT > vp.height - MENU_MARGIN) {
-    const above = trigger.top - MENU_EST_HEIGHT - 4
-    top = above >= MENU_MARGIN ? above : Math.max(MENU_MARGIN, vp.height - MENU_EST_HEIGHT - MENU_MARGIN)
+  let top = trigger.bottom + gap
+  if (top + estHeight > vp.height - MENU_MARGIN) {
+    const above = trigger.top - estHeight - gap
+    top = above >= MENU_MARGIN ? above : Math.max(MENU_MARGIN, vp.height - estHeight - MENU_MARGIN)
   }
   top = Math.max(top, MENU_MARGIN)
 

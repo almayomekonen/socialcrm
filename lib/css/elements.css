@@ -232,9 +232,6 @@
 
 @utility popanchor {
   margin: 0;
-  margin-top: 2px;
   inset: auto;
-  top: anchor(bottom);
-  right: anchor(right);
   animation: popanchor-in 300ms;
 }

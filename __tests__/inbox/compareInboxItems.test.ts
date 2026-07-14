@@ -62,4 +62,18 @@ describe('compareInboxItems', () => {
     const b = item({ conversationId: 9, lastMessageAt: '2026-06-01T00:00:00.000Z' })
     expect(ids([a, b], 'latest')).toEqual([9, 5])
   })
+
+  it('latest → empty (no lastMessageAt) after active conversations', () => {
+    const empty = item({ conversationId: 99, lastMessageAt: null })
+    const older = item({ conversationId: 1, lastMessageAt: '2026-06-01T00:00:00.000Z' })
+    const newer = item({ conversationId: 2, lastMessageAt: '2026-06-09T00:00:00.000Z' })
+    expect(ids([empty, older, newer], 'latest')).toEqual([2, 1, 99])
+  })
+
+  it('oldest → empty (no lastMessageAt) after active conversations', () => {
+    const empty = item({ conversationId: 99, lastMessageAt: null })
+    const older = item({ conversationId: 1, lastMessageAt: '2026-06-01T00:00:00.000Z' })
+    const newer = item({ conversationId: 2, lastMessageAt: '2026-06-09T00:00:00.000Z' })
+    expect(ids([empty, newer, older], 'oldest')).toEqual([1, 2, 99])
+  })
 })

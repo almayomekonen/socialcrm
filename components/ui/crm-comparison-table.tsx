@@ -17,8 +17,7 @@ type ComparisonRow = {
 }
 
 const ROWS: ComparisonRow[] = [
-  { id: '1', feature: 'ייבוא לידים מפייסבוק', category: 'לידים', excel: { status: 'bad', label: 'ידני בלבד' }, crm: { status: 'good', label: 'אוטומטי' } },
-  { id: '2', feature: 'ייבוא לידים מאינסטגרם', category: 'לידים', excel: { status: 'bad', label: 'ידני בלבד' }, crm: { status: 'good', label: 'אוטומטי' } },
+  { id: '1', feature: 'ייבוא לידים מפייסבוק ואינסטגרם', category: 'לידים', excel: { status: 'bad', label: 'ידני בלבד' }, crm: { status: 'good', label: 'אוטומטי' } },
   { id: '3', feature: 'ייבוא מקובץ אקסל קיים', category: 'לידים', excel: { status: 'good', label: 'כן' }, crm: { status: 'good', label: 'כן' } },
   { id: '4', feature: 'הוספת ליד ידנית', category: 'לידים', excel: { status: 'partial', label: 'מסורבל' }, crm: { status: 'good', label: '10 שניות' } },
   { id: '5', feature: 'מניעת כפילויות', category: 'לידים', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'אוטומטי' } },

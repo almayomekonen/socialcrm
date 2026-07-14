@@ -63,3 +63,7 @@ node_modules/
 # Superpowers workflow artifacts
 .worktrees/
 docs/superpowers/
+
+# local machine artifacts (never commit)
+.claude/settings.local.json
+social-crm.db

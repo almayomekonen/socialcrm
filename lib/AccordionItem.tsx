@@ -6,16 +6,19 @@ interface AccordionItemProps {
   className?: string
   bodyClass?: string
   icon?: IconNames
+  iconNode?: React.ReactNode
   open?: boolean
   badge?: React.ReactNode
+  /** Stable section id — lets UrlSyncedAccordion map this <details> to a URL param. */
+  id?: string
 }
 
-export default function AccordionItem({ title, className, children, bodyClass, icon, open, badge }: AccordionItemProps) {
+export default function AccordionItem({ title, className, children, bodyClass, icon, iconNode, open, badge, id }: AccordionItemProps) {
   return (
-    <details name='x' className='group/acrdn border-b-2 last:border-b-0' open={open}>
+    <details id={id} name='x' className='group/acrdn border-b-2 last:border-b-0' open={open}>
       <summary className={className}>
         <div className='flex items-center gap-2'>
-          {icon && <Icon type='reg' className='group-open/acrdn:bg-solid' name={icon} />}
+          {iconNode ?? (icon && <Icon type='reg' className='group-open/acrdn:bg-solid' name={icon} />)}
           <p className='group-open/acrdn:text-solid'>{title}</p>
           {badge}
         </div>

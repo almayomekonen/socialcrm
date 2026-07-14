@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
+import { emitLifecycleEvent } from '@/lib/events/emit'
 
 export async function POST(req: NextRequest) {
   const user = await getUser()
@@ -56,6 +57,16 @@ export async function POST(req: NextRequest) {
   }
 
   cookieStore.delete('wa_phones')
+
+  after(() =>
+    emitLifecycleEvent({
+      type: 'user.meta_connected',
+      userId: user.id,
+      agencyId: user.agencyId!,
+      email: user.email,
+      channel: 'whatsapp',
+    }),
+  )
 
   return NextResponse.json({ ok: true })
 }

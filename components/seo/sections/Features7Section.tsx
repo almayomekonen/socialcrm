@@ -5,18 +5,18 @@ import { FadeIn } from './shared'
 
 const highlights = [
   { icon: 'bolt' as const, title: 'מהיר להתחלה', desc: 'תוך 5 דקות מהרשמה כל הלידים שלך מאורגנים ומוכנים לעבודה.' },
-  { icon: 'layer-group' as const, title: 'מרכוז מלא', desc: 'פייסבוק, וואטסאפ ואקסל הכל מגיע לרשימה אחת ברורה.' },
+  { icon: 'layer-group' as const, title: 'מרכוז מלא', desc: 'פייסבוק ואינסטגרם, וואטסאפ ואקסל הכל מגיע לרשימה אחת ברורה.' },
   { icon: 'bell' as const, title: 'לא תשכח אף ליד', desc: 'תזכורות אוטומטיות מבטיחות שכל ליד מקבל מענה בזמן.' },
   { icon: 'chart-line' as const, title: 'נראות מלאה', desc: 'ראה בדיוק כמה לידים נסגרו, מה שיעור ההמרה, ומה דורש טיפול.' },
 ]
 
 const mockLeads = [
-  { name: 'דני לוי', assignee: 'יוסי כהן', status: 'סגור', date: '26/03/2026', source: 'פייסבוק', color: 'bg-green-500', badge: 'bg-green-900/60 text-green-300' },
-  { name: 'מיכל אברהם', assignee: 'רחל גולן', status: 'בטיפול', date: '25/03/2026', source: 'אינסטגרם', color: 'bg-blue-500', badge: 'bg-blue-900/60 text-blue-300' },
+  { name: 'דני לוי', assignee: 'יוסי כהן', status: 'סגור', date: '26/03/2026', source: 'Meta', color: 'bg-green-500', badge: 'bg-green-900/60 text-green-300' },
+  { name: 'מיכל אברהם', assignee: 'רחל גולן', status: 'בטיפול', date: '25/03/2026', source: 'המלצה', color: 'bg-blue-500', badge: 'bg-blue-900/60 text-blue-300' },
   { name: 'אבי שרון', assignee: 'יוסי כהן', status: 'ממתין', date: '24/03/2026', source: 'וואטסאפ', color: 'bg-yellow-500', badge: 'bg-yellow-900/60 text-yellow-300' },
-  { name: 'שרה פרץ', assignee: 'רחל גולן', status: 'חדש', date: '26/03/2026', source: 'פייסבוק', color: 'bg-blue-400', badge: 'bg-blue-900/60 text-blue-300' },
+  { name: 'שרה פרץ', assignee: 'רחל גולן', status: 'חדש', date: '26/03/2026', source: 'Meta', color: 'bg-blue-400', badge: 'bg-blue-900/60 text-blue-300' },
   { name: 'נועם ביטון', assignee: 'יוסי כהן', status: 'אבוד', date: '20/03/2026', source: 'וואטסאפ', color: 'bg-gray-500', badge: 'bg-gray-800 text-gray-400' },
-  { name: 'לירון כץ', assignee: 'רחל גולן', status: 'בטיפול', date: '23/03/2026', source: 'אינסטגרם', color: 'bg-blue-500', badge: 'bg-blue-900/60 text-blue-300' },
+  { name: 'לירון כץ', assignee: 'רחל גולן', status: 'בטיפול', date: '23/03/2026', source: 'אתר', color: 'bg-blue-500', badge: 'bg-blue-900/60 text-blue-300' },
 ]
 
 function LeadsMockUI() {

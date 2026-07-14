@@ -1,5 +1,6 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
+import { isDevBypassAgency } from '@/lib/auth/devBypass'
 import { FREE_LEAD_LIMIT } from './constants'
 import { Plan, QuotaExceededError, QuotaStatus } from './types'
 
@@ -9,6 +10,7 @@ export type { Plan, QuotaStatus, QuotaErrorResult } from './types'
 export { withAgencyQuotaLock, QUOTA_LOCK_NAMESPACE } from './withAgencyQuotaLock'
 
 export async function getAgencyPlan(agencyId: number, q: Knex = db): Promise<Plan> {
+  if (await isDevBypassAgency(agencyId)) return 'pro'
   const row = await q('agencies').where({ id: agencyId }).select('plan').first()
   return row?.plan === 'pro' ? 'pro' : 'free'
 }
@@ -39,7 +41,7 @@ export async function getQuotaStatus(agencyId: number): Promise<QuotaStatus> {
   const overQuotaCount = Number(overRow?.count ?? 0)
 
   if (plan === 'pro') {
-    return { plan, used, limit: null, remaining: null, overQuotaCount }
+    return { plan, used, limit: null, remaining: null, overQuotaCount: 0 }
   }
 
   return {

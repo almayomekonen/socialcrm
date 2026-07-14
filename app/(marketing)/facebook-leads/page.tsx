@@ -96,19 +96,10 @@ const STATS = [
 const featureCategories = [
   {
     icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
-    title: 'לידים מפייסבוק',
+    title: 'לידים מפייסבוק ואינסטגרם',
     items: [
       { text: 'קבלה אוטומטית מ-Lead Ads' },
-      { text: 'חיבור לדף העסקי' },
-      { text: 'זיהוי מקור הקמפיין' },
-    ],
-  },
-  {
-    icon: <Icon name='instagram' className='size-6 bg-primary' />,
-    title: 'לידים מאינסטגרם',
-    items: [
-      { text: 'טפסי מודעות אינסטגרם' },
-      { text: 'לידים מ-DM ופרופיל' },
+      { text: 'חיבור יחיד לדף העסקי ב-Meta' },
       { text: 'עדכון אוטומטי בזמן אמת' },
     ],
   },
