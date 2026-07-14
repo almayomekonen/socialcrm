@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest'
 import {
   getRuntimeCognitionForLead,
   formatRuntimeCognitionBlock,
+  formatRuntimeCognitionForCandidates,
   type RuntimeCognitionDeps,
 } from '@/lib/copilot/general/runtimeCognition'
 import type { ReasonedUnderstanding, ReasonedQuestion } from '@/lib/ai/runtime/reasoning'
@@ -119,5 +120,25 @@ describe('Copilot Runtime bridge — LLM cognition block', () => {
     expect(block).toContain('Still unknown / unresolved: budget')
     expect(block).toContain('Reasoning:')
     expect(block).toContain('do not invent beyond it')
+  })
+})
+
+describe('Copilot Runtime bridge — General-Mode aggregation (per-candidate, no ranking)', () => {
+  it('aggregates grounded candidates, omits ungrounded, and forbids ranking', async () => {
+    const david = await getRuntimeCognitionForLead(SCOPE, 1, { now: NOW, deps: deps(understanding([question({ key: 'intent', credence: 0.9 })]), RECOMMEND) })
+    const sarah = await getRuntimeCognitionForLead(SCOPE, 2, { now: NOW, deps: deps(understanding([], { isGrounded: false }), STAY_SILENT) })
+    const block = formatRuntimeCognitionForCandidates([
+      { label: 'David', cognition: david },
+      { label: 'Sarah', cognition: sarah },
+    ])!
+    expect(block).toContain('understanding only')
+    expect(block).toContain('do NOT rank')
+    expect(block).toContain('• David:')
+    expect(block).not.toContain('• Sarah:') // ungrounded candidate omitted, not guessed
+  })
+
+  it('returns null when no candidate is grounded', async () => {
+    const c = await getRuntimeCognitionForLead(SCOPE, 3, { now: NOW, deps: deps(understanding([], { isGrounded: false }), STAY_SILENT) })
+    expect(formatRuntimeCognitionForCandidates([{ label: 'X', cognition: c }])).toBeNull()
   })
 })
