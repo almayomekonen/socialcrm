@@ -33,3 +33,16 @@ export function isSynthesisEnabledForUser(user: { agencyId?: number | null } | n
   if (list === 'all') return true
   return typeof user?.agencyId === 'number' && list.includes(user.agencyId)
 }
+
+/**
+ * Gate for AI-Runtime cognition in the Copilot (M5/M6/W2-M2 as the cognitive
+ * source). Requires the copilot enabled for the user AND the agency opted in via
+ * RUNTIME_COGNITION_AGENCY_IDS. Empty allowlist by default → OFF, so the Copilot
+ * answers exactly as today (CRM facts + existing path) until an agency opts in.
+ */
+export function isRuntimeCognitionEnabledForUser(user: { agencyId?: number | null } | null | undefined): boolean {
+  if (!isCopilotEnabledForUser(user)) return false
+  const list = getAiEnv().runtimeCognitionAgencyAllowlist
+  if (list === 'all') return true
+  return typeof user?.agencyId === 'number' && list.includes(user.agencyId)
+}
