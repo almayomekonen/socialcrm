@@ -22,6 +22,13 @@ import { validateAutoResponse } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
+import { getRuntimeCognitionForLead, formatRuntimeCognitionBlock, type RuntimeCognition } from '@/lib/copilot/general/runtimeCognition'
+import {
+  isRuntimeQualificationEnabled,
+  selectNextGap,
+  decideRuntimeQualification,
+  runtimeQualificationConfidenceThreshold,
+} from './runtimeQualification'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -156,6 +163,24 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   }
   if (pre.action === 'skip') return doSkip(pre.reason)
 
+  // ── Runtime-aware qualification (flag-gated, guarded). The Runtime supplies
+  //    cognition (confidence/uncertainty/provenance) and informs the handoff;
+  //    configuration owns the required fields and their priority; this engine
+  //    only orchestrates. Off/error → the qualifier behaves exactly as today. ──
+  const rqEnabled = isRuntimeQualificationEnabled(job.agencyId)
+  let rqCognition: RuntimeCognition | null = null
+  let rqFocusField: string | null = null
+  let rqCognitionBlock: string | null = null
+  if (rqEnabled) {
+    try {
+      rqCognition = await getRuntimeCognitionForLead({ agencyId: job.agencyId }, job.leadId)
+      rqCognitionBlock = formatRuntimeCognitionBlock(rqCognition)
+      rqFocusField = selectNextGap(aiState.qualification, settings.collectFields.required)
+    } catch {
+      // guarded — Runtime cognition is additive; never affect the qualifier
+    }
+  }
+
   // ── Generate one structured turn ──
   const gen: QualifyGenResult = await deps.generateQualify({
     agencyId: job.agencyId,
@@ -165,18 +190,37 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     qualification: aiState.qualification,
     collectFields: settings.collectFields,
     guidance: settings.guidance,
+    focusField: rqFocusField,
+    runtimeCognition: rqCognitionBlock,
   })
   if (gen.ok === false) return doSkip(gen.skipReason)
 
   const valid = validateAutoResponse(gen.reply).ok
   const merged = mergeQualification(aiState.qualification, gen.extracted)
-  const post = decidePostGeneration({
+  let post = decidePostGeneration({
     hotSignal: gen.hotSignal,
     uncertain: gen.uncertain || !valid, // never send an invalid/guessed message — escalate
     requiredComplete: requiredComplete(merged, settings.collectFields.required),
     turnCount: aiState.aiTurnCount,
     maxTurns,
   })
+  // Runtime-informed HANDOFF (flag-gated, additive): only ADDS a handoff the
+  // legacy state machine did not already trigger — when the Runtime is confident
+  // enough per configuration. Reuses the existing escalate + summary path.
+  if (rqEnabled && post.action === 'send') {
+    const decision = decideRuntimeQualification({
+      qualification: merged,
+      required: settings.collectFields.required,
+      turnCount: aiState.aiTurnCount,
+      maxTurns,
+      cognition: rqCognition,
+      confidenceThreshold: runtimeQualificationConfidenceThreshold(),
+    })
+    console.log(
+      `[IRE-RQ] conv=${conv.id} decision=${decision.decision} gap=${decision.gap ?? '-'} conf=${decision.confidence ?? '-'} missing=${decision.missing.join('|') || '-'}`,
+    )
+    if (decision.decision === 'HANDOFF') post = { action: 'escalate', reason: 'qualified' }
+  }
   const lang = detectLang(lastInbound?.text ?? '')
   const draft = settings.draft
   const summary =

@@ -81,6 +81,8 @@ function buildUser(args: {
   qualification: Qualification
   collectFields: { required: string[]; optional: string[] }
   guidance: string | null
+  focusField?: string | null
+  runtimeCognition?: string | null
 }): string {
   const convo = args.transcript.map((m) => `${m.direction === 'inbound' ? 'לקוח' : 'אנחנו'}: ${m.text}`).join('\n')
   const have = Object.entries(args.qualification)
@@ -94,6 +96,11 @@ function buildUser(args: {
     `שדות חובה שעוד חסרים: ${missingReq.join(', ') || '(הושלמו)'}`,
   ]
   if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
+  // Additive (flag-gated upstream): the Conversation Engine chose the highest-
+  // priority missing field; ask exactly it. The Runtime cognition block grounds
+  // confidence/framing. Absent → the message is byte-for-byte the existing one.
+  if (args.focusField) lines.push(`השדה בעל העדיפות הגבוהה ביותר לאיסוף עכשיו: ${args.focusField} — שאל/י שאלה טבעית אחת שממוקדת בו בלבד.`)
+  if (args.runtimeCognition) lines.push(args.runtimeCognition)
   return lines.join('\n\n')
 }
 
@@ -107,6 +114,8 @@ export async function generateQualifyTurn(args: {
   qualification: Qualification
   collectFields: { required: string[]; optional: string[] }
   guidance: string | null
+  focusField?: string | null
+  runtimeCognition?: string | null
 }): Promise<QualifyGenResult> {
   const out = await runStructured({
     kind: 'inbox.autoResponse',
