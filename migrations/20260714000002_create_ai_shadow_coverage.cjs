@@ -10,8 +10,11 @@
  *   - Additive only. No existing table/column is renamed, retyped, or dropped.
  *   - Isolated: no foreign key to any production table; truncate/drop independently.
  *   - Scope-first: every row carries "agencyId".
- *   - Idempotent per sweep window: unique (agencyId, subjectType, subjectId,
- *     sweepBucket) so a re-fired sweep upserts rather than duplicates.
+ *   - Idempotent per observation per sweep window: unique (agencyId, subjectType,
+ *     subjectId, sweepBucket, reason) so a re-fired sweep upserts rather than
+ *     duplicates. `reason` is part of the key because coverage_sweep and staleness
+ *     are two distinct observations of the same relationship in one sweep — both
+ *     must survive; the persistence layer preserves what the Scheduler emitted.
  *   - Reversible: down() drops the table.
  *
  * @param {import('knex').Knex} knex
@@ -34,10 +37,11 @@ exports.up = async function (knex) {
       "updatedAt" timestamptz NOT NULL DEFAULT now()
     )
   `)
-  // Idempotency: one decision per (agency, subject, sweep window) — upsert target.
+  // Idempotency: one decision per (agency, subject, sweep window, observation) —
+  // upsert target. coverage_sweep and staleness both survive within one sweep.
   await knex.raw(`
-    CREATE UNIQUE INDEX IF NOT EXISTS ai_shadow_coverage_bucket_uniq
-      ON ai_shadow_coverage ("agencyId", "subjectType", "subjectId", "sweepBucket")
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_shadow_coverage_obs_uniq
+      ON ai_shadow_coverage ("agencyId", "subjectType", "subjectId", "sweepBucket", reason)
   `)
   // Query a subject's coverage history (inspection/comparison).
   await knex.raw(`

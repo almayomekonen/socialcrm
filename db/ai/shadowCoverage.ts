@@ -58,10 +58,15 @@ function parseJson<T>(v: unknown, fallback: T): T {
   return v as T
 }
 
-/** Upsert one coverage decision. Idempotent on (agencyId, subjectType, subjectId, sweepBucket). */
+/**
+ * Upsert one coverage decision. Idempotent per observation:
+ * (agencyId, subjectType, subjectId, sweepBucket, reason). coverage_sweep and
+ * staleness are distinct observations of the same relationship in one sweep and
+ * both persist; `reason` is part of the key, not a mutable column.
+ */
 export async function recordCoverageDecision(input: CoverageDecisionInput): Promise<number> {
-  const shared = {
-    reason: input.reason,
+  // Mutable (non-key) columns that a re-fired sweep may overwrite.
+  const mutable = {
     outcome: input.outcome,
     emitted: input.emitted,
     rejectionBoundary: input.rejectionBoundary ?? null,
@@ -74,10 +79,11 @@ export async function recordCoverageDecision(input: CoverageDecisionInput): Prom
       subjectType: input.subjectType,
       subjectId: input.subjectId,
       sweepBucket: input.sweepBucket,
-      ...shared,
+      reason: input.reason,
+      ...mutable,
     })
-    .onConflict(['agencyId', 'subjectType', 'subjectId', 'sweepBucket'])
-    .merge({ ...shared, updatedAt: db.fn.now() })
+    .onConflict(['agencyId', 'subjectType', 'subjectId', 'sweepBucket', 'reason'])
+    .merge({ ...mutable, updatedAt: db.fn.now() })
     .returning('id')
   return Number((inserted[0] as { id: unknown }).id)
 }
