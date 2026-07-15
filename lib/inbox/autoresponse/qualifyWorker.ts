@@ -15,7 +15,7 @@ import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_T
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { mergeQualification, requiredComplete } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
-import { generateQualifyTurn, handoffMessage, detectLang, detectOptOut, type QualifyGenResult } from './qualify'
+import { generateQualifyTurn, handoffMessage, detectLang, detectOptOut, detectHumanRequest, type QualifyGenResult } from './qualify'
 import { buildSummary, type EscalationSummary } from './summary'
 import { isQualifierEnabled } from './killSwitch'
 import { validateAutoResponse } from './validate'
@@ -23,12 +23,7 @@ import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
 import { getRuntimeCognitionForLead, formatRuntimeCognitionBlock, type RuntimeCognition } from '@/lib/copilot/general/runtimeCognition'
-import {
-  isRuntimeQualificationEnabled,
-  selectNextGap,
-  decideRuntimeQualification,
-  runtimeQualificationConfidenceThreshold,
-} from './runtimeQualification'
+import { isRuntimeQualificationEnabled, selectNextGap, decideConversationPolicy } from './runtimeQualification'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -204,22 +199,33 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     turnCount: aiState.aiTurnCount,
     maxTurns,
   })
-  // Runtime-informed HANDOFF (flag-gated, additive): only ADDS a handoff the
-  // legacy state machine did not already trigger — when the Runtime is confident
-  // enough per configuration. Reuses the existing escalate + summary path.
-  if (rqEnabled && post.action === 'send') {
-    const decision = decideRuntimeQualification({
-      qualification: merged,
-      required: settings.collectFields.required,
-      turnCount: aiState.aiTurnCount,
-      maxTurns,
-      cognition: rqCognition,
-      confidenceThreshold: runtimeQualificationConfidenceThreshold(),
-    })
-    console.log(
-      `[IRE-RQ] conv=${conv.id} decision=${decision.decision} gap=${decision.gap ?? '-'} conf=${decision.confidence ?? '-'} missing=${decision.missing.join('|') || '-'}`,
-    )
-    if (decision.decision === 'HANDOFF') post = { action: 'escalate', reason: 'qualified' }
+  // Conversation decision policy (flag-gated). Replaces the rigid hotSignal/
+  // requiredComplete auto-handoff with ONE reasoned ASK/HANDOFF decision, while
+  // hard escalations (uncertain / max_turns) stay untouched. Flag off → the
+  // legacy decidePostGeneration result governs exactly as today.
+  if (rqEnabled) {
+    if (detectHumanRequest(lastInbound?.text ?? '')) {
+      // Hard rule: an explicit request for a person bypasses reasoning entirely.
+      post = { action: 'escalate', reason: 'human_request' }
+    } else if (
+      post.action === 'send' ||
+      (post.action === 'escalate' && (post.reason === 'hot_signal' || post.reason === 'qualified'))
+    ) {
+      // The single reasoned decision governs the soft cases. It consumes the
+      // Runtime's open questions (what is worth asking) + the config fields; it
+      // decides only whether to ask one more. Reuses the existing send / escalate
+      // paths — ASK sends the already-generated gen.reply, HANDOFF escalates.
+      const decision = decideConversationPolicy({
+        qualification: merged,
+        required: settings.collectFields.required,
+        optional: settings.collectFields.optional,
+        turnCount: aiState.aiTurnCount,
+        maxTurns,
+        cognition: rqCognition,
+      })
+      console.log(`[IRE-RQ] conv=${conv.id} policy=${decision.decision} gap=${decision.gap ?? '-'} reason=${decision.reason}`)
+      post = decision.decision === 'ASK' ? { action: 'send' } : { action: 'escalate', reason: 'qualified' }
+    }
   }
   const lang = detectLang(lastInbound?.text ?? '')
   const draft = settings.draft
