@@ -148,3 +148,78 @@ export function decideRuntimeQualification(input: RuntimeQualificationInput): Ru
     missing,
   }
 }
+
+/**
+ * Fixed product objective for the conversation policy. Deterministic and stated
+ * here in code — the LLM never invents or negotiates it. Every ASK/HANDOFF is
+ * evaluated against this single sentence.
+ */
+export const CONVERSATION_OBJECTIVE =
+  "Collect only information that materially improves the business owner's ability to continue the sale."
+
+export interface ConversationPolicyInput {
+  /** Collected qualification so far (conversation state). */
+  qualification: Qualification
+  /** Required fields = the business owner's definition of materially-relevant info. */
+  required: readonly string[]
+  /** Optional fields — collectable past the required floor, gated by the Runtime. */
+  optional: readonly string[]
+  /** AI turns already sent in this conversation. */
+  turnCount: number
+  maxTurns: number
+  /** Runtime cognition for this lead, or null when unavailable. */
+  cognition: RuntimeCognition | null
+}
+
+export interface ConversationPolicyDecision {
+  decision: 'ASK' | 'HANDOFF'
+  /** The next field to ask when ASK (config priority, via Gap Selection); null on HANDOFF. */
+  gap: QualificationField | null
+  reason: string
+}
+
+/**
+ * The single ASK/HANDOFF decision (product evolution). Responsibilities stay
+ * separated and no tunable heuristics are introduced:
+ *
+ *   • The RUNTIME decides WHAT is worth asking — it surfaces prioritized
+ *     `openQuestions` (belief keys not decision-stable for the inbound purpose).
+ *     This policy consumes that list; it never re-derives relevance.
+ *   • Business POLICY decides WHICH fields matter — `required` (the floor) then
+ *     `optional`, both selected by config priority via the reused Gap Selection.
+ *   • This function decides only WHETHER to ask one more question.
+ *
+ * Required fields are the business floor — always collected while any remain.
+ * Once required is complete, one further (optional) question is asked ONLY while
+ * the Runtime still reports an open question worth resolving (its reasoned
+ * residual already reflects hot signals, history and the World Model). When the
+ * Runtime is settled, or no collectable field remains, or turns are spent → hand
+ * off. The only operators are existence (`> 0`, `!== null`) and the existing
+ * `maxTurns` bound — no confidence thresholds, no magic numbers.
+ */
+export function decideConversationPolicy(input: ConversationPolicyInput): ConversationPolicyDecision {
+  const runtimeOpenQuestions = input.cognition?.openQuestions.length ?? 0
+  const turnsRemain = input.turnCount < input.maxTurns
+  const requiredGap = selectNextGap(input.qualification, input.required)
+
+  // Required floor first; past it, an optional question only while the Runtime is
+  // not yet settled. The Runtime owns "is more worth asking?"; we consume it.
+  const gap = requiredGap ?? (runtimeOpenQuestions > 0 ? selectNextGap(input.qualification, input.optional) : null)
+
+  if (gap !== null && turnsRemain) {
+    return {
+      decision: 'ASK',
+      gap,
+      reason:
+        requiredGap !== null
+          ? `collecting required field '${gap}'`
+          : `required complete; Runtime has ${runtimeOpenQuestions} open question(s) → asking optional '${gap}'`,
+    }
+  }
+  const reason = !turnsRemain
+    ? 'max AI turns reached'
+    : requiredGap === null && runtimeOpenQuestions === 0
+      ? 'required complete and Runtime settled — nothing material left to ask'
+      : 'no further collectable question'
+  return { decision: 'HANDOFF', gap: null, reason }
+}

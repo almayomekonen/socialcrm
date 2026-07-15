@@ -8,8 +8,10 @@ import { describe, it, expect, afterEach } from 'vitest'
 import {
   selectNextGap,
   decideRuntimeQualification,
+  decideConversationPolicy,
   isRuntimeQualificationEnabled,
 } from '@/lib/inbox/autoresponse/runtimeQualification'
+import { detectHumanRequest } from '@/lib/inbox/autoresponse/qualify'
 import type { RuntimeCognition } from '@/lib/copilot/general/runtimeCognition'
 import type { Qualification } from '@/lib/inbox/autoresponse/qualification'
 
@@ -107,5 +109,65 @@ describe('Runtime qualification — per-agency canary flag', () => {
     expect(isRuntimeQualificationEnabled(104)).toBe(false)
     process.env.RUNTIME_QUALIFICATION_KILL = '1'
     expect(isRuntimeQualificationEnabled(103)).toBe(false)
+  })
+})
+
+const OPT = ['location', 'callback'] // optional pool, distinct from REQ
+
+describe('Conversation policy — single ASK/HANDOFF (threshold-free, Runtime-driven)', () => {
+  const base = { required: REQ, optional: OPT, turnCount: 0, maxTurns: 6 }
+
+  it('ASK while a required field is still missing — business floor, even with no cognition', () => {
+    const d = decideConversationPolicy({ ...base, qualification: { need: 'CRM' }, cognition: null })
+    expect(d.decision).toBe('ASK')
+    expect(d.gap).toBe('budget') // first missing required by config order
+  })
+
+  it('required complete + Runtime settled (no open questions) → HANDOFF', () => {
+    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: cog(0.9, []) })
+    expect(d.decision).toBe('HANDOFF')
+    expect(d.gap).toBeNull()
+  })
+
+  it('required complete + Runtime still has an open question → ASK one optional field', () => {
+    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: cog(0.5, ['need']) })
+    expect(d.decision).toBe('ASK')
+    expect(d.gap).toBe('location') // first optional by config order
+  })
+
+  it('required complete + open question but no optional field left → HANDOFF', () => {
+    const d = decideConversationPolicy({ ...base, optional: [], qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: cog(0.5, ['need']) })
+    expect(d.decision).toBe('HANDOFF')
+  })
+
+  it('required complete + no cognition (no runtime signal) → HANDOFF', () => {
+    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: null })
+    expect(d.decision).toBe('HANDOFF')
+  })
+
+  it('max AI turns reached → HANDOFF even with a required field missing', () => {
+    const d = decideConversationPolicy({ ...base, turnCount: 6, qualification: { need: 'CRM' }, cognition: null })
+    expect(d.decision).toBe('HANDOFF')
+    expect(d.reason).toMatch(/turns/i)
+  })
+
+  it('no confidence threshold: only open-question EXISTENCE matters, never the credence magnitude', () => {
+    const q = { need: 'x', budget: 'y', urgency: 'z' }
+    // open question present → ASK regardless of how high/low the credence is
+    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.01, ['need']) }).decision).toBe('ASK')
+    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.99, ['need']) }).decision).toBe('ASK')
+    // no open question → HANDOFF regardless of credence
+    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.01, []) }).decision).toBe('HANDOFF')
+    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.99, []) }).decision).toBe('HANDOFF')
+  })
+})
+
+describe('Hard rule — explicit human request (bypasses reasoning)', () => {
+  it('detects human/call/meeting requests but NOT buying intent', () => {
+    expect(detectHumanRequest('אני רוצה לדבר עם נציג')).toBe(true)
+    expect(detectHumanRequest('בוא נקבע פגישה')).toBe(true)
+    expect(detectHumanRequest('call me please')).toBe(true)
+    expect(detectHumanRequest('אני צריך להתחיל השבוע')).toBe(false) // buying intent, not a human request
+    expect(detectHumanRequest('כמה זה עולה')).toBe(false)
   })
 })
