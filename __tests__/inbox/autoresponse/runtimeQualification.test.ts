@@ -112,53 +112,32 @@ describe('Runtime qualification — per-agency canary flag', () => {
   })
 })
 
-const OPT = ['location', 'callback'] // optional pool, distinct from REQ
+describe('Conversation policy — ASK while required incomplete, else HANDOFF (single generation, no optional)', () => {
+  const base = { required: REQ, turnCount: 0, maxTurns: 6 }
 
-describe('Conversation policy — single ASK/HANDOFF (threshold-free, Runtime-driven)', () => {
-  const base = { required: REQ, optional: OPT, turnCount: 0, maxTurns: 6 }
-
-  it('ASK while a required field is still missing — business floor, even with no cognition', () => {
-    const d = decideConversationPolicy({ ...base, qualification: { need: 'CRM' }, cognition: null })
+  it('ASK the first required field from an empty state', () => {
+    const d = decideConversationPolicy({ ...base, qualification: {} })
     expect(d.decision).toBe('ASK')
-    expect(d.gap).toBe('budget') // first missing required by config order
+    expect(d.gap).toBe('need')
   })
 
-  it('required complete + Runtime settled (no open questions) → HANDOFF', () => {
-    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: cog(0.9, []) })
+  it('ASK the next missing required field, in config order', () => {
+    const d = decideConversationPolicy({ ...base, qualification: { need: 'CRM' } })
+    expect(d.decision).toBe('ASK')
+    expect(d.gap).toBe('budget')
+  })
+
+  it('HANDOFF once all required fields are collected — never asks optional follow-ups', () => {
+    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' } })
     expect(d.decision).toBe('HANDOFF')
     expect(d.gap).toBeNull()
+    expect(d.reason).toMatch(/required fields complete/i)
   })
 
-  it('required complete + Runtime still has an open question → ASK one optional field', () => {
-    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: cog(0.5, ['need']) })
-    expect(d.decision).toBe('ASK')
-    expect(d.gap).toBe('location') // first optional by config order
-  })
-
-  it('required complete + open question but no optional field left → HANDOFF', () => {
-    const d = decideConversationPolicy({ ...base, optional: [], qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: cog(0.5, ['need']) })
-    expect(d.decision).toBe('HANDOFF')
-  })
-
-  it('required complete + no cognition (no runtime signal) → HANDOFF', () => {
-    const d = decideConversationPolicy({ ...base, qualification: { need: 'x', budget: 'y', urgency: 'z' }, cognition: null })
-    expect(d.decision).toBe('HANDOFF')
-  })
-
-  it('max AI turns reached → HANDOFF even with a required field missing', () => {
-    const d = decideConversationPolicy({ ...base, turnCount: 6, qualification: { need: 'CRM' }, cognition: null })
+  it('HANDOFF when max AI turns reached even with a required field still missing', () => {
+    const d = decideConversationPolicy({ ...base, turnCount: 6, qualification: { need: 'CRM' } })
     expect(d.decision).toBe('HANDOFF')
     expect(d.reason).toMatch(/turns/i)
-  })
-
-  it('no confidence threshold: only open-question EXISTENCE matters, never the credence magnitude', () => {
-    const q = { need: 'x', budget: 'y', urgency: 'z' }
-    // open question present → ASK regardless of how high/low the credence is
-    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.01, ['need']) }).decision).toBe('ASK')
-    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.99, ['need']) }).decision).toBe('ASK')
-    // no open question → HANDOFF regardless of credence
-    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.01, []) }).decision).toBe('HANDOFF')
-    expect(decideConversationPolicy({ ...base, qualification: q, cognition: cog(0.99, []) }).decision).toBe('HANDOFF')
   })
 })
 

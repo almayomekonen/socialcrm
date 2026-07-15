@@ -218,10 +218,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       const decision = decideConversationPolicy({
         qualification: merged,
         required: settings.collectFields.required,
-        optional: settings.collectFields.optional,
         turnCount: aiState.aiTurnCount,
         maxTurns,
-        cognition: rqCognition,
       })
       console.log(`[IRE-RQ] conv=${conv.id} policy=${decision.decision} gap=${decision.gap ?? '-'} reason=${decision.reason}`)
       post = decision.decision === 'ASK' ? { action: 'send' } : { action: 'escalate', reason: 'qualified' }
