@@ -19,6 +19,7 @@ import { generateQualifyTurn } from './qualify'
 import { processQualifyJob } from './qualifyWorker'
 import { validateAutoResponse } from './validate'
 import { renderFixedReply } from './renderFixedReply'
+import { waTrace } from './waTrace'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -144,6 +145,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     accessToken: connection.access_token,
     to,
     body: message,
+    trace: { conversationId: job.conversationId, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
   })
   if (sent.ok === false) {
     const detail = formatWhatsappSendFailure(sent)
@@ -208,14 +210,43 @@ export async function runAutoResponseWorker(
   let skipped = 0
   let failed = 0
   for (const job of jobs) {
+    const startedAt = Date.now()
+    const traceCtx = {
+      conversationId: job.conversationId,
+      jobId: job.id,
+      agencyId: job.agencyId,
+      triggerSequence: job.triggerSequence,
+    }
+    waTrace('WORKER_STARTED', traceCtx, { jobId: job.id, attempt: job.attempts, maxAttempts: job.maxAttempts })
+    let outcome: Outcome | 'error' = 'error'
     try {
       const r = await processJob(job, deps)
+      outcome = r
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
       else failed++
     } catch (err) {
       await failAutoResponseJob(job.id, String(err))
       failed++
+    } finally {
+      try {
+        const fin = await db('auto_response_jobs')
+          .where({ id: job.id })
+          .first('status', 'skipReason', 'lastError', 'sentMessageId')
+        waTrace(
+          'JOB_FINISHED',
+          { ...traceCtx, messageId: (fin?.sentMessageId as number | null) ?? null },
+          {
+            outcome,
+            finalStatus: fin?.status ?? null,
+            skipReason: fin?.skipReason ?? null,
+            lastError: fin?.lastError ?? null,
+            durationMs: Date.now() - startedAt,
+          },
+        )
+      } catch {
+        // logging only
+      }
     }
   }
   return { claimed: jobs.length, sent, skipped, failed }

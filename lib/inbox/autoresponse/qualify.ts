@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
 import { QUALIFICATION_FIELDS, type Qualification } from './qualification'
+import { waTrace, type WaTraceCtx } from './waTrace'
 
 // Explicit request to reach a person — a phone call, a meeting, or a human rep.
 // This is a HARD handoff signal: the customer asked for a human, so no amount of
@@ -136,6 +137,7 @@ export async function generateQualifyTurn(args: {
   guidance: string | null
   focusField?: string | null
   runtimeCognition?: string | null
+  trace?: WaTraceCtx
 }): Promise<QualifyGenResult> {
   const out = await runStructured({
     kind: 'inbox.autoResponse',
@@ -146,6 +148,7 @@ export async function generateQualifyTurn(args: {
     agencyId: args.agencyId,
   })
   if (out.ok === false) {
+    waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, { ok: false, reason: out.reason })
     return { ok: false, skipReason: out.reason === 'over-quota' ? 'budget_exhausted' : 'ai_unavailable' }
   }
   const d = out.data as z.infer<typeof QualifySchema>
@@ -155,11 +158,22 @@ export async function generateQualifyTurn(args: {
     if (v != null && String(v).trim() !== '') extracted[f] = String(v).trim()
   }
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
-  return {
-    ok: true,
+  const result = {
+    ok: true as const,
     reply: d.reply,
     extracted,
     hotSignal: Boolean(d.hotSignal) || detectHotSignal(lastInbound),
     uncertain: Boolean(d.uncertain),
   }
+  waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, {
+    ok: true,
+    provider: out.provider,
+    model: out.model,
+    usage: { inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd },
+    latencyMs: out.latencyMs,
+    extracted,
+    hotSignal: result.hotSignal,
+    uncertain: result.uncertain,
+  })
+  return result
 }

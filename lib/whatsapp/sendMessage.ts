@@ -1,4 +1,5 @@
-import { GRAPH_BASE } from '@/lib/facebook/graph'
+import { GRAPH_BASE, GRAPH_VERSION } from '@/lib/facebook/graph'
+import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
 
 export type SendWhatsappTextSuccess = { ok: true; wamid: string }
 
@@ -48,8 +49,15 @@ export async function sendWhatsappText(args: {
   accessToken: string
   to: string
   body: string
+  trace?: WaTraceCtx
 }): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, body } = args
+  waTrace('WHATSAPP_SEND_REQUEST', args.trace ?? {}, {
+    phone_number_id: phoneNumberId,
+    graphVersion: GRAPH_VERSION,
+    recipient: to,
+    messageLength: (body ?? '').length,
+  })
   try {
     const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
       method: 'POST',
@@ -68,10 +76,23 @@ export async function sendWhatsappText(args: {
 
     const data = (await res.json().catch(() => ({}))) as GraphErrorBody & {
       messages?: { id?: string }[]
+      error?: GraphErrorBody['error'] & { error_data?: unknown }
     }
 
     if (!res.ok) {
       const err = data.error
+      waTrace('WHATSAPP_SEND_RESPONSE', args.trace ?? {}, {
+        ok: false,
+        httpStatus: res.status,
+        errorCode: err?.code ?? null,
+        subcode: (err as { error_subcode?: number } | undefined)?.error_subcode ?? null,
+        message: err?.message ?? null,
+        error: data.error ?? null,
+        error_data: (err as { error_data?: unknown } | undefined)?.error_data ?? null,
+        fbtrace_id: err?.fbtrace_id ?? null,
+        xFbTraceId: res.headers.get('x-fb-trace-id'),
+        xFbRequestId: res.headers.get('x-fb-request-id'),
+      })
       console.error('[WhatsappSend] Graph API error', {
         status: res.status,
         code: err?.code,
@@ -97,6 +118,13 @@ export async function sendWhatsappText(args: {
       return { ok: false, error: 'no-message-id', httpStatus: res.status }
     }
 
+    waTrace('WHATSAPP_SEND_RESPONSE', args.trace ?? {}, {
+      ok: true,
+      httpStatus: res.status,
+      wamid,
+      xFbTraceId: res.headers.get('x-fb-trace-id'),
+      xFbRequestId: res.headers.get('x-fb-request-id'),
+    })
     return { ok: true, wamid }
   } catch (err) {
     console.error('[WhatsappSend] fetch failed', err)

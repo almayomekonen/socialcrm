@@ -4,6 +4,7 @@ import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
 import { createLeadFromWhatsappWebhook } from '@/lib/system/createLeadFromWhatsappWebhook'
 import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
 import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
+import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { db } from '@/config/db'
 
 export const maxDuration = 60
@@ -87,6 +88,12 @@ export async function POST(req: NextRequest) {
 
     console.log(
       `[WhatsappWebhook][routing][msgId=${messageId}] Resolved — phoneNumberId=${phoneNumberId}, userId=${connection.user_id}`,
+    )
+
+    waTrace(
+      'WEBHOOK_RECEIVED',
+      { agencyId: connection.agency_id, messageId },
+      { phoneNumber: from, phoneNumberId, waMessageId: messageId, textLength: (message?.text?.body ?? '').length },
     )
 
     // Profile name comes from contacts array (may not always be present)

@@ -5,6 +5,7 @@ import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertInboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 import { enqueueAutoResponse } from '@/db/autoResponseJobs'
+import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
@@ -71,6 +72,12 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       channelTimestamp: parsed.channelTimestamp,
     })
 
+    waTrace(
+      'CONVERSATION_READY',
+      { conversationId, agencyId: input.agencyId, messageId, triggerSequence: sequence },
+      { existing: !inserted, messageInserted: inserted, sequence, firstInbound: sequence === 1 },
+    )
+
     if (inserted) {
       await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date(), parsed.text)
       await enqueueConversationAnalysis(trx, {
@@ -88,15 +95,21 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
         .first('mode', 'delaySeconds')
       const delayRaw = Number(arSettings?.delaySeconds ?? 0)
       const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
-      await enqueueAutoResponse(trx, {
+      const reason = arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact'
+      const jobId = await enqueueAutoResponse(trx, {
         agencyId: input.agencyId,
         conversationId,
         leadId: input.leadId,
         channel: 'whatsapp',
         triggerSequence: sequence,
-        reason: arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact',
+        reason,
         delaySeconds,
       })
+      waTrace(
+        'JOB_CREATED',
+        { conversationId, agencyId: input.agencyId, jobId, messageId, triggerSequence: sequence },
+        { jobId, reason, triggerSequence: sequence, enqueued: jobId != null },
+      )
     }
 
     return { conversationId, messageId, inserted }

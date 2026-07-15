@@ -24,6 +24,7 @@ import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
 import { getRuntimeCognitionForLead, formatRuntimeCognitionBlock, type RuntimeCognition } from '@/lib/copilot/general/runtimeCognition'
 import { isRuntimeQualificationEnabled, selectNextGap, decideConversationPolicy } from './runtimeQualification'
+import { waTrace } from './waTrace'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -64,7 +65,13 @@ async function sendAndPersist(
   const to = ctx.conv.customerWaId
   if (!to) return { ok: false, reason: 'no_recipient' }
 
-  const sent = await send({ phoneNumberId: ctx.conv.businessPhoneNumberId, accessToken: connection.access_token, to, body: text })
+  const sent = await send({
+    phoneNumberId: ctx.conv.businessPhoneNumberId,
+    accessToken: connection.access_token,
+    to,
+    body: text,
+    trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+  })
   if (sent.ok === false) {
     const detail = formatWhatsappSendFailure(sent)
     return { ok: false, reason: detail }
@@ -151,6 +158,11 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     turnCount: aiState.aiTurnCount,
     maxTurns,
   })
+  waTrace(
+    'PRE_GENERATION_DECISION',
+    { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+    { action: pre.action, reason: 'reason' in pre ? pre.reason : null },
+  )
   if (pre.action === 'stop') {
     if (pre.state === 'human_active') await markHumanActive(conv.id)
     else await markStopped(conv.id, 'opted_out', pre.reason)
@@ -177,16 +189,24 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   }
 
   // ── Generate one structured turn ──
+  const qTranscript = recent
+    .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
+    .filter((m) => m.text)
+  const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
+  waTrace('GENERATE_QUALIFY_START', genTrace, {
+    transcriptLength: qTranscript.length,
+    currentQualification: aiState.qualification,
+    aiTurnCount: aiState.aiTurnCount,
+  })
   const gen: QualifyGenResult = await deps.generateQualify({
     agencyId: job.agencyId,
-    transcript: recent
-      .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
-      .filter((m) => m.text),
+    transcript: qTranscript,
     qualification: aiState.qualification,
     collectFields: settings.collectFields,
     guidance: settings.guidance,
     focusField: rqFocusField,
     runtimeCognition: rqCognitionBlock,
+    trace: genTrace,
   })
   if (gen.ok === false) return doSkip(gen.skipReason)
 
