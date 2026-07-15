@@ -2,21 +2,40 @@ import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
 import { QUALIFICATION_FIELDS, type Qualification } from './qualification'
 
-const HOT_PATTERNS: RegExp[] = [
-  /מחיר|תמחור|הצעת מחיר|עלות|בכמה|כמה.{0,12}עול/, // price ("כמה זה עולה", "כמה עולה", "מחיר", …)
-  /דמו|הדגמה/, // demo
+// Explicit request to reach a person — a phone call, a meeting, or a human rep.
+// This is a HARD handoff signal: the customer asked for a human, so no amount of
+// further qualification is appropriate. Kept separate from buying-intent below.
+const HUMAN_REQUEST_PATTERNS: RegExp[] = [
   /פגיש|להיפגש|זום|שיחה/, // meeting/call
-  /איך מתחיל|להתחיל|להזמין|לקנות|להצטרף/, // how to start / buy
   /נציג|לדבר עם|בנאדם|אדם אמיתי|שיחזרו? אלי|תתקשרו|תחזרו אלי/, // talk to a human / call me
-  /\bprice|pricing|cost|quote\b/i,
-  /\bdemo\b/i,
   /\bmeeting|schedule a (call|meeting)|book a\b/i,
-  /how (do|can) i (start|begin|buy)|get started|sign ?up/i,
   /talk to (a|someone)|speak (to|with)|call me|representative|\bagent\b|\bhuman\b/i,
 ]
 
+// Buying intent — interest in price/demo/starting. A SOFT signal: it expresses
+// momentum toward a purchase but, on its own, does not mean the conversation
+// should end. Whether to ask one more question is decided by the conversation
+// policy against the Runtime's cognition, not by these patterns alone.
+const BUYING_INTENT_PATTERNS: RegExp[] = [
+  /מחיר|תמחור|הצעת מחיר|עלות|בכמה|כמה.{0,12}עול/, // price ("כמה זה עולה", "כמה עולה", "מחיר", …)
+  /דמו|הדגמה/, // demo
+  /איך מתחיל|להתחיל|להזמין|לקנות|להצטרף/, // how to start / buy
+  /\bprice|pricing|cost|quote\b/i,
+  /\bdemo\b/i,
+  /how (do|can) i (start|begin|buy)|get started|sign ?up/i,
+]
+
+// Union of both — the historical "hot signal" set. Unchanged in aggregate so the
+// legacy (flag-off) qualifier behaves exactly as before.
+const HOT_PATTERNS: RegExp[] = [...HUMAN_REQUEST_PATTERNS, ...BUYING_INTENT_PATTERNS]
+
 export function detectHotSignal(text: string): boolean {
   return HOT_PATTERNS.some((re) => re.test(text))
+}
+
+/** Explicit request to reach a person (call / meeting / human rep) → hard handoff. */
+export function detectHumanRequest(text: string): boolean {
+  return HUMAN_REQUEST_PATTERNS.some((re) => re.test(text))
 }
 
 export function detectLang(text: string): 'he' | 'en' {
@@ -99,7 +118,8 @@ function buildUser(args: {
   // Additive (flag-gated upstream): the Conversation Engine chose the highest-
   // priority missing field; ask exactly it. The Runtime cognition block grounds
   // confidence/framing. Absent → the message is byte-for-byte the existing one.
-  if (args.focusField) lines.push(`השדה בעל העדיפות הגבוהה ביותר לאיסוף עכשיו: ${args.focusField} — שאל/י שאלה טבעית אחת שממוקדת בו בלבד.`)
+  if (args.focusField)
+    lines.push(`השדה בעל העדיפות הגבוהה ביותר לאיסוף עכשיו: ${args.focusField} — שאל/י שאלה טבעית אחת שממוקדת בו בלבד.`)
   if (args.runtimeCognition) lines.push(args.runtimeCognition)
   return lines.join('\n\n')
 }
