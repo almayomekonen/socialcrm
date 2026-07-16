@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
+import { validateAutoResponse, validateConciergeReply } from '@/lib/inbox/autoresponse/validate'
 
 const ok = ['שלום! קיבלנו את פנייתך, נשמח לדעת איך נוכל לעזור?']
 const bad: [string, string][] = [
@@ -18,4 +18,17 @@ describe('validateAutoResponse', () => {
     const r = validateAutoResponse(m)
     expect(r.ok).toBe(false)
   })
+})
+
+describe('validateConciergeReply (post-handoff — no question requirement)', () => {
+  it('accepts a warm ack with no question mark', () => expect(validateConciergeReply('בשמחה!').ok).toBe(true))
+  it('accepts a defer sentence', () => expect(validateConciergeReply('אחד מאנשי הצוות יענה לך על זה בקרוב.').ok).toBe(true))
+  it('still rejects a price/number reply (forbidden)', () => {
+    const r = validateConciergeReply('המחיר שלנו הוא 200 שקל')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.violation).toBe('forbidden')
+  })
+  it('rejects empty', () => expect(validateConciergeReply('   ').ok).toBe(false))
+  it('rejects too many sentences', () =>
+    expect(validateConciergeReply('שלום. מה נשמע. איך אפשר לעזור. עוד משפט.').ok).toBe(false))
 })

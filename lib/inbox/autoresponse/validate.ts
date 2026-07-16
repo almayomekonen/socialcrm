@@ -8,7 +8,7 @@
  * a false-reject is safe — silence — while a false-accept is not). English terms
  * keep `\b` to avoid matching inside larger words.
  */
-const FORBIDDEN = [
+export const FORBIDDEN = [
   // currency / price / quotes
   /[₪$€]/,
   /ש"ח/,
@@ -81,6 +81,36 @@ export function validateAutoResponse(text: string): ValidationResult {
   if (t.length > 320) return { ok: false, violation: 'too_long', details }
   if (questionMarks === 0) return { ok: false, violation: 'no_question', details }
   if (questionMarks > 1) return { ok: false, violation: 'too_many_questions', details }
+  if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
+  return { ok: true, details }
+}
+
+/**
+ * Post-handoff (concierge) validator. Shares the FORBIDDEN price/time/commitment
+ * guardrail and the length limits with {@link validateAutoResponse}, but DROPS
+ * the "exactly one question" rule — a post-handoff reply is usually an
+ * acknowledgement or a deferral ("בשמחה", "אחד מאנשי הצוות יחזור אליך"), not a
+ * qualification question. Same conservative stance: reject on doubt.
+ */
+export function validateConciergeReply(text: string): ValidationResult {
+  const t = (text ?? '').trim()
+  const sentences = t
+    .split(/[.!?\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const questionMarks = (t.match(/\?/g) ?? []).length
+  let matchedForbidden: string | null = null
+  for (const re of FORBIDDEN) {
+    if (re.test(t)) {
+      matchedForbidden = re.source
+      break
+    }
+  }
+  const details: ValidationDetails = { length: t.length, sentenceCount: sentences.length, questionMarks, matchedForbidden }
+
+  if (!t) return { ok: false, violation: 'empty', details }
+  if (sentences.length > 3) return { ok: false, violation: 'too_long', details }
+  if (t.length > 320) return { ok: false, violation: 'too_long', details }
   if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
   return { ok: true, details }
 }
