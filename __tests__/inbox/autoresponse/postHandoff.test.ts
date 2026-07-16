@@ -9,6 +9,7 @@ import {
   buildPostHandoffUser,
   DEFER_VARIANTS,
   deferLine,
+  decidePostHandoffReply,
 } from '@/lib/inbox/autoresponse/postHandoff'
 import { validateConciergeReply } from '@/lib/inbox/autoresponse/validate'
 
@@ -76,5 +77,54 @@ describe('post-handoff prompt + defer variants', () => {
     expect(deferLine(1)).toBe(DEFER_VARIANTS[1])
     expect(deferLine(DEFER_VARIANTS.length)).toBe(DEFER_VARIANTS[0])
     expect(deferLine(0)).not.toBe(deferLine(1))
+  })
+})
+
+describe('decidePostHandoffReply (pure)', () => {
+  const gates = {
+    hasUnansweredInbound: true,
+    withinWindow: true,
+    withinQuietHours: false,
+    sentToday: 0,
+    dailyCap: 200,
+    budgetUsed: 0,
+  }
+  const okGen = (reply: string, deferred: boolean) => ({ ok: true as const, reply, deferred })
+
+  it('STOP when budget is exhausted (>= max, default 3)', () => {
+    const d = decidePostHandoffReply({ ...gates, budgetUsed: 3, gen: okGen('בשמחה!', false) })
+    expect(d).toEqual({ action: 'stop', reason: 'budget_exhausted' })
+  })
+
+  it('STOP when generation is unavailable', () => {
+    const d = decidePostHandoffReply({ ...gates, gen: { ok: false, skipReason: 'ai_unavailable' } })
+    expect(d).toEqual({ action: 'stop', reason: 'ai_unavailable' })
+  })
+
+  it('STOP on hard gates (no pending / window / quiet / cap)', () => {
+    expect(decidePostHandoffReply({ ...gates, hasUnansweredInbound: false, gen: okGen('בשמחה!', false) }).action).toBe('stop')
+    expect(decidePostHandoffReply({ ...gates, withinWindow: false, gen: okGen('בשמחה!', false) }).action).toBe('stop')
+    expect(decidePostHandoffReply({ ...gates, withinQuietHours: true, gen: okGen('בשמחה!', false) }).action).toBe('stop')
+    expect(decidePostHandoffReply({ ...gates, sentToday: 200, gen: okGen('בשמחה!', false) }).action).toBe('stop')
+  })
+
+  it('SEND the model reply when valid (answer)', () => {
+    const d = decidePostHandoffReply({ ...gates, gen: okGen('בשמחה, נעדכן את הצוות.', false) })
+    expect(d).toEqual({ action: 'send', text: 'בשמחה, נעדכן את הצוות.', deferred: false })
+  })
+
+  it('SEND the model deferral when it defers with valid wording', () => {
+    const d = decidePostHandoffReply({ ...gates, gen: okGen('נציג יחזור אליך בקרוב עם זה.', true) })
+    expect(d).toEqual({ action: 'send', text: 'נציג יחזור אליך בקרוב עם זה.', deferred: true })
+  })
+
+  it('FALL BACK to a rotating safe defer when the model reply violates the guardrail', () => {
+    const d = decidePostHandoffReply({ ...gates, budgetUsed: 1, gen: okGen('המחיר הוא 200 שקל', false) })
+    expect(d).toEqual({ action: 'send', text: deferLine(1), deferred: true })
+  })
+
+  it('FALL BACK to a safe defer when the model returns empty text', () => {
+    const d = decidePostHandoffReply({ ...gates, gen: okGen('   ', false) })
+    expect(d).toEqual({ action: 'send', text: deferLine(0), deferred: true })
   })
 })

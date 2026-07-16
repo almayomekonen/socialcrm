@@ -21,6 +21,8 @@ export type AnalyticsEventName =
   | 'auto_response_skipped'
   | 'auto_response_escalated'
   | 'auto_response_draft'
+  | 'post_handoff_sent'
+  | 'post_handoff_stop'
   | 'activation_started'
   | 'oauth_completed'
   | 'subscription_completed'
