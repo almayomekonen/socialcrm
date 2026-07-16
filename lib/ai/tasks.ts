@@ -95,6 +95,12 @@ const TASKS: Record<TaskKind, TaskConfig> = {
     maxOutputTokens: 150,
     timeoutMs: 12_000,
     retryOnSameProvider: 1,
+    // No SDK-internal retries. A Gemini 429 RESOURCE_EXHAUSTED is retryable, so the
+    // SDK default (maxRetries=2) turns one WhatsApp turn into 3 Gemini HTTP requests —
+    // all failing and burning 3 free-tier RPM units for a call that cannot succeed.
+    // The router already classifies this as permanent (no 2nd provider attempt), so
+    // the waste is entirely SDK-internal. 0 SDK retries ⇒ exactly 1 Gemini request/turn.
+    providerMaxRetries: 0,
   },
 }
 
