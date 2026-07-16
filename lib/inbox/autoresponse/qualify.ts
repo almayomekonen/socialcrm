@@ -43,6 +43,23 @@ export function detectLang(text: string): 'he' | 'en' {
   return /[֐-׿]/.test(text) ? 'he' : 'en'
 }
 
+/**
+ * Why a second (repair) generation is being requested. Typed so the reason is
+ * explicit and extensible for future validation categories — never a bare flag.
+ */
+export type RegenerationReason = 'shape_validation' | 'safety_validation'
+
+// Stricter instruction appended to the user prompt on the ONE repair generation.
+// Restates the existing SYSTEM rules more forcefully; it is not a rewrite engine
+// and never edits the model's output. (These words appear only in the prompt we
+// send the model, never in a reply that gets validated.)
+const REGEN_CONSTRAINT: Record<RegenerationReason, string> = {
+  shape_validation:
+    'חשוב מאוד: כתוב/כתבי תשובה קצרה מאוד — שאלת הבהרה אחת בלבד, סימן שאלה אחד, עד שלושה משפטים, בלי מספרים.',
+  safety_validation:
+    'חשוב מאוד: אל תנקוב/י במחיר, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. שאל/י שאלת הבהרה אחת בלבד.',
+}
+
 const OPTOUT_PATTERNS: RegExp[] = [
   /תפסיק|תפסיקו|הסר אותי|להסיר|תורידו אותי|אל תכתבו|הפסיקו|נמאס לי/,
   /\bstop\b|unsubscribe|remove me|opt[ -]?out|leave me alone|do not (contact|message)/i,
@@ -65,8 +82,37 @@ const HANDOFF = {
 }
 
 export function handoffMessage(reason: string, lang: 'he' | 'en'): string {
-  const t = reason === 'uncertain' ? HANDOFF.uncertain : HANDOFF.qualified
+  // 'uncertain' and safety-guardrail handoffs use the generic team-member copy;
+  // completion-style reasons ('qualified', 'hot_signal', 'max_turns', …) keep the
+  // "I have enough information" copy. Existing reasons are unaffected.
+  const generic = reason === 'uncertain' || reason === 'guardrail'
+  const t = generic ? HANDOFF.uncertain : HANDOFF.qualified
   return lang === 'en' ? t.en : t.he
+}
+
+// Deterministic, pre-written question per collectable field. Static copy only —
+// used as the shape-repair fallback so a malformed reply never causes a handoff
+// and never requires editing the model's text. Each is a single short question
+// (one '?', no FORBIDDEN tokens, no digits) so it passes validateAutoResponse.
+const NEXT_FIELD_QUESTION: Record<string, { he: string; en: string }> = {
+  name: { he: 'איך נוכל לפנות אליך?', en: 'How may we address you?' },
+  need: { he: 'מה הצורך המרכזי שאיתו נוכל לעזור?', en: 'What is the main need we can help with?' },
+  urgency: { he: 'עד כמה זה דחוף עבורך?', en: 'How urgent is this for you?' },
+  budget: { he: 'מה טווח התקציב שמתאים לך?', en: 'What budget range works for you?' },
+  location: { he: 'באיזה אזור אתה נמצא?', en: 'Which area are you in?' },
+  callback: { he: 'מתי יהיה לך נוח שנחזור אליך?', en: 'When is a good time for us to get back to you?' },
+}
+const GENERIC_QUESTION = { he: 'איך נוכל לעזור לך?', en: 'How can we help you?' }
+
+/**
+ * Deterministic fallback question for the next missing REQUIRED field. Used only
+ * when a shape-invalid reply could not be repaired by the one allowed
+ * regeneration; keeps qualification alive without inventing content or a handoff.
+ */
+export function nextRequiredFieldQuestion(missingRequired: string[], lang: 'he' | 'en'): string {
+  const field = missingRequired[0]
+  const q = (field && NEXT_FIELD_QUESTION[field]) || GENERIC_QUESTION
+  return lang === 'en' ? q.en : q.he
 }
 
 const QualifySchema = z.object({
@@ -103,6 +149,7 @@ function buildUser(args: {
   guidance: string | null
   focusField?: string | null
   runtimeCognition?: string | null
+  regenerationReason?: RegenerationReason
 }): string {
   const convo = args.transcript.map((m) => `${m.direction === 'inbound' ? 'לקוח' : 'אנחנו'}: ${m.text}`).join('\n')
   const have = Object.entries(args.qualification)
@@ -122,6 +169,8 @@ function buildUser(args: {
   if (args.focusField)
     lines.push(`השדה בעל העדיפות הגבוהה ביותר לאיסוף עכשיו: ${args.focusField} — שאל/י שאלה טבעית אחת שממוקדת בו בלבד.`)
   if (args.runtimeCognition) lines.push(args.runtimeCognition)
+  // Repair generation: append the stricter constraint for the specific failure.
+  if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
   return lines.join('\n\n')
 }
 
@@ -137,6 +186,7 @@ export async function generateQualifyTurn(args: {
   guidance: string | null
   focusField?: string | null
   runtimeCognition?: string | null
+  regenerationReason?: RegenerationReason
   trace?: WaTraceCtx
 }): Promise<QualifyGenResult> {
   const out = await runStructured({

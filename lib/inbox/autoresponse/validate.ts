@@ -85,6 +85,23 @@ export function validateAutoResponse(text: string): ValidationResult {
   return { ok: true, details }
 }
 
+/** Category of a validation violation, used to route repair vs handoff. */
+export type ViolationKind = 'safety' | 'shape'
+
+/**
+ * Classify a validation `violation` for repair routing:
+ * - 'safety' — the reply breached the FORBIDDEN price/time/commitment guardrail;
+ *   a human must take over (may escalate after a failed regeneration).
+ * - 'shape'  — a formatting problem (`too_many_questions`, `too_long`,
+ *   `no_question`, `empty`) that is repaired by one regeneration or a
+ *   deterministic next-field question, and NEVER escalates.
+ * This does not weaken the guardrail — it only categorises an already-decided
+ * violation. FORBIDDEN and all thresholds are unchanged.
+ */
+export function classifyViolation(violation: string): ViolationKind {
+  return violation === 'forbidden' ? 'safety' : 'shape'
+}
+
 /**
  * Post-handoff (concierge) validator. Shares the FORBIDDEN price/time/commitment
  * guardrail and the length limits with {@link validateAutoResponse}, but DROPS

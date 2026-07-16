@@ -21,11 +21,13 @@ import {
   detectLang,
   detectOptOut,
   detectHumanRequest,
+  nextRequiredFieldQuestion,
   type QualifyGenResult,
+  type RegenerationReason,
 } from './qualify'
 import { buildSummary, type EscalationSummary } from './summary'
 import { isQualifierEnabled } from './killSwitch'
-import { validateAutoResponse } from './validate'
+import { validateAutoResponse, classifyViolation } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
@@ -239,7 +241,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     currentQualification: aiState.qualification,
     aiTurnCount: aiState.aiTurnCount,
   })
-  const gen: QualifyGenResult = await deps.generateQualify({
+  const genArgs = {
     agencyId: job.agencyId,
     transcript: qTranscript,
     qualification: aiState.qualification,
@@ -248,15 +250,66 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     focusField: rqFocusField,
     runtimeCognition: rqCognitionBlock,
     trace: genTrace,
-  })
+  }
+  const gen: QualifyGenResult = await deps.generateQualify(genArgs)
   if (gen.ok === false) return doSkip(gen.skipReason)
 
-  const validation = validateAutoResponse(gen.reply)
-  const valid = validation.ok
+  const lang = detectLang(lastInbound?.text ?? '')
+
+  // ── Validate the reply; resolve shape/safety violations BEFORE the policy ──
+  // A validation failure is NOT model uncertainty. Shape → one stricter
+  // regeneration, else a deterministic next-field question (never a handoff).
+  // Safety → regenerate once, then escalate ('guardrail'). FORBIDDEN and Runtime
+  // Qualification are unchanged; `uncertain` fed to the policy below is model-only.
+  let validation = validateAutoResponse(gen.reply)
+  let forcedGuardrail = false
+  if (!validation.ok) {
+    const originalViolation = 'violation' in validation ? validation.violation : 'invalid'
+    const regenerationReason: RegenerationReason =
+      classifyViolation(originalViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
+    const gen2 = await deps.generateQualify({ ...genArgs, regenerationReason })
+    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply)
+    let finalResolution: 'regenerated' | 'deterministic' | 'guardrail_handoff'
+    let validationResult: string
+    if (gen2.ok !== false && gen2Valid && gen2Valid.ok) {
+      // Second generation is valid → use it (adopt its reply, extraction, flags).
+      gen.reply = gen2.reply
+      gen.extracted = gen2.extracted
+      gen.hotSignal = gen2.hotSignal
+      gen.uncertain = gen2.uncertain
+      validation = gen2Valid
+      finalResolution = 'regenerated'
+      validationResult = 'ok'
+    } else {
+      const finalViolation =
+        gen2Valid && 'violation' in gen2Valid ? gen2Valid.violation : originalViolation
+      validationResult = gen2.ok === false ? 'regeneration_unavailable' : finalViolation
+      if (classifyViolation(finalViolation) === 'safety') {
+        // Safety breach survived one regeneration → hand off (never send it).
+        forcedGuardrail = true
+        finalResolution = 'guardrail_handoff'
+      } else {
+        // Shape breach survived → deterministic next-field question; stay in qualify.
+        const mergedNow = mergeQualification(aiState.qualification, gen.extracted) as Record<string, unknown>
+        const missingRequired = settings.collectFields.required.filter((f) => !mergedNow[f])
+        gen.reply = nextRequiredFieldQuestion(missingRequired, lang)
+        validation = validateAutoResponse(gen.reply)
+        finalResolution = 'deterministic'
+      }
+    }
+    waTrace('POST_GENERATION_REPAIR', genTrace, {
+      regenerationReason,
+      originalViolation,
+      regenerationAttempt: 1,
+      validationResult,
+      finalResolution,
+    })
+  }
+
   const merged = mergeQualification(aiState.qualification, gen.extracted)
   let post = decidePostGeneration({
     hotSignal: gen.hotSignal,
-    uncertain: gen.uncertain || !valid, // never send an invalid/guessed message — escalate
+    uncertain: gen.uncertain, // model-only; validation failures are resolved above
     requiredComplete: requiredComplete(merged, settings.collectFields.required),
     turnCount: aiState.aiTurnCount,
     maxTurns,
@@ -287,6 +340,11 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       post = decision.decision === 'ASK' ? { action: 'send' } : { action: 'escalate', reason: 'qualified' }
     }
   }
+  // Safety-guardrail handoff wins over any send/continue decision. RQ already
+  // excluded it ('guardrail' is neither 'send' nor a completion reason), so this
+  // is the single authoritative override.
+  if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }
+
   // Permanent validator telemetry (observability only — no logic change). Records
   // the exact generated reply, its normalized form, the validator's rule/violation/
   // diagnostics, and the final send-vs-escalate decision.
@@ -302,7 +360,6 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     decision: post.action,
   })
 
-  const lang = detectLang(lastInbound?.text ?? '')
   const draft = settings.draft
   const summary =
     post.action === 'escalate'
