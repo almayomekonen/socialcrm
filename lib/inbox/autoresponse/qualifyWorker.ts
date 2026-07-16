@@ -15,14 +15,25 @@ import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_T
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { mergeQualification, requiredComplete } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
-import { generateQualifyTurn, handoffMessage, detectLang, detectOptOut, detectHumanRequest, type QualifyGenResult } from './qualify'
+import {
+  generateQualifyTurn,
+  handoffMessage,
+  detectLang,
+  detectOptOut,
+  detectHumanRequest,
+  type QualifyGenResult,
+} from './qualify'
 import { buildSummary, type EscalationSummary } from './summary'
 import { isQualifierEnabled } from './killSwitch'
 import { validateAutoResponse } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
-import { getRuntimeCognitionForLead, formatRuntimeCognitionBlock, type RuntimeCognition } from '@/lib/copilot/general/runtimeCognition'
+import {
+  getRuntimeCognitionForLead,
+  formatRuntimeCognitionBlock,
+  type RuntimeCognition,
+} from '@/lib/copilot/general/runtimeCognition'
 import { isRuntimeQualificationEnabled, selectNextGap, decideConversationPolicy } from './runtimeQualification'
 import { waTrace } from './waTrace'
 
@@ -210,7 +221,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   })
   if (gen.ok === false) return doSkip(gen.skipReason)
 
-  const valid = validateAutoResponse(gen.reply).ok
+  const validation = validateAutoResponse(gen.reply)
+  const valid = validation.ok
   const merged = mergeQualification(aiState.qualification, gen.extracted)
   let post = decidePostGeneration({
     hotSignal: gen.hotSignal,
@@ -245,6 +257,21 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       post = decision.decision === 'ASK' ? { action: 'send' } : { action: 'escalate', reason: 'qualified' }
     }
   }
+  // Permanent validator telemetry (observability only — no logic change). Records
+  // the exact generated reply, its normalized form, the validator's rule/violation/
+  // diagnostics, and the final send-vs-escalate decision.
+  waTrace('POST_GENERATION_VALIDATION', genTrace, {
+    reply: gen.reply,
+    normalizedReply: (gen.reply ?? '').trim(),
+    validation: {
+      ok: validation.ok,
+      violation: 'violation' in validation ? validation.violation : null,
+      rule: 'violation' in validation ? validation.violation : null,
+      details: validation.details,
+    },
+    decision: post.action,
+  })
+
   const lang = detectLang(lastInbound?.text ?? '')
   const draft = settings.draft
   const summary =

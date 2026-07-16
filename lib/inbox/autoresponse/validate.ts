@@ -10,27 +10,77 @@
  */
 const FORBIDDEN = [
   // currency / price / quotes
-  /[₪$€]/, /ש"ח/, /שקל/, /מחיר/, /עלות/, /כמה עולה/, /הצעת מחיר/, /\bprice\b/i, /\bcost\b/i,
+  /[₪$€]/,
+  /ש"ח/,
+  /שקל/,
+  /מחיר/,
+  /עלות/,
+  /כמה עולה/,
+  /הצעת מחיר/,
+  /\bprice\b/i,
+  /\bcost\b/i,
   // discounts
-  /הנחה/, /מבצע/, /\bdiscount\b/i, /\bdeal\b/i,
+  /הנחה/,
+  /מבצע/,
+  /\bdiscount\b/i,
+  /\bdeal\b/i,
   // availability / time commitments / appointments
-  /זמין/, /שעה/, /מחר/, /נקבע/, /אקבע/, /פגיש/, /\bavailable\b/i, /\bappointment\b/i,
+  /זמין/,
+  /שעה/,
+  /מחר/,
+  /נקבע/,
+  /אקבע/,
+  /פגיש/,
+  /\bavailable\b/i,
+  /\bappointment\b/i,
   // commitments / guarantees
-  /מבטיח/, /מתחייב/, /\bguarantee/i, /\bpromise\b/i,
+  /מבטיח/,
+  /מתחייב/,
+  /\bguarantee/i,
+  /\bpromise\b/i,
   // bare digits that look like price/time (2+ digits)
   /\d{2,}/,
 ]
 
-export function validateAutoResponse(text: string): { ok: true } | { ok: false; violation: string } {
+/** Diagnostic metrics for a validated reply — observability only, never gates. */
+export interface ValidationDetails {
+  /** Trimmed length actually evaluated. */
+  length: number
+  /** Sentence count (split on . ! ? and newlines). */
+  sentenceCount: number
+  /** Number of question marks. */
+  questionMarks: number
+  /** Source of the first FORBIDDEN pattern that matched, or null. */
+  matchedForbidden: string | null
+}
+
+export type ValidationResult =
+  | { ok: true; details: ValidationDetails }
+  | { ok: false; violation: string; details: ValidationDetails }
+
+export function validateAutoResponse(text: string): ValidationResult {
   const t = (text ?? '').trim()
-  if (!t) return { ok: false, violation: 'empty' }
-  // sentence count (split on . ! ? and newlines)
-  const sentences = t.split(/[.!?\n]+/).map((s) => s.trim()).filter(Boolean)
-  if (sentences.length > 3) return { ok: false, violation: 'too_long' }
-  if (t.length > 320) return { ok: false, violation: 'too_long' }
+  // Compute all diagnostics up front (pure, observability). The decision order
+  // and thresholds below are UNCHANGED — the guardrail is not weakened.
+  const sentences = t
+    .split(/[.!?\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
   const questionMarks = (t.match(/\?/g) ?? []).length
-  if (questionMarks === 0) return { ok: false, violation: 'no_question' }
-  if (questionMarks > 1) return { ok: false, violation: 'too_many_questions' }
-  for (const re of FORBIDDEN) if (re.test(t)) return { ok: false, violation: 'forbidden' }
-  return { ok: true }
+  let matchedForbidden: string | null = null
+  for (const re of FORBIDDEN) {
+    if (re.test(t)) {
+      matchedForbidden = re.source
+      break
+    }
+  }
+  const details: ValidationDetails = { length: t.length, sentenceCount: sentences.length, questionMarks, matchedForbidden }
+
+  if (!t) return { ok: false, violation: 'empty', details }
+  if (sentences.length > 3) return { ok: false, violation: 'too_long', details }
+  if (t.length > 320) return { ok: false, violation: 'too_long', details }
+  if (questionMarks === 0) return { ok: false, violation: 'no_question', details }
+  if (questionMarks > 1) return { ok: false, violation: 'too_many_questions', details }
+  if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
+  return { ok: true, details }
 }
