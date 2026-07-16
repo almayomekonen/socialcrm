@@ -26,7 +26,7 @@ describe('validateConciergeReply (post-handoff — no question requirement)', ()
   it('still rejects a price/number reply (forbidden)', () => {
     const r = validateConciergeReply('המחיר שלנו הוא 200 שקל')
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.violation).toBe('forbidden')
+    if ('violation' in r) expect(r.violation).toBe('forbidden')
   })
   it('rejects empty', () => expect(validateConciergeReply('   ').ok).toBe(false))
   it('rejects too many sentences', () =>

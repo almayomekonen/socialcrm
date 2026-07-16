@@ -2,7 +2,15 @@
  * Unit tests for the post-handoff responder (pure, no DB/LLM).
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import { isPostHandoffEnabled, maxPostHandoffMessages, detectUrgent } from '@/lib/inbox/autoresponse/postHandoff'
+import {
+  isPostHandoffEnabled,
+  maxPostHandoffMessages,
+  detectUrgent,
+  buildPostHandoffUser,
+  DEFER_VARIANTS,
+  deferLine,
+} from '@/lib/inbox/autoresponse/postHandoff'
+import { validateConciergeReply } from '@/lib/inbox/autoresponse/validate'
 
 describe('post-handoff flag + budget', () => {
   const KEYS = ['POST_HANDOFF_AGENCY_IDS', 'POST_HANDOFF_KILL', 'MAX_POST_HANDOFF_MESSAGES'] as const
@@ -45,5 +53,28 @@ describe('detectUrgent', () => {
     expect(detectUrgent('call me now')).toBe(true)
     expect(detectUrgent('תודה רבה')).toBe(false)
     expect(detectUrgent('יש לכם אפליקציה?')).toBe(false)
+  })
+})
+
+describe('post-handoff prompt + defer variants', () => {
+  it('user prompt includes the transcript and the business guidance', () => {
+    const u = buildPostHandoffUser({
+      transcript: [{ direction: 'inbound', text: 'תודה' }],
+      guidance: 'אנחנו חברת פיתוח תוכנה',
+    })
+    expect(u).toContain('תודה')
+    expect(u).toContain('אנחנו חברת פיתוח תוכנה')
+  })
+
+  it('every defer variant passes the concierge validator (safe fallback)', () => {
+    expect(DEFER_VARIANTS.length).toBeGreaterThan(1)
+    for (const v of DEFER_VARIANTS) expect(validateConciergeReply(v).ok).toBe(true)
+  })
+
+  it('deferLine rotates the wording (never the same twice in a row)', () => {
+    expect(deferLine(0)).toBe(DEFER_VARIANTS[0])
+    expect(deferLine(1)).toBe(DEFER_VARIANTS[1])
+    expect(deferLine(DEFER_VARIANTS.length)).toBe(DEFER_VARIANTS[0])
+    expect(deferLine(0)).not.toBe(deferLine(1))
   })
 })
