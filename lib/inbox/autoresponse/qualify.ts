@@ -73,12 +73,12 @@ const QualifySchema = z.object({
   reply: z.string().describe('ההודעה הבאה לליד: שאלת הבהרה אחת, חמה, 1-2 משפטים'),
   extracted: z
     .object({
-      name: z.string().nullable().optional(),
-      need: z.string().nullable().optional(),
-      urgency: z.string().nullable().optional(),
-      budget: z.string().nullable().optional(),
-      location: z.string().nullable().optional(),
-      callback: z.string().nullable().optional(),
+      name: z.string().nullable(),
+      need: z.string().nullable(),
+      urgency: z.string().nullable(),
+      budget: z.string().nullable(),
+      location: z.string().nullable(),
+      callback: z.string().nullable(),
     })
     .describe('עובדות שהלקוח מסר בפועל עד כה; null אם לא נמסר'),
   hotSignal: z.boolean().describe('כוונת קנייה חזקה (מחיר/דמו/פגישה/להתחיל/בקשה לדבר עם נציג)'),
