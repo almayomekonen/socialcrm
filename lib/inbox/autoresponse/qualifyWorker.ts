@@ -35,6 +35,7 @@ import {
   type RuntimeCognition,
 } from '@/lib/copilot/general/runtimeCognition'
 import { isRuntimeQualificationEnabled, selectNextGap, decideConversationPolicy } from './runtimeQualification'
+import { isPostHandoffEnabled, respondPostHandoff, generatePostHandoffReply } from './postHandoff'
 import { waTrace } from './waTrace'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
@@ -178,6 +179,35 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     if (pre.state === 'human_active') await markHumanActive(conv.id)
     else await markStopped(conv.id, 'opted_out', pre.reason)
     return doSkip(pre.reason)
+  }
+  // ── Post-handoff responder (flag-gated, additive). Once handed off, a human
+  //    reply already short-circuits above (humanTookOver → human_active). Here,
+  //    if the customer keeps writing after handoff and the responder is enabled,
+  //    reply briefly (ack / answer-from-guidance / defer) up to the budget, then
+  //    go silent — never re-qualifying. Off/other → the legacy skip as today. ──
+  if (pre.action === 'skip' && pre.reason === 'already_escalated' && isPostHandoffEnabled(job.agencyId)) {
+    const budgetRow = await db('inbox_messages')
+      .where({ conversationId: conv.id, direction: 'outbound' })
+      .whereRaw(`metadata->>'reason' = 'post_handoff'`)
+      .count<{ c: string }[]>({ c: '*' })
+      .first()
+    const budgetUsed = Number(budgetRow?.c ?? 0)
+    return respondPostHandoff({
+      job,
+      ctx,
+      deps: { send: deps.send, generate: generatePostHandoffReply },
+      recent: recent
+        .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
+        .filter((m) => m.text),
+      lastInbound: lastInbound ? { text: (lastInbound.text as string) ?? '' } : undefined,
+      guidance: settings.guidance,
+      sentToday,
+      dailyCap: settings.dailyCap,
+      withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
+      withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,
+      hasUnansweredInbound: lastMsg?.direction === 'inbound',
+      budgetUsed,
+    })
   }
   if (pre.action === 'skip') return doSkip(pre.reason)
 
