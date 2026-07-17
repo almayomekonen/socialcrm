@@ -38,6 +38,7 @@ import {
 } from '@/lib/copilot/general/runtimeCognition'
 import { isRuntimeQualificationEnabled, selectNextGap, decideConversationPolicy } from './runtimeQualification'
 import { isPostHandoffEnabled, respondPostHandoff, generatePostHandoffReply } from './postHandoff'
+import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
@@ -414,9 +415,17 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return doSkip('draft')
   }
 
-  // ── Escalate: send fixed handoff + mark escalated + persist summary/temperature ──
+  // ── Escalate: send handoff + mark escalated + persist summary/temperature.
+  //    On a QUALIFIED handoff only, an enabled agency gets a deterministic warm
+  //    message assembled from known fields; any fallback → the fixed template. ──
   if (post.action === 'escalate' && summary) {
-    const r = await sendAndPersist(job, ctx, deps.send, handoffMessage(post.reason, lang))
+    let handoffText = handoffMessage(post.reason, lang)
+    if (post.reason === 'qualified' && isWarmHandoffEnabled(job.agencyId)) {
+      const warm = buildWarmHandoff({ name: merged.name, need: merged.need, urgency: merged.urgency, lang })
+      waTrace('WARM_HANDOFF', genTrace, { ...warm.telemetry })
+      if (warm.text) handoffText = warm.text
+    }
+    const r = await sendAndPersist(job, ctx, deps.send, handoffText)
     if (r.ok === false) {
       if (r.reason.startsWith('whatsapp_send_failed')) {
         await failAutoResponseJob(job.id, r.reason)
