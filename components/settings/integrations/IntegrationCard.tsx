@@ -12,12 +12,7 @@ type Status =
   | { state: 'disconnected' }
   | { state: 'connected'; email: string | null }
 
-/**
- * Generic, data-driven integration card. Reads its connection state from the
- * descriptor's status endpoint and drives connect/disconnect against the same
- * existing OAuth routes the rest of the app already uses. No integration-specific
- * logic lives here — see catalog.ts.
- */
+
 export default function IntegrationCard({ integration }: { integration: IntegrationDescriptor }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -72,7 +67,13 @@ export default function IntegrationCard({ integration }: { integration: Integrat
       {status.state === 'disconnected' && (
         <div className='flex items-center justify-between gap-3'>
           <span className='text-sm text-gray-400'>לא מחובר</span>
-          <Btn lbl={integration.connectLabel} onClick={() => (window.location.href = integration.connectPath)} />
+          <Btn
+            lbl={integration.connectLabel}
+            onClick={() => {
+              const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+              window.location.href = `${integration.connectPath}?returnTo=${returnTo}`
+            }}
+          />
         </div>
       )}
 

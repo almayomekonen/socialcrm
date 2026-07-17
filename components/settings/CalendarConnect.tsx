@@ -56,11 +56,8 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
             <Btn
               lbl='חבר את Google Calendar'
               onClick={() => {
-                // Hard browser navigation — App Router's <Link> would attempt
-                // an RSC payload fetch on this external-redirect endpoint and
-                // log a "Failed to fetch RSC payload" warning before falling
-                // back to browser navigation. window.location bypasses that.
-                window.location.href = '/api/auth/google-calendar'
+                const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+                window.location.href = `/api/auth/google-calendar?returnTo=${returnTo}`
               }}
             />
           </div>
@@ -89,7 +86,8 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
             <Btn
               lbl='חבר מחדש'
               onClick={() => {
-                window.location.href = '/api/auth/google-calendar'
+                const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+                window.location.href = `/api/auth/google-calendar?returnTo=${returnTo}`
               }}
             />
           </div>
