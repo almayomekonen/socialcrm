@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { AuthError, requireAgencyUser, type AuthenticatedAgencyUser } from '@/lib/requireUser'
 import { encryptSecret } from '@/lib/crypto/secrets'
+import { sanitizeReturnTo, DEFAULT_RETURN } from '@/lib/oauth/returnTo'
 import { upsertDriveConnection } from '@/db/googleDriveConnections'
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
@@ -9,20 +10,33 @@ const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 
 const COPILOT_TRACE = process.env.COPILOT_TRACE === '1'
 
-const failed = (req: NextRequest, reason: string) =>
-  NextResponse.redirect(new URL(`/dashboard?gdrive_error=${reason}`, req.url))
-
 export async function GET(req: NextRequest) {
   let user: AuthenticatedAgencyUser
   try {
     user = await requireAgencyUser()
   } catch (err) {
     if (err instanceof AuthError) {
-      if (err.reason === 'no_agency') return failed(req, 'no_agency')
+      // Pre-cookie failure: fall back to the default origin.
+      if (err.reason === 'no_agency')
+        return NextResponse.redirect(new URL(`${DEFAULT_RETURN}?gdrive_error=no_agency`, req.url))
       return NextResponse.redirect(new URL('/auth', req.url))
     }
     throw err
   }
+
+  const cookieStore = await cookies()
+
+  // Consume the origin the user started from (set in the start route). Delete it
+  // so it can't leak into a later flow; fall back to /dashboard when absent.
+  const returnTo = sanitizeReturnTo(cookieStore.get('gdrive_return_to')?.value) ?? DEFAULT_RETURN
+  cookieStore.delete('gdrive_return_to')
+
+  const redirectBack = (key: string, value: string) => {
+    const url = new URL(returnTo, req.url)
+    url.searchParams.set(key, value)
+    return NextResponse.redirect(url)
+  }
+  const failed = (reason: string) => redirectBack('gdrive_error', reason)
 
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
@@ -31,27 +45,26 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.warn('[GoogleDriveOAuth] User denied:', error)
-    return failed(req, 'denied')
+    return failed('denied')
   }
 
   // CSRF state verification — mirrors the Facebook flow.
-  const cookieStore = await cookies()
   const storedState = cookieStore.get('gdrive_oauth_state')?.value
   cookieStore.delete('gdrive_oauth_state')
 
   if (!state || state !== storedState) {
     console.error('[GoogleDriveOAuth] State mismatch — possible CSRF')
-    return failed(req, 'state')
+    return failed('state')
   }
 
-  if (!code) return failed(req, 'no_code')
+  if (!code) return failed('no_code')
 
   const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET
   const redirectUri = process.env.GOOGLE_DRIVE_REDIRECT_URI
   if (!clientId || !clientSecret || !redirectUri) {
     console.error('[GoogleDriveOAuth] Missing GOOGLE_DRIVE_* env vars')
-    return failed(req, 'misconfigured')
+    return failed('misconfigured')
   }
 
   let tokens: { access_token: string; refresh_token?: string; expires_in: number; scope: string }
@@ -69,12 +82,12 @@ export async function GET(req: NextRequest) {
     })
     if (!res.ok) {
       console.error('[GoogleDriveOAuth] Token exchange failed:', await res.text())
-      return failed(req, 'token')
+      return failed('token')
     }
     tokens = await res.json()
   } catch (err) {
     console.error('[GoogleDriveOAuth] Token exchange threw:', err)
-    return failed(req, 'token')
+    return failed('token')
   }
 
   if (COPILOT_TRACE) {
@@ -90,7 +103,7 @@ export async function GET(req: NextRequest) {
   // flow now and surface a clear error code instead.
   if (!tokens.scope || !tokens.scope.includes('https://www.googleapis.com/auth/drive.file')) {
     console.error('[GoogleDriveOAuth] Missing drive.file in granted scopes:', tokens.scope)
-    return failed(req, 'missing_drive_scope')
+    return failed('missing_drive_scope')
   }
 
   // We always send prompt=consent on the start route, which forces Google to
@@ -100,7 +113,7 @@ export async function GET(req: NextRequest) {
   // broken row.
   if (!tokens.refresh_token) {
     console.error('[GoogleDriveOAuth] No refresh_token returned')
-    return failed(req, 'no_refresh_token')
+    return failed('no_refresh_token')
   }
 
   let profile: { sub: string; email: string }
@@ -110,12 +123,12 @@ export async function GET(req: NextRequest) {
     })
     if (!res.ok) {
       console.error('[GoogleDriveOAuth] userinfo failed:', await res.text())
-      return failed(req, 'userinfo')
+      return failed('userinfo')
     }
     profile = await res.json()
   } catch (err) {
     console.error('[GoogleDriveOAuth] userinfo threw:', err)
-    return failed(req, 'userinfo')
+    return failed('userinfo')
   }
 
   try {
@@ -131,8 +144,8 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     console.error('[GoogleDriveOAuth] DB upsert failed:', err)
-    return failed(req, 'db')
+    return failed('db')
   }
 
-  return NextResponse.redirect(new URL('/dashboard?gdrive=connected', req.url))
+  return redirectBack('gdrive', 'connected')
 }
