@@ -1,6 +1,5 @@
 import { COPILOT_ATTACHMENT_TOTAL_CHAR_CAP } from '@/lib/copilot/attachments'
 import type { LeadQuestionAttachmentContext } from '@/lib/ai/prompts/leadAskQuestion'
-import type { DriveSearchOutcome } from '@/lib/copilot/driveIntent'
 import {
   readDriveFileContent,
   type DriveFileContent,
@@ -27,73 +26,6 @@ function usedChars(attachments: LeadQuestionAttachmentContext[]): number {
   return attachments.reduce((s, a) => (a.kind === 'text' ? s + a.content.length : s), 0)
 }
 
-/**
- * Fetches the top result of a read-intent Drive search and pushes its
- * content into `promptAttachments` as a text attachment (or unreadable on
- * failure). Mutates the array in place; returns nothing.
- */
-export async function injectReadIntentContent({
-  promptAttachments,
-  driveOutcome,
-  userId,
-}: {
-  promptAttachments: LeadQuestionAttachmentContext[]
-  driveOutcome: DriveSearchOutcome
-  userId: number
-}): Promise<void> {
-  const remainingChars = COPILOT_ATTACHMENT_TOTAL_CHAR_CAP - usedChars(promptAttachments)
-  const top = driveOutcome.results[0]
-
-  if (remainingChars <= 0) {
-    promptAttachments.push({
-      kind: 'unreadable',
-      name: top.name,
-      mediaType: top.mimeType,
-      size: 0,
-      reason: 'total-limit',
-    })
-    return
-  }
-
-  const readResult = await readDriveFileContent({
-    userId,
-    fileId: top.id,
-    name: top.name,
-    mimeType: top.mimeType,
-  })
-
-  if (isReadFailure(readResult)) {
-    promptAttachments.push({
-      kind: 'unreadable',
-      name: top.name,
-      mediaType: top.mimeType,
-      size: 0,
-      reason: mapFailureReason(readResult.reason),
-    })
-    return
-  }
-
-  if (isReadSuccess(readResult)) {
-    const capped = readResult.content.extractedText.slice(0, remainingChars)
-    const partial = readResult.content.truncated || capped.length < readResult.content.extractedText.length
-    promptAttachments.push({
-      kind: 'text',
-      name: readResult.content.name,
-      mediaType: readResult.content.mimeType,
-      size: capped.length,
-      content: capped,
-      partial,
-      originalChars: readResult.content.originalChars,
-    })
-  }
-}
-
-/**
- * Auto-injects lead-bound Drive attachments into promptAttachments. Reads
- * the top N (MAX_AUTO_INJECT_ATTACHED) files in parallel; commits to
- * promptAttachments sequentially while respecting the total char budget.
- * Mutates the array in place; returns nothing.
- */
 export async function injectAttachedDriveFiles({
   promptAttachments,
   leadId,

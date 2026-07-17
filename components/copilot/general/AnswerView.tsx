@@ -2,7 +2,6 @@
 
 import type { GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
 import type { BriefingLeadList } from '@/db/briefing'
-import { DriveResultsBody } from '../bodies/DriveResultsBody'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import SuggestionChips, { curatedSuggestions } from './SuggestionChips'
@@ -124,13 +123,6 @@ export default function AnswerView({
       <div className='space-y-2'>
         <p className='text-sm text-gray-700'>{msg}</p>
         <SuggestionChips items={curatedSuggestions()} onPick={onPick} disabled={!interactive} />
-      </div>
-    )
-  }
-  if (answer.kind === 'drive') {
-    return (
-      <div className='rounded-md border border-gray-200 p-2.5'>
-        <DriveResultsBody data={answer.data} />
       </div>
     )
   }

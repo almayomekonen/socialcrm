@@ -12,7 +12,6 @@ vi.mock('@/db/briefing', () => ({
 }))
 vi.mock('@/db/meetings', () => ({ getTodaysMeetings: vi.fn() }))
 vi.mock('@/lib/analytics/track', () => ({ track: vi.fn() }))
-vi.mock('@/lib/copilot/driveIntent', () => ({ detectsDriveIntent: vi.fn(), maybePrefetchDrive: vi.fn() }))
 
 import { askGeneralQuestion } from '@/actions/ai/askGeneralQuestion'
 import { requireAgencyUser } from '@/lib/requireUser'
@@ -20,7 +19,6 @@ import { getPerms } from '@/db/filter'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { getFollowUpsDueToday } from '@/db/briefing'
 import { track } from '@/lib/analytics/track'
-import { detectsDriveIntent, maybePrefetchDrive } from '@/lib/copilot/driveIntent'
 import { Roles } from '@/types/roles'
 
 beforeEach(() => {
@@ -29,8 +27,6 @@ beforeEach(() => {
   vi.mocked(getPerms).mockResolvedValue({ gotPermIds: [1] } as never)
   vi.mocked(getFollowUpsDueToday).mockResolvedValue({ total: 3, sample: [] })
   vi.mocked(track).mockResolvedValue(undefined)
-  // Default: not a Drive query, so cases fall through to classification.
-  vi.mocked(detectsDriveIntent).mockReturnValue(false)
 })
 
 describe('askGeneralQuestion — closed world', () => {
@@ -72,34 +68,6 @@ describe('askGeneralQuestion — closed world', () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'followups.dueToday', confidence: 0.95 })
     const res = await askGeneralQuestion('מי צריך מעקב היום')
     expect(res).toEqual({ kind: 'data', intent: 'followups.dueToday', payload: { total: 3, sample: [] } })
-  })
-
-  it('Drive search → deterministic file list (user-scoped, no classification)', async () => {
-    vi.mocked(detectsDriveIntent).mockReturnValue(true)
-    vi.mocked(maybePrefetchDrive).mockResolvedValue({
-      mode: 'specific',
-      readIntent: false,
-      results: [
-        { id: 'f1', name: 'הצעת מחיר.pdf', mimeType: 'application/pdf', modifiedTime: '2026-06-01T00:00:00Z', webViewLink: 'https://drive/f1', thumbnailLink: null },
-      ],
-    } as never)
-    const res = await askGeneralQuestion('מצא קובץ ב-Google Drive')
-    expect(res.kind).toBe('drive')
-    if (res.kind !== 'drive') return
-    expect(res.data.results).toEqual([
-      { id: 'f1', name: 'הצעת מחיר.pdf', mimeType: 'application/pdf', modifiedTime: '2026-06-01T00:00:00Z', url: 'https://drive/f1', thumbnailUrl: undefined },
-    ])
-    expect(classifyGeneralIntent).not.toHaveBeenCalled()
-  })
-
-  it('Drive intent but unavailable → empty results + connect hint (no crash)', async () => {
-    vi.mocked(detectsDriveIntent).mockReturnValue(true)
-    vi.mocked(maybePrefetchDrive).mockResolvedValue(null)
-    const res = await askGeneralQuestion('חפש קובץ ב-Drive')
-    expect(res.kind).toBe('drive')
-    if (res.kind !== 'drive') return
-    expect(res.data.results).toEqual([])
-    expect(res.data.intro).toContain('חיברת את החשבון')
   })
 
   it('threads the selected AI mode into classification', async () => {

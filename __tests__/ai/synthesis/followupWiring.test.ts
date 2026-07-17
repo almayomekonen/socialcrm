@@ -20,7 +20,6 @@ vi.mock('@/lib/copilot/general/reasonedAnswer', () => ({
   shouldReason: vi.fn(() => false),
 }))
 vi.mock('@/lib/analytics/track', () => ({ track: vi.fn() }))
-vi.mock('@/lib/copilot/driveIntent', () => ({ detectsDriveIntent: vi.fn(() => false), maybePrefetchDrive: vi.fn() }))
 vi.mock('@/lib/copilot/featureFlag', () => ({
   isReasonedGeneralEnabledForUser: vi.fn(() => false),
   isSynthesisEnabledForUser: vi.fn(),

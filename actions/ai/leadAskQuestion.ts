@@ -16,8 +16,6 @@ import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { isRuntimeCognitionEnabledForUser } from '@/lib/copilot/featureFlag'
 import { getRuntimeCognitionForLead, formatRuntimeCognitionBlock } from '@/lib/copilot/general/runtimeCognition'
 import { AiRunResult } from '@/lib/ai/types'
-import { maybePrefetchDrive } from '@/lib/copilot/driveIntent'
-import type { DriveResults } from '@/lib/copilot/copilotResponse'
 import { normalizeInput } from '@/lib/copilot/normalizeInput'
 import { quickClassifyIntent } from '@/lib/copilot/quickClassifyIntent'
 import { classifyIntentWithLLM } from '@/lib/copilot/intentClassifier'
@@ -26,8 +24,7 @@ import { pickConversationalReply } from '@/lib/copilot/conversationalIntent'
 import type { ConversationalReply } from '@/lib/ai/prompts/conversationalReply'
 import { normalizeAttachmentPayloads, normalizeLenses, normalizeQuestion } from './leadAskQuestion/normalize'
 import { hydrateAttachments } from './leadAskQuestion/attachmentHydration'
-import { runBrowseShortCircuit } from './leadAskQuestion/browseFlow'
-import { injectAttachedDriveFiles, injectReadIntentContent } from './leadAskQuestion/driveContentFlow'
+import { injectAttachedDriveFiles } from './leadAskQuestion/driveContentFlow'
 
 export async function askLeadQuestion(
   leadIdRaw: number | string,
@@ -35,7 +32,7 @@ export async function askLeadQuestion(
   lensesRaw: unknown,
   attachmentsRaw: unknown = [],
   modeRaw: unknown = undefined,
-): Promise<AiRunResult<LeadAskAnswer | DriveResults | ConversationalReply>> {
+): Promise<AiRunResult<LeadAskAnswer | ConversationalReply>> {
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return { ok: false, reason: 'invalid-input' }
 
@@ -125,25 +122,6 @@ export async function askLeadQuestion(
     agencyId: user.agencyId,
   })
 
-  const driveOutcome = await maybePrefetchDrive({ question, userId: user.id })
-
-  if (driveOutcome && !driveOutcome.readIntent && driveOutcome.results.length > 0) {
-    return runBrowseShortCircuit({
-      driveOutcome,
-      user: { id: user.id, agencyId: user.agencyId },
-      leadId,
-      question,
-      lenses,
-      rawAttachments,
-      roleOverride,
-      persistMode,
-    })
-  }
-
-  if (driveOutcome?.readIntent && driveOutcome.results.length > 0) {
-    await injectReadIntentContent({ promptAttachments, driveOutcome, userId: user.id })
-  }
-
   await injectAttachedDriveFiles({
     promptAttachments,
     leadId,
@@ -157,15 +135,8 @@ export async function askLeadQuestion(
     question,
     lenses,
     attachments: promptAttachments,
-    driveResults: driveOutcome?.results ?? null,
-    driveMode: driveOutcome?.mode,
   })
 
-  // Additive, flag-gated: append the AI Runtime's cognition (beliefs, confidence,
-  // uncertainty, provenance, recommendation) as a parallel input so the LLM
-  // synthesizes CRM facts + Runtime cognition into one answer. Fully guarded — if
-  // the flag is off, the Runtime is ungrounded, or it errors, the prompt is
-  // byte-for-byte the existing message and behaviour is unchanged.
   if (isRuntimeCognitionEnabledForUser(user)) {
     try {
       const cognition = await getRuntimeCognitionForLead({ agencyId: user.agencyId }, leadId)

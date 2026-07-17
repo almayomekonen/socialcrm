@@ -3,10 +3,8 @@
 import { BRIEFING_EXAMPLES, BRIEFING_INTENT_IDS } from '@/lib/copilot/general/registry'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 
-export const DRIVE_SUGGESTION = 'מצא קובץ ב-Google Drive'
-
 export function briefingSuggestions(): string[] {
-  return [...BRIEFING_INTENT_IDS.map((id) => BRIEFING_EXAMPLES[id][0]), DRIVE_SUGGESTION]
+  return [...BRIEFING_INTENT_IDS.map((id) => BRIEFING_EXAMPLES[id][0])]
 }
 
 export function allSuggestions(): string[] {

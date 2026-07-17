@@ -1,9 +1,3 @@
-// Ambient declarations for the Google Identity Services (GIS) token client and
-// the Google Picker API. Both are loaded at runtime from Google's CDN and
-// attach to `window`; these types cover only what the Drive Picker integration
-// uses. Added in Phase 1 of the drive.readonly -> drive.file migration —
-// purely additive, no runtime effect.
-
 export {}
 
 declare global {

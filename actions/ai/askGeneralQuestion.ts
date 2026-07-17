@@ -22,8 +22,6 @@ import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralInte
 import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
-import { detectsDriveIntent, maybePrefetchDrive, type DriveSearchOutcome } from '@/lib/copilot/driveIntent'
-import type { DriveResults } from '@/lib/copilot/copilotResponse'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { tryReasonedAnswer, shouldReason, type ReasonedAnswer } from '@/lib/copilot/general/reasonedAnswer'
@@ -52,7 +50,6 @@ export type GeneralAnswer =
   | ({ kind: 'fallback' } & FallbackResult)
   | { kind: 'guide'; answer: string; route?: string }
   | { kind: 'data'; intent: string; payload: unknown }
-  | { kind: 'drive'; data: DriveResults }
   | { kind: 'lead'; lead: LeadCard }
   | { kind: 'leadPick'; name: string; candidates: { leadId: number; label: string; status: string | null }[] }
   | { kind: 'leadAnswer'; text: string; leadName: string }
@@ -110,7 +107,7 @@ export async function getLeadCardById(leadIdRaw: number | string): Promise<Gener
 
 function resolvedPath(
   a: GeneralAnswer,
-): 'business_intent' | 'reasoned' | 'lead_resolution' | 'lead_followup' | 'drive' | 'guide' | 'ack' | 'clarify' | 'redirect' {
+): 'business_intent' | 'reasoned' | 'lead_resolution' | 'lead_followup' | 'guide' | 'ack' | 'clarify' | 'redirect' {
   switch (a.kind) {
     case 'reasoned':
       return 'reasoned'
@@ -121,8 +118,6 @@ function resolvedPath(
       return 'lead_resolution'
     case 'leadAnswer':
       return 'lead_followup'
-    case 'drive':
-      return 'drive'
     case 'guide':
       return 'guide'
     case 'fallback':
@@ -224,15 +219,6 @@ async function resolveAnswer(
     }
   }
 
-  if (detectsDriveIntent(text)) {
-    const outcome = await maybePrefetchDrive({ question: text, userId: user.id })
-    if (outcome) return { kind: 'drive', data: toDriveResults(outcome) }
-    return {
-      kind: 'drive',
-      data: { intro: 'לא הצלחתי לחפש ב-Google Drive. ודא שחיברת את החשבון.', mode: 'specific', results: [] },
-    }
-  }
-
   const leadSubject = await resolveLeadSubject(text, user)
   if (leadSubject) return leadSubject
 
@@ -310,27 +296,5 @@ async function runIntent(intent: string, user: ActingUser, scope: Scope) {
     }
     default:
       return {}
-  }
-}
-
-function toDriveResults(outcome: DriveSearchOutcome): DriveResults {
-  const count = outcome.results.length
-  const intro =
-    count === 0
-      ? 'לא נמצאו קבצים תואמים ב-Google Drive.'
-      : outcome.mode === 'generic'
-        ? `הנה ${count} קבצים אחרונים ב-Google Drive שלך:`
-        : `נמצאו ${count} קבצים תואמים ב-Google Drive:`
-  return {
-    intro,
-    mode: outcome.mode,
-    results: outcome.results.map((r) => ({
-      id: r.id,
-      name: r.name,
-      mimeType: r.mimeType,
-      modifiedTime: r.modifiedTime,
-      url: r.webViewLink ?? '',
-      thumbnailUrl: r.thumbnailLink ?? undefined,
-    })),
   }
 }
