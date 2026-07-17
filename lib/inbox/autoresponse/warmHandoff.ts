@@ -116,16 +116,16 @@ const OPENER = {
   he: (n: string, effort: boolean) => (effort ? `תודה על הפירוט, ${n}!` : `תודה, ${n}!`),
   en: (n: string, effort: boolean) => (effort ? `Thanks for the detail, ${n}!` : `Thanks, ${n}!`),
 }
-// One generic pain acknowledgement; a tiny deterministic special case reflects
-// "עומס" (overload) literally when that is the matched pain word — not a category map.
-function painAck(lang: 'he' | 'en', pain: boolean, overload: boolean): string {
-  if (!pain) return ''
-  if (lang === 'en') return overload ? ' — and the overload you described' : ' — and the difficulty you described'
-  return overload ? ' — ואת העומס שתיארת' : ' — ואת הקושי שתיארת'
-}
+// WhatsApp-natural punctuation: a colon introduces the need, a comma adds the pain
+// acknowledgement (no em dashes). A tiny deterministic special case reflects "עומס"
+// (overload) literally when it is the matched pain word — not a category map.
 const UNDERSTAND = {
-  he: (need: string, ack: string) => `מבינים את הצורך שתיארת — ${need}${ack}.`,
-  en: (need: string, ack: string) => `We understand the need you described — ${need}${ack}.`,
+  he: (need: string, pain: boolean, overload: boolean) =>
+    pain ? `מבינים את הצורך שתיארת: ${need}, ואת ${overload ? 'העומס' : 'הקושי'} שבזה.` : `מבינים את הצורך שתיארת: ${need}.`,
+  en: (need: string, pain: boolean, overload: boolean) =>
+    pain
+      ? `We understand the need you described: ${need}, and the ${overload ? 'overload' : 'difficulty'} in it.`
+      : `We understand the need you described: ${need}.`,
 }
 const CONNECT = {
   he: 'אני מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך בהקדם.',
@@ -176,7 +176,7 @@ export function buildWarmHandoff(args: {
   let text: string
   if (need.accepted) {
     tier = pain ? 'rich' : 'standard'
-    text = `${opener} ${UNDERSTAND[args.lang](needNorm, painAck(args.lang, pain, overload))} ${CONNECT[args.lang]}`
+    text = `${opener} ${UNDERSTAND[args.lang](needNorm, pain, overload)} ${CONNECT[args.lang]}`
   } else {
     tier = 'generic'
     text = `${opener} ${GENERIC_BODY[args.lang]} ${CONNECT[args.lang]}`

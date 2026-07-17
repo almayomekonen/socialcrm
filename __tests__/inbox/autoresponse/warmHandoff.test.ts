@@ -158,26 +158,26 @@ describe('buildWarmHandoff — context: pain-from-message + effort opener', () =
   it('pain from MESSAGE only (urgency empty) → rich; "עומס" reflected literally', () => {
     const r = buildWarmHandoff({ name, need, urgency: '', context: 'יש לי עומס בניהול הלידים', lang: 'he' })
     expect(r.telemetry.selectedTier).toBe('rich')
-    expect(r.text).toContain('ואת העומס שתיארת')
+    expect(r.text).toContain('ואת העומס שבזה')
   })
 
   it('generic pain word (not "עומס") → generic "הקושי" acknowledgement', () => {
     const r = buildWarmHandoff({ name, need, urgency: '', context: 'יש לי לחץ גדול עם הפניות', lang: 'he' })
     expect(r.telemetry.selectedTier).toBe('rich')
-    expect(r.text).toContain('ואת הקושי שתיארת')
+    expect(r.text).toContain('ואת הקושי שבזה')
     expect(r.text).not.toContain('ואת העומס')
   })
 
   it('pain from URGENCY only (message has no pain) → rich; "עומס" reflected literally', () => {
     const r = buildWarmHandoff({ name, need, urgency: 'גבוהה — עומס נוכחי', context: 'רוצה לרכז את הפניות', lang: 'he' })
     expect(r.telemetry.selectedTier).toBe('rich')
-    expect(r.text).toContain('ואת העומס שתיארת')
+    expect(r.text).toContain('ואת העומס שבזה')
   })
 
   it('no pain anywhere → standard, no pain ack', () => {
     const r = buildWarmHandoff({ name, need, urgency: '', context: 'רוצה לרכז את הפניות שלי', lang: 'he' })
     expect(r.telemetry.selectedTier).toBe('standard')
-    expect(r.text).not.toContain('ואת הקושי שתיארת')
+    expect(r.text).not.toContain('ואת הקושי שבזה')
   })
 
   it('fallback: invalid name → text null even with rich context', () => {
