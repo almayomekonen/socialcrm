@@ -2,23 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { AuthError, requireAgencyUser, type AuthenticatedAgencyUser } from '@/lib/requireUser'
 import { decryptSecret } from '@/lib/crypto/secrets'
-import {
-  deleteDriveConnectionByUserId,
-  getDriveConnectionByUserId,
-} from '@/db/googleDriveConnections'
+import { sanitizeReturnTo } from '@/lib/oauth/returnTo'
+import { deleteDriveConnectionByUserId, getDriveConnectionByUserId } from '@/db/googleDriveConnections'
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   let user: AuthenticatedAgencyUser
   try {
     user = await requireAgencyUser()
   } catch (err) {
     if (err instanceof AuthError) {
-      // no_agency fails before OAuth so the user never walks the consent screen
-      // only to be rejected on return.
       if (err.reason === 'no_agency') {
         console.warn('[GoogleDriveOAuth] start blocked: no_agency')
         return NextResponse.json({ error: 'no_agency' }, { status: 500 })
@@ -35,10 +31,6 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: 'misconfigured' }, { status: 500 })
   }
 
-  // Disconnect any existing connection first. A row from an earlier consent
-  // round can carry stale (e.g. drive.file-less) scopes; clearing it
-  // forces this flow to issue a brand-new token set with the scopes below.
-  // Revoke at Google is best-effort — local row deletion is what matters.
   const existing = await getDriveConnectionByUserId(user.id)
   if (existing) {
     try {
@@ -63,13 +55,17 @@ export async function GET(_req: NextRequest) {
     path: '/',
   })
 
-  // openid + email scopes let us call userinfo at the callback to display
-  // which Google account is connected. They do not grant any Drive access
-  // beyond drive.file.
-  //
-  // include_granted_scopes=false: do NOT carry forward previously consented
-  // scopes. Forces a fresh consent set so a prior consent that lacked
-  // drive.file cannot silently produce a token without it.
+  const returnTo = sanitizeReturnTo(new URL(req.url).searchParams.get('returnTo'))
+  if (returnTo) {
+    cookieStore.set('gdrive_return_to', returnTo, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10,
+      path: '/',
+    })
+  }
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,

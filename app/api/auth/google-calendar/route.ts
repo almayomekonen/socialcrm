@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { AuthError, requireAgencyUser, type AuthenticatedAgencyUser } from '@/lib/requireUser'
 import { decryptSecret } from '@/lib/crypto/secrets'
+import { sanitizeReturnTo } from '@/lib/oauth/returnTo'
 import {
   deleteCalendarConnectionByUserId,
   getCalendarConnectionByUserId,
@@ -11,7 +12,7 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   let user: AuthenticatedAgencyUser
   try {
     user = await requireAgencyUser()
@@ -69,6 +70,19 @@ export async function GET(_req: NextRequest) {
     maxAge: 60 * 10,
     path: '/',
   })
+
+  // Preserve the page the user started from so the callback can send them back
+  // there instead of /dashboard. Validated to a same-origin relative path.
+  const returnTo = sanitizeReturnTo(new URL(req.url).searchParams.get('returnTo'))
+  if (returnTo) {
+    cookieStore.set('gcal_return_to', returnTo, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10,
+      path: '/',
+    })
+  }
 
   // openid + email scopes let us call userinfo at the callback to display
   // which Google account is connected. They grant no calendar access
