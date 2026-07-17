@@ -421,7 +421,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   if (post.action === 'escalate' && summary) {
     let handoffText = handoffMessage(post.reason, lang)
     if (post.reason === 'qualified' && isWarmHandoffEnabled(job.agencyId)) {
-      const warm = buildWarmHandoff({ name: merged.name, need: merged.need, urgency: merged.urgency, lang })
+      const warm = buildWarmHandoff({
+        name: merged.name,
+        need: merged.need,
+        urgency: merged.urgency,
+        context: qTranscript.find((m) => m.direction === 'inbound')?.text,
+        lang,
+      })
       waTrace('WARM_HANDOFF', genTrace, { ...warm.telemetry })
       if (warm.text) handoffText = warm.text
     }

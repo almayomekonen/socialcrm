@@ -136,3 +136,51 @@ describe('isWarmHandoffEnabled — flag (default OFF)', () => {
     expect(isWarmHandoffEnabled(103)).toBe(false)
   })
 })
+
+describe('buildWarmHandoff — context: pain-from-message + effort opener', () => {
+  const name = 'אלמיהו מקונן'
+  const need = 'ניהול לידים, לקוחות ומעקב במקום אחד'
+  const longMsg =
+    'שלום, קוראים לי אלמיהו מקונן. יש לי עסק לקורסים לפיתוח תוכנה. אני מקבל הרבה לידים מפרסום בפייסבוק ויש לי עומס בניהול שלהם. אני מחפש מערכת שתעזור לי לנהל את הלידים, הלקוחות והמעקב במקום אחד.'
+
+  it('long detailed first message → effort opener', () => {
+    const r = buildWarmHandoff({ name, need, urgency: '', context: longMsg, lang: 'he' })
+    expect(r.text).toContain('תודה על הפירוט, אלמיהו')
+    expect(r.text).not.toContain('תודה, אלמיהו!')
+  })
+
+  it('short first message → normal opener (no effort)', () => {
+    const r = buildWarmHandoff({ name, need, urgency: '', context: 'היי, אני מחפש לרכז פניות', lang: 'he' })
+    expect(r.text).toContain('תודה, אלמיהו!')
+    expect(r.text).not.toContain('על הפירוט')
+  })
+
+  it('pain detected from MESSAGE only (urgency empty) → rich + pain ack', () => {
+    const r = buildWarmHandoff({ name, need, urgency: '', context: 'יש לי עומס בניהול הלידים', lang: 'he' })
+    expect(r.telemetry.selectedTier).toBe('rich')
+    expect(r.text).toContain('ואת הקושי שתיארת')
+  })
+
+  it('pain detected from URGENCY only (message has no pain) → rich + pain ack', () => {
+    const r = buildWarmHandoff({ name, need, urgency: 'גבוהה — עומס נוכחי', context: 'רוצה לרכז את הפניות', lang: 'he' })
+    expect(r.telemetry.selectedTier).toBe('rich')
+    expect(r.text).toContain('ואת הקושי שתיארת')
+  })
+
+  it('no pain anywhere → standard, no pain ack', () => {
+    const r = buildWarmHandoff({ name, need, urgency: '', context: 'רוצה לרכז את הפניות שלי', lang: 'he' })
+    expect(r.telemetry.selectedTier).toBe('standard')
+    expect(r.text).not.toContain('ואת הקושי שתיארת')
+  })
+
+  it('fallback: invalid name → text null even with rich context', () => {
+    const r = buildWarmHandoff({ name: 'user99', need, urgency: '', context: longMsg, lang: 'he' })
+    expect(r.text).toBeNull()
+    expect(r.telemetry.fallbackReason).toBe('name_invalid')
+  })
+
+  it('produced message passes validateConciergeReply (long + pain)', () => {
+    const r = buildWarmHandoff({ name, need, urgency: '', context: longMsg, lang: 'he' })
+    expect(r.text && validateConciergeReply(r.text).ok).toBe(true)
+  })
+})

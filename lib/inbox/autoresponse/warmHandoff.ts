@@ -3,8 +3,9 @@ import { FORBIDDEN, validateConciergeReply } from './validate'
 /**
  * Deterministic warm handoff engine (Option B). Pure, no LLM, no provider, no I/O.
  * Assembles the customer-facing message for a QUALIFIED handoff from the fields
- * already known (name, need, urgency). Returns text=null to signal the caller to
- * fall back to the fixed HANDOFF.qualified template — a message always sends.
+ * already known (name, need, urgency) plus the customer's original inbound message
+ * (context). Returns text=null to signal the caller to fall back to the fixed
+ * HANDOFF.qualified template — a message always sends.
  *
  * Tone: warm, concise, premium. Acknowledge the customer's situation WITHOUT
  * claiming expertise or making product-marketing claims. Reuses the existing
@@ -46,6 +47,8 @@ export function isWarmHandoffEnabled(agencyId: number | null | undefined): boole
 
 const NEED_MIN = 3
 const NEED_MAX = 80
+// A first message at/above this length reads as "detailed" → acknowledge the effort.
+const EFFORT_MIN = 100
 
 // Generic words that, on their own, carry no specific business problem → LOW quality.
 const GENERIC_TERMS = [
@@ -107,53 +110,68 @@ function assessNeed(normalized: string): { accepted: boolean; reason: NeedReject
   return { accepted: true, reason: null, quality }
 }
 
-// Templates. No expertise/marketing claims; acknowledge what the customer said.
-const T = {
-  rich: {
-    he: (n: string, need: string) =>
-      `תודה, ${n}! מבינים את האתגר שתיארת — ${need} — ושחשוב לך לטפל בזה בהקדם. אני כבר מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך.`,
-    en: (n: string, need: string) =>
-      `Thanks, ${n}! We understand the challenge you described — ${need} — and that it's pressing for you. I'm connecting you now with one of our team who'll get back to you shortly.`,
-  },
-  standard: {
-    he: (n: string, need: string) =>
-      `תודה, ${n}! מבינים את מה שתיארת — ${need}. אני מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך בהקדם.`,
-    en: (n: string, need: string) =>
-      `Thanks, ${n}! We understand what you described — ${need}. I'm connecting you with one of our team who'll get back to you shortly.`,
-  },
-  generic: {
-    he: (n: string) =>
-      `תודה, ${n}! קלטנו את הפנייה שלך ואנחנו כבר על זה. אני מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך בהקדם עם כל מה שצריך.`,
-    en: (n: string) =>
-      `Thanks, ${n}! We've got your message and we're on it. I'm connecting you with one of our team who'll get back to you shortly.`,
-  },
+// Deterministic message parts. No expertise/marketing claims. The opener varies by
+// effort; the understanding sentence appends ONE generic pain acknowledgement.
+const OPENER = {
+  he: (n: string, effort: boolean) => (effort ? `תודה על הפירוט, ${n}!` : `תודה, ${n}!`),
+  en: (n: string, effort: boolean) => (effort ? `Thanks for the detail, ${n}!` : `Thanks, ${n}!`),
+}
+const PAIN_ACK = { he: ' — ואת הקושי שתיארת', en: ' — and the difficulty you described' }
+const UNDERSTAND = {
+  he: (need: string, pain: boolean) => `מבינים את מה שתיארת — ${need}${pain ? PAIN_ACK.he : ''}.`,
+  en: (need: string, pain: boolean) => `We understand what you described — ${need}${pain ? PAIN_ACK.en : ''}.`,
+}
+const CONNECT = {
+  he: 'אני מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך בהקדם.',
+  en: `I'm connecting you with one of our team who'll get back to you shortly.`,
+}
+const GENERIC_BODY = {
+  he: 'קלטנו את הפנייה שלך ואנחנו כבר על זה.',
+  en: `We've got your message and we're on it.`,
 }
 
 /**
  * Build the deterministic warm handoff. Strictly for a QUALIFIED handoff — the
  * caller gates on escalationReason === 'qualified' and on isWarmHandoffEnabled.
+ * `context` is the customer's original inbound message: pain is detected on it (not
+ * only the urgency field), and a long/detailed message earns the effort opener.
  */
-export function buildWarmHandoff(args: { name?: string; need?: string; urgency?: string; lang: 'he' | 'en' }): WarmHandoffResult {
+export function buildWarmHandoff(args: {
+  name?: string
+  need?: string
+  urgency?: string
+  context?: string
+  lang: 'he' | 'en'
+}): WarmHandoffResult {
   const name = sanitizeName(args.name)
   const nameAccepted = name !== null
   const needNorm = normalizeNeed(args.need)
   const need = assessNeed(needNorm)
-  const pain = PAIN_RE.test(`${args.urgency ?? ''} ${args.need ?? ''}`)
+  const ctx = (args.context ?? '').trim()
+  // Pain from the original message OR the urgency field — not the urgency field alone.
+  const pain = PAIN_RE.test(`${args.urgency ?? ''} ${args.need ?? ''} ${ctx}`)
+  const effort = ctx.length >= EFFORT_MIN
 
-  const base = { needQuality: need.quality, needAccepted: need.accepted, needRejectedReason: need.reason, nameAccepted }
+  const base = {
+    needQuality: need.quality,
+    needAccepted: need.accepted,
+    needRejectedReason: need.reason,
+    nameAccepted,
+  }
 
   if (!nameAccepted) {
     return { text: null, telemetry: { ...base, selectedTier: 'fallback', fallbackReason: 'name_invalid' } }
   }
 
+  const opener = OPENER[args.lang](name as string, effort)
   let tier: WarmTier
   let text: string
   if (need.accepted) {
     tier = pain ? 'rich' : 'standard'
-    text = T[tier][args.lang](name as string, needNorm)
+    text = `${opener} ${UNDERSTAND[args.lang](needNorm, pain)} ${CONNECT[args.lang]}`
   } else {
     tier = 'generic'
-    text = T.generic[args.lang](name as string)
+    text = `${opener} ${GENERIC_BODY[args.lang]} ${CONNECT[args.lang]}`
   }
 
   if (!validateConciergeReply(text).ok) {
