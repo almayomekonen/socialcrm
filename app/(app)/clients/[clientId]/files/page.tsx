@@ -4,6 +4,7 @@ import { getFilesByClientId } from '@/db/files'
 import { getTasksByClientId } from '@/db/tasks'
 import { listLeadDriveAttachments } from '@/actions/leadDriveFiles'
 import { fetchSuggestedDriveFiles } from '@/actions/leadDriveFilesSearch'
+import { isDrivePickerEnabled } from '@/lib/integrations/google/picker/pickerCore'
 
 export default async function page({ params, searchParams }) {
   searchParams = await searchParams
@@ -14,9 +15,12 @@ export default async function page({ params, searchParams }) {
 
   // Drive section data — fail-soft: if either source throws (no connection,
   // Drive API error), the section still renders with empty arrays.
+  // When the Picker is enabled, whole-Drive suggestions are not shown, so skip
+  // the (restricted-scope) fetch entirely. Flag off = unchanged behaviour.
+  const pickerEnabled = isDrivePickerEnabled()
   const [driveAttachments, driveSuggestions] = await Promise.all([
     listLeadDriveAttachments(clientId).catch(() => []),
-    fetchSuggestedDriveFiles(clientId).catch(() => []),
+    pickerEnabled ? Promise.resolve([]) : fetchSuggestedDriveFiles(clientId).catch(() => []),
   ])
 
   return (
@@ -25,6 +29,7 @@ export default async function page({ params, searchParams }) {
         leadId={Number(clientId)}
         attachments={driveAttachments}
         suggestions={driveSuggestions}
+        pickerEnabled={pickerEnabled}
       />
       <ClientFilesTable clientId={clientId} data={files} tasks={tasks} key={Math.random()} />
     </div>

@@ -15,9 +15,10 @@ type Props = {
   leadId: number
   attachments: LeadDriveAttachment[]
   suggestions: SuggestedDriveFile[]
+  pickerEnabled?: boolean
 }
 
-export default function LeadDriveSection({ leadId, attachments, suggestions }: Props) {
+export default function LeadDriveSection({ leadId, attachments, suggestions, pickerEnabled = false }: Props) {
   const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -96,7 +97,7 @@ export default function LeadDriveSection({ leadId, attachments, suggestions }: P
         <p className='text-sm text-gray-500 mb-4'>אין קבצים מצורפים לליד מ-Drive.</p>
       )}
 
-      {suggestions.length > 0 && (
+      {!pickerEnabled && suggestions.length > 0 && (
         <div className='grid gap-1.5'>
           <p className='text-[11px] text-gray-400 tracking-wide'>מוצע — נמצאו ב-Drive לפי פרטי הליד</p>
           {suggestions.map((s) => (
@@ -110,7 +111,13 @@ export default function LeadDriveSection({ leadId, attachments, suggestions }: P
         </div>
       )}
 
-      <LeadDriveAttachModal open={modalOpen} leadId={leadId} onClose={() => setModalOpen(false)} onAttached={refresh} />
+      <LeadDriveAttachModal
+        open={modalOpen}
+        leadId={leadId}
+        pickerEnabled={pickerEnabled}
+        onClose={() => setModalOpen(false)}
+        onAttached={refresh}
+      />
     </section>
   )
 }

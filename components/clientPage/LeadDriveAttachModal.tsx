@@ -8,15 +8,17 @@ import { toast } from '@/lib/toast'
 import { iconForDriveMime } from '@/lib/copilot/driveMimeIcon'
 import { attachDriveFile } from '@/actions/leadDriveFiles'
 import { searchDriveForLead, type SuggestedDriveFile } from '@/actions/leadDriveFilesSearch'
+import LeadDrivePickerAttach from './LeadDrivePickerAttach'
 
 type Props = {
   open: boolean
   onClose: () => void
   leadId: number
   onAttached?: () => void
+  pickerEnabled?: boolean
 }
 
-export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached }: Props) {
+export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached, pickerEnabled = false }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SuggestedDriveFile[]>([])
   const [loading, setLoading] = useState(false)
@@ -91,9 +93,21 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
             <Icon name='google-drive' className='size-6 bg-gray-900' />
             <h2 className='text-lg font-bold text-dark'>צרף קובץ מ-Google Drive</h2>
           </div>
-          <p className='text-sm text-gray-600 leading-relaxed'>חפש בקבצים שלך ב-Drive ובחר את הקובץ לצירוף לליד.</p>
+          {!pickerEnabled && (
+            <p className='text-sm text-gray-600 leading-relaxed'>חפש בקבצים שלך ב-Drive ובחר את הקובץ לצירוף לליד.</p>
+          )}
         </header>
 
+        {pickerEnabled ? (
+          <LeadDrivePickerAttach
+            leadId={leadId}
+            onAttached={() => {
+              onAttached?.()
+              onClose()
+            }}
+          />
+        ) : (
+          <>
         <div className='relative'>
           <input
             type='text'
@@ -130,6 +144,8 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
               />
             ))}
         </div>
+          </>
+        )}
 
         <div className='flex justify-end'>
           <Btn lbl='סגור' variant='outline' onClick={onClose} />
