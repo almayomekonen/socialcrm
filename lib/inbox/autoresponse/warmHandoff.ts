@@ -116,10 +116,16 @@ const OPENER = {
   he: (n: string, effort: boolean) => (effort ? `תודה על הפירוט, ${n}!` : `תודה, ${n}!`),
   en: (n: string, effort: boolean) => (effort ? `Thanks for the detail, ${n}!` : `Thanks, ${n}!`),
 }
-const PAIN_ACK = { he: ' — ואת הקושי שתיארת', en: ' — and the difficulty you described' }
+// One generic pain acknowledgement; a tiny deterministic special case reflects
+// "עומס" (overload) literally when that is the matched pain word — not a category map.
+function painAck(lang: 'he' | 'en', pain: boolean, overload: boolean): string {
+  if (!pain) return ''
+  if (lang === 'en') return overload ? ' — and the overload you described' : ' — and the difficulty you described'
+  return overload ? ' — ואת העומס שתיארת' : ' — ואת הקושי שתיארת'
+}
 const UNDERSTAND = {
-  he: (need: string, pain: boolean) => `מבינים את מה שתיארת — ${need}${pain ? PAIN_ACK.he : ''}.`,
-  en: (need: string, pain: boolean) => `We understand what you described — ${need}${pain ? PAIN_ACK.en : ''}.`,
+  he: (need: string, ack: string) => `מבינים את הצורך שתיארת — ${need}${ack}.`,
+  en: (need: string, ack: string) => `We understand the need you described — ${need}${ack}.`,
 }
 const CONNECT = {
   he: 'אני מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך בהקדם.',
@@ -149,7 +155,9 @@ export function buildWarmHandoff(args: {
   const need = assessNeed(needNorm)
   const ctx = (args.context ?? '').trim()
   // Pain from the original message OR the urgency field — not the urgency field alone.
-  const pain = PAIN_RE.test(`${args.urgency ?? ''} ${args.need ?? ''} ${ctx}`)
+  const painText = `${args.urgency ?? ''} ${args.need ?? ''} ${ctx}`
+  const pain = PAIN_RE.test(painText)
+  const overload = /עומס|overload/i.test(painText)
   const effort = ctx.length >= EFFORT_MIN
 
   const base = {
@@ -168,7 +176,7 @@ export function buildWarmHandoff(args: {
   let text: string
   if (need.accepted) {
     tier = pain ? 'rich' : 'standard'
-    text = `${opener} ${UNDERSTAND[args.lang](needNorm, pain)} ${CONNECT[args.lang]}`
+    text = `${opener} ${UNDERSTAND[args.lang](needNorm, painAck(args.lang, pain, overload))} ${CONNECT[args.lang]}`
   } else {
     tier = 'generic'
     text = `${opener} ${GENERIC_BODY[args.lang]} ${CONNECT[args.lang]}`
