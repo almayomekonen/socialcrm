@@ -9,7 +9,7 @@ import {
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly'
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
 export async function GET(_req: NextRequest) {
   let user: AuthenticatedAgencyUser
@@ -36,7 +36,7 @@ export async function GET(_req: NextRequest) {
   }
 
   // Disconnect any existing connection first. A row from an earlier consent
-  // round can carry stale (e.g. drive.readonly-less) scopes; clearing it
+  // round can carry stale (e.g. drive.file-less) scopes; clearing it
   // forces this flow to issue a brand-new token set with the scopes below.
   // Revoke at Google is best-effort — local row deletion is what matters.
   const existing = await getDriveConnectionByUserId(user.id)
@@ -65,11 +65,11 @@ export async function GET(_req: NextRequest) {
 
   // openid + email scopes let us call userinfo at the callback to display
   // which Google account is connected. They do not grant any Drive access
-  // beyond drive.readonly.
+  // beyond drive.file.
   //
   // include_granted_scopes=false: do NOT carry forward previously consented
   // scopes. Forces a fresh consent set so a prior consent that lacked
-  // drive.readonly cannot silently produce a token without it.
+  // drive.file cannot silently produce a token without it.
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,

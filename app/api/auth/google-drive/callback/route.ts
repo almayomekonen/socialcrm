@@ -78,18 +78,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (COPILOT_TRACE) {
-    // TEMPORARY [drive.debug] — verify drive.readonly is present in the granted scope set.
+    // TEMPORARY [drive.debug] — verify drive.file is present in the granted scope set.
     console.info('[copilot.trace] drive.oauth.scopes', { scopes: tokens.scope })
   }
 
-  // Validate that drive.readonly was actually granted. Google can silently
+  // Validate that drive.file was actually granted. Google can silently
   // drop scopes if the OAuth consent screen has not been configured to
   // request them, or if the user un-checks individual scopes mid-consent.
-  // Persisting tokens without drive.readonly produces a "Connected" row
+  // Persisting tokens without drive.file produces a "Connected" row
   // whose every Drive API call fails with 403 — confusing UX. Fail the
   // flow now and surface a clear error code instead.
-  if (!tokens.scope || !tokens.scope.includes('https://www.googleapis.com/auth/drive.readonly')) {
-    console.error('[GoogleDriveOAuth] Missing drive.readonly in granted scopes:', tokens.scope)
+  if (!tokens.scope || !tokens.scope.includes('https://www.googleapis.com/auth/drive.file')) {
+    console.error('[GoogleDriveOAuth] Missing drive.file in granted scopes:', tokens.scope)
     return failed(req, 'missing_drive_scope')
   }
 

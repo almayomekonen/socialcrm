@@ -70,7 +70,7 @@ describe('pickerCore flag + config', () => {
     expect(getPickerClientConfig()).toEqual({ clientId: 'cid', apiKey: 'key', appId: '999' })
   })
 
-  it('requests drive.readonly during phases 1-5 (flipped to drive.file at phase 6)', () => {
-    expect(DRIVE_PICKER_SCOPE).toBe('https://www.googleapis.com/auth/drive.readonly')
+  it('requests drive.file (flipped from drive.readonly at phase 6 — migration end state)', () => {
+    expect(DRIVE_PICKER_SCOPE).toBe('https://www.googleapis.com/auth/drive.file')
   })
 })

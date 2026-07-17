@@ -1,4 +1,4 @@
-export const DRIVE_PICKER_SCOPE = 'https://www.googleapis.com/auth/drive.readonly'
+export const DRIVE_PICKER_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
 export type PickedDriveFile = {
   driveFileId: string
