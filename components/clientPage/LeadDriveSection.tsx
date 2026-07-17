@@ -88,6 +88,9 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
               attachment={att}
               busy={busyId === `a-${att.id}` || pending}
               onDetach={() => handleDetach(att)}
+              pickerEnabled={pickerEnabled}
+              leadId={leadId}
+              onRepicked={refresh}
             />
           ))}
         </div>

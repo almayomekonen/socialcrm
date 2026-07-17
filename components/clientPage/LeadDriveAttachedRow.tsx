@@ -4,15 +4,22 @@ import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import { iconForDriveMime } from '@/lib/copilot/driveMimeIcon'
 import type { LeadDriveAttachment } from '@/actions/leadDriveFiles'
+import LeadDriveRepickButton from './LeadDriveRepickButton'
 
 export default function LeadDriveAttachedRow({
   attachment,
   busy,
   onDetach,
+  pickerEnabled = false,
+  leadId,
+  onRepicked,
 }: {
   attachment: LeadDriveAttachment
   busy: boolean
   onDetach: () => void
+  pickerEnabled?: boolean
+  leadId?: number
+  onRepicked?: () => void
 }) {
   const icon = iconForDriveMime(attachment.mimeType)
   const url = attachment.webViewLink ?? ''
@@ -36,6 +43,7 @@ export default function LeadDriveAttachedRow({
         </p>
       </div>
       <div className='shrink-0 flex items-center gap-1.5'>
+        {pickerEnabled && leadId != null && <LeadDriveRepickButton leadId={leadId} onRepicked={onRepicked} />}
         <Btn lbl='פתח' size='small' variant='outline' onClick={open} disabled={!url || busy} />
         <Btn lbl='הסר' size='small' variant='destructive' onClick={onDetach} disabled={busy} />
       </div>
