@@ -20,6 +20,7 @@ import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
 import { isMobileRequest } from '@/lib/device'
 import SkipLink from '@/components/layout/SkipLink'
+import OAuthResultToast from '@/components/settings/OAuthResultToast'
 import Loading from '@/components/ui/Loading'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
@@ -88,6 +89,7 @@ async function LayoutContent({ children }) {
           <CopilotContextStoreProvider>
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
+              <OAuthResultToast />
               <Topbar user={user} />
               <WorkspaceGrid>
                 <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
