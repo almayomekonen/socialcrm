@@ -7,6 +7,7 @@ export type ScheduledSummary = {
   sent: number
   skipped: number
   suppressed: number
+  cooldown: number
   failed: number
   mock: number
 }
@@ -26,6 +27,7 @@ export async function runScheduledAutomations(deps: ScheduledDeps): Promise<Sche
     sent: 0,
     skipped: 0,
     suppressed: 0,
+    cooldown: 0,
     failed: 0,
     mock: 0,
   }

@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import type { Automation, Recipient } from './types'
 
-export type DispatchResult = 'sent' | 'skipped' | 'suppressed' | 'failed' | 'mock'
+export type DispatchResult = 'sent' | 'skipped' | 'suppressed' | 'cooldown' | 'failed' | 'mock'
 
 type SendResult = { ok: true; id: string } | { ok: false; error: string }
 
@@ -9,6 +9,9 @@ type SendResult = { ok: true; id: string } | { ok: false; error: string }
 export type DispatchDeps = {
   enabled: boolean // emailAutomationsEnabled() && IS_PROD, resolved by the caller
   isSuppressed: (userId: number) => Promise<boolean>
+  // True when the user already received a lifecycle email inside the global 7-day
+  // window. Only consulted for lifecycle automations (transactional are exempt).
+  lifecycleCooldownActive: (userId: number) => Promise<boolean>
   claimSend: (row: { automationKey: string; userId: number; agencyId: number; periodKey: string }) => Promise<boolean>
   markSent: (automationKey: string, userId: number, periodKey: string) => Promise<void>
   releaseClaim: (automationKey: string, userId: number, periodKey: string) => Promise<void>
@@ -18,10 +21,12 @@ export type DispatchDeps = {
 }
 
 /**
- * The single path every automation send takes: gate → suppression (lifecycle) →
- * claim-before-send → render → send → finalize. Claim-before-send makes delivery
- * exactly-once even if a cron pass overlaps; a failed send releases the claim so
- * the next pass retries. Never throws.
+ * The single path every automation send takes: gate → suppression + 7-day
+ * lifecycle cooldown (lifecycle only) → claim-before-send → render → send →
+ * finalize. The cooldown is what turns independent automations into one journey:
+ * because the worker runs highest-priority first and each send records a row, the
+ * top-priority eligible lifecycle email sends and the cooldown blocks the rest for
+ * this user (this run and for 7 days). Transactional emails are exempt. Never throws.
  */
 export async function dispatchAutomationEmail(
   automation: Automation,
@@ -35,8 +40,9 @@ export async function dispatchAutomationEmail(
 
   const periodKey = automation.recurring ? automation.recurring.periodKey(now) : ''
 
-  if (automation.category === 'lifecycle' && (await deps.isSuppressed(recipient.userId))) {
-    return 'suppressed'
+  if (automation.category === 'lifecycle') {
+    if (await deps.isSuppressed(recipient.userId)) return 'suppressed'
+    if (await deps.lifecycleCooldownActive(recipient.userId)) return 'cooldown'
   }
 
   const claimed = await deps.claimSend({

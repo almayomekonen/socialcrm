@@ -19,6 +19,7 @@ const automation = (over: Partial<Automation> = {}): Automation => ({
 const deps = (over: Partial<DispatchDeps> = {}): DispatchDeps => ({
   enabled: true,
   isSuppressed: vi.fn(async () => false),
+  lifecycleCooldownActive: vi.fn(async () => false),
   claimSend: vi.fn(async () => true),
   markSent: vi.fn(async () => {}),
   releaseClaim: vi.fn(async () => {}),
@@ -49,6 +50,20 @@ describe('dispatchAutomationEmail', () => {
   it('sends a transactional email even to an opted-out user', async () => {
     const d = deps({ isSuppressed: vi.fn(async () => true) })
     expect(await dispatchAutomationEmail(automation({ category: 'transactional' }), recipient, now, d)).toBe('sent')
+    expect(d.sendEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('blocks a lifecycle email while the 7-day cooldown is active (no claim, no send)', async () => {
+    const d = deps({ lifecycleCooldownActive: vi.fn(async () => true) })
+    expect(await dispatchAutomationEmail(automation({ category: 'lifecycle' }), recipient, now, d)).toBe('cooldown')
+    expect(d.claimSend).not.toHaveBeenCalled()
+    expect(d.sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('transactional emails ignore the lifecycle cooldown', async () => {
+    const d = deps({ lifecycleCooldownActive: vi.fn(async () => true) })
+    expect(await dispatchAutomationEmail(automation({ category: 'transactional' }), recipient, now, d)).toBe('sent')
+    expect(d.lifecycleCooldownActive).not.toHaveBeenCalled()
     expect(d.sendEmail).toHaveBeenCalledTimes(1)
   })
 

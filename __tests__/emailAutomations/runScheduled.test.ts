@@ -71,6 +71,30 @@ describe('runScheduledAutomations (generic orchestration)', () => {
     expect(summary).toMatchObject({ sent: 1, skipped: 1, suppressed: 1, considered: 3 })
   })
 
+  it('journey selection: only the highest-priority lifecycle email sends per user, the rest are cooldown-blocked', async () => {
+    // Stateful fake standing in for the real dispatcher's 7-day cooldown: once a
+    // user gets one lifecycle email this run, further lifecycle emails are blocked.
+    const gotLifecycle = new Set<number>()
+    const dispatch = vi.fn(async (a: Automation, r: Recipient) => {
+      if (a.category !== 'lifecycle') return 'sent' as const
+      if (gotLifecycle.has(r.userId)) return 'cooldown' as const
+      gotLifecycle.add(r.userId)
+      return 'sent' as const
+    })
+    // User 1 is eligible for both; facebook comes first in registry order.
+    const summary = await runScheduledAutomations({
+      now: new Date(),
+      dispatch,
+      automations: [
+        auto({ key: 'facebook', audience: async () => [rec(1)] }),
+        auto({ key: 'whatsapp', audience: async () => [rec(1)] }),
+      ],
+    })
+    expect(dispatch.mock.calls.map((c) => c[0].key)).toEqual(['facebook', 'whatsapp']) // both evaluated, in order
+    expect(summary.sent).toBe(1) // only facebook
+    expect(summary.cooldown).toBe(1) // whatsapp held back
+  })
+
   it('isolates a throwing dispatch (counts failed, continues)', async () => {
     const dispatch = vi.fn(async (_a: Automation, r: Recipient) => {
       if (r.userId === 1) throw new Error('boom')
