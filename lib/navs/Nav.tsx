@@ -1,5 +1,6 @@
 'use client'
 
+import { useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/actions/auth'
@@ -8,6 +9,7 @@ import { Route } from 'next'
 import { UserNAgency } from './Topbar'
 import { twMerge } from 'tailwind-merge'
 import Icon, { IconNames } from '@/lib/Icon'
+import Loading from '@/components/ui/Loading'
 import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 
 export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
@@ -16,7 +18,8 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
   const liveUnread = useAwarenessCount()
   const effectiveUnread = liveUnread ?? inboxUnread
 
-  const logmeout = () => logout()
+  const [isLoggingOut, startLogout] = useTransition()
+  const logmeout = () => startLogout(async () => { await logout() })
 
   const getIsActive = (pathname, href) => {
     if (href === '/') return pathname === '/'
@@ -25,7 +28,11 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
 
   function LogoutBtn() {
     return (
-      <button className='flex flex-nowrap items-center w-full hover:bg-dark/50 mt-2' onClick={logmeout}>
+      <button
+        className='flex flex-nowrap items-center w-full hover:bg-dark/50 mt-2 disabled:opacity-60'
+        onClick={logmeout}
+        disabled={isLoggingOut}
+      >
         <span className='rounded p-2'>
           <Icon name='arrow-right-from-bracket' className='bg-white' type='sol' />
         </span>
@@ -36,6 +43,11 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
 
   return (
     <div className='z-999'>
+      {isLoggingOut && (
+        <div className='fixed inset-0 z-9999 bg-white' role='status' aria-label='מתנתק'>
+          <Loading />
+        </div>
+      )}
       <div popover='auto' id='navPop' className='h-full bg-dark desktop:hidden pop-bg'>
         <div>
           <div className='flex justify-start'>
