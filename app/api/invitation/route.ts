@@ -2,7 +2,7 @@ import { NextRequest, after } from 'next/server'
 import { db } from '@/config/db'
 import { createCookie } from '@/db/auth'
 import { deleteInvitation } from '@/actions/invitations'
-import { sendWelcomeEmail } from '@/lib/email/send'
+import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 
 export async function GET(request: NextRequest) {
@@ -41,10 +41,11 @@ export async function GET(request: NextRequest) {
     await createCookie(newUser.id)
 
     after(() =>
-      sendWelcomeEmail({
-        email: newUser.email,
-        firstName: newUser.firstName,
-      }),
+      dispatchLifecycleEvent(
+        'user.registered',
+        { userId: newUser.id, agencyId: newUser.agencyId, email: newUser.email, firstName: newUser.firstName },
+        new Date(),
+      ),
     )
 
     return new Response(null, {

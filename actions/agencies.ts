@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { after } from 'next/server'
 import { requireUser } from '@/lib/requireUser'
 import { normalizeEmail } from '@/lib/normalizeEmail'
-import { sendWelcomeEmail } from '@/lib/email/send'
+import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { track } from '@/lib/analytics/track'
 import { emitLifecycleEvent } from '@/lib/events/emit'
 
@@ -56,7 +56,13 @@ export async function addAgency(data) {
     after(() =>
       track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
     )
-    after(() => sendWelcomeEmail(newUser!))
+    after(() =>
+      dispatchLifecycleEvent(
+        'user.registered',
+        { userId: userIdForEvent, agencyId: agencyIdForEvent!, email, firstName: newUser!.firstName },
+        new Date(),
+      ),
+    )
 
     const provider = data?.provider === 'google' || data?.provider === 'email' ? data.provider : null
     after(() =>
