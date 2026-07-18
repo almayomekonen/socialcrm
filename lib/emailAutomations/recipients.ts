@@ -15,17 +15,6 @@ function owners() {
     .select(OWNER_SELECT)
 }
 
-export async function getAgencyOwner(agencyId: number): Promise<Recipient | null> {
-  const row = await db('users as u')
-    .where('u.agencyId', agencyId)
-    .where('u.role', 'ADMIN')
-    .where('u.suspended', false)
-    .whereNotNull('u.email')
-    .orderBy('u.id')
-    .first(OWNER_SELECT)
-  return (row as Recipient) ?? null
-}
-
 // Signup age ≥ 3d (owner.createdAt ≈ agency creation) AND no Facebook page.
 export function ownersMissingFacebook(): Promise<Recipient[]> {
   return owners()
