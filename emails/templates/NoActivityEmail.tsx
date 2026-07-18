@@ -7,9 +7,9 @@ export type NoActivityEmailProps = {
   unsubscribeUrl?: string
 }
 
-export default function NoActivityEmail({ firstName, ctaUrl }: NoActivityEmailProps) {
+export default function NoActivityEmail({ firstName, ctaUrl, unsubscribeUrl }: NoActivityEmailProps) {
   return (
-    <EmailLayout preview='הלידים שלך מחכים לך במערכת'>
+    <EmailLayout preview='הלידים שלך מחכים לך במערכת' unsubscribeUrl={unsubscribeUrl}>
       <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
         הלידים שלך מחכים לך
       </Heading>

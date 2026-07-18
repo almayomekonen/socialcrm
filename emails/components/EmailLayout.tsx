@@ -5,6 +5,7 @@ import {
   Head,
   Html,
   Img,
+  Link,
   Preview,
   Row,
   Section,
@@ -15,15 +16,13 @@ import { ReactNode } from 'react'
 type Props = {
   preview: string
   children: ReactNode
-  /**
-   * Optional brand mark for the header. When provided, the header renders
-   * logo-left / text-right; when omitted, the header stays text-only so
-   * existing emails (welcome, magic-link, invoice) are unchanged.
-   */
+
   logoUrl?: string
+
+  unsubscribeUrl?: string
 }
 
-export function EmailLayout({ preview, children, logoUrl }: Props) {
+export function EmailLayout({ preview, children, logoUrl, unsubscribeUrl }: Props) {
   return (
     <Html lang="he" dir="rtl">
       <Head />
@@ -155,6 +154,13 @@ export function EmailLayout({ preview, children, logoUrl }: Props) {
             >
               מערכת <span dir="ltr">SocialCRM</span> לניהול לידים לעסקים קטנים
             </Text>
+            {unsubscribeUrl && (
+              <Text dir="rtl" style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                <Link href={unsubscribeUrl} style={{ color: '#94a3b8', textDecoration: 'underline' }}>
+                  הסרה מרשימת התפוצה
+                </Link>
+              </Text>
+            )}
           </Section>
         </Container>
       </Body>

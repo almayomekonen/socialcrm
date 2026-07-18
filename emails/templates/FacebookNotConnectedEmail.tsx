@@ -7,9 +7,9 @@ export type FacebookNotConnectedEmailProps = {
   unsubscribeUrl?: string
 }
 
-export default function FacebookNotConnectedEmail({ firstName, ctaUrl }: FacebookNotConnectedEmailProps) {
+export default function FacebookNotConnectedEmail({ firstName, ctaUrl, unsubscribeUrl }: FacebookNotConnectedEmailProps) {
   return (
-    <EmailLayout preview='חבר את פייסבוק כדי שלידים ייכנסו אוטומטית למערכת'>
+    <EmailLayout preview='חבר את פייסבוק כדי שלידים ייכנסו אוטומטית למערכת' unsubscribeUrl={unsubscribeUrl}>
       <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
         חבר את פייסבוק
       </Heading>

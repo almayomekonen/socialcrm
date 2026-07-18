@@ -7,9 +7,9 @@ export type FirstLeadEmailProps = {
   unsubscribeUrl?: string
 }
 
-export default function FirstLeadEmail({ firstName, ctaUrl }: FirstLeadEmailProps) {
+export default function FirstLeadEmail({ firstName, ctaUrl, unsubscribeUrl }: FirstLeadEmailProps) {
   return (
-    <EmailLayout preview='קיבלת את הליד הראשון שלך במערכת'>
+    <EmailLayout preview='קיבלת את הליד הראשון שלך במערכת' unsubscribeUrl={unsubscribeUrl}>
       <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
         קיבלת ליד ראשון
       </Heading>

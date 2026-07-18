@@ -7,9 +7,9 @@ export type WhatsappNotConnectedEmailProps = {
   unsubscribeUrl?: string
 }
 
-export default function WhatsappNotConnectedEmail({ firstName, ctaUrl }: WhatsappNotConnectedEmailProps) {
+export default function WhatsappNotConnectedEmail({ firstName, ctaUrl, unsubscribeUrl }: WhatsappNotConnectedEmailProps) {
   return (
-    <EmailLayout preview='חבר את וואטסאפ כדי לנהל את כל השיחות במקום אחד'>
+    <EmailLayout preview='חבר את וואטסאפ כדי לנהל את כל השיחות במקום אחד' unsubscribeUrl={unsubscribeUrl}>
       <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
         חבר את וואטסאפ
       </Heading>
