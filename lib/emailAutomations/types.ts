@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 
 export type AutomationCategory = 'transactional' | 'lifecycle' // determines suppression behavior
-export type AutomationPriority = 'high' | 'normal'
+export type AutomationPriority = 'highest' | 'high' | 'medium' | 'low'
 
 export type Recipient = {
   userId: number

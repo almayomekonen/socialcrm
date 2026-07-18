@@ -13,7 +13,7 @@ describe('email automation registry', () => {
       expect(typeof a.subject).toBe('function')
       expect(typeof a.template).toBe('function')
       expect(['transactional', 'lifecycle']).toContain(a.category)
-      expect(['high', 'normal']).toContain(a.priority)
+      expect(['highest', 'high', 'medium', 'low']).toContain(a.priority)
       expect(typeof a.enabled).toBe('boolean')
       if (a.trigger === 'scheduled') expect(typeof a.audience).toBe('function')
       if (a.trigger === 'event') expect(a.event).toBeTruthy()

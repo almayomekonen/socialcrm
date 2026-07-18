@@ -7,7 +7,7 @@ const rec = (id: number): Recipient => ({ userId: id, agencyId: id, email: `u${i
 const auto = (over: Partial<Automation> = {}): Automation => ({
   key: 'a',
   enabled: true,
-  priority: 'normal',
+  priority: 'medium',
   category: 'lifecycle',
   trigger: 'scheduled',
   subject: () => 's',
@@ -42,7 +42,7 @@ describe('runScheduledAutomations (generic orchestration)', () => {
     await runScheduledAutomations({
       now: new Date(),
       dispatch,
-      automations: [auto({ key: 'n', priority: 'normal' }), auto({ key: 'h', priority: 'high' })],
+      automations: [auto({ key: 'n', priority: 'low' }), auto({ key: 'h', priority: 'highest' })],
     })
     expect(order).toEqual(['h', 'n'])
   })

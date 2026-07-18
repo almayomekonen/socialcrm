@@ -8,7 +8,7 @@ const now = new Date('2026-07-18T00:00:00Z')
 const automation = (over: Partial<Automation> = {}): Automation => ({
   key: 'test',
   enabled: true,
-  priority: 'normal',
+  priority: 'medium',
   category: 'lifecycle',
   trigger: 'scheduled',
   subject: () => 'נושא',

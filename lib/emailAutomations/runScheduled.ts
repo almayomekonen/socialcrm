@@ -18,7 +18,7 @@ export type ScheduledDeps = {
   now: Date
 }
 
-const RANK: Record<Automation['priority'], number> = { high: 0, normal: 1 }
+const RANK: Record<Automation['priority'], number> = { highest: 0, high: 1, medium: 2, low: 3 }
 
 export async function runScheduledAutomations(deps: ScheduledDeps): Promise<ScheduledSummary> {
   const summary: ScheduledSummary = {
