@@ -1,4 +1,5 @@
 import type { Automation } from './types'
+import { IS_PROD, EMAIL_ENABLED } from '@/lib/email/config'
 import { appUrl, unsubscribeUrlFor } from './config'
 import {
   inactiveOwnerCandidates,
@@ -24,6 +25,10 @@ export const AUTOMATIONS: Automation[] = [
     category: 'transactional',
     trigger: 'event',
     event: 'user.registered',
+    // Backward compatibility: Welcome keeps its original operational gate
+    // (WELCOME_EMAIL_ENABLED via EMAIL_ENABLED) — the automation system does not
+    // change this existing production feature's behavior.
+    gate: () => IS_PROD && EMAIL_ENABLED,
     subject: () => '🚀 ברוך הבא ל-SocialCRM',
     template: (r) => WelcomeEmail({ firstName: r.firstName ?? '', ctaUrl: appUrl('/dashboard') }),
   },

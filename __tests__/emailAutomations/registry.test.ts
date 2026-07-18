@@ -20,6 +20,16 @@ describe('email automation registry', () => {
     }
   })
 
+  it('keeps Welcome on its own (legacy) gate for backward compatibility', () => {
+    const welcome = AUTOMATIONS.find((a) => a.key === 'welcome')
+    expect(welcome).toBeDefined()
+    expect(typeof welcome?.gate).toBe('function') // WELCOME_EMAIL_ENABLED, not the automation-system flag
+    // Other automations rely on the default (automation-system) gate.
+    for (const a of AUTOMATIONS.filter((x) => x.key !== 'welcome')) {
+      expect(a.gate).toBeUndefined()
+    }
+  })
+
   it('is exactly the six Phase 1 automations', () => {
     expect(AUTOMATIONS.map((a) => a.key).sort()).toEqual(
       [

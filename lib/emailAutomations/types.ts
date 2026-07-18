@@ -22,5 +22,6 @@ export type Automation = {
   event?: 'user.registered' // event automations only (Phase 1 uses only this)
   audience?: () => Promise<Recipient[]> // scheduled automations only
   condition?: (r: Recipient) => Promise<boolean> // optional extra filter
+  gate?: () => boolean // per-automation send gate; defaults to emailAutomationsEnabled() when omitted
   recurring?: { periodKey: (now: Date) => string } // omit ⇒ send once forever
 }

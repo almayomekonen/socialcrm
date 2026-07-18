@@ -10,9 +10,11 @@ import type { Automation, Recipient } from './types'
 // The production wiring of the dispatcher: binds the real DB helpers, Resend
 // sender, and render pipeline. This is the only place the abstract dispatcher
 // meets real I/O.
-function liveDeps(): DispatchDeps {
+function liveDeps(automation: Automation): DispatchDeps {
   return {
-    enabled: emailAutomationsEnabled(),
+    // Per-automation gate (Welcome keeps its legacy WELCOME_EMAIL_ENABLED flag);
+    // everything else defaults to the automation-system flag.
+    enabled: automation.gate ? automation.gate() : emailAutomationsEnabled(),
     isSuppressed,
     claimSend,
     markSent,
@@ -25,7 +27,7 @@ function liveDeps(): DispatchDeps {
 
 // Used by the cron worker as its injected `dispatch`.
 export function dispatchLive(automation: Automation, recipient: Recipient, now: Date): Promise<DispatchResult> {
-  return dispatchAutomationEmail(automation, recipient, now, liveDeps())
+  return dispatchAutomationEmail(automation, recipient, now, liveDeps(automation))
 }
 
 // Event path: fire every enabled event automation matching the lifecycle event.
@@ -39,7 +41,7 @@ export async function dispatchLifecycleEvent(
   const matching = AUTOMATIONS.filter((a) => a.enabled && a.trigger === 'event' && a.event === event)
   for (const automation of matching) {
     try {
-      await dispatchAutomationEmail(automation, recipient, now, liveDeps())
+      await dispatchAutomationEmail(automation, recipient, now, liveDeps(automation))
     } catch (err) {
       console.error(`[email-automations] event dispatch failed key=${automation.key}`, err)
     }
