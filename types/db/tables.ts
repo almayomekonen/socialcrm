@@ -158,6 +158,22 @@ export interface DefaultSettings {
   isRiskUpdated: boolean
   isMahalotKashotUpdated: boolean
 }
+export interface EmailAutomationSend {
+  id: number
+  automationKey: string
+  userId: number
+  agencyId: number
+  periodKey: string
+  status: 'pending' | 'sent'
+  createdAt: Date
+  updatedAt: Date
+}
+export interface EmailSuppression {
+  id: number
+  userId: number
+  scope: string
+  createdAt: Date
+}
 export interface Lead {
   id: number
   firstName: string

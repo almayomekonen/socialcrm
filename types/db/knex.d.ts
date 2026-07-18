@@ -27,6 +27,8 @@ declare module 'knex/types/tables' {
     user_perms: DB.UserPerm
     user_teams: DB.UserTeam
     analytics_events: DB.AnalyticsEvent
+    email_automation_sends: DB.EmailAutomationSend
+    email_suppressions: DB.EmailSuppression
 
     // === VIEWS ===
     // Views are treated as read-only tables and also benefit from strong typing.
