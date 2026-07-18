@@ -1,5 +1,4 @@
-import { Button, Heading, Section, Text } from '@react-email/components'
-import { EmailLayout } from '../components/EmailLayout'
+import { LifecycleEmail } from '../components/LifecycleEmail'
 
 export type FirstLeadEmailProps = {
   firstName: string | null
@@ -8,19 +7,17 @@ export type FirstLeadEmailProps = {
 }
 
 export default function FirstLeadEmail({ firstName, ctaUrl, unsubscribeUrl }: FirstLeadEmailProps) {
+  const name = firstName?.trim()
   return (
-    <EmailLayout preview='קיבלת את הליד הראשון שלך במערכת' unsubscribeUrl={unsubscribeUrl}>
-      <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
-        קיבלת ליד ראשון
-      </Heading>
-      <Text dir='rtl' style={{ marginTop: '16px', textAlign: 'center', fontSize: '15px', lineHeight: '1.7', color: '#475569' }}>
-        {firstName ? `${firstName}, ` : ''}הליד הראשון שלך נכנס למערכת. עכשיו זה הזמן לפנות אליו ולהתחיל לנהל את תהליך המכירה.
-      </Text>
-      <Section style={{ textAlign: 'center', margin: '28px 0' }}>
-        <Button href={ctaUrl} style={{ backgroundColor: '#4f46e5', color: '#ffffff', borderRadius: '8px', padding: '12px 28px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>
-          צפה בלידים
-        </Button>
-      </Section>
-    </EmailLayout>
+    <LifecycleEmail
+      preview='הליד הראשון שלך כבר במערכת ומחכה לתשובה'
+      headline='הליד הראשון שלך הגיע'
+      opening={name ? `${name}, זה הרגע שבו כל העבודה מתחילה להשתלם.` : 'זה הרגע שבו כל העבודה מתחילה להשתלם.'}
+      value='הליד הראשון כבר במערכת ומחכה לך. לקוחות זוכרים את מי שענה ראשון, וכל דקה של מהירות מגדילה את הסיכוי לסגור.'
+      action='כנס עכשיו, הכר את הפרטים, ותפוס אותו בזמן שהוא עדיין חם.'
+      ctaLabel='צפה בליד'
+      ctaUrl={ctaUrl}
+      unsubscribeUrl={unsubscribeUrl}
+    />
   )
 }

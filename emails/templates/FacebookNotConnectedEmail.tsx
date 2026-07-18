@@ -1,5 +1,4 @@
-import { Button, Heading, Section, Text } from '@react-email/components'
-import { EmailLayout } from '../components/EmailLayout'
+import { LifecycleEmail } from '../components/LifecycleEmail'
 
 export type FacebookNotConnectedEmailProps = {
   firstName: string | null
@@ -8,19 +7,17 @@ export type FacebookNotConnectedEmailProps = {
 }
 
 export default function FacebookNotConnectedEmail({ firstName, ctaUrl, unsubscribeUrl }: FacebookNotConnectedEmailProps) {
+  const name = firstName?.trim()
   return (
-    <EmailLayout preview='חבר את פייסבוק כדי שלידים ייכנסו אוטומטית למערכת' unsubscribeUrl={unsubscribeUrl}>
-      <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
-        חבר את פייסבוק
-      </Heading>
-      <Text dir='rtl' style={{ marginTop: '16px', textAlign: 'center', fontSize: '15px', lineHeight: '1.7', color: '#475569' }}>
-        {firstName ? `היי ${firstName}, ` : ''}חיבור פייסבוק מאפשר ללידים מהמודעות שלך להיכנס אוטומטית למערכת — בלי להעתיק ידנית.
-      </Text>
-      <Section style={{ textAlign: 'center', margin: '28px 0' }}>
-        <Button href={ctaUrl} style={{ backgroundColor: '#4f46e5', color: '#ffffff', borderRadius: '8px', padding: '12px 28px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>
-          חבר פייסבוק
-        </Button>
-      </Section>
-    </EmailLayout>
+    <LifecycleEmail
+      preview='כל ליד חדש מהמודעות שלך נכנס אוטומטית למערכת'
+      headline='אף ליד לא צריך יותר ליפול בין הכיסאות'
+      opening={name ? `${name}, רוב הלקוחות שלך מתחילים במודעה בפייסבוק.` : 'רוב הלקוחות שלך מתחילים במודעה בפייסבוק.'}
+      value='כשפייסבוק מחובר, כל פנייה חדשה נכנסת ל SocialCRM ברגע שהיא מגיעה, עם כל הפרטים מסודרים במקום אחד. כך אתה מגיב ראשון, בדיוק כשהלקוח הכי מתעניין.'
+      action='החיבור לוקח פחות מדקה, ומאותו רגע כל ליד חדש כבר מחכה לך במערכת.'
+      ctaLabel='חבר את פייסבוק'
+      ctaUrl={ctaUrl}
+      unsubscribeUrl={unsubscribeUrl}
+    />
   )
 }

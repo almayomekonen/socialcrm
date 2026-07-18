@@ -1,5 +1,4 @@
-import { Button, Heading, Section, Text } from '@react-email/components'
-import { EmailLayout } from '../components/EmailLayout'
+import { LifecycleEmail } from '../components/LifecycleEmail'
 
 export type WhatsappNotConnectedEmailProps = {
   firstName: string | null
@@ -8,19 +7,17 @@ export type WhatsappNotConnectedEmailProps = {
 }
 
 export default function WhatsappNotConnectedEmail({ firstName, ctaUrl, unsubscribeUrl }: WhatsappNotConnectedEmailProps) {
+  const name = firstName?.trim()
   return (
-    <EmailLayout preview='חבר את וואטסאפ כדי לנהל את כל השיחות במקום אחד' unsubscribeUrl={unsubscribeUrl}>
-      <Heading dir='rtl' style={{ margin: '8px 0 0 0', textAlign: 'center', fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>
-        חבר את וואטסאפ
-      </Heading>
-      <Text dir='rtl' style={{ marginTop: '16px', textAlign: 'center', fontSize: '15px', lineHeight: '1.7', color: '#475569' }}>
-        {firstName ? `היי ${firstName}, ` : ''}חיבור וואטסאפ מרכז את כל שיחות הלידים בתיבה אחת, כדי ששום פנייה לא תיפול בין הכיסאות.
-      </Text>
-      <Section style={{ textAlign: 'center', margin: '28px 0' }}>
-        <Button href={ctaUrl} style={{ backgroundColor: '#4f46e5', color: '#ffffff', borderRadius: '8px', padding: '12px 28px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>
-          חבר וואטסאפ
-        </Button>
-      </Section>
-    </EmailLayout>
+    <LifecycleEmail
+      preview='כל שיחת וואטסאפ עם לקוח מסודרת במקום אחד'
+      headline='כל שיחה עם לקוח, במקום אחד'
+      opening={name ? `${name}, חלק גדול מהלקוחות שלך מעדיפים לכתוב בוואטסאפ.` : 'חלק גדול מהלקוחות שלך מעדיפים לכתוב בוואטסאפ.'}
+      value='כשוואטסאפ מחובר, כל שיחה נכנסת ל SocialCRM לצד הליד שלה. אתה רואה את ההיסטוריה המלאה, יודע מי מחכה לתשובה, ולא מפספס אף הודעה בתוך עשרות צ׳אטים פתוחים.'
+      action='דקה אחת של חיבור, ומעכשיו כל השיחות שלך מרוכזות ומסודרות.'
+      ctaLabel='חבר את וואטסאפ'
+      ctaUrl={ctaUrl}
+      unsubscribeUrl={unsubscribeUrl}
+    />
   )
 }
