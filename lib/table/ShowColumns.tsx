@@ -14,5 +14,18 @@ export default function ShowColumns({ config }) {
   const options = config.hiddenKeys?.size ? columns.filter((item) => !config.hiddenKeys.has(item.key)) : columns
   const selected = options.filter((item) => !item.noShow).map((item) => item.key)
 
-  return <MultiSelectSearch show='label' val='key' selected={selected} options={options} onSelectOpt={onOpt} lbl='עמודות לצפיה' />
+
+  const availabilityKey = config.hiddenKeys ? Array.from(config.hiddenKeys).sort().join(',') : ''
+
+  return (
+    <MultiSelectSearch
+      key={availabilityKey}
+      show='label'
+      val='key'
+      selected={selected}
+      options={options}
+      onSelectOpt={onOpt}
+      lbl='עמודות לצפיה'
+    />
+  )
 }
