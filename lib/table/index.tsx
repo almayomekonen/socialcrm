@@ -26,6 +26,12 @@ export type ConfigT = {
     noShow?: boolean
   }[]
   setColumns: (headers: { key: string; label: string; format?: string }[]) => void
+  /**
+   * Presentation-only overlay: keys force-hidden at render (header, body, and the
+   * ShowColumns selector), regardless of the user's saved noShow preference. Never
+   * mutates `columns` or persistence — used for availability-gated optional columns.
+   */
+  hiddenKeys?: Set<string>
   data?: any[]
   onRowClick?: (item: any) => void
   noCheckboxs?: boolean

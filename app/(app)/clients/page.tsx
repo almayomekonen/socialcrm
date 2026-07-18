@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
-import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt } from '@/db/clients'
+import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt, getLeadColumnAvailability } from '@/db/clients'
 import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import { Provider } from '@/lib/hooksNEvents'
@@ -26,6 +26,7 @@ export default async function ClientsPage({ searchParams }) {
     getQuotaStatus(user.agencyId),
   ])
   const clients = await getLeadsTable({ user, params, leads: false, gotPermIds: handlers.gotPermIds, settings })
+  const columnAvailability = await getLeadColumnAvailability({ user, leads: false, gotPermIds: handlers.gotPermIds })
   const formProps = { user, officeGotPerm: handlers.gotPermUsers, allUsers }
   return (
     <Provider
@@ -44,7 +45,7 @@ export default async function ClientsPage({ searchParams }) {
       <OverQuotaBanner count={quota.overQuotaCount} />
 
       <Suspense fallback={null}>
-        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
+        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} key={params.clientId ?? 'all'} />
       </Suspense>
     </Provider>
   )

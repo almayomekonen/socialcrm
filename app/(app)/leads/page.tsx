@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { getUser } from '@/db/auth'
-import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt, hasAnyLeads } from '@/db/clients'
+import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt, hasAnyLeads, getLeadColumnAvailability } from '@/db/clients'
 import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import LeadsFirstRun from '@/components/clients/LeadsFirstRun'
@@ -43,6 +43,9 @@ export default async function LeadsPage({ searchParams }) {
   const clients = hasLeads
     ? await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds, settings })
     : []
+  const columnAvailability = hasLeads
+    ? await getLeadColumnAvailability({ user, leads: true, gotPermIds: handlers.gotPermIds })
+    : null
   const formProps = { user, officeGotPerm: handlers.gotPermUsers, allUsers }
   return (
     <Provider
@@ -66,7 +69,7 @@ export default async function LeadsPage({ searchParams }) {
             <CrmSyncBanner sources={['leads', 'awareness']} />
           </div>
           <Suspense fallback={null}>
-            <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} key={params.clientId ?? 'all'} />
+            <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} key={params.clientId ?? 'all'} />
           </Suspense>
         </>
       ) : (

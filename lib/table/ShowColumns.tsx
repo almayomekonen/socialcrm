@@ -11,7 +11,8 @@ export default function ShowColumns({ config }) {
     config.getColumns && config.getColumns(tmp)
   }
 
-  const selected = columns.filter((item) => !item.noShow).map((item) => item.key)
+  const options = config.hiddenKeys?.size ? columns.filter((item) => !config.hiddenKeys.has(item.key)) : columns
+  const selected = options.filter((item) => !item.noShow).map((item) => item.key)
 
-  return <MultiSelectSearch show='label' val='key' selected={selected} options={columns} onSelectOpt={onOpt} lbl='עמודות לצפיה' />
+  return <MultiSelectSearch show='label' val='key' selected={selected} options={options} onSelectOpt={onOpt} lbl='עמודות לצפיה' />
 }

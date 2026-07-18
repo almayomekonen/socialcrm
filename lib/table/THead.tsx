@@ -38,7 +38,7 @@ export default function THead({ config }: { config: ConfigT }) {
         {withIndex && <th></th>}
 
         {columns.map((col, i) => {
-          if (col.noShow) return null
+          if (col.noShow || config.hiddenKeys?.has(col.key)) return null
           return (
             <th
               key={col.key + i}

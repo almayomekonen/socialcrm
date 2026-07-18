@@ -225,6 +225,49 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds, s
     .offset((pageNum - 1) * tableLimit)
 }
 
+export type LeadColumnAvailability = {
+  idNum: boolean
+  secPhone: boolean
+  birthDate: boolean
+  gender: boolean
+}
+
+export async function getLeadColumnAvailability({
+  user,
+  leads,
+  gotPermIds,
+}: {
+  user: { role: Roles }
+  leads: boolean
+  gotPermIds?: number[]
+}): Promise<LeadColumnAvailability> {
+  const agencyId = await getAgencyId()
+  const plan = await getAgencyPlan(agencyId)
+
+  const base = db('clients').where('agencyId', agencyId).where('lead', leads)
+  if (gotPermIds && !isAdmin(user.role)) base.whereIn('userId', gotPermIds)
+  if (plan === 'free') base.where('overQuota', false)
+
+  const row = await base
+    .select(
+      db.raw(`COALESCE(bool_or("idNum" ~ '[^[:space:]]'), false) AS "idNum"`),
+      db.raw(`COALESCE(bool_or("secPhone" ~ '[^[:space:]]'), false) AS "secPhone"`),
+      // Date column: NULL is the only empty state. Never trim a date.
+      db.raw(`COALESCE(bool_or("birthDate" IS NOT NULL), false) AS "birthDate"`),
+      // gender is a Postgres enum (gender_enum) — it can only be a defined label or NULL,
+      // never '' or whitespace, so IS NOT NULL already means "meaningful value".
+      db.raw(`COALESCE(bool_or(gender IS NOT NULL), false) AS gender`),
+    )
+    .first()
+
+  return {
+    idNum: !!row?.idNum,
+    secPhone: !!row?.secPhone,
+    birthDate: !!row?.birthDate,
+    gender: !!row?.gender,
+  }
+}
+
 export async function getLeadNameByIdNum(idNum) {
   const agencyId = await getAgencyId()
   const res = await db('clients').where('idNum', idNum).where('agencyId', agencyId).select('name').first()

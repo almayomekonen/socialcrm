@@ -44,7 +44,7 @@ export default function TBody({ config }: { config: ConfigT }) {
           )}
           {withIndex && <td>{index + 1 + '#'}</td>}
           {columns.map((col, i) => {
-            if (col.noShow) return null
+            if (col.noShow || config.hiddenKeys?.has(col.key)) return null
             return (
               <td
                 key={col.key + i}
@@ -76,7 +76,7 @@ function Skeleton({ config }: { config: ConfigT }) {
           )}
           {withIndex && <td>{index + 1 + '#'}</td>}
           {columns.map((col, i) => {
-            if (col.noShow) return null
+            if (col.noShow || config.hiddenKeys?.has(col.key)) return null
             return (
               <td key={col.key + i} className='truncate max-w-64 text-gray-500'>
                 - - - - - - - -

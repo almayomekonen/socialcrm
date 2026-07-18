@@ -31,7 +31,7 @@ import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
 import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
 
-export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false }) {
+export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null }) {
   const [activeTab, setActiveTab] = useState('new')
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
   const hasMultipleUsers = false
@@ -208,9 +208,16 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     </div>
   ) : null
 
+
+  const hiddenKeys = useMemo(() => {
+    const gated = ['idNum', 'secPhone', 'birthDate', 'gender'] as const
+    return new Set<string>(gated.filter((k) => !columnAvailability?.[k]))
+  }, [columnAvailability])
+
   const config = {
     tblId,
     columns,
+    hiddenKeys,
     setColumns,
     state: filteredData,
     setState: setLiveLeads,
@@ -481,6 +488,11 @@ export function getHeaders(leads, hasMultipleUsers = true) {
         ]
       : []),
     { key: 'email', label: 'מייל' },
+    // Optional, opt-in columns — hidden by default (noShow), available via the Columns selector.
+    { key: 'idNum', label: 'תעודת זהות', noShow: true },
+    { key: 'secPhone', label: 'טלפון נוסף', noShow: true },
+    { key: 'birthDate', label: 'תאריך לידה', format: 'formatDate', noShow: true },
+    { key: 'gender', label: 'מין', noShow: true },
   ]
   if (leads) {
     headers.push(
