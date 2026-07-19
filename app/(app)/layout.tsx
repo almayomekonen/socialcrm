@@ -39,20 +39,7 @@ async function LayoutContent({ children }) {
 
   if (await isMobileRequest()) redirect('/activate')
 
-  // TODO: REMOVE DEV BYPASS — temporary developer-only onboarding bypass.
-  // Lets ONE named account skip the "Activate Facebook" onboarding gate and enter
-  // the app immediately, as if Facebook were already connected. It only suppresses
-  // the redirect for this exact email; every other user still hits the normal
-  // isOnboarded() gate, and nothing is written to the database, so no other account
-  // or the normal onboarding flow is affected. To remove: delete this whole block
-  // and restore the original single line:
-  //   if (!(await isOnboarded(user.agencyId))) redirect('/activate')
-  const DEV_ONBOARDING_BYPASS_EMAIL = 'cohen.aviad.net@gmail.com'
-  const devOnboardingBypass =
-    user.email?.trim().toLowerCase() === DEV_ONBOARDING_BYPASS_EMAIL
-  if (!devOnboardingBypass && !(await isOnboarded(user.agencyId))) {
-    redirect('/activate')
-  }
+  if (!(await isOnboarded(user.agencyId))) redirect('/activate')
   let agency = null
   if (user) agency = await getAgencyById(user?.agencyId)
 
