@@ -29,7 +29,7 @@ export const AUTOMATIONS: Automation[] = [
     // (WELCOME_EMAIL_ENABLED via EMAIL_ENABLED) — the automation system does not
     // change this existing production feature's behavior.
     gate: () => IS_PROD && EMAIL_ENABLED,
-    subject: () => '🚀 ברוך הבא ל-SocialCRM',
+    subject: () => '🚀 ברוכים הבאים ל-SocialCRM',
     template: (r) => WelcomeEmail({ firstName: r.firstName ?? '', ctaUrl: appUrl('/dashboard') }),
   },
   {

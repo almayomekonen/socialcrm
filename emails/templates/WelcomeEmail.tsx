@@ -16,9 +16,9 @@ const BENEFITS = [
 ]
 
 const FIRST_STEPS = [
-  'הוסף ליד ראשון',
-  'ארגן את תהליך המכירה',
-  'התחל לעבוד בצורה מסודרת',
+  'הוספת ליד ראשון',
+  'ארגון תהליך המכירה',
+  'התחלת עבודה מסודרת',
 ]
 
 export default function WelcomeEmail({ firstName, ctaUrl }: WelcomeEmailProps) {
@@ -60,7 +60,7 @@ export default function WelcomeEmail({ firstName, ctaUrl }: WelcomeEmailProps) {
           color: '#0f172a',
         }}
       >
-        ברוך הבא ל-<span dir='ltr'>SocialCRM</span> 🎉
+        ברוכים הבאים ל-<span dir='ltr'>SocialCRM</span> 🎉
       </Heading>
 
       <Text
@@ -74,9 +74,9 @@ export default function WelcomeEmail({ firstName, ctaUrl }: WelcomeEmailProps) {
           color: '#475569',
         }}
       >
-        שמחים שהצטרפת.
+        המערכת שלך מוכנה.
         <br />
-        המערכת שלך מוכנה ואתה יכול להתחיל לעבוד כבר עכשיו.
+        אפשר להתחיל לעבוד ולנהל לידים כבר עכשיו.
       </Text>
 
       <Section
@@ -122,7 +122,7 @@ export default function WelcomeEmail({ firstName, ctaUrl }: WelcomeEmailProps) {
             textAlign: 'center',
           }}
         >
-          היכנס למערכת
+          כניסה למערכת
         </Button>
       </Section>
 
@@ -137,7 +137,7 @@ export default function WelcomeEmail({ firstName, ctaUrl }: WelcomeEmailProps) {
             color: '#0f172a',
           }}
         >
-          הצעדים הראשונים שלך:
+          איך מתחילים:
         </Text>
         {FIRST_STEPS.map((step, idx) => (
           <Text
@@ -168,7 +168,7 @@ export default function WelcomeEmail({ firstName, ctaUrl }: WelcomeEmailProps) {
           color: '#64748b',
         }}
       >
-        יש שאלות? אנחנו כאן בשבילך
+        יש שאלות? אנחנו כאן כדי לעזור
       </Text>
     </EmailLayout>
   )
