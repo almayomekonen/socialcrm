@@ -96,4 +96,28 @@ describe('dispatchAutomationEmail', () => {
     expect(await dispatchAutomationEmail(automation(), recipient, now, d)).toBe('failed')
     expect(d.releaseClaim).toHaveBeenCalledTimes(1)
   })
+
+  it('dynamic resolve: claims, sends and marks sent under the RESOLVED key + subject', async () => {
+    const d = deps()
+    const resolve = vi.fn(async () => ({ key: 'edu_step_3', subject: 'שלב 3', template: {} as never }))
+    expect(await dispatchAutomationEmail(automation({ key: 'drip', resolve }), recipient, now, d)).toBe('sent')
+    expect(resolve).toHaveBeenCalledTimes(1)
+    expect((d.claimSend as ReturnType<typeof vi.fn>).mock.calls[0][0].automationKey).toBe('edu_step_3')
+    expect((d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][0].subject).toBe('שלב 3')
+    expect((d.markSent as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe('edu_step_3')
+  })
+
+  it('dynamic resolve returning null skips without claiming or sending', async () => {
+    const d = deps()
+    expect(await dispatchAutomationEmail(automation({ resolve: vi.fn(async () => null) }), recipient, now, d)).toBe('skipped')
+    expect(d.claimSend).not.toHaveBeenCalled()
+    expect(d.sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('dynamic resolve is not consulted while the cooldown is active (one per day preserved)', async () => {
+    const resolve = vi.fn(async () => ({ key: 'x', subject: 's', template: {} as never }))
+    const d = deps({ lifecycleCooldownActive: vi.fn(async () => true) })
+    expect(await dispatchAutomationEmail(automation({ category: 'lifecycle', resolve }), recipient, now, d)).toBe('cooldown')
+    expect(resolve).not.toHaveBeenCalled()
+  })
 })

@@ -21,6 +21,20 @@ export async function releaseClaim(automationKey: string, userId: number, period
   await db('email_automation_sends').where({ automationKey, userId, periodKey, status: 'pending' }).del()
 }
 
+// Progression of the educational journey: which educational emails have actually
+// been DELIVERED (status 'sent') to this user. Only delivered emails advance the
+// sequence — a claimed-but-unfinished ('pending') step is not counted, so it is
+// retried rather than skipped. Returns the set of delivered educational keys.
+export async function deliveredEducationalKeys(userId: number, educationalKeys: string[]): Promise<Set<string>> {
+  if (educationalKeys.length === 0) return new Set()
+  const rows = await db('email_automation_sends')
+    .where({ userId })
+    .where('status', 'sent')
+    .whereIn('automationKey', educationalKeys)
+    .select('automationKey')
+  return new Set(rows.map((r) => r.automationKey as string))
+}
+
 // Global lifecycle cadence: has this user received ANY of the given lifecycle
 // automations (status 'sent') on/after `sinceIso`? Used for the 7-day cooldown.
 export async function hasRecentLifecycleSend(userId: number, lifecycleKeys: string[], sinceIso: string): Promise<boolean> {

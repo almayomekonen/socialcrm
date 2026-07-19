@@ -30,9 +30,10 @@ describe('email automation registry', () => {
     }
   })
 
-  it('is exactly the six Phase 1 automations', () => {
+  it('is welcome + the five state emails + the educational journey drip', () => {
     expect(AUTOMATIONS.map((a) => a.key).sort()).toEqual(
       [
+        'educational_journey',
         'facebook_not_connected',
         'first_lead_received',
         'no_activity',
@@ -41,5 +42,17 @@ describe('email automation registry', () => {
         'whatsapp_not_connected',
       ].sort(),
     )
+  })
+
+  it('the educational journey is a dynamic lifecycle drip that runs last', () => {
+    const drip = AUTOMATIONS.find((a) => a.key === 'educational_journey')
+    expect(drip).toBeDefined()
+    expect(drip?.category).toBe('lifecycle')
+    expect(drip?.priority).toBe('low')
+    expect(typeof drip?.resolve).toBe('function') // content resolved per recipient
+    expect(typeof drip?.audience).toBe('function')
+    // Runs after every state-triggered automation (highest order in its tier).
+    const maxOrder = Math.max(...AUTOMATIONS.map((a) => a.order ?? 0))
+    expect(drip?.order).toBe(maxOrder)
   })
 })

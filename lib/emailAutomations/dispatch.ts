@@ -45,8 +45,25 @@ export async function dispatchAutomationEmail(
     if (await deps.lifecycleCooldownActive(recipient.userId)) return 'cooldown'
   }
 
+  // Dynamic drips (e.g. the educational journey) resolve the exact content — and
+  // therefore the send key — per recipient. null ⇒ nothing to send. Static
+  // automations use their own key/subject/template unchanged.
+  let sendKey = automation.key
+  let element: ReactElement
+  let subject: string
+  if (automation.resolve) {
+    const resolved = await automation.resolve(recipient)
+    if (!resolved) return 'skipped'
+    sendKey = resolved.key
+    element = resolved.template
+    subject = resolved.subject
+  } else {
+    element = automation.template(recipient)
+    subject = automation.subject(recipient)
+  }
+
   const claimed = await deps.claimSend({
-    automationKey: automation.key,
+    automationKey: sendKey,
     userId: recipient.userId,
     agencyId: recipient.agencyId,
     periodKey,
@@ -54,17 +71,16 @@ export async function dispatchAutomationEmail(
   if (!claimed) return 'skipped'
 
   try {
-    const element = automation.template(recipient)
     const [html, text] = await Promise.all([deps.renderHtml(element), deps.renderText(element)])
-    const res = await deps.sendEmail({ to: recipient.email, subject: automation.subject(recipient), html, text })
+    const res = await deps.sendEmail({ to: recipient.email, subject, html, text })
     if (!('error' in res)) {
-      await deps.markSent(automation.key, recipient.userId, periodKey)
+      await deps.markSent(sendKey, recipient.userId, periodKey)
       return 'sent'
     }
-    await deps.releaseClaim(automation.key, recipient.userId, periodKey)
+    await deps.releaseClaim(sendKey, recipient.userId, periodKey)
     return 'failed'
   } catch {
-    await deps.releaseClaim(automation.key, recipient.userId, periodKey)
+    await deps.releaseClaim(sendKey, recipient.userId, periodKey)
     return 'failed'
   }
 }

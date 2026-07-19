@@ -15,6 +15,13 @@ function owners() {
     .select(OWNER_SELECT)
 }
 
+// All lifecycle-eligible owners — the audience for the educational journey drip.
+// Per-recipient suppression + the daily cooldown are applied downstream by the
+// dispatcher; this just enumerates one owner per agency.
+export function lifecycleOwners(): Promise<Recipient[]> {
+  return owners() as unknown as Promise<Recipient[]>
+}
+
 // Signup age ≥ 3d (owner.createdAt ≈ agency creation) AND no Facebook page.
 export function ownersMissingFacebook(): Promise<Recipient[]> {
   return owners()
@@ -29,9 +36,9 @@ export function ownersMissingWhatsapp(): Promise<Recipient[]> {
 }
 
 export function ownersWithFirstLead(): Promise<Recipient[]> {
-  return owners().whereExists(
-    db('clients as c').whereRaw('c."agencyId" = u."agencyId"').where('c.lead', true),
-  ) as Promise<Recipient[]>
+  return owners().whereExists(db('clients as c').whereRaw('c."agencyId" = u."agencyId"').where('c.lead', true)) as Promise<
+    Recipient[]
+  >
 }
 
 // Candidates for the inactivity nudge (agency old enough); the inactivity itself
