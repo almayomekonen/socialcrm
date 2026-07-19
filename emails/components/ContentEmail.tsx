@@ -1,38 +1,30 @@
 import { Body, Button, Container, Head, Heading, Html, Link, Preview, Section, Text } from '@react-email/components'
+import { Block } from '@/emails/blocks/Blocks'
+import type { ContentItem } from '@/lib/emailAutomations/content/types'
+import type { Recipient } from '@/lib/emailAutomations/types'
 
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
 /**
- * Shared premium shell for lifecycle / automation emails. Every such email uses
- * this exact structure and spacing (headline → opening → value → action → CTA),
- * so they all share one visual language. Self-contained on purpose: it does not
- * reuse EmailLayout, so redesigning it never affects the existing transactional
- * emails (welcome, magic-link, invoice, feedback).
+ * The single renderer every content-driven email flows through. Same premium
+ * shell as LifecycleEmail (indigo header, rounded white card, light footer +
+ * optional unsubscribe), but the content section is built from the item's
+ * reusable blocks. Adding an email never touches this file — only content data.
  */
-export type LifecycleEmailProps = {
-  preview: string
-  headline: string
-  opening: string
-  value: string
-  action: string
-  ctaLabel: string
+export type ContentEmailProps = {
+  item: ContentItem
+  recipient: Recipient
   ctaUrl: string
   unsubscribeUrl?: string
 }
 
-const paragraph = {
-  margin: '20px 0 0 0',
-  textAlign: 'right' as const,
-  fontSize: '16px',
-  lineHeight: 1.8,
-  color: '#3f3f46',
-}
+export function ContentEmail({ item, recipient, ctaUrl, unsubscribeUrl }: ContentEmailProps) {
+  const name = item.greet ? recipient.firstName?.trim() : undefined
 
-export function LifecycleEmail({ preview, headline, opening, value, action, ctaLabel, ctaUrl, unsubscribeUrl }: LifecycleEmailProps) {
   return (
     <Html lang='he' dir='rtl'>
       <Head />
-      <Preview>{preview}</Preview>
+      <Preview>{item.preview}</Preview>
 
       <Body style={{ backgroundColor: '#f4f4f5', margin: 0, padding: '40px 16px', fontFamily: FONT }}>
         <Container
@@ -46,26 +38,32 @@ export function LifecycleEmail({ preview, headline, opening, value, action, ctaL
             overflow: 'hidden',
           }}
         >
-          {/* Header — reduced height, elegant wordmark */}
+          {/* Header — elegant wordmark */}
           <Section style={{ backgroundColor: '#4f46e5', padding: '22px 40px', textAlign: 'center' }}>
             <Text style={{ margin: 0, fontSize: '18px', fontWeight: 600, letterSpacing: '0.4px', color: '#ffffff' }}>SocialCRM</Text>
           </Section>
 
           {/* Content */}
           <Section style={{ padding: '44px 40px 8px 40px' }}>
+            {name && (
+              <Text dir='rtl' style={{ margin: '0 0 8px 0', textAlign: 'right', fontSize: '14px', color: '#71717a' }}>
+                היי <bdi>{name}</bdi>,
+              </Text>
+            )}
+
             <Heading
               dir='rtl'
               style={{ margin: 0, textAlign: 'right', fontSize: '25px', lineHeight: 1.35, fontWeight: 700, letterSpacing: '-0.2px', color: '#18181b' }}
             >
-              {headline}
+              {item.headline}
             </Heading>
 
-            <Text dir='rtl' style={{ ...paragraph, marginTop: '18px', color: '#52525b' }}>{opening}</Text>
-            <Text dir='rtl' style={paragraph}>{value}</Text>
-            <Text dir='rtl' style={paragraph}>{action}</Text>
+            {item.blocks.map((block, idx) => (
+              <Block key={idx} block={block} />
+            ))}
           </Section>
 
-          {/* CTA — generous space before and after */}
+          {/* CTA */}
           <Section style={{ padding: '20px 40px 44px 40px', textAlign: 'right' }}>
             <Button
               href={ctaUrl}
@@ -80,11 +78,11 @@ export function LifecycleEmail({ preview, headline, opening, value, action, ctaL
                 borderRadius: '12px',
               }}
             >
-              {ctaLabel}
+              {item.cta.label}
             </Button>
           </Section>
 
-          {/* Footer — small and light */}
+          {/* Footer */}
           <Section style={{ padding: '22px 40px 26px 40px', borderTop: '1px solid #f2f2f4', backgroundColor: '#fafafa', textAlign: 'center' }}>
             <Text dir='rtl' style={{ margin: 0, fontSize: '12px', lineHeight: 1.6, color: '#a1a1aa' }}>
               SocialCRM · כל הלידים שלך במקום אחד

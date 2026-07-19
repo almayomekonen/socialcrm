@@ -34,7 +34,7 @@ export async function runScheduledAutomations(deps: ScheduledDeps): Promise<Sche
 
   const scheduled = deps.automations
     .filter((a) => a.enabled && a.trigger === 'scheduled')
-    .sort((a, b) => RANK[a.priority] - RANK[b.priority])
+    .sort((a, b) => RANK[a.priority] - RANK[b.priority] || (a.order ?? 0) - (b.order ?? 0))
 
   for (const automation of scheduled) {
     summary.automations++

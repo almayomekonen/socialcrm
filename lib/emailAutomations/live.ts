@@ -5,12 +5,22 @@ import { claimSend, hasRecentLifecycleSend, markSent, releaseClaim } from '@/db/
 import { emailAutomationsEnabled } from './config'
 import { dispatchAutomationEmail, type DispatchDeps, type DispatchResult } from './dispatch'
 import { AUTOMATIONS } from './registry'
+import { EDUCATIONAL_KEYS } from './content/educational'
 import type { Automation, Recipient } from './types'
 
-// A user gets at most one lifecycle email inside this rolling window.
-export const LIFECYCLE_COOLDOWN_DAYS = 7
+// One meaningful email per user per day: the lifecycle cooldown is a rolling
+// 24-hour window (never two on the same day).
+export const LIFECYCLE_COOLDOWN_HOURS = 24
 
-const lifecycleKeys = (): string[] => AUTOMATIONS.filter((a) => a.category === 'lifecycle').map((a) => a.key)
+// Keys that consume the daily slot. Any of these delivered in the last 24h blocks
+// the next lifecycle email — so Welcome (Day 1) and Trial holds the day and the
+// educational drip resumes the day after. The 'educational_journey' automation
+// is excluded because its rows are written under the resolved per-step keys
+// (EDUCATIONAL_KEYS), which are included explicitly.
+const cooldownKeys = (): string[] => {
+  const automationKeys = AUTOMATIONS.filter((a) => a.key !== 'educational_journey').map((a) => a.key)
+  return [...automationKeys, ...EDUCATIONAL_KEYS]
+}
 
 // The production wiring of the dispatcher: binds the real DB helpers, Resend
 // sender, and render pipeline. This is the only place the abstract dispatcher
@@ -22,8 +32,8 @@ function liveDeps(automation: Automation, now: Date): DispatchDeps {
     enabled: automation.gate ? automation.gate() : emailAutomationsEnabled(),
     isSuppressed,
     lifecycleCooldownActive: (userId: number) => {
-      const since = new Date(now.getTime() - LIFECYCLE_COOLDOWN_DAYS * 86_400_000).toISOString()
-      return hasRecentLifecycleSend(userId, lifecycleKeys(), since)
+      const since = new Date(now.getTime() - LIFECYCLE_COOLDOWN_HOURS * 3_600_000).toISOString()
+      return hasRecentLifecycleSend(userId, cooldownKeys(), since)
     },
     claimSend,
     markSent,
