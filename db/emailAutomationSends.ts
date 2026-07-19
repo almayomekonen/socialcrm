@@ -26,7 +26,8 @@ export async function releaseClaim(automationKey: string, userId: number, period
 export async function hasRecentLifecycleSend(userId: number, lifecycleKeys: string[], sinceIso: string): Promise<boolean> {
   if (lifecycleKeys.length === 0) return false
   const row = await db('email_automation_sends')
-    .where({ userId, status: 'sent' })
+    .where({ userId })
+    .whereIn('status', ['pending', 'sent']) // a claimed-but-unfinalized send also holds the cooldown
     .whereIn('automationKey', lifecycleKeys)
     .where('createdAt', '>=', sinceIso)
     .first('id')

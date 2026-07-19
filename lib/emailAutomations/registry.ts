@@ -39,7 +39,7 @@ export const AUTOMATIONS: Automation[] = [
     priority: 'highest',
     category: 'lifecycle',
     trigger: 'scheduled',
-    subject: () => 'חבר את פייסבוק כדי לקבל לידים אוטומטית',
+    subject: () => 'הגיע הזמן לחבר את פייסבוק ולקבל לידים אוטומטית',
     template: (r) =>
       FacebookNotConnectedEmail({
         firstName: r.firstName,
@@ -55,7 +55,7 @@ export const AUTOMATIONS: Automation[] = [
     priority: 'high',
     category: 'lifecycle',
     trigger: 'scheduled',
-    subject: () => 'חבר את וואטסאפ כדי לנהל את כל הלידים במקום אחד',
+    subject: () => 'הגיע הזמן לחבר את וואטסאפ ולרכז את כל השיחות',
     template: (r) =>
       WhatsappNotConnectedEmail({
         firstName: r.firstName,
@@ -71,7 +71,7 @@ export const AUTOMATIONS: Automation[] = [
     priority: 'medium',
     category: 'lifecycle',
     trigger: 'scheduled',
-    subject: () => 'קיבלת ליד ראשון',
+    subject: () => 'הליד הראשון כבר במערכת',
     template: (r) =>
       FirstLeadEmail({ firstName: r.firstName, ctaUrl: appUrl('/leads'), unsubscribeUrl: unsubscribeUrlFor(r.userId) }),
     audience: ownersWithFirstLead,
