@@ -13,6 +13,7 @@ import {
   STATE_PRIORITY,
   TERMINAL_STATUSES,
 } from './constants'
+import { reasonFor } from './labels'
 import type { BriefItem, LeadFact, NowCtx, QualifyingState, TargetSurface } from './types'
 
 function isTerminal(status: string | null): boolean {
@@ -101,5 +102,12 @@ export function orderAndDedupe(facts: readonly LeadFact[], ctx: NowCtx): BriefIt
       if (byTiebreak !== 0) return byTiebreak
       return a.fact.id - b.fact.id
     })
-    .map(({ fact, state }) => ({ id: fact.id, name: fact.name, state, targetSurface: targetSurfaceFor(state) }))
+    .map(({ fact, state }) => ({
+      id: fact.id,
+      name: fact.name,
+      phone: fact.phone,
+      state,
+      reason: reasonFor(state),
+      targetSurface: targetSurfaceFor(state),
+    }))
 }

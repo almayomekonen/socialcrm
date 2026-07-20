@@ -15,6 +15,7 @@ const D = 86_400_000
 const BASE: LeadFact = {
   id: 1,
   name: 'x',
+  phone: null,
   status: 'contacted',
   leadSource: null,
   createdAt: null,

@@ -23,11 +23,12 @@ import type { LeadFact } from '@/lib/today/types'
 const D = 86_400_000
 const NOW = Date.UTC(2026, 6, 20, 9, 0, 0)
 const CTX = businessDayBounds(NOW)
-const VIEWER: Viewer = { scope: { user: { role: 'ADMIN' as never }, gotPermIds: [] }, agencyId: 1, userId: 1 }
+const VIEWER: Viewer = { scope: { user: { role: 'ADMIN' as never }, gotPermIds: [] }, agencyId: 1, userId: 1, firstName: 'ד' }
 
 const BASE: LeadFact = {
   id: 0,
   name: 'x',
+  phone: null,
   status: 'contacted',
   leadSource: null,
   createdAt: null,
@@ -104,7 +105,7 @@ describe('buildTodayBrief composition', () => {
     setup({ facts: [overdue(1)] })
     const b = await buildTodayBrief(VIEWER, NOW)
     expect(Object.keys(b).sort()).toEqual(
-      ['done', 'handledToday', 'items', 'meetings', 'permissionVerdict', 'remaining', 'statusVerdict', 'total', 'volumeState'].sort(),
+      ['done', 'firstName', 'greeting', 'handledToday', 'items', 'meetings', 'permissionVerdict', 'remaining', 'statusVerdict', 'total', 'volumeState'].sort(),
     )
     void CTX
   })

@@ -10,8 +10,11 @@ import FollowupsTable, { type RowMeta } from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
 import DashboardHero from '@/components/home/DashboardHero'
 import MissionSection from '@/components/home/MissionSection'
-import { greetingBucket } from '@/components/home/dashboard/greeting'
+import { greetingFor } from '@/lib/today/greeting'
 import { waitingSinceMs, waitingString, urgencyOfRow, startOfBusinessDayMs } from '@/components/home/dashboard/waiting'
+import { todayBriefV2Enabled } from '@/lib/today/flag'
+import { buildTodayBrief } from '@/lib/today/service'
+import TodayBriefView from '@/components/home/today/TodayBriefView'
 
 export default async function DashboardPage() {
   const user = await getUser()
@@ -20,6 +23,18 @@ export default async function DashboardPage() {
   const { gotPermIds } = await getPerms(user)
 
   if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) redirect('/leads')
+
+  // Today Brief v2 (flag-gated, RSC-only). The page consumes ONLY buildTodayBrief
+  // as the canonical source; presentational components render the DTO. Flag off →
+  // the legacy dashboard below (rollback path), which keeps FollowupsTable.
+  if (todayBriefV2Enabled() && user.agencyId != null) {
+    const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
+    const brief = await buildTodayBrief(
+      { scope: { user: { role: user.role }, gotPermIds }, agencyId: user.agencyId, userId: user.id, firstName },
+      Date.now(),
+    )
+    return <TodayBriefView brief={brief} />
+  }
 
   const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount] = await Promise.all([
     getDueWorklist({ user, gotPermIds, limit: 100 }),
@@ -42,7 +57,7 @@ export default async function DashboardPage() {
 
   const progressTotal = doneToday + dueCount
   const progressPct = progressTotal > 0 ? Math.round((doneToday / progressTotal) * 100) : 100
-  const greeting = greetingBucket(new Date())
+  const greeting = greetingFor(Date.now())
   const leadsWaiting = dueCount + newLeadsCount
   const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
 

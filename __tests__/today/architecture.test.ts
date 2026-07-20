@@ -39,6 +39,34 @@ describe('lib/today purity (INV-6)', () => {
   })
 })
 
+const VIEW_DIR = path.resolve(__dirname, '..', '..', 'components', 'home', 'today')
+const viewFiles = readdirSync(VIEW_DIR).filter((f) => f.endsWith('.tsx'))
+
+describe('Today view components are presentational only (RSC, no logic/clock)', () => {
+  it('has files', () => expect(viewFiles.length).toBeGreaterThan(0))
+
+  it('import no domain logic (only the DTO type), no db, no clock', () => {
+    const bannedImports = [
+      '@/lib/today/classify',
+      '@/lib/today/verdict',
+      '@/lib/today/progress',
+      '@/lib/today/constants',
+      '@/lib/today/time',
+      '@/lib/today/service',
+      '@/lib/today/labels',
+      '@/lib/today/greeting',
+      '@/db/',
+    ]
+    for (const f of viewFiles) {
+      const src = readFileSync(path.join(VIEW_DIR, f), 'utf8')
+      const importLines = src.split('\n').filter((l) => /^\s*import\b/.test(l))
+      for (const line of importLines) for (const b of bannedImports) expect(line).not.toContain(b)
+      expect(src).not.toMatch(/Date\.now\(\)/)
+      expect(src).not.toMatch(/new Date\(/)
+    }
+  })
+})
+
 describe('db/today SQL hygiene (INV-2/8/15, single-source config)', () => {
   it('has files', () => expect(dbFiles.length).toBeGreaterThan(0))
 

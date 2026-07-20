@@ -22,6 +22,7 @@ function toLeadFact(r: Record<string, unknown>): LeadFact {
   return {
     id: Number(r.id),
     name: (r.name as string | null) ?? null,
+    phone: (r.phone as string | null) ?? null,
     status: (r.status as string | null) ?? null,
     leadSource: (r.leadSource as string | null) ?? null,
     createdAt: toMs(r.createdAt),
@@ -65,6 +66,7 @@ export function candidateFactsQuery(agencyId: number, plan: string, scope: Scope
     .select(
       'clients.id',
       'clients.name',
+      'clients.phone',
       'clients.status',
       'clients.leadSource',
       'clients.createdAt',

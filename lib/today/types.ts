@@ -16,6 +16,7 @@ export type TargetSurface = 'inbox' | 'lead'
 export type LeadFact = {
   id: number
   name: string | null
+  phone: string | null
   status: string | null
   leadSource: string | null
   createdAt: number | null
@@ -36,7 +37,10 @@ export type NowCtx = { nowMs: number; dayStart: number; dayEnd: number }
 export type BriefItem = {
   id: number
   name: string | null
+  phone: string | null
   state: QualifyingState
+  /** Deterministic Hebrew label for the state (computed server-side; the UI renders it). */
+  reason: string
   targetSurface: TargetSurface
 }
 
@@ -49,6 +53,8 @@ export type PermissionVerdict = 'scoped_all_clear' | 'scoped_partial'
 
 /** The single FE/BE contract. Every field is precomputed server-side. */
 export type TodayBrief = {
+  greeting: string
+  firstName: string
   items: BriefItem[]
   total: number
   remaining: number

@@ -12,9 +12,10 @@ import { businessDayBounds } from './time'
 import { orderAndDedupe } from './classify'
 import { progress, volumeStateFor } from './progress'
 import { completenessVerdict } from './verdict'
+import { greetingFor } from './greeting'
 import type { MeetingItem, TodayBrief } from './types'
 
-export type Viewer = { scope: Scope; agencyId: number; userId: number }
+export type Viewer = { scope: Scope; agencyId: number; userId: number; firstName: string }
 
 type MeetingRow = { id: number; title: string; start_at: Date | string }
 
@@ -38,6 +39,8 @@ export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<To
   const { statusVerdict, permissionVerdict } = completenessVerdict({ remaining, dataFresh: freshness.dataFresh })
 
   return {
+    greeting: greetingFor(nowMs),
+    firstName: viewer.firstName,
     items,
     total: items.length,
     remaining,
