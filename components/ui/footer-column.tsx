@@ -56,6 +56,10 @@ export default function Footer4Col() {
               מערכת ניהול לידים לעסקים קטנים בישראל. מחברים בין פייסבוק, אינסטגרם ווואטסאפ למקום אחד בלי לפספס אף ליד.
             </p>
 
+            <p className='text-white/40 mt-5 text-sm leading-relaxed max-w-xs whitespace-pre-line'>
+              {'מופעל על ידי:\nאלמיהו מקונן (עוסק פטור)\n\nשם מסחרי:\nSocialCRM'}
+            </p>
+
             <div className='mt-6 flex items-center gap-5'>
               {socialIcons.map(({ bgImg, label, href }) => {
                 const isExternal = href.startsWith('http')

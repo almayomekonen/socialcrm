@@ -79,8 +79,8 @@ export default function PrivacyPage() {
 
             <div>
               <h2 className='text-xl font-semibold mb-3'>יצירת קשר</h2>
-              <p className='text-gray-600 leading-relaxed'>
-                לכל שאלה או בקשה בנוגע למדיניות פרטיות זו, ניתן לפנות אלינו בכתובת:{' '}
+              <p className='text-gray-600 leading-relaxed whitespace-pre-line'>
+                {'מפעיל השירות:\nאלמיהו מקונן (עוסק פטור)\n\nשם מסחרי:\nSocialCRM\n\nאימייל:\n'}
                 <a href='mailto:alamayo274@gmail.com' className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
                   alamayo274@gmail.com
                 </a>
