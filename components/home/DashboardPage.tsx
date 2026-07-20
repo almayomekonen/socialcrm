@@ -6,11 +6,12 @@ import { getDueWorklist, getDueWorklistCount, getNewLeads, getNewLeadsCount, get
 import { getTodaysMeetings } from '@/db/meetings'
 import { getUpcomingFollowUpsCount } from '@/db/followUps'
 import { pickTopRecommended } from '@/lib/leads/recommend'
-import RecommendedLeads from '@/components/home/RecommendedLeads'
 import FollowupsTable from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
 import DashboardHero from '@/components/home/DashboardHero'
+import MissionSection from '@/components/home/MissionSection'
 import { greetingBucket } from '@/components/home/dashboard/greeting'
+import { waitingSinceMs, waitingString } from '@/components/home/dashboard/waiting'
 
 export default async function DashboardPage() {
   const user = await getUser()
@@ -45,6 +46,12 @@ export default async function DashboardPage() {
   const leadsWaiting = dueCount + newLeadsCount
   const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
 
+  const missionItems = recommended.map((r) => ({
+    lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone },
+    reason: r.reason,
+    waiting: waitingString(waitingSinceMs(r.lead), now),
+  }))
+
   return (
     <div className='mb-8 grid gap-4'>
       <DashboardHero
@@ -57,7 +64,7 @@ export default async function DashboardPage() {
         remaining={dueCount}
       />
 
-      <RecommendedLeads items={recommended.map((r) => ({ lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone }, reason: r.reason }))} />
+      <MissionSection items={missionItems} />
 
       <FollowupsTable rows={tableRows} total={tableTotal} />
 
