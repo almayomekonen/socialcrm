@@ -6,12 +6,12 @@ import { getDueWorklist, getDueWorklistCount, getNewLeads, getNewLeadsCount, get
 import { getTodaysMeetings } from '@/db/meetings'
 import { getUpcomingFollowUpsCount } from '@/db/followUps'
 import { pickTopRecommended } from '@/lib/leads/recommend'
-import FollowupsTable from '@/components/home/FollowupsTable'
+import FollowupsTable, { type RowMeta } from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
 import DashboardHero from '@/components/home/DashboardHero'
 import MissionSection from '@/components/home/MissionSection'
 import { greetingBucket } from '@/components/home/dashboard/greeting'
-import { waitingSinceMs, waitingString } from '@/components/home/dashboard/waiting'
+import { waitingSinceMs, waitingString, urgencyOfRow, startOfBusinessDayMs } from '@/components/home/dashboard/waiting'
 
 export default async function DashboardPage() {
   const user = await getUser()
@@ -52,6 +52,12 @@ export default async function DashboardPage() {
     waiting: waitingString(waitingSinceMs(r.lead), now),
   }))
 
+  const startToday = startOfBusinessDayMs(now)
+  const rowMeta: Record<number, RowMeta> = {}
+  for (const r of tableRows) {
+    rowMeta[r.id] = { ...urgencyOfRow(r, now, startToday), waiting: waitingString(waitingSinceMs(r), now) }
+  }
+
   return (
     <div className='mb-8 grid gap-4'>
       <DashboardHero
@@ -66,7 +72,7 @@ export default async function DashboardPage() {
 
       <MissionSection items={missionItems} />
 
-      <FollowupsTable rows={tableRows} total={tableTotal} />
+      <FollowupsTable rows={tableRows} total={tableTotal} meta={rowMeta} />
 
       <QuickLinks dueCount={dueCount} newCount={newLeadsCount} upcomingCount={upcomingCount} meetingsCount={meetings.length} />
     </div>
