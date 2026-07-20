@@ -9,6 +9,10 @@ import { pickTopRecommended } from '@/lib/leads/recommend'
 import RecommendedLeads from '@/components/home/RecommendedLeads'
 import FollowupsTable from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
+import { isTodayBriefEnabledForAgency } from '@/lib/today/rollout'
+import { buildTodayBrief } from '@/lib/today/service'
+import { logBriefServed, logBriefFailure } from '@/lib/today/telemetry'
+import TodayBriefView from '@/components/home/today/TodayBriefView'
 
 export default async function DashboardPage() {
   const user = await getUser()
@@ -17,6 +21,36 @@ export default async function DashboardPage() {
   const { gotPermIds } = await getPerms(user)
 
   if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) redirect('/leads')
+
+  // Today Brief v2 — rollout-gated, RSC-only, DARK by default (TODAY_BRIEF_V2 unset
+  // ⇒ this branch never runs ⇒ the original dashboard below is served byte-for-byte).
+  // Consumes ONLY buildTodayBrief. Any failure falls through to the original dashboard
+  // (instant per-request rollback, no redeploy).
+  if (user.agencyId != null && isTodayBriefEnabledForAgency(user.agencyId)) {
+    const startedAt = Date.now()
+    try {
+      const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
+      const brief = await buildTodayBrief(
+        { scope: { user: { role: user.role }, gotPermIds }, agencyId: user.agencyId, userId: user.id, firstName },
+        Date.now(),
+      )
+      logBriefServed({
+        agencyId: user.agencyId,
+        latencyMs: Date.now() - startedAt,
+        total: brief.total,
+        remaining: brief.remaining,
+        empty: brief.total === 0,
+      })
+      return <TodayBriefView brief={brief} />
+    } catch (err) {
+      logBriefFailure({
+        agencyId: user.agencyId,
+        latencyMs: Date.now() - startedAt,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      // fall through to the original dashboard
+    }
+  }
 
   const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount] = await Promise.all([
     getDueWorklist({ user, gotPermIds, limit: 100 }),
