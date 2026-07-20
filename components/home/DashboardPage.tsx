@@ -9,6 +9,8 @@ import { pickTopRecommended } from '@/lib/leads/recommend'
 import RecommendedLeads from '@/components/home/RecommendedLeads'
 import FollowupsTable from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
+import DashboardHero from '@/components/home/DashboardHero'
+import { greetingBucket } from '@/components/home/dashboard/greeting'
 
 export default async function DashboardPage() {
   const user = await getUser()
@@ -39,20 +41,21 @@ export default async function DashboardPage() {
 
   const progressTotal = doneToday + dueCount
   const progressPct = progressTotal > 0 ? Math.round((doneToday / progressTotal) * 100) : 100
+  const greeting = greetingBucket(new Date())
+  const leadsWaiting = dueCount + newLeadsCount
+  const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
 
   return (
     <div className='mb-8 grid gap-4'>
-      <div>
-        <h1 className='title mb-1'>היום</h1>
-        <p className='text-sm text-gray-700 tabular-nums'>
-          <span className='font-medium text-gray-900'>{`${doneToday} טופלו`}</span>
-          {` · ${dueCount} נותרו`}
-          {meetings.length > 0 ? ` · ${meetings.length} פגישות` : ''}
-        </p>
-        <div className='mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200'>
-          <div className='h-full rounded-full bg-primary transition-all' style={{ width: `${progressPct}%` }} />
-        </div>
-      </div>
+      <DashboardHero
+        firstName={firstName}
+        greeting={greeting}
+        leadsWaiting={leadsWaiting}
+        doneToday={doneToday}
+        progressTotal={progressTotal}
+        progressPct={progressPct}
+        remaining={dueCount}
+      />
 
       <RecommendedLeads items={recommended.map((r) => ({ lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone }, reason: r.reason }))} />
 
