@@ -12,8 +12,9 @@ import DashboardHero from '@/components/home/DashboardHero'
 import MissionSection from '@/components/home/MissionSection'
 import { greetingFor } from '@/lib/today/greeting'
 import { waitingSinceMs, waitingString, urgencyOfRow, startOfBusinessDayMs } from '@/components/home/dashboard/waiting'
-import { todayBriefV2Enabled } from '@/lib/today/flag'
+import { isTodayBriefEnabledForAgency } from '@/lib/today/rollout'
 import { buildTodayBrief } from '@/lib/today/service'
+import { logBriefServed, logBriefFailure } from '@/lib/today/telemetry'
 import TodayBriefView from '@/components/home/today/TodayBriefView'
 
 export default async function DashboardPage() {
@@ -24,16 +25,34 @@ export default async function DashboardPage() {
 
   if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) redirect('/leads')
 
-  // Today Brief v2 (flag-gated, RSC-only). The page consumes ONLY buildTodayBrief
-  // as the canonical source; presentational components render the DTO. Flag off →
-  // the legacy dashboard below (rollback path), which keeps FollowupsTable.
-  if (todayBriefV2Enabled() && user.agencyId != null) {
-    const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
-    const brief = await buildTodayBrief(
-      { scope: { user: { role: user.role }, gotPermIds }, agencyId: user.agencyId, userId: user.id, firstName },
-      Date.now(),
-    )
-    return <TodayBriefView brief={brief} />
+  // Today Brief v2 (rollout-gated, RSC-only). The page consumes ONLY buildTodayBrief
+  // as the canonical source; presentational components render the DTO. Any failure
+  // falls through to the legacy dashboard below (instant per-request rollback, no
+  // redeploy). Flag/kill off or agency not in cohort → legacy (which keeps FollowupsTable).
+  if (user.agencyId != null && isTodayBriefEnabledForAgency(user.agencyId)) {
+    const startedAt = Date.now()
+    try {
+      const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
+      const brief = await buildTodayBrief(
+        { scope: { user: { role: user.role }, gotPermIds }, agencyId: user.agencyId, userId: user.id, firstName },
+        Date.now(),
+      )
+      logBriefServed({
+        agencyId: user.agencyId,
+        latencyMs: Date.now() - startedAt,
+        total: brief.total,
+        remaining: brief.remaining,
+        empty: brief.total === 0,
+      })
+      return <TodayBriefView brief={brief} />
+    } catch (err) {
+      logBriefFailure({
+        agencyId: user.agencyId,
+        latencyMs: Date.now() - startedAt,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      // fall through to legacy
+    }
   }
 
   const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount] = await Promise.all([
