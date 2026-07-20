@@ -7,7 +7,10 @@ import { describe, expect, it } from 'vitest'
 // truth, one of these fails the build.
 
 const TODAY_DIR = path.resolve(__dirname, '..', '..', 'lib', 'today')
-const files = readdirSync(TODAY_DIR).filter((f) => f.endsWith('.ts'))
+// service.ts is the sole I/O orchestrator (composition root); it may import the db
+// layer. Every OTHER lib/today file is pure domain logic and must stay pure.
+const PURE_EXCLUDE = new Set(['service.ts'])
+const files = readdirSync(TODAY_DIR).filter((f) => f.endsWith('.ts') && !PURE_EXCLUDE.has(f))
 
 const DB_TODAY_DIR = path.resolve(__dirname, '..', '..', 'db', 'today')
 const dbFiles = readdirSync(DB_TODAY_DIR).filter((f) => f.endsWith('.ts'))
