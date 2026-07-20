@@ -22,7 +22,8 @@ const BASE: LeadFact = {
   lastActivityAt: null,
   lastInboundAt: null,
   lastHumanOutboundAt: null,
-  hasOverdueOpenTask: false,
+  hasOpenTask: false,
+  earliestOpenTaskDueAt: null,
 }
 const fact = (o: Partial<LeadFact> & { id: number }): LeadFact => ({ ...BASE, ...o })
 
@@ -123,8 +124,19 @@ describe('INV-4 open-loop SLA', () => {
   })
   it('overdue task outranks open-loop', () => {
     expect(
-      classifyLead(fact({ id: 1, status: 'contacted', lastActivityAt: NOW - 25 * H, hasOverdueOpenTask: true }), CTX),
+      classifyLead(
+        fact({ id: 1, status: 'contacted', lastActivityAt: NOW - 25 * H, hasOpenTask: true, earliestOpenTaskDueAt: NOW - 2 * D }),
+        CTX,
+      ),
     ).toBe('OVERDUE_TASK')
+  })
+  it('a future open task blocks open-loop and is not overdue', () => {
+    expect(
+      classifyLead(
+        fact({ id: 1, status: 'contacted', lastActivityAt: NOW - 25 * H, hasOpenTask: true, earliestOpenTaskDueAt: CTX.dayEnd + D }),
+        CTX,
+      ),
+    ).toBeNull()
   })
 })
 

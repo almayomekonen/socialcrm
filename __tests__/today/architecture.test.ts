@@ -9,6 +9,9 @@ import { describe, expect, it } from 'vitest'
 const TODAY_DIR = path.resolve(__dirname, '..', '..', 'lib', 'today')
 const files = readdirSync(TODAY_DIR).filter((f) => f.endsWith('.ts'))
 
+const DB_TODAY_DIR = path.resolve(__dirname, '..', '..', 'db', 'today')
+const dbFiles = readdirSync(DB_TODAY_DIR).filter((f) => f.endsWith('.ts'))
+
 describe('lib/today purity (INV-6)', () => {
   it('has files', () => expect(files.length).toBeGreaterThan(0))
 
@@ -29,6 +32,21 @@ describe('lib/today purity (INV-6)', () => {
       expect(src).not.toContain('date_trunc')
       expect(src).not.toContain('CURRENT_DATE')
       expect(src).not.toMatch(/Date\.now\(\)/)
+    }
+  })
+})
+
+describe('db/today SQL hygiene (INV-2/8/15, single-source config)', () => {
+  it('has files', () => expect(dbFiles.length).toBeGreaterThan(0))
+
+  it('no pagination, no business-day SQL, no hardcoded thresholds', () => {
+    for (const f of dbFiles) {
+      const src = readFileSync(path.join(DB_TODAY_DIR, f), 'utf8')
+      expect(src).not.toMatch(/\.limit\(/) // INV-2/15: the brief never paginates
+      expect(src).not.toMatch(/\.offset\(/)
+      expect(src).not.toContain('date_trunc') // INV-8: bounds come from the domain layer
+      expect(src).not.toContain('CURRENT_DATE')
+      expect(src).not.toContain("'auto_response'") // C-2 marker must come from constants, not a literal
     }
   })
 })

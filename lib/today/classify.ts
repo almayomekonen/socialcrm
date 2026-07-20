@@ -34,7 +34,7 @@ function isOpenLoopSla(f: LeadFact, ctx: NowCtx): boolean {
   const slaHours = SLA_HOURS_BY_STATUS[f.status]
   if (slaHours == null) return false // only statuses with a defined SLA
   if (f.nextFollowUpAt != null) return false // a next step is already scheduled
-  if (f.hasOverdueOpenTask) return false // handled by OVERDUE_TASK
+  if (f.hasOpenTask) return false // an open task is a scheduled next step (overdue → OVERDUE_TASK)
   if (f.lastActivityAt == null) return false // age indeterminate → not here
   const agedPastSla = f.lastActivityAt < ctx.nowMs - slaHours * HOUR_MS
   const withinCeiling = f.lastActivityAt >= ctx.nowMs - STALE_CEILING_DAYS * DAY_MS
@@ -54,7 +54,7 @@ export function classifyLead(f: LeadFact, ctx: NowCtx): QualifyingState | null {
   if (f.nextFollowUpAt != null && f.nextFollowUpAt >= ctx.dayStart && f.nextFollowUpAt < ctx.dayEnd)
     return 'FOLLOWUP_DUE_TODAY'
   if (f.status === 'new' && isInboundSource(f.leadSource)) return 'NEW_INBOUND'
-  if (f.hasOverdueOpenTask) return 'OVERDUE_TASK'
+  if (f.earliestOpenTaskDueAt != null && f.earliestOpenTaskDueAt < ctx.dayStart) return 'OVERDUE_TASK'
   if (isOpenLoopSla(f, ctx)) return 'OPEN_LOOP_SLA'
   return null
 }

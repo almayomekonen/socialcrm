@@ -24,7 +24,10 @@ export type LeadFact = {
   lastInboundAt: number | null
   /** Last outbound NOT tagged metadata.source='auto_response' (Amendment C-2). */
   lastHumanOutboundAt: number | null
-  hasOverdueOpenTask: boolean
+  /** Any open (incomplete) task exists — the raw fact; the overdue comparison lives in classify. */
+  hasOpenTask: boolean
+  /** Earliest due date among open tasks (epoch ms), or null. classify compares it to dayStart. */
+  earliestOpenTaskDueAt: number | null
 }
 
 /** Instant + business-day bounds (all epoch ms), computed once server-side. */
