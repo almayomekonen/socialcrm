@@ -100,7 +100,10 @@ export async function isUserExists(email: string) {
 
   if (!userExist) return { fail: true, msg: 'המשתמש לא קיים' }
   if (userExist.suspended) return { fail: true, msg: 'המשתמש מושהה' }
-  return userExist
+  // Return ONLY a non-sensitive existence marker. getUserByEmail selects the
+  // `otp` column — a live magic-link token — and returning the raw row exposed
+  // it to callers, a pre-auth account-takeover primitive. Callers only need id.
+  return { id: userExist.id }
 }
 
 export async function deleteUserCookie() {
@@ -157,9 +160,20 @@ export type UserDb = {
 export async function sendToken(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const start = Date.now()
   email = normalizeEmail(email)
+
+  // Only issue a magic link to a real, active account. Sending to whatever
+  // address the caller supplies turned this into an open email relay (spam from
+  // our domain to arbitrary recipients). The response is uniform so this gate
+  // does not itself leak account existence.
+  const user = await getUserByEmail(email)
+  if (!user || user.suspended) {
+    console.log(`[AUTH] route=magic_send email=${email} ms=${Date.now() - start} result=noop`)
+    return { ok: true }
+  }
+
   const token = genToken()
   const tokenExpiry = new Date(Date.now() + MAGIC_LINK_EXPIRY_MINUTES * 60 * 1000)
-  await db('users').where('email', email).update({ otp: { token, tokenExpiry } })
+  await db('users').where({ id: user.id }).update({ otp: { token, tokenExpiry } })
 
   const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
 
@@ -172,7 +186,7 @@ export async function sendToken(email: string): Promise<{ ok: true } | { ok: fal
   })
 
   if (!result.ok) {
-    await db('users').where('email', email).update({ otp: null })
+    await db('users').where({ id: user.id }).update({ otp: null })
     console.warn(`[AUTH] route=magic_send email=${email} ms=${Date.now() - start} result=fail reason=email_send_failed`)
     return { ok: false, error: 'שליחת קישור ההתחברות נכשלה. נסה שוב בעוד רגע.' }
   }
