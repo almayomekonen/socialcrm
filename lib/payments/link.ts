@@ -1,4 +1,5 @@
 import { signToken } from './token'
+import { getPaymentLinkOverride } from './overrides'
 import type { BillingPeriod } from '@/lib/pricing'
 
 function getReturnUrl(): string {
@@ -26,8 +27,15 @@ export function isAnnualLinkConfigured(): boolean {
   return Boolean(process.env.GROW_PAYMENT_LINK_ANNUAL)
 }
 
-export function getUpgradeLink(agencyId: number, period: BillingPeriod = 'monthly'): string {
-  const base = linkEnvFor(period)
+/**
+ * `email` is optional and only ever used to consult the per-user override list
+ * (./overrides.ts). Omitted or unlisted → the env link, byte-for-byte the
+ * behavior that shipped before overrides existed. Everything downstream —
+ * token signing, identifyParam, return_url — is identical for both paths, so
+ * an overridden user is not on a second code path, only a different base URL.
+ */
+export function getUpgradeLink(agencyId: number, period: BillingPeriod = 'monthly', email?: string | null): string {
+  const base = getPaymentLinkOverride(email, period) ?? linkEnvFor(period)
   // Never silently substitute the other link — a wrong-amount charge is the
   // one unforgivable failure. Callers must gate on isAnnualLinkConfigured().
   if (!base) throw new Error(`Grow payment link for '${period}' is not configured`)

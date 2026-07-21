@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     })
 
   try {
-    const url = getUpgradeLink(user.agencyId, period)
+    const url = getUpgradeLink(user.agencyId, period, user.email)
     return NextResponse.redirect(url, 302)
   } catch (err) {
     console.error('[upgrade] link build failed', { agencyId: user.agencyId, err: String(err) })
