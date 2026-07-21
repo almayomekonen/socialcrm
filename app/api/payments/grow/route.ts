@@ -94,18 +94,20 @@ export async function POST(req: NextRequest) {
   const payload = body?.data ?? body
   console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
 
+  // Authenticate the webhook BEFORE any business logic runs. The shared
+  // webhookKey secret is the only proof the request genuinely came from Grow —
+  // the identifyParam token is visible to the user in their payment URL and is
+  // NOT proof of payment. Verification is mandatory: a missing or invalid
+  // webhookKey is rejected here, before any DB read or ownership resolution.
+  const secret = process.env.GROW_WEBHOOK_SECRET
+  if (!secret) {
+    console.error('[GrowWebhook] GROW_WEBHOOK_SECRET is not set — refusing to process')
+    return new NextResponse('Server misconfigured', { status: 500 })
+  }
   const webhookKey: unknown = payload?.webhookKey ?? payload?.webhook_key
-  if (webhookKey) {
-    const secret = process.env.GROW_WEBHOOK_SECRET
-    if (!secret) {
-      console.error('[GrowWebhook] payload has webhookKey but GROW_WEBHOOK_SECRET is unset', {
-        env: envInfo.env,
-      })
-      return new NextResponse('Server misconfigured', { status: 500 })
-    }
-    if (typeof webhookKey !== 'string' || !safeEqual(webhookKey, secret)) {
-      return new NextResponse('Unauthorized', { status: 401 })
-    }
+  if (typeof webhookKey !== 'string' || !safeEqual(webhookKey, secret)) {
+    console.warn('[GrowWebhook] rejected: missing or invalid webhookKey')
+    return new NextResponse('Unauthorized', { status: 401 })
   }
 
   const transactionId: unknown = payload?.transactionId ?? payload?.transactionCode
@@ -142,11 +144,16 @@ export async function POST(req: NextRequest) {
       return new NextResponse('Invalid token', { status: 400 })
     }
   } else {
-    console.log('[GrowWebhook] token missing, using pending lookup')
+    // No signed token in the payload — resolve ownership deterministically by
+    // the payer's email. The previous "sole pending row" fallback (upgrade the
+    // only pending agency when nothing else matched) is removed: it attributes
+    // a payment to an agency that did not demonstrably make it. If ownership
+    // cannot be matched deterministically, no upgrade occurs.
+    console.log('[GrowWebhook] token missing, resolving by payer email')
     const rawEmail = payload?.payerEmail ?? payload?.payer_email ?? payload?.email
     const payerEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
 
-    let pending = payerEmail
+    const pending = payerEmail
       ? await db('pending_upgrades')
           .whereRaw('lower(email) = ?', [payerEmail])
           .where({ status: 'pending' })
@@ -154,23 +161,8 @@ export async function POST(req: NextRequest) {
           .first()
       : null
 
-    // Grow checkout doesn't always collect the payer's email (observed in
-    // production: real transactions arrive with an empty email field). When
-    // email can't resolve ownership but exactly ONE pending upgrade exists,
-    // attribution is unambiguous — use it.
     if (!pending) {
-      const candidates = await db('pending_upgrades').where({ status: 'pending' })
-      if (candidates.length === 1) {
-        pending = candidates[0]
-        console.warn('[GrowWebhook] email lookup failed; using sole pending row', {
-          payerEmail,
-          agencyId: pending.agencyId,
-        })
-      }
-    }
-
-    if (!pending) {
-      console.error('[GrowWebhook] no pending upgrade resolved', { payerEmail })
+      console.error('[GrowWebhook] no deterministic owner match (no token, no matching pending email)', { payerEmail })
       return new NextResponse('Pending upgrade not found', { status: 404 })
     }
     agencyId = pending.agencyId
