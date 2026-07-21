@@ -1,6 +1,5 @@
 'use server'
 
-import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { Role } from '@/types/db/tables'
@@ -9,6 +8,28 @@ import { Roles } from '@/types/roles'
 import { getUserNameById } from '@/db/usersNTeams'
 import { requireUser } from '@/lib/requireUser'
 import { normalizeDefaultSettings } from '@/lib/form/funcs'
+
+const USER_SELF_WRITABLE = ['firstName', 'lastName', 'email', 'idNum', 'phone'] as const
+const USER_INFO_WRITABLE = [
+  'fax',
+  'officePhone',
+  'agentLicenseNum',
+  'logoutMinutes',
+  'tifulEmail',
+  'agentLicenseType',
+  'agentLicenseName',
+] as const
+const EXT_USER_WRITABLE = ['firstName', 'lastName'] as const
+
+function pickCols(data: unknown, allowed: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (data && typeof data === 'object') {
+    for (const key of allowed) {
+      if (key in (data as Record<string, unknown>)) out[key] = (data as Record<string, unknown>)[key]
+    }
+  }
+  return out
+}
 
 export async function upsertUserNPerms(data, id) {
   await requireUser()
@@ -131,7 +152,12 @@ export async function fetchIsUserHaveSales(userId: number) {
 }
 
 export async function transferSales(fromUserId: number, toUserId: number) {
-  await requireUser()
+  const user = await requireUser()
+  const [from, to] = await Promise.all([
+    db('users').where({ id: fromUserId, agencyId: user.agencyId }).first('id'),
+    db('users').where({ id: toUserId, agencyId: user.agencyId }).first('id'),
+  ])
+  if (!from || !to) throw new Error('Forbidden')
   await db.transaction(async (trx) => {
     await trx('sale_users').where('userId', fromUserId).update({ userId: toUserId })
     await trx('sales').where('handlerId', fromUserId).update({ handlerId: toUserId })
@@ -143,18 +169,24 @@ export async function transferSales(fromUserId: number, toUserId: number) {
 // ext users
 
 export async function upsertExtUser(extUser, id?) {
-  const user = await getUser()
+  const user = await requireUser()
+  const safe = pickCols(extUser, EXT_USER_WRITABLE)
 
-  const res = id
-    ? await db('users').where({ id }).update(extUser).returning('*')
-    : await db('users')
-        .insert({
-          ...extUser,
-          role: 'EXT' as Role,
-          createdById: user.id,
-          agencyId: await getAgencyId(),
-        })
-        .returning('name')
+  if (id) {
+    // Update only an EXT user that belongs to the caller's own agency, and only
+    // whitelisted columns — blocks cross-tenant edits and role/agency injection.
+    const res = await db('users')
+      .where({ id, agencyId: user.agencyId, role: 'EXT' as Role })
+      .update(safe)
+      .returning('*')
+    if (!res.length) throw new Error('Forbidden')
+    revalidatePath('/settings')
+    return res[0]
+  }
+
+  const res = await db('users')
+    .insert({ ...safe, role: 'EXT' as Role, createdById: user.id, agencyId: user.agencyId })
+    .returning('name')
 
   revalidatePath('/settings')
 
@@ -162,40 +194,56 @@ export async function upsertExtUser(extUser, id?) {
 }
 
 export async function deleteExtUser(id) {
-  await requireUser()
+  const user = await requireUser()
+  // Only an EXT user within the caller's agency may be deleted.
+  const target = await db('users')
+    .where({ id, agencyId: user.agencyId, role: 'EXT' as Role })
+    .first('id')
+  if (!target) throw new Error('Forbidden')
   const res = await db('sale_users').where('userId', id).first()
   if (res) {
     throw new Error('לא ניתן למחוק משתמש עם מכירות')
   }
-  await db('users').where({ id }).del()
+  await db('users').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/update_ext_users')
   return true
 }
 
-export async function updateFullUser(data, userId) {
-  await requireUser()
-  if (data.userData) await db('users').where({ id: userId }).update(data.userData)
-  if (data.userInfoData) await db('users_info').where({ id: userId }).update(data.userInfoData)
+// Self-edit only. These three actions edit the authenticated user's own
+// records; the client-supplied `userId` is intentionally ignored so it cannot
+// be pointed at another account (cross-tenant / cross-user write). Column
+// allowlists additionally block privilege columns on the `users` table.
+export async function updateFullUser(data, _userId?) {
+  const user = await requireUser()
+  if (data?.userData) {
+    const userData = pickCols(data.userData, USER_SELF_WRITABLE)
+    if (Object.keys(userData).length) await db('users').where({ id: user.id }).update(userData)
+  }
+  if (data?.userInfoData) {
+    const userInfoData = pickCols(data.userInfoData, USER_INFO_WRITABLE)
+    if (Object.keys(userInfoData).length) await db('users_info').where({ id: user.id }).update(userInfoData)
+  }
   revalidatePath('/settings/self_edit')
   revalidatePath('/settings/update_user_details')
 }
 
-export async function updateUserInfoData(data, userId) {
-  await requireUser()
-  await db('users_info').where({ id: userId }).update(data)
+export async function updateUserInfoData(data, _userId?) {
+  const user = await requireUser()
+  const safe = pickCols(data, USER_INFO_WRITABLE)
+  if (Object.keys(safe).length) await db('users_info').where({ id: user.id }).update(safe)
   revalidatePath('/settings/update_user_details')
 }
 
-export async function updateDefaultSettings(data: Record<string, unknown>, userId: number) {
-  await requireUser()
+export async function updateDefaultSettings(data: Record<string, unknown>, _userId?: number) {
+  const user = await requireUser()
 
   const normalized = normalizeDefaultSettings(data)
 
-  const existing = await db('default_settings').where({ userId }).first()
+  const existing = await db('default_settings').where({ userId: user.id }).first()
   if (existing) {
-    await db('default_settings').where({ userId }).update(normalized)
+    await db('default_settings').where({ userId: user.id }).update(normalized)
   } else {
-    await db('default_settings').insert({ userId, ...normalized })
+    await db('default_settings').insert({ userId: user.id, ...normalized })
   }
 
   revalidatePath('/settings/update_default')
