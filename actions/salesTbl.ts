@@ -1,33 +1,31 @@
 'use server'
 
-import { getUser } from '@/db/auth'
+import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { toIso } from '@/lib/dates'
 import { requireUser } from '@/lib/requireUser'
 
-// get deals table data for export, without limit but with filters
-export async function getDealDataToExport(sqlExport) {
+// Export the deals table without a row limit. The query is NOT supplied by the
+// client: getDealTableData signs the server-generated query into `token`, and
+// this action verifies that signature before running it. A tampered/forged
+// token fails verification, so arbitrary client SQL can no longer be executed.
+// The result is still scoped to the caller's agency.
+export async function getDealDataToExport(token: unknown) {
   const user = await requireUser()
 
-  const sql = (sqlExport.sql || '').trim()
-  const upper = sql.toUpperCase()
-
-  if (!upper.startsWith('SELECT')) throw new Error('Invalid export query')
-  if (/;/.test(sql)) throw new Error('Invalid export query')
-  // Block mutations, cross-table access, and SQL composition patterns
-  if (/\b(DROP|DELETE|UPDATE|INSERT|ALTER|TRUNCATE|CREATE|EXEC|EXECUTE|UNION|JOIN)\b/.test(upper)) {
-    throw new Error('Invalid export query')
+  let payload: { sql?: unknown; bindings?: unknown }
+  try {
+    payload = await decrypt(typeof token === 'string' ? token : '')
+  } catch {
+    throw new Error('Invalid export request')
   }
-  // Block subqueries
-  if (/\(\s*SELECT\b/i.test(sql)) throw new Error('Invalid export query')
-  // Only _sales is permitted — reject anything else
-  if (!/\bFROM\s+"?_sales"?\b/i.test(sql)) throw new Error('Invalid export query')
 
-  const res = await db.raw(`SELECT * FROM (${sql}) AS _export WHERE "agencyId" = ?`, [
-    ...(sqlExport.bindings || []),
-    user.agencyId,
-  ])
+  const sql = typeof payload?.sql === 'string' ? payload.sql : ''
+  const bindings = Array.isArray(payload?.bindings) ? payload.bindings : []
+  if (!sql) throw new Error('Invalid export request')
+
+  const res = await db.raw(`SELECT * FROM (${sql}) AS _export WHERE "agencyId" = ?`, [...bindings, user.agencyId])
   return res.rows
 }
 
