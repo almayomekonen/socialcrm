@@ -3,8 +3,7 @@
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { Role } from '@/types/db/tables'
-import { getAgencyId } from '@/db/agencies'
-import { Roles } from '@/types/roles'
+import { Roles, isAdmin } from '@/types/roles'
 import { getUserNameById } from '@/db/usersNTeams'
 import { requireUser } from '@/lib/requireUser'
 import { normalizeDefaultSettings } from '@/lib/form/funcs'
@@ -20,6 +19,9 @@ const USER_INFO_WRITABLE = [
   'agentLicenseName',
 ] as const
 const EXT_USER_WRITABLE = ['firstName', 'lastName'] as const
+// Columns an ADMIN may set on a managed user via the edit-users form. Excludes
+// identity/tenant columns (id, agencyId, otp, gglSub, createdById).
+const USER_ADMIN_WRITABLE = ['firstName', 'lastName', 'email', 'phone', 'role', 'suspended', 'goals'] as const
 
 function pickCols(data: unknown, allowed: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {}
@@ -32,31 +34,40 @@ function pickCols(data: unknown, allowed: readonly string[]): Record<string, unk
 }
 
 export async function upsertUserNPerms(data, id) {
-  await requireUser()
-  const { gotPermIds, ...user } = data
+  const authUser = await requireUser()
+  if (!isAdmin(authUser.role)) throw new Error('Forbidden')
+  const { gotPermIds } = data
 
-  const userToUpsert = { ...user, email: user.email.toLowerCase().trim(), agencyId: await getAgencyId() }
+  const userToUpsert: Record<string, unknown> = { ...pickCols(data, USER_ADMIN_WRITABLE), agencyId: authUser.agencyId }
+  if (userToUpsert.email) userToUpsert.email = String(userToUpsert.email).toLowerCase().trim()
 
   let userId = id
 
   if (userId) {
-    await db('users').where({ id: userId }).update(userToUpsert)
+    // Update only a user in the caller's own agency.
+    const rows = await db('users').where({ id: userId, agencyId: authUser.agencyId }).update(userToUpsert)
+    if (!rows) throw new Error('Forbidden')
   } else {
     const res = await db('users').insert(userToUpsert).returning('id')
     userId = res[0].id
     await db('default_settings').insert({ userId })
   }
 
-  if (user.role === Roles.OFFICE) {
+  if (userToUpsert.role === Roles.OFFICE) {
     await db('user_perms').where('gaveId', userId).del()
   }
 
   if (gotPermIds) {
+    // Only grant permissions from users that belong to the caller's agency.
+    const safePermIds: number[] =
+      Array.isArray(gotPermIds) && gotPermIds.length
+        ? await db('users').whereIn('id', gotPermIds).andWhere({ agencyId: authUser.agencyId }).pluck('id')
+        : []
     await db.transaction(async (trx) => {
       await trx('user_perms').where('gotId', userId).del()
 
-      if (gotPermIds.length > 0) {
-        const permsToInsert = gotPermIds.map((gaveId: number) => ({
+      if (safePermIds.length > 0) {
+        const permsToInsert = safePermIds.map((gaveId: number) => ({
           gotId: userId,
           gaveId,
         }))
@@ -70,11 +81,17 @@ export async function upsertUserNPerms(data, id) {
 }
 
 export async function upsertUser(user, id) {
-  await requireUser()
-  user = { ...user, email: user.email.toLowerCase().trim(), agencyId: await getAgencyId() }
-  if (id) await db('users').where({ id }).update(user)
-  else {
-    const [{ id: newUserId }] = await db('users').insert(user).returning('id')
+  const authUser = await requireUser()
+  if (!isAdmin(authUser.role)) throw new Error('Forbidden')
+  const safe: Record<string, unknown> = { ...pickCols(user, USER_ADMIN_WRITABLE), agencyId: authUser.agencyId }
+  if (safe.email) safe.email = String(safe.email).toLowerCase().trim()
+
+  if (id) {
+    // Update only a user in the caller's own agency.
+    const rows = await db('users').where({ id, agencyId: authUser.agencyId }).update(safe)
+    if (!rows) throw new Error('Forbidden')
+  } else {
+    const [{ id: newUserId }] = await db('users').insert(safe).returning('id')
     await db('default_settings').insert({ userId: newUserId })
   }
 
@@ -83,16 +100,21 @@ export async function upsertUser(user, id) {
 }
 
 export async function deleteUser(id) {
-  await requireUser()
-  await db('users').where({ id }).del()
+  const user = await requireUser()
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
+  await db('users').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/edit_users')
 }
 
-export async function updateGavePerm(curUserId, addedUserId) {
-  await requireUser()
+export async function updateGavePerm(_curUserId, addedUserId) {
+  const user = await requireUser()
+  // A user may only delegate access to their OWN leads (gaveId = caller), and
+  // only to a user within their agency. The client-supplied grantor is ignored.
+  const target = await db('users').where({ id: addedUserId, agencyId: user.agencyId }).first('id')
+  if (!target) throw new Error('Forbidden')
   await db('user_perms')
     .insert({
-      gaveId: curUserId,
+      gaveId: user.id,
       gotId: addedUserId,
     })
     .onConflict(['gaveId', 'gotId'])
@@ -101,38 +123,51 @@ export async function updateGavePerm(curUserId, addedUserId) {
   revalidatePath('/settings/edit_self')
 }
 
-export async function removeAuthUser(userId, removeUserId) {
-  await requireUser()
-  await db('user_perms').where({ gaveId: userId, gotId: removeUserId }).del()
+export async function removeAuthUser(_userId, removeUserId) {
+  const user = await requireUser()
+  // Caller can only revoke permissions they themselves granted (gaveId = caller).
+  await db('user_perms').where({ gaveId: user.id, gotId: removeUserId }).del()
 
   revalidatePath('/settings/edit_self')
 }
 
 export async function deleteTeam(id: number) {
-  await requireUser()
-  await db('teams').where({ id }).del()
+  const user = await requireUser()
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
+  await db('teams').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/edit_teams')
 }
 
 export async function upsertTeam(id: number, team: any) {
-  await requireUser()
+  const user = await requireUser()
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
   let teamId = id
 
   if (id) {
+    // Update only a team in the caller's own agency.
+    const owned = await db('teams').where({ id, agencyId: user.agencyId }).first('id')
+    if (!owned) throw new Error('Forbidden')
     await Promise.all([db('teams').where({ id }).update({ name: team.name }), db('user_teams').where('teamId', id).del()])
   } else {
-    const newTeam = await db('teams')
-      .insert({ name: team.name, agencyId: await getAgencyId() })
-      .returning('id')
+    const newTeam = await db('teams').insert({ name: team.name, agencyId: user.agencyId }).returning('id')
     teamId = newTeam[0].id
   }
 
+  // Only users within the caller's agency may be added as team members.
+  const memberIds: number[] = [...(team.userIds ?? []), ...(team.mngrIds ?? []), ...(team.officeIds ?? [])]
+  const validIds = new Set<number>(
+    memberIds.length ? await db('users').whereIn('id', memberIds).andWhere({ agencyId: user.agencyId }).pluck('id') : [],
+  )
   const userTeams = [
-    ...team.userIds.map((userId: number) => ({ userId, teamId, type: 'user' })),
-    ...team.mngrIds.map((mngrId: number) => ({ userId: mngrId, teamId, type: 'mngr' })),
-    ...team.officeIds.map((officeId: number) => ({ userId: officeId, teamId, type: 'office' })),
+    ...team.userIds.filter((uid: number) => validIds.has(uid)).map((userId: number) => ({ userId, teamId, type: 'user' })),
+    ...team.mngrIds
+      .filter((uid: number) => validIds.has(uid))
+      .map((mngrId: number) => ({ userId: mngrId, teamId, type: 'mngr' })),
+    ...team.officeIds
+      .filter((uid: number) => validIds.has(uid))
+      .map((officeId: number) => ({ userId: officeId, teamId, type: 'office' })),
   ]
-  await db('user_teams').insert(userTeams)
+  if (userTeams.length) await db('user_teams').insert(userTeams)
 
   revalidatePath('/settings/edit_teams')
 }
