@@ -14,8 +14,47 @@ import { sendEmail } from '@/lib/email/sender'
 import { renderEmail } from '@/lib/email/render'
 import MagicLinkEmail from '@/emails/templates/MagicLinkEmail'
 import { normalizeEmail } from '@/lib/normalizeEmail'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 const MAGIC_LINK_EXPIRY_MINUTES = 15
+
+// Google Sign-In (GIS) verification. The browser receives a signed ID token
+// (the `credential`) from Google; the server MUST verify that signature against
+// Google's public keys before trusting any identity claim inside it. Anything
+// less lets a caller assert an arbitrary `email` and be logged in as that user.
+const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com']
+const googleJwks = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'))
+
+type VerifiedGoogleUser = { email: string; name?: string; picture?: string; sub: string }
+
+async function verifyGoogleCredential(credential: unknown): Promise<VerifiedGoogleUser | null> {
+  if (typeof credential !== 'string' || !credential) return null
+  const audience = process.env.NEXT_PUBLIC_GGLID
+  if (!audience) {
+    console.error('[AUTH] NEXT_PUBLIC_GGLID is not set — cannot verify Google credential')
+    return null
+  }
+  try {
+    const { payload } = await jwtVerify(credential, googleJwks, {
+      issuer: GOOGLE_ISSUERS,
+      audience,
+    })
+    // Google ID tokens normally carry email_verified as a boolean; some token
+    // variants send the string "true". Accept both so legitimate logins are not
+    // rejected — the signature check above is what actually gates trust.
+    const emailVerified = payload.email_verified === true || payload.email_verified === 'true'
+    if (!emailVerified || typeof payload.email !== 'string' || !payload.sub) return null
+    return {
+      email: payload.email,
+      name: typeof payload.name === 'string' ? payload.name : undefined,
+      picture: typeof payload.picture === 'string' ? payload.picture : undefined,
+      sub: String(payload.sub),
+    }
+  } catch (err) {
+    console.warn('[AUTH] google credential verification failed', { reason: (err as Error)?.message })
+    return null
+  }
+}
 
 export async function checkUserSuspended(user) {
   const cokis = await cookies()
@@ -26,16 +65,29 @@ export async function checkUserSuspended(user) {
   }
 }
 
-export async function checkUser(user) {
+export async function checkUser(input: { credential?: string }) {
   const start = Date.now()
-  const email = normalizeEmail(user.email)
+
+  // Identity is derived ONLY from the server-verified Google ID token. The
+  // client no longer supplies email/name/sub — those are read from the verified
+  // token below, so a forged payload cannot authenticate as another user.
+  const verified = await verifyGoogleCredential(input?.credential)
+  if (!verified) {
+    console.warn(`[AUTH] route=google_check ms=${Date.now() - start} result=fail reason=invalid_credential`)
+    return { fail: true, msg: 'ההתחברות נכשלה, נסה שוב' }
+  }
+
+  const email = normalizeEmail(verified.email)
   const userExist = (await isUserExists(email)) as any
   if (userExist.fail) {
     console.log(`[AUTH] route=google_check email=${email} ms=${Date.now() - start} result=fail reason=${userExist.msg}`)
-    return { fail: true, msg: userExist.msg }
+    // Return the verified email/name so the client can prefill registration.
+    return { fail: true, msg: userExist.msg, email, name: verified.name ?? '' }
   }
 
-  await db('users').where({ id: userExist.id }).update({ gglName: user.gglName, picture: user.picture, gglSub: user.gglSub })
+  await db('users')
+    .where({ id: userExist.id })
+    .update({ gglName: verified.name, picture: verified.picture, gglSub: verified.sub })
   revalidateTag('user' + userExist.id, 'default')
 
   await createCookie(userExist.id)

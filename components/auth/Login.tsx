@@ -3,10 +3,8 @@
 import Script from 'next/script'
 import { useEffect, useRef } from 'react'
 import { useRouter, unstable_rethrow } from 'next/navigation'
-import { jwtDecode } from 'jwt-decode'
 import { checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
-import { normalizeEmail } from '@/lib/normalizeEmail'
 import { getDisplayName } from '@/lib/users/displayName'
 
 declare global {
@@ -28,7 +26,6 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
   }, [])
 
   async function callback(gglUser) {
-    let user = null
     let timedOut = false
     // Closure-local so concurrent/re-fired callbacks never clear each other's timers.
     let slowTimer: ReturnType<typeof setTimeout> | undefined
@@ -41,8 +38,6 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
     }
 
     try {
-      user = jwtDecode(gglUser.credential)
-
       console.log('[AUTH_DEBUG] start timers')
       slowTimer = setTimeout(() => {
         if (!mounted.current) return
@@ -56,18 +51,17 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
         toast('error', 'לוקח זמן רב מהרגיל, נסה שוב')
       }, 20000)
 
-      const res = await checkUser({
-        email: normalizeEmail(user.email),
-        gglName: user.name,
-        picture: user.picture,
-        gglSub: user.sub,
-      })
+      // Send the raw Google ID token; the server verifies its signature and
+      // derives the identity. The client never asserts who it is.
+      const res = await checkUser({ credential: gglUser.credential })
 
       if (timedOut) return
 
       if (res.fail) {
         if (res.msg === 'המשתמש מושהה') return toast('error', res.msg)
-        router.push(`/auth/register?email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`)
+        const email = (res as { email?: string }).email ?? ''
+        const name = (res as { name?: string }).name ?? ''
+        router.push(`/auth/register?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`)
         return
       }
 
