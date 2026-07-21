@@ -231,17 +231,39 @@ export async function upsertLead(userId, data, clientId, revalidate = true) {
   }
 }
 
-export async function upsertLeadList(userId, data) {
-  await requireUser()
-  if (data.id) await db('client_lists').where({ id: data.id }).update(data)
-  else await db('client_lists').insert({ userId, ...data })
+// Lead lists are per-user (they are read with `where({ userId })`). Writes must
+// be scoped to the caller's own rows, or any authenticated user can modify or
+// delete another user's/tenant's list by id (client_lists has no agencyId).
+const LIST_WRITABLE = ['title', 'clientIds'] as const
+
+function pickListFields(data: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (data && typeof data === 'object') {
+    for (const key of LIST_WRITABLE) {
+      if (key in (data as Record<string, unknown>)) out[key] = (data as Record<string, unknown>)[key]
+    }
+  }
+  return out
+}
+
+export async function upsertLeadList(_userId, data) {
+  const user = await requireUser()
+  // Ignore the client-supplied userId; the owner is always the caller. Column
+  // allowlist blocks mass-assignment of id/userId.
+  const safe = pickListFields(data)
+  if (data?.id) {
+    const rows = await db('client_lists').where({ id: data.id, userId: user.id }).update(safe)
+    if (!rows) throw new Error('Forbidden')
+  } else {
+    await db('client_lists').insert({ userId: user.id, ...safe })
+  }
 
   revalidatePath('/leads')
 }
 
 export async function deleteLeadList(id) {
-  await requireUser()
-  await db('client_lists').where({ id }).delete()
+  const user = await requireUser()
+  await db('client_lists').where({ id, userId: user.id }).delete()
 
   revalidatePath('/leads')
 }
