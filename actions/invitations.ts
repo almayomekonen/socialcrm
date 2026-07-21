@@ -5,9 +5,10 @@ import { sendEmail } from '@/lib/email/sender'
 import { getUser } from '@/db/auth'
 import { getAgencyById } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
-import { MapRoles } from '@/types/roles'
+import { MapRoles, isAdmin } from '@/types/roles'
 import { baseUrl } from '@/types/vars'
 import { normalizeEmail } from '@/lib/normalizeEmail'
+import { requireUser } from '@/lib/requireUser'
 
 interface SendInvitationArgs {
   email: string
@@ -82,6 +83,11 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
 }
 
 export async function deleteInvitation(id: number) {
-  await db('invitations').where({ id }).del()
+  // Admin-only (edit_users is an ADMIN surface) and scoped to the caller's
+  // agency. Previously this had no auth at all and matched a bare id, so any
+  // unauthenticated caller could delete any tenant's pending invitations.
+  const user = await requireUser()
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
+  await db('invitations').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/edit_users')
 }

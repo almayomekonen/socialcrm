@@ -1,7 +1,6 @@
 import { NextRequest, after } from 'next/server'
 import { db } from '@/config/db'
 import { createCookie } from '@/db/auth'
-import { deleteInvitation } from '@/actions/invitations'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 
@@ -36,7 +35,10 @@ export async function GET(request: NextRequest) {
       .returning('*')
 
     await db('default_settings').insert({ userId: newUser.id })
-    await deleteInvitation(invitation.id)
+    // Consume the invitation directly. This route is pre-session (the invitee
+    // is accepting via a token we already validated above), so it must not call
+    // the now admin-gated deleteInvitation action.
+    await db('invitations').where({ id: invitation.id }).del()
 
     await createCookie(newUser.id)
 
