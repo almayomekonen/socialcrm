@@ -186,9 +186,13 @@ export function toMB(size: number) {
 }
 
 export function genToken() {
-  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-
-  return token
+  // 256-bit token from the platform CSPRNG (Web Crypto — present in Node 18+ and
+  // the browser, so lib/funcs stays isomorphic and needs no node:crypto import).
+  // Replaces Math.random(), whose xorshift128+ output is predictable and unfit
+  // for security tokens (magic-link login, invitation acceptance).
+  const bytes = new Uint8Array(32)
+  globalThis.crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 export function roundOrZero(num: number) {
