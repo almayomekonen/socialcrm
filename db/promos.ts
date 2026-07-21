@@ -186,7 +186,11 @@ function getTeamTotals(
     const { branch, prdctTypes, prdcts, companies } = filters
     if (branch) {
       const isTfuca = branch !== 'משוקלל'
-      sql.select(db.raw(`sum(${isTfuca ? 'tfuca' : 'cmsn'}) as ${branch}`))
+      // `branch` originates from stored promo.goals (client-writable) and is used
+      // here as a column alias. Bind it as an identifier (??) so knex quotes and
+      // escapes it — it can no longer break out into raw SQL. The summed column
+      // is a fixed literal, also bound as an identifier for consistency.
+      sql.select(db.raw('sum(??) as ??', [isTfuca ? 'tfuca' : 'cmsn', branch]))
       if (isTfuca) sql.where('branch', branch)
     }
 
