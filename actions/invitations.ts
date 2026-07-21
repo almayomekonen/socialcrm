@@ -2,10 +2,9 @@
 import { db } from '@/config/db'
 import { genToken } from '@/lib/funcs'
 import { sendEmail } from '@/lib/email/sender'
-import { getUser } from '@/db/auth'
 import { getAgencyById } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
-import { MapRoles, isAdmin } from '@/types/roles'
+import { MapRoles, isAdmin, INVITABLE_ROLES } from '@/types/roles'
 import { baseUrl } from '@/types/vars'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 import { requireUser } from '@/lib/requireUser'
@@ -20,7 +19,13 @@ interface SendInvitationArgs {
 }
 
 export async function sendInvitation({ email, role, firstName, phone, lastName }: SendInvitationArgs) {
-  const user = await getUser()
+  // Inviting is an ADMIN capability (edit_users is an ADMIN-only surface) and
+  // the invitation decides the new account's role — so without this gate any
+  // authenticated user could invite themselves an ADMIN account.
+  const user = await requireUser()
+  if (!isAdmin(user.role)) return { error: 'אין הרשאה' }
+  if (typeof role !== 'string' || !INVITABLE_ROLES.has(role)) return { error: 'תפקיד לא תקין' }
+
   const { name: agencyName } = await getAgencyById(user.agencyId)
   const token = genToken()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry

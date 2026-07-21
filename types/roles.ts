@@ -40,6 +40,13 @@ export const isMngr = (role: Roles) => _mngr.has(role)
 const _asAdmin = new Set([Roles.ADMIN, Roles.GM])
 export const isAdmin = (role: Roles) => _asAdmin.has(role)
 
+/**
+ * Roles an invitation is allowed to assign. Deliberately explicit (not derived
+ * from the UI's rolesOpt) so a UI change can never silently widen what the
+ * server grants. EXT is excluded — external partners go through upsertExtUser.
+ */
+export const INVITABLE_ROLES: ReadonlySet<string> = new Set([Roles.AGNT, Roles.MNGR, Roles.OFFICE, Roles.ADMIN, Roles.GM])
+
 const _asAdminExtOffice = new Set([Roles.ADMIN, Roles.GM, Roles.EXT, Roles.OFFICE])
 export const isAdminExtOffice = (role: Roles) => _asAdminExtOffice.has(role)
 
