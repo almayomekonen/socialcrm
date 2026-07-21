@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import { createCookie } from '@/db/auth'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { normalizeEmail } from '@/lib/normalizeEmail'
+import { INVITABLE_ROLES } from '@/types/roles'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -16,6 +17,16 @@ export async function GET(request: NextRequest) {
 
   if (!invitation) return failed('Invitation not found')
   if (new Date(invitation.expiresAt) < new Date()) return failed('Invitation has expired')
+
+  // Defence in depth: never mint an account with a role the invitation flow is
+  // not allowed to grant, whatever is stored on the row.
+  if (!INVITABLE_ROLES.has(invitation.role)) {
+    console.error('[invitation] refusing to accept invitation with non-invitable role', {
+      invitationId: invitation.id,
+      role: invitation.role,
+    })
+    return failed('Invalid invitation')
+  }
 
   const normalizedEmail = normalizeEmail(invitation.email)
   const existingUser = await db('users').whereILike('email', normalizedEmail).first()
