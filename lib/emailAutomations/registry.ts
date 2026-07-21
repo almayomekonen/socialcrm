@@ -4,6 +4,7 @@ import { appUrl } from './config'
 import { lifecycleOwners } from './recipients'
 import WelcomeEmail from '@/emails/templates/WelcomeEmail'
 import { STATE_CONTENT } from './content/state'
+import { EVENT_CONTENT } from './content/event'
 import { EDUCATIONAL } from './content/educational'
 import { contentToAutomation } from './contentToAutomation'
 import { resolveNextEducational } from './journey'
@@ -42,4 +43,9 @@ const educationalJourney: Automation = {
   resolve: resolveNextEducational,
 }
 
-export const AUTOMATIONS: Automation[] = [welcome, ...STATE_CONTENT.map(contentToAutomation), educationalJourney]
+export const AUTOMATIONS: Automation[] = [
+  welcome,
+  ...EVENT_CONTENT.map(contentToAutomation),
+  ...STATE_CONTENT.map(contentToAutomation),
+  educationalJourney,
+]

@@ -15,6 +15,16 @@ function owners() {
     .select(OWNER_SELECT)
 }
 
+// The account owner of ONE agency. Used by event automations whose trigger only
+// knows the agency (e.g. the Grow payment webhook, which never sees a userId).
+// Same definition of "owner" as every scheduled audience above — earliest
+// non-suspended ADMIN with an email — so recipient resolution stays consistent
+// across the engine. Returns null when an agency has no eligible owner.
+export async function agencyOwner(agencyId: number): Promise<Recipient | null> {
+  const row = await owners().where('u.agencyId', agencyId).first()
+  return (row as Recipient | undefined) ?? null
+}
+
 // All lifecycle-eligible owners — the audience for the educational journey drip.
 // Per-recipient suppression + the daily cooldown are applied downstream by the
 // dispatcher; this just enumerates one owner per agency.

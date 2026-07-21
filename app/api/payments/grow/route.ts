@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import { db } from '@/config/db'
 import { verifyToken } from '@/lib/payments/token'
 import { performAgencyUpgrade } from '@/lib/quota/performUpgrade'
 import { track } from '@/lib/analytics/track'
+import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
+import { agencyOwner } from '@/lib/emailAutomations/recipients'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { resolveBillingPeriod, logPeriodResolution, type PeriodResolution } from '@/lib/payments/resolvePeriod'
@@ -235,6 +237,25 @@ export async function POST(req: NextRequest) {
   await db('pending_upgrades').where({ agencyId }).update({
     status: 'completed',
     updatedAt: new Date(),
+  })
+
+  // Thank-you email for the FIRST activation. Dispatched only here — after the
+  // upgrade transaction has committed — so an email can never imply a payment
+  // that did not land. Deferred with after() so Resend latency never delays the
+  // webhook response, and fully guarded: an email failure must not fail a paid
+  // transaction. Renewals re-enter this path with a new transactionId, but the
+  // engine's per-user claim is already taken, so the dispatcher skips them.
+  after(async () => {
+    try {
+      const recipient = await agencyOwner(agencyId)
+      if (!recipient) {
+        console.warn('[GrowWebhook] subscription.activated: no owner resolved', { agencyId })
+        return
+      }
+      await dispatchLifecycleEvent('subscription.activated', recipient, new Date())
+    } catch (err) {
+      console.error('[GrowWebhook] subscription.activated dispatch failed', { agencyId, err: String(err) })
+    }
   })
 
   return NextResponse.json({ ok: true })

@@ -26,7 +26,7 @@ export type Automation = {
   subject: (r: Recipient) => string
   template: (r: Recipient) => ReactElement
   trigger: 'event' | 'scheduled'
-  event?: 'user.registered' // event automations only (Phase 1 uses only this)
+  event?: 'user.registered' | 'subscription.activated' // event automations only
   audience?: () => Promise<Recipient[]> // scheduled automations only
   condition?: (r: Recipient) => Promise<boolean> // optional extra filter
   gate?: () => boolean // per-automation send gate; defaults to emailAutomationsEnabled() when omitted

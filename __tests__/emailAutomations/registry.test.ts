@@ -30,18 +30,34 @@ describe('email automation registry', () => {
     }
   })
 
-  it('is welcome + the five state emails + the educational journey drip', () => {
+  it('is welcome + subscription-activated + the five state emails + the educational journey drip', () => {
     expect(AUTOMATIONS.map((a) => a.key).sort()).toEqual(
       [
         'educational_journey',
         'facebook_not_connected',
         'first_lead_received',
         'no_activity',
+        'subscription_activated',
         'trial_ending',
         'welcome',
         'whatsapp_not_connected',
       ].sort(),
     )
+  })
+
+  it('subscription_activated is a send-once transactional event automation', () => {
+    const a = AUTOMATIONS.find((x) => x.key === 'subscription_activated')
+    expect(a).toBeDefined()
+    expect(a?.enabled).toBe(true)
+    expect(a?.trigger).toBe('event')
+    expect(a?.event).toBe('subscription.activated')
+    // Transactional: no unsubscribe footer, exempt from suppression + the 24h cooldown.
+    expect(a?.category).toBe('transactional')
+    // No `recurring` ⇒ periodKey '' ⇒ a single (automationKey, userId, '') claim
+    // per user. This is what stops renewals from re-sending the thank-you.
+    expect(a?.recurring).toBeUndefined()
+    // Event automations are dispatched by event, never enumerated by the cron.
+    expect(a?.audience).toBeUndefined()
   })
 
   it('the educational journey is a dynamic lifecycle drip that runs last', () => {
