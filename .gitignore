@@ -64,6 +64,11 @@ node_modules/
 .worktrees/
 docs/superpowers/
 
+# local testimonial source screenshots — raw customer message captures.
+# Quotes are transcribed into lib/emailAutomations/testimonials.ts; the
+# images themselves are never shipped and must not reach a public path.
+public/media/automation-feedback-images/
+
 # local machine artifacts (never commit)
 .claude/settings.local.json
 social-crm.db
