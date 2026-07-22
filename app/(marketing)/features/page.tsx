@@ -9,6 +9,7 @@ import { FAQ } from '@/components/ui/faq-tabs'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { AnimatedCta } from '@/components/ui/animated-cta'
+import { Btn } from '@/lib/btns/Btn'
 
 export const metadata = buildPageMetadata({
   path: '/features',
@@ -149,13 +150,12 @@ export default function FeaturesPage() {
                 >
                   קרא עוד על ניהול לידים
                 </Link>
-                <Link
+                <Btn
                   href='/auth'
-                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
+                  lbl='התחל בחינם עכשיו'
+                  className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
-                >
-                  התחל בחינם עכשיו
-                </Link>
+                />
               </div>
             </div>
           </div>

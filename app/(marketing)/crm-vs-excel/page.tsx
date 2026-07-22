@@ -10,6 +10,7 @@ import { CRMComparisonTable } from '@/components/ui/crm-comparison-table'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import Icon from '@/lib/Icon'
+import { Btn } from '@/lib/btns/Btn'
 
 export const metadata = buildPageMetadata({
   path: '/crm-vs-excel',
@@ -161,13 +162,12 @@ export default function CRMvsExcelPage() {
                 >
                   ראה את כל הפיצ׳רים
                 </Link>
-                <Link
+                <Btn
                   href='/auth'
-                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
+                  lbl='עבור ל-SocialCRM בחינם'
+                  className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
-                >
-                  עבור ל-SocialCRM בחינם
-                </Link>
+                />
               </div>
             </div>
           </div>

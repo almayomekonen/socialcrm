@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { logout, getSessionState } from '@/actions/auth'
+import { Btn } from '@/lib/btns/Btn'
 
 const NAV_LINKS: { text: ReactNode; href: string }[] = [
   { text: 'ניהול לידים', href: '/crm' },
@@ -77,16 +78,20 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
           </ul>
 
           <div className='hidden lg:flex items-center space-x-4'>
-            <Link href={cta.href} className='px-4 py-2 bg-[#3f20f5] text-white rounded-md hover:bg-[#3520cc] font-semibold'>
-              {cta.text}
-            </Link>
+            <Btn
+              href={cta.href}
+              lbl={cta.text}
+              className='h-auto px-4 py-2 bg-[#3f20f5] text-white rounded-md hover:bg-[#3520cc] font-semibold'
+            />
           </div>
         </div>
 
         <div className='lg:hidden flex items-center gap-3'>
-          <Link href={cta.href} className='px-3 py-2 bg-[#3f20f5] text-white rounded-md hover:bg-[#3520cc] font-semibold text-sm'>
-            {cta.text}
-          </Link>
+          <Btn
+            href={cta.href}
+            lbl={cta.text}
+            className='h-auto px-3 py-2 bg-[#3f20f5] text-white rounded-md hover:bg-[#3520cc] font-semibold text-sm'
+          />
           <button
             className='text-gray-600 hover:text-[#3f20f5] focus:outline-none p-1'
             onClick={() => setMobileOpen(true)}
@@ -131,13 +136,12 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
         </div>
 
         <div className='flex flex-col space-y-4 mt-8 pt-6 border-t border-gray-200'>
-          <Link
+          <Btn
             href={cta.href}
-            className='px-4 py-3 bg-[#3f20f5] text-white rounded-md hover:bg-[#3520cc] font-semibold text-lg'
+            lbl={cta.text}
+            className='h-auto px-4 py-3 bg-[#3f20f5] text-white rounded-md hover:bg-[#3520cc] font-semibold text-lg'
             onClick={() => setMobileOpen(false)}
-          >
-            {cta.text}
-          </Link>
+          />
           {authed && (
             <form action={logout}>
               <button

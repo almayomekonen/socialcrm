@@ -10,6 +10,7 @@ import { AnimatedCta } from '@/components/ui/animated-cta'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { buildFAQSchema } from '@/components/seo/FAQ'
 import Icon from '@/lib/Icon'
+import { Btn } from '@/lib/btns/Btn'
 
 const PAGE_PATH = '/crm-for-whatsapp-business'
 const PAGE_TITLE = 'CRM ל-WhatsApp Business — ניהול לידים מעבר ל-Labels | SocialCRM'
@@ -180,13 +181,12 @@ export default function CrmForWhatsAppBusinessPage() {
                 >
                   ראה את כל הפיצ׳רים
                 </Link>
-                <Link
+                <Btn
                   href='/auth'
-                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
+                  lbl='התחל בחינם'
+                  className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
-                >
-                  התחל בחינם
-                </Link>
+                />
               </div>
             </div>
           </div>

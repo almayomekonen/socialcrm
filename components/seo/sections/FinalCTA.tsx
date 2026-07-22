@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ParticleTextEffect } from '@/components/ui/interactive-text-particle'
+import { Btn } from '@/lib/btns/Btn'
 
 export function FinalCTA() {
   return (
@@ -31,13 +32,12 @@ export function FinalCTA() {
       <div className='relative z-10 pb-10 flex flex-col items-center gap-3' dir='rtl'>
         <p className='text-white/40 text-base mb-4 px-6 text-center'>תוך 5 דקות תוכל לייבא את הלידים שלך ולהתחיל לעבוד</p>
         <div className='flex flex-wrap gap-4 justify-center w-full px-6 sm:w-auto sm:px-0'>
-          <Link
+          <Btn
             href='/auth'
-            className='w-full sm:w-auto text-center px-8 py-4 rounded-xl text-base font-bold transition-all duration-200 hover:scale-105'
+            lbl='התחל בחינם עכשיו'
+            className='w-full sm:w-auto h-auto text-center px-8 py-4 rounded-xl text-base font-bold transition-all duration-200 hover:scale-105'
             style={{ backgroundColor: '#3f20f5', color: 'white' }}
-          >
-            התחל בחינם עכשיו
-          </Link>
+          />
           <Link
             href='/features'
             className='w-full sm:w-auto text-center px-8 py-4 rounded-xl text-base font-semibold border border-white/20 text-white/80 hover:border-white/50 hover:text-white transition-all duration-200'

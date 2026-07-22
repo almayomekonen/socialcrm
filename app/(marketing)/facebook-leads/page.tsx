@@ -10,6 +10,7 @@ import { MagnifiedBento } from '@/components/ui/magnified-bento'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { AnimatedCta } from '@/components/ui/animated-cta'
 import Icon from '@/lib/Icon'
+import { Btn } from '@/lib/btns/Btn'
 
 export const metadata = buildPageMetadata({
   path: '/facebook-leads',
@@ -191,13 +192,12 @@ export default function FacebookLeadsPage() {
                 >
                   ראה איך זה עובד
                 </Link>
-                <Link
+                <Btn
                   href='/auth'
-                  className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
+                  lbl='חבר את הפייסבוק שלך עכשיו'
+                  className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
-                >
-                  חבר את הפייסבוק שלך עכשיו
-                </Link>
+                />
               </div>
             </div>
           </div>

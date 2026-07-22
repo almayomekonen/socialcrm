@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { motion, Variants } from 'motion/react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { Btn } from '@/lib/btns/Btn'
 
 interface FeatureItem {
   text: string
@@ -92,9 +92,7 @@ export const FeatureGrid = React.forwardRef<HTMLDivElement, FeatureGridProps>(
             transition={{ delay: 0.5, duration: 0.5 }}
             className='mt-12'
           >
-            <Button asChild size='lg' className='px-6'>
-              <a href={buttonHref}>{buttonText}</a>
-            </Button>
+            <Btn href={buttonHref} lbl={buttonText} size='large' className='px-6 text-sm' />
           </motion.div>
         </motion.div>
       </section>

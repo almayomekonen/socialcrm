@@ -2,7 +2,7 @@
 import { cva } from 'class-variance-authority'
 import { twMerge } from 'tailwind-merge'
 import React, { ButtonHTMLAttributes } from 'react'
-import Link, { LinkProps } from 'next/link'
+import Link, { LinkProps, useLinkStatus } from 'next/link'
 import { useFormStatus } from 'react-dom'
 import Icon, { IconNames } from '../Icon'
 
@@ -142,7 +142,7 @@ export function Btn({
   if (href) {
     return (
       <Link href={href as any} className={buttonClasses} {...(props as unknown as Omit<LinkProps<'any'>, 'href'>)}>
-        {content}
+        <LinkContent icon={icon} lbl={lbl} iconClasses={iconClasses} iconType={icnTYpe} flipIcon={flipIcon} />
       </Link>
     )
   }
@@ -151,6 +151,48 @@ export function Btn({
     <button className={buttonClasses} {...props}>
       {content}
     </button>
+  )
+}
+
+/**
+ * Contents of an `href` Btn.
+ *
+ * Lives in its own component because `useLinkStatus` reports the pending state
+ * of the *enclosing* <Link>, so it must be called from a descendant. While a
+ * navigation is in flight the icon slot shows the same spinner every other
+ * pending control in the product uses — local to this button, no overlay, no
+ * new component. The label is never replaced, so the accessible name is
+ * unchanged and the element stays a real <a href> (middle-click, open in new
+ * tab and keyboard activation all behave as before).
+ */
+function LinkContent({
+  icon,
+  lbl,
+  iconClasses,
+  iconType,
+  flipIcon,
+}: {
+  icon?: IconNames
+  lbl?: string
+  iconClasses: string
+  iconType: 'reg' | 'sol' | 'lit'
+  flipIcon?: boolean
+}) {
+  const { pending } = useLinkStatus()
+  const iconName = pending ? 'spinner' : icon
+
+  return (
+    <>
+      {iconName && (
+        <Icon
+          name={iconName}
+          type={iconType}
+          className={pending ? twMerge(iconClasses, 'animate-spin') : iconClasses}
+          flip={flipIcon}
+        />
+      )}
+      {lbl && <span>{lbl}</span>}
+    </>
   )
 }
 

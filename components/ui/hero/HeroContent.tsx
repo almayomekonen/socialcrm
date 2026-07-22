@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { ChannelBadges } from './ChannelBadges'
+import { Btn } from '@/lib/btns/Btn'
 
 export function HeroContent() {
   return (
@@ -20,12 +20,11 @@ export function HeroContent() {
       </p>
 
       <div className='mt-8 flex flex-wrap items-center gap-3'>
-        <Link
+        <Btn
           href='/auth'
-          className='rounded-xl bg-[#3f20f5] px-7 py-3.5 font-bold text-white transition-transform duration-200 hover:scale-105'
-        >
-          התחל בחינם
-        </Link>
+          lbl='התחל בחינם'
+          className='h-auto rounded-xl bg-[#3f20f5] hover:bg-[#3f20f5] px-7 py-3.5 font-bold text-white transition-transform duration-200 hover:scale-105'
+        />
         <a
           href='#how-it-works'
           className='rounded-xl border border-gray-300 px-7 py-3.5 font-semibold text-gray-800 transition-colors duration-200 hover:border-gray-400'

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
-import Link from 'next/link'
+import { Btn } from '@/lib/btns/Btn'
 
 interface AnimatedCtaProps {
   title: string
@@ -128,12 +128,12 @@ export function AnimatedCta({ title, highlight, buttonText, buttonHref }: Animat
           </span>
         </h2>
 
-        <Link
+        <Btn
           href={buttonHref}
-          className='inline-block py-4 px-8 bg-white text-black rounded-xl font-bold text-lg transition-all hover:-translate-y-0.5 hover:shadow-xl'
-        >
-          {buttonText}
-        </Link>
+          lbl={buttonText}
+          iconClassName='bg-black'
+          className='h-auto py-4 px-8 bg-white hover:bg-white text-black rounded-xl font-bold text-lg transition-all hover:-translate-y-0.5 hover:shadow-xl'
+        />
       </div>
     </div>
   )
