@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 import { db } from '@/config/db'
 import { Roles } from '@/types/roles'
-import { createCookie, getUser, getUserByEmail } from '../db/auth'
+import { createCookie, getUser, getUserByEmail, revokeUserSessions } from '../db/auth'
 import { genToken } from '@/lib/funcs'
 import { baseUrl } from '@/types/vars'
 import { sendEmail } from '@/lib/email/sender'
@@ -74,9 +74,23 @@ export async function checkUser(input: { credential?: string }) {
     return { fail: true, msg: userExist.msg, email, name: verified.name ?? '' }
   }
 
+  // First proof of ownership for this address (see /api/magic): registration
+  // creates accounts for unverified emails, so evict any session issued before
+  // the real owner proved the address, then mark it verified.
+  const existing = await db('users').where({ id: userExist.id }).first('emailVerifiedAt')
+  if (!existing?.emailVerifiedAt) {
+    await revokeUserSessions(userExist.id)
+    console.warn('[AUTH] first email verification — prior sessions revoked', { userId: userExist.id })
+  }
+
   await db('users')
     .where({ id: userExist.id })
-    .update({ gglName: verified.name, picture: verified.picture, gglSub: verified.sub })
+    .update({
+      gglName: verified.name,
+      picture: verified.picture,
+      gglSub: verified.sub,
+      emailVerifiedAt: existing?.emailVerifiedAt ?? new Date(),
+    })
   revalidateTag('user' + userExist.id, 'default')
 
   await createCookie(userExist.id)

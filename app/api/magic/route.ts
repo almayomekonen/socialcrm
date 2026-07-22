@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/config/db'
-import { createCookie, getUserByEmail } from '@/db/auth'
+import { createCookie, getUserByEmail, revokeUserSessions } from '@/db/auth'
 
 export async function GET(request: NextRequest) {
   const start = Date.now()
@@ -19,7 +19,18 @@ export async function GET(request: NextRequest) {
   const expiryMs = user.otp?.tokenExpiry ? new Date(user.otp.tokenExpiry).getTime() : 0
   if (!expiryMs || expiryMs < Date.now()) return failed(start, email, 'expired')
 
-  await db('users').where({ id: user.id }).update({ otp: null })
+  // First proof that this address is really the holder's: registration issues an
+  // account (and a session) for an unverified email, so anyone could have
+  // created this account and still hold a session on it. Evict every session
+  // minted before this moment, then mark the address verified.
+  if (!user.emailVerifiedAt) {
+    await revokeUserSessions(user.id)
+    console.warn('[AUTH] first email verification — prior sessions revoked', { userId: user.id })
+  }
+
+  await db('users')
+    .where({ id: user.id })
+    .update({ otp: null, emailVerifiedAt: user.emailVerifiedAt ?? new Date() })
 
   await createCookie(user.id)
 

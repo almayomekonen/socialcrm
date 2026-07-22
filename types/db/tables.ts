@@ -84,6 +84,10 @@ export interface User {
   otp: UserOtp | null
   createdById: number
   agencyId: number
+  /** Bumped to revoke every session issued before the bump (H-7). */
+  sessionVersion: number
+  /** When ownership of `email` was first proven via Google or a magic link (H-8). */
+  emailVerifiedAt: Date | null
 }
 
 export interface UserPerm {
