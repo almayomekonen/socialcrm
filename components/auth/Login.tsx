@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode'
 import { checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
 import { normalizeEmail } from '@/lib/normalizeEmail'
+import { getDisplayName } from '@/lib/users/displayName'
 
 declare global {
   const google: any
@@ -93,7 +94,7 @@ export default function Login({ user }: { user?: { name?: string; gglName?: stri
 
   return (
     <div className=''>
-      {user && <p className='text-sm text-gray-600 mb-1'>כניסה בשם {user.name || user.gglName}</p>}
+      {user && <p className='text-sm text-gray-600 mb-1'>כניסה בשם {getDisplayName(user)}</p>}
       <Script src='https://accounts.google.com/gsi/client' onLoad={initGoogle} strategy='lazyOnload' />
 
       <div id='gglBtn'></div>

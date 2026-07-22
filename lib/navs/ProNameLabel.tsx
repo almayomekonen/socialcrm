@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { RoleLabels } from '@/types/roles'
+import { getDisplayName } from '@/lib/users/displayName'
 
 /**
  * The user identity line in the topbar: name, an optional PRO pill, then role.
@@ -33,7 +34,7 @@ const PRO_PILL: CSSProperties = {
 }
 
 export function ProNameLine({ user, isPro }: { user: any; isPro: boolean }) {
-  const name = user?.name || user?.gglName
+  const name = getDisplayName(user)
   const roleLabel = user?.role ? RoleLabels[user.role] || user.role : null
 
   if (!isPro) {

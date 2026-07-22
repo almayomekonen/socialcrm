@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
 import { ProNameLine } from './ProNameLabel'
+import { getDisplayName } from '@/lib/users/displayName'
 
 type WorkspaceIdentity = { primary: string; secondary?: string }
 
@@ -68,7 +69,7 @@ export function UserNAgency({ user, className = null, isPro = false }: { user: a
         {user?.picture ? (
           <img src={user?.picture} alt='' className='size-6 rounded-full' />
         ) : (
-          <div className='bg-solid text-white size-6 text-center rounded-full'>{user?.name?.[0]}</div>
+          <div className='bg-solid text-white size-6 text-center rounded-full'>{getDisplayName(user)[0]}</div>
         )}
         <ProNameLine user={user} isPro={isPro} />
       </Link>

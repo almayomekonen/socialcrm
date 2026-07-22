@@ -13,6 +13,7 @@ import { isTodayBriefEnabledForAgency } from '@/lib/today/rollout'
 import { buildTodayBrief } from '@/lib/today/service'
 import { logBriefServed, logBriefFailure } from '@/lib/today/telemetry'
 import TodayBriefView from '@/components/home/today/TodayBriefView'
+import { getFirstName } from '@/lib/users/displayName'
 
 export default async function DashboardPage() {
   const user = await getUser()
@@ -29,7 +30,7 @@ export default async function DashboardPage() {
   if (user.agencyId != null && isTodayBriefEnabledForAgency(user.agencyId)) {
     const startedAt = Date.now()
     try {
-      const firstName = user.name?.trim().split(/\s+/)[0] ?? ''
+      const firstName = getFirstName(user)
       const brief = await buildTodayBrief(
         { scope: { user: { role: user.role }, gotPermIds }, agencyId: user.agencyId, userId: user.id, firstName },
         Date.now(),
