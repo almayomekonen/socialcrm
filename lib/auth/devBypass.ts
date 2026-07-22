@@ -32,12 +32,6 @@ export function devBypassEmails(): string[] {
   return fromEnv.length ? fromEnv : FALLBACK_DEV_EMAILS
 }
 
-/** Email-level check, for callers that already hold the user's email. */
-export function isDevBypassEmail(email?: string | null): boolean {
-  if (!email) return false
-  return devBypassEmails().includes(email.trim().toLowerCase())
-}
-
 /**
  * Agency ids owned by a dev-bypass email. Request-scoped memo (React `cache`):
  * resolved at most once per request, then reused by every plan check in that
@@ -48,9 +42,7 @@ export const getDevBypassAgencyIds = cache(async (): Promise<Set<number>> => {
   const emails = devBypassEmails()
   if (!emails.length) return new Set<number>()
   const placeholders = emails.map(() => '?').join(', ')
-  const rows = await db('users')
-    .whereRaw(`lower("email") in (${placeholders})`, emails)
-    .select('agencyId')
+  const rows = await db('users').whereRaw(`lower("email") in (${placeholders})`, emails).select('agencyId')
   return new Set<number>(rows.map((r) => Number(r.agencyId)).filter((n) => Number.isFinite(n)))
 })
 

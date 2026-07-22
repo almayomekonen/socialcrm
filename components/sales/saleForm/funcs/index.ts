@@ -1,4 +1,3 @@
-import { getLeadById } from '@/actions/clients'
 import { PRDCT_TYPES } from '@/types/lists'
 
 export function isPayExist(data) {
@@ -7,14 +6,6 @@ export function isPayExist(data) {
 }
 
 export const getEntries = (fd) => Object.fromEntries(new FormData(fd))
-
-export async function clientbelongsToUser({ sale, allReps }) {
-  const client = await getLeadById(sale.clientId)
-  if (!client?.id) return true
-  // Confirmation UI removed; legacy helper retained for signature stability.
-  void allReps
-  return true
-}
 
 export async function hasSaleOnClient({ sale }) {
   // Legacy insurance validation (ענפים / סוכנים / נציגים) — neutralized.
