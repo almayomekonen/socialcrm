@@ -1,10 +1,10 @@
 'use client'
-import { RoleLabels } from '@/types/roles'
 import Link from 'next/link'
 import { twMerge } from 'tailwind-merge'
 import { usePathname } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
+import { ProNameLine } from './ProNameLabel'
 
 type WorkspaceIdentity = { primary: string; secondary?: string }
 
@@ -25,7 +25,7 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
   return null
 }
 
-  export default function Topbar({ user }) {
+  export default function Topbar({ user, isPro = false }: { user: any; isPro?: boolean }) {
   const pathname = usePathname()
   if (!user) return null
   const title = resolveWorkspaceTitle(pathname)
@@ -40,7 +40,7 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
             system-level workspace control, not a navigation item. */}
         <div className='hidden desktop:flex items-center gap-3'>
           <CopilotTopbarTrigger />
-          <UserNAgency user={user} />
+          <UserNAgency user={user} isPro={isPro} />
         </div>
         <Link href='/dashboard' className='flex items-center gap-2'>
           <img src='/media/fav.svg' alt='SocialCRM' className='h-6' />
@@ -61,7 +61,7 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
   )
 }
 
-export function UserNAgency({ user, className = null }) {
+export function UserNAgency({ user, className = null, isPro = false }: { user: any; className?: string | null; isPro?: boolean }) {
   return (
     <div className={twMerge('flex', className)}>
       <Link href='/settings/self_edit' className='flex items-center gap-3' onClick={() => document.getElementById('navPop')?.hidePopover()}>
@@ -70,7 +70,7 @@ export function UserNAgency({ user, className = null }) {
         ) : (
           <div className='bg-solid text-white size-6 text-center rounded-full'>{user?.name?.[0]}</div>
         )}
-        <p className='text-sm'>{`${user?.name || user?.gglName}${user?.role ? ` - ${RoleLabels[user.role] || user.role}` : ''}`}</p>
+        <ProNameLine user={user} isPro={isPro} />
       </Link>
     </div>
   )

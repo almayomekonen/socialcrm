@@ -27,6 +27,7 @@ import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
+import { getAgencyPlan } from '@/lib/quota'
 import { track } from '@/lib/analytics/track'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
@@ -90,7 +91,7 @@ async function LayoutContent({ children }) {
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
-              <Topbar user={user} />
+              <Topbar user={user} isPro={(await getAgencyPlan(user.agencyId)) === 'pro'} />
               <WorkspaceGrid>
                 <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
                 <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
