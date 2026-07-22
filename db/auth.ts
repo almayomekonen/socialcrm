@@ -149,7 +149,7 @@ export async function createCookie(userId) {
 }
 
 export async function getUserByEmail(email: string) {
-  return await db('users').select('id', 'suspended', 'otp').whereILike('email', email).first()
+  return await db('users').select('id', 'suspended', 'otp', 'emailVerifiedAt').whereILike('email', email).first()
 }
 
 export async function encrypt(payload: any) {
