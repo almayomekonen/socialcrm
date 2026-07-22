@@ -331,11 +331,21 @@ export async function searchLeads(val) {
 }
 
 export async function getLeadById(clientId) {
-  const res = await db('clients')
-    .where('id', clientId)
-    .first()
-    .select('id', 'firstName', 'lastName', 'idNum', 'createdById', 'userId')
-  return res
+  // Previously unauthenticated and unscoped: any caller could read any lead by
+  // id, across tenants, including idNum (national ID). Scoped to the caller's
+  // agency and — for non-admins — to leads they hold permission on, matching
+  // the access rule updateLead already enforces.
+  const user = await requireUser()
+  const id = Number(clientId)
+  if (!Number.isInteger(id)) return null
+
+  const query = db('clients').where({ id, agencyId: user.agencyId })
+  if (!isAdmin(user.role)) {
+    const { gotPermIds } = await getPerms(user)
+    query.whereIn('userId', gotPermIds)
+  }
+
+  return (await query.first('id', 'firstName', 'lastName', 'idNum', 'createdById', 'userId')) ?? null
 }
 
 export async function updateLead(data) {
@@ -482,9 +492,12 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
 }
 
 export async function getLeadDeals(clientId) {
-  await requireUser()
-  const deals = await db('_sales').where('clientId', clientId)
-  return deals
+  // Same class as getLeadById: scope the read to the caller's agency so a lead
+  // id from another tenant cannot return that tenant's deals.
+  const user = await requireUser()
+  const id = Number(clientId)
+  if (!Number.isInteger(id)) return []
+  return db('_sales').where({ clientId: id, agencyId: user.agencyId })
 }
 
 function parseCSVLine(line: string, delim: string): string[] {
