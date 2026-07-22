@@ -8,6 +8,8 @@ import { toast } from '@/lib/toast'
 import { wait } from '@/lib/funcs'
 import type { FacebookHealthStatus } from '@/lib/facebook/health'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import ConnectionNotice from '@/components/settings/ConnectionNotice'
+import { FACEBOOK_NOTICES, SHARED, facebookNotice } from '@/lib/connections/messages'
 
 type Page = { id: string; name: string; access_token: string }
 type Connection = { pageId: string; pageName: string }
@@ -16,15 +18,6 @@ type Props = {
   connection: Connection | null
   pendingPages: Page[] | null
   health: FacebookHealthStatus | null
-}
-
-const ERROR_MESSAGES: Record<string, string> = {
-  denied: 'לא אושרו הרשאות פייסבוק.',
-  state: 'שגיאת אבטחה. אנא נסה שוב.',
-  token: 'שגיאה בהתחברות לפייסבוק. אנא נסה שוב.',
-  pages: 'לא ניתן לטעון את הדפים. אנא נסה שוב.',
-  no_pages: 'לא נמצאו דפים בחשבון הפייסבוק. יש לוודא שיש לך גישת מנהל לדף.',
-  missing_permission: 'יש לאשר הרשאת גישה ללידים בעת החיבור לפייסבוק. אנא נסה שוב ואשר את כל ההרשאות המבוקשות.',
 }
 
 export default function FacebookConnect({ connection, pendingPages, health }: Props) {
@@ -73,11 +66,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
       })
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
-        setError(
-          errData.error === 'subscription_failed'
-            ? 'הרישום לקבלת לידים נכשל. אנא נתק וחבר מחדש, או בדוק שלדף יש הרשאות מנהל.'
-            : 'שגיאה בחיבור הדף. אנא נסה שוב.'
-        )
+        setError(errData.error === 'subscription_failed' ? 'subscription_failed' : 'save_failed')
         return
       }
       toast('success', `הדף "${page.name}" חובר בהצלחה`)
@@ -97,15 +86,11 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
           מחובר לדף: <strong>{connection.pageName}</strong>
         </p>
         {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
-        {needsReconnect && (
-          <p className='text-sm text-red-600'>החיבור לפייסבוק פג תוקף יש לחבר מחדש</p>
-        )}
-        {subscriptionIssue && (
-          <p className='text-sm text-amber-600'>מנוי לאירועי לידים אינו פעיל מתבצע תיקון אוטומטי</p>
-        )}
+        {needsReconnect && <ConnectionNotice notice={FACEBOOK_NOTICES.expired} />}
+        {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}
         {needsReconnect && (
           <Btn
-            lbl={loading ? 'מעביר לפייסבוק...' : 'חבר מחדש לפייסבוק'}
+            lbl={loading ? 'מעביר לפייסבוק...' : (FACEBOOK_NOTICES.expired.action ?? SHARED.reconnect)}
             icon={loading ? 'spinner' : 'facebook'}
             iconClassName={loading ? 'animate-spin' : undefined}
             disabled={loading}
@@ -137,11 +122,13 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
   // State B: OAuth done, page not yet selected
   if (pendingPages) {
     const selected = pendingPages.find((p) => p.id === selectedPageId)
+    const notice = facebookNotice(error)
 
     return (
       <div className='grid gap-4'>
+        {notice && <ConnectionNotice notice={notice} />}
         <p className='text-sm text-gray-600'>בחר את הדף שברצונך לחבר:</p>
-        <FormField lbl='דף פייסבוק' error={error ?? undefined}>
+        <FormField lbl='דף פייסבוק'>
           <select
             className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
             value={selectedPageId}
@@ -156,7 +143,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
           </select>
         </FormField>
         <Btn
-          lbl={loading ? 'מחבר דף...' : 'חבר דף'}
+          lbl={loading ? 'מחבר דף...' : (notice?.action ?? 'חבר דף')}
           icon={loading ? 'spinner' : 'facebook'}
           iconClassName={loading ? 'animate-spin' : undefined}
           size='medium'
@@ -169,14 +156,14 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
   }
 
   // State A: Not connected
+  const urlNotice = facebookNotice(urlError)
+
   return (
     <div className='grid gap-4'>
-      {urlError && (
-        <p className='text-sm text-red-600'>{ERROR_MESSAGES[urlError] ?? 'שגיאה בהתחברות לפייסבוק.'}</p>
-      )}
+      {urlNotice && <ConnectionNotice notice={urlNotice} />}
       <p className='text-sm text-gray-500'>חבר את דף הפייסבוק שלך כדי לקבל לידים אוטומטית.</p>
       <Btn
-        lbl={loading ? 'מעביר לפייסבוק...' : 'חבר חשבון פייסבוק'}
+        lbl={loading ? 'מעביר לפייסבוק...' : (urlNotice?.action ?? 'חבר חשבון פייסבוק')}
         icon={loading ? 'spinner' : 'facebook'}
         iconClassName={loading ? 'animate-spin' : undefined}
         disabled={loading}
