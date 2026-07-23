@@ -74,7 +74,10 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
       const res = await sendWhatsappReply(leadId, draft)
       if (res.ok) {
         setDraft('')
-        toast('success', 'ההודעה נשלחה')
+        // HTTP 200 from the Cloud API is an ACCEPT, not a delivery. Only a
+        // `delivered` webhook may imply the message arrived — see
+        // WhatsappMessageStatus.
+        toast('success', 'ההודעה נשלחה — ממתין לאישור מסירה')
         router.refresh()
       } else {
         toast('error', 'שליחת ההודעה נכשלה')
@@ -163,13 +166,13 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
 
       {/* The counter is guidance, not data — surface it only when the limit is near. */}
       {draft.length >= MAX_CHARS - 500 && (
-        <div className='mt-1 ps-[42px]'>
+        <div className='mt-1 ps-10.5'>
           <span className='text-[10px] text-gray-400 tabular-nums'>
             {draft.length} / {MAX_CHARS} תווים
           </span>
         </div>
       )}
-      {error && <p className='mt-1 ps-[42px] text-xs text-red-500'>{error}</p>}
+      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{error}</p>}
     </div>
   )
 }
