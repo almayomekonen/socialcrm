@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
+import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
+import { applyTemplateUpdates } from './applyTemplateUpdates'
 import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
 import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 import TemplateList from '@/components/settings/templates/TemplateList'
@@ -22,6 +24,29 @@ import CreateTemplateModal from '@/components/settings/templates/CreateTemplateM
 export default function TemplatesWorkspace({ initial }: { initial: Template[] }) {
   const [templates, setTemplates] = useState<Template[]>(initial)
   const [createOpen, setCreateOpen] = useState(false)
+
+  // Adaptive poll of the LOCAL endpoint (no Graph) while any row is pending —
+  // it just surfaces the webhook/cron's DB writes. Disabled (stops) the moment no
+  // pending rows remain, i.e. every template has reached a terminal state.
+  const templatesRef = useRef(templates)
+  templatesRef.current = templates
+  const hasPending = templates.some((t) => t.status === 'pending')
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch('/api/whatsapp/templates', { cache: 'no-store' })
+      if (!res.ok) return { changed: false, failed: true }
+      const data = (await res.json()) as { templates: Template[] }
+      const before = templatesRef.current
+      const merged = applyTemplateUpdates(before, data.templates)
+      setTemplates((prev) => applyTemplateUpdates(prev, data.templates))
+      return { changed: merged !== before, failed: false }
+    } catch {
+      return { changed: false, failed: true }
+    }
+  }, [])
+
+  useAdaptivePoll(poll, { enabled: hasPending })
 
   const handleCreate = (input: TemplateInput) => {
     // Negative temp id — client-only, never collides with a real DB id.
