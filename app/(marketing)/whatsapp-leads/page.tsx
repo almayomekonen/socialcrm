@@ -151,7 +151,9 @@ export default function WhatsAppLeadsPage() {
                 וואטסאפ
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                לידים מוואטסאפ נהל אותם, אל תאבד אותם
+                כל הפניות מ־WhatsApp במקום אחד
+                <br />
+                מנהלים כל שיחה וכל ליד בקלות
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 לידים שמגיעים בוואטסאפ נשכחים בקלות בתוך ערימת ההודעות. SocialCRM נותנת להם מקום, ומוודאת שכל אחד מטופל.

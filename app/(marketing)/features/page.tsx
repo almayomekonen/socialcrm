@@ -138,7 +138,9 @@ export default function FeaturesPage() {
                 הפיצ׳רים
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                כל מה שצריך כדי לא לפספס אף ליד
+                כל מה שצריך כדי לנהל לידים
+                <br />
+                במערכת אחת פשוטה
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 מרכוז, מעקב, וסגירת עסקאות מכל מקור שהלידים שלך מגיעים ממנו.

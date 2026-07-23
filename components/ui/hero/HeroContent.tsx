@@ -8,11 +8,9 @@ export function HeroContent() {
       <ChannelBadges />
 
       <h1 className='text-[3.65rem] font-black leading-[1.03] text-gray-900 sm:text-4xl sm:leading-[1.1] md:text-6xl'>
-        כל ליד.
+        כל הלידים במקום אחד
         <br />
-        במקום אחד.
-        <br />
-        <span className='text-[#3f20f5]'>בלי לפספס.</span>
+        <span className='text-[#3f20f5]'>כל העסק בשליטה אחת</span>
       </h1>
 
       <p className='mt-6 max-w-md text-lg text-gray-600'>
