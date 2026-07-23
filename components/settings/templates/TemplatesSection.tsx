@@ -4,9 +4,8 @@ import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import type { ConnectionNotice as Notice } from '@/lib/connections/messages'
 import { StatusBadge } from '@/lib/StatusBadge'
 import { listTemplates, countByStatus } from '@/db/whatsappTemplates'
-import TemplateList from './TemplateList'
-import TemplatesEmptyState from './TemplatesEmptyState'
 import TemplateListSkeleton from './TemplateListSkeleton'
+import TemplatesWorkspace from '@/modules/templates/client/templatesStore'
 
 /**
  * Ready-made messages section body (RSC). Connection-gated per UX spec §1:
@@ -33,7 +32,7 @@ type Props = { agencyId: number; connected: boolean; messagingReady: boolean }
 /** Loads and renders the list; wrapped in Suspense above for the skeleton. Exported for tests. */
 export async function TemplatesBody({ agencyId }: { agencyId: number }) {
   const templates = await listTemplates(agencyId)
-  return templates.length === 0 ? <TemplatesEmptyState /> : <TemplateList templates={templates} />
+  return <TemplatesWorkspace initial={templates} />
 }
 
 export default function TemplatesSection({ agencyId, connected, messagingReady }: Props) {
