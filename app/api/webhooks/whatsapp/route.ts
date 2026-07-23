@@ -4,6 +4,7 @@ import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
 import { createLeadFromWhatsappWebhook } from '@/lib/system/createLeadFromWhatsappWebhook'
 import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
 import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
+import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { db } from '@/config/db'
 
@@ -62,10 +63,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // Skip status events (delivery receipts, read receipts) — only process messages
+  // Delivery lifecycle: statuses carry sent/delivered/read/failed for messages we
+  // already sent. Processed before (and independently of) the messages path — a
+  // single payload may legitimately carry both. Wrapped so a status-processing
+  // failure can never break inbound message handling, and never returns non-200:
+  // Meta retries on failure and can disable the subscription.
+  const statuses = value.statuses
+  if (Array.isArray(statuses) && statuses.length) {
+    try {
+      await ingestWhatsappStatuses(value.metadata?.phone_number_id, statuses)
+    } catch (err) {
+      console.error('[WhatsappWebhook][status] ingestion failed', { error: String(err) })
+    }
+  }
+
   const message = value.messages?.[0]
   if (!message) {
-    console.log('[WhatsappWebhook] No message in payload (status/receipt event) — skipping')
     return NextResponse.json({ ok: true })
   }
 
