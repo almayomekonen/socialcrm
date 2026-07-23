@@ -5,6 +5,7 @@ import { get5TasksByClientId } from '@/db/tasks'
 import { getFullLead } from '@/db/clients'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
 import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSkeleton'
+import SendReadyMessageSection from '@/components/clients/SendReadyMessageSection'
 import FollowUpControl from '@/components/leads/FollowUpControl'
 import OutcomeControl from '@/components/leads/OutcomeControl'
 import { STATUS_STYLES } from '@/components/clients/LeadStatusCell'
@@ -51,6 +52,9 @@ export default async function page({ params }) {
           <OutcomeControl leadId={Number(clientId)} />
         </div>
       </div>
+      <Suspense fallback={null}>
+        <SendReadyMessageSection leadId={Number(clientId)} />
+      </Suspense>
       <Suspense fallback={<LeadIntelligenceCardSkeleton />}>
         <LeadIntelligenceCard leadId={clientId} />
       </Suspense>
