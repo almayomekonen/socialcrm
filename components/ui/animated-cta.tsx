@@ -132,7 +132,7 @@ export function AnimatedCta({ title, highlight, buttonText, buttonHref }: Animat
           href={buttonHref}
           lbl={buttonText}
           iconClassName='bg-black'
-          className='h-auto py-4 px-8 bg-white hover:bg-white text-black rounded-xl font-bold text-lg transition-all hover:-translate-y-0.5 hover:shadow-xl'
+          className='inline-flex h-auto py-4 px-8 bg-white hover:bg-white text-black rounded-xl font-bold text-lg transition-all hover:-translate-y-0.5 hover:shadow-xl'
         />
       </div>
     </div>

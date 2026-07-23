@@ -92,7 +92,7 @@ export const FeatureGrid = React.forwardRef<HTMLDivElement, FeatureGridProps>(
             transition={{ delay: 0.5, duration: 0.5 }}
             className='mt-12'
           >
-            <Btn href={buttonHref} lbl={buttonText} size='large' className='px-6 text-sm' />
+            <Btn href={buttonHref} lbl={buttonText} size='large' className='inline-flex px-6 text-sm' />
           </motion.div>
         </motion.div>
       </section>
