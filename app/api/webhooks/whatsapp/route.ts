@@ -5,6 +5,7 @@ import { createLeadFromWhatsappWebhook } from '@/lib/system/createLeadFromWhatsa
 import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
 import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
 import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
+import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatus'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { db } from '@/config/db'
 
@@ -75,6 +76,21 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error('[WhatsappWebhook][status] ingestion failed', { error: String(err) })
     }
+  }
+
+  // Template lifecycle: approval / rejection / quality updates for message
+  // templates, keyed by the WABA id (entry.id). Fully separate from the messages
+  // and delivery-statuses paths and from the auto-response worker — it returns
+  // here and never sends or automates anything. Fail-safe: always 200.
+  const change = body?.entry?.[0]?.changes?.[0]
+  const field = change?.field
+  if (field === 'message_template_status_update' || field === 'message_template_quality_update') {
+    try {
+      await ingestTemplateStatusUpdate(body?.entry?.[0]?.id, field, change?.value)
+    } catch (err) {
+      console.error('[WhatsappWebhook][template] ingestion failed', { error: String(err) })
+    }
+    return NextResponse.json({ ok: true })
   }
 
   const message = value.messages?.[0]
