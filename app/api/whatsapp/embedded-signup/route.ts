@@ -57,12 +57,16 @@ export async function POST(req: NextRequest) {
         agency_id: user.agencyId,
         phone_number_id: phoneNumberId,
         access_token: accessToken,
+        waba_id: wabaId ?? null,
       })
       .onConflict('phone_number_id')
       .merge({
         user_id: user.id,
         agency_id: user.agencyId,
         access_token: accessToken,
+        // Only overwrite waba_id when this signup carried one — never wipe an
+        // already-captured value on a token-only reconnect.
+        ...(wabaId ? { waba_id: wabaId } : {}),
       })
   } catch (err) {
     console.error('[WA EmbeddedSignup] DB upsert failed:', err)
