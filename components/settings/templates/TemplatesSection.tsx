@@ -68,7 +68,11 @@ export async function TemplatesHeaderBadge({ agencyId, connected }: { agencyId: 
   const counts = await countByStatus(agencyId)
   const approved = counts.approved ?? 0
   const pending = counts.pending ?? 0
-  if (approved > 0) return <StatusBadge role='success' label={`${approved} מוכנות`} />
-  if (pending > 0) return <StatusBadge role='warning' label='בבדיקה' />
-  return null
+  if (approved === 0 && pending === 0) return null
+  return (
+    <span className='flex items-center gap-1'>
+      {approved > 0 && <StatusBadge role='success' size='xs' label={`${approved} מוכנות`} />}
+      {pending > 0 && <StatusBadge role='warning' size='xs' label={`${pending} בבדיקה`} />}
+    </span>
+  )
 }

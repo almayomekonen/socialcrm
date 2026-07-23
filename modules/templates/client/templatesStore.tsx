@@ -6,8 +6,12 @@ import { toast } from '@/lib/toast'
 import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
 import { applyTemplateUpdates } from './applyTemplateUpdates'
 import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
+import { retryTemplate } from '@/actions/whatsapp/templates/retryTemplate'
+import { archiveTemplate } from '@/actions/whatsapp/templates/archiveTemplate'
+import { discardTemplate } from '@/actions/whatsapp/templates/discardTemplate'
 import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 import TemplateList from '@/components/settings/templates/TemplateList'
+import type { TemplateRowActions } from '@/components/settings/templates/TemplateRow'
 import TemplatesEmptyState from '@/components/settings/templates/TemplatesEmptyState'
 import CreateTemplateModal from '@/components/settings/templates/CreateTemplateModal'
 
@@ -24,6 +28,8 @@ import CreateTemplateModal from '@/components/settings/templates/CreateTemplateM
 export default function TemplatesWorkspace({ initial }: { initial: Template[] }) {
   const [templates, setTemplates] = useState<Template[]>(initial)
   const [createOpen, setCreateOpen] = useState(false)
+  // When set, the modal is a retry of this rejected template (RFC §3).
+  const [retryTarget, setRetryTarget] = useState<Template | null>(null)
 
   // Adaptive poll of the LOCAL endpoint (no Graph) while any row is pending —
   // it just surfaces the webhook/cron's DB writes. Disabled (stops) the moment no
@@ -61,18 +67,49 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
       archived: false,
       createdAt: new Date().toISOString(),
     }
+    const retryOf = retryTarget?.id ?? null
     setTemplates((prev) => [optimistic, ...prev]) // appears instantly
     setCreateOpen(false)
+    setRetryTarget(null)
 
-    createTemplate(input).then((res) => {
+    // Retry creates a new template AND archives the old rejected one (server-side).
+    const run = retryOf != null ? retryTemplate(retryOf, input) : createTemplate(input)
+    run.then((res) => {
       if (res.ok) {
-        setTemplates((prev) => prev.map((t) => (t.id === tempId ? res.template : t))) // reconcile
+        setTemplates((prev) =>
+          prev
+            .filter((t) => t.id !== retryOf) // old rejected row was archived server-side
+            .map((t) => (t.id === tempId ? res.template : t)), // reconcile
+        )
         toast('success', 'ההודעה נשלחה לבדיקה')
       } else if ('error' in res) {
-        setTemplates((prev) => prev.filter((t) => t.id !== tempId)) // rollback
+        setTemplates((prev) => prev.filter((t) => t.id !== tempId)) // rollback (old row stays)
         toast('error', res.error)
       }
     })
+  }
+
+  // Row mutations (admin-gated + agency-scoped server-side). Optimistic removal on
+  // success; on failure the row stays and the mapped Hebrew error is toasted.
+  const rowActions: TemplateRowActions = {
+    onArchive: (id) =>
+      archiveTemplate(id).then((res) => {
+        if (res.ok) {
+          setTemplates((prev) => prev.filter((t) => t.id !== id))
+          toast('success', 'ההודעה הועברה לארכיון')
+        } else if ('error' in res) toast('error', res.error)
+      }),
+    onDiscard: (id) =>
+      discardTemplate(id).then((res) => {
+        if (res.ok) {
+          setTemplates((prev) => prev.filter((t) => t.id !== id))
+          toast('success', 'ההודעה הוסרה')
+        } else if ('error' in res) toast('error', res.error)
+      }),
+    onRetry: (template) => {
+      setRetryTarget(template)
+      setCreateOpen(true)
+    },
   }
 
   return (
@@ -90,10 +127,19 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
               onClick={() => setCreateOpen(true)}
             />
           </div>
-          <TemplateList templates={templates} />
+          <TemplateList templates={templates} actions={rowActions} />
         </>
       )}
-      <CreateTemplateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
+      <CreateTemplateModal
+        key={retryTarget?.id ?? 'new'}
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false)
+          setRetryTarget(null)
+        }}
+        onCreate={handleCreate}
+        initial={retryTarget ? { displayTitle: retryTarget.displayTitle, bodyText: retryTarget.bodyText } : undefined}
+      />
     </div>
   )
 }

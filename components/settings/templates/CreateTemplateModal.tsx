@@ -9,14 +9,6 @@ import { TEMPLATE_VARIABLES } from '@/lib/whatsapp/templates/messages'
 import type { TemplateInput, TemplatePurpose } from '@/lib/whatsapp/templates/types'
 import WhatsappMessagePreview from './WhatsappMessagePreview'
 
-/**
- * Single-step create form (RFC / UX §7): title + body + variable chips + the one
- * purpose question, beside a live preview. Pure UI — it collects input, validates
- * client-side for instant feedback, and hands a `TemplateInput` to `onCreate`.
- * The workspace owns the optimistic insert + Server Action + close; the token and
- * Graph never touch this component.
- */
-
 const PURPOSES: { value: TemplatePurpose; label: string; hint: string }[] = [
   { value: 'UTILITY', label: 'עדכון או תזכורת ללקוח', hint: 'סטטוס, תזכורת, מענה' },
   { value: 'MARKETING', label: 'מבצע או הצעה שיווקית', hint: 'קופון, מבצע, השקה' },
@@ -29,13 +21,16 @@ export default function CreateTemplateModal({
   open,
   onClose,
   onCreate,
+  initial,
 }: {
   open: boolean
   onClose: () => void
   onCreate: (input: TemplateInput) => void
+  /** Pre-fill (retry, Sprint 5). The caller remounts (via key) to reseed on change. */
+  initial?: { displayTitle: string; bodyText: string }
 }) {
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
+  const [title, setTitle] = useState(initial?.displayTitle ?? '')
+  const [body, setBody] = useState(initial?.bodyText ?? '')
   const [purpose, setPurpose] = useState<TemplatePurpose | ''>('')
   const [errors, setErrors] = useState<string[]>([])
   const bodyRef = useRef<HTMLTextAreaElement>(null)
