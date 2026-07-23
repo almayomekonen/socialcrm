@@ -1,5 +1,6 @@
 import type { Template } from '@/lib/whatsapp/templates/types'
 import TemplateStatusBadge from './TemplateStatusBadge'
+import TemplateRejectionNotice from './TemplateRejectionNotice'
 
 /**
  * One ready-made message: owner title + one-line body preview + status pill.
@@ -10,14 +11,21 @@ import TemplateStatusBadge from './TemplateStatusBadge'
  */
 export default function TemplateRow({ template }: { template: Template }) {
   return (
-    <div className='flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3'>
-      <div className='min-w-0'>
-        <p className='truncate text-sm font-medium text-gray-800'>{template.displayTitle}</p>
-        <p className='line-clamp-1 text-sm text-gray-500'>{template.bodyText || '—'}</p>
+    <div className='rounded-md border border-gray-200 p-3'>
+      <div className='flex items-center justify-between gap-3'>
+        <div className='min-w-0'>
+          <p className='truncate text-sm font-medium text-gray-800'>{template.displayTitle}</p>
+          <p className='line-clamp-1 text-sm text-gray-500'>{template.bodyText || '—'}</p>
+        </div>
+        <div className='flex shrink-0 items-center gap-2'>
+          <TemplateStatusBadge status={template.status} />
+        </div>
       </div>
-      <div className='flex shrink-0 items-center gap-2'>
-        <TemplateStatusBadge status={template.status} />
-      </div>
+      {template.status === 'rejected' && template.failureText && (
+        <div className='mt-2'>
+          <TemplateRejectionNotice failureText={template.failureText} />
+        </div>
+      )}
     </div>
   )
 }
