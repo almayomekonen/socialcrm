@@ -7,6 +7,7 @@ import { validateTemplateInput } from '@/lib/whatsapp/templates/validate'
 import { buildComponents, slugifyTemplateName } from '@/lib/whatsapp/templates/components'
 import { createTemplateOnMeta } from '@/lib/whatsapp/templates/graph'
 import { insertOptimistic } from '@/db/whatsappTemplates'
+import { isCreateRateLimited, RATE_LIMIT_MESSAGE } from '@/lib/whatsapp/templates/rateLimit'
 import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 
 /**
@@ -39,6 +40,9 @@ export async function createTemplate(input: TemplateInput): Promise<CreateTempla
     .where({ agency_id: user.agencyId })
     .first('waba_id', 'access_token')
   if (!conn?.waba_id || !conn?.access_token) return { ok: false, error: CONNECT_ERROR }
+
+  // Server-side per-agency throttle (RFC §13) — before any Graph call.
+  if (await isCreateRateLimited(user.agencyId)) return { ok: false, error: RATE_LIMIT_MESSAGE }
 
   // Assemble the Meta payload from the friendly form.
   const existingNames = (await db('whatsapp_templates')

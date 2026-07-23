@@ -149,6 +149,38 @@ export async function upsertFromMeta(input: UpsertFromMetaInput, conn: Knex = db
     })
 }
 
+export type TemplateMutationRow = {
+  id: number
+  status: TemplateStatus
+  name: string
+  metaTemplateId: string | null
+}
+
+/** Load the fields the mutation actions need, agency-scoped. Null if not this agency's. */
+export async function loadTemplateForMutation(id: number, agencyId: number): Promise<TemplateMutationRow | null> {
+  const row = await db('whatsapp_templates').where({ id, agencyId }).first('id', 'status', 'name', 'metaTemplateId')
+  if (!row) return null
+  return {
+    id: Number(row.id),
+    status: row.status as TemplateStatus,
+    name: row.name as string,
+    metaTemplateId: (row.metaTemplateId as string | null) ?? null,
+  }
+}
+
+/** Local archive (RFC §4): set archivedAt, agency-scoped. Meta template is retained. */
+export async function archiveTemplateRow(id: number, agencyId: number): Promise<number> {
+  return db('whatsapp_templates')
+    .where({ id, agencyId })
+    .whereNull('archivedAt')
+    .update({ archivedAt: db.fn.now(), updatedAt: db.fn.now() })
+}
+
+/** Local removal (RFC §4 discard): delete the row, agency-scoped. */
+export async function discardTemplateRow(id: number, agencyId: number): Promise<number> {
+  return db('whatsapp_templates').where({ id, agencyId }).del()
+}
+
 export type InsertOptimisticInput = {
   agencyId: number
   wabaId: string

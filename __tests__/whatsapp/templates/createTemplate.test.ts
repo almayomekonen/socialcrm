@@ -12,12 +12,14 @@ const h = vi.hoisted(() => ({
   isAdmin: vi.fn(),
   createTemplateOnMeta: vi.fn(),
   insertOptimistic: vi.fn(),
+  isCreateRateLimited: vi.fn(),
   state: { connection: undefined as { waba_id: string; access_token: string } | undefined, existingNames: [] as string[] },
 }))
 
 vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser }))
 vi.mock('@/types/roles', () => ({ isAdmin: h.isAdmin }))
 vi.mock('@/lib/whatsapp/templates/graph', () => ({ createTemplateOnMeta: h.createTemplateOnMeta }))
+vi.mock('@/lib/whatsapp/templates/rateLimit', () => ({ isCreateRateLimited: h.isCreateRateLimited, RATE_LIMIT_MESSAGE: 'RATE_MSG' }))
 vi.mock('@/db/whatsappTemplates', () => ({ insertOptimistic: h.insertOptimistic }))
 vi.mock('@/config/db', () => {
   const builder = (table: string) => {
@@ -49,6 +51,17 @@ beforeEach(() => {
   h.state.existingNames = []
   h.createTemplateOnMeta.mockResolvedValue({ ok: true, metaTemplateId: 'MT_1', status: 'PENDING' })
   h.insertOptimistic.mockResolvedValue({ id: 55, displayTitle: 'תזכורת פולואפ', status: 'pending', bodyText: 'x', variables: [], failureText: null, archived: false, createdAt: '2026-07-23T00:00:00Z' })
+  h.isCreateRateLimited.mockResolvedValue(false)
+})
+
+describe('createTemplate — rate limit (server-side, RFC §13)', () => {
+  it('rejects with a mapped message before Graph when over the limit', async () => {
+    h.isCreateRateLimited.mockResolvedValue(true)
+    const res = await createTemplate(INPUT)
+    expect(res).toEqual({ ok: false, error: 'RATE_MSG' })
+    expect(h.createTemplateOnMeta).not.toHaveBeenCalled()
+    expect(h.insertOptimistic).not.toHaveBeenCalled()
+  })
 })
 
 describe('createTemplate — permission (server-side only)', () => {
