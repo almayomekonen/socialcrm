@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createHmac } from 'crypto'
 
-const ingestStatuses = vi.fn(async () => {})
+const ingestStatuses = vi.fn(async (_phoneNumberId?: string, _statuses?: unknown[]) => {})
 const runWorker = vi.fn(async () => ({ claimed: 0, sent: 0, skipped: 0, failed: 0 }))
 
 vi.mock('@/lib/inbox/ingestWhatsappStatuses', () => ({ ingestWhatsappStatuses: ingestStatuses }))
