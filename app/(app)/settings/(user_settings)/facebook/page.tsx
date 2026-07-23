@@ -9,6 +9,8 @@ import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
+import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
+import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 
 export default async function page({ searchParams }) {
   // Deep-link support: /settings/facebook?section=whatsapp opens that section.
@@ -19,8 +21,10 @@ export default async function page({ searchParams }) {
   const activeSection = typeof section === 'string' ? section : null
   const openFacebook = activeSection ? activeSection === 'facebook' : true
   const openWhatsapp = activeSection === 'whatsapp'
+  const openTemplates = activeSection === 'templates'
 
   const user = await getUser()
+  const templatesEnabled = isTemplatesEnabledForAgency(user.agencyId)
 
   // Facebook connection
   const fbConnection = await db('facebook_pages').where({ user_id: user.id }).first()
@@ -103,6 +107,28 @@ export default async function page({ searchParams }) {
               />
             </Suspense>
           </AccordionItem>
+          {templatesEnabled && (
+            <AccordionItem
+              id='templates'
+              bodyClass='p-6'
+              title='הודעות מוכנות'
+              icon='comment-dots'
+              open={openTemplates}
+              badge={
+                <Suspense fallback={null}>
+                  <TemplatesHeaderBadge agencyId={user.agencyId} connected={!!waConnection} />
+                </Suspense>
+              }
+            >
+              <Suspense fallback={null}>
+                <TemplatesSection
+                  agencyId={user.agencyId}
+                  connected={!!waConnection}
+                  messagingReady={waMessagingReady}
+                />
+              </Suspense>
+            </AccordionItem>
+          )}
         </UrlSyncedAccordion>
       </div>
     </div>
