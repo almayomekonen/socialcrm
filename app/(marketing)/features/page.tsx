@@ -198,8 +198,8 @@ export default function FeaturesPage() {
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='כל הלידים במקום אחד'
-          highlight='כל העסק בשליטה אחת'
+          title='כל מה שצריך כדי לנהל לידים'
+          highlight='במערכת אחת פשוטה'
           buttonText='התחל בחינם עכשיו'
           buttonHref='/auth'
         />

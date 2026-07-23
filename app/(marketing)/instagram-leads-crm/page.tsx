@@ -309,8 +309,8 @@ export default function InstagramLeadsCrmPage() {
         />
 
         <AnimatedCta
-          title='כל הלידים במקום אחד'
-          highlight='כל העסק בשליטה אחת'
+          title='כל הלידים מאינסטגרם במקום אחד'
+          highlight='כל שיחה, כל ליד, כל עסקה'
           buttonText='התחל בחינם'
           buttonHref='/auth'
         />

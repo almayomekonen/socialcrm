@@ -241,8 +241,8 @@ export default function WhatsAppLeadsPage() {
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='כל הלידים במקום אחד'
-          highlight='כל העסק בשליטה אחת'
+          title='כל הלידים מ־WhatsApp במקום אחד'
+          highlight='מנהלים שיחות והופכים אותן לעסקאות'
           buttonText='התחל בחינם עכשיו'
           buttonHref='/auth'
         />

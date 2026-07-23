@@ -270,8 +270,8 @@ export default function FacebookLeadsPage() {
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='כל הלידים במקום אחד'
-          highlight='כל העסק בשליטה אחת'
+          title='כל הלידים מפייסבוק במקום אחד'
+          highlight='עוקבים אחרי כל פנייה בלי לפספס'
           buttonText='חבר את הפייסבוק שלך עכשיו'
           buttonHref='/auth'
         />
