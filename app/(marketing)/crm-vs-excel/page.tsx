@@ -148,9 +148,9 @@ export default function CRMvsExcelPage() {
                 <span dir='ltr'>CRM vs אקסל</span>
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                מפסיקים לעבוד באקסל
+                מפסיקים לנהל לידים באקסל
                 <br />
-                <span className='text-gray-500'>מתחילים לנהל את העסק בצורה חכמה</span>
+                <span className='text-gray-500'>עוברים למערכת שבאמת בנויה למכירות</span>
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 אקסל מצוין לנתונים. גרוע לניהול לידים. הנה 16 נקודות השוואה שמראות בדיוק איפה הפער.

@@ -165,9 +165,9 @@ export default function CrmForWhatsAppBusinessPage() {
                 WhatsApp Business + CRM
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                הופכים את WhatsApp Business למערכת מכירות
+                WhatsApp Business שמייצר יותר עסקאות
                 <br />
-                כל השיחות, הלידים והמעקבים במקום אחד
+                מנהלים לקוחות, שיחות ולידים במקום אחד
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 Labels ב-WhatsApp Business עוזרים לסדר שיחות, אבל הם לא מערכת ניהול לידים. כשהעסק

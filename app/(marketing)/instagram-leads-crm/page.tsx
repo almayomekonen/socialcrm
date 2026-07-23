@@ -170,7 +170,7 @@ export default function InstagramLeadsCrmPage() {
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
                 כל הלידים מאינסטגרם במקום אחד
                 <br />
-                מנהלים כל שיחה בלי לפספס לקוחות
+                כל שיחה, כל ליד, כל עסקה
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 לידים מאינסטגרם מגיעים מכל פינה — DMs, תגובות לסטוריז, מודעות Lead Ads.

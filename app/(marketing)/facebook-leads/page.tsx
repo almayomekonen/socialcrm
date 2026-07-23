@@ -182,7 +182,7 @@ export default function FacebookLeadsPage() {
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
                 כל הלידים מפייסבוק במקום אחד
                 <br />
-                אף ליד לא הולך לאיבוד
+                עוקבים אחרי כל פנייה בלי לפספס
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
                 חיבור של 5 דקות. מאותו רגע כל ליד שממלא טופס Facebook Lead Ad מגיע ישירות ל-SocialCRM, בלי העתקה ידנית, בלי שכחה.
