@@ -168,6 +168,35 @@ export async function loadTemplateForMutation(id: number, agencyId: number): Pro
   }
 }
 
+export type TemplateSendRow = {
+  id: number
+  status: TemplateStatus
+  name: string
+  language: string
+  bodyText: string
+  variables: TemplateVariable[]
+}
+
+/**
+ * Load the fields the send action needs (Sprint 6), agency-scoped. Null if the id
+ * is not this agency's. The action checks `status === 'approved'` itself so it can
+ * return a distinct "not approved" message; this loader stays status-agnostic.
+ */
+export async function loadTemplateForSend(id: number, agencyId: number): Promise<TemplateSendRow | null> {
+  const row = await db('whatsapp_templates')
+    .where({ id, agencyId })
+    .first('id', 'status', 'name', 'language', 'bodyText', 'variables')
+  if (!row) return null
+  return {
+    id: Number(row.id),
+    status: row.status as TemplateStatus,
+    name: row.name as string,
+    language: (row.language as string) ?? 'he',
+    bodyText: (row.bodyText as string) ?? '',
+    variables: toVariables(row.variables),
+  }
+}
+
 /** Local archive (RFC §4): set archivedAt, agency-scoped. Meta template is retained. */
 export async function archiveTemplateRow(id: number, agencyId: number): Promise<number> {
   return db('whatsapp_templates')

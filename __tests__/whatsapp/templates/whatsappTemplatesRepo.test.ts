@@ -14,6 +14,8 @@ type Recorded = {
   groupBy: unknown[]
   orderBy: unknown[][]
   select: unknown[]
+  first: unknown[]
+  firstRow: unknown
   insert: Record<string, unknown> | null
   onConflict: unknown
   merge: Record<string, unknown> | null
@@ -27,6 +29,8 @@ const rec: Recorded = {
   groupBy: [],
   orderBy: [],
   select: [],
+  first: [],
+  firstRow: undefined,
   insert: null,
   onConflict: null,
   merge: null,
@@ -34,7 +38,7 @@ const rec: Recorded = {
 }
 
 function resetRec() {
-  Object.assign(rec, { table: null, where: [], whereNull: [], groupBy: [], orderBy: [], select: [], insert: null, onConflict: null, merge: null, rows: [] })
+  Object.assign(rec, { table: null, where: [], whereNull: [], groupBy: [], orderBy: [], select: [], first: [], firstRow: undefined, insert: null, onConflict: null, merge: null, rows: [] })
 }
 
 vi.mock('@/config/db', () => {
@@ -50,6 +54,7 @@ vi.mock('@/config/db', () => {
       onConflict: (arg: unknown) => ((rec.onConflict = arg), b),
       merge: (arg: Record<string, unknown>) => ((rec.merge = arg), b),
       select: (...cols: unknown[]) => (rec.select = cols, b),
+      first: async (...cols: unknown[]) => ((rec.first = cols), rec.firstRow),
       // the builder is thenable, so awaiting any chain (list / count / upsert)
       // resolves to the configured rows
       then: (resolve: (v: unknown) => unknown) => resolve(rec.rows),
@@ -62,7 +67,7 @@ vi.mock('@/config/db', () => {
   return { db }
 })
 
-const { mapTemplateRow, listTemplates, countByStatus, upsertFromMeta } = await import('@/db/whatsappTemplates')
+const { mapTemplateRow, listTemplates, countByStatus, upsertFromMeta, loadTemplateForSend } = await import('@/db/whatsappTemplates')
 const { failureTextForRejectionKey } = await import('@/lib/whatsapp/templates/statusCopy')
 
 beforeEach(resetRec)
@@ -151,6 +156,36 @@ describe('countByStatus — agency scope', () => {
     expect(rec.whereNull).toContain('archivedAt')
     expect(rec.groupBy).toContain('status')
     expect(out).toEqual({ approved: 3, pending: 1 })
+  })
+})
+
+describe('loadTemplateForSend — agency scope + send fields', () => {
+  it('scopes to (id, agency) and returns the send-shaped row', async () => {
+    rec.firstRow = {
+      id: '9',
+      status: 'approved',
+      name: 'follow_up',
+      language: 'he',
+      bodyText: 'היי שם הליד',
+      variables: JSON.stringify([{ token: 'שם הליד', sample: 'דוד' }]),
+    }
+    const out = await loadTemplateForSend(9, 103)
+    expect(rec.table).toBe('whatsapp_templates')
+    expect(rec.where).toContainEqual({ id: 9, agencyId: 103 })
+    expect(rec.first).toEqual(['id', 'status', 'name', 'language', 'bodyText', 'variables'])
+    expect(out).toEqual({
+      id: 9,
+      status: 'approved',
+      name: 'follow_up',
+      language: 'he',
+      bodyText: 'היי שם הליד',
+      variables: [{ token: 'שם הליד', sample: 'דוד' }],
+    })
+  })
+
+  it('returns null when the id is not this agency’s row', async () => {
+    rec.firstRow = undefined
+    expect(await loadTemplateForSend(9, 999)).toBeNull()
   })
 })
 
