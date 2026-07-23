@@ -6,8 +6,8 @@ import type { MetaComponent, TemplateCategory } from './types'
  * templates. Thin transport, mirroring `lib/whatsapp/sendMessage.ts`: structured
  * success/failure, never throws across the boundary, logs fbtrace server-side.
  *
- * Sprint 3 implements CREATE only. (list → Sprint 4 reconcile, delete → Sprint 5
- * discard — added when those sprints consume them.)
+ * Sprint 3 implements CREATE; Sprint 4 adds LIST (reconcile). delete → Sprint 5
+ * discard, added when that sprint consumes it.
  *
  * Every Graph error is mapped to a user-facing Hebrew string HERE, so the raw
  * Meta code/message never travels past this client to the action or the UI.
@@ -39,6 +39,48 @@ export function mapCreateError(code: number | undefined, httpStatus: number): st
   if (httpStatus === 429 || code === 4 || code === 80007 || code === 130429) return CREATE_ERROR_COPY.rate_limit
   if (httpStatus === 400 || code === 100) return CREATE_ERROR_COPY.invalid
   return CREATE_ERROR_COPY.generic
+}
+
+export type MetaTemplate = {
+  id: string
+  name: string
+  language: string
+  status: string
+  category: string
+  components?: unknown[]
+  rejected_reason?: string
+  quality_score?: { score?: string }
+}
+
+export type ListTemplatesResult = { ok: true; templates: MetaTemplate[] } | { ok: false }
+
+/**
+ * List all templates on a WABA (reconcile source of truth). Cursor-paginated;
+ * capped at a sane page count so a huge account cannot run the cron away. Returns
+ * `{ ok: false }` on any Graph error — the reconciler simply skips that WABA.
+ */
+export async function listTemplatesFromMeta(wabaId: string, accessToken: string): Promise<ListTemplatesResult> {
+  const fields = 'id,name,language,status,category,components,rejected_reason,quality_score'
+  const templates: MetaTemplate[] = []
+  let url: string | null = `${GRAPH_BASE}/${wabaId}/message_templates?fields=${fields}&limit=100`
+  let pages = 0
+  try {
+    while (url && pages < 20) {
+      const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+      if (!res.ok) {
+        console.error('[templates.graph.list] error', { wabaId, httpStatus: res.status })
+        return { ok: false }
+      }
+      const data = (await res.json()) as { data?: MetaTemplate[]; paging?: { next?: string } }
+      for (const t of data.data ?? []) templates.push(t)
+      url = data.paging?.next ?? null
+      pages++
+    }
+    return { ok: true, templates }
+  } catch (err) {
+    console.error('[templates.graph.list] fetch failed', { wabaId, error: String(err) })
+    return { ok: false }
+  }
 }
 
 export async function createTemplateOnMeta(args: CreateTemplateArgs): Promise<CreateTemplateResult> {
