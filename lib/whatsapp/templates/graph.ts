@@ -6,8 +6,8 @@ import type { MetaComponent, TemplateCategory } from './types'
  * templates. Thin transport, mirroring `lib/whatsapp/sendMessage.ts`: structured
  * success/failure, never throws across the boundary, logs fbtrace server-side.
  *
- * Sprint 3 implements CREATE; Sprint 4 adds LIST (reconcile). delete → Sprint 5
- * discard, added when that sprint consumes it.
+ * Sprint 3 implements CREATE; Sprint 4 adds LIST (reconcile); Sprint 5 adds
+ * DELETE (discard).
  *
  * Every Graph error is mapped to a user-facing Hebrew string HERE, so the raw
  * Meta code/message never travels past this client to the action or the UI.
@@ -80,6 +80,33 @@ export async function listTemplatesFromMeta(wabaId: string, accessToken: string)
   } catch (err) {
     console.error('[templates.graph.list] fetch failed', { wabaId, error: String(err) })
     return { ok: false }
+  }
+}
+
+export type DeleteTemplateResult = { ok: true } | { ok: false; error: string }
+
+const DELETE_ERROR = 'לא ניתן להסיר את ההודעה כרגע. נסו שוב.'
+
+/** Delete a template by name from a WABA (discard path). Errors mapped to Hebrew. */
+export async function deleteTemplateOnMeta(
+  wabaId: string,
+  accessToken: string,
+  name: string,
+): Promise<DeleteTemplateResult> {
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${wabaId}/message_templates?name=${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: { code?: number; message?: string } }
+      console.error('[templates.graph.delete] error', { wabaId, httpStatus: res.status, code: data.error?.code })
+      return { ok: false, error: DELETE_ERROR }
+    }
+    return { ok: true }
+  } catch (err) {
+    console.error('[templates.graph.delete] fetch failed', { wabaId, error: String(err) })
+    return { ok: false, error: DELETE_ERROR }
   }
 }
 
