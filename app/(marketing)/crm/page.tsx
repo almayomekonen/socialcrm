@@ -127,8 +127,8 @@ export default function CRMPage() {
         <TestimonialsSection />
 
         <AnimatedCta
-          title='מפסיקים לנהל לידים בצד'
-          highlight='מתחילים לנהל אותם נכון'
+          title='כל הלידים במקום אחד'
+          highlight='כל העסק בשליטה אחת'
           buttonText='התחל לנהל לידים בחינם'
           buttonHref='/auth'
         />

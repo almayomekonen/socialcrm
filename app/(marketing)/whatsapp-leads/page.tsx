@@ -239,8 +239,8 @@ export default function WhatsAppLeadsPage() {
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='מפסיקים לאבד לידים בוואטסאפ'
-          highlight='מתחילים לנהל אותם נכון'
+          title='כל הלידים במקום אחד'
+          highlight='כל העסק בשליטה אחת'
           buttonText='התחל בחינם עכשיו'
           buttonHref='/auth'
         />

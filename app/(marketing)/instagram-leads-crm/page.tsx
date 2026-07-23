@@ -309,8 +309,8 @@ export default function InstagramLeadsCrmPage() {
         />
 
         <AnimatedCta
-          title='מפסיקים לאבד DMs'
-          highlight='מתחילים לסגור יותר עסקאות מאינסטגרם'
+          title='כל הלידים במקום אחד'
+          highlight='כל העסק בשליטה אחת'
           buttonText='התחל בחינם'
           buttonHref='/auth'
         />

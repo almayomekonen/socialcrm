@@ -303,8 +303,8 @@ export default function CrmForWhatsAppBusinessPage() {
         />
 
         <AnimatedCta
-          title='מפסיקים לאבד לידים בצ׳אט'
-          highlight='מתחילים לסגור יותר עסקאות'
+          title='כל הלידים במקום אחד'
+          highlight='כל העסק בשליטה אחת'
           buttonText='התחל בחינם'
           buttonHref='/auth'
         />

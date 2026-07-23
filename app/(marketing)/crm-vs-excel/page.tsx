@@ -211,8 +211,8 @@ export default function CRMvsExcelPage() {
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='מפסיקים לנהל לידים באקסל'
-          highlight='מתחילים לנהל אותם נכון'
+          title='כל הלידים במקום אחד'
+          highlight='כל העסק בשליטה אחת'
           buttonText='עבור ל-SocialCRM בחינם'
           buttonHref='/auth'
         />
