@@ -4,6 +4,7 @@ import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import WhatsappReplyDraft from '@/components/summary/WhatsappReplyDraft'
 import WhatsappNewMessageNotifier from '@/components/summary/WhatsappNewMessageNotifier'
 import WhatsappConversationHeader from '@/components/summary/WhatsappConversationHeader'
+import WhatsappMessageStatus from '@/components/summary/WhatsappMessageStatus'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 
 const WALLPAPER =
@@ -75,7 +76,7 @@ export default function WhatsappConversation({
           {thread.map(({ m, newDay, groupStart }) => {
             const inbound = m.direction === 'inbound'
             return (
-              <div key={m.id} className={newDay ? '' : groupStart ? 'mt-2' : 'mt-[2px]'}>
+              <div key={m.id} className={newDay ? '' : groupStart ? 'mt-2' : 'mt-0.5'}>
                 {newDay && (
                   <div className='flex justify-center pb-1.5 pt-2.5'>
                     <span
@@ -92,7 +93,9 @@ export default function WhatsappConversation({
                     className={`max-w-[80%] rounded-2xl border px-3 py-1.5 transition-shadow xl:max-w-[70%] ${
                       inbound
                         ? `border-gray-200 bg-white ${groupStart ? 'rounded-ss-none' : ''}`
-                        : `border-success-border bg-success-bg ${groupStart ? 'rounded-se-none' : ''}`
+                        : m.status === 'failed'
+                          ? `border-error-border bg-error-bg ${groupStart ? 'rounded-se-none' : ''}`
+                          : `border-success-border bg-success-bg ${groupStart ? 'rounded-se-none' : ''}`
                     }`}
                   >
                     <span className='sr-only'>{inbound ? 'הודעה מהליד' : 'הודעה שנשלחה מהמערכת'}</span>
@@ -107,7 +110,11 @@ export default function WhatsappConversation({
                       >
                         {formatTime(m.timestamp)}
                       </span>
+                      {!inbound && <WhatsappMessageStatus status={m.status} />}
                     </div>
+                    {!inbound && m.status === 'failed' && m.failureText && (
+                      <p className='mt-1 text-[11px] leading-snug text-error-text'>{m.failureText}</p>
+                    )}
                   </div>
                 </div>
               </div>
