@@ -147,10 +147,10 @@ describe('TemplatesHeaderBadge', () => {
     expect(screen.getByText('3 מוכנות')).toBeInTheDocument()
   })
 
-  it('shows בבדיקה when only pending exist', async () => {
+  it('shows the pending count when only pending exist', async () => {
     countByStatus.mockResolvedValue({ pending: 2 })
     render(await TemplatesHeaderBadge({ agencyId: 103, connected: true }))
-    expect(screen.getByText('בבדיקה')).toBeInTheDocument()
+    expect(screen.getByText('2 בבדיקה')).toBeInTheDocument()
   })
 
   it('renders nothing when there is nothing to advertise', async () => {
