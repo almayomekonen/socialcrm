@@ -4,10 +4,11 @@ import { db } from '@/config/db'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { validateTemplateInput } from '@/lib/whatsapp/templates/validate'
-import { buildComponents, slugifyTemplateName } from '@/lib/whatsapp/templates/components'
+import { buildComponents, slugifyTemplateName, hasUnexampledParameters } from '@/lib/whatsapp/templates/components'
 import { createTemplateOnMeta } from '@/lib/whatsapp/templates/graph'
 import { insertOptimistic } from '@/db/whatsappTemplates'
 import { isCreateRateLimited, RATE_LIMIT_MESSAGE } from '@/lib/whatsapp/templates/rateLimit'
+import { TEMPLATE_VALIDATION_COPY } from '@/lib/whatsapp/templates/messages'
 import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 
 /**
@@ -51,6 +52,12 @@ export async function createTemplate(input: TemplateInput): Promise<CreateTempla
   const name = slugifyTemplateName(input.displayTitle, existingNames)
   const components = buildComponents(input.bodyText, input.variables)
   const category = input.purpose // RFC §8: the purpose question IS the Meta category
+
+  // Assembly guard (defense-in-depth): never POST a BODY that carries a
+  // placeholder without a matching example — Meta rejects it as INVALID_FORMAT.
+  // Validation already blocks raw {{...}}; this makes an invalid payload
+  // impossible to generate even if a future path skips validation.
+  if (hasUnexampledParameters(components)) return { ok: false, error: TEMPLATE_VALIDATION_COPY.manualPlaceholder }
 
   const meta = await createTemplateOnMeta({
     wabaId: conn.waba_id,

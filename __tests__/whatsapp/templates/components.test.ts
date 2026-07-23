@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugifyTemplateName, buildComponents } from '@/lib/whatsapp/templates/components'
+import { slugifyTemplateName, buildComponents, hasUnexampledParameters } from '@/lib/whatsapp/templates/components'
 
 describe('slugifyTemplateName', () => {
   it('slugs an ascii title to [a-z0-9_]', () => {
@@ -58,5 +58,27 @@ describe('buildComponents', () => {
     const out = buildComponents('שם הליד, שם הליד!', [{ token: 'שם הליד', sample: 'דוד' }])
     expect(out[0].text).toBe('{{1}}, {{1}}!')
     expect(out[0].example).toEqual({ body_text: [['דוד']] })
+  })
+})
+
+describe('hasUnexampledParameters — assembly guard (never a placeholder without an example)', () => {
+  it('true for the exact rejected payload: raw {{...}} passed through with no example', () => {
+    // Reproduces the production INVALID_FORMAT row: named placeholders typed by
+    // hand, variables=[] → buildComponents leaves them un-converted, no example.
+    const out = buildComponents('היי {{lead_name}}, כאן {{business_name}}', [])
+    expect(out[0].example).toBeUndefined()
+    expect(hasUnexampledParameters(out)).toBe(true)
+  })
+
+  it('false for a properly-built component (positional {{n}} each with an example)', () => {
+    const out = buildComponents('היי שם הליד מ־שם העסק', [
+      { token: 'שם הליד', sample: 'דוד' },
+      { token: 'שם העסק', sample: 'העסק' },
+    ])
+    expect(hasUnexampledParameters(out)).toBe(false)
+  })
+
+  it('false for a plain body with no placeholders', () => {
+    expect(hasUnexampledParameters(buildComponents('שלום, מה נשמע?', []))).toBe(false)
   })
 })
