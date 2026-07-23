@@ -4,10 +4,10 @@ import OnboardingActionCard from '@/components/clients/OnboardingActionCard'
  * Connected-but-no-messages state. Answers what / why / what-next (ux-guidelines
  * §4), reusing `OnboardingActionCard` so it matches every other first-run tile.
  *
- * The CTA is intentionally INERT in Sprint 2 (no onClick/href) — Sprint 3 wires it
- * to the create modal. Rendered as a present-but-inactive button by design.
+ * The CTA opens the create modal when `onCreate` is provided (Sprint 3). With no
+ * `onCreate` it renders as a present-but-inert button (the Sprint 2 default).
  */
-export default function TemplatesEmptyState() {
+export default function TemplatesEmptyState({ onCreate }: { onCreate?: () => void }) {
   return (
     <div className='grid gap-3'>
       <div>
@@ -22,6 +22,7 @@ export default function TemplatesEmptyState() {
         tileClass='bg-primary'
         title='צור הודעה מוכנה'
         description='נסחו הודעה שאפשר לשלוח ללידים בכל זמן'
+        onClick={onCreate}
       />
 
       <p className='text-sm text-gray-500'>
