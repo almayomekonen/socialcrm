@@ -50,3 +50,29 @@ export function buildComponents(bodyText: string, variables: TemplateVariable[])
   }
   return [component]
 }
+
+/**
+ * Every Meta-style placeholder (`{{1}}`, `{{lead_name}}`, …) in a piece of text.
+ * Our authoring system never uses braces — it uses the picker chips (e.g.
+ * `שם הליד`) — so any match in a *submitted* body is a manual bypass.
+ */
+export function bodyPlaceholders(text: string): string[] {
+  return (text ?? '').match(/\{\{[^}]*\}\}/g) ?? []
+}
+
+/**
+ * Defense-in-depth for the Meta contract: true if any BODY carries more
+ * placeholders than it has example values — i.e. a parameter Meta rejects for a
+ * missing example (`INVALID_FORMAT`). `buildComponents` pairs every positional
+ * `{{n}}` with exactly one example, so this is only ever true when a raw `{{...}}`
+ * slipped through un-converted. Guarantees a payload with BODY placeholders can
+ * never be assembled without matching BODY examples.
+ */
+export function hasUnexampledParameters(components: MetaComponent[]): boolean {
+  for (const c of components) {
+    const placeholders = bodyPlaceholders(c.text ?? '').length
+    const examples = c.example?.body_text?.[0]?.length ?? 0
+    if (placeholders > examples) return true
+  }
+  return false
+}

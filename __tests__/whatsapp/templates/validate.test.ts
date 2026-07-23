@@ -75,6 +75,55 @@ describe('validateTemplateInput — closed variable set (RFC §10)', () => {
   })
 })
 
+describe('validateTemplateInput — raw {{...}} placeholders in the body (INVALID_FORMAT guard)', () => {
+  // Our variables are inserted as picker chips (שם הליד), never as braces, so any
+  // {{...}} typed by hand bypasses the picker and would reach Meta example-less.
+  it('rejects a manual {{lead_name}}', () => {
+    const r = validateTemplateInput({ ...valid, bodyText: 'היי {{lead_name}}, מה קורה?', variables: [] })
+    expect(r.ok).toBe(false)
+    expect(errorsOf(r)).toContain(TEMPLATE_VALIDATION_COPY.manualPlaceholder)
+  })
+
+  it('rejects a manual {{business_name}}', () => {
+    const r = validateTemplateInput({ ...valid, bodyText: 'בברכה, {{business_name}}', variables: [] })
+    expect(r.ok).toBe(false)
+    expect(errorsOf(r)).toContain(TEMPLATE_VALIDATION_COPY.manualPlaceholder)
+  })
+
+  it('rejects mixed manual + picker (a chip AND a raw {{...}})', () => {
+    // Body uses the real picker chip שם הליד but also a hand-typed {{business_name}}.
+    const r = validateTemplateInput({
+      ...valid,
+      bodyText: 'היי שם הליד, מ־{{business_name}}',
+      variables: [{ token: 'שם הליד', sample: 'דוד' }],
+    })
+    expect(r.ok).toBe(false)
+    expect(errorsOf(r)).toContain(TEMPLATE_VALIDATION_COPY.manualPlaceholder)
+  })
+
+  it('rejects an unknown raw placeholder ({{foo}})', () => {
+    const r = validateTemplateInput({ ...valid, bodyText: 'שלום {{foo}}', variables: [] })
+    expect(r.ok).toBe(false)
+    expect(errorsOf(r)).toContain(TEMPLATE_VALIDATION_COPY.manualPlaceholder)
+  })
+
+  it('accepts a valid picker-only template (chips, no braces)', () => {
+    const r = validateTemplateInput({
+      ...valid,
+      bodyText: 'היי שם הליד, מדברים מ־שם העסק.',
+      variables: [
+        { token: 'שם הליד', sample: 'דוד' },
+        { token: 'שם העסק', sample: 'העסק' },
+      ],
+    })
+    expect(r).toEqual({ ok: true })
+  })
+
+  it('accepts a plain body with no variables at all', () => {
+    expect(validateTemplateInput({ ...valid, bodyText: 'תודה שפנית אלינו!', variables: [] })).toEqual({ ok: true })
+  })
+})
+
 describe('validateTemplateInput — accumulates errors', () => {
   it('reports every problem at once', () => {
     const r = validateTemplateInput({

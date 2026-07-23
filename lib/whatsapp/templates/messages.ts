@@ -32,6 +32,7 @@ export const TEMPLATE_VALIDATION_COPY = {
   bodyTooLong: 'תוכן ההודעה ארוך מדי.',
   purposeRequired: 'צריך לבחור את מטרת ההודעה.',
   unknownVariable: 'יש פרט אישי לא מוכר בהודעה.',
+  manualPlaceholder: 'אין להקליד סוגריים מסולסלים ({{ }}) בהודעה. להוספת פרטים אישיים השתמשו בכפתורי הפרטים.',
 } as const
 
 /**

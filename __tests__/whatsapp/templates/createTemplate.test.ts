@@ -80,6 +80,20 @@ describe('createTemplate — validation', () => {
     expect(res.ok).toBe(false)
     expect(h.createTemplateOnMeta).not.toHaveBeenCalled()
   })
+
+  it('rejects a hand-typed {{...}} placeholder before Graph (INVALID_FORMAT root cause)', async () => {
+    // The production failure: body has raw {{lead_name}}/{{business_name}}, variables=[].
+    const res = await createTemplate({
+      ...INPUT,
+      bodyText: 'היי {{lead_name}}, כאן {{business_name}}',
+      variables: [],
+    })
+    expect(res.ok).toBe(false)
+    if ('error' in res) expect(res.error).toBe('אין להקליד סוגריים מסולסלים ({{ }}) בהודעה. להוספת פרטים אישיים השתמשו בכפתורי הפרטים.')
+    // Never reaches Meta and never persists — no example-less payload can be sent.
+    expect(h.createTemplateOnMeta).not.toHaveBeenCalled()
+    expect(h.insertOptimistic).not.toHaveBeenCalled()
+  })
 })
 
 describe('createTemplate — connection', () => {
