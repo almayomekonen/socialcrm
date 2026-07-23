@@ -1,5 +1,6 @@
 import { GRAPH_BASE, GRAPH_VERSION } from '@/lib/facebook/graph'
 import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
+import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
 
 export type SendWhatsappTextSuccess = { ok: true; wamid: string }
 
@@ -52,10 +53,13 @@ export async function sendWhatsappText(args: {
   trace?: WaTraceCtx
 }): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, body } = args
+  // Normalize the recipient to E.164 (Israeli local → 972…). The number reaching
+  // Meta and the trace must be the normalized one, or Meta returns 131026.
+  const recipient = toIsraeliWhatsappRecipient(to)
   waTrace('WHATSAPP_SEND_REQUEST', args.trace ?? {}, {
     phone_number_id: phoneNumberId,
     graphVersion: GRAPH_VERSION,
-    recipient: to,
+    recipient,
     messageLength: (body ?? '').length,
   })
   try {
@@ -68,7 +72,7 @@ export async function sendWhatsappText(args: {
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to,
+        to: recipient,
         type: 'text',
         text: { preview_url: false, body },
       }),
