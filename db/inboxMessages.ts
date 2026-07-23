@@ -1,6 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { getUser } from '@/db/auth'
+import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 export type InboxMessageDirection = 'inbound' | 'outbound'
 export type InboxMessageStatus = 'received' | 'sent' | 'delivered' | 'read' | 'failed'
@@ -150,6 +151,59 @@ export type LeadWhatsappMessage = {
   type: InboxMessageType
   text: string
   timestamp: string
+  /** Real delivery state. Outbound `sent` means Meta ACCEPTED it, not that it arrived. */
+  status: InboxMessageStatus
+  /** Rep-facing Hebrew, resolved server-side. Non-null only when status is 'failed'. */
+  failureText: string | null
+}
+
+/** Compact status projection for the sync delta (status changes mutate old rows). */
+export type LeadWhatsappMessageStatus = {
+  id: number
+  status: InboxMessageStatus
+  failureText: string | null
+}
+
+/** Columns every thread read selects. One list so the three readers cannot drift. */
+const LEAD_MESSAGE_COLUMNS = [
+  'm.id',
+  'm.direction',
+  'm.type',
+  'm.text',
+  'm.status',
+  'm.errorReason',
+  'm.channelTimestamp',
+  'm.createdAt',
+] as const
+
+function toIso(v: unknown): string {
+  return v instanceof Date ? v.toISOString() : v ? String(v) : ''
+}
+
+/** Rep-facing failure copy for a row, resolved once, server-side. Null unless failed. */
+function failureTextForRow(status: InboxMessageStatus, errorReason: unknown): string | null {
+  return status === 'failed' ? failureTextForCategory((errorReason as string | null) ?? 'generic') : null
+}
+
+/**
+ * The single row → LeadWhatsappMessage mapper.
+ *
+ * Every read path goes through this. Failure copy is resolved HERE, on the
+ * server, because a Client Component must render a decision, not make one
+ * (architecture-rules §11) — and because three copies of this mapping is how
+ * first paint and the poller drift apart.
+ */
+export function mapLeadWhatsappMessageRow(r: Record<string, unknown>): LeadWhatsappMessage {
+  const status = r.status as InboxMessageStatus
+  return {
+    id: Number(r.id),
+    direction: r.direction as InboxMessageDirection,
+    type: r.type as InboxMessageType,
+    text: (r.text as string) ?? '',
+    timestamp: toIso(r.channelTimestamp ?? r.createdAt),
+    status,
+    failureText: failureTextForRow(status, r.errorReason),
+  }
 }
 
 export async function listLeadWhatsappMessages(leadId: number): Promise<LeadWhatsappMessage[]> {
@@ -165,17 +219,9 @@ export async function listLeadWhatsappMessages(leadId: number): Promise<LeadWhat
       { column: 'cv.id', order: 'asc' },
       { column: 'm.sequence', order: 'asc' },
     ])
-    .select('m.id', 'm.direction', 'm.type', 'm.text', 'm.channelTimestamp', 'm.createdAt')
+    .select(...LEAD_MESSAGE_COLUMNS)
 
-  const toIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : v ? String(v) : '')
-
-  return rows.map((r) => ({
-    id: Number(r.id),
-    direction: r.direction as InboxMessageDirection,
-    type: r.type as InboxMessageType,
-    text: (r.text as string) ?? '',
-    timestamp: toIso(r.channelTimestamp ?? r.createdAt),
-  }))
+  return rows.map(mapLeadWhatsappMessageRow)
 }
 
 /** Thread delta: messages newer than `afterId` for a conversation, agency-scoped. */
@@ -189,17 +235,9 @@ export async function getConversationMessagesAfter(
     .andWhere('m.agencyId', agencyId)
     .andWhere('m.id', '>', afterId)
     .orderBy('m.id', 'asc')
-    .select('m.id', 'm.direction', 'm.type', 'm.text', 'm.channelTimestamp', 'm.createdAt')
+    .select(...LEAD_MESSAGE_COLUMNS)
 
-  const toIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : v ? String(v) : '')
-
-  return rows.map((r) => ({
-    id: Number(r.id),
-    direction: r.direction as InboxMessageDirection,
-    type: r.type as InboxMessageType,
-    text: (r.text as string) ?? '',
-    timestamp: toIso(r.channelTimestamp ?? r.createdAt),
-  }))
+  return rows.map(mapLeadWhatsappMessageRow)
 }
 
 export async function listConversationMessages(conversationId: number): Promise<LeadWhatsappMessage[]> {
@@ -211,15 +249,34 @@ export async function listConversationMessages(conversationId: number): Promise<
     .where('cv.id', conversationId)
     .andWhere('m.agencyId', user.agencyId)
     .orderBy('m.sequence', 'asc')
-    .select('m.id', 'm.direction', 'm.type', 'm.text', 'm.channelTimestamp', 'm.createdAt')
+    .select(...LEAD_MESSAGE_COLUMNS)
 
-  const toIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : v ? String(v) : '')
+  return rows.map(mapLeadWhatsappMessageRow)
+}
 
-  return rows.map((r) => ({
-    id: Number(r.id),
-    direction: r.direction as InboxMessageDirection,
-    type: r.type as InboxMessageType,
-    text: (r.text as string) ?? '',
-    timestamp: toIso(r.channelTimestamp ?? r.createdAt),
-  }))
+/**
+ * Outbound delivery states for an open conversation.
+ *
+ * The thread delta is `id > afterId` and can only ever see NEW rows; a status
+ * change mutates an OLD one. This projection is how those changes reach the
+ * client. Capped at the 60 most recent outbound messages — beyond that a rep is
+ * scrolled into history, not watching for delivery.
+ */
+export async function getConversationOutboundStatuses(
+  conversationId: number,
+  agencyId: number,
+): Promise<LeadWhatsappMessageStatus[]> {
+  const rows = await db('inbox_messages as m')
+    .where('m.conversationId', conversationId)
+    .andWhere('m.agencyId', agencyId)
+    .andWhere('m.channel', 'whatsapp')
+    .andWhere('m.direction', 'outbound')
+    .orderBy('m.id', 'desc')
+    .limit(60)
+    .select('m.id', 'm.status', 'm.errorReason')
+
+  return rows.map((r) => {
+    const status = r.status as InboxMessageStatus
+    return { id: Number(r.id), status, failureText: failureTextForRow(status, r.errorReason) }
+  })
 }
