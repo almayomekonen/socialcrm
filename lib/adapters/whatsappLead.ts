@@ -8,7 +8,10 @@ export function parseWhatsappLead(from: string, profileName: string | null | und
   try {
     const parts = (profileName ?? '').trim().split(' ').filter(Boolean)
     const firstName = parts[0] || 'ליד מוואטסאפ'
-    const lastName = parts.slice(1).join(' ') || null
+    // clients.lastName is NOT NULL. WhatsApp profile names are often a single
+    // token (or emoji), which yields no surname — default to '' so the lead
+    // insert never violates the constraint. Multi-token names are unaffected.
+    const lastName = parts.slice(1).join(' ') || ''
 
     // 'from' is already the sender's phone in E.164 without '+', e.g. "972501234567"
     const digits = from.replace(/\D/g, '')
@@ -17,6 +20,6 @@ export function parseWhatsappLead(from: string, profileName: string | null | und
     return { firstName, lastName, phone }
   } catch (err) {
     console.error('[parseWhatsappLead] Failed to parse:', err)
-    return { firstName: 'ליד מוואטסאפ', lastName: null, phone: null }
+    return { firstName: 'ליד מוואטסאפ', lastName: '', phone: null }
   }
 }
