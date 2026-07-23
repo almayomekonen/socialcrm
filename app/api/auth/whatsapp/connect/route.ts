@@ -27,11 +27,14 @@ export async function POST(req: NextRequest) {
   if (!waPhonesCookie) return NextResponse.json({ error: 'No pending connection' }, { status: 400 })
 
   let accessToken: string | undefined
+  let wabaId: string | undefined
   try {
     const payload = await decrypt(waPhonesCookie)
     if (payload?.userId !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    const phones = (payload.phones ?? []) as { id: string; accessToken: string }[]
-    accessToken = phones.find((p) => p.id === phoneNumberId)?.accessToken
+    const phones = (payload.phones ?? []) as { id: string; accessToken: string; wabaId?: string }[]
+    const selected = phones.find((p) => p.id === phoneNumberId)
+    accessToken = selected?.accessToken
+    wabaId = selected?.wabaId
   } catch {
     return NextResponse.json({ error: 'Invalid pending connection' }, { status: 400 })
   }
@@ -44,12 +47,15 @@ export async function POST(req: NextRequest) {
         agency_id: user.agencyId,
         phone_number_id: phoneNumberId,
         access_token: accessToken,
+        waba_id: wabaId ?? null,
       })
       .onConflict('phone_number_id')
       .merge({
         user_id: user.id,
         agency_id: user.agencyId,
         access_token: accessToken,
+        // Only overwrite waba_id when the pending connection carried one.
+        ...(wabaId ? { waba_id: wabaId } : {}),
       })
   } catch (err) {
     console.error('[WhatsappConnect] DB upsert failed:', err)

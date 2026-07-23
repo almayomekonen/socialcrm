@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUser, encrypt } from '@/db/auth'
 import { cookies } from 'next/headers'
+import { resolveWabaIdsFromToken } from '@/lib/whatsapp/resolveWaba'
 
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/whatsapp/callback`
 
@@ -53,24 +54,12 @@ export async function GET(req: NextRequest) {
     return failed(req, 'token')
   }
 
-  let wabaIds: string[] = []
-  try {
-    const appAccessToken = `${appId}|${appSecret}`
-    const dbgRes = await fetch(
-      `https://graph.facebook.com/v19.0/debug_token?input_token=${longToken}&access_token=${encodeURIComponent(appAccessToken)}`,
-    )
-    const dbg = await dbgRes.json()
-    const granular: { scope: string; target_ids?: string[] }[] = dbg?.data?.granular_scopes ?? []
-    const targetsFor = (scope: string) => granular.find((g) => g.scope === scope)?.target_ids ?? []
-    const ids = new Set<string>(targetsFor('whatsapp_business_management'))
-    if (ids.size === 0) for (const id of targetsFor('whatsapp_business_messaging')) ids.add(id)
-    wabaIds = [...ids]
-  } catch {
-    return failed(req, 'no_accounts')
-  }
+  const wabaIds = await resolveWabaIdsFromToken(longToken, appId, appSecret)
   if (wabaIds.length === 0) return failed(req, 'no_accounts')
 
-  const phones: { id: string; displayPhone: string; verifiedName: string; accessToken: string }[] = []
+  // Capture the owning WABA per phone so the connect route can persist waba_id
+  // (Sprint 0). Server-side only — stripped before the client sees pendingPhones.
+  const phones: { id: string; displayPhone: string; verifiedName: string; wabaId: string; accessToken: string }[] = []
   for (const wabaId of wabaIds) {
     try {
       const res = await fetch(
@@ -83,6 +72,7 @@ export async function GET(req: NextRequest) {
           id: p.id,
           displayPhone: p.display_phone_number,
           verifiedName: p.verified_name,
+          wabaId,
           accessToken: longToken,
         })
       }
