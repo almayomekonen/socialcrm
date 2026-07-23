@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { getInboxDelta, getInboxAwareness } from '@/modules/inbox/queries'
-import { getConversationMessagesAfter, type LeadWhatsappMessage } from '@/db/inboxMessages'
+import {
+  getConversationMessagesAfter,
+  getConversationOutboundStatuses,
+  type LeadWhatsappMessage,
+  type LeadWhatsappMessageStatus,
+} from '@/db/inboxMessages'
 import { parseInboxFilters } from '@/modules/inbox/filters'
 
 /**
@@ -26,15 +31,21 @@ export async function GET(req: NextRequest) {
     getInboxAwareness(user.agencyId, user.id, since),
   ])
 
-  let active: { messages: LeadWhatsappMessage[]; latestMessageId: number } | undefined
+  let active:
+    | { messages: LeadWhatsappMessage[]; latestMessageId: number; statuses: LeadWhatsappMessageStatus[] }
+    | undefined
   const convParam = url.searchParams.get('conversation')
   if (convParam) {
     const conversationId = Number(convParam)
     const owns = await db('inbox_conversations').where({ id: conversationId, agencyId: user.agencyId }).first('id')
     if (!owns) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const after = Number(url.searchParams.get('after')) || 0
-    const messages = await getConversationMessagesAfter(conversationId, after, user.agencyId)
-    active = { messages, latestMessageId: messages.length ? messages[messages.length - 1].id : after }
+    // Statuses mutate OLD rows, so they cannot ride the `id > after` delta.
+    const [messages, statuses] = await Promise.all([
+      getConversationMessagesAfter(conversationId, after, user.agencyId),
+      getConversationOutboundStatuses(conversationId, user.agencyId),
+    ])
+    active = { messages, latestMessageId: messages.length ? messages[messages.length - 1].id : after, statuses }
   }
 
   const body = {
