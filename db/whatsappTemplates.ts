@@ -1,6 +1,12 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
-import type { Template, TemplateStatus, TemplateVariable } from '@/lib/whatsapp/templates/types'
+import type {
+  MetaComponent,
+  Template,
+  TemplateCategory,
+  TemplateStatus,
+  TemplateVariable,
+} from '@/lib/whatsapp/templates/types'
 import { failureTextForRejectionKey } from '@/lib/whatsapp/templates/statusCopy'
 
 /**
@@ -141,4 +147,44 @@ export async function upsertFromMeta(input: UpsertFromMetaInput, conn: Knex = db
       qualityRating: input.qualityRating ?? null,
       updatedAt: conn.fn.now(),
     })
+}
+
+export type InsertOptimisticInput = {
+  agencyId: number
+  wabaId: string
+  metaTemplateId: string
+  name: string
+  displayTitle: string
+  language: string
+  category: TemplateCategory
+  bodyText: string
+  components: MetaComponent[]
+  variables: TemplateVariable[]
+  createdByUserId: number
+}
+
+/**
+ * Persist a locally-`pending` row after Meta accepted the create (Sprint 3). The
+ * status is `pending` because Meta's approval is asynchronous — the webhook/cron
+ * (Sprint 4) later moves it to approved/rejected. Returns the UI-shaped Template
+ * (with its real DB id) so the client can reconcile its optimistic placeholder.
+ */
+export async function insertOptimistic(input: InsertOptimisticInput): Promise<Template> {
+  const [row] = await db('whatsapp_templates')
+    .insert({
+      agencyId: input.agencyId,
+      wabaId: input.wabaId,
+      metaTemplateId: input.metaTemplateId,
+      name: input.name,
+      displayTitle: input.displayTitle,
+      language: input.language,
+      category: input.category,
+      status: 'pending',
+      components: JSON.stringify(input.components),
+      bodyText: input.bodyText,
+      variables: JSON.stringify(input.variables),
+      createdByUserId: input.createdByUserId,
+    })
+    .returning([...LIST_COLUMNS])
+  return mapTemplateRow(row)
 }
