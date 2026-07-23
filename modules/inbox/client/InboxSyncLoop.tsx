@@ -9,12 +9,12 @@ import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
 import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
 import { shouldApplySyncResponse } from './syncRequestGuard'
 import type { InboxConversationListItem, InboxListFilters } from '@/modules/inbox/types'
-import type { LeadWhatsappMessage } from '@/db/inboxMessages'
+import type { LeadWhatsappMessage, LeadWhatsappMessageStatus } from '@/db/inboxMessages'
 
 type SyncResponse = {
   counts: { whatsappUnread: number }
   changed: InboxConversationListItem[]
-  active?: { messages: LeadWhatsappMessage[]; latestMessageId: number }
+  active?: { messages: LeadWhatsappMessage[]; latestMessageId: number; statuses: LeadWhatsappMessageStatus[] }
   items: unknown[]
   serverTime: string
   full: boolean
@@ -22,7 +22,8 @@ type SyncResponse = {
 
 export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }) {
   const { setCount } = useAwareness()
-  const { mergeSync, appendActiveMessages, activeConversationId, activeLatestMessageId } = useInboxStore()
+  const { mergeSync, appendActiveMessages, applyStatusUpdates, activeConversationId, activeLatestMessageId } =
+    useInboxStore()
   const sinceRef = useRef<string>(new Date().toISOString())
   const filtersKeyRef = useRef(JSON.stringify(filters))
   const { report } = useCrmSyncHealth()
@@ -55,11 +56,25 @@ export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }
     const data = (await res.json()) as SyncResponse
     mergeSync(data.changed)
     setCount(data.counts.whatsappUnread)
-    if (data.active && activeConversationId != null) appendActiveMessages(activeConversationId, data.active.messages)
+    if (data.active && activeConversationId != null) {
+      appendActiveMessages(activeConversationId, data.active.messages)
+      applyStatusUpdates(activeConversationId, data.active.statuses ?? [])
+    }
     sinceRef.current = data.serverTime
+    // Deliberately excludes status changes: the statuses array is present on every
+    // poll, so counting it as activity would pin the adaptive poller to its fastest
+    // cadence forever. Only new messages count as "changed".
     const threadChanged = (data.active?.messages.length ?? 0) > 0
     return { changed: data.changed.length > 0 || threadChanged, failed: false }
-  }, [filters, mergeSync, setCount, appendActiveMessages, activeConversationId, activeLatestMessageId])
+  }, [
+    filters,
+    mergeSync,
+    setCount,
+    appendActiveMessages,
+    applyStatusUpdates,
+    activeConversationId,
+    activeLatestMessageId,
+  ])
 
   useAdaptivePoll(poll, {
     recoveryMs: INBOX_RECOVERY_MS,

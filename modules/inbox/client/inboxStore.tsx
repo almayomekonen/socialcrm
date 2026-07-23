@@ -6,7 +6,8 @@ import { loadMoreInboxConversations } from '@/modules/inbox/actions'
 import { mergeConversationPages } from '@/modules/inbox/mergeConversationPages'
 import { compareInboxItems } from './compareInboxItems'
 import type { InboxConversationListItem, InboxCursor, InboxListFilters, InboxSort } from '@/modules/inbox/types'
-import type { LeadWhatsappMessage } from '@/db/inboxMessages'
+import type { LeadWhatsappMessage, LeadWhatsappMessageStatus } from '@/db/inboxMessages'
+import { applyStatusesToMessages } from './applyStatusUpdates'
 import InboxSyncLoop from './InboxSyncLoop'
 
 type InboxStoreValue = {
@@ -27,6 +28,8 @@ type InboxStoreValue = {
   initActiveThread: (conversationId: number, messages: LeadWhatsappMessage[]) => void
   /** Thread delta from the sync loop (guarded to the still-open conversation). */
   appendActiveMessages: (conversationId: number, messages: LeadWhatsappMessage[]) => void
+  /** Delivery-status delta from the sync loop (guarded to the still-open conversation). */
+  applyStatusUpdates: (conversationId: number, updates: LeadWhatsappMessageStatus[]) => void
 }
 
 const InboxStoreContext = createContext<InboxStoreValue | null>(null)
@@ -119,6 +122,12 @@ export function InboxStoreProvider({
     })
   }, [])
 
+  const applyStatusUpdates = useCallback((conversationId: number, updates: LeadWhatsappMessageStatus[]) => {
+    // Same mid-flight conversation-switch guard as appendActiveMessages.
+    if (updates.length === 0 || activeConvIdRef.current !== conversationId) return
+    setActiveMessages((prev) => applyStatusesToMessages(prev, updates))
+  }, [])
+
   const applyLocalRead = useCallback(
     (conversationId: number) => {
       if (!deltaSyncEnabled) return { wasUnread: false }
@@ -158,6 +167,7 @@ export function InboxStoreProvider({
       activeLatestMessageId,
       initActiveThread,
       appendActiveMessages,
+      applyStatusUpdates,
     }),
     [
       items,
@@ -171,6 +181,7 @@ export function InboxStoreProvider({
       activeLatestMessageId,
       initActiveThread,
       appendActiveMessages,
+      applyStatusUpdates,
     ],
   )
 
