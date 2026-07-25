@@ -26,7 +26,18 @@ export type AiSuccess<T> = {
   latencyMs: number
 }
 
-export type AiFailureReason = 'disabled' | 'forbidden' | 'no-providers' | 'over-quota' | 'all-providers-failed' | 'invalid-input'
+export type AiFailureReason =
+  | 'disabled'
+  | 'forbidden'
+  | 'no-providers'
+  | 'over-quota'
+  | 'all-providers-failed'
+  | 'invalid-input'
+  // Product-access denials (Phase 2). Distinct, typed business reasons — never a
+  // fake provider error — so the client can show the correct upgrade/activation
+  // message. See lib/ai/access.ts.
+  | 'subscription-required'
+  | 'trial-not-started'
 
 export type AiFailure = {
   ok: false

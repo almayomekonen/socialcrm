@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 import { isAdmin, Roles } from '@/types/roles'
 import { BRIEFING_SAMPLE_LIMIT, STALE_DAYS, WEEK_START_SQL } from '@/lib/copilot/general/constants'
 
@@ -32,7 +32,7 @@ export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[
   const terms = name.trim().split(/\s+/).filter(Boolean).slice(0, 3)
   if (terms.length === 0) return []
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const q = scopedLeads(agencyId, plan, s)
   for (const term of terms) {
     q.where((b) => b.where('firstName', 'ilike', `%${term}%`).orWhere('lastName', 'ilike', `%${term}%`))
@@ -52,7 +52,7 @@ export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[
 export async function getNamedLeadById(s: Scope, id: number): Promise<NamedLead | null> {
   if (!Number.isFinite(id) || id <= 0) return null
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const r = await scopedLeads(agencyId, plan, s).where('id', id).first('id', 'firstName', 'lastName', 'status', 'nextFollowUpAt')
   if (!r) return null
   return {
@@ -81,7 +81,7 @@ function toList(rows: Row[]): BriefingLeadList {
 
 export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereNotNull('nextFollowUpAt')
     .whereRaw(`"nextFollowUpAt" >= date_trunc('day', NOW())`)
@@ -95,7 +95,7 @@ export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> 
 
 export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereNotIn('status', ['closed', 'lost'])
     .whereRaw(`("lastActivityAt" IS NULL OR "lastActivityAt" < NOW() - make_interval(days => ?))`, [STALE_DAYS])
@@ -113,7 +113,7 @@ export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLe
 
 export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereRaw(`"createdAt" >= ${WEEK_START_SQL}`)
     .select(
@@ -130,7 +130,7 @@ export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
 
 export async function getOverdueTaskSummary(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const sub = scopedLeads(agencyId, plan, s).select('id')
   const rows: Row[] = await db('tasks as t')
     .join('clients as c', 'c.id', 't.clientId')
@@ -184,14 +184,14 @@ export function promisedButWaitingQuery(agencyId: number, plan: string, s: Scope
 
 export async function getPromisedButWaiting(s: Scope): Promise<BriefingLeadList> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const rows = (await promisedButWaitingQuery(agencyId, plan, s)) as Row[]
   return toList(rows)
 }
 
 export async function getUnreadInboxSummary(s: Scope): Promise<{ conversations: number; unread: number }> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const sub = scopedLeads(agencyId, plan, s).select('id')
   const row = (await db('inbox_conversations')
     .where('agencyId', agencyId)

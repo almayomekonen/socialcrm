@@ -1,6 +1,6 @@
 /**
  * Integration tests for the General-Mode briefing readers — REAL Postgres
- * (socialcrm_test). The readers only depend on getAgencyId / getAgencyPlan
+ * (socialcrm_test). The readers only depend on getAgencyId / getEffectiveLeadPlan
  * (mocked) + the DB; everything else is real SQL. Focus: the permission-scope
  * control (gotPermIds) and the date/threshold logic, end-to-end against the
  * live schema.
@@ -21,12 +21,12 @@
 import { vi } from 'vitest'
 
 vi.mock('@/db/agencies', () => ({ getAgencyId: vi.fn() }))
-vi.mock('@/lib/quota', () => ({ getAgencyPlan: vi.fn() }))
+vi.mock('@/lib/quota', () => ({ getEffectiveLeadPlan: vi.fn() }))
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 import {
   getFollowUpsDueToday,
   getLeadsNotContactedRecently,
@@ -98,7 +98,7 @@ beforeAll(async () => {
   })
 
   vi.mocked(getAgencyId).mockResolvedValue(agencyId)
-  vi.mocked(getAgencyPlan).mockResolvedValue('pro' as never)
+  vi.mocked(getEffectiveLeadPlan).mockResolvedValue('pro' as never)
 })
 
 afterAll(async () => {

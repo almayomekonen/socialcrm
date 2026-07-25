@@ -17,7 +17,7 @@ builder.whereIn = (...a: unknown[]) => {
 builder.count = () => ({ first: () => Promise.resolve({ count: state.count }) })
 
 vi.mock('@/config/db', () => ({ db: () => builder }))
-vi.mock('@/lib/quota', () => ({ getAgencyPlan: () => Promise.resolve(state.plan) }))
+vi.mock('@/lib/quota', () => ({ getEffectiveLeadPlan: () => Promise.resolve(state.plan) }))
 vi.mock('@/types/roles', () => ({ isAdmin: () => state.isAdminResult }))
 
 import { hasAnyLeads } from '@/db/clients'

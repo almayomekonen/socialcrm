@@ -38,9 +38,9 @@ describe('COPILOT_MODES catalog — pinned mappings', () => {
     }
   })
 
-  it('only "advanced" carries a tier requirement today', () => {
+  it('smart and advanced carry a PRO tier requirement; fast does not', () => {
     expect(getCopilotMode('fast').requiredTier).toBeUndefined()
-    expect(getCopilotMode('smart').requiredTier).toBeUndefined()
+    expect(getCopilotMode('smart').requiredTier).toBe('pro')
     expect(getCopilotMode('advanced').requiredTier).toBe('pro')
   })
 })

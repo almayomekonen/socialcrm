@@ -34,5 +34,7 @@ export const ERROR_COPY: Record<CopilotResponseErrorReason, string> = {
   'over-quota': 'הגעת למגבלת השימוש היומית.',
   'all-providers-failed': 'הניסוח נכשל. נסה שוב בעוד רגע.',
   'invalid-input': 'הקלט לא תקין או שהפלט נדחה. נסה שוב.',
+  'subscription-required': 'תקופת ה-Pro הסתיימה. כדי להמשיך להשתמש ב-AI יש להפעיל מנוי.',
+  'trial-not-started': 'יש להתחיל את תקופת הניסיון כדי להשתמש ב-AI.',
   unknown: 'משהו השתבש. נסה שוב.',
 }
