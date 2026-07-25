@@ -30,7 +30,7 @@ describe('email automation registry', () => {
     }
   })
 
-  it('is welcome + subscription-activated + the five state emails + the educational journey drip', () => {
+  it('is welcome + subscription-activated + trial-started + the five state emails + the educational journey drip', () => {
     expect(AUTOMATIONS.map((a) => a.key).sort()).toEqual(
       [
         'educational_journey',
@@ -39,6 +39,7 @@ describe('email automation registry', () => {
         'no_activity',
         'subscription_activated',
         'trial_ending',
+        'trial_started',
         'welcome',
         'whatsapp_not_connected',
       ].sort(),

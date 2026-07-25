@@ -36,4 +36,35 @@ export const EVENT_CONTENT: ContentItem[] = [
     ],
     cta: { label: 'כניסה למערכת', route: '/dashboard' },
   },
+  {
+    // Sent the moment the NEVER_STARTED → TRIAL_ACTIVE transition first succeeds
+    // (actions/trial.ts, on started === true). Like subscription_activated: no
+    // `recurring` ⇒ periodKey '' ⇒ the (automationKey, userId, '') claim makes it
+    // send-once-forever, so refreshes / double-clicks / concurrent activations
+    // that re-fire the event hit an already-taken claim and return 'skipped'.
+    key: 'trial_started',
+    category: 'transactional',
+    topic: 'activation',
+    schedule: { kind: 'event', event: 'trial.started' },
+    priority: 'high',
+    greet: true,
+    subject: 'ה־SocialCRM Pro שלך פעיל 🚀',
+    preview: '7 ימי ה־Pro שלך התחילו — כל המערכת פתוחה עבורך',
+    headline: 'ברוך הבא ל־SocialCRM Pro',
+    blocks: [
+      { type: 'paragraph', text: '7 ימי ה־Pro שלך התחילו עכשיו, וכל המערכת פתוחה עבורך.' },
+      { type: 'paragraph', text: 'במהלך תקופת הניסיון יש לך גישה מלאה לכל יכולות ה־Pro, כולל:' },
+      { type: 'paragraph', text: '• ניהול כל הלידים והשיחות במקום אחד' },
+      { type: 'paragraph', text: '• כלי ה־AI המתקדמים של SocialCRM' },
+      { type: 'paragraph', text: '• וואטסאפ, משימות, יומן וקבצים' },
+      { type: 'paragraph', text: '• כל יכולות ה־Pro ללא הגבלה של מסלול בסיסי' },
+      {
+        type: 'paragraph',
+        text: 'המטרה שלנו פשוטה: לתת לך 7 ימים לעבוד עם SocialCRM באמת ולהרגיש איך העסק שלך נראה כשהכול נמצא במקום אחד.',
+      },
+      { type: 'divider' },
+      { type: 'paragraph', text: 'אין צורך בכרטיס אשראי. בסיום 7 הימים תוכל לבחור אם להמשיך עם Pro.' },
+    ],
+    cta: { label: 'כניסה ל־SocialCRM', route: '/dashboard' },
+  },
 ]
