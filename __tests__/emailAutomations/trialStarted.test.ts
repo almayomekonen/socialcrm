@@ -54,6 +54,16 @@ describe('trial.started registry wiring', () => {
     expect(html).toContain('7 ימי ה־Pro שלך התחילו עכשיו')
     expect(html).toContain('כניסה ל־SocialCRM') // CTA label
   })
+
+  it('wraps the mixed Hebrew+Latin CTA label in an RTL embedding (bidi fix)', async () => {
+    // The label carries its own direction (RLE … PDF) so the mixed Hebrew+Latin
+    // CTA renders naturally as "כניסה ל־SocialCRM" even where the email client
+    // does not honor an inherited dir on the button.
+    const RLE = String.fromCharCode(0x202b)
+    const PDF = String.fromCharCode(0x202c)
+    const html = await renderEmail(trialStarted.template(recipient))
+    expect(html).toContain(`${RLE}כניסה ל־SocialCRM${PDF}`)
+  })
 })
 
 describe('event routing isolation (regression guard for existing emails)', () => {

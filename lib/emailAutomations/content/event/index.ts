@@ -9,6 +9,12 @@ import type { ContentItem } from '../types'
 // from the 24h lifecycle cooldown (see dispatch.ts). They still consume the
 // engine's per-user claim, so each one sends at most once per user, forever.
 
+// Unicode bidi controls, built via char code so no invisible characters live in
+// the source (keeps the file lint-/"Trojan-source"-safe and reviewable).
+// RLE (U+202B) opens a right-to-left embedding; PDF (U+202C) closes it.
+const RLE = String.fromCharCode(0x202b)
+const PDF = String.fromCharCode(0x202c)
+
 export const EVENT_CONTENT: ContentItem[] = [
   {
     // Sent on the FIRST successful subscription activation (Grow payment).
@@ -65,6 +71,16 @@ export const EVENT_CONTENT: ContentItem[] = [
       { type: 'divider' },
       { type: 'paragraph', text: 'אין צורך בכרטיס אשראי. בסיום 7 הימים תוכל לבחור אם להמשיך עם Pro.' },
     ],
-    cta: { label: 'כניסה ל־SocialCRM', route: '/dashboard' },
+    // RTL bidi fix, scoped to THIS label only. This is the one CTA that mixes
+    // Hebrew with a Latin brand ("SocialCRM"); the shared email Button carries no
+    // `dir` attribute (react-email wraps the label in MSO spans) and email clients
+    // don't reliably inherit <html dir="rtl">, so a mixed label falls back to an
+    // LTR base and renders "SocialCRM" on the wrong side. Wrapping the label in an
+    // RTL embedding (RLE … PDF) carries the direction in the text itself, which the
+    // text engine honors in every client, so it displays naturally as
+    // "כניסה ל־SocialCRM". The right-aligned, inline-block button container and the
+    // shared ContentEmail button are untouched (every other CTA is pure Hebrew, so
+    // this change affects no other email).
+    cta: { label: `${RLE}כניסה ל־SocialCRM${PDF}`, route: '/dashboard' },
   },
 ]
