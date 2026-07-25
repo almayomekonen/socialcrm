@@ -88,11 +88,7 @@ export type DeleteTemplateResult = { ok: true } | { ok: false; error: string }
 const DELETE_ERROR = 'לא ניתן להסיר את ההודעה כרגע. נסו שוב.'
 
 /** Delete a template by name from a WABA (discard path). Errors mapped to Hebrew. */
-export async function deleteTemplateOnMeta(
-  wabaId: string,
-  accessToken: string,
-  name: string,
-): Promise<DeleteTemplateResult> {
+export async function deleteTemplateOnMeta(wabaId: string, accessToken: string, name: string): Promise<DeleteTemplateResult> {
   try {
     const res = await fetch(`${GRAPH_BASE}/${wabaId}/message_templates?name=${encodeURIComponent(name)}`, {
       method: 'DELETE',
@@ -107,6 +103,69 @@ export async function deleteTemplateOnMeta(
   } catch (err) {
     console.error('[templates.graph.delete] fetch failed', { wabaId, error: String(err) })
     return { ok: false, error: DELETE_ERROR }
+  }
+}
+
+export type EditTemplateResult = { ok: true } | { ok: false; error: string; code?: string; httpStatus?: number }
+
+const EDIT_ERROR_COPY = {
+  auth: 'יש בעיה בחיבור הוואטסאפ. ייתכן שצריך לחבר מחדש.',
+  edit_limit: 'ההודעה כבר נערכה לאחרונה. אפשר לערוך אותה שוב מאוחר יותר.',
+  invalid: 'לא ניתן לשמור את הנוסח הזה. כדאי לפשט ולנסות שוב.',
+  generic: 'משהו השתבש בשמירת ההודעה. נסו שוב.',
+} as const
+
+/** Meta edit error → Hebrew. Exported for testing; raw code stays server-side. */
+export function mapEditError(code: number | undefined, httpStatus: number): string {
+  if (httpStatus === 401 || code === 190) return EDIT_ERROR_COPY.auth
+  // Edit-frequency limit (10/30d, 1/24h) surfaces as a rate/limit error.
+  if (httpStatus === 429 || code === 4 || code === 80007 || code === 130429 || code === 131048) return EDIT_ERROR_COPY.edit_limit
+  if (httpStatus === 400 || code === 100) return EDIT_ERROR_COPY.invalid
+  return EDIT_ERROR_COPY.generic
+}
+
+/**
+ * Edit an existing template in place (RFC R-B hybrid amendment, MVP safe path).
+ * Meta v23: `POST /{template_id}` replaces the components. We send ONLY `components`
+ * — never name/language (immutable identity) and never category (unchanged in the
+ * safe path; Meta forbids category edits on approved templates anyway). Structured
+ * result, never throws across the boundary; raw Meta code stays server-side.
+ */
+export async function editTemplateOnMeta(
+  metaTemplateId: string,
+  accessToken: string,
+  args: { components: MetaComponent[] },
+): Promise<EditTemplateResult> {
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${metaTemplateId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ components: args.components }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean
+      error?: { code?: number; error_subcode?: number; message?: string; fbtrace_id?: string }
+    }
+    if (!res.ok) {
+      const err = data.error ?? {}
+      console.error('[templates.graph.edit] error', {
+        httpStatus: res.status,
+        code: err.code,
+        subcode: err.error_subcode,
+        fbtrace_id: err.fbtrace_id,
+        message: err.message,
+      })
+      return {
+        ok: false,
+        error: mapEditError(err.code, res.status),
+        code: err.code != null ? String(err.code) : undefined,
+        httpStatus: res.status,
+      }
+    }
+    return { ok: true }
+  } catch (err) {
+    console.error('[templates.graph.edit] fetch failed', err)
+    return { ok: false, error: EDIT_ERROR_COPY.generic }
   }
 }
 

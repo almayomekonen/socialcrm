@@ -9,6 +9,7 @@ import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
 import { retryTemplate } from '@/actions/whatsapp/templates/retryTemplate'
 import { archiveTemplate } from '@/actions/whatsapp/templates/archiveTemplate'
 import { discardTemplate } from '@/actions/whatsapp/templates/discardTemplate'
+import { editTemplate } from '@/actions/whatsapp/templates/editTemplate'
 import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 import TemplateList from '@/components/settings/templates/TemplateList'
 import type { TemplateRowActions } from '@/components/settings/templates/TemplateRow'
@@ -30,6 +31,8 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
   const [createOpen, setCreateOpen] = useState(false)
   // When set, the modal is a retry of this rejected template (RFC §3).
   const [retryTarget, setRetryTarget] = useState<Template | null>(null)
+  // When set, the modal is a safe edit-in-place of this approved template (MVP §1).
+  const [editTarget, setEditTarget] = useState<Template | null>(null)
 
   // Adaptive poll of the LOCAL endpoint (no Graph) while any row is pending —
   // it just surfaces the webhook/cron's DB writes. Disabled (stops) the moment no
@@ -89,6 +92,31 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
     })
   }
 
+  // Safe edit-in-place (approved only, same category + arity — server-enforced). No
+  // optimistic new row: the existing row's content is replaced on success. An
+  // unsupported shape change (category/arity) returns `needsNew` and routes the
+  // user to create-new WITHOUT mutating the template.
+  const handleEdit = (target: Template, input: TemplateInput) => {
+    setCreateOpen(false)
+    setEditTarget(null)
+    editTemplate(target.id, input).then((res) => {
+      if (res.ok) {
+        setTemplates((prev) => prev.map((t) => (t.id === target.id ? res.template : t)))
+        toast('success', 'השינויים נשלחו לאישור וואטסאפ')
+      } else if ('error' in res) {
+        // needsNew (category/arity change) or a mapped Meta error — nothing mutated.
+        toast('error', res.error)
+      }
+    })
+  }
+
+  // Single modal submit — routes to edit when an approved template is being edited,
+  // otherwise the existing create/retry flow (unchanged).
+  const handleSubmit = (input: TemplateInput) => {
+    if (editTarget) return handleEdit(editTarget, input)
+    return handleCreate(input)
+  }
+
   // Row mutations (admin-gated + agency-scoped server-side). Optimistic removal on
   // success; on failure the row stays and the mapped Hebrew error is toasted.
   const rowActions: TemplateRowActions = {
@@ -108,6 +136,10 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
       }),
     onRetry: (template) => {
       setRetryTarget(template)
+      setCreateOpen(true)
+    },
+    onEdit: (template) => {
+      setEditTarget(template)
       setCreateOpen(true)
     },
   }
@@ -131,14 +163,24 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
         </>
       )}
       <CreateTemplateModal
-        key={retryTarget?.id ?? 'new'}
+        key={editTarget ? `edit-${editTarget.id}` : (retryTarget?.id ?? 'new')}
         open={createOpen}
         onClose={() => {
           setCreateOpen(false)
           setRetryTarget(null)
+          setEditTarget(null)
         }}
-        onCreate={handleCreate}
-        initial={retryTarget ? { displayTitle: retryTarget.displayTitle, bodyText: retryTarget.bodyText } : undefined}
+        onCreate={handleSubmit}
+        heading={editTarget ? 'עריכת הודעה' : 'הודעה מוכנה חדשה'}
+        submitLabel={editTarget ? 'שמור שינויים' : 'שלח לבדיקה'}
+        lockPurpose={!!editTarget}
+        initial={
+          editTarget
+            ? { displayTitle: editTarget.displayTitle, bodyText: editTarget.bodyText, purpose: editTarget.category }
+            : retryTarget
+              ? { displayTitle: retryTarget.displayTitle, bodyText: retryTarget.bodyText }
+              : undefined
+        }
       />
     </div>
   )

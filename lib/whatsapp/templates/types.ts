@@ -49,4 +49,6 @@ export type Template = {
   failureText: string | null
   archived: boolean
   createdAt: string
+  /** Meta category as our purpose (UTILITY/MARKETING). Used to lock purpose on edit. */
+  category?: TemplatePurpose
 }

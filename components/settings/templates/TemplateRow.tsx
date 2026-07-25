@@ -12,6 +12,8 @@ export type TemplateRowActions = {
   onArchive: (id: number) => void
   onDiscard: (id: number) => void
   onRetry: (template: Template) => void
+  /** Safe edit-in-place of an approved template (optional; admin-gated server-side). */
+  onEdit?: (template: Template) => void
 }
 
 export default function TemplateRow({ template, actions }: { template: Template; actions?: TemplateRowActions }) {
@@ -20,6 +22,7 @@ export default function TemplateRow({ template, actions }: { template: Template;
   const canArchive = !!actions && (template.status === 'approved' || template.status === 'paused' || template.status === 'disabled')
   const canDiscard = !!actions && (template.status === 'pending' || template.status === 'rejected')
   const canRetry = !!actions && template.status === 'rejected'
+  const canEdit = !!actions?.onEdit && template.status === 'approved'
 
   return (
     <div className='rounded-md border border-gray-200 p-3'>
@@ -30,6 +33,7 @@ export default function TemplateRow({ template, actions }: { template: Template;
         </div>
         <div className='flex shrink-0 items-center gap-1'>
           <TemplateStatusBadge status={template.status} />
+          {canEdit && <Btn lbl='עריכת הודעה' variant='ghost' size='small' onClick={() => actions!.onEdit!(template)} />}
           {canRetry && <Btn lbl='ערוך ונסה שוב' variant='ghost' size='small' onClick={() => actions!.onRetry(template)} />}
           {canArchive && <Btn lbl='ארכיון' variant='ghost' size='small' onClick={() => setConfirm('archive')} />}
           {canDiscard && <Btn lbl='הסר' variant='ghost' size='small' onClick={() => setConfirm('discard')} />}

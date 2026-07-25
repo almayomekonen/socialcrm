@@ -1,12 +1,6 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
-import type {
-  MetaComponent,
-  Template,
-  TemplateCategory,
-  TemplateStatus,
-  TemplateVariable,
-} from '@/lib/whatsapp/templates/types'
+import type { MetaComponent, Template, TemplateCategory, TemplateStatus, TemplateVariable } from '@/lib/whatsapp/templates/types'
 import { failureTextForRejectionKey } from '@/lib/whatsapp/templates/statusCopy'
 import type { ParameterBinding } from '@/lib/whatsapp/templates/parameters'
 
@@ -30,6 +24,7 @@ const LIST_COLUMNS = [
   'displayTitle',
   'bodyText',
   'variables',
+  'category',
   'rejectionReason',
   'archivedAt',
   'createdAt',
@@ -65,10 +60,10 @@ export function mapTemplateRow(r: Record<string, unknown>): Template {
     status,
     bodyText: (r.bodyText as string) ?? '',
     variables: toVariables(r.variables),
-    failureText:
-      status === 'rejected' ? failureTextForRejectionKey((r.rejectionReason as string | null) ?? 'generic') : null,
+    failureText: status === 'rejected' ? failureTextForRejectionKey((r.rejectionReason as string | null) ?? 'generic') : null,
     archived: r.archivedAt != null,
     createdAt: toIso(r.createdAt),
+    category: r.category === 'MARKETING' || r.category === 'UTILITY' ? r.category : undefined,
   }
 }
 
@@ -212,6 +207,62 @@ export async function loadTemplateForSend(id: number, agencyId: number): Promise
     variables: toVariables(row.variables),
     bindings: toBindings(row.metadata),
   }
+}
+
+export type TemplateEditRow = {
+  id: number
+  status: TemplateStatus
+  name: string
+  language: string
+  metaTemplateId: string | null
+  category: string
+  bodyText: string
+  variables: TemplateVariable[]
+}
+
+/**
+ * Load the fields the edit action needs (safe edit-in-place), agency-scoped. The
+ * action enforces status/category/arity itself; this loader stays agnostic.
+ */
+export async function loadTemplateForEdit(id: number, agencyId: number): Promise<TemplateEditRow | null> {
+  const row = await db('whatsapp_templates')
+    .where({ id, agencyId })
+    .first('id', 'status', 'name', 'language', 'metaTemplateId', 'category', 'bodyText', 'variables')
+  if (!row) return null
+  return {
+    id: Number(row.id),
+    status: row.status as TemplateStatus,
+    name: row.name as string,
+    language: (row.language as string) ?? 'he',
+    metaTemplateId: (row.metaTemplateId as string | null) ?? null,
+    category: (row.category as string) ?? '',
+    bodyText: (row.bodyText as string) ?? '',
+    variables: toVariables(row.variables),
+  }
+}
+
+/**
+ * Content-only update after a successful Meta edit (safe edit-in-place). Updates
+ * the owner-authored wording (title/body/components/variables) and leaves status,
+ * category, name, language, and metaTemplateId untouched. Agency-scoped. Returns
+ * the mapped row, or null if the id is not this agency's.
+ */
+export async function updateTemplateContent(
+  id: number,
+  agencyId: number,
+  input: { displayTitle: string; bodyText: string; components: MetaComponent[]; variables: TemplateVariable[] },
+): Promise<Template | null> {
+  const [row] = await db('whatsapp_templates')
+    .where({ id, agencyId })
+    .update({
+      displayTitle: input.displayTitle,
+      bodyText: input.bodyText,
+      components: JSON.stringify(input.components),
+      variables: JSON.stringify(input.variables),
+      updatedAt: db.fn.now(),
+    })
+    .returning([...LIST_COLUMNS])
+  return row ? mapTemplateRow(row) : null
 }
 
 /** Local archive (RFC §4): set archivedAt, agency-scoped. Meta template is retained. */
