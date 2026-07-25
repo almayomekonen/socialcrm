@@ -31,6 +31,13 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const trial = trialRow ? getTrialState(trialRow, new Date()) : null
   const trialActive = trial?.status === 'TRIAL_ACTIVE'
 
+  // Total trial length (days), derived from the trial's own start/end so it
+  // never hardcodes the 7-day window. Presentation-only.
+  const trialTotalDays =
+    trialActive && trial?.endsAt && trialRow?.trialStartedAt
+      ? Math.max(1, Math.round((trial.endsAt.getTime() - new Date(trialRow.trialStartedAt).getTime()) / 86_400_000))
+      : 0
+
   const charges = await db('payments')
     .where({ agencyId: user.agencyId })
     .orderBy('createdAt', 'desc')
@@ -66,11 +73,29 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       <div className='my-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
         {isPro && subscription ? (
           <ProPlanCard subscription={subscription} />
+        ) : trialActive && trial?.endsAt ? (
+          // Active 7-day Pro trial: present as currently on Pro (mirrors the PAID
+          // ProPlanCard layout), with trial-specific copy. Not a billing-model
+          // change — agencies.plan stays 'free'.
+          <>
+            <div>
+              <p className='text-lg font-semibold'>מסלול נוכחי: Pro</p>
+              <p className='text-sm text-gray-500'>תקופת ניסיון: {trialTotalDays} ימים</p>
+              <p className='text-sm text-gray-500'>תקופת הניסיון עד: {formatDate(trial.endsAt)}</p>
+              <p className='text-sm text-gray-500'>סטטוס: פעיל</p>
+            </div>
+            <a
+              href='#packages'
+              className='flex items-center min-w-fit justify-center font-medium rounded-md h-10 px-4 bg-solid text-white hover:bg-solid/85'
+            >
+              בחר מסלול להמשך
+            </a>
+          </>
         ) : (
           <>
             <div>
               <p className='text-lg font-semibold'>תוכנית: Free</p>
-              <p className='text-sm text-gray-500'>סטטוס: {trialActive ? 'תקופת ניסיון פעילה' : 'לא פעיל'}</p>
+              <p className='text-sm text-gray-500'>סטטוס: לא פעיל</p>
             </div>
             <UpgradeBtn />
           </>
@@ -95,8 +120,8 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
         </AccordionItem>
       </div>
 
-      <h2 className='text-xl font-bold mt-12'>חבילות</h2>
-      <Packages plan={plan} annualAvailable={isAnnualLinkConfigured()} />
+      <h2 id='packages' className='text-xl font-bold mt-12 scroll-mt-6'>חבילות</h2>
+      <Packages plan={plan} annualAvailable={isAnnualLinkConfigured()} trialActive={trialActive} />
     </div>
   )
 }

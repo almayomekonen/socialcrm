@@ -17,13 +17,13 @@ import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS, type BillingPeriod 
  * produce a monthly upgrade.
  */
 
-type PackagesProps = { plan?: string; annualAvailable?: boolean }
+type PackagesProps = { plan?: string; annualAvailable?: boolean; trialActive?: boolean }
 
-export default function Packages({ plan = 'free', annualAvailable = false }: PackagesProps) {
+export default function Packages({ plan = 'free', annualAvailable = false, trialActive = false }: PackagesProps) {
   return (
     <div className='my-6 grid md:grid-cols-2 gap-6 max-w-3xl'>
       {packages.map((pkg) => (
-        <PackageCard key={pkg.id} pkg={pkg} currentPlan={plan} annualAvailable={annualAvailable} />
+        <PackageCard key={pkg.id} pkg={pkg} currentPlan={plan} annualAvailable={annualAvailable} trialActive={trialActive} />
       ))}
     </div>
   )
@@ -37,10 +37,25 @@ type Pkg = {
   included: string[]
 }
 
-function PackageCard({ pkg, currentPlan, annualAvailable }: { pkg: Pkg; currentPlan: string; annualAvailable: boolean }) {
+function PackageCard({
+  pkg,
+  currentPlan,
+  annualAvailable,
+  trialActive,
+}: {
+  pkg: Pkg
+  currentPlan: string
+  annualAvailable: boolean
+  trialActive: boolean
+}) {
   const isProPlan = currentPlan === 'pro'
-  const isThisPlan = (pkg.id === 'pro' && isProPlan) || (pkg.id === 'free' && !isProPlan)
   const isProCard = pkg.id === 'pro'
+  // During an active Pro trial the user is on Pro-by-trial: the Pro card wears a
+  // trial badge and NO card is the "current paid plan" (so Free is never marked
+  // current). trialActive is only ever true while plan is still 'free', so the
+  // paid state below (isProPlan) is unaffected.
+  const proTrialBadge = trialActive && isProCard
+  const isThisPlan = !trialActive && ((pkg.id === 'pro' && isProPlan) || (pkg.id === 'free' && !isProPlan))
 
   // Annual is the recommended option — it opens selected. Only meaningful
   // when the selector renders (annualAvailable && isProCard).
@@ -66,6 +81,12 @@ function PackageCard({ pkg, currentPlan, annualAvailable }: { pkg: Pkg; currentP
           )}
         >
           התוכנית הנוכחית שלך
+        </legend>
+      )}
+
+      {proTrialBadge && (
+        <legend className='rounded-full px-3 py-0.5 text-xs font-semibold bg-white text-gray-900'>
+          תקופת הניסיון שלך
         </legend>
       )}
 
