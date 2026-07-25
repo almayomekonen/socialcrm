@@ -11,10 +11,10 @@ import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
 const DESKTOP_QUERY = '(min-width: 1000px)'
 
 const FEATURES = [
-  'כל הלידים במקום אחד',
+  'כל הלידים והשיחות במקום אחד',
+  'כלי AI מתקדמים',
   'וואטסאפ, משימות, יומן וקבצים',
-  'גישה מלאה לכל המערכת',
-  'ללא צורך בכרטיס אשראי',
+  'כל יכולות ה-Pro פתוחות למשך 7 ימים',
 ]
 
 /**
@@ -119,10 +119,10 @@ export default function WelcomeTrialModal() {
       <div ref={dialogRef} className='flex flex-col gap-5 min-w-[340px] max-w-[420px] pt-2'>
         <div>
           <h2 id='welcome-trial-title' className='text-xl font-bold leading-snug'>
-            החשבון שלך מוכן
+            SocialCRM Pro מוכן עבורך
           </h2>
           <p id='welcome-trial-subtitle' className='text-sm text-gray-600 mt-2'>
-            7 ימי ניסיון מלאים מתחילים עכשיו
+            קבל 7 ימים של גישה מלאה ל-Pro, ללא עלות וללא צורך בכרטיס אשראי
           </p>
         </div>
 
@@ -143,7 +143,11 @@ export default function WelcomeTrialModal() {
           </p>
         )}
 
-        <Btn variant='solid' size='large' lbl={pending ? 'רק רגע...' : 'התחל לעבוד'} onClick={onStart} disabled={pending} />
+        <Btn variant='solid' size='large' lbl={pending ? 'רק רגע...' : 'התחל 7 ימי Pro'} onClick={onStart} disabled={pending} />
+
+        <p className='text-xs text-gray-400 text-center -mt-1'>
+          לאחר 7 ימים, נדרש מנוי כדי להמשיך להשתמש במערכת
+        </p>
       </div>
     </ModalPop>
   )
