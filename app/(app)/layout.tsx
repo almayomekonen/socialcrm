@@ -45,9 +45,16 @@ async function LayoutContent({ children }) {
   if (user) agency = await getAgencyById(user?.agencyId)
 
   let trialStatus: TrialStatus = 'LEGACY'
+  // Preserve the full getTrialState result (status + daysRemaining) from the
+  // SAME existing read — reused for the header PRO pill; no extra DB query.
+  let trialDaysRemaining: number | null = null
   try {
     const trialRow = await getAgencyTrial(user.agencyId)
-    if (trialRow) trialStatus = getTrialState(trialRow, new Date()).status
+    if (trialRow) {
+      const trialState = getTrialState(trialRow, new Date())
+      trialStatus = trialState.status
+      trialDaysRemaining = trialState.daysRemaining
+    }
   } catch (err) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
   }
@@ -91,7 +98,11 @@ async function LayoutContent({ children }) {
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
-              <Topbar user={user} isPro={(await getAgencyPlan(user.agencyId)) === 'pro'} />
+              <Topbar
+                user={user}
+                isPro={(await getAgencyPlan(user.agencyId)) === 'pro'}
+                trialDaysRemaining={trialStatus === 'TRIAL_ACTIVE' ? trialDaysRemaining : null}
+              />
               <WorkspaceGrid>
                 <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
                 <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>

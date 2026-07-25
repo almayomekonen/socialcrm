@@ -33,11 +33,34 @@ const PRO_PILL: CSSProperties = {
   verticalAlign: 'middle',
 }
 
-export function ProNameLine({ user, isPro }: { user: any; isPro: boolean }) {
+export function ProNameLine({
+  user,
+  isPro,
+  trialDaysRemaining = null,
+}: {
+  user: any
+  isPro: boolean
+  // Days left when the workspace is in an ACTIVE trial (already-computed,
+  // server-side getTrialState result). null for every other state — the layout
+  // passes it only for TRIAL_ACTIVE, so LEGACY / expired / never-started never
+  // get a pill.
+  trialDaysRemaining?: number | null
+}) {
   const name = getDisplayName(user)
   const roleLabel = user?.role ? RoleLabels[user.role] || user.role : null
 
-  if (!isPro) {
+  // Paid keeps the exact existing pill. An active trial reuses the same pill,
+  // extending only its text (grammatical singular at 1 day). Everything else
+  // renders the original single <p>.
+  const trialPillText =
+    trialDaysRemaining == null
+      ? null
+      : trialDaysRemaining === 1
+        ? 'PRO · נותר יום'
+        : `PRO · נותרו ${trialDaysRemaining} ימים`
+  const pillText = isPro ? 'PRO' : trialPillText
+
+  if (!pillText) {
     return <p className='text-sm'>{`${name}${roleLabel ? ` - ${roleLabel}` : ''}`}</p>
   }
 
@@ -45,7 +68,7 @@ export function ProNameLine({ user, isPro }: { user: any; isPro: boolean }) {
     <p className='text-sm'>
       {name}
       <span className='bg-dark text-white select-none' style={PRO_PILL}>
-        PRO
+        {pillText}
       </span>
       {roleLabel ? ` - ${roleLabel}` : ''}
     </p>

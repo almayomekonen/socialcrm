@@ -26,7 +26,15 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
   return null
 }
 
-  export default function Topbar({ user, isPro = false }: { user: any; isPro?: boolean }) {
+  export default function Topbar({
+  user,
+  isPro = false,
+  trialDaysRemaining = null,
+}: {
+  user: any
+  isPro?: boolean
+  trialDaysRemaining?: number | null
+}) {
   const pathname = usePathname()
   if (!user) return null
   const title = resolveWorkspaceTitle(pathname)
@@ -41,7 +49,7 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
             system-level workspace control, not a navigation item. */}
         <div className='hidden desktop:flex items-center gap-3'>
           <CopilotTopbarTrigger />
-          <UserNAgency user={user} isPro={isPro} />
+          <UserNAgency user={user} isPro={isPro} trialDaysRemaining={trialDaysRemaining} />
         </div>
         <Link href='/dashboard' className='flex items-center gap-2'>
           <img src='/media/fav.svg' alt='SocialCRM' className='h-6' />
@@ -62,7 +70,17 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
   )
 }
 
-export function UserNAgency({ user, className = null, isPro = false }: { user: any; className?: string | null; isPro?: boolean }) {
+export function UserNAgency({
+  user,
+  className = null,
+  isPro = false,
+  trialDaysRemaining = null,
+}: {
+  user: any
+  className?: string | null
+  isPro?: boolean
+  trialDaysRemaining?: number | null
+}) {
   return (
     <div className={twMerge('flex', className)}>
       <Link href='/settings/self_edit' className='flex items-center gap-3' onClick={() => document.getElementById('navPop')?.hidePopover()}>
@@ -71,7 +89,7 @@ export function UserNAgency({ user, className = null, isPro = false }: { user: a
         ) : (
           <div className='bg-solid text-white size-6 text-center rounded-full'>{getDisplayName(user)[0]}</div>
         )}
-        <ProNameLine user={user} isPro={isPro} />
+        <ProNameLine user={user} isPro={isPro} trialDaysRemaining={trialDaysRemaining} />
       </Link>
     </div>
   )
