@@ -2,8 +2,10 @@
 
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
+import { requireProductAccess } from '@/lib/requireUser'
 
 export async function saveTblPref(tblId, columns) {
+  await requireProductAccess()
   const user = await getUser()
 
   await db('users')

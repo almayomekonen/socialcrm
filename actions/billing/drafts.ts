@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { canDraftBilling } from '@/lib/billing/permissions'
@@ -41,7 +41,7 @@ export async function createDraftFromLeadAction({
 }: {
   leadId: number
 }): Promise<DraftActionResult<{ invoiceId: number }>> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!canDraftBilling(user)) return { error: true, reason: 'no_permission' }
 
   const { gotPermIds } = await getPerms(user)
@@ -246,7 +246,7 @@ export type SaveTransientDraftInput = {
 export async function saveTransientDraftAction(
   input: SaveTransientDraftInput,
 ): Promise<DraftActionResult<{ invoiceId: number }>> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!canDraftBilling(user)) return { error: true, reason: 'no_permission' }
 
   const { gotPermIds } = await getPerms(user)
@@ -340,7 +340,7 @@ async function guardLeadInvoice(
 ): Promise<
   { success: true; invoice: Pick<BillInvoiceRow, 'id' | 'docState' | 'leadId'> } | { error: true; reason: DraftErrorReason }
 > {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!canDraftBilling(user)) return { error: true, reason: 'no_permission' }
 
   const { gotPermIds } = await getPerms(user)

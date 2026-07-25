@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { db } from '@/config/db'
 import { listConversationMessages } from '@/db/aiMessages'
 import { mapMessageRowToTimelineEntry, type TimelineEntry } from '@/lib/copilot/timeline'
@@ -29,7 +29,7 @@ export async function getCopilotTimeline(leadIdRaw: number | string): Promise<Co
 
   let user
   try {
-    user = await requireAgencyUser()
+    user = await requireProductAccess()
   } catch {
     return { ok: false, reason: 'forbidden' }
   }

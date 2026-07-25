@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { runStructured } from '@/lib/ai/router'
 import { resolveCopilotModeRole, isCopilotModeId, DEFAULT_COPILOT_MODE_ID } from '@/lib/ai/copilotModes'
 import { persistAssistantTurn } from '@/lib/copilot/persistConversation'
@@ -45,7 +45,7 @@ export async function askLeadQuestion(
   const copilotModeId = isCopilotModeId(modeRaw) ? modeRaw : undefined
   const persistMode = isCopilotModeId(modeRaw) ? modeRaw : DEFAULT_COPILOT_MODE_ID
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
 
   const normalizedQuestion = normalizeInput(question)
   let classification: { intent: Intent; confidence: number } = quickClassifyIntent(normalizedQuestion, question)

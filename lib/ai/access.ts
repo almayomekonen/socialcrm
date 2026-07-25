@@ -1,5 +1,4 @@
-import { getAgencyTrial } from '@/db/trial'
-import { getTrialState, hasActiveProductAccess } from '@/lib/trial'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
 
 /**
  * AI product-access authorization decision. Effective product access, NOT
@@ -22,23 +21,11 @@ export type AiAccessDecision =
   | { allowed: false; reason: 'subscription-required' | 'trial-not-started' }
 
 export async function resolveAiAccess(agencyId: number): Promise<AiAccessDecision> {
-  try {
-    const row = await getAgencyTrial(agencyId)
-    // Missing agency row → fail open (mirrors the layout gate's `if (trialRow)`
-    // guard, which leaves status at its LEGACY default when the row is absent).
-    if (!row) return { allowed: true }
-
-    const status = getTrialState(row, new Date()).status
-    if (hasActiveProductAccess(status)) return { allowed: true }
-    if (status === 'NEVER_STARTED') return { allowed: false, reason: 'trial-not-started' }
-    // The only remaining status is TRIAL_EXPIRED.
-    return { allowed: false, reason: 'subscription-required' }
-  } catch (err) {
-    // Infrastructure failure is NOT an entitlement denial. Fail open.
-    console.error('[ai.access] product-access read failed; failing open', {
-      agencyId,
-      err: String(err),
-    })
-    return { allowed: true }
-  }
+  // Shares the single canonical resolver (cached per request, fail-open on
+  // read error). Behavior is unchanged from the previous inline read.
+  const { status, hasAccess } = await getAgencyProductAccess(agencyId)
+  if (hasAccess) return { allowed: true }
+  if (status === 'NEVER_STARTED') return { allowed: false, reason: 'trial-not-started' }
+  // The only remaining blocked status is TRIAL_EXPIRED.
+  return { allowed: false, reason: 'subscription-required' }
 }

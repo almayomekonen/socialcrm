@@ -4,7 +4,7 @@ import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { toIso } from '@/lib/dates'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 
 // Export the deals table without a row limit. The query is NOT supplied by the
 // client: getDealTableData signs the server-generated query into `token`, and
@@ -12,7 +12,7 @@ import { requireUser } from '@/lib/requireUser'
 // token fails verification, so arbitrary client SQL can no longer be executed.
 // The result is still scoped to the caller's agency.
 export async function getDealDataToExport(token: unknown) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
 
   let payload: { sql?: unknown; bindings?: unknown }
   try {
@@ -30,6 +30,7 @@ export async function getDealDataToExport(token: unknown) {
 }
 
 export async function addFavDeals(dealIds: number[]) {
+  await requireProductAccess()
   const user = await getUser()
 
   await db('users')
@@ -42,6 +43,7 @@ export async function addFavDeals(dealIds: number[]) {
 }
 
 export async function removeFavDeals(dealIds: number[]) {
+  await requireProductAccess()
   const user = await getUser()
 
   await db('users')
@@ -54,6 +56,7 @@ export async function removeFavDeals(dealIds: number[]) {
 }
 
 export async function removeFavDeal(dealId: number) {
+  await requireProductAccess()
   const user = await getUser()
 
   await db('users')
@@ -87,7 +90,7 @@ async function hardDeleteSales(saleIds: number[], agencyId: number): Promise<num
 
 // מחיקת עסקאות
 export async function deleteDeals(ids: number[]) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const owned = await db('sales').whereIn('id', ids).where({ agencyId: user.agencyId }).select('id')
   if (owned.length !== ids.length) throw new Error('Forbidden')
   const deleted = await hardDeleteSales(
@@ -102,7 +105,7 @@ export async function deleteDeals(ids: number[]) {
 export type DeleteManyDealsResult = { deleted: number; skipped: number }
 
 export async function deleteManyDeals(ids: number[]): Promise<DeleteManyDealsResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!Array.isArray(ids) || ids.length === 0) return { deleted: 0, skipped: 0 }
 
   const owned = await db('sales').whereIn('id', ids).where({ agencyId: user.agencyId }).select('id')
@@ -117,7 +120,7 @@ export async function deleteManyDeals(ids: number[]): Promise<DeleteManyDealsRes
 
 // מחיקת עסקה
 export async function deleteDeal(id: number) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const owned = await db('sales').where({ id, agencyId: user.agencyId }).first()
   if (!owned) throw new Error('Forbidden')
   const deleted = await hardDeleteSales([id], user.agencyId)
@@ -128,7 +131,7 @@ export async function deleteDeal(id: number) {
 }
 
 export async function updateDealDt(dealId: number, saleDt: string) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db('sales').where({ id: dealId, agencyId: user.agencyId }).update({ saleDt })
   revalidatePath('/deals')
   revalidatePath('/sum_sales')
@@ -136,7 +139,7 @@ export async function updateDealDt(dealId: number, saleDt: string) {
 
 // עדכון סטטוס לעסקאות
 export async function updateDealStatus(dealId: number, status: string) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const obj = { status } as any
   if (status === 'הופק') obj.saleDt = toIso(new Date())
   await db('sales').where({ id: dealId, agencyId: user.agencyId }).update(obj)
@@ -146,7 +149,7 @@ export async function updateDealStatus(dealId: number, status: string) {
 
 // עדכון סטטוס לעסקאות
 export async function updateManyDealStatus(dealIds: number[], status: string) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const res = await db('sales').whereIn('id', dealIds).where({ agencyId: user.agencyId }).update({ status })
   revalidatePath('/deals')
   revalidatePath('/sum_sales')
@@ -154,7 +157,7 @@ export async function updateManyDealStatus(dealIds: number[], status: string) {
 }
 
 export async function saveReward(dealId: number, checked: boolean) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db('sales').where({ id: dealId, agencyId: user.agencyId }).update('rwrd', checked)
   revalidatePath('/deals')
 }

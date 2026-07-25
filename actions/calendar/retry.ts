@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getMeeting } from '@/db/meetings'
 import { getAttendeesForMeeting } from '@/db/meetingAttendees'
 import { pushMeetingToGoogle, type ActionError } from './shared'
@@ -16,7 +16,7 @@ export async function retrySyncMeeting(meetingIdRaw: number | string): Promise<R
     return { ok: false, reason: 'invalid_input' }
   }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const meeting = await getMeeting(meetingId, user.agencyId)
   if (!meeting) return { ok: false, reason: 'not_found' }
   if (meeting.organizer_user_id !== user.id) return { ok: false, reason: 'not_owner' }

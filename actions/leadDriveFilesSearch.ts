@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { listDriveFilesForLead } from '@/db/leadDriveFiles'
 import { getFullLead } from '@/db/clients'
 import { searchUserDrive, type DriveSearchResult } from '@/lib/integrations/google/driveClient'
@@ -27,7 +27,7 @@ export async function fetchSuggestedDriveFiles(leadIdRaw: number | string): Prom
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return []
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const lead = await getFullLead({ id: leadId, select: ['name', 'email', 'phone'] }).catch(() => null)
   if (!lead?.name) return []
 
@@ -57,7 +57,7 @@ export async function searchDriveForLead({
   const trimmed = query.trim()
   if (trimmed.length < 2) return []
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const escaped = trimmed.replace(/'/g, "\\'")
   const driveQuery = `(name contains '${escaped}' or fullText contains '${escaped}')`
 

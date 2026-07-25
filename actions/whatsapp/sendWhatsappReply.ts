@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
@@ -28,7 +28,7 @@ export async function sendWhatsappReply(
   if (!body) return { ok: false, reason: 'empty' }
   if (body.length > MAX_CHARS) return { ok: false, reason: 'too-long' }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
 
   const resolved = await resolveWhatsappOutboundTarget(user.agencyId, leadId)
   if (resolved.ok === false) return { ok: false, reason: resolved.reason }

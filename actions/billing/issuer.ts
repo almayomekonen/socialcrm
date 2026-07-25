@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { validateIssuerValues } from '@/lib/billing/issuer/validation'
 import { checkIssuerCompleteness } from '@/lib/billing/issuer/completeness'
@@ -13,7 +13,7 @@ export type IssuerActionResult = { success: true } | { error: true; reason: Issu
 export type IssuerErrorReason = 'no_permission' | 'invalid_input' | 'failed'
 
 export async function updateIssuerIdentityAction(values: Partial<IssuerData>): Promise<IssuerActionResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
 
   if (!isAdmin(user.role)) return { error: true, reason: 'no_permission' }
 
@@ -34,7 +34,7 @@ export type GetIssuerActionResult = { issuer: IssuerData } | { error: true; reas
 
 export async function getIssuerAction(): Promise<GetIssuerActionResult> {
   try {
-    const user = await requireUser()
+    const user = await requireProductAccess()
     const issuer = await getIssuer(user.agencyId)
     if (!issuer) return { error: true, reason: 'failed' }
     return { issuer }
@@ -51,7 +51,7 @@ export type IssuerCompletenessActionResult =
 
 export async function getIssuerCompletenessAction(): Promise<IssuerCompletenessActionResult> {
   try {
-    const user = await requireUser()
+    const user = await requireProductAccess()
     const issuer = await getIssuer(user.agencyId)
     if (!issuer) return { error: true, reason: 'failed' }
 

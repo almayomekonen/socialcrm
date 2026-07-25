@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 // All data/auth deps mocked → pure unit test of the assembly + deterministic
 // greeting + ordering. No DB, no model.
-vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: vi.fn() }))
+vi.mock('@/lib/requireUser', () => { const __ru = vi.fn(); return { requireAgencyUser: __ru, requireProductAccess: __ru } })
 vi.mock('@/db/filter', () => ({ getPerms: vi.fn() }))
 vi.mock('@/db/clients', () => ({ hasAnyLeads: vi.fn() }))
 vi.mock('@/db/meetings', () => ({ getTodaysMeetings: vi.fn() }))

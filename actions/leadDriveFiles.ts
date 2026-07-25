@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import {
   attachDriveFileToLead,
   detachDriveFileFromLead,
@@ -35,7 +35,7 @@ export async function listLeadDriveAttachments(leadIdRaw: number | string): Prom
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return []
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const rows = await listDriveFilesForLead({ leadId, agencyId: user.agencyId })
   return rows.map(toAttachment)
 }
@@ -53,7 +53,7 @@ export async function attachDriveFile(input: AttachInput): Promise<{ ok: true; i
   if (!Number.isFinite(leadId) || leadId <= 0) return { ok: false, reason: 'invalid-lead' }
   if (!input.driveFileId || !input.name) return { ok: false, reason: 'invalid-file' }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
 
   // Verify the lead belongs to the user's agency by confirming a row exists.
   const lead = await getFullLead({ id: leadId, select: ['name'] }).catch(() => null)
@@ -81,7 +81,7 @@ export async function detachDriveFile(attachmentIdRaw: number | string): Promise
   const attachmentId = Number(attachmentIdRaw)
   if (!Number.isFinite(attachmentId) || attachmentId <= 0) return { ok: false, reason: 'invalid-id' }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const row = await getDriveFileAttachmentById({ id: attachmentId, agencyId: user.agencyId })
   if (!row) return { ok: false, reason: 'not-found' }
 

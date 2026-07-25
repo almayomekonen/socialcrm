@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
-import { createTask } from '@/actions/tasks'
+import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
 
 type WhatsappWebhookLeadInput = {
@@ -75,7 +75,7 @@ export async function createLeadFromWhatsappWebhook({
 
   console.log(`[WhatsappWebhook][create][msgId=${messageId}] Lead created — id: ${lead.id}`)
 
-  await createTask({ clientId: lead.id, title: 'ליד חדש מוואטסאפ', userId, _system: true })
+  await createSystemTask({ clientId: lead.id, title: 'ליד חדש מוואטסאפ', userId })
 
   console.log(`[WhatsappWebhook][success][msgId=${messageId}]`)
 

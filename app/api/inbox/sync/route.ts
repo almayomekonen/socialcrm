@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { db } from '@/config/db'
 import { getInboxDelta, getInboxAwareness } from '@/modules/inbox/queries'
 import {
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
   const started = Date.now()
   const user = await getUser()
   if (!user?.agencyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return NextResponse.json({ error: 'product-access-required' }, { status: 403 })
+  }
 
   const url = new URL(req.url)
   const since = url.searchParams.get('since')

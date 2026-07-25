@@ -7,10 +7,10 @@ import { saleObj } from '@/types/types'
 import { formatSaleAmountType, insertSaleUsers } from '@/components/sales/saleForm/funcs/insertSale'
 import { formatCurrency, omit } from '@/lib/funcs'
 import { getAgencyId } from '@/db/agencies'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 
 export async function insertSale(data: saleObj) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db.transaction(async (trx) => {
     if (data.saleId) await trx('sales').where({ id: data.saleId, agencyId: user.agencyId }).del()
 
@@ -54,6 +54,7 @@ export async function insertSale(data: saleObj) {
 }
 
 export async function isPrdctsExists(sale): Promise<any> {
+  await requireProductAccess()
   sale.prdcts = formatSaleAmountType(sale.prdcts)
   const existingPrdcts = []
 

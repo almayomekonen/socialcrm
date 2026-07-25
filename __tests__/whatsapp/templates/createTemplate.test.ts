@@ -16,7 +16,7 @@ const h = vi.hoisted(() => ({
   state: { connection: undefined as { waba_id: string; access_token: string } | undefined, existingNames: [] as string[] },
 }))
 
-vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser }))
+vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser, requireProductAccess: h.requireAgencyUser }))
 vi.mock('@/types/roles', () => ({ isAdmin: h.isAdmin }))
 vi.mock('@/lib/whatsapp/templates/graph', () => ({ createTemplateOnMeta: h.createTemplateOnMeta }))
 vi.mock('@/lib/whatsapp/templates/rateLimit', () => ({ isCreateRateLimited: h.isCreateRateLimited, RATE_LIMIT_MESSAGE: 'RATE_MSG' }))

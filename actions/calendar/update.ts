@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import {
   getMeeting,
   markMeetingPatched,
@@ -40,7 +40,7 @@ export async function getMeetingForEdit(meetingIdRaw: number | string): Promise<
   if (!Number.isFinite(meetingId) || meetingId <= 0) {
     return { ok: false, reason: 'invalid_input' }
   }
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const meeting = await getMeeting(meetingId, user.agencyId)
   if (!meeting) return { ok: false, reason: 'not_found' }
   if (meeting.organizer_user_id !== user.id) return { ok: false, reason: 'not_owner' }
@@ -134,7 +134,7 @@ export async function updateMeeting(input: UpdateMeetingInput): Promise<UpdateMe
     return { ok: false, reason: 'invalid_input', details: 'endAt' }
   }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const meeting = await getMeeting(meetingId, user.agencyId)
   if (!meeting) return { ok: false, reason: 'not_found' }
   if (meeting.organizer_user_id !== user.id) return { ok: false, reason: 'not_owner' }

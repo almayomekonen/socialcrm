@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/config/db'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { loadTemplateForMutation, discardTemplateRow } from '@/db/whatsappTemplates'
 import { deleteTemplateOnMeta } from '@/lib/whatsapp/templates/graph'
@@ -19,7 +19,7 @@ const NOT_FOUND = 'ההודעה לא נמצאה.'
 const USE_ARCHIVE = 'הודעה מאושרת — אפשר להעביר לארכיון, לא להסיר.'
 
 export async function discardTemplate(id: number): Promise<MutateTemplateResult> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, error: PERM_ERROR }
 
   const row = await loadTemplateForMutation(id, user.agencyId)

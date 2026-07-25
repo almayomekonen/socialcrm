@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { canIssueBilling } from '@/lib/billing/permissions'
@@ -30,7 +30,7 @@ export type IssueErrorReason =
   | 'failed'
 
 export async function issueInvoiceAction(input: { invoiceId: number; leadId: number }): Promise<IssueActionResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!canIssueBilling(user)) return { error: true, reason: 'no_permission' }
 
   const { gotPermIds } = await getPerms(user)
@@ -79,7 +79,7 @@ export type SaveAndIssueResult =
   | { error: true; reason: IssueErrorReason | DraftErrorReason; invoiceId?: number }
 
 export async function saveAndIssueTransientAction(input: SaveTransientDraftInput): Promise<SaveAndIssueResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const issuer = await getIssuer(user.agencyId)
   if (!issuer || !checkIssuerCompleteness(issuer).complete) {
     return { error: true, reason: 'issuer_identity_incomplete' }

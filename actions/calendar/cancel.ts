@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getMeeting, markMeetingCancelled, updateMeetingSyncState } from '@/db/meetings'
 import { deleteEvent } from '@/lib/integrations/google/calendarClient'
 import { classifyError, type ActionError } from './shared'
@@ -18,7 +18,7 @@ export async function cancelMeeting(meetingIdRaw: number | string): Promise<Canc
     return { ok: false, reason: 'invalid_input' }
   }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const meeting = await getMeeting(meetingId, user.agencyId)
   if (!meeting) return { ok: false, reason: 'not_found' }
   if (meeting.organizer_user_id !== user.id) return { ok: false, reason: 'not_owner' }

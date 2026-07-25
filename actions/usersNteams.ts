@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { Role } from '@/types/db/tables'
 import { Roles, isAdmin } from '@/types/roles'
 import { getUserNameById } from '@/db/usersNTeams'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { normalizeDefaultSettings } from '@/lib/form/funcs'
 
 const USER_SELF_WRITABLE = ['firstName', 'lastName', 'email', 'idNum', 'phone'] as const
@@ -34,7 +34,7 @@ function pickCols(data: unknown, allowed: readonly string[]): Record<string, unk
 }
 
 export async function upsertUserNPerms(data, id) {
-  const authUser = await requireUser()
+  const authUser = await requireProductAccess()
   if (!isAdmin(authUser.role)) throw new Error('Forbidden')
   const { gotPermIds } = data
 
@@ -81,7 +81,7 @@ export async function upsertUserNPerms(data, id) {
 }
 
 export async function upsertUser(user, id) {
-  const authUser = await requireUser()
+  const authUser = await requireProductAccess()
   if (!isAdmin(authUser.role)) throw new Error('Forbidden')
   const safe: Record<string, unknown> = { ...pickCols(user, USER_ADMIN_WRITABLE), agencyId: authUser.agencyId }
   if (safe.email) safe.email = String(safe.email).toLowerCase().trim()
@@ -100,14 +100,14 @@ export async function upsertUser(user, id) {
 }
 
 export async function deleteUser(id) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) throw new Error('Forbidden')
   await db('users').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/edit_users')
 }
 
 export async function updateGavePerm(_curUserId, addedUserId) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   // A user may only delegate access to their OWN leads (gaveId = caller), and
   // only to a user within their agency. The client-supplied grantor is ignored.
   const target = await db('users').where({ id: addedUserId, agencyId: user.agencyId }).first('id')
@@ -124,7 +124,7 @@ export async function updateGavePerm(_curUserId, addedUserId) {
 }
 
 export async function removeAuthUser(_userId, removeUserId) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   // Caller can only revoke permissions they themselves granted (gaveId = caller).
   await db('user_perms').where({ gaveId: user.id, gotId: removeUserId }).del()
 
@@ -132,14 +132,14 @@ export async function removeAuthUser(_userId, removeUserId) {
 }
 
 export async function deleteTeam(id: number) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) throw new Error('Forbidden')
   await db('teams').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/edit_teams')
 }
 
 export async function upsertTeam(id: number, team: any) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) throw new Error('Forbidden')
   let teamId = id
 
@@ -182,12 +182,13 @@ export async function fetchUsersByMngrId(mngrId: number) {
 }
 
 export async function fetchIsUserHaveSales(userId: number) {
+  await requireProductAccess()
   const res = await db('sale_users').where('userId', userId).first()
   return !!res
 }
 
 export async function transferSales(fromUserId: number, toUserId: number) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const [from, to] = await Promise.all([
     db('users').where({ id: fromUserId, agencyId: user.agencyId }).first('id'),
     db('users').where({ id: toUserId, agencyId: user.agencyId }).first('id'),
@@ -204,7 +205,7 @@ export async function transferSales(fromUserId: number, toUserId: number) {
 // ext users
 
 export async function upsertExtUser(extUser, id?) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const safe = pickCols(extUser, EXT_USER_WRITABLE)
 
   if (id) {
@@ -229,7 +230,7 @@ export async function upsertExtUser(extUser, id?) {
 }
 
 export async function deleteExtUser(id) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   // Only an EXT user within the caller's agency may be deleted.
   const target = await db('users')
     .where({ id, agencyId: user.agencyId, role: 'EXT' as Role })
@@ -249,7 +250,7 @@ export async function deleteExtUser(id) {
 // be pointed at another account (cross-tenant / cross-user write). Column
 // allowlists additionally block privilege columns on the `users` table.
 export async function updateFullUser(data, _userId?) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (data?.userData) {
     const userData = pickCols(data.userData, USER_SELF_WRITABLE)
     if (Object.keys(userData).length) await db('users').where({ id: user.id }).update(userData)
@@ -263,14 +264,14 @@ export async function updateFullUser(data, _userId?) {
 }
 
 export async function updateUserInfoData(data, _userId?) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const safe = pickCols(data, USER_INFO_WRITABLE)
   if (Object.keys(safe).length) await db('users_info').where({ id: user.id }).update(safe)
   revalidatePath('/settings/update_user_details')
 }
 
 export async function updateDefaultSettings(data: Record<string, unknown>, _userId?: number) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
 
   const normalized = normalizeDefaultSettings(data)
 

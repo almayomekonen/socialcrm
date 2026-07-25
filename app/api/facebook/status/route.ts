@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { checkFacebookConnection } from '@/lib/facebook/health'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
 
 const HEALTH_CACHE_MS = 30 * 60 * 1000 // 30 minutes
 
 export async function GET() {
   const user = await getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Returns lastLeadAt (CRM-derived) — gate on product access.
+  if (user.agencyId && !(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return NextResponse.json({ error: 'product-access-required' }, { status: 403 })
+  }
 
   const connection = await db('facebook_pages').where({ user_id: user.id }).first()
   if (!connection) {

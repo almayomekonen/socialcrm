@@ -2,10 +2,10 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 
 export async function addSavedFilters({ data }: { data: { name: string; href: string }; id?: number }) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db('users')
     .where({ id: user.id })
     .update({
@@ -16,7 +16,7 @@ export async function addSavedFilters({ data }: { data: { name: string; href: st
 }
 
 export async function updateSavedFilters({ data }: { data: { name: string; href: string }; id?: number }) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db('users')
     .where({ id: user.id })
     .update({

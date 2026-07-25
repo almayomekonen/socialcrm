@@ -2,7 +2,7 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 
@@ -33,7 +33,7 @@ export type FollowUpResult = { err: true; msg: string } | Record<string, unknown
 // `await` a bare knex builder (which is itself thenable and would execute as a
 // stray SELECT, returning rows instead of the builder).
 async function applyFollowUp(id: number, patch: Record<string, unknown>): Promise<FollowUpResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const { gotPermIds } = await getPerms(user)
   const query = db('clients').where({ id, agencyId: user.agencyId })
   if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)

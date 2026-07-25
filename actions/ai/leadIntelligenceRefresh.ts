@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidateTag } from 'next/cache'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getFullLead } from '@/db/clients'
 import { leadIntelTag } from './leadIntelligence'
 
@@ -18,7 +18,7 @@ export async function refreshLeadIntelligence(leadIdRaw: number | string): Promi
     return { ok: false, reason: 'invalid-input' }
   }
 
-  const user = await requireUser()
+  const user = await requireProductAccess()
 
   const lead = await getFullLead({ id: leadId, select: ['agencyId'] })
   if (!lead) return { ok: false, reason: 'forbidden' }

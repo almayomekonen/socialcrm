@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getFullLead } from '@/db/clients'
 import { insertMeeting } from '@/db/meetings'
 import { insertAttendees } from '@/db/meetingAttendees'
@@ -46,7 +46,7 @@ export async function createMeeting(input: CreateMeetingInput): Promise<CreateMe
     return { ok: false, reason: 'invalid_input', details: 'timezone' }
   }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
 
   let leadId: number | null = null
   if (input.leadId != null) {

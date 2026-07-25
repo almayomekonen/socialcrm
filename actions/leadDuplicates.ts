@@ -2,7 +2,7 @@
 
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { normalizePhone, normalizeEmail, normalizeIdNum } from '@/lib/leads/normalizeContact'
 import { scoreCandidate, compareMatches, type DuplicateMatch, type NormalizedQuery } from '@/lib/leads/duplicateMatch'
 
@@ -27,7 +27,7 @@ const CANDIDATE_FETCH_LIMIT = 25
  * details are changed. Returns [] when there is nothing to match on.
  */
 export async function findDuplicateLeads(input: FindDuplicateLeadsInput): Promise<DuplicateMatch[]> {
-  await requireUser()
+  await requireProductAccess()
   const agencyId = await getAgencyId()
 
   const phones = [normalizePhone(input.phone), normalizePhone(input.secPhone)].filter((p): p is string => !!p)

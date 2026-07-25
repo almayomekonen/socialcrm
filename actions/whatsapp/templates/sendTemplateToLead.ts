@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import { loadTemplateForSend } from '@/db/whatsappTemplates'
 import { getAgencyById } from '@/db/agencies'
@@ -18,7 +18,7 @@ import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
  * Meta. The connection token is resolved server-side and never leaves it.
  *
  * Permission model (RFC §1): sending to a lead is an **agent** action — any agency
- * member — so this is `requireAgencyUser`, NOT admin-gated (unlike create/retry/
+ * member — so this is `requireProductAccess`, NOT admin-gated (unlike create/retry/
  * archive). Tenant isolation is total: the template is loaded scoped to the
  * caller's agency, and the send target is resolved within the same agency.
  *
@@ -51,7 +51,7 @@ export async function sendTemplateToLead(
     return { ok: false, error: INVALID_INPUT }
   }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   // Defense in depth: the UI is flag-gated, but the action re-checks so an
   // off-agency can never reach the send path even by calling directly.
   if (!isTemplatesEnabledForAgency(user.agencyId)) return { ok: false, error: NOT_AVAILABLE }

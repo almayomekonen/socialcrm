@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { runStructured } from '@/lib/ai/router'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { getFullLead } from '@/db/clients'
@@ -33,7 +33,7 @@ export async function generateWhatsappReplyDraft(
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return { ok: false, reason: 'invalid-input' }
 
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
 
   const [snapshot, leadMeta, allMessages] = await Promise.all([
     getLeadIntelligenceInputs(leadId).catch(() => null),

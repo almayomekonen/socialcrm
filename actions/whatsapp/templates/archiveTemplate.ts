@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { loadTemplateForMutation, archiveTemplateRow } from '@/db/whatsappTemplates'
 
@@ -16,7 +16,7 @@ const NOT_FOUND = 'ההודעה לא נמצאה.'
 const USE_DISCARD = 'הודעה שממתינה לבדיקה או שנדחתה — יש להסיר, לא להעביר לארכיון.'
 
 export async function archiveTemplate(id: number): Promise<MutateTemplateResult> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, error: PERM_ERROR }
 
   const row = await loadTemplateForMutation(id, user.agencyId)

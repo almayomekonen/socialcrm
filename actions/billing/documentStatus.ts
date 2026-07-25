@@ -3,7 +3,7 @@
 import { HeadObjectCommand } from '@aws-sdk/client-s3'
 import { s3 } from '@/config/s3'
 import { db } from '@/config/db'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { markDocumentReady, markDocumentFailed, appendDocumentDiagStep } from '@/db/billing/documents'
 
 export type InvoicePdfStatusValue = 'rendering' | 'ready' | 'failed' | 'none'
@@ -41,7 +41,7 @@ type DocRow = {
  *   - otherwise: return 'rendering' and let the client poll again
  */
 export async function getInvoicePdfStatusAction(invoiceId: number): Promise<InvoicePdfStatusSnapshot> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const doc = await loadLatestDoc(user.agencyId, invoiceId)
   if (!doc) return { status: 'none', url: null, errorReason: null }
 

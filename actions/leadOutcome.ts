@@ -2,7 +2,7 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { daysFromNow } from '@/lib/dates'
@@ -36,7 +36,7 @@ export async function logLeadOutcome(input: LogLeadOutcomeInput): Promise<LogLea
   if (!Number.isFinite(id) || id <= 0) return { err: true, msg: 'ליד לא תקין' }
   if (!isLeadOutcome(input?.outcome)) return { err: true, msg: 'תוצאה לא תקינה' }
 
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const { gotPermIds } = await getPerms(user)
 
   // Read current status (scoped) to resolve the transition; absence = not found / no permission.

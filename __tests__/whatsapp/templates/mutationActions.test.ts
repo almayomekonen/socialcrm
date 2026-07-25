@@ -16,7 +16,7 @@ const h = vi.hoisted(() => ({
   connection: { waba_id: 'WABA_1', access_token: 'secret-token' } as { waba_id: string; access_token: string } | undefined,
 }))
 
-vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser }))
+vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser, requireProductAccess: h.requireAgencyUser }))
 vi.mock('@/types/roles', () => ({ isAdmin: h.isAdmin }))
 vi.mock('@/db/whatsappTemplates', () => ({
   loadTemplateForMutation: h.loadTemplateForMutation,

@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { MapRoles, isAdmin, INVITABLE_ROLES } from '@/types/roles'
 import { baseUrl } from '@/types/vars'
 import { normalizeEmail } from '@/lib/normalizeEmail'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 
 interface SendInvitationArgs {
   email: string
@@ -22,7 +22,7 @@ export async function sendInvitation({ email, role, firstName, phone, lastName }
   // Inviting is an ADMIN capability (edit_users is an ADMIN-only surface) and
   // the invitation decides the new account's role — so without this gate any
   // authenticated user could invite themselves an ADMIN account.
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { error: 'אין הרשאה' }
   if (typeof role !== 'string' || !INVITABLE_ROLES.has(role)) return { error: 'תפקיד לא תקין' }
 
@@ -91,7 +91,7 @@ export async function deleteInvitation(id: number) {
   // Admin-only (edit_users is an ADMIN surface) and scoped to the caller's
   // agency. Previously this had no auth at all and matched a bare id, so any
   // unauthenticated caller could delete any tenant's pending invitations.
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) throw new Error('Forbidden')
   await db('invitations').where({ id, agencyId: user.agencyId }).del()
   revalidatePath('/settings/edit_users')

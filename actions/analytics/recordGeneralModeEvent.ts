@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 
 /**
@@ -16,7 +16,7 @@ export async function recordGeneralModeEvent(
 ): Promise<void> {
   if (!CLIENT_EMITTABLE.has(event)) return
   try {
-    const user = await requireAgencyUser()
+    const user = await requireProductAccess()
     await track({ agencyId: user.agencyId, userId: user.id, event, props })
   } catch {
     // Analytics must never break a flow; swallow auth/db hiccups.

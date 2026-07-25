@@ -16,7 +16,7 @@ const h = vi.hoisted(() => ({
   persistOutboundWhatsapp: vi.fn(),
 }))
 
-vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser }))
+vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser, requireProductAccess: h.requireAgencyUser }))
 vi.mock('@/lib/whatsapp/templates/flag', () => ({ isTemplatesEnabledForAgency: h.isTemplatesEnabledForAgency }))
 vi.mock('@/db/whatsappTemplates', () => ({ loadTemplateForSend: h.loadTemplateForSend }))
 vi.mock('@/db/agencies', () => ({ getAgencyById: h.getAgencyById }))

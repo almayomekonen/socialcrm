@@ -20,7 +20,7 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({ get: vi.fn(() => null), set: vi.fn(), delete: vi.fn() })),
   headers: vi.fn(() => ({ get: vi.fn(() => null) })),
 }))
-vi.mock('@/lib/requireUser', () => ({ requireUser: vi.fn(), requireAgencyUser: vi.fn() }))
+vi.mock('@/lib/requireUser', () => { const __au = vi.fn(); return { requireUser: vi.fn(), requireAgencyUser: __au, requireProductAccess: __au } })
 vi.mock('@/db/meetings', () => ({
   getMeeting: vi.fn(),
   markMeetingCompleted: vi.fn(),

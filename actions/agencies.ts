@@ -4,7 +4,7 @@ import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { after } from 'next/server'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { track } from '@/lib/analytics/track'
@@ -90,7 +90,7 @@ export async function updatePkg(pkg) {
 }
 
 export async function updateAgency(data, id) {
-  await requireUser()
+  await requireProductAccess()
   await db('agencies').where({ id }).update(data)
   revalidatePath('/settings/update_agency')
 }

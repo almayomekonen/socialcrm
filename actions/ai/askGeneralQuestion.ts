@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { getTodaysMeetings } from '@/db/meetings'
 import {
@@ -71,7 +71,7 @@ export async function askGeneralQuestion(
   activeLeadIdRaw?: unknown,
   conversationState?: ConversationState | null,
 ): Promise<GeneralAnswer> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const mode = isCopilotModeId(modeRaw) ? modeRaw : undefined
   const n = Number(activeLeadIdRaw)
   const activeLeadId = Number.isFinite(n) && n > 0 ? n : undefined
@@ -95,7 +95,7 @@ export async function askGeneralQuestion(
 }
 
 export async function getLeadCardById(leadIdRaw: number | string): Promise<GeneralAnswer> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return { kind: 'guide', answer: 'לא הצלחתי לטעון את הליד.' }
   const { gotPermIds } = await getPerms(user)

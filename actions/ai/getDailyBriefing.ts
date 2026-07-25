@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { hasAnyLeads } from '@/db/clients'
 import { getTodaysMeetings } from '@/db/meetings'
@@ -18,7 +18,7 @@ import { BRIEFING_SAMPLE_LIMIT } from '@/lib/copilot/general/constants'
 import type { BriefingResult, BriefingSection } from '@/lib/copilot/general/types'
 
 export async function getDailyBriefing(): Promise<BriefingResult> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   try {
     const { gotPermIds } = await getPerms(user)
     const scope: Scope = { user: { role: user.role }, gotPermIds }

@@ -6,7 +6,7 @@ import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { isIdNumValid } from '@/lib/funcs'
 import * as XLSX from 'xlsx'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { assertLeadQuota, QuotaExceededError, getEffectiveLeadPlan, withAgencyQuotaLock } from '@/lib/quota'
@@ -108,7 +108,7 @@ async function findBillingBlocks(trx: any, leadIds: number[]): Promise<Map<numbe
 }
 
 export async function deleteLead(clientId): Promise<DeleteLeadResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const { gotPermIds } = await getPerms(user)
 
   try {
@@ -141,7 +141,7 @@ export async function deleteLead(clientId): Promise<DeleteLeadResult> {
 }
 
 export async function deleteManyLeads(ids: number[], leads: boolean = true): Promise<DeleteManyLeadsResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!Array.isArray(ids) || ids.length === 0) return { deletedCount: 0, blockedCount: 0, blockedLeads: [], reason: null }
 
   const { gotPermIds } = await getPerms(user)
@@ -188,7 +188,7 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const safeData = pickLeadFields(data ?? {})
 
   try {
@@ -247,7 +247,7 @@ function pickListFields(data: unknown): Record<string, unknown> {
 }
 
 export async function upsertLeadList(_userId, data) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   // Ignore the client-supplied userId; the owner is always the caller. Column
   // allowlist blocks mass-assignment of id/userId.
   const safe = pickListFields(data)
@@ -262,14 +262,14 @@ export async function upsertLeadList(_userId, data) {
 }
 
 export async function deleteLeadList(id) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db('client_lists').where({ id, userId: user.id }).delete()
 
   revalidatePath('/leads')
 }
 
 export async function transferDealsToLead(fromClientId, toClientId) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const from = await db('clients').where({ id: fromClientId, agencyId: user.agencyId }).first()
   if (!from) throw new Error('Forbidden')
   const to = await db('clients').where({ id: toClientId, agencyId: user.agencyId }).first()
@@ -279,12 +279,13 @@ export async function transferDealsToLead(fromClientId, toClientId) {
 }
 
 export async function transferLeadToRep(clientId, userId) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await db('clients').where({ id: clientId, agencyId: user.agencyId }).update({ userId })
   revalidatePath('/leads')
 }
 
 async function searchBase(val, isLead) {
+  await requireProductAccess()
   const terms = val.split(' ').filter((term) => term)
 
   const agencyId = await getAgencyId()
@@ -335,7 +336,7 @@ export async function getLeadById(clientId) {
   // id, across tenants, including idNum (national ID). Scoped to the caller's
   // agency and — for non-admins — to leads they hold permission on, matching
   // the access rule updateLead already enforces.
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const id = Number(clientId)
   if (!Number.isInteger(id)) return null
 
@@ -349,7 +350,7 @@ export async function getLeadById(clientId) {
 }
 
 export async function updateLead(data) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const { id } = data ?? {}
   const safeData: Record<string, any> = pickLeadFields(data ?? {})
 
@@ -387,6 +388,7 @@ export async function updateLead(data) {
 }
 
 export async function getLeadByIdNum(idNum: string) {
+  await requireProductAccess()
   const agencyId = await getAgencyId()
 
   const res = await db('clients')
@@ -397,6 +399,7 @@ export async function getLeadByIdNum(idNum: string) {
 }
 
 export async function uploadLeadData(file) {
+  await requireProductAccess()
   const fileStream = file.stream()
   const chunks = []
 
@@ -444,6 +447,7 @@ export async function uploadLeadData(file) {
 }
 
 export async function addLeads(leads): Promise<AddLeadsResult> {
+  await requireProductAccess()
   const { id: userId } = await getUser()
   const agencyId = await getAgencyId()
   const safeLeads: any[] = Array.isArray(leads) ? leads.map((lead) => pickLeadFields(lead ?? {})) : []
@@ -494,7 +498,7 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
 export async function getLeadDeals(clientId) {
   // Same class as getLeadById: scope the read to the caller's agency so a lead
   // id from another tenant cannot return that tenant's deals.
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const id = Number(clientId)
   if (!Number.isInteger(id)) return []
   return db('_sales').where({ clientId: id, agencyId: user.agencyId })
@@ -523,7 +527,7 @@ function parseCSVLine(line: string, delim: string): string[] {
 }
 
 export async function importLeadsFromCsv(file: File) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const { id: userId } = await getUser()
   const agencyId = await getAgencyId()
   // ── DEBUG: agency scope trace ──────────────────────────────────────────
@@ -658,7 +662,7 @@ export async function importLeadsFromCsv(file: File) {
 }
 
 export async function fetchLeadsSince(lastSeenAt: string) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const agencyId = user.agencyId
   const plan = await getEffectiveLeadPlan(agencyId)
   const query = db('clients')

@@ -4,7 +4,7 @@ import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 
 type TaskUpdateInput = {
   title?: string
@@ -48,7 +48,7 @@ async function assertTemplateAccess(tmpltId: number, user: { agencyId?: number }
 }
 
 export async function deleteTask(task) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await assertTaskAccess(task.id, user)
   await db.transaction(async (trx) => {
     await trx('tasks').where({ id: task.id }).del()
@@ -58,7 +58,7 @@ export async function deleteTask(task) {
 }
 
 export async function updateFullTask(task) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await assertTaskAccess(task.id, user)
   const safe = sanitizeTaskUpdate(task)
   const taskList = Array.isArray(safe.tasks) ? safe.tasks : []
@@ -78,8 +78,12 @@ export async function updateFullTask(task) {
   revalidatePath('/clients', 'layout')
 }
 
+// createTask is the USER-facing task-creation server action (a product
+// boundary) — gated by requireProductAccess(). System/webhook task creation
+// goes through lib/system/createSystemTask (session-independent), NOT here, so
+// gating this can never affect inbound webhook ingestion.
 export async function createTask(data: { clientId: number; title: string; userId?: number; _system?: boolean }) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await assertClientAccess(data.clientId, user)
   const res = await db('tasks')
     .insert({
@@ -96,7 +100,7 @@ export async function createTask(data: { clientId: number; title: string; userId
 }
 
 export async function addTask(clientId, _user: unknown, title = 'כתוב כותרת') {
-  const authedUser = await requireUser()
+  const authedUser = await requireProductAccess()
   await assertClientAccess(clientId, authedUser)
   const res = await db('tasks')
     .insert({
@@ -112,7 +116,7 @@ export async function addTask(clientId, _user: unknown, title = 'כתוב כות
 }
 
 export async function saveFiles(uploadFiles, isTmplt, task) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
 
   if (!Array.isArray(uploadFiles) || uploadFiles.length === 0) throw new Error('Invalid files')
 
@@ -157,7 +161,7 @@ export async function saveFiles(uploadFiles, isTmplt, task) {
 }
 
 export async function addTaskFromTmplt(clientId, taskTmpltId) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await assertClientAccess(clientId, user)
 
   await assertTemplateAccess(taskTmpltId, user)
@@ -209,7 +213,7 @@ export async function addTaskFromTmplt(clientId, taskTmpltId) {
 // task_tmplts
 
 export async function addTaskTmplt() {
-  await requireUser()
+  await requireProductAccess()
   const res = await db('task_tmplts')
     .insert({
       title: 'כתוב כותרת',
@@ -223,14 +227,14 @@ export async function addTaskTmplt() {
 }
 
 export async function deleteTaskTmplt(taskTmplt) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await assertTemplateAccess(taskTmplt.id, user)
   await db('task_tmplts').where({ id: taskTmplt.id }).del()
   redirect(`/settings/edit_tmplts`)
 }
 
 export async function updateFullTaskTmplt(taskTmplt) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   await assertTemplateAccess(taskTmplt.id, user)
   await db('task_tmplts')
     .where({ id: taskTmplt.id })
@@ -242,7 +246,7 @@ export async function updateFullTaskTmplt(taskTmplt) {
     })
 }
 export async function saveFilesTmplt(uploadFiles) {
-  await requireUser()
+  await requireProductAccess()
   const safeFiles = uploadFiles.map((f: any) => ({
     name: String(f.name ?? ''),
     path: String(f.path ?? ''),
@@ -253,7 +257,7 @@ export async function saveFilesTmplt(uploadFiles) {
 }
 
 export async function unlinkFileFromTaskTmplt(fileId: number, taskTmpltId: number) {
-  await requireUser()
+  await requireProductAccess()
   await db.raw(
     `
     UPDATE files 

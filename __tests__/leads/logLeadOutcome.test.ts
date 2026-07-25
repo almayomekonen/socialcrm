@@ -45,7 +45,7 @@ vi.mock('@/config/db', () => {
   }
   return { db }
 })
-vi.mock('@/lib/requireUser', () => ({ requireUser: () => Promise.resolve({ id: 99, agencyId: state.agencyId, role: state.role }) }))
+vi.mock('@/lib/requireUser', () => ({ requireUser: () => Promise.resolve({ id: 99, agencyId: state.agencyId, role: state.role }), requireProductAccess: () => Promise.resolve({ id: 99, agencyId: state.agencyId, role: state.role }) }))
 vi.mock('@/db/filter', () => ({ getPerms: () => Promise.resolve({ gotPermIds: state.gotPermIds }) }))
 vi.mock('@/types/roles', () => ({ isAdmin: (r: string) => r === 'admin' }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))

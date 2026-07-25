@@ -2,7 +2,7 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 
 // Columns the promo form legitimately writes. Blocks mass-assignment of
@@ -20,7 +20,7 @@ function pickPromo(data: unknown): Record<string, unknown> {
 }
 
 export async function upsertPromo(promo, id) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) throw new Error('Forbidden')
   const safe = pickPromo(promo)
   id
@@ -31,7 +31,7 @@ export async function upsertPromo(promo, id) {
 }
 
 export async function deletePromo(id) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) throw new Error('Forbidden')
   await db('promo').where({ id, agencyId: user.agencyId }).delete()
   revalidatePath('/deals')

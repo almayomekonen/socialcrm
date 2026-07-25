@@ -3,7 +3,7 @@ import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { s3 } from '@/config/s3'
 import { db } from '@/config/db'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 
@@ -23,7 +23,7 @@ const PRESIGN_EXPIRES_S = 60
  * presents the file to the client for this specific GET.
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ invoiceId: string }> }) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const { invoiceId: rawInvoiceId } = await params
   const invoiceId = Number(rawInvoiceId)
   if (!Number.isFinite(invoiceId)) {

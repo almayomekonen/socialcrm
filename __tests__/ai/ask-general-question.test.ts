@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
-vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: vi.fn() }))
+vi.mock('@/lib/requireUser', () => { const __ru = vi.fn(); return { requireAgencyUser: __ru, requireProductAccess: __ru } })
 vi.mock('@/db/filter', () => ({ getPerms: vi.fn() }))
 vi.mock('@/lib/copilot/general/classifyGeneralIntent', () => ({ classifyGeneralIntent: vi.fn() }))
 vi.mock('@/db/briefing', () => ({

@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/config/db'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { validateTemplateInput } from '@/lib/whatsapp/templates/validate'
 import { buildComponents, slugifyTemplateName, hasUnexampledParameters } from '@/lib/whatsapp/templates/components'
@@ -30,7 +30,7 @@ const INVALID_ERROR = 'יש למלא שם, תוכן ומטרה להודעה.'
 const LANGUAGE = 'he'
 
 export async function createTemplate(input: TemplateInput): Promise<CreateTemplateResult> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, error: PERM_ERROR }
 
   const valid = validateTemplateInput(input)

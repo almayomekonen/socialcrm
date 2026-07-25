@@ -9,7 +9,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { genId } from '@/lib/funcs'
 import { getAgencyId } from '@/db/agencies'
 import { daysFromNow } from '@/lib/dates'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 
 const Bucket = process.env.S3_BUCKET_NAME
 
@@ -30,6 +30,7 @@ function trunc(s: unknown, n = 200): string {
 }
 
 export async function getPresigned({ metadat, folderPath }: Props) {
+  await requireProductAccess()
   for (const m of metadat) {
     if (!ALLOWED_MIME_TYPES.includes(m.type)) {
       console.warn('[upload] presign.validation.fail', JSON.stringify({ reason: 'mime-not-allowed', mime: m.type, size: m.size }))
@@ -77,7 +78,7 @@ interface Props {
 export async function addFilesToTask(data, clientId) {
   const fileCount = Array.isArray(data?.files) ? data.files.length : 0
   try {
-    const user = await requireUser()
+    const user = await requireProductAccess()
     const task = await db('tasks').where({ id: data.taskId }).select('clientId').first()
     if (!task) {
       console.warn('[upload] addFilesToTask.fail', JSON.stringify({ reason: 'task-not-found', taskId: data?.taskId, fileCount }))
@@ -109,7 +110,7 @@ export async function addFilesToTask(data, clientId) {
 }
 
 export async function getUserImgs(userId) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const images = await db('files')
     .where({ createdById: userId, agencyId: user.agencyId, type: 'image/webp' })
     .orderBy('createdAt', 'desc')
@@ -117,6 +118,7 @@ export async function getUserImgs(userId) {
 }
 
 export async function addFiles({ presigned, taskId = null, clientId }) {
+  await requireProductAccess()
   const count = Array.isArray(presigned) ? presigned.length : 0
   const user = await getUser()
 
@@ -147,7 +149,7 @@ export async function addFiles({ presigned, taskId = null, clientId }) {
 }
 
 export async function deleteFile(file) {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   const existing = await db('files').where({ id: file.id, agencyId: user.agencyId }).first()
   if (!existing) throw new Error('Forbidden')
   await db('files').where({ id: file.id }).delete()
@@ -158,7 +160,7 @@ export async function deleteFile(file) {
 export async function addIpuyFile({ presigned, data, type }: { presigned: any; data: any; type: string }) {
   const count = Array.isArray(presigned) ? presigned.length : 0
   try {
-    const user = await requireUser()
+    const user = await requireProductAccess()
     const client = await db('clients').where({ id: data.clientId, agencyId: user.agencyId }).first()
     if (!client) {
       console.warn(

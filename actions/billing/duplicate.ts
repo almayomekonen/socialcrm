@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { canDraftBilling } from '@/lib/billing/permissions'
@@ -14,7 +14,7 @@ export type DuplicateInvoiceResult = { success: true; invoiceId: number } | { er
 export type DuplicateInvoiceErrorReason = 'no_permission' | 'lead_not_found' | 'invoice_not_found' | 'failed'
 
 export async function duplicateInvoiceAction(input: { invoiceId: number; leadId: number }): Promise<DuplicateInvoiceResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   if (!canDraftBilling(user)) return { error: true, reason: 'no_permission' }
 
   const { gotPermIds } = await getPerms(user)

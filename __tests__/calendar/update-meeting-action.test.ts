@@ -43,10 +43,10 @@ vi.mock('next/headers', () => ({
   headers: vi.fn(() => ({ get: vi.fn(() => null) })),
 }))
 
-vi.mock('@/lib/requireUser', () => ({
-  requireUser: vi.fn(),
-  requireAgencyUser: vi.fn(),
-}))
+vi.mock('@/lib/requireUser', () => {
+  const requireAgencyUser = vi.fn()
+  return { requireUser: vi.fn(), requireAgencyUser, requireProductAccess: requireAgencyUser }
+})
 
 // ─── Mock the DB layer ───────────────────────────────────────────────────────
 // We need the action to be testable WITHOUT a real DB. The mocked helpers

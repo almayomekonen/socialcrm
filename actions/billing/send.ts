@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { render } from '@react-email/render'
 import { db } from '@/config/db'
-import { requireUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { canReadBilling } from '@/lib/billing/permissions'
@@ -41,7 +41,7 @@ export async function sendInvoiceEmailAction(input: {
   recipientEmail: string
   customMessage?: string
 }): Promise<SendInvoiceResult> {
-  const user = await requireUser()
+  const user = await requireProductAccess()
   console.log('[billing.send] action.start', {
     invoiceId: input.invoiceId,
     leadId: input.leadId,

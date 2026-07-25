@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import {
   setMasterEnabled,
@@ -27,7 +27,7 @@ export type UpdateAutoResponseResult = { ok: true } | { ok: false; reason: strin
 const CHANNEL = 'whatsapp'
 
 export async function updateAutoResponseSettings(input: UpdateAutoResponseInput): Promise<UpdateAutoResponseResult> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
 
   const dailyCap = Number.isFinite(input.dailyCap) ? Math.min(Math.max(Math.floor(input.dailyCap), 0), 100_000) : 200

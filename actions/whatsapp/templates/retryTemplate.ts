@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAgencyUser } from '@/lib/requireUser'
+import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { loadTemplateForMutation, archiveTemplateRow } from '@/db/whatsappTemplates'
 import { createTemplate, type CreateTemplateResult } from './createTemplate'
@@ -18,7 +18,7 @@ const PERM_ERROR = 'אין הרשאה לנהל הודעות מוכנות.'
 const NOT_RETRIABLE = 'לא נמצאה הודעה שנדחתה לנסות מחדש.'
 
 export async function retryTemplate(rejectedId: number, input: TemplateInput): Promise<CreateTemplateResult> {
-  const user = await requireAgencyUser()
+  const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, error: PERM_ERROR }
 
   const old = await loadTemplateForMutation(rejectedId, user.agencyId)

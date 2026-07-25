@@ -31,6 +31,7 @@ import { getAgencyPlan } from '@/lib/quota'
 import { track } from '@/lib/analytics/track'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
+import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -98,18 +99,33 @@ async function LayoutContent({ children }) {
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
-              <Topbar
-                user={user}
-                isPro={(await getAgencyPlan(user.agencyId)) === 'pro'}
-                trialDaysRemaining={trialStatus === 'TRIAL_ACTIVE' ? trialDaysRemaining : null}
-              />
-              <WorkspaceGrid>
-                <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
-                <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
-                  {children}
-                </main>
-                <CopilotShell generalModeEnabled={generalModeEnabled} />
-              </WorkspaceGrid>
+              {trialStatus === 'NEVER_STARTED' || trialExpired ? (
+                // Blocked (no active product access): render a presentation-only
+                // teaser INSTEAD of the real workspace + page {children}, so the
+                // CRM is never server-rendered or streamed to a user without
+                // access. Deleting the modal/blur in DevTools reveals only the
+                // inert teaser. Authorization is still enforced server-side at the
+                // product boundaries (requireProductAccess) — this is the render
+                // isolation half of the defense. Owners/LEGACY/PAID/TRIAL_ACTIVE
+                // are never blocked (trialExpired already carries the owner
+                // exemption; NEVER_STARTED shows the activation modal as before).
+                <WorkspaceTeaser />
+              ) : (
+                <>
+                  <Topbar
+                    user={user}
+                    isPro={(await getAgencyPlan(user.agencyId)) === 'pro'}
+                    trialDaysRemaining={trialStatus === 'TRIAL_ACTIVE' ? trialDaysRemaining : null}
+                  />
+                  <WorkspaceGrid>
+                    <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
+                    <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
+                      {children}
+                    </main>
+                    <CopilotShell generalModeEnabled={generalModeEnabled} />
+                  </WorkspaceGrid>
+                </>
+              )}
             </div>
             {trialExpired && <TrialExpiredScreen leadCount={leadPreview.total} leadNames={leadPreview.names} />}
             {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}

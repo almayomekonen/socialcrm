@@ -39,7 +39,7 @@ vi.mock('next/headers', () => ({
 }))
 
 // Auth layer: swap the "logged-in user" per-test via setCurrentUser()
-vi.mock('@/lib/requireUser', () => ({ requireUser: vi.fn() }))
+vi.mock('@/lib/requireUser', () => { const __ru = vi.fn(); return { requireUser: __ru, requireProductAccess: __ru } })
 vi.mock('@/db/auth', () => ({
   getUser: vi.fn(),
   getCachedUser: vi.fn(),
