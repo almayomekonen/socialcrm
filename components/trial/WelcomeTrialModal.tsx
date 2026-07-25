@@ -3,18 +3,20 @@
 import { useEffect, useRef, useState } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
-import Icon from '@/lib/Icon'
+import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
 
 // Must match the `desktop` breakpoint in tailwind.config.ts — the system's
 // definition of "can use the CRM" on desktop viewports.
 const DESKTOP_QUERY = '(min-width: 1000px)'
 
-const FEATURES = [
-  'כל הלידים והשיחות במקום אחד',
-  'כלי AI מתקדמים',
-  'וואטסאפ, משימות, יומן וקבצים',
-  'כל יכולות ה-Pro פתוחות למשך 7 ימים',
+// One-time Pro activation benefits, shown as a 2×2 grid. Distinct existing
+// icons only — no new icon library.
+const BENEFITS: { icon: IconNames; title: string; sub: string }[] = [
+  { icon: 'comment-dots', title: 'כל הלידים והשיחות', sub: 'הכול במקום אחד' },
+  { icon: 'brain', title: 'AI חכם ומתקדם', sub: 'כל יכולות ה־AI פתוחות' },
+  { icon: 'calendar', title: 'כל כלי העבודה שלך', sub: 'וואטסאפ, משימות, יומן וקבצים' },
+  { icon: 'gem', title: 'Pro מלא ל־7 ימים', sub: 'כל יכולות ה־Pro פתוחות עבורך' },
 ]
 
 /**
@@ -116,37 +118,54 @@ export default function WelcomeTrialModal() {
 
   return (
     <ModalPop open={open} pos='middle' onClose={() => {}} hideClose labelledBy='welcome-trial-title' describedBy='welcome-trial-subtitle'>
-      <div ref={dialogRef} className='flex flex-col gap-5 min-w-[340px] max-w-[420px] pt-2'>
-        <div>
-          <h2 id='welcome-trial-title' className='text-xl font-bold leading-snug'>
-            SocialCRM Pro מוכן עבורך
+      <div ref={dialogRef} className='flex flex-col gap-6 w-full max-w-[640px]'>
+        {/* Header: premium pill → headline → supporting → restrained trust copy */}
+        <div className='flex flex-col items-center text-center gap-2.5'>
+          <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
+            SOCIALCRM PRO
+          </span>
+          <h2 id='welcome-trial-title' className='text-2xl font-bold leading-snug'>
+            ה־SocialCRM Pro שלך מוכן
           </h2>
-          <p id='welcome-trial-subtitle' className='text-sm text-gray-600 mt-2'>
-            קבל 7 ימים של גישה מלאה ל-Pro, ללא עלות וללא צורך בכרטיס אשראי
+          <p id='welcome-trial-subtitle' className='text-sm text-gray-600'>
+            7 ימים עם כל המערכת פתוחה עבורך
           </p>
+          <p className='text-xs text-gray-400'>ללא עלות · ללא כרטיס אשראי</p>
         </div>
 
-        <div className='bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex flex-col gap-2.5'>
-          {FEATURES.map((item) => (
-            <div key={item} className='flex items-center gap-2.5'>
-              <span className='flex size-5 items-center justify-center rounded-full flex-none bg-emerald-100 border border-emerald-300'>
-                <Icon name='check' className='size-2.5 bg-emerald-600' />
+        {/* 2×2 benefit grid — distinct icon tiles */}
+        <div className='grid grid-cols-2 gap-3'>
+          {BENEFITS.map((b) => (
+            <div key={b.title} className='flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3'>
+              <span className='flex size-9 items-center justify-center rounded-lg flex-none bg-primary-tint'>
+                <Icon name={b.icon} type='reg' className='size-4 bg-primary' />
               </span>
-              <span className='text-sm'>{item}</span>
+              <div className='min-w-0'>
+                <p className='text-sm font-semibold text-gray-900 leading-tight'>{b.title}</p>
+                <p className='text-xs text-gray-500 leading-snug mt-0.5'>{b.sub}</p>
+              </div>
             </div>
           ))}
         </div>
 
         {error && (
-          <p className='text-sm text-red-500' role='alert'>
+          <p className='text-sm text-red-500 text-center' role='alert'>
             {error}
           </p>
         )}
 
-        <Btn variant='solid' size='large' lbl={pending ? 'רק רגע...' : 'התחל 7 ימי Pro'} onClick={onStart} disabled={pending} />
+        {/* Dominant, full-width primary action — the ONLY trial trigger */}
+        <Btn
+          variant='solid'
+          size='large'
+          className='w-full justify-center'
+          lbl={pending ? 'רק רגע...' : 'הפעל את ה-Pro שלי'}
+          onClick={onStart}
+          disabled={pending}
+        />
 
-        <p className='text-xs text-gray-400 text-center -mt-1'>
-          לאחר 7 ימים, נדרש מנוי כדי להמשיך להשתמש במערכת
+        <p className='text-xs text-gray-400 text-center -mt-2'>
+          7 ימים ללא עלות · ללא כרטיס אשראי · לאחר מכן תוכל לבחור אם להמשיך
         </p>
       </div>
     </ModalPop>
