@@ -24,19 +24,9 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const isPro = plan === 'pro'
   const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
 
-  // Trial lifecycle for the status card. Only TRIAL_ACTIVE can render here:
-  // expired users are intercepted by the layout gate, pre-activation users
-  // are behind the welcome modal, legacy/pro derive LEGACY/PAID.
   const trialRow = isPro ? null : await getAgencyTrial(user.agencyId)
   const trial = trialRow ? getTrialState(trialRow, new Date()) : null
   const trialActive = trial?.status === 'TRIAL_ACTIVE'
-
-  // Total trial length (days), derived from the trial's own start/end so it
-  // never hardcodes the 7-day window. Presentation-only.
-  const trialTotalDays =
-    trialActive && trial?.endsAt && trialRow?.trialStartedAt
-      ? Math.max(1, Math.round((trial.endsAt.getTime() - new Date(trialRow.trialStartedAt).getTime()) / 86_400_000))
-      : 0
 
   const charges = await db('payments')
     .where({ agencyId: user.agencyId })
@@ -73,15 +63,10 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       <div className='my-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
         {isPro && subscription ? (
           <ProPlanCard subscription={subscription} />
-        ) : trialActive && trial?.endsAt ? (
-          // Active 7-day Pro trial: present as currently on Pro (mirrors the PAID
-          // ProPlanCard layout), with trial-specific copy. Not a billing-model
-          // change — agencies.plan stays 'free'.
+        ) : trialActive ? (
           <>
             <div>
               <p className='text-lg font-semibold'>מסלול נוכחי: Pro</p>
-              <p className='text-sm text-gray-500'>תקופת ניסיון: {trialTotalDays} ימים</p>
-              <p className='text-sm text-gray-500'>תקופת הניסיון עד: {formatDate(trial.endsAt)}</p>
               <p className='text-sm text-gray-500'>סטטוס: פעיל</p>
             </div>
             <a

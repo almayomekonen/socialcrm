@@ -145,14 +145,23 @@ function ManageBody({
   onResume: () => void
   onClose: () => void
 }) {
-  const statusLabel = status === 'cancelling' ? 'חידוש הופסק' : 'פעיל'
+  // 'cancelling' = renewal already off, Pro access remains until expiresAt (an
+  // access-end date, no next charge); otherwise it renews and expiresAt is the
+  // next charge date.
+  const cancelling = status === 'cancelling'
+  const statusLabel = cancelling ? 'המנוי בוטל' : 'פעיל'
+  const dateLabel = cancelling ? 'גישה ל־Pro עד' : 'החיוב הבא'
 
   return (
     <>
       <h2 className='text-xl font-bold'>מסלול Pro</h2>
 
       <div className='space-y-1 text-sm text-gray-700'>
-        {expiresAtIso && <p>גישה פעילה עד: {formatDate(expiresAtIso)}</p>}
+        {expiresAtIso && (
+          <p>
+            {dateLabel}: {formatDate(expiresAtIso)}
+          </p>
+        )}
         <p>סטטוס: {statusLabel}</p>
       </div>
 
@@ -164,7 +173,7 @@ function ManageBody({
         {manageable && status === 'active' && (
           <Btn
             variant='destructive'
-            lbl={pending ? 'טוען...' : 'בטל חידוש'}
+            lbl={pending ? 'טוען...' : 'בטל מנוי'}
             disabled={pending}
             onClick={onAskCancel}
           />
@@ -177,7 +186,7 @@ function ManageBody({
             onClick={onResume}
           />
         )}
-        {!manageable && <Btn variant='destructive' lbl='בטל חידוש' disabled onClick={() => {}} />}
+        {!manageable && <Btn variant='destructive' lbl='בטל מנוי' disabled onClick={() => {}} />}
 
         <Btn variant='outline' lbl='סגור' disabled={pending} onClick={onClose} />
       </div>
@@ -200,10 +209,12 @@ function ConfirmCancelBody({
 }) {
   return (
     <>
-      <h2 className='text-xl font-bold'>האם להפסיק את חידוש מסלול ה-Pro?</h2>
+      <h2 className='text-xl font-bold'>לבטל את מסלול ה־Pro?</h2>
 
       {expiresAtIso && (
-        <p className='text-sm text-gray-700'>הגישה שלך תישאר פעילה עד: {formatDate(expiresAtIso)}</p>
+        <p className='text-sm text-gray-700'>
+          המנוי לא יתחדש, והגישה שלך ל־Pro תישאר פעילה עד {formatDate(expiresAtIso)}.
+        </p>
       )}
 
       {error && <p className='text-sm text-red-700'>{error}</p>}
@@ -211,7 +222,7 @@ function ConfirmCancelBody({
       <div className='flex gap-3 justify-end pt-2'>
         <Btn
           variant='destructive'
-          lbl={pending ? 'טוען...' : 'אישור'}
+          lbl={pending ? 'טוען...' : 'בטל מנוי'}
           disabled={pending}
           onClick={onConfirm}
         />

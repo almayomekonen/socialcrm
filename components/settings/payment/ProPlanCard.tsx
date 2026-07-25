@@ -16,7 +16,12 @@ import ManagePlanLauncher, { type SubscriptionClientView } from './ManagePlanLau
  * a function" footguns in optimistic state mirrors.
  */
 export default function ProPlanCard({ subscription }: { subscription: SubscriptionView }) {
-  const statusLabel = subscription.status === 'cancelling' ? 'חידוש הופסק' : 'פעיל'
+  // status is the canonical source of truth (deriveStatus): 'cancelling' means
+  // renewal is already off but Pro access stays until expiresAt; 'active' means
+  // it renews, so expiresAt is the next charge date — not an access-end date.
+  const cancelling = subscription.status === 'cancelling'
+  const statusLabel = cancelling ? 'המנוי בוטל' : 'פעיל'
+  const dateLabel = cancelling ? 'גישה ל־Pro עד' : 'החיוב הבא'
   const clientView: SubscriptionClientView = {
     plan: subscription.plan,
     expiresAtIso: subscription.expiresAt ? subscription.expiresAt.toISOString() : null,
@@ -33,7 +38,9 @@ export default function ProPlanCard({ subscription }: { subscription: Subscripti
           תקופת חיוב: {subscription.billingPeriod === 'annual' ? 'שנתית' : 'חודשית'}
         </p>
         {subscription.expiresAt && (
-          <p className='text-sm text-gray-500'>בתוקף עד: {formatDate(subscription.expiresAt)}</p>
+          <p className='text-sm text-gray-500'>
+            {dateLabel}: {formatDate(subscription.expiresAt)}
+          </p>
         )}
         <p className='text-sm text-gray-500'>סטטוס: {statusLabel}</p>
       </div>
