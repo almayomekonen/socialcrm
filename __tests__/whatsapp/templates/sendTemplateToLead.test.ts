@@ -168,3 +168,36 @@ describe('sendTemplateToLead — failure handling', () => {
     expect(res).toEqual({ ok: false, error: 'ההודעה נשלחה אך לא נשמרה בשיחה. רעננו את הדף.' })
   })
 })
+
+describe('sendTemplateToLead — Meta-synced (positional) templates', () => {
+  // lead_first_contact shape: variables=[], body has {{1}}/{{2}}.
+  const ADOPTED = {
+    id: 5,
+    status: 'approved' as const,
+    name: 'lead_first_contact',
+    language: 'he',
+    bodyText: 'היי {{1}}, תודה שהתעניינת ב{{2}}.',
+    variables: [],
+  }
+
+  it('sends the correct param count when bindings are set (the #132000 fix)', async () => {
+    h.loadTemplateForSend.mockResolvedValue({
+      ...ADOPTED,
+      bindings: [{ position: 1, source: 'leadFirstName' }, { position: 2, source: 'businessName' }],
+    })
+    const res = await sendTemplateToLead(9, 5)
+    expect(res).toEqual({ ok: true })
+    const call = h.sendWhatsappTemplate.mock.calls[0][0]
+    expect(call.params).toEqual(['דוד', 'סושיאל בע"מ']) // 2 params, not 0
+    // persisted body has {{n}} substituted with resolved values
+    expect(h.persistOutboundWhatsapp.mock.calls[0][0].text).toBe('היי דוד, תודה שהתעניינת בסושיאל בע"מ.')
+  })
+
+  it('blocks with a clear message (not generic) when the positional template is unmapped', async () => {
+    h.loadTemplateForSend.mockResolvedValue({ ...ADOPTED, bindings: [] })
+    const res = await sendTemplateToLead(9, 5)
+    expect(res).toEqual({ ok: false, error: 'ההודעה הזו סונכרנה מ‑Meta וצריך להגדיר אילו פרטים ממלאים אותה לפני השליחה.' })
+    // never reaches Meta with a mismatched count
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+})

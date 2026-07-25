@@ -8,6 +8,7 @@ import type {
   TemplateVariable,
 } from '@/lib/whatsapp/templates/types'
 import { failureTextForRejectionKey } from '@/lib/whatsapp/templates/statusCopy'
+import type { ParameterBinding } from '@/lib/whatsapp/templates/parameters'
 
 /**
  * Repository for `whatsapp_templates` — the sole owner of that table's SQL.
@@ -175,6 +176,21 @@ export type TemplateSendRow = {
   language: string
   bodyText: string
   variables: TemplateVariable[]
+  /** Explicit positional bindings for Meta-synced templates (from metadata). */
+  bindings: ParameterBinding[]
+}
+
+/** Read `metadata.parameterBindings` into a typed, validated binding list. */
+function toBindings(rawMetadata: unknown): ParameterBinding[] {
+  const meta = safeParse(rawMetadata)
+  const list = (meta as { parameterBindings?: unknown } | null)?.parameterBindings
+  if (!Array.isArray(list)) return []
+  return list
+    .filter((b): b is { position: number; source: string | null } => {
+      const p = (b as { position?: unknown })?.position
+      return typeof p === 'number' && Number.isFinite(p)
+    })
+    .map((b) => ({ position: Number(b.position), source: (b.source ?? null) as ParameterBinding['source'] }))
 }
 
 /**
@@ -185,7 +201,7 @@ export type TemplateSendRow = {
 export async function loadTemplateForSend(id: number, agencyId: number): Promise<TemplateSendRow | null> {
   const row = await db('whatsapp_templates')
     .where({ id, agencyId })
-    .first('id', 'status', 'name', 'language', 'bodyText', 'variables')
+    .first('id', 'status', 'name', 'language', 'bodyText', 'variables', 'metadata')
   if (!row) return null
   return {
     id: Number(row.id),
@@ -194,6 +210,7 @@ export async function loadTemplateForSend(id: number, agencyId: number): Promise
     language: (row.language as string) ?? 'he',
     bodyText: (row.bodyText as string) ?? '',
     variables: toVariables(row.variables),
+    bindings: toBindings(row.metadata),
   }
 }
 
