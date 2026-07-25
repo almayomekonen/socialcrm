@@ -5,7 +5,8 @@ import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import { loadTemplateForSend } from '@/db/whatsappTemplates'
 import { getAgencyById } from '@/db/agencies'
 import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
-import { resolveTemplateParams, renderResolvedBody } from '@/lib/whatsapp/templates/variables'
+import { renderResolvedBody } from '@/lib/whatsapp/templates/variables'
+import { resolveTemplateSendParameters, renderPositionalBody } from '@/lib/whatsapp/templates/parameters'
 import { sendWhatsappTemplate } from '@/lib/whatsapp/sendTemplateMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
@@ -38,6 +39,7 @@ const NO_CONNECTION = 'צריך לחבר וואטסאפ עסקי כדי לשלו
 const NO_RECIPIENT = 'אין מספר וואטסאפ פעיל לליד הזה.'
 const SEND_FAILED = 'ההודעה לא נשלחה. נסו שוב.'
 const PERSIST_FAILED = 'ההודעה נשלחה אך לא נשמרה בשיחה. רעננו את הדף.'
+const NEEDS_MAPPING = 'ההודעה הזו סונכרנה מ‑Meta וצריך להגדיר אילו פרטים ממלאים אותה לפני השליחה.'
 
 export async function sendTemplateToLead(
   leadIdRaw: number | string,
@@ -71,8 +73,23 @@ export async function sendTemplateToLead(
   const ctx = { leadFullName: target.leadName, businessName: (agency?.name as string | null) ?? null }
 
   // Positional params in {{1}},{{2}}… order — each guaranteed non-empty (RFC §10).
-  const params = resolveTemplateParams(template.bodyText, template.variables, ctx)
-  const renderedText = renderResolvedBody(template.bodyText, template.variables, ctx)
+  // Source-agnostic: in-app templates resolve from their chip variables (unchanged);
+  // Meta-synced templates resolve from the body's arity + explicit bindings. An
+  // adopted template whose slots aren't mapped is BLOCKED here with a clear reason
+  // rather than sending a mismatched count (the #132000 fix).
+  const resolvedParams = resolveTemplateSendParameters(
+    { bodyText: template.bodyText, variables: template.variables, bindings: template.bindings },
+    ctx,
+  )
+  if ('positions' in resolvedParams) {
+    console.error(`[TemplateSend][lead=${leadId}][tpl=${templateId}] unmapped params`, { positions: resolvedParams.positions })
+    return { ok: false, error: NEEDS_MAPPING }
+  }
+  const params = resolvedParams.params
+  const renderedText =
+    template.variables.length > 0
+      ? renderResolvedBody(template.bodyText, template.variables, ctx)
+      : renderPositionalBody(template.bodyText, params)
 
   // SEND first — persist only on a confirmed wamid.
   const sent = await sendWhatsappTemplate({
