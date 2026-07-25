@@ -25,7 +25,7 @@ const FEATURES = [
     label: 'וואטסאפ',
     iconName: 'comment-dots' as IconNames,
     image: '/media/social/whatsapp.png',
-    description: 'לידים שפנו בוואטסאפ מייובאים בקלות ידנית או דרך ייבוא מספרים בלחיצה.',
+    description: 'כל שיחת וואטסאפ מחוברת לליד שלה, ואתם עונים ורואים מתי היא נקראה.',
   },
   {
     id: 'excel',

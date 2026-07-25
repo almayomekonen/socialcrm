@@ -6,7 +6,7 @@ import { FadeIn } from './shared'
 const highlights = [
   { icon: 'bolt' as const, title: 'מהיר להתחלה', desc: 'תוך 5 דקות מהרשמה כל הלידים שלך מאורגנים ומוכנים לעבודה.' },
   { icon: 'layer-group' as const, title: 'מרכוז מלא', desc: 'פייסבוק, וואטסאפ ואקסל הכל מגיע לרשימה אחת ברורה.' },
-  { icon: 'bell' as const, title: 'לא תשכח אף ליד', desc: 'תזכורות אוטומטיות מבטיחות שכל ליד מקבל מענה בזמן.' },
+  { icon: 'bell' as const, title: 'לא תשכח אף ליד', desc: 'כל ליד מקבל תאריך לחזור, ובאותו בוקר הוא כבר ברשימת היום שלכם.' },
   { icon: 'chart-line' as const, title: 'נראות מלאה', desc: 'ראה בדיוק כמה לידים נסגרו, מה שיעור ההמרה, ומה דורש טיפול.' },
 ]
 

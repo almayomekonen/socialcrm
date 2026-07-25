@@ -16,7 +16,7 @@ export function HeroContent() {
       </h1>
 
       <p className='mt-6 max-w-md text-lg text-gray-600'>
-        כל הלידים מוואטסאפ, פייסבוק ואינסטגרם מרוכזים אצלכם, עוקבים בזמן וסוגרים יותר עסקאות.
+        לידים מפייסבוק ומאינסטגרם נכנסים אוטומטית, שיחות הוואטסאפ מחוברות לכל ליד, ו AI מכיר את ההיסטוריה וממליץ על הצעד הבא.
       </p>
 
       <div className='mt-8 flex flex-wrap items-center gap-3'>

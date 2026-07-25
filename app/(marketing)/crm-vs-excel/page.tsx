@@ -79,9 +79,9 @@ const featureCategories = [
     icon: <Icon name='circle-check' className='size-6 bg-primary' />,
     title: 'עדכון סטטוס ומעקב',
     items: [
-      { text: 'סטטוס בקליק — חדש, בטיפול, סגור' },
+      { text: 'סטטוס בקליק, מחדש ועד סגור' },
       { text: 'היסטוריה מלאה של כל ליד' },
-      { text: 'תזכורות מעקב אוטומטי' },
+      { text: 'תאריך מעקב לכל ליד' },
     ],
   },
   {
@@ -116,7 +116,7 @@ const featureCategories = [
 const STATS = [
   { value: '×3', label: 'יותר לידים שנסגרים', sub: 'לעסקים שעברו מאקסל ל-CRM' },
   { value: '5 דק׳', label: 'חיסכון לכל ליד', sub: 'זמן שחוזר לטיפול עצמי' },
-  { value: '0', label: 'לידים שנשכחים', sub: 'כשיש תזכורות ומעקב אוטומטי' },
+  { value: '0', label: 'לידים שנשכחים', sub: 'כשיש סטטוס ותאריך מעקב לכל ליד' },
 ]
 
 export default function CRMvsExcelPage() {
@@ -166,7 +166,7 @@ export default function CRMvsExcelPage() {
                   className='w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 >
-                  עבור ל-SocialCRM בחינם
+                  עוברים מהאקסל בחינם
                 </Link>
               </div>
             </div>
@@ -202,9 +202,9 @@ export default function CRMvsExcelPage() {
           <FeatureGrid
             className='pb-0'
             title={<span>מה SocialCRM עושה <span style={{ color: '#3f20f5' }}>במקום אקסל</span></span>}
-            subtitle='כל הכלים שאקסל לא יכול לתת לך — בממשק אחד, פשוט ומהיר.'
+            subtitle='כל הכלים שאקסל לא נותן, בממשק אחד ומהיר.'
             categories={featureCategories}
-            buttonText='עבור ל-SocialCRM בחינם'
+            buttonText='עוברים מהאקסל בחינם'
             buttonHref='/auth'
           />
         </div>
@@ -213,7 +213,7 @@ export default function CRMvsExcelPage() {
         <AnimatedCta
           title='מפסיקים לנהל לידים באקסל'
           highlight='מתחילים לנהל אותם נכון'
-          buttonText='עבור ל-SocialCRM בחינם'
+          buttonText='עוברים מהאקסל בחינם'
           buttonHref='/auth'
         />
 

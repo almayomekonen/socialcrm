@@ -12,23 +12,23 @@ import { buildFAQSchema } from '@/components/seo/FAQ'
 import Icon from '@/lib/Icon'
 
 const PAGE_PATH = '/crm-for-whatsapp-business'
-const PAGE_TITLE = 'CRM ל-WhatsApp Business — ניהול לידים מעבר ל-Labels | SocialCRM'
+const PAGE_TITLE = 'ניהול לידים לוואטסאפ עסקי מעבר לתוויות | SocialCRM'
 const PAGE_DESCRIPTION =
-  'WhatsApp Business נותן Labels ותגובות אוטומטיות, אבל לעסק שגדל זה לא מספיק. SocialCRM מוסיף שכבת CRM מלאה: סטטוסים, נציגים, תזכורות ומעקב — בלי שום ליד שנשכח בצ׳אט.'
+  'תוויות עוזרות לסדר, אבל הן לא מערכת מכירות. SocialCRM מחבר את הוואטסאפ שלכם, הופך כל שיחה לליד עם סטטוס ובעלים, ודואג שאף אחד לא ייפול בין הכיסאות.'
 
 export const metadata = buildPageMetadata({
   path: PAGE_PATH,
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
-  ogTitle: 'CRM ל-WhatsApp Business | SocialCRM',
-  ogDescription: 'מעבר ל-Labels של WhatsApp Business — שכבת CRM אמיתית עם סטטוסים, נציגים ותזכורות.',
+  ogTitle: 'ניהול לידים לוואטסאפ עסקי | SocialCRM',
+  ogDescription: 'מחברים את הוואטסאפ שלכם, וכל שיחה הופכת לליד עם סטטוס, בעלים ומעקב. שום פנייה לא נשכחת בצ׳אט.',
 })
 
 const faqItems = [
   {
     question: 'האם SocialCRM מתחבר ישירות ל-WhatsApp Business API?',
     answer:
-      'לא באופן אוטומטי. הוספת לידים מ-WhatsApp נעשית בהקלקה אחת — שם וטלפון, מקור "WhatsApp", ומיד הליד נמצא במערכת עם סטטוס וניהול מלא. אם יש רשימה גדולה של מספרים מ-WhatsApp Business, אפשר לייבא הכל מאקסל בכמה שניות.',
+      'כן. מחברים את הוואטסאפ העסקי, וכל שיחה נכנסת למערכת ומחוברת לליד. עונים מכאן, ואפשר גם לפנות ללידים עם הודעות מוכנות מתי שצריך.',
   },
   {
     question: 'מה ההבדל בין Labels של WhatsApp Business לסטטוסים ב-SocialCRM?',
@@ -77,10 +77,10 @@ const STATS = [
 const featureCategories = [
   {
     icon: <Icon name='comment-dots' className='size-6 bg-primary' />,
-    title: 'הוספת ליד מ-WhatsApp',
+    title: 'כל השיחות במקום אחד',
     items: [
-      { text: '10 שניות מהודעה לליד מנוהל' },
-      { text: 'מקור "WhatsApp" אוטומטית' },
+      { text: 'כל שיחה מחוברת לליד' },
+      { text: 'רואים מתי ההודעה נקראה' },
       { text: 'שיוך מיידי לנציג' },
     ],
   },
@@ -116,7 +116,7 @@ const featureCategories = [
     title: 'תזכורות ומעקב',
     items: [
       { text: '"לחזור עוד שבועיים"' },
-      { text: 'התראות אוטומטיות' },
+      { text: 'הליד חוזר אליכם כשמגיע הזמן' },
       { text: 'אף ליד לא נשכח' },
     ],
   },
@@ -126,7 +126,7 @@ const featureCategories = [
     items: [
       { text: 'אחוז סגירה לפי מקור' },
       { text: 'ביצועי כל נציג' },
-      { text: 'ROI ברור על קמפיינים' },
+      { text: 'מי ממתין לטיפול עכשיו' },
     ],
   },
 ]
@@ -169,9 +169,7 @@ export default function CrmForWhatsAppBusinessPage() {
                 SocialCRM ממשיך מכאן.
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                Labels ב-WhatsApp Business עוזרים לסדר שיחות, אבל הם לא מערכת ניהול לידים. כשהעסק
-                גדל וההודעות זורמות, אתה צריך סטטוסים, שיוך לנציגים, תזכורות ומעקב — לא רק תוויות
-                צבעוניות.
+                תוויות עוזרות לסדר שיחות, אבל הן לא נציג, לא תזכורת, ולא תמונת מצב של כל הלידים. SocialCRM מחבר את הוואטסאפ שלכם ונותן לכל שיחה סטטוס, בעלים ומעקב.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
@@ -257,9 +255,7 @@ export default function CrmForWhatsAppBusinessPage() {
           <div className='max-w-3xl mx-auto'>
             <h2 className='text-3xl font-bold mb-6'>איך SocialCRM משלים את WhatsApp Business</h2>
             <p className='text-lg text-gray-700 mb-4 leading-relaxed'>
-              לא צריך לבחור בין WhatsApp לבין מערכת. ממשיכים לנהל את השיחות ב-WhatsApp Business —
-              אתה מכיר את הכלי וזה עובד. SocialCRM הופך לשכבה הניהולית שיושבת מעל: כל פנייה
-              חשובה הופכת לליד מנוהל עם סטטוס, נציג, מקור, ותזכורות.
+              מחברים את הוואטסאפ העסקי, וכל שיחה הופכת לליד מנוהל עם סטטוס, בעלים ומקור. עונים מהמערכת, ורואים מתי הלקוח קרא את ההודעה.
             </p>
             <p className='text-lg text-gray-700 mb-8 leading-relaxed'>
               הוספה לוקחת 10 שניות. ייבוא של רשימה קיימת לוקח דקה. ומאותו רגע יש לך מסך אחד
@@ -283,9 +279,9 @@ export default function CrmForWhatsAppBusinessPage() {
               >
                 <p className='font-semibold mb-2'>WhatsApp Business + SocialCRM</p>
                 <ul className='text-sm space-y-1 text-white/90'>
+                  <li>✓ כל השיחות מחוברות ללידים</li>
                   <li>✓ פייפליין מלא של סטטוסים</li>
                   <li>✓ שיוך לנציגים עם הרשאות</li>
-                  <li>✓ תזכורות אוטומטיות</li>
                   <li>✓ טבלה אחת של כל הלידים</li>
                 </ul>
               </div>

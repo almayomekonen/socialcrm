@@ -100,7 +100,7 @@ const featureCategories = [
     items: [
       { text: 'קבלה אוטומטית מ-Lead Ads' },
       { text: 'חיבור לדף העסקי' },
-      { text: 'זיהוי מקור הקמפיין' },
+      { text: 'זיהוי הדף שממנו הגיע הליד' },
     ],
   },
   {
@@ -108,7 +108,7 @@ const featureCategories = [
     title: 'לידים מאינסטגרם',
     items: [
       { text: 'טפסי מודעות אינסטגרם' },
-      { text: 'לידים מ-DM ופרופיל' },
+      { text: 'כל מודעה באינסטגרם, אוטומטית' },
       { text: 'עדכון אוטומטי בזמן אמת' },
     ],
   },
@@ -117,8 +117,8 @@ const featureCategories = [
     title: 'לידים מוואטסאפ',
     items: [
       { text: 'לידים מקישורי וואטסאפ' },
-      { text: 'שמירה אוטומטית לרשימה' },
-      { text: 'מעקב אחר שיחות' },
+      { text: 'כל שיחה נשמרת על הליד' },
+      { text: 'רואים מתי ההודעה נקראה' },
     ],
   },
   {
@@ -182,7 +182,7 @@ export default function FacebookLeadsPage() {
                 לידים מפייסבוק, ישירות למערכת, אוטומטית
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                חיבור של 5 דקות. מאותו רגע כל ליד שממלא טופס Facebook Lead Ad מגיע ישירות ל-SocialCRM, בלי העתקה ידנית, בלי שכחה.
+                מחברים את דף הפייסבוק פעם אחת, וכל ליד שממלא טופס מודעה נכנס ישר למערכת. בלי העתקות, בלי לפספס אף אחד.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
