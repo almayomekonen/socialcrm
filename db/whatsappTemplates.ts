@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import type { MetaComponent, Template, TemplateCategory, TemplateStatus, TemplateVariable } from '@/lib/whatsapp/templates/types'
 import { failureTextForRejectionKey } from '@/lib/whatsapp/templates/statusCopy'
 import type { ParameterBinding } from '@/lib/whatsapp/templates/parameters'
+import { hydrateUserFacingBody, chipVariablesIn } from '@/lib/whatsapp/templates/parameters'
 
 /**
  * Repository for `whatsapp_templates` — the sole owner of that table's SQL.
@@ -25,6 +26,7 @@ const LIST_COLUMNS = [
   'bodyText',
   'variables',
   'category',
+  'metadata',
   'rejectionReason',
   'archivedAt',
   'createdAt',
@@ -54,12 +56,20 @@ function toIso(v: unknown): string {
  */
 export function mapTemplateRow(r: Record<string, unknown>): Template {
   const status = r.status as TemplateStatus
+  // Normalize to the USER-FACING chip representation: Meta-synced templates store
+  // positional {{n}}; reconstruct chips from the explicit stored bindings so raw
+  // Meta syntax never reaches the list preview or the editor. When bindings are
+  // unknown/unmapped the body is left raw (and such templates are non-editable) —
+  // we never guess. In-app chip bodies pass through unchanged.
+  const rawBody = (r.bodyText as string) ?? ''
+  const hydrated = hydrateUserFacingBody(rawBody, toBindings(r.metadata))
+  const bodyText = hydrated.ok ? hydrated.bodyText : rawBody
   return {
     id: Number(r.id),
     displayTitle: (r.displayTitle as string) ?? '',
     status,
-    bodyText: (r.bodyText as string) ?? '',
-    variables: toVariables(r.variables),
+    bodyText,
+    variables: hydrated.ok ? chipVariablesIn(bodyText) : toVariables(r.variables),
     failureText: status === 'rejected' ? failureTextForRejectionKey((r.rejectionReason as string | null) ?? 'generic') : null,
     archived: r.archivedAt != null,
     createdAt: toIso(r.createdAt),
