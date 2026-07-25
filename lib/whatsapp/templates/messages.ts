@@ -9,7 +9,7 @@ import type { RejectionCategory, TemplateStatus } from './types'
 
 /** Status pill labels (RFC §2 / UX spec §6). */
 export const TEMPLATE_STATUS_LABELS: Record<TemplateStatus, string> = {
-  pending: 'בבדיקה',
+  pending: 'בבדיקת וואטסאפ',
   approved: 'מוכנה לשליחה',
   rejected: 'נדחתה',
   paused: 'מושהית',

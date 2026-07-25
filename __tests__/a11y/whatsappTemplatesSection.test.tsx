@@ -36,7 +36,7 @@ describe('TemplateStatusBadge', () => {
   it('shows a Hebrew label per status, no Meta terms', () => {
     for (const [status, label] of [
       ['approved', 'מוכנה לשליחה'],
-      ['pending', 'בבדיקה'],
+      ['pending', 'בבדיקת וואטסאפ'],
       ['rejected', 'נדחתה'],
     ] as const) {
       render(<TemplateStatusBadge status={status} />)
@@ -54,6 +54,13 @@ describe('TemplateRow', () => {
     expect(screen.getByText('תזכורת פולואפ')).toBeInTheDocument()
     expect(screen.getByText('תוכן כלשהו')).toBeInTheDocument()
     expect(screen.getByText('מוכנה לשליחה')).toBeInTheDocument()
+  })
+
+  it('a pending row shows the calm WhatsApp-review helper (Tier 2)', () => {
+    render(<TemplateRow template={tpl(1, 'pending', 'תזכורת')} />)
+    expect(screen.getByText('בבדיקת וואטסאפ')).toBeInTheDocument() // badge
+    expect(screen.getByText('ההודעה נשלחה לאישור וואטסאפ')).toBeInTheDocument()
+    expect(screen.getByText(/אין צורך לעשות דבר/)).toBeInTheDocument()
   })
 })
 

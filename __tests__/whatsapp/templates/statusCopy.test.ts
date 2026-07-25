@@ -74,7 +74,7 @@ describe('failureTextForRejectionKey', () => {
 describe('statusLabel', () => {
   it('returns Hebrew labels, no Meta terms', () => {
     expect(statusLabel('approved')).toBe('מוכנה לשליחה')
-    expect(statusLabel('pending')).toBe('בבדיקה')
+    expect(statusLabel('pending')).toBe('בבדיקת וואטסאפ')
     expect(statusLabel('rejected')).toBe('נדחתה')
     expect(statusLabel('approved')).not.toMatch(/APPROVED/i)
   })
