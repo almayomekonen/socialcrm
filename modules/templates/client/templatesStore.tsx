@@ -9,7 +9,6 @@ import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
 import { retryTemplate } from '@/actions/whatsapp/templates/retryTemplate'
 import { archiveTemplate } from '@/actions/whatsapp/templates/archiveTemplate'
 import { discardTemplate } from '@/actions/whatsapp/templates/discardTemplate'
-import { editTemplate } from '@/actions/whatsapp/templates/editTemplate'
 import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 import TemplateList from '@/components/settings/templates/TemplateList'
 import type { TemplateRowActions } from '@/components/settings/templates/TemplateRow'
@@ -74,6 +73,10 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
     setTemplates((prev) => [optimistic, ...prev]) // appears instantly
     setCreateOpen(false)
     setRetryTarget(null)
+    // "עריכת הודעה" = create a revised version (create-new). editTarget only seeds the
+    // prefill; on submit it is a plain create — the old approved template is left
+    // completely untouched and sendable (no in-place Meta edit, no auto-archive).
+    setEditTarget(null)
 
     // Retry creates a new template AND archives the old rejected one (server-side).
     const run = retryOf != null ? retryTemplate(retryOf, input) : createTemplate(input)
@@ -90,31 +93,6 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
         toast('error', res.error)
       }
     })
-  }
-
-  // Safe edit-in-place (approved only, same category + arity — server-enforced). No
-  // optimistic new row: the existing row's content is replaced on success. An
-  // unsupported shape change (category/arity) returns `needsNew` and routes the
-  // user to create-new WITHOUT mutating the template.
-  const handleEdit = (target: Template, input: TemplateInput) => {
-    setCreateOpen(false)
-    setEditTarget(null)
-    editTemplate(target.id, input).then((res) => {
-      if (res.ok) {
-        setTemplates((prev) => prev.map((t) => (t.id === target.id ? res.template : t)))
-        toast('success', 'השינויים נשלחו לאישור וואטסאפ')
-      } else if ('error' in res) {
-        // needsNew (category/arity change) or a mapped Meta error — nothing mutated.
-        toast('error', res.error)
-      }
-    })
-  }
-
-  // Single modal submit — routes to edit when an approved template is being edited,
-  // otherwise the existing create/retry flow (unchanged).
-  const handleSubmit = (input: TemplateInput) => {
-    if (editTarget) return handleEdit(editTarget, input)
-    return handleCreate(input)
   }
 
   // Row mutations (admin-gated + agency-scoped server-side). Optimistic removal on
@@ -170,10 +148,14 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
           setRetryTarget(null)
           setEditTarget(null)
         }}
-        onCreate={handleSubmit}
+        onCreate={handleCreate}
         heading={editTarget ? 'עריכת הודעה' : 'הודעה מוכנה חדשה'}
-        submitLabel={editTarget ? 'שמור שינויים' : 'שלח לבדיקה'}
-        lockPurpose={!!editTarget}
+        submitLabel='שלח לבדיקה'
+        note={
+          editTarget
+            ? 'יצירת גרסה חדשה לבדיקה. ההודעה הנוכחית תישאר פעילה עד שהגרסה החדשה תאושר — אפשר להעביר אותה לארכיון לאחר מכן.'
+            : undefined
+        }
         initial={
           editTarget
             ? { displayTitle: editTarget.displayTitle, bodyText: editTarget.bodyText, purpose: editTarget.category }
