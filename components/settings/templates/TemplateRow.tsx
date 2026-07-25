@@ -6,6 +6,7 @@ import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import TemplateStatusBadge from './TemplateStatusBadge'
 import TemplateRejectionNotice from './TemplateRejectionNotice'
+import TemplatePendingNotice from './TemplatePendingNotice'
 
 export type TemplateRowActions = {
   onArchive: (id: number) => void
@@ -38,6 +39,12 @@ export default function TemplateRow({ template, actions }: { template: Template;
       {template.status === 'rejected' && template.failureText && (
         <div className='mt-2'>
           <TemplateRejectionNotice failureText={template.failureText} />
+        </div>
+      )}
+
+      {template.status === 'pending' && (
+        <div className='mt-2'>
+          <TemplatePendingNotice />
         </div>
       )}
 

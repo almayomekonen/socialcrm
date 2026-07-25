@@ -81,7 +81,7 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
             .filter((t) => t.id !== retryOf) // old rejected row was archived server-side
             .map((t) => (t.id === tempId ? res.template : t)), // reconcile
         )
-        toast('success', 'ההודעה נשלחה לבדיקה')
+        toast('success', 'ההודעה נוצרה ונשלחה לאישור וואטסאפ')
       } else if ('error' in res) {
         setTemplates((prev) => prev.filter((t) => t.id !== tempId)) // rollback (old row stays)
         toast('error', res.error)

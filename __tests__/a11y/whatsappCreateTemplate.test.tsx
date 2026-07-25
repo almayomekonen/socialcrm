@@ -88,13 +88,13 @@ describe('TemplatesWorkspace — optimistic flow', () => {
     fillValidForm()
     fireEvent.click(screen.getByRole('button', { name: 'שלח לבדיקה' }))
 
-    // optimistic row appears immediately (בבדיקה), modal closed
+    // optimistic row appears immediately (בבדיקת וואטסאפ), modal closed
     expect(screen.getByText('תזכורת פולואפ')).toBeInTheDocument()
-    expect(screen.getByText('בבדיקה')).toBeInTheDocument()
+    expect(screen.getByText('בבדיקת וואטסאפ')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
 
     await waitFor(() => expect(createTemplate).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('success', expect.stringMatching(/לבדיקה/)))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('success', expect.stringMatching(/לאישור וואטסאפ/)))
   })
 
   it('rolls the optimistic row back and toasts the mapped Hebrew error on failure', async () => {
