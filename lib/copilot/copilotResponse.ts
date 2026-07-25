@@ -36,4 +36,6 @@ export type CopilotResponseErrorReason =
   | 'over-quota'
   | 'all-providers-failed'
   | 'invalid-input'
+  | 'subscription-required'
+  | 'trial-not-started'
   | 'unknown'

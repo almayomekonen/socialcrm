@@ -1,5 +1,5 @@
 import { getAgencyId } from '@/db/agencies'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 import { scopedLeads, type Scope } from '@/db/briefing'
 
 // Today brief — FACTS ONLY. The set of in-scope leads touched today (lastActivityAt
@@ -13,7 +13,7 @@ export function touchedTodayQuery(agencyId: number, plan: string, scope: Scope, 
 
 export async function getTouchedTodayIds(scope: Scope, dayStartMs: number): Promise<number[]> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const rows = (await touchedTodayQuery(agencyId, plan, scope, dayStartMs)) as { id: number }[]
   return rows.map((r) => Number(r.id))
 }

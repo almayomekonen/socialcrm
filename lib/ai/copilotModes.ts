@@ -33,14 +33,14 @@ export const COPILOT_MODES: readonly CopilotMode[] = [
   {
     id: 'fast',
     label: 'מהיר',
-    description: 'תשובה זריזה לשאלות פשוטות',
+    description: 'תשובה מיידית למשימות קצרות',
     role: 'volume',
     icon: 'bolt',
   },
   {
     id: 'smart',
     label: 'חכם',
-    description: 'איזון בין דיוק למהירות',
+    description: 'התשובה הטובה ביותר לרוב המשימות',
     role: 'primary',
     icon: 'brain',
     requiredTier: 'pro',
@@ -48,7 +48,7 @@ export const COPILOT_MODES: readonly CopilotMode[] = [
   {
     id: 'advanced',
     label: 'מתקדם',
-    description: 'ניתוח עמוק לשאלות מורכבות',
+    description: 'ניתוח מעמיק למצבים מורכבים',
     role: 'heavy',
     icon: 'gem',
     requiredTier: 'pro',

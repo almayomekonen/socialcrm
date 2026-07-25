@@ -80,7 +80,9 @@ export function asErrorReason(raw: string | null | undefined): CopilotResponseEr
     raw === 'no-providers' ||
     raw === 'over-quota' ||
     raw === 'all-providers-failed' ||
-    raw === 'invalid-input'
+    raw === 'invalid-input' ||
+    raw === 'subscription-required' ||
+    raw === 'trial-not-started'
   ) {
     return raw
   }

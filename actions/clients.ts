@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx'
 import { requireUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
-import { assertLeadQuota, QuotaExceededError, getAgencyPlan, withAgencyQuotaLock } from '@/lib/quota'
+import { assertLeadQuota, QuotaExceededError, getEffectiveLeadPlan, withAgencyQuotaLock } from '@/lib/quota'
 import type { QuotaErrorResult } from '@/lib/quota'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
 import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
@@ -288,7 +288,7 @@ async function searchBase(val, isLead) {
   const terms = val.split(' ').filter((term) => term)
 
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const query = db('clients').select('id', 'details', 'firstName', 'lastName', 'idNum', 'userId').where('agencyId', agencyId)
   if (plan === 'free') query.where('overQuota', false)
   if (isLead === true) {
@@ -660,7 +660,7 @@ export async function importLeadsFromCsv(file: File) {
 export async function fetchLeadsSince(lastSeenAt: string) {
   const user = await requireUser()
   const agencyId = user.agencyId
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const query = db('clients')
     .where({ 'clients.agencyId': agencyId, lead: true })
     .whereRaw('"clients"."updatedAt"::timestamptz > ?::timestamptz', [lastSeenAt])

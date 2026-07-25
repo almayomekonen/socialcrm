@@ -6,7 +6,7 @@ import { applyDueMembership } from './worklist'
 import { filesJsonAgg } from './helpers/aggregations'
 import { Lead, LeadInfo } from '@/types/db/tables'
 import { requireUser } from '@/lib/requireUser'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 
 export type LeadKey = keyof Lead | keyof LeadInfo
 
@@ -58,7 +58,7 @@ export async function getFamMembers(clientId) {
 }
 
 export async function hasAnyLeads(agencyId: number, gotPermIds: number[], role: Roles): Promise<boolean> {
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const q = db('clients').where({ agencyId })
 
   if (!isAdmin(role)) q.whereIn('userId', gotPermIds)
@@ -74,7 +74,7 @@ export async function getTrialPreviewLeads(
 ): Promise<{ total: number; names: string[] }> {
   // Same permission scoping as hasAnyLeads: reps only ever see their own leads,
   // and free agencies hide over-quota leads. The paywall must not leak names.
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const q = db('clients').where({ agencyId, lead: true })
   if (!isAdmin(role)) q.whereIn('userId', gotPermIds)
   if (plan === 'free') q.where('overQuota', false)
@@ -94,7 +94,7 @@ export async function getLeadsByRep(user) {
   const authedUser = await requireUser()
   const { gotPermIds } = await getPerms(user)
 
-  const plan = await getAgencyPlan(authedUser.agencyId)
+  const plan = await getEffectiveLeadPlan(authedUser.agencyId)
   const q = db('clients').select('id', 'details').where({ agencyId: authedUser.agencyId }).whereIn('userId', gotPermIds)
   if (plan === 'free') q.where('overQuota', false)
 
@@ -119,7 +119,7 @@ export async function getGlobalLatestUpdatedAt(): Promise<string> {
 
 export async function getLeadsTable({ user, params, leads = false, gotPermIds, settings = null }) {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   let { listId, pageNum, tableLimit, clientId } = params
   pageNum = Number(pageNum) || 1
@@ -242,7 +242,7 @@ export async function getLeadColumnAvailability({
   gotPermIds?: number[]
 }): Promise<LeadColumnAvailability> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const base = db('clients').where('agencyId', agencyId).where('lead', leads)
   if (gotPermIds && !isAdmin(user.role)) base.whereIn('userId', gotPermIds)

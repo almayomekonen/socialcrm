@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { getAgencyId } from './agencies'
 import { isAdmin, type Roles } from '@/types/roles'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 import type { UpcomingFollowUp } from '@/lib/leads/upcomingFollowUps'
 
 export async function getUpcomingFollowUps({
@@ -14,7 +14,7 @@ export async function getUpcomingFollowUps({
   limit?: number
 }): Promise<UpcomingFollowUp[]> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients')
     .where({ agencyId })
@@ -36,7 +36,7 @@ export async function getUpcomingFollowUps({
 /** True count of upcoming (future, not-yet-due) follow-ups — for the Quick Links chip (uncapped). */
 export async function getUpcomingFollowUpsCount({ user, gotPermIds }: { user: { role: Roles }; gotPermIds: number[] }): Promise<number> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients')
     .where({ agencyId })

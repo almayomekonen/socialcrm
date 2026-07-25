@@ -6,6 +6,7 @@ import { getProviderChain } from './providers'
 import { estimateCostUsd, getTaskConfig } from './tasks'
 import { AiRunResult, ModelRole, ProviderName, TaskKind } from './types'
 import { evaluateShadowGate } from '@/lib/entitlements'
+import { resolveAiAccess } from './access'
 import type { CopilotModeId } from './copilotModes'
 import { addDailySpend, getDailySpend } from './router/spend'
 import { buildPrompt } from './router/promptBuilder'
@@ -59,6 +60,18 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
   })
 
   if (!oldAllowed) return { ok: false, reason: 'forbidden' }
+
+  // Product-access entitlement (Phase 2). Runs only for real agency traffic that
+  // already passed the allowlist/rollout gate above. Internal bypass callers
+  // (health check, offline scripts) and agency-less calls skip it — they carry
+  // no subscription to evaluate. This is the server-authoritative revenue/access
+  // boundary; UI state is not authorization. resolveAiAccess FAILS OPEN on any
+  // read error, so a transient DB failure never denies a paying customer.
+  if (opts.bypassAllowlist !== true && opts.agencyId) {
+    const access = await resolveAiAccess(opts.agencyId)
+    if (access.allowed === false) return { ok: false, reason: access.reason }
+  }
+
   if (!hasAnyProviderConfigured()) return { ok: false, reason: 'no-providers' }
   if (opts.agencyId && getDailySpend(opts.agencyId) >= env.dailyUsdCap) {
     return { ok: false, reason: 'over-quota' }

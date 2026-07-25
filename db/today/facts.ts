@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 import { scopedLeads, type Scope } from '@/db/briefing'
 import { AUTO_RESPONSE_SOURCE, TERMINAL_STATUSES } from '@/lib/today/constants'
 import type { LeadFact } from '@/lib/today/types'
@@ -83,7 +83,7 @@ export function candidateFactsQuery(agencyId: number, plan: string, scope: Scope
 
 export async function getBriefCandidateFacts(scope: Scope): Promise<LeadFact[]> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
   const rows = (await candidateFactsQuery(agencyId, plan, scope)) as Record<string, unknown>[]
   return rows.map(toLeadFact)
 }

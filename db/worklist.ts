@@ -2,7 +2,7 @@ import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { getAgencyId } from './agencies'
 import { isAdmin, type Roles } from '@/types/roles'
-import { getAgencyPlan } from '@/lib/quota'
+import { getEffectiveLeadPlan } from '@/lib/quota'
 
 export type DueWorklistRow = {
   id: number
@@ -48,7 +48,7 @@ export async function getDueWorklist({
   limit?: number
 }): Promise<DueWorklistRow[]> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients').select(
     'id',
@@ -79,7 +79,7 @@ export async function getDueWorklistCount({
   gotPermIds: number[]
 }): Promise<number> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients')
   applyDueScope(q, { agencyId, user, gotPermIds, plan })
@@ -108,7 +108,7 @@ export async function getNewLeads({
   limit?: number
 }): Promise<NewLeadRow[]> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients')
     .where('agencyId', agencyId)
@@ -125,7 +125,7 @@ export async function getNewLeads({
 
 export async function getNewLeadsCount({ user, gotPermIds }: { user: { role: Roles }; gotPermIds: number[] }): Promise<number> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients').where('agencyId', agencyId).where('lead', true).where('status', 'new')
   if (gotPermIds && !isAdmin(user.role)) q.whereIn('userId', gotPermIds)
@@ -137,7 +137,7 @@ export async function getNewLeadsCount({ user, gotPermIds }: { user: { role: Rol
 
 export async function getDoneTodayCount({ user, gotPermIds }: { user: { role: Roles }; gotPermIds: number[] }): Promise<number> {
   const agencyId = await getAgencyId()
-  const plan = await getAgencyPlan(agencyId)
+  const plan = await getEffectiveLeadPlan(agencyId)
 
   const q = db('clients').where('agencyId', agencyId).where('lead', true).whereRaw(`"lastActivityAt" >= date_trunc('day', NOW())`)
   if (gotPermIds && !isAdmin(user.role)) q.whereIn('userId', gotPermIds)
