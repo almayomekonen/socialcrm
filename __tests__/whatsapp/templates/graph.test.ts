@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createTemplateOnMeta, mapCreateError } from '@/lib/whatsapp/templates/graph'
+import { createTemplateOnMeta, mapCreateError, editTemplateOnMeta, mapEditError } from '@/lib/whatsapp/templates/graph'
 
 const args = {
   wabaId: 'WABA_1',
@@ -79,5 +79,54 @@ describe('createTemplateOnMeta', () => {
     const out = await createTemplateOnMeta(args)
     expect(out.ok).toBe(false)
     if ('error' in out) expect(out.error).toMatch(/[֐-׿]/)
+  })
+})
+
+describe('mapEditError → Hebrew (never raw)', () => {
+  it('maps auth / edit-limit / invalid / generic', () => {
+    expect(mapEditError(190, 200)).toMatch(/חיבור/)
+    expect(mapEditError(4, 200)).toMatch(/נערכה/)
+    expect(mapEditError(undefined, 429)).toMatch(/נערכה/)
+    expect(mapEditError(100, 400)).toMatch(/לפשט|נוסח/)
+    expect(mapEditError(999999, 500)).toMatch(/השתבש/)
+  })
+  it('all outputs are Hebrew with no raw code leaking', () => {
+    for (const [code, http] of [[190, 200], [4, 200], [100, 400], [1, 500]] as const) {
+      const out = mapEditError(code, http)
+      expect(out).toMatch(/[֐-׿]/)
+      expect(out).not.toMatch(/\d{3,}/)
+    }
+  })
+})
+
+describe('editTemplateOnMeta', () => {
+  it('POSTs to /{templateId} with COMPONENTS ONLY and the Bearer token', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(res(200, { success: true }))
+    const out = await editTemplateOnMeta('TID_1', 'secret-token', { components: [{ type: 'BODY', text: 'x' }] })
+    expect(out).toEqual({ ok: true })
+    const [url, init] = spy.mock.calls[0]
+    expect(String(url)).toContain('/TID_1')
+    expect(String(url)).not.toContain('message_templates') // edit is id-addressed, not the collection
+    expect((init as RequestInit).method).toBe('POST')
+    expect(((init as RequestInit).headers as Record<string, string>).Authorization).toBe('Bearer secret-token')
+    const body = JSON.parse(String((init as RequestInit).body))
+    expect(Object.keys(body)).toEqual(['components']) // no name / language / category ever sent
+  })
+
+  it('maps a Meta error to Hebrew and never throws', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(res(400, { error: { code: 100 } }))
+    const out = await editTemplateOnMeta('TID', 'secret-token', { components: [] })
+    expect(out.ok).toBe(false)
+    if ('error' in out) {
+      expect(out.error).toMatch(/[֐-׿]/)
+      expect(out.code).toBe('100')
+      expect(out.error).not.toContain('secret-token')
+    }
+  })
+
+  it('a thrown fetch resolves to a failure (never throws across the boundary)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('boom'))
+    const out = await editTemplateOnMeta('TID', 't', { components: [] })
+    expect(out.ok).toBe(false)
   })
 })

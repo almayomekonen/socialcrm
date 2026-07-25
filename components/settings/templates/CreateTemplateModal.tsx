@@ -22,16 +22,23 @@ export default function CreateTemplateModal({
   onClose,
   onCreate,
   initial,
+  lockPurpose = false,
+  heading = 'הודעה מוכנה חדשה',
+  submitLabel = 'שלח לבדיקה',
 }: {
   open: boolean
   onClose: () => void
   onCreate: (input: TemplateInput) => void
-  /** Pre-fill (retry, Sprint 5). The caller remounts (via key) to reseed on change. */
-  initial?: { displayTitle: string; bodyText: string }
+  /** Pre-fill (retry, Sprint 5; edit, MVP). The caller remounts (via key) to reseed on change. */
+  initial?: { displayTitle: string; bodyText: string; purpose?: TemplatePurpose }
+  /** Edit mode: category is fixed (Meta forbids category edits on approved) — show it, disabled. */
+  lockPurpose?: boolean
+  heading?: string
+  submitLabel?: string
 }) {
   const [title, setTitle] = useState(initial?.displayTitle ?? '')
   const [body, setBody] = useState(initial?.bodyText ?? '')
-  const [purpose, setPurpose] = useState<TemplatePurpose | ''>('')
+  const [purpose, setPurpose] = useState<TemplatePurpose | ''>(initial?.purpose ?? '')
   const [errors, setErrors] = useState<string[]>([])
   const bodyRef = useRef<HTMLTextAreaElement>(null)
 
@@ -86,7 +93,7 @@ export default function CreateTemplateModal({
       className='w-[min(92vw,720px)]'
     >
       <h2 id='create-template-title' className='mb-4 text-lg font-semibold text-gray-800'>
-        הודעה מוכנה חדשה
+        {heading}
       </h2>
 
       <div className='grid gap-6 md:grid-cols-[1fr_260px]'>
@@ -125,15 +132,17 @@ export default function CreateTemplateModal({
             ))}
           </div>
 
-          <fieldset className='grid gap-2'>
+          <fieldset className='grid gap-2' disabled={lockPurpose}>
             <legend className='text-sm font-medium text-gray-700'>מה מטרת ההודעה?</legend>
+            {lockPurpose && <p className='text-xs text-gray-500'>לא ניתן לשנות את מטרת ההודעה בעריכה. לשינוי צריך ליצור הודעה חדשה.</p>}
             {PURPOSES.map((p) => (
-              <label key={p.value} className='flex items-center gap-2 text-sm text-gray-700'>
+              <label key={p.value} className={`flex items-center gap-2 text-sm ${lockPurpose ? 'text-gray-400' : 'text-gray-700'}`}>
                 <input
                   type='radio'
                   name='template-purpose'
                   value={p.value}
                   checked={purpose === p.value}
+                  disabled={lockPurpose}
                   onChange={() => setPurpose(p.value)}
                 />
                 <span>
@@ -160,7 +169,7 @@ export default function CreateTemplateModal({
 
       <div className='mt-6 flex justify-end gap-2'>
         <Btn lbl='ביטול' variant='ghost' size='small' onClick={close} />
-        <Btn lbl='שלח לבדיקה' size='small' onClick={handleSubmit} disabled={!title.trim() || !body.trim() || !purpose} />
+        <Btn lbl={submitLabel} size='small' onClick={handleSubmit} disabled={!title.trim() || !body.trim() || !purpose} />
       </div>
     </ModalPop>
   )
