@@ -9,7 +9,6 @@ const H = vi.hoisted(() => ({
   discardTemplate: vi.fn(),
   retryTemplate: vi.fn(),
   createTemplate: vi.fn(),
-  editTemplate: vi.fn(),
   toast: vi.fn(),
   useAdaptivePoll: vi.fn(),
 }))
@@ -17,7 +16,6 @@ vi.mock('@/actions/whatsapp/templates/archiveTemplate', () => ({ archiveTemplate
 vi.mock('@/actions/whatsapp/templates/discardTemplate', () => ({ discardTemplate: H.discardTemplate }))
 vi.mock('@/actions/whatsapp/templates/retryTemplate', () => ({ retryTemplate: H.retryTemplate }))
 vi.mock('@/actions/whatsapp/templates/createTemplate', () => ({ createTemplate: H.createTemplate }))
-vi.mock('@/actions/whatsapp/templates/editTemplate', () => ({ editTemplate: H.editTemplate }))
 vi.mock('@/lib/toast', () => ({ toast: H.toast }))
 vi.mock('@/modules/inbox/client/useAdaptivePoll', () => ({ useAdaptivePoll: H.useAdaptivePoll }))
 
@@ -129,31 +127,28 @@ describe('TemplateRow — edit affordance (safe edit-in-place)', () => {
   })
 })
 
-describe('TemplatesWorkspace — edit wiring', () => {
-  it('opens the modal in edit mode with the category locked, and saves', async () => {
-    H.editTemplate.mockResolvedValue({
-      ok: true,
-      template: { ...tpl(5, 'approved', null, 'UTILITY'), bodyText: 'תוכן מעודכן' },
-    })
+describe('TemplatesWorkspace — "עריכת הודעה" = create a revised version (create-new)', () => {
+  it('opens the modal prefilled, with an EDITABLE category (create-new can change it)', () => {
     render(<TemplatesWorkspace initial={[tpl(5, 'approved', null, 'UTILITY')]} />)
     fireEvent.click(screen.getByRole('button', { name: 'עריכת הודעה' }))
 
-    // edit-mode modal: heading, pre-filled title, LOCKED (disabled) purpose radios
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'עריכת הודעה' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('תזכורת פולואפ')).toBeInTheDocument()
-    expect(screen.getAllByRole('radio').every((r) => (r as HTMLInputElement).disabled)).toBe(true)
-
-    fireEvent.click(screen.getByRole('button', { name: 'שמור שינויים' }))
-    await waitFor(() => expect(H.editTemplate).toHaveBeenCalledWith(5, expect.objectContaining({ purpose: 'UTILITY' })))
-    await waitFor(() => expect(H.toast).toHaveBeenCalledWith('success', 'השינויים נשלחו לאישור וואטסאפ'))
+    expect(screen.getByDisplayValue('תזכורת פולואפ')).toBeInTheDocument() // prefilled content
+    // a note explains it creates a new version and the current one stays live
+    expect(screen.getByText(/תישאר פעילה עד שהגרסה החדשה תאושר/)).toBeInTheDocument()
+    // category is NOT locked — create-new allows changing it (and arity)
+    expect(screen.getAllByRole('radio').every((r) => !(r as HTMLInputElement).disabled)).toBe(true)
   })
 
-  it('a needsNew result surfaces the routing message (no mutation)', async () => {
-    H.editTemplate.mockResolvedValue({ ok: false, error: 'שינוי מספר הפרטים האישיים בהודעה דורש יצירת הודעה חדשה.', needsNew: true })
+  it('saving creates a NEW template (createTemplate) and never mutates the old one in place', async () => {
+    H.createTemplate.mockResolvedValue({ ok: true, template: tpl(99, 'pending', null, 'UTILITY') })
     render(<TemplatesWorkspace initial={[tpl(5, 'approved', null, 'UTILITY')]} />)
     fireEvent.click(screen.getByRole('button', { name: 'עריכת הודעה' }))
-    fireEvent.click(screen.getByRole('button', { name: 'שמור שינויים' }))
-    await waitFor(() => expect(H.toast).toHaveBeenCalledWith('error', expect.stringMatching(/הודעה חדשה/)))
+    fireEvent.click(screen.getByRole('button', { name: 'שלח לבדיקה' }))
+
+    // goes through the ordinary create flow — NOT an in-place Meta edit
+    await waitFor(() => expect(H.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ purpose: 'UTILITY' })))
+    await waitFor(() => expect(H.toast).toHaveBeenCalledWith('success', expect.stringMatching(/נשלחה לאישור/)))
   })
 })
