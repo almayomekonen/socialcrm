@@ -59,9 +59,7 @@ export function bodyParameterCount(bodyText: string): number {
   return idx.length ? idx[idx.length - 1] : 0
 }
 
-export type ResolveParametersResult =
-  | { ok: true; params: string[] }
-  | { ok: false; reason: 'unmapped'; positions: number[] }
+export type ResolveParametersResult = { ok: true; params: string[] } | { ok: false; reason: 'unmapped'; positions: number[] }
 
 /**
  * Resolve exactly `arity` positional parameters, in order, from explicit bindings.
@@ -126,4 +124,51 @@ export function resolveTemplateSendParameters(
  */
 export function renderPositionalBody(bodyText: string, params: string[]): string {
   return (bodyText ?? '').replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => params[Number(n) - 1] ?? `{{${n}}}`).trim()
+}
+
+/** field (ParameterSource) → user-facing chip token, from the closed set. */
+const TOKEN_BY_SOURCE: Record<string, string> = Object.fromEntries(TEMPLATE_VARIABLES.map((v) => [v.field, v.token]))
+
+/** True if the text contains a raw Meta positional placeholder (`{{1}}`, `{{2}}`, …). */
+export function hasPositionalPlaceholder(text: string): boolean {
+  return /\{\{\s*\d+\s*\}\}/.test(text ?? '')
+}
+
+export type HydrateBodyResult = { ok: true; bodyText: string } | { ok: false; reason: 'unmapped'; positions: number[] }
+
+/**
+ * Reconstruct the USER-FACING chip body from a stored body + bindings — the inverse
+ * of `buildComponents`. Technical Meta placeholders must never reach the user's
+ * editor; this converts them back to chips (`{{1}}` → `שם הליד`).
+ *
+ *  - A body already in chip form (no positional `{{n}}`) is returned unchanged
+ *    (in-app templates).
+ *  - Positional `{{n}}` (Meta-synced) is replaced by the chip token of its bound
+ *    source, using the explicit stored bindings.
+ *  - Any `{{n}}` without a known binding → `unmapped` (never guessed) so the caller
+ *    keeps it raw and out of the editor.
+ */
+export function hydrateUserFacingBody(bodyText: string, bindings: ParameterBinding[]): HydrateBodyResult {
+  const body = bodyText ?? ''
+  if (!hasPositionalPlaceholder(body)) return { ok: true, bodyText: body }
+  const byPosition = new Map((bindings ?? []).map((b) => [b.position, b]))
+  const unmapped = new Set<number>()
+  const text = body.replace(/\{\{\s*(\d+)\s*\}\}/g, (match, digits) => {
+    const pos = Number(digits)
+    const source = byPosition.get(pos)?.source
+    const token = source ? TOKEN_BY_SOURCE[source] : undefined
+    if (!token) {
+      unmapped.add(pos)
+      return match
+    }
+    return token
+  })
+  if (unmapped.size > 0) return { ok: false, reason: 'unmapped', positions: [...unmapped].sort((a, b) => a - b) }
+  return { ok: true, bodyText: text }
+}
+
+/** The closed-set chips present in a user-facing body, with their sample values. */
+export function chipVariablesIn(bodyText: string): TemplateVariable[] {
+  const body = bodyText ?? ''
+  return TEMPLATE_VARIABLES.filter((v) => body.includes(v.token)).map((v) => ({ token: v.token, sample: v.defaultSample }))
 }

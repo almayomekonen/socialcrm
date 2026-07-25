@@ -5,6 +5,9 @@ import {
   resolveParameters,
   resolveTemplateSendParameters,
   renderPositionalBody,
+  hasPositionalPlaceholder,
+  hydrateUserFacingBody,
+  chipVariablesIn,
   type ParameterBinding,
 } from '@/lib/whatsapp/templates/parameters'
 
@@ -142,5 +145,63 @@ describe('renderPositionalBody', () => {
   })
   it('tolerates inner whitespace and repeats', () => {
     expect(renderPositionalBody('{{ 1 }} {{1}}', ['דוד'])).toBe('דוד דוד')
+  })
+})
+
+describe('hasPositionalPlaceholder', () => {
+  it('detects raw Meta {{n}} placeholders only', () => {
+    expect(hasPositionalPlaceholder('היי {{1}}')).toBe(true)
+    expect(hasPositionalPlaceholder('מ־{{ 2 }}')).toBe(true)
+    expect(hasPositionalPlaceholder('היי שם הליד')).toBe(false) // chip form
+    expect(hasPositionalPlaceholder('')).toBe(false)
+  })
+})
+
+describe('hydrateUserFacingBody — inverse of buildComponents (never leak {{n}})', () => {
+  const FULL: ParameterBinding[] = [
+    { position: 1, source: 'leadFirstName' },
+    { position: 2, source: 'businessName' },
+  ]
+
+  it('a chip body (no {{n}}) passes through unchanged', () => {
+    const r = hydrateUserFacingBody('היי שם הליד, מ־שם העסק', [])
+    expect(r).toEqual({ ok: true, bodyText: 'היי שם הליד, מ־שם העסק' })
+  })
+
+  it('reconstructs chips from positional {{n}} + bindings', () => {
+    const r = hydrateUserFacingBody('היי {{1}}, תודה שהתעניינת ב{{2}}.', FULL)
+    expect(r).toEqual({ ok: true, bodyText: 'היי שם הליד, תודה שהתעניינת בשם העסק.' })
+  })
+
+  it('handles the exact production lead_first_contact body', () => {
+    const body = 'Helloהיי {{1}},\n\nתודה שהתעניינת ב{{2}}.\n\nקיבלנו את הפרטים שלך.'
+    const r = hydrateUserFacingBody(body, FULL)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.bodyText).toBe('Helloהיי שם הליד,\n\nתודה שהתעניינת בשם העסק.\n\nקיבלנו את הפרטים שלך.')
+      expect(hasPositionalPlaceholder(r.bodyText)).toBe(false) // no {{n}} left for the editor
+    }
+  })
+
+  it('a placeholder with no binding is UNMAPPED (never guessed)', () => {
+    const r = hydrateUserFacingBody('{{1}} {{2}}', [{ position: 1, source: 'leadFirstName' }])
+    expect(r).toEqual({ ok: false, reason: 'unmapped', positions: [2] })
+  })
+
+  it('a null-source binding is unmapped', () => {
+    const r = hydrateUserFacingBody('היי {{1}}', [{ position: 1, source: null }])
+    expect(r).toEqual({ ok: false, reason: 'unmapped', positions: [1] })
+  })
+})
+
+describe('chipVariablesIn', () => {
+  it('returns the closed-set chips present in a user-facing body, with samples', () => {
+    expect(chipVariablesIn('היי שם הליד מ־שם העסק')).toEqual([
+      { token: 'שם הליד', sample: 'דוד' },
+      { token: 'שם העסק', sample: 'העסק שלי' },
+    ])
+  })
+  it('empty when no chips present', () => {
+    expect(chipVariablesIn('טקסט רגיל')).toEqual([])
   })
 })

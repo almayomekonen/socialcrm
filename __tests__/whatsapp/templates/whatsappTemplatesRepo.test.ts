@@ -121,6 +121,34 @@ describe('mapTemplateRow (pure)', () => {
   it('malformed variables JSON degrades to []', () => {
     expect(mapTemplateRow({ ...base, variables: '{not json' }).variables).toEqual([])
   })
+
+  it('hydrates a Meta-synced positional body to chips using stored bindings', () => {
+    const t = mapTemplateRow({
+      ...base,
+      bodyText: 'היי {{1}}, מ־{{2}}',
+      variables: '[]',
+      metadata: JSON.stringify({ parameterBindings: [{ position: 1, source: 'leadFirstName' }, { position: 2, source: 'businessName' }] }),
+    })
+    expect(t.bodyText).toBe('היי שם הליד, מ־שם העסק') // no raw {{n}} reaches the client
+    expect(t.variables).toEqual([{ token: 'שם הליד', sample: 'דוד' }, { token: 'שם העסק', sample: 'העסק שלי' }])
+  })
+
+  it('leaves an unmapped positional body raw (never guesses)', () => {
+    const t = mapTemplateRow({ ...base, bodyText: 'היי {{1}}', variables: '[]', metadata: '{}' })
+    expect(t.bodyText).toBe('היי {{1}}')
+    expect(t.variables).toEqual([])
+  })
+
+  it('an in-app chip body passes through unchanged', () => {
+    const t = mapTemplateRow({
+      ...base,
+      bodyText: 'היי שם הליד',
+      variables: JSON.stringify([{ token: 'שם הליד', sample: 'דוד' }]),
+      metadata: '{}',
+    })
+    expect(t.bodyText).toBe('היי שם הליד')
+    expect(t.variables).toEqual([{ token: 'שם הליד', sample: 'דוד' }])
+  })
 })
 
 describe('listTemplates — agency scope', () => {

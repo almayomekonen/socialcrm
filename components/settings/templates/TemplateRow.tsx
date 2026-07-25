@@ -7,6 +7,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import TemplateStatusBadge from './TemplateStatusBadge'
 import TemplateRejectionNotice from './TemplateRejectionNotice'
 import TemplatePendingNotice from './TemplatePendingNotice'
+import { hasPositionalPlaceholder } from '@/lib/whatsapp/templates/parameters'
 
 export type TemplateRowActions = {
   onArchive: (id: number) => void
@@ -22,7 +23,10 @@ export default function TemplateRow({ template, actions }: { template: Template;
   const canArchive = !!actions && (template.status === 'approved' || template.status === 'paused' || template.status === 'disabled')
   const canDiscard = !!actions && (template.status === 'pending' || template.status === 'rejected')
   const canRetry = !!actions && template.status === 'rejected'
-  const canEdit = !!actions?.onEdit && template.status === 'approved'
+  // Editable only when the body is in the user-facing chip form. A body that still
+  // carries raw positional {{n}} is an unmapped Meta-synced template we can't safely
+  // hydrate — never feed that into the editor; it routes to create-new instead.
+  const canEdit = !!actions?.onEdit && template.status === 'approved' && !hasPositionalPlaceholder(template.bodyText)
 
   return (
     <div className='rounded-md border border-gray-200 p-3'>

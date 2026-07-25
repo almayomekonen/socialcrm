@@ -123,6 +123,10 @@ describe('TemplateRow — edit affordance (safe edit-in-place)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'עריכת הודעה' }))
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }))
   })
+  it('an unmapped body with raw {{n}} is NOT editable (never feed Meta syntax to the editor)', () => {
+    render(<TemplateRow template={{ ...tpl(1, 'approved'), bodyText: 'היי {{1}}' }} actions={{ ...spies, onEdit: vi.fn() }} />)
+    expect(screen.queryByRole('button', { name: 'עריכת הודעה' })).toBeNull()
+  })
 })
 
 describe('TemplatesWorkspace — edit wiring', () => {
