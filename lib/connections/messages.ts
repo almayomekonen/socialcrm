@@ -77,12 +77,47 @@ export const FACEBOOK_NOTICES: Record<string, ConnectionNotice> = {
   },
   no_pages: {
     tone: 'error',
-    title: 'לא נמצא דף עסקי בחשבון',
-    explanation: 'לידים ממודעות מגיעים דרך דף פייסבוק, ובחשבון הזה לא נמצא דף בניהולך.',
-    reasons: ['ההתחברות בוצעה עם חשבון פרטי', 'הדף מנוהל בחשבון אחר', 'טרם נוצר דף עסקי'],
-    nextStep: 'כדאי לוודא באיזה חשבון בוצעה ההתחברות.',
-    action: 'להתחבר עם חשבון אחר',
-    secondary: 'מעבר לפייסבוק',
+    // We do NOT assert "you have no Page" — an empty result does not prove that.
+    title: 'לא מצאנו דף Facebook שאפשר לחבר',
+    explanation: 'התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.',
+    reasons: [
+      'ייתכן שההתחברות בוצעה עם חשבון שאינו מנהל את הדף',
+      'ייתכן שהדף לא נבחר במסך האישור של Facebook',
+      'אם עדיין אין דף עסקי — צריך ליצור אחד',
+    ],
+    nextStep: 'כדאי לוודא שאתם מחוברים לחשבון שמנהל את הדף ולבחור בו במסך האישור, ואז לנסות שוב.',
+    // Non-conclusive CTA — we do not assert the account is the cause.
+    action: 'בדקתי את הדף והגישה, לנסות להתחבר שוב',
+  },
+  // Escalated variant — shown after a repeated identical no-Page result in the
+  // same setup session. Reframes retry as intentional recovery, not repetition.
+  no_pages_repeat: {
+    tone: 'attention',
+    title: 'נראה שהחיבור עדיין לא מוצא דף מתאים',
+    explanation:
+      'התחברות נוספת עם אותו חשבון ואותן הרשאות צפויה להביא לאותה תוצאה. כדי שזה יעבוד, צריך קודם לשנות משהו בצד של Facebook.',
+    reasons: [
+      'לוודא שאתם מחוברים לחשבון ה-Facebook שמנהל את הדף',
+      'לבדוק שיש לכם הרשאת ניהול לדף',
+      'לבחור את הדף במפורש במסך האישור של Facebook',
+    ],
+    nextStep: 'אחרי שווידאתם את הגישה לדף — אפשר לנסות להתחבר שוב.',
+    action: 'בדקתי את הגישה לדף, לנסות שוב',
+  },
+  pages_permission: {
+    tone: 'error',
+    title: 'חסרה הרשאה להצגת הדפים שלך',
+    explanation: 'כדי לחבר דף, SocialCRM צריך הרשאה לראות אילו דפים זמינים בחשבון שלכם. ההרשאה הזו לא אושרה.',
+    reasons: ['אחת ההרשאות לא סומנה במסך האישור של Facebook'],
+    nextStep: 'להתחבר שוב ולאשר את כל ההרשאות המבוקשות.',
+    action: 'להתחבר ולאשר הרשאות',
+  },
+  resource_claimed: {
+    tone: 'error',
+    title: 'הדף כבר מחובר לחשבון אחר',
+    explanation: 'דף ה-Facebook הזה כבר מחובר לחשבון SocialCRM אחר. כדי למנוע כפילות, אי אפשר לחבר אותו לשני חשבונות במקביל.',
+    reasons: ['ייתכן שהדף חובר בעבר מחשבון אחר שלכם'],
+    nextStep: 'אם הדף שייך לכם, יש לנתקו מהחשבון האחר תחילה ואז לחבר כאן.',
   },
   token: {
     tone: 'error',
@@ -213,12 +248,38 @@ export const WHATSAPP_NOTICES: Record<string, ConnectionNotice> = {
   },
   not_ready: {
     tone: 'attention',
-    title: 'המספר חובר — נדרש שלב אחד נוסף',
-    explanation: 'Meta טרם אישרה את המספר לשליחה וקבלה, ולכן הודעות לא ייכנסו בשלב זה.',
+    // No success/operational language — setup is not yet complete.
+    title: 'הגדרת מספר ה-WhatsApp עדיין לא הושלמה',
+    explanation: 'עד להשלמת ההגדרה, SocialCRM לא יכול לקבל הודעות ולידים דרך החיבור הזה.',
     reasons: ['המספר טרם אומת', 'מוגדר קוד אימות דו-שלבי'],
     nextStep: 'להשלים את האימות ב-WhatsApp Manager. אם מוגדר קוד דו-שלבי, יש להשביתו זמנית.',
     action: 'מעבר ל-WhatsApp Manager',
     secondary: 'בדיקה חוזרת',
+  },
+  // The subscription needed to RECEIVE messages/leads did not complete, so no
+  // active connection was saved. Never presented as connected.
+  subscribe_incomplete: {
+    tone: 'error',
+    title: 'החיבור ל-WhatsApp עדיין לא הושלם',
+    explanation: 'לא הצלחנו להשלים את החיבור הדרוש כדי שהודעות ולידים יגיעו ל-SocialCRM. לא נשמר חיבור פעיל.',
+    reasons: ['ייתכן שלמספר שנבחר חסרות ההרשאות הנדרשות', 'ייתכן שתהליך ההגדרה לא הושלם עד הסוף'],
+    nextStep: 'כדאי להריץ את ההגדרה שוב ולהשלים את כל השלבים עד סגירת החלון.',
+    action: 'להריץ את ההגדרה שוב',
+  },
+  // A saved connection we cannot yet PROVE is operational (legacy row without
+  // verifiable subscription). We do not claim leads are arriving.
+  needs_verification: {
+    tone: 'attention',
+    title: 'צריך לאמת את חיבור ה-WhatsApp',
+    explanation: 'החיבור קיים, אבל עדיין לא הצלחנו לוודא שהודעות ולידים נכנסים אליו. עד לאימות, ייתכן שהודעות לא יגיעו.',
+    nextStep: 'כדאי לחבר מחדש כדי לוודא שהחיבור פעיל.',
+    action: 'לחבר מחדש ולאמת',
+  },
+  resource_claimed: {
+    tone: 'error',
+    title: 'המספר כבר מחובר לחשבון אחר',
+    explanation: 'מספר ה-WhatsApp הזה כבר מחובר לחשבון SocialCRM אחר. אי אפשר לחבר אותו לשני חשבונות במקביל.',
+    nextStep: 'אם המספר שייך לכם, יש לנתקו מהחשבון האחר תחילה ואז לחבר כאן.',
   },
 }
 

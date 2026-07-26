@@ -32,6 +32,24 @@ export type AnalyticsEventName =
   | 'first_manual_lead_created'
   | 'first_lead_opened'
   | 'first_follow_up_set'
+  // --- Integration activation funnel (Facebook) ---
+  | 'facebook_connect_started'
+  | 'facebook_oauth_completed'
+  | 'facebook_page_discovered'
+  | 'facebook_page_selected'
+  | 'facebook_webhook_subscribed'
+  | 'facebook_connected_operational'
+  | 'facebook_connect_failed'
+  // --- Integration activation funnel (WhatsApp) ---
+  | 'whatsapp_connect_started'
+  | 'whatsapp_signup_completed'
+  | 'whatsapp_phone_discovered'
+  | 'whatsapp_webhook_subscribed'
+  | 'whatsapp_messaging_ready'
+  | 'whatsapp_connected_operational'
+  | 'whatsapp_connect_failed'
+  // --- First delivered value ---
+  | 'activation_first_real_lead'
 
 type TrackInput = {
   agencyId: number
@@ -50,5 +68,33 @@ export async function track({ agencyId, userId, event, props }: TrackInput): Pro
     )
   } catch (err) {
     console.error('[analytics] track failed', { event, agencyId, err: String(err) })
+  }
+}
+
+/**
+ * Emit `activation_first_real_lead` exactly once per agency per integration.
+ *
+ * "First delivered value" is the moment a real inbound provider lead is
+ * persisted — not a manual lead, seed row, page discovery, or connection row.
+ * Call this only after a genuinely NEW webhook lead is inserted (skip on dedup).
+ *
+ * Idempotency is a best-effort existence check (there is no unique constraint to
+ * key on): a rare race could emit twice, which is acceptable for a funnel event
+ * and never affects lead creation. Fully swallowed — never throws, never blocks
+ * the webhook returning 200 to Meta.
+ */
+export async function trackFirstRealLeadOnce(
+  agencyId: number,
+  integration: 'facebook' | 'whatsapp',
+): Promise<void> {
+  try {
+    const existing = await db('analytics_events')
+      .where({ agencyId, event: 'activation_first_real_lead' })
+      .whereRaw("props->>'integration' = ?", [integration])
+      .first()
+    if (existing) return
+    await track({ agencyId, event: 'activation_first_real_lead', props: { integration } })
+  } catch (err) {
+    console.error('[analytics] first-real-lead track failed', { agencyId, integration, err: String(err) })
   }
 }

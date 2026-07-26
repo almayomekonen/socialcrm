@@ -70,6 +70,23 @@ export async function checkMessagingReady(phoneNumberId: string, accessToken: st
   }
 }
 
+/**
+ * Whether OUR app is subscribed to the WABA's webhooks — i.e. whether inbound
+ * messages/leads can actually reach us. A non-empty subscribed_apps list means
+ * an app subscription exists (this token can only see its own app's). Read-only.
+ * Returns false on any error (safe: "cannot prove subscribed").
+ */
+export async function checkAppSubscribed(wabaId: string, accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(`${GRAPH_BASE}/${wabaId}/subscribed_apps?access_token=${accessToken}`)
+    if (!res.ok) return false
+    const data = (await res.json().catch(() => ({}))) as { data?: unknown[] }
+    return Array.isArray(data.data) && data.data.length > 0
+  } catch {
+    return false
+  }
+}
+
 export async function ensureMessagingReady(phoneNumberId: string, accessToken: string): Promise<MessagingReadiness> {
   let status: PhoneStatus
   try {

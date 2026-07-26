@@ -8,6 +8,7 @@ import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { WHATSAPP_NOTICES, whatsappNotice } from '@/lib/connections/messages'
+import type { WhatsappStatus } from '@/lib/whatsapp/operationalStatus'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string }
 type Connection = { phoneNumberId: string }
@@ -18,7 +19,8 @@ type Props = {
   appId: string
   configId: string
   graphVersion: string
-  messagingReady: boolean
+  /** Truthful operational status. Never render a green claim unless 'operational'. */
+  status: WhatsappStatus
 }
 
 export default function WhatsappConnect({
@@ -27,7 +29,7 @@ export default function WhatsappConnect({
   appId,
   configId,
   graphVersion,
-  messagingReady,
+  status,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -75,14 +77,29 @@ export default function WhatsappConnect({
     })
   }
 
-  // State C: Already connected
+  // State C: A connection row exists — but "row exists" is NOT "operational".
+  // Only 'operational' earns the green, leads-arrive claim. 'not_ready' and
+  // 'needs_verification' show honest, actionable states instead.
   if (connection) {
     return (
       <div className='grid gap-4'>
-        {messagingReady ? (
+        {status === 'operational' && (
           <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
-        ) : (
-          <ConnectionNotice notice={WHATSAPP_NOTICES.not_ready} />
+        )}
+        {status === 'not_ready' && <ConnectionNotice notice={WHATSAPP_NOTICES.not_ready} />}
+        {status === 'needs_verification' && (
+          <>
+            <ConnectionNotice notice={WHATSAPP_NOTICES.needs_verification} />
+            <Btn
+              lbl={loading ? 'מתחבר...' : (WHATSAPP_NOTICES.needs_verification.action ?? 'לחבר מחדש ולאמת')}
+              icon={loading ? 'spinner' : 'whatsapp'}
+              iconClassName={loading ? 'animate-spin' : undefined}
+              size='small'
+              disabled={loading}
+              className='w-fit bg-green-600'
+              onClick={startEmbeddedSignup}
+            />
+          </>
         )}
         <p className='text-sm text-gray-600'>
           מספר מזוהה: <strong>{connection.phoneNumberId}</strong>

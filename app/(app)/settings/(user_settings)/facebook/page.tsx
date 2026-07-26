@@ -9,6 +9,7 @@ import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
+import { resolveWhatsappStatus, type WhatsappStatus } from '@/lib/whatsapp/operationalStatus'
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 
@@ -59,8 +60,13 @@ export default async function page({ searchParams }) {
   // Live readiness check — a connected row does not guarantee the number is
   // registered for Cloud API, so never show "active" without verifying status.
   let waMessagingReady = true
+  // Truthful operational status for the connect UI — a persisted row is NOT
+  // proof the integration works (see resolveWhatsappStatus). TemplatesSection
+  // keeps the phone-level readiness boolean below.
+  let waStatus: WhatsappStatus = 'needs_verification'
   if (waConnection) {
     waMessagingReady = await checkMessagingReady(waConnection.phone_number_id, waConnection.access_token)
+    waStatus = await resolveWhatsappStatus(waConnection, user.agencyId)
   }
 
   const waPhonesCookie = cookieStore.get('wa_phones')?.value
@@ -103,7 +109,7 @@ export default async function page({ searchParams }) {
                 appId={process.env.META_APP_ID ?? ''}
                 configId={process.env.META_EMBEDDED_SIGNUP_CONFIGURATION_ID ?? ''}
                 graphVersion={GRAPH_VERSION}
-                messagingReady={waMessagingReady}
+                status={waStatus}
               />
             </Suspense>
           </AccordionItem>

@@ -3,10 +3,13 @@ import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import { emitLifecycleEvent } from '@/lib/events/emit'
+import { track } from '@/lib/analytics/track'
+import { FB_REASON, FB_REASON_NOTICE_CODE } from '@/lib/connections/reasons'
 
 export async function POST(req: NextRequest) {
   const user = await getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const agencyId = user.agencyId!
 
   let body: { pageId: string; pageName: string; pageAccessToken: string }
   try {
@@ -18,6 +21,19 @@ export async function POST(req: NextRequest) {
   const { pageId, pageName, pageAccessToken } = body
   if (!pageId || !pageName || !pageAccessToken) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  }
+
+  // Cross-tenant safety: never let one agency claim a Page already connected by
+  // another. Same agency reconnecting is allowed (token/name refresh below).
+  const existingPage = await db('facebook_pages').where({ page_id: pageId }).first()
+  if (existingPage && existingPage.agency_id !== agencyId) {
+    console.warn('[FacebookConnect] cross-tenant claim rejected', { pageId, requestingAgency: agencyId })
+    track({ agencyId, userId: user.id, event: 'facebook_connect_failed', props: { reason: FB_REASON.RESOURCE_CLAIMED, stage: 'ownership' } })
+    // Distinct 'resource_claimed' notice — the owning agency is never disclosed.
+    return NextResponse.json(
+      { error: FB_REASON_NOTICE_CODE[FB_REASON.RESOURCE_CLAIMED], reason: FB_REASON.RESOURCE_CLAIMED },
+      { status: 409 },
+    )
   }
 
   // FIX 2: Subscribe BEFORE saving to DB — if subscription fails, do not save and return error.
@@ -33,6 +49,7 @@ export async function POST(req: NextRequest) {
     })
     if (!res.ok) {
       console.error(`[FacebookConnect] Page subscription failed [pageId=${pageId}]:`, await res.text())
+      track({ agencyId, userId: user.id, event: 'facebook_connect_failed', props: { reason: FB_REASON.PAGE_SUBSCRIPTION_FAILED, stage: 'subscribe' } })
       return NextResponse.json({ error: 'subscription_failed' }, { status: 502 })
     }
     console.log(`[FacebookConnect] Page subscribed to leadgen [pageId=${pageId}]`)
@@ -49,8 +66,11 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error(`[FacebookConnect] Page subscription threw [pageId=${pageId}]:`, err)
+    track({ agencyId, userId: user.id, event: 'facebook_connect_failed', props: { reason: FB_REASON.PAGE_SUBSCRIPTION_FAILED, stage: 'subscribe' } })
     return NextResponse.json({ error: 'subscription_failed' }, { status: 502 })
   }
+
+  track({ agencyId, userId: user.id, event: 'facebook_webhook_subscribed', props: {} })
 
   // Subscription confirmed — now safe to upsert by page_id
   try {
@@ -77,6 +97,9 @@ export async function POST(req: NextRequest) {
   // Clear the pending pages cookie
   const cookieStore = await cookies()
   cookieStore.delete('fb_pages')
+
+  track({ agencyId, userId: user.id, event: 'facebook_page_selected', props: {} })
+  track({ agencyId, userId: user.id, event: 'facebook_connected_operational', props: {} })
 
   after(() =>
     emitLifecycleEvent({

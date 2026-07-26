@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
@@ -27,6 +27,30 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
   const [selectedPageId, setSelectedPageId] = useState('')
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
+
+  // Session-scoped failure memory — breaks the "no_pages → connect → no_pages"
+  // loop (the Oren 2026-07-21 incident: 9 identical failures). Counts repeated
+  // Page-discovery failures in this setup session; after the 2nd we escalate the
+  // guidance rather than re-offering a prominent, likely-futile retry. Cleared
+  // once the flow moves past discovery (Pages found, or connected).
+  const [repeatCount, setRepeatCount] = useState(0)
+  const countedRef = useRef(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (connection || pendingPages) {
+      window.sessionStorage.removeItem('fbfail:no_pages')
+      window.sessionStorage.removeItem('fbfail:pages_permission')
+      return
+    }
+    if (countedRef.current) return
+    if (urlError === 'no_pages' || urlError === 'pages_permission') {
+      countedRef.current = true
+      const key = `fbfail:${urlError}`
+      const n = Number(window.sessionStorage.getItem(key) ?? '0') + 1
+      window.sessionStorage.setItem(key, String(n))
+      setRepeatCount(n)
+    }
+  }, [urlError, connection, pendingPages])
 
   const redirectToOAuth = () =>
     run(async () => {
@@ -66,7 +90,9 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
       })
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
-        setError(errData.error === 'subscription_failed' ? 'subscription_failed' : 'save_failed')
+        // Pass the server's notice code straight through (subscription_failed,
+        // resource_claimed, …); fall back to a neutral save error.
+        setError(typeof errData.error === 'string' ? errData.error : 'save_failed')
         return
       }
       toast('success', `הדף "${page.name}" חובר בהצלחה`)
@@ -156,16 +182,22 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
   }
 
   // State A: Not connected
-  const urlNotice = facebookNotice(urlError)
+  const isPageDiscoveryError = urlError === 'no_pages' || urlError === 'pages_permission'
+  const escalated = isPageDiscoveryError && repeatCount >= 2
+  // After a repeated identical discovery failure, swap to the escalated notice
+  // and de-emphasize the retry (secondary style, recovery-framed label). Retry
+  // stays available — the user is guided to fix the prerequisite first, not locked out.
+  const urlNotice = escalated ? FACEBOOK_NOTICES.no_pages_repeat : facebookNotice(urlError)
 
   return (
     <div className='grid gap-4'>
       {urlNotice && <ConnectionNotice notice={urlNotice} />}
-      <p className='text-sm text-gray-500'>חבר את דף הפייסבוק שלך כדי לקבל לידים אוטומטית.</p>
+      {!urlNotice && <p className='text-sm text-gray-500'>חבר את דף הפייסבוק שלך כדי לקבל לידים אוטומטית.</p>}
       <Btn
         lbl={loading ? 'מעביר לפייסבוק...' : (urlNotice?.action ?? 'חבר חשבון פייסבוק')}
         icon={loading ? 'spinner' : 'facebook'}
         iconClassName={loading ? 'animate-spin' : undefined}
+        variant={escalated ? 'outline' : undefined}
         disabled={loading}
         className='w-fit'
         onClick={redirectToOAuth}

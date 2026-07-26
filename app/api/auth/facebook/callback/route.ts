@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUser, encrypt } from '@/db/auth'
 import { cookies } from 'next/headers'
+import { track } from '@/lib/analytics/track'
+import { FB_REASON, FB_REASON_NOTICE_CODE, type FbReason } from '@/lib/connections/reasons'
 
 // Option A: the flow origin is the prefix of the `state` param. Reading it for
 // routing is not security-sensitive (the CSRF check below remains exact-match).
@@ -21,6 +23,12 @@ export async function GET(req: NextRequest) {
   const user = await getUser()
   if (!user) return NextResponse.redirect(new URL('/auth', req.url))
 
+  // Precise, non-PII failure reason → analytics. Notice code (redirect) is
+  // unchanged; only the observability reason is added.
+  const trackFbFail = (reason: FbReason, stage: string) =>
+    track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_failed', props: { reason, stage } })
+  let pagesShowListGranted = false
+
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
   const state = searchParams.get('state')
@@ -28,6 +36,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.warn('[FacebookOAuth] User denied permission:', error)
+    trackFbFail(FB_REASON.ACCESS_DENIED, 'oauth')
     return failed(req, 'denied')
   }
 
@@ -91,25 +100,36 @@ export async function GET(req: NextRequest) {
       return failed(req, 'token')
     }
     const permData = await permRes.json()
-    const leadsRetrieval = (permData.data ?? []).find(
-      (p: { permission: string; status: string }) => p.permission === 'leads_retrieval' && p.status === 'granted',
-    )
-    if (!leadsRetrieval) {
+    const granted = (perm: string) =>
+      (permData.data ?? []).some(
+        (p: { permission: string; status: string }) => p.permission === perm && p.status === 'granted',
+      )
+    if (!granted('leads_retrieval')) {
       console.warn('[FacebookOAuth] leads_retrieval not granted — userId:', user.id)
+      trackFbFail(FB_REASON.LEADS_PERMISSION_MISSING, 'permissions')
       return failed(req, 'missing_permission')
     }
+    // Capture whether pages_show_list was granted so a later empty /me/accounts
+    // can be classified as "permission missing" vs "account genuinely has no
+    // Page". Both currently share the approved 'no_pages' notice; the precise
+    // reason is recorded in analytics for the recovery-UX slice.
+    pagesShowListGranted = granted('pages_show_list')
     console.log('[FacebookOAuth] leads_retrieval confirmed granted — userId:', user.id)
   } catch (err) {
     console.error('[FacebookOAuth] Permission check threw:', err)
     return failed(req, 'token')
   }
 
+  track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_oauth_completed', props: {} })
+
   // Step 3: Fetch all pages the user has access to via /me/accounts
   const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${longToken}`)
 
   if (!pagesRes.ok) {
     console.error('[FacebookOAuth] Failed to fetch pages:', await pagesRes.text())
-    return failed(req, 'no_pages')
+    const reason = pagesShowListGranted ? FB_REASON.NO_PAGES : FB_REASON.PAGES_PERMISSION_MISSING
+    trackFbFail(reason, 'discover')
+    return failed(req, FB_REASON_NOTICE_CODE[reason])
   }
 
   const pagesData = await pagesRes.json()
@@ -124,8 +144,16 @@ export async function GET(req: NextRequest) {
 
   if (pages.length === 0) {
     console.warn('[FacebookOAuth] No pages found for userId:', user.id)
-    return failed(req, 'no_pages')
+    // Distinguish "permission to list Pages was not granted" from "the account
+    // genuinely administers no Page". We only claim the latter (no_pages) when
+    // pages_show_list WAS granted and the list still came back empty; otherwise
+    // the honest state is pages_permission (we could not even see the Pages).
+    const reason = pagesShowListGranted ? FB_REASON.NO_PAGES : FB_REASON.PAGES_PERMISSION_MISSING
+    trackFbFail(reason, 'discover')
+    return failed(req, FB_REASON_NOTICE_CODE[reason])
   }
+
+  track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_page_discovered', props: { count: pages.length } })
 
   const encrypted = await encrypt({ pages, userId: user.id })
   cookieStore.set('fb_pages', encrypted, {

@@ -2,6 +2,7 @@ import { db } from '@/config/db'
 import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
+import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
 
 type WhatsappWebhookLeadInput = {
   firstName: string
@@ -74,6 +75,9 @@ export async function createLeadFromWhatsappWebhook({
   }
 
   console.log(`[WhatsappWebhook][create][msgId=${messageId}] Lead created — id: ${lead.id}`)
+
+  // First delivered value: a real inbound WhatsApp lead was persisted (once per agency).
+  await trackFirstRealLeadOnce(agencyId, 'whatsapp')
 
   await createSystemTask({ clientId: lead.id, title: 'ליד חדש מוואטסאפ', userId })
 

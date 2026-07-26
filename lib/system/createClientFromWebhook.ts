@@ -2,6 +2,7 @@ import { db } from '@/config/db'
 import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
+import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
 
 type WebhookLeadInput = {
   firstName: string
@@ -76,6 +77,9 @@ export async function createLeadFromWebhook({
   }
 
   console.log(`[FacebookWebhook][create][leadId=${leadId}] Lead created — id: ${lead.id}`)
+
+  // First delivered value: a real inbound Facebook lead was persisted (once per agency).
+  await trackFirstRealLeadOnce(agencyId, 'facebook')
 
   await createSystemTask({ clientId: lead.id, title: 'ליד חדש מפייסבוק', userId })
 
