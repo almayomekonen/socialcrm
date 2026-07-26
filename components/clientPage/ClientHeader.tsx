@@ -16,7 +16,15 @@ export default function ClientHeader({ client, user, handlerName, family, client
       <div className='overflow-x-auto '>
         <div className='flex items-center gap-8 py-2.5 justify-between font-medium min-w-max'>
           <div className='flex items-center gap-4 '>
-            <p className='font-bold  w-28'>{client.name}</p>
+            {/* Keep the name on ONE line. The header row is `min-w-max` inside an
+                `overflow-x-auto` scroller, so it never gives the name flexible
+                space to shrink into — a width bound is required to force ellipsis
+                truncation instead of wrapping. `max-w` (not a fixed width) lets
+                short names use their natural width; longer names truncate. Full
+                name stays available on hover via the existing `title` pattern. */}
+            <p title={client.name} className='font-bold max-w-[14rem] truncate'>
+              {client.name}
+            </p>
             {family.length > 0 && (
               <Select
                 className='bg-softy h-8 w-40 rounded-full border-solid font-semibold'
