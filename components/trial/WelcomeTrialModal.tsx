@@ -5,6 +5,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
+import { useActivationCelebration } from './ActivationCelebrationContext'
 
 // Must match the `desktop` breakpoint in tailwind.config.ts — the system's
 // definition of "can use the CRM" on desktop viewports.
@@ -35,6 +36,7 @@ export default function WelcomeTrialModal() {
   const [error, setError] = useState<string | null>(null)
   const seenRef = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
+  const { markActivated } = useActivationCelebration()
 
   const open = isDesktop && !done
 
@@ -109,6 +111,9 @@ export default function WelcomeTrialModal() {
         setPending(false)
         return
       }
+      // Celebrate ONLY a genuine NEVER_STARTED → TRIAL_ACTIVE transition.
+      // started:false (refresh / double-click / already-active) must not fire it.
+      if (res.started) markActivated()
       setDone(true)
     } catch {
       setError('אירעה שגיאה ברשת, נסה שוב')

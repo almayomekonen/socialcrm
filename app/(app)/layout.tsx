@@ -32,6 +32,8 @@ import { track } from '@/lib/analytics/track'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
+import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
+import ProActivationSuccess from '@/components/trial/ProActivationSuccess'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -96,6 +98,7 @@ async function LayoutContent({ children }) {
       <PosProvider>
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
+            <ActivationCelebrationProvider>
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
@@ -129,6 +132,11 @@ async function LayoutContent({ children }) {
             </div>
             {trialExpired && <TrialExpiredScreen leadCount={leadPreview.total} leadNames={leadPreview.names} />}
             {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
+            {/* One-time Pro activation celebration. Rendered only for the real
+                TRIAL_ACTIVE workspace; self-gates on justActivated so it appears
+                only right after a genuine activation, never on refresh/re-login. */}
+            {trialStatus === 'TRIAL_ACTIVE' && <ProActivationSuccess />}
+            </ActivationCelebrationProvider>
           </CopilotContextStoreProvider>
         </CopilotProvider>
       </PosProvider>
