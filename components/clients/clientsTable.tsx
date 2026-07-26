@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import ExportTable from '@/lib/table/export'
+import { leadSourceChannel, leadSourceLabel } from '@/lib/leads/leadSourceLabel'
 import TableFooter from '../../lib/table/TableFooter'
 import { ActionsMenu, DEAL_ACTION_LABELS, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
 import SelectClientLists from './SelectClientLists'
@@ -511,9 +512,17 @@ const SOURCE_STYLES: Record<string, string> = {
 }
 
 function formatLeadSource(source) {
-  const s = (source || 'manual').toLowerCase()
-  const cls = SOURCE_STYLES[s] || 'bg-gray-100 text-gray-600'
-  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cls}`}>{source || 'manual'}</span>
+  // Normalize the stored (possibly composite `channel:externalId`) value to a
+  // clean user-facing label + a canonical style key. The raw composite is never
+  // rendered, and a WhatsApp/Facebook webhook lead now styles like its channel
+  // instead of falling into the gray unknown bucket.
+  const channel = leadSourceChannel(source)
+  const cls = (channel && SOURCE_STYLES[channel]) || 'bg-gray-100 text-gray-600'
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cls}`}>
+      {leadSourceLabel(source)}
+    </span>
+  )
 }
 
 

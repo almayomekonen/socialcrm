@@ -2,6 +2,7 @@
 
 import type { GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
 import type { BriefingLeadList } from '@/db/briefing'
+import { leadSourceLabel } from '@/lib/leads/leadSourceLabel'
 import DeepLink from './DeepLink'
 import LeadRows from './LeadRows'
 import SuggestionChips, { curatedSuggestions } from './SuggestionChips'
@@ -152,7 +153,7 @@ export default function AnswerView({
           {l.daysSinceLastInteraction != null && <p>קשר אחרון: לפני {l.daysSinceLastInteraction} ימים</p>}
           {l.nextFollowUpAt && <p>מעקב הבא: {formatDate(l.nextFollowUpAt)}</p>}
           {l.overdueTaskCount > 0 && <p>{l.overdueTaskCount} משימות באיחור</p>}
-          {l.leadSource && <p>מקור: {l.leadSource}</p>}
+          {l.leadSource && <p>מקור: {leadSourceLabel(l.leadSource)}</p>}
         </div>
         <DeepLink
           href={`/clients/${l.id}/summary`}

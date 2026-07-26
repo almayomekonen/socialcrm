@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { LeadIntelligenceInputs } from '@/db/aiSummaries'
+import { leadSourceLabel } from '@/lib/leads/leadSourceLabel'
 
 export const PROMPT_VERSION = 4
 
@@ -106,7 +107,9 @@ export function pruneAndTranslate(p: LeadIntelligenceInputs): Record<string, unk
 
   // Always-present anchors.
   if (p.status) out['סטטוס'] = p.status
-  if (p.leadSource) out['מקור הליד'] = p.leadSource
+  // Semantic label only: feed the AI the clean channel ("WhatsApp") rather than
+  // the raw composite ("whatsapp:{wamid}"). Same guard, no control-flow change.
+  if (p.leadSource) out['מקור הליד'] = leadSourceLabel(p.leadSource)
   if (typeof p.leadAgeDays === 'number') out['ימים מהיצירה'] = p.leadAgeDays
   if (typeof p.daysInCurrentStatus === 'number') out['ימים בסטטוס נוכחי'] = p.daysInCurrentStatus
 
