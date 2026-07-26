@@ -68,9 +68,9 @@ export default function LeadsFirstRun({
         ) : (
           <>
             <header className='mb-10 text-center'>
-              <h1 className='text-4xl font-bold tracking-tight text-ink'>חבר את העסק שלך</h1>
+              <h1 className='text-4xl font-bold tracking-tight text-ink'>בוא נכניס את הלידים שלך ל־SocialCRM</h1>
               <p className='mx-auto mt-3 max-w-xl text-lg leading-relaxed text-gray-600'>
-                כל הלידים שלך במקום אחד ו‑SocialCRM כבר יסדר למי להתקשר קודם.
+                חבר את הערוצים שלך או הוסף לידים, ותוכל להתחיל לעבוד עם כל יכולות ה־Pro.
               </p>
             </header>
 
