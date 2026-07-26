@@ -24,6 +24,10 @@ import { usePathname, useRouter } from 'next/navigation'
  * Generic: a future settings section just adds an AccordionItem with an `id`
  * inside this wrapper.
  */
+// Explicit "all sections collapsed" URL value. Any non-section param value
+// resolves to all-closed server-side; this names the one we write on close.
+const ALL_COLLAPSED = 'none'
+
 export default function UrlSyncedAccordion({
   param = 'section',
   className,
@@ -44,14 +48,18 @@ export default function UrlSyncedAccordion({
 
     const onToggle = () => {
       const openId = items.find((d) => d.open)?.id ?? null
+      // "Nothing open" is an explicit, URL-representable state (?section=none),
+      // NOT the absence of the param. Deleting the param would let the server fall
+      // back to its no-param default (Facebook open), so closing the active
+      // section would silently re-open one. Writing the sentinel keeps all-closed
+      // as-is; the server already renders every section closed for `none`.
+      const target = openId ?? ALL_COLLAPSED
       // Read the live URL so the guard is never stale (avoids reacting to the
       // programmatic toggles React fires while applying a navigation).
       const current = new URLSearchParams(window.location.search)
-      if ((current.get(param) ?? null) === openId) return
-      if (openId) current.set(param, openId)
-      else current.delete(param)
-      const qs = current.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      if (current.get(param) === target) return
+      current.set(param, target)
+      router.replace(`${pathname}?${current.toString()}`, { scroll: false })
     }
 
     items.forEach((d) => d.addEventListener('toggle', onToggle))
