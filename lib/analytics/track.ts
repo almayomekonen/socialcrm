@@ -28,6 +28,10 @@ export type AnalyticsEventName =
   | 'subscription_completed'
   | 'subscription_failed'
   | 'activation_abandoned'
+  // Manual first-lead "Aha" funnel (client-emitted via recordFirstLeadEvent).
+  | 'first_manual_lead_created'
+  | 'first_lead_opened'
+  | 'first_follow_up_set'
 
 type TrackInput = {
   agencyId: number

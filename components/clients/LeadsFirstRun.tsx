@@ -7,6 +7,7 @@ import ClientFormPop from './ClientFormPop'
 import UploadClientData from '@/components/settings/UploadClientData'
 import { MetaLeadAdsBadge } from '@/components/ui/MetaLeadAdsBadge'
 import OnboardingActionCard from './OnboardingActionCard'
+import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
 
 export default function LeadsFirstRun({
   metaConnected = false,
@@ -110,7 +111,18 @@ export default function LeadsFirstRun({
       </div>
 
       <ModalPop open={openForm} label='פרטי ליד' pos='middle' onClose={() => setOpenForm(false)}>
-        <ClientFormPop client={null} onClose={() => setOpenForm(false)} onCreated={() => router.refresh()} />
+        <ClientFormPop
+          client={null}
+          onClose={() => setOpenForm(false)}
+          onCreated={(leadId) => {
+            // First manual lead: LeadsFirstRun renders only when the workspace
+            // has no leads, so this create is the workspace's first lead. Route
+            // into the real lead (canonical summary route) with the one-shot
+            // ?firstLead=1 signal instead of refreshing the one-row table.
+            recordFirstLeadEvent('first_manual_lead_created').catch(() => {})
+            router.push(`/clients/${leadId}/summary?firstLead=1`)
+          }}
+        />
       </ModalPop>
 
       <ModalPop open={openUpload} label='העלאת לידים' pos='middle' onClose={() => setOpenUpload(false)}>

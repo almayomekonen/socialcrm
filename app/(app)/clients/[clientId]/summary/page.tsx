@@ -8,6 +8,7 @@ import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSk
 import SendReadyMessageSection from '@/components/clients/SendReadyMessageSection'
 import FollowUpControl from '@/components/leads/FollowUpControl'
 import OutcomeControl from '@/components/leads/OutcomeControl'
+import FirstLeadCallout from '@/components/clients/FirstLeadCallout'
 import { STATUS_STYLES } from '@/components/clients/LeadStatusCell'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
 import { formatDate } from '@/lib/dates'
@@ -24,6 +25,9 @@ export default async function page({ params }) {
   const statusStyle = lead?.status ? STATUS_STYLES[lead.status] : null
   return (
     <div>
+      <Suspense fallback={null}>
+        <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt} />
+      </Suspense>
       <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8'>
         <div className='flex items-center justify-between gap-3'>
           {statusStyle ? (

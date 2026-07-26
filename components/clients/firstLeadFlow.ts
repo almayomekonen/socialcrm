@@ -1,0 +1,59 @@
+/**
+ * In-memory, session-scoped latch for the manual first-lead "Aha" flow.
+ *
+ * WHY A MODULE, NOT REACT STATE: the guidance→completion transition is driven by
+ * FollowUpControl's router.refresh() (an RSC re-render). If FirstLeadCallout kept
+ * its "am I the first-lead flow?" flag in React state, that flag would re-init
+ * from the ?firstLead=1 URL param — which we strip on mount — so ANY remount of
+ * the component (a Suspense/RSC state-loss edge, a Next upgrade, dev StrictMode)
+ * would reset it to false and the completion state would silently never appear.
+ *
+ * A module variable is NOT React state: it survives router.refresh() AND any React
+ * remount within the same document, so the completion cannot be lost. It lives
+ * only in the JS runtime of the current document, so a browser refresh / re-login /
+ * fresh load wipes it — the first-lead experience therefore NEVER replays across
+ * reloads. Exactly one first lead exists per workspace, so a single active flow is
+ * sufficient.
+ */
+
+type Flow = { leadId: number; openedFired: boolean; followUpFired: boolean }
+
+let flow: Flow | null = null
+
+/** Begin (idempotent) the first-lead flow for a lead. Set from ?firstLead=1. */
+export function beginFirstLeadFlow(leadId: number): void {
+  if (!flow || flow.leadId !== leadId) flow = { leadId, openedFired: false, followUpFired: false }
+}
+
+/** Is this lead currently in the first-lead flow? Source of truth for the callout. */
+export function isFirstLeadFlow(leadId: number): boolean {
+  return flow?.leadId === leadId
+}
+
+/** End the flow (dismiss / back-to-leads) so it cannot re-show for this lead. */
+export function endFirstLeadFlow(leadId: number): void {
+  if (flow?.leadId === leadId) flow = null
+}
+
+/** Returns true exactly once per flow — de-dupes the first_lead_opened event across remounts. */
+export function claimOpenedEvent(leadId: number): boolean {
+  if (flow?.leadId === leadId && !flow.openedFired) {
+    flow.openedFired = true
+    return true
+  }
+  return false
+}
+
+/** Returns true exactly once per flow — de-dupes the first_follow_up_set event across remounts. */
+export function claimFollowUpEvent(leadId: number): boolean {
+  if (flow?.leadId === leadId && !flow.followUpFired) {
+    flow.followUpFired = true
+    return true
+  }
+  return false
+}
+
+/** Test-only reset so module state does not leak between test cases. */
+export function __resetFirstLeadFlowForTests(): void {
+  flow = null
+}
