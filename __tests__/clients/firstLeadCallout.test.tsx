@@ -141,3 +141,56 @@ describe('FirstLeadCallout — one-shot + lifecycle', () => {
     expect(callsAfter).toBe(1) // module de-dupes; not re-fired on remount
   })
 })
+
+describe('FollowUpControl emphasis (first-lead guidance only)', () => {
+  const CARD = <div data-testid='fu-card'>follow-up card</div>
+  // The emphasis lives on the wrapper element around the follow-up card.
+  const cardEmphasized = () => (screen.getByTestId('fu-card').parentElement?.className ?? '').includes('ring-primary')
+
+  it('guidance active (first lead, no follow-up yet) → card gets the subtle emphasis', () => {
+    searchParams = withParam()
+    render(<FirstLeadCallout leadId={5} hasFollowUp={false}>{CARD}</FirstLeadCallout>)
+    expect(screen.getByText('הליד הראשון שלך בפנים')).toBeTruthy()
+    expect(screen.getByTestId('fu-card')).toBeTruthy() // card always rendered
+    expect(cardEmphasized()).toBe(true)
+  })
+
+  it('ordinary lead (no ?firstLead=1) → card rendered, NO emphasis', () => {
+    searchParams = noParam()
+    render(<FirstLeadCallout leadId={5} hasFollowUp={false}>{CARD}</FirstLeadCallout>)
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByTestId('fu-card')).toBeTruthy()
+    expect(cardEmphasized()).toBe(false)
+  })
+
+  it('follow-up set → completion state, emphasis DISAPPEARS', () => {
+    searchParams = withParam()
+    const { rerender } = render(<FirstLeadCallout leadId={5} hasFollowUp={false}>{CARD}</FirstLeadCallout>)
+    expect(cardEmphasized()).toBe(true)
+    searchParams = noParam()
+    rerender(<FirstLeadCallout leadId={5} hasFollowUp={true}>{CARD}</FirstLeadCallout>)
+    expect(screen.getByText('מעולה. הליד שלך בטיפול.')).toBeTruthy()
+    expect(cardEmphasized()).toBe(false)
+  })
+
+  it('dismiss before follow-up → emphasis DISAPPEARS (same lifecycle as the callout)', () => {
+    searchParams = withParam()
+    render(<FirstLeadCallout leadId={5} hasFollowUp={false}>{CARD}</FirstLeadCallout>)
+    expect(cardEmphasized()).toBe(true)
+    act(() => {
+      screen.getByLabelText('סגירה').click()
+    })
+    expect(screen.queryByRole('status')).toBeNull() // callout gone
+    expect(cardEmphasized()).toBe(false) // and so is the emphasis
+    expect(screen.getByTestId('fu-card')).toBeTruthy() // card still there, usable
+  })
+
+  it('second/later lead (different id, no param) → card rendered, NO emphasis', () => {
+    searchParams = withParam()
+    render(<FirstLeadCallout leadId={5} hasFollowUp={false}>{CARD}</FirstLeadCallout>) // flow for lead 5
+    cleanup()
+    searchParams = noParam()
+    render(<FirstLeadCallout leadId={7} hasFollowUp={false}>{CARD}</FirstLeadCallout>)
+    expect(cardEmphasized()).toBe(false)
+  })
+})

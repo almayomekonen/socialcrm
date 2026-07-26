@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
@@ -32,7 +32,18 @@ import {
  * existing FollowUpControl re-renders the server page with hasFollowUp=true and the
  * callout swaps to its done state — no duplicate follow-up logic.
  */
-export default function FirstLeadCallout({ leadId, hasFollowUp }: { leadId: number; hasFollowUp: boolean }) {
+export default function FirstLeadCallout({
+  leadId,
+  hasFollowUp,
+  children,
+}: {
+  leadId: number
+  hasFollowUp: boolean
+  // The follow-up card, passed through so it can wear a subtle emphasis while the
+  // first-lead guidance is active. Presentation-only — the card (and its
+  // FollowUpControl) is rendered by the server page and is not otherwise touched.
+  children?: ReactNode
+}) {
   const sp = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -68,57 +79,73 @@ export default function FirstLeadCallout({ leadId, hasFollowUp }: { leadId: numb
     if (done && claimFollowUpEvent(leadId)) recordFirstLeadEvent('first_follow_up_set').catch(() => {})
   }, [done, leadId])
 
-  if (!active || dismissed) return null
-
   function finish() {
     endFirstLeadFlow(leadId) // durable: cannot re-show for this lead, even after a remount
   }
 
+  const showCallout = active && !dismissed
+  // Emphasis is the guidance phase ONLY: active flow, not dismissed, follow-up not
+  // yet set. Derived from the SAME firstLeadFlow state as the callout — no second
+  // lifecycle. It clears automatically when hasFollowUp flips true (completion) or
+  // when the flow ends (dismiss), because both re-render this component.
+  const guidanceActive = showCallout && !done
+
   return (
-    <div
-      role='status'
-      dir='rtl'
-      className='mb-6 flex items-start gap-3 rounded-lg border border-gray-200 bg-primary-tint px-4 py-3'
-    >
-      <span className='flex size-8 flex-none items-center justify-center rounded-lg bg-white'>
-        <Icon name={done ? 'circle-check' : 'calendar'} type='reg' className='size-4 bg-primary' />
-      </span>
+    <>
+      {showCallout && (
+        <div
+          role='status'
+          dir='rtl'
+          className='mb-6 flex items-start gap-3 rounded-lg border border-gray-200 bg-primary-tint px-4 py-3'
+        >
+          <span className='flex size-8 flex-none items-center justify-center rounded-lg bg-white'>
+            <Icon name={done ? 'circle-check' : 'calendar'} type='reg' className='size-4 bg-primary' />
+          </span>
 
-      <div className='min-w-0 flex-1'>
-        {!done ? (
-          <>
-            <h2 className='text-sm font-bold text-ink'>הליד הראשון שלך בפנים</h2>
-            <p className='mt-0.5 text-sm text-gray-600'>
-              קבע מתי לחזור אליו, ו־SocialCRM ידאג להחזיר אותו אליך בזמן.
-            </p>
-          </>
-        ) : (
-          <div className='flex flex-wrap items-center justify-between gap-3'>
-            <p className='text-sm font-semibold text-ink'>מעולה. הליד שלך בטיפול.</p>
-            <Btn
-              variant='outline'
-              size='small'
-              lbl='חזרה ללידים'
-              onClick={() => {
-                finish()
-                router.push('/leads')
-              }}
-            />
+          <div className='min-w-0 flex-1'>
+            {!done ? (
+              <>
+                <h2 className='text-sm font-bold text-ink'>הליד הראשון שלך בפנים</h2>
+                <p className='mt-0.5 text-sm text-gray-600'>קבע מתי לחזור אליו, ו־SocialCRM ידאג להחזיר אותו אליך בזמן.</p>
+              </>
+            ) : (
+              <div className='flex flex-wrap items-center justify-between gap-3'>
+                <p className='text-sm font-semibold text-ink'>מעולה. הליד שלך בטיפול.</p>
+                <Btn
+                  variant='outline'
+                  size='small'
+                  lbl='חזרה ללידים'
+                  onClick={() => {
+                    finish()
+                    router.push('/leads')
+                  }}
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <button
-        type='button'
-        aria-label='סגירה'
-        onClick={() => {
-          finish()
-          setDismissed(true)
-        }}
-        className='flex-none rounded p-0.5 text-gray-400 hover:text-gray-600'
-      >
-        <Icon name='xmark' type='reg' className='size-3.5 bg-gray-400' />
-      </button>
-    </div>
+          <button
+            type='button'
+            aria-label='סגירה'
+            onClick={() => {
+              finish()
+              setDismissed(true)
+            }}
+            className='flex-none rounded p-0.5 text-gray-400 hover:text-gray-600'
+          >
+            <Icon name='xmark' type='reg' className='size-3.5 bg-gray-400' />
+          </button>
+        </div>
+      )}
+
+      {/* The follow-up card. While the first-lead guidance is active, it wears a
+          subtle primary ring so the eye connects the callout's instruction to the
+          FollowUpControl action just inside it. Ring is box-shadow-based (no layout
+          shift); reduced-motion users get no transition. Ordinary/2nd/dismissed/
+          post-follow-up leads render the card with no ring. */}
+      <div className={guidanceActive ? 'rounded-lg ring-2 ring-primary/30 motion-safe:transition-shadow' : undefined}>
+        {children}
+      </div>
+    </>
   )
 }

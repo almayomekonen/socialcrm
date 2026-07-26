@@ -26,36 +26,37 @@ export default async function page({ params }) {
   return (
     <div>
       <Suspense fallback={null}>
-        <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt} />
+        <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt}>
+          <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8'>
+            <div className='flex items-center justify-between gap-3'>
+              {statusStyle ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
+                >
+                  <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />
+                  {statusStyle.label}
+                </span>
+              ) : (
+                <span />
+              )}
+              <FollowUpControl leadId={Number(clientId)} current={nextFollowUpAt} />
+            </div>
+            <p className='text-sm text-gray-800 truncate tabular-nums mt-2'>
+              {nextFollowUpAt ? `מעקב הבא: ${formatDate(nextFollowUpAt)}` : 'לא נקבע מעקב'}
+              {lead?.followUpNote ? ` · ${lead.followUpNote}` : ''}
+            </p>
+            {lastOutcome && (
+              <p className='text-xs text-gray-500 truncate tabular-nums mt-0.5'>
+                אינטראקציה אחרונה: {lastOutcome}
+                {lead?.lastActivityAt ? ` · ${formatDate(lead.lastActivityAt)}` : ''}
+              </p>
+            )}
+            <div className='mt-3 pt-3 border-t border-gray-100'>
+              <OutcomeControl leadId={Number(clientId)} />
+            </div>
+          </div>
+        </FirstLeadCallout>
       </Suspense>
-      <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8'>
-        <div className='flex items-center justify-between gap-3'>
-          {statusStyle ? (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
-            >
-              <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />
-              {statusStyle.label}
-            </span>
-          ) : (
-            <span />
-          )}
-          <FollowUpControl leadId={Number(clientId)} current={nextFollowUpAt} />
-        </div>
-        <p className='text-sm text-gray-800 truncate tabular-nums mt-2'>
-          {nextFollowUpAt ? `מעקב הבא: ${formatDate(nextFollowUpAt)}` : 'לא נקבע מעקב'}
-          {lead?.followUpNote ? ` · ${lead.followUpNote}` : ''}
-        </p>
-        {lastOutcome && (
-          <p className='text-xs text-gray-500 truncate tabular-nums mt-0.5'>
-            אינטראקציה אחרונה: {lastOutcome}
-            {lead?.lastActivityAt ? ` · ${formatDate(lead.lastActivityAt)}` : ''}
-          </p>
-        )}
-        <div className='mt-3 pt-3 border-t border-gray-100'>
-          <OutcomeControl leadId={Number(clientId)} />
-        </div>
-      </div>
       <Suspense fallback={null}>
         <SendReadyMessageSection leadId={Number(clientId)} />
       </Suspense>
