@@ -38,7 +38,20 @@ export async function getAgencyPlan(agencyId: number, q: Knex = db): Promise<Pla
  */
 export async function getEffectiveLeadPlan(agencyId: number, q: Knex = db): Promise<Plan> {
   if (await isDevBypassAgency(agencyId)) return 'pro'
-  const row = await q('agencies').where({ id: agencyId }).select('plan', 'trialExempt', 'trialStartedAt', 'trialEndsAt').first()
+  // Model B: LEFT JOIN the subscription so getTrialState resolves PAID from an
+  // ACTIVE prepaid period (planReason + expiresAt), not agencies.plan alone.
+  const row = await q('agencies')
+    .leftJoin('subscriptions', 'subscriptions.agencyId', 'agencies.id')
+    .where('agencies.id', agencyId)
+    .select(
+      'agencies.plan',
+      'agencies.trialExempt',
+      'agencies.trialStartedAt',
+      'agencies.trialEndsAt',
+      'agencies.planReason',
+      'subscriptions.expiresAt',
+    )
+    .first()
   if (!row) return 'free'
   const status = getTrialState(row, new Date()).status
   return hasActiveProductAccess(status) ? 'pro' : 'free'

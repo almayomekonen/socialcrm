@@ -1,6 +1,7 @@
 import { db } from '@/config/db'
 import { isAgencyAllowlisted } from '@/lib/ai/flags'
 import { isDevBypassAgency } from '@/lib/auth/devBypass'
+import { isPaidPeriodActive } from '@/lib/trial'
 import type { Plan, PlanSource } from './types'
 
 /**
@@ -21,10 +22,16 @@ import type { Plan, PlanSource } from './types'
  * paid base.
  */
 
-type AgencyPlanRow = { plan: string | null; planReason: string | null }
+type AgencyPlanRow = { plan: string | null; planReason: string | null; expiresAt: Date | string | null }
 
 export async function readAgencyPlanRow(agencyId: number): Promise<AgencyPlanRow | null> {
-  const row = await db('agencies').where({ id: agencyId }).select('plan', 'planReason').first<AgencyPlanRow>()
+  // Model B: LEFT JOIN the subscription period so the AI entitlement gate can
+  // require an ACTIVE paid period, not just agencies.plan='pro'.
+  const row = await db('agencies')
+    .leftJoin('subscriptions', 'subscriptions.agencyId', 'agencies.id')
+    .where('agencies.id', agencyId)
+    .select('agencies.plan', 'agencies.planReason', 'subscriptions.expiresAt')
+    .first<AgencyPlanRow>()
   return row ?? null
 }
 
@@ -51,7 +58,17 @@ export async function resolvePlanAndSource(agencyId: number): Promise<{ plan: Pl
   // Developer plan bypass: allowlisted dev/owner account resolves as Pro
   // without touching stored subscription (see lib/auth/devBypass.ts).
   const bypass = await isDevBypassAgency(agencyId)
-  const plan: Plan = bypass || row?.plan === 'pro' ? 'pro' : 'free'
+  // Model B: agencies.plan='pro' is NOT sufficient — a grow prepaid period must
+  // be ACTIVE (isPaidPeriodActive). Dev bypass and explicit admin grants still
+  // resolve to Pro; trial users are unchanged (plan='free' → free AI, exactly as
+  // before). Reuses the ONE canonical predicate — no duplicated date logic.
+  const paidActive =
+    bypass ||
+    isPaidPeriodActive(
+      { plan: row?.plan === 'pro' ? 'pro' : 'free', planReason: row?.planReason ?? null, expiresAt: row?.expiresAt ?? null },
+      new Date(),
+    )
+  const plan: Plan = paidActive ? 'pro' : 'free'
   const allowlisted = isAgencyAllowlisted(agencyId)
   const planSource = derivePlanSource(plan, row?.planReason ?? null, allowlisted)
   return { plan, planSource }

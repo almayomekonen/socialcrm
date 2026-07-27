@@ -7,6 +7,10 @@ export type TrialRow = {
   trialExempt: boolean
   trialStartedAt: Date | string | null
   trialEndsAt: Date | string | null
+  /** agencies.planReason — discriminates grow prepaid vs admin/manual grant. */
+  planReason?: string | null
+  /** subscriptions.expiresAt — LEFT JOINed server-side; NEVER from the client. */
+  expiresAt?: Date | string | null
 }
 
 export type TrialState = {
@@ -15,16 +19,51 @@ export type TrialState = {
   daysRemaining: number | null
 }
 
+/** Minimal shape for the canonical prepaid-period decision. */
+export type PaidPeriodRow = {
+  plan: 'free' | 'pro'
+  planReason?: string | null
+  expiresAt?: Date | string | null
+}
+
 const DAY_MS = 86_400_000
+
+/**
+ * Model B canonical prepaid-period truth — the ONE place that decides whether a
+ * paid period is currently active. Server time only; a client-supplied date is
+ * never consulted. `agencies.plan==='pro'` by itself is NOT sufficient.
+ *
+ *   grow prepaid  (planReason 'grow:*'): active strictly while expiresAt > now
+ *                                        (0-day grace; expired ⇒ not active).
+ *   admin/manual  (any non-'grow:*' reason): active while plan='pro' (an explicit
+ *                                        grant has no prepaid expiry).
+ *
+ * The 'grow:' discriminator matches the existing `derivePlanSource` classifier
+ * and the verified production planReason values (grow:* always paired with a
+ * subscription row; admin-grant* without one). Reused by getTrialState and by
+ * the AI entitlement source so date logic lives in exactly one function.
+ */
+export function isPaidPeriodActive(row: PaidPeriodRow, now: Date): boolean {
+  if (row.plan !== 'pro') return false
+  const isPrepaid = (row.planReason ?? '').startsWith('grow:')
+  if (!isPrepaid) return true // explicit admin/manual grant — no prepaid expiry
+  if (!row.expiresAt) return false // grow-paid but no period row ⇒ not active
+  return new Date(row.expiresAt).getTime() > now.getTime()
+}
 
 /**
  * The trial state machine, as a pure function. Status is never stored —
  * always derived. Precedence (spec §5): PAID → LEGACY → NEVER_STARTED →
  * TRIAL_ACTIVE → TRIAL_EXPIRED. `now` is injected for testability; callers
  * pass `new Date()` (server time only — client clocks are never consulted).
+ *
+ * Model B: PAID is no longer `plan==='pro'` forever — it requires an ACTIVE
+ * paid period (isPaidPeriodActive). An expired grow prepaid agency falls through
+ * to the trial branches: a previously-paid customer whose historical trial is
+ * already over resolves to TRIAL_EXPIRED (never reactivates an old trial).
  */
 export function getTrialState(row: TrialRow, now: Date): TrialState {
-  if (row.plan === 'pro') return { status: 'PAID', endsAt: null, daysRemaining: null }
+  if (isPaidPeriodActive(row, now)) return { status: 'PAID', endsAt: null, daysRemaining: null }
   if (row.trialExempt) return { status: 'LEGACY', endsAt: null, daysRemaining: null }
   if (!row.trialStartedAt || !row.trialEndsAt) {
     return { status: 'NEVER_STARTED', endsAt: null, daysRemaining: null }

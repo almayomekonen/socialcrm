@@ -15,9 +15,21 @@ import { track } from '@/lib/analytics/track'
  * startTrial() would re-show the welcome modal or hold an expired screen.
  */
 export async function getAgencyTrial(agencyId: number) {
+  // Model B: LEFT JOIN the subscription so getTrialState can decide PAID from an
+  // ACTIVE prepaid period (planReason + expiresAt), not from agencies.plan alone.
+  // subscriptions has a UNIQUE(agencyId), so the join yields at most one row;
+  // a missing subscription leaves expiresAt null (fine — admin grants ignore it).
   return await db('agencies')
-    .where({ id: agencyId })
-    .select('plan', 'trialExempt', 'trialStartedAt', 'trialEndsAt')
+    .leftJoin('subscriptions', 'subscriptions.agencyId', 'agencies.id')
+    .where('agencies.id', agencyId)
+    .select(
+      'agencies.plan',
+      'agencies.trialExempt',
+      'agencies.trialStartedAt',
+      'agencies.trialEndsAt',
+      'agencies.planReason',
+      'subscriptions.expiresAt',
+    )
     .first()
 }
 
