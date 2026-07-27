@@ -9,6 +9,7 @@ import SendReadyMessageSection from '@/components/clients/SendReadyMessageSectio
 import FollowUpControl from '@/components/leads/FollowUpControl'
 import OutcomeControl from '@/components/leads/OutcomeControl'
 import FirstLeadCallout from '@/components/clients/FirstLeadCallout'
+import InboundLeadContext from '@/components/clients/InboundLeadContext'
 import { STATUS_STYLES } from '@/components/clients/LeadStatusCell'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
 import { formatDate } from '@/lib/dates'
@@ -18,13 +19,19 @@ export default async function page({ params }) {
 
   const [tasks, lead] = await Promise.all([
     get5TasksByClientId(clientId),
-    getFullLead({ id: Number(clientId), select: ['status', 'nextFollowUpAt', 'followUpNote', 'lastOutcomeType', 'lastActivityAt'] }),
+    getFullLead({ id: Number(clientId), select: ['status', 'nextFollowUpAt', 'followUpNote', 'lastOutcomeType', 'lastActivityAt', 'leadSource'] }),
   ])
   const nextFollowUpAt = lead?.nextFollowUpAt ?? null
   const lastOutcome = outcomeLabel(lead?.lastOutcomeType)
   const statusStyle = lead?.status ? STATUS_STYLES[lead.status] : null
   return (
     <div>
+      {/* "This lead arrived automatically" context — shown only for genuine
+          webhook-ingested (whatsapp:/facebook:) leads. Independent of the
+          manual-first-lead FirstLeadCallout below (they never co-occur). */}
+      <Suspense fallback={null}>
+        <InboundLeadContext leadId={Number(clientId)} leadSource={lead?.leadSource ?? null} />
+      </Suspense>
       <Suspense fallback={null}>
         <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt}>
           <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8'>

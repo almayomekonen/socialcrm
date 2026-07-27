@@ -62,3 +62,21 @@ export function leadSourceLabel(source: string | null | undefined): string {
   // channel === null ⇒ source is a non-empty unrecognized value; keep it.
   return (source ?? '').trim() || 'ידני'
 }
+
+/**
+ * The channel of a GENUINELY auto-ingested (webhook-created) lead: only the
+ * composite `channel:externalId` form counts (`whatsapp:{id}`, `facebook:{id}`).
+ * A plain/manual-declared value (e.g. a user picking "WhatsApp" in the create
+ * form) was NOT captured automatically and returns null — distinct from
+ * `leadSourceChannel`, which also maps plain values. Never infers Instagram from
+ * `facebook:` (no heuristics). Used to decide whether the "arrived automatically"
+ * lead-context surface should show.
+ */
+export function inboundChannelFromSource(source: string | null | undefined): LeadSourceChannel | null {
+  if (typeof source !== 'string') return null
+  const lower = source.trim().toLowerCase()
+  if (lower.startsWith('whatsapp:')) return 'whatsapp'
+  if (lower.startsWith('facebook:')) return 'facebook'
+  if (lower.startsWith('instagram:')) return 'instagram'
+  return null
+}
