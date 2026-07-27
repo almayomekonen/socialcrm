@@ -16,16 +16,67 @@ import { InboundLeadContextView } from './InboundLeadContextView'
  * this lead entered" moment) and a CTA into the existing Inbox thread, resolved
  * through the agency-scoped `getInboxConversationByLeadId`. Any inbox-read failure
  * degrades to copy-only and NEVER breaks the lead page.
+ *
+ * Facebook has no conversation to link. Its evidence is the contact detail
+ * CATEGORIES SocialCRM auto-captured from the ad form (name/phone/email) and the
+ * capture time — read straight off the lead the summary page already fetched. No
+ * Graph call, no page/campaign/ad/form lookup, no extra query.
  */
+
+// Ingestion injects this literal when the Facebook form carried no name
+// (lib/adapters/facebookLead.ts) — treat it as "no name captured", not a real one.
+const FB_NAME_PLACEHOLDER = 'ליד מפייסבוק'
+
+/**
+ * SocialCRM's capture time in the business timezone (Asia/Jerusalem), pinned
+ * explicitly so it is correct on Vercel's UTC runtime and deterministic. Mirrors
+ * `formatDateTime` (he-IL short date+time, dots→slashes) but timezone-safe.
+ */
+function formatCaptureAt(date: Date | string | null | undefined): string | null {
+  if (!date) return null
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat('he-IL', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'Asia/Jerusalem',
+  })
+    .format(d)
+    .replaceAll('.', '/')
+}
+
 export default async function InboundLeadContext({
   leadId,
   leadSource,
+  createdAt,
+  firstName,
+  lastName,
+  phone,
+  email,
 }: {
   leadId: number
   leadSource: string | null | undefined
+  createdAt?: Date | string | null
+  firstName?: string | null
+  lastName?: string | null
+  phone?: string | null
+  email?: string | null
 }) {
   const channel = inboundChannelFromSource(leadSource)
-  if (channel === 'facebook') return <InboundLeadContextView channel='facebook' />
+  if (channel === 'facebook') {
+    // Evidence = which detail categories the lead currently holds. Presence-based
+    // (no per-field provenance); the ingestion name placeholder does not count.
+    const hasName = !!(lastName?.trim() || (firstName?.trim() && firstName.trim() !== FB_NAME_PLACEHOLDER))
+    return (
+      <InboundLeadContextView
+        channel='facebook'
+        hasName={hasName}
+        hasPhone={!!phone?.trim()}
+        hasEmail={!!email?.trim()}
+        capturedAt={formatCaptureAt(createdAt)}
+      />
+    )
+  }
   if (channel !== 'whatsapp') return null // manual / plain / instagram / unknown → nothing
 
   let conversationId: number | null = null

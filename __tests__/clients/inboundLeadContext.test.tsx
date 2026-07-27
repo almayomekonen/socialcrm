@@ -25,7 +25,7 @@ const WA_HEAD = 'הליד הזה הגיע אליך אוטומטית מ־WhatsApp
 const FB_HEAD = 'הליד הזה הגיע אליך אוטומטית מ־Facebook'
 const WA_WITH_CONV = 'SocialCRM קלט את הליד והשיחה ברגע שהלקוח פנה אליך.'
 const WA_NO_CONV = 'SocialCRM קלט את הליד ברגע שהלקוח פנה אליך.'
-const FB_COPY = 'SocialCRM קלט את פרטי הליד אוטומטית מהמודעה שלך.'
+const FB_COPY = 'הלקוח מילא את הטופס שלך, ו־SocialCRM קלט את הפרטים עבורך אוטומטית.'
 
 describe('inboundChannelFromSource — trigger (composite webhook sources ONLY)', () => {
   it('whatsapp:/facebook:/instagram: composites → their channel; wamid/leadId never returned', () => {
@@ -98,13 +98,65 @@ describe('InboundLeadContextView — WhatsApp', () => {
 })
 
 describe('InboundLeadContextView — Facebook', () => {
-  it('renders Facebook copy only — no message preview, no Inbox CTA', () => {
-    const { container } = render(<InboundLeadContextView channel='facebook' />)
+  it('renders the enhanced Facebook card: correct heading + supporting copy, no preview, no CTA', () => {
+    const { container } = render(<InboundLeadContextView channel='facebook' hasName hasPhone hasEmail capturedAt='27/07/2026, 14:32' />)
     expect(screen.getByText(FB_HEAD)).toBeTruthy()
     expect(screen.getByText(FB_COPY)).toBeTruthy()
+    // no WhatsApp-style message preview or Inbox CTA on Facebook
     expect(screen.queryByText('פתח את השיחה')).toBeNull()
     expect(container.querySelector('a[href^="/inbox"]')).toBeNull()
+    expect(container.querySelector('a')).toBeNull() // no CTA / link at all
     expect(container.querySelector('.line-clamp-2')).toBeNull()
+  })
+
+  it('name+phone+email → all three evidence labels', () => {
+    render(<InboundLeadContextView channel='facebook' hasName hasPhone hasEmail capturedAt='27/07/2026, 14:32' />)
+    expect(screen.getByText('נקלטו אוטומטית: שם · טלפון · אימייל')).toBeTruthy()
+  })
+
+  it('name+phone (missing email) → email label absent', () => {
+    render(<InboundLeadContextView channel='facebook' hasName hasPhone hasEmail={false} capturedAt='27/07/2026, 14:32' />)
+    expect(screen.getByText('נקלטו אוטומטית: שם · טלפון')).toBeTruthy()
+    expect(screen.queryByText(/אימייל/)).toBeNull()
+  })
+
+  it('name+email (missing phone) → phone label absent', () => {
+    render(<InboundLeadContextView channel='facebook' hasName hasPhone={false} hasEmail capturedAt='27/07/2026, 14:32' />)
+    expect(screen.getByText('נקלטו אוטומטית: שם · אימייל')).toBeTruthy()
+    expect(screen.queryByText(/טלפון/)).toBeNull()
+  })
+
+  it('name only → only the name label', () => {
+    render(<InboundLeadContextView channel='facebook' hasName hasPhone={false} hasEmail={false} capturedAt='27/07/2026, 14:32' />)
+    expect(screen.getByText('נקלטו אוטומטית: שם')).toBeTruthy()
+    expect(screen.queryByText(/טלפון/)).toBeNull()
+    expect(screen.queryByText(/אימייל/)).toBeNull()
+  })
+
+  it('renders the capture time with "נקלט אצלך" semantics — never Meta submission wording', () => {
+    const { container } = render(<InboundLeadContextView channel='facebook' hasName hasPhone hasEmail capturedAt='27/07/2026, 14:32' />)
+    expect(screen.getByText('נקלט אצלך ב־27/07/2026, 14:32')).toBeTruthy()
+    // must NOT overstate provenance as Meta's original submission
+    const txt = container.textContent || ''
+    expect(txt).not.toContain('נשלח')
+    expect(txt).not.toContain('מילא את הטופס ב') // no "filled the form at <time>"
+    expect(txt).not.toContain('created_time')
+  })
+
+  it('no captured fields and no capture time → evidence block omitted (copy still shows)', () => {
+    render(<InboundLeadContextView channel='facebook' hasName={false} hasPhone={false} hasEmail={false} capturedAt={null} />)
+    expect(screen.getByText(FB_HEAD)).toBeTruthy()
+    expect(screen.getByText(FB_COPY)).toBeTruthy()
+    expect(screen.queryByText(/נקלטו אוטומטית/)).toBeNull()
+    expect(screen.queryByText(/נקלט אצלך/)).toBeNull()
+  })
+
+  it('never renders Page / campaign / ad / form attribution or any raw identifier', () => {
+    const { container } = render(<InboundLeadContextView channel='facebook' hasName hasPhone hasEmail capturedAt='27/07/2026, 14:32' />)
+    const txt = container.textContent || ''
+    for (const forbidden of ['עמוד', 'קמפיין', 'מודעה:', 'טופס:', 'facebook:', 'page_id', 'leadgen', 'campaign', 'form_id', 'ad_id']) {
+      expect(txt).not.toContain(forbidden)
+    }
   })
 })
 

@@ -15,10 +15,35 @@ type Props = {
   conversationId?: number | null
   /** WhatsApp only: the customer's FIRST inbound message text, when usable. */
   preview?: string | null
+  /**
+   * Facebook only: which CATEGORIES of contact detail the lead currently holds.
+   * These drive the "נקלטו אוטומטית" evidence labels. They reflect current field
+   * PRESENCE, not untouched provenance — there is no per-field history, so a value
+   * edited by the user later still counts. We never render the values themselves.
+   */
+  hasName?: boolean
+  hasPhone?: boolean
+  hasEmail?: boolean
+  /**
+   * Facebook only: SocialCRM's CAPTURE time (clients.createdAt), pre-formatted
+   * server-side in the business timezone. NOT Meta's submission time — copy says
+   * "נקלט אצלך", never "נשלח"/"מילא".
+   */
+  capturedAt?: string | null
 }
 
-export function InboundLeadContextView({ channel, conversationId, preview }: Props) {
+export function InboundLeadContextView({
+  channel,
+  conversationId,
+  preview,
+  hasName,
+  hasPhone,
+  hasEmail,
+  capturedAt,
+}: Props) {
   if (channel === 'facebook') {
+    // Evidence labels for the categories actually present — never the values.
+    const capturedLabels = [hasName && 'שם', hasPhone && 'טלפון', hasEmail && 'אימייל'].filter(Boolean) as string[]
     return (
       <section dir='rtl' className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
         <div className='flex items-start gap-3'>
@@ -27,7 +52,14 @@ export function InboundLeadContextView({ channel, conversationId, preview }: Pro
           </span>
           <div className='min-w-0 flex-1'>
             <h2 className='text-sm font-semibold text-ink'>הליד הזה הגיע אליך אוטומטית מ־Facebook</h2>
-            <p className='mt-0.5 text-sm text-gray-600'>SocialCRM קלט את פרטי הליד אוטומטית מהמודעה שלך.</p>
+            <p className='mt-0.5 text-sm text-gray-600'>הלקוח מילא את הטופס שלך, ו־SocialCRM קלט את הפרטים עבורך אוטומטית.</p>
+
+            {capturedLabels.length > 0 || capturedAt ? (
+              <div className='mt-2 flex flex-col gap-0.5 text-xs text-gray-500'>
+                {capturedLabels.length > 0 ? <p>נקלטו אוטומטית: {capturedLabels.join(' · ')}</p> : null}
+                {capturedAt ? <p>נקלט אצלך ב־{capturedAt}</p> : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

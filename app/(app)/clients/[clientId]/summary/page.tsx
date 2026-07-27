@@ -19,7 +19,10 @@ export default async function page({ params }) {
 
   const [tasks, lead] = await Promise.all([
     get5TasksByClientId(clientId),
-    getFullLead({ id: Number(clientId), select: ['status', 'nextFollowUpAt', 'followUpNote', 'lastOutcomeType', 'lastActivityAt', 'leadSource'] }),
+    getFullLead({
+      id: Number(clientId),
+      select: ['status', 'nextFollowUpAt', 'followUpNote', 'lastOutcomeType', 'lastActivityAt', 'leadSource', 'createdAt', 'firstName', 'lastName', 'phone', 'email'],
+    }),
   ])
   const nextFollowUpAt = lead?.nextFollowUpAt ?? null
   const lastOutcome = outcomeLabel(lead?.lastOutcomeType)
@@ -30,7 +33,15 @@ export default async function page({ params }) {
           webhook-ingested (whatsapp:/facebook:) leads. Independent of the
           manual-first-lead FirstLeadCallout below (they never co-occur). */}
       <Suspense fallback={null}>
-        <InboundLeadContext leadId={Number(clientId)} leadSource={lead?.leadSource ?? null} />
+        <InboundLeadContext
+          leadId={Number(clientId)}
+          leadSource={lead?.leadSource ?? null}
+          createdAt={lead?.createdAt ?? null}
+          firstName={lead?.firstName ?? null}
+          lastName={lead?.lastName ?? null}
+          phone={lead?.phone ?? null}
+          email={lead?.email ?? null}
+        />
       </Suspense>
       <Suspense fallback={null}>
         <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt}>
