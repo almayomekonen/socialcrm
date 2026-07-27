@@ -26,6 +26,11 @@ export default function ShowColumns({ config }) {
       options={options}
       onSelectOpt={onOpt}
       lbl='עמודות לצפיה'
+      // This toolbar control sits near the top of the page, inside main's
+      // overflow-y-auto (+ .workspace-grid overflow:hidden). The default upward
+      // [data-tip] tooltip is clipped there, so open it downward instead —
+      // mirroring this control's own dropdown (which opens down and is not clipped).
+      tooltipPos='bottom'
     />
   )
 }

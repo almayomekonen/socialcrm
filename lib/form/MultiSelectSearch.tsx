@@ -16,6 +16,10 @@ type Props = {
   selectedShow?: any[]
   searchFunc?: (value: string) => Promise<any[]>
   onSelectOpt?: (el: any) => void
+  // Placement of the label's [data-tip] hover tooltip; forwarded to the visible
+  // Input. Default keeps the existing upward tooltip; 'bottom' opts into the
+  // downward variant (used by the ShowColumns toolbar control).
+  tooltipPos?: 'top' | 'bottom'
 } & React.InputHTMLAttributes<HTMLInputElement>
 
 export function MultiSelectSearch({
@@ -31,6 +35,7 @@ export function MultiSelectSearch({
   placeholder = 'חיפוש...',
 
   onSelectOpt,
+  tooltipPos,
   ...props
 }: Props) {
   const [state, setState] = useState(false)
@@ -158,6 +163,7 @@ export function MultiSelectSearch({
         required={false}
         autoComplete='off'
         tooltip={Array.from(showRef.current).join(', ')}
+        tooltipPos={tooltipPos}
       />
 
       <Input

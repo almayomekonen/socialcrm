@@ -292,6 +292,22 @@ body {
   @apply opacity-100 bottom-full;
 }
 
+/* Downward opt-in variant (data-tip-pos="bottom"). Used by controls anchored
+   near the top of the page — e.g. the ShowColumns "עמודות לצפיה" toolbar control
+   — where the default upward tooltip is clipped by main's overflow-y-auto and
+   .workspace-grid's overflow:hidden. Opens BELOW the trigger, still right-aligned
+   for RTL, at z-999 so it renders above the table / sticky thead (z-50), matching
+   the already-working MultiSelectSearch dropdown. Default (top) tooltips are
+   untouched. The doubled [data-tip][data-tip-pos] selector keeps specificity
+   above the base rule regardless of source order. */
+[data-tip][data-tip-pos='bottom']:not([data-tip=''])::before {
+  @apply top-[60%] bottom-auto mt-2.5 mb-0 z-999;
+}
+
+[data-tip][data-tip-pos='bottom']:not([data-tip='']):hover::before {
+  @apply top-full bottom-auto;
+}
+
 .lbl {
   @apply text-gray-600 text-sm;
 }

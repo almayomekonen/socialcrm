@@ -29,6 +29,11 @@ interface FormFieldProps {
   className?: string
   error?: string
   tooltip?: React.ReactNode
+  // Placement for the [data-tip] hover tooltip. Default (undefined/'top') keeps
+  // the existing upward CSS behavior; 'bottom' opts into the downward variant
+  // (data-tip-pos='bottom') for controls anchored near the top of the page whose
+  // upward tooltip would be clipped by the main/workspace-grid overflow.
+  tooltipPos?: 'top' | 'bottom'
   // When provided, the visible label renders as a real <label htmlFor> so it is
   // programmatically tied to the control. Omitted by direct consumers that pass
   // non-input children → falls back to a plain <p> (unchanged behavior).
@@ -37,17 +42,20 @@ interface FormFieldProps {
   errorId?: string
 }
 
-export function FormField({ children, lbl, info, href, className, error, tooltip, htmlFor, errorId }: FormFieldProps) {
+export function FormField({ children, lbl, info, href, className, error, tooltip, tooltipPos, htmlFor, errorId }: FormFieldProps) {
+  // Only emit the attribute for the opt-in downward variant; 'top'/undefined
+  // render no attribute so every existing consumer is byte-for-byte unchanged.
+  const tipPos = tooltipPos === 'bottom' ? 'bottom' : undefined
   return (
     <div className={twMerge('block ', className)}>
       {lbl && (
         <div className='flex justify-between mb-1 ms-1 items-end '>
           {htmlFor ? (
-            <label htmlFor={htmlFor} data-tip={tooltip} className='text-gray-600 text-sm font-medium '>
+            <label htmlFor={htmlFor} data-tip={tooltip} data-tip-pos={tipPos} className='text-gray-600 text-sm font-medium '>
               {lbl}
             </label>
           ) : (
-            <p data-tip={tooltip} className='text-gray-600 text-sm font-medium '>
+            <p data-tip={tooltip} data-tip-pos={tipPos} className='text-gray-600 text-sm font-medium '>
               {lbl}
             </p>
           )}
@@ -77,6 +85,7 @@ interface InputProps
   href?: string
   error?: string
   tooltip?: React.ReactNode
+  tooltipPos?: 'top' | 'bottom'
   defaultValue?: any
 }
 
@@ -89,6 +98,7 @@ export function Input({
   className,
   required = true,
   tooltip,
+  tooltipPos,
   id,
   'aria-describedby': ariaDescribedBy,
   'aria-invalid': ariaInvalid,
@@ -123,7 +133,7 @@ export function Input({
   }
 
   return (
-    <FormField lbl={lbl} info={info} href={href} error={error} tooltip={tooltip} htmlFor={fieldId} errorId={errorId}>
+    <FormField lbl={lbl} info={info} href={href} error={error} tooltip={tooltip} tooltipPos={tooltipPos} htmlFor={fieldId} errorId={errorId}>
       <Component
         id={fieldId}
         className={fieldClasses}
