@@ -24,9 +24,11 @@ describe('WhatsappMessageStatus — accessible names', () => {
     expect(screen.getByText('נקרא')).toBeInTheDocument()
   })
 
-  it('failed says לא נשלח', () => {
-    render(<WhatsappMessageStatus status='failed' />)
-    expect(screen.getByText('לא נשלח')).toBeInTheDocument()
+  it('failed conveys the failure AND attributes it to WhatsApp (richer accessible name)', () => {
+    const { container } = render(<WhatsappMessageStatus status='failed' />)
+    const sr = container.querySelector('.sr-only')?.textContent ?? ''
+    expect(sr).toContain('ההודעה לא נשלחה')
+    expect(sr).toContain('הסטטוס התקבל מ־WhatsApp.')
   })
 
   it('every state carries a text label, so colour is never the only carrier', () => {

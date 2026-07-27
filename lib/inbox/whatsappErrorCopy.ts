@@ -53,3 +53,31 @@ export function failureTextForCategory(key: string | null | undefined): string |
   if (!key) return null
   return CATEGORY_TEXT[key as WhatsappErrorCategory] ?? CATEGORY_TEXT.generic
 }
+
+// Title + attribution lines shared by the failed-message tooltip. The title is
+// the clean opener; CATEGORY_TEXT lines all begin with it, so the tooltip never
+// repeats it (see failureTooltipText).
+const FAILURE_TITLE = 'ההודעה לא נשלחה'
+const WHATSAPP_ATTRIBUTION = 'הסטטוס התקבל מ־WhatsApp.'
+
+/**
+ * Compose the self-contained failure tooltip (native `title`) for the failed
+ * status indicator, from the already-resolved `failureText` (a CATEGORY_TEXT
+ * value, or null). Three lines at most:
+ *
+ *   ההודעה לא נשלחה
+ *   <specific reason, when we have one>
+ *   הסטטוס התקבל מ־WhatsApp.
+ *
+ * The reason is the fragment AFTER the em-dash separator that the specific
+ * CATEGORY_TEXT lines use ("ההודעה לא נשלחה — <reason>"). The generic line
+ * ("ההודעה לא נשלחה. נסה שוב.") has no such separator, so it yields title +
+ * attribution only — which also drops the non-actionable "נסה שוב" filler. This
+ * guarantees the title is never duplicated. Contains ONLY controlled copy and
+ * the mapped failureText — never a code, wamid, payload, or raw Meta string.
+ */
+export function failureTooltipText(failureText: string | null | undefined): string {
+  const reason = failureText?.includes(' — ') ? failureText.split(' — ').slice(1).join(' — ').trim() : ''
+  const lines = reason ? [FAILURE_TITLE, reason, WHATSAPP_ATTRIBUTION] : [FAILURE_TITLE, WHATSAPP_ATTRIBUTION]
+  return lines.join('\n')
+}
