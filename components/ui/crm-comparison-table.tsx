@@ -92,8 +92,8 @@ export function CRMComparisonTable() {
       {/* Section header */}
       <div className='mb-10 text-center'>
         <p className='text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2'>השוואה מלאה</p>
-        <h2 className='text-3xl font-bold text-gray-900 mb-3'>vs SocialCRM אקסל תכונה אחרי תכונה</h2>
-        <p className='text-gray-500 max-w-xl mx-auto'>16 נקודות השוואה שיגידו לך בדיוק איפה אקסל נשבר</p>
+        <h2 className='text-3xl font-bold text-gray-900 mb-3'>אקסל מול SocialCRM, תכונה אחרי תכונה</h2>
+        <p className='text-gray-500 max-w-xl mx-auto'>16 נקודות השוואה בין ניהול לידים בגיליון לבין מערכת שמנהלת תהליך מכירה</p>
       </div>
 
       {/* Category filter */}

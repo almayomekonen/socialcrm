@@ -16,7 +16,7 @@ export const metadata = buildPageMetadata({
   path: '/facebook-leads',
   title: 'ניהול לידים מפייסבוק, אוטומטי וחכם | SocialCRM',
   description:
-    'חבר את דף הפייסבוק שלך ל-SocialCRM וקבל כל ליד שממלא טופס מודעה, ישירות למערכת, אוטומטית. בלי העתקה ידנית, בלי שכחה.',
+    'מחברים את דף הפייסבוק פעם אחת, וכל ליד שממלא טופס מודעה נכנס ישר למערכת, אוטומטית, עם מקור וסטטוס. בלי העתקה ידנית, בלי לפספס אף אחד.',
   ogDescription: 'לידים מטפסי פייסבוק מגיעים ישירות למערכת. חיבור של 5 דקות, חיסכון של שעות.',
 })
 
@@ -46,7 +46,7 @@ const faqItems = [
   {
     question: 'האם SocialCRM עובד עם מודעות Lead Ads בפייסבוק?',
     answer:
-      'כן. SocialCRM מתחבר ישירות ל-Facebook Lead Ads API ומביא כל ליד חדש שמגיע מטפסי המודעות שלך.',
+      'כן. SocialCRM מתחבר ישירות למודעות Facebook Lead Ads ומביא כל ליד חדש מטפסי המודעות אוטומטית.',
   },
 ]
 
@@ -55,11 +55,11 @@ const faqSchema = buildFAQSchema(faqItems)
 const howToSchema = {
   '@context': 'https://schema.org',
   '@type': 'HowTo',
-  name: 'איך לחבר לידים מפייסבוק ל-SocialCRM',
-  description: 'מדריך לחיבור לידים מפייסבוק Lead Ads ישירות ל-SocialCRM',
+  name: 'איך לחבר לידים מפייסבוק למערכת',
+  description: 'מדריך לחיבור לידים מפייסבוק Lead Ads ישירות למערכת',
   inLanguage: 'he',
   step: [
-    { '@type': 'HowToStep', position: 1, name: 'נרשמים ל-SocialCRM', text: 'יוצרים חשבון ב-SocialCRM עם חשבון גוגל.' },
+    { '@type': 'HowToStep', position: 1, name: 'נרשמים למערכת', text: 'יוצרים חשבון עם חשבון גוגל.' },
     { '@type': 'HowToStep', position: 2, name: 'נכנסים להגדרות פייסבוק', text: 'בתפריט ההגדרות בוחרים "חיבור פייסבוק".' },
     { '@type': 'HowToStep', position: 3, name: 'מתחברים עם חשבון פייסבוק', text: 'מאשרים הרשאות לפייסבוק ובוחרים את הדף העסקי.' },
     { '@type': 'HowToStep', position: 4, name: 'לידים מגיעים אוטומטית', text: 'מעכשיו כל ליד שממלא טופס מגיע ישירות למערכת.' },
@@ -99,27 +99,27 @@ const featureCategories = [
     icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
     title: 'לידים מפייסבוק',
     items: [
-      { text: 'קבלה אוטומטית מ-Lead Ads' },
-      { text: 'חיבור לדף העסקי' },
-      { text: 'זיהוי מקור הקמפיין' },
+      { text: 'לידים ממודעות נכנסים אוטומטית' },
+      { text: 'חיבור לדף העסקי בלחיצה' },
+      { text: 'זיהוי הדף שממנו הגיע הליד' },
     ],
   },
   {
     icon: <Icon name='instagram' className='size-6 bg-primary' />,
     title: 'לידים מאינסטגרם',
     items: [
-      { text: 'טפסי מודעות אינסטגרם' },
-      { text: 'לידים מ-DM ופרופיל' },
-      { text: 'עדכון אוטומטי בזמן אמת' },
+      { text: 'לידים ממודעות אינסטגרם' },
+      { text: 'כל מודעה, אוטומטית דרך Meta' },
+      { text: 'עדכון בזמן אמת' },
     ],
   },
   {
     icon: <Icon name='whatsapp' className='size-6 bg-primary' />,
     title: 'לידים מוואטסאפ',
     items: [
-      { text: 'לידים מקישורי וואטסאפ' },
-      { text: 'שמירה אוטומטית לרשימה' },
-      { text: 'מעקב אחר שיחות' },
+      { text: 'כל שיחה מחוברת לליד' },
+      { text: 'עונים ישירות מהמערכת' },
+      { text: 'רואים מתי ההודעה נקראה' },
     ],
   },
   {
@@ -180,12 +180,12 @@ export default function FacebookLeadsPage() {
                 פייסבוק Lead Ads
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                כל הלידים מפייסבוק במקום אחד
+                כל ליד מפייסבוק נכנס לבד
                 <br />
-                עוקבים אחרי כל פנייה בלי לפספס
+                ומחכה מסודר לטיפול
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                חיבור של 5 דקות. מאותו רגע כל ליד שממלא טופס Facebook Lead Ad מגיע ישירות ל-SocialCRM, בלי העתקה ידנית, בלי שכחה.
+                מחברים את דף הפייסבוק פעם אחת, וכל ליד שממלא טופס מודעה נכנס ישר למערכת עם המקור והסטטוס שלו. בלי העתקות, בלי לפספס אף אחד.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
@@ -228,7 +228,7 @@ export default function FacebookLeadsPage() {
         <section className='px-8 py-16' style={{ backgroundColor: '#0a0a0a' }}>
           <div className='max-w-5xl mx-auto mb-10 text-center' dir='rtl'>
             <h2 className='text-3xl font-bold text-white mb-3'>כל הלידים שלך, ממקום אחד</h2>
-            <p className='text-white/50 max-w-xl mx-auto'>מפייסבוק, אינסטגרם, וואטסאפ ואקסל הכל מגיע ישירות למערכת.</p>
+            <p className='text-white/50 max-w-xl mx-auto'>מפייסבוק, אינסטגרם, וואטסאפ ואקסל, הכל מגיע ישירות למערכת.</p>
           </div>
           <div className='max-w-5xl mx-auto flex justify-center'>
             <MagnifiedBento />
@@ -261,7 +261,7 @@ export default function FacebookLeadsPage() {
               </span>
             </span>
           }
-          subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל כל הלידים שלך מנוהלים במקום אחד.'
+          subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל, כל הלידים שלכם מנוהלים במקום אחד.'
           categories={featureCategories}
           buttonText='התחל בחינם עכשיו'
           buttonHref='/auth'
@@ -270,8 +270,8 @@ export default function FacebookLeadsPage() {
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='כל הלידים מפייסבוק במקום אחד'
-          highlight='עוקבים אחרי כל פנייה בלי לפספס'
+          title='כל ליד מפייסבוק נכנס לבד'
+          highlight='ומחכה מסודר לטיפול'
           buttonText='חבר את הפייסבוק שלך עכשיו'
           buttonHref='/auth'
         />
@@ -296,7 +296,7 @@ export default function FacebookLeadsPage() {
                 CRM ללידים מאינסטגרם
               </Link>
               <Link href='/crm-for-whatsapp-business' className='text-white/80 hover:text-white underline'>
-                CRM ל-WhatsApp Business
+                CRM לוואטסאפ עסקי
               </Link>
               <Link href='/crm-vs-excel' className='text-white/80 hover:text-white underline'>
                 CRM לעומת אקסל

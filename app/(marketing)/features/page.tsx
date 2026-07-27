@@ -15,8 +15,8 @@ export const metadata = buildPageMetadata({
   path: '/features',
   title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
   description:
-    'SocialCRM, מערכת CRM בעברית לניהול לידים מפייסבוק, אינסטגרם ווואטסאפ. ייבוא מאקסל, מעקב מכירות, ניהול נציגים. התחל בחינם.',
-  ogDescription: 'כל הלידים מפייסבוק, אינסטגרם ווואטסאפ, במקום אחד. ניהול, מעקב, וסגירת עסקאות.',
+    'מערכת CRM בעברית שמרכזת את כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ. שיחות מחוברות ללידים, ייבוא מאקסל וניהול צוות, ובתוכנית Pro גם AI שמכיר כל ליד וממליץ מה הצעד הבא. מתחילים בחינם.',
+  ogDescription: 'כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם שיחה, סטטוס ומעקב לכל ליד.',
 })
 
 const faqItems = [
@@ -59,18 +59,18 @@ const featureCategories = [
     icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
     title: 'חיבור לפייסבוק ואינסטגרם',
     items: [
-      { text: 'לידים מ-Lead Ads אוטומטית' },
+      { text: 'לידים ממודעות נכנסים אוטומטית' },
       { text: 'חיבור לדף העסקי בלחיצה' },
       { text: 'עדכון בזמן אמת' },
     ],
   },
   {
     icon: <Icon name='whatsapp' className='size-6 bg-primary' />,
-    title: 'לידים מוואטסאפ',
+    title: 'וואטסאפ מחובר ללידים',
     items: [
-      { text: 'הוספה ידנית ב-10 שניות' },
-      { text: 'ייבוא מספרי טלפון' },
-      { text: 'מקור מזוהה אוטומטית' },
+      { text: 'כל שיחה מחוברת לליד' },
+      { text: 'עונים מהמערכת ורואים מתי נקרא' },
+      { text: 'אפשר גם להוסיף ליד ידנית' },
     ],
   },
   {
@@ -97,7 +97,7 @@ const featureCategories = [
     items: [
       { text: 'עדכון סטטוס בקליק' },
       { text: 'היסטוריה מלאה לכל ליד' },
-      { text: 'תזכורות פולואו-אפ' },
+      { text: 'תאריך מעקב שמחזיר את הליד לרשימה' },
     ],
   },
   {
@@ -143,7 +143,7 @@ export default function FeaturesPage() {
                 במערכת אחת פשוטה
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                מרכוז, מעקב, וסגירת עסקאות מכל מקור שהלידים שלך מגיעים ממנו.
+                מפייסבוק, מאינסטגרם, מהוואטסאפ ומאקסל. כל ליד במקום אחד, עם השיחה, הסטטוס והמעקב לצידו.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
@@ -189,7 +189,7 @@ export default function FeaturesPage() {
                 </span>
               </span>
             }
-            subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל כל הלידים שלך מנוהלים במקום אחד.'
+            subtitle='מפייסבוק, אינסטגרם, וואטסאפ ואקסל, כל הלידים שלכם מנוהלים במקום אחד.'
             categories={featureCategories}
             buttonText='התחל בחינם עכשיו'
             buttonHref='/auth'
@@ -227,7 +227,7 @@ export default function FeaturesPage() {
             <p className='text-white/50 text-sm mb-4'>ראה גם</p>
             <div className='flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm'>
               <Link href='/crm-for-whatsapp-business' className='text-white/80 hover:text-white underline'>
-                CRM ל-WhatsApp Business
+                CRM לוואטסאפ עסקי
               </Link>
               <Link href='/instagram-leads-crm' className='text-white/80 hover:text-white underline'>
                 CRM ללידים מאינסטגרם

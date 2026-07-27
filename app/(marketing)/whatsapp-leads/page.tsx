@@ -16,18 +16,18 @@ export const metadata = buildPageMetadata({
   path: '/whatsapp-leads',
   title: 'ניהול לידים מוואטסאפ | SocialCRM',
   description:
-    'ייבא ונהל לידים שמגיעים בוואטסאפ. הוסף ידנית, ייבא מספרים, ונהל הכל מתוך SocialCRM, מערכת ניהול לידים לעסקים קטנים.',
-  ogDescription: 'לידים מוואטסאפ? מייבאים, מנהלים, ומוודאים שאף אחד לא נשכח.',
+    'מחברים את הוואטסאפ העסקי, וכל שיחה הופכת לליד מנוהל. עונים מהמערכת, רואים מתי ההודעה נמסרה ונקראה, ופונים שוב עם הודעה מוכנה מתי שצריך.',
+  ogDescription: 'כל שיחה בוואטסאפ הופכת לליד עם סטטוס, בעלים ומעקב. עונים מהמערכת ורואים מתי ההודעה נקראה.',
 })
 
 const faqItems = [
   {
-    question: 'איך מייבאים לידים מוואטסאפ ל-SocialCRM?',
-    answer: 'ניתן להוסיף לידים מוואטסאפ בשתי דרכים: הוספה ידנית מהירה (שם + טלפון בשניות), או ייבוא מאקסל אם יש רשימה של מספרים.',
+    question: 'איך הלידים מוואטסאפ נכנסים למערכת?',
+    answer: 'מחברים את הוואטסאפ העסקי, וכל שיחה נכנסת למערכת ומחוברת לליד עם מקור וסטטוס. אפשר גם להוסיף ליד ידנית או לייבא רשימת מספרים מאקסל.',
   },
   {
-    question: 'האם יש אינטגרציה ישירה עם וואטסאפ?',
-    answer: 'SocialCRM לא קוראת את ההודעות בוואטסאפ. במקום זאת, מוסיפים לידים מוואטסאפ ידנית (מהיר מאוד) ואז כל התקשורת והמעקב מתנהלים בתוך SocialCRM.',
+    question: 'האם יש חיבור אמיתי לוואטסאפ?',
+    answer: 'כן. מחברים את הוואטסאפ העסקי, מקבלים את השיחות בתוך המערכת, ועונים מכאן. כל הודעה נשמרת על הליד, ורואים מתי הלקוח קיבל וקרא אותה.',
   },
   {
     question: 'מהי הדרך הכי מהירה להוסיף ליד מוואטסאפ?',
@@ -35,11 +35,11 @@ const faqItems = [
   },
   {
     question: 'איך מבדילים בין לידים מוואטסאפ ללידים מפייסבוק?',
-    answer: 'כל ליד ב-SocialCRM מוגדר עם מקור. ניתן לסנן ולראות רק לידים מוואטסאפ, רק מפייסבוק, או הכל יחד.',
+    answer: 'כל ליד במערכת מוגדר עם מקור. אפשר לסנן ולראות רק לידים מוואטסאפ, רק מפייסבוק, או הכל יחד.',
   },
   {
     question: 'מה עושים עם ליד שפנה בוואטסאפ ולא מוכר לקנות עכשיו?',
-    answer: 'מוסיפים תזכורת, "לחזור עוד שבועיים". המערכת תזכיר. כך לא מפספסים לידים שרק צריכים יותר זמן.',
+    answer: 'קובעים תאריך לחזור, והליד יופיע ברשימת היום כשמגיע הזמן. כשחוזרים אליו, אפשר לשלוח הודעת המשך מוכנה בלחיצה.',
   },
 ]
 
@@ -61,19 +61,19 @@ const faqData = {
 }
 
 const STATS = [
-  { value: '10 שנ׳', label: 'להוסיף ליד חדש', sub: 'שם, טלפון, מקור — וסיימנו' },
-  { value: '0', label: 'לידים שנשכחים', sub: 'כשיש תזכורות ומעקב' },
+  { value: '10 שנ׳', label: 'להוסיף ליד חדש', sub: 'שם, טלפון ומקור, והכל במערכת' },
+  { value: '0', label: 'לידים שנשכחים', sub: 'כשלכל שיחה יש סטטוס ותאריך לחזור' },
   { value: '×3', label: 'יותר לידים נסגרים', sub: 'לעסקים שעברו לניהול ממוקד' },
 ]
 
 const featureCategories = [
   {
     icon: <Icon name='whatsapp' className='size-6 bg-primary' />,
-    title: 'הוספת לידים מוואטסאפ',
+    title: 'שיחות מחוברות ללידים',
     items: [
-      { text: 'הוספה ידנית ב-10 שניות' },
-      { text: 'ייבוא מספרי טלפון' },
-      { text: 'מקור מוואטסאפ מזוהה' },
+      { text: 'כל שיחה מחוברת לליד שלה' },
+      { text: 'עונים מהמערכת, גם עם תבניות מוכנות' },
+      { text: 'רואים מתי ההודעה נמסרה ונקראה' },
     ],
   },
   {
@@ -91,16 +91,16 @@ const featureCategories = [
     items: [
       { text: 'עדכון סטטוס בקליק' },
       { text: 'היסטוריה מלאה' },
-      { text: 'ראה מי ממתין לטיפול' },
+      { text: 'רואים מי ממתין לטיפול' },
     ],
   },
   {
     icon: <Icon name='bell' className='size-6 bg-primary' />,
     title: 'תזכורות ומעקב',
     items: [
-      { text: 'קבע תזכורת לכל ליד' },
-      { text: 'אל תפספס פולואו-אפ' },
-      { text: 'התראות על לידים שלא טופלו' },
+      { text: 'תאריך לחזור לכל ליד' },
+      { text: 'הליד חוזר ברשימת היום' },
+      { text: 'שום ליד לא נשכח' },
     ],
   },
   {
@@ -151,12 +151,12 @@ export default function WhatsAppLeadsPage() {
                 וואטסאפ
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                כל הלידים מ־WhatsApp במקום אחד
+                כל שיחה בוואטסאפ
                 <br />
-                מנהלים שיחות והופכים אותן לעסקאות
+                הופכת לליד מנוהל
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                לידים שמגיעים בוואטסאפ נשכחים בקלות בתוך ערימת ההודעות. SocialCRM נותנת להם מקום, ומוודאת שכל אחד מטופל.
+                מחברים את הוואטסאפ העסקי, וכל שיחה נכנסת למערכת עם ליד, סטטוס ובעלים. עונים מכאן, רואים מתי ההודעה נמסרה ונקראה, ושום פנייה לא נבלעת בערימת ההודעות.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
@@ -167,7 +167,7 @@ export default function WhatsAppLeadsPage() {
                 </Link>
                 <Btn
                   href='/auth'
-                  lbl='התחל לנהל לידים מוואטסאפ'
+                  lbl='חברו את הוואטסאפ בחינם'
                   className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 />
@@ -199,7 +199,7 @@ export default function WhatsAppLeadsPage() {
         <section className='px-8 py-16' style={{ backgroundColor: '#0a0a0a' }}>
           <div className='max-w-5xl mx-auto mb-10 text-center' dir='rtl'>
             <h2 className='text-3xl font-bold text-white mb-3'>כל ליד מוואטסאפ, מנוהל נכון</h2>
-            <p className='text-white/50 max-w-xl mx-auto'>מרשימת הודעות כאוטית לרשימה ברורה עם סטטוס, נציג ומעקב.</p>
+            <p className='text-white/50 max-w-xl mx-auto'>מרשימת הודעות עמוסה לתיבה מסודרת, שבה כל שיחה מחוברת לליד, עם סטטוס, בעלים ומעקב.</p>
           </div>
           <div className='max-w-5xl mx-auto flex justify-center'>
             <MagnifiedBento />
@@ -232,17 +232,17 @@ export default function WhatsAppLeadsPage() {
                 </span>
               </span>
             }
-            subtitle='מוואטסאפ, אקסל וייבוא ידני כל הלידים שלך מנוהלים במקום אחד.'
+            subtitle='כל שיחת וואטסאפ הופכת לליד עם סטטוס, בעלים ומעקב, לצד ייבוא מאקסל והוספה ידנית.'
             categories={featureCategories}
-            buttonText='התחל לנהל לידים מוואטסאפ'
+            buttonText='חברו את הוואטסאפ בחינם'
             buttonHref='/auth'
           />
         </div>
 
         {/* Animated CTA */}
         <AnimatedCta
-          title='כל הלידים מ־WhatsApp במקום אחד'
-          highlight='מנהלים שיחות והופכים אותן לעסקאות'
+          title='כל שיחה בוואטסאפ'
+          highlight='הופכת לליד מנוהל'
           buttonText='התחל בחינם עכשיו'
           buttonHref='/auth'
         />
@@ -264,7 +264,7 @@ export default function WhatsAppLeadsPage() {
             <p className='text-white/50 text-sm mb-4'>ראה גם</p>
             <div className='flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm'>
               <Link href='/crm-for-whatsapp-business' className='text-white/80 hover:text-white underline'>
-                CRM ל-WhatsApp Business
+                CRM לוואטסאפ עסקי
               </Link>
               <Link href='/instagram-leads-crm' className='text-white/80 hover:text-white underline'>
                 CRM ללידים מאינסטגרם

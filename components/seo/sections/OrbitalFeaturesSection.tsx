@@ -5,11 +5,11 @@ import Icon from '@/lib/Icon'
 import { FadeIn } from './shared'
 
 const crmTimelineData = [
-  { id: 1, title: 'מרכוז לידים', date: 'פייסבוק • וואטסאפ • אקסל', content: 'כל הלידים ממדיה חברתית מגיעים אוטומטית לרשימה אחת. לא עוד חיפוש בצ׳אטים.', category: 'ליבה', iconName: 'inbox' as const, relatedIds: [2, 3], status: 'completed' as const, energy: 100 },
+  { id: 1, title: 'מרכוז לידים', date: 'פייסבוק • אינסטגרם • וואטסאפ', content: 'מודעות פייסבוק ואינסטגרם נכנסות אוטומטית, שיחות וואטסאפ מתחברות לכל ליד, והכל יושב ברשימה אחת.', category: 'ליבה', iconName: 'inbox' as const, relatedIds: [2, 3], status: 'completed' as const, energy: 100 },
   { id: 2, title: 'עדכון סטטוס', date: 'חדש • בטיפול • סגור • אבוד', content: 'מעדכנים סטטוס בלחיצה אחת. כל שלב במכירה מוגדר וברור לכל הצוות.', category: 'ניהול', iconName: 'circle-check' as const, relatedIds: [1, 4], status: 'completed' as const, energy: 92 },
   { id: 3, title: 'שיוך נציגים', date: 'כל נציג רואה את שלו', content: 'מחלקים לידים בין הצוות. מנהל רואה הכל, נציג רואה רק את שלו.', category: 'צוות', iconName: 'users' as const, relatedIds: [1, 2], status: 'completed' as const, energy: 85 },
-  { id: 4, title: 'תזכורות', date: 'מעקב אוטומטי', content: 'מוסיפים תזכורת "להתקשר ביום שלישי" המערכת תזכיר כשמגיע הזמן.', category: 'מעקב', iconName: 'bell' as const, relatedIds: [2, 5], status: 'in-progress' as const, energy: 70 },
-  { id: 5, title: 'היסטוריה', date: 'כל שיחה נשמרת', content: 'כל הערה, עדכון סטטוס ושיחה נשמרים על הליד לצמיתות.', category: 'נתונים', iconName: 'clock' as const, relatedIds: [4, 6], status: 'in-progress' as const, energy: 60 },
+  { id: 4, title: 'תזכורות', date: 'תאריך לכל ליד', content: 'קובעים תאריך לחזור לכל ליד, והוא חוזר אליכם ברשימת היום כשמגיע הזמן.', category: 'מעקב', iconName: 'bell' as const, relatedIds: [2, 5], status: 'in-progress' as const, energy: 70 },
+  { id: 5, title: 'היסטוריה', date: 'כל שיחה נשמרת', content: 'כל שיחה, עדכון סטטוס והערה נשמרים על הליד. גם כשנציג מתחלף, שום הקשר לא הולך לאיבוד.', category: 'נתונים', iconName: 'clock' as const, relatedIds: [4, 6], status: 'in-progress' as const, energy: 60 },
   { id: 6, title: 'דוחות', date: 'נראות מלאה', content: 'כמה לידים נסגרו החודש? מה שיעור ההמרה? התשובות בלחיצה.', category: 'ניתוח', iconName: 'chart-line' as const, relatedIds: [5], status: 'pending' as const, energy: 40 },
 ]
 
