@@ -24,11 +24,12 @@ describe('WhatsappMessageStatus — accessible names', () => {
     expect(screen.getByText('נקרא')).toBeInTheDocument()
   })
 
-  it('failed conveys the failure AND attributes it to WhatsApp (richer accessible name)', () => {
+  it('failed exposes a plain-language accessible name (no debugging attribution line)', () => {
     const { container } = render(<WhatsappMessageStatus status='failed' />)
     const sr = container.querySelector('.sr-only')?.textContent ?? ''
-    expect(sr).toContain('ההודעה לא נשלחה')
-    expect(sr).toContain('הסטטוס התקבל מ־WhatsApp.')
+    expect(sr).toContain('ההודעה לא נשלחה') // generic title
+    // the removed debugging line must not be reintroduced
+    expect(sr).not.toContain('הסטטוס התקבל מ־WhatsApp.')
   })
 
   it('every state carries a text label, so colour is never the only carrier', () => {

@@ -16,9 +16,9 @@ export function applyStatusesToMessages(
   let changed = false
   const next = prev.map((m) => {
     const u = byId.get(m.id)
-    if (!u || (u.status === m.status && u.failureText === m.failureText)) return m
+    if (!u || (u.status === m.status && u.failureText === m.failureText && u.failureCategory === m.failureCategory)) return m
     changed = true
-    return { ...m, status: u.status, failureText: u.failureText }
+    return { ...m, status: u.status, failureText: u.failureText, failureCategory: u.failureCategory }
   })
   return changed ? next : prev
 }

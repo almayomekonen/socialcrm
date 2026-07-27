@@ -1,110 +1,164 @@
 // @vitest-environment jsdom
 //
-// Failed-WhatsApp-message tooltip (Option B): the existing red status icon gets a
-// self-contained native `title` composed from the ALREADY-mapped failureText, plus
-// a WhatsApp attribution line. Reuses lib/inbox/whatsappErrorCopy — no new mapper,
-// no code/wamid/payload ever in the tooltip path. Pure client, no DB: VITEST_NO_DB=1.
+// WhatsApp failed-message tooltip v2: a clip-safe portal hover/focus tooltip on the
+// existing red status icon, with plain-language product guidance keyed on the
+// already-persisted failure CATEGORY (never a raw Meta string/code). Pure client,
+// no DB: VITEST_NO_DB=1.
 
-import { afterEach, describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import React from 'react'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 
-import { failureTooltipText, mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
+import { failureTooltip, normalizeFailureCategory } from '@/lib/inbox/whatsappErrorCopy'
 import WhatsappMessageStatus from '@/components/summary/WhatsappMessageStatus'
-
-const ATTRIBUTION = 'הסטטוס התקבל מ־WhatsApp.'
-const TITLE = 'ההודעה לא נשלחה'
+import { HoverTooltip } from '@/components/ui/HoverTooltip'
 
 afterEach(cleanup)
 
-describe('failureTooltipText — composition from mapped failureText', () => {
-  const known = {
-    window: mapWhatsappError(131047).text, // window_expired
-    recipient: mapWhatsappError(131026).text,
-    account: mapWhatsappError(131031).text,
-    generic: mapWhatsappError(999999).text, // unknown → generic
-  }
-
-  it('known reason → title, the human reason, attribution — title NOT duplicated', () => {
-    const tip = failureTooltipText(known.window)
-    const lines = tip.split('\n')
-    expect(lines[0]).toBe(TITLE)
-    expect(lines[1]).toBe('עברו יותר מ־24 שעות מאז שהליד כתב. אפשר להתקשר אליו.')
-    expect(lines[2]).toBe(ATTRIBUTION)
-    // the opener appears exactly once (no "ההודעה לא נשלחה — ..." duplication)
-    expect(tip.match(/ההודעה לא נשלחה/g)!.length).toBe(1)
-    // the reason line does not carry the em-dash prefix
-    expect(lines[1].startsWith('ההודעה לא נשלחה')).toBe(false)
+describe('failureTooltip — plain-language copy by allowlisted category', () => {
+  it('window_expired → 24-hour explanation + CALL action (never promises templates)', () => {
+    const t = failureTooltip('window_expired')
+    expect(t.title).toBe('לא ניתן לשלוח את ההודעה')
+    expect(t.explanation).toContain('24 שעות')
+    expect(t.explanation).toContain('WhatsApp')
+    expect(t.action).toContain('להתקשר')
+    expect(t.action).not.toContain('תבנית') // no template promise
   })
 
-  it('recipient reason → clean 3-line tooltip', () => {
-    expect(failureTooltipText(known.recipient)).toBe(`${TITLE}\nהמספר אינו פעיל ב־WhatsApp.\n${ATTRIBUTION}`)
+  it('recipient → hedged number/WhatsApp explanation (not a certain claim)', () => {
+    const t = failureTooltip('recipient')
+    expect(t.explanation).toContain('נראה ש') // hedged, not "certainly has no WhatsApp"
+    expect(t.action).toContain('בדוק שהמספר נכון')
   })
 
-  it('account reason → clean 3-line tooltip', () => {
-    expect(failureTooltipText(known.account)).toBe(
-      `${TITLE}\nשליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.\n${ATTRIBUTION}`,
+  it('account → account explanation, no billing/payment jargon', () => {
+    const t = failureTooltip('account')
+    expect(t.title).toBe('לא ניתן לשלוח הודעות כרגע')
+    expect(t.explanation).toContain('החשבון המחובר')
+    expect(t.action).toContain('חשבון WhatsApp')
+    expect(`${t.title} ${t.explanation} ${t.action}`).not.toMatch(/תשלום|חיוב|אשראי/)
+  })
+
+  it('generic / unknown / null → no invented cause', () => {
+    for (const c of ['generic', 'future_key', null, undefined]) {
+      const t = failureTooltip(c as string | null | undefined)
+      expect(t.title).toBe('ההודעה לא נשלחה')
+      expect(t.explanation).toBe('WhatsApp לא הצליחה לשלוח את ההודעה.')
+      expect(t.action).toContain('לנסות שוב')
+    }
+    expect(normalizeFailureCategory('future_key')).toBe('generic')
+  })
+
+  it('the removed "הסטטוס התקבל מ־WhatsApp." line is gone from every category', () => {
+    for (const c of ['window_expired', 'recipient', 'account', 'generic'] as const) {
+      const t = failureTooltip(c)
+      expect(`${t.title} ${t.explanation} ${t.action}`).not.toContain('הסטטוס התקבל מ־WhatsApp')
+    }
+  })
+
+  it('no duplicate "לא נשלחה" within a category', () => {
+    for (const c of ['window_expired', 'recipient', 'account', 'generic'] as const) {
+      const t = failureTooltip(c)
+      const all = `${t.title} ${t.explanation} ${t.action}`
+      expect((all.match(/לא נשלחה/g) || []).length).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('never renders a raw Meta code / wamid / metadata / fbtrace', () => {
+    const CODES = ['470', '131047', '131051', '131026', '131052', '131031', '131042', '131049', '141006']
+    for (const c of ['window_expired', 'recipient', 'account', 'generic'] as const) {
+      const t = failureTooltip(c)
+      const all = `${t.title} ${t.explanation} ${t.action}`
+      for (const code of CODES) expect(all).not.toContain(code)
+      expect(all.toLowerCase()).not.toContain('wamid')
+      expect(all).not.toContain('metadata')
+      expect(all).not.toContain('fbtrace')
+    }
+  })
+})
+
+describe('WhatsappMessageStatus — failed becomes a tooltip trigger; others unchanged', () => {
+  it('failed exposes the category guidance as an accessible name', () => {
+    const { container } = render(<WhatsappMessageStatus status='failed' failureCategory='window_expired' />)
+    const sr = container.querySelector('.sr-only')?.textContent ?? ''
+    expect(sr).toContain('לא ניתן לשלוח את ההודעה')
+    expect(sr).toContain('24 שעות')
+    expect(sr).not.toContain('הסטטוס התקבל מ־WhatsApp')
+  })
+
+  it('non-failed status renders no focusable tooltip and keeps its terse label', () => {
+    const { container } = render(<WhatsappMessageStatus status='delivered' />)
+    expect(container.querySelector('[tabindex]')).toBeNull()
+    expect(container.querySelector('.sr-only')?.textContent).toBe('נמסר')
+  })
+})
+
+describe('HoverTooltip — clip-safe portal, quick open/close, keyboard', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const setup = () =>
+    render(
+      <HoverTooltip label='שם נגיש' content={<span>תוכן טולטיפ</span>}>
+        <b data-testid='trigger-child'>i</b>
+      </HoverTooltip>,
     )
+  const trigger = () => document.querySelector('span[tabindex="0"]') as HTMLElement
+  const tip = () => document.querySelector('[role="tooltip"]')
+
+  it('hover opens after the ~120ms delay, rendered through a document.body portal', () => {
+    setup()
+    fireEvent.mouseEnter(trigger())
+    expect(tip()).toBeNull() // delayed, not immediate
+    act(() => vi.advanceTimersByTime(150))
+    const el = tip() as HTMLElement | null
+    expect(el).toBeTruthy()
+    expect(el?.parentElement).toBe(document.body) // clip-safe portal
+    expect(el?.getAttribute('role')).toBe('tooltip')
+    expect(el?.style.position).toBe('fixed')
+    expect(el?.textContent).toContain('תוכן טולטיפ')
   })
 
-  it('generic failureText → title + attribution only (drops "נסה שוב" filler, no reason line)', () => {
-    const tip = failureTooltipText(known.generic)
-    expect(tip).toBe(`${TITLE}\n${ATTRIBUTION}`)
-    expect(tip).not.toContain('נסה שוב')
+  it('keyboard focus opens immediately (no delay)', () => {
+    setup()
+    fireEvent.focus(trigger())
+    expect(tip()).toBeTruthy()
   })
 
-  it('null failureText → generic title + attribution', () => {
-    expect(failureTooltipText(null)).toBe(`${TITLE}\n${ATTRIBUTION}`)
-    expect(failureTooltipText(undefined)).toBe(`${TITLE}\n${ATTRIBUTION}`)
+  it('mouse leave closes', () => {
+    setup()
+    fireEvent.focus(trigger())
+    expect(tip()).toBeTruthy()
+    fireEvent.mouseLeave(trigger())
+    expect(tip()).toBeNull()
   })
 
-  it('never leaks a Meta error code / wamid / raw payload token', () => {
-    // Every numeric Meta code the mapper knows about must never surface as text.
-    const META_CODES = ['470', '131047', '131051', '131026', '131052', '131031', '131042', '131049', '141006']
-    for (const ft of [known.window, known.recipient, known.account, known.generic, null]) {
-      const tip = failureTooltipText(ft)
-      for (const code of META_CODES) expect(tip).not.toContain(code)
-      expect(tip.toLowerCase()).not.toContain('wamid')
-      expect(tip).not.toContain('metadata')
-      expect(tip).not.toContain('fbtrace')
-    }
-  })
-})
-
-describe('WhatsappMessageStatus — failed indicator gets the native title + sr-only', () => {
-  it('failed + known reason → title has reason AND attribution; sr-only communicates the same', () => {
-    const { container } = render(<WhatsappMessageStatus status='failed' failureText={mapWhatsappError(131026).text} />)
-    const span = container.querySelector('span[title]') as HTMLElement
-    expect(span).toBeTruthy()
-    const title = span.getAttribute('title')!
-    expect(title).toContain('המספר אינו פעיל ב־WhatsApp.')
-    expect(title).toContain(ATTRIBUTION)
-    expect(title.match(/ההודעה לא נשלחה/g)!.length).toBe(1)
-    // sr-only mirrors the tooltip meaning (not the terse old label alone)
-    const sr = container.querySelector('.sr-only') as HTMLElement
-    expect(sr.textContent).toContain('המספר אינו פעיל ב־WhatsApp.')
-    expect(sr.textContent).toContain(ATTRIBUTION)
+  it('blur closes', () => {
+    setup()
+    fireEvent.focus(trigger())
+    expect(tip()).toBeTruthy()
+    fireEvent.blur(trigger())
+    expect(tip()).toBeNull()
   })
 
-  it('failed + null failureText → generic title + attribution', () => {
-    const { container } = render(<WhatsappMessageStatus status='failed' failureText={null} />)
-    const title = (container.querySelector('span[title]') as HTMLElement).getAttribute('title')
-    expect(title).toBe(`${TITLE}\n${ATTRIBUTION}`)
+  it('Escape closes without trapping focus', () => {
+    setup()
+    fireEvent.focus(trigger())
+    expect(tip()).toBeTruthy()
+    act(() => {
+      fireEvent.keyDown(document, { key: 'Escape' })
+    })
+    expect(tip()).toBeNull()
   })
 
-  it('sent / delivered / read → NO failure title (unchanged behavior)', () => {
-    for (const status of ['sent', 'delivered', 'read'] as const) {
-      const { container } = render(<WhatsappMessageStatus status={status} />)
-      expect(container.querySelector('span[title]')).toBeNull()
-      // sr-only keeps the terse state label
-      expect(container.querySelector('.sr-only')!.textContent).not.toContain(ATTRIBUTION)
-      cleanup()
-    }
+  it('trigger is keyboard reachable and carries an accessible name', () => {
+    setup()
+    expect(trigger().getAttribute('tabindex')).toBe('0')
+    expect(trigger().textContent).toContain('שם נגיש')
   })
 })
 
-// The inline failure reason under the bubble must stay present and unchanged.
-// Mock the heavy conversation children so we render only the message list.
+// The inline failure reason under the bubble must remain (mobile/touch has no hover).
 vi.mock('@/components/summary/WhatsappReplyDraft', () => ({ default: () => <div data-mock='reply' /> }))
 vi.mock('@/components/summary/WhatsappNewMessageNotifier', () => ({ default: () => null }))
 vi.mock('@/components/summary/WhatsappConversationHeader', () => ({ default: () => <div data-mock='header' /> }))
@@ -112,23 +166,20 @@ vi.mock('@/modules/inbox/components/ChannelIcon', () => ({ default: () => <span 
 
 import WhatsappConversation from '@/components/summary/WhatsappConversation'
 
-describe('WhatsappConversation — inline failure text preserved alongside the new tooltip', () => {
-  const failedMsg: any = {
+describe('WhatsappConversation — inline failure reason preserved (mobile-safe)', () => {
+  const failed: any = {
     id: 1,
     direction: 'outbound',
+    type: 'text',
     status: 'failed',
     text: 'שלום',
     timestamp: '2026-07-27T10:00:00.000Z',
-    failureText: mapWhatsappError(131026).text, // 'ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.'
+    failureText: 'ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.',
+    failureCategory: 'recipient',
   }
 
-  it('still renders the inline mapped reason AND now also exposes the status tooltip', () => {
-    const { container } = render(<WhatsappConversation messages={[failedMsg]} leadId={1} />)
-    // inline <p> (unchanged): full mapped failureText visible without hover
-    expect(screen.getByText(failedMsg.failureText)).toBeTruthy()
-    // new: the status icon carries the composed tooltip
-    const tipSpan = container.querySelector('span[title]') as HTMLElement
-    expect(tipSpan).toBeTruthy()
-    expect(tipSpan.getAttribute('title')).toContain(ATTRIBUTION)
+  it('still renders the inline mapped reason without hover', () => {
+    render(<WhatsappConversation messages={[failed]} leadId={1} />)
+    expect(screen.getByText(failed.failureText)).toBeTruthy()
   })
 })

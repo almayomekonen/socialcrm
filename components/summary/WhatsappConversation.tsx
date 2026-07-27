@@ -110,7 +110,7 @@ export default function WhatsappConversation({
                       >
                         {formatTime(m.timestamp)}
                       </span>
-                      {!inbound && <WhatsappMessageStatus status={m.status} failureText={m.failureText} />}
+                      {!inbound && <WhatsappMessageStatus status={m.status} failureCategory={m.failureCategory} />}
                     </div>
                     {!inbound && m.status === 'failed' && m.failureText && (
                       <p className='mt-1 text-[11px] leading-snug text-error-text'>{m.failureText}</p>

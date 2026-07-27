@@ -43,6 +43,15 @@ describe('mapLeadWhatsappMessageRow', () => {
     expect(failed.failureText).toBe(mapWhatsappError(999999).text)
   })
 
+  it('exposes failureCategory (the persisted key) only for failed rows', () => {
+    expect(mapLeadWhatsappMessageRow({ ...base, status: 'failed', errorReason: 'recipient' }).failureCategory).toBe('recipient')
+    // non-failed → null even if a stale errorReason is present
+    expect(mapLeadWhatsappMessageRow({ ...base, status: 'sent', errorReason: 'recipient' }).failureCategory).toBeNull()
+    // failed + missing/unknown key → generic, never null/raw
+    expect(mapLeadWhatsappMessageRow({ ...base, status: 'failed', errorReason: null }).failureCategory).toBe('generic')
+    expect(mapLeadWhatsappMessageRow({ ...base, status: 'failed', errorReason: 'future_key' }).failureCategory).toBe('generic')
+  })
+
   it('never exposes a raw Meta code', () => {
     const failed = mapLeadWhatsappMessageRow({ ...base, status: 'failed', errorReason: 'account' })
     expect(failed.failureText).not.toMatch(/\d{3,}/)

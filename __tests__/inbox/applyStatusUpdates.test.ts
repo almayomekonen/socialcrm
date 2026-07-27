@@ -10,40 +10,51 @@ const msg = (id: number, status: LeadWhatsappMessage['status']): LeadWhatsappMes
   timestamp: '2026-07-22T12:00:00.000Z',
   status,
   failureText: null,
+  failureCategory: null,
 })
 
 describe('applyStatusesToMessages', () => {
   it('updates the matching message', () => {
     const prev = [msg(1, 'sent'), msg(2, 'sent')]
-    const next = applyStatusesToMessages(prev, [{ id: 2, status: 'delivered', failureText: null }])
+    const next = applyStatusesToMessages(prev, [{ id: 2, status: 'delivered', failureText: null, failureCategory: null }])
     expect(next[1].status).toBe('delivered')
     expect(next[0].status).toBe('sent')
   })
 
   it('returns the SAME array reference when nothing changed (prevents a re-render every poll)', () => {
     const prev = [msg(1, 'sent')]
-    const next = applyStatusesToMessages(prev, [{ id: 1, status: 'sent', failureText: null }])
+    const next = applyStatusesToMessages(prev, [{ id: 1, status: 'sent', failureText: null, failureCategory: null }])
     expect(next).toBe(prev)
   })
 
   it('ignores ids not present in the thread', () => {
     const prev = [msg(1, 'sent')]
-    const next = applyStatusesToMessages(prev, [{ id: 99, status: 'read', failureText: null }])
+    const next = applyStatusesToMessages(prev, [{ id: 99, status: 'read', failureText: null, failureCategory: null }])
     expect(next).toBe(prev)
   })
 
-  it('carries failureText through', () => {
+  it('carries failureText AND failureCategory through', () => {
     const prev = [msg(1, 'sent')]
-    const next = applyStatusesToMessages(prev, [{ id: 1, status: 'failed', failureText: 'לא נשלח' }])
+    const next = applyStatusesToMessages(prev, [
+      { id: 1, status: 'failed', failureText: 'לא נשלח', failureCategory: 'window_expired' },
+    ])
     expect(next[0].failureText).toBe('לא נשלח')
+    expect(next[0].failureCategory).toBe('window_expired')
     expect(next[0].status).toBe('failed')
   })
 
   it('detects a failureText-only change', () => {
     const prev = [{ ...msg(1, 'failed'), failureText: 'ישן' }]
-    const next = applyStatusesToMessages(prev, [{ id: 1, status: 'failed', failureText: 'חדש' }])
+    const next = applyStatusesToMessages(prev, [{ id: 1, status: 'failed', failureText: 'חדש', failureCategory: null }])
     expect(next).not.toBe(prev)
     expect(next[0].failureText).toBe('חדש')
+  })
+
+  it('detects a failureCategory-only change', () => {
+    const prev = [{ ...msg(1, 'failed'), failureText: 'x', failureCategory: 'generic' as const }]
+    const next = applyStatusesToMessages(prev, [{ id: 1, status: 'failed', failureText: 'x', failureCategory: 'recipient' }])
+    expect(next).not.toBe(prev)
+    expect(next[0].failureCategory).toBe('recipient')
   })
 
   it('empty updates is a no-op', () => {
@@ -53,7 +64,7 @@ describe('applyStatusesToMessages', () => {
 
   it('does not mutate the input array', () => {
     const prev = [msg(1, 'sent')]
-    applyStatusesToMessages(prev, [{ id: 1, status: 'read', failureText: null }])
+    applyStatusesToMessages(prev, [{ id: 1, status: 'read', failureText: null, failureCategory: null }])
     expect(prev[0].status).toBe('sent')
   })
 })

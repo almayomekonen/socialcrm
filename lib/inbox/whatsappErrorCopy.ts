@@ -54,30 +54,50 @@ export function failureTextForCategory(key: string | null | undefined): string |
   return CATEGORY_TEXT[key as WhatsappErrorCategory] ?? CATEGORY_TEXT.generic
 }
 
-// Title + attribution lines shared by the failed-message tooltip. The title is
-// the clean opener; CATEGORY_TEXT lines all begin with it, so the tooltip never
-// repeats it (see failureTooltipText).
-const FAILURE_TITLE = 'ההודעה לא נשלחה'
-const WHATSAPP_ATTRIBUTION = 'הסטטוס התקבל מ־WhatsApp.'
+export type FailureTooltipCopy = { title: string; explanation: string; action: string }
 
 /**
- * Compose the self-contained failure tooltip (native `title`) for the failed
- * status indicator, from the already-resolved `failureText` (a CATEGORY_TEXT
- * value, or null). Three lines at most:
+ * Product-guidance copy for the failed-message hover/focus tooltip, keyed on the
+ * already-persisted category (NOT parsed from any rendered string). Plain-language
+ * "what happened → why → what now" for a small-business owner: no error codes, no
+ * Meta jargon, and NO debugging attribution line — the copy names WhatsApp's role
+ * naturally ("WhatsApp מאפשרת…"), so a separate "הסטטוס התקבל מ־WhatsApp." line is
+ * not needed.
  *
- *   ההודעה לא נשלחה
- *   <specific reason, when we have one>
- *   הסטטוס התקבל מ־WhatsApp.
- *
- * The reason is the fragment AFTER the em-dash separator that the specific
- * CATEGORY_TEXT lines use ("ההודעה לא נשלחה — <reason>"). The generic line
- * ("ההודעה לא נשלחה. נסה שוב.") has no such separator, so it yields title +
- * attribution only — which also drops the non-actionable "נסה שוב" filler. This
- * guarantees the title is never duplicated. Contains ONLY controlled copy and
- * the mapped failureText — never a code, wamid, payload, or raw Meta string.
+ * window_expired points to a PHONE CALL, not templates: sending an approved
+ * template is a flag-gated, approval-dependent capability that is absent from the
+ * inbox surface, so promising it here would be untruthful. Unknown/absent category
+ * → generic, so a future key never renders an empty or fabricated cause.
  */
-export function failureTooltipText(failureText: string | null | undefined): string {
-  const reason = failureText?.includes(' — ') ? failureText.split(' — ').slice(1).join(' — ').trim() : ''
-  const lines = reason ? [FAILURE_TITLE, reason, WHATSAPP_ATTRIBUTION] : [FAILURE_TITLE, WHATSAPP_ATTRIBUTION]
-  return lines.join('\n')
+const FAILURE_TOOLTIP: Record<WhatsappErrorCategory, FailureTooltipCopy> = {
+  window_expired: {
+    title: 'לא ניתן לשלוח את ההודעה',
+    explanation: 'WhatsApp מאפשרת לשלוח הודעה רגילה רק עד 24 שעות מההודעה האחרונה של הלקוח.',
+    action: 'כדי ליצור איתו קשר עכשיו, אפשר להתקשר אליו.',
+  },
+  recipient: {
+    title: 'לא ניתן לשלוח את ההודעה',
+    explanation: 'נראה שהמספר הזה לא זמין ב־WhatsApp.',
+    action: 'בדוק שהמספר נכון או צור קשר עם הלקוח בדרך אחרת.',
+  },
+  account: {
+    title: 'לא ניתן לשלוח הודעות כרגע',
+    explanation: 'WhatsApp לא מאפשרת כרגע לשלוח הודעות מהחשבון המחובר.',
+    action: 'בדוק את חשבון WhatsApp המחובר ל־SocialCRM.',
+  },
+  generic: {
+    title: 'ההודעה לא נשלחה',
+    explanation: 'WhatsApp לא הצליחה לשלוח את ההודעה.',
+    action: 'אפשר לנסות שוב בעוד כמה רגעים.',
+  },
+}
+
+/** Normalize a persisted/foreign category value to a known one (unknown → generic). */
+export function normalizeFailureCategory(value: string | null | undefined): WhatsappErrorCategory {
+  return value != null && value in FAILURE_TOOLTIP ? (value as WhatsappErrorCategory) : 'generic'
+}
+
+/** Resolve the structured tooltip copy for a failure category. */
+export function failureTooltip(category: string | null | undefined): FailureTooltipCopy {
+  return FAILURE_TOOLTIP[normalizeFailureCategory(category)]
 }

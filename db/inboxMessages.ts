@@ -1,7 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { getUser } from '@/db/auth'
-import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
+import { failureTextForCategory, normalizeFailureCategory, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 export type InboxMessageDirection = 'inbound' | 'outbound'
 export type InboxMessageStatus = 'received' | 'sent' | 'delivered' | 'read' | 'failed'
@@ -155,6 +155,8 @@ export type LeadWhatsappMessage = {
   status: InboxMessageStatus
   /** Rep-facing Hebrew, resolved server-side. Non-null only when status is 'failed'. */
   failureText: string | null
+  /** Allowlisted failure category (the persisted errorReason key). Null unless failed. */
+  failureCategory: WhatsappErrorCategory | null
 }
 
 /** Compact status projection for the sync delta (status changes mutate old rows). */
@@ -162,6 +164,7 @@ export type LeadWhatsappMessageStatus = {
   id: number
   status: InboxMessageStatus
   failureText: string | null
+  failureCategory: WhatsappErrorCategory | null
 }
 
 /** Columns every thread read selects. One list so the three readers cannot drift. */
@@ -185,6 +188,11 @@ function failureTextForRow(status: InboxMessageStatus, errorReason: unknown): st
   return status === 'failed' ? failureTextForCategory((errorReason as string | null) ?? 'generic') : null
 }
 
+/** Allowlisted failure category for a row (errorReason IS the key). Null unless failed. */
+function failureCategoryForRow(status: InboxMessageStatus, errorReason: unknown): WhatsappErrorCategory | null {
+  return status === 'failed' ? normalizeFailureCategory(errorReason as string | null) : null
+}
+
 /**
  * The single row → LeadWhatsappMessage mapper.
  *
@@ -203,6 +211,7 @@ export function mapLeadWhatsappMessageRow(r: Record<string, unknown>): LeadWhats
     timestamp: toIso(r.channelTimestamp ?? r.createdAt),
     status,
     failureText: failureTextForRow(status, r.errorReason),
+    failureCategory: failureCategoryForRow(status, r.errorReason),
   }
 }
 
@@ -277,6 +286,11 @@ export async function getConversationOutboundStatuses(
 
   return rows.map((r) => {
     const status = r.status as InboxMessageStatus
-    return { id: Number(r.id), status, failureText: failureTextForRow(status, r.errorReason) }
+    return {
+      id: Number(r.id),
+      status,
+      failureText: failureTextForRow(status, r.errorReason),
+      failureCategory: failureCategoryForRow(status, r.errorReason),
+    }
   })
 }
