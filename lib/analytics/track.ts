@@ -50,6 +50,10 @@ export type AnalyticsEventName =
   | 'whatsapp_connect_failed'
   // --- First delivered value ---
   | 'activation_first_real_lead'
+  // --- Meta Ads attribution ---
+  // Marker row proving the Meta CAPI `Lead` conversion was accepted for this
+  // agency. Doubles as the idempotency key — see lib/facebook/metaLeadConversion.ts.
+  | 'meta_capi_lead_sent'
 
 type TrackInput = {
   agencyId: number
