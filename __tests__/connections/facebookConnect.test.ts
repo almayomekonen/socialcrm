@@ -57,7 +57,12 @@ function mockFetch({ subscribedOk }: { subscribedOk: boolean }) {
 }
 
 function req(body: unknown) {
-  return { json: async () => body } as unknown as import('next/server').NextRequest
+  return {
+    json: async () => body,
+    // Attribution signals read by the Meta Lead conversion (see
+    // metaLeadConversion.test.ts); absent here, which the route tolerates.
+    headers: { get: () => null },
+  } as unknown as import('next/server').NextRequest
 }
 
 const validBody = { pageId: 'PG1', pageName: 'My Page', pageAccessToken: 'ptok' }

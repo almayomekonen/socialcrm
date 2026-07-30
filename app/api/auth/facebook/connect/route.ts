@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { emitLifecycleEvent } from '@/lib/events/emit'
 import { track } from '@/lib/analytics/track'
 import { FB_REASON, FB_REASON_NOTICE_CODE } from '@/lib/connections/reasons'
+import { sendFacebookConnectedLeadOnce } from '@/lib/facebook/metaLeadConversion'
 
 export async function POST(req: NextRequest) {
   const user = await getUser()
@@ -108,6 +109,32 @@ export async function POST(req: NextRequest) {
       agencyId: user.agencyId!,
       email: user.email,
       channel: 'facebook',
+    }),
+  )
+
+  // Meta Ads "Lead" conversion — THE authoritative success point: the Page row is
+  // committed and the leadgen subscription was confirmed above, so the connection is
+  // genuinely persisted and operational. Fires once per agency; see
+  // lib/facebook/metaLeadConversion.ts for the two-layer idempotency.
+  //
+  // Signals are captured here synchronously (cookies/headers are unreadable inside
+  // `after()`), with optional chaining because they are match-quality extras that
+  // must never throw in the connection's happy path. The send itself runs in
+  // `after()`, once the response is already sent, so a Meta outage, timeout, or
+  // rejection cannot delay or fail the Facebook connection.
+  const metaLeadSignals = {
+    clientIp: req.headers?.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers?.get('x-real-ip'),
+    clientUserAgent: req.headers?.get('user-agent'),
+    fbp: cookieStore.get('_fbp')?.value ?? null,
+    fbc: cookieStore.get('_fbc')?.value ?? null,
+    eventSourceUrl: req.headers?.get('referer'),
+  }
+  after(() =>
+    sendFacebookConnectedLeadOnce({
+      agencyId,
+      userId: user.id,
+      email: user.email,
+      ...metaLeadSignals,
     }),
   )
 
