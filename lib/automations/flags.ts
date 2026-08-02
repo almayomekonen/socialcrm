@@ -42,3 +42,12 @@ export function getAutomationsSendMode(): AutomationsSendMode {
 export function getAutomationsFrom(): string {
   return process.env.AUTOMATIONS_FROM?.trim() ?? ''
 }
+
+/**
+ * Internal pilot dashboard (ADR-014 §Monitoring). Off by default; it is an
+ * operator surface, not a customer feature, and never appears in the
+ * customer-facing nav.
+ */
+export function isAutomationsPilotDashboardEnabled(): boolean {
+  return process.env.AUTOMATIONS_PILOT_DASHBOARD === '1'
+}
