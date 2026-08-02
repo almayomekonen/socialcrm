@@ -76,3 +76,17 @@ export function decideSend(f: SendFacts): LawDecision {
 export function sendOnceKey(automationId: number, leadId: number): string {
   return `auto:${automationId}:lead:${leadId}:ever`
 }
+
+/**
+ * Definition source-filter matching, applied at EMISSION (the event carries
+ * leadSource; jobs deliberately don't persist it — a non-matching definition
+ * simply never gets a job). Null filter matches everything; a set filter
+ * prefix-matches the lead's source (rows store provider-prefixed values like
+ * 'facebook:{id}'). Events without a leadSource (status_changed) match only
+ * filterless definitions.
+ */
+export function sourceFilterMatches(filter: string | null, leadSource: string | null | undefined): boolean {
+  if (filter == null || filter.trim() === '') return true
+  if (!leadSource) return false
+  return leadSource === filter || leadSource.startsWith(`${filter}:`)
+}

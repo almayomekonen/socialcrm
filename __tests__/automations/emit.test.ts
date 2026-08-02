@@ -107,7 +107,7 @@ describe('enqueue — contract-faithful, one job per active definition', () => {
   it('passes the exact ADR-010 fields and resolved notBefore', async () => {
     const deps = makeDeps()
     const res = await emitAutomationEventWith(deps, event())
-    expect(res).toEqual({ emitted: 1, skippedDefinitions: 0 })
+    expect(res).toEqual({ emitted: 1, skippedDefinitions: 0, filteredDefinitions: 0 })
     expect(deps.enqueue).toHaveBeenCalledWith({
       agencyId: 7,
       automationId: 3,
@@ -131,14 +131,29 @@ describe('enqueue — contract-faithful, one job per active definition', () => {
       listActive: vi.fn(async () => [definition(3), definition(4, { kind: 'nonsense' }), definition(5)]),
     })
     const res = await emitAutomationEventWith(deps, event())
-    expect(res).toEqual({ emitted: 2, skippedDefinitions: 1 })
+    expect(res).toEqual({ emitted: 2, skippedDefinitions: 1, filteredDefinitions: 0 })
     expect(deps.enqueue).toHaveBeenCalledTimes(2)
   })
 
   it('conflict-ignored enqueues (null id) do not count as emitted', async () => {
     const deps = makeDeps({ enqueue: vi.fn(async () => null) })
     const res = await emitAutomationEventWith(deps, event())
-    expect(res).toEqual({ emitted: 0, skippedDefinitions: 0 })
+    expect(res).toEqual({ emitted: 0, skippedDefinitions: 0, filteredDefinitions: 0 })
+  })
+
+  it('source filters apply at emission: non-matching definitions never get jobs', async () => {
+    const facebookOnly = { ...definition(3), sourceFilter: 'facebook' }
+    const anySource = definition(4)
+    const deps = makeDeps({ listActive: vi.fn(async () => [facebookOnly, anySource]) })
+
+    const fbRes = await emitAutomationEventWith(deps, event({ leadSource: 'facebook:123' }))
+    expect(fbRes).toEqual({ emitted: 2, skippedDefinitions: 0, filteredDefinitions: 0 })
+
+    const waRes = await emitAutomationEventWith(deps, event({ leadSource: 'whatsapp:999' }))
+    expect(waRes).toEqual({ emitted: 1, skippedDefinitions: 0, filteredDefinitions: 1 })
+
+    const noSource = await emitAutomationEventWith(deps, event({ leadSource: undefined }))
+    expect(noSource).toEqual({ emitted: 1, skippedDefinitions: 0, filteredDefinitions: 1 })
   })
 })
 

@@ -7,6 +7,7 @@ import {
 } from '@/db/automations/definitions'
 import { enqueueAutomationJob } from '@/db/automations/jobs'
 import { isAutomationsAgencyAllowlisted, isAutomationsEnabled } from './flags'
+import { sourceFilterMatches } from './laws'
 import { isValidTiming, resolveSendAt } from './timing'
 import type { AutomationTriggerEvent } from './types'
 
@@ -24,7 +25,7 @@ import type { AutomationTriggerEvent } from './types'
  */
 
 export type EmitResult =
-  | { emitted: number; skippedDefinitions: number }
+  | { emitted: number; skippedDefinitions: number; filteredDefinitions: number }
   | { blocked: 'origin_import' | 'kill_switch' | 'agency_not_allowlisted' | 'no_active_definitions' | 'error' }
 
 /** ADR-010 identity rule — deterministic from business facts, never random. */
@@ -70,7 +71,14 @@ export async function emitAutomationEventWith(deps: EmitDeps, event: AutomationT
     const eventKey = eventKeyFor(event)
     let emitted = 0
     let skippedDefinitions = 0
+    let filteredDefinitions = 0
     for (const def of definitions) {
+      // Definition source filter applies at emission — a non-matching
+      // definition never gets a job (sourceFilterMatches, laws.ts).
+      if (!sourceFilterMatches(def.sourceFilter, event.leadSource)) {
+        filteredDefinitions++
+        continue
+      }
       const timing = def.content?.timing
       if (!timing || !isValidTiming(timing)) {
         // Unknown/invalid stored concept ⇒ held inert, never guessed (ADR-008).
@@ -89,7 +97,7 @@ export async function emitAutomationEventWith(deps: EmitDeps, event: AutomationT
       })
       if (id != null) emitted++
     }
-    return { emitted, skippedDefinitions }
+    return { emitted, skippedDefinitions, filteredDefinitions }
   } catch (err) {
     console.error('[automations] emit failed (swallowed)', {
       trigger: event.trigger,
@@ -116,12 +124,32 @@ async function shadowMetric(event: AutomationTriggerEvent): Promise<void> {
   await track({ agencyId: event.agencyId, event: 'automation_event_shadow', props: payload })
 }
 
+/**
+ * Post-commit immediate-case kick (ADR-011 §after()): best-effort ONLY — the
+ * cron drain is the correctness guarantee. Runs after the response, never
+ * affects the emitting request, swallowed outside request scope (tests,
+ * scripts). Lazy imports keep the emission path light.
+ */
+function kickWorkerSoon(): void {
+  void (async () => {
+    try {
+      const { after } = await import('next/server')
+      after(async () => {
+        const { runAutomationWorker } = await import('./worker')
+        await runAutomationWorker({ limit: 5, workerId: 'after-kick' })
+      })
+    } catch {
+      // No request scope — the cron drains within its cadence.
+    }
+  })()
+}
+
 /** Production wiring. `trx` joins the caller's transaction when provided. */
 export async function emitAutomationEvent(
   event: AutomationTriggerEvent,
   opts?: { trx?: Knex.Transaction },
 ): Promise<EmitResult> {
-  return emitAutomationEventWith(
+  const result = await emitAutomationEventWith(
     {
       enabled: isAutomationsEnabled,
       allowlisted: isAutomationsAgencyAllowlisted,
@@ -131,4 +159,6 @@ export async function emitAutomationEvent(
     },
     event,
   )
+  if ('emitted' in result && result.emitted > 0) kickWorkerSoon()
+  return result
 }
