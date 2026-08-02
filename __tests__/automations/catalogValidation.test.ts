@@ -233,9 +233,18 @@ describe('the derived-capability mechanisms (§1)', () => {
     expect(offered.map((a) => a.key)).toEqual(['email.send'])
   })
 
-  it('deprecated events are hidden from new automations but still resolvable', () => {
-    // B0 catalog is empty; the filter contract is what matters here.
-    expect(listSelectableEvents()).toEqual([])
-    expect(listActionsForEvent(goodEvent())).toEqual([])
+  it('deprecated events are never offered for new automations (§4 Q7)', () => {
+    // Contract-level, independent of how many entries the catalog holds.
+    expect(listSelectableEvents().every((e) => e.lifecycle !== 'deprecated')).toBe(true)
+    expect(listSelectableEvents().length).toBeLessThanOrEqual(catalog.events.length)
+  })
+
+  it('an event exposing no email field is never offered the email action', () => {
+    const noEmail = goodEvent({
+      fields: [{ key: 'note', type: 'text', label: 'הערה', freshness: 'snapshot', lifecycle: 'stable' }],
+    })
+    expect(listActionsForEvent(noEmail)).toEqual([])
+    // ...while one that does expose it, is.
+    expect(listActionsForEvent(goodEvent()).map((a) => a.key)).toContain('email.send')
   })
 })

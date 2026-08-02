@@ -1,10 +1,13 @@
 import type { ActionDefinition, Catalog, EventDefinition, IntegrationDefinition, LawDefinition, SubjectDefinition } from './types'
 import { LAW_KEYS } from './vocabularies'
+import { SUBJECT_ENTRIES } from './entries/subjects'
+import { EVENT_ENTRIES } from './entries/events'
+import { ACTION_ENTRIES } from './entries/actions'
 
-const SUBJECTS: readonly SubjectDefinition[] = []
+const SUBJECTS: readonly SubjectDefinition[] = SUBJECT_ENTRIES
 const INTEGRATIONS: readonly IntegrationDefinition[] = []
-const EVENTS: readonly EventDefinition[] = []
-const ACTIONS: readonly ActionDefinition[] = []
+const EVENTS: readonly EventDefinition[] = EVENT_ENTRIES
+const ACTIONS: readonly ActionDefinition[] = ACTION_ENTRIES
 
 const LAWS: readonly LawDefinition[] = [
   { key: 'send_once', title: 'פעם אחת לליד', description: 'כל אוטומציה פועלת על כל ליד פעם אחת בלבד.' },
