@@ -407,6 +407,21 @@ export async function updateLead(data) {
 
   revalidatePath('/leads')
   scheduleLeadIntelWarm(id, { reason: 'lead.update' })
+
+  // Customer Automation Engine trigger (ADR-010): status write #1 of 2 (the
+  // other is logLeadOutcome). occurredAt = the row's own statusChangedAt, so
+  // the eventKey anchors on the business moment. Never throws.
+  if ('status' in safeData && typeof safeData.status === 'string' && safeData.status) {
+    await emitAutomationEvent({
+      trigger: 'status_changed',
+      origin: 'manual',
+      agencyId: user.agencyId,
+      leadId: Number(id),
+      occurredAt: safeData.statusChangedAt as Date,
+      newStatus: safeData.status,
+    })
+  }
+
   return res[0]
 }
 
