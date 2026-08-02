@@ -62,3 +62,20 @@ export function hasSendClaimQuery(automationId: number, leadId: number) {
 export async function hasSendClaim(automationId: number, leadId: number): Promise<boolean> {
   return Boolean(await hasSendClaimQuery(automationId, leadId))
 }
+
+export type SendClaimState = 'none' | 'claimed' | 'confirmed'
+
+export function getSendClaimStateQuery(automationId: number, leadId: number) {
+  return db('automation_send_claims').select('status').where({ automationId, leadId, semantics: 'ever' }).first()
+}
+
+/**
+ * Crash-recovery distinction (ADR-011): 'confirmed' = the effect happened
+ * (already_sent law applies); 'claimed' = an unconfirmed claim from a crashed
+ * attempt — the worker's recovery rules apply, never a plain re-send.
+ */
+export async function getSendClaimState(automationId: number, leadId: number): Promise<SendClaimState> {
+  const row = (await getSendClaimStateQuery(automationId, leadId)) as { status: string } | undefined
+  if (!row) return 'none'
+  return row.status === 'confirmed' ? 'confirmed' : 'claimed'
+}

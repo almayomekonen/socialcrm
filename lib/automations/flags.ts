@@ -25,3 +25,20 @@ export function isAutomationsAgencyAllowlisted(agencyId: number): boolean {
   const list = parseAllowlist(process.env.AUTOMATIONS_AGENCY_ALLOWLIST)
   return list === 'all' ? true : list.has(agencyId)
 }
+
+export type AutomationsSendMode = 'log' | 'live'
+
+/**
+ * Effect gate (ADR-009/ADR-011): anything but the explicit literal 'live'
+ * means log mode — the transport is unreachable. Default (unset) is 'log';
+ * observation is the only executable path until Phase 7 flips this
+ * deliberately. Re-read per worker pass — no restart needed.
+ */
+export function getAutomationsSendMode(): AutomationsSendMode {
+  return process.env.AUTOMATIONS_SEND_MODE === 'live' ? 'live' : 'log'
+}
+
+/** Customer sending identity (ADR-002). Empty until infra resolves §12.2. */
+export function getAutomationsFrom(): string {
+  return process.env.AUTOMATIONS_FROM?.trim() ?? ''
+}

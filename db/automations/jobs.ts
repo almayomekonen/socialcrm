@@ -2,17 +2,6 @@ import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import type { TriggerOrigin, TriggerType } from '@/lib/automations/types'
 
-/**
- * automation_jobs — the engine's execution queue (autoResponseJobs clone).
- * Queue verbs: enqueue (trx, conflict-ignore on the dedup key) → claim
- * (FOR UPDATE SKIP LOCKED) → complete | skip | fail (backoff → dead), plus
- * lease reclaim and terminal-row pruning. Jobs are plumbing; the permanent
- * record is automation_activity.
- *
- * Query BUILDERS are exported unawaited so shapes are pinned by `.toSQL()`
- * tests without a live DB (db/today/facts.ts pattern).
- */
-
 export interface AutomationJob {
   id: number
   agencyId: number
@@ -119,9 +108,7 @@ export async function reclaimStaleAutomationJobs(leaseMs: number): Promise<numbe
 }
 
 export async function completeAutomationJob(id: number): Promise<void> {
-  await db('automation_jobs')
-    .where({ id })
-    .update({ status: 'done', lockedAt: null, lockedBy: null, updatedAt: db.fn.now() })
+  await db('automation_jobs').where({ id }).update({ status: 'done', lockedAt: null, lockedBy: null, updatedAt: db.fn.now() })
 }
 
 export async function skipAutomationJob(id: number, skipReason: string): Promise<void> {
@@ -148,6 +135,17 @@ export function failAutomationJobQuery(id: number, error: string) {
 
 export async function failAutomationJob(id: number, error: string): Promise<void> {
   await failAutomationJobQuery(id, error)
+}
+
+/**
+ * Direct dead transition, independent of the attempt counter — the
+ * ambiguous-after-crash class (ADR-011): a live-mode send may or may not have
+ * left; the job dies and is never resent.
+ */
+export async function deadAutomationJob(id: number, error: string): Promise<void> {
+  await db('automation_jobs')
+    .where({ id })
+    .update({ status: 'dead', lastError: error, lockedAt: null, lockedBy: null, updatedAt: db.fn.now() })
 }
 
 export function pruneTerminalJobsQuery(cutoff: Date) {

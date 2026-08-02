@@ -105,6 +105,19 @@ export async function countAutomatedTodayForLead(agencyId: number, leadId: numbe
   return Number(rows[0]?.c ?? 0)
 }
 
+export function hasConsumingActivityQuery(automationId: number, leadId: number) {
+  return db('automation_activity')
+    .select('id')
+    .where({ automationId, leadId })
+    .whereIn('kind', CONSUMING_KINDS as unknown as string[])
+    .first()
+}
+
+/** Crash-recovery idempotency check (ADR-011): did the effect row already land? */
+export async function hasConsumingActivity(automationId: number, leadId: number): Promise<boolean> {
+  return Boolean(await hasConsumingActivityQuery(automationId, leadId))
+}
+
 // One-way ladder rank; transitions never move backwards.
 const DELIVERY_RANK: Record<DeliveryState, number> = { sent: 1, delivered: 2, bounced: 3, failed: 3 }
 

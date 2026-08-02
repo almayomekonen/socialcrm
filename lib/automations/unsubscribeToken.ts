@@ -26,3 +26,12 @@ export function verifyLeadUnsubscribe(agencyId: number, leadId: number, token: s
   if (expected.length !== provided.length) return false
   return crypto.timingSafeEqual(expected, provided)
 }
+
+/**
+ * The link embedded in every automated email (mandatory footer, ADR-003).
+ * The route itself ships in Phase 5 — before any live send is reachable.
+ */
+export function leadUnsubscribeUrl(baseUrl: string, agencyId: number, leadId: number): string {
+  const token = signLeadUnsubscribe(agencyId, leadId)
+  return `${baseUrl}/api/automations/unsubscribe?a=${agencyId}&l=${leadId}&t=${encodeURIComponent(token)}`
+}

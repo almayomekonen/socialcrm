@@ -89,6 +89,22 @@ export async function hasActiveDefinitionsForTrigger(agencyId: number, trigger: 
   return Boolean(row)
 }
 
+export type WorkerDefinition = AutomationDefinition & { status: DefinitionStatus }
+
+/**
+ * Worker-side load by id, WITH status (the worker re-checks activeness at
+ * claim time — a definition paused between enqueue and claim skips the job,
+ * ADR-011's definition-inert class). The worker defensively re-verifies
+ * agencyId against the job row.
+ */
+export async function getDefinitionForWorker(id: number): Promise<WorkerDefinition | null> {
+  const row = await db('automation_definitions')
+    .select([...COLUMNS])
+    .where({ id })
+    .first()
+  return (row as WorkerDefinition | undefined) ?? null
+}
+
 export async function createDefinition(input: {
   agencyId: number
   name: string

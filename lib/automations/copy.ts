@@ -24,3 +24,7 @@ export const FAILURE_COPY = {
   transient: 'לא נשלח — תקלה זמנית, ננסה שוב', // (spec)
   terminal: 'לא נשלח — השליחה נכשלה',
 } as const
+
+// Delay-accuracy honesty (ADR-011: cron cadence bounds accuracy; never
+// presented as exact). Phase 6 shows this next to the timing slot.
+export const TIMING_ACCURACY_COPY = 'שליחה מתוזמנת מתבצעת תוך מספר דקות מהמועד שנקבע'
