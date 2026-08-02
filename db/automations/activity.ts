@@ -105,6 +105,27 @@ export async function countAutomatedTodayForLead(agencyId: number, leadId: numbe
   return Number(rows[0]?.c ?? 0)
 }
 
+export function getSendByProviderMessageIdQuery(providerMessageId: string) {
+  return db('automation_activity')
+    .select('id', 'agencyId', 'automationId', 'leadId')
+    .where({ providerMessageId, kind: 'sent' })
+    .first()
+}
+
+export type OwnedSend = { id: number; agencyId: number; automationId: number; leadId: number }
+
+/**
+ * Delivery-event correlation (ADR-012): resolve a provider message id to the
+ * engine send row that owns it. `null` means the event is NOT ours — the
+ * provider account is shared with platform email, so a miss is the runtime
+ * domain boundary, not an error. Correlation is by the provider's immutable
+ * id only; never by address, subject, or timestamp.
+ */
+export async function getSendByProviderMessageId(providerMessageId: string): Promise<OwnedSend | null> {
+  const row = (await getSendByProviderMessageIdQuery(providerMessageId)) as OwnedSend | undefined
+  return row ?? null
+}
+
 export function hasConsumingActivityQuery(automationId: number, leadId: number) {
   return db('automation_activity')
     .select('id')
