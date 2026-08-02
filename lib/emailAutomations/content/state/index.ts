@@ -53,7 +53,7 @@ export const STATE_CONTENT: ContentItem[] = [
       },
       { type: 'paragraph', text: 'דקה אחת של חיבור, ומעכשיו כל השיחות מרוכזות ומסודרות.' },
     ],
-    cta: { label: 'חיבור וואטסאפ', route: '/settings/facebook' },
+    cta: { label: 'חיבור וואטסאפ', route: '/settings/facebook?section=whatsapp' },
     audience: ownersMissingWhatsapp,
   },
   {
