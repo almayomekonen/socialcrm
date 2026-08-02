@@ -1,0 +1,136 @@
+import { db } from '@/config/db'
+import type { SkipReason, TriggerOrigin, TriggerType } from '@/lib/automations/types'
+
+/**
+ * automation_activity — the append-only user-facing log (migration plan
+ * §1.1/§3.2). Content is immutable; the ONE mutable field is deliveryState,
+ * updated monotonically (sent → delivered → bounced/failed, never backwards —
+ * the inbox_messages ladder precedent). Rows snapshot the lead's display name
+ * so history survives lead deletion (no FKs to clients by design).
+ *
+ * Cap counts take a `since` Date computed by the CALLER in BUSINESS_TZ
+ * (lib/today/time.startOfBusinessDayMs) — never date_trunc in SQL, which
+ * would bucket in UTC. Counts include would_send rows: observation consumes
+ * eligibility (ADR-009).
+ *
+ * API: appendActivity, listForAutomation, listForLead,
+ * countAutomatedToday{ForAgency,ForLead}, updateDeliveryStateByProviderMessageId.
+ */
+
+export type ActivityKind = 'sent' | 'would_send' | 'skipped' | 'failed'
+export type DeliveryState = 'sent' | 'delivered' | 'bounced' | 'failed'
+
+export async function appendActivity(input: {
+  agencyId: number
+  automationId: number
+  leadId: number
+  leadName: string | null
+  kind: ActivityKind
+  mode: 'live' | 'log'
+  trigger: TriggerType
+  origin: TriggerOrigin
+  skipReason?: SkipReason | null
+  subject?: string | null
+  deliveryState?: DeliveryState | null
+  providerMessageId?: string | null
+  contentSchemaVersion?: number | null
+}): Promise<void> {
+  await db('automation_activity').insert({
+    agencyId: input.agencyId,
+    automationId: input.automationId,
+    leadId: input.leadId,
+    leadName: input.leadName,
+    kind: input.kind,
+    mode: input.mode,
+    trigger: input.trigger,
+    origin: input.origin,
+    skipReason: input.skipReason ?? null,
+    subject: input.subject ?? null,
+    deliveryState: input.deliveryState ?? null,
+    providerMessageId: input.providerMessageId ?? null,
+    contentSchemaVersion: input.contentSchemaVersion ?? null,
+  })
+}
+
+export function listActivityForAutomationQuery(agencyId: number, automationId: number, limit: number) {
+  return db('automation_activity')
+    .select('*')
+    .where({ agencyId, automationId })
+    .orderBy('occurredAt', 'desc')
+    .limit(limit)
+}
+
+export async function listActivityForAutomation(agencyId: number, automationId: number, limit = 100) {
+  return listActivityForAutomationQuery(agencyId, automationId, limit)
+}
+
+export function listActivityForLeadQuery(agencyId: number, leadId: number, limit: number) {
+  return db('automation_activity')
+    .select('*')
+    .where({ agencyId, leadId })
+    .orderBy('occurredAt', 'desc')
+    .limit(limit)
+}
+
+export async function listActivityForLead(agencyId: number, leadId: number, limit = 50) {
+  return listActivityForLeadQuery(agencyId, leadId, limit)
+}
+
+// Eligibility-consuming kinds (ADR-009): a would_send counts like a send.
+const CONSUMING_KINDS = ['sent', 'would_send'] as const
+
+export function countAutomatedTodayForAgencyQuery(agencyId: number, since: Date) {
+  return db('automation_activity')
+    .count<{ c: string }[]>({ c: '*' })
+    .where({ agencyId })
+    .whereIn('kind', CONSUMING_KINDS as unknown as string[])
+    .where('occurredAt', '>=', since)
+}
+
+export async function countAutomatedTodayForAgency(agencyId: number, since: Date): Promise<number> {
+  const rows = await countAutomatedTodayForAgencyQuery(agencyId, since)
+  return Number(rows[0]?.c ?? 0)
+}
+
+export function countAutomatedTodayForLeadQuery(agencyId: number, leadId: number, since: Date) {
+  return db('automation_activity')
+    .count<{ c: string }[]>({ c: '*' })
+    .where({ agencyId, leadId })
+    .whereIn('kind', CONSUMING_KINDS as unknown as string[])
+    .where('occurredAt', '>=', since)
+}
+
+export async function countAutomatedTodayForLead(agencyId: number, leadId: number, since: Date): Promise<number> {
+  const rows = await countAutomatedTodayForLeadQuery(agencyId, leadId, since)
+  return Number(rows[0]?.c ?? 0)
+}
+
+// One-way ladder rank; transitions never move backwards.
+const DELIVERY_RANK: Record<DeliveryState, number> = { sent: 1, delivered: 2, bounced: 3, failed: 3 }
+
+export function updateDeliveryStateQuery(providerMessageId: string, next: DeliveryState) {
+  // Monotonic guard in SQL (ingestWhatsappStatuses precedent): update only
+  // rows whose current state ranks strictly lower than the incoming one.
+  return db.raw(
+    `
+    UPDATE automation_activity
+       SET "deliveryState" = :next
+     WHERE "providerMessageId" = :providerMessageId
+       AND kind = 'sent'
+       AND COALESCE(
+             CASE "deliveryState"
+               WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2
+               WHEN 'bounced' THEN 3 WHEN 'failed' THEN 3
+             END, 0) < :rank
+  `,
+    { providerMessageId, next, rank: DELIVERY_RANK[next] },
+  )
+}
+
+export async function updateDeliveryStateByProviderMessageId(
+  providerMessageId: string,
+  next: DeliveryState,
+): Promise<number> {
+  const res = await updateDeliveryStateQuery(providerMessageId, next)
+  return res.rowCount ?? 0
+}
