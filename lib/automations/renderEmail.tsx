@@ -1,6 +1,9 @@
 import * as React from 'react'
 import { Body, Container, Head, Hr, Html, Link, Text } from '@react-email/components'
 import { render } from '@react-email/render'
+import { substituteVariables, type EmailVariableValues } from './variables'
+
+export { substituteVariables, type EmailVariableValues }
 
 /**
  * Customer-automation email rendering: closed-set variable substitution with
@@ -9,37 +12,6 @@ import { render } from '@react-email/render'
  * unsubscribe link (ADR-003). No layout decisions belong to the user; no
  * platform template is imported (spec §0).
  */
-
-export type EmailVariableValues = {
-  leadFirstName: string | null
-  businessName: string | null
-  repName: string | null
-}
-
-const TOKEN_TO_FIELD: Array<{ token: string; field: keyof EmailVariableValues }> = [
-  { token: 'שם הליד', field: 'leadFirstName' },
-  { token: 'שם העסק', field: 'businessName' },
-  { token: 'שם הנציג', field: 'repName' },
-]
-
-export function substituteVariables(content: string, vars: EmailVariableValues): string {
-  let out = content
-  const business = vars.businessName?.trim() || 'העסק'
-  const resolved: Record<keyof EmailVariableValues, string> = {
-    leadFirstName: vars.leadFirstName?.trim() || '',
-    businessName: business,
-    repName: vars.repName?.trim() || business,
-  }
-  for (const { token, field } of TOKEN_TO_FIELD) {
-    out = out.split(`{{${token}}}`).join(resolved[field])
-  }
-  // Graceful degradation when a value was empty: "שלום ," → "שלום," and no
-  // doubled spaces mid-line.
-  return out
-    .replace(/ +,/g, ',')
-    .replace(/[^\S\n]{2,}/g, ' ')
-    .replace(/[^\S\n]+$/gm, '')
-}
 
 export type RenderedEmail = { subject: string; html: string; text: string }
 

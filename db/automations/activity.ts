@@ -105,6 +105,40 @@ export async function countAutomatedTodayForLead(agencyId: number, leadId: numbe
   return Number(rows[0]?.c ?? 0)
 }
 
+export type ActivityCounts = { sent: number; wouldSend: number; skipped: number; failed: number }
+
+export function countRecentActivityByAutomationQuery(agencyId: number, since: Date) {
+  return db('automation_activity')
+    .select('automationId', 'kind')
+    .count<{ automationId: number; kind: ActivityKind; c: string }[]>({ c: '*' })
+    .where({ agencyId })
+    .where('occurredAt', '>=', since)
+    .groupBy('automationId', 'kind')
+}
+
+/**
+ * Per-automation activity counts for the card lines (spec §8: server-backed,
+ * or nothing — never a meaningless "0 sent" row). One grouped query for the
+ * whole page.
+ */
+export async function countRecentActivityByAutomation(
+  agencyId: number,
+  since: Date,
+): Promise<Record<number, ActivityCounts>> {
+  const rows = await countRecentActivityByAutomationQuery(agencyId, since)
+  const out: Record<number, ActivityCounts> = {}
+  for (const row of rows) {
+    const id = Number(row.automationId)
+    out[id] ??= { sent: 0, wouldSend: 0, skipped: 0, failed: 0 }
+    const n = Number(row.c ?? 0)
+    if (row.kind === 'sent') out[id].sent += n
+    else if (row.kind === 'would_send') out[id].wouldSend += n
+    else if (row.kind === 'skipped') out[id].skipped += n
+    else if (row.kind === 'failed') out[id].failed += n
+  }
+  return out
+}
+
 export function getSendByProviderMessageIdQuery(providerMessageId: string) {
   return db('automation_activity')
     .select('id', 'agencyId', 'automationId', 'leadId')

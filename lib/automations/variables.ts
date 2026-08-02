@@ -29,3 +29,40 @@ export function unknownTokens(content: string): string[] {
   const known = new Set<string>(AUTOMATION_EMAIL_VARIABLES.map((v) => v.token))
   return listTokens(content).filter((t) => !known.has(t))
 }
+
+export type EmailVariableValues = {
+  leadFirstName: string | null
+  businessName: string | null
+  repName: string | null
+}
+
+const TOKEN_TO_FIELD: Array<{ token: string; field: keyof EmailVariableValues }> = [
+  { token: 'שם הליד', field: 'leadFirstName' },
+  { token: 'שם העסק', field: 'businessName' },
+  { token: 'שם הנציג', field: 'repName' },
+]
+
+/**
+ * Substitution with graceful fallbacks (spec §7): an empty first name turns
+ * "שלום דנה," into "שלום," rather than leaving a hole or a raw token.
+ *
+ * Lives here — pure and dependency-free — so the server renderer and the
+ * client-side preview share ONE implementation. A preview that substituted
+ * differently from the real send would be a lie.
+ */
+export function substituteVariables(content: string, vars: EmailVariableValues): string {
+  let out = content
+  const business = vars.businessName?.trim() || 'העסק'
+  const resolved: Record<keyof EmailVariableValues, string> = {
+    leadFirstName: vars.leadFirstName?.trim() || '',
+    businessName: business,
+    repName: vars.repName?.trim() || business,
+  }
+  for (const { token, field } of TOKEN_TO_FIELD) {
+    out = out.split(`{{${token}}}`).join(resolved[field])
+  }
+  return out
+    .replace(/ +,/g, ',')
+    .replace(/[^\S\n]{2,}/g, ' ')
+    .replace(/[^\S\n]+$/gm, '')
+}
