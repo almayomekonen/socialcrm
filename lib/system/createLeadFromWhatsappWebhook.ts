@@ -3,6 +3,7 @@ import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
 import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
+import { emitAutomationEvent } from '@/lib/automations/emit'
 
 type WhatsappWebhookLeadInput = {
   firstName: string
@@ -80,6 +81,18 @@ export async function createLeadFromWhatsappWebhook({
   await trackFirstRealLeadOnce(agencyId, 'whatsapp')
 
   await createSystemTask({ clientId: lead.id, title: 'ליד חדש מוואטסאפ', userId })
+
+  // Customer Automation Engine trigger (ADR-010): genuinely NEW leads only —
+  // every dedup path above returns before this line. emitAutomationEvent
+  // never throws; emission can never break lead ingestion.
+  await emitAutomationEvent({
+    trigger: 'lead_created',
+    origin: 'webhook_whatsapp',
+    agencyId,
+    leadId: lead.id,
+    occurredAt: new Date(),
+    leadSource: lead.leadSource ?? null,
+  })
 
   console.log(`[WhatsappWebhook][success][msgId=${messageId}]`)
 
