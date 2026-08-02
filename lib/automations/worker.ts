@@ -12,10 +12,11 @@ import {
 import { claimSendOnce, confirmSendClaim, getSendClaimState, releaseSendClaim } from '@/db/automations/claims'
 import { appendActivity, countAutomatedTodayForAgency, countAutomatedTodayForLead, hasConsumingActivity } from '@/db/automations/activity'
 import { CONTENT_SCHEMA_VERSION, getDefinitionForWorker, type WorkerDefinition } from '@/db/automations/definitions'
-import { getAgencyName, getLeadFacts, getRepName, type LeadFacts } from '@/db/automations/leadFacts'
+import { getAgencyName, getAgencyReplyTo, getLeadFacts, getRepName, type LeadFacts } from '@/db/automations/leadFacts'
 import { isLeadSuppressed } from '@/db/automations/suppressions'
 import { isEmailBlocked } from '@/db/automations/emailBlocks'
 import { decideSend, type SendFacts } from './laws'
+import { resolveSenderIdentity } from './identity'
 import { isValidTiming } from './timing'
 import { FAILURE_COPY } from './copy'
 import { getAutomationsFrom, getAutomationsSendMode, type AutomationsSendMode } from './flags'
@@ -49,8 +50,16 @@ export type WorkerDeps = {
   countAgencyToday: (agencyId: number, since: Date) => Promise<number>
   appendActivity: typeof appendActivity
   agencyName: (agencyId: number) => Promise<string | null>
+  replyTo: (agencyId: number) => Promise<string | null>
   repName: (userId: number | null) => Promise<string | null>
-  send: (args: { from: string; to: string; subject: string; html: string; text: string }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  send: (args: {
+    from: string
+    replyTo: string
+    to: string
+    subject: string
+    html: string
+    text: string
+  }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
   completeJob: (id: number) => Promise<void>
   skipJob: (id: number, reason: string) => Promise<void>
   failJob: (id: number, error: string) => Promise<void>
@@ -76,6 +85,7 @@ export function defaultWorkerDeps(): WorkerDeps {
     countAgencyToday: countAutomatedTodayForAgency,
     appendActivity,
     agencyName: getAgencyName,
+    replyTo: getAgencyReplyTo,
     repName: getRepName,
     // Transport is an effect-time concern (ADR-011): loaded lazily so the
     // log-mode engine never touches the Resend client (whose construction
@@ -179,6 +189,30 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     return 'skipped'
   }
 
+  // Identity is resolved BEFORE the claim (ADR-013): an unresolvable identity
+  // is a configuration fault, and burning the lead's once-ever allowance on it
+  // would mean the lead never gets the email even after the config is fixed.
+  const businessName = await deps.agencyName(job.agencyId)
+  const sender = resolveSenderIdentity(
+    { agencyName: businessName, replyTo: await deps.replyTo(job.agencyId) },
+    getAutomationsFrom(),
+  )
+  if (sender.problem) {
+    // Log mode still renders a truthful preview; only a real send is blocked.
+    if (mode === 'live') {
+      await deps.appendActivity({
+        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+        leadName: lead.exists ? lead.displayName : null,
+        kind: 'failed', mode, trigger: job.trigger, origin: job.origin,
+      })
+      // Definitive, never retried — a retry storm cannot fix a misconfiguration.
+      await deps.deadJob(job.id, `identity_unavailable:${sender.problem}`)
+      logT('dead', job, { reason: sender.problem, class: 'identity', userVisible: true })
+      return 'dead'
+    }
+    logT('identity_incomplete', job, { reason: sender.problem, class: 'identity', blocking: false })
+  }
+
   if (!(await deps.claimOnce({ agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId, mode }))) {
     await deps.appendActivity({
       agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
@@ -193,20 +227,28 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
   // Claim held from here: any failure below releases it (retry re-claims).
   try {
     const leadExists = lead.exists ? lead : null
-    const businessName = await deps.agencyName(job.agencyId)
     const rendered = await renderAutomationEmail({
       subject: def.content.subject,
       body: def.content.body,
       vars: {
+        // The identity's display name and the rendered business name are the
+        // same resolved value — the email cannot say one thing and sign another.
         leadFirstName: leadExists?.firstName ?? null,
-        businessName,
+        businessName: sender.identity?.displayName ?? businessName,
         repName: await deps.repName(leadExists?.handlerId ?? null),
       },
       unsubscribeUrl: leadUnsubscribeUrl(baseUrl, job.agencyId, job.leadId),
     })
 
-    if (mode === 'live') {
-      const res = await deps.send({ from: getAutomationsFrom(), to: email as string, subject: rendered.subject, html: rendered.html, text: rendered.text })
+    if (mode === 'live' && sender.identity) {
+      const res = await deps.send({
+        from: sender.identity.from,
+        replyTo: sender.identity.replyTo,
+        to: email as string,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+      })
       if ('error' in res) throw new Error(`transport: ${res.error}`)
       await deps.appendActivity({
         agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,

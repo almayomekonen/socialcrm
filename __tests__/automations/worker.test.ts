@@ -48,6 +48,7 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     countAgencyToday: vi.fn(async () => 0),
     appendActivity: vi.fn(async () => {}),
     agencyName: vi.fn(async () => 'העסק שלי'),
+    replyTo: vi.fn(async () => 'owner@business.example'),
     repName: vi.fn(async () => null),
     send: vi.fn(async () => ({ ok: true as const, id: 'msg_1' })),
     completeJob: vi.fn(async () => {}),
@@ -174,13 +175,51 @@ describe('crash recovery (unconfirmed claim from a prior attempt)', () => {
 })
 
 describe('live branch is code-complete (and gated off by default)', () => {
-  it('with mode live injected: transport called, sent row carries providerMessageId', async () => {
-    process.env.AUTOMATIONS_FROM = 'העסק <auto@send.example.com>'
+  it('with mode live injected: transport called with the resolved identity', async () => {
+    process.env.AUTOMATIONS_FROM = 'auto@send.example.com'
     const d = deps({ sendMode: () => 'live' })
     const summary = await runAutomationWorker({ deps: d })
     delete process.env.AUTOMATIONS_FROM
     expect(summary.done).toBe(1)
-    expect(calls(d.send)[0][0]).toMatchObject({ to: 'dana@example.com', subject: 'שלום דנה' })
+    expect(calls(d.send)[0][0]).toMatchObject({
+      to: 'dana@example.com',
+      subject: 'שלום דנה',
+      from: '"העסק שלי" <auto@send.example.com>', // display name = business name
+      replyTo: 'owner@business.example', // replies reach the owner's real inbox
+    })
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'sent', deliveryState: 'sent', providerMessageId: 'msg_1' })
+  })
+})
+
+describe('identity gate (ADR-013)', () => {
+  it('live mode with no sending domain dies WITHOUT consuming the once-ever claim', async () => {
+    delete process.env.AUTOMATIONS_FROM
+    const d = deps({ sendMode: () => 'live' })
+    const summary = await runAutomationWorker({ deps: d })
+    expect(summary.dead).toBe(1)
+    // The claim must survive: once configured, the lead still gets this email.
+    expect(d.claimOnce).not.toHaveBeenCalled()
+    expect(d.send).not.toHaveBeenCalled()
+    expect(d.failJob).not.toHaveBeenCalled() // definitive, never a retry storm
+    expect(d.deadJob).toHaveBeenCalledWith(1, 'identity_unavailable:no_sending_domain')
+    expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'failed' })
+  })
+
+  it('live mode with no resolvable reply-to is treated the same way', async () => {
+    process.env.AUTOMATIONS_FROM = 'auto@send.example.com'
+    const d = deps({ sendMode: () => 'live', replyTo: vi.fn(async () => null) })
+    const summary = await runAutomationWorker({ deps: d })
+    delete process.env.AUTOMATIONS_FROM
+    expect(summary.dead).toBe(1)
+    expect(d.deadJob).toHaveBeenCalledWith(1, 'identity_unavailable:no_reply_to')
+    expect(d.claimOnce).not.toHaveBeenCalled()
+  })
+
+  it('log mode is never blocked by incomplete identity — the preview still renders', async () => {
+    delete process.env.AUTOMATIONS_FROM
+    const d = deps({ replyTo: vi.fn(async () => null) })
+    const summary = await runAutomationWorker({ deps: d })
+    expect(summary.done).toBe(1)
+    expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'would_send', subject: 'שלום דנה' })
   })
 })
