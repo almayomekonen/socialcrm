@@ -17,6 +17,7 @@ export const SKIP_REASON_COPY: Record<SkipReason, string> = {
   lead_daily_cap: 'לא נשלח — הליד קיבל היום את מספר האימיילים המרבי',
   agency_daily_cap: 'לא נשלח — הגעתם למכסת האימיילים היומית',
   quiet_hours: 'לא נשלח — מחוץ לחלון השליחה שהוגדר',
+  action_unavailable: 'לא נשלח — הפעולה אינה זמינה כעת. נדרשת בדיקה בהגדרות.',
 }
 
 // Failure copy (worker-side outcomes, not law skips — Phase 4 consumes these).

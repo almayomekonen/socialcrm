@@ -54,6 +54,11 @@ export const SKIP_REASONS = [
   'lead_daily_cap', // per-lead frequency cap reached today
   'agency_daily_cap', // engine-level daily ceiling for the business reached
   'quiet_hours', // inside the configured no-send window
+  // B2: the action's declared law set cannot be fully evaluated (a law
+  // whose channel does not exist yet, or a missing catalog entry). Fails
+  // CLOSED so an unevaluatable pipeline can never become a silent send.
+  // CI asserts no registered action can produce this.
+  'action_unavailable',
 ] as const
 export type SkipReason = (typeof SKIP_REASONS)[number]
 

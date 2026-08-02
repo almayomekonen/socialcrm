@@ -1,6 +1,8 @@
 import type { AutomationTriggerEvent, LawDecision, SkipReason } from './types'
 import { TERMINAL_LEAD_STATUSES } from './types'
 import { withinQuietHours, type QuietHoursConfig } from './timing'
+import { getAction } from './catalog/registry'
+import type { FieldType, LawKey } from './catalog/vocabularies'
 
 /**
  * The engine's laws — pure decisions over gathered facts, no I/O (the IRE
@@ -44,27 +46,155 @@ export function isTerminalStatus(status: string | null | undefined): boolean {
 const skip = (reason: SkipReason): LawDecision => ({ allow: false, reason })
 
 /**
- * First skip wins; the order is part of the contract (it decides which reason
- * the activity log shows when several apply): provenance → premise →
- * consent → deliverability → dedup → volume → window. quiet_hours is last and
- * is the only transient reason — Phase 4 may treat it as reschedulable rather
- * than final; every other reason is final for this event.
+ * B2 — the law pipeline is COMPOSED from each action's declared `laws`
+ * (frozen spec §3.8), not hardcoded. This is the first runtime consumption of
+ * catalog metadata (docs/catalog-adoption-strategy.md).
+ *
+ * Two categories, deliberately distinct:
+ *
+ *   UNIVERSAL GUARDS run for every action and are NOT catalog-declared. They
+ *   protect the engine's own integrity (is this event even legitimate? does
+ *   the subject still exist? does its premise still hold?), apply to every
+ *   action that will ever exist, and must not be opt-out-able by omitting a
+ *   declaration.
+ *
+ *   PER-ACTION LAWS are declared by the action. `task.create` declaring only
+ *   `send_once` is how a suppressed lead still gets a task created for the rep
+ *   — suppression is consent not to be *contacted*, which says nothing about
+ *   internal record-keeping.
+ *
+ * Order is contract (ADR-011): first skip wins, and it decides which reason the
+ * activity log shows when several apply. PIPELINE_ORDER below reproduces the
+ * pre-B2 sequence exactly.
  */
-export function decideSend(f: SendFacts): LawDecision {
+
+type LawEvaluator = (f: SendFacts) => SkipReason | null
+
+/**
+ * Exhaustive by construction: `Record<LawKey, …>` means adding a law to the
+ * vocabulary without deciding its evaluator is a compile error. `null` marks a
+ * law whose channel does not exist yet — never a silent pass (see
+ * composeLawPipeline).
+ */
+const LAW_EVALUATORS: Record<LawKey, LawEvaluator | null> = {
+  suppression: (f) => (f.suppressed ? 'suppressed' : null),
+  bounce_block: (f) => (f.lead.emailUndeliverable ? 'address_undeliverable' : null),
+  send_once: (f) => (f.alreadySent ? 'already_sent' : null),
+  per_lead_cap: (f) =>
+    f.sentToLeadToday >= (f.limits?.leadDailyCap ?? DEFAULT_LEAD_DAILY_CAP) ? 'lead_daily_cap' : null,
+  agency_cap: (f) =>
+    f.sentByAgencyToday >= (f.limits?.agencyDailyCeiling ?? DEFAULT_AGENCY_DAILY_CEILING) ? 'agency_daily_cap' : null,
+  quiet_hours: (f) => (withinQuietHours(f.quietHours, f.now) ? 'quiet_hours' : null),
+  // Messaging-channel laws: declared in the vocabulary so actions can name
+  // them, unimplemented until B6 brings the channel. No registered action may
+  // declare an unimplemented law — asserted in CI.
+  opt_out: null,
+  window_24h: null,
+}
+
+/**
+ * Whether the action's recipient requirement is satisfiable from the facts.
+ * Sparse on purpose: most field types are never recipients. `phone` arrives
+ * with the first messaging action (B6).
+ */
+const RECIPIENT_CHECKS: Partial<Record<FieldType, LawEvaluator>> = {
+  email: (f) => (!f.lead.email?.trim() ? 'no_email' : null),
+}
+
+type PipelineStep = { kind: 'law'; law: LawKey } | { kind: 'requires' }
+
+/**
+ * The canonical evaluation order. The `requires` step sits exactly where the
+ * pre-B2 `no_email` check sat — between suppression and bounce_block — so the
+ * composed pipeline is byte-identical to the sequence it replaces.
+ */
+const PIPELINE_ORDER: readonly PipelineStep[] = [
+  { kind: 'law', law: 'suppression' },
+  { kind: 'requires' },
+  { kind: 'law', law: 'bounce_block' },
+  { kind: 'law', law: 'send_once' },
+  { kind: 'law', law: 'per_lead_cap' },
+  { kind: 'law', law: 'agency_cap' },
+  { kind: 'law', law: 'quiet_hours' },
+  { kind: 'law', law: 'opt_out' },
+  { kind: 'law', law: 'window_24h' },
+]
+
+export type ComposedPipeline = {
+  steps: readonly LawEvaluator[]
+  /** Declared laws with no evaluator yet. CI asserts this is always empty. */
+  unimplemented: readonly LawKey[]
+}
+
+/**
+ * Build the ordered evaluator list for one action's declared laws and
+ * recipient requirements. Pure; no catalog lookup, no I/O.
+ */
+export function composeLawPipeline(laws: readonly LawKey[], requires: readonly FieldType[]): ComposedPipeline {
+  const declared = new Set<LawKey>(laws)
+  const steps: LawEvaluator[] = []
+  const unimplemented: LawKey[] = []
+
+  for (const step of PIPELINE_ORDER) {
+    if (step.kind === 'requires') {
+      for (const type of requires) {
+        const check = RECIPIENT_CHECKS[type]
+        if (check) steps.push(check)
+      }
+      continue
+    }
+    if (!declared.has(step.law)) continue
+    const evaluator = LAW_EVALUATORS[step.law]
+    if (evaluator) steps.push(evaluator)
+    else unimplemented.push(step.law)
+  }
+
+  return { steps, unimplemented }
+}
+
+/** Engine-level invariants. Not catalog-declared, not opt-out-able. */
+function universalGuards(f: SendFacts): LawDecision | null {
   if (f.event.origin === 'import') return skip('origin_import')
   if (!f.lead.exists) return skip('lead_deleted')
   if (f.event.trigger === 'lead_created' && isTerminalStatus(f.lead.currentStatus)) return skip('premise_expired')
   if (f.event.trigger === 'status_changed' && f.expectedStatus != null && f.lead.currentStatus !== f.expectedStatus)
     return skip('premise_expired')
-  if (f.suppressed) return skip('suppressed')
-  if (!f.lead.email?.trim()) return skip('no_email')
-  if (f.lead.emailUndeliverable) return skip('address_undeliverable')
-  if (f.alreadySent) return skip('already_sent')
-  if (f.sentToLeadToday >= (f.limits?.leadDailyCap ?? DEFAULT_LEAD_DAILY_CAP)) return skip('lead_daily_cap')
-  if (f.sentByAgencyToday >= (f.limits?.agencyDailyCeiling ?? DEFAULT_AGENCY_DAILY_CEILING))
-    return skip('agency_daily_cap')
-  if (withinQuietHours(f.quietHours, f.now)) return skip('quiet_hours')
+  return null
+}
+
+/**
+ * Evaluate an action's composed pipeline. An action that declares a law we
+ * cannot yet evaluate FAILS CLOSED — never a silent send.
+ */
+export function decideSendForAction(
+  action: { laws: readonly LawKey[]; requires: readonly FieldType[] },
+  f: SendFacts,
+): LawDecision {
+  const guarded = universalGuards(f)
+  if (guarded) return guarded
+
+  const { steps, unimplemented } = composeLawPipeline(action.laws, action.requires)
+  if (unimplemented.length > 0) return skip('action_unavailable')
+
+  for (const step of steps) {
+    const reason = step(f)
+    if (reason) return skip(reason)
+  }
   return { allow: true }
+}
+
+/**
+ * The shipped email path, preserved verbatim for every existing caller. It is
+ * now an ADAPTER over the composed pipeline, sourcing its laws from the
+ * catalog's `email.send` entry rather than from a hardcoded sequence.
+ *
+ * If the catalog entry were ever missing, this fails closed rather than
+ * sending unguarded — a state CI makes unreachable.
+ */
+export function decideSend(f: SendFacts): LawDecision {
+  const action = getAction('email.send')
+  if (!action) return skip('action_unavailable')
+  return decideSendForAction(action, f)
 }
 
 /**
