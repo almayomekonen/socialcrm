@@ -1,3 +1,13 @@
+/**
+ * PLATFORM EMAILS — SocialCRM → its own users ONLY.
+ *
+ * Everything under lib/emailAutomations/ is the platform email domain:
+ * lifecycle/transactional email to platform users, keyed by userId. It must
+ * never send to leads, and the customer-automation domain (lib/automations/**
+ * and siblings) must never import from here — nor the reverse. Boundary
+ * contract: docs/email-automations-plan.md §0; enforced by
+ * __tests__/automations/boundary.test.ts.
+ */
 import type { Automation } from './types'
 import { IS_PROD, EMAIL_ENABLED } from '@/lib/email/config'
 import { appUrl } from './config'

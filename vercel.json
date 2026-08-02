@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/whatsapp-template-sync",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/automations-dispatch",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

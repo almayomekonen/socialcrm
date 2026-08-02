@@ -8,6 +8,7 @@ import { isAdmin } from '@/types/roles'
 import { daysFromNow } from '@/lib/dates'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
 import { resolveOutcome, isLeadOutcome, type LeadOutcome } from '@/lib/leads/outcomeRules'
+import { emitAutomationEvent } from '@/lib/automations/emit'
 
 /**
  * Inline Outcome Logging — Stage 1 action.
@@ -81,5 +82,21 @@ export async function logLeadOutcome(input: LogLeadOutcomeInput): Promise<LogLea
   // ingest — so refresh the warm cache, matching updateLead. (Reuses the
   // existing 'lead.update' reason; an outcome is a form of lead update.)
   scheduleLeadIntelWarm(id, { reason: 'lead.update' })
+
+  // Customer Automation Engine trigger (ADR-010): status write #2 of 2 (the
+  // other is updateLead). Fires only when the outcome actually progressed the
+  // status; occurredAt = the same `now` written to statusChangedAt. Never
+  // throws.
+  if (res.nextStatus) {
+    await emitAutomationEvent({
+      trigger: 'status_changed',
+      origin: 'manual',
+      agencyId: user.agencyId,
+      leadId: id,
+      occurredAt: now,
+      newStatus: res.nextStatus,
+    })
+  }
+
   return rows[0]
 }

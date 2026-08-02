@@ -3,6 +3,7 @@ import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
 import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
+import { emitAutomationEvent } from '@/lib/automations/emit'
 
 type WebhookLeadInput = {
   firstName: string
@@ -82,6 +83,18 @@ export async function createLeadFromWebhook({
   await trackFirstRealLeadOnce(agencyId, 'facebook')
 
   await createSystemTask({ clientId: lead.id, title: 'ליד חדש מפייסבוק', userId })
+
+  // Customer Automation Engine trigger (ADR-010): genuinely NEW leads only —
+  // every dedup path above returns before this line. emitAutomationEvent
+  // never throws; emission can never break lead ingestion.
+  await emitAutomationEvent({
+    trigger: 'lead_created',
+    origin: 'webhook_facebook',
+    agencyId,
+    leadId: lead.id,
+    occurredAt: new Date(),
+    leadSource: lead.leadSource ?? null,
+  })
 
   console.log(`[FacebookWebhook][success][leadId=${leadId}]`)
 

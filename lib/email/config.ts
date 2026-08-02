@@ -7,6 +7,11 @@
  * Doctrine:
  *   - One env, one sender. RESEND_FROM is the canonical name (namespaces
  *     alongside the RESEND API-key env in config/resend.ts).
+ *   - sendEmail accepts an explicit `from` override for the customer-automation
+ *     domain only (businesses emailing their leads from their own sending
+ *     identity — see docs/email-automations-plan.md §0). Platform email never
+ *     passes it; when omitted, getEmailFrom() below remains the single source
+ *     of truth for the platform sender.
  *   - WELCOME_EMAIL_FROM is honored as a deprecated fallback so existing
  *     production deployments don't break on the version that introduces
  *     this rename. Once .env.production is migrated to RESEND_FROM, the

@@ -54,6 +54,11 @@ export type AnalyticsEventName =
   // Marker row proving the Meta CAPI `Lead` conversion was accepted for this
   // agency. Doubles as the idempotency key — see lib/facebook/metaLeadConversion.ts.
   | 'meta_capi_lead_sent'
+  // --- Customer Automation Engine ---
+  // Shadow metric: a trigger event reached the emission gate but the engine
+  // kill switch (AUTOMATIONS_ENABLED) blocked it — proof of what WOULD have
+  // been processed. See lib/automations/emit.ts.
+  | 'automation_event_shadow'
 
 type TrackInput = {
   agencyId: number
