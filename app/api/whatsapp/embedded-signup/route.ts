@@ -5,6 +5,7 @@ import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
 import { track } from '@/lib/analytics/track'
 import { WA_REASON, WA_REASON_NOTICE_CODE, type WaReason } from '@/lib/connections/reasons'
+import { resolvePhoneNumberIdForWaba, syncSmbAppData, type OnboardingType } from '@/lib/whatsapp/coexistence'
 
 /**
  * Return a structured failure WITHOUT persisting an operational connection.
@@ -27,15 +28,19 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const agencyId = user.agencyId!
 
-  let body: { code?: string; wabaId?: string; phoneNumberId?: string }
+  let body: { code?: string; wabaId?: string; phoneNumberId?: string; onboardingType?: OnboardingType }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  const { code, wabaId, phoneNumberId } = body
-  if (!code || !phoneNumberId) {
+  const { code, wabaId } = body
+  const onboardingType: OnboardingType = body.onboardingType === 'coexistence' ? 'coexistence' : 'cloud_api'
+  // Resolved below when the coexistence event supplied only a WABA id.
+  let phoneNumberId = body.phoneNumberId
+
+  if (!code) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
   // A WABA id is required to subscribe the app for inbound messages. Without it
@@ -61,6 +66,24 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     console.error('[WA EmbeddedSignup] token exchange threw:', e)
     return fail(agencyId, user.id, WA_REASON.TOKEN_EXCHANGE_FAILED, 'token', 400)
+  }
+
+  // 1b. Resolve the phone number when the flow did not hand us one.
+  //     Meta documents `waba_id` on the coexistence completion event; a
+  //     `phone_number_id` is not guaranteed to accompany it. Previously the
+  //     request was rejected outright here, so a customer who completed Meta's
+  //     flow correctly still finished unconnected. Needs the token, so it runs
+  //     after the exchange.
+  if (!phoneNumberId) {
+    const resolution = await resolvePhoneNumberIdForWaba(wabaId, accessToken)
+    if (!resolution.phoneNumberId) {
+      console.error('[WA EmbeddedSignup] could not resolve phone number from WABA', {
+        reason: resolution.reason,
+        onboardingType,
+      })
+      return fail(agencyId, user.id, WA_REASON.PHONE_NOT_FOUND, 'discover', 400)
+    }
+    phoneNumberId = resolution.phoneNumberId
   }
 
   // 2. Cross-tenant safety: never silently move a phone number between agencies.
@@ -120,7 +143,26 @@ export async function POST(req: NextRequest) {
   //    Meta may not have registered the number for send/receive yet. We persist
   //    the (subscribed) connection and report readiness honestly — the settings
   //    UI shows "setup incomplete" until the number is CONNECTED.
-  const readiness = await ensureMessagingReady(phoneNumberId, accessToken)
+  const readiness = await ensureMessagingReady(phoneNumberId, accessToken, {
+    skipRegistration: onboardingType === 'coexistence',
+  })
+
+  // 5b. Coexistence only: request the one-time contact and message-history sync.
+  //     Meta gives 24 hours before the customer must be offboarded and redo the
+  //     flow, and the step can only be performed once — so it runs now, inline,
+  //     rather than being deferred to a job that might not run in time.
+  //     A failure degrades the connection (no imported history); it must never
+  //     fail an onboarding that otherwise succeeded.
+  if (onboardingType === 'coexistence') {
+    const sync = await syncSmbAppData(phoneNumberId, accessToken)
+    if (!sync.contacts || !sync.history) {
+      console.warn('[WA EmbeddedSignup] coexistence sync incomplete', {
+        phoneNumberId,
+        contacts: sync.contacts,
+        history: sync.history,
+      })
+    }
+  }
 
   if (readiness.ready) {
     track({ agencyId, userId: user.id, event: 'whatsapp_messaging_ready', props: {} })
