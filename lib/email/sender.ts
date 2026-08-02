@@ -10,6 +10,11 @@ type SendInput = {
   html: string
   text?: string
   replyTo?: string | string[]
+  // Explicit sender override. Platform email omits this (one-sender doctrine,
+  // getEmailFrom in ./config); the customer-automation domain passes its own
+  // sending identity. The transport carries the address — sender policy stays
+  // with each domain's caller.
+  from?: string
 }
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string }
@@ -35,12 +40,12 @@ function fromSource(): string {
   return 'default-constant'
 }
 
-export async function sendEmail({ to, subject, html, text, replyTo }: SendInput): Promise<SendResult> {
-  const from = getEmailFrom()
+export async function sendEmail({ to, subject, html, text, replyTo, from: explicitFrom }: SendInput): Promise<SendResult> {
+  const from = explicitFrom?.trim() || getEmailFrom()
 
   console.log(`${LOG_PREFIX} attempt`, {
     from,
-    fromSource: fromSource(),
+    fromSource: explicitFrom?.trim() ? 'explicit-caller' : fromSource(),
     to,
     subject,
     htmlBytes: html.length,
