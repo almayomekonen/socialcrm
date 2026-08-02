@@ -12,6 +12,7 @@ import { isAdmin } from '@/types/roles'
 import { assertLeadQuota, QuotaExceededError, getEffectiveLeadPlan, withAgencyQuotaLock } from '@/lib/quota'
 import type { QuotaErrorResult } from '@/lib/quota'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
+import { emitAutomationEvent } from '@/lib/automations/emit'
 import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
 
 export type { DeleteManyLeadsResult } from '@/lib/leads/deleteResult'
@@ -187,9 +188,14 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
   }
 }
 
-export async function upsertLead(userId, data, clientId, revalidate = true) {
+export async function upsertLead(userId, data, clientId, revalidate = true, origin = 'manual') {
   const user = await requireProductAccess()
   const safeData = pickLeadFields(data ?? {})
+  // ADR-010 ownership: this action is client-reachable, so origin is validated
+  // — only the in-module CSV caller may claim 'import' (which suppresses
+  // automations); anything else is coerced to 'manual'. A spoofed value can
+  // never impersonate a webhook origin.
+  const emitOrigin: 'manual' | 'import' = origin === 'import' ? 'import' : 'manual'
 
   try {
     let lead = null
@@ -210,7 +216,24 @@ export async function upsertLead(userId, data, clientId, revalidate = true) {
         const rows = await trx('clients')
           .insert({ ...safeData, agencyId, createdById: userId })
           .returning('*')
-        return rows[0]
+        const created = rows[0]
+        // Customer Automation Engine trigger (ADR-010): insert branch only,
+        // actual leads only; the enqueue joins this quota-lock transaction.
+        // emitAutomationEvent never throws — it cannot abort the insert.
+        if (created && isLeadTrue(created.lead)) {
+          await emitAutomationEvent(
+            {
+              trigger: 'lead_created',
+              origin: emitOrigin,
+              agencyId,
+              leadId: created.id,
+              occurredAt: new Date(),
+              leadSource: created.leadSource ?? null,
+            },
+            { trx },
+          )
+        }
+        return created
       })
     }
 
@@ -620,7 +643,9 @@ export async function importLeadsFromCsv(file: File) {
         .first()
 
       if (!exists) {
-        const res = await upsertLead(userId, { ...lead, lead: true, status: 'new', userId, handlerId: userId }, null, false)
+        // origin 'import': imported leads never trigger automations (ADR-004 —
+        // this is the CSV-reuses-upsertLead footgun, neutralized explicitly).
+        const res = await upsertLead(userId, { ...lead, lead: true, status: 'new', userId, handlerId: userId }, null, false, 'import')
         if (res && (res as any).error === 'quota_exceeded') {
           if (inserted > 0 || updated > 0) revalidatePath('/leads')
           return {
