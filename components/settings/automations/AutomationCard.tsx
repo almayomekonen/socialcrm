@@ -3,9 +3,10 @@
 import { StatusBadge, type StatusRole } from '@/lib/StatusBadge'
 import { Btn } from '@/lib/btns/Btn'
 import { automationSentence } from '@/lib/automations/sentence'
+import { getAction, getEvent } from '@/lib/automations/catalog/registry'
+import type { Condition } from '@/lib/automations/conditions'
 import type { DefinitionStatus } from '@/db/automations/definitions'
 import type { Timing } from '@/lib/automations/timing'
-import type { TriggerType } from '@/lib/automations/types'
 
 /**
  * One automation, legible without opening it (spec §8): outcome name, the
@@ -16,9 +17,8 @@ export type AutomationCardData = {
   id: number
   name: string
   status: DefinitionStatus
-  trigger: TriggerType
-  sourceFilter: string | null
-  targetStatus: string | null
+  eventKey: string
+  conditions: Condition[]
   subject: string
   timing: Timing
   counts: { sent: number; wouldSend: number; skipped: number; failed: number }
@@ -66,9 +66,9 @@ export default function AutomationCard({ data, busy, onEdit, onToggle, onDuplica
           <h3 className='text-base font-semibold text-gray-800'>{data.name}</h3>
           <p className='text-sm text-gray-500'>
             {automationSentence({
-              trigger: data.trigger,
-              sourceFilter: data.sourceFilter,
-              targetStatus: data.targetStatus,
+              event: getEvent(data.eventKey),
+              conditions: data.conditions,
+              actionTitle: getAction('email.send')?.title ?? 'פעולה',
               subject: data.subject,
               timing: data.timing,
             })}

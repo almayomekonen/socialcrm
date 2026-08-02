@@ -6,6 +6,7 @@ import { countRecentActivityByAutomation } from '@/db/automations/activity'
 import { getAgencyName, getAgencyReplyTo } from '@/db/automations/leadFacts'
 import { getAutomationsFrom, getAutomationsSendMode, isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { resolveSenderIdentity } from '@/lib/automations/identity'
+import { eventKeyForEngineTrigger } from '@/lib/automations/catalog/engineBridge'
 import AutomationsSettings from '@/components/settings/automations/AutomationsSettings'
 import type { AutomationCardData } from '@/components/settings/automations/AutomationCard'
 import type { SheetDraft } from '@/components/settings/automations/AutomationSheet'
@@ -45,9 +46,8 @@ export default async function AutomationsSettingsPage() {
     id: d.id,
     name: d.name,
     status: d.status,
-    trigger: d.trigger,
-    sourceFilter: d.sourceFilter,
-    targetStatus: d.targetStatus,
+    eventKey: eventKeyForEngineTrigger(d.trigger) ?? '',
+    conditions: d.conditions,
     subject: d.content?.subject ?? '',
     timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },
     counts: counts[d.id] ?? { sent: 0, wouldSend: 0, skipped: 0, failed: 0 },
@@ -59,9 +59,8 @@ export default async function AutomationsSettingsPage() {
       id: d.id,
       name: d.name,
       recipeKey: d.recipeKey,
-      trigger: d.trigger,
-      sourceFilter: d.sourceFilter,
-      targetStatus: d.targetStatus,
+      eventKey: eventKeyForEngineTrigger(d.trigger) ?? '',
+      conditions: d.conditions,
       subject: d.content?.subject ?? '',
       body: d.content?.body ?? '',
       timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },

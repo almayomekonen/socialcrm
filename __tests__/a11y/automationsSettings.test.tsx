@@ -16,9 +16,8 @@ const card = (over: Partial<AutomationCardData> = {}): AutomationCardData => ({
   id: 1,
   name: 'אימייל פתיחה לליד חדש',
   status: 'active',
-  trigger: 'lead_created',
-  sourceFilter: 'facebook',
-  targetStatus: null,
+  eventKey: 'lead.created',
+  conditions: [{ field: 'source', operator: 'contains', value: 'facebook' }],
   subject: 'קיבלנו את הפנייה שלך',
   timing: { kind: 'preset', preset: 'immediate' },
   counts: { sent: 0, wouldSend: 0, skipped: 0, failed: 0 },
@@ -41,7 +40,7 @@ describe('AutomationCard', () => {
 
   it('states the automation as one readable sentence', () => {
     renderCard(card())
-    expect(screen.getByText(/כשליד חדש נכנס מפייסבוק/)).toBeInTheDocument()
+    expect(screen.getByText(/ליד חדש נכנס/)).toBeInTheDocument()
     expect(screen.getByText(/מיד/)).toBeInTheDocument()
   })
 

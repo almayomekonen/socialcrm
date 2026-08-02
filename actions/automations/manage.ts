@@ -13,7 +13,10 @@ import {
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { isValidTiming, type Timing } from '@/lib/automations/timing'
 import { unknownTokens } from '@/lib/automations/variables'
-import { TRIGGER_TYPES, type TriggerType } from '@/lib/automations/types'
+import type { TriggerType } from '@/lib/automations/types'
+import { getEvent } from '@/lib/automations/catalog/registry'
+import { engineTriggerForEventKey } from '@/lib/automations/catalog/engineBridge'
+import { validateConditions, type Condition } from '@/lib/automations/conditions'
 
 /**
  * Customer Automation Engine — admin management actions.
@@ -31,9 +34,9 @@ export type ManageResult = { ok: true; id?: number } | { ok: false; reason: stri
 export type AutomationInput = {
   name: string
   recipeKey: string | null
-  trigger: TriggerType
-  targetStatus: string | null
-  sourceFilter: string | null
+  /** A CATALOG event key. The Builder no longer speaks the engine's vocabulary. */
+  eventKey: string
+  conditions: Condition[]
   subject: string
   body: string
   timing: Timing
@@ -50,8 +53,11 @@ function validate(input: AutomationInput): string | null {
   if (!input.name?.trim()) return 'name_required'
   if (!input.subject?.trim()) return 'subject_required'
   if (!input.body?.trim()) return 'body_required'
-  if (!TRIGGER_TYPES.includes(input.trigger)) return 'trigger_invalid'
-  if (input.trigger === 'status_changed' && !input.targetStatus) return 'status_required'
+  // Unknown event ⇒ inert, never guessed (Law 3).
+  const event = getEvent(input.eventKey)
+  if (!event || !engineTriggerForEventKey(input.eventKey)) return 'trigger_invalid'
+  const conditionIssue = validateConditions(event, input.conditions ?? [])
+  if (conditionIssue) return conditionIssue
   if (!isValidTiming(input.timing)) return 'timing_invalid'
   // Content may only reference the closed variable set (spec §7).
   if (unknownTokens(input.subject).length || unknownTokens(input.body).length) return 'unknown_variable'
@@ -73,9 +79,10 @@ export async function createAutomation(input: AutomationInput): Promise<ManageRe
     agencyId: user.agencyId,
     name: input.name.trim(),
     recipeKey: input.recipeKey,
-    trigger: input.trigger,
-    targetStatus: input.trigger === 'status_changed' ? input.targetStatus : null,
-    sourceFilter: input.trigger === 'lead_created' ? input.sourceFilter : null,
+    trigger: engineTriggerForEventKey(input.eventKey) as TriggerType,
+    targetStatus: null,
+    sourceFilter: null,
+    conditions: input.conditions ?? [],
     content: toContent(input),
     createdByUserId: user.id,
   })
@@ -95,8 +102,7 @@ export async function updateAutomation(id: number, input: AutomationInput): Prom
 
   await updateDefinitionContent(user.agencyId, id, {
     name: input.name.trim(),
-    targetStatus: input.trigger === 'status_changed' ? input.targetStatus : null,
-    sourceFilter: input.trigger === 'lead_created' ? input.sourceFilter : null,
+    conditions: input.conditions ?? [],
     content: toContent(input),
   })
   revalidatePath(PATH)
@@ -133,8 +139,9 @@ export async function duplicateAutomation(id: number): Promise<ManageResult> {
     name: `${existing.name} (עותק)`,
     recipeKey: existing.recipeKey,
     trigger: existing.trigger,
-    targetStatus: existing.targetStatus,
-    sourceFilter: existing.sourceFilter,
+    targetStatus: null,
+    sourceFilter: null,
+    conditions: existing.conditions,
     content: { subject: existing.content.subject, body: existing.content.body, timing: existing.content.timing },
     createdByUserId: user.id,
   })

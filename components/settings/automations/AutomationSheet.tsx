@@ -1,32 +1,40 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useMemo, useRef, useState, useTransition } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
-import { AUTOMATION_EMAIL_VARIABLES, substituteVariables } from '@/lib/automations/variables'
+import { substituteVariables, variableChipsForEvent } from '@/lib/automations/variables'
 import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
+import { getAction, getEvent, listAnchorFields, listSelectableEvents, listSubjects } from '@/lib/automations/catalog/registry'
 import type { Timing } from '@/lib/automations/timing'
-import type { TriggerType } from '@/lib/automations/types'
+import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation, type AutomationInput } from '@/actions/automations/manage'
-import { SOURCES, STATUSES, TIMINGS, TRIGGERS, errorMessage as msg, timingKey } from './sheetOptions'
 import { sendTestEmail } from '@/actions/automations/sendTest'
+import { TIMINGS, errorMessage as msg, timingKey } from './sheetOptions'
+import ConditionsEditor from './ConditionsEditor'
 
 /**
- * Creation/edit in ONE sheet with three decisions (spec §5): כש… / שלח… /
- * מתי…. No wizard, no separate review step — the preview and the test send
- * are the review.
+ * Creation/edit in ONE sheet (frozen spec §7) — now fully EVENT-FIRST and
+ * fully catalog-driven.
+ *
+ * Everything this component renders it learns from catalog metadata: the event
+ * list and its grouping, the condition fields/operators/values, the variable
+ * chips, the timing anchors, and the preview shape. It names no integration,
+ * no status and no trigger. Adding an event to the catalog changes nothing
+ * here.
+ *
+ * Actions are visually limited to one; storage keeps the list shape.
  */
 
 export type SheetDraft = {
   id?: number
   name: string
   recipeKey: string | null
-  trigger: TriggerType
-  sourceFilter: string | null
-  targetStatus: string | null
+  eventKey: string
+  conditions: Condition[]
   subject: string
   body: string
   timing: Timing
@@ -44,9 +52,8 @@ export default function AutomationSheet({
   onSaved: () => void
 }) {
   const [name, setName] = useState(draft.name)
-  const [trigger, setTrigger] = useState<TriggerType>(draft.trigger)
-  const [sourceFilter, setSourceFilter] = useState(draft.sourceFilter ?? '')
-  const [targetStatus, setTargetStatus] = useState(draft.targetStatus ?? 'closed')
+  const [eventKey, setEventKey] = useState(draft.eventKey)
+  const [conditions, setConditions] = useState<Condition[]>(draft.conditions ?? [])
   const [subject, setSubject] = useState(draft.subject)
   const [body, setBody] = useState(draft.body)
   const [timing, setTiming] = useState<Timing>(draft.timing)
@@ -54,10 +61,23 @@ export default function AutomationSheet({
   const [pending, startTransition] = useTransition()
   const [testing, startTest] = useTransition()
 
-  // Input renders either an input or a textarea, so its ref accepts both.
   const subjectRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const bodyRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const lastFocused = useRef<'subject' | 'body'>('body')
+
+  const events = listSelectableEvents()
+  const event = getEvent(eventKey)
+  // V1 renders one action; the catalog already supports many.
+  const action = getAction('email.send')
+  const chips = useMemo(() => (event ? variableChipsForEvent(event.fields) : []), [event])
+  const anchors = event ? listAnchorFields(event) : []
+
+  /** Events grouped by their declared subject — the picker's only structure. */
+  const grouped = useMemo(() => {
+    return listSubjects()
+      .map((s) => ({ subject: s, items: events.filter((e) => e.subject === s.key) }))
+      .filter((g) => g.items.length > 0)
+  }, [events])
 
   function insertToken(token: string) {
     const target = lastFocused.current
@@ -69,18 +89,15 @@ export default function AutomationSheet({
     queueMicrotask(() => el?.focus())
   }
 
-  function payload(): AutomationInput {
-    return {
-      name,
-      recipeKey: draft.recipeKey,
-      trigger,
-      targetStatus: trigger === 'status_changed' ? targetStatus : null,
-      sourceFilter: trigger === 'lead_created' ? sourceFilter || null : null,
-      subject,
-      body,
-      timing,
-    }
-  }
+  const payload = (): AutomationInput => ({
+    name,
+    recipeKey: draft.recipeKey,
+    eventKey,
+    conditions,
+    subject,
+    body,
+    timing,
+  })
 
   function save() {
     setError(null)
@@ -101,8 +118,6 @@ export default function AutomationSheet({
     })
   }
 
-  // Preview uses the SAME substitution the real send uses — a preview that
-  // rendered differently would be a lie.
   const previewVars = { leadFirstName: previewName, businessName: null, repName: null }
   const previewSubject = substituteVariables(subject, previewVars)
   const previewBody = substituteVariables(body, previewVars)
@@ -112,29 +127,35 @@ export default function AutomationSheet({
       <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
         <h2 className='text-lg font-semibold text-gray-800'>{draft.id ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}</h2>
 
-        <Input lbl='שם האוטומציה' value={name} onChange={(e) => setName(e.target.value)} placeholder='אימייל פתיחה לליד חדש' />
+        <Input lbl='שם האוטומציה' value={name} onChange={(e) => setName(e.target.value)} />
 
         <Seperator className='my-0' />
 
         <section className='grid gap-3'>
-          <h3 className='text-sm font-semibold text-gray-800'>מתי זה קורה</h3>
+          <h3 className='text-sm font-semibold text-gray-800'>כש</h3>
           <Select
-            lbl='הפעלה'
-            options={TRIGGERS}
-            value={trigger}
-            onChange={(e) => setTrigger(e.target.value as TriggerType)}
+            lbl='מתי זה צריך לקרות'
+            options={grouped.map((g) => ({
+              head: g.subject.title,
+              grp: g.items.map((e) => ({ id: e.key, name: e.title })),
+            }))}
+            value={eventKey}
+            onChange={(e) => {
+              setEventKey(e.target.value)
+              setConditions([]) // conditions belong to the event's fields
+            }}
           />
-          {trigger === 'lead_created' ? (
-            <Select lbl='מקור הליד' options={SOURCES} value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} required={false} />
-          ) : (
-            <Select lbl='הסטטוס החדש' options={STATUSES} value={targetStatus} onChange={(e) => setTargetStatus(e.target.value)} />
-          )}
+          {event && <p className='text-sm text-gray-500 ms-1'>{event.description}</p>}
         </section>
 
         <Seperator className='my-0' />
 
+        <ConditionsEditor event={event} conditions={conditions} onChange={setConditions} />
+
+        <Seperator className='my-0' />
+
         <section className='grid gap-3'>
-          <h3 className='text-sm font-semibold text-gray-800'>מה נשלח</h3>
+          <h3 className='text-sm font-semibold text-gray-800'>{action ? action.title : 'פעולה'}</h3>
           <Input
             ref={subjectRef}
             lbl='נושא האימייל'
@@ -154,8 +175,8 @@ export default function AutomationSheet({
           />
           <div className='flex flex-wrap items-center gap-2'>
             <span className='text-sm text-gray-500'>הוספת פרטים:</span>
-            {AUTOMATION_EMAIL_VARIABLES.map((v) => (
-              <Btn key={v.token} variant='outline' size='small' lbl={v.token} onClick={() => insertToken(v.token)} />
+            {chips.map((c) => (
+              <Btn key={c.field} variant='outline' size='small' lbl={c.token} onClick={() => insertToken(c.token)} />
             ))}
           </div>
         </section>
@@ -175,16 +196,37 @@ export default function AutomationSheet({
               />
             ))}
           </div>
+          {anchors.length > 0 && (
+            <p className='text-sm text-gray-500 ms-1'>
+              אפשר גם לתזמן ביחס ל{anchors.map((a) => a.label).join(' / ')}.
+            </p>
+          )}
           <p className='text-sm text-gray-500 ms-1'>{TIMING_ACCURACY_COPY}</p>
         </section>
 
         <Seperator className='my-0' />
 
+        {/* Preview is driven by the ACTION's declared preview shape. */}
         <section className='grid gap-2'>
-          <h3 className='text-sm font-semibold text-gray-800'>כך זה ייראה{previewName ? ` אצל ${previewName}` : ''}</h3>
+          <h3 className='text-sm font-semibold text-gray-800'>
+            כך זה ייראה{previewName ? ` אצל ${previewName}` : ''}
+          </h3>
           <div className='border rounded-md bg-gray-50 p-4 grid gap-2'>
-            <p className='text-sm font-semibold text-gray-800'>{previewSubject || 'ללא נושא'}</p>
-            <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
+            {action?.preview === 'email' && (
+              <>
+                <p className='text-sm font-semibold text-gray-800'>{previewSubject || 'ללא נושא'}</p>
+                <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
+              </>
+            )}
+            {action?.preview === 'message' && (
+              <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
+            )}
+            {action?.preview === 'record' && (
+              <p className='text-sm text-gray-600'>{previewSubject || 'רשומה חדשה'}</p>
+            )}
+            {(!action || action.preview === 'none') && (
+              <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>
+            )}
           </div>
         </section>
 
@@ -197,15 +239,17 @@ export default function AutomationSheet({
             className='w-full'
             onClick={save}
           />
-          <Btn
-            variant='outline'
-            lbl={testing ? 'שולח…' : 'שלח אליי אימייל בדיקה'}
-            icon={testing ? 'spinner' : 'paper-plane'}
-            iconClassName={testing ? 'animate-spin' : undefined}
-            disabled={pending || testing}
-            className='w-full'
-            onClick={test}
-          />
+          {action?.testable && (
+            <Btn
+              variant='outline'
+              lbl={testing ? 'שולח…' : 'שלח אליי בדיקה'}
+              icon={testing ? 'spinner' : 'paper-plane'}
+              iconClassName={testing ? 'animate-spin' : undefined}
+              disabled={pending || testing}
+              className='w-full'
+              onClick={test}
+            />
+          )}
           {error && (
             <p className='text-sm text-red-600 ms-1' role='alert'>
               {error}

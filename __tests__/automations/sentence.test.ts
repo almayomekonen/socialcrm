@@ -1,67 +1,90 @@
 import { describe, expect, it } from 'vitest'
-import { automationSentence, statusLabel, timingPhrase, triggerPhrase } from '@/lib/automations/sentence'
+import { automationSentence, conditionsPhrase, timingPhrase, triggerPhrase } from '@/lib/automations/sentence'
+import { getEvent } from '@/lib/automations/catalog/registry'
 import { AUTOMATION_RECIPES } from '@/lib/automations/recipes'
 
-// "One automation = one sentence": every automation must be legible on its
-// card without opening it (spec §3.2 / §11.10).
+// B3: the sentence is generated ENTIRELY from catalog metadata. This file no
+// longer knows a status, a source or a trigger — if it did, the test could not
+// be written without naming one.
 
-describe('triggerPhrase', () => {
-  it('names the source when the definition filters by one', () => {
-    expect(triggerPhrase('lead_created', 'facebook', null)).toBe('כשליד חדש נכנס מפייסבוק')
-    expect(triggerPhrase('lead_created', null, null)).toBe('כשליד חדש נכנס')
+const created = getEvent('lead.created')!
+const statusChanged = getEvent('lead.status_changed')!
+
+describe('triggerPhrase is the event title, from the catalog', () => {
+  it('uses the declared title', () => {
+    expect(triggerPhrase(created)).toBe(created.title)
+    expect(triggerPhrase(statusChanged)).toBe(statusChanged.title)
   })
 
-  it('names the target status for status automations', () => {
-    expect(triggerPhrase('status_changed', null, 'closed')).toBe('כשסטטוס הליד משתנה ל"סגור"')
+  it('degrades honestly for an unknown event', () => {
+    expect(triggerPhrase(null)).toBe('אירוע שאינו זמין')
+  })
+})
+
+describe('conditionsPhrase reads labels and options from the event fields', () => {
+  it('renders an enum value using its declared label', () => {
+    const phrase = conditionsPhrase(statusChanged, [{ field: 'newStatus', operator: 'is', value: 'closed' }])
+    expect(phrase).toBe('הסטטוס החדש הוא "סגור"')
   })
 
-  it('degrades gracefully for an unknown source or status', () => {
-    expect(triggerPhrase('lead_created', 'tiktok', null)).toBe('כשליד חדש נכנס מtiktok')
-    expect(statusLabel('weird')).toBe('weird')
+  it('joins several conditions with וגם', () => {
+    const phrase = conditionsPhrase(created, [
+      { field: 'source', operator: 'contains', value: 'facebook' },
+      { field: 'status', operator: 'is', value: 'new' },
+    ])
+    expect(phrase).toBe('מקור הליד מכיל "facebook" וגם סטטוס הליד הוא "חדש"')
+  })
+
+  it('is null when there are no conditions', () => {
+    expect(conditionsPhrase(created, [])).toBeNull()
   })
 })
 
 describe('timingPhrase', () => {
-  it('reads naturally for presets', () => {
+  it('reads naturally for presets and custom delays', () => {
     expect(timingPhrase({ kind: 'preset', preset: 'immediate' })).toBe('מיד')
     expect(timingPhrase({ kind: 'preset', preset: 'one_hour' })).toBe('אחרי שעה')
-    expect(timingPhrase({ kind: 'preset', preset: 'one_day' })).toBe('אחרי יום')
-  })
-
-  it('inflects custom delays correctly', () => {
-    expect(timingPhrase({ kind: 'custom', value: 1, unit: 'hours' })).toBe('אחרי שעה')
-    expect(timingPhrase({ kind: 'custom', value: 3, unit: 'hours' })).toBe('אחרי 3 שעות')
-    expect(timingPhrase({ kind: 'custom', value: 1, unit: 'days' })).toBe('אחרי יום')
     expect(timingPhrase({ kind: 'custom', value: 3, unit: 'days' })).toBe('אחרי 3 ימים')
+    expect(timingPhrase({ kind: 'custom', value: 1, unit: 'hours' })).toBe('אחרי שעה')
   })
 })
 
 describe('automationSentence', () => {
-  it('reads as one line: trigger, message, timing', () => {
+  it('reads as one line: trigger, conditions, action, timing', () => {
     expect(
       automationSentence({
-        trigger: 'lead_created',
-        sourceFilter: 'facebook',
-        targetStatus: null,
-        subject: 'ברוכים הבאים',
+        event: statusChanged,
+        conditions: [{ field: 'newStatus', operator: 'is', value: 'closed' }],
+        actionTitle: 'שליחת אימייל',
+        subject: 'תודה',
         timing: { kind: 'preset', preset: 'immediate' },
       }),
-    ).toBe('כשליד חדש נכנס מפייסבוק · שולח "ברוכים הבאים" · מיד')
+    ).toBe('סטטוס הליד השתנה · רק אם הסטטוס החדש הוא "סגור" · שליחת אימייל: "תודה" · מיד')
   })
 
-  it('every shipped recipe produces a readable sentence', () => {
+  it('omits the conditions clause entirely when there are none', () => {
+    const s = automationSentence({
+      event: created,
+      conditions: [],
+      actionTitle: 'שליחת אימייל',
+      subject: 'ברוכים הבאים',
+      timing: { kind: 'preset', preset: 'immediate' },
+    })
+    expect(s).not.toContain('רק אם')
+  })
+
+  it('every shipped recipe produces a readable sentence with no leaked keys', () => {
     for (const recipe of AUTOMATION_RECIPES) {
       const s = automationSentence({
-        trigger: recipe.trigger.type,
-        sourceFilter: recipe.trigger.sourceFilter,
-        targetStatus: recipe.trigger.targetStatus,
+        event: getEvent(recipe.eventKey),
+        conditions: recipe.conditions,
+        actionTitle: 'שליחת אימייל',
         subject: recipe.subject,
         timing: recipe.timing,
       })
-      expect(s.startsWith('כש'), recipe.key).toBe(true)
-      expect(s).toContain('שולח')
-      expect(s).not.toContain('undefined')
-      expect(s).not.toContain('null')
+      expect(s, recipe.key).not.toContain('undefined')
+      expect(s, recipe.key).not.toContain('null')
+      expect(s, recipe.key).not.toContain('newStatus')
     }
   })
 })

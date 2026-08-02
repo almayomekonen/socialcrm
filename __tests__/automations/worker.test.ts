@@ -26,6 +26,8 @@ function def(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
     action: 'send_email',
     content: { schemaVersion: 1, subject: 'שלום {{שם הליד}}', body: 'תודה מ{{שם העסק}}', timing: { kind: 'preset', preset: 'immediate' } },
     createdByUserId: 1,
+    conditions: [],
+    actions: [{ actionKey: 'email.send', parameters: {} }],
     ...overrides,
   }
 }

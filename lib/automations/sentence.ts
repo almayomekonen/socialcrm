@@ -1,51 +1,17 @@
-import type { TriggerType } from './types'
+import type { EventDefinition } from './catalog/types'
+import type { Condition } from './conditions'
+import { describeCondition } from './conditions'
 import type { Timing } from './timing'
 
 /**
- * "One automation = one sentence" (spec §3.2) made concrete: every automation
- * is legible on its card without opening it — the antidote to the forgotten
- * automation (spec §11.10).
+ * "One automation = one sentence" (frozen spec §1) — now generated ENTIRELY
+ * from catalog metadata.
  *
- * Pure and dependency-free so both the server page and client components can
- * use it.
+ * B3 removed this file's hardcoded status labels, source labels and per-trigger
+ * branching. The trigger phrase is the event's own declared title; the
+ * condition phrases come from the event's declared fields and their options.
+ * A new event gets a correct sentence with no change here.
  */
-
-// Mirrors the canonical lead-status labels in
-// components/clients/LeadStatusCell.tsx (a 'use client' module — not imported
-// here to keep this pure). Five words; if the product renames a status, both
-// must move together.
-const STATUS_LABELS: Record<string, string> = {
-  new: 'חדש',
-  contacted: 'בטיפול',
-  interested: 'מעוניין',
-  closed: 'סגור',
-  lost: 'אבוד',
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  facebook: 'מפייסבוק',
-  whatsapp: 'מוואטסאפ',
-  instagram: 'מאינסטגרם',
-}
-
-export function statusLabel(status: string | null | undefined): string {
-  if (!status) return ''
-  return STATUS_LABELS[status] ?? status
-}
-
-export function sourceLabel(source: string | null | undefined): string {
-  if (!source) return ''
-  return SOURCE_LABELS[source] ?? `מ${source}`
-}
-
-export function triggerPhrase(trigger: TriggerType, sourceFilter: string | null, targetStatus: string | null): string {
-  if (trigger === 'status_changed') {
-    const label = statusLabel(targetStatus)
-    return label ? `כשסטטוס הליד משתנה ל"${label}"` : 'כשסטטוס הליד משתנה'
-  }
-  const src = sourceLabel(sourceFilter)
-  return src ? `כשליד חדש נכנס ${src}` : 'כשליד חדש נכנס'
-}
 
 export function timingPhrase(timing: Timing): string {
   if (timing.kind === 'preset') {
@@ -56,18 +22,28 @@ export function timingPhrase(timing: Timing): string {
   return timing.value === 1 ? `אחרי ${unit}` : `אחרי ${timing.value} ${unit}`
 }
 
-/** The full card line: כש… ← שולח "…" ← מתי. */
+/** The event's own title, as declared in the catalog. */
+export function triggerPhrase(event: EventDefinition | null): string {
+  return event?.title ?? 'אירוע שאינו זמין'
+}
+
+export function conditionsPhrase(event: EventDefinition | null, conditions: readonly Condition[]): string | null {
+  if (!event || conditions.length === 0) return null
+  return conditions.map((c) => describeCondition(event, c)).join(' וגם ')
+}
+
+/** The full card line: כש… · רק אם… · שולח… · מתי. */
 export function automationSentence(input: {
-  trigger: TriggerType
-  sourceFilter: string | null
-  targetStatus: string | null
+  event: EventDefinition | null
+  conditions: readonly Condition[]
+  actionTitle: string
   subject: string
   timing: Timing
 }): string {
-  const parts = [
-    triggerPhrase(input.trigger, input.sourceFilter, input.targetStatus),
-    `שולח "${input.subject}"`,
-    timingPhrase(input.timing),
-  ]
+  const parts = [triggerPhrase(input.event)]
+  const conditions = conditionsPhrase(input.event, input.conditions)
+  if (conditions) parts.push(`רק אם ${conditions}`)
+  parts.push(input.subject ? `${input.actionTitle}: "${input.subject}"` : input.actionTitle)
+  parts.push(timingPhrase(input.timing))
   return parts.join(' · ')
 }

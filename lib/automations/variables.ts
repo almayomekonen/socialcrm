@@ -13,6 +13,22 @@ export const AUTOMATION_EMAIL_VARIABLES = [
   { token: 'שם הנציג', field: 'repName', defaultSample: 'נציג העסק' },
 ] as const
 
+/**
+ * B3: the Builder's variable chips are derived from the SELECTED EVENT's
+ * declared fields, intersected with the keys the renderer can resolve. Adding
+ * a renderable field to an event adds a chip with no Builder change.
+ *
+ * The intersection exists because the renderer's value record is a typed
+ * struct; widening it to arbitrary fields is action-executor work (B5+), not
+ * Builder work. Until then a field the renderer cannot substitute is not
+ * offered as a chip — the alternative would be a chip that renders as a raw
+ * token in a real email.
+ */
+export function variableChipsForEvent(fields: readonly { key: string; label: string }[]) {
+  const resolvable = new Set<string>(AUTOMATION_EMAIL_VARIABLES.map((v) => v.field))
+  return fields.filter((f) => resolvable.has(f.key)).map((f) => ({ token: f.label, field: f.key }))
+}
+
 export type AutomationEmailVariable = (typeof AUTOMATION_EMAIL_VARIABLES)[number]
 
 const TOKEN_RE = /\{\{([^{}]+)\}\}/g

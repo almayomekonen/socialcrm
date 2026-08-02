@@ -34,6 +34,8 @@ function definition(id: number, timing: unknown = { kind: 'preset', preset: 'imm
     action: 'send_email',
     content: { schemaVersion: 1, subject: 's', body: 'b', timing: timing as never },
     createdByUserId: 1,
+    conditions: [],
+    actions: [{ actionKey: 'email.send', parameters: {} }],
   }
 }
 

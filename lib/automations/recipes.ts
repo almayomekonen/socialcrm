@@ -1,5 +1,5 @@
-import type { TriggerType } from './types'
 import type { Timing } from './timing'
+import type { Condition } from './conditions'
 
 /**
  * The V1 recipe catalog (spec §7) — static starter content, not UI. Users
@@ -16,14 +16,10 @@ export type AutomationRecipe = {
   key: string // stable id; referenced by adopted automations (append-only)
   name: string // outcome-named, Hebrew — the card title
   description: string // one line under the title
-  trigger: {
-    type: TriggerType
-    // Preset lead-source filter (the lead's `source` field, NOT the emission
-    // origin); null = any source. Editable at adoption.
-    sourceFilter: string | null
-    // status_changed recipes: the status the automation is premised on.
-    targetStatus: string | null
-  }
+  /** A catalog event key. The recipe names no trigger vocabulary of its own. */
+  eventKey: string
+  /** Preset conditions, expressed against that event's declared fields. */
+  conditions: readonly Condition[]
   timing: Timing
   subject: string
   body: string // plain paragraphs, blank-line separated; rendered in Phase 4
@@ -34,7 +30,8 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     key: 'welcome_new_lead',
     name: 'אימייל פתיחה לליד חדש',
     description: 'כשליד חדש נכנס — הוא מקבל אישור מיידי שהפנייה התקבלה.',
-    trigger: { type: 'lead_created', sourceFilter: null, targetStatus: null },
+    eventKey: 'lead.created',
+    conditions: [],
     timing: { kind: 'preset', preset: 'immediate' },
     subject: 'קיבלנו את הפנייה שלך — {{שם העסק}}',
     body: `שלום {{שם הליד}},
@@ -50,7 +47,8 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     key: 'webinar_registration_confirmation',
     name: 'אישור הרשמה לוובינר',
     description: 'כשליד נרשם דרך טופס — הוא מקבל אישור הרשמה מסודר.',
-    trigger: { type: 'lead_created', sourceFilter: 'facebook', targetStatus: null },
+    eventKey: 'lead.created',
+    conditions: [{ field: 'source', operator: 'contains', value: 'facebook' }],
     timing: { kind: 'preset', preset: 'immediate' },
     subject: 'ההרשמה שלך אושרה — {{שם העסק}}',
     body: `שלום {{שם הליד}},
@@ -66,7 +64,8 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     key: 'deal_closed_thank_you',
     name: 'תודה על סגירת העסקה',
     description: 'כשליד נסגר — הוא מקבל אימייל תודה אישי.',
-    trigger: { type: 'status_changed', sourceFilter: null, targetStatus: 'closed' },
+    eventKey: 'lead.status_changed',
+    conditions: [{ field: 'newStatus', operator: 'is', value: 'closed' }],
     timing: { kind: 'preset', preset: 'immediate' },
     subject: 'תודה מאיתנו — {{שם העסק}}',
     body: `שלום {{שם הליד}},
@@ -82,7 +81,8 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     key: 'in_progress_follow_up',
     name: 'אימייל מעקב לליד בטיפול',
     description: 'כשליד עובר לטיפול — הוא מקבל עדכון שמרגיעים אותו שלא נשכח.',
-    trigger: { type: 'status_changed', sourceFilter: null, targetStatus: 'contacted' },
+    eventKey: 'lead.status_changed',
+    conditions: [{ field: 'newStatus', operator: 'is', value: 'contacted' }],
     timing: { kind: 'preset', preset: 'one_day' },
     subject: 'אנחנו על זה — {{שם העסק}}',
     body: `שלום {{שם הליד}},

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AUTOMATION_RECIPES } from '@/lib/automations/recipes'
 import { isValidTiming } from '@/lib/automations/timing'
-import { TRIGGER_TYPES } from '@/lib/automations/types'
+import { getEvent } from '@/lib/automations/catalog/registry'
 import { unknownTokens } from '@/lib/automations/variables'
 
 // Catalog integrity guards: the V1 catalog is exactly the four ADR-consistent
@@ -33,15 +33,17 @@ describe('AUTOMATION_RECIPES — V1 catalog', () => {
   })
 
   it.each(AUTOMATION_RECIPES.map((r) => [r.key, r] as const))('%s is a valid single rule', (_key, r) => {
-    expect(TRIGGER_TYPES).toContain(r.trigger.type)
+    expect(getEvent(r.eventKey), r.key).toBeTruthy()
     expect(isValidTiming(r.timing)).toBe(true)
     expect(r.name.trim().length).toBeGreaterThan(0)
     expect(r.description.trim().length).toBeGreaterThan(0)
     expect(r.subject.trim().length).toBeGreaterThan(0)
     expect(r.body.trim().length).toBeGreaterThan(0)
-    // status_changed recipes are premised on a target status; lead_created never is.
-    if (r.trigger.type === 'status_changed') expect(r.trigger.targetStatus).toBeTruthy()
-    else expect(r.trigger.targetStatus).toBeNull()
+    // Conditions reference only fields the chosen event declares.
+    const event = getEvent(r.eventKey)!
+    for (const c of r.conditions) {
+      expect(event.fields.some((f) => f.key === c.field), `${r.key}: ${c.field}`).toBe(true)
+    }
   })
 
   it.each(AUTOMATION_RECIPES.map((r) => [r.key, r] as const))(

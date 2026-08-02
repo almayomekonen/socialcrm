@@ -40,13 +40,18 @@ const INTEGRATION_NAMES = [
 const FORBIDDEN_IMPORTS = ['lib/connectors', 'lib/facebook', 'lib/whatsapp', 'lib/system']
 
 /**
- * LEGACY EXEMPTIONS — the pre-catalog email Builder (Phase 6) hardcodes lead
- * sources because it predates the catalog. B3 replaces these with an
- * `enum_remote` parameter fed by the event's metadata.
+ * LEGACY EXEMPTIONS — EMPTY as of B3, permanently.
  *
- * THIS LIST MAY ONLY SHRINK. It must be empty when B3 completes.
+ * B0 opened this list with one entry: the pre-catalog Builder hardcoded lead
+ * sources in sheetOptions.ts. B3 replaced that with conditions generated from
+ * the event's declared `source` field, so the exemption became stale and was
+ * deleted — which the staleness check below forced.
+ *
+ * THIS LIST MAY ONLY SHRINK. It is now empty and must stay empty: adding an
+ * entry means Builder code has learned something about an integration, which
+ * Law 1 forbids.
  */
-const LEGACY_EXEMPT_FILES = ['components/settings/automations/sheetOptions.ts']
+const LEGACY_EXEMPT_FILES: string[] = []
 const LEGACY_EXEMPT_COUNT = LEGACY_EXEMPT_FILES.length
 
 function sourceFiles(relDir: string): string[] {

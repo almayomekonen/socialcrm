@@ -7,6 +7,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
 import { AUTOMATION_RECIPES } from '@/lib/automations/recipes'
+import { listSelectableEvents } from '@/lib/automations/catalog/registry'
 import { IDENTITY_PROBLEM_COPY, type IdentityProblem } from '@/lib/automations/identity'
 import { duplicateAutomation, setAutomationStatus } from '@/actions/automations/manage'
 import { listActivityForAutomationAction } from '@/actions/automations/activity'
@@ -29,21 +30,20 @@ const DRAFT_FROM_RECIPE = (key: string): SheetDraft | null => {
   return {
     name: r.name,
     recipeKey: r.key,
-    trigger: r.trigger.type,
-    sourceFilter: r.trigger.sourceFilter,
-    targetStatus: r.trigger.targetStatus,
+    eventKey: r.eventKey,
+    conditions: [...r.conditions],
     subject: r.subject,
     body: r.body,
     timing: r.timing,
   }
 }
 
+/** The blank draft opens on the first catalog event — no hardcoded trigger. */
 const BLANK: SheetDraft = {
   name: '',
   recipeKey: null,
-  trigger: 'lead_created',
-  sourceFilter: null,
-  targetStatus: null,
+  eventKey: listSelectableEvents()[0]?.key ?? '',
+  conditions: [],
   subject: '',
   body: '',
   timing: { kind: 'preset', preset: 'immediate' },

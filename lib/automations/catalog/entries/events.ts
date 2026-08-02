@@ -19,12 +19,33 @@ import type { EventDefinition, FieldDefinition } from '../types'
  * business/rep names at send time, so those are `live`; values captured on the
  * event itself are `snapshot`.
  */
+/**
+ * The lead pipeline's statuses, as catalog data. Declaring them here is what
+ * removes the last hardcoded status list from Builder code: the condition
+ * editor's value dropdown and the sentence's labels both read this.
+ * Mirrors components/clients/LeadStatusCell.tsx, the product's canonical list.
+ */
+const LEAD_STATUS_OPTIONS = [
+  { value: 'new', label: 'חדש' },
+  { value: 'contacted', label: 'בטיפול' },
+  { value: 'interested', label: 'מעוניין' },
+  { value: 'closed', label: 'סגור' },
+  { value: 'lost', label: 'אבוד' },
+] as const
+
 const LEAD_FIELDS: readonly FieldDefinition[] = [
   { key: 'leadFirstName', type: 'text', label: 'שם הליד', freshness: 'live', lifecycle: 'stable' },
   { key: 'businessName', type: 'text', label: 'שם העסק', freshness: 'live', lifecycle: 'stable' },
   { key: 'repName', type: 'text', label: 'שם הנציג', freshness: 'live', lifecycle: 'stable' },
   { key: 'email', type: 'email', label: 'אימייל הליד', freshness: 'live', lifecycle: 'stable' },
-  { key: 'status', type: 'text', label: 'סטטוס הליד', freshness: 'live', lifecycle: 'stable' },
+  {
+    key: 'status',
+    type: 'enum',
+    label: 'סטטוס הליד',
+    freshness: 'live',
+    lifecycle: 'stable',
+    options: LEAD_STATUS_OPTIONS,
+  },
 ]
 
 /**
@@ -73,7 +94,14 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
       // The status the lead moved INTO, as of the event. The engine's
       // premise-expiry law compares this against the definition's
       // targetStatus; B3 expresses that as a condition on this field.
-      { key: 'newStatus', type: 'text', label: 'הסטטוס החדש', freshness: 'snapshot', lifecycle: 'stable' },
+      {
+        key: 'newStatus',
+        type: 'enum',
+        label: 'הסטטוס החדש',
+        freshness: 'snapshot',
+        lifecycle: 'stable',
+        options: LEAD_STATUS_OPTIONS,
+      },
     ],
     identity: {
       occurrenceKey: 'status_changed:{newStatus}:{occurredAtMs}',
