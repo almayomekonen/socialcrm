@@ -513,3 +513,27 @@ describe('regression — a lead insert must satisfy clients.lastName NOT NULL', 
     }
   })
 })
+
+describe('regression — the idNum trigger truncates to 9 chars', () => {
+  const src = () => fs.readFileSync(path.join(process.cwd(), 'lib/automations/connectors/contactForm7.ts'), 'utf8')
+
+  it('the connector reports NO national id rather than inventing one', () => {
+    // `add_zeros_trigger` runs LPAD(idNum, 9, '0') and Postgres's LPAD
+    // TRUNCATES anything longer — so `CF7_{row}_{submission}` collapsed to a
+    // constant 9-char prefix and the SECOND submission from a connection
+    // always violated clients_idNum_agencyId_unique.
+    expect(src()).toContain('idNum: null')
+    expect(src()).not.toMatch(/idNum: `CF7_/)
+  })
+
+  it('no synthetic id scheme is reintroduced anywhere in the connector', () => {
+    expect(src()).not.toMatch(/idNum:\s*`/)
+  })
+
+  it('dedup does not depend on idNum — leadSource carries identity', () => {
+    // leadSource is `contact_form_7:{connectionRowId}:{submissionId}`, globally
+    // unique by construction, and is the first lookup findOrCreateLead makes.
+    expect(src()).toContain('submissionSource')
+    expect(src()).toContain('where({ agencyId, leadSource })')
+  })
+})

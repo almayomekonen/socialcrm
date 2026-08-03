@@ -222,7 +222,16 @@ async function findOrCreateLead(
     handlerId: row.ownerUserId,
     firstName,
     lastName,
-    idNum: `CF7_${row.id}_${submissionId}`.slice(0, 40),
+    // NULL, not a synthetic id. A website form has no national ID number to
+    // report, and inventing one is actively harmful here: the clients table
+    // has a BEFORE INSERT trigger running LPAD(idNum, 9, '0'), and Postgres's
+    // LPAD truncates anything longer than 9. Every `CF7_{row}_{submission}`
+    // therefore collapsed to the same 9-character prefix, so the SECOND
+    // submission from a connection always failed
+    // `clients_idNum_agencyId_unique` — and the failure surfaced only as
+    // `subject_unresolved`. Dedup is `leadSource`, which is globally unique
+    // by construction, so nothing depended on idNum being set.
+    idNum: null,
     leadSource,
     phone,
     email: email || null,

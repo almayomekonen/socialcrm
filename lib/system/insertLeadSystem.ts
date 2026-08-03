@@ -15,7 +15,17 @@ export type SystemLeadInput = {
   agencyId: number
   userId: number
   firstName: string
-  idNum: string
+  /**
+   * The lead's national ID number. NULL when there is none — which is the norm
+   * (the overwhelming majority of leads carry no idNum) and is REQUIRED for any
+   * source that has no such number to report.
+   *
+   * A synthetic value is not a safe substitute: the `add_zeros_trigger` runs
+   * `LPAD(idNum, 9, '0')`, and LPAD TRUNCATES anything longer than 9 — so any
+   * scheme like `PREFIX_{externalId}` collapses to its first 9 characters and
+   * collides on `clients_idNum_agencyId_unique`.
+   */
+  idNum: string | null
   leadSource: string | null
   overQuota: boolean
   lastName?: string | null
@@ -32,7 +42,7 @@ export async function insertLeadSystem(input: SystemLeadInput): Promise<any | nu
     lastName: input.lastName ?? null,
     phone: input.phone ?? null,
     email: input.email ?? null,
-    idNum: input.idNum,
+    idNum: input.idNum ?? null,
     leadSource: input.leadSource,
     agencyId: input.agencyId,
     userId: input.userId,
