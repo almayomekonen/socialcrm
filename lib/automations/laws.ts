@@ -38,10 +38,18 @@ export interface SendFacts {
   premise?: { definition: EventDefinition | null; conditions: readonly Condition[]; values: FieldValues } | null
   lead: {
     exists: boolean
-    email: string | null
     currentStatus: string | null
-    emailUndeliverable: boolean
   }
+  /**
+   * B6b — delivery targets, keyed by the SUBJECT FIELD the action's `requires`
+   * resolved to, replacing the email-shaped `lead.email` /
+   * `lead.emailUndeliverable` pair.
+   *
+   * The recipient laws below read this map rather than a named address, so an
+   * action that delivers to a phone, a webhook URL or nobody at all is decided
+   * by the same code — and adding one costs no line here.
+   */
+  recipients?: Record<string, { value: string | null; blocked: boolean }>
   suppressed: boolean
   alreadySent: boolean // send-once claim already recorded (ADR-005)
   sentToLeadToday: number // automated emails this lead received today (all automations)
@@ -90,7 +98,9 @@ type LawEvaluator = (f: SendFacts) => SkipReason | null
  */
 const LAW_EVALUATORS: Record<LawKey, LawEvaluator | null> = {
   suppression: (f) => (f.suppressed ? 'suppressed' : null),
-  bounce_block: (f) => (f.lead.emailUndeliverable ? 'address_undeliverable' : null),
+  // Any resolved recipient that is undeliverable blocks the action. Generic
+  // over recipients; an action that declares no recipient never trips it.
+  bounce_block: (f) => (Object.values(f.recipients ?? {}).some((r) => r.blocked) ? 'address_undeliverable' : null),
   send_once: (f) => (f.alreadySent ? 'already_sent' : null),
   per_lead_cap: (f) => (f.sentToLeadToday >= (f.limits?.leadDailyCap ?? DEFAULT_LEAD_DAILY_CAP) ? 'lead_daily_cap' : null),
   agency_cap: (f) =>
@@ -104,13 +114,42 @@ const LAW_EVALUATORS: Record<LawKey, LawEvaluator | null> = {
 }
 
 /**
- * Whether the action's recipient requirement is satisfiable from the facts.
- * Sparse on purpose: most field types are never recipients. `phone` arrives
- * with the first messaging action (B6).
+ * The skip reason for "this action needs a recipient of type X and there is
+ * none". Persisted values, so append-only: a new channel appends its reason
+ * rather than reusing another channel's.
+ *
+ * An unmapped type is NOT silently allowed — `requiresStep` fails closed with
+ * `action_unavailable`, because an action whose recipient requirement cannot
+ * even be named must never resolve to a send.
  */
-const RECIPIENT_CHECKS: Partial<Record<FieldType, LawEvaluator>> = {
-  email: (f) => (!f.lead.email?.trim() ? 'no_email' : null),
+const MISSING_RECIPIENT: Partial<Record<FieldType, SkipReason>> = {
+  email: 'no_email',
+  phone: 'no_phone',
 }
+
+/**
+ * Whether the action's recipient requirements are satisfiable from the facts.
+ * Reads the generic `recipients` map, keyed by the SUBJECT FIELD each
+ * requirement resolved to — so this function names no channel.
+ */
+function requiresStep(requires: readonly FieldType[], fieldForType: RecipientFieldLookup): LawEvaluator[] {
+  return requires.map((type) => (f: SendFacts) => {
+    const reason = MISSING_RECIPIENT[type]
+    if (!reason) return 'action_unavailable'
+    const key = fieldForType(type)
+    const value = key ? f.recipients?.[key]?.value : null
+    return value?.trim() ? null : reason
+  })
+}
+
+/**
+ * Maps an action's required FIELD TYPE to the subject field key that carries
+ * it on this event. Supplied by the caller because only the event knows.
+ */
+export type RecipientFieldLookup = (type: FieldType) => string | null
+
+/** The default when no event is available: the type doubles as the key. */
+const typeAsKey: RecipientFieldLookup = (type) => type
 
 type PipelineStep = { kind: 'law'; law: LawKey } | { kind: 'requires' }
 
@@ -141,17 +180,18 @@ export type ComposedPipeline = {
  * Build the ordered evaluator list for one action's declared laws and
  * recipient requirements. Pure; no catalog lookup, no I/O.
  */
-export function composeLawPipeline(laws: readonly LawKey[], requires: readonly FieldType[]): ComposedPipeline {
+export function composeLawPipeline(
+  laws: readonly LawKey[],
+  requires: readonly FieldType[],
+  fieldForType: RecipientFieldLookup = typeAsKey,
+): ComposedPipeline {
   const declared = new Set<LawKey>(laws)
   const steps: LawEvaluator[] = []
   const unimplemented: LawKey[] = []
 
   for (const step of PIPELINE_ORDER) {
     if (step.kind === 'requires') {
-      for (const type of requires) {
-        const check = RECIPIENT_CHECKS[type]
-        if (check) steps.push(check)
-      }
+      steps.push(...requiresStep(requires, fieldForType))
       continue
     }
     if (!declared.has(step.law)) continue
@@ -195,11 +235,12 @@ function premiseHolds(f: SendFacts): boolean {
 export function decideSendForAction(
   action: { laws: readonly LawKey[]; requires: readonly FieldType[] },
   f: SendFacts,
+  fieldForType: RecipientFieldLookup = typeAsKey,
 ): LawDecision {
   const guarded = universalGuards(f)
   if (guarded) return guarded
 
-  const { steps, unimplemented } = composeLawPipeline(action.laws, action.requires)
+  const { steps, unimplemented } = composeLawPipeline(action.laws, action.requires, fieldForType)
   if (unimplemented.length > 0) return skip('action_unavailable')
 
   for (const step of steps) {

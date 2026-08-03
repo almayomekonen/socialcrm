@@ -128,7 +128,8 @@ describe('CONFORMANCE — declared laws match the laws decideSend enforces', () 
   const NOW = new Date('2026-08-03T09:00:00Z')
   const facts = (over: Partial<SendFacts> = {}): SendFacts => ({
     event: { trigger: 'lead_created', origin: 'manual', agencyId: 1, leadId: 1, occurredAt: NOW },
-    lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: false },
+    lead: { exists: true, currentStatus: 'new' },
+    recipients: { email: { value: 'a@b.co', blocked: false } },
     suppressed: false,
     alreadySent: false,
     sentToLeadToday: 0,
@@ -146,7 +147,10 @@ describe('CONFORMANCE — declared laws match the laws decideSend enforces', () 
       'reason' in decideSend(facts({ sentByAgencyToday: DEFAULT_AGENCY_DAILY_CEILING })) ? 'agency_daily_cap' : undefined,
     suppression: () => ('reason' in decideSend(facts({ suppressed: true })) ? 'suppressed' : undefined),
     bounce_block: () =>
-      'reason' in decideSend(facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } }))
+      'reason' in
+      decideSend(
+        facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: 'a@b.co', blocked: true } } }),
+      )
         ? 'address_undeliverable'
         : undefined,
     quiet_hours: () => ('reason' in decideSend(facts({ quietHours: { startHour: 0, endHour: 23 } })) ? 'quiet_hours' : undefined),

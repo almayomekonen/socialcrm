@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AutomationJob } from '@/db/automations/jobs'
 import type { WorkerDefinition } from '@/db/automations/definitions'
 import { runAutomationWorker, type WorkerDeps } from '@/lib/automations/worker'
 import { getAutomationsSendMode } from '@/lib/automations/flags'
 import { getAction } from '@/lib/automations/catalog/registry'
-import { executorFor } from '@/lib/automations/executors/registry'
+import { emailExecutor } from '@/lib/automations/executors/email'
 
 // ADR-011 conformance (DI, DB-less): every transition, every reason, the
 // claim→effect→confirm→complete order, crash recovery in both modes, and the
@@ -57,6 +57,32 @@ function def(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
   }
 }
 
+/**
+ * B6b: the email executor now resolves its OWN dependencies, so a DB-less test
+ * stubs them here rather than on the worker. `transport` is the shared spy —
+ * that it lives on the executor, not on WorkerDeps, is the point.
+ */
+const transport = vi.fn(async () => ({ ok: true as const, id: 'msg_1' }))
+let executorDeps: Record<string, unknown> = {}
+
+beforeEach(() => {
+  transport.mockClear()
+  executorDeps = {}
+})
+
+const stubbedEmailExecutor = () =>
+  ({
+    ...emailExecutor,
+    defaultDeps: () => ({
+      agencyName: async () => 'העסק שלי',
+      replyTo: async () => 'owner@business.example',
+      repName: async () => null,
+      from: () => '',
+      send: transport,
+      ...executorDeps,
+    }),
+  }) as never
+
 function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
   return {
     sendMode: () => 'log',
@@ -66,13 +92,14 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     getLeadFacts: vi.fn(async () => ({
       exists: true as const,
       email: 'dana@example.com',
+      phone: null,
       currentStatus: 'new',
       firstName: 'דנה',
       displayName: 'דנה לוי',
       handlerId: null,
     })),
     isSuppressed: vi.fn(async () => false),
-    isBlocked: vi.fn(async () => false),
+    isRecipientBlocked: vi.fn(async () => false),
     claimState: vi.fn(async () => 'none' as const),
     claimOnce: vi.fn(async () => true),
     confirmClaim: vi.fn(async () => {}),
@@ -82,11 +109,9 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     countAgencyToday: vi.fn(async () => 0),
     appendActivity: vi.fn(async () => {}),
     agencyName: vi.fn(async () => 'העסק שלי'),
-    replyTo: vi.fn(async () => 'owner@business.example'),
     repName: vi.fn(async () => null),
-    send: vi.fn(async () => ({ ok: true as const, id: 'msg_1' })),
     getAction: vi.fn(getAction),
-    executorFor: vi.fn(executorFor),
+    executorFor: vi.fn(stubbedEmailExecutor) as never,
     completeJob: vi.fn(async () => {}),
     skipJob: vi.fn(async () => {}),
     failJob: vi.fn(async () => {}),
@@ -98,12 +123,24 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
 
 const calls = (fn: unknown) => (fn as ReturnType<typeof vi.fn>).mock.calls
 
+/**
+ * B6b: the transport is one of the EMAIL EXECUTOR's own dependencies — the
+ * worker no longer declares it. A test that wants to watch the transport
+ * therefore overrides the executor's deps, which is itself the proof that the
+ * worker supplies nothing channel-specific.
+ */
+/** Same worker deps, plus executor-dep overrides and the transport spy. */
+function withTransport(over: Partial<WorkerDeps> = {}, over2: Record<string, unknown> = {}) {
+  executorDeps = over2
+  return { d: deps(over), transport }
+}
+
 describe('log-mode happy path (the only reachable mode)', () => {
   it('claim → would_send activity → confirm → complete; transport NEVER called', async () => {
-    const d = deps()
+    const { d, transport } = withTransport()
     const summary = await runAutomationWorker({ deps: d })
     expect(summary).toEqual({ claimed: 1, done: 1, skipped: 0, retried: 0, dead: 0 })
-    expect(d.send).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
     const activity = calls(d.appendActivity)[0][0]
     expect(activity).toMatchObject({
       kind: 'would_send',
@@ -213,10 +250,10 @@ describe('crash recovery (unconfirmed claim from a prior attempt)', () => {
   })
 
   it('live mode: ambiguous-after-crash dies, is never resent, and is user-visible', async () => {
-    const d = deps({ sendMode: () => 'live', claimState: vi.fn(async () => 'claimed' as const) })
+    const { d, transport } = withTransport({ sendMode: () => 'live', claimState: vi.fn(async () => 'claimed' as const) })
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.dead).toBe(1)
-    expect(d.send).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
     expect(d.deadJob).toHaveBeenCalledWith(1, 'ambiguous_after_crash')
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'failed' })
   })
@@ -224,12 +261,10 @@ describe('crash recovery (unconfirmed claim from a prior attempt)', () => {
 
 describe('live branch is code-complete (and gated off by default)', () => {
   it('with mode live injected: transport called with the resolved identity', async () => {
-    process.env.AUTOMATIONS_FROM = 'auto@send.example.com'
-    const d = deps({ sendMode: () => 'live' })
+    const { d, transport } = withTransport({ sendMode: () => 'live' }, { from: () => 'auto@send.example.com' })
     const summary = await runAutomationWorker({ deps: d })
-    delete process.env.AUTOMATIONS_FROM
     expect(summary.done).toBe(1)
-    expect(calls(d.send)[0][0]).toMatchObject({
+    expect(calls(transport)[0][0]).toMatchObject({
       to: 'dana@example.com',
       subject: 'שלום דנה',
       from: '"העסק שלי" <auto@send.example.com>', // display name = business name
@@ -239,33 +274,29 @@ describe('live branch is code-complete (and gated off by default)', () => {
   })
 })
 
-describe('identity gate (ADR-013)', () => {
+describe('identity gate (ADR-013) — now entirely the executor’s preflight', () => {
   it('live mode with no sending domain dies WITHOUT consuming the once-ever claim', async () => {
-    delete process.env.AUTOMATIONS_FROM
-    const d = deps({ sendMode: () => 'live' })
+    const { d, transport } = withTransport({ sendMode: () => 'live' }, { from: () => '' })
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.dead).toBe(1)
     // The claim must survive: once configured, the lead still gets this email.
     expect(d.claimOnce).not.toHaveBeenCalled()
-    expect(d.send).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
     expect(d.failJob).not.toHaveBeenCalled() // definitive, never a retry storm
     expect(d.deadJob).toHaveBeenCalledWith(1, 'identity_unavailable:no_sending_domain')
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'failed' })
   })
 
   it('live mode with no resolvable reply-to is treated the same way', async () => {
-    process.env.AUTOMATIONS_FROM = 'auto@send.example.com'
-    const d = deps({ sendMode: () => 'live', replyTo: vi.fn(async () => null) })
+    const { d } = withTransport({ sendMode: () => 'live' }, { from: () => 'auto@send.example.com', replyTo: async () => null })
     const summary = await runAutomationWorker({ deps: d })
-    delete process.env.AUTOMATIONS_FROM
     expect(summary.dead).toBe(1)
     expect(d.deadJob).toHaveBeenCalledWith(1, 'identity_unavailable:no_reply_to')
     expect(d.claimOnce).not.toHaveBeenCalled()
   })
 
   it('log mode is never blocked by incomplete identity — the preview still renders', async () => {
-    delete process.env.AUTOMATIONS_FROM
-    const d = deps({ replyTo: vi.fn(async () => null) })
+    const { d } = withTransport({}, { from: () => '', replyTo: async () => null })
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.done).toBe(1)
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'would_send', subject: 'שלום דנה' })
@@ -290,6 +321,7 @@ describe('the live premise (B6)', () => {
   const leadWithStatus = (currentStatus: string) => ({
     exists: true as const,
     email: 'dana@example.com',
+    phone: null,
     currentStatus,
     firstName: 'דנה',
     displayName: 'דנה לוי',
@@ -317,7 +349,6 @@ describe('the live premise (B6)', () => {
     expect(summary).toEqual({ claimed: 1, done: 0, skipped: 1, retried: 0, dead: 0 })
     expect(calls(d.skipJob)[0][1]).toBe('premise_expired')
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'skipped', skipReason: 'premise_expired' })
-    expect(d.send).not.toHaveBeenCalled()
     // The claim is never taken for a job whose premise failed.
     expect(d.claimOnce).not.toHaveBeenCalled()
   })
@@ -340,15 +371,16 @@ describe('the live premise (B6)', () => {
     expect((await runAutomationWorker({ deps: d })).done).toBe(1)
   })
 
-  it('fetches ONLY the live fields the conditions reference', async () => {
+  it('resolves each subject field AT MOST ONCE, however many consumers want it', async () => {
     const d = deps({
       claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
       getDefinition: vi.fn(async () => statusAutomation('contacted')),
       getLeadFacts: vi.fn(async () => leadWithStatus('contacted')),
     })
     await runAutomationWorker({ deps: d })
-    // A status premise needs no business name; that query is never made for it.
-    expect(calls(d.agencyName).length).toBe(1) // the executor's own preflight, not the premise
+    // `businessName` is wanted by the executor's declared variables and NOT by
+    // this status premise — one fetch, not one per consumer.
+    expect(calls(d.agencyName).length).toBe(1)
   })
 
   it('a premise on a field the worker must fetch resolves it, once', async () => {
@@ -360,7 +392,8 @@ describe('the live premise (B6)', () => {
       getLeadFacts: vi.fn(async () => leadWithStatus('contacted')),
     })
     expect((await runAutomationWorker({ deps: d })).done).toBe(1)
-    expect(calls(d.agencyName).length).toBe(2) // once for the premise, once in preflight
+    // Wanted by BOTH the premise and the executor's variables — still one fetch.
+    expect(calls(d.agencyName).length).toBe(1)
   })
 
   it('an unknown condition field fails CLOSED rather than sending unguarded', async () => {
@@ -374,6 +407,7 @@ describe('the live premise (B6)', () => {
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.skipped).toBe(1)
     expect(calls(d.skipJob)[0][1]).toBe('premise_expired')
-    expect(d.send).not.toHaveBeenCalled()
+    // Nothing was executed at all: the executor is never reached.
+    expect(d.claimOnce).not.toHaveBeenCalled()
   })
 })

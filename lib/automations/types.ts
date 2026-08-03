@@ -68,6 +68,10 @@ export const SKIP_REASONS = [
   'premise_expired', // the state that justified the send no longer holds
   'suppressed', // lead unsubscribed from this business's automated email
   'no_email', // lead has no email address
+  // B6b appends the messaging counterpart. Nothing produces it yet — it exists
+  // so the FIRST messaging action is a catalog entry plus an executor, with no
+  // engine edit to invent a reason for a missing recipient.
+  'no_phone', // lead has no phone number
   'address_undeliverable', // hard-bounced address
   'already_sent', // send-once: this automation already reached this lead (ADR-005)
   'lead_daily_cap', // per-lead frequency cap reached today

@@ -1,18 +1,18 @@
 import { baseUrl } from '@/types/vars'
+import { getAgencyName, getAgencyReplyTo, getRepName } from '@/db/automations/leadFacts'
 import { resolveSenderIdentity, type SenderIdentity } from '../identity'
 import { renderAutomationEmail } from '../renderEmail'
-import { leadUnsubscribeUrl } from '../unsubscribeToken'
+import { leadUnsubscribeUrl, signLeadUnsubscribe } from '../unsubscribeToken'
 import { getAutomationsFrom } from '../flags'
-import type { ActionExecutor, ExecutionContext, ExecutorDeps, PreflightResult } from './types'
+import type { ActionExecutor, ExecutionContext, PreflightResult, TestResult, TestTarget } from './types'
 
 /**
  * `email.send` — Action #1, and nothing more than that.
  *
- * Every line below was lifted out of the worker unchanged: the identity
- * resolution, its ordering before the claim, the exact dead-reason string, the
- * exact log transitions, the rendering, the `mode === 'live' && identity`
- * send condition, and the activity fields. The worker did not become simpler
- * by losing behaviour — it became simpler by losing knowledge of email.
+ * Everything email-specific in the execution path lives here: the transport,
+ * the sender identity, the unsubscribe link, the rendering, the variables the
+ * renderer can substitute, and the test send. Nothing above this file — not
+ * the worker, not the laws, not the actions layer — knows any of it.
  */
 
 /** What preflight resolves and execute consumes. */
@@ -22,10 +22,63 @@ export type EmailReady = {
   businessName: string | null
 }
 
-const asText = (value: unknown): string => (typeof value === 'string' ? value : '')
+/**
+ * The email executor's OWN dependencies. The worker never declares these — an
+ * action that needs a database row instead of a mailer declares that instead,
+ * and the worker is unchanged either way.
+ */
+export type EmailDeps = {
+  agencyName: (agencyId: number) => Promise<string | null>
+  replyTo: (agencyId: number) => Promise<string | null>
+  repName: (userId: number | null) => Promise<string | null>
+  from: () => string
+  send: (args: {
+    from: string
+    replyTo: string
+    to: string
+    subject: string
+    html: string
+    text: string
+  }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+}
 
-export const emailExecutor: ActionExecutor<EmailReady> = {
+/**
+ * The three subject fields the renderer can substitute. This is the AUTHORITY
+ * the actions layer validates authored content against — replacing the global
+ * "email variables" constant that used to apply to every action regardless of
+ * which one it was.
+ */
+const RESOLVABLE_FIELDS = ['leadFirstName', 'businessName', 'repName'] as const
+
+const asText = (value: unknown): string => (typeof value === 'string' ? value : '')
+const asVar = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+
+/** The variable map, built from whatever the subject resolved to. */
+const varsFrom = (subject: Record<string, unknown>, businessName: string | null) => ({
+  leadFirstName: asVar(subject.leadFirstName),
+  // The identity's display name and the rendered business name are the same
+  // resolved value — the email cannot say one thing and sign another.
+  businessName: businessName ?? asVar(subject.businessName),
+  repName: asVar(subject.repName),
+})
+
+export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
   actionKey: 'email.send',
+  resolvableFields: RESOLVABLE_FIELDS,
+
+  defaultDeps: () => ({
+    agencyName: getAgencyName,
+    replyTo: getAgencyReplyTo,
+    repName: getRepName,
+    from: getAutomationsFrom,
+    // Transport is an effect-time concern (ADR-011): loaded lazily so the
+    // log-mode engine never touches the Resend client, whose construction
+    // requires the platform API key at import.
+    send: async (args) => {
+      const { sendEmail } = await import('@/lib/email/sender')
+      return sendEmail(args)
+    },
+  }),
 
   /**
    * Identity is resolved BEFORE the claim (ADR-013). In log mode an
@@ -33,12 +86,9 @@ export const emailExecutor: ActionExecutor<EmailReady> = {
    * preview of what it would have sent, which is the whole point of
    * observation mode.
    */
-  async preflight(ctx: ExecutionContext, deps: ExecutorDeps): Promise<PreflightResult<EmailReady>> {
+  async preflight(ctx: ExecutionContext, deps: EmailDeps): Promise<PreflightResult<EmailReady>> {
     const businessName = await deps.agencyName(ctx.agencyId)
-    const sender = resolveSenderIdentity(
-      { agencyName: businessName, replyTo: await deps.replyTo(ctx.agencyId) },
-      getAutomationsFrom(),
-    )
+    const sender = resolveSenderIdentity({ agencyName: businessName, replyTo: await deps.replyTo(ctx.agencyId) }, deps.from())
     const ready: EmailReady = { identity: sender.identity, businessName }
     if (!sender.problem) return { ready, problem: null }
     return {
@@ -54,25 +104,24 @@ export const emailExecutor: ActionExecutor<EmailReady> = {
     }
   },
 
-  async execute(ctx: ExecutionContext, ready: EmailReady, deps: ExecutorDeps) {
+  async execute(ctx: ExecutionContext, ready: EmailReady, deps: EmailDeps) {
     const rendered = await renderAutomationEmail({
       subject: asText(ctx.parameters.subject),
       body: asText(ctx.parameters.body),
-      vars: {
-        // The identity's display name and the rendered business name are the
-        // same resolved value — the email cannot say one thing and sign another.
-        leadFirstName: ctx.lead.firstName,
-        businessName: ready.identity?.displayName ?? ready.businessName,
-        repName: await deps.repName(ctx.lead.handlerId),
-      },
+      vars: varsFrom(ctx.subject, ready.identity?.displayName ?? ready.businessName),
       unsubscribeUrl: leadUnsubscribeUrl(baseUrl, ctx.agencyId, ctx.leadId),
     })
 
-    if (ctx.mode === 'live' && ready.identity) {
+    // The recipient is whatever the action's `requires: ['email']` resolved to
+    // — read by catalog field key, never assumed to be a property called
+    // "email" on a lead-shaped object.
+    const to = ctx.recipients.email ?? null
+
+    if (ctx.mode === 'live' && ready.identity && to) {
       const res = await deps.send({
         from: ready.identity.from,
         replyTo: ready.identity.replyTo,
-        to: ctx.lead.email as string,
+        to,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
@@ -92,5 +141,51 @@ export const emailExecutor: ActionExecutor<EmailReady> = {
       summary: rendered.subject,
       log: { reason: 'log_mode', subject: rendered.subject },
     }
+  },
+
+  /**
+   * "שלח אליי בדיקה" — the honesty handshake (spec §7): what the admin
+   * receives is exactly what a lead would receive, because it goes through the
+   * same identity resolver and the same renderer as `execute`.
+   *
+   * It is not a customer send: no claim, no activity row, no cap, and only to
+   * the caller's own address — so it runs regardless of the send mode without
+   * making live sending reachable for leads.
+   */
+  async test(parameters, target: TestTarget, deps: EmailDeps): Promise<TestResult> {
+    const businessName = await deps.agencyName(target.agencyId)
+    const sender = resolveSenderIdentity({ agencyName: businessName, replyTo: await deps.replyTo(target.agencyId) }, deps.from())
+    if (!sender.identity) return { ok: false, reason: sender.problem ?? 'identity_unavailable' }
+
+    const rendered = await renderAutomationEmail({
+      subject: asText(parameters.subject),
+      body: asText(parameters.body),
+      // Previewed with the admin's own name so substitution is visible rather
+      // than theoretical.
+      vars: {
+        leadFirstName: target.toName,
+        businessName: sender.identity.displayName,
+        repName: target.toName,
+      },
+      // A real, working link — scoped to lead 0, which no lead can ever be, so
+      // clicking it in a test can never suppress a real lead.
+      unsubscribeUrl: `${baseUrl}/api/automations/unsubscribe?a=${target.agencyId}&l=0&t=${encodeURIComponent(
+        signLeadUnsubscribe(target.agencyId, 0),
+      )}`,
+    })
+
+    const res = await deps.send({
+      from: sender.identity.from,
+      replyTo: sender.identity.replyTo,
+      to: target.address,
+      subject: `[בדיקה] ${rendered.subject}`,
+      html: rendered.html,
+      text: rendered.text,
+    })
+    if ('error' in res) {
+      console.error('[automations][test-send] failed', { agencyId: target.agencyId, reason: res.error })
+      return { ok: false, reason: 'send_failed' }
+    }
+    return { ok: true }
   },
 }

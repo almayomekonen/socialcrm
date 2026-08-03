@@ -12,6 +12,7 @@ export const SKIP_REASON_COPY: Record<SkipReason, string> = {
   premise_expired: 'לא נשלח — הליד כבר טופל', // (spec)
   suppressed: 'לא נשלח — הליד הוסר מרשימת התפוצה', // (spec)
   no_email: 'לא נשלח — אין כתובת אימייל לליד', // (spec)
+  no_phone: 'לא נשלח — אין מספר טלפון לליד',
   address_undeliverable: 'לא נשלח — כתובת האימייל לא תקינה', // (spec §9, "לא נשלח —" prefix unified)
   already_sent: 'לא נשלח — כבר נשלח לליד הזה', // (spec)
   lead_daily_cap: 'לא נשלח — הליד קיבל היום את מספר האימיילים המרבי',

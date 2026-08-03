@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { AUTOMATION_RECIPES } from '@/lib/automations/recipes'
 import { isValidTiming } from '@/lib/automations/timing'
 import { getEvent } from '@/lib/automations/catalog/registry'
-import { unknownTokens } from '@/lib/automations/variables'
+import { unknownTokensFor } from '@/lib/automations/variables'
+import { resolvableFieldsFor } from '@/lib/automations/executors/registry'
 
 // Catalog integrity guards: the V1 catalog is exactly the four ADR-consistent
 // starters, every recipe is a valid single-rule sentence, and all content
@@ -42,17 +43,17 @@ describe('AUTOMATION_RECIPES — V1 catalog', () => {
     // Conditions reference only fields the chosen event declares.
     const event = getEvent(r.eventKey)!
     for (const c of r.conditions) {
-      expect(event.fields.some((f) => f.key === c.field), `${r.key}: ${c.field}`).toBe(true)
+      expect(
+        event.fields.some((f) => f.key === c.field),
+        `${r.key}: ${c.field}`,
+      ).toBe(true)
     }
   })
 
-  it.each(AUTOMATION_RECIPES.map((r) => [r.key, r] as const))(
-    '%s uses only closed-set variables',
-    (_key, r) => {
-      expect(unknownTokens(r.subject)).toEqual([])
-      expect(unknownTokens(r.body)).toEqual([])
-    },
-  )
+  it.each(AUTOMATION_RECIPES.map((r) => [r.key, r] as const))('%s uses only closed-set variables', (_key, r) => {
+    expect(unknownTokensFor(resolvableFieldsFor('email.send'), r.subject)).toEqual([])
+    expect(unknownTokensFor(resolvableFieldsFor('email.send'), r.body)).toEqual([])
+  })
 
   it('contains no emoji (product voice)', () => {
     const text = AUTOMATION_RECIPES.map((r) => `${r.name} ${r.description} ${r.subject} ${r.body}`).join(' ')

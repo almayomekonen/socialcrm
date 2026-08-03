@@ -72,9 +72,13 @@ const NOTE_WRITE: ActionDefinition = {
   testable: false,
 }
 
-function noteExecutor(spy: { performed: number }): ActionExecutor<{ note: string }> {
+function noteExecutor(spy: { performed: number }): ActionExecutor<{ note: string }, Record<string, never>> {
   return {
     actionKey: 'note.write',
+    // An internal action substitutes nothing and needs nothing — which is the
+    // whole point: the worker supplies neither.
+    resolvableFields: [],
+    defaultDeps: () => ({}),
     async preflight(ctx) {
       return { ready: { note: String(ctx.parameters.body ?? '') }, problem: null }
     },
@@ -98,13 +102,14 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     getLeadFacts: vi.fn(async () => ({
       exists: true as const,
       email: null, // deliberately NO email — a note needs none
+      phone: null,
       currentStatus: 'new',
       firstName: 'דנה',
       displayName: 'דנה לוי',
       handlerId: null,
     })),
     isSuppressed: vi.fn(async () => false),
-    isBlocked: vi.fn(async () => false),
+    isRecipientBlocked: vi.fn(async () => false),
     claimState: vi.fn(async () => 'none' as const),
     claimOnce: vi.fn(async () => true),
     confirmClaim: vi.fn(async () => {}),
@@ -114,9 +119,7 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     countAgencyToday: vi.fn(async () => 0),
     appendActivity: vi.fn(async () => {}),
     agencyName: vi.fn(async () => 'העסק שלי'),
-    replyTo: vi.fn(async () => 'owner@business.example'),
     repName: vi.fn(async () => null),
-    send: vi.fn(async () => ({ ok: true as const, id: 'msg_1' })),
     getAction: vi.fn(() => NOTE_WRITE),
     executorFor: vi.fn(),
     completeJob: vi.fn(async () => {}),
@@ -131,15 +134,13 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
 const calls = (fn: unknown) => (fn as ReturnType<typeof vi.fn>).mock.calls
 
 describe('criterion 2 — no engine path assumes action == email', () => {
-  it('runs an invented, non-messaging action end to end', async () => {
+  it('runs an invented, non-messaging action end to end — the worker supplies it nothing', async () => {
     const spy = { performed: 0 }
-    const d = deps({ executorFor: vi.fn(() => noteExecutor(spy) as unknown as ActionExecutor<never>) })
+    const d = deps({ executorFor: vi.fn(() => noteExecutor(spy) as never) as never })
     const summary = await runAutomationWorker({ deps: d })
 
     expect(summary).toEqual({ claimed: 1, done: 1, skipped: 0, retried: 0, dead: 0 })
     expect(spy.performed).toBe(1)
-    // The email transport is never reached for an action that does not use it.
-    expect(d.send).not.toHaveBeenCalled()
     expect(calls(d.appendActivity)[0][0]).toMatchObject({
       kind: 'would_send',
       mode: 'log',
@@ -149,7 +150,7 @@ describe('criterion 2 — no engine path assumes action == email', () => {
 
   it('a lead with no email is not blocked when the action does not require one', async () => {
     const spy = { performed: 0 }
-    const d = deps({ executorFor: vi.fn(() => noteExecutor(spy) as unknown as ActionExecutor<never>) })
+    const d = deps({ executorFor: vi.fn(() => noteExecutor(spy) as never) as never })
     await runAutomationWorker({ deps: d })
     expect(calls(d.skipJob)).toEqual([])
     expect(spy.performed).toBe(1)
@@ -159,7 +160,7 @@ describe('criterion 2 — no engine path assumes action == email', () => {
     const spy = { performed: 0 }
     const d = deps({
       isSuppressed: vi.fn(async () => true),
-      executorFor: vi.fn(() => noteExecutor(spy) as unknown as ActionExecutor<never>),
+      executorFor: vi.fn(() => noteExecutor(spy) as never) as never,
     })
     await runAutomationWorker({ deps: d })
     expect(spy.performed).toBe(1)
@@ -167,7 +168,7 @@ describe('criterion 2 — no engine path assumes action == email', () => {
 
   it('the worker asks the catalog and the registry for the DEFINITION’s action key', async () => {
     const spy = { performed: 0 }
-    const d = deps({ executorFor: vi.fn(() => noteExecutor(spy) as unknown as ActionExecutor<never>) })
+    const d = deps({ executorFor: vi.fn(() => noteExecutor(spy) as never) as never })
     await runAutomationWorker({ deps: d })
     expect(calls(d.getAction)[0][0]).toBe('note.write')
     expect(calls(d.executorFor)[0][0]).toBe('note.write')
@@ -176,10 +177,9 @@ describe('criterion 2 — no engine path assumes action == email', () => {
 
 describe('unexecutable actions fail CLOSED', () => {
   it('an action with no executor skips with action_unavailable, never a default send', async () => {
-    const d = deps({ executorFor: vi.fn(() => null) })
+    const d = deps({ executorFor: vi.fn(() => null) as never })
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.skipped).toBe(1)
-    expect(d.send).not.toHaveBeenCalled()
     expect(calls(d.skipJob)[0][1]).toBe('action_unavailable')
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'skipped', skipReason: 'action_unavailable' })
   })
@@ -188,7 +188,7 @@ describe('unexecutable actions fail CLOSED', () => {
     const spy = { performed: 0 }
     const d = deps({
       getAction: vi.fn(() => null),
-      executorFor: vi.fn(() => noteExecutor(spy) as unknown as ActionExecutor<never>),
+      executorFor: vi.fn(() => noteExecutor(spy) as never) as never,
     })
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.skipped).toBe(1)
@@ -202,7 +202,6 @@ describe('unexecutable actions fail CLOSED', () => {
     })
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.skipped).toBe(1)
-    expect(d.send).not.toHaveBeenCalled()
     expect(calls(d.skipJob)[0][1]).toBe('action_unavailable')
   })
 })
@@ -250,5 +249,36 @@ describe('action entry resolution', () => {
     expect(actionsForContent('email.send', { subject: 'ש', body: 'ב' })).toEqual([
       { actionKey: 'email.send', parameters: { subject: 'ש', body: 'ב' } },
     ])
+  })
+})
+
+/**
+ * B6b — the executor is the AUTHORITY on which variables exist; the Builder's
+ * client-side chip constant is pinned to it.
+ *
+ * The chip list must stay a client-safe constant (importing an executor into
+ * the Builder would drag a renderer into the browser bundle), so the two are
+ * kept honest by assertion rather than by derivation. If they ever diverge,
+ * a chip would offer a token the executor cannot substitute — a raw
+ * `{{token}}` in a real customer email.
+ */
+describe('variable authority', () => {
+  it('the Builder’s chip source equals the email executor’s declaration', async () => {
+    const { emailExecutor } = await import('@/lib/automations/executors/email')
+    const { AUTOMATION_EMAIL_VARIABLES } = await import('@/lib/automations/variables')
+    expect([...emailExecutor.resolvableFields]).toEqual(AUTOMATION_EMAIL_VARIABLES.map((v) => v.field))
+  })
+
+  it('every declared field has a token, so a declaration can always be typed', async () => {
+    const { emailExecutor } = await import('@/lib/automations/executors/email')
+    const { variableTokenFor } = await import('@/lib/automations/variables')
+    for (const field of emailExecutor.resolvableFields) {
+      expect(variableTokenFor(field), `no token for "${field}"`).toBeTruthy()
+    }
+  })
+
+  it('an unregistered action resolves nothing — never email’s set by default', async () => {
+    const { resolvableFieldsFor } = await import('@/lib/automations/executors/registry')
+    expect(resolvableFieldsFor('sms.send')).toEqual([])
   })
 })

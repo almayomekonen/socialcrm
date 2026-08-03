@@ -30,7 +30,8 @@ function event(overrides: Partial<AutomationTriggerEvent> = {}): AutomationTrigg
 function facts(overrides: Partial<SendFacts> = {}): SendFacts {
   return {
     event: event(),
-    lead: { exists: true, email: 'lead@example.com', currentStatus: 'new', emailUndeliverable: false },
+    lead: { exists: true, currentStatus: 'new' },
+    recipients: { email: { value: 'lead@example.com', blocked: false } },
     suppressed: false,
     alreadySent: false,
     sentToLeadToday: 0,
@@ -72,7 +73,8 @@ describe('decideSend — allow path', () => {
     const f = facts({
       event: event({ trigger: 'status_changed', newStatus: 'closed' }),
       premise: statusPremise('closed', 'closed'),
-      lead: { exists: true, email: 'lead@example.com', currentStatus: 'closed', emailUndeliverable: false },
+      lead: { exists: true, currentStatus: 'closed' },
+      recipients: { email: { value: 'lead@example.com', blocked: false } },
     })
     expect(decideSend(f)).toEqual({ allow: true })
   })
@@ -89,7 +91,8 @@ describe('decideSend — the CSV footgun (ADR-004)', () => {
   it('import origin wins over every other skip (first law checked)', () => {
     const worstCase = facts({
       event: event({ origin: 'import' }),
-      lead: { exists: false, email: null, currentStatus: 'closed', emailUndeliverable: true },
+      lead: { exists: false, currentStatus: 'closed' },
+      recipients: { email: { value: null, blocked: true } },
       suppressed: true,
       alreadySent: true,
       sentToLeadToday: 99,
@@ -101,12 +104,15 @@ describe('decideSend — the CSV footgun (ADR-004)', () => {
 
 describe('decideSend — each skip reason', () => {
   it('lead_deleted when the lead no longer exists', () => {
-    const f = facts({ lead: { exists: false, email: null, currentStatus: null, emailUndeliverable: false } })
+    const f = facts({ lead: { exists: false, currentStatus: null }, recipients: { email: { value: null, blocked: false } } })
     expect(decideSend(f)).toEqual({ allow: false, reason: 'lead_deleted' })
   })
 
   it('premise_expired: lead_created send pending while the lead turned terminal', () => {
-    const f = facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'closed', emailUndeliverable: false } })
+    const f = facts({
+      lead: { exists: true, currentStatus: 'closed' },
+      recipients: { email: { value: 'a@b.co', blocked: false } },
+    })
     expect(decideSend(f)).toEqual({ allow: false, reason: 'premise_expired' })
   })
 
@@ -114,7 +120,8 @@ describe('decideSend — each skip reason', () => {
     const f = facts({
       event: event({ trigger: 'status_changed', newStatus: 'contacted' }),
       premise: statusPremise('contacted', 'interested'),
-      lead: { exists: true, email: 'a@b.co', currentStatus: 'interested', emailUndeliverable: false },
+      lead: { exists: true, currentStatus: 'interested' },
+      recipients: { email: { value: 'a@b.co', blocked: false } },
     })
     expect(decideSend(f)).toEqual({ allow: false, reason: 'premise_expired' })
   })
@@ -124,14 +131,17 @@ describe('decideSend — each skip reason', () => {
   })
 
   it('no_email when the address is missing or blank', () => {
-    const noEmail = facts({ lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } })
-    const blank = facts({ lead: { exists: true, email: '   ', currentStatus: 'new', emailUndeliverable: false } })
+    const noEmail = facts({
+      lead: { exists: true, currentStatus: 'new' },
+      recipients: { email: { value: null, blocked: false } },
+    })
+    const blank = facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: '   ', blocked: false } } })
     expect(decideSend(noEmail)).toEqual({ allow: false, reason: 'no_email' })
     expect(decideSend(blank)).toEqual({ allow: false, reason: 'no_email' })
   })
 
   it('address_undeliverable after a hard bounce', () => {
-    const f = facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } })
+    const f = facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: 'a@b.co', blocked: true } } })
     expect(decideSend(f)).toEqual({ allow: false, reason: 'address_undeliverable' })
   })
 
@@ -168,7 +178,8 @@ describe('decideSend — ordering contract', () => {
   it('suppression outranks missing email; dedup outranks caps', () => {
     const suppressedNoEmail = facts({
       suppressed: true,
-      lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false },
+      lead: { exists: true, currentStatus: 'new' },
+      recipients: { email: { value: null, blocked: false } },
     })
     expect(decideSend(suppressedNoEmail)).toEqual({ allow: false, reason: 'suppressed' })
 

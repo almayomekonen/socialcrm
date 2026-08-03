@@ -1,12 +1,13 @@
 import type { DeliveryState } from '@/db/automations/activity'
+import type { SubjectValues } from '../subject'
 
 /**
  * ACTION EXECUTORS — the generic contract for "doing the thing".
  *
  * Frozen architecture §3.8 / Law 4: laws live in the engine, effects live in
- * actions. Before B5 the worker WAS the email sender; after B5 the worker is
- * a state machine that knows nothing about email, and `email.send` is simply
- * the first registered executor.
+ * actions. Before B5 the worker WAS the email sender; after B5 the worker
+ * became a state machine that dispatches to an executor. B6b finishes the job:
+ * the worker no longer supplies an executor's capabilities either.
  *
  * TWO PHASES, because the engine's ordering rules demand it:
  *
@@ -21,6 +22,12 @@ import type { DeliveryState } from '@/db/automations/activity'
  * The executor reports what to LOG and what to RECORD; the worker decides the
  * job's fate. That split is what keeps ADR-011's state machine in one place
  * while the effect lives in another.
+ *
+ * DEPENDENCIES ARE THE EXECUTOR'S OWN (B6b). `defaultDeps()` is how an executor
+ * reaches a transport, a table or an API without the worker ever declaring it.
+ * A `task.create` executor needs no transport and a `webhook.post` executor
+ * needs no mailer — under the pre-B6b contract both would have forced a new
+ * field into the worker's dependency record. Now neither touches it.
  */
 
 export type ExecutionMode = 'live' | 'log'
@@ -31,13 +38,17 @@ export type ExecutionContext = {
   automationId: number
   leadId: number
   mode: ExecutionMode
-  /** The subject's facts. `exists: false` never reaches an executor (law). */
-  lead: {
-    firstName: string | null
-    displayName: string | null
-    email: string | null
-    handlerId: number | null
-  }
+  /**
+   * The subject's live values, keyed by CATALOG FIELD KEY. Generic on purpose:
+   * an executor asks for `leadFirstName` or `phone` by name, and no layer
+   * between it and the lead row has to know which fields exist.
+   */
+  subject: SubjectValues
+  /**
+   * The delivery targets the action's `requires` resolved to, keyed by the
+   * same catalog field key. Empty for an action that delivers to nobody.
+   */
+  recipients: Record<string, string | null>
   /** The action entry's stored parameters. Shape is the action's own business. */
   parameters: Record<string, unknown>
 }
@@ -84,27 +95,30 @@ export type ExecutionOutcome = {
 }
 
 /**
- * Capabilities an executor may draw on. Deliberately a structural subset of
- * the worker's dependency record, so tests inject one object and both layers
- * see the parts they need.
+ * The "שלח אליי בדיקה" contract (frozen §3.9). Generic so the affordance works
+ * for any future channel without the Builder — or this type — learning what
+ * the channel is: the action declares `testable`, the executor implements
+ * `test`, and the caller supplies only who the sample goes to.
  */
-export type ExecutorDeps = {
-  agencyName: (agencyId: number) => Promise<string | null>
-  replyTo: (agencyId: number) => Promise<string | null>
-  repName: (userId: number | null) => Promise<string | null>
-  send: (args: {
-    from: string
-    replyTo: string
-    to: string
-    subject: string
-    html: string
-    text: string
-  }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
-}
+export type TestTarget = { agencyId: number; toName: string | null; address: string }
+export type TestResult = { ok: true } | { ok: false; reason: string }
 
-export type ActionExecutor<TReady = unknown> = {
+export type ActionExecutor<TReady = unknown, TDeps = unknown> = {
   /** The CATALOG key (`email.send`), never the engine's persisted value. */
   actionKey: string
-  preflight(ctx: ExecutionContext, deps: ExecutorDeps): Promise<PreflightResult<TReady>>
-  execute(ctx: ExecutionContext, ready: TReady, deps: ExecutorDeps): Promise<ExecutionOutcome>
+  /**
+   * Subject field keys this executor can substitute into its parameters.
+   * The AUTHORITY for variable validation: content may reference these and
+   * nothing else, whatever action it belongs to.
+   */
+  resolvableFields: readonly string[]
+  /** Production wiring. The worker calls this; tests override the result. */
+  defaultDeps(): TDeps
+  preflight(ctx: ExecutionContext, deps: TDeps): Promise<PreflightResult<TReady>>
+  execute(ctx: ExecutionContext, ready: TReady, deps: TDeps): Promise<ExecutionOutcome>
+  /** Present only when the catalog marks the action `testable`. */
+  test?(parameters: Record<string, unknown>, target: TestTarget, deps: TDeps): Promise<TestResult>
 }
+
+/** An executor erased of its own dependency type — how the worker holds one. */
+export type AnyActionExecutor = ActionExecutor<never, never>

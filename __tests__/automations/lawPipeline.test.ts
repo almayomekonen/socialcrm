@@ -22,7 +22,8 @@ const NOW = new Date('2026-08-03T09:00:00Z')
 
 const facts = (over: Partial<SendFacts> = {}): SendFacts => ({
   event: { trigger: 'lead_created', origin: 'manual', agencyId: 7, leadId: 42, occurredAt: NOW },
-  lead: { exists: true, email: 'dana@example.com', currentStatus: 'new', emailUndeliverable: false },
+  lead: { exists: true, currentStatus: 'new' },
+  recipients: { email: { value: 'dana@example.com', blocked: false } },
   suppressed: false,
   alreadySent: false,
   sentToLeadToday: 0,
@@ -49,11 +50,20 @@ describe('BYTE-IDENTICAL — the shipped email path is unchanged', () => {
   // Exactly the pre-B2 order and reasons, in sequence.
   it.each([
     ['origin_import', facts({ event: { trigger: 'lead_created', origin: 'import', agencyId: 7, leadId: 42, occurredAt: NOW } })],
-    ['lead_deleted', facts({ lead: { exists: false, email: null, currentStatus: null, emailUndeliverable: false } })],
-    ['premise_expired', facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'closed', emailUndeliverable: false } })],
+    [
+      'lead_deleted',
+      facts({ lead: { exists: false, currentStatus: null }, recipients: { email: { value: null, blocked: false } } }),
+    ],
+    [
+      'premise_expired',
+      facts({ lead: { exists: true, currentStatus: 'closed' }, recipients: { email: { value: 'a@b.co', blocked: false } } }),
+    ],
     ['suppressed', facts({ suppressed: true })],
-    ['no_email', facts({ lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } })],
-    ['address_undeliverable', facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } })],
+    ['no_email', facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: null, blocked: false } } })],
+    [
+      'address_undeliverable',
+      facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: 'a@b.co', blocked: true } } }),
+    ],
     ['already_sent', facts({ alreadySent: true })],
     ['lead_daily_cap', facts({ sentToLeadToday: DEFAULT_LEAD_DAILY_CAP })],
     ['agency_daily_cap', facts({ sentByAgencyToday: DEFAULT_AGENCY_DAILY_CEILING })],
@@ -79,7 +89,11 @@ describe('BYTE-IDENTICAL — the shipped email path is unchanged', () => {
     expect(
       reasonOf(
         decideSend(
-          facts({ suppressed: true, lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } }),
+          facts({
+            suppressed: true,
+            lead: { exists: true, currentStatus: 'new' },
+            recipients: { email: { value: null, blocked: false } },
+          }),
         ),
       ),
     ).toBe('suppressed')
@@ -107,7 +121,10 @@ describe('the pipeline is genuinely composed from declarations', () => {
 
   it('an action requiring no recipient does not demand an email', () => {
     const internal = { laws: ['send_once'] as const, requires: [] as const }
-    const noEmail = facts({ lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } })
+    const noEmail = facts({
+      lead: { exists: true, currentStatus: 'new' },
+      recipients: { email: { value: null, blocked: false } },
+    })
     expect(decideSendForAction(internal, noEmail)).toEqual({ allow: true })
   })
 
@@ -117,7 +134,7 @@ describe('the pipeline is genuinely composed from declarations', () => {
       reasonOf(
         decideSendForAction(
           internal,
-          facts({ lead: { exists: false, email: null, currentStatus: null, emailUndeliverable: false } }),
+          facts({ lead: { exists: false, currentStatus: null }, recipients: { email: { value: null, blocked: false } } }),
         ),
       ),
     ).toBe('lead_deleted')
@@ -147,12 +164,14 @@ describe('composeLawPipeline', () => {
     const { steps } = composeLawPipeline(['suppression', 'bounce_block'], ['email'])
     expect(steps).toHaveLength(3)
     expect(steps[0](facts({ suppressed: true }))).toBe('suppressed')
-    expect(steps[1](facts({ lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } }))).toBe(
-      'no_email',
-    )
-    expect(steps[2](facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } }))).toBe(
-      'address_undeliverable',
-    )
+    expect(
+      steps[1](facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: null, blocked: false } } })),
+    ).toBe('no_email')
+    expect(
+      steps[2](
+        facts({ lead: { exists: true, currentStatus: 'new' }, recipients: { email: { value: 'a@b.co', blocked: true } } }),
+      ),
+    ).toBe('address_undeliverable')
   })
 
   it('reports declared-but-unimplemented laws instead of silently passing them', () => {

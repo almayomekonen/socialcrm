@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { emailExecutor } from '@/lib/automations/executors/email'
-import type { ExecutionContext, ExecutorDeps } from '@/lib/automations/executors/types'
+import type { EmailDeps } from '@/lib/automations/executors/email'
+import type { ExecutionContext } from '@/lib/automations/executors/types'
 
 /**
  * B5 — `email.send` as an ordinary executor.
@@ -16,40 +17,38 @@ const ctx = (over: Partial<ExecutionContext> = {}): ExecutionContext => ({
   automationId: 3,
   leadId: 42,
   mode: 'log',
-  lead: { firstName: 'דנה', displayName: 'דנה לוי', email: 'dana@example.com', handlerId: null },
+  subject: { leadFirstName: 'דנה', businessName: null, repName: null },
+  recipients: { email: 'dana@example.com' },
   parameters: { subject: 'שלום {{שם הליד}}', body: 'תודה מ{{שם העסק}}' },
   ...over,
 })
 
-const deps = (over: Partial<ExecutorDeps> = {}): ExecutorDeps => ({
+const deps = (over: Partial<EmailDeps> = {}): EmailDeps => ({
   agencyName: vi.fn(async () => 'העסק שלי'),
   replyTo: vi.fn(async () => 'owner@business.example'),
   repName: vi.fn(async () => null),
+  from: () => 'bot@mail.example',
   send: vi.fn(async () => ({ ok: true as const, id: 'msg_1' })),
   ...over,
 })
 
-const withFrom = async <T>(from: string, run: () => Promise<T>): Promise<T> => {
-  const previous = process.env.AUTOMATIONS_FROM
-  process.env.AUTOMATIONS_FROM = from
-  try {
-    return await run()
-  } finally {
-    if (previous === undefined) delete process.env.AUTOMATIONS_FROM
-    else process.env.AUTOMATIONS_FROM = previous
-  }
-}
+/**
+ * B6b: the sending address is one of the executor's OWN dependencies, so a
+ * test overrides it directly instead of reaching into process.env.
+ */
+const withFrom = async <T>(from: string, run: (d: EmailDeps) => Promise<T>, over: Partial<EmailDeps> = {}): Promise<T> =>
+  run(deps({ from: () => from, ...over }))
 
 describe('preflight — identity, resolved before the claim', () => {
   it('resolves a complete identity', async () => {
-    const res = await withFrom('bot@mail.example', () => emailExecutor.preflight(ctx(), deps()))
+    const res = await withFrom('bot@mail.example', (d) => emailExecutor.preflight(ctx(), d))
     expect(res.problem).toBe(null)
     expect(res.ready?.identity?.replyTo).toBe('owner@business.example')
     expect(res.ready?.businessName).toBe('העסק שלי')
   })
 
   it('reports a missing sending domain with the worker’s exact strings', async () => {
-    const res = await withFrom('', () => emailExecutor.preflight(ctx(), deps()))
+    const res = await withFrom('', (d) => emailExecutor.preflight(ctx(), d))
     expect(res.problem).toEqual({
       reason: 'no_sending_domain',
       deadReason: 'identity_unavailable:no_sending_domain',
@@ -59,14 +58,14 @@ describe('preflight — identity, resolved before the claim', () => {
   })
 
   it('reports a missing reply-to the same way', async () => {
-    const res = await withFrom('bot@mail.example', () =>
-      emailExecutor.preflight(ctx(), deps({ replyTo: vi.fn(async () => null) })),
-    )
+    const res = await withFrom('bot@mail.example', (d) => emailExecutor.preflight(ctx(), d), {
+      replyTo: vi.fn(async () => null),
+    })
     expect(res.problem?.deadReason).toBe('identity_unavailable:no_reply_to')
   })
 
   it('still hands back what it has, so log mode can render a truthful preview', async () => {
-    const res = await withFrom('', () => emailExecutor.preflight(ctx(), deps()))
+    const res = await withFrom('', (d) => emailExecutor.preflight(ctx(), d))
     expect(res.ready).not.toBe(null)
     expect(res.ready?.identity).toBe(null)
     expect(res.ready?.businessName).toBe('העסק שלי')
@@ -87,7 +86,7 @@ describe('execute — log mode', () => {
 
   it('a missing first name degrades gracefully rather than leaving a token', async () => {
     const out = await emailExecutor.execute(
-      ctx({ lead: { firstName: null, displayName: null, email: 'x@y.example', handlerId: null } }),
+      ctx({ subject: { leadFirstName: null }, recipients: { email: 'x@y.example' } }),
       { identity: null, businessName: 'העסק שלי' },
       deps(),
     )

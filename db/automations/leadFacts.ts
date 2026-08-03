@@ -11,6 +11,7 @@ export type LeadFacts =
   | {
       exists: true
       email: string | null
+      phone: string | null
       currentStatus: string | null
       firstName: string | null
       displayName: string | null
@@ -20,20 +21,28 @@ export type LeadFacts =
 
 export function getLeadFactsQuery(agencyId: number, leadId: number) {
   return db('clients')
-    .select('id', 'email', 'status', 'firstName', 'lastName', 'handlerId')
+    .select('id', 'email', 'phone', 'status', 'firstName', 'lastName', 'handlerId')
     .where({ id: leadId, agencyId })
     .first()
 }
 
 export async function getLeadFacts(agencyId: number, leadId: number): Promise<LeadFacts> {
   const row = (await getLeadFactsQuery(agencyId, leadId)) as
-    | { email: string | null; status: string | null; firstName: string | null; lastName: string | null; handlerId: number | null }
+    | {
+        email: string | null
+        phone: string | null
+        status: string | null
+        firstName: string | null
+        lastName: string | null
+        handlerId: number | null
+      }
     | undefined
   if (!row) return { exists: false }
   const displayName = [row.firstName, row.lastName].filter(Boolean).join(' ') || null
   return {
     exists: true,
     email: row.email ?? null,
+    phone: row.phone ?? null,
     currentStatus: row.status ?? null,
     firstName: row.firstName ?? null,
     displayName,

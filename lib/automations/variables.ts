@@ -40,23 +40,38 @@ export function listTokens(content: string): string[] {
   return out
 }
 
-/** Tokens in content that are not part of the closed set (catalog guard). */
-export function unknownTokens(content: string): string[] {
-  const known = new Set<string>(AUTOMATION_EMAIL_VARIABLES.map((v) => v.token))
+/**
+ * Tokens in content that the given ACTION cannot resolve.
+ *
+ * B6b makes this action-driven: the caller passes the field keys the chosen
+ * action's executor declares it can substitute, and validation is against
+ * those. Passing nothing means "nothing is resolvable", so an unregistered
+ * action's content is rejected rather than silently validated against email's
+ * vocabulary.
+ */
+export function unknownTokensFor(resolvableFields: readonly string[], content: string): string[] {
+  const resolvable = new Set(resolvableFields)
+  const known = new Set(TOKEN_TO_FIELD.filter((t) => resolvable.has(t.field)).map((t) => t.token))
   return listTokens(content).filter((t) => !known.has(t))
 }
 
-export type EmailVariableValues = {
-  leadFirstName: string | null
-  businessName: string | null
-  repName: string | null
-}
+/** The token↔field vocabulary, for callers that need to name one. */
+export const variableTokenFor = (field: string): string | null => TOKEN_TO_FIELD.find((t) => t.field === field)?.token ?? null
 
-const TOKEN_TO_FIELD: Array<{ token: string; field: keyof EmailVariableValues }> = [
-  { token: 'שם הליד', field: 'leadFirstName' },
-  { token: 'שם העסק', field: 'businessName' },
-  { token: 'שם הנציג', field: 'repName' },
-]
+/**
+ * B6b: a generic map keyed by SUBJECT FIELD KEY, not a typed email struct.
+ * An executor hands in whatever its `resolvableFields` resolved to, and the
+ * substituter neither knows nor cares which action it is serving.
+ */
+export type VariableValues = Record<string, string | null>
+
+/** Retained name for the shipped call sites; now just the generic map. */
+export type EmailVariableValues = VariableValues
+
+const TOKEN_TO_FIELD: Array<{ token: string; field: string }> = AUTOMATION_EMAIL_VARIABLES.map((v) => ({
+  token: v.token,
+  field: v.field,
+}))
 
 /**
  * Substitution with graceful fallbacks (spec §7): an empty first name turns
@@ -66,16 +81,16 @@ const TOKEN_TO_FIELD: Array<{ token: string; field: keyof EmailVariableValues }>
  * client-side preview share ONE implementation. A preview that substituted
  * differently from the real send would be a lie.
  */
-export function substituteVariables(content: string, vars: EmailVariableValues): string {
+export function substituteVariables(content: string, vars: VariableValues): string {
   let out = content
   const business = vars.businessName?.trim() || 'העסק'
-  const resolved: Record<keyof EmailVariableValues, string> = {
+  const resolved: Record<string, string> = {
     leadFirstName: vars.leadFirstName?.trim() || '',
     businessName: business,
     repName: vars.repName?.trim() || business,
   }
   for (const { token, field } of TOKEN_TO_FIELD) {
-    out = out.split(`{{${token}}}`).join(resolved[field])
+    out = out.split(`{{${token}}}`).join(resolved[field] ?? '')
   }
   return out
     .replace(/ +,/g, ',')

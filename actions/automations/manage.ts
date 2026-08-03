@@ -12,7 +12,8 @@ import {
 } from '@/db/automations/definitions'
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { isValidTiming, type Timing } from '@/lib/automations/timing'
-import { unknownTokens } from '@/lib/automations/variables'
+import { unknownTokensFor } from '@/lib/automations/variables'
+import { resolvableFieldsFor } from '@/lib/automations/executors/registry'
 import type { TriggerType } from '@/lib/automations/types'
 import { getEvent, listActionsForEvent } from '@/lib/automations/catalog/registry'
 import { sourceIdsFrom } from '@/lib/automations/binding'
@@ -63,8 +64,18 @@ function validate(input: AutomationInput): string | null {
   const conditionIssue = validateConditions(event, input.conditions ?? [])
   if (conditionIssue) return conditionIssue
   if (!isValidTiming(input.timing)) return 'timing_invalid'
-  // Content may only reference the closed variable set (spec §7).
-  if (unknownTokens(input.subject).length || unknownTokens(input.body).length) return 'unknown_variable'
+  /**
+   * B6b: content is validated against what THIS action's executor can
+   * substitute, not against a global email vocabulary. An action with no
+   * executor resolves nothing, so its content is rejected rather than passed
+   * by a set that never applied to it.
+   */
+  const actionKey = actionKeyForInput(input)
+  if (!actionKey) return 'action_invalid'
+  const resolvable = resolvableFieldsFor(actionKey)
+  if (unknownTokensFor(resolvable, input.subject).length || unknownTokensFor(resolvable, input.body).length) {
+    return 'unknown_variable'
+  }
   return null
 }
 

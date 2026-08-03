@@ -1,4 +1,4 @@
-import type { ActionExecutor } from './types'
+import type { AnyActionExecutor } from './types'
 import { emailExecutor } from './email'
 
 /**
@@ -10,10 +10,19 @@ import { emailExecutor } from './email'
  * worker skips with `action_unavailable`, which already carries user-visible
  * Hebrew copy. Declared-but-unexecutable fails CLOSED.
  */
-const EXECUTORS: readonly ActionExecutor<never>[] = [emailExecutor as ActionExecutor<never>]
+const EXECUTORS: readonly AnyActionExecutor[] = [emailExecutor as unknown as AnyActionExecutor]
 
-export function executorFor(actionKey: string): ActionExecutor<never> | null {
+export function executorFor(actionKey: string): AnyActionExecutor | null {
   return EXECUTORS.find((e) => e.actionKey === actionKey) ?? null
+}
+
+/**
+ * Which subject fields an action's content may reference. The EXECUTOR is the
+ * authority — an unregistered action can resolve nothing, so its content is
+ * validated against the empty set rather than against email's.
+ */
+export function resolvableFieldsFor(actionKey: string): readonly string[] {
+  return executorFor(actionKey)?.resolvableFields ?? []
 }
 
 /** Every action key that can execute today. CI pins this against the catalog. */
