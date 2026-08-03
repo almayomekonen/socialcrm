@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { validateAction, validateCatalog, validateEvent } from '@/lib/automations/catalog/validate'
-import { catalog, everyLawDocumented, listActionsForEvent, listAnchorFields, listSelectableEvents } from '@/lib/automations/catalog/registry'
+import {
+  catalog,
+  everyLawDocumented,
+  listActionsForEvent,
+  listAnchorFields,
+  listSelectableEvents,
+} from '@/lib/automations/catalog/registry'
 import { LAW_KEYS, OPERATORS_BY_FIELD_TYPE, FIELD_TYPES } from '@/lib/automations/catalog/vocabularies'
 import type { ActionDefinition, EventDefinition } from '@/lib/automations/catalog/types'
 
@@ -86,7 +92,9 @@ describe('DELIBERATE BAD ENTRIES — events', () => {
   })
 
   it('rejects a subject that is not a registered SubjectDefinition', () => {
-    expect(messages(validateEvent(goodEvent({ subject: 'invoice' }), SUBJECTS))).toContain('is not a registered SubjectDefinition')
+    expect(messages(validateEvent(goodEvent({ subject: 'invoice' }), SUBJECTS))).toContain(
+      'is not a registered SubjectDefinition',
+    )
   })
 
   it('rejects an unnamespaced or malformed key', () => {
@@ -161,7 +169,9 @@ describe('DELIBERATE BAD ENTRIES — requirements', () => {
 
 describe('DELIBERATE BAD ENTRIES — actions', () => {
   it('rejects an unknown law key — no integration may add a law', () => {
-    expect(messages(validateAction(goodAction({ laws: ['send_once', 'be_nice' as never] })))).toContain('no integration may add a law')
+    expect(messages(validateAction(goodAction({ laws: ['send_once', 'be_nice' as never] })))).toContain(
+      'no integration may add a law',
+    )
   })
 
   it('requires send_once on every action', () => {
@@ -243,8 +253,12 @@ describe('the derived-capability mechanisms (§1)', () => {
     const noEmail = goodEvent({
       fields: [{ key: 'note', type: 'text', label: 'הערה', freshness: 'snapshot', lifecycle: 'stable' }],
     })
-    expect(listActionsForEvent(noEmail)).toEqual([])
+    expect(listActionsForEvent(noEmail).map((a) => a.key)).not.toContain('email.send')
     // ...while one that does expose it, is.
     expect(listActionsForEvent(goodEvent()).map((a) => a.key)).toContain('email.send')
+    // And an action that delivers to nobody is offered to BOTH — `requires: []`
+    // intersects with anything, which is exactly what makes task.create work
+    // on an event with no contactable field at all.
+    expect(listActionsForEvent(noEmail).map((a) => a.key)).toContain('task.create')
   })
 })

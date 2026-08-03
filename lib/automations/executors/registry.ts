@@ -1,5 +1,6 @@
 import type { AnyActionExecutor } from './types'
 import { emailExecutor } from './email'
+import { taskExecutor } from './task'
 
 /**
  * The executor registry — the only file that knows which actions can actually
@@ -10,7 +11,10 @@ import { emailExecutor } from './email'
  * worker skips with `action_unavailable`, which already carries user-visible
  * Hebrew copy. Declared-but-unexecutable fails CLOSED.
  */
-const EXECUTORS: readonly AnyActionExecutor[] = [emailExecutor as unknown as AnyActionExecutor]
+const EXECUTORS: readonly AnyActionExecutor[] = [
+  emailExecutor as unknown as AnyActionExecutor,
+  taskExecutor as unknown as AnyActionExecutor,
+]
 
 export function executorFor(actionKey: string): AnyActionExecutor | null {
   return EXECUTORS.find((e) => e.actionKey === actionKey) ?? null

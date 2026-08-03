@@ -73,3 +73,11 @@ export async function getAgencyReplyTo(agencyId: number): Promise<string | null>
   const row = (await getAgencyReplyToQuery(agencyId)) as { email: string | null } | undefined
   return row?.email ?? null
 }
+
+/** Who owns this lead. `task.create` assigns to them; null means nobody does. */
+export async function getLeadHandlerId(agencyId: number, leadId: number): Promise<number | null> {
+  const row = (await db('clients').select('handlerId', 'userId').where({ id: leadId, agencyId }).first()) as
+    | { handlerId: number | null; userId: number | null }
+    | undefined
+  return row?.handlerId ?? row?.userId ?? null
+}

@@ -79,12 +79,12 @@ describe('a brand-new event needs only a catalog entry', () => {
   })
 
   it('offers the email action because it exposes an email field', () => {
-    expect(listActionsForEvent(APPOINTMENT_BOOKED).map((a) => a.key)).toEqual(['email.send'])
+    expect(listActionsForEvent(APPOINTMENT_BOOKED).map((a) => a.key)).toContain('email.send')
   })
 
   it('is refused the email action if it exposes no email field', () => {
     const noEmail = { ...APPOINTMENT_BOOKED, fields: APPOINTMENT_BOOKED.fields.filter((f) => f.type !== 'email') }
-    expect(listActionsForEvent(noEmail)).toEqual([])
+    expect(listActionsForEvent(noEmail).map((a) => a.key)).not.toContain('email.send')
   })
 
   it('produces variable chips from its own fields', () => {

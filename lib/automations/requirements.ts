@@ -36,18 +36,32 @@ const satisfied = (req: Requirement, ctx: RequirementContext): boolean => {
   return ctx.flags.has(req.key)
 }
 
-export function evaluateEvent(event: EventDefinition, ctx: RequirementContext): EventAvailability {
-  // A flag-gated event the flag does not cover is invisible, whatever else
-  // is true — we never advertise something we have not released.
-  const flag = event.requirements.find((r) => r.type === 'flag' && !satisfied(r, ctx))
+/**
+ * The same three rules, over a bare requirement list.
+ *
+ * Extracted so anything with requirements is evaluated by ONE implementation —
+ * the marketplace's templates included. `evaluateEvent` below is this function
+ * plus the event's own lifecycle; its behaviour is unchanged.
+ */
+export function evaluateRequirements(requirements: readonly Requirement[], ctx: RequirementContext): EventAvailability {
+  // A flag-gated thing the flag does not cover is invisible, whatever else is
+  // true — we never advertise something we have not released.
+  const flag = requirements.find((r) => r.type === 'flag' && !satisfied(r, ctx))
   if (flag) return { state: 'hidden' }
 
-  if (event.lifecycle === 'deprecated') return { state: 'deprecated' }
-
-  const unmet = event.requirements.find((r) => !satisfied(r, ctx))
+  const unmet = requirements.find((r) => !satisfied(r, ctx))
   if (unmet) return { state: 'locked', requirement: unmet }
 
   return { state: 'available' }
+}
+
+export function evaluateEvent(event: EventDefinition, ctx: RequirementContext): EventAvailability {
+  const byRequirement = evaluateRequirements(event.requirements, ctx)
+  if (byRequirement.state === 'hidden') return byRequirement
+
+  if (event.lifecycle === 'deprecated') return { state: 'deprecated' }
+
+  return byRequirement
 }
 
 export type EvaluatedEvent = { event: EventDefinition; availability: EventAvailability }

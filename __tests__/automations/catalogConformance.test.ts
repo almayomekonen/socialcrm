@@ -60,7 +60,7 @@ describe('the B1 catalog is valid', () => {
       'appointment.booked',
       'form.submitted',
     ])
-    expect(catalog.actions.map((a) => a.key)).toEqual(['email.send'])
+    expect(catalog.actions.map((a) => a.key)).toEqual(['email.send', 'task.create'])
   })
 
   it('registers integrations as data only, append-only, one row each', () => {
@@ -207,12 +207,12 @@ describe('CONFORMANCE — the closed variable set matches the catalog fields', (
 })
 
 describe('derived capabilities behave on real entries', () => {
-  it('email.send is offered for both events (both expose an email field)', () => {
+  it('email.send is offered for every event that exposes an email field', () => {
     for (const key of ['lead.created', 'lead.status_changed']) {
       expect(
         listActionsForEvent(getEvent(key)!).map((a) => a.key),
         key,
-      ).toEqual(['email.send'])
+      ).toContain('email.send')
     }
   })
 

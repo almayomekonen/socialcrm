@@ -27,6 +27,9 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
             {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title='אוטומציות' />}
             {automationsVisible && <SettingsLink href='/settings/connections' icon='plug' title='חיבורים' />}
+            {automationsVisible && (
+              <SettingsLink href='/settings/automation-templates' icon='layer-group' title='תבניות אוטומציה' />
+            )}
             <Seperator className='my-2' />
             <SettingsLink href='/settings/update_agency' icon='diamond' title='פרטי העסק' />
             <SettingsLink href='/settings/update_user_details' icon='user' title='פרטי נציג' />

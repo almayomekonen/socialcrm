@@ -47,4 +47,34 @@ export const ACTION_ENTRIES: readonly ActionDefinition[] = [
     preview: 'email',
     testable: true,
   },
+  {
+    key: 'task.create',
+    title: 'יצירת משימה לנציג',
+    description: 'פותח משימה לנציג שמטפל בליד',
+    icon: 'list-check',
+    requirements: [],
+    // Delivers to nobody, so it is offered for every event — including ones
+    // whose subject has no email at all.
+    requires: [],
+    parameters: [
+      {
+        key: 'title',
+        type: 'text',
+        label: 'כותרת המשימה',
+        validation: { required: true, maxLength: 120 },
+      },
+    ],
+    /**
+     * The frozen §3.8 correctness case: `send_once` and NOTHING else.
+     *
+     * A suppressed lead must still get a task — suppression is consent not to
+     * be contacted, which says nothing about the rep's own worklist. Caps and
+     * quiet hours are equally wrong here: they exist to protect the LEAD's
+     * inbox, and a task never reaches it.
+     */
+    laws: ['send_once'],
+    risk: 'internal',
+    preview: 'record',
+    testable: false,
+  },
 ]

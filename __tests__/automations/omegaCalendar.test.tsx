@@ -297,12 +297,12 @@ describe('✓ timing anchor, ✓ variables, ✓ preview — all from the declara
   })
 
   it('offers email.send because Omega declares an email field — requires × fields', () => {
-    expect(listActionsForEvent(OMEGA_EVENT).map((a) => a.key)).toEqual(['email.send'])
-    expect(listActionsForEvent({ ...OMEGA_EVENT, fields: [] }).map((a) => a.key)).toEqual([])
+    expect(listActionsForEvent(OMEGA_EVENT).map((a) => a.key)).toContain('email.send')
+    expect(listActionsForEvent({ ...OMEGA_EVENT, fields: [] }).map((a) => a.key)).not.toContain('email.send')
   })
 
   it('the preview shape comes from the action, so Omega needs no renderer', () => {
-    expect(listActionsForEvent(OMEGA_EVENT)[0].preview).toBe('email')
+    expect(listActionsForEvent(OMEGA_EVENT).find((a) => a.key === 'email.send')!.preview).toBe('email')
   })
 
   it('states the whole automation in one Hebrew sentence (Law 8)', () => {
