@@ -123,6 +123,22 @@ function pickByShape(fields: Record<string, unknown>, test: (v: string) => boole
   return ''
 }
 
+/**
+ * `clients.lastName` is NOT NULL with no default, so a lead insert that omits
+ * it is rejected with 23502 — which is exactly what silently killed every
+ * Contact Form 7 submission: `insertLeadSystem` swallows the error, returns
+ * null, and the occurrence is dropped as `subject_unresolved`.
+ *
+ * A contact form usually collects one "name" field, so it is split on the
+ * first space and the remainder becomes the surname. A single-word name gets
+ * an EMPTY surname, never null.
+ */
+function splitName(raw: string): { firstName: string; lastName: string } {
+  const parts = raw.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return { firstName: 'ליד מהאתר', lastName: '' }
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
+}
+
 const digitsOf = (raw: string) => raw.replace(/\D/g, '')
 const looksLikePhone = (v: string) => digitsOf(v).length >= 9 && digitsOf(v).length <= 15
 
@@ -199,11 +215,13 @@ async function findOrCreateLead(
   const quota = await getQuotaStatus(agencyId)
   const overQuota = quota.plan === 'free' && quota.limit !== null && quota.used >= quota.limit
 
+  const { firstName, lastName } = splitName(text(mapped.fields.leadName))
   const created = await insertLeadSystem({
     agencyId,
     userId: row.ownerUserId,
     handlerId: row.ownerUserId,
-    firstName: text(mapped.fields.leadName) || 'ליד מהאתר',
+    firstName,
+    lastName,
     idNum: `CF7_${row.id}_${submissionId}`.slice(0, 40),
     leadSource,
     phone,
@@ -211,6 +229,9 @@ async function findOrCreateLead(
     overQuota,
     lead: true,
   })
+  if (!created) {
+    console.error('[contact_form_7] lead insert failed', { agencyId, connectionRowId: row.id, submissionId })
+  }
   if (!created) {
     // A concurrent delivery of the same submission lost the unique-index race.
     const concurrent = await db('clients').select('id').where({ agencyId, leadSource }).first()
@@ -279,11 +300,18 @@ export const contactForm7Provider: ConnectionProvider = {
         'הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.',
         'שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.',
       ],
+      link: { label: 'לא מגיע מידע? בדקו שקטע הקוד נשמר', href: '/settings/connections' },
       snippet: {
         label: 'קוד לוורדפרס',
         language: 'php',
         code: [
-          "add_action('wpcf7_mail_sent', function ($form) {",
+          // `wpcf7_submit` fires on EVERY submission. The original hook,
+          // `wpcf7_mail_sent`, only fires when Contact Form 7 successfully
+          // sends its own email — so on any site whose SMTP is unconfigured or
+          // failing, the snippet never ran and no webhook was ever sent.
+          "add_action('wpcf7_submit', function ($form, $result) {",
+          "  $status = $result['status'] ?? '';",
+          "  if ($status !== 'mail_sent' && $status !== 'mail_failed') { return; }",
           `  $url = '${webhookUrl}';`,
           `  ${secretLine}`,
           '  $submission = WPCF7_Submission::get_instance();',
@@ -303,7 +331,9 @@ export const contactForm7Provider: ConnectionProvider = {
           "    'body'    => $body,",
           "    'timeout' => 5,",
           '  ]);',
-          '});',
+          // Priority 10, TWO args — `wpcf7_submit` passes ($form, $result), and
+          // omitting the arg count makes $result undefined.
+          '}, 10, 2);',
         ].join('\n'),
       },
     }

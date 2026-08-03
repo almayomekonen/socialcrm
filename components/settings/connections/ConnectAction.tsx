@@ -45,7 +45,14 @@ export default function ConnectAction({ integrationKey, integrationTitle, auth, 
   // Provider-hosted flows are a navigation, not a form. The path is derived
   // from the key, so a new integration needs no route table here.
   if (auth === 'oauth2' || auth === 'embedded_signup') {
-    return <Btn variant={connected ? 'outline' : 'solid'} size='small' lbl={label} href={`/api/automations/connect/${integrationKey}`} />
+    return (
+      <Btn
+        variant={connected ? 'outline' : 'solid'}
+        size='small'
+        lbl={label}
+        href={`/api/automations/connect/${integrationKey}`}
+      />
+    )
   }
 
   return (
@@ -101,49 +108,46 @@ function ApiKeyDialog({
 
   return (
     <ModalPop open onClose={onClose} pos='top' label={`חיבור ${integrationTitle}`}>
-      <div className='grid gap-5 w-[min(90vw,520px)] pt-2'>
-        <h2 className='text-lg font-semibold text-gray-800'>חיבור {integrationTitle}</h2>
+      <div className='flex flex-col gap-4 w-[min(90vw,520px)] max-h-[calc(90dvh-4rem)] min-h-0 pt-2'>
+        <h2 className='text-lg font-semibold text-gray-800 shrink-0'>חיבור {integrationTitle}</h2>
+        <div className='flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden grid gap-5 content-start scrollbar-slim'>
+          {!issued && (
+            <>
+              <p className='text-sm text-gray-600 leading-relaxed'>{STRATEGY.api_key.how}</p>
+              <Input
+                lbl='כתובת האתר או המערכת'
+                value={siteUrl}
+                placeholder='https://example.com'
+                onChange={(e) => setSiteUrl(e.target.value)}
+              />
+              <Input lbl='שם לתצוגה (לא חובה)' value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+              <Btn
+                lbl={pending ? 'יוצר…' : 'יצירת חיבור'}
+                icon={pending ? 'spinner' : 'plug'}
+                iconClassName={pending ? 'animate-spin' : undefined}
+                disabled={pending || !siteUrl.trim()}
+                className='w-full'
+                onClick={submit}
+              />
+              {error && (
+                <p className='text-sm text-red-600 ms-1' role='alert'>
+                  {error}
+                </p>
+              )}
+            </>
+          )}
 
-        {!issued && (
-          <>
-            <p className='text-sm text-gray-600 leading-relaxed'>{STRATEGY.api_key.how}</p>
-            <Input
-              lbl='כתובת האתר או המערכת'
-              value={siteUrl}
-              placeholder='https://example.com'
-              onChange={(e) => setSiteUrl(e.target.value)}
-            />
-            <Input
-              lbl='שם לתצוגה (לא חובה)'
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-            <Btn
-              lbl={pending ? 'יוצר…' : 'יצירת חיבור'}
-              icon={pending ? 'spinner' : 'plug'}
-              iconClassName={pending ? 'animate-spin' : undefined}
-              disabled={pending || !siteUrl.trim()}
-              className='w-full'
-              onClick={submit}
-            />
-            {error && (
-              <p className='text-sm text-red-600 ms-1' role='alert'>
-                {error}
+          {issued && (
+            <>
+              <p className='text-sm text-gray-600 leading-relaxed'>
+                הזינו את שני הפרטים האלה במערכת שלכם. הקוד הסודי מוצג פעם אחת בלבד — שמרו אותו עכשיו.
               </p>
-            )}
-          </>
-        )}
-
-        {issued && (
-          <>
-            <p className='text-sm text-gray-600 leading-relaxed'>
-              הזינו את שני הפרטים האלה במערכת שלכם. הקוד הסודי מוצג פעם אחת בלבד — שמרו אותו עכשיו.
-            </p>
-            <CopyRow label='כתובת לשליחה' value={issued.webhookUrl} />
-            <CopyRow label='קוד סודי' value={issued.secret} />
-            <Btn lbl='סיימתי' className='w-full' onClick={onClose} />
-          </>
-        )}
+              <CopyRow label='כתובת לשליחה' value={issued.webhookUrl} />
+              <CopyRow label='קוד סודי' value={issued.secret} />
+              <Btn lbl='סיימתי' className='w-full' onClick={onClose} />
+            </>
+          )}
+        </div>
       </div>
     </ModalPop>
   )
@@ -154,7 +158,10 @@ function CopyRow({ label, value }: { label: string; value: string }) {
     <div className='grid gap-1'>
       <span className='text-sm text-gray-500'>{label}</span>
       <div className='flex items-center gap-2'>
-        <code className='min-w-0 flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800' dir='ltr'>
+        <code
+          className='min-w-0 flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800'
+          dir='ltr'
+        >
           {value}
         </code>
         <Btn

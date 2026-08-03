@@ -66,8 +66,17 @@ export default function ConnectionDetails({
 
   return (
     <ModalPop open onClose={onClose} pos='top' label={connection.displayName}>
-      <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
-        <div className='flex items-start justify-between gap-3'>
+      {/*
+        The dialog is a fixed-height column, not a growing block: ModalPop caps
+        itself at 90vh and scrolls the WHOLE box, which scrolled the title out
+        of view and clipped long content. Here the header stays put and only the
+        body scrolls. `min-h-0` is what lets the body actually shrink inside a
+        flex column — without it the content forces the column past its max.
+        `dvh` so mobile browser chrome is excluded; the 4rem subtracts
+        ModalPop's own p-8.
+      */}
+      <div className='flex flex-col gap-4 w-[min(90vw,560px)] max-h-[calc(90dvh-4rem)] min-h-0 pt-2'>
+        <div className='flex items-start justify-between gap-3 shrink-0'>
           <div className='grid gap-1 min-w-0'>
             <h2 className='text-lg font-semibold text-gray-800 truncate'>{connection.displayName}</h2>
             <p className='text-sm text-gray-500'>{view.integration.title}</p>
@@ -78,90 +87,96 @@ export default function ConnectionDetails({
           </span>
         </div>
 
-        {delivery.hint && <p className='text-sm text-gray-500'>{delivery.hint}</p>}
+        {delivery.hint && <p className='text-sm text-gray-500 shrink-0'>{delivery.hint}</p>}
 
-        <Seperator className='my-0' />
+        <Seperator className='my-0 shrink-0' />
 
-        {setup && (
-          <>
-            <section className='grid gap-3'>
-              <h3 className='text-sm font-semibold text-gray-800'>הגדרת החיבור</h3>
-              <SetupGuidePanel guide={setup.guide} webhookUrl={setup.webhookUrl} />
-              {issuedSecret ? (
-                <>
-                  <CopyRow label='קוד סודי חדש' value={issuedSecret} />
-                  <p className='text-sm text-amber-700'>
-                    הקוד מוצג פעם אחת בלבד. עדכנו אותו במערכת שלכם — עד אז לא יתקבלו נתונים.
-                  </p>
-                </>
-              ) : (
-                <div className='flex items-center justify-between gap-3'>
-                  <span className='text-sm text-gray-500'>הקוד הסודי אינו ניתן לשחזור.</span>
-                  <Btn
-                    variant='outline'
-                    size='small'
-                    lbl={rotating ? 'מייצר…' : 'יצירת קוד סודי חדש'}
-                    icon={rotating ? 'spinner' : 'rotate'}
-                    iconClassName={rotating ? 'animate-spin' : undefined}
-                    disabled={rotating}
-                    onClick={rotate}
-                  />
-                </div>
-              )}
-            </section>
+        {/* The only scrolling region. `min-w-0` lets the code block inside
+            shrink instead of widening the dialog. */}
+        <div className='flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden grid gap-5 content-start scrollbar-slim'>
+          {setup && (
+            <>
+              <section className='grid gap-3'>
+                <h3 className='text-sm font-semibold text-gray-800'>הגדרת החיבור</h3>
+                <SetupGuidePanel guide={setup.guide} webhookUrl={setup.webhookUrl} />
+                {issuedSecret ? (
+                  <>
+                    <CopyRow label='קוד סודי חדש' value={issuedSecret} />
+                    <p className='text-sm text-amber-700'>
+                      הקוד מוצג פעם אחת בלבד. עדכנו אותו במערכת שלכם — עד אז לא יתקבלו נתונים.
+                    </p>
+                  </>
+                ) : (
+                  <div className='flex items-center justify-between gap-3'>
+                    <span className='text-sm text-gray-500'>הקוד הסודי אינו ניתן לשחזור.</span>
+                    <Btn
+                      variant='outline'
+                      size='small'
+                      lbl={rotating ? 'מייצר…' : 'יצירת קוד סודי חדש'}
+                      icon={rotating ? 'spinner' : 'rotate'}
+                      iconClassName={rotating ? 'animate-spin' : undefined}
+                      disabled={rotating}
+                      onClick={rotate}
+                    />
+                  </div>
+                )}
+              </section>
 
-            <Seperator className='my-0' />
-          </>
-        )}
-
-        <section className='grid gap-2'>
-          <h3 className='text-sm font-semibold text-gray-800'>מה החיבור הזה מאפשר</h3>
-          {view.unlocks.length === 0 ? (
-            <p className='text-sm text-gray-500'>עדיין אין אירועים שמשתמשים בחיבור הזה.</p>
-          ) : (
-            <ul className='grid gap-1'>
-              {view.unlocks.map((e) => (
-                <li key={e.key} className='text-sm text-gray-600'>
-                  {e.title}
-                </li>
-              ))}
-            </ul>
+              <Seperator className='my-0' />
+            </>
           )}
-        </section>
 
-        <Seperator className='my-0' />
+          <section className='grid gap-2'>
+            <h3 className='text-sm font-semibold text-gray-800'>מה החיבור הזה מאפשר</h3>
+            {view.unlocks.length === 0 ? (
+              <p className='text-sm text-gray-500'>עדיין אין אירועים שמשתמשים בחיבור הזה.</p>
+            ) : (
+              <ul className='grid gap-1'>
+                {view.unlocks.map((e) => (
+                  <li key={e.key} className='text-sm text-gray-600'>
+                    {e.title}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-        <section className='grid gap-2'>
-          <h3 className='text-sm font-semibold text-gray-800'>מקורות</h3>
-          {connection.sources.length === 0 ? (
-            <p className='text-sm text-gray-500'>עדיין לא זוהו מקורות. הם יופיעו כאן אחרי הפעילות הראשונה.</p>
-          ) : (
-            <ul className='grid gap-2'>
-              {connection.sources.map((s) => (
-                <SourceRow key={s.id} connectionId={connection.id} source={s} onChanged={onChanged} />
-              ))}
-            </ul>
-          )}
-        </section>
+          <Seperator className='my-0' />
 
-        <Seperator className='my-0' />
+          <section className='grid gap-2'>
+            <h3 className='text-sm font-semibold text-gray-800'>מקורות</h3>
+            {connection.sources.length === 0 ? (
+              <p className='text-sm text-gray-500'>עדיין לא זוהו מקורות. הם יופיעו כאן אחרי הפעילות הראשונה.</p>
+            ) : (
+              <ul className='grid gap-2'>
+                {connection.sources.map((s) => (
+                  <SourceRow key={s.id} connectionId={connection.id} source={s} onChanged={onChanged} />
+                ))}
+              </ul>
+            )}
+          </section>
 
-        <section className='grid gap-2'>
-          <h3 className='text-sm font-semibold text-gray-800'>אוטומציות שמשתמשות בחיבור</h3>
-          <p className='text-sm text-gray-600'>
-            {connection.automations === 0 ? 'אף אוטומציה עדיין לא משתמשת בחיבור הזה.' : `${connection.automations} אוטומציות`}
-          </p>
-          {connection.automations > 0 && connection.health !== 'ok' && (
-            <p className='text-sm text-red-600' role='alert'>
-              כל עוד החיבור אינו פעיל, האוטומציות האלה מסומנות כדורשות טיפול ולא יפעלו.
+          <Seperator className='my-0' />
+
+          <section className='grid gap-2'>
+            <h3 className='text-sm font-semibold text-gray-800'>אוטומציות שמשתמשות בחיבור</h3>
+            <p className='text-sm text-gray-600'>
+              {connection.automations === 0 ? 'אף אוטומציה עדיין לא משתמשת בחיבור הזה.' : `${connection.automations} אוטומציות`}
             </p>
-          )}
-          <p className='text-sm text-gray-500'>
-            {lastEvent ? `אירוע אחרון ${lastEvent}` : 'עדיין לא התקבל אירוע'}
-            {connection.eventCount > 0 ? ` · ${connection.eventCount} אירועים בסך הכול` : ''}
-          </p>
-          <p className='text-sm text-gray-500'>{last ? `פעילות אוטומציות אחרונה ${last}` : 'עדיין לא נרשמה פעילות אוטומציות'}</p>
-        </section>
+            {connection.automations > 0 && connection.health !== 'ok' && (
+              <p className='text-sm text-red-600' role='alert'>
+                כל עוד החיבור אינו פעיל, האוטומציות האלה מסומנות כדורשות טיפול ולא יפעלו.
+              </p>
+            )}
+            <p className='text-sm text-gray-500'>
+              {lastEvent ? `אירוע אחרון ${lastEvent}` : 'עדיין לא התקבל אירוע'}
+              {connection.eventCount > 0 ? ` · ${connection.eventCount} אירועים בסך הכול` : ''}
+            </p>
+            <p className='text-sm text-gray-500'>
+              {last ? `פעילות אוטומציות אחרונה ${last}` : 'עדיין לא נרשמה פעילות אוטומציות'}
+            </p>
+          </section>
+        </div>
       </div>
     </ModalPop>
   )

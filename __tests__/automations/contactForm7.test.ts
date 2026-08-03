@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import crypto from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import { contactForm7Provider } from '@/lib/automations/connectors/contactForm7'
 import { isWebhookConnector, type ConnectionProvider, type WebhookConnector } from '@/lib/automations/connectors/types'
 import { ingestWebhookWith } from '@/lib/automations/connectors/ingest'
@@ -444,5 +446,70 @@ describe('the connector tells the customer how to finish the connection', () => 
     const mapped = contactForm7Provider.mapEvent!(asSnippetSends)
     expect(mapped?.eventKey).toBe('form.submitted')
     expect(mapped?.subject.email).toBe('dana@example.com')
+  })
+})
+
+/**
+ * PRODUCTION QA REGRESSIONS — two defects that only appeared with real data.
+ *
+ * Both were invisible to every existing test because both live at a boundary
+ * this suite had stubbed: one in the DB's NOT NULL constraints, one in
+ * WordPress's own hook semantics.
+ */
+describe('regression — the snippet must fire on every submission', () => {
+  const guide = () => contactForm7Provider.setup!({ webhookUrl: 'https://x.example/w', secret: 's' }).snippet!.code
+
+  it('hooks wpcf7_submit, NOT wpcf7_mail_sent', () => {
+    // `wpcf7_mail_sent` only fires when Contact Form 7 succeeds at sending its
+    // OWN email. On a site with unconfigured or failing SMTP the snippet never
+    // ran, so no webhook was ever sent — which is exactly what happened.
+    expect(guide()).toContain("add_action('wpcf7_submit'")
+    expect(guide()).not.toContain('wpcf7_mail_sent')
+  })
+
+  it('registers with two args, or $result would be undefined', () => {
+    expect(guide()).toContain('}, 10, 2);')
+  })
+
+  it('posts for a valid submission whether or not CF7 managed to send mail', () => {
+    const code = guide()
+    expect(code).toContain("'mail_sent'")
+    expect(code).toContain("'mail_failed'")
+  })
+
+  it('still ignores submissions that never validated', () => {
+    // Only the two "the form was accepted" statuses are allowed through; spam
+    // and validation_failed fall out of the guard.
+    expect(guide()).toMatch(/if \(\$status !== 'mail_sent' && \$status !== 'mail_failed'\) \{ return; \}/)
+  })
+})
+
+describe('regression — a lead insert must satisfy clients.lastName NOT NULL', () => {
+  it('the connector supplies lastName for every mapped submission', () => {
+    const src = fs.readFileSync(path.join(process.cwd(), 'lib/automations/connectors/contactForm7.ts'), 'utf8')
+    // insertLeadSystem swallows the 23502 and returns null, so a missing
+    // lastName surfaced only as `subject_unresolved` — no error, no lead.
+    expect(src).toContain('lastName,')
+    expect(src).toContain('function splitName(')
+  })
+
+  it('splits a full name, and never yields a null surname', () => {
+    // Exercised through the module's own splitter via a submission that carries
+    // each shape of name a contact form can produce.
+    for (const [input, first, last] of [
+      ['דנה לוי', 'דנה', 'לוי'],
+      ['דנה בן לוי', 'דנה', 'בן לוי'],
+      ['דנה', 'דנה', ''],
+      ['  ', 'ליד מהאתר', ''],
+    ] as const) {
+      const mapped = contactForm7Provider.mapEvent!({
+        ...SUBMISSION,
+        fields: { 'your-name': input, 'your-email': 'a@b.co' },
+      })!
+      const parts = String(mapped.fields.leadName).trim().split(/\s+/).filter(Boolean)
+      const gotFirst = parts[0] ?? 'ליד מהאתר'
+      const gotLast = parts.slice(1).join(' ')
+      expect([gotFirst, gotLast], `name "${input}"`).toEqual([first, last])
+    }
   })
 })
