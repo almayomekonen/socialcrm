@@ -87,7 +87,24 @@ export async function checkAppSubscribed(wabaId: string, accessToken: string): P
   }
 }
 
-export async function ensureMessagingReady(phoneNumberId: string, accessToken: string): Promise<MessagingReadiness> {
+export type EnsureMessagingOptions = {
+  /**
+   * Coexistence numbers are already registered by Meta during Embedded Signup.
+   * Meta: "use them to onboard the customer as you normally would, but skip the
+   * phone number registration step, as the number is already registered."
+   *
+   * Calling /register against a number that is live on the WhatsApp Business app
+   * is not a harmless retry — registration is how a number is claimed for Cloud
+   * API, which is exactly what coexistence exists to avoid.
+   */
+  skipRegistration?: boolean
+}
+
+export async function ensureMessagingReady(
+  phoneNumberId: string,
+  accessToken: string,
+  options: EnsureMessagingOptions = {},
+): Promise<MessagingReadiness> {
   let status: PhoneStatus
   try {
     status = await getPhoneStatus(phoneNumberId, accessToken)
@@ -97,6 +114,18 @@ export async function ensureMessagingReady(phoneNumberId: string, accessToken: s
   }
 
   if (status.status === CONNECTED) return { ready: true, status: status.status }
+
+  if (options.skipRegistration) {
+    // Not an error: Meta may still be finishing setup. The settings UI shows an
+    // honest "setup incomplete" rather than a false green, and the number
+    // becomes ready without us ever registering it.
+    console.warn('[WA Registration] coexistence number not yet CONNECTED; registration deliberately skipped', {
+      phoneNumberId,
+      status: status.status,
+      platformType: status.platformType,
+    })
+    return { ready: false, status: status.status, reason: 'coexistence_pending' }
+  }
 
   const reg = await registerPhoneNumber(phoneNumberId, accessToken, generatePin())
   if (reg.success) return { ready: true, status: CONNECTED }
