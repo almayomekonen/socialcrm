@@ -14,13 +14,13 @@ import type { SetupGuide } from '@/lib/automations/connectors/types'
  */
 export default function SetupGuidePanel({ guide, webhookUrl }: { guide: SetupGuide | null; webhookUrl: string }) {
   return (
-    <div className='grid gap-3 min-w-0'>
+    <div className='grid gap-4 min-w-0'>
       <CopyRow label='כתובת לשליחה' value={webhookUrl} />
 
       {guide && (
         <>
           <h4 className='text-sm font-semibold text-gray-800'>{guide.title}</h4>
-          <ol className='grid gap-1 ps-4 list-decimal'>
+          <ol className='grid gap-1.5 ps-5 list-decimal marker:text-gray-400'>
             {guide.steps.map((step, i) => (
               <li key={i} className='text-sm text-gray-600 leading-relaxed'>
                 {step}
@@ -63,12 +63,15 @@ export default function SetupGuidePanel({ guide, webhookUrl }: { guide: SetupGui
 
 export function CopyRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className='grid gap-1 min-w-0'>
+    <div className='grid gap-1.5 min-w-0'>
       <span className='text-sm text-gray-500'>{label}</span>
-      <div className='flex items-center gap-2'>
+      {/* `break-all`, not `truncate`: a webhook URL the customer must paste
+          elsewhere has to be readable in full. `items-start` keeps the copy
+          button on the first line when the value wraps. */}
+      <div className='flex items-start gap-2 min-w-0'>
         <code
           dir='ltr'
-          className='min-w-0 flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800'
+          className='min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800'
         >
           {value}
         </code>

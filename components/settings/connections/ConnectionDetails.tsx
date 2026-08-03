@@ -65,7 +65,7 @@ export default function ConnectionDetails({
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='top' label={connection.displayName}>
+    <ModalPop open onClose={onClose} pos='middle' label={connection.displayName} className='w-[520px] max-w-[92vw]'>
       {/*
         The dialog is a fixed-height column, not a growing block: ModalPop caps
         itself at 90vh and scrolls the WHOLE box, which scrolled the title out
@@ -75,10 +75,16 @@ export default function ConnectionDetails({
         `dvh` so mobile browser chrome is excluded; the 4rem subtracts
         ModalPop's own p-8.
       */}
-      <div className='flex flex-col gap-4 w-[min(90vw,560px)] max-h-[calc(90dvh-4rem)] min-h-0 pt-2'>
+      {/* House shape (width + centring on ModalPop, `pt-2` for the close
+          button), with one addition this dialog needs: it carries a setup
+          guide, a code block, sources and automation impact, so the header is
+          pinned and only the body scrolls. 80dvh leaves visible backdrop above
+          and below, which is what makes it read as a focused dialog rather
+          than a page. */}
+      <div className='flex flex-col gap-4 max-h-[80dvh] min-h-0 pt-2'>
         <div className='flex items-start justify-between gap-3 shrink-0'>
-          <div className='grid gap-1 min-w-0'>
-            <h2 className='text-lg font-semibold text-gray-800 truncate'>{connection.displayName}</h2>
+          <div className='grid gap-0.5 min-w-0'>
+            <h2 className='text-lg font-semibold text-dark truncate leading-tight'>{connection.displayName}</h2>
             <p className='text-sm text-gray-500'>{view.integration.title}</p>
           </div>
           <span className='flex shrink-0 items-center gap-2'>
@@ -93,7 +99,7 @@ export default function ConnectionDetails({
 
         {/* The only scrolling region. `min-w-0` lets the code block inside
             shrink instead of widening the dialog. */}
-        <div className='flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden grid gap-5 content-start scrollbar-slim'>
+        <div className='flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden grid gap-4 content-start scrollbar-slim'>
           {setup && (
             <>
               <section className='grid gap-3'>

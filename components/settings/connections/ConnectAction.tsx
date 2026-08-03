@@ -107,47 +107,53 @@ function ApiKeyDialog({
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='top' label={`חיבור ${integrationTitle}`}>
-      <div className='flex flex-col gap-4 w-[min(90vw,520px)] max-h-[calc(90dvh-4rem)] min-h-0 pt-2'>
-        <h2 className='text-lg font-semibold text-gray-800 shrink-0'>חיבור {integrationTitle}</h2>
-        <div className='flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden grid gap-5 content-start scrollbar-slim'>
-          {!issued && (
-            <>
-              <p className='text-sm text-gray-600 leading-relaxed'>{STRATEGY.api_key.how}</p>
-              <Input
-                lbl='כתובת האתר או המערכת'
-                value={siteUrl}
-                placeholder='https://example.com'
-                onChange={(e) => setSiteUrl(e.target.value)}
-              />
-              <Input lbl='שם לתצוגה (לא חובה)' value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+    <ModalPop open onClose={onClose} pos='middle' label={`חיבור ${integrationTitle}`} className='w-[460px] max-w-[92vw]'>
+      {/* The house dialog shape (SendInvoiceModal, MeetingFormDialog, …):
+          width on ModalPop, centred, `grid gap-4 pt-2` inside. The `pt-2` is
+          what gives the close button its breathing room. */}
+      <div className='grid gap-4 pt-2'>
+        <h2 className='text-lg font-semibold text-dark'>חיבור {integrationTitle}</h2>
+        {!issued && (
+          <>
+            <p className='text-sm text-gray-600 leading-relaxed'>{STRATEGY.api_key.how}</p>
+            <Input
+              lbl='כתובת האתר או המערכת'
+              value={siteUrl}
+              dir='ltr'
+              placeholder='https://example.com'
+              onChange={(e) => setSiteUrl(e.target.value)}
+            />
+            <Input lbl='שם לתצוגה (לא חובה)' value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            {error && (
+              <p className='text-sm text-red-600' role='alert'>
+                {error}
+              </p>
+            )}
+            {/* Action sits at the end of the row, not stretched across it. */}
+            <div className='flex justify-end mt-2'>
               <Btn
                 lbl={pending ? 'יוצר…' : 'יצירת חיבור'}
                 icon={pending ? 'spinner' : 'plug'}
                 iconClassName={pending ? 'animate-spin' : undefined}
                 disabled={pending || !siteUrl.trim()}
-                className='w-full'
                 onClick={submit}
               />
-              {error && (
-                <p className='text-sm text-red-600 ms-1' role='alert'>
-                  {error}
-                </p>
-              )}
-            </>
-          )}
+            </div>
+          </>
+        )}
 
-          {issued && (
-            <>
-              <p className='text-sm text-gray-600 leading-relaxed'>
-                הזינו את שני הפרטים האלה במערכת שלכם. הקוד הסודי מוצג פעם אחת בלבד — שמרו אותו עכשיו.
-              </p>
-              <CopyRow label='כתובת לשליחה' value={issued.webhookUrl} />
-              <CopyRow label='קוד סודי' value={issued.secret} />
-              <Btn lbl='סיימתי' className='w-full' onClick={onClose} />
-            </>
-          )}
-        </div>
+        {issued && (
+          <>
+            <p className='text-sm text-gray-600 leading-relaxed'>
+              הזינו את שני הפרטים האלה במערכת שלכם. הקוד הסודי מוצג פעם אחת בלבד — שמרו אותו עכשיו.
+            </p>
+            <CopyRow label='כתובת לשליחה' value={issued.webhookUrl} />
+            <CopyRow label='קוד סודי' value={issued.secret} />
+            <div className='flex justify-end mt-2'>
+              <Btn lbl='סיימתי' onClick={onClose} />
+            </div>
+          </>
+        )}
       </div>
     </ModalPop>
   )
@@ -155,11 +161,14 @@ function ApiKeyDialog({
 
 function CopyRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className='grid gap-1'>
+    <div className='grid gap-1.5 min-w-0'>
       <span className='text-sm text-gray-500'>{label}</span>
-      <div className='flex items-center gap-2'>
+      {/* `break-all`, not `truncate`: a secret shown once must be readable and
+          selectable in full. `items-start` keeps the button pinned to the first
+          line when the value wraps. */}
+      <div className='flex items-start gap-2 min-w-0'>
         <code
-          className='min-w-0 flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800'
+          className='min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800'
           dir='ltr'
         >
           {value}
