@@ -1,4 +1,5 @@
 import type { AuthStrategy, ConnectionHealth, SourceSubscriptionState } from '@/lib/automations/catalog/vocabularies'
+import type { DeliveryState } from '@/lib/automations/connectors/overview'
 import type { StatusRole } from '@/lib/StatusBadge'
 
 /**
@@ -29,10 +30,7 @@ export const SUBSCRIPTION: Record<SourceSubscriptionState, { role: StatusRole; l
  * button that starts it should say. One entry per strategy — never a branch in
  * a component.
  */
-export const STRATEGY: Record<
-  AuthStrategy,
-  { connect: string; reconnect: string; how: string; needsConnection: boolean }
-> = {
+export const STRATEGY: Record<AuthStrategy, { connect: string; reconnect: string; how: string; needsConnection: boolean }> = {
   oauth2: {
     connect: 'התחברות',
     reconnect: 'חיבור מחדש',
@@ -59,11 +57,29 @@ export const STRATEGY: Record<
   },
 }
 
+/**
+ * The question a business is actually asking while wiring a webhook up:
+ * "is anything getting through?" `never_received` is deliberately a WARNING —
+ * a connection that has never received data is not working yet, and saying
+ * "מחובר" about it is the lie C3 exists to remove.
+ */
+export const DELIVERY: Record<DeliveryState, { role: StatusRole; label: string; hint: string }> = {
+  disconnected: { role: 'error', label: 'מנותק', hint: 'החיבור אינו פעיל.' },
+  never_received: {
+    role: 'warning',
+    label: 'טרם התקבלו נתונים',
+    hint: 'החיבור נוצר, אבל עדיין לא הגיע אליו מידע. שלחו טופס אחד לבדיקה.',
+  },
+  receiving: { role: 'success', label: 'מקבל אירועים', hint: '' },
+  unknown: { role: 'neutral', label: 'מחובר', hint: 'החיבור הזה אינו מדווח על קליטת מידע.' },
+}
+
 export const ERRORS: Record<string, string> = {
   forbidden: 'אין לך הרשאה לבצע פעולה זו',
   integration_unknown: 'החיבור המבוקש אינו קיים',
   wrong_auth_strategy: 'סוג החיבור הזה אינו נוצר כך',
   site_url_invalid: 'כתובת האתר אינה תקינה',
+  connection_unknown: 'החיבור לא נמצא',
   not_available: 'החיבורים אינם זמינים בחשבון הזה',
 }
 

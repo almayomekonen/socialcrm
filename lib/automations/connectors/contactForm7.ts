@@ -5,7 +5,7 @@ import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { getQuotaStatus } from '@/lib/quota'
 import { emitAutomationEvent } from '../emit'
 import type { Connection, ConnectionOption, Source } from '../catalog/types'
-import type { ConnectionProvider, MappedEvent } from './types'
+import type { ConnectionProvider, MappedEvent, SetupGuide } from './types'
 
 /**
  * The Contact Form 7 connector — the first PRODUCTION integration.
@@ -258,6 +258,56 @@ function matchSite(live: ConnectionRow[], pageUrl: string): ConnectionRow | null
 export const contactForm7Provider: ConnectionProvider = {
   integrationKey: INTEGRATION_KEY,
   capabilities: ['wordpress_form_connected'],
+
+  /**
+   * The one thing we cannot do for the customer: put our URL and secret into
+   * their WordPress. So we hand them a snippet that already contains both,
+   * rather than a specification they have to implement.
+   *
+   * `wpcf7_mail_sent` is CF7's own post-submission hook, so this needs no
+   * plugin and no CF7 configuration — it goes in the theme's functions.php or
+   * any snippet plugin, which is a place every WordPress owner already has.
+   */
+  setup({ webhookUrl, secret }): SetupGuide {
+    const secretLine = secret
+      ? `$secret = '${secret}';`
+      : "$secret = 'הקוד-הסודי-ששמרתם'; // הקוד מוצג פעם אחת בלבד ביצירת החיבור"
+    return {
+      title: 'חיבור האתר בשלושה צעדים',
+      steps: [
+        'היכנסו לניהול וורדפרס של האתר.',
+        'הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.',
+        'שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.',
+      ],
+      snippet: {
+        label: 'קוד לוורדפרס',
+        language: 'php',
+        code: [
+          "add_action('wpcf7_mail_sent', function ($form) {",
+          `  $url = '${webhookUrl}';`,
+          `  ${secretLine}`,
+          '  $submission = WPCF7_Submission::get_instance();',
+          '  if (!$submission) { return; }',
+          '  $body = wp_json_encode([',
+          "    'form_id'       => $form->id(),",
+          "    'form_title'    => $form->title(),",
+          "    'submission_id' => wp_generate_uuid4(),",
+          "    'page_url'      => $submission->get_meta('url'),",
+          "    'fields'        => $submission->get_posted_data(),",
+          '  ]);',
+          '  wp_remote_post($url, [',
+          "    'headers' => [",
+          "      'Content-Type'         => 'application/json',",
+          "      'x-socialcrm-signature' => hash_hmac('sha256', $body, $secret),",
+          '    ],',
+          "    'body'    => $body,",
+          "    'timeout' => 5,",
+          '  ]);',
+          '});',
+        ].join('\n'),
+      },
+    }
+  },
 
   async listConnections(agencyId) {
     return (await rows(agencyId)).map<Connection>((row) => ({

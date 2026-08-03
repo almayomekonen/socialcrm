@@ -8,6 +8,9 @@ import { db } from '@/config/db'
 import { baseUrl } from '@/types/vars'
 import { listAllConnections, listSourcesFor, optionsFor } from '@/lib/automations/connectors/registry'
 import { listIntegrations } from '@/lib/automations/catalog/registry'
+import { providerFor } from '@/lib/automations/connectors/registry'
+import { applyCustomLabels, setSourceLabel } from '@/db/automations/sourceLabels'
+import type { SetupGuide } from '@/lib/automations/connectors/types'
 import type { Connection, ConnectionOption, Source } from '@/lib/automations/catalog/types'
 
 /**
@@ -35,14 +38,20 @@ export async function listConnectionsAction(): Promise<ConnectionsResult> {
 export async function listSourcesAction(connectionId: string): Promise<SourcesResult> {
   const user = await guard()
   if (!user) return { ok: false, reason: 'forbidden' }
-  return { ok: true, sources: await listSourcesFor(user.agencyId, connectionId) }
+  const sources = await listSourcesFor(user.agencyId, connectionId)
+  return { ok: true, sources: await applyCustomLabels(user.agencyId, connectionId, sources) }
 }
 
 /** Resolves an `enum_remote` parameter's options via the declared source key. */
 export async function listOptionsAction(connectionId: string, optionSource: string): Promise<OptionsResult> {
   const user = await guard()
   if (!user) return { ok: false, reason: 'forbidden' }
-  return { ok: true, options: await optionsFor(user.agencyId, connectionId, optionSource) }
+  // The Builder's picker shows the names the BUSINESS gave its sources, not
+  // the provider's. Same overlay as the Connections page — one implementation.
+  const sources = await applyCustomLabels(user.agencyId, connectionId, await listSourcesFor(user.agencyId, connectionId))
+  const named = new Map(sources.map((s) => [s.id, s.label]))
+  const options = await optionsFor(user.agencyId, connectionId, optionSource)
+  return { ok: true, options: options.map((o) => ({ id: o.id, label: named.get(o.id) ?? o.label })) }
 }
 
 // ── Provisioning ───────────────────────────────────────────────────────────
@@ -109,13 +118,12 @@ export async function provisionApiKeyConnection(input: {
   const connectionId = `${integration.key}:${id}`
   revalidatePath('/settings/connections')
   revalidatePath('/settings/automations')
-  return {
-    ok: true,
-    connectionId,
-    webhookUrl: `${baseUrl}/api/automations/webhooks/${integration.key}?c=${encodeURIComponent(connectionId)}`,
-    secret,
-  }
+  return { ok: true, connectionId, webhookUrl: webhookUrlFor(connectionId), secret }
 }
+
+/** The address a connection listens on. Derived from its id — never stored. */
+const webhookUrlFor = (connectionId: string) =>
+  `${baseUrl}/api/automations/webhooks/${connectionId.split(':')[0]}?c=${encodeURIComponent(connectionId)}`
 
 /**
  * Revoke a connection. Deliberately a soft revoke: the row stays so its
@@ -138,4 +146,83 @@ export async function revokeConnection(connectionId: string): Promise<{ ok: bool
   revalidatePath('/settings/connections')
   revalidatePath('/settings/automations')
   return { ok: updated > 0 }
+}
+
+// ── Lifecycle ──────────────────────────────────────────────────────────────
+
+const parseConnectionId = (connectionId: string): { integrationKey: string; id: number } | null => {
+  const [integrationKey, raw] = connectionId.split(':')
+  const id = Number(raw)
+  return integrationKey && Number.isInteger(id) ? { integrationKey, id } : null
+}
+
+/**
+ * Rotate the shared secret without re-entering anything.
+ *
+ * The reason this exists as its own action rather than "just connect again":
+ * re-provisioning asks for the site URL and reads like creating a second
+ * connection, which is exactly the wrong thing to offer someone whose secret
+ * has leaked and who needs to act in one click.
+ */
+export async function regenerateSecret(connectionId: string): Promise<ProvisionResult> {
+  const user = await guard()
+  if (!user) return { ok: false, reason: 'forbidden' }
+  const parsed = parseConnectionId(connectionId)
+  if (!parsed) return { ok: false, reason: 'connection_unknown' }
+
+  const integration = listIntegrations().find((i) => i.key === parsed.integrationKey)
+  if (!integration || integration.auth !== 'api_key') return { ok: false, reason: 'wrong_auth_strategy' }
+
+  const secret = crypto.randomBytes(32).toString('hex')
+  const updated = await db('automation_connections')
+    .where({ id: parsed.id, integrationKey: parsed.integrationKey, agencyId: user.agencyId })
+    .update({ webhookSecret: secret, revokedAt: null, updatedAt: db.fn.now() })
+  if (updated === 0) return { ok: false, reason: 'connection_unknown' }
+
+  revalidatePath('/settings/connections')
+  revalidatePath('/settings/automations')
+  return { ok: true, connectionId, webhookUrl: webhookUrlFor(connectionId), secret }
+}
+
+/**
+ * The instructions for finishing a connection, and the address it listens on.
+ *
+ * The URL is NOT a secret — losing access to it after the first dialog closed
+ * was a real dead end, so it is retrievable forever. The secret is not, and the
+ * guide says so in its own words.
+ */
+export type SetupResult = { ok: true; guide: SetupGuide | null; webhookUrl: string } | { ok: false; reason: string }
+
+export async function connectionSetup(connectionId: string): Promise<SetupResult> {
+  const user = await guard()
+  if (!user) return { ok: false, reason: 'forbidden' }
+  const parsed = parseConnectionId(connectionId)
+  if (!parsed) return { ok: false, reason: 'connection_unknown' }
+
+  const owned = await db('automation_connections')
+    .select('id')
+    .where({ id: parsed.id, integrationKey: parsed.integrationKey, agencyId: user.agencyId })
+    .first()
+  if (!owned) return { ok: false, reason: 'connection_unknown' }
+
+  const webhookUrl = webhookUrlFor(connectionId)
+  const provider = providerFor(parsed.integrationKey)
+  // A connector with nothing for the customer to do returns nothing, and the
+  // UI shows nothing — never an empty panel.
+  return { ok: true, guide: provider?.setup?.({ webhookUrl, secret: null }) ?? null, webhookUrl }
+}
+
+/** Rename a source in the business's own words. Empty clears the override. */
+export async function renameSource(
+  connectionId: string,
+  sourceId: string,
+  label: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  const user = await guard()
+  if (!user) return { ok: false, reason: 'forbidden' }
+  if (!parseConnectionId(connectionId) || !sourceId) return { ok: false, reason: 'connection_unknown' }
+
+  await setSourceLabel(user.agencyId, connectionId, sourceId, label)
+  revalidatePath('/settings/connections')
+  return { ok: true }
 }

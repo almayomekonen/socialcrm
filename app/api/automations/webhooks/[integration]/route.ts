@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import { webhookConnectorFor } from '@/lib/automations/connectors/registry'
 import { ingestWebhookWith, type IngestRejection } from '@/lib/automations/connectors/ingest'
 import { emitAutomationEvent } from '@/lib/automations/emit'
+import { recordDelivery } from '@/db/automations/connectionDelivery'
 
 /**
  * THE generic connector webhook endpoint.
@@ -67,6 +68,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ integration: s
   // The connection's own secret, never a global one: a leak is contained to
   // one agency's connection and is revoked by re-authorising it.
   headers['x-connection-secret'] = row.webhookSecret ?? ''
+
+  // A VERIFIED delivery is stamped whatever we decide to do with it: a signed
+  // payload we chose not to act on still proves the wiring works, and proving
+  // the wiring works is the whole of what a customer is doing right now.
+  if (connector.verifyWebhook({ headers, body })) await recordDelivery(row.id)
 
   const outcome = await ingestWebhookWith(
     connector,

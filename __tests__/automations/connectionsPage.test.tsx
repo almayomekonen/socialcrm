@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,13 +9,31 @@ import path from 'node:path'
 import IntegrationConnectionCard from '@/components/settings/connections/IntegrationConnectionCard'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings'
 import ConnectionDetails from '@/components/settings/connections/ConnectionDetails'
-import { HEALTH, STRATEGY, SUBSCRIPTION, timeAgo } from '@/components/settings/connections/copy'
+import { DELIVERY, HEALTH, STRATEGY, SUBSCRIPTION, timeAgo } from '@/components/settings/connections/copy'
 import { AUTH_STRATEGIES, CONNECTION_HEALTH, SOURCE_SUBSCRIPTION_STATES } from '@/lib/automations/catalog/vocabularies'
 import { listIntegrations } from '@/lib/automations/catalog/registry'
-import type { IntegrationView } from '@/lib/automations/connectors/overview'
+import type { DeliveryState, IntegrationView } from '@/lib/automations/connectors/overview'
 import type { AuthStrategy } from '@/lib/automations/catalog/vocabularies'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }))
+
+// The details modal fetches its setup guide and can rotate a secret; both are
+// server actions, so they are stubbed at the module boundary.
+vi.mock('@/actions/automations/connections', () => ({
+  connectionSetup: vi.fn(async () => ({
+    ok: true,
+    webhookUrl: 'https://app.example/api/automations/webhooks/zeta_desk?c=zeta_desk%3A1',
+    guide: {
+      title: 'חיבור בשלושה צעדים',
+      steps: ['צעד ראשון', 'צעד שני'],
+      snippet: { label: 'קוד', language: 'php', code: 'echo "hi";' },
+    },
+  })),
+  regenerateSecret: vi.fn(async () => ({ ok: true, connectionId: 'zeta_desk:1', webhookUrl: 'u', secret: 'S3CR3T' })),
+  renameSource: vi.fn(async () => ({ ok: true })),
+  revokeConnection: vi.fn(async () => ({ ok: true })),
+  provisionApiKeyConnection: vi.fn(async () => ({ ok: true, connectionId: 'x', webhookUrl: 'u', secret: 's' })),
+}))
 
 /**
  * ══════════════════════════════════════════════════════════════════════════
@@ -58,6 +76,10 @@ const connection = (over: Partial<IntegrationView['connections'][number]> = {}) 
   ],
   automations: 3,
   lastActivityAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+  lastEventAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  eventCount: 12,
+  delivery: 'receiving' as const,
+  reportsDelivery: true,
   ...over,
 })
 
@@ -80,8 +102,8 @@ describe('an integration the page has never heard of renders completely', () => 
   it('shows health, source count, automation count and last activity per connection', () => {
     render(<IntegrationConnectionCard view={view({ connections: [connection()], connected: true })} onChanged={noop} />)
     expect(screen.getByText('הדסק הראשי')).toBeInTheDocument()
-    expect(screen.getAllByText(HEALTH.ok.label).length).toBeGreaterThan(0)
-    expect(screen.getByText(/2 מקורות · 3 אוטומציות · פעילות אחרונה לפני 3 שעות/)).toBeInTheDocument()
+    expect(screen.getAllByText(DELIVERY.receiving.label).length).toBeGreaterThan(0)
+    expect(screen.getByText(/2 מקורות · 3 אוטומציות/)).toBeInTheDocument()
   })
 
   it('offers reconnect on a healthy connection, not a second "connect"', () => {
@@ -89,7 +111,7 @@ describe('an integration the page has never heard of renders completely', () => 
     expect(screen.getByRole('button', { name: STRATEGY.api_key.reconnect })).toBeInTheDocument()
   })
 
-  it('says "עדיין לא נרשמה פעילות" rather than implying silence is failure', () => {
+  it('omits "last activity" entirely rather than implying silence is failure', () => {
     render(
       <IntegrationConnectionCard
         view={view({ connections: [connection({ lastActivityAt: null, automations: 0 })], connected: true })}
@@ -102,7 +124,7 @@ describe('an integration the page has never heard of renders completely', () => 
 
 describe('an unhealthy connection tells the truth, loudly', () => {
   const broken = view({
-    connections: [connection({ health: 'revoked', automations: 4 })],
+    connections: [connection({ health: 'revoked', automations: 4, delivery: 'disconnected' })],
     connected: false,
     needsAttention: true,
   })
@@ -125,18 +147,21 @@ describe('an unhealthy connection tells the truth, loudly', () => {
   it('a degraded connection is surfaced as its own state, not as connected', () => {
     render(
       <IntegrationConnectionCard
-        view={view({ connections: [connection({ health: 'degraded' })], needsAttention: true })}
+        view={view({
+          connections: [connection({ health: 'degraded', delivery: 'disconnected' })],
+          needsAttention: true,
+        })}
         onChanged={noop}
       />,
     )
     expect(screen.getByText(HEALTH.degraded.label)).toBeInTheDocument()
-    expect(screen.queryByText(HEALTH.ok.label)).not.toBeInTheDocument()
+    expect(screen.queryByText(DELIVERY.receiving.label)).not.toBeInTheDocument()
   })
 })
 
 describe('connection details render sources, capabilities and impact', () => {
   it('lists every source with its subscription state', () => {
-    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} />)
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
     expect(screen.getByText('תור תמיכה')).toBeInTheDocument()
     expect(screen.getByText('תור מכירות')).toBeInTheDocument()
     expect(screen.getByText(SUBSCRIPTION.pending.label)).toBeInTheDocument()
@@ -144,23 +169,30 @@ describe('connection details render sources, capabilities and impact', () => {
 
   it('shows a failing source’s health beside its subscription', () => {
     const c = connection({ sources: [{ id: 's', label: 'תור', subscription: 'failed', health: 'degraded' }] })
-    render(<ConnectionDetails view={view()} connection={c} onClose={noop} />)
+    render(<ConnectionDetails view={view()} connection={c} onClose={noop} onChanged={noop} />)
     expect(screen.getByText(SUBSCRIPTION.failed.label)).toBeInTheDocument()
     expect(screen.getByText(HEALTH.degraded.label)).toBeInTheDocument()
   })
 
   it('lists what the connection unlocks — the capability, in the user’s words', () => {
-    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} />)
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
     expect(screen.getByText('נפתחה פנייה')).toBeInTheDocument()
   })
 
   it('states the automation impact when the connection is not healthy', () => {
-    render(<ConnectionDetails view={view()} connection={connection({ health: 'needs_reauth' })} onClose={noop} />)
+    render(
+      <ConnectionDetails
+        view={view()}
+        connection={connection({ health: 'needs_reauth', delivery: 'disconnected' })}
+        onClose={noop}
+        onChanged={noop}
+      />,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent('לא יפעלו')
   })
 
   it('an empty source list explains itself rather than showing nothing', () => {
-    render(<ConnectionDetails view={view()} connection={connection({ sources: [] })} onClose={noop} />)
+    render(<ConnectionDetails view={view()} connection={connection({ sources: [] })} onClose={noop} onChanged={noop} />)
     expect(screen.getByText(/עדיין לא זוהו מקורות/)).toBeInTheDocument()
   })
 })
@@ -297,5 +329,113 @@ describe('relative time is honest about what it does not know', () => {
     expect(ago(2 * 3_600_000)).toBe('לפני 2 שעות')
     expect(ago(26 * 3_600_000)).toBe('אתמול')
     expect(ago(5 * 24 * 3_600_000)).toBe('לפני 5 ימים')
+  })
+})
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ * C3 — what a real business needs before this is usable without a developer.
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+
+describe('C3 — "is anything getting through?" is answerable', () => {
+  const STATES: DeliveryState[] = ['disconnected', 'never_received', 'receiving', 'unknown']
+
+  it('every delivery state has its own Hebrew — a new one is a compile error', () => {
+    for (const s of STATES) expect(DELIVERY[s]?.label, `no copy for delivery "${s}"`).toBeTruthy()
+  })
+
+  it('a connection that has never received data says so, and is NOT called מחובר', () => {
+    render(
+      <IntegrationConnectionCard
+        view={view({
+          connections: [connection({ delivery: 'never_received', eventCount: 0, lastEventAt: null })],
+          connected: true,
+        })}
+        onChanged={noop}
+      />,
+    )
+    expect(screen.getByText(DELIVERY.never_received.label)).toBeInTheDocument()
+    expect(screen.getByText(DELIVERY.never_received.hint)).toBeInTheDocument()
+    // The exact lie C3 removes: healthy-but-silent must not read as working.
+    expect(screen.queryByText(DELIVERY.receiving.label)).not.toBeInTheDocument()
+  })
+
+  it('never_received is a WARNING, because setup is not finished', () => {
+    expect(DELIVERY.never_received.role).toBe('warning')
+    expect(DELIVERY.receiving.role).toBe('success')
+  })
+
+  it('a receiving connection shows when the last event arrived', () => {
+    render(<IntegrationConnectionCard view={view({ connections: [connection()], connected: true })} onChanged={noop} />)
+    expect(screen.getByText(/אירוע אחרון לפני 2 שעות/)).toBeInTheDocument()
+  })
+
+  it('a connector that does not report deliveries says so instead of "never"', () => {
+    render(
+      <IntegrationConnectionCard
+        view={view({
+          connections: [connection({ delivery: 'unknown', reportsDelivery: false, eventCount: 0, lastEventAt: null })],
+          connected: true,
+        })}
+        onChanged={noop}
+      />,
+    )
+    expect(screen.getByText(DELIVERY.unknown.hint)).toBeInTheDocument()
+    expect(screen.queryByText(DELIVERY.never_received.label)).not.toBeInTheDocument()
+  })
+
+  it('the details view separates event delivery from automation activity', async () => {
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    expect(await screen.findByText(/אירוע אחרון לפני 2 שעות · 12 אירועים בסך הכול/)).toBeInTheDocument()
+    expect(screen.getByText(/פעילות אוטומציות אחרונה לפני 3 שעות/)).toBeInTheDocument()
+  })
+})
+
+describe('C3 — setup is self-service, and the address is never lost', () => {
+  it('renders the connector’s own steps and snippet, generically', async () => {
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    expect(await screen.findByText('חיבור בשלושה צעדים')).toBeInTheDocument()
+    expect(screen.getByText('צעד ראשון')).toBeInTheDocument()
+    expect(screen.getByText('echo "hi";')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'העתקת הקוד' })).toBeInTheDocument()
+  })
+
+  it('the webhook address is retrievable forever — it is not a secret', async () => {
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    expect(await screen.findByText('https://app.example/api/automations/webhooks/zeta_desk?c=zeta_desk%3A1')).toBeInTheDocument()
+  })
+
+  it('the secret is not retrievable, and the UI says so rather than hiding it', async () => {
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    expect(await screen.findByText('הקוד הסודי אינו ניתן לשחזור.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'יצירת קוד סודי חדש' })).toBeInTheDocument()
+  })
+
+  it('rotating shows the new secret once, and warns that data stops until it is updated', async () => {
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'יצירת קוד סודי חדש' }))
+    expect(await screen.findByText('S3CR3T')).toBeInTheDocument()
+    expect(screen.getByText(/עד אז לא יתקבלו נתונים/)).toBeInTheDocument()
+  })
+})
+
+describe('C3 — a business can rename a discovered source', () => {
+  it('offers a rename on every source, whatever the integration', async () => {
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    expect((await screen.findAllByRole('button', { name: 'שינוי שם' })).length).toBe(2)
+  })
+
+  it('saves the new name and explains how to restore the original', async () => {
+    const { renameSource } = await import('@/actions/automations/connections')
+    render(<ConnectionDetails view={view()} connection={connection()} onClose={noop} onChanged={noop} />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'שינוי שם' }))[0])
+    expect(screen.getByText('השארת השדה ריק תחזיר את השם המקורי.')).toBeInTheDocument()
+
+    const field = screen.getByDisplayValue('תור תמיכה')
+    fireEvent.change(field, { target: { value: 'פניות מהאתר' } })
+    fireEvent.click(screen.getByRole('button', { name: 'שמור שם' }))
+    await screen.findByText('פניות מהאתר')
+    expect(renameSource).toHaveBeenCalledWith('zeta_desk:1', 'q_1', 'פניות מהאתר')
   })
 })

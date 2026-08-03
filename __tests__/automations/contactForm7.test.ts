@@ -392,3 +392,57 @@ describe('another WordPress form plugin needs only a connector and a registry li
     )
   })
 })
+
+/**
+ * C3 — the setup guide the connector supplies, so the Connections page can
+ * render instructions without a WordPress-shaped branch inside it.
+ */
+describe('the connector tells the customer how to finish the connection', () => {
+  const WEBHOOK = 'https://app.example/api/automations/webhooks/contact_form_7?c=contact_form_7%3A1'
+
+  it('supplies its own steps and a copy-paste snippet', () => {
+    const guide = contactForm7Provider.setup!({ webhookUrl: WEBHOOK, secret: 'whsec_abc' })
+    expect(guide.title).toBeTruthy()
+    expect(guide.steps.length).toBeGreaterThan(0)
+    expect(guide.snippet?.language).toBe('php')
+  })
+
+  it('the snippet contains the real URL and the real secret — nothing to fill in', () => {
+    const guide = contactForm7Provider.setup!({ webhookUrl: WEBHOOK, secret: 'whsec_abc' })
+    expect(guide.snippet!.code).toContain(WEBHOOK)
+    expect(guide.snippet!.code).toContain('whsec_abc')
+  })
+
+  it('it signs the way verifyWebhook verifies — the guide cannot drift from the code', () => {
+    const guide = contactForm7Provider.setup!({ webhookUrl: WEBHOOK, secret: 'whsec_abc' })
+    // The header name and the algorithm are the two things that must agree.
+    expect(guide.snippet!.code).toContain('x-socialcrm-signature')
+    expect(guide.snippet!.code).toContain("hash_hmac('sha256'")
+  })
+
+  it('it posts every field mapEvent reads, so the guide produces a mappable payload', () => {
+    const code = contactForm7Provider.setup!({ webhookUrl: WEBHOOK, secret: null }).snippet!.code
+    for (const key of ['form_id', 'form_title', 'submission_id', 'page_url', 'fields']) {
+      expect(code, `the snippet never sends "${key}"`).toContain(key)
+    }
+  })
+
+  it('without a secret it says where to get one rather than emitting an empty string', () => {
+    const guide = contactForm7Provider.setup!({ webhookUrl: WEBHOOK, secret: null })
+    expect(guide.snippet!.code).not.toContain("$secret = '';")
+    expect(guide.snippet!.code).toContain('הקוד-הסודי-ששמרתם')
+  })
+
+  it('a payload built exactly as the snippet builds one maps cleanly', () => {
+    const asSnippetSends = {
+      form_id: 42,
+      form_title: 'צור קשר',
+      submission_id: 'uuid-v4',
+      page_url: 'https://example.com/contact/',
+      fields: { 'your-name': 'דנה', 'your-email': 'dana@example.com' },
+    }
+    const mapped = contactForm7Provider.mapEvent!(asSnippetSends)
+    expect(mapped?.eventKey).toBe('form.submitted')
+    expect(mapped?.subject.email).toBe('dana@example.com')
+  })
+})

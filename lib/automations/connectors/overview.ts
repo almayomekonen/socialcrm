@@ -1,5 +1,7 @@
 import 'server-only'
 import { connectionUsage } from '@/db/automations/connectionUsage'
+import { deliveryFacts } from '@/db/automations/connectionDelivery'
+import { applyCustomLabels } from '@/db/automations/sourceLabels'
 import { listIntegrations, listSelectableEvents } from '../catalog/registry'
 import type { IntegrationDefinition } from '../catalog/types'
 import type { ConnectionHealth, SourceSubscriptionState } from '../catalog/vocabularies'
@@ -20,11 +22,15 @@ import { listAllConnections, listSourcesFor } from './registry'
  *    That is more honest than a marketing line: it says exactly what connecting
  *    buys you, and it can never drift from what the catalog actually offers.
  *
- *  · LAST ACTIVITY is engine truth, not a provider ping. No connector exposes a
- *    "last webhook" timestamp and inventing one would mean a contract change,
- *    so this reports when an automation bound to the connection last did
- *    something. A connection with no automations reports null, and the UI says
- *    so rather than implying silence means failure.
+ *  · LAST ACTIVITY is engine truth, not a provider ping — when an automation
+ *    bound to the connection last did something.
+ *
+ *  · LAST EVENT (C3) is delivery truth — when a signed payload last arrived.
+ *    They are different questions and a business setting a webhook up needs the
+ *    second one: "connected but nothing has ever arrived" and "connected and
+ *    receiving" look identical without it, and a mistyped URL reads as success.
+ *    A connector whose rows live in its own table simply reports `null`, and
+ *    the UI says "not reported" rather than "never received".
  */
 
 export type SourceView = {
@@ -34,6 +40,20 @@ export type SourceView = {
   health: ConnectionHealth
 }
 
+/**
+ * What the business actually wants to know, in their terms. Derived — never
+ * stored — so it can never disagree with the facts it is derived from.
+ */
+export type DeliveryState =
+  /** Not healthy. Whatever else is true, this is what to fix first. */
+  | 'disconnected'
+  /** Healthy, and a signed payload has never arrived. The setup-in-progress state. */
+  | 'never_received'
+  /** Healthy and receiving. */
+  | 'receiving'
+  /** Healthy, but this connector does not report deliveries. */
+  | 'unknown'
+
 export type ConnectionView = {
   id: string
   displayName: string
@@ -41,6 +61,12 @@ export type ConnectionView = {
   sources: SourceView[]
   automations: number
   lastActivityAt: string | null
+  /** When a signed payload last arrived. Null = never, or not reported. */
+  lastEventAt: string | null
+  eventCount: number
+  delivery: DeliveryState
+  /** Whether the connector reports deliveries at all. */
+  reportsDelivery: boolean
 }
 
 export type IntegrationView = {
@@ -62,31 +88,50 @@ function unlockedBy(integration: IntegrationDefinition) {
     .map((e) => ({ key: e.key, title: e.title }))
 }
 
+function deliveryStateOf(health: ConnectionHealth, reports: boolean, count: number): DeliveryState {
+  if (health !== 'ok') return 'disconnected'
+  if (!reports) return 'unknown'
+  return count > 0 ? 'receiving' : 'never_received'
+}
+
 export async function integrationOverview(agencyId: number): Promise<IntegrationView[]> {
-  const [connections, usage] = await Promise.all([listAllConnections(agencyId), connectionUsage(agencyId)])
+  const [connections, usage, delivery] = await Promise.all([
+    listAllConnections(agencyId),
+    connectionUsage(agencyId),
+    deliveryFacts(agencyId),
+  ])
 
   const withSources = await Promise.all(
     connections.map(async (c) => ({
       connection: c,
-      sources: await listSourcesFor(agencyId, c.id),
+      // The names the BUSINESS gave its sources, not the provider's.
+      sources: await applyCustomLabels(agencyId, c.id, await listSourcesFor(agencyId, c.id)),
     })),
   )
 
   return listIntegrations().map((integration) => {
     const mine = withSources.filter((c) => c.connection.integrationKey === integration.key)
-    const views: ConnectionView[] = mine.map(({ connection, sources }) => ({
-      id: connection.id,
-      displayName: connection.displayName,
-      health: connection.health,
-      sources: sources.map((s) => ({
-        id: s.id,
-        label: s.label,
-        subscription: s.subscription,
-        health: s.health,
-      })),
-      automations: usage[connection.id]?.automations ?? 0,
-      lastActivityAt: usage[connection.id]?.lastActivityAt ?? null,
-    }))
+    const views: ConnectionView[] = mine.map(({ connection, sources }) => {
+      const facts = delivery[connection.id]
+      const reportsDelivery = facts !== undefined
+      return {
+        id: connection.id,
+        displayName: connection.displayName,
+        health: connection.health,
+        sources: sources.map((s) => ({
+          id: s.id,
+          label: s.label,
+          subscription: s.subscription,
+          health: s.health,
+        })),
+        automations: usage[connection.id]?.automations ?? 0,
+        lastActivityAt: usage[connection.id]?.lastActivityAt ?? null,
+        lastEventAt: facts?.lastEventAt ?? null,
+        eventCount: facts?.eventCount ?? 0,
+        delivery: deliveryStateOf(connection.health, reportsDelivery, facts?.eventCount ?? 0),
+        reportsDelivery,
+      }
+    })
 
     const connected = views.some((c) => c.health === 'ok')
     return {

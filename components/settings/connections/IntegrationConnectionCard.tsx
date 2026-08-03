@@ -10,7 +10,7 @@ import { revokeConnection } from '@/actions/automations/connections'
 import type { ConnectionView, IntegrationView } from '@/lib/automations/connectors/overview'
 import ConnectAction from './ConnectAction'
 import ConnectionDetails from './ConnectionDetails'
-import { HEALTH, STRATEGY, timeAgo } from './copy'
+import { DELIVERY, HEALTH, STRATEGY, timeAgo } from './copy'
 
 /**
  * ONE card, for every integration that will ever exist.
@@ -28,13 +28,7 @@ import { HEALTH, STRATEGY, timeAgo } from './copy'
  * same header shape, same ConfirmPop on disconnect — so the two surfaces read
  * as one product.
  */
-export default function IntegrationConnectionCard({
-  view,
-  onChanged,
-}: {
-  view: IntegrationView
-  onChanged: () => void
-}) {
+export default function IntegrationConnectionCard({ view, onChanged }: { view: IntegrationView; onChanged: () => void }) {
   const [details, setDetails] = useState<ConnectionView | null>(null)
   const [confirm, setConfirm] = useState<ConnectionView | null>(null)
   const [pending, start] = useTransition()
@@ -65,9 +59,7 @@ export default function IntegrationConnectionCard({
 
       {/* The description IS the catalog: what connecting this actually buys. */}
       <p className='text-sm text-gray-600 leading-relaxed'>
-        {view.unlocks.length > 0
-          ? `מאפשר אוטומציות על: ${view.unlocks.map((e) => e.title).join(' · ')}`
-          : strategy.how}
+        {view.unlocks.length > 0 ? `מאפשר אוטומציות על: ${view.unlocks.map((e) => e.title).join(' · ')}` : strategy.how}
       </p>
 
       {connections.length === 0 && (
@@ -87,18 +79,29 @@ export default function IntegrationConnectionCard({
         <ul className='grid gap-3'>
           {connections.map((c) => {
             const health = HEALTH[c.health]
+            const delivery = DELIVERY[c.delivery]
             const last = timeAgo(c.lastActivityAt)
+            const lastEvent = timeAgo(c.lastEventAt)
             return (
               <li key={c.id} className='grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-3'>
                 <div className='flex items-center justify-between gap-3'>
                   <span className='min-w-0 truncate text-sm font-medium text-gray-800'>{c.displayName}</span>
-                  <StatusBadge role={health.role} label={health.label} size='xs' />
+                  <span className='flex shrink-0 items-center gap-2'>
+                    {/* Delivery answers "is anything getting through?"; health
+                        answers "is the authorisation still good?" Both, because
+                        a connection can be perfectly authorised and silent. */}
+                    <StatusBadge role={delivery.role} label={delivery.label} size='xs' />
+                    {c.health !== 'ok' && <StatusBadge role={health.role} label={health.label} size='xs' />}
+                  </span>
                 </div>
+
+                {delivery.hint && <p className='text-sm text-gray-500'>{delivery.hint}</p>}
 
                 <p className='text-sm text-gray-500'>
                   {c.sources.length === 1 ? 'מקור אחד' : `${c.sources.length} מקורות`}
                   {' · '}
                   {c.automations === 1 ? 'אוטומציה אחת' : `${c.automations} אוטומציות`}
+                  {lastEvent ? ` · אירוע אחרון ${lastEvent}` : ''}
                   {last ? ` · פעילות אחרונה ${last}` : ''}
                 </p>
 
@@ -134,7 +137,7 @@ export default function IntegrationConnectionCard({
         </ul>
       )}
 
-      {details && <ConnectionDetails view={view} connection={details} onClose={() => setDetails(null)} />}
+      {details && <ConnectionDetails view={view} connection={details} onClose={() => setDetails(null)} onChanged={onChanged} />}
 
       <ConfirmPop
         open={confirm !== null}

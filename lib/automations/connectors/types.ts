@@ -62,6 +62,35 @@ export type ConnectionProvider = {
    * resolve cannot exist.
    */
   resolveSubject?(agencyId: number, mapped: MappedEvent): Promise<number | null>
+
+  /**
+   * Instructions for finishing the connection on the customer's side.
+   * Absent when there is nothing for them to do — the UI then shows nothing,
+   * rather than an empty panel.
+   */
+  setup?(input: { webhookUrl: string; secret: string | null }): SetupGuide
+}
+
+/**
+ * How a business finishes the connection on THEIR side.
+ *
+ * Some integrations cannot be completed by us: an `api_key` connector hands out
+ * a URL and a secret, and someone has to put them into the other system. That
+ * instruction is integration-specific by nature — which is exactly why it is
+ * declared HERE, by the connector, and rendered generically by the UI.
+ *
+ * The alternative was an `if (integration === …)` in the Connections page. This
+ * is the same trade the catalog already makes everywhere else: the connector
+ * knows, the UI renders.
+ */
+export type SetupGuide = {
+  title: string
+  /** Ordered, plain-language steps. Rendered as a list; no markup. */
+  steps: readonly string[]
+  /** Optional copy-paste block, and what it is. */
+  snippet?: { label: string; language: string; code: string }
+  /** Optional link to fuller instructions. */
+  link?: { label: string; href: string }
 }
 
 /** A connector that can receive webhooks — all three inbound members present. */
