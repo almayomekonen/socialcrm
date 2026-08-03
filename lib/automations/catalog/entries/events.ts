@@ -172,7 +172,7 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
     // The lock the Builder renders when no calendar is connected, and the CTA
     // it offers to fix it. Data — the Builder authors neither.
     requirements: [
-      { type: 'connection', key: 'calendar_connected', cta: { label: 'חיבור יומן', href: '/settings/integrations' } },
+      { type: 'connection', key: 'calendar_connected', cta: { label: 'חיבור יומן', href: '/settings/connections' } },
     ],
     // One remote parameter: which calendar to listen to. Rendered by the same
     // control that renders every other enum_remote.
@@ -203,7 +203,7 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
       {
         type: 'connection',
         key: 'wordpress_form_connected',
-        cta: { label: 'חיבור האתר', href: '/settings/integrations' },
+        cta: { label: 'חיבור האתר', href: '/settings/connections' },
       },
     ],
     // One remote parameter: which form to listen to. Same control as every

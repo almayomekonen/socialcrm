@@ -3,6 +3,7 @@
 import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import crypto from 'node:crypto'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
 import { baseUrl } from '@/types/vars'
 import { listAllConnections, listSourcesFor, optionsFor } from '@/lib/automations/connectors/registry'
@@ -106,6 +107,8 @@ export async function provisionApiKeyConnection(input: {
 
   const id = Number((row as { id: number }).id ?? row)
   const connectionId = `${integration.key}:${id}`
+  revalidatePath('/settings/connections')
+  revalidatePath('/settings/automations')
   return {
     ok: true,
     connectionId,
@@ -128,5 +131,11 @@ export async function revokeConnection(connectionId: string): Promise<{ ok: bool
   const updated = await db('automation_connections')
     .where({ id, integrationKey, agencyId: user.agencyId })
     .update({ revokedAt: db.fn.now(), webhookSecret: null, updatedAt: db.fn.now() })
+
+  // Health, the events this connection unlocked, and the automations bound to
+  // it all derive from the same row — so revalidating both surfaces is the
+  // entire "disconnect" implementation. Nothing is recomputed by hand.
+  revalidatePath('/settings/connections')
+  revalidatePath('/settings/automations')
   return { ok: updated > 0 }
 }

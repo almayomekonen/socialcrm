@@ -26,15 +26,14 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
             <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
             {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title='אוטומציות' />}
+            {automationsVisible && <SettingsLink href='/settings/connections' icon='plug' title='חיבורים' />}
             <Seperator className='my-2' />
             <SettingsLink href='/settings/update_agency' icon='diamond' title='פרטי העסק' />
             <SettingsLink href='/settings/update_user_details' icon='user' title='פרטי נציג' />
             <SettingsLink href='/settings/update_default' icon='folders' title='הגדרות מערכת' />
             <SettingsLink href='/settings/update_security' icon='shield' title='אבטחה' />
             <SettingsLink href='/settings/update_payment' icon='credit-card' title='מנוי ותשלום' />
-            {inspectorVisible && (
-              <SettingsLink href='/settings/ai-inspector' icon='brain' title='AI Inspector' />
-            )}
+            {inspectorVisible && <SettingsLink href='/settings/ai-inspector' icon='brain' title='AI Inspector' />}
           </>
         )}
       </div>
