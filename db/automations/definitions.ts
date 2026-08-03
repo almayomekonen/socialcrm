@@ -2,7 +2,6 @@ import { db } from '@/config/db'
 import type { ActionType, TriggerType } from '@/lib/automations/types'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
-import { liftFromLegacyColumns, projectToLegacyColumns } from '@/lib/automations/conditions'
 import { actionKeyForEngineAction, engineActionForActionKey } from '@/lib/automations/catalog/engineBridge'
 import { actionKeyFor, actionsForContent } from '@/lib/automations/actionEntry'
 
@@ -39,8 +38,6 @@ export interface AutomationDefinition {
   recipeKey: string | null
   status: DefinitionStatus
   trigger: TriggerType
-  targetStatus: string | null
-  sourceFilter: string | null
   action: ActionType
   content: DefinitionContent
   createdByUserId: number
@@ -61,8 +58,6 @@ const COLUMNS: string[] = [
   'recipeKey',
   'status',
   'trigger',
-  'targetStatus',
-  'sourceFilter',
   'action',
   'content',
   'createdByUserId',
@@ -82,15 +77,15 @@ export function listDefinitionsQuery(agencyId: number) {
 }
 
 /**
- * Pre-B3 rows may have an empty `conditions` array while their intent lives in
- * the legacy columns. Lifting on read means an automation written before B3
- * opens in the new Builder saying exactly what it always meant.
+ * B6: `conditions` is the sole authority. The legacy `targetStatus` /
+ * `sourceFilter` columns are no longer selected, written or read anywhere —
+ * the accompanying migration backfilled every row's conditions and moved the
+ * status condition onto the live `status` field, which is what the engine's
+ * premise check always actually enforced. The columns survive one release so
+ * that backfill stays reversible against real data; a follow-up drops them.
  */
 function normalise(row: AutomationDefinition): AutomationDefinition {
-  const conditions =
-    row.conditions && row.conditions.length > 0
-      ? row.conditions
-      : liftFromLegacyColumns({ targetStatus: row.targetStatus, sourceFilter: row.sourceFilter })
+  const conditions = row.conditions ?? []
   // Rows written before the actions list get one synthesised from the engine
   // column and the content document. The key comes from the permanent bridge,
   // never a literal — the store must not assume which action this is either.
@@ -156,8 +151,6 @@ export async function createDefinition(input: {
   name: string
   recipeKey: string | null
   trigger: TriggerType
-  targetStatus: string | null
-  sourceFilter: string | null
   content: Omit<DefinitionContent, 'schemaVersion'>
   createdByUserId: number
   conditions?: Condition[]
@@ -168,8 +161,6 @@ export async function createDefinition(input: {
 }): Promise<AutomationDefinition> {
   const content: DefinitionContent = { ...input.content, schemaVersion: CONTENT_SCHEMA_VERSION }
   const conditions = input.conditions ?? []
-  // The engine still reads the legacy columns; the Builder no longer knows they exist.
-  const legacy = projectToLegacyColumns(conditions)
   const [row] = await db('automation_definitions')
     .insert({
       agencyId: input.agencyId,
@@ -177,8 +168,6 @@ export async function createDefinition(input: {
       recipeKey: input.recipeKey,
       status: 'draft',
       trigger: input.trigger,
-      targetStatus: legacy.targetStatus,
-      sourceFilter: legacy.sourceFilter,
       action: engineActionForActionKey(input.actionKey) as ActionType,
       content: JSON.stringify(content),
       createdByUserId: input.createdByUserId,
@@ -204,13 +193,7 @@ export async function updateDefinitionContent(
 ): Promise<void> {
   const update: Record<string, unknown> = { updatedAt: db.fn.now() }
   if (patch.name !== undefined) update.name = patch.name
-  if (patch.conditions !== undefined) {
-    update.conditions = JSON.stringify(patch.conditions)
-    // Keep the engine's narrowing columns in lockstep with the conditions.
-    const legacy = projectToLegacyColumns(patch.conditions)
-    update.targetStatus = legacy.targetStatus
-    update.sourceFilter = legacy.sourceFilter
-  }
+  if (patch.conditions !== undefined) update.conditions = JSON.stringify(patch.conditions)
   if (patch.connectionId !== undefined) update.connectionId = patch.connectionId
   if (patch.sourceIds !== undefined) update.sourceIds = JSON.stringify(patch.sourceIds)
   if (patch.content !== undefined) {

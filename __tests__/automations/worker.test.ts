@@ -36,8 +36,6 @@ function def(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
     recipeKey: 'welcome_new_lead',
     status: 'active',
     trigger: 'lead_created',
-    targetStatus: null,
-    sourceFilter: null,
     action: 'send_email',
     content: {
       schemaVersion: 1,
@@ -271,5 +269,111 @@ describe('identity gate (ADR-013)', () => {
     const summary = await runAutomationWorker({ deps: d })
     expect(summary.done).toBe(1)
     expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'would_send', subject: 'שלום דנה' })
+  })
+})
+
+/**
+ * B6 — the premise, evaluated from catalog metadata instead of a status column.
+ *
+ * These assertions are the end-to-end form of what `expectedStatus` used to
+ * do. The definition now carries an ordinary LIVE condition; the worker
+ * resolves its value from the lead and the engine skips with the same reason,
+ * writes the same activity row, and never sends.
+ */
+describe('the live premise (B6)', () => {
+  const statusAutomation = (expected: string) =>
+    def({
+      trigger: 'status_changed',
+      conditions: [{ field: 'status', operator: 'is', value: expected }],
+    })
+
+  const leadWithStatus = (currentStatus: string) => ({
+    exists: true as const,
+    email: 'dana@example.com',
+    currentStatus,
+    firstName: 'דנה',
+    displayName: 'דנה לוי',
+    handlerId: null,
+  })
+
+  it('holds when the lead is still in the premised status', async () => {
+    const d = deps({
+      claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
+      getDefinition: vi.fn(async () => statusAutomation('contacted')),
+      getLeadFacts: vi.fn(async () => leadWithStatus('contacted')),
+    })
+    const summary = await runAutomationWorker({ deps: d })
+    expect(summary).toEqual({ claimed: 1, done: 1, skipped: 0, retried: 0, dead: 0 })
+    expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'would_send' })
+  })
+
+  it('expires when the lead moved on — same reason, same activity row as before B6', async () => {
+    const d = deps({
+      claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
+      getDefinition: vi.fn(async () => statusAutomation('contacted')),
+      getLeadFacts: vi.fn(async () => leadWithStatus('interested')),
+    })
+    const summary = await runAutomationWorker({ deps: d })
+    expect(summary).toEqual({ claimed: 1, done: 0, skipped: 1, retried: 0, dead: 0 })
+    expect(calls(d.skipJob)[0][1]).toBe('premise_expired')
+    expect(calls(d.appendActivity)[0][0]).toMatchObject({ kind: 'skipped', skipReason: 'premise_expired' })
+    expect(d.send).not.toHaveBeenCalled()
+    // The claim is never taken for a job whose premise failed.
+    expect(d.claimOnce).not.toHaveBeenCalled()
+  })
+
+  it('an automation with no conditions has nothing to expire', async () => {
+    const d = deps({
+      claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
+      getDefinition: vi.fn(async () => def({ trigger: 'status_changed', conditions: [] })),
+      getLeadFacts: vi.fn(async () => leadWithStatus('lost')),
+    })
+    expect((await runAutomationWorker({ deps: d })).done).toBe(1)
+  })
+
+  it('a SNAPSHOT condition is not re-evaluated at execution — emission already settled it', async () => {
+    // `source` is snapshot; the worker has no event payload and must not
+    // invent one. Re-evaluating here would fail closed and lose a real send.
+    const d = deps({
+      getDefinition: vi.fn(async () => def({ conditions: [{ field: 'source', operator: 'contains', value: 'facebook' }] })),
+    })
+    expect((await runAutomationWorker({ deps: d })).done).toBe(1)
+  })
+
+  it('fetches ONLY the live fields the conditions reference', async () => {
+    const d = deps({
+      claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
+      getDefinition: vi.fn(async () => statusAutomation('contacted')),
+      getLeadFacts: vi.fn(async () => leadWithStatus('contacted')),
+    })
+    await runAutomationWorker({ deps: d })
+    // A status premise needs no business name; that query is never made for it.
+    expect(calls(d.agencyName).length).toBe(1) // the executor's own preflight, not the premise
+  })
+
+  it('a premise on a field the worker must fetch resolves it, once', async () => {
+    const d = deps({
+      claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
+      getDefinition: vi.fn(async () =>
+        def({ trigger: 'status_changed', conditions: [{ field: 'businessName', operator: 'is', value: 'העסק שלי' }] }),
+      ),
+      getLeadFacts: vi.fn(async () => leadWithStatus('contacted')),
+    })
+    expect((await runAutomationWorker({ deps: d })).done).toBe(1)
+    expect(calls(d.agencyName).length).toBe(2) // once for the premise, once in preflight
+  })
+
+  it('an unknown condition field fails CLOSED rather than sending unguarded', async () => {
+    const d = deps({
+      claim: vi.fn(async () => [job({ trigger: 'status_changed' })]),
+      getDefinition: vi.fn(async () =>
+        def({ trigger: 'status_changed', conditions: [{ field: 'nonsense', operator: 'is', value: 'x' } as never] }),
+      ),
+      getLeadFacts: vi.fn(async () => leadWithStatus('contacted')),
+    })
+    const summary = await runAutomationWorker({ deps: d })
+    expect(summary.skipped).toBe(1)
+    expect(calls(d.skipJob)[0][1]).toBe('premise_expired')
+    expect(d.send).not.toHaveBeenCalled()
   })
 })

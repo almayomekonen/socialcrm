@@ -1,14 +1,13 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
-import {
-  listActiveDefinitionsForTrigger,
-  type AutomationDefinition,
-} from '@/db/automations/definitions'
+import { listActiveDefinitionsForTrigger, type AutomationDefinition } from '@/db/automations/definitions'
 import { enqueueAutomationJob } from '@/db/automations/jobs'
 import { isAutomationsAgencyAllowlisted, isAutomationsEnabled } from './flags'
-import { sourceFilterMatches } from './laws'
 import { isValidTiming, resolveSendAt } from './timing'
+import { snapshotConditionsMatch } from './conditionEvaluator'
+import { eventKeyForEngineTrigger, snapshotFieldsForEvent } from './catalog/engineBridge'
+import { getEvent } from './catalog/registry'
 import type { AutomationTriggerEvent } from './types'
 
 /**
@@ -26,7 +25,17 @@ import type { AutomationTriggerEvent } from './types'
 
 export type EmitResult =
   | { emitted: number; skippedDefinitions: number; filteredDefinitions: number }
-  | { blocked: 'origin_import' | 'kill_switch' | 'agency_not_allowlisted' | 'no_active_definitions' | 'error' }
+  | {
+      blocked:
+        | 'origin_import'
+        | 'kill_switch'
+        | 'agency_not_allowlisted'
+        | 'no_active_definitions'
+        /** The catalog does not describe this trigger, so no condition on it
+         *  can be decided. Unreachable while every TriggerType is bridged. */
+        | 'event_undescribed'
+        | 'error'
+    }
 
 /** ADR-010 identity rule — deterministic from business facts, never random. */
 export function eventKeyFor(event: AutomationTriggerEvent): string {
@@ -68,14 +77,23 @@ export async function emitAutomationEventWith(deps: EmitDeps, event: AutomationT
     const definitions = await deps.listActive(event.agencyId, event.trigger)
     if (definitions.length === 0) return { blocked: 'no_active_definitions' }
 
+    // The catalog entry for this occurrence. Unknown ⇒ nothing is emitted:
+    // an event the catalog cannot describe has undecidable conditions, and
+    // the engine never acts on a condition it could not evaluate (Law 3).
+    const definition = getEvent(eventKeyForEngineTrigger(event.trigger) ?? '')
+    if (!definition) return { blocked: 'event_undescribed' }
+    const snapshot = snapshotFieldsForEvent(event)
+
     const eventKey = eventKeyFor(event)
     let emitted = 0
     let skippedDefinitions = 0
     let filteredDefinitions = 0
     for (const def of definitions) {
-      // Definition source filter applies at emission — a non-matching
-      // definition never gets a job (sourceFilterMatches, laws.ts).
-      if (!sourceFilterMatches(def.sourceFilter, event.leadSource)) {
+      // SNAPSHOT conditions are decided here. Their values are fixed at the
+      // event and cannot change afterwards, so evaluating them now is the same
+      // answer as evaluating them at execution — and it avoids queuing work
+      // that could never succeed. Live conditions are the worker's business.
+      if (!snapshotConditionsMatch(definition, def.conditions, snapshot).pass) {
         filteredDefinitions++
         continue
       }
@@ -145,10 +163,7 @@ function kickWorkerSoon(): void {
 }
 
 /** Production wiring. `trx` joins the caller's transaction when provided. */
-export async function emitAutomationEvent(
-  event: AutomationTriggerEvent,
-  opts?: { trx?: Knex.Transaction },
-): Promise<EmitResult> {
+export async function emitAutomationEvent(event: AutomationTriggerEvent, opts?: { trx?: Knex.Transaction }): Promise<EmitResult> {
   const result = await emitAutomationEventWith(
     {
       enabled: isAutomationsEnabled,

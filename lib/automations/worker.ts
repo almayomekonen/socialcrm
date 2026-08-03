@@ -23,7 +23,9 @@ import { decideSendForAction, type SendFacts } from './laws'
 import { isValidTiming } from './timing'
 import { FAILURE_COPY } from './copy'
 import { getAutomationsSendMode, type AutomationsSendMode } from './flags'
-import { getAction } from './catalog/registry'
+import { getAction, getEvent } from './catalog/registry'
+import { eventKeyForEngineTrigger } from './catalog/engineBridge'
+import { liveFieldKeys } from './conditionEvaluator'
 import { actionKeyFor, actionParameters } from './actionEntry'
 import { executorFor } from './executors/registry'
 import type { ActionExecutor, ExecutionContext } from './executors/types'
@@ -134,6 +136,29 @@ function logT(transition: string, job: AutomationJob, extra: Record<string, unkn
   })
 }
 
+/**
+ * The automation's live premise: the conditions whose fields are re-read from
+ * the subject at this moment, plus their current values.
+ *
+ * Only the fields the conditions actually reference are resolved — a premise
+ * on the lead's status costs nothing extra, and one on the business name costs
+ * exactly one query, never both.
+ */
+async function resolvePremise(job: AutomationJob, def: WorkerDefinition, lead: LeadFacts, deps: WorkerDeps) {
+  const definition = getEvent(eventKeyForEngineTrigger(job.trigger) ?? '')
+  const conditions = def.conditions ?? []
+  if (!definition) return { definition: null, conditions, values: {} }
+
+  const needed = new Set(liveFieldKeys(definition, conditions))
+  const values: Record<string, unknown> = {}
+  if (needed.has('status')) values.status = lead.exists ? lead.currentStatus : null
+  if (needed.has('email')) values.email = lead.exists ? lead.email : null
+  if (needed.has('leadFirstName')) values.leadFirstName = lead.exists ? lead.firstName : null
+  if (needed.has('businessName')) values.businessName = await deps.agencyName(job.agencyId)
+  if (needed.has('repName')) values.repName = await deps.repName(lead.exists ? lead.handlerId : null)
+  return { definition, conditions, values }
+}
+
 async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome> {
   const mode = deps.sendMode()
   const jobSkip = async (reason: string): Promise<Outcome> => {
@@ -202,7 +227,7 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
       leadId: job.leadId,
       occurredAt: new Date(job.createdAt),
     },
-    expectedStatus: def.targetStatus,
+    premise: await resolvePremise(job, def, lead, deps),
     lead: {
       exists: lead.exists,
       email,

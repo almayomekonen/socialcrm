@@ -1,4 +1,4 @@
-import type { TriggerType } from '../types'
+import type { AutomationTriggerEvent, TriggerType } from '../types'
 
 /**
  * LEGACY BRIDGE — catalog keys ↔ the engine's persisted vocabulary.
@@ -61,4 +61,21 @@ export function bridgedEventKeys(): readonly string[] {
 /** Every catalog action key that has an engine counterpart. */
 export function bridgedActionKeys(): readonly string[] {
   return Object.keys(ACTION_KEY_TO_ENGINE_ACTION)
+}
+
+/**
+ * The event contract's snapshot payload, keyed by CATALOG field key.
+ *
+ * `AutomationTriggerEvent` is the persisted ADR-010 shape and carries
+ * `leadSource` / `newStatus`; the catalog calls the same values `source` /
+ * `newStatus`. That one naming difference is vocabulary, which is precisely
+ * what this module is for — it belongs to the existing permanent bridge rather
+ * than becoming a second one somewhere else.
+ *
+ * Everything the engine knows about an occurrence at emission time is here. A
+ * snapshot condition on a field absent from this record is UNDECIDABLE, and
+ * the evaluator fails it closed.
+ */
+export function snapshotFieldsForEvent(event: AutomationTriggerEvent): Record<string, unknown> {
+  return { source: event.leadSource ?? null, newStatus: event.newStatus ?? null }
 }

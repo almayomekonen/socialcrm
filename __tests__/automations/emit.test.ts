@@ -29,8 +29,6 @@ function definition(id: number, timing: unknown = { kind: 'preset', preset: 'imm
     recipeKey: 'welcome_new_lead',
     status: 'active',
     trigger: 'lead_created',
-    targetStatus: null,
-    sourceFilter: null,
     action: 'send_email',
     content: { schemaVersion: 1, subject: 's', body: 'b', timing: timing as never },
     createdByUserId: 1,
@@ -146,7 +144,13 @@ describe('enqueue — contract-faithful, one job per active definition', () => {
   })
 
   it('source filters apply at emission: non-matching definitions never get jobs', async () => {
-    const facebookOnly = { ...definition(3), sourceFilter: 'facebook' }
+    // B6: the narrowing is a CONDITION on the event's declared `source` field
+    // — the exact shape the B3 migration backfilled from `sourceFilter`. Every
+    // assertion below is unchanged from the legacy-column version.
+    const facebookOnly = {
+      ...definition(3),
+      conditions: [{ field: 'source', operator: 'contains' as const, value: 'facebook' }],
+    }
     const anySource = definition(4)
     const deps = makeDeps({ listActive: vi.fn(async () => [facebookOnly, anySource]) })
 
@@ -173,5 +177,29 @@ describe('the never-throws guarantee', () => {
       shadow: vi.fn(async () => Promise.reject(new Error('analytics down'))),
     })
     await expect(emitAutomationEventWith(deps, event())).resolves.toEqual({ blocked: 'error' })
+  })
+})
+
+describe('B6 — conditions decide emission, and an undescribed event decides nothing', () => {
+  it('reports its own reason when the catalog cannot describe the trigger', async () => {
+    const deps = makeDeps({ listActive: vi.fn(async () => [definition(3)]) })
+    const res = await emitAutomationEventWith(deps, event({ trigger: 'invented_trigger' as never }))
+    expect(res).toEqual({ blocked: 'event_undescribed' })
+    expect(deps.enqueue).not.toHaveBeenCalled()
+  })
+
+  it('a condition on a field the event does not declare blocks the job — never a silent send', async () => {
+    const bogus = { ...definition(3), conditions: [{ field: 'invented', operator: 'is' as const, value: 'x' }] }
+    const deps = makeDeps({ listActive: vi.fn(async () => [bogus]) })
+    const res = await emitAutomationEventWith(deps, event())
+    expect(res).toEqual({ emitted: 0, skippedDefinitions: 0, filteredDefinitions: 1 })
+    expect(deps.enqueue).not.toHaveBeenCalled()
+  })
+
+  it('a LIVE condition never filters at emission — it is the worker’s premise', async () => {
+    const live = { ...definition(3), conditions: [{ field: 'status', operator: 'is' as const, value: 'new' }] }
+    const deps = makeDeps({ listActive: vi.fn(async () => [live]) })
+    const res = await emitAutomationEventWith(deps, event())
+    expect(res).toEqual({ emitted: 1, skippedDefinitions: 0, filteredDefinitions: 0 })
   })
 })

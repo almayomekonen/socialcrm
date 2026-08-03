@@ -70,8 +70,9 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
     parameters: [],
     fields: [
       ...LEAD_FIELDS,
-      // Captured at emission from the lead row; the engine's pre-catalog
-      // `sourceFilter` narrows on this. B3 replaces that with a condition.
+      // Captured at emission from the lead row. Snapshot freshness is why a
+      // condition on it is decided at emission: the value cannot change
+      // afterwards, so evaluating it later would give the same answer.
       { key: 'source', type: 'text', label: 'מקור הליד', freshness: 'snapshot', lifecycle: 'stable' },
     ],
     identity: {
@@ -91,9 +92,10 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
     parameters: [],
     fields: [
       ...LEAD_FIELDS,
-      // The status the lead moved INTO, as of the event. The engine's
-      // premise-expiry law compares this against the definition's
-      // targetStatus; B3 expresses that as a condition on this field.
+      // The status the lead moved INTO, as of the event — a snapshot, decided
+      // at emission. Distinct from the LIVE `status` field above: "it moved to
+      // contacted" is not the same question as "it is still contacted", and
+      // premise-expiry is the second one.
       {
         key: 'newStatus',
         type: 'enum',

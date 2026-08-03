@@ -46,8 +46,6 @@ function def(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
     recipeKey: null,
     status: 'active',
     trigger: 'lead_created',
-    targetStatus: null,
-    sourceFilter: null,
     action: 'send_email',
     content: { schemaVersion: 1, ...CONTENT, timing: { kind: 'preset', preset: 'immediate' } },
     createdByUserId: 1,

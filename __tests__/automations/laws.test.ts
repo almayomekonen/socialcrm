@@ -7,7 +7,7 @@ import {
   sendOnceKey,
   type SendFacts,
 } from '@/lib/automations/laws'
-import { getAction } from '@/lib/automations/catalog/registry'
+import { getAction, getEvent } from '@/lib/automations/catalog/registry'
 import type { AutomationTriggerEvent, TriggerOrigin } from '@/lib/automations/types'
 
 // Pure-law coverage (DB-less): one allow path, every skip reason, the
@@ -48,6 +48,17 @@ function facts(overrides: Partial<SendFacts> = {}): SendFacts {
  */
 const decideSend = (f: SendFacts) => decideSendForAction(getAction('email.send')!, f)
 
+/**
+ * B6: what used to be `expectedStatus` is now an ordinary LIVE condition on
+ * the lead's status. These two assertions are otherwise unchanged, which is
+ * the proof that the general evaluator reproduces the hardcoded premise check.
+ */
+const statusPremise = (expected: string, current: string | null) => ({
+  definition: getEvent('lead.status_changed')!,
+  conditions: [{ field: 'status', operator: 'is' as const, value: expected }],
+  values: { status: current },
+})
+
 describe('decideSend — allow path', () => {
   it('allows a clean webhook lead_created event', () => {
     expect(decideSend(facts())).toEqual({ allow: true })
@@ -60,7 +71,7 @@ describe('decideSend — allow path', () => {
   it('allows a status_changed automation whose premise still holds', () => {
     const f = facts({
       event: event({ trigger: 'status_changed', newStatus: 'closed' }),
-      expectedStatus: 'closed',
+      premise: statusPremise('closed', 'closed'),
       lead: { exists: true, email: 'lead@example.com', currentStatus: 'closed', emailUndeliverable: false },
     })
     expect(decideSend(f)).toEqual({ allow: true })
@@ -102,7 +113,7 @@ describe('decideSend — each skip reason', () => {
   it('premise_expired: status_changed send whose status moved on', () => {
     const f = facts({
       event: event({ trigger: 'status_changed', newStatus: 'contacted' }),
-      expectedStatus: 'contacted',
+      premise: statusPremise('contacted', 'interested'),
       lead: { exists: true, email: 'a@b.co', currentStatus: 'interested', emailUndeliverable: false },
     })
     expect(decideSend(f)).toEqual({ allow: false, reason: 'premise_expired' })

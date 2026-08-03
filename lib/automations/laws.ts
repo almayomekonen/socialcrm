@@ -1,6 +1,9 @@
 import type { AutomationTriggerEvent, LawDecision, SkipReason } from './types'
 import { TERMINAL_LEAD_STATUSES } from './types'
 import { withinQuietHours, type QuietHoursConfig } from './timing'
+import { liveConditionsHold, type FieldValues } from './conditionEvaluator'
+import type { Condition } from './conditions'
+import type { EventDefinition } from './catalog/types'
 import type { FieldType, LawKey } from './catalog/vocabularies'
 
 /**
@@ -25,8 +28,14 @@ export const DEFAULT_AGENCY_DAILY_CEILING = 200
 
 export interface SendFacts {
   event: AutomationTriggerEvent
-  // status_changed automations: the status the automation is premised on.
-  expectedStatus?: string | null
+  /**
+   * B6: the automation's premise, as CONDITIONS rather than a status column.
+   * Live-freshness conditions are re-read from the subject at this moment and
+   * must still hold; `premise_expired` is what it means when they do not.
+   * Snapshot conditions were already decided at emission (their value cannot
+   * have changed since), so they are deliberately not re-evaluated here.
+   */
+  premise?: { definition: EventDefinition | null; conditions: readonly Condition[]; values: FieldValues } | null
   lead: {
     exists: boolean
     email: string | null
@@ -159,9 +168,24 @@ function universalGuards(f: SendFacts): LawDecision | null {
   if (f.event.origin === 'import') return skip('origin_import')
   if (!f.lead.exists) return skip('lead_deleted')
   if (f.event.trigger === 'lead_created' && isTerminalStatus(f.lead.currentStatus)) return skip('premise_expired')
-  if (f.event.trigger === 'status_changed' && f.expectedStatus != null && f.lead.currentStatus !== f.expectedStatus)
-    return skip('premise_expired')
+  if (!premiseHolds(f)) return skip('premise_expired')
   return null
+}
+
+/**
+ * The premise check, generalised. It replaces the hardcoded
+ * `currentStatus !== targetStatus` comparison with evaluation of whatever
+ * live-freshness conditions the automation actually declares — which, for
+ * every automation written before B6, IS that comparison.
+ *
+ * An automation whose event the catalog cannot describe has an
+ * unevaluatable premise and fails CLOSED.
+ */
+function premiseHolds(f: SendFacts): boolean {
+  const premise = f.premise
+  if (!premise) return true
+  if (!premise.definition) return premise.conditions.length === 0
+  return liveConditionsHold(premise.definition, premise.conditions, premise.values).pass
 }
 
 /**
@@ -193,18 +217,4 @@ export function decideSendForAction(
  */
 export function sendOnceKey(automationId: number, leadId: number): string {
   return `auto:${automationId}:lead:${leadId}:ever`
-}
-
-/**
- * Definition source-filter matching, applied at EMISSION (the event carries
- * leadSource; jobs deliberately don't persist it — a non-matching definition
- * simply never gets a job). Null filter matches everything; a set filter
- * prefix-matches the lead's source (rows store provider-prefixed values like
- * 'facebook:{id}'). Events without a leadSource (status_changed) match only
- * filterless definitions.
- */
-export function sourceFilterMatches(filter: string | null, leadSource: string | null | undefined): boolean {
-  if (filter == null || filter.trim() === '') return true
-  if (!leadSource) return false
-  return leadSource === filter || leadSource.startsWith(`${filter}:`)
 }
