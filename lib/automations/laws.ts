@@ -1,15 +1,18 @@
 import type { AutomationTriggerEvent, LawDecision, SkipReason } from './types'
 import { TERMINAL_LEAD_STATUSES } from './types'
 import { withinQuietHours, type QuietHoursConfig } from './timing'
-import { getAction } from './catalog/registry'
 import type { FieldType, LawKey } from './catalog/vocabularies'
 
 /**
  * The engine's laws — pure decisions over gathered facts, no I/O (the IRE
- * decideEligibility shape). The worker (Phase 4) gathers SendFacts and calls
- * decideSend as the authoritative pre-send check; call sites additionally
- * never enqueue import-origin events (Phase 3), so the origin law here is the
- * second, unconditional layer of the same rule.
+ * decideEligibility shape). The worker gathers SendFacts and calls
+ * decideSendForAction as the authoritative pre-effect check; call sites
+ * additionally never enqueue import-origin events (Phase 3), so the origin law
+ * here is the second, unconditional layer of the same rule.
+ *
+ * B5 deleted the `decideSend()` email adapter that stood here: the worker now
+ * resolves the automation's action and asks about THAT action, so there is no
+ * longer an email-shaped entry point to preserve.
  *
  * Laws live HERE, engine-level — never in individual actions — so every
  * future action (WhatsApp, SMS) inherits them unchanged (ADR-001).
@@ -80,8 +83,7 @@ const LAW_EVALUATORS: Record<LawKey, LawEvaluator | null> = {
   suppression: (f) => (f.suppressed ? 'suppressed' : null),
   bounce_block: (f) => (f.lead.emailUndeliverable ? 'address_undeliverable' : null),
   send_once: (f) => (f.alreadySent ? 'already_sent' : null),
-  per_lead_cap: (f) =>
-    f.sentToLeadToday >= (f.limits?.leadDailyCap ?? DEFAULT_LEAD_DAILY_CAP) ? 'lead_daily_cap' : null,
+  per_lead_cap: (f) => (f.sentToLeadToday >= (f.limits?.leadDailyCap ?? DEFAULT_LEAD_DAILY_CAP) ? 'lead_daily_cap' : null),
   agency_cap: (f) =>
     f.sentByAgencyToday >= (f.limits?.agencyDailyCeiling ?? DEFAULT_AGENCY_DAILY_CEILING) ? 'agency_daily_cap' : null,
   quiet_hours: (f) => (withinQuietHours(f.quietHours, f.now) ? 'quiet_hours' : null),
@@ -181,20 +183,6 @@ export function decideSendForAction(
     if (reason) return skip(reason)
   }
   return { allow: true }
-}
-
-/**
- * The shipped email path, preserved verbatim for every existing caller. It is
- * now an ADAPTER over the composed pipeline, sourcing its laws from the
- * catalog's `email.send` entry rather than from a hardcoded sequence.
- *
- * If the catalog entry were ever missing, this fails closed rather than
- * sending unguarded — a state CI makes unreachable.
- */
-export function decideSend(f: SendFacts): LawDecision {
-  const action = getAction('email.send')
-  if (!action) return skip('action_unavailable')
-  return decideSendForAction(action, f)
 }
 
 /**

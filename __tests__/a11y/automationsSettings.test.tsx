@@ -21,14 +21,13 @@ const card = (over: Partial<AutomationCardData> = {}): AutomationCardData => ({
   subject: 'קיבלנו את הפנייה שלך',
   timing: { kind: 'preset', preset: 'immediate' },
   counts: { sent: 0, wouldSend: 0, skipped: 0, failed: 0 },
+  actionKey: 'email.send',
   ...over,
 })
 
 const noop = () => {}
 const renderCard = (data: AutomationCardData) =>
-  render(
-    <AutomationCard data={data} onEdit={noop} onToggle={noop} onDuplicate={noop} onDelete={noop} onActivity={noop} />,
-  )
+  render(<AutomationCard data={data} onEdit={noop} onToggle={noop} onDuplicate={noop} onDelete={noop} onActivity={noop} />)
 
 describe('AutomationCard', () => {
   it('names every action in text — no icon-only controls', () => {

@@ -1,4 +1,3 @@
-import { baseUrl } from '@/types/vars'
 import { startOfBusinessDayMs } from '@/lib/today/time'
 import {
   claimAutomationJobs,
@@ -10,24 +9,37 @@ import {
   type AutomationJob,
 } from '@/db/automations/jobs'
 import { claimSendOnce, confirmSendClaim, getSendClaimState, releaseSendClaim } from '@/db/automations/claims'
-import { appendActivity, countAutomatedTodayForAgency, countAutomatedTodayForLead, hasConsumingActivity } from '@/db/automations/activity'
+import {
+  appendActivity,
+  countAutomatedTodayForAgency,
+  countAutomatedTodayForLead,
+  hasConsumingActivity,
+} from '@/db/automations/activity'
 import { CONTENT_SCHEMA_VERSION, getDefinitionForWorker, type WorkerDefinition } from '@/db/automations/definitions'
 import { getAgencyName, getAgencyReplyTo, getLeadFacts, getRepName, type LeadFacts } from '@/db/automations/leadFacts'
 import { isLeadSuppressed } from '@/db/automations/suppressions'
 import { isEmailBlocked } from '@/db/automations/emailBlocks'
-import { decideSend, type SendFacts } from './laws'
-import { resolveSenderIdentity } from './identity'
+import { decideSendForAction, type SendFacts } from './laws'
 import { isValidTiming } from './timing'
 import { FAILURE_COPY } from './copy'
-import { getAutomationsFrom, getAutomationsSendMode, type AutomationsSendMode } from './flags'
-import { renderAutomationEmail } from './renderEmail'
-import { leadUnsubscribeUrl } from './unsubscribeToken'
+import { getAutomationsSendMode, type AutomationsSendMode } from './flags'
+import { getAction } from './catalog/registry'
+import { actionKeyFor, actionParameters } from './actionEntry'
+import { executorFor } from './executors/registry'
+import type { ActionExecutor, ExecutionContext } from './executors/types'
+import type { ActionDefinition } from './catalog/types'
 
 /**
  * The engine worker — ADR-011 is the contract; this file is the machine.
  * pending → processing (claim) → done | skipped | retried(pending) | dead.
  * Effect order is law: claim → effect → confirm → complete. Every transition
  * logs structurally with an explicit reason; no job ends silently.
+ *
+ * B5: this file no longer knows what an email is. It resolves the automation's
+ * ACTION, composes that action's law pipeline, and hands the effect to that
+ * action's executor. Email is Action #1, not a special engine — the only
+ * reason `send` still appears in WorkerDeps is that executors draw their
+ * capabilities from the same injected record.
  */
 
 const LOG = '[automations][worker]'
@@ -60,6 +72,10 @@ export type WorkerDeps = {
     html: string
     text: string
   }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  /** Catalog lookup and executor lookup are injected like everything else, so
+   *  the worker's independence from any particular action is testable. */
+  getAction: (actionKey: string) => ActionDefinition | null
+  executorFor: (actionKey: string) => ActionExecutor<never> | null
   completeJob: (id: number) => Promise<void>
   skipJob: (id: number, reason: string) => Promise<void>
   failJob: (id: number, error: string) => Promise<void>
@@ -94,6 +110,8 @@ export function defaultWorkerDeps(): WorkerDeps {
       const { sendEmail } = await import('@/lib/email/sender')
       return sendEmail(args)
     },
+    getAction,
+    executorFor,
     completeJob: completeAutomationJob,
     skipJob: skipAutomationJob,
     failJob: failAutomationJob,
@@ -106,7 +124,14 @@ type Outcome = 'done' | 'skipped' | 'retried' | 'dead'
 export type WorkerSummary = { claimed: number; done: number; skipped: number; retried: number; dead: number }
 
 function logT(transition: string, job: AutomationJob, extra: Record<string, unknown> = {}): void {
-  console.log(LOG, { transition, jobId: job.id, automationId: job.automationId, agencyId: job.agencyId, leadId: job.leadId, ...extra })
+  console.log(LOG, {
+    transition,
+    jobId: job.id,
+    automationId: job.automationId,
+    agencyId: job.agencyId,
+    leadId: job.leadId,
+    ...extra,
+  })
 }
 
 async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome> {
@@ -131,9 +156,14 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
   if (claimState === 'claimed') {
     if (mode === 'live') {
       await deps.appendActivity({
-        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+        agencyId: job.agencyId,
+        automationId: job.automationId,
+        leadId: job.leadId,
         leadName: lead.exists ? lead.displayName : null,
-        kind: 'failed', mode, trigger: job.trigger, origin: job.origin,
+        kind: 'failed',
+        mode,
+        trigger: job.trigger,
+        origin: job.origin,
       })
       await deps.deadJob(job.id, 'ambiguous_after_crash')
       logT('dead', job, { reason: 'ambiguous_after_crash', class: 'ambiguous', userVisible: true })
@@ -141,9 +171,14 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     }
     if (!(await deps.hasEffect(job.automationId, job.leadId))) {
       await deps.appendActivity({
-        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+        agencyId: job.agencyId,
+        automationId: job.automationId,
+        leadId: job.leadId,
         leadName: lead.exists ? lead.displayName : null,
-        kind: 'would_send', mode: 'log', trigger: job.trigger, origin: job.origin,
+        kind: 'would_send',
+        mode: 'log',
+        trigger: job.trigger,
+        origin: job.origin,
         contentSchemaVersion: def.content.schemaVersion,
       })
       logT('recovered_effect', job, { reason: 'unconfirmed_claim_log_mode' })
@@ -160,7 +195,13 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
   const since = new Date(startOfBusinessDayMs(now.getTime()))
   const email = lead.exists ? lead.email : null
   const facts: SendFacts = {
-    event: { trigger: job.trigger, origin: job.origin, agencyId: job.agencyId, leadId: job.leadId, occurredAt: new Date(job.createdAt) },
+    event: {
+      trigger: job.trigger,
+      origin: job.origin,
+      agencyId: job.agencyId,
+      leadId: job.leadId,
+      occurredAt: new Date(job.createdAt),
+    },
     expectedStatus: def.targetStatus,
     lead: {
       exists: lead.exists,
@@ -176,48 +217,83 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     now,
   }
 
-  const decision = decideSend(facts)
+  // The action is resolved from the definition, not assumed. A definition
+  // naming an action the catalog does not describe, or that has no executor,
+  // fails CLOSED with a user-visible reason rather than defaulting to email.
+  const actionKey = actionKeyFor(def)
+  const action = actionKey ? deps.getAction(actionKey) : null
+  const executor = actionKey ? deps.executorFor(actionKey) : null
+
+  const decision =
+    action && executor ? decideSendForAction(action, facts) : ({ allow: false, reason: 'action_unavailable' } as const)
   if ('reason' in decision) {
     const reason = decision.reason
     await deps.appendActivity({
-      agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+      agencyId: job.agencyId,
+      automationId: job.automationId,
+      leadId: job.leadId,
       leadName: lead.exists ? lead.displayName : null,
-      kind: 'skipped', mode, trigger: job.trigger, origin: job.origin, skipReason: reason,
+      kind: 'skipped',
+      mode,
+      trigger: job.trigger,
+      origin: job.origin,
+      skipReason: reason,
     })
     await deps.skipJob(job.id, reason)
     logT('skipped', job, { reason, class: 'law', userVisible: true })
     return 'skipped'
   }
 
-  // Identity is resolved BEFORE the claim (ADR-013): an unresolvable identity
-  // is a configuration fault, and burning the lead's once-ever allowance on it
-  // would mean the lead never gets the email even after the config is fixed.
-  const businessName = await deps.agencyName(job.agencyId)
-  const sender = resolveSenderIdentity(
-    { agencyName: businessName, replyTo: await deps.replyTo(job.agencyId) },
-    getAutomationsFrom(),
-  )
-  if (sender.problem) {
-    // Log mode still renders a truthful preview; only a real send is blocked.
+  // Preflight runs BEFORE the claim (ADR-013): a configuration fault is the
+  // business's, not the lead's, and burning the lead's once-ever allowance on
+  // it would mean the lead never gets the message even after the fix.
+  const ctx: ExecutionContext = {
+    agencyId: job.agencyId,
+    automationId: job.automationId,
+    leadId: job.leadId,
+    mode,
+    lead: {
+      firstName: lead.exists ? lead.firstName : null,
+      displayName: lead.exists ? lead.displayName : null,
+      email,
+      handlerId: lead.exists ? lead.handlerId : null,
+    },
+    parameters: actionParameters(def),
+  }
+
+  const pre = await executor.preflight(ctx, deps)
+  if (pre.problem) {
+    // Log mode still produces a truthful preview; only a real effect is blocked.
     if (mode === 'live') {
       await deps.appendActivity({
-        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+        agencyId: job.agencyId,
+        automationId: job.automationId,
+        leadId: job.leadId,
         leadName: lead.exists ? lead.displayName : null,
-        kind: 'failed', mode, trigger: job.trigger, origin: job.origin,
+        kind: 'failed',
+        mode,
+        trigger: job.trigger,
+        origin: job.origin,
       })
       // Definitive, never retried — a retry storm cannot fix a misconfiguration.
-      await deps.deadJob(job.id, `identity_unavailable:${sender.problem}`)
-      logT('dead', job, { reason: sender.problem, class: 'identity', userVisible: true })
+      await deps.deadJob(job.id, pre.problem.deadReason)
+      logT('dead', job, { reason: pre.problem.reason, class: pre.problem.logClass, userVisible: true })
       return 'dead'
     }
-    logT('identity_incomplete', job, { reason: sender.problem, class: 'identity', blocking: false })
+    logT(pre.problem.warnTransition, job, { reason: pre.problem.reason, class: pre.problem.logClass, blocking: false })
   }
 
   if (!(await deps.claimOnce({ agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId, mode }))) {
     await deps.appendActivity({
-      agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+      agencyId: job.agencyId,
+      automationId: job.automationId,
+      leadId: job.leadId,
       leadName: lead.exists ? lead.displayName : null,
-      kind: 'skipped', mode, trigger: job.trigger, origin: job.origin, skipReason: 'already_sent',
+      kind: 'skipped',
+      mode,
+      trigger: job.trigger,
+      origin: job.origin,
+      skipReason: 'already_sent',
     })
     await deps.skipJob(job.id, 'already_sent')
     logT('skipped', job, { reason: 'already_sent', class: 'raced_claim', userVisible: true })
@@ -226,47 +302,25 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
 
   // Claim held from here: any failure below releases it (retry re-claims).
   try {
-    const leadExists = lead.exists ? lead : null
-    const rendered = await renderAutomationEmail({
-      subject: def.content.subject,
-      body: def.content.body,
-      vars: {
-        // The identity's display name and the rendered business name are the
-        // same resolved value — the email cannot say one thing and sign another.
-        leadFirstName: leadExists?.firstName ?? null,
-        businessName: sender.identity?.displayName ?? businessName,
-        repName: await deps.repName(leadExists?.handlerId ?? null),
-      },
-      unsubscribeUrl: leadUnsubscribeUrl(baseUrl, job.agencyId, job.leadId),
-    })
+    const outcome = await executor.execute(ctx, pre.ready, deps)
 
-    if (mode === 'live' && sender.identity) {
-      const res = await deps.send({
-        from: sender.identity.from,
-        replyTo: sender.identity.replyTo,
-        to: email as string,
-        subject: rendered.subject,
-        html: rendered.html,
-        text: rendered.text,
-      })
-      if ('error' in res) throw new Error(`transport: ${res.error}`)
-      await deps.appendActivity({
-        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
-        leadName: leadExists?.displayName ?? null,
-        kind: 'sent', mode, trigger: job.trigger, origin: job.origin,
-        subject: rendered.subject, deliveryState: 'sent', providerMessageId: res.id,
-        contentSchemaVersion: def.content.schemaVersion,
-      })
-      logT('sent', job, { reason: 'transport_accepted', providerMessageId: res.id })
-    } else {
-      await deps.appendActivity({
-        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
-        leadName: leadExists?.displayName ?? null,
-        kind: 'would_send', mode: 'log', trigger: job.trigger, origin: job.origin,
-        subject: rendered.subject, contentSchemaVersion: def.content.schemaVersion,
-      })
-      logT('would_send', job, { reason: 'log_mode', subject: rendered.subject })
-    }
+    await deps.appendActivity({
+      agencyId: job.agencyId,
+      automationId: job.automationId,
+      leadId: job.leadId,
+      leadName: lead.exists ? lead.displayName : null,
+      kind: outcome.kind,
+      // A `would_send` row is always mode 'log' — it records that no external
+      // effect occurred, whatever the engine's configured mode was.
+      mode: outcome.kind === 'sent' ? mode : 'log',
+      trigger: job.trigger,
+      origin: job.origin,
+      subject: outcome.summary,
+      deliveryState: outcome.deliveryState ?? null,
+      providerMessageId: outcome.providerMessageId ?? null,
+      contentSchemaVersion: def.content.schemaVersion,
+    })
+    logT(outcome.kind, job, outcome.log)
 
     await deps.confirmClaim(job.automationId, job.leadId)
     await deps.completeJob(job.id)
@@ -278,11 +332,22 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     const exhausted = job.attempts >= job.maxAttempts
     if (exhausted) {
       await deps.appendActivity({
-        agencyId: job.agencyId, automationId: job.automationId, leadId: job.leadId,
+        agencyId: job.agencyId,
+        automationId: job.automationId,
+        leadId: job.leadId,
         leadName: lead.exists ? lead.displayName : null,
-        kind: 'failed', mode, trigger: job.trigger, origin: job.origin,
+        kind: 'failed',
+        mode,
+        trigger: job.trigger,
+        origin: job.origin,
       })
-      logT('dead', job, { reason: String(err), class: 'exhausted', attempts: job.attempts, userVisible: true, copy: FAILURE_COPY.terminal })
+      logT('dead', job, {
+        reason: String(err),
+        class: 'exhausted',
+        attempts: job.attempts,
+        userVisible: true,
+        copy: FAILURE_COPY.terminal,
+      })
       return 'dead'
     }
     logT('retried', job, { reason: String(err), class: 'transient', attempts: job.attempts })
@@ -290,7 +355,11 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
   }
 }
 
-export async function runAutomationWorker(opts?: { limit?: number; workerId?: string; deps?: WorkerDeps }): Promise<WorkerSummary> {
+export async function runAutomationWorker(opts?: {
+  limit?: number
+  workerId?: string
+  deps?: WorkerDeps
+}): Promise<WorkerSummary> {
   const deps = opts?.deps ?? defaultWorkerDeps()
   const limit = opts?.limit ?? 10
   const workerId = opts?.workerId ?? `worker-${process.pid}`

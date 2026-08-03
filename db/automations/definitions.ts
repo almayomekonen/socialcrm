@@ -3,6 +3,8 @@ import type { ActionType, TriggerType } from '@/lib/automations/types'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { liftFromLegacyColumns, projectToLegacyColumns } from '@/lib/automations/conditions'
+import { actionKeyForEngineAction, engineActionForActionKey } from '@/lib/automations/catalog/engineBridge'
+import { actionKeyFor, actionsForContent } from '@/lib/automations/actionEntry'
 
 /**
  * automation_definitions — user-authored automations as data (ADR-001/008).
@@ -89,10 +91,16 @@ function normalise(row: AutomationDefinition): AutomationDefinition {
     row.conditions && row.conditions.length > 0
       ? row.conditions
       : liftFromLegacyColumns({ targetStatus: row.targetStatus, sourceFilter: row.sourceFilter })
+  // Rows written before the actions list get one synthesised from the engine
+  // column and the content document. The key comes from the permanent bridge,
+  // never a literal — the store must not assume which action this is either.
+  const synthesizedKey = actionKeyForEngineAction(row.action)
   const actions =
     row.actions && row.actions.length > 0
       ? row.actions
-      : [{ actionKey: 'email.send', parameters: { subject: row.content?.subject ?? '', body: row.content?.body ?? '' } }]
+      : synthesizedKey
+        ? actionsForContent(synthesizedKey, { subject: row.content?.subject ?? '', body: row.content?.body ?? '' })
+        : []
   return { ...row, conditions, actions, sourceIds: row.sourceIds ?? [] }
 }
 
@@ -137,7 +145,10 @@ export async function getDefinitionForWorker(id: number): Promise<WorkerDefiniti
     .select([...COLUMNS])
     .where({ id })
     .first()
-  return (row as WorkerDefinition | undefined) ?? null
+  // Normalised like every other read: B5's executor resolution reads the
+  // actions list, so the worker must see the same synthesised entry the
+  // Builder does for any row that predates it.
+  return row ? (normalise(row as AutomationDefinition) as WorkerDefinition) : null
 }
 
 export async function createDefinition(input: {
@@ -152,6 +163,8 @@ export async function createDefinition(input: {
   conditions?: Condition[]
   connectionId?: string | null
   sourceIds?: string[]
+  /** CATALOG action key. The engine column is derived from it, never assumed. */
+  actionKey: string
 }): Promise<AutomationDefinition> {
   const content: DefinitionContent = { ...input.content, schemaVersion: CONTENT_SCHEMA_VERSION }
   const conditions = input.conditions ?? []
@@ -166,13 +179,13 @@ export async function createDefinition(input: {
       trigger: input.trigger,
       targetStatus: legacy.targetStatus,
       sourceFilter: legacy.sourceFilter,
-      action: 'send_email',
+      action: engineActionForActionKey(input.actionKey) as ActionType,
       content: JSON.stringify(content),
       createdByUserId: input.createdByUserId,
       conditions: JSON.stringify(conditions),
       connectionId: input.connectionId ?? null,
       sourceIds: JSON.stringify(input.sourceIds ?? []),
-      actions: JSON.stringify([{ actionKey: 'email.send', parameters: { subject: content.subject, body: content.body } }]),
+      actions: JSON.stringify(actionsForContent(input.actionKey, content)),
     })
     .returning(COLUMNS)
   return row as AutomationDefinition
@@ -202,9 +215,13 @@ export async function updateDefinitionContent(
   if (patch.sourceIds !== undefined) update.sourceIds = JSON.stringify(patch.sourceIds)
   if (patch.content !== undefined) {
     update.content = JSON.stringify({ ...patch.content, schemaVersion: CONTENT_SCHEMA_VERSION })
-    update.actions = JSON.stringify([
-      { actionKey: 'email.send', parameters: { subject: patch.content.subject, body: patch.content.body } },
-    ])
+    // The row's own action key is preserved: editing content never changes
+    // WHICH action runs, and the store must not decide that it is email.
+    const existing = (await db('automation_definitions').select('action', 'actions').where({ agencyId, id }).first()) as
+      | Pick<AutomationDefinition, 'action' | 'actions'>
+      | undefined
+    const actionKey = existing ? actionKeyFor(existing) : null
+    if (actionKey) update.actions = JSON.stringify(actionsForContent(actionKey, patch.content))
   }
   await db('automation_definitions').where({ agencyId, id }).whereNot('status', 'deleted').update(update)
 }

@@ -7,6 +7,7 @@ import { getAgencyName, getAgencyReplyTo } from '@/db/automations/leadFacts'
 import { getAutomationsFrom, getAutomationsSendMode, isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { resolveSenderIdentity } from '@/lib/automations/identity'
 import { eventKeyForEngineTrigger } from '@/lib/automations/catalog/engineBridge'
+import { actionKeyFor } from '@/lib/automations/actionEntry'
 import { listAllConnections, resolveCapabilities } from '@/lib/automations/connectors/registry'
 import { isConnectionProblem } from '@/lib/automations/connectors/resolve'
 import AutomationsSettings from '@/components/settings/automations/AutomationsSettings'
@@ -79,6 +80,7 @@ export default async function AutomationsSettingsPage() {
     subject: d.content?.subject ?? '',
     timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },
     counts: counts[d.id] ?? { sent: 0, wouldSend: 0, skipped: 0, failed: 0 },
+    actionKey: actionKeyFor(d),
     connectionProblem: connectionProblems.get(d.id) ?? false,
   }))
 

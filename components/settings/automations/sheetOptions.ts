@@ -26,6 +26,7 @@ const ERRORS: Record<string, string> = {
   subject_required: 'יש להזין נושא לאימייל',
   body_required: 'יש להזין תוכן לאימייל',
   trigger_invalid: 'האירוע שנבחר אינו זמין',
+  action_invalid: 'לא נמצאה פעולה שניתן להפעיל עבור האירוע שנבחר',
   condition_field_unknown: 'אחד התנאים מפנה לשדה שאינו קיים',
   condition_operator_invalid: 'אחד התנאים משתמש בהשוואה שאינה נתמכת',
   condition_value_required: 'יש להשלים ערך בתנאי',

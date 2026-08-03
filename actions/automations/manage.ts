@@ -14,8 +14,9 @@ import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { isValidTiming, type Timing } from '@/lib/automations/timing'
 import { unknownTokens } from '@/lib/automations/variables'
 import type { TriggerType } from '@/lib/automations/types'
-import { getEvent } from '@/lib/automations/catalog/registry'
+import { getEvent, listActionsForEvent } from '@/lib/automations/catalog/registry'
 import { sourceIdsFrom } from '@/lib/automations/binding'
+import { actionKeyFor } from '@/lib/automations/actionEntry'
 import { engineTriggerForEventKey } from '@/lib/automations/catalog/engineBridge'
 import { validateConditions, type Condition } from '@/lib/automations/conditions'
 
@@ -71,12 +72,25 @@ function toContent(input: AutomationInput): Omit<DefinitionContent, 'schemaVersi
   return { subject: input.subject.trim(), body: input.body.trim(), timing: input.timing }
 }
 
+/**
+ * Which action a new automation runs: the first the chosen event can offer.
+ * Derived from the catalog's `requires` × the event's `fields`, never named —
+ * so the day a second action is registered, this picks it up as data.
+ */
+function actionKeyForInput(input: AutomationInput): string | null {
+  const event = getEvent(input.eventKey)
+  return event ? (listActionsForEvent(event)[0]?.key ?? null) : null
+}
+
 export async function createAutomation(input: AutomationInput): Promise<ManageResult> {
   const { user, reason } = await requireAutomationsAdmin()
   if (!user) return { ok: false, reason }
 
   const invalid = validate(input)
   if (invalid) return { ok: false, reason: invalid }
+
+  const actionKey = actionKeyForInput(input)
+  if (!actionKey) return { ok: false, reason: 'action_invalid' }
 
   const created = await createDefinition({
     agencyId: user.agencyId,
@@ -88,6 +102,7 @@ export async function createAutomation(input: AutomationInput): Promise<ManageRe
     conditions: input.conditions ?? [],
     connectionId: input.connectionId ?? null,
     sourceIds: sourceIdsFrom(getEvent(input.eventKey), input.parameters),
+    actionKey,
     content: toContent(input),
     createdByUserId: user.id,
   })
@@ -151,6 +166,8 @@ export async function duplicateAutomation(id: number): Promise<ManageResult> {
     conditions: existing.conditions,
     connectionId: existing.connectionId,
     sourceIds: existing.sourceIds,
+    // A copy runs the same action as its original — read, never assumed.
+    actionKey: actionKeyFor(existing) as string,
     content: { subject: existing.content.subject, body: existing.content.body, timing: existing.content.timing },
     createdByUserId: user.id,
   })

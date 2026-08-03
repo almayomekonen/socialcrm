@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { catalog, getAction, getEvent, listActionsForEvent, listAnchorFields, listSelectableEvents } from '@/lib/automations/catalog/registry'
+import {
+  catalog,
+  getAction,
+  getEvent,
+  listActionsForEvent,
+  listAnchorFields,
+  listSelectableEvents,
+} from '@/lib/automations/catalog/registry'
 import { validateCatalog } from '@/lib/automations/catalog/validate'
 import {
   actionKeyForEngineAction,
@@ -12,7 +19,7 @@ import {
 import { RENDERABLE_FIELD_KEYS } from '@/lib/automations/catalog/entries/events'
 import { TRIGGER_TYPES } from '@/lib/automations/types'
 import { AUTOMATION_EMAIL_VARIABLES } from '@/lib/automations/variables'
-import { DEFAULT_AGENCY_DAILY_CEILING, DEFAULT_LEAD_DAILY_CAP, decideSend, type SendFacts } from '@/lib/automations/laws'
+import { DEFAULT_AGENCY_DAILY_CEILING, DEFAULT_LEAD_DAILY_CAP, decideSendForAction, type SendFacts } from '@/lib/automations/laws'
 
 /**
  * B1 PROOF: the catalog describes the SHIPPED engine, and the two cannot drift.
@@ -29,6 +36,14 @@ import { DEFAULT_AGENCY_DAILY_CEILING, DEFAULT_LEAD_DAILY_CAP, decideSend, type 
  * B1's gate is byte-identical behaviour. Pinning buys the guarantee at zero
  * behavioural risk.
  */
+
+/**
+ * B5 deleted the `decideSend` email adapter. These assertions are unchanged —
+ * they now run through the GENERIC path, asking about the `email.send` action
+ * explicitly. That the whole suite still passes verbatim is the proof that
+ * routing email through the executor changed no law outcome.
+ */
+const decideSend = (f: SendFacts) => decideSendForAction(getAction('email.send')!, f)
 
 describe('the B1 catalog is valid', () => {
   it('passes whole-catalog validation', () => {
@@ -126,8 +141,7 @@ describe('CONFORMANCE — declared laws match the laws decideSend enforces', () 
       'reason' in decideSend(facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } }))
         ? 'address_undeliverable'
         : undefined,
-    quiet_hours: () =>
-      'reason' in decideSend(facts({ quietHours: { startHour: 0, endHour: 23 } })) ? 'quiet_hours' : undefined,
+    quiet_hours: () => ('reason' in decideSend(facts({ quietHours: { startHour: 0, endHour: 23 } })) ? 'quiet_hours' : undefined),
   }
 
   it('every law declared on email.send is actually enforced', () => {
@@ -176,7 +190,10 @@ describe('CONFORMANCE — the closed variable set matches the catalog fields', (
 describe('derived capabilities behave on real entries', () => {
   it('email.send is offered for both events (both expose an email field)', () => {
     for (const key of ['lead.created', 'lead.status_changed']) {
-      expect(listActionsForEvent(getEvent(key)!).map((a) => a.key), key).toEqual(['email.send'])
+      expect(
+        listActionsForEvent(getEvent(key)!).map((a) => a.key),
+        key,
+      ).toEqual(['email.send'])
     }
   })
 

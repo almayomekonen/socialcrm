@@ -22,6 +22,8 @@ export type AutomationCardData = {
   subject: string
   timing: Timing
   counts: { sent: number; wouldSend: number; skipped: number; failed: number }
+  /** The CATALOG action this automation runs. Read from the row, never assumed. */
+  actionKey: string | null
   /** The bound connection is missing or unhealthy — never fails silently. */
   connectionProblem?: boolean
 }
@@ -72,7 +74,7 @@ export default function AutomationCard({ data, busy, onEdit, onToggle, onDuplica
             {automationSentence({
               event: getEvent(data.eventKey),
               conditions: data.conditions,
-              actionTitle: getAction('email.send')?.title ?? 'פעולה',
+              actionTitle: (data.actionKey ? getAction(data.actionKey) : null)?.title ?? 'פעולה',
               subject: data.subject,
               timing: data.timing,
             })}

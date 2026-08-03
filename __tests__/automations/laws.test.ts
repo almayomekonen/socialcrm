@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_AGENCY_DAILY_CEILING,
   DEFAULT_LEAD_DAILY_CAP,
-  decideSend,
+  decideSendForAction,
   isTerminalStatus,
   sendOnceKey,
   type SendFacts,
 } from '@/lib/automations/laws'
+import { getAction } from '@/lib/automations/catalog/registry'
 import type { AutomationTriggerEvent, TriggerOrigin } from '@/lib/automations/types'
 
 // Pure-law coverage (DB-less): one allow path, every skip reason, the
@@ -38,6 +39,14 @@ function facts(overrides: Partial<SendFacts> = {}): SendFacts {
     ...overrides,
   }
 }
+
+/**
+ * B5 deleted the `decideSend` email adapter. These assertions are unchanged —
+ * they now run through the GENERIC path, asking about the `email.send` action
+ * explicitly. That the whole suite still passes verbatim is the proof that
+ * routing email through the executor changed no law outcome.
+ */
+const decideSend = (f: SendFacts) => decideSendForAction(getAction('email.send')!, f)
 
 describe('decideSend — allow path', () => {
   it('allows a clean webhook lead_created event', () => {

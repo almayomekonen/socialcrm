@@ -8,7 +8,13 @@ import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
 import { substituteVariables, variableChipsForEvent } from '@/lib/automations/variables'
 import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
-import { getAction, getEvent, listAnchorFields, listSelectableEvents, listSubjects } from '@/lib/automations/catalog/registry'
+import {
+  getEvent,
+  listActionsForEvent,
+  listAnchorFields,
+  listSelectableEvents,
+  listSubjects,
+} from '@/lib/automations/catalog/registry'
 import { evaluateEvents, isSelectable, type RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
 import RemoteParameters from './RemoteParameters'
@@ -79,8 +85,9 @@ export default function AutomationSheet({
   const evaluated = useMemo(() => evaluateEvents(listSelectableEvents(), requirementContext), [requirementContext])
   const events = evaluated.map((e) => e.event)
   const event = getEvent(eventKey)
-  // V1 renders one action; the catalog already supports many.
-  const action = getAction('email.send')
+  // V1 renders one action — the first the event can offer. The catalog decides
+  // which that is (requires × fields); the Builder never names it.
+  const action = event ? (listActionsForEvent(event)[0] ?? null) : null
   const chips = useMemo(() => (event ? variableChipsForEvent(event.fields) : []), [event])
   const anchors = event ? listAnchorFields(event) : []
 

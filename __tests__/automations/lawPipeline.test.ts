@@ -3,7 +3,6 @@ import {
   DEFAULT_AGENCY_DAILY_CEILING,
   DEFAULT_LEAD_DAILY_CAP,
   composeLawPipeline,
-  decideSend,
   decideSendForAction,
   type SendFacts,
 } from '@/lib/automations/laws'
@@ -34,6 +33,14 @@ const facts = (over: Partial<SendFacts> = {}): SendFacts => ({
 
 const reasonOf = (d: ReturnType<typeof decideSend>) => ('reason' in d ? d.reason : null)
 
+/**
+ * B5 deleted the `decideSend` email adapter. These assertions are unchanged —
+ * they now run through the GENERIC path, asking about the `email.send` action
+ * explicitly. That the whole suite still passes verbatim is the proof that
+ * routing email through the executor changed no law outcome.
+ */
+const decideSend = (f: SendFacts) => decideSendForAction(getAction('email.send')!, f)
+
 describe('BYTE-IDENTICAL — the shipped email path is unchanged', () => {
   it('allows a clean send', () => {
     expect(decideSend(facts())).toEqual({ allow: true })
@@ -57,9 +64,25 @@ describe('BYTE-IDENTICAL — the shipped email path is unchanged', () => {
 
   it('preserves precedence when several laws apply at once', () => {
     // Universal guards outrank every declared law.
-    expect(reasonOf(decideSend(facts({ event: { trigger: 'lead_created', origin: 'import', agencyId: 7, leadId: 42, occurredAt: NOW }, suppressed: true, alreadySent: true })))).toBe('origin_import')
+    expect(
+      reasonOf(
+        decideSend(
+          facts({
+            event: { trigger: 'lead_created', origin: 'import', agencyId: 7, leadId: 42, occurredAt: NOW },
+            suppressed: true,
+            alreadySent: true,
+          }),
+        ),
+      ),
+    ).toBe('origin_import')
     // Suppression outranks missing recipient, which outranks dedup.
-    expect(reasonOf(decideSend(facts({ suppressed: true, lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } })))).toBe('suppressed')
+    expect(
+      reasonOf(
+        decideSend(
+          facts({ suppressed: true, lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } }),
+        ),
+      ),
+    ).toBe('suppressed')
     expect(reasonOf(decideSend(facts({ alreadySent: true, sentToLeadToday: 99 })))).toBe('already_sent')
   })
 })
@@ -90,8 +113,22 @@ describe('the pipeline is genuinely composed from declarations', () => {
 
   it('universal guards still apply to every action, however few laws it declares', () => {
     const internal = { laws: ['send_once'] as const, requires: [] as const }
-    expect(reasonOf(decideSendForAction(internal, facts({ lead: { exists: false, email: null, currentStatus: null, emailUndeliverable: false } })))).toBe('lead_deleted')
-    expect(reasonOf(decideSendForAction(internal, facts({ event: { trigger: 'lead_created', origin: 'import', agencyId: 7, leadId: 42, occurredAt: NOW } })))).toBe('origin_import')
+    expect(
+      reasonOf(
+        decideSendForAction(
+          internal,
+          facts({ lead: { exists: false, email: null, currentStatus: null, emailUndeliverable: false } }),
+        ),
+      ),
+    ).toBe('lead_deleted')
+    expect(
+      reasonOf(
+        decideSendForAction(
+          internal,
+          facts({ event: { trigger: 'lead_created', origin: 'import', agencyId: 7, leadId: 42, occurredAt: NOW } }),
+        ),
+      ),
+    ).toBe('origin_import')
   })
 })
 
@@ -110,8 +147,12 @@ describe('composeLawPipeline', () => {
     const { steps } = composeLawPipeline(['suppression', 'bounce_block'], ['email'])
     expect(steps).toHaveLength(3)
     expect(steps[0](facts({ suppressed: true }))).toBe('suppressed')
-    expect(steps[1](facts({ lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } }))).toBe('no_email')
-    expect(steps[2](facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } }))).toBe('address_undeliverable')
+    expect(steps[1](facts({ lead: { exists: true, email: null, currentStatus: 'new', emailUndeliverable: false } }))).toBe(
+      'no_email',
+    )
+    expect(steps[2](facts({ lead: { exists: true, email: 'a@b.co', currentStatus: 'new', emailUndeliverable: true } }))).toBe(
+      'address_undeliverable',
+    )
   })
 
   it('reports declared-but-unimplemented laws instead of silently passing them', () => {

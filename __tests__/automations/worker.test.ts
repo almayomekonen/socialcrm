@@ -3,6 +3,8 @@ import type { AutomationJob } from '@/db/automations/jobs'
 import type { WorkerDefinition } from '@/db/automations/definitions'
 import { runAutomationWorker, type WorkerDeps } from '@/lib/automations/worker'
 import { getAutomationsSendMode } from '@/lib/automations/flags'
+import { getAction } from '@/lib/automations/catalog/registry'
+import { executorFor } from '@/lib/automations/executors/registry'
 
 // ADR-011 conformance (DI, DB-less): every transition, every reason, the
 // claim→effect→confirm→complete order, crash recovery in both modes, and the
@@ -45,7 +47,12 @@ function def(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
     },
     createdByUserId: 1,
     conditions: [],
-    actions: [{ actionKey: 'email.send', parameters: {} }],
+    // Faithful to what the store actually writes: `actions[0].parameters` is
+    // always the content document's projection (createDefinition and
+    // updateDefinitionContent write both together; the B3 migration backfilled
+    // existing rows; normalise() synthesises for anything older). B5 executes
+    // from here, so a fixture that diverged would test a state that cannot exist.
+    actions: [{ actionKey: 'email.send', parameters: { subject: 'שלום {{שם הליד}}', body: 'תודה מ{{שם העסק}}' } }],
     connectionId: null,
     sourceIds: [],
     ...overrides,
@@ -80,6 +87,8 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     replyTo: vi.fn(async () => 'owner@business.example'),
     repName: vi.fn(async () => null),
     send: vi.fn(async () => ({ ok: true as const, id: 'msg_1' })),
+    getAction: vi.fn(getAction),
+    executorFor: vi.fn(executorFor),
     completeJob: vi.fn(async () => {}),
     skipJob: vi.fn(async () => {}),
     failJob: vi.fn(async () => {}),
