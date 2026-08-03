@@ -14,7 +14,7 @@
 // B7 appends `appointment_booked` — the first EXTERNAL event. It names an
 // occurrence, not an integration: a Calendly booking and a Google Calendar
 // booking are the same engine trigger, distinguished only by their connector.
-export const TRIGGER_TYPES = ['lead_created', 'status_changed', 'appointment_booked'] as const
+export const TRIGGER_TYPES = ['lead_created', 'status_changed', 'appointment_booked', 'form_submitted'] as const
 export type TriggerType = (typeof TRIGGER_TYPES)[number]
 
 // Emission provenance (ADR-004): ALWAYS supplied explicitly by the call site,

@@ -18,4 +18,7 @@ export const SUBJECT_ENTRIES: readonly SubjectDefinition[] = [
   // B7 adds `appointment` for the first external event. Exactly as predicted
   // above: a catalog row, not a code change.
   { key: 'appointment', title: 'פגישות', icon: 'calendar' },
+  // C1 adds `form` for the first production integration. Third subject, third
+  // one-line catalog change — no code anywhere had to learn what a form is.
+  { key: 'form', title: 'טפסים', icon: 'file-lines' },
 ]

@@ -2,6 +2,7 @@ import type { Connection, ConnectionOption, Source } from '../catalog/types'
 import type { ConnectionProvider } from './types'
 import { whatsappProvider } from './whatsapp'
 import { calendlyProvider } from './calendly'
+import { contactForm7Provider } from './contactForm7'
 import * as resolve from './resolve'
 
 /**
@@ -13,7 +14,7 @@ import * as resolve from './resolve'
  * takes the provider list as an argument; this file only binds it to the real
  * one. That split is what makes the claim testable rather than merely asserted.
  */
-const PROVIDERS: readonly ConnectionProvider[] = [whatsappProvider, calendlyProvider]
+const PROVIDERS: readonly ConnectionProvider[] = [whatsappProvider, calendlyProvider, contactForm7Provider]
 
 export const providerFor = (integrationKey: string): ConnectionProvider | null => resolve.providerFor(PROVIDERS, integrationKey)
 

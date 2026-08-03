@@ -92,6 +92,22 @@ const APPOINTMENT_FIELDS: readonly FieldDefinition[] = [
   },
 ]
 
+/**
+ * C1 — the first PRODUCTION integration's event. Catalog data only: no new
+ * field type, no new parameter type, no new preview shape, no new law.
+ *
+ * `formName` and `pageUrl` are snapshots because a form can be renamed or a
+ * page moved after the fact, and an automation that fired on "צור קשר" should
+ * keep meaning that. `message` is a snapshot for the same reason — it is what
+ * the person actually wrote.
+ */
+const FORM_FIELDS: readonly FieldDefinition[] = [
+  ...LEAD_FIELDS,
+  { key: 'formName', type: 'text', label: 'שם הטופס', freshness: 'snapshot', lifecycle: 'stable' },
+  { key: 'message', type: 'text', label: 'תוכן ההודעה', freshness: 'snapshot', lifecycle: 'stable' },
+  { key: 'pageUrl', type: 'url', label: 'העמוד שממנו נשלח', freshness: 'snapshot', lifecycle: 'stable' },
+]
+
 export const EVENT_ENTRIES: readonly EventDefinition[] = [
   {
     key: 'lead.created',
@@ -173,6 +189,39 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
     identity: {
       occurrenceKey: 'appointment:{provider_event_uri}',
       leadResolution: 'by invitee email within the agency, then by invitee phone; unresolved bookings are dropped',
+    },
+  },
+  {
+    key: 'form.submitted',
+    origin: 'external',
+    subject: 'form',
+    title: 'נשלח טופס באתר',
+    description: 'כשמישהו ממלא טופס באתר האינטרנט שלכם',
+    icon: 'file-lines',
+    lifecycle: 'stable',
+    requirements: [
+      {
+        type: 'connection',
+        key: 'wordpress_form_connected',
+        cta: { label: 'חיבור האתר', href: '/settings/integrations' },
+      },
+    ],
+    // One remote parameter: which form to listen to. Same control as every
+    // other enum_remote — a calendar picker and a form picker are one thing.
+    parameters: [
+      {
+        key: 'formId',
+        type: 'enum_remote',
+        label: 'הטופס',
+        help: 'אפשר להגביל את האוטומציה לטופס אחד',
+        optionSource: 'forms',
+      },
+    ],
+    fields: FORM_FIELDS,
+    identity: {
+      occurrenceKey: 'form:{connection}:{submission_id}',
+      leadResolution:
+        'the lead the connector created or matched for this submission — by prior submission id, then by phone, then by email, within the agency',
     },
   },
 ]

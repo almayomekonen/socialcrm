@@ -50,19 +50,26 @@ describe('the B1 catalog is valid', () => {
     expect(validateCatalog(catalog)).toEqual([])
   })
 
-  it('registers the shipped surface, and B7 appended to it without disturbing it', () => {
+  it('registers the shipped surface; every phase since has only APPENDED to it', () => {
     // Append-only in practice, not just in principle: the B1 entries are still
     // first and unchanged. A reorder or an edit here is a migration of meaning.
-    expect(catalog.subjects.map((s) => s.key)).toEqual(['lead', 'appointment'])
-    expect(catalog.events.map((e) => e.key)).toEqual(['lead.created', 'lead.status_changed', 'appointment.booked'])
+    expect(catalog.subjects.map((s) => s.key)).toEqual(['lead', 'appointment', 'form'])
+    expect(catalog.events.map((e) => e.key)).toEqual([
+      'lead.created',
+      'lead.status_changed',
+      'appointment.booked',
+      'form.submitted',
+    ])
     expect(catalog.actions.map((a) => a.key)).toEqual(['email.send'])
   })
 
-  it('registers the first integration — and only as data', () => {
-    expect(catalog.integrations.map((i) => i.key)).toEqual(['calendly'])
-    // §3.1: presentation plus one auth strategy from the closed set. Nothing
-    // executable, nothing the Builder has to interpret.
+  it('registers integrations as data only, append-only, one row each', () => {
+    expect(catalog.integrations.map((i) => i.key)).toEqual(['calendly', 'contact_form_7'])
+    // §3.1: presentation plus one auth strategy from the CLOSED set. Nothing
+    // executable, nothing the Builder has to interpret — and two integrations
+    // with two different strategies prove the set is doing real work.
     expect(catalog.integrations[0]).toMatchObject({ auth: 'oauth2', capabilities: ['calendar_connected'] })
+    expect(catalog.integrations[1]).toMatchObject({ auth: 'api_key', capabilities: ['wordpress_form_connected'] })
   })
 })
 
@@ -217,6 +224,11 @@ describe('derived capabilities behave on real entries', () => {
   })
 
   it('every registered event is selectable (none is deprecated)', () => {
-    expect(listSelectableEvents().map((e) => e.key)).toEqual(['lead.created', 'lead.status_changed', 'appointment.booked'])
+    expect(listSelectableEvents().map((e) => e.key)).toEqual([
+      'lead.created',
+      'lead.status_changed',
+      'appointment.booked',
+      'form.submitted',
+    ])
   })
 })
