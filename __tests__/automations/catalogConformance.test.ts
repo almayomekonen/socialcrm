@@ -50,14 +50,19 @@ describe('the B1 catalog is valid', () => {
     expect(validateCatalog(catalog)).toEqual([])
   })
 
-  it('registers exactly the shipped surface: 1 subject, 2 events, 1 action', () => {
-    expect(catalog.subjects.map((s) => s.key)).toEqual(['lead'])
-    expect(catalog.events.map((e) => e.key)).toEqual(['lead.created', 'lead.status_changed'])
+  it('registers the shipped surface, and B7 appended to it without disturbing it', () => {
+    // Append-only in practice, not just in principle: the B1 entries are still
+    // first and unchanged. A reorder or an edit here is a migration of meaning.
+    expect(catalog.subjects.map((s) => s.key)).toEqual(['lead', 'appointment'])
+    expect(catalog.events.map((e) => e.key)).toEqual(['lead.created', 'lead.status_changed', 'appointment.booked'])
     expect(catalog.actions.map((a) => a.key)).toEqual(['email.send'])
   })
 
-  it('registers no integrations — B1 adds none', () => {
-    expect(catalog.integrations).toEqual([])
+  it('registers the first integration — and only as data', () => {
+    expect(catalog.integrations.map((i) => i.key)).toEqual(['calendly'])
+    // §3.1: presentation plus one auth strategy from the closed set. Nothing
+    // executable, nothing the Builder has to interpret.
+    expect(catalog.integrations[0]).toMatchObject({ auth: 'oauth2', capabilities: ['calendar_connected'] })
   })
 })
 
@@ -82,7 +87,10 @@ describe('CONFORMANCE — trigger vocabulary matches the engine exactly', () => 
   })
 
   it('unknown keys resolve to null rather than guessing (Law 3)', () => {
-    expect(engineTriggerForEventKey('appointment.booked')).toBeNull()
+    // B1 used `appointment.booked` as the unknown-key example. B7 registered
+    // it, which is the point of an append-only vocabulary — so the example
+    // moved to a key nothing has claimed.
+    expect(engineTriggerForEventKey('payment.received')).toBeNull()
     expect(eventKeyForEngineTrigger('nonsense')).toBeNull()
     expect(engineActionForActionKey('sms.send')).toBeNull()
     expect(actionKeyForEngineAction('send_sms')).toBeNull()
@@ -204,7 +212,7 @@ describe('derived capabilities behave on real entries', () => {
     }
   })
 
-  it('both events are selectable (neither is deprecated)', () => {
-    expect(listSelectableEvents().map((e) => e.key)).toEqual(['lead.created', 'lead.status_changed'])
+  it('every registered event is selectable (none is deprecated)', () => {
+    expect(listSelectableEvents().map((e) => e.key)).toEqual(['lead.created', 'lead.status_changed', 'appointment.booked'])
   })
 })

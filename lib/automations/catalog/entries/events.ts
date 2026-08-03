@@ -57,6 +57,41 @@ const LEAD_FIELDS: readonly FieldDefinition[] = [
  */
 export const RENDERABLE_FIELD_KEYS = ['leadFirstName', 'businessName', 'repName'] as const
 
+/**
+ * B7 — the first EXTERNAL event, and the proof that the Builder is generic.
+ *
+ * Everything the Builder will show for it, it learns from this entry: the
+ * picker grouping (`subject`), the lock and its CTA (`requirements`), the
+ * calendar picker (`parameters` → enum_remote), the condition fields and their
+ * operators (`fields` → type), the timing anchor (the `datetime` field), the
+ * offered actions (`requires` × field types) and the preview shape (the
+ * action's). No Builder file changes for any of it.
+ */
+const APPOINTMENT_FIELDS: readonly FieldDefinition[] = [
+  ...LEAD_FIELDS,
+  {
+    key: 'startsAt',
+    type: 'datetime',
+    label: 'מועד הפגישה',
+    freshness: 'snapshot',
+    lifecycle: 'stable',
+  },
+  {
+    key: 'appointmentName',
+    type: 'text',
+    label: 'סוג הפגישה',
+    freshness: 'snapshot',
+    lifecycle: 'stable',
+  },
+  {
+    key: 'inviteeEmail',
+    type: 'email',
+    label: 'אימייל מזמין הפגישה',
+    freshness: 'snapshot',
+    lifecycle: 'stable',
+  },
+]
+
 export const EVENT_ENTRIES: readonly EventDefinition[] = [
   {
     key: 'lead.created',
@@ -108,6 +143,36 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
     identity: {
       occurrenceKey: 'status_changed:{newStatus}:{occurredAtMs}',
       leadResolution: 'the lead whose status was just written — agency-scoped by the updating action',
+    },
+  },
+  {
+    key: 'appointment.booked',
+    origin: 'external',
+    subject: 'appointment',
+    title: 'נקבעה פגישה',
+    description: 'כשליד קובע פגישה ביומן המחובר',
+    icon: 'calendar-check',
+    lifecycle: 'stable',
+    // The lock the Builder renders when no calendar is connected, and the CTA
+    // it offers to fix it. Data — the Builder authors neither.
+    requirements: [
+      { type: 'connection', key: 'calendar_connected', cta: { label: 'חיבור יומן', href: '/settings/integrations' } },
+    ],
+    // One remote parameter: which calendar to listen to. Rendered by the same
+    // control that renders every other enum_remote.
+    parameters: [
+      {
+        key: 'eventTypeId',
+        type: 'enum_remote',
+        label: 'סוג הפגישה',
+        help: 'אפשר להגביל את האוטומציה לסוג פגישה אחד',
+        optionSource: 'event_types',
+      },
+    ],
+    fields: APPOINTMENT_FIELDS,
+    identity: {
+      occurrenceKey: 'appointment:{provider_event_uri}',
+      leadResolution: 'by invitee email within the agency, then by invitee phone; unresolved bookings are dropped',
     },
   },
 ]

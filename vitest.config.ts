@@ -14,6 +14,9 @@ export default defineConfig({
     alias: {
       // mirrors tsconfig "paths": { "@/*": ["./*"] }
       '@': new URL('.', import.meta.url).pathname.replace(/\/$/, ''),
+      // See the stub's header: lets server-only modules (connectors, stores)
+      // be imported under test. No runtime capability is granted.
+      'server-only': new URL('./__tests__/stubs/server-only.ts', import.meta.url).pathname,
     },
   },
 })

@@ -1,6 +1,7 @@
 import type { Connection, ConnectionOption, Source } from '../catalog/types'
 import type { ConnectionProvider } from './types'
 import { whatsappProvider } from './whatsapp'
+import { calendlyProvider } from './calendly'
 import * as resolve from './resolve'
 
 /**
@@ -12,7 +13,7 @@ import * as resolve from './resolve'
  * takes the provider list as an argument; this file only binds it to the real
  * one. That split is what makes the claim testable rather than merely asserted.
  */
-const PROVIDERS: readonly ConnectionProvider[] = [whatsappProvider]
+const PROVIDERS: readonly ConnectionProvider[] = [whatsappProvider, calendlyProvider]
 
 export const providerFor = (integrationKey: string): ConnectionProvider | null => resolve.providerFor(PROVIDERS, integrationKey)
 
@@ -28,3 +29,6 @@ export const resolveCapabilities = (agencyId: number): Promise<Set<string>> => r
 
 export const connectionHealth = (agencyId: number, connectionId: string): Promise<Connection['health'] | null> =>
   resolve.connectionHealth(PROVIDERS, agencyId, connectionId)
+
+/** The connector that receives webhooks for an integration, or null. */
+export const webhookConnectorFor = (integrationKey: string) => resolve.webhookConnectorFor(PROVIDERS, integrationKey)

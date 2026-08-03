@@ -22,8 +22,29 @@ const ROOT = process.cwd()
 /** Directories that render the Builder. Grows as B3+ lands. */
 const BUILDER_DIRS = ['components/settings/automations', 'lib/automations/catalog']
 
+/**
+ * CATALOG DATA — excluded from the integration-literal ban, and only from it.
+ *
+ * §3.1 of the frozen architecture REQUIRES an Integration entry to carry the
+ * integration's key (`calendly`, `shopify`): that key is the entry's whole
+ * identity. Banning the literal here would ban the contract.
+ *
+ * The exclusion is safe only because these files are DATA, and the suite below
+ * proves that mechanically — no functions, no arrows, no branches, no imports
+ * beyond types. The moment an entries file grows logic, the guard fails, and
+ * the exclusion stops applying to something that is no longer data.
+ *
+ * Everything else under lib/automations/catalog — registry, validate, types,
+ * engineBridge — remains fully guarded, as does every Builder component.
+ */
+const CATALOG_DATA_DIR = 'lib/automations/catalog/entries'
+
 /** Integration identities that must never be literals in Builder code. */
 const INTEGRATION_NAMES = [
+  // B7's proof integrations. Without these two the guard could not have caught
+  // a Calendly leak, and the phase's central claim would have been untested.
+  'calendly',
+  'omega',
   'facebook',
   'instagram',
   'whatsapp',
@@ -95,6 +116,7 @@ describe('Law 1 — the Builder never becomes integration-aware', () => {
     const violations: string[] = []
     for (const file of builderFiles()) {
       if (isExempt(file)) continue
+      if (relative(file).startsWith(CATALOG_DATA_DIR)) continue
       const code = codeOnly(fs.readFileSync(file, 'utf8'))
       for (const name of INTEGRATION_NAMES) {
         // Only string literals count — an identifier or a comment does not.
@@ -120,6 +142,52 @@ describe('Law 1 — the Builder never becomes integration-aware', () => {
   })
 })
 
+describe('catalog entries are DATA — which is what makes their exclusion safe', () => {
+  const entryFiles = () => sourceFiles(CATALOG_DATA_DIR)
+
+  it('there are entry files to check', () => {
+    expect(entryFiles().length).toBeGreaterThan(0)
+  })
+
+  it('no entry file declares a function, an arrow or a branch', () => {
+    const violations: string[] = []
+    for (const file of entryFiles()) {
+      const code = codeOnly(fs.readFileSync(file, 'utf8'))
+      for (const [pattern, what] of [
+        [/\bfunction\b/, 'function'],
+        [/=>/, 'arrow'],
+        [/\bif\s*\(/, 'if'],
+        [/\bfor\s*\(/, 'for'],
+        [/\bswitch\s*\(/, 'switch'],
+        [/\?\./, 'optional call'],
+      ] as const) {
+        if (pattern.test(code)) violations.push(`${relative(file)} → ${what}`)
+      }
+    }
+    expect(violations).toEqual([])
+  })
+
+  it('entry files import TYPES only — data cannot reach for behaviour', () => {
+    const violations: string[] = []
+    for (const file of entryFiles()) {
+      const code = codeOnly(fs.readFileSync(file, 'utf8'))
+      for (const line of code.split('\n')) {
+        if (/^\s*import\s/.test(line) && !/^\s*import\s+type\s/.test(line)) {
+          violations.push(`${relative(file)} → ${line.trim()}`)
+        }
+      }
+    }
+    expect(violations).toEqual([])
+  })
+
+  it('the exclusion is narrow: non-entry catalog files are still guarded', () => {
+    const guarded = builderFiles()
+      .map(relative)
+      .filter((f) => f.startsWith('lib/automations/catalog') && !f.startsWith(CATALOG_DATA_DIR))
+    expect(guarded).toEqual(expect.arrayContaining(['lib/automations/catalog/registry.ts']))
+  })
+})
+
 describe('B4 — the Connection layer did not leak into the Builder', () => {
   it('Builder files exist for the B4 surfaces and are covered by the guard above', () => {
     const covered = builderFiles().map(relative)
@@ -132,12 +200,27 @@ describe('B4 — the Connection layer did not leak into the Builder', () => {
     }
   })
 
-  it('no Builder file names an option source, a capability or a provider', () => {
+  it('no Builder COMPONENT names an option source, a capability or a provider', () => {
     // These are catalog/connector vocabulary. If one appears in Builder code,
     // the Builder has learned what it is rendering.
-    const LEAKS = ['phone_numbers', 'whatsapp_connected', 'wabaId', 'phoneNumberId']
+    const LEAKS = [
+      'phone_numbers',
+      'whatsapp_connected',
+      'wabaId',
+      'phoneNumberId',
+      // B7's vocabulary: the option source, the capability, the provider's
+      // payload keys and its event name. None may appear in Builder code.
+      'event_types',
+      'calendar_connected',
+      'invitee',
+      'scheduled_event',
+      'eventTypeId',
+    ]
+    // Catalog entries are where these are DECLARED — excluded on the same
+    // grounds as the integration key, and under the same data-only proof.
     const violations: string[] = []
     for (const file of builderFiles()) {
+      if (relative(file).startsWith(CATALOG_DATA_DIR)) continue
       const code = codeOnly(fs.readFileSync(file, 'utf8'))
       for (const leak of LEAKS) if (code.includes(leak)) violations.push(`${relative(file)} → ${leak}`)
     }

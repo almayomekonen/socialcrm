@@ -8,6 +8,11 @@ if (process.env.NODE_ENV !== 'test') {
   throw new Error(`[test setup] NODE_ENV must be 'test' (got '${process.env.NODE_ENV ?? 'undefined'}')`)
 }
 
+// Modules that reach the auth helpers at import time (server actions, and any
+// component importing one) throw without this. A fixed, obviously-fake value —
+// never a real secret, and only ever set when one is absent under NODE_ENV=test.
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-only-not-a-real-secret'
+
 if (process.env.VITEST_NO_DB === '1') {
   console.log('[test setup] VITEST_NO_DB=1 → skipping schema reset + migrations')
 } else {

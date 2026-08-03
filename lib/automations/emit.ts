@@ -39,6 +39,9 @@ export type EmitResult =
 
 /** ADR-010 identity rule — deterministic from business facts, never random. */
 export function eventKeyFor(event: AutomationTriggerEvent): string {
+  // An external occurrence knows its own identity — the connector declared it.
+  // The two internal events predate connectors and derive theirs here.
+  if (event.occurrenceKey) return event.occurrenceKey
   if (event.trigger === 'status_changed') {
     return `status_changed:${event.newStatus}:${event.occurredAt.getTime()}`
   }

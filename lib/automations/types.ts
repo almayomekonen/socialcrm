@@ -11,7 +11,10 @@
  * holds the automation inert — it never guesses.
  */
 
-export const TRIGGER_TYPES = ['lead_created', 'status_changed'] as const
+// B7 appends `appointment_booked` — the first EXTERNAL event. It names an
+// occurrence, not an integration: a Calendly booking and a Google Calendar
+// booking are the same engine trigger, distinguished only by their connector.
+export const TRIGGER_TYPES = ['lead_created', 'status_changed', 'appointment_booked'] as const
 export type TriggerType = (typeof TRIGGER_TYPES)[number]
 
 // Emission provenance (ADR-004): ALWAYS supplied explicitly by the call site,
@@ -19,7 +22,11 @@ export type TriggerType = (typeof TRIGGER_TYPES)[number]
 // inference would fire automations on bulk imports. Origin is NOT the lead's
 // `source` field: origin says how the event entered the engine; `source` is
 // what users filter on in automation conditions.
-export const TRIGGER_ORIGINS = ['webhook_facebook', 'webhook_whatsapp', 'manual', 'import'] as const
+// The two per-provider webhook origins are GRANDFATHERED: they predate the
+// connector layer and are persisted on live rows, so they stay forever
+// (append-only). Every connector from B7 onward uses the generic `webhook`,
+// which is why adding an integration never again touches this vocabulary.
+export const TRIGGER_ORIGINS = ['webhook_facebook', 'webhook_whatsapp', 'webhook', 'manual', 'import'] as const
 export type TriggerOrigin = (typeof TRIGGER_ORIGINS)[number]
 
 export const ACTION_TYPES = ['send_email'] as const
@@ -38,6 +45,18 @@ export type AutomationTriggerEvent = {
   leadSource?: string | null
   // status_changed only: the status the lead moved into.
   newStatus?: string | null
+  /**
+   * B7: the event's snapshot payload, keyed by CATALOG field key — what a
+   * connector's `mapEvent()` produces. `leadSource` / `newStatus` above are the
+   * two internal events' pre-catalog spellings of the same idea and are kept
+   * because they are the persisted ADR-010 shape.
+   */
+  fields?: Record<string, unknown> | null
+  /**
+   * B7: the connector's own occurrence identity (ADR-010). Internal events
+   * derive theirs in `eventKeyFor`; an external event knows its own.
+   */
+  occurrenceKey?: string | null
 }
 
 // Every way a law can decline to send. Persisted on activity-log rows (Phase

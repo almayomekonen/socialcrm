@@ -1,5 +1,5 @@
 import type { Connection, ConnectionOption, Source } from '../catalog/types'
-import type { ConnectionProvider } from './types'
+import { isWebhookConnector, type ConnectionProvider, type WebhookConnector } from './types'
 
 /**
  * The Connection layer's LOGIC, separated from the list of installed
@@ -83,6 +83,16 @@ export async function connectionHealth(
   if (!provider) return null
   const found = (await safe(provider.listConnections(agencyId), [] as Connection[])).find((c) => c.id === connectionId)
   return found?.health ?? null
+}
+
+/**
+ * The connector able to receive webhooks for an integration. A provider that
+ * does not implement the full inbound half is not one — the route rejects it
+ * rather than half-processing a payload.
+ */
+export function webhookConnectorFor(providers: readonly ConnectionProvider[], integrationKey: string): WebhookConnector | null {
+  const provider = providerFor(providers, integrationKey)
+  return isWebhookConnector(provider) ? provider : null
 }
 
 /**

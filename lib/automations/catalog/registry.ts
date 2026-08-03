@@ -1,11 +1,12 @@
 import type { ActionDefinition, Catalog, EventDefinition, IntegrationDefinition, LawDefinition, SubjectDefinition } from './types'
 import { LAW_KEYS } from './vocabularies'
 import { SUBJECT_ENTRIES } from './entries/subjects'
+import { INTEGRATION_ENTRIES } from './entries/integrations'
 import { EVENT_ENTRIES } from './entries/events'
 import { ACTION_ENTRIES } from './entries/actions'
 
 const SUBJECTS: readonly SubjectDefinition[] = SUBJECT_ENTRIES
-const INTEGRATIONS: readonly IntegrationDefinition[] = []
+const INTEGRATIONS: readonly IntegrationDefinition[] = INTEGRATION_ENTRIES
 const EVENTS: readonly EventDefinition[] = EVENT_ENTRIES
 const ACTIONS: readonly ActionDefinition[] = ACTION_ENTRIES
 

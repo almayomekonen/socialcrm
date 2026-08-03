@@ -21,11 +21,13 @@ import type { AutomationTriggerEvent, TriggerType } from '../types'
 const EVENT_KEY_TO_ENGINE_TRIGGER: Record<string, TriggerType> = {
   'lead.created': 'lead_created',
   'lead.status_changed': 'status_changed',
+  'appointment.booked': 'appointment_booked',
 }
 
 const ENGINE_TRIGGER_TO_EVENT_KEY: Record<TriggerType, string> = {
   lead_created: 'lead.created',
   status_changed: 'lead.status_changed',
+  appointment_booked: 'appointment.booked',
 }
 
 const ACTION_KEY_TO_ENGINE_ACTION: Record<string, string> = {
@@ -77,5 +79,8 @@ export function bridgedActionKeys(): readonly string[] {
  * the evaluator fails it closed.
  */
 export function snapshotFieldsForEvent(event: AutomationTriggerEvent): Record<string, unknown> {
-  return { source: event.leadSource ?? null, newStatus: event.newStatus ?? null }
+  // A connector's mapped fields are already catalog-keyed and take precedence;
+  // the two legacy spellings are merged underneath so the internal events keep
+  // working exactly as they did.
+  return { source: event.leadSource ?? null, newStatus: event.newStatus ?? null, ...(event.fields ?? {}) }
 }

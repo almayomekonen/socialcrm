@@ -104,9 +104,27 @@ describe('evaluateEvents', () => {
 })
 
 describe('the shipped catalog under an empty context', () => {
-  it('every currently shipped event stays available — B4 changes no existing behaviour', () => {
-    const out = evaluateEvents(listSelectableEvents(), ctx())
-    expect(out.length).toBe(listSelectableEvents().length)
+  it('every INTERNAL event stays available — no requirement was ever added to one', () => {
+    const internal = listSelectableEvents().filter((e) => e.origin === 'internal')
+    const out = evaluateEvents(internal, ctx())
+    expect(out.length).toBe(internal.length)
+    expect(out.every((e) => e.availability.state === 'available')).toBe(true)
+  })
+
+  it('every EXTERNAL event is LOCKED until its connection exists — B7, entirely from catalog data', () => {
+    const external = listSelectableEvents().filter((e) => e.origin === 'external')
+    expect(external.length).toBeGreaterThan(0)
+    for (const e of evaluateEvents(external, ctx())) {
+      expect(e.availability.state, `${e.event.key} should be locked`).toBe('locked')
+      // The lock carries the catalog's own CTA — the Builder authors none.
+      expect(e.availability.state === 'locked' && e.availability.requirement.cta?.href).toBeTruthy()
+    }
+  })
+
+  it('and every one of them unlocks the moment its capability is present', () => {
+    const external = listSelectableEvents().filter((e) => e.origin === 'external')
+    const capabilities = new Set(external.flatMap((e) => e.requirements.map((r) => r.key)))
+    const out = evaluateEvents(external, ctx({ capabilities }))
     expect(out.every((e) => e.availability.state === 'available')).toBe(true)
   })
 })
@@ -138,10 +156,20 @@ describe('binding — stable ids only', () => {
     expect(sourceIdsFrom(e, null)).toEqual([])
   })
 
-  it('every shipped event today binds to nothing — B4 stores no new data for them', () => {
-    for (const e of listSelectableEvents()) {
+  it('an event with no remote parameter binds to nothing and needs no connection', () => {
+    for (const e of listSelectableEvents().filter((e) => e.parameters.length === 0)) {
       expect(sourceIdsFrom(e, { anything: 'x' })).toEqual([])
       expect(needsConnection(e)).toBe(false)
+    }
+  })
+
+  it('an event WITH a remote parameter binds to the id the user picked — B7, no code for it', () => {
+    const remote = listSelectableEvents().filter((e) => e.parameters.some((p) => p.type === 'enum_remote'))
+    expect(remote.length).toBeGreaterThan(0)
+    for (const e of remote) {
+      expect(needsConnection(e)).toBe(true)
+      const key = e.parameters.find((p) => p.type === 'enum_remote')!.key
+      expect(sourceIdsFrom(e, { [key]: 'stable_id_1' })).toEqual(['stable_id_1'])
     }
   })
 

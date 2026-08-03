@@ -15,4 +15,7 @@ import type { SubjectDefinition } from '../types'
  */
 export const SUBJECT_ENTRIES: readonly SubjectDefinition[] = [
   { key: 'lead', title: 'לידים', icon: 'user' },
+  // B7 adds `appointment` for the first external event. Exactly as predicted
+  // above: a catalog row, not a code change.
+  { key: 'appointment', title: 'פגישות', icon: 'calendar' },
 ]
