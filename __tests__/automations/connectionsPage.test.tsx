@@ -460,7 +460,7 @@ describe('C-QA — connection binding', () => {
       title: 'Contact Form 7',
       icon: 'file-lines',
       auth: 'api_key' as const,
-      capabilities: ['wordpress_form_connected'],
+      capabilities: ['website_connected'],
     },
     { key: 'calendly', title: 'Calendly', icon: 'calendar', auth: 'oauth2' as const, capabilities: ['calendar_connected'] },
   ]
@@ -483,17 +483,17 @@ describe('C-QA — connection binding', () => {
   }
 
   it('a calendar connection is never offered for a website-form event', () => {
-    expect(eligible(['wordpress_form_connected'], conns).map((c) => c.id)).toEqual(['contact_form_7:3'])
+    expect(eligible(['website_connected'], conns).map((c) => c.id)).toEqual(['contact_form_7:3'])
   })
 
   it('exactly one eligible connection is AUTO-SELECTED — the bug', () => {
-    expect(bound(['wordpress_form_connected'], conns)).toBe('contact_form_7:3')
+    expect(bound(['website_connected'], conns)).toBe('contact_form_7:3')
   })
 
   it('several eligible connections force an explicit choice', () => {
     const two = [...conns, { ...conns[0], id: 'contact_form_7:4', displayName: 'אתר שני' }]
-    expect(eligible(['wordpress_form_connected'], two).length).toBe(2)
-    expect(bound(['wordpress_form_connected'], two)).toBe(null)
+    expect(eligible(['website_connected'], two).length).toBe(2)
+    expect(bound(['website_connected'], two)).toBe(null)
   })
 
   it('an event needing NO connection binds to none — it must never read as broken', () => {

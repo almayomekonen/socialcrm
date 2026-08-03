@@ -236,12 +236,12 @@ describe('the Builder gets its whole experience from the catalog row', () => {
   })
 
   it('unlocks the moment the capability is present', () => {
-    expect(evaluateEvents([EVENT], ctx(['wordpress_form_connected'])).at(0)!.availability.state).toBe('available')
+    expect(evaluateEvents([EVENT], ctx(['website_connected'])).at(0)!.availability.state).toBe('available')
   })
 
   it('registers as data only — presentation plus one closed-set auth strategy', () => {
     const integration = listIntegrations().find((i) => i.key === 'contact_form_7')!
-    expect(integration).toMatchObject({ auth: 'api_key', capabilities: ['wordpress_form_connected'] })
+    expect(integration).toMatchObject({ auth: 'api_key', capabilities: ['website_connected'] })
   })
 })
 
@@ -291,7 +291,7 @@ describe('another WordPress form plugin needs only a connector and a registry li
 
   const gravityForms: ConnectionProvider = {
     integrationKey: 'gravity_forms',
-    capabilities: ['wordpress_form_connected'], // the SAME capability
+    capabilities: ['website_connected'], // the SAME capability
     async listConnections(agencyId) {
       return [
         {
@@ -535,5 +535,58 @@ describe('regression — the idNum trigger truncates to 9 chars', () => {
     // unique by construction, and is the first lookup findOrCreateLead makes.
     expect(src()).toContain('submissionSource')
     expect(src()).toContain('where({ agencyId, leadSource })')
+  })
+})
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ * W1 — the product says Website. Contact Form 7 is an implementation detail.
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * The original defect was collapsing three levels into one. These assert the
+ * separation holds, at the only place a customer can perceive it.
+ */
+describe('W1 — product terminology vs internal identity', () => {
+  const integration = () => listIntegrations().find((i) => i.key === 'contact_form_7')!
+
+  it('the customer-facing title is the WEBSITE, never the plugin', () => {
+    expect(integration().title).toBe('האתר שלי')
+    expect(integration().title).not.toMatch(/Contact Form|CF7|WordPress/i)
+  })
+
+  it('the capability states the PRODUCT contract, not the platform', () => {
+    // A future custom-website connection grants this same capability
+    // truthfully; `wordpress_form_connected` would have made a React site
+    // assert something false about itself.
+    expect(integration().capabilities).toEqual(['website_connected'])
+  })
+
+  it('the event and its CTA speak about the website', () => {
+    expect(EVENT.title).toBe('נשלח טופס באתר')
+    const cta = EVENT.requirements.find((r) => r.type === 'connection')!.cta!
+    expect(cta.label).toBe('חיבור האתר')
+    expect(EVENT.requirements.map((r) => r.key)).toEqual(['website_connected'])
+  })
+
+  it('the internal routing key is UNCHANGED — no migration, no alias', () => {
+    // It is persisted on every connection row and inside every connectionId.
+    // Nothing branches on its spelling, so renaming it would buy a nicer
+    // identifier at the cost of a migration across three tables.
+    expect(integration().key).toBe('contact_form_7')
+    expect(contactForm7Provider.integrationKey).toBe('contact_form_7')
+  })
+
+  it('WordPress is named ONLY inside the implementation instructions', () => {
+    const guide = contactForm7Provider.setup!({ webhookUrl: 'https://x/w', secret: 's' })
+    // Requirement 7: the platform may be named once the customer has opened
+    // the implementation details — and it MUST be, so a customer whose site is
+    // not WordPress finds out in one line instead of after pasting PHP.
+    expect(guide.title).toMatch(/וורדפרס/)
+    expect(guide.steps[0]).toMatch(/וורדפרס/)
+  })
+
+  it('no customer-facing catalog string names the plugin', () => {
+    const surfaces = [integration().title, EVENT.title, EVENT.description]
+    for (const s of surfaces) expect(s).not.toMatch(/Contact Form|CF7/i)
   })
 })

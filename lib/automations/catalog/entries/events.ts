@@ -202,7 +202,7 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
     requirements: [
       {
         type: 'connection',
-        key: 'wordpress_form_connected',
+        key: 'website_connected',
         cta: { label: 'חיבור האתר', href: '/settings/connections' },
       },
     ],

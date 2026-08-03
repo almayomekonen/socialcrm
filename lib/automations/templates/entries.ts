@@ -27,7 +27,7 @@ export const TEMPLATE_ENTRIES: readonly TemplateDefinition[] = [
     requirements: [
       {
         type: 'connection',
-        key: 'wordpress_form_connected',
+        key: 'website_connected',
         cta: { label: 'חיבור האתר', href: '/settings/connections' },
       },
     ],
@@ -170,7 +170,7 @@ ${BUSINESS_SIGNOFF}`,
     requirements: [
       {
         type: 'connection',
-        key: 'wordpress_form_connected',
+        key: 'website_connected',
         cta: { label: 'חיבור האתר', href: '/settings/connections' },
       },
     ],

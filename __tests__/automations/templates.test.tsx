@@ -250,7 +250,7 @@ describe('the marketplace renders from the registry alone', () => {
         state: 'locked',
         requirement: {
           type: 'connection',
-          key: 'wordpress_form_connected',
+          key: 'website_connected',
           cta: { label: 'חיבור האתר', href: '/settings/connections' },
         },
       },

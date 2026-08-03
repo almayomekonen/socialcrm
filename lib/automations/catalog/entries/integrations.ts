@@ -20,13 +20,39 @@ export const INTEGRATION_ENTRIES: readonly IntegrationDefinition[] = [
     capabilities: ['calendar_connected'],
   },
   {
+    /**
+     * THE KEY IS AN INTERNAL ROUTING TOKEN, DELIBERATELY LEFT ALONE.
+     *
+     * The customer connects "האתר שלי"; Contact Form 7 is one implementation
+     * of that, and the product must never say otherwise. But nothing branches
+     * on this string — it only selects a provider from the connector registry
+     * — while it IS persisted on every connection row and inside every
+     * `connectionId`. Renaming it would buy a nicer identifier at the cost of
+     * a migration across three tables and a compatibility alias.
+     *
+     * The one place an internal key reaches a customer is the webhook URL
+     * built in `actions/automations/connections.ts`. That coupling — a public
+     * surface derived from a registry key — is the real defect, and it is
+     * fixed where the public API is designed, not by renaming the key here.
+     *
+     *   product concept   →  Website          (title, below)
+     *   platform          →  WordPress        (the connector's setup guide)
+     *   implementation    →  Contact Form 7   (this key, and the parser)
+     */
     key: 'contact_form_7',
-    title: 'Contact Form 7',
-    icon: 'file-lines',
-    // No OAuth: a WordPress site posts to a per-connection webhook URL and
-    // signs with a per-connection secret. `api_key` is the closed-set strategy
-    // that describes exactly that.
+    title: 'האתר שלי',
+    icon: 'globe',
+    // No OAuth: the site posts to a per-connection webhook URL and signs with
+    // a per-connection secret. `api_key` is the closed-set strategy that
+    // describes exactly that.
     auth: 'api_key',
-    capabilities: ['wordpress_form_connected'],
+    /**
+     * The CONTRACT, not the implementation — and the one identifier here that
+     * is worth renaming, because it is computed at runtime and persisted
+     * nowhere. A future custom-website or Gravity Forms connection grants this
+     * same capability truthfully; `wordpress_form_connected` would have made a
+     * React site assert something false about itself.
+     */
+    capabilities: ['website_connected'],
   },
 ]

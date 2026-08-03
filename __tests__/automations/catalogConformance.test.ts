@@ -69,7 +69,7 @@ describe('the B1 catalog is valid', () => {
     // executable, nothing the Builder has to interpret — and two integrations
     // with two different strategies prove the set is doing real work.
     expect(catalog.integrations[0]).toMatchObject({ auth: 'oauth2', capabilities: ['calendar_connected'] })
-    expect(catalog.integrations[1]).toMatchObject({ auth: 'api_key', capabilities: ['wordpress_form_connected'] })
+    expect(catalog.integrations[1]).toMatchObject({ auth: 'api_key', capabilities: ['website_connected'] })
   })
 })
 

@@ -8,7 +8,18 @@ import type { Connection, ConnectionOption, Source } from '../catalog/types'
 import type { ConnectionProvider, MappedEvent, SetupGuide } from './types'
 
 /**
- * The Contact Form 7 connector — the first PRODUCTION integration.
+ * The Contact Form 7 connector — the WordPress implementation of Website.
+ *
+ * THREE LEVELS, deliberately distinguished:
+ *
+ *   Website          the product concept, and the only thing the customer sees
+ *   WordPress        the platform — named only inside the setup instructions
+ *   Contact Form 7   this file: one plugin's payload shape and signing scheme
+ *
+ * The original mistake was collapsing all three into one. A real customer with
+ * a React site was told to paste PHP into functions.php, because the product
+ * was designed around an implementation instead of around the problem. The
+ * catalog now says "האתר שלי"; everything WordPress-specific stops here.
  *
  * Everything WordPress-specific in this system is in this one file. Above it
  * nothing knows CF7 exists: the Builder renders catalog metadata, the worker
@@ -287,7 +298,7 @@ function matchSite(live: ConnectionRow[], pageUrl: string): ConnectionRow | null
 
 export const contactForm7Provider: ConnectionProvider = {
   integrationKey: INTEGRATION_KEY,
-  capabilities: ['wordpress_form_connected'],
+  capabilities: ['website_connected'],
 
   /**
    * The one thing we cannot do for the customer: put our URL and secret into
@@ -303,8 +314,11 @@ export const contactForm7Provider: ConnectionProvider = {
       ? `$secret = '${secret}';`
       : "$secret = 'הקוד-הסודי-ששמרתם'; // הקוד מוצג פעם אחת בלבד ביצירת החיבור"
     return {
-      title: 'חיבור האתר בשלושה צעדים',
+      title: 'חיבור אתר וורדפרס בשלושה צעדים',
       steps: [
+        // Named plainly. A customer whose site is NOT WordPress must find that
+        // out here, in one line — not after pasting PHP that can never run.
+        'החיבור הזה מתאים לאתר שבנוי על וורדפרס. אם האתר שלכם בנוי אחרת, דברו איתנו.',
         'היכנסו לניהול וורדפרס של האתר.',
         'הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.',
         'שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.',
