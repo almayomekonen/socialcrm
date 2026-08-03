@@ -12,6 +12,7 @@ import {
   getEvent,
   listActionsForEvent,
   listAnchorFields,
+  listIntegrations,
   listSelectableEvents,
   listSubjects,
 } from '@/lib/automations/catalog/registry'
@@ -102,8 +103,39 @@ export default function AutomationSheet({
   const lockedRequirement = evaluated.find((e) => e.event.key === eventKey && e.availability.state === 'locked')
   const locked = lockedRequirement?.availability.state === 'locked' ? lockedRequirement.availability.requirement : null
 
-  /** Connections this integration offers. Generic — no integration is named. */
-  const eligibleConnections = connections
+  /**
+   * The connections that can actually satisfy THIS event.
+   *
+   * An event declares the capability it needs; an integration declares the
+   * capabilities it provides. Intersecting the two is what stops a calendar
+   * connection being offered for a website-form event — and it names no
+   * integration to do it.
+   *
+   * An event with no connection requirement gets an empty list: binding a
+   * `lead.created` automation to a connection would make it read as broken the
+   * day that connection is revoked, which it would not be.
+   */
+  const eligibleConnections = useMemo(() => {
+    const needed = new Set((event?.requirements ?? []).filter((r) => r.type === 'connection').map((r) => r.key))
+    if (needed.size === 0) return []
+    const providers = listIntegrations()
+    return connections.filter((c) => {
+      const integration = providers.find((i) => i.key === c.integrationKey)
+      return integration?.capabilities.some((cap) => needed.has(cap)) ?? false
+    })
+  }, [connections, event])
+
+  /**
+   * §12 open question 3, answered the way the spec recommended: force a choice
+   * when several exist, AUTO-SELECT when exactly one does.
+   *
+   * Without this the single-connection case saved `null` while the parameter
+   * picker resolved its options against that same connection — so an
+   * automation that plainly belonged to a connection was not bound to it, and
+   * the Connections page reported "0 automations" for a connection actively
+   * in use.
+   */
+  const boundConnectionId = connectionId ?? (eligibleConnections.length === 1 ? eligibleConnections[0].id : null)
 
   function insertToken(token: string) {
     const target = lastFocused.current
@@ -120,7 +152,7 @@ export default function AutomationSheet({
     recipeKey: draft.recipeKey,
     eventKey,
     conditions,
-    connectionId,
+    connectionId: boundConnectionId,
     parameters,
     subject,
     body,
@@ -190,15 +222,21 @@ export default function AutomationSheet({
             <Select
               lbl='חיבור'
               options={eligibleConnections.map((c) => ({ id: c.id, name: c.displayName }))}
-              value={connectionId ?? ''}
+              value={boundConnectionId ?? ''}
               onChange={(e) => setConnectionId(e.target.value || null)}
             />
+          )}
+
+          {/* Exactly one — chosen for them, but never silently: the automation
+              stops working if this connection is revoked, so it is named. */}
+          {eligibleConnections.length === 1 && (
+            <p className='text-sm text-gray-500 ms-1'>חיבור: {eligibleConnections[0].displayName}</p>
           )}
 
           {/* Event parameters — rendered generically from catalog metadata. */}
           <RemoteParameters
             parameters={event?.parameters ?? []}
-            connectionId={connectionId ?? eligibleConnections[0]?.id ?? null}
+            connectionId={boundConnectionId}
             values={parameters}
             onChange={setParameters}
           />

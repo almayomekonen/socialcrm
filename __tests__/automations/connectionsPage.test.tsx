@@ -439,3 +439,77 @@ describe('C3 — a business can rename a discovered source', () => {
     expect(renameSource).toHaveBeenCalledWith('zeta_desk:1', 'q_1', 'פניות מהאתר')
   })
 })
+
+/**
+ * PRODUCTION QA REGRESSION — an active automation reported as "0 automations".
+ *
+ * The Builder only showed the connection picker when MORE THAN ONE connection
+ * existed. With exactly one it saved `connectionId: null` while resolving the
+ * parameter picker's options against that same connection — so an automation
+ * plainly belonging to a connection was never bound to it, and the Connections
+ * page correctly counted zero.
+ *
+ * These assert the two rules that fix it, at the level the Builder applies
+ * them: eligibility is the intersection of what an event NEEDS and what an
+ * integration PROVIDES, and one eligible connection is auto-selected.
+ */
+describe('C-QA — connection binding', () => {
+  const integrations = [
+    {
+      key: 'contact_form_7',
+      title: 'Contact Form 7',
+      icon: 'file-lines',
+      auth: 'api_key' as const,
+      capabilities: ['wordpress_form_connected'],
+    },
+    { key: 'calendly', title: 'Calendly', icon: 'calendar', auth: 'oauth2' as const, capabilities: ['calendar_connected'] },
+  ]
+  const conns = [
+    { id: 'contact_form_7:3', integrationKey: 'contact_form_7', agencyId: 103, displayName: 'האתר', health: 'ok' as const },
+    { id: 'calendly:9', integrationKey: 'calendly', agencyId: 103, displayName: 'יומן', health: 'ok' as const },
+  ]
+
+  /** The rule the sheet applies: needed capabilities × provided capabilities. */
+  const eligible = (required: string[], connections: typeof conns) => {
+    const needed = new Set(required)
+    if (needed.size === 0) return []
+    return connections.filter((c) =>
+      integrations.find((i) => i.key === c.integrationKey)?.capabilities.some((cap) => needed.has(cap)),
+    )
+  }
+  const bound = (required: string[], connections: typeof conns) => {
+    const e = eligible(required, connections)
+    return e.length === 1 ? e[0].id : null
+  }
+
+  it('a calendar connection is never offered for a website-form event', () => {
+    expect(eligible(['wordpress_form_connected'], conns).map((c) => c.id)).toEqual(['contact_form_7:3'])
+  })
+
+  it('exactly one eligible connection is AUTO-SELECTED — the bug', () => {
+    expect(bound(['wordpress_form_connected'], conns)).toBe('contact_form_7:3')
+  })
+
+  it('several eligible connections force an explicit choice', () => {
+    const two = [...conns, { ...conns[0], id: 'contact_form_7:4', displayName: 'אתר שני' }]
+    expect(eligible(['wordpress_form_connected'], two).length).toBe(2)
+    expect(bound(['wordpress_form_connected'], two)).toBe(null)
+  })
+
+  it('an event needing NO connection binds to none — it must never read as broken', () => {
+    // Binding lead.created to a connection would mark it דורש טיפול the day
+    // that connection is revoked, which it would not be.
+    expect(eligible([], conns)).toEqual([])
+    expect(bound([], conns)).toBe(null)
+  })
+
+  it('the shipped catalog really does declare these capabilities', async () => {
+    const { getEvent, listIntegrations } = await import('@/lib/automations/catalog/registry')
+    const needed = getEvent('form.submitted')!
+      .requirements.filter((r) => r.type === 'connection')
+      .map((r) => r.key)
+    const provided = listIntegrations().find((i) => i.key === 'contact_form_7')!.capabilities
+    expect(needed.some((n) => provided.includes(n))).toBe(true)
+    expect(getEvent('lead.created')!.requirements.filter((r) => r.type === 'connection')).toEqual([])
+  })
+})
