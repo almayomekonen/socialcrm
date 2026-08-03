@@ -12,22 +12,42 @@ const NOW = new Date('2026-08-02T12:00:00Z')
 
 function job(overrides: Partial<AutomationJob> = {}): AutomationJob {
   return {
-    id: 1, agencyId: 7, automationId: 3, leadId: 42,
-    trigger: 'lead_created', origin: 'webhook_facebook', eventKey: 'lead_created',
-    attempts: 1, maxAttempts: 3, createdAt: NOW.toISOString(),
+    id: 1,
+    agencyId: 7,
+    automationId: 3,
+    leadId: 42,
+    trigger: 'lead_created',
+    origin: 'webhook_facebook',
+    eventKey: 'lead_created',
+    attempts: 1,
+    maxAttempts: 3,
+    createdAt: NOW.toISOString(),
     ...overrides,
   }
 }
 
 function def(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
   return {
-    id: 3, agencyId: 7, name: 'אימייל פתיחה', recipeKey: 'welcome_new_lead',
-    status: 'active', trigger: 'lead_created', targetStatus: null, sourceFilter: null,
+    id: 3,
+    agencyId: 7,
+    name: 'אימייל פתיחה',
+    recipeKey: 'welcome_new_lead',
+    status: 'active',
+    trigger: 'lead_created',
+    targetStatus: null,
+    sourceFilter: null,
     action: 'send_email',
-    content: { schemaVersion: 1, subject: 'שלום {{שם הליד}}', body: 'תודה מ{{שם העסק}}', timing: { kind: 'preset', preset: 'immediate' } },
+    content: {
+      schemaVersion: 1,
+      subject: 'שלום {{שם הליד}}',
+      body: 'תודה מ{{שם העסק}}',
+      timing: { kind: 'preset', preset: 'immediate' },
+    },
     createdByUserId: 1,
     conditions: [],
     actions: [{ actionKey: 'email.send', parameters: {} }],
+    connectionId: null,
+    sourceIds: [],
     ...overrides,
   }
 }
@@ -38,7 +58,14 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     reclaim: vi.fn(async () => 0),
     claim: vi.fn(async () => [job()]),
     getDefinition: vi.fn(async () => def()),
-    getLeadFacts: vi.fn(async () => ({ exists: true as const, email: 'dana@example.com', currentStatus: 'new', firstName: 'דנה', displayName: 'דנה לוי', handlerId: null })),
+    getLeadFacts: vi.fn(async () => ({
+      exists: true as const,
+      email: 'dana@example.com',
+      currentStatus: 'new',
+      firstName: 'דנה',
+      displayName: 'דנה לוי',
+      handlerId: null,
+    })),
     isSuppressed: vi.fn(async () => false),
     isBlocked: vi.fn(async () => false),
     claimState: vi.fn(async () => 'none' as const),
@@ -71,9 +98,17 @@ describe('log-mode happy path (the only reachable mode)', () => {
     expect(summary).toEqual({ claimed: 1, done: 1, skipped: 0, retried: 0, dead: 0 })
     expect(d.send).not.toHaveBeenCalled()
     const activity = calls(d.appendActivity)[0][0]
-    expect(activity).toMatchObject({ kind: 'would_send', mode: 'log', subject: 'שלום דנה', leadName: 'דנה לוי', contentSchemaVersion: 1 })
+    expect(activity).toMatchObject({
+      kind: 'would_send',
+      mode: 'log',
+      subject: 'שלום דנה',
+      leadName: 'דנה לוי',
+      contentSchemaVersion: 1,
+    })
     // Order: effect before confirm before complete.
-    const order = [d.appendActivity, d.confirmClaim, d.completeJob].map((f) => (f as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0])
+    const order = [d.appendActivity, d.confirmClaim, d.completeJob].map(
+      (f) => (f as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0],
+    )
     expect(order[0]).toBeLessThan(order[1])
     expect(order[1]).toBeLessThan(order[2])
   })
@@ -120,7 +155,11 @@ describe('definition-inert class (job-row only, no user-facing row)', () => {
   })
 
   it('unknown content version is held inert, never guessed', async () => {
-    const d = deps({ getDefinition: vi.fn(async () => def({ content: { schemaVersion: 99, subject: 's', body: 'b', timing: { kind: 'preset', preset: 'immediate' } } })) })
+    const d = deps({
+      getDefinition: vi.fn(async () =>
+        def({ content: { schemaVersion: 99, subject: 's', body: 'b', timing: { kind: 'preset', preset: 'immediate' } } }),
+      ),
+    })
     await runAutomationWorker({ deps: d })
     expect(d.skipJob).toHaveBeenCalledWith(1, 'definition_invalid_content')
     expect(d.appendActivity).not.toHaveBeenCalled()

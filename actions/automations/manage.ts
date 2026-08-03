@@ -15,6 +15,7 @@ import { isValidTiming, type Timing } from '@/lib/automations/timing'
 import { unknownTokens } from '@/lib/automations/variables'
 import type { TriggerType } from '@/lib/automations/types'
 import { getEvent } from '@/lib/automations/catalog/registry'
+import { sourceIdsFrom } from '@/lib/automations/binding'
 import { engineTriggerForEventKey } from '@/lib/automations/catalog/engineBridge'
 import { validateConditions, type Condition } from '@/lib/automations/conditions'
 
@@ -37,6 +38,8 @@ export type AutomationInput = {
   /** A CATALOG event key. The Builder no longer speaks the engine's vocabulary. */
   eventKey: string
   conditions: Condition[]
+  connectionId?: string | null
+  parameters?: Record<string, string>
   subject: string
   body: string
   timing: Timing
@@ -83,6 +86,8 @@ export async function createAutomation(input: AutomationInput): Promise<ManageRe
     targetStatus: null,
     sourceFilter: null,
     conditions: input.conditions ?? [],
+    connectionId: input.connectionId ?? null,
+    sourceIds: sourceIdsFrom(getEvent(input.eventKey), input.parameters),
     content: toContent(input),
     createdByUserId: user.id,
   })
@@ -103,6 +108,8 @@ export async function updateAutomation(id: number, input: AutomationInput): Prom
   await updateDefinitionContent(user.agencyId, id, {
     name: input.name.trim(),
     conditions: input.conditions ?? [],
+    connectionId: input.connectionId ?? null,
+    sourceIds: sourceIdsFrom(getEvent(input.eventKey), input.parameters),
     content: toContent(input),
   })
   revalidatePath(PATH)
@@ -142,6 +149,8 @@ export async function duplicateAutomation(id: number): Promise<ManageResult> {
     targetStatus: null,
     sourceFilter: null,
     conditions: existing.conditions,
+    connectionId: existing.connectionId,
+    sourceIds: existing.sourceIds,
     content: { subject: existing.content.subject, body: existing.content.body, timing: existing.content.timing },
     createdByUserId: user.id,
   })

@@ -8,6 +8,8 @@ import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
 import { AUTOMATION_RECIPES } from '@/lib/automations/recipes'
 import { listSelectableEvents } from '@/lib/automations/catalog/registry'
+import type { RequirementContext } from '@/lib/automations/requirements'
+import type { Connection } from '@/lib/automations/catalog/types'
 import { IDENTITY_PROBLEM_COPY, type IdentityProblem } from '@/lib/automations/identity'
 import { duplicateAutomation, setAutomationStatus } from '@/actions/automations/manage'
 import { listActivityForAutomationAction } from '@/actions/automations/activity'
@@ -32,6 +34,8 @@ const DRAFT_FROM_RECIPE = (key: string): SheetDraft | null => {
     recipeKey: r.key,
     eventKey: r.eventKey,
     conditions: [...r.conditions],
+    connectionId: null,
+    parameters: {},
     subject: r.subject,
     body: r.body,
     timing: r.timing,
@@ -44,12 +48,16 @@ const BLANK: SheetDraft = {
   recipeKey: null,
   eventKey: listSelectableEvents()[0]?.key ?? '',
   conditions: [],
+  connectionId: null,
+  parameters: {},
   subject: '',
   body: '',
   timing: { kind: 'preset', preset: 'immediate' },
 }
 
 type Props = {
+  requirementContext: RequirementContext
+  connections: Connection[]
   automations: AutomationCardData[]
   drafts: Record<number, SheetDraft>
   previewName: string | null
@@ -57,7 +65,15 @@ type Props = {
   observationMode: boolean
 }
 
-export default function AutomationsSettings({ automations, drafts, previewName, identityProblem, observationMode }: Props) {
+export default function AutomationsSettings({
+  requirementContext,
+  connections,
+  automations,
+  drafts,
+  previewName,
+  identityProblem,
+  observationMode,
+}: Props) {
   const router = useRouter()
   const [sheet, setSheet] = useState<SheetDraft | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<AutomationCardData | null>(null)
@@ -85,9 +101,7 @@ export default function AutomationsSettings({ automations, drafts, previewName, 
   return (
     <div className='max-w-3xl'>
       <h1 className='title'>אוטומציות</h1>
-      <p className='text-sm text-gray-500 mt-1 mb-4'>
-        אוטומציה שולחת אימייל לליד ברגע הנכון — גם כשאתם עסוקים.
-      </p>
+      <p className='text-sm text-gray-500 mt-1 mb-4'>אוטומציה שולחת אימייל לליד ברגע הנכון — גם כשאתם עסוקים.</p>
 
       {observationMode && (
         <p className='text-sm text-gray-600 border rounded-md bg-gray-50 p-3 mb-4'>
@@ -153,6 +167,8 @@ export default function AutomationsSettings({ automations, drafts, previewName, 
         <AutomationSheet
           draft={sheet}
           previewName={previewName}
+          requirementContext={requirementContext}
+          connections={connections}
           onClose={() => setSheet(null)}
           onSaved={() => {
             setSheet(null)

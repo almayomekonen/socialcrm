@@ -22,6 +22,8 @@ export type AutomationCardData = {
   subject: string
   timing: Timing
   counts: { sent: number; wouldSend: number; skipped: number; failed: number }
+  /** The bound connection is missing or unhealthy — never fails silently. */
+  connectionProblem?: boolean
 }
 
 const STATE: Record<Exclude<DefinitionStatus, 'deleted'>, { role: StatusRole; label: string }> = {
@@ -54,8 +56,10 @@ type Props = {
 }
 
 export default function AutomationCard({ data, busy, onEdit, onToggle, onDuplicate, onDelete, onActivity }: Props) {
-  const needsAttention = data.counts.failed > 0
-  const state = needsAttention ? { role: 'error' as StatusRole, label: 'דורש טיפול' } : STATE[data.status as 'active' | 'paused' | 'draft']
+  const needsAttention = data.counts.failed > 0 || data.connectionProblem === true
+  const state = needsAttention
+    ? { role: 'error' as StatusRole, label: 'דורש טיפול' }
+    : STATE[data.status as 'active' | 'paused' | 'draft']
   const line = activityLine(data.counts)
   const isActive = data.status === 'active'
 
@@ -73,6 +77,11 @@ export default function AutomationCard({ data, busy, onEdit, onToggle, onDuplica
               timing: data.timing,
             })}
           </p>
+          {data.connectionProblem && (
+            <p className='text-sm text-red-600' role='alert'>
+              החיבור שהאוטומציה הזו משתמשת בו אינו פעיל. יש לחדש אותו כדי שתמשיך לפעול.
+            </p>
+          )}
           {line && <p className='text-sm text-gray-500'>{line}</p>}
         </div>
         <StatusBadge role={state.role} label={state.label} size='sm' />

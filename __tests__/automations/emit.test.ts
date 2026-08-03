@@ -36,6 +36,8 @@ function definition(id: number, timing: unknown = { kind: 'preset', preset: 'imm
     createdByUserId: 1,
     conditions: [],
     actions: [{ actionKey: 'email.send', parameters: {} }],
+    connectionId: null,
+    sourceIds: [],
   }
 }
 

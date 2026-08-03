@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getDefinitionQuery,
-  listActiveDefinitionsForTriggerQuery,
-  listDefinitionsQuery,
-} from '@/db/automations/definitions'
+import { getDefinitionQuery, listActiveDefinitionsForTriggerQuery, listDefinitionsQuery } from '@/db/automations/definitions'
 import {
   countAutomatedTodayForAgencyQuery,
   countAutomatedTodayForLeadQuery,
@@ -35,6 +31,13 @@ describe('automation_definitions shapes', () => {
     expect(bindings).toContain('active')
     expect(bindings).toContain('lead_created')
     expect(bindings).toContain(7)
+  })
+
+  it('the connection binding is selected everywhere the Builder reads (B4)', () => {
+    for (const { sql } of [listDefinitionsQuery(7).toSQL(), getDefinitionQuery(7, 3).toSQL()]) {
+      expect(sql).toContain('connectionId')
+      expect(sql).toContain('sourceIds')
+    }
   })
 
   it('get is always agency-scoped (tenant isolation)', () => {

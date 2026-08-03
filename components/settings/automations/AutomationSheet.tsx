@@ -9,6 +9,9 @@ import { toast } from '@/lib/toast'
 import { substituteVariables, variableChipsForEvent } from '@/lib/automations/variables'
 import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
 import { getAction, getEvent, listAnchorFields, listSelectableEvents, listSubjects } from '@/lib/automations/catalog/registry'
+import { evaluateEvents, isSelectable, type RequirementContext } from '@/lib/automations/requirements'
+import type { Connection } from '@/lib/automations/catalog/types'
+import RemoteParameters from './RemoteParameters'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation, type AutomationInput } from '@/actions/automations/manage'
@@ -35,6 +38,8 @@ export type SheetDraft = {
   recipeKey: string | null
   eventKey: string
   conditions: Condition[]
+  connectionId: string | null
+  parameters: Record<string, string>
   subject: string
   body: string
   timing: Timing
@@ -43,17 +48,23 @@ export type SheetDraft = {
 export default function AutomationSheet({
   draft,
   previewName,
+  requirementContext,
+  connections,
   onClose,
   onSaved,
 }: {
   draft: SheetDraft
   previewName: string | null
+  requirementContext: RequirementContext
+  connections: readonly Connection[]
   onClose: () => void
   onSaved: () => void
 }) {
   const [name, setName] = useState(draft.name)
   const [eventKey, setEventKey] = useState(draft.eventKey)
   const [conditions, setConditions] = useState<Condition[]>(draft.conditions ?? [])
+  const [connectionId, setConnectionId] = useState<string | null>(draft.connectionId ?? null)
+  const [parameters, setParameters] = useState<Record<string, string>>(draft.parameters ?? {})
   const [subject, setSubject] = useState(draft.subject)
   const [body, setBody] = useState(draft.body)
   const [timing, setTiming] = useState<Timing>(draft.timing)
@@ -65,7 +76,8 @@ export default function AutomationSheet({
   const bodyRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const lastFocused = useRef<'subject' | 'body'>('body')
 
-  const events = listSelectableEvents()
+  const evaluated = useMemo(() => evaluateEvents(listSelectableEvents(), requirementContext), [requirementContext])
+  const events = evaluated.map((e) => e.event)
   const event = getEvent(eventKey)
   // V1 renders one action; the catalog already supports many.
   const action = getAction('email.send')
@@ -75,9 +87,16 @@ export default function AutomationSheet({
   /** Events grouped by their declared subject — the picker's only structure. */
   const grouped = useMemo(() => {
     return listSubjects()
-      .map((s) => ({ subject: s, items: events.filter((e) => e.subject === s.key) }))
+      .map((s) => ({ subject: s, items: evaluated.filter((e) => e.event.subject === s.key) }))
       .filter((g) => g.items.length > 0)
-  }, [events])
+  }, [evaluated])
+
+  /** The locked entry for the currently chosen event, if it is not runnable. */
+  const lockedRequirement = evaluated.find((e) => e.event.key === eventKey && e.availability.state === 'locked')
+  const locked = lockedRequirement?.availability.state === 'locked' ? lockedRequirement.availability.requirement : null
+
+  /** Connections this integration offers. Generic — no integration is named. */
+  const eligibleConnections = connections
 
   function insertToken(token: string) {
     const target = lastFocused.current
@@ -94,6 +113,8 @@ export default function AutomationSheet({
     recipeKey: draft.recipeKey,
     eventKey,
     conditions,
+    connectionId,
+    parameters,
     subject,
     body,
     timing,
@@ -137,7 +158,11 @@ export default function AutomationSheet({
             lbl='מתי זה צריך לקרות'
             options={grouped.map((g) => ({
               head: g.subject.title,
-              grp: g.items.map((e) => ({ id: e.key, name: e.title })),
+              grp: g.items.map((e) => ({
+                id: e.event.key,
+                // A locked event stays VISIBLE and says why (§4 Q5).
+                name: isSelectable(e.availability) ? e.event.title : `${e.event.title} — דורש חיבור`,
+              })),
             }))}
             value={eventKey}
             onChange={(e) => {
@@ -146,6 +171,30 @@ export default function AutomationSheet({
             }}
           />
           {event && <p className='text-sm text-gray-500 ms-1'>{event.description}</p>}
+
+          {locked && (
+            <div className='border border-amber-200 rounded-md bg-amber-50 p-3 grid gap-2' role='alert'>
+              <p className='text-sm text-amber-800'>האירוע הזה עדיין לא זמין בחשבון שלכם.</p>
+              {locked.cta && <Btn variant='outline' size='small' lbl={locked.cta.label} href={locked.cta.href} />}
+            </div>
+          )}
+
+          {eligibleConnections.length > 1 && (
+            <Select
+              lbl='חיבור'
+              options={eligibleConnections.map((c) => ({ id: c.id, name: c.displayName }))}
+              value={connectionId ?? ''}
+              onChange={(e) => setConnectionId(e.target.value || null)}
+            />
+          )}
+
+          {/* Event parameters — rendered generically from catalog metadata. */}
+          <RemoteParameters
+            parameters={event?.parameters ?? []}
+            connectionId={connectionId ?? eligibleConnections[0]?.id ?? null}
+            values={parameters}
+            onChange={setParameters}
+          />
         </section>
 
         <Seperator className='my-0' />
@@ -197,9 +246,7 @@ export default function AutomationSheet({
             ))}
           </div>
           {anchors.length > 0 && (
-            <p className='text-sm text-gray-500 ms-1'>
-              אפשר גם לתזמן ביחס ל{anchors.map((a) => a.label).join(' / ')}.
-            </p>
+            <p className='text-sm text-gray-500 ms-1'>אפשר גם לתזמן ביחס ל{anchors.map((a) => a.label).join(' / ')}.</p>
           )}
           <p className='text-sm text-gray-500 ms-1'>{TIMING_ACCURACY_COPY}</p>
         </section>
@@ -208,9 +255,7 @@ export default function AutomationSheet({
 
         {/* Preview is driven by the ACTION's declared preview shape. */}
         <section className='grid gap-2'>
-          <h3 className='text-sm font-semibold text-gray-800'>
-            כך זה ייראה{previewName ? ` אצל ${previewName}` : ''}
-          </h3>
+          <h3 className='text-sm font-semibold text-gray-800'>כך זה ייראה{previewName ? ` אצל ${previewName}` : ''}</h3>
           <div className='border rounded-md bg-gray-50 p-4 grid gap-2'>
             {action?.preview === 'email' && (
               <>
@@ -221,12 +266,8 @@ export default function AutomationSheet({
             {action?.preview === 'message' && (
               <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
             )}
-            {action?.preview === 'record' && (
-              <p className='text-sm text-gray-600'>{previewSubject || 'רשומה חדשה'}</p>
-            )}
-            {(!action || action.preview === 'none') && (
-              <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>
-            )}
+            {action?.preview === 'record' && <p className='text-sm text-gray-600'>{previewSubject || 'רשומה חדשה'}</p>}
+            {(!action || action.preview === 'none') && <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>}
           </div>
         </section>
 
@@ -235,7 +276,7 @@ export default function AutomationSheet({
             lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור אוטומציה'}
             icon={pending ? 'spinner' : 'floppy-disk'}
             iconClassName={pending ? 'animate-spin' : undefined}
-            disabled={pending || testing}
+            disabled={pending || testing || !!locked}
             className='w-full'
             onClick={save}
           />

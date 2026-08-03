@@ -6,6 +6,9 @@ import { automationSentence, triggerPhrase } from '@/lib/automations/sentence'
 import { variableChipsForEvent } from '@/lib/automations/variables'
 import { listActionsForEvent, listAnchorFields, catalog } from '@/lib/automations/catalog/registry'
 import { getAction } from '@/lib/automations/catalog/registry'
+import { evaluateEvent, evaluateEvents } from '@/lib/automations/requirements'
+import { optionsFor } from '@/lib/automations/connectors/resolve'
+import type { ConnectionProvider } from '@/lib/automations/connectors/types'
 
 /**
  * B3 PROOF: adding a new Event requires ONLY a catalog entry.
@@ -48,7 +51,12 @@ const APPOINTMENT_BOOKED: EventDefinition = {
 
 describe('a brand-new event needs only a catalog entry', () => {
   it('validates against the frozen schema', () => {
-    expect(validateEvent(APPOINTMENT_BOOKED, catalog.subjects.map((s) => s.key))).toEqual([])
+    expect(
+      validateEvent(
+        APPOINTMENT_BOOKED,
+        catalog.subjects.map((s) => s.key),
+      ),
+    ).toEqual([])
   })
 
   it('produces its own condition fields, with operators derived from each type', () => {
@@ -60,10 +68,8 @@ describe('a brand-new event needs only a catalog entry', () => {
     expect(operatorsForField(findField(APPOINTMENT_BOOKED, 'startsAt')!)).toContain('before')
   })
 
-  it('renders condition values using the field\'s own declared option labels', () => {
-    expect(describeCondition(APPOINTMENT_BOOKED, { field: 'kind', operator: 'is', value: 'demo' })).toBe(
-      'סוג הפגישה הוא "הדגמה"',
-    )
+  it("renders condition values using the field's own declared option labels", () => {
+    expect(describeCondition(APPOINTMENT_BOOKED, { field: 'kind', operator: 'is', value: 'demo' })).toBe('סוג הפגישה הוא "הדגמה"')
   })
 
   it('offers a TIMING ANCHOR automatically — the datetime field lights it up', () => {
@@ -102,5 +108,56 @@ describe('a brand-new event needs only a catalog entry', () => {
     const req = APPOINTMENT_BOOKED.requirements[0]
     expect(req.type).toBe('connection')
     expect(req.cta?.href).toBeTruthy()
+  })
+})
+
+/**
+ * B4 EXTENSION OF THE SAME PROOF: the requirement this event declares, and the
+ * remote parameter it declares, are both honoured by generic runtime code that
+ * has never heard of a calendar.
+ */
+describe('B4 — the same catalog entry drives requirements and remote parameters', () => {
+  const ctx = (caps: string[] = []) => ({
+    capabilities: new Set(caps),
+    entitlements: new Set<string>(),
+    flags: new Set<string>(),
+  })
+
+  it('is LOCKED with the catalog-declared CTA until its connection exists', () => {
+    const availability = evaluateEvent(APPOINTMENT_BOOKED, ctx())
+    expect(availability.state).toBe('locked')
+    expect(availability.state === 'locked' && availability.requirement.cta).toEqual({
+      label: 'חבר יומן',
+      href: '/settings/calendar',
+    })
+  })
+
+  it('becomes available the moment the capability is present — no Builder change', () => {
+    expect(evaluateEvent(APPOINTMENT_BOOKED, ctx(['calendar'])).state).toBe('available')
+  })
+
+  it('stays visible while locked — a locked event is explained, never hidden', () => {
+    const shown = evaluateEvents([APPOINTMENT_BOOKED], ctx())
+    expect(shown.map((e) => e.event.key)).toEqual(['appointment.booked'])
+  })
+
+  it('its enum_remote parameter resolves through the generic option provider', async () => {
+    const provider: ConnectionProvider = {
+      integrationKey: 'gamma',
+      capabilities: ['calendar'],
+      async listConnections() {
+        return []
+      },
+      async listSources() {
+        return []
+      },
+      async options(_agencyId, _connectionId, optionSource) {
+        return optionSource === 'calendars' ? [{ id: 'cal_1', label: 'יומן ראשי' }] : []
+      },
+    }
+    const parameter = APPOINTMENT_BOOKED.parameters[0]
+    const options = await optionsFor([provider], 1, 'gamma:1', parameter.optionSource!)
+    // The stored value is the STABLE id; the label is display only.
+    expect(options).toEqual([{ id: 'cal_1', label: 'יומן ראשי' }])
   })
 })

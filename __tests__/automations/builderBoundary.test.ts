@@ -37,7 +37,16 @@ const INTEGRATION_NAMES = [
 ]
 
 /** Module paths Builder code may never import. */
-const FORBIDDEN_IMPORTS = ['lib/connectors', 'lib/facebook', 'lib/whatsapp', 'lib/system']
+const FORBIDDEN_IMPORTS = [
+  'lib/connectors',
+  'lib/facebook',
+  'lib/whatsapp',
+  'lib/system',
+  // B4: the connector layer itself. The Builder reaches Connections ONLY
+  // through the generic server actions, never through a provider module —
+  // otherwise "the Builder renders metadata" quietly becomes false.
+  'lib/automations/connectors',
+]
 
 /**
  * LEGACY EXEMPTIONS — EMPTY as of B3, permanently.
@@ -106,6 +115,31 @@ describe('Law 1 — the Builder never becomes integration-aware', () => {
           violations.push(`${relative(file)} → ${spec[1]}`)
         }
       }
+    }
+    expect(violations).toEqual([])
+  })
+})
+
+describe('B4 — the Connection layer did not leak into the Builder', () => {
+  it('Builder files exist for the B4 surfaces and are covered by the guard above', () => {
+    const covered = builderFiles().map(relative)
+    for (const f of [
+      'components/settings/automations/RemoteParameters.tsx',
+      'components/settings/automations/AutomationSheet.tsx',
+      'components/settings/automations/AutomationCard.tsx',
+    ]) {
+      expect(covered, `${f} must be inside a guarded Builder directory`).toContain(f)
+    }
+  })
+
+  it('no Builder file names an option source, a capability or a provider', () => {
+    // These are catalog/connector vocabulary. If one appears in Builder code,
+    // the Builder has learned what it is rendering.
+    const LEAKS = ['phone_numbers', 'whatsapp_connected', 'wabaId', 'phoneNumberId']
+    const violations: string[] = []
+    for (const file of builderFiles()) {
+      const code = codeOnly(fs.readFileSync(file, 'utf8'))
+      for (const leak of LEAKS) if (code.includes(leak)) violations.push(`${relative(file)} → ${leak}`)
     }
     expect(violations).toEqual([])
   })

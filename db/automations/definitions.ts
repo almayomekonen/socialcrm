@@ -46,6 +46,10 @@ export interface AutomationDefinition {
   conditions: Condition[]
   /** List shape; execution remains single-action until B5. */
   actions: AutomationActionEntry[]
+  /** Stable connector identity, never a label. Null = not connection-bound. */
+  connectionId: string | null
+  /** Stable source identities within that connection. */
+  sourceIds: string[]
 }
 
 const COLUMNS: string[] = [
@@ -62,6 +66,8 @@ const COLUMNS: string[] = [
   'createdByUserId',
   'conditions',
   'actions',
+  'connectionId',
+  'sourceIds',
 ]
 
 export function listDefinitionsQuery(agencyId: number) {
@@ -87,7 +93,7 @@ function normalise(row: AutomationDefinition): AutomationDefinition {
     row.actions && row.actions.length > 0
       ? row.actions
       : [{ actionKey: 'email.send', parameters: { subject: row.content?.subject ?? '', body: row.content?.body ?? '' } }]
-  return { ...row, conditions, actions }
+  return { ...row, conditions, actions, sourceIds: row.sourceIds ?? [] }
 }
 
 export async function listDefinitions(agencyId: number): Promise<AutomationDefinition[]> {
@@ -144,6 +150,8 @@ export async function createDefinition(input: {
   content: Omit<DefinitionContent, 'schemaVersion'>
   createdByUserId: number
   conditions?: Condition[]
+  connectionId?: string | null
+  sourceIds?: string[]
 }): Promise<AutomationDefinition> {
   const content: DefinitionContent = { ...input.content, schemaVersion: CONTENT_SCHEMA_VERSION }
   const conditions = input.conditions ?? []
@@ -162,9 +170,9 @@ export async function createDefinition(input: {
       content: JSON.stringify(content),
       createdByUserId: input.createdByUserId,
       conditions: JSON.stringify(conditions),
-      actions: JSON.stringify([
-        { actionKey: 'email.send', parameters: { subject: content.subject, body: content.body } },
-      ]),
+      connectionId: input.connectionId ?? null,
+      sourceIds: JSON.stringify(input.sourceIds ?? []),
+      actions: JSON.stringify([{ actionKey: 'email.send', parameters: { subject: content.subject, body: content.body } }]),
     })
     .returning(COLUMNS)
   return row as AutomationDefinition
@@ -176,6 +184,8 @@ export async function updateDefinitionContent(
   patch: {
     name?: string
     conditions?: Condition[]
+    connectionId?: string | null
+    sourceIds?: string[]
     content?: Omit<DefinitionContent, 'schemaVersion'>
   },
 ): Promise<void> {
@@ -188,6 +198,8 @@ export async function updateDefinitionContent(
     update.targetStatus = legacy.targetStatus
     update.sourceFilter = legacy.sourceFilter
   }
+  if (patch.connectionId !== undefined) update.connectionId = patch.connectionId
+  if (patch.sourceIds !== undefined) update.sourceIds = JSON.stringify(patch.sourceIds)
   if (patch.content !== undefined) {
     update.content = JSON.stringify({ ...patch.content, schemaVersion: CONTENT_SCHEMA_VERSION })
     update.actions = JSON.stringify([
