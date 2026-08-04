@@ -135,7 +135,9 @@ describe('email rendering contract — typography is declared, never inherited (
   it('declares colour and font on links, which clients restyle (TYP-8)', async () => {
     const { html } = await render(HEBREW_BODY)
     const { root } = deliver(html, FIRST_CLASS_CLIENTS[0])
-    const links = root.querySelectorAll<HTMLElement>('a')
+    // Links inside copy only. A filled button is already distinguishable from
+    // its surroundings and must not be underlined.
+    const links = root.querySelectorAll<HTMLElement>('p a')
     expect(links.length).toBeGreaterThan(0)
     for (const link of links) {
       expect(declared(link, 'color'), 'link with no declared colour').not.toBe('')
@@ -202,6 +204,94 @@ describe('email rendering contract — spacing is portable (SPC-1, SPC-2)', () =
     expect(tables.length).toBeGreaterThan(0)
     for (const table of tables) {
       expect(declared(table, 'padding'), 'padding on <table> is ignored by the Word engine').toBe('')
+    }
+  })
+})
+
+describe('email rendering contract — the signature is a block (SIG-2, SIG-3)', () => {
+  it('never glues adjacent variable values together (SIG-2)', async () => {
+    // The production defect: three chips inserted against each other.
+    const { html, text } = await render('שלום דנה,\n\nגוף.\n\nבברכה,\n{{שם העסק}}{{שם העסק}}')
+    expect(html).not.toContain('סטודיו אורסטודיו אור')
+    expect(text).not.toContain('סטודיו אורסטודיו אור')
+    expect(text).toContain('סטודיו אור סטודיו אור')
+  })
+
+  it('gives the sign-off its own typographic treatment (SIG-3)', async () => {
+    const { html } = await render(HEBREW_BODY)
+    const { blockTextBlocks } = deliver(html, APPLE_MAIL)
+    const signature = blockTextBlocks.find((b) => (b.textContent ?? '').startsWith('בברכה'))
+    const body = blockTextBlocks.find((b) => (b.textContent ?? '').startsWith('תודה שפנית'))
+    expect(signature, 'no signature block found').toBeDefined()
+    expect(body).toBeDefined()
+    // Distinguished from body copy by something — size, weight, or leading.
+    const differs =
+      declared(signature!, 'font-size') !== declared(body!, 'font-size') ||
+      declared(signature!, 'line-height') !== declared(body!, 'line-height') ||
+      signature!.querySelector('strong') !== null
+    expect(differs, 'signature is styled identically to body copy').toBe(true)
+  })
+
+  it('isolates interpolated values so punctuation cannot reorder (RTL-4)', async () => {
+    const { html } = await render(HEBREW_BODY)
+    const { root } = deliver(html, APPLE_MAIL)
+    // The footer interpolates a business name into a Hebrew sentence — a
+    // directional run that needs isolating.
+    expect(root.querySelectorAll('bdi').length).toBeGreaterThan(0)
+  })
+
+  it('treats a mid-body sign-off word as ordinary copy, not a signature', async () => {
+    const { html } = await render('שלום דנה,\n\nתודה שפנית אלינו והכול התקבל.\n\nנחזור אליך בהקדם.')
+    const { blockTextBlocks } = deliver(html, APPLE_MAIL)
+    const midBody = blockTextBlocks.find((b) => (b.textContent ?? '').startsWith('תודה שפנית'))
+    const last = blockTextBlocks.find((b) => (b.textContent ?? '').startsWith('נחזור אליך'))
+    expect(midBody).toBeDefined()
+    expect(declared(midBody!, 'font-size')).toBe(declared(last!, 'font-size'))
+  })
+})
+
+describe('email rendering contract — the optional CTA block (UX-3)', () => {
+  const ACTION = { label: 'לקביעת שיחה', url: 'https://example.co.il/book' }
+
+  it('renders nothing at all when there is no action', async () => {
+    const { html } = await render(HEBREW_BODY)
+    const { root } = deliver(html, APPLE_MAIL)
+    expect(root.querySelectorAll('a[href*="book"]').length).toBe(0)
+  })
+
+  it('renders a bulletproof button when the action is present', async () => {
+    const rendered = await renderAutomationEmail({
+      subject: 'נושא',
+      body: HEBREW_BODY,
+      vars: VARS,
+      unsubscribeUrl: UNSUBSCRIBE,
+      action: ACTION,
+    })
+    const { root } = deliver(rendered.html, APPLE_MAIL)
+    const link = root.querySelector<HTMLElement>('a[href="https://example.co.il/book"]')
+    expect(link, 'no CTA link rendered').not.toBeNull()
+    expect(link!.textContent).toContain('לקביעת שיחה')
+    // Colour and padding belong to the cell: Outlook drops padding on an anchor,
+    // which would leave a bare coloured word.
+    const cell = link!.closest('td') as HTMLElement
+    expect(declared(cell, 'background-color')).not.toBe('')
+    expect(declared(cell, 'padding')).not.toBe('')
+    expect(declared(link!, 'text-decoration')).toBe('none')
+    // And it must be reachable in a text-only client.
+    expect(rendered.text).toContain('https://example.co.il/book')
+  })
+
+  it('ignores a half-filled action — it is one block, not two fields', async () => {
+    for (const partial of [{ label: 'לקביעת שיחה', url: '' }, { label: '', url: 'https://example.co.il/book' }]) {
+      const rendered = await renderAutomationEmail({
+        subject: 'נושא',
+        body: HEBREW_BODY,
+        vars: VARS,
+        unsubscribeUrl: UNSUBSCRIBE,
+        action: partial,
+      })
+      const { root } = deliver(rendered.html, APPLE_MAIL)
+      expect(root.querySelectorAll('a[href*="book"]').length).toBe(0)
     }
   })
 })

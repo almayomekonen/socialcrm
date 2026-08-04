@@ -96,6 +96,12 @@ export default async function AutomationsSettingsPage() {
       parameters: {},
       subject: d.content?.subject ?? '',
       body: d.content?.body ?? '',
+      // Both halves or no block — rows written before the CTA existed have
+      // neither, and a half-filled pair is not a block.
+      cta:
+        d.content?.ctaLabel && d.content?.ctaUrl
+          ? { label: d.content.ctaLabel, url: d.content.ctaUrl }
+          : null,
       timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },
     }
   }

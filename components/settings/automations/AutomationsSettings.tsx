@@ -38,6 +38,9 @@ const DRAFT_FROM_RECIPE = (key: string): SheetDraft | null => {
     parameters: {},
     subject: r.subject,
     body: r.body,
+    // Recipes ship no CTA: the starter content is plain copy, and the block is
+    // something the customer chooses to add.
+    cta: null,
     timing: r.timing,
   }
 }
@@ -52,6 +55,7 @@ const BLANK: SheetDraft = {
   parameters: {},
   subject: '',
   body: '',
+  cta: null,
   timing: { kind: 'preset', preset: 'immediate' },
 }
 

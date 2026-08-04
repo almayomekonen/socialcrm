@@ -50,6 +50,17 @@ export type EmailDeps = {
  */
 const RESOLVABLE_FIELDS = ['leadFirstName', 'businessName', 'repName'] as const
 
+/**
+ * The optional CTA action block, read out of the stored parameters. One block:
+ * both halves or nothing, so a label without a destination renders no button
+ * rather than a dead one.
+ */
+const actionFrom = (parameters: Record<string, unknown>) => {
+  const label = asText(parameters.ctaLabel).trim()
+  const url = asText(parameters.ctaUrl).trim()
+  return label && url ? { label, url } : null
+}
+
 const asText = (value: unknown): string => (typeof value === 'string' ? value : '')
 const asVar = (value: unknown): string | null => (typeof value === 'string' ? value : null)
 
@@ -110,6 +121,7 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       body: asText(ctx.parameters.body),
       vars: varsFrom(ctx.subject, ready.identity?.displayName ?? ready.businessName),
       unsubscribeUrl: leadUnsubscribeUrl(baseUrl, ctx.agencyId, ctx.leadId),
+      action: actionFrom(ctx.parameters),
     })
 
     // The recipient is whatever the action's `requires: ['email']` resolved to
@@ -172,6 +184,8 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       unsubscribeUrl: `${baseUrl}/api/automations/unsubscribe?a=${target.agencyId}&l=0&t=${encodeURIComponent(
         signLeadUnsubscribe(target.agencyId, 0),
       )}`,
+      // The test send carries the CTA too, or it would not be the same email.
+      action: actionFrom(parameters),
     })
 
     const res = await deps.send({

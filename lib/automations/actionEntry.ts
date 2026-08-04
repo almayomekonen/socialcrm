@@ -55,11 +55,29 @@ export function actionParameters(def: DefinitionLike): Record<string, unknown> {
  * Owner: the Action Executor work. Removal: when `content` stops being the
  * authored surface (see docs/customer-automation-compatibility-audit.md).
  */
-export function actionParametersFromContent(content: { subject: string; body: string }): Record<string, unknown> {
-  return { subject: content.subject, body: content.body }
+export function actionParametersFromContent(content: AuthoredContent): Record<string, unknown> {
+  const parameters: Record<string, unknown> = { subject: content.subject, body: content.body }
+  // The optional CTA block. Projected only when BOTH halves are present: it is
+  // one block, so a half-filled pair is no block at all rather than a button
+  // with no destination.
+  const label = content.ctaLabel?.trim()
+  const url = content.ctaUrl?.trim()
+  if (label && url) {
+    parameters.ctaLabel = label
+    parameters.ctaUrl = url
+  }
+  return parameters
+}
+
+/** The authored surface this projection reads. */
+export type AuthoredContent = {
+  subject: string
+  body: string
+  ctaLabel?: string | null
+  ctaUrl?: string | null
 }
 
 /** The stored actions list for a content document — the writers' single form. */
-export function actionsForContent(actionKey: string, content: { subject: string; body: string }): ActionEntryLike[] {
+export function actionsForContent(actionKey: string, content: AuthoredContent): ActionEntryLike[] {
   return [{ actionKey, parameters: actionParametersFromContent(content) }]
 }

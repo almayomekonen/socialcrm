@@ -24,6 +24,14 @@ export type DefinitionContent = {
   subject: string
   body: string
   timing: Timing
+  /**
+   * The optional CTA action block. Additive jsonb fields inside the existing
+   * `content` document — no migration, and rows written before the block
+   * existed simply have neither. Both or neither; a half-filled pair renders
+   * nothing.
+   */
+  ctaLabel?: string | null
+  ctaUrl?: string | null
 }
 
 export type DefinitionStatus = 'draft' | 'active' | 'paused' | 'deleted'

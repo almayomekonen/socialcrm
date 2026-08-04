@@ -22,7 +22,14 @@ import { unknownTokensFor } from '@/lib/automations/variables'
 
 export type SendTestResult = { ok: true } | { ok: false; reason: string }
 
-export async function sendTestEmail(input: { subject: string; body: string; actionKey?: string }): Promise<SendTestResult> {
+export async function sendTestEmail(input: {
+  subject: string
+  body: string
+  /** The optional CTA action block, so the test send matches a real one. */
+  ctaLabel?: string | null
+  ctaUrl?: string | null
+  actionKey?: string
+}): Promise<SendTestResult> {
   const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) return { ok: false, reason: 'not_available' }
@@ -46,8 +53,14 @@ export async function sendTestEmail(input: { subject: string; body: string; acti
     return { ok: false, reason: 'unknown_variable' }
   }
 
+  const ctaLabel = input.ctaLabel?.trim() ?? ''
+  const ctaUrl = input.ctaUrl?.trim() ?? ''
+  if (ctaLabel && unknownTokensFor(resolvable, ctaLabel).length) return { ok: false, reason: 'unknown_variable' }
+
   return executor.test(
-    { subject: input.subject, body: input.body },
+    // Parameters are the action's own business: this passes the authored values
+    // through and stays ignorant of what a CTA means.
+    { subject: input.subject, body: input.body, ctaLabel, ctaUrl },
     { agencyId: user.agencyId, toName: user.name ?? null, address: user.email },
     executor.defaultDeps(),
   )

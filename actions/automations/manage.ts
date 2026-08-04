@@ -16,6 +16,7 @@ import { unknownTokensFor } from '@/lib/automations/variables'
 import { resolvableFieldsFor } from '@/lib/automations/executors/registry'
 import type { TriggerType } from '@/lib/automations/types'
 import { getEvent, listActionsForEvent } from '@/lib/automations/catalog/registry'
+import { checkParameter } from '@/lib/automations/catalog/parameterRules'
 import { sourceIdsFrom } from '@/lib/automations/binding'
 import { actionKeyFor } from '@/lib/automations/actionEntry'
 import { engineTriggerForEventKey } from '@/lib/automations/catalog/engineBridge'
@@ -44,6 +45,9 @@ export type AutomationInput = {
   parameters?: Record<string, string>
   subject: string
   body: string
+  /** The optional CTA action block — both halves, or neither. */
+  ctaLabel?: string | null
+  ctaUrl?: string | null
   timing: Timing
 }
 
@@ -76,11 +80,40 @@ function validate(input: AutomationInput): string | null {
   if (unknownTokensFor(resolvable, input.subject).length || unknownTokensFor(resolvable, input.body).length) {
     return 'unknown_variable'
   }
+  const ctaIssue = validateCta(input, actionKey, resolvable)
+  if (ctaIssue) return ctaIssue
+  return null
+}
+
+/**
+ * The CTA is ONE optional block, so it is validated as one: present means both
+ * halves, absent means neither. A label with no destination is the failure mode
+ * this prevents.
+ */
+function validateCta(input: AutomationInput, actionKey: string, resolvable: readonly string[]): string | null {
+  const label = input.ctaLabel?.trim() ?? ''
+  const url = input.ctaUrl?.trim() ?? ''
+  if (!label && !url) return null
+  if (!label || !url) return 'cta_incomplete'
+  // Bounds and URL shape come from the catalog declaration, so there is one
+  // source of truth for what the Builder shows and what the server enforces.
+  if (checkParameter(actionKey, 'ctaLabel', label)) return 'cta_label_invalid'
+  if (checkParameter(actionKey, 'ctaUrl', url)) return 'cta_url_invalid'
+  if (unknownTokensFor(resolvable, label).length) return 'unknown_variable'
   return null
 }
 
 function toContent(input: AutomationInput): Omit<DefinitionContent, 'schemaVersion'> {
-  return { subject: input.subject.trim(), body: input.body.trim(), timing: input.timing }
+  const label = input.ctaLabel?.trim() ?? ''
+  const url = input.ctaUrl?.trim() ?? ''
+  const hasCta = Boolean(label && url)
+  return {
+    subject: input.subject.trim(),
+    body: input.body.trim(),
+    timing: input.timing,
+    ctaLabel: hasCta ? label : null,
+    ctaUrl: hasCta ? url : null,
+  }
 }
 
 /**

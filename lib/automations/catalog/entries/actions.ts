@@ -31,6 +31,28 @@ export const ACTION_ENTRIES: readonly ActionDefinition[] = [
         label: 'תוכן האימייל',
         validation: { required: true },
       },
+      /**
+       * The optional CTA action block. ONE block in product terms — the Builder
+       * adds and removes the pair together, and the renderer draws a button only
+       * when both halves are present. Neither is required on its own.
+       *
+       * `text` + a serialised `pattern` rather than a new `url` parameter type:
+       * validation is data (§3.7), and no integration may introduce a type
+       * (Law 4). https only — an email button is not a place to downgrade.
+       */
+      {
+        key: 'ctaLabel',
+        type: 'text',
+        label: 'טקסט הכפתור',
+        help: 'למשל: לקביעת שיחה',
+        validation: { maxLength: 40 },
+      },
+      {
+        key: 'ctaUrl',
+        type: 'text',
+        label: 'קישור הכפתור',
+        validation: { pattern: '^https://[^\\s]+$' },
+      },
     ],
     /**
      * Exactly the laws decideSend applies to an email send today:

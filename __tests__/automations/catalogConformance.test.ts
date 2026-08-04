@@ -124,10 +124,19 @@ describe('CONFORMANCE — action vocabulary matches the engine exactly', () => {
 
   it('parameter declarations match the Builder inputs in production', () => {
     const params = getAction('email.send')?.parameters ?? []
-    expect(params.map((p) => p.key)).toEqual(['subject', 'body'])
+    expect(params.map((p) => p.key)).toEqual(['subject', 'body', 'ctaLabel', 'ctaUrl'])
     // The shipped sheet caps the subject at 120 characters.
     expect(params.find((p) => p.key === 'subject')?.validation?.maxLength).toBe(120)
-    expect(params.every((p) => p.validation?.required)).toBe(true)
+    // Content is required; the CTA block is optional, and neither half is
+    // required ON ITS OWN — the pair is enforced together in manage.ts, because
+    // "required" cannot express "both or neither".
+    expect(params.filter((p) => p.validation?.required).map((p) => p.key)).toEqual(['subject', 'body'])
+    expect(params.find((p) => p.key === 'ctaLabel')?.validation?.maxLength).toBe(40)
+    // https only — an email button is not a place to downgrade the scheme.
+    const urlPattern = params.find((p) => p.key === 'ctaUrl')?.validation?.pattern
+    expect(urlPattern).toBeDefined()
+    expect(new RegExp(urlPattern!).test('https://example.co.il/book')).toBe(true)
+    expect(new RegExp(urlPattern!).test('http://example.co.il/book')).toBe(false)
   })
 })
 

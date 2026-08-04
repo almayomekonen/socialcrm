@@ -19,6 +19,26 @@ import { COLOR, FONT_STACK, SPACE, TYPE, alignFor, resolveDirection, type Direct
 
 export type BlockRole = 'greeting' | 'body' | 'signature' | 'footer'
 
+/**
+ * Author lines joined by REAL break markup.
+ *
+ * `white-space: pre-line` is not a line break: Outlook desktop and Outlook.com
+ * drop the declaration, which is what collapsed a multi-line signature into a
+ * single line in production.
+ */
+export function Lines(props: { lines: string[]; emphasiseAfterFirst?: boolean }) {
+  return (
+    <>
+      {props.lines.map((line, i) => (
+        <React.Fragment key={i}>
+          {i > 0 ? <br /> : null}
+          {props.emphasiseAfterFirst && i > 0 ? <strong style={{ fontWeight: 600 }}>{line}</strong> : line}
+        </React.Fragment>
+      ))}
+    </>
+  )
+}
+
 const ROLE_TYPE = {
   greeting: TYPE.greeting,
   body: TYPE.body,
@@ -77,6 +97,63 @@ export function TextBlock(props: {
     >
       {props.children}
     </p>
+  )
+}
+
+/**
+ * The optional primary action — a bulletproof button.
+ *
+ * The colour and padding live on the `<td>`, not on the `<a>`: Outlook drops
+ * padding on an anchor, which would leave a bare coloured word. The label is
+ * bidi-isolated so a Hebrew label beside an LTR business name cannot reorder.
+ */
+export function ActionButton(props: { label: string; url: string }) {
+  const dir = resolveDirection(props.label)
+  return (
+    <table
+      role="presentation"
+      border={0}
+      cellPadding={0}
+      cellSpacing={0}
+      align={alignFor(dir) === 'right' ? 'right' : 'left'}
+      style={{ borderCollapse: 'separate' }}
+    >
+      <tbody>
+        <tr>
+          <td
+            align="center"
+            // `bgcolor` is absent from React's <td> types but is the attribute
+            // the Word engine honours most reliably. Worth keeping: a button
+            // that loses its background renders a white label on white.
+            {...({ bgcolor: COLOR.light.accent } as Record<string, string>)}
+            style={{
+              backgroundColor: COLOR.light.accent,
+              borderRadius: '8px',
+              padding: '14px 30px',
+            }}
+          >
+            <a
+              href={props.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              dir={dir}
+              style={{
+                display: 'inline-block',
+                color: COLOR.light.accentText,
+                fontFamily: FONT_STACK,
+                fontSize: TYPE.action.size,
+                lineHeight: TYPE.action.lineHeight,
+                fontWeight: 600,
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <bdi>{props.label}</bdi>
+            </a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   )
 }
 

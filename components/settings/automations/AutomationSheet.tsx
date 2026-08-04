@@ -19,6 +19,7 @@ import {
 import { evaluateEvents, isSelectable, type RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
 import RemoteParameters from './RemoteParameters'
+import AutomationContentSection, { type CtaDraft } from './AutomationContentSection'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation, type AutomationInput } from '@/actions/automations/manage'
@@ -49,6 +50,8 @@ export type SheetDraft = {
   parameters: Record<string, string>
   subject: string
   body: string
+  /** The optional CTA block; null when the email has none. */
+  cta: CtaDraft | null
   timing: Timing
 }
 
@@ -74,6 +77,7 @@ export default function AutomationSheet({
   const [parameters, setParameters] = useState<Record<string, string>>(draft.parameters ?? {})
   const [subject, setSubject] = useState(draft.subject)
   const [body, setBody] = useState(draft.body)
+  const [cta, setCta] = useState<CtaDraft | null>(draft.cta ?? null)
   const [timing, setTiming] = useState<Timing>(draft.timing)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -143,7 +147,14 @@ export default function AutomationSheet({
     const value = target === 'subject' ? subject : body
     const set = target === 'subject' ? setSubject : setBody
     const at = el?.selectionStart ?? value.length
-    set(`${value.slice(0, at)}{{${token}}}${value.slice(at)}`)
+    const before = value.slice(0, at)
+    const after = value.slice(at)
+    // Inserting a chip against another one produced `{{שם העסק}}{{שם העסק}}`,
+    // which rendered as one run-together name in the real email. A chip always
+    // lands separated from its neighbours.
+    const lead = before.endsWith('}}') ? ' ' : ''
+    const trail = after.startsWith('{{') ? ' ' : ''
+    set(`${before}${lead}{{${token}}}${trail}${after}`)
     queueMicrotask(() => el?.focus())
   }
 
@@ -156,6 +167,10 @@ export default function AutomationSheet({
     parameters,
     subject,
     body,
+    // One block: an incomplete pair is sent as no block, matching what the
+    // renderer would draw.
+    ctaLabel: cta?.label?.trim() ? cta.label.trim() : null,
+    ctaUrl: cta?.url?.trim() ? cta.url.trim() : null,
     timing,
   })
 
@@ -172,7 +187,12 @@ export default function AutomationSheet({
   function test() {
     setError(null)
     startTest(async () => {
-      const res = await sendTestEmail({ subject, body })
+      const res = await sendTestEmail({
+        subject,
+        body,
+        ctaLabel: cta?.label ?? null,
+        ctaUrl: cta?.url ?? null,
+      })
       if (res.ok === false) return setError(msg(res.reason))
       toast('success', 'אימייל הבדיקה נשלח אליך')
     })
@@ -248,32 +268,20 @@ export default function AutomationSheet({
 
         <Seperator className='my-0' />
 
-        <section className='grid gap-3'>
-          <h3 className='text-sm font-semibold text-gray-800'>{action ? action.title : 'פעולה'}</h3>
-          <Input
-            ref={subjectRef}
-            lbl='נושא האימייל'
-            value={subject}
-            onFocus={() => (lastFocused.current = 'subject')}
-            onChange={(e) => setSubject(e.target.value)}
-            maxLength={120}
-          />
-          <Input
-            ref={bodyRef}
-            as='textarea'
-            lbl='תוכן האימייל'
-            value={body}
-            rows={8}
-            onFocus={() => (lastFocused.current = 'body')}
-            onChange={(e) => setBody(e.target.value)}
-          />
-          <div className='flex flex-wrap items-center gap-2'>
-            <span className='text-sm text-gray-500'>הוספת פרטים:</span>
-            {chips.map((c) => (
-              <Btn key={c.field} variant='outline' size='small' lbl={c.token} onClick={() => insertToken(c.token)} />
-            ))}
-          </div>
-        </section>
+        <AutomationContentSection
+          title={action ? action.title : 'פעולה'}
+          subject={subject}
+          body={body}
+          cta={cta}
+          chips={chips}
+          subjectRef={subjectRef}
+          bodyRef={bodyRef}
+          onFocusField={(field) => (lastFocused.current = field)}
+          onSubjectChange={setSubject}
+          onBodyChange={setBody}
+          onCtaChange={setCta}
+          onInsertToken={insertToken}
+        />
 
         <Seperator className='my-0' />
 

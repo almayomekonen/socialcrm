@@ -82,7 +82,12 @@ const TOKEN_TO_FIELD: Array<{ token: string; field: string }> = AUTOMATION_EMAIL
  * differently from the real send would be a lie.
  */
 export function substituteVariables(content: string, vars: VariableValues): string {
-  let out = content
+  // Adjacent tokens are separated BEFORE substitution. `{{שם העסק}}{{שם העסק}}`
+  // rendered as "סטודיו אורסטודיו אור" — the tripled, run-together business name
+  // seen in production, caused by inserting a variable chip while the caret sat
+  // against another one. Repaired here rather than in the renderer so the
+  // Builder preview and the real send agree.
+  let out = content.replace(/\}\}(?=\{\{)/g, '}} ')
   const business = vars.businessName?.trim() || 'העסק'
   const resolved: Record<string, string> = {
     leadFirstName: vars.leadFirstName?.trim() || '',
