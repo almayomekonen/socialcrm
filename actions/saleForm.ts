@@ -8,9 +8,16 @@ import { formatSaleAmountType, insertSaleUsers } from '@/components/sales/saleFo
 import { formatCurrency, omit } from '@/lib/funcs'
 import { getAgencyId } from '@/db/agencies'
 import { requireProductAccess } from '@/lib/requireUser'
+import { emitLeadStatusChanged } from '@/lib/automations/statusChanged'
+
+/** The status a closed deal puts the lead in. Matches the catalog vocabulary. */
+const CLOSED_STATUS = 'closed'
 
 export async function insertSale(data: saleObj) {
   const user = await requireProductAccess()
+  // One timestamp for the whole action, so the status change, the row's
+  // `statusChangedAt` and the event's `occurredAt` are the same moment.
+  const now = new Date()
   await db.transaction(async (trx) => {
     if (data.saleId) await trx('sales').where({ id: data.saleId, agencyId: user.agencyId }).del()
 
@@ -41,9 +48,55 @@ export async function insertSale(data: saleObj) {
     }
 
     if (clientId) {
-      await trx('clients')
+      /**
+       * Close Deal is THE business action that closes a deal, so the lead's
+       * status must say so.
+       *
+       * It previously wrote only `lead: false` — the flag that moves the record
+       * from Leads to Customers — and left `status` untouched. Two consequences,
+       * both fixed here: the row could sit under Customers still reading
+       * `contacted`, and an automation listening for "status changed → closed"
+       * never fired for the one action that actually closes deals.
+       *
+       * Only written when the lead is not already closed, so re-saving an
+       * existing sale does not manufacture a second status change. `lead: false`
+       * is applied unconditionally, exactly as before — the customer transfer
+       * behaviour is unchanged.
+       */
+      const before = (await trx('clients')
+        .select('status')
         .where({ id: clientId, agencyId: user.agencyId })
-        .update({ lead: false, updatedAt: new Date() })
+        .first()) as { status: string | null } | undefined
+
+      const closing = !!before && before.status !== CLOSED_STATUS
+      const patch: Record<string, unknown> = { lead: false, updatedAt: now }
+      if (closing) {
+        // The same three fields updateLead writes with a status change, so every
+        // downstream reader (follow-ups, worklist, briefing, AI warm cache)
+        // behaves identically however the status was reached.
+        patch.status = CLOSED_STATUS
+        patch.statusChangedAt = now
+        patch.lastActivityAt = now
+      }
+
+      await trx('clients').where({ id: clientId, agencyId: user.agencyId }).update(patch)
+
+      /**
+       * Emitted through the SHARED status emitter, inside this transaction: a
+       * rolled-back sale enqueues nothing. Reusing that emitter is what makes
+       * every existing and future status_changed automation apply here with no
+       * further change — including the `deal_closed_thank_you` recipe, which
+       * conditions on `newStatus is closed` and could never fire before.
+       */
+      if (closing) {
+        await emitLeadStatusChanged({
+          agencyId: user.agencyId,
+          leadId: Number(clientId),
+          newStatus: CLOSED_STATUS,
+          occurredAt: now,
+          trx,
+        })
+      }
     }
   })
 

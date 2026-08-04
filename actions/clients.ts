@@ -13,6 +13,7 @@ import { assertLeadQuota, QuotaExceededError, getEffectiveLeadPlan, withAgencyQu
 import type { QuotaErrorResult } from '@/lib/quota'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
 import { emitAutomationEvent } from '@/lib/automations/emit'
+import { emitLeadStatusChanged } from '@/lib/automations/statusChanged'
 import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
 
 export type { DeleteManyLeadsResult } from '@/lib/leads/deleteResult'
@@ -408,17 +409,16 @@ export async function updateLead(data) {
   revalidatePath('/leads')
   scheduleLeadIntelWarm(id, { reason: 'lead.update' })
 
-  // Customer Automation Engine trigger (ADR-010): status write #1 of 2 (the
-  // other is logLeadOutcome). occurredAt = the row's own statusChangedAt, so
-  // the eventKey anchors on the business moment. Never throws.
+  // Customer Automation Engine trigger (ADR-010): one of THREE status-writing
+  // surfaces, all routed through the same emitter so they cannot drift
+  // (lib/automations/statusChanged.ts). occurredAt = the row's own
+  // statusChangedAt, so the eventKey anchors on the business moment.
   if ('status' in safeData && typeof safeData.status === 'string' && safeData.status) {
-    await emitAutomationEvent({
-      trigger: 'status_changed',
-      origin: 'manual',
+    await emitLeadStatusChanged({
       agencyId: user.agencyId,
       leadId: Number(id),
-      occurredAt: safeData.statusChangedAt as Date,
       newStatus: safeData.status,
+      occurredAt: safeData.statusChangedAt as Date,
     })
   }
 
