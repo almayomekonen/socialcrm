@@ -172,8 +172,22 @@ function LeadPickerPanel({
   return (
     <div
       ref={panelRef}
-      style={{ top: pos.top, right: pos.right, width: pos.width }}
-      className='fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden'
+      /**
+       * `zIndex: 100000` is the app's PORTAL-POPOVER LAYER, not a local fix:
+       * OutcomeControl and LeadQuickActions both portal to `document.body` at
+       * exactly this value, chosen to sit above ModalPop's `z-99999` (99999).
+       * At the previous `z-50` this panel rendered BEHIND any dialog it was
+       * opened from — both are body-level siblings, so z-order alone decides.
+       *
+       * Set inline rather than as a class to match those two call sites exactly.
+       *
+       * The mechanics deliberately do NOT move to `useFloatingMenu`: that hook
+       * CLOSES on scroll, while this picker RE-MEASURES so the panel tracks its
+       * trigger — which is what keeps it usable inside a scrollable dialog body.
+       * Adopting the hook would regress that.
+       */
+      style={{ position: 'fixed', top: pos.top, right: pos.right, width: pos.width, zIndex: 100000 }}
+      className='bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden'
     >
       <input
         type='text'
