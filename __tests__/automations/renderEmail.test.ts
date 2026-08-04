@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderAutomationEmail, substituteVariables } from '@/lib/automations/renderEmail'
+import { GMAIL_ENGLISH_UI, deliver, emailDeclaresDir } from './support/mailClients'
 
 const VARS = { leadFirstName: 'דנה', businessName: 'סטודיו אור', repName: 'יעל' }
 
@@ -29,7 +30,16 @@ describe('renderAutomationEmail', () => {
       unsubscribeUrl: 'https://app.example.com/api/automations/unsubscribe?a=7&l=42&t=tok',
     })
     expect(rendered.subject).toBe('ברוכים הבאים לסטודיו אור')
-    expect(rendered.html).toContain('dir="rtl"')
+    // NOT `html.toContain('dir="rtl"')`. That assertion was satisfied by the
+    // `<html dir="rtl">` wrapper — the one element Gmail discards when it
+    // re-hosts the body — so it passed while every Hebrew paragraph rendered
+    // backwards for recipients whose Gmail UI is LTR. The direction has to be
+    // declared on markup that SURVIVES delivery.
+    const { textBlocks, hostContainer } = deliver(rendered.html, GMAIL_ENGLISH_UI)
+    expect(textBlocks.length).toBeGreaterThan(0)
+    for (const block of textBlocks) {
+      expect(emailDeclaresDir(block, hostContainer), 'text block with no surviving direction').toBe(true)
+    }
     expect(rendered.html).toContain('שלום דנה,')
     expect(rendered.html).toContain('https://app.example.com/api/automations/unsubscribe?a=7&amp;l=42&amp;t=tok')
     expect(rendered.html).toContain('הסרה מרשימת התפוצה')
