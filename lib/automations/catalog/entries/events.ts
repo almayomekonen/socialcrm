@@ -58,7 +58,7 @@ const LEAD_FIELDS: readonly FieldDefinition[] = [
 export const RENDERABLE_FIELD_KEYS = ['leadFirstName', 'businessName', 'repName'] as const
 
 /**
- * B7 — the first EXTERNAL event, and the proof that the Builder is generic.
+ * The appointment occurrence's fields.
  *
  * Everything the Builder will show for it, it learns from this entry: the
  * picker grouping (`subject`), the lock and its CTA (`requirements`), the
@@ -113,13 +113,6 @@ const APPOINTMENT_FIELDS: readonly FieldDefinition[] = [
     key: 'appointmentName',
     type: 'text',
     label: 'סוג הפגישה',
-    freshness: 'snapshot',
-    lifecycle: 'stable',
-  },
-  {
-    key: 'inviteeEmail',
-    type: 'email',
-    label: 'אימייל מזמין הפגישה',
     freshness: 'snapshot',
     lifecycle: 'stable',
   },

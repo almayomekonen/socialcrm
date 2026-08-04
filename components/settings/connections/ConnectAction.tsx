@@ -15,12 +15,12 @@ import { STRATEGY, errorMessage } from './copy'
  *
  * Each strategy in the closed set gets its own generic flow:
  *
- *   oauth2 / embedded_signup → hand off to the provider at a conventional
- *       path derived from the integration key. Both are "the provider hosts
- *       the flow"; only the wording differs, and the wording is data.
  *   api_key → we cannot call them, so they call us: mint a URL and a secret
  *       and show them once.
- *   none → nothing to connect. The button is simply absent.
+ *   oauth2 / embedded_signup / none → no button. The first two are
+ *       provider-hosted flows that are not implemented, and copy.ts says so;
+ *       `none` needs no connection at all. All three are `needsConnection:
+ *       false`, so the early return below covers them without a branch.
  *
  * `Record<AuthStrategy, …>` in copy.ts means a new strategy is a compile error
  * here rather than a card that silently offers no way in.
@@ -41,19 +41,6 @@ export default function ConnectAction({ integrationKey, integrationTitle, auth, 
 
   if (!strategy.needsConnection) return null
   const label = connected ? strategy.reconnect : strategy.connect
-
-  // Provider-hosted flows are a navigation, not a form. The path is derived
-  // from the key, so a new integration needs no route table here.
-  if (auth === 'oauth2' || auth === 'embedded_signup') {
-    return (
-      <Btn
-        variant={connected ? 'outline' : 'solid'}
-        size='small'
-        lbl={label}
-        href={`/api/automations/connect/${integrationKey}`}
-      />
-    )
-  }
 
   return (
     <>

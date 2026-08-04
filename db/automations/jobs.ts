@@ -53,6 +53,35 @@ export async function enqueueAutomationJob(
   return row ? Number(row.id) : null
 }
 
+/**
+ * Drop the jobs an occurrence's PENDING reminders sit in, so the same occurrence
+ * can be re-emitted against a new schedule.
+ *
+ * `status = 'pending'` only, and that bound is the whole design:
+ *
+ *   · a `done` job already sent — the lead has been reminded, and the send-once
+ *     claim would refuse a second one anyway;
+ *   · a `processing` job is mid-flight under a lease, and pulling the row from
+ *     under the worker would be a race;
+ *   · a `skipped` / `dead` job is a RECORDED OUTCOME with an activity row
+ *     explaining it, and re-opening recorded history is a bigger change than
+ *     following a new meeting time.
+ *
+ * Deleting rather than marking cancelled: the unique index on
+ * (automationId, leadId, eventKey) is what makes the re-emit land, and a
+ * tombstone would keep blocking it. A job that never ran has no activity row to
+ * reconcile with, so nothing observable is lost.
+ */
+export function discardPendingJobsForOccurrenceQuery(q: Knex.Transaction | Knex, args: { agencyId: number; eventKey: string }) {
+  return q('automation_jobs')
+    .where({ agencyId: args.agencyId, eventKey: args.eventKey, status: 'pending' })
+    .del()
+}
+
+export async function discardPendingJobsForOccurrence(args: { agencyId: number; eventKey: string }): Promise<number> {
+  return Number(await discardPendingJobsForOccurrenceQuery(db, args))
+}
+
 export function claimAutomationJobsQuery(workerId: string, limit: number) {
   return db.raw(
     `

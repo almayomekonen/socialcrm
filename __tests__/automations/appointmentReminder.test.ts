@@ -44,7 +44,7 @@ describe('occurrence identity — the only channel the meeting id travels throug
   })
 
   it('refuses keys it did not write, rather than guessing', () => {
-    for (const key of ['appointment:calendly-uri', 'appointment:meeting:abc', 'lead_created', '', null, undefined]) {
+    for (const key of ['appointment:other-source', 'appointment:meeting:abc', 'lead_created', '', null, undefined]) {
       expect(meetingIdFromOccurrenceKey(key as string | null)).toBeNull()
     }
   })

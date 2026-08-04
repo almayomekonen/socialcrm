@@ -25,15 +25,15 @@ import type { ConnectionProvider, MappedEvent, SetupGuide } from './types'
  * nothing knows CF7 exists: the Builder renders catalog metadata, the worker
  * executes actions, the ingest route resolves connectors by path segment.
  *
- * WHY IT LOOKS DIFFERENT FROM CALENDLY, and why that costs nothing:
+ * THREE WAYS IT DIVERGES from the connector shape, and why each costs nothing:
  *
  *  · No OAuth. WordPress cannot be authorised; the customer installs a snippet
  *    that POSTs to a per-connection URL and signs with a per-connection secret.
  *    `auth: 'api_key'` in the catalog describes exactly that.
- *  · A submission usually means a NEW person. Calendly bookings come from
- *    people who are already leads; a contact form is a lead SOURCE. So Law 2's
- *    "resolve to exactly one Lead" is a find-or-create here, and creating one
- *    emits `lead.created` exactly as the Facebook ingestion path does.
+ *  · A submission usually means a NEW person. A contact form is a lead SOURCE,
+ *    not a signal about someone already in the CRM. So Law 2's "resolve to
+ *    exactly one Lead" is a find-or-create here, and creating one emits
+ *    `lead.created` exactly as the Facebook ingestion path does.
  *  · Forms are discovered, not fetched. CF7 exposes no list API, so the
  *    connector LEARNS a form the first time it sees a submission from it. The
  *    same `enum_remote` control then lists them.

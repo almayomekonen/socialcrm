@@ -7,6 +7,9 @@ import {
   CalendarApiError,
 } from '@/lib/integrations/google/calendarClient'
 import { CalendarAuthError } from '@/lib/integrations/google/calendarTokens'
+import { discardPendingJobsForOccurrence } from '@/db/automations/jobs'
+import { emitAutomationEvent } from '@/lib/automations/emit'
+import { occurrenceKeyForMeeting } from '@/lib/automations/appointments'
 
 export const INVITE_DIAG = process.env.CALENDAR_INVITE_DIAG === '1'
 
@@ -115,6 +118,88 @@ export function normalizeAttendees(
     out.push({ email, displayName: a.displayName ?? null })
   }
   return out
+}
+
+/**
+ * The appointment occurrence, emitted from the Meetings domain.
+ *
+ * Shared by create and update because the OCCURRENCE KEY and the ANCHOR FIELD
+ * must be byte-identical between them: the key is what lets a reschedule replace
+ * the reminder it already queued, and the anchor is what the reminder counts back
+ * from. Two copies of that pair would drift.
+ *
+ * A meeting with no lead emits nothing — there is nobody to remind.
+ * `emitAutomationEvent` never throws, so this cannot cost the user their meeting.
+ */
+export async function emitAppointmentBooked(input: {
+  agencyId: number
+  meetingId: number
+  leadId: number | null
+  startAt: Date
+  title: string
+}): Promise<void> {
+  if (!input.leadId) return
+  await emitAutomationEvent({
+    trigger: 'appointment_booked',
+    origin: 'manual',
+    agencyId: input.agencyId,
+    leadId: input.leadId,
+    occurredAt: new Date(),
+    occurrenceKey: occurrenceKeyForMeeting(input.meetingId),
+    // `startsAt` is the anchor a before-anchor timing resolves against;
+    // `appointmentName` is the snapshot a condition can be written on.
+    fields: { startsAt: input.startAt, appointmentName: input.title },
+  })
+}
+
+/**
+ * Re-aim an already-queued reminder at a new meeting time.
+ *
+ * Two steps, both reusing what exists: drop the PENDING jobs for this occurrence,
+ * then re-emit it. Re-emission recomputes `notBefore` from the new anchor through
+ * the ordinary emit path — so conditions, active-definition checks and the
+ * too-late guard all apply again, and no scheduling code is duplicated.
+ *
+ * The unique index on (automationId, leadId, eventKey) does the rest: an
+ * automation whose job we just dropped gets a fresh one, and one that already
+ * sent or was already decided is left exactly as it is.
+ */
+export async function rescheduleAppointmentReminders(input: {
+  agencyId: number
+  meetingId: number
+  leadId: number | null
+  startAt: Date
+  title: string
+}): Promise<void> {
+  /**
+   * NEVER THROWS, for the same reason `emitAutomationEvent` never does.
+   *
+   * By the time this runs, the CRM has already committed the new meeting time —
+   * that write is the user's actual request and it succeeded. Letting a queue
+   * error propagate would report the edit as failed while the meeting sits
+   * happily rescheduled, which is the worst of both: the user retries, and
+   * nothing they do fixes it.
+   *
+   * A swallowed failure leaves the OLD reminder queued, and the send-time guard
+   * still refuses to remind about a meeting whose start has passed. So the
+   * failure mode is a missing reminder, never a wrong one.
+   */
+  try {
+    const eventKey = occurrenceKeyForMeeting(input.meetingId)
+    const discarded = await discardPendingJobsForOccurrence({ agencyId: input.agencyId, eventKey })
+    console.log('[calendar] meeting rescheduled — reminders re-aimed', {
+      meetingId: input.meetingId,
+      discardedPendingJobs: discarded,
+      newStartAt: input.startAt.toISOString(),
+    })
+    await emitAppointmentBooked(input)
+  } catch (err) {
+    console.error('[calendar] reminder reschedule failed (swallowed)', {
+      meetingId: input.meetingId,
+      agencyId: input.agencyId,
+      err: String(err),
+    })
+  }
 }
 
 export function toDate(value: string | Date | undefined): Date | null {

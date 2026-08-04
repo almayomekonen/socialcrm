@@ -6,7 +6,7 @@ import type { Source } from '@/lib/automations/catalog/types'
  * reports.
  *
  * A connector refreshes its own labels from every delivery — Contact Form 7
- * updates a form's title, Calendly updates an event type's name — so storing
+ * updates a form's title, another renames a channel — so storing
  * the customer's wording in the same place would lose it on the next webhook.
  * This overlay is applied on read instead, which means:
  *

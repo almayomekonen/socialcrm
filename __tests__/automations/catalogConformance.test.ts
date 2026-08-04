@@ -64,12 +64,13 @@ describe('the B1 catalog is valid', () => {
   })
 
   it('registers integrations as data only, append-only, one row each', () => {
-    expect(catalog.integrations.map((i) => i.key)).toEqual(['calendly', 'contact_form_7'])
+    // ONE row. The appointment occurrence used to need a second one, back when a
+    // scheduling connector produced it; it is produced by the Meetings domain
+    // now, which needs no connection.
+    expect(catalog.integrations.map((i) => i.key)).toEqual(['contact_form_7'])
     // §3.1: presentation plus one auth strategy from the CLOSED set. Nothing
-    // executable, nothing the Builder has to interpret — and two integrations
-    // with two different strategies prove the set is doing real work.
-    expect(catalog.integrations[0]).toMatchObject({ auth: 'oauth2', capabilities: ['calendar_connected'] })
-    expect(catalog.integrations[1]).toMatchObject({ auth: 'api_key', capabilities: ['website_connected'] })
+    // executable, nothing the Builder has to interpret.
+    expect(catalog.integrations[0]).toMatchObject({ auth: 'api_key', capabilities: ['website_connected'] })
   })
 })
 

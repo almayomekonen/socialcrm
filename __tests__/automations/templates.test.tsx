@@ -87,11 +87,17 @@ describe('the seeded marketplace is valid against the LIVE catalog', () => {
       'welcome_sequence',
       'lost_lead_follow_up',
       'contact_form_thank_you',
-      'appointment_confirmation',
-      // The customer-facing reminder, timed to the meeting itself. Sits before
-      // the internal task form, which is the rep-side counterpart.
+      /**
+       * ONE appointment template: the customer-facing reminder.
+       *
+       * `appointment_confirmation` and `appointment_reminder_task` were removed.
+       * Google Calendar already sends the invitation, the updates, the
+       * cancellations and the RSVP for a meeting booked in the CRM, so a
+       * confirmation email duplicated it; and the rep-side task form was a
+       * stand-in for anchor-based scheduling, which the reminder now does
+       * properly.
+       */
       'appointment_reminder',
-      'appointment_reminder_task',
       'internal_task_on_new_lead',
     ])
   })

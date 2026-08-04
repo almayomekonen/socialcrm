@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import crypto from 'node:crypto'
 import { ingestWebhookWith } from '@/lib/automations/connectors/ingest'
-import { calendlyProvider } from '@/lib/automations/connectors/calendly'
-import type { WebhookConnector } from '@/lib/automations/connectors/types'
+import type { MappedEvent, WebhookConnector } from '@/lib/automations/connectors/types'
 import { emitAutomationEventWith, eventKeyFor, type EmitDeps } from '@/lib/automations/emit'
 import { getEvent } from '@/lib/automations/catalog/registry'
 import { snapshotConditionsMatch } from '@/lib/automations/conditionEvaluator'
@@ -10,26 +9,79 @@ import { snapshotFieldsForEvent } from '@/lib/automations/catalog/engineBridge'
 import type { AutomationDefinition } from '@/db/automations/definitions'
 
 /**
- * B7 — the full inbound chain, proven end to end:
+ * The full inbound chain, proven end to end:
  *
  *   webhook → connector → mapEvent → lead resolution → automation event
  *   → emission (conditions) → job
  *
- * The pipeline under test names no integration. Calendly appears here only as
- * the connector handed IN — swap it for Omega (see omegaCalendar.test.tsx) and
- * every assertion still holds.
+ * The pipeline under test names no integration, and this test now proves that
+ * rather than asserting it: the connector handed in is a STUB defined here.
+ * It previously used a shipped provider, which made a generic test read as a
+ * test of that provider — and made it break when the provider was removed.
+ *
+ * The stub speaks `form.submitted` because that is the registered event a
+ * webhook actually produces; the appointment occurrence is internal now, emitted
+ * by the Meetings domain rather than delivered.
  */
 
 const SECRET = 'whsec_test'
-const connector = calendlyProvider as WebhookConnector
+const SIGNATURE_HEADER = 'x-stub-signature'
+
+/**
+ * A minimal connector: the §4 Q2 contract and nothing else. Every field it maps
+ * is a CATALOG field key, which is the property the pipeline depends on.
+ */
+const connector: WebhookConnector = {
+  integrationKey: 'stub',
+  capabilities: ['website_connected'],
+  // The outbound half is irrelevant here: the ingest pipeline never calls it.
+  async listConnections() {
+    return []
+  },
+  async listSources() {
+    return []
+  },
+  async options() {
+    return []
+  },
+  verifyWebhook({ headers, body }) {
+    const header = headers[SIGNATURE_HEADER] ?? ''
+    const secret = headers['x-connection-secret'] ?? ''
+    if (!header || !secret) return false
+    const [t, v1] = header.split(',').map((part) => part.split('=')[1])
+    if (!t || !v1) return false
+    const expected = crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')
+    const a = Buffer.from(expected)
+    const b = Buffer.from(v1)
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
+  },
+  mapEvent(payload) {
+    const body = payload as { type?: string; submission?: Record<string, string> } | null
+    if (!body || body.type !== 'form.submission') return null
+    const submission = body.submission ?? {}
+    if (!submission.id) return null
+    return {
+      eventKey: 'form.submitted',
+      occurrenceKey: `form:stub:${submission.id}`,
+      occurredAt: new Date('2026-08-12T10:00:00.000Z'),
+      fields: { formName: submission.formName ?? '', message: submission.message ?? '', pageUrl: submission.pageUrl ?? '' },
+      subject: { email: submission.email ?? null, phone: submission.phone ?? null },
+    } satisfies MappedEvent
+  },
+  async resolveSubject() {
+    return 42
+  },
+}
 
 const BOOKING = {
-  event: 'invitee.created',
-  payload: {
-    uri: 'https://api.calendly.com/scheduled_events/EV1/invitees/IN1',
+  type: 'form.submission',
+  submission: {
+    id: 'SUB1',
     email: 'dana@example.com',
-    text_reminder_number: '+972501234567',
-    scheduled_event: { uri: 'x', name: 'שיחת ייעוץ', start_time: '2026-08-12T10:00:00.000Z' },
+    phone: '+972501234567',
+    formName: 'צור קשר',
+    message: 'אשמח לפרטים',
+    pageUrl: 'https://example.co.il/contact',
   },
 }
 
@@ -37,7 +89,7 @@ const signed = (payload: unknown) => {
   const body = JSON.stringify(payload)
   const at = '1754140800'
   const v1 = crypto.createHmac('sha256', SECRET).update(`${at}.${body}`).digest('hex')
-  return { body, headers: { 'calendly-webhook-signature': `t=${at},v1=${v1}`, 'x-connection-secret': SECRET } }
+  return { body, headers: { [SIGNATURE_HEADER]: `t=${at},v1=${v1}`, 'x-connection-secret': SECRET } }
 }
 
 const deps = (over: Partial<{ resolveSubject: unknown; emit: unknown }> = {}) =>
@@ -55,12 +107,12 @@ describe('the chain accepts a real booking', () => {
 
     expect(outcome).toMatchObject({ accepted: true, leadId: 42 })
     expect('event' in outcome && outcome.event).toMatchObject({
-      trigger: 'appointment_booked',
+      trigger: 'form_submitted',
       // The GENERIC webhook origin — no per-provider value was added for B7.
       origin: 'webhook',
       agencyId: 7,
       leadId: 42,
-      occurrenceKey: 'appointment:https://api.calendly.com/scheduled_events/EV1/invitees/IN1',
+      occurrenceKey: 'form:stub:SUB1',
     })
   })
 
@@ -68,7 +120,7 @@ describe('the chain accepts a real booking', () => {
     const { body, headers } = signed(BOOKING)
     const outcome = await ingestWebhookWith(connector, deps(), { agencyId: 7, headers, body })
     const fields = 'event' in outcome ? outcome.event.fields : null
-    expect(Object.keys(fields ?? {}).sort()).toEqual(['appointmentName', 'inviteeEmail', 'startsAt'])
+    expect(Object.keys(fields ?? {}).sort()).toEqual(['formName', 'message', 'pageUrl'])
   })
 
   it('the connector’s occurrence key becomes the engine’s dedup key, unchanged', async () => {
@@ -86,7 +138,7 @@ describe('the chain accepts a real booking', () => {
   })
 
   it('the agency comes from the caller, never from the payload — no cross-tenant reach', async () => {
-    const hostile = { ...BOOKING, payload: { ...BOOKING.payload, agencyId: 999 } }
+    const hostile = { ...BOOKING, submission: { ...BOOKING.submission, agencyId: '999' } }
     const { body, headers } = signed(hostile)
     const d = deps()
     const outcome = await ingestWebhookWith(connector, d, { agencyId: 7, headers, body })
@@ -104,11 +156,11 @@ describe('every rejection is named — a dropped booking is never silent', () =>
         const at = '1754140800'
         const body = 'not json'
         const v1 = crypto.createHmac('sha256', SECRET).update(`${at}.${body}`).digest('hex')
-        return { body, headers: { 'calendly-webhook-signature': `t=${at},v1=${v1}`, 'x-connection-secret': SECRET } }
+        return { body, headers: { [SIGNATURE_HEADER]: `t=${at},v1=${v1}`, 'x-connection-secret': SECRET } }
       },
       'unreadable_payload',
     ],
-    ['not_actionable', () => signed({ event: 'invitee.canceled', payload: BOOKING.payload }), 'not_actionable'],
+    ['not_actionable', () => signed({ type: 'form.deleted', submission: BOOKING.submission }), 'not_actionable'],
   ]
 
   for (const [name, make, reason] of cases) {
@@ -145,13 +197,13 @@ describe('emission treats the external event exactly like an internal one', () =
       name: 'תזכורת',
       recipeKey: null,
       status: 'active',
-      trigger: 'appointment_booked',
+      trigger: 'form_submitted',
       action: 'send_email',
       content: { schemaVersion: 1, subject: 's', body: 'b', timing: { kind: 'preset', preset: 'immediate' } },
       createdByUserId: 1,
       conditions,
       actions: [{ actionKey: 'email.send', parameters: { subject: 's', body: 'b' } }],
-      connectionId: 'calendly:1',
+      connectionId: 'contact_form_7:1',
       sourceIds: [],
     }) as unknown as AutomationDefinition
 
@@ -180,8 +232,8 @@ describe('emission treats the external event exactly like an internal one', () =
 
   it('a SNAPSHOT condition on a connector-mapped field filters at emission — no new code path', async () => {
     const event = (await eventFor())!
-    const match = definition([{ field: 'appointmentName', operator: 'contains', value: 'ייעוץ' }])
-    const miss = definition([{ field: 'appointmentName', operator: 'contains', value: 'הדגמה' }])
+    const match = definition([{ field: 'formName', operator: 'contains', value: 'קשר' }])
+    const miss = definition([{ field: 'formName', operator: 'contains', value: 'הדגמה' }])
     expect(await emitAutomationEventWith(emitDeps([match]), event)).toMatchObject({ emitted: 1 })
     expect(await emitAutomationEventWith(emitDeps([miss]), event)).toMatchObject({
       emitted: 0,
@@ -191,13 +243,13 @@ describe('emission treats the external event exactly like an internal one', () =
 
   it('the evaluator reads the connector’s fields through the same bridge as the internal events', async () => {
     const event = (await eventFor())!
-    const definition = getEvent('appointment.booked')!
+    const definition = getEvent('form.submitted')!
     const snapshot = snapshotFieldsForEvent(event)
-    expect(snapshot.appointmentName).toBe('שיחת ייעוץ')
+    expect(snapshot.formName).toBe('צור קשר')
     // The two legacy spellings are still present and null — internal events
     // keep working, which is what "additive" means here.
     expect(snapshot.source).toBe(null)
-    expect(snapshotConditionsMatch(definition, [{ field: 'inviteeEmail', operator: 'exists', value: '' }], snapshot).pass).toBe(
+    expect(snapshotConditionsMatch(definition, [{ field: 'message', operator: 'exists', value: '' }], snapshot).pass).toBe(
       true,
     )
   })

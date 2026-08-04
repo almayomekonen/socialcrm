@@ -220,20 +220,32 @@ describe('every closed vocabulary value has UI — a new one is a compile error'
 describe('every auth strategy renders its own flow', () => {
   const forStrategy = (auth: AuthStrategy) => view({ integration: { ...view().integration, auth } })
 
-  it('oauth2 hands off at a path derived from the key — no route table', () => {
-    render(<IntegrationConnectionCard view={forStrategy('oauth2')} onChanged={noop} />)
-    expect(screen.getByRole('link', { name: STRATEGY.oauth2.connect })).toHaveAttribute(
-      'href',
-      '/api/automations/connect/zeta_desk',
-    )
-  })
+  /**
+   * Provider-hosted flows offer NO button, and that is the honest state rather
+   * than a regression: the hand-off route they used to navigate to never did
+   * anything but say "not open yet", and it was removed with the only
+   * integration that declared one. A link to a route that 404s would be worse
+   * than an explanation.
+   *
+   * `needsConnection: false` in copy.ts is what encodes it, and the exhaustive
+   * `Record<AuthStrategy, …>` is what forces the next provider-hosted
+   * integration to build the flow before the card can offer one.
+   */
+  for (const auth of ['oauth2', 'embedded_signup'] as const) {
+    it(`${auth} offers no action, because no provider-hosted flow exists`, () => {
+      render(<IntegrationConnectionCard view={forStrategy(auth)} onChanged={noop} />)
+      expect(screen.queryByRole('link')).not.toBeInTheDocument()
+      expect(STRATEGY[auth].needsConnection).toBe(false)
+      // And it says so, rather than leaving a silent gap.
+      expect(STRATEGY[auth].how).toBeTruthy()
+    })
+  }
 
-  it('embedded_signup hands off the same way, with its own wording', () => {
-    render(<IntegrationConnectionCard view={forStrategy('embedded_signup')} onChanged={noop} />)
-    expect(screen.getByRole('link', { name: STRATEGY.embedded_signup.connect })).toHaveAttribute(
-      'href',
-      '/api/automations/connect/zeta_desk',
-    )
+  it('never links to the removed hand-off route', () => {
+    for (const auth of ['oauth2', 'embedded_signup', 'api_key', 'none'] as const) {
+      const { container } = render(<IntegrationConnectionCard view={forStrategy(auth)} onChanged={noop} />)
+      expect(container.innerHTML).not.toContain('/api/automations/connect')
+    }
   })
 
   it('api_key opens a dialog rather than navigating', () => {
@@ -462,11 +474,11 @@ describe('C-QA — connection binding', () => {
       auth: 'api_key' as const,
       capabilities: ['website_connected'],
     },
-    { key: 'calendly', title: 'Calendly', icon: 'calendar', auth: 'oauth2' as const, capabilities: ['calendar_connected'] },
+    { key: 'zeta_desk', title: 'Zeta Desk', icon: 'calendar', auth: 'oauth2' as const, capabilities: ['zeta_connected'] },
   ]
   const conns = [
     { id: 'contact_form_7:3', integrationKey: 'contact_form_7', agencyId: 103, displayName: 'האתר', health: 'ok' as const },
-    { id: 'calendly:9', integrationKey: 'calendly', agencyId: 103, displayName: 'יומן', health: 'ok' as const },
+    { id: 'zeta_desk:9', integrationKey: 'zeta_desk', agencyId: 103, displayName: 'יומן', health: 'ok' as const },
   ]
 
   /** The rule the sheet applies: needed capabilities × provided capabilities. */

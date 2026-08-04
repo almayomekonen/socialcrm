@@ -31,11 +31,23 @@ export const SUBSCRIPTION: Record<SourceSubscriptionState, { role: StatusRole; l
  * a component.
  */
 export const STRATEGY: Record<AuthStrategy, { connect: string; reconnect: string; how: string; needsConnection: boolean }> = {
+  /**
+   * PROVIDER-HOSTED FLOWS ARE NOT IMPLEMENTED, so they offer no button.
+   *
+   * `needsConnection: false` is the honest state, not a hidden feature: no
+   * registered integration uses either strategy, and the hand-off route that
+   * used to answer for them never did anything but say "not open yet". A button
+   * leading nowhere is worse than no button.
+   *
+   * Both stay in the vocabulary. The exhaustive `Record<AuthStrategy, …>` is what
+   * forces whoever adds a provider-hosted integration to come back here and
+   * build the flow before the card can offer one.
+   */
   oauth2: {
-    connect: 'התחברות',
-    reconnect: 'חיבור מחדש',
-    how: 'החיבור מתבצע מול השירות עצמו, בחלון התחברות.',
-    needsConnection: true,
+    connect: '',
+    reconnect: '',
+    how: 'החיבור לשירות הזה יתאפשר בהמשך.',
+    needsConnection: false,
   },
   api_key: {
     connect: 'יצירת חיבור',
@@ -44,10 +56,10 @@ export const STRATEGY: Record<AuthStrategy, { connect: string; reconnect: string
     needsConnection: true,
   },
   embedded_signup: {
-    connect: 'התחלת הרשמה',
-    reconnect: 'הרשמה מחדש',
-    how: 'ההרשמה מתבצעת בתוך חלון של השירות עצמו.',
-    needsConnection: true,
+    connect: '',
+    reconnect: '',
+    how: 'ההרשמה לשירות הזה תתאפשר בהמשך.',
+    needsConnection: false,
   },
   none: {
     connect: '',

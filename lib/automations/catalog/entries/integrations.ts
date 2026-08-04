@@ -8,17 +8,13 @@ import type { IntegrationDefinition } from '../types'
  * connector; this is only what the Builder needs in order to explain a
  * requirement to the user without knowing what the provider is.
  *
- * B7 registered the first one. C1 added the second — one row, append-only,
- * exactly as predicted.
+ * ONE row today: the customer's website. The appointment occurrence used to
+ * need a row here too, back when a third-party scheduling connector produced it;
+ * it is now produced by the Meetings domain, which is ours and needs no
+ * connection. Removing that row removed the card, the lock and the capability
+ * with it — the page iterates this list and authors nothing.
  */
 export const INTEGRATION_ENTRIES: readonly IntegrationDefinition[] = [
-  {
-    key: 'calendly',
-    title: 'Calendly',
-    icon: 'calendar',
-    auth: 'oauth2',
-    capabilities: ['calendar_connected'],
-  },
   {
     /**
      * THE KEY IS AN INTERNAL ROUTING TOKEN, DELIBERATELY LEFT ALONE.

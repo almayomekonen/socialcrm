@@ -50,7 +50,7 @@ export type ParameterValidation = {
 
 /**
  * A user-answerable input on an event or action. `enum_remote` is the
- * workhorse: a Shopify product picker, a Calendly calendar picker and a
+ * workhorse: a Shopify product picker, a calendar picker and a
  * Facebook page picker are the SAME control with different providers.
  */
 export type ParameterDefinition = {

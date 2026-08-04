@@ -11,12 +11,6 @@ import type { TemplateDefinition } from './types'
  * Every event key, action key, condition field and timing below is validated
  * against the live catalog in CI — a template naming something unregistered
  * fails the build, not a customer's install.
- *
- * SIZE NOTE (architecture-rules §1): this file is at 348 lines, one template
- * short of the 350 hard limit. The next addition must split it — by CATEGORY
- * (`entries/lead.ts`, `entries/appointment.ts`, …) re-exported from a registry
- * index, which is the seam the marketplace already groups by. Do not add a
- * seventh template here first.
  */
 
 const BUSINESS_SIGNOFF = 'בברכה,\n{{שם העסק}}'
@@ -204,39 +198,6 @@ ${BUSINESS_SIGNOFF}`,
 
   // ── Appointment ─────────────────────────────────────────────────────────
   {
-    key: 'appointment_confirmation',
-    version: 1,
-    title: 'אישור קביעת פגישה',
-    category: 'appointment',
-    description: 'מי שקובע פגישה ביומן המחובר מקבל אישור מיידי עם פרטי הפגישה.',
-    icon: 'calendar-check',
-    requirements: [
-      { type: 'connection', key: 'calendar_connected', cta: { label: 'חיבור יומן', href: '/settings/connections' } },
-    ],
-    variables: [],
-    automations: [
-      {
-        name: 'אישור קביעת פגישה',
-        eventKey: 'appointment.booked',
-        conditions: [],
-        actionKey: 'email.send',
-        timing: { kind: 'preset', preset: 'immediate' },
-        parameters: {
-          subject: 'הפגישה נקבעה',
-          body: `שלום {{שם הליד}},
-
-הפגישה שלנו נקבעה ומופיעה ביומן.
-
-אם משהו משתנה, אפשר להשיב למייל הזה ונתאם מחדש.
-
-נתראה,
-{{שם העסק}}`,
-        },
-      },
-    ],
-  },
-
-  {
     key: 'appointment_reminder',
     version: 1,
     title: 'תזכורת לפני פגישה',
@@ -291,32 +252,6 @@ ${BUSINESS_SIGNOFF}`,
 
 ${BUSINESS_SIGNOFF}`,
         },
-      },
-    ],
-  },
-
-  {
-    key: 'appointment_reminder_task',
-    version: 1,
-    title: 'משימת תזכורת לנציג לפני פגישה',
-    category: 'appointment',
-    // Named for what it actually does. A customer-facing reminder timed to the
-    // meeting needs anchor-based scheduling, which ADR-007 excludes from V1 —
-    // so this is the internal form: the rep gets the task, and decides when.
-    description: 'כשנקבעת פגישה נפתחת משימה לנציג המטפל, כדי שיזכיר ללקוח לפני המועד.',
-    icon: 'list-check',
-    requirements: [
-      { type: 'connection', key: 'calendar_connected', cta: { label: 'חיבור יומן', href: '/settings/connections' } },
-    ],
-    variables: [],
-    automations: [
-      {
-        name: 'משימת תזכורת לפני פגישה',
-        eventKey: 'appointment.booked',
-        conditions: [],
-        actionKey: 'task.create',
-        timing: { kind: 'preset', preset: 'immediate' },
-        parameters: { title: 'להזכיר ל{{שם הליד}} לפני הפגישה' },
       },
     ],
   },

@@ -15,7 +15,7 @@ import {
   type UpdateEventInput,
 } from '@/lib/integrations/google/calendarClient'
 import { CalendarAuthError } from '@/lib/integrations/google/calendarTokens'
-import { classifyError, normalizeAttendees, toDate } from './shared'
+import { classifyError, normalizeAttendees, rescheduleAppointmentReminders, toDate } from './shared'
 
 // Richer than MeetingSummaryDTO — includes attendees and timezone, used by
 // the edit dialog to prefill the form. Kept separate so listUpcomingMeetings
@@ -171,6 +171,30 @@ export async function updateMeeting(input: UpdateMeetingInput): Promise<UpdateMe
   })
   if (normalizedAttendees !== undefined) {
     await replaceAttendees(meetingId, normalizedAttendees)
+  }
+
+  /**
+   * The reminder follows the meeting.
+   *
+   * Only when the START TIME actually moved: that is the only field a reminder's
+   * schedule depends on. Title, location and the Meet link are read LIVE at send
+   * time, so editing them needs no requeue — the already-queued job will pick
+   * them up on its own.
+   *
+   * Done here, after the CRM write and before the Google patch, for the same
+   * reason the create path emits there: the CRM is the source of truth, and
+   * whether Google accepted the change must not decide whether the reminder is
+   * correct.
+   */
+  const startMoved = startAtNew !== undefined && startAtNew.getTime() !== meeting.start_at.getTime()
+  if (startMoved) {
+    await rescheduleAppointmentReminders({
+      agencyId: user.agencyId,
+      meetingId,
+      leadId: meeting.lead_id,
+      startAt: startAtNew,
+      title: safeTitle ?? meeting.title,
+    })
   }
 
   // --- 2. Google patch (skipped if never synced) ------------------------

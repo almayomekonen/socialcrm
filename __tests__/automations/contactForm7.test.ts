@@ -56,7 +56,7 @@ describe('it satisfies the generic contract', () => {
   })
 
   it('ignores a connection id belonging to another integration', async () => {
-    expect(await contactForm7Provider.listSources(1, 'calendly:5')).toEqual([])
+    expect(await contactForm7Provider.listSources(1, 'other_integration:5')).toEqual([])
     expect(await contactForm7Provider.listSources(1, 'contact_form_7:not-a-number')).toEqual([])
   })
 })

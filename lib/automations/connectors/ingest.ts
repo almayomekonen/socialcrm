@@ -10,7 +10,7 @@ import type { MappedEvent, WebhookConnector } from './types'
  *
  * Every step is a call into the connector or the catalog. This module names no
  * integration, reads no provider field and branches on no integration key —
- * which is exactly why adding Calendly needed a connector and catalog rows
+ * which is exactly why adding an integration needs a connector and catalog rows
  * rather than a new ingestion path.
  *
  * Every rejection is EXPLICIT and named. A webhook that is dropped says which

@@ -26,7 +26,7 @@ import type { Connection, EventDefinition, Source } from '@/lib/automations/cata
  * THE B7 PROOF — "Omega Calendar", an integration that exists only here.
  * ══════════════════════════════════════════════════════════════════════════
  *
- * Calendly proved that a real connector fits the contracts. This proves the
+ * A shipped connector proved that a real integration fits the contracts. This proves the
  * stronger claim: a SECOND, entirely unknown integration works with **zero**
  * changes anywhere — no Builder file, no engine file, no catalog file, no
  * registry file. Everything below is declared in this test and handed to the
@@ -35,7 +35,7 @@ import type { Connection, EventDefinition, Source } from '@/lib/automations/cata
  * If the architecture had leaked, this file could not compile without a
  * production diff. That it does not is the acceptance criterion.
  *
- * Omega is deliberately UNLIKE Calendly: different subject, a money field, an
+ * Omega is deliberately UNLIKE the shipped one: different subject, a money field, an
  * enum field with its own options, a different option source, an entitlement
  * requirement on top of a connection one, and a webhook signed differently.
  */
@@ -367,7 +367,7 @@ describe('✓ the engine ingests Omega through the same generic pipeline', () =>
     return { body, headers: { 'x-omega-signature': crypto.createHmac('sha256', OMEGA_SECRET).update(body).digest('hex') } }
   }
 
-  it('is a webhook connector by the same test Calendly passes', () => {
+  it('is a webhook connector by the same test every connector passes', () => {
     expect(isWebhookConnector(omegaProvider)).toBe(true)
   })
 
