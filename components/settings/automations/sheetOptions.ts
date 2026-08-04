@@ -41,6 +41,10 @@ const ERRORS: Record<string, string> = {
   no_sending_domain: 'שליחת אימיילים אינה מוגדרת עדיין. נדרשת בדיקה בהגדרות החשבון.',
   no_reply_to: 'חסרה כתובת אימייל לתשובות. יש להשלים אותה בהגדרות העסק.',
   send_failed: 'שליחת הבדיקה נכשלה. נסו שוב.',
+  cta_incomplete: 'לכפתור צריך גם טקסט וגם קישור, או להסיר אותו',
+  cta_label_invalid: 'טקסט הכפתור ארוך מדי',
+  cta_url_invalid: 'קישור הכפתור חייב להתחיל ב-https://',
+  preview_failed: 'לא ניתן להציג תצוגה מקדימה כרגע. נסו שוב.',
 }
 
 export const errorMessage = (reason: string) => ERRORS[reason] ?? 'לא ניתן לשמור'

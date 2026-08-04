@@ -1,10 +1,18 @@
 import { baseUrl } from '@/types/vars'
 import { getAgencyName, getAgencyReplyTo, getRepName } from '@/db/automations/leadFacts'
-import { resolveSenderIdentity, type SenderIdentity } from '../identity'
+import { DEFAULT_DISPLAY_NAME, resolveSenderIdentity, type SenderIdentity } from '../identity'
 import { renderAutomationEmail } from '../renderEmail'
 import { leadUnsubscribeUrl, signLeadUnsubscribe } from '../unsubscribeToken'
 import { getAutomationsFrom } from '../flags'
-import type { ActionExecutor, ExecutionContext, PreflightResult, TestResult, TestTarget } from './types'
+import type {
+  ActionExecutor,
+  ExecutionContext,
+  PreflightResult,
+  PreviewResult,
+  PreviewTarget,
+  TestResult,
+  TestTarget,
+} from './types'
 
 /**
  * `email.send` — Action #1, and nothing more than that.
@@ -201,5 +209,36 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       return { ok: false, reason: 'send_failed' }
     }
     return { ok: true }
+  },
+
+  /**
+   * The Builder preview — the SAME renderer and the SAME identity resolver as
+   * `execute`, so what the customer sees is what a lead receives.
+   *
+   * Renders even when the identity cannot be resolved: the shell and content are
+   * still truthful, and blanking the preview because a reply-to is missing would
+   * hide the very content the customer is editing. The dedicated "דורש טיפול"
+   * surface is what reports the configuration fault.
+   */
+  async preview(parameters, target: PreviewTarget, deps: EmailDeps): Promise<PreviewResult> {
+    const businessName = await deps.agencyName(target.agencyId)
+    const sender = resolveSenderIdentity({ agencyName: businessName, replyTo: await deps.replyTo(target.agencyId) }, deps.from())
+    const displayName = sender.identity?.displayName ?? businessName ?? DEFAULT_DISPLAY_NAME
+
+    const rendered = await renderAutomationEmail({
+      subject: asText(parameters.subject),
+      body: asText(parameters.body),
+      // The admin's own name stands in for the lead, and the REAL business name
+      // is used — the old preview passed nulls and showed the placeholder
+      // "העסק", so the customer never saw their own name in place.
+      vars: { leadFirstName: target.toName, businessName: displayName, repName: target.toName },
+      // Inert but real in shape: lead 0, which no lead can ever be.
+      unsubscribeUrl: `${baseUrl}/api/automations/unsubscribe?a=${target.agencyId}&l=0&t=${encodeURIComponent(
+        signLeadUnsubscribe(target.agencyId, 0),
+      )}`,
+      action: actionFrom(parameters),
+    })
+
+    return { ok: true, html: rendered.html, subjectLine: rendered.subject, fromName: displayName }
   },
 }

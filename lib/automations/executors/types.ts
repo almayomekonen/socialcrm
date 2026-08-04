@@ -103,6 +103,25 @@ export type ExecutionOutcome = {
 export type TestTarget = { agencyId: number; toName: string | null; address: string }
 export type TestResult = { ok: true } | { ok: false; reason: string }
 
+/**
+ * The Builder preview contract.
+ *
+ * Generic for the same reason `test` is: the Builder asks the ACTION to render
+ * what it would produce, and never learns that this one produces email.
+ *
+ * It exists because the Builder used to draw its own approximation of the email
+ * in app typography — one paragraph, no footer, placeholder business name — so
+ * the customer could not see what they were sending. The glued-signature defect
+ * shipped through that gap. Preview and send now come from ONE renderer.
+ *
+ * `subjectLine`/`fromName` are returned separately so the Builder can show the
+ * inbox row honestly, including the business name the From header will carry.
+ */
+export type PreviewTarget = { agencyId: number; toName: string | null }
+export type PreviewResult =
+  | { ok: true; html: string; subjectLine: string; fromName: string }
+  | { ok: false; reason: string }
+
 export type ActionExecutor<TReady = unknown, TDeps = unknown> = {
   /** The CATALOG key (`email.send`), never the engine's persisted value. */
   actionKey: string
@@ -118,6 +137,8 @@ export type ActionExecutor<TReady = unknown, TDeps = unknown> = {
   execute(ctx: ExecutionContext, ready: TReady, deps: TDeps): Promise<ExecutionOutcome>
   /** Present only when the catalog marks the action `testable`. */
   test?(parameters: Record<string, unknown>, target: TestTarget, deps: TDeps): Promise<TestResult>
+  /** Present when the action can render a faithful preview of its output. */
+  preview?(parameters: Record<string, unknown>, target: PreviewTarget, deps: TDeps): Promise<PreviewResult>
 }
 
 /** An executor erased of its own dependency type — how the worker holds one. */

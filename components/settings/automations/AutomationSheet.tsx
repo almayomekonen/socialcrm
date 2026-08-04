@@ -6,7 +6,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
-import { substituteVariables, variableChipsForEvent } from '@/lib/automations/variables'
+import { variableChipsForEvent } from '@/lib/automations/variables'
 import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
 import {
   getEvent,
@@ -20,6 +20,7 @@ import { evaluateEvents, isSelectable, type RequirementContext } from '@/lib/aut
 import type { Connection } from '@/lib/automations/catalog/types'
 import RemoteParameters from './RemoteParameters'
 import AutomationContentSection, { type CtaDraft } from './AutomationContentSection'
+import AutomationPreviewSection from './AutomationPreviewSection'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation, type AutomationInput } from '@/actions/automations/manage'
@@ -198,10 +199,6 @@ export default function AutomationSheet({
     })
   }
 
-  const previewVars = { leadFirstName: previewName, businessName: null, repName: null }
-  const previewSubject = substituteVariables(subject, previewVars)
-  const previewBody = substituteVariables(body, previewVars)
-
   return (
     <ModalPop open onClose={onClose} pos='top' label={draft.id ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}>
       <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
@@ -306,23 +303,13 @@ export default function AutomationSheet({
 
         <Seperator className='my-0' />
 
-        {/* Preview is driven by the ACTION's declared preview shape. */}
-        <section className='grid gap-2'>
-          <h3 className='text-sm font-semibold text-gray-800'>כך זה ייראה{previewName ? ` אצל ${previewName}` : ''}</h3>
-          <div className='border rounded-md bg-gray-50 p-4 grid gap-2'>
-            {action?.preview === 'email' && (
-              <>
-                <p className='text-sm font-semibold text-gray-800'>{previewSubject || 'ללא נושא'}</p>
-                <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
-              </>
-            )}
-            {action?.preview === 'message' && (
-              <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
-            )}
-            {action?.preview === 'record' && <p className='text-sm text-gray-600'>{previewSubject || 'רשומה חדשה'}</p>}
-            {(!action || action.preview === 'none') && <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>}
-          </div>
-        </section>
+        <AutomationPreviewSection
+          action={action}
+          previewName={previewName}
+          subject={subject}
+          body={body}
+          cta={cta}
+        />
 
         <div className='grid gap-2'>
           <Btn
