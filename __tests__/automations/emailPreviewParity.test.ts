@@ -40,7 +40,7 @@ async function sentHtml(parameters: Record<string, unknown>): Promise<string> {
     deps({ send }),
   )
   expect(res.ok).toBe(true)
-  return (send.mock.calls[0][0] as { html: string }).html
+  return ((send as ReturnType<typeof vi.fn>).mock.calls[0][0] as { html: string }).html
 }
 
 async function previewHtml(parameters: Record<string, unknown>): Promise<string> {

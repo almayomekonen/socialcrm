@@ -47,6 +47,7 @@ export type EmailDeps = {
     subject: string
     html: string
     text: string
+    headers?: Record<string, string>
   }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
 }
 
@@ -63,6 +64,27 @@ const RESOLVABLE_FIELDS = ['leadFirstName', 'businessName', 'repName'] as const
  * both halves or nothing, so a label without a destination renders no button
  * rather than a dead one.
  */
+/**
+ * RFC 8058 one-click unsubscribe.
+ *
+ * The body link alone left Gmail without a native unsubscribe control, and left
+ * a bulk sender looking like one that offers no way out — a deliverability cost
+ * as much as a UX one. Both headers are required: `List-Unsubscribe` alone does
+ * not enable one-click, and `List-Unsubscribe-Post` without a POST-capable URL
+ * would advertise a control that fails.
+ *
+ * The engine's unsubscribe route already mutates on POST only (ADR-003
+ * amendment), which is exactly what this needs.
+ */
+const unsubscribeHeaders = (url: string): Record<string, string> => ({
+  'List-Unsubscribe': `<${url}>`,
+  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+})
+
+/** Lead 0 — an id no lead can ever have, so test and preview links are inert. */
+const inertUnsubscribeUrl = (agencyId: number) =>
+  `${baseUrl}/api/automations/unsubscribe?a=${agencyId}&l=0&t=${encodeURIComponent(signLeadUnsubscribe(agencyId, 0))}`
+
 const actionFrom = (parameters: Record<string, unknown>) => {
   const label = asText(parameters.ctaLabel).trim()
   const url = asText(parameters.ctaUrl).trim()
@@ -124,11 +146,12 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
   },
 
   async execute(ctx: ExecutionContext, ready: EmailReady, deps: EmailDeps) {
+    const unsubscribe = leadUnsubscribeUrl(baseUrl, ctx.agencyId, ctx.leadId)
     const rendered = await renderAutomationEmail({
       subject: asText(ctx.parameters.subject),
       body: asText(ctx.parameters.body),
       vars: varsFrom(ctx.subject, ready.identity?.displayName ?? ready.businessName),
-      unsubscribeUrl: leadUnsubscribeUrl(baseUrl, ctx.agencyId, ctx.leadId),
+      unsubscribeUrl: unsubscribe,
       action: actionFrom(ctx.parameters),
     })
 
@@ -145,6 +168,7 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
+        headers: unsubscribeHeaders(unsubscribe),
       })
       if ('error' in res) throw new Error(`transport: ${res.error}`)
       return {
@@ -177,6 +201,7 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
     const sender = resolveSenderIdentity({ agencyName: businessName, replyTo: await deps.replyTo(target.agencyId) }, deps.from())
     if (!sender.identity) return { ok: false, reason: sender.problem ?? 'identity_unavailable' }
 
+    const testUnsubscribeUrl = inertUnsubscribeUrl(target.agencyId)
     const rendered = await renderAutomationEmail({
       subject: asText(parameters.subject),
       body: asText(parameters.body),
@@ -189,9 +214,7 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       },
       // A real, working link — scoped to lead 0, which no lead can ever be, so
       // clicking it in a test can never suppress a real lead.
-      unsubscribeUrl: `${baseUrl}/api/automations/unsubscribe?a=${target.agencyId}&l=0&t=${encodeURIComponent(
-        signLeadUnsubscribe(target.agencyId, 0),
-      )}`,
+      unsubscribeUrl: testUnsubscribeUrl,
       // The test send carries the CTA too, or it would not be the same email.
       action: actionFrom(parameters),
     })
@@ -203,6 +226,7 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       subject: `[בדיקה] ${rendered.subject}`,
       html: rendered.html,
       text: rendered.text,
+      headers: unsubscribeHeaders(testUnsubscribeUrl),
     })
     if ('error' in res) {
       console.error('[automations][test-send] failed', { agencyId: target.agencyId, reason: res.error })
@@ -233,9 +257,7 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       // "העסק", so the customer never saw their own name in place.
       vars: { leadFirstName: target.toName, businessName: displayName, repName: target.toName },
       // Inert but real in shape: lead 0, which no lead can ever be.
-      unsubscribeUrl: `${baseUrl}/api/automations/unsubscribe?a=${target.agencyId}&l=0&t=${encodeURIComponent(
-        signLeadUnsubscribe(target.agencyId, 0),
-      )}`,
+      unsubscribeUrl: inertUnsubscribeUrl(target.agencyId),
       action: actionFrom(parameters),
     })
 

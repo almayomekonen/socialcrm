@@ -185,9 +185,21 @@ export function deliver(html: string, client: MailClient): Delivered {
     }
   }
 
+  // `display:none` subtrees are not author-visible copy — the preheader is
+  // deliberately hidden, 1px and transparent, so applying reading-typography or
+  // direction invariants to it would assert against something no recipient sees.
+  // It has its own assertions in emailDeliverability.test.ts.
+  const hidden = (el: HTMLElement): boolean => {
+    for (let n: HTMLElement | null = el; n && n !== root.parentElement; n = n.parentElement) {
+      if (n.style?.getPropertyValue('display') === 'none') return true
+    }
+    return false
+  }
+
   const textBlocks = [...root.querySelectorAll<HTMLElement>('*')].filter(
     (el) =>
       !NON_CONTENT_TAGS.has(el.tagName) &&
+      !hidden(el) &&
       [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim().length > 0),
   )
   const blockTextBlocks = textBlocks.filter((el) => !INLINE_TAGS.has(el.tagName))

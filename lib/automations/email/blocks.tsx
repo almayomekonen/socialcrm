@@ -101,6 +101,37 @@ export function TextBlock(props: {
 }
 
 /**
+ * The inbox snippet, hidden inside the message.
+ *
+ * Without one, Gmail's snippet is whatever the email opens with — which was the
+ * greeting, "שלום דנה,". That wastes the second-most-read line in the whole
+ * email. Derived, never authored: nobody should have to write a preheader.
+ *
+ * `mso-hide:all` keeps it out of Outlook, which ignores `display:none` here.
+ */
+export function Preheader(props: { text: string }) {
+  return (
+    <div
+      dir={resolveDirection(props.text)}
+      style={{
+        display: 'none',
+        maxHeight: 0,
+        maxWidth: 0,
+        overflow: 'hidden',
+        opacity: 0,
+        color: 'transparent',
+        fontFamily: FONT_STACK,
+        fontSize: '1px',
+        lineHeight: '1px',
+        msoHide: 'all',
+      } as React.CSSProperties}
+    >
+      {props.text}
+    </div>
+  )
+}
+
+/**
  * The optional primary action — a bulletproof button.
  *
  * The colour and padding live on the `<td>`, not on the `<a>`: Outlook drops

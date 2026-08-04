@@ -49,7 +49,12 @@ function parse(agencyRaw: string | null, leadRaw: string | null, token: string |
   const agencyId = Number(agencyRaw)
   const leadId = Number(leadRaw)
   const ok =
-    Number.isInteger(agencyId) && agencyId > 0 && Number.isInteger(leadId) && leadId > 0 && !!token && verifyLeadUnsubscribe(agencyId, leadId, token)
+    Number.isInteger(agencyId) &&
+    agencyId > 0 &&
+    Number.isInteger(leadId) &&
+    leadId > 0 &&
+    !!token &&
+    verifyLeadUnsubscribe(agencyId, leadId, token)
   return ok ? { agencyId, leadId, token: token as string } : null
 }
 
@@ -77,12 +82,25 @@ export async function GET(req: NextRequest) {
   )
 }
 
-/** Performs the suppression. The only mutating verb on this route. */
+/**
+ * Performs the suppression. The only mutating verb on this route.
+ *
+ * Identifiers are read from the form body, falling back to the QUERY STRING for
+ * RFC 8058 one-click unsubscribe: a mail client acting on the
+ * `List-Unsubscribe-Post` header posts `List-Unsubscribe=One-Click` as the whole
+ * body, so the only place (a, l, t) can be is the URL.
+ *
+ * This does not weaken the GET-renders/POST-mutates protection above. That guard
+ * exists because corporate link scanners FETCH emailed links unattended — they
+ * issue GETs, and do not submit or synthesise POSTs. The verb is what protects
+ * the mutation; where the identifiers are carried does not change it.
+ */
 export async function POST(req: NextRequest) {
   const form = await req.formData().catch(() => null)
+  const q = req.nextUrl.searchParams
   const read = (k: string) => {
     const v = form?.get(k)
-    return typeof v === 'string' ? v : null
+    return typeof v === 'string' ? v : q.get(k)
   }
 
   const parsed = parse(read('a'), read('l'), read('t'))

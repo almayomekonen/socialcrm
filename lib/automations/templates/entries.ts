@@ -52,7 +52,7 @@ export const TEMPLATE_ENTRIES: readonly TemplateDefinition[] = [
         actionKey: 'email.send',
         timing: { kind: 'custom', value: 1, unit: 'days' },
         parameters: {
-          subject: 'עדיין כאן בשבילך — {{שם העסק}}',
+          subject: 'עדיין כאן בשבילך',
           body: `שלום {{שם הליד}},
 
 רצינו לוודא שהפנייה שלך מהאתר הגיעה אלינו והיא בטיפול.
@@ -82,7 +82,7 @@ ${BUSINESS_SIGNOFF}`,
         actionKey: 'email.send',
         timing: { kind: 'preset', preset: 'immediate' },
         parameters: {
-          subject: 'קיבלנו את הפנייה שלך — {{שם העסק}}',
+          subject: 'קיבלנו את הפנייה שלך',
           body: `שלום {{שם הליד}},
 
 תודה שפנית אלינו. הפנייה שלך התקבלה והיא כבר אצלנו.
@@ -99,7 +99,7 @@ ${BUSINESS_SIGNOFF}`,
         actionKey: 'email.send',
         timing: { kind: 'custom', value: 2, unit: 'days' },
         parameters: {
-          subject: 'קצת עלינו — {{שם העסק}}',
+          subject: 'קצת עלינו',
           body: `שלום {{שם הליד}},
 
 רצינו לספר בקצרה איך אנחנו עובדים, כדי שיהיה לך ברור למה לצפות.
@@ -116,7 +116,7 @@ ${BUSINESS_SIGNOFF}`,
         actionKey: 'email.send',
         timing: { kind: 'custom', value: 7, unit: 'days' },
         parameters: {
-          subject: 'עדיין רלוונטי? — {{שם העסק}}',
+          subject: 'עדיין רלוונטי?',
           body: `שלום {{שם הליד}},
 
 עבר שבוע מאז שפנית אלינו, ורצינו לבדוק אם זה עדיין רלוונטי עבורך.
@@ -146,7 +146,7 @@ ${BUSINESS_SIGNOFF}`,
         actionKey: 'email.send',
         timing: { kind: 'custom', value: 14, unit: 'days' },
         parameters: {
-          subject: 'הדלת נשארת פתוחה — {{שם העסק}}',
+          subject: 'הדלת נשארת פתוחה',
           body: `שלום {{שם הליד}},
 
 לא התקדמנו הפעם, וזה לגמרי בסדר.
@@ -183,7 +183,7 @@ ${BUSINESS_SIGNOFF}`,
         actionKey: 'email.send',
         timing: { kind: 'preset', preset: 'immediate' },
         parameters: {
-          subject: 'קיבלנו את הפנייה שלך — {{שם העסק}}',
+          subject: 'קיבלנו את הפנייה שלך',
           body: `שלום {{שם הליד}},
 
 תודה שפנית אלינו דרך האתר. הפנייה שלך התקבלה ואנחנו כבר עליה.
@@ -216,7 +216,7 @@ ${BUSINESS_SIGNOFF}`,
         actionKey: 'email.send',
         timing: { kind: 'preset', preset: 'immediate' },
         parameters: {
-          subject: 'הפגישה נקבעה — {{שם העסק}}',
+          subject: 'הפגישה נקבעה',
           body: `שלום {{שם הליד}},
 
 הפגישה שלנו נקבעה ומופיעה ביומן.

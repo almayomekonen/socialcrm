@@ -33,7 +33,7 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     eventKey: 'lead.created',
     conditions: [],
     timing: { kind: 'preset', preset: 'immediate' },
-    subject: 'קיבלנו את הפנייה שלך — {{שם העסק}}',
+    subject: 'קיבלנו את הפנייה שלך',
     body: `שלום {{שם הליד}},
 
 תודה שפנית אלינו. הפנייה שלך התקבלה אצלנו והיא כבר בטיפול.
@@ -50,7 +50,7 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     eventKey: 'lead.created',
     conditions: [{ field: 'source', operator: 'contains', value: 'facebook' }],
     timing: { kind: 'preset', preset: 'immediate' },
-    subject: 'ההרשמה שלך אושרה — {{שם העסק}}',
+    subject: 'ההרשמה שלך אושרה',
     body: `שלום {{שם הליד}},
 
 ההרשמה שלך התקבלה ומקומך שמור.
@@ -67,7 +67,7 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     eventKey: 'lead.status_changed',
     conditions: [{ field: 'newStatus', operator: 'is', value: 'closed' }],
     timing: { kind: 'preset', preset: 'immediate' },
-    subject: 'תודה מאיתנו — {{שם העסק}}',
+    subject: 'תודה מאיתנו',
     body: `שלום {{שם הליד}},
 
 תודה על האמון — שמחים שבחרת בנו.
@@ -84,7 +84,7 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     eventKey: 'lead.status_changed',
     conditions: [{ field: 'newStatus', operator: 'is', value: 'contacted' }],
     timing: { kind: 'preset', preset: 'one_day' },
-    subject: 'אנחנו על זה — {{שם העסק}}',
+    subject: 'אנחנו על זה',
     body: `שלום {{שם הליד}},
 
 רצינו לעדכן שהפנייה שלך בטיפול פעיל אצל {{שם הנציג}}.

@@ -15,6 +15,13 @@ type SendInput = {
   // sending identity. The transport carries the address — sender policy stays
   // with each domain's caller.
   from?: string
+  /**
+   * Extra RFC 5322 headers, on the same principle as `from`: the transport
+   * carries them, the calling domain decides them. The customer-automation
+   * domain uses this for List-Unsubscribe; platform email passes nothing and is
+   * byte-for-byte unchanged.
+   */
+  headers?: Record<string, string>
 }
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string }
@@ -40,7 +47,15 @@ function fromSource(): string {
   return 'default-constant'
 }
 
-export async function sendEmail({ to, subject, html, text, replyTo, from: explicitFrom }: SendInput): Promise<SendResult> {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  replyTo,
+  from: explicitFrom,
+  headers,
+}: SendInput): Promise<SendResult> {
   const from = explicitFrom?.trim() || getEmailFrom()
 
   console.log(`${LOG_PREFIX} attempt`, {
@@ -58,6 +73,7 @@ export async function sendEmail({ to, subject, html, text, replyTo, from: explic
     const payload: Parameters<typeof resend.emails.send>[0] = { from, to, subject, html }
     if (text) payload.text = text
     if (replyTo) payload.replyTo = replyTo
+    if (headers && Object.keys(headers).length > 0) payload.headers = headers
     return resend.emails.send(payload)
   }
 

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { render } from '@react-email/render'
-import { ActionButton, FooterRows, Lines, Row, TextBlock } from './email/blocks'
+import { ActionButton, FooterRows, Lines, Preheader, Row, TextBlock } from './email/blocks'
 import { blockText, parseBody, type ContentBlock } from './email/parseBody'
 import { Shell } from './email/shell'
 import { SPACE } from './email/tokens'
@@ -33,14 +33,28 @@ const ROLE_FOR = { greeting: 'greeting', paragraph: 'body', signature: 'signatur
 
 const GAP_FOR = { greeting: SPACE.betweenParagraphs, paragraph: SPACE.betweenParagraphs, signature: SPACE.beforeSignature }
 
+/**
+ * The inbox snippet, derived from content.
+ *
+ * Prefers the first real PARAGRAPH over the greeting: "שלום דנה," tells the
+ * recipient nothing, and it is what Gmail was showing.
+ */
+function preheaderFrom(blocks: ContentBlock[]): string {
+  const source = blocks.find((b) => b.kind === 'paragraph') ?? blocks[0]
+  if (!source) return ''
+  const flat = source.lines.join(' ').replace(/\s+/g, ' ').trim()
+  return flat.length > 140 ? `${flat.slice(0, 139).trimEnd()}…` : flat
+}
+
 function AutomationEmail(props: {
   blocks: ContentBlock[]
   action: EmailAction | null
   businessName: string
   unsubscribeUrl: string
 }) {
+  const preheader = preheaderFrom(props.blocks)
   return (
-    <Shell>
+    <Shell preheader={preheader ? <Preheader text={preheader} /> : null}>
       {props.blocks.map((block, i) => (
         <Row key={i} gap={i === 0 ? undefined : GAP_FOR[block.kind]}>
           {/* Each block renders in its own role, so greeting, body and sign-off
