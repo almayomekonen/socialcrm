@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { accessibleTextOn, darken } from './contrast'
 import { COLOR, FONT_STACK, SPACE, TYPE, alignFor, resolveDirection, type Direction } from './tokens'
 
 /**
@@ -138,8 +139,21 @@ export function Preheader(props: { text: string }) {
  * padding on an anchor, which would leave a bare coloured word. The label is
  * bidi-isolated so a Hebrew label beside an LTR business name cannot reorder.
  */
-export function ActionButton(props: { label: string; url: string }) {
+export function ActionButton(props: {
+  label: string
+  url: string
+  accent?: string
+  accentText?: string
+  accentBorder?: string
+}) {
   const dir = resolveDirection(props.label)
+  // Both derived, never configured. The label because a pale brand with the
+  // default white text is unreadable and the customer cannot see that from a
+  // colour picker; the edge because a pale fill on a pale surface reads as no
+  // button at all.
+  const accent = props.accent ?? COLOR.light.accent
+  const accentText = props.accentText ?? accessibleTextOn(accent)
+  const accentBorder = props.accentBorder ?? darken(accent, 0.22)
   return (
     <table
       role="presentation"
@@ -156,11 +170,12 @@ export function ActionButton(props: { label: string; url: string }) {
             // `bgcolor` is absent from React's <td> types but is the attribute
             // the Word engine honours most reliably. Worth keeping: a button
             // that loses its background renders a white label on white.
-            {...({ bgcolor: COLOR.light.accent } as Record<string, string>)}
+            {...({ bgcolor: accent } as Record<string, string>)}
             style={{
-              backgroundColor: COLOR.light.accent,
+              backgroundColor: accent,
+              border: `1px solid ${accentBorder}`,
               borderRadius: '8px',
-              padding: '14px 30px',
+              padding: '13px 29px',
             }}
           >
             <a
@@ -170,7 +185,7 @@ export function ActionButton(props: { label: string; url: string }) {
               dir={dir}
               style={{
                 display: 'inline-block',
-                color: COLOR.light.accentText,
+                color: accentText,
                 fontFamily: FONT_STACK,
                 fontSize: TYPE.action.size,
                 lineHeight: TYPE.action.lineHeight,
