@@ -73,6 +73,28 @@ export async function resolveCapabilities(providers: readonly ConnectionProvider
   return capabilities
 }
 
+/**
+ * The HEALTHY connections that grant a capability.
+ *
+ * An action declares the capability it needs; a provider declares the
+ * capabilities it grants. Intersecting the two answers "which connection can
+ * serve this action's option list" without any caller naming an integration —
+ * which is what lets the Builder populate a template picker while remaining, by
+ * Law 1, integration-unaware.
+ *
+ * Only `health === 'ok'`, for the same reason `resolveCapabilities` insists on
+ * it: options read from a revoked connection would look available and fail.
+ */
+export async function connectionsForCapability(
+  providers: readonly ConnectionProvider[],
+  agencyId: number,
+  capability: string,
+): Promise<Connection[]> {
+  const granting = providers.filter((p) => p.capabilities.includes(capability))
+  const all = await Promise.all(granting.map((p) => safe(p.listConnections(agencyId), [] as Connection[])))
+  return all.flat().filter((c) => c.health === 'ok')
+}
+
 /** Health of one bound connection; `null` when it no longer exists at all. */
 export async function connectionHealth(
   providers: readonly ConnectionProvider[],

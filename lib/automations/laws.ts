@@ -57,9 +57,21 @@ export interface SendFacts {
    */
   appointment?: MeetingFacts | null
   suppressed: boolean
+  /**
+   * Messaging-channel consent — the lead asked this business to stop. Distinct
+   * from `suppressed`, which is email unsubscribe: two channels, two consents.
+   * Absent for actions that declare no `opt_out` law, which never read it.
+   */
+  optedOut?: boolean
   alreadySent: boolean // send-once claim already recorded (ADR-005)
-  sentToLeadToday: number // automated emails this lead received today (all automations)
-  sentByAgencyToday: number // automated emails this business sent today
+  /**
+   * Automated messages this lead received today, from EVERY automated sender —
+   * this engine's automations AND the instant-response engine. One number,
+   * because the cap protects the lead, and a lead who was already messaged by a
+   * machine today has been messaged whichever subsystem did it.
+   */
+  sentToLeadToday: number
+  sentByAgencyToday: number // automated messages this business sent today
   limits?: { leadDailyCap?: number; agencyDailyCeiling?: number }
   quietHours?: QuietHoursConfig | null
   now: Date
@@ -112,10 +124,28 @@ const LAW_EVALUATORS: Record<LawKey, LawEvaluator | null> = {
   agency_cap: (f) =>
     f.sentByAgencyToday >= (f.limits?.agencyDailyCeiling ?? DEFAULT_AGENCY_DAILY_CEILING) ? 'agency_daily_cap' : null,
   quiet_hours: (f) => (withinQuietHours(f.quietHours, f.now) ? 'quiet_hours' : null),
-  // Messaging-channel laws: declared in the vocabulary so actions can name
-  // them, unimplemented until B6 brings the channel. No registered action may
-  // declare an unimplemented law — asserted in CI.
-  opt_out: null,
+  /**
+   * Messaging-channel opt-out. The lead asked this business to stop, so no
+   * automated message goes out on a messaging channel — regardless of which
+   * automation, and regardless of email consent, which is a separate question
+   * answered by `suppression`.
+   */
+  opt_out: (f) => (f.optedOut ? 'opted_out' : null),
+  /**
+   * The WhatsApp 24-hour customer-service window, and deliberately still
+   * unimplemented.
+   *
+   * `whatsapp.send` is TEMPLATE-ONLY, and an approved template delivers whether
+   * the window is open or closed — that is precisely what templates are for. So
+   * the window is not a gate the shipped messaging action can trip, and an
+   * evaluator for it would be dead code pretending to be a safeguard.
+   *
+   * It stays declared for the FREE-TEXT messaging action that does not exist
+   * yet, which genuinely cannot send outside the window. When that action
+   * arrives it declares this law, CI refuses it until an evaluator exists, and
+   * the evaluator is written then — against a real caller. That gate is the
+   * reason this line is `null` rather than a guess.
+   */
   window_24h: null,
 }
 

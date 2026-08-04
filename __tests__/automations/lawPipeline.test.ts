@@ -175,8 +175,13 @@ describe('composeLawPipeline', () => {
   })
 
   it('reports declared-but-unimplemented laws instead of silently passing them', () => {
-    const { unimplemented } = composeLawPipeline(['send_once', 'opt_out'], [])
-    expect(unimplemented).toEqual(['opt_out'])
+    // `window_24h` is the remaining unimplemented law — deliberately so: the
+    // shipped messaging action is template-only, and an approved template
+    // delivers whether or not the 24-hour window is open, so there is nothing for
+    // it to gate until a free-text action exists. `opt_out` used to stand here
+    // and now ships, which is why this reads window_24h instead.
+    const { unimplemented } = composeLawPipeline(['send_once', 'window_24h'], [])
+    expect(unimplemented).toEqual(['window_24h'])
   })
 })
 
@@ -210,7 +215,11 @@ describe('FAIL CLOSED — an unevaluatable pipeline never becomes a silent send'
     // asserts the runtime split is the one we intend.
     const implemented = LAW_KEYS.filter((k) => composeLawPipeline([k], []).unimplemented.length === 0)
     expect([...implemented].sort()).toEqual(
-      ['agency_cap', 'bounce_block', 'per_lead_cap', 'quiet_hours', 'send_once', 'suppression'].sort(),
+      ['agency_cap', 'bounce_block', 'opt_out', 'per_lead_cap', 'quiet_hours', 'send_once', 'suppression'].sort(),
     )
+    // The intended split, stated positively: exactly one law remains future, and
+    // it is the one no shipped action can trip.
+    const future = LAW_KEYS.filter((k) => composeLawPipeline([k], []).unimplemented.length > 0)
+    expect(future).toEqual(['window_24h'])
   })
 })

@@ -276,6 +276,6 @@ export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {
       action: actionFrom(parameters),
     })
 
-    return { ok: true, html: rendered.html, subjectLine: rendered.subject, fromName: displayName }
+    return { ok: true, shape: 'email', html: rendered.html, subjectLine: rendered.subject, fromName: displayName }
   },
 }

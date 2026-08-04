@@ -3,6 +3,7 @@
 import { substituteVariables } from '@/lib/automations/variables'
 import type { ActionDefinition } from '@/lib/automations/catalog/types'
 import AutomationEmailPreview from './AutomationEmailPreview'
+import AutomationMessagePreview from './AutomationMessagePreview'
 import type { CtaDraft } from './AutomationContentSection'
 
 /**
@@ -25,19 +26,25 @@ export default function AutomationPreviewSection({
   subject,
   body,
   cta,
+  templateId,
+  templateBindings,
 }: {
   action: ActionDefinition | null
   previewName: string | null
   subject: string
   body: string
   cta: CtaDraft | null
+  templateId?: string
+  templateBindings?: Record<string, string>
 }) {
-  // Only the textual shapes need local substitution; the email shape substitutes
-  // server-side through the renderer itself.
-  const textual = action?.preview === 'message' || action?.preview === 'record'
+  /**
+   * `record` is the only shape still substituted locally. The `message` shape used
+   * to be too — an approximation that could drift from the send, which is exactly
+   * the gap that let a bad email signature ship. Both delivering shapes now render
+   * through their executor.
+   */
   const vars = { leadFirstName: previewName, businessName: null, repName: null }
-  const previewSubject = textual ? substituteVariables(subject, vars) : ''
-  const previewBody = textual ? substituteVariables(body, vars) : ''
+  const previewSubject = action?.preview === 'record' ? substituteVariables(subject, vars) : ''
 
   return (
     <section className='grid gap-2'>
@@ -47,7 +54,7 @@ export default function AutomationPreviewSection({
           <AutomationEmailPreview draft={{ subject, body, ctaLabel: cta?.label ?? null, ctaUrl: cta?.url ?? null }} />
         )}
         {action?.preview === 'message' && (
-          <p className='text-sm text-gray-600 whitespace-pre-line'>{previewBody || 'ללא תוכן'}</p>
+          <AutomationMessagePreview templateId={templateId ?? ''} bindings={templateBindings ?? {}} />
         )}
         {action?.preview === 'record' && <p className='text-sm text-gray-600'>{previewSubject || 'רשומה חדשה'}</p>}
         {(!action || action.preview === 'none') && <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>}

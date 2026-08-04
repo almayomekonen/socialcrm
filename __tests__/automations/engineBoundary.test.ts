@@ -52,17 +52,34 @@ const CHANNEL_WORDS = [
  *   to name them; it is the same class of thing as `engineBridge.ts`, and it
  *   contains no behaviour.
  *
- *   executors/registry.ts · `email` — the registry is the ONE file whose job is
- *   to name what is installed, exactly as `connectors/registry.ts` names its
- *   providers. "Executor registration" is half of B6b's acceptance criterion;
- *   banning the name here would ban the registration.
+ *   executors/registry.ts · `email` / `whatsapp` — the registry is the ONE file
+ *   whose job is to name what is installed, exactly as `connectors/registry.ts`
+ *   names its providers. "Executor registration" is half of B6b's acceptance
+ *   criterion; banning the name here would ban the registration. `whatsapp` is
+ *   the same concession as `email`, for the second channel — not a new kind of
+ *   exception.
+ *
+ *   executors/types.ts · `email` — `PreviewResult` is discriminated by the
+ *   catalog's own `PREVIEW_SHAPES` values, and `'email'` is one of them. Same
+ *   class as MISSING_RECIPIENT: a persisted-vocabulary literal with no
+ *   behaviour attached. The alternative was an optional discriminant, which
+ *   would let a message-shaped preview be silently rendered as an email.
  */
 const EXEMPT: { file: string; word: string; why: string }[] = [
   { file: 'lib/automations/laws.ts', word: 'email', why: 'MISSING_RECIPIENT vocabulary map' },
   { file: 'lib/automations/laws.ts', word: 'phone', why: 'MISSING_RECIPIENT vocabulary map' },
   { file: 'lib/automations/executors/registry.ts', word: 'email', why: 'the installed-executor list' },
+  { file: 'lib/automations/executors/registry.ts', word: 'whatsapp', why: 'the installed-executor list' },
+  { file: 'lib/automations/executors/types.ts', word: 'email', why: 'PREVIEW_SHAPES vocabulary discriminant' },
 ]
-const EXEMPT_COUNT = EXEMPT.length
+/**
+ * A LITERAL ceiling, not `EXEMPT.length`.
+ *
+ * This was derived from the list it guards, which made the "may only shrink"
+ * assertion below vacuously true — it could never fail however many exemptions
+ * were added. Pinning the number is what turns the comment above into a ratchet.
+ */
+const EXEMPT_COUNT = 5
 
 /** Strips comments — documentation may name a channel; code may not. */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
@@ -82,7 +99,13 @@ describe('the engine names no delivery channel', () => {
     for (const file of ENGINE_FILES) {
       const code = read(file)
       for (const word of CHANNEL_WORDS) {
-        if (new RegExp(`\\b${word}\\b`, 'i').test(code)) violations.push(`${file} → ${word}`)
+        // Honours the SAME enumerated exemption list as the email/phone check
+        // below. It did not before only because no exempt file named a word from
+        // this list; the registry naming the second channel's executor is the
+        // first case, and it is the concession already granted for the first.
+        if (new RegExp(`\\b${word}\\b`, 'i').test(code) && !exempt(file, word)) {
+          violations.push(`${file} → ${word}`)
+        }
       }
     }
     expect(violations).toEqual([])

@@ -84,6 +84,12 @@ const ERRORS: Record<string, string> = {
   cta_label_invalid: 'טקסט הכפתור ארוך מדי',
   cta_url_invalid: 'קישור הכפתור חייב להתחיל ב-https://',
   preview_failed: 'לא ניתן להציג תצוגה מקדימה כרגע. נסו שוב.',
+  template_required: 'יש לבחור הודעה מוכנה',
+  template_not_found: 'ההודעה המוכנה שנבחרה לא נמצאה',
+  template_not_approved: 'אפשר לבחור רק הודעה שאושרה בוואטסאפ',
+  template_unmapped: 'צריך להשלים מה ימלא כל פרט בהודעה',
+  template_not_chosen: 'יש לבחור הודעה מוכנה',
+  template_missing: 'ההודעה המוכנה שנבחרה לא נמצאה',
 }
 
 export const errorMessage = (reason: string) => ERRORS[reason] ?? 'לא ניתן לשמור'

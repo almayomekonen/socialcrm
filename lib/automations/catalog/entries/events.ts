@@ -38,6 +38,16 @@ const LEAD_FIELDS: readonly FieldDefinition[] = [
   { key: 'businessName', type: 'text', label: 'שם העסק', freshness: 'live', lifecycle: 'stable' },
   { key: 'repName', type: 'text', label: 'שם הנציג', freshness: 'live', lifecycle: 'stable' },
   { key: 'email', type: 'email', label: 'אימייל הליד', freshness: 'live', lifecycle: 'stable' },
+  /**
+   * The messaging recipient. Declared so `requires: ['phone']` has a field to
+   * resolve — `recipientFieldFor` finds the event's first field of the required
+   * TYPE, so without this declaration a phone-delivering action fails closed
+   * with `action_unavailable` however well its executor works.
+   *
+   * `live` for the same reason `email` is: the number is re-read at send time,
+   * so a corrected phone reaches a job queued days earlier.
+   */
+  { key: 'phone', type: 'phone', label: 'טלפון הליד', freshness: 'live', lifecycle: 'stable' },
   {
     key: 'status',
     type: 'enum',

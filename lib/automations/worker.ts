@@ -27,7 +27,7 @@ import { isValidTiming } from './timing'
 import { FAILURE_COPY } from './copy'
 import { recipientFieldFor, type SubjectValues } from './subject'
 import { defaultWorkerDeps, type WorkerDeps } from './workerDeps'
-import { appointmentFactsFor, recipientFacts, resolveSubjectContext } from './workerFacts'
+import { appointmentFactsFor, leadMessagesTodayFor, recipientFacts, resolveSubjectContext } from './workerFacts'
 import type { AnyActionExecutor } from './executors/types'
 import type { EventDefinition } from './catalog/types'
 import { getAutomationsSendMode, type AutomationsSendMode } from './flags'
@@ -153,8 +153,12 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     recipients: await recipientFacts(job.agencyId, resolved.recipients, deps),
     appointment,
     suppressed: await deps.isSuppressed(job.agencyId, job.leadId),
+    optedOut: await deps.isOptedOut(job.agencyId, job.leadId),
     alreadySent: claimState === 'confirmed',
-    sentToLeadToday: await deps.countLeadToday(job.agencyId, job.leadId, since),
+    // Every automated sender's messages, not just this engine's — see
+    // leadMessagesTodayFor. This is what keeps the two subsystems from
+    // double-texting one lead.
+    sentToLeadToday: await leadMessagesTodayFor(job, since, deps),
     sentByAgencyToday: await deps.countAgencyToday(job.agencyId, since),
     quietHours: null, // no per-agency window config in V1 (folded 'מתקדם' arrives with Phase 6)
     now,

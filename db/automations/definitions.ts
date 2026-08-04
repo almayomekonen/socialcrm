@@ -32,6 +32,17 @@ export type DefinitionContent = {
    */
   ctaLabel?: string | null
   ctaUrl?: string | null
+  /**
+   * `whatsapp.send`'s authored surface — the same additive-jsonb trade the CTA
+   * block above makes, for the same reason: no migration, and a row written
+   * before the messaging action existed simply has neither field.
+   *
+   * `templateId` is the chosen ready-made message. `templateBindings` maps a
+   * positional slot to a subject field (`{"1":"leadFirstName"}`) and is empty for
+   * every template authored in SocialCRM, whose chips already carry their meaning.
+   */
+  templateId?: number | null
+  templateBindings?: Record<string, string> | null
 }
 
 export type DefinitionStatus = 'draft' | 'active' | 'paused' | 'deleted'

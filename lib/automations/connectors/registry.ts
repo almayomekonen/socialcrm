@@ -27,6 +27,10 @@ export const optionsFor = (agencyId: number, connectionId: string, optionSource:
 
 export const resolveCapabilities = (agencyId: number): Promise<Set<string>> => resolve.resolveCapabilities(PROVIDERS, agencyId)
 
+/** The healthy connections granting a capability — how an action finds its options. */
+export const connectionsForCapability = (agencyId: number, capability: string): Promise<Connection[]> =>
+  resolve.connectionsForCapability(PROVIDERS, agencyId, capability)
+
 export const connectionHealth = (agencyId: number, connectionId: string): Promise<Connection['health'] | null> =>
   resolve.connectionHealth(PROVIDERS, agencyId, connectionId)
 

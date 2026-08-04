@@ -46,6 +46,10 @@ export default function AutomationEmailPreview({ draft }: { draft: Draft }) {
       const res = await previewAutomationEmail({ subject, body, ctaLabel, ctaUrl })
       if (cancelled) return
       if (res.ok === false) return setState({ kind: 'error', message: msg(res.reason) })
+      // This pane renders an email document in an iframe; a message-shaped
+      // preview belongs to its own pane. Checking the discriminant rather than
+      // assuming is what keeps that separation honest.
+      if (res.shape !== 'email') return setState({ kind: 'error', message: msg('action_invalid') })
       setState({ kind: 'ready', html: res.html, subjectLine: res.subjectLine, fromName: res.fromName })
     }, DEBOUNCE_MS)
 

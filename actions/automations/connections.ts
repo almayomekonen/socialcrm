@@ -6,7 +6,7 @@ import crypto from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
 import { baseUrl } from '@/types/vars'
-import { listAllConnections, listSourcesFor, optionsFor } from '@/lib/automations/connectors/registry'
+import { connectionsForCapability, listAllConnections, listSourcesFor, optionsFor } from '@/lib/automations/connectors/registry'
 import { listIntegrations } from '@/lib/automations/catalog/registry'
 import { providerFor } from '@/lib/automations/connectors/registry'
 import { applyCustomLabels, setSourceLabel } from '@/db/automations/sourceLabels'
@@ -52,6 +52,29 @@ export async function listOptionsAction(connectionId: string, optionSource: stri
   const named = new Map(sources.map((s) => [s.id, s.label]))
   const options = await optionsFor(user.agencyId, connectionId, optionSource)
   return { ok: true, options: options.map((o) => ({ id: o.id, label: named.get(o.id) ?? o.label })) }
+}
+
+/**
+ * An `enum_remote` parameter's options resolved by CAPABILITY rather than by a
+ * connection id.
+ *
+ * An ACTION's options may live on a different connection than the event's — a
+ * website-form event whose action sends a WhatsApp message needs the messaging
+ * connection, not the website one. The Builder knows only the capability the
+ * action declares, so it asks by that, and the connection is found here.
+ *
+ * Without this the Builder would have to identify the right connection itself,
+ * which it can only do by recognising an integration — exactly what Law 1 forbids.
+ */
+export async function listOptionsForCapabilityAction(capability: string, optionSource: string): Promise<OptionsResult> {
+  const user = await guard()
+  if (!user) return { ok: false, reason: 'forbidden' }
+  const connections = await connectionsForCapability(user.agencyId, capability)
+  const connection = connections[0]
+  // No healthy connection granting it ⇒ no options. Not an error: the action's
+  // own requirement is what tells the customer to connect something.
+  if (!connection) return { ok: true, options: [] }
+  return listOptionsAction(connection.id, optionSource)
 }
 
 // ── Provisioning ───────────────────────────────────────────────────────────

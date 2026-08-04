@@ -15,7 +15,9 @@ import { isValidTiming, type Timing } from '@/lib/automations/timing'
 import { unknownTokensFor } from '@/lib/automations/variables'
 import { resolvableFieldsFor } from '@/lib/automations/executors/registry'
 import type { TriggerType } from '@/lib/automations/types'
-import { getEvent, listActionsForEvent } from '@/lib/automations/catalog/registry'
+import { getAction, getEvent, listActionsForEvent } from '@/lib/automations/catalog/registry'
+import { loadTemplateForSend } from '@/db/whatsappTemplates'
+import { unmappedSlots } from '@/lib/automations/whatsapp/templateParams'
 import { checkParameter } from '@/lib/automations/catalog/parameterRules'
 import { sourceIdsFrom } from '@/lib/automations/binding'
 import { actionKeyFor } from '@/lib/automations/actionEntry'
@@ -43,11 +45,24 @@ export type AutomationInput = {
   conditions: Condition[]
   connectionId?: string | null
   parameters?: Record<string, string>
+  /**
+   * WHICH action to run — an explicit CATALOG key now that more than one action
+   * can serve the same event.
+   *
+   * Optional, and validated against what the chosen event can actually offer. Left
+   * absent it falls back to the first offerable action, which is what every caller
+   * did implicitly when `email.send` was the only choice — so existing callers and
+   * stored recipes keep their behaviour exactly.
+   */
+  actionKey?: string | null
   subject: string
   body: string
   /** The optional CTA action block — both halves, or neither. */
   ctaLabel?: string | null
   ctaUrl?: string | null
+  /** `whatsapp.send`'s authored surface: the chosen template and its slot mapping. */
+  templateId?: number | null
+  templateBindings?: Record<string, string> | null
   timing: Timing
 }
 
@@ -60,28 +75,63 @@ async function requireAutomationsAdmin() {
 
 function validate(input: AutomationInput): string | null {
   if (!input.name?.trim()) return 'name_required'
-  if (!input.subject?.trim()) return 'subject_required'
-  if (!input.body?.trim()) return 'body_required'
   // Unknown event ⇒ inert, never guessed (Law 3).
   const event = getEvent(input.eventKey)
   if (!event || !engineTriggerForEventKey(input.eventKey)) return 'trigger_invalid'
   const conditionIssue = validateConditions(event, input.conditions ?? [])
   if (conditionIssue) return conditionIssue
   if (!isValidTiming(input.timing)) return 'timing_invalid'
+
+  /**
+   * The action is resolved BEFORE its content is judged, because what counts as
+   * valid content is the action's own business. Subject and body are `email.send`'s
+   * required parameters, not the engine's — demanding them from a message action
+   * would reject a perfectly configured WhatsApp automation for lacking fields it
+   * does not have.
+   */
+  const actionKey = actionKeyForInput(input)
+  if (!actionKey) return 'action_invalid'
+
+  if (isTemplateAction(actionKey)) {
+    // The content IS the approved template; there is nothing authored to lint.
+    // Its existence, approval and slot mapping need a read, so they are checked
+    // in `validateTemplateChoice` rather than here.
+    if (!input.templateId) return 'template_required'
+    return null
+  }
+
+  if (!input.subject?.trim()) return 'subject_required'
+  if (!input.body?.trim()) return 'body_required'
   /**
    * B6b: content is validated against what THIS action's executor can
    * substitute, not against a global email vocabulary. An action with no
    * executor resolves nothing, so its content is rejected rather than passed
    * by a set that never applied to it.
    */
-  const actionKey = actionKeyForInput(input)
-  if (!actionKey) return 'action_invalid'
   const resolvable = resolvableFieldsFor(actionKey)
   if (unknownTokensFor(resolvable, input.subject).length || unknownTokensFor(resolvable, input.body).length) {
     return 'unknown_variable'
   }
   const ctaIssue = validateCta(input, actionKey, resolvable)
   if (ctaIssue) return ctaIssue
+  return null
+}
+
+/**
+ * The template must exist, belong to THIS agency, be approved, and have every
+ * slot mapped — checked at SAVE time so the customer cannot store an automation
+ * that could never send.
+ *
+ * The executor re-checks approval at send time regardless, because Meta can
+ * withdraw it later. This is not that check duplicated; it is the difference
+ * between "cannot be saved" and "was saved and silently never fired".
+ */
+async function validateTemplateChoice(agencyId: number, input: AutomationInput, actionKey: string): Promise<string | null> {
+  if (!isTemplateAction(actionKey)) return null
+  const template = await loadTemplateForSend(Number(input.templateId), agencyId)
+  if (!template) return 'template_not_found'
+  if (template.status !== 'approved') return 'template_not_approved'
+  if (unmappedSlots(template, input.templateBindings ?? {}).length > 0) return 'template_unmapped'
   return null
 }
 
@@ -108,23 +158,38 @@ function toContent(input: AutomationInput): Omit<DefinitionContent, 'schemaVersi
   const url = input.ctaUrl?.trim() ?? ''
   const hasCta = Boolean(label && url)
   return {
-    subject: input.subject.trim(),
-    body: input.body.trim(),
+    subject: (input.subject ?? '').trim(),
+    body: (input.body ?? '').trim(),
     timing: input.timing,
     ctaLabel: hasCta ? label : null,
     ctaUrl: hasCta ? url : null,
+    // Carried only when chosen, so an email automation's content document is
+    // unchanged from what it was before the messaging action existed.
+    templateId: input.templateId ?? null,
+    templateBindings: input.templateBindings ?? null,
   }
 }
 
 /**
- * Which action a new automation runs: the first the chosen event can offer.
- * Derived from the catalog's `requires` × the event's `fields`, never named —
- * so the day a second action is registered, this picks it up as data.
+ * Which action this automation runs.
+ *
+ * The customer's explicit choice when they made one, and the first offerable
+ * action when they did not. Either way the answer must be an action the EVENT can
+ * offer — a key the caller invented, or one whose recipient this event cannot
+ * supply, is refused rather than trusted.
  */
 function actionKeyForInput(input: AutomationInput): string | null {
   const event = getEvent(input.eventKey)
-  return event ? (listActionsForEvent(event)[0]?.key ?? null) : null
+  if (!event) return null
+  const offerable = listActionsForEvent(event)
+  const chosen = input.actionKey?.trim()
+  if (chosen) return offerable.some((a) => a.key === chosen) ? chosen : null
+  return offerable[0]?.key ?? null
 }
+
+/** Is this action's content authored as a message template rather than as text? */
+const isTemplateAction = (actionKey: string): boolean =>
+  (getAction(actionKey)?.parameters ?? []).some((p) => p.key === 'templateId')
 
 export async function createAutomation(input: AutomationInput): Promise<ManageResult> {
   const { user, reason } = await requireAutomationsAdmin()
@@ -135,6 +200,8 @@ export async function createAutomation(input: AutomationInput): Promise<ManageRe
 
   const actionKey = actionKeyForInput(input)
   if (!actionKey) return { ok: false, reason: 'action_invalid' }
+  const templateIssue = await validateTemplateChoice(user.agencyId, input, actionKey)
+  if (templateIssue) return { ok: false, reason: templateIssue }
 
   const created = await createDefinition({
     agencyId: user.agencyId,
@@ -161,6 +228,15 @@ export async function updateAutomation(id: number, input: AutomationInput): Prom
 
   const existing = await getDefinition(user.agencyId, id)
   if (!existing || existing.status === 'deleted') return { ok: false, reason: 'not_found' }
+
+  /**
+   * Validated against the STORED action key, not the input's: an edit never
+   * changes which action runs (`updateDefinitionContent` preserves it), so
+   * judging the new content by a different action than the one that will execute
+   * it would validate something that never happens.
+   */
+  const templateIssue = await validateTemplateChoice(user.agencyId, input, actionKeyFor(existing) ?? '')
+  if (templateIssue) return { ok: false, reason: templateIssue }
 
   await updateDefinitionContent(user.agencyId, id, {
     name: input.name.trim(),

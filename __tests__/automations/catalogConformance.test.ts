@@ -60,7 +60,9 @@ describe('the B1 catalog is valid', () => {
       'appointment.booked',
       'form.submitted',
     ])
-    expect(catalog.actions.map((a) => a.key)).toEqual(['email.send', 'task.create'])
+    // `whatsapp.send` is APPENDED — the two B1 actions keep their positions, which
+    // is the property this assertion exists to prove.
+    expect(catalog.actions.map((a) => a.key)).toEqual(['email.send', 'task.create', 'whatsapp.send'])
   })
 
   it('registers integrations as data only, append-only, one row each', () => {

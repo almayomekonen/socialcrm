@@ -102,6 +102,15 @@ export default async function AutomationsSettingsPage() {
         d.content?.ctaLabel && d.content?.ctaUrl
           ? { label: d.content.ctaLabel, url: d.content.ctaUrl }
           : null,
+      /**
+       * Which action this automation runs, so opening it for edit reopens the
+       * configuration it was saved with. Without this the sheet would fall back to
+       * the event's first offerable action and show an email form for a WhatsApp
+       * automation — the same class of silent overwrite the timing round-trip fixed.
+       */
+      actionKey: actionKeyFor(d),
+      templateId: d.content?.templateId ?? null,
+      templateBindings: d.content?.templateBindings ?? null,
       timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },
     }
   }

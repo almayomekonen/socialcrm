@@ -18,6 +18,7 @@ import { getDefinitionForWorker, type WorkerDefinition } from '@/db/automations/
 import { getAgencyName, getLeadFacts, getRepName, type LeadFacts } from '@/db/automations/leadFacts'
 import { getMeetingFacts } from '@/db/automations/meetingFacts'
 import { isLeadSuppressed } from '@/db/automations/suppressions'
+import { countAutoResponsesForLead, isLeadOptedOutOfMessaging } from '@/db/automations/messagingFacts'
 import { isRecipientBlocked } from './recipientBlocks'
 import type { MeetingFacts } from './appointments'
 import type { AnyActionExecutor } from './executors/types'
@@ -49,12 +50,24 @@ export type WorkerDeps = {
    * without the worker learning what the channel is.
    */
   isRecipientBlocked: (agencyId: number, fieldKey: string, address: string) => Promise<boolean>
+  /**
+   * Whether the lead asked this business to stop messaging them. Read from the
+   * signal the instant-response engine already maintains, so the two automated
+   * senders honour ONE opt-out rather than one each.
+   */
+  isOptedOut: (agencyId: number, leadId: number) => Promise<boolean>
   claimState: (automationId: number, leadId: number) => Promise<'none' | 'claimed' | 'confirmed'>
   claimOnce: (args: { agencyId: number; automationId: number; leadId: number; mode: 'live' | 'log' }) => Promise<boolean>
   confirmClaim: (automationId: number, leadId: number) => Promise<void>
   releaseClaim: (automationId: number, leadId: number) => Promise<void>
   hasEffect: (automationId: number, leadId: number) => Promise<boolean>
   countLeadToday: (agencyId: number, leadId: number, since: Date) => Promise<number>
+  /**
+   * Messages the INSTANT-RESPONSE engine sent this lead today. Summed with
+   * `countLeadToday` into the single per-lead cap fact, which is what stops the
+   * two subsystems from double-texting one person.
+   */
+  countAutoResponsesToday: (agencyId: number, leadId: number, since: Date) => Promise<number>
   countAgencyToday: (agencyId: number, since: Date) => Promise<number>
   appendActivity: typeof appendActivity
   /** Subject-field resolution only. The sender identity is email's business. */
@@ -81,6 +94,7 @@ export function defaultWorkerDeps(): WorkerDeps {
     getDefinition: getDefinitionForWorker,
     getLeadFacts,
     isSuppressed: isLeadSuppressed,
+    isOptedOut: isLeadOptedOutOfMessaging,
     isRecipientBlocked,
     claimState: getSendClaimState,
     claimOnce: claimSendOnce,
@@ -88,6 +102,7 @@ export function defaultWorkerDeps(): WorkerDeps {
     releaseClaim: releaseSendClaim,
     hasEffect: hasConsumingActivity,
     countLeadToday: countAutomatedTodayForLead,
+    countAutoResponsesToday: countAutoResponsesForLead,
     countAgencyToday: countAutomatedTodayForAgency,
     appendActivity,
     agencyName: getAgencyName,

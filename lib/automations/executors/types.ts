@@ -118,8 +118,25 @@ export type TestResult = { ok: true } | { ok: false; reason: string }
  * inbox row honestly, including the business name the From header will carry.
  */
 export type PreviewTarget = { agencyId: number; toName: string | null }
+
+/**
+ * Previews are discriminated by `shape`, matching the catalog's `PREVIEW_SHAPES`
+ * vocabulary — which listed `'message'` from the start for the channel that had
+ * not arrived yet.
+ *
+ * `shape` is REQUIRED on both, deliberately. An optional discriminant would let
+ * a new channel's preview be mistaken for an email by any consumer that forgot
+ * to check, and an email pane fed message text renders nothing at all.
+ */
 export type PreviewResult =
-  | { ok: true; html: string; subjectLine: string; fromName: string }
+  | { ok: true; shape: 'email'; html: string; subjectLine: string; fromName: string }
+  /**
+   * A chat message: one body of text, no subject and no From name, because a
+   * WhatsApp message has neither. `notApproved` lets the Builder say that this
+   * template cannot currently be sent while still showing what it says — the
+   * customer needs both facts at once.
+   */
+  | { ok: true; shape: 'message'; text: string; notApproved?: boolean }
   | { ok: false; reason: string }
 
 export type ActionExecutor<TReady = unknown, TDeps = unknown> = {

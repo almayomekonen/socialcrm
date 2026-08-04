@@ -11,12 +11,17 @@ export const SKIP_REASON_COPY: Record<SkipReason, string> = {
   lead_deleted: 'לא נשלח — הליד נמחק לפני מועד השליחה', // (spec)
   premise_expired: 'לא נשלח — הליד כבר טופל', // (spec)
   suppressed: 'לא נשלח — הליד הוסר מרשימת התפוצה', // (spec)
+  opted_out: 'לא נשלח — הליד ביקש להפסיק לקבל הודעות',
   no_email: 'לא נשלח — אין כתובת אימייל לליד', // (spec)
   no_phone: 'לא נשלח — אין מספר טלפון לליד',
   address_undeliverable: 'לא נשלח — כתובת האימייל לא תקינה', // (spec §9, "לא נשלח —" prefix unified)
   already_sent: 'לא נשלח — כבר נשלח לליד הזה', // (spec)
-  lead_daily_cap: 'לא נשלח — הליד קיבל היום את מספר האימיילים המרבי',
-  agency_daily_cap: 'לא נשלח — הגעתם למכסת האימיילים היומית',
+  // Channel-neutral wording: since the messaging action shipped, these caps
+  // count every automated MESSAGE a lead received today — email, WhatsApp, and
+  // the instant-response reply — not emails alone. Saying "אימיילים" would now
+  // be a false explanation of a WhatsApp skip.
+  lead_daily_cap: 'לא נשלח — הליד קיבל היום את מספר ההודעות המרבי',
+  agency_daily_cap: 'לא נשלח — הגעתם למכסת ההודעות היומית',
   quiet_hours: 'לא נשלח — מחוץ לחלון השליחה שהוגדר',
   meeting_missing: 'לא נשלח — הפגישה לא נמצאה',
   meeting_cancelled: 'לא נשלח — הפגישה בוטלה',

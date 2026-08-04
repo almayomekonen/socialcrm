@@ -99,4 +99,79 @@ export const ACTION_ENTRIES: readonly ActionDefinition[] = [
     preview: 'record',
     testable: false,
   },
+  {
+    key: 'whatsapp.send',
+    title: 'שליחת הודעת וואטסאפ',
+    description: 'שולח לליד הודעה מוכנה שאושרה בוואטסאפ',
+    icon: 'whatsapp',
+    /**
+     * Gated on the EXISTING WhatsApp Business connection — not a new one. The
+     * capability is already granted by `whatsappProvider`, so a business that
+     * connected WhatsApp for the inbox has already done everything this needs.
+     */
+    requirements: [
+      {
+        type: 'connection',
+        key: 'whatsapp_connected',
+        cta: { label: 'חיבור וואטסאפ', href: '/settings/connections' },
+      },
+    ],
+    /**
+     * The messaging counterpart to email's `requires: ['email']`. Resolves to the
+     * event's declared `phone` field; an event without one can never offer this
+     * action, which is exactly right.
+     */
+    requires: ['phone'],
+    parameters: [
+      {
+        key: 'templateId',
+        /**
+         * The SAME generic remote picker the form selector uses. Options come
+         * from the connector's `options()`, so the Builder renders a template
+         * list without learning what a template is.
+         */
+        type: 'enum_remote',
+        label: 'ההודעה המוכנה',
+        help: 'רק הודעות שאושרו בוואטסאפ אפשר לשלוח באוטומציה',
+        optionSource: 'whatsapp_templates',
+        validation: { required: true },
+      },
+      {
+        /**
+         * Slot mapping, as data: `{"1":"leadFirstName"}`. Stored on the action's
+         * parameters like every other parameter — no schema change, and no new
+         * parameter TYPE (Law 4): it is authored by a dedicated control and read
+         * back as text, the same trade `ctaUrl`'s serialised pattern makes.
+         *
+         * Empty for every template authored in SocialCRM, whose chips already
+         * carry their own meaning. Only Meta-synced templates need it.
+         */
+        key: 'templateBindings',
+        type: 'text',
+        label: 'שיוך הפרטים בהודעה',
+      },
+    ],
+    /**
+     * Every law that protects the LEAD, and no more.
+     *
+     * `opt_out` rather than `suppression`: email unsubscribe and a WhatsApp
+     * "עצור" are different consents, and honouring the wrong one would either
+     * ignore a request to stop or silence a lead who only left the mailing list.
+     *
+     * NOT `window_24h` — this action is template-only, and an approved template
+     * delivers whether the 24-hour window is open or closed. NOT `bounce_block`
+     * — no phone block list exists, and `recipientBlocks` treats an unregistered
+     * kind as unblocked rather than inventing a block.
+     */
+    laws: ['send_once', 'per_lead_cap', 'agency_cap', 'opt_out', 'quiet_hours'],
+    risk: 'external',
+    preview: 'message',
+    /**
+     * No test send. A WhatsApp test costs real money per message and spends the
+     * template's quality rating, and there is no inert recipient the way email
+     * has lead 0. The preview runs the real resolver, so it already shows
+     * everything a test would.
+     */
+    testable: false,
+  },
 ]

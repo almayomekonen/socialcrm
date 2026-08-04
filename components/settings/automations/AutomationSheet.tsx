@@ -18,8 +18,10 @@ import {
 } from '@/lib/automations/catalog/registry'
 import { evaluateEvents, isSelectable, type RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
-import RemoteParameters from './RemoteParameters'
-import AutomationContentSection, { type CtaDraft } from './AutomationContentSection'
+import { type CtaDraft } from './AutomationContentSection'
+import AutomationActionSection from './AutomationActionSection'
+import AutomationTimingSection from './AutomationTimingSection'
+import AutomationTriggerSection from './AutomationTriggerSection'
 import AutomationPreviewSection from './AutomationPreviewSection'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
@@ -49,10 +51,15 @@ export type SheetDraft = {
   conditions: Condition[]
   connectionId: string | null
   parameters: Record<string, string>
+  /** Which action this automation runs. Absent ⇒ the event's first offerable one. */
+  actionKey?: string | null
   subject: string
   body: string
   /** The optional CTA block; null when the email has none. */
   cta: CtaDraft | null
+  /** The message action's authored surface: chosen template + slot mapping. */
+  templateId?: number | null
+  templateBindings?: Record<string, string> | null
   timing: Timing
 }
 
@@ -79,6 +86,9 @@ export default function AutomationSheet({
   const [subject, setSubject] = useState(draft.subject)
   const [body, setBody] = useState(draft.body)
   const [cta, setCta] = useState<CtaDraft | null>(draft.cta ?? null)
+  const [chosenActionKey, setChosenActionKey] = useState<string | null>(draft.actionKey ?? null)
+  const [templateId, setTemplateId] = useState<string>(draft.templateId ? String(draft.templateId) : '')
+  const [templateBindings, setTemplateBindings] = useState<Record<string, string>>(draft.templateBindings ?? {})
   const [timing, setTiming] = useState<Timing>(draft.timing)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -91,9 +101,18 @@ export default function AutomationSheet({
   const evaluated = useMemo(() => evaluateEvents(listSelectableEvents(), requirementContext), [requirementContext])
   const events = evaluated.map((e) => e.event)
   const event = getEvent(eventKey)
-  // V1 renders one action — the first the event can offer. The catalog decides
-  // which that is (requires × fields); the Builder never names it.
-  const action = event ? (listActionsForEvent(event)[0] ?? null) : null
+  /**
+   * The actions this event can offer, and the one selected.
+   *
+   * Which actions exist is the catalog's answer (`requires` × the event's field
+   * types); which one runs is the customer's, defaulting to the first. The Builder
+   * still names none of them — it renders `a.title` from the catalog.
+   */
+  const actions = useMemo(() => (event ? listActionsForEvent(event) : []), [event])
+  const actionKey = chosenActionKey && actions.some((a) => a.key === chosenActionKey) ? chosenActionKey : (actions[0]?.key ?? '')
+  const action = actions.find((a) => a.key === actionKey) ?? null
+  /** A template-shaped action stores a chosen message instead of authored text. */
+  const isTemplateAction = Boolean(action?.parameters.some((p) => p.key === 'templateId'))
   const chips = useMemo(() => (event ? variableChipsForEvent(event.fields) : []), [event])
   const anchors = event ? listAnchorFields(event) : []
 
@@ -166,6 +185,11 @@ export default function AutomationSheet({
     conditions,
     connectionId: boundConnectionId,
     parameters,
+    // Explicit, so the server validates the content against the action the
+    // customer actually chose rather than the event's first offerable one.
+    actionKey,
+    templateId: isTemplateAction && templateId ? Number(templateId) : null,
+    templateBindings: isTemplateAction ? templateBindings : null,
     subject,
     body,
     // One block: an incomplete pair is sent as no block, matching what the
@@ -208,56 +232,21 @@ export default function AutomationSheet({
 
         <Seperator className='my-0' />
 
-        <section className='grid gap-3'>
-          <h3 className='text-sm font-semibold text-gray-800'>כש</h3>
-          <Select
-            lbl='מתי זה צריך לקרות'
-            options={grouped.map((g) => ({
-              head: g.subject.title,
-              grp: g.items.map((e) => ({
-                id: e.event.key,
-                // A locked event stays VISIBLE and says why (§4 Q5).
-                name: isSelectable(e.availability) ? e.event.title : `${e.event.title} — דורש חיבור`,
-              })),
-            }))}
-            value={eventKey}
-            onChange={(e) => {
-              setEventKey(e.target.value)
-              setConditions([]) // conditions belong to the event's fields
-            }}
-          />
-          {event && <p className='text-sm text-gray-500 ms-1'>{event.description}</p>}
-
-          {locked && (
-            <div className='border border-amber-200 rounded-md bg-amber-50 p-3 grid gap-2' role='alert'>
-              <p className='text-sm text-amber-800'>האירוע הזה עדיין לא זמין בחשבון שלכם.</p>
-              {locked.cta && <Btn variant='outline' size='small' lbl={locked.cta.label} href={locked.cta.href} />}
-            </div>
-          )}
-
-          {eligibleConnections.length > 1 && (
-            <Select
-              lbl='חיבור'
-              options={eligibleConnections.map((c) => ({ id: c.id, name: c.displayName }))}
-              value={boundConnectionId ?? ''}
-              onChange={(e) => setConnectionId(e.target.value || null)}
-            />
-          )}
-
-          {/* Exactly one — chosen for them, but never silently: the automation
-              stops working if this connection is revoked, so it is named. */}
-          {eligibleConnections.length === 1 && (
-            <p className='text-sm text-gray-500 ms-1'>חיבור: {eligibleConnections[0].displayName}</p>
-          )}
-
-          {/* Event parameters — rendered generically from catalog metadata. */}
-          <RemoteParameters
-            parameters={event?.parameters ?? []}
-            connectionId={boundConnectionId}
-            values={parameters}
-            onChange={setParameters}
-          />
-        </section>
+        <AutomationTriggerSection
+          grouped={grouped}
+          event={event}
+          eventKey={eventKey}
+          locked={locked}
+          eligibleConnections={eligibleConnections}
+          boundConnectionId={boundConnectionId}
+          parameters={parameters}
+          onEventKeyChange={(next) => {
+            setEventKey(next)
+            setConditions([]) // conditions belong to the event's fields
+          }}
+          onConnectionChange={setConnectionId}
+          onParametersChange={setParameters}
+        />
 
         <Seperator className='my-0' />
 
@@ -265,41 +254,31 @@ export default function AutomationSheet({
 
         <Seperator className='my-0' />
 
-        <AutomationContentSection
-          title={action ? action.title : 'פעולה'}
+        <AutomationActionSection
+          actions={actions}
+          action={action}
+          actionKey={actionKey}
+          onActionKeyChange={setChosenActionKey}
           subject={subject}
           body={body}
           cta={cta}
           chips={chips}
           subjectRef={subjectRef}
           bodyRef={bodyRef}
+          templateId={templateId}
+          templateBindings={templateBindings}
           onFocusField={(field) => (lastFocused.current = field)}
           onSubjectChange={setSubject}
           onBodyChange={setBody}
           onCtaChange={setCta}
           onInsertToken={insertToken}
+          onTemplateChange={setTemplateId}
+          onBindingsChange={setTemplateBindings}
         />
 
         <Seperator className='my-0' />
 
-        <section className='grid gap-3'>
-          <h3 className='text-sm font-semibold text-gray-800'>מתי לשלוח</h3>
-          <div className='flex flex-wrap gap-2'>
-            {timingOptionsFor(timing).map((t) => (
-              <Btn
-                key={t.key}
-                variant={timingKey(timing) === t.key ? 'solid' : 'outline'}
-                size='small'
-                lbl={t.lbl}
-                onClick={() => setTiming(t.timing)}
-              />
-            ))}
-          </div>
-          {anchors.length > 0 && (
-            <p className='text-sm text-gray-500 ms-1'>אפשר גם לתזמן ביחס ל{anchors.map((a) => a.label).join(' / ')}.</p>
-          )}
-          <p className='text-sm text-gray-500 ms-1'>{TIMING_ACCURACY_COPY}</p>
-        </section>
+        <AutomationTimingSection timing={timing} anchors={anchors} onChange={setTiming} />
 
         <Seperator className='my-0' />
 
@@ -309,6 +288,8 @@ export default function AutomationSheet({
           subject={subject}
           body={body}
           cta={cta}
+          templateId={templateId}
+          templateBindings={templateBindings}
         />
 
         <div className='grid gap-2'>

@@ -66,6 +66,15 @@ export function actionParametersFromContent(content: AuthoredContent): Record<st
     parameters.ctaLabel = label
     parameters.ctaUrl = url
   }
+  /**
+   * The messaging action's parameters, projected the same way — present only when
+   * the content carries them, so an email automation's parameters are byte-identical
+   * to what they were before this action existed.
+   */
+  if (content.templateId != null) parameters.templateId = content.templateId
+  if (content.templateBindings && Object.keys(content.templateBindings).length > 0) {
+    parameters.templateBindings = content.templateBindings
+  }
   return parameters
 }
 
@@ -75,6 +84,8 @@ export type AuthoredContent = {
   body: string
   ctaLabel?: string | null
   ctaUrl?: string | null
+  templateId?: number | null
+  templateBindings?: Record<string, string> | null
 }
 
 /** The stored actions list for a content document — the writers' single form. */

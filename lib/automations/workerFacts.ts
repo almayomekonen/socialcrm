@@ -93,6 +93,33 @@ export async function appointmentFactsFor(job: AutomationJob, deps: WorkerDeps):
   return deps.meetingFacts(job.agencyId, meetingId)
 }
 
+/**
+ * Automated messages this lead received today — from EVERY automated sender.
+ *
+ * The per-lead cap exists to protect the LEAD (laws.ts §per_lead_cap), and the
+ * product has two independent machines that message people: this engine's
+ * automations, and the instant-response / qualifier subsystem. Counting only our
+ * own would let a lead be messaged by both within seconds and call it "one
+ * message today", which is false from the only perspective that matters.
+ *
+ * Summed rather than max'd: two messages from two subsystems is two messages.
+ *
+ * This is the whole of the coordination fix. It lives in fact GATHERING rather
+ * than in the law, because the law was always right — it was reading an
+ * incomplete number.
+ */
+export async function leadMessagesTodayFor(
+  job: Pick<AutomationJob, 'agencyId' | 'leadId'>,
+  since: Date,
+  deps: WorkerDeps,
+): Promise<number> {
+  const [fromAutomations, fromAutoResponse] = await Promise.all([
+    deps.countLeadToday(job.agencyId, job.leadId, since),
+    deps.countAutoResponsesToday(job.agencyId, job.leadId, since),
+  ])
+  return fromAutomations + fromAutoResponse
+}
+
 /** Recipients as the law layer sees them: value plus deliverability. */
 export async function recipientFacts(
   agencyId: number,

@@ -50,7 +50,17 @@ export type InsertOutboundMessageInput = {
   fromId: string | null
   toId: string | null
   text: string
-  sentByUserId: number
+  /**
+   * The user who sent it, or NULL for a message the SYSTEM sent — an automation.
+   * The column has always been nullable (`REFERENCES users(id) ON DELETE SET
+   * NULL`); only this type forbade it, and an automation has no user to name.
+   *
+   * The null is load-bearing, not a shrug: the instant-response engine
+   * distinguishes "any outbound" from "a human replied" by exactly this column
+   * being non-null. Attributing an automation to the lead's owner would tell it
+   * a person answered when nobody did, and silence a reply that should happen.
+   */
+  sentByUserId: number | null
   channelTimestamp: Date | null
 }
 

@@ -1,6 +1,7 @@
 import type { AnyActionExecutor } from './types'
 import { emailExecutor } from './email'
 import { taskExecutor } from './task'
+import { whatsappExecutor } from './whatsapp'
 
 /**
  * The executor registry — the only file that knows which actions can actually
@@ -14,6 +15,7 @@ import { taskExecutor } from './task'
 const EXECUTORS: readonly AnyActionExecutor[] = [
   emailExecutor as unknown as AnyActionExecutor,
   taskExecutor as unknown as AnyActionExecutor,
+  whatsappExecutor as unknown as AnyActionExecutor,
 ]
 
 export function executorFor(actionKey: string): AnyActionExecutor | null {

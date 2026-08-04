@@ -10,7 +10,8 @@ export type PersistOutboundWhatsappInput = {
   businessPhoneNumberId: string
   customerWaId: string
   customerName: string | null
-  sentByUserId: number
+  /** The sending user, or null when an automation sent it (see InsertOutboundMessageInput). */
+  sentByUserId: number | null
   wamid: string
   text: string
 }

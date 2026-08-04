@@ -43,10 +43,22 @@ async function sentHtml(parameters: Record<string, unknown>): Promise<string> {
   return ((send as ReturnType<typeof vi.fn>).mock.calls[0][0] as { html: string }).html
 }
 
-async function previewHtml(parameters: Record<string, unknown>): Promise<string> {
-  const res = await emailExecutor.preview!(parameters, { agencyId: 7, toName: 'דנה' }, deps())
+/**
+ * Narrows a preview to the EMAIL shape.
+ *
+ * `PreviewResult` gained a `'message'` variant when `whatsapp.send` shipped, so
+ * a preview must now say which shape it is. Asserting it here rather than
+ * casting keeps the parity claim honest: if `email.send` ever returned a
+ * message-shaped preview, these tests would fail rather than silently pass.
+ */
+function asEmail(res: Awaited<ReturnType<NonNullable<typeof emailExecutor.preview>>>) {
   if (res.ok === false) throw new Error(`preview failed: ${res.reason}`)
-  return res.html
+  if (res.shape !== 'email') throw new Error(`expected an email preview, got "${res.shape}"`)
+  return res
+}
+
+async function previewHtml(parameters: Record<string, unknown>): Promise<string> {
+  return asEmail(await emailExecutor.preview!(parameters, { agencyId: 7, toName: 'דנה' }, deps())).html
 }
 
 describe('the Builder preview IS the email', () => {
@@ -60,8 +72,7 @@ describe('the Builder preview IS the email', () => {
   })
 
   it('shows the REAL business name, not the "העסק" placeholder', async () => {
-    const res = await emailExecutor.preview!(PARAMETERS, { agencyId: 7, toName: 'דנה' }, deps())
-    if (res.ok === false) throw new Error(res.reason)
+    const res = asEmail(await emailExecutor.preview!(PARAMETERS, { agencyId: 7, toName: 'דנה' }, deps()))
     expect(res.fromName).toBe('סטודיו אור')
     expect(res.subjectLine).toBe('עדכון מסטודיו אור')
     // Assert at the substitution site rather than anywhere in the document: the
@@ -80,8 +91,9 @@ describe('the Builder preview IS the email', () => {
   it('still renders when the identity is incomplete, so content stays visible', async () => {
     // A missing reply-to is a configuration fault with its own surface; blanking
     // the pane would hide the copy the customer is editing.
-    const res = await emailExecutor.preview!(PARAMETERS, { agencyId: 7, toName: 'דנה' }, deps({ replyTo: async () => null }))
-    if (res.ok === false) throw new Error(res.reason)
+    const res = asEmail(
+      await emailExecutor.preview!(PARAMETERS, { agencyId: 7, toName: 'דנה' }, deps({ replyTo: async () => null })),
+    )
     expect(res.html).toContain('הפנייה שלך בטיפול')
     expect(res.fromName).toBe('סטודיו אור')
   })

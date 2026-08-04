@@ -68,6 +68,14 @@ export const SKIP_REASONS = [
   'lead_deleted', // lead gone before the send moment
   'premise_expired', // the state that justified the send no longer holds
   'suppressed', // lead unsubscribed from this business's automated email
+  /**
+   * Messaging-channel consent, deliberately DISTINCT from `suppressed`.
+   * Unsubscribing from email says nothing about WhatsApp, and a lead who
+   * replied "עצור" on WhatsApp has not unsubscribed from email. Two channels,
+   * two consents, two reasons — the pairing already drawn by the `suppression`
+   * and `opt_out` laws in the vocabulary.
+   */
+  'opted_out', // lead asked this business to stop messaging them
   'no_email', // lead has no email address
   // B6b appends the messaging counterpart. Nothing produces it yet — it exists
   // so the FIRST messaging action is a catalog entry plus an executor, with no
