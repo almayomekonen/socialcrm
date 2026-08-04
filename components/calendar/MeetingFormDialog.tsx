@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useTransition, type FormEvent } from 'react'
+import { useEffect, useState, useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import ModalPop from '@/lib/modals/ModalPop'
+import SuccessView, { type SuccessData } from './MeetingSuccessView'
+import LeadPicker from '@/components/billing/lead-picker/LeadPicker'
+import type { RecentLead } from '@/components/billing/lead-picker/types'
+import { getLeadById, searchLeads } from '@/actions/clients'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
-import { Input } from '@/lib/form'
+import { FormField, Input } from '@/lib/form'
 import { toast } from '@/lib/toast'
 import { formatDateTime } from '@/lib/dates'
 import { createMeeting } from '@/actions/calendar'
@@ -22,14 +26,6 @@ type Props = {
   defaultEnd?: Date
 }
 
-type SuccessData = {
-  title: string
-  startAt: Date
-  endAt: Date
-  attendeeCount: number
-  meetUrl: string | null
-  syncStatus: 'synced' | 'failed' | 'reauth_required'
-}
 
 const browserTimezone =
   typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC'
@@ -74,6 +70,53 @@ export default function MeetingFormDialog({
   const [success, setSuccess] = useState<SuccessData | null>(null)
   const [, startTransition] = useTransition()
 
+  /**
+   * The lead this meeting is for.
+   *
+   * Seeded from the `leadId` prop when the dialog is opened from a lead's own
+   * context, and otherwise chosen here. Without it the meeting has no lead, and
+   * appointment automations cannot run — Law 2 requires exactly one resolved
+   * Lead, and the Meetings domain will not guess one from an attendee address.
+   */
+  const [pickedLeadId, setPickedLeadId] = useState<number | null>(leadId ?? null)
+  const [pickedLeadName, setPickedLeadName] = useState('')
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([])
+
+  // The picker's empty-query list. `searchLeads('')` is the existing
+  // agency-scoped reader the billing picker already uses; typing 2+ characters
+  // switches it to a live search on its own.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const rows = (await searchLeads('')) as RecentLead[]
+        if (!cancelled) setRecentLeads(rows)
+      } catch {
+        // A failed prefill leaves the picker searchable — never blocks the form.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  // The name for the trigger label. The picker hands back an id; this is the
+  // existing agency-scoped reader for the rest.
+  useEffect(() => {
+    if (pickedLeadId == null) return setPickedLeadName('')
+    let cancelled = false
+    void (async () => {
+      const lead = await getLeadById(pickedLeadId)
+      if (cancelled || !lead) return
+      const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ').trim()
+      setPickedLeadName(name || `ליד #${pickedLeadId}`)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [pickedLeadId])
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (busy) return
@@ -105,7 +148,7 @@ export default function MeetingFormDialog({
     setBusy(true)
     try {
       const result = await createMeeting({
-        leadId: leadId ?? null,
+        leadId: pickedLeadId,
         title,
         startAt: startAt.toISOString(),
         endAt: endAt.toISOString(),
@@ -178,6 +221,25 @@ export default function MeetingFormDialog({
             />
           </div>
 
+          <FormField lbl='ליד' info='הפגישה תקושר לליד הזה'>
+            <LeadPicker
+              currentLeadId={pickedLeadId ?? 0}
+              currentLeadName={pickedLeadName}
+              recentLeads={recentLeads}
+              onPick={(id) => setPickedLeadId(id)}
+              onCreateNew={() => router.push('/clients?new=1')}
+            />
+          </FormField>
+
+          {pickedLeadId == null && (
+            /* Said BEFORE the meeting is created, not discovered afterwards by a
+               reminder that never arrived. A meeting with no lead is a valid
+               meeting — it just cannot carry automations. */
+            <p className='text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 leading-relaxed'>
+              לא נבחר ליד — אוטומציות פגישה (כמו תזכורת לפני הפגישה) לא יפעלו עבור הפגישה הזו.
+            </p>
+          )}
+
           <AttendeeChipsInput
             value={attendees}
             onChange={setAttendees}
@@ -205,81 +267,5 @@ export default function MeetingFormDialog({
         </form>
       )}
     </ModalPop>
-  )
-}
-
-function SuccessView({ data, onClose }: { data: SuccessData; onClose: () => void }) {
-  const synced = data.syncStatus === 'synced'
-  const headline = synced ? 'הפגישה נוצרה' : 'הפגישה נשמרה'
-  const subline = synced
-    ? data.attendeeCount > 0
-      ? 'הזמנות וקישור Google Meet נשלחו'
-      : 'הפגישה סונכרנה ליומן Google'
-    : data.syncStatus === 'reauth_required'
-      ? 'נדרש חיבור מחדש ליומן לסנכרון ההזמנות'
-      : 'הסנכרון ליומן Google נכשל — ניתן לנסות שוב מתוך הפגישה ביומן'
-
-  return (
-    <div className='grid gap-4 pt-2'>
-      <div className='flex items-center gap-2.5'>
-        <span
-          className={`grid place-items-center size-9 rounded-full ${
-            synced ? 'bg-green-100' : 'bg-amber-100'
-          }`}
-        >
-          <Icon
-            name={synced ? 'check' : 'triangle-exclamation'}
-            type='reg'
-            className={`size-5 ${synced ? 'bg-green-600' : 'bg-amber-700'}`}
-          />
-        </span>
-        <div className='grid gap-0.5 min-w-0'>
-          <h2 className='text-xl font-bold leading-tight'>{headline}</h2>
-          <p className='text-xs text-gray-600'>{subline}</p>
-        </div>
-      </div>
-
-      <div className='rounded-lg border border-gray-200 bg-gray-50/60 p-4 grid gap-3'>
-        <SummaryRow lbl='כותרת'>{data.title}</SummaryRow>
-        <SummaryRow lbl='זמן'>
-          <span className='tabular-nums'>
-            {formatDateTime(data.startAt)} – {formatDateTime(data.endAt)}
-          </span>
-        </SummaryRow>
-        {data.attendeeCount > 0 && (
-          <SummaryRow lbl='משתתפים'>
-            {data.attendeeCount} {data.attendeeCount === 1 ? 'משתתף' : 'משתתפים'}
-            {synced && ' · Google שלחה הזמנה'}
-          </SummaryRow>
-        )}
-        <SummaryRow lbl='סטטוס סנכרון'>
-          <SyncStatusBadge status={data.syncStatus} />
-        </SummaryRow>
-      </div>
-
-      {data.meetUrl && (
-        <a
-          href={data.meetUrl}
-          target='_blank'
-          rel='noreferrer'
-          className='inline-flex items-center justify-center h-10 px-4 rounded-md bg-solid text-white font-semibold hover:bg-solid/85'
-        >
-          פתח Google Meet
-        </a>
-      )}
-
-      <div className='flex justify-end'>
-        <Btn lbl='סגור' variant='outline' onClick={onClose} />
-      </div>
-    </div>
-  )
-}
-
-function SummaryRow({ lbl, children }: { lbl: string; children: React.ReactNode }) {
-  return (
-    <div className='grid gap-1'>
-      <div className='text-gray-500 text-xs uppercase tracking-wide'>{lbl}</div>
-      <div className='text-sm text-gray-900'>{children}</div>
-    </div>
   )
 }
