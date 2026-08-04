@@ -108,16 +108,31 @@ export type Delivered = {
   hostContainer: HTMLElement | null
   document: Document
   /**
-   * Elements that render author-visible copy — those with a direct non-empty
-   * text child. These are what typography invariants apply to.
+   * Elements rendering author-visible copy: a direct non-empty text child,
+   * inside the message content, excluding head metadata. Direction invariants
+   * apply to all of these, inline elements included.
    */
   textBlocks: HTMLElement[]
+  /**
+   * The subset that is block-level. Typography invariants apply here rather than
+   * to `textBlocks`, because an inline `<bdi>` or `<strong>` legitimately
+   * inherits from the styled block around it — while a block-level element must
+   * declare its own type, since Outlook re-applies its default font to `<p>`
+   * and `<td>`.
+   */
+  blockTextBlocks: HTMLElement[]
   /** Base direction this element actually resolves to in this client. */
   effectiveDir: (el: Element) => 'rtl' | 'ltr'
 }
 
 const RTL_RANGE = /[֐-ࣿיִ-﷿ﹰ-﻿]/
 const LTR_RANGE = /[A-Za-zÀ-˿Ͱ-֏]/
+
+/** Not author-visible copy, even though they contain text nodes. */
+const NON_CONTENT_TAGS = new Set(['STYLE', 'SCRIPT', 'TITLE', 'HEAD', 'META', 'LINK'])
+
+/** Inline runs, which inherit their type from the block that contains them. */
+const INLINE_TAGS = new Set(['A', 'SPAN', 'BDI', 'BDO', 'STRONG', 'EM', 'B', 'I', 'U', 'SMALL', 'FONT'])
 
 /**
  * UBA rules P2/P3, reduced to what `dir="auto"` needs: the first STRONG
@@ -149,8 +164,11 @@ export function deliver(html: string, client: MailClient): Delivered {
 
   let root: HTMLElement
   if (client.keepsDocumentWrapper) {
-    // The document survives: whatever `<html dir>` says still governs.
-    root = source.documentElement as HTMLElement
+    // The document survives, so `<html dir>` still governs — but the CONTENT
+    // root is still the body. Scoping here keeps `<style>` and `<title>` out of
+    // the content queries: CSS is Latin text, and treating it as author copy
+    // makes direction assertions fail on the stylesheet.
+    root = source.body as HTMLElement
   } else {
     // Re-hosted: only body-internal markup survives, under the client's own
     // container direction.
@@ -167,9 +185,12 @@ export function deliver(html: string, client: MailClient): Delivered {
     }
   }
 
-  const textBlocks = [...root.querySelectorAll<HTMLElement>('*')].filter((el) =>
-    [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim().length > 0),
+  const textBlocks = [...root.querySelectorAll<HTMLElement>('*')].filter(
+    (el) =>
+      !NON_CONTENT_TAGS.has(el.tagName) &&
+      [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim().length > 0),
   )
+  const blockTextBlocks = textBlocks.filter((el) => !INLINE_TAGS.has(el.tagName))
 
   const effectiveDir = (el: Element): 'rtl' | 'ltr' => {
     for (let node: Element | null = el; node; node = node.parentElement) {
@@ -188,6 +209,7 @@ export function deliver(html: string, client: MailClient): Delivered {
     hostContainer: client.keepsDocumentWrapper ? null : hostEl,
     document: client.keepsDocumentWrapper ? source : host,
     textBlocks,
+    blockTextBlocks,
     effectiveDir,
   }
 }

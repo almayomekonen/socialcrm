@@ -116,11 +116,12 @@ describe('email rendering contract — typography is declared, never inherited (
   const REQUIRED = ['color', 'font-family', 'font-size', 'line-height'] as const
 
   for (const client of FIRST_CLASS_CLIENTS) {
-    it(`declares the full type stack on every text block in ${client.name}`, async () => {
+    it(`declares the full type stack on every block of copy in ${client.name}`, async () => {
       const { html } = await render(HEBREW_BODY)
-      const { textBlocks } = deliver(html, client)
+      const { blockTextBlocks } = deliver(html, client)
 
-      for (const block of textBlocks) {
+      expect(blockTextBlocks.length).toBeGreaterThan(0)
+      for (const block of blockTextBlocks) {
         for (const property of REQUIRED) {
           expect(
             declared(block, property),
@@ -131,10 +132,24 @@ describe('email rendering contract — typography is declared, never inherited (
     })
   }
 
+  it('declares colour and font on links, which clients restyle (TYP-8)', async () => {
+    const { html } = await render(HEBREW_BODY)
+    const { root } = deliver(html, FIRST_CLASS_CLIENTS[0])
+    const links = root.querySelectorAll<HTMLElement>('a')
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) {
+      expect(declared(link, 'color'), 'link with no declared colour').not.toBe('')
+      expect(declared(link, 'font-family'), 'link with no declared font').not.toBe('')
+      // A link distinguished only by colour disappears wherever colour is
+      // rewritten — e.g. a sanitizer that drops the shorthand.
+      expect(declared(link, 'text-decoration')).toContain('underline')
+    }
+  })
+
   it('uses unit-bearing line-height (Outlook ignores unitless) (TYP-5)', async () => {
     const { html } = await render(HEBREW_BODY)
-    const { textBlocks } = deliver(html, FIRST_CLASS_CLIENTS[0])
-    for (const block of textBlocks) {
+    const { blockTextBlocks } = deliver(html, FIRST_CLASS_CLIENTS[0])
+    for (const block of blockTextBlocks) {
       const lh = declared(block, 'line-height')
       expect(lh, `unitless line-height "${lh}"`).toMatch(/(px|em|rem|%)$/)
     }

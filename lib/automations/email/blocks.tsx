@@ -1,0 +1,155 @@
+import * as React from 'react'
+import { COLOR, FONT_STACK, SPACE, TYPE, alignFor, resolveDirection, type Direction } from './tokens'
+
+/**
+ * The block vocabulary for customer-automation email.
+ *
+ * Two rules run through all of it:
+ *
+ * 1. Vertical rhythm comes from `padding-top` on a table cell, never from
+ *    margins on the text element. Adjacent margins collapse in browsers and do
+ *    not in Outlook, so a both-direction margin gives one email two rhythms.
+ *    Every text element therefore declares `margin:0` and owns no spacing.
+ * 2. Direction is declared ON the text element, resolved from its own content.
+ *    The pre-Phase-1 renderer put `dir="rtl"` only on `<html>` — which Gmail
+ *    discards — and used `text-align:right` as a stand-in. Alignment moves a
+ *    box; it does not reorder bidi runs. Here alignment is DERIVED from the
+ *    resolved direction and is never a substitute for it.
+ */
+
+export type BlockRole = 'greeting' | 'body' | 'signature' | 'footer'
+
+const ROLE_TYPE = {
+  greeting: TYPE.greeting,
+  body: TYPE.body,
+  signature: TYPE.signature,
+  footer: TYPE.footer,
+} as const satisfies Record<BlockRole, { size: string; lineHeight: string }>
+
+/**
+ * A stack row. Owns the gap ABOVE its content, so the first row can have none
+ * and no rule ever needs a matching bottom.
+ */
+export function Row(props: { gap?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <tr>
+      <td className={props.className} style={{ padding: 0, paddingTop: props.gap ?? '0' }}>
+        {props.children}
+      </td>
+    </tr>
+  )
+}
+
+/**
+ * Author-visible copy. `direction` defaults to following the text itself, so a
+ * customer writing English gets LTR copy in an otherwise Hebrew shell.
+ */
+export function TextBlock(props: {
+  role: BlockRole
+  children: React.ReactNode
+  /** Resolved from `text` when omitted. */
+  direction?: Direction
+  /** The content used to resolve direction, when children are not plain text. */
+  text?: string
+  muted?: boolean
+}) {
+  const raw = props.text ?? (typeof props.children === 'string' ? props.children : '')
+  const dir = props.direction && props.direction !== 'auto' ? props.direction : resolveDirection(raw)
+  const type = ROLE_TYPE[props.role]
+
+  return (
+    <p
+      dir={dir}
+      lang={dir === 'rtl' ? 'he' : undefined}
+      style={{
+        margin: 0,
+        color: props.muted ? COLOR.light.textMuted : COLOR.light.text,
+        fontFamily: FONT_STACK,
+        fontSize: type.size,
+        lineHeight: type.lineHeight,
+        fontWeight: props.role === 'greeting' ? 600 : 400,
+        textAlign: alignFor(dir),
+        // A pasted URL is one unbreakable token; without this it forces
+        // horizontal overflow on a phone.
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      }}
+    >
+      {props.children}
+    </p>
+  )
+}
+
+/**
+ * A 1px table row rather than `<hr>`: Outlook applies its own inset and colour
+ * to a real horizontal rule.
+ */
+export function Divider() {
+  return (
+    <table
+      role="presentation"
+      width="100%"
+      border={0}
+      cellPadding={0}
+      cellSpacing={0}
+      style={{ width: '100%', borderCollapse: 'collapse' }}
+    >
+      <tbody>
+        <tr>
+          <td
+            className="email-divider"
+            style={{ height: '1px', lineHeight: '1px', fontSize: '1px', backgroundColor: COLOR.light.divider }}
+          >
+            &nbsp;
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  )
+}
+
+/**
+ * The mandatory footer: who sent this, and the unsubscribe (ADR-003).
+ *
+ * The business name is wrapped in `<bdi>` because an interpolated Latin name
+ * inside a Hebrew sentence is a directional run — without isolation, trailing
+ * punctuation and any name containing digits, `&` or parentheses mis-orders.
+ */
+export function Footer(props: { businessName: string; unsubscribeUrl: string }) {
+  return (
+    <TextBlock role="footer" muted text="הודעה זו נשלחה מטעם">
+      {'הודעה זו נשלחה מטעם '}
+      <bdi>{props.businessName}</bdi>
+      {'. '}
+      <a
+        href={props.unsubscribeUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="email-footer-link"
+        style={{
+          color: COLOR.light.textMuted,
+          fontFamily: FONT_STACK,
+          fontSize: TYPE.footer.size,
+          lineHeight: TYPE.footer.lineHeight,
+          textDecoration: 'underline',
+        }}
+      >
+        הסרה מרשימת התפוצה
+      </a>
+    </TextBlock>
+  )
+}
+
+/** Convenience: the footer's own row, with the gap that precedes it. */
+export function FooterRows(props: { businessName: string; unsubscribeUrl: string }) {
+  return (
+    <>
+      <Row gap={SPACE.beforeFooter}>
+        <Divider />
+      </Row>
+      <Row gap={SPACE.betweenParagraphs}>
+        <Footer businessName={props.businessName} unsubscribeUrl={props.unsubscribeUrl} />
+      </Row>
+    </>
+  )
+}
