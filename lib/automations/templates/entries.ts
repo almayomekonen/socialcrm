@@ -11,6 +11,12 @@ import type { TemplateDefinition } from './types'
  * Every event key, action key, condition field and timing below is validated
  * against the live catalog in CI — a template naming something unregistered
  * fails the build, not a customer's install.
+ *
+ * SIZE NOTE (architecture-rules §1): this file is at 348 lines, one template
+ * short of the 350 hard limit. The next addition must split it — by CATEGORY
+ * (`entries/lead.ts`, `entries/appointment.ts`, …) re-exported from a registry
+ * index, which is the seam the marketplace already groups by. Do not add a
+ * seventh template here first.
  */
 
 const BUSINESS_SIGNOFF = 'בברכה,\n{{שם העסק}}'
@@ -225,6 +231,65 @@ ${BUSINESS_SIGNOFF}`,
 
 נתראה,
 {{שם העסק}}`,
+        },
+      },
+    ],
+  },
+
+  {
+    key: 'appointment_reminder',
+    version: 1,
+    title: 'תזכורת לפני פגישה',
+    category: 'appointment',
+    description: 'הליד מקבל תזכורת לפני הפגישה, עם המועד והפרטים — כדי שלא יישכח ולא יתבלבל.',
+    icon: 'bell',
+    /**
+     * No requirement. The meeting already lives in the CRM, so there is nothing
+     * to connect: this template works for every agency the moment it installs.
+     */
+    requirements: [],
+    variables: [
+      {
+        key: 'remindBefore',
+        type: 'enum_static',
+        label: 'מתי לשלוח את התזכורת',
+        options: [
+          { value: '1h', label: 'שעה לפני הפגישה' },
+          { value: '1d', label: 'יום לפני הפגישה' },
+        ],
+        validation: { required: true },
+        default: '1d',
+      },
+    ],
+    automations: [
+      {
+        name: 'תזכורת לפני פגישה',
+        eventKey: 'appointment.booked',
+        conditions: [],
+        actionKey: 'email.send',
+        /**
+         * The customer's choice decides the offset; `timing` is the fallback if
+         * the stored value is ever unusable. Counted back from `startsAt`, the
+         * meeting's own start — which is what makes this a reminder rather than
+         * a delay after booking.
+         *
+         * The three send-time checks (meeting exists, not cancelled, still in
+         * the future) are ENGINE invariants, not conditions here, precisely so
+         * they cannot be edited away.
+         */
+        timingFromVariable: { variableKey: 'remindBefore', anchorField: 'startsAt' },
+        timing: { kind: 'before_anchor', anchorField: 'startsAt', value: 1, unit: 'days' },
+        parameters: {
+          subject: 'תזכורת: {{שם הפגישה}}',
+          body: `שלום {{שם הליד}},
+
+תזכורת לפגישה שלנו:
+
+{{פרטי הפגישה}}
+
+אם משהו משתנה, אפשר להשיב למייל הזה ונתאם מחדש.
+
+${BUSINESS_SIGNOFF}`,
         },
       },
     ],

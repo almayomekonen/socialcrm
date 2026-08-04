@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import crypto from 'node:crypto'
 import { calendlyProvider } from '@/lib/automations/connectors/calendly'
 import { isWebhookConnector } from '@/lib/automations/connectors/types'
-import { getEvent } from '@/lib/automations/catalog/registry'
+import { catalog, getEvent } from '@/lib/automations/catalog/registry'
 
 /**
  * B7 — the Calendly connector against the generic contract.
@@ -132,8 +132,25 @@ describe('options — the generic enum_remote provider', () => {
     expect(await calendlyProvider.listSources(1, 'calendly:not-a-number')).toEqual([])
   })
 
-  it('the option source it answers is the one the catalog event declares', () => {
-    const declared = getEvent('appointment.booked')!.parameters.find((p) => p.type === 'enum_remote')
-    expect(declared?.optionSource).toBe('event_types')
+  /**
+   * The coupling this used to assert — Calendly's `event_types` answering the
+   * appointment event's declared picker — was CUT when the Meetings domain
+   * became the producer of `appointment.booked`. A meeting booked in the CRM has
+   * no event types to choose between, so the event declares no remote parameter
+   * and the Builder renders no dropdown that could never be filled.
+   *
+   * The invariant worth keeping is the general one, and it is stronger: every
+   * remote picker the catalog declares must be answerable by some connector.
+   * Calendly's unreferenced option source is harmless in the other direction —
+   * a provider that can answer more than anything currently asks.
+   */
+  it('every enum_remote the catalog declares is answerable by a registered connector', () => {
+    const declared = catalog.events.flatMap((e) => e.parameters.filter((p) => p.type === 'enum_remote'))
+    for (const parameter of declared) {
+      expect(parameter.optionSource, `${parameter.key} declares no option source`).toBeTruthy()
+    }
+    // The appointment occurrence is internal now: no connection, no picker.
+    expect(getEvent('appointment.booked')!.parameters).toEqual([])
+    expect(getEvent('appointment.booked')!.requirements).toEqual([])
   })
 })

@@ -67,8 +67,41 @@ export const RENDERABLE_FIELD_KEYS = ['leadFirstName', 'businessName', 'repName'
  * offered actions (`requires` × field types) and the preview shape (the
  * action's). No Builder file changes for any of it.
  */
+/**
+ * The meeting's own LIVE state, re-read at send time.
+ *
+ * Live rather than snapshot for two different reasons, both load-bearing:
+ *   · the reminder's guard needs the CURRENT status — a meeting cancelled after
+ *     booking must not produce a reminder;
+ *   · the email must show the CURRENT time and place, not what they were when
+ *     the meeting was booked.
+ *
+ * `meetingWhen` and `meetingDetails` are RESOLVED STRINGS, formatted on the
+ * server in the business timezone. A recipient's device timezone is not the
+ * business's, and the meeting's moment is the business's fact.
+ */
+const MEETING_LIVE_FIELDS: readonly FieldDefinition[] = [
+  {
+    key: 'meetingStatus',
+    type: 'enum',
+    label: 'מצב הפגישה',
+    freshness: 'live',
+    lifecycle: 'stable',
+    options: [
+      { value: 'scheduled', label: 'מתוכננת' },
+      { value: 'cancelled', label: 'בוטלה' },
+      { value: 'completed', label: 'התקיימה' },
+      { value: 'no_show', label: 'לא הגיע' },
+    ],
+  },
+  { key: 'meetingTitle', type: 'text', label: 'שם הפגישה', freshness: 'live', lifecycle: 'stable' },
+  { key: 'meetingWhen', type: 'text', label: 'מועד הפגישה', freshness: 'live', lifecycle: 'stable' },
+  { key: 'meetingDetails', type: 'text', label: 'פרטי הפגישה', freshness: 'live', lifecycle: 'stable' },
+]
+
 const APPOINTMENT_FIELDS: readonly FieldDefinition[] = [
   ...LEAD_FIELDS,
+  ...MEETING_LIVE_FIELDS,
   {
     key: 'startsAt',
     type: 'datetime',
@@ -163,32 +196,36 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
   },
   {
     key: 'appointment.booked',
-    origin: 'external',
+    /**
+     * INTERNAL, not external. The occurrence is now produced by our own domain
+     * write — a rep booking a meeting in the CRM — exactly like `lead.created`
+     * and `lead.status_changed`. It was `external` when the only producer was a
+     * third-party scheduling webhook.
+     */
+    origin: 'internal',
     subject: 'appointment',
     title: 'נקבעה פגישה',
-    description: 'כשליד קובע פגישה ביומן המחובר',
+    description: 'כשנקבעת פגישה עם ליד במערכת',
     icon: 'calendar-check',
     lifecycle: 'stable',
-    // The lock the Builder renders when no calendar is connected, and the CTA
-    // it offers to fix it. Data — the Builder authors neither.
-    requirements: [
-      { type: 'connection', key: 'calendar_connected', cta: { label: 'חיבור יומן', href: '/settings/connections' } },
-    ],
-    // One remote parameter: which calendar to listen to. Rendered by the same
-    // control that renders every other enum_remote.
-    parameters: [
-      {
-        key: 'eventTypeId',
-        type: 'enum_remote',
-        label: 'סוג הפגישה',
-        help: 'אפשר להגביל את האוטומציה לסוג פגישה אחד',
-        optionSource: 'event_types',
-      },
-    ],
+    /**
+     * NO REQUIREMENT. Every agency can book a meeting, so there is nothing to
+     * connect and nothing to gate. The previous `calendar_connected` lock was
+     * satisfiable only by a scheduling connector, which meant this event — and
+     * both appointment templates behind it — could never unlock for anyone.
+     */
+    requirements: [],
+    /**
+     * No parameters. The remote "which event type to listen to" picker belonged
+     * to a scheduling connector; a meeting booked in the CRM has no event types
+     * to choose between, and leaving the control declared would render an empty
+     * dropdown that can never be filled.
+     */
+    parameters: [],
     fields: APPOINTMENT_FIELDS,
     identity: {
-      occurrenceKey: 'appointment:{provider_event_uri}',
-      leadResolution: 'by invitee email within the agency, then by invitee phone; unresolved bookings are dropped',
+      occurrenceKey: 'appointment:meeting:{meetingId}',
+      leadResolution: 'the lead the meeting is already attached to (meetings.lead_id); a meeting with no lead emits nothing',
     },
   },
   {

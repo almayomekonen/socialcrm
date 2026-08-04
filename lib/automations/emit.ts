@@ -4,7 +4,7 @@ import { track } from '@/lib/analytics/track'
 import { listActiveDefinitionsForTrigger, type AutomationDefinition } from '@/db/automations/definitions'
 import { enqueueAutomationJob } from '@/db/automations/jobs'
 import { isAutomationsAgencyAllowlisted, isAutomationsEnabled } from './flags'
-import { isValidTiming, resolveSendAt } from './timing'
+import { isValidTiming, resolveSendAtDetailed } from './timing'
 import { snapshotConditionsMatch } from './conditionEvaluator'
 import { eventKeyForEngineTrigger, snapshotFieldsForEvent } from './catalog/engineBridge'
 import { getEvent } from './catalog/registry'
@@ -107,6 +107,29 @@ export async function emitAutomationEventWith(deps: EmitDeps, event: AutomationT
         skippedDefinitions++
         continue
       }
+
+      /**
+       * The due moment. A BEFORE-ANCHOR timing resolves from a datetime the
+       * occurrence itself carries (the meeting's start), and can legitimately
+       * fail to resolve: a meeting booked twenty minutes before it starts has no
+       * "one hour before" moment left. Both misses are ordinary outcomes — a
+       * reminder that cannot be timed is not sent, and inventing a moment would
+       * mean emailing about a meeting already under way.
+       *
+       * No new scheduling machinery: this only changes the arithmetic that
+       * produces `notBefore`, which the queue has always used.
+       */
+      const due = resolveSendAtDetailed(event.occurredAt, timing, snapshot)
+      if (due.miss) {
+        console.log('[automations] anchored send produced no job', {
+          automationId: def.id,
+          leadId: event.leadId,
+          reason: due.miss,
+        })
+        filteredDefinitions++
+        continue
+      }
+
       const id = await deps.enqueue({
         agencyId: event.agencyId,
         automationId: def.id,
@@ -114,7 +137,7 @@ export async function emitAutomationEventWith(deps: EmitDeps, event: AutomationT
         trigger: event.trigger,
         origin: event.origin,
         eventKey,
-        notBefore: resolveSendAt(event.occurredAt, timing),
+        notBefore: due.at,
       })
       if (id != null) emitted++
     }

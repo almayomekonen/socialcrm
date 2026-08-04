@@ -1,6 +1,6 @@
 import { getAction, getEvent, listActionsForEvent } from '../catalog/registry'
 import { validateConditions } from '../conditions'
-import { isValidTiming } from '../timing'
+import { isValidTiming, type Timing, type TimingUnit } from '../timing'
 import { TEMPLATE_TOKEN, type TemplateAutomation, type TemplateDefinition } from './types'
 
 /**
@@ -35,6 +35,20 @@ export function substitute(text: string, values: TemplateValues): string {
   return text.replace(TEMPLATE_TOKEN, (_, key: string) => values[key] ?? '')
 }
 
+/**
+ * `'1h'` / `'2d'` → a before-anchor timing. Anything else yields null and the
+ * caller falls back to the template's declared `timing`, so an unusable stored
+ * value can never produce an automation with no timing at all.
+ */
+export function parseAnchorOffset(raw: string | undefined, anchorField: string): Timing | null {
+  const match = /^(\d+)([hd])$/.exec((raw ?? '').trim())
+  if (!match) return null
+  const value = Number(match[1])
+  const unit: TimingUnit = match[2] === 'h' ? 'hours' : 'days'
+  const timing: Timing = { kind: 'before_anchor', anchorField, value, unit }
+  return isValidTiming(timing) ? timing : null
+}
+
 export type PreparedAutomation = {
   name: string
   eventKey: string
@@ -51,11 +65,17 @@ export function prepare(template: TemplateDefinition, supplied: TemplateValues =
     eventKey: a.eventKey,
     conditions: a.conditions,
     actionKey: a.actionKey,
-    parameters: Object.fromEntries(
-      Object.entries(a.parameters).map(([key, value]) => [key, substitute(value, values)]),
-    ),
-    timing: a.timing,
+    parameters: Object.fromEntries(Object.entries(a.parameters).map(([key, value]) => [key, substitute(value, values)])),
+    // The customer's choice, when the template offers one. Falls back to the
+    // declared timing rather than dropping the choice silently.
+    timing: timingFor(a, values),
   }))
+}
+
+function timingFor(a: TemplateAutomation, values: TemplateValues): TemplateAutomation['timing'] {
+  const spec = a.timingFromVariable
+  if (!spec) return a.timing
+  return parseAnchorOffset(values[spec.variableKey], spec.anchorField) ?? a.timing
 }
 
 /**
@@ -104,6 +124,24 @@ export function validateTemplate(template: TemplateDefinition): string[] {
     if (conditionIssue) issues.push(`${where}: ${conditionIssue}`)
 
     if (!isValidTiming(automation.timing)) issues.push(`${where}: invalid timing`)
+
+    const spec = automation.timingFromVariable
+    if (spec) {
+      if (!declared.has(spec.variableKey)) {
+        issues.push(`${where}: timingFromVariable names undeclared variable "${spec.variableKey}"`)
+      }
+      const anchor = event.fields.find((f) => f.key === spec.anchorField)
+      if (!anchor) issues.push(`${where}: anchor field "${spec.anchorField}" is not declared by "${event.key}"`)
+      else if (anchor.type !== 'datetime') issues.push(`${where}: anchor field "${spec.anchorField}" is not a datetime`)
+      // Every offered option must parse, or the customer could pick a value that
+      // silently falls back to a different timing than the one they chose.
+      const variable = template.variables.find((v) => v.key === spec.variableKey)
+      for (const option of variable?.options ?? []) {
+        if (!parseAnchorOffset(option.value, spec.anchorField)) {
+          issues.push(`${where}: timing option "${option.value}" is not a valid offset`)
+        }
+      }
+    }
 
     for (const parameter of action.parameters) {
       const value = automation.parameters[parameter.key]

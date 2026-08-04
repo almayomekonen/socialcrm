@@ -17,8 +17,47 @@ export const TIMINGS: Array<{ key: string; lbl: string; timing: Timing }> = [
   { key: 'three_days', lbl: 'אחרי 3 ימים', timing: { kind: 'custom', value: 3, unit: 'days' } },
 ]
 
-export const timingKey = (t: Timing) =>
-  t.kind === 'preset' ? t.preset : t.value === 3 && t.unit === 'days' ? 'three_days' : 'one_day'
+/**
+ * A STABLE key per timing, including timings this list does not offer.
+ *
+ * The old form fell through to `'one_day'` for anything that was not a preset or
+ * exactly three days. That was harmless while every timing was a delay — and
+ * destructive once before-anchor timing existed: an installed "an hour before the
+ * meeting" reminder would render with "אחרי יום" selected, and saving the sheet
+ * would write that preset over it, silently converting a reminder into a delay
+ * after booking.
+ */
+export const timingKey = (t: Timing): string => {
+  if (t.kind === 'preset') return t.preset
+  if (t.kind === 'before_anchor') return `before:${t.anchorField}:${t.value}${t.unit === 'hours' ? 'h' : 'd'}`
+  if (t.value === 3 && t.unit === 'days') return 'three_days'
+  return `after:${t.value}${t.unit === 'hours' ? 'h' : 'd'}`
+}
+
+/** Hebrew label for a timing the preset list does not contain. */
+const OFFSET_LABEL = (value: number, unit: 'hours' | 'days'): string =>
+  unit === 'hours' ? (value === 1 ? 'שעה' : `${value} שעות`) : value === 1 ? 'יום' : `${value} ימים`
+
+/**
+ * The options to render for a given saved timing: the presets, plus the saved
+ * timing itself when it is not one of them.
+ *
+ * This is what makes the sheet round-trip a timing it cannot author. The
+ * customer sees what the automation actually does, the option is selected, and
+ * saving preserves it — instead of the sheet quietly replacing it with the
+ * nearest preset.
+ */
+export function timingOptionsFor(current: Timing): Array<{ key: string; lbl: string; timing: Timing }> {
+  const key = timingKey(current)
+  if (TIMINGS.some((t) => t.key === key)) return TIMINGS
+  const label =
+    current.kind === 'before_anchor'
+      ? `${OFFSET_LABEL(current.value, current.unit)} לפני המועד`
+      : current.kind === 'custom'
+        ? `אחרי ${OFFSET_LABEL(current.value, current.unit)}`
+        : key
+  return [...TIMINGS, { key, lbl: label, timing: current }]
+}
 
 /** Actions return machine codes; the client owns the Hebrew (house convention). */
 const ERRORS: Record<string, string> = {

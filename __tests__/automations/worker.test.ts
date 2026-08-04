@@ -5,6 +5,7 @@ import { runAutomationWorker, type WorkerDeps } from '@/lib/automations/worker'
 import { getAutomationsSendMode } from '@/lib/automations/flags'
 import { getAction } from '@/lib/automations/catalog/registry'
 import { emailExecutor } from '@/lib/automations/executors/email'
+import { MISSING_MEETING } from '@/lib/automations/appointments'
 
 // ADR-011 conformance (DI, DB-less): every transition, every reason, the
 // claim→effect→confirm→complete order, crash recovery in both modes, and the
@@ -110,6 +111,8 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     appendActivity: vi.fn(async () => {}),
     agencyName: vi.fn(async () => 'העסק שלי'),
     repName: vi.fn(async () => null),
+    // Appointment jobs read the occurrence's meeting; other triggers never do.
+    meetingFacts: vi.fn(async () => MISSING_MEETING),
     getAction: vi.fn(getAction),
     executorFor: vi.fn(stubbedEmailExecutor) as never,
     completeJob: vi.fn(async () => {}),

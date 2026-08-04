@@ -48,6 +48,20 @@ export type TemplateAutomation = {
    */
   parameters: Readonly<Record<string, string>>
   timing: Timing
+  /**
+   * Timing the CUSTOMER chooses at install, rather than a fixed offset.
+   *
+   * `variableKey` names an `enum_static` template variable whose values are
+   * offsets in `<n><h|d>` form (`'1h'`, `'1d'`); `anchorField` names the event's
+   * `datetime` field to count back from. `timing` above is the fallback used
+   * when the value is unusable, so a template always has valid timing.
+   *
+   * This exists because `timing` alone cannot carry a token: it is a typed
+   * object, not a string, so `[[substitution]]` cannot reach it. Without this a
+   * template can DECLARE a timing choice and silently discard it — which is
+   * exactly what `website_lead_follow_up`'s `delayDays` variable does today.
+   */
+  timingFromVariable?: { variableKey: string; anchorField: string }
 }
 
 /**

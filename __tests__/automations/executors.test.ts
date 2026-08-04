@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { MISSING_MEETING } from '@/lib/automations/appointments'
 import type { AutomationJob } from '@/db/automations/jobs'
 import type { WorkerDefinition } from '@/db/automations/definitions'
 import { runAutomationWorker, type WorkerDeps } from '@/lib/automations/worker'
@@ -120,6 +121,8 @@ function deps(overrides: Partial<WorkerDeps> = {}): WorkerDeps {
     appendActivity: vi.fn(async () => {}),
     agencyName: vi.fn(async () => 'העסק שלי'),
     repName: vi.fn(async () => null),
+    // Appointment jobs read the occurrence's meeting; other triggers never do.
+    meetingFacts: vi.fn(async () => MISSING_MEETING),
     getAction: vi.fn(() => NOTE_WRITE),
     executorFor: vi.fn(),
     completeJob: vi.fn(async () => {}),

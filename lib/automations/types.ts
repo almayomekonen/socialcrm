@@ -77,6 +77,13 @@ export const SKIP_REASONS = [
   'lead_daily_cap', // per-lead frequency cap reached today
   'agency_daily_cap', // engine-level daily ceiling for the business reached
   'quiet_hours', // inside the configured no-send window
+  // The appointment invariant (lib/automations/appointments.ts). Engine-level,
+  // not customer conditions: a reminder about a meeting that is gone, cancelled
+  // or already under way is wrong in a way the customer cannot be asked to
+  // guard against. Appended, never reused — a skip reason is persisted data.
+  'meeting_missing', // the meeting no longer exists at send time
+  'meeting_cancelled', // the meeting was cancelled after it was booked
+  'meeting_passed', // the meeting already started (a late job, e.g. after an outage)
   // B2: the action's declared law set cannot be fully evaluated (a law
   // whose channel does not exist yet, or a missing catalog entry). Fails
   // CLOSED so an unevaluatable pipeline can never become a silent send.

@@ -80,7 +80,7 @@ describe('the seeded marketplace is valid against the LIVE catalog', () => {
     }
   })
 
-  it('seeds the seven requested templates', () => {
+  it('seeds the marketplace roster, in order', () => {
     const keys = listTemplates().map((t) => t.key)
     expect(keys).toEqual([
       'website_lead_follow_up',
@@ -88,6 +88,9 @@ describe('the seeded marketplace is valid against the LIVE catalog', () => {
       'lost_lead_follow_up',
       'contact_form_thank_you',
       'appointment_confirmation',
+      // The customer-facing reminder, timed to the meeting itself. Sits before
+      // the internal task form, which is the rep-side counterpart.
+      'appointment_reminder',
       'appointment_reminder_task',
       'internal_task_on_new_lead',
     ])

@@ -5,6 +5,8 @@ import { requireProductAccess } from '@/lib/requireUser'
 import { getFullLead } from '@/db/clients'
 import { insertMeeting } from '@/db/meetings'
 import { insertAttendees } from '@/db/meetingAttendees'
+import { emitAutomationEvent } from '@/lib/automations/emit'
+import { occurrenceKeyForMeeting } from '@/lib/automations/appointments'
 import {
   INVITE_DIAG,
   normalizeAttendees,
@@ -95,6 +97,38 @@ export async function createMeeting(input: CreateMeetingInput): Promise<CreateMe
     })
   }
   // === /TEMP DIAG ===
+
+  /**
+   * Customer Automation Engine trigger — the Meetings domain is the SOURCE of
+   * the appointment occurrence. No calendar provider is in this path: the
+   * meeting already exists in the CRM and the lead is already attached to it,
+   * which is why Law 2 ("exactly one Lead") is satisfied by construction rather
+   * than by matching an email against the lead table.
+   *
+   * Emitted BEFORE the Google push and outside it: the occurrence is true the
+   * moment the row exists, and whether Google accepted the mirror is a sync
+   * concern that must not decide whether the lead gets a reminder.
+   *
+   * A meeting with no lead emits nothing — there is no one to remind.
+   * `emitAutomationEvent` never throws, so it cannot cost the user their meeting.
+   */
+  if (leadId) {
+    await emitAutomationEvent({
+      trigger: 'appointment_booked',
+      origin: 'manual',
+      agencyId: user.agencyId,
+      leadId,
+      occurredAt: new Date(),
+      occurrenceKey: occurrenceKeyForMeeting(meetingId),
+      fields: {
+        // The anchor a before-anchor timing resolves against, and the snapshot
+        // of what was booked.
+        startsAt: startAt,
+        appointmentName: safeTitle,
+        inviteeEmail: attendees[0]?.email ?? null,
+      },
+    })
+  }
 
   const outcome = await pushMeetingToGoogle({
     meetingId,

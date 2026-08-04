@@ -17,13 +17,17 @@ import {
 } from '@/db/automations/activity'
 import { CONTENT_SCHEMA_VERSION, getDefinitionForWorker, type WorkerDefinition } from '@/db/automations/definitions'
 import { getAgencyName, getLeadFacts, getRepName, type LeadFacts } from '@/db/automations/leadFacts'
+import { getMeetingFacts } from '@/db/automations/meetingFacts'
+import { MISSING_MEETING, meetingIdFromOccurrenceKey, type MeetingFacts } from './appointments'
 import { isLeadSuppressed } from '@/db/automations/suppressions'
 import { isRecipientBlocked } from './recipientBlocks'
 import { decideSendForAction, type SendFacts } from './laws'
 import type { Condition } from './conditions'
 import { isValidTiming } from './timing'
 import { FAILURE_COPY } from './copy'
-import { recipientFieldFor, recipientKeys, subjectResolver, type SubjectValues } from './subject'
+import { recipientFieldFor, type SubjectValues } from './subject'
+import { defaultWorkerDeps, type WorkerDeps } from './workerDeps'
+import { appointmentFactsFor, recipientFacts, resolveSubjectContext } from './workerFacts'
 import type { AnyActionExecutor } from './executors/types'
 import type { EventDefinition } from './catalog/types'
 import { getAutomationsSendMode, type AutomationsSendMode } from './flags'
@@ -51,69 +55,7 @@ import type { ActionDefinition } from './catalog/types'
 const LOG = '[automations][worker]'
 const LEASE_MS = 60_000
 
-export type WorkerDeps = {
-  sendMode: () => AutomationsSendMode
-  reclaim: (leaseMs: number) => Promise<number>
-  claim: (workerId: string, limit: number) => Promise<AutomationJob[]>
-  getDefinition: (id: number) => Promise<WorkerDefinition | null>
-  getLeadFacts: (agencyId: number, leadId: number) => Promise<LeadFacts>
-  isSuppressed: (agencyId: number, leadId: number) => Promise<boolean>
-  /**
-   * Whether a resolved recipient address is undeliverable. Keyed by the
-   * subject field the address came from, so a future channel answers here
-   * without the worker learning what the channel is.
-   */
-  isRecipientBlocked: (agencyId: number, fieldKey: string, address: string) => Promise<boolean>
-  claimState: (automationId: number, leadId: number) => Promise<'none' | 'claimed' | 'confirmed'>
-  claimOnce: (args: { agencyId: number; automationId: number; leadId: number; mode: 'live' | 'log' }) => Promise<boolean>
-  confirmClaim: (automationId: number, leadId: number) => Promise<void>
-  releaseClaim: (automationId: number, leadId: number) => Promise<void>
-  hasEffect: (automationId: number, leadId: number) => Promise<boolean>
-  countLeadToday: (agencyId: number, leadId: number, since: Date) => Promise<number>
-  countAgencyToday: (agencyId: number, since: Date) => Promise<number>
-  appendActivity: typeof appendActivity
-  /** Subject-field resolution only. The sender identity is email's business. */
-  agencyName: (agencyId: number) => Promise<string | null>
-  repName: (userId: number | null) => Promise<string | null>
-  /** Catalog lookup and executor lookup are injected like everything else, so
-   *  the worker's independence from any particular action is testable. */
-  getAction: (actionKey: string) => ActionDefinition | null
-  executorFor: (actionKey: string) => AnyActionExecutor | null
-  completeJob: (id: number) => Promise<void>
-  skipJob: (id: number, reason: string) => Promise<void>
-  failJob: (id: number, error: string) => Promise<void>
-  deadJob: (id: number, error: string) => Promise<void>
-  now: () => Date
-}
-
-export function defaultWorkerDeps(): WorkerDeps {
-  return {
-    sendMode: getAutomationsSendMode,
-    reclaim: reclaimStaleAutomationJobs,
-    claim: claimAutomationJobs,
-    getDefinition: getDefinitionForWorker,
-    getLeadFacts,
-    isSuppressed: isLeadSuppressed,
-    isRecipientBlocked,
-    claimState: getSendClaimState,
-    claimOnce: claimSendOnce,
-    confirmClaim: confirmSendClaim,
-    releaseClaim: releaseSendClaim,
-    hasEffect: hasConsumingActivity,
-    countLeadToday: countAutomatedTodayForLead,
-    countAgencyToday: countAutomatedTodayForAgency,
-    appendActivity,
-    agencyName: getAgencyName,
-    repName: getRepName,
-    getAction,
-    executorFor,
-    completeJob: completeAutomationJob,
-    skipJob: skipAutomationJob,
-    failJob: failAutomationJob,
-    deadJob: deadAutomationJob,
-    now: () => new Date(),
-  }
-}
+export { defaultWorkerDeps, type WorkerDeps }
 
 type Outcome = 'done' | 'skipped' | 'retried' | 'dead'
 export type WorkerSummary = { claimed: number; done: number; skipped: number; retried: number; dead: number }
@@ -127,68 +69,6 @@ function logT(transition: string, job: AutomationJob, extra: Record<string, unkn
     leadId: job.leadId,
     ...extra,
   })
-}
-
-/**
- * Everything the engine needs to know about the SUBJECT for one job, resolved
- * once and generically.
- *
- * Three consumers, one resolver: the live premise (whatever conditions the
- * automation declares), the action's recipients (whatever its `requires`
- * resolves to on this event), and the executor's variables (whatever it says
- * it can substitute). The worker names none of those fields — it forwards the
- * keys each consumer asks for and pays for exactly those.
- *
- * This is what makes `sms.send` a catalog entry plus an executor: it declares
- * `requires: ['phone']` and `resolvableFields`, and the lines below already
- * fetch both without knowing what SMS is.
- */
-async function resolveSubjectContext(
-  job: AutomationJob,
-  def: WorkerDefinition,
-  lead: LeadFacts,
-  action: ActionDefinition | null,
-  executor: AnyActionExecutor | null,
-  deps: WorkerDeps,
-): Promise<{
-  event: EventDefinition | null
-  conditions: readonly Condition[]
-  premise: SubjectValues
-  subject: SubjectValues
-  recipients: Record<string, string | null>
-}> {
-  const event = getEvent(eventKeyForEngineTrigger(job.trigger) ?? '')
-  const conditions = def.conditions ?? []
-  const resolve = subjectResolver(job.agencyId, lead, deps)
-
-  const premiseKeys = event ? liveFieldKeys(event, conditions) : []
-  const targetKeys = action ? recipientKeys(event, action.requires) : []
-  const variableKeys = executor?.resolvableFields ?? []
-
-  const premise = await resolve(premiseKeys)
-  const subject = await resolve(variableKeys)
-  const addresses = await resolve(targetKeys)
-
-  const recipients: Record<string, string | null> = {}
-  for (const key of targetKeys) {
-    const value = addresses[key]
-    recipients[key] = typeof value === 'string' && value.trim() ? value : null
-  }
-
-  return { event, conditions, premise, subject, recipients }
-}
-
-/** Recipients as the law layer sees them: value plus deliverability. */
-async function recipientFacts(
-  agencyId: number,
-  recipients: Record<string, string | null>,
-  deps: WorkerDeps,
-): Promise<SendFacts['recipients']> {
-  const out: SendFacts['recipients'] = {}
-  for (const [key, value] of Object.entries(recipients)) {
-    out[key] = { value, blocked: value ? await deps.isRecipientBlocked(agencyId, key, value) : false }
-  }
-  return out
 }
 
 async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome> {
@@ -258,6 +138,7 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
   const now = deps.now()
   const since = new Date(startOfBusinessDayMs(now.getTime()))
   const resolved = await resolveSubjectContext(job, def, lead, action, executor, deps)
+  const appointment = await appointmentFactsFor(job, deps)
 
   const facts: SendFacts = {
     event: {
@@ -270,6 +151,7 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     premise: { definition: resolved.event, conditions: resolved.conditions, values: resolved.premise },
     lead: { exists: lead.exists, currentStatus: lead.exists ? lead.currentStatus : null },
     recipients: await recipientFacts(job.agencyId, resolved.recipients, deps),
+    appointment,
     suppressed: await deps.isSuppressed(job.agencyId, job.leadId),
     alreadySent: claimState === 'confirmed',
     sentToLeadToday: await deps.countLeadToday(job.agencyId, job.leadId, since),

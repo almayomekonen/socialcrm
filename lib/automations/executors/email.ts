@@ -57,7 +57,17 @@ export type EmailDeps = {
  * "email variables" constant that used to apply to every action regardless of
  * which one it was.
  */
-const RESOLVABLE_FIELDS = ['leadFirstName', 'businessName', 'repName'] as const
+const RESOLVABLE_FIELDS = [
+  'leadFirstName',
+  'businessName',
+  'repName',
+  // The appointment occurrence's meeting. Declared here because this is the
+  // AUTHORITY the actions layer validates authored content against; the Builder
+  // still only offers them as chips on events that declare them.
+  'meetingTitle',
+  'meetingWhen',
+  'meetingDetails',
+] as const
 
 /**
  * The optional CTA action block, read out of the stored parameters. One block:
@@ -101,6 +111,11 @@ const varsFrom = (subject: Record<string, unknown>, businessName: string | null)
   // resolved value — the email cannot say one thing and sign another.
   businessName: businessName ?? asVar(subject.businessName),
   repName: asVar(subject.repName),
+  // Already formatted by the subject resolver, in the BUSINESS timezone. The
+  // renderer substitutes strings and never formats a date itself.
+  meetingTitle: asVar(subject.meetingTitle),
+  meetingWhen: asVar(subject.meetingWhen),
+  meetingDetails: asVar(subject.meetingDetails),
 })
 
 export const emailExecutor: ActionExecutor<EmailReady, EmailDeps> = {

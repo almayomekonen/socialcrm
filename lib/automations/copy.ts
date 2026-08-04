@@ -18,6 +18,9 @@ export const SKIP_REASON_COPY: Record<SkipReason, string> = {
   lead_daily_cap: 'לא נשלח — הליד קיבל היום את מספר האימיילים המרבי',
   agency_daily_cap: 'לא נשלח — הגעתם למכסת האימיילים היומית',
   quiet_hours: 'לא נשלח — מחוץ לחלון השליחה שהוגדר',
+  meeting_missing: 'לא נשלח — הפגישה לא נמצאה',
+  meeting_cancelled: 'לא נשלח — הפגישה בוטלה',
+  meeting_passed: 'לא נשלח — מועד הפגישה כבר עבר',
   action_unavailable: 'לא נשלח — הפעולה אינה זמינה כעת. נדרשת בדיקה בהגדרות.',
 }
 

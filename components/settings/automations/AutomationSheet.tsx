@@ -25,7 +25,7 @@ import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation, type AutomationInput } from '@/actions/automations/manage'
 import { sendTestEmail } from '@/actions/automations/sendTest'
-import { TIMINGS, errorMessage as msg, timingKey } from './sheetOptions'
+import { errorMessage as msg, timingKey, timingOptionsFor } from './sheetOptions'
 import ConditionsEditor from './ConditionsEditor'
 
 /**
@@ -285,7 +285,7 @@ export default function AutomationSheet({
         <section className='grid gap-3'>
           <h3 className='text-sm font-semibold text-gray-800'>מתי לשלוח</h3>
           <div className='flex flex-wrap gap-2'>
-            {TIMINGS.map((t) => (
+            {timingOptionsFor(timing).map((t) => (
               <Btn
                 key={t.key}
                 variant={timingKey(timing) === t.key ? 'solid' : 'outline'}

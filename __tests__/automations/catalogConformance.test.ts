@@ -194,10 +194,30 @@ describe('CONFORMANCE — declared laws match the laws decideSend enforces', () 
 })
 
 describe('CONFORMANCE — the closed variable set matches the catalog fields', () => {
-  it('renderable fields are exactly the renderer variable tokens, in order', () => {
+  /**
+   * The variable set is PARTITIONED, not uniform. Lead-scoped variables appear
+   * on every event; appointment-scoped ones appear only where a meeting exists
+   * to resolve them. So the invariant is no longer "these three labels in this
+   * order" — it is that every token the renderer offers is backed by a real
+   * catalog field, with the same label, on some event.
+   *
+   * That is what keeps a chip from ever rendering as a raw `{{token}}`: the
+   * Builder derives chips by intersecting the SELECTED event's fields with what
+   * the renderer can resolve, so a token with no field behind it is simply never
+   * offered.
+   */
+  it('every renderer variable token is backed by a catalog field with the same label', () => {
+    for (const variable of AUTOMATION_EMAIL_VARIABLES) {
+      const match = catalog.events.flatMap((e) => e.fields).find((f) => f.key === variable.field)
+      expect(match, `token "${variable.token}" has no catalog field "${variable.field}"`).toBeDefined()
+      expect(match?.label, `field "${variable.field}" label drifted from its token`).toBe(variable.token)
+    }
+  })
+
+  it('the lead-scoped renderable fields keep their labels and order', () => {
     const created = getEvent('lead.created')
     const labels = RENDERABLE_FIELD_KEYS.map((k) => created?.fields.find((f) => f.key === k)?.label)
-    expect(labels).toEqual(AUTOMATION_EMAIL_VARIABLES.map((v) => v.token))
+    expect(labels).toEqual(['שם הליד', 'שם העסק', 'שם הנציג'])
   })
 
   it('both events expose the same renderable fields — variables do not vary by trigger', () => {

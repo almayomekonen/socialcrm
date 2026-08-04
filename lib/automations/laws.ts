@@ -1,3 +1,4 @@
+import { appointmentBlock, type MeetingFacts } from './appointments'
 import type { AutomationTriggerEvent, LawDecision, SkipReason } from './types'
 import { TERMINAL_LEAD_STATUSES } from './types'
 import { withinQuietHours, type QuietHoursConfig } from './timing'
@@ -50,6 +51,11 @@ export interface SendFacts {
    * by the same code — and adding one costs no line here.
    */
   recipients?: Record<string, { value: string | null; blocked: boolean }>
+  /**
+   * The appointment occurrence's live state, when this job is one. Gathered by
+   * the worker; absent for every other trigger.
+   */
+  appointment?: MeetingFacts | null
   suppressed: boolean
   alreadySent: boolean // send-once claim already recorded (ADR-005)
   sentToLeadToday: number // automated emails this lead received today (all automations)
@@ -208,8 +214,33 @@ function universalGuards(f: SendFacts): LawDecision | null {
   if (f.event.origin === 'import') return skip('origin_import')
   if (!f.lead.exists) return skip('lead_deleted')
   if (f.event.trigger === 'lead_created' && isTerminalStatus(f.lead.currentStatus)) return skip('premise_expired')
+  const appointment = appointmentGuard(f)
+  if (appointment) return appointment
   if (!premiseHolds(f)) return skip('premise_expired')
   return null
+}
+
+/**
+ * The appointment invariant — three things that must still be true of the
+ * meeting before a reminder about it may go out: it exists, it was not
+ * cancelled, and it has not already started.
+ *
+ * ENGINE-LEVEL, deliberately not a customer condition. A reminder that fires for
+ * a deleted or cancelled meeting, or one already under way, is wrong in a way
+ * the customer cannot be asked to guard against — so it must not be expressible
+ * as a condition they could delete. Same reasoning as the `lead_created`
+ * terminal-status check above, and the same shape.
+ *
+ * Only applies when the facts were gathered, which the worker does exactly for
+ * appointment jobs. A trigger with no appointment facts is unaffected.
+ */
+function appointmentGuard(f: SendFacts): LawDecision | null {
+  if (f.event.trigger !== 'appointment_booked') return null
+  // Facts absent for an appointment job means the occurrence could not be read
+  // at all — fail closed rather than remind about an unknown meeting.
+  if (!f.appointment) return skip('meeting_missing')
+  const block = appointmentBlock(f.appointment, f.now)
+  return block ? skip(block) : null
 }
 
 /**

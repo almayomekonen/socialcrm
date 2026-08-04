@@ -1,4 +1,11 @@
 import type { LeadFacts } from '@/db/automations/leadFacts'
+import {
+  MISSING_MEETING,
+  formatMeetingDetails,
+  formatMeetingWhen,
+  meetingIdFromOccurrenceKey,
+  type MeetingFacts,
+} from './appointments'
 import type { EventDefinition } from './catalog/types'
 import type { FieldType } from './catalog/vocabularies'
 
@@ -26,9 +33,19 @@ export type SubjectValues = Record<string, unknown>
 export type SubjectDeps = {
   agencyName: (agencyId: number) => Promise<string | null>
   repName: (userId: number | null) => Promise<string | null>
+  /** The appointment occurrence's live state. Absent ⇒ meeting fields resolve null. */
+  meetingFacts?: (agencyId: number, meetingId: number) => Promise<MeetingFacts>
 }
 
-type Ctx = { agencyId: number; lead: LeadFacts; deps: SubjectDeps }
+type Ctx = {
+  agencyId: number
+  lead: LeadFacts
+  /** The job's occurrence key, when there is one. Carries the meeting identity. */
+  occurrenceKey: string | null
+  deps: SubjectDeps
+  /** Memoised meeting read, shared by every meeting-scoped resolver. */
+  meeting: () => Promise<MeetingFacts>
+}
 
 /**
  * One resolver per catalog field key of the `lead` subject. Adding a field to
@@ -44,11 +61,41 @@ const RESOLVERS: Record<string, (c: Ctx) => Promise<unknown> | unknown> = {
   leadName: ({ lead }) => (lead.exists ? lead.displayName : null),
   businessName: ({ agencyId, deps }) => deps.agencyName(agencyId),
   repName: ({ lead, deps }) => deps.repName(lead.exists ? lead.handlerId : null),
+
+  // ── The appointment occurrence's meeting ──────────────────────────────────
+  // Live by declaration (see the catalog entry): the reminder's guard needs the
+  // CURRENT status, and the email must show the CURRENT time and place.
+  meetingStatus: async ({ meeting }) => (await meeting()).status,
+  meetingTitle: async ({ meeting }) => (await meeting()).title,
+  meetingWhen: async ({ meeting }) => {
+    const m = await meeting()
+    return formatMeetingWhen(m.startsAt, m.timezone)
+  },
+  meetingDetails: async ({ meeting }) => formatMeetingDetails(await meeting()),
 }
 
-/** A memoised reader. Ask for anything, pay once, never twice. */
-export function subjectResolver(agencyId: number, lead: LeadFacts, deps: SubjectDeps) {
-  const ctx: Ctx = { agencyId, lead, deps }
+/**
+ * A memoised reader. Ask for anything, pay once, never twice.
+ *
+ * `occurrenceKey` is optional so every existing call site keeps working
+ * unchanged; without it, meeting-scoped fields resolve to the missing-meeting
+ * state rather than throwing — which the condition evaluator fails closed on and
+ * the appointment guard reads as `meeting_missing`.
+ */
+export function subjectResolver(agencyId: number, lead: LeadFacts, deps: SubjectDeps, occurrenceKey: string | null = null) {
+  let meetingRead: Promise<MeetingFacts> | null = null
+  const meeting = (): Promise<MeetingFacts> => {
+    if (!meetingRead) {
+      const meetingId = meetingIdFromOccurrenceKey(occurrenceKey)
+      meetingRead =
+        meetingId != null && deps.meetingFacts
+          ? deps.meetingFacts(agencyId, meetingId)
+          : Promise.resolve(MISSING_MEETING)
+    }
+    return meetingRead
+  }
+
+  const ctx: Ctx = { agencyId, lead, occurrenceKey, deps, meeting }
   const cache = new Map<string, unknown>()
 
   return async function resolve(keys: readonly string[]): Promise<SubjectValues> {

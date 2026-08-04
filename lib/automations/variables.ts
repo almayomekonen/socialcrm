@@ -11,6 +11,20 @@ export const AUTOMATION_EMAIL_VARIABLES = [
   { token: 'שם הליד', field: 'leadFirstName', defaultSample: 'דוד' },
   { token: 'שם העסק', field: 'businessName', defaultSample: 'העסק שלי' },
   { token: 'שם הנציג', field: 'repName', defaultSample: 'נציג העסק' },
+  /**
+   * The meeting an appointment occurrence is about. Offered as chips ONLY on
+   * events that declare these fields — `variableChipsForEvent` intersects the
+   * event's fields with what the renderer can resolve, so a lead automation
+   * never sees them.
+   *
+   * `פרטי הפגישה` is one resolved multi-line block rather than separate location
+   * and link tokens: both are optional in the data, and a template line reading
+   * "מקום: {{...}}" with nothing to fill renders a dangling label. A block that
+   * omits the line cannot.
+   */
+  { token: 'שם הפגישה', field: 'meetingTitle', defaultSample: 'פגישת היכרות' },
+  { token: 'מועד הפגישה', field: 'meetingWhen', defaultSample: 'יום שלישי, 12 באוגוסט, 10:30' },
+  { token: 'פרטי הפגישה', field: 'meetingDetails', defaultSample: 'פגישת היכרות\nיום שלישי, 12 באוגוסט, 10:30' },
 ] as const
 
 /**
@@ -89,13 +103,29 @@ export function substituteVariables(content: string, vars: VariableValues): stri
   // Builder preview and the real send agree.
   let out = content.replace(/\}\}(?=\{\{)/g, '}} ')
   const business = vars.businessName?.trim() || 'העסק'
-  const resolved: Record<string, string> = {
-    leadFirstName: vars.leadFirstName?.trim() || '',
-    businessName: business,
-    repName: vars.repName?.trim() || business,
+
+  /**
+   * Resolved from the VOCABULARY, not from a hand-written list of fields.
+   *
+   * The list form silently dropped any token added to the closed set but not to
+   * it — the meeting tokens rendered as empty strings while every unit test
+   * passed, because each tested substitution in isolation. Deriving from
+   * `TOKEN_TO_FIELD` makes "add a token, get a substitution" true instead of
+   * something to remember.
+   *
+   * Two fields keep their special fallbacks; everything else resolves to its
+   * value or to nothing.
+   */
+  const value = (field: string): string => {
+    if (field === 'businessName') return business
+    // A rep-less business signs as itself rather than as an empty space.
+    if (field === 'repName') return vars.repName?.trim() || business
+    // An absent first name degrades "שלום דנה," to "שלום," via the comma rule below.
+    return String(vars[field] ?? '').trim()
   }
+
   for (const { token, field } of TOKEN_TO_FIELD) {
-    out = out.split(`{{${token}}}`).join(resolved[field] ?? '')
+    out = out.split(`{{${token}}}`).join(value(field))
   }
   return out
     .replace(/ +,/g, ',')
