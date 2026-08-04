@@ -12,14 +12,23 @@
  * Instagram is intentionally NOT inferred from `facebook:` — current ingestion
  * stores both Facebook and Instagram leadgen as `facebook:{leadId}`, so only an
  * explicit `instagram:*` / plain "instagram" value ever displays as Instagram.
+ *
+ * Website ingestion stores `contact_form_7:{connectionRowId}:{submissionId}` —
+ * the same composite convention, and equally internal. `contact_form_7` is the
+ * historical integration key, kept deliberately (W1) because presentation is a
+ * separate layer; this is where that separation is cashed in. The channel is
+ * named `website`, not after the plugin, and displays as the same word the
+ * manual create form already offers for it (`אתר`, types/lists.ts) — so a
+ * hand-tagged website lead and an auto-ingested one read identically.
  */
 
-export type LeadSourceChannel = 'whatsapp' | 'facebook' | 'instagram' | 'manual'
+export type LeadSourceChannel = 'whatsapp' | 'facebook' | 'instagram' | 'website' | 'manual'
 
 const CHANNEL_LABEL: Record<LeadSourceChannel, string> = {
   whatsapp: 'WhatsApp',
   facebook: 'Facebook',
   instagram: 'Instagram',
+  website: 'אתר',
   manual: 'ידני',
 }
 
@@ -39,11 +48,13 @@ export function leadSourceChannel(source: string | null | undefined): LeadSource
   if (lower.startsWith('whatsapp:')) return 'whatsapp'
   if (lower.startsWith('facebook:')) return 'facebook'
   if (lower.startsWith('instagram:')) return 'instagram'
+  if (lower.startsWith('contact_form_7:')) return 'website'
 
   // Known plain values (channel names + the manual synonyms).
   if (lower === 'whatsapp') return 'whatsapp'
   if (lower === 'facebook') return 'facebook'
   if (lower === 'instagram') return 'instagram'
+  if (lower === 'website' || trimmed === 'אתר') return 'website'
   if (lower === 'manual' || trimmed === 'ידני') return 'manual'
 
   // Non-empty, unrecognized → free text (preserved by leadSourceLabel).
@@ -71,6 +82,11 @@ export function leadSourceLabel(source: string | null | undefined): string {
  * `leadSourceChannel`, which also maps plain values. Never infers Instagram from
  * `facebook:` (no heuristics). Used to decide whether the "arrived automatically"
  * lead-context surface should show.
+ *
+ * `contact_form_7:` is deliberately ABSENT. A website lead is genuinely
+ * auto-ingested, but `InboundLeadContext` renders only Facebook and WhatsApp
+ * variants — so claiming the channel here would detect a surface that does not
+ * exist. Add it together with that view, not before it.
  */
 export function inboundChannelFromSource(source: string | null | undefined): LeadSourceChannel | null {
   if (typeof source !== 'string') return null

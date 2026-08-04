@@ -508,6 +508,9 @@ const SOURCE_STYLES: Record<string, string> = {
   facebook: 'bg-blue-100 text-blue-700',
   whatsapp: 'bg-green-100 text-green-700',
   instagram: 'bg-pink-100 text-pink-700',
+  // Violet, not indigo/teal: at this tint indigo reads as Facebook's blue and
+  // teal as WhatsApp's green. Carries no status meaning of its own.
+  website: 'bg-violet-100 text-violet-700',
   manual: 'bg-gray-100 text-gray-600',
 }
 

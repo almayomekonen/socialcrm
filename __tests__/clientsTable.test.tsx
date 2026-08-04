@@ -177,3 +177,37 @@ describe('ClientsTable', () => {
     expect(newTable).not.toBe(initialTable)
   })
 })
+
+describe('source badge — the internal composite never reaches the screen', () => {
+  // The bug this guards: a website lead rendered its raw storage identity,
+  // `contact_form_7:3:c1e76529-dddb-407a-b0a4-3110089b0da4`, in the מקור column.
+  const WEBSITE_SOURCE = 'contact_form_7:3:c1e76529-dddb-407a-b0a4-3110089b0da4'
+
+  it('a website lead displays אתר, not the connection row or submission id', () => {
+    render(<ClientsTable data={[makeLead({ leadSource: WEBSITE_SOURCE })]} user={null} leads={true} />)
+
+    const body = document.querySelector('tbody')!
+    expect(within(body).getByText('אתר')).toBeInTheDocument()
+    expect(body.textContent).not.toContain('contact_form_7')
+    expect(body.textContent).not.toContain('c1e76529')
+  })
+
+  it('Facebook and WhatsApp labels are unchanged', () => {
+    render(
+      <ClientsTable
+        data={[
+          makeLead({ id: 1, name: 'FB', leadSource: 'facebook:1557473805865751' }),
+          makeLead({ id: 2, name: 'WA', leadSource: 'whatsapp:wamid.HBgMOTcyNTM3NzM2NjM2' }),
+        ]}
+        user={null}
+        leads={true}
+      />,
+    )
+
+    const body = document.querySelector('tbody')!
+    expect(within(body).getByText('Facebook')).toBeInTheDocument()
+    expect(within(body).getByText('WhatsApp')).toBeInTheDocument()
+    expect(body.textContent).not.toContain('1557473805865751')
+    expect(body.textContent).not.toContain('wamid')
+  })
+})
