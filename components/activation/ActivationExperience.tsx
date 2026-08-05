@@ -1,16 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useActivationController } from '@/lib/activation/useActivationController'
 import ActivationScreen from '@/components/activation/ActivationScreen'
-import ActivationBrand, { ACTIVATION_BG } from '@/components/activation/ActivationBrand'
 import ActivationHero from '@/components/activation/ActivationHero'
 import ActivationVideoPanel from '@/components/activation/ActivationVideoPanel'
 import Icon from '@/lib/Icon'
-import { DESKTOP_HINT_COPY } from '@/lib/activation/activationCopy'
 import { completeOnboarding } from '@/actions/activation'
-import { copyToClipboard } from '@/lib/clipboard'
 
 const DESKTOP_QUERY = '(min-width: 1000px)'
 const PANEL_LIGHT = 'linear-gradient(165deg, #ffffff 0%, #f7f5fc 55%, #f1edfb 100%)'
@@ -21,10 +18,14 @@ const KEYFRAMES = `
 `
 
 /**
- * The single activation experience — one route, one controller, one FSM. Desktop
- * is a cinematic split: a clean light activation surface (hero + CTA) beside a
- * full-bleed immersive product video, feathered together at the seam. Mobile is
- * the stacked dark brand flow. No progress indicator, no skip.
+ * The desktop activation experience — one route, one controller, one FSM. A
+ * cinematic split: a clean light activation surface (hero + CTA) beside a
+ * full-bleed immersive product video, feathered together at the seam. No
+ * progress indicator, no skip.
+ *
+ * Desktop only. Phones are routed to MobileHandoff by app/activate/page.tsx
+ * before this component is ever reached, so there is no mobile branch here and
+ * no mobile markup is shipped to any client (architecture-rules.md §9).
  */
 export default function ActivationExperience() {
   const router = useRouter()
@@ -43,26 +44,26 @@ export default function ActivationExperience() {
     })()
   }, [done, router])
 
-  // Screen content is theme-adaptive: white text on the mobile dark surface,
-  // dark text on the desktop light surface (see the screens' desktop: classes).
-  const screen =
-    alreadyConnected === true ? (
-      <ActivatedHint onCopy={continueDesktop} />
-    ) : (
-      <ActivationScreen
-        machine={machine}
-        onCta={startOAuth}
-        onSelect={selectPage}
-        onRetry={retry}
-        onContinue={continueDesktop}
-      />
-    )
+  // `alreadyConnected` resolves to `done` above, which renders DesktopComplete
+  // instead of this — so the screen below is only ever the activation flow.
+  const screen = (
+    <ActivationScreen
+      machine={machine}
+      onCta={startOAuth}
+      onSelect={selectPage}
+      onRetry={retry}
+      onContinue={continueDesktop}
+    />
+  )
 
   return (
     <div dir='rtl' role='dialog' aria-label='הפעלת SocialCRM' className='relative min-h-dvh w-full overflow-hidden'>
       <style>{KEYFRAMES}</style>
 
-      {/* DESKTOP — light activation surface (leading/right in RTL) + full-bleed video (left) */}
+      {/* DESKTOP — light activation surface (leading/right in RTL) + full-bleed video (left).
+          Phones never reach this component at all: app/activate/page.tsx picks
+          MobileHandoff on the server. The desktop: breakpoint below is kept as a
+          viewport backstop only (architecture-rules.md §9). */}
       <div className='hidden min-h-dvh desktop:flex'>
         <section
           className='relative z-10 flex basis-[48%] flex-col items-center justify-center gap-4 px-12 py-14'
@@ -81,14 +82,6 @@ export default function ActivationExperience() {
         </section>
       </div>
 
-      {/* MOBILE — stacked dark */}
-      <div
-        className='flex min-h-dvh flex-col items-center justify-center gap-6 px-6 py-10 desktop:hidden'
-        style={{ background: ACTIVATION_BG }}
-      >
-        <ActivationBrand />
-        {screen}
-      </div>
     </div>
   )
 }
@@ -103,26 +96,6 @@ function DesktopComplete() {
         <br />
         אנחנו מעבירים אותך למערכת...
       </p>
-    </div>
-  )
-}
-
-function ActivatedHint({ onCopy }: { onCopy: () => Promise<boolean> }) {
-  const [copied, setCopied] = useState(false)
-  async function copy() {
-    const ok = await onCopy()
-    if (ok) {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
-    }
-  }
-  return (
-    <div className='flex flex-col items-center gap-5 text-center'>
-      <h1 className='text-[24px] font-bold text-white desktop:text-[#0f1024]'>{DESKTOP_HINT_COPY.heading}</h1>
-      <p className='max-w-[300px] text-[14px] text-white/65 desktop:text-gray-500'>{DESKTOP_HINT_COPY.body}</p>
-      <button onClick={copy} className='text-[13px] text-white/70 underline desktop:text-gray-500'>
-        {copied ? 'הקישור הועתק' : DESKTOP_HINT_COPY.ctaLabel}
-      </button>
     </div>
   )
 }

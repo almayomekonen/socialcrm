@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { after } from 'next/server'
 import { requireProductAccess } from '@/lib/requireUser'
 import { normalizeEmail } from '@/lib/normalizeEmail'
+import { isMobileRequest } from '@/lib/device'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { track } from '@/lib/analytics/track'
 import { emitLifecycleEvent } from '@/lib/events/emit'
@@ -19,7 +20,15 @@ export async function addAgency(data) {
   let createdAgencyId: number | null = null
   try {
     await db.transaction(async (trx) => {
-      const agency = await trx('agencies').insert({ name: data?.agency?.name }).returning('id')
+      // Onboarding is complete the moment the agency exists. Written here, in the
+      // same transaction as the agency row, so a new workspace is never created in
+      // a state that the (app) layout gate would bounce to /activate — the gate
+      // itself is deliberately untouched and still guards agencies whose column is
+      // NULL. Connecting Facebook later calls completeOnboarding(), whose
+      // `whereNull` guard makes it a silent no-op; nothing reads its return value.
+      const agency = await trx('agencies')
+        .insert({ name: data?.agency?.name, onboardingCompletedAt: trx.fn.now() })
+        .returning('id')
       const agencyId = agency[0]?.id
 
       const [user] = await trx('users')
@@ -77,7 +86,22 @@ export async function addAgency(data) {
       }),
     )
 
-    redirect('/activate?welcome=1')
+    // Straight into the workspace. The target is resolved with the SAME
+    // server-side device check the (app) layout gate uses (lib/device.ts), so
+    // this redirect can never disagree with the redirect that runs on the very
+    // next request:
+    //   phone   → /activate — where the layout would send them anyway. Routing
+    //             phones via /leads would be a regression, not a no-op:
+    //             redirect() drops the query string, so ?welcome would be gone
+    //             before RegistrationPixel could fire and mobile registration
+    //             attribution would be silently lost.
+    //   desktop → /leads — WelcomeToast fires the same CompleteRegistration
+    //             pixel there, and LeadsFirstRun is the first-run experience.
+    // `welcome` carries the first name because WelcomeToast greets by it; an
+    // empty value is valid and yields the nameless greeting. Never a placeholder
+    // like `1`, which would render as "ברוך הבא ל-SocialCRM, 1".
+    const welcome = encodeURIComponent((newUser!.firstName ?? '').trim())
+    redirect((await isMobileRequest()) ? `/activate?welcome=${welcome}` : `/leads?welcome=${welcome}`)
   }
   return success
 }

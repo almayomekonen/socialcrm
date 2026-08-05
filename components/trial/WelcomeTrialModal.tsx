@@ -7,10 +7,6 @@ import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
 import { useActivationCelebration } from './ActivationCelebrationContext'
 
-// Must match the `desktop` breakpoint in tailwind.config.ts — the system's
-// definition of "can use the CRM" on desktop viewports.
-const DESKTOP_QUERY = '(min-width: 1000px)'
-
 // One-time Pro activation benefits, shown as a 2×2 grid. Distinct existing
 // icons only — no new icon library.
 const BENEFITS: { icon: IconNames; title: string; sub: string }[] = [
@@ -21,16 +17,23 @@ const BENEFITS: { icon: IconNames; title: string; sub: string }[] = [
 ]
 
 /**
- * Shown while trial status is NEVER_STARTED, on desktop viewports only.
- * Mobile users are redirected to /activate by the (app) layout and never reach
- * this surface; the JS viewport check is a belt-and-suspenders guard for narrow
- * desktop windows.
+ * Shown whenever trial status is NEVER_STARTED. Device gating is the SERVER's
+ * job and the server's alone: the (app) layout redirects phones to /activate
+ * (isMobileRequest, lib/device.ts) before this ever renders, per
+ * architecture-rules.md §9 — gate by absence, never suppress on the client.
+ *
+ * This deliberately has no viewport check. The previous `(min-width: 1000px)`
+ * guard was redundant with that server redirect and left a real hole: a tablet
+ * or a narrow desktop window passes the UA-based layout gate but failed the
+ * viewport check, so the modal never opened, startTrial() was unreachable, and
+ * the agency sat in the product silently capped at FREE_LEAD_LIMIT with no way
+ * out. Reaching this surface at all now means the trial is startable.
+ *
  * Non-dismissible by design — the only way through is the CTA, which is the
  * single trigger that starts the trial. Because it is non-dismissible, the
  * dialog traps keyboard focus itself (ModalPop has no trap of its own).
  */
 export default function WelcomeTrialModal() {
-  const [isDesktop, setIsDesktop] = useState(false)
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,15 +41,7 @@ export default function WelcomeTrialModal() {
   const dialogRef = useRef<HTMLDivElement>(null)
   const { markActivated } = useActivationCelebration()
 
-  const open = isDesktop && !done
-
-  useEffect(() => {
-    const mq = window.matchMedia(DESKTOP_QUERY)
-    const update = () => setIsDesktop(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
+  const open = !done
 
   useEffect(() => {
     if (!open || seenRef.current) return

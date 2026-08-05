@@ -13,11 +13,11 @@ export type ScreenCopy = {
 
 const TRUST = ['חיבור מאובטח דרך Meta', 'הגישה ללידים שלך בלבד', 'המידע שלך נשאר שלך']
 
-export const DESKTOP_HINT_COPY = {
-  heading: 'סביבת העבודה שלך מחכה במחשב.',
-  body: 'הלידים שלך נכנסים אוטומטית. המשך במחשב לחוויה המלאה.',
-  ctaLabel: 'העתק קישור לכניסה מהמחשב',
-} as const
+// The mobile handoff copy that used to live here moved to
+// lib/activation/mobileHandoffCopy.ts when the mobile experience became its own
+// server-gated surface. It also stated "הלידים שלך נכנסים אוטומטית", which
+// stopped being true for every user once onboarding no longer required an
+// integration — the new copy claims nothing about the account.
 
 export function copyFor(status: ActivationStatus, _ctx: ActivationContext): ScreenCopy {
   switch (status) {
