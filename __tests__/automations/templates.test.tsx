@@ -260,13 +260,16 @@ describe('the marketplace renders from the registry alone', () => {
         requirement: {
           type: 'connection',
           key: 'website_connected',
-          cta: { label: 'חיבור האתר', href: '/settings/connections' },
+          cta: { label: 'חיבור האתר', href: '/settings/integrations?section=website' },
         },
       },
     })
     render(<TemplateCard view={locked} onChanged={noop} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'חיבור האתר' })).toHaveAttribute('href', '/settings/connections')
+    expect(screen.getByRole('link', { name: 'חיבור האתר' })).toHaveAttribute(
+      'href',
+      '/settings/integrations?section=website',
+    )
     expect(screen.getByRole('button', { name: 'התקנה' })).toBeDisabled()
   })
 })

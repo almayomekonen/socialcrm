@@ -13,8 +13,14 @@ export default async function SettingLayout({ children }) {
     <div className='px-4 grid grid-cols-[auto_1fr] gap-12 mobile:grid-cols-1 mobile:gap-4'>
       <div className='sticky mt-8 grid gap-1 h-fit max-w-52 mobile:max-w-full'>
         <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
-        <SettingsLink href='/settings/facebook' icon='comment-dots' title='ערוצי לידים' />
-        <SettingsLink href='/settings/calendar' icon='calendar' title='יומן Google' />
+        {/*
+          One entry for every external system. It replaced ערוצי לידים, יומן
+          Google and חיבורים, which between them held six systems across four
+          nav items — with WhatsApp reachable from one place and its automation
+          CTA pointing at another. The lead-source / connected-tool distinction
+          is carried by headings inside the page, so navigation stays one line
+          no matter how many integrations ship.
+        */}
         <SettingsLink href='/settings/integrations' icon='plug' title='אינטגרציות' />
 
         {user.role == 'ADMIN' && (
@@ -26,7 +32,6 @@ export default async function SettingLayout({ children }) {
             <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
             <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
             {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title='אוטומציות' />}
-            {automationsVisible && <SettingsLink href='/settings/connections' icon='plug' title='חיבורים' />}
             {automationsVisible && (
               <SettingsLink href='/settings/automation-templates' icon='layer-group' title='תבניות אוטומציה' />
             )}

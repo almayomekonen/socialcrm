@@ -61,7 +61,7 @@ describe('askGeneralQuestion — closed world', () => {
   it('guide intent → authored answer + route', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'guide.connectWhatsapp', confidence: 0.95 })
     const res = await askGeneralQuestion('איך מחברים וואטסאפ')
-    expect(res).toMatchObject({ kind: 'guide', route: '/settings/facebook' })
+    expect(res).toMatchObject({ kind: 'guide', route: '/settings/integrations?section=whatsapp' })
   })
 
   it('data intent → deterministic payload', async () => {

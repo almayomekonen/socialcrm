@@ -383,7 +383,12 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
             <p className='font-medium'>החיבור ליומן Google פג</p>
             <p className='text-xs mt-0.5'>פגישות חדשות לא יסונכרנו עד החיבור מחדש.</p>
           </div>
-          <Btn lbl='חבר מחדש' variant='outline' href='/settings/calendar' size='small' />
+          <Btn
+            lbl='חבר מחדש'
+            variant='outline'
+            href='/settings/integrations?section=google-calendar'
+            size='small'
+          />
         </div>
       )}
 

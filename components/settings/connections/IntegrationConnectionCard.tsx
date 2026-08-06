@@ -51,7 +51,8 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
       <div className='flex items-start justify-between gap-3'>
         <div className='flex items-center gap-2.5 min-w-0'>
           <Icon name={integration.icon as IconNames} className='size-7 bg-gray-900 shrink-0' />
-          <h2 className='text-lg font-bold text-dark truncate'>{integration.title}</h2>
+          {/* h3: the page owns h1 and its section heading owns the h2 above this card. */}
+          <h3 className='text-lg font-bold text-dark truncate'>{integration.title}</h3>
         </div>
         {connected && <StatusBadge role='success' label='מחובר' size='sm' />}
         {needsAttention && <StatusBadge role='error' label='דורש טיפול' size='sm' />}

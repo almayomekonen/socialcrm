@@ -9,7 +9,7 @@ export default function MetaDisconnectedBanner({ show }: { show: boolean }) {
         חשבון ה‑Meta מנותק. לידים חדשים לא ייכנסו עד שתחבר אותו מחדש.
       </p>
       <a
-        href='/settings/facebook'
+        href='/settings/integrations?section=facebook'
         className='shrink-0 rounded-md bg-solid px-4 py-2 text-sm font-semibold text-white hover:bg-solid/85'
       >
         חבר מחדש

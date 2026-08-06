@@ -139,7 +139,7 @@ export async function provisionApiKeyConnection(input: {
 
   const id = Number((row as { id: number }).id ?? row)
   const connectionId = `${integration.key}:${id}`
-  revalidatePath('/settings/connections')
+  revalidatePath('/settings/integrations')
   revalidatePath('/settings/automations')
   return { ok: true, connectionId, webhookUrl: webhookUrlFor(connectionId), secret }
 }
@@ -166,7 +166,7 @@ export async function revokeConnection(connectionId: string): Promise<{ ok: bool
   // Health, the events this connection unlocked, and the automations bound to
   // it all derive from the same row — so revalidating both surfaces is the
   // entire "disconnect" implementation. Nothing is recomputed by hand.
-  revalidatePath('/settings/connections')
+  revalidatePath('/settings/integrations')
   revalidatePath('/settings/automations')
   return { ok: updated > 0 }
 }
@@ -202,7 +202,7 @@ export async function regenerateSecret(connectionId: string): Promise<ProvisionR
     .update({ webhookSecret: secret, revokedAt: null, updatedAt: db.fn.now() })
   if (updated === 0) return { ok: false, reason: 'connection_unknown' }
 
-  revalidatePath('/settings/connections')
+  revalidatePath('/settings/integrations')
   revalidatePath('/settings/automations')
   return { ok: true, connectionId, webhookUrl: webhookUrlFor(connectionId), secret }
 }
@@ -246,6 +246,6 @@ export async function renameSource(
   if (!parseConnectionId(connectionId) || !sourceId) return { ok: false, reason: 'connection_unknown' }
 
   await setSourceLabel(user.agencyId, connectionId, sourceId, label)
-  revalidatePath('/settings/connections')
+  revalidatePath('/settings/integrations')
   return { ok: true }
 }

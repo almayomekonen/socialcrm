@@ -28,7 +28,7 @@ export const TEMPLATE_ENTRIES: readonly TemplateDefinition[] = [
       {
         type: 'connection',
         key: 'website_connected',
-        cta: { label: 'חיבור האתר', href: '/settings/connections' },
+        cta: { label: 'חיבור האתר', href: '/settings/integrations?section=website' },
       },
     ],
     variables: [
@@ -171,7 +171,7 @@ ${BUSINESS_SIGNOFF}`,
       {
         type: 'connection',
         key: 'website_connected',
-        cta: { label: 'חיבור האתר', href: '/settings/connections' },
+        cta: { label: 'חיבור האתר', href: '/settings/integrations?section=website' },
       },
     ],
     variables: [],

@@ -323,7 +323,7 @@ export const contactForm7Provider: ConnectionProvider = {
         'הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.',
         'שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.',
       ],
-      link: { label: 'לא מגיע מידע? בדקו שקטע הקוד נשמר', href: '/settings/connections' },
+      link: { label: 'לא מגיע מידע? בדקו שקטע הקוד נשמר', href: '/settings/integrations?section=website' },
       snippet: {
         label: 'קוד לוורדפרס',
         language: 'php',

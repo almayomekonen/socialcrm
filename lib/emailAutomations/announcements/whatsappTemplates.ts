@@ -50,14 +50,19 @@ export const WHATSAPP_TEMPLATES_ANNOUNCEMENT: ContentItem = {
     { type: 'paragraph', text: 'עוד צעד בדרך להפוך את SocialCRM למקום אחד שממנו מנהלים את הלידים וגם את התקשורת איתם.' },
     { type: 'paragraph', text: 'בהצלחה, צוות SocialCRM' },
   ],
-  cta: { label: 'ליצירת הודעה מוכנה', route: '/settings/facebook?section=templates' },
+  cta: { label: 'ליצירת הודעה מוכנה', route: '/settings/integrations?section=templates' },
 }
 
 const APPROVED = {
   sender: 'SocialCRM <hello@getsocialcrm.com>',
   subject: WHATSAPP_TEMPLATES_ANNOUNCEMENT.subject,
   preheader: WHATSAPP_TEMPLATES_ANNOUNCEMENT.preview,
-  ctaUrl: 'https://getsocialcrm.com/settings/facebook?section=templates',
+  // Moves in lockstep with the CTA route above: this is asserted against the
+  // rendered URL before the first email and a mismatch aborts the whole send.
+  // `/settings/facebook?section=templates` — the URL in already-delivered
+  // copies of this announcement — still resolves, via the redirect stub at
+  // `app/(app)/settings/(user_settings)/facebook/page.tsx`.
+  ctaUrl: 'https://getsocialcrm.com/settings/integrations?section=templates',
   count: 38,
 } as const
 

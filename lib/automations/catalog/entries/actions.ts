@@ -113,7 +113,7 @@ export const ACTION_ENTRIES: readonly ActionDefinition[] = [
       {
         type: 'connection',
         key: 'whatsapp_connected',
-        cta: { label: 'חיבור וואטסאפ', href: '/settings/connections' },
+        cta: { label: 'חיבור וואטסאפ', href: '/settings/integrations?section=whatsapp' },
       },
     ],
     /**

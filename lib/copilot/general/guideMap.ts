@@ -15,8 +15,8 @@ export const GUIDE_ENTRIES: readonly GuideEntry[] = [
   {
     id: 'guide.connectWhatsapp',
     examples: ['איך מחברים וואטסאפ', 'חיבור whatsapp', 'להתחבר לוואטסאפ', 'איפה מחברים וואטסאפ'],
-    answer: 'הגדרות ← חיבור וואטסאפ. עקוב אחרי שלבי ההתחברות.',
-    route: '/settings/facebook',
+    answer: 'הגדרות ← אינטגרציות ← חיבור וואטסאפ. עקוב אחרי שלבי ההתחברות.',
+    route: '/settings/integrations?section=whatsapp',
   },
   {
     id: 'guide.addLead',

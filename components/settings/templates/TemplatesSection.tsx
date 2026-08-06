@@ -40,7 +40,10 @@ export default function TemplatesSection({ agencyId, connected, messagingReady }
     return (
       <div className='grid gap-3'>
         <ConnectionNotice notice={NOT_CONNECTED} />
-        <Link href='/settings/facebook?section=whatsapp' className='text-sm font-medium text-primary hover:underline'>
+        <Link
+          href='/settings/integrations?section=whatsapp'
+          className='text-sm font-medium text-primary hover:underline'
+        >
           למעבר לחיבור וואטסאפ
         </Link>
       </div>
