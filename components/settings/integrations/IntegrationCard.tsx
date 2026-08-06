@@ -53,7 +53,10 @@ export default function IntegrationCard({ integration }: { integration: Integrat
   const connected = status.state === 'connected'
 
   return (
-    <div className='rounded-lg border border-gray-200 bg-white p-6 grid gap-4 content-start'>
+    // Structure mirrors CalendarConnect exactly — see the note there. The
+    // action row is pinned with mt-auto so buttons line up across cards of
+    // unequal content length.
+    <div className='rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2.5'>
         <Icon name={integration.icon} className='size-7 bg-gray-900' />
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
@@ -63,10 +66,12 @@ export default function IntegrationCard({ integration }: { integration: Integrat
 
       <p className='text-sm text-gray-600 leading-relaxed'>{integration.description}</p>
 
-      {status.state === 'loading' && <div className='h-9 flex items-center text-sm text-gray-400'>טוען…</div>}
+      {status.state === 'loading' && (
+        <div className='mt-auto h-9 flex items-center text-sm text-gray-400'>טוען…</div>
+      )}
 
       {status.state === 'disconnected' && (
-        <div className='flex items-center justify-between gap-3'>
+        <div className='mt-auto flex items-center justify-between gap-3'>
           <span className='text-sm text-gray-400'>לא מחובר</span>
           <Btn
             lbl={integration.connectLabel}
@@ -79,7 +84,7 @@ export default function IntegrationCard({ integration }: { integration: Integrat
       )}
 
       {status.state === 'connected' && (
-        <div className='flex items-center justify-between gap-3'>
+        <div className='mt-auto flex items-center justify-between gap-3'>
           <span className='min-w-0 truncate text-sm text-gray-600'>
             {status.email ? (
               <>

@@ -44,7 +44,9 @@ export default async function IntegrationsSettingsPage({
       <section className='mb-10'>
         <h2 className='text-xl font-bold text-dark'>מקורות לידים</h2>
         <p className='mt-1 mb-4 max-w-2xl text-sm text-gray-600'>מכאן נכנסים לידים חדשים למערכת, אוטומטית.</p>
-        <div className='max-w-lg'>
+        {/* Same width as כלים מחוברים below — the two sections must read as
+            one page, not two. */}
+        <div className='max-w-3xl'>
           <LeadSourcesSection user={user} activeSection={activeSection} />
         </div>
       </section>

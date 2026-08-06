@@ -23,7 +23,9 @@ export default function ConnectionsSettings({ views }: { views: IntegrationView[
   }
 
   return (
-    <div className='grid max-w-3xl grid-cols-2 gap-4 mobile:grid-cols-1'>
+    // Single column: this renders inside a section that already sets the width.
+    // A two-column grid here squeezed a lone card into half a container.
+    <div className='grid gap-4'>
       {views.map((view) => (
         <IntegrationConnectionCard key={view.integration.key} view={view} onChanged={() => router.refresh()} />
       ))}

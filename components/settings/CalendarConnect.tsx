@@ -33,13 +33,20 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
   }
 
   return (
-    <div className='rounded-lg border border-gray-200 bg-white p-6 grid gap-4'>
+    /*
+     * Card shape is deliberately identical to IntegrationCard (Google Drive):
+     * same container, same header, one description paragraph, and a status +
+     * action row pinned to the bottom with mt-auto. Two cards sitting side by
+     * side under כלים מחוברים must not read as two different components — so
+     * the structure is shared, not merely similar.
+     */
+    <div className='rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2.5'>
         <Icon name='calendar' className='size-7 bg-gray-900' />
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
         <h3 className='text-lg font-bold'>Google Calendar</h3>
         {state === 'connected' && (
-          <Icon name='check' type='reg' className='size-4 bg-green-600' />
+          <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label='מחובר' />
         )}
       </div>
 
@@ -48,12 +55,8 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
           <p className='text-gray-600 text-sm leading-relaxed'>
             חבר את חשבון Google שלך כדי לתזמן פגישות עם לידים ולקבל קישורי Google Meet אוטומטית.
           </p>
-          <ul className='text-gray-600 text-sm grid gap-1.5 pe-4 list-disc'>
-            <li>סינכרון אוטומטי של פגישות ליומן Google</li>
-            <li>יצירת קישור Meet אוטומטית לכל פגישה</li>
-            <li>ניהול לוח הזמנים בתוך ה-CRM</li>
-          </ul>
-          <div>
+          <div className='mt-auto flex items-center justify-between gap-3'>
+            <span className='text-sm text-gray-400'>לא מחובר</span>
             <Btn
               lbl='חבר את Google Calendar'
               onClick={() => {
@@ -66,14 +69,12 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
       )}
 
       {state === 'connected' && (
-        <>
-          <p className='text-gray-600 text-sm'>
-            מחובר כ-<span className='font-medium text-black'>{email}</span>
-          </p>
-          <div>
-            <Btn lbl='נתק חשבון' variant='outline' onClick={() => setConfirmOpen(true)} />
-          </div>
-        </>
+        <div className='mt-auto flex items-center justify-between gap-3'>
+          <span className='min-w-0 truncate text-sm text-gray-600'>
+            מחובר · <span className='font-medium text-gray-800'>{email}</span>
+          </span>
+          <Btn lbl='נתק חשבון' variant='outline' onClick={() => setConfirmOpen(true)} />
+        </div>
       )}
 
       {state === 'reauth_required' && (
@@ -83,7 +84,8 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
             <p className='mt-0.5'>יש להתחבר מחדש כדי לסנכרן פגישות חדשות.</p>
             {lastError && <p className='mt-1 text-xs text-amber-700'>פרטים: {lastError}</p>}
           </div>
-          <div>
+          <div className='mt-auto flex items-center justify-between gap-3'>
+            <span className='text-sm text-gray-400'>דורש חיבור מחדש</span>
             <Btn
               lbl='חבר מחדש'
               onClick={() => {
