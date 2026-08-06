@@ -1,36 +1,26 @@
-import type { Metadata } from 'next'
-import { requireAgencyUser } from '@/lib/requireUser'
-import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
-import { integrationOverview } from '@/lib/automations/connectors/overview'
-import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings'
-
-export const metadata: Metadata = { title: 'חיבורים' }
+import { redirect } from 'next/navigation'
 
 /**
- * Settings → חיבורים.
+ * `/settings/connections` → the website connector on the merged integrations
+ * page.
  *
- * Every integration the catalog registers renders here, with no page edit: the
- * server assembles one view per `IntegrationDefinition` and the client draws
- * them. Adding a connector is a registry line; the card is automatic.
+ * חיבורים is gone as a category. It never held more than one card — the
+ * catalog registers exactly one `IntegrationDefinition` (האתר שלי) — while
+ * sitting beside a separate אינטגרציות item that held exactly one other card.
+ * Two nav entries, one card each, near-synonymous Hebrew names and the same
+ * `plug` icon. A website form creates לידים the same way a Facebook lead form
+ * does, so it now lives with the other lead sources.
  *
- * Gated exactly like the automations page — a non-allowlisted agency sees
- * neither the nav item nor this page.
+ * DELIBERATELY still inside `(admin_settings)`: that layout enforces ADMIN
+ * before this file runs, so a non-admin hitting the old URL keeps getting the
+ * same permission response as before rather than being forwarded. The
+ * destination section carries its own ADMIN + allowlist gate — see
+ * `components/settings/integrations/WebsiteConnection.tsx`.
+ *
+ * The allowlist check that used to live here is not repeated: it now guards the
+ * section itself, so a non-allowlisted agency lands on the page and simply has
+ * no website section, exactly as it had no nav item.
  */
-export default async function ConnectionsSettingsPage() {
-  const user = await requireAgencyUser()
-  if (!isAutomationsAgencyAllowlisted(user.agencyId)) {
-    return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
-  }
-
-  const views = await integrationOverview(user.agencyId)
-
-  return (
-    <div>
-      <h1 className='title'>חיבורים</h1>
-      <p className='mt-2 mb-6 max-w-2xl text-sm text-gray-600 leading-relaxed'>
-        כאן מחברים את המערכות שמהן מגיעים לידים ואירועים. אחרי החיבור אפשר לבנות עליהם אוטומציות.
-      </p>
-      <ConnectionsSettings views={views} />
-    </div>
-  )
+export default async function ConnectionsSettingsRedirect() {
+  redirect('/settings/integrations?section=website')
 }

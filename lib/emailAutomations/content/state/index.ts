@@ -32,7 +32,7 @@ export const STATE_CONTENT: ContentItem[] = [
       },
       { type: 'paragraph', text: 'החיבור לוקח פחות מדקה, ומאותו רגע כל ליד חדש כבר מחכה במערכת.' },
     ],
-    cta: { label: 'חיבור פייסבוק', route: '/settings/facebook' },
+    cta: { label: 'חיבור פייסבוק', route: '/settings/integrations?section=facebook' },
     audience: ownersMissingFacebook,
   },
   {
@@ -53,7 +53,7 @@ export const STATE_CONTENT: ContentItem[] = [
       },
       { type: 'paragraph', text: 'דקה אחת של חיבור, ומעכשיו כל השיחות מרוכזות ומסודרות.' },
     ],
-    cta: { label: 'חיבור וואטסאפ', route: '/settings/facebook?section=whatsapp' },
+    cta: { label: 'חיבור וואטסאפ', route: '/settings/integrations?section=whatsapp' },
     audience: ownersMissingWhatsapp,
   },
   {

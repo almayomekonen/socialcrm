@@ -48,7 +48,7 @@ export default function LeadsFirstRun({
               />
               {!whatsappConnected && (
                 <OnboardingActionCard
-                  href='/settings/facebook?section=whatsapp'
+                  href='/settings/integrations?section=whatsapp'
                   icon='whatsapp'
                   tileClass='bg-[#25D366]'
                   title='חבר וואטסאפ'
@@ -77,7 +77,7 @@ export default function LeadsFirstRun({
 
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <OnboardingActionCard
-                href='/settings/facebook?section=whatsapp'
+                href='/settings/integrations?section=whatsapp'
                 icon='whatsapp'
                 tileClass='bg-[#25D366]'
                 title='וואטסאפ'
@@ -86,7 +86,7 @@ export default function LeadsFirstRun({
                 badgeClass='bg-info-bg text-info-text'
               />
               <OnboardingActionCard
-                href='/settings/facebook?section=facebook'
+                href='/settings/integrations?section=facebook'
                 tile={<MetaLeadAdsBadge size='lg' />}
                 title='פייסבוק ואינסטגרם'
                 description='קבל לידים מהמודעות אוטומטית'

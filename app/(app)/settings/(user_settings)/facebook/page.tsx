@@ -1,142 +1,38 @@
-import { Suspense } from 'react'
-import { getUser, decrypt } from '@/db/auth'
-import { db } from '@/config/db'
-import { cookies } from 'next/headers'
-import AccordionItem from '@/lib/AccordionItem'
-import UrlSyncedAccordion from '@/lib/UrlSyncedAccordion'
-import FacebookConnect from '@/components/settings/FacebookConnect'
-import WhatsappConnect from '@/components/settings/WhatsappConnect'
-import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
-import { GRAPH_VERSION } from '@/lib/facebook/graph'
-import { checkMessagingReady } from '@/lib/whatsapp/registration'
-import { resolveWhatsappStatus, type WhatsappStatus } from '@/lib/whatsapp/operationalStatus'
-import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
-import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
+import { redirect } from 'next/navigation'
 
-export default async function page({ searchParams }) {
-  // Deep-link support: /settings/facebook?section=whatsapp opens that section.
-  // Read server-side so refresh + Back/Forward preserve it with no client state.
-  // No param keeps today's default (Facebook open). Generic — a future section
-  // just needs its own AccordionItem with open={activeSection === '<id>'}.
-  const { section } = (await searchParams) || {}
-  const activeSection = typeof section === 'string' ? section : null
-  const openFacebook = activeSection ? activeSection === 'facebook' : true
-  const openWhatsapp = activeSection === 'whatsapp'
-  const openTemplates = activeSection === 'templates'
+/**
+ * `/settings/facebook` → `/settings/integrations`, query string intact.
+ *
+ * A redirect rather than a deletion, because this URL is not ours to retire:
+ *
+ *  · The Facebook OAuth callback returns here with `?select=1` (the page
+ *    picker) and `?error=<reason>`; the WhatsApp callback with
+ *    `?wa_error=<reason>`. Dropping the query would silently swallow the
+ *    page-selection step and every connect failure.
+ *  · `?section=templates` is a hardcoded absolute link in an announcement email
+ *    that has ALREADY been delivered to customers
+ *    (`lib/emailAutomations/announcements/whatsappTemplates.ts`). Those inboxes
+ *    cannot be edited; the URL has to keep working for as long as the mail does.
+ *
+ * Section ids are unchanged on the destination, so every forwarded `?section=`
+ * opens exactly the section it always did.
+ *
+ * Temporary (307), not permanent: browsers cache permanent redirects
+ * aggressively, and this mapping should stay cheap to revise.
+ */
+export default async function FacebookSettingsRedirect({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const sp = (searchParams ? await searchParams : {}) || {}
 
-  const user = await getUser()
-  const templatesEnabled = isTemplatesEnabledForAgency(user.agencyId)
-
-  // Facebook connection
-  const fbConnection = await db('facebook_pages').where({ user_id: user.id }).first()
-
-  const cookieStore = await cookies()
-  const fbPagesCookie = cookieStore.get('fb_pages')?.value
-  let pendingPages: { id: string; name: string; access_token: string }[] | null = null
-
-  if (fbPagesCookie) {
-    try {
-      const payload = await decrypt(fbPagesCookie)
-      if (payload?.userId === user.id) {
-        pendingPages = payload.pages
-      }
-    } catch {
-      // Cookie expired or tampered — ignore
-    }
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(sp)) {
+    if (typeof value === 'string') params.append(key, value)
+    else if (Array.isArray(value)) for (const v of value) params.append(key, v)
   }
 
-  let health: FacebookHealthStatus | null = null
-  if (fbConnection) {
-    try {
-      health = await checkFacebookConnection(fbConnection.page_id, fbConnection.page_access_token)
-    } catch {
-      // Non-critical
-    }
-  }
-
-  // WhatsApp connection
-  const waConnection = await db('whatsapp_connections').where({ user_id: user.id }).first()
-
-  // Live readiness check — a connected row does not guarantee the number is
-  // registered for Cloud API, so never show "active" without verifying status.
-  let waMessagingReady = true
-  // Truthful operational status for the connect UI — a persisted row is NOT
-  // proof the integration works (see resolveWhatsappStatus). TemplatesSection
-  // keeps the phone-level readiness boolean below.
-  let waStatus: WhatsappStatus = 'needs_verification'
-  if (waConnection) {
-    waMessagingReady = await checkMessagingReady(waConnection.phone_number_id, waConnection.access_token)
-    waStatus = await resolveWhatsappStatus(waConnection, user.agencyId)
-  }
-
-  const waPhonesCookie = cookieStore.get('wa_phones')?.value
-  let pendingPhones: { id: string; displayPhone: string; verifiedName: string }[] | null = null
-  if (waPhonesCookie) {
-    try {
-      const payload = await decrypt(waPhonesCookie)
-      if (payload?.userId === user.id) {
-        // Strip the access token — the client receives display data only. The
-        // token stays in the server-only httpOnly cookie; the connect route
-        // resolves it server-side.
-        pendingPhones = (payload.phones as { id: string; displayPhone: string; verifiedName: string }[]).map(
-          ({ id, displayPhone, verifiedName }) => ({ id, displayPhone, verifiedName }),
-        )
-      }
-    } catch {
-      // Cookie expired or tampered — ignore
-    }
-  }
-
-  return (
-    <div>
-      <h1 className='title'>ערוצי לידים</h1>
-      <div className='my-6 max-w-lg'>
-        <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
-          <AccordionItem id='facebook' bodyClass='p-6' title='פייסבוק' icon='facebook' open={openFacebook}>
-            <Suspense fallback={null}>
-              <FacebookConnect
-                connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
-                pendingPages={pendingPages}
-                health={health}
-              />
-            </Suspense>
-          </AccordionItem>
-          <AccordionItem id='whatsapp' bodyClass='p-6' title='וואטסאפ' icon='whatsapp' open={openWhatsapp}>
-            <Suspense fallback={null}>
-              <WhatsappConnect
-                connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
-                pendingPhones={pendingPhones}
-                appId={process.env.META_APP_ID ?? ''}
-                configId={process.env.META_EMBEDDED_SIGNUP_CONFIGURATION_ID ?? ''}
-                graphVersion={GRAPH_VERSION}
-                status={waStatus}
-              />
-            </Suspense>
-          </AccordionItem>
-          {templatesEnabled && (
-            <AccordionItem
-              id='templates'
-              bodyClass='p-6'
-              title='הודעות מוכנות'
-              icon='comment-dots'
-              open={openTemplates}
-              badge={
-                <Suspense fallback={null}>
-                  <TemplatesHeaderBadge agencyId={user.agencyId} connected={!!waConnection} />
-                </Suspense>
-              }
-            >
-              <Suspense fallback={null}>
-                <TemplatesSection
-                  agencyId={user.agencyId}
-                  connected={!!waConnection}
-                  messagingReady={waMessagingReady}
-                />
-              </Suspense>
-            </AccordionItem>
-          )}
-        </UrlSyncedAccordion>
-      </div>
-    </div>
-  )
+  const qs = params.toString()
+  redirect(`/settings/integrations${qs ? `?${qs}` : ''}`)
 }

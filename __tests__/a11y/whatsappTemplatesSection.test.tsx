@@ -107,7 +107,7 @@ describe('TemplatesSection — connection gating (one state at a time)', () => {
     render(TemplatesSection({ agencyId: 103, connected: false, messagingReady: false }))
     expect(screen.getByText('צריך לחבר וואטסאפ עסקי')).toBeInTheDocument()
     const link = screen.getByRole('link', { name: 'למעבר לחיבור וואטסאפ' })
-    expect(link).toHaveAttribute('href', '/settings/facebook?section=whatsapp')
+    expect(link).toHaveAttribute('href', '/settings/integrations?section=whatsapp')
     expect(screen.queryByText('אין עדיין הודעות מוכנות')).toBeNull()
     expect(listTemplates).not.toHaveBeenCalled()
   })

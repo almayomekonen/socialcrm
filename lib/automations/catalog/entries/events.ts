@@ -243,7 +243,7 @@ export const EVENT_ENTRIES: readonly EventDefinition[] = [
       {
         type: 'connection',
         key: 'website_connected',
-        cta: { label: 'חיבור האתר', href: '/settings/connections' },
+        cta: { label: 'חיבור האתר', href: '/settings/integrations?section=website' },
       },
     ],
     // One remote parameter: which form to listen to. Same control as every

@@ -54,7 +54,7 @@ function NotConnectedState() {
         </p>
       </div>
       <div className='flex justify-center'>
-        <Btn lbl='לחיבור היומן' href='/settings/calendar' />
+        <Btn lbl='לחיבור היומן' href='/settings/integrations?section=google-calendar' />
       </div>
     </div>
   )

@@ -1,32 +1,18 @@
-import type { Metadata } from 'next'
-import { requireAgencyUser } from '@/lib/requireUser'
-import { getCalendarConnectionByUserId } from '@/db/googleCalendarConnections'
-import CalendarConnect from '@/components/settings/CalendarConnect'
+import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = { title: 'יומן Google' }
-
-export default async function CalendarSettingsPage() {
-  const user = await requireAgencyUser()
-  const conn = await getCalendarConnectionByUserId(user.id)
-
-  const state: 'not_connected' | 'connected' | 'reauth_required' = !conn
-    ? 'not_connected'
-    : conn.sync_status === 'reauth_required'
-      ? 'reauth_required'
-      : conn.sync_status === 'disabled'
-        ? 'not_connected'
-        : 'connected'
-
-  return (
-    <div>
-      <h1 className='title'>יומן Google</h1>
-      <div className='my-6 max-w-lg'>
-        <CalendarConnect
-          state={state}
-          email={conn?.google_email ?? null}
-          lastError={conn?.last_error ?? null}
-        />
-      </div>
-    </div>
-  )
+/**
+ * `/settings/calendar` → the Google Calendar card on the merged integrations
+ * page.
+ *
+ * Google Calendar lost its standalone nav item because connecting it does not,
+ * by itself, produce a single ליד — it enriches לידים that already exist. It
+ * now sits beside Google Drive under כלים מחוברים, which is also why the two
+ * are no longer at different depths in the nav.
+ *
+ * The route survives as a redirect for the in-app CTAs that point at it
+ * (`/calendar` empty state, the CalendarView reconnect banner) and any URL a
+ * user has bookmarked.
+ */
+export default async function CalendarSettingsRedirect() {
+  redirect('/settings/integrations?section=google-calendar')
 }

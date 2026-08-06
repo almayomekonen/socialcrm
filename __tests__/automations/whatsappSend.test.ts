@@ -33,7 +33,11 @@ describe('the action is declared as the audit specified', () => {
     // The capability WhatsApp already grants for the inbox. A business that
     // connected WhatsApp has, by that act alone, satisfied this action.
     expect(action.requirements).toEqual([
-      { type: 'connection', key: 'whatsapp_connected', cta: { label: 'חיבור וואטסאפ', href: '/settings/connections' } },
+      {
+        type: 'connection',
+        key: 'whatsapp_connected',
+        cta: { label: 'חיבור וואטסאפ', href: '/settings/integrations?section=whatsapp' },
+      },
     ])
   })
 

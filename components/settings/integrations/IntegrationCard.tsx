@@ -56,7 +56,8 @@ export default function IntegrationCard({ integration }: { integration: Integrat
     <div className='rounded-lg border border-gray-200 bg-white p-6 grid gap-4 content-start'>
       <div className='flex items-center gap-2.5'>
         <Icon name={integration.icon} className='size-7 bg-gray-900' />
-        <h2 className='text-lg font-bold text-dark'>{integration.name}</h2>
+        {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
+        <h3 className='text-lg font-bold text-dark'>{integration.name}</h3>
         {connected && <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label='מחובר' />}
       </div>
 

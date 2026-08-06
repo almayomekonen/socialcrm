@@ -136,7 +136,12 @@ export default function AutomationTemplateSection({
               <p className='text-sm text-amber-800'>
                 כדי לשלוח הודעת וואטסאפ באוטומציה צריך הודעה מוכנה שאושרה. אפשר ליצור אותה בהודעות המוכנות.
               </p>
-              <Btn variant='outline' size='small' lbl='מעבר להודעות המוכנות' href='/settings/templates' />
+              <Btn
+                variant='outline'
+                size='small'
+                lbl='מעבר להודעות המוכנות'
+                href='/settings/integrations?section=templates'
+              />
             </div>
           )}
 

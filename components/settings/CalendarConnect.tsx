@@ -36,7 +36,8 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
     <div className='rounded-lg border border-gray-200 bg-white p-6 grid gap-4'>
       <div className='flex items-center gap-2.5'>
         <Icon name='calendar' className='size-7 bg-gray-900' />
-        <h2 className='text-xl font-bold'>Google Calendar</h2>
+        {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
+        <h3 className='text-lg font-bold'>Google Calendar</h3>
         {state === 'connected' && (
           <Icon name='check' type='reg' className='size-4 bg-green-600' />
         )}
