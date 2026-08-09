@@ -2,13 +2,15 @@ import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { db } from '@/config/db'
 import { listDefinitions } from '@/db/automations/definitions'
-import { countRecentActivityByAutomation } from '@/db/automations/activity'
+import { countAutomatedTodayForAgency, countRecentActivityByAutomation } from '@/db/automations/activity'
 import { getAgencyName, getAgencyReplyTo } from '@/db/automations/leadFacts'
 import { getAutomationsFrom, getAutomationsSendMode, isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
+import { startOfBusinessDayMs } from '@/lib/today/time'
 import { resolveSenderIdentity } from '@/lib/automations/identity'
 import { eventKeyForEngineTrigger } from '@/lib/automations/catalog/engineBridge'
 import { actionKeyFor } from '@/lib/automations/actionEntry'
 import { listAllConnections, resolveCapabilities } from '@/lib/automations/connectors/registry'
+import { templateOverview } from '@/lib/automations/templates/overview'
 import { isConnectionProblem } from '@/lib/automations/connectors/resolve'
 import AutomationsSettings from '@/components/settings/automations/AutomationsSettings'
 import type { AutomationCardData } from '@/components/settings/automations/AutomationCard'
@@ -27,13 +29,23 @@ export default async function AutomationsSettingsPage() {
     return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
   }
 
-  const [definitions, counts, agencyName, replyTo, connections, capabilities] = await Promise.all([
+  // Midnight in the BUSINESS's day, not the server's. Vercel runs UTC while the
+  // business runs Asia/Jerusalem, so "today" has to come from the canonical
+  // helper (architecture-rules §11) rather than from the process clock.
+  const startOfToday = new Date(startOfBusinessDayMs(Date.now()))
+
+  // The agency-wide activity feed is no longer read here: the workspace shows
+  // activity per automation, on demand, through the log modal.
+  const [definitions, counts, todayRuns, agencyName, replyTo, connections, capabilities, templates] =
+    await Promise.all([
     listDefinitions(user.agencyId),
     countRecentActivityByAutomation(user.agencyId, new Date(Date.now() - WEEK_MS)),
+    countAutomatedTodayForAgency(user.agencyId, startOfToday),
     getAgencyName(user.agencyId),
     getAgencyReplyTo(user.agencyId),
     listAllConnections(user.agencyId),
     resolveCapabilities(user.agencyId),
+    templateOverview(user.agencyId),
   ])
 
   /**
@@ -82,6 +94,7 @@ export default async function AutomationsSettingsPage() {
     counts: counts[d.id] ?? { sent: 0, wouldSend: 0, skipped: 0, failed: 0 },
     actionKey: actionKeyFor(d),
     connectionProblem: connectionProblems.get(d.id) ?? false,
+    updatedAt: d.updatedAt ? new Date(d.updatedAt).toISOString() : null,
   }))
 
   const drafts: Record<number, SheetDraft> = {}
@@ -121,6 +134,8 @@ export default async function AutomationsSettingsPage() {
       connections={connections}
       automations={automations}
       drafts={drafts}
+      templates={JSON.parse(JSON.stringify(templates))}
+      todayRuns={todayRuns}
       previewName={recentLead?.firstName ?? null}
       identityProblem={sender.problem}
       observationMode={getAutomationsSendMode() === 'log'}

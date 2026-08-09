@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import { Btn } from '@/lib/btns/Btn'
 import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS, type BillingPeriod } from '@/lib/pricing'
+import { packages, type Pkg } from '@/lib/plans'
 
 /**
  * In-app pricing surface shown under settings/update_payment.
@@ -27,14 +28,6 @@ export default function Packages({ plan = 'free', annualAvailable = false, trial
       ))}
     </div>
   )
-}
-
-type Pkg = {
-  id: 'free' | 'pro'
-  name: string
-  pricePerMonth: number
-  tagline: string
-  included: string[]
 }
 
 function PackageCard({
@@ -218,32 +211,3 @@ function PeriodOption({
     </button>
   )
 }
-
-export const packages: Pkg[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    pricePerMonth: 0,
-    tagline: 'ה-CRM כולו חינמי לתמיד.',
-    included: [
-      'לידים ללא הגבלה',
-      'משתמשים ללא הגבלה',
-      'חיבור פייסבוק, אינסטגרם ו-וואטסאפ',
-      'ייבוא לידים מאקסל',
-      '10 פעולות AI בחודש במצב מהיר',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    pricePerMonth: PRICING.monthly,
-    tagline: 'שכבת ה-AI שמלווה את כל ה-CRM שלך.',
-    included: [
-      'AI ללא הגבלה במצב מהיר ובמצב חכם',
-      'מצב AI מתקדם לניתוח מעמיק',
-      'היסטוריית AI מלאה לכל ליד',
-      'ניסוח הודעות, המלצות וצעדים הבאים',
-      'תכונות AI עתידיות בלי תוספת תשלום',
-    ],
-  },
-]

@@ -63,9 +63,9 @@ export default async function AiInspectorPage({ searchParams }: { searchParams: 
 
   return (
     <div dir='ltr' className='mb-12 space-y-8 font-mono text-sm'>
-      <header className='space-y-1'>
-        <h1 className='text-2xl font-semibold'>AI Conversation Inspector</h1>
-        <p className='text-gray-500'>
+      <header className='space-y-2'>
+        <h1 className='title'>AI Conversation Inspector</h1>
+        <p className='text-sm leading-relaxed text-gray-600'>
           Phase 1.5 read-only validation surface. agencyId={user.agencyId}, window={window}
           {leadId ? `, leadId=${leadId}` : ''}
           {statusFilter ? `, status=${statusFilter}` : ''}

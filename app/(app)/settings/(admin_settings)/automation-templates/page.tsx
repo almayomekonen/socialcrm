@@ -24,7 +24,7 @@ export default async function AutomationTemplatesPage() {
   return (
     <div>
       <h1 className='title'>תבניות אוטומציה</h1>
-      <p className='mt-2 mb-6 max-w-2xl text-sm text-gray-600 leading-relaxed'>
+      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
         אוטומציות מוכנות לשימוש. ההתקנה יוצרת אותן כטיוטות אצלכם — משם הן שלכם לחלוטין, לעריכה ולהפעלה.
       </p>
       <TemplatesSettings views={views} />

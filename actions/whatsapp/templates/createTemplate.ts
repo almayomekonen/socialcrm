@@ -23,8 +23,8 @@ import type { Template, TemplateInput } from '@/lib/whatsapp/templates/types'
 
 export type CreateTemplateResult = { ok: true; template: Template } | { ok: false; error: string }
 
-const PERM_ERROR = 'אין הרשאה ליצור הודעות מוכנות.'
-const CONNECT_ERROR = 'צריך לחבר וואטסאפ עסקי לפני יצירת הודעות מוכנות.'
+const PERM_ERROR = 'אין הרשאה ליצור הודעות WhatsApp מוכנות.'
+const CONNECT_ERROR = 'צריך לחבר וואטסאפ עסקי לפני יצירת הודעות WhatsApp מוכנות.'
 const INVALID_ERROR = 'יש למלא שם, תוכן ומטרה להודעה.'
 
 const LANGUAGE = 'he'

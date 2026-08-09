@@ -1,69 +1,49 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import OnboardingActionCard from '@/components/clients/OnboardingActionCard'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
-import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
-import { AUTOMATION_RECIPES } from '@/lib/automations/recipes'
-import { listSelectableEvents } from '@/lib/automations/catalog/registry'
 import type { RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
-import { IDENTITY_PROBLEM_COPY, type IdentityProblem } from '@/lib/automations/identity'
+import type { IdentityProblem } from '@/lib/automations/identity'
+import type { DefinitionStatus } from '@/db/automations/definitions'
 import { duplicateAutomation, setAutomationStatus } from '@/actions/automations/manage'
 import { listActivityForAutomationAction } from '@/actions/automations/activity'
-import AutomationCard, { type AutomationCardData } from './AutomationCard'
+import type { AutomationCardData } from './AutomationCard'
+import AutomationControlCenter from './AutomationControlCenter'
+import AutomationTemplatesSection from './AutomationTemplatesSection'
+import type { TemplateView } from '@/lib/automations/templates/overview'
+import { DASHBOARD_DEMO } from '@/lib/automations/dashboardDemo'
+import { applyFilters, NO_FILTERS } from './automationsDerive'
 import AutomationSheet, { type SheetDraft } from './AutomationSheet'
+import { BLANK } from './automationDrafts'
 import ActivityLogModal, { type ActivityRow } from './ActivityLogModal'
 
 /**
- * The אוטומציות surface (spec §4/§8). Thin orchestrator: it owns which sheet
- * or modal is open and nothing else — the cards, the sheet, the gallery and
- * the log each own their own concern.
+ * The אוטומציות workspace: a library and a control centre, divided by one
+ * hairline. Still a thin orchestrator — it owns which sheet or modal is open,
+ * and the one piece of state the two panes share.
  *
- * The recipe gallery IS the empty state: the first screen a user sees is the
- * same one they will use forever, so there is nothing to learn twice.
+ * THAT SHARED STATE IS THE SEARCH. A single box filters templates on the left
+ * and installed automations on the right, which is why the query lives here
+ * rather than inside the library. It replaced a four-control toolbar (search,
+ * status, channel, trigger) that sat above a list which is now a short column
+ * in a 376px panel — three dropdowns over four rows is furniture, not filtering.
+ *
+ * The library IS the empty state: someone with no automations sees the same
+ * screen they will use forever, so there is nothing to learn twice.
  */
-
-const DRAFT_FROM_RECIPE = (key: string): SheetDraft | null => {
-  const r = AUTOMATION_RECIPES.find((x) => x.key === key)
-  if (!r) return null
-  return {
-    name: r.name,
-    recipeKey: r.key,
-    eventKey: r.eventKey,
-    conditions: [...r.conditions],
-    connectionId: null,
-    parameters: {},
-    subject: r.subject,
-    body: r.body,
-    // Recipes ship no CTA: the starter content is plain copy, and the block is
-    // something the customer chooses to add.
-    cta: null,
-    timing: r.timing,
-  }
-}
-
-/** The blank draft opens on the first catalog event — no hardcoded trigger. */
-const BLANK: SheetDraft = {
-  name: '',
-  recipeKey: null,
-  eventKey: listSelectableEvents()[0]?.key ?? '',
-  conditions: [],
-  connectionId: null,
-  parameters: {},
-  subject: '',
-  body: '',
-  cta: null,
-  timing: { kind: 'preset', preset: 'immediate' },
-}
 
 type Props = {
   requirementContext: RequirementContext
   connections: Connection[]
   automations: AutomationCardData[]
+  /** Installable templates — the library's contents. */
+  templates: TemplateView[]
   drafts: Record<number, SheetDraft>
+  /** Consuming runs since the start of the business day. Measured, not derived. */
+  todayRuns: number
   previewName: string | null
   identityProblem: IdentityProblem | null
   observationMode: boolean
@@ -73,6 +53,7 @@ export default function AutomationsSettings({
   requirementContext,
   connections,
   automations,
+  templates,
   drafts,
   previewName,
   identityProblem,
@@ -83,15 +64,40 @@ export default function AutomationsSettings({
   const [confirmDelete, setConfirmDelete] = useState<AutomationCardData | null>(null)
   const [log, setLog] = useState<{ name: string; rows: ActivityRow[] } | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
   const [, startTransition] = useTransition()
 
-  const run = (id: number, fn: () => Promise<{ ok: boolean; reason?: string }>, success: string) => {
+  // One clock for every child, so no two rows disagree about "לפני 2 ש׳".
+  const now = useMemo(() => Date.now(), [])
+  const visible = useMemo(() => applyFilters(automations, { ...NO_FILTERS, q: query }), [automations, query])
+
+  /**
+   * §5: a toggle is undoable for 5s. `undoId`/`undoFrom` are passed only by the
+   * toggle call site; every other action keeps the plain 3s confirmation it had.
+   * The undo simply re-issues the existing status action — no new endpoint.
+   */
+  const run = (
+    id: number,
+    fn: () => Promise<{ ok: boolean; reason?: string }>,
+    success: string,
+    undoId?: number,
+    undoFrom?: DefinitionStatus,
+  ) => {
     setBusyId(id)
     startTransition(async () => {
       const res = await fn()
       setBusyId(null)
       if (!res.ok) return toast('error', 'הפעולה נכשלה. נסו שוב.')
-      toast('success', success)
+      if (undoId !== undefined && (undoFrom === 'active' || undoFrom === 'paused')) {
+        toast('success', `${success} · ביטול`, 5000, () => {
+          startTransition(async () => {
+            await setAutomationStatus(undoId, undoFrom)
+            router.refresh()
+          })
+        })
+      } else {
+        toast('success', success)
+      }
       router.refresh()
     })
   }
@@ -103,69 +109,56 @@ export default function AutomationsSettings({
   }
 
   return (
-    <div className='max-w-3xl'>
-      <h1 className='title'>אוטומציות</h1>
-      <p className='text-sm text-gray-500 mt-1 mb-4'>אוטומציה שולחת אימייל לליד ברגע הנכון — גם כשאתם עסוקים.</p>
+    /*
+     * The panel trails the library, so in RTL it lands on the left exactly as
+     * drawn. Below the two-pane threshold the panes stack — what is running
+     * first, then what can be installed.
+     */
+    /*
+     * The workspace lives INSIDE the settings shell — the nav stays on screen,
+     * so this is the settings content column, not the window. `-me-8` is the
+     * one exception: it cancels `main`'s padding on the panel's side only, so
+     * the hairline still meets the window edge as drawn. The nav side keeps its
+     * gutter, which is what holds the two apart.
+     *
+     * TWO PANES IS A DEVICE DECISION, so it is a MEDIA query. Whether the
+     * Copilot is open changes how much room the library has; it does not change
+     * whether a control centre belongs beside it. On desktop the panes never
+     * stack — only the library's grid reflows, which is the container's
+     * business (see AutomationTemplatesSection).
+     */
+    <div className='@container/page flex min-h-full flex-1 flex-col-reverse bg-bg desktop:-me-8 desktop:flex-row'>
+      <AutomationTemplatesSection
+        views={templates}
+        query={query}
+        onQueryChange={setQuery}
+        onCreate={() => setSheet(BLANK)}
+      />
 
-      {observationMode && (
-        <p className='text-sm text-gray-600 border rounded-md bg-gray-50 p-3 mb-4'>
-          מצב תצפית — המערכת מתעדת מה הייתה נשלחת, בלי לשלוח בפועל.
-        </p>
-      )}
-      {identityProblem && (
-        <p className='text-sm text-red-600 border border-red-200 rounded-md bg-red-50 p-3 mb-4' role='alert'>
-          {IDENTITY_PROBLEM_COPY[identityProblem]}
-        </p>
-      )}
-
-      {automations.length > 0 && (
-        <>
-          <div className='grid gap-3'>
-            {automations.map((a) => (
-              <AutomationCard
-                key={a.id}
-                data={a}
-                busy={busyId === a.id}
-                onEdit={() => setSheet(drafts[a.id] ?? BLANK)}
-                onToggle={() =>
-                  run(
-                    a.id,
-                    () => setAutomationStatus(a.id, a.status === 'active' ? 'paused' : 'active'),
-                    a.status === 'active' ? 'האוטומציה הושהתה' : 'האוטומציה פעילה',
-                  )
-                }
-                onDuplicate={() => run(a.id, () => duplicateAutomation(a.id), 'נוצר עותק כטיוטה')}
-                onDelete={() => setConfirmDelete(a)}
-                onActivity={() => openLog(a)}
-              />
-            ))}
-          </div>
-          <Seperator className='my-6' />
-        </>
-      )}
-
-      <section className='grid gap-3'>
-        <h2 className='text-sm font-semibold text-gray-800'>
-          {automations.length ? 'הוספת אוטומציה' : 'אין עדיין אוטומציות — אפשר להתחיל מאחת מאלה'}
-        </h2>
-        {AUTOMATION_RECIPES.map((r) => (
-          <OnboardingActionCard
-            key={r.key}
-            icon='envelope'
-            tileClass='bg-primary'
-            title={r.name}
-            description={r.description}
-            onClick={() => setSheet(DRAFT_FROM_RECIPE(r.key) ?? BLANK)}
-          />
-        ))}
-        <OnboardingActionCard
-          icon='plus'
-          tileClass='bg-gray-400'
-          title='אוטומציה חדשה מאפס'
-          description='בניית אוטומציה משלכם, שלב אחר שלב'
-          onClick={() => setSheet(BLANK)}
-        />
-      </section>
+      <AutomationControlCenter
+        automations={automations}
+        visible={visible}
+        handled={DASHBOARD_DEMO.handled}
+        waiting={DASHBOARD_DEMO.waiting}
+        now={now}
+        busyId={busyId}
+        observationMode={observationMode}
+        identityProblem={identityProblem}
+        onCreate={() => setSheet(BLANK)}
+        onEdit={(a) => setSheet(drafts[a.id] ?? BLANK)}
+        onToggle={(a) =>
+          run(
+            a.id,
+            () => setAutomationStatus(a.id, a.status === 'active' ? 'paused' : 'active'),
+            a.status === 'active' ? 'האוטומציה הושהתה' : 'האוטומציה פעילה',
+            a.id,
+            a.status,
+          )
+        }
+        onDuplicate={(a) => run(a.id, () => duplicateAutomation(a.id), 'נוצר עותק כטיוטה')}
+        onDelete={(a) => setConfirmDelete(a)}
+        onActivity={(a) => openLog(a)}
+      />
 
       {sheet && (
         <AutomationSheet

@@ -31,7 +31,7 @@ import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
 
 export type SendTemplateToLeadResult = { ok: true } | { ok: false; error: string }
 
-const NOT_AVAILABLE = 'שליחת הודעות מוכנות אינה זמינה.'
+const NOT_AVAILABLE = 'שליחת הודעות WhatsApp מוכנות אינה זמינה.'
 const INVALID_INPUT = 'בקשה לא תקינה.'
 const NOT_FOUND = 'ההודעה המוכנה לא נמצאה.'
 const NOT_APPROVED = 'אפשר לשלוח רק הודעה שאושרה.'

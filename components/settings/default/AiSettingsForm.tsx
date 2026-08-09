@@ -22,7 +22,7 @@ export default function AiSettingsForm({ data, userId }) {
 
   return (
     <form onSubmit={onSubmit}>
-      <div className='accordion border rounded-lg my-6 max-w-3xl bg-white'>
+      <div className='accordion border rounded-lg mb-6 max-w-3xl bg-white'>
         <AccordionItem title='זיהוי לידים' bodyClass='p-6' open>
           <div className='grid gap-6'>
             {/* Cold lead */}

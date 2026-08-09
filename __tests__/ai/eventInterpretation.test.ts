@@ -8,7 +8,15 @@ import {
   interpret,
   DEFAULT_SOURCE_RELIABILITY,
   type ExternalSignal,
+  type InterpretationResult,
+  type Rejection,
 } from '@/lib/ai/runtime/eventInterpretation'
+
+// `strictNullChecks` is off in this project, so TypeScript will not narrow a
+// boolean-literal discriminant in the negative direction: after `if (!accepted)`
+// it still sees the whole union and `.rejection` fails to resolve. The rejected
+// member is therefore named explicitly rather than relying on that narrowing.
+type RejectedResult = { accepted: false; rejection: Rejection }
 
 const iso = '2026-07-01T12:00:00.000Z'
 
@@ -23,14 +31,17 @@ function base(over: Partial<ExternalSignal> & Pick<ExternalSignal, 'signalType'>
   }
 }
 
-function expectAccepted(r: ReturnType<typeof interpret>) {
-  if (!r.accepted) throw new Error(`expected accepted, got rejection ${r.rejection.code}: ${r.rejection.message}`)
+function expectAccepted(r: InterpretationResult) {
+  if (!r.accepted) {
+    const { rejection } = r as RejectedResult
+    throw new Error(`expected accepted, got rejection ${rejection.code}: ${rejection.message}`)
+  }
   return r.event
 }
 
-function expectRejected(r: ReturnType<typeof interpret>) {
+function expectRejected(r: InterpretationResult): Rejection {
   if (r.accepted) throw new Error('expected rejection, got accepted')
-  return r.rejection
+  return (r as RejectedResult).rejection
 }
 
 describe('M3 Event Interpretation — inbound observations', () => {

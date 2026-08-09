@@ -2,33 +2,6 @@ import { unstable_cache } from 'next/cache'
 import { db } from '@/config/db'
 import type { AiModeId } from './types'
 
-/**
- * Monthly AI usage aggregation.
- *
- * Source: `ai_runs`. Filters:
- *   - `agencyId = $1`
- *   - `success = true` — failed runs don't decrement quota. This mirrors the
- *     pricing-page contract ("10 AI actions per month") and how reps would
- *     reasonably interpret a quota: a provider 500 should not cost them a
- *     turn.
- *   - `startedAt >= date_trunc('month', now() AT TIME ZONE 'UTC')` — the
- *     window is a UTC calendar month. We pick UTC over Asia/Jerusalem because
- *     row timestamps are stored in UTC and we want the boundary to be
- *     deterministic across DST transitions.
- *
- * Output shape: one row per `mode` with a count. Modes the user has not
- * exercised this month simply don't appear; the aggregator fills zeros.
- *
- * Caching:
- *   - `unstable_cache` with a 60s TTL keyed by agencyId. The cost of being
- *     up to 60s stale on a usage counter is negligible; the cost of a DB
- *     round-trip on every Copilot request is not. Tag the entry so the
- *     persistence layer can call `revalidateTag` when it writes a new run.
- *     Phase A only *reads* — the matching `revalidateTag` call is scoped
- *     to a later phase, but the tag is defined here so call sites already
- *     point at the right name.
- */
-
 export type AiUsageRow = { mode: AiModeId | null; count: number }
 export type AiMonthlyUsage = {
   byMode: Record<AiModeId, number>
@@ -39,7 +12,13 @@ export type AiMonthlyUsage = {
 
 export const aiUsageTag = (agencyId: number) => `ai-usage:agency:${agencyId}`
 
-function startOfMonthUtc(now: Date = new Date()): Date {
+/**
+ * The monthly window every usage counter shares. Exported so sibling counters
+ * (lib/quota/planUsage) report the same period as the AI numbers they are
+ * displayed beside — two "this month" figures computed off two different
+ * boundaries would silently disagree at the start of each month.
+ */
+export function startOfMonthUtc(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0))
 }
 
@@ -80,10 +59,9 @@ async function readMonthlyUsage(agencyId: number): Promise<AiMonthlyUsage> {
  * why agencyId is stringified.
  */
 export async function getMonthlyAiUsage(agencyId: number): Promise<AiMonthlyUsage> {
-  const cached = unstable_cache(
-    async (id: number) => readMonthlyUsage(id),
-    ['entitlements', 'ai-usage', String(agencyId)],
-    { revalidate: 60, tags: [aiUsageTag(agencyId)] },
-  )
+  const cached = unstable_cache(async (id: number) => readMonthlyUsage(id), ['entitlements', 'ai-usage', String(agencyId)], {
+    revalidate: 60,
+    tags: [aiUsageTag(agencyId)],
+  })
   return cached(agencyId)
 }

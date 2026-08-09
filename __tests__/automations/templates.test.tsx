@@ -236,9 +236,20 @@ const view = (over: Partial<TemplateView> = {}): TemplateView => ({
 const noop = () => {}
 
 describe('the marketplace renders from the registry alone', () => {
-  it('shows a template’s title, description and what it would create', () => {
+  it('shows a template’s title and description', () => {
     render(<TemplateCard view={view()} onChanged={noop} />)
     expect(screen.getByText('רצף קבלת פנים לליד חדש')).toBeInTheDocument()
+    expect(screen.getByText(getTemplate('welcome_sequence')!.description)).toBeInTheDocument()
+  })
+
+  /*
+    The manifest moved off the card face and into the install dialog, where it
+    is read at the moment it decides something. WHERE it lives may change; that
+    it is shown before anything is created may not.
+  */
+  it('says what it would create before anything is created', () => {
+    render(<TemplateCard view={view()} onChanged={noop} />)
+    fireEvent.click(screen.getByRole('button', { name: 'התקנה' }))
     expect(screen.getByText('קבלת פנים — אישור מיידי')).toBeInTheDocument()
   })
 
@@ -249,7 +260,10 @@ describe('the marketplace renders from the registry alone', () => {
 
   it('an empty marketplace is an explained empty state, never a blank page', () => {
     render(<TemplatesSettings views={[]} />)
-    expect(screen.getByText('עדיין אין תבניות זמינות.')).toBeInTheDocument()
+    // What happened, and what to expect next — the empty state must carry both,
+    // not merely one sentence. Copy may change; the two-part shape may not.
+    expect(screen.getByText('הגלריה עדיין ריקה')).toBeInTheDocument()
+    expect(screen.getByText(/מוכנות להתקנה/)).toBeInTheDocument()
   })
 
   it('a LOCKED template is shown with its requirement’s CTA, not hidden', () => {
@@ -265,21 +279,28 @@ describe('the marketplace renders from the registry alone', () => {
       },
     })
     render(<TemplateCard view={locked} onChanged={noop} />)
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    // Shown, and shown as blocked: the badge names the reason and the CTA is
+    // the requirement's own, so the card is a route to connecting rather than
+    // a dead end.
+    expect(screen.getByText('דורש חיבור')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'חיבור האתר' })).toHaveAttribute(
       'href',
       '/settings/integrations?section=website',
     )
-    expect(screen.getByRole('button', { name: 'התקנה' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /התקנה/ })).not.toBeInTheDocument()
   })
 })
 
 describe('installed templates are the customer’s, and updates never touch them', () => {
   it('shows how many automations it installed', () => {
     render(<TemplateCard view={view({ installed: 3, installedVersion: 1 })} onChanged={noop} />)
-    expect(screen.getByText('3 אוטומציות מותקנות')).toBeInTheDocument()
+    expect(screen.getByText('3 מותקנות')).toBeInTheDocument()
   })
 
+  /*
+    The reassurance now sits in the install dialog, next to the button it
+    reassures about. The promise itself is the thing under test.
+  */
   it('an available update SAYS that installed automations will not change', () => {
     render(
       <TemplateCard
@@ -287,6 +308,7 @@ describe('installed templates are the customer’s, and updates never touch them
         onChanged={noop}
       />,
     )
+    fireEvent.click(screen.getByRole('button', { name: 'התקנה נוספת' }))
     expect(screen.getByText(/האוטומציות שכבר התקנתם לא ישתנו/)).toBeInTheDocument()
     expect(screen.getByText('נוסח מעודכן')).toBeInTheDocument()
   })
@@ -299,7 +321,10 @@ describe('installed templates are the customer’s, and updates never touch them
 
   it('removal names what it deletes and promises not to touch anything else', () => {
     render(<TemplateCard view={view({ installed: 2, installedVersion: 1 })} onChanged={noop} />)
-    fireEvent.click(screen.getByRole('button', { name: 'הסרה' }))
+    // Removal lives in the card's menu now. Reachable and labelled, never
+    // icon-only-without-name — the same rule AutomationCard is held to.
+    fireEvent.click(screen.getByRole('button', { name: /פעולות/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'הסרה' }))
     expect(screen.getByText(/אוטומציות שיצרתם בעצמכם לא ייגעו/)).toBeInTheDocument()
   })
 })

@@ -110,6 +110,6 @@ describe('TemplatesWorkspace — optimistic flow', () => {
     await waitFor(() => expect(toast).toHaveBeenCalledWith('error', expect.stringMatching(/מכסת/)))
     // rolled back → the optimistic row is gone, back to the empty state
     await waitFor(() => expect(screen.queryByText('תזכורת פולואפ')).toBeNull())
-    expect(screen.getByText('אין עדיין הודעות מוכנות')).toBeInTheDocument()
+    expect(screen.getByText('אין עדיין הודעות WhatsApp מוכנות')).toBeInTheDocument()
   })
 })

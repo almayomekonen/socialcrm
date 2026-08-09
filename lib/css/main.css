@@ -4,23 +4,10 @@
 @import './base.css';
 @import './elements.css';
 @import './copilot-motion.css';
+@import './business-profile-art.css';
 @config "../../tailwind.config.ts";
 
 @theme {
-  /* ──────────────────────────────────────────────────────────────────────
-   * Brand palette — Linear × Stripe hybrid (Phase 0 + 1).
-   *
-   * Phase 0: new ROLE-BASED semantic tokens (use these going forward).
-   * Phase 1: the legacy appearance-named tokens (solid/dark/soft/softy/gray)
-   *          are ALIASED to the new ones, so every existing utility
-   *          (bg-solid, bg-dark, bg-soft, bg-softy, bg-gray, accent-solid, …)
-   *          adopts the new palette with NO component changes.
-   *
-   * Reversible: restore the original hex values noted in the trailing
-   * comments to roll the brand back. Borders, focus rings, badges and
-   * hardcoded colors are intentionally untouched here (Phases 2–6).
-   * ────────────────────────────────────────────────────────────────────── */
-
   /* New semantic tokens */
   --color-primary: #5e6ad2; /* CTA / active / fills */
   --color-primary-text: #4b53b8; /* accessible primary for links/small text on white */
@@ -37,9 +24,6 @@
   --color-primary-soft: #5e6ad214; /* selected / hover overlay */
   --color-primary-tint: #eeeffb; /* pale brand surface */
 
-  /* Phase 4: unified status-badge roles (Info/Success/Warning/Error/Neutral).
-     bg/text/border are derived from the base tokens via color-mix — no new hues.
-     One semantic system for sync / meeting / billing / PDF / technical statuses. */
   --color-info-bg: var(--color-primary-tint);
   --color-info-text: var(--color-primary-text);
   --color-info-border: color-mix(in srgb, var(--color-primary) 22%, white);
@@ -72,20 +56,12 @@
   --color-softy: var(--color-primary-tint); /* was #f3f2ff */
   --color-gray: var(--color-bg); /* was #f9f9f9 */
 
-  /* Phase 3: route Tailwind's gray-200 (the global default border + every
-     explicit border-gray-200) to the hairline token, so borders are one tone.
-     Minor collateral: bg-gray-200 fills shift to the same near-identical cool gray. */
   --color-gray-200: var(--color-border); /* was #e5e7eb */
 
   /* Teal tokens retained as-is for charts; realigned in Phase 6 */
   --color-soft-green: #6eabb4;
   --color-solid-green: #298290;
 
-  /* E0: flat elevation. The Material ramp is retired — resting surfaces are flat
-     (separation comes from the Phase-3 hairline borders); shadows are reserved
-     for floating overlays only. Two soft tokens + remapped legacy shadow scale,
-     so existing shadow utilities flip with no component edits. Reversible: restore
-     the original Material values in base.css / below to roll back. */
   --shadow-overlay: 0 8px 24px -8px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05);
   --shadow-modal: 0 16px 48px -12px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08);
 
@@ -239,7 +215,9 @@ body {
 
   details {
     summary {
-      @apply list-none w-full font-semibold flex justify-between cursor-pointer p-4 hover:bg-gray-100 [&::-webkit-details-marker]:hidden;
+      /* gray-50, not gray-100: the row hover should register as a surface
+         change, not as a selection. */
+      @apply list-none w-full font-semibold flex justify-between cursor-pointer p-4 transition-colors hover:bg-gray-50 [&::-webkit-details-marker]:hidden;
     }
   }
 
@@ -292,14 +270,6 @@ body {
   @apply opacity-100 bottom-full;
 }
 
-/* Downward opt-in variant (data-tip-pos="bottom"). Used by controls anchored
-   near the top of the page — e.g. the ShowColumns "עמודות לצפיה" toolbar control
-   — where the default upward tooltip is clipped by main's overflow-y-auto and
-   .workspace-grid's overflow:hidden. Opens BELOW the trigger, still right-aligned
-   for RTL, at z-999 so it renders above the table / sticky thead (z-50), matching
-   the already-working MultiSelectSearch dropdown. Default (top) tooltips are
-   untouched. The doubled [data-tip][data-tip-pos] selector keeps specificity
-   above the base rule regardless of source order. */
 [data-tip][data-tip-pos='bottom']:not([data-tip=''])::before {
   @apply top-[60%] bottom-auto mt-2.5 mb-0 z-999;
 }

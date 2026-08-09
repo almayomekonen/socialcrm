@@ -14,7 +14,7 @@ import type { TemplateInput } from '@/lib/whatsapp/templates/types'
  * confinement all apply).
  */
 
-const PERM_ERROR = 'אין הרשאה לנהל הודעות מוכנות.'
+const PERM_ERROR = 'אין הרשאה לנהל הודעות WhatsApp מוכנות.'
 const NOT_RETRIABLE = 'לא נמצאה הודעה שנדחתה לנסות מחדש.'
 
 export async function retryTemplate(rejectedId: number, input: TemplateInput): Promise<CreateTemplateResult> {

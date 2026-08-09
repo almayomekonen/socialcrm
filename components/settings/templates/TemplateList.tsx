@@ -16,7 +16,7 @@ const SORT_ORDER: Record<TemplateStatus, number> = {
 export default function TemplateList({ templates, actions }: { templates: Template[]; actions?: TemplateRowActions }) {
   const sorted = [...templates].sort((a, b) => (SORT_ORDER[a.status] ?? 9) - (SORT_ORDER[b.status] ?? 9))
   return (
-    <ul className='grid list-none gap-2' aria-label='הודעות מוכנות'>
+    <ul className='grid list-none gap-2' aria-label='הודעות WhatsApp מוכנות'>
       {sorted.map((t) => (
         <li key={t.id}>
           <TemplateRow template={t} actions={actions} />

@@ -31,18 +31,18 @@ export const WHATSAPP_TEMPLATES_ANNOUNCEMENT: ContentItem = {
   schedule: { kind: 'condition' },
   priority: 'highest',
   greet: false,
-  subject: 'הודעות מוכנות בוואטסאפ עכשיו ב־SocialCRM',
+  subject: 'הודעות WhatsApp מוכנות עכשיו ב־SocialCRM',
   preview: 'יוצרים הודעה פעם אחת ושולחים אותה ללידים ישירות מהמערכת.',
-  headline: 'הודעות מוכנות בוואטסאפ',
+  headline: 'הודעות WhatsApp מוכנות',
   blocks: [
     { type: 'paragraph', text: 'שלום,' },
-    { type: 'paragraph', text: 'אנחנו שמחים לשחרר לכם פיצ׳ר חדש ב־SocialCRM: הודעות מוכנות בוואטסאפ 💬' },
+    { type: 'paragraph', text: 'אנחנו שמחים לשחרר לכם פיצ׳ר חדש ב־SocialCRM: הודעות WhatsApp מוכנות 💬' },
     {
       type: 'paragraph',
       text: 'מעכשיו תוכלו ליצור הודעות שאתם שולחים שוב ושוב ללידים, לפנייה ראשונה, פולואפ, תזכורת, עדכון או הצעה, ולשלוח אותן ישירות מכרטיס הליד.',
     },
     { type: 'paragraph', text: 'אפשר לשלב שם ליד ושם עסק, ו־SocialCRM תכניס את הפרטים המתאימים אוטומטית בכל שליחה.' },
-    { type: 'feature', title: 'איך מתחילים?', text: 'הגדרות → ערוצי לידים → הודעות מוכנות' },
+    { type: 'feature', title: 'איך מתחילים?', text: 'הגדרות → אינטגרציות → הודעות WhatsApp מוכנות' },
     {
       type: 'paragraph',
       text: 'יוצרים הודעה, WhatsApp מאשרת אותה, וברגע שהיא מוכנה תוכלו להתחיל לשלוח אותה ללידים שלכם.',

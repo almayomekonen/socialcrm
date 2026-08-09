@@ -12,7 +12,7 @@ export default async function EditPromotionPage() {
   }
 
   return (
-    <div className='my-8'>
+    <div className='mb-8'>
       <PromoCards promos={promos} teams={teams} users={users} />
     </div>
   )

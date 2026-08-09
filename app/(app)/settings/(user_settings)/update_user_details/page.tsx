@@ -23,8 +23,8 @@ export default async function page() {
   const bodyClass = 'p-6'
   return (
     <div>
-      <h1 className='title'>פרטי נציג</h1>
-      <div className='accordion my-6 max-w-2xl'>
+      <h1 className='title mb-8'>פרטי נציג</h1>
+      <div className='accordion mb-6 max-w-2xl'>
         <AccordionItem bodyClass={bodyClass} title='עדכון פרטים אישיים'>
           <UserDetailsForm user={res} />
         </AccordionItem>
