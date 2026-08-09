@@ -17,7 +17,7 @@ import {
   eventKeyForEngineTrigger,
 } from '@/lib/automations/catalog/engineBridge'
 import { RENDERABLE_FIELD_KEYS } from '@/lib/automations/catalog/entries/events'
-import { TRIGGER_TYPES } from '@/lib/automations/types'
+import { ACTION_TYPES, TRIGGER_TYPES } from '@/lib/automations/types'
 import { AUTOMATION_EMAIL_VARIABLES } from '@/lib/automations/variables'
 import { DEFAULT_AGENCY_DAILY_CEILING, DEFAULT_LEAD_DAILY_CAP, decideSendForAction, type SendFacts } from '@/lib/automations/laws'
 
@@ -108,10 +108,56 @@ describe('CONFORMANCE — trigger vocabulary matches the engine exactly', () => 
 })
 
 describe('CONFORMANCE — action vocabulary matches the engine exactly', () => {
+  it('every catalog action bridges to a persisted engine value, and vice versa', () => {
+    /**
+     * THE REGRESSION THIS PINS. `task.create` and `whatsapp.send` shipped
+     * catalog-complete, executor-complete and law-complete while the bridge
+     * still mapped only `email.send` — so createDefinition wrote an explicit
+     * NULL into a NOT NULL column and NEITHER ACTION COULD BE SAVED. The
+     * marketplace template `internal_task_on_new_lead` was uninstallable in
+     * production as a result.
+     *
+     * The trigger vocabulary has had this exact assertion since B1, which is
+     * why triggers were widened correctly twice and actions were not. Both
+     * directions now, so a fourth action fails CI rather than failing at the
+     * INSERT.
+     */
+    for (const action of catalog.actions) {
+      const engineValue = engineActionForActionKey(action.key)
+      expect(engineValue, `catalog action "${action.key}" has no engine value`).toBeTruthy()
+      expect(ACTION_TYPES, `engine value "${engineValue}" is not a persisted ActionType`).toContain(engineValue)
+    }
+    for (const key of bridgedActionKeys()) {
+      expect(getAction(key), `bridged action key "${key}" is not in the catalog`).toBeTruthy()
+    }
+  })
+
+  it('the bridge is a total, round-tripping bijection', () => {
+    expect(bridgedActionKeys().length).toBe(ACTION_TYPES.length)
+    for (const engineValue of ACTION_TYPES) {
+      expect(engineActionForActionKey(actionKeyForEngineAction(engineValue) as string)).toBe(engineValue)
+    }
+  })
+
+  it('the persisted values are the ones the widened CHECK admits', () => {
+    // migrations/20260809000001 admits exactly this list. The DB is the other
+    // half of the contract, and a value absent there fails at the INSERT with a
+    // constraint error rather than anywhere a type could catch it.
+    expect([...ACTION_TYPES]).toEqual(['send_email', 'create_task', 'send_whatsapp'])
+  })
+
   it('email.send bridges to the persisted "send_email" value', () => {
     expect(engineActionForActionKey('email.send')).toBe('send_email')
     expect(actionKeyForEngineAction('send_email')).toBe('email.send')
-    expect(bridgedActionKeys()).toEqual(['email.send'])
+    // Append-only: email keeps its position, the two shipped actions follow.
+    expect(bridgedActionKeys()).toEqual(['email.send', 'task.create', 'whatsapp.send'])
+  })
+
+  it('task.create and whatsapp.send bridge to their persisted values', () => {
+    expect(engineActionForActionKey('task.create')).toBe('create_task')
+    expect(actionKeyForEngineAction('create_task')).toBe('task.create')
+    expect(engineActionForActionKey('whatsapp.send')).toBe('send_whatsapp')
+    expect(actionKeyForEngineAction('send_whatsapp')).toBe('whatsapp.send')
   })
 
   it('declares the email requirement the engine enforces via the no_email skip', () => {

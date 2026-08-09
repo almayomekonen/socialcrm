@@ -71,6 +71,10 @@ export async function installTemplate(templateKey: string, values: TemplateValue
       content: {
         subject: p.parameters.subject ?? p.parameters.title ?? '',
         body: p.parameters.body ?? p.parameters.title ?? '',
+        // A title-shaped action's parameter, carried to the field the projection
+        // reads. Without it an installed task template produced tasks with an
+        // empty title — the value was substituted, then dropped one line later.
+        title: p.parameters.title ?? null,
         timing: p.timing,
       },
       createdByUserId: user.id,

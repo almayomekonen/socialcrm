@@ -64,6 +64,8 @@ const ERRORS: Record<string, string> = {
   name_required: 'יש להזין שם לאוטומציה',
   subject_required: 'יש להזין נושא לאימייל',
   body_required: 'יש להזין תוכן לאימייל',
+  title_required: 'יש להזין כותרת למשימה',
+  title_invalid: 'כותרת המשימה ארוכה מדי',
   trigger_invalid: 'האירוע שנבחר אינו זמין',
   action_invalid: 'לא נמצאה פעולה שניתן להפעיל עבור האירוע שנבחר',
   condition_field_unknown: 'אחד התנאים מפנה לשדה שאינו קיים',

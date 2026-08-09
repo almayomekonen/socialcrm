@@ -8,7 +8,13 @@ import { catalog } from '@/lib/automations/catalog/registry'
 import { getAction } from '@/lib/automations/catalog/registry'
 import type { ActionDefinition } from '@/lib/automations/catalog/types'
 import type { ActionExecutor } from '@/lib/automations/executors/types'
-import { actionKeyFor, actionParameters, actionsForContent } from '@/lib/automations/actionEntry'
+import {
+  actionKeyFor,
+  actionParameters,
+  actionParametersFromContent,
+  actionsForContent,
+  authoredContentOf,
+} from '@/lib/automations/actionEntry'
 
 /**
  * B5 PROOF: the engine executes ACTIONS, not emails.
@@ -255,6 +261,74 @@ describe('action entry resolution', () => {
       { actionKey: 'email.send', parameters: { subject: 'ש', body: 'ב' } },
     ])
   })
+
+  /**
+   * `task.create` reads `parameters.title`. The projection carried subject,
+   * body, the CTA pair and the template pair — but never a title — so the
+   * authored value was stored on `content` and dropped one line before the
+   * executor, and EVERY automated task was created with an empty title.
+   */
+  it('projects a title-shaped action’s parameter, so the task is not created blank', () => {
+    expect(actionsForContent('task.create', { subject: '', body: '', title: 'ליד חדש — {{שם הליד}}' })).toEqual([
+      { actionKey: 'task.create', parameters: { subject: '', body: '', title: 'ליד חדש — {{שם הליד}}' } },
+    ])
+  })
+
+  it('an email automation’s parameters are unchanged — no title appears from nowhere', () => {
+    expect(actionParametersFromContent({ subject: 'ש', body: 'ב' })).toEqual({ subject: 'ש', body: 'ב' })
+    // Whitespace is not a title: an all-spaces value is absent, not empty.
+    expect(actionParametersFromContent({ subject: 'ש', body: 'ב', title: '   ' })).toEqual({ subject: 'ש', body: 'ב' })
+  })
+})
+
+/**
+ * DUPLICATION MUST NOT LOSE CONFIGURATION.
+ *
+ * `duplicateAutomation` rebuilt the content document by naming subject, body
+ * and timing, so every field added afterwards was silently dropped: a copied
+ * WhatsApp automation lost the template it could only send with, and a copied
+ * email lost its CTA button. Neither reported anything.
+ */
+describe('the authored content document survives duplication whole', () => {
+  const stored = {
+    schemaVersion: 1,
+    subject: 'ש',
+    body: 'ב',
+    timing: { kind: 'preset', preset: 'one_day' } as const,
+    ctaLabel: 'לקביעת שיחה',
+    ctaUrl: 'https://example.co.il/book',
+    templateId: 42,
+    templateBindings: { '1': 'leadFirstName' },
+    title: 'כותרת',
+  }
+
+  it('carries every authored field, and drops only the version stamp', () => {
+    const copied = authoredContentOf(stored)
+    expect(copied).toEqual({
+      subject: 'ש',
+      body: 'ב',
+      timing: { kind: 'preset', preset: 'one_day' },
+      ctaLabel: 'לקביעת שיחה',
+      ctaUrl: 'https://example.co.il/book',
+      templateId: 42,
+      templateBindings: { '1': 'leadFirstName' },
+      title: 'כותרת',
+    })
+    expect('schemaVersion' in copied).toBe(false)
+  })
+
+  it('a copied messaging automation keeps the template it can only send with', () => {
+    const copied = authoredContentOf(stored)
+    expect(actionsForContent('whatsapp.send', copied).at(0)?.parameters).toMatchObject({
+      templateId: 42,
+      templateBindings: { '1': 'leadFirstName' },
+    })
+  })
+
+  it('tolerates an empty document rather than throwing on a malformed row', () => {
+    expect(authoredContentOf(null)).toEqual({})
+    expect(authoredContentOf(undefined)).toEqual({})
+  })
 })
 
 /**
@@ -272,6 +346,27 @@ describe('variable authority', () => {
     const { emailExecutor } = await import('@/lib/automations/executors/email')
     const { AUTOMATION_EMAIL_VARIABLES } = await import('@/lib/automations/variables')
     expect([...emailExecutor.resolvableFields]).toEqual(AUTOMATION_EMAIL_VARIABLES.map((v) => v.field))
+  })
+
+  /**
+   * The same pin for the title-shaped action. `task.create` resolves only the
+   * lead's own name — a task title is read by the rep off their worklist, and
+   * the business's own name in it would say nothing. Offering a wider chip set
+   * would let the customer insert a token the executor leaves as literal
+   * `{{...}}` text on a real task.
+   */
+  it('the Builder’s title chips equal the task executor’s declaration', async () => {
+    const { taskExecutor } = await import('@/lib/automations/executors/task')
+    const { TITLE_VARIABLE_FIELDS } = await import('@/components/settings/automations/AutomationTitleSection')
+    expect([...TITLE_VARIABLE_FIELDS]).toEqual([...taskExecutor.resolvableFields])
+  })
+
+  it('every title chip has a token in the shared vocabulary', async () => {
+    const { TITLE_VARIABLE_FIELDS } = await import('@/components/settings/automations/AutomationTitleSection')
+    const { variableTokenFor } = await import('@/lib/automations/variables')
+    for (const field of TITLE_VARIABLE_FIELDS) {
+      expect(variableTokenFor(field), `no token for "${field}"`).toBeTruthy()
+    }
   })
 
   it('every declared field has a token, so a declaration can always be typed', async () => {

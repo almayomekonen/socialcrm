@@ -5,6 +5,7 @@ import { Select } from '@/lib/form'
 import type { ActionDefinition } from '@/lib/automations/catalog/types'
 import AutomationContentSection, { type CtaDraft } from './AutomationContentSection'
 import AutomationTemplateSection from './AutomationTemplateSection'
+import AutomationTitleSection from './AutomationTitleSection'
 
 /**
  * WHAT the automation does — the choice, and the configuration that choice needs.
@@ -20,8 +21,9 @@ import AutomationTemplateSection from './AutomationTemplateSection'
  * one-item dropdown would invent a choice the customer does not have.
  *
  * Which configuration form to render is decided by the ACTION'S OWN declared
- * parameters — a `templateId` parameter means the content is a chosen template —
- * so this component names no channel and a third action needs no branch here.
+ * parameters — a `templateId` parameter means the content is a chosen template,
+ * a `title` parameter means the content is one line — so this component names
+ * no channel and no action.
  */
 
 export default function AutomationActionSection({
@@ -37,6 +39,8 @@ export default function AutomationActionSection({
   bodyRef,
   templateId,
   templateBindings,
+  titleValue,
+  titleRef,
   onFocusField,
   onSubjectChange,
   onBodyChange,
@@ -44,6 +48,7 @@ export default function AutomationActionSection({
   onInsertToken,
   onTemplateChange,
   onBindingsChange,
+  onTitleChange,
 }: {
   actions: readonly ActionDefinition[]
   action: ActionDefinition | null
@@ -57,6 +62,8 @@ export default function AutomationActionSection({
   bodyRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
   templateId: string
   templateBindings: Record<string, string>
+  titleValue: string
+  titleRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
   onFocusField: (field: 'subject' | 'body') => void
   onSubjectChange: (value: string) => void
   onBodyChange: (value: string) => void
@@ -64,8 +71,10 @@ export default function AutomationActionSection({
   onInsertToken: (token: string) => void
   onTemplateChange: (next: string) => void
   onBindingsChange: (next: Record<string, string>) => void
+  onTitleChange: (next: string) => void
 }) {
   const templateParameter = action?.parameters.find((p) => p.key === 'templateId') ?? null
+  const titleParameter = action?.parameters.find((p) => p.key === 'title') ?? null
   /**
    * The capability the action's options live behind, taken from its own declared
    * requirement. The Builder learns a capability KEY and nothing about who grants
@@ -94,6 +103,15 @@ export default function AutomationActionSection({
           bindings={templateBindings}
           onTemplateChange={onTemplateChange}
           onBindingsChange={onBindingsChange}
+        />
+      ) : titleParameter ? (
+        <AutomationTitleSection
+          title={action ? action.title : 'פעולה'}
+          parameter={titleParameter}
+          value={titleValue}
+          inputRef={titleRef}
+          onChange={onTitleChange}
+          onInsertToken={onInsertToken}
         />
       ) : (
         <AutomationContentSection

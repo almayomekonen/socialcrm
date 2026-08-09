@@ -28,6 +28,7 @@ export default function AutomationPreviewSection({
   cta,
   templateId,
   templateBindings,
+  title,
 }: {
   action: ActionDefinition | null
   previewName: string | null
@@ -36,6 +37,8 @@ export default function AutomationPreviewSection({
   cta: CtaDraft | null
   templateId?: string
   templateBindings?: Record<string, string>
+  /** A title-shaped action's authored line — what the `record` shape shows. */
+  title?: string
 }) {
   /**
    * `record` is the only shape still substituted locally. The `message` shape used
@@ -44,7 +47,13 @@ export default function AutomationPreviewSection({
    * through their executor.
    */
   const vars = { leadFirstName: previewName, businessName: null, repName: null }
-  const previewSubject = action?.preview === 'record' ? substituteVariables(subject, vars) : ''
+  /**
+   * The record shape previews the TITLE the action authors, not the email
+   * subject. It read `subject` while the title had nowhere to live — so the
+   * preview showed a field the executor never received, and the task it
+   * described was created blank.
+   */
+  const previewRecord = action?.preview === 'record' ? substituteVariables(title ?? '', vars) : ''
 
   return (
     <section className='grid gap-2'>
@@ -56,7 +65,7 @@ export default function AutomationPreviewSection({
         {action?.preview === 'message' && (
           <AutomationMessagePreview templateId={templateId ?? ''} bindings={templateBindings ?? {}} />
         )}
-        {action?.preview === 'record' && <p className='text-sm text-gray-600'>{previewSubject || 'רשומה חדשה'}</p>}
+        {action?.preview === 'record' && <p className='text-sm text-gray-600'>{previewRecord || 'רשומה חדשה'}</p>}
         {(!action || action.preview === 'none') && <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>}
       </div>
     </section>

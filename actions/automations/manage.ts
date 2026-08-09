@@ -20,7 +20,7 @@ import { loadTemplateForSend } from '@/db/whatsappTemplates'
 import { unmappedSlots } from '@/lib/automations/whatsapp/templateParams'
 import { checkParameter } from '@/lib/automations/catalog/parameterRules'
 import { sourceIdsFrom } from '@/lib/automations/binding'
-import { actionKeyFor } from '@/lib/automations/actionEntry'
+import { actionKeyFor, authoredContentOf } from '@/lib/automations/actionEntry'
 import { engineTriggerForEventKey } from '@/lib/automations/catalog/engineBridge'
 import { validateConditions, type Condition } from '@/lib/automations/conditions'
 
@@ -63,6 +63,8 @@ export type AutomationInput = {
   /** `whatsapp.send`'s authored surface: the chosen template and its slot mapping. */
   templateId?: number | null
   templateBindings?: Record<string, string> | null
+  /** `task.create`'s authored surface: the title the rep will read. */
+  title?: string | null
   timing: Timing
 }
 
@@ -97,6 +99,23 @@ function validate(input: AutomationInput): string | null {
     // Its existence, approval and slot mapping need a read, so they are checked
     // in `validateTemplateChoice` rather than here.
     if (!input.templateId) return 'template_required'
+    return null
+  }
+
+  /**
+   * A title-shaped action authors ONE line and no body. Demanding an email
+   * subject and body from it would reject a perfectly configured task
+   * automation for lacking fields it does not declare — the same reasoning the
+   * template branch above already applies, and the reason the action is
+   * resolved before its content is judged.
+   */
+  if (isTitleAction(actionKey)) {
+    const title = input.title?.trim() ?? ''
+    if (!title) return 'title_required'
+    // Bounds come from the catalog declaration, so the Builder and the server
+    // enforce one rule (the `validateCta` precedent).
+    if (checkParameter(actionKey, 'title', title)) return 'title_invalid'
+    if (unknownTokensFor(resolvableFieldsFor(actionKey), title).length) return 'unknown_variable'
     return null
   }
 
@@ -167,6 +186,7 @@ function toContent(input: AutomationInput): Omit<DefinitionContent, 'schemaVersi
     // unchanged from what it was before the messaging action existed.
     templateId: input.templateId ?? null,
     templateBindings: input.templateBindings ?? null,
+    title: input.title?.trim() || null,
   }
 }
 
@@ -190,6 +210,16 @@ function actionKeyForInput(input: AutomationInput): string | null {
 /** Is this action's content authored as a message template rather than as text? */
 const isTemplateAction = (actionKey: string): boolean =>
   (getAction(actionKey)?.parameters ?? []).some((p) => p.key === 'templateId')
+
+/**
+ * Is this action authored as a single title line rather than as an email?
+ *
+ * Decided by the action's OWN declared parameters, exactly as `isTemplateAction`
+ * is — so this names no action, and a future title-shaped action needs no edit
+ * here.
+ */
+const isTitleAction = (actionKey: string): boolean =>
+  (getAction(actionKey)?.parameters ?? []).some((p) => p.key === 'title')
 
 export async function createAutomation(input: AutomationInput): Promise<ManageResult> {
   const { user, reason } = await requireAutomationsAdmin()
@@ -284,7 +314,16 @@ export async function duplicateAutomation(id: number): Promise<ManageResult> {
     sourceIds: existing.sourceIds,
     // A copy runs the same action as its original — read, never assumed.
     actionKey: actionKeyFor(existing) as string,
-    content: { subject: existing.content.subject, body: existing.content.body, timing: existing.content.timing },
+    /**
+     * The WHOLE authored document, minus the version stamp `createDefinition`
+     * re-applies. Listing fields by hand silently dropped every one added after
+     * the list was written — the CTA block, the WhatsApp template and its slot
+     * bindings — so duplicating a messaging automation produced a copy that
+     * could never send, and duplicating an email with a button lost the button.
+     * Spreading means a field added to `DefinitionContent` tomorrow is copied
+     * without anyone remembering this line exists.
+     */
+    content: authoredContentOf(existing.content),
     createdByUserId: user.id,
   })
   revalidatePath(PATH)

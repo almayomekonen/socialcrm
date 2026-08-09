@@ -24,6 +24,8 @@ export const DRAFT_FROM_RECIPE = (key: string): SheetDraft | null => {
     // Recipes ship no CTA: the starter content is plain copy, and the block is
     // something the customer chooses to add.
     cta: null,
+    // Every shipped recipe authors an email; a title-shaped action starts blank.
+    title: '',
     timing: r.timing,
   }
 }
@@ -39,5 +41,6 @@ export const BLANK: SheetDraft = {
   subject: '',
   body: '',
   cta: null,
+  title: '',
   timing: { kind: 'preset', preset: 'immediate' },
 }

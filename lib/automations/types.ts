@@ -30,7 +30,13 @@ export type TriggerType = (typeof TRIGGER_TYPES)[number]
 export const TRIGGER_ORIGINS = ['webhook_facebook', 'webhook_whatsapp', 'webhook', 'manual', 'import'] as const
 export type TriggerOrigin = (typeof TRIGGER_ORIGINS)[number]
 
-export const ACTION_TYPES = ['send_email'] as const
+// The engine's PERSISTED action values, append-only like every vocabulary here.
+// `create_task` and `send_whatsapp` are the stored counterparts of the catalog's
+// `task.create` and `whatsapp.send`, which shipped with executors and law sets
+// but had no persistable value until the action CHECK was widened
+// (migrations/20260809000001). Mapped in catalog/engineBridge.ts — never
+// compared to a literal outside it.
+export const ACTION_TYPES = ['send_email', 'create_task', 'send_whatsapp'] as const
 export type ActionType = (typeof ACTION_TYPES)[number]
 
 // Lead statuses the engine treats as terminal (mirrors the IRE worker's rule).

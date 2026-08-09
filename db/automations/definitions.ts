@@ -43,6 +43,17 @@ export type DefinitionContent = {
    */
   templateId?: number | null
   templateBindings?: Record<string, string> | null
+  /**
+   * `task.create`'s authored surface — the third additive-jsonb field, for the
+   * same reason as the two above: no migration, and a row written before it
+   * existed simply has none.
+   *
+   * A task title is not an email subject: the rep reads it off their own
+   * worklist, it has no body beside it, and it resolves only the lead's name.
+   * Carrying it in `subject` would have made two meanings share one field and
+   * forced every reader to know which action it was looking at.
+   */
+  title?: string | null
 }
 
 export type DefinitionStatus = 'draft' | 'active' | 'paused' | 'deleted'

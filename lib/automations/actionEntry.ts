@@ -75,6 +75,13 @@ export function actionParametersFromContent(content: AuthoredContent): Record<st
   if (content.templateBindings && Object.keys(content.templateBindings).length > 0) {
     parameters.templateBindings = content.templateBindings
   }
+  /**
+   * `task.create`'s parameter, projected on the same terms. Without this line
+   * the executor read `parameters.title` from a record that never carried one
+   * and created every task with an empty title — the authored value was stored
+   * on `content` and dropped here.
+   */
+  if (content.title?.trim()) parameters.title = content.title.trim()
   return parameters
 }
 
@@ -86,9 +93,29 @@ export type AuthoredContent = {
   ctaUrl?: string | null
   templateId?: number | null
   templateBindings?: Record<string, string> | null
+  /** `task.create`'s authored value. Absent for every other action. */
+  title?: string | null
 }
 
 /** The stored actions list for a content document — the writers' single form. */
 export function actionsForContent(actionKey: string, content: AuthoredContent): ActionEntryLike[] {
   return [{ actionKey, parameters: actionParametersFromContent(content) }]
+}
+
+/**
+ * The AUTHORED half of a stored content document — everything except the
+ * version stamp, which the writer re-applies from CONTENT_SCHEMA_VERSION.
+ *
+ * Exists because duplication used to rebuild the document by naming three
+ * fields, which silently dropped every field added after that line was written:
+ * the CTA block, the WhatsApp template and its slot bindings. A duplicated
+ * messaging automation came out unable to send, and a duplicated email lost its
+ * button — with no error either time.
+ *
+ * Spreading is the fix AND the guarantee: a field added to the content document
+ * tomorrow is carried without anyone remembering this function exists.
+ */
+export function authoredContentOf<T extends { schemaVersion?: number }>(content: T | null | undefined): Omit<T, 'schemaVersion'> {
+  const { schemaVersion: _stamped, ...authored } = content ?? ({} as T)
+  return authored
 }

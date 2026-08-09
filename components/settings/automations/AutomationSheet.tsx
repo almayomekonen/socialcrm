@@ -60,6 +60,8 @@ export type SheetDraft = {
   /** The message action's authored surface: chosen template + slot mapping. */
   templateId?: number | null
   templateBindings?: Record<string, string> | null
+  /** A title-shaped action's authored surface: the one line it writes. */
+  title?: string | null
   timing: Timing
 }
 
@@ -89,6 +91,7 @@ export default function AutomationSheet({
   const [chosenActionKey, setChosenActionKey] = useState<string | null>(draft.actionKey ?? null)
   const [templateId, setTemplateId] = useState<string>(draft.templateId ? String(draft.templateId) : '')
   const [templateBindings, setTemplateBindings] = useState<Record<string, string>>(draft.templateBindings ?? {})
+  const [taskTitle, setTaskTitle] = useState(draft.title ?? '')
   const [timing, setTiming] = useState<Timing>(draft.timing)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -96,6 +99,7 @@ export default function AutomationSheet({
 
   const subjectRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const bodyRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
+  const titleRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const lastFocused = useRef<'subject' | 'body'>('body')
 
   const evaluated = useMemo(() => evaluateEvents(listSelectableEvents(), requirementContext), [requirementContext])
@@ -113,6 +117,8 @@ export default function AutomationSheet({
   const action = actions.find((a) => a.key === actionKey) ?? null
   /** A template-shaped action stores a chosen message instead of authored text. */
   const isTemplateAction = Boolean(action?.parameters.some((p) => p.key === 'templateId'))
+  /** A title-shaped action authors ONE line — no subject, no body, no CTA. */
+  const isTitleAction = Boolean(action?.parameters.some((p) => p.key === 'title'))
   const chips = useMemo(() => (event ? variableChipsForEvent(event.fields) : []), [event])
   const anchors = event ? listAnchorFields(event) : []
 
@@ -162,10 +168,12 @@ export default function AutomationSheet({
   const boundConnectionId = connectionId ?? (eligibleConnections.length === 1 ? eligibleConnections[0].id : null)
 
   function insertToken(token: string) {
-    const target = lastFocused.current
-    const el = target === 'subject' ? subjectRef.current : bodyRef.current
-    const value = target === 'subject' ? subject : body
-    const set = target === 'subject' ? setSubject : setBody
+    // A title-shaped action has ONE field, so a chip always lands there. The
+    // subject/body pair tracks focus because it has two.
+    const target = isTitleAction ? 'title' : lastFocused.current
+    const el = target === 'title' ? titleRef.current : target === 'subject' ? subjectRef.current : bodyRef.current
+    const value = target === 'title' ? taskTitle : target === 'subject' ? subject : body
+    const set = target === 'title' ? setTaskTitle : target === 'subject' ? setSubject : setBody
     const at = el?.selectionStart ?? value.length
     const before = value.slice(0, at)
     const after = value.slice(at)
@@ -190,6 +198,9 @@ export default function AutomationSheet({
     actionKey,
     templateId: isTemplateAction && templateId ? Number(templateId) : null,
     templateBindings: isTemplateAction ? templateBindings : null,
+    // Carried only by the action that authors it, so an email automation's
+    // content document is unchanged from what it was before this field existed.
+    title: isTitleAction ? taskTitle : null,
     subject,
     body,
     // One block: an incomplete pair is sent as no block, matching what the
@@ -267,6 +278,8 @@ export default function AutomationSheet({
           bodyRef={bodyRef}
           templateId={templateId}
           templateBindings={templateBindings}
+          titleValue={taskTitle}
+          titleRef={titleRef}
           onFocusField={(field) => (lastFocused.current = field)}
           onSubjectChange={setSubject}
           onBodyChange={setBody}
@@ -274,6 +287,7 @@ export default function AutomationSheet({
           onInsertToken={insertToken}
           onTemplateChange={setTemplateId}
           onBindingsChange={setTemplateBindings}
+          onTitleChange={setTaskTitle}
         />
 
         <Seperator className='my-0' />
@@ -290,6 +304,7 @@ export default function AutomationSheet({
           cta={cta}
           templateId={templateId}
           templateBindings={templateBindings}
+          title={taskTitle}
         />
 
         <div className='grid gap-2'>

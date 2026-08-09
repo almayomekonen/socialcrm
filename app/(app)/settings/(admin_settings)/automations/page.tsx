@@ -124,6 +124,10 @@ export default async function AutomationsSettingsPage() {
       actionKey: actionKeyFor(d),
       templateId: d.content?.templateId ?? null,
       templateBindings: d.content?.templateBindings ?? null,
+      // Same round-trip obligation as the template pair above: without it,
+      // editing a task automation would reopen with an empty title and saving
+      // would write that emptiness over the configured one.
+      title: d.content?.title ?? null,
       timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },
     }
   }

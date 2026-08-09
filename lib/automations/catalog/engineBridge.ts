@@ -32,12 +32,28 @@ const ENGINE_TRIGGER_TO_EVENT_KEY: Record<TriggerType, string> = {
   form_submitted: 'form.submitted',
 }
 
+/**
+ * Every action the executor registry can run MUST appear here, or it cannot be
+ * persisted: createDefinition writes this map's value into
+ * `automation_definitions.action`, and an unmapped key becomes an explicit NULL
+ * against a NOT NULL column. `task.create` and `whatsapp.send` shipped
+ * catalog-complete and executor-complete but unmapped, which is why neither
+ * could be saved until migrations/20260809000001 widened the CHECK and these
+ * two lines were added.
+ *
+ * catalogConformance.test.ts pins the totality in both directions, so a fourth
+ * action fails CI rather than failing at the INSERT.
+ */
 const ACTION_KEY_TO_ENGINE_ACTION: Record<string, string> = {
   'email.send': 'send_email',
+  'task.create': 'create_task',
+  'whatsapp.send': 'send_whatsapp',
 }
 
 const ENGINE_ACTION_TO_ACTION_KEY: Record<string, string> = {
   send_email: 'email.send',
+  create_task: 'task.create',
+  send_whatsapp: 'whatsapp.send',
 }
 
 /** Unknown key ⇒ null. Callers hold the automation inert (Law 3). */
