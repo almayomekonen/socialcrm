@@ -25,7 +25,8 @@ import AutomationTriggerSection from './AutomationTriggerSection'
 import AutomationPreviewSection from './AutomationPreviewSection'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
-import { createAutomation, updateAutomation, type AutomationInput } from '@/actions/automations/manage'
+import { createAutomation, updateAutomation } from '@/actions/automations/manage'
+import type { AutomationInput } from '@/lib/automations/definitionInput'
 import { sendTestEmail } from '@/actions/automations/sendTest'
 import { errorMessage as msg, timingKey, timingOptionsFor } from './sheetOptions'
 import ConditionsEditor from './ConditionsEditor'
@@ -62,6 +63,8 @@ export type SheetDraft = {
   templateBindings?: Record<string, string> | null
   /** A title-shaped action's authored surface: the one line it writes. */
   title?: string | null
+  /** Answers to the action's catalog-declared parameters, keyed by key. */
+  actionParameters?: Record<string, string> | null
   timing: Timing
 }
 
@@ -92,6 +95,7 @@ export default function AutomationSheet({
   const [templateId, setTemplateId] = useState<string>(draft.templateId ? String(draft.templateId) : '')
   const [templateBindings, setTemplateBindings] = useState<Record<string, string>>(draft.templateBindings ?? {})
   const [taskTitle, setTaskTitle] = useState(draft.title ?? '')
+  const [actionParameters, setActionParameters] = useState<Record<string, string>>(draft.actionParameters ?? {})
   const [timing, setTiming] = useState<Timing>(draft.timing)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -201,6 +205,7 @@ export default function AutomationSheet({
     // Carried only by the action that authors it, so an email automation's
     // content document is unchanged from what it was before this field existed.
     title: isTitleAction ? taskTitle : null,
+    actionParameters,
     subject,
     body,
     // One block: an incomplete pair is sent as no block, matching what the
@@ -280,6 +285,7 @@ export default function AutomationSheet({
           templateBindings={templateBindings}
           titleValue={taskTitle}
           titleRef={titleRef}
+          actionParameters={actionParameters}
           onFocusField={(field) => (lastFocused.current = field)}
           onSubjectChange={setSubject}
           onBodyChange={setBody}
@@ -288,6 +294,7 @@ export default function AutomationSheet({
           onTemplateChange={setTemplateId}
           onBindingsChange={setTemplateBindings}
           onTitleChange={setTaskTitle}
+          onActionParametersChange={setActionParameters}
         />
 
         <Seperator className='my-0' />

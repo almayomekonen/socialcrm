@@ -26,6 +26,7 @@ export const DRAFT_FROM_RECIPE = (key: string): SheetDraft | null => {
     cta: null,
     // Every shipped recipe authors an email; a title-shaped action starts blank.
     title: '',
+    actionParameters: {},
     timing: r.timing,
   }
 }
@@ -42,5 +43,6 @@ export const BLANK: SheetDraft = {
   body: '',
   cta: null,
   title: '',
+  actionParameters: {},
   timing: { kind: 'preset', preset: 'immediate' },
 }

@@ -4,6 +4,7 @@ import {
   CATALOG_KEY_PATTERN,
   EVENT_LIFECYCLES,
   EVENT_ORIGINS,
+  FIRST_PARTY_SOURCES,
   FIELD_FRESHNESS,
   FIELD_LIFECYCLES,
   FIELD_TYPES,
@@ -45,8 +46,24 @@ function validateParameter(p: ParameterDefinition, path: string, issues: Catalog
   if (p.type === 'enum_remote' && !isNonEmpty(p.optionSource)) {
     issues.push({ path, message: 'enum_remote requires optionSource (the key passed to connection.options)' })
   }
-  if (p.type !== 'enum_remote' && p.optionSource) {
-    issues.push({ path, message: 'optionSource is only meaningful for enum_remote' })
+  /**
+   * A first-party parameter names one of a CLOSED set of agency-owned data
+   * sets. Validating membership here — not only in the Server Action — means an
+   * unknown source fails the build rather than rendering an empty dropdown a
+   * customer would read as "you have none".
+   */
+  if (p.type === 'enum_agency') {
+    if (!isNonEmpty(p.optionSource)) {
+      issues.push({ path, message: 'enum_agency requires optionSource (a key from FIRST_PARTY_SOURCES)' })
+    } else if (!inSet(FIRST_PARTY_SOURCES, p.optionSource)) {
+      issues.push({
+        path,
+        message: `unknown first-party source "${p.optionSource}" (allowed: ${FIRST_PARTY_SOURCES.join(', ')})`,
+      })
+    }
+  }
+  if (p.type !== 'enum_remote' && p.type !== 'enum_agency' && p.optionSource) {
+    issues.push({ path, message: 'optionSource is only meaningful for enum_remote and enum_agency' })
   }
   for (const key of Object.keys(p.validation ?? {})) {
     if (!inSet(PARAMETER_VALIDATORS, key)) {

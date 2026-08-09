@@ -128,6 +128,10 @@ export default async function AutomationsSettingsPage() {
       // editing a task automation would reopen with an empty title and saving
       // would write that emptiness over the configured one.
       title: d.content?.title ?? null,
+      // Same round-trip obligation as every other authored field: without it,
+      // reopening a definition would show an empty picker and saving would
+      // write that emptiness over the chosen value.
+      actionParameters: d.content?.actionParameters ?? null,
       timing: d.content?.timing ?? { kind: 'preset', preset: 'immediate' },
     }
   }

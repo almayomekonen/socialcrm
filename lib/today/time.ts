@@ -26,6 +26,26 @@ export function startOfBusinessDayMs(ms: number, tz: string = BUSINESS_TZ): numb
 }
 
 /**
+ * The business calendar date for the instant `ms`, as `YYYY-MM-DD`.
+ *
+ * Extends this module rather than deriving a second day boundary elsewhere
+ * (architecture-rules §11): a `date` column such as `sales_quotes."expiresAt"`
+ * is answered by comparing calendar dates, and ISO dates compare correctly as
+ * strings. `en-CA` is the locale whose short date format IS `YYYY-MM-DD`.
+ *
+ * DST-safe by construction — the calendar date in a timezone never depends on
+ * an offset arithmetic step.
+ */
+export function businessDateString(ms: number, tz: string = BUSINESS_TZ): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(ms))
+}
+
+/**
  * Business-day bounds for `nowMs`. `dayEnd` is the start of the NEXT business day
  * (advancing +26h before re-snapping absorbs 23h/25h DST-transition days), so
  * `[dayStart, dayEnd)` is always exactly one wall-clock day.

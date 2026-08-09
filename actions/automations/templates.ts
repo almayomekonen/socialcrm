@@ -9,6 +9,7 @@ import { installedAutomationIds, listInstalls, recordInstall } from '@/db/automa
 import { getTemplate } from '@/lib/automations/templates/registry'
 import { prepare, validateTemplate, type TemplateValues } from '@/lib/automations/templates/install'
 import { engineTriggerForEventKey } from '@/lib/automations/catalog/engineBridge'
+import { declaredParameterAnswers } from '@/lib/automations/definitionInput'
 import type { TriggerType } from '@/lib/automations/types'
 
 /**
@@ -75,6 +76,10 @@ export async function installTemplate(templateKey: string, values: TemplateValue
         // reads. Without it an installed task template produced tasks with an
         // empty title — the value was substituted, then dropped one line later.
         title: p.parameters.title ?? null,
+        // Catalog-declared parameters (a first-party selection, today) reach the
+        // stored content through the SAME helper the Builder's save uses, so an
+        // installed automation and a hand-built one are identical rows.
+        actionParameters: declaredParameterAnswers(p.actionKey, p.parameters),
         timing: p.timing,
       },
       createdByUserId: user.id,

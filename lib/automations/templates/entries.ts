@@ -286,4 +286,51 @@ ${BUSINESS_SIGNOFF}`,
       },
     ],
   },
+
+  {
+    key: 'quote_on_lead_stage',
+    version: 1,
+    title: 'הצעת מחיר אוטומטית',
+    category: 'internal',
+    description: 'יוצרת הצעת מחיר לליד באופן אוטומטי לפי שלב המכירה ומכינה אותה לנציג.',
+    icon: 'file-invoice',
+    /**
+     * No requirement. A quote template is the agency's own data, so there is
+     * nothing to connect — unlike every other locked card here, this one is
+     * runnable the moment a price list exists. If none does, the install
+     * dialog's picker is empty and the required variable holds the button,
+     * which is the honest place for that to surface.
+     */
+    requirements: [],
+    variables: [
+      {
+        /**
+         * Keyed exactly as the action declares its parameter, so `[[…]]`
+         * substitution lands on the right key with no mapping step.
+         */
+        key: 'quoteTemplateId',
+        type: 'enum_agency',
+        label: 'תבנית הצעת המחיר',
+        help: 'המחירים נלקחים מהתבנית ונשמרים על ההצעה — עדכון התבנית בהמשך לא ישנה הצעות שכבר נוצרו',
+        optionSource: 'quote_templates',
+        validation: { required: true },
+      },
+    ],
+    automations: [
+      {
+        name: 'הצעת מחיר אוטומטית',
+        /**
+         * "לפי שלב המכירה" — the lead reaching `מעוניין` is the moment a price
+         * becomes the useful next thing. The condition is on the LIVE `status`
+         * field, so a lead who moves on during a delay fails the premise and no
+         * quote is drafted.
+         */
+        eventKey: 'lead.status_changed',
+        conditions: [{ field: 'status', operator: 'is', value: 'interested' }],
+        actionKey: 'quote.create',
+        timing: { kind: 'preset', preset: 'immediate' },
+        parameters: { quoteTemplateId: '[[quoteTemplateId]]' },
+      },
+    ],
+  },
 ] as const

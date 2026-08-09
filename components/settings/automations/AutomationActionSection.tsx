@@ -6,6 +6,7 @@ import type { ActionDefinition } from '@/lib/automations/catalog/types'
 import AutomationContentSection, { type CtaDraft } from './AutomationContentSection'
 import AutomationTemplateSection from './AutomationTemplateSection'
 import AutomationTitleSection from './AutomationTitleSection'
+import RemoteParameters from './RemoteParameters'
 
 /**
  * WHAT the automation does — the choice, and the configuration that choice needs.
@@ -24,6 +25,12 @@ import AutomationTitleSection from './AutomationTitleSection'
  * parameters — a `templateId` parameter means the content is a chosen template,
  * a `title` parameter means the content is one line — so this component names
  * no channel and no action.
+ *
+ * Parameters the catalog can describe generically (`enum_agency` today) are
+ * rendered by `RemoteParameters`, the SAME component the trigger section uses
+ * for an event's parameters. They are additive to whichever content shape the
+ * action uses, so an action that declares only generic parameters gets a form
+ * made entirely of them — with no branch here naming it.
  */
 
 export default function AutomationActionSection({
@@ -41,6 +48,7 @@ export default function AutomationActionSection({
   templateBindings,
   titleValue,
   titleRef,
+  actionParameters,
   onFocusField,
   onSubjectChange,
   onBodyChange,
@@ -49,6 +57,7 @@ export default function AutomationActionSection({
   onTemplateChange,
   onBindingsChange,
   onTitleChange,
+  onActionParametersChange,
 }: {
   actions: readonly ActionDefinition[]
   action: ActionDefinition | null
@@ -64,6 +73,8 @@ export default function AutomationActionSection({
   templateBindings: Record<string, string>
   titleValue: string
   titleRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
+  /** Answers to the action's catalog-declared parameters, keyed by key. */
+  actionParameters: Record<string, string>
   onFocusField: (field: 'subject' | 'body') => void
   onSubjectChange: (value: string) => void
   onBodyChange: (value: string) => void
@@ -72,9 +83,18 @@ export default function AutomationActionSection({
   onTemplateChange: (next: string) => void
   onBindingsChange: (next: Record<string, string>) => void
   onTitleChange: (next: string) => void
+  onActionParametersChange: (next: Record<string, string>) => void
 }) {
   const templateParameter = action?.parameters.find((p) => p.key === 'templateId') ?? null
   const titleParameter = action?.parameters.find((p) => p.key === 'title') ?? null
+  /**
+   * Parameters the generic renderer can draw. Selected by TYPE, never by key, so
+   * a second generically-rendered type needs no edit here — and no action is
+   * ever named.
+   */
+  const genericParameters = (action?.parameters ?? []).filter((p) => p.type === 'enum_agency')
+  /** A form made only of generic parameters needs no content section beside it. */
+  const contentless = genericParameters.length > 0 && !templateParameter && !titleParameter
   /**
    * The capability the action's options live behind, taken from its own declared
    * requirement. The Builder learns a capability KEY and nothing about who grants
@@ -94,7 +114,20 @@ export default function AutomationActionSection({
       )}
       {action?.description && actions.length > 1 && <p className='text-sm text-gray-500 ms-1'>{action.description}</p>}
 
-      {templateParameter ? (
+      {genericParameters.length > 0 && (
+        <section className='grid gap-3'>
+          <h3 className='text-sm font-semibold text-gray-800'>{action ? action.title : 'פעולה'}</h3>
+          <RemoteParameters
+            parameters={genericParameters}
+            // Agency-owned data needs no connection to resolve against.
+            connectionId={null}
+            values={actionParameters}
+            onChange={onActionParametersChange}
+          />
+        </section>
+      )}
+
+      {contentless ? null : templateParameter ? (
         <AutomationTemplateSection
           title={action ? action.title : 'פעולה'}
           parameter={templateParameter}

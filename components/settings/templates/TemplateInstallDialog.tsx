@@ -8,6 +8,9 @@ import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
 import { installTemplate } from '@/actions/automations/templates'
 import type { TemplateView } from '@/lib/automations/templates/overview'
+import RemoteParameters from '@/components/settings/automations/RemoteParameters'
+import { creatorFor, type InlineResolver } from './firstPartyCreators'
+import InlineCreator from './InlineCreator'
 import { errorMessage } from './copy'
 
 /**
@@ -36,13 +39,33 @@ export default function TemplateInstallDialog({
   )
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  /**
+   * Steps that must run before installing, keyed by the variable they answer.
+   * A creator registers one; everything else installs exactly as before.
+   */
+  const [resolvers, setResolvers] = useState<Record<string, InlineResolver>>({})
 
-  const missing = template.variables.some((v) => v.validation?.required && !(values[v.key] ?? '').trim())
+  const missing = template.variables.some(
+    (v) => v.validation?.required && !(values[v.key] ?? '').trim() && !resolvers[v.key],
+  )
 
   function install() {
     setError(null)
     start(async () => {
-      const res = await installTemplate(template.key, values)
+      /**
+       * Resolve first, install second. For a quotation that means the price
+       * list is saved through its own domain and its id becomes this variable's
+       * value — so `installTemplate` receives an ordinary answer and never
+       * learns that anything was created on the way.
+       */
+      const resolved: Record<string, string> = {}
+      for (const [key, resolve] of Object.entries(resolvers)) {
+        const out = await resolve()
+        if (out.ok === false) return setError(errorMessage(out.reason))
+        resolved[key] = out.value
+      }
+
+      const res = await installTemplate(template.key, { ...values, ...resolved })
       if (res.ok === false) return setError(errorMessage(res.reason))
       toast('success', res.created === 1 ? 'האוטומציה נוצרה כטיוטה' : `${res.created} אוטומציות נוצרו כטיוטות`)
       onDone()
@@ -61,7 +84,42 @@ export default function TemplateInstallDialog({
             <section className='grid gap-3'>
               <h3 className='text-sm font-semibold text-gray-800'>הגדרות</h3>
               {template.variables.map((variable) =>
-                variable.type === 'enum_static' ? (
+                /**
+                 * A first-party selection renders through the SAME control the
+                 * Builder uses for it, rather than a picker invented here — so
+                 * the customer chooses from one list whichever door they came
+                 * through. It needs no connection, which is why `connectionId`
+                 * is null.
+                 */
+                variable.type === 'enum_agency' && creatorFor(variable.optionSource) ? (
+                  /**
+                   * The source can be BUILT here, so the customer never has to
+                   * leave to create their first one. Everything else about this
+                   * dialog is unchanged.
+                   */
+                  <InlineCreator
+                    key={variable.key}
+                    variable={variable}
+                    value={values[variable.key] ?? ''}
+                    onChange={(v) => setValues({ ...values, [variable.key]: v })}
+                    onResolverChange={(r) =>
+                      setResolvers((prev) => {
+                        const next = { ...prev }
+                        if (r) next[variable.key] = r
+                        else delete next[variable.key]
+                        return next
+                      })
+                    }
+                  />
+                ) : variable.type === 'enum_agency' ? (
+                  <RemoteParameters
+                    key={variable.key}
+                    parameters={[variable]}
+                    connectionId={null}
+                    values={values}
+                    onChange={setValues}
+                  />
+                ) : variable.type === 'enum_static' ? (
                   <Select
                     key={variable.key}
                     lbl={variable.label}

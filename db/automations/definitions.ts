@@ -54,6 +54,21 @@ export type DefinitionContent = {
    * forced every reader to know which action it was looking at.
    */
   title?: string | null
+  /**
+   * GENERIC answers to an action's own declared parameters, keyed by parameter
+   * key — the storage for `enum_agency` and any future catalog-declared control
+   * the Builder renders generically.
+   *
+   * A bag rather than another named field precisely because it is not about one
+   * action: the fields above each exist because a specific action authors them,
+   * while this one exists because the CATALOG declares them and the Builder
+   * renders whatever is declared. A named field per parameter would put this
+   * file back in the business of knowing what every action holds.
+   *
+   * Additive jsonb inside the existing document: no migration, and a row written
+   * before it existed simply has none.
+   */
+  actionParameters?: Record<string, string> | null
 }
 
 export type DefinitionStatus = 'draft' | 'active' | 'paused' | 'deleted'

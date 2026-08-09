@@ -82,6 +82,17 @@ export function actionParametersFromContent(content: AuthoredContent): Record<st
    * on `content` and dropped here.
    */
   if (content.title?.trim()) parameters.title = content.title.trim()
+  /**
+   * The generic bag, spread last: these are the action's OWN declared
+   * parameters, answered through the catalog-driven renderer, so for the action
+   * that declares them they are authoritative. Absent for every action authored
+   * before it existed, which is why the projection is unchanged for email.
+   */
+  if (content.actionParameters) {
+    for (const [key, value] of Object.entries(content.actionParameters)) {
+      if (typeof value === 'string' && value.trim()) parameters[key] = value.trim()
+    }
+  }
   return parameters
 }
 
@@ -95,6 +106,8 @@ export type AuthoredContent = {
   templateBindings?: Record<string, string> | null
   /** `task.create`'s authored value. Absent for every other action. */
   title?: string | null
+  /** Catalog-declared parameter answers, keyed by parameter key. */
+  actionParameters?: Record<string, string> | null
 }
 
 /** The stored actions list for a content document — the writers' single form. */

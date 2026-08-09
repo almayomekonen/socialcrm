@@ -60,9 +60,9 @@ describe('the B1 catalog is valid', () => {
       'appointment.booked',
       'form.submitted',
     ])
-    // `whatsapp.send` is APPENDED — the two B1 actions keep their positions, which
-    // is the property this assertion exists to prove.
-    expect(catalog.actions.map((a) => a.key)).toEqual(['email.send', 'task.create', 'whatsapp.send'])
+    // `whatsapp.send` and `quote.create` are APPENDED — the two B1 actions keep
+    // their positions, which is the property this assertion exists to prove.
+    expect(catalog.actions.map((a) => a.key)).toEqual(['email.send', 'task.create', 'whatsapp.send', 'quote.create'])
   })
 
   it('registers integrations as data only, append-only, one row each', () => {
@@ -143,14 +143,29 @@ describe('CONFORMANCE — action vocabulary matches the engine exactly', () => {
     // migrations/20260809000001 admits exactly this list. The DB is the other
     // half of the contract, and a value absent there fails at the INSERT with a
     // constraint error rather than anywhere a type could catch it.
-    expect([...ACTION_TYPES]).toEqual(['send_email', 'create_task', 'send_whatsapp'])
+    expect([...ACTION_TYPES]).toEqual(['send_email', 'create_task', 'send_whatsapp', 'create_quote'])
   })
 
   it('email.send bridges to the persisted "send_email" value', () => {
     expect(engineActionForActionKey('email.send')).toBe('send_email')
     expect(actionKeyForEngineAction('send_email')).toBe('email.send')
     // Append-only: email keeps its position, the two shipped actions follow.
-    expect(bridgedActionKeys()).toEqual(['email.send', 'task.create', 'whatsapp.send'])
+    expect(bridgedActionKeys()).toEqual(['email.send', 'task.create', 'whatsapp.send', 'quote.create'])
+  })
+
+  it('quote.create bridges to the persisted "create_quote" value', () => {
+    expect(engineActionForActionKey('quote.create')).toBe('create_quote')
+    expect(actionKeyForEngineAction('create_quote')).toBe('quote.create')
+  })
+
+  it('quote.create declares no recipient and only the send-once law', () => {
+    // The §3.8 correctness case, a second time: a SUPPRESSED lead must still get
+    // a quote drafted, because a draft contacts nobody.
+    expect(getAction('quote.create')?.requires).toEqual([])
+    expect(getAction('quote.create')?.laws).toEqual(['send_once'])
+    expect(getAction('quote.create')?.risk).toBe('internal')
+    expect(getAction('quote.create')?.preview).toBe('record')
+    expect(getAction('quote.create')?.testable).toBe(false)
   })
 
   it('task.create and whatsapp.send bridge to their persisted values', () => {

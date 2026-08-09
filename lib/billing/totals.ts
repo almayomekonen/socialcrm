@@ -143,6 +143,11 @@ export function sumLineTotals(lines: readonly LineSummary[]): { subtotal: number
   return { subtotal: round2(subtotal), tax: round2(tax), total: round2(subtotal + tax) }
 }
 
-function round2(n: number): number {
+/**
+ * The domain's money rounding. Exported so callers outside this file round the
+ * same way rather than growing a third copy — `lib/billing/payment/validation.ts`
+ * already has one, and "do not duplicate money arithmetic" is the rule.
+ */
+export function round2(n: number): number {
   return Math.round(n * 100) / 100
 }

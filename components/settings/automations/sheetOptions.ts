@@ -66,6 +66,10 @@ const ERRORS: Record<string, string> = {
   body_required: 'יש להזין תוכן לאימייל',
   title_required: 'יש להזין כותרת למשימה',
   title_invalid: 'כותרת המשימה ארוכה מדי',
+  // Catalog-declared parameters. Generic on purpose: the control's own label
+  // already names what is missing, so the message must not name one action.
+  parameter_required: 'יש להשלים את כל השדות של הפעולה',
+  parameter_invalid: 'אחד מהערכים שנבחרו אינו תקין',
   trigger_invalid: 'האירוע שנבחר אינו זמין',
   action_invalid: 'לא נמצאה פעולה שניתן להפעיל עבור האירוע שנבחר',
   condition_field_unknown: 'אחד התנאים מפנה לשדה שאינו קיים',

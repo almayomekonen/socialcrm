@@ -25,6 +25,15 @@ const LINE = '#c4cad3'
 const ACCENT = '#5e6ad2'
 const MAIL = '#3b6fbf'
 const CALENDAR = '#c98a20'
+/**
+ * The money tint. It extends the existing rule rather than breaking it — the
+ * outcome is "tinted by its channel", and a priced document is a third channel
+ * beside mail and calendar. Muted to the same degree as those two, so it reads
+ * as premium rather than as a banking app.
+ */
+const MONEY = '#2f9670'
+/** A whisper of the accent, for the one row that carries the total. */
+const ACCENT_WASH = '#f3f4fc'
 /** The page background, used where a shape sits over the connector. */
 const RECESS = '#f4f5f7'
 
@@ -116,6 +125,64 @@ const SCENES: Record<string, React.ReactNode> = {
       <path d='M15.5 27.5a3.2 3.2 0 0 0 6 0' stroke={CALENDAR} />
       <path d='M5 19.5a9 9 0 0 1 2.2-6' stroke={CALENDAR} strokeWidth='1.2' opacity='.45' />
       <path d='M33 19.5a9 9 0 0 0-2.2-6' stroke={CALENDAR} strokeWidth='1.2' opacity='.45' />
+    </>
+  ),
+
+  /**
+   * A lead's message becomes a priced quotation, ready for the rep.
+   *
+   * The densest scene in the set, deliberately: the quotation is the HERO, so it
+   * occupies the full height of the canvas rather than the ~20px the other
+   * outcomes take, and the two objects nearly meet in the middle so no dead band
+   * opens between them.
+   *
+   * Same fixed vocabulary throughout — RECESS bars for content, the grey
+   * connector with its one indigo waypoint, badges overlapping an edge exactly
+   * as `website_lead_follow_up` and `internal_task_on_new_lead` already do. The
+   * quotation's outline is ACCENT because nothing is sent to the customer; the
+   * money marks are MONEY, which is the outcome tint this scene introduces.
+   *
+   * The connector is SOLID, not dashed. Dashes mean "delayed" in this file, and
+   * this automation runs immediately — drawing a wait that does not happen would
+   * be the one thing an honest scene may not do.
+   *
+   * The ONE departure from the file's shapes-only rule is the ₪ glyph as
+   * `<text>`: the currency mark is the point of the scene, and every path
+   * approximation of it is unreadable at this size.
+   */
+  quote_on_lead_stage: (
+    <>
+      {/* The lead's message. */}
+      <rect x='68' y='6' width='32' height='20' rx='5' stroke={MONEY} />
+      <path d='M74 25.5v5l5-5' stroke={MONEY} strokeWidth='1.4' />
+      <rect x='72' y='11' width='18' height='2.8' rx='1.4' fill={RECESS} />
+      <rect x='72' y='16.5' width='12' height='2.8' rx='1.4' fill={RECESS} />
+
+      {/* The automation — one waypoint, the same mark every scene uses. */}
+      <path d='M66 22H44' stroke={LINE} strokeWidth='1.3' />
+      <circle cx='55' cy='22' r='2.5' fill={ACCENT} />
+      <Arrow y={22} />
+
+      {/* The quotation — header, priced rows, total. */}
+      <rect x='3' y='3' width='34' height='38' rx='4' stroke={ACCENT} />
+      <rect x='7' y='7.5' width='16' height='3.4' rx='1.7' fill={RECESS} />
+      <path d='M3 14.5H37' stroke={ACCENT} strokeWidth='1' opacity='.3' />
+      <rect x='7' y='18.5' width='14' height='2.8' rx='1.4' fill={RECESS} />
+      <rect x='26' y='18.5' width='7' height='2.8' rx='1.4' fill={RECESS} />
+      <rect x='7' y='24' width='17' height='2.8' rx='1.4' fill={RECESS} />
+      <rect x='26' y='24' width='7' height='2.8' rx='1.4' fill={RECESS} />
+      <rect x='7' y='29.5' width='11' height='2.8' rx='1.4' fill={RECESS} />
+      <rect x='26' y='29.5' width='7' height='2.8' rx='1.4' fill={RECESS} />
+      <path d='M7 34.5H33' stroke={LINE} strokeWidth='1' />
+      {/* The total, and the amount it comes to. */}
+      <rect x='7' y='36' width='12' height='3.4' rx='1.7' fill={ACCENT_WASH} />
+      <circle cx='29' cy='37.6' r='5.4' fill='#fff' stroke={MONEY} strokeWidth='1.3' />
+      <text x='29' y='40.4' textAnchor='middle' fontSize='8' fontWeight='700' fill={MONEY} stroke='none'>
+        ₪
+      </text>
+      {/* Ready for the rep. */}
+      <circle cx='36' cy='7' r='4.2' fill='#fff' stroke={MONEY} strokeWidth='1.2' />
+      <path d='M34.2 7l1.3 1.4 2.4-2.7' stroke={MONEY} strokeWidth='1.3' />
     </>
   ),
 

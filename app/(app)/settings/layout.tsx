@@ -32,6 +32,14 @@ export default async function SettingLayout({ children }) {
               <SettingsLink href='/settings/edit_users' icon='user-pen' title='משתמשים' />
 
               <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
+              {/*
+                תבניות הצעות מחיר is deliberately NOT a nav item. Quote templates
+                are configuration DATA that the quotation automation reads — not a
+                destination of their own — so surfacing them beside אוטומציות would
+                present two entry points for one job. The route and its components
+                stay reachable at /settings/quote-templates because the automation
+                depends on the data; only the sidebar entry is withheld.
+              */}
               <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
               {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title='אוטומציות' />}
               {automationsVisible && (

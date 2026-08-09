@@ -99,6 +99,9 @@ describe('the seeded marketplace is valid against the LIVE catalog', () => {
        */
       'appointment_reminder',
       'internal_task_on_new_lead',
+      // The first template whose action WRITES a sales record rather than
+      // sending a message. Appended, like every one before it.
+      'quote_on_lead_stage',
     ])
   })
 

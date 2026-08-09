@@ -174,4 +174,51 @@ export const ACTION_ENTRIES: readonly ActionDefinition[] = [
      */
     testable: false,
   },
+  {
+    key: 'quote.create',
+    title: 'הכנת הצעת מחיר לנציג',
+    description: 'בונה טיוטת הצעת מחיר לליד מתוך תבנית, ומשאירה אותה לנציג',
+    icon: 'file-invoice',
+    requirements: [],
+    /**
+     * Delivers to NOBODY, so it is offered for every event — including ones
+     * whose subject has no email at all. The rep opens the draft; nothing
+     * reaches the customer, which is the difference between this action and the
+     * sending one that will follow it.
+     */
+    requires: [],
+    parameters: [
+      {
+        /**
+         * The agency's OWN price list — `enum_agency`, not `enum_remote`.
+         * Quote templates sit behind no connection and no capability, so the
+         * connector-backed door would answer `[]` forever; and the distinct type
+         * is what keeps a first-party answer structurally out of `sourceIds`.
+         */
+        key: 'quoteTemplateId',
+        type: 'enum_agency',
+        label: 'תבנית הצעת המחיר',
+        help: 'המחירים נלקחים מהתבנית, ונשמרים על ההצעה כפי שהם באותו רגע',
+        optionSource: 'quote_templates',
+        validation: { required: true },
+      },
+    ],
+    /**
+     * `send_once` and NOTHING else — the same law set as `task.create`, for the
+     * same reason. A SUPPRESSED lead must still get a quote drafted: suppression
+     * is consent not to be CONTACTED, and this action contacts nobody. Caps and
+     * quiet hours protect the lead's inbox, which a draft never reaches.
+     *
+     * The sending counterpart, when it arrives, declares the full external set.
+     * That difference is precisely why it will be a separate action key.
+     */
+    laws: ['send_once'],
+    risk: 'internal',
+    preview: 'record',
+    /**
+     * No test send. There is no inert recipient for a quote — a test would
+     * create a real row on a real lead, which is not a test.
+     */
+    testable: false,
+  },
 ]

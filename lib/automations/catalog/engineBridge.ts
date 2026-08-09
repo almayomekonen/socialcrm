@@ -48,12 +48,14 @@ const ACTION_KEY_TO_ENGINE_ACTION: Record<string, string> = {
   'email.send': 'send_email',
   'task.create': 'create_task',
   'whatsapp.send': 'send_whatsapp',
+  'quote.create': 'create_quote',
 }
 
 const ENGINE_ACTION_TO_ACTION_KEY: Record<string, string> = {
   send_email: 'email.send',
   create_task: 'task.create',
   send_whatsapp: 'whatsapp.send',
+  create_quote: 'quote.create',
 }
 
 /** Unknown key ⇒ null. Callers hold the automation inert (Law 3). */

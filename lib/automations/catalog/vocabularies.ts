@@ -101,8 +101,44 @@ export const PARAMETER_TYPES = [
   /** Options come from connection.options(sourceKey) — the generic picker. */
   'enum_remote',
   'reference',
+  /**
+   * Options come from the AGENCY'S OWN data — no connection, no capability, no
+   * connector. A separate type rather than a flavour of `enum_remote`, and the
+   * distinction is load-bearing rather than cosmetic:
+   *
+   *   · `binding.ts` writes every EVENT `enum_remote` answer into `sourceIds`,
+   *     the connection binding. A first-party answer is not a connector Source
+   *     and must never land there. Because that code filters on
+   *     `type === 'enum_remote'`, this type is STRUCTURALLY excluded — the
+   *     binding needs no edit and cannot be got wrong.
+   *   · `needsConnection()` would otherwise report an event as requiring a
+   *     connection it does not need.
+   *   · every `enum_remote` resolution door ends at
+   *     `providerForConnection(connectionId)`; with no connection it answers
+   *     `[]` silently, which is indistinguishable from "you have none".
+   *
+   * `optionSource` names a key from `FIRST_PARTY_SOURCES` below — a closed,
+   * server-owned set, so a client can never ask for an arbitrary source.
+   */
+  'enum_agency',
 ] as const
 export type ParameterType = (typeof PARAMETER_TYPES)[number]
+
+/**
+ * The agency-owned data sets a parameter may select from. CLOSED and
+ * append-only, exactly like every vocabulary here.
+ *
+ * Closed for a security reason as well as an architectural one: the Builder
+ * forwards a parameter's declared `optionSource` to a Server Action, and that
+ * action refuses anything absent from this list. The client therefore chooses
+ * among server-defined sources rather than naming one.
+ *
+ * Each entry MUST have a loader in `lib/automations/firstPartyOptions.ts`;
+ * that record is typed over this union, so adding a key without a loader is a
+ * compile error rather than an empty dropdown.
+ */
+export const FIRST_PARTY_SOURCES = ['quote_templates'] as const
+export type FirstPartySource = (typeof FIRST_PARTY_SOURCES)[number]
 
 /** Validation is DATA, never code (§3.7). */
 export const PARAMETER_VALIDATORS = ['required', 'maxLength', 'min', 'max', 'pattern', 'oneOf'] as const

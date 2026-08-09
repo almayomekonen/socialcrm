@@ -279,6 +279,28 @@ describe('action entry resolution', () => {
     // Whitespace is not a title: an all-spaces value is absent, not empty.
     expect(actionParametersFromContent({ subject: 'ש', body: 'ב', title: '   ' })).toEqual({ subject: 'ש', body: 'ב' })
   })
+
+  /**
+   * The generic bag: answers to whatever parameters the CATALOG declares, which
+   * is how a first-party (`enum_agency`) selection reaches an executor without
+   * this projection learning what the parameter means.
+   */
+  it('projects catalog-declared parameter answers by their own key', () => {
+    expect(
+      actionParametersFromContent({ subject: '', body: '', actionParameters: { quoteTemplateId: '42' } }),
+    ).toEqual({ subject: '', body: '', quoteTemplateId: '42' })
+  })
+
+  it('an empty or absent bag leaves the projection byte-identical', () => {
+    expect(actionParametersFromContent({ subject: 'ש', body: 'ב', actionParameters: null })).toEqual({
+      subject: 'ש',
+      body: 'ב',
+    })
+    expect(actionParametersFromContent({ subject: 'ש', body: 'ב', actionParameters: { a: '  ' } })).toEqual({
+      subject: 'ש',
+      body: 'ב',
+    })
+  })
 })
 
 /**
