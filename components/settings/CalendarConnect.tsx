@@ -42,7 +42,15 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
      */
     <div className='rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2.5'>
-        <Icon name='calendar' className='size-7 bg-gray-900' />
+        {/* Authentic Google Calendar mark. Not `Icon` — that renders a CSS mask,
+            which is single-colour and cannot carry Google's four. Decorative:
+            the heading beside it is the accessible name. */}
+        <img
+          src='/media/social-icons/google-calendar-color.svg'
+          alt=''
+          aria-hidden='true'
+          className='size-7 shrink-0 object-contain'
+        />
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
         <h3 className='text-lg font-bold'>Google Calendar</h3>
         {state === 'connected' && (
@@ -50,22 +58,27 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
         )}
       </div>
 
+      {/*
+        Outside the state branches, so it stays visible once connected — the
+        way IntegrationCard renders its description. Worded descriptively
+        rather than as an instruction ("חבר את...") for the same reason: the
+        sentence has to still read correctly after the account is connected.
+      */}
+      <p className='text-gray-600 text-sm leading-relaxed'>
+        תזמון פגישות עם לידים וקישורי Google Meet אוטומטיים, ישירות מתוך ה-CRM.
+      </p>
+
       {state === 'not_connected' && (
-        <>
-          <p className='text-gray-600 text-sm leading-relaxed'>
-            חבר את חשבון Google שלך כדי לתזמן פגישות עם לידים ולקבל קישורי Google Meet אוטומטית.
-          </p>
-          <div className='mt-auto flex items-center justify-between gap-3'>
-            <span className='text-sm text-gray-400'>לא מחובר</span>
-            <Btn
-              lbl='חבר את Google Calendar'
-              onClick={() => {
-                const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
-                window.location.href = `/api/auth/google-calendar?returnTo=${returnTo}`
-              }}
-            />
-          </div>
-        </>
+        <div className='mt-auto flex items-center justify-between gap-3'>
+          <span className='text-sm text-gray-400'>לא מחובר</span>
+          <Btn
+            lbl='חבר את Google Calendar'
+            onClick={() => {
+              const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+              window.location.href = `/api/auth/google-calendar?returnTo=${returnTo}`
+            }}
+          />
+        </div>
       )}
 
       {state === 'connected' && (

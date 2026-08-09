@@ -28,8 +28,8 @@ export default function TeamCard({ teams, users, mngrs, offices }) {
 
   return (
     <>
-      <div className='flex justify-between my-6'>
-        <h1 className=' title'>עריכת צוותים</h1>
+      <div className='flex justify-between mb-8'>
+        <h1 className='title'>עריכת צוותים</h1>
         <Btn lbl='הוספת צוות' icon='plus' onClick={() => setCurTeam(true)} />
       </div>
       <div className='grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-4'>

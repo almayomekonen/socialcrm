@@ -68,7 +68,7 @@ describe('createTemplate — permission (server-side only)', () => {
   it('non-admin is rejected before any Graph call or persist', async () => {
     h.isAdmin.mockReturnValue(false)
     const res = await createTemplate(INPUT)
-    expect(res).toEqual({ ok: false, error: 'אין הרשאה ליצור הודעות מוכנות.' })
+    expect(res).toEqual({ ok: false, error: 'אין הרשאה ליצור הודעות WhatsApp מוכנות.' })
     expect(h.createTemplateOnMeta).not.toHaveBeenCalled()
     expect(h.insertOptimistic).not.toHaveBeenCalled()
   })
@@ -100,7 +100,7 @@ describe('createTemplate — connection', () => {
   it('errors when the agency has no WABA/token', async () => {
     h.state.connection = undefined
     const res = await createTemplate(INPUT)
-    expect(res).toEqual({ ok: false, error: 'צריך לחבר וואטסאפ עסקי לפני יצירת הודעות מוכנות.' })
+    expect(res).toEqual({ ok: false, error: 'צריך לחבר וואטסאפ עסקי לפני יצירת הודעות WhatsApp מוכנות.' })
     expect(h.createTemplateOnMeta).not.toHaveBeenCalled()
   })
 })

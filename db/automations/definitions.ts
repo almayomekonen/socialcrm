@@ -68,6 +68,12 @@ export interface AutomationDefinition {
   connectionId: string | null
   /** Stable source identities within that connection. */
   sourceIds: string[]
+  /**
+   * Last mutation time. Already written by every update path; it is selected so
+   * the list can show a `עודכן` column. Read-only addition — nothing writes it
+   * here that did not write it before.
+   */
+  updatedAt?: Date | string
 }
 
 const COLUMNS: string[] = [
@@ -84,6 +90,7 @@ const COLUMNS: string[] = [
   'actions',
   'connectionId',
   'sourceIds',
+  'updatedAt',
 ]
 
 export function listDefinitionsQuery(agencyId: number) {

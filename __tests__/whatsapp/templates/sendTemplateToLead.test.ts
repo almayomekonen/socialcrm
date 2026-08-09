@@ -70,7 +70,7 @@ describe('sendTemplateToLead — validation & gating', () => {
 
   it('rejects when the feature is not enabled for the agency (defense in depth)', async () => {
     h.isTemplatesEnabledForAgency.mockReturnValue(false)
-    expect(await sendTemplateToLead(9, 55)).toEqual({ ok: false, error: 'שליחת הודעות מוכנות אינה זמינה.' })
+    expect(await sendTemplateToLead(9, 55)).toEqual({ ok: false, error: 'שליחת הודעות WhatsApp מוכנות אינה זמינה.' })
     expect(h.loadTemplateForSend).not.toHaveBeenCalled()
   })
 })

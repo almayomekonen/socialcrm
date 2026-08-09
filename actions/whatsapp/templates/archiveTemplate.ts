@@ -11,7 +11,7 @@ import { loadTemplateForMutation, archiveTemplateRow } from '@/db/whatsappTempla
  */
 export type MutateTemplateResult = { ok: true } | { ok: false; error: string }
 
-const PERM_ERROR = 'אין הרשאה לנהל הודעות מוכנות.'
+const PERM_ERROR = 'אין הרשאה לנהל הודעות WhatsApp מוכנות.'
 const NOT_FOUND = 'ההודעה לא נמצאה.'
 const USE_DISCARD = 'הודעה שממתינה לבדיקה או שנדחתה — יש להסיר, לא להעביר לארכיון.'
 

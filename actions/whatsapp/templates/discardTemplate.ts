@@ -14,7 +14,7 @@ import type { MutateTemplateResult } from './archiveTemplate'
  * server-enforced. The token never leaves the server; Meta errors mapped to Hebrew.
  */
 
-const PERM_ERROR = 'אין הרשאה לנהל הודעות מוכנות.'
+const PERM_ERROR = 'אין הרשאה לנהל הודעות WhatsApp מוכנות.'
 const NOT_FOUND = 'ההודעה לא נמצאה.'
 const USE_ARCHIVE = 'הודעה מאושרת — אפשר להעביר לארכיון, לא להסיר.'
 

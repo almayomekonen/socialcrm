@@ -76,14 +76,14 @@ describe('TemplateList — sort (rejected → pending → approved)', () => {
   })
   it('has an accessible list label', () => {
     render(<TemplateList templates={[tpl(1, 'approved')]} />)
-    expect(screen.getByRole('list', { name: 'הודעות מוכנות' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'הודעות WhatsApp מוכנות' })).toBeInTheDocument()
   })
 })
 
 describe('TemplatesEmptyState', () => {
   it('answers what / why / next with an (inert) CTA', () => {
     render(<TemplatesEmptyState />)
-    expect(screen.getByText('אין עדיין הודעות מוכנות')).toBeInTheDocument()
+    expect(screen.getByText('אין עדיין הודעות WhatsApp מוכנות')).toBeInTheDocument()
     // CTA present as a button (Sprint 2: no navigation, inert by design)
     const cta = screen.getByRole('button', { name: /צור הודעה מוכנה/ })
     expect(cta).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('TemplatesSection — connection gating (one state at a time)', () => {
     expect(screen.getByText('צריך לחבר וואטסאפ עסקי')).toBeInTheDocument()
     const link = screen.getByRole('link', { name: 'למעבר לחיבור וואטסאפ' })
     expect(link).toHaveAttribute('href', '/settings/integrations?section=whatsapp')
-    expect(screen.queryByText('אין עדיין הודעות מוכנות')).toBeNull()
+    expect(screen.queryByText('אין עדיין הודעות WhatsApp מוכנות')).toBeNull()
     expect(listTemplates).not.toHaveBeenCalled()
   })
 
@@ -129,14 +129,14 @@ describe('TemplatesBody — resolved states', () => {
   it('empty → the empty state', async () => {
     listTemplates.mockResolvedValue([])
     render(await TemplatesBody({ agencyId: 103 }))
-    expect(screen.getByText('אין עדיין הודעות מוכנות')).toBeInTheDocument()
+    expect(screen.getByText('אין עדיין הודעות WhatsApp מוכנות')).toBeInTheDocument()
     expect(listTemplates).toHaveBeenCalledWith(103)
   })
 
   it('has templates → the list', async () => {
     listTemplates.mockResolvedValue([tpl(1, 'approved', 'תזכורת')])
     render(await TemplatesBody({ agencyId: 103 }))
-    expect(screen.getByRole('list', { name: 'הודעות מוכנות' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'הודעות WhatsApp מוכנות' })).toBeInTheDocument()
     expect(screen.getByText('תזכורת')).toBeInTheDocument()
   })
 })

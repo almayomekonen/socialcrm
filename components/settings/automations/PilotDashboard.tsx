@@ -50,9 +50,9 @@ export default function PilotDashboard({ metrics, mode }: { metrics: PilotMetric
 
   return (
     <div className='max-w-3xl grid gap-6'>
-      <div>
+      <div className='mb-2'>
         <h1 className='title'>מדדי פיילוט — פנימי</h1>
-        <p className='text-sm text-gray-500 mt-1'>
+        <p className='mt-2 max-w-2xl text-sm leading-relaxed text-gray-600'>
           {mode === 'log' ? 'מצב תצפית — לא נשלחים אימיילים בפועל' : 'מצב שליחה חי'} · {m.windowDays} הימים האחרונים ·
           נתוני העסק הזה בלבד
         </p>

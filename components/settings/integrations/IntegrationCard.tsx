@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { twMerge } from 'tailwind-merge'
 import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
@@ -58,7 +59,13 @@ export default function IntegrationCard({ integration }: { integration: Integrat
     // unequal content length.
     <div className='rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2.5'>
-        <Icon name={integration.icon} className='size-7 bg-gray-900' />
+        {/* A real logo when the brand ships one, the mask icon otherwise — see
+            `logoSrc` in ./catalog. Decorative: the title beside it is the name. */}
+        {integration.logoSrc ? (
+          <img src={integration.logoSrc} alt='' aria-hidden='true' className='size-7 shrink-0 object-contain' />
+        ) : (
+          <Icon name={integration.icon} className={twMerge('size-7 bg-gray-900', integration.iconClassName)} />
+        )}
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
         <h3 className='text-lg font-bold text-dark'>{integration.name}</h3>
         {connected && <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label='מחובר' />}
@@ -94,7 +101,7 @@ export default function IntegrationCard({ integration }: { integration: Integrat
               'מחובר'
             )}
           </span>
-          <Btn lbl='נתק' variant='outline' onClick={() => setConfirmOpen(true)} disabled={disconnecting} />
+          <Btn lbl='נתק חשבון' variant='outline' onClick={() => setConfirmOpen(true)} disabled={disconnecting} />
         </div>
       )}
 
@@ -103,7 +110,7 @@ export default function IntegrationCard({ integration }: { integration: Integrat
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleDisconnect}
         msg={`הקבצים הקיימים יישארו ב-CRM, אך ${integration.name} לא יהיה זמין עד לחיבור מחדש.`}
-        confirmLbl='נתק'
+        confirmLbl='נתק חשבון'
         destructive
       />
     </div>

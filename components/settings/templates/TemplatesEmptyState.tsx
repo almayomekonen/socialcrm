@@ -11,9 +11,9 @@ export default function TemplatesEmptyState({ onCreate }: { onCreate?: () => voi
   return (
     <div className='grid gap-3'>
       <div>
-        <p className='text-base font-medium text-gray-700'>אין עדיין הודעות מוכנות</p>
+        <p className='text-base font-medium text-gray-700'>אין עדיין הודעות WhatsApp מוכנות</p>
         <p className='mt-1 text-sm text-gray-500'>
-          הודעות מוכנות מאפשרות לפנות ללידים גם אחרי שהשיחה נרגעה — תזכורת, מבצע או עדכון — בלי להמתין שהליד יכתוב קודם.
+          הודעות WhatsApp מוכנות מאפשרות לפנות ללידים גם אחרי שהשיחה נרגעה — תזכורת, מבצע או עדכון — בלי להמתין שהליד יכתוב קודם.
         </p>
       </div>
 

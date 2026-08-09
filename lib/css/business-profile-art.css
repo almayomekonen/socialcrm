@@ -1,0 +1,101 @@
+/* ── Business profile hero (settings → פרטי העסק) ──────────────────────── */
+
+/*
+ * One entrance, ~560ms end to end: the avatar settles first, the six
+ * connectors arrive 70ms apart, and the anchor dots illuminate once every
+ * run has landed.
+ *
+ * Only opacity, transform and fill are animated, so the work stays on the
+ * compositor. Connectors and their travelling motes share a delay class
+ * rather than being wrapped in a group, which keeps the painting order of
+ * the artwork exactly as it was drawn.
+ */
+
+.bpa-avatar {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bpa-avatar-in 320ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/*
+ * Motes carry their alpha as `fill-opacity` so this can animate `opacity`
+ * without flattening them to solid: the two multiply.
+ */
+.bpa-run {
+  opacity: 0;
+  animation: bpa-run-in 160ms ease-out forwards;
+}
+.bpa-run-1 {
+  animation-delay: 60ms;
+}
+.bpa-run-2 {
+  animation-delay: 130ms;
+}
+.bpa-run-3 {
+  animation-delay: 200ms;
+}
+.bpa-run-4 {
+  animation-delay: 270ms;
+}
+.bpa-run-5 {
+  animation-delay: 340ms;
+}
+.bpa-run-6 {
+  animation-delay: 380ms;
+}
+
+.bpa-dot {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bpa-dot-in 160ms ease-out 400ms forwards;
+}
+
+@keyframes bpa-avatar-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bpa-run-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bpa-dot-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.45);
+    fill: #d3d8e0;
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.18);
+    fill: #9aa6d8;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    fill: #d3d8e0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bpa-avatar,
+  .bpa-run,
+  .bpa-dot {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

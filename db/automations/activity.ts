@@ -64,6 +64,23 @@ export async function listActivityForAutomation(agencyId: number, automationId: 
   return listActivityForAutomationQuery(agencyId, automationId, limit)
 }
 
+/**
+ * The agency-wide feed — every automation's activity in one stream, newest
+ * first. Same shape and same table as the per-automation log; the only
+ * difference is the absence of an `automationId` filter, so it rides the
+ * existing `automation_activity_agency_time_idx` (agencyId, occurredAt).
+ *
+ * Read-only and agency-scoped. It adds no column, writes nothing, and invents
+ * no metric — it reads rows the engine already records.
+ */
+export function listRecentActivityForAgencyQuery(agencyId: number, limit: number) {
+  return db('automation_activity').select('*').where({ agencyId }).orderBy('occurredAt', 'desc').limit(limit)
+}
+
+export async function listRecentActivityForAgency(agencyId: number, limit = 8) {
+  return listRecentActivityForAgencyQuery(agencyId, limit)
+}
+
 export function listActivityForLeadQuery(agencyId: number, leadId: number, limit: number) {
   return db('automation_activity')
     .select('*')

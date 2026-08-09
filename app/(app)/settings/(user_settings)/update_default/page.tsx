@@ -7,7 +7,7 @@ export default async function page() {
   const data = await getDefaultSettings(user.id)
   return (
     <div>
-      <h1 className='title'>הגדרות מערכת</h1>
+      <h1 className='title mb-8'>הגדרות מערכת</h1>
       <AiSettingsForm key={Math.random()} userId={user.id} data={data} />
     </div>
   )

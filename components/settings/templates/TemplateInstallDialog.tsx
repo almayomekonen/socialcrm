@@ -86,6 +86,33 @@ export default function TemplateInstallDialog({
           </>
         )}
 
+        {/*
+          Shown here rather than on the card because it only matters at the
+          moment of installing, and because the reassurance belongs next to
+          the button: a new version is an OFFER, never something applied to
+          automations the customer already owns.
+        */}
+        {view.updateAvailable && (
+          <>
+            <Seperator className='my-0' />
+            <section className='grid gap-2'>
+              <h3 className='text-sm font-semibold text-gray-800'>קיימת גרסה חדשה</h3>
+              <p className='text-sm text-gray-600 leading-relaxed'>
+                האוטומציות שכבר התקנתם לא ישתנו — התקנה תיצור עותק חדש לצידן.
+              </p>
+              {view.changes.length > 0 && (
+                <ul className='grid gap-1'>
+                  {view.changes.map((c) => (
+                    <li key={c.version} className='text-sm text-gray-500'>
+                      {c.note}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </>
+        )}
+
         <Seperator className='my-0' />
 
         <section className='grid gap-2'>

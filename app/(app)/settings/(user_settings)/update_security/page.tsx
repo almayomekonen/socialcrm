@@ -38,8 +38,8 @@ export default async function page() {
   return (
     <div>
       <h1 className='title'>אבטחה</h1>
-      <p className='text-gray-500 text-sm mt-1'>הגדרות האבטחה של החשבון שלך</p>
-      <div className='accordion my-6 max-w-2xl'>
+      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>הגדרות האבטחה של החשבון שלך</p>
+      <div className='accordion mb-6 max-w-2xl'>
         <AccordionItem bodyClass={bodyClass} title='פרק הזמן לניתוק מהמערכת'>
           <LogoutMinutesForm user={res} />
         </AccordionItem>

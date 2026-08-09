@@ -44,9 +44,10 @@ export default async function IntegrationsSettingsPage({
       <section className='mb-10'>
         <h2 className='text-xl font-bold text-dark'>מקורות לידים</h2>
         <p className='mt-1 mb-4 max-w-2xl text-sm text-gray-600'>מכאן נכנסים לידים חדשים למערכת, אוטומטית.</p>
-        {/* Same width as כלים מחוברים below — the two sections must read as
-            one page, not two. */}
-        <div className='max-w-3xl'>
+        {/* max-w-lg is the width the Facebook/WhatsApp accordion shipped with
+            on /settings/facebook. Kept as-is: the connect forms were laid out
+            for it, and widening the accordion was never part of the fix. */}
+        <div className='max-w-lg'>
           <LeadSourcesSection user={user} activeSection={activeSection} />
         </div>
       </section>

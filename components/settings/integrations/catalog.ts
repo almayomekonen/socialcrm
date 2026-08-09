@@ -22,8 +22,24 @@ export type IntegrationDescriptor = {
   name: string
   /** One-line, user-facing value proposition. */
   description: string
-  /** App icon key from '@/lib/Icon'. */
+  /** App icon key from '@/lib/Icon'. Used only when `logoSrc` is absent. */
   icon: IconNames
+  /**
+   * Optional brand tint for the mask icon (see `./brandColors`). Ignored when
+   * `logoSrc` is set — a real logo carries its own colours.
+   */
+  iconClassName?: string
+  /**
+   * Path to the product's authentic multi-colour logo under
+   * `/media/social-icons/`. When present the card renders this image instead
+   * of the mask icon.
+   *
+   * WHY BOTH EXIST: `@/lib/Icon` draws a CSS mask, which is a single-colour
+   * silhouette by construction — it can never show Google Drive's blue/green/
+   * yellow prism. Brand marks that are multi-colour therefore ship as real
+   * SVG files; everything else keeps the cheaper mask.
+   */
+  logoSrc?: string
   /** GET → { connected: boolean; email?: string }. */
   statusPath: string
   /** Browser-navigation target that starts the OAuth consent flow. */
@@ -42,6 +58,7 @@ export const INTEGRATIONS: IntegrationDescriptor[] = [
     name: 'Google Drive',
     description: 'חיפוש, צירוף וניתוח של קבצים מ-Drive ישירות בתוך הלידים ובעוזר החכם.',
     icon: 'google-drive',
+    logoSrc: '/media/social-icons/google-drive-color.svg',
     statusPath: '/api/auth/google-drive/status',
     connectPath: '/api/auth/google-drive',
     disconnectPath: '/api/auth/google-drive/disconnect',

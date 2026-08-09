@@ -55,7 +55,7 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
   } as ConfigT
 
   return (
-    <div className='my-8'>
+    <div className='mb-8'>
       <div className='flex justify-between gap-4'>
         <div className='flex gap-3 items-end mb-2'>
           <Search config={config} />

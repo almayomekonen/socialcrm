@@ -14,7 +14,7 @@ export default async function EditAgentsPage() {
 
   return (
     <div className='mb-8'>
-      <h1 className='title my-6'>עריכת משתמשים</h1>
+      <h1 className='title mb-8'>עריכת משתמשים</h1>
       <UsersTable users={users} agnts={agnts} teams={teams} tblPref={null} key={Math.random()} />
       <h1 className='title my-6'>הזמנות</h1>
 

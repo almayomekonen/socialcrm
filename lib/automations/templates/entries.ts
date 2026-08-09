@@ -165,7 +165,7 @@ ${BUSINESS_SIGNOFF}`,
     version: 1,
     title: 'תודה על פנייה מהטופס',
     category: 'form',
-    description: 'מי שממלא טופס באתר מקבל אישור מיידי שהפנייה הגיעה — לפני שהוא מספיק לתהות.',
+    description: 'מי שממלא טופס באתר מקבל אישור מיידי שהפנייה הגיעה לפני שהוא מספיק לתהות.',
     icon: 'file-lines',
     requirements: [
       {
@@ -202,7 +202,7 @@ ${BUSINESS_SIGNOFF}`,
     version: 1,
     title: 'תזכורת לפני פגישה',
     category: 'appointment',
-    description: 'הליד מקבל תזכורת לפני הפגישה, עם המועד והפרטים — כדי שלא יישכח ולא יתבלבל.',
+    description: 'הליד מקבל תזכורת לפני הפגישה, עם המועד והפרטים כדי שלא יישכח ולא יתבלבל.',
     icon: 'bell',
     /**
      * No requirement. The meeting already lives in the CRM, so there is nothing

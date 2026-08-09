@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
 import AutomationCard, { type AutomationCardData } from '@/components/settings/automations/AutomationCard'
@@ -30,10 +30,20 @@ const renderCard = (data: AutomationCardData) =>
   render(<AutomationCard data={data} onEdit={noop} onToggle={noop} onDuplicate={noop} onDelete={noop} onActivity={noop} />)
 
 describe('AutomationCard', () => {
+  // The row collapsed edit/log/duplicate/delete into one menu, so they are no
+  // longer four buttons sitting in the DOM at rest. The guarantee is unchanged
+  // and still checked in full: nothing is icon-only, and every action carries a
+  // text name. What moved is only WHEN they are in the tree — and the menu
+  // itself is a real, named, keyboard-reachable button, unlike the hover-only
+  // ghost buttons it replaced.
   it('names every action in text — no icon-only controls', () => {
     renderCard(card())
-    for (const label of ['השהה', 'ערוך', 'יומן פעילות', 'שכפל', 'מחק']) {
-      expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /השהה/ })).toBeInTheDocument()
+
+    const menu = screen.getByRole('button', { name: /פעולות/ })
+    fireEvent.click(menu)
+    for (const label of ['ערוך', 'יומן פעילות', 'שכפל', 'מחק']) {
+      expect(screen.getByRole('menuitem', { name: new RegExp(label) })).toBeInTheDocument()
     }
   })
 

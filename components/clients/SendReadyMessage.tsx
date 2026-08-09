@@ -74,7 +74,7 @@ export default function SendReadyMessage({ leadId, templates }: { leadId: number
 
         <div className='grid gap-6 md:grid-cols-[1fr_240px]'>
           <fieldset className='grid gap-2'>
-            <legend className='sr-only'>הודעות מוכנות לשליחה</legend>
+            <legend className='sr-only'>הודעות WhatsApp מוכנות לשליחה</legend>
             {templates.map((t) => (
               <label
                 key={t.id}

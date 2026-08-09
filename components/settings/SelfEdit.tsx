@@ -26,8 +26,10 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
   return (
     <div>
       <h1 className='title'>הגדרות החשבון</h1>
-      <p className='text-gray-500 text-sm mt-1'>נהל את הפרטים האישיים שלך, הרשאות גישה וניהול לידים</p>
-      <div className='accordion my-6 max-w-2xl'>
+      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
+        נהל את הפרטים האישיים שלך, הרשאות גישה וניהול לידים
+      </p>
+      <div className='accordion mb-6 max-w-2xl'>
         <AccordionItem
           icon='user'
           bodyClass={bodyClass}

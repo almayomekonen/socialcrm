@@ -18,13 +18,13 @@ import TemplatesWorkspace from '@/modules/templates/client/templatesStore'
 const NOT_CONNECTED: Notice = {
   tone: 'attention',
   title: 'צריך לחבר וואטסאפ עסקי',
-  explanation: 'כדי ליצור הודעות מוכנות, חברו קודם את מספר הוואטסאפ העסקי.',
+  explanation: 'כדי ליצור הודעות WhatsApp מוכנות, חברו קודם את מספר הוואטסאפ העסקי.',
 }
 
 const NOT_READY: Notice = {
   tone: 'attention',
   title: 'חיבור הוואטסאפ עדיין לא מוכן',
-  explanation: 'לאחר שהחיבור יאומת, אפשר יהיה ליצור הודעות מוכנות.',
+  explanation: 'לאחר שהחיבור יאומת, אפשר יהיה ליצור הודעות WhatsApp מוכנות.',
 }
 
 type Props = { agencyId: number; connected: boolean; messagingReady: boolean }

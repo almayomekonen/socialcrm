@@ -13,6 +13,7 @@ import { resolveWhatsappStatus, type WhatsappStatus } from '@/lib/whatsapp/opera
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
+import { BRAND } from './brandColors'
 
 /**
  * מקורות לידים — every system that, by being connected, causes new לידים to
@@ -111,7 +112,14 @@ export default async function LeadSourcesSection({
 
   return (
     <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
-      <AccordionItem id='facebook' bodyClass='p-6' title='פייסבוק' icon='facebook' open={openFacebook}>
+      <AccordionItem
+        id='facebook'
+        bodyClass='p-6'
+        title='פייסבוק'
+        icon='facebook'
+        iconClassName={BRAND.facebook}
+        open={openFacebook}
+      >
         <Suspense fallback={null}>
           <FacebookConnect
             connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
@@ -120,7 +128,14 @@ export default async function LeadSourcesSection({
           />
         </Suspense>
       </AccordionItem>
-      <AccordionItem id='whatsapp' bodyClass='p-6' title='וואטסאפ' icon='whatsapp' open={openWhatsapp}>
+      <AccordionItem
+        id='whatsapp'
+        bodyClass='p-6'
+        title='וואטסאפ'
+        icon='whatsapp'
+        iconClassName={BRAND.whatsapp}
+        open={openWhatsapp}
+      >
         <Suspense fallback={null}>
           <WhatsappConnect
             connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
@@ -136,8 +151,9 @@ export default async function LeadSourcesSection({
         <AccordionItem
           id='templates'
           bodyClass='p-6'
-          title='הודעות מוכנות'
-          icon='comment-dots'
+          title='הודעות WhatsApp מוכנות'
+          icon='whatsapp'
+          iconClassName={BRAND.templates}
           open={openTemplates}
           badge={
             <Suspense fallback={null}>
@@ -151,7 +167,14 @@ export default async function LeadSourcesSection({
         </AccordionItem>
       )}
       {websiteVisible && (
-        <AccordionItem id='website' bodyClass='p-6' title='האתר שלי' icon='globe' open={openWebsite}>
+        <AccordionItem
+          id='website'
+          bodyClass='p-6'
+          title='האתר שלי'
+          icon='globe'
+          iconClassName={BRAND.website}
+          open={openWebsite}
+        >
           <Suspense fallback={null}>
             <WebsiteConnection user={user} />
           </Suspense>
