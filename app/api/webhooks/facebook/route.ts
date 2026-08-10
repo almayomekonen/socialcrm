@@ -4,6 +4,7 @@ import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
 import { repairFacebookConnection } from '@/lib/facebook/health'
+import { logCanaryFeedEvent } from '@/lib/facebook/commentsCanary'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -198,6 +199,26 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(entry.changes)) continue
 
     for (const change of entry.changes) {
+      // CANARY EXPERIMENT (docs/facebook-comments-feasibility-audit.md §F).
+      // `feed` events are observed for exactly one opted-in Page and dropped
+      // for every other Page. Nothing is persisted and no Lead is created.
+      //
+      // The branch is `field === 'feed' → continue`, NOT `field === 'leadgen'
+      // → existing path`: gating leadgen on its field name would change which
+      // payloads the shipped path accepts. Anything that is not explicitly a
+      // feed event still reaches the leadgen code below byte-for-byte.
+      //
+      // try/catch because a malformed feed payload must never abort the batch
+      // and strand a sibling leadgen event.
+      if (change.field === 'feed') {
+        try {
+          logCanaryFeedEvent(pageId, change.value)
+        } catch (err) {
+          console.error('[FacebookCommentsCanary] Observation threw — ignoring:', err)
+        }
+        continue
+      }
+
       const leadId: string | undefined = change.value?.leadgen_id
       console.log(`[FacebookWebhook] Received — leadId=${leadId}, pageId=${pageId}`)
 
