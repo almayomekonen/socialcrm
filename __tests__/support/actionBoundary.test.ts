@@ -82,11 +82,33 @@ test('an over-cap user is refused before anything is written', async () => {
   expect(createSupportRequestSystem).not.toHaveBeenCalled()
 })
 
-test('an invalid category is refused with a typed code, not a throw', async () => {
+test('a client-supplied category is IGNORED, not rejected — the server derives it', async () => {
+  // The customer is never asked to classify their problem, so a category on the
+  // wire is not an error to refuse; it is simply not read. The request succeeds
+  // and the derived value wins.
   const { createSupportRequestAction } = await import('@/actions/support/requests')
   const res = await createSupportRequestAction({ ...valid, category: 'wallet' } as any)
-  expect(res).toEqual({ ok: false, reason: 'invalid_category' })
-  expect(createSupportRequestSystem).not.toHaveBeenCalled()
+  expect(res).toEqual({ ok: true, requestId: 77 })
+  expect(createSupportRequestSystem.mock.calls[0][0].category).toBe('other')
+})
+
+test('a client-supplied subject is IGNORED — the subject is derived from the body', async () => {
+  const { createSupportRequestAction } = await import('@/actions/support/requests')
+  await createSupportRequestAction({
+    ...valid,
+    body: 'הוואטסאפ לא מתחבר\nניסיתי הכל',
+    subject: 'ATTACKER CONTROLLED SUBJECT',
+  } as any)
+  const passed = createSupportRequestSystem.mock.calls[0][0]
+  expect(passed.subject).toBe('הוואטסאפ לא מתחבר')
+  expect(passed.subject).not.toContain('ATTACKER')
+})
+
+test('the derived subject is bounded before it reaches the column', async () => {
+  const { createSupportRequestAction } = await import('@/actions/support/requests')
+  await createSupportRequestAction({ ...valid, body: 'מילה '.repeat(500) } as any)
+  const passed = createSupportRequestSystem.mock.calls[0][0]
+  expect(passed.subject.length).toBeLessThanOrEqual(80)
 })
 
 test('an empty body with NO resolved context is refused (three-layer contract)', async () => {
@@ -118,7 +140,9 @@ test('clientRoute is stored sanitised and influences nothing else', async () => 
   const passed = createSupportRequestSystem.mock.calls[0][0]
   expect(passed.diagnostics.clientRoute).toBe('')
   expect(passed.agencyId).toBe(101)
-  expect(passed.category).toBe('whatsapp')
+  // Category is derived, and with no resolved context it is 'other' regardless
+  // of anything the route string claims.
+  expect(passed.category).toBe('other')
 })
 
 // --- reply path ---

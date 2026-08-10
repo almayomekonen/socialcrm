@@ -14,7 +14,13 @@ import {
 } from '@/db/support/requests'
 import { appendSupportMessageSystem } from '@/db/support/messages'
 import { canReplyToSupportRequest } from '@/lib/support/permissions'
-import { validateNewRequest, validateReplyBody } from '@/lib/support/validation'
+import {
+  validateNewRequest,
+  validateReplyBody,
+  assertDerivedSubject,
+  assertDerivedCategory,
+} from '@/lib/support/validation'
+import { deriveSubject, deriveCategory } from '@/lib/support/derive'
 import { buildDiagnostics } from '@/lib/support/diagnostics'
 import { isOverRequestLimit, rateLimitWindowStart } from '@/lib/support/rateLimit'
 import { toPersistedContext, type SupportContext } from '@/lib/support/supportContext'
@@ -43,8 +49,7 @@ export type SupportActionResult =
   | { ok: false; reason: SupportErrorCode }
 
 export async function createSupportRequestAction(input: {
-  subject: string
-  category: string
+  /** The ONE thing the customer typed. Subject and category are derived. */
   body: string
   kind?: string
   clientRoute?: string
@@ -58,17 +63,23 @@ export async function createSupportRequestAction(input: {
   const resolvedContext: SupportContext | null = null
   const hasContext = resolvedContext != null
 
-  const validated = validateNewRequest({
-    subject: input.subject,
-    category: input.category,
-    body: input.body,
-    hasContext,
-  })
+  const validated = validateNewRequest({ body: input.body, hasContext })
   // `'reason' in validated`, not `!validated.ok`: this repo compiles with
   // strictNullChecks off, under which a boolean discriminant does not narrow.
   // The house convention, and the same reason actions/billing/send.ts tests
   // `'error' in result`.
   if ('reason' in validated) return { ok: false, reason: validated.reason }
+
+  // DERIVED, never asked for. The customer classified nothing and titled
+  // nothing; the server did both from what they already gave us. Deterministic
+  // and bounded — see lib/support/derive.ts.
+  const derivedSubject = assertDerivedSubject(
+    resolvedContext?.subjectHint || deriveSubject(validated.value.body),
+  )
+  if ('reason' in derivedSubject) return { ok: false, reason: derivedSubject.reason }
+
+  const derivedCategory = assertDerivedCategory(deriveCategory(resolvedContext))
+  if ('reason' in derivedCategory) return { ok: false, reason: derivedCategory.reason }
 
   const since = rateLimitWindowStart(new Date())
   const recent = await countRequestsByUserSince(user.id, since)
@@ -103,9 +114,9 @@ export async function createSupportRequestAction(input: {
     createdByUserId: user.id,
     requesterName: getDisplayName(user),
     requesterEmail: user.email ?? '',
-    subject: validated.value.subject,
+    subject: derivedSubject.value,
     kind: coerceSupportKind(input.kind),
-    category: validated.value.category,
+    category: derivedCategory.value,
     body: validated.value.body,
     // Projected onto the five persisted keys. A resolver returning more cannot
     // leak it: the projection never reads the extra fields.

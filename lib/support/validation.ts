@@ -29,9 +29,15 @@ const BODY_MAX = 5000
 
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; reason: SupportErrorCode }
 
+/**
+ * Validates the ONE thing the customer actually typed.
+ *
+ * Subject and category are no longer inputs: the customer is never asked to
+ * write a subject line or classify their own problem. The action derives both
+ * (lib/support/derive.ts) and this function's job is reduced to the single
+ * question that matters — did they tell us enough to act on?
+ */
 export function validateNewRequest(input: {
-  subject: string
-  category: string
   body: string
   /**
    * Whether the SERVER resolved a context for this request. Derived from the
@@ -39,14 +45,7 @@ export function validateNewRequest(input: {
    * "I have context" to skip the body requirement.
    */
   hasContext: boolean
-}): ValidationResult<{ subject: string; category: SupportCategory; body: string }> {
-  const subject = (input.subject ?? '').trim()
-  if (subject.length === 0 || subject.length > SUBJECT_MAX) {
-    return { ok: false, reason: 'invalid_subject' }
-  }
-
-  if (!isSupportCategory(input.category)) return { ok: false, reason: 'invalid_category' }
-
+}): ValidationResult<{ body: string }> {
   // Trimmed BEFORE the length checks, so whitespace can never fake a body — and
   // so a whitespace-only body with context normalises to '' rather than being
   // stored as blanks that later render as an empty bubble.
@@ -56,7 +55,27 @@ export function validateNewRequest(input: {
     return { ok: false, reason: 'invalid_body' }
   }
 
-  return { ok: true, value: { subject, category: input.category, body } }
+  return { ok: true, value: { body } }
+}
+
+/**
+ * Guards the DERIVED subject before it reaches the column. Not a customer-facing
+ * validation — the customer cannot supply a subject — but the schema's NOT NULL
+ * and length limits are still real, and a derivation bug should fail loudly here
+ * rather than at the database.
+ */
+export function assertDerivedSubject(subject: string): ValidationResult<string> {
+  const trimmed = (subject ?? '').trim()
+  if (trimmed.length === 0 || trimmed.length > SUBJECT_MAX) {
+    return { ok: false, reason: 'invalid_subject' }
+  }
+  return { ok: true, value: trimmed }
+}
+
+/** Same role as above, for the derived category. */
+export function assertDerivedCategory(category: string): ValidationResult<SupportCategory> {
+  if (!isSupportCategory(category)) return { ok: false, reason: 'invalid_category' }
+  return { ok: true, value: category }
 }
 
 /**
