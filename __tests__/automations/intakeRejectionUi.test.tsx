@@ -1,0 +1,209 @@
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+
+import IntegrationConnectionCard from '@/components/settings/connections/IntegrationConnectionCard'
+import LeadIntakeBanner from '@/components/clients/LeadIntakeBanner'
+import MetaDisconnectedBanner from '@/components/clients/MetaDisconnectedBanner'
+import { DELIVERY } from '@/components/settings/connections/copy'
+import { INTAKE_ERRORS, intakeErrorCopy } from '@/lib/automations/connectors/intakeErrors'
+import type { IntegrationView } from '@/lib/automations/connectors/overview'
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }))
+vi.mock('@/actions/automations/connections', () => ({
+  connectionSetup: vi.fn(async () => ({ ok: true })),
+  regenerateSecret: vi.fn(async () => ({ ok: true })),
+  renameSource: vi.fn(async () => ({ ok: true })),
+  revokeConnection: vi.fn(async () => ({ ok: true })),
+  provisionApiKeyConnection: vi.fn(async () => ({ ok: true })),
+}))
+
+/**
+ * WHAT THE CUSTOMER SEES when a lead source is refusing what arrives.
+ *
+ * The fixtures are the same Zeta Desk integration `connectionsPage.test.tsx`
+ * uses, so "healthy is unchanged" is asserted against the identical shape.
+ */
+
+afterEach(cleanup)
+
+const view = (over: Partial<IntegrationView> = {}): IntegrationView => ({
+  integration: { key: 'zeta_desk', title: 'Zeta Desk', icon: 'headset', auth: 'api_key', capabilities: ['zeta_connected'] },
+  unlocks: [{ key: 'ticket.opened', title: 'נפתחה פנייה' }],
+  connections: [],
+  connected: false,
+  needsAttention: false,
+  ...over,
+})
+
+const connection = (over: Partial<IntegrationView['connections'][number]> = {}) => ({
+  id: 'zeta_desk:1',
+  displayName: 'הדסק הראשי',
+  health: 'ok' as const,
+  sources: [{ id: 'q_1', label: 'תור תמיכה', subscription: 'subscribed' as const, health: 'ok' as const }],
+  automations: 3,
+  lastActivityAt: null,
+  lastEventAt: '2026-08-09T10:00:00.000Z',
+  eventCount: 12,
+  lastRejectedAt: null,
+  consecutiveRejections: 0,
+  lastRejectionReason: null,
+  delivery: 'receiving' as const,
+  reportsDelivery: true,
+  ...over,
+})
+
+const rejecting = () =>
+  connection({
+    delivery: 'rejected' as const,
+    lastRejectedAt: '2026-08-10T10:00:00.000Z',
+    consecutiveRejections: 3,
+    lastRejectionReason: 'invalid_signature',
+  })
+
+const noop = () => {}
+
+// ── 5, 11: the connection card ──────────────────────────────────────────────
+
+describe('the connection card in the rejected state', () => {
+  it('says פניות נדחות instead of מקבל אירועים', () => {
+    render(<IntegrationConnectionCard view={view({ connections: [rejecting()], connected: true })} onChanged={noop} />)
+    expect(screen.getAllByText(DELIVERY.rejected.label).length).toBeGreaterThan(0)
+    expect(screen.queryByText(DELIVERY.receiving.label)).not.toBeInTheDocument()
+  })
+
+  it('explains it in the customer’s terms, as an alert', () => {
+    render(<IntegrationConnectionCard view={view({ connections: [rejecting()], connected: true })} onChanged={noop} />)
+    const copy = intakeErrorCopy('invalid_signature')!
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(copy.title)
+    expect(alert).toHaveTextContent(copy.explanation)
+  })
+
+  it('NEVER prints the technical reason it is holding', () => {
+    const { container } = render(
+      <IntegrationConnectionCard view={view({ connections: [rejecting()], connected: true })} onChanged={noop} />,
+    )
+    // The card has `lastRejectionReason: 'invalid_signature'` in its props and
+    // must not leak a character of it — nor any of its neighbours.
+    for (const term of ['invalid_signature', 'signature', 'HMAC', 'webhook', '401', 'Error', 'undefined']) {
+      expect(container.textContent, term).not.toContain(term)
+    }
+  })
+
+  it('offers the way to fix it', () => {
+    render(<IntegrationConnectionCard view={view({ connections: [rejecting()], connected: true })} onChanged={noop} />)
+    const cta = screen.getByRole('link', { name: 'בדיקת החיבור' })
+    expect(cta).toHaveAttribute('href', '/settings/integrations?section=website')
+  })
+
+  it('renders nothing extra for a reason with no customer copy', () => {
+    // Belt and braces: `deliveryStateOf` cannot produce `rejected` for these,
+    // but if it ever did the card stays quiet rather than rendering a blank box.
+    render(
+      <IntegrationConnectionCard
+        view={view({ connections: [connection({ delivery: 'rejected' as const, lastRejectionReason: 'not_actionable' })], connected: true })}
+        onChanged={noop}
+      />,
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// ── 14: the regression guard ────────────────────────────────────────────────
+
+describe('a healthy connection is untouched by any of this', () => {
+  it('still reads as receiving, with no alert', () => {
+    render(<IntegrationConnectionCard view={view({ connections: [connection()], connected: true })} onChanged={noop} />)
+    expect(screen.getAllByText(DELIVERY.receiving.label).length).toBeGreaterThan(0)
+    expect(screen.queryByText(DELIVERY.rejected.label)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('every delivery state still has its own Hebrew', () => {
+    // The `Record<DeliveryState, …>` is what makes adding a state a compile
+    // error rather than a blank chip; `rejected` joining it changed nothing else.
+    for (const state of ['disconnected', 'never_received', 'receiving', 'unknown', 'rejected'] as const) {
+      expect(DELIVERY[state].label.trim().length, state).toBeGreaterThan(0)
+    }
+    // `receiving` alone has no hint — there is nothing to explain when it works.
+    expect(DELIVERY.receiving.hint).toBe('')
+    expect(DELIVERY.rejected.role).toBe('error')
+    expect(DELIVERY.rejected.hint.trim().length).toBeGreaterThan(0)
+  })
+})
+
+// ── 7, 8, 11: the leads-page banner ─────────────────────────────────────────
+
+const alert = () => ({
+  connectionId: 'zeta_desk:1',
+  title: INTAKE_ERRORS.invalid_signature!.title,
+  short: INTAKE_ERRORS.invalid_signature!.short,
+  action: INTAKE_ERRORS.invalid_signature!.action,
+})
+
+describe('the leads page banner', () => {
+  it('says nothing when nothing is wrong', () => {
+    const { container } = render(<LeadIntakeBanner alerts={[]} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('states the problem, the consequence and the way out', () => {
+    render(<LeadIntakeBanner alerts={[alert()]} />)
+    expect(screen.getByText(alert().title)).toBeInTheDocument()
+    expect(screen.getByText(alert().short)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'בדיקת החיבור' })).toHaveAttribute(
+      'href',
+      '/settings/integrations?section=website',
+    )
+  })
+
+  it('announces politely rather than interrupting', () => {
+    render(<LeadIntakeBanner alerts={[alert()]} />)
+    const region = screen.getByRole('status')
+    expect(region).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('shows ONE problem, not a pile', () => {
+    render(<LeadIntakeBanner alerts={[alert(), { ...alert(), connectionId: 'zeta_desk:2', title: 'שני' }]} />)
+    expect(screen.queryByText('שני')).not.toBeInTheDocument()
+  })
+
+  it('leaks no technical term', () => {
+    const { container } = render(<LeadIntakeBanner alerts={[alert()]} />)
+    for (const term of ['invalid_signature', 'signature', 'webhook', 'HMAC', '401', 'zeta_desk:1']) {
+      expect(container.textContent, term).not.toContain(term)
+    }
+  })
+})
+
+// ── 15: the banner that was already there ───────────────────────────────────
+
+describe('MetaDisconnectedBanner is exactly as it was', () => {
+  it('renders nothing when not shown', () => {
+    const { container } = render(<MetaDisconnectedBanner show={false} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('keeps its own sentence and its own destination', () => {
+    render(<MetaDisconnectedBanner show />)
+    expect(screen.getByText('חשבון ה‑Meta מנותק. לידים חדשים לא ייכנסו עד שתחבר אותו מחדש.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'חבר מחדש' })).toHaveAttribute(
+      'href',
+      '/settings/integrations?section=facebook',
+    )
+  })
+
+  it('the two banners coexist without either speaking for the other', () => {
+    render(
+      <div>
+        <MetaDisconnectedBanner show />
+        <LeadIntakeBanner alerts={[alert()]} />
+      </div>,
+    )
+    expect(screen.getByRole('link', { name: 'חבר מחדש' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'בדיקת החיבור' })).toBeInTheDocument()
+  })
+})

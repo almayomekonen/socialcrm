@@ -6,6 +6,7 @@ import { listIntegrations, listSelectableEvents } from '../catalog/registry'
 import type { IntegrationDefinition } from '../catalog/types'
 import type { ConnectionHealth, SourceSubscriptionState } from '../catalog/vocabularies'
 import { listAllConnections, listSourcesFor } from './registry'
+import { isFailingIntake } from './intakeErrors'
 
 /**
  * EVERYTHING THE CONNECTIONS PAGE RENDERS, assembled generically.
@@ -53,6 +54,13 @@ export type DeliveryState =
   | 'receiving'
   /** Healthy, but this connector does not report deliveries. */
   | 'unknown'
+  /**
+   * Healthy, authorised, and REFUSING what arrives. Neither of the two states
+   * above covers it: the connection is not silent and it is not receiving. It
+   * ranks above `receiving` precisely so a stale `lastEventAt` from before the
+   * breakage can never mask it.
+   */
+  | 'rejected'
 
 export type ConnectionView = {
   id: string
@@ -64,6 +72,12 @@ export type ConnectionView = {
   /** When a signed payload last arrived. Null = never, or not reported. */
   lastEventAt: string | null
   eventCount: number
+  /** When a delivery was last refused. */
+  lastRejectedAt: string | null
+  /** Refusals since the last verified delivery. */
+  consecutiveRejections: number
+  /** TECHNICAL reason. Never rendered — mapped to customer copy at the surface. */
+  lastRejectionReason: string | null
   delivery: DeliveryState
   /** Whether the connector reports deliveries at all. */
   reportsDelivery: boolean
@@ -88,10 +102,23 @@ function unlockedBy(integration: IntegrationDefinition) {
     .map((e) => ({ key: e.key, title: e.title }))
 }
 
-function deliveryStateOf(health: ConnectionHealth, reports: boolean, count: number): DeliveryState {
+/**
+ * Order matters, and each step is a claim about which truth wins.
+ *
+ * `rejected` is tested BEFORE `receiving`: a connection that worked yesterday
+ * still has a non-zero `eventCount`, so checking delivery first would render
+ * "מקבל אירועים" over an active failure — the exact reassurance-while-losing-
+ * leads this state exists to end.
+ */
+export function deliveryStateOf(
+  health: ConnectionHealth,
+  reports: boolean,
+  facts: { eventCount: number; consecutiveRejections: number; lastRejectedAt: string | null; lastEventAt: string | null; lastRejectionReason: string | null },
+): DeliveryState {
   if (health !== 'ok') return 'disconnected'
   if (!reports) return 'unknown'
-  return count > 0 ? 'receiving' : 'never_received'
+  if (isFailingIntake(facts)) return 'rejected'
+  return facts.eventCount > 0 ? 'receiving' : 'never_received'
 }
 
 export async function integrationOverview(agencyId: number): Promise<IntegrationView[]> {
@@ -114,6 +141,13 @@ export async function integrationOverview(agencyId: number): Promise<Integration
     const views: ConnectionView[] = mine.map(({ connection, sources }) => {
       const facts = delivery[connection.id]
       const reportsDelivery = facts !== undefined
+      const rejectionFacts = {
+        eventCount: facts?.eventCount ?? 0,
+        consecutiveRejections: facts?.consecutiveRejections ?? 0,
+        lastRejectedAt: facts?.lastRejectedAt ?? null,
+        lastEventAt: facts?.lastEventAt ?? null,
+        lastRejectionReason: facts?.lastRejectionReason ?? null,
+      }
       return {
         id: connection.id,
         displayName: connection.displayName,
@@ -128,7 +162,10 @@ export async function integrationOverview(agencyId: number): Promise<Integration
         lastActivityAt: usage[connection.id]?.lastActivityAt ?? null,
         lastEventAt: facts?.lastEventAt ?? null,
         eventCount: facts?.eventCount ?? 0,
-        delivery: deliveryStateOf(connection.health, reportsDelivery, facts?.eventCount ?? 0),
+        lastRejectedAt: rejectionFacts.lastRejectedAt,
+        consecutiveRejections: rejectionFacts.consecutiveRejections,
+        lastRejectionReason: rejectionFacts.lastRejectionReason,
+        delivery: deliveryStateOf(connection.health, reportsDelivery, rejectionFacts),
         reportsDelivery,
       }
     })

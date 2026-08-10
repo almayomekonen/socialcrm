@@ -78,6 +78,11 @@ const connection = (over: Partial<IntegrationView['connections'][number]> = {}) 
   lastActivityAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
   lastEventAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   eventCount: 12,
+  // Healthy by default: nothing refused, so every existing assertion in this
+  // file keeps describing a connection that is receiving normally.
+  lastRejectedAt: null,
+  consecutiveRejections: 0,
+  lastRejectionReason: null,
   delivery: 'receiving' as const,
   reportsDelivery: true,
   ...over,

@@ -10,12 +10,14 @@ import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import MetaDisconnectedBanner from '@/components/clients/MetaDisconnectedBanner'
+import LeadIntakeBanner from '@/components/clients/LeadIntakeBanner'
 import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
 import WelcomeToast from '@/components/auth/WelcomeToast'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { getFacebookConnectionState } from '@/db/facebook'
 import { getWhatsappConnectionState } from '@/db/whatsapp'
+import { intakeAlerts } from '@/lib/automations/connectors/intakeAlerts'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -25,7 +27,7 @@ export const metadata: Metadata = {
 export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
-  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, trialRow, meta, wa] = await Promise.all([
+  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, trialRow, meta, wa, intake] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
     getLeadLists(user.id),
@@ -35,6 +37,7 @@ export default async function LeadsPage({ searchParams }) {
     getAgencyTrial(user.agencyId),
     getFacebookConnectionState(user.id),
     getWhatsappConnectionState(user.id),
+    intakeAlerts(user.agencyId),
   ])
 
   const suppressGreeting = trialRow ? getTrialState(trialRow, new Date()).status === 'NEVER_STARTED' : false
@@ -65,6 +68,9 @@ export default async function LeadsPage({ searchParams }) {
         <>
           <div data-alert-region='crm-sync' className='shrink-0'>
             <MetaDisconnectedBanner show={meta.needsReconnect} />
+            {/* A lead source that is refusing what arrives — same surface, same
+                consequence, same shape as the Meta banner above it. */}
+            <LeadIntakeBanner alerts={intake} />
             <OverQuotaBanner count={quota.overQuotaCount} />
             <CrmSyncBanner sources={['leads', 'awareness']} />
           </div>

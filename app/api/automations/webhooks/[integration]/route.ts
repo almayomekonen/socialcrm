@@ -3,7 +3,8 @@ import { db } from '@/config/db'
 import { webhookConnectorFor } from '@/lib/automations/connectors/registry'
 import { ingestWebhookWith, type IngestRejection } from '@/lib/automations/connectors/ingest'
 import { emitAutomationEvent } from '@/lib/automations/emit'
-import { recordDelivery } from '@/db/automations/connectionDelivery'
+import { recordDelivery, recordRejection } from '@/db/automations/connectionDelivery'
+import { isCustomerFacingRejection } from '@/lib/automations/connectors/intakeErrors'
 
 /**
  * THE generic connector webhook endpoint.
@@ -83,6 +84,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ integration: s
   // `'reason' in outcome` rather than `!outcome.accepted`: this repo compiles
   // with strictNullChecks off, under which boolean discriminants do not narrow.
   if ('reason' in outcome) {
+    /**
+     * PERSIST the ones a customer could act on, so the failure outlives the log
+     * line. Only those: the three reasons that return 200 are decisions rather
+     * than errors ("the provider sent something we do not act on"), and counting
+     * them would drive a healthy connection into an alarm over normal traffic.
+     *
+     * `lastEventAt` is untouched — nothing was delivered.
+     */
+    if (isCustomerFacingRejection(outcome.reason)) await recordRejection(row.id, outcome.reason)
+
     // Named, never silent — a dropped booking must be greppable.
     console.warn(LOG, { rejected: outcome.reason, integration, agencyId: row.agencyId, connectionId })
     return NextResponse.json({ ok: false, reason: outcome.reason }, { status: STATUS[outcome.reason] })

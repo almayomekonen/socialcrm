@@ -7,6 +7,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { StatusBadge } from '@/lib/StatusBadge'
 import { toast } from '@/lib/toast'
 import { revokeConnection } from '@/actions/automations/connections'
+import { intakeErrorCopy } from '@/lib/automations/connectors/intakeErrors'
 import type { ConnectionView, IntegrationView } from '@/lib/automations/connectors/overview'
 import ConnectAction from './ConnectAction'
 import ConnectionDetails from './ConnectionDetails'
@@ -97,6 +98,28 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
                 </div>
 
                 {delivery.hint && <p className='text-sm text-gray-500'>{delivery.hint}</p>}
+
+                {/*
+                  What actually happened, in the customer's terms. The technical
+                  reason is mapped, never printed: `lastRejectionReason` holds
+                  `invalid_signature` and this renders the sentence for it.
+                */}
+                {c.delivery === 'rejected' &&
+                  (() => {
+                    const copy = intakeErrorCopy(c.lastRejectionReason)
+                    if (!copy) return null
+                    return (
+                      <div className='grid gap-2 rounded-md border border-red-200 bg-red-50 p-3' role='alert'>
+                        <p className='text-sm font-semibold text-red-900'>{copy.title}</p>
+                        <p className='text-sm text-red-800'>{copy.explanation}</p>
+                        {copy.action && (
+                          <span>
+                            <Btn variant='outline' size='small' lbl={copy.action.label} href={copy.action.href} />
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                 <p className='text-sm text-gray-500'>
                   {c.sources.length === 1 ? 'מקור אחד' : `${c.sources.length} מקורות`}

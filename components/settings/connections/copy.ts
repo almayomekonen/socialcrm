@@ -83,6 +83,12 @@ export const DELIVERY: Record<DeliveryState, { role: StatusRole; label: string; 
     hint: 'החיבור נוצר, אבל עדיין לא הגיע אליו מידע. שלחו טופס אחד לבדיקה.',
   },
   receiving: { role: 'success', label: 'מקבל אירועים', hint: '' },
+  /**
+   * Arriving, and being refused. The hint is deliberately the customer-facing
+   * explanation's subject and not the technical reason — the card renders the
+   * mapped copy from `INTAKE_ERRORS` beneath it, which names what was lost.
+   */
+  rejected: { role: 'error', label: 'פניות נדחות', hint: 'מגיעות פניות לחיבור הזה אבל הן לא נכנסות למערכת.' },
   unknown: { role: 'neutral', label: 'מחובר', hint: 'החיבור הזה אינו מדווח על קליטת מידע.' },
 }
 
