@@ -312,11 +312,24 @@ describe('technical reason → customer copy', () => {
     expect(copy.short).toBe('פניות מהטופס מגיעות אבל לא נכנסות למערכת.')
   })
 
-  it('the CTA points at the real integration destination', () => {
-    expect(intakeErrorCopy('invalid_signature')!.action).toEqual({
-      label: 'בדיקת החיבור',
-      href: '/settings/integrations?section=website',
-    })
+  /**
+   * NO CTA, and this is an assertion rather than an omission.
+   *
+   * `בדיקת החיבור` used to live here and did nothing but navigate. The label
+   * named a diagnostic that does not exist and — the connector being
+   * inbound-only — cannot be built in that shape. The message stands alone.
+   */
+  it('carries NO call to action', () => {
+    for (const [reason, copy] of Object.entries(INTAKE_ERRORS)) {
+      expect(copy!.action, `${reason} must not offer an action`).toBeUndefined()
+    }
+  })
+
+  it('never offers בדיקת החיבור again — it promises a test that cannot exist', () => {
+    const all = Object.values(INTAKE_ERRORS)
+      .map((c) => `${c!.title} ${c!.explanation} ${c!.short} ${c!.action?.label ?? ''}`)
+      .join(' ')
+    expect(all).not.toContain('בדיקת החיבור')
   })
 
   it('NO customer copy leaks a technical term', () => {
@@ -342,7 +355,12 @@ describe('technical reason → customer copy', () => {
     }
   })
 
-  it('every mapped reason that offers an action has a real destination', () => {
+  /**
+   * The rule that outlives the current emptiness: if a future re-pairing flow
+   * fills `action` back in, it must point somewhere real. Vacuous today, and
+   * deliberately kept — it is the guard on the seat, not on today's value.
+   */
+  it('any action added later must have a real destination and a label', () => {
     for (const [reason, copy] of Object.entries(INTAKE_ERRORS)) {
       if (!copy!.action) continue
       expect(copy!.action.href.startsWith('/'), reason).toBe(true)

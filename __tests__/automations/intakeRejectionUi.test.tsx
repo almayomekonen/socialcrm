@@ -101,10 +101,19 @@ describe('the connection card in the rejected state', () => {
     }
   })
 
-  it('offers the way to fix it', () => {
+  /**
+   * The alert block carries NO button. `בדיקת החיבור` used to sit here and only
+   * navigated to the page the card is already on — a self-link beside `פרטים`,
+   * the control that actually opens the repair flow.
+   */
+  it('offers no CTA of its own, leaving פרטים as the real action', () => {
     render(<IntegrationConnectionCard view={view({ connections: [rejecting()], connected: true })} onChanged={noop} />)
-    const cta = screen.getByRole('link', { name: 'בדיקת החיבור' })
-    expect(cta).toHaveAttribute('href', '/settings/integrations?section=website')
+    const alert = screen.getByRole('alert')
+    expect(alert.querySelector('a')).toBeNull()
+    expect(alert.querySelector('button')).toBeNull()
+    expect(screen.queryByText('בדיקת החיבור')).not.toBeInTheDocument()
+    // The card's own actions are untouched — this is what the customer presses.
+    expect(screen.getByRole('button', { name: 'פרטים' })).toBeInTheDocument()
   })
 
   it('renders nothing extra for a reason with no customer copy', () => {
@@ -158,14 +167,14 @@ describe('the leads page banner', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('states the problem, the consequence and the way out', () => {
+  it('states the problem and the consequence — and nothing it cannot deliver', () => {
     render(<LeadIntakeBanner alerts={[alert()]} />)
     expect(screen.getByText(alert().title)).toBeInTheDocument()
     expect(screen.getByText(alert().short)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'בדיקת החיבור' })).toHaveAttribute(
-      'href',
-      '/settings/integrations?section=website',
-    )
+    // No button: the title already names the surface, and the only destination
+    // we had is gated to ADMIN while this banner is not.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.queryByText('בדיקת החיבור')).not.toBeInTheDocument()
   })
 
   it('announces politely rather than interrupting', () => {
@@ -208,13 +217,13 @@ describe('the confirmed production regression (connection #3)', () => {
     expect(screen.getAllByText(DELIVERY.rejected.label).length).toBeGreaterThan(0)
   })
 
-  it('(7) the leads banner appears, with the required copy', () => {
+  it('(7) the leads banner appears, with the required copy and no CTA', () => {
     expect(isFailingIntake(PROD_ROW)).toBe(true)
     const copy = intakeErrorCopy(PROD_ROW.lastRejectionReason)!
     render(<LeadIntakeBanner alerts={[{ connectionId: 'contact_form_7:3', title: copy.title, short: copy.short, action: copy.action }]} />)
     expect(screen.getByText('יש בעיה בחיבור לטופס באתר')).toBeInTheDocument()
     expect(screen.getByText('פניות מהטופס מגיעות אבל לא נכנסות למערכת.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'בדיקת החיבור' })).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('(5) one verified delivery puts it straight back to מקבל אירועים', () => {
@@ -256,7 +265,11 @@ describe('MetaDisconnectedBanner is exactly as it was', () => {
         <LeadIntakeBanner alerts={[alert()]} />
       </div>,
     )
+    // Meta keeps its CTA — its label promises navigation and its destination is
+    // ungated, so it delivers. The intake banner has none, and the two sitting
+    // side by side must not blur into one another.
+    expect(screen.getByText('יש בעיה בחיבור לטופס באתר')).toBeInTheDocument()
+    expect(screen.getAllByRole('link')).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'חבר מחדש' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'בדיקת החיבור' })).toBeInTheDocument()
   })
 })
