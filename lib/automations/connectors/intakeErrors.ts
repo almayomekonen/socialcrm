@@ -22,7 +22,13 @@ export type IntakeErrorCopy = {
   explanation: string
   /** Short form for a banner, where the title already carries the subject. */
   short: string
-  /** Present ONLY when a real destination exists. */
+  /**
+   * Present ONLY when pressing it does something the label promises.
+   *
+   * Currently NO entry sets it — see the note on `INTAKE_ERRORS` below. The
+   * field stays because both surfaces already guard on it and a future
+   * re-pairing flow will fill it; it is not dead weight, it is an empty seat.
+   */
   action?: { label: string; href: string }
 }
 
@@ -39,19 +45,40 @@ export type IntakeErrorCopy = {
  * `subject_unresolved` is intentionally absent: a submission with no
  * identifiable lead is a real failure, but a DIFFERENT one, and calling it a
  * connection problem would send the customer to the wrong screen.
+ *
+ * NO ENTRY CARRIES AN `action`, deliberately — see
+ * `docs/customer-facing-intake-error-cta-decision.md`.
+ *
+ * These entries used to offer `בדיקת החיבור`, which navigated to
+ * `?section=website` and did nothing else. It was removed for three reasons and
+ * must not come back under that name:
+ *
+ *  · It named a capability that does not exist. No connection test exists for
+ *    any non-Meta connector, and CF7 could never have one that works this way:
+ *    the connector is INBOUND-ONLY, so nothing here can originate a request to
+ *    the customer's site to prove the wiring. A future CTA is `עדכון החיבור`
+ *    (re-pair, confirmed by the next real delivery), never `בדיקת החיבור`.
+ *  · On the connection card it was a self-link — the card renders inside the
+ *    `?section=website` accordion — sitting beside `פרטים`, the button that
+ *    actually opens the repair flow.
+ *  · Its destination is ADMIN + allowlist gated (`isWebsiteSectionVisible`)
+ *    while the banner that carried it is not, so a נציג pressing it landed on a
+ *    page with every accordion closed.
+ *
+ * The message alone already tells the customer what happened, that leads are
+ * being lost, and which connection is at fault. A truthful sentence with no
+ * button beats a button that lies.
  */
 export const INTAKE_ERRORS: Partial<Record<IngestRejection, IntakeErrorCopy>> = {
   invalid_signature: {
     title: 'יש בעיה בחיבור לטופס באתר',
     explanation: 'התקבל ניסיון לשלוח ליד מהטופס באתר שלך, אבל החיבור לא אומת ולכן הליד לא נכנס למערכת.',
     short: 'פניות מהטופס מגיעות אבל לא נכנסות למערכת.',
-    action: { label: 'בדיקת החיבור', href: '/settings/integrations?section=website' },
   },
   unreadable_payload: {
     title: 'יש בעיה בחיבור לטופס באתר',
     explanation: 'התקבלה פנייה מהטופס באתר שלך במבנה שלא הצלחנו לקרוא, ולכן הליד לא נכנס למערכת.',
     short: 'פניות מהטופס מגיעות במבנה שאינו נקרא.',
-    action: { label: 'בדיקת החיבור', href: '/settings/integrations?section=website' },
   },
 }
 
