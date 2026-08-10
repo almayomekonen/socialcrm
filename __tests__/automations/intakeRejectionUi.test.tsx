@@ -8,7 +8,8 @@ import IntegrationConnectionCard from '@/components/settings/connections/Integra
 import LeadIntakeBanner from '@/components/clients/LeadIntakeBanner'
 import MetaDisconnectedBanner from '@/components/clients/MetaDisconnectedBanner'
 import { DELIVERY } from '@/components/settings/connections/copy'
-import { INTAKE_ERRORS, intakeErrorCopy } from '@/lib/automations/connectors/intakeErrors'
+import { INTAKE_ERRORS, intakeErrorCopy, isFailingIntake } from '@/lib/automations/connectors/intakeErrors'
+import { deliveryStateOf } from '@/lib/automations/connectors/overview'
 import type { IntegrationView } from '@/lib/automations/connectors/overview'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }))
@@ -55,11 +56,18 @@ const connection = (over: Partial<IntegrationView['connections'][number]> = {}) 
   ...over,
 })
 
+/**
+ * Production connection #3 verbatim: 57 verified deliveries, then ONE
+ * `invalid_signature` six days later. Deliberately a single refusal — the
+ * regression case that used to render "מקבל אירועים".
+ */
 const rejecting = () =>
   connection({
     delivery: 'rejected' as const,
-    lastRejectedAt: '2026-08-10T10:00:00.000Z',
-    consecutiveRejections: 3,
+    eventCount: 57,
+    lastEventAt: '2026-08-04T16:42:28.956Z',
+    lastRejectedAt: '2026-08-10T07:34:26.653Z',
+    consecutiveRejections: 1,
     lastRejectionReason: 'invalid_signature',
   })
 
@@ -176,6 +184,51 @@ describe('the leads page banner', () => {
     for (const term of ['invalid_signature', 'signature', 'webhook', 'HMAC', '401', 'zeta_desk:1']) {
       expect(container.textContent, term).not.toContain(term)
     }
+  })
+})
+
+// ── 7, 8: the production regression, end to end ─────────────────────────────
+
+describe('the confirmed production regression (connection #3)', () => {
+  // The row exactly as production held it, fed through the real state machine
+  // rather than handed a `delivery` prop — so the derivation is what is tested.
+  const PROD_ROW = {
+    eventCount: 57,
+    consecutiveRejections: 1,
+    lastRejectedAt: '2026-08-10T07:34:26.653Z',
+    lastEventAt: '2026-08-04T16:42:28.956Z',
+    lastRejectionReason: 'invalid_signature',
+  }
+
+  it('(8) the card does NOT say מקבל אירועים', () => {
+    const derived = connection({ ...PROD_ROW, delivery: deliveryStateOf('ok', true, PROD_ROW) })
+    expect(derived.delivery).toBe('rejected')
+    render(<IntegrationConnectionCard view={view({ connections: [derived], connected: true })} onChanged={noop} />)
+    expect(screen.queryByText(DELIVERY.receiving.label)).not.toBeInTheDocument()
+    expect(screen.getAllByText(DELIVERY.rejected.label).length).toBeGreaterThan(0)
+  })
+
+  it('(7) the leads banner appears, with the required copy', () => {
+    expect(isFailingIntake(PROD_ROW)).toBe(true)
+    const copy = intakeErrorCopy(PROD_ROW.lastRejectionReason)!
+    render(<LeadIntakeBanner alerts={[{ connectionId: 'contact_form_7:3', title: copy.title, short: copy.short, action: copy.action }]} />)
+    expect(screen.getByText('יש בעיה בחיבור לטופס באתר')).toBeInTheDocument()
+    expect(screen.getByText('פניות מהטופס מגיעות אבל לא נכנסות למערכת.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'בדיקת החיבור' })).toBeInTheDocument()
+  })
+
+  it('(5) one verified delivery puts it straight back to מקבל אירועים', () => {
+    // recordDelivery stamps lastEventAt, bumps the count and zeroes the streak.
+    const recovered = { ...PROD_ROW, eventCount: 58, lastEventAt: '2026-08-10T09:00:00.000Z', consecutiveRejections: 0, lastRejectionReason: null }
+    expect(deliveryStateOf('ok', true, recovered)).toBe('receiving')
+    render(
+      <IntegrationConnectionCard
+        view={view({ connections: [connection({ ...recovered, delivery: 'receiving' as const })], connected: true })}
+        onChanged={noop}
+      />,
+    )
+    expect(screen.getAllByText(DELIVERY.receiving.label).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
 

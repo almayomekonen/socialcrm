@@ -68,6 +68,8 @@ export function intakeErrorCopy(reason: string | null | undefined): IntakeErrorC
 export { SYNC_FAILURE_THRESHOLD }
 
 export type RejectionFacts = {
+  /** Verified deliveries ever. Non-zero means the wiring is PROVEN to have worked. */
+  eventCount: number
   consecutiveRejections: number
   lastRejectedAt: string | null
   lastEventAt: string | null
@@ -77,27 +79,45 @@ export type RejectionFacts = {
 /**
  * Is this connection failing to take leads in, badly enough to say so?
  *
- * Three conditions, and each earns its place:
+ * Two gates every refusal must pass, then a threshold that depends on whether
+ * the connection has ever worked.
  *
  *  1. THE REASON IS ONE WE CAN EXPLAIN. A refusal with no customer copy is one
  *     the customer cannot act on, so raising it would be noise.
  *
- *  2. THE STREAK IS AT THE HOUSE THRESHOLD. Reuses `shouldShowSyncBanner` —
- *     the same "three consecutive failures before a banner" decision the CRM
- *     poller already makes. A single blip is not an incident.
+ *  2. NOTHING HAS BEEN DELIVERED SINCE. The false-positive guard, stated
+ *     explicitly even though the reset in `recordDelivery` already implies it.
+ *     One verified delivery is enough to clear the alarm — proving the wiring
+ *     works is exactly as strong as proving it broke, so recovery is immediate
+ *     and never asks for a streak of successes.
  *
- *  3. NOTHING HAS BEEN DELIVERED SINCE. This is the false-positive guard,
- *     stated explicitly even though the reset in `recordDelivery` already
- *     implies it. The endpoint is public; a stranger posting garbage at a
- *     working connection must never make it look broken, and the interleaved
- *     case (valid, invalid, valid, invalid) must stay silent — which it does,
- *     because every valid delivery zeroes the streak.
+ * Then the evidence bar, and it is deliberately NOT the same on both sides:
+ *
+ *  · PROVEN CONNECTION (`eventCount > 0`) — ONE refusal is enough. A connection
+ *    that has delivered successfully and suddenly cannot verify its signature is
+ *    a configuration REGRESSION, not noise: a stranger posting at a public URL
+ *    has never had a valid signature, so it could never have produced those
+ *    deliveries. Requiring a streak here would price the alarm in lost leads —
+ *    three real people would have to fill in the form and vanish before anyone
+ *    was told. Production connection #3 was exactly this case: 57 deliveries, one
+ *    `invalid_signature`, and the card still read "מקבל אירועים".
+ *
+ *  · UNPROVEN CONNECTION (`eventCount === 0`) — the house threshold applies.
+ *    Nothing has ever arrived, so a refusal carries no evidence that anything is
+ *    configured at all, and accusing a brand-new connection of being broken on
+ *    one arbitrary public request is the false positive worth avoiding.
+ *
+ * The asymmetry IS the fix. The bug it replaces had it backwards: three refusals
+ * to raise an alarm, but a single `eventCount` from any point in history to keep
+ * claiming "receiving".
  */
 export function isFailingIntake(facts: RejectionFacts): boolean {
   if (!isCustomerFacingRejection(facts.lastRejectionReason)) return false
-  if (!shouldShowSyncBanner(facts.consecutiveRejections)) return false
   if (!facts.lastRejectedAt) return false
-  // Never delivered at all, or the last refusal is newer than the last delivery.
-  if (!facts.lastEventAt) return true
-  return Date.parse(facts.lastRejectedAt) > Date.parse(facts.lastEventAt)
+
+  // A delivery at or after the refusal supersedes it — the connection recovered.
+  if (facts.lastEventAt && Date.parse(facts.lastEventAt) >= Date.parse(facts.lastRejectedAt)) return false
+
+  if (facts.eventCount > 0) return true
+  return shouldShowSyncBanner(facts.consecutiveRejections)
 }

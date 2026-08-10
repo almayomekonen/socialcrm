@@ -6,7 +6,7 @@ import { listIntegrations, listSelectableEvents } from '../catalog/registry'
 import type { IntegrationDefinition } from '../catalog/types'
 import type { ConnectionHealth, SourceSubscriptionState } from '../catalog/vocabularies'
 import { listAllConnections, listSourcesFor } from './registry'
-import { isFailingIntake } from './intakeErrors'
+import { isFailingIntake, type RejectionFacts } from './intakeErrors'
 
 /**
  * EVERYTHING THE CONNECTIONS PAGE RENDERS, assembled generically.
@@ -105,16 +105,21 @@ function unlockedBy(integration: IntegrationDefinition) {
 /**
  * Order matters, and each step is a claim about which truth wins.
  *
- * `rejected` is tested BEFORE `receiving`: a connection that worked yesterday
- * still has a non-zero `eventCount`, so checking delivery first would render
- * "מקבל אירועים" over an active failure — the exact reassurance-while-losing-
- * leads this state exists to end.
+ *  1. HEALTH. A revoked connection is called disconnected whatever else is true —
+ *     "reconnect" is the useful instruction, and two problems at once is one too
+ *     many.
+ *  2. AN ACTIVE ACTIONABLE REFUSAL, before `receiving`. A connection that worked
+ *     yesterday still has a non-zero `eventCount`, so checking delivery first
+ *     renders "מקבל אירועים" over a live failure — the exact reassurance-while-
+ *     losing-leads this state exists to end. A stale `lastEventAt` must never
+ *     outrank a newer refusal.
+ *  3. RECEIVING, then never_received.
+ *
+ * `unknown` sits above the refusal check only because a connector that reports
+ * no deliveries has no rejection facts to judge — it is the absence of the
+ * question, not an answer to it.
  */
-export function deliveryStateOf(
-  health: ConnectionHealth,
-  reports: boolean,
-  facts: { eventCount: number; consecutiveRejections: number; lastRejectedAt: string | null; lastEventAt: string | null; lastRejectionReason: string | null },
-): DeliveryState {
+export function deliveryStateOf(health: ConnectionHealth, reports: boolean, facts: RejectionFacts): DeliveryState {
   if (health !== 'ok') return 'disconnected'
   if (!reports) return 'unknown'
   if (isFailingIntake(facts)) return 'rejected'
@@ -141,7 +146,9 @@ export async function integrationOverview(agencyId: number): Promise<Integration
     const views: ConnectionView[] = mine.map(({ connection, sources }) => {
       const facts = delivery[connection.id]
       const reportsDelivery = facts !== undefined
-      const rejectionFacts = {
+      // Annotated, so dropping a field here is a compile error at the point of
+      // construction rather than a silently-narrowed decision at the call.
+      const rejectionFacts: RejectionFacts = {
         eventCount: facts?.eventCount ?? 0,
         consecutiveRejections: facts?.consecutiveRejections ?? 0,
         lastRejectedAt: facts?.lastRejectedAt ?? null,

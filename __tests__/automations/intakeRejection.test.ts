@@ -25,7 +25,9 @@ const sqlOf = (b: { toSQL: () => { sql: string; bindings: readonly unknown[] } }
   return { sql: sql.toLowerCase(), bindings }
 }
 
+/** UNPROVEN by default — nothing ever delivered, so the threshold tier applies. */
 const facts = (over: Partial<RejectionFacts> = {}): RejectionFacts => ({
+  eventCount: 0,
   consecutiveRejections: 3,
   lastRejectedAt: '2026-08-10T10:00:00.000Z',
   lastEventAt: '2026-08-09T10:00:00.000Z',
@@ -161,6 +163,77 @@ describe('when a connection is considered to be failing intake', () => {
   })
 })
 
+// ── the two evidence tiers ──────────────────────────────────────────────────
+
+/**
+ * Production connection #3 as it actually stood: 57 verified deliveries, the
+ * last six days before a single `invalid_signature`.
+ */
+const proven = (over: Partial<RejectionFacts> = {}): RejectionFacts => ({
+  eventCount: 57,
+  consecutiveRejections: 1,
+  lastRejectedAt: '2026-08-10T07:34:26.653Z',
+  lastEventAt: '2026-08-04T16:42:28.956Z',
+  lastRejectionReason: 'invalid_signature',
+  ...over,
+})
+
+describe('a connection that has PROVEN it works needs no streak', () => {
+  it('(1) 57 deliveries + one invalid_signature → failing, immediately', () => {
+    expect(isFailingIntake(proven())).toBe(true)
+    // Below the house threshold, and that is the point.
+    expect(shouldShowSyncBanner(proven().consecutiveRejections)).toBe(false)
+  })
+
+  it('(3) a refusal NEWER than the last delivery → failing', () => {
+    expect(isFailingIntake(proven({ lastRejectedAt: '2026-08-09T00:00:00.000Z' }))).toBe(true)
+  })
+
+  it('(2) a refusal OLDER than the last delivery → not failing', () => {
+    // The connection already recovered; the refusal is history.
+    expect(isFailingIntake(proven({ lastEventAt: '2026-08-10T09:00:00.000Z' }))).toBe(false)
+  })
+
+  it('(5) ONE verified delivery restores it — no streak of successes required', () => {
+    // recordDelivery does both halves: stamps lastEventAt and zeroes the streak.
+    const recovered = proven({
+      lastEventAt: '2026-08-10T08:00:00.000Z',
+      consecutiveRejections: 0,
+      lastRejectionReason: null,
+      eventCount: 58,
+    })
+    expect(isFailingIntake(recovered)).toBe(false)
+    expect(deliveryStateOf('ok', true, recovered)).toBe('receiving')
+  })
+
+  it('a delivery at the SAME instant as the refusal counts as recovery', () => {
+    expect(isFailingIntake(proven({ lastEventAt: proven().lastRejectedAt }))).toBe(false)
+  })
+
+  it('still requires a reason the customer can act on', () => {
+    for (const reason of ['not_actionable', 'event_undescribed', 'event_unbridged', 'subject_unresolved', null]) {
+      expect(isFailingIntake(proven({ lastRejectionReason: reason })), `reason=${reason}`).toBe(false)
+    }
+  })
+})
+
+describe('an UNPROVEN connection keeps the house threshold', () => {
+  it('(4) eventCount 0 + one refusal → silent', () => {
+    expect(isFailingIntake(facts({ eventCount: 0, consecutiveRejections: 1 }))).toBe(false)
+    expect(isFailingIntake(facts({ eventCount: 0, consecutiveRejections: 2 }))).toBe(false)
+  })
+
+  it('(4) eventCount 0 + three refusals → failing', () => {
+    expect(isFailingIntake(facts({ eventCount: 0, consecutiveRejections: SYNC_FAILURE_THRESHOLD }))).toBe(true)
+  })
+
+  it('the tier is chosen by eventCount and nothing else', () => {
+    const one = { consecutiveRejections: 1, lastRejectedAt: '2026-08-10T10:00:00.000Z', lastEventAt: null, lastRejectionReason: 'invalid_signature' }
+    expect(isFailingIntake({ ...one, eventCount: 0 })).toBe(false)
+    expect(isFailingIntake({ ...one, eventCount: 1 })).toBe(true)
+  })
+})
+
 // ── 5, 6, 14: the delivery state the page renders from ──────────────────────
 
 describe('the delivery state a connection reports', () => {
@@ -194,16 +267,22 @@ describe('the delivery state a connection reports', () => {
     ).toBe('rejected')
   })
 
-  it('one refusal against a receiving connection still reads as receiving', () => {
+  /**
+   * THE PRODUCTION REGRESSION, verbatim. This assertion used to read
+   * `'receiving'` — and that is precisely the bug: connection #3 had 57
+   * deliveries and one `invalid_signature`, and the card said "מקבל אירועים"
+   * while the lead was lost. One refusal on a PROVEN connection is enough.
+   */
+  it('connection #3: 57 deliveries + ONE invalid_signature → rejected', () => {
     expect(
       deliveryStateOf('ok', true, {
-        eventCount: 12,
+        eventCount: 57,
         consecutiveRejections: 1,
-        lastRejectedAt: '2026-08-10T10:00:00.000Z',
-        lastEventAt: '2026-08-09T10:00:00.000Z',
+        lastRejectedAt: '2026-08-10T07:34:26.653Z',
+        lastEventAt: '2026-08-04T16:42:28.956Z',
         lastRejectionReason: 'invalid_signature',
       }),
-    ).toBe('receiving')
+    ).toBe('rejected')
   })
 
   it('a broken connection is called disconnected, not rejecting', () => {
