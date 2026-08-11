@@ -121,3 +121,38 @@ same five files pass 120/120 under `VITEST_NO_DB=1`. No notification-specific fa
 anywhere in the run. The signature is unchanged, which is the condition §22.5 requires.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P2.1 comparison
+
+Re-run at the end of P2.1 (`/api/notifications/feed`, the feed query layer, presence
+stamping and the persisted away boundary).
+
+| Gate                 | Baseline                   | After P1                 | After P2.1                     | Verdict            |
+| -------------------- | -------------------------- | ------------------------ | ------------------------------ | ------------------ |
+| `npx tsc --noEmit`   | clean                      | clean                    | **clean**                      | unchanged          |
+| `test:a11y`          | 17 files / 126 tests       | 17 / 126                 | **17 / 126 passed**            | unchanged          |
+| `test:unit`          | 60+1skip / 629+12skip      | 60+1skip / 629+12skip    | **60+1skip / 629+12skip**      | unchanged          |
+| `test:runtime`       | 10 files / 55 tests        | 10 / 55                  | **10 / 55 passed**             | unchanged          |
+| `test:notifications` | did not exist              | 5 files / 122 tests      | **8 files / 187 tests passed** | +3 files, +65      |
+| `test:integration`   | 305 files failed, no tests | 310 files failed         | **313 files failed, no tests** | known failure, +3  |
+| `npm run build`      | not previously recorded    | not recorded             | **succeeds**                   | new evidence       |
+
+The three new notification test files are `presence` (17), `feed.sql` (24) and `feedRoute`
+(24), taking the suite from 122 to 187.
+
+The integration delta of +3 is exactly those three files. The signature is unchanged and
+still matches §22.4 in every respect: the failure is raised in `__tests__/setup.ts` before
+any test executes ("Tests: no tests"), the reported errors are
+`relation "knex_migrations" already exists` and a duplicate-key violation creating
+`knex_migrations_lock`, and no failure anywhere in the run is specific to notification code.
+All 186 notification tests pass under `VITEST_NO_DB=1`.
+
+`npm run build` was added as a gate for P2.1 because it is the only check that can prove the
+feed is uncacheable, and it earned its place immediately: it rejected
+`export const dynamic = 'force-dynamic'` under `cacheComponents` (see the route header), which
+no other gate caught — `tsc` and every test suite passed with the offending line present. The
+build now lists `ƒ /api/notifications/feed`, i.e. dynamic, server-rendered on demand.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.
