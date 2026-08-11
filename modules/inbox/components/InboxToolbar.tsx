@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
-import ChannelIcon from './ChannelIcon'
+import InboxChannelSwitch from './InboxChannelSwitch'
 import { inboxFiltersToSearchParams } from '@/modules/inbox/filters'
 import type { InboxIntelFilter, InboxListFilters, InboxSmartCounts, InboxSort, InboxStatusFilter } from '@/modules/inbox/types'
 
@@ -89,9 +89,8 @@ export default function InboxToolbar({
 
   return (
     <div className='shrink-0 space-y-2 border-b border-gray-100 p-2'>
-      <div className='flex items-center gap-1.5 px-1 text-sm font-semibold text-gray-700'>
-        <ChannelIcon channel='whatsapp' className='size-4' />
-        שיחות
+      <div className='px-1'>
+        <InboxChannelSwitch active='whatsapp' />
       </div>
 
       {visibleSections.length > 0 && (

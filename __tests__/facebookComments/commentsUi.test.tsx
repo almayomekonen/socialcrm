@@ -19,6 +19,7 @@ vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.
 
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
+import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 import type { CommentListItem } from '@/modules/facebookComments/types'
 
 afterEach(() => cleanup())
@@ -176,7 +177,22 @@ describe('CommentsList — status states', () => {
   })
 })
 
+describe('InboxChannelSwitch', () => {
+  it('links שיחות and תגובות inside the existing inbox section', () => {
+    render(<InboxChannelSwitch active='facebook' />)
+    expect(screen.getByRole('link', { name: /שיחות/ })).toHaveAttribute('href', '/inbox')
+    expect(screen.getByRole('link', { name: /תגובות/ })).toHaveAttribute('href', '/inbox/comments')
+    expect(screen.getByRole('link', { name: /תגובות/ })).toHaveAttribute('aria-current', 'page')
+  })
+})
+
 describe('CommentsEmptyState', () => {
+  it('explains the dark-launch preview when comments ingest is not enabled', () => {
+    render(<CommentsEmptyState kind='not-enabled' />)
+    expect(screen.getByText(/תגובות בפייסבוק/)).toBeInTheDocument()
+    expect(screen.getByText(/יופעלו/)).toBeInTheDocument()
+  })
+
   it('explains what to do when the Page is not connected', () => {
     render(<CommentsEmptyState kind='not-connected' />)
     expect(screen.getByText(/דף הפייסבוק אינו מחובר/)).toBeInTheDocument()
@@ -194,7 +210,7 @@ describe('CommentsEmptyState', () => {
   })
 
   it('uses no emoji anywhere', () => {
-    for (const kind of ['not-connected', 'no-comments', 'awaiting-text'] as const) {
+    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'awaiting-text'] as const) {
       const { unmount } = render(<CommentsEmptyState kind={kind} />)
       expect(document.body.textContent ?? '').not.toMatch(/\p{Extended_Pictographic}/u)
       unmount()

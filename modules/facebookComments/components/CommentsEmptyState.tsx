@@ -1,7 +1,10 @@
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 
 /**
- * Three distinct page-level states — never two at once (ux-guidelines §11).
+ * Page-level states — never two at once (ux-guidelines §11).
+ *
+ * `not-enabled` is the dark-launch / preview state: the UI is reachable for
+ * inspection, but ingest stays gated, so there is nothing to list yet.
  *
  * `awaiting-text` is the honest state while Meta App Review is pending: the
  * comments arrive, but we are not permitted to read what they say. Saying that
@@ -11,6 +14,10 @@ import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
  * Mirrors `modules/inbox/components/InboxEmptyState.tsx` in structure and tone.
  */
 const COPY = {
+  'not-enabled': {
+    title: 'תגובות בפייסבוק',
+    body: 'תגובות יופיעו כאן אוטומטית אחרי שתגובות פייסבוק יופעלו והדף מחובר.',
+  },
   'not-connected': {
     title: 'דף הפייסבוק אינו מחובר',
     body: 'כדי לראות תגובות מהדף, צריך לחבר אותו קודם בהגדרות.',

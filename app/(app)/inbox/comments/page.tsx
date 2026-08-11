@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
@@ -7,6 +7,7 @@ import { listPageComments } from '@/modules/facebookComments/queries'
 import { COMMENT_STATUSES, type CommentStatusFilter } from '@/modules/facebookComments/types'
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
+import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 
 /**
  * Comments Inbox — lives inside the existing שיחות experience (decision D1).
@@ -16,9 +17,9 @@ import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEm
  * from a querystring or any other client input; only `status` is, and it is
  * validated against a fixed vocabulary before reaching SQL.
  *
- * ROLLOUT: gated by `isFacebookCommentsEnabledForAgency` (decision D2). A
- * non-enabled agency gets a 404 — the route does not exist for them — which
- * matches the ingest gate, so nothing is stored for them either.
+ * ROLLOUT: ingest and convert stay gated by `isFacebookCommentsEnabledForAgency`.
+ * The UI itself stays reachable so the empty/preview states can be inspected
+ * without enabling production comment ingestion.
  */
 export const metadata: Metadata = { title: 'תגובות מפייסבוק' }
 
@@ -31,7 +32,22 @@ export default async function FacebookCommentsPage({
 }) {
   const user = await getUser()
   if (!user?.agencyId) redirect('/auth')
-  if (!isFacebookCommentsEnabledForAgency(user.agencyId)) notFound()
+
+  const enabled = isFacebookCommentsEnabledForAgency(user.agencyId)
+
+  // Dark launch: show the shell + honest empty state. Do not query or pretend
+  // rows exist — ingest remains blocked until the agency is allowlisted.
+  if (!enabled) {
+    return (
+      <div className='grid gap-3 p-3 sm:p-4'>
+        <header className='flex flex-wrap items-center justify-between gap-2'>
+          <h1 className='text-lg font-semibold text-gray-900'>תגובות מפייסבוק</h1>
+          <InboxChannelSwitch active='facebook' />
+        </header>
+        <CommentsEmptyState kind='not-enabled' />
+      </div>
+    )
+  }
 
   const sp = await searchParams
   const status: CommentStatusFilter = COMMENT_STATUSES.includes(sp.status as CommentStatusFilter)
@@ -50,6 +66,7 @@ export default async function FacebookCommentsPage({
     <div className='grid gap-3 p-3 sm:p-4'>
       <header className='flex flex-wrap items-center justify-between gap-2'>
         <h1 className='text-lg font-semibold text-gray-900'>תגובות מפייסבוק</h1>
+        <InboxChannelSwitch active='facebook' />
       </header>
 
       {!connection && <CommentsEmptyState kind='not-connected' />}
