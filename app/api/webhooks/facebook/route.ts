@@ -5,6 +5,7 @@ import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
 import { repairFacebookConnection } from '@/lib/facebook/health'
 import { logCanaryFeedEvent } from '@/lib/facebook/commentsCanary'
+import { ingestFacebookComment } from '@/lib/system/ingestFacebookComment'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -199,9 +200,10 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(entry.changes)) continue
 
     for (const change of entry.changes) {
-      // CANARY EXPERIMENT (docs/facebook-comments-feasibility-audit.md §F).
-      // `feed` events are observed for exactly one opted-in Page and dropped
-      // for every other Page. Nothing is persisted and no Lead is created.
+      // FEED COMMENTS. `pageId` is `entry.id` — carried on the payload whose
+      // HMAC was verified above — and is the ONLY tenancy input. Nothing inside
+      // `change.value` is trusted: `ingestFacebookComment` resolves the agency
+      // by looking this page up in `facebook_pages`.
       //
       // The branch is `field === 'feed' → continue`, NOT `field === 'leadgen'
       // → existing path`: gating leadgen on its field name would change which
@@ -209,12 +211,16 @@ export async function POST(req: NextRequest) {
       // feed event still reaches the leadgen code below byte-for-byte.
       //
       // try/catch because a malformed feed payload must never abort the batch
-      // and strand a sibling leadgen event.
+      // and strand a sibling leadgen event. `ingestFacebookComment` already
+      // swallows its own failures; this is the second belt.
       if (change.field === 'feed') {
         try {
           logCanaryFeedEvent(pageId, change.value)
+          // Calls parseFeedComment(pageId, value) internally, then persists.
+          // Non-comment feed items are discarded before any query runs.
+          if (pageId) await ingestFacebookComment(pageId, change.value)
         } catch (err) {
-          console.error('[FacebookCommentsCanary] Observation threw — ignoring:', err)
+          console.error('[FacebookComments] Feed handling threw — ignoring:', err)
         }
         continue
       }
