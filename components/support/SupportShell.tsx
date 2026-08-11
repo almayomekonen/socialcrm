@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import SkipLink from '@/components/layout/SkipLink'
-import { getDisplayName } from '@/lib/users/displayName'
 
 /**
  * The Support Center's chrome.
@@ -26,10 +25,16 @@ import { getDisplayName } from '@/lib/users/displayName'
  * so the shell hosts the landing page and a conversation thread equally well.
  */
 export default function SupportShell({
-  user,
+  displayName,
   children,
 }: {
-  user: { name?: string | null; gglName?: string | null; email?: string | null; role?: string }
+  /**
+   * A resolved name, NOT the user record. The shell needs one string to greet
+   * someone with; handing it the whole session object would put agencyId, role
+   * and email into this subtree's serialized props for no reason. Minimal
+   * props, minimal exposure.
+   */
+  displayName: string
   children: ReactNode
 }) {
   return (
@@ -47,7 +52,7 @@ export default function SupportShell({
 
           <div className='flex min-w-0 items-center gap-4'>
             <span className='hidden truncate text-sm text-gray-500 desktop:inline'>
-              {getDisplayName(user)}
+              {displayName}
             </span>
             {/* No directional arrow: a "back" glyph has to flip under RTL, and
                 the word alone is unambiguous in both directions. */}

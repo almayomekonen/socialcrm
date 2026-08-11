@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
+import { getDisplayName } from '@/lib/users/displayName'
 import SupportShell from '@/components/support/SupportShell'
 import Loading from '@/components/ui/Loading'
 
@@ -26,7 +27,9 @@ async function SupportLayoutContent({ children }: { children: React.ReactNode })
   if (user.suspended) redirect('/api/auth/clear')
   if (!user.agencyId) redirect('/auth')
 
-  return <SupportShell user={user}>{children}</SupportShell>
+  // Resolve the name HERE and hand the shell only that. The session object
+  // stays in the layout rather than being threaded through the subtree.
+  return <SupportShell displayName={getDisplayName(user)}>{children}</SupportShell>
 }
 
 export default function SupportLayout({ children }: { children: React.ReactNode }) {

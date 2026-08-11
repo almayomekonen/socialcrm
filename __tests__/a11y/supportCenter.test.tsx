@@ -10,10 +10,10 @@ import SupportShell from '@/components/support/SupportShell'
 
 afterEach(cleanup)
 
-const user = { name: 'דנה לוי', email: 'dana@abc.co.il', role: 'AGNT' }
+const displayName = 'דנה לוי'
 
 function renderShell(children: React.ReactNode = <p>content</p>) {
-  return render(<SupportShell user={user as any}>{children}</SupportShell>)
+  return render(<SupportShell displayName={displayName}>{children}</SupportShell>)
 }
 
 // --- landmarks ---

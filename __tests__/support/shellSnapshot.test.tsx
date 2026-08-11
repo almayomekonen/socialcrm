@@ -11,7 +11,7 @@ import SupportShell from '@/components/support/SupportShell'
 
 test('rendered shell (visual review aid)', () => {
   const { container } = render(
-    <SupportShell user={{ name: 'דנה לוי', email: 'dana@abc.co.il', role: 'AGNT' } as any}>
+    <SupportShell displayName='דנה לוי'>
       <h1 className='text-2xl font-bold text-ink'>מרכז התמיכה</h1>
       <p className='mt-1 text-sm text-gray-500'>משהו לא עובד כמו שצריך? אנחנו כאן כדי לעזור.</p>
     </SupportShell>,
