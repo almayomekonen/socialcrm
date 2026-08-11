@@ -9,6 +9,7 @@ import { MessageSquare } from 'lucide-react'
  */
 const CHANNEL_GLYPHS: Record<string, { src: string; color: string }> = {
   whatsapp: { src: '/media/social-icons/whatsapp.svg', color: 'var(--color-success)' },
+  facebook: { src: '/media/social-icons/facebook.svg', color: '#1877F2' },
 }
 
 export default function ChannelIcon({ channel, className = 'size-3.5' }: { channel: string; className?: string }) {
