@@ -74,6 +74,16 @@ export default function MobileHandoff() {
       <div className='mh-rise flex w-full max-w-[340px] flex-col items-center gap-3' style={{ animationDelay: '300ms' }}>
         <span aria-hidden='true' className='h-px w-full' style={{ background: 'rgba(255,255,255,0.08)' }} />
         <p className='text-[12px] tracking-wide text-white/45'>{COPY.soonLabel}</p>
+        {/*
+          The ONLY Support entry point reachable on a phone. The (app) layout
+          redirects every phone here, so the settings nav link can never be
+          seen on mobile — without this, a customer on a phone whose WhatsApp
+          just broke has no way to reach us at all. /support sits outside the
+          (app) redirect and renders fine on 390px.
+        */}
+        <a href='/support' className='text-[12px] text-white/60 underline-offset-4 hover:underline'>
+          {COPY.supportLink}
+        </a>
       </div>
     </main>
   )

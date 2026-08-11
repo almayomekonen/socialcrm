@@ -58,8 +58,12 @@ export async function requireAgencyUser(): Promise<AuthenticatedAgencyUser> {
  * Use ONLY on product functionality. Do NOT use on the endpoints that must stay
  * reachable while access is denied: startTrial / activation / onboarding, auth /
  * logout, subscription & paywall reads, upgrade / payment flows, verified
- * webhooks, cron / internal endpoints, and public token flows. Those keep using
- * `requireUser` / `requireAgencyUser` (or their own token/secret auth).
+ * webhooks, cron / internal endpoints, public token flows, and the Support
+ * Center (the `(support)` route group + `actions/support/*`) — a customer whose
+ * trial has expired is exactly the person most likely to need to reach us, and
+ * a support surface that is unreachable when the product is blocked defeats its
+ * own purpose. Those keep using `requireUser` / `requireAgencyUser` (or their
+ * own token/secret auth).
  *
  * Never trust client-supplied trialStatus / plan / isPro / hasAccess / agencyId:
  * this derives access from the session identity + canonical trial state only.

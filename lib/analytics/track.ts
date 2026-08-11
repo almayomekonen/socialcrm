@@ -59,6 +59,15 @@ export type AnalyticsEventName =
   // kill switch (AUTOMATIONS_ENABLED) blocked it — proof of what WOULD have
   // been processed. See lib/automations/emit.ts.
   | 'automation_event_shadow'
+  // --- Support Center (first-party product support) ---
+  // SocialCRM customer -> SocialCRM platform support. No third party is ever
+  // involved in these events.
+  | 'support_request_created'
+  | 'support_request_replied'
+  // Emitted when a support notification email fails (Phase 4). Carries
+  // requestId, notification type and recipient CATEGORY only — never a message
+  // body, subject, address, name or token.
+  | 'support_notification_failed'
 
 type TrackInput = {
   agencyId: number
