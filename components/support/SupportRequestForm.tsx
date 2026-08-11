@@ -16,6 +16,10 @@ import { toast } from '@/lib/toast'
  * classify their own problem before they can tell us. The server derives
  * subject and category (lib/support/derive.ts).
  *
+ * The page heading carries "מה קרה?" / "מה השאלה?". This component owns only
+ * the textarea and the send control, so the screen never reads like a ticket
+ * form with redundant labels.
+ *
  * `bodyOptional` exists for the Phase 4 context flow: once SocialCRM resolves
  * "החיבור ל-WhatsApp נותק" on its own, the report is already complete and this
  * field becomes "anything you want to add" rather than a demand to retype it.
@@ -24,10 +28,13 @@ import { toast } from '@/lib/toast'
 export default function SupportRequestForm({
   kind,
   bodyOptional = false,
+  fieldLabel = 'מה קרה?',
 }: {
   kind: SupportKind
   /** True when the SERVER resolved a context. Phase 4 supplies it. */
   bodyOptional?: boolean
+  /** Accessible name for the textarea. The page h1 usually carries the same words. */
+  fieldLabel?: string
 }) {
   const router = useRouter()
   const [body, setBody] = useState('')
@@ -55,26 +62,26 @@ export default function SupportRequestForm({
   }
 
   return (
-    <form onSubmit={submit}>
-      <label htmlFor='support-body' className='block text-base font-medium text-ink'>
-        מה קרה?
-      </label>
-      <p className='mt-1 text-sm text-gray-500'>
-        {bodyOptional
-          ? 'כבר יש לנו את הפרטים. אפשר להוסיף כל דבר שיעזור לנו.'
-          : 'כמה מילים על מה שקרה ומתי. אין צורך בפרטים טכניים.'}
-      </p>
+    <form onSubmit={submit} className='mt-1'>
+      {bodyOptional && (
+        <label htmlFor='support-body' className='block text-base font-medium text-ink'>
+          רוצה להוסיף משהו?
+        </label>
+      )}
 
       <textarea
         id='support-body'
         autoFocus
-        rows={7}
+        rows={8}
         required={!bodyOptional}
         maxLength={5000}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={bodyOptional ? 'רוצה להוסיף משהו? (לא חובה)' : 'לדוגמה: הודעות מוואטסאפ הפסיקו להיכנס מהבוקר'}
-        className='mt-3 w-full resize-y rounded-xl border border-gray-200 p-3 text-sm leading-relaxed outline-none focus:border-primary'
+        aria-label={bodyOptional ? 'רוצה להוסיף משהו?' : fieldLabel}
+        placeholder={
+          bodyOptional ? 'רוצה להוסיף משהו? (לא חובה)' : 'ספר לנו בקצרה מה קרה...'
+        }
+        className='mt-3 w-full resize-y rounded-2xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-ink outline-none placeholder:text-gray-400 focus:border-primary'
       />
 
       {error && (
@@ -88,7 +95,7 @@ export default function SupportRequestForm({
         type='submit'
         lbl={pending ? 'שולח…' : 'שליחת הפנייה'}
         disabled={pending}
-        className='mt-4'
+        className='mt-5 w-full desktop:w-auto'
       />
     </form>
   )

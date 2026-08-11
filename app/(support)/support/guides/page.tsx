@@ -61,7 +61,17 @@ export default async function GuidesPage({
           </div>
         )
       ) : (
-        <GuideCategoryGrid />
+        <>
+          <GuideCategoryGrid />
+          <div className='mt-10 border-t border-gray-100 pt-5'>
+            <p className='text-sm text-gray-500'>לא מצאתם מה שחיפשתם?</p>
+            <Btn
+              href={'/support/new?kind=problem' as any}
+              lbl='יש לי תקלה'
+              className='mt-3 w-full desktop:w-auto'
+            />
+          </div>
+        </>
       )}
     </>
   )

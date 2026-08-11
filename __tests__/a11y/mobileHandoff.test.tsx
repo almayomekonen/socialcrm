@@ -89,4 +89,10 @@ describe('mobile handoff accessibility guarantees', () => {
 
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe(COPY.copyFailedLabel))
   })
+
+  test('8. Support Center is reachable from the phone handoff', () => {
+    render(<MobileHandoff />)
+    const link = screen.getByRole('link', { name: COPY.supportLink })
+    expect(link.getAttribute('href')).toBe('/support')
+  })
 })

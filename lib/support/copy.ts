@@ -49,12 +49,13 @@ export const KIND_COPY: Record<
   problem: {
     tileTitle: 'יש לי תקלה',
     tileDescription: 'משהו ב-SocialCRM לא עובד',
-    formTitle: 'דיווח על תקלה',
+    // The form IS the question — not "open a ticket".
+    formTitle: 'מה קרה?',
   },
   question: {
     tileTitle: 'יש לי שאלה',
     tileDescription: 'עזרה בשימוש במערכת',
-    formTitle: 'שאלה על המערכת',
+    formTitle: 'מה השאלה?',
   },
 }
 

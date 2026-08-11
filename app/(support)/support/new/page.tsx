@@ -16,8 +16,13 @@ export const metadata: Metadata = { title: 'פנייה חדשה' }
  *
  *   const parsed  = parseContextRef(params.ctx ?? null)
  *   const context = parsed ? await resolveSupportContext(parsed, user) : null
- *   {context && <SupportContextCard facts={context.facts} />}
- *   <SupportRequestForm kind={kind} ctx={params.ctx} bodyOptional={context != null} />
+ *   {context && (
+ *     <>
+ *       <p>זיהינו בעיה ב־…</p>
+ *       <SupportContextCard facts={context.facts} />
+ *     </>
+ *   )}
+ *   <SupportRequestForm kind={kind} bodyOptional={context != null} />
  *
  * The `ctx` param is accepted and IGNORED today. It is never trusted as a
  * payload — here or in Phase 4, where it is re-resolved server-side against the
@@ -34,17 +39,20 @@ export default async function NewSupportRequestPage({
   // Validated against the closed union; anything unknown becomes a question.
   // Selects COPY only — no authorization, routing or tenant decision reads it.
   const kind = coerceSupportKind(params.kind)
+  void params.ctx
 
   return (
     <>
-      <header className='mb-7'>
+      <header className='mb-2'>
         <h1 className='text-2xl font-bold text-ink'>{KIND_COPY[kind].formTitle}</h1>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>
           נחזור אליך כאן במרכז התמיכה וגם באימייל.
         </p>
       </header>
 
-      <SupportRequestForm kind={kind} />
+      {/* Phase 4: SupportContextCard mounts here, above the form. */}
+
+      <SupportRequestForm kind={kind} fieldLabel={KIND_COPY[kind].formTitle} />
     </>
   )
 }

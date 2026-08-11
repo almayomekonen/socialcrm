@@ -54,7 +54,8 @@ export default function SupportReplyBox({
         maxLength={5000}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        className='mt-2 w-full resize-y rounded-xl border border-gray-200 p-3 text-sm leading-relaxed outline-none focus:border-primary'
+        placeholder='כתבו כאן…'
+        className='mt-2 w-full resize-y rounded-2xl border border-gray-200 p-3 text-sm leading-relaxed outline-none focus:border-primary'
       />
       {error && (
         <p role='alert' className='mt-2 text-sm font-medium text-error-text'>
@@ -65,7 +66,7 @@ export default function SupportReplyBox({
         type='submit'
         lbl={pending ? 'שולח…' : 'שליחת מענה'}
         disabled={pending}
-        className='mt-3'
+        className='mt-3 w-full desktop:w-auto'
       />
     </form>
   )

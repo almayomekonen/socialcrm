@@ -116,3 +116,21 @@ test('arbitrary page content renders inside the single main landmark', () => {
   // The shell contributes no heading of its own, so a page's h1 is the first.
   expect(container.querySelectorAll('h1')).toHaveLength(1)
 })
+
+test('the back link has no directional arrow glyph', () => {
+  renderShell()
+  const back = screen.getByRole('link', { name: /חזרה למערכת/ })
+  expect(back.textContent?.trim()).toBe('חזרה למערכת')
+  expect(back.textContent).not.toMatch(/[←→◀▶‹›]/)
+})
+
+test('content measure stays narrow — shell main uses max-w-3xl', () => {
+  const { container } = renderShell()
+  expect(container.querySelector('main')!.className).toContain('max-w-3xl')
+})
+
+test('header height is the approved h-14', () => {
+  const { container } = renderShell()
+  const bar = container.querySelector('header > div')!
+  expect(bar.className).toContain('h-14')
+})

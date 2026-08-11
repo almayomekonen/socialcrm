@@ -22,9 +22,16 @@ export default function SupportRequestList({ requests }: { requests: RequestSumm
         <li key={r.id}>
           <Link
             href={`/support/requests/${r.id}`}
-            className='flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50'
+            className='flex min-h-12 items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50'
           >
-            <span className='min-w-0 flex-1 truncate text-sm font-medium text-ink'>{r.subject}</span>
+            <span className='min-w-0 flex-1'>
+              <span className='block truncate text-sm font-medium text-ink'>{r.subject}</span>
+              {r.lastActivityAt && (
+                <span className='mt-0.5 block text-xs text-gray-400 desktop:hidden'>
+                  {timeAgo(new Date(r.lastActivityAt).toISOString())}
+                </span>
+              )}
+            </span>
             <StatusBadge role={r.statusRole} label={r.statusLabel} />
             <span className='hidden shrink-0 text-xs text-gray-400 desktop:inline'>
               {r.lastActivityAt ? timeAgo(new Date(r.lastActivityAt).toISOString()) : ''}
