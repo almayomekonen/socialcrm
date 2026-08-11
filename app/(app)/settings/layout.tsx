@@ -25,6 +25,16 @@ export default async function SettingLayout({ children }) {
           */}
           <SettingsLink href='/settings/integrations' icon='plug' title='אינטגרציות' />
 
+          {/*
+            Reachable by EVERY role, deliberately outside the ADMIN block below:
+            a נציג who cannot log in, or whose WhatsApp is down, is exactly the
+            person who needs to reach us, and routing them through their manager
+            adds a hop at the worst possible moment. The destination lives
+            outside the (app) product gate so it also works when the workspace
+            itself is blocked.
+          */}
+          <SettingsLink href='/support' icon='life-ring' title='תמיכה' />
+
           {user.role == 'ADMIN' && (
             <>
               <Seperator className='my-2' />

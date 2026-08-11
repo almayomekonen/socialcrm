@@ -40,4 +40,12 @@ export const MOBILE_HANDOFF_COPY = {
 
   /** A quiet statement of fact, not a marketing banner (care-charter.md §10). */
   soonLabel: 'אפליקציה לנייד — בפיתוח',
+
+  /**
+   * The only route to support that exists on a phone. The (app) layout redirects
+   * every phone to this screen, so the settings nav entry is unreachable here —
+   * without this link, a customer on mobile whose WhatsApp just broke could not
+   * reach us at all. Phrased as an offer, not an apology.
+   */
+  supportLink: 'צריך עזרה? דברו איתנו',
 } as const
