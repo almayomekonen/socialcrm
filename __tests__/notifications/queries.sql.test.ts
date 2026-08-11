@@ -11,6 +11,7 @@ import {
 import {
   pruneOrphanedNotificationsQuery,
   pruneSettledNotificationsQuery,
+  updateNotificationCopy,
   upsertCollapsedNotificationQuery,
 } from '@/db/notifications/notifications'
 import { loadAgencyAdminsQuery, loadLeadOwnershipQuery } from '@/db/notifications/recipients'
@@ -87,6 +88,36 @@ describe('notifications: every statement is scoped to a tenant AND a user (§20.
       expect(clause, `unscoped notification lookup: ${clause.trim()}`).toContain('agencyId')
       expect(clause, `unscoped notification lookup: ${clause.trim()}`).toContain('userId')
     }
+  })
+
+  it('the copy patch runs on the connection it is handed, not the pool', async () => {
+    /**
+     * Regression guard. This statement always follows the collapse upsert inside
+     * one transaction, and it updates the row that upsert just locked. On any
+     * other connection it would wait on that lock while the transaction waits on
+     * it — a self-deadlock resolved only by a timeout, on the hot collapse path.
+     */
+    const calls: string[] = []
+    const builder = {
+      where: (w: Record<string, unknown>) => {
+        calls.push(`where:${Object.keys(w).sort().join(',')}`)
+        return builder
+      },
+      update: async () => {
+        calls.push('update')
+      },
+    }
+    const trx = Object.assign(
+      (table: string) => {
+        calls.push(`from:${table}`)
+        return builder
+      },
+      { fn: { now: () => 'NOW()' } },
+    ) as never
+
+    await updateNotificationCopy(trx, { id: 9, agencyId: 7, userId: 55, title: 'x', body: null })
+
+    expect(calls).toEqual(['from:notifications', 'where:agencyId,id,userId', 'update'])
   })
 
   it('the delivery insert records the tenant and the user it belongs to', () => {

@@ -76,7 +76,7 @@ export async function processNotificationJob(job: NotificationJob, context: Reci
       if (!result.inserted && result.groupCount > 1) {
         const rebuilt = rebuildCopyForGroupCount(plan.type, recipient.context, result.groupCount)
         if (rebuilt && (rebuilt.title !== recipient.title || rebuilt.body !== recipient.body)) {
-          await updateNotificationCopy({
+          await updateNotificationCopy(trx, {
             id: result.id,
             agencyId: job.agencyId,
             userId: recipient.userId,

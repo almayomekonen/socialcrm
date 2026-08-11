@@ -128,17 +128,26 @@ export async function upsertCollapsedNotification(
  * never, meaning the common path costs no extra write.
  *
  * Doubly scoped, like every statement in this module.
+ *
+ * Takes the caller's query builder and MUST be given the same transaction as the
+ * upsert that produced `id`. On a separate connection this statement would block
+ * on the row lock that transaction is still holding, and the pair would sit there
+ * until a timeout broke it — a self-deadlock on the collapse path, which is the
+ * only path that reaches this function.
  */
-export async function updateNotificationCopy(args: {
-  id: number
-  agencyId: number
-  userId: number
-  title: string
-  body: string | null
-}): Promise<void> {
-  await db('notifications')
+export async function updateNotificationCopy(
+  q: Knex.Transaction | Knex,
+  args: {
+    id: number
+    agencyId: number
+    userId: number
+    title: string
+    body: string | null
+  },
+): Promise<void> {
+  await q('notifications')
     .where({ id: args.id, agencyId: args.agencyId, userId: args.userId })
-    .update({ title: args.title, body: args.body, updatedAt: db.fn.now() })
+    .update({ title: args.title, body: args.body, updatedAt: q.fn.now() })
 }
 
 /**
