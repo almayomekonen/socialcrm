@@ -93,7 +93,7 @@ Re-run at the end of P1, on the same branch, for comparison against the table ab
 | `test:a11y` | 17 files / 126 tests | **17 / 126 passed** | unchanged |
 | `test:unit` | 60+1skip / 629+12skip | **60+1skip / 629+12skip** | unchanged |
 | `test:runtime` | 10 files / 55 tests | **10 / 55 passed** | unchanged |
-| `test:notifications` | did not exist | **5 files / 119 tests passed** | new |
+| `test:notifications` | did not exist | **5 files / 120 tests passed** | new |
 | `test:integration` | 305 files failed, no tests | **310 files failed, no tests** | known failure, +5 |
 
 The integration delta is exactly the five new `__tests__/notifications/*` files. They fail in
