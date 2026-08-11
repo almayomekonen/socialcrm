@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
 import { listAgencyTrialsForAdmin, listPendingInvitesForAdmin } from '@/db/trial'
+import { listSupportRequestsForAdmin } from '@/db/support/admin'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { MapRoles } from '@/types/roles'
+import AdminChrome from '@/components/admin/AdminChrome'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'ניהול מערכת' }
@@ -60,7 +62,11 @@ async function AdminContent() {
   if (!user || !isPlatformOwner(user.email)) notFound()
 
   const now = new Date()
-  const [agencyRows, invites] = await Promise.all([listAgencyTrialsForAdmin(), listPendingInvitesForAdmin()])
+  const [agencyRows, invites, unresolvedSupport] = await Promise.all([
+    listAgencyTrialsForAdmin(),
+    listPendingInvitesForAdmin(),
+    listSupportRequestsForAdmin({ status: 'unresolved', limit: 100 }),
+  ])
 
   // Pending invites per agency — surfaced both as a per-row count and a detail
   // section, since invited people aren't `users` yet (they have no row there).
@@ -84,9 +90,9 @@ async function AdminContent() {
   }
 
   return (
-    <div dir='rtl' className='max-w-6xl mx-auto px-4 py-10'>
+    <AdminChrome active='home' unresolvedCount={unresolvedSupport.length}>
       <header className='mb-6'>
-        <h1 className='text-2xl font-bold text-gray-900'>ניהול מערכת · משתמשים ומנויים</h1>
+        <h1 className='text-2xl font-bold text-gray-900'>משתמשים ומנויים</h1>
         <p className='text-sm text-gray-500 mt-1'>מצב הניסיון של כל סביבת עבודה וכמה ימים נשארו.</p>
       </header>
 
@@ -200,7 +206,7 @@ async function AdminContent() {
           </div>
         </section>
       )}
-    </div>
+    </AdminChrome>
   )
 }
 
