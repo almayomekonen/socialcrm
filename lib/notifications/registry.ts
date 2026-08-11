@@ -51,8 +51,11 @@ const integrationEntity = (ctx: EventContext) => ({ type: 'integration' as const
  * /notifications/{id} route and no notification id in any URL, so a
  * notification can never act as a capability. The target route runs its own
  * authorization at click time (spec §20.3).
+ *
+ * A lead's routable URL includes /summary. `/clients/{id}` has a layout but no
+ * page, so it 404s — every other lead link in the app carries the suffix too.
  */
-const leadLink = (ctx: EventContext) => `/clients/${ctx.entityId}`
+const leadLink = (ctx: EventContext) => `/clients/${ctx.entityId}/summary`
 const conversationLink = (ctx: EventContext) => `/inbox?conversation=${ctx.entityId}`
 const integrationLink = () => '/settings/integrations'
 

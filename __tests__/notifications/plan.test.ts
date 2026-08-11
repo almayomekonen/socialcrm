@@ -157,7 +157,7 @@ describe('the plan carries what the row needs', () => {
       collapseKey: `lead:${LEAD}:arrival`,
       entityType: 'lead',
       entityId: LEAD,
-      deepLink: `/clients/${LEAD}`,
+      deepLink: `/clients/${LEAD}/summary`,
     })
   })
 

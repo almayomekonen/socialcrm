@@ -212,7 +212,7 @@ describe('pagination is keyset, and bounded', () => {
       body: null,
       entityType: 'lead',
       entityId: id,
-      deepLink: `/clients/${id}`,
+      deepLink: `/clients/${id}/summary`,
       groupCount: 1,
       createdAt: '2026-08-11T10:00:00.000Z',
       seenAt: null,

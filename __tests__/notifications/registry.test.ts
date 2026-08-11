@@ -237,11 +237,58 @@ describe('deep links target entities, never notifications (§20.2)', () => {
     }
   })
 
-  it('links point at routes that exist', () => {
-    const links = entries.map((def) => def.deepLink(ctx({ type: def.type })))
-    for (const link of links) {
-      expect(link).toMatch(/^\/(clients\/\d+|inbox\?conversation=\d+|settings\/integrations)$/)
+  /**
+   * Resolve a URL path against the real App Router tree.
+   *
+   * The predecessor of this test matched links against a hardcoded regex, which
+   * made it agree with whatever the registry already said: it passed for a
+   * whole phase while every lead link pointed at `/clients/{id}`, a segment that
+   * has a layout but no page and therefore 404s. Asking the filesystem is the
+   * only version of this assertion that can disagree with the registry.
+   *
+   * Route groups are transparent to the URL, dynamic segments swallow one
+   * literal, and a catch-all swallows the rest — the three rules needed to walk
+   * this app's routes.
+   */
+  function routeExists(segments: string[], dir = path.resolve(__dirname, '..', '..', 'app')): boolean {
+    if (segments.length === 0) return fs.existsSync(path.join(dir, 'page.tsx'))
+
+    const [head, ...rest] = segments
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('_') || entry.name.startsWith('@')) continue
+      const child = path.join(dir, entry.name)
+
+      if (entry.name.startsWith('(') && entry.name.endsWith(')')) {
+        if (routeExists(segments, child)) return true // Group: URL unchanged.
+        continue
+      }
+      if (/^\[\.\.\./.test(entry.name)) {
+        if (fs.existsSync(path.join(child, 'page.tsx'))) return true
+        continue
+      }
+      if (entry.name === head || /^\[[^.]+\]$/.test(entry.name)) {
+        if (routeExists(rest, child)) return true
+      }
     }
+    return false
+  }
+
+  it('links point at routes that actually exist in app/', () => {
+    for (const def of entries) {
+      const link = def.deepLink(ctx({ type: def.type }))
+      const segments = link.split('?')[0].split('/').filter(Boolean)
+      expect(routeExists(segments), `${def.type} links to ${link}, which has no page`).toBe(true)
+    }
+  })
+
+  it('the resolver it relies on can tell a real route from a missing one', () => {
+    // Without this, a resolver that returned true for everything would make the
+    // test above vacuous — which is the exact failure mode being replaced.
+    expect(routeExists(['clients', '42', 'summary'])).toBe(true)
+    expect(routeExists(['clients', '42'])).toBe(false) // Layout, no page.
+    expect(routeExists(['inbox'])).toBe(true)
+    expect(routeExists(['settings', 'integrations'])).toBe(true)
+    expect(routeExists(['clients', '42', 'not-a-route'])).toBe(false)
   })
 
   it('the entity a link targets is the entity the registry declares', () => {
