@@ -9,6 +9,7 @@ import { daysFromNow } from '@/lib/dates'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
 import { resolveOutcome, isLeadOutcome, type LeadOutcome } from '@/lib/leads/outcomeRules'
 import { emitLeadStatusChanged } from '@/lib/automations/statusChanged'
+import { leadDisplayName } from '@/lib/notifications/leadName'
 
 /**
  * Inline Outcome Logging — Stage 1 action.
@@ -93,6 +94,10 @@ export async function logLeadOutcome(input: LogLeadOutcomeInput): Promise<LogLea
       leadId: id,
       newStatus: res.nextStatus,
       occurredAt: now,
+      // A rep logging their own call outcome must not be notified about it; the
+      // updated row supplies the name without another read.
+      actorUserId: user.id,
+      leadName: leadDisplayName(rows[0]),
     })
   }
 

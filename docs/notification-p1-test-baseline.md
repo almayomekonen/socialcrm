@@ -22,6 +22,21 @@ That comparison is only possible against a recorded baseline. This is that recor
 Three of the five gates are fully green and must stay that way. The integration suite is the
 known failure.
 
+### A second pre-existing failure, found while working
+
+`test:catalog` (`__tests__/automations`, not one of the five required gates) fails
+**2 files / 13 tests** — `2 failed | 50 passed (52)`, `13 failed | 942 passed (955)`:
+
+- `__tests__/automations/actionIndependence.test.ts` — 11 tests fail with
+  `TypeError: deps.isOptedOut is not a function`. The test's mock `WorkerDeps` has drifted
+  from what `lib/automations/worker.ts` now reads.
+- `__tests__/automations/templates.test.tsx` — 2 tests fail. Both scan files for the word
+  "template": six fixed automation engine/store files, and `components/settings/automations/`.
+
+Verified pre-existing, not merely assumed: with all notification wiring stashed, the counts
+are identical (2 files / 13 tests). Neither test reads any file the notification work touches.
+Recorded here so it is not mistaken later for notification fallout.
+
 ## The integration failure, root cause verified
 
 Every one of the 305 files fails in `__tests__/setup.ts`, before a single test executes

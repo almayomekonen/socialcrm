@@ -9,6 +9,7 @@ import { formatCurrency, omit } from '@/lib/funcs'
 import { getAgencyId } from '@/db/agencies'
 import { requireProductAccess } from '@/lib/requireUser'
 import { emitLeadStatusChanged } from '@/lib/automations/statusChanged'
+import { leadDisplayName } from '@/lib/notifications/leadName'
 
 /** The status a closed deal puts the lead in. Matches the catalog vocabulary. */
 const CLOSED_STATUS = 'closed'
@@ -63,10 +64,13 @@ export async function insertSale(data: saleObj) {
        * is applied unconditionally, exactly as before — the customer transfer
        * behaviour is unchanged.
        */
+      // firstName/lastName join the existing read purely so the notification can
+      // name the lead; two more columns on a row already being fetched, and no
+      // caller sees this local shape.
       const before = (await trx('clients')
-        .select('status')
+        .select('status', 'firstName', 'lastName')
         .where({ id: clientId, agencyId: user.agencyId })
-        .first()) as { status: string | null } | undefined
+        .first()) as { status: string | null; firstName: string | null; lastName: string | null } | undefined
 
       const closing = !!before && before.status !== CLOSED_STATUS
       const patch: Record<string, unknown> = { lead: false, updatedAt: now }
@@ -94,6 +98,10 @@ export async function insertSale(data: saleObj) {
           leadId: Number(clientId),
           newStatus: CLOSED_STATUS,
           occurredAt: now,
+          // Closing a deal is the closer's own action, so they are not notified
+          // about it; an admin closing someone else's lead still informs the rep.
+          actorUserId: user.id,
+          leadName: leadDisplayName(before),
           trx,
         })
       }

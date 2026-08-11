@@ -14,6 +14,8 @@ import type { QuotaErrorResult } from '@/lib/quota'
 import { scheduleLeadIntelWarm } from '@/lib/ai/scheduleWarm'
 import { emitAutomationEvent } from '@/lib/automations/emit'
 import { emitLeadStatusChanged } from '@/lib/automations/statusChanged'
+import { notifyEvent } from '@/lib/notifications/emit'
+import { leadDisplayName } from '@/lib/notifications/leadName'
 import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
 
 export type { DeleteManyLeadsResult } from '@/lib/leads/deleteResult'
@@ -233,6 +235,26 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
             },
             { trx },
           )
+          /**
+           * Notification engine, in the SAME transaction: a rolled-back insert
+           * notifies nobody. An import is deliberately excluded — a backfill is
+           * not a business moment, and 500 rows must not become 500 bell entries
+           * (the same boundary the automation engine draws for origin 'import').
+           */
+          if (emitOrigin !== 'import') {
+            await notifyEvent(
+              {
+                type: 'lead.created',
+                agencyId,
+                entityType: 'lead',
+                entityId: created.id,
+                actorUserId: user.id,
+                occurredAt: new Date(),
+                payload: { leadName: leadDisplayName(created) },
+              },
+              { trx },
+            )
+          }
         }
         return created
       })
@@ -419,6 +441,11 @@ export async function updateLead(data) {
       leadId: Number(id),
       newStatus: safeData.status,
       occurredAt: safeData.statusChangedAt as Date,
+      // The authenticated caller, not a client-supplied id — so the
+      // self-notification drop cannot be bypassed. The updated row is already in
+      // hand, so the name costs no extra query.
+      actorUserId: user.id,
+      leadName: leadDisplayName(res[0]),
     })
   }
 
