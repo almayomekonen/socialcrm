@@ -1,5 +1,9 @@
 import { db } from '@/config/db'
 import { GRAPH_BASE as GRAPH_API } from '@/lib/facebook/graph'
+import {
+  FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS,
+  FACEBOOK_PAGE_WEBHOOK_FIELDS,
+} from '@/lib/facebook/pageWebhookFields'
 
 const FETCH_TIMEOUT_MS = 6000
 
@@ -19,6 +23,23 @@ export interface FacebookHealthStatus {
   subscribed: boolean
   needsReconnect: boolean
   errors: string[]
+}
+
+function subscribedFieldsFromApps(apps: unknown): Set<string> {
+  const fields = new Set<string>()
+  if (!Array.isArray(apps)) return fields
+  for (const app of apps) {
+    const list = (app as { subscribed_fields?: unknown })?.subscribed_fields
+    if (!Array.isArray(list)) continue
+    for (const f of list) {
+      if (typeof f === 'string' && f) fields.add(f)
+    }
+  }
+  return fields
+}
+
+function hasRequiredWebhookFields(fields: Set<string>): boolean {
+  return FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS.every((f) => fields.has(f))
 }
 
 export async function checkFacebookConnection(pageId: string, pageAccessToken: string): Promise<FacebookHealthStatus> {
@@ -50,20 +71,21 @@ export async function checkFacebookConnection(pageId: string, pageAccessToken: s
   if (tokenValid) {
     permissionsOk = true
 
-    // Check subscription
+    // Check subscription — SocialCRM requires leadgen (Lead Ads) AND feed (comments).
     try {
       const res = await fetchWithTimeout(`${GRAPH_API}/${pageId}/subscribed_apps?access_token=${pageAccessToken}`)
       const data = await res.json()
       if (res.ok && Array.isArray(data?.data)) {
-        const hasLeadgen = data.data.some(
-          (app: any) => Array.isArray(app.subscribed_fields) && app.subscribed_fields.includes('leadgen'),
-        )
-        if (hasLeadgen) {
+        const fields = subscribedFieldsFromApps(data.data)
+        const hasLeadgen = fields.has('leadgen')
+        const hasFeed = fields.has('feed')
+        if (hasRequiredWebhookFields(fields)) {
           subscribed = true
           console.log(`[FacebookHealth] Subscription active [pageId=${pageId}]`)
         } else {
           errors.push('not_subscribed')
-          console.warn(`[FacebookHealth] No leadgen subscription [pageId=${pageId}]`)
+          if (!hasLeadgen) console.warn(`[FacebookHealth] No leadgen subscription [pageId=${pageId}]`)
+          if (!hasFeed) console.warn(`[FacebookHealth] No feed subscription [pageId=${pageId}]`)
         }
       } else {
         errors.push('subscription_check_failed')
@@ -116,13 +138,13 @@ export async function repairFacebookConnection(pageId: string): Promise<{
   }
 
   if (!status.subscribed) {
-    console.log(`[FacebookRepair] Re-subscribing [pageId=${pageId}]`)
+    console.log(`[FacebookRepair] Re-subscribing [pageId=${pageId}] fields=${FACEBOOK_PAGE_WEBHOOK_FIELDS}`)
     try {
       const res = await fetch(`${GRAPH_API}/${pageId}/subscribed_apps`, {
         method: 'POST',
         body: new URLSearchParams({
           access_token: connection.page_access_token,
-          subscribed_fields: 'leadgen',
+          subscribed_fields: FACEBOOK_PAGE_WEBHOOK_FIELDS,
         }),
       })
       const data = await res.json()

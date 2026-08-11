@@ -6,6 +6,7 @@ import { emitLifecycleEvent } from '@/lib/events/emit'
 import { track } from '@/lib/analytics/track'
 import { FB_REASON, FB_REASON_NOTICE_CODE } from '@/lib/connections/reasons'
 import { sendFacebookConnectedLeadOnce } from '@/lib/facebook/metaLeadConversion'
+import { FACEBOOK_PAGE_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
 
 export async function POST(req: NextRequest) {
   const user = await getUser()
@@ -38,14 +39,15 @@ export async function POST(req: NextRequest) {
   }
 
   // FIX 2: Subscribe BEFORE saving to DB — if subscription fails, do not save and return error.
-  // Without a working subscription Meta will never fire leadgen webhooks for this page,
-  // so a saved-but-unsubscribed connection is worse than no connection at all.
+  // Without a working subscription Meta will never fire leadgen (or feed) webhooks for this
+  // page, so a saved-but-unsubscribed connection is worse than no connection at all.
+  // Fields are leadgen + feed (see FACEBOOK_PAGE_WEBHOOK_FIELDS); Meta replaces the set.
   try {
     const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/subscribed_apps`, {
       method: 'POST',
       body: new URLSearchParams({
         access_token: pageAccessToken,
-        subscribed_fields: 'leadgen',
+        subscribed_fields: FACEBOOK_PAGE_WEBHOOK_FIELDS,
       }),
     })
     if (!res.ok) {
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
       track({ agencyId, userId: user.id, event: 'facebook_connect_failed', props: { reason: FB_REASON.PAGE_SUBSCRIPTION_FAILED, stage: 'subscribe' } })
       return NextResponse.json({ error: 'subscription_failed' }, { status: 502 })
     }
-    console.log(`[FacebookConnect] Page subscribed to leadgen [pageId=${pageId}]`)
+    console.log(`[FacebookConnect] Page subscribed to ${FACEBOOK_PAGE_WEBHOOK_FIELDS} [pageId=${pageId}]`)
 
     // Verify subscription is active
     try {

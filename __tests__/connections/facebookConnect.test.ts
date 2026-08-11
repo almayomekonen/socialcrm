@@ -41,6 +41,7 @@ vi.mock('next/server', async (importActual) => {
 
 import { POST } from '@/app/api/auth/facebook/connect/route'
 import { getUser } from '@/db/auth'
+import { FACEBOOK_PAGE_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
 
 const AGENCY = 69
 
@@ -49,9 +50,12 @@ function res(status: number, body: unknown) {
 }
 
 function mockFetch({ subscribedOk }: { subscribedOk: boolean }) {
-  global.fetch = vi.fn(async (url: unknown) => {
+  global.fetch = vi.fn(async (url: unknown, init?: RequestInit) => {
     const u = String(url)
-    if (u.includes('subscribed_apps')) return subscribedOk ? res(200, { success: true, data: [] }) : res(400, { error: { message: 'no perm' } })
+    if (u.includes('subscribed_apps') && (!init?.method || init.method === 'POST')) {
+      return subscribedOk ? res(200, { success: true, data: [] }) : res(400, { error: { message: 'no perm' } })
+    }
+    if (u.includes('subscribed_apps')) return res(200, { data: [] })
     return res(200, { data: [] })
   }) as unknown as typeof fetch
 }
@@ -80,6 +84,19 @@ describe('Facebook connect — persistence & tenancy', () => {
     expect(r.status).toBe(200)
     expect(await r.json()).toMatchObject({ ok: true })
     expect(h.state.merged).toHaveLength(1)
+  })
+
+  it('FB-fields: subscribe POST body is leadgen,feed (Lead Ads + Comments)', async () => {
+    mockFetch({ subscribedOk: true })
+    await POST(req(validBody))
+    const calls = vi.mocked(fetch).mock.calls
+    const subscribeCall = calls.find(
+      ([url, init]) => String(url).includes('subscribed_apps') && (init as RequestInit | undefined)?.method === 'POST',
+    )
+    expect(subscribeCall).toBeTruthy()
+    const body = String((subscribeCall![1] as RequestInit).body)
+    expect(body.includes('leadgen') && body.includes('feed')).toBe(true)
+    expect(FACEBOOK_PAGE_WEBHOOK_FIELDS).toBe('leadgen,feed')
   })
 
   it('FB-8: leadgen subscription fails → NO Page persisted (correct behavior preserved)', async () => {
