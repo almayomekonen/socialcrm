@@ -1,6 +1,8 @@
+import Link from 'next/link'
 import { formatDateTime } from '@/lib/dates'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import LeadAvatar from '@/components/ui/lead-avatar'
+import ConvertCommentButton from './ConvertCommentButton'
 import type { CommentListItem, CommentStatus } from '../types'
 
 /**
@@ -70,6 +72,22 @@ export default function CommentsList({ comments }: { comments: CommentListItem[]
                     {badge.label}
                   </span>
                 )}
+
+                {/* After conversion the row points at the ליד it produced —
+                    the same /clients/{id}/summary link every other surface uses. */}
+                {c.convertedLeadId && (
+                  <Link
+                    href={`/clients/${c.convertedLeadId}/summary`}
+                    className='text-[11px] text-primary underline underline-offset-2'
+                  >
+                    פתח את הליד
+                  </Link>
+                )}
+
+                {/* Offered only for a live, unconverted comment. A deleted
+                    comment no longer exists on Facebook; a converted one
+                    already has its ליד. */}
+                {c.status === 'open' && !c.convertedLeadId && <ConvertCommentButton commentId={c.commentId} />}
               </div>
             </div>
           </li>

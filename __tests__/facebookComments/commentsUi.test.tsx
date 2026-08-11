@@ -7,9 +7,15 @@
  * read as deliberate rather than broken: no blank bubble, no "undefined", and
  * an explicit explanation of why the text is missing.
  */
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
+vi.mock('@/lib/useAction', () => ({
+  useAction: () => ({ loading: false, error: null, setError: vi.fn(), run: (fn: () => unknown) => fn() }),
+}))
+vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.fn(async () => ({ ok: true, leadId: 7 })) }))
 
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
@@ -132,9 +138,30 @@ describe('CommentsList — status states', () => {
     expect(screen.queryByText('נמחקה בפייסבוק')).not.toBeInTheDocument()
   })
 
-  it('does NOT render a create-lead action — that is Task 6', () => {
-    render(<CommentsList comments={[item()]} />)
+  it('offers "צור ליד" on a live, unconverted comment', () => {
+    render(<CommentsList comments={[item({ status: 'open', convertedLeadId: null })]} />)
+    expect(screen.getByRole('button', { name: /צור ליד/ })).toBeInTheDocument()
+  })
+
+  it('hides "צור ליד" once the comment is converted', () => {
+    render(<CommentsList comments={[item({ status: 'converted', convertedLeadId: 42 })]} />)
     expect(screen.queryByRole('button', { name: /צור ליד/ })).not.toBeInTheDocument()
+  })
+
+  it('hides "צור ליד" for a comment deleted on Facebook', () => {
+    render(<CommentsList comments={[item({ status: 'deleted' })]} />)
+    expect(screen.queryByRole('button', { name: /צור ליד/ })).not.toBeInTheDocument()
+  })
+
+  it('links to the created ליד after conversion, using the standard lead route', () => {
+    render(<CommentsList comments={[item({ status: 'converted', convertedLeadId: 42 })]} />)
+    const link = screen.getByRole('link', { name: /פתח את הליד/ })
+    expect(link).toHaveAttribute('href', '/clients/42/summary')
+  })
+
+  it('shows no lead link when nothing was converted', () => {
+    render(<CommentsList comments={[item({ status: 'open', convertedLeadId: null })]} />)
+    expect(screen.queryByRole('link', { name: /פתח את הליד/ })).not.toBeInTheDocument()
   })
 
   it('renders every comment in the list, newest-first order preserved from the query', () => {
