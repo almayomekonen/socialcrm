@@ -1231,7 +1231,23 @@ with nothing rendered in the UI.
 - Deep links; a11y tests.
 
 **Release prerequisite:** the `/clients/[clientId]` cross-agency authorization issue (§20.3)
-must be fixed before P2 reaches production.
+must be fixed before P2 reaches production. Still open as of 2026-08-11; P1 neither created
+nor widened it, but P2's deep links increase traffic to that route (risk #3, §26).
+
+**Prerequisite before any `message.inbound` emitter is wired:** `eventKeyForEvent` gives every
+type except `lead.status_changed` an identity of `type:agency:entityType:entityId`, which for a
+conversation-entity type is *once ever per conversation*. The second inbound message on a
+conversation would therefore produce the same `eventKey`, be absorbed by
+`ON CONFLICT DO NOTHING`, and never notify — while the collapse machinery below it
+(`groupCount`, `message.inbound_multiple`) is built assuming repeat events do arrive. A
+per-message discriminator is required.
+
+**The discriminator is deliberately not specified here.** It must be derived from the actual
+inbox message model and emitter when those are inspected in P2 — the message id, or the
+provider message id, or the message's own `createdAt`, depending on what is stable across a
+provider retry. Choosing now would be inventing an identity for a model this spec has not
+read, and the wrong choice fails in the same silent direction: an unstable discriminator turns
+one message into several notifications, exactly the volume failure Law 5 forbids.
 
 ### P3 — Push and email
 
@@ -1357,3 +1373,33 @@ this registry — not part of this spec, and not modified by it.
 
 **Still open, deliberately not decided here:** the `/clients/[clientId]` cross-agency
 authorization issue (§20.3) remains a P2 release prerequisite tracked separately.
+
+### 2026-08-11 — P1 implemented, audited, and hardened back to spec
+
+P1 shipped in nine commits and was then audited read-only against this document. The audit
+found no blocking defect. Two findings changed the code or this spec:
+
+1. **The reconciliation durability net drifted and has been restored.** The implementation had
+   shortened the §14.3 window from 30 minutes to 10 and started the §23.3 cron at `*/5` instead
+   of `*/1`. Each looked locally defensible, but together they cut recovery attempts for a lost
+   enqueue from roughly thirty to two, which contradicts both §14.3 ("does not lose it") and
+   §25 limitation 3, where 30 minutes is the worst case published to users. Both values are
+   back to the spec, and both are now pinned by tests so the next change has to be deliberate.
+   The flag-flip blast radius that motivated the shorter window is recorded in
+   `db/notifications/reconcile.ts` as a separate concern with a separate fix, because narrowing
+   durability to solve a rollout problem trades the wrong thing.
+
+2. **A `message.inbound` identity prerequisite is now recorded in §24** rather than discovered
+   during P2. No message emitter exists today, so nothing is broken; the constraint is written
+   down, and the discriminator is deliberately left unspecified until the real message model is
+   inspected.
+
+Non-blocking findings left as-is and recorded for later: a retried job can increment
+`groupCount` twice if it crashes between its transaction committing and the job being marked
+done (at-least-once, visible only on count-dependent copy); the collapse `DO UPDATE` and the
+orphan prune are scoped by `userId` / entity id without a redundant `agencyId` guard
+(unreachable without cross-agency data corruption, and §10.1 defines the index that way);
+`CRITICAL_WITH_EMAIL` includes email in the ONLINE state, which §19's presence-unqualified
+email column permits but which P3 should confirm before email ships; and collapse
+race-proofness remains asserted structurally rather than exercised against live Postgres,
+which is the standing §22.4 consequence.

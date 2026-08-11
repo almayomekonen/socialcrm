@@ -106,11 +106,12 @@ Re-run at the end of P1, on the same branch, for comparison against the table ab
 | `test:a11y`          | 17 files / 126 tests       | **17 / 126 passed**            | unchanged         |
 | `test:unit`          | 60+1skip / 629+12skip      | **60+1skip / 629+12skip**      | unchanged         |
 | `test:runtime`       | 10 files / 55 tests        | **10 / 55 passed**             | unchanged         |
-| `test:notifications` | did not exist              | **5 files / 120 tests passed** | new               |
+| `test:notifications` | did not exist              | **5 files / 122 tests passed** | new               |
 | `test:integration`   | 305 files failed, no tests | **310 files failed, no tests** | known failure, +5 |
 
-The 120 notification tests are `emit` 20, `plan` 24, `policy` 20, `queries.sql` 30 and
-`registry` 26.
+The 122 notification tests are `emit` 20, `plan` 24, `policy` 20, `queries.sql` 32 and
+`registry` 26. (`queries.sql` gained two after the post-audit hardening amendment, which pins
+the reconciliation window and the cron cadence to the figures §14.3 and §23.3 fix.)
 
 The integration delta of +5 is exactly the five new `__tests__/notifications/*` files, which
 this suite collects like every other file under `__tests__/`. That growth is expected and is

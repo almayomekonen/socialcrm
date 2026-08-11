@@ -20,17 +20,23 @@ import { db } from '@/config/db'
 export type MissedLeadRow = { id: number; agencyId: number; firstName: string | null; lastName: string | null }
 
 /**
- * A deliberately SHORT window.
+ * The recovery window, fixed by spec §14.3 at 30 minutes — the same figure §25
+ * limitation 3 publishes as the honest worst case ("may be up to 30 minutes
+ * late... never lost").
  *
- * Any lead inside the window that has no job gets one, which includes leads
- * created while the feature was switched off. So the window is also the blast
- * radius of turning `NOTIFICATIONS_ENABLED` on: at most this many minutes of
- * already-existing leads can produce a notification at flag-flip. Ten minutes is
- * long enough to cover a crash-and-recover cycle and short enough that enabling
- * the feature cannot dump an afternoon of backlog into someone's bell
- * (care-charter Law 5).
+ * The window is what makes "late, not lost" true, so it is a DURABILITY figure
+ * and not a tuning knob. With the every-minute cron (§23.3) a missed enqueue
+ * gets ~30 chances to be recovered; shortening it trades that guarantee away,
+ * because once a lead leaves the window nothing looks for it again.
+ *
+ * One consequence to keep in mind rather than solve here: any lead inside the
+ * window with no job gets one, including leads created while the feature was
+ * switched off, so the window is also what a flag flip can surface at once. That
+ * is a separate concern with a separate fix (ignore leads created before the
+ * enable moment) — narrowing the recovery window to control it would weaken
+ * durability to solve a rollout problem.
  */
-export const RECONCILE_WINDOW_MINUTES = 10
+export const RECONCILE_WINDOW_MINUTES = 30
 
 /** Bounds the sweep's cost per cron tick; a genuine backlog drains over ticks. */
 export const RECONCILE_LIMIT = 200

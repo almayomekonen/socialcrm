@@ -16,7 +16,7 @@ import {
 } from '@/db/notifications/notifications'
 import { loadAgencyAdminsQuery, loadLeadOwnershipQuery } from '@/db/notifications/recipients'
 import { recordDeliveryQuery } from '@/db/notifications/deliveries'
-import { findLeadsMissingCreatedJobQuery } from '@/db/notifications/reconcile'
+import { findLeadsMissingCreatedJobQuery, RECONCILE_LIMIT, RECONCILE_WINDOW_MINUTES } from '@/db/notifications/reconcile'
 import { db } from '@/config/db'
 
 /**
@@ -285,6 +285,26 @@ describe('the reconciliation sweep (§14.3)', () => {
 
   it('considers actual leads only', () => {
     expect(sqlOf(findLeadsMissingCreatedJobQuery(10, 200)).lower).toContain('c.lead = true')
+  })
+
+  it('runs on the durability figures the spec fixes, not on tuned-down ones', () => {
+    /**
+     * The window is why "late, not lost" (§14.3) is true, and §25 limitation 3
+     * publishes 30 minutes as the worst case users are promised. It drifted to 10
+     * once; pinning it here means the next change has to be deliberate.
+     */
+    expect(RECONCILE_WINDOW_MINUTES).toBe(30)
+    expect(RECONCILE_LIMIT).toBe(200)
+  })
+
+  it('the cron drains every minute, so the window is many chances and not one', () => {
+    // §23.3: */1 is the starting cadence. At */5 a 30-minute window is ~6
+    // recovery attempts instead of ~30, which is a durability change disguised
+    // as a scheduling one.
+    const vercel = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'vercel.json'), 'utf8'))
+    const entry = vercel.crons.find((c: { path: string }) => c.path === '/api/cron/notifications-dispatch')
+    expect(entry, 'the notifications cron is not registered in vercel.json').toBeTruthy()
+    expect(entry.schedule).toBe('*/1 * * * *')
   })
 })
 
