@@ -249,6 +249,36 @@ describe('presence stamping', () => {
   })
 })
 
+describe('toast eligibility is decided here, not on the client', () => {
+  it('marks a routine lead arrival eligible while the user is ONLINE', async () => {
+    h.readPresence.mockResolvedValue({ lastSeenAt: minutesAgo(1), lastSeenVisible: true, awaySinceAt: null })
+    const body = await (await GET(req())).json()
+    expect(body.presence).toBe('online')
+    expect(body.items[0].toastEligible).toBe(true)
+  })
+
+  it('marks the same row INELIGIBLE while the user is away — nobody is there to interrupt', async () => {
+    h.readPresence.mockResolvedValue({ lastSeenAt: minutesAgo(30), lastSeenVisible: true, awaySinceAt: null })
+    const body = await (await GET(req())).json()
+    expect(body.presence).toBe('offline')
+    expect(body.items[0].toastEligible).toBe(false)
+  })
+
+  it('follows the registry policy, so an ambient type never becomes eligible', async () => {
+    // lead.status_changed is IN_APP_ONLY: it records, it does not interrupt.
+    h.readPresence.mockResolvedValue({ lastSeenAt: minutesAgo(1), lastSeenVisible: true, awaySinceAt: null })
+    h.listNotifications.mockResolvedValue([{ ...ITEM, type: 'lead.status_changed', priority: 'low' }])
+    const body = await (await GET(req())).json()
+    expect(body.items[0].toastEligible).toBe(false)
+  })
+
+  it('decorates every item, so the client never has to infer a default', async () => {
+    h.listNotifications.mockResolvedValue([ITEM, { ...ITEM, id: 901 }])
+    const body = await (await GET(req())).json()
+    for (const item of body.items) expect(typeof item.toastEligible).toBe('boolean')
+  })
+})
+
 describe('While You Were Away', () => {
   it('is null when the user was not away — no window is even queried', async () => {
     h.readPresence.mockResolvedValue({ lastSeenAt: minutesAgo(2), lastSeenVisible: true, awaySinceAt: null })

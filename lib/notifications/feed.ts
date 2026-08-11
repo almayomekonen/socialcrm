@@ -14,6 +14,7 @@ import {
   summarizeAwayNotifications,
 } from '@/db/notifications/feed'
 import { classifyPresence } from '@/lib/notifications/presence'
+import { isToastEligible } from '@/lib/notifications/toastEligibility'
 import { Roles } from '@/types/roles'
 import type { FeedCursor, NotificationFeedResponse } from '@/modules/notifications/types'
 
@@ -89,6 +90,17 @@ export async function buildNotificationFeed(args: BuildFeedArgs): Promise<Omit<N
   ])
 
   /**
+   * Toast eligibility is decorated HERE because this is the only layer that holds
+   * both the row and the presence classification. Doing it in the query layer
+   * would require passing presence into SQL; doing it on the client would create a
+   * second channel-routing decision site (see toastEligibility.ts).
+   */
+  const decorated = items.map((row) => ({
+    ...row,
+    toastEligible: isToastEligible({ type: row.type, priority: row.priority, presence }),
+  }))
+
+  /**
    * Close a boundary that has nothing left to show — the only write here beyond
    * the stamp, and it fires only on the transition. Two cases reach it: the user
    * came back to nothing new, and the user has since seen everything the window
@@ -100,7 +112,7 @@ export async function buildNotificationFeed(args: BuildFeedArgs): Promise<Omit<N
   return {
     unreadNotificationCount,
     unreadConversationCount,
-    items,
+    items: decorated,
     whileYouWereAway,
     presence,
     serverTime: now.toISOString(),

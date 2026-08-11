@@ -557,9 +557,35 @@ Two mechanical requirements follow from the feed owning presence:
 | `AwarenessContext` / `AwarenessItem` | `NotificationContext` / `NotificationItem` |
 | WhatsApp-only toast path | Registry-driven toast for all enabled types |
 
-Reused unchanged: `useAdaptivePoll`, `nextInterval`, `CrmSyncHealthContext`,
-`INBOX_RECOVERY_MS`, and the single-owner discipline (the global loop yields on `/inbox`,
-where the inbox sync loop feeds the same context).
+Reused unchanged: `useAdaptivePoll`, `nextInterval`, and `INBOX_RECOVERY_MS`.
+
+**The feed loop does NOT yield on `/inbox`, unlike `AwarenessPoller`** (established P2.2).
+Awareness can yield there because `InboxSyncLoop` feeds the same context; the feed loop has no
+such substitute and is the only writer of `user_presence`. Yielding would mean a user working
+in the inbox stops stamping presence, classifies OFFLINE within the idle window, and — once P3
+lands — is pushed at while looking at the screen, which is the exact failure §7.2 exists to
+prevent. The single-owner discipline still holds: there is one feed loop, mounted once in the
+app shell.
+
+`CrmSyncHealthContext` is reused by the awareness and inbox loops but deliberately **not** by
+the feed loop (P2.2): `CrmSyncSource` is a closed union whose only consumer is `CrmSyncBanner`,
+which each page opts into explicitly, so a new member would log "banner open" for a banner that
+can never appear. A feed outage has no user-facing recovery action while notifications are
+additive; the recovery band handles cadence and the next successful poll restores true state.
+
+**Migration overlap (P2.2 → P2.6).** Both systems are mounted at once, so the retirement is
+staged rather than a cutover. Until `AwarenessProvider` is removed:
+
+- `NotificationContext` suppresses toasts for the `messages` category
+  (`AWARENESS_OWNED_CATEGORIES` in `modules/notifications/surface.ts`), because awareness still
+  owns the WhatsApp toast. Without it, one inbound message would produce two toasts.
+- The nav conversation badge keeps its existing awareness source. `unreadConversationCount`
+  rides on the feed for P2.6 to consume, and nothing reads it before then, so the badge cannot
+  regress.
+
+P2.6 is therefore: delete `AwarenessProvider`, delete that suppression set, and point the badge
+at the feed. `__tests__/notifications/awarenessCoexistence.test.tsx` fails if the suppression is
+removed while awareness is still live.
 
 ### 13.2 A toast is a rendering, not a channel implementation
 
@@ -574,6 +600,27 @@ already behaves, including its 1-vs-many summarization.
 Toast-eligibility requires: presence ONLINE, the type's ONLINE policy includes TOAST,
 `createdAt` after client mount (pre-existing backlog shows as a count, never a flood), and
 the row not already toasted in this session.
+
+**Split of those four conditions, as implemented in P2.2.** The first two are SERVER decisions
+and travel on each feed item as `toastEligible`
+(`lib/notifications/toastEligibility.ts`, using the same §15.1 `resolveChannels` intersection
+the worker uses, with `toast: true` in the capability set because an open tab *is* the toast
+surface). The client is given no way to re-derive them: it has neither presence nor preferences,
+and a client-side copy would be a second channel-routing site that could disagree with the
+worker's. The last two are the only facts the browser alone owns, and it keeps exactly those —
+mount time, and a session set of already-toasted ids.
+
+A fifth condition is enforced alongside them: the row must be **unseen in the database**. That
+is what makes the guarantee survive a reload or a second tab, where session memory cannot. Both
+the session set and the `seenAt` check are required — the session set covers the window between
+toasting and the seen-stamp round-trip, during which polls still return `seenAt = null`.
+
+**"After client mount" is compared in SERVER time.** `createdAt` comes from the server and the
+mount instant from the browser, and those are not the same clock. A browser running ten minutes
+slow would read its entire unread backlog as newer than mount and toast all of it on load — the
+flood this gate exists to prevent, produced by a wrong clock rather than by real activity. The
+mount instant is therefore translated once, using the `serverTime` the first feed response
+already carries, and the translated value is the boundary from then on.
 
 ### 13.3 While you were away
 
@@ -1250,6 +1297,24 @@ read, and the wrong choice fails in the same silent direction: an unstable discr
 one message into several notifications, exactly the volume failure Law 5 forbids.
 
 ### P3 — Push and email
+
+**MANDATORY PREREQUISITE — `processJob` must read real presence before WEB_PUSH routing
+exists.** `lib/notifications/processJob.ts` classifies presence with the P1 placeholder
+`p1Presence = () => classifyPresence(null, new Date())`, i.e. **everyone is OFFLINE**. That was
+a truthful reading while `user_presence` had no writer, and it stays harmless for as long as
+IN_APP is the only capability, because IN_APP appears in the offline column of every row of the
+§19 matrix.
+
+It becomes a **live defect the moment WEB_PUSH is enabled**, and it fails in the worst
+direction: every user classifies OFFLINE, every offline policy row includes `web_push`, so a
+user sitting and looking at the screen would be pushed for routine events. That is precisely
+the failure §7.2 exists to prevent, and it would arrive as a flood rather than a visible error.
+
+`user_presence` has had its single writer since P2.1 (`db/notifications/presence.ts`, commit
+`1f2701af`), so the data is there. P3 must replace `p1Presence` with a **batched** read
+(one query per worker pass keyed by userId, never per-notification — §21.2), and must not be
+merged with the placeholder still in place. Deliberately deferred out of P2.2, which added no
+presence-dependent channel.
 
 - `push_subscriptions` management, `public/sw.js` (push + notificationclick only),
   permission request from preferences.

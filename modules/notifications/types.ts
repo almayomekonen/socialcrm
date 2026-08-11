@@ -57,7 +57,20 @@ export type NotificationFeedItem = {
   seenAt: string | null
   /** Set when the user explicitly read it. Clears the badge, frees the collapse key. */
   readAt: string | null
+  /**
+   * May this row be presented as a toast? Decided SERVER-side from the registry
+   * policy and the server's presence classification
+   * (`lib/notifications/toastEligibility.ts`), because the client has neither.
+   *
+   * Eligible is not the same as "toast it": the client still applies the two
+   * facts only it knows — arrived after mount, and not already toasted this
+   * session.
+   */
+  toastEligible: boolean
 }
+
+/** A persisted row before the server decorates it with presence-dependent fields. */
+export type NotificationRow = Omit<NotificationFeedItem, 'toastEligible'>
 
 /**
  * "While you were away" — a persisted summary, never frontend memory.

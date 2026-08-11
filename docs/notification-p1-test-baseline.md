@@ -117,7 +117,7 @@ The integration delta of +5 is exactly the five new `__tests__/notifications/*` 
 this suite collects like every other file under `__tests__/`. That growth is expected and is
 not a regression. They fail in `__tests__/setup.ts` for the identical pre-existing reason as
 the other 305 — the harness cannot build a schema — and not for any reason of their own: the
-same five files pass 120/120 under `VITEST_NO_DB=1`. No notification-specific failure appears
+same five files pass 122/122 under `VITEST_NO_DB=1`. No notification-specific failure appears
 anywhere in the run. The signature is unchanged, which is the condition §22.5 requires.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
@@ -139,20 +139,69 @@ stamping and the persisted away boundary).
 | `test:integration`   | 305 files failed, no tests | 310 files failed         | **313 files failed, no tests** | known failure, +3  |
 | `npm run build`      | not previously recorded    | not recorded             | **succeeds**                   | new evidence       |
 
-The three new notification test files are `presence` (17), `feed.sql` (24) and `feedRoute`
-(24), taking the suite from 122 to 187.
+The three new notification test files are `presence` (13), `feed.sql` (21) and `feedRoute`
+(31), taking the suite from 122 to 187.
 
 The integration delta of +3 is exactly those three files. The signature is unchanged and
 still matches §22.4 in every respect: the failure is raised in `__tests__/setup.ts` before
 any test executes ("Tests: no tests"), the reported errors are
 `relation "knex_migrations" already exists` and a duplicate-key violation creating
 `knex_migrations_lock`, and no failure anywhere in the run is specific to notification code.
-All 186 notification tests pass under `VITEST_NO_DB=1`.
+All 187 notification tests pass under `VITEST_NO_DB=1`.
 
 `npm run build` was added as a gate for P2.1 because it is the only check that can prove the
 feed is uncacheable, and it earned its place immediately: it rejected
 `export const dynamic = 'force-dynamic'` under `cacheComponents` (see the route header), which
 no other gate caught — `tsc` and every test suite passed with the offending line present. The
 build now lists `ƒ /api/notifications/feed`, i.e. dynamic, server-rendered on demand.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P2.2 comparison
+
+Re-run at the end of P2.2 (`NotificationContext`, feed polling, toast surfacing, `seenAt`
+stamping, mark-read).
+
+| Gate                 | Baseline                   | After P2.1                 | After P2.2                      | Verdict           |
+| -------------------- | -------------------------- | -------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                      | clean                      | **clean**                       | unchanged         |
+| `test:a11y`          | 17 files / 126 tests       | 17 / 126                   | **18 files / 132 tests passed** | +1 file, +6       |
+| `test:unit`          | 60+1skip / 629+12skip      | 60+1skip / 629+12skip      | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 files / 55 tests        | 10 / 55                    | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | did not exist              | 8 files / 187 tests        | **14 files / 284 tests passed** | +6 files, +97     |
+| `test:integration`   | 305 files failed, no tests | 313 files failed, no tests | **320 files failed, no tests**  | known failure, +7 |
+| `npm run build`      | not recorded               | succeeds                   | **succeeds**                    | unchanged         |
+
+The six new notification test files are `surface` (17), `notificationContext` (30),
+`readRoutes` (16), `reads.sql` (13), `toastEligibility` (9) and `awarenessCoexistence` (8);
+`feedRoute` grew 31 → 35 with the toast-eligibility block. The one new a11y file is
+`notificationToast` (6), which uses the REAL `lib/toast` rather than a mock, so it would fail
+if P2.2 had introduced a parallel toast implementation.
+
+The integration delta of +7 is exactly those seven files (six notification, one a11y), which
+this suite collects like every other file under `__tests__/`. The signature is unchanged and
+still matches §22.4: raised in `__tests__/setup.ts` before any test executes
+("Tests: no tests"), with `relation "knex_migrations" already exists` and
+`relation "knex_migrations_lock" does not exist`, and no failure anywhere in the run specific
+to notification code. All 284 notification tests pass under `VITEST_NO_DB=1`.
+
+`npm run build` now lists `ƒ /api/notifications/feed`, `ƒ /api/notifications/read` and
+`ƒ /api/notifications/seen` — all three dynamic, none prerendered.
+
+**The dedup guarantees were mutation-tested, not merely asserted.** Because "does not toast
+twice" is the kind of property a test suite can appear to cover while proving nothing, each
+gate was temporarily removed and the suite re-run:
+
+| Mutation                                            | Tests that failed                        |
+| --------------------------------------------------- | ---------------------------------------- |
+| session `alreadyToasted` gate deleted               | 5, incl. "does NOT re-toast … later polls" |
+| `seenAt` stamped for `data.items` instead of surfaced | 1, "stamps seenAt for exactly the rows it toasted" |
+| `seenAt` stamped on every feed return               | 3, incl. "does NOT stamp … merely because the feed returned" |
+| `AWARENESS_OWNED_CATEGORIES` emptied                | 7, incl. the whole coexistence suite     |
+| clock-skew correction forced to zero                | 2, both browser-clock cases              |
+
+All mutations were reverted; the numbers above are from the unmutated tree.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.

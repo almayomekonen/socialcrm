@@ -14,6 +14,8 @@ import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import { isGeneralModeEnabled } from '@/lib/ai/flags'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
+import { NotificationProvider } from '@/modules/notifications/NotificationContext'
+import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
 import { CrmSyncHealthProvider } from '@/lib/polling/CrmSyncHealthContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
@@ -91,9 +93,24 @@ async function LayoutContent({ children }) {
 
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
 
+  /**
+   * Notifications (spec §13). Mounted ALONGSIDE AwarenessProvider, not instead of
+   * it: the awareness path keeps owning the nav conversation badge and the WhatsApp
+   * toast until it is retired in P2.6, so P2.2 cannot regress either.
+   *
+   * Gated on the workspace actually rendering. A blocked user sees WorkspaceTeaser,
+   * and polling a feed that would 403 every few seconds serves nobody.
+   */
+  const notificationsEnabled =
+    isNotificationsEnabled() &&
+    isNotificationsAgencyAllowlisted(user.agencyId) &&
+    !trialExpired &&
+    trialStatus !== 'NEVER_STARTED'
+
   return (
     <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
+    <NotificationProvider enabled={notificationsEnabled}>
     <UserProvider user={user}>
       <PosProvider>
         <CopilotProvider enabled={copilotEnabled}>
@@ -141,6 +158,7 @@ async function LayoutContent({ children }) {
         </CopilotProvider>
       </PosProvider>
     </UserProvider>
+    </NotificationProvider>
     </AwarenessProvider>
     </CrmSyncHealthProvider>
   )

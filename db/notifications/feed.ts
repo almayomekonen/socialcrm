@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import type { NotificationCategory } from '@/lib/notifications/types'
-import type { FeedCursor, NotificationFeedItem, WhileYouWereAway } from '@/modules/notifications/types'
+import type { FeedCursor, NotificationRow, WhileYouWereAway } from '@/modules/notifications/types'
 
 /**
  * Notification feed reads — the bell's hot path.
@@ -127,12 +127,12 @@ export function summarizeAwayNotificationsQuery(args: { agencyId: number; userId
 const toIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : new Date(v as string).toISOString())
 const toIsoOrNull = (v: unknown): string | null => (v == null ? null : toIso(v))
 
-function mapItem(row: Record<string, unknown>): NotificationFeedItem {
+function mapItem(row: Record<string, unknown>): NotificationRow {
   return {
     id: Number(row.id),
-    type: row.type as NotificationFeedItem['type'],
+    type: row.type as NotificationRow['type'],
     category: row.category as NotificationCategory,
-    priority: row.priority as NotificationFeedItem['priority'],
+    priority: row.priority as NotificationRow['priority'],
     title: String(row.title),
     body: (row.body as string | null) ?? null,
     entityType: (row.entityType as string | null) ?? null,
@@ -145,12 +145,16 @@ function mapItem(row: Record<string, unknown>): NotificationFeedItem {
   }
 }
 
+/**
+ * Returns raw rows. `toastEligible` is added by the assembler
+ * (`lib/notifications/feed.ts`), which is the only layer that knows presence.
+ */
 export async function listNotifications(args: {
   agencyId: number
   userId: number
   limit: number
   cursor?: FeedCursor | null
-}): Promise<NotificationFeedItem[]> {
+}): Promise<NotificationRow[]> {
   const rows = await listNotificationsQuery(args)
   return rows.map((r) => mapItem(r as Record<string, unknown>))
 }
@@ -185,7 +189,7 @@ export async function summarizeAwayNotifications(args: {
  * page was not full, which is the only reliable "no more pages" signal that does
  * not cost an extra count query.
  */
-export function nextCursorFrom(items: NotificationFeedItem[], limit: number): FeedCursor | null {
+export function nextCursorFrom(items: NotificationRow[], limit: number): FeedCursor | null {
   if (items.length < limit || items.length === 0) return null
   const last = items[items.length - 1]
   return { createdAt: last.createdAt, id: last.id }

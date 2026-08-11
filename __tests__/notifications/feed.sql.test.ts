@@ -15,7 +15,7 @@ import {
   readPresenceQuery,
   stampPresenceQuery,
 } from '@/db/notifications/presence'
-import type { NotificationFeedItem } from '@/modules/notifications/types'
+import type { NotificationRow } from '@/modules/notifications/types'
 
 /**
  * SQL-shape tests for the feed — spec §22.2, extending the technique already used
@@ -203,7 +203,7 @@ describe('pagination is keyset, and bounded', () => {
   })
 
   it('nextCursor is null on a short page and set on a full one', () => {
-    const item = (id: number): NotificationFeedItem => ({
+    const item = (id: number): NotificationRow => ({
       id,
       type: 'lead.created',
       category: 'leads',
