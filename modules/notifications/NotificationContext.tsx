@@ -104,6 +104,8 @@ export function NotificationProvider({
   const boundary = useRef<string | null>(null)
   /** Ids presented in THIS session. Covers the gap before the seen-stamp lands. */
   const toasted = useRef<Set<number>>(new Set())
+  /** Ids already sent to the seen endpoint, so live surfaces do not re-post them. */
+  const stampedSeen = useRef<Set<number>>(new Set())
   /** Last applied signature, so an unchanged poll does not re-render consumers. */
   const signature = useRef<string>('')
 
@@ -125,10 +127,24 @@ export function NotificationProvider({
     }
   }, [])
 
+  /**
+   * Stamp seenAt for rows a surface actually presented.
+   *
+   * De-duplicated per session because surfaces are LIVE: the dropdown stays open
+   * across polls and re-reports the rows it is still showing. The write is already
+   * idempotent server-side (`WHERE "seenAt" IS NULL`), so this is about not making
+   * a request every few seconds to say nothing new — and it lives here, in the one
+   * state owner, so every surface gets it rather than each re-inventing it.
+   *
+   * Ids arriving after a stamp are still sent: only ones already sent are dropped.
+   */
   const markSeen = useCallback(
     (ids: number[]) => {
       if (!enabled || !ids.length) return
-      void post('/api/notifications/seen', { ids })
+      const fresh = ids.filter((id) => !stampedSeen.current.has(id))
+      if (!fresh.length) return
+      for (const id of fresh) stampedSeen.current.add(id)
+      void post('/api/notifications/seen', { ids: fresh })
     },
     [enabled, post],
   )

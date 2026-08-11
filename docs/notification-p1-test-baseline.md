@@ -205,3 +205,53 @@ gate was temporarily removed and the suite re-run:
 All mutations were reverted; the numbers above are from the unmutated tree.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P2.3 comparison
+
+Re-run at the end of P2.3 (bell, badge, dropdown, While-you-were-away section, deep-link click).
+
+| Gate                 | Baseline                   | After P2.2                 | After P2.3                      | Verdict           |
+| -------------------- | -------------------------- | -------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                      | clean                      | **clean**                       | unchanged         |
+| `test:a11y`          | 17 files / 126 tests       | 18 files / 132 tests       | **19 files / 149 tests passed** | +1 file, +17      |
+| `test:unit`          | 60+1skip / 629+12skip      | 60+1skip / 629+12skip      | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 files / 55 tests        | 10 / 55                    | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | did not exist              | 14 files / 284 tests       | **17 files / 346 tests passed** | +3 files, +62     |
+| `test:integration`   | 305 files failed, no tests | 320 files failed, no tests | **324 files failed, no tests**  | known failure, +4 |
+| `npm run build`      | not recorded               | succeeds                   | **succeeds**                    | unchanged         |
+
+The three new notification test files are `dropdown` (22, the pure render/seen boundary rules),
+`notificationBell` (33, bell and panel behaviour through the real context) and
+`navBadgeNonRegression` (10); `awarenessCoexistence` grew 8 → 9 with the case proving the
+`messages` suppression removes a duplicate toast without hiding the record. The one new a11y file
+is `notificationBell` (17).
+
+`navBadgeNonRegression` exists because P2.3 moved `NavBadge` out of `Nav.tsx` into
+`lib/navs/NavBadge.tsx` so the bell could reuse it rather than ship a second 99+ cap. It pins the
+markup byte-for-byte, the cap at both boundaries, and that OFFICE still has no inbox link and
+therefore no conversation badge.
+
+The integration delta of +4 is exactly those four files, which this suite collects like every
+other file under `__tests__/`. The signature is unchanged and still matches §22.4: raised in
+`__tests__/setup.ts` before any test executes ("Tests: no tests"), with
+`relation "knex_migrations" does not exist` and
+`relation "knex_migrations_lock" does not exist`, and no failure anywhere in the run specific to
+notification code. All 346 notification tests pass under `VITEST_NO_DB=1`.
+
+**The seen-boundary and focus guarantees were mutation-tested.** "Only the rendered rows get
+stamped" is precisely the property a suite can look like it covers while proving nothing:
+
+| Mutation                                          | Tests that failed                                    |
+| ------------------------------------------------- | ---------------------------------------------------- |
+| stamp `idsToStampSeen(items)` — the whole feed page | 1, "stamps exactly the rendered rows … not the whole page" |
+| focus restore removed from `close()`              | 2, both "returns focus to the bell" cases            |
+
+Both were reverted; the numbers above are from the unmutated tree.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state. The pre-existing
+`navLandmarks` a11y test broke once when the bell called `useRouter()` unconditionally inside a
+Topbar that the test renders with a partial `next/navigation` mock. It was fixed by splitting the
+bell into a flag gate plus an implementation component, so nothing but the flag check mounts when
+notifications are off — the test itself was not touched.

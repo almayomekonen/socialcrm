@@ -576,9 +576,16 @@ additive; the recovery band handles cadence and the next successful poll restore
 **Migration overlap (P2.2 → P2.6).** Both systems are mounted at once, so the retirement is
 staged rather than a cutover. Until `AwarenessProvider` is removed:
 
-- `NotificationContext` suppresses toasts for the `messages` category
+- `NotificationContext` suppresses **toasts** for the `messages` category
   (`AWARENESS_OWNED_CATEGORIES` in `modules/notifications/surface.ts`), because awareness still
   owns the WhatsApp toast. Without it, one inbound message would produce two toasts.
+
+  **The suppression is narrow on purpose, and must not widen into a rule.** It removes a
+  duplicate *alert*, not a record: a `messages` notification is still counted on the bell badge,
+  still listed in the dropdown, and still deep-links to its conversation. So retiring awareness
+  changes only which system interrupts, never what is on record — which is what makes P2.6 a
+  deletion rather than a migration. `awarenessCoexistence.test.tsx` pins both halves: one toast,
+  and the row present in the panel.
 - The nav conversation badge keeps its existing awareness source. `unreadConversationCount`
   rides on the feed for P2.6 to consume, and nothing reads it before then, so the badge cannot
   regress.
@@ -1272,10 +1279,22 @@ with nothing rendered in the UI.
 ### P2 — In-app surface
 
 - `/api/notifications/feed` (unread + items + presence stamp); `/api/inbox/awareness` kept
-  as an alias.
+  as an alias. — **delivered P2.1**
 - `NotificationContext` replacing `AwarenessContext`; toast wired through the registry.
-- Bell + badge in `Topbar`; dropdown; `/notifications` center; mark-read / mark-all-read.
-- Deep links; a11y tests.
+  — **delivered P2.2** (context and toast; awareness retirement itself deferred to P2.6)
+- Bell + badge in `Topbar`; dropdown; mark-read / mark-all-read; deep links; a11y tests.
+  — **delivered P2.3**
+- `/notifications` center. — **remaining**
+
+**P2.3 surfaces, for the record.** `seenAt` may now be stamped by three things and nothing else:
+the toast (P2.2), the dropdown rendering a row (P2.3), and the future notification center. A feed
+GET stamps presence, never `seenAt`. The dropdown's boundary is `renderedNotifications` in
+`modules/notifications/dropdown.ts` — a feed page of fifty with eight on screen stamps eight, and
+the ids past the render limit stay unseen rather than being quietly consumed.
+
+The bell shows `unreadNotificationCount`; the nav keeps showing `unreadConversationCount` from
+awareness. They share one renderer (`lib/navs/NavBadge.tsx`, moved out of `Nav.tsx` in P2.3 for
+exactly this reason) so the 99+ cap cannot drift, and they share nothing else.
 
 **Release prerequisite:** the `/clients/[clientId]` cross-agency authorization issue (§20.3)
 must be fixed before P2 reaches production. Still open as of 2026-08-11; P1 neither created

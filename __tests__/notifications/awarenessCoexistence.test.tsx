@@ -22,6 +22,7 @@ import React from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { AwarenessProvider, useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 import { NotificationProvider, useNotifications } from '@/modules/notifications/NotificationContext'
+import NotificationBell from '@/components/notifications/NotificationBell'
 import type { NotificationFeedItem, NotificationFeedResponse } from '@/modules/notifications/types'
 
 const push = vi.fn()
@@ -221,6 +222,40 @@ describe('the two badges stay separate', () => {
     expect(toast.mock.calls[0][1]).toBe('הודעה חדשה מדנה')
     const urls = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => c[0])
     expect(urls.some((u) => u.startsWith('/api/notifications'))).toBe(false)
+  })
+})
+
+describe('the suppression is about the TOAST, not about the record', () => {
+  it('a messages notification still appears in the bell dropdown', async () => {
+    // Suppression prevents a second alert, not a second source of truth. The row
+    // exists, it is counted, and the dropdown shows it — so retiring awareness in
+    // P2.6 changes only which system interrupts, never what is on record.
+    awarenessResponse = {
+      counts: { whatsappUnread: 1 },
+      items: [{ conversationId: 9, contactName: 'דנה', at: AFTER }],
+      serverTime: AFTER,
+    }
+    feedResponse = feed({ unreadNotificationCount: 1, items: [notification({ id: 1 })] })
+
+    render(
+      <AwarenessProvider enabled initialUnread={0}>
+        <NotificationProvider enabled>
+          <NotificationBell />
+        </NotificationProvider>
+      </AwarenessProvider>,
+    )
+    await tick()
+
+    const bell = screen.getByRole('button', { name: /התראות/ })
+    expect(bell.textContent).toBe('1')
+
+    await act(async () => {
+      bell.click()
+    })
+    expect(screen.getByText('הודעה חדשה מדנה')).toBeTruthy()
+
+    // And still exactly one toast, from awareness.
+    expect(toast).toHaveBeenCalledTimes(1)
   })
 })
 
