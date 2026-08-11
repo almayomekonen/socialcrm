@@ -25,6 +25,7 @@
     "test:a11y": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/a11y",
     "test:catalog": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/automations",
     "test:support": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/support",
+    "test:notifications": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/notifications",
     "test:unit:watch": "NODE_ENV=test VITEST_NO_DB=1 vitest __tests__/ai",
     "test:db:create": "createdb socialcrm_test 2>/dev/null || true",
     "migrate": "knex --knexfile knexfile.cjs migrate:latest",

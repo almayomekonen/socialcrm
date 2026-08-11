@@ -80,3 +80,25 @@ fix this, and no notification work should try.
    fail with exactly this signature — 305 files, zero tests, setup/migration-lock errors. A
    different count or a different cause is a blocking condition, not a known failure.
    The file count rises as notification test files are added; the *cause* must not change.
+
+---
+
+## Post-P1 comparison
+
+Re-run at the end of P1, on the same branch, for comparison against the table above.
+
+| Gate | Baseline | After P1 | Verdict |
+|---|---|---|---|
+| `npx tsc --noEmit` | clean | **clean** | unchanged |
+| `test:a11y` | 17 files / 126 tests | **17 / 126 passed** | unchanged |
+| `test:unit` | 60+1skip / 629+12skip | **60+1skip / 629+12skip** | unchanged |
+| `test:runtime` | 10 files / 55 tests | **10 / 55 passed** | unchanged |
+| `test:notifications` | did not exist | **5 files / 119 tests passed** | new |
+| `test:integration` | 305 files failed, no tests | **310 files failed, no tests** | known failure, +5 |
+
+The integration delta is exactly the five new `__tests__/notifications/*` files. They fail in
+`__tests__/setup.ts` for the identical pre-existing reason as the other 305 — the harness
+cannot build a schema — and not for any reason of their own: the same five files pass 119/119
+under `VITEST_NO_DB=1`. The cause did not change, which is the condition §22.5 requires.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.
