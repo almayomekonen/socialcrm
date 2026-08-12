@@ -181,7 +181,8 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     entity: conversationEntity,
     deepLink: conversationLink,
     recipients: 'handler_or_admin',
-    channels: PUSH_WHEN_AWAY,
+    // V1: in-app only — no toast (Awareness owns live inbound), no push.
+    channels: IN_APP_ONLY,
   },
 
   /**

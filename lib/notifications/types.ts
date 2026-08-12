@@ -65,8 +65,9 @@ export type NotificationPayload = {
   /** For conversation-entity events, the lead the conversation belongs to. */
   leadId?: number | null
   /**
-   * Persisted `inbox_messages.id` — the `message.inbound` event-key discriminator.
-   * Required for that type; absent elsewhere.
+   * Persisted `inbox_messages.id` — discriminator for `message.inbound` and
+   * `message.unanswered` (latest unanswered inbound head). Required for those
+   * types; absent elsewhere.
    */
   messageId?: number | null
   /**

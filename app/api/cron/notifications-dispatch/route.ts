@@ -4,6 +4,7 @@ import { pruneNotifications } from '@/db/notifications/notifications'
 import { isNotificationsEnabled } from '@/lib/notifications/flags'
 import { reconcileMissedLeadCreated } from '@/lib/notifications/reconcile'
 import { tickFollowupNotifications } from '@/lib/notifications/followupTick'
+import { tickUnansweredNotifications } from '@/lib/notifications/unansweredTick'
 import { runNotificationWorker } from '@/lib/notifications/worker'
 
 /**
@@ -13,7 +14,8 @@ import { runNotificationWorker } from '@/lib/notifications/worker'
  *   1. drain — reclaim expired leases, claim and process due jobs
  *   2. reconcile — recover events lost between a lead INSERT and its job INSERT
  *   3. follow-up tick — enqueue followup.due / followup.overdue from persisted state
- *   4. prune — terminal queue rows, settled notifications, orphans
+ *   4. unanswered tick — enqueue message.unanswered from conversation state
+ *   5. prune — terminal queue rows, settled notifications, orphans
  *
  * `after()` kicks make the common case immediate; THIS is the correctness and
  * recovery guarantee. Safe to overlap with itself and with kicks (leases +
@@ -56,12 +58,13 @@ async function handle(req: NextRequest) {
   const summary = await runNotificationWorker({ limit: 25, workerId: 'cron-dispatch' })
   const reconciled = await reconcileMissedLeadCreated()
   const followups = await tickFollowupNotifications()
+  const unanswered = await tickUnansweredNotifications()
 
   const cutoff = new Date(Date.now() - PRUNE_AFTER_DAYS * 24 * 60 * 60 * 1000)
   await pruneTerminalNotificationJobs(cutoff)
   await pruneNotifications(cutoff)
 
-  return NextResponse.json({ ok: true, ...summary, reconciled, followups })
+  return NextResponse.json({ ok: true, ...summary, reconciled, followups, unanswered })
 }
 
 export async function GET(req: NextRequest) {
