@@ -77,6 +77,12 @@ export const messageInboundMultipleTitle = (ctx: EventContext): string =>
 
 export const messageUnansweredTitle = (ctx: EventContext): string => withName('הודעה ממתינה למענה', ctx)
 
+/**
+ * Facebook Page comment — author display name is carried in `leadName` at the
+ * emit site (there is no Lead yet). Absent name ⇒ less specific, never guessed.
+ */
+export const commentReceivedTitle = (ctx: EventContext): string => withName('תגובה חדשה', ctx)
+
 export const followupDueTitle = (ctx: EventContext): string => withName('מעקב מתוכנן להיום', ctx)
 
 /** "ממתין", never "באיחור"/"פספסת" — recovery framing, not failure (Law 13). */

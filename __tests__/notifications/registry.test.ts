@@ -37,7 +37,7 @@ const enabled = entries.filter((e) => e.enabled)
 describe('invariant 1 — exactly one entry per type', () => {
   it('every declared type has an entry, and nothing extra exists', () => {
     expect(Object.keys(NOTIFICATION_REGISTRY).sort()).toEqual([...NOTIFICATION_TYPES].sort())
-    expect(entries).toHaveLength(15)
+    expect(entries).toHaveLength(16)
   })
 
   it("each entry's own type field matches its key — a copy/paste guard", () => {
@@ -58,6 +58,7 @@ describe('invariant 1 — exactly one entry per type', () => {
     const prefixToCategory: Record<string, string> = {
       lead: 'leads',
       message: 'messages',
+      comment: 'messages',
       followup: 'followups',
       integration: 'integrations',
       sla: 'sla',
@@ -300,7 +301,9 @@ describe('deep links target entities, never notifications (§20.2)', () => {
       // page where every external system is connected (there is no per-provider
       // route, and the two old ones are redirect stubs), so the correct
       // destination carries no id.
-      if (def.entity(c).type !== 'integration') {
+      // Comments likewise: only /inbox/comments exists (no per-comment URL yet).
+      const entityType = def.entity(c).type
+      if (entityType !== 'integration' && entityType !== 'comment') {
         expect(def.deepLink(c)).toContain(String(def.entity(c).id))
       }
     }

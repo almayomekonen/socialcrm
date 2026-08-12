@@ -1,12 +1,12 @@
 /**
  * THE NOTIFICATION REGISTRY — the single source of truth. Spec §5.
  *
- * NOTE ON SIZE (architecture-rules.md §6): this file is ~283 lines, over the
- * 250-line soft limit, and intentionally so. It is fifteen uniform data entries
- * with one concern and no branching — every behavior it references lives in
- * copy.ts, collapseKeys.ts and policy.ts, which is where new logic goes. The
- * spec requires the registry to be THE single source of truth (§5); splitting it
- * by category would mean five files to consult to answer "what types exist" and
+ * NOTE ON SIZE (architecture-rules.md §6): this file is over the 250-line soft
+ * limit, and intentionally so. It is sixteen uniform data entries with one
+ * concern and no branching — every behavior it references lives in copy.ts,
+ * collapseKeys.ts and policy.ts, which is where new logic goes. The spec
+ * requires the registry to be THE single source of truth (§5); splitting it by
+ * category would mean five files to consult to answer "what types exist" and
  * would let two halves drift. Adding a type adds ~14 declarative lines here; if
  * this file ever grows logic rather than entries, that logic is the thing to
  * extract, not the table.
@@ -45,6 +45,7 @@ import type { EventContext, NotificationType, NotificationTypeDef } from './type
 const leadEntity = (ctx: EventContext) => ({ type: 'lead' as const, id: ctx.entityId })
 const conversationEntity = (ctx: EventContext) => ({ type: 'conversation' as const, id: ctx.entityId })
 const integrationEntity = (ctx: EventContext) => ({ type: 'integration' as const, id: ctx.entityId })
+const commentEntity = (ctx: EventContext) => ({ type: 'comment' as const, id: ctx.entityId })
 
 /**
  * Deep links target the ENTITY, never a notification (spec §20.2). There is no
@@ -58,6 +59,8 @@ const integrationEntity = (ctx: EventContext) => ({ type: 'integration' as const
 const leadLink = (ctx: EventContext) => `/clients/${ctx.entityId}/summary`
 const conversationLink = (ctx: EventContext) => `/inbox?conversation=${ctx.entityId}`
 const integrationLink = () => '/settings/integrations'
+/** Comments Inbox list — no per-comment route exists yet. */
+const commentsInboxLink = () => '/inbox/comments'
 
 export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef> = {
   'lead.created': {
@@ -179,6 +182,25 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     deepLink: conversationLink,
     recipients: 'handler_or_admin',
     channels: PUSH_WHEN_AWAY,
+  },
+
+  /**
+   * Facebook Page comment — domain event from ingestFacebookComment. NOT
+   * message.inbound: comments have no conversation/lead until converted.
+   * admin_only + IN_APP_ONLY for v1 canary safety (open comments have no handler).
+   */
+  'comment.received': {
+    type: 'comment.received',
+    category: 'messages',
+    enabled: true,
+    basePriority: 'medium',
+    collapseKey: keys.commentPostKey,
+    title: copy.commentReceivedTitle,
+    body: copy.noBody,
+    entity: commentEntity,
+    deepLink: commentsInboxLink,
+    recipients: 'admin_only',
+    channels: IN_APP_ONLY,
   },
 
   'followup.due': {
