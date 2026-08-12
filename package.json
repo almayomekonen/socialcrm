@@ -71,6 +71,7 @@
     "react-email": "^6.0.5",
     "react-pdf": "^9.2.1",
     "resend": "^6.11.0",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
@@ -83,6 +84,7 @@
     "@types/node": "^22.19.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/web-push": "^3.6.4",
     "dotenv": "^17.2.3",
     "jsdom": "^29.0.2",
     "kanel": "^3.16.0",

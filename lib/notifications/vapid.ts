@@ -5,9 +5,8 @@
  * process. The subscribe route and client lifecycle report this state
  * explicitly so the UI can say "push is not set up" instead of failing opaque.
  *
- * P3.1 does NOT send push. This module only answers "are the keys present so a
- * browser can subscribe?" Delivery remains gated on NOTIFICATIONS_PUSH_ENABLED
- * (still off) and is out of scope until P3.2+.
+ * P3.1 reports configuration; P3.2 uses `getVapidAuth()` for signing.
+ * Delivery remains gated on NOTIFICATIONS_PUSH_ENABLED (off by default).
  */
 
 export type VapidStatus = 'configured' | 'not_configured'

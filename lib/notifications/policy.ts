@@ -18,6 +18,8 @@
  */
 
 import type { Channel, ChannelPolicy, Capabilities, Presence, Priority } from './types'
+import { isNotificationsPushEnabled } from './flags'
+import { isVapidConfigured } from './vapid'
 
 const IN_APP = ['in_app'] as const
 const IN_APP_TOAST = ['in_app', 'toast'] as const
@@ -60,19 +62,41 @@ export const CRITICAL_WITH_EMAIL: ChannelPolicy = {
 }
 
 /**
- * P1 capabilities: in-app only.
+ * P1 / default capabilities: in-app only.
  *
- * Not a temporary hack — it is the capability model working as designed. Push
- * has no subscription rows until P3 and email is not wired until P3, so those
- * capabilities are genuinely false right now. When they become true, the same
- * intersection starts selecting them with no change to this function or to any
- * registry entry.
+ * Push and email stay false until their flags AND configuration say otherwise.
+ * `buildWorkerCapabilities()` is what the worker consults on each pass.
  */
 export const IN_APP_ONLY_CAPABILITIES: Capabilities = {
   in_app: true,
   toast: false,
   web_push: false,
   email: false,
+}
+
+/**
+ * Worker channel capabilities — P3.2.
+ *
+ * WEB_PUSH is available to resolveChannels only when the push flag is on AND
+ * VAPID is configured. Subscription existence is NOT a capability here: a
+ * selected web_push channel with zero rows records `suppressed` /
+ * `no_subscription` so "why didn't I get a push?" stays answerable (spec §11).
+ *
+ * Toast stays false in the worker — toast is a client-surface channel
+ * (CLIENT_SURFACE_CAPABILITIES). Email stays false until a later phase.
+ */
+export function buildWorkerCapabilities(opts?: {
+  pushEnabled?: boolean
+  vapidConfigured?: boolean
+}): Capabilities {
+  const pushEnabled = opts?.pushEnabled ?? isNotificationsPushEnabled()
+  const vapidConfigured = opts?.vapidConfigured ?? isVapidConfigured()
+  return {
+    in_app: true,
+    toast: false,
+    web_push: pushEnabled && vapidConfigured,
+    email: false,
+  }
 }
 
 /**

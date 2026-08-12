@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   countUserPushSubscriptionsQuery,
+  deletePushSubscriptionByIdQuery,
   deletePushSubscriptionQuery,
+  listPushSubscriptionsForUserQuery,
   upsertPushSubscriptionQuery,
 } from '@/db/notifications/subscriptions'
 
@@ -86,5 +88,26 @@ describe('countUserPushSubscriptionsQuery — tenant scoped', () => {
     const { lower, bindings } = sqlOf(countUserPushSubscriptionsQuery({ agencyId: 7, userId: 55 }))
     expect(lower).toContain('push_subscriptions')
     expect(bindings).toEqual(expect.arrayContaining([7, 55]))
+  })
+})
+
+describe('listPushSubscriptionsForUserQuery — delivery never uses endpoint alone', () => {
+  it('selects by agencyId AND userId', () => {
+    const { lower, bindings } = sqlOf(listPushSubscriptionsForUserQuery({ agencyId: 7, userId: 55 }))
+    expect(lower).toContain('push_subscriptions')
+    expect(lower).toContain('"agencyid"')
+    expect(lower).toContain('"userid"')
+    expect(bindings).toEqual(expect.arrayContaining([7, 55]))
+    expect(lower).not.toContain('endpoint =')
+  })
+})
+
+describe('deletePushSubscriptionByIdQuery — scoped delete for dead subs', () => {
+  it('requires id AND agencyId AND userId', () => {
+    const { lower, bindings } = sqlOf(
+      deletePushSubscriptionByIdQuery({ id: 9, agencyId: 7, userId: 55 }),
+    )
+    expect(lower).toContain('delete')
+    expect(bindings).toEqual(expect.arrayContaining([9, 7, 55]))
   })
 })

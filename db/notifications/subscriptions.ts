@@ -1,20 +1,30 @@
 import { db } from '@/config/db'
 
 /**
- * push_subscriptions data access — P3.1 lifecycle only. Spec §15.3, §18.4, §20.5.
+ * push_subscriptions data access — P3.1 lifecycle + P3.2 delivery reads.
+ * Spec §15.3, §18.4, §20.5.
  *
- * NO delivery lives here. Rows are created and removed so a later push channel can
- * find them; nothing in this module (or in P3.1) calls web-push or records a
- * notification_deliveries row for push.
+ * Writers: subscribe/unsubscribe routes (session-bound).
+ * Readers for delivery: always scoped to (agencyId, userId) — never endpoint
+ * alone. Dead subscriptions (404/410) are deleted with the same scope.
  *
  * Security:
- *   - agencyId / userId are ALWAYS parameters from the session, never from the
- *     browser body.
+ *   - agencyId / userId are ALWAYS parameters from the session / worker plan,
+ *     never from the browser body.
  *   - `endpoint` is globally unique. Upsert ON CONFLICT reassigns the row to the
  *     authenticated user, so a device changing hands is never dual-bound.
- *   - Delete is scoped to (agencyId, userId, endpoint) — another user's endpoint
+ *   - Delete is scoped to (agencyId, userId, endpoint|id) — another user's row
  *     deletes zero rows.
  */
+
+export type PushSubscriptionRow = {
+  id: number
+  agencyId: number
+  userId: number
+  endpoint: string
+  p256dh: string
+  auth: string
+}
 
 export type PushSubscriptionWrite = {
   agencyId: number
@@ -112,4 +122,67 @@ export async function countUserPushSubscriptions(args: {
 }): Promise<number> {
   const row = await countUserPushSubscriptionsQuery(args)
   return Number((row as { n?: string | number } | undefined)?.n ?? 0)
+}
+
+/**
+ * Delivery lookup — every active device for this recipient. Scoped to BOTH
+ * agencyId and userId so a stolen endpoint id cannot pull another tenant's row.
+ */
+export function listPushSubscriptionsForUserQuery(args: { agencyId: number; userId: number }) {
+  return db('push_subscriptions')
+    .where({ agencyId: args.agencyId, userId: args.userId })
+    .select('id', 'agencyId', 'userId', 'endpoint', 'p256dh', 'auth')
+    .orderBy('id', 'asc')
+}
+
+export async function listPushSubscriptionsForUser(args: {
+  agencyId: number
+  userId: number
+}): Promise<PushSubscriptionRow[]> {
+  const rows = await listPushSubscriptionsForUserQuery(args)
+  return (rows as PushSubscriptionRow[]).map((r) => ({
+    id: Number(r.id),
+    agencyId: Number(r.agencyId),
+    userId: Number(r.userId),
+    endpoint: String(r.endpoint),
+    p256dh: String(r.p256dh),
+    auth: String(r.auth),
+  }))
+}
+
+/** Dead-subscription cleanup — id alone is not enough; scope is mandatory. */
+export function deletePushSubscriptionByIdQuery(args: {
+  id: number
+  agencyId: number
+  userId: number
+}) {
+  return db('push_subscriptions')
+    .where({ id: args.id, agencyId: args.agencyId, userId: args.userId })
+    .del()
+}
+
+export async function deletePushSubscriptionById(args: {
+  id: number
+  agencyId: number
+  userId: number
+}): Promise<number> {
+  return deletePushSubscriptionByIdQuery(args)
+}
+
+export function touchPushSubscriptionUsedQuery(args: {
+  id: number
+  agencyId: number
+  userId: number
+}) {
+  return db('push_subscriptions')
+    .where({ id: args.id, agencyId: args.agencyId, userId: args.userId })
+    .update({ lastUsedAt: db.fn.now() })
+}
+
+export async function touchPushSubscriptionUsed(args: {
+  id: number
+  agencyId: number
+  userId: number
+}): Promise<void> {
+  await touchPushSubscriptionUsedQuery(args)
 }

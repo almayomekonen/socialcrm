@@ -52,27 +52,36 @@ describe('public/sw.js — push-only', () => {
   })
 })
 
-describe('P3.1 does not enable WEB_PUSH delivery', () => {
-  it('processJob still uses IN_APP_ONLY_CAPABILITIES', () => {
+describe('P3.2 isolates web-push behind the adapter', () => {
+  it('processJob does not import the web-push SDK directly', () => {
     const src = readFileSync(resolve(process.cwd(), 'lib/notifications/processJob.ts'), 'utf8')
-    expect(src).toMatch(/IN_APP_ONLY_CAPABILITIES/)
-    expect(src).not.toMatch(/web-push/)
+    expect(src).not.toMatch(/from ['"]web-push['"]/)
+    expect(src).toMatch(/deliverWebPush/)
+    expect(src).toMatch(/buildWorkerCapabilities/)
   })
 
-  it('no server module in this phase imports web-push', () => {
+  it('only lib/notifications/webPush.ts imports web-push', () => {
+    const allowed = 'lib/notifications/webPush.ts'
     const files = [
       'lib/notifications/vapid.ts',
+      'lib/notifications/vapidAuth.ts',
       'lib/notifications/pushSubscriptionSchema.ts',
+      'lib/notifications/processJob.ts',
+      'lib/notifications/worker.ts',
       'db/notifications/subscriptions.ts',
       'app/api/notifications/push/route.ts',
       'app/api/notifications/push/subscribe/route.ts',
       'app/api/notifications/push/unsubscribe/route.ts',
       'modules/notifications/pushLifecycle.ts',
+      allowed,
     ]
     for (const file of files) {
       const src = readFileSync(resolve(process.cwd(), file), 'utf8')
-      expect(src, file).not.toMatch(/from ['"]web-push['"]/)
-      expect(src, file).not.toMatch(/webpush\.sendNotification/)
+      if (file === allowed) {
+        expect(src, file).toMatch(/from ['"]web-push['"]/)
+      } else {
+        expect(src, file).not.toMatch(/from ['"]web-push['"]/)
+      }
     }
   })
 })

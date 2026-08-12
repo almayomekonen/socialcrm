@@ -1498,3 +1498,13 @@ bound to the session `(agencyId, userId)`, endpoint reassignment on conflict,
 never crashes). `NOTIFICATIONS_PUSH_ENABLED` stays off; `processJob` still uses
 `IN_APP_ONLY_CAPABILITIES`. No `web-push` send, no push delivery rows, no preferences UI,
 no Awareness retirement, no `message.inbound`.
+
+### 2026-08-12 — P3.2 Web Push delivery (flag OFF by default)
+
+Actual WEB_PUSH dispatch through the existing `resolveChannels` / policy matrix.
+`buildWorkerCapabilities()` enables `web_push` only when `NOTIFICATIONS_PUSH_ENABLED=1`
+AND VAPID is configured. Adapter: `lib/notifications/webPush.ts` (only module that
+imports `web-push`). One `notification_deliveries` row per `(notification, web_push)`
+with pending→sent|failed|suppressed. Dead subscriptions (404/410) removed scoped to
+(agencyId, userId). Payload is `{ notificationId, title, body, deepLink }` only.
+**Production push remains disabled** — this commit does not set the flag.

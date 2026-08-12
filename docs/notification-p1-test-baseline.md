@@ -342,3 +342,31 @@ notification-specific integration failure.
 `processJob` still uses `IN_APP_ONLY_CAPABILITIES`.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P3.2 comparison
+
+Re-run at the end of P3.2 (actual WEB_PUSH delivery behind `NOTIFICATIONS_PUSH_ENABLED`,
+default OFF).
+
+| Gate                 | After P3.1                      | After P3.2                      | Verdict           |
+| -------------------- | ------------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                           | **clean**                       | unchanged         |
+| `test:a11y`          | 20 files / 152 tests            | **20 files / 152 tests passed** | unchanged         |
+| `test:unit`          | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 / 55                         | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | 25 files / 452 tests            | **27 files / 476 tests passed** | +2 files, +24     |
+| `test:integration`   | 333 files failed, no tests      | **335 files failed, no tests**  | known failure, +2 |
+| `npm run build`      | succeeds                        | **succeeds**                    | unchanged         |
+
+The two new notification test files are `webPushDelivery` and `processJob.push`. They pin
+policy/capability gating, payload shape, multi-device send, cross-tenant skip, 410 cleanup,
+transient retain, flag-off suppression, duplicate terminal skip, and unchanged IN_APP
+recording.
+
+**Confirmed:** `NOTIFICATIONS_PUSH_ENABLED` is not set in this commit or in local `.env.local`;
+production push remains disabled. Real browser push was not manually verified (no VAPID keys
+in the local env).
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.
