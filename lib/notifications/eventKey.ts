@@ -124,15 +124,30 @@ export function integrationIngestionFailedEventKey(event: NotificationEvent): st
 }
 
 /**
+ * Follow-up due/overdue is per scheduled instant: identity includes the
+ * persisted `nextFollowUpAt` epoch ms. Cron re-entry collapses; reschedule to a
+ * new timestamp is news. `Date.now()` is forbidden — the discriminator is the
+ * row's own follow-up moment.
+ */
+export function followupAtEventKey(event: NotificationEvent): string {
+  const raw = event.payload?.followUpAt
+  const followUpAt = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(followUpAt) || followUpAt <= 0) {
+    throw new Error(`${event.type} eventKey requires payload.followUpAt`)
+  }
+  return eventKeyFor(event, `at:${followUpAt}`)
+}
+
+/**
  * The identity rule per type — one place, so no call site has to know it.
  *
- * Everything except a status change, an inbound message, an assignment, and
- * the two integration failure types is once-ever per entity. That is a
- * deliberately QUIET default: a lead that turns hot, cools, and turns hot
- * again produces one `lead.hot` notification, not two. Under care-charter
- * Law 5 the second signal has to earn its interruption, and "the analyzer
- * changed its mind twice" does not. A type that genuinely needs to recur adds
- * its discriminator here rather than at its call site.
+ * Everything except a status change, an inbound message, an assignment,
+ * follow-up due/overdue, and the two integration failure types is once-ever
+ * per entity. That is a deliberately QUIET default: a lead that turns hot,
+ * cools, and turns hot again produces one `lead.hot` notification, not two.
+ * Under care-charter Law 5 the second signal has to earn its interruption, and
+ * "the analyzer changed its mind twice" does not. A type that genuinely needs
+ * to recur adds its discriminator here rather than at its call site.
  */
 export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.status_changed') return statusChangedEventKey(event)
@@ -140,5 +155,6 @@ export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.assigned') return leadAssignedEventKey(event)
   if (event.type === 'integration.disconnected') return integrationDisconnectedEventKey(event)
   if (event.type === 'integration.ingestion_failed') return integrationIngestionFailedEventKey(event)
+  if (event.type === 'followup.due' || event.type === 'followup.overdue') return followupAtEventKey(event)
   return eventKeyFor(event)
 }

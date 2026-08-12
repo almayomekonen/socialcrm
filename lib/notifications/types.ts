@@ -84,6 +84,11 @@ export type NotificationPayload = {
    * `integration.ingestion_failed`. Required for that type; absent elsewhere.
    */
   externalLeadId?: string | null
+  /**
+   * Persisted `clients.nextFollowUpAt` as epoch ms — discriminator for
+   * `followup.due` / `followup.overdue`. Required for those types; never Date.now().
+   */
+  followUpAt?: number | null
 }
 
 /**
