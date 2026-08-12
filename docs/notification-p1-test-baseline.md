@@ -281,3 +281,33 @@ The two new notification test files are `center` (pure filter/pagination/seen ru
 The integration delta of +3 is exactly those three new files. The signature is unchanged:
 setup fails before any test executes ("Tests: no tests"), with the knex schema / migration
 lock / deadlock failure, and no notification-specific integration failure.
+
+---
+
+## Post-P3.0 comparison
+
+Re-run at the end of P3.0 (real `user_presence` lookup in the notification worker —
+`p1Presence` removed; batched SELECT-only presence before WEB_PUSH).
+
+| Gate                 | After P2.4                      | After P3.0                      | Verdict           |
+| -------------------- | ------------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                           | **clean**                       | unchanged         |
+| `test:a11y`          | 20 files / 152 tests            | **20 files / 152 tests passed** | unchanged         |
+| `test:unit`          | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 / 55                         | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | 20 files / 401 tests            | **21 files / 418 tests passed** | +1 file, +17      |
+| `test:integration`   | 328 files failed, no tests      | **329 files failed, no tests**  | known failure, +1 |
+| `npm run build`      | succeeds                        | **succeeds**                    | unchanged         |
+
+The one new notification test file is `presenceLookup` (17): ONLINE / IDLE / OFFLINE /
+missing row / stale / boundary timestamps / future clock-skew / batch target collection /
+SELECT-only SQL shape / no `p1Presence` / worker path never writes `user_presence` or
+`users_info`.
+
+The integration delta of +1 is exactly that file. The signature is unchanged: raised in
+`__tests__/setup.ts` before any test executes ("Tests: no tests"), with
+`knex_migrations_lock` duplicate / already-exists, `knex_migrations` missing, and
+`DROP SCHEMA … deadlock detected`, and no notification-specific integration failure.
+All 418 notification tests pass under `VITEST_NO_DB=1`.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.

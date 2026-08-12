@@ -1319,22 +1319,13 @@ one message into several notifications, exactly the volume failure Law 5 forbids
 ### P3 — Push and email
 
 **MANDATORY PREREQUISITE — `processJob` must read real presence before WEB_PUSH routing
-exists.** `lib/notifications/processJob.ts` classifies presence with the P1 placeholder
-`p1Presence = () => classifyPresence(null, new Date())`, i.e. **everyone is OFFLINE**. That was
-a truthful reading while `user_presence` had no writer, and it stays harmless for as long as
-IN_APP is the only capability, because IN_APP appears in the offline column of every row of the
-§19 matrix.
-
-It becomes a **live defect the moment WEB_PUSH is enabled**, and it fails in the worst
-direction: every user classifies OFFLINE, every offline policy row includes `web_push`, so a
-user sitting and looking at the screen would be pushed for routine events. That is precisely
-the failure §7.2 exists to prevent, and it would arrive as a flood rather than a visible error.
-
-`user_presence` has had its single writer since P2.1 (`db/notifications/presence.ts`, commit
-`1f2701af`), so the data is there. P3 must replace `p1Presence` with a **batched** read
-(one query per worker pass keyed by userId, never per-notification — §21.2), and must not be
-merged with the placeholder still in place. Deliberately deferred out of P2.2, which added no
-presence-dependent channel.
+exists.** Completed as **P3.0**: the P1 placeholder `p1Presence` (everyone OFFLINE) is gone.
+The worker loads `user_presence` once per pass via `buildPresenceLookup` /
+`loadPresenceBatch` (SELECT only; feed remains the sole writer) and injects a pure
+`(userId) => Presence` into `processNotificationJob`. Classification reuses
+`classifyPresence` from P2.1 — missing row ⇒ OFFLINE; ONLINE 90s / IDLE 10m / visible tab.
+Do not enable WEB_PUSH until this prerequisite is reviewed. Deliberately deferred out of
+P2.2, which added no presence-dependent channel.
 
 - `push_subscriptions` management, `public/sw.js` (push + notificationclick only),
   permission request from preferences.
@@ -1488,3 +1479,13 @@ orphan prune are scoped by `userId` / entity id without a redundant `agencyId` g
 email column permits but which P3 should confirm before email ships; and collapse
 race-proofness remains asserted structurally rather than exercised against live Postgres,
 which is the standing §22.4 consequence.
+
+### 2026-08-12 — P3.0 presence lookup (pre-WEB_PUSH)
+
+The §24 P3 mandatory prerequisite is implemented: `processNotificationJob` no longer uses
+`p1Presence`. The worker builds a batched, read-only presence lookup from `user_presence`
+once per pass (`lib/notifications/presenceLookup.ts`, `loadPresenceBatch` in
+`db/notifications/presence.ts`) and injects `(userId) => Presence` into planning. Classification
+is still `classifyPresence` (ONLINE 90s / IDLE 10m / missing ⇒ OFFLINE). The feed poll remains
+the sole writer. WEB_PUSH, subscriptions, email, escalation, and grouping are still not
+enabled.

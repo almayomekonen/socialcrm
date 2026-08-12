@@ -8,10 +8,10 @@
  * Pure function of (row, now) so every boundary is unit-testable without a
  * database or a clock.
  *
- * P1 note: nothing writes user_presence yet — the feed poll is its single owner
- * and that is P2. So this classifier returns 'offline' for everyone today, which
- * is harmless because P1 dispatches IN_APP only and IN_APP is presence-
- * independent in every row of the §19 matrix.
+ * The feed poll is the sole WRITER of `user_presence` (P2.1). The notification
+ * worker READs the same rows in a single batched SELECT per pass (P3.0) and
+ * classifies with this function — so a user actively polling the feed cannot be
+ * misread as OFFLINE when WEB_PUSH eventually lands.
  */
 
 import type { Presence } from './types'

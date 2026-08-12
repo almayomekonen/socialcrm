@@ -5,7 +5,6 @@ import { updateNotificationCopy, upsertCollapsedNotification } from '@/db/notifi
 import type { NotificationJob } from '@/db/notifications/jobs'
 import { planNotification, rebuildCopyForGroupCount } from './plan'
 import { IN_APP_ONLY_CAPABILITIES } from './policy'
-import { classifyPresence } from './presence'
 import type { Presence } from './types'
 
 /**
@@ -14,32 +13,30 @@ import type { Presence } from './types'
  * Executes the plan produced by plan.ts and makes no decisions of its own. The
  * split exists so every decision is unit-testable without a database, which is
  * the only kind of test that can run in this repo today (spec §22.4).
+ *
+ * Presence is INJECTED by the worker (P3.0). The worker loads `user_presence`
+ * once per pass and passes a pure `(userId) => Presence` built from that
+ * snapshot — never a per-job query, and never a write. Missing rows classify
+ * OFFLINE via the shared `classifyPresence` rule (spec §7.2).
  */
 
 export type ProcessOutcome = { kind: 'done'; created: number } | { kind: 'skipped'; reason: string }
 
-/**
- * P1 presence: everyone reads `offline`.
- *
- * Not a stub — a truthful reading. `user_presence` has exactly one writer, the
- * notification feed poll, and that is P2. Until a row exists, "when did this
- * user last look at the app" genuinely has no answer, and `classifyPresence`
- * answers `offline` for an absent row by design (spec §7.2).
- *
- * It changes nothing in P1: IN_APP appears in the offline column of every row of
- * the §19 matrix, and IN_APP is the only capability enabled. P2 replaces this
- * with a batched read of user_presence and the same plan code starts selecting
- * toast.
- */
-const p1Presence = (): Presence => classifyPresence(null, new Date())
-
-export async function processNotificationJob(job: NotificationJob, context: RecipientContext): Promise<ProcessOutcome> {
+export async function processNotificationJob(
+  job: NotificationJob,
+  context: RecipientContext,
+  /**
+   * Server-classified presence for each recipient. Built once per worker pass
+   * from a batched read of `user_presence` — see `buildPresenceLookup`.
+   */
+  presence: (userId: number) => Presence,
+): Promise<ProcessOutcome> {
   const planned = planNotification({
     job,
     context,
-    presence: p1Presence,
+    presence,
     capabilities: IN_APP_ONLY_CAPABILITIES,
-    // No preference reader in P1: the table is empty, and an absent row means
+    // No preference reader yet: the table is empty, and an absent row means
     // "all defaults" (spec §17), which is exactly what `undefined` expresses.
     preferences: undefined,
   })

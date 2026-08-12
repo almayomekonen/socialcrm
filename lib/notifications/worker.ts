@@ -8,6 +8,7 @@ import {
 } from '@/db/notifications/jobs'
 import { buildRecipientContext } from '@/db/notifications/recipients'
 import { leadIdForJob } from './plan'
+import { buildPresenceLookup } from './presenceLookup'
 import { processNotificationJob } from './processJob'
 
 /**
@@ -20,9 +21,11 @@ import { processNotificationJob } from './processJob'
  * `FOR UPDATE SKIP LOCKED`, so two concurrent passes never touch the same job
  * and neither blocks the other.
  *
- * BATCHED BY CONSTRUCTION: recipient context (lead handlers, agency admins) is
- * loaded ONCE per pass in two queries, before the job loop. No per-notification
- * lookup exists anywhere in this path (spec §21.2).
+ * BATCHED BY CONSTRUCTION: recipient context (lead handlers, agency admins) and
+ * presence rows are each loaded ONCE per pass before the job loop. No
+ * per-notification lookup exists anywhere in this path (spec §21.2). Presence
+ * is read-only here — the feed poll is the sole writer of `user_presence`
+ * (spec §7.2).
  */
 
 const LOG = '[notifications][worker]'
@@ -82,11 +85,13 @@ export async function runNotificationWorker(opts?: { limit?: number; workerId?: 
     if (jobs.length === 0) return summary
 
     const context = await contextForPass(jobs)
+    // One presence SELECT for the whole pass. Missing rows classify OFFLINE.
+    const presence = await buildPresenceLookup(context)
 
     for (const job of jobs) {
       logT('claimed', job, { attempts: job.attempts, workerId })
       try {
-        const outcome = await processNotificationJob(job, context)
+        const outcome = await processNotificationJob(job, context, presence)
         if (outcome.kind === 'skipped') {
           await skipNotificationJob(job.id, outcome.reason)
           logT('skipped', job, { reason: outcome.reason })

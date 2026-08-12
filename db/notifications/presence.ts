@@ -2,13 +2,17 @@ import { db } from '@/config/db'
 import type { PresenceRow } from '@/lib/notifications/presence'
 
 /**
- * user_presence data access — the FIRST and ONLY writer of this table.
+ * user_presence data access.
  *
- * Spec §7.2 names the notification feed poll as presence's single owner, and
+ * Spec §7.2 names the notification feed poll as presence's single WRITER, and
  * frontend-experience-guidelines §14 requires one owner per live signal. There is
  * deliberately no heartbeat endpoint, no second loop, and no other module that
  * writes here: if presence had two writers, "when did this user last look at the
  * app" would have two answers.
+ *
+ * The notification worker (P3.0) is a READER only — one batched SELECT per pass
+ * so channel routing can use the same classification the feed already stamps.
+ * It never calls stampPresence / clearAwayBoundary.
  *
  * NOT users_info, by design (migration 20260811120006 header): recordLoginActivity
  * holds SELECT … FOR UPDATE on users_info during login, and a 30-second-cadence
@@ -173,8 +177,50 @@ export async function clearAwayBoundary(args: { userId: number; agencyId: number
   await clearAwayBoundaryQuery(args)
 }
 
-/** Adapts a snapshot to the P1 classifier's input. Absent row ⇒ null ⇒ OFFLINE. */
+/** Adapts a snapshot to the classifier's input. Absent/empty lastSeenAt ⇒ null ⇒ OFFLINE. */
 export function toPresenceRow(snapshot: PresenceSnapshot): PresenceRow | null {
   if (!snapshot.lastSeenAt) return null
   return { lastSeenAt: snapshot.lastSeenAt, lastSeenVisible: snapshot.lastSeenVisible }
+}
+
+/**
+ * Batched presence READ for the notification worker (P3.0) — one SELECT per pass.
+ *
+ * Spec §21.2: never a query per notification. The pairs are the potential
+ * recipients already resolved for the pass (handlers + admins); a missing pair
+ * simply yields no row and classifies OFFLINE, which is the fail-safe.
+ *
+ * SELECT only. The feed poll remains the sole writer of this table.
+ */
+export function loadPresenceBatchQuery(pairs: { agencyId: number; userId: number }[]) {
+  if (pairs.length === 0) {
+    return db.raw(`SELECT "userId", "agencyId", "lastSeenAt", "lastSeenVisible" FROM user_presence WHERE false`)
+  }
+  const tuples = pairs.map(() => '(?,?)').join(',')
+  const bindings = pairs.flatMap((p) => [p.agencyId, p.userId])
+  return db.raw(
+    `SELECT "userId", "agencyId", "lastSeenAt", "lastSeenVisible"
+       FROM user_presence
+      WHERE ("agencyId", "userId") IN (${tuples})`,
+    bindings,
+  )
+}
+
+export async function loadPresenceBatch(
+  pairs: { agencyId: number; userId: number }[],
+): Promise<Map<number, PresenceRow>> {
+  const out = new Map<number, PresenceRow>()
+  if (pairs.length === 0) return out
+  const res = await loadPresenceBatchQuery(pairs)
+  for (const r of res.rows ?? []) {
+    const userId = Number(r.userId)
+    if (!Number.isFinite(userId)) continue
+    // A row with a null lastSeenAt is treated as absent — same as no row.
+    if (r.lastSeenAt == null) continue
+    out.set(userId, {
+      lastSeenAt: new Date(r.lastSeenAt as string | Date),
+      lastSeenVisible: !!r.lastSeenVisible,
+    })
+  }
+  return out
 }
