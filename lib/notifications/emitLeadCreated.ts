@@ -37,7 +37,9 @@ export function shouldEmitLeadCreated(origin: LeadCreatedEmitOrigin): boolean {
 }
 
 function mapNotifyResult(result: NotifyResult): EmitLeadCreatedResult {
-  if (result.enqueued) return { enqueued: true, skipped: null }
+  // Discriminate on the literal boolean (`=== true` / else), not truthiness —
+  // otherwise TS keeps the full NotifyResult union and rejects `.reason`.
+  if (result.enqueued === true) return { enqueued: true, skipped: null }
   switch (result.reason) {
     case 'duplicate':
       return { enqueued: false, skipped: 'duplicate' }
