@@ -3,6 +3,8 @@ import crypto from 'node:crypto'
 import { db } from '@/config/db'
 import { insertLeadSystem } from '@/lib/system/insertLeadSystem'
 import { getQuotaStatus } from '@/lib/quota'
+import { emitLeadCreated } from '@/lib/notifications/emitLeadCreated'
+import { leadDisplayName } from '@/lib/notifications/leadName'
 import { emitAutomationEvent } from '../emit'
 import type { Connection, ConnectionOption, Source } from '../catalog/types'
 import type { ConnectionProvider, MappedEvent, SetupGuide } from './types'
@@ -266,6 +268,15 @@ async function findOrCreateLead(
     leadId: created.id,
     occurredAt: new Date(),
     leadSource,
+  })
+  // Shared notification door — only on true create (find/adopt paths returned above).
+  await emitLeadCreated({
+    agencyId,
+    leadId: created.id,
+    leadName: leadDisplayName(created),
+    actorUserId: null,
+    occurredAt: new Date(),
+    origin: 'webhook',
   })
   return Number(created.id)
 }
