@@ -399,3 +399,34 @@ DB-free under `VITEST_NO_DB=1` with the real `ingestWhatsappInbound` and mocked 
 Bell/Center; engine architecture, push flag, and AwarenessProvider are unchanged.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P3.3 (`lead.assigned` only) comparison
+
+Re-run after wiring `transferLeadToRep` → `notifyEvent(lead.assigned)` with
+`userId`+`handlerId` alignment and `to:{assignedUserId}` event identity.
+No integration / grouping / digest / escalation / email / SLA in this commit.
+No `message.inbound` changes.
+
+| Gate                 | After P3.3 message.inbound      | After P3.3 lead.assigned        | Verdict           |
+| -------------------- | ------------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                           | **clean**                       | unchanged         |
+| `test:a11y`          | 20 files / 152 tests            | **20 files / 152 tests passed** | unchanged         |
+| `test:unit`          | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 / 55                         | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | 28 files / 489 tests            | **29 files / 502 tests passed** | +1 file, +13      |
+| `test:integration`   | 336 files failed, no tests      | **337 files failed, no tests**  | known failure, +1 |
+| `npm run build`      | succeeds                        | **succeeds**                    | unchanged         |
+
+The new notification test file is `leadAssigned.emit`. It pins transfer persist
+alignment (`userId`+`handlerId`), emit-on-change, same-assignee no-op, trx
+coupling / rollback silence, assignee event identity, recipient=new handler,
+actor self-drop, and tenant isolation. Harness note: DB-free under `VITEST_NO_DB=1`
+with the real `transferLeadToRep` and mocked transaction accessors.
+
+**Confirmed:** registry / policy / Bell / Center / Push / presence unchanged;
+previous handler is not a recipient after persist; actor===assignee is skipped
+by existing `planNotification`.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.

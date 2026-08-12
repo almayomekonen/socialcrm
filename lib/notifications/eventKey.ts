@@ -77,17 +77,36 @@ export function messageInboundEventKey(event: NotificationEvent): string {
 }
 
 /**
+ * Assignment is repeatable — a lead can move from A to B to C — so identity
+ * includes the assignee. Retrying the same transfer to the same user collapses
+ * to one job (`to:{userId}`); a later transfer to a different user is news.
+ *
+ * The assignee is `clients.handlerId` after persist (the field `handler_or_admin`
+ * resolves). `Date.now()` is forbidden here: a double-click would become two
+ * notifications for one assignment.
+ */
+export function leadAssignedEventKey(event: NotificationEvent): string {
+  const raw = event.payload?.assignedUserId
+  const assignedUserId = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
+    throw new Error('lead.assigned eventKey requires payload.assignedUserId')
+  }
+  return eventKeyFor(event, `to:${assignedUserId}`)
+}
+
+/**
  * The identity rule per type — one place, so no call site has to know it.
  *
- * Everything except a status change and an inbound message is once-ever per
- * entity. That is a deliberately QUIET default: a lead that turns hot, cools,
- * and turns hot again produces one `lead.hot` notification, not two. Under
- * care-charter Law 5 the second signal has to earn its interruption, and "the
- * analyzer changed its mind twice" does not. A type that genuinely needs to
- * recur adds its discriminator here rather than at its call site.
+ * Everything except a status change, an inbound message, and an assignment is
+ * once-ever per entity. That is a deliberately QUIET default: a lead that turns
+ * hot, cools, and turns hot again produces one `lead.hot` notification, not
+ * two. Under care-charter Law 5 the second signal has to earn its interruption,
+ * and "the analyzer changed its mind twice" does not. A type that genuinely
+ * needs to recur adds its discriminator here rather than at its call site.
  */
 export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.status_changed') return statusChangedEventKey(event)
   if (event.type === 'message.inbound') return messageInboundEventKey(event)
+  if (event.type === 'lead.assigned') return leadAssignedEventKey(event)
   return eventKeyFor(event)
 }

@@ -232,4 +232,21 @@ describe('event keys are deterministic identities (§14.3)', () => {
     }
     expect(eventKeyForEvent(event(shape))).toBe(eventKeyForEvent(event(shape)))
   })
+
+  it('lead.assigned anchors on the assignee, so a later transfer to someone else is news', () => {
+    const a = eventKeyForEvent(
+      event({ type: 'lead.assigned', entityId: 42, payload: { assignedUserId: 55 } }),
+    )
+    const b = eventKeyForEvent(
+      event({ type: 'lead.assigned', entityId: 42, payload: { assignedUserId: 66 } }),
+    )
+    expect(a).toBe('lead.assigned:7:lead:42:to:55')
+    expect(b).toBe('lead.assigned:7:lead:42:to:66')
+    expect(a).not.toBe(b)
+  })
+
+  it('lead.assigned identity is stable across a retry of the same assignee', () => {
+    const shape = { type: 'lead.assigned' as const, entityId: 42, payload: { assignedUserId: 55 } }
+    expect(eventKeyForEvent(event(shape))).toBe(eventKeyForEvent(event(shape)))
+  })
 })

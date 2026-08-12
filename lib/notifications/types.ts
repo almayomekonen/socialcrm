@@ -68,6 +68,11 @@ export type NotificationPayload = {
    * Required for that type; absent elsewhere.
    */
   messageId?: number | null
+  /**
+   * The user a lead was assigned TO — the `lead.assigned` event-key discriminator.
+   * Required for that type; absent elsewhere.
+   */
+  assignedUserId?: number | null
 }
 
 /**

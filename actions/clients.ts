@@ -324,9 +324,61 @@ export async function transferDealsToLead(fromClientId, toClientId) {
   revalidatePath('/leads')
 }
 
+/**
+ * Transfer ownership ("בעל ליד") to another נציג.
+ *
+ * Persists BOTH `userId` and `handlerId` to the same assignee. The transfer UI
+ * only wrote `userId` historically, but notification recipients
+ * (`handler_or_admin`) and the product's "whose work is this" field are
+ * `handlerId` — leaving it stale would notify the previous handler (or nobody)
+ * after a transfer. Create/import paths already set both to the same user; this
+ * keeps transfer aligned with that invariant.
+ *
+ * `lead.assigned` is enqueued in the SAME transaction as the UPDATE so a
+ * rolled-back transfer leaves no notification job.
+ */
 export async function transferLeadToRep(clientId, userId) {
   const user = await requireProductAccess()
-  await db('clients').where({ id: clientId, agencyId: user.agencyId }).update({ userId })
+  const agencyId = user.agencyId
+  const leadId = Number(clientId)
+  const newUserId = Number(userId)
+  if (!Number.isInteger(leadId) || leadId <= 0) throw new Error('Forbidden')
+  if (!Number.isInteger(newUserId) || newUserId <= 0) throw new Error('Forbidden')
+
+  await db.transaction(async (trx) => {
+    const existing = await trx('clients')
+      .where({ id: leadId, agencyId })
+      .forUpdate()
+      .first('id', 'userId', 'handlerId', 'firstName', 'lastName')
+    if (!existing) throw new Error('Forbidden')
+
+    const prevUserId = existing.userId == null ? null : Number(existing.userId)
+    const prevHandlerId = existing.handlerId == null ? null : Number(existing.handlerId)
+    // Same owner + same handler already — a confirm double-click / retry is a no-op.
+    if (prevUserId === newUserId && prevHandlerId === newUserId) return
+
+    await trx('clients').where({ id: leadId, agencyId }).update({ userId: newUserId, handlerId: newUserId })
+
+    // Notify the NEW assignee via handler_or_admin (reads handlerId after persist).
+    // Actor === assignee is dropped in planNotification (§6.3). Previous handler
+    // is no longer on the row, so they are not resolved.
+    await notifyEvent(
+      {
+        type: 'lead.assigned',
+        agencyId,
+        entityType: 'lead',
+        entityId: leadId,
+        actorUserId: user.id,
+        occurredAt: new Date(),
+        payload: {
+          leadName: leadDisplayName(existing),
+          assignedUserId: newUserId,
+        },
+      },
+      { trx },
+    )
+  })
+
   revalidatePath('/leads')
 }
 

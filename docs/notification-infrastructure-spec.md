@@ -1528,3 +1528,22 @@ Awareness coexistence unchanged: `AWARENESS_OWNED_CATEGORIES` still suppresses t
 `messages` toast surface so one inbound produces one visible alert. Bell/Center
 still receive the in-app row. No grouping/digest/escalation/email/SLA. No
 `lead.assigned` or integration emitters in this commit.
+
+### 2026-08-12 — P3.3 coverage: `lead.assigned` only
+
+Wired `transferLeadToRep` (`actions/clients.ts`) to `notifyEvent({ type: 'lead.assigned' })`
+inside the same transaction as the assignment UPDATE.
+
+**Persistence alignment (from the real transfer path, not guessed):** the transfer UI
+historically updated only `clients.userId`, while `handler_or_admin` resolves
+`clients.handlerId`. Transfer now writes **both** to the new assignee so the
+recipient is the NEW handler after persist (create/import paths already set both).
+No-op when both already equal the target. Unassigned → Rep B is supported; the UI
+always picks a user (no transfer-to-unassigned path).
+
+**Event identity:** `lead.assigned:{agencyId}:lead:{leadId}:to:{assignedUserId}` via
+`payload.assignedUserId`. Same-assignee retries collapse; a later transfer to a
+different user is a new event. Actor===assignee is dropped by existing
+`planNotification` (§6.3). Previous handler is not resolved after persist.
+
+No message.inbound changes. No integration emitters. No grouping/digest/escalation/email/SLA.
