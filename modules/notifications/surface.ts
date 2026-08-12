@@ -60,10 +60,9 @@ export function selectToastable(args: {
  * REMOVED IN P2.6, together with AwarenessProvider. That is the whole change:
  * delete this set and the messages category starts toasting through the registry.
  *
- * Note this is currently belt-and-braces rather than load-bearing: P1 wired no
- * `message.*` emitter, so no messages-category row exists to toast yet. It is
- * here so that whoever wires `message.inbound` cannot accidentally ship double
- * toasts, because at that point the suppression is already in place and tested.
+ * Load-bearing while Awareness remains mounted: `message.inbound` now emits real
+ * rows (P3.3 coverage). Without this suppression an enabled feed would produce
+ * TWO toasts for one inbound WhatsApp message — Awareness plus NotificationContext.
  */
 export const AWARENESS_OWNED_CATEGORIES: ReadonlySet<string> = new Set(['messages'])
 

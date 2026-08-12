@@ -370,3 +370,32 @@ production push remains disabled. Real browser push was not manually verified (n
 in the local env).
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P3.3 (`message.inbound` only) comparison
+
+Re-run after wiring WhatsApp ingest → `notifyEvent(message.inbound)` with
+`inbox_messages.id` as the event-key discriminator. No lead.assigned / integration /
+grouping / digest / escalation / email / SLA in this commit.
+
+| Gate                 | After P3.2                      | After P3.3 message.inbound      | Verdict           |
+| -------------------- | ------------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                           | **clean**                       | unchanged         |
+| `test:a11y`          | 20 files / 152 tests            | **20 files / 152 tests passed** | unchanged         |
+| `test:unit`          | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 / 55                         | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | 27 files / 476 tests            | **28 files / 489 tests passed** | +1 file, +13      |
+| `test:integration`   | 335 files failed, no tests      | **336 files failed, no tests**  | known failure, +1 |
+| `npm run build`      | succeeds                        | **succeeds**                    | unchanged         |
+
+The new notification test file is `messageInbound.emit`. It pins ingest emit-on-insert,
+retry silence, per-message identity, recipient/tenant isolation via payload.leadId,
+Awareness toast suppression coexistence, and unchanged push policy. Harness note: runs
+DB-free under `VITEST_NO_DB=1` with the real `ingestWhatsappInbound` and mocked accessors
+(no live Postgres insert path in this suite).
+
+**Confirmed:** Awareness still owns the live message toast; notification rows remain for
+Bell/Center; engine architecture, push flag, and AwarenessProvider are unchanged.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.

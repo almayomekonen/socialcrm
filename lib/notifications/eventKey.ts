@@ -49,16 +49,45 @@ export function statusChangedEventKey(event: NotificationEvent): string {
 }
 
 /**
+ * An inbound message is repeatable per conversation — every new WhatsApp arrival
+ * is news. Identity therefore includes the persisted message row id.
+ *
+ * WHY `inbox_messages.id`, not `externalId` (wamid) or `(conversationId, sequence)`:
+ *
+ * - After insert the PK always exists, including when `externalId` is null
+ *   (parse miss / non-WhatsApp-shaped payload). A null-externalId discriminator
+ *   would silently collapse every such message into one key.
+ * - Provider retries that hit the unique `(channel, externalId)` constraint
+ *   return the SAME `id` with `inserted: false`. The ingest path does not emit
+ *   on that branch; if it ever did, the key would still absorb the duplicate.
+ * - `sequence` is unique only inside a conversation and is not the durable
+ *   identity of the row the business just wrote — the PK is.
+ *
+ * Unstable alternatives (createdAt, Date.now()) are forbidden here for the same
+ * reason they are forbidden for status changes: a retry would become a second
+ * notification.
+ */
+export function messageInboundEventKey(event: NotificationEvent): string {
+  const raw = event.payload?.messageId
+  const messageId = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(messageId) || messageId <= 0) {
+    throw new Error('message.inbound eventKey requires payload.messageId')
+  }
+  return eventKeyFor(event, `msg:${messageId}`)
+}
+
+/**
  * The identity rule per type — one place, so no call site has to know it.
  *
- * Everything except a status change is once-ever per entity. That is a
- * deliberately QUIET default: a lead that turns hot, cools, and turns hot again
- * produces one `lead.hot` notification, not two. Under care-charter Law 5 the
- * second signal has to earn its interruption, and "the analyzer changed its mind
- * twice" does not. A type that genuinely needs to recur adds its discriminator
- * here rather than at its call site.
+ * Everything except a status change and an inbound message is once-ever per
+ * entity. That is a deliberately QUIET default: a lead that turns hot, cools,
+ * and turns hot again produces one `lead.hot` notification, not two. Under
+ * care-charter Law 5 the second signal has to earn its interruption, and "the
+ * analyzer changed its mind twice" does not. A type that genuinely needs to
+ * recur adds its discriminator here rather than at its call site.
  */
 export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.status_changed') return statusChangedEventKey(event)
+  if (event.type === 'message.inbound') return messageInboundEventKey(event)
   return eventKeyFor(event)
 }

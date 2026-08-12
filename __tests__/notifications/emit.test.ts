@@ -200,4 +200,36 @@ describe('event keys are deterministic identities (§14.3)', () => {
     const later = eventKeyForEvent(event({ type: 'lead.hot', occurredAt: new Date(9_999_999) }))
     expect(first).toBe(later)
   })
+
+  it('message.inbound anchors on the persisted message id, so a second message is news', () => {
+    const a = eventKeyForEvent(
+      event({
+        type: 'message.inbound',
+        entityType: 'conversation',
+        entityId: 900,
+        payload: { leadId: 42, messageId: 11 },
+      }),
+    )
+    const b = eventKeyForEvent(
+      event({
+        type: 'message.inbound',
+        entityType: 'conversation',
+        entityId: 900,
+        payload: { leadId: 42, messageId: 12 },
+      }),
+    )
+    expect(a).toBe('message.inbound:7:conversation:900:msg:11')
+    expect(b).toBe('message.inbound:7:conversation:900:msg:12')
+    expect(a).not.toBe(b)
+  })
+
+  it('message.inbound identity is stable across a retry of the same message id', () => {
+    const shape = {
+      type: 'message.inbound' as const,
+      entityType: 'conversation' as const,
+      entityId: 900,
+      payload: { leadId: 42, messageId: 11 },
+    }
+    expect(eventKeyForEvent(event(shape))).toBe(eventKeyForEvent(event(shape)))
+  })
 })

@@ -1508,3 +1508,23 @@ imports `web-push`). One `notification_deliveries` row per `(notification, web_p
 with pending→sent|failed|suppressed. Dead subscriptions (404/410) removed scoped to
 (agencyId, userId). Payload is `{ notificationId, title, body, deepLink }` only.
 **Production push remains disabled** — this commit does not set the flag.
+
+### 2026-08-12 — P3.3 coverage: `message.inbound` only
+
+Wired the real WhatsApp ingest path (`lib/inbox/ingestWhatsappInbound.ts`) to
+`notifyEvent({ type: 'message.inbound' })` inside the same transaction, **only when
+`insertInboundMessage` returns `inserted: true`**.
+
+**Event identity (settled from the real model, not guessed):** discriminator is
+`inbox_messages.id`, carried as `payload.messageId`, keyed as
+`message.inbound:{agencyId}:conversation:{conversationId}:msg:{messageId}`.
+Chosen because the PK exists after every successful insert (including null
+`externalId`), is stable across `(channel, externalId)` webhook retries, and is
+distinct for every persisted message in a conversation. `externalId` alone was
+rejected: it can be null, and a null discriminator would silently absorb later
+null-externalId messages.
+
+Awareness coexistence unchanged: `AWARENESS_OWNED_CATEGORIES` still suppresses the
+`messages` toast surface so one inbound produces one visible alert. Bell/Center
+still receive the in-app row. No grouping/digest/escalation/email/SLA. No
+`lead.assigned` or integration emitters in this commit.

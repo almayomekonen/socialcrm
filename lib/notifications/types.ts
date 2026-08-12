@@ -63,6 +63,11 @@ export type NotificationPayload = {
   provider?: string | null
   /** For conversation-entity events, the lead the conversation belongs to. */
   leadId?: number | null
+  /**
+   * Persisted `inbox_messages.id` — the `message.inbound` event-key discriminator.
+   * Required for that type; absent elsewhere.
+   */
+  messageId?: number | null
 }
 
 /**
