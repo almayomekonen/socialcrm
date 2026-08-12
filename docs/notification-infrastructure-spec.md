@@ -1489,3 +1489,12 @@ once per pass (`lib/notifications/presenceLookup.ts`, `loadPresenceBatch` in
 is still `classifyPresence` (ONLINE 90s / IDLE 10m / missing ⇒ OFFLINE). The feed poll remains
 the sole writer. WEB_PUSH, subscriptions, email, escalation, and grouping are still not
 enabled.
+
+### 2026-08-12 — P3.1 push subscription lifecycle (no delivery)
+
+Browser push **subscription** lifecycle only: Zod-validated subscribe/unsubscribe routes
+bound to the session `(agencyId, userId)`, endpoint reassignment on conflict,
+`public/sw.js` (push + notificationclick only), VAPID config reporting (`not_configured`
+never crashes). `NOTIFICATIONS_PUSH_ENABLED` stays off; `processJob` still uses
+`IN_APP_ONLY_CAPABILITIES`. No `web-push` send, no push delivery rows, no preferences UI,
+no Awareness retirement, no `message.inbound`.

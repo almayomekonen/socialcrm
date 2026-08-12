@@ -311,3 +311,34 @@ The integration delta of +1 is exactly that file. The signature is unchanged: ra
 All 418 notification tests pass under `VITEST_NO_DB=1`.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P3.1 comparison
+
+Re-run at the end of P3.1 (Web Push **subscription** lifecycle only — no delivery,
+WEB_PUSH still disabled).
+
+| Gate                 | After P3.0                      | After P3.1                      | Verdict           |
+| -------------------- | ------------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                           | **clean**                       | unchanged         |
+| `test:a11y`          | 20 files / 152 tests            | **20 files / 152 tests passed** | unchanged         |
+| `test:unit`          | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 / 55                         | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | 21 files / 418 tests            | **25 files / 452 tests passed** | +4 files, +34     |
+| `test:integration`   | 329 files failed, no tests      | **333 files failed, no tests**  | known failure, +4 |
+| `npm run build`      | succeeds                        | **succeeds**                    | unchanged         |
+
+The four new notification test files are `vapid`, `subscriptions.sql`, `pushRoutes`, and
+`serviceWorker`. They pin session-scoped binding, endpoint reassignment SQL, malformed
+payload rejection, arbitrary-field stripping, SW fetch-handler absence, `/sw.js` auth
+bypass in `proxy.ts`, and that no P3.1 module imports `web-push` / sends a notification.
+
+The integration delta of +4 is exactly those files. Signature unchanged: setup fails before
+any test executes ("Tests: no tests"), knex lock / missing migrations / deadlock — no
+notification-specific integration failure.
+
+**Confirmed:** no push notification was delivered; `NOTIFICATIONS_PUSH_ENABLED` remains off;
+`processJob` still uses `IN_APP_ONLY_CAPABILITIES`.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.
