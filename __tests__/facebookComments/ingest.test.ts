@@ -1,5 +1,5 @@
 /**
- * Facebook comment ingest — Task 3.
+ * Facebook comment ingest — Task 3 (+ Task 6 comment.received emit).
  *
  * The two properties that matter most are asserted first and hardest:
  *   TENANCY    — agencyId is resolved from facebook_pages via the SIGNED
@@ -7,8 +7,9 @@
  *   IDEMPOTENCY— Meta redelivers on any non-2xx, so a duplicate delivery must
  *                never produce a second row.
  *
- * Task 3 persists comments and nothing else: no Lead is created here (that is
- * Task 6), which the `clients` table assertion pins down.
+ * Persistence is still comment-only: no Lead is created here (conversion is a
+ * separate action), which the `clients` table assertion pins down.
+ * Notification emit behavior is covered in commentReceived.emit.test.ts.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
@@ -24,6 +25,9 @@ const h = vi.hoisted(() => {
     conflictTargets: [] as unknown[],
     updates: [] as { where: unknown; row: Record<string, unknown> }[],
     wheres: [] as unknown[],
+    /** Queue of insert signals for RETURNING (xmax = 0). Default: inserted. */
+    insertSignals: [] as boolean[],
+    nextCommentId: 1,
   }
 
   function qb(table: string) {
@@ -45,9 +49,14 @@ const h = vi.hoisted(() => {
       state.conflictTargets.push(target)
       return b
     }
-    b.merge = async (row: Record<string, unknown>) => {
+    b.merge = (row: Record<string, unknown>) => {
       state.merges.push(row)
-      return [1]
+      return b
+    }
+    b.returning = async () => {
+      const inserted = state.insertSignals.length > 0 ? state.insertSignals.shift()! : true
+      const id = state.nextCommentId++
+      return [{ id, inserted }]
     }
     b.update = async (row: Record<string, unknown>) => {
       state.updates.push({ where: lastWhere, row })
@@ -56,11 +65,16 @@ const h = vi.hoisted(() => {
     return b
   }
 
-  const db = Object.assign((t: string) => qb(t), { raw: async () => ({}) })
+  const db = Object.assign((t: string) => qb(t), {
+    raw: (sql: string) => sql,
+  })
   return { state, db }
 })
 
 vi.mock('@/config/db', () => ({ db: h.db }))
+vi.mock('@/lib/notifications/emit', () => ({
+  notifyEvent: vi.fn(async () => ({ enqueued: true, jobId: 1 })),
+}))
 
 import { ingestFacebookComment } from '@/lib/system/ingestFacebookComment'
 
@@ -90,6 +104,8 @@ beforeEach(() => {
   h.state.conflictTargets = []
   h.state.updates = []
   h.state.wheres = []
+  h.state.insertSignals = []
+  h.state.nextCommentId = 1
 })
 
 // ───────────────────────────── TENANT ISOLATION ─────────────────────────────

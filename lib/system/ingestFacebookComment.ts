@@ -12,17 +12,62 @@
 // Meta would then redeliver the whole batch. Every failure path returns a
 // status instead.
 //
-// TASK 3 SCOPE: persistence only. No Lead is created here (that is Task 6), no
-// Graph API call is made, and Lead Ads behaviour is untouched.
+// Persistence + comment.received notify on FIRST INSERT only. No Lead is created
+// here (conversion is a separate user action). No Graph API call. Lead Ads
+// behaviour is untouched. Edits/removes/hide are silent for notifications.
 
 import { db } from '@/config/db'
 import { parseFeedComment } from '@/lib/facebook/comments/parseFeedComment'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
+import { notifyEvent } from '@/lib/notifications/emit'
 
 export type IngestResult = 'ingested' | 'deleted' | 'ignored'
 
 /** Verbs that represent a live comment worth storing. */
 const PERSISTABLE_VERBS = new Set(['add', 'edited'])
+
+/**
+ * Upsert a comment row and return whether Postgres actually INSERTed.
+ *
+ * `(xmax = 0)` in RETURNING is the durable insert signal — same pattern as
+ * `upsertCollapsedNotification`. Timestamps and app state are never consulted.
+ */
+async function upsertFacebookPageComment(row: {
+  agencyId: number
+  pageId: string
+  commentId: string
+  postId: string
+  parentId: string | null
+  isTopLevel: boolean
+  authorExternalId: string | null
+  authorName: string | null
+  message: string
+  messageAvailable: boolean
+  verb: string
+  createdTime: Date | null
+  receivedAt: Date
+  updatedAt: Date
+}): Promise<{ id: number; inserted: boolean }> {
+  const rows = await db('facebook_page_comments')
+    .insert(row)
+    .onConflict(['pageId', 'commentId'])
+    .merge({
+      message: row.message,
+      messageAvailable: row.messageAvailable,
+      authorName: row.authorName,
+      verb: row.verb,
+      updatedAt: row.updatedAt,
+    })
+    .returning(['id', db.raw('(xmax = 0) as inserted')])
+
+  const saved = rows[0] as { id: number | string; inserted: boolean | string | number } | undefined
+  if (!saved) {
+    throw new Error('facebook_page_comments upsert returned no row')
+  }
+  // pg may return boolean true, or 't'/'f' depending on driver path.
+  const inserted = saved.inserted === true || saved.inserted === 't' || saved.inserted === 1
+  return { id: Number(saved.id), inserted }
+}
 
 export async function ingestFacebookComment(pageId: string, value: unknown): Promise<IngestResult> {
   try {
@@ -41,7 +86,7 @@ export async function ingestFacebookComment(pageId: string, value: unknown): Pro
     const agencyId: number = connection.agency_id
     if (!isFacebookCommentsEnabledForAgency(agencyId)) return 'ignored'
 
-    // ── Deletion: mark, never hard-delete. ────────────────────────────────
+    // ── Deletion: mark, never hard-delete. Silent for notifications. ──────
     // A deletion may arrive for a comment we never stored (it predates the
     // rollout, or arrived while the agency was disabled). The update then
     // matches nothing, which is the correct no-op.
@@ -83,16 +128,28 @@ export async function ingestFacebookComment(pageId: string, value: unknown): Pro
     //
     // The merge set deliberately EXCLUDES agencyId and pageId — a redelivery
     // may refresh content, never ownership.
-    await db('facebook_page_comments')
-      .insert(row)
-      .onConflict(['pageId', 'commentId'])
-      .merge({
-        message: row.message,
-        messageAvailable: row.messageAvailable,
-        authorName: row.authorName,
-        verb: row.verb,
-        updatedAt: row.updatedAt,
+    //
+    // RETURNING (xmax = 0) distinguishes a brand-new row from a merge of an
+    // existing one. Notify ONLY on insert: add, or first-seen edited. A later
+    // edited/remove stays silent.
+    const { id, inserted } = await upsertFacebookPageComment(row)
+
+    if (inserted) {
+      await notifyEvent({
+        type: 'comment.received',
+        agencyId,
+        entityType: 'comment',
+        entityId: id,
+        actorUserId: null,
+        occurredAt: event.createdTime ?? now,
+        payload: {
+          leadName: event.authorName,
+          pageId,
+          postId: event.postId,
+          provider: 'facebook',
+        },
       })
+    }
 
     return 'ingested'
   } catch (err) {

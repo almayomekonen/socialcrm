@@ -26,6 +26,20 @@ export const conversationUnansweredKey = (ctx: EventContext): string => `convers
 export const followupKey = (ctx: EventContext): string => `lead:${ctx.entityId}:followup`
 
 /**
+ * Facebook comments collapse per post: several comments on one post are one
+ * open unit of work in the Comments Inbox. pageId + postId come from the emit
+ * site (persisted facebook_page_comments columns). postId is NOT NULL in the
+ * schema; if either id is somehow missing, fall back to the comment PK so
+ * unrelated comments never silently share a key.
+ */
+export const commentPostKey = (ctx: EventContext): string => {
+  const pageId = ctx.payload.pageId?.trim()
+  const postId = ctx.payload.postId?.trim()
+  if (pageId && postId) return `comment:${pageId}:post:${postId}`
+  return `comment:${pageId ?? 'unknown'}:id:${ctx.entityId}`
+}
+
+/**
  * Integration health is per provider per agency, not per event: a Facebook
  * token that breaks, retries, and breaks again is one broken connection until
  * someone fixes it. The agencyId is included because the entityId for an

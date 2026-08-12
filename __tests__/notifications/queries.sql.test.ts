@@ -287,6 +287,16 @@ describe('the reconciliation sweep (§14.3)', () => {
     expect(sqlOf(findLeadsMissingCreatedJobQuery(10, 200)).lower).toContain('c.lead = true')
   })
 
+  it('requires durable createOrigin and excludes import + legacy NULL (no leadSource / automation heuristics)', () => {
+    const { sql, lower } = sqlOf(findLeadsMissingCreatedJobQuery(10, 200))
+    expect(lower).toContain('c."createorigin" is not null')
+    expect(lower).toMatch(/c\."createorigin"\s*<>\s*'import'|c\."createorigin"\s*!=\s*'import'/)
+    expect(lower).not.toContain('leadsource')
+    expect(lower).not.toContain('automation_')
+    // Allowed product origins remain eligible via absence of denylist beyond import.
+    expect(sql).toContain('"createOrigin"')
+  })
+
   it('runs on the durability figures the spec fixes, not on tuned-down ones', () => {
     /**
      * The window is why "late, not lost" (§14.3) is true, and §25 limitation 3

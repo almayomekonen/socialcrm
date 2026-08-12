@@ -46,6 +46,14 @@ describe('the status_changed event has exactly one shape', () => {
     }
   })
 
+  it('upsertLead UPDATE status changes also route through the shared emitter (Task 4)', () => {
+    const src = read('actions/clients.ts')
+    const upsert = src.slice(src.indexOf('export async function upsertLead'), src.indexOf('export async function upsertLeadList'))
+    expect(upsert).toContain('emitLeadStatusChanged')
+    expect(upsert).toContain("type: 'lead.assigned'")
+    expect(upsert).toContain('statusChangedAt')
+  })
+
   it('no surface hand-builds a status_changed event any more', () => {
     // The literal is what drifted. Only the shared emitter may contain it.
     const offenders = files.filter(

@@ -4,7 +4,7 @@ import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
 import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
 import { emitAutomationEvent } from '@/lib/automations/emit'
-import { notifyEvent } from '@/lib/notifications/emit'
+import { emitLeadCreated } from '@/lib/notifications/emitLeadCreated'
 import { leadDisplayName } from '@/lib/notifications/leadName'
 
 type WhatsappWebhookLeadInput = {
@@ -62,6 +62,7 @@ export async function createLeadFromWhatsappWebhook({
     handlerId: userId,
     userId,
     overQuota,
+    createOrigin: 'whatsapp',
   })
 
   if (!lead) {
@@ -96,17 +97,14 @@ export async function createLeadFromWhatsappWebhook({
     leadSource: lead.leadSource ?? null,
   })
 
-  // Notification engine — same contract as the Facebook path: no actor (a
-  // webhook is not a person), no transaction available, never throws. The
-  // reconciliation sweep covers a crash between the insert and this line.
-  await notifyEvent({
-    type: 'lead.created',
+  // Shared lead.created door — same contract as Facebook (no actor, no trx).
+  await emitLeadCreated({
     agencyId,
-    entityType: 'lead',
-    entityId: lead.id,
+    leadId: lead.id,
+    leadName: leadDisplayName(lead),
     actorUserId: null,
     occurredAt: new Date(),
-    payload: { leadName: leadDisplayName(lead) },
+    origin: 'webhook_whatsapp',
   })
 
   console.log(`[WhatsappWebhook][success][msgId=${messageId}]`)

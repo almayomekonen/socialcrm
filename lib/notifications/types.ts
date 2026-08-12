@@ -7,7 +7,7 @@
  * that is what the migrations declare.
  */
 
-/** The 15 types. Spec §4 — the registry (registry.ts) holds one entry per type. */
+/** The 16 types. Spec §4 — the registry (registry.ts) holds one entry per type. */
 export const NOTIFICATION_TYPES = [
   'lead.created',
   'lead.hot',
@@ -17,6 +17,7 @@ export const NOTIFICATION_TYPES = [
   'message.inbound',
   'message.inbound_multiple',
   'message.unanswered',
+  'comment.received',
   'followup.due',
   'followup.overdue',
   'integration.disconnected',
@@ -42,7 +43,7 @@ export const PRESENCE_STATES = ['online', 'idle', 'offline'] as const
 export type Presence = (typeof PRESENCE_STATES)[number]
 
 /** Polymorphic, un-foreign-keyed entity reference (spec §18). */
-export const ENTITY_TYPES = ['lead', 'conversation', 'integration'] as const
+export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment'] as const
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
 /** Recipient rules. Exactly two — spec §6.1 and amendment 2 (§28). */
@@ -64,8 +65,9 @@ export type NotificationPayload = {
   /** For conversation-entity events, the lead the conversation belongs to. */
   leadId?: number | null
   /**
-   * Persisted `inbox_messages.id` — the `message.inbound` event-key discriminator.
-   * Required for that type; absent elsewhere.
+   * Persisted `inbox_messages.id` — discriminator for `message.inbound` and
+   * `message.unanswered` (latest unanswered inbound head). Required for those
+   * types; absent elsewhere.
    */
   messageId?: number | null
   /**
@@ -84,6 +86,21 @@ export type NotificationPayload = {
    * `integration.ingestion_failed`. Required for that type; absent elsewhere.
    */
   externalLeadId?: string | null
+  /**
+   * Persisted `clients.nextFollowUpAt` as epoch ms — discriminator for
+   * `followup.due` / `followup.overdue`. Required for those types; never Date.now().
+   */
+  followUpAt?: number | null
+  /**
+   * Facebook Page id for `comment.received` collapse identity
+   * (`comment:{pageId}:post:{postId}`). Required for that type; absent elsewhere.
+   */
+  pageId?: string | null
+  /**
+   * Facebook post id for `comment.received` collapse identity.
+   * Required for that type when present on the row (schema: NOT NULL).
+   */
+  postId?: string | null
 }
 
 /**

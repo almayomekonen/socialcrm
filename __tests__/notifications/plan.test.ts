@@ -174,6 +174,7 @@ describe('the plan carries what the row needs', () => {
       'lead.status_changed',
       'lead.activity',
       'message.unanswered',
+      'comment.received',
       'followup.due',
       'followup.overdue',
       'integration.disconnected',
