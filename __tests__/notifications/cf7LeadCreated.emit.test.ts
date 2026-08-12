@@ -133,6 +133,8 @@ describe('CF7 resolveSubject → emitLeadCreated', () => {
     const leadId = await contactForm7Provider.resolveSubject!(7, mapped)
 
     expect(leadId).toBe(900)
+    expect(insertLeadSystem).toHaveBeenCalledTimes(1)
+    expect(insertLeadSystem.mock.calls[0][0]).toMatchObject({ createOrigin: 'cf7' })
     expect(emitAutomationEvent).toHaveBeenCalledTimes(1)
     expect(emitAutomationEvent.mock.calls[0][0]).toMatchObject({
       trigger: 'lead_created',

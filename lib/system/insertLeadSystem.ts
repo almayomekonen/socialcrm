@@ -10,6 +10,7 @@
 // signed, server-verified context.
 
 import { db } from '@/config/db'
+import type { ClientCreateOrigin } from '@/lib/leads/createOrigin'
 
 export type SystemLeadInput = {
   agencyId: number
@@ -28,6 +29,8 @@ export type SystemLeadInput = {
   idNum: string | null
   leadSource: string | null
   overQuota: boolean
+  /** Durable create-path origin — required for all product system inserts. */
+  createOrigin: ClientCreateOrigin
   lastName?: string | null
   phone?: string | null
   email?: string | null
@@ -51,6 +54,7 @@ export async function insertLeadSystem(input: SystemLeadInput): Promise<any | nu
     lead: input.lead ?? true,
     status: input.status ?? 'new',
     overQuota: input.overQuota,
+    createOrigin: input.createOrigin,
   }
 
   try {

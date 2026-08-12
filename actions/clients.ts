@@ -17,6 +17,7 @@ import { emitLeadStatusChanged } from '@/lib/automations/statusChanged'
 import { notifyEvent } from '@/lib/notifications/emit'
 import { emitLeadCreated } from '@/lib/notifications/emitLeadCreated'
 import { leadDisplayName } from '@/lib/notifications/leadName'
+import { createOriginForUpsert } from '@/lib/leads/createOrigin'
 import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
 
 export type { DeleteManyLeadsResult } from '@/lib/leads/deleteResult'
@@ -211,6 +212,8 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
           await assertLeadQuota(user.agencyId, 1)
         }
       }
+      // createOrigin is immutable — never mass-assignable and never updated.
+      delete (safeData as { createOrigin?: unknown }).createOrigin
       const q = db('clients').where({ id: clientId, agencyId: user.agencyId })
       lead = (await q.update(safeData).returning('*'))[0]
     } else {
@@ -218,7 +221,12 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
       lead = await withAgencyQuotaLock(agencyId, async (trx) => {
         await assertLeadQuota(agencyId, 1, trx)
         const rows = await trx('clients')
-          .insert({ ...safeData, agencyId, createdById: userId })
+          .insert({
+            ...safeData,
+            agencyId,
+            createdById: userId,
+            createOrigin: createOriginForUpsert(emitOrigin),
+          })
           .returning('*')
         const created = rows[0]
         // Customer Automation Engine trigger (ADR-010): insert branch only,
@@ -570,6 +578,7 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
       createdById: userId,
       status: 'new',
       agencyId,
+      createOrigin: 'import',
     }
   })
 

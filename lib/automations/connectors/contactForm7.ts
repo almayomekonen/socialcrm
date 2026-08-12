@@ -250,6 +250,7 @@ async function findOrCreateLead(
     email: email || null,
     overQuota,
     lead: true,
+    createOrigin: 'cf7',
   })
   if (!created) {
     console.error('[contact_form_7] lead insert failed', { agencyId, connectionRowId: row.id, submissionId })

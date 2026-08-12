@@ -62,6 +62,7 @@ export async function createLeadFromWhatsappWebhook({
     handlerId: userId,
     userId,
     overQuota,
+    createOrigin: 'whatsapp',
   })
 
   if (!lead) {

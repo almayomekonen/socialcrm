@@ -63,6 +63,7 @@ export async function createLeadFromWebhook({
     handlerId: userId,
     userId,
     overQuota,
+    createOrigin: 'facebook',
   })
 
   if (!lead) {
