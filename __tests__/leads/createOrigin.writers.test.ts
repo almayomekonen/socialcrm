@@ -55,6 +55,14 @@ vi.mock('@/lib/notifications/emitLeadCreated', () => ({
   emitLeadCreated: (...args: unknown[]) => emitLeadCreated(...args),
 }))
 
+vi.mock('@/lib/notifications/emit', () => ({
+  notifyEvent: vi.fn(async () => ({ enqueued: true, jobId: 1 })),
+}))
+
+vi.mock('@/lib/automations/statusChanged', () => ({
+  emitLeadStatusChanged: vi.fn(async () => undefined),
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }))
@@ -86,6 +94,30 @@ vi.mock('@/config/db', () => {
         }
       },
     }
+  }
+  db.transaction = async (fn: (trx: any) => Promise<unknown>) => {
+    const trx: any = (table: string) => {
+      if (table !== 'clients') throw new Error(`unexpected table ${table}`)
+      return trx
+    }
+    trx.where = () => trx
+    trx.forUpdate = () => trx
+    trx.first = async () => ({
+      id: 5,
+      lead: true,
+      status: 'new',
+      handlerId: 10,
+      userId: 10,
+      firstName: 'x',
+      lastName: null,
+    })
+    trx.update = (payload: Record<string, unknown>) => {
+      lastUpdate = payload
+      return {
+        returning: async () => [{ id: 5, lead: true, ...payload }],
+      }
+    }
+    return fn(trx)
   }
   return { db }
 })

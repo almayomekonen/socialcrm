@@ -206,16 +206,90 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
     let lead = null
 
     if (clientId) {
-      if (isLeadTrue(safeData.lead)) {
-        const existing = await db('clients').where({ id: clientId, agencyId: user.agencyId }).first('lead')
-        if (existing && existing.lead === false) {
-          await assertLeadQuota(user.agencyId, 1)
+      // UPDATE branch: read-before-write so status/handler changes cannot silently
+      // bypass the existing notification doors (updateLead / transferLeadToRep).
+      // Jobs join this transaction — a rolled-back edit leaves no notification.
+      lead = await db.transaction(async (trx) => {
+        const existing = await trx('clients')
+          .where({ id: clientId, agencyId: user.agencyId })
+          .forUpdate()
+          .first('id', 'lead', 'status', 'handlerId', 'userId', 'firstName', 'lastName')
+        if (!existing) return null
+
+        if (isLeadTrue(safeData.lead) && existing.lead === false) {
+          await assertLeadQuota(user.agencyId, 1, trx)
         }
-      }
-      // createOrigin is immutable — never mass-assignable and never updated.
-      delete (safeData as { createOrigin?: unknown }).createOrigin
-      const q = db('clients').where({ id: clientId, agencyId: user.agencyId })
-      lead = (await q.update(safeData).returning('*'))[0]
+
+        // createOrigin is immutable — never mass-assignable and never updated.
+        delete (safeData as { createOrigin?: unknown }).createOrigin
+
+        const prevHandlerId = existing.handlerId == null ? null : Number(existing.handlerId)
+        const prevStatus = existing.status == null ? null : String(existing.status)
+
+        const handlerProvided = Object.prototype.hasOwnProperty.call(safeData, 'handlerId')
+        const nextHandlerRaw = handlerProvided ? safeData.handlerId : prevHandlerId
+        const nextHandlerId =
+          nextHandlerRaw == null || nextHandlerRaw === '' ? null : Number(nextHandlerRaw)
+        const handlerChanged =
+          handlerProvided &&
+          nextHandlerId != null &&
+          Number.isFinite(nextHandlerId) &&
+          nextHandlerId > 0 &&
+          nextHandlerId !== prevHandlerId
+
+        const statusProvided = Object.prototype.hasOwnProperty.call(safeData, 'status')
+        const nextStatus =
+          statusProvided && typeof safeData.status === 'string' ? safeData.status : null
+        const statusChanged = !!nextStatus && nextStatus !== prevStatus
+
+        if (statusChanged) {
+          const now = new Date()
+          safeData.statusChangedAt = now
+          safeData.lastActivityAt = now
+        }
+
+        const rows = await trx('clients')
+          .where({ id: clientId, agencyId: user.agencyId })
+          .update(safeData)
+          .returning('*')
+        const updated = rows[0]
+        if (!updated) return null
+
+        const name = leadDisplayName(updated)
+
+        // Deterministic order when both change: assignment (new handler), then status.
+        if (handlerChanged) {
+          await notifyEvent(
+            {
+              type: 'lead.assigned',
+              agencyId: user.agencyId,
+              entityType: 'lead',
+              entityId: Number(clientId),
+              actorUserId: user.id,
+              occurredAt: new Date(),
+              payload: {
+                leadName: name,
+                assignedUserId: nextHandlerId,
+              },
+            },
+            { trx },
+          )
+        }
+
+        if (statusChanged) {
+          await emitLeadStatusChanged({
+            agencyId: user.agencyId,
+            leadId: Number(clientId),
+            newStatus: nextStatus,
+            occurredAt: safeData.statusChangedAt as Date,
+            actorUserId: user.id,
+            leadName: name,
+            trx,
+          })
+        }
+
+        return updated
+      })
     } else {
       const agencyId = await getAgencyId()
       lead = await withAgencyQuotaLock(agencyId, async (trx) => {
