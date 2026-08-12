@@ -14,6 +14,13 @@ import { db } from '@/config/db'
  * uniquely indexed and the enqueue is ON CONFLICT DO NOTHING, so an event that
  * already landed is a no-op.
  *
+ * Origin safety (Task 3B): only product leads with a durable `createOrigin` that
+ * is not `import` are candidates. Legacy NULL rows and Excel/CSV imports are
+ * never resurrected. Selection uses `clients.createOrigin` only — never
+ * `leadSource` heuristics or automation tables. Silence policy for live import
+ * remains in `emitLeadCreated`; reconcile emits via that helper with
+ * `origin: 'reconcile'`.
+ *
  * Read-only against `clients`.
  */
 
@@ -48,6 +55,8 @@ export function findLeadsMissingCreatedJobQuery(windowMinutes: number, limit: nu
       FROM clients c
      WHERE c."createdAt" >= now() - (? * interval '1 minute')
        AND c.lead = true
+       AND c."createOrigin" IS NOT NULL
+       AND c."createOrigin" <> 'import'
        AND NOT EXISTS (
              SELECT 1 FROM notification_jobs j
               WHERE j.type = 'lead.created'
