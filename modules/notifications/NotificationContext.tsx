@@ -236,10 +236,11 @@ export function NotificationProvider({
          * replaces the first), so surfacing several individually would show only
          * the last one and flicker through the rest. Triage, never dump.
          *
-         * No click target yet — `/notifications` arrives in P2.5, and linking to a
-         * route that does not exist would be worse than not linking at all.
+         * It goes to the center rather than to any one of the notifications,
+         * because the summary is about all of them and picking one would be a
+         * guess. A single arrival still deep-links to its own entity above.
          */
-        toast('message', `${fresh.length} התראות חדשות`, 6000)
+        toast('message', `${fresh.length} התראות חדשות`, 6000, () => router.push('/notifications'))
       }
 
       /**

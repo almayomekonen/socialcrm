@@ -1284,13 +1284,14 @@ with nothing rendered in the UI.
   — **delivered P2.2** (context and toast; awareness retirement itself deferred to P2.6)
 - Bell + badge in `Topbar`; dropdown; mark-read / mark-all-read; deep links; a11y tests.
   — **delivered P2.3**
-- `/notifications` center. — **remaining**
+- `/notifications` center. — **delivered P2.4**
 
-**P2.3 surfaces, for the record.** `seenAt` may now be stamped by three things and nothing else:
-the toast (P2.2), the dropdown rendering a row (P2.3), and the future notification center. A feed
-GET stamps presence, never `seenAt`. The dropdown's boundary is `renderedNotifications` in
+**P2.3 / P2.4 surfaces, for the record.** `seenAt` may now be stamped by three things and nothing
+else: the toast (P2.2), the dropdown rendering a row (P2.3), and the notification center (P2.4).
+A feed GET stamps presence, never `seenAt`. The dropdown's boundary is `renderedNotifications` in
 `modules/notifications/dropdown.ts` — a feed page of fifty with eight on screen stamps eight, and
-the ids past the render limit stay unseen rather than being quietly consumed.
+the ids past the render limit stay unseen rather than being quietly consumed. The center stamps
+every row it has loaded; pages the user never requested stay unseen.
 
 The bell shows `unreadNotificationCount`; the nav keeps showing `unreadConversationCount` from
 awareness. They share one renderer (`lib/navs/NavBadge.tsx`, moved out of `Nav.tsx` in P2.3 for

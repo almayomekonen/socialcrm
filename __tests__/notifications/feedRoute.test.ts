@@ -388,6 +388,69 @@ describe('items and pagination', () => {
     await GET(req('?cursor=garbage'))
     expect(h.listNotifications).toHaveBeenCalledWith(expect.objectContaining({ cursor: null }))
   })
+
+  it('accepts the ISO cursor form a client can echo back unchanged', async () => {
+    await GET(req('?cursor=2026-08-11T10:00:00.000Z_900'))
+    expect(h.listNotifications).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: { createdAt: '2026-08-11T10:00:00.000Z', id: 900 } }),
+    )
+  })
+
+  it('rejects a cursor with no id rather than paging from an unknown position', async () => {
+    for (const bad of ['_900', '2026-08-11T10:00:00.000Z_', '2026-08-11T10:00:00.000Z_0', 'notadate_5']) {
+      h.listNotifications.mockClear()
+      await GET(req(`?cursor=${bad}`))
+      expect(h.listNotifications).toHaveBeenCalledWith(expect.objectContaining({ cursor: null }))
+    }
+  })
+})
+
+/**
+ * The notification center's filters (P2.4). The endpoint is shared with the bell,
+ * so the tests that matter are: the filters reach the query when asked for, they
+ * cannot reach it as anything but a known value, and they never touch the counts.
+ */
+describe('center filters', () => {
+  it('passes both filters to the item query', async () => {
+    await GET(req('?unread=1&category=leads'))
+    expect(h.listNotifications).toHaveBeenCalledWith(
+      expect.objectContaining({ unreadOnly: true, category: 'leads' }),
+    )
+  })
+
+  it('a request with no filters asks for an unfiltered list', async () => {
+    await GET(req())
+    expect(h.listNotifications).toHaveBeenCalledWith(
+      expect.objectContaining({ unreadOnly: false, category: null }),
+    )
+  })
+
+  it('an unknown category is dropped, never forwarded', async () => {
+    for (const bogus of ['billing', 'leads;--', 'LEADS', '']) {
+      h.listNotifications.mockClear()
+      await GET(req(`?category=${encodeURIComponent(bogus)}`))
+      expect(h.listNotifications).toHaveBeenCalledWith(expect.objectContaining({ category: null }))
+    }
+  })
+
+  it('filtering the list does NOT filter the unread count', async () => {
+    /**
+     * The count is the bell's badge. If a filtered center could shrink it, the
+     * same topbar would show two different numbers for the same state.
+     */
+    h.countUnreadNotifications.mockResolvedValue(17)
+    const body = await (await GET(req('?unread=1&category=integrations'))).json()
+    expect(body.unreadNotificationCount).toBe(17)
+    expect(h.countUnreadNotifications).toHaveBeenCalledWith({ agencyId: USER.agencyId, userId: USER.id })
+  })
+
+  it('filters never reach the conversation count or the away summary', async () => {
+    await GET(req('?unread=1&category=leads'))
+    for (const call of h.summarizeAwayNotifications.mock.calls) {
+      expect(call[0]).not.toHaveProperty('category')
+      expect(call[0]).not.toHaveProperty('unreadOnly')
+    }
+  })
 })
 
 describe('the response is never cacheable', () => {

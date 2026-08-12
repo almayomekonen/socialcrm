@@ -89,7 +89,7 @@ export type WhileYouWereAway = {
   categories: { category: NotificationCategory; count: number }[]
 }
 
-/** Keyset pagination cursor, for the P2.5 notification center. The bell never paginates. */
+/** Keyset pagination cursor, for the notification center (P2.4). The bell never paginates. */
 export type FeedCursor = { createdAt: string; id: number }
 
 export type NotificationFeedResponse = {

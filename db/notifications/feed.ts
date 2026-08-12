@@ -69,6 +69,19 @@ export function listNotificationsQuery(args: {
   userId: number
   limit: number
   cursor?: FeedCursor | null
+  /**
+   * The notification center's two filters (P2.4). Both are OPTIONAL and both
+   * default to off, so the bell's call is byte-for-byte the P2.1 query.
+   *
+   * `unreadOnly` is served by notifications_user_unread_idx, the same partial
+   * index the badge count uses. `category` has no index of its own: it narrows
+   * an index scan that is already walking this user's rows newest-first and
+   * stopping at LIMIT, which is the right trade for a per-user row count that
+   * retention keeps small — a category index would cost every insert to save a
+   * bounded scan.
+   */
+  unreadOnly?: boolean
+  category?: NotificationCategory | null
 }) {
   const q = db('notifications')
     .where({ agencyId: args.agencyId, userId: args.userId })
@@ -82,6 +95,8 @@ export function listNotificationsQuery(args: {
   if (args.cursor) {
     q.whereRaw('("createdAt", id) < (?, ?)', [args.cursor.createdAt, args.cursor.id])
   }
+  if (args.unreadOnly) q.whereNull('readAt')
+  if (args.category) q.where({ category: args.category })
   return q
 }
 
@@ -154,6 +169,8 @@ export async function listNotifications(args: {
   userId: number
   limit: number
   cursor?: FeedCursor | null
+  unreadOnly?: boolean
+  category?: NotificationCategory | null
 }): Promise<NotificationRow[]> {
   const rows = await listNotificationsQuery(args)
   return rows.map((r) => mapItem(r as Record<string, unknown>))

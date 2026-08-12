@@ -224,6 +224,74 @@ describe('pagination is keyset, and bounded', () => {
   })
 })
 
+/**
+ * The notification center's two filters (P2.4). They narrow the item list and
+ * must leave every other statement — and the tenant predicates — untouched.
+ */
+describe('center filters narrow the list only', () => {
+  it('unreadOnly adds the same predicate the badge count uses', () => {
+    const { lower } = sqlOf(listNotificationsQuery({ ...SCOPE, limit: 25, unreadOnly: true }))
+    expect(lower).toContain('"readat" is null')
+  })
+
+  it('a category filter binds the validated value, never interpolates it', () => {
+    const { lower, bindings } = sqlOf(listNotificationsQuery({ ...SCOPE, limit: 25, category: 'leads' }))
+    expect(lower).toContain('"category"')
+    expect(bindings).toContain('leads')
+    // Bound as a parameter, so even a value that slipped past validation could
+    // not become SQL.
+    expect(lower).not.toContain("'leads'")
+  })
+
+  it('both filters compose, and neither displaces the tenant scope', () => {
+    const { lower, bindings } = sqlOf(
+      listNotificationsQuery({ ...SCOPE, limit: 25, unreadOnly: true, category: 'sla' }),
+    )
+    expect(lower).toContain('"agencyid"')
+    expect(lower).toContain('"userid"')
+    expect(lower).toContain('"readat" is null')
+    expect(bindings).toContain('sla')
+    expect(bindings).toContain(7)
+    expect(bindings).toContain(55)
+  })
+
+  it('an unfiltered call is byte-for-byte the query the bell has always issued', () => {
+    // The bell must not inherit a filter by accident: same SQL, same bindings.
+    const bell = sqlOf(listNotificationsQuery({ ...SCOPE, limit: FEED_ITEM_LIMIT }))
+    const explicit = sqlOf(
+      listNotificationsQuery({ ...SCOPE, limit: FEED_ITEM_LIMIT, unreadOnly: false, category: null }),
+    )
+    expect(explicit.sql).toBe(bell.sql)
+    expect(explicit.bindings).toEqual(bell.bindings)
+  })
+
+  it('a filtered page still paginates by keyset, not by offset', () => {
+    const { lower } = sqlOf(
+      listNotificationsQuery({
+        ...SCOPE,
+        limit: 25,
+        unreadOnly: true,
+        category: 'leads',
+        cursor: { createdAt: '2026-08-11T10:00:00.000Z', id: 900 },
+      }),
+    )
+    expect(lower).toContain('("createdat", id) <')
+    expect(lower).not.toContain('offset')
+  })
+
+  it('the counts are NOT filterable — the badge cannot disagree with itself', () => {
+    /**
+     * `countUnreadNotificationsQuery` and the away aggregate take no filter
+     * arguments at all, which is the structural version of the rule: a narrowed
+     * list must never narrow the number in the topbar beside it.
+     */
+    expect(countUnreadNotificationsQuery.length).toBe(1)
+    expect(summarizeAwayNotificationsQuery.length).toBe(1)
+    const count = sqlOf(countUnreadNotificationsQuery(SCOPE))
+    expect(count.lower).not.toContain('"category"')
+  })
+})
+
 describe('deep links target entities, never notifications (§20.2)', () => {
   it('the selected columns include deepLink and never expose a token or capability', () => {
     const { lower } = sqlOf(listNotificationsQuery({ ...SCOPE, limit: 20 }))

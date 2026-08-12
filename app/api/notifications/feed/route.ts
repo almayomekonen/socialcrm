@@ -4,6 +4,7 @@ import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { FEED_ITEM_LIMIT, FEED_MAX_LIMIT } from '@/db/notifications/feed'
 import { buildNotificationFeed, inertFeed } from '@/lib/notifications/feed'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
+import { parseCenterFilters } from '@/modules/notifications/center'
 import type { FeedCursor } from '@/modules/notifications/types'
 
 /**
@@ -39,21 +40,40 @@ import type { FeedCursor } from '@/modules/notifications/types'
 const NO_STORE = { 'Cache-Control': 'no-store' } as const
 
 /**
- * `<epochMs>_<id>`, echoed from a previous response's nextCursor.
+ * `<epochMs>_<id>` or `<ISO>_<id>`, echoed from a previous response's nextCursor.
  *
  * A cursor is not a capability: it names a position, and every query it feeds is
  * still scoped to the session's own agency and user. A cursor pointing at another
  * tenant's row simply returns that user's next page (spec §20.2 — ids never grant
  * access). Malformed input degrades to "first page" rather than erroring, because
  * a stale cursor from an old tab is a normal event, not a client bug.
+ *
+ * Both timestamp forms are accepted — epoch milliseconds is the P2.1 encoding,
+ * and the ISO form is what a client gets back in `nextCursor` and can hand
+ * straight back without converting.
+ *
+ * THE BOUNDARY IS MILLISECOND-PRECISE, NOT MICROSECOND-PRECISE, and that is a
+ * property of the driver rather than of this parser: `createdAt` is a
+ * `timestamptz` defaulting to `now()`, but node-postgres hands it to us as a JS
+ * `Date`, so the microseconds are gone before any code here runs. Two rows for
+ * the same user inside one millisecond, straddling a page boundary, could
+ * therefore let the older of the two miss its page. It stays in the unread count,
+ * the dropdown and every filtered view, so the cost is bounded; closing it would
+ * mean selecting the timestamp as text and changing the P2.1 row contract, which
+ * is not worth it for a sub-millisecond tie.
  */
 function parseCursor(raw: string | null): FeedCursor | null {
   if (!raw) return null
-  const [ms, id] = raw.split('_')
-  const at = Number(ms)
-  const rowId = Number(id)
-  if (!Number.isFinite(at) || !Number.isFinite(rowId) || rowId <= 0) return null
-  return { createdAt: new Date(at).toISOString(), id: rowId }
+  const split = raw.lastIndexOf('_')
+  if (split <= 0) return null
+  const rowId = Number(raw.slice(split + 1))
+  if (!Number.isFinite(rowId) || rowId <= 0) return null
+
+  const at = raw.slice(0, split)
+  const ms = Number(at)
+  const createdAt = Number.isFinite(ms) ? new Date(ms) : new Date(at)
+  if (Number.isNaN(createdAt.getTime())) return null
+  return { createdAt: createdAt.toISOString(), id: rowId }
 }
 
 function parseLimit(raw: string | null): number {
@@ -87,6 +107,14 @@ export async function GET(req: NextRequest) {
    * string. `visible` is the only client-supplied input that reaches a write, and
    * it can only ever describe the caller's own presence row.
    */
+  /**
+   * The center's filters (P2.4). `category` is validated against the registry's
+   * own vocabulary by `parseCenterFilters` before it can reach SQL, and an
+   * unrecognized value degrades to "no filter" rather than erroring. They narrow
+   * `items` only — never the counts (see BuildFeedArgs).
+   */
+  const filters = parseCenterFilters({ unread: params.get('unread'), category: params.get('category') })
+
   const feed = await buildNotificationFeed({
     agencyId: user.agencyId,
     userId: user.id,
@@ -94,6 +122,8 @@ export async function GET(req: NextRequest) {
     visible: params.get('visible') !== '0',
     limit: parseLimit(params.get('limit')),
     cursor: parseCursor(params.get('cursor')),
+    unreadOnly: filters.unreadOnly,
+    category: filters.category,
   })
 
   return NextResponse.json({ enabled: true, ...feed }, { headers: NO_STORE })

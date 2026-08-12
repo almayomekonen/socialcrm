@@ -1,11 +1,12 @@
 'use client'
 
 import type { RefObject } from 'react'
-import Icon from '@/lib/Icon'
+import Link from 'next/link'
 import { timeAgo } from '@/components/settings/connections/copy'
-import { CATEGORY_ICON, CATEGORY_LABEL, hasMeaningfulAway } from '@/modules/notifications/dropdown'
+import { CATEGORY_LABEL, hasMeaningfulAway } from '@/modules/notifications/dropdown'
 import type { NotificationFeedItem, WhileYouWereAway } from '@/modules/notifications/types'
 import type { MenuPos } from '@/lib/useFloatingMenu'
+import NotificationRow from './NotificationRow'
 
 /**
  * The notification panel. Presentation only — every fact it renders arrived from
@@ -98,6 +99,23 @@ export default function NotificationPanel({
           ))}
         </ul>
       )}
+
+      {/*
+        The way out of a deliberately short list. The panel shows the most recent
+        few; everything else — older rows, and the filters to work through them —
+        lives on the center, which would otherwise be a page with no door.
+        Closing on click is what returns focus to the bell rather than leaving a
+        floating panel over the page the user just navigated to.
+      */}
+      <div className='border-t px-3 py-2'>
+        <Link
+          href='/notifications'
+          onClick={onClose}
+          className='block rounded px-1 py-0.5 text-xs text-primary-text hover:underline focus:outline-none focus:ring-2 focus:ring-primary'
+        >
+          כל ההתראות
+        </Link>
+      </div>
     </div>
   )
 }
@@ -123,44 +141,6 @@ function AwaySummary({ away }: { away: WhileYouWereAway }) {
         {away.categories.map((c) => `${CATEGORY_LABEL[c.category]} ${c.count}`).join(', ')}
       </p>
     </section>
-  )
-}
-
-function NotificationRow({
-  item,
-  onSelect,
-}: {
-  item: NotificationFeedItem
-  onSelect: (item: NotificationFeedItem) => void
-}) {
-  const when = timeAgo(item.createdAt)
-  const unread = item.readAt === null
-
-  return (
-    <button
-      type='button'
-      onClick={() => onSelect(item)}
-      className='flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary'
-    >
-      <span className='mt-0.5 shrink-0'>
-        <Icon name={CATEGORY_ICON[item.category]} type='sol' className={`size-4 ${unread ? 'bg-primary' : 'bg-gray-400'}`} />
-      </span>
-      <span className='min-w-0 flex-1'>
-        <span className={`block truncate text-sm ${unread ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-          {item.title}
-        </span>
-        {item.body && <span className='mt-0.5 block text-xs leading-snug text-gray-500'>{item.body}</span>}
-        {when && <span className='mt-0.5 block text-[11px] text-gray-400'>{when}</span>}
-      </span>
-      {/* Unread marker. aria-hidden because the row's own text weight is not the
-          accessible signal either — the state is announced by the word below. */}
-      {unread && (
-        <>
-          <span aria-hidden className='mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500' />
-          <span className='sr-only'>לא נקרא</span>
-        </>
-      )}
-    </button>
   )
 }
 

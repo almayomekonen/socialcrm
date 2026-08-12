@@ -16,6 +16,7 @@ import {
 import { classifyPresence } from '@/lib/notifications/presence'
 import { isToastEligible } from '@/lib/notifications/toastEligibility'
 import { Roles } from '@/types/roles'
+import type { NotificationCategory } from '@/lib/notifications/types'
 import type { FeedCursor, NotificationFeedResponse } from '@/modules/notifications/types'
 
 /**
@@ -46,6 +47,16 @@ export type BuildFeedArgs = {
   role?: string | null
   limit?: number
   cursor?: FeedCursor | null
+  /**
+   * The notification center's filters (P2.4). They narrow `items` ONLY.
+   *
+   * The counts and the "while you were away" summary are deliberately left
+   * whole: they answer "what is waiting for you", and a filtered badge would
+   * report a smaller number than the bell in the same topbar. So filtering the
+   * list a user chose to narrow does not quietly rewrite the totals beside it.
+   */
+  unreadOnly?: boolean
+  category?: NotificationCategory | null
   now?: Date
 }
 
@@ -85,7 +96,13 @@ export async function buildNotificationFeed(args: BuildFeedArgs): Promise<Omit<N
     // — including the layout's OFFICE guard, or an OFFICE user could acquire a
     // badge they have never had.
     args.role === Roles.OFFICE ? Promise.resolve(0) : countUnreadConversationsForUser(args.agencyId, args.userId),
-    listNotifications({ ...scope, limit, cursor: args.cursor ?? null }),
+    listNotifications({
+      ...scope,
+      limit,
+      cursor: args.cursor ?? null,
+      unreadOnly: args.unreadOnly ?? false,
+      category: args.category ?? null,
+    }),
     awayBoundary ? summarizeAwayNotifications({ ...scope, since: awayBoundary }) : Promise.resolve(null),
   ])
 

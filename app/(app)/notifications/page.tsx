@@ -1,0 +1,105 @@
+import type { Metadata } from 'next'
+import { notFound, redirect } from 'next/navigation'
+import { getUser } from '@/db/auth'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import { isToastEligible } from '@/lib/notifications/toastEligibility'
+import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
+import { classifyPresence } from '@/lib/notifications/presence'
+import { readPresence, toPresenceRow } from '@/db/notifications/presence'
+import { listNotifications, nextCursorFrom } from '@/db/notifications/feed'
+import { CENTER_PAGE_SIZE, centerHref, parseCenterFilters } from '@/modules/notifications/center'
+import NotificationCenter from '@/components/notifications/NotificationCenter'
+import NotificationFilters from '@/components/notifications/NotificationFilters'
+
+/**
+ * The full notification center — P2.4, spec §13 and the P2 rollout list.
+ *
+ * INDIVIDUAL RECORDS, NEVER GROUPED. Twenty leads while you were away is twenty
+ * rows, because each one is a separate piece of work. Collapse already happened
+ * in the database, where a row carries `groupCount`; grouping for presentation is
+ * a delivery-channel concern for push and email, and doing it here would create a
+ * second, disagreeing view of the same data.
+ *
+ * TENANCY: `agencyId` and `userId` come from the session via `getUser()`, never
+ * from the querystring. The only client input is the two filters, and both are
+ * validated against fixed vocabularies by `parseCenterFilters` before reaching
+ * SQL. There is no read-by-id path, so a guessed notification id addresses
+ * nothing (spec §20.1).
+ *
+ * THE FIRST PAGE IS SERVER-RENDERED and handed to the client list as a prop —
+ * complete on first paint, one round-trip, and the same query layer the feed
+ * endpoint uses. It deliberately does NOT call `buildNotificationFeed`: that
+ * stamps presence, and the feed poll is the single writer of `user_presence`
+ * (spec §7.2). A page render is not a heartbeat.
+ *
+ * NOT CACHED, by construction: `getUser()` reads cookies, and nothing on this
+ * path opts into `'use cache'`. Under `cacheComponents` that is what makes a
+ * per-user page dynamic — see the note in the feed route for why no `dynamic`
+ * export appears anywhere in this repo.
+ */
+
+export const metadata: Metadata = { title: 'התראות' }
+
+type SearchParams = { unread?: string | string[]; category?: string | string[] }
+
+export default async function NotificationsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const user = await getUser()
+  if (!user?.agencyId) redirect('/auth')
+
+  /**
+   * The same gate the bell and the feed use. `notFound()` rather than an empty
+   * shell: with the flag off there is no bell, so this URL is unreachable by
+   * navigation, and a page explaining a feature the agency does not have is worse
+   * than not having the page (CLAUDE.md §11).
+   */
+  if (!isNotificationsEnabled() || !isNotificationsAgencyAllowlisted(user.agencyId)) notFound()
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) redirect('/')
+
+  const filters = parseCenterFilters(await searchParams)
+  const scope = { agencyId: user.agencyId, userId: user.id }
+
+  const [presenceRow, rows] = await Promise.all([
+    readPresence(scope),
+    listNotifications({
+      ...scope,
+      limit: CENTER_PAGE_SIZE,
+      unreadOnly: filters.unreadOnly,
+      category: filters.category,
+    }),
+  ])
+
+  /**
+   * `toastEligible` is decorated here for the same reason the feed assembler does
+   * it: the row type carries the field, and only a layer holding presence can
+   * answer it. The center never toasts — these rows are history, not arrivals —
+   * so this exists to keep one item shape across both surfaces rather than a
+   * near-miss variant the components would have to branch on.
+   */
+  const presence = classifyPresence(toPresenceRow(presenceRow), new Date())
+  const items = rows.map((row) => ({
+    ...row,
+    toastEligible: isToastEligible({ type: row.type, priority: row.priority, presence }),
+  }))
+
+  return (
+    <div className='grid gap-3 p-3 sm:p-4'>
+      <header className='flex flex-wrap items-center justify-between gap-2'>
+        <h1 className='title'>התראות</h1>
+      </header>
+
+      <NotificationFilters filters={filters} />
+
+      {/*
+        Keyed on the filter so a filter change remounts the list with the
+        server's fresh first page instead of appending it to the previous
+        filter's rows.
+      */}
+      <NotificationCenter
+        key={centerHref(filters)}
+        initialItems={items}
+        initialCursor={nextCursorFrom(rows, CENTER_PAGE_SIZE)}
+        filters={filters}
+      />
+    </div>
+  )
+}

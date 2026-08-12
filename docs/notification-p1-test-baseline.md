@@ -255,3 +255,29 @@ No test was skipped, deleted, weakened, or rewritten to reach this state. The pr
 Topbar that the test renders with a partial `next/navigation` mock. It was fixed by splitting the
 bell into a flag gate plus an implementation component, so nothing but the flag check mounts when
 notifications are off — the test itself was not touched.
+
+---
+
+## Post-P2.4 comparison
+
+Re-run at the end of P2.4 (`/notifications` center, cursor pagination, unread/category filters,
+seen stamping for loaded rows, shared `NotificationRow`).
+
+| Gate                 | After P2.3                      | After floating-menu fix         | After P2.4                      | Verdict            |
+| -------------------- | ------------------------------- | ------------------------------- | ------------------------------- | ------------------ |
+| `npx tsc --noEmit`   | clean                           | clean                           | **clean**                       | unchanged          |
+| `test:a11y`          | 19 files / 149 tests            | 19 / 149                        | **20 files / 152 tests passed** | +1 file, +3        |
+| `test:unit`          | 60+1skip / 629+12skip           | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged          |
+| `test:runtime`       | 10 / 55                         | 10 / 55                         | **10 / 55 passed**              | unchanged          |
+| `test:notifications` | 17 files / 346 tests            | 18 / 356                        | **20 files / 401 tests passed** | +2 files, +45      |
+| `test:integration`   | 324 files failed, no tests      | 325 files failed, no tests      | **328 files failed, no tests**  | known failure, +3  |
+| `npm run build`      | succeeds                        | succeeds                        | **succeeds** (`◐ /notifications`) | unchanged       |
+
+The two new notification test files are `center` (pure filter/pagination/seen rules) and
+`notificationCenter` (center list + filter chip behaviour). The one new a11y file is
+`notificationCenter` (3). The floating-menu fix earlier added `floatingMenu` (+10) under
+`test:notifications`.
+
+The integration delta of +3 is exactly those three new files. The signature is unchanged:
+setup fails before any test executes ("Tests: no tests"), with the knex schema / migration
+lock / deadlock failure, and no notification-specific integration failure.
