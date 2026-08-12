@@ -1,8 +1,10 @@
 import { Suspense } from 'react'
+import { after } from 'next/server'
 import Activity from '@/components/summary/Activity'
 import Tasks from '@/components/summary/Tasks'
 import { get5TasksByClientId } from '@/db/tasks'
 import { getFullLead } from '@/db/clients'
+import { getUser } from '@/db/auth'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
 import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSkeleton'
 import SendReadyMessageSection from '@/components/clients/SendReadyMessageSection'
@@ -10,12 +12,37 @@ import FollowUpControl from '@/components/leads/FollowUpControl'
 import OutcomeControl from '@/components/leads/OutcomeControl'
 import FirstLeadCallout from '@/components/clients/FirstLeadCallout'
 import InboundLeadContext from '@/components/clients/InboundLeadContext'
-import { STATUS_STYLES } from '@/components/clients/LeadStatusCell'
+import { STATUS_STYLES } from '@/lib/leads/statusStyles'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
 import { formatDate } from '@/lib/dates'
+import { isMobileRequest } from '@/lib/device'
+import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { getMobileLeadDetail } from '@/modules/leads/queries'
+import LeadDetailMobile from '@/modules/leads/mobile/LeadDetailMobile'
+import { track } from '@/lib/analytics/track'
 
 export default async function page({ params }) {
   const { clientId } = await params
+  const user = await getUser()
+
+  /**
+   * MOBILE LEAD DETAIL (Phase A). Returned BEFORE the desktop queries so a phone
+   * never receives ClientHeader, the four-tab nav, the inbox CTA, or the
+   * tasks/activity grid. Same `getFullLead` read underneath (`getMobileLeadDetail`).
+   */
+  if ((await isMobileRequest()) && canEnterMobileWorkspace(user?.agencyId)) {
+    const lead = await getMobileLeadDetail(Number(clientId))
+    if (!lead) return <div className='px-4 py-14 text-center text-gray-500'>ליד זה לא נמצא</div>
+    after(() =>
+      track({
+        agencyId: user.agencyId,
+        userId: user.id,
+        event: 'mobile_lead_opened',
+        props: { leadId: Number(clientId) },
+      }),
+    )
+    return <LeadDetailMobile lead={lead} nowMs={Date.now()} />
+  }
 
   const [tasks, lead] = await Promise.all([
     get5TasksByClientId(clientId),

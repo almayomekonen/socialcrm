@@ -21,6 +21,8 @@ import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
 import { isMobileRequest } from '@/lib/device'
+import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import MobileWorkspaceShell from '@/components/mobile/MobileWorkspaceShell'
 import SkipLink from '@/components/layout/SkipLink'
 import OAuthResultToast from '@/components/settings/OAuthResultToast'
 import Loading from '@/components/ui/Loading'
@@ -30,7 +32,8 @@ import { getAgencyTrial } from '@/db/trial'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
 import { getAgencyPlan } from '@/lib/quota'
-import { track } from '@/lib/analytics/track'
+import { track, trackOncePerAgency } from '@/lib/analytics/track'
+import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
@@ -43,7 +46,25 @@ async function LayoutContent({ children }) {
 
   if (user.suspended) redirect('/api/auth/clear')
 
-  if (await isMobileRequest()) redirect('/activate')
+  /**
+   * MOBILE ENTRY (Phase 2). The redirect that has always sent every phone to
+   * /activate now has exactly ONE exemption: an agency explicitly allowlisted
+   * for the mobile workspace.
+   *
+   * `canEnterMobileWorkspace` requires BOTH `MOBILE_WORKSPACE_ENABLED=1` AND the
+   * agency id in `MOBILE_WORKSPACE_AGENCY_ALLOWLIST`. Absence blocks: with the
+   * env unset — production and every preview right now — `mobileWorkspace` is
+   * false for everyone and the next line is byte-for-byte the old behaviour.
+   *
+   * NOTHING ELSE IS BYPASSED. This exemption sits AFTER the session and
+   * suspension checks and BEFORE the onboarding gate, the trial gate and the
+   * teaser, all of which run unchanged below for mobile and desktop alike. It
+   * decides one thing only: whether a phone is redirected away, or continues
+   * through the same checks a desktop request faces.
+   */
+  const isMobile = await isMobileRequest()
+  const mobileWorkspace = isMobile && canEnterMobileWorkspace(user.agencyId)
+  if (isMobile && !mobileWorkspace) redirect('/activate')
 
   if (!(await isOnboarded(user.agencyId))) redirect('/activate')
   let agency = null
@@ -94,6 +115,29 @@ async function LayoutContent({ children }) {
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
 
   /**
+   * WORKSPACE REACHED. The denominator for every in-product metric, and the one
+   * the funnel audit found missing: `desktop_first_access` only fires while the
+   * trial is NEVER_STARTED, so it goes silent the moment a trial starts and can
+   * never measure "did this agency actually get into the product".
+   *
+   * Emitted here — after the onboarding, trial and teaser decisions have all been
+   * made — so it means the REAL workspace with page children, not the teaser.
+   * (`trialExpired` and NEVER_STARTED both render WorkspaceTeaser below and are
+   * excluded, which is exactly the distinction that makes the event usable.)
+   *
+   * once-per-agency, best effort, inside `after()` so the existence check runs
+   * post-response and never adds latency to a page render. See
+   * `trackOncePerAgency` for the documented limitation vs. the DB index.
+   */
+  if (!trialExpired && trialStatus !== 'NEVER_STARTED') {
+    const surface = mobileWorkspace ? 'mobile' : 'desktop'
+    after(() => trackOncePerAgency(user.agencyId, 'workspace_first_viewed', user.id, { surface }))
+    if (mobileWorkspace) {
+      after(() => trackOncePerAgency(user.agencyId, 'mobile_workspace_viewed', user.id, {}))
+    }
+  }
+
+  /**
    * Notifications (spec §13). Mounted ALONGSIDE AwarenessProvider, not instead of
    * it: the awareness path keeps owning the nav conversation badge and the WhatsApp
    * toast until it is retired in P2.6, so P2.2 cannot regress either.
@@ -130,6 +174,19 @@ async function LayoutContent({ children }) {
                 // are never blocked (trialExpired already carries the owner
                 // exemption; NEVER_STARTED shows the activation modal as before).
                 <WorkspaceTeaser />
+              ) : mobileWorkspace ? (
+                /**
+                 * The mobile workspace. Rendered INSTEAD of Topbar + WorkspaceGrid
+                 * — never alongside it, and never as a CSS-hidden duplicate: a
+                 * desktop request cannot reach this branch, so the mobile chrome
+                 * is absent from its HTML entirely (architecture-rules.md §9).
+                 *
+                 * CopilotShell is deliberately not mounted. It is a desktop panel
+                 * (33 components) and Phase 11 owns its mobile form; shipping it
+                 * here would cost bundle weight on the exact devices that can
+                 * least afford it, for a surface with no mobile design yet.
+                 */
+                <MobileWorkspaceShell notificationCount={inboxUnread}>{children}</MobileWorkspaceShell>
               ) : (
                 <>
                   <Topbar

@@ -1,11 +1,5 @@
 import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
-import { getPerms } from '@/db/filter'
-import { hasAnyLeads } from '@/db/clients'
-import { getDueWorklist, getDueWorklistCount, getNewLeads, getNewLeadsCount, getDoneTodayCount } from '@/db/worklist'
-import { getTodaysMeetings } from '@/db/meetings'
-import { getUpcomingFollowUpsCount } from '@/db/followUps'
-import { pickTopRecommended } from '@/lib/leads/recommend'
 import RecommendedLeads from '@/components/home/RecommendedLeads'
 import FollowupsTable from '@/components/home/FollowupsTable'
 import QuickLinks from '@/components/home/QuickLinks'
@@ -14,14 +8,31 @@ import { buildTodayBrief } from '@/lib/today/service'
 import { logBriefServed, logBriefFailure } from '@/lib/today/telemetry'
 import TodayBriefView from '@/components/home/today/TodayBriefView'
 import { getFirstName } from '@/lib/users/displayName'
+import { resolveTodayScope, resolveTodaySnapshot } from '@/modules/today/queries'
+import { isMobileRequest } from '@/lib/device'
+import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import MobileToday from '@/modules/today/mobile/MobileToday'
+import MobileTodayEmpty from '@/modules/today/mobile/MobileTodayEmpty'
+import { modelFromBrief, modelFromSnapshot } from '@/modules/today/mobile/viewModel'
 
 export default async function DashboardPage() {
   const user = await getUser()
   if (!user) redirect('/auth')
 
-  const { gotPermIds } = await getPerms(user)
+  // Same single source of truth the layout gate uses — the two can never
+  // disagree about whether this request is the mobile workspace.
+  const mobile = (await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)
 
-  if (!(await hasAnyLeads(user.agencyId, gotPermIds, user.role))) redirect('/leads')
+  const { gotPermIds, hasLeads } = await resolveTodayScope(user)
+
+  if (!hasLeads) {
+    // Desktop keeps its existing redirect to the first-run screen. Mobile does
+    // NOT: /leads on a phone is the Phase 2 handoff, so redirecting a brand-new
+    // mobile user there would land them on "not here yet" as the very first
+    // thing they see. They get a real empty state instead.
+    if (!mobile) redirect('/leads')
+    return <MobileTodayEmpty />
+  }
 
   // Today Brief v2 — rollout-gated, RSC-only, DARK by default (TODAY_BRIEF_V2 unset
   // ⇒ this branch never runs ⇒ the original dashboard below is served byte-for-byte).
@@ -42,7 +53,10 @@ export default async function DashboardPage() {
         remaining: brief.remaining,
         empty: brief.total === 0,
       })
-      return <TodayBriefView brief={brief} />
+      // Mobile renders the SAME brief through the mobile presentation, so an
+      // agency on v2 is never told to call one person on its phone and a
+      // different one on its laptop.
+      return mobile ? <MobileToday model={modelFromBrief(brief)} /> : <TodayBriefView brief={brief} />
     } catch (err) {
       logBriefFailure({
         agencyId: user.agencyId,
@@ -53,27 +67,13 @@ export default async function DashboardPage() {
     }
   }
 
-  const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount] = await Promise.all([
-    getDueWorklist({ user, gotPermIds, limit: 100 }),
-    getDueWorklistCount({ user, gotPermIds }),
-    getNewLeads({ user, gotPermIds }),
-    getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
-    getDoneTodayCount({ user, gotPermIds }),
-    getNewLeadsCount({ user, gotPermIds }),
-    getUpcomingFollowUpsCount({ user, gotPermIds }),
-  ])
-
   const now = Date.now()
-  const recommended = pickTopRecommended(due, newLeads, 3, now)
+  const snapshot = await resolveTodaySnapshot(user, gotPermIds, now)
 
-  const recommendedIds = new Set(recommended.map((r) => r.lead.id))
-  const dueIds = new Set(due.map((d) => d.id))
-  const tableRows = due.filter((r) => !recommendedIds.has(r.id))
-  const removedFromDue = recommended.filter((r) => dueIds.has(r.lead.id)).length
-  const tableTotal = dueCount - removedFromDue
+  if (mobile) return <MobileToday model={modelFromSnapshot(snapshot, now)} />
 
-  const progressTotal = doneToday + dueCount
-  const progressPct = progressTotal > 0 ? Math.round((doneToday / progressTotal) * 100) : 100
+  const { recommended, tableRows, tableTotal, dueCount, doneToday, meetings, newLeadsCount, upcomingCount, progressPct } =
+    snapshot
 
   return (
     <div className='mb-8 grid gap-4'>

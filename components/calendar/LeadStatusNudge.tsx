@@ -1,5 +1,5 @@
 import { Btn } from '@/lib/btns/Btn'
-import { STATUS_STYLES } from '@/components/clients/LeadStatusCell'
+import { STATUS_STYLES } from '@/lib/leads/statusStyles'
 import type { SuggestedLeadStatus } from '@/lib/calendar/outcomeStatusSuggestion'
 
 // Inline banner shown inside MeetingDetailsDialog after a successful outcome

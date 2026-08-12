@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
 import { cookies } from 'next/headers'
+import { track } from '@/lib/analytics/track'
 
 export async function GET(req: NextRequest) {
   const user = await getUser()
   if (!user) return NextResponse.redirect(new URL('/auth', req.url))
+
+  // Denominator for the WhatsApp connect funnel — the symmetric counterpart to
+  // `facebook_connect_started`. Declared in the event union but emitted nowhere
+  // until now, so WhatsApp OAuth abandonment was as invisible as Facebook's.
+  // Not awaited: track() never throws and must not delay the redirect to Meta.
+  void track({ agencyId: user.agencyId!, userId: user.id, event: 'whatsapp_connect_started', props: {} })
 
   const state = crypto.randomUUID()
   const cookieStore = await cookies()

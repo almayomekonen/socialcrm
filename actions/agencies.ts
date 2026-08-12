@@ -60,10 +60,30 @@ export async function addAgency(data) {
     await createCookie(createdUserId)
     console.log(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=success`)
     const device = data?.device === 'desktop' || data?.device === 'mobile' ? data.device : 'unknown'
+    /**
+     * `device` above is the CLIENT's viewport check (matchMedia 1000px). The
+     * redirect below — and the (app) layout gate — use isMobileRequest(), a
+     * server-side User-Agent check. The two disagree for tablets (UA 'tablet',
+     * viewport 'mobile') and for narrow desktop windows, so `device` alone
+     * OVERSTATES the population that actually gets redirected.
+     *
+     * `isPhone` records the authoritative signal alongside it rather than
+     * replacing it: overwriting `device` would silently change the meaning of a
+     * prop that existing rows already carry, making new data incomparable with
+     * old. Both are kept, and the funnel query can migrate to `isPhone`.
+     *
+     * Resolved HERE because headers are unreadable inside after().
+     */
+    const isPhone = await isMobileRequest()
     const agencyIdForEvent = createdAgencyId
     const userIdForEvent = createdUserId
     after(() =>
-      track({ agencyId: agencyIdForEvent!, userId: userIdForEvent, event: 'registration_completed', props: { device } }),
+      track({
+        agencyId: agencyIdForEvent!,
+        userId: userIdForEvent,
+        event: 'registration_completed',
+        props: { device, isPhone },
+      }),
     )
     after(() =>
       dispatchLifecycleEvent(

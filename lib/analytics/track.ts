@@ -32,6 +32,41 @@ export type AnalyticsEventName =
   | 'first_manual_lead_created'
   | 'first_lead_opened'
   | 'first_follow_up_set'
+  // --- Activation instrumentation (funnel audit §6, Tier 1) ---
+  /**
+   * THE activation milestone: a rep did something to a lead. ONE event across
+   * both devices, carrying `surface: 'mobile' | 'desktop'` — never a separate
+   * `mobile_lead_action_taken`, because two events would make the cross-surface
+   * Activation KPI uncomputable and leave desktop activation invisible, which is
+   * the exact blindness this instrumentation exists to remove.
+   * props: { surface: 'mobile'|'desktop', action: 'status'|'follow_up'|'assign'|'message'|'note'|'outcome' }
+   */
+  | 'lead_action_taken'
+  /** Bulk import completed. props: { count, format: 'excel'|'csv', surface } */
+  | 'leads_imported'
+  /** A lead typed in by hand (every one, not just the first). props: { surface, origin } */
+  | 'lead_created_manual'
+  /**
+   * The real workspace rendered with page children — NOT the teaser. The
+   * denominator for every in-product metric. `desktop_first_access` cannot
+   * serve: it only fires while the trial is NEVER_STARTED, so it goes silent
+   * the moment the trial starts. Emitted from the shell in Phase 2.
+   * props: { surface }
+   */
+  | 'workspace_first_viewed'
+  /** Connect options were rendered / navigated away from. Separates "chose not
+   *  to connect" from "never saw the option". props: { channel, surface } */
+  | 'connection_offered'
+  | 'connection_deferred'
+  // --- Mobile workspace (Phase 15 of the mobile plan) ---
+  /** props: { agencyId implicit, path } — emitted once the mobile shell mounts. */
+  | 'mobile_workspace_viewed'
+  | 'mobile_lead_opened'
+  /** First delivered value reached on a phone. props: { via } */
+  | 'mobile_first_value_reached'
+  /** The phone handoff screen was shown / the user tried to cross to desktop. */
+  | 'mobile_handoff_shown'
+  | 'mobile_handoff_link_copied'
   // --- Integration activation funnel (Facebook) ---
   | 'facebook_connect_started'
   | 'facebook_oauth_completed'
@@ -90,6 +125,40 @@ export async function track({ agencyId, userId, event, props }: TrackInput): Pro
 }
 
 /**
+ * Emit an event at most once per agency, WITHOUT a schema change.
+ *
+ * The DB-level dedup index (`analytics_events_once_per_agency`) covers exactly
+ * five funnel events and extending it needs a migration, which is out of scope.
+ * This generalises the existing `trackFirstRealLeadOnce` mechanism instead: a
+ * best-effort existence check, then an insert.
+ *
+ * DOCUMENTED LIMITATION — this is NOT the same guarantee as the index:
+ *   · Two concurrent requests can both miss the check and both insert. A
+ *     duplicate funnel row is acceptable; it never affects the user's request.
+ *   · It costs one indexed SELECT per call, so callers on a render path MUST
+ *     wrap it in `after()` so the read happens post-response.
+ * If exact once-per-agency semantics are ever required for these events, the
+ * honest fix is to add them to the partial unique index — not to build a second
+ * deduplication mechanism here.
+ *
+ * Fully swallowed: analytics must never break a page render.
+ */
+export async function trackOncePerAgency(
+  agencyId: number,
+  event: AnalyticsEventName,
+  userId?: number | null,
+  props?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const existing = await db('analytics_events').where({ agencyId, event }).first()
+    if (existing) return
+    await track({ agencyId, userId, event, props })
+  } catch (err) {
+    console.error('[analytics] once-per-agency track failed', { agencyId, event, err: String(err) })
+  }
+}
+
+/**
  * Emit `activation_first_real_lead` exactly once per agency per integration.
  *
  * "First delivered value" is the moment a real inbound provider lead is
@@ -103,7 +172,14 @@ export async function track({ agencyId, userId, event, props }: TrackInput): Pro
  */
 export async function trackFirstRealLeadOnce(
   agencyId: number,
-  integration: 'facebook' | 'whatsapp',
+  /**
+   * Widened beyond the two webhook integrations. As `'facebook' | 'whatsapp'`
+   * the type system made "first delivered value" impossible to record for a
+   * business that imported a spreadsheet or typed its first lead — i.e. it
+   * encoded the assumption that value requires an integration, which is exactly
+   * what the funnel audit found blocking source-agnostic activation.
+   */
+  integration: 'facebook' | 'whatsapp' | 'manual' | 'import',
 ): Promise<void> {
   try {
     const existing = await db('analytics_events')

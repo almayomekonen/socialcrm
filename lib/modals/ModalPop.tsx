@@ -53,6 +53,28 @@ export default function ModalPop({
     }
   }, [open, label, labelledBy])
 
+  /**
+   * Body scroll lock — BOTTOM SHEETS ONLY, deliberately.
+   *
+   * Without it a sheet on a phone scrolls the page behind it ("scroll chaining"),
+   * which reads as the sheet drifting. Scoped to `pos='bottom'` rather than applied
+   * to every dialog because top/middle dialogs are the existing desktop modals, and
+   * silently locking the body under them would be a behaviour change to surfaces
+   * this phase is not allowed to touch.
+   *
+   * Restores the PREVIOUS inline value rather than clearing it, so a sheet opened
+   * over another lock (nested sheet) cannot unlock the page on its own close.
+   */
+  useEffect(() => {
+    if (!open || !mounted || pos !== 'bottom') return
+    const body = document.body
+    const previous = body.style.overflow
+    body.style.overflow = 'hidden'
+    return () => {
+      body.style.overflow = previous
+    }
+  }, [open, mounted, pos])
+
   // Move focus into the dialog on open; restore it to the trigger on close.
   // Container-scoped (not document-wide) so nested dialogs each manage their own
   // focus without fighting each other.
@@ -117,7 +139,7 @@ export default function ModalPop({
     <div
       onClick={closeOutside ? onClose : null}
       className={`flex  justify-center fixed top-0 left-0 size-full bg-black/15 z-99999 anim-fade-in ${
-        pos === 'middle' ? 'items-center' : 'items-start'
+        pos === 'middle' ? 'items-center' : pos === 'bottom' ? 'items-end' : 'items-start'
       }`}
     >
       <div
@@ -131,8 +153,25 @@ export default function ModalPop({
         onKeyDown={onKeyDown}
         onClick={(e) => e.stopPropagation()}
         className={twMerge(
-          'max-h-[90vh] overflow-y-auto bg-white p-8  shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none',
-          pos === 'middle' ? 'rounded-lg' : 'rounded-b-lg',
+          'overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none',
+          // Padding is applied as ONE class per variant rather than layering
+          // `px-*`/`pb-*` over a base `p-8`: Tailwind resolves same-specificity
+          // conflicts by stylesheet order, not class-attribute order, so layering
+          // would make the result depend on which utility Tailwind happened to
+          // emit first. One class per variant is order-independent.
+          pos === 'bottom'
+            ? // Safe-area aware: on a notched phone the home indicator sits over
+              // the last ~34px, which is exactly where a sheet's primary action
+              // lands. env() falls back to 0px on devices without insets.
+              'p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]'
+            : 'p-8',
+          pos === 'bottom'
+            ? // dvh (not vh) so the sheet is not clipped behind mobile browser
+              // chrome; anim-slide-down enters from translateY(100%) → 0, i.e.
+              // rises from the bottom edge. Motion is opt-out per §18.
+              'w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none'
+            : 'max-h-[90vh]',
+          pos === 'middle' ? 'rounded-lg' : pos === 'bottom' ? '' : 'rounded-b-lg',
           className
         )}
       >
@@ -156,7 +195,13 @@ type Props = {
   onClose: () => void
   open: boolean
   closeOutside?: boolean
-  pos?: 'top' | 'middle'
+  /**
+   * 'top' / 'middle' are the existing desktop dialog placements and are unchanged.
+   * 'bottom' is the mobile bottom sheet: full-width, top-rounded, safe-area padded,
+   * slide-up entrance, and body-scroll-locked while open. Prefer the `BottomSheet`
+   * wrapper (components/mobile/BottomSheet.tsx) over passing this directly.
+   */
+  pos?: 'top' | 'middle' | 'bottom'
   hideClose?: boolean
   // Accessible name. Provide `label` for a plain string, or `labelledBy` to point
   // at the id of a visible heading inside the dialog (preferred when one exists).

@@ -18,6 +18,11 @@ import { getTrialState } from '@/lib/trial'
 import { getFacebookConnectionState } from '@/db/facebook'
 import { getWhatsappConnectionState } from '@/db/whatsapp'
 import { intakeAlerts } from '@/lib/automations/connectors/intakeAlerts'
+import { isMobileRequest } from '@/lib/device'
+import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { parseLeadFilters } from '@/modules/leads/filters'
+import { getMobileLeadList, agencyHasAnyLeads } from '@/modules/leads/queries'
+import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -27,6 +32,40 @@ export const metadata: Metadata = {
 export default async function LeadsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
+
+  /**
+   * MOBILE LEAD LIST (Phase A). `ClientsTable` — 586 lines, a column manager,
+   * five dialogs, a paginated footer — is never rendered on a phone. The mobile
+   * branch is a dedicated card list over the SAME `getLeadsTable` query, with
+   * search and status filtering pushed into SQL and held in the URL.
+   *
+   * Gated SERVER-SIDE and returned BEFORE the ten desktop queries below, so a
+   * phone does no wasted work and receives no desktop markup at all
+   * (architecture-rules.md §9: prevention by absence). Desktop never reaches
+   * this branch and its query path is unchanged.
+   */
+  if ((await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)) {
+    const filters = parseLeadFilters(params)
+    const page = Math.max(1, Number(params.page) || 1)
+    const [list, workspaceHasLeads] = await Promise.all([
+      getMobileLeadList(user, filters, page),
+      agencyHasAnyLeads(user),
+    ])
+    return (
+      <LeadListMobile
+        rows={list.rows}
+        filters={filters}
+        hasMore={list.hasMore}
+        page={list.page}
+        // Filtered-empty is NOT system-empty (ux-guidelines.md §11): the two
+        // states get different copy and different actions, so the list needs to
+        // know which one it is in.
+        workspaceEmpty={!workspaceHasLeads}
+        nowMs={Date.now()}
+      />
+    )
+  }
+
   const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, trialRow, meta, wa, intake] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),

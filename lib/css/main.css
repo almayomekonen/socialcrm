@@ -176,6 +176,22 @@ body {
   width: calc(100% + (var(--spacing) * 8 * 2));
 }
 
+/*
+ * `full-bleed` cancels the desktop `.wrap`'s 32px horizontal padding so a header
+ * can span edge to edge. The mobile workspace `main` has no such padding, so the
+ * same rule pushes content 32px past BOTH edges instead — measured at 360px, it
+ * put two of the four lead-detail tabs off-screen and unreachable.
+ *
+ * Scoped strictly to the mobile shell (`data-mobile-workspace`), so desktop is
+ * untouched. Higher specificity than the plain `.full-bleed` utility, so it wins
+ * without `!important`. Phase 4 replaces the lead-detail chrome outright; until
+ * then this is the minimum bridge that keeps every tab reachable.
+ */
+[data-mobile-workspace] .full-bleed {
+  right: 0;
+  width: 100%;
+}
+
 /* MEDIA QUERIES */
 @media (width < 700px) {
   .wrap {

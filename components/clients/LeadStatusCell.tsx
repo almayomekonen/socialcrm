@@ -3,15 +3,17 @@
 import React from 'react'
 import { Select } from '@/lib/form'
 
-export const STATUS_STYLES: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
-  new:       { label: 'חדש',     bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500' },
-  contacted: { label: 'בטיפול',  bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
-  interested:{ label: 'מעוניין', bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200',  dot: 'bg-green-500' },
-  closed:    { label: 'סגור',    bg: 'bg-gray-100',  text: 'text-gray-600',   border: 'border-gray-200',   dot: 'bg-gray-400' },
-  lost:      { label: 'אבוד',    bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200',    dot: 'bg-red-500' },
-}
-
-export const STATUS_OPTIONS = Object.entries(STATUS_STYLES).map(([value, { label }]) => ({ value, label }))
+/**
+ * Re-exported, not re-declared. The values moved to `lib/leads/statusStyles.ts`
+ * — a framework-neutral module — because a Server Component importing them from
+ * here received a client-reference proxy whose properties read as `undefined`,
+ * and crashed on `style.bg`. Existing import paths are unchanged: everything
+ * that imported these from this file still can.
+ *
+ * SERVER COMPONENTS SHOULD IMPORT FROM `lib/leads/statusStyles` DIRECTLY.
+ */
+export { STATUS_STYLES, STATUS_OPTIONS, statusStyle, type LeadStatusStyle } from '@/lib/leads/statusStyles'
+import { STATUS_STYLES, STATUS_OPTIONS } from '@/lib/leads/statusStyles'
 
 type Props = {
   status: string | null | undefined

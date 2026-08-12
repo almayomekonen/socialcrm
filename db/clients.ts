@@ -117,7 +117,35 @@ export async function getGlobalLatestUpdatedAt(): Promise<string> {
   return result?.maxUpdatedAt ? new Date(result.maxUpdatedAt).toISOString() : new Date(0).toISOString()
 }
 
-export async function getLeadsTable({ user, params, leads = false, gotPermIds, settings = null }) {
+/**
+ * Optional server-side filters for the lead list.
+ *
+ * Passed as an EXPLICIT argument, never read out of `params`. `params` is the
+ * raw `searchParams` object, so reading `params.q` here would mean a desktop
+ * user opening a mobile-shared URL silently gets a different result set than
+ * they do today — a desktop behaviour change smuggled in through a URL. Desktop
+ * omits this argument entirely and its SQL is byte-identical to before.
+ */
+export type LeadListFilters = { q?: string; status?: string[] }
+
+export async function getLeadsTable({
+  user,
+  params,
+  leads = false,
+  gotPermIds,
+  settings = null,
+  filters = null,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  user: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  params: any
+  leads?: boolean
+  gotPermIds?: number[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  settings?: any
+  filters?: LeadListFilters | null
+}) {
   const agencyId = await getAgencyId()
   const plan = await getEffectiveLeadPlan(agencyId)
 
@@ -144,6 +172,30 @@ export async function getLeadsTable({ user, params, leads = false, gotPermIds, s
   if (plan === 'free') base.where('clients.overQuota', false)
 
   if (params.view === 'due') applyDueMembership(base)
+
+  /**
+   * Mobile filters. Applied to `base`, i.e. BEFORE the priority/SLA CTE, so the
+   * computed ordering is over the filtered set rather than a filtered slice of a
+   * pre-ordered page. Both branches are no-ops when `filters` is absent.
+   *
+   * `status` is already validated against the fixed vocabulary by
+   * `parseLeadFilters`; the `IN` binding is parameterised regardless.
+   */
+  if (filters?.status?.length) base.whereIn('clients.status', filters.status)
+
+  if (filters?.q) {
+    // Name / phone / email. `whereILike` parameterises the value, and the
+    // wildcards are ours — the user's `%` or `_` are matched literally after
+    // escaping, so a search for "50%" cannot turn into a full scan pattern.
+    const term = `%${filters.q.replace(/[\\%_]/g, (c) => '\\' + c)}%`
+    base.where((b) => {
+      b.whereILike('clients.name', term)
+        .orWhereILike('clients.phone', term)
+        .orWhereILike('clients.email', term)
+        .orWhereILike('clients.firstName', term)
+        .orWhereILike('clients.lastName', term)
+    })
+  }
 
   if (clientId) {
     base.where('clients.id', clientId)

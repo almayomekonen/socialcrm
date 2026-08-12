@@ -4,6 +4,9 @@ import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
+import { track, trackFirstRealLeadOnce } from '@/lib/analytics/track'
+import { isMobileRequest } from '@/lib/device'
 import { isIdNumValid } from '@/lib/funcs'
 import * as XLSX from 'xlsx'
 import { requireProductAccess } from '@/lib/requireUser'
@@ -333,6 +336,35 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
         }
         return created
       })
+
+      /**
+       * Every hand-typed lead, not just the workspace's first.
+       * `first_manual_lead_created` (LeadsFirstRun) only ever fires once per
+       * agency and only from the first-run screen, so a rep who adds leads by
+       * hand every morning was producing no signal at all after day one.
+       *
+       * `emitOrigin` distinguishes manual entry from the other upsert callers,
+       * so this can never be inflated by webhook or import writes. Post-commit,
+       * inside after(), so analytics cannot delay or roll back a lead insert.
+       */
+      if (lead && emitOrigin === 'manual') {
+        const createdAgencyId = agencyId
+        // `surface` is resolved HERE, not inside after(): headers are unreadable
+        // once the response has been sent. Derived from isMobileRequest() — the
+        // same User-Agent check the layout gate uses — so mobile and desktop can
+        // never be classified by two different rules, which is precisely the
+        // viewport-vs-UA mismatch the funnel audit flagged.
+        const surface = (await isMobileRequest()) ? 'mobile' : 'desktop'
+        after(() =>
+          track({
+            agencyId: createdAgencyId,
+            userId: user.id,
+            event: 'lead_created_manual',
+            props: { surface, origin: emitOrigin },
+          }),
+        )
+        after(() => trackFirstRealLeadOnce(createdAgencyId, 'manual'))
+      }
     }
 
     if (revalidate) revalidatePath('/leads')
@@ -685,6 +717,20 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
   }
 
   revalidatePath('/leads')
+
+  /**
+   * `product.md` §7 calls the Excel import the product's first success moment —
+   * "within 60 seconds they can see all their leads organized in one place" —
+   * and until now it emitted nothing at all, so the single highest-value
+   * onboarding act in SocialCRM was invisible in the funnel.
+   *
+   * Emitted only on a genuine insert (quota rejections and all-duplicate files
+   * return before this line), after the transaction has committed. `after()`
+   * keeps the analytics write off the response path, and track() never throws.
+   */
+  after(() => track({ agencyId, userId, event: 'leads_imported', props: { count: newLeads.length, format: 'excel' } }))
+  after(() => trackFirstRealLeadOnce(agencyId, 'import'))
+
   return { success: true, inserted: newLeads.length }
 }
 
@@ -853,6 +899,16 @@ export async function importLeadsFromCsv(file: File) {
   }
 
   if (inserted > 0 || updated > 0) revalidatePath('/leads')
+
+  // Same first-success-moment signal as the Excel path, distinguished by
+  // `format` so the two import routes can be compared. Only a real insert
+  // counts: a file that only updated existing rows delivered no new leads.
+  if (inserted > 0) {
+    const importAgencyId = agencyId
+    after(() => track({ agencyId: importAgencyId, userId, event: 'leads_imported', props: { count: inserted, format: 'csv' } }))
+    after(() => trackFirstRealLeadOnce(importAgencyId, 'import'))
+  }
+
   return { inserted, updated, unchanged, invalid }
 }
 

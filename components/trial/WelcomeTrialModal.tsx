@@ -5,6 +5,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
+import { trackStartTrial } from '@/lib/facebook/pixelEvents'
 import { useActivationCelebration } from './ActivationCelebrationContext'
 
 // One-time Pro activation benefits, shown as a 2×2 grid. Distinct existing
@@ -108,7 +109,21 @@ export default function WelcomeTrialModal() {
       }
       // Celebrate ONLY a genuine NEVER_STARTED → TRIAL_ACTIVE transition.
       // started:false (refresh / double-click / already-active) must not fire it.
-      if (res.started) markActivated()
+      if (res.started) {
+        markActivated()
+        /**
+         * Meta StartTrial. `trackStartTrial` has existed in
+         * lib/facebook/pixelEvents.ts since the pixel was added and was called
+         * from nowhere, so Meta only ever learned about `CompleteRegistration` —
+         * the cheapest, noisiest event in the funnel — and optimised campaigns
+         * toward registrations that may never activate.
+         *
+         * Gated on `res.started`, the same exactly-once condition as the
+         * celebration, so a refresh or double-click cannot inflate it. Purely a
+         * client-side pixel call: no trial logic, no entitlement, no billing.
+         */
+        trackStartTrial()
+      }
       setDone(true)
     } catch {
       setError('אירעה שגיאה ברשת, נסה שוב')
@@ -117,14 +132,42 @@ export default function WelcomeTrialModal() {
   }
 
   return (
-    <ModalPop open={open} pos='middle' onClose={() => {}} hideClose labelledBy='welcome-trial-title' describedBy='welcome-trial-subtitle'>
-      <div ref={dialogRef} className='flex flex-col gap-6 w-full max-w-[640px]'>
+    <ModalPop
+      open={open}
+      pos='middle'
+      onClose={() => {}}
+      hideClose
+      labelledBy='welcome-trial-title'
+      describedBy='welcome-trial-subtitle'
+      /**
+       * MOBILE SAFETY (presentation only — no trial logic is touched here).
+       *
+       * This dialog is the ONLY way into the product for a NEVER_STARTED agency
+       * and it is non-dismissible, so a bad fit here costs the whole signup.
+       *
+       * Scope, measured rather than assumed: the pre-change dialog was NOT
+       * broken — the CTA was reachable at every tested viewport down to
+       * 360×480, because ModalPop already scrolls. What follows is hardening
+       * and legibility, not a lockout fix. The one thing here that IS a real
+       * defect fix is the safe-area inset, which headless Chromium cannot
+       * reproduce (env() resolves to 0) and only appears on notched hardware.
+       *   · p-5 instead of p-8 — at 360px, `p-8` spends 64px of a 360px viewport
+       *     on padding and squeezes the benefit grid past its text's minimum.
+       *   · safe-area bottom padding so the CTA never sits under the home
+       *     indicator, where the OS swipe wins the gesture and the tap is eaten.
+       *   · max-h/w in dvh/dvw so mobile browser chrome cannot clip the CTA.
+       * The dialog still scrolls internally, so the CTA is reachable even on the
+       * shortest supported screen.
+       */
+      className='mobile:max-h-[92dvh] mobile:w-[calc(100dvw-1.5rem)] mobile:p-5 mobile:pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]'
+    >
+      <div ref={dialogRef} className='flex flex-col gap-6 mobile:gap-4 w-full max-w-[640px]'>
         {/* Header: premium pill → headline → supporting → restrained trust copy */}
         <div className='flex flex-col items-center text-center gap-2.5'>
           <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
             SOCIALCRM PRO
           </span>
-          <h2 id='welcome-trial-title' className='text-2xl font-bold leading-snug'>
+          <h2 id='welcome-trial-title' className='text-2xl font-bold leading-snug mobile:text-xl'>
             ה־SocialCRM Pro שלך מוכן
           </h2>
           <p id='welcome-trial-subtitle' className='text-sm text-gray-600'>
@@ -133,11 +176,24 @@ export default function WelcomeTrialModal() {
           <p className='text-xs text-gray-400'>ללא עלות · ללא כרטיס אשראי</p>
         </div>
 
-        {/* 2×2 benefit grid — distinct icon tiles */}
-        <div className='grid grid-cols-2 gap-3'>
+        {/* 2×2 benefit grid — distinct icon tiles.
+            One column on phones. MEASURED at 360px (headless Chromium, real
+            compiled CSS): a two-column cell is 142px wide, which leaves the
+            title just 68px and wraps every one of the four to 2 lines —
+            "כל כלי העבודה שלך" to 3. One column gives each title 118–160px and
+            all four fit on a single line.
+            Cost, stated honestly: the grid grows 238px → 256px at 360px and
+            188px → 256px at 430px. The CTA remains reachable at every tested
+            viewport (it always was — the dialog scrolls); this buys legibility,
+            not access. On a 430×390 landscape phone it does push the CTA
+            further below the fold — see the Phase 1 known limitations. */}
+        <div className='grid grid-cols-2 gap-3 mobile:grid-cols-1 mobile:gap-2'>
           {BENEFITS.map((b) => (
-            <div key={b.title} className='flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3'>
-              <span className='flex size-9 items-center justify-center rounded-lg flex-none bg-primary-tint'>
+            <div
+              key={b.title}
+              className='flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 mobile:items-center mobile:gap-2.5 mobile:p-2.5'
+            >
+              <span className='flex size-9 items-center justify-center rounded-lg flex-none bg-primary-tint mobile:size-8'>
                 <Icon name={b.icon} type='reg' className='size-4 bg-primary' />
               </span>
               <div className='min-w-0'>
