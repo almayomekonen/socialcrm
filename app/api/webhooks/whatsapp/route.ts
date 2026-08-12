@@ -8,6 +8,7 @@ import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
 import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatus'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { isCoexistenceWebhookField } from '@/lib/whatsapp/coexistence'
+import { notifyWhatsappIngestionFailed } from '@/lib/whatsapp/integrationNotifications'
 import { db } from '@/config/db'
 
 export const maxDuration = 60
@@ -160,6 +161,7 @@ export async function POST(req: NextRequest) {
 
     if (!lead) {
       console.error(`[WhatsappWebhook][create][msgId=${messageId}] createLeadFromWhatsappWebhook returned null`)
+      await notifyWhatsappIngestionFailed(connection, messageId).catch(() => {})
       return NextResponse.json({ ok: true })
     }
 

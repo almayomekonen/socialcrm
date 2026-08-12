@@ -4,6 +4,8 @@ import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
 import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
 import { emitAutomationEvent } from '@/lib/automations/emit'
+import { notifyEvent } from '@/lib/notifications/emit'
+import { leadDisplayName } from '@/lib/notifications/leadName'
 
 type WhatsappWebhookLeadInput = {
   firstName: string
@@ -92,6 +94,19 @@ export async function createLeadFromWhatsappWebhook({
     leadId: lead.id,
     occurredAt: new Date(),
     leadSource: lead.leadSource ?? null,
+  })
+
+  // Notification engine — same contract as the Facebook path: no actor (a
+  // webhook is not a person), no transaction available, never throws. The
+  // reconciliation sweep covers a crash between the insert and this line.
+  await notifyEvent({
+    type: 'lead.created',
+    agencyId,
+    entityType: 'lead',
+    entityId: lead.id,
+    actorUserId: null,
+    occurredAt: new Date(),
+    payload: { leadName: leadDisplayName(lead) },
   })
 
   console.log(`[WhatsappWebhook][success][msgId=${messageId}]`)

@@ -4,6 +4,7 @@ import { twMerge } from 'tailwind-merge'
 import { usePathname } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
+import NotificationBell from '@/components/notifications/NotificationBell'
 import { ProNameLine } from './ProNameLabel'
 import { getDisplayName } from '@/lib/users/displayName'
 
@@ -45,10 +46,16 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
           <Icon name='bars' type='reg' />
         </button>
         {/* Inline-start cluster (visual right in RTL): copilot trigger at the
-            outermost corner, then user identity. Treats the copilot as a
-            system-level workspace control, not a navigation item. */}
+            outermost corner, then the notification bell, then user identity.
+            Treats both the copilot and the bell as system-level workspace
+            controls, not navigation items.
+            The bell sits in the desktop cluster only because phones already
+            redirect to /activate, so there is no mobile workspace to put it in —
+            a placement decision, not an assumption inside the component, which
+            renders identically wherever it is mounted. */}
         <div className='hidden desktop:flex items-center gap-3'>
           <CopilotTopbarTrigger />
+          <NotificationBell />
           <UserNAgency user={user} isPro={isPro} trialDaysRemaining={trialDaysRemaining} />
         </div>
         <Link href='/dashboard' className='flex items-center gap-2'>

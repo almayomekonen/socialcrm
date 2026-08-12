@@ -10,6 +10,7 @@ import { UserNAgency } from './Topbar'
 import { twMerge } from 'tailwind-merge'
 import Icon, { IconNames } from '@/lib/Icon'
 import Loading from '@/components/ui/Loading'
+import NavBadge from './NavBadge'
 import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 
 export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
@@ -116,17 +117,6 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
         </nav>
       </div>
     </div>
-  )
-}
-
-function NavBadge({ count }: { count: number }) {
-  return (
-    <span
-      aria-hidden
-      className='absolute -top-1 -end-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white'
-    >
-      {count > 99 ? '99+' : count}
-    </span>
   )
 }
 

@@ -4,6 +4,8 @@ import { createSystemTask } from '@/lib/system/createSystemTask'
 import { getQuotaStatus } from '@/lib/quota'
 import { trackFirstRealLeadOnce } from '@/lib/analytics/track'
 import { emitAutomationEvent } from '@/lib/automations/emit'
+import { notifyEvent } from '@/lib/notifications/emit'
+import { leadDisplayName } from '@/lib/notifications/leadName'
 
 type WebhookLeadInput = {
   firstName: string
@@ -94,6 +96,26 @@ export async function createLeadFromWebhook({
     leadId: lead.id,
     occurredAt: new Date(),
     leadSource: lead.leadSource ?? null,
+  })
+
+  /**
+   * Notification engine — the case the whole system exists for: a lead arrives
+   * from Facebook while nobody is looking at the screen.
+   *
+   * No actor (a webhook is not a person), so nobody is dropped as self-authored
+   * and the assigned handler hears about it. No transaction is available here —
+   * the insert above is a bare INSERT — so a crash between the two leaves a lead
+   * with no job; the reconciliation sweep (lib/notifications/reconcile.ts) is
+   * what recovers it. notifyEvent never throws, so ingestion cannot break.
+   */
+  await notifyEvent({
+    type: 'lead.created',
+    agencyId,
+    entityType: 'lead',
+    entityId: lead.id,
+    actorUserId: null,
+    occurredAt: new Date(),
+    payload: { leadName: leadDisplayName(lead) },
   })
 
   console.log(`[FacebookWebhook][success][leadId=${leadId}]`)

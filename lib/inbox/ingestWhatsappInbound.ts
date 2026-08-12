@@ -6,6 +6,7 @@ import { insertInboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 import { enqueueAutoResponse } from '@/db/autoResponseJobs'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
+import { notifyEvent } from '@/lib/notifications/emit'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
@@ -109,6 +110,29 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
         'JOB_CREATED',
         { conversationId, agencyId: input.agencyId, jobId, messageId, triggerSequence: sequence },
         { jobId, reason, triggerSequence: sequence, enqueued: jobId != null },
+      )
+
+      // Notification engine — same txn as the message INSERT so a rolled-back
+      // ingest enqueues nothing. Emit ONLY on inserted=true: webhook retries that
+      // hit (channel, externalId) return the existing row and must stay silent.
+      // Identity is payload.messageId (inbox_messages.id); see eventKey.ts.
+      // Awareness still owns the live toast (AWARENESS_OWNED_CATEGORIES).
+      await notifyEvent(
+        {
+          type: 'message.inbound',
+          agencyId: input.agencyId,
+          entityType: 'conversation',
+          entityId: conversationId,
+          actorUserId: null,
+          occurredAt: parsed.channelTimestamp ?? new Date(),
+          payload: {
+            leadId: input.leadId,
+            leadName: input.customerName,
+            messageId,
+            provider: 'whatsapp',
+          },
+        },
+        { trx },
       )
     }
 

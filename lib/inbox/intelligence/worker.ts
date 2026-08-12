@@ -29,6 +29,7 @@ import {
   runConversationAnalyzer,
   type ConversationAnalyzerSuccess,
 } from './conversationAnalyzer'
+import { notifyEvent } from '@/lib/notifications/emit'
 
 /**
  * Conversation analysis worker (Phase 3). Drains the durable job queue with
@@ -196,6 +197,33 @@ async function processJob(
   }
 
   await upsertManyConversationIntelligence(buildIntelligenceRows(job, out, targetSequence))
+
+  /**
+   * lead.hot — the notification engine's unsolicited save (notification spec
+   * §4.1, care-charter Law 18). Emitted HERE because this is the moment "this
+   * lead is hot" becomes true in the database; the analyzer's temperature row is
+   * the only place that fact exists.
+   *
+   * No actor: the analyzer is not a person, so nobody is dropped as
+   * self-authored and the assigned נציג hears about it.
+   *
+   * No change-detection needed. The event key is once-ever per lead, so
+   * re-analysis that still says 'hot' is absorbed by the unique index rather
+   * than notifying twice — a lead does not become newsworthy again because the
+   * analyzer ran again. notifyEvent never throws, so this cannot affect the
+   * analysis job's own bookkeeping below.
+   */
+  if (out.temperature.temperature === 'hot') {
+    await notifyEvent({
+      type: 'lead.hot',
+      agencyId: job.agencyId,
+      entityType: 'lead',
+      entityId: ctx.leadId,
+      actorUserId: null,
+      occurredAt: new Date(),
+      payload: { leadName: ctx.leadName },
+    })
+  }
 
   // One run record per AI call (composite kind) — keeps SUM(costUsd) accurate.
   await insertIntelligenceRun({
