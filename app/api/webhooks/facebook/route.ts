@@ -4,6 +4,10 @@ import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
 import { repairFacebookConnection } from '@/lib/facebook/health'
+import {
+  markFacebookDisconnectedAndNotify,
+  notifyFacebookIngestionFailed,
+} from '@/lib/facebook/integrationNotifications'
 import { logCanaryFeedEvent } from '@/lib/facebook/commentsCanary'
 import { ingestFacebookComment } from '@/lib/system/ingestFacebookComment'
 
@@ -71,6 +75,7 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
       await db('webhook_failures')
         .insert({ lead_id: leadId, page_id: pageId, error_type: 'fetch_error', error_detail: String(firstErr) })
         .catch(() => {})
+      await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
       return
     }
     // Timeout on first attempt — retry once
@@ -83,6 +88,7 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
       await db('webhook_failures')
         .insert({ lead_id: leadId, page_id: pageId, error_type: 'timeout' })
         .catch(() => {})
+      await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
       return
     }
   }
@@ -93,9 +99,7 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
 
     if (metaRes!.status === 401 || metaRes!.status === 403) {
       await Promise.allSettled([
-        db('facebook_pages')
-          .where({ page_id: pageId })
-          .update({ health_status: 'token_expired', health_checked_at: new Date() }),
+        markFacebookDisconnectedAndNotify(connection),
         db('webhook_failures').insert({
           lead_id: leadId,
           page_id: pageId,
@@ -112,6 +116,7 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
     await db('webhook_failures')
       .insert({ lead_id: leadId, page_id: pageId, error_type: 'graph_api_error', error_detail: `HTTP ${metaRes!.status}` })
       .catch(() => {})
+    await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
     return
   }
 
@@ -140,6 +145,7 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
     await db('webhook_failures')
       .insert({ lead_id: leadId, page_id: pageId, error_type: 'db_error' })
       .catch(() => {})
+    await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
     return
   }
 
@@ -241,6 +247,12 @@ export async function POST(req: NextRequest) {
         await db('webhook_failures')
           .insert({ lead_id: leadId, page_id: pageId ?? 'unknown', error_type: 'unhandled_error', error_detail: String(err) })
           .catch(() => {})
+        if (pageId) {
+          const connection = await db('facebook_pages').where({ page_id: pageId }).first().catch(() => null)
+          if (connection) {
+            await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
+          }
+        }
       }
     }
   }

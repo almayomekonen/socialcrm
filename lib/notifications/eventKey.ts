@@ -95,18 +95,50 @@ export function leadAssignedEventKey(event: NotificationEvent): string {
 }
 
 /**
+ * Disconnect is episodic — reconnect then fail again is news — so identity
+ * includes the transition moment written with health_status=token_expired.
+ * Polling while already expired must not invent a new moment (emit sites use
+ * an atomic WHERE NOT token_expired guard).
+ */
+export function integrationDisconnectedEventKey(event: NotificationEvent): string {
+  const raw = event.payload?.disconnectedAt
+  const disconnectedAt = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(disconnectedAt) || disconnectedAt <= 0) {
+    throw new Error('integration.disconnected eventKey requires payload.disconnectedAt')
+  }
+  return eventKeyFor(event, `at:${disconnectedAt}`)
+}
+
+/**
+ * Ingestion failure is per failed inbound lead identity (Meta leadgen id /
+ * WhatsApp message id). Retries of the same delivery collapse; a different
+ * lead that also fails to persist is a distinct job (open-bell collapse still
+ * merges per provider+agency).
+ */
+export function integrationIngestionFailedEventKey(event: NotificationEvent): string {
+  const ref = event.payload?.externalLeadId?.trim()
+  if (!ref) {
+    throw new Error('integration.ingestion_failed eventKey requires payload.externalLeadId')
+  }
+  return eventKeyFor(event, `ext:${ref}`)
+}
+
+/**
  * The identity rule per type — one place, so no call site has to know it.
  *
- * Everything except a status change, an inbound message, and an assignment is
- * once-ever per entity. That is a deliberately QUIET default: a lead that turns
- * hot, cools, and turns hot again produces one `lead.hot` notification, not
- * two. Under care-charter Law 5 the second signal has to earn its interruption,
- * and "the analyzer changed its mind twice" does not. A type that genuinely
- * needs to recur adds its discriminator here rather than at its call site.
+ * Everything except a status change, an inbound message, an assignment, and
+ * the two integration failure types is once-ever per entity. That is a
+ * deliberately QUIET default: a lead that turns hot, cools, and turns hot
+ * again produces one `lead.hot` notification, not two. Under care-charter
+ * Law 5 the second signal has to earn its interruption, and "the analyzer
+ * changed its mind twice" does not. A type that genuinely needs to recur adds
+ * its discriminator here rather than at its call site.
  */
 export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.status_changed') return statusChangedEventKey(event)
   if (event.type === 'message.inbound') return messageInboundEventKey(event)
   if (event.type === 'lead.assigned') return leadAssignedEventKey(event)
+  if (event.type === 'integration.disconnected') return integrationDisconnectedEventKey(event)
+  if (event.type === 'integration.ingestion_failed') return integrationIngestionFailedEventKey(event)
   return eventKeyFor(event)
 }

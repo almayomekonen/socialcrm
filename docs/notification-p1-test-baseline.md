@@ -430,3 +430,35 @@ previous handler is not a recipient after persist; actor===assignee is skipped
 by existing `planNotification`.
 
 No test was skipped, deleted, weakened, or rewritten to reach this state.
+
+---
+
+## Post-P3.3 (`integration.disconnected` + `integration.ingestion_failed` only) comparison
+
+Re-run after wiring real Facebook disconnect / ingestion-failure paths (and WhatsApp
+create-null) → `notifyEvent`. No Bell/Center/Toast/Push/presence/Awareness changes.
+No grouping / digest / escalation / email / SLA. No `lead.assigned` or
+`message.inbound` changes. Registry still has no `isResolved` for these types.
+
+| Gate                 | After P3.3 lead.assigned        | After P3.3 integration          | Verdict           |
+| -------------------- | ------------------------------- | ------------------------------- | ----------------- |
+| `npx tsc --noEmit`   | clean                           | **clean**                       | unchanged         |
+| `test:a11y`          | 20 files / 152 tests            | **20 files / 152 tests passed** | unchanged         |
+| `test:unit`          | 60+1skip / 629+12skip           | **60+1skip / 629+12skip**       | unchanged         |
+| `test:runtime`       | 10 / 55                         | **10 / 55 passed**              | unchanged         |
+| `test:notifications` | 29 files / 502 tests            | **30 files / 517 tests passed** | +1 file, +15      |
+| `test:integration`   | 337 files failed, no tests      | **338 files failed, no tests**  | known failure, +1 |
+| `npm run build`      | succeeds                        | **succeeds**                    | unchanged         |
+
+The new notification test file is `integration.emit`. It pins disconnect
+transition emit, already-expired silence, reconnect→disconnect new episode,
+ingestion failure emit (FB + WA), externalLeadId identity, admin_only recipients,
+agency isolation, system-actor planning, and the honest no-`isResolved` recovery
+contract. Harness note: DB-free under `VITEST_NO_DB=1` with real helpers and
+mocked `db` / `notifyEvent`.
+
+**Confirmed:** emit only on real actionable Facebook token expiry transitions and
+non-auth leadgen persist failures (plus WhatsApp create-null); status polling
+while already expired does not spam; recovery does not invent resolve machinery.
+
+No test was skipped, deleted, weakened, or rewritten to reach this state.

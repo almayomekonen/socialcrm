@@ -249,4 +249,46 @@ describe('event keys are deterministic identities (§14.3)', () => {
     const shape = { type: 'lead.assigned' as const, entityId: 42, payload: { assignedUserId: 55 } }
     expect(eventKeyForEvent(event(shape))).toBe(eventKeyForEvent(event(shape)))
   })
+
+  it('integration.disconnected anchors on the transition moment', () => {
+    const a = eventKeyForEvent(
+      event({
+        type: 'integration.disconnected',
+        entityType: 'integration',
+        entityId: 31,
+        payload: { provider: 'facebook', disconnectedAt: 1_700_000_000_000 },
+      }),
+    )
+    const b = eventKeyForEvent(
+      event({
+        type: 'integration.disconnected',
+        entityType: 'integration',
+        entityId: 31,
+        payload: { provider: 'facebook', disconnectedAt: 1_700_000_000_999 },
+      }),
+    )
+    expect(a).toBe('integration.disconnected:7:integration:31:at:1700000000000')
+    expect(a).not.toBe(b)
+  })
+
+  it('integration.ingestion_failed anchors on the external lead id', () => {
+    const a = eventKeyForEvent(
+      event({
+        type: 'integration.ingestion_failed',
+        entityType: 'integration',
+        entityId: 31,
+        payload: { provider: 'facebook', externalLeadId: 'leadgen_a' },
+      }),
+    )
+    const b = eventKeyForEvent(
+      event({
+        type: 'integration.ingestion_failed',
+        entityType: 'integration',
+        entityId: 31,
+        payload: { provider: 'facebook', externalLeadId: 'leadgen_b' },
+      }),
+    )
+    expect(a).toBe('integration.ingestion_failed:7:integration:31:ext:leadgen_a')
+    expect(a).not.toBe(b)
+  })
 })

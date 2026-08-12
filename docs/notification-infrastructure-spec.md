@@ -1547,3 +1547,36 @@ different user is a new event. Actor===assignee is dropped by existing
 `planNotification` (§6.3). Previous handler is not resolved after persist.
 
 No message.inbound changes. No integration emitters. No grouping/digest/escalation/email/SLA.
+
+### 2026-08-12 — P3.3 coverage: `integration.disconnected` + `integration.ingestion_failed` only
+
+Wired the **real** Facebook disconnect and lead-ingestion failure paths (and the
+WhatsApp create-null path) to `notifyEvent`. No new infrastructure. No Bell /
+Center / Toast / Push / presence / Awareness changes. No grouping / digest /
+escalation / email / SLA / follow-up types.
+
+**`integration.disconnected` (Facebook only — inspected, not invented):**
+- Emit sites: Facebook webhook Graph **401/403** (`app/api/webhooks/facebook`), and
+  live Facebook status check when `needsReconnect` becomes true
+  (`app/api/facebook/status`) — both via `markFacebookDisconnectedAndNotify`.
+- Transition guard: `UPDATE … WHERE health_status <> 'token_expired'`. Already-expired
+  polls and Meta retries while expired do not emit.
+- Entity id: `facebook_pages.id`. Payload: `provider: 'facebook'`,
+  `disconnectedAt` = the `health_checked_at` written on that transition.
+- Event identity: `…:at:{disconnectedAt}` so a later reconnect→disconnect episode
+  is news; the same transition cannot double-enqueue.
+- WhatsApp has no `health_status` disconnect path today — none invented.
+
+**`integration.ingestion_failed`:**
+- Facebook: non-auth failure branches that already write `webhook_failures`
+  (fetch/timeout/graph/db/unhandled) after a leadgen delivery could not be
+  persisted. Token expiry is disconnect-only (not double-emitted as ingestion).
+- WhatsApp: `createLeadFromWhatsappWebhook` returned null.
+- Entity id: connection row id (`facebook_pages.id` / `whatsapp_connections.id`).
+- Event identity: `…:ext:{externalLeadId}` (Meta leadgen id / WhatsApp wamid).
+
+**Recovery:** registry entries still have **no `isResolved`** (P1). Successful lead
+ingestion may set `health_status: 'healthy'` as before; this commit does not invent
+resolution/escalation. Collapse key remains `integration:{provider}:{agencyId}`.
+
+**Recipients:** unchanged registry `admin_only`. Actor is always `null` (system).

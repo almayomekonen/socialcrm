@@ -73,6 +73,17 @@ export type NotificationPayload = {
    * Required for that type; absent elsewhere.
    */
   assignedUserId?: number | null
+  /**
+   * Wall-clock of the disconnect transition written to facebook_pages.health_checked_at.
+   * Discriminator for `integration.disconnected` so a later reconnect→disconnect
+   * episode is news while retries of the same transition stay idempotent.
+   */
+  disconnectedAt?: number | null
+  /**
+   * Provider-side lead identity (Meta leadgen id / WhatsApp wamid) for
+   * `integration.ingestion_failed`. Required for that type; absent elsewhere.
+   */
+  externalLeadId?: string | null
 }
 
 /**

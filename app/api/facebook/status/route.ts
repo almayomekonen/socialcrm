@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { checkFacebookConnection } from '@/lib/facebook/health'
+import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 
 const HEALTH_CACHE_MS = 30 * 60 * 1000 // 30 minutes
@@ -36,11 +37,16 @@ export async function GET() {
     }
   } else {
     health = await checkFacebookConnection(connection.page_id, connection.page_access_token)
-    const newStatus = health.needsReconnect ? 'token_expired' : health.subscribed ? 'healthy' : 'not_subscribed'
-    await db('facebook_pages')
-      .where({ page_id: connection.page_id })
-      .update({ health_status: newStatus, health_checked_at: new Date() })
-      .catch(() => {})
+    if (health.needsReconnect) {
+      // Transition-only emit: already-expired short-circuit above never reaches here.
+      await markFacebookDisconnectedAndNotify(connection).catch(() => {})
+    } else {
+      const newStatus = health.subscribed ? 'healthy' : 'not_subscribed'
+      await db('facebook_pages')
+        .where({ page_id: connection.page_id })
+        .update({ health_status: newStatus, health_checked_at: new Date() })
+        .catch(() => {})
+    }
   }
 
   let lastLeadAt: string | null = null
