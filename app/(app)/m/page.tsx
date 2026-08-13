@@ -3,25 +3,22 @@ import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { isCopilotInspectorEnabled } from '@/lib/ai/flags'
 import MobileMoreView from '@/components/mobile/MobileMoreView'
+import { visibleMoreItems } from '@/components/mobile/moreDestinations'
 
 export const metadata: Metadata = { title: 'עוד' }
 
 /**
- * The "עוד" tab — the mobile workspace's fourth destination.
- *
- * Exists because `/settings/self_edit`, the desktop settings entry, renders
- * `SettingsChrome` with its own sidebar of eighteen links; pointing a phone tab
- * at it would put a second navigation inside a shell that already has one. This
- * is a short list of the things that genuinely work on a phone today, plus an
- * honest pointer to the desktop for everything else.
+ * The "עוד" tab — the mobile settings map.
  *
  * MOBILE-ONLY BY SERVER GATE (architecture-rules.md §9). A desktop request is
  * redirected to the real settings page rather than shown a stripped-down mirror
  * of it, so this route can never become a second settings surface to maintain.
  *
- * Every row is a REAL existing destination. Nothing here is a placeholder — a
- * tab full of disabled rows would be worse than no tab.
+ * Role gating mirrors the desktop settings nav exactly — it is a VISIBILITY
+ * rule, not an authorization one. Every destination still enforces its own
+ * server-side checks; hiding a row a נציג cannot use is a courtesy, not a gate.
  */
 export default async function MobileMorePage() {
   const user = await getUser()
@@ -31,5 +28,10 @@ export default async function MobileMorePage() {
     redirect('/settings/self_edit')
   }
 
-  return <MobileMoreView name={user.name || user.email} email={user.email} />
+  const items = visibleMoreItems({
+    role: user.role,
+    inspectorEnabled: user.role === 'ADMIN' && isCopilotInspectorEnabled(),
+  })
+
+  return <MobileMoreView name={user.name || user.email} email={user.email} items={items} />
 }

@@ -88,6 +88,8 @@ export interface User {
   sessionVersion: number
   /** When ownership of `email` was first proven via Google or a magic link (H-8). */
   emailVerifiedAt: Date | null
+  /** Facebook user id from Meta USER-token verification. Null for non-Facebook accounts. */
+  facebookSub?: string | null
 }
 
 export interface UserPerm {

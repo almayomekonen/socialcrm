@@ -7,7 +7,7 @@ type UserRegisteredEvent = {
   email: string
   firstName: string
   plan: string | null
-  provider: 'google' | 'email' | null
+  provider: 'google' | 'email' | 'facebook' | null
 }
 
 type UserMetaConnectedEvent = {

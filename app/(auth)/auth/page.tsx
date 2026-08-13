@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Login from '@/components/auth/Login'
 import LoginMagicLink from '@/components/auth/LoginMagicLink'
 import { getUser } from '@/db/auth'
+import { canUseFacebookUserAuth, isFacebookUserAuthPubliclyAvailable } from '@/lib/auth/facebookUserAuthFlags'
 import { Metadata } from 'next'
 import AccordionItem from '@/lib/AccordionItem'
 import HeroScroll from '@/components/auth/HeroScroll'
@@ -70,6 +71,9 @@ const faqSchema = {
 export default async function AuthPage({ searchParams }) {
   const { error } = await searchParams
   const user = await getUser()
+  const facebookLoginEnabled = user
+    ? canUseFacebookUserAuth(user.agencyId)
+    : isFacebookUserAuthPubliclyAvailable()
 
   return (
     <>
@@ -86,8 +90,7 @@ export default async function AuthPage({ searchParams }) {
               כל הלידים שלך במקום אחד. בלי לפספס אף אחד.
             </p>
             <div className='grid w-full max-w-sm lg:w-auto lg:max-w-none'>
-              <p className='mb-1'>התחברות עם גוגל</p>
-              <Login user={user} />
+              <Login user={user} facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined} />
               <p className='text-gray-500 text-xs text-center mt-2'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
               <LoginMagicLink error={error} />
 

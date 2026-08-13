@@ -10,6 +10,13 @@ import { isMobileRequest } from '@/lib/device'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { track } from '@/lib/analytics/track'
 import { emitLifecycleEvent } from '@/lib/events/emit'
+import {
+  clearFacebookLoginProof,
+  facebookSubFromProof,
+  isFacebookSubUniqueViolation,
+  readFacebookLoginProof,
+} from '@/lib/auth/fbLoginProof'
+import { isFacebookUserAuthOpenToNewAgencies } from '@/lib/auth/facebookUserAuthFlags'
 
 export async function addAgency(data) {
   const start = Date.now()
@@ -18,6 +25,11 @@ export async function addAgency(data) {
   let newUser: { email: string; firstName: string } | null = null
   let createdUserId: number | null = null
   let createdAgencyId: number | null = null
+  // New-agency Facebook attach is closed during a numbered-id canary so a
+  // leftover fb_login proof cannot create an unauthorized workspace.
+  const facebookSub = isFacebookUserAuthOpenToNewAgencies()
+    ? facebookSubFromProof(await readFacebookLoginProof())
+    : undefined
   try {
     await db.transaction(async (trx) => {
       // Onboarding is complete the moment the agency exists. Written here, in the
@@ -31,15 +43,18 @@ export async function addAgency(data) {
         .returning('id')
       const agencyId = agency[0]?.id
 
-      const [user] = await trx('users')
-        .insert({
-          firstName: data?.user?.firstName,
-          lastName: data?.user?.lastName,
-          email,
-          agencyId,
-          role: 'ADMIN',
-        })
-        .returning('*')
+      const userRow: Record<string, unknown> = {
+        firstName: data?.user?.firstName,
+        lastName: data?.user?.lastName,
+        email,
+        agencyId,
+        role: 'ADMIN',
+      }
+      // facebookSub is taken only from the server-verified fb_login cookie.
+      // Client fields, URL params, and hidden inputs are ignored.
+      if (facebookSub) userRow.facebookSub = facebookSub
+
+      const [user] = await trx('users').insert(userRow).returning('*')
       await trx('users_info').insert({ id: user.id }).onConflict('id').merge()
       await trx('default_settings').insert({ userId: user.id })
       newUser = { email: user.email, firstName: user.firstName }
@@ -49,6 +64,10 @@ export async function addAgency(data) {
     })
   } catch (err: any) {
     if (err?.code === '23505') {
+      if (isFacebookSubUniqueViolation(err)) {
+        console.warn(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=fail reason=duplicate_facebook`)
+        return { error: 'חשבון פייסבוק זה כבר מחובר למערכת. התחבר באמצעות Facebook.' }
+      }
       console.warn(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=fail reason=duplicate`)
       return { error: 'כתובת האימייל הזו כבר רשומה במערכת' }
     }
@@ -57,6 +76,7 @@ export async function addAgency(data) {
   }
 
   if (success && newUser && createdUserId) {
+    await clearFacebookLoginProof()
     await createCookie(createdUserId)
     console.log(`[AUTH] route=register email=${email} ms=${Date.now() - start} result=success`)
     const device = data?.device === 'desktop' || data?.device === 'mobile' ? data.device : 'unknown'
@@ -93,7 +113,8 @@ export async function addAgency(data) {
       ),
     )
 
-    const provider = data?.provider === 'google' || data?.provider === 'email' ? data.provider : null
+    const provider =
+      facebookSub ? 'facebook' : data?.provider === 'google' || data?.provider === 'email' ? data.provider : null
     after(() =>
       emitLifecycleEvent({
         type: 'user.registered',

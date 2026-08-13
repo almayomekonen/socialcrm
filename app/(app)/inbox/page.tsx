@@ -7,6 +7,9 @@ import { parseInboxFilters, inboxFiltersKey } from '@/modules/inbox/filters'
 import InboxConversationList from '@/modules/inbox/components/InboxConversationList'
 import { InboxStoreProvider } from '@/modules/inbox/client/inboxStore'
 import { isInboxDeltaSyncEnabled, getInboxRefreshIntervalMs } from '@/lib/flags/inboxFlags'
+import { isMobileRequest } from '@/lib/device'
+import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import MobileInboxRoute from '@/modules/inbox/mobile/MobileInboxRoute'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxLiveModeLog from '@/components/summary/InboxLiveModeLog'
 import InboxToolbar from '@/modules/inbox/components/InboxToolbar'
@@ -37,6 +40,19 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const selectedConversationId =
     sp.conversation && Number.isFinite(Number(sp.conversation)) ? Number(sp.conversation) : null
   const filters = parseInboxFilters(sp)
+
+  /**
+   * MOBILE שיחות. The desktop inbox is a three-pane workspace (list + thread +
+   * intelligence card) with a toolbar carrying a channel switch, six sort modes
+   * and seven intel filters. On a phone that is chrome before content, so the
+   * mobile branch renders a messaging-style list/thread over the SAME queries.
+   *
+   * Returned BEFORE the desktop's parallel reads, so a phone does no wasted work
+   * and receives no desktop markup (architecture-rules.md §9).
+   */
+  if ((await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)) {
+    return <MobileInboxRoute agencyId={user.agencyId} userId={user.id} q={filters.q ?? ''} conversationId={selectedConversationId} />
+  }
 
   const [firstPage, smartCounts, selected] = await Promise.all([
     listInboxConversations(user.agencyId, user.id, { filters }),

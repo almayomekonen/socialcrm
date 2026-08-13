@@ -4,15 +4,26 @@ import { Seperator } from '@/lib/Seperator'
 import { isCopilotInspectorEnabled } from '@/lib/ai/flags'
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import SettingsChrome from '@/components/settings/SettingsChrome'
+import { isMobileRequest } from '@/lib/device'
+import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 
 export default async function SettingLayout({ children }) {
   const user = await getUser()
   const inspectorVisible = user.role === 'ADMIN' && isCopilotInspectorEnabled()
+
+  /**
+   * The mobile workspace navigates to settings destinations DIRECTLY from the
+   * "עוד" hub, so the nav column is redundant there — and worse, on a phone it
+   * stacks above the content and buries the destination. Resolved on the server
+   * and passed as absence, never CSS-hidden.
+   */
+  const mobileWorkspace = (await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)
   const automationsVisible = user.role === 'ADMIN' && isAutomationsAgencyAllowlisted(user.agencyId)
 
   return (
     <SettingsChrome
       nav={
+        mobileWorkspace ? null : (
         <>
           <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
           {/*
@@ -65,6 +76,7 @@ export default async function SettingLayout({ children }) {
             </>
           )}
         </>
+        )
       }
     >
       {children}

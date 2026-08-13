@@ -87,6 +87,7 @@ describe.skipIf(!ENABLED)('generate mobile viewport harness', () => {
     const MobileToday = (await import('@/modules/today/mobile/MobileToday')).default
     const MobileSectionHandoff = (await import('@/components/mobile/MobileSectionHandoff')).default
     const MobileMoreView = (await import('@/components/mobile/MobileMoreView')).default
+    const { visibleMoreItems } = await import('@/components/mobile/moreDestinations')
 
     const row = (i: number) => ({
       id: i,
@@ -155,7 +156,7 @@ describe.skipIf(!ENABLED)('generate mobile viewport harness', () => {
     dump(
       'p2-more',
       <MobileWorkspaceShell>
-        <MobileMoreView name='אלמוג מקונן' email='alamayo274@gmail.com' />
+        <MobileMoreView name='אלמוג מקונן' email='alamayo274@gmail.com' items={visibleMoreItems({ role: 'ADMIN', inspectorEnabled: true })} />
       </MobileWorkspaceShell>,
     )
 
@@ -251,6 +252,28 @@ describe.skipIf(!ENABLED)('generate mobile viewport harness', () => {
       </MobileWorkspaceShell>,
     )
 
+    // ---- Hardening: שיחות + 5-tab bar + More ----
+    const ConversationListMobile = (await import('@/modules/inbox/mobile/ConversationListMobile')).default
+    const conv = (i: number, over = {}) => ({
+      conversationId: i, leadId: i, channel: 'whatsapp' as const,
+      displayName: i === 2 ? 'אברהם־יצחק בן־שלמה הכהן־רוזנבלט' : `שירה פרץ ${i}`,
+      leadName: null, leadStatus: 'new', lastMessageAt: new Date(Date.now() - i * 6e5).toISOString(),
+      lastDirection: (i % 2 ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
+      lastMessagePreview: i === 3 ? 'היי, רציתי לשאול על המחיר ועל זמני האספקה שלכם לאזור המרכז' : 'תודה, אחזור אליך',
+      unread: i % 3 === 0, attention: null, temperature: null, intent: null, suggestedAction: null, ...over,
+    })
+    dump(
+      'ph-conversations',
+      <MobileWorkspaceShell notificationCount={2}>
+        <ConversationListMobile items={Array.from({length:7},(_,i)=>conv(i+1))} q='' formatWhen={() => 'לפני 4 דקות'} />
+      </MobileWorkspaceShell>,
+    )
+    dump(
+      'ph-conversations-empty',
+      <MobileWorkspaceShell>
+        <ConversationListMobile items={[]} q='' formatWhen={() => ''} />
+      </MobileWorkspaceShell>,
+    )
     dump(
       'mobile-shell',
       <div className='flex h-dvh flex-col'>

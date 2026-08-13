@@ -26,13 +26,30 @@ export default function SettingsChrome({ nav, children }: { nav: ReactNode; chil
   const pathname = usePathname()
   const workspace = WORKSPACE.has(pathname)
 
+  /**
+   * MOBILE WORKSPACE: no nav column.
+   *
+   * `mobile:grid-cols-1` stacks the nav ABOVE the content on a phone, so every
+   * settings destination opened from the mobile "עוד" hub landed the user on an
+   * eighteen-item link list with the thing they asked for somewhere below the
+   * fold. Tapping "אינטגרציות" and arriving at a menu is the exact navigation
+   * failure this hardening pass exists to remove.
+   *
+   * On mobile the "עוד" hub IS this nav, so rendering it again inside every
+   * settings page is duplicate navigation as well as a dead scroll. The layout
+   * passes `nav={null}` for mobile-workspace requests — decided on the SERVER,
+   * so a phone never receives the markup at all (architecture-rules.md §9),
+   * and desktop is untouched.
+   */
+  const showNav = nav != null
+
   return (
     <div
-      className={`grid grid-cols-[auto_1fr] mobile:grid-cols-1 mobile:gap-4 ${
-        workspace ? 'min-h-full gap-6 ps-4' : 'gap-12 px-4'
+      className={`grid ${showNav ? 'grid-cols-[auto_1fr] mobile:grid-cols-1 mobile:gap-4' : 'grid-cols-1'} ${
+        workspace ? 'min-h-full gap-6 ps-4' : showNav ? 'gap-12 px-4' : 'px-4'
       }`}
     >
-      <div className='sticky mt-8 grid h-fit max-w-52 gap-1 mobile:max-w-full'>{nav}</div>
+      {showNav && <div className='sticky mt-8 grid h-fit max-w-52 gap-1 mobile:max-w-full'>{nav}</div>}
       {/*
         ONE top offset for every settings page, set here so no page can drift.
         24px puts the h1 level with the nav's first item; it used to be spread

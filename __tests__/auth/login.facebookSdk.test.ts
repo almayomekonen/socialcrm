@@ -1,0 +1,43 @@
+import { readFileSync } from 'fs'
+import { describe, expect, it } from 'vitest'
+
+describe('Facebook User Login button', () => {
+  const src = readFileSync(new URL('../../components/auth/Login.tsx', import.meta.url), 'utf8')
+
+  it('requests public_profile,email and keeps a synchronous FB.login callback', () => {
+    expect(src).toContain("{ scope: 'public_profile,email' }")
+    expect(src).toContain('void handleFacebookResponse(response)')
+    expect(src).not.toMatch(/FB\.login\(\s*async/)
+  })
+})
+
+describe('auth pages use the authentication App ID', () => {
+  const loginPage = readFileSync(new URL('../../app/(auth)/auth/page.tsx', import.meta.url), 'utf8')
+  const registerPage = readFileSync(new URL('../../app/(auth)/auth/register/page.tsx', import.meta.url), 'utf8')
+
+  it('gates the Facebook SDK App ID behind the server-side rollout helpers', () => {
+    expect(loginPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')
+    expect(loginPage).not.toContain('process.env.META_APP_ID')
+    expect(loginPage).toContain('canUseFacebookUserAuth')
+    expect(loginPage).toContain('isFacebookUserAuthPubliclyAvailable')
+    expect(registerPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')
+    expect(registerPage).not.toContain('process.env.META_APP_ID')
+    expect(registerPage).toContain('isFacebookUserAuthOpenToNewAgencies')
+  })
+})
+
+describe('business Meta integration stays on META_APP_ID', () => {
+  it('Page Connect and WhatsApp Embedded Signup still use the business app', () => {
+    const pageOAuth = readFileSync(new URL('../../app/api/auth/facebook/route.ts', import.meta.url), 'utf8')
+    const waSignup = readFileSync(new URL('../../lib/facebook/useEmbeddedSignup.ts', import.meta.url), 'utf8')
+    const leadSources = readFileSync(
+      new URL('../../components/settings/integrations/LeadSourcesSection.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(pageOAuth).toContain('process.env.META_APP_ID')
+    expect(pageOAuth).not.toContain('AUTH_FACEBOOK_APP_ID')
+    expect(waSignup).toContain('config_id: configId')
+    expect(leadSources).toContain('process.env.META_APP_ID')
+    expect(leadSources).not.toContain('AUTH_FACEBOOK_APP_ID')
+  })
+})

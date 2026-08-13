@@ -149,7 +149,15 @@ export async function createCookie(userId) {
 }
 
 export async function getUserByEmail(email: string) {
-  return await db('users').select('id', 'suspended', 'otp', 'emailVerifiedAt').whereILike('email', email).first()
+  return await db('users')
+    .select('id', 'suspended', 'otp', 'emailVerifiedAt', 'facebookSub', 'agencyId')
+    .whereILike('email', email)
+    .first()
+}
+
+export async function getUserByFacebookSub(facebookSub: string) {
+  if (!facebookSub) return null
+  return await db('users').select('id', 'suspended', 'facebookSub', 'agencyId').where({ facebookSub }).first()
 }
 
 export async function encrypt(payload: any) {

@@ -7,20 +7,21 @@ import Icon, { type IconNames } from '@/lib/Icon'
 import NavBadge from '@/lib/navs/NavBadge'
 
 /**
- * The mobile bottom navigation — Today · Leads · Notifications · More.
+ * The mobile bottom navigation — היום · לידים · שיחות · התראות · עוד.
  *
- * FOUR SLOTS, FIXED. The desktop sidebar carries ten destinations; a phone gets
- * the four that serve the mobile job (Desktop = MANAGE, Mobile = ACT). Everything
- * else lives behind "More" rather than being squeezed in — five-plus tabs is how
- * a tab bar becomes a menu with extra steps.
+ * FIVE SLOTS. The desktop sidebar carries ten destinations; a phone gets the
+ * five that serve the mobile job (Desktop = MANAGE, Mobile = ACT). שיחות earned
+ * a slot rather than a place inside "עוד": replying is daily work, and a tab bar
+ * that hides the most frequent action is a menu with extra steps.
  *
- * Today is slot 1 and the mobile landing screen: `/dashboard` already answers
- * "what should I do next" (RecommendedLeads + LeadQuickActions + follow-ups),
- * which is exactly the question a rep opens their phone to ask.
+ * Five is the ceiling. At 360px each slot is 72px, which fits a 20px icon and a
+ * short Hebrew label — a sixth would start truncating labels, and an icon-only
+ * tab fails both the ambiguous-icon rule and the accessible-name rule.
  *
- * NOT MOUNTED YET. Phase 1 builds the primitive; the shell mounts it in Phase 2
- * once Today has a mobile presentation to land on. It is rendered only for
- * requests the SERVER has already classified as mobile
+ * היום is slot 1 and the mobile landing screen: `/dashboard` already answers
+ * "what should I do next", which is the question a rep opens their phone to ask.
+ *
+ * Rendered only for requests the SERVER has already classified as mobile
  * (`architecture-rules.md` §9 — gate by absence, never CSS-hide), so this
  * component contains no viewport check of its own.
  */
@@ -36,6 +37,10 @@ export type MobileTab = {
 export const MOBILE_TABS: MobileTab[] = [
   { icon: 'house', href: '/dashboard' as Route, title: 'היום' },
   { icon: 'image-polaroid-user', href: '/leads' as Route, title: 'לידים' },
+  // שיחות is a first-class destination, never folded into "עוד": replying is
+  // daily work, and burying it one level down would cost a tap on the action
+  // reps perform most.
+  { icon: 'comments', href: '/inbox' as Route, title: 'שיחות' },
   { icon: 'bell', href: '/notifications' as Route, title: 'התראות' },
   { icon: 'ellipsis', href: '/m' as Route, title: 'עוד' },
 ]
@@ -75,7 +80,7 @@ export default function MobileTabBar({ notificationCount = 0 }: { notificationCo
                 aria-label={hasBadge ? `${tab.title}, ${tab.badge} חדשות` : undefined}
                 /* min-h-14 = 56px, comfortably past the 44px minimum even before
                    the label wraps. */
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors active:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
                   active ? 'text-primary-text' : 'text-gray-500'
                 }`}
               >
@@ -89,7 +94,7 @@ export default function MobileTabBar({ notificationCount = 0 }: { notificationCo
                 </span>
                 {/* Text label always present — icon-only tabs fail both the
                     "no ambiguous icons" rule and the accessible-name rule. */}
-                <span className={`text-[11px] leading-none ${active ? 'font-semibold' : 'font-medium'}`}>
+                <span className={`max-w-full truncate text-[10.5px] leading-none ${active ? 'font-semibold' : 'font-medium'}`}>
                   {tab.title}
                 </span>
               </Link>

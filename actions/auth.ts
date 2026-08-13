@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 import { db } from '@/config/db'
 import { Roles } from '@/types/roles'
-import { createCookie, getUser, getUserByEmail, revokeUserSessions } from '../db/auth'
+import { createCookie, getUser, getUserByEmail, getUserByFacebookSub, revokeUserSessions } from '../db/auth'
 import { genToken } from '@/lib/funcs'
 import { baseUrl } from '@/types/vars'
 import { sendEmail } from '@/lib/email/sender'
@@ -13,6 +13,13 @@ import { renderEmail } from '@/lib/email/render'
 import MagicLinkEmail from '@/emails/templates/MagicLinkEmail'
 import { normalizeEmail } from '@/lib/normalizeEmail'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { verifyFacebookAccessToken } from '@/lib/auth/verifyFacebookAccessToken'
+import { clearFacebookLoginProof, setFacebookLoginProof } from '@/lib/auth/fbLoginProof'
+import { resolveFacebookLogin } from '@/lib/auth/resolveFacebookLogin'
+import {
+  canUseFacebookUserAuth,
+  isFacebookUserAuthOpenToNewAgencies,
+} from '@/lib/auth/facebookUserAuthFlags'
 
 const MAGIC_LINK_EXPIRY_MINUTES = 15
 
@@ -98,6 +105,80 @@ export async function checkUser(input: { credential?: string }) {
   redirect('/dashboard')
 }
 
+export async function checkFacebookUser(input: { accessToken?: string }) {
+  const start = Date.now()
+
+  const verified = await verifyFacebookAccessToken(input?.accessToken)
+  if (verified.ok === false) {
+    console.warn(`[AUTH] route=facebook_check ms=${Date.now() - start} result=fail reason=${verified.reason}`)
+    if (verified.reason === 'no_email') {
+      return { fail: true as const, msg: 'פייסבוק לא החזיר אימייל. אפשר להתחבר עם גוגל או עם מייל.' }
+    }
+    return { fail: true as const, msg: 'ההתחברות נכשלה, נסה שוב' }
+  }
+
+  const facebookSub = verified.identity.sub
+  const email = normalizeEmail(verified.identity.email)
+  const bySub = await getUserByFacebookSub(facebookSub)
+  const byEmail = await getUserByEmail(email)
+  const resolution = resolveFacebookLogin({ facebookSub, bySub, byEmail })
+
+  if (resolution.kind === 'reject') {
+    const msg =
+      resolution.reason === 'suspended'
+        ? 'המשתמש מושהה'
+        : 'חשבון פייסבוק זה כבר מחובר למערכת. התחבר באמצעות Facebook.'
+    console.log(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=fail reason=${resolution.reason}`)
+    return { fail: true as const, msg }
+  }
+
+  if (resolution.kind === 'register') {
+    if (!isFacebookUserAuthOpenToNewAgencies()) {
+      console.log(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=fail reason=not_allowlisted`)
+      return { fail: true as const, msg: 'התחברות עם Facebook אינה זמינה לחשבון זה' }
+    }
+    await setFacebookLoginProof({
+      facebookSub,
+      name: verified.identity.name,
+      picture: verified.identity.picture,
+    })
+    console.log(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=fail reason=not_found`)
+    return { fail: true as const, register: true as const, email, name: verified.identity.name ?? '' }
+  }
+
+  const agencyId = Number((bySub ?? byEmail)?.agencyId)
+  if (!canUseFacebookUserAuth(agencyId)) {
+    console.log(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=fail reason=not_allowlisted`)
+    return { fail: true as const, msg: 'התחברות עם Facebook אינה זמינה לחשבון זה' }
+  }
+
+  const existing = await db('users').where({ id: resolution.userId }).first('emailVerifiedAt', 'facebookSub')
+  if (existing?.facebookSub && existing.facebookSub !== facebookSub) {
+    console.warn(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=fail reason=conflict`)
+    return { fail: true as const, msg: 'חשבון פייסבוק זה כבר מחובר למערכת. התחבר באמצעות Facebook.' }
+  }
+
+  if (resolution.verifyEmail && !existing?.emailVerifiedAt) {
+    await revokeUserSessions(resolution.userId)
+    console.warn('[AUTH] first email verification — prior sessions revoked', { userId: resolution.userId })
+  }
+
+  const patch: Record<string, unknown> = {}
+  if (verified.identity.picture) patch.picture = verified.identity.picture
+  if (resolution.attachFacebookSub && !existing?.facebookSub) patch.facebookSub = facebookSub
+  if (resolution.verifyEmail) patch.emailVerifiedAt = existing?.emailVerifiedAt ?? new Date()
+
+  if (Object.keys(patch).length) {
+    await db('users').where({ id: resolution.userId }).update(patch)
+    revalidateTag('user' + resolution.userId, 'default')
+  }
+
+  await clearFacebookLoginProof()
+  await createCookie(resolution.userId)
+  console.log(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=success`)
+  redirect('/dashboard')
+}
+
 export async function isUserExists(email: string) {
   const userExist = await getUserByEmail(email)
 
@@ -116,6 +197,7 @@ export async function getSessionState(): Promise<boolean> {
 export async function logout() {
   const cokis = await cookies()
   cokis.delete('user')
+  await clearFacebookLoginProof()
   redirect('/')
 }
 

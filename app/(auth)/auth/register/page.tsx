@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import AddAgencyForm from '@/components/agencies/AddAgencyForm'
-import Icon from '@/lib/Icon'
+import Login from '@/components/auth/Login'
+import { isFacebookUserAuthOpenToNewAgencies } from '@/lib/auth/facebookUserAuthFlags'
 
 export const metadata: Metadata = { title: 'הרשמה' }
 
@@ -16,32 +18,22 @@ export default async function page({ searchParams }) {
           </div>
           <h1 className='text-3xl lg:text-5xl font-bold text-center'>מתחילים כאן</h1>
           <AddAgencyForm defaultEmail={email} defaultName={name} />
-
-          {/* Mobile-only product preview — the organized lead a new user is signing up for */}
-          <div className='md:hidden w-full mt-2' dir='rtl'>
-            <p className='text-xs text-gray-500 text-center mb-3'>כך ייראה הליד הראשון שלך</p>
-            <div className='rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-3'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center gap-2'>
-                  <span className='inline-block w-2.5 h-2.5 bg-blue-500 rounded-full' />
-                  <span className='text-sm font-medium text-gray-900'>דני לוי</span>
-                </div>
-                <span className='inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium'>חדש</span>
+          <div className='w-full max-w-sm lg:w-auto lg:max-w-none'>
+            <div className='relative pt-6 pb-5'>
+              <div className='absolute inset-0 flex mt-1'>
+                <div className='w-full border-t border-gray-500' />
               </div>
-              <p className='text-xs text-gray-500 mt-1.5 mr-[18px]'>
-                <span dir='ltr'>054-XXX-XXXX</span>
-              </p>
-              <div className='flex items-center gap-1.5 mt-2 mr-[18px]'>
-                <span className='text-xs text-gray-400'>מקור:</span>
-                <Icon name='facebook-f' className='size-3 bg-gray-400' />
-                <span className='text-xs text-gray-600'>Facebook Lead Ads</span>
+              <div className='relative flex justify-center'>
+                <span className='px-4 bg-white'>או</span>
               </div>
-              <div className='flex items-center gap-1.5 mt-1.5 mr-[18px]'>
-                <span className='text-xs text-gray-400'>נושא:</span>
-                <span className='text-xs text-gray-600'>מעוניין בשירות</span>
-              </div>
-              <p className='text-xs text-gray-400 mt-2 mr-[18px]'>לפני 2 דקות</p>
             </div>
+            <Login facebookAppId={isFacebookUserAuthOpenToNewAgencies() ? process.env.AUTH_FACEBOOK_APP_ID : undefined} />
+            <p className='text-gray-500 text-xs text-center mt-3'>
+              כבר יש לך חשבון?{' '}
+              <Link href='/auth' className='text-primary-text font-semibold hover:text-primary transition-colors'>
+                התחבר
+              </Link>
+            </p>
           </div>
         </div>
         <img src='/media/auth.jpg' alt='' className='w-full h-screen hidden lg:block' />
