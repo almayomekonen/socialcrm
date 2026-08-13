@@ -3,6 +3,7 @@ import { getUser, encrypt } from '@/db/auth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
 import { FB_REASON, FB_REASON_NOTICE_CODE, type FbReason } from '@/lib/connections/reasons'
+import { inspectFacebookToken, parseMetaError } from '@/lib/facebook/pageDiscoveryDiagnostics'
 
 // Option A: the flow origin is the prefix of the `state` param. Reading it for
 // routing is not security-sensitive (the CSRF check below remains exact-match).
@@ -24,9 +25,16 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.redirect(new URL('/auth', req.url))
 
   // Precise, non-PII failure reason → analytics. Notice code (redirect) is
-  // unchanged; only the observability reason is added.
-  const trackFbFail = (reason: FbReason, stage: string) =>
-    track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_failed', props: { reason, stage } })
+  // unchanged; only the observability reason is added. `diagnostics` carries
+  // the safe, derived Page-discovery evidence (see pageDiscoveryDiagnostics.ts);
+  // it is never allowed to contain a token, secret, or raw asset id.
+  const trackFbFail = (reason: FbReason, stage: string, diagnostics?: Record<string, unknown>) =>
+    track({
+      agencyId: user.agencyId!,
+      userId: user.id,
+      event: 'facebook_connect_failed',
+      props: { reason, stage, ...diagnostics },
+    })
   let pagesShowListGranted = false
 
   const { searchParams } = new URL(req.url)
@@ -122,17 +130,48 @@ export async function GET(req: NextRequest) {
 
   track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_oauth_completed', props: {} })
 
+  // DIAGNOSTIC ONLY. Reads the freshly-exchanged token's granular scopes so an
+  // empty /me/accounts can be attributed to "the token grants zero Pages"
+  // rather than guessed at. It never gates the flow, never throws, and does NOT
+  // replace /me/accounts as the discovery source — changing discovery is a
+  // separate decision, deliberately deferred until this evidence exists.
+  const tokenDiag = await inspectFacebookToken(longToken, appId, appSecret)
+
   // Step 3: Fetch all pages the user has access to via /me/accounts
   const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${longToken}`)
 
+  // Recorded on EVERY discovery attempt — success and failure alike — so a
+  // failing customer can be compared against a working one. Safe by
+  // construction: derived counts, permission names, and a truncated user hash.
+  // agencyId/userId are omitted here because `track()` already writes them as
+  // first-class indexed columns on analytics_events.
+  const discoveryDiag: Record<string, unknown> = {
+    httpStatus: pagesRes.status,
+    pagesShowListGranted,
+    grantedPageIdCount: tokenDiag.grantedPageIdCount,
+    granularPagesEntryPresent: tokenDiag.granularPagesEntryPresent,
+    fbUserIdHash: tokenDiag.fbUserIdHash,
+    tokenScopes: tokenDiag.scopes,
+    tokenIsValid: tokenDiag.tokenIsValid,
+    debugTokenOk: tokenDiag.debugTokenOk,
+  }
+
   if (!pagesRes.ok) {
-    console.error('[FacebookOAuth] Failed to fetch pages:', await pagesRes.text())
-    const reason = pagesShowListGranted ? FB_REASON.NO_PAGES : FB_REASON.PAGES_PERMISSION_MISSING
-    trackFbFail(reason, 'discover')
-    return failed(req, FB_REASON_NOTICE_CODE[reason])
+    // A non-2xx from Meta is a PROVIDER error, never "this account has no Page".
+    // Conflating the two is what made 33 production failures unreadable.
+    const metaError = parseMetaError(await pagesRes.text())
+    const diagnostics = { ...discoveryDiag, ...metaError, returnedPageCount: 0 }
+    console.error('[FacebookOAuth] /me/accounts provider error', diagnostics)
+    trackFbFail(FB_REASON.PROVIDER_ERROR, 'discover', diagnostics)
+    // User-facing notice stays generic and approved; Meta internals never reach
+    // the browser — only the analytics row and the server log carry them.
+    return failed(req, FB_REASON_NOTICE_CODE[FB_REASON.PROVIDER_ERROR])
   }
 
   const pagesData = await pagesRes.json()
+  // A 200 whose body carries no `data` key at all is a different state from a
+  // 200 with an empty array; both used to collapse into "no pages".
+  const dataKeyPresent = Array.isArray(pagesData?.data)
 
   const pages: { id: string; name: string; access_token: string }[] = (pagesData.data || []).map(
     (p: { id: string; name: string; access_token: string }) => ({
@@ -142,18 +181,27 @@ export async function GET(req: NextRequest) {
     }),
   )
 
+  const discoveryResult = { ...discoveryDiag, dataKeyPresent, returnedPageCount: pages.length }
+  console.log('[FacebookOAuth] page discovery result', discoveryResult)
+
   if (pages.length === 0) {
-    console.warn('[FacebookOAuth] No pages found for userId:', user.id)
-    // Distinguish "permission to list Pages was not granted" from "the account
-    // genuinely administers no Page". We only claim the latter (no_pages) when
-    // pages_show_list WAS granted and the list still came back empty; otherwise
-    // the honest state is pages_permission (we could not even see the Pages).
+    // Reached ONLY on a successful 2xx response, so `NO_PAGES` now means what it
+    // says: the provider answered, and answered with zero Pages. When the Page
+    // permission was not granted at all we still report the honest
+    // pages_permission state instead. `grantedPageIdCount` in the analytics row
+    // is what separates "granted, scoped to zero Pages" from "granted Pages, yet
+    // the list came back empty" — it does NOT drive this classification.
     const reason = pagesShowListGranted ? FB_REASON.NO_PAGES : FB_REASON.PAGES_PERMISSION_MISSING
-    trackFbFail(reason, 'discover')
+    trackFbFail(reason, 'discover', discoveryResult)
     return failed(req, FB_REASON_NOTICE_CODE[reason])
   }
 
-  track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_page_discovered', props: { count: pages.length } })
+  track({
+    agencyId: user.agencyId!,
+    userId: user.id,
+    event: 'facebook_page_discovered',
+    props: { count: pages.length, ...discoveryResult },
+  })
 
   const encrypted = await encrypt({ pages, userId: user.id })
   cookieStore.set('fb_pages', encrypted, {
