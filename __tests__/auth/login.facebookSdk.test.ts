@@ -8,8 +8,6 @@ describe('Facebook User Login button', () => {
     expect(src).toContain("{ scope: 'public_profile,email' }")
     expect(src).toContain('void handleFacebookResponse(response)')
     expect(src).not.toMatch(/FB\.login\(\s*async/)
-    expect(src).toContain('if (!facebookLoginAllowed)')
-    expect(src).toContain('Facebook Login בקרוב')
   })
 })
 
@@ -50,7 +48,6 @@ describe('auth pages use the authentication App ID', () => {
     expect(loginPage).not.toContain('process.env.META_APP_ID')
     expect(loginPage).toContain('canUseFacebookUserAuth')
     expect(loginPage).toContain('isFacebookUserAuthPubliclyAvailable')
-    expect(loginPage).toContain('facebookLoginAllowed={canUseFacebookUserAuth(user?.agencyId)}')
     expect(registerPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')
     expect(registerPage).not.toContain('process.env.META_APP_ID')
     expect(registerPage).toContain('isFacebookUserAuthOpenToNewAgencies')

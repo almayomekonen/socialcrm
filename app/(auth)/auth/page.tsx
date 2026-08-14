@@ -90,11 +90,7 @@ export default async function AuthPage({ searchParams }) {
               כל הלידים שלך במקום אחד. בלי לפספס אף אחד.
             </p>
             <div className='grid w-full max-w-sm lg:w-auto lg:max-w-none'>
-              <Login
-                user={user}
-                facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined}
-                facebookLoginAllowed={canUseFacebookUserAuth(user?.agencyId)}
-              />
+              <Login user={user} facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined} />
               <p className='text-gray-500 text-xs text-center mt-2'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
               <LoginMagicLink error={error} />
 
