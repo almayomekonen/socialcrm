@@ -1,7 +1,7 @@
 'use client'
 
 import Script from 'next/script'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, unstable_rethrow } from 'next/navigation'
 import { checkFacebookUser, checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
@@ -18,24 +18,30 @@ function facebookSdk(): any {
 export default function Login({
   user,
   facebookAppId,
+  facebookLoginAllowed = true,
 }: {
   user?: { name?: string; gglName?: string } | null
   facebookAppId?: string
+  /** Temporary UX gate. Server still authorizes via canUseFacebookUserAuth. */
+  facebookLoginAllowed?: boolean
 }) {
   const router = useRouter()
   const client_id = process.env.NEXT_PUBLIC_GGLID
   const mounted = useRef(true)
   const fbReady = useRef(false)
+  const [facebookSoonNotice, setFacebookSoonNotice] = useState(false)
+  const soonTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // A login that is still in flight when the screen goes away must not toast
   // against a dead screen. The timers themselves are cleared per-attempt below.
   useEffect(() => {
     mounted.current = true
-    if (facebookAppId && facebookSdk()) initFacebook()
+    if (facebookAppId && facebookLoginAllowed && facebookSdk()) initFacebook()
     return () => {
       mounted.current = false
+      clearTimeout(soonTimer.current)
     }
-  }, [facebookAppId])
+  }, [facebookAppId, facebookLoginAllowed])
 
   async function finishSocialLogin(
     res: { fail?: boolean; msg?: string; email?: string; name?: string; register?: boolean } | void,
@@ -163,6 +169,15 @@ export default function Login({
   }
 
   function onFacebookClick() {
+    if (!facebookLoginAllowed) {
+      setFacebookSoonNotice(true)
+      clearTimeout(soonTimer.current)
+      soonTimer.current = setTimeout(() => {
+        if (mounted.current) setFacebookSoonNotice(false)
+      }, 3000)
+      return
+    }
+
     const FB = facebookSdk()
     if (!fbReady.current || !FB) {
       toast('error', 'ההתחברות נכשלה, נסה שוב')
@@ -181,27 +196,35 @@ export default function Login({
     <div className='flex w-full flex-col items-center lg:items-start'>
       {user && <p className='text-sm text-gray-600 mb-1'>כניסה בשם {getDisplayName(user)}</p>}
       <Script src='https://accounts.google.com/gsi/client' onLoad={initGoogle} strategy='lazyOnload' />
-      {facebookAppId && (
+      {facebookAppId && facebookLoginAllowed && (
         <Script src='https://connect.facebook.net/he_IL/sdk.js' onLoad={initFacebook} strategy='lazyOnload' />
       )}
 
       <div id='gglBtn' className='flex w-[250px] justify-center'></div>
       {facebookAppId && (
-        <button
-          type='button'
-          dir='rtl'
-          className='mt-3 flex h-10 w-[250px] items-center justify-center gap-2.5 rounded border border-[#747775] bg-white text-[14px] font-medium text-[#1f1f1f] hover:bg-gray-50'
-          onClick={onFacebookClick}
-        >
-          <svg width='18' height='18' viewBox='0 0 24 24' className='shrink-0' aria-hidden='true'>
-            <rect width='24' height='24' rx='6' fill='#1877F2' />
-            <path
-              fill='#fff'
-              d='M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z'
-            />
-          </svg>
-          <span>כניסה באמצעות Facebook</span>
-        </button>
+        <>
+          <button
+            type='button'
+            dir='rtl'
+            className='mt-3 flex h-10 w-[250px] items-center justify-center gap-2.5 rounded border border-[#747775] bg-white text-[14px] font-medium text-[#1f1f1f] hover:bg-gray-50'
+            onClick={onFacebookClick}
+          >
+            <svg width='18' height='18' viewBox='0 0 24 24' className='shrink-0' aria-hidden='true'>
+              <rect width='24' height='24' rx='6' fill='#1877F2' />
+              <path
+                fill='#fff'
+                d='M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z'
+              />
+            </svg>
+            <span>כניסה באמצעות Facebook</span>
+          </button>
+          {facebookSoonNotice && (
+            <p className='mt-2 w-[250px] text-center text-xs text-gray-500 leading-relaxed'>
+              <span className='block font-medium text-gray-600'>Facebook Login בקרוב</span>
+              אנחנו פותחים את ההתחברות עם Facebook בהדרגה. בקרוב יהיה זמין גם עבורך.
+            </p>
+          )}
+        </>
       )}
     </div>
   )
