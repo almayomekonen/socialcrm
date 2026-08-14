@@ -11,6 +11,34 @@ describe('Facebook User Login button', () => {
   })
 })
 
+describe('Facebook account linking button', () => {
+  const src = readFileSync(
+    new URL('../../components/settings/security/ConnectFacebookAccount.tsx', import.meta.url),
+    'utf8',
+  )
+
+  it('sends only the access token and keeps a synchronous FB.login callback', () => {
+    expect(src).toContain("{ scope: 'public_profile,email' }")
+    expect(src).toContain('void handleFacebookResponse(response)')
+    expect(src).not.toMatch(/\.login\(\s*async/)
+    expect(src).toContain('linkFacebookAccount({ accessToken: response.authResponse.accessToken })')
+    expect(src).not.toContain('facebookSub:')
+    expect(src).not.toContain('userId:')
+    expect(src).not.toContain('META_APP_ID')
+  })
+})
+
+describe('Google authentication is unchanged', () => {
+  const src = readFileSync(new URL('../../actions/auth.ts', import.meta.url), 'utf8')
+
+  it('checkUser still verifies only a Google credential', () => {
+    expect(src).toContain('export async function checkUser(input: { credential?: string })')
+    expect(src).toContain('verifyGoogleCredential(input?.credential)')
+    expect(src).toContain("route=google_check")
+    expect(src).toContain('gglSub: verified.sub')
+  })
+})
+
 describe('auth pages use the authentication App ID', () => {
   const loginPage = readFileSync(new URL('../../app/(auth)/auth/page.tsx', import.meta.url), 'utf8')
   const registerPage = readFileSync(new URL('../../app/(auth)/auth/register/page.tsx', import.meta.url), 'utf8')
@@ -23,6 +51,13 @@ describe('auth pages use the authentication App ID', () => {
     expect(registerPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')
     expect(registerPage).not.toContain('process.env.META_APP_ID')
     expect(registerPage).toContain('isFacebookUserAuthOpenToNewAgencies')
+    const securityPage = readFileSync(
+      new URL('../../app/(app)/settings/(user_settings)/update_security/page.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(securityPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')
+    expect(securityPage).not.toContain('META_APP_ID')
+    expect(securityPage).toContain('canUseFacebookUserAuth')
   })
 })
 

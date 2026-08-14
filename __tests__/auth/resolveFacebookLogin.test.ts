@@ -44,6 +44,16 @@ describe('resolveFacebookLogin', () => {
     ).toEqual({ kind: 'login', userId: 42, attachFacebookSub: false, verifyEmail: true })
   })
 
+  it('logs in by facebookSub when the Facebook email is unknown', () => {
+    expect(
+      resolveFacebookLogin({
+        facebookSub: SUB,
+        bySub: { id: 332, facebookSub: SUB },
+        byEmail: null,
+      }),
+    ).toEqual({ kind: 'login', userId: 332, attachFacebookSub: false, verifyEmail: false })
+  })
+
   it('sends an unknown identity to registration — does not create an agency', () => {
     expect(resolveFacebookLogin({ facebookSub: SUB, bySub: null, byEmail: null })).toEqual({ kind: 'register' })
   })

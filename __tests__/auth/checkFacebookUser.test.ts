@@ -112,6 +112,24 @@ describe('checkFacebookUser', () => {
     expect(updateArg).not.toHaveProperty('facebookSub')
   })
 
+  it('logs in through facebookSub when the Facebook email is unknown', async () => {
+    h.verify.mockResolvedValue({
+      ok: true,
+      identity: { ...identity, email: 'alamayo12@walla.com' },
+    })
+    h.getUserByFacebookSub.mockResolvedValue({ id: 332, facebookSub: SUB, agencyId: 103 })
+    h.getUserByEmail.mockResolvedValue(null)
+    h.userFirst.mockResolvedValue({ emailVerifiedAt: new Date(), facebookSub: SUB })
+
+    await expect(checkFacebookUser({ accessToken: 'EAAG' })).rejects.toThrow('NEXT_REDIRECT')
+
+    expect(h.createCookie).toHaveBeenCalledWith(332)
+    const updateArg = h.userUpdate.mock.calls[0]?.[0] ?? {}
+    expect(updateArg).not.toHaveProperty('facebookSub')
+    expect(updateArg).not.toHaveProperty('email')
+    expect(h.setProof).not.toHaveBeenCalled()
+  })
+
   it('ignores a client-supplied email and uses only Meta /me email', async () => {
     h.verify.mockResolvedValue({ ok: true, identity })
     h.getUserByEmail.mockResolvedValue(null)

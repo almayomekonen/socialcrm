@@ -9,7 +9,10 @@ import { getDisplayName } from '@/lib/users/displayName'
 
 declare global {
   const google: any
-  const FB: any
+}
+
+function facebookSdk(): any {
+  return typeof window === 'undefined' ? undefined : (window as any).FB
 }
 
 export default function Login({
@@ -28,7 +31,7 @@ export default function Login({
   // against a dead screen. The timers themselves are cleared per-attempt below.
   useEffect(() => {
     mounted.current = true
-    if (facebookAppId && typeof FB !== 'undefined') initFacebook()
+    if (facebookAppId && facebookSdk()) initFacebook()
     return () => {
       mounted.current = false
     }
@@ -110,7 +113,8 @@ export default function Login({
   }
 
   function initFacebook() {
-    if (!facebookAppId || typeof FB === 'undefined') return
+    const FB = facebookSdk()
+    if (!facebookAppId || !FB) return
     FB.init({
       appId: facebookAppId,
       cookie: true,
@@ -159,7 +163,8 @@ export default function Login({
   }
 
   function onFacebookClick() {
-    if (!fbReady.current || typeof FB === 'undefined') {
+    const FB = facebookSdk()
+    if (!fbReady.current || !FB) {
       toast('error', 'ההתחברות נכשלה, נסה שוב')
       return
     }
