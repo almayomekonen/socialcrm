@@ -168,7 +168,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
             extras: {
               setup: {},
               featureType: COEXISTENCE_DISABLED ? '' : COEXISTENCE_FEATURE_TYPE,
-              sessionInfoVersion: '3',
+              version: 'v3',
             },
           },
         )

@@ -75,4 +75,16 @@ describe('business Meta integration stays on META_APP_ID', () => {
     expect(leadSources).toContain('process.env.META_APP_ID')
     expect(leadSources).not.toContain('AUTH_FACEBOOK_APP_ID')
   })
+
+  it('launches Embedded Signup with v3 featureType extras, not sessionInfoVersion', () => {
+    const waSignup = readFileSync(new URL('../../lib/facebook/useEmbeddedSignup.ts', import.meta.url), 'utf8')
+    expect(waSignup).toContain('config_id: configId')
+    expect(waSignup).toContain("response_type: 'code'")
+    expect(waSignup).toContain('override_default_response_type: true')
+    expect(waSignup).toContain('setup: {}')
+    expect(waSignup).toContain("featureType: COEXISTENCE_DISABLED ? '' : COEXISTENCE_FEATURE_TYPE")
+    expect(waSignup).toContain("COEXISTENCE_FEATURE_TYPE = 'whatsapp_business_app_onboarding'")
+    expect(waSignup).toContain("version: 'v3'")
+    expect(waSignup).not.toContain('sessionInfoVersion')
+  })
 })
