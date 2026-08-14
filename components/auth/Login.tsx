@@ -185,16 +185,22 @@ export default function Login({
         <Script src='https://connect.facebook.net/he_IL/sdk.js' onLoad={initFacebook} strategy='lazyOnload' />
       )}
 
-      <div id='gglBtn' className='flex w-[250px] justify-center'></div>
+      <div id='gglBtn' className='flex w-[250px] justify-center' dir='ltr'></div>
       {facebookAppId && (
         <button
           type='button'
-          dir='rtl'
-          className='mt-3 flex h-10 w-[250px] items-center justify-center gap-2.5 rounded border border-[#747775] bg-white text-[14px] font-medium text-[#1f1f1f] hover:bg-gray-50'
+          dir='ltr'
+          className='relative mt-3 flex h-10 w-[250px] items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
           onClick={onFacebookClick}
         >
-          <svg width='18' height='18' viewBox='0 0 24 24' className='shrink-0' aria-hidden='true'>
-            <rect width='24' height='24' rx='6' fill='#1877F2' />
+          <svg
+            width='20'
+            height='20'
+            viewBox='0 0 24 24'
+            className='absolute left-3 top-1/2 shrink-0 -translate-y-1/2'
+            aria-hidden='true'
+          >
+            <circle cx='12' cy='12' r='12' fill='#1877F2' />
             <path
               fill='#fff'
               d='M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z'
