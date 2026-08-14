@@ -1,5 +1,3 @@
-import { GRAPH_BASE } from '@/lib/facebook/graph'
-
 /**
  * WhatsApp Business App Coexistence.
  *
@@ -12,6 +10,10 @@ import { GRAPH_BASE } from '@/lib/facebook/graph'
  *
  * This module holds the pieces that are specific to that flow. Everything here
  * is additive: a normal Cloud API onboarding never reaches it.
+ *
+ * Server-side Graph metadata (`is_on_biz_app`) is the authority for whether a
+ * number is on the WhatsApp Business app. The browser-supplied onboardingType
+ * is only a hint for the window before Meta flips that flag.
  */
 
 /**
@@ -55,7 +57,21 @@ export function isCoexistenceWebhookField(field: unknown): boolean {
   return typeof field === 'string' && COEXISTENCE_WEBHOOK_FIELDS.has(field)
 }
 
-type PhoneNumberRow = { id?: string; display_phone_number?: string; platform_type?: string }
+/**
+ * Entry point for coexistence webhook fields. They reach this pipeline and
+ * are acknowledged; they must never be treated as inbound customer messages.
+ */
+export function processCoexistenceWebhook(field: string, _value: unknown): { ok: true; field: string } {
+  console.log('[WhatsappWebhook][coexistence] processed; never treated as inbound', { field })
+  return { ok: true, field }
+}
+
+type PhoneNumberRow = {
+  id?: string
+  display_phone_number?: string
+  platform_type?: string
+  is_on_biz_app?: boolean
+}
 
 /**
  * Flat rather than a discriminated union on purpose: this codebase compiles
@@ -67,6 +83,50 @@ export type PhoneResolution = {
   reason?: 'none_found' | 'ambiguous' | 'lookup_failed'
 }
 
+export type PhoneBizAppState = {
+  isOnBizApp: boolean
+  platformType?: string
+}
+
+/**
+ * Server-side authority for Coexistence vs Cloud API.
+ *
+ * Meta: GET /{phone_number_id}?fields=is_on_biz_app,platform_type
+ * If `is_on_biz_app` is true, the number is live on the WhatsApp Business app
+ * and MUST NOT be passed to POST /register.
+ *
+ * Uses the coexistence Graph version because `is_on_biz_app` postdates v19.0.
+ * Never throws: a failed lookup returns isOnBizApp false so Cloud API
+ * onboarding is not blocked by a metadata blip. The hard lock against
+ * /register is `isOnBizApp === true`, not "lookup failed".
+ */
+export async function fetchPhoneBizAppState(phoneNumberId: string, accessToken: string): Promise<PhoneBizAppState> {
+  try {
+    const res = await fetch(
+      `${COEXISTENCE_GRAPH_BASE}/${encodeURIComponent(phoneNumberId)}?fields=is_on_biz_app,platform_type&access_token=${encodeURIComponent(accessToken)}`,
+    )
+    if (!res.ok) {
+      console.error('[WA Coexistence] phone biz-app lookup failed:', res.status)
+      return { isOnBizApp: false }
+    }
+    const data = (await res.json().catch(() => ({}))) as { is_on_biz_app?: boolean; platform_type?: string }
+    return { isOnBizApp: data.is_on_biz_app === true, platformType: data.platform_type }
+  } catch (e) {
+    console.error('[WA Coexistence] phone biz-app lookup threw:', e)
+    return { isOnBizApp: false }
+  }
+}
+
+/**
+ * Graph `is_on_biz_app` wins over the browser-supplied type. The browser hint
+ * is kept only for the window where Meta has completed Embedded Signup but
+ * has not yet flipped the flag — still skip /register in that case.
+ */
+export function resolveOnboardingType(args: { isOnBizApp: boolean; browserOnboardingType?: OnboardingType }): OnboardingType {
+  if (args.isOnBizApp) return 'coexistence'
+  return args.browserOnboardingType === 'coexistence' ? 'coexistence' : 'cloud_api'
+}
+
 /**
  * Resolve the business phone number id from a WABA id.
  *
@@ -75,13 +135,16 @@ export type PhoneResolution = {
  * rejected the whole onboarding when the id was absent, so a customer who
  * completed Meta's flow correctly still ended up unconnected.
  *
- * Ambiguity is failed rather than guessed: picking the wrong number would
- * silently wire the CRM to a phone the business does not use for leads.
+ * A WABA can contain several numbers. When exactly one of them has
+ * `is_on_biz_app === true`, that is the Coexistence number — do not treat
+ * the whole list as ambiguous. Remaining multi-number cases still fail
+ * rather than guess: picking the wrong number would silently wire the CRM
+ * to a phone the business does not use for leads.
  */
 export async function resolvePhoneNumberIdForWaba(wabaId: string, accessToken: string): Promise<PhoneResolution> {
   try {
     const res = await fetch(
-      `${GRAPH_BASE}/${wabaId}/phone_numbers?fields=id,display_phone_number,platform_type&access_token=${encodeURIComponent(accessToken)}`,
+      `${COEXISTENCE_GRAPH_BASE}/${encodeURIComponent(wabaId)}/phone_numbers?fields=id,display_phone_number,platform_type,is_on_biz_app&access_token=${encodeURIComponent(accessToken)}`,
     )
     if (!res.ok) {
       console.error('[WA Coexistence] phone_numbers lookup failed:', res.status)
@@ -92,6 +155,9 @@ export async function resolvePhoneNumberIdForWaba(wabaId: string, accessToken: s
 
     if (rows.length === 0) return { reason: 'none_found' }
     if (rows.length === 1) return { phoneNumberId: rows[0].id }
+
+    const onBizApp = rows.filter((r) => r.is_on_biz_app === true)
+    if (onBizApp.length === 1) return { phoneNumberId: onBizApp[0].id }
     return { reason: 'ambiguous' }
   } catch (e) {
     console.error('[WA Coexistence] phone_numbers lookup threw:', e)

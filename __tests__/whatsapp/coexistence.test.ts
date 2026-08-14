@@ -3,6 +3,9 @@ import {
   isCoexistenceWebhookField,
   resolvePhoneNumberIdForWaba,
   syncSmbAppData,
+  fetchPhoneBizAppState,
+  resolveOnboardingType,
+  processCoexistenceWebhook,
 } from '@/lib/whatsapp/coexistence'
 
 const originalFetch = global.fetch
@@ -68,8 +71,39 @@ describe('resolvePhoneNumberIdForWaba', () => {
 
   // Guessing would silently wire the CRM to a number the business does not use
   // for leads, and the mistake would surface only as missing leads later.
-  it('refuses to guess when several numbers exist', async () => {
+  it('refuses to guess when several numbers exist and none is on the Business app', async () => {
     mockFetchOnce([{ ok: true, body: { data: [{ id: '111' }, { id: '222' }] } }])
+    await expect(resolvePhoneNumberIdForWaba('WABA', 'TOKEN')).resolves.toEqual({ reason: 'ambiguous' })
+  })
+
+  it('resolves the Coexistence number when a multi-phone WABA has exactly one is_on_biz_app=true', async () => {
+    mockFetchOnce([
+      {
+        ok: true,
+        body: {
+          data: [
+            { id: '111', platform_type: 'CLOUD_API', is_on_biz_app: false },
+            { id: '222', platform_type: 'CLOUD_API', is_on_biz_app: true },
+            { id: '333', platform_type: 'CLOUD_API', is_on_biz_app: false },
+          ],
+        },
+      },
+    ])
+    await expect(resolvePhoneNumberIdForWaba('WABA', 'TOKEN')).resolves.toEqual({ phoneNumberId: '222' })
+  })
+
+  it('stays ambiguous when several numbers are on the Business app', async () => {
+    mockFetchOnce([
+      {
+        ok: true,
+        body: {
+          data: [
+            { id: '111', is_on_biz_app: true },
+            { id: '222', is_on_biz_app: true },
+          ],
+        },
+      },
+    ])
     await expect(resolvePhoneNumberIdForWaba('WABA', 'TOKEN')).resolves.toEqual({ reason: 'ambiguous' })
   })
 
@@ -93,6 +127,68 @@ describe('resolvePhoneNumberIdForWaba', () => {
     await resolvePhoneNumberIdForWaba('WABA', 'a b&c')
     const url = String(fn.mock.calls[0][0])
     expect(url).toContain('a%20b%26c')
+    expect(url).toContain('is_on_biz_app')
+    expect(url).not.toContain('/v19.0/')
+  })
+})
+
+describe('resolveOnboardingType', () => {
+  it('forces coexistence when is_on_biz_app is true, ignoring the browser type', () => {
+    expect(resolveOnboardingType({ isOnBizApp: true, browserOnboardingType: 'cloud_api' })).toBe('coexistence')
+  })
+
+  it('keeps the coexistence hint when Graph has not flipped the flag yet', () => {
+    expect(resolveOnboardingType({ isOnBizApp: false, browserOnboardingType: 'coexistence' })).toBe('coexistence')
+  })
+
+  it('stays Cloud API when Graph and the browser both say so', () => {
+    expect(resolveOnboardingType({ isOnBizApp: false, browserOnboardingType: 'cloud_api' })).toBe('cloud_api')
+    expect(resolveOnboardingType({ isOnBizApp: false })).toBe('cloud_api')
+  })
+})
+
+describe('fetchPhoneBizAppState', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  it('returns isOnBizApp true only for the boolean true flag', async () => {
+    mockFetchOnce([{ ok: true, body: { is_on_biz_app: true, platform_type: 'CLOUD_API' } }])
+    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({
+      isOnBizApp: true,
+      platformType: 'CLOUD_API',
+    })
+  })
+
+  it('does not treat a missing flag as on the Business app', async () => {
+    mockFetchOnce([{ ok: true, body: { platform_type: 'CLOUD_API' } }])
+    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({
+      isOnBizApp: false,
+      platformType: 'CLOUD_API',
+    })
+  })
+
+  it('requests the documented fields on the coexistence Graph version', async () => {
+    const fn = mockFetchOnce([{ ok: true, body: { is_on_biz_app: false } }])
+    await fetchPhoneBizAppState('106540352242922', 'tok')
+    const url = String(fn.mock.calls[0][0])
+    expect(url).toContain('/106540352242922?')
+    expect(url).toContain('fields=is_on_biz_app,platform_type')
+    expect(url).not.toContain('/v19.0/')
+  })
+
+  it('never throws when the lookup fails', async () => {
+    mockFetchOnce([{ ok: false, status: 400 }])
+    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({ isOnBizApp: false })
+  })
+})
+
+describe('processCoexistenceWebhook', () => {
+  it('acknowledges each coexistence field', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    expect(processCoexistenceWebhook('history', { history: [] })).toEqual({ ok: true, field: 'history' })
+    expect(processCoexistenceWebhook('smb_app_state_sync', {})).toEqual({ ok: true, field: 'smb_app_state_sync' })
+    expect(processCoexistenceWebhook('smb_message_echoes', {})).toEqual({ ok: true, field: 'smb_message_echoes' })
   })
 })
 

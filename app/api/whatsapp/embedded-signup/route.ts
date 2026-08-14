@@ -5,7 +5,13 @@ import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
 import { track } from '@/lib/analytics/track'
 import { WA_REASON, WA_REASON_NOTICE_CODE, type WaReason } from '@/lib/connections/reasons'
-import { resolvePhoneNumberIdForWaba, syncSmbAppData, type OnboardingType } from '@/lib/whatsapp/coexistence'
+import {
+  resolvePhoneNumberIdForWaba,
+  syncSmbAppData,
+  fetchPhoneBizAppState,
+  resolveOnboardingType,
+  type OnboardingType,
+} from '@/lib/whatsapp/coexistence'
 
 /**
  * Return a structured failure WITHOUT persisting an operational connection.
@@ -36,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { code, wabaId } = body
-  const onboardingType: OnboardingType = body.onboardingType === 'coexistence' ? 'coexistence' : 'cloud_api'
+  const browserOnboardingType: OnboardingType = body.onboardingType === 'coexistence' ? 'coexistence' : 'cloud_api'
   // Resolved below when the coexistence event supplied only a WABA id.
   let phoneNumberId = body.phoneNumberId
 
@@ -79,12 +85,19 @@ export async function POST(req: NextRequest) {
     if (!resolution.phoneNumberId) {
       console.error('[WA EmbeddedSignup] could not resolve phone number from WABA', {
         reason: resolution.reason,
-        onboardingType,
+        browserOnboardingType,
       })
       return fail(agencyId, user.id, WA_REASON.PHONE_NOT_FOUND, 'discover', 400)
     }
     phoneNumberId = resolution.phoneNumberId
   }
+
+  // Server-side authority: Graph `is_on_biz_app` wins over the browser type.
+  const bizApp = await fetchPhoneBizAppState(phoneNumberId, accessToken)
+  const onboardingType = resolveOnboardingType({
+    isOnBizApp: bizApp.isOnBizApp,
+    browserOnboardingType,
+  })
 
   // 2. Cross-tenant safety: never silently move a phone number between agencies.
   //    Same agency reconnecting is allowed (updates token/waba below).
@@ -126,6 +139,7 @@ export async function POST(req: NextRequest) {
         phone_number_id: phoneNumberId,
         access_token: accessToken,
         waba_id: wabaId,
+        onboarding_type: onboardingType,
       })
       .onConflict('phone_number_id')
       .merge({
@@ -133,6 +147,7 @@ export async function POST(req: NextRequest) {
         agency_id: agencyId,
         access_token: accessToken,
         waba_id: wabaId,
+        onboarding_type: onboardingType,
       })
   } catch (err) {
     console.error('[WA EmbeddedSignup] DB upsert failed:', err)
@@ -154,13 +169,18 @@ export async function POST(req: NextRequest) {
   //     A failure degrades the connection (no imported history); it must never
   //     fail an onboarding that otherwise succeeded.
   if (onboardingType === 'coexistence') {
-    const sync = await syncSmbAppData(phoneNumberId, accessToken)
-    if (!sync.contacts || !sync.history) {
-      console.warn('[WA EmbeddedSignup] coexistence sync incomplete', {
-        phoneNumberId,
-        contacts: sync.contacts,
-        history: sync.history,
-      })
+    const alreadySynced = existing?.onboarding_type === 'coexistence'
+    if (alreadySynced) {
+      console.log('[WA EmbeddedSignup] coexistence reconnect; smb_app_data already requested', { phoneNumberId })
+    } else {
+      const sync = await syncSmbAppData(phoneNumberId, accessToken)
+      if (!sync.contacts || !sync.history) {
+        console.warn('[WA EmbeddedSignup] coexistence sync incomplete', {
+          phoneNumberId,
+          contacts: sync.contacts,
+          history: sync.history,
+        })
+      }
     }
   }
 

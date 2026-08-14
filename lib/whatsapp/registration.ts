@@ -1,5 +1,6 @@
 import { randomInt } from 'crypto'
 import { GRAPH_BASE } from '@/lib/facebook/graph'
+import { fetchPhoneBizAppState } from '@/lib/whatsapp/coexistence'
 
 export type MessagingReadiness = {
   ready: boolean
@@ -123,6 +124,19 @@ export async function ensureMessagingReady(
       phoneNumberId,
       status: status.status,
       platformType: status.platformType,
+    })
+    return { ready: false, status: status.status, reason: 'coexistence_pending' }
+  }
+
+  // Hard lock: Graph `is_on_biz_app === true` must never reach POST /register,
+  // even if the caller forgot skipRegistration or the browser claimed cloud_api.
+  // The browser-supplied onboardingType is not the authority for this decision.
+  const bizApp = await fetchPhoneBizAppState(phoneNumberId, accessToken)
+  if (bizApp.isOnBizApp) {
+    console.warn('[WA Registration] is_on_biz_app=true; registration refused', {
+      phoneNumberId,
+      status: status.status,
+      platformType: bizApp.platformType,
     })
     return { ready: false, status: status.status, reason: 'coexistence_pending' }
   }

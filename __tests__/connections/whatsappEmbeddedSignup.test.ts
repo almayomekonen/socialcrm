@@ -11,12 +11,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const h = vi.hoisted(() => {
-  const state = { existing: null as { agency_id: number } | null, merged: [] as unknown[] }
+  const state = {
+    existing: null as { agency_id: number; onboarding_type?: string | null } | null,
+    merged: [] as unknown[],
+    inserted: [] as unknown[],
+  }
   const qb: Record<string, unknown> = {}
   qb.where = () => qb
   qb.whereRaw = () => qb
   qb.first = async () => state.existing
-  qb.insert = () => qb
+  qb.insert = (obj: unknown) => {
+    state.inserted.push(obj)
+    return qb
+  }
   qb.onConflict = () => qb
   qb.merge = async (obj: unknown) => {
     state.merged.push(obj)
@@ -35,6 +42,7 @@ vi.mock('@/lib/whatsapp/registration', () => ({
 
 import { POST } from '@/app/api/whatsapp/embedded-signup/route'
 import { getUser } from '@/db/auth'
+import { ensureMessagingReady } from '@/lib/whatsapp/registration'
 
 const AGENCY = 69
 const USER = 298
@@ -43,12 +51,14 @@ function res(status: number, body: unknown) {
   return { ok: status < 400, status, json: async () => body, text: async () => JSON.stringify(body) }
 }
 
-/** Route fetch calls: token exchange, then subscribed_apps. */
-function mockFetch({ subscribedOk }: { subscribedOk: boolean }) {
+/** Route fetch calls: token exchange, phone metadata, then subscribed_apps. */
+function mockFetch({ subscribedOk, isOnBizApp = false }: { subscribedOk: boolean; isOnBizApp?: boolean }) {
   global.fetch = vi.fn(async (url: unknown) => {
     const u = String(url)
     if (u.includes('oauth/access_token')) return res(200, { access_token: 'tok_abc' })
+    if (u.includes('fields=is_on_biz_app')) return res(200, { is_on_biz_app: isOnBizApp, platform_type: 'CLOUD_API' })
     if (u.includes('subscribed_apps')) return subscribedOk ? res(200, { success: true }) : res(400, { error: { message: 'Object does not exist', code: 100 } })
+    if (u.includes('/smb_app_data')) return res(200, { messaging_product: 'whatsapp', request_id: 'req_1' })
     return res(200, {})
   }) as unknown as typeof fetch
 }
@@ -60,7 +70,10 @@ function req(body: unknown) {
 beforeEach(() => {
   h.state.existing = null
   h.state.merged = []
+  h.state.inserted = []
   vi.mocked(getUser).mockResolvedValue({ id: USER, agencyId: AGENCY, email: 'x@example.com' } as never)
+  vi.mocked(ensureMessagingReady).mockClear()
+  vi.mocked(ensureMessagingReady).mockResolvedValue({ ready: true, status: 'CONNECTED' })
 })
 
 describe('WhatsApp Embedded Signup — persistence gate', () => {
@@ -106,5 +119,42 @@ describe('WhatsApp Embedded Signup — persistence gate', () => {
     const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
     expect(r.status).toBe(200)
     expect(h.state.merged).toHaveLength(1)
+  })
+
+  it('Graph is_on_biz_app=true forces Coexistence even when the browser sent cloud_api', async () => {
+    mockFetch({ subscribedOk: true, isOnBizApp: true })
+    const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1', onboardingType: 'cloud_api' }))
+    expect(r.status).toBe(200)
+    expect(h.state.inserted[0]).toMatchObject({ onboarding_type: 'coexistence' })
+    expect(vi.mocked(ensureMessagingReady).mock.calls[0][2]).toEqual({ skipRegistration: true })
+    const urls = vi.mocked(global.fetch).mock.calls.map((c) => String(c[0]))
+    expect(urls.some((u) => u.includes('/smb_app_data'))).toBe(true)
+  })
+
+  it('Coexistence onboarding skips registration and persists onboarding_type', async () => {
+    mockFetch({ subscribedOk: true, isOnBizApp: false })
+    const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1', onboardingType: 'coexistence' }))
+    expect(r.status).toBe(200)
+    expect(h.state.inserted[0]).toMatchObject({ onboarding_type: 'coexistence' })
+    expect(vi.mocked(ensureMessagingReady).mock.calls[0][2]).toEqual({ skipRegistration: true })
+  })
+
+  it('Cloud API onboarding still registers and does not request smb_app_data', async () => {
+    mockFetch({ subscribedOk: true, isOnBizApp: false })
+    const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1', onboardingType: 'cloud_api' }))
+    expect(r.status).toBe(200)
+    expect(h.state.inserted[0]).toMatchObject({ onboarding_type: 'cloud_api' })
+    expect(vi.mocked(ensureMessagingReady).mock.calls[0][2]).toEqual({ skipRegistration: false })
+    const urls = vi.mocked(global.fetch).mock.calls.map((c) => String(c[0]))
+    expect(urls.some((u) => u.includes('/smb_app_data'))).toBe(false)
+  })
+
+  it('Coexistence reconnect does not re-request the one-shot smb_app_data sync', async () => {
+    h.state.existing = { agency_id: AGENCY, onboarding_type: 'coexistence' }
+    mockFetch({ subscribedOk: true, isOnBizApp: true })
+    await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1', onboardingType: 'cloud_api' }))
+    const urls = vi.mocked(global.fetch).mock.calls.map((c) => String(c[0]))
+    expect(urls.some((u) => u.includes('/smb_app_data'))).toBe(false)
+    expect(vi.mocked(ensureMessagingReady).mock.calls[0][2]).toEqual({ skipRegistration: true })
   })
 })

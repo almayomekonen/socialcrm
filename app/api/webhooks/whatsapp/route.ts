@@ -7,7 +7,7 @@ import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
 import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
 import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatus'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
-import { isCoexistenceWebhookField } from '@/lib/whatsapp/coexistence'
+import { isCoexistenceWebhookField, processCoexistenceWebhook } from '@/lib/whatsapp/coexistence'
 import { notifyWhatsappIngestionFailed } from '@/lib/whatsapp/integrationNotifications'
 import { db } from '@/config/db'
 
@@ -60,27 +60,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const value = body?.entry?.[0]?.changes?.[0]?.value
-  if (!value) {
-    console.warn('[WhatsappWebhook] Invalid payload structure')
-    return NextResponse.json({ ok: true })
-  }
+  const change = body?.entry?.[0]?.changes?.[0]
 
-  // Coexistence webhooks, handled FIRST and terminally.
+  // Coexistence webhooks, handled FIRST and terminally — before the `value`
+  // shape check, so history / smb_app_state_sync / smb_message_echoes always
+  // reach this pipeline rather than being dropped as "invalid payload".
   //
   // `smb_message_echoes` carries messages the BUSINESS sent from their own
   // phone. If one of those were treated as inbound it would create a lead from
   // the business's own message and could fire an automated reply at a real
   // customer — the single worst failure mode this feature could introduce.
   // `history` and `smb_app_state_sync` are likewise not new inbound traffic.
-  //
-  // Their payloads sit under `message_echoes` / `history` / `state_sync` rather
-  // than `messages`, so the reader below would not pick them up anyway. This is
-  // the explicit lock in front of that implicit one, placed before any ingestion
-  // so no future edit to the paths below can quietly undo it.
-  const incomingField = body?.entry?.[0]?.changes?.[0]?.field
-  if (isCoexistenceWebhookField(incomingField)) {
-    console.log('[WhatsappWebhook][coexistence] acknowledged; never treated as inbound', { field: incomingField })
+  const incomingField = change?.field
+  if (typeof incomingField === 'string' && isCoexistenceWebhookField(incomingField)) {
+    processCoexistenceWebhook(incomingField, change?.value)
+    return NextResponse.json({ ok: true })
+  }
+
+  const value = change?.value
+  if (!value) {
+    console.warn('[WhatsappWebhook] Invalid payload structure')
     return NextResponse.json({ ok: true })
   }
 
@@ -102,7 +101,6 @@ export async function POST(req: NextRequest) {
   // templates, keyed by the WABA id (entry.id). Fully separate from the messages
   // and delivery-statuses paths and from the auto-response worker — it returns
   // here and never sends or automates anything. Fail-safe: always 200.
-  const change = body?.entry?.[0]?.changes?.[0]
   const field = change?.field
   if (field === 'message_template_status_update' || field === 'message_template_quality_update') {
     try {
