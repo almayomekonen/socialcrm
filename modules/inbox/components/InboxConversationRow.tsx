@@ -5,6 +5,7 @@ import { ACTION_LABELS, INTENT_LABELS, TEMPERATURE_BADGES } from '@/modules/inbo
 import type { InboxConversationListItem } from '@/modules/inbox/types'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import ChannelIcon from './ChannelIcon'
+import DeleteConversationMenu from '@/components/inbox/DeleteConversationMenu'
 
 export default function InboxConversationRow({
   item,
@@ -23,13 +24,14 @@ export default function InboxConversationRow({
   const actionLabel = item.suggestedAction ? ACTION_LABELS[item.suggestedAction] : null
 
   return (
-    <Link
-      href={`/inbox?conversation=${item.conversationId}`}
-      aria-current={selected ? 'true' : undefined}
-      className={`flex gap-2.5 border-b border-gray-100 px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
-        selected ? 'bg-primary-soft' : 'hover:bg-gray-50'
-      }`}
-    >
+    <div className='group relative'>
+      <Link
+        href={`/inbox?conversation=${item.conversationId}`}
+        aria-current={selected ? 'true' : undefined}
+        className={`flex gap-2.5 border-b border-gray-100 ps-3 pe-8 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+          selected ? 'bg-primary-soft' : 'hover:bg-gray-50'
+        }`}
+      >
       <LeadAvatar name={item.displayName} size='sm' />
       <div className='min-w-0 flex-1'>
         <div className='flex items-center justify-between gap-2'>
@@ -77,6 +79,12 @@ export default function InboxConversationRow({
           )}
         </div>
       </div>
-    </Link>
+      </Link>
+      {/* Row actions live OUTSIDE the <Link> (no button-in-anchor); revealed on
+          hover/focus in the reserved right gutter (pe-8 above). */}
+      <div className='absolute end-1.5 top-1/2 -translate-y-1/2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100'>
+        <DeleteConversationMenu conversationId={item.conversationId} />
+      </div>
+    </div>
   )
 }

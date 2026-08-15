@@ -15,6 +15,7 @@ export default function WhatsappConversation({
   leadId,
   conversationId = null,
   isPersonal = false,
+  showDelete = false,
   displayName = null,
   leadStatus = null,
   customerWaId = null,
@@ -24,6 +25,7 @@ export default function WhatsappConversation({
   leadId: number | null
   conversationId?: number | null
   isPersonal?: boolean
+  showDelete?: boolean
   displayName?: string | null
   leadStatus?: string | null
   customerWaId?: string | null
@@ -59,6 +61,7 @@ export default function WhatsappConversation({
         leadId={leadId}
         conversationId={conversationId}
         isPersonal={isPersonal}
+        showDelete={showDelete}
         lastDirection={last?.direction ?? null}
         lastActivityAt={latestInbound?.timestamp ?? null}
       />

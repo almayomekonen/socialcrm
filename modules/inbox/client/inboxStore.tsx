@@ -20,6 +20,8 @@ type InboxStoreValue = {
   applyLocalRead: (conversationId: number) => { wasUnread: boolean }
   /** List delta from the sync loop. */
   mergeSync: (changed: InboxConversationListItem[]) => void
+  /** Drop a conversation from the list after a confirmed delete; clears the open thread if it was the active one. */
+  removeConversation: (conversationId: number) => void
   // ── Open thread ──
   activeConversationId: number | null
   activeMessages: LeadWhatsappMessage[]
@@ -128,6 +130,21 @@ export function InboxStoreProvider({
     setActiveMessages((prev) => applyStatusesToMessages(prev, updates))
   }, [])
 
+  const removeConversation = useCallback((conversationId: number) => {
+    // Remove from both the live first page and any accumulated "load more" pages,
+    // so no ghost row survives regardless of where the deleted row was paginated.
+    const drop = (arr: InboxConversationListItem[]) => arr.filter((i) => i.conversationId !== conversationId)
+    setBase(drop)
+    setExtra(drop)
+    // If the deleted conversation is the open thread, tear its messages down so no
+    // stale message data lingers in React state/cache.
+    if (activeConvIdRef.current === conversationId) {
+      activeConvIdRef.current = null
+      setActiveConversationId(null)
+      setActiveMessages([])
+    }
+  }, [])
+
   const applyLocalRead = useCallback(
     (conversationId: number) => {
       if (!deltaSyncEnabled) return { wasUnread: false }
@@ -162,6 +179,7 @@ export function InboxStoreProvider({
       loadMore,
       applyLocalRead,
       mergeSync,
+      removeConversation,
       activeConversationId,
       activeMessages,
       activeLatestMessageId,
@@ -176,6 +194,7 @@ export function InboxStoreProvider({
       loadMore,
       applyLocalRead,
       mergeSync,
+      removeConversation,
       activeConversationId,
       activeMessages,
       activeLatestMessageId,

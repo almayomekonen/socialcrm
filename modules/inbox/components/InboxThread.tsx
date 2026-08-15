@@ -37,6 +37,7 @@ export default function InboxThread({
       leadId={leadId}
       conversationId={conversationId}
       isPersonal={isPersonal}
+      showDelete
       displayName={displayName}
       leadStatus={leadStatus}
       customerWaId={customerWaId}

@@ -106,6 +106,31 @@ export async function attachConversationToLead(
   })
 }
 
+/**
+ * Hard-delete a WhatsApp conversation and everything it owns, LOCAL to SocialCRM.
+ *
+ * A single agency-scoped DELETE is sufficient: `inbox_messages`,
+ * `inbox_participants`, and `inbox_conversation_reads` all reference
+ * `inbox_conversations(id)` with `ON DELETE CASCADE`, so the whole thread is
+ * removed atomically without an explicit multi-table transaction.
+ *
+ * What this deliberately does NOT touch:
+ *   - `clients` (the Lead): the `leadId` FK runs clients → conversations
+ *     (`ON DELETE CASCADE` in that direction only). Deleting a conversation can
+ *     never delete a client. The Lead is preserved for every conversation kind
+ *     (lead-linked, leadless, personal, FB/IG-linked, coexistence).
+ *   - `ai_conversations` / AI derived rows: keyed by `leadId`, not by this
+ *     conversation, so they are out of the cascade and survive.
+ *
+ * The `agencyId` predicate is the tenant/IDOR guard — a conversation owned by
+ * another agency does not match, so 0 rows are affected (no effect, no leak).
+ * Idempotent: deleting an already-gone conversation returns `{ deleted: false }`.
+ */
+export async function deleteConversation(args: { conversationId: number; agencyId: number }): Promise<{ deleted: boolean }> {
+  const count = await db('inbox_conversations').where({ id: args.conversationId, agencyId: args.agencyId }).del()
+  return { deleted: count > 0 }
+}
+
 export async function bumpConversationOnInbound(
   trx: Knex.Transaction,
   conversationId: number,

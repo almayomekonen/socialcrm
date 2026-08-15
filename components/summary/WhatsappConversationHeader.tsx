@@ -4,6 +4,7 @@ import { formatDate } from '@/lib/dates'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
+import DeleteConversationMenu from '@/components/inbox/DeleteConversationMenu'
 
 const QUICK_ACTION_CLS =
   'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
@@ -20,6 +21,7 @@ export default function WhatsappConversationHeader({
   leadId,
   conversationId = null,
   isPersonal = false,
+  showDelete = false,
   lastDirection,
   lastActivityAt,
 }: {
@@ -29,6 +31,8 @@ export default function WhatsappConversationHeader({
   leadId: number | null
   conversationId?: number | null
   isPersonal?: boolean
+  /** Render the "⋮ מחק שיחה" menu. Only the Inbox surfaces (inside InboxStoreProvider) pass this. */
+  showDelete?: boolean
   lastDirection: 'inbound' | 'outbound' | null
   lastActivityAt: string | null
 }) {
@@ -98,6 +102,9 @@ export default function WhatsappConversationHeader({
         )}
         {leadId == null && conversationId != null && (
           <LeadlessConversationActions conversationId={conversationId} isPersonal={isPersonal} />
+        )}
+        {showDelete && conversationId != null && (
+          <DeleteConversationMenu conversationId={conversationId} size='md' />
         )}
       </div>
     </div>
