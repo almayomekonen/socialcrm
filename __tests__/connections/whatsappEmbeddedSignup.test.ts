@@ -104,6 +104,44 @@ describe('WhatsApp Embedded Signup — persistence gate', () => {
     expect(h.state.merged).toHaveLength(0)
   })
 
+  it('invalid WABA (empty string) → no persist, WABA_NOT_FOUND', async () => {
+    mockFetch({ subscribedOk: true })
+    const r = await POST(req({ code: 'c', wabaId: '', phoneNumberId: 'P1' }))
+    expect(r.status).toBe(400)
+    expect((await r.json()).reason).toBe('WABA_NOT_FOUND')
+    expect(h.state.merged).toHaveLength(0)
+  })
+
+  it('missing OAuth code → 400, no persist, no Graph calls', async () => {
+    mockFetch({ subscribedOk: true })
+    const r = await POST(req({ wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(r.status).toBe(400)
+    expect(h.state.merged).toHaveLength(0)
+  })
+
+  it('token exchange failed → TOKEN_EXCHANGE_FAILED, no persist', async () => {
+    global.fetch = vi.fn(async (url: unknown) => {
+      const u = String(url)
+      if (u.includes('oauth/access_token')) return res(400, { error: { message: 'Invalid code' } })
+      return res(200, {})
+    }) as unknown as typeof fetch
+    const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(r.status).toBe(400)
+    expect((await r.json()).reason).toBe('TOKEN_EXCHANGE_FAILED')
+    expect(h.state.merged).toHaveLength(0)
+    const urls = vi.mocked(global.fetch).mock.calls.map((c) => String(c[0]))
+    expect(urls.some((u) => u.includes('subscribed_apps'))).toBe(false)
+  })
+
+  it('phone registration not ready → still persist (subscribed), messagingReady false', async () => {
+    mockFetch({ subscribedOk: true })
+    vi.mocked(ensureMessagingReady).mockResolvedValue({ ready: false, reason: 'registration_required' })
+    const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(r.status).toBe(200)
+    expect(await r.json()).toMatchObject({ ok: true, messagingReady: false, reason: 'registration_required' })
+    expect(h.state.merged).toHaveLength(1)
+  })
+
   it('WA-7: phone_number_id owned by another agency → 409, no reassignment', async () => {
     h.state.existing = { agency_id: 999 } // different agency owns this number
     mockFetch({ subscribedOk: true })
