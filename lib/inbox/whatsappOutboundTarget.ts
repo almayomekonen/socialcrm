@@ -65,3 +65,43 @@ export async function resolveWhatsappOutboundTarget(
     },
   }
 }
+
+/**
+ * Conversation-scoped targeting. Uses the phone already on THIS conversation.
+ * Never falls back to an agency-wide `.first()` connection.
+ */
+export async function resolveWhatsappOutboundTargetForConversation(
+  agencyId: number,
+  leadId: number,
+  conversationId: number,
+): Promise<ResolveWhatsappOutboundTargetResult> {
+  const lead = await db('clients').where({ id: leadId, agencyId }).first('id', 'phone', 'name')
+  if (!lead) return { ok: false, reason: 'lead-not-found' }
+
+  const conv = await db('inbox_conversations')
+    .where({ id: conversationId, agencyId, leadId, channel: 'whatsapp' })
+    .first('businessPhoneNumberId', 'customerWaId', 'customerName')
+  const businessPhoneNumberId = String(conv?.businessPhoneNumberId ?? '').trim()
+  if (!conv || !businessPhoneNumberId) return { ok: false, reason: 'no-connection' }
+
+  const connection = await db('whatsapp_connections')
+    .where({ phone_number_id: businessPhoneNumberId, agency_id: agencyId })
+    .first('phone_number_id', 'access_token')
+  if (!connection) return { ok: false, reason: 'no-connection' }
+
+  const leadPhoneDigits = String(lead.phone ?? '').replace(/\D/g, '')
+  const customerWaId = conv.customerWaId || (leadPhoneDigits.length >= 9 ? leadPhoneDigits : '')
+  if (!customerWaId) return { ok: false, reason: 'no-recipient' }
+
+  return {
+    ok: true,
+    target: {
+      leadId,
+      leadName: (lead.name as string | null) ?? null,
+      businessPhoneNumberId,
+      accessToken: connection.access_token,
+      customerWaId,
+      customerName: (conv.customerName as string | null) ?? (lead.name as string | null) ?? null,
+    },
+  }
+}

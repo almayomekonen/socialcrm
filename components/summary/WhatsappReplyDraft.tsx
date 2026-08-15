@@ -13,7 +13,13 @@ import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 const MAX_CHARS = 4096
 
-export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
+export default function WhatsappReplyDraft({
+  leadId,
+  conversationId = null,
+}: {
+  leadId: number
+  conversationId?: number | null
+}) {
   const router = useRouter()
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +78,7 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
     setSending(true)
     setError(null)
     try {
-      const res = await sendWhatsappReply(leadId, draft)
+      const res = await sendWhatsappReply(leadId, draft, conversationId)
       if (res.ok === true) {
         setDraft('')
         // HTTP 200 from the Cloud API is an ACCEPT, not a delivery. Only a

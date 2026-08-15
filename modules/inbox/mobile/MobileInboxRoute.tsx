@@ -3,7 +3,8 @@ import type { Route } from 'next'
 import Icon from '@/lib/Icon'
 import { listInboxConversations, getInboxConversationById } from '@/modules/inbox/queries'
 import { listConversationMessages } from '@/db/inboxMessages'
-import { getWhatsappConnectionState } from '@/db/whatsapp'
+import { getUser } from '@/db/auth'
+import { loadWhatsappComposerContext } from '@/lib/inbox/whatsappComposerContext'
 import ConversationListMobile from './ConversationListMobile'
 import ConversationThreadMobile from './ConversationThreadMobile'
 import { relativeTimeHe } from './relativeTime'
@@ -42,9 +43,10 @@ export default async function MobileInboxRoute({
     const target = await getInboxConversationById(agencyId, conversationId)
     if (!target) return <ConversationMissing />
 
-    const [messages, wa] = await Promise.all([
+    const user = await getUser()
+    const [messages, composerFacts] = await Promise.all([
       listConversationMessages(conversationId),
-      getWhatsappConnectionState(agencyId),
+      loadWhatsappComposerContext(agencyId, conversationId, { role: user?.role }),
     ])
 
     const name = target.displayName || target.leadName || 'שיחה'
@@ -84,7 +86,7 @@ export default async function MobileInboxRoute({
             leadId={target.leadId}
             displayName={name}
             initialMessages={messages}
-            canSend={wa.connected}
+            composerFacts={composerFacts}
           />
         </div>
       </div>

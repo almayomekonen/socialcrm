@@ -4,15 +4,20 @@ import { requireProductAccess } from '@/lib/requireUser'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
-import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
+import {
+  resolveWhatsappOutboundTarget,
+  resolveWhatsappOutboundTargetForConversation,
+} from '@/lib/inbox/whatsappOutboundTarget'
+import { assertWhatsappFreeTextAllowed } from '@/lib/inbox/whatsappFreeTextGate'
 import type { WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 /**
  * Send an outbound WhatsApp reply for a lead and persist it on success.
  *
- * Order is deliberate: SEND first, persist only on a confirmed wamid — so a
- * failed Cloud API call never leaves a fake conversation entry. Targeting
- * reuses `resolveWhatsappOutboundTarget` (same rules as Inbox ensure-open).
+ * Order is deliberate: window/health gate, then SEND first, persist only on a
+ * confirmed wamid — so a closed 24-hour window or a failed Cloud API call
+ * never leaves a fake conversation entry. A conversation id uses that
+ * conversation's phone; otherwise targeting reuses `resolveWhatsappOutboundTarget`.
  */
 
 const MAX_CHARS = 4096
@@ -24,6 +29,7 @@ export type SendWhatsappReplyResult =
 export async function sendWhatsappReply(
   leadIdRaw: number | string,
   bodyRaw: string,
+  conversationIdRaw?: number | string | null,
 ): Promise<SendWhatsappReplyResult> {
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return { ok: false, reason: 'invalid-input' }
@@ -32,9 +38,26 @@ export async function sendWhatsappReply(
   if (!body) return { ok: false, reason: 'empty' }
   if (body.length > MAX_CHARS) return { ok: false, reason: 'too-long' }
 
+  const conversationId =
+    conversationIdRaw == null || conversationIdRaw === ''
+      ? null
+      : Number(conversationIdRaw)
+  if (conversationId != null && (!Number.isFinite(conversationId) || conversationId <= 0)) {
+    return { ok: false, reason: 'invalid-input' }
+  }
+
   const user = await requireProductAccess()
 
-  const resolved = await resolveWhatsappOutboundTarget(user.agencyId, leadId)
+  const gate = await assertWhatsappFreeTextAllowed({
+    agencyId: user.agencyId,
+    leadId,
+    conversationId,
+  })
+  if (gate.ok === false) return { ok: false, reason: gate.reason }
+
+  const resolved = conversationId
+    ? await resolveWhatsappOutboundTargetForConversation(user.agencyId, leadId, conversationId)
+    : await resolveWhatsappOutboundTarget(user.agencyId, leadId)
   if (resolved.ok === false) return { ok: false, reason: resolved.reason }
 
   const { target } = resolved

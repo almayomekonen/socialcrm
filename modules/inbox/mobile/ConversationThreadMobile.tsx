@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import type { Route } from 'next'
 import Icon from '@/lib/Icon'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
+import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 
 /**
  * One conversation, as a messaging screen.
@@ -33,14 +32,13 @@ export default function ConversationThreadMobile({
   leadId,
   displayName,
   initialMessages,
-  canSend,
+  composerFacts,
 }: {
   conversationId: number
   leadId: number | null
   displayName: string
   initialMessages: LeadWhatsappMessage[]
-  /** False when the agency has no WhatsApp connection — composer becomes a note. */
-  canSend: boolean
+  composerFacts: WhatsappComposerFacts
 }) {
   const router = useRouter()
   const [messages, setMessages] = useState(initialMessages)
@@ -66,7 +64,7 @@ export default function ConversationThreadMobile({
     setSending(true)
     setError(null)
     if (leadId == null) return
-    const res = await sendWhatsappReply(leadId, body)
+    const res = await sendWhatsappReply(leadId, body, conversationId)
     setSending(false)
 
     // Narrow on the literal, not on truthiness — `SendWhatsappReplyResult` is a
@@ -113,38 +111,34 @@ export default function ConversationThreadMobile({
             </p>
           )}
 
-          {canSend ? (
-            <form onSubmit={onSend} className='flex items-end gap-2'>
-              <label htmlFor='composer' className='sr-only'>
-                כתיבת הודעה
-              </label>
-              <textarea
-                id='composer'
-                rows={1}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder='כתיבת הודעה...'
-                className='max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none focus:border-primary focus:bg-white'
-              />
-              <button
-                type='submit'
-                disabled={!text.trim() || sending || pending}
-                aria-label='שלח'
-                className='flex size-11 shrink-0 items-center justify-center rounded-full bg-solid text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-              >
-                <Icon name={sending ? 'spinner' : 'paper-plane'} type='sol' className={`size-4 bg-white ${sending ? 'animate-spin' : ''}`} />
-              </button>
-            </form>
-          ) : (
-            /* No connection: state it, and point at the fix. Never render a
-               composer that cannot send. */
-            <p className='py-2 text-center text-[13px] text-gray-500'>
-              כדי לשלוח הודעות,{' '}
-              <Link href={'/settings/integrations' as Route} className='font-medium text-primary-text underline'>
-                חברו את וואטסאפ
-              </Link>
-            </p>
-          )}
+          <WhatsappComposerPanel
+            leadId={leadId}
+            messages={messages}
+            facts={composerFacts}
+            textComposer={
+              <form onSubmit={onSend} className='flex items-end gap-2'>
+                <label htmlFor='composer' className='sr-only'>
+                  כתיבת הודעה
+                </label>
+                <textarea
+                  id='composer'
+                  rows={1}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder='כתיבת הודעה...'
+                  className='max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none focus:border-primary focus:bg-white'
+                />
+                <button
+                  type='submit'
+                  disabled={!text.trim() || sending || pending}
+                  aria-label='שלח'
+                  className='flex size-11 shrink-0 items-center justify-center rounded-full bg-solid text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                >
+                  <Icon name={sending ? 'spinner' : 'paper-plane'} type='sol' className={`size-4 bg-white ${sending ? 'animate-spin' : ''}`} />
+                </button>
+              </form>
+            }
+          />
         </div>
       )}
     </div>
@@ -162,6 +156,10 @@ const REASONS: Record<string, string> = {
   'no-connection': 'אין חיבור וואטסאפ פעיל. אפשר לחבר אותו בהגדרות האינטגרציות.',
   'no-recipient': 'אין מספר וואטסאפ תקין לליד הזה.',
   'lead-not-found': 'הליד לא נמצא.',
+  'window-closed': 'חלון ההודעות ב-WhatsApp נסגר',
+  'window-unknown': 'לא ניתן לשלוח הודעת טקסט. אין הודעה נכנסת מהלקוח בשיחה הזו.',
+  'health-blocked': 'לא ניתן לשלוח הודעות כרגע',
+  'leadless': 'לא ניתן לשלוח הודעה משיחה בלי ליד.',
   'send-failed': 'וואטסאפ לא קיבל את ההודעה. נסה שוב בעוד רגע.',
   // The send SUCCEEDED; only the local copy failed to save. Saying "try again"
   // here would make the rep send the customer a duplicate.

@@ -1,4 +1,6 @@
 import { listConversationMessages } from '@/db/inboxMessages'
+import { getUser } from '@/db/auth'
+import { loadWhatsappComposerContext } from '@/lib/inbox/whatsappComposerContext'
 import InboxThread from './InboxThread'
 import { SUPPORTED_WORKSPACE_CHANNELS, channelLabel } from '@/modules/inbox/channels'
 import InboxReadMarker from './InboxReadMarker'
@@ -29,7 +31,13 @@ export default async function InboxWorkspace({
     )
   }
 
-  const messages = await listConversationMessages(conversationId)
+  const user = await getUser()
+  const [messages, composerFacts] = await Promise.all([
+    listConversationMessages(conversationId),
+    user?.agencyId
+      ? loadWhatsappComposerContext(user.agencyId, conversationId, { role: user.role })
+      : Promise.resolve(null),
+  ])
   const latestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null
 
   return (
@@ -44,6 +52,7 @@ export default async function InboxWorkspace({
         leadStatus={leadStatus}
         customerWaId={customerWaId}
         banner={<OperatorTake conversationId={conversationId} />}
+        composerFacts={composerFacts}
       />
     </div>
   )

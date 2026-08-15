@@ -35,7 +35,13 @@ vi.mock('@/lib/inbox/recordAccountRestriction', () => ({
     store.push(input.agencyId, input.businessPhoneNumberId, 'account')
   }),
 }))
-vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({ resolveWhatsappOutboundTarget }))
+vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({
+  resolveWhatsappOutboundTarget,
+  resolveWhatsappOutboundTargetForConversation: resolveWhatsappOutboundTarget,
+}))
+vi.mock('@/lib/inbox/whatsappFreeTextGate', () => ({
+  assertWhatsappFreeTextAllowed: vi.fn(async () => ({ ok: true })),
+}))
 
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
 import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'

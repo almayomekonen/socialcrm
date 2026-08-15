@@ -18,7 +18,15 @@ import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMess
  * honest "this is roughly what the lead will see"; the real send resolves the
  * lead's actual name server-side.
  */
-export default function SendReadyMessage({ leadId, templates }: { leadId: number; templates: Template[] }) {
+export default function SendReadyMessage({
+  leadId,
+  templates,
+  lbl = 'שלח הודעה מוכנה',
+}: {
+  leadId: number
+  templates: Template[]
+  lbl?: string
+}) {
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
@@ -52,7 +60,7 @@ export default function SendReadyMessage({ leadId, templates }: { leadId: number
   return (
     <>
       <Btn
-        lbl='שלח הודעה מוכנה'
+        lbl={lbl}
         icon='paper-plane'
         variant='outline'
         size='small'

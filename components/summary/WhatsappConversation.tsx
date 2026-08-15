@@ -5,6 +5,7 @@ import WhatsappReplyDraft from '@/components/summary/WhatsappReplyDraft'
 import WhatsappNewMessageNotifier from '@/components/summary/WhatsappNewMessageNotifier'
 import WhatsappConversationHeader from '@/components/summary/WhatsappConversationHeader'
 import WhatsappMessageStatus from '@/components/summary/WhatsappMessageStatus'
+import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 
 const WALLPAPER =
@@ -20,6 +21,7 @@ export default function WhatsappConversation({
   leadStatus = null,
   customerWaId = null,
   banner = null,
+  composerFacts = null,
 }: {
   messages: LeadWhatsappMessage[]
   leadId: number | null
@@ -30,6 +32,7 @@ export default function WhatsappConversation({
   leadStatus?: string | null
   customerWaId?: string | null
   banner?: ReactNode
+  composerFacts?: WhatsappComposerFacts | null
 }) {
   let latestInbound: LeadWhatsappMessage | null = null
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -136,7 +139,16 @@ export default function WhatsappConversation({
 
       {leadId != null && leadId > 0 && (
         <div className='shrink-0 border-t border-gray-100 bg-white px-3 py-2.5'>
-          <WhatsappReplyDraft leadId={leadId} />
+          {composerFacts ? (
+            <WhatsappComposerPanel
+              leadId={leadId}
+              messages={messages}
+              facts={composerFacts}
+              textComposer={<WhatsappReplyDraft leadId={leadId} conversationId={conversationId} />}
+            />
+          ) : (
+            <WhatsappReplyDraft leadId={leadId} conversationId={conversationId} />
+          )}
         </div>
       )}
     </div>
