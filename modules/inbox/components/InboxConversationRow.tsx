@@ -80,10 +80,12 @@ export default function InboxConversationRow({
         </div>
       </div>
       </Link>
-      {/* Row actions live OUTSIDE the <Link> (no button-in-anchor); revealed on
-          hover/focus in the reserved right gutter (pe-8 above). */}
-      <div className='absolute end-1.5 top-1/2 -translate-y-1/2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100'>
-        <DeleteConversationMenu conversationId={item.conversationId} />
+      {/* Row actions live OUTSIDE the <Link> (no button-in-anchor), in the reserved
+          right gutter (pe-8 above). The trigger fades in on hover/focus and the
+          menu itself is portaled, so it is never clipped by the list scroll area
+          or covered by the next row. */}
+      <div className='absolute end-1.5 top-1/2 -translate-y-1/2'>
+        <DeleteConversationMenu conversationId={item.conversationId} revealOnHover />
       </div>
     </div>
   )
