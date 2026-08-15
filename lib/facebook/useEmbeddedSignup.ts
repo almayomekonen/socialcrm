@@ -166,9 +166,8 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
             response_type: 'code',
             override_default_response_type: true,
             extras: {
-              setup: {},
+              version: 'v4',
               featureType: COEXISTENCE_DISABLED ? '' : COEXISTENCE_FEATURE_TYPE,
-              version: 'v3',
             },
           },
         )
