@@ -285,3 +285,17 @@ describe('no test send is offered', () => {
     expect(whatsappExecutor.test).toBeUndefined()
   })
 })
+
+describe('P1 — automations stay lead-based', () => {
+  it('default targeting is resolveWhatsappOutboundTarget, not a conversation id', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'lib/automations/executors/whatsapp.ts'), 'utf8')
+    expect(src).toContain('resolveWhatsappOutboundTarget')
+    expect(src).not.toContain('resolveWhatsappOutboundTargetForConversation')
+    expect(src).not.toContain('conversationId')
+    const pre = await whatsappExecutor.preflight(ctx(), deps())
+    expect(resolveTarget).toHaveBeenCalledWith(7, 42)
+    expect(pre.problem).toBeNull()
+  })
+})

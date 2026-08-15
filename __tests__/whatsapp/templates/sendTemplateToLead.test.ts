@@ -12,6 +12,8 @@ const h = vi.hoisted(() => ({
   loadTemplateForSend: vi.fn(),
   getAgencyById: vi.fn(),
   resolveWhatsappOutboundTarget: vi.fn(),
+  resolveWhatsappOutboundTargetForConversation: vi.fn(),
+  loadWhatsappComposerContext: vi.fn(),
   sendWhatsappTemplate: vi.fn(),
   persistOutboundWhatsapp: vi.fn(),
   recordAccountRestriction: vi.fn(),
@@ -21,7 +23,13 @@ vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser, re
 vi.mock('@/lib/whatsapp/templates/flag', () => ({ isTemplatesEnabledForAgency: h.isTemplatesEnabledForAgency }))
 vi.mock('@/db/whatsappTemplates', () => ({ loadTemplateForSend: h.loadTemplateForSend }))
 vi.mock('@/db/agencies', () => ({ getAgencyById: h.getAgencyById }))
-vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({ resolveWhatsappOutboundTarget: h.resolveWhatsappOutboundTarget }))
+vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({
+  resolveWhatsappOutboundTarget: h.resolveWhatsappOutboundTarget,
+  resolveWhatsappOutboundTargetForConversation: h.resolveWhatsappOutboundTargetForConversation,
+}))
+vi.mock('@/lib/inbox/whatsappComposerContext', () => ({
+  loadWhatsappComposerContext: h.loadWhatsappComposerContext,
+}))
 vi.mock('@/lib/whatsapp/sendTemplateMessage', () => ({ sendWhatsappTemplate: h.sendWhatsappTemplate }))
 vi.mock('@/lib/inbox/persistOutboundWhatsapp', () => ({ persistOutboundWhatsapp: h.persistOutboundWhatsapp }))
 vi.mock('@/lib/inbox/recordAccountRestriction', () => ({ recordAccountRestriction: h.recordAccountRestriction }))
@@ -52,6 +60,32 @@ const TARGET = {
   },
 }
 
+const TARGET_A = {
+  ok: true as const,
+  target: {
+    ...TARGET.target,
+    businessPhoneNumberId: 'PN_A',
+    customerWaId: '972500000001',
+  },
+}
+
+const TARGET_NEWER = {
+  ok: true as const,
+  target: {
+    ...TARGET.target,
+    businessPhoneNumberId: 'PN_NEWER',
+    customerWaId: '972500000002',
+  },
+}
+
+const OPERATIONAL_CTX = {
+  health: 'operational' as const,
+  templatesEnabled: true,
+  templates: [],
+  canManageTemplates: false,
+  businessPhoneNumberId: 'PN_A',
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   h.requireAgencyUser.mockResolvedValue({ id: 7, agencyId: 103, role: 'agent' })
@@ -59,6 +93,8 @@ beforeEach(() => {
   h.loadTemplateForSend.mockResolvedValue(APPROVED)
   h.getAgencyById.mockResolvedValue({ name: 'סושיאל בע"מ' })
   h.resolveWhatsappOutboundTarget.mockResolvedValue(TARGET)
+  h.resolveWhatsappOutboundTargetForConversation.mockResolvedValue(TARGET_A)
+  h.loadWhatsappComposerContext.mockResolvedValue(OPERATIONAL_CTX)
   h.sendWhatsappTemplate.mockResolvedValue({ ok: true, wamid: 'wamid.X' })
   h.persistOutboundWhatsapp.mockResolvedValue({ conversationId: 1, messageId: 2 })
   h.recordAccountRestriction.mockResolvedValue(undefined)
@@ -227,5 +263,133 @@ describe('sendTemplateToLead — Meta-synced (positional) templates', () => {
     expect(res).toEqual({ ok: false, error: 'ההודעה הזו סונכרנה מ‑Meta וצריך להגדיר אילו פרטים ממלאים אותה לפני השליחה.' })
     // never reaches Meta with a mismatched count
     expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+
+  it('unmapped {{n}} with conversationId still never reaches Graph', async () => {
+    h.loadTemplateForSend.mockResolvedValue({ ...ADOPTED, bindings: [] })
+    const res = await sendTemplateToLead(9, 5, 44)
+    expect(res.ok).toBe(false)
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+    expect(h.resolveWhatsappOutboundTarget).not.toHaveBeenCalled()
+  })
+})
+
+describe('sendTemplateToLead — conversation-scoped Inbox targeting', () => {
+  it('one lead + one conversation uses that conversation phone, not lead-based resolve', async () => {
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: true })
+    expect(h.resolveWhatsappOutboundTargetForConversation).toHaveBeenCalledWith(103, 9, 44)
+    expect(h.resolveWhatsappOutboundTarget).not.toHaveBeenCalled()
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].phoneNumberId).toBe('PN_A')
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].to).toBe('972500000001')
+  })
+
+  it('one lead + two conversations uses the selected conversation phone, not the newer one', async () => {
+    h.resolveWhatsappOutboundTarget.mockResolvedValue(TARGET_NEWER)
+    const res = await sendTemplateToLead(9, 55, 10)
+    expect(res).toEqual({ ok: true })
+    expect(h.resolveWhatsappOutboundTargetForConversation).toHaveBeenCalledWith(103, 9, 10)
+    expect(h.resolveWhatsappOutboundTarget).not.toHaveBeenCalled()
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].phoneNumberId).toBe('PN_A')
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].phoneNumberId).not.toBe('PN_NEWER')
+  })
+
+  it('wrong conversationId → no Graph call and no lead-based fallback', async () => {
+    h.resolveWhatsappOutboundTargetForConversation.mockResolvedValue({ ok: false, reason: 'no-connection' })
+    expect(await sendTemplateToLead(9, 55, 999)).toEqual({
+      ok: false,
+      error: 'צריך לחבר וואטסאפ עסקי כדי לשלוח.',
+    })
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+    expect(h.resolveWhatsappOutboundTarget).not.toHaveBeenCalled()
+    expect(h.loadWhatsappComposerContext).not.toHaveBeenCalled()
+  })
+
+  it('conversation belonging to another lead → no Graph call', async () => {
+    h.resolveWhatsappOutboundTargetForConversation.mockResolvedValue({ ok: false, reason: 'no-connection' })
+    expect(await sendTemplateToLead(9, 55, 88)).toEqual({
+      ok: false,
+      error: 'צריך לחבר וואטסאפ עסקי כדי לשלוח.',
+    })
+    expect(h.resolveWhatsappOutboundTargetForConversation).toHaveBeenCalledWith(103, 9, 88)
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+    expect(h.resolveWhatsappOutboundTarget).not.toHaveBeenCalled()
+  })
+
+  it('cross-agency conversationId is resolved with the session agency and never reaches Graph', async () => {
+    h.resolveWhatsappOutboundTargetForConversation.mockResolvedValue({ ok: false, reason: 'no-connection' })
+    await sendTemplateToLead(9, 55, 44)
+    expect(h.resolveWhatsappOutboundTargetForConversation).toHaveBeenCalledWith(103, 9, 44)
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+    expect(h.resolveWhatsappOutboundTarget).not.toHaveBeenCalled()
+  })
+
+  it('disconnected phone on the selected conversation → no Graph call', async () => {
+    h.loadWhatsappComposerContext.mockResolvedValue({ ...OPERATIONAL_CTX, health: 'disconnected' })
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: false, error: 'לא ניתן לשלוח הודעות כרגע' })
+    expect(h.loadWhatsappComposerContext).toHaveBeenCalledWith(103, 44)
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+
+  it('restricted phone on the selected conversation → no Graph call', async () => {
+    h.loadWhatsappComposerContext.mockResolvedValue({ ...OPERATIONAL_CTX, health: 'restricted' })
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: false, error: 'לא ניתן לשלוח הודעות כרגע' })
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+
+  it('CLOSED + operational + conversationId allows the template (no 24h window gate)', async () => {
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: true })
+    expect(h.sendWhatsappTemplate).toHaveBeenCalled()
+    expect(h.loadWhatsappComposerContext).toHaveBeenCalledWith(103, 44)
+  })
+
+  it('OPEN + operational + conversationId still allows the template action', async () => {
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: true })
+    expect(h.sendWhatsappTemplate).toHaveBeenCalled()
+  })
+
+  it('lead page (no conversationId) keeps the existing lead-based target', async () => {
+    const res = await sendTemplateToLead(9, 55)
+    expect(res).toEqual({ ok: true })
+    expect(h.resolveWhatsappOutboundTarget).toHaveBeenCalledWith(103, 9)
+    expect(h.resolveWhatsappOutboundTargetForConversation).not.toHaveBeenCalled()
+    expect(h.loadWhatsappComposerContext).not.toHaveBeenCalled()
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].phoneNumberId).toBe('PN_1')
+  })
+
+  it('rejects an invalid conversationId before any resolve or Graph call', async () => {
+    expect(await sendTemplateToLead(9, 55, 0)).toEqual({ ok: false, error: 'בקשה לא תקינה.' })
+    expect(await sendTemplateToLead(9, 55, -3)).toEqual({ ok: false, error: 'בקשה לא תקינה.' })
+    expect(h.resolveWhatsappOutboundTargetForConversation).not.toHaveBeenCalled()
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+})
+
+describe('P1 — out-of-scope callers stay unchanged', () => {
+  it('IRE workers do not send templates', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    for (const rel of [
+      'lib/inbox/autoresponse/worker.ts',
+      'lib/inbox/autoresponse/qualifyWorker.ts',
+      'lib/inbox/autoresponse/postHandoff.ts',
+    ]) {
+      const src = readFileSync(join(process.cwd(), rel), 'utf8')
+      expect(src, rel).not.toContain('sendWhatsappTemplate')
+      expect(src, rel).not.toContain('sendTemplateToLead')
+    }
+  })
+
+  it('lead-page section still has no conversationId', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'components/clients/SendReadyMessageSection.tsx'), 'utf8')
+    expect(src).toContain('resolveWhatsappOutboundTarget')
+    expect(src).not.toContain('conversationId')
+    expect(src).toContain('<SendReadyMessage leadId={leadId} templates={approved} />')
   })
 })

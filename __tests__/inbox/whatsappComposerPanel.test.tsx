@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { SERVICE_WINDOW_COPY } from '@/lib/inbox/whatsappComposerDecision'
 import type { Template } from '@/lib/whatsapp/templates/types'
 
+const sendTemplateToLead = vi.hoisted(() => vi.fn())
 vi.mock('@/actions/whatsapp/templates/sendTemplateToLead', () => ({
-  sendTemplateToLead: vi.fn(),
+  sendTemplateToLead,
 }))
 vi.mock('@/lib/toast', () => ({ toast: vi.fn() }))
 
@@ -164,5 +167,28 @@ describe('WhatsappComposerPanel', () => {
       />,
     )
     expect(screen.getByRole('button', { name: SERVICE_WINDOW_COPY.closedCta })).toBeInTheDocument()
+  })
+
+  it('desktop Inbox passes conversationId into sendTemplateToLead', async () => {
+    sendTemplateToLead.mockResolvedValue({ ok: true })
+    render(
+      <WhatsappComposerPanel
+        leadId={9}
+        conversationId={44}
+        messages={inboundHoursAgo(48)}
+        facts={facts()}
+        textComposer={<span />}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: SERVICE_WINDOW_COPY.closedCta }))
+    fireEvent.click(screen.getAllByRole('radio')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    await waitFor(() => expect(sendTemplateToLead).toHaveBeenCalledWith(9, 7, 44))
+  })
+
+  it('WhatsappConversation threads conversationId into the composer panel', () => {
+    const src = readFileSync(join(process.cwd(), 'components/summary/WhatsappConversation.tsx'), 'utf8')
+    expect(src).toContain('conversationId={conversationId}')
+    expect(src).toMatch(/<WhatsappComposerPanel[\s\S]*conversationId=\{conversationId\}/)
   })
 })

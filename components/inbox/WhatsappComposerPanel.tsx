@@ -29,11 +29,13 @@ export type WhatsappComposerFacts = {
  */
 export default function WhatsappComposerPanel({
   leadId,
+  conversationId = null,
   messages,
   facts,
   textComposer,
 }: {
   leadId: number | null
+  conversationId?: number | null
   messages: ReadonlyArray<{ direction: string; timestamp?: string | null }>
   facts: WhatsappComposerFacts
   textComposer: ReactNode
@@ -83,7 +85,12 @@ export default function WhatsappComposerPanel({
       <div className='grid gap-2'>
         <p className='text-sm font-medium text-gray-800'>{SERVICE_WINDOW_COPY.closedTitle}</p>
         <p className='text-sm text-gray-500'>{SERVICE_WINDOW_COPY.closedBody}</p>
-        <SendReadyMessage leadId={leadId} templates={facts.templates} lbl={SERVICE_WINDOW_COPY.closedCta} />
+        <SendReadyMessage
+          leadId={leadId}
+          conversationId={conversationId}
+          templates={facts.templates}
+          lbl={SERVICE_WINDOW_COPY.closedCta}
+        />
       </div>
     )
   }

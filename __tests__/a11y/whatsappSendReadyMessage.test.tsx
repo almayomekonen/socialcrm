@@ -66,6 +66,7 @@ describe('SendReadyMessage — send flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
 
     await waitFor(() => expect(H.sendTemplateToLead).toHaveBeenCalledWith(9, 2))
+    expect(H.sendTemplateToLead.mock.calls[0]).toHaveLength(2)
     await waitFor(() => expect(H.toast).toHaveBeenCalledWith('success', 'ההודעה נשלחה'))
     // dialog closes on success
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -80,5 +81,31 @@ describe('SendReadyMessage — send flow', () => {
 
     await waitFor(() => expect(H.toast).toHaveBeenCalledWith('error', 'ההודעה לא נשלחה. נסו שוב.'))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('Inbox conversationId is forwarded; lead page still omits it', async () => {
+    H.sendTemplateToLead.mockResolvedValue({ ok: true })
+    render(<SendReadyMessage leadId={9} templates={two} conversationId={44} />)
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה מוכנה' }))
+    fireEvent.click(screen.getAllByRole('radio')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    await waitFor(() => expect(H.sendTemplateToLead).toHaveBeenCalledWith(9, 1, 44))
+  })
+
+  it('duplicate click while sending does not call the action twice', async () => {
+    let release!: () => void
+    H.sendTemplateToLead.mockReturnValue(
+      new Promise((resolve) => {
+        release = () => resolve({ ok: true })
+      }),
+    )
+    render(<SendReadyMessage leadId={9} templates={two} conversationId={44} />)
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה מוכנה' }))
+    fireEvent.click(screen.getAllByRole('radio')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    fireEvent.click(screen.getByRole('button', { name: 'שולח…' }))
+    expect(H.sendTemplateToLead).toHaveBeenCalledTimes(1)
+    release()
+    await waitFor(() => expect(H.toast).toHaveBeenCalledWith('success', 'ההודעה נשלחה'))
   })
 })

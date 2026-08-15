@@ -142,6 +142,7 @@ export default function WhatsappConversation({
           {composerFacts ? (
             <WhatsappComposerPanel
               leadId={leadId}
+              conversationId={conversationId}
               messages={messages}
               facts={composerFacts}
               textComposer={<WhatsappReplyDraft leadId={leadId} conversationId={conversationId} />}

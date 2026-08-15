@@ -4,7 +4,11 @@ import { requireProductAccess } from '@/lib/requireUser'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import { loadTemplateForSend } from '@/db/whatsappTemplates'
 import { getAgencyById } from '@/db/agencies'
-import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
+import {
+  resolveWhatsappOutboundTarget,
+  resolveWhatsappOutboundTargetForConversation,
+} from '@/lib/inbox/whatsappOutboundTarget'
+import { loadWhatsappComposerContext } from '@/lib/inbox/whatsappComposerContext'
 import { renderResolvedBody } from '@/lib/whatsapp/templates/variables'
 import { resolveTemplateSendParameters, renderPositionalBody } from '@/lib/whatsapp/templates/parameters'
 import { sendWhatsappTemplate } from '@/lib/whatsapp/sendTemplateMessage'
@@ -26,7 +30,8 @@ import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
  * wamid, so a failed Cloud API call never leaves a fake conversation entry. The
  * outbound's `sent → delivered → read / failed` lifecycle is handled entirely by
  * the already-shipped `statuses` webhook — no new status path here. One lead only:
- * no bulk, no schedule, no automation.
+ * no bulk, no schedule, no automation. An Inbox `conversationId` targets that
+ * conversation's phone; omitting it keeps the lead-page / existing lead-based path.
  */
 
 export type SendTemplateToLeadResult = { ok: true } | { ok: false; error: string }
@@ -37,6 +42,7 @@ const NOT_FOUND = 'ההודעה המוכנה לא נמצאה.'
 const NOT_APPROVED = 'אפשר לשלוח רק הודעה שאושרה.'
 const NO_CONNECTION = 'צריך לחבר וואטסאפ עסקי כדי לשלוח.'
 const NO_RECIPIENT = 'אין מספר וואטסאפ פעיל לליד הזה.'
+const HEALTH_BLOCKED = 'לא ניתן לשלוח הודעות כרגע'
 const SEND_FAILED = 'ההודעה לא נשלחה. נסו שוב.'
 const PERSIST_FAILED = 'ההודעה נשלחה אך לא נשמרה בשיחה. רעננו את הדף.'
 const NEEDS_MAPPING = 'ההודעה הזו סונכרנה מ‑Meta וצריך להגדיר אילו פרטים ממלאים אותה לפני השליחה.'
@@ -44,10 +50,19 @@ const NEEDS_MAPPING = 'ההודעה הזו סונכרנה מ‑Meta וצריך �
 export async function sendTemplateToLead(
   leadIdRaw: number | string,
   templateIdRaw: number | string,
+  conversationIdRaw?: number | string | null,
 ): Promise<SendTemplateToLeadResult> {
   const leadId = Number(leadIdRaw)
   const templateId = Number(templateIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0 || !Number.isFinite(templateId) || templateId <= 0) {
+    return { ok: false, error: INVALID_INPUT }
+  }
+
+  const conversationId =
+    conversationIdRaw == null || conversationIdRaw === ''
+      ? null
+      : Number(conversationIdRaw)
+  if (conversationId != null && (!Number.isFinite(conversationId) || conversationId <= 0)) {
     return { ok: false, error: INVALID_INPUT }
   }
 
@@ -61,12 +76,24 @@ export async function sendTemplateToLead(
   if (!template) return { ok: false, error: NOT_FOUND }
   if (template.status !== 'approved') return { ok: false, error: NOT_APPROVED }
 
-  // Resolve the WhatsApp destination + connection token, agency-scoped (shared rules).
-  const resolved = await resolveWhatsappOutboundTarget(user.agencyId, leadId)
+  // Inbox passes the open conversation: use THAT phone + wa_id. Lead page and
+  // other callers omit the id and keep the existing lead-based target.
+  const resolved = conversationId
+    ? await resolveWhatsappOutboundTargetForConversation(user.agencyId, leadId, conversationId)
+    : await resolveWhatsappOutboundTarget(user.agencyId, leadId)
   if (resolved.ok === false) {
     return { ok: false, error: resolved.reason === 'no-connection' ? NO_CONNECTION : NO_RECIPIENT }
   }
   const { target } = resolved
+
+  // Templates are legal when the 24-hour window is CLOSED. Health is not:
+  // a restricted / disconnected phone on THIS conversation must not send.
+  if (conversationId) {
+    const ctx = await loadWhatsappComposerContext(user.agencyId, conversationId)
+    if (ctx.health !== 'operational') {
+      return { ok: false, error: HEALTH_BLOCKED }
+    }
+  }
 
   // Business name for the {{שם העסק}} chip, agency-scoped.
   const agency = await getAgencyById(user.agencyId)

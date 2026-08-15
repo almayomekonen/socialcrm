@@ -113,6 +113,7 @@ export default function ConversationThreadMobile({
 
           <WhatsappComposerPanel
             leadId={leadId}
+            conversationId={conversationId}
             messages={messages}
             facts={composerFacts}
             textComposer={

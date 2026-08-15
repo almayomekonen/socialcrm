@@ -22,10 +22,12 @@ export default function SendReadyMessage({
   leadId,
   templates,
   lbl = 'שלח הודעה מוכנה',
+  conversationId = null,
 }: {
   leadId: number
   templates: Template[]
   lbl?: string
+  conversationId?: number | null
 }) {
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -43,7 +45,10 @@ export default function SendReadyMessage({
     if (selectedId == null || sending) return
     setSending(true)
     try {
-      const res = await sendTemplateToLead(leadId, selectedId)
+      const res =
+        conversationId != null
+          ? await sendTemplateToLead(leadId, selectedId, conversationId)
+          : await sendTemplateToLead(leadId, selectedId)
       if (res.ok) {
         toast('success', 'ההודעה נשלחה')
         setOpen(false)
