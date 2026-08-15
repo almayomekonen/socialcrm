@@ -38,6 +38,7 @@ vi.mock('@/lib/inbox/recordAccountRestriction', () => ({
 vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({ resolveWhatsappOutboundTarget }))
 
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
+import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { recordAccountRestriction } from '@/lib/inbox/recordAccountRestriction'
 import {
   accountRestrictionIsActive,
@@ -96,6 +97,7 @@ beforeEach(() => {
   })
   persistOutboundWhatsapp.mockResolvedValue(undefined)
   sendWhatsappText.mockReset()
+  vi.mocked(recordAccountRestriction).mockClear()
 })
 
 describe('immediate account restriction invalidates health', () => {
@@ -155,6 +157,47 @@ describe('immediate account restriction invalidates health', () => {
     expect((await resolveWhatsappHealth(conn(PHONE_A), AGENCY, healthDeps())).primary).toBe('restricted')
 
     store.push(AGENCY, PHONE_A, 'success')
+    expect((await resolveWhatsappHealth(conn(PHONE_A), AGENCY, healthDeps())).primary).toBe('operational')
+  })
+
+  it('shared helper 131031 restricts this agency+phone; other agency/phone stay operational', async () => {
+    await onWhatsappSendFailure(
+      { code: 131031, httpStatus: 400 },
+      {
+        agencyId: AGENCY,
+        leadId: 9,
+        businessPhoneNumberId: PHONE_A,
+        customerWaId: '972500000000',
+        customerName: null,
+        sentByUserId: 1,
+        text: 'שלום',
+      },
+    )
+    expect((await resolveWhatsappHealth(conn(PHONE_A), AGENCY, healthDeps())).primary).toBe('restricted')
+    expect((await resolveWhatsappHealth(conn(PHONE_A), OTHER_AGENCY, healthDeps())).primary).toBe('operational')
+    expect((await resolveWhatsappHealth(conn(PHONE_B), AGENCY, healthDeps())).primary).toBe('operational')
+  })
+
+  it('token 401 / 190 via the helper do not restrict health', async () => {
+    await onWhatsappSendFailure({ httpStatus: 401 }, {
+      agencyId: AGENCY,
+      leadId: 9,
+      businessPhoneNumberId: PHONE_A,
+      customerWaId: '972500000000',
+      customerName: null,
+      sentByUserId: 1,
+      text: 'שלום',
+    })
+    await onWhatsappSendFailure({ code: 190 }, {
+      agencyId: AGENCY,
+      leadId: 9,
+      businessPhoneNumberId: PHONE_A,
+      customerWaId: '972500000000',
+      customerName: null,
+      sentByUserId: 1,
+      text: 'שלום',
+    })
+    expect(recordAccountRestriction).not.toHaveBeenCalled()
     expect((await resolveWhatsappHealth(conn(PHONE_A), AGENCY, healthDeps())).primary).toBe('operational')
   })
 

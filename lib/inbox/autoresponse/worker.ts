@@ -1,6 +1,7 @@
 import { db } from '@/config/db'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
+import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { track } from '@/lib/analytics/track'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import {
@@ -140,6 +141,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   const to = conv.customerWaId as string | null
   if (!to) return doSkip('no_recipient')
 
+  const sentByUserId = (lead.userId as number | null) ?? (lead.handlerId as number | null) ?? connection.user_id
   const sent = await deps.send({
     phoneNumberId: conv.businessPhoneNumberId as string,
     accessToken: connection.access_token,
@@ -150,11 +152,15 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   if (sent.ok === false) {
     const detail = formatWhatsappSendFailure(sent)
     console.error(`[IRE] send failed conv=${job.conversationId} job=${job.id} ${detail}`)
-    await failAutoResponseJob(job.id, detail)
+    await applyIreWhatsappSendFailure(job, sent, {
+      businessPhoneNumberId: conv.businessPhoneNumberId as string,
+      customerWaId: to,
+      customerName: (conv.customerName as string | null) ?? null,
+      sentByUserId,
+      text: message,
+    })
     return 'failed'
   }
-
-  const sentByUserId = (lead.userId as number | null) ?? (lead.handlerId as number | null) ?? connection.user_id
   let messageId: number | null = null
   try {
     const res = await persistOutboundWhatsapp({

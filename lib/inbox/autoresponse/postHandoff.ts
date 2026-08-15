@@ -11,7 +11,8 @@ import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
-import { skipAutoResponseJob, completeAutoResponseJob, failAutoResponseJob, type AutoResponseJob } from '@/db/autoResponseJobs'
+import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
+import { skipAutoResponseJob, completeAutoResponseJob, type AutoResponseJob } from '@/db/autoResponseJobs'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { validateConciergeReply } from './validate'
 import { waTrace } from './waTrace'
@@ -165,7 +166,7 @@ async function sendPostHandoff(
   ctx: QualifyCtx,
   send: typeof sendWhatsappText,
   text: string,
-): Promise<{ ok: true; messageId: number } | { ok: false; reason: string }> {
+): Promise<{ ok: true; messageId: number } | { ok: false; reason: string; settled?: true }> {
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: ctx.conv.businessPhoneNumberId, agency_id: job.agencyId })
     .first('phone_number_id', 'access_token', 'user_id')
@@ -173,6 +174,7 @@ async function sendPostHandoff(
   const to = ctx.conv.customerWaId
   if (!to) return { ok: false, reason: 'no_recipient' }
 
+  const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const sent = await send({
     phoneNumberId: ctx.conv.businessPhoneNumberId,
     accessToken: connection.access_token,
@@ -180,9 +182,16 @@ async function sendPostHandoff(
     body: text,
     trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
   })
-  if (sent.ok === false) return { ok: false, reason: formatWhatsappSendFailure(sent) }
-
-  const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
+  if (sent.ok === false) {
+    await applyIreWhatsappSendFailure(job, sent, {
+      businessPhoneNumberId: ctx.conv.businessPhoneNumberId,
+      customerWaId: to,
+      customerName: ctx.conv.customerName ?? null,
+      sentByUserId,
+      text,
+    })
+    return { ok: false, reason: formatWhatsappSendFailure(sent), settled: true }
+  }
   const res = await persistOutboundWhatsapp({
     agencyId: job.agencyId,
     leadId: job.leadId,
@@ -266,10 +275,7 @@ export async function respondPostHandoff(args: {
 
   const r = await sendPostHandoff(job, ctx, deps.send, decision.text)
   if (r.ok === false) {
-    if (r.reason.startsWith('whatsapp_send_failed')) {
-      await failAutoResponseJob(job.id, r.reason)
-      return 'failed'
-    }
+    if (r.settled) return 'failed'
     return stop(r.reason)
   }
   await completeAutoResponseJob(job.id, r.messageId)

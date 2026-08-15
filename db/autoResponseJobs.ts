@@ -134,6 +134,20 @@ export async function skipAutoResponseJob(id: number, skipReason: string): Promi
   })
 }
 
+/**
+ * Immediate dead-letter using the existing `dead` status — independent of the
+ * attempt counter. Account-level Meta blocks are not transient.
+ */
+export async function deadLetterAutoResponseJob(id: number, error: string): Promise<void> {
+  await db('auto_response_jobs').where({ id }).update({
+    status: 'dead',
+    lastError: error,
+    lockedAt: null,
+    lockedBy: null,
+    updatedAt: db.fn.now(),
+  })
+}
+
 /** Retry with backoff; dead-letter once attempts reach maxAttempts. */
 export async function failAutoResponseJob(id: number, error: string): Promise<void> {
   await db.raw(

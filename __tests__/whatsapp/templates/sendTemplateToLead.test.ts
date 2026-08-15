@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   resolveWhatsappOutboundTarget: vi.fn(),
   sendWhatsappTemplate: vi.fn(),
   persistOutboundWhatsapp: vi.fn(),
+  recordAccountRestriction: vi.fn(),
 }))
 
 vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser, requireProductAccess: h.requireAgencyUser }))
@@ -23,6 +24,7 @@ vi.mock('@/db/agencies', () => ({ getAgencyById: h.getAgencyById }))
 vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({ resolveWhatsappOutboundTarget: h.resolveWhatsappOutboundTarget }))
 vi.mock('@/lib/whatsapp/sendTemplateMessage', () => ({ sendWhatsappTemplate: h.sendWhatsappTemplate }))
 vi.mock('@/lib/inbox/persistOutboundWhatsapp', () => ({ persistOutboundWhatsapp: h.persistOutboundWhatsapp }))
+vi.mock('@/lib/inbox/recordAccountRestriction', () => ({ recordAccountRestriction: h.recordAccountRestriction }))
 
 const { sendTemplateToLead } = await import('@/actions/whatsapp/templates/sendTemplateToLead')
 
@@ -59,6 +61,7 @@ beforeEach(() => {
   h.resolveWhatsappOutboundTarget.mockResolvedValue(TARGET)
   h.sendWhatsappTemplate.mockResolvedValue({ ok: true, wamid: 'wamid.X' })
   h.persistOutboundWhatsapp.mockResolvedValue({ conversationId: 1, messageId: 2 })
+  h.recordAccountRestriction.mockResolvedValue(undefined)
 })
 
 describe('sendTemplateToLead — validation & gating', () => {
@@ -154,6 +157,31 @@ describe('sendTemplateToLead — failure handling', () => {
       expect(res.error).not.toMatch(/\d{4,}/) // no raw code
     }
     expect(h.persistOutboundWhatsapp).not.toHaveBeenCalled()
+  })
+
+  it('131031 records an account restriction so Connection Health updates immediately', async () => {
+    h.sendWhatsappTemplate.mockResolvedValue({ ok: false, error: 'restricted', code: '131031', httpStatus: 400 })
+    const res = await sendTemplateToLead(9, 55)
+    expect(res.ok).toBe(false)
+    if (res.ok === false) {
+      expect(res.error).toBe('ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.')
+    }
+    expect(h.recordAccountRestriction).toHaveBeenCalledWith({
+      agencyId: 103,
+      leadId: 9,
+      businessPhoneNumberId: 'PN_1',
+      customerWaId: '972537736636',
+      customerName: 'דוד כהן',
+      sentByUserId: 7,
+      text: 'היי דוד, כאן סושיאל בע"מ.',
+    })
+    expect(h.persistOutboundWhatsapp).not.toHaveBeenCalled()
+  })
+
+  it('131047 / generic does not record an account restriction', async () => {
+    h.sendWhatsappTemplate.mockResolvedValue({ ok: false, error: 'window', code: '131047', httpStatus: 400 })
+    await sendTemplateToLead(9, 55)
+    expect(h.recordAccountRestriction).not.toHaveBeenCalled()
   })
 
   it('a send with no code still returns a generic Hebrew failure', async () => {

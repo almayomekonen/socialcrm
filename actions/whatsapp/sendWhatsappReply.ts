@@ -3,9 +3,9 @@
 import { requireProductAccess } from '@/lib/requireUser'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
-import { recordAccountRestriction } from '@/lib/inbox/recordAccountRestriction'
+import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
-import { mapWhatsappError, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
+import type { WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 /**
  * Send an outbound WhatsApp reply for a lead and persist it on success.
@@ -48,23 +48,15 @@ export async function sendWhatsappReply(
   })
   if (sent.ok === false) {
     console.error(`[WhatsappSend][lead=${leadId}] send failed`, sent)
-    const code = sent.code != null ? Number(sent.code) : null
-    const { category } = mapWhatsappError(Number.isFinite(code) ? code : null)
-    if (category === 'account') {
-      try {
-        await recordAccountRestriction({
-          agencyId: user.agencyId,
-          leadId,
-          businessPhoneNumberId: target.businessPhoneNumberId,
-          customerWaId: target.customerWaId,
-          customerName: target.customerName,
-          sentByUserId: user.id,
-          text: body,
-        })
-      } catch (err) {
-        console.error(`[WhatsappSend][lead=${leadId}] record account restriction failed`, err)
-      }
-    }
+    const { category } = await onWhatsappSendFailure(sent, {
+      agencyId: user.agencyId,
+      leadId,
+      businessPhoneNumberId: target.businessPhoneNumberId,
+      customerWaId: target.customerWaId,
+      customerName: target.customerName,
+      sentByUserId: user.id,
+      text: body,
+    })
     return { ok: false, reason: 'send-failed', category }
   }
 

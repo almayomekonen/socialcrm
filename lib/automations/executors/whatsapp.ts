@@ -1,5 +1,6 @@
 import { loadTemplateForSend, type TemplateSendRow } from '@/db/whatsappTemplates'
 import { resolveWhatsappOutboundTarget, type WhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
+import { onWhatsappSendFailure, TerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
 import { resolveTemplateMessage, templateSlots } from '../whatsapp/templateParams'
 import type {
   ActionExecutor,
@@ -184,9 +185,22 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
       language: ready.template.language,
       params: ready.params,
     })
-    // Throwing releases the claim and lets the job retry — correct for a
-    // transport failure, which is exactly what this is.
-    if ('error' in sent) throw new Error(`whatsapp: ${sent.code ?? ''} ${sent.error}`.trim())
+    if ('error' in sent) {
+      const classified = await onWhatsappSendFailure(sent, {
+        agencyId: ctx.agencyId,
+        leadId: ctx.leadId,
+        businessPhoneNumberId: ready.target.businessPhoneNumberId,
+        customerWaId: ready.target.customerWaId,
+        customerName: ready.target.customerName,
+        sentByUserId: null,
+        text: ready.text,
+      })
+      const detail = `whatsapp: ${sent.code ?? ''} ${sent.error}`.trim()
+      // Account-level Meta blocks are terminal — do not throw a generic
+      // transport error that the worker would retry.
+      if (classified.category === 'account') throw new TerminalWhatsappAccountError(detail)
+      throw new Error(detail)
+    }
 
     /**
      * Persisted AFTER a confirmed wamid, never before — the same discipline the

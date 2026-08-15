@@ -9,7 +9,7 @@ import { renderResolvedBody } from '@/lib/whatsapp/templates/variables'
 import { resolveTemplateSendParameters, renderPositionalBody } from '@/lib/whatsapp/templates/parameters'
 import { sendWhatsappTemplate } from '@/lib/whatsapp/sendTemplateMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
-import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
+import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 
 /**
  * Send an APPROVED ready-made message to ONE lead (RFC §0 R-A, §15 Phase 6).
@@ -107,9 +107,17 @@ export async function sendTemplateToLead(
       code: sent.code,
       httpStatus: sent.httpStatus,
     })
-    // Map the Meta code to friendly Hebrew (never the raw message/code to the UI).
-    const mapped = sent.code ? mapWhatsappError(Number(sent.code)).text : SEND_FAILED
-    return { ok: false, error: mapped }
+    const classified = await onWhatsappSendFailure(sent, {
+      agencyId: user.agencyId,
+      leadId,
+      businessPhoneNumberId: target.businessPhoneNumberId,
+      customerWaId: target.customerWaId,
+      customerName: target.customerName,
+      sentByUserId: user.id,
+      text: renderedText,
+    })
+    // Preserve the existing no-code Hebrew; otherwise reuse the taxonomy copy.
+    return { ok: false, error: sent.code ? classified.text : SEND_FAILED }
   }
 
   try {

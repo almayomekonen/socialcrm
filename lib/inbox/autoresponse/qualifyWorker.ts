@@ -1,11 +1,11 @@
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
+import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import {
   skipAutoResponseJob,
   completeAutoResponseJob,
-  failAutoResponseJob,
   countSentToday,
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
@@ -72,7 +72,7 @@ async function sendAndPersist(
   ctx: QualifyCtx,
   send: typeof sendWhatsappText,
   text: string,
-): Promise<{ ok: true; messageId: number } | { ok: false; reason: string }> {
+): Promise<{ ok: true; messageId: number } | { ok: false; reason: string; settled?: true }> {
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: ctx.conv.businessPhoneNumberId, agency_id: job.agencyId })
     .first('phone_number_id', 'access_token', 'user_id')
@@ -80,6 +80,7 @@ async function sendAndPersist(
   const to = ctx.conv.customerWaId
   if (!to) return { ok: false, reason: 'no_recipient' }
 
+  const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const sent = await send({
     phoneNumberId: ctx.conv.businessPhoneNumberId,
     accessToken: connection.access_token,
@@ -88,11 +89,15 @@ async function sendAndPersist(
     trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
   })
   if (sent.ok === false) {
-    const detail = formatWhatsappSendFailure(sent)
-    return { ok: false, reason: detail }
+    await applyIreWhatsappSendFailure(job, sent, {
+      businessPhoneNumberId: ctx.conv.businessPhoneNumberId,
+      customerWaId: to,
+      customerName: ctx.conv.customerName ?? null,
+      sentByUserId,
+      text,
+    })
+    return { ok: false, reason: formatWhatsappSendFailure(sent), settled: true }
   }
-
-  const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const res = await persistOutboundWhatsapp({
     agencyId: job.agencyId,
     leadId: job.leadId,
@@ -433,10 +438,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     }
     const r = await sendAndPersist(job, ctx, deps.send, handoffText)
     if (r.ok === false) {
-      if (r.reason.startsWith('whatsapp_send_failed')) {
-        await failAutoResponseJob(job.id, r.reason)
-        return 'failed'
-      }
+      if (r.settled) return 'failed'
       return doSkip(r.reason)
     }
     await mergeOnly(conv.id, gen.extracted)
@@ -469,10 +471,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // ── Continue: send one qualifying reply + advance the turn ──
   const r = await sendAndPersist(job, ctx, deps.send, gen.reply)
   if (r.ok === false) {
-    if (r.reason.startsWith('whatsapp_send_failed')) {
-      await failAutoResponseJob(job.id, r.reason)
-      return 'failed'
-    }
+    if (r.settled) return 'failed'
     return doSkip(r.reason)
   }
   await recordTurn(conv.id, gen.extracted)

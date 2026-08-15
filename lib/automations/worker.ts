@@ -37,6 +37,7 @@ import { liveFieldKeys } from './conditionEvaluator'
 import { actionKeyFor, actionParameters } from './actionEntry'
 import { executorFor } from './executors/registry'
 import type { ExecutionContext } from './executors/types'
+import { isTerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
 import type { ActionDefinition } from './catalog/types'
 
 /**
@@ -270,6 +271,26 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     return 'done'
   } catch (err) {
     await deps.releaseClaim(job.automationId, job.leadId)
+    if (isTerminalWhatsappAccountError(err)) {
+      await deps.deadJob(job.id, String(err))
+      await deps.appendActivity({
+        agencyId: job.agencyId,
+        automationId: job.automationId,
+        leadId: job.leadId,
+        leadName: lead.exists ? lead.displayName : null,
+        kind: 'failed',
+        mode,
+        trigger: job.trigger,
+        origin: job.origin,
+      })
+      logT('dead', job, {
+        reason: String(err),
+        class: 'whatsapp_account',
+        userVisible: true,
+        copy: FAILURE_COPY.terminal,
+      })
+      return 'dead'
+    }
     await deps.failJob(job.id, String(err))
     const exhausted = job.attempts >= job.maxAttempts
     if (exhausted) {

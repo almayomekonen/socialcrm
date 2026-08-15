@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AutomationJob } from '@/db/automations/jobs'
 import type { WorkerDefinition } from '@/db/automations/definitions'
 import { runAutomationWorker, type WorkerDeps } from '@/lib/automations/worker'
+import { TerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
 import { getAutomationsSendMode } from '@/lib/automations/flags'
 import { getAction } from '@/lib/automations/catalog/registry'
 import { emailExecutor } from '@/lib/automations/executors/email'
@@ -414,5 +415,47 @@ describe('the live premise (B6)', () => {
     expect(calls(d.skipJob)[0][1]).toBe('premise_expired')
     // Nothing was executed at all: the executor is never reached.
     expect(d.claimOnce).not.toHaveBeenCalled()
+  })
+})
+
+describe('whatsapp account restriction is terminal', () => {
+  it('dead-letters immediately — no failJob retry', async () => {
+    const executor = {
+      actionKey: 'whatsapp.send',
+      resolvableFields: [],
+      defaultDeps: () => ({}),
+      preflight: async () => ({ ready: {}, problem: null }),
+      execute: async () => {
+        throw new TerminalWhatsappAccountError('whatsapp: 131031 restricted')
+      },
+    }
+    const d = deps({
+      sendMode: () => 'live',
+      getDefinition: vi.fn(async () =>
+        def({
+          action: 'send_whatsapp',
+          actions: [{ actionKey: 'whatsapp.send', parameters: { templateId: 5 } }],
+        }),
+      ),
+      getAction: vi.fn(() => getAction('whatsapp.send')),
+      executorFor: vi.fn(() => executor) as never,
+      getLeadFacts: vi.fn(async () => ({
+        exists: true as const,
+        email: null,
+        phone: '972501234567',
+        currentStatus: 'new',
+        firstName: 'דנה',
+        displayName: 'דנה לוי',
+        handlerId: null,
+      })),
+    })
+    const summary = await runAutomationWorker({ deps: d })
+    expect(summary.dead).toBe(1)
+    expect(summary.retried).toBe(0)
+    expect(d.deadJob).toHaveBeenCalledWith(1, expect.stringContaining('131031'))
+    expect(d.failJob).not.toHaveBeenCalled()
+    expect(d.confirmClaim).not.toHaveBeenCalled()
+    expect(d.releaseClaim).toHaveBeenCalledWith(3, 42)
+    expect(calls(d.appendActivity).some((c) => (c[0] as { kind: string }).kind === 'failed')).toBe(true)
   })
 })

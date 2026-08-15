@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
 
 /**
  * The `whatsapp.send` EXECUTOR.
@@ -18,8 +19,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  *     lets the job retry.
  */
 
+const recordAccountRestriction = vi.hoisted(() => vi.fn())
+
 vi.mock('@/db/whatsappTemplates', () => ({ loadTemplateForSend: vi.fn() }))
 vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({ resolveWhatsappOutboundTarget: vi.fn() }))
+vi.mock('@/lib/inbox/recordAccountRestriction', () => ({ recordAccountRestriction }))
 
 const { whatsappExecutor } = await import('@/lib/automations/executors/whatsapp')
 
@@ -73,6 +77,7 @@ beforeEach(() => {
   persist.mockClear()
   loadTemplate.mockClear()
   resolveTarget.mockClear()
+  recordAccountRestriction.mockReset().mockResolvedValue(undefined)
   loadTemplate.mockImplementation(async () => APPROVED as never)
   resolveTarget.mockImplementation(async () => ({ ok: true as const, target: TARGET }) as never)
 })
@@ -208,6 +213,25 @@ describe('a live send reuses the existing infrastructure exactly', () => {
     const c = ctx()
     const pre = await whatsappExecutor.preflight(c, deps())
     await expect(whatsappExecutor.execute(c, pre.ready!, deps())).rejects.toThrow(/network-error/)
+    expect(recordAccountRestriction).not.toHaveBeenCalled()
+    send.mockImplementation(async () => ({ ok: true, wamid: 'wamid.ABC' }))
+  })
+
+  it('131031 records a restriction and throws a TERMINAL error — not a retryable transport error', async () => {
+    send.mockImplementation(async () => ({ ok: false, error: 'restricted', code: '131031' }))
+    const c = ctx()
+    const pre = await whatsappExecutor.preflight(c, deps())
+    await expect(whatsappExecutor.execute(c, pre.ready!, deps())).rejects.toBeInstanceOf(TerminalWhatsappAccountError)
+    expect(recordAccountRestriction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agencyId: 7,
+        leadId: 42,
+        businessPhoneNumberId: '111222333',
+        customerWaId: '972501234567',
+        sentByUserId: null,
+      }),
+    )
+    expect(persist).not.toHaveBeenCalled()
     send.mockImplementation(async () => ({ ok: true, wamid: 'wamid.ABC' }))
   })
 })
