@@ -9,6 +9,7 @@ import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/lib/toast'
 import { generateWhatsappReplyDraft } from '@/actions/ai/whatsappReplyDraft'
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
+import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 const MAX_CHARS = 4096
 
@@ -72,7 +73,7 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
     setError(null)
     try {
       const res = await sendWhatsappReply(leadId, draft)
-      if (res.ok) {
+      if (res.ok === true) {
         setDraft('')
         // HTTP 200 from the Cloud API is an ACCEPT, not a delivery. Only a
         // `delivered` webhook may imply the message arrived — see
@@ -80,7 +81,7 @@ export default function WhatsappReplyDraft({ leadId }: { leadId: number }) {
         toast('success', 'ההודעה נשלחה — ממתין לאישור מסירה')
         router.refresh()
       } else {
-        toast('error', 'שליחת ההודעה נכשלה')
+        toast('error', failureTextForCategory(res.category) ?? 'שליחת ההודעה נכשלה')
       }
     } catch {
       toast('error', 'שליחת ההודעה נכשלה')

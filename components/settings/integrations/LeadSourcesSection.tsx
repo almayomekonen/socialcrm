@@ -9,7 +9,8 @@ import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
-import { resolveWhatsappStatus, type WhatsappStatus } from '@/lib/whatsapp/operationalStatus'
+import { resolveWhatsappHealth, type WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
+import { getWhatsappConnectionForAgency } from '@/db/whatsapp'
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
@@ -77,19 +78,16 @@ export default async function LeadSourcesSection({
     }
   }
 
-  // WhatsApp connection
-  const waConnection = await db('whatsapp_connections').where({ user_id: user.id }).first()
+  // WhatsApp connection — agency-scoped. A persisted row is NOT proof the
+  // integration works (see resolveWhatsappHealth). TemplatesSection keeps the
+  // phone-level readiness boolean below.
+  const waConnection = await getWhatsappConnectionForAgency(user.agencyId)
 
-  // Live readiness check — a connected row does not guarantee the number is
-  // registered for Cloud API, so never show "active" without verifying status.
   let waMessagingReady = true
-  // Truthful operational status for the connect UI — a persisted row is NOT
-  // proof the integration works (see resolveWhatsappStatus). TemplatesSection
-  // keeps the phone-level readiness boolean below.
-  let waStatus: WhatsappStatus = 'needs_verification'
+  let waStatus: WhatsappHealthPrimary = 'disconnected'
   if (waConnection) {
     waMessagingReady = await checkMessagingReady(waConnection.phone_number_id, waConnection.access_token)
-    waStatus = await resolveWhatsappStatus(waConnection, user.agencyId)
+    waStatus = (await resolveWhatsappHealth(waConnection, user.agencyId)).primary
   }
 
   const waPhonesCookie = cookieStore.get('wa_phones')?.value

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
-import { db } from '@/config/db'
+import { deleteWhatsappConnectionsForAgency } from '@/db/whatsapp'
 
 export async function POST(_req: NextRequest) {
   const user = await getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user.agencyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  await db('whatsapp_connections').where({ user_id: user.id }).delete()
+  await deleteWhatsappConnectionsForAgency(user.agencyId)
 
   return NextResponse.json({ ok: true })
 }

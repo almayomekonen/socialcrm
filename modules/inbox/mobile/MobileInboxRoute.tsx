@@ -44,7 +44,7 @@ export default async function MobileInboxRoute({
 
     const [messages, wa] = await Promise.all([
       listConversationMessages(conversationId),
-      getWhatsappConnectionState(userId),
+      getWhatsappConnectionState(agencyId),
     ])
 
     const name = target.displayName || target.leadName || 'שיחה'

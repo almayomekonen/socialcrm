@@ -80,6 +80,7 @@ type InsertChannelMessageInput = {
   rawPayload: unknown
   channelTimestamp: Date | null
   sentByUserId: number | null
+  errorReason?: string | null
 }
 
 async function insertChannelMessage(trx: Knex.Transaction, input: InsertChannelMessageInput): Promise<InsertMessageResult> {
@@ -107,6 +108,7 @@ async function insertChannelMessage(trx: Knex.Transaction, input: InsertChannelM
       payload: JSON.stringify(input.payload ?? {}),
       rawPayload: JSON.stringify(input.rawPayload ?? null),
       status: input.status,
+      errorReason: input.errorReason ?? null,
       sentByUserId: input.sentByUserId,
       channelTimestamp: input.channelTimestamp,
       sequence,
@@ -130,6 +132,30 @@ export async function insertInboundMessage(
   input: InsertInboundMessageInput,
 ): Promise<InsertMessageResult> {
   return insertChannelMessage(trx, { ...input, direction: 'inbound', status: 'received', sentByUserId: null })
+}
+
+export async function insertFailedOutboundMessage(
+  trx: Knex.Transaction,
+  input: InsertOutboundMessageInput & { errorReason: WhatsappErrorCategory },
+): Promise<InsertMessageResult> {
+  return insertChannelMessage(trx, {
+    conversationId: input.conversationId,
+    agencyId: input.agencyId,
+    leadId: input.leadId,
+    channel: input.channel,
+    direction: 'outbound',
+    status: 'failed',
+    errorReason: input.errorReason,
+    externalId: input.externalId,
+    fromId: input.fromId,
+    toId: input.toId,
+    type: 'text',
+    text: input.text,
+    payload: {},
+    rawPayload: null,
+    channelTimestamp: input.channelTimestamp,
+    sentByUserId: input.sentByUserId,
+  })
 }
 
 export async function insertOutboundMessage(

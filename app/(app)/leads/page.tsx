@@ -75,7 +75,7 @@ export default async function LeadsPage({ searchParams }) {
     getQuotaStatus(user.agencyId),
     getAgencyTrial(user.agencyId),
     getFacebookConnectionState(user.id),
-    getWhatsappConnectionState(user.id),
+    getWhatsappConnectionState(user.agencyId),
     intakeAlerts(user.agencyId),
   ])
 

@@ -1,6 +1,6 @@
 import 'server-only'
 import { db } from '@/config/db'
-import { resolveWhatsappStatus } from '@/lib/whatsapp/operationalStatus'
+import { resolveWhatsappHealth } from '@/lib/whatsapp/operationalStatus'
 import type { Connection, ConnectionOption, Source } from '../catalog/types'
 import type { ConnectionProvider } from './types'
 
@@ -67,11 +67,17 @@ async function rows(agencyId: number): Promise<Row[]> {
 
 async function healthOf(row: Row): Promise<Connection['health']> {
   try {
-    // `resolveWhatsappStatus` reads phone_number_id / access_token / waba_id —
-    // the same snake_case shape, so the row is passed through unchanged.
-    const status = await resolveWhatsappStatus(row as never, row.agency_id)
-    if (status === 'operational') return 'ok'
-    if (status === 'needs_verification') return 'needs_reauth'
+    if (!row.phone_number_id) return 'degraded'
+    const { primary } = await resolveWhatsappHealth(
+      {
+        phone_number_id: row.phone_number_id,
+        access_token: row.access_token,
+        waba_id: row.waba_id,
+      },
+      row.agency_id,
+    )
+    if (primary === 'operational') return 'ok'
+    if (primary === 'token' || primary === 'unknown' || primary === 'webhook') return 'needs_reauth'
     return 'degraded'
   } catch {
     return 'degraded'

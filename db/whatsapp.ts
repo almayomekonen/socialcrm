@@ -1,8 +1,16 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 
-export async function getWhatsappConnectionState(userId: number): Promise<{ connected: boolean }> {
-  const connection = await db('whatsapp_connections').where({ user_id: userId }).first()
+export async function getWhatsappConnectionForAgency(agencyId: number) {
+  return db('whatsapp_connections').where({ agency_id: agencyId }).first()
+}
+
+export async function deleteWhatsappConnectionsForAgency(agencyId: number) {
+  return db('whatsapp_connections').where({ agency_id: agencyId }).delete()
+}
+
+export async function getWhatsappConnectionState(agencyId: number): Promise<{ connected: boolean }> {
+  const connection = await getWhatsappConnectionForAgency(agencyId)
   return { connected: !!connection }
 }
 

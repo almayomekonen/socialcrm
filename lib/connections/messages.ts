@@ -281,6 +281,31 @@ export const WHATSAPP_NOTICES: Record<string, ConnectionNotice> = {
     explanation: 'מספר ה-WhatsApp הזה כבר מחובר לחשבון SocialCRM אחר. אי אפשר לחבר אותו לשני חשבונות במקביל.',
     nextStep: 'אם המספר שייך לכם, יש לנתקו מהחשבון האחר תחילה ואז לחבר כאן.',
   },
+  // Live connection: WhatsApp blocked outbound (account taxonomy). Never green.
+  // Reconnect is not the default — Embedded Signup does not lift a Meta restriction.
+  restricted: {
+    tone: 'error',
+    title: 'לא ניתן לשלוח הודעות כרגע',
+    explanation: 'WhatsApp לא מאפשרת כרגע לשלוח הודעות מהחשבון המחובר.',
+    nextStep: 'בדוק את חשבון WhatsApp המחובר ל-SocialCRM.',
+  },
+  // Live connection token died (401 / Graph 190). Distinct from ES `token`.
+  expired: {
+    tone: 'error',
+    title: 'החיבור לוואטסאפ פג',
+    explanation: 'הודעות ולידים חדשים אינם נכנסים כרגע. כל המידע הקיים במערכת נשמר במלואו.',
+    reasons: ['חלף זמן מהחיבור', 'ההרשאה ב-WhatsApp שונתה'],
+    nextStep: 'חידוש החיבור אורך פחות מדקה ואינו משפיע על נתונים קיימים.',
+    action: SHARED.reconnect,
+  },
+  // Saved row, subscribed_apps empty, no inbound for this phone.
+  webhook: {
+    tone: 'attention',
+    title: 'החיבור ל-WhatsApp עדיין לא הושלם',
+    explanation: 'לא הצלחנו לוודא שהודעות ולידים מגיעים ל-SocialCRM.',
+    nextStep: 'כדאי להריץ את ההגדרה שוב ולהשלים את כל השלבים עד סגירת החלון.',
+    action: 'להריץ את ההגדרה שוב',
+  },
 }
 
 /**

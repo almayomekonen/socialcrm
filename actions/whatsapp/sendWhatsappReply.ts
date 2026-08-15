@@ -3,7 +3,9 @@
 import { requireProductAccess } from '@/lib/requireUser'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
+import { recordAccountRestriction } from '@/lib/inbox/recordAccountRestriction'
 import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
+import { mapWhatsappError, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 /**
  * Send an outbound WhatsApp reply for a lead and persist it on success.
@@ -15,7 +17,9 @@ import { resolveWhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarge
 
 const MAX_CHARS = 4096
 
-export type SendWhatsappReplyResult = { ok: true } | { ok: false; reason: string }
+export type SendWhatsappReplyResult =
+  | { ok: true }
+  | { ok: false; reason: string; category?: WhatsappErrorCategory }
 
 export async function sendWhatsappReply(
   leadIdRaw: number | string,
@@ -42,9 +46,26 @@ export async function sendWhatsappReply(
     to: target.customerWaId,
     body,
   })
-  if (!sent.ok) {
+  if (sent.ok === false) {
     console.error(`[WhatsappSend][lead=${leadId}] send failed`, sent)
-    return { ok: false, reason: 'send-failed' }
+    const code = sent.code != null ? Number(sent.code) : null
+    const { category } = mapWhatsappError(Number.isFinite(code) ? code : null)
+    if (category === 'account') {
+      try {
+        await recordAccountRestriction({
+          agencyId: user.agencyId,
+          leadId,
+          businessPhoneNumberId: target.businessPhoneNumberId,
+          customerWaId: target.customerWaId,
+          customerName: target.customerName,
+          sentByUserId: user.id,
+          text: body,
+        })
+      } catch (err) {
+        console.error(`[WhatsappSend][lead=${leadId}] record account restriction failed`, err)
+      }
+    }
+    return { ok: false, reason: 'send-failed', category }
   }
 
   try {

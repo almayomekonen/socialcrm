@@ -62,6 +62,57 @@ async function registerPhoneNumber(
   return { success: false, error: data?.error?.message || `HTTP ${res.status}` }
 }
 
+export type PhoneStatusProbe =
+  | { ok: true; status?: string; codeVerificationStatus?: string; platformType?: string }
+  | { ok: false; kind: 'token' | 'error' | 'timeout'; httpStatus?: number }
+
+export type SubscribedAppsProbe =
+  | { ok: true; subscribed: boolean }
+  | { ok: false; kind: 'token' | 'error' | 'timeout'; httpStatus?: number }
+
+type GraphErrorBody = { error?: { code?: number }; status?: string; code_verification_status?: string; platform_type?: string; data?: unknown[] }
+
+function classifyGraphFailure(res: Response, data: GraphErrorBody): 'token' | 'error' | null {
+  if (res.status === 401 || data.error?.code === 190) return 'token'
+  if (!res.ok) return 'error'
+  return null
+}
+
+/** Structured phone-status probe. Distinguishes token (401/190) from not-CONNECTED. */
+export async function probePhoneStatus(phoneNumberId: string, accessToken: string): Promise<PhoneStatusProbe> {
+  try {
+    const res = await fetchWithTimeout(
+      `${GRAPH_BASE}/${phoneNumberId}?fields=status,code_verification_status,platform_type&access_token=${accessToken}`,
+    )
+    const data = (await res.json().catch(() => ({}))) as GraphErrorBody
+    const fail = classifyGraphFailure(res, data)
+    if (fail === 'token') return { ok: false, kind: 'token', httpStatus: res.status }
+    if (fail === 'error') return { ok: false, kind: 'error', httpStatus: res.status }
+    return {
+      ok: true,
+      status: data.status,
+      codeVerificationStatus: data.code_verification_status,
+      platformType: data.platform_type,
+    }
+  } catch {
+    return { ok: false, kind: 'timeout' }
+  }
+}
+
+/** Structured subscribed_apps probe. Distinguishes token (401/190) from empty list. */
+export async function probeAppSubscribed(wabaId: string, accessToken: string): Promise<SubscribedAppsProbe> {
+  try {
+    const res = await fetchWithTimeout(`${GRAPH_BASE}/${wabaId}/subscribed_apps?access_token=${accessToken}`)
+    const data = (await res.json().catch(() => ({}))) as GraphErrorBody
+    const fail = classifyGraphFailure(res, data)
+    if (fail === 'token') return { ok: false, kind: 'token', httpStatus: res.status }
+    if (fail === 'error') return { ok: false, kind: 'error', httpStatus: res.status }
+    return { ok: true, subscribed: Array.isArray(data.data) && data.data.length > 0 }
+  } catch {
+    return { ok: false, kind: 'timeout' }
+  }
+}
+
 export async function checkMessagingReady(phoneNumberId: string, accessToken: string): Promise<boolean> {
   try {
     const s = await getPhoneStatus(phoneNumberId, accessToken)

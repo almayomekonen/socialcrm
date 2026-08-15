@@ -8,7 +8,7 @@ import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { WHATSAPP_NOTICES, whatsappNotice } from '@/lib/connections/messages'
-import type { WhatsappStatus } from '@/lib/whatsapp/operationalStatus'
+import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string }
 type Connection = { phoneNumberId: string }
@@ -19,8 +19,17 @@ type Props = {
   appId: string
   configId: string
   graphVersion: string
-  /** Truthful operational status. Never render a green claim unless 'operational'. */
-  status: WhatsappStatus
+  /** Truthful health primary. Never render a green claim unless 'operational'. */
+  status: WhatsappHealthPrimary
+}
+
+function noticeForHealth(status: WhatsappHealthPrimary) {
+  if (status === 'registration_pending' || status === 'inbound_only') return WHATSAPP_NOTICES.not_ready
+  if (status === 'restricted') return WHATSAPP_NOTICES.restricted
+  if (status === 'token') return WHATSAPP_NOTICES.expired
+  if (status === 'webhook') return WHATSAPP_NOTICES.webhook
+  if (status === 'unknown') return WHATSAPP_NOTICES.needs_verification
+  return null
 }
 
 export default function WhatsappConnect({
@@ -78,32 +87,28 @@ export default function WhatsappConnect({
   }
 
   // State C: A connection row exists — but "row exists" is NOT "operational".
-  // Only 'operational' earns the green, leads-arrive claim. 'not_ready' and
-  // 'needs_verification' show honest, actionable states instead.
+  // Only 'operational' earns the green, leads-arrive claim. Restricted / token /
+  // webhook never render as green. Reconnect is not the default for restricted.
   if (connection) {
+    const notice = noticeForHealth(status)
+    const canReconnect = status === 'unknown' || status === 'token' || status === 'webhook'
     return (
       <div className='grid gap-4'>
         {status === 'operational' && (
           <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
         )}
-        {status === 'not_ready' && <ConnectionNotice notice={WHATSAPP_NOTICES.not_ready} />}
-        {status === 'needs_verification' && (
-          <>
-            <ConnectionNotice notice={WHATSAPP_NOTICES.needs_verification} />
-            <Btn
-              lbl={loading ? 'מתחבר...' : (WHATSAPP_NOTICES.needs_verification.action ?? 'לחבר מחדש ולאמת')}
-              icon={loading ? 'spinner' : 'whatsapp'}
-              iconClassName={loading ? 'animate-spin' : undefined}
-              size='small'
-              disabled={loading}
-              className='w-fit bg-green-600'
-              onClick={startEmbeddedSignup}
-            />
-          </>
+        {notice && <ConnectionNotice notice={notice} />}
+        {canReconnect && (
+          <Btn
+            lbl={loading ? 'מתחבר...' : (notice?.action ?? 'לחבר מחדש ולאמת')}
+            icon={loading ? 'spinner' : 'whatsapp'}
+            iconClassName={loading ? 'animate-spin' : undefined}
+            size='small'
+            disabled={loading}
+            className='w-fit bg-green-600'
+            onClick={startEmbeddedSignup}
+          />
         )}
-        <p className='text-sm text-gray-600'>
-          מספר מזוהה: <strong>{connection.phoneNumberId}</strong>
-        </p>
         <Btn
           lbl={loading ? 'מנתק...' : 'נתק וואטסאפ'}
           icon={loading ? 'spinner' : undefined}

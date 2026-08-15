@@ -7,6 +7,7 @@ import type { Route } from 'next'
 import Icon from '@/lib/Icon'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
+import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 
 /**
@@ -73,7 +74,7 @@ export default function ConversationThreadMobile({
     if (res.ok === false) {
       // Reason codes come from the action; each maps to something the rep can
       // act on rather than a generic failure.
-      setError(REASONS[res.reason] ?? 'לא הצלחנו לשלוח את ההודעה. נסה שוב.')
+      setError(failureTextForCategory(res.category) ?? REASONS[res.reason] ?? 'לא הצלחנו לשלוח את ההודעה. נסה שוב.')
       return
     }
 
