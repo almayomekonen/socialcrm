@@ -89,5 +89,8 @@ describe('business Meta integration stays on META_APP_ID', () => {
     expect(extras).not.toContain('setup')
     expect(extras).not.toContain('sessionInfoVersion')
     expect(waSignup).not.toContain('sessionInfoVersion')
+    expect(waSignup).toContain('createEmbeddedSignupGate')
+    expect(waSignup).toContain('gate.acceptCode(code)')
+    expect(waSignup).not.toContain('esDataRef')
   })
 })

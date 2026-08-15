@@ -1,6 +1,10 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
-import { ES_EVENT_FINISH, ES_EVENT_FINISH_COEXISTENCE, type OnboardingType } from '@/lib/whatsapp/coexistence'
+import {
+  createEmbeddedSignupGate,
+  parseEmbeddedSignupMessage,
+  type EmbeddedSignupGate,
+} from '@/lib/facebook/embeddedSignupSession'
 
 declare global {
   interface Window {
@@ -16,7 +20,6 @@ declare global {
 }
 
 const SDK_SRC = 'https://connect.facebook.net/en_US/sdk.js'
-const FB_HOSTS = new Set(['www.facebook.com', 'web.facebook.com', 'business.facebook.com'])
 
 /**
  * Opt into the WhatsApp Business App coexistence flow.
@@ -49,29 +52,16 @@ const COEXISTENCE_FEATURE_TYPE = 'whatsapp_business_app_onboarding'
  */
 const COEXISTENCE_DISABLED = process.env.NEXT_PUBLIC_WA_COEXISTENCE_DISABLED === '1'
 
-export type EmbeddedSignupResult = { ok: boolean; error?: string; messagingReady?: boolean; reason?: string }
-type EmbeddedSignupData = { waba_id?: string; phone_number_id?: string; onboardingType: OnboardingType }
-
 /**
- * Meta's own sample accepts any origin where `origin.endsWith('facebook.com')`,
- * which also matches `https://evilfacebook.com`. We validate the parsed hostname
- * instead: exact known hosts, or a true `*.facebook.com` subdomain, over HTTPS.
- * Stricter than the sample where it matters, broader where it must be — the
- * previous two-host allowlist risked silently dropping the coexistence event if
- * Meta served the flow from another Facebook host.
+ * Safety valve only. Starts AFTER the OAuth code exists. Does not bound how
+ * long the customer may spend inside Meta's popup.
  */
-function isFacebookOrigin(origin: string): boolean {
-  try {
-    const { protocol, hostname } = new URL(origin)
-    if (protocol !== 'https:') return false
-    return FB_HOSTS.has(hostname) || hostname.endsWith('.facebook.com')
-  } catch {
-    return false
-  }
-}
+const SESSION_INFO_WAIT_MS = 8_000
+
+export type EmbeddedSignupResult = { ok: boolean; error?: string; messagingReady?: boolean; reason?: string }
 
 export function useEmbeddedSignup(appId: string, configId: string, graphVersion: string) {
-  const esDataRef = useRef<EmbeddedSignupData>({ onboardingType: 'cloud_api' })
+  const gateRef = useRef<EmbeddedSignupGate | null>(null)
 
   useEffect(() => {
     if (!appId) return
@@ -94,27 +84,9 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (!isFacebookOrigin(event.origin)) return
-      let parsed: unknown
-      try {
-        parsed = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
-      } catch {
-        return
-      }
-      if (!parsed || typeof parsed !== 'object') return
-      const msg = parsed as { type?: string; event?: string; data?: { waba_id?: string; phone_number_id?: string } }
-      if (msg.type !== 'WA_EMBEDDED_SIGNUP') return
-
-      // Meta emits a distinct completion event for the Business app flow. Both
-      // are real successes; only the follow-up work differs, so the flow the
-      // customer actually completed is recorded here rather than inferred later.
-      if (msg.event === ES_EVENT_FINISH || msg.event === ES_EVENT_FINISH_COEXISTENCE) {
-        esDataRef.current = {
-          waba_id: msg.data?.waba_id,
-          phone_number_id: msg.data?.phone_number_id,
-          onboardingType: msg.event === ES_EVENT_FINISH_COEXISTENCE ? 'coexistence' : 'cloud_api',
-        }
-      }
+      const session = parseEmbeddedSignupMessage(event.origin, event.data)
+      if (!session) return
+      gateRef.current?.acceptSession(session)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
@@ -125,7 +97,8 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
       try {
         if (!window.FB) return resolve({ ok: false, error: 'sdk' })
         if (!configId) return resolve({ ok: false, error: 'config' })
-        esDataRef.current = { onboardingType: 'cloud_api' }
+        const gate = createEmbeddedSignupGate()
+        gateRef.current = gate
         // FB.login requires a SYNCHRONOUS callback. Handing the SDK an async
         // function makes it throw synchronously, which upstream swallows into a
         // generic error and the signup popup never opens. Keep the callback sync
@@ -135,16 +108,28 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
           (response) => {
             void (async () => {
               const code = response?.authResponse?.code
-              if (!code) return resolve({ ok: false, error: 'cancelled' })
+              if (!code) {
+                gate.cancel()
+                return resolve({ ok: false, error: 'cancelled' })
+              }
+              gate.acceptCode(code)
+              // Wait for session-info if it has not already arrived. The timer
+              // is a safety valve for "code without waba_id", not a wait for
+              // the customer to finish the popup.
+              const timer = setTimeout(() => gate.expire(), SESSION_INFO_WAIT_MS)
+              const outcome = await gate.outcome
+              clearTimeout(timer)
+              if (outcome.kind === 'cancelled') return resolve({ ok: false, error: 'cancelled' })
+              if (outcome.kind === 'error') return resolve({ ok: false, error: outcome.error })
               try {
                 const res = await fetch('/api/whatsapp/embedded-signup', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    code,
-                    wabaId: esDataRef.current.waba_id,
-                    phoneNumberId: esDataRef.current.phone_number_id,
-                    onboardingType: esDataRef.current.onboardingType,
+                    code: outcome.code,
+                    wabaId: outcome.session.waba_id,
+                    phoneNumberId: outcome.session.phone_number_id,
+                    onboardingType: outcome.session.onboardingType,
                   }),
                 })
                 const body = (await res.json().catch(() => ({}))) as {
