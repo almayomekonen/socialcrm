@@ -149,6 +149,14 @@ async function processJob(
     return
   }
 
+  // Leadless / personal conversations are never sales conversations.
+  // Complete without an AI call and without emitting lead.hot.
+  if (ctx.leadId == null) {
+    await completeAnalysisJob(job.id)
+    result.skipped++
+    return
+  }
+
   // ONE composite AI call. runStructured enforces the agency allowlist + daily
   // spend cap, walks the provider fallback chain and logs every attempt.
   const out = await runConversationAnalyzer({

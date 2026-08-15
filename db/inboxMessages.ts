@@ -23,7 +23,7 @@ export type InboxMessageType =
 export type InsertInboundMessageInput = {
   conversationId: number
   agencyId: number
-  leadId: number
+  leadId: number | null
   channel: 'whatsapp'
   externalId: string | null
   fromId: string | null
@@ -67,7 +67,7 @@ export type InsertOutboundMessageInput = {
 type InsertChannelMessageInput = {
   conversationId: number
   agencyId: number
-  leadId: number
+  leadId: number | null
   channel: 'whatsapp'
   direction: InboxMessageDirection
   status: InboxMessageStatus

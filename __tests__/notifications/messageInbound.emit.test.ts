@@ -345,3 +345,32 @@ describe('push remains governed by existing policy/presence', () => {
     ).toEqual(['in_app'])
   })
 })
+
+describe('leadless inbound — store the conversation, never treat it as a lead', () => {
+  it('still emits message.inbound (הודעה חדשה) and skips analysis + auto-response', async () => {
+    insertInboundMessage.mockResolvedValue({ id: 21, inserted: true, sequence: 1 })
+
+    await ingestWhatsappInbound(ingestInput({ leadId: null }))
+
+    expect(notifyEvent).toHaveBeenCalledTimes(1)
+    expect(notifyEvent.mock.calls[0][0]).toMatchObject({
+      type: 'message.inbound',
+      payload: { leadId: null, messageId: 21, provider: 'whatsapp' },
+    })
+    expect(enqueueConversationAnalysis).not.toHaveBeenCalled()
+    expect(enqueueAutoResponse).not.toHaveBeenCalled()
+  })
+
+  it('leadId=null has no handler — not a new-lead notification', () => {
+    expect(leadIdForJob({ entityType: 'conversation', entityId: CONV, payload: { leadId: null, messageId: 21 } })).toBeNull()
+    expect(
+      resolveRecipients({
+        rule: 'handler_or_admin',
+        agencyId: AGENCY,
+        leadId: null,
+        context: { handlerByLead: new Map(), adminsByAgency: new Map([[AGENCY, [ADMIN]]]) },
+      }),
+    ).toEqual([])
+  })
+})
+

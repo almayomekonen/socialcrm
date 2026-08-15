@@ -126,7 +126,7 @@ function mapInboxRow(r: Record<string, unknown>): InboxConversationListItem {
   const lastDirection = (r.lastDirection ?? null) as 'inbound' | 'outbound' | null
   return {
     conversationId: Number(r.conversationId),
-    leadId: Number(r.leadId),
+    leadId: r.leadId != null ? Number(r.leadId) : null,
     channel: r.channel as InboxChannel,
     displayName: (r.customerName as string) || (r.leadName as string) || (r.customerWaId as string) || null,
     leadName: (r.leadName as string) ?? null,
@@ -296,6 +296,7 @@ export async function getInboxConversationById(
     .first(
       'cv.id as conversationId',
       'cv.leadId',
+      'cv.isPersonal',
       'cv.channel',
       'cv.customerName',
       'cv.customerWaId',
@@ -336,6 +337,7 @@ export async function getInboxConversationByLeadId(
     .first(
       'cv.id as conversationId',
       'cv.leadId',
+      'cv.isPersonal',
       'cv.channel',
       'cv.customerName',
       'cv.customerWaId',
@@ -351,7 +353,8 @@ export async function getInboxConversationByLeadId(
 function mapConversationTarget(r: Record<string, unknown>): InboxConversationTarget {
   return {
     conversationId: Number(r.conversationId),
-    leadId: Number(r.leadId),
+    leadId: r.leadId != null ? Number(r.leadId) : null,
+    isPersonal: r.isPersonal === true,
     channel: r.channel as InboxChannel,
     displayName: (r.customerName as string | null) || (r.leadName as string | null) || (r.customerWaId as string | null) || null,
     leadName: (r.leadName as string | null) ?? null,

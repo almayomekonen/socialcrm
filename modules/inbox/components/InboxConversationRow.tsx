@@ -36,7 +36,7 @@ export default function InboxConversationRow({
           <div className='flex min-w-0 items-center gap-1.5'>
             <span className={`size-2 shrink-0 rounded-full ${attentionDot}`} aria-hidden />
             <span className={`truncate text-sm text-gray-900 ${unread ? 'font-bold' : 'font-medium'}`}>
-              {item.displayName ?? 'ליד'}
+              {item.displayName ?? 'שיחה'}
             </span>
           </div>
           <span className='shrink-0 text-[11px] tabular-nums text-gray-400'>

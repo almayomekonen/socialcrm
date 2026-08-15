@@ -3,6 +3,7 @@ import { Contact, Phone } from 'lucide-react'
 import { formatDate } from '@/lib/dates'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
+import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
 
 const QUICK_ACTION_CLS =
   'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
@@ -17,13 +18,17 @@ export default function WhatsappConversationHeader({
   leadStatus,
   customerWaId,
   leadId,
+  conversationId = null,
+  isPersonal = false,
   lastDirection,
   lastActivityAt,
 }: {
   displayName: string | null
   leadStatus: string | null
   customerWaId: string | null
-  leadId: number
+  leadId: number | null
+  conversationId?: number | null
+  isPersonal?: boolean
   lastDirection: 'inbound' | 'outbound' | null
   lastActivityAt: string | null
 }) {
@@ -85,11 +90,14 @@ export default function WhatsappConversationHeader({
             התקשר
           </a>
         )}
-        {displayName && (
+        {leadId != null && displayName && (
           <Link href={`/clients/${leadId}/summary`} className={QUICK_ACTION_CLS}>
             <Contact aria-hidden className='size-3.5' />
             כרטיס ליד
           </Link>
+        )}
+        {leadId == null && conversationId != null && (
+          <LeadlessConversationActions conversationId={conversationId} isPersonal={isPersonal} />
         )}
       </div>
     </div>

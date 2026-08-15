@@ -91,6 +91,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
             <InboxWorkspace
               conversationId={selected.conversationId}
               leadId={selected.leadId}
+              isPersonal={selected.isPersonal}
               channel={selected.channel}
               displayName={selected.displayName}
               leadStatus={selected.leadStatus}
@@ -102,7 +103,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         </section>
 
         <aside className='hidden w-80 shrink-0 overflow-y-auto xl:block'>
-          {selected ? (
+          {selected && selected.leadId != null ? (
             <>
               <Suspense fallback={null}>
                 <ConversationIntelligenceCard agencyId={user.agencyId} conversationId={selected.conversationId} />

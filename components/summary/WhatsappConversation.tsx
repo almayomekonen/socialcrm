@@ -13,13 +13,17 @@ const WALLPAPER =
 export default function WhatsappConversation({
   messages,
   leadId,
+  conversationId = null,
+  isPersonal = false,
   displayName = null,
   leadStatus = null,
   customerWaId = null,
   banner = null,
 }: {
   messages: LeadWhatsappMessage[]
-  leadId: number
+  leadId: number | null
+  conversationId?: number | null
+  isPersonal?: boolean
   displayName?: string | null
   leadStatus?: string | null
   customerWaId?: string | null
@@ -53,6 +57,8 @@ export default function WhatsappConversation({
         leadStatus={leadStatus}
         customerWaId={customerWaId}
         leadId={leadId}
+        conversationId={conversationId}
+        isPersonal={isPersonal}
         lastDirection={last?.direction ?? null}
         lastActivityAt={latestInbound?.timestamp ?? null}
       />
@@ -65,7 +71,9 @@ export default function WhatsappConversation({
             <ChannelIcon channel='whatsapp' className='size-6' />
           </span>
           <p className='mt-3 text-base font-medium text-gray-700'>אין הודעות WhatsApp עדיין</p>
-          <p className='mt-1 text-sm text-gray-500'>כשהליד יכתוב, ההודעות יופיעו כאן.</p>
+          <p className='mt-1 text-sm text-gray-500'>
+            {leadId != null ? 'כשהליד יכתוב, ההודעות יופיעו כאן.' : 'כשתגיע הודעה, היא תופיע כאן.'}
+          </p>
         </div>
       ) : (
         <div
@@ -98,7 +106,7 @@ export default function WhatsappConversation({
                           : `border-success-border bg-success-bg ${groupStart ? 'rounded-se-none' : ''}`
                     }`}
                   >
-                    <span className='sr-only'>{inbound ? 'הודעה מהליד' : 'הודעה שנשלחה מהמערכת'}</span>
+                    <span className='sr-only'>{inbound ? 'הודעה נכנסת' : 'הודעה שנשלחה מהמערכת'}</span>
                     <div className='flex items-end gap-2'>
                       <p className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'>
                         {m.text || '—'}
@@ -123,9 +131,11 @@ export default function WhatsappConversation({
         </div>
       )}
 
-      <div className='shrink-0 border-t border-gray-100 bg-white px-3 py-2.5'>
-        <WhatsappReplyDraft leadId={leadId} />
-      </div>
+      {leadId != null && leadId > 0 && (
+        <div className='shrink-0 border-t border-gray-100 bg-white px-3 py-2.5'>
+          <WhatsappReplyDraft leadId={leadId} />
+        </div>
+      )}
     </div>
   )
 }

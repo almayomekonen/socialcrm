@@ -32,7 +32,7 @@ export type InboxSmartCounts = {
 
 export type InboxConversationListItem = {
   conversationId: number
-  leadId: number
+  leadId: number | null
   channel: InboxChannel
   displayName: string | null
   leadName: string | null
@@ -61,7 +61,8 @@ export type InboxConversationsPage = {
 
 export type InboxConversationTarget = {
   conversationId: number
-  leadId: number
+  leadId: number | null
+  isPersonal: boolean
   channel: InboxChannel
   displayName: string | null
   leadName: string | null

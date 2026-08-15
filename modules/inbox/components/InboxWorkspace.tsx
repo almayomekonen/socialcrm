@@ -7,13 +7,15 @@ import OperatorTake from './OperatorTake'
 export default async function InboxWorkspace({
   conversationId,
   leadId,
+  isPersonal = false,
   channel,
   displayName = null,
   leadStatus = null,
   customerWaId = null,
 }: {
   conversationId: number
-  leadId: number
+  leadId: number | null
+  isPersonal?: boolean
   channel: string
   displayName?: string | null
   leadStatus?: string | null
@@ -36,6 +38,7 @@ export default async function InboxWorkspace({
       <InboxThread
         conversationId={conversationId}
         leadId={leadId}
+        isPersonal={isPersonal}
         initialMessages={messages}
         displayName={displayName}
         leadStatus={leadStatus}

@@ -9,6 +9,11 @@ import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatu
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { isCoexistenceWebhookField, processCoexistenceWebhook } from '@/lib/whatsapp/coexistence'
 import { notifyWhatsappIngestionFailed } from '@/lib/whatsapp/integrationNotifications'
+import { canUseWhatsappContacts } from '@/lib/flags/whatsappContactsFlags'
+import { hasCtwaReferral } from '@/lib/whatsapp/classifyInbound'
+import { findClientsByPhoneCore } from '@/lib/whatsapp/matchLeadByPhone'
+import { resolveInboundLeadDecision } from '@/lib/whatsapp/resolveInboundLead'
+import { attachConversationToLead, getConversationMemory } from '@/db/inboxConversations'
 import { db } from '@/config/db'
 
 export const maxDuration = 60
@@ -147,42 +152,91 @@ export async function POST(req: NextRequest) {
     const profileName: string | null = value.contacts?.[0]?.profile?.name ?? null
 
     const { firstName, lastName, phone } = parseWhatsappLead(from, profileName)
+    const agencyId = Number(connection.agency_id)
+    const contactsOn = canUseWhatsappContacts(agencyId)
 
-    const lead = await createLeadFromWhatsappWebhook({
-      firstName,
-      lastName,
-      phone,
-      messageId,
-      agencyId: connection.agency_id,
-      userId: connection.user_id,
-    })
+    let leadId: number | null = null
 
-    if (!lead) {
-      console.error(`[WhatsappWebhook][create][msgId=${messageId}] createLeadFromWhatsappWebhook returned null`)
-      await notifyWhatsappIngestionFailed(connection, messageId).catch(() => {})
-      return NextResponse.json({ ok: true })
+    if (!contactsOn) {
+      const lead = await createLeadFromWhatsappWebhook({
+        firstName,
+        lastName,
+        phone,
+        messageId,
+        agencyId,
+        userId: connection.user_id,
+      })
+      if (!lead) {
+        console.error(`[WhatsappWebhook][create][msgId=${messageId}] createLeadFromWhatsappWebhook returned null`)
+        await notifyWhatsappIngestionFailed(connection, messageId).catch(() => {})
+        return NextResponse.json({ ok: true })
+      }
+      leadId = Number(lead.id)
+      console.log(`[WhatsappWebhook][success][msgId=${messageId}] lead id=${leadId}`)
+    } else {
+      const memory = await getConversationMemory(agencyId, phoneNumberId, from)
+      const matches = memory?.isPersonal || (memory?.leadId != null && memory.leadId > 0)
+        ? []
+        : await findClientsByPhoneCore(agencyId, from)
+      const decision = resolveInboundLeadDecision({
+        isPersonal: memory?.isPersonal === true,
+        leadId: memory?.leadId ?? null,
+        matchingLeadIds: matches.map((m) => m.id),
+        hasCtwaReferral: hasCtwaReferral(message),
+      })
+
+      if (decision.kind === 'remembered_lead' || decision.kind === 'auto_link') {
+        leadId = decision.leadId
+      } else if (decision.kind === 'auto_create_ctwa') {
+        const lead = await createLeadFromWhatsappWebhook({
+          firstName,
+          lastName,
+          phone,
+          messageId,
+          agencyId,
+          userId: connection.user_id,
+        })
+        if (lead) {
+          leadId = Number(lead.id)
+        } else {
+          console.error(`[WhatsappWebhook][create][msgId=${messageId}] CTWA createLead returned null`)
+          await notifyWhatsappIngestionFailed(connection, messageId).catch(() => {})
+        }
+      }
+
+      console.log(
+        `[WhatsappWebhook][decision][msgId=${messageId}] kind=${decision.kind} leadId=${leadId ?? 'null'}`,
+      )
     }
 
-    console.log(`[WhatsappWebhook][success][msgId=${messageId}] lead id=${lead.id}`)
-
-    // Additive: persist the message as a conversation attached to the lead.
-    // Isolated so any failure here never affects lead creation or the 200 to Meta.
+    // Persist the message regardless of Lead/contact. Isolated so any failure
+    // here never affects the 200 to Meta. Coexistence history never reaches here.
     try {
       const result = await ingestWhatsappInbound({
-        agencyId: connection.agency_id,
-        leadId: lead.id,
+        agencyId,
+        leadId,
         businessPhoneNumberId: phoneNumberId,
         customerWaId: from,
         customerName: profileName,
         rawMessage: message,
       })
       console.log(
-        `[WhatsappWebhook][inbox][msgId=${messageId}] conversation=${result.conversationId} message=${result.messageId} inserted=${result.inserted}`,
+        `[WhatsappWebhook][inbox][msgId=${messageId}] conversation=${result.conversationId} message=${result.messageId} inserted=${result.inserted} leadId=${leadId ?? 'null'}`,
       )
-      // Instant Response Engine: kick the worker AFTER the 200 is flushed so the
-      // auto-response goes out in seconds. Primary path; the cron is the backstop.
-      if (result.inserted) {
-        // [IRE-OBS] temporary observability — prove the kick fires in prod.
+
+      if (leadId != null && leadId > 0) {
+        await attachConversationToLead(db, {
+          conversationId: result.conversationId,
+          agencyId,
+          leadId,
+        }).catch((err) => {
+          console.error(`[WhatsappWebhook][attach][msgId=${messageId}]`, err)
+        })
+      }
+
+      // Instant Response Engine: kick only for real Leads. Leadless / personal
+      // conversations must never auto-reply.
+      if (result.inserted && leadId != null && leadId > 0) {
         console.log(`[IRE] kick triggered conv=${result.conversationId} msg=${result.messageId}`)
         after(async () => {
           try {

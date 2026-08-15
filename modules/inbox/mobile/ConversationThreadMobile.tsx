@@ -35,7 +35,7 @@ export default function ConversationThreadMobile({
   canSend,
 }: {
   conversationId: number
-  leadId: number
+  leadId: number | null
   displayName: string
   initialMessages: LeadWhatsappMessage[]
   /** False when the agency has no WhatsApp connection — composer becomes a note. */
@@ -64,6 +64,7 @@ export default function ConversationThreadMobile({
 
     setSending(true)
     setError(null)
+    if (leadId == null) return
     const res = await sendWhatsappReply(leadId, body)
     setSending(false)
 
@@ -103,46 +104,48 @@ export default function ConversationThreadMobile({
         <div ref={endRef} />
       </div>
 
-      <div className='shrink-0 border-t border-gray-200 bg-white px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]'>
-        {error && (
-          <p role='alert' className='mb-2 rounded-md bg-error-bg px-3 py-2 text-[13px] text-error-text'>
-            {error}
-          </p>
-        )}
+      {leadId != null && (
+        <div className='shrink-0 border-t border-gray-200 bg-white px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]'>
+          {error && (
+            <p role='alert' className='mb-2 rounded-md bg-error-bg px-3 py-2 text-[13px] text-error-text'>
+              {error}
+            </p>
+          )}
 
-        {canSend ? (
-          <form onSubmit={onSend} className='flex items-end gap-2'>
-            <label htmlFor='composer' className='sr-only'>
-              כתיבת הודעה
-            </label>
-            <textarea
-              id='composer'
-              rows={1}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder='כתיבת הודעה...'
-              className='max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none focus:border-primary focus:bg-white'
-            />
-            <button
-              type='submit'
-              disabled={!text.trim() || sending || pending}
-              aria-label='שלח'
-              className='flex size-11 shrink-0 items-center justify-center rounded-full bg-solid text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            >
-              <Icon name={sending ? 'spinner' : 'paper-plane'} type='sol' className={`size-4 bg-white ${sending ? 'animate-spin' : ''}`} />
-            </button>
-          </form>
-        ) : (
-          /* No connection: state it, and point at the fix. Never render a
-             composer that cannot send. */
-          <p className='py-2 text-center text-[13px] text-gray-500'>
-            כדי לשלוח הודעות,{' '}
-            <Link href={'/settings/integrations' as Route} className='font-medium text-primary-text underline'>
-              חברו את וואטסאפ
-            </Link>
-          </p>
-        )}
-      </div>
+          {canSend ? (
+            <form onSubmit={onSend} className='flex items-end gap-2'>
+              <label htmlFor='composer' className='sr-only'>
+                כתיבת הודעה
+              </label>
+              <textarea
+                id='composer'
+                rows={1}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder='כתיבת הודעה...'
+                className='max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none focus:border-primary focus:bg-white'
+              />
+              <button
+                type='submit'
+                disabled={!text.trim() || sending || pending}
+                aria-label='שלח'
+                className='flex size-11 shrink-0 items-center justify-center rounded-full bg-solid text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              >
+                <Icon name={sending ? 'spinner' : 'paper-plane'} type='sol' className={`size-4 bg-white ${sending ? 'animate-spin' : ''}`} />
+              </button>
+            </form>
+          ) : (
+            /* No connection: state it, and point at the fix. Never render a
+               composer that cannot send. */
+            <p className='py-2 text-center text-[13px] text-gray-500'>
+              כדי לשלוח הודעות,{' '}
+              <Link href={'/settings/integrations' as Route} className='font-medium text-primary-text underline'>
+                חברו את וואטסאפ
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

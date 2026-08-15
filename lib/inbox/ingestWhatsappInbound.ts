@@ -10,7 +10,7 @@ import { notifyEvent } from '@/lib/notifications/emit'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
-  leadId: number
+  leadId: number | null
   businessPhoneNumberId: string
   customerWaId: string
   customerName: string | null
@@ -81,36 +81,40 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
 
     if (inserted) {
       await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date(), parsed.text)
-      await enqueueConversationAnalysis(trx, {
-        conversationId,
-        agencyId: input.agencyId,
-        channel: 'whatsapp',
-        triggerSequence: sequence,
-        reason: 'new_message',
-      })
-      // Instant Response Engine: enqueue a guarded first-contact auto-response in
-      // the same txn. Internally a no-op unless the feature is enabled; the worker
-      // re-checks authoritatively. Qualify-mode agencies enqueue one job per turn.
-      const arSettings = await trx('auto_response_settings')
-        .where({ agencyId: input.agencyId, channel: 'whatsapp' })
-        .first('mode', 'delaySeconds')
-      const delayRaw = Number(arSettings?.delaySeconds ?? 0)
-      const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
-      const reason = arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact'
-      const jobId = await enqueueAutoResponse(trx, {
-        agencyId: input.agencyId,
-        conversationId,
-        leadId: input.leadId,
-        channel: 'whatsapp',
-        triggerSequence: sequence,
-        reason,
-        delaySeconds,
-      })
-      waTrace(
-        'JOB_CREATED',
-        { conversationId, agencyId: input.agencyId, jobId, messageId, triggerSequence: sequence },
-        { jobId, reason, triggerSequence: sequence, enqueued: jobId != null },
-      )
+      // Leadless / personal conversations are never sales conversations:
+      // no Copilot analysis, no auto-response, no SLA/follow-up jobs.
+      if (input.leadId != null && input.leadId > 0) {
+        await enqueueConversationAnalysis(trx, {
+          conversationId,
+          agencyId: input.agencyId,
+          channel: 'whatsapp',
+          triggerSequence: sequence,
+          reason: 'new_message',
+        })
+        // Instant Response Engine: enqueue a guarded first-contact auto-response in
+        // the same txn. Internally a no-op unless the feature is enabled; the worker
+        // re-checks authoritatively. Qualify-mode agencies enqueue one job per turn.
+        const arSettings = await trx('auto_response_settings')
+          .where({ agencyId: input.agencyId, channel: 'whatsapp' })
+          .first('mode', 'delaySeconds')
+        const delayRaw = Number(arSettings?.delaySeconds ?? 0)
+        const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
+        const reason = arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact'
+        const jobId = await enqueueAutoResponse(trx, {
+          agencyId: input.agencyId,
+          conversationId,
+          leadId: input.leadId,
+          channel: 'whatsapp',
+          triggerSequence: sequence,
+          reason,
+          delaySeconds,
+        })
+        waTrace(
+          'JOB_CREATED',
+          { conversationId, agencyId: input.agencyId, jobId, messageId, triggerSequence: sequence },
+          { jobId, reason, triggerSequence: sequence, enqueued: jobId != null },
+        )
+      }
 
       // Notification engine — same txn as the message INSERT so a rolled-back
       // ingest enqueues nothing. Emit ONLY on inserted=true: webhook retries that

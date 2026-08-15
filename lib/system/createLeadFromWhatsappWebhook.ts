@@ -55,7 +55,7 @@ export async function createLeadFromWhatsappWebhook({
     lastName,
     phone,
     email: null,
-    idNum: `WA_${messageId}`,
+    idNum: null,
     lead: true,
     leadSource: `whatsapp:${messageId}`,
     agencyId,

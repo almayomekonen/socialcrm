@@ -8,6 +8,7 @@ import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 export default function InboxThread({
   conversationId,
   leadId,
+  isPersonal = false,
   initialMessages,
   displayName = null,
   leadStatus = null,
@@ -15,7 +16,8 @@ export default function InboxThread({
   banner = null,
 }: {
   conversationId: number
-  leadId: number
+  leadId: number | null
+  isPersonal?: boolean
   initialMessages: LeadWhatsappMessage[]
   displayName?: string | null
   leadStatus?: string | null
@@ -33,6 +35,8 @@ export default function InboxThread({
     <WhatsappConversation
       messages={messages}
       leadId={leadId}
+      conversationId={conversationId}
+      isPersonal={isPersonal}
       displayName={displayName}
       leadStatus={leadStatus}
       customerWaId={customerWaId}

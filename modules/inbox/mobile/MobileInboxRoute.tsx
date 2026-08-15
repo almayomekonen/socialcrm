@@ -7,6 +7,7 @@ import { getWhatsappConnectionState } from '@/db/whatsapp'
 import ConversationListMobile from './ConversationListMobile'
 import ConversationThreadMobile from './ConversationThreadMobile'
 import { relativeTimeHe } from './relativeTime'
+import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
 
 /**
  * The mobile שיחות route — list, or one thread when `?conversation=` is set.
@@ -64,7 +65,7 @@ export default async function MobileInboxRoute({
             <Icon name='arrow-right' type='sol' className='size-5 bg-gray-600' />
           </Link>
           <p className='min-w-0 flex-1 truncate text-[15px] font-semibold text-ink'>{name}</p>
-          {target.leadId != null && (
+          {target.leadId != null ? (
             <Link
               href={`/clients/${target.leadId}/summary` as Route}
               className='flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-primary-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
@@ -72,13 +73,15 @@ export default async function MobileInboxRoute({
               <Icon name='image-polaroid-user' type='sol' className='size-4 bg-primary' />
               <span>הליד</span>
             </Link>
+          ) : (
+            <LeadlessConversationActions conversationId={conversationId} isPersonal={target.isPersonal} />
           )}
         </div>
 
         <div className='min-h-0 flex-1'>
           <ConversationThreadMobile
             conversationId={conversationId}
-            leadId={target.leadId as number}
+            leadId={target.leadId}
             displayName={name}
             initialMessages={messages}
             canSend={wa.connected}
