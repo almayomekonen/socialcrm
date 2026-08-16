@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import {
   probeAppSubscribed,
   probePhoneStatus,
@@ -122,11 +123,12 @@ export async function resolveWhatsappHealth(
     return { primary: 'disconnected', inbound: 'not_ready', outbound: 'not_ready' }
   }
 
+  const accessToken = resolveWhatsappAccessToken(conn.access_token)
   const [inboundHit, accountFail, phoneProbe, subProbe] = await Promise.all([
     injected.hasInboundForPhone(agencyId, conn.phone_number_id),
     injected.hasAccountFailure(agencyId, conn.phone_number_id),
-    injected.probePhone(conn.phone_number_id, conn.access_token),
-    conn.waba_id ? injected.probeSubscribed(conn.waba_id, conn.access_token) : Promise.resolve(null),
+    injected.probePhone(conn.phone_number_id, accessToken),
+    conn.waba_id ? injected.probeSubscribed(conn.waba_id, accessToken) : Promise.resolve(null),
   ])
 
   if (phoneProbe.ok === false && phoneProbe.kind === 'token') {

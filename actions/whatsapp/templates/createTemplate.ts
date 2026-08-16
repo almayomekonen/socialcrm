@@ -6,6 +6,7 @@ import { isAdmin } from '@/types/roles'
 import { validateTemplateInput } from '@/lib/whatsapp/templates/validate'
 import { buildComponents, slugifyTemplateName, hasUnexampledParameters } from '@/lib/whatsapp/templates/components'
 import { createTemplateOnMeta } from '@/lib/whatsapp/templates/graph'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import { insertOptimistic } from '@/db/whatsappTemplates'
 import { isCreateRateLimited, RATE_LIMIT_MESSAGE } from '@/lib/whatsapp/templates/rateLimit'
 import { TEMPLATE_VALIDATION_COPY } from '@/lib/whatsapp/templates/messages'
@@ -61,7 +62,7 @@ export async function createTemplate(input: TemplateInput): Promise<CreateTempla
 
   const meta = await createTemplateOnMeta({
     wabaId: conn.waba_id,
-    accessToken: conn.access_token,
+    accessToken: resolveWhatsappAccessToken(conn.access_token),
     name,
     language: LANGUAGE,
     category,

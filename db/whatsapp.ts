@@ -1,8 +1,11 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 export async function getWhatsappConnectionForAgency(agencyId: number) {
-  return db('whatsapp_connections').where({ agency_id: agencyId }).first()
+  const row = await db('whatsapp_connections').where({ agency_id: agencyId }).first()
+  if (!row) return row
+  return { ...row, access_token: resolveWhatsappAccessToken(row.access_token) }
 }
 
 export async function deleteWhatsappConnectionsForAgency(agencyId: number) {

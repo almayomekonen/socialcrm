@@ -5,6 +5,7 @@ import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { loadTemplateForMutation, discardTemplateRow } from '@/db/whatsappTemplates'
 import { deleteTemplateOnMeta } from '@/lib/whatsapp/templates/graph'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import type { MutateTemplateResult } from './archiveTemplate'
 
 /**
@@ -30,7 +31,7 @@ export async function discardTemplate(id: number): Promise<MutateTemplateResult>
   // Meta delete fails, keep the local row so the user can retry — do not orphan.
   const conn = await db('whatsapp_connections').where({ agency_id: user.agencyId }).first('waba_id', 'access_token')
   if (row.metaTemplateId && conn?.waba_id && conn?.access_token) {
-    const del = await deleteTemplateOnMeta(conn.waba_id, conn.access_token, row.name)
+    const del = await deleteTemplateOnMeta(conn.waba_id, resolveWhatsappAccessToken(conn.access_token), row.name)
     if (!del.ok) return { ok: false, error: 'error' in del ? del.error : NOT_FOUND }
   }
 

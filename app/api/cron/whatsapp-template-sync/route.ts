@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/config/db'
 import { reconcileWabaTemplates } from '@/lib/whatsapp/templates/sync'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 /**
  * Reconciliation cron — the backstop for missed template webhooks. Walks every
@@ -40,7 +41,11 @@ async function handle(req: NextRequest) {
   let upserted = 0
   for (const c of connections) {
     try {
-      const r = await reconcileWabaTemplates({ agencyId: c.agency_id, wabaId: c.waba_id, accessToken: c.access_token })
+      const r = await reconcileWabaTemplates({
+        agencyId: c.agency_id,
+        wabaId: c.waba_id,
+        accessToken: resolveWhatsappAccessToken(c.access_token),
+      })
       scanned += r.scanned
       upserted += r.upserted
     } catch (err) {

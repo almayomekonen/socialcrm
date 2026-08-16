@@ -3,6 +3,7 @@ import { track } from '@/lib/analytics/track'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import {
   skipAutoResponseJob,
   completeAutoResponseJob,
@@ -83,7 +84,7 @@ async function sendAndPersist(
   const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const sent = await send({
     phoneNumberId: ctx.conv.businessPhoneNumberId,
-    accessToken: connection.access_token,
+    accessToken: resolveWhatsappAccessToken(connection.access_token),
     to,
     body: text,
     trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },

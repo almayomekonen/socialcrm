@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 /**
  * Shared WhatsApp outbound targeting — same rules as the historical
@@ -59,7 +60,7 @@ export async function resolveWhatsappOutboundTarget(
       leadId,
       leadName: (lead.name as string | null) ?? null,
       businessPhoneNumberId,
-      accessToken: connection.access_token,
+      accessToken: resolveWhatsappAccessToken(connection.access_token),
       customerWaId,
       customerName: (conv?.customerName as string | null) ?? (lead.name as string | null) ?? null,
     },
@@ -99,7 +100,7 @@ export async function resolveWhatsappOutboundTargetForConversation(
       leadId,
       leadName: (lead.name as string | null) ?? null,
       businessPhoneNumberId,
-      accessToken: connection.access_token,
+      accessToken: resolveWhatsappAccessToken(connection.access_token),
       customerWaId,
       customerName: (conv.customerName as string | null) ?? (lead.name as string | null) ?? null,
     },

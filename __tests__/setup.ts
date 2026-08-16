@@ -12,6 +12,7 @@ if (process.env.NODE_ENV !== 'test') {
 // component importing one) throw without this. A fixed, obviously-fake value —
 // never a real secret, and only ever set when one is absent under NODE_ENV=test.
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-only-not-a-real-secret'
+process.env.SECRETS_ENC_KEY = process.env.SECRETS_ENC_KEY || Buffer.alloc(32, 7).toString('base64')
 
 if (process.env.VITEST_NO_DB === '1') {
   console.log('[test setup] VITEST_NO_DB=1 → skipping schema reset + migrations')

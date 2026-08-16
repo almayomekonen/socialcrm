@@ -2,6 +2,7 @@ import { db } from '@/config/db'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import { track } from '@/lib/analytics/track'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import {
@@ -144,7 +145,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   const sentByUserId = (lead.userId as number | null) ?? (lead.handlerId as number | null) ?? connection.user_id
   const sent = await deps.send({
     phoneNumberId: conv.businessPhoneNumberId as string,
-    accessToken: connection.access_token,
+    accessToken: resolveWhatsappAccessToken(connection.access_token),
     to,
     body: message,
     trace: { conversationId: job.conversationId, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
