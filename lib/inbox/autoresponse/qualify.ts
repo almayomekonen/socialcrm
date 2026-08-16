@@ -2,7 +2,12 @@ import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
 import { QUALIFICATION_FIELDS, type Qualification } from './qualification'
 import { waTrace, type WaTraceCtx } from './waTrace'
-import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser, type RegenerationReason } from './qualifyPrompt'
+import {
+  QUALIFY_SYSTEM_PROMPT,
+  buildQualifyUser,
+  inboundStatesBusinessNeed,
+  type RegenerationReason,
+} from './qualifyPrompt'
 
 export type { RegenerationReason }
 export { QUALIFY_SYSTEM_PROMPT }
@@ -99,6 +104,25 @@ export function nextRequiredFieldQuestion(missingRequired: string[], lang: 'he' 
   const field = missingRequired[0]
   const q = (field && NEXT_FIELD_QUESTION[field]) || GENERIC_QUESTION
   return lang === 'en' ? q.en : q.he
+}
+
+/**
+ * Shape-repair fallback after a failed regeneration. `name` may still be missing
+ * as CRM memory, but it is not the next conversational question when the customer
+ * already stated a need (inbound or extracted).
+ */
+export function deterministicQualifyFallback(args: {
+  missingRequired: string[]
+  qualification: Qualification
+  lastInboundText: string
+  lang: 'he' | 'en'
+}): string {
+  const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(args.lastInboundText)
+  if (needKnown) {
+    const q = NEXT_FIELD_QUESTION.need
+    return args.lang === 'en' ? q.en : q.he
+  }
+  return nextRequiredFieldQuestion(args.missingRequired, args.lang)
 }
 
 const QualifySchema = z.object({

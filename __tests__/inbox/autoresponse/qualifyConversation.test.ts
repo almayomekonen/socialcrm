@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decidePostGeneration } from '@/lib/inbox/autoresponse/stateMachine'
-import { detectHumanRequest, detectOptOut, nextRequiredFieldQuestion } from '@/lib/inbox/autoresponse/qualify'
+import { detectHumanRequest, detectOptOut, nextRequiredFieldQuestion, deterministicQualifyFallback } from '@/lib/inbox/autoresponse/qualify'
 import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser, inboundStatesBusinessNeed } from '@/lib/inbox/autoresponse/qualifyPrompt'
 import { validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
 import { decidePreGeneration } from '@/lib/inbox/autoresponse/stateMachine'
@@ -170,6 +170,54 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect((q.match(/\?/g) ?? []).length).toBe(1)
     expect(validateAutoResponse(q).ok).toBe(true)
     expect(q).not.toContain('הצורך המרכזי')
+  })
+
+  it('need stated + name missing + validation fail → fallback does not ask name', () => {
+    const fallback = deterministicQualifyFallback({
+      missingRequired: ['name', 'need'],
+      qualification: {},
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    })
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).not.toMatch(/איך לפנות אליך|What should I call you/)
+    expect(fallback).toBe(nextRequiredFieldQuestion(['need'], 'he'))
+  })
+
+  it('need already extracted + name missing → fallback deepens the need', () => {
+    const fallback = deterministicQualifyFallback({
+      missingRequired: ['name'],
+      qualification: { need: 'עזרה בניהול לקוחות עסק איפור' },
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    })
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).not.toMatch(/איך לפנות אליך/)
+    expect(fallback).toBe(nextRequiredFieldQuestion(['need'], 'he'))
+    expect(fallback).not.toBe('מה הכי מפריע לך היום בניהול הלקוחות?')
+  })
+
+  it('no need stated + name missing → asking name remains allowed', () => {
+    const fallback = deterministicQualifyFallback({
+      missingRequired: ['name', 'need'],
+      qualification: {},
+      lastInboundText: 'היי אשמח לקבל פרטים',
+      lang: 'he',
+    })
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).toBe(nextRequiredFieldQuestion(['name'], 'he'))
+  })
+
+  it('need stated + AI generation succeeds → the valid AI reply is kept', () => {
+    const aiReply = 'ברור. מה הכי קשה לך היום במעקב אחרי הלקוחות?'
+    expect(validateAutoResponse(aiReply).ok).toBe(true)
+    expect(aiReply).not.toBe(nextRequiredFieldQuestion(['name'], 'he'))
+    expect(aiReply).not.toBe(deterministicQualifyFallback({
+      missingRequired: ['name'],
+      qualification: { need: 'עזרה בניהול לקוחות עסק איפור' },
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    }))
   })
 
   it('the canned transfer line is not a valid live reply (no question)', () => {

@@ -14,7 +14,7 @@ import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
-import { mergeQualification, requiredComplete } from './qualification'
+import { mergeQualification, requiredComplete, type Qualification } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import {
   generateQualifyTurn,
@@ -22,7 +22,7 @@ import {
   detectLang,
   detectOptOut,
   detectHumanRequest,
-  nextRequiredFieldQuestion,
+  deterministicQualifyFallback,
   type QualifyGenResult,
   type RegenerationReason,
 } from './qualify'
@@ -297,9 +297,16 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
         finalResolution = 'guardrail_handoff'
       } else {
         // Shape breach survived → deterministic next-field question; stay in qualify.
-        const mergedNow = mergeQualification(aiState.qualification, gen.extracted) as Record<string, unknown>
-        const missingRequired = settings.collectFields.required.filter((f) => !mergedNow[f])
-        gen.reply = nextRequiredFieldQuestion(missingRequired, lang)
+        // Conversational priority is separate from CRM completeness: a stated/
+        // extracted need is deepened even when `name` is still missing.
+        const mergedNow = mergeQualification(aiState.qualification, gen.extracted)
+        const missingRequired = settings.collectFields.required.filter((f) => !mergedNow[f as keyof Qualification])
+        gen.reply = deterministicQualifyFallback({
+          missingRequired,
+          qualification: mergedNow,
+          lastInboundText: (lastInbound?.text as string) ?? '',
+          lang,
+        })
         validation = validateAutoResponse(gen.reply)
         finalResolution = 'deterministic'
       }
