@@ -180,6 +180,8 @@ describe('IRE qualify / handoff + 131031', () => {
       ok: true as const,
       reply: 'איך קוראים לך?',
       extracted: {},
+      objective: 'discover_need' as const,
+      understanding: { pain: null, impact: null, currentWorkflow: null, desiredOutcome: null },
       hotSignal: false,
       uncertain: false,
     }))

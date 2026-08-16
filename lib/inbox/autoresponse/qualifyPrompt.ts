@@ -1,4 +1,4 @@
-import type { Qualification } from './qualification'
+import type { ConversationCognition, Qualification } from './qualification'
 
 export type RegenerationReason = 'shape_validation' | 'safety_validation'
 
@@ -15,8 +15,11 @@ export const QUALIFY_SYSTEM_PROMPT = [
   'שם הוא אופציונלי בשיחה. אל תתעדפי אותו על פני צורך מפורש.',
   'אם הלקוח פתח בהודעה שמכילה צורך, כאב או בעיה עסקית ברורה, קודם כל מגיבים לצורך הזה ומעמיקים בו. אין לשאול לשם רק משום שהשם חסר במידע הפנימי.',
   'בכל הודעה הסתכלי קודם על מה שהלקוח אמר עכשיו, על ההקשר של השיחה, ועל השאלה שהכי טבעי לשאול בשלב הזה.',
+  'היעד הבא הוא החלטה על מה הכי שווה להבין עכשיו — לא השדה או פרט התהליך שחסר.',
+  'אחרי כאב משמעותי שכבר ידוע, להשפעה העסקית בדרך כלל יש ערך גבוה יותר מפרטי תהליך נוספים (כלים, צוות, איך מסמנים).',
+  'אם הלקוח כבר מסר כאב, השפעה או תוצאה רצויה — אל תשאל/י על זה שוב. אפשר לדלג קדימה.',
   'אם אפשר להעמיק במה שהלקוח אמר בלי לאסוף מידע חדש — עשי זאת.',
-  'אם יש כמה שאלות אפשריות — בחרי רק את השאלה שהכי תקדם את השיחה.',
+  'אם יש כמה שאלות אפשריות — בחרי רק את היעד שהכי מקדם את השיחה, לא את הפרט הבא ברשימה.',
   'אל תשאלי על urgency/budget/location/callback רק משום שהם חסרים.',
   'אל תנסי לסגור את השיחה מהר.',
   'לקוח יכול לנהל כמה תורות טבעיים בלי לאסוף שדה מובנה חדש.',
@@ -58,14 +61,14 @@ export function inboundStatesBusinessNeed(text: string): boolean {
 export function inboundStatesPain(text: string): boolean {
   const t = text.trim()
   if (!t) return false
-  return /מפריע|שוכח|שוכחת|לאיבוד|עמוס|נשכח|לא חוזר|קשה ל|\bforget|\boverwhelm|\blosing track|\bmiss(?:ed)? follow/i.test(t)
+  return /מפריע|שוכח|שוכחת|מפספס|מפספסת|לאיבוד|עמוס|נשכח|לא חוזר|קשה ל|\bforget|\boverwhelm|\blosing track|\bmiss(?:ed)? follow/i.test(t)
 }
 
 /** Business consequence of the pain — lost customers, churn, going elsewhere. */
 export function inboundStatesImpact(text: string): boolean {
   const t = text.trim()
   if (!t) return false
-  return /למישה[וויה]|לקוח[הא]? אחר|מפסיד|הפסד|עוזב|אבד לקוח|lost (?:a )?customer|goes? elsewhere|lose (?:them|business|clients)/i.test(t)
+  return /למישה[וויה]|לקוח[הא]? אחר|מפסיד|מפספסת לקוח|הפסד|עוזב|אבד לקוח|עולה לי|בכסף|הכנסות|lost (?:a )?customer|goes? elsewhere|lose (?:them|business|clients|money)|costs? me/i.test(t)
 }
 
 /** How they handle it today — spreadsheet, WhatsApp, in their head. */
@@ -73,6 +76,27 @@ export function inboundStatesWorkflow(text: string): boolean {
   const t = text.trim()
   if (!t) return false
   return /באקסל|בוואטסאפ|בראש|היום אני|\bspreadsheet|\bexcel\b|\bwhatsapp\b|in my head|currently (?:use|manage)/i.test(t)
+}
+
+/** Stated desired change — not just the current problem. */
+export function inboundStatesOutcome(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return /רוצה ש|שיהיה אחרת|הייתי רוצה|שזה יעבוד|want (?:it )?to|would (?:like|want)|instead/i.test(t)
+}
+
+function formatCognitionMemory(cognition: ConversationCognition | undefined): string {
+  const c = cognition ?? {}
+  const fact = (v: string | undefined) => (v && v.trim() ? v.trim() : '(לא ידוע)')
+  return [
+    'כבר מובן (זיכרון פנימי, לא רשימת שדות להשלים):',
+    `pain=${fact(c.pain)}`,
+    `impact=${fact(c.impact)}`,
+    `workflow=${fact(c.currentWorkflow)}`,
+    `outcome=${fact(c.desiredOutcome)}`,
+    `יעד קודם: ${c.lastObjective ?? '(אין)'}`,
+    'בחרי יעד אחד עם הערך הכי גבוה עכשיו. אחרי כאב ידוע, impact לפני עוד תהליך — אלא אם ההשפעה כבר נאמרה.',
+  ].join('\n')
 }
 
 export function buildQualifyUser(args: {
@@ -91,7 +115,7 @@ export function buildQualifyUser(args: {
   void args.runtimeCognition
   const convo = args.transcript.map((m) => `${m.direction === 'inbound' ? 'לקוח' : 'אנחנו'}: ${m.text}`).join('\n')
   const have = Object.entries(args.qualification)
-    .filter(([, v]) => v)
+    .filter(([k, v]) => k !== 'cognition' && typeof v === 'string' && v)
     .map(([k, v]) => `${k}=${v}`)
     .join(', ')
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
@@ -99,6 +123,7 @@ export function buildQualifyUser(args: {
   const lines = [
     `שיחה עד כה:\n${convo || '(ריק)'}`,
     `מידע פנימי שכבר נאסף (לא להזכיר ללקוח, לא לקבוע לפי זה את השאלה הבאה): ${have || '(אין)'}`,
+    formatCognitionMemory(args.qualification.cognition),
   ]
   if (needKnown) {
     lines.push(

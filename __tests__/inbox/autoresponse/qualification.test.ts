@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergeQualification, requiredComplete } from '@/lib/inbox/autoresponse/qualification'
+import { mergeCognition, mergeQualification, requiredComplete } from '@/lib/inbox/autoresponse/qualification'
 
 describe('mergeQualification (fill-empty only)', () => {
   it('fills empty fields from extracted', () => {
@@ -36,5 +36,37 @@ describe('requiredComplete', () => {
   })
   it('optional fields do not affect completeness', () => {
     expect(requiredComplete({ name: 'ד', need: 'n', urgency: 'u' }, required)).toBe(true)
+  })
+  it('cognition does not affect required completeness', () => {
+    expect(requiredComplete({ name: 'ד', need: 'n', urgency: 'u', cognition: { pain: 'x' } }, required)).toBe(true)
+  })
+})
+
+describe('mergeCognition (fill-empty facts, latest objective)', () => {
+  it('fills empty cognition facts and keeps lastObjective', () => {
+    expect(mergeCognition(undefined, { lastObjective: 'understand_pain', pain: 'שוכחת לחזור' })).toEqual({
+      lastObjective: 'understand_pain',
+      pain: 'שוכחת לחזור',
+    })
+  })
+  it('never overwrites a known fact with a later value', () => {
+    expect(
+      mergeCognition({ pain: 'שוכחת לחזור' }, { pain: 'משהו אחר', impact: 'לקוחה הולכת' }),
+    ).toEqual({ pain: 'שוכחת לחזור', impact: 'לקוחה הולכת' })
+  })
+  it('ignores null/blank incoming facts', () => {
+    expect(mergeCognition({ pain: 'שוכחת' }, { pain: '  ', impact: undefined })).toEqual({ pain: 'שוכחת' })
+  })
+  it('advances lastObjective to the latest decision', () => {
+    expect(mergeCognition({ lastObjective: 'understand_pain', pain: 'x' }, { lastObjective: 'understand_impact' })).toEqual({
+      lastObjective: 'understand_impact',
+      pain: 'x',
+    })
+  })
+  it('mergeQualification persists nested cognition without treating it as a CRM field', () => {
+    const merged = mergeQualification({ need: 'ניהול לקוחות' }, { cognition: { lastObjective: 'understand_pain', pain: 'שוכחת' } })
+    expect(merged.need).toBe('ניהול לקוחות')
+    expect(merged.cognition).toEqual({ lastObjective: 'understand_pain', pain: 'שוכחת' })
+    expect(merged).not.toHaveProperty('pain')
   })
 })

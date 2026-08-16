@@ -22,6 +22,8 @@ import {
   detectLang,
   detectOptOut,
   deterministicQualifyFallback,
+  cognitionFromUnderstanding,
+  inboundMemoryText,
   type QualifyGenResult,
   type RegenerationReason,
 } from './qualify'
@@ -258,6 +260,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       gen.extracted = gen2.extracted
       gen.hotSignal = gen2.hotSignal
       gen.uncertain = gen2.uncertain
+      gen.objective = gen2.objective
+      gen.understanding = gen2.understanding
       validation = gen2Valid
       finalResolution = 'regenerated'
       validationResult = 'ok'
@@ -269,14 +273,25 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
         forcedGuardrail = true
         finalResolution = 'guardrail_handoff'
       } else {
-        // Shape breach survived → strategy-aware fallback; stay in qualify.
-        // Conversational objective is inferred from known need/pain/impact/workflow,
-        // never from the next missing CRM field.
-        const mergedNow = mergeQualification(aiState.qualification, gen.extracted)
+        // Shape breach survived → objective-aware fallback; stay in qualify.
+        // Never rewrite a valid AI reply; this path is only for unsendable text.
+        const lastInboundText = (lastInbound?.text as string) ?? ''
+        const incomingCog = cognitionFromUnderstanding(
+          gen.understanding,
+          gen.objective,
+          inboundMemoryText({
+            qualification: aiState.qualification,
+            lastInboundText,
+            transcript: qTranscript,
+          }),
+        )
+        const mergedNow = mergeQualification(aiState.qualification, { ...gen.extracted, cognition: incomingCog })
         gen.reply = deterministicQualifyFallback({
           qualification: mergedNow,
-          lastInboundText: (lastInbound?.text as string) ?? '',
+          lastInboundText,
           transcript: qTranscript,
+          cognition: mergedNow.cognition,
+          objective: gen.objective,
           lang,
         })
         validation = validateAutoResponse(gen.reply)
@@ -292,7 +307,18 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
 
-  const merged = mergeQualification(aiState.qualification, gen.extracted)
+  const lastInboundText = (lastInbound?.text as string) ?? ''
+  const incomingCog = cognitionFromUnderstanding(
+    gen.understanding,
+    gen.objective,
+    inboundMemoryText({
+      qualification: aiState.qualification,
+      lastInboundText,
+      transcript: qTranscript,
+    }),
+  )
+  const persistExtracted = { ...gen.extracted, cognition: incomingCog }
+  const merged = mergeQualification(aiState.qualification, persistExtracted)
   let post = decidePostGeneration({
     hotSignal: gen.hotSignal,
     uncertain: gen.uncertain, // model-only; validation failures are resolved above
@@ -349,7 +375,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     } catch (e) {
       console.error(`[IRE-DRAFT] persist failed conv=${conv.id}:`, (e as Error).message)
     }
-    await mergeOnly(conv.id, gen.extracted)
+    await mergeOnly(conv.id, persistExtracted)
     // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
     await shadowIngestQualification({
       agencyId: job.agencyId,
@@ -393,7 +419,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       if (r.settled) return 'failed'
       return doSkip(r.reason)
     }
-    await mergeOnly(conv.id, gen.extracted)
+    await mergeOnly(conv.id, persistExtracted)
     // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
     await shadowIngestQualification({
       agencyId: job.agencyId,
@@ -426,7 +452,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     if (r.settled) return 'failed'
     return doSkip(r.reason)
   }
-  await recordTurn(conv.id, gen.extracted)
+  await recordTurn(conv.id, persistExtracted)
   // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
   await shadowIngestQualification({
     agencyId: job.agencyId,

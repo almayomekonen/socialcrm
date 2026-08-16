@@ -1,12 +1,19 @@
 import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
-import { QUALIFICATION_FIELDS, type Qualification } from './qualification'
+import {
+  QUALIFICATION_FIELDS,
+  isConversationObjective,
+  type ConversationCognition,
+  type ConversationObjective,
+  type Qualification,
+} from './qualification'
 import { waTrace, type WaTraceCtx } from './waTrace'
 import {
   QUALIFY_SYSTEM_PROMPT,
   buildQualifyUser,
   inboundStatesBusinessNeed,
   inboundStatesImpact,
+  inboundStatesOutcome,
   inboundStatesPain,
   inboundStatesWorkflow,
   type RegenerationReason,
@@ -84,17 +91,18 @@ export function handoffMessage(reason: string, lang: 'he' | 'en'): string {
   return lang === 'en' ? t.en : t.he
 }
 
-export type QualifyFallbackObjective = 'discover_need' | 'explore_pain' | 'understand_impact' | 'understand_outcome'
+export type QualifyFallbackObjective = ConversationObjective
 
-// Strategy-aware canned questions. Static copy only — used as the shape-repair
+// Objective-aware canned questions. Static copy only — used as the shape-repair
 // fallback so a malformed reply never causes a handoff. Each is a single short
 // question (one '?', no FORBIDDEN tokens, no digits) so it passes validateAutoResponse.
 // Never keyed by a missing CRM field.
 const FALLBACK_BY_OBJECTIVE: Record<QualifyFallbackObjective, { he: string; en: string }> = {
   discover_need: { he: 'איך אפשר לעזור?', en: 'How can I help?' },
-  explore_pain: { he: 'מה הכי מפריע לך בזה עכשיו?', en: 'What is getting in the way most right now?' },
+  understand_pain: { he: 'מה הכי מפריע לך בזה עכשיו?', en: 'What is getting in the way most right now?' },
   understand_impact: { he: 'מה קורה בדרך כלל כשזה לא מסתדר?', en: 'What usually happens when that does not work out?' },
   understand_outcome: { he: 'מה היית רוצה שיהיה אחרת?', en: 'What would you want to be different?' },
+  advance: { he: 'מה הכי חשוב לך שנסדר עכשיו?', en: 'What matters most to sort out now?' },
 }
 
 function inboundMemoryBlob(args: {
@@ -114,41 +122,90 @@ function inboundMemoryBlob(args: {
 }
 
 /**
- * Infer the next conversational objective from known CRM memory + inbound text.
- * CRM completeness (missing name, urgency, …) never wins.
+ * Infer the next conversational objective from cognition + inbound text.
+ * CRM completeness (missing name, urgency, …) never wins. Not a mandatory funnel:
+ * already-stated pain/impact/outcome skips ahead.
  */
 export function inferFallbackObjective(args: {
   qualification: Qualification
   lastInboundText: string
   transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
+  cognition?: ConversationCognition
 }): QualifyFallbackObjective {
+  const cog = args.cognition ?? args.qualification.cognition
   const blob = inboundMemoryBlob(args)
   const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(args.lastInboundText) || inboundStatesBusinessNeed(blob)
-  const painKnown = inboundStatesPain(blob)
-  const impactKnown = inboundStatesImpact(blob)
-  const workflowKnown = inboundStatesWorkflow(blob)
+  const painKnown = Boolean(cog?.pain) || inboundStatesPain(blob)
+  const impactKnown = Boolean(cog?.impact) || inboundStatesImpact(blob)
+  const outcomeKnown = Boolean(cog?.desiredOutcome) || inboundStatesOutcome(blob)
 
   if (!needKnown) return 'discover_need'
-  if (!painKnown) return 'explore_pain'
+  if (!painKnown) return 'understand_pain'
   if (!impactKnown) return 'understand_impact'
-  if (workflowKnown) return 'understand_outcome'
-  return 'understand_outcome'
+  if (!outcomeKnown) return 'understand_outcome'
+  return 'advance'
+}
+
+export function resolveFallbackObjective(args: {
+  qualification: Qualification
+  lastInboundText: string
+  transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
+  cognition?: ConversationCognition
+  objective?: ConversationObjective | null
+}): QualifyFallbackObjective {
+  if (args.objective && isConversationObjective(args.objective)) return args.objective
+  const inferred = inferFallbackObjective(args)
+  const last = args.cognition?.lastObjective ?? args.qualification.cognition?.lastObjective
+  if (last && isConversationObjective(last) && last === inferred) return last
+  return inferred
 }
 
 /**
  * Shape-repair fallback after a failed regeneration. Chooses a conversational
- * objective, never the next missing CRM field. A missing name must not produce
- * a name question when a business need (or later objective) is already known.
+ * objective, never the next missing CRM field.
  */
 export function deterministicQualifyFallback(args: {
   qualification: Qualification
   lastInboundText: string
   lang: 'he' | 'en'
   transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
+  cognition?: ConversationCognition
+  objective?: ConversationObjective | null
 }): string {
-  const objective = inferFallbackObjective(args)
+  const objective = resolveFallbackObjective(args)
   const q = FALLBACK_BY_OBJECTIVE[objective]
   return args.lang === 'en' ? q.en : q.he
+}
+
+export type UnderstandingDelta = {
+  pain: string | null
+  impact: string | null
+  currentWorkflow: string | null
+  desiredOutcome: string | null
+}
+
+/** Persist only understanding facts whose category is grounded in inbound text. */
+export function cognitionFromUnderstanding(
+  understanding: UnderstandingDelta | undefined,
+  objective: ConversationObjective | null | undefined,
+  inboundBlob: string,
+): ConversationCognition {
+  const out: ConversationCognition = {}
+  if (objective && isConversationObjective(objective)) out.lastObjective = objective
+  const u = understanding
+  if (u?.pain?.trim() && inboundStatesPain(inboundBlob)) out.pain = u.pain.trim()
+  if (u?.impact?.trim() && inboundStatesImpact(inboundBlob)) out.impact = u.impact.trim()
+  if (u?.currentWorkflow?.trim() && inboundStatesWorkflow(inboundBlob)) out.currentWorkflow = u.currentWorkflow.trim()
+  if (u?.desiredOutcome?.trim() && inboundStatesOutcome(inboundBlob)) out.desiredOutcome = u.desiredOutcome.trim()
+  return out
+}
+
+export function inboundMemoryText(args: {
+  qualification: Qualification
+  lastInboundText: string
+  transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
+}): string {
+  return inboundMemoryBlob(args)
 }
 
 const QualifySchema = z.object({
@@ -163,12 +220,31 @@ const QualifySchema = z.object({
       callback: z.string().nullable(),
     })
     .describe('עובדות שהלקוח מסר בפועל עד כה; null אם לא נמסר'),
+  objective: z
+    .enum(['discover_need', 'understand_pain', 'understand_impact', 'understand_outcome', 'advance'])
+    .describe('היעד השיחתי בעל הערך הגבוה ביותר עכשיו — לא השדה החסר הבא'),
+  understanding: z
+    .object({
+      pain: z.string().nullable(),
+      impact: z.string().nullable(),
+      currentWorkflow: z.string().nullable(),
+      desiredOutcome: z.string().nullable(),
+    })
+    .describe('עובדות שיחה שהלקוח מסר בפועל; null אם לא נמסר. לא להמציא'),
   hotSignal: z.boolean().describe('כוונת קנייה חזקה (מחיר/דמו/פגישה/להתחיל/בקשה לדבר עם נציג)'),
   uncertain: z.boolean().describe('לא ניתן לענות באמת בלי להמציא, או שצריך אדם'),
 })
 
 export type QualifyGenResult =
-  | { ok: true; reply: string; extracted: Qualification; hotSignal: boolean; uncertain: boolean }
+  | {
+      ok: true
+      reply: string
+      extracted: Qualification
+      objective: ConversationObjective | null
+      understanding: UnderstandingDelta
+      hotSignal: boolean
+      uncertain: boolean
+    }
   | { ok: false; skipReason: 'ai_unavailable' | 'budget_exhausted' }
 
 export async function generateQualifyTurn(args: {
@@ -201,10 +277,19 @@ export async function generateQualifyTurn(args: {
     if (v != null && String(v).trim() !== '') extracted[f] = String(v).trim()
   }
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
+  const objective = isConversationObjective(d.objective) ? d.objective : null
+  const understanding: UnderstandingDelta = {
+    pain: d.understanding?.pain?.trim() || null,
+    impact: d.understanding?.impact?.trim() || null,
+    currentWorkflow: d.understanding?.currentWorkflow?.trim() || null,
+    desiredOutcome: d.understanding?.desiredOutcome?.trim() || null,
+  }
   const result = {
     ok: true as const,
     reply: d.reply,
     extracted,
+    objective,
+    understanding,
     hotSignal: Boolean(d.hotSignal) || detectHotSignal(lastInbound),
     uncertain: Boolean(d.uncertain),
   }
@@ -215,6 +300,8 @@ export async function generateQualifyTurn(args: {
     usage: { inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd },
     latencyMs: out.latencyMs,
     extracted,
+    objective,
+    understanding,
     hotSignal: result.hotSignal,
     uncertain: result.uncertain,
   })

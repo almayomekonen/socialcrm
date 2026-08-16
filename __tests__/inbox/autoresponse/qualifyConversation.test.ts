@@ -3,11 +3,14 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decidePostGeneration, decidePreGeneration } from '@/lib/inbox/autoresponse/stateMachine'
 import {
+  cognitionFromUnderstanding,
   detectHumanRequest,
   detectOptOut,
   deterministicQualifyFallback,
   inferFallbackObjective,
+  resolveFallbackObjective,
 } from '@/lib/inbox/autoresponse/qualify'
+import { mergeCognition } from '@/lib/inbox/autoresponse/qualification'
 import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser, inboundStatesBusinessNeed } from '@/lib/inbox/autoresponse/qualifyPrompt'
 import { validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
 import { decideConversationPolicy } from '@/lib/inbox/autoresponse/runtimeQualification'
@@ -222,7 +225,7 @@ describe('strategy-aware fallback (not missing CRM fields)', () => {
       lastInboundText: NEED_INBOUND,
       lang: 'he',
     })
-    expect(inferFallbackObjective({ qualification: {}, lastInboundText: NEED_INBOUND })).toBe('explore_pain')
+    expect(inferFallbackObjective({ qualification: {}, lastInboundText: NEED_INBOUND })).toBe('understand_pain')
     expect(validateAutoResponse(fallback).ok).toBe(true)
     expect(fallback).toBe(PAIN_FALLBACK_HE)
     expect(fallback).not.toBe(NAME_QUESTION_HE)
@@ -355,6 +358,236 @@ describe('RQ must not control the IRE question', () => {
     })
     expect(fallback).not.toBe(NAME_QUESTION_HE)
     expect(fallback).toBe(PAIN_FALLBACK_HE)
+  })
+})
+
+describe('Phase B conversation brain (objective + cognition)', () => {
+  const makeupNeed = { need: 'עזרה בניהול לקוחות עסק איפור' }
+  const e2ePain = 'אני מקבלת הרבה הודעות ולפעמים שוכחת לחזור'
+  const moneyImpact = 'אני מפספסת לקוחות וזה כבר עולה לי בכסף'
+  const outcomeLine = 'הייתי רוצה שכל ההודעות יהיו במקום אחד'
+
+  it('need known + pain unknown → objective=understand_pain', () => {
+    expect(inferFallbackObjective({ qualification: makeupNeed, lastInboundText: NEED_INBOUND })).toBe('understand_pain')
+  })
+
+  it('pain known + impact unknown → objective=understand_impact', () => {
+    expect(
+      inferFallbackObjective({
+        qualification: { ...makeupNeed, cognition: { pain: 'שוכחת לחזור להודעות' } },
+        lastInboundText: e2ePain,
+        transcript: [
+          { direction: 'inbound', text: NEED_INBOUND },
+          { direction: 'inbound', text: e2ePain },
+        ],
+      }),
+    ).toBe('understand_impact')
+  })
+
+  it('pain known + workflow known + impact unknown → still understand_impact', () => {
+    expect(
+      inferFallbackObjective({
+        qualification: {
+          ...makeupNeed,
+          cognition: { pain: 'שוכחת לחזור', currentWorkflow: 'בעיקר דרך הוואטסאפ' },
+        },
+        lastInboundText: 'בעיקר דרך הוואטסאפ, אין לי משהו מסודר',
+        transcript: [
+          { direction: 'inbound', text: NEED_INBOUND },
+          { direction: 'inbound', text: e2ePain },
+          { direction: 'inbound', text: 'בעיקר דרך הוואטסאפ, אין לי משהו מסודר' },
+        ],
+      }),
+    ).toBe('understand_impact')
+  })
+
+  it('impact known + outcome unknown → understand_outcome', () => {
+    expect(
+      inferFallbackObjective({
+        qualification: { ...makeupNeed, cognition: { pain: 'שוכחת', impact: 'לקוחה הולכת' } },
+        lastInboundText: IMPACT_INBOUND,
+      }),
+    ).toBe('understand_outcome')
+  })
+
+  it('impact + outcome known → advance is allowed', () => {
+    expect(
+      inferFallbackObjective({
+        qualification: {
+          ...makeupNeed,
+          cognition: { pain: 'שוכחת', impact: 'עולה בכסף', desiredOutcome: 'מערכת מסודרת' },
+        },
+        lastInboundText: outcomeLine,
+      }),
+    ).toBe('advance')
+    const fallback = deterministicQualifyFallback({
+      qualification: {
+        ...makeupNeed,
+        cognition: { pain: 'שוכחת', impact: 'עולה בכסף', desiredOutcome: 'מערכת מסודרת' },
+      },
+      lastInboundText: outcomeLine,
+      lang: 'he',
+    })
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(CRM_FIELD_QUESTIONS).not.toContain(fallback)
+  })
+
+  it('customer already states pain + impact → do not ask another pain question', () => {
+    const fallback = deterministicQualifyFallback({
+      qualification: makeupNeed,
+      lastInboundText: moneyImpact,
+      lang: 'he',
+    })
+    expect(inferFallbackObjective({ qualification: makeupNeed, lastInboundText: moneyImpact })).toBe('understand_outcome')
+    expect(fallback).not.toBe(PAIN_FALLBACK_HE)
+    expect(fallback).not.toMatch(/מה הכי מפריע/)
+  })
+
+  it('customer already states pain + financial impact → skip to outcome/advance', () => {
+    const objective = inferFallbackObjective({ qualification: makeupNeed, lastInboundText: moneyImpact })
+    expect(['understand_outcome', 'advance']).toContain(objective)
+    expect(objective).not.toBe('understand_pain')
+  })
+
+  it('production E2E shape: שוכחת לחזור → understand_impact, not team/tracking/name', () => {
+    const transcript = [
+      { direction: 'inbound' as const, text: NEED_INBOUND },
+      { direction: 'inbound' as const, text: e2ePain },
+    ]
+    const objective = inferFallbackObjective({
+      qualification: makeupNeed,
+      lastInboundText: e2ePain,
+      transcript,
+    })
+    expect(objective).toBe('understand_impact')
+    const fallback = deterministicQualifyFallback({
+      qualification: makeupNeed,
+      lastInboundText: e2ePain,
+      transcript,
+      lang: 'he',
+    })
+    expect(fallback).toBe(IMPACT_FALLBACK_HE)
+    expect(fallback).not.toMatch(/צוות|למי ענית|איך את מסמנת|איך לפנות|דחוף|תקציב/)
+    const user = userPayload({
+      transcript,
+      qualification: { ...makeupNeed, cognition: { lastObjective: 'understand_pain', pain: 'שוכחת לחזור להודעות' } },
+    })
+    expect(user).toContain('pain=שוכחת לחזור להודעות')
+    expect(user).toContain('impact=(לא ידוע)')
+    expect(user).toContain('יעד קודם: understand_pain')
+    expect(user).toContain('impact לפני עוד תהליך')
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
+    expect(user).not.toMatch(/נוגעת ל:/)
+  })
+
+  it('missing name never forces a name question', () => {
+    const fallback = deterministicQualifyFallback({
+      qualification: makeupNeed,
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    })
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+  })
+
+  it('missing CRM fields never appear as conversational instructions', () => {
+    const user = userPayload({
+      qualification: { cognition: { lastObjective: 'understand_pain' } },
+      focusField: 'name',
+    })
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
+    expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).not.toContain('missing name')
+    expect(user).toContain('כבר מובן')
+  })
+
+  it('valid AI reply is sent unchanged — fallback is not a rewrite', () => {
+    const aiReply = 'ברור. מה קורה בדרך כלל כשאת לא מספיקה לחזור?'
+    expect(validateAutoResponse(aiReply).ok).toBe(true)
+    expect(aiReply).not.toBe(
+      deterministicQualifyFallback({
+        qualification: makeupNeed,
+        lastInboundText: e2ePain,
+        objective: 'understand_impact',
+        lang: 'he',
+      }),
+    )
+  })
+
+  it('fallback prefers this-turn model objective over CRM gaps', () => {
+    expect(
+      resolveFallbackObjective({
+        qualification: { ...makeupNeed, cognition: { lastObjective: 'understand_pain' } },
+        lastInboundText: NEED_INBOUND,
+        objective: 'understand_impact',
+      }),
+    ).toBe('understand_impact')
+    const fallback = deterministicQualifyFallback({
+      qualification: makeupNeed,
+      lastInboundText: NEED_INBOUND,
+      objective: 'understand_impact',
+      lang: 'he',
+    })
+    expect(fallback).toBe(IMPACT_FALLBACK_HE)
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+  })
+
+  it('cognitionFromUnderstanding persists only grounded facts', () => {
+    const grounded = cognitionFromUnderstanding(
+      { pain: 'שוכחת לחזור', impact: 'הומצא', currentWorkflow: null, desiredOutcome: null },
+      'understand_impact',
+      `${NEED_INBOUND}\n${e2ePain}`,
+    )
+    expect(grounded.pain).toBe('שוכחת לחזור')
+    expect(grounded.impact).toBeUndefined()
+    expect(grounded.lastObjective).toBe('understand_impact')
+    const invented = cognitionFromUnderstanding(
+      { pain: 'כאב מומצא', impact: null, currentWorkflow: null, desiredOutcome: null },
+      'understand_pain',
+      NEED_INBOUND,
+    )
+    expect(invented.pain).toBeUndefined()
+  })
+
+  it('cognition fill-empty does not overwrite known pain', () => {
+    expect(mergeCognition({ pain: 'שוכחת לחזור' }, { pain: 'גרסה חדשה', lastObjective: 'understand_impact' })).toEqual({
+      pain: 'שוכחת לחזור',
+      lastObjective: 'understand_impact',
+    })
+  })
+
+  it('QualifySchema still extracts the CRM fields', () => {
+    const src = readFileSync(resolve(__dirname, '../../../lib/inbox/autoresponse/qualify.ts'), 'utf8')
+    expect(src).toContain('name: z.string().nullable()')
+    expect(src).toContain('need: z.string().nullable()')
+    expect(src).toContain('urgency: z.string().nullable()')
+    expect(src).toContain('budget: z.string().nullable()')
+    expect(src).toContain('location: z.string().nullable()')
+    expect(src).toContain('callback: z.string().nullable()')
+    expect(src).toContain("objective: z")
+    expect(src).toContain('understanding: z')
+    expect(src).not.toContain('conversationStage')
+    expect(src).not.toContain('buyingSignal')
+  })
+
+  it('maxTurns handoff threshold is unchanged', () => {
+    expect(
+      decidePostGeneration({
+        hotSignal: false,
+        uncertain: false,
+        requiredComplete: false,
+        turnCount: 4,
+        maxTurns: 5,
+      }),
+    ).toEqual({ action: 'escalate', reason: 'max_turns' })
+    expect(
+      decidePostGeneration({
+        hotSignal: false,
+        uncertain: false,
+        requiredComplete: false,
+        turnCount: 3,
+        maxTurns: 5,
+      }),
+    ).toEqual({ action: 'send' })
   })
 })
 
