@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { decidePostGeneration } from '@/lib/inbox/autoresponse/stateMachine'
 import { detectHumanRequest, detectOptOut, nextRequiredFieldQuestion } from '@/lib/inbox/autoresponse/qualify'
-import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser } from '@/lib/inbox/autoresponse/qualifyPrompt'
+import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser, inboundStatesBusinessNeed } from '@/lib/inbox/autoresponse/qualifyPrompt'
 import { validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
 import { decidePreGeneration } from '@/lib/inbox/autoresponse/stateMachine'
 
@@ -25,6 +25,7 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(QUALIFY_SYSTEM_PROMPT).toContain('את לא מנהלת שאלון. את מנהלת שיחה.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תנסי להשלים את השדות החסרים בזה אחר זה.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('העובדות שנאספו הן זיכרון פנימי בלבד, לא רשימת משימות.')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('שדות מובנים הם זיכרון CRM, לא רשימת שאלות שמכתיבה את השאלה הבאה.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשאלי על urgency/budget/location/callback רק משום שהם חסרים.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשאל/י שאלה רק כי שדה חסר.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשבחי כל הודעה')
@@ -32,6 +33,94 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(QUALIFY_SYSTEM_PROMPT).toContain('הגיבי לניסוח של הלקוח')
     expect(QUALIFY_SYSTEM_PROMPT).not.toMatch(/ברגע ששם וצורך/)
     expect(QUALIFY_SYSTEM_PROMPT).not.toContain('שקף/י בקצרה')
+  })
+
+  it('need stated + name missing → explore the need, do not ask name', () => {
+    expect(inboundStatesBusinessNeed(NEED_INBOUND)).toBe(true)
+    expect(QUALIFY_SYSTEM_PROMPT).toContain(
+      'אם הלקוח פתח בהודעה שמכילה צורך, כאב או בעיה עסקית ברורה, קודם כל מגיבים לצורך הזה ומעמיקים בו. אין לשאול לשם רק משום שהשם חסר במידע הפנימי.',
+    )
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('שם הוא אופציונלי בשיחה. אל תתעדפי אותו על פני צורך מפורש.')
+    const user = buildQualifyUser({
+      transcript: [{ direction: 'inbound', text: NEED_INBOUND }],
+      qualification: {},
+      collectFields: { required: ['name', 'need', 'urgency'], optional: ['budget', 'location', 'callback'] },
+      guidance: null,
+      focusField: 'name',
+    })
+    expect(user).toContain(NEED_INBOUND)
+    expect(user).toContain('name')
+    expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).toContain('קודם כל הגיבי לזה והעמיקי בזה')
+    expect(user).toContain('אל תשאל/י לשם')
+    const exploreNeed = 'ברור. מה הכי מפריע לך היום בניהול הלקוחות?'
+    expect(validateAutoResponse(exploreNeed).ok).toBe(true)
+    expect(exploreNeed).not.toMatch(/איך קוראים לך|אפשר לשאול איך קוראים|איך לפנות אליך/)
+  })
+
+  it('name missing + no clear need → asking name is allowed', () => {
+    const greeting = 'היי אשמח לקבל פרטים'
+    expect(inboundStatesBusinessNeed(greeting)).toBe(false)
+    const user = buildQualifyUser({
+      transcript: [{ direction: 'inbound', text: greeting }],
+      qualification: {},
+      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
+      guidance: null,
+      focusField: 'name',
+    })
+    expect(user).toContain('נוגעת ל: name')
+    expect(user).not.toContain('אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך"')
+    const askName = 'איך לפנות אליך?'
+    expect(validateAutoResponse(askName).ok).toBe(true)
+  })
+
+  it('need already known → do not ask what the need is', () => {
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('need ברגע שתואר צורך — ואז אל תשאל/י שוב מה הצורך.')
+    const user = buildQualifyUser({
+      transcript: [
+        { direction: 'inbound', text: NEED_INBOUND },
+        { direction: 'outbound', text: 'מה הכי מפריע לך היום בניהול הלקוחות?' },
+        { direction: 'inbound', text: 'ההודעות הולכות לאיבוד' },
+      ],
+      qualification: { need: 'ניהול לקוחות לעסק איפור' },
+      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
+      guidance: null,
+      focusField: 'name',
+    })
+    expect(user).toContain('need=ניהול לקוחות לעסק איפור')
+    expect(user).toContain('אל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר')
+    expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).not.toMatch(/נוגעת ל: need/)
+  })
+
+  it('several turns can happen without collecting the name', () => {
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('לקוח יכול לנהל כמה תורות טבעיים בלי לאסוף שדה מובנה חדש.')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('שם הוא אופציונלי בשיחה')
+    expect(
+      decidePostGeneration({
+        hotSignal: false,
+        uncertain: false,
+        requiredComplete: false,
+        turnCount: 3,
+        maxTurns: 5,
+      }),
+    ).toEqual({ action: 'send' })
+    const user = buildQualifyUser({
+      transcript: [
+        { direction: 'inbound', text: NEED_INBOUND },
+        { direction: 'outbound', text: 'מה הכי מפריע לך היום בניהול הלקוחות?' },
+        { direction: 'inbound', text: 'הכל בוואטסאפ והודעות הולכות לאיבוד' },
+        { direction: 'outbound', text: 'את עוקבת אחריהן איכשהו, או שזה בעיקר בראש?' },
+        { direction: 'inbound', text: 'בראש, ואני שוכחת לחזור' },
+      ],
+      qualification: { need: 'ניהול לקוחות לעסק איפור' },
+      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
+      guidance: null,
+    })
+    expect(user).toContain('name, urgency')
+    expect(user).not.toContain('name=')
+    expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).toContain('אל תשאל/י לשם')
   })
 
   it('a natural follow-up can continue while multiple fields are still missing', () => {

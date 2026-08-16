@@ -11,6 +11,9 @@ export const QUALIFY_SYSTEM_PROMPT = [
   'את לא מנהלת שאלון. את מנהלת שיחה.',
   'אל תנסי להשלים את השדות החסרים בזה אחר זה.',
   'העובדות שנאספו הן זיכרון פנימי בלבד, לא רשימת משימות.',
+  'שדות מובנים הם זיכרון CRM, לא רשימת שאלות שמכתיבה את השאלה הבאה.',
+  'שם הוא אופציונלי בשיחה. אל תתעדפי אותו על פני צורך מפורש.',
+  'אם הלקוח פתח בהודעה שמכילה צורך, כאב או בעיה עסקית ברורה, קודם כל מגיבים לצורך הזה ומעמיקים בו. אין לשאול לשם רק משום שהשם חסר במידע הפנימי.',
   'בכל הודעה הסתכלי קודם על מה שהלקוח אמר עכשיו, על ההקשר של השיחה, ועל השאלה שהכי טבעי לשאול בשלב הזה.',
   'אם אפשר להעמיק במה שהלקוח אמר בלי לאסוף מידע חדש — עשי זאת.',
   'אם יש כמה שאלות אפשריות — בחרי רק את השאלה שהכי תקדם את השיחה.',
@@ -44,6 +47,13 @@ const REGEN_CONSTRAINT: Record<RegenerationReason, string> = {
     'חשוב מאוד: אל תנקוב/י במחיר, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. שאל/י שאלת הבהרה אחת בלבד.',
 }
 
+/** Last inbound looks like a stated business need/pain — not a greeting or a name. */
+export function inboundStatesBusinessNeed(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return /עזרה|צריכ[הא]|צריך|בעיה|כאב|מפריע|ניהול|לידים|לקוחות|\bneed\b|\bhelp (me|with)\b|\bstruggling\b/i.test(t)
+}
+
 export function buildQualifyUser(args: {
   transcript: Array<{ direction: 'inbound' | 'outbound'; text: string }>
   qualification: Qualification
@@ -59,15 +69,24 @@ export function buildQualifyUser(args: {
     .map(([k, v]) => `${k}=${v}`)
     .join(', ')
   const missingReq = args.collectFields.required.filter((f) => !args.qualification[f as keyof Qualification])
+  const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
+  const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(lastInbound)
+  const focusField = args.focusField === 'name' && needKnown ? null : args.focusField
   const lines = [
     `שיחה עד כה:\n${convo || '(ריק)'}`,
     `מידע פנימי שכבר נאסף (לא להזכיר ללקוח): ${have || '(אין)'}`,
-    `מידע פנימי שעוד חסר (לא להזכיר ללקוח, לא לסיים בגללו): ${missingReq.join(', ') || '(הושלמו)'}`,
+    `מידע פנימי שעוד חסר (לא להזכיר ללקוח, לא לסיים בגללו, לא לקבוע לפי זה את השאלה הבאה): ${missingReq.join(', ') || '(הושלמו)'}`,
+    'name חסר אינו סיבה לשאול לשם. name הוא זיכרון אופציונלי בשיחה.',
   ]
-  if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
-  if (args.focusField)
+  if (needKnown) {
     lines.push(
-      `השאלה הכי שימושית עכשיו נוגעת ל: ${args.focusField}. נסח/י אותה כהודעת וואטסאפ אחת, לא כטופס.`,
+      'הלקוח תיאר צורך, כאב או בעיה עסקית. קודם כל הגיבי לזה והעמיקי בזה. אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר.',
+    )
+  }
+  if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
+  if (focusField)
+    lines.push(
+      `השאלה הכי שימושית עכשיו נוגעת ל: ${focusField}. נסח/י אותה כהודעת וואטסאפ אחת, לא כטופס.`,
     )
   if (args.runtimeCognition) lines.push(args.runtimeCognition)
   if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
