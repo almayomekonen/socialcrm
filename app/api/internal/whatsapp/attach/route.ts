@@ -5,8 +5,6 @@ import {
   type AttachExistingWabaReason,
 } from '@/lib/whatsapp/attachExistingWaba'
 
-export const dynamic = 'force-dynamic'
-
 function statusFor(reason: AttachExistingWabaReason): number {
   if (reason === 'unauthorized') return 401
   if (
