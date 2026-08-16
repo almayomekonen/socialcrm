@@ -93,6 +93,8 @@ function numericConfidence(c: RuntimeCognition | null): number | null {
  * Select the next field to ask — the highest-priority MISSING required field per
  * configuration order. Never selects a known field (never repeats). Config owns
  * the priority; the Runtime does not.
+ *
+ * IRE (qualifyWorker) must not call this to choose the WhatsApp question.
  */
 export function selectNextGap(qualification: Qualification, required: readonly string[]): QualificationField | null {
   for (const f of required) {
@@ -187,10 +189,8 @@ export interface ConversationPolicyDecision {
  * gap) aligned with what is asked. If an agency needs more qualification, the
  * answer is to add a configurable REQUIRED field, not an optional follow-up.
  *
- * The Runtime still shapes HOW the question is phrased (its cognition and the
- * focus field feed generation upstream); it simply does not gate this decision.
- * No confidence thresholds, no magic numbers — only the reused Gap Selection and
- * the existing `maxTurns` bound.
+ * Copilot / runtime helpers may still use this. IRE (qualifyWorker) must not
+ * call it to ASK/HANDOFF based on a missing CRM field.
  */
 export function decideConversationPolicy(input: ConversationPolicyInput): ConversationPolicyDecision {
   const gap = selectNextGap(input.qualification, input.required)

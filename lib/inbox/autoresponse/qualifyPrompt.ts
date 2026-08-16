@@ -54,6 +54,27 @@ export function inboundStatesBusinessNeed(text: string): boolean {
   return /עזרה|צריכ[הא]|צריך|בעיה|כאב|מפריע|ניהול|לידים|לקוחות|\bneed\b|\bhelp (me|with)\b|\bstruggling\b/i.test(t)
 }
 
+/** Operational difficulty — forgetting, losing track, overwhelm. Not the business need itself. */
+export function inboundStatesPain(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return /מפריע|שוכח|שוכחת|לאיבוד|עמוס|נשכח|לא חוזר|קשה ל|\bforget|\boverwhelm|\blosing track|\bmiss(?:ed)? follow/i.test(t)
+}
+
+/** Business consequence of the pain — lost customers, churn, going elsewhere. */
+export function inboundStatesImpact(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return /למישה[וויה]|לקוח[הא]? אחר|מפסיד|הפסד|עוזב|אבד לקוח|lost (?:a )?customer|goes? elsewhere|lose (?:them|business|clients)/i.test(t)
+}
+
+/** How they handle it today — spreadsheet, WhatsApp, in their head. */
+export function inboundStatesWorkflow(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return /באקסל|בוואטסאפ|בראש|היום אני|\bspreadsheet|\bexcel\b|\bwhatsapp\b|in my head|currently (?:use|manage)/i.test(t)
+}
+
 export function buildQualifyUser(args: {
   transcript: Array<{ direction: 'inbound' | 'outbound'; text: string }>
   qualification: Qualification
@@ -63,20 +84,21 @@ export function buildQualifyUser(args: {
   runtimeCognition?: string | null
   regenerationReason?: RegenerationReason
 }): string {
+  // collectFields / focusField / runtimeCognition stay on the signature for
+  // call-site compatibility. They must not appear as "ask this CRM field next".
+  void args.collectFields
+  void args.focusField
+  void args.runtimeCognition
   const convo = args.transcript.map((m) => `${m.direction === 'inbound' ? 'לקוח' : 'אנחנו'}: ${m.text}`).join('\n')
   const have = Object.entries(args.qualification)
     .filter(([, v]) => v)
     .map(([k, v]) => `${k}=${v}`)
     .join(', ')
-  const missingReq = args.collectFields.required.filter((f) => !args.qualification[f as keyof Qualification])
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
   const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(lastInbound)
-  const focusField = args.focusField === 'name' && needKnown ? null : args.focusField
   const lines = [
     `שיחה עד כה:\n${convo || '(ריק)'}`,
-    `מידע פנימי שכבר נאסף (לא להזכיר ללקוח): ${have || '(אין)'}`,
-    `מידע פנימי שעוד חסר (לא להזכיר ללקוח, לא לסיים בגללו, לא לקבוע לפי זה את השאלה הבאה): ${missingReq.join(', ') || '(הושלמו)'}`,
-    'name חסר אינו סיבה לשאול לשם. name הוא זיכרון אופציונלי בשיחה.',
+    `מידע פנימי שכבר נאסף (לא להזכיר ללקוח, לא לקבוע לפי זה את השאלה הבאה): ${have || '(אין)'}`,
   ]
   if (needKnown) {
     lines.push(
@@ -84,11 +106,6 @@ export function buildQualifyUser(args: {
     )
   }
   if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
-  if (focusField)
-    lines.push(
-      `השאלה הכי שימושית עכשיו נוגעת ל: ${focusField}. נסח/י אותה כהודעת וואטסאפ אחת, לא כטופס.`,
-    )
-  if (args.runtimeCognition) lines.push(args.runtimeCognition)
   if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
   return lines.join('\n\n')
 }

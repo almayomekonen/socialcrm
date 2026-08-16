@@ -14,14 +14,13 @@ import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
-import { mergeQualification, requiredComplete, type Qualification } from './qualification'
+import { mergeQualification, requiredComplete } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import {
   generateQualifyTurn,
   handoffMessage,
   detectLang,
   detectOptOut,
-  detectHumanRequest,
   deterministicQualifyFallback,
   type QualifyGenResult,
   type RegenerationReason,
@@ -32,12 +31,6 @@ import { validateAutoResponse, classifyViolation } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
-import {
-  getRuntimeCognitionForLead,
-  formatRuntimeCognitionBlock,
-  type RuntimeCognition,
-} from '@/lib/copilot/general/runtimeCognition'
-import { isRuntimeQualificationEnabled, selectNextGap, decideConversationPolicy } from './runtimeQualification'
 import { isPostHandoffEnabled, respondPostHandoff, generatePostHandoffReply } from './postHandoff'
 import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
@@ -220,25 +213,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   }
   if (pre.action === 'skip') return doSkip(pre.reason)
 
-  // ── Runtime-aware qualification (flag-gated, guarded). The Runtime supplies
-  //    cognition (confidence/uncertainty/provenance) and informs the handoff;
-  //    configuration owns the required fields and their priority; this engine
-  //    only orchestrates. Off/error → the qualifier behaves exactly as today. ──
-  const rqEnabled = isRuntimeQualificationEnabled(job.agencyId)
-  let rqCognition: RuntimeCognition | null = null
-  let rqFocusField: string | null = null
-  let rqCognitionBlock: string | null = null
-  if (rqEnabled) {
-    try {
-      rqCognition = await getRuntimeCognitionForLead({ agencyId: job.agencyId }, job.leadId)
-      rqCognitionBlock = formatRuntimeCognitionBlock(rqCognition)
-      rqFocusField = selectNextGap(aiState.qualification, settings.collectFields.required)
-    } catch {
-      // guarded — Runtime cognition is additive; never affect the qualifier
-    }
-  }
-
   // ── Generate one structured turn ──
+  // CRM fields stay extracted as memory only. They must not pick the WhatsApp question.
   const qTranscript = recent
     .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
     .filter((m) => m.text)
@@ -254,8 +230,6 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     qualification: aiState.qualification,
     collectFields: settings.collectFields,
     guidance: settings.guidance,
-    focusField: rqFocusField,
-    runtimeCognition: rqCognitionBlock,
     trace: genTrace,
   }
   const gen: QualifyGenResult = await deps.generateQualify(genArgs)
@@ -265,9 +239,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
 
   // ── Validate the reply; resolve shape/safety violations BEFORE the policy ──
   // A validation failure is NOT model uncertainty. Shape → one stricter
-  // regeneration, else a deterministic next-field question (never a handoff).
-  // Safety → regenerate once, then escalate ('guardrail'). FORBIDDEN and Runtime
-  // Qualification are unchanged; `uncertain` fed to the policy below is model-only.
+  // regeneration, else a strategy-aware fallback question (never a handoff).
+  // Safety → regenerate once, then escalate ('guardrail'). `uncertain` fed to
+  // the policy below is model-only.
   let validation = validateAutoResponse(gen.reply)
   let forcedGuardrail = false
   if (!validation.ok) {
@@ -288,23 +262,21 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       finalResolution = 'regenerated'
       validationResult = 'ok'
     } else {
-      const finalViolation =
-        gen2Valid && 'violation' in gen2Valid ? gen2Valid.violation : originalViolation
+      const finalViolation = gen2Valid && 'violation' in gen2Valid ? gen2Valid.violation : originalViolation
       validationResult = gen2.ok === false ? 'regeneration_unavailable' : finalViolation
       if (classifyViolation(finalViolation) === 'safety') {
         // Safety breach survived one regeneration → hand off (never send it).
         forcedGuardrail = true
         finalResolution = 'guardrail_handoff'
       } else {
-        // Shape breach survived → deterministic next-field question; stay in qualify.
-        // Conversational priority is separate from CRM completeness: a stated/
-        // extracted need is deepened even when `name` is still missing.
+        // Shape breach survived → strategy-aware fallback; stay in qualify.
+        // Conversational objective is inferred from known need/pain/impact/workflow,
+        // never from the next missing CRM field.
         const mergedNow = mergeQualification(aiState.qualification, gen.extracted)
-        const missingRequired = settings.collectFields.required.filter((f) => !mergedNow[f as keyof Qualification])
         gen.reply = deterministicQualifyFallback({
-          missingRequired,
           qualification: mergedNow,
           lastInboundText: (lastInbound?.text as string) ?? '',
+          transcript: qTranscript,
           lang,
         })
         validation = validateAutoResponse(gen.reply)
@@ -328,35 +300,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     turnCount: aiState.aiTurnCount,
     maxTurns,
   })
-  // Conversation decision policy (flag-gated). Replaces the rigid hotSignal/
-  // requiredComplete auto-handoff with ONE reasoned ASK/HANDOFF decision, while
-  // hard escalations (uncertain / max_turns) stay untouched. Flag off → the
-  // legacy decidePostGeneration result governs exactly as today.
-  if (rqEnabled) {
-    if (detectHumanRequest(lastInbound?.text ?? '')) {
-      // Hard rule: an explicit request for a person bypasses reasoning entirely.
-      post = { action: 'escalate', reason: 'human_request' }
-    } else if (
-      post.action === 'send' ||
-      (post.action === 'escalate' && (post.reason === 'hot_signal' || post.reason === 'qualified'))
-    ) {
-      // The single reasoned decision governs the soft cases. It consumes the
-      // Runtime's open questions (what is worth asking) + the config fields; it
-      // decides only whether to ask one more. Reuses the existing send / escalate
-      // paths — ASK sends the already-generated gen.reply, HANDOFF escalates.
-      const decision = decideConversationPolicy({
-        qualification: merged,
-        required: settings.collectFields.required,
-        turnCount: aiState.aiTurnCount,
-        maxTurns,
-      })
-      console.log(`[IRE-RQ] conv=${conv.id} policy=${decision.decision} gap=${decision.gap ?? '-'} reason=${decision.reason}`)
-      post = decision.decision === 'ASK' ? { action: 'send' } : { action: 'escalate', reason: 'qualified' }
-    }
-  }
-  // Safety-guardrail handoff wins over any send/continue decision. RQ already
-  // excluded it ('guardrail' is neither 'send' nor a completion reason), so this
-  // is the single authoritative override.
+  // Safety-guardrail handoff wins over any send/continue decision.
   if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }
 
   // Permanent validator telemetry (observability only — no logic change). Records

@@ -6,6 +6,9 @@ import {
   QUALIFY_SYSTEM_PROMPT,
   buildQualifyUser,
   inboundStatesBusinessNeed,
+  inboundStatesImpact,
+  inboundStatesPain,
+  inboundStatesWorkflow,
   type RegenerationReason,
 } from './qualifyPrompt'
 
@@ -81,48 +84,71 @@ export function handoffMessage(reason: string, lang: 'he' | 'en'): string {
   return lang === 'en' ? t.en : t.he
 }
 
-// Deterministic, pre-written question per collectable field. Static copy only —
-// used as the shape-repair fallback so a malformed reply never causes a handoff
-// and never requires editing the model's text. Each is a single short question
-// (one '?', no FORBIDDEN tokens, no digits) so it passes validateAutoResponse.
-const NEXT_FIELD_QUESTION: Record<string, { he: string; en: string }> = {
-  name: { he: 'איך לפנות אליך?', en: 'What should I call you?' },
-  need: { he: 'מה הכי מפריע לך בזה עכשיו?', en: 'What is getting in the way most right now?' },
-  urgency: { he: 'זה דחוף לך לימים הקרובים?', en: 'Is this urgent in the next few days?' },
-  budget: { he: 'יש טווח תקציב שנוח לך?', en: 'Is there a budget range that works for you?' },
-  location: { he: 'מאיפה בארץ?', en: 'Where are you based?' },
-  callback: { he: 'מתי נוח לחזור אליך?', en: 'When is a good time to get back to you?' },
+export type QualifyFallbackObjective = 'discover_need' | 'explore_pain' | 'understand_impact' | 'understand_outcome'
+
+// Strategy-aware canned questions. Static copy only — used as the shape-repair
+// fallback so a malformed reply never causes a handoff. Each is a single short
+// question (one '?', no FORBIDDEN tokens, no digits) so it passes validateAutoResponse.
+// Never keyed by a missing CRM field.
+const FALLBACK_BY_OBJECTIVE: Record<QualifyFallbackObjective, { he: string; en: string }> = {
+  discover_need: { he: 'איך אפשר לעזור?', en: 'How can I help?' },
+  explore_pain: { he: 'מה הכי מפריע לך בזה עכשיו?', en: 'What is getting in the way most right now?' },
+  understand_impact: { he: 'מה קורה בדרך כלל כשזה לא מסתדר?', en: 'What usually happens when that does not work out?' },
+  understand_outcome: { he: 'מה היית רוצה שיהיה אחרת?', en: 'What would you want to be different?' },
 }
-const GENERIC_QUESTION = { he: 'איך אפשר לעזור?', en: 'How can I help?' }
+
+function inboundMemoryBlob(args: {
+  qualification: Qualification
+  lastInboundText: string
+  transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
+}): string {
+  const parts: string[] = []
+  if (args.qualification.need) parts.push(args.qualification.need)
+  if (args.lastInboundText) parts.push(args.lastInboundText)
+  if (args.transcript) {
+    for (const m of args.transcript) {
+      if (m.direction === 'inbound' && m.text) parts.push(m.text)
+    }
+  }
+  return parts.join('\n')
+}
 
 /**
- * Deterministic fallback question for the next missing REQUIRED field. Used only
- * when a shape-invalid reply could not be repaired by the one allowed
- * regeneration; keeps qualification alive without inventing content or a handoff.
+ * Infer the next conversational objective from known CRM memory + inbound text.
+ * CRM completeness (missing name, urgency, …) never wins.
  */
-export function nextRequiredFieldQuestion(missingRequired: string[], lang: 'he' | 'en'): string {
-  const field = missingRequired[0]
-  const q = (field && NEXT_FIELD_QUESTION[field]) || GENERIC_QUESTION
-  return lang === 'en' ? q.en : q.he
+export function inferFallbackObjective(args: {
+  qualification: Qualification
+  lastInboundText: string
+  transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
+}): QualifyFallbackObjective {
+  const blob = inboundMemoryBlob(args)
+  const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(args.lastInboundText) || inboundStatesBusinessNeed(blob)
+  const painKnown = inboundStatesPain(blob)
+  const impactKnown = inboundStatesImpact(blob)
+  const workflowKnown = inboundStatesWorkflow(blob)
+
+  if (!needKnown) return 'discover_need'
+  if (!painKnown) return 'explore_pain'
+  if (!impactKnown) return 'understand_impact'
+  if (workflowKnown) return 'understand_outcome'
+  return 'understand_outcome'
 }
 
 /**
- * Shape-repair fallback after a failed regeneration. `name` may still be missing
- * as CRM memory, but it is not the next conversational question when the customer
- * already stated a need (inbound or extracted).
+ * Shape-repair fallback after a failed regeneration. Chooses a conversational
+ * objective, never the next missing CRM field. A missing name must not produce
+ * a name question when a business need (or later objective) is already known.
  */
 export function deterministicQualifyFallback(args: {
-  missingRequired: string[]
   qualification: Qualification
   lastInboundText: string
   lang: 'he' | 'en'
+  transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
 }): string {
-  const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(args.lastInboundText)
-  if (needKnown) {
-    const q = NEXT_FIELD_QUESTION.need
-    return args.lang === 'en' ? q.en : q.he
-  }
-  return nextRequiredFieldQuestion(args.missingRequired, args.lang)
+  const objective = inferFallbackObjective(args)
+  const q = FALLBACK_BY_OBJECTIVE[objective]
+  return args.lang === 'en' ? q.en : q.he
 }
 
 const QualifySchema = z.object({

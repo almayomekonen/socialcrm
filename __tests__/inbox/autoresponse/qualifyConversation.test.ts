@@ -1,11 +1,47 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { decidePostGeneration } from '@/lib/inbox/autoresponse/stateMachine'
-import { detectHumanRequest, detectOptOut, nextRequiredFieldQuestion, deterministicQualifyFallback } from '@/lib/inbox/autoresponse/qualify'
+import { decidePostGeneration, decidePreGeneration } from '@/lib/inbox/autoresponse/stateMachine'
+import {
+  detectHumanRequest,
+  detectOptOut,
+  deterministicQualifyFallback,
+  inferFallbackObjective,
+} from '@/lib/inbox/autoresponse/qualify'
 import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser, inboundStatesBusinessNeed } from '@/lib/inbox/autoresponse/qualifyPrompt'
 import { validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
-import { decidePreGeneration } from '@/lib/inbox/autoresponse/stateMachine'
+import { decideConversationPolicy } from '@/lib/inbox/autoresponse/runtimeQualification'
 
 const NEED_INBOUND = 'יש לי עסק של איפור ואני צריכה עזרה בניהול הלקוחות שלי'
+const PAIN_INBOUND = 'אני שוכחת לחזור להודעות'
+const IMPACT_INBOUND = 'לפעמים הלקוחה הולכת למישהי אחרת'
+const WORKFLOW_INBOUND = 'הכל באקסל'
+
+const NAME_QUESTION_HE = 'איך לפנות אליך?'
+const NAME_QUESTION_EN = 'What should I call you?'
+const PAIN_FALLBACK_HE = 'מה הכי מפריע לך בזה עכשיו?'
+const IMPACT_FALLBACK_HE = 'מה קורה בדרך כלל כשזה לא מסתדר?'
+const OUTCOME_FALLBACK_HE = 'מה היית רוצה שיהיה אחרת?'
+const NEED_DISCOVERY_HE = 'איך אפשר לעזור?'
+
+const CRM_FIELD_QUESTIONS = [
+  NAME_QUESTION_HE,
+  NAME_QUESTION_EN,
+  'זה דחוף לך לימים הקרובים?',
+  'יש טווח תקציב שנוח לך?',
+  'מאיפה בארץ?',
+  'מתי נוח לחזור אליך?',
+]
+
+function userPayload(over: Partial<Parameters<typeof buildQualifyUser>[0]> = {}) {
+  return buildQualifyUser({
+    transcript: [{ direction: 'inbound', text: NEED_INBOUND }],
+    qualification: {},
+    collectFields: { required: ['name', 'need', 'urgency'], optional: ['budget', 'location', 'callback'] },
+    guidance: null,
+    ...over,
+  })
+}
 
 describe('qualify conversation quality (prompt + decision)', () => {
   it('does not hand off just because the customer stated a need', () => {
@@ -35,22 +71,19 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(QUALIFY_SYSTEM_PROMPT).not.toContain('שקף/י בקצרה')
   })
 
-  it('need stated + name missing → explore the need, do not ask name', () => {
+  it('need known + name missing → prompt does not ask name and does not list missing CRM fields', () => {
     expect(inboundStatesBusinessNeed(NEED_INBOUND)).toBe(true)
-    expect(QUALIFY_SYSTEM_PROMPT).toContain(
-      'אם הלקוח פתח בהודעה שמכילה צורך, כאב או בעיה עסקית ברורה, קודם כל מגיבים לצורך הזה ומעמיקים בו. אין לשאול לשם רק משום שהשם חסר במידע הפנימי.',
-    )
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('שם הוא אופציונלי בשיחה. אל תתעדפי אותו על פני צורך מפורש.')
-    const user = buildQualifyUser({
-      transcript: [{ direction: 'inbound', text: NEED_INBOUND }],
+    const user = userPayload({
       qualification: {},
-      collectFields: { required: ['name', 'need', 'urgency'], optional: ['budget', 'location', 'callback'] },
-      guidance: null,
       focusField: 'name',
+      collectFields: { required: ['name', 'need', 'urgency'], optional: ['budget'] },
     })
     expect(user).toContain(NEED_INBOUND)
-    expect(user).toContain('name')
     expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
+    expect(user).not.toContain('name חסר')
+    expect(user).not.toMatch(/\bname, need\b/)
+    expect(user).not.toMatch(/\bname, urgency\b/)
     expect(user).toContain('קודם כל הגיבי לזה והעמיקי בזה')
     expect(user).toContain('אל תשאל/י לשם')
     const exploreNeed = 'ברור. מה הכי מפריע לך היום בניהול הלקוחות?'
@@ -58,39 +91,35 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(exploreNeed).not.toMatch(/איך קוראים לך|אפשר לשאול איך קוראים|איך לפנות אליך/)
   })
 
-  it('name missing + no clear need → asking name is allowed', () => {
+  it('no need known → prompt does not instruct asking name', () => {
     const greeting = 'היי אשמח לקבל פרטים'
     expect(inboundStatesBusinessNeed(greeting)).toBe(false)
-    const user = buildQualifyUser({
+    const user = userPayload({
       transcript: [{ direction: 'inbound', text: greeting }],
       qualification: {},
-      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
-      guidance: null,
       focusField: 'name',
     })
-    expect(user).toContain('נוגעת ל: name')
+    expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
     expect(user).not.toContain('אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך"')
-    const askName = 'איך לפנות אליך?'
-    expect(validateAutoResponse(askName).ok).toBe(true)
   })
 
   it('need already known → do not ask what the need is', () => {
     expect(QUALIFY_SYSTEM_PROMPT).toContain('need ברגע שתואר צורך — ואז אל תשאל/י שוב מה הצורך.')
-    const user = buildQualifyUser({
+    const user = userPayload({
       transcript: [
         { direction: 'inbound', text: NEED_INBOUND },
         { direction: 'outbound', text: 'מה הכי מפריע לך היום בניהול הלקוחות?' },
         { direction: 'inbound', text: 'ההודעות הולכות לאיבוד' },
       ],
       qualification: { need: 'ניהול לקוחות לעסק איפור' },
-      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
-      guidance: null,
       focusField: 'name',
     })
     expect(user).toContain('need=ניהול לקוחות לעסק איפור')
     expect(user).toContain('אל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר')
     expect(user).not.toMatch(/נוגעת ל: name/)
     expect(user).not.toMatch(/נוגעת ל: need/)
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
   })
 
   it('several turns can happen without collecting the name', () => {
@@ -105,7 +134,7 @@ describe('qualify conversation quality (prompt + decision)', () => {
         maxTurns: 5,
       }),
     ).toEqual({ action: 'send' })
-    const user = buildQualifyUser({
+    const user = userPayload({
       transcript: [
         { direction: 'inbound', text: NEED_INBOUND },
         { direction: 'outbound', text: 'מה הכי מפריע לך היום בניהול הלקוחות?' },
@@ -114,10 +143,8 @@ describe('qualify conversation quality (prompt + decision)', () => {
         { direction: 'inbound', text: 'בראש, ואני שוכחת לחזור' },
       ],
       qualification: { need: 'ניהול לקוחות לעסק איפור' },
-      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
-      guidance: null,
     })
-    expect(user).toContain('name, urgency')
+    expect(user).not.toContain('name, urgency')
     expect(user).not.toContain('name=')
     expect(user).not.toMatch(/נוגעת ל: name/)
     expect(user).toContain('אל תשאל/י לשם')
@@ -135,29 +162,26 @@ describe('qualify conversation quality (prompt + decision)', () => {
         maxTurns: 5,
       }),
     ).toEqual({ action: 'send' })
-    const user = buildQualifyUser({
+    const user = userPayload({
       transcript: [
         { direction: 'inbound', text: NEED_INBOUND },
         { direction: 'outbound', text: 'את עוקבת אחריהן היום באקסל או בוואטסאפ?' },
         { direction: 'inbound', text: 'הכל בוואטסאפ והודעות הולכות לאיבוד' },
       ],
       qualification: { need: 'ניהול לקוחות לעסק איפור' },
-      collectFields: { required: ['name', 'need', 'urgency'], optional: ['budget', 'location', 'callback'] },
-      guidance: null,
     })
-    expect(user).toContain('name, urgency')
-    expect(user).toContain('לא לסיים בגללו')
+    expect(user).not.toContain('name, urgency')
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
+    expect(user).toContain('לא לקבוע לפי זה את השאלה הבאה')
   })
 
   it('passes the full transcript so already-answered facts stay in context', () => {
-    const user = buildQualifyUser({
+    const user = userPayload({
       transcript: [
         { direction: 'inbound', text: NEED_INBOUND },
         { direction: 'outbound', text: 'את מנהלת את הלקוחות היום באקסל או בוואטסאפ?' },
       ],
       qualification: { need: 'ניהול לקוחות לעסק איפור' },
-      collectFields: { required: ['name', 'need', 'urgency'], optional: [] },
-      guidance: null,
     })
     expect(user).toContain(NEED_INBOUND)
     expect(user).toContain('את מנהלת את הלקוחות היום באקסל או בוואטסאפ?')
@@ -165,59 +189,17 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(user).toContain('לא להזכיר ללקוח')
   })
 
-  it('one-question fallback copy still passes the send validator', () => {
-    const q = nextRequiredFieldQuestion(['need'], 'he')
-    expect((q.match(/\?/g) ?? []).length).toBe(1)
-    expect(validateAutoResponse(q).ok).toBe(true)
-    expect(q).not.toContain('הצורך המרכזי')
-  })
-
-  it('need stated + name missing + validation fail → fallback does not ask name', () => {
-    const fallback = deterministicQualifyFallback({
-      missingRequired: ['name', 'need'],
-      qualification: {},
-      lastInboundText: NEED_INBOUND,
-      lang: 'he',
-    })
-    expect(validateAutoResponse(fallback).ok).toBe(true)
-    expect(fallback).not.toMatch(/איך לפנות אליך|What should I call you/)
-    expect(fallback).toBe(nextRequiredFieldQuestion(['need'], 'he'))
-  })
-
-  it('need already extracted + name missing → fallback deepens the need', () => {
-    const fallback = deterministicQualifyFallback({
-      missingRequired: ['name'],
-      qualification: { need: 'עזרה בניהול לקוחות עסק איפור' },
-      lastInboundText: NEED_INBOUND,
-      lang: 'he',
-    })
-    expect(validateAutoResponse(fallback).ok).toBe(true)
-    expect(fallback).not.toMatch(/איך לפנות אליך/)
-    expect(fallback).toBe(nextRequiredFieldQuestion(['need'], 'he'))
-    expect(fallback).not.toBe('מה הכי מפריע לך היום בניהול הלקוחות?')
-  })
-
-  it('no need stated + name missing → asking name remains allowed', () => {
-    const fallback = deterministicQualifyFallback({
-      missingRequired: ['name', 'need'],
-      qualification: {},
-      lastInboundText: 'היי אשמח לקבל פרטים',
-      lang: 'he',
-    })
-    expect(validateAutoResponse(fallback).ok).toBe(true)
-    expect(fallback).toBe(nextRequiredFieldQuestion(['name'], 'he'))
-  })
-
   it('need stated + AI generation succeeds → the valid AI reply is kept', () => {
     const aiReply = 'ברור. מה הכי קשה לך היום במעקב אחרי הלקוחות?'
     expect(validateAutoResponse(aiReply).ok).toBe(true)
-    expect(aiReply).not.toBe(nextRequiredFieldQuestion(['name'], 'he'))
-    expect(aiReply).not.toBe(deterministicQualifyFallback({
-      missingRequired: ['name'],
-      qualification: { need: 'עזרה בניהול לקוחות עסק איפור' },
-      lastInboundText: NEED_INBOUND,
-      lang: 'he',
-    }))
+    expect(aiReply).not.toBe(NAME_QUESTION_HE)
+    expect(aiReply).not.toBe(
+      deterministicQualifyFallback({
+        qualification: { need: 'עזרה בניהול לקוחות עסק איפור' },
+        lastInboundText: NEED_INBOUND,
+        lang: 'he',
+      }),
+    )
   })
 
   it('the canned transfer line is not a valid live reply (no question)', () => {
@@ -230,6 +212,149 @@ describe('qualify conversation quality (prompt + decision)', () => {
     const reply = 'ניהול לקוחות באיפור זה בדיוק מסוג העומס שמתפזר. את מנהלת את זה היום באקסל או בעיקר בוואטסאפ?'
     expect(validateAutoResponse(reply).ok).toBe(true)
     expect((reply.match(/\?/g) ?? []).length).toBe(1)
+  })
+})
+
+describe('strategy-aware fallback (not missing CRM fields)', () => {
+  it('need known + name missing + validation fail → fallback deepens the need, not name', () => {
+    const fallback = deterministicQualifyFallback({
+      qualification: {},
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    })
+    expect(inferFallbackObjective({ qualification: {}, lastInboundText: NEED_INBOUND })).toBe('explore_pain')
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).toBe(PAIN_FALLBACK_HE)
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+    expect(CRM_FIELD_QUESTIONS).not.toContain(fallback)
+  })
+
+  it('need already extracted + name missing → fallback deepens the need', () => {
+    const fallback = deterministicQualifyFallback({
+      qualification: { need: 'עזרה בניהול לקוחות עסק איפור' },
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    })
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).toBe(PAIN_FALLBACK_HE)
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+  })
+
+  it('pain known → fallback asks about impact, not name/urgency', () => {
+    const fallback = deterministicQualifyFallback({
+      qualification: { need: 'ניהול לקוחות לעסק איפור' },
+      lastInboundText: PAIN_INBOUND,
+      transcript: [
+        { direction: 'inbound', text: NEED_INBOUND },
+        { direction: 'inbound', text: PAIN_INBOUND },
+      ],
+      lang: 'he',
+    })
+    expect(
+      inferFallbackObjective({
+        qualification: { need: 'ניהול לקוחות לעסק איפור' },
+        lastInboundText: PAIN_INBOUND,
+        transcript: [
+          { direction: 'inbound', text: NEED_INBOUND },
+          { direction: 'inbound', text: PAIN_INBOUND },
+        ],
+      }),
+    ).toBe('understand_impact')
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).toBe(IMPACT_FALLBACK_HE)
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+    expect(fallback).not.toMatch(/דחוף|תקציב|urgency|budget/)
+  })
+
+  it('workflow known → fallback asks about desired outcome, not missing CRM fields', () => {
+    const transcript = [
+      { direction: 'inbound' as const, text: NEED_INBOUND },
+      { direction: 'inbound' as const, text: PAIN_INBOUND },
+      { direction: 'inbound' as const, text: IMPACT_INBOUND },
+      { direction: 'inbound' as const, text: WORKFLOW_INBOUND },
+    ]
+    const fallback = deterministicQualifyFallback({
+      qualification: { need: 'ניהול לקוחות לעסק איפור' },
+      lastInboundText: WORKFLOW_INBOUND,
+      transcript,
+      lang: 'he',
+    })
+    expect(
+      inferFallbackObjective({
+        qualification: { need: 'ניהול לקוחות לעסק איפור' },
+        lastInboundText: WORKFLOW_INBOUND,
+        transcript,
+      }),
+    ).toBe('understand_outcome')
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).toBe(OUTCOME_FALLBACK_HE)
+    expect(CRM_FIELD_QUESTIONS).not.toContain(fallback)
+  })
+
+  it('no need known → natural need-discovery fallback is allowed', () => {
+    const fallback = deterministicQualifyFallback({
+      qualification: {},
+      lastInboundText: 'היי אשמח לקבל פרטים',
+      lang: 'he',
+    })
+    expect(inferFallbackObjective({ qualification: {}, lastInboundText: 'היי אשמח לקבל פרטים' })).toBe('discover_need')
+    expect(validateAutoResponse(fallback).ok).toBe(true)
+    expect(fallback).toBe(NEED_DISCOVERY_HE)
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+  })
+
+  it('every fallback objective still passes the send validator', () => {
+    for (const lastInboundText of [NEED_INBOUND, PAIN_INBOUND, 'היי']) {
+      const he = deterministicQualifyFallback({ qualification: { need: lastInboundText === 'היי' ? undefined : 'x' }, lastInboundText, lang: 'he' })
+      const en = deterministicQualifyFallback({ qualification: { need: lastInboundText === 'היי' ? undefined : 'x' }, lastInboundText, lang: 'en' })
+      expect((he.match(/\?/g) ?? []).length).toBe(1)
+      expect((en.match(/\?/g) ?? []).length).toBe(1)
+      expect(validateAutoResponse(he).ok).toBe(true)
+      expect(validateAutoResponse(en).ok).toBe(true)
+    }
+  })
+})
+
+describe('RQ must not control the IRE question', () => {
+  it('qualifyWorker no longer calls selectNextGap, decideConversationPolicy, or focusField', () => {
+    const src = readFileSync(resolve(__dirname, '../../../lib/inbox/autoresponse/qualifyWorker.ts'), 'utf8')
+    expect(src).not.toMatch(/\bselectNextGap\b/)
+    expect(src).not.toMatch(/\bdecideConversationPolicy\b/)
+    expect(src).not.toMatch(/\bfocusField\b/)
+    expect(src).not.toMatch(/\brqFocusField\b/)
+    expect(src).not.toContain('policy=')
+    expect(src).not.toContain('gap=')
+  })
+
+  it('RQ gap=name cannot appear as a conversational instruction in the prompt', () => {
+    const user = userPayload({
+      qualification: {},
+      focusField: 'name',
+      runtimeCognition: 'Still unknown / unresolved: name',
+    })
+    expect(user).not.toMatch(/נוגעת ל: name/)
+    expect(user).not.toContain('Still unknown / unresolved: name')
+    expect(user).not.toContain('מידע פנימי שעוד חסר')
+  })
+
+  it('RQ decideConversationPolicy ASK gap=name does not change a valid IRE reply', () => {
+    const rq = decideConversationPolicy({
+      qualification: {},
+      required: ['name', 'need'],
+      turnCount: 0,
+      maxTurns: 5,
+    })
+    expect(rq).toEqual({ decision: 'ASK', gap: 'name', reason: "collecting required field 'name'" })
+    const aiReply = 'ברור. מה הכי קשה לך היום במעקב אחרי הלקוחות?'
+    expect(validateAutoResponse(aiReply).ok).toBe(true)
+    expect(aiReply).not.toBe(NAME_QUESTION_HE)
+    const fallback = deterministicQualifyFallback({
+      qualification: { need: 'עזרה בניהול לקוחות' },
+      lastInboundText: NEED_INBOUND,
+      lang: 'he',
+    })
+    expect(fallback).not.toBe(NAME_QUESTION_HE)
+    expect(fallback).toBe(PAIN_FALLBACK_HE)
   })
 })
 
