@@ -5,10 +5,12 @@ import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
 export const maxDuration = 60
 
 /**
- * Backstop drain for the Instant Response Engine. The primary trigger is the
- * post-commit kick in the WhatsApp webhook; this cron only catches jobs a kick
- * missed (cold start, crash, after() not firing). Idempotent with the kick via
- * SKIP LOCKED + the in-flight unique index.
+ * Instant Response Engine drain. The WhatsApp webhook after() kick claims only
+ * jobs that are already due (`pending` AND `notBefore <= now()`). Delayed jobs
+ * (`delaySeconds` > 0) are therefore not processed by that same-request kick.
+ * This cron is the scheduled drain for those due jobs, and the backstop when a
+ * kick is missed (cold start, crash, after() not firing). Idempotent with the
+ * kick via SKIP LOCKED + the in-flight unique index.
  */
 async function handle(req: NextRequest) {
   const secret = getAutomationSecret()

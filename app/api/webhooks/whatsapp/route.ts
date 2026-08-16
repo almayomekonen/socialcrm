@@ -235,7 +235,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Instant Response Engine: kick only for real Leads. Leadless / personal
-      // conversations must never auto-reply.
+      // conversations must never auto-reply. The kick claims due jobs only
+      // (`notBefore <= now()`); delayed jobs wait for /api/cron/send-auto-responses.
       if (result.inserted && leadId != null && leadId > 0) {
         console.log(`[IRE] kick triggered conv=${result.conversationId} msg=${result.messageId}`)
         after(async () => {

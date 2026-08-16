@@ -69,7 +69,23 @@ export async function setMasterEnabled(agencyId: number, enabled: boolean): Prom
 }
 
 export async function getChannelSettings(agencyId: number, channel: string): Promise<AutoResponseSettings | null> {
-  const row = (await db('auto_response_settings').where({ agencyId, channel }).first()) as SettingsRow | undefined
+  const row = (await db('auto_response_settings')
+    .where({ agencyId, channel })
+    .first(
+      'agencyId',
+      'channel',
+      'enabled',
+      'quietHours',
+      'dailyCap',
+      'guidance',
+      'mode',
+      'maxTurns',
+      'collectFields',
+      'draft',
+      'replyMode',
+      'fixedBody',
+      'delaySeconds',
+    )) as SettingsRow | undefined
   if (!row) return null
   const cf = row.collectFields
   return {
