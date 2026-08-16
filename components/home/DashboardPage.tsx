@@ -89,7 +89,15 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <RecommendedLeads items={recommended.map((r) => ({ lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone }, reason: r.reason }))} />
+      <RecommendedLeads
+        items={recommended.map((r) => ({
+          lead: { id: r.lead.id, name: r.lead.name, phone: r.lead.phone },
+          reason: r.reason,
+          conversationId: r.conversationId,
+          windowHint: r.windowHint,
+          eyebrow: r.eyebrow,
+        }))}
+      />
 
       <FollowupsTable rows={tableRows} total={tableTotal} />
 

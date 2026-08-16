@@ -7,7 +7,6 @@ import {
   DAY_MS,
   HOUR_MS,
   INBOUND_CHANNEL_PREFIXES,
-  PROMISED_WAITING_RECENCY_DAYS,
   SLA_HOURS_BY_STATUS,
   STALE_CEILING_DAYS,
   STATE_PRIORITY,
@@ -15,6 +14,7 @@ import {
 } from './constants'
 import { reasonFor } from './labels'
 import type { BriefItem, LeadFact, NowCtx, QualifyingState, TargetSurface } from './types'
+import { isWaitingForReply } from './waitingReply'
 
 function isTerminal(status: string | null): boolean {
   return status != null && (TERMINAL_STATUSES as readonly string[]).includes(status)
@@ -25,9 +25,11 @@ export function isInboundSource(leadSource: string | null): boolean {
 }
 
 function isWaitingReply(f: LeadFact, ctx: NowCtx): boolean {
-  if (f.lastInboundAt == null) return false
-  if (f.lastInboundAt <= (f.lastHumanOutboundAt ?? Number.NEGATIVE_INFINITY)) return false
-  return f.lastInboundAt >= ctx.nowMs - PROMISED_WAITING_RECENCY_DAYS * DAY_MS
+  return isWaitingForReply({
+    lastInboundAt: f.lastInboundAt,
+    lastHumanOutboundAt: f.lastHumanOutboundAt,
+    nowMs: ctx.nowMs,
+  })
 }
 
 function isOpenLoopSla(f: LeadFact, ctx: NowCtx): boolean {

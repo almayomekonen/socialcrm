@@ -11,12 +11,14 @@ vi.mock('@/db/today/facts', () => ({ getBriefCandidateFacts: vi.fn() }))
 vi.mock('@/db/today/handled', () => ({ getTouchedTodayIds: vi.fn() }))
 vi.mock('@/db/today/freshness', () => ({ getInboundSyncFreshness: vi.fn() }))
 vi.mock('@/db/meetings', () => ({ getTodaysMeetings: vi.fn() }))
+vi.mock('@/db/inboxWaiting', () => ({ listOldestWaitingWhatsappByLeadIds: vi.fn() }))
 
 import { buildTodayBrief, type Viewer } from '@/lib/today/service'
 import { getBriefCandidateFacts } from '@/db/today/facts'
 import { getTouchedTodayIds } from '@/db/today/handled'
 import { getInboundSyncFreshness } from '@/db/today/freshness'
 import { getTodaysMeetings } from '@/db/meetings'
+import { listOldestWaitingWhatsappByLeadIds } from '@/db/inboxWaiting'
 import { businessDayBounds } from '@/lib/today/time'
 import type { LeadFact } from '@/lib/today/types'
 
@@ -46,6 +48,7 @@ function setup(opts: { facts?: LeadFact[]; touched?: number[]; dataFresh?: boole
   vi.mocked(getTouchedTodayIds).mockResolvedValue(opts.touched ?? [])
   vi.mocked(getInboundSyncFreshness).mockResolvedValue({ dataFresh: opts.dataFresh ?? false })
   vi.mocked(getTodaysMeetings).mockResolvedValue((opts.meetings ?? []) as never)
+  vi.mocked(listOldestWaitingWhatsappByLeadIds).mockResolvedValue([])
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -108,5 +111,27 @@ describe('buildTodayBrief composition', () => {
       ['done', 'firstName', 'greeting', 'handledToday', 'items', 'meetings', 'permissionVerdict', 'remaining', 'statusVerdict', 'total', 'volumeState'].sort(),
     )
     void CTX
+  })
+
+  it('WAITING_REPLY hydrates the exact conversation deep link', async () => {
+    setup({
+      facts: [{ ...BASE, id: 4, name: 'דנה', lastInboundAt: NOW - 7 * 3_600_000, lastHumanOutboundAt: null }],
+    })
+    vi.mocked(listOldestWaitingWhatsappByLeadIds).mockResolvedValue([
+      {
+        conversationId: 88,
+        leadId: 4,
+        name: 'דנה',
+        phone: '050',
+        status: 'contacted',
+        lastInboundAt: new Date(NOW - 7 * 3_600_000).toISOString(),
+        lastHumanOutboundAt: null,
+      },
+    ])
+    const b = await buildTodayBrief(VIEWER, NOW)
+    expect(b.items[0].state).toBe('WAITING_REPLY')
+    expect(b.items[0].conversationId).toBe(88)
+    expect(b.items[0].href).toBe('/inbox?conversation=88')
+    expect(b.items[0].waitingFor).toBe('ממתין 7 שעות')
   })
 })

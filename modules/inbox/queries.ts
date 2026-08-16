@@ -1,6 +1,8 @@
 import { db } from '@/config/db'
 import { countUnreadConversationsForUser } from '@/db/inboxConversationReads'
+import { lastHumanOutboundSubquery, waitingReplySql } from '@/lib/inbox/waitingReplySql'
 import type { AwarenessItem } from './awareness/types'
+import { computeUnread, mapInboxRow } from './mapInboxRow'
 import type {
   InboxChannel,
   InboxConversationListItem,
@@ -14,7 +16,6 @@ import { DEFAULT_INBOX_FILTERS } from './types'
 
 const DEFAULT_LIMIT = 30
 const MAX_LIMIT = 100
-const PREVIEW_MAX = 80
 
 const UNREAD_SQL = `(cv."lastInboundAt" IS NOT NULL AND (r."lastReadAt" IS NULL OR cv."lastInboundAt" > r."lastReadAt"))`
 
@@ -33,12 +34,6 @@ const RANK_SQL_BY_SORT: Record<string, string> = {
 }
 
 const toIso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null)
-
-const truncate = (v: unknown): string | null => {
-  const s = typeof v === 'string' ? v.trim() : v == null ? '' : String(v)
-  if (!s) return null
-  return s.length > PREVIEW_MAX ? s.slice(0, PREVIEW_MAX - 1) + '…' : s
-}
 
 const toLikePattern = (q: string): string => `%${q.replace(/[\\%_]/g, (ch) => '\\' + ch)}%`
 
@@ -73,19 +68,20 @@ function inboxSelectQuery(userId: number) {
       db.raw(`${TEMP_SQL} as temperature`),
       db.raw(`${INTENT_SQL} as intent`),
       db.raw(`${ACTION_SQL} as "suggestedAction"`),
+      db.raw(`${lastHumanOutboundSubquery('cv.id')} as "lastHumanOutboundAt"`),
     )
 }
 
 function applyInboxFilters<Q extends ReturnType<typeof inboxSelectQuery>>(q: Q, filters: InboxListFilters): Q {
   if (filters.status !== 'all') q.where('cv.state', filters.status)
-  if (filters.needsReply) q.where('cv.lastDirection', 'inbound')
+  if (filters.needsReply) q.whereRaw(waitingReplySql('cv'))
   if (filters.unread) q.whereRaw(UNREAD_SQL)
   switch (filters.intel) {
     case 'hot':
       q.whereRaw(`${TEMP_SQL} = 'hot'`)
       break
     case 'attention':
-      q.whereRaw(`${TEMP_SQL} = 'hot'`).where('cv.lastDirection', 'inbound')
+      q.whereRaw(`${TEMP_SQL} = 'hot'`).whereRaw(waitingReplySql('cv'))
       break
     case 'pricing':
       q.whereRaw(`${INTENT_SQL} = 'pricing'`)
@@ -116,40 +112,17 @@ function applyInboxFilters<Q extends ReturnType<typeof inboxSelectQuery>>(q: Q, 
   return q
 }
 
-export function computeUnread(r: { lastInboundAt?: unknown; lastReadAt?: unknown }): boolean {
-  const lastInboundMs = r.lastInboundAt ? new Date(r.lastInboundAt as string | Date).getTime() : null
-  const lastReadMs = r.lastReadAt ? new Date(r.lastReadAt as string | Date).getTime() : null
-  return lastInboundMs !== null && (lastReadMs === null || lastInboundMs > lastReadMs)
-}
-
-function mapInboxRow(r: Record<string, unknown>): InboxConversationListItem {
-  const lastDirection = (r.lastDirection ?? null) as 'inbound' | 'outbound' | null
-  return {
-    conversationId: Number(r.conversationId),
-    leadId: r.leadId != null ? Number(r.leadId) : null,
-    channel: r.channel as InboxChannel,
-    displayName: (r.customerName as string) || (r.leadName as string) || (r.customerWaId as string) || null,
-    leadName: (r.leadName as string) ?? null,
-    leadStatus: (r.leadStatus as string) ?? null,
-    lastMessageAt: toIso(r.lastMessageAt),
-    lastDirection,
-    lastMessagePreview: truncate(r.lastMessageText),
-    unread: computeUnread(r),
-    attention: lastDirection === 'inbound' ? 'needs_reply' : lastDirection === 'outbound' ? 'replied' : null,
-    temperature: (r.temperature as InboxConversationListItem['temperature']) ?? null,
-    intent: (r.intent as InboxConversationListItem['intent']) ?? null,
-    suggestedAction: (r.suggestedAction as InboxConversationListItem['suggestedAction']) ?? null,
-  }
-}
+export { computeUnread } from './mapInboxRow'
 
 export async function listInboxConversations(
   agencyId: number,
   userId: number,
-  opts: { cursor?: InboxCursor | null; limit?: number; filters?: Partial<InboxListFilters> } = {},
+  opts: { cursor?: InboxCursor | null; limit?: number; filters?: Partial<InboxListFilters>; nowMs?: number } = {},
 ): Promise<InboxConversationsPage> {
   const limit = Math.min(Math.max(opts.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT)
   const filters: InboxListFilters = { ...DEFAULT_INBOX_FILTERS, ...opts.filters }
   const cursor = opts.cursor ?? null
+  const nowMs = opts.nowMs ?? Date.now()
 
   let q = inboxSelectQuery(userId)
     .where('cv.agencyId', agencyId)
@@ -187,7 +160,7 @@ export async function listInboxConversations(
   const hasMore = rows.length > limit
   const pageRows = hasMore ? rows.slice(0, limit) : rows
 
-  const items: InboxConversationListItem[] = pageRows.map(mapInboxRow)
+  const items: InboxConversationListItem[] = pageRows.map((r) => mapInboxRow(r, nowMs))
 
   const last = pageRows[pageRows.length - 1]
   const lastTs = last ? toIso(last.lastMessageAt) : null
@@ -223,7 +196,8 @@ export async function getInboxDelta(
   ]).limit(DELTA_LIMIT + 1)
   const rows = await q
   const full = rows.length > DELTA_LIMIT
-  return { changed: (full ? rows.slice(0, DELTA_LIMIT) : rows).map(mapInboxRow), full }
+  const nowMs = Date.now()
+  return { changed: (full ? rows.slice(0, DELTA_LIMIT) : rows).map((r) => mapInboxRow(r, nowMs)), full }
 }
 
 /** Global awareness: per-user unread count + recent unread arrivals (toast/bell items). */
@@ -271,7 +245,7 @@ export async function getInboxSmartCounts(agencyId: number): Promise<InboxSmartC
     .andWhere('cv.state', 'open')
     .first(
       db.raw(`COUNT(*) FILTER (WHERE ${TEMP_SQL} = 'hot') as hot`),
-      db.raw(`COUNT(*) FILTER (WHERE ${TEMP_SQL} = 'hot' AND cv."lastDirection" = 'inbound') as attention`),
+      db.raw(`COUNT(*) FILTER (WHERE ${TEMP_SQL} = 'hot' AND ${waitingReplySql('cv')}) as attention`),
       db.raw(`COUNT(*) FILTER (WHERE ${INTENT_SQL} = 'demo') as demo`),
       db.raw(`COUNT(*) FILTER (WHERE ${ACTION_SQL} = 'escalate_support') as escalation`),
     ) as unknown as Promise<Record<keyof InboxSmartCounts, unknown> | undefined>

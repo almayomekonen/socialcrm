@@ -133,6 +133,27 @@ describe('mobile Today', () => {
     expect(screen.getByRole('link', { name: 'התקשר לדני לוי 2' })).toBeTruthy()
   })
 
+  test('waiting hero offers פתח שיחה to the conversation', () => {
+    render(
+      <MobileToday
+        model={model({
+          hero: row(1, {
+            href: '/inbox?conversation=88',
+            reason: 'ממתין 7 שעות',
+            windowHint: 'נותרו 17 שעות בחלון WhatsApp',
+            eyebrow: 'צריך לטפל עכשיו',
+            cta: 'open_conversation',
+          }),
+          nextUp: [],
+          rest: [],
+        })}
+      />,
+    )
+    expect(screen.getByText('צריך לטפל עכשיו')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'פתח שיחה' }).getAttribute('href')).toBe('/inbox?conversation=88')
+    expect(screen.getByText('נותרו 17 שעות בחלון WhatsApp')).toBeTruthy()
+  })
+
   test('4b. a lead with no phone still offers a way in (never a dead row)', () => {
     render(<MobileToday model={model({ hero: row(1, { phone: null }), nextUp: [], rest: [] })} />)
     expect(screen.getByRole('link', { name: 'פתח ליד' })).toBeTruthy()
@@ -227,5 +248,66 @@ describe('view model — both Today pipelines produce the same shape', () => {
     expect(Object.keys(m.hero!).sort()).toEqual(['href', 'id', 'name', 'phone', 'reason'])
     // An inbox-targeted item still routes somewhere real on mobile.
     expect(m.nextUp[0].href).toBe('/clients/11/summary')
+  })
+
+  test('7c. a waiting WhatsApp hero deep-links to the exact conversation', () => {
+    const m = modelFromBrief({
+      greeting: 'בוקר טוב',
+      firstName: 'אלמוג',
+      items: [
+        {
+          id: 10,
+          name: 'דנה',
+          phone: '050',
+          state: 'WAITING_REPLY',
+          reason: 'ממתין לתשובה שלך',
+          targetSurface: 'inbox',
+          conversationId: 88,
+          href: '/inbox?conversation=88',
+          waitingFor: 'ממתין 7 שעות',
+          windowHint: 'נותרו 17 שעות בחלון WhatsApp',
+        },
+      ],
+      total: 1,
+      remaining: 1,
+      handledToday: 0,
+      done: false,
+      volumeState: 'normal',
+      statusVerdict: 'active',
+      permissionVerdict: 'scoped_all_clear',
+      meetings: [],
+    })
+    expect(m.hero?.href).toBe('/inbox?conversation=88')
+    expect(m.hero?.cta).toBe('open_conversation')
+    expect(m.hero?.reason).toBe('ממתין 7 שעות')
+    expect(m.hero?.windowHint).toBe('נותרו 17 שעות בחלון WhatsApp')
+  })
+
+  test('7d. v1 waiter uses the same inbox deep link', () => {
+    const m = modelFromSnapshot(
+      {
+        due: [],
+        dueCount: 1,
+        newLeadsCount: 0,
+        upcomingCount: 0,
+        doneToday: 0,
+        meetings: [],
+        recommended: [
+          {
+            lead: { id: 4, name: 'דנה', phone: '050', status: 'contacted', nextFollowUpAt: null },
+            reason: 'ממתין 7 שעות',
+            conversationId: 88,
+            windowHint: 'נותרו 17 שעות בחלון WhatsApp',
+            eyebrow: 'צריך לטפל עכשיו',
+          },
+        ],
+        tableRows: [],
+        tableTotal: 0,
+        progressPct: 0,
+      },
+      Date.parse('2026-08-16T12:00:00Z'),
+    )
+    expect(m.hero?.href).toBe('/inbox?conversation=88')
+    expect(m.hero?.cta).toBe('open_conversation')
   })
 })

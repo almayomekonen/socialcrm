@@ -24,10 +24,16 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
             <div className='flex min-w-0 items-center gap-2.5'>
               <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOT[it.state]}`} />
               <div className='min-w-0'>
-                <Link href={`/clients/${it.id}/summary`} className='block truncate text-sm font-medium text-gray-800 hover:underline'>
+                <Link
+                  href={it.href ?? `/clients/${it.id}/summary`}
+                  className='block truncate text-sm font-medium text-gray-800 hover:underline'
+                >
                   {it.name || '—'}
                 </Link>
-                <p className='mt-0.5 truncate text-xs text-gray-400'>{it.reason}</p>
+                <p className='mt-0.5 truncate text-xs text-gray-400'>
+                  {it.waitingFor ?? it.reason}
+                  {it.windowHint ? ` · ${it.windowHint}` : ''}
+                </p>
               </div>
             </div>
             {it.phone && (

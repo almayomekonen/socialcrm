@@ -51,6 +51,12 @@ export default function InboxConversationRow({
             {item.lastMessagePreview}
           </p>
         )}
+        {item.waitingTitle && (
+          <p className='mt-0.5 truncate text-[11px] font-medium text-amber-800'>{item.waitingTitle}</p>
+        )}
+        {item.waitingWindowHint && (
+          <p className='truncate text-[11px] text-gray-500'>{item.waitingWindowHint}</p>
+        )}
         {(temperatureBadge || intentLabel) && (
           <div className='mt-1 flex flex-wrap items-center gap-1'>
             {temperatureBadge && (

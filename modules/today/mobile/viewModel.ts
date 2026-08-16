@@ -29,6 +29,9 @@ export type MobileTodayRow = {
   reason: string
   /** Where the row goes. Inbox items route to the conversation, not the lead. */
   href: string
+  eyebrow?: string
+  windowHint?: string | null
+  cta?: 'call' | 'open_conversation'
 }
 
 export type MobileTodayModel = {
@@ -46,17 +49,43 @@ export type MobileTodayModel = {
 
 const leadHref = (id: number) => `/clients/${id}/summary`
 
+function toRow(input: {
+  id: number
+  name: string | null
+  phone: string | null
+  reason: string
+  href: string
+  eyebrow?: string | null
+  windowHint?: string | null
+  conversationId?: number | null
+}): MobileTodayRow {
+  const row: MobileTodayRow = {
+    id: input.id,
+    name: input.name,
+    phone: input.phone,
+    reason: input.reason,
+    href: input.href,
+  }
+  if (input.eyebrow) row.eyebrow = input.eyebrow
+  if (input.windowHint) row.windowHint = input.windowHint
+  if (input.conversationId || input.href.startsWith('/inbox')) row.cta = 'open_conversation'
+  return row
+}
+
 /** v2 — the Today Brief. `items` is already ordered, deduped and labelled. */
 export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
-  const rows: MobileTodayRow[] = brief.items.map((i) => ({
-    id: i.id,
-    name: i.name,
-    phone: i.phone,
-    reason: i.reason,
-    // Inbox-targeted items open the conversation; Phase 2 has no mobile inbox,
-    // so they fall back to the lead, which carries the same conversation.
-    href: leadHref(i.id),
-  }))
+  const rows: MobileTodayRow[] = brief.items.map((i) =>
+    toRow({
+      id: i.id,
+      name: i.name,
+      phone: i.phone,
+      reason: i.waitingFor ?? i.reason,
+      href: i.href ?? leadHref(i.id),
+      eyebrow: i.conversationId ? 'צריך לטפל עכשיו' : null,
+      windowHint: i.windowHint,
+      conversationId: i.conversationId,
+    }),
+  )
 
   return {
     hero: rows[0] ?? null,
@@ -73,13 +102,18 @@ export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
 
 /** v1 — the legacy worklist. Same picks the desktop dashboard renders. */
 export function modelFromSnapshot(snapshot: Omit<TodaySnapshot, 'hasLeads'>, nowMs: number): MobileTodayModel {
-  const recommended: MobileTodayRow[] = snapshot.recommended.map(({ lead, reason }) => ({
-    id: lead.id,
-    name: lead.name,
-    phone: lead.phone,
-    reason,
-    href: leadHref(lead.id),
-  }))
+  const recommended: MobileTodayRow[] = snapshot.recommended.map((item) =>
+    toRow({
+      id: item.lead.id,
+      name: item.lead.name,
+      phone: item.lead.phone,
+      reason: item.reason,
+      href: item.conversationId ? `/inbox?conversation=${item.conversationId}` : leadHref(item.lead.id),
+      eyebrow: item.eyebrow,
+      windowHint: item.windowHint,
+      conversationId: item.conversationId,
+    }),
+  )
 
   const rest: MobileTodayRow[] = snapshot.tableRows.map((row) => ({
     id: row.id,

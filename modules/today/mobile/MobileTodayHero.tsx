@@ -18,12 +18,13 @@ import type { MobileTodayRow } from './viewModel'
  * for why that is deliberate).
  */
 export default function MobileTodayHero({ row }: { row: MobileTodayRow }) {
-  const { name, phone, reason, href } = row
+  const { name, phone, reason, href, eyebrow, windowHint, cta } = row
+  const openConversation = cta === 'open_conversation'
 
   return (
     <section aria-labelledby='mobile-today-hero' className='rounded-xl border border-primary/30 bg-primary-tint/40 p-4'>
       <p id='mobile-today-hero' className='text-[11px] font-semibold uppercase tracking-wide text-primary-text'>
-        התחל כאן
+        {eyebrow || 'התחל כאן'}
       </p>
 
       <Link
@@ -32,10 +33,18 @@ export default function MobileTodayHero({ row }: { row: MobileTodayRow }) {
       >
         <span className='block truncate text-xl font-bold leading-tight text-ink'>{name || '—'}</span>
         <span className='mt-0.5 block truncate text-sm text-gray-600'>{reason}</span>
+        {windowHint && <span className='mt-0.5 block truncate text-sm text-gray-500'>{windowHint}</span>}
       </Link>
 
       <div className='mt-3 flex items-center gap-2'>
-        {phone ? (
+        {openConversation ? (
+          <Link
+            href={href as Route}
+            className='flex h-11 flex-1 items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          >
+            פתח שיחה
+          </Link>
+        ) : phone ? (
           <a
             href={`tel:${phone}`}
             aria-label={name ? `התקשר ל${name}` : 'התקשר'}

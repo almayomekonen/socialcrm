@@ -8,6 +8,8 @@ import { getBriefCandidateFacts, type Scope } from '@/db/today/facts'
 import { getTouchedTodayIds } from '@/db/today/handled'
 import { getInboundSyncFreshness } from '@/db/today/freshness'
 import { getTodaysMeetings } from '@/db/meetings'
+import { listOldestWaitingWhatsappByLeadIds } from '@/db/inboxWaiting'
+import { hydrateBriefWaitingItems } from '@/modules/today/waitingSpotlight'
 import { businessDayBounds } from './time'
 import { orderAndDedupe } from './classify'
 import { progress, volumeStateFor } from './progress'
@@ -34,7 +36,15 @@ export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<To
     getTodaysMeetings({ agencyId: viewer.agencyId, organizerUserId: viewer.userId }),
   ])
 
-  const items = orderAndDedupe(facts, ctx)
+  const classified = orderAndDedupe(facts, ctx)
+  const waitingLeadIds = classified.filter((i) => i.state === 'WAITING_REPLY').map((i) => i.id)
+  const waiters = await listOldestWaitingWhatsappByLeadIds({
+    agencyId: viewer.agencyId,
+    user: viewer.scope.user,
+    gotPermIds: viewer.scope.gotPermIds,
+    leadIds: waitingLeadIds,
+  })
+  const items = hydrateBriefWaitingItems(classified, waiters, nowMs)
   const { remaining, handledToday, done } = progress({ qualifyingIds: items.map((i) => i.id), touchedTodayIds })
   const { statusVerdict, permissionVerdict } = completenessVerdict({ remaining, dataFresh: freshness.dataFresh })
 

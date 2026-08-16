@@ -38,10 +38,15 @@ export type InboxConversationListItem = {
   leadName: string | null
   leadStatus: string | null
   lastMessageAt: string | null
+  lastInboundAt: string | null
+  lastHumanOutboundAt: string | null
   lastDirection: 'inbound' | 'outbound' | null
   lastMessagePreview: string | null
   unread: boolean
   attention: InboxAttention | null
+  /** Precomputed waiting copy. Null on non-waiting rows — keep those rows clean. */
+  waitingTitle: string | null
+  waitingWindowHint: string | null
   temperature: string | null
   intent: string | null
   suggestedAction: string | null

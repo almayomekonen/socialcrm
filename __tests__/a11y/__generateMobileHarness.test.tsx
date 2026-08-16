@@ -259,6 +259,7 @@ describe.skipIf(!ENABLED)('generate mobile viewport harness', () => {
       displayName: i === 2 ? 'אברהם־יצחק בן־שלמה הכהן־רוזנבלט' : `שירה פרץ ${i}`,
       leadName: null, leadStatus: 'new', lastMessageAt: new Date(Date.now() - i * 6e5).toISOString(),
       lastDirection: (i % 2 ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
+      lastInboundAt: null, lastHumanOutboundAt: null, waitingTitle: null, waitingWindowHint: null,
       lastMessagePreview: i === 3 ? 'היי, רציתי לשאול על המחיר ועל זמני האספקה שלכם לאזור המרכז' : 'תודה, אחזור אליך',
       unread: i % 3 === 0, attention: null, temperature: null, intent: null, suggestedAction: null, ...over,
     })

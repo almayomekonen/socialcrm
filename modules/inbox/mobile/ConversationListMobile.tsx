@@ -92,6 +92,14 @@ function ConversationRow({ item, when }: { item: InboxConversationListItem; when
             />
           )}
         </span>
+        {item.waitingTitle && (
+          <span className='mt-0.5 block truncate text-[12px] font-medium leading-tight text-amber-800'>
+            {item.waitingTitle}
+          </span>
+        )}
+        {item.waitingWindowHint && (
+          <span className='block truncate text-[12px] leading-tight text-gray-500'>{item.waitingWindowHint}</span>
+        )}
       </span>
     </Link>
   )

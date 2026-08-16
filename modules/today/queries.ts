@@ -4,7 +4,9 @@ import { getDueWorklist, getDueWorklistCount, getNewLeads, getNewLeadsCount, get
 import type { DueWorklistRow } from '@/db/worklist'
 import { getTodaysMeetings } from '@/db/meetings'
 import { getUpcomingFollowUpsCount } from '@/db/followUps'
-import { pickTopRecommended, recommendReason, type Recommendation } from '@/lib/leads/recommend'
+import { pickTopRecommended, recommendReason } from '@/lib/leads/recommend'
+import { findOldestWaitingWhatsappConversation } from '@/db/inboxWaiting'
+import { mergeWaitingSpotlight, type TodayRecommendation } from '@/modules/today/waitingSpotlight'
 import type { Roles } from '@/types/roles'
 
 /**
@@ -33,7 +35,7 @@ export type TodaySnapshot = {
   upcomingCount: number
   doneToday: number
   meetings: Awaited<ReturnType<typeof getTodaysMeetings>>
-  recommended: Recommendation[]
+  recommended: TodayRecommendation[]
   /** Due rows minus the ones promoted into `recommended` (no lead appears twice). */
   tableRows: DueWorklistRow[]
   tableTotal: number
@@ -71,7 +73,7 @@ export async function resolveTodaySnapshot(
   nowMs: number,
   recommendCount = 3,
 ): Promise<Omit<TodaySnapshot, 'hasLeads'>> {
-  const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount] = await Promise.all([
+  const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount, waiter] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getDueWorklist({ user: user as any, gotPermIds, limit: 100 }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,9 +87,15 @@ export async function resolveTodaySnapshot(
     getNewLeadsCount({ user: user as any, gotPermIds }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getUpcomingFollowUpsCount({ user: user as any, gotPermIds }),
+    findOldestWaitingWhatsappConversation({ user, gotPermIds }),
   ])
 
-  const recommended = pickTopRecommended(due, newLeads, recommendCount, nowMs)
+  const recommended = mergeWaitingSpotlight(
+    pickTopRecommended(due, newLeads, recommendCount, nowMs),
+    waiter,
+    nowMs,
+    recommendCount,
+  )
 
   const recommendedIds = new Set(recommended.map((r) => r.lead.id))
   const dueIds = new Set(due.map((d) => d.id))

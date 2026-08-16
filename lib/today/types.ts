@@ -42,6 +42,13 @@ export type BriefItem = {
   /** Deterministic Hebrew label for the state (computed server-side; the UI renders it). */
   reason: string
   targetSurface: TargetSurface
+  /** Exact Inbox thread when the owed action is a waiting WhatsApp reply. */
+  conversationId?: number | null
+  href?: string | null
+  /** e.g. "ממתין 7 שעות" — precomputed, no client clock. */
+  waitingFor?: string | null
+  /** e.g. "נותרו 5 שעות בחלון WhatsApp" — precomputed from the inbound window. */
+  windowHint?: string | null
 }
 
 export type MeetingItem = { id: number; title: string | null; at: number }
