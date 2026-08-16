@@ -44,10 +44,19 @@ describe('detectLang', () => {
 })
 
 describe('handoffMessage (fixed templates, never AI-generated)', () => {
-  it('qualified/he', () => expect(handoffMessage('qualified', 'he')).toContain('יש לי מספיק מידע'))
-  it('qualified/en', () => expect(handoffMessage('qualified', 'en')).toContain('I have enough information'))
-  it('hot_signal uses the qualified template', () => expect(handoffMessage('hot_signal', 'en')).toContain('forwarding your details'))
-  it('max_turns uses the qualified template', () => expect(handoffMessage('max_turns', 'he')).toContain('מעביר את הפרטים'))
-  it('uncertain/en', () => expect(handoffMessage('uncertain', 'en')).toBe('Let me connect you with a team member who can help.'))
-  it('uncertain/he', () => expect(handoffMessage('uncertain', 'he')).toContain('שיוכל לעזור'))
+  it('qualified/he does not summarize or use generic filler', () => {
+    const t = handoffMessage('qualified', 'he')
+    expect(t).toContain('מהצוות')
+    expect(t).not.toContain('מעולה')
+    expect(t).not.toContain('מספיק מידע')
+  })
+  it('qualified/en', () => expect(handoffMessage('qualified', 'en')).toContain('team'))
+  it('hot_signal uses the qualified template', () => expect(handoffMessage('hot_signal', 'en')).toContain('continue with you'))
+  it('max_turns uses the qualified template', () => expect(handoffMessage('max_turns', 'he')).toContain('יחזור אליך'))
+  it('uncertain/en', () => expect(handoffMessage('uncertain', 'en')).toBe('Someone from the team will continue with you from here.'))
+  it('uncertain/he does not say transferring to a rep', () => {
+    const t = handoffMessage('uncertain', 'he')
+    expect(t).not.toContain('אני מעביר אותך')
+    expect(t).toContain('מהצוות')
+  })
 })

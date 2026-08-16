@@ -94,11 +94,11 @@ describe('decidePostGeneration', () => {
   it('hot signal escalates immediately (before fields complete)', () => {
     expect(decidePostGeneration(post({ hotSignal: true }))).toEqual({ action: 'escalate', reason: 'hot_signal' })
   })
-  it('uncertainty escalates (never guess)', () => {
-    expect(decidePostGeneration(post({ uncertain: true }))).toEqual({ action: 'escalate', reason: 'uncertain' })
+  it('model uncertainty does not hand off — keep the conversation going', () => {
+    expect(decidePostGeneration(post({ uncertain: true }))).toEqual({ action: 'send' })
   })
-  it('required complete → escalate qualified', () => {
-    expect(decidePostGeneration(post({ requiredComplete: true }))).toEqual({ action: 'escalate', reason: 'qualified' })
+  it('required fields complete does not hand off — stating a need is not a human reason', () => {
+    expect(decidePostGeneration(post({ requiredComplete: true }))).toEqual({ action: 'send' })
   })
   it('final allowed turn becomes the handoff', () => {
     expect(decidePostGeneration(post({ turnCount: 4, maxTurns: 5 }))).toEqual({ action: 'escalate', reason: 'max_turns' })

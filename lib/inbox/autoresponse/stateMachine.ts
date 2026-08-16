@@ -53,9 +53,9 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
 
 // ── Post-generation ─────────────────────────────────────────────────────────
 export interface PostFacts {
-  hotSignal: boolean // buying intent → escalate immediately, before required fields complete
-  uncertain: boolean // AI not confident → escalate, never guess
-  requiredComplete: boolean // all required fields collected after this turn's extraction
+  hotSignal: boolean // explicit human/price/demo intent → escalate
+  uncertain: boolean // kept for callers; no longer auto-escalates
+  requiredComplete: boolean // kept for callers; stating a need is not a handoff
   turnCount: number // AI turns already sent (before this one)
   maxTurns: number
 }
@@ -64,9 +64,10 @@ export type PostDecision = { action: 'escalate'; reason: string } | { action: 's
 
 export function decidePostGeneration(f: PostFacts): PostDecision {
   if (f.hotSignal) return { action: 'escalate', reason: 'hot_signal' }
-  if (f.uncertain) return { action: 'escalate', reason: 'uncertain' }
-  if (f.requiredComplete) return { action: 'escalate', reason: 'qualified' }
   // Sending now would consume the final allowed turn → make it the handoff instead.
   if (f.turnCount + 1 >= f.maxTurns) return { action: 'escalate', reason: 'max_turns' }
+  // Stating a need, filling required fields, or model "uncertainty" is not a
+  // reason to hand off. Keep asking one natural question until a genuine human
+  // reason (hot signal / last turn) or a pre-generation safety stop.
   return { action: 'send' }
 }
