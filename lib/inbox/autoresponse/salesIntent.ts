@@ -7,9 +7,11 @@
  */
 import { inboundStatesImpact, inboundStatesOutcome, inboundStatesPain } from './qualifyPrompt'
 import { isProductStrategy, isSalesStrategy, type SalesStrategy } from './qualification'
+import { isBusinessIdentityQuestion } from './businessIdentityIntent'
 
 export type { SalesStrategy }
 export { isProductStrategy, isSalesStrategy }
+export { isBusinessIdentityQuestion }
 
 const HUMAN_REQUEST_PATTERNS: RegExp[] = [
   /פגיש|להיפגש|זום|שיחה/,
@@ -125,7 +127,7 @@ export function isCasualAcknowledgement(text: string): boolean {
 }
 
 export function isProductQuestion(text: string): boolean {
-  return PRODUCT_QUESTION_RE.some((re) => re.test(text))
+  return PRODUCT_QUESTION_RE.some((re) => re.test(text)) || isBusinessIdentityQuestion(text)
 }
 
 export function isProductFit(text: string): boolean {

@@ -10,6 +10,7 @@ import {
   type ProductCapability,
 } from '@/lib/product/capabilities'
 import { type SalesMove, isExplanationRequest, isShortAffirmative } from './salesIntent'
+import { isBusinessIdentityQuestion } from './businessIdentityIntent'
 
 export const PRODUCT_KNOWLEDGE_ENV = 'IRE_PRODUCT_KNOWLEDGE_AGENCY_IDS'
 const MAX_RETRIEVED = 3
@@ -69,7 +70,12 @@ const GENERAL_HELP_RE = /איך (אתה|אתם) יכול|מה המערכת עו�
 function wantsCatalogOverview(text: string, salesMove: SalesMove): boolean {
   if (salesMove === 'PRODUCT_FIT' || salesMove === 'BUYING_SIGNAL') return true
   if (salesMove !== 'PRODUCT_QUESTION') return false
-  return GENERAL_HELP_RE.test(text) || isExplanationRequest(text) || isShortAffirmative(text)
+  return (
+    GENERAL_HELP_RE.test(text) ||
+    isExplanationRequest(text) ||
+    isShortAffirmative(text) ||
+    isBusinessIdentityQuestion(text)
+  )
 }
 
 /**

@@ -26,13 +26,21 @@ const SYSTEM = [
   'כתוב בעברית, בגוף ראשון רבים, בנימה מקצועית וחמה. החזר אך ורק את ההודעה בשדה message.',
 ].join('\n')
 
-function buildUser(args: { customerName: string | null; lastCustomerMessage: string; guidance: string | null }): string {
+function buildUser(args: {
+  customerName: string | null
+  lastCustomerMessage: string
+  guidance: string | null
+  businessIdentityBlock?: string | null
+}): string {
   const lines = [
     args.customerName ? `שם הליד: ${args.customerName}` : 'שם הליד: לא ידוע',
     `ההודעה שהליד שלח: ${args.lastCustomerMessage || '(ללא טקסט)'}`,
   ]
-  // guidance is business CONTEXT for tone/topic only — never facts to quote/commit to.
-  if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
+  if (args.businessIdentityBlock) lines.push(args.businessIdentityBlock)
+  else if (args.guidance) {
+    lines.push(`זהות העסק (עובדות מאומתות; מותר לצטט): ${args.guidance}`)
+    lines.push('אסור להמציא מחיר, התחייבות, מועד, או יכולת שלא אומתה.')
+  }
   return lines.join('\n')
 }
 
@@ -41,6 +49,7 @@ export async function generateAcknowledgement(args: {
   customerName: string | null
   lastCustomerMessage: string
   guidance: string | null
+  businessIdentityBlock?: string | null
 }): Promise<GenerateResult> {
   const out = await runStructured({
     kind: 'inbox.autoResponse',

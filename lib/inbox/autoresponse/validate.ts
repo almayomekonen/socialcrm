@@ -7,13 +7,22 @@
  * Hebrew letter, so Hebrew terms are matched as plain substrings (conservative:
  * a false-reject is safe — silence — while a false-accept is not). English terms
  * keep `\b` to avoid matching inside larger words.
+ *
+ * The word מחיר is forbidden unless the reply is an honest limitation (no
+ * verified price). Digits, currency, discounts, and commitments still fail.
  */
+const HONEST_PRICE_LIMITATION =
+  /אין לי .{0,24}מחיר|מחיר מאומת|לא רוצה להמציא.{0,20}מחיר|נציג .{0,48}(?:את )?המחיר|בלי לנקוב.{0,16}מחיר/
+
+const PRICE_WORD = /מחיר/
+
 export const FORBIDDEN = [
-  // currency / price / quotes
+  // currency / price / quotes — numeric and currency stay hard-fail.
+  // The word מחיר is handled in firstForbiddenMatch (honest limitation allowed).
   /[₪$€]/,
   /ש"ח/,
+  /ש״ח/,
   /שקל/,
-  /מחיר/,
   /עלות/,
   /כמה עולה/,
   /הצעת מחיר/,
@@ -38,9 +47,23 @@ export const FORBIDDEN = [
   /מתחייב/,
   /\bguarantee/i,
   /\bpromise\b/i,
+  // fabricated onboarding that is not a verified product capability
+  /הדגמה/,
+  /(?:^|[\s,.;:])דמו(?:$|[\s,.;:])/,
+  /\bdemo\b/i,
+  /sign ?up/i,
+  /להירשם/,
   // bare digits that look like price/time (2+ digits)
   /\d{2,}/,
 ]
+
+function firstForbiddenMatch(t: string): string | null {
+  if (PRICE_WORD.test(t) && !HONEST_PRICE_LIMITATION.test(t)) return PRICE_WORD.source
+  for (const re of FORBIDDEN) {
+    if (re.test(t)) return re.source
+  }
+  return null
+}
 
 /** Diagnostic metrics for a validated reply — observability only, never gates. */
 export interface ValidationDetails {
@@ -77,13 +100,7 @@ export function validateAutoResponse(
     .map((s) => s.trim())
     .filter(Boolean)
   const questionMarks = (t.match(/\?/g) ?? []).length
-  let matchedForbidden: string | null = null
-  for (const re of FORBIDDEN) {
-    if (re.test(t)) {
-      matchedForbidden = re.source
-      break
-    }
-  }
+  const matchedForbidden = firstForbiddenMatch(t)
   const details: ValidationDetails = { length: t.length, sentenceCount: sentences.length, questionMarks, matchedForbidden }
 
   if (!t) return { ok: false, violation: 'empty', details }
@@ -126,13 +143,7 @@ export function validateConciergeReply(text: string): ValidationResult {
     .map((s) => s.trim())
     .filter(Boolean)
   const questionMarks = (t.match(/\?/g) ?? []).length
-  let matchedForbidden: string | null = null
-  for (const re of FORBIDDEN) {
-    if (re.test(t)) {
-      matchedForbidden = re.source
-      break
-    }
-  }
+  const matchedForbidden = firstForbiddenMatch(t)
   const details: ValidationDetails = { length: t.length, sentenceCount: sentences.length, questionMarks, matchedForbidden }
 
   if (!t) return { ok: false, violation: 'empty', details }

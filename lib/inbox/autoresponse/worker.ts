@@ -23,6 +23,7 @@ import { validateAutoResponse } from './validate'
 import { renderFixedReply } from './renderFixedReply'
 import { waTrace } from './waTrace'
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
+import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -122,12 +123,15 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     }).trim()
     if (!message) return doSkip('fixed_body_empty')
   } else {
+    const identity = await loadBusinessIdentity(job.agencyId, job.channel)
+    const businessIdentityBlock = formatBusinessIdentityBlock(identity)
     for (let attempt = 0; attempt < 2 && !message; attempt++) {
       const gen = await deps.generate({
         agencyId: job.agencyId,
         customerName: (conv.customerName as string | null) ?? null,
         lastCustomerMessage: (conv.lastMessageText as string | null) ?? '',
         guidance: settings?.guidance ?? null,
+        businessIdentityBlock,
       })
       if (gen.ok === false) {
         if (isRetryableIreGenerationFailure(gen.skipReason)) {

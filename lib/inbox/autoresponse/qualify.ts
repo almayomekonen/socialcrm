@@ -264,6 +264,7 @@ export async function generateQualifyTurn(args: {
   salesMove?: SalesMove | null
   salesStrategy?: SalesStrategy | null
   productKnowledgeBlock?: string | null
+  businessIdentityBlock?: string | null
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
 }): Promise<QualifyGenResult> {

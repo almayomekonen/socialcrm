@@ -37,6 +37,7 @@ import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
 import { classifySalesTurnFromTranscript, detectHumanRequest, salesMoveUsesProductContract } from './salesIntent'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
+import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
 import { sendIreOutbound } from './ireSend'
 import { runImmediateHumanHandoff } from './immediateHandoff'
 
@@ -205,6 +206,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesMoveUsesProductContract(salesMove) || salesMove === 'OBJECTION'
       ? formatProductKnowledgeBlock(productKnowledge)
       : null
+  const identity = await loadBusinessIdentity(job.agencyId, job.channel)
+  const businessIdentityBlock = formatBusinessIdentityBlock(identity)
   const questionPolicy = questionPolicyForSalesMove(salesMove)
   const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
   waTrace('GENERATE_QUALIFY_START', genTrace, {
@@ -223,6 +226,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesMove,
     salesStrategy,
     productKnowledgeBlock,
+    businessIdentityBlock,
     trace: genTrace,
   }
   const gen: QualifyGenResult = await deps.generateQualify(genArgs)

@@ -198,7 +198,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
                     {replyMode === 'ai' ? 'על העסק שלכם' : 'ההודעה שתישלח'}
                   </label>
                   <p className='text-xs text-gray-500'>
-                    {replyMode === 'ai' ? 'רקע בלבד, לא נשלח ללקוח' : 'אפשר לשלב {{firstName}}'}
+                    {replyMode === 'ai' ? 'המענה החכם משתמש בזה כדי לדעת מי אתם' : 'אפשר לשלב {{firstName}}'}
                   </p>
                 </div>
 

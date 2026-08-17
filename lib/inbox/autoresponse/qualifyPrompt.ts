@@ -1,4 +1,5 @@
 import type { ConversationCognition, Qualification, SalesStrategy } from './qualification'
+import { isBusinessIdentityQuestion } from './businessIdentityIntent'
 
 export type RegenerationReason = 'shape_validation' | 'safety_validation'
 
@@ -27,6 +28,8 @@ export const QUALIFY_SYSTEM_PROMPT = [
   '- עני/י למה שהלקוח כתב עכשיו. כל הודעה צריכה לקדם או לתת מידע שימושי.',
   '- בשאלת גילוי: לכל היותר סימן שאלה אחד, 1–2 משפטים.',
   '- בשאלת מוצר: קודם תשובה ישירה ורק מעובדות מאומתות שסופקו. אסור להמציא יכולת. אחרי התשובה אפשר שאלת המשך אחת. אסור לשאול שאלת גילוי לפני התשובה.',
+  '- בשאלת זהות העסק (במה אתם עוסקים / מה אתם מציעים / הגעתי מהמודעה): ענה ישירות מזהות העסק ומעובדות המוצר. אל תשאל מאיפה הגיע ואל תבקש צילום מסך או קישור למודעה.',
+  '- לעולם אל תשאל את הלקוח להסביר מה העסק הזה עושה. גילוי הוא רק על הלקוח.',
   '- אם הלקוח ביקש הסבר או אישר הצעה להסביר: הסבר בלי שאלת גילוי. אפס שאלות זה תקין.',
   '- בהתאמת מוצר: הסבר קצר מהמערכת עושה בשביל הצורך שנאמר, ואז ערך רלוונטי. אל תצרפי שאלת גילוי על כאב/השפעה/תהליך רק כי אפשר לשאול. שאלה רק אם היא צעד טבעי אחרי שהערך ברור.',
   '- מענה אוטומטי להודעות נכנסות בוואטסאפ אינו הודעות חימום יזומות. אל תטעני שהמערכת שולחת חימום אם זה לא מאומת.',
@@ -40,7 +43,7 @@ export const QUALIFY_SYSTEM_PROMPT = [
   '- extracted: מלא/י רק ממה שנאמר במפורש. אין חובה למלא שדה בכל תור. need ברגע שתואר צורך — ואז אל תשאל/י שוב מה הצורך.',
   '- hotSignal=true רק בכוונת קנייה חזקה או בקשה מפורשת לאדם (מחיר/דמו/פגישה/להתחיל/לדבר עם נציג). תיאור צורך עסקי אינו hotSignal. hotSignal הוא תיוג פנימי בלבד — אל תעביר לאדם ואל תכתוב שמישהו מהצוות יחזור רק בגלל כוונת קנייה. העברה לאדם רק אם הלקוח ביקש במפורש נציג.',
   '- uncertain=true רק כשאי אפשר להמשיך בלי להמציא עובדה על המוצר, או שהלקוח ביקש אדם. תיאור צורך אינו uncertain.',
-  '- אסור: מחיר/עלות/הנחה/זמינות/מועד/תור/פגישה; התחייבות; המצאת עובדות; מספרים.',
+  '- אסור לנקוב במחיר מספרי, עלות, הנחה, זמינות, מועד, תור, פגישה; התחייבות; המצאת עובדות; מספרים. מותר לומר שאין מחיר מאומת ושנציג יוכל לתת מחיר. אסור להמציא דמו, הרשמה, או תהליך הצטרפות שלא אומת.',
   '- עברית, גוף ראשון יחיד, טבעי וקצר.',
 ].join('\n')
 
@@ -48,7 +51,7 @@ const REGEN_CONSTRAINT: Record<RegenerationReason, string> = {
   shape_validation:
     'חשוב מאוד: תשובה קצרה, עד שלושה משפטים, בלי מספרים. לכל היותר סימן שאלה אחד. בשאלת מוצר או בהסבר אפשר בלי שאלה. בלי סיכום שיחה ובלי "אני מעביר אותך".',
   safety_validation:
-    'חשוב מאוד: אל תנקוב/י במחיר, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. לכל היותר שאלת המשך אחת.',
+    'חשוב מאוד: אל תנקוב/י במחיר מספרי, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. מותר לומר שאין מחיר מאומת. אסור להמציא דמו או תהליך הצטרפות. לכל היותר שאלת המשך אחת.',
 }
 
 /** Last inbound looks like a stated business need/pain — not a greeting or a name. */
@@ -123,6 +126,7 @@ export function buildQualifyUser(args: {
   salesMove?: string | null
   salesStrategy?: SalesStrategy | null
   productKnowledgeBlock?: string | null
+  businessIdentityBlock?: string | null
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
   // call-site compatibility. They must not appear as "ask this CRM field next".
@@ -168,7 +172,7 @@ export function buildQualifyUser(args: {
   }
   if (args.salesMove === 'BUYING_SIGNAL') {
     lines.push(
-      'הלקוח שואל איך מתקדמים או מאותת קנייה. הצע צעד הבא ברור מהמוצר. אל תעביר לאדם. אל תתחיל שאלון גילוי מחדש.',
+      'הלקוח שואל איך מתקדמים או מאותת קנייה. ענה רק מצעד מאומת בזהות העסק או בעובדות המוצר. מותר לציין חיבור וואטסאפ עסקי אם זה מאומת. אסור להמציא דמו, הרשמה, או תהליך הצטרפות. אם אין צעד הצטרפות מאומת, אמור שאין תהליך מאומת ושנציג יוכל לכוון. אל תעביר לאדם. אל תתחיל שאלון גילוי מחדש.',
     )
   }
   if (args.salesMove === 'OBJECTION') {
@@ -177,8 +181,17 @@ export function buildQualifyUser(args: {
   if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
     lines.push('זו הודעת תודה או אישור קצר. סגירה קצרה מספיקה. אל תעביר לאדם ואל תמציא שמישהו מהצוות יחזור.')
   }
+  if (isBusinessIdentityQuestion(lastInbound)) {
+    lines.push(
+      'זו שאלת זהות העסק. ענה ישירות מזהות העסק ומעובדות המוצר. אל תשאל שאלת גילוי על העסק, מאיזה קישור הגיע, או לבקש צילום מסך.',
+    )
+  }
+  if (args.businessIdentityBlock) lines.push(args.businessIdentityBlock)
+  else if (args.guidance) {
+    lines.push(`זהות העסק (עובדות מאומתות; מותר לצטט): ${args.guidance}`)
+    lines.push('אסור להמציא מחיר, התחייבות, מועד, או יכולת שלא אומתה.')
+  }
   if (args.productKnowledgeBlock) lines.push(args.productKnowledgeBlock)
-  if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
   if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
   return lines.join('\n\n')
 }
