@@ -11,10 +11,12 @@ import {
   enqueueInboundAutoResponse,
   findLatestUnansweredInbound,
 } from '@/lib/inbox/autoresponse/enqueueInboundAutoResponse'
-import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
+import { runAutoResponseKick } from '@/lib/inbox/autoresponse/kickWorker'
 import { requireProductAccess } from '@/lib/requireUser'
 import { findClientsByPhoneCore } from '@/lib/whatsapp/matchLeadByPhone'
 import { loadOwnedConversation } from '@/lib/whatsapp/ownedConversation'
+
+export const maxDuration = 60
 
 export type ConversationLeadMatch = {
   id: number
@@ -33,6 +35,7 @@ export type ListConversationLeadMatchesResult =
 
 async function afterLink(agencyId: number, conversationId: number, leadId: number) {
   let jobId: number | null = null
+  let delaySeconds = 0
   await db.transaction(async (trx) => {
     await attachConversationToLead(trx, { conversationId, agencyId, leadId })
     await enqueueConversationAnalysis(trx, {
@@ -53,14 +56,15 @@ async function afterLink(agencyId: number, conversationId: number, leadId: numbe
         triggerSequence: unanswered.sequence,
       })
       jobId = enqueued.jobId
+      delaySeconds = enqueued.delaySeconds
     }
   })
-  // Same post-commit kick as the WhatsApp webhook. Delayed jobs (delaySeconds>0)
-  // stay unclaimed until notBefore; cron remains the drain.
+  // Same post-commit kick as the WhatsApp webhook. delaySeconds>0 waits until
+  // approximately notBefore, then the existing worker claims. Cron remains the drain.
   if (jobId != null) {
     after(async () => {
       try {
-        await runAutoResponseWorker({ limit: 5 })
+        await runAutoResponseKick({ delaySeconds, limit: 5 })
       } catch (kickErr) {
         console.error('[auto-response] kick failed', { reason: (kickErr as Error)?.message })
       }

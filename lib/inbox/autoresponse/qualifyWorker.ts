@@ -7,6 +7,7 @@ import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import {
   skipAutoResponseJob,
   completeAutoResponseJob,
+  failAutoResponseJob,
   countSentToday,
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
@@ -29,6 +30,7 @@ import {
 } from './qualify'
 import { buildSummary, type EscalationSummary } from './summary'
 import { isQualifierEnabled } from './killSwitch'
+import { isRetryableIreGenerationFailure } from './retryableGeneration'
 import { validateAutoResponse, classifyViolation } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
@@ -235,7 +237,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     trace: genTrace,
   }
   const gen: QualifyGenResult = await deps.generateQualify(genArgs)
-  if (gen.ok === false) return doSkip(gen.skipReason)
+  if (gen.ok === false) {
+    if (isRetryableIreGenerationFailure(gen.skipReason)) {
+      await failAutoResponseJob(job.id, gen.skipReason)
+      return 'failed'
+    }
+    return doSkip(gen.skipReason)
+  }
 
   const lang = detectLang(lastInbound?.text ?? '')
 

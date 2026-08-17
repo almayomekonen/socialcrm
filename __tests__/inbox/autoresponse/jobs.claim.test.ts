@@ -31,6 +31,25 @@ describe('IRE scheduled drain', () => {
     const src = read('app/api/cron/send-auto-responses/route.ts')
     expect(src).toContain('const result = await runAutoResponseWorker()')
   })
+
+  it('post-enqueue after() waits then runs the existing worker; cron stays the backstop', () => {
+    const webhook = read('app/api/webhooks/whatsapp/route.ts')
+    const promote = read('actions/whatsapp/promoteConversationToLead.ts')
+    const kick = read('lib/inbox/autoresponse/kickWorker.ts')
+    expect(webhook).toContain('runAutoResponseKick')
+    expect(promote).toContain('runAutoResponseKick')
+    expect(kick).toContain('ireKickWaitMs')
+    expect(kick).toContain('runAutoResponseWorker')
+    expect(kick).toContain('IRE_KICK_MAX_WAIT_MS')
+  })
+})
+
+describe('auto_response_jobs generation retry', () => {
+  it('reuses failAutoResponseJob attempts/maxAttempts backoff, then dead-letters', () => {
+    const src = read('db/autoResponseJobs.ts')
+    expect(src).toContain(`CASE WHEN attempts >= "maxAttempts" THEN 'dead' ELSE 'pending' END`)
+    expect(src).toContain(`LEAST(attempts, 5) * interval '30 seconds'`)
+  })
 })
 
 describe('auto-response delay source of truth', () => {

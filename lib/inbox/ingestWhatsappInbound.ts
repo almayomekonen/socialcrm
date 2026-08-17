@@ -22,6 +22,8 @@ export type IngestWhatsappInboundResult = {
   conversationId: number
   messageId: number
   inserted: boolean
+  /** Seconds applied to the enqueued IRE job's notBefore. 0 when no job was created. */
+  autoResponseDelaySeconds: number
 }
 
 export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): Promise<IngestWhatsappInboundResult> {
@@ -79,6 +81,7 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       { existing: !inserted, messageInserted: inserted, sequence, firstInbound: sequence === 1 },
     )
 
+    let autoResponseDelaySeconds = 0
     if (inserted) {
       await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date(), parsed.text)
       // Leadless / personal conversations are never sales conversations:
@@ -99,6 +102,7 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
           leadId: input.leadId,
           triggerSequence: sequence,
         })
+        if (enqueued.jobId != null) autoResponseDelaySeconds = enqueued.delaySeconds
         waTrace(
           'JOB_CREATED',
           { conversationId, agencyId: input.agencyId, jobId: enqueued.jobId, messageId, triggerSequence: sequence },
@@ -130,6 +134,6 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       )
     }
 
-    return { conversationId, messageId, inserted }
+    return { conversationId, messageId, inserted, autoResponseDelaySeconds }
   })
 }

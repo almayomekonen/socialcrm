@@ -2,7 +2,6 @@ import { db } from '@/config/db'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
-import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import { track } from '@/lib/analytics/track'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import {
@@ -19,9 +18,11 @@ import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
 import { processQualifyJob } from './qualifyWorker'
+import { isRetryableIreGenerationFailure } from './retryableGeneration'
 import { validateAutoResponse } from './validate'
 import { renderFixedReply } from './renderFixedReply'
 import { waTrace } from './waTrace'
+import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -128,7 +129,13 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
         lastCustomerMessage: (conv.lastMessageText as string | null) ?? '',
         guidance: settings?.guidance ?? null,
       })
-      if (gen.ok === false) return doSkip(gen.skipReason)
+      if (gen.ok === false) {
+        if (isRetryableIreGenerationFailure(gen.skipReason)) {
+          await failAutoResponseJob(job.id, gen.skipReason)
+          return 'failed'
+        }
+        return doSkip(gen.skipReason)
+      }
       if (validateAutoResponse(gen.message).ok) message = gen.message
     }
     if (!message) return doSkip('validation_failed')

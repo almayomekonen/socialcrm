@@ -10,7 +10,7 @@ const attach = vi.hoisted(() => vi.fn())
 const enqueue = vi.hoisted(() => vi.fn())
 const findUnanswered = vi.hoisted(() => vi.fn())
 const enqueueIre = vi.hoisted(() => vi.fn())
-const runWorker = vi.hoisted(() => vi.fn(async () => ({ claimed: 0, sent: 0, skipped: 0, failed: 0 })))
+const runKick = vi.hoisted(() => vi.fn(async () => ({ claimed: 0, sent: 0, skipped: 0, failed: 0 })))
 const afterFn = vi.hoisted(() => vi.fn((fn: () => unknown) => fn()))
 const clientsFirst = vi.hoisted(() => vi.fn())
 const personalUpdate = vi.hoisted(() => vi.fn())
@@ -37,8 +37,8 @@ vi.mock('@/lib/inbox/autoresponse/enqueueInboundAutoResponse', () => ({
   findLatestUnansweredInbound: findUnanswered,
   enqueueInboundAutoResponse: enqueueIre,
 }))
-vi.mock('@/lib/inbox/autoresponse/worker', () => ({
-  runAutoResponseWorker: runWorker,
+vi.mock('@/lib/inbox/autoresponse/kickWorker', () => ({
+  runAutoResponseKick: runKick,
 }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('next/server', () => ({ after: afterFn }))
@@ -82,7 +82,7 @@ beforeEach(() => {
   findUnanswered.mockResolvedValue(null)
   enqueueIre.mockReset()
   enqueueIre.mockResolvedValue({ jobId: null, reason: 'qualify_turn', delaySeconds: 5 })
-  runWorker.mockClear()
+  runKick.mockClear()
   afterFn.mockClear()
   clientsFirst.mockReset()
   personalUpdate.mockReset()
@@ -203,7 +203,8 @@ describe('promote Contact → Lead enqueues existing IRE', () => {
       }),
     )
     expect(afterFn).toHaveBeenCalledTimes(1)
-    expect(runWorker).toHaveBeenCalledTimes(1)
+    expect(runKick).toHaveBeenCalledTimes(1)
+    expect(runKick).toHaveBeenCalledWith({ delaySeconds: 5, limit: 5 })
   })
 
   it('multiple unanswered inbounds → only the latest sequence is enqueued', async () => {
@@ -227,7 +228,7 @@ describe('promote Contact → Lead enqueues existing IRE', () => {
     expect(attach).toHaveBeenCalled()
     expect(enqueue).toHaveBeenCalled()
     expect(enqueueIre).not.toHaveBeenCalled()
-    expect(runWorker).not.toHaveBeenCalled()
+    expect(runKick).not.toHaveBeenCalled()
   })
 
   it('latest inbound already has an outbound → no IRE job', async () => {
@@ -246,7 +247,7 @@ describe('promote Contact → Lead enqueues existing IRE', () => {
     expect(res).toEqual({ ok: true, leadId: 1416, created: false })
     expect(attach).not.toHaveBeenCalled()
     expect(enqueueIre).not.toHaveBeenCalled()
-    expect(runWorker).not.toHaveBeenCalled()
+    expect(runKick).not.toHaveBeenCalled()
   })
 
   it('existing enqueue guards returning null do not kick the worker', async () => {
@@ -258,7 +259,7 @@ describe('promote Contact → Lead enqueues existing IRE', () => {
 
     await promoteConversationToLead(371)
     expect(enqueueIre).toHaveBeenCalledTimes(1)
-    expect(runWorker).not.toHaveBeenCalled()
+    expect(runKick).not.toHaveBeenCalled()
   })
 })
 
@@ -282,6 +283,8 @@ describe('Contact → Lead IRE contracts', () => {
     const promote = read('actions/whatsapp/promoteConversationToLead.ts')
     expect(promote).toContain('enqueueInboundAutoResponse')
     expect(promote).toContain('findLatestUnansweredInbound')
+    expect(promote).toContain('runAutoResponseKick')
+    expect(promote).not.toContain('runAutoResponseWorker')
     expect(promote).not.toContain('sendWhatsappText')
     expect(promote).not.toContain('createLeadFromWhatsappWebhook')
   })

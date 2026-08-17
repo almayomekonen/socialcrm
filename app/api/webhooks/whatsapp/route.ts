@@ -3,7 +3,7 @@ import { NextRequest, NextResponse, after } from 'next/server'
 import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
 import { createLeadFromWhatsappWebhook } from '@/lib/system/createLeadFromWhatsappWebhook'
 import { ingestWhatsappInbound } from '@/lib/inbox/ingestWhatsappInbound'
-import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
+import { runAutoResponseKick } from '@/lib/inbox/autoresponse/kickWorker'
 import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
 import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatus'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
@@ -235,13 +235,17 @@ export async function POST(req: NextRequest) {
       }
 
       // Instant Response Engine: kick only for real Leads. Leadless / personal
-      // conversations must never auto-reply. The kick claims due jobs only
-      // (`notBefore <= now()`); delayed jobs wait for /api/cron/send-auto-responses.
+      // conversations must never auto-reply. delaySeconds>0 waits until
+      // approximately notBefore, then the existing worker claims due jobs
+      // (`notBefore <= now()`). Cron remains the drain/backstop.
       if (result.inserted && leadId != null && leadId > 0) {
         console.log(`[IRE] kick triggered conv=${result.conversationId} msg=${result.messageId}`)
         after(async () => {
           try {
-            const r = await runAutoResponseWorker({ limit: 5 })
+            const r = await runAutoResponseKick({
+              delaySeconds: result.autoResponseDelaySeconds ?? 0,
+              limit: 5,
+            })
             console.log(`[IRE] kick worker done conv=${result.conversationId} ${JSON.stringify(r)}`)
           } catch (kickErr) {
             console.error('[auto-response] kick failed', { reason: (kickErr as Error)?.message })

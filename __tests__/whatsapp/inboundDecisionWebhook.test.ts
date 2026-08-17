@@ -3,7 +3,8 @@ import { createHmac } from 'crypto'
 
 const createLead = vi.hoisted(() => vi.fn())
 const ingestInbound = vi.hoisted(() => vi.fn())
-const runWorker = vi.hoisted(() => vi.fn(async () => ({ claimed: 0, sent: 0, skipped: 0, failed: 0 })))
+const runKick = vi.hoisted(() => vi.fn(async () => ({ claimed: 0, sent: 0, skipped: 0, failed: 0 })))
+const afterFn = vi.hoisted(() => vi.fn((fn: () => unknown) => fn()))
 const canUse = vi.hoisted(() => vi.fn(() => true))
 const getMemory = vi.hoisted(() => vi.fn(async () => null))
 const findMatches = vi.hoisted(() => vi.fn(async () => []))
@@ -14,7 +15,11 @@ const CONNECTION = { agency_id: 69, user_id: 3, phone_number_id: 'PN1' }
 
 vi.mock('@/lib/system/createLeadFromWhatsappWebhook', () => ({ createLeadFromWhatsappWebhook: createLead }))
 vi.mock('@/lib/inbox/ingestWhatsappInbound', () => ({ ingestWhatsappInbound: ingestInbound }))
-vi.mock('@/lib/inbox/autoresponse/worker', () => ({ runAutoResponseWorker: runWorker }))
+vi.mock('@/lib/inbox/autoresponse/kickWorker', () => ({ runAutoResponseKick: runKick }))
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return { ...actual, after: afterFn }
+})
 vi.mock('@/lib/inbox/ingestWhatsappStatuses', () => ({ ingestWhatsappStatuses: vi.fn() }))
 vi.mock('@/lib/whatsapp/integrationNotifications', () => ({ notifyWhatsappIngestionFailed: notifyFailed }))
 vi.mock('@/lib/flags/whatsappContactsFlags', () => ({ canUseWhatsappContacts: canUse }))
@@ -83,8 +88,9 @@ function inboundPayload(over: { referral?: Record<string, unknown> } = {}) {
 beforeEach(() => {
   createLead.mockReset()
   ingestInbound.mockReset()
-  ingestInbound.mockResolvedValue({ conversationId: 9, messageId: 11, inserted: true })
-  runWorker.mockClear()
+  ingestInbound.mockResolvedValue({ conversationId: 9, messageId: 11, inserted: true, autoResponseDelaySeconds: 0 })
+  runKick.mockClear()
+  afterFn.mockClear()
   canUse.mockReset()
   canUse.mockReturnValue(true)
   getMemory.mockReset()
@@ -102,7 +108,7 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
     expect(createLead).not.toHaveBeenCalled()
     expect(ingestInbound).toHaveBeenCalledTimes(1)
     expect(ingestInbound.mock.calls[0][0].leadId).toBeNull()
-    expect(runWorker).not.toHaveBeenCalled()
+    expect(runKick).not.toHaveBeenCalled()
   })
 
   it('unique existing phone match auto-links and does not create a lead', async () => {
@@ -111,6 +117,7 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
     expect(createLead).not.toHaveBeenCalled()
     expect(ingestInbound.mock.calls[0][0].leadId).toBe(42)
     expect(attach).toHaveBeenCalled()
+    expect(runKick).toHaveBeenCalledWith({ delaySeconds: 0, limit: 5 })
   })
 
   it('multiple phone matches stay leadless — do not guess', async () => {
@@ -157,6 +164,26 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
     expect(createLead).not.toHaveBeenCalled()
     expect(findMatches).not.toHaveBeenCalled()
     expect(ingestInbound.mock.calls[0][0].leadId).toBe(55)
+    expect(runKick).toHaveBeenCalledWith({ delaySeconds: 0, limit: 5 })
+  })
+
+  it('Lead inbound with a delayed IRE job waits via the same kick helper', async () => {
+    getMemory.mockResolvedValue({
+      id: 9,
+      agencyId: 69,
+      leadId: 55,
+      isPersonal: false,
+      customerWaId: '972501111111',
+      customerName: 'Dana',
+    })
+    ingestInbound.mockResolvedValue({
+      conversationId: 9,
+      messageId: 11,
+      inserted: true,
+      autoResponseDelaySeconds: 5,
+    })
+    await POST(signed(inboundPayload()) as never)
+    expect(runKick).toHaveBeenCalledWith({ delaySeconds: 5, limit: 5 })
   })
 
   it('flag off keeps today\'s unconditional lead create', async () => {
@@ -168,10 +195,10 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
   })
 
   it('retry of the same webhook still returns 200 (ingest owns idempotency)', async () => {
-    ingestInbound.mockResolvedValue({ conversationId: 9, messageId: 11, inserted: false })
+    ingestInbound.mockResolvedValue({ conversationId: 9, messageId: 11, inserted: false, autoResponseDelaySeconds: 0 })
     const res = await POST(signed(inboundPayload()) as never)
     expect(res.status).toBe(200)
     expect(createLead).not.toHaveBeenCalled()
-    expect(runWorker).not.toHaveBeenCalled()
+    expect(runKick).not.toHaveBeenCalled()
   })
 })

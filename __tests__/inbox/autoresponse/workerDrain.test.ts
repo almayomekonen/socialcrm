@@ -156,4 +156,52 @@ describe('IRE worker drain', () => {
     expect(send).toHaveBeenCalledTimes(1)
     expect(completeAutoResponseJob).toHaveBeenCalledTimes(1)
   })
+
+  it('acknowledge ai_unavailable retries via failAutoResponseJob and does not send', async () => {
+    getChannelSettings.mockResolvedValue({
+      enabled: true,
+      mode: 'acknowledge',
+      replyMode: 'ai',
+      fixedBody: null,
+      dailyCap: 200,
+      quietHours: {},
+      guidance: null,
+      maxTurns: 5,
+      collectFields: { required: [], optional: [] },
+      draft: false,
+      delaySeconds: 5,
+    })
+    claimAutoResponseJobs.mockResolvedValue([JOB])
+    const send = vi.fn()
+    const generate = vi.fn(async () => ({ ok: false as const, skipReason: 'ai_unavailable' as const }))
+    const summary = await runAutoResponseWorker({ deps: { send, generate } as never })
+    expect(summary).toEqual({ claimed: 1, sent: 0, skipped: 0, failed: 1 })
+    expect(failAutoResponseJob).toHaveBeenCalledWith(39, 'ai_unavailable')
+    expect(skipAutoResponseJob).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('acknowledge budget_exhausted stays a terminal skip', async () => {
+    getChannelSettings.mockResolvedValue({
+      enabled: true,
+      mode: 'acknowledge',
+      replyMode: 'ai',
+      fixedBody: null,
+      dailyCap: 200,
+      quietHours: {},
+      guidance: null,
+      maxTurns: 5,
+      collectFields: { required: [], optional: [] },
+      draft: false,
+      delaySeconds: 5,
+    })
+    claimAutoResponseJobs.mockResolvedValue([JOB])
+    const send = vi.fn()
+    const generate = vi.fn(async () => ({ ok: false as const, skipReason: 'budget_exhausted' as const }))
+    const summary = await runAutoResponseWorker({ deps: { send, generate } as never })
+    expect(summary.skipped).toBe(1)
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(39, 'budget_exhausted')
+    expect(failAutoResponseJob).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
 })
