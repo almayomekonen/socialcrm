@@ -25,7 +25,7 @@ export const QUALIFY_SYSTEM_PROMPT = [
   '- עני/י למה שהלקוח כתב עכשיו. כל הודעה צריכה לקדם או לתת מידע שימושי.',
   '- בשאלת גילוי: לכל היותר סימן שאלה אחד, 1–2 משפטים.',
   '- בשאלת מוצר: קודם תשובה ישירה ורק מעובדות מאומתות שסופקו. אסור להמציא יכולת. אחרי התשובה אפשר שאלת המשך אחת. אסור לשאול שאלת גילוי לפני התשובה.',
-  '- בהתאמת מוצר: הסבר קצר מהמערכת עושה בשביל הצורך שנאמר. בלי שאלון.',
+  '- בהתאמת מוצר: הסבר קצר מהמערכת עושה בשביל הצורך שנאמר, ואז ערך רלוונטי. אל תצרפי שאלת גילוי על כאב/השפעה/תהליך רק כי אפשר לשאול. שאלה רק אם היא צעד טבעי אחרי שהערך ברור.',
   '- מענה אוטומטי להודעות נכנסות בוואטסאפ אינו הודעות חימום יזומות. אל תטעני שהמערכת שולחת חימום אם זה לא מאומת.',
   '- בתודה/אוקיי קצרים: סגירה קצרה או המתנה. אל תגידי שמישהו מהצוות יחזור רק בגלל תודה.',
   '- תיאור צורך אינו סיבה להעביר לאדם.',
@@ -87,9 +87,16 @@ export function inboundStatesOutcome(text: string): boolean {
   return /רוצה ש|שיהיה אחרת|הייתי רוצה|שזה יעבוד|want (?:it )?to|would (?:like|want)|instead/i.test(t)
 }
 
-function formatCognitionMemory(cognition: ConversationCognition | undefined): string {
+function formatCognitionMemory(
+  cognition: ConversationCognition | undefined,
+  mode: 'discover' | 'product' = 'discover',
+): string {
   const c = cognition ?? {}
   const fact = (v: string | undefined) => (v && v.trim() ? v.trim() : '(לא ידוע)')
+  const next =
+    mode === 'product'
+      ? 'היעד עכשיו הוא להסביר ערך מהמוצר לצורך שכבר נאמר — לא לבחור את שאלת הגילוי הבאה.'
+      : 'בחרי יעד אחד עם הערך הכי גבוה עכשיו. אחרי כאב ידוע, impact לפני עוד תהליך — אלא אם ההשפעה כבר נאמרה.'
   return [
     'כבר מובן (זיכרון פנימי, לא רשימת שדות להשלים):',
     `pain=${fact(c.pain)}`,
@@ -97,7 +104,7 @@ function formatCognitionMemory(cognition: ConversationCognition | undefined): st
     `workflow=${fact(c.currentWorkflow)}`,
     `outcome=${fact(c.desiredOutcome)}`,
     `יעד קודם: ${c.lastObjective ?? '(אין)'}`,
-    'בחרי יעד אחד עם הערך הכי גבוה עכשיו. אחרי כאב ידוע, impact לפני עוד תהליך — אלא אם ההשפעה כבר נאמרה.',
+    next,
   ].join('\n')
 }
 
@@ -127,16 +134,24 @@ export function buildQualifyUser(args: {
   const lines = [
     `שיחה עד כה:\n${convo || '(ריק)'}`,
     `מידע פנימי שכבר נאסף (לא להזכיר ללקוח, לא לקבוע לפי זה את השאלה הבאה): ${have || '(אין)'}`,
-    formatCognitionMemory(args.qualification.cognition),
+    formatCognitionMemory(
+      args.qualification.cognition,
+      args.salesMove === 'PRODUCT_QUESTION' || args.salesMove === 'PRODUCT_FIT' ? 'product' : 'discover',
+    ),
   ]
   if (needKnown && args.salesMove !== 'PRODUCT_QUESTION' && args.salesMove !== 'PRODUCT_FIT') {
     lines.push(
       'הלקוח תיאר צורך, כאב או בעיה עסקית. קודם כל הגיבי לזה. אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר.',
     )
   }
-  if (args.salesMove === 'PRODUCT_QUESTION' || args.salesMove === 'PRODUCT_FIT') {
+  if (args.salesMove === 'PRODUCT_QUESTION') {
     lines.push(
       'זו שאלת מוצר. ענה קודם מהעובדות המאומתות. אל תשאל שאלת גילוי לפני התשובה. לכל היותר שאלת המשך אחת אחרי התשובה. אם אין עובדה מאומתת — אל תמציא.',
+    )
+  }
+  if (args.salesMove === 'PRODUCT_FIT') {
+    lines.push(
+      'זו התאמת מוצר. הסבר איך המוצר עוזר לצורך שנאמר. אל תשאל שאלת גילוי על כאב, השפעה או תהליך עכשיו. שאלה רק אם היא צעד טבעי אחרי שהערך ברור. אם אין עובדה מאומתת — אל תמציא.',
     )
   }
   if (args.salesMove === 'OBJECTION') {

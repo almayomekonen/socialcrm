@@ -184,7 +184,7 @@ export function inboundMemoryText(args: {
 }
 
 const QualifySchema = z.object({
-  reply: z.string().describe('הודעת וואטסאפ קצרה: תגובה למה שנאמר עכשיו. בשאלת מוצר — תשובה קודם; שאלה אופציונלית אחת'),
+  reply: z.string().describe('הודעת וואטסאפ קצרה: תגובה למה שנאמר עכשיו. בשאלת מוצר — תשובה קודם; בהתאמת מוצר — הסבר ערך בלי שאלת גילוי רפלקסיבית'),
   extracted: z
     .object({
       name: z.string().nullable(),

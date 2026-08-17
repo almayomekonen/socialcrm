@@ -198,6 +198,24 @@ describe('prompt + Phase B + safety unchanged', () => {
     expect(user).toContain('אל תשאל שאלת גילוי לפני התשובה')
     expect(user).not.toMatch(/נוגעת ל: name/)
   })
+  it('product fit instructs explain-value, not a reflexive discovery question', () => {
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('בהתאמת מוצר:')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תצרפי שאלת גילוי על כאב/השפעה/תהליך רק כי אפשר לשאול')
+    const inbound = 'יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים'
+    const user = buildQualifyUser({
+      transcript: [{ direction: 'inbound', text: inbound }],
+      qualification: {},
+      collectFields: { required: ['name', 'need'], optional: [] },
+      guidance: null,
+      salesMove: 'PRODUCT_FIT',
+      productKnowledgeBlock: formatProductKnowledgeBlock(retrieve(inbound)),
+    })
+    expect(user).toContain('זו התאמת מוצר')
+    expect(user).toContain('אל תשאל שאלת גילוי על כאב, השפעה או תהליך עכשיו')
+    expect(user).toContain('היעד עכשיו הוא להסביר ערך מהמוצר')
+    expect(user).not.toContain('לכל היותר שאלת המשך אחת אחרי התשובה')
+    expect(user).not.toContain('בחרי יעד אחד עם הערך הכי גבוה עכשיו')
+  })
   it('Phase B cognition persists fill-empty', () => {
     const grounded = cognitionFromUnderstanding(
       { pain: 'שוכחת לחזור', impact: null, currentWorkflow: null, desiredOutcome: null },
