@@ -16,8 +16,6 @@ import { requireProductAccess } from '@/lib/requireUser'
 import { findClientsByPhoneCore } from '@/lib/whatsapp/matchLeadByPhone'
 import { loadOwnedConversation } from '@/lib/whatsapp/ownedConversation'
 
-export const maxDuration = 60
-
 export type ConversationLeadMatch = {
   id: number
   name: string

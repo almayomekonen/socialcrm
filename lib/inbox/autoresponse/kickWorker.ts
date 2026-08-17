@@ -1,6 +1,8 @@
 /**
  * Post-enqueue IRE kick. `after()` / waitUntil continues after the HTTP 200,
- * but is still bounded by the invocation `maxDuration` (webhook = 60s).
+ * but is still bounded by the invocation `maxDuration` (webhook/cron = 60s).
+ * Do not export maxDuration from the promote `'use server'` module — Next.js
+ * then drops the server-action exports and the production build fails.
  *
  * When delaySeconds > 0 the job's notBefore is in the future, so an immediate
  * claim returns 0. Sleep until approximately due, then run the existing worker
