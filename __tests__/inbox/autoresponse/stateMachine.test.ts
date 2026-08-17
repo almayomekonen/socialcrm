@@ -65,6 +65,24 @@ describe('decidePreGeneration', () => {
     expect(decidePreGeneration(pre({ turnCount: 5, maxTurns: 5 }))).toEqual({ action: 'proceed' })
     expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5 }))).toEqual({ action: 'skip', reason: 'max_turns' })
   })
+  it('A: HANDOFF_REQUEST at the hard ceiling hands off instead of max_turns skip', () => {
+    expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5, humanRequest: true }))).toEqual({
+      action: 'handoff',
+      reason: 'human_request',
+    })
+  })
+  it('B: PRODUCT_FIT at the hard ceiling still skips max_turns', () => {
+    expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5, humanRequest: false }))).toEqual({
+      action: 'skip',
+      reason: 'max_turns',
+    })
+  })
+  it('already escalated wins over a new human request so we do not hand off twice', () => {
+    expect(decidePreGeneration(pre({ aiState: 'escalated', humanRequest: true, turnCount: 7 }))).toEqual({
+      action: 'skip',
+      reason: 'already_escalated',
+    })
+  })
   it('no unanswered inbound (turn-taking) → skip', () => {
     expect(decidePreGeneration(pre({ hasUnansweredInbound: false }))).toEqual({ action: 'skip', reason: 'no_pending_inbound' })
   })
@@ -106,6 +124,12 @@ describe('decidePostGeneration', () => {
       action: 'escalate',
       reason: 'human_request',
     })
+  })
+  it('J: LLM hotSignal=true + classifier DISCOVERY continues', () => {
+    expect(decidePostGeneration(post({ hotSignal: true, salesMove: 'DISCOVERY' }))).toEqual({ action: 'send' })
+  })
+  it('K: LLM-shaped HANDOFF_REQUEST is ignored when classifier is DISCOVERY', () => {
+    expect(decidePostGeneration(post({ hotSignal: true, salesMove: 'DISCOVERY' }))).toEqual({ action: 'send' })
   })
   it('model uncertainty does not hand off — keep the conversation going', () => {
     expect(decidePostGeneration(post({ uncertain: true }))).toEqual({ action: 'send' })

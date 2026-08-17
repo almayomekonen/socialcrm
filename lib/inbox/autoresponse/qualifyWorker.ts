@@ -1,9 +1,6 @@
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
-import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
-import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
-import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
-import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
+import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import {
   skipAutoResponseJob,
   completeAutoResponseJob,
@@ -35,11 +32,13 @@ import { validateAutoResponse, classifyViolation, questionPolicyForSalesMove } f
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
-import { isPostHandoffEnabled, respondPostHandoff, generatePostHandoffReply } from './postHandoff'
+import { generatePostHandoffReply, respondAfterEscalation } from './postHandoff'
 import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
-import { classifySalesTurnFromTranscript, salesMoveUsesProductContract } from './salesIntent'
+import { classifySalesTurnFromTranscript, detectHumanRequest, salesMoveUsesProductContract } from './salesIntent'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
+import { sendIreOutbound } from './ireSend'
+import { runImmediateHumanHandoff } from './immediateHandoff'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -73,47 +72,7 @@ async function sendAndPersist(
   send: typeof sendWhatsappText,
   text: string,
 ): Promise<{ ok: true; messageId: number } | { ok: false; reason: string; settled?: true }> {
-  const connection = await db('whatsapp_connections')
-    .where({ phone_number_id: ctx.conv.businessPhoneNumberId, agency_id: job.agencyId })
-    .first('phone_number_id', 'access_token', 'user_id')
-  if (!connection) return { ok: false, reason: 'no_connection' }
-  const to = ctx.conv.customerWaId
-  if (!to) return { ok: false, reason: 'no_recipient' }
-
-  const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
-  const sent = await send({
-    phoneNumberId: ctx.conv.businessPhoneNumberId,
-    accessToken: resolveWhatsappAccessToken(connection.access_token),
-    to,
-    body: text,
-    trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
-  })
-  if (sent.ok === false) {
-    await applyIreWhatsappSendFailure(job, sent, {
-      businessPhoneNumberId: ctx.conv.businessPhoneNumberId,
-      customerWaId: to,
-      customerName: ctx.conv.customerName ?? null,
-      sentByUserId,
-      text,
-    })
-    return { ok: false, reason: formatWhatsappSendFailure(sent), settled: true }
-  }
-  const res = await persistOutboundWhatsapp({
-    agencyId: job.agencyId,
-    leadId: job.leadId,
-    businessPhoneNumberId: ctx.conv.businessPhoneNumberId,
-    customerWaId: to,
-    customerName: ctx.conv.customerName ?? null,
-    sentByUserId,
-    wamid: sent.wamid,
-    text,
-  })
-  await db('inbox_messages')
-    .where({ id: res.messageId })
-    .update({
-      metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify({ source: 'auto_response', reason: job.reason, phase: 2 })]),
-    })
-  return { ok: true, messageId: res.messageId }
+  return sendIreOutbound(job, ctx, send, text)
 }
 
 async function persistEscalation(conversationId: number, agencyId: number, summary: EscalationSummary): Promise<void> {
@@ -170,6 +129,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     channelEnabled: settings.enabled,
     humanTookOver,
     optOut: detectOptOut(lastInbound?.text ?? ''),
+    humanRequest: detectHumanRequest(lastInbound?.text ?? ''),
     hasUnansweredInbound: lastMsg?.direction === 'inbound',
     withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
     withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,
@@ -188,19 +148,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     else await markStopped(conv.id, 'opted_out', pre.reason)
     return doSkip(pre.reason)
   }
-  // ── Post-handoff responder (flag-gated, additive). Once handed off, a human
-  //    reply already short-circuits above (humanTookOver → human_active). Here,
-  //    if the customer keeps writing after handoff and the responder is enabled,
-  //    reply briefly (ack / answer-from-guidance / defer) up to the budget, then
-  //    go silent — never re-qualifying. Off/other → the legacy skip as today. ──
-  if (pre.action === 'skip' && pre.reason === 'already_escalated' && isPostHandoffEnabled(job.agencyId)) {
+  // ── Post-handoff: status follow-up is always-on; GPT concierge stays agency-gated.
+  if (pre.action === 'skip' && pre.reason === 'already_escalated') {
     const budgetRow = await db('inbox_messages')
       .where({ conversationId: conv.id, direction: 'outbound' })
       .whereRaw(`metadata->>'reason' = 'post_handoff'`)
       .count<{ c: string }[]>({ c: '*' })
       .first()
     const budgetUsed = Number(budgetRow?.c ?? 0)
-    return respondPostHandoff({
+    return respondAfterEscalation({
       job,
       ctx,
       deps: { send: deps.send, generate: generatePostHandoffReply },
@@ -218,6 +174,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
   if (pre.action === 'skip') return doSkip(pre.reason)
+  if (pre.action === 'handoff') {
+    return runImmediateHumanHandoff({
+      job,
+      ctx,
+      send: deps.send,
+      aiState,
+      lastInboundText: (lastInbound?.text as string) ?? '',
+    })
+  }
 
   // ── Generate one structured turn ──
   // CRM fields stay extracted as memory only. They must not pick the WhatsApp question.

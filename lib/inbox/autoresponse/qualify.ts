@@ -154,8 +154,8 @@ export function deterministicQualifyFallback(args: {
   }
   if (salesMoveUsesProductContract(args.salesMove) || isProductStrategy(args.salesStrategy)) {
     return args.lang === 'en'
-      ? 'If you mean an automatic reply when someone writes on WhatsApp and you are not at the screen — yes, SocialCRM can do that. Proactive messages after a lead goes quiet are a different mechanism.'
-      : 'אם הכוונה היא שהמערכת תענה כשכותבים אליך בוואטסאפ ואתה לא ליד המסך — כן, יש מענה אוטומטי להודעות נכנסות. אם מדובר בהודעות יזומות אחרי שהלקוח נעלם, זה כבר לא אותו מנגנון.'
+      ? 'If you mean an automatic reply when someone writes on WhatsApp and you are not at the screen, yes, SocialCRM can do that. Proactive messages after a lead goes quiet are a different mechanism.'
+      : 'אם הכוונה היא שהמערכת תענה כשכותבים אליך בוואטסאפ ואתה לא ליד המסך, כן, יש מענה אוטומטי להודעות נכנסות. אם מדובר בהודעות יזומות אחרי שהלקוח נעלם, זה כבר לא אותו מנגנון.'
   }
   const objective = resolveFallbackObjective(args)
   const q = FALLBACK_BY_OBJECTIVE[objective]

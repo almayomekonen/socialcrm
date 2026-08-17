@@ -32,11 +32,17 @@ export interface PreFacts {
   dailyCap: number
   turnCount: number // AI turns already sent in this conversation
   maxTurns: number
+  /**
+   * Explicit human-request inbound (classifier HANDOFF_REQUEST / detectHumanRequest).
+   * Evaluated before the hard ceiling so a customer asking for a person is never silenced.
+   */
+  humanRequest?: boolean
 }
 
 export type PreDecision =
   | { action: 'stop'; state: Extract<AiState, 'human_active' | 'opted_out'>; reason: string }
   | { action: 'skip'; reason: string }
+  | { action: 'handoff'; reason: 'human_request' }
   | { action: 'proceed' }
 
 export function decidePreGeneration(f: PreFacts): PreDecision {
@@ -50,9 +56,12 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
   if (!f.masterEnabled) return { action: 'skip', reason: 'feature_off' }
   if (!f.channelEnabled) return { action: 'skip', reason: 'channel_off' }
   if (f.aiState === 'escalated') return { action: 'skip', reason: 'already_escalated' }
-  if (f.turnCount >= ireHardCeiling(f.maxTurns)) return { action: 'skip', reason: 'max_turns' }
-  // Turn-taking + policy gates.
+  // Turn-taking: a human request still needs an unanswered inbound.
   if (!f.hasUnansweredInbound) return { action: 'skip', reason: 'no_pending_inbound' }
+  // Explicit human request hands off immediately — including at the hard ceiling.
+  if (f.humanRequest) return { action: 'handoff', reason: 'human_request' }
+  if (f.turnCount >= ireHardCeiling(f.maxTurns)) return { action: 'skip', reason: 'max_turns' }
+  // Remaining policy gates (sales qualification only).
   if (!f.withinWindow) return { action: 'skip', reason: 'outside_window' }
   if (f.withinQuietHours) return { action: 'skip', reason: 'quiet_hours' }
   if (f.sentTodayForAgency >= f.dailyCap) return { action: 'skip', reason: 'daily_cap' }
