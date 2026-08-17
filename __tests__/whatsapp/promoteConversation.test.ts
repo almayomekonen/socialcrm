@@ -303,7 +303,7 @@ describe('Contact → Lead IRE contracts', () => {
     const schema = read('lib/inbox/autoresponse/qualify.ts')
     expect(worker).toContain("if (settings?.mode === 'qualify')")
     expect(qualify).toContain('decidePostGeneration')
-    expect(qualify).toContain('classifySalesMoveFromTranscript')
+    expect(qualify).toContain('classifySalesTurnFromTranscript')
     expect(qualify).not.toContain('hotSignal: gen.hotSignal ||')
     expect(qualify).toContain('maxTurns')
     expect(schema).toContain("'discover_need', 'understand_pain', 'understand_impact', 'understand_outcome', 'advance'")

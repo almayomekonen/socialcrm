@@ -15,7 +15,7 @@ import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
-import { mergeQualification, requiredComplete } from './qualification'
+import { mergeQualification, requiredComplete, isSalesStrategy } from './qualification'
 import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import {
   generateQualifyTurn,
@@ -38,7 +38,7 @@ import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
 import { isPostHandoffEnabled, respondPostHandoff, generatePostHandoffReply } from './postHandoff'
 import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
-import { classifySalesMoveFromTranscript } from './salesIntent'
+import { classifySalesTurnFromTranscript, salesMoveUsesProductContract } from './salesIntent'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
@@ -225,14 +225,19 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
     .filter((m) => m.text)
   const lastInboundText = (lastInbound?.text as string) ?? ''
-  const salesMove = classifySalesMoveFromTranscript(qTranscript)
+  const persistedStrategy = isSalesStrategy(aiState.qualification.cognition?.salesStrategy)
+    ? aiState.qualification.cognition?.salesStrategy
+    : undefined
+  const classified = classifySalesTurnFromTranscript(qTranscript, { salesStrategy: persistedStrategy })
+  const salesMove = classified.salesMove
+  const salesStrategy = classified.salesStrategy
   const productKnowledge = retrieveProductKnowledge({
     agencyId: job.agencyId,
     inboundText: lastInboundText,
     salesMove,
   })
   const productKnowledgeBlock =
-    salesMove === 'PRODUCT_QUESTION' || salesMove === 'PRODUCT_FIT' || salesMove === 'OBJECTION'
+    salesMoveUsesProductContract(salesMove) || salesMove === 'OBJECTION'
       ? formatProductKnowledgeBlock(productKnowledge)
       : null
   const questionPolicy = questionPolicyForSalesMove(salesMove)
@@ -242,6 +247,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     currentQualification: aiState.qualification,
     aiTurnCount: aiState.aiTurnCount,
     salesMove,
+    salesStrategy,
   })
   const genArgs = {
     agencyId: job.agencyId,
@@ -250,6 +256,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     collectFields: settings.collectFields,
     guidance: settings.guidance,
     salesMove,
+    salesStrategy,
     productKnowledgeBlock,
     trace: genTrace,
   }
@@ -309,6 +316,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
             lastInboundText,
             transcript: qTranscript,
           }),
+          salesStrategy,
         )
         const mergedNow = mergeQualification(aiState.qualification, { ...gen.extracted, cognition: incomingCog })
         gen.reply = deterministicQualifyFallback({
@@ -318,6 +326,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
           cognition: mergedNow.cognition,
           objective: gen.objective,
           salesMove,
+          salesStrategy,
           lang,
         })
         validation = validateAutoResponse(gen.reply, { questionPolicy })
@@ -341,6 +350,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       lastInboundText,
       transcript: qTranscript,
     }),
+    salesStrategy,
   )
   const persistExtracted = { ...gen.extracted, cognition: incomingCog }
   const merged = mergeQualification(aiState.qualification, persistExtracted)

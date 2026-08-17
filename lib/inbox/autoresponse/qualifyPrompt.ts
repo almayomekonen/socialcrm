@@ -1,4 +1,4 @@
-import type { ConversationCognition, Qualification } from './qualification'
+import type { ConversationCognition, Qualification, SalesStrategy } from './qualification'
 
 export type RegenerationReason = 'shape_validation' | 'safety_validation'
 
@@ -12,6 +12,7 @@ export const QUALIFY_SYSTEM_PROMPT = [
   'שדות מובנים הם זיכרון CRM, לא רשימת שאלות שמכתיבה את השאלה הבאה.',
   'שם הוא אופציונלי בשיחה. אל תתעדפי אותו על פני צורך מפורש.',
   'אם הלקוח ביקש מערכת, הסבר או עזרה בניהול לידים — ענה על זה. אל תשאל שאלת השפעה או כאב שכבר נענתה.',
+  'אם הלקוח אמר כן אחרי הצעה להסביר, או ביקש הסבר — הסבר את המוצר. אפס שאלות זה תקין. אסור לשאול שאלת גילוי במקום ההסבר.',
   'בכל הודעה הסתכלי קודם על מה שהלקוח אמר עכשיו, על ההקשר של השיחה, ועל הצעד שהכי שימושי עכשיו.',
   'היעד הבא הוא החלטה על מה הכי שווה להבין עכשיו — לא השדה או פרט התהליך שחסר.',
   'אם הלקוח כבר מסר כאב, השפעה או תוצאה רצויה — אל תשאל/י על זה שוב. אפשר לדלג קדימה או להסביר את המוצר.',
@@ -25,6 +26,7 @@ export const QUALIFY_SYSTEM_PROMPT = [
   '- עני/י למה שהלקוח כתב עכשיו. כל הודעה צריכה לקדם או לתת מידע שימושי.',
   '- בשאלת גילוי: לכל היותר סימן שאלה אחד, 1–2 משפטים.',
   '- בשאלת מוצר: קודם תשובה ישירה ורק מעובדות מאומתות שסופקו. אסור להמציא יכולת. אחרי התשובה אפשר שאלת המשך אחת. אסור לשאול שאלת גילוי לפני התשובה.',
+  '- אם הלקוח ביקש הסבר או אישר הצעה להסביר: הסבר בלי שאלת גילוי. אפס שאלות זה תקין.',
   '- בהתאמת מוצר: הסבר קצר מהמערכת עושה בשביל הצורך שנאמר, ואז ערך רלוונטי. אל תצרפי שאלת גילוי על כאב/השפעה/תהליך רק כי אפשר לשאול. שאלה רק אם היא צעד טבעי אחרי שהערך ברור.',
   '- מענה אוטומטי להודעות נכנסות בוואטסאפ אינו הודעות חימום יזומות. אל תטעני שהמערכת שולחת חימום אם זה לא מאומת.',
   '- בתודה/אוקיי קצרים: סגירה קצרה או המתנה. אל תגידי שמישהו מהצוות יחזור רק בגלל תודה.',
@@ -43,7 +45,7 @@ export const QUALIFY_SYSTEM_PROMPT = [
 
 const REGEN_CONSTRAINT: Record<RegenerationReason, string> = {
   shape_validation:
-    'חשוב מאוד: תשובה קצרה, עד שלושה משפטים, בלי מספרים. לכל היותר סימן שאלה אחד. בשאלת מוצר אפשר בלי שאלה. בלי סיכום שיחה ובלי "אני מעביר אותך".',
+    'חשוב מאוד: תשובה קצרה, עד שלושה משפטים, בלי מספרים. לכל היותר סימן שאלה אחד. בשאלת מוצר או בהסבר אפשר בלי שאלה. בלי סיכום שיחה ובלי "אני מעביר אותך".',
   safety_validation:
     'חשוב מאוד: אל תנקוב/י במחיר, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. לכל היותר שאלת המשך אחת.',
 }
@@ -104,6 +106,7 @@ function formatCognitionMemory(
     `workflow=${fact(c.currentWorkflow)}`,
     `outcome=${fact(c.desiredOutcome)}`,
     `יעד קודם: ${c.lastObjective ?? '(אין)'}`,
+    `אסטרטגיה: ${c.salesStrategy ?? '(אין)'}`,
     next,
   ].join('\n')
 }
@@ -117,6 +120,7 @@ export function buildQualifyUser(args: {
   runtimeCognition?: string | null
   regenerationReason?: RegenerationReason
   salesMove?: string | null
+  salesStrategy?: SalesStrategy | null
   productKnowledgeBlock?: string | null
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
@@ -131,27 +135,39 @@ export function buildQualifyUser(args: {
     .join(', ')
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
   const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(lastInbound)
+  const productMode =
+    args.salesMove === 'PRODUCT_QUESTION' ||
+    args.salesMove === 'PRODUCT_FIT' ||
+    args.salesMove === 'BUYING_SIGNAL'
   const lines = [
     `שיחה עד כה:\n${convo || '(ריק)'}`,
     `מידע פנימי שכבר נאסף (לא להזכיר ללקוח, לא לקבוע לפי זה את השאלה הבאה): ${have || '(אין)'}`,
-    formatCognitionMemory(
-      args.qualification.cognition,
-      args.salesMove === 'PRODUCT_QUESTION' || args.salesMove === 'PRODUCT_FIT' ? 'product' : 'discover',
-    ),
+    formatCognitionMemory(args.qualification.cognition, productMode ? 'product' : 'discover'),
   ]
-  if (needKnown && args.salesMove !== 'PRODUCT_QUESTION' && args.salesMove !== 'PRODUCT_FIT') {
+  if (needKnown && args.salesMove !== 'PRODUCT_QUESTION' && args.salesMove !== 'PRODUCT_FIT' && args.salesMove !== 'BUYING_SIGNAL') {
     lines.push(
       'הלקוח תיאר צורך, כאב או בעיה עסקית. קודם כל הגיבי לזה. אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר.',
     )
   }
-  if (args.salesMove === 'PRODUCT_QUESTION') {
-    lines.push(
-      'זו שאלת מוצר. ענה קודם מהעובדות המאומתות. אל תשאל שאלת גילוי לפני התשובה. לכל היותר שאלת המשך אחת אחרי התשובה. אם אין עובדה מאומתת — אל תמציא.',
-    )
+  if (args.salesStrategy === 'explain' || args.salesMove === 'PRODUCT_QUESTION') {
+    if (args.salesStrategy === 'explain') {
+      lines.push(
+        'הלקוח ביקש או אישר הסבר על המוצר. הסבר מהעובדות המאומתות. אפס שאלות זה תקין. אל תשאל שאלת גילוי.',
+      )
+    } else {
+      lines.push(
+        'זו שאלת מוצר. ענה קודם מהעובדות המאומתות. אל תשאל שאלת גילוי לפני התשובה. לכל היותר שאלת המשך אחת אחרי התשובה. אם אין עובדה מאומתת — אל תמציא.',
+      )
+    }
   }
   if (args.salesMove === 'PRODUCT_FIT') {
     lines.push(
       'זו התאמת מוצר. הסבר איך המוצר עוזר לצורך שנאמר. אל תשאל שאלת גילוי על כאב, השפעה או תהליך עכשיו. שאלה רק אם היא צעד טבעי אחרי שהערך ברור. אם אין עובדה מאומתת — אל תמציא.',
+    )
+  }
+  if (args.salesMove === 'BUYING_SIGNAL') {
+    lines.push(
+      'הלקוח שואל איך מתקדמים או מאותת קנייה. הצע צעד הבא ברור מהמוצר. אל תעביר לאדם. אל תתחיל שאלון גילוי מחדש.',
     )
   }
   if (args.salesMove === 'OBJECTION') {

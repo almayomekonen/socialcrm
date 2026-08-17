@@ -462,7 +462,7 @@ describe('qualify AI generation retry', () => {
     tableRows.messageList = [
       {
         direction: 'inbound',
-        text: 'יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים',
+        text: 'אוקיי איך אנחנו מתקדמים?',
         sentByUserId: null,
         channelTimestamp: new Date(),
         createdAt: new Date(),
@@ -478,7 +478,7 @@ describe('qualify AI generation retry', () => {
       },
       {
         direction: 'inbound',
-        text: 'אוקיי איך אנחנו מתקדמים?',
+        text: 'יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים',
         sentByUserId: null,
         channelTimestamp: new Date(),
         createdAt: new Date(),
@@ -544,7 +544,7 @@ describe('classifier is the sole commercial escalation authority', () => {
     expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: generated }))
   })
 
-  it('TEST B: LLM hotSignal=true salesMove=HANDOFF_REQUEST cannot override classifier DISCOVERY', async () => {
+  it('TEST B: LLM hotSignal=true salesMove=HANDOFF_REQUEST cannot override the classifier into a handoff', async () => {
     tableRows.messageList = [
       {
         direction: 'inbound',
@@ -573,5 +573,165 @@ describe('classifier is the sole commercial escalation authority', () => {
     expect(send).not.toHaveBeenCalledWith(
       expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
     )
+  })
+})
+
+describe('conversation 578 sales-progression worker', () => {
+  const EXPLAIN_OFFER = 'רוצה שאסביר איך זה נראה בעבודה היומיומית?'
+  const EXPLANATION =
+    'SocialCRM מרכזת לידים מוואטסאפ ופייסבוק במקום אחד, עם סטטוס ומעקב לכל פנייה.'
+  const ADVANCE_FALLBACK = 'מה הכי חשוב לך שנסדר עכשיו?'
+
+  function inbound(text: string) {
+    return {
+      direction: 'inbound' as const,
+      text,
+      sentByUserId: null,
+      channelTimestamp: new Date(),
+      createdAt: new Date(),
+      metadata: null,
+    }
+  }
+  function outbound(text: string) {
+    return {
+      direction: 'outbound' as const,
+      text,
+      sentByUserId: 332,
+      channelTimestamp: new Date(),
+      createdAt: new Date(),
+      metadata: { source: 'auto_response', reason: 'qualify_turn' },
+    }
+  }
+
+  it('CASE A: כן after an explanation offer sends the explanation and does not fall back to discovery', async () => {
+    tableRows.messageList = [
+      inbound('כן'),
+      outbound(EXPLAIN_OFFER),
+      inbound('יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים'),
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 5,
+      qualification: { need: 'ניהול לידים', cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.578-yes' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: EXPLANATION,
+      extracted: { need: 'ניהול לידים' },
+      objective: 'advance' as const,
+      salesMove: 'PRODUCT_QUESTION' as const,
+      hotSignal: false,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(generateQualify).toHaveBeenCalledWith(
+      expect.objectContaining({ salesMove: 'PRODUCT_QUESTION', salesStrategy: 'explain' }),
+    )
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: EXPLANATION }))
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: ADVANCE_FALLBACK }))
+  })
+
+  it('CASE B: כן after a product explanation continues how_it_works and does not fall back to discovery', async () => {
+    const productExplanation =
+      'בפועל, השיחות מהוואטסאפ ייכנסו למערכת, ומשם מקשרים כל פנייה לליד, מעדכנים סטטוס וקובעים מתי לחזור אליו.'
+    tableRows.messageList = [
+      inbound('כן'),
+      outbound(productExplanation),
+      inbound('יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים'),
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 5,
+      qualification: { need: 'ניהול לידים', cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.578-yes-b' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: productExplanation,
+      extracted: { need: 'ניהול לידים' },
+      objective: 'advance' as const,
+      salesMove: 'PRODUCT_QUESTION' as const,
+      hotSignal: false,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(generateQualify).toHaveBeenCalledWith(
+      expect.objectContaining({ salesMove: 'PRODUCT_QUESTION', salesStrategy: 'how_it_works' }),
+    )
+    expect(generateQualify).not.toHaveBeenCalledWith(expect.objectContaining({ salesMove: 'DISCOVERY' }))
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: productExplanation }))
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: ADVANCE_FALLBACK }))
+  })
+
+  it('תן לי הסבר קצר על המערכת sends an explanation, not a discovery fallback', async () => {
+    tableRows.messageList = [
+      inbound('תן לי הסבר קצר על המערכת'),
+      outbound(EXPLANATION),
+      inbound('יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים'),
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 6,
+      qualification: { need: 'ניהול לידים', cognition: { salesStrategy: 'explain' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.578-explain' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: EXPLANATION,
+      extracted: { need: 'ניהול לידים' },
+      objective: 'advance' as const,
+      salesMove: 'PRODUCT_QUESTION' as const,
+      hotSignal: false,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(generateQualify).toHaveBeenCalledWith(
+      expect.objectContaining({ salesMove: 'PRODUCT_QUESTION', salesStrategy: 'explain' }),
+    )
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: EXPLANATION }))
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: ADVANCE_FALLBACK }))
+    expect(markEscalated).not.toHaveBeenCalled()
+  })
+
+  it('תסדר לי לידים before the hard ceiling sends product help, not silence or discovery', async () => {
+    tableRows.messageList = [
+      inbound('תסדר לי לידים'),
+      outbound(EXPLANATION),
+      inbound('יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים'),
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 6,
+      qualification: { need: 'ניהול לידים', cognition: { salesStrategy: 'explain' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.578-organize' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: EXPLANATION,
+      extracted: { need: 'ניהול לידים' },
+      objective: 'advance' as const,
+      salesMove: 'PRODUCT_FIT' as const,
+      hotSignal: false,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(generateQualify).toHaveBeenCalledWith(
+      expect.objectContaining({ salesMove: 'PRODUCT_FIT', salesStrategy: 'product_fit' }),
+    )
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: EXPLANATION }))
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: ADVANCE_FALLBACK }))
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(skipAutoResponseJob).not.toHaveBeenCalledWith(61, 'max_turns')
   })
 })

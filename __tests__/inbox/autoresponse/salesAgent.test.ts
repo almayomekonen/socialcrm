@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SOCIALCRM_CAPABILITIES, getCapability, INBOUND_AUTO_RESPONSE_ID } from '@/lib/product/capabilities'
-import { classifySalesMove, classifySalesMoveFromTranscript } from '@/lib/inbox/autoresponse/salesIntent'
+import { classifySalesMove, classifySalesMoveFromTranscript, classifySalesTurnFromTranscript } from '@/lib/inbox/autoresponse/salesIntent'
 import {
   formatProductKnowledgeBlock,
   isProductKnowledgeEnabled,
@@ -11,7 +11,7 @@ import {
 import { decidePostGeneration, decidePreGeneration, ireHardCeiling } from '@/lib/inbox/autoresponse/stateMachine'
 import { questionPolicyForSalesMove, validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
 import { QUALIFY_SYSTEM_PROMPT, buildQualifyUser } from '@/lib/inbox/autoresponse/qualifyPrompt'
-import { cognitionFromUnderstanding } from '@/lib/inbox/autoresponse/qualify'
+import { cognitionFromUnderstanding, deterministicQualifyFallback } from '@/lib/inbox/autoresponse/qualify'
 import { mergeCognition } from '@/lib/inbox/autoresponse/qualification'
 import { isRetryableIreGenerationFailure } from '@/lib/inbox/autoresponse/retryableGeneration'
 import { ireKickWaitMs } from '@/lib/inbox/autoresponse/kickWorker'
@@ -266,7 +266,7 @@ describe('buying vs human-request policy matrix', () => {
 
   it('אוקיי איך אנחנו מתקדמים? continues even if the LLM marks buying/hot', () => {
     const text = 'אוקיי איך אנחנו מתקדמים?'
-    expect(classifySalesMove(text)).toBe('DISCOVERY')
+    expect(classifySalesMove(text)).toBe('BUYING_SIGNAL')
     expect(post(classifySalesMove(text), true)).toEqual({ action: 'send' })
   })
   it('אני רוצה להתחיל continues as BUYING_SIGNAL', () => {
@@ -326,5 +326,168 @@ describe('production E2E expected behavior', () => {
         salesMove: move,
       }),
     ).toEqual({ action: 'send' })
+  })
+})
+
+describe('conversational strategy (sticky product + explanation)', () => {
+  const EXPLAIN_OFFER = 'רוצה שאסביר איך זה נראה בעבודה היומיומית?'
+  const EXPLANATION =
+    'SocialCRM מרכזת לידים מוואטסאפ ופייסבוק במקום אחד, עם סטטוס ומעקב לכל פנייה בלי לפזר שיחות.'
+  const ADVANCE_FALLBACK = 'מה הכי חשוב לך שנסדר עכשיו?'
+
+  it('CASE A: כן after an explanation offer is PRODUCT_QUESTION / explain, zero questions allowed', () => {
+    const thread = [
+      { direction: 'inbound', text: 'אני צריך מערכת לניהול לידים' },
+      { direction: 'outbound', text: EXPLAIN_OFFER },
+      { direction: 'inbound', text: 'כן' },
+    ]
+    const turn = classifySalesTurnFromTranscript(thread, { salesStrategy: 'product_fit' })
+    expect(turn.salesMove).toBe('PRODUCT_QUESTION')
+    expect(turn.salesStrategy).toBe('explain')
+    expect(questionPolicyForSalesMove(turn.salesMove)).toBe('zero_or_one')
+    expect(validateAutoResponse(EXPLANATION, { questionPolicy: 'zero_or_one' }).ok).toBe(true)
+    expect(
+      deterministicQualifyFallback({
+        qualification: {},
+        lastInboundText: 'כן',
+        lang: 'he',
+        salesMove: turn.salesMove,
+        salesStrategy: turn.salesStrategy,
+      }),
+    ).not.toBe(ADVANCE_FALLBACK)
+    expect(
+      decidePostGeneration({
+        hotSignal: true,
+        uncertain: false,
+        requiredComplete: false,
+        turnCount: 5,
+        maxTurns: 5,
+        salesMove: turn.salesMove,
+      }),
+    ).toEqual({ action: 'send' })
+  })
+
+  it('CASE B: כן after a product explanation (not an offer) continues how_it_works, not DISCOVERY', () => {
+    const productExplanation =
+      'בפועל, השיחות מהוואטסאפ ייכנסו למערכת, ומשם מקשרים כל פנייה לליד, מעדכנים סטטוס וקובעים מתי לחזור אליו. במועד שקבעת המערכת תזכיר לך, כדי שהמשך הטיפול לא ילך לאיבוד.'
+    const thread = [
+      { direction: 'inbound', text: 'אני צריך מערכת לניהול לידים' },
+      { direction: 'outbound', text: productExplanation },
+      { direction: 'inbound', text: 'כן' },
+    ]
+    const turn = classifySalesTurnFromTranscript(thread, { salesStrategy: 'product_fit' })
+    expect(turn.salesMove).not.toBe('DISCOVERY')
+    expect(turn.salesMove).toBe('PRODUCT_QUESTION')
+    expect(turn.salesStrategy).toBe('how_it_works')
+    expect(turn.salesStrategy).not.toBe('discover')
+    expect(questionPolicyForSalesMove(turn.salesMove)).toBe('zero_or_one')
+    expect(validateAutoResponse(productExplanation, { questionPolicy: 'zero_or_one' }).ok).toBe(true)
+    expect(
+      deterministicQualifyFallback({
+        qualification: {},
+        lastInboundText: 'כן',
+        lang: 'he',
+        salesMove: turn.salesMove,
+        salesStrategy: turn.salesStrategy,
+      }),
+    ).not.toBe(ADVANCE_FALLBACK)
+  })
+
+  it('תן לי הסבר קצר על המערכת is PRODUCT_QUESTION / explain with product knowledge', () => {
+    expect(classifySalesMove('תן לי הסבר קצר על המערכת')).toBe('PRODUCT_QUESTION')
+    const turn = classifySalesTurnFromTranscript(
+      [{ direction: 'inbound', text: 'תן לי הסבר קצר על המערכת' }],
+      { salesStrategy: 'product_fit' },
+    )
+    expect(turn.salesMove).toBe('PRODUCT_QUESTION')
+    expect(turn.salesStrategy).toBe('explain')
+    const r = retrieveProductKnowledge({
+      agencyId: 103,
+      inboundText: 'תן לי הסבר קצר על המערכת',
+      salesMove: turn.salesMove,
+      envRaw: ALLOW,
+    })
+    expect(r.enabled).toBe(true)
+    expect(r.capabilities.length).toBeGreaterThan(0)
+    expect(questionPolicyForSalesMove(turn.salesMove)).toBe('zero_or_one')
+    expect(
+      deterministicQualifyFallback({
+        qualification: {},
+        lastInboundText: 'תן לי הסבר קצר על המערכת',
+        lang: 'he',
+        salesMove: turn.salesMove,
+        salesStrategy: turn.salesStrategy,
+      }),
+    ).not.toBe(ADVANCE_FALLBACK)
+  })
+
+  it('תסדר לי לידים is PRODUCT_FIT and does not interrogate', () => {
+    expect(classifySalesMove('תסדר לי לידים')).toBe('PRODUCT_FIT')
+    expect(questionPolicyForSalesMove('PRODUCT_FIT')).toBe('zero_or_one')
+    expect(
+      deterministicQualifyFallback({
+        qualification: { need: 'ניהול לידים' },
+        lastInboundText: 'תסדר לי לידים',
+        lang: 'he',
+        salesMove: 'PRODUCT_FIT',
+        salesStrategy: 'product_fit',
+      }),
+    ).not.toBe(ADVANCE_FALLBACK)
+    expect(
+      decidePostGeneration({
+        hotSignal: false,
+        uncertain: false,
+        requiredComplete: false,
+        turnCount: 6,
+        maxTurns: 5,
+        salesMove: 'PRODUCT_FIT',
+      }),
+    ).toEqual({ action: 'send' })
+  })
+
+  it('כן after explain offer retrieves product knowledge even though the inbound has no keywords', () => {
+    const r = retrieveProductKnowledge({
+      agencyId: 103,
+      inboundText: 'כן',
+      salesMove: 'PRODUCT_QUESTION',
+      envRaw: ALLOW,
+    })
+    expect(r.enabled).toBe(true)
+    expect(r.capabilities.length).toBeGreaterThan(0)
+  })
+
+  it('failed cognition grounding does not force DISCOVERY once product fit is sticky', () => {
+    const thread = [
+      { direction: 'inbound', text: 'אני צריך מערכת לניהול לידים' },
+      { direction: 'outbound', text: 'מאיפה נכנסים הלידים היום?' },
+      { direction: 'inbound', text: 'וואטסאפ - ופייסבוק' },
+    ]
+    expect(classifySalesMoveFromTranscript(thread, { salesStrategy: 'product_fit' })).toBe('PRODUCT_FIT')
+    const grounded = cognitionFromUnderstanding(
+      { pain: null, impact: null, currentWorkflow: 'וואטסאפ ופייסבוק', desiredOutcome: null },
+      'advance',
+      'וואטסאפ - ופייסבוק',
+      'product_fit',
+    )
+    expect(grounded.currentWorkflow).toBeUndefined()
+    expect(grounded.salesStrategy).toBe('product_fit')
+  })
+
+  it('prompt for yes-after-explain tells the model zero questions are valid', () => {
+    const user = buildQualifyUser({
+      transcript: [
+        { direction: 'inbound', text: 'אני צריך מערכת לניהול לידים' },
+        { direction: 'outbound', text: EXPLAIN_OFFER },
+        { direction: 'inbound', text: 'כן' },
+      ],
+      qualification: { cognition: { salesStrategy: 'explain' } },
+      collectFields: { required: ['name'], optional: [] },
+      guidance: null,
+      salesMove: 'PRODUCT_QUESTION',
+      salesStrategy: 'explain',
+    })
+    expect(user).toContain('הלקוח ביקש או אישר הסבר')
+    expect(user).toContain('אפס שאלות זה תקין')
+    expect(user).not.toContain('בחרי יעד אחד עם הערך הכי גבוה עכשיו')
   })
 })

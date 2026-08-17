@@ -20,8 +20,26 @@ export type ConversationObjective = (typeof CONVERSATION_OBJECTIVES)[number]
 export const COGNITION_FACT_FIELDS = ['pain', 'impact', 'currentWorkflow', 'desiredOutcome'] as const
 export type CognitionFactField = (typeof COGNITION_FACT_FIELDS)[number]
 
+export const SALES_STRATEGIES = [
+  'discover',
+  'product_fit',
+  'explain',
+  'how_it_works',
+  'next_step',
+] as const
+export type SalesStrategy = (typeof SALES_STRATEGIES)[number]
+
+export function isSalesStrategy(v: unknown): v is SalesStrategy {
+  return typeof v === 'string' && (SALES_STRATEGIES as readonly string[]).includes(v)
+}
+
+export function isProductStrategy(v: SalesStrategy | null | undefined): boolean {
+  return v === 'product_fit' || v === 'explain' || v === 'how_it_works' || v === 'next_step'
+}
+
 export type ConversationCognition = {
   lastObjective?: ConversationObjective
+  salesStrategy?: SalesStrategy
   pain?: string
   impact?: string
   currentWorkflow?: string
@@ -40,7 +58,8 @@ export function isConversationObjective(v: unknown): v is ConversationObjective 
 
 /**
  * Fill-empty merge for conversational understanding. Facts never overwrite a
- * known value. lastObjective always advances to the latest valid decision.
+ * known value. lastObjective and salesStrategy always advance to the latest
+ * valid decision — strategy is "what the AI is doing NOW", not a frozen fact.
  */
 export function mergeCognition(
   current: ConversationCognition | undefined,
@@ -49,6 +68,9 @@ export function mergeCognition(
   const out: ConversationCognition = { ...(current ?? {}) }
   if (incoming?.lastObjective && isConversationObjective(incoming.lastObjective)) {
     out.lastObjective = incoming.lastObjective
+  }
+  if (incoming?.salesStrategy && isSalesStrategy(incoming.salesStrategy)) {
+    out.salesStrategy = incoming.salesStrategy
   }
   for (const f of COGNITION_FACT_FIELDS) {
     if (isEmpty(out[f]) && !isEmpty(incoming?.[f])) out[f] = String(incoming?.[f]).trim()

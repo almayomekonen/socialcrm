@@ -3,9 +3,12 @@ import { runStructured } from '@/lib/ai/router'
 import {
   QUALIFICATION_FIELDS,
   isConversationObjective,
+  isProductStrategy,
+  isSalesStrategy,
   type ConversationCognition,
   type ConversationObjective,
   type Qualification,
+  type SalesStrategy,
 } from './qualification'
 import { waTrace, type WaTraceCtx } from './waTrace'
 import {
@@ -18,7 +21,13 @@ import {
   inboundStatesWorkflow,
   type RegenerationReason,
 } from './qualifyPrompt'
-import { detectHotSignal, detectHumanRequest, isSalesMove, type SalesMove } from './salesIntent'
+import {
+  detectHotSignal,
+  detectHumanRequest,
+  isSalesMove,
+  salesMoveUsesProductContract,
+  type SalesMove,
+} from './salesIntent'
 
 export type { RegenerationReason, SalesMove }
 export { QUALIFY_SYSTEM_PROMPT }
@@ -138,11 +147,12 @@ export function deterministicQualifyFallback(args: {
   cognition?: ConversationCognition
   objective?: ConversationObjective | null
   salesMove?: SalesMove | null
+  salesStrategy?: SalesStrategy | null
 }): string {
   if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
     return args.lang === 'en' ? 'Glad that helped.' : 'בשמחה.'
   }
-  if (args.salesMove === 'PRODUCT_QUESTION' || args.salesMove === 'PRODUCT_FIT') {
+  if (salesMoveUsesProductContract(args.salesMove) || isProductStrategy(args.salesStrategy)) {
     return args.lang === 'en'
       ? 'If you mean an automatic reply when someone writes on WhatsApp and you are not at the screen — yes, SocialCRM can do that. Proactive messages after a lead goes quiet are a different mechanism.'
       : 'אם הכוונה היא שהמערכת תענה כשכותבים אליך בוואטסאפ ואתה לא ליד המסך — כן, יש מענה אוטומטי להודעות נכנסות. אם מדובר בהודעות יזומות אחרי שהלקוח נעלם, זה כבר לא אותו מנגנון.'
@@ -164,9 +174,11 @@ export function cognitionFromUnderstanding(
   understanding: UnderstandingDelta | undefined,
   objective: ConversationObjective | null | undefined,
   inboundBlob: string,
+  salesStrategy?: SalesStrategy | null,
 ): ConversationCognition {
   const out: ConversationCognition = {}
   if (objective && isConversationObjective(objective)) out.lastObjective = objective
+  if (salesStrategy && isSalesStrategy(salesStrategy)) out.salesStrategy = salesStrategy
   const u = understanding
   if (u?.pain?.trim() && inboundStatesPain(inboundBlob)) out.pain = u.pain.trim()
   if (u?.impact?.trim() && inboundStatesImpact(inboundBlob)) out.impact = u.impact.trim()
@@ -250,6 +262,7 @@ export async function generateQualifyTurn(args: {
   runtimeCognition?: string | null
   regenerationReason?: RegenerationReason
   salesMove?: SalesMove | null
+  salesStrategy?: SalesStrategy | null
   productKnowledgeBlock?: string | null
   trace?: WaTraceCtx
   bypassAllowlist?: boolean

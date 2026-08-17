@@ -63,6 +63,14 @@ describe('mergeCognition (fill-empty facts, latest objective)', () => {
       pain: 'x',
     })
   })
+  it('advances salesStrategy to the latest decision without overwriting facts', () => {
+    expect(
+      mergeCognition({ salesStrategy: 'product_fit', pain: 'x' }, { salesStrategy: 'explain', pain: 'other' }),
+    ).toEqual({
+      salesStrategy: 'explain',
+      pain: 'x',
+    })
+  })
   it('mergeQualification persists nested cognition without treating it as a CRM field', () => {
     const merged = mergeQualification({ need: 'ניהול לקוחות' }, { cognition: { lastObjective: 'understand_pain', pain: 'שוכחת' } })
     expect(merged.need).toBe('ניהול לקוחות')

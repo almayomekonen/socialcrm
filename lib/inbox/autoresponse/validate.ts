@@ -58,7 +58,7 @@ export type ValidationResult =
   | { ok: true; details: ValidationDetails }
   | { ok: false; violation: string; details: ValidationDetails }
 
-/** Discovery/deepen still prefer a question. Product/ack/objection may answer without one. */
+/** Discovery/deepen still prefer a question. Product/explain/next-step may answer without one. */
 export type QuestionPolicy = 'require_one' | 'zero_or_one'
 
 export function questionPolicyForSalesMove(move: string | null | undefined): QuestionPolicy {

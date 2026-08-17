@@ -6,6 +6,10 @@
  * circular import (qualify owns generation; this file owns intent).
  */
 import { inboundStatesImpact, inboundStatesOutcome, inboundStatesPain } from './qualifyPrompt'
+import { isProductStrategy, isSalesStrategy, type SalesStrategy } from './qualification'
+
+export type { SalesStrategy }
+export { isProductStrategy, isSalesStrategy }
 
 const HUMAN_REQUEST_PATTERNS: RegExp[] = [
   /פגיש|להיפגש|זום|שיחה/,
@@ -128,38 +132,189 @@ export function isProductFit(text: string): boolean {
   return PRODUCT_FIT_RE.some((re) => re.test(text))
 }
 
+const EXPLAIN_REQUEST_RE =
+  /תן לי הסבר|הסבר קצר|תסביר(?:י)?(?:\s+לי)?|explain (?:the )?(?:system|product)|how does (?:the )?(?:system|product) work/i
+const ORGANIZE_LEADS_RE = /תסדר.{0,16}ליד|לסדר.{0,16}ליד|תארגן.{0,16}ליד/i
+const NEXT_STEP_RE =
+  /איך (?:אנחנו )?מתקדמ|מה עכשיו|איך ממשיכ|what(?:'s| is) next|how (?:do we|to) (?:proceed|continue)/i
+const EXPLAIN_OFFER_RE = /רוצה שאסביר|אשביר|להסביר|איך זה נראה|want me to explain|shall i explain/i
+const AFFIRM_EXACT = new Set([
+  'כן',
+  'כן תסביר',
+  'כן בבקשה',
+  'בטח',
+  'יאללה',
+  'אוקיי',
+  'אוקי',
+  'ok',
+  'okay',
+  'yes',
+  'sure',
+  'yep',
+])
+
+export function isExplanationRequest(text: string): boolean {
+  return EXPLAIN_REQUEST_RE.test(text)
+}
+
+export function isOrganizeLeadsIntent(text: string): boolean {
+  return ORGANIZE_LEADS_RE.test(text)
+}
+
+export function isNextStepAsk(text: string): boolean {
+  return NEXT_STEP_RE.test(text)
+}
+
+export function isExplanationOffer(text: string): boolean {
+  return EXPLAIN_OFFER_RE.test((text ?? '').trim())
+}
+
+export function isShortAffirmative(text: string): boolean {
+  const n = normalizeUtterance(text)
+  return Boolean(n) && AFFIRM_EXACT.has(n)
+}
+
+export type ClassifySalesOpts = {
+  priorMoves?: readonly SalesMove[]
+  previousOutbound?: string
+  salesStrategy?: SalesStrategy
+}
+
+function hasEstablishedProductIntent(opts?: ClassifySalesOpts): boolean {
+  if (isProductStrategy(opts?.salesStrategy)) return true
+  return (opts?.priorMoves ?? []).some((m) => m === 'PRODUCT_FIT' || m === 'PRODUCT_QUESTION')
+}
+
+/** Product / explain / next-step moves: zero questions allowed, PK eligible, product fallback. */
+export function salesMoveUsesProductContract(move: SalesMove | null | undefined): boolean {
+  return move === 'PRODUCT_QUESTION' || move === 'PRODUCT_FIT' || move === 'BUYING_SIGNAL'
+}
+
 /**
- * Classify the current inbound. Higher-priority matches win. Qualification /
- * missing CRM fields are ignored on purpose.
+ * Classify the current inbound. Explicit last-inbound intents still win.
+ * Short/ambiguous replies also consider previousOutbound + sticky product strategy.
+ * Qualification / missing CRM fields are ignored on purpose.
  */
-export function classifySalesMove(
-  text: string,
-  opts?: { priorMoves?: readonly SalesMove[] },
-): SalesMove {
+export function classifySalesMove(text: string, opts?: ClassifySalesOpts): SalesMove {
   const t = (text ?? '').trim()
   if (!t) return 'DISCOVERY'
   if (detectHumanRequest(t)) return 'HANDOFF_REQUEST'
   if (detectHotSignal(t)) return 'BUYING_SIGNAL'
-  if (isProductQuestion(t)) return 'PRODUCT_QUESTION'
-  if (isProductFit(t)) return 'PRODUCT_FIT'
+  if (isProductQuestion(t) || isExplanationRequest(t)) return 'PRODUCT_QUESTION'
+  if (isProductFit(t) || isOrganizeLeadsIntent(t)) return 'PRODUCT_FIT'
   if (OBJECTION_RE.some((re) => re.test(t))) return 'OBJECTION'
-  if (isCasualAcknowledgement(t)) return 'CASUAL_ACKNOWLEDGEMENT'
+  if (isNextStepAsk(t)) return 'BUYING_SIGNAL'
+
+  const sticky = hasEstablishedProductIntent(opts)
+  const offeredExplain = Boolean(opts?.previousOutbound && isExplanationOffer(opts.previousOutbound))
+
+  if (offeredExplain && (isShortAffirmative(t) || isCasualAcknowledgement(t))) {
+    return 'PRODUCT_QUESTION'
+  }
+  if (sticky && isShortAffirmative(t)) return 'PRODUCT_QUESTION'
+  if (isCasualAcknowledgement(t)) {
+    if (!sticky) return 'CASUAL_ACKNOWLEDGEMENT'
+    return opts?.salesStrategy === 'explain' || opts?.salesStrategy === 'how_it_works'
+      ? 'PRODUCT_QUESTION'
+      : 'PRODUCT_FIT'
+  }
+
   const deepen = inboundStatesPain(t) || inboundStatesImpact(t) || inboundStatesOutcome(t)
   if (deepen) {
     const prior = opts?.priorMoves ?? []
-    if (prior.some((m) => m === 'PRODUCT_FIT' || m === 'PRODUCT_QUESTION')) return 'PRODUCT_FIT'
+    if (sticky || prior.some((m) => m === 'PRODUCT_FIT' || m === 'PRODUCT_QUESTION')) return 'PRODUCT_FIT'
     return 'DEEPEN'
+  }
+
+  if (sticky) {
+    if (opts?.salesStrategy === 'explain' || opts?.salesStrategy === 'how_it_works') return 'PRODUCT_QUESTION'
+    return 'PRODUCT_FIT'
   }
   return 'DISCOVERY'
 }
 
-/** Last inbound wins; pain/impact restated after a product turn stays on product fit. */
-export function classifySalesMoveFromTranscript(
+export function nextSalesStrategy(args: {
+  salesMove: SalesMove
+  previous?: SalesStrategy
+  lastInbound: string
+  previousOutbound?: string
+}): SalesStrategy {
+  const { salesMove, previous, lastInbound, previousOutbound } = args
+  if (salesMove === 'HANDOFF_REQUEST') return 'discover'
+  if (salesMove === 'OBJECTION') return 'discover'
+  if (salesMove === 'PRODUCT_QUESTION') {
+    if (
+      isExplanationRequest(lastInbound) ||
+      (previousOutbound && isExplanationOffer(previousOutbound) && isShortAffirmative(lastInbound))
+    ) {
+      return 'explain'
+    }
+    return 'how_it_works'
+  }
+  if (salesMove === 'PRODUCT_FIT') return 'product_fit'
+  if (salesMove === 'BUYING_SIGNAL') return 'next_step'
+  if (previous && isSalesStrategy(previous) && isProductStrategy(previous)) return previous
+  return 'discover'
+}
+
+export function classifySalesTurn(args: {
+  lastInbound: string
+  previousOutbound?: string
+  priorMoves?: readonly SalesMove[]
+  salesStrategy?: SalesStrategy
+}): { salesMove: SalesMove; salesStrategy: SalesStrategy } {
+  const salesMove = classifySalesMove(args.lastInbound, {
+    priorMoves: args.priorMoves,
+    previousOutbound: args.previousOutbound,
+    salesStrategy: args.salesStrategy,
+  })
+  return {
+    salesMove,
+    salesStrategy: nextSalesStrategy({
+      salesMove,
+      previous: args.salesStrategy,
+      lastInbound: args.lastInbound,
+      previousOutbound: args.previousOutbound,
+    }),
+  }
+}
+
+function lastOutboundBeforeFinalInbound(
   transcript: Array<{ direction: string; text: string }>,
-): SalesMove {
+): string | undefined {
+  let seenInbound = false
+  for (let i = transcript.length - 1; i >= 0; i--) {
+    const m = transcript[i]
+    if (!m) continue
+    if (!seenInbound && m.direction === 'inbound' && (m.text ?? '').trim()) {
+      seenInbound = true
+      continue
+    }
+    if (seenInbound && m.direction === 'outbound' && (m.text ?? '').trim()) return m.text
+  }
+  return undefined
+}
+
+/** Last inbound wins; short replies use previous outbound + sticky product strategy. */
+export function classifySalesTurnFromTranscript(
+  transcript: Array<{ direction: string; text: string }>,
+  opts?: { salesStrategy?: SalesStrategy },
+): { salesMove: SalesMove; salesStrategy: SalesStrategy } {
   const inbounds = transcript.filter((m) => m.direction === 'inbound' && (m.text ?? '').trim())
   const last = inbounds[inbounds.length - 1]
-  if (!last) return 'DISCOVERY'
+  if (!last) return { salesMove: 'DISCOVERY', salesStrategy: opts?.salesStrategy ?? 'discover' }
   const priorMoves = inbounds.slice(0, -1).map((m) => classifySalesMove(m.text))
-  return classifySalesMove(last.text, { priorMoves })
+  return classifySalesTurn({
+    lastInbound: last.text,
+    previousOutbound: lastOutboundBeforeFinalInbound(transcript),
+    priorMoves,
+    salesStrategy: opts?.salesStrategy,
+  })
+}
+
+export function classifySalesMoveFromTranscript(
+  transcript: Array<{ direction: string; text: string }>,
+  opts?: { salesStrategy?: SalesStrategy },
+): SalesMove {
+  return classifySalesTurnFromTranscript(transcript, opts).salesMove
 }

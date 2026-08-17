@@ -9,7 +9,7 @@ import {
   SOCIALCRM_CAPABILITIES,
   type ProductCapability,
 } from '@/lib/product/capabilities'
-import { type SalesMove } from './salesIntent'
+import { type SalesMove, isExplanationRequest, isShortAffirmative } from './salesIntent'
 
 export const PRODUCT_KNOWLEDGE_ENV = 'IRE_PRODUCT_KNOWLEDGE_AGENCY_IDS'
 const MAX_RETRIEVED = 3
@@ -63,8 +63,14 @@ function scoreCapability(text: string, c: ProductCapability): number {
   return score
 }
 
-const PRODUCT_MOVES: ReadonlySet<SalesMove> = new Set(['PRODUCT_QUESTION', 'PRODUCT_FIT', 'OBJECTION'])
+const PRODUCT_MOVES: ReadonlySet<SalesMove> = new Set(['PRODUCT_QUESTION', 'PRODUCT_FIT', 'OBJECTION', 'BUYING_SIGNAL'])
 const GENERAL_HELP_RE = /איך (אתה|אתם) יכול|מה המערכת עושה|how (can|could) you help/i
+
+function wantsCatalogOverview(text: string, salesMove: SalesMove): boolean {
+  if (salesMove === 'PRODUCT_FIT' || salesMove === 'BUYING_SIGNAL') return true
+  if (salesMove !== 'PRODUCT_QUESTION') return false
+  return GENERAL_HELP_RE.test(text) || isExplanationRequest(text) || isShortAffirmative(text)
+}
 
 /**
  * 0–3 verified capabilities for this inbound. Warm-up language is never treated
@@ -114,10 +120,7 @@ export function retrieveProductKnowledge(args: {
   }
 
   if (scored.length === 0) {
-    const generalHelp =
-      args.salesMove === 'PRODUCT_FIT' ||
-      (args.salesMove === 'PRODUCT_QUESTION' && GENERAL_HELP_RE.test(text))
-    if (generalHelp) {
+    if (wantsCatalogOverview(text, args.salesMove)) {
       const proactive = SOCIALCRM_CAPABILITIES.filter((c) => c.mayMentionProactively).slice(0, MAX_RETRIEVED)
       if (proactive.length) {
         return { enabled: true, capabilities: proactive, unverifiedRequest: false, closestAlternatives: [] }
