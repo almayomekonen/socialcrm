@@ -3,7 +3,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import type { LanguageModel } from 'ai'
 import { getAiEnv } from './env'
-import { ModelRole, ProviderName } from './types'
+import { ModelRole, ProviderName, TaskKind } from './types'
 
 export type ResolvedModel = {
   provider: ProviderName
@@ -71,9 +71,25 @@ export function getModel(role: ModelRole): ResolvedModel | null {
   }
 }
 
-export function getProviderChain(role: ModelRole): ResolvedModel[] {
+/** WhatsApp IRE uses GPT-5.6 (Responses API) first. Other tasks keep Anthropic/Gemini-first. */
+function getIreOpenAi(): ResolvedModel | null {
+  const env = getAiEnv()
+  const o = getOpenAI()
+  if (!o || !env.openai) return null
+  const modelId = env.openai.ireModel
+  return { provider: 'openai', modelId, model: o(modelId) }
+}
+
+export function getProviderChain(role: ModelRole, kind?: TaskKind): ResolvedModel[] {
   const seen = new Set<ProviderName>()
   const chain: ResolvedModel[] = []
+  if (kind === 'inbox.autoResponse') {
+    const ire = getIreOpenAi()
+    if (ire) {
+      seen.add(ire.provider)
+      chain.push(ire)
+    }
+  }
   const order: ModelRole[] = role === 'heavy' ? ['heavy', 'primary', 'volume', 'fallback'] : [role, 'volume', 'fallback']
   for (const r of order) {
     const m = getModel(r)

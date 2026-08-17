@@ -58,10 +58,20 @@ export type ValidationResult =
   | { ok: true; details: ValidationDetails }
   | { ok: false; violation: string; details: ValidationDetails }
 
-export function validateAutoResponse(text: string): ValidationResult {
+/** Discovery/deepen still prefer a question. Product/ack/objection may answer without one. */
+export type QuestionPolicy = 'require_one' | 'zero_or_one'
+
+export function questionPolicyForSalesMove(move: string | null | undefined): QuestionPolicy {
+  if (move === 'DISCOVERY' || move === 'DEEPEN' || !move) return 'require_one'
+  return 'zero_or_one'
+}
+
+export function validateAutoResponse(
+  text: string,
+  opts?: { questionPolicy?: QuestionPolicy },
+): ValidationResult {
   const t = (text ?? '').trim()
-  // Compute all diagnostics up front (pure, observability). The decision order
-  // and thresholds below are UNCHANGED — the guardrail is not weakened.
+  const policy = opts?.questionPolicy ?? 'require_one'
   const sentences = t
     .split(/[.!?\n]+/)
     .map((s) => s.trim())
@@ -79,7 +89,7 @@ export function validateAutoResponse(text: string): ValidationResult {
   if (!t) return { ok: false, violation: 'empty', details }
   if (sentences.length > 3) return { ok: false, violation: 'too_long', details }
   if (t.length > 320) return { ok: false, violation: 'too_long', details }
-  if (questionMarks === 0) return { ok: false, violation: 'no_question', details }
+  if (policy === 'require_one' && questionMarks === 0) return { ok: false, violation: 'no_question', details }
   if (questionMarks > 1) return { ok: false, violation: 'too_many_questions', details }
   if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
   return { ok: true, details }

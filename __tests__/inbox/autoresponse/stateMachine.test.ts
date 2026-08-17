@@ -61,8 +61,9 @@ describe('decidePreGeneration', () => {
   it('already escalated → skip', () => {
     expect(decidePreGeneration(pre({ aiState: 'escalated' }))).toEqual({ action: 'skip', reason: 'already_escalated' })
   })
-  it('max turns reached → skip', () => {
-    expect(decidePreGeneration(pre({ turnCount: 5, maxTurns: 5 }))).toEqual({ action: 'skip', reason: 'max_turns' })
+  it('max turns at the SOFT budget still proceeds; hard ceiling skips', () => {
+    expect(decidePreGeneration(pre({ turnCount: 5, maxTurns: 5 }))).toEqual({ action: 'proceed' })
+    expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5 }))).toEqual({ action: 'skip', reason: 'max_turns' })
   })
   it('no unanswered inbound (turn-taking) → skip', () => {
     expect(decidePreGeneration(pre({ hasUnansweredInbound: false }))).toEqual({ action: 'skip', reason: 'no_pending_inbound' })
@@ -100,8 +101,8 @@ describe('decidePostGeneration', () => {
   it('required fields complete does not hand off — stating a need is not a human reason', () => {
     expect(decidePostGeneration(post({ requiredComplete: true }))).toEqual({ action: 'send' })
   })
-  it('final allowed turn becomes the handoff', () => {
-    expect(decidePostGeneration(post({ turnCount: 4, maxTurns: 5 }))).toEqual({ action: 'escalate', reason: 'max_turns' })
+  it('soft budget is not an automatic handoff', () => {
+    expect(decidePostGeneration(post({ turnCount: 4, maxTurns: 5 }))).toEqual({ action: 'send' })
   })
   it('can still send on the 4th turn (turnCount 3 of 5)', () => {
     expect(decidePostGeneration(post({ turnCount: 3, maxTurns: 5 }))).toEqual({ action: 'send' })
@@ -110,6 +111,14 @@ describe('decidePostGeneration', () => {
     expect(decidePostGeneration(post({ hotSignal: true, requiredComplete: true, turnCount: 4 }))).toEqual({
       action: 'escalate',
       reason: 'hot_signal',
+    })
+  })
+  it('soft maxTurns does not hand off a healthy turn', () => {
+    expect(decidePostGeneration(post({ turnCount: 4, maxTurns: 5, salesMove: 'DEEPEN' }))).toEqual({ action: 'send' })
+  })
+  it('casual acknowledgement at soft maxTurns does not hand off', () => {
+    expect(decidePostGeneration(post({ turnCount: 4, maxTurns: 5, salesMove: 'CASUAL_ACKNOWLEDGEMENT' }))).toEqual({
+      action: 'send',
     })
   })
 })

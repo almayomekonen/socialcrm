@@ -31,13 +31,15 @@ import {
 import { buildSummary, type EscalationSummary } from './summary'
 import { isQualifierEnabled } from './killSwitch'
 import { isRetryableIreGenerationFailure } from './retryableGeneration'
-import { validateAutoResponse, classifyViolation } from './validate'
+import { validateAutoResponse, classifyViolation, questionPolicyForSalesMove } from './validate'
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
 import { isPostHandoffEnabled, respondPostHandoff, generatePostHandoffReply } from './postHandoff'
 import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
+import { classifySalesMoveFromTranscript } from './salesIntent'
+import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -222,11 +224,24 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const qTranscript = recent
     .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
     .filter((m) => m.text)
+  const lastInboundText = (lastInbound?.text as string) ?? ''
+  const salesMove = classifySalesMoveFromTranscript(qTranscript)
+  const productKnowledge = retrieveProductKnowledge({
+    agencyId: job.agencyId,
+    inboundText: lastInboundText,
+    salesMove,
+  })
+  const productKnowledgeBlock =
+    salesMove === 'PRODUCT_QUESTION' || salesMove === 'PRODUCT_FIT' || salesMove === 'OBJECTION'
+      ? formatProductKnowledgeBlock(productKnowledge)
+      : null
+  const questionPolicy = questionPolicyForSalesMove(salesMove)
   const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
   waTrace('GENERATE_QUALIFY_START', genTrace, {
     transcriptLength: qTranscript.length,
     currentQualification: aiState.qualification,
     aiTurnCount: aiState.aiTurnCount,
+    salesMove,
   })
   const genArgs = {
     agencyId: job.agencyId,
@@ -234,6 +249,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     qualification: aiState.qualification,
     collectFields: settings.collectFields,
     guidance: settings.guidance,
+    salesMove,
+    productKnowledgeBlock,
     trace: genTrace,
   }
   const gen: QualifyGenResult = await deps.generateQualify(genArgs)
@@ -252,14 +269,14 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // regeneration, else a strategy-aware fallback question (never a handoff).
   // Safety → regenerate once, then escalate ('guardrail'). `uncertain` fed to
   // the policy below is model-only.
-  let validation = validateAutoResponse(gen.reply)
+  let validation = validateAutoResponse(gen.reply, { questionPolicy })
   let forcedGuardrail = false
   if (!validation.ok) {
     const originalViolation = 'violation' in validation ? validation.violation : 'invalid'
     const regenerationReason: RegenerationReason =
       classifyViolation(originalViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
     const gen2 = await deps.generateQualify({ ...genArgs, regenerationReason })
-    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply)
+    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, { questionPolicy })
     let finalResolution: 'regenerated' | 'deterministic' | 'guardrail_handoff'
     let validationResult: string
     if (gen2.ok !== false && gen2Valid && gen2Valid.ok) {
@@ -270,6 +287,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       gen.uncertain = gen2.uncertain
       gen.objective = gen2.objective
       gen.understanding = gen2.understanding
+      gen.salesMove = gen2.salesMove
       validation = gen2Valid
       finalResolution = 'regenerated'
       validationResult = 'ok'
@@ -283,7 +301,6 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       } else {
         // Shape breach survived → objective-aware fallback; stay in qualify.
         // Never rewrite a valid AI reply; this path is only for unsendable text.
-        const lastInboundText = (lastInbound?.text as string) ?? ''
         const incomingCog = cognitionFromUnderstanding(
           gen.understanding,
           gen.objective,
@@ -300,9 +317,10 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
           transcript: qTranscript,
           cognition: mergedNow.cognition,
           objective: gen.objective,
+          salesMove,
           lang,
         })
-        validation = validateAutoResponse(gen.reply)
+        validation = validateAutoResponse(gen.reply, { questionPolicy })
         finalResolution = 'deterministic'
       }
     }
@@ -315,7 +333,6 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
 
-  const lastInboundText = (lastInbound?.text as string) ?? ''
   const incomingCog = cognitionFromUnderstanding(
     gen.understanding,
     gen.objective,
@@ -328,11 +345,12 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const persistExtracted = { ...gen.extracted, cognition: incomingCog }
   const merged = mergeQualification(aiState.qualification, persistExtracted)
   let post = decidePostGeneration({
-    hotSignal: gen.hotSignal,
+    hotSignal: gen.hotSignal || salesMove === 'HANDOFF_REQUEST' || salesMove === 'BUYING_SIGNAL',
     uncertain: gen.uncertain, // model-only; validation failures are resolved above
     requiredComplete: requiredComplete(merged, settings.collectFields.required),
     turnCount: aiState.aiTurnCount,
     maxTurns,
+    salesMove,
   })
   // Safety-guardrail handoff wins over any send/continue decision.
   if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }

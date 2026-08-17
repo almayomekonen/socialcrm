@@ -8,6 +8,15 @@
  * "Human always wins" and opt-out are evaluated first and unconditionally.
  */
 import type { AiState } from './qualification'
+import type { SalesMove } from './salesIntent'
+
+/** Soft budget is agency maxTurns. Hard ceiling stops runaway generation. */
+export const IRE_HARD_CEILING_CAP = 8
+
+export function ireHardCeiling(maxTurns: number): number {
+  const n = Number.isFinite(maxTurns) ? Math.floor(maxTurns) : 5
+  return Math.min(Math.max(n, 1) + 2, IRE_HARD_CEILING_CAP)
+}
 
 // ── Pre-generation ──────────────────────────────────────────────────────────
 export interface PreFacts {
@@ -41,7 +50,7 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
   if (!f.masterEnabled) return { action: 'skip', reason: 'feature_off' }
   if (!f.channelEnabled) return { action: 'skip', reason: 'channel_off' }
   if (f.aiState === 'escalated') return { action: 'skip', reason: 'already_escalated' }
-  if (f.turnCount >= f.maxTurns) return { action: 'skip', reason: 'max_turns' }
+  if (f.turnCount >= ireHardCeiling(f.maxTurns)) return { action: 'skip', reason: 'max_turns' }
   // Turn-taking + policy gates.
   if (!f.hasUnansweredInbound) return { action: 'skip', reason: 'no_pending_inbound' }
   if (!f.withinWindow) return { action: 'skip', reason: 'outside_window' }
@@ -58,16 +67,17 @@ export interface PostFacts {
   requiredComplete: boolean // kept for callers; stating a need is not a handoff
   turnCount: number // AI turns already sent (before this one)
   maxTurns: number
+  /** Deterministic sales move. Soft maxTurns must not hand off on its own. */
+  salesMove?: SalesMove | null
 }
 
 export type PostDecision = { action: 'escalate'; reason: string } | { action: 'send' }
 
 export function decidePostGeneration(f: PostFacts): PostDecision {
   if (f.hotSignal) return { action: 'escalate', reason: 'hot_signal' }
-  // Sending now would consume the final allowed turn → make it the handoff instead.
-  if (f.turnCount + 1 >= f.maxTurns) return { action: 'escalate', reason: 'max_turns' }
-  // Stating a need, filling required fields, or model "uncertainty" is not a
-  // reason to hand off. Keep asking one natural question until a genuine human
-  // reason (hot signal / last turn) or a pre-generation safety stop.
+  if (f.salesMove === 'HANDOFF_REQUEST' || f.salesMove === 'BUYING_SIGNAL') {
+    return { action: 'escalate', reason: 'hot_signal' }
+  }
+  // Soft maxTurns is a budget, not a handoff. Hard ceiling is pre-generation.
   return { action: 'send' }
 }

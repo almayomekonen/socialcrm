@@ -16,6 +16,17 @@ import { attemptBudget, skipRetryOnTimeout } from './router/interactivePolicy'
 
 export { _resetDailySpendForTests } from './router/spend'
 
+function ireOpenAiCallOptions(
+  kind: TaskKind,
+  provider: ProviderName,
+  modelId: string,
+): { providerOptions?: { openai: { reasoningEffort: string } } } {
+  if (kind !== 'inbox.autoResponse' || provider !== 'openai') return {}
+  if (!/^gpt-5/i.test(modelId)) return {}
+  const effort = getAiEnv().openai?.ireReasoningEffort ?? 'high'
+  return { providerOptions: { openai: { reasoningEffort: effort } } }
+}
+
 export type RunStructuredOptions<S extends FlexibleSchema<unknown>> = {
   kind: TaskKind
   schema: S
@@ -79,7 +90,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
 
   const cfg = getTaskConfig(opts.kind)
   const effectiveRole = opts.roleOverride ?? cfg.role
-  const chain = getProviderChain(effectiveRole)
+  const chain = getProviderChain(effectiveRole, opts.kind)
   if (chain.length === 0) return { ok: false, reason: 'no-providers' }
 
   let lastErrorMessage: string | undefined
@@ -134,6 +145,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
           maxOutputTokens: cfg.maxOutputTokens,
           abortSignal: AbortSignal.timeout(budget.timeoutMs),
           ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
+          ...ireOpenAiCallOptions(opts.kind, handle.provider, handle.modelId),
         })
 
         const latencyMs = Date.now() - callStartedAt

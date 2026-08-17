@@ -92,14 +92,10 @@ const TASKS: Record<TaskKind, TaskConfig> = {
 
   'inbox.autoResponse': {
     role: 'primary',
-    maxOutputTokens: 150,
-    timeoutMs: 12_000,
-    retryOnSameProvider: 1,
-    // No SDK-internal retries. A Gemini 429 RESOURCE_EXHAUSTED is retryable, so the
-    // SDK default (maxRetries=2) turns one WhatsApp turn into 3 Gemini HTTP requests —
-    // all failing and burning 3 free-tier RPM units for a call that cannot succeed.
-    // The router already classifies this as permanent (no 2nd provider attempt), so
-    // the waste is entirely SDK-internal. 0 SDK retries ⇒ exactly 1 Gemini request/turn.
+    maxOutputTokens: 2_500,
+    timeoutMs: 45_000,
+    retryOnSameProvider: 0,
+    // GPT-5.6 high reasoning is slow; one attempt, then Anthropic/Gemini failover.
     providerMaxRetries: 0,
   },
 }
@@ -122,6 +118,10 @@ const PRICING: Record<string, Pricing> = {
   // OpenAI fallback
   'gpt-4.1-mini': { inUsdPerM: 0.4, outUsdPerM: 1.6 },
   'gpt-4.1': { inUsdPerM: 2, outUsdPerM: 8 },
+  'gpt-5.6': { inUsdPerM: 5, outUsdPerM: 30 },
+  'gpt-5.6-sol': { inUsdPerM: 5, outUsdPerM: 30 },
+  'gpt-5.6-terra': { inUsdPerM: 2, outUsdPerM: 12 },
+  'gpt-5.6-luna': { inUsdPerM: 0.2, outUsdPerM: 1.2 },
 }
 
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {

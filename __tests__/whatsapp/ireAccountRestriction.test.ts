@@ -184,6 +184,7 @@ describe('IRE qualify / handoff + 131031', () => {
       understanding: { pain: null, impact: null, currentWorkflow: null, desiredOutcome: null },
       hotSignal: false,
       uncertain: false,
+      salesMove: null,
     }))
 
     const outcome = await processQualifyJob(

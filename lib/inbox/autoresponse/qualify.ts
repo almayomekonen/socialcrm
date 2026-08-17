@@ -18,45 +18,11 @@ import {
   inboundStatesWorkflow,
   type RegenerationReason,
 } from './qualifyPrompt'
+import { detectHotSignal, detectHumanRequest, isSalesMove, type SalesMove } from './salesIntent'
 
-export type { RegenerationReason }
+export type { RegenerationReason, SalesMove }
 export { QUALIFY_SYSTEM_PROMPT }
-
-// Explicit request to reach a person — a phone call, a meeting, or a human rep.
-// This is a HARD handoff signal: the customer asked for a human, so no amount of
-// further qualification is appropriate. Kept separate from buying-intent below.
-const HUMAN_REQUEST_PATTERNS: RegExp[] = [
-  /פגיש|להיפגש|זום|שיחה/, // meeting/call
-  /נציג|לדבר עם|בנאדם|אדם אמיתי|שיחזרו? אלי|תתקשרו|תחזרו אלי/, // talk to a human / call me
-  /\bmeeting|schedule a (call|meeting)|book a\b/i,
-  /talk to (a|someone)|speak (to|with)|call me|representative|\bagent\b|\bhuman\b/i,
-]
-
-// Buying intent — interest in price/demo/starting. A SOFT signal: it expresses
-// momentum toward a purchase but, on its own, does not mean the conversation
-// should end. Whether to ask one more question is decided by the conversation
-// policy against the Runtime's cognition, not by these patterns alone.
-const BUYING_INTENT_PATTERNS: RegExp[] = [
-  /מחיר|תמחור|הצעת מחיר|עלות|בכמה|כמה.{0,12}עול/, // price ("כמה זה עולה", "כמה עולה", "מחיר", …)
-  /דמו|הדגמה/, // demo
-  /איך מתחיל|להתחיל|להזמין|לקנות|להצטרף/, // how to start / buy
-  /\bprice|pricing|cost|quote\b/i,
-  /\bdemo\b/i,
-  /how (do|can) i (start|begin|buy)|get started|sign ?up/i,
-]
-
-// Union of both — the historical "hot signal" set. Unchanged in aggregate so the
-// legacy (flag-off) qualifier behaves exactly as before.
-const HOT_PATTERNS: RegExp[] = [...HUMAN_REQUEST_PATTERNS, ...BUYING_INTENT_PATTERNS]
-
-export function detectHotSignal(text: string): boolean {
-  return HOT_PATTERNS.some((re) => re.test(text))
-}
-
-/** Explicit request to reach a person (call / meeting / human rep) → hard handoff. */
-export function detectHumanRequest(text: string): boolean {
-  return HUMAN_REQUEST_PATTERNS.some((re) => re.test(text))
-}
+export { detectHotSignal, detectHumanRequest }
 
 export function detectLang(text: string): 'he' | 'en' {
   return /[֐-׿]/.test(text) ? 'he' : 'en'
@@ -171,7 +137,16 @@ export function deterministicQualifyFallback(args: {
   transcript?: Array<{ direction: 'inbound' | 'outbound'; text: string }>
   cognition?: ConversationCognition
   objective?: ConversationObjective | null
+  salesMove?: SalesMove | null
 }): string {
+  if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
+    return args.lang === 'en' ? 'Glad that helped.' : 'בשמחה.'
+  }
+  if (args.salesMove === 'PRODUCT_QUESTION' || args.salesMove === 'PRODUCT_FIT') {
+    return args.lang === 'en'
+      ? 'If you mean an automatic reply when someone writes on WhatsApp and you are not at the screen — yes, SocialCRM can do that. Proactive messages after a lead goes quiet are a different mechanism.'
+      : 'אם הכוונה היא שהמערכת תענה כשכותבים אליך בוואטסאפ ואתה לא ליד המסך — כן, יש מענה אוטומטי להודעות נכנסות. אם מדובר בהודעות יזומות אחרי שהלקוח נעלם, זה כבר לא אותו מנגנון.'
+  }
   const objective = resolveFallbackObjective(args)
   const q = FALLBACK_BY_OBJECTIVE[objective]
   return args.lang === 'en' ? q.en : q.he
@@ -209,7 +184,7 @@ export function inboundMemoryText(args: {
 }
 
 const QualifySchema = z.object({
-  reply: z.string().describe('הודעת וואטסאפ קצרה: תגובה למה שנאמר עכשיו ושאלת הבהרה אחת, 1-2 משפטים'),
+  reply: z.string().describe('הודעת וואטסאפ קצרה: תגובה למה שנאמר עכשיו. בשאלת מוצר — תשובה קודם; שאלה אופציונלית אחת'),
   extracted: z
     .object({
       name: z.string().nullable(),
@@ -231,6 +206,18 @@ const QualifySchema = z.object({
       desiredOutcome: z.string().nullable(),
     })
     .describe('עובדות שיחה שהלקוח מסר בפועל; null אם לא נמסר. לא להמציא'),
+  salesMove: z
+    .enum([
+      'DISCOVERY',
+      'DEEPEN',
+      'PRODUCT_QUESTION',
+      'PRODUCT_FIT',
+      'OBJECTION',
+      'BUYING_SIGNAL',
+      'HANDOFF_REQUEST',
+      'CASUAL_ACKNOWLEDGEMENT',
+    ])
+    .describe('סיווג התור הנוכחי; האסטרטגיה נקבעת דטרמיניסטית מחוץ למודל'),
   hotSignal: z.boolean().describe('כוונת קנייה חזקה (מחיר/דמו/פגישה/להתחיל/בקשה לדבר עם נציג)'),
   uncertain: z.boolean().describe('לא ניתן לענות באמת בלי להמציא, או שצריך אדם'),
 })
@@ -242,8 +229,14 @@ export type QualifyGenResult =
       extracted: Qualification
       objective: ConversationObjective | null
       understanding: UnderstandingDelta
+      salesMove: SalesMove | null
       hotSignal: boolean
       uncertain: boolean
+      inputTokens?: number
+      outputTokens?: number
+      costUsd?: number
+      latencyMs?: number
+      model?: string
     }
   | { ok: false; skipReason: 'ai_unavailable' | 'budget_exhausted' }
 
@@ -256,7 +249,10 @@ export async function generateQualifyTurn(args: {
   focusField?: string | null
   runtimeCognition?: string | null
   regenerationReason?: RegenerationReason
+  salesMove?: SalesMove | null
+  productKnowledgeBlock?: string | null
   trace?: WaTraceCtx
+  bypassAllowlist?: boolean
 }): Promise<QualifyGenResult> {
   const out = await runStructured({
     kind: 'inbox.autoResponse',
@@ -265,6 +261,7 @@ export async function generateQualifyTurn(args: {
     system: QUALIFY_SYSTEM_PROMPT,
     user: buildQualifyUser(args),
     agencyId: args.agencyId,
+    bypassAllowlist: args.bypassAllowlist,
   })
   if (out.ok === false) {
     waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, { ok: false, reason: out.reason })
@@ -290,8 +287,14 @@ export async function generateQualifyTurn(args: {
     extracted,
     objective,
     understanding,
+    salesMove: isSalesMove(d.salesMove) ? d.salesMove : null,
     hotSignal: Boolean(d.hotSignal) || detectHotSignal(lastInbound),
     uncertain: Boolean(d.uncertain),
+    inputTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    costUsd: out.costUsd,
+    latencyMs: out.latencyMs,
+    model: out.model,
   }
   waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, {
     ok: true,
@@ -302,6 +305,7 @@ export async function generateQualifyTurn(args: {
     extracted,
     objective,
     understanding,
+    salesMove: result.salesMove,
     hotSignal: result.hotSignal,
     uncertain: result.uncertain,
   })

@@ -87,7 +87,7 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(user).not.toContain('name חסר')
     expect(user).not.toMatch(/\bname, need\b/)
     expect(user).not.toMatch(/\bname, urgency\b/)
-    expect(user).toContain('קודם כל הגיבי לזה והעמיקי בזה')
+    expect(user).toContain('קודם כל הגיבי לזה')
     expect(user).toContain('אל תשאל/י לשם')
     const exploreNeed = 'ברור. מה הכי מפריע לך היום בניהול הלקוחות?'
     expect(validateAutoResponse(exploreNeed).ok).toBe(true)
@@ -155,7 +155,7 @@ describe('qualify conversation quality (prompt + decision)', () => {
 
   it('a natural follow-up can continue while multiple fields are still missing', () => {
     expect(QUALIFY_SYSTEM_PROMPT).toContain('לקוח יכול לנהל כמה תורות טבעיים בלי לאסוף שדה מובנה חדש.')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אם אפשר להעמיק במה שהלקוח אמר בלי לאסוף מידע חדש')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('מה הלקוח מנסה להשיג עכשיו')
     expect(
       decidePostGeneration({
         hotSignal: false,
@@ -569,7 +569,7 @@ describe('Phase B conversation brain (objective + cognition)', () => {
     expect(src).not.toContain('buyingSignal')
   })
 
-  it('maxTurns handoff threshold is unchanged', () => {
+  it('maxTurns handoff threshold is no longer a blind escalate', () => {
     expect(
       decidePostGeneration({
         hotSignal: false,
@@ -577,8 +577,9 @@ describe('Phase B conversation brain (objective + cognition)', () => {
         requiredComplete: false,
         turnCount: 4,
         maxTurns: 5,
+        salesMove: 'DEEPEN',
       }),
-    ).toEqual({ action: 'escalate', reason: 'max_turns' })
+    ).toEqual({ action: 'send' })
     expect(
       decidePostGeneration({
         hotSignal: false,
@@ -632,7 +633,7 @@ describe('existing safety / handoff gates stay intact', () => {
     ).toEqual({ action: 'escalate', reason: 'hot_signal' })
   })
 
-  it('daily cap, quiet hours, and max turns still skip or hand off', () => {
+  it('daily cap and quiet hours still skip; soft maxTurns does not hand off', () => {
     expect(decidePreGeneration({ ...pre, sentTodayForAgency: 200, dailyCap: 200 })).toEqual({
       action: 'skip',
       reason: 'daily_cap',
@@ -648,7 +649,12 @@ describe('existing safety / handoff gates stay intact', () => {
         requiredComplete: false,
         turnCount: 4,
         maxTurns: 5,
+        salesMove: 'DEEPEN',
       }),
-    ).toEqual({ action: 'escalate', reason: 'max_turns' })
+    ).toEqual({ action: 'send' })
+    expect(decidePreGeneration({ ...pre, turnCount: 7, maxTurns: 5 })).toEqual({
+      action: 'skip',
+      reason: 'max_turns',
+    })
   })
 })

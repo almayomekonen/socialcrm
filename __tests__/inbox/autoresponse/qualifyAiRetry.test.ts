@@ -128,6 +128,7 @@ const OK_GEN = {
   understanding: { pain: null, impact: null, currentWorkflow: null, desiredOutcome: null },
   hotSignal: false,
   uncertain: false,
+  salesMove: null,
 }
 
 beforeEach(() => {
@@ -228,10 +229,10 @@ describe('qualify AI generation retry', () => {
     expect(recordTurn).not.toHaveBeenCalled()
   })
 
-  it('maxTurns remains a terminal skip and is not retried', async () => {
+  it('hard ceiling remains a terminal skip and is not retried', async () => {
     getOrCreateAiState.mockResolvedValue({
       aiState: 'ai_qualifying',
-      aiTurnCount: 5,
+      aiTurnCount: 7,
       qualification: {},
     })
     const send = vi.fn()

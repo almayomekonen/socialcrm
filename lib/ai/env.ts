@@ -1,3 +1,5 @@
+export type IreReasoningEffort = 'low' | 'medium' | 'high'
+
 export type AiEnv = {
   enabled: boolean
   agencyAllowlist: number[] | 'all'
@@ -5,7 +7,7 @@ export type AiEnv = {
   healthSecret: string | null
   anthropic: { apiKey: string; primaryModel: string; heavyModel: string } | null
   google: { apiKey: string; model: string } | null
-  openai: { apiKey: string; model: string } | null
+  openai: { apiKey: string; model: string; ireModel: string; ireReasoningEffort: IreReasoningEffort } | null
   copilotEnabled: boolean
   copilotAgencyAllowlist: number[] | 'all'
   copilotPersistenceEnabled: boolean
@@ -17,6 +19,15 @@ export type AiEnv = {
 }
 
 let cached: AiEnv | null = null
+
+export const DEFAULT_IRE_OPENAI_MODEL = 'gpt-5.6'
+export const DEFAULT_IRE_REASONING_EFFORT: IreReasoningEffort = 'high'
+
+function parseIreReasoningEffort(raw: string | undefined): IreReasoningEffort {
+  const v = (raw ?? '').trim().toLowerCase()
+  if (v === 'low' || v === 'medium' || v === 'high') return v
+  return DEFAULT_IRE_REASONING_EFFORT
+}
 
 function parseAgencyAllowlist(raw: string | undefined): number[] | 'all' {
   if (!raw) return []
@@ -71,6 +82,8 @@ function loadEnv(): AiEnv {
       ? {
           apiKey: openaiKey,
           model: process.env.OPENAI_MODEL?.trim() || 'gpt-4.1-mini',
+          ireModel: process.env.IRE_OPENAI_MODEL?.trim() || DEFAULT_IRE_OPENAI_MODEL,
+          ireReasoningEffort: parseIreReasoningEffort(process.env.IRE_OPENAI_REASONING_EFFORT),
         }
       : null,
   }

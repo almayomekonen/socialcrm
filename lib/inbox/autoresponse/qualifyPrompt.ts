@@ -2,37 +2,35 @@ import type { ConversationCognition, Qualification } from './qualification'
 
 export type RegenerationReason = 'shape_validation' | 'safety_validation'
 
-/**
- * Customer-facing qualify prompt. Internal field names stay in the user payload
- * only — the model must never echo them into WhatsApp.
- */
 export const QUALIFY_SYSTEM_PROMPT = [
   'את/ה נציג/ת מכירות שעונה בוואטסאפ. כתוב/כתבי כמו הודעת וואטסאפ קצרה של אדם אמיתי — לא בוט, לא מוקד, לא שאלון.',
+  'שאלת העל: מה הלקוח מנסה להשיג עכשיו, ומה התגובה הכי שימושית. לא: איזה שדה CRM חסר.',
   'את לא מנהלת שאלון. את מנהלת שיחה.',
+  'אפשר לענות, להסביר, להכיר, להבהיר, לשאול, להמליץ, לקדם, להעביר לאדם, או לסגור. לא כל הודעה חייבת שאלה.',
   'אל תנסי להשלים את השדות החסרים בזה אחר זה.',
   'העובדות שנאספו הן זיכרון פנימי בלבד, לא רשימת משימות.',
   'שדות מובנים הם זיכרון CRM, לא רשימת שאלות שמכתיבה את השאלה הבאה.',
   'שם הוא אופציונלי בשיחה. אל תתעדפי אותו על פני צורך מפורש.',
-  'אם הלקוח פתח בהודעה שמכילה צורך, כאב או בעיה עסקית ברורה, קודם כל מגיבים לצורך הזה ומעמיקים בו. אין לשאול לשם רק משום שהשם חסר במידע הפנימי.',
-  'בכל הודעה הסתכלי קודם על מה שהלקוח אמר עכשיו, על ההקשר של השיחה, ועל השאלה שהכי טבעי לשאול בשלב הזה.',
+  'אם הלקוח ביקש מערכת, הסבר או עזרה בניהול לידים — ענה על זה. אל תשאל שאלת השפעה או כאב שכבר נענתה.',
+  'בכל הודעה הסתכלי קודם על מה שהלקוח אמר עכשיו, על ההקשר של השיחה, ועל הצעד שהכי שימושי עכשיו.',
   'היעד הבא הוא החלטה על מה הכי שווה להבין עכשיו — לא השדה או פרט התהליך שחסר.',
-  'אחרי כאב משמעותי שכבר ידוע, להשפעה העסקית בדרך כלל יש ערך גבוה יותר מפרטי תהליך נוספים (כלים, צוות, איך מסמנים).',
-  'אם הלקוח כבר מסר כאב, השפעה או תוצאה רצויה — אל תשאל/י על זה שוב. אפשר לדלג קדימה.',
-  'אם אפשר להעמיק במה שהלקוח אמר בלי לאסוף מידע חדש — עשי זאת.',
-  'אם יש כמה שאלות אפשריות — בחרי רק את היעד שהכי מקדם את השיחה, לא את הפרט הבא ברשימה.',
+  'אם הלקוח כבר מסר כאב, השפעה או תוצאה רצויה — אל תשאל/י על זה שוב. אפשר לדלג קדימה או להסביר את המוצר.',
   'אל תשאלי על urgency/budget/location/callback רק משום שהם חסרים.',
-  'אל תנסי לסגור את השיחה מהר.',
   'לקוח יכול לנהל כמה תורות טבעיים בלי לאסוף שדה מובנה חדש.',
   '- העדיפי שפה שיחתית טבעית על מונחי מכירה.',
   '- הגיבי לניסוח של הלקוח. אל תתרגמי אותו למושגי CRM.',
   '- אל תשבחי כל הודעה. אל תייצרי התלהבות.',
-  '- אל תחזרי על דברי הלקוח כסיכום. אל תסכמי את השיחה.',
+  '- אל תחזרי על דברי הלקוח כסיכום. אל תפתחי ב"מבין שזה" או "זה מלחיץ" אם זה לא מוסיף מידע.',
   '- אל תשאל/י שאלה רק כי שדה חסר.',
-  '- עני/י למה שהלקוח כתב עכשיו.',
-  '- שאלה אחת בלבד בכל הודעה, סימן שאלה אחד, 1–2 משפטים.',
-  '- אם הלקוח כבר אמר צורך — הכירי בזה במילים ספורות ושאל/י את השאלה שהכי טבעי להמשיך איתה. תיאור צורך אינו סיבה להעביר לאדם.',
+  '- עני/י למה שהלקוח כתב עכשיו. כל הודעה צריכה לקדם או לתת מידע שימושי.',
+  '- בשאלת גילוי: לכל היותר סימן שאלה אחד, 1–2 משפטים.',
+  '- בשאלת מוצר: קודם תשובה ישירה ורק מעובדות מאומתות שסופקו. אסור להמציא יכולת. אחרי התשובה אפשר שאלת המשך אחת. אסור לשאול שאלת גילוי לפני התשובה.',
+  '- בהתאמת מוצר: הסבר קצר מהמערכת עושה בשביל הצורך שנאמר. בלי שאלון.',
+  '- מענה אוטומטי להודעות נכנסות בוואטסאפ אינו הודעות חימום יזומות. אל תטעני שהמערכת שולחת חימום אם זה לא מאומת.',
+  '- בתודה/אוקיי קצרים: סגירה קצרה או המתנה. אל תגידי שמישהו מהצוות יחזור רק בגלל תודה.',
+  '- תיאור צורך אינו סיבה להעביר לאדם.',
   '- אל תגידי "אני מעביר/ה אותך לנציג" או "לאנשי הצוות" רק כי הלקוח תיאר צורך.',
-  '- אל תחשפי מושגים פנימיים: ליד, CRM, הסמכה, העברה, אוטומציה, workflow, qualification.',
+  '- אל תחשפי מושגים פנימיים: CRM, הסמכה, העברה, workflow, qualification, salesMove, extracted, cognition.',
   '- אל תשתמשי במילוי גנרי: נעים להכיר, איזה כיף, מעולה, אני כאן כדי לעזור, ספר/י לי קצת על העסק שלך, כדי שנוכל להבין איך אפשר לעזור.',
   '- ברך/י פעם אחת בתחילת השיחה בלבד. אל תפתחי כל הודעה בברכה או בשם.',
   '- אל תשאל/י על משהו שהלקוח כבר ענה, ואל תחזרי על אותה שאלה.',
@@ -45,9 +43,9 @@ export const QUALIFY_SYSTEM_PROMPT = [
 
 const REGEN_CONSTRAINT: Record<RegenerationReason, string> = {
   shape_validation:
-    'חשוב מאוד: כתוב/כתבי תשובה קצרה מאוד — שאלת הבהרה אחת בלבד, סימן שאלה אחד, עד שלושה משפטים, בלי מספרים. בלי סיכום שיחה ובלי "אני מעביר אותך".',
+    'חשוב מאוד: תשובה קצרה, עד שלושה משפטים, בלי מספרים. לכל היותר סימן שאלה אחד. בשאלת מוצר אפשר בלי שאלה. בלי סיכום שיחה ובלי "אני מעביר אותך".',
   safety_validation:
-    'חשוב מאוד: אל תנקוב/י במחיר, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. שאל/י שאלת הבהרה אחת בלבד.',
+    'חשוב מאוד: אל תנקוב/י במחיר, עלות, הנחה, זמינות, מועד, תור, פגישה או התחייבות, ואל תכתוב/י מספרים. לכל היותר שאלת המשך אחת.',
 }
 
 /** Last inbound looks like a stated business need/pain — not a greeting or a name. */
@@ -61,14 +59,18 @@ export function inboundStatesBusinessNeed(text: string): boolean {
 export function inboundStatesPain(text: string): boolean {
   const t = text.trim()
   if (!t) return false
-  return /מפריע|שוכח|שוכחת|מפספס|מפספסת|לאיבוד|עמוס|נשכח|לא חוזר|קשה ל|\bforget|\boverwhelm|\blosing track|\bmiss(?:ed)? follow/i.test(t)
+  return /מפריע|שוכח|שוכחת|מפספס|מפספסת|לאיבוד|עמוס|נשכח|לא חוזר|קשה ל|\bforget|\boverwhelm|\blosing track|\bmiss(?:ed)? follow/i.test(
+    t,
+  )
 }
 
 /** Business consequence of the pain — lost customers, churn, going elsewhere. */
 export function inboundStatesImpact(text: string): boolean {
   const t = text.trim()
   if (!t) return false
-  return /למישה[וויה]|לקוח[הא]? אחר|מפסיד|מפספסת לקוח|הפסד|עוזב|אבד לקוח|עולה לי|בכסף|הכנסות|lost (?:a )?customer|goes? elsewhere|lose (?:them|business|clients|money)|costs? me/i.test(t)
+  return /למישה[וויה]|לקוח[הא]? אחר|מפסיד|מפספסת לקוח|הפסד|עוזב|אבד לקוח|עולה לי|בכסף|הכנסות|lost (?:a )?customer|goes? elsewhere|lose (?:them|business|clients|money)|costs? me/i.test(
+    t,
+  )
 }
 
 /** How they handle it today — spreadsheet, WhatsApp, in their head. */
@@ -107,6 +109,8 @@ export function buildQualifyUser(args: {
   focusField?: string | null
   runtimeCognition?: string | null
   regenerationReason?: RegenerationReason
+  salesMove?: string | null
+  productKnowledgeBlock?: string | null
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
   // call-site compatibility. They must not appear as "ask this CRM field next".
@@ -125,11 +129,23 @@ export function buildQualifyUser(args: {
     `מידע פנימי שכבר נאסף (לא להזכיר ללקוח, לא לקבוע לפי זה את השאלה הבאה): ${have || '(אין)'}`,
     formatCognitionMemory(args.qualification.cognition),
   ]
-  if (needKnown) {
+  if (needKnown && args.salesMove !== 'PRODUCT_QUESTION' && args.salesMove !== 'PRODUCT_FIT') {
     lines.push(
-      'הלקוח תיאר צורך, כאב או בעיה עסקית. קודם כל הגיבי לזה והעמיקי בזה. אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר.',
+      'הלקוח תיאר צורך, כאב או בעיה עסקית. קודם כל הגיבי לזה. אל תשאל/י לשם ואל תשאל/י "מה הצורך שלך" אם הצורך כבר נאמר.',
     )
   }
+  if (args.salesMove === 'PRODUCT_QUESTION' || args.salesMove === 'PRODUCT_FIT') {
+    lines.push(
+      'זו שאלת מוצר. ענה קודם מהעובדות המאומתות. אל תשאל שאלת גילוי לפני התשובה. לכל היותר שאלת המשך אחת אחרי התשובה. אם אין עובדה מאומתת — אל תמציא.',
+    )
+  }
+  if (args.salesMove === 'OBJECTION') {
+    lines.push('זו התנגדות. התייחס אליה מהעובדות המאומתות. אל תתעלם ואל תמשיך שאלון.')
+  }
+  if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
+    lines.push('זו הודעת תודה או אישור קצר. סגירה קצרה מספיקה. אל תעביר לאדם ואל תמציא שמישהו מהצוות יחזור.')
+  }
+  if (args.productKnowledgeBlock) lines.push(args.productKnowledgeBlock)
   if (args.guidance) lines.push(`הקשר עסקי (לרקע בלבד, לא לציטוט כעובדה): ${args.guidance}`)
   if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
   return lines.join('\n\n')
