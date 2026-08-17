@@ -159,7 +159,18 @@ describe('maxTurns and casual ack policy', () => {
   it('explicit human request still hands off', () => {
     expect(
       decidePostGeneration({ ...postBase, salesMove: 'HANDOFF_REQUEST', hotSignal: true }),
-    ).toEqual({ action: 'escalate', reason: 'hot_signal' })
+    ).toEqual({ action: 'escalate', reason: 'human_request' })
+    expect(
+      decidePostGeneration({ ...postBase, salesMove: 'HANDOFF_REQUEST', hotSignal: false }),
+    ).toEqual({ action: 'escalate', reason: 'human_request' })
+  })
+  it('BUYING_SIGNAL continues — it is not a human handoff', () => {
+    expect(decidePostGeneration({ ...postBase, salesMove: 'BUYING_SIGNAL', hotSignal: true })).toEqual({
+      action: 'send',
+    })
+    expect(decidePostGeneration({ ...postBase, salesMove: 'BUYING_SIGNAL', hotSignal: false })).toEqual({
+      action: 'send',
+    })
   })
   it('hard ceiling still stops generation', () => {
     expect(ireHardCeiling(5)).toBe(7)
@@ -239,6 +250,53 @@ describe('prompt + Phase B + safety unchanged', () => {
     )
     expect(readFileSync(resolve(root, 'actions/whatsapp/promoteConversationToLead.ts'), 'utf8')).toContain('afterLink')
     expect(readFileSync(resolve(root, 'lib/inbox/autoresponse/kickWorker.ts'), 'utf8')).toContain('IRE_KICK_MAX_WAIT_MS')
+  })
+})
+
+describe('buying vs human-request policy matrix', () => {
+  const post = (salesMove: Parameters<typeof decidePostGeneration>[0]['salesMove'], hotSignal = true) =>
+    decidePostGeneration({
+      hotSignal,
+      uncertain: false,
+      requiredComplete: false,
+      turnCount: 1,
+      maxTurns: 5,
+      salesMove,
+    })
+
+  it('אוקיי איך אנחנו מתקדמים? continues even if the LLM marks buying/hot', () => {
+    const text = 'אוקיי איך אנחנו מתקדמים?'
+    expect(classifySalesMove(text)).toBe('DISCOVERY')
+    expect(post(classifySalesMove(text), true)).toEqual({ action: 'send' })
+  })
+  it('אני רוצה להתחיל continues as BUYING_SIGNAL', () => {
+    expect(classifySalesMove('אני רוצה להתחיל')).toBe('BUYING_SIGNAL')
+    expect(post('BUYING_SIGNAL', true)).toEqual({ action: 'send' })
+  })
+  it('כן, אני רוצה להתקדם continues', () => {
+    const text = 'כן, אני רוצה להתקדם'
+    expect(classifySalesMove(text)).not.toBe('HANDOFF_REQUEST')
+    expect(post(classifySalesMove(text), true)).toEqual({ action: 'send' })
+  })
+  it('כמה זה עולה? is BUYING_SIGNAL and must not auto-handoff', () => {
+    expect(classifySalesMove('כמה זה עולה?')).toBe('BUYING_SIGNAL')
+    expect(post('BUYING_SIGNAL', true)).toEqual({ action: 'send' })
+  })
+  it('תעביר אותי לנציג hands off', () => {
+    expect(classifySalesMove('תעביר אותי לנציג')).toBe('HANDOFF_REQUEST')
+    expect(post('HANDOFF_REQUEST', false)).toEqual({ action: 'escalate', reason: 'human_request' })
+  })
+  it('אני רוצה לדבר עם מישהו hands off', () => {
+    expect(classifySalesMove('אני רוצה לדבר עם מישהו')).toBe('HANDOFF_REQUEST')
+    expect(post('HANDOFF_REQUEST', true)).toEqual({ action: 'escalate', reason: 'human_request' })
+  })
+  it('יש לי כבר CRM keeps current classifier behavior (not a P0 regex change)', () => {
+    expect(classifySalesMove('יש לי כבר CRM')).toBe('DISCOVERY')
+    expect(post('DISCOVERY', true)).toEqual({ action: 'send' })
+  })
+  it('אני מפסיד כסף ולקוחות continues and does not become a handoff', () => {
+    expect(classifySalesMove('אני מפסיד כסף ולקוחות')).toBe('DEEPEN')
+    expect(post('DEEPEN', true)).toEqual({ action: 'send' })
   })
 })
 

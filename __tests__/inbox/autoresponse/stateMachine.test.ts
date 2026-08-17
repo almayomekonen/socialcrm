@@ -92,8 +92,20 @@ describe('decidePostGeneration', () => {
   it('sends a normal qualifying reply', () => {
     expect(decidePostGeneration(post())).toEqual({ action: 'send' })
   })
-  it('hot signal escalates immediately (before fields complete)', () => {
-    expect(decidePostGeneration(post({ hotSignal: true }))).toEqual({ action: 'escalate', reason: 'hot_signal' })
+  it('LLM hotSignal does not escalate — classifier owns commercial handoff', () => {
+    expect(decidePostGeneration(post({ hotSignal: true }))).toEqual({ action: 'send' })
+    expect(decidePostGeneration(post({ hotSignal: true, salesMove: 'DISCOVERY' }))).toEqual({ action: 'send' })
+    expect(decidePostGeneration(post({ hotSignal: true, salesMove: 'BUYING_SIGNAL' }))).toEqual({ action: 'send' })
+  })
+  it('explicit HANDOFF_REQUEST is the commercial escalate authority', () => {
+    expect(decidePostGeneration(post({ salesMove: 'HANDOFF_REQUEST' }))).toEqual({
+      action: 'escalate',
+      reason: 'human_request',
+    })
+    expect(decidePostGeneration(post({ hotSignal: false, salesMove: 'HANDOFF_REQUEST' }))).toEqual({
+      action: 'escalate',
+      reason: 'human_request',
+    })
   })
   it('model uncertainty does not hand off — keep the conversation going', () => {
     expect(decidePostGeneration(post({ uncertain: true }))).toEqual({ action: 'send' })
@@ -107,10 +119,9 @@ describe('decidePostGeneration', () => {
   it('can still send on the 4th turn (turnCount 3 of 5)', () => {
     expect(decidePostGeneration(post({ turnCount: 3, maxTurns: 5 }))).toEqual({ action: 'send' })
   })
-  it('hot signal takes precedence over qualified and max-turns', () => {
+  it('LLM hotSignal does not take precedence over send when the classifier is not HANDOFF_REQUEST', () => {
     expect(decidePostGeneration(post({ hotSignal: true, requiredComplete: true, turnCount: 4 }))).toEqual({
-      action: 'escalate',
-      reason: 'hot_signal',
+      action: 'send',
     })
   })
   it('soft maxTurns does not hand off a healthy turn', () => {

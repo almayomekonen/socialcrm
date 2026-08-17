@@ -620,7 +620,7 @@ describe('existing safety / handoff gates stay intact', () => {
     expect(decidePreGeneration({ ...pre, optOut: true })).toMatchObject({ action: 'stop', reason: 'opt_out' })
   })
 
-  it('explicit ask for a human is still a hot-signal handoff', () => {
+  it('explicit ask for a human is a HANDOFF_REQUEST escalate, not LLM hotSignal', () => {
     expect(detectHumanRequest('אני רוצה לדבר עם נציג')).toBe(true)
     expect(
       decidePostGeneration({
@@ -629,8 +629,19 @@ describe('existing safety / handoff gates stay intact', () => {
         requiredComplete: false,
         turnCount: 0,
         maxTurns: 5,
+        salesMove: 'HANDOFF_REQUEST',
       }),
-    ).toEqual({ action: 'escalate', reason: 'hot_signal' })
+    ).toEqual({ action: 'escalate', reason: 'human_request' })
+    expect(
+      decidePostGeneration({
+        hotSignal: true,
+        uncertain: false,
+        requiredComplete: false,
+        turnCount: 0,
+        maxTurns: 5,
+        salesMove: 'DISCOVERY',
+      }),
+    ).toEqual({ action: 'send' })
   })
 
   it('daily cap and quiet hours still skip; soft maxTurns does not hand off', () => {

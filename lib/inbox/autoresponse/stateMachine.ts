@@ -62,22 +62,24 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
 
 // ── Post-generation ─────────────────────────────────────────────────────────
 export interface PostFacts {
-  hotSignal: boolean // explicit human/price/demo intent → escalate
+  /** Observability only. LLM/regex hotness must not escalate. */
+  hotSignal: boolean
   uncertain: boolean // kept for callers; no longer auto-escalates
   requiredComplete: boolean // kept for callers; stating a need is not a handoff
   turnCount: number // AI turns already sent (before this one)
   maxTurns: number
-  /** Deterministic sales move. Soft maxTurns must not hand off on its own. */
+  /**
+   * Classifier sales move — the only commercial-handoff authority here is
+   * HANDOFF_REQUEST. BUYING_SIGNAL continues. Soft maxTurns is not a handoff.
+   */
   salesMove?: SalesMove | null
 }
 
 export type PostDecision = { action: 'escalate'; reason: string } | { action: 'send' }
 
 export function decidePostGeneration(f: PostFacts): PostDecision {
-  if (f.hotSignal) return { action: 'escalate', reason: 'hot_signal' }
-  if (f.salesMove === 'HANDOFF_REQUEST' || f.salesMove === 'BUYING_SIGNAL') {
-    return { action: 'escalate', reason: 'hot_signal' }
-  }
+  if (f.salesMove === 'HANDOFF_REQUEST') return { action: 'escalate', reason: 'human_request' }
   // Soft maxTurns is a budget, not a handoff. Hard ceiling is pre-generation.
+  // LLM hotSignal / LLM salesMove / BUYING_SIGNAL are not escalation authorities.
   return { action: 'send' }
 }

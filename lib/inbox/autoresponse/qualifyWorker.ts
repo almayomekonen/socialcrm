@@ -280,14 +280,14 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     let finalResolution: 'regenerated' | 'deterministic' | 'guardrail_handoff'
     let validationResult: string
     if (gen2.ok !== false && gen2Valid && gen2Valid.ok) {
-      // Second generation is valid → use it (adopt its reply, extraction, flags).
+      // Repair may rewrite the reply and refresh extracted facts. It must not
+      // mutate escalation policy: classifier salesMove stays the authority,
+      // and gen2 hotSignal/salesMove are ignored.
       gen.reply = gen2.reply
       gen.extracted = gen2.extracted
-      gen.hotSignal = gen2.hotSignal
       gen.uncertain = gen2.uncertain
       gen.objective = gen2.objective
       gen.understanding = gen2.understanding
-      gen.salesMove = gen2.salesMove
       validation = gen2Valid
       finalResolution = 'regenerated'
       validationResult = 'ok'
@@ -345,12 +345,12 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const persistExtracted = { ...gen.extracted, cognition: incomingCog }
   const merged = mergeQualification(aiState.qualification, persistExtracted)
   let post = decidePostGeneration({
-    hotSignal: gen.hotSignal || salesMove === 'HANDOFF_REQUEST' || salesMove === 'BUYING_SIGNAL',
+    hotSignal: gen.hotSignal, // observability only — policy ignores LLM hotness
     uncertain: gen.uncertain, // model-only; validation failures are resolved above
     requiredComplete: requiredComplete(merged, settings.collectFields.required),
     turnCount: aiState.aiTurnCount,
     maxTurns,
-    salesMove,
+    salesMove, // classifier only; LLM salesMove is never policy
   })
   // Safety-guardrail handoff wins over any send/continue decision.
   if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }

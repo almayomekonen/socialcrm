@@ -51,7 +51,7 @@ const HANDOFF = {
 
 export function handoffMessage(reason: string, lang: 'he' | 'en'): string {
   // Guardrail / leftover uncertain reasons use the shorter team copy.
-  // Genuine human reasons (hot_signal, max_turns, qualified) use the continue copy.
+  // Genuine human reasons (human_request, hot_signal leftover, max_turns, qualified) use the continue copy.
   const generic = reason === 'uncertain' || reason === 'guardrail'
   const t = generic ? HANDOFF.uncertain : HANDOFF.qualified
   return lang === 'en' ? t.en : t.he

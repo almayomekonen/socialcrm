@@ -52,6 +52,8 @@ describe('handoffMessage (fixed templates, never AI-generated)', () => {
   })
   it('qualified/en', () => expect(handoffMessage('qualified', 'en')).toContain('team'))
   it('hot_signal uses the qualified template', () => expect(handoffMessage('hot_signal', 'en')).toContain('continue with you'))
+  it('human_request uses the qualified template', () =>
+    expect(handoffMessage('human_request', 'he')).toBe('מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.'))
   it('max_turns uses the qualified template', () => expect(handoffMessage('max_turns', 'he')).toContain('יחזור אליך'))
   it('uncertain/en', () => expect(handoffMessage('uncertain', 'en')).toBe('Someone from the team will continue with you from here.'))
   it('uncertain/he does not say transferring to a rep', () => {

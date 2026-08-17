@@ -358,13 +358,220 @@ describe('qualify AI generation retry', () => {
     expect(generateQualify).not.toHaveBeenCalled()
   })
 
-  it('hot-signal handoff is unchanged and does not use generation retry', async () => {
+  it('LLM hotSignal without HANDOFF_REQUEST sends the generated reply and does not escalate', async () => {
     const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.hot' }))
-    const generateQualify = vi.fn(async () => ({ ...OK_GEN, hotSignal: true }))
+    const generateQualify = vi.fn(async () => ({ ...OK_GEN, hotSignal: true, salesMove: 'BUYING_SIGNAL' as const }))
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
     expect(outcome).toBe('sent')
-    expect(markEscalated).toHaveBeenCalled()
-    expect(failAutoResponseJob).not.toHaveBeenCalled()
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(recordTurn).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: OK_GEN.reply }))
+    expect(failAutoResponseJob).not.toHaveBeenCalled()
+  })
+
+  it('explicit human request still hands off without using generation retry', async () => {
+    tableRows.messageList = [
+      {
+        direction: 'inbound',
+        text: 'תעביר אותי לנציג',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+    ]
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.human' }))
+    const generateQualify = vi.fn(async () => ({ ...OK_GEN, hotSignal: false, salesMove: 'DISCOVERY' as const }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(markEscalated).toHaveBeenCalledWith(382, 'human_request')
+    expect(recordTurn).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+    )
+  })
+
+  it('regeneration gen1 hotSignal=false gen2 hotSignal=true must not escalate', async () => {
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.regen' }))
+    const generateQualify = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...OK_GEN,
+        reply: 'מה הכי מפריע לך בזה עכשיו? ומה היית רוצה שיהיה אחרת?',
+        hotSignal: false,
+        salesMove: 'DISCOVERY' as const,
+      })
+      .mockResolvedValueOnce({
+        ...OK_GEN,
+        reply: 'מה הכי מפריע לך בזה עכשיו?',
+        hotSignal: true,
+        salesMove: 'BUYING_SIGNAL' as const,
+      })
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(generateQualify).toHaveBeenCalledTimes(2)
+    expect(outcome).toBe('sent')
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'מה הכי מפריע לך בזה עכשיו?' }))
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+  })
+
+  it('regeneration gen1 hotSignal=true gen2 hotSignal=false still follows the classifier, not gen2', async () => {
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.regen2' }))
+    const generateQualify = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...OK_GEN,
+        reply: 'מה הכי מפריע לך בזה עכשיו? ומה היית רוצה שיהיה אחרת?',
+        hotSignal: true,
+        salesMove: 'HANDOFF_REQUEST' as const,
+      })
+      .mockResolvedValueOnce({
+        ...OK_GEN,
+        reply: 'מה הכי מפריע לך בזה עכשיו?',
+        hotSignal: false,
+        salesMove: 'DISCOVERY' as const,
+      })
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(generateQualify).toHaveBeenCalledTimes(2)
+    expect(outcome).toBe('sent')
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'מה הכי מפריע לך בזה עכשיו?' }))
+  })
+
+  it('fallback plus stale LLM hotSignal must not escalate without HANDOFF_REQUEST', async () => {
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.fb' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'מה הכי מפריע לך בזה עכשיו? ומה היית רוצה שיהיה אחרת?',
+      hotSignal: true,
+      salesMove: 'BUYING_SIGNAL' as const,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(generateQualify).toHaveBeenCalledTimes(2)
+    expect(outcome).toBe('sent')
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'מה הכי מפריע לך בזה עכשיו?' }))
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+  })
+
+  it('production conv 561: classifier DISCOVERY + LLM BUYING/hot + valid reply must send the reply', async () => {
+    const generated =
+      'כדי להתקדם, נתחיל במיפוי קצר של מקורות הלידים ונראה איך לרכז את המעקב. מאיפה רוב הלידים נכנסים היום—וואטסאפ, פייסבוק או האתר?'
+    tableRows.messageList = [
+      {
+        direction: 'inbound',
+        text: 'יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+      {
+        direction: 'outbound',
+        text: 'SocialCRM מרכזת את כל הלידים במקום אחד, עם סטטוס ומעקב לכל פנייה—כך קל לראות במה צריך לטפל ולא לאבד לידים בין כל הפניות.',
+        sentByUserId: 332,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response', reason: 'qualify_turn' },
+      },
+      {
+        direction: 'inbound',
+        text: 'אוקיי איך אנחנו מתקדמים?',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 1,
+      qualification: { need: 'עזרה בניהול כמות גדולה של לידים בעסק נדל״ן', cognition: { lastObjective: 'advance' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.561' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: generated,
+      extracted: { need: 'עזרה בניהול כמות גדולה של לידים בעסק נדל״ן' },
+      objective: 'advance' as const,
+      salesMove: 'BUYING_SIGNAL' as const,
+      hotSignal: true,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: generated }))
+    expect(send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+    )
+  })
+})
+
+describe('classifier is the sole commercial escalation authority', () => {
+  it('TEST A: classifier HANDOFF_REQUEST wins over LLM hotSignal=false salesMove=PRODUCT_FIT', async () => {
+    tableRows.messageList = [
+      {
+        direction: 'inbound',
+        text: 'תעביר אותי לנציג',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+    ]
+    const generated = 'מה הכי מפריע לך בזה עכשיו?'
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.auth-a' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: generated,
+      hotSignal: false,
+      salesMove: 'PRODUCT_FIT' as const,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(markEscalated).toHaveBeenCalledWith(382, 'human_request')
+    expect(recordTurn).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+    )
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: generated }))
+  })
+
+  it('TEST B: LLM hotSignal=true salesMove=HANDOFF_REQUEST cannot override classifier DISCOVERY', async () => {
+    tableRows.messageList = [
+      {
+        direction: 'inbound',
+        text: 'אוקיי איך אנחנו מתקדמים?',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+    ]
+    const generated = 'מה הכי מפריע לך בזה עכשיו?'
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.auth-b' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: generated,
+      hotSignal: true,
+      salesMove: 'HANDOFF_REQUEST' as const,
+      uncertain: false,
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: generated }))
+    expect(send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+    )
   })
 })
