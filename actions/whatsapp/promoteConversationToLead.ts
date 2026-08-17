@@ -1,11 +1,17 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { db } from '@/config/db'
 import { upsertLead } from '@/actions/clients'
 import { attachConversationToLead } from '@/db/inboxConversations'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
+import {
+  enqueueInboundAutoResponse,
+  findLatestUnansweredInbound,
+} from '@/lib/inbox/autoresponse/enqueueInboundAutoResponse'
+import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
 import { requireProductAccess } from '@/lib/requireUser'
 import { findClientsByPhoneCore } from '@/lib/whatsapp/matchLeadByPhone'
 import { loadOwnedConversation } from '@/lib/whatsapp/ownedConversation'
@@ -26,6 +32,7 @@ export type ListConversationLeadMatchesResult =
   | { ok: false; reason: 'not-found' | 'invalid-input' }
 
 async function afterLink(agencyId: number, conversationId: number, leadId: number) {
+  let jobId: number | null = null
   await db.transaction(async (trx) => {
     await attachConversationToLead(trx, { conversationId, agencyId, leadId })
     await enqueueConversationAnalysis(trx, {
@@ -35,7 +42,30 @@ async function afterLink(agencyId: number, conversationId: number, leadId: numbe
       triggerSequence: 0,
       reason: 'new_message',
     })
+    // IRE only for an unanswered inbound. Leadless ingest correctly skipped
+    // enqueue; promotion is the moment this becomes a sales conversation.
+    const unanswered = await findLatestUnansweredInbound(trx, conversationId)
+    if (unanswered) {
+      const enqueued = await enqueueInboundAutoResponse(trx, {
+        agencyId,
+        conversationId,
+        leadId,
+        triggerSequence: unanswered.sequence,
+      })
+      jobId = enqueued.jobId
+    }
   })
+  // Same post-commit kick as the WhatsApp webhook. Delayed jobs (delaySeconds>0)
+  // stay unclaimed until notBefore; cron remains the drain.
+  if (jobId != null) {
+    after(async () => {
+      try {
+        await runAutoResponseWorker({ limit: 5 })
+      } catch (kickErr) {
+        console.error('[auto-response] kick failed', { reason: (kickErr as Error)?.message })
+      }
+    })
+  }
   revalidatePath('/inbox')
   revalidatePath('/leads')
 }

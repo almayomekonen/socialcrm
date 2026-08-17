@@ -40,10 +40,12 @@ describe('auto-response delay source of truth', () => {
     expect(src).not.toMatch(/delaySeconds=\{0\}/)
   })
 
-  it('settings read selects delaySeconds explicitly, matching ingest', () => {
+  it('settings read selects delaySeconds explicitly, matching the shared IRE enqueue helper', () => {
     const settings = read('db/autoResponseSettings.ts')
+    const helper = read('lib/inbox/autoresponse/enqueueInboundAutoResponse.ts')
     const ingest = read('lib/inbox/ingestWhatsappInbound.ts')
     expect(settings).toMatch(/\.first\([\s\S]*'delaySeconds'/)
-    expect(ingest).toContain(".first('mode', 'delaySeconds')")
+    expect(helper).toContain(".first('mode', 'delaySeconds')")
+    expect(ingest).toContain('enqueueInboundAutoResponse')
   })
 })

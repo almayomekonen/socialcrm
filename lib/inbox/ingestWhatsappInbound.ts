@@ -4,7 +4,7 @@ import { findOrCreateConversation, bumpConversationOnInbound } from '@/db/inboxC
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertInboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
-import { enqueueAutoResponse } from '@/db/autoResponseJobs'
+import { enqueueInboundAutoResponse } from '@/lib/inbox/autoresponse/enqueueInboundAutoResponse'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { notifyEvent } from '@/lib/notifications/emit'
 
@@ -91,28 +91,18 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
           triggerSequence: sequence,
           reason: 'new_message',
         })
-        // Instant Response Engine: enqueue a guarded first-contact auto-response in
-        // the same txn. Internally a no-op unless the feature is enabled; the worker
-        // re-checks authoritatively. Qualify-mode agencies enqueue one job per turn.
-        const arSettings = await trx('auto_response_settings')
-          .where({ agencyId: input.agencyId, channel: 'whatsapp' })
-          .first('mode', 'delaySeconds')
-        const delayRaw = Number(arSettings?.delaySeconds ?? 0)
-        const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
-        const reason = arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact'
-        const jobId = await enqueueAutoResponse(trx, {
+        // Instant Response Engine: same enqueue path as Contact→Lead promotion.
+        // Internally a no-op unless the feature is enabled; the worker re-checks.
+        const enqueued = await enqueueInboundAutoResponse(trx, {
           agencyId: input.agencyId,
           conversationId,
           leadId: input.leadId,
-          channel: 'whatsapp',
           triggerSequence: sequence,
-          reason,
-          delaySeconds,
         })
         waTrace(
           'JOB_CREATED',
-          { conversationId, agencyId: input.agencyId, jobId, messageId, triggerSequence: sequence },
-          { jobId, reason, triggerSequence: sequence, enqueued: jobId != null },
+          { conversationId, agencyId: input.agencyId, jobId: enqueued.jobId, messageId, triggerSequence: sequence },
+          { jobId: enqueued.jobId, reason: enqueued.reason, triggerSequence: sequence, enqueued: enqueued.jobId != null },
         )
       }
 
