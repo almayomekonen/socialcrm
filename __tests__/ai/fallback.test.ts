@@ -20,6 +20,21 @@ describe('classifyFallback — ACK (strict: every content token is an ack token)
 describe('classifyFallback — KNOWN GAPS (specific signals, measurable)', () => {
   it('כמה סגרתי החודש → results', () => expect(classifyFallback('כמה סגרתי החודש')).toEqual({ mode: 'redirect', gap: 'results' }))
   it('כמה כסף עשיתי → revenue', () => expect(classifyFallback('כמה כסף עשיתי')).toEqual({ mode: 'redirect', gap: 'revenue' }))
+  it('כמה הכנסות היו לי → revenue', () =>
+    expect(classifyFallback('כמה הכנסות היו לי')).toEqual({ mode: 'redirect', gap: 'revenue' }))
+  it('מה ההכנסה שלי → revenue', () => expect(classifyFallback('מה ההכנסה שלי')).toEqual({ mode: 'redirect', gap: 'revenue' }))
+  it('כמה כסף הפסדתי → revenue', () => expect(classifyFallback('כמה כסף הפסדתי')).toEqual({ mode: 'redirect', gap: 'revenue' }))
+  it('מה אחוז הסגירה שלי → results', () =>
+    expect(classifyFallback('מה אחוז הסגירה שלי')).toEqual({ mode: 'redirect', gap: 'results' }))
+
+  it('growth questions are NOT a revenue gap', () => {
+    expect(detectKnownGap('מה אני יכול לעשות כדי להרוויח כסף?')).toBeNull()
+    expect(detectKnownGap('איך אני מגדיל מכירות?')).toBeNull()
+    expect(detectKnownGap('איך אני מקדם את העסק?')).toBeNull()
+    expect(detectKnownGap('במה להתמקד כדי לגדול?')).toBeNull()
+    expect(detectKnownGap('איך אני מגדיל הכנסות?')).toBeNull()
+    expect(classifyFallback('מה אני יכול לעשות כדי להרוויח כסף?')).toEqual({ mode: 'redirect', gap: null })
+  })
   it('מאיזה מקור מגיעים הלידים → source', () =>
     expect(classifyFallback('מאיזה מקור מגיעים הלידים הכי טובים')).toEqual({ mode: 'redirect', gap: 'source' }))
 

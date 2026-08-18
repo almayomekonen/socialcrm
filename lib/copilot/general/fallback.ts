@@ -50,6 +50,31 @@ const GAP_REVENUE = new Set(['כסף', 'הכנסה', 'הכנסות', 'רווח',
 const GAP_SOURCE_TOKENS = new Set(['מקורות'])
 const GAP_SOURCE_PHRASES = ['מאיזה מקור', 'מאיפה מגיעים', 'מקור הלידים', 'איזה מקור']
 
+/** Growth/action asks that mention money but are NOT metric requests. */
+const GROWTH_PHRASES = [
+  'להרוויח כסף',
+  'להרוויח',
+  'מגדיל מכירות',
+  'להגדיל מכירות',
+  'מקדם את העסק',
+  'לקדם את העסק',
+  'כדי לגדול',
+  'מגדיל הכנסות',
+  'להגדיל הכנסות',
+  'increase sales',
+  'grow the business',
+  'make money',
+]
+
+export function isGrowthQuestion(text: string): boolean {
+  const t = text.trim().toLowerCase()
+  return GROWTH_PHRASES.some((p) => t.includes(p))
+}
+
+function deArticle(token: string): string {
+  return token.startsWith('ה') && token.length > 3 ? token.slice(1) : token
+}
+
 function tokenize(text: string): string[] {
   return text
     .trim()
@@ -64,11 +89,13 @@ function tokenize(text: string): string[] {
  * (intercept before the LLM) AND by classifyFallback below. No duplicated keywords.
  */
 export function detectKnownGap(text: string): KnownGap | null {
+  if (isGrowthQuestion(text)) return null
   const tokens = tokenize(text)
   if (tokens.length === 0) return null
   const joined = ` ${tokens.join(' ')} `
-  if (tokens.some((t) => GAP_RESULTS.has(t))) return 'results'
-  if (tokens.some((t) => GAP_REVENUE.has(t))) return 'revenue'
+  if (joined.includes(' אחוז ') && tokens.some((t) => deArticle(t) === 'סגירה' || t === 'סגירות')) return 'results'
+  if (tokens.some((t) => GAP_RESULTS.has(t) || GAP_RESULTS.has(deArticle(t)))) return 'results'
+  if (tokens.some((t) => GAP_REVENUE.has(t) || GAP_REVENUE.has(deArticle(t)))) return 'revenue'
   if (tokens.some((t) => GAP_SOURCE_TOKENS.has(t)) || GAP_SOURCE_PHRASES.some((p) => joined.includes(` ${p} `)))
     return 'source'
   return null
