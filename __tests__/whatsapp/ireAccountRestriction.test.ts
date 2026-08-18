@@ -50,6 +50,7 @@ vi.mock('@/db/conversationAiState', () => ({
   markEscalated: vi.fn(),
   markHumanActive: vi.fn(),
   markStopped: vi.fn(),
+  markClosed: vi.fn(),
 }))
 vi.mock('@/db/conversationIntelligence', () => ({
   upsertManyConversationIntelligence: vi.fn(),

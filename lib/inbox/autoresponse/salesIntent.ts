@@ -153,12 +153,19 @@ const CASUAL_EXACT = new Set([
   'סבבה',
   'הבנתי',
   'מעולה',
+  'מצוין',
+  'יופי',
+  'בסדר',
+  'נהדר',
   'thanks',
   'thank you',
   'thanks a lot',
   'ok',
   'okay',
   'got it',
+  'great',
+  'perfect',
+  'cool',
 ])
 
 function normalizeUtterance(text: string): string {
@@ -170,11 +177,85 @@ function normalizeUtterance(text: string): string {
     .trim()
 }
 
+/** Vocative / colloquial filler around an acknowledgement. Not content. */
+const ACK_FILLER_TOKENS = new Set([
+  'אחי',
+  'אח',
+  'גבר',
+  'אלוף',
+  'מלך',
+  'יא',
+  'חבר',
+  'יקר',
+  'bro',
+  'man',
+  'dude',
+])
+
+/** Tokens that may appear in an acknowledgement-only utterance. */
+const ACK_CONTENT_TOKENS = new Set([
+  'תודה',
+  'רבה',
+  'לך',
+  'thanks',
+  'thank',
+  'you',
+  'lot',
+  'ok',
+  'okay',
+  'אוקיי',
+  'אוקי',
+  'סבבה',
+  'הבנתי',
+  'מעולה',
+  'מצוין',
+  'יופי',
+  'בסדר',
+  'נהדר',
+  'got',
+  'it',
+  'great',
+  'perfect',
+  'cool',
+  'a',
+])
+
+/**
+ * True only when the entire inbound is an acknowledgement (plus harmless filler).
+ * "תודה אחי" / "סבבה תודה אחי" close. "תודה, ויש גם חיבור?" does not.
+ */
 export function isCasualAcknowledgement(text: string): boolean {
   const n = normalizeUtterance(text)
   if (!n) return false
   if (CASUAL_EXACT.has(n)) return true
-  return /^(thanks|thank you|תודה)( רבה| לך| a lot)?$/.test(n)
+  const tokens = n
+    .split(' ')
+    .map((tok) => tok.replace(/^ו/, ''))
+    .filter(Boolean)
+  if (!tokens.length) return false
+  let sawAck = false
+  for (const tok of tokens) {
+    if (ACK_FILLER_TOKENS.has(tok)) continue
+    if (ACK_CONTENT_TOKENS.has(tok)) {
+      sawAck = true
+      continue
+    }
+    return false
+  }
+  return sawAck
+}
+
+/** Pending question the customer can answer: last sentence is interrogative, or an explain-offer. */
+export function outboundAsksQuestion(text?: string | null): boolean {
+  const t = (text ?? '').trim()
+  if (!t) return false
+  if (isExplanationOffer(t)) return true
+  const sentences = t
+    .split(/(?<=[.!?؟\n])(?:\s+|$)/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const last = sentences[sentences.length - 1] ?? t
+  return /[?؟]\s*$/.test(last)
 }
 
 export function isProductQuestion(text: string): boolean {
@@ -261,18 +342,14 @@ export function classifySalesMove(text: string, opts?: ClassifySalesOpts): Sales
   if (isNextStepAsk(t)) return 'BUYING_SIGNAL'
 
   const sticky = hasEstablishedProductIntent(opts)
-  const offeredExplain = Boolean(opts?.previousOutbound && isExplanationOffer(opts.previousOutbound))
+  const askedQuestion = outboundAsksQuestion(opts?.previousOutbound)
 
-  if (offeredExplain && (isShortAffirmative(t) || isCasualAcknowledgement(t))) {
+  // Affirm / ack after an actual question continues. Thanks/ok after an answer do not.
+  if (askedQuestion && (isShortAffirmative(t) || isCasualAcknowledgement(t))) {
     return 'PRODUCT_QUESTION'
   }
+  if (isCasualAcknowledgement(t)) return 'CASUAL_ACKNOWLEDGEMENT'
   if (sticky && isShortAffirmative(t)) return 'PRODUCT_QUESTION'
-  if (isCasualAcknowledgement(t)) {
-    if (!sticky) return 'CASUAL_ACKNOWLEDGEMENT'
-    return opts?.salesStrategy === 'explain' || opts?.salesStrategy === 'how_it_works'
-      ? 'PRODUCT_QUESTION'
-      : 'PRODUCT_FIT'
-  }
 
   const deepen = inboundStatesPain(t) || inboundStatesImpact(t) || inboundStatesOutcome(t)
   if (deepen) {

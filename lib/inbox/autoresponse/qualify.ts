@@ -154,7 +154,8 @@ export function deterministicQualifyFallback(args: {
     return args.lang === 'en' ? 'Got it. We can continue whenever you want.' : 'קיבלתי. אפשר להמשיך כשתרצה.'
   }
   if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
-    return args.lang === 'en' ? 'Glad that helped.' : 'בשמחה.'
+    // Dead path: conversationControl closes acknowledgements before generation.
+    return args.lang === 'en' ? 'Got it.' : 'קיבלתי.'
   }
   if (salesMoveUsesProductContract(args.salesMove) || isProductStrategy(args.salesStrategy)) {
     return args.lang === 'en'

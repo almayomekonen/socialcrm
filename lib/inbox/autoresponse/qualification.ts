@@ -3,7 +3,14 @@
  * The collected fields and the fill-empty merge rule live here so the worker and
  * the state machine share one definition and never overwrite human-entered data.
  */
-export type AiState = 'new' | 'ai_qualifying' | 'escalated' | 'dormant' | 'opted_out' | 'human_active'
+export type AiState =
+  | 'new'
+  | 'ai_qualifying'
+  | 'escalated'
+  | 'dormant'
+  | 'opted_out'
+  | 'human_active'
+  | 'closed'
 
 export const QUALIFICATION_FIELDS = ['name', 'need', 'urgency', 'budget', 'location', 'callback'] as const
 export type QualificationField = (typeof QUALIFICATION_FIELDS)[number]

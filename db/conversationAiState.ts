@@ -84,6 +84,11 @@ export async function markHumanActive(conversationId: number): Promise<void> {
   await patch(conversationId, { aiState: 'human_active', stoppedReason: 'human_active' })
 }
 
+/** Explicit end of the interaction. Does not resume like dormant. */
+export async function markClosed(conversationId: number, reason: string): Promise<void> {
+  await patch(conversationId, { aiState: 'closed', stoppedReason: reason })
+}
+
 export async function markStopped(conversationId: number, aiState: AiState, reason: string): Promise<void> {
   await patch(conversationId, { aiState, stoppedReason: reason })
 }

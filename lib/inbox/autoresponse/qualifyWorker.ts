@@ -9,7 +9,7 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
-import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped } from '@/db/conversationAiState'
+import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped, markClosed } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { mergeQualification, requiredComplete, isSalesStrategy } from './qualification'
@@ -32,10 +32,16 @@ import { validateAutoResponse, classifyViolation, questionPolicyForSalesMove } f
 import { withinQuietHours } from './worker'
 import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
-import { generatePostHandoffReply, respondAfterEscalation } from './postHandoff'
 import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
 import { classifySalesTurnFromTranscript, detectHumanRequest, salesMoveUsesProductContract } from './salesIntent'
+import {
+  allowsOutbound,
+  conversationCloser,
+  countConsecutiveAiOutbounds,
+  decideConversationControl,
+  isExplicitReopen,
+} from './conversationControl'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
 import { sendIreOutbound } from './ireSend'
@@ -124,23 +130,46 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const sentToday = await countSentToday(job.agencyId)
   const lastInboundAt = lastInbound ? new Date((lastInbound.channelTimestamp ?? lastInbound.createdAt) as string | Date) : null
   const maxTurns = settings.maxTurns
+  const lastInboundText = (lastInbound?.text as string) ?? ''
+  const previousOutbound = (lastOutbound?.text as string | undefined) ?? ''
+  const hasUnansweredInbound = lastMsg?.direction === 'inbound'
+  const consecutiveAiWithoutInbound = countConsecutiveAiOutbounds(recent)
+  const optOut = detectOptOut(lastInboundText)
+  const qTranscript = recent
+    .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
+    .filter((m) => m.text)
+  const persistedStrategy = isSalesStrategy(aiState.qualification.cognition?.salesStrategy)
+    ? aiState.qualification.cognition?.salesStrategy
+    : undefined
+  const classified = classifySalesTurnFromTranscript(qTranscript, { salesStrategy: persistedStrategy })
+  const salesMove = classified.salesMove
+  const salesStrategy = classified.salesStrategy
+  const reopenEligible = aiState.aiState === 'closed' && isExplicitReopen({ salesMove, inboundText: lastInboundText })
+  const outboundGate = () =>
+    allowsOutbound({
+      aiState: aiState.aiState,
+      hasUnansweredInbound,
+      consecutiveAiWithoutInbound,
+      humanTookOver,
+      optOut,
+      reopenEligible,
+    })
 
   const pre = decidePreGeneration({
     aiState: aiState.aiState,
     masterEnabled: master,
     channelEnabled: settings.enabled,
     humanTookOver,
-    optOut: detectOptOut(lastInbound?.text ?? ''),
-    humanRequest: detectHumanRequest(lastInbound?.text ?? '', {
-      previousOutbound: (lastOutbound?.text as string | undefined) ?? '',
-    }),
-    hasUnansweredInbound: lastMsg?.direction === 'inbound',
+    optOut,
+    humanRequest: detectHumanRequest(lastInboundText, { previousOutbound }),
+    hasUnansweredInbound,
     withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
     withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,
     sentTodayForAgency: sentToday,
     dailyCap: settings.dailyCap,
     turnCount: aiState.aiTurnCount,
     maxTurns,
+    reopenEligible,
   })
   waTrace(
     'PRE_GENERATION_DECISION',
@@ -152,54 +181,64 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     else await markStopped(conv.id, 'opted_out', pre.reason)
     return doSkip(pre.reason)
   }
-  // ── Post-handoff: status follow-up is always-on; GPT concierge stays agency-gated.
-  if (pre.action === 'skip' && pre.reason === 'already_escalated') {
-    const budgetRow = await db('inbox_messages')
-      .where({ conversationId: conv.id, direction: 'outbound' })
-      .whereRaw(`metadata->>'reason' = 'post_handoff'`)
-      .count<{ c: string }[]>({ c: '*' })
-      .first()
-    const budgetUsed = Number(budgetRow?.c ?? 0)
-    return respondAfterEscalation({
-      job,
-      ctx,
-      deps: { send: deps.send, generate: generatePostHandoffReply },
-      recent: recent
-        .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
-        .filter((m) => m.text),
-      lastInbound: lastInbound ? { text: (lastInbound.text as string) ?? '' } : undefined,
-      guidance: settings.guidance,
-      sentToday,
-      dailyCap: settings.dailyCap,
-      withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
-      withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,
-      hasUnansweredInbound: lastMsg?.direction === 'inbound',
-      budgetUsed,
-    })
-  }
   if (pre.action === 'skip') return doSkip(pre.reason)
   if (pre.action === 'handoff') {
+    const gate = outboundGate()
+    if (gate.allowed === false) return doSkip(gate.reason)
     return runImmediateHumanHandoff({
       job,
       ctx,
       send: deps.send,
       aiState,
-      lastInboundText: (lastInbound?.text as string) ?? '',
+      lastInboundText,
     })
+  }
+
+  const control = decideConversationControl({
+    salesMove,
+    inboundText: lastInboundText,
+    previousOutbound,
+  })
+  waTrace(
+    'CONVERSATION_CONTROL',
+    { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+    { action: control.action, reason: 'reason' in control ? control.reason : null, salesMove },
+  )
+  if (control.action === 'HANDOFF_TO_HUMAN') {
+    const gate = outboundGate()
+    if (gate.allowed === false) return doSkip(gate.reason)
+    return runImmediateHumanHandoff({
+      job,
+      ctx,
+      send: deps.send,
+      aiState,
+      lastInboundText,
+    })
+  }
+  if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
+    await markClosed(conv.id, control.reason)
+    return doSkip(`closed_${control.reason}`)
+  }
+  if (control.action === 'CLOSE_CONVERSATION' && control.send === 'closer') {
+    const gate = outboundGate()
+    if (gate.allowed === false) return doSkip(gate.reason)
+    const r = await sendAndPersist(job, ctx, deps.send, conversationCloser(detectLang(lastInboundText)))
+    if (r.ok === false) {
+      if (r.settled) return 'failed'
+      return doSkip(r.reason)
+    }
+    await markClosed(conv.id, control.reason)
+    await completeAutoResponseJob(job.id, r.messageId)
+    await track({
+      agencyId: job.agencyId,
+      event: 'auto_response_sent',
+      props: { conversationId: conv.id, reason: `closed_${control.reason}` },
+    })
+    return 'sent'
   }
 
   // ── Generate one structured turn ──
   // CRM fields stay extracted as memory only. They must not pick the WhatsApp question.
-  const qTranscript = recent
-    .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
-    .filter((m) => m.text)
-  const lastInboundText = (lastInbound?.text as string) ?? ''
-  const persistedStrategy = isSalesStrategy(aiState.qualification.cognition?.salesStrategy)
-    ? aiState.qualification.cognition?.salesStrategy
-    : undefined
-  const classified = classifySalesTurnFromTranscript(qTranscript, { salesStrategy: persistedStrategy })
-  const salesMove = classified.salesMove
-  const salesStrategy = classified.salesStrategy
   const discoveryBudgetExhausted = isDiscoveryQuestionBudgetExhausted({
     salesMove,
     turnCount: aiState.aiTurnCount,
@@ -429,6 +468,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       waTrace('WARM_HANDOFF', genTrace, { ...warm.telemetry })
       if (warm.text) handoffText = warm.text
     }
+    const gate = outboundGate()
+    if (gate.allowed === false) return doSkip(gate.reason)
     const r = await sendAndPersist(job, ctx, deps.send, handoffText)
     if (r.ok === false) {
       if (r.settled) return 'failed'
@@ -462,6 +503,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   }
 
   // ── Continue: send one qualifying reply + advance the turn ──
+  const continueGate = outboundGate()
+  if (continueGate.allowed === false) return doSkip(continueGate.reason)
   const r = await sendAndPersist(job, ctx, deps.send, gen.reply)
   if (r.ok === false) {
     if (r.settled) return 'failed'

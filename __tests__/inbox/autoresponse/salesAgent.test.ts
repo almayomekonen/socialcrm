@@ -66,6 +66,11 @@ describe('sales move classification', () => {
     expect(classifySalesMove(THANKS)).toBe('CASUAL_ACKNOWLEDGEMENT')
     expect(classifySalesMove('ok')).toBe('CASUAL_ACKNOWLEDGEMENT')
   })
+  it('sticky product does not rewrite thanks/ok into another sales turn', () => {
+    expect(classifySalesMove(THANKS, { salesStrategy: 'product_fit' })).toBe('CASUAL_ACKNOWLEDGEMENT')
+    expect(classifySalesMove('ok', { salesStrategy: 'product_fit' })).toBe('CASUAL_ACKNOWLEDGEMENT')
+    expect(classifySalesMove('אוקיי', { salesStrategy: 'how_it_works' })).toBe('CASUAL_ACKNOWLEDGEMENT')
+  })
   it('price and demo stay buying signals', () => {
     expect(classifySalesMove('מה המחיר?')).toBe('BUYING_SIGNAL')
     expect(classifySalesMove('כמה זה עולה?')).toBe('BUYING_SIGNAL')

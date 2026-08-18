@@ -1,13 +1,10 @@
 /**
- * Post-handoff responder (Wave 4). A lightweight, flag-gated helper that lets the
- * SAME assistant send a few brief replies AFTER a conversation is handed off
- * (aiState='escalated'): acknowledge, answer only from configured business
- * guidance, or politely defer to a human — until a human replies or the message
- * budget is spent. It restarts no qualification, runs no Runtime, adds no state.
+ * Post-handoff helpers. Escalated conversations are a hard stop: the worker
+ * skips without GPT or WhatsApp. Helpers below remain for tests and a future
+ * explicit human-release path — they are not invoked after escalation.
  */
 import { z } from 'zod'
 import { runStructured } from '@/lib/ai/router'
-import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { skipAutoResponseJob, completeAutoResponseJob, type AutoResponseJob } from '@/db/autoResponseJobs'
@@ -15,8 +12,6 @@ import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_T
 import { validateConciergeReply } from './validate'
 import { waTrace } from './waTrace'
 import { sendIreOutbound } from './ireSend'
-import { decidePostHandoffInbound, postHandoffStatusMessage } from './postHandoffPolicy'
-import { detectLang } from './qualify'
 import type { QualifyCtx } from './qualifyWorker'
 
 /**
@@ -258,9 +253,9 @@ export async function respondPostHandoff(args: {
 }
 
 /**
- * After aiState=escalated: status follow-ups get a deterministic confirmation
- * (always on, no GPT). Passive thanks stay silent. Other inbounds use the
- * agency-gated concierge, otherwise the legacy already_escalated skip.
+ * After aiState=escalated: hard stop. There is no human-release mechanism that
+ * returns the conversation to the qualifier, so AI must not send concierge,
+ * status confirmations, or any other autonomous follow-up.
  */
 export async function respondAfterEscalation(args: {
   job: AutoResponseJob
@@ -276,47 +271,23 @@ export async function respondAfterEscalation(args: {
   hasUnansweredInbound: boolean
   budgetUsed: number
 }): Promise<'sent' | 'skipped' | 'failed'> {
-  const { job, ctx, lastInbound, budgetUsed } = args
-  const inboundText = lastInbound?.text ?? ''
-  const policy = decidePostHandoffInbound(inboundText)
-
-  const stop = async (reason: string): Promise<'skipped'> => {
-    await skipAutoResponseJob(job.id, reason)
-    await track({
-      agencyId: job.agencyId,
-      event: 'post_handoff_stop',
-      props: { conversationId: ctx.conv.id, reason },
-    })
-    return 'skipped'
-  }
-
-  if (policy === 'silent') return stop('post_handoff_ack')
-
-  if (policy === 'confirm') {
-    if (!args.hasUnansweredInbound) return stop('no_pending_inbound')
-    if (!args.withinWindow) return stop('outside_window')
-    if (budgetUsed >= maxPostHandoffMessages()) return stop('budget_exhausted')
-    const text = postHandoffStatusMessage(detectLang(inboundText))
-    const r = await sendPostHandoff(job, ctx, args.deps.send, text)
-    if (r.ok === false) {
-      if (r.settled) return 'failed'
-      return stop(r.reason)
-    }
-    await completeAutoResponseJob(job.id, r.messageId)
-    waTrace(
-      'POST_HANDOFF_STATUS',
-      { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
-      { reply: text, budgetUsed: budgetUsed + 1, messageId: r.messageId },
-    )
-    await track({
-      agencyId: job.agencyId,
-      event: 'post_handoff_sent',
-      props: { conversationId: ctx.conv.id, deferred: false, urgent: false, kind: 'status' },
-    })
-    return 'sent'
-  }
-
-  if (isPostHandoffEnabled(job.agencyId)) return respondPostHandoff(args)
-  return stop('already_escalated')
+  const { job, ctx } = args
+  void args.deps
+  void args.recent
+  void args.lastInbound
+  void args.guidance
+  void args.sentToday
+  void args.dailyCap
+  void args.withinQuietHours
+  void args.withinWindow
+  void args.hasUnansweredInbound
+  void args.budgetUsed
+  await skipAutoResponseJob(job.id, 'already_escalated')
+  await track({
+    agencyId: job.agencyId,
+    event: 'post_handoff_stop',
+    props: { conversationId: ctx.conv.id, reason: 'already_escalated' },
+  })
+  return 'skipped'
 }
 

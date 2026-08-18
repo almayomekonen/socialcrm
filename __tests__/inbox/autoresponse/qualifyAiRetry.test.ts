@@ -11,6 +11,7 @@ const countSentToday = vi.hoisted(() => vi.fn())
 const getOrCreateAiState = vi.hoisted(() => vi.fn())
 const recordTurn = vi.hoisted(() => vi.fn())
 const markEscalated = vi.hoisted(() => vi.fn())
+const markClosed = vi.hoisted(() => vi.fn())
 const persistOutboundWhatsapp = vi.hoisted(() => vi.fn())
 const tableRows = vi.hoisted(() => ({
   conversations: null as unknown,
@@ -41,6 +42,7 @@ vi.mock('@/db/conversationAiState', () => ({
   markEscalated,
   markHumanActive: vi.fn(),
   markStopped: vi.fn(),
+  markClosed,
 }))
 vi.mock('@/db/conversationIntelligence', () => ({
   upsertManyConversationIntelligence: vi.fn(),
@@ -138,6 +140,7 @@ beforeEach(() => {
   countSentToday.mockReset().mockResolvedValue(0)
   recordTurn.mockReset().mockResolvedValue(undefined)
   markEscalated.mockReset().mockResolvedValue(undefined)
+  markClosed.mockReset().mockResolvedValue(undefined)
   persistOutboundWhatsapp.mockReset().mockResolvedValue({ messageId: 4001 })
   getOrCreateAiState.mockReset().mockResolvedValue({
     aiState: 'ai_qualifying',
@@ -819,7 +822,7 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     expect(generateQualify).toHaveBeenCalledTimes(1)
   })
 
-  it('D: escalated + אתה מעביר אותי? sends a status confirmation without GPT', async () => {
+  it('D: escalated + אתה מעביר אותי? does not send or run GPT', async () => {
     tableRows.messageList = [inbound('אתה מעביר אותי?')]
     getOrCreateAiState.mockResolvedValue({
       aiState: 'escalated',
@@ -829,16 +832,14 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.p1-d' }))
     const generateQualify = vi.fn()
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('sent')
+    expect(outcome).toBe('skipped')
     expect(generateQualify).not.toHaveBeenCalled()
     expect(markEscalated).not.toHaveBeenCalled()
-    expect(skipAutoResponseJob).not.toHaveBeenCalledWith(61, 'already_escalated')
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'כן, העברתי את הבקשה לנציג. הוא יחזור אליך בהקדם.' }),
-    )
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'already_escalated')
+    expect(send).not.toHaveBeenCalled()
   })
 
-  it('E: escalated + העברת? sends the same confirmation', async () => {
+  it('E: escalated + העברת? does not send', async () => {
     tableRows.messageList = [inbound('העברת?')]
     getOrCreateAiState.mockResolvedValue({
       aiState: 'escalated',
@@ -848,11 +849,10 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.p1-e' }))
     const generateQualify = vi.fn()
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('sent')
+    expect(outcome).toBe('skipped')
     expect(generateQualify).not.toHaveBeenCalled()
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'כן, העברתי את הבקשה לנציג. הוא יחזור אליך בהקדם.' }),
-    )
+    expect(send).not.toHaveBeenCalled()
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'already_escalated')
   })
 
   it('F: escalated + תודה does not send', async () => {
@@ -866,7 +866,7 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     const generateQualify = vi.fn()
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
     expect(outcome).toBe('skipped')
-    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'post_handoff_ack')
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'already_escalated')
     expect(send).not.toHaveBeenCalled()
     expect(generateQualify).not.toHaveBeenCalled()
   })
@@ -950,6 +950,237 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
     )
+  })
+})
+
+describe('conversation control stop policy (worker)', () => {
+  function inbound(text: string) {
+    return {
+      direction: 'inbound' as const,
+      text,
+      sentByUserId: null,
+      channelTimestamp: new Date(),
+      createdAt: new Date(),
+      metadata: null,
+    }
+  }
+
+  it('sticky product + תודה רבה closes silently with no GPT', async () => {
+    tableRows.messageList = [inbound('תודה רבה')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 4,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn()
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('skipped')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+    expect(markClosed).toHaveBeenCalledWith(382, 'acknowledgement')
+    expect(recordTurn).not.toHaveBeenCalled()
+  })
+
+  it('סבבה תודה אחי after a sticky product answer closes silently with no GPT', async () => {
+    tableRows.messageList = [
+      inbound('סבבה תודה אחי'),
+      {
+        direction: 'outbound' as const,
+        text: 'SocialCRM מרכזת לידים מוואטסאפ במקום אחד.',
+        sentByUserId: 332,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response' },
+      },
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 4,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn()
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('skipped')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+    expect(markClosed).toHaveBeenCalledWith(382, 'acknowledgement')
+  })
+
+  it('sticky + ok after an answer closes silently', async () => {
+    tableRows.messageList = [
+      inbound('ok'),
+      {
+        direction: 'outbound' as const,
+        text: 'SocialCRM מרכזת לידים מוואטסאפ במקום אחד.',
+        sentByUserId: 332,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response' },
+      },
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 3,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn()
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('skipped')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+    expect(markClosed).toHaveBeenCalledWith(382, 'acknowledgement')
+  })
+
+  it('כן after an explicit question continues and runs GPT', async () => {
+    tableRows.messageList = [
+      inbound('כן'),
+      {
+        direction: 'outbound' as const,
+        text: 'רוצה שאסביר איך זה נראה בעבודה היומיומית?',
+        sentByUserId: 332,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response' },
+      },
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 3,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.yes' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'SocialCRM מרכזת לידים מוואטסאפ ופייסבוק במקום אחד.',
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(markClosed).not.toHaveBeenCalled()
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+  })
+
+  it('לא מעוניין sends one closer then closes without GPT', async () => {
+    tableRows.messageList = [inbound('לא מעוניין')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 2,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.decline' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'אין בעיה, תודה.' }))
+    expect(markClosed).toHaveBeenCalledWith(382, 'decline')
+  })
+
+  it('bye sends one closer then closes', async () => {
+    tableRows.messageList = [inbound('bye')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 2,
+      qualification: {},
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.bye' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'No problem, thanks.' }))
+    expect(markClosed).toHaveBeenCalledWith(382, 'goodbye')
+  })
+
+  it('closed + product question reopens and continues', async () => {
+    tableRows.messageList = [inbound('יש לכם מענה אוטומטי לוואטסאפ?')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'closed',
+      aiTurnCount: 5,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.reopen' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'כן, יש מענה אוטומטי להודעות נכנסות בוואטסאפ.',
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+    expect(markClosed).not.toHaveBeenCalled()
+  })
+
+  it('closed + תודה stays closed with no send', async () => {
+    tableRows.messageList = [inbound('תודה')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'closed',
+      aiTurnCount: 5,
+      qualification: {},
+    })
+    const send = vi.fn()
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('skipped')
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'closed')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('turn 30 + real product question continues', async () => {
+    tableRows.messageList = [inbound('יש לכם מענה אוטומטי לוואטסאפ?')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 30,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.t30' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'כן, יש מענה אוטומטי להודעות נכנסות בוואטסאפ.',
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(markEscalated).not.toHaveBeenCalled()
+    expect(markClosed).not.toHaveBeenCalled()
+  })
+
+  it('turn 30 + HANDOFF_REQUEST hands off without GPT', async () => {
+    tableRows.messageList = [inbound('תעביר אותי לנציג')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 30,
+      qualification: {},
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.t30h' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(markEscalated).toHaveBeenCalledWith(382, 'human_request')
+  })
+
+  it('compound acknowledgement + real question continues', async () => {
+    tableRows.messageList = [inbound('תודה רבה, יש לכם מענה אוטומטי לוואטסאפ?')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 4,
+      qualification: { cognition: { salesStrategy: 'product_fit' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.compound' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'כן, יש מענה אוטומטי להודעות נכנסות.',
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(markClosed).not.toHaveBeenCalled()
   })
 })
 

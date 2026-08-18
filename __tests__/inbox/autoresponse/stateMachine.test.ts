@@ -83,6 +83,25 @@ describe('decidePreGeneration', () => {
       reason: 'already_escalated',
     })
   })
+  it('closed without an explicit reopen stays closed', () => {
+    expect(decidePreGeneration(pre({ aiState: 'closed' }))).toEqual({ action: 'skip', reason: 'closed' })
+    expect(decidePreGeneration(pre({ aiState: 'closed', reopenEligible: false }))).toEqual({
+      action: 'skip',
+      reason: 'closed',
+    })
+  })
+  it('closed + explicit reopen proceeds', () => {
+    expect(decidePreGeneration(pre({ aiState: 'closed', reopenEligible: true }))).toEqual({ action: 'proceed' })
+  })
+  it('closed + human request hands off', () => {
+    expect(decidePreGeneration(pre({ aiState: 'closed', humanRequest: true }))).toEqual({
+      action: 'handoff',
+      reason: 'human_request',
+    })
+  })
+  it('dormant still resumes and is not treated as closed', () => {
+    expect(decidePreGeneration(pre({ aiState: 'dormant' }))).toEqual({ action: 'proceed' })
+  })
   it('no unanswered inbound (turn-taking) → skip', () => {
     expect(decidePreGeneration(pre({ hasUnansweredInbound: false }))).toEqual({ action: 'skip', reason: 'no_pending_inbound' })
   })

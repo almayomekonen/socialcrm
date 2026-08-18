@@ -55,6 +55,11 @@ export interface PreFacts {
    * Explicit human-request inbound (classifier HANDOFF_REQUEST / detectHumanRequest).
    */
   humanRequest?: boolean
+  /**
+   * Closed conversations stay closed unless this inbound is an explicit reopen
+   * (real question / new need / HANDOFF_REQUEST). Computed outside this function.
+   */
+  reopenEligible?: boolean
 }
 
 export type PreDecision =
@@ -78,6 +83,8 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
   if (!f.hasUnansweredInbound) return { action: 'skip', reason: 'no_pending_inbound' }
   // Explicit human request hands off immediately at any turn count.
   if (f.humanRequest) return { action: 'handoff', reason: 'human_request' }
+  // Closed is a hard stop until a real question / new need reopens it.
+  if (f.aiState === 'closed' && !f.reopenEligible) return { action: 'skip', reason: 'closed' }
   // Engaged conversation lifetime is unlimited. turnCount/maxTurns never skip here.
   void f.turnCount
   void f.maxTurns
@@ -85,7 +92,7 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
   if (!f.withinWindow) return { action: 'skip', reason: 'outside_window' }
   if (f.withinQuietHours) return { action: 'skip', reason: 'quiet_hours' }
   if (f.sentTodayForAgency >= f.dailyCap) return { action: 'skip', reason: 'daily_cap' }
-  // 'new' | 'ai_qualifying' | 'dormant' (resumes) → engage.
+  // 'new' | 'ai_qualifying' | 'dormant' (resumes) | 'closed' (reopened) → engage.
   return { action: 'proceed' }
 }
 
