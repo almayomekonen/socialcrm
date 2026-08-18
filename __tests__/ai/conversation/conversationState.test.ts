@@ -144,6 +144,45 @@ describe('toConversationState', () => {
     expect(afterMeetings.reason).toBeNull()
   })
 
+  it('waiting inbound ranks first so למה? can explain it', () => {
+    const s = toConversationState({
+      kind: 'data',
+      intent: 'crm.attention',
+      payload: {
+        waiting: { total: 1, sample: [{ id: 88, name: 'George', status: null }] },
+        overdue: stale([{ id: 11, name: 'עדי שרון' }]),
+        dueToday: stale([]),
+        stale: stale([]),
+      },
+    } as never)!
+    expect(s.subjectLead?.name).toBe('George')
+    expect(s.reason).toBe('שלח הודעה ועדיין ממתין למענה')
+    expect(s.rankedLeads[0]?.id).toBe(88)
+  })
+
+  it('recent WhatsApp inbound clears the previous lead-ranking subject', () => {
+    const priority = toConversationState({
+      kind: 'data',
+      intent: 'crm.attention',
+      payload: {
+        overdue: stale([]),
+        dueToday: stale([]),
+        stale: stale([{ id: 11, name: 'עדי שרון' }, { id: 12, name: 'קרן שפירא' }], 46),
+      },
+    } as never)!
+    const afterInbound = toConversationState(
+      {
+        kind: 'data',
+        intent: 'inbox.recentInbound',
+        payload: { senders: [{ name: 'George', at: '2026-08-18T13:17:00.000Z' }], answer: 'x' },
+      },
+      priority,
+    )!
+    expect(afterInbound.intent).toBe('inbox.recentInbound')
+    expect(afterInbound.rankedLeads).toEqual([])
+    expect(afterInbound.subjectLead).toBeNull()
+  })
+
   it('למה? guide keeps the active ranking so מי עוד? can continue', () => {
     const priority = toConversationState({
       kind: 'data',

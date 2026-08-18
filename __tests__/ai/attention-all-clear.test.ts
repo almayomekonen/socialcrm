@@ -25,4 +25,8 @@ describe('attentionAllClear — collapse to one calm line only when nothing need
   it('keys on true total, not sample size — a capped list with total>0 is not clear', () => {
     expect(attentionAllClear(counts(50, 0, 0))).toBe(false)
   })
+
+  it('waiting inbound is not all-clear', () => {
+    expect(attentionAllClear({ ...counts(0, 0, 0), waiting: { total: 1 } })).toBe(false)
+  })
 })

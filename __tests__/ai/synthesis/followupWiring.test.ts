@@ -12,7 +12,10 @@ vi.mock('@/db/briefing', () => ({
   getLeadsByName: vi.fn(),
   getNamedLeadById: vi.fn(),
 }))
-vi.mock('@/lib/copilot/general/classifyGeneralIntent', () => ({ classifyGeneralIntent: vi.fn() }))
+vi.mock('@/lib/copilot/general/classifyGeneralIntent', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/copilot/general/classifyGeneralIntent')>()
+  return { ...actual, classifyGeneralIntent: vi.fn() }
+})
 vi.mock('@/db/aiSummaries', () => ({ getLeadIntelligenceInputs: vi.fn() }))
 vi.mock('@/actions/ai/leadAskQuestion', () => ({ askLeadQuestion: vi.fn() }))
 vi.mock('@/lib/copilot/general/reasonedAnswer', () => ({
@@ -24,7 +27,11 @@ vi.mock('@/lib/copilot/featureFlag', () => ({
   isReasonedGeneralEnabledForUser: vi.fn(() => false),
   isSynthesisEnabledForUser: vi.fn(),
 }))
-vi.mock('@/lib/copilot/general/facts/gatherFacts', () => ({ gatherTriageFacts: vi.fn() }))
+vi.mock('@/lib/copilot/general/waitingInbound', () => ({ listWaitingWhatsappLeads: vi.fn() }))
+vi.mock('@/lib/copilot/general/recentInbound', () => ({
+  loadRecentInboundWhatsapp: vi.fn(),
+  loadWaitingInboundWhatsapp: vi.fn(),
+}))
 vi.mock('@/lib/copilot/general/synthesis/synthesize', () => ({ synthesize: vi.fn() }))
 
 import { askGeneralQuestion } from '@/actions/ai/askGeneralQuestion'

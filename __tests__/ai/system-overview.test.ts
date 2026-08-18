@@ -28,7 +28,7 @@ describe('composeOverviewSentence — one deterministic line, non-zero parts onl
 })
 
 describe('quickClassifyGeneral — system.overview is now recognized (was unknown)', () => {
-  for (const q of ['מה מצב המערכת', 'מה המצב', 'סיכום כללי', 'תמונת מצב', 'מה קורה היום']) {
+  for (const q of ['מה מצב המערכת', 'מה המצב', 'סיכום כללי', 'תמונת מצב', 'מה קורה היום', 'מה חדש במערכת']) {
     it(`"${q}" → system.overview`, () => {
       expect(quickClassifyGeneral(q)).toEqual({ intent: 'system.overview', confidence: 0.95 })
     })

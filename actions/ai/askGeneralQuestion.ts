@@ -7,7 +7,8 @@ import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { askLeadQuestion } from '@/actions/ai/leadAskQuestion'
 import { extractLeadCandidate, isLeadFollowup } from '@/lib/copilot/general/subjectResolution'
 import { classifyFallback, detectKnownGap, isGrowthQuestion, type FallbackResult } from '@/lib/copilot/general/fallback'
-import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
+import { classifyBusinessAdvice } from '@/lib/copilot/general/businessAdvice'
+import { classifyGeneralIntent, quickClassifyGeneral } from '@/lib/copilot/general/classifyGeneralIntent'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
@@ -18,7 +19,7 @@ import { classifyConversationIntent } from '@/lib/copilot/general/conversationIn
 import { coerceConversationState, type FactBucketId } from '@/lib/copilot/general/conversationState'
 import { hasUsableFollowUpState, resolveFollowUp } from '@/lib/copilot/general/continueConversation'
 import { runBriefingIntent } from '@/lib/copilot/general/runBriefingIntent'
-import { buildGrowthAnswer } from '@/lib/copilot/general/growthAnswer'
+import { buildGrowthAnswer, buildBusinessAdviceAnswer } from '@/lib/copilot/general/growthAnswer'
 import { Roles } from '@/types/roles'
 
 export type LeadCard = {
@@ -198,6 +199,18 @@ async function resolveAnswer(
   const knownGap = detectKnownGap(text)
   if (knownGap) return { kind: 'fallback', mode: 'redirect', gap: knownGap }
 
+  const quick = quickClassifyGeneral(text)
+  if (quick.confidence >= GENERAL_HIGH_CONFIDENCE) {
+    return answerClassifiedIntent(quick.intent, user)
+  }
+
+  const adviceKind = classifyBusinessAdvice(text)
+  if (adviceKind) {
+    const { gotPermIds } = await getPerms(user)
+    const scope: Scope = { user: { role: user.role }, gotPermIds }
+    return buildBusinessAdviceAnswer(adviceKind, scope, user)
+  }
+
   if (isReasonedGeneralEnabledForUser(user) && !(activeLeadId && isLeadFollowup(text)) && shouldReason(text)) {
     const { gotPermIds } = await getPerms(user)
     const scope: Scope = { user: { role: user.role }, gotPermIds }
@@ -227,8 +240,17 @@ async function resolveAnswer(
     return { kind: 'guide', answer: g.answer, route: g.route }
   }
 
+  return answerClassifiedIntent(c.intent, user)
+}
+
+async function answerClassifiedIntent(intent: string, user: ActingUser): Promise<GeneralAnswer> {
+  if (intent.startsWith('guide.')) {
+    const g = GUIDE_ENTRIES.find((e) => e.id === intent)
+    if (!g) return { kind: 'fallback', mode: 'redirect', gap: null }
+    return { kind: 'guide', answer: g.answer, route: g.route }
+  }
   const { gotPermIds } = await getPerms(user)
   const scope: Scope = { user: { role: user.role }, gotPermIds }
-  const payload = await runBriefingIntent(c.intent, user, scope)
-  return { kind: 'data', intent: c.intent, payload }
+  const payload = await runBriefingIntent(intent, user, scope)
+  return { kind: 'data', intent, payload }
 }

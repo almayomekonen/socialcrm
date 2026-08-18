@@ -66,8 +66,11 @@ function fromAttention(payload: {
   overdue: { total: number; sample: { id: number; name: string | null }[] }
   dueToday: { total: number; sample: { id: number; name: string | null }[] }
   stale: { total: number; sample: { id: number; name: string | null }[] }
+  waiting?: { total: number; sample: { id: number; name: string | null }[] }
 }): ConversationState {
+  const waiting = payload.waiting ?? { total: 0, sample: [] }
   const rankedLeads = dedupe([
+    ...listLeads(waiting.sample),
     ...listLeads(payload.overdue.sample),
     ...listLeads(payload.dueToday.sample),
     ...listLeads(payload.stale.sample),
@@ -128,6 +131,15 @@ function fromData(intent: string, payload: unknown): ConversationState | null {
   }
   if (intent === 'inbox.unread') {
     return { ...EMPTY, answerKind: 'data', intent: 'inbox.unread', expandedBucketIds: ['inbox.unread'] }
+  }
+  if (intent === 'inbox.recentInbound') {
+    return { ...EMPTY, answerKind: 'data', intent: 'inbox.recentInbound' }
+  }
+  if (intent === 'inbox.waiting') {
+    return { ...EMPTY, answerKind: 'data', intent: 'inbox.waiting' }
+  }
+  if (intent === 'business.advice') {
+    return { ...EMPTY, answerKind: 'data', intent: 'business.advice' }
   }
   if (intent === 'meetings.today') {
     return { ...EMPTY, answerKind: 'data', intent: 'meetings.today', expandedBucketIds: ['meetings.today'] }

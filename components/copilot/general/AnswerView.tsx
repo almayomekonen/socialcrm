@@ -18,18 +18,26 @@ const SOURCE_LABEL: Record<string, string> = {
   'tasks.overdue': 'המשימות שלך',
   'meetings.today': 'היומן',
   'inbox.unread': 'התיבה',
+  'inbox.recentInbound': 'התיבה',
+  'inbox.waiting': 'התיבה',
   'crm.attention': 'נתוני ה-CRM שלך',
   'system.overview': 'נתוני ה-CRM שלך',
+  'business.advice': 'נתוני ה-CRM שלך',
 }
 
 type MeetingsPayload = { meetings: { id: number; title: string; leadName: string | null }[] }
 type InboxPayload = { conversations: number; unread: number }
-type AttentionPayload = { overdue: BriefingLeadList; dueToday: BriefingLeadList; stale: BriefingLeadList }
+type AttentionPayload = {
+  overdue: BriefingLeadList
+  dueToday: BriefingLeadList
+  stale: BriefingLeadList
+  waiting?: BriefingLeadList
+}
 
 function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
-  if (intent === 'system.overview') {
+  if (intent === 'system.overview' || intent === 'business.advice') {
     const p = payload as { summary: string }
-    return <p className='text-sm text-gray-700'>{p.summary}</p>
+    return <p className='whitespace-pre-line text-sm text-gray-700'>{p.summary}</p>
   }
   if (intent === 'inbox.unread') {
     const p = payload as InboxPayload
@@ -37,6 +45,22 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
     return (
       <DeepLink href='/inbox' source='answer' className='text-sm text-gray-700 hover:text-gray-900'>
         {p.unread} הודעות שלא נקראו ב-{p.conversations} שיחות
+      </DeepLink>
+    )
+  }
+  if (intent === 'inbox.recentInbound' || intent === 'inbox.waiting') {
+    const p = payload as { answer?: string }
+    const text = typeof p.answer === 'string' ? p.answer : ''
+    if (!text) {
+      return (
+        <p className='text-sm text-gray-500'>
+          {intent === 'inbox.waiting' ? 'אין כרגע שיחות וואטסאפ שממתינות למענה.' : 'אין כרגע הודעות וואטסאפ נכנסות לאחרונה.'}
+        </p>
+      )
+    }
+    return (
+      <DeepLink href='/inbox' source='answer' className='block whitespace-pre-line text-sm text-gray-700 hover:text-gray-900'>
+        {text}
       </DeepLink>
     )
   }
@@ -80,6 +104,9 @@ function DataAnswer({ intent, payload }: { intent: string; payload: unknown }) {
             )}
           </div>
         )}
+        {p.waiting && p.waiting.total > 0 && (
+          <Mini label='ממתינים למענה' list={p.waiting} empty='אין שיחות ממתינות' />
+        )}
         <Mini label='משימות באיחור' list={p.overdue} empty='אין משימות באיחור' />
         <Mini label='מעקבים להיום' list={p.dueToday} empty='אין מעקבים להיום' />
         <Mini label='לידים שלא בקשר' list={p.stale} empty='הכול בקשר' />
@@ -120,10 +147,11 @@ export default function AnswerView({
   if (answer.kind === 'fallback') {
     const msg = fallbackCopy(answer)
     if (answer.mode === 'ack') return <p className='text-sm text-gray-700'>{msg}</p>
+    const showChips = !(answer.mode === 'redirect' && answer.gap)
     return (
       <div className='space-y-2'>
         <p className='text-sm text-gray-700'>{msg}</p>
-        <SuggestionChips items={curatedSuggestions()} onPick={onPick} disabled={!interactive} />
+        {showChips && <SuggestionChips items={curatedSuggestions()} onPick={onPick} disabled={!interactive} />}
       </div>
     )
   }
