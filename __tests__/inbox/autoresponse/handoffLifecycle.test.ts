@@ -43,19 +43,17 @@ describe('handoff lifecycle regression matrix', () => {
     })
   })
 
-  it('B: aiTurnCount=7 + PRODUCT_FIT → hard ceiling skip', () => {
+  it('B: aiTurnCount=7 + PRODUCT_FIT → continue, not max_turns skip', () => {
     expect(classifySalesMove('זה מתאים לעסק שלי')).toBe('PRODUCT_FIT')
     expect(decidePreGeneration({ ...pre, humanRequest: false })).toEqual({
-      action: 'skip',
-      reason: 'max_turns',
+      action: 'proceed',
     })
   })
 
-  it('C: aiTurnCount=7 + BUYING_SIGNAL → ceiling skip, no handoff', () => {
+  it('C: aiTurnCount=7 + BUYING_SIGNAL → continue, no handoff', () => {
     expect(classifySalesMove('אני רוצה להתחיל')).toBe('BUYING_SIGNAL')
     expect(decidePreGeneration({ ...pre, humanRequest: false })).toEqual({
-      action: 'skip',
-      reason: 'max_turns',
+      action: 'proceed',
     })
     expect(
       decidePostGeneration({

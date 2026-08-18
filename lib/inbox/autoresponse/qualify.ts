@@ -148,7 +148,11 @@ export function deterministicQualifyFallback(args: {
   objective?: ConversationObjective | null
   salesMove?: SalesMove | null
   salesStrategy?: SalesStrategy | null
+  discoveryBudgetExhausted?: boolean
 }): string {
+  if (args.discoveryBudgetExhausted && (args.salesMove === 'DISCOVERY' || args.salesMove === 'DEEPEN' || !args.salesMove)) {
+    return args.lang === 'en' ? 'Got it. We can continue whenever you want.' : 'קיבלתי. אפשר להמשיך כשתרצה.'
+  }
   if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
     return args.lang === 'en' ? 'Glad that helped.' : 'בשמחה.'
   }
@@ -265,6 +269,7 @@ export async function generateQualifyTurn(args: {
   salesStrategy?: SalesStrategy | null
   productKnowledgeBlock?: string | null
   businessIdentityBlock?: string | null
+  discoveryBudgetExhausted?: boolean
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
 }): Promise<QualifyGenResult> {

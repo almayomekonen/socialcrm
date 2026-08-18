@@ -10,12 +10,31 @@
 import type { AiState } from './qualification'
 import type { SalesMove } from './salesIntent'
 
-/** Soft budget is agency maxTurns. Hard ceiling stops runaway generation. */
+/**
+ * Historical formula only. Must never skip, silence, or hand off an engaged
+ * conversation. Conversation lifetime is unlimited while the customer is engaged.
+ */
 export const IRE_HARD_CEILING_CAP = 8
 
 export function ireHardCeiling(maxTurns: number): number {
   const n = Number.isFinite(maxTurns) ? Math.floor(maxTurns) : 5
   return Math.min(Math.max(n, 1) + 2, IRE_HARD_CEILING_CAP)
+}
+
+export function discoveryQuestionBudget(maxTurns: number): number {
+  const n = Number.isFinite(maxTurns) ? Math.floor(maxTurns) : 5
+  return Math.max(1, n)
+}
+
+/** True only for DISCOVERY/DEEPEN (or unclassified). Product/buying/handoff never exhaust this. */
+export function isDiscoveryQuestionBudgetExhausted(args: {
+  salesMove?: string | null
+  turnCount: number
+  maxTurns: number
+}): boolean {
+  const move = args.salesMove
+  if (move && move !== 'DISCOVERY' && move !== 'DEEPEN') return false
+  return args.turnCount >= discoveryQuestionBudget(args.maxTurns)
 }
 
 // ── Pre-generation ──────────────────────────────────────────────────────────
@@ -30,11 +49,10 @@ export interface PreFacts {
   withinWindow: boolean // inside WhatsApp's 24h service window
   sentTodayForAgency: number
   dailyCap: number
-  turnCount: number // AI turns already sent in this conversation
-  maxTurns: number
+  turnCount: number // AI turns already sent — observability / discovery budget only
+  maxTurns: number // discovery-question budget, never a conversation lifetime
   /**
    * Explicit human-request inbound (classifier HANDOFF_REQUEST / detectHumanRequest).
-   * Evaluated before the hard ceiling so a customer asking for a person is never silenced.
    */
   humanRequest?: boolean
 }
@@ -58,9 +76,11 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
   if (f.aiState === 'escalated') return { action: 'skip', reason: 'already_escalated' }
   // Turn-taking: a human request still needs an unanswered inbound.
   if (!f.hasUnansweredInbound) return { action: 'skip', reason: 'no_pending_inbound' }
-  // Explicit human request hands off immediately — including at the hard ceiling.
+  // Explicit human request hands off immediately at any turn count.
   if (f.humanRequest) return { action: 'handoff', reason: 'human_request' }
-  if (f.turnCount >= ireHardCeiling(f.maxTurns)) return { action: 'skip', reason: 'max_turns' }
+  // Engaged conversation lifetime is unlimited. turnCount/maxTurns never skip here.
+  void f.turnCount
+  void f.maxTurns
   // Remaining policy gates (sales qualification only).
   if (!f.withinWindow) return { action: 'skip', reason: 'outside_window' }
   if (f.withinQuietHours) return { action: 'skip', reason: 'quiet_hours' }
@@ -75,11 +95,11 @@ export interface PostFacts {
   hotSignal: boolean
   uncertain: boolean // kept for callers; no longer auto-escalates
   requiredComplete: boolean // kept for callers; stating a need is not a handoff
-  turnCount: number // AI turns already sent (before this one)
-  maxTurns: number
+  turnCount: number // AI turns already sent (before this one) — observability only
+  maxTurns: number // discovery-question budget, never a post-generation handoff
   /**
    * Classifier sales move — the only commercial-handoff authority here is
-   * HANDOFF_REQUEST. BUYING_SIGNAL continues. Soft maxTurns is not a handoff.
+   * HANDOFF_REQUEST. BUYING_SIGNAL continues. Turn count is not a handoff.
    */
   salesMove?: SalesMove | null
 }
@@ -88,7 +108,8 @@ export type PostDecision = { action: 'escalate'; reason: string } | { action: 's
 
 export function decidePostGeneration(f: PostFacts): PostDecision {
   if (f.salesMove === 'HANDOFF_REQUEST') return { action: 'escalate', reason: 'human_request' }
-  // Soft maxTurns is a budget, not a handoff. Hard ceiling is pre-generation.
-  // LLM hotSignal / LLM salesMove / BUYING_SIGNAL are not escalation authorities.
+  // LLM hotSignal / LLM salesMove / BUYING_SIGNAL / turn count are not escalation authorities.
+  void f.turnCount
+  void f.maxTurns
   return { action: 'send' }
 }

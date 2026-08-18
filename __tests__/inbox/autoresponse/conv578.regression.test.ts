@@ -135,7 +135,7 @@ describe('production conversation 578 regression (lead 1460)', () => {
     expect(classifySalesMove('תסדר לי לידים')).toBe('PRODUCT_FIT')
   })
 
-  it('hard ceiling stays 7 and is not raised to hide the loop', () => {
+  it('late turns still proceed — the loop is not hidden by a conversation ceiling', () => {
     expect(ireHardCeiling(5)).toBe(7)
     expect(
       decidePreGeneration({
@@ -152,7 +152,7 @@ describe('production conversation 578 regression (lead 1460)', () => {
         turnCount: 7,
         maxTurns: 5,
       }),
-    ).toEqual({ action: 'skip', reason: 'max_turns' })
+    ).toEqual({ action: 'proceed' })
     expect(
       decidePreGeneration({
         aiState: 'ai_qualifying',

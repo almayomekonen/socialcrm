@@ -664,8 +664,7 @@ describe('existing safety / handoff gates stay intact', () => {
       }),
     ).toEqual({ action: 'send' })
     expect(decidePreGeneration({ ...pre, turnCount: 7, maxTurns: 5 })).toEqual({
-      action: 'skip',
-      reason: 'max_turns',
+      action: 'proceed',
     })
   })
 })

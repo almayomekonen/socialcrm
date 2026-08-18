@@ -127,6 +127,7 @@ export function buildQualifyUser(args: {
   salesStrategy?: SalesStrategy | null
   productKnowledgeBlock?: string | null
   businessIdentityBlock?: string | null
+  discoveryBudgetExhausted?: boolean
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
   // call-site compatibility. They must not appear as "ask this CRM field next".
@@ -180,6 +181,11 @@ export function buildQualifyUser(args: {
   }
   if (args.salesMove === 'CASUAL_ACKNOWLEDGEMENT') {
     lines.push('זו הודעת תודה או אישור קצר. סגירה קצרה מספיקה. אל תעביר לאדם ואל תמציא שמישהו מהצוות יחזור.')
+  }
+  if (args.discoveryBudgetExhausted && (args.salesMove === 'DISCOVERY' || args.salesMove === 'DEEPEN' || !args.salesMove)) {
+    lines.push(
+      'תקציב שאלות הגילוי הסתיים. אסור לשאול שאלת גילוי נוספת. אם הלקוח שאל משהו קונקרטי, ענה. אחרת הכר בקצרה בלי דיג ובלי שאלה.',
+    )
   }
   if (isBusinessIdentityQuestion(lastInbound)) {
     lines.push(

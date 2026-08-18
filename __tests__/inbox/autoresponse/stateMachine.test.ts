@@ -61,20 +61,20 @@ describe('decidePreGeneration', () => {
   it('already escalated → skip', () => {
     expect(decidePreGeneration(pre({ aiState: 'escalated' }))).toEqual({ action: 'skip', reason: 'already_escalated' })
   })
-  it('max turns at the SOFT budget still proceeds; hard ceiling skips', () => {
+  it('engaged conversations proceed at any turn count; turnCount never skips', () => {
     expect(decidePreGeneration(pre({ turnCount: 5, maxTurns: 5 }))).toEqual({ action: 'proceed' })
-    expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5 }))).toEqual({ action: 'skip', reason: 'max_turns' })
+    expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5 }))).toEqual({ action: 'proceed' })
+    expect(decidePreGeneration(pre({ turnCount: 50, maxTurns: 5 }))).toEqual({ action: 'proceed' })
   })
-  it('A: HANDOFF_REQUEST at the hard ceiling hands off instead of max_turns skip', () => {
+  it('A: HANDOFF_REQUEST at a late turn hands off instead of max_turns skip', () => {
     expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5, humanRequest: true }))).toEqual({
       action: 'handoff',
       reason: 'human_request',
     })
   })
-  it('B: PRODUCT_FIT at the hard ceiling still skips max_turns', () => {
+  it('B: PRODUCT_FIT at a late turn still proceeds', () => {
     expect(decidePreGeneration(pre({ turnCount: 7, maxTurns: 5, humanRequest: false }))).toEqual({
-      action: 'skip',
-      reason: 'max_turns',
+      action: 'proceed',
     })
   })
   it('already escalated wins over a new human request so we do not hand off twice', () => {

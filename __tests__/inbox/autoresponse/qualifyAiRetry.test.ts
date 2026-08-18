@@ -229,20 +229,24 @@ describe('qualify AI generation retry', () => {
     expect(recordTurn).not.toHaveBeenCalled()
   })
 
-  it('hard ceiling remains a terminal skip and is not retried', async () => {
+  it('late DISCOVERY still generates; max_turns is not a conversation skip', async () => {
     getOrCreateAiState.mockResolvedValue({
       aiState: 'ai_qualifying',
       aiTurnCount: 7,
       qualification: {},
     })
-    const send = vi.fn()
-    const generateQualify = vi.fn()
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.late' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'קיבלתי. אפשר להמשיך כשתרצה.',
+    }))
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('skipped')
-    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'max_turns')
+    expect(outcome).toBe('sent')
+    expect(skipAutoResponseJob).not.toHaveBeenCalledWith(61, 'max_turns')
     expect(failAutoResponseJob).not.toHaveBeenCalled()
-    expect(generateQualify).not.toHaveBeenCalled()
-    expect(recordTurn).not.toHaveBeenCalled()
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(generateQualify).toHaveBeenCalledWith(expect.objectContaining({ discoveryBudgetExhausted: true }))
+    expect(recordTurn).toHaveBeenCalled()
   })
 
   it('human takeover remains a terminal skip', async () => {
@@ -773,37 +777,46 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     )
   })
 
-  it('B: aiTurnCount=7 + PRODUCT_FIT skips max_turns', async () => {
+  it('B: aiTurnCount=7 + PRODUCT_FIT continues and runs GPT', async () => {
     tableRows.messageList = [inbound('זה מתאים לעסק שלי')]
     getOrCreateAiState.mockResolvedValue({
       aiState: 'ai_qualifying',
       aiTurnCount: 7,
       qualification: { cognition: { salesStrategy: 'product_fit' } },
     })
-    const send = vi.fn()
-    const generateQualify = vi.fn()
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.p0-b' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'SocialCRM מרכזת לידים מוואטסאפ ופייסבוק במקום אחד, עם סטטוס ומעקב לכל פנייה.',
+      salesMove: 'PRODUCT_FIT' as const,
+    }))
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('skipped')
-    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'max_turns')
-    expect(generateQualify).not.toHaveBeenCalled()
+    expect(outcome).toBe('sent')
+    expect(skipAutoResponseJob).not.toHaveBeenCalledWith(61, 'max_turns')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(generateQualify).toHaveBeenCalledWith(expect.objectContaining({ discoveryBudgetExhausted: false }))
     expect(markEscalated).not.toHaveBeenCalled()
-    expect(send).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalled()
   })
 
-  it('C: aiTurnCount=7 + BUYING_SIGNAL skips with no handoff', async () => {
+  it('C: aiTurnCount=7 + BUYING_SIGNAL continues with no handoff', async () => {
     tableRows.messageList = [inbound('אני רוצה להתחיל')]
     getOrCreateAiState.mockResolvedValue({
       aiState: 'ai_qualifying',
       aiTurnCount: 7,
       qualification: {},
     })
-    const send = vi.fn()
-    const generateQualify = vi.fn()
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.p0-c' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'אפשר להתחיל מחיבור וואטסאפ עסקי. אם אין צעד מאומת מעבר לזה, נציג יוכל לכוון.',
+      salesMove: 'BUYING_SIGNAL' as const,
+    }))
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('skipped')
-    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'max_turns')
+    expect(outcome).toBe('sent')
+    expect(skipAutoResponseJob).not.toHaveBeenCalledWith(61, 'max_turns')
     expect(markEscalated).not.toHaveBeenCalled()
-    expect(generateQualify).not.toHaveBeenCalled()
+    expect(generateQualify).toHaveBeenCalledTimes(1)
   })
 
   it('D: escalated + אתה מעביר אותי? sends a status confirmation without GPT', async () => {

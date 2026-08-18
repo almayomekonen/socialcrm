@@ -13,7 +13,7 @@ import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActi
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { mergeQualification, requiredComplete, isSalesStrategy } from './qualification'
-import { decidePreGeneration, decidePostGeneration } from './stateMachine'
+import { decidePreGeneration, decidePostGeneration, isDiscoveryQuestionBudgetExhausted } from './stateMachine'
 import {
   generateQualifyTurn,
   handoffMessage,
@@ -55,7 +55,7 @@ export interface QualifyDeps {
 }
 
 const WINDOW_MS = 24 * 60 * 60 * 1000
-const MAX_TRANSCRIPT = 14
+const MAX_TRANSCRIPT = 80
 
 function metaSource(metadata: unknown): string {
   try {
@@ -200,6 +200,11 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const classified = classifySalesTurnFromTranscript(qTranscript, { salesStrategy: persistedStrategy })
   const salesMove = classified.salesMove
   const salesStrategy = classified.salesStrategy
+  const discoveryBudgetExhausted = isDiscoveryQuestionBudgetExhausted({
+    salesMove,
+    turnCount: aiState.aiTurnCount,
+    maxTurns,
+  })
   const productKnowledge = retrieveProductKnowledge({
     agencyId: job.agencyId,
     inboundText: lastInboundText,
@@ -211,7 +216,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       : null
   const identity = await loadBusinessIdentity(job.agencyId, job.channel)
   const businessIdentityBlock = formatBusinessIdentityBlock(identity)
-  const questionPolicy = questionPolicyForSalesMove(salesMove)
+  const questionPolicy = questionPolicyForSalesMove(salesMove, { discoveryBudgetExhausted })
   const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
   waTrace('GENERATE_QUALIFY_START', genTrace, {
     transcriptLength: qTranscript.length,
@@ -230,6 +235,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesStrategy,
     productKnowledgeBlock,
     businessIdentityBlock,
+    discoveryBudgetExhausted,
     trace: genTrace,
   }
   const gen: QualifyGenResult = await deps.generateQualify(genArgs)
@@ -299,6 +305,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
           objective: gen.objective,
           salesMove,
           salesStrategy,
+          discoveryBudgetExhausted,
           lang,
         })
         validation = validateAutoResponse(gen.reply, { questionPolicy })

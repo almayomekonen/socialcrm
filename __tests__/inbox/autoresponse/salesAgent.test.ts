@@ -172,7 +172,7 @@ describe('maxTurns and casual ack policy', () => {
       action: 'send',
     })
   })
-  it('hard ceiling still stops generation', () => {
+  it('late turns still proceed — turn count is not a conversation stop', () => {
     expect(ireHardCeiling(5)).toBe(7)
     expect(
       decidePreGeneration({
@@ -189,7 +189,7 @@ describe('maxTurns and casual ack policy', () => {
         turnCount: 7,
         maxTurns: 5,
       }),
-    ).toEqual({ action: 'skip', reason: 'max_turns' })
+    ).toEqual({ action: 'proceed' })
   })
 })
 

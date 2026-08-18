@@ -84,7 +84,13 @@ export type ValidationResult =
 /** Discovery/deepen still prefer a question. Product/explain/next-step may answer without one. */
 export type QuestionPolicy = 'require_one' | 'zero_or_one'
 
-export function questionPolicyForSalesMove(move: string | null | undefined): QuestionPolicy {
+export function questionPolicyForSalesMove(
+  move: string | null | undefined,
+  opts?: { discoveryBudgetExhausted?: boolean },
+): QuestionPolicy {
+  if (opts?.discoveryBudgetExhausted && (move === 'DISCOVERY' || move === 'DEEPEN' || !move)) {
+    return 'zero_or_one'
+  }
   if (move === 'DISCOVERY' || move === 'DEEPEN' || !move) return 'require_one'
   return 'zero_or_one'
 }
