@@ -877,5 +877,66 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     )
     expect(markEscalated).not.toHaveBeenCalled()
   })
+
+  it('product continue-the-conversation answer attaches Product Knowledge and does not immediate-handoff', async () => {
+    const prev = process.env.IRE_PRODUCT_KNOWLEDGE_AGENCY_IDS
+    process.env.IRE_PRODUCT_KNOWLEDGE_AGENCY_IDS = '103'
+    tableRows.messageList = [
+      inbound('ימשיך שיחה  עם הלקוח'),
+      {
+        direction: 'outbound' as const,
+        text: 'הבנתי, מענה אוטומטי לפניות חדשות בוואטסאפ כדי שלא יישארו בלי תגובה. היית רוצה שהוא רק ישיב מיד, או גם ימשיך את השיחה עם הלקוח?',
+        sentByUserId: 332,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response', reason: 'qualify_turn' },
+      },
+    ]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 4,
+      qualification: { need: 'להשיג שקט וניהול נכון בעסק', cognition: { salesStrategy: 'discover' } },
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.conv-cap' }))
+    const generateQualify = vi.fn(async () => OK_GEN)
+    try {
+      const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+      expect(outcome).toBe('sent')
+      expect(generateQualify).toHaveBeenCalledTimes(1)
+      expect(generateQualify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          salesMove: expect.stringMatching(/^PRODUCT_(QUESTION|FIT)$/),
+          salesStrategy: expect.stringMatching(/^(product_fit|explain|how_it_works)$/),
+          productKnowledgeBlock: expect.stringContaining('whatsapp_inbound_auto_response'),
+        }),
+      )
+      expect(markEscalated).not.toHaveBeenCalled()
+      expect(send).not.toHaveBeenCalledWith(
+        expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      )
+      expect(recordTurn).toHaveBeenCalledTimes(1)
+    } finally {
+      if (prev === undefined) delete process.env.IRE_PRODUCT_KNOWLEDGE_AGENCY_IDS
+      else process.env.IRE_PRODUCT_KNOWLEDGE_AGENCY_IDS = prev
+    }
+  })
+
+  it('תחבר אותי לנציג still immediate-handoffs without GPT', async () => {
+    tableRows.messageList = [inbound('תחבר אותי לנציג')]
+    getOrCreateAiState.mockResolvedValue({
+      aiState: 'ai_qualifying',
+      aiTurnCount: 4,
+      qualification: {},
+    })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.p0-connect' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(markEscalated).toHaveBeenCalledWith(382, 'human_request')
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+    )
+  })
 })
 

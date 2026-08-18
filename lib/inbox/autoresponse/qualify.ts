@@ -288,6 +288,7 @@ export async function generateQualifyTurn(args: {
     if (v != null && String(v).trim() !== '') extracted[f] = String(v).trim()
   }
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
+  const lastOutbound = [...args.transcript].reverse().find((m) => m.direction === 'outbound')?.text ?? ''
   const objective = isConversationObjective(d.objective) ? d.objective : null
   const understanding: UnderstandingDelta = {
     pain: d.understanding?.pain?.trim() || null,
@@ -302,7 +303,7 @@ export async function generateQualifyTurn(args: {
     objective,
     understanding,
     salesMove: isSalesMove(d.salesMove) ? d.salesMove : null,
-    hotSignal: Boolean(d.hotSignal) || detectHotSignal(lastInbound),
+    hotSignal: Boolean(d.hotSignal) || detectHotSignal(lastInbound, { previousOutbound: lastOutbound }),
     uncertain: Boolean(d.uncertain),
     inputTokens: out.inputTokens,
     outputTokens: out.outputTokens,

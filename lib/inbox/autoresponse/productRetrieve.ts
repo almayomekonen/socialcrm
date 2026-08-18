@@ -25,7 +25,7 @@ export type ProductRetrieveResult = {
 const WARMUP_RE =
   /חימום|הודעות יזומות|warm-?up|warmup|re-?engage|proactive (follow|message)|יזומות אחרי/i
 const AUTO_REPLY_RE =
-  /מענה אוטומטי|לענות אוטומט|תגיב|לא ליד המסך|לא ליד|auto[- ]?reply|auto-response|respond automatically/i
+  /מענה אוטומטי|לענות אוטומט|תגיב|לא ליד המסך|לא ליד|auto[- ]?reply|auto-response|respond automatically|ימשיך (?:את )?השיחה|תמשיך (?:את )?השיחה|שיחה עם הלקוח|ימשיך שיחה|ימשיך לדבר עם (?:הלקוח|הלקוחות)|הבוט ימשיך/i
 
 function parseAllowlist(raw: string | undefined): 'all' | number[] {
   const v = (raw ?? '').trim()
@@ -114,13 +114,13 @@ export function retrieveProductKnowledge(args: {
     .slice(0, MAX_RETRIEVED)
     .map((x) => x.c)
 
-  if (warmup && autoReply) {
+  if (autoReply) {
     const inbound = cap(INBOUND_AUTO_RESPONSE_ID)
     const rest = scored.filter((c) => c.id !== INBOUND_AUTO_RESPONSE_ID)
     return {
       enabled: true,
       capabilities: inbound ? [inbound, ...rest].slice(0, MAX_RETRIEVED) : rest.slice(0, MAX_RETRIEVED),
-      unverifiedRequest: true,
+      unverifiedRequest: warmup,
       closestAlternatives: [],
     }
   }

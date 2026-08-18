@@ -117,6 +117,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const recent = rows.slice().reverse()
   const lastMsg = recent[recent.length - 1]
   const lastInbound = [...recent].reverse().find((m) => m.direction === 'inbound')
+  const lastOutbound = [...recent].reverse().find((m) => m.direction === 'outbound')
   const humanTookOver = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) !== 'auto_response')
 
   const aiState = await getOrCreateAiState(conv.id, job.agencyId)
@@ -130,7 +131,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     channelEnabled: settings.enabled,
     humanTookOver,
     optOut: detectOptOut(lastInbound?.text ?? ''),
-    humanRequest: detectHumanRequest(lastInbound?.text ?? ''),
+    humanRequest: detectHumanRequest(lastInbound?.text ?? '', {
+      previousOutbound: (lastOutbound?.text as string | undefined) ?? '',
+    }),
     hasUnansweredInbound: lastMsg?.direction === 'inbound',
     withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
     withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,

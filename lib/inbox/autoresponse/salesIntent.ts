@@ -13,12 +13,60 @@ export type { SalesStrategy }
 export { isProductStrategy, isSalesStrategy }
 export { isBusinessIdentityQuestion }
 
-const HUMAN_REQUEST_PATTERNS: RegExp[] = [
-  /פגיש|להיפגש|זום|שיחה/,
-  /נציג|לדבר עם|בנאדם|אדם אמיתי|שיחזרו? אלי|תתקשרו|תחזרו אלי/,
-  /\bmeeting|schedule a (call|meeting)|book a\b/i,
+export type HumanRequestOpts = {
+  /** Previous assistant outbound. Echoing a product choice is not a meeting request. */
+  previousOutbound?: string
+}
+
+/** Explicit ask for a person on our team. Wins even if the same line mentions שיחה. */
+const EXPLICIT_PERSON_PATTERNS: RegExp[] = [
+  /תעביר(?:י)? אותי/,
+  /תחבר(?:י)? אותי/,
+  /לדבר עם\s+(?:ה?נציג|מישהו|בן אדם|בנאדם|אדם(?: אמיתי)?)/,
+  /אפשר לדבר/,
+  /בן אדם|בנאדם|אדם אמיתי/,
+  /נציג/,
+  /שיחזרו? אלי/,
+  /תתקשרו/,
+  /תחזרו אלי/,
   /talk to (a|someone)|speak (to|with)|call me|representative|\bagent\b|\bhuman\b/i,
 ]
+
+/**
+ * Schedule a call/meeting with us. Includes שיחה only in meeting compounds —
+ * never the bare token, so product talk about continuing conversations is not a handoff.
+ */
+const MEETING_SCHEDULE_PATTERNS: RegExp[] = [
+  /פגיש|להיפגש/,
+  /זום/,
+  /\bmeeting\b/i,
+  /schedule a (call|meeting)|book a\b/i,
+  /(?:רוצה|אפשר|נקבע|לקבוע|לתאם)\s+שיחה/,
+  /שיחה אית(?:ך|כם|כן)/,
+]
+
+const CONV_TOKEN = /שיח(?:ה|ות)?/
+const CUSTOMER_PARTY = /הלקוח|הלקוחות|לקוחות(?:י)?/
+const CONTINUE_CONV = /ימשיך|תמשיך|ממשיך|להמשיך|המשך/
+const PRODUCT_CONV_OUTBOUND = /ימשיך את השיחה|השיחה עם הלקוח|מענה אוטומטי|ישיב מיד/
+
+/** Product capability: the system continues WhatsApp conversations with THEIR customers. */
+function isProductConversationCapability(text: string, previousOutbound?: string): boolean {
+  const t = (text ?? '').trim()
+  const prev = (previousOutbound ?? '').trim()
+  if (!t) return false
+  if (CONV_TOKEN.test(t) && CUSTOMER_PARTY.test(t)) return true
+  if (CONV_TOKEN.test(t) && CONTINUE_CONV.test(t)) return true
+  if (CONTINUE_CONV.test(t) && CUSTOMER_PARTY.test(t)) return true
+  if (/ניהול שיח/.test(t)) return true
+  if (/מענה אוטומטי/.test(t) && (CONV_TOKEN.test(t) || CONTINUE_CONV.test(t))) return true
+  if (/(?:מערכת|בוט)/.test(t) && (CONV_TOKEN.test(t) || CONTINUE_CONV.test(t))) return true
+  if (/תענה/.test(t) && CONV_TOKEN.test(t)) return true
+  if (prev && PRODUCT_CONV_OUTBOUND.test(prev) && (CONV_TOKEN.test(t) || CONTINUE_CONV.test(t))) {
+    return true
+  }
+  return false
+}
 
 const BUYING_INTENT_PATTERNS: RegExp[] = [
   /מחיר|תמחור|הצעת מחיר|עלות|בכמה|כמה.{0,12}עול/,
@@ -29,14 +77,17 @@ const BUYING_INTENT_PATTERNS: RegExp[] = [
   /how (do|can) i (start|begin|buy)|get started|sign ?up/i,
 ]
 
-const HOT_PATTERNS: RegExp[] = [...HUMAN_REQUEST_PATTERNS, ...BUYING_INTENT_PATTERNS]
-
-export function detectHotSignal(text: string): boolean {
-  return HOT_PATTERNS.some((re) => re.test(text))
+export function detectHumanRequest(text: string, opts?: HumanRequestOpts): boolean {
+  const t = (text ?? '').trim()
+  if (!t) return false
+  if (EXPLICIT_PERSON_PATTERNS.some((re) => re.test(t))) return true
+  if (isProductConversationCapability(t, opts?.previousOutbound)) return false
+  return MEETING_SCHEDULE_PATTERNS.some((re) => re.test(t))
 }
 
-export function detectHumanRequest(text: string): boolean {
-  return HUMAN_REQUEST_PATTERNS.some((re) => re.test(text))
+export function detectHotSignal(text: string, opts?: HumanRequestOpts): boolean {
+  if (detectHumanRequest(text, opts)) return true
+  return BUYING_INTENT_PATTERNS.some((re) => re.test(text ?? ''))
 }
 
 export const SALES_MOVES = [
@@ -200,9 +251,11 @@ export function salesMoveUsesProductContract(move: SalesMove | null | undefined)
 export function classifySalesMove(text: string, opts?: ClassifySalesOpts): SalesMove {
   const t = (text ?? '').trim()
   if (!t) return 'DISCOVERY'
-  if (detectHumanRequest(t)) return 'HANDOFF_REQUEST'
-  if (detectHotSignal(t)) return 'BUYING_SIGNAL'
-  if (isProductQuestion(t) || isExplanationRequest(t)) return 'PRODUCT_QUESTION'
+  if (detectHumanRequest(t, { previousOutbound: opts?.previousOutbound })) return 'HANDOFF_REQUEST'
+  if (detectHotSignal(t, { previousOutbound: opts?.previousOutbound })) return 'BUYING_SIGNAL'
+  if (isProductQuestion(t) || isExplanationRequest(t) || isProductConversationCapability(t, opts?.previousOutbound)) {
+    return 'PRODUCT_QUESTION'
+  }
   if (isProductFit(t) || isOrganizeLeadsIntent(t)) return 'PRODUCT_FIT'
   if (OBJECTION_RE.some((re) => re.test(t))) return 'OBJECTION'
   if (isNextStepAsk(t)) return 'BUYING_SIGNAL'
