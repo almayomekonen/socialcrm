@@ -51,6 +51,20 @@ describe('buildAttentionDecision — strict overdue → due-today → stale', ()
     )
   })
 
+  it('waiting inbound wins before overdue, with an explainable reason', () => {
+    const d = buildAttentionDecision({
+      waiting: list(1, { name: 'George' }),
+      overdue: list(3, { name: 'דוד', ageDays: 4 }),
+      dueToday: empty,
+      stale: empty,
+    })
+    expect(d).toEqual({
+      leadName: 'George',
+      reason: 'שלח הודעה ועדיין ממתין למענה',
+      secondary: { count: 3, area: 'משימות באיחור' },
+    })
+  })
+
   it('all empty → no decision (null)', () => {
     expect(buildAttentionDecision({ overdue: empty, dueToday: empty, stale: empty })).toBeNull()
   })

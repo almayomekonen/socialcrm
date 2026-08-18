@@ -6,12 +6,14 @@ import type { BriefingLeadList } from '@/db/briefing'
  * render below, so every headline is auditable. The data stays the source of
  * truth; this is only a recommendation on top.
  *
- * Strict ranking: overdue tasks → follow-ups due today → stale leads.
+ * Strict ranking: waiting inbound → overdue tasks → follow-ups due today → stale leads.
+ * Order is operational (ball in your court, then broken commitments), not a score.
  */
 export type AttentionPayload = {
   overdue: BriefingLeadList
   dueToday: BriefingLeadList
   stale: BriefingLeadList
+  waiting?: BriefingLeadList
 }
 
 export type AttentionDecision = {
@@ -21,6 +23,7 @@ export type AttentionDecision = {
 }
 
 const AREA = {
+  waiting: 'שיחות ממתינות',
   overdue: 'משימות באיחור',
   dueToday: 'מעקבים להיום',
   stale: 'לידים שמתקררים',
@@ -28,8 +31,13 @@ const AREA = {
 
 const dayStr = (n: number): string => (n === 1 ? 'יום אחד' : `${n} ימים`)
 
+function emptyList(): BriefingLeadList {
+  return { total: 0, sample: [] }
+}
+
 export function buildAttentionDecision(p: AttentionPayload): AttentionDecision | null {
   const tiers = [
+    { key: 'waiting' as const, list: p.waiting ?? emptyList() },
     { key: 'overdue' as const, list: p.overdue },
     { key: 'dueToday' as const, list: p.dueToday },
     { key: 'stale' as const, list: p.stale },
@@ -44,7 +52,9 @@ export function buildAttentionDecision(p: AttentionPayload): AttentionDecision |
   const age = top.ageDays
 
   let reason: string
-  if (winner.key === 'overdue') {
+  if (winner.key === 'waiting') {
+    reason = 'שלח הודעה ועדיין ממתין למענה'
+  } else if (winner.key === 'overdue') {
     reason = age != null ? `המשימה באיחור ${dayStr(age)}` : 'יש משימה באיחור'
   } else if (winner.key === 'dueToday') {
     reason = 'המעקב מתוזמן להיום'

@@ -11,17 +11,59 @@ export type BriefingIntentId = (typeof BRIEFING_INTENT_IDS)[number]
 
 /** A data Q&A intent that is NOT a briefing section: one-line whole-system status. */
 export const SYSTEM_OVERVIEW_ID = 'system.overview' as const
-export const SYSTEM_OVERVIEW_EXAMPLES = ['מה מצב המערכת', 'מה המצב', 'סיכום כללי', 'תמונת מצב', 'מה קורה היום']
+export const SYSTEM_OVERVIEW_EXAMPLES = [
+  'מה מצב המערכת',
+  'מה המצב',
+  'סיכום כללי',
+  'תמונת מצב',
+  'מה קורה היום',
+  'מה חדש במערכת',
+]
 
-export type GeneralIntentId = BriefingIntentId | typeof SYSTEM_OVERVIEW_ID | `guide.${string}` | 'unknown'
+/** Narrow factual Q&A: recent inbound WhatsApp senders. Not a daily-briefing section. */
+export const RECENT_INBOUND_ID = 'inbox.recentInbound' as const
+export const RECENT_INBOUND_EXAMPLES = [
+  'מי שלח הודעות וואטסאפ לאחרונה',
+  'מי שלח וואטסאפ',
+  'מי כתב בוואטסאפ',
+  'מי כתב לי בוואטסאפ',
+  'הודעות וואטסאפ אחרונות',
+  'מי שלח לי הודעה לאחרונה',
+  'מי שלח הודעה לאחרונה',
+  'מי שלח לאחרונה',
+]
+
+/** Narrow factual Q&A: waiting-reply WhatsApp — not recency and not unread. */
+export const WAITING_INBOUND_ID = 'inbox.waiting' as const
+export const WAITING_INBOUND_EXAMPLES = [
+  'מי מחכה לי בוואטסאפ',
+  'מי מחכה בוואטסאפ',
+  'מי ממתין לי בוואטסאפ',
+  'מי מחכה לתשובה בוואטסאפ',
+  'למי צריך לענות',
+]
+
+export type GeneralIntentId =
+  | BriefingIntentId
+  | typeof SYSTEM_OVERVIEW_ID
+  | typeof RECENT_INBOUND_ID
+  | typeof WAITING_INBOUND_ID
+  | `guide.${string}`
+  | 'unknown'
 
 /** Hebrew example utterances per briefing intent — feeds the classifier + the fallback chips. */
 export const BRIEFING_EXAMPLES: Record<BriefingIntentId, string[]> = {
   'followups.dueToday': ['מי צריך מעקב היום', 'מעקבים להיום', 'מי לחזור אליו היום'],
   'leads.notContactedRecently': ['מי לא דיברתי איתו מזמן', 'לידים מוזנחים', 'לידים שלא בקשר'],
   'tasks.overdue': ['משימות באיחור', 'מה עבר את התאריך', 'משימות שעברו'],
-  'meetings.today': ['פגישות היום', 'מה יש לי היום ביומן', 'אילו פגישות יש לי היום'],
-  'leads.newThisWeek': ['לידים חדשים השבוע', 'כמה נכנסו השבוע', 'לידים חדשים'],
-  'inbox.unread': ['סכם את התיבה', 'הודעות שלא נקראו', 'מה יש בתיבה'],
-  'crm.attention': ['מה דורש תשומת לב', 'על מה להתמקד היום', 'מה דחוף'],
+  'meetings.today': ['פגישות היום', 'מה יש לי היום ביומן', 'אילו פגישות יש לי היום', 'מה מצב הפגישות'],
+  'leads.newThisWeek': ['לידים חדשים השבוע', 'כמה נכנסו השבוע', 'לידים חדשים', 'כמה לידים חדשים'],
+  'inbox.unread': [
+    'סכם את התיבה',
+    'הודעות שלא נקראו',
+    'מה יש בתיבה',
+    'יש הודעות שלא קראתי',
+    'מי לא נקרא',
+  ],
+  'crm.attention': ['מה דורש תשומת לב', 'על מה להתמקד היום', 'מה דחוף', 'מה הכי דחוף', 'מי הליד הכי דחוף'],
 }

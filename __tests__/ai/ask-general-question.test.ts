@@ -2,7 +2,15 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('@/lib/requireUser', () => { const __ru = vi.fn(); return { requireAgencyUser: __ru, requireProductAccess: __ru } })
 vi.mock('@/db/filter', () => ({ getPerms: vi.fn() }))
-vi.mock('@/lib/copilot/general/classifyGeneralIntent', () => ({ classifyGeneralIntent: vi.fn() }))
+vi.mock('@/lib/copilot/general/classifyGeneralIntent', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/copilot/general/classifyGeneralIntent')>()
+  return { ...actual, classifyGeneralIntent: vi.fn() }
+})
+vi.mock('@/lib/copilot/general/recentInbound', () => ({
+  loadRecentInboundWhatsapp: vi.fn(),
+  loadWaitingInboundWhatsapp: vi.fn(),
+}))
+vi.mock('@/lib/copilot/general/waitingInbound', () => ({ listWaitingWhatsappLeads: vi.fn() }))
 vi.mock('@/db/briefing', () => ({
   getFollowUpsDueToday: vi.fn(),
   getLeadsNotContactedRecently: vi.fn(),
@@ -23,6 +31,8 @@ import { askGeneralQuestion } from '@/actions/ai/askGeneralQuestion'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
+import { loadRecentInboundWhatsapp, loadWaitingInboundWhatsapp } from '@/lib/copilot/general/recentInbound'
+import { listWaitingWhatsappLeads } from '@/lib/copilot/general/waitingInbound'
 import {
   getFollowUpsDueToday,
   getLeadsNotContactedRecently,
@@ -34,8 +44,9 @@ import {
 import { getTodaysMeetings } from '@/db/meetings'
 import { track } from '@/lib/analytics/track'
 import { Roles } from '@/types/roles'
+import { isReasonedGeneralEnabledForUser } from '@/lib/copilot/featureFlag'
 import { toConversationState } from '@/lib/copilot/general/conversationState'
-import { NOTHING_MORE } from '@/lib/copilot/general/continueConversation'
+import { NOTHING_MORE, NO_MORE_LEADS } from '@/lib/copilot/general/continueConversation'
 
 const emptyList = { total: 0, sample: [] }
 
@@ -52,6 +63,10 @@ beforeEach(() => {
   vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'unknown', confidence: 0 })
   vi.mocked(track).mockResolvedValue(undefined)
   vi.mocked(getLeadsByName).mockResolvedValue([])
+  vi.mocked(loadRecentInboundWhatsapp).mockResolvedValue({ senders: [], answer: 'אין כרגע הודעות וואטסאפ נכנסות לאחרונה.' })
+  vi.mocked(loadWaitingInboundWhatsapp).mockResolvedValue({ senders: [], answer: 'אין כרגע שיחות וואטסאפ שממתינות למענה.' })
+  vi.mocked(listWaitingWhatsappLeads).mockResolvedValue(emptyList)
+  vi.mocked(isReasonedGeneralEnabledForUser).mockReturnValue(false)
 })
 
 describe('askGeneralQuestion — closed world', () => {
@@ -97,14 +112,14 @@ describe('askGeneralQuestion — closed world', () => {
 
   it('threads the selected AI mode into classification', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'followups.dueToday', confidence: 0.95 })
-    await askGeneralQuestion('מי צריך מעקב היום', 'advanced')
-    expect(classifyGeneralIntent).toHaveBeenCalledWith('מי צריך מעקב היום', 10, 'advanced')
+    await askGeneralQuestion('משימות שצריך לסגור כבר מזמן', 'advanced')
+    expect(classifyGeneralIntent).toHaveBeenCalledWith('משימות שצריך לסגור כבר מזמן', 10, 'advanced')
   })
 
   it('ignores an invalid mode (falls back to default tier)', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'followups.dueToday', confidence: 0.95 })
-    await askGeneralQuestion('מי צריך מעקב היום', 'nonsense')
-    expect(classifyGeneralIntent).toHaveBeenCalledWith('מי צריך מעקב היום', 10, undefined)
+    await askGeneralQuestion('משימות שצריך לסגור כבר מזמן', 'nonsense')
+    expect(classifyGeneralIntent).toHaveBeenCalledWith('משימות שצריך לסגור כבר מזמן', 10, undefined)
   })
 
   it('SAFEGUARD: analytics throwing does NOT affect the answer', async () => {
@@ -185,12 +200,14 @@ describe('askGeneralQuestion — Phase 1 follow-up and growth', () => {
     vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 46, sample: [] })
     vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 1 })
     const res = await askGeneralQuestion('מה אני יכול לעשות כדי להרוויח כסף?')
-    expect(res.kind).toBe('guide')
-    if (res.kind !== 'guide') return
-    expect(res.answer).toContain('אין לי נתוני הכנסה')
-    expect(res.answer).toContain('46')
-    expect(res.answer).not.toMatch(/₪/)
-    expect(res.answer).not.toMatch(/%/)
+    expect(res.kind).toBe('data')
+    if (res.kind !== 'data') return
+    expect(res.intent).toBe('business.advice')
+    const summary = (res.payload as { summary: string }).summary
+    expect(summary).toContain('אין לי נתוני הכנסה')
+    expect(summary).toContain('46')
+    expect(summary).not.toMatch(/₪/)
+    expect(summary).not.toMatch(/%/)
     expect(classifyGeneralIntent).not.toHaveBeenCalled()
   })
 
@@ -288,7 +305,7 @@ describe('askGeneralQuestion — Phase 1 follow-up and growth', () => {
     expect(await askGeneralQuestion('מי עוד?')).toEqual({ kind: 'fallback', mode: 'clarify' })
   })
 
-  it('priority then meetings then מי עוד? does not resurrect the ranking', async () => {
+  it('priority then פגישות היום then מי עוד? does not resurrect the ranking', async () => {
     const priority = toConversationState({
       kind: 'data',
       intent: 'crm.attention',
@@ -305,15 +322,13 @@ describe('askGeneralQuestion — Phase 1 follow-up and growth', () => {
         },
       },
     })
-    vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'meetings.today', confidence: 0.95 })
-    const meetings = await askGeneralQuestion('מה המצב של הפגישות היום?', undefined, undefined, priority)
+    const meetings = await askGeneralQuestion('פגישות היום', undefined, undefined, priority)
     expect(meetings).toEqual({ kind: 'data', intent: 'meetings.today', payload: { meetings: [] } })
 
     const afterMeetings = toConversationState(meetings, priority)
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'unknown', confidence: 0 })
     const res = await askGeneralQuestion('מי עוד?', undefined, undefined, afterMeetings)
     expect(res).toEqual({ kind: 'fallback', mode: 'clarify' })
-    expect(classifyGeneralIntent).toHaveBeenCalled()
     if (res.kind === 'data') {
       const sample = (res.payload as { sample?: { name: string }[] }).sample ?? []
       expect(sample.map((r) => r.name)).not.toEqual(expect.arrayContaining(['קרן שפירא']))
@@ -329,5 +344,225 @@ describe('askGeneralQuestion — Phase 1 follow-up and growth', () => {
     })
     const res = await askGeneralQuestion('מה עוד?', undefined, undefined, state)
     expect(res).toEqual({ kind: 'guide', answer: NOTHING_MORE })
+  })
+})
+
+describe('askGeneralQuestion — grounded Business Copilot answers', () => {
+  function summaryOf(res: Awaited<ReturnType<typeof askGeneralQuestion>>): string {
+    if (res.kind === 'data' && res.payload && typeof res.payload === 'object' && 'summary' in res.payload) {
+      return String((res.payload as { summary: string }).summary)
+    }
+    if (res.kind === 'guide') return res.answer
+    if (res.kind === 'data' && res.payload && typeof res.payload === 'object' && 'answer' in res.payload) {
+      return String((res.payload as { answer: string }).answer)
+    }
+    return JSON.stringify(res)
+  }
+
+  it('A. מה מצב העסק? is evidence-backed interpretation, not a raw dump', async () => {
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 42, sample: [] })
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 1 })
+    const res = await askGeneralQuestion('מה מצב העסק?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    const text = summaryOf(res)
+    expect(text).toContain('42')
+    expect(text).not.toMatch(/^היום: /)
+    expect(text).not.toContain('סיכוי גבוה')
+    expect(text).not.toMatch(/₪/)
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
+  })
+
+  it('B. מה אני יכול לעשות כדי לקדם את העסק? is a prioritized recommendation', async () => {
+    vi.mocked(isReasonedGeneralEnabledForUser).mockReturnValue(true)
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 42, sample: [] })
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 1 })
+    const res = await askGeneralQuestion('מה אני יכול לעשות כדי לקדם את העסק?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    const text = summaryOf(res)
+    expect(text).toContain('הייתי מתמקד')
+    expect(text).toContain('42')
+    expect(text).toContain('אין לי נתוני הכנסה')
+    expect(text).not.toMatch(/₪/)
+    expect(text).not.toMatch(/%/)
+    expect(text).not.toContain('סיכוי גבוה')
+    expect(text).not.toContain('יגדיל המרות')
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
+  })
+
+  it('C. מה הכי דחוף? ranks with an explainable reason', async () => {
+    vi.mocked(listWaitingWhatsappLeads).mockResolvedValue({
+      total: 1,
+      sample: [{ id: 88, name: 'George', status: null }],
+    })
+    const res = await askGeneralQuestion('מה הכי דחוף?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'crm.attention' })
+    const state = toConversationState(res)
+    expect(state?.subjectLead?.name).toBe('George')
+    expect(state?.reason).toContain('ממתין למענה')
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
+  })
+
+  it('D. למה? after priority keeps the same subject and evidence', async () => {
+    const state = toConversationState({
+      kind: 'data',
+      intent: 'crm.attention',
+      payload: {
+        waiting: { total: 1, sample: [{ id: 88, name: 'George', status: null }] },
+        overdue: emptyList,
+        dueToday: emptyList,
+        stale: emptyList,
+      },
+    })
+    const res = await askGeneralQuestion('למה?', undefined, undefined, state)
+    expect(res.kind).toBe('guide')
+    if (res.kind !== 'guide') return
+    expect(res.answer).toContain('George')
+    expect(res.answer).toContain('ממתין למענה')
+    expect(res.answer).not.toMatch(/₪/)
+  })
+
+  it('E. מה אתה רואה? returns 2–3 observations and no invented KPI', async () => {
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 42, sample: [] })
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 1 })
+    vi.mocked(getNewLeadsThisWeek).mockResolvedValue({ total: 40, sample: [] })
+    const res = await askGeneralQuestion('מה אתה רואה?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    const text = summaryOf(res)
+    expect(text).toContain('מה שאני רואה כרגע')
+    expect(text).toContain('42')
+    expect(text).not.toContain('המרה נמוכה')
+    expect(text).not.toMatch(/₪/)
+  })
+
+  it('F. איפה אני מפסיד לידים? uses CRM evidence or admits insufficient data', async () => {
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 42, sample: [] })
+    const withEvidence = await askGeneralQuestion('איפה אני מפסיד לידים?')
+    expect(withEvidence).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    const leak = summaryOf(withEvidence)
+    expect(leak).toContain('42')
+    expect(leak).not.toContain('מפסיד כסף')
+    expect(leak).not.toMatch(/₪/)
+
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue(emptyList)
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 0, unread: 0 })
+    vi.mocked(getOverdueTaskSummary).mockResolvedValue(emptyList)
+    const insufficient = await askGeneralQuestion('איפה אני מפסיד לידים?')
+    expect(summaryOf(insufficient)).toContain('אני לא יכול לקבוע')
+  })
+
+  it('G. מי שלח לי הודעה לאחרונה? stays a narrow factual inbound answer', async () => {
+    vi.mocked(isReasonedGeneralEnabledForUser).mockReturnValue(true)
+    vi.mocked(loadRecentInboundWhatsapp).mockResolvedValue({
+      senders: [{ name: 'George', at: '2026-08-18T13:17:00.000Z' }],
+      answer: 'מי ששלח הודעה בוואטסאפ לאחרונה:\n• George — לפני 2 דקות',
+    })
+    const res = await askGeneralQuestion('מי שלח לי הודעה לאחרונה?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'inbox.recentInbound' })
+    const payload = (res as { payload: { answer: string } }).payload
+    expect(payload.answer).toContain('George')
+    expect(payload.answer).not.toContain('ממתין')
+    expect(payload.answer).not.toMatch(/callback/i)
+    expect(res).not.toMatchObject({ intent: 'crm.attention' })
+  })
+
+  it('H. מי מחכה לי בוואטסאפ? is waiting, not a recency dump', async () => {
+    vi.mocked(loadWaitingInboundWhatsapp).mockResolvedValue({
+      senders: [{ name: 'George', at: '2026-08-18T13:17:00.000Z' }],
+      answer: 'מי שממתין למענה בוואטסאפ:\n• George — לפני 2 דקות\n\nGeorge עדיין ממתין, אז הצעד הישיר הוא לענות.',
+    })
+    const res = await askGeneralQuestion('מי מחכה לי בוואטסאפ?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'inbox.waiting' })
+    const payload = (res as { payload: { answer: string } }).payload
+    expect(payload.answer).toContain('ממתין')
+    expect(payload.answer).not.toContain('מי ששלח הודעה בוואטסאפ לאחרונה')
+    expect(res).not.toMatchObject({ intent: 'crm.attention' })
+  })
+
+  it('H2. למי צריך לענות? is waiting inbound', async () => {
+    vi.mocked(loadWaitingInboundWhatsapp).mockResolvedValue({
+      senders: [{ name: 'George', at: '2026-08-18T13:17:00.000Z' }],
+      answer: 'מי שממתין למענה בוואטסאפ:\n• George — לפני 2 דקות',
+    })
+    const res = await askGeneralQuestion('למי צריך לענות?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'inbox.waiting' })
+  })
+
+  it('H3. יש הודעות שלא קראתי? is unread, not waiting or recency', async () => {
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 9 })
+    const res = await askGeneralQuestion('יש הודעות שלא קראתי?')
+    expect(res).toEqual({ kind: 'data', intent: 'inbox.unread', payload: { conversations: 1, unread: 9 } })
+  })
+
+  it('I. כמה כסף עשיתי? stays the honest revenue gap', async () => {
+    expect(await askGeneralQuestion('כמה כסף עשיתי?')).toEqual({ kind: 'fallback', mode: 'redirect', gap: 'revenue' })
+  })
+
+  it('J. Phase 1 regression sequence does not resurrect ranking or repeat leads', async () => {
+    vi.mocked(getFollowUpsDueToday).mockResolvedValue(emptyList)
+    vi.mocked(getOverdueTaskSummary).mockResolvedValue(emptyList)
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue(emptyList)
+    vi.mocked(getNewLeadsThisWeek).mockResolvedValue(emptyList)
+    vi.mocked(getTodaysMeetings).mockResolvedValue([])
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 2 })
+
+    let state = toConversationState({
+      kind: 'data',
+      intent: 'system.overview',
+      payload: { summary: 'היום: 1 שיחות ממתינות.' },
+    })
+    const more1 = await askGeneralQuestion('מה עוד?', undefined, undefined, state)
+    expect(more1).toEqual({ kind: 'data', intent: 'inbox.unread', payload: { conversations: 1, unread: 2 } })
+    state = toConversationState(more1, state)
+
+    const more2 = await askGeneralQuestion('מה עוד?', undefined, undefined, state)
+    expect(more2).toEqual({ kind: 'guide', answer: NOTHING_MORE })
+    state = toConversationState(more2, state)
+
+    const names = [
+      { id: 11, name: 'עדי שרון', status: null },
+      { id: 12, name: 'קרן שפירא', status: null },
+      { id: 13, name: 'דנה זהבי', status: null },
+    ]
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 3, sample: names })
+    const urgent = await askGeneralQuestion('מי הליד הכי דחוף?')
+    expect(urgent).toMatchObject({ kind: 'data', intent: 'crm.attention' })
+    state = toConversationState(urgent)
+
+    const why = await askGeneralQuestion('למה?', undefined, undefined, state)
+    expect(why.kind).toBe('guide')
+    if (why.kind === 'guide') expect(why.answer).toContain('עדי שרון')
+    state = toConversationState(why, state)
+
+    const who1 = await askGeneralQuestion('מי עוד?', undefined, undefined, state)
+    expect(who1.kind).toBe('data')
+    if (who1.kind === 'data') {
+      const sample = (who1.payload as { sample: { id: number }[] }).sample
+      expect(sample.map((r) => r.id)).toEqual([12, 13])
+      expect(sample.map((r) => r.id)).not.toContain(11)
+    }
+    state = toConversationState(who1, state)
+
+    const who2 = await askGeneralQuestion('מי עוד?', undefined, undefined, state)
+    expect(who2).toEqual({ kind: 'guide', answer: NO_MORE_LEADS })
+    state = toConversationState(who2, state)
+
+    const meetings = await askGeneralQuestion('פגישות היום', undefined, undefined, state)
+    expect(meetings).toEqual({ kind: 'data', intent: 'meetings.today', payload: { meetings: [] } })
+    state = toConversationState(meetings, state)
+
+    const whoAfterMeetings = await askGeneralQuestion('מי עוד?', undefined, undefined, state)
+    expect(whoAfterMeetings).toEqual({ kind: 'fallback', mode: 'clarify' })
+
+    vi.mocked(getLeadsNotContactedRecently).mockResolvedValue({ total: 42, sample: [] })
+    const growth = await askGeneralQuestion('מה אני יכול לעשות כדי לקדם את העסק?', undefined, undefined, state)
+    expect(growth).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    state = toConversationState(growth, state)
+
+    const moreAfterGrowth = await askGeneralQuestion('מה עוד?', undefined, undefined, state)
+    expect(moreAfterGrowth.kind).not.toBe('fallback')
+    if (moreAfterGrowth.kind === 'data') {
+      const sample = (moreAfterGrowth.payload as { sample?: { id: number }[] }).sample ?? []
+      expect(sample.map((r) => r.id)).not.toEqual(expect.arrayContaining([12]))
+    }
   })
 })

@@ -1,6 +1,9 @@
 import { inferObjective } from './objective'
-import { classifyFallback } from './fallback'
+import { classifyFallback, isGrowthQuestion } from './fallback'
 import { gatherTriageFacts } from './facts/gatherFacts'
+import { quickClassifyGeneral } from './classifyGeneralIntent'
+import { classifyBusinessAdvice } from './businessAdvice'
+import { GENERAL_HIGH_CONFIDENCE } from './constants'
 import { isRuntimeCognitionEnabledForUser } from '@/lib/copilot/featureFlag'
 import { getRuntimeCognition, formatRuntimeCognitionForCandidates } from './runtimeCognition'
 import { reasonOverFacts } from './reason'
@@ -10,6 +13,9 @@ import type { Scope } from '@/db/briefing'
 import type { CopilotModeId } from '@/lib/ai/copilotModes'
 
 export function shouldReason(text: string): boolean {
+  if (quickClassifyGeneral(text).confidence >= GENERAL_HIGH_CONFIDENCE) return false
+  if (classifyBusinessAdvice(text)) return false
+  if (isGrowthQuestion(text)) return false
   const { objective } = inferObjective({ text })
   if (objective === 'create') return false // compose tasks are not open-ended business questions
   if (objective === 'summarize') return false // status questions → deterministic overview, not the Reasoner

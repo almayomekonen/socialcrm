@@ -10,11 +10,13 @@ import {
 import { composeOverviewSentence } from './overviewSentence'
 import type { FactBucketId } from './conversationState'
 import { Roles } from '@/types/roles'
+import { loadRecentInboundWhatsapp, loadWaitingInboundWhatsapp } from './recentInbound'
+import { listWaitingWhatsappLeads } from './waitingInbound'
 
 export type BriefingActor = { agencyId: number; id: number; role: Roles }
 
 export async function runBriefingIntent(intent: string, user: BriefingActor, scope: Scope): Promise<unknown> {
-  switch (intent as FactBucketId | 'crm.attention' | 'system.overview') {
+  switch (intent as FactBucketId | 'crm.attention' | 'system.overview' | 'inbox.recentInbound' | 'inbox.waiting') {
     case 'followups.dueToday':
       return getFollowUpsDueToday(scope)
     case 'leads.notContactedRecently':
@@ -27,13 +29,18 @@ export async function runBriefingIntent(intent: string, user: BriefingActor, sco
       return getNewLeadsThisWeek(scope)
     case 'inbox.unread':
       return getUnreadInboxSummary(scope)
+    case 'inbox.recentInbound':
+      return loadRecentInboundWhatsapp(user, scope)
+    case 'inbox.waiting':
+      return loadWaitingInboundWhatsapp(user, scope)
     case 'crm.attention': {
-      const [dueToday, overdue, stale] = await Promise.all([
+      const [dueToday, overdue, stale, waiting] = await Promise.all([
         getFollowUpsDueToday(scope),
         getOverdueTaskSummary(scope),
         getLeadsNotContactedRecently(scope),
+        listWaitingWhatsappLeads(user, scope),
       ])
-      return { overdue, dueToday, stale }
+      return { overdue, dueToday, stale, waiting }
     }
     case 'system.overview': {
       const [overdue, meetings, inbox, stale, newLeads] = await Promise.all([

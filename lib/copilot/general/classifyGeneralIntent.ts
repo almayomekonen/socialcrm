@@ -5,6 +5,10 @@ import { GENERAL_HIGH_CONFIDENCE } from './constants'
 import {
   BRIEFING_EXAMPLES,
   BRIEFING_INTENT_IDS,
+  RECENT_INBOUND_EXAMPLES,
+  RECENT_INBOUND_ID,
+  WAITING_INBOUND_EXAMPLES,
+  WAITING_INBOUND_ID,
   SYSTEM_OVERVIEW_ID,
   SYSTEM_OVERVIEW_EXAMPLES,
   type GeneralIntentId,
@@ -13,7 +17,13 @@ import { GUIDE_ENTRIES } from './guideMap'
 
 export type Classification = { intent: GeneralIntentId; confidence: number }
 
-const ALL_IDS: string[] = [...BRIEFING_INTENT_IDS, SYSTEM_OVERVIEW_ID, ...GUIDE_ENTRIES.map((g) => g.id)]
+const ALL_IDS: string[] = [
+  ...BRIEFING_INTENT_IDS,
+  SYSTEM_OVERVIEW_ID,
+  RECENT_INBOUND_ID,
+  WAITING_INBOUND_ID,
+  ...GUIDE_ENTRIES.map((g) => g.id),
+]
 const INTENT_ENUM = [...ALL_IDS, 'unknown'] as unknown as [string, ...string[]]
 
 /** Cheap deterministic pass: substring match against the authored examples. */
@@ -25,6 +35,8 @@ export function quickClassifyGeneral(text: string): Classification {
   for (const id of BRIEFING_INTENT_IDS) {
     if (BRIEFING_EXAMPLES[id].some((e) => t.includes(e))) return { intent: id, confidence: 0.95 }
   }
+  if (RECENT_INBOUND_EXAMPLES.some((e) => t.includes(e))) return { intent: RECENT_INBOUND_ID, confidence: 0.95 }
+  if (WAITING_INBOUND_EXAMPLES.some((e) => t.includes(e))) return { intent: WAITING_INBOUND_ID, confidence: 0.95 }
   if (SYSTEM_OVERVIEW_EXAMPLES.some((e) => t.includes(e))) return { intent: SYSTEM_OVERVIEW_ID, confidence: 0.95 }
   return { intent: 'unknown', confidence: 0 }
 }

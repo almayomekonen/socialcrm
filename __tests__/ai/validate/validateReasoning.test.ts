@@ -100,4 +100,24 @@ describe('Trust Gate — validateReasoning', () => {
     const input = out([act('good', ['1', '999']), act('bad', ['888'])], 50)
     expect(validateReasoning(input, facts)).toEqual(validateReasoning(input, facts))
   })
+
+  it('rejects unsupported conversion claims even when evidence ids are valid', () => {
+    const hot: GeneralReasonOutput = {
+      allClear: false,
+      executiveDecision: 'George הוא ליד חם עם סיכוי גבוה לסגירה.',
+      actions: [act('call A', ['1'])],
+      moreCount: 0,
+    }
+    expect(validateReasoning(hot, facts)).toBeNull()
+  })
+
+  it('rejects English conversion-probability claims', () => {
+    const r: GeneralReasonOutput = {
+      allClear: false,
+      executiveDecision: 'This hot lead has a high probability of closing.',
+      actions: [{ action: 'call A', why: 'will increase conversions', evidence: ['1'], priority: 'high' }],
+      moreCount: 0,
+    }
+    expect(validateReasoning(r, facts)).toBeNull()
+  })
 })

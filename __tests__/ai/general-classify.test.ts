@@ -12,6 +12,17 @@ describe('quickClassifyGeneral — closed world', () => {
     expect(quickClassifyGeneral('לידים חדשים השבוע').intent).toBe('leads.newThisWeek')
     expect(quickClassifyGeneral('מי לא דיברתי איתו מזמן').intent).toBe('leads.notContactedRecently')
     expect(quickClassifyGeneral('מה דחוף').intent).toBe('crm.attention')
+    expect(quickClassifyGeneral('מה הכי דחוף במערכת?').intent).toBe('crm.attention')
+    expect(quickClassifyGeneral('מי הליד הכי דחוף?').intent).toBe('crm.attention')
+    expect(quickClassifyGeneral('מי שלח הודעות וואטסאפ לאחרונה?').intent).toBe('inbox.recentInbound')
+    expect(quickClassifyGeneral('מי שלח לי הודעה לאחרונה?').intent).toBe('inbox.recentInbound')
+    expect(quickClassifyGeneral('מי כתב לי בוואטסאפ?').intent).toBe('inbox.recentInbound')
+    expect(quickClassifyGeneral('מי מחכה לי בוואטסאפ?').intent).toBe('inbox.waiting')
+    expect(quickClassifyGeneral('למי צריך לענות?').intent).toBe('inbox.waiting')
+    expect(quickClassifyGeneral('יש הודעות שלא קראתי?').intent).toBe('inbox.unread')
+    expect(quickClassifyGeneral('מי לא נקרא?').intent).toBe('inbox.unread')
+    expect(quickClassifyGeneral('מה חדש במערכת?').intent).toBe('system.overview')
+    expect(quickClassifyGeneral('מה מצב הפגישות?').intent).toBe('meetings.today')
   })
 
   it('maps guide utterances to their guide id', () => {

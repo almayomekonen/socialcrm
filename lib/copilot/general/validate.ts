@@ -11,7 +11,8 @@
  *   - returns null if nothing supportable survives (never rescues, never repairs).
  *
  * Scope boundary (honest + deterministic): the gate validates structured evidence
- * (the refIds an action cites), not free prose. Grounding the wording is the
+ * (the refIds an action cites) and rejects a small closed set of unsupported
+ * business-claim phrases in prose. Grounding the rest of the wording is the
  * prompt's job; the gate guarantees every surfaced ACTION is evidence-backed.
  *
  * Bias: false negatives are acceptable, false positives are not. When uncertain,
@@ -19,6 +20,7 @@
  */
 import type { GeneralReasonOutput } from '@/lib/ai/prompts/generalReason'
 import type { FactsBundle } from './facts/types'
+import { containsUnsupportedBusinessClaim } from './unsupportedClaims'
 
 export interface ValidatedAction {
   action: string
@@ -80,6 +82,9 @@ function emptyDiagnostics(): TrustDiagnostics {
 }
 
 export function validateReasoning(output: GeneralReasonOutput, facts: FactsBundle): ValidatedReasoning | null {
+  const prose = [output.executiveDecision, ...output.actions.map((a) => `${a.action} ${a.why}`)].join('\n')
+  if (containsUnsupportedBusinessClaim(prose)) return null
+
   // All-clear: nothing is surfaced. Normalize to a clean, empty, safe state;
   // any stray actions are removed (never repaired into something shown).
   if (output.allClear) {
