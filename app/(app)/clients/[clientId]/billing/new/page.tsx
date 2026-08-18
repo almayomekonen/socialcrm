@@ -8,6 +8,8 @@ import { getActiveBillingProfileForLead } from '@/db/billing/profiles'
 import { getOrCreateDefaultTaxRate, resolveActiveTaxRateForLine } from '@/db/billing/taxRates'
 import InvoiceNewEditor from '@/components/billing/InvoiceNewEditor'
 import type { DocumentKind } from '@/db/billing/invoices'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const maxDuration = 60
 
@@ -29,6 +31,14 @@ export default async function NewInvoicePage({
 
   const user = await requireUser()
   if (!canDraftBilling(user)) redirect(`/clients/${leadId}/billing` as any)
+
+  /**
+   * DESKTOP-ONLY LEAD TAB. After authentication AND after the existing
+   * draft-permission redirect, so neither is weakened: a rep who may not draft
+   * still gets the same redirect they got before, on any device. The invoice
+   * editor is a desktop composer with no phone presentation.
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='lead_billing' />
 
   const { gotPermIds } = await getPerms(user)
   const leadQ = db('clients').where({ id: leadId, agencyId: user.agencyId })

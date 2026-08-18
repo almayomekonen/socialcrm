@@ -8,7 +8,17 @@
  * produces a hydration mismatch that is fatal in the production build.
  */
 
-export type FollowUpBadge = { label: string; className: string }
+/**
+ * `tone` is the semantic level; `className` is the filled-pill treatment.
+ *
+ * Both exist because the two surfaces present the same fact at different
+ * weights: the lead DETAIL screen shows one lead, so a filled pill is
+ * proportionate, while the LIST shows thirty and a column of filled red pills
+ * reads as decoration and stops meaning "urgent" at all. The list uses `tone` to
+ * draw a dot plus coloured text instead. One computation, two weights — not two
+ * rules that can disagree.
+ */
+export type FollowUpBadge = { label: string; className: string; tone: 'error' | 'warning' }
 
 export function followUpBadge(
   nextFollowUpAt: string | null,
@@ -20,14 +30,14 @@ export function followUpBadge(
   if (Number.isNaN(at)) return null
 
   if (at < dayStartMs) {
-    return { label: 'מעקב באיחור', className: 'border-error-border bg-error-bg text-error-text' }
+    return { label: 'מעקב באיחור', className: 'border-error-border bg-error-bg text-error-text', tone: 'error' }
   }
   if (at <= nowMs) {
-    return { label: 'מעקב להיום', className: 'border-warning-border bg-warning-bg text-warning-text' }
+    return { label: 'מעקב להיום', className: 'border-warning-border bg-warning-bg text-warning-text', tone: 'warning' }
   }
   const dayEnd = dayStartMs + 24 * 60 * 60 * 1000
   if (at < dayEnd) {
-    return { label: 'מעקב להיום', className: 'border-warning-border bg-warning-bg text-warning-text' }
+    return { label: 'מעקב להיום', className: 'border-warning-border bg-warning-bg text-warning-text', tone: 'warning' }
   }
   return null
 }

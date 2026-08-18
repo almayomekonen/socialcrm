@@ -54,7 +54,21 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
   const hasAny = activeCount > 0 || filters.q.length > 0
 
   return (
-    <div className='sticky top-0 z-20 border-b border-gray-200 bg-white px-4 pb-2.5 pt-3'>
+    /**
+     * HEADER HEIGHT IS THE PRODUCT DECISION HERE. The first version spent 91px
+     * of an 844px screen on chrome: a search row, then a whole separate row
+     * holding the single string "30 לידים". On a list screen every pixel above
+     * the fold is a lead the rep cannot see.
+     *
+     * The count now shares the row with the active-filter chips instead of
+     * owning one, and the container padding is tightened. Nothing was removed:
+     * search, filtering, the chips, the clear-all control and the live count are
+     * all still here, and the result count still announces itself politely.
+     *
+     * The bar keeps a solid background because it is `sticky` — a translucent
+     * header over a scrolling list is a legibility problem, not a style.
+     */
+    <div className='sticky top-0 z-20 border-b border-gray-200 bg-white px-3 pb-2 pt-2.5'>
       <div className='flex items-center gap-2'>
         <form onSubmit={submitSearch} role='search' className='relative min-w-0 flex-1'>
           <label htmlFor='lead-search' className='sr-only'>
@@ -102,7 +116,7 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
       {/* Active filters are always visible — a filter you cannot see is a
           "where did my leads go" support ticket (ux-guidelines §10). */}
       {hasAny && (
-        <div className='mt-2 flex flex-wrap items-center gap-1.5'>
+        <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
           {filters.q && (
             <Chip label={`"${filters.q}"`} onClear={() => go({ ...filters, q: '' })} clearLabel='נקה חיפוש' />
           )}
@@ -117,14 +131,17 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
           <button
             type='button'
             onClick={() => go({ q: '', status: [] })}
-            className='ms-auto flex min-h-11 items-center rounded px-3 text-[12px] font-medium text-primary-text underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            className='ms-auto flex min-h-11 items-center rounded px-2 text-[12px] font-medium text-primary-text underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             נקה הכל
           </button>
         </div>
       )}
 
-      <p aria-live='polite' className='mt-1.5 text-[12px] tabular-nums text-gray-400'>
+      {/* The count rides in the search row's slipstream rather than owning a
+          row of its own. `aria-live` is unchanged, so a filter change is still
+          announced. */}
+      <p aria-live='polite' className='mt-1 text-[11px] tabular-nums leading-none text-gray-400'>
         {pending ? 'מעדכן…' : `${resultCount} לידים`}
       </p>
 

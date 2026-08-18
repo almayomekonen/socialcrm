@@ -8,6 +8,7 @@ import { loadWhatsappComposerContext } from '@/lib/inbox/whatsappComposerContext
 import ConversationListMobile from './ConversationListMobile'
 import ConversationThreadMobile from './ConversationThreadMobile'
 import { relativeTimeHe } from './relativeTime'
+import { statusStyle } from '@/lib/leads/statusStyles'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
 
 /**
@@ -51,29 +52,73 @@ export default async function MobileInboxRoute({
 
     const name = target.displayName || target.leadName || 'שיחה'
 
+    /**
+     * Secondary context under the name: lead status, then how long since the
+     * last message — "מתעניין · לפני 4 דקות".
+     *
+     * Both parts are optional and the line is omitted entirely when neither is
+     * known, rather than rendering a stray separator. Recency is formatted here,
+     * on the server, against one `Date.now()` — the same rule every other mobile
+     * timestamp follows (architecture-rules.md §11).
+     */
+    // The thread's own last message — already loaded, so no extra query and no
+    // field invented on the conversation row.
+    const lastMessageAt = messages.length ? messages[messages.length - 1].timestamp : null
+
+    const headerMeta =
+      [
+        target.leadStatus ? statusStyle(target.leadStatus).label : null,
+        relativeTimeHe(lastMessageAt, Date.now()) || null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || null
+
     return (
       <div className='flex h-full min-h-0 flex-col'>
-        {/* Thread header carries the one action the rep needs from here: open
-            the lead. Back is the shell's header control. */}
-        <div className='flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-2 py-2'>
-          {/* Explicit back to the list. The shell's header cannot provide it —
-              it keys off pathname, and list and thread share `/inbox` — and a
-              thread with no visible way out relies on the browser chrome. */}
+        {/*
+          THREAD HEADER — who am I talking to, on what channel, and how fresh.
+          The messaging convention: back, identity, then the one onward action.
+
+          It used to be back + name + a text link labelled "הליד". The name was
+          right, but the header said nothing about WHICH channel this is or when
+          the customer last spoke, and the widest element in it was a generic
+          word. Now the channel mark sits with the name, the status and recency
+          sit under it, and the lead link is an icon button with an accessible
+          name — the same information in less space, with the generic label gone.
+
+          Back is explicit: the shell's header keys off pathname, and the list
+          and the thread share `/inbox`, so it cannot supply one.
+        */}
+        <div className='flex shrink-0 items-center gap-1 border-b border-gray-200 bg-white px-1.5 py-1.5'>
           <Link
             href={'/inbox' as Route}
             aria-label='חזרה לשיחות'
-            className='flex size-11 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             <Icon name='arrow-right' type='sol' className='size-5 bg-gray-600' />
           </Link>
-          <p className='min-w-0 flex-1 truncate text-[15px] font-semibold text-ink'>{name}</p>
+
+          {/* Channel identity. WhatsApp green, because "which app is this
+              customer on" is exactly the kind of recognition colour is for. */}
+          <span
+            aria-hidden
+            className='flex size-9 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10'
+          >
+            <Icon name='whatsapp' type='sol' className='size-[18px] bg-[#25D366]' />
+          </span>
+
+          <div className='min-w-0 flex-1 ps-1'>
+            <p className='truncate text-[15px] font-semibold leading-tight text-ink'>{name}</p>
+            {headerMeta && <p className='truncate text-[12px] leading-tight text-gray-500'>{headerMeta}</p>}
+          </div>
+
           {target.leadId != null ? (
             <Link
               href={`/clients/${target.leadId}/summary` as Route}
-              className='flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-primary-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              aria-label={`פתח את הליד ${name}`}
+              className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             >
-              <Icon name='image-polaroid-user' type='sol' className='size-4 bg-primary' />
-              <span>הליד</span>
+              <Icon name='image-polaroid-user' type='sol' className='size-5 bg-primary' />
             </Link>
           ) : (
             <LeadlessConversationActions conversationId={conversationId} isPersonal={target.isPersonal} />

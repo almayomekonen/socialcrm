@@ -12,6 +12,8 @@ import { getUsers } from '@/db/usersNTeams'
 import SalesNav from '@/components/sales/SalesNav'
 import SalesSection from '@/components/sales/SalesSection'
 import DashboardSummary from '@/components/dashboard/DashboardSummary'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 const Filter = dynamic(() => import('@/components/filter'))
 
@@ -24,6 +26,15 @@ export default async function SalesPage({ searchParams }) {
   const { filter, saleId, isFav, pageNum, tableLimit } = await searchParams
   const user = await getUser()
   if (!user) redirect('/auth')
+
+  /**
+   * DESKTOP-ONLY SECTION. The deals workspace is a summary strip, a filter panel
+   * and a paginated grid, with no phone presentation. Returned before
+   * `getPermsAndFilter` and the three parallel reads below, so a phone runs none
+   * of them (architecture-rules.md §9).
+   */
+  if (await isMobileWorkspaceRequest(user.agencyId)) return <MobileDesktopOnly section='deals' />
+
   const { rawFilter, sqlFilter, gotPermUsers, gotPermTeams, gotPermIds, allPermUsers } = await getPermsAndFilter({
     user,
     filter,

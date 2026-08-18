@@ -1,9 +1,10 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import MobileTabBar, { MOBILE_TABS, isTabActive } from './MobileTabBar'
 import MobileHeader from './MobileHeader'
+import { useMobileScrollRestoration } from './useMobileScrollRestoration'
 
 /**
  * The mobile workspace chrome: header on top, page in the middle, tab bar below.
@@ -50,6 +51,14 @@ export default function MobileWorkspaceShell({
   const pathname = usePathname()
   const { title, isTab } = titleFor(pathname)
 
+  /**
+   * The scroll region below is the app's scroller, not the document's, so
+   * history scroll restoration does not reach it — see the hook for the full
+   * argument. Restoration is therefore explicit, and scoped to this shell.
+   */
+  const scrollerRef = useRef<HTMLElement | null>(null)
+  useMobileScrollRestoration(scrollerRef)
+
   return (
     /* `data-mobile-workspace` is the scoping hook for the `full-bleed`
        neutralisation in main.css — see the rule there for why it is needed. */
@@ -59,7 +68,12 @@ export default function MobileWorkspaceShell({
       {/* The ONLY scroll container. `min-h-0` is load-bearing in a flex column:
           without it the region refuses to shrink and the tab bar is pushed off
           the bottom of the viewport. */}
-      <main id='main-content' tabIndex={-1} className='min-h-0 flex-1 overflow-y-auto focus:outline-none'>
+      <main
+        id='main-content'
+        ref={scrollerRef}
+        tabIndex={-1}
+        className='min-h-0 flex-1 overflow-y-auto focus:outline-none'
+      >
         {children}
       </main>
 

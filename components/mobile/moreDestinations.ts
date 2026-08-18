@@ -59,7 +59,17 @@ export const MORE_ITEMS: MoreItem[] = [
   // ---- SYSTEM ----
   { section: 'system', title: 'אבטחה', subtitle: 'היסטוריית כניסות והתנתקות', href: '/settings/update_security', icon: 'shield', adminOnly: true },
   { section: 'system', title: 'הגדרות מערכת', subtitle: 'ברירות מחדל', href: '/settings/update_default', icon: 'folders', adminOnly: true },
-  { section: 'system', title: 'AI Inspector', subtitle: 'החלטות ה-AI', href: '/settings/ai-inspector', icon: 'brain', adminOnly: true, inspectorOnly: true },
+  /*
+   * AI Inspector is deliberately ABSENT from this menu.
+   *
+   * It is a diagnostic console — two wide tables of AI run records, ADMIN plus a
+   * feature flag — and it has no mobile screen. Listing it here would put a row
+   * in the hub whose only outcome is "open this on a computer", which is exactly
+   * the accidental dead end this file's rule forbids ("nothing is a 'coming
+   * soon' row"). The route still answers a typed URL with the standard handoff
+   * (`lib/mobile/desktopOnlyRoutes.ts` → `ai_inspector`); it is simply not
+   * advertised. `inspectorOnly` stays in the type for the desktop nav's use.
+   */
 
   // ---- ACCOUNT ----
   // Deliberately reachable by EVERY role: a נציג whose WhatsApp just broke is

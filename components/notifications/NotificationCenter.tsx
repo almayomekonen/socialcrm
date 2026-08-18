@@ -11,6 +11,7 @@ import {
 } from '@/modules/notifications/center'
 import type { FeedCursor, NotificationFeedItem, NotificationFeedResponse } from '@/modules/notifications/types'
 import NotificationRow from './NotificationRow'
+import NotificationRowMobile from './mobile/NotificationRowMobile'
 
 /**
  * The notification center's list. Spec §13, P2.4.
@@ -35,10 +36,19 @@ export default function NotificationCenter({
   initialItems,
   initialCursor,
   filters,
+  variant = 'desktop',
 }: {
   initialItems: NotificationFeedItem[]
   initialCursor: FeedCursor | null
   filters: CenterFilters
+  /**
+   * Which ROW to render. Everything else — paging, seen/read stamping, the
+   * optimistic read, the single `NotificationContext` owner — is identical, so
+   * the two surfaces share this component rather than forking its logic. Only
+   * the presentation differs. Defaults to desktop, so every existing caller is
+   * unchanged.
+   */
+  variant?: 'desktop' | 'mobile'
 }) {
   const { unreadCount, markSeen, markRead, markAllRead } = useNotifications()
   const router = useRouter()
@@ -129,7 +139,11 @@ export default function NotificationCenter({
       <ul className='divide-y'>
         {items.map((item) => (
           <li key={item.id}>
-            <NotificationRow item={item} onSelect={open} />
+            {variant === 'mobile' ? (
+              <NotificationRowMobile item={item} onSelect={open} />
+            ) : (
+              <NotificationRow item={item} onSelect={open} />
+            )}
           </li>
         ))}
       </ul>

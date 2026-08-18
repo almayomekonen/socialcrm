@@ -11,6 +11,8 @@ import {
   listRecentRuns,
   type InspectorWindow,
 } from '@/db/aiInspector'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const metadata = { title: 'AI Inspector' }
 
@@ -42,6 +44,18 @@ export default async function AiInspectorPage({ searchParams }: { searchParams: 
 
   const sp = await searchParams
   const user = await requireAgencyUser()
+
+  /**
+   * DESKTOP-ONLY DIAGNOSTIC. Two wide run tables with no mobile presentation;
+   * measured rendering inside the mobile shell. Placed AFTER the flag check and
+   * `requireAgencyUser()` — neither gate is weakened — and BEFORE the seven
+   * parallel inspector queries, so a phone runs none of them.
+   *
+   * Reachable only by typed URL: the entry was removed from the mobile "עוד"
+   * menu, so nobody arrives here by tapping.
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='ai_inspector' />
+
   const leadIdRaw = pickString(sp, 'leadId')
   const leadId = leadIdRaw ? Number(leadIdRaw) : null
   const window = parseWindow(pickString(sp, 'window'))

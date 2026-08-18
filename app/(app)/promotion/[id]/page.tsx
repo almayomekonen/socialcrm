@@ -8,11 +8,21 @@ import UserPromo from '@/components/promo/UserPromo'
 import { db } from '@/config/db'
 import { addNotIncludedUsers } from '@/db/sumSales'
 import { isAdmin } from '@/types/roles'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const metadata: Metadata = { title: 'פרטי קמפיין' }
 
 export default async function PromotionPage({ params, searchParams }) {
   const user = await getUser()
+
+  /**
+   * DESKTOP-ONLY SECTION. The detail page carries the same gate as the list: a
+   * campaign is a wide per-נציג breakdown table, and reaching it by direct URL
+   * must not be a way around the section's handoff.
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='promotion' />
+
   const { id } = await params
   let { filter } = await searchParams
   try { filter = filter ? JSON.parse(filter) : {} } catch { filter = {} }

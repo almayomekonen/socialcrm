@@ -8,6 +8,8 @@ import { getPerms } from '@/db/filter'
 import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const metadata: Metadata = {
   title: 'נתוני לקוחות',
@@ -17,6 +19,17 @@ export const metadata: Metadata = {
 export default async function ClientsPage({ searchParams }) {
   const params = (await searchParams) || {}
   const user = await getUser()
+
+  /**
+   * DESKTOP-ONLY SECTION — this LIST page only.
+   *
+   * `/clients/[clientId]/summary` is a fully built mobile lead-detail screen and
+   * must keep working; the gate therefore lives here, on the list page, and NOT
+   * in `clients/layout.tsx`, which wraps both. Returned before the six parallel
+   * reads and `ClientsTable` (architecture-rules.md §9).
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='clients' />
+
   const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),

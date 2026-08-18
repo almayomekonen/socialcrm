@@ -5,11 +5,22 @@ import { listUpcomingMeetings } from '@/actions/calendar'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import CalendarView from '@/components/calendar/CalendarView'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const metadata: Metadata = { title: 'פגישות' }
 
 export default async function CalendarPage() {
   const user = await requireAgencyUser()
+
+  /**
+   * DESKTOP-ONLY SECTION. Returned before the connection read, so a phone never
+   * runs the calendar query and never receives `CalendarView` or the
+   * not-connected card (architecture-rules.md §9). The gate sits AFTER
+   * `requireAgencyUser()` — device class never precedes authentication.
+   */
+  if (await isMobileWorkspaceRequest(user.agencyId)) return <MobileDesktopOnly section='calendar' />
+
   const conn = await getCalendarConnectionByUserId(user.id)
 
   // Per ux-guidelines §11: render exactly one state at a time. If the user

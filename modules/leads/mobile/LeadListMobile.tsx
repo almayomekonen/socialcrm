@@ -4,6 +4,10 @@ import Icon from '@/lib/Icon'
 import { startOfBusinessDayMs } from '@/lib/today/time'
 import type { MobileLeadRow } from '@/modules/leads/queries'
 import { leadsHref, type LeadFilters } from '@/modules/leads/filters'
+// Shared pure helper — imported rather than copied so the two mobile lists
+// phrase "how long ago" identically. No I/O, no clock of its own: it formats
+// against the `nowMs` passed down from the server.
+import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
 import LeadCardMobile from './LeadCardMobile'
 import { followUpBadge } from './followUpBadge'
 import LeadFilterBar from './LeadFilterBar'
@@ -53,13 +57,29 @@ export default function LeadListMobile({
         <FilteredEmpty filters={filters} />
       ) : (
         <>
-          <ul className='divide-y divide-gray-100'>
-            {rows.map((lead) => (
-              <li key={lead.id}>
-                <LeadCardMobile lead={lead} followUp={followUpBadge(lead.nextFollowUpAt, nowMs, dayStart)} />
-              </li>
-            ))}
-          </ul>
+          {/*
+            A GROUPED CARD ON THE TINTED PAGE, matching היום exactly
+            (`rounded-xl border border-gray-200 bg-white` over `--color-bg`).
+            The first version was an edge-to-edge white sheet, which is why the
+            two screens read as different products side by side. This is the same
+            container היום already uses for its row sections — adopted, not
+            invented.
+          */}
+          <div className='mx-3 mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white'>
+            <ul className='divide-y divide-gray-100'>
+              {rows.map((lead) => (
+                <li key={lead.id}>
+                  <LeadCardMobile
+                    lead={lead}
+                    followUp={followUpBadge(lead.nextFollowUpAt, nowMs, dayStart)}
+                    /* "When did something last happen" — the one question the old
+                       card left unanswered. Formatted on the server. */
+                    recency={relativeTimeHe(lead.lastActivityAt ?? lead.createdAt, nowMs)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
 
           {/* Pagination is a link, not an infinite scroller: it keeps the page
               in the URL, so back/forward and refresh land where the rep was. */}

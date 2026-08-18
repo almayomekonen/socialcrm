@@ -8,9 +8,18 @@ import { getFullUser } from '@/db/usersNTeams'
 import { getRecentLoginActivity } from '@/db/loginActivity'
 import { parseUserAgent } from '@/lib/parseUserAgent'
 import { canUseFacebookUserAuth } from '@/lib/auth/facebookUserAuthFlags'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import LoginActivityMobile from '@/components/settings/mobile/LoginActivityMobile'
 
 export default async function page() {
   const user = await getUser()
+  /**
+   * Only the login-activity TABLE is device-dependent on this page. The
+   * accordions, the logout-minutes form and the connected-accounts block are all
+   * already stacked and measured clean on a phone, so they are shared verbatim —
+   * this swaps one child, not the screen.
+   */
+  const mobile = await isMobileWorkspaceRequest(user?.agencyId)
   const res = await getFullUser({
     id: user.id,
     select: [
@@ -57,6 +66,8 @@ export default async function page() {
         <AccordionItem bodyClass={bodyClass} title='פעילות התחברות אחרונה'>
           {ipData.length === 0 ? (
             <p className='text-sm text-gray-500'>עדיין לא נרשמה פעילות התחברות</p>
+          ) : mobile ? (
+            <LoginActivityMobile rows={ipData} />
           ) : (
             <IpsTable data={ipData} />
           )}

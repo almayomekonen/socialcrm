@@ -4,7 +4,7 @@
 //
 // Guarantees:
 //   1. Status / follow-up / outcome are named buttons that open named dialogs.
-//   2. Call and WhatsApp are real anchors (tel: / wa.me), not JS click handlers.
+//   2. Call is a real `tel:` anchor; WhatsApp opens the SocialCRM conversation.
 //   3. Without a phone, the contact bar is absent — never a dead sticky strip.
 //
 // Runs without a database: `npm run test:a11y` (VITEST_NO_DB=1).
@@ -71,21 +71,38 @@ describe('lead detail actions', () => {
     expect(screen.getByRole('dialog', { name: 'תוצאת שיחה' })).toBeTruthy()
   })
 
-  test('2. Call and WhatsApp are real tel: / wa.me anchors', () => {
+  test('2. Call is a real tel: anchor', () => {
     render(
       <LeadDetailActions leadId={1} phone='0541234567' name='דני לוי' status='new' nextFollowUpAt={null} />,
     )
     const call = screen.getByRole('link', { name: 'התקשר לדני לוי' })
     expect(call.getAttribute('href')).toBe('tel:0541234567')
-    const wa = screen.getByRole('link', { name: 'וואטסאפ לדני לוי' })
-    expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\//)
-    expect(wa.getAttribute('href')?.includes('text=')).toBe(false)
+  })
+
+  /**
+   * WhatsApp KEEPS THE REP INSIDE SOCIALCRM.
+   *
+   * It used to be a `wa.me` anchor, which ejected the rep into another app: the
+   * reply was never recorded and the CRM lost the thread. It now resolves the
+   * real conversation and navigates to `/inbox?conversation=<id>`, so it is a
+   * BUTTON, not a link — asserted here so a future refactor cannot quietly
+   * restore the external hop.
+   */
+  test('2b. WhatsApp is an in-app action, not an external wa.me link', () => {
+    render(
+      <LeadDetailActions leadId={1} phone='0541234567' name='דני לוי' status='new' nextFollowUpAt={null} />,
+    )
+    expect(screen.queryByRole('link', { name: 'וואטסאפ לדני לוי' })).toBeNull()
+    const wa = screen.getByRole('button', { name: 'וואטסאפ לדני לוי' })
+    expect(wa.getAttribute('href')).toBeNull()
   })
 
   test('3. without a phone the contact bar is absent', () => {
     render(<LeadDetailActions leadId={1} phone={null} name='דני לוי' status='new' nextFollowUpAt={null} />)
     expect(screen.queryByRole('link', { name: /התקשר/ })).toBeNull()
-    expect(screen.queryByRole('link', { name: /וואטסאפ/ })).toBeNull()
+    // WhatsApp is a button now; with no number there is nothing to resolve and
+    // no fallback, so it must be absent rather than present-and-refusing.
+    expect(screen.queryByRole('button', { name: /וואטסאפ/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'סטטוס' })).toBeTruthy()
   })
 })

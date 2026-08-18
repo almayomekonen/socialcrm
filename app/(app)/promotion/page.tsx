@@ -5,11 +5,21 @@ import { getPromos, getPromosByUserId } from '@/db/promos'
 import { isAdmin, Roles } from '@/types/roles'
 import Link from 'next/link'
 import AccordionItem from '@/lib/AccordionItem'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const metadata: Metadata = { title: 'קמפיינים' }
 
 export default async function PromotionPage() {
   const user = await getUser()
+
+  /**
+   * DESKTOP-ONLY SECTION. Returned before the promo reads, so a phone receives
+   * neither the campaign boxes nor the past-campaigns accordion
+   * (architecture-rules.md §9).
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='promotion' />
+
   const { gotPermIds } = await getPerms(user)
   let promos = isAdmin(user.role) ? await getPromos() : await getPromosByUserId(user.id, gotPermIds)
 

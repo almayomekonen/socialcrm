@@ -82,6 +82,103 @@ button:disabled {
 
 html {
   scroll-behavior: smooth !important;
+
+  /*
+   * MOBILE FOUNDATION — root sizing (audit F-01, A11Y-3).
+   *
+   * The audit measured `getComputedStyle(html).fontSize === "15px"` in
+   * production and attributed it to `html { font-size: 15px }`. That rule does
+   * not exist in this codebase: nothing here — no stylesheet, no @theme token,
+   * no runtime JS — sets a root font-size, so the root has been inheriting the
+   * BROWSER default. (`--text-md: 15px` is a `text-md` utility token, not the
+   * root.) The measured 15px therefore came from the client, not from us.
+   *
+   * `100%`, not `16px`, on purpose. A px root is itself an audit finding
+   * (A11Y-3): it overrides the user's own browser font-size preference and
+   * defeats iOS/Android dynamic type. `100%` is explicit, keeps that preference
+   * intact, and equals 16px on a default browser.
+   *
+   * Because the root can therefore still legitimately be under 16px on a user
+   * who has chosen smaller text, the two things that MUST NOT scale below a
+   * threshold — form-control font size (iOS zoom) and touch-target size — are
+   * pinned in absolute units below instead of trusting rem. That makes the fix
+   * hold regardless of what the root resolves to, which the rem-based fix in
+   * the audit would not.
+   */
+  font-size: 100%;
+}
+
+/*
+ * FORM CONTROLS ≥16px (audit F-01/F-16/FRM-1).
+ *
+ * iOS Safari zooms the viewport on focus for any control under 16px. That is
+ * the "screen jumps when I tap search" bug. 16px is a hard floor in px, not
+ * rem, so a user's smaller root preference cannot reintroduce the zoom.
+ *
+ * Scoped to coarse pointers: desktop keeps its existing denser type, so this
+ * cannot regress the desktop forms the audit did not ask us to touch.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: max(16px, 1rem);
+  }
+}
+
+/*
+ * TOUCH TARGETS ≥44px (audit F-01, A11Y-1, F-18, F-24, F-36, F-46).
+ *
+ * `.tap-44` guarantees the HIT AREA without forcing the VISUAL size — the
+ * audit's explicit constraint ("do not simply make every visual icon 44px if
+ * that damages the visual design"). The element keeps its drawn size; the
+ * pseudo-element extends the touchable region symmetrically beyond it.
+ *
+ * Absolute px again: `size-11` rendered 41.25px precisely because it was rem.
+ */
+@media (pointer: coarse) {
+  .tap-44 {
+    position: relative;
+  }
+  .tap-44::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    /* Hit area only — never paints, never affects layout. */
+    pointer-events: auto;
+  }
+}
+
+/*
+ * PRESSED STATES (audit F-04).
+ *
+ * Touch has no hover, so the pressed state is the ONLY confirmation a tap
+ * registered. Subtle by design: a brief opacity + scale settle, no colour flash.
+ * Applied via a shared class so it is one treatment, not per-component drift.
+ */
+@media (hover: none) {
+  .press,
+  a.press,
+  button.press {
+    transition: opacity 90ms ease-out, scale 90ms ease-out;
+  }
+  .press:active {
+    opacity: 0.7;
+    scale: 0.98;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .press,
+  a.press,
+  button.press {
+    transition: none;
+  }
+  .press:active {
+    scale: 1;
+  }
 }
 
 body {

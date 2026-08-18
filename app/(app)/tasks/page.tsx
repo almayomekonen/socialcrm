@@ -5,6 +5,8 @@ import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 import { getPerms } from '@/db/filter'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 const AddTaskForm = dynamic(() => import('@/components/tasks/addTaskForm'))
 
@@ -15,6 +17,14 @@ export const metadata: Metadata = {
 
 export default async function TasksPage({ searchParams }) {
   const user = await getUser()
+
+  /**
+   * DESKTOP-ONLY SECTION. `TasksTable` is a filterable desktop grid with no
+   * phone presentation; returned before `getTasks` so a phone runs no query and
+   * receives no table markup (architecture-rules.md §9).
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='tasks' />
+
   let { filter } = await searchParams
   filter = filter ? JSON.parse(filter) : {}
   if (!filter.userId) filter.userId = user.id

@@ -14,6 +14,8 @@ import { canIssueBilling } from '@/lib/billing/permissions'
 import type { BusinessType } from '@/lib/billing/issuer/fields'
 import InvoiceDraftEditor from '@/components/billing/InvoiceDraftEditor'
 import InvoiceFrozenView from '@/components/billing/InvoiceFrozenView'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const maxDuration = 60
 export const preferredRegion = 'arn1'
@@ -29,6 +31,13 @@ export default async function InvoiceDetailPage({
   if (!Number.isFinite(leadId) || !Number.isFinite(invId)) redirect(`/clients/${clientId}/billing`)
 
   const user = await requireUser()
+
+  /**
+   * DESKTOP-ONLY LEAD TAB. After authentication, before the lead-access and
+   * invoice reads. The draft editor and the frozen document view are both
+   * desktop surfaces; no billing rule or query is changed.
+   */
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='lead_billing' />
 
   const { gotPermIds } = await getPerms(user)
   const leadAccessQ = db('clients').where({ id: leadId, agencyId: user.agencyId })

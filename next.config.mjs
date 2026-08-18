@@ -47,6 +47,57 @@ const nextConfig = {
       // The magic-link token travels in the query string; never send that URL
       // as a Referer to anything, not even same-origin subresources.
       { source: '/api/magic', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] },
+      /**
+       * DEVICE-DEPENDENT RESPONSES VARY ON THE USER-AGENT.
+       *
+       * This app serves DIFFERENT HTML to a phone and to a desktop for the same
+       * URL: the entity (mobile workspace vs. desktop workspace) is chosen
+       * server-side from the User-Agent — see `lib/device.ts`. Without this
+       * declaration, any cache holding one response is entitled to serve it to
+       * the other device: a mobile shell on a laptop, or a desktop table on a
+       * phone.
+       *
+       * WHAT WAS MEASURED, against a running server rather than assumed:
+       *
+       *   1. Set in `proxy.ts` (middleware) → DISCARDED. Every rendered App
+       *      Router response came back with Next's own router values only:
+       *      `rsc, next-router-state-tree, next-router-prefetch,
+       *       next-router-segment-prefetch, Accept-Encoding`.
+       *   2. Declared here → survives on responses Next does not render (e.g.
+       *      the middleware sign-in redirect), and is ALSO overwritten by the
+       *      same router values on rendered pages.
+       *
+       * So Next owns `Vary` on rendered App Router responses and neither layer
+       * can add to it. Nothing here overwrites those router values — losing them
+       * would let a cache serve an RSC flight payload where a document was
+       * requested, which is why this rule is scoped rather than global.
+       *
+       * WHAT ACTUALLY KEEPS PHONE AND DESKTOP HTML APART is stronger than
+       * `Vary`: every device-dependent response is dynamic by construction. The
+       * (app) layout reads `cookies()` (the session) and `headers()` (the
+       * User-Agent), so under `cacheComponents` these pages can never be
+       * prerendered or shared-cached — they are served `Cache-Control: no-store,
+       * must-revalidate` (verified). `no-store` forbids STORING the response at
+       * all, which subsumes "do not reuse it for a different User-Agent". There
+       * is therefore no cache in which phone HTML could be held and replayed to
+       * a desktop.
+       *
+       * This rule is kept as the explicit DECLARATION of that intent, at the one
+       * layer that can express it: it is correct where it applies, costs a
+       * single header, and starts protecting rendered responses the day Next
+       * stops taking sole ownership of `Vary`.
+       *
+       * SCOPED BY SESSION COOKIE, not by path. `has: cookie 'user'` is exactly
+       * "authenticated, therefore device-dependent". Anonymous requests to the
+       * marketing pages are byte-identical for every device and are the
+       * responses that genuinely benefit from CDN caching; they are left
+       * untouched rather than sharded per User-Agent string.
+       */
+      {
+        source: '/:path*',
+        has: [{ type: 'cookie', key: 'user' }],
+        headers: [{ key: 'Vary', value: 'User-Agent' }],
+      },
     ]
   },
   typedRoutes: false,

@@ -5,10 +5,21 @@ import { getTasksByClientId } from '@/db/tasks'
 import { listLeadDriveAttachments } from '@/actions/leadDriveFiles'
 import { fetchSuggestedDriveFiles } from '@/actions/leadDriveFilesSearch'
 import { isDrivePickerEnabled } from '@/lib/integrations/google/picker/pickerCore'
+import { getUser } from '@/db/auth'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export default async function page({ params, searchParams }) {
   searchParams = await searchParams
   const { clientId } = await params
+
+  /**
+   * DESKTOP-ONLY LEAD TAB. Returned before the file/task/Drive reads, so a phone
+   * triggers none of them — including the Google Drive round-trips
+   * (architecture-rules.md §9).
+   */
+  const user = await getUser()
+  if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='lead_files' />
 
   const tasks = await getTasksByClientId(clientId)
   const files = await getFilesByClientId(clientId)

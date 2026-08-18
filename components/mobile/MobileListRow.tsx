@@ -95,11 +95,27 @@ export default function MobileListRow({
     )
   }
 
-  return (
-    <button type='button' onClick={onClick} className={cls}>
-      {inner}
-    </button>
-  )
+  if (onClick) {
+    return (
+      <button type='button' onClick={onClick} className={cls}>
+        {inner}
+      </button>
+    )
+  }
+
+  /**
+   * NEITHER `href` NOR `onClick` — a row that only displays.
+   *
+   * It renders as a plain element rather than a `<button>` with nothing behind
+   * it. A button that is focusable, announced as a button, and does nothing when
+   * pressed is a tap target that lies — the same defect this file already
+   * refuses for nested actions. Caught by the invitations list, whose rows have
+   * no detail to open.
+   *
+   * The hover and active tints are dropped too: press feedback on something that
+   * cannot be pressed is the same lie in a different form.
+   */
+  return <div className={`flex w-full min-h-16 items-center gap-3 px-4 py-3 text-start ${className}`}>{inner}</div>
 }
 
 /**

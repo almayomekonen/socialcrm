@@ -20,7 +20,8 @@ import { CrmSyncHealthProvider } from '@/lib/polling/CrmSyncHealthContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
-import { isMobileRequest } from '@/lib/device'
+import { getActiveDeviceOverride, isMobileRequest } from '@/lib/device'
+import DeviceOverrideLinks from '@/components/dev/DeviceOverrideLinks'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import MobileWorkspaceShell from '@/components/mobile/MobileWorkspaceShell'
 import SkipLink from '@/components/layout/SkipLink'
@@ -65,6 +66,9 @@ async function LayoutContent({ children }) {
   const isMobile = await isMobileRequest()
   const mobileWorkspace = isMobile && canEnterMobileWorkspace(user.agencyId)
   if (isMobile && !mobileWorkspace) redirect('/activate')
+
+  // Local-development only; null in production. See the render site below.
+  const deviceOverride = await getActiveDeviceOverride()
 
   if (!(await isOnboarded(user.agencyId))) redirect('/activate')
   let agency = null
@@ -160,6 +164,18 @@ async function LayoutContent({ children }) {
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
             <ActivationCelebrationProvider>
+            {/*
+              LOCAL DEVELOPMENT ONLY. `getActiveDeviceOverride()` returns null
+              outside `next dev`, and with null this component renders its
+              children unwrapped — no context provider, no listener, no
+              behavioural change. It WRAPS rather than sits alongside because one
+              of its two jobs is supplying a router on `AppRouterContext`, which
+              only descendants can read.
+
+              Mounted here — above the shell choice — so it covers the mobile
+              shell, the desktop shell and the teaser alike.
+            */}
+            <DeviceOverrideLinks device={deviceOverride}>
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
@@ -210,6 +226,7 @@ async function LayoutContent({ children }) {
                 TRIAL_ACTIVE workspace; self-gates on justActivated so it appears
                 only right after a genuine activation, never on refresh/re-login. */}
             {trialStatus === 'TRIAL_ACTIVE' && <ProActivationSuccess />}
+            </DeviceOverrideLinks>
             </ActivationCelebrationProvider>
           </CopilotContextStoreProvider>
         </CopilotProvider>

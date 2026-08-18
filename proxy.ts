@@ -1,4 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  DEVICE_OVERRIDE_HEADER,
+  DEVICE_OVERRIDE_PARAM,
+  isDeviceOverrideAllowed,
+  parseDeviceOverride,
+} from '@/lib/deviceOverride'
 
 // Public marketing/SEO pages — accessible without authentication
 const PUBLIC_ROUTES = [
@@ -33,7 +39,47 @@ export async function proxy(request: NextRequest) {
 
   if (user && pathname.startsWith('/auth')) return Response.redirect(new URL('/dashboard', request.url))
 
-  return NextResponse.next()
+  return appResponse(request)
+}
+
+/**
+ * The response for an authenticated route: the development device override, and
+ * nothing else.
+ *
+ * `?device=phone` is translated into a request header so any Server Component
+ * can read it via `getDeviceClass()` without every page threading `searchParams`
+ * down to the device layer. The inbound value is DELETED first, unconditionally
+ * and in every environment, so this header can only ever mean "the proxy read it
+ * off this URL" and never "a client sent it". It is set only when
+ * `isDeviceOverrideAllowed()` is true, and `lib/device.ts` re-checks that guard
+ * before reading — a production build ignores the header even if one arrives.
+ *
+ * Stateless by construction: no cookie is written, so the override lives in the
+ * URL and nowhere else. A client-side navigation that drops the query string
+ * therefore drops the override, which is the intended trade — an override that
+ * persisted invisibly is exactly the kind of hidden state that makes "why is my
+ * browser rendering the phone app" a debugging session.
+ *
+ * NO `Vary` IS SET HERE, deliberately. `Vary: User-Agent` was implemented at
+ * this layer first and MEASURED against a running server: Next overwrites `Vary`
+ * on every rendered App Router response with its own router values
+ * (`rsc, next-router-state-tree, next-router-prefetch,
+ * next-router-segment-prefetch, Accept-Encoding`), so a middleware-set value
+ * never reaches the client. Shipping a header that provably does not survive
+ * would be protection in name only. The declaration lives in
+ * `next.config.mjs` instead — see the `Vary` block there for the measurement and
+ * for what actually keeps phone and desktop HTML apart.
+ */
+function appResponse(request: NextRequest): NextResponse {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.delete(DEVICE_OVERRIDE_HEADER)
+
+  if (isDeviceOverrideAllowed()) {
+    const override = parseDeviceOverride(request.nextUrl.searchParams.get(DEVICE_OVERRIDE_PARAM))
+    if (override) requestHeaders.set(DEVICE_OVERRIDE_HEADER, override)
+  }
+
+  return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
 export const config = {

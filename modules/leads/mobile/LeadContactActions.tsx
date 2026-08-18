@@ -1,26 +1,42 @@
 'use client'
 
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
+import { toast } from '@/lib/toast'
 import { waMeHref } from '@/modules/leads/whatsapp'
+import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 
 /**
  * Call and WhatsApp — the two first-class mobile contact actions.
  *
- * Both are plain anchors, not buttons with handlers. `tel:` and `https://wa.me`
- * are real navigations the OS owns, so an anchor gets long-press, "copy number"
- * and "open in app" for free, and still works if hydration is slow — which
- * matters on the networks phones are actually on.
+ * ── WhatsApp now stays INSIDE SocialCRM ─────────────────────────────────────
  *
- * ABSENT, NEVER DISABLED. With no usable phone number neither control renders.
- * A greyed-out Call button is a tap target that lies.
+ * It used to be a `wa.me` link, which ejected the rep into another application
+ * the moment they tapped it: the CRM lost the thread, the reply was never
+ * recorded, and coming back meant re-finding the lead. That was a Phase-A
+ * stopgap taken because the mobile inbox did not exist yet. It exists now.
  *
- * Analytics: WhatsApp is a real outbound contact attempt, so it emits
- * `lead_action_taken {surface:'mobile', action:'message'}` — the shared event,
- * not a mobile-only duplicate. Call cannot be instrumented honestly here: the
- * anchor hands off to the dialer and the page may be backgrounded before any
- * handler runs, so a `tel:` click means "opened the dialer", not "called".
- * Recording it as a lead action would inflate the activation KPI with intent.
+ * So the primary action resolves the REAL conversation
+ * (`resolveLeadWhatsappConversation` → find, else `ensureWhatsappConversationForLead`)
+ * and navigates to `/inbox?conversation=<id>`. Same server action the desktop
+ * table and the dashboard quick-actions already use — no second lookup, no
+ * invented conversation, no new backend.
+ *
+ * `wa.me` survives ONLY as the fallback, for the cases the backend genuinely
+ * cannot resolve — no WhatsApp connection, or no valid recipient. A rep with an
+ * unconnected workspace still gets a working way to reach the customer instead
+ * of a button that only apologises. When even that is impossible (no usable
+ * number) the reason is stated.
+ *
+ * Call is unchanged: `tel:` is a real OS navigation and belongs to the dialer.
+ *
+ * ANALYTICS. Still the shared `lead_action_taken {surface:'mobile'}` event, with
+ * `via` recording which path was taken so in-app vs. fallback is measurable.
+ * Call stays uninstrumented: the anchor hands off to the dialer and the page may
+ * be backgrounded before any handler runs, so recording it would inflate the
+ * activation KPI with intent rather than contact.
  */
 export default function LeadContactActions({
   leadId,
@@ -31,19 +47,44 @@ export default function LeadContactActions({
 }: {
   leadId: number
   phone: string | null | undefined
-  /** 'row' = 44px icon circles for list rows; 'bar' = full-width sticky bar buttons. */
+  /** 'row' = icon buttons for list rows; 'bar' = full-width sticky bar buttons. */
   size?: 'row' | 'bar'
   className?: string
   name?: string | null
 }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [busy, setBusy] = useState(false)
+
   const wa = waMeHref(phone)
   if (!phone && !wa) return null
 
-  const onWhatsapp = () => {
-    recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'message', leadId, via: 'wa.me' }).catch(
+  const openWhatsapp = () => {
+    if (busy || pending) return
+    setBusy(true)
+    recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'message', leadId, via: 'inbox' }).catch(
       () => {},
     )
+    startTransition(async () => {
+      try {
+        await openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
+          onUnavailable: () => {
+            // The backend cannot resolve a conversation. Fall back to the app
+            // the customer is already on rather than dead-ending the rep.
+            if (wa) {
+              window.open(wa, '_blank', 'noopener,noreferrer')
+              return
+            }
+            toast('message', 'לליד אין מספר טלפון תקין לשיחת WhatsApp')
+          },
+        })
+      } finally {
+        setBusy(false)
+      }
+    })
   }
+
+  const working = busy || pending
 
   if (size === 'bar') {
     return (
@@ -52,54 +93,66 @@ export default function LeadContactActions({
           <a
             href={`tel:${phone}`}
             aria-label={name ? `התקשר ל${name}` : 'התקשר'}
-            className='flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            className='press flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             <Icon name='phone' type='sol' className='size-4 bg-white' />
             <span>התקשר</span>
           </a>
         )}
-        {wa && (
-          <a
-            href={wa}
-            target='_blank'
-            rel='noopener noreferrer'
-            onClick={onWhatsapp}
-            aria-label={name ? `וואטסאפ ל${name}` : 'וואטסאפ'}
-            className='flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#25D366] font-medium text-white hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-          >
-            <Icon name='whatsapp' type='sol' className='size-4 bg-white' />
-            <span>וואטסאפ</span>
-          </a>
-        )}
+        <button
+          type='button'
+          onClick={openWhatsapp}
+          disabled={working}
+          aria-label={name ? `וואטסאפ ל${name}` : 'וואטסאפ'}
+          className='press flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#25D366] font-medium text-white hover:opacity-90 disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        >
+          <Icon name={working ? 'spinner' : 'whatsapp'} type='sol' className={`size-4 bg-white ${working ? 'animate-spin' : ''}`} />
+          <span>{working ? 'פותח…' : 'וואטסאפ'}</span>
+        </button>
       </div>
     )
   }
 
+  /**
+   * ROW VARIANT — quiet chrome, but the glyphs carry their real colour.
+   *
+   * Earlier iterations went outlined-ring → filled-circle → all-grey. Grey was
+   * calm but it also made the two most useful actions in the product look
+   * disabled. The chrome stays absent (no ring, no fill) so thirty rows do not
+   * turn into a wall of buttons, while the glyphs keep the colours that make
+   * them recognisable at a glance: WhatsApp green, and the SocialCRM primary for
+   * call. Colour is doing identification work here, not decoration.
+   *
+   * GEOMETRY UNCHANGED throughout: `size-11` (44px), `gap-1.5`, centres 50px
+   * apart, so hit areas cannot collide.
+   */
   return (
     <div className={`flex shrink-0 items-center gap-1.5 ${className}`}>
-      {wa && (
-        <a
-          href={wa}
-          target='_blank'
-          rel='noopener noreferrer'
-          onClick={(e) => {
-            e.stopPropagation()
-            onWhatsapp()
-          }}
-          aria-label={name ? `וואטסאפ ל${name}` : 'וואטסאפ'}
-          className='flex size-11 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-        >
-          <Icon name='whatsapp' type='sol' className='size-4 bg-[#25D366]' />
-        </a>
-      )}
+      <button
+        type='button'
+        onClick={(e) => {
+          e.stopPropagation()
+          openWhatsapp()
+        }}
+        disabled={working}
+        aria-label={name ? `וואטסאפ ל${name}` : 'וואטסאפ'}
+        className='press flex size-11 items-center justify-center rounded-full active:bg-[#25D366]/10 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+      >
+        <Icon
+          name={working ? 'spinner' : 'whatsapp'}
+          type='sol'
+          className={`size-5 bg-[#25D366] ${working ? 'animate-spin' : ''}`}
+        />
+      </button>
+
       {phone && (
         <a
           href={`tel:${phone}`}
           onClick={(e) => e.stopPropagation()}
           aria-label={name ? `התקשר ל${name}` : 'התקשר'}
-          className='flex size-11 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          className='press flex size-11 items-center justify-center rounded-full active:bg-primary-tint focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
-          <Icon name='phone' type='sol' className='size-4 bg-gray-700' />
+          <Icon name='phone' type='sol' className='size-5 bg-primary' />
         </a>
       )}
     </div>

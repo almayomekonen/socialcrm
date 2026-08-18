@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon, { type IconNames } from '@/lib/Icon'
+import CopyDesktopLink from './CopyDesktopLink'
 import { DESKTOP_URL_LABEL } from '@/lib/activation/mobileHandoffCopy'
 
 /**
@@ -23,12 +24,25 @@ export default function MobileSectionHandoff({
   title,
   body,
   action,
+  desktopHandoff = false,
 }: {
   icon: IconNames
   title: string
   body: string
   /** A real, existing destination. Omitted only when none genuinely applies. */
   action?: { href: Route; label: string }
+  /**
+   * Offer the desktop handoff action (get this workspace's address onto the
+   * computer). Set for a section that has no mobile screen AND no equivalent
+   * mobile destination to send the user to instead — where "the full screen is
+   * on the computer" is not a footnote but the entire answer.
+   *
+   * EXTENDED, NOT FORKED (architecture-rules.md §10): the desktop-only sections
+   * needed one more affordance than the first caller (`MobileTodayEmpty`), so
+   * this component grew a prop rather than gaining a near-duplicate sibling.
+   * Default false keeps every existing caller byte-for-byte unchanged.
+   */
+  desktopHandoff?: boolean
 }) {
   return (
     <div className='flex flex-col items-center gap-5 px-6 py-14 text-center'>
@@ -49,6 +63,8 @@ export default function MobileSectionHandoff({
           {action.label}
         </Link>
       )}
+
+      {desktopHandoff && <CopyDesktopLink />}
 
       <div className='flex w-full max-w-[320px] flex-col items-center gap-2'>
         <span aria-hidden='true' className='h-px w-full bg-gray-200' />

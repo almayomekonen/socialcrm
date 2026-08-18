@@ -10,6 +10,8 @@ import { listNotifications, nextCursorFrom } from '@/db/notifications/feed'
 import { CENTER_PAGE_SIZE, centerHref, parseCenterFilters } from '@/modules/notifications/center'
 import NotificationCenter from '@/components/notifications/NotificationCenter'
 import NotificationFilters from '@/components/notifications/NotificationFilters'
+import NotificationFiltersMobile from '@/components/notifications/mobile/NotificationFiltersMobile'
+import { isMobileWorkspaceRequest } from '@/lib/device'
 
 /**
  * The full notification center — P2.4, spec §13 and the P2 rollout list.
@@ -80,6 +82,32 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     ...row,
     toastEligible: isToastEligible({ type: row.type, priority: row.priority, presence }),
   }))
+
+  /**
+   * MOBILE PRESENTATION. Same reads, same `NotificationCenter` logic, same
+   * `NotificationContext` owner — only the row layout and the filter control
+   * differ. The `h1` is dropped because the mobile shell's header already says
+   * "התראות"; repeating it on the phone spent a whole line restating the tab the
+   * user just tapped.
+   */
+  const mobile = await isMobileWorkspaceRequest(user.agencyId)
+
+  if (mobile) {
+    return (
+      <div className='flex flex-col gap-3 p-3'>
+        <NotificationFiltersMobile filters={filters} />
+        <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
+          <NotificationCenter
+            key={centerHref(filters)}
+            initialItems={items}
+            initialCursor={nextCursorFrom(rows, CENTER_PAGE_SIZE)}
+            filters={filters}
+            variant='mobile'
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className='grid gap-3 p-3 sm:p-4'>
