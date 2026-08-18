@@ -25,7 +25,6 @@ vi.mock('@/lib/copilot/featureFlag', () => ({
   isSynthesisEnabledForUser: vi.fn(),
 }))
 vi.mock('@/lib/copilot/general/facts/gatherFacts', () => ({ gatherTriageFacts: vi.fn() }))
-vi.mock('@/lib/copilot/general/businessState', () => ({ classifyStates: vi.fn(() => []) }))
 vi.mock('@/lib/copilot/general/synthesis/synthesize', () => ({ synthesize: vi.fn() }))
 
 import { askGeneralQuestion } from '@/actions/ai/askGeneralQuestion'
@@ -33,46 +32,56 @@ import { requireAgencyUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { track } from '@/lib/analytics/track'
 import { isSynthesisEnabledForUser } from '@/lib/copilot/featureFlag'
-import { gatherTriageFacts } from '@/lib/copilot/general/facts/gatherFacts'
 import { synthesize } from '@/lib/copilot/general/synthesis/synthesize'
+import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
+import {
+  getFollowUpsDueToday,
+  getLeadsNotContactedRecently,
+  getNewLeadsThisWeek,
+  getOverdueTaskSummary,
+  getUnreadInboxSummary,
+} from '@/db/briefing'
+import { getTodaysMeetings } from '@/db/meetings'
 import { Roles } from '@/types/roles'
+import { NOTHING_MORE } from '@/lib/copilot/general/continueConversation'
 
 const convState = { surfacedRefIds: ['1'], executiveDecision: 'x', whys: ['y'] }
-const REASSURE = 'אלה הדברים שהכי חשובים כרגע — השאר יכול לחכות. אם יש משהו ספציפי שתרצה להעמיק בו, תגיד.'
+const emptyList = { total: 0, sample: [] }
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(requireAgencyUser).mockResolvedValue({ id: 1, agencyId: 10, role: Roles.AGNT, name: 'דני' } as never)
   vi.mocked(getPerms).mockResolvedValue({ gotPermIds: [1] } as never)
   vi.mocked(track).mockResolvedValue(undefined)
-  vi.mocked(gatherTriageFacts).mockResolvedValue({} as never)
+  vi.mocked(getFollowUpsDueToday).mockResolvedValue(emptyList)
+  vi.mocked(getLeadsNotContactedRecently).mockResolvedValue(emptyList)
+  vi.mocked(getNewLeadsThisWeek).mockResolvedValue(emptyList)
+  vi.mocked(getOverdueTaskSummary).mockResolvedValue(emptyList)
+  vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 0, unread: 0 })
+  vi.mocked(getTodaysMeetings).mockResolvedValue([])
+  vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'unknown', confidence: 0 })
 })
 
-describe('askGeneralQuestion — Executive Synthesis on follow-up (C9)', () => {
-  it('flag ON + Observation → surfaces it via the existing guide kind', async () => {
+describe('askGeneralQuestion — follow-up continues CRM buckets (Phase 1)', () => {
+  it('follow-up with state + material bucket → next unused data, synthesis unused', async () => {
     vi.mocked(isSynthesisEnabledForUser).mockReturnValue(true)
-    vi.mocked(synthesize).mockReturnValue({
-      category: 'cluster',
-      statement: '40 לידים מתקררים ללא מענה.',
-      evidenceRefIds: ['1'],
-      materiality: 1,
-    })
+    vi.mocked(getOverdueTaskSummary).mockResolvedValue({ total: 2, sample: [{ id: 9, name: 'גיא', status: null }] })
     const res = await askGeneralQuestion('עוד משהו', undefined, undefined, convState)
-    expect(res).toEqual({ kind: 'guide', answer: '40 לידים מתקררים ללא מענה.' })
+    expect(res).toMatchObject({ kind: 'data', intent: 'tasks.overdue' })
+    expect(synthesize).not.toHaveBeenCalled()
   })
 
-  it('flag ON + null → preserves the existing reassurance', async () => {
+  it('follow-up with state + empty CRM → nothing more; synthesis unused', async () => {
     vi.mocked(isSynthesisEnabledForUser).mockReturnValue(true)
-    vi.mocked(synthesize).mockReturnValue(null)
     const res = await askGeneralQuestion('עוד משהו', undefined, undefined, convState)
-    expect(res).toEqual({ kind: 'guide', answer: REASSURE })
+    expect(res).toEqual({ kind: 'guide', answer: NOTHING_MORE })
+    expect(synthesize).not.toHaveBeenCalled()
   })
 
-  it('flag OFF → byte-identical reassurance; synthesis pipeline never touched', async () => {
+  it('follow-up with flag OFF and empty CRM → nothing more', async () => {
     vi.mocked(isSynthesisEnabledForUser).mockReturnValue(false)
     const res = await askGeneralQuestion('עוד משהו', undefined, undefined, convState)
-    expect(res).toEqual({ kind: 'guide', answer: REASSURE })
-    expect(gatherTriageFacts).not.toHaveBeenCalled()
+    expect(res).toEqual({ kind: 'guide', answer: NOTHING_MORE })
     expect(synthesize).not.toHaveBeenCalled()
   })
 })

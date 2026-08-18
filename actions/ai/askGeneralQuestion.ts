@@ -2,36 +2,23 @@
 
 import { requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
-import { getTodaysMeetings } from '@/db/meetings'
-import {
-  getFollowUpsDueToday,
-  getLeadsNotContactedRecently,
-  getNewLeadsThisWeek,
-  getOverdueTaskSummary,
-  getUnreadInboxSummary,
-  getLeadsByName,
-  getNamedLeadById,
-  type NamedLead,
-  type Scope,
-} from '@/db/briefing'
+import { getLeadsByName, getNamedLeadById, type NamedLead, type Scope } from '@/db/briefing'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { askLeadQuestion } from '@/actions/ai/leadAskQuestion'
 import { extractLeadCandidate, isLeadFollowup } from '@/lib/copilot/general/subjectResolution'
-import { classifyFallback, detectKnownGap, type FallbackResult } from '@/lib/copilot/general/fallback'
+import { classifyFallback, detectKnownGap, isGrowthQuestion, type FallbackResult } from '@/lib/copilot/general/fallback'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
-import { composeOverviewSentence } from '@/lib/copilot/general/overviewSentence'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { tryReasonedAnswer, shouldReason, type ReasonedAnswer } from '@/lib/copilot/general/reasonedAnswer'
-import { isReasonedGeneralEnabledForUser, isSynthesisEnabledForUser } from '@/lib/copilot/featureFlag'
+import { isReasonedGeneralEnabledForUser } from '@/lib/copilot/featureFlag'
 import { classifyConversationIntent } from '@/lib/copilot/general/conversationIntent'
-import { gatherTriageFacts } from '@/lib/copilot/general/facts/gatherFacts'
-import { classifyStates } from '@/lib/copilot/general/businessState'
-import { synthesize } from '@/lib/copilot/general/synthesis/synthesize'
-import { traceSynthesis } from '@/lib/copilot/general/synthesis/synthesisTrace'
-import type { ConversationState } from '@/lib/copilot/general/conversationState'
+import { coerceConversationState, type FactBucketId } from '@/lib/copilot/general/conversationState'
+import { hasUsableFollowUpState, resolveFollowUp } from '@/lib/copilot/general/continueConversation'
+import { runBriefingIntent } from '@/lib/copilot/general/runBriefingIntent'
+import { buildGrowthAnswer } from '@/lib/copilot/general/growthAnswer'
 import { Roles } from '@/types/roles'
 
 export type LeadCard = {
@@ -69,14 +56,14 @@ export async function askGeneralQuestion(
   text: string,
   modeRaw?: unknown,
   activeLeadIdRaw?: unknown,
-  conversationState?: ConversationState | null,
+  conversationState?: unknown,
 ): Promise<GeneralAnswer> {
   const user = await requireProductAccess()
   const mode = isCopilotModeId(modeRaw) ? modeRaw : undefined
   const n = Number(activeLeadIdRaw)
   const activeLeadId = Number.isFinite(n) && n > 0 ? n : undefined
   try {
-    const answer = await resolveAnswer(text, user, mode, activeLeadId, conversationState ?? null)
+    const answer = await resolveAnswer(text, user, mode, activeLeadId, conversationState)
     const subjectActive = activeLeadId != null
     await safeTrack(user, 'general_mode.question_asked', { qlen: text.length, subjectActive })
 
@@ -190,33 +177,19 @@ async function resolveAnswer(
   user: ActingUser,
   mode?: CopilotModeId,
   activeLeadId?: number,
-  conversationState?: ConversationState | null,
+  conversationState?: unknown,
 ): Promise<GeneralAnswer> {
-  // TEMP DIAGNOSTIC (C9 follow-up reachability) — remove after capture
-  console.log(
-    '[c9-trace:server] received conversationState =',
-    conversationState,
-    '| intent =',
-    classifyConversationIntent(text),
-    '| entersFollowUpBranch =',
-    !!(conversationState && classifyConversationIntent(text) === 'follow_up'),
-    '| synthesisFlag =',
-    isSynthesisEnabledForUser(user),
-  )
-  if (conversationState && classifyConversationIntent(text) === 'follow_up') {
-    if (isSynthesisEnabledForUser(user)) {
+  const state = coerceConversationState(conversationState)
+  const discourse = classifyConversationIntent(text)
+  if (discourse !== 'none' && hasUsableFollowUpState(state, discourse)) {
+    let loadIntent: (intent: FactBucketId) => Promise<unknown> = async () => ({})
+    if (discourse === 'follow_up') {
       const { gotPermIds } = await getPerms(user)
       const scope: Scope = { user: { role: user.role }, gotPermIds }
-      const states = classifyStates(await gatherTriageFacts(scope))
-      const startedAt = Date.now()
-      const observation = synthesize(states)
-      traceSynthesis({ states, startedAt, now: Date.now() }) // passive observability; never affects the answer
-      if (observation) return { kind: 'guide', answer: observation.statement }
+      loadIntent = (intent) => runBriefingIntent(intent, user, scope)
     }
-    return {
-      kind: 'guide',
-      answer: 'אלה הדברים שהכי חשובים כרגע — השאר יכול לחכות. אם יש משהו ספציפי שתרצה להעמיק בו, תגיד.',
-    }
+    const continued = await resolveFollowUp(text, state, loadIntent)
+    if (continued) return continued
   }
 
   const leadSubject = await resolveLeadSubject(text, user)
@@ -230,6 +203,12 @@ async function resolveAnswer(
     const scope: Scope = { user: { role: user.role }, gotPermIds }
     const reasoned = await tryReasonedAnswer({ text, scope, agencyId: user.agencyId, userId: user.id, mode })
     if (reasoned) return reasoned
+  }
+
+  if (isGrowthQuestion(text)) {
+    const { gotPermIds } = await getPerms(user)
+    const scope: Scope = { user: { role: user.role }, gotPermIds }
+    return buildGrowthAnswer(scope, user)
   }
 
   const c = await classifyGeneralIntent(text, user.agencyId, mode)
@@ -250,51 +229,6 @@ async function resolveAnswer(
 
   const { gotPermIds } = await getPerms(user)
   const scope: Scope = { user: { role: user.role }, gotPermIds }
-  const payload = await runIntent(c.intent, user, scope)
+  const payload = await runBriefingIntent(c.intent, user, scope)
   return { kind: 'data', intent: c.intent, payload }
-}
-
-async function runIntent(intent: string, user: ActingUser, scope: Scope) {
-  switch (intent) {
-    case 'followups.dueToday':
-      return getFollowUpsDueToday(scope)
-    case 'leads.notContactedRecently':
-      return getLeadsNotContactedRecently(scope)
-    case 'tasks.overdue':
-      return getOverdueTaskSummary(scope)
-    case 'meetings.today':
-      return { meetings: await getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }) }
-    case 'leads.newThisWeek':
-      return getNewLeadsThisWeek(scope)
-    case 'inbox.unread':
-      return getUnreadInboxSummary(scope)
-    case 'crm.attention': {
-      const [dueToday, overdue, stale] = await Promise.all([
-        getFollowUpsDueToday(scope),
-        getOverdueTaskSummary(scope),
-        getLeadsNotContactedRecently(scope),
-      ])
-      return { overdue, dueToday, stale }
-    }
-    case 'system.overview': {
-      const [overdue, meetings, inbox, stale, newLeads] = await Promise.all([
-        getOverdueTaskSummary(scope),
-        getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
-        getUnreadInboxSummary(scope),
-        getLeadsNotContactedRecently(scope),
-        getNewLeadsThisWeek(scope),
-      ])
-      return {
-        summary: composeOverviewSentence({
-          overdueTasks: overdue.total,
-          meetingsToday: meetings.length,
-          waitingConversations: inbox.conversations,
-          staleLeads: stale.total,
-          newLeads: newLeads.total,
-        }),
-      }
-    }
-    default:
-      return {}
-  }
 }
