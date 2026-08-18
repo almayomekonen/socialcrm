@@ -10,7 +10,10 @@ vi.mock('@/lib/copilot/general/recentInbound', () => ({
   loadRecentInboundWhatsapp: vi.fn(),
   loadWaitingInboundWhatsapp: vi.fn(),
 }))
-vi.mock('@/lib/copilot/general/waitingInbound', () => ({ listWaitingWhatsappLeads: vi.fn() }))
+vi.mock('@/lib/copilot/general/waitingInbound', () => ({
+  listWaitingWhatsappLeads: vi.fn(),
+  countWaitingWhatsappConversations: vi.fn(),
+}))
 vi.mock('@/db/briefing', () => ({
   getFollowUpsDueToday: vi.fn(),
   getLeadsNotContactedRecently: vi.fn(),
@@ -32,7 +35,7 @@ import { requireAgencyUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { classifyGeneralIntent } from '@/lib/copilot/general/classifyGeneralIntent'
 import { loadRecentInboundWhatsapp, loadWaitingInboundWhatsapp } from '@/lib/copilot/general/recentInbound'
-import { listWaitingWhatsappLeads } from '@/lib/copilot/general/waitingInbound'
+import { countWaitingWhatsappConversations, listWaitingWhatsappLeads } from '@/lib/copilot/general/waitingInbound'
 import {
   getFollowUpsDueToday,
   getLeadsNotContactedRecently,
@@ -66,6 +69,7 @@ beforeEach(() => {
   vi.mocked(loadRecentInboundWhatsapp).mockResolvedValue({ senders: [], answer: 'אין כרגע הודעות וואטסאפ נכנסות לאחרונה.' })
   vi.mocked(loadWaitingInboundWhatsapp).mockResolvedValue({ senders: [], answer: 'אין כרגע שיחות וואטסאפ שממתינות למענה.' })
   vi.mocked(listWaitingWhatsappLeads).mockResolvedValue(emptyList)
+  vi.mocked(countWaitingWhatsappConversations).mockResolvedValue(0)
   vi.mocked(isReasonedGeneralEnabledForUser).mockReturnValue(false)
 })
 
@@ -564,5 +568,63 @@ describe('askGeneralQuestion — grounded Business Copilot answers', () => {
       const sample = (moreAfterGrowth.payload as { sample?: { id: number }[] }).sample ?? []
       expect(sample.map((r) => r.id)).not.toEqual(expect.arrayContaining([12]))
     }
+  })
+})
+
+describe('askGeneralQuestion — Phase 3A waiting vs unread', () => {
+  const waitingSample = [
+    { id: 88, name: 'George', status: null },
+    { id: 89, name: 'דנה', status: null },
+  ]
+
+  function fixtureUnread1Waiting2() {
+    vi.mocked(countWaitingWhatsappConversations).mockResolvedValue(2)
+    vi.mocked(listWaitingWhatsappLeads).mockResolvedValue({ total: 2, sample: waitingSample })
+    vi.mocked(loadWaitingInboundWhatsapp).mockResolvedValue({
+      senders: [
+        { name: 'George', at: '2026-08-18T13:01:00.000Z' },
+        { name: 'דנה', at: '2026-08-18T13:17:00.000Z' },
+      ],
+      answer: 'מי שממתין למענה בוואטסאפ:\n• George — לפני 20 דקות\n• דנה — לפני 2 דקות',
+    })
+    vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 1, unread: 1 })
+  }
+
+  it('A. unread=1 waiting=2 is the same waiting total on every waiting surface', async () => {
+    fixtureUnread1Waiting2()
+
+    const advice = await askGeneralQuestion('מה מצב העסק?')
+    expect(advice).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    if (advice.kind !== 'data') return
+    const advicePayload = advice.payload as { summary: string; counts: { waitingConversations: number } }
+    expect(advicePayload.counts.waitingConversations).toBe(2)
+    expect(advicePayload.summary).toContain('2 שיחות שממתינות למענה')
+    expect(advicePayload.summary).not.toContain('1 שיחה שממתינה')
+
+    const overview = await askGeneralQuestion('מה מצב המערכת')
+    expect(overview).toMatchObject({ kind: 'data', intent: 'system.overview' })
+    if (overview.kind !== 'data') return
+    const overviewPayload = overview.payload as { summary: string; counts: { waitingConversations: number } }
+    expect(overviewPayload.counts.waitingConversations).toBe(2)
+    expect(overviewPayload.summary).toContain('2 שיחות ממתינות')
+
+    const attention = await askGeneralQuestion('מה הכי דחוף?')
+    expect(attention).toMatchObject({ kind: 'data', intent: 'crm.attention' })
+    if (attention.kind !== 'data') return
+    const attentionPayload = attention.payload as { waiting: { total: number; sample: { id: number }[] } }
+    expect(attentionPayload.waiting.total).toBe(2)
+    expect(attentionPayload.waiting.sample).toHaveLength(2)
+
+    const waitingQ = await askGeneralQuestion('מי מחכה לי בוואטסאפ?')
+    expect(waitingQ).toMatchObject({ kind: 'data', intent: 'inbox.waiting' })
+    if (waitingQ.kind !== 'data') return
+    const waitingPayload = waitingQ.payload as { senders: { name: string }[]; answer: string }
+    expect(waitingPayload.senders).toHaveLength(2)
+    expect(waitingPayload.answer).toContain('George')
+    expect(waitingPayload.answer).toContain('דנה')
+    expect(waitingPayload.answer).toContain('ממתין')
+
+    const unreadQ = await askGeneralQuestion('יש הודעות שלא קראתי?')
+    expect(unreadQ).toEqual({ kind: 'data', intent: 'inbox.unread', payload: { conversations: 1, unread: 1 } })
   })
 })

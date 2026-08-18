@@ -11,7 +11,7 @@ import { composeOverviewSentence } from './overviewSentence'
 import type { FactBucketId } from './conversationState'
 import { Roles } from '@/types/roles'
 import { loadRecentInboundWhatsapp, loadWaitingInboundWhatsapp } from './recentInbound'
-import { listWaitingWhatsappLeads } from './waitingInbound'
+import { countWaitingWhatsappConversations, listWaitingWhatsappLeads } from './waitingInbound'
 
 export type BriefingActor = { agencyId: number; id: number; role: Roles }
 
@@ -43,17 +43,17 @@ export async function runBriefingIntent(intent: string, user: BriefingActor, sco
       return { overdue, dueToday, stale, waiting }
     }
     case 'system.overview': {
-      const [overdue, meetings, inbox, stale, newLeads] = await Promise.all([
+      const [overdue, meetings, waitingConversations, stale, newLeads] = await Promise.all([
         getOverdueTaskSummary(scope),
         getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
-        getUnreadInboxSummary(scope),
+        countWaitingWhatsappConversations(user, scope),
         getLeadsNotContactedRecently(scope),
         getNewLeadsThisWeek(scope),
       ])
       const counts = {
         overdueTasks: overdue.total,
         meetingsToday: meetings.length,
-        waitingConversations: inbox.conversations,
+        waitingConversations,
         staleLeads: stale.total,
         newLeads: newLeads.total,
       }

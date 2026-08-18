@@ -4,20 +4,20 @@ import {
   getLeadsNotContactedRecently,
   getNewLeadsThisWeek,
   getOverdueTaskSummary,
-  getUnreadInboxSummary,
   type Scope,
 } from '@/db/briefing'
+import type { Roles } from '@/types/roles'
 import { composeBusinessAdvice, type BusinessAdviceKind, type GrowthCounts } from './businessAdvice'
+import { countWaitingWhatsappConversations } from './waitingInbound'
 
-export async function loadBusinessCounts(
-  scope: Scope,
-  user: { agencyId: number; id: number },
-): Promise<GrowthCounts> {
-  const [overdue, dueToday, stale, inbox, newLeads, meetings] = await Promise.all([
+type CountsActor = { agencyId: number; id: number; role: Roles }
+
+export async function loadBusinessCounts(scope: Scope, user: CountsActor): Promise<GrowthCounts> {
+  const [overdue, dueToday, stale, waitingConversations, newLeads, meetings] = await Promise.all([
     getOverdueTaskSummary(scope),
     getFollowUpsDueToday(scope),
     getLeadsNotContactedRecently(scope),
-    getUnreadInboxSummary(scope),
+    countWaitingWhatsappConversations(user, scope),
     getNewLeadsThisWeek(scope),
     getTodaysMeetings({ agencyId: user.agencyId, organizerUserId: user.id }),
   ])
@@ -25,7 +25,7 @@ export async function loadBusinessCounts(
     overdueTasks: overdue.total,
     dueToday: dueToday.total,
     staleLeads: stale.total,
-    waitingConversations: inbox.conversations,
+    waitingConversations,
     newLeads: newLeads.total,
     meetingsToday: meetings.length,
   }
@@ -34,7 +34,7 @@ export async function loadBusinessCounts(
 export async function buildBusinessAdviceAnswer(
   kind: BusinessAdviceKind,
   scope: Scope,
-  user: { agencyId: number; id: number },
+  user: CountsActor,
 ): Promise<{ kind: 'data'; intent: 'business.advice'; payload: { summary: string; counts: GrowthCounts; adviceKind: BusinessAdviceKind } }> {
   const counts = await loadBusinessCounts(scope, user)
   return {
@@ -46,7 +46,7 @@ export async function buildBusinessAdviceAnswer(
 
 export async function buildGrowthAnswer(
   scope: Scope,
-  user: { agencyId: number; id: number },
+  user: CountsActor,
 ): Promise<{ kind: 'data'; intent: 'business.advice'; payload: { summary: string; counts: GrowthCounts; adviceKind: BusinessAdviceKind } }> {
   return buildBusinessAdviceAnswer('advice', scope, user)
 }

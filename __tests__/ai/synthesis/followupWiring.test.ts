@@ -27,7 +27,10 @@ vi.mock('@/lib/copilot/featureFlag', () => ({
   isReasonedGeneralEnabledForUser: vi.fn(() => false),
   isSynthesisEnabledForUser: vi.fn(),
 }))
-vi.mock('@/lib/copilot/general/waitingInbound', () => ({ listWaitingWhatsappLeads: vi.fn() }))
+vi.mock('@/lib/copilot/general/waitingInbound', () => ({
+  listWaitingWhatsappLeads: vi.fn(),
+  countWaitingWhatsappConversations: vi.fn(),
+}))
 vi.mock('@/lib/copilot/general/recentInbound', () => ({
   loadRecentInboundWhatsapp: vi.fn(),
   loadWaitingInboundWhatsapp: vi.fn(),
@@ -49,6 +52,7 @@ import {
   getUnreadInboxSummary,
 } from '@/db/briefing'
 import { getTodaysMeetings } from '@/db/meetings'
+import { countWaitingWhatsappConversations, listWaitingWhatsappLeads } from '@/lib/copilot/general/waitingInbound'
 import { Roles } from '@/types/roles'
 import { NOTHING_MORE } from '@/lib/copilot/general/continueConversation'
 
@@ -67,6 +71,8 @@ beforeEach(() => {
   vi.mocked(getUnreadInboxSummary).mockResolvedValue({ conversations: 0, unread: 0 })
   vi.mocked(getTodaysMeetings).mockResolvedValue([])
   vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'unknown', confidence: 0 })
+  vi.mocked(listWaitingWhatsappLeads).mockResolvedValue(emptyList)
+  vi.mocked(countWaitingWhatsappConversations).mockResolvedValue(0)
 })
 
 describe('askGeneralQuestion — follow-up continues CRM buckets (Phase 1)', () => {

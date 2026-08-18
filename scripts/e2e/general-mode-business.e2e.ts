@@ -1,6 +1,7 @@
 /**
- * One-off local General Mode E2E. Does not start a server — expects pnpm dev on :3000.
- * Usage: npx tsx scripts/e2e/general-mode-business.e2e.ts
+ * One-off local General Mode E2E against the Phase 3A worktree.
+ * Does not start a server — expects next on E2E_BASE (default http://localhost:3010).
+ * Usage: E2E_BASE=http://localhost:3010 npx tsx scripts/e2e/general-mode-business.e2e.ts
  *
  * Mints a live session cookie for an existing ADMIN with leads. Does not write
  * that cookie into the repo.
@@ -10,18 +11,17 @@ import { writeFileSync } from 'node:fs'
 import { SignJWT } from 'jose'
 import { db } from '../../config/db'
 
-const BASE = 'http://localhost:3000'
+const BASE = process.env.E2E_BASE ?? 'http://localhost:3010'
 
 const QUESTIONS = [
-  'מי שלח לי הודעה לאחרונה?',
+  'מה מצב העסק?',
   'מי מחכה לי בוואטסאפ?',
   'מה הכי דחוף?',
   'למה?',
   'מי עוד?',
-  'מה מצב העסק?',
-  'מה אני יכול לעשות כדי לקדם את העסק?',
+  'יש הודעות שלא קראתי?',
+  'מי שלח לי הודעה לאחרונה?',
   'כמה כסף עשיתי?',
-  'מה עוד?',
 ]
 
 const BANNED = [
@@ -137,13 +137,29 @@ async function main() {
 
   const bannedHits = transcript.flatMap((t) => BANNED.filter((b) => t.a.includes(b)).map((b) => ({ q: t.q, b })))
   const byQ = Object.fromEntries(transcript.map((t) => [t.q, t.a]))
-  const recent = byQ['מי שלח לי הודעה לאחרונה?'] ?? ''
+  const business = byQ['מה מצב העסק?'] ?? ''
   const waiting = byQ['מי מחכה לי בוואטסאפ?'] ?? ''
   const urgent = byQ['מה הכי דחוף?'] ?? ''
   const why = byQ['למה?'] ?? ''
+  const whoElse = byQ['מי עוד?'] ?? ''
+  const unread = byQ['יש הודעות שלא קראתי?'] ?? ''
+  const recent = byQ['מי שלח לי הודעה לאחרונה?'] ?? ''
   const revenue = byQ['כמה כסף עשיתי?'] ?? ''
-  const more = byQ['מה עוד?'] ?? ''
   const semantic: string[] = []
+
+  const waitingClaims: number[] = []
+  const businessN = business.match(/יש (\d+) שיחות שממתינות/) ?? (business.includes('יש 1 שיחה שממתינה') ? ['', '1'] : null)
+  if (businessN) waitingClaims.push(Number(businessN[1]))
+  const urgentN = urgent.match(/ממתינים למענה · (\d+)/)
+  if (urgentN) waitingClaims.push(Number(urgentN[1]))
+  const waitingEmpty = waiting.includes('אין כרגע שיחות')
+  const waitingBullets = (waiting.match(/^• /gm) ?? []).length
+  if (waitingEmpty) waitingClaims.push(0)
+  else if (waitingBullets > 0 && waitingBullets < 8) waitingClaims.push(waitingBullets)
+  if (waitingClaims.length >= 2 && new Set(waitingClaims).size > 1) {
+    semantic.push(`waiting counts disagree: ${waitingClaims.join(', ')}`)
+  }
+
   if (recent.includes('מי שממתין למענה')) semantic.push('recent used waiting header')
   if (recent.includes('הכי דחוף כרגע')) semantic.push('attention leaked into recent')
   if (!recent.includes('מי ששלח הודעה') && !recent.includes('אין כרגע הודעות וואטסאפ נכנסות')) {
@@ -154,8 +170,12 @@ async function main() {
   if (recent === waiting) semantic.push('recent answer identical to waiting')
   if (!urgent.includes('הכי דחוף') && !urgent.includes('הכול תחת שליטה')) semantic.push('urgency missing ranking')
   if (why.includes('לא בטוח שהבנתי')) semantic.push('why fell through to clarify')
+  if (whoElse.includes('הכי דחוף כרגע')) semantic.push('מי עוד resurrected ranking')
+  if (unread.includes('מי שממתין למענה')) semantic.push('unread used waiting header')
+  if (!unread.includes('שלא נקראו') && !unread.includes('אין הודעות חדשות')) {
+    semantic.push('unread missing unread framing')
+  }
   if (!revenue.includes('הכנסה') && !revenue.includes('כסף')) semantic.push('revenue gap missing')
-  if (more.includes('הכי דחוף כרגע')) semantic.push('מה עוד resurrected ranking')
 
   const out = {
     at: new Date().toISOString(),

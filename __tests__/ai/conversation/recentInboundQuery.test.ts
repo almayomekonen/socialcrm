@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { recentWhatsappInboundQuery } from '@/lib/copilot/general/recentInboundQuery'
 import { oldestWaitingWhatsappQuery } from '@/db/inboxWaiting'
@@ -25,5 +27,12 @@ describe('recent vs waiting inbound SQL', () => {
     expect(sql).toContain('whatsapp')
     expect(sql).toContain('-infinity')
     expect(sql).toContain('auto_response')
+  })
+
+  it('recent inbound source does not import waitingReplySql', () => {
+    const src = readFileSync(resolve(__dirname, '../../../lib/copilot/general/recentInboundQuery.ts'), 'utf8')
+    expect(src).not.toContain('waitingReplySql')
+    expect(src).not.toContain('oldestWaitingWhatsappQuery')
+    expect(src).not.toContain('inboxWaiting')
   })
 })

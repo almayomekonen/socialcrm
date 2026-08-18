@@ -21,20 +21,37 @@ function toIso(v: unknown): string {
   return ''
 }
 
-/** Existing waiting-reply reader. Fail closed. */
+type WaitingActor = { agencyId: number; role: Roles }
+
+function waitingQuery(user: WaitingActor, scope: Scope, plan: string) {
+  return oldestWaitingWhatsappQuery({
+    agencyId: user.agencyId,
+    user: { role: user.role },
+    gotPermIds: scope.gotPermIds,
+    plan,
+  })
+}
+
+/** True COUNT of waiting-reply conversations. Never derived from a LIMIT preview. */
+export async function countWaitingWhatsappConversations(user: WaitingActor, scope: Scope): Promise<number> {
+  try {
+    const plan = await getEffectiveLeadPlan(user.agencyId)
+    const row = await waitingQuery(user, scope, plan).clearSelect().countDistinct({ n: 'cv.id' }).first()
+    return Number((row as { n?: number | string } | undefined)?.n ?? 0)
+  } catch {
+    return 0
+  }
+}
+
+/** Existing waiting-reply reader. Fail closed. Preview is capped; total is not. */
 export async function listWaitingWhatsappRows(
-  user: { agencyId: number; role: Roles },
+  user: WaitingActor,
   scope: Scope,
   order: 'asc' | 'desc',
 ): Promise<WaitingWhatsappLead[]> {
   try {
     const plan = await getEffectiveLeadPlan(user.agencyId)
-    const rows = await oldestWaitingWhatsappQuery({
-      agencyId: user.agencyId,
-      user: { role: user.role },
-      gotPermIds: scope.gotPermIds,
-      plan,
-    })
+    const rows = await waitingQuery(user, scope, plan)
       .orderBy('cv.lastInboundAt', order)
       .orderBy('cv.id', order)
       .limit(PREVIEW)
@@ -50,12 +67,12 @@ export async function listWaitingWhatsappRows(
 }
 
 export async function listWaitingWhatsappLeads(
-  user: { agencyId: number; role: Roles },
+  user: WaitingActor,
   scope: Scope,
 ): Promise<BriefingLeadList> {
-  const rows = await listWaitingWhatsappRows(user, scope, 'asc')
+  const [rows, total] = await Promise.all([listWaitingWhatsappRows(user, scope, 'asc'), countWaitingWhatsappConversations(user, scope)])
   return {
-    total: rows.length,
+    total,
     sample: rows.map((r) => ({ id: r.id, name: r.name, status: r.status })),
   }
 }
