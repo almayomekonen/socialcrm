@@ -289,6 +289,20 @@ body {
   width: 100%;
 }
 
+/*
+ * iOS Safari: `body { overflow-x: hidden }` computes overflow-y to `auto`, so
+ * the document is a second vertical scroller. Nested 100dvh then exceeds the
+ * visual viewport; the sticky tab bar stays while the WhatsApp header and
+ * composer ride that document scroll, leaving a blank gap. Lock the document
+ * only while the mobile shell is mounted — desktop has no [data-mobile-workspace].
+ */
+html:has([data-mobile-workspace]),
+html:has([data-mobile-workspace]) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* MEDIA QUERIES */
 @media (width < 700px) {
   .wrap {

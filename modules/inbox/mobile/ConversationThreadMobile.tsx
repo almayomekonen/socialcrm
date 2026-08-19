@@ -25,8 +25,8 @@ import MessageBubbleMobile, { MessageActionSheet } from './MessageBubbleMobile'
  *
  * LAYOUT. The thread is the only scroll container; the composer is a sibling
  * pinned below it, not a fixed overlay, so the newest message can never sit
- * underneath the input. Safe-area padding keeps the send button clear of the
- * home indicator.
+ * underneath the input. The tab bar, a sibling of `main`, pays the bottom
+ * safe-area inset — the composer must not pay it again.
  */
 export default function ConversationThreadMobile({
   conversationId,
@@ -52,7 +52,7 @@ export default function ConversationThreadMobile({
 
   // Land on the newest message inside THIS list. Never scrollIntoView — that
   // walks every overflow ancestor and scrolls the shell `main`, which is what
-  // produced the giant blank region under a h-full thread.
+  // produced the giant blank region under a percentage-height thread.
   useEffect(() => {
     const main = document.getElementById('main-content')
     if (main) main.scrollTop = 0
@@ -95,7 +95,7 @@ export default function ConversationThreadMobile({
   }
 
   return (
-    <div data-testid='wa-thread' className='flex h-full min-h-0 flex-col overflow-hidden bg-[#ece5dd]'>
+    <div data-testid='wa-thread' className='flex min-h-0 flex-1 flex-col overflow-hidden bg-[#ece5dd]'>
       <div
         ref={listRef}
         data-testid='wa-thread-scroller'
@@ -120,7 +120,7 @@ export default function ConversationThreadMobile({
       </div>
 
       {leadId != null && (
-        <div className='shrink-0 border-t border-[#e0e0e0] bg-[#f0f2f5] px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]'>
+        <div className='shrink-0 border-t border-[#e0e0e0] bg-[#f0f2f5] px-3 py-2'>
           {error && (
             <p role='alert' className='mb-2 rounded-md bg-error-bg px-3 py-2 text-[13px] text-error-text'>
               {error}

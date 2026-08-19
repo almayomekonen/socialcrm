@@ -75,7 +75,7 @@ export default async function MobileInboxRoute({
         .join(' · ') || null
 
     return (
-      <div className='flex h-full min-h-0 flex-col overflow-hidden'>
+      <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
         {/*
           THREAD HEADER — who am I talking to, on what channel, and how fresh.
           The messaging convention: back, identity, then the one onward action.

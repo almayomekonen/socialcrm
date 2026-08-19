@@ -21,11 +21,15 @@ import { useMobileScrollRestoration } from './useMobileScrollRestoration'
  * from `usePathname()`. It holds no data and fetches nothing; `children` is the
  * server-rendered page.
  *
- * LAYOUT CONTRACT: `h-dvh` + a single `overflow-y-auto` middle region. The header
- * and tab bar are siblings of the scroll region, not `position: fixed` overlays,
- * so no page has to reserve padding for them and no page can be clipped behind
- * them. `dvh` (not `vh`) so mobile browser chrome collapsing does not leave the
- * tab bar floating above the fold.
+ * LAYOUT CONTRACT: fill the parent viewport column with `flex-1 min-h-0`, not a
+ * second `h-dvh`. The app layout already owns one `h-dvh` column; nesting another
+ * 100dvh inside it is taller than iOS Safari's visual viewport, and `body`'s
+ * computed `overflow-y: auto` (from `overflow-x: hidden`) then becomes a second
+ * scroller. A sticky tab bar stays put while the thread header and composer
+ * ride that document scroll — the production iPhone blank-gap.
+ *
+ * List pages still scroll in `main`. A WhatsApp thread makes `main` a flex
+ * column with overflow hidden so the message list is the only scroller.
  *
  * `MobileWorkspaceContext` tells synchronous `loading.tsx` files which entity
  * is already mounted, so they never await `headers()` (the stuck-skeleton bug).
@@ -76,18 +80,18 @@ export default function MobileWorkspaceShell({
            neutralisation in main.css — see the rule there for why it is needed. */}
         <div
           data-mobile-workspace
-          className='flex h-dvh flex-col bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden'
+          className='flex min-h-0 flex-1 flex-col overflow-hidden bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden'
         >
           <MobileHeader title={title} onBack={isTab ? undefined : true} action={headerAction} />
 
-          {/* List pages scroll here. A WhatsApp thread must NOT: it is `h-full`
-              of this region, so scrolling `main` reveals empty space below the
-              thread. `min-h-0` keeps the tab bar on-screen. */}
+          {/* Flex column so the thread can be `flex-1 min-h-0` instead of
+              `h-full`. Percentage height against a block-level flex item is
+              what iOS Safari fails to resolve against the visual viewport. */}
           <main
             id='main-content'
             ref={scrollerRef}
             tabIndex={-1}
-            className='min-h-0 flex-1 overflow-y-auto focus:outline-none'
+            className='flex min-h-0 flex-1 flex-col overflow-y-auto focus:outline-none'
           >
             {children}
           </main>

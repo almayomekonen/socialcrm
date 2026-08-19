@@ -96,6 +96,9 @@ describe('desktop WhatsApp conversation is unchanged', () => {
     const shell = fs.readFileSync(path.join(process.cwd(), 'components/mobile/MobileWorkspaceShell.tsx'), 'utf8')
     expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden')
     expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden')
+    expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-hidden')
+    expect(shell).not.toMatch(/className='flex h-dvh flex-col/)
+    expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-y-auto')
     const route = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/MobileInboxRoute.tsx'), 'utf8')
     expect(route).toContain('data-wa-thread-chrome')
     expect(route).toContain("tone='onGreen'")
@@ -103,10 +106,19 @@ describe('desktop WhatsApp conversation is unchanged', () => {
     expect(list).not.toContain('data-wa-thread-chrome')
   })
 
+  it('tab bar is a flex sibling, not sticky, so it cannot detach from the thread', () => {
+    const src = fs.readFileSync(path.join(process.cwd(), 'components/mobile/MobileTabBar.tsx'), 'utf8')
+    expect(src).not.toContain('sticky')
+    expect(src).toContain('shrink-0')
+  })
+
   it('scrolls the message list itself, not the document or scrollIntoView ancestors', () => {
     const src = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/ConversationThreadMobile.tsx'), 'utf8')
     expect(src).not.toMatch(/\.scrollIntoView\s*\(/)
     expect(src).not.toContain('window.scrollTo')
     expect(src).toContain('list.scrollTop = list.scrollHeight')
+    expect(src).toContain('flex min-h-0 flex-1 flex-col overflow-hidden')
+    expect(src).not.toMatch(/className='flex h-full/)
+    expect(src).not.toContain('safe-area-inset-bottom')
   })
 })

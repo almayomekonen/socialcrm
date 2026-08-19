@@ -82,7 +82,7 @@ export default function MobileTabBar({
       aria-label='ניווט ראשי'
       /* Safe-area padding, not margin: the bar's background must extend UNDER the
          home indicator, while its touch targets stay above it. */
-      className='sticky bottom-0 z-50 shrink-0 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom,0px)]'
+      className='shrink-0 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom,0px)]'
     >
       <ul className='flex items-stretch justify-around'>
         {tabs.map((tab) => {
