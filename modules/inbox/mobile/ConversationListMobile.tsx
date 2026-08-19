@@ -61,6 +61,7 @@ function ConversationRow({ item, when }: { item: InboxConversationListItem; when
   return (
     <Link
       href={`/inbox?conversation=${item.conversationId}` as Route}
+      prefetch={false}
       /* The whole row is the target (min-h-16 = 64px). Unread rows get a tint
          AND a bold name — colour alone never carries state. */
       className={`flex min-h-16 w-full items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${

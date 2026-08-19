@@ -80,6 +80,7 @@ export default function LeadCardMobile({
     <div className='flex items-center gap-2.5 px-3.5'>
       <Link
         href={`/clients/${lead.id}/summary` as Route}
+        prefetch={false}
         className='press min-w-0 flex-1 rounded py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
         <div className='flex items-center gap-1.5'>

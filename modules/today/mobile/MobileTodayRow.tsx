@@ -49,6 +49,7 @@ export default function MobileTodayRow({ row }: { row: Row }) {
     <div className='flex items-center gap-2.5 px-3.5'>
       <Link
         href={href as Route}
+        prefetch={false}
         className='press min-w-0 flex-1 rounded py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
         <span className='block truncate text-[15px] font-semibold leading-tight text-ink'>{name || '—'}</span>

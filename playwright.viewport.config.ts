@@ -36,6 +36,7 @@ const DESKTOP_UA =
 
 const phone = (name: string, width: number, height: number) => ({
   name,
+  testIgnore: /p0-nav-stuck-safari/,
   use: {
     ...devices['Desktop Chrome'],
     userAgent: IPHONE_UA,
@@ -70,7 +71,34 @@ export default defineConfig({
     phone('phone-390x844', 390, 844),
     phone('phone-430x932', 430, 932),
     {
+      name: 'phone-390x844-webkit',
+      testMatch: /p0-nav-stuck-safari/,
+      use: {
+        browserName: 'webkit',
+        userAgent: IPHONE_UA,
+        viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 3,
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      // 6× CPU throttle: the React ping/loading.tsx hang is production-only and
+      // much more likely on a real phone CPU than on a fast Mac (vercel/next.js#86151).
+      name: 'phone-390x844-cpu6',
+      testMatch: /p0-nav-stuck-safari/,
+      use: {
+        ...devices['Desktop Chrome'],
+        userAgent: IPHONE_UA,
+        viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 3,
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
       name: 'tablet-768x1024',
+      testIgnore: /p0-nav-stuck-safari/,
       use: {
         ...devices['Desktop Chrome'],
         userAgent: IPAD_UA,
@@ -81,10 +109,12 @@ export default defineConfig({
     },
     {
       name: 'desktop-1280x800',
+      testIgnore: /p0-nav-stuck-safari/,
       use: { ...devices['Desktop Chrome'], userAgent: DESKTOP_UA, viewport: { width: 1280, height: 800 } },
     },
     {
       name: 'desktop-1440x900',
+      testIgnore: /p0-nav-stuck-safari/,
       use: { ...devices['Desktop Chrome'], userAgent: DESKTOP_UA, viewport: { width: 1440, height: 900 } },
     },
   ],

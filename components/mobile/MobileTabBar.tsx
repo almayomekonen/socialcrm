@@ -82,6 +82,11 @@ export default function MobileTabBar({
             <li key={tab.href} className='flex-1'>
               <Link
                 href={tab.href}
+                /* Default prefetch also fires a Flight request for every visible
+                   lead-detail Link. Safari allows few connections per host, so
+                   those prefetches can abort or delay the tap's own RSC. Five
+                   tab destinations are fetched on tap instead. */
+                prefetch={false}
                 aria-current={active ? 'page' : undefined}
                 /* The badge is aria-hidden (it is a visual echo), so the count
                    has to reach assistive tech through the link's name instead. */

@@ -57,7 +57,7 @@ async function waitDestination(page: Page, path: string, ready: string) {
 }
 
 async function tapTab(page: Page, href: string) {
-  await page.locator(`${TAB} a[href="${href}"]`).click()
+  await page.locator(`${TAB} a[href="${href}"]`).tap()
 }
 
 test.describe('phone — client tab navigation never stays on a skeleton', () => {
