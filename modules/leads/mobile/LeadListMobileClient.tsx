@@ -26,6 +26,7 @@ import LeadCardMobile from './LeadCardMobile'
 import LeadStatusSheet from './LeadStatusSheet'
 import LeadFollowUpSheet from './LeadFollowUpSheet'
 import LeadListActionsSheet from './LeadListActionsSheet'
+import LeadListAddControl from './LeadListAddControl'
 import { LeadSelectionActions, LeadSelectionHeader } from './LeadSelectionBar'
 import { followUpBadge } from './followUpBadge'
 import { patchLead, removeSelectedLeads, restoreLeads, type LeadListCard } from './leadSelection'
@@ -260,6 +261,8 @@ export default function LeadListMobileClient({
         onClose={() => setSel((prev) => setAction(prev, null))}
         onConfirm={runDelete}
       />
+
+      <LeadListAddControl selecting={selecting} />
     </div>
   )
 }

@@ -37,9 +37,7 @@ export default function NotificationFiltersMobile({ filters }: { filters: Center
     <div
       role='navigation'
       aria-label='סינון התראות'
-      /* One track, three cells. `p-1` gives the active pill room to sit inside
-         the track instead of straddling its border. */
-      className='flex items-center gap-1 rounded-lg bg-gray-100 p-1'
+      className='flex items-stretch overflow-hidden rounded-md border border-gray-200 bg-white'
     >
       {SEGMENTS.map((s) => {
         const active = filters.category === s.category
@@ -48,10 +46,8 @@ export default function NotificationFiltersMobile({ filters }: { filters: Center
             key={s.label}
             href={centerHref({ ...filters, category: s.category })}
             aria-current={active ? 'page' : undefined}
-            /* `min-h-11` (44px), not 40: measured, the shorter segment left all
-               three under the touch minimum. */
-            className={`press flex min-h-11 flex-1 items-center justify-center rounded-md text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-              active ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
+            className={`press flex min-h-11 flex-1 items-center justify-center border-s border-gray-200 text-[13px] font-medium first:border-s-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+              active ? 'bg-primary-tint text-primary-text' : 'bg-white text-gray-500'
             }`}
           >
             {s.label}

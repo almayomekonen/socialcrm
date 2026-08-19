@@ -53,6 +53,7 @@ describe('P0-A empty Leads first-run', () => {
     )
     expect(screen.queryByText(/מחשב/)).toBeNull()
     expect(document.querySelector('table')).toBeNull()
+    expect(screen.queryByTestId('leads-add-action')).toBeNull()
   })
 
   it('add-lead CTA opens the vertical mobile form', () => {

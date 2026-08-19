@@ -91,7 +91,7 @@ export default function ConversationThreadMobile({
   }
 
   return (
-    <div className='flex h-full min-h-0 flex-col bg-bg'>
+    <div data-testid='wa-thread' className='flex h-full min-h-0 flex-col bg-[#ece5dd]'>
       <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4'>
         {messages.length === 0 ? (
           <p className='py-10 text-center text-sm text-gray-500'>אין הודעות בשיחה הזו עדיין.</p>
@@ -113,7 +113,7 @@ export default function ConversationThreadMobile({
       </div>
 
       {leadId != null && (
-        <div className='shrink-0 border-t border-gray-200 bg-white px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]'>
+        <div className='shrink-0 border-t border-[#e0e0e0] bg-[#f0f2f5] px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]'>
           {error && (
             <p role='alert' className='mb-2 rounded-md bg-error-bg px-3 py-2 text-[13px] text-error-text'>
               {error}
@@ -137,13 +137,13 @@ export default function ConversationThreadMobile({
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder='כתיבת הודעה...'
-                  className='max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] outline-none focus:border-primary focus:bg-white'
+                  className='max-h-32 min-h-11 flex-1 resize-none rounded-full border-0 bg-white px-4 py-2.5 text-base outline-none focus:ring-2 focus:ring-[#25D366]/40'
                 />
                 <button
                   type='submit'
                   disabled={!text.trim() || sending || pending}
                   aria-label='שלח'
-                  className='flex size-11 shrink-0 items-center justify-center rounded-full bg-solid text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                  className='flex size-11 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]'
                 >
                   <Icon name={sending ? 'spinner' : 'paper-plane'} type='sol' className={`size-4 bg-white ${sending ? 'animate-spin' : ''}`} />
                 </button>

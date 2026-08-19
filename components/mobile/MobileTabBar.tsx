@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation'
 import type { Route } from 'next'
 import Icon, { type IconNames } from '@/lib/Icon'
 import NavBadge from '@/lib/navs/NavBadge'
+import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
+import { useNotificationUnreadCount, useNotifications } from '@/modules/notifications/NotificationContext'
 
 /**
  * The mobile bottom navigation — היום · לידים · שיחות · התראות · עוד.
@@ -65,7 +67,15 @@ export default function MobileTabBar({
   conversationCount?: number
 }) {
   const pathname = usePathname()
-  const tabs = mobileTabsWithBadges({ notifications: notificationCount, conversations: conversationCount })
+  const { enabled: notificationsEnabled } = useNotifications()
+  const liveNotifications = useNotificationUnreadCount()
+  const liveConversations = useAwarenessCount()
+  // Notifications: same live owner as the desktop bell (NotificationContext).
+  // Conversations: same live owner as the desktop Nav (AwarenessContext).
+  // The layout props are the first-paint seed / fallback — never mixed.
+  const notifications = notificationsEnabled ? liveNotifications : notificationCount
+  const conversations = liveConversations ?? conversationCount
+  const tabs = mobileTabsWithBadges({ notifications, conversations })
 
   return (
     <nav

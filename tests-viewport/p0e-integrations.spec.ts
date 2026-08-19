@@ -42,8 +42,12 @@ function nestedInteractive() {
   }).length
 }
 
-async function gotoIntegrations(page: Page, section?: string) {
-  const q = section ? `?section=${section}` : ''
+async function gotoIntegrations(page: Page, sectionOrQuery?: string) {
+  const q = !sectionOrQuery
+    ? ''
+    : sectionOrQuery.startsWith('?')
+      ? sectionOrQuery
+      : `?section=${sectionOrQuery}`
   await page.goto(`/settings/integrations${q}`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(800)
 }
@@ -129,4 +133,57 @@ test('desktop Integrations is still the accordion — no mobile shell', async ({
   expect(await page.locator('.accordion').count()).toBeGreaterThan(0)
   await expect(page.getByText('מקורות לידים')).toBeVisible()
   await expect(page.locator('[data-mobile-workspace]')).toHaveCount(0)
+})
+
+test('phone Facebook OAuth return continues instead of a silent Connect card', async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo.project.name), 'phone entity')
+  await gotoIntegrations(page, '?select=1')
+
+  await expect(page.getByTestId('integrations-mobile')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'פייסבוק ואינסטגרם' })).toBeVisible()
+  await expect(
+    page.locator('article').filter({ has: page.getByRole('heading', { name: 'פייסבוק ואינסטגרם' }) }).getByRole('button', { name: 'חבר פייסבוק' }),
+  ).toHaveCount(0)
+
+  const tooSmall = await page.evaluate(probeTargets, MIN_TARGET)
+  const primary = tooSmall.filter((t) => /לנסות שוב|חבר|פייסבוק|משלים/.test(t.name))
+  expect(primary, JSON.stringify(primary)).toHaveLength(0)
+})
+
+test('phone Facebook OAuth denied is an explicit Hebrew failure', async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo.project.name), 'phone entity')
+  await gotoIntegrations(page, '?error=denied')
+
+  await expect(page.getByRole('dialog', { name: 'פייסבוק ואינסטגרם' })).toBeVisible()
+  await expect(page.getByText('החיבור לפייסבוק לא הושלם').first()).toBeVisible()
+})
+
+test('phone WhatsApp OAuth error continues into the WhatsApp sheet', async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo.project.name), 'phone entity')
+  await gotoIntegrations(page, '?wa_error=token')
+
+  await expect(page.getByRole('dialog', { name: 'וואטסאפ' })).toBeVisible()
+})
+
+test('phone Google Calendar cancel continues into the calendar sheet', async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo.project.name), 'phone entity')
+  await gotoIntegrations(page, '?gcal_error=denied')
+
+  await expect(page.getByRole('dialog', { name: 'Google Calendar' })).toBeVisible()
+})
+
+test('phone Google Drive cancel continues into the Drive sheet', async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo.project.name), 'phone entity')
+  await gotoIntegrations(page, '?gdrive_error=denied')
+
+  await expect(page.getByRole('dialog', { name: 'Google Drive' })).toBeVisible()
+})
+
+test('desktop Facebook OAuth query does not switch to the mobile shell', async ({ page }, testInfo) => {
+  test.skip(!isDesktop(testInfo.project.name), 'desktop entity')
+  await gotoIntegrations(page, '?select=1')
+
+  await expect(page.getByTestId('integrations-mobile')).toHaveCount(0)
+  expect(await page.locator('.accordion').count()).toBeGreaterThan(0)
+  await expect(page.getByText('פייסבוק', { exact: true }).first()).toBeVisible()
 })

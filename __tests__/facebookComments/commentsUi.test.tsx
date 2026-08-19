@@ -20,7 +20,11 @@ vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
+import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInboxMobile'
+import CommentsListMobile from '@/modules/facebookComments/mobile/CommentsListMobile'
 import type { CommentListItem } from '@/modules/facebookComments/types'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 afterEach(() => cleanup())
 
@@ -120,6 +124,7 @@ describe('CommentsList — status states', () => {
   it('marks a converted comment so it is not worked twice', () => {
     render(<CommentsList comments={[item({ status: 'converted', convertedLeadId: 42 })]} />)
     expect(screen.getByText('הומר לליד')).toBeInTheDocument()
+    expect(screen.getByText('הומר לליד').className).toContain('rounded-full')
   })
 
   it('marks an ignored comment', () => {
@@ -186,6 +191,92 @@ describe('InboxChannelSwitch', () => {
   })
 })
 
+describe('CommentsInboxMobile', () => {
+  it('reuses the existing switch and empty state — no second comments API', () => {
+    render(<CommentsInboxMobile emptyKind='not-enabled' comments={[]} awaitingText={false} />)
+    expect(screen.getByTestId('facebook-comments-mobile')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /תגובות/ })).toHaveAttribute('href', '/inbox/comments')
+    expect(screen.getByText(/תגובות בפייסבוק/)).toBeInTheDocument()
+  })
+
+  it('does not nest interactive controls', () => {
+    const { container } = render(
+      <CommentsInboxMobile
+        emptyKind={null}
+        awaitingText={false}
+        comments={[
+          item({ commentId: 'TOP', messageAvailable: true, message: 'שאלה' }),
+          item({ commentId: 'CONV', convertedLeadId: 55, status: 'converted', messageAvailable: true, message: 'הומר' }),
+        ]}
+      />,
+    )
+    const nested = [...container.querySelectorAll('a, button')].filter((el) => {
+      const outer = el.parentElement?.closest('a, button')
+      return outer != null && outer !== el
+    })
+    expect(nested).toHaveLength(0)
+  })
+
+  it('phone comment rows are rectangular CRM records, not capsules', () => {
+    const { container } = render(
+      <CommentsListMobile
+        comments={[
+          item({ commentId: 'TOP', messageAvailable: true, message: 'שאלה על המחיר' }),
+          item({ commentId: 'REPLY', isTopLevel: false, status: 'converted', convertedLeadId: 55, messageAvailable: true, message: 'גם אני' }),
+        ]}
+      />,
+    )
+    const capsules = [...container.querySelectorAll('[class*="rounded-full"]')].filter(
+      (el) => !/\bsize-1\b/.test(el.className),
+    )
+    expect(capsules).toHaveLength(0)
+    expect(container.querySelector('.rounded-md')).toBeTruthy()
+    expect(screen.getByText('שאלה על המחיר')).toBeInTheDocument()
+    expect(screen.getByText('הומר לליד')).toBeInTheDocument()
+  })
+
+  it('renders the same comment records desktop lists, including replies', () => {
+    render(
+      <CommentsInboxMobile
+        emptyKind={null}
+        awaitingText={false}
+        comments={[
+          item({ commentId: 'TOP', isTopLevel: true, messageAvailable: true, message: 'שאלה על המחיר' }),
+          item({
+            commentId: 'REPLY',
+            isTopLevel: false,
+            authorName: 'מיכל',
+            messageAvailable: true,
+            message: 'גם אני',
+          }),
+        ]}
+      />,
+    )
+    expect(screen.getByText('שאלה על המחיר')).toBeInTheDocument()
+    expect(screen.getByText('גם אני')).toBeInTheDocument()
+    expect(screen.getByText('תגובה לתגובה')).toBeInTheDocument()
+    expect(screen.getAllByText('פייסבוק').length).toBeGreaterThan(0)
+  })
+})
+
+describe('desktop protection — comments page still mounts the desktop grid', () => {
+  it('mobile is a branch, not a replacement of the desktop comments page', () => {
+    const src = readFileSync(join(process.cwd(), 'app/(app)/inbox/comments/page.tsx'), 'utf8')
+    expect(src).toContain('isMobileWorkspaceRequest')
+    expect(src).toContain('CommentsInboxMobile')
+    expect(src).toContain('listPageComments')
+    expect(src).toContain("className='grid gap-3 p-3 sm:p-4'")
+    expect(src).toContain('CommentsList')
+  })
+
+  it('mobile inbox list exposes the existing channel switch', () => {
+    const src = readFileSync(join(process.cwd(), 'modules/inbox/mobile/MobileInboxRoute.tsx'), 'utf8')
+    expect(src).toContain('InboxChannelSwitch')
+    expect(src).toContain("active='whatsapp'")
+    expect(src).not.toContain('window.location.reload')
+  })
+})
+
 describe('CommentsEmptyState', () => {
   it('explains the dark-launch preview when comments ingest is not enabled', () => {
     render(<CommentsEmptyState kind='not-enabled' />)
@@ -215,5 +306,14 @@ describe('CommentsEmptyState', () => {
       expect(document.body.textContent ?? '').not.toMatch(/\p{Extended_Pictographic}/u)
       unmount()
     }
+  })
+
+  it('desktop empty mark stays circular; compact phone mark is rectangular', () => {
+    const { unmount } = render(<CommentsEmptyState kind='no-comments' />)
+    expect(document.querySelector('.rounded-full')).toBeTruthy()
+    unmount()
+    render(<CommentsEmptyState kind='no-comments' compact />)
+    expect(document.querySelector('.rounded-full')).toBeNull()
+    expect(document.querySelector('.rounded-md')).toBeTruthy()
   })
 })

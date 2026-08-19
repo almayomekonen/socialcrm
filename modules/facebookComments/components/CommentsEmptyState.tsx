@@ -34,12 +34,25 @@ const COPY = {
 
 export type CommentsEmptyKind = keyof typeof COPY
 
-export default function CommentsEmptyState({ kind }: { kind: CommentsEmptyKind }) {
+export default function CommentsEmptyState({
+  kind,
+  compact = false,
+}: {
+  kind: CommentsEmptyKind
+  /** Phone chrome: rectangular mark. Desktop callers omit this — look is unchanged. */
+  compact?: boolean
+}) {
   const copy = COPY[kind]
 
   return (
     <div className='flex flex-col items-center justify-center px-6 py-10 text-center'>
-      <span className='flex size-14 items-center justify-center rounded-full bg-gray-100'>
+      <span
+        className={
+          compact
+            ? 'flex size-10 items-center justify-center rounded-md border border-gray-200 bg-gray-50'
+            : 'flex size-14 items-center justify-center rounded-full bg-gray-100'
+        }
+      >
         <ChannelIcon channel='facebook' className='size-6' />
       </span>
       <p className='mt-3 text-base font-medium text-gray-700'>{copy.title}</p>

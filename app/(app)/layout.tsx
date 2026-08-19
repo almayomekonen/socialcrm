@@ -185,7 +185,7 @@ async function LayoutContent({ children }) {
   return (
     <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
-    <NotificationProvider enabled={notificationsEnabled}>
+    <NotificationProvider enabled={notificationsEnabled} initialUnread={notificationUnread}>
     <UserProvider user={user}>
       <PosProvider>
         <CopilotProvider enabled={copilotEnabled}>

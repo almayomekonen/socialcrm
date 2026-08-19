@@ -3,11 +3,10 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
-import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
-import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
 import { AWARENESS_OWNED_CATEGORIES, feedSignature, selectToastable } from './surface'
 import type { NotificationFeedItem, NotificationFeedResponse, WhileYouWereAway } from './types'
 import type { Presence } from '@/lib/notifications/types'
+import NotificationPoller from './NotificationPoller'
 
 /**
  * NotificationContext — the single client-side owner of notification state.
@@ -77,16 +76,32 @@ type FeedState = {
 
 const INITIAL: FeedState = { unreadCount: 0, items: [], whileYouWereAway: null, presence: 'offline' }
 
+function refreshMobileWorkspace(router: { refresh: () => void }) {
+  if (typeof document === 'undefined') return
+  if (!document.querySelector('[data-mobile-workspace]')) return
+  router.refresh()
+}
+
 export function NotificationProvider({
   /** From the server layout: NOTIFICATIONS_ENABLED && agency allowlisted. */
   enabled,
+  /**
+   * Server-rendered unread count. Mobile seeds the tab badge from this so the
+   * first paint matches the layout; live updates then come from markRead / poll.
+   * Desktop passes 0 — the bell still waits for the first feed, unchanged.
+   */
+  initialUnread = 0,
   children,
 }: {
   enabled: boolean
+  initialUnread?: number
   children: ReactNode
 }) {
   const router = useRouter()
-  const [state, setState] = useState<FeedState>(INITIAL)
+  const [state, setState] = useState<FeedState>({
+    ...INITIAL,
+    unreadCount: enabled ? initialUnread : 0,
+  })
 
   /**
    * Only arrivals strictly after mount may toast. Pre-existing unread is a count,
@@ -111,12 +126,13 @@ export function NotificationProvider({
 
   const post = useCallback(async (path: string, body: unknown) => {
     try {
-      await fetch(path, {
+      const res = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         cache: 'no-store',
       })
+      return res.ok
     } catch {
       /**
        * Swallowed on purpose. A failed seen/read stamp must never break the app or
@@ -124,6 +140,7 @@ export function NotificationProvider({
        * so the worst case is a row that stays unread slightly longer. The session
        * guard still prevents a repeat toast in the meantime.
        */
+      return false
     }
   }, [])
 
@@ -155,15 +172,27 @@ export function NotificationProvider({
       const idSet = new Set(ids)
       // Optimistic, then reconciled by the next poll. The database stays
       // authoritative; this only removes the lag between click and feedback.
-      setState((prev) => ({
-        ...prev,
-        unreadCount: Math.max(0, prev.unreadCount - prev.items.filter((i) => idSet.has(i.id) && !i.readAt).length),
-        items: prev.items.map((i) => (idSet.has(i.id) && !i.readAt ? { ...i, readAt: new Date().toISOString() } : i)),
-      }))
+      //
+      // Decrement by the ids being marked, not by intersection with the feed
+      // cache. The notification CENTER can mark a row the dropdown poll has
+      // not loaded; counting only `prev.items` left the badge stuck.
+      setState((prev) => {
+        const newlyRead = ids.filter((id) => {
+          const row = prev.items.find((i) => i.id === id)
+          return !row || row.readAt == null
+        }).length
+        return {
+          ...prev,
+          unreadCount: Math.max(0, prev.unreadCount - newlyRead),
+          items: prev.items.map((i) => (idSet.has(i.id) && !i.readAt ? { ...i, readAt: new Date().toISOString() } : i)),
+        }
+      })
       signature.current = ''
-      void post('/api/notifications/read', { ids })
+      void post('/api/notifications/read', { ids }).then((ok) => {
+        if (ok) refreshMobileWorkspace(router)
+      })
     },
-    [enabled, post],
+    [enabled, post, router],
   )
 
   const markAllRead = useCallback(() => {
@@ -175,8 +204,10 @@ export function NotificationProvider({
       items: prev.items.map((i) => (i.readAt ? i : { ...i, readAt: now })),
     }))
     signature.current = ''
-    void post('/api/notifications/read', { all: true })
-  }, [enabled, post])
+    void post('/api/notifications/read', { all: true }).then((ok) => {
+      if (ok) refreshMobileWorkspace(router)
+    })
+  }, [enabled, post, router])
 
   /**
    * Apply one feed response: refresh state, then surface genuinely new rows.
@@ -274,54 +305,4 @@ export function NotificationProvider({
       {children}
     </NotificationContext.Provider>
   )
-}
-
-/**
- * The feed loop. One per app shell.
- *
- * IT DOES NOT YIELD ON /inbox, and that is a deliberate difference from
- * AwarenessPoller, which does. Awareness can yield there because InboxSyncLoop
- * feeds the same context; this loop has no such substitute, and it is the ONLY
- * writer of user_presence (spec §7.2). Yielding would mean a user working in the
- * inbox stops stamping presence, classifies OFFLINE within ten minutes, and — once
- * P3 lands — gets pushed at while looking at the screen.
- *
- * While both systems are alive (P2.2–P2.5) an enabled agency runs two loops. That
- * is a temporary, flag-gated cost of migrating without a cutover; P2.6 removes the
- * awareness one.
- */
-function NotificationPoller({ onData }: { onData: (data: NotificationFeedResponse) => void }) {
-  const poll = useCallback(async () => {
-    // Reported so the server can classify presence honestly: a hidden tab is IDLE,
-    // not ONLINE, and the server must not have to guess.
-    const visible = typeof document === 'undefined' || !document.hidden
-    let res: Response
-    try {
-      res = await fetch(`/api/notifications/feed?visible=${visible ? '1' : '0'}`, { cache: 'no-store' })
-    } catch {
-      return { changed: false, failed: true }
-    }
-    if (!res.ok) {
-      console.warn('[notifications.feed]', { status: res.status })
-      return { changed: false, failed: true }
-    }
-    const data = (await res.json()) as NotificationFeedResponse
-    onData(data)
-    // `changed` drives the adaptive backoff. Unread count is the honest signal:
-    // the item page is identical on most polls, so using its length would pin the
-    // loop to its fastest cadence forever.
-    return { changed: data.unreadNotificationCount > 0, failed: false }
-  }, [onData])
-
-  /**
-   * No `CrmSyncHealth` reporting, deliberately. `CrmSyncSource` is a closed union
-   * whose only consumer is `CrmSyncBanner`, which each page opts into explicitly —
-   * so adding a member would log "banner open" for a banner that can never appear.
-   * The recovery band (`recoveryMs`) does its work without it, and a feed outage
-   * has no user-facing recovery action in P2.2: notifications are additive, and the
-   * next successful poll restores the true state from the database.
-   */
-  useAdaptivePoll(poll, { recoveryMs: INBOX_RECOVERY_MS })
-
-  return null
 }

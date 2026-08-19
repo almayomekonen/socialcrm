@@ -10,6 +10,7 @@ import ConversationThreadMobile from './ConversationThreadMobile'
 import { relativeTimeHe } from './relativeTime'
 import { statusStyle } from '@/lib/leads/statusStyles'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
+import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 
 /**
  * The mobile שיחות route — list, or one thread when `?conversation=` is set.
@@ -89,36 +90,38 @@ export default async function MobileInboxRoute({
           Back is explicit: the shell's header keys off pathname, and the list
           and the thread share `/inbox`, so it cannot supply one.
         */}
-        <div className='flex shrink-0 items-center gap-1 border-b border-gray-200 bg-white px-1.5 py-1.5'>
+        <div
+          data-testid='wa-thread-header'
+          data-wa-thread-chrome
+          className='flex shrink-0 items-center gap-1 bg-[#008069] px-1.5 pb-1.5 pt-[max(0.375rem,env(safe-area-inset-top,0px))]'
+        >
           <Link
             href={'/inbox' as Route}
             aria-label='חזרה לשיחות'
-            className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
           >
-            <Icon name='arrow-right' type='sol' className='size-5 bg-gray-600' />
+            <Icon name='arrow-right' type='sol' className='size-5 bg-white' />
           </Link>
 
-          {/* Channel identity. WhatsApp green, because "which app is this
-              customer on" is exactly the kind of recognition colour is for. */}
           <span
             aria-hidden
-            className='flex size-9 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10'
+            className='flex size-9 shrink-0 items-center justify-center rounded-full bg-white'
           >
             <Icon name='whatsapp' type='sol' className='size-[18px] bg-[#25D366]' />
           </span>
 
           <div className='min-w-0 flex-1 ps-1'>
-            <p className='truncate text-[15px] font-semibold leading-tight text-ink'>{name}</p>
-            {headerMeta && <p className='truncate text-[12px] leading-tight text-gray-500'>{headerMeta}</p>}
+            <h1 className='truncate text-[15px] font-semibold leading-tight text-white'>{name}</h1>
+            {headerMeta && <p className='truncate text-[12px] leading-tight text-white/80'>{headerMeta}</p>}
           </div>
 
           {target.leadId != null ? (
             <Link
               href={`/clients/${target.leadId}/summary` as Route}
               aria-label={`פתח את הליד ${name}`}
-              className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
             >
-              <Icon name='image-polaroid-user' type='sol' className='size-5 bg-primary' />
+              <Icon name='image-polaroid-user' type='sol' className='size-5 bg-white' />
             </Link>
           ) : (
             <LeadlessConversationActions conversationId={conversationId} isPersonal={target.isPersonal} />
@@ -142,13 +145,18 @@ export default async function MobileInboxRoute({
   const nowMs = Date.now()
 
   return (
-    <ConversationListMobile
-      items={page.items}
-      q={q}
-      nextCursor={page.nextCursor}
-      // Formatting happens on the server, per row, against ONE `nowMs`.
-      formatWhen={(iso) => relativeTimeHe(iso, nowMs)}
-    />
+    <div>
+      <div className='border-b border-gray-200 bg-white px-3 py-2 [&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
+        <InboxChannelSwitch active='whatsapp' />
+      </div>
+      <ConversationListMobile
+        items={page.items}
+        q={q}
+        nextCursor={page.nextCursor}
+        // Formatting happens on the server, per row, against ONE `nowMs`.
+        formatWhen={(iso) => relativeTimeHe(iso, nowMs)}
+      />
+    </div>
   )
 }
 

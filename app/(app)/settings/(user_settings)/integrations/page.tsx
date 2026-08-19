@@ -33,11 +33,12 @@ export default async function IntegrationsSettingsPage({
 
   // Read server-side so refresh and Back/Forward restore the open section with
   // no client state — UrlSyncedAccordion only writes the param back.
-  const { section } = (searchParams ? await searchParams : {}) || {}
+  const sp = (searchParams ? await searchParams : {}) || {}
+  const { section } = sp
   const activeSection = typeof section === 'string' ? section : null
 
   if (await isMobileWorkspaceRequest(user.agencyId)) {
-    return <IntegrationsMobile user={user} activeSection={activeSection} />
+    return <IntegrationsMobile user={user} searchParams={sp} />
   }
 
   return (

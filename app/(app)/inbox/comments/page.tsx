@@ -8,6 +8,8 @@ import { COMMENT_STATUSES, type CommentStatusFilter } from '@/modules/facebookCo
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
+import { isMobileWorkspaceRequest } from '@/lib/device'
+import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInboxMobile'
 
 /**
  * Comments Inbox — lives inside the existing שיחות experience (decision D1).
@@ -34,10 +36,14 @@ export default async function FacebookCommentsPage({
   if (!user?.agencyId) redirect('/auth')
 
   const enabled = isFacebookCommentsEnabledForAgency(user.agencyId)
+  const mobile = await isMobileWorkspaceRequest(user.agencyId)
 
   // Dark launch: show the shell + honest empty state. Do not query or pretend
   // rows exist — ingest remains blocked until the agency is allowlisted.
   if (!enabled) {
+    if (mobile) {
+      return <CommentsInboxMobile emptyKind='not-enabled' comments={[]} awaitingText={false} />
+    }
     return (
       <div className='grid gap-3 p-3 sm:p-4'>
         <header className='flex flex-wrap items-center justify-between gap-2'>
@@ -61,6 +67,17 @@ export default async function FacebookCommentsPage({
   // is not an empty state — comments exist, so the notice sits ABOVE the list
   // to explain the blanks rather than replacing the data.
   const awaitingText = page.items.length > 0 && page.items.every((c) => !c.messageAvailable)
+
+  if (mobile) {
+    const emptyKind = !connection ? 'not-connected' : page.items.length === 0 ? 'no-comments' : null
+    return (
+      <CommentsInboxMobile
+        emptyKind={emptyKind}
+        comments={connection ? page.items : []}
+        awaitingText={awaitingText}
+      />
+    )
+  }
 
   return (
     <div className='grid gap-3 p-3 sm:p-4'>

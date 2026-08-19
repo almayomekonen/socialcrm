@@ -19,9 +19,17 @@ import {
   readyMessagesLandingCopy,
   whatsappLandingCopy,
 } from './integrationStatus'
+import {
+  calendarReturnCopy,
+  facebookReturnCopy,
+  whatsappReturnCopy,
+  type OAuthReturnQuery,
+} from './oauthReturn'
+import { useIntegrationReturnContinuation } from './useIntegrationReturn'
 
 export type IntegrationsLandingProps = {
   initialSheet: 'whatsapp' | 'facebook' | 'calendar' | 'drive' | null
+  oauthQuery?: OAuthReturnQuery
   whatsapp: {
     connection: { phoneNumberId: string } | null
     pendingPhones: { id: string; displayPhone: string; verifiedName: string }[] | null
@@ -62,6 +70,7 @@ type Sheet = 'whatsapp' | 'facebook' | 'calendar' | 'drive' | null
  */
 export default function IntegrationsLanding({
   initialSheet,
+  oauthQuery = {},
   whatsapp,
   facebook,
   templates,
@@ -69,21 +78,45 @@ export default function IntegrationsLanding({
   websiteVisible,
 }: IntegrationsLandingProps) {
   const [sheet, setSheet] = useState<Sheet>(initialSheet)
+  const { facebookCompleting, whatsappCompleting } = useIntegrationReturnContinuation({
+    facebookConnected: !!facebook.connection,
+    pendingPages: facebook.pendingPages,
+    whatsappConnected: !!whatsapp.connection,
+    pendingPhones: whatsapp.pendingPhones,
+    calendarConnecting: oauthQuery.gcal === 'connected',
+    calendarConnected: calendar.state === 'connected',
+  })
 
   useEffect(() => {
     setSheet(initialSheet)
   }, [initialSheet])
 
-  const waCopy = whatsappLandingCopy({
-    connected: !!whatsapp.connection,
-    status: whatsapp.status,
-  })
-  const fbCopy = facebookLandingCopy({
-    connection: facebook.connection,
-    health: facebook.health,
-  })
+  const waCopy =
+    whatsapp.connection
+      ? whatsappLandingCopy({ connected: true, status: whatsapp.status })
+      : whatsappReturnCopy({
+          pendingPhones: whatsapp.pendingPhones,
+          error: oauthQuery.wa_error ?? null,
+          completing: whatsappCompleting,
+        }) ?? whatsappLandingCopy({ connected: false, status: whatsapp.status })
+
+  const fbCopy =
+    facebook.connection
+      ? facebookLandingCopy({ connection: facebook.connection, health: facebook.health })
+      : facebookReturnCopy({
+          pendingPages: facebook.pendingPages,
+          error: oauthQuery.error ?? null,
+          select: oauthQuery.select === '1',
+          completing: facebookCompleting,
+        }) ?? facebookLandingCopy({ connection: null, health: facebook.health })
+
   const rmCopy = readyMessagesLandingCopy(templates)
-  const calCopy = calendarLandingCopy({ state: calendar.state, email: calendar.email })
+  const calCopy =
+    calendarReturnCopy({
+      connected: calendar.state === 'connected',
+      error: oauthQuery.gcal_error ?? null,
+      connecting: oauthQuery.gcal === 'connected' && calendar.state !== 'connected',
+    }) ?? calendarLandingCopy({ state: calendar.state, email: calendar.email })
   const drive = INTEGRATIONS.find((i) => i.id === 'google-drive')
 
   const rmHref =
@@ -111,6 +144,7 @@ export default function IntegrationsLanding({
           explanation={waCopy.explanation}
           actionLabel={waCopy.actionLabel}
           role={waCopy.role}
+          actionDisabled={whatsappCompleting}
           onAction={() => setSheet('whatsapp')}
         />
 
@@ -121,6 +155,7 @@ export default function IntegrationsLanding({
           explanation={fbCopy.explanation}
           actionLabel={fbCopy.actionLabel}
           role={fbCopy.role}
+          actionDisabled={facebookCompleting}
           onAction={() => setSheet('facebook')}
         />
 
@@ -175,10 +210,18 @@ export default function IntegrationsLanding({
           explanation={calCopy.explanation}
           actionLabel={calCopy.actionLabel}
           role={calCopy.role}
+          actionDisabled={oauthQuery.gcal === 'connected' && calendar.state !== 'connected'}
           onAction={() => setSheet('calendar')}
         />
 
-        {drive && <DriveCardMobile integration={drive} onManage={() => setSheet('drive')} />}
+        {drive && (
+          <DriveCardMobile
+            integration={drive}
+            onManage={() => setSheet('drive')}
+            returnConnected={oauthQuery.gdrive === 'connected'}
+            returnError={oauthQuery.gdrive_error ?? null}
+          />
+        )}
       </section>
 
       <ConnectManageSheet
@@ -187,14 +230,20 @@ export default function IntegrationsLanding({
         title='וואטסאפ'
         titleId='wa-manage-title'
       >
-        <WhatsappConnect
-          connection={whatsapp.connection}
-          pendingPhones={whatsapp.pendingPhones}
-          appId={whatsapp.appId}
-          configId={whatsapp.configId}
-          graphVersion={whatsapp.graphVersion}
-          status={whatsapp.status}
-        />
+        {whatsappCompleting ? (
+          <p data-testid='integration-completing' className='text-sm text-gray-600'>
+            משלים חיבור...
+          </p>
+        ) : (
+          <WhatsappConnect
+            connection={whatsapp.connection}
+            pendingPhones={whatsapp.pendingPhones}
+            appId={whatsapp.appId}
+            configId={whatsapp.configId}
+            graphVersion={whatsapp.graphVersion}
+            status={whatsapp.status}
+          />
+        )}
       </ConnectManageSheet>
 
       <ConnectManageSheet
@@ -203,11 +252,17 @@ export default function IntegrationsLanding({
         title='פייסבוק ואינסטגרם'
         titleId='fb-manage-title'
       >
-        <FacebookConnect
-          connection={facebook.connection}
-          pendingPages={facebook.pendingPages}
-          health={facebook.health}
-        />
+        {facebookCompleting ? (
+          <p data-testid='integration-completing' className='text-sm text-gray-600'>
+            משלים חיבור...
+          </p>
+        ) : (
+          <FacebookConnect
+            connection={facebook.connection}
+            pendingPages={facebook.pendingPages}
+            health={facebook.health}
+          />
+        )}
       </ConnectManageSheet>
 
       <ConnectManageSheet

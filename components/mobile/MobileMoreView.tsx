@@ -72,7 +72,7 @@ export default function MobileMoreView({
         </h2>
         <div className='rounded-xl border border-gray-200 bg-white p-4'>
           <p className='text-sm leading-relaxed text-gray-600'>
-            ייבוא מאקסל, חשבוניות, דוחות ואוטומציות זמינים בגרסת המחשב.
+            חשבוניות, דוחות ואוטומציות זמינים בגרסת המחשב.
           </p>
           <p className='mt-2 text-[13px] text-gray-400' dir='ltr'>
             {DESKTOP_URL_LABEL}

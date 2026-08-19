@@ -96,7 +96,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     return (
       <div className='flex flex-col gap-3 p-3'>
         <NotificationFiltersMobile filters={filters} />
-        <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
+        <div className='overflow-hidden rounded-md border border-gray-200 bg-white'>
           <NotificationCenter
             key={centerHref(filters)}
             initialItems={items}

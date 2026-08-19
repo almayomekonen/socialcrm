@@ -19,7 +19,8 @@ import { NotificationProvider, useNotifications } from '@/modules/notifications/
 import type { NotificationFeedItem, NotificationFeedResponse } from '@/modules/notifications/types'
 
 const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
+const refresh = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }))
 
 const toast = vi.fn()
 vi.mock('@/lib/toast', () => ({
@@ -105,15 +106,16 @@ function Probe() {
       <span data-testid='ids'>{items.map((i) => `${i.id}${i.readAt ? 'r' : ''}`).join(',')}</span>
       <span data-testid='presence'>{presence}</span>
       <button onClick={() => markRead([1])}>read one</button>
+      <button onClick={() => markRead([99])}>read missing</button>
       <button onClick={() => markAllRead()}>read all</button>
       <button onClick={() => markSeen([1])}>seen one</button>
     </div>
   )
 }
 
-const mount = (enabled = true) =>
+const mount = (enabled = true, initialUnread = 0) =>
   render(
-    <NotificationProvider enabled={enabled}>
+    <NotificationProvider enabled={enabled} initialUnread={initialUnread}>
       <Probe />
     </NotificationProvider>,
   )
@@ -127,6 +129,7 @@ beforeEach(() => {
   queue = []
   toast.mockClear()
   push.mockClear()
+  refresh.mockClear()
   vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
   vi.setSystemTime(NOW)
   installFetch()
@@ -381,6 +384,52 @@ describe('read state', () => {
     expect(screen.getByTestId('unread').textContent).toBe('0')
     expect(screen.getByTestId('ids').textContent).toBe('1r')
     expect(readCalls()[0].body).toEqual({ ids: [1] })
+  })
+
+  it('seeds unreadCount from initialUnread before the first poll', () => {
+    mount(true, 4)
+    expect(screen.getByTestId('unread').textContent).toBe('4')
+  })
+
+  it('decrements the badge when the center marks an id the feed has not loaded', async () => {
+    queue = [feed({ unreadNotificationCount: 5, items: [] })]
+    mount()
+    await tick()
+    await act(async () => {
+      screen.getByText('read missing').click()
+    })
+    expect(screen.getByTestId('unread').textContent).toBe('4')
+    expect(readCalls()[0].body).toEqual({ ids: [99] })
+  })
+
+  it('refreshes the mobile workspace after a successful read so RSC list state is not stale', async () => {
+    const shell = document.createElement('div')
+    shell.setAttribute('data-mobile-workspace', '')
+    document.body.appendChild(shell)
+    queue = [feed({ unreadNotificationCount: 1, items: [item({ id: 1 })] })]
+    mount()
+    await tick()
+    await act(async () => {
+      screen.getByText('read one').click()
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(refresh).toHaveBeenCalled()
+    shell.remove()
+  })
+
+  it('does not refresh desktop after read — the bell already follows context', async () => {
+    queue = [feed({ unreadNotificationCount: 1, items: [item({ id: 1 })] })]
+    mount()
+    await tick()
+    await act(async () => {
+      screen.getByText('read one').click()
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(refresh).not.toHaveBeenCalled()
   })
 
   it('mark-all-read clears the count and posts all:true, with no id list', async () => {

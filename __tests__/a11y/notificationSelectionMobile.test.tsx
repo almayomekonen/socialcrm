@@ -144,4 +144,29 @@ describe('mobile notification selection', () => {
     expect(screen.queryByTestId('notifications-selection-bar')).toBeNull()
     expect(screen.queryByTestId('notification-row')).toBeNull()
   })
+
+  it('opening the mobile list stamps seen, never read', () => {
+    renderMobile([item({ id: 8 })])
+    expect(H.markSeen).toHaveBeenCalled()
+    expect(H.markRead).not.toHaveBeenCalled()
+  })
+
+  it('סימון הכל כנקרא uses the existing markAllRead contract', () => {
+    renderMobile([item({ id: 1 }), item({ id: 2 })])
+    fireEvent.click(screen.getByRole('button', { name: 'סימון הכל כנקרא' }))
+    expect(H.markAllRead).toHaveBeenCalled()
+    expect(H.markRead).not.toHaveBeenCalled()
+  })
+
+  it('mobile rows are rectangular CRM records, not circular capsules', () => {
+    renderMobile([item({ title: 'ליד חדש — דנה' })])
+    const row = screen.getByTestId('notification-row')
+    expect(row.className).not.toContain('rounded-full')
+    const capsules = [...row.querySelectorAll('[class*="rounded-full"]')].filter(
+      (el) => !/\bsize-1\.5\b/.test(el.className),
+    )
+    expect(capsules).toHaveLength(0)
+    expect(row.querySelector('.rounded-md')).toBeTruthy()
+    expect(row.textContent).toContain('לידים')
+  })
 })

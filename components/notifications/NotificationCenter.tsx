@@ -97,6 +97,19 @@ export default function NotificationCenter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedKey])
 
+  /**
+   * After a successful `/read`, mobile calls `router.refresh()` so this page's
+   * RSC payload is not a stale unread snapshot. Re-apply the server first page
+   * when its read/seen facts change — `useState(initialItems)` would otherwise
+   * keep the unread rows the user just marked.
+   */
+  const serverListKey = `${initialCursor ?? ''}|${initialItems.map((i) => `${i.id}:${i.readAt ?? ''}:${i.seenAt ?? ''}`).join(',')}`
+  useEffect(() => {
+    setItems(initialItems)
+    setCursor(initialCursor)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverListKey])
+
   const loadMore = useCallback(async () => {
     if (!cursor || loading) return
     setLoading(true)
@@ -211,7 +224,7 @@ export default function NotificationCenter({
   }
 
   return (
-    <div className='rounded-lg border border-gray-200 bg-white'>
+    <div className='bg-white'>
       {selecting ? (
         <NotificationSelectionHeader count={sel.ids.size} busy={busy} onCancel={exit} />
       ) : unreadCount > 0 ? (
@@ -219,7 +232,7 @@ export default function NotificationCenter({
           <button
             type='button'
             onClick={readEverything}
-            className='rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
+            className='flex min-h-11 items-center rounded px-3 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
           >
             סימון הכל כנקרא
           </button>

@@ -31,7 +31,7 @@ const push = vi.fn()
 const back = vi.fn()
 let pathname = '/dashboard'
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, back }),
+  useRouter: () => ({ push, back, refresh: vi.fn() }),
   usePathname: () => pathname,
 }))
 
@@ -40,12 +40,14 @@ import MobileTabBar, { isTabActive, mobileTabsWithBadges } from '@/components/mo
 import MobileHeader from '@/components/mobile/MobileHeader'
 import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
 import MobileStickyActions from '@/components/mobile/MobileStickyActions'
+import { NotificationProvider } from '@/modules/notifications/NotificationContext'
 
 afterEach(() => {
   cleanup()
   pathname = '/dashboard'
   document.body.style.overflow = ''
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('BottomSheet', () => {
@@ -179,6 +181,35 @@ describe('MobileTabBar', () => {
     render(<MobileTabBar notificationCount={0} conversationCount={2} />)
     expect(screen.getByRole('link', { name: 'התראות' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'שיחות, 2 חדשות' })).toBeTruthy()
+  })
+
+  test('4f. live notification unread drives התראות — never the conversation count, never the frozen layout prop', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          enabled: true,
+          unreadNotificationCount: 3,
+          unreadConversationCount: 9,
+          items: [],
+          whileYouWereAway: null,
+          presence: 'online',
+          serverTime: new Date().toISOString(),
+          nextCursor: null,
+        }),
+      }),
+    )
+    render(
+      <NotificationProvider enabled initialUnread={3}>
+        <MobileTabBar notificationCount={99} conversationCount={2} />
+      </NotificationProvider>,
+    )
+    expect(screen.getByRole('link', { name: 'התראות, 3 חדשות' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'שיחות, 2 חדשות' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'התראות, 99 חדשות' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'התראות, 9 חדשות' })).toBeNull()
+    vi.unstubAllGlobals()
   })
 
   test('every tab has a visible text label, never icon-only', () => {

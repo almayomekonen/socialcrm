@@ -1,9 +1,22 @@
 'use client'
 
 import BottomSheet from '@/components/mobile/BottomSheet'
+import Icon, { type IconNames } from '@/lib/Icon'
 import { toast } from '@/lib/toast'
 import useLongPress from '@/components/mobile/useLongPress'
-import type { LeadWhatsappMessage } from '@/db/inboxMessages'
+import { formatTime } from '@/lib/dates'
+import type { InboxMessageStatus, LeadWhatsappMessage } from '@/db/inboxMessages'
+
+/**
+ * Outbound ticks from the existing `status` field only.
+ * `sent` = Meta accepted; `delivered` / `read` come from webhooks. Nothing else.
+ */
+const TICK: Partial<Record<InboxMessageStatus, { icon: IconNames; tone: string; label: string }>> = {
+  sent: { icon: 'check', tone: 'bg-gray-500', label: 'נשלח — ממתין לאישור מסירה' },
+  delivered: { icon: 'check-double', tone: 'bg-gray-500', label: 'נמסר' },
+  read: { icon: 'check-double', tone: 'bg-[#53bdeb]', label: 'נקרא' },
+  failed: { icon: 'circle-exclamation', tone: 'bg-error', label: 'לא נשלח' },
+}
 
 export function MessageBubbleMobile({
   message,
@@ -14,17 +27,43 @@ export function MessageBubbleMobile({
 }) {
   const outbound = message.direction === 'outbound'
   const longPress = useLongPress(onOpen, Boolean(message.text?.trim()))
+  const tick = outbound ? TICK[message.status] : undefined
+  const failed = outbound && message.status === 'failed'
 
   return (
     <li className={`flex ${outbound ? 'justify-start' : 'justify-end'}`}>
       <div
         data-testid='message-bubble'
-        className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed select-none [-webkit-touch-callout:none] ${
-          outbound ? 'rounded-es-sm bg-primary-tint text-ink' : 'rounded-ee-sm bg-white text-ink shadow-sm'
+        data-direction={message.direction}
+        className={`max-w-[80%] break-words rounded-2xl px-3 py-1.5 text-[15px] leading-relaxed text-ink select-none [-webkit-touch-callout:none] ${
+          failed
+            ? 'rounded-es-sm border border-error-border bg-error-bg'
+            : outbound
+              ? 'rounded-es-sm bg-[#d9fdd3]'
+              : 'rounded-ee-sm bg-white shadow-sm'
         }`}
         {...longPress}
       >
-        {message.text}
+        <span className='sr-only'>{outbound ? 'הודעה שנשלחה מהמערכת' : 'הודעה נכנסת'}</span>
+        <p className='whitespace-pre-wrap wrap-break-word'>{message.text}</p>
+        <div className='mt-0.5 flex items-center justify-end gap-1'>
+          <span
+            dir='ltr'
+            suppressHydrationWarning
+            className='shrink-0 text-[11px] leading-none tabular-nums text-gray-500'
+          >
+            {formatTime(message.timestamp)}
+          </span>
+          {tick && (
+            <span className='inline-flex shrink-0 items-center'>
+              <span className='sr-only'>{tick.label}</span>
+              <Icon name={tick.icon} className={`size-3.5 ${tick.tone}`} />
+            </span>
+          )}
+        </div>
+        {failed && message.failureText && (
+          <p className='mt-1 text-[11px] leading-snug text-error-text'>{message.failureText}</p>
+        )}
       </div>
     </li>
   )

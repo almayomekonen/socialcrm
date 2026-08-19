@@ -14,6 +14,7 @@ import { countByStatus } from '@/db/whatsappTemplates'
 import WebsiteConnection, { isWebsiteSectionVisible } from '@/components/settings/integrations/WebsiteConnection'
 import IntegrationsLanding from './IntegrationsLanding'
 import ReadyMessagesScreen from '@/modules/templates/mobile/ReadyMessagesScreen'
+import { parseOAuthReturnQuery, resolveMobileIntegrationSheet } from './oauthReturn'
 
 type Viewer = { id: number; role: string; agencyId: number }
 
@@ -23,11 +24,13 @@ type Viewer = { id: number; role: string; agencyId: number }
  */
 export default async function IntegrationsMobile({
   user,
-  activeSection,
+  searchParams,
 }: {
   user: Viewer
-  activeSection: string | null
+  searchParams: { [key: string]: string | string[] | undefined }
 }) {
+  const oauthQuery = parseOAuthReturnQuery(searchParams)
+  const activeSection = oauthQuery.section
   const templatesEnabled = isTemplatesEnabledForAgency(user.agencyId)
   const websiteVisible = isWebsiteSectionVisible(user)
 
@@ -115,18 +118,16 @@ export default async function IntegrationsMobile({
     )
   }
 
-  const initialSheet =
-    activeSection === 'whatsapp'
-      ? 'whatsapp'
-      : activeSection === 'facebook'
-        ? 'facebook'
-        : activeSection === 'google-calendar'
-          ? 'calendar'
-          : null
+  const initialSheet = resolveMobileIntegrationSheet({
+    query: oauthQuery,
+    pendingPages,
+    pendingPhones,
+  })
 
   return (
     <IntegrationsLanding
       initialSheet={initialSheet}
+      oauthQuery={oauthQuery}
       whatsapp={{
         connection: waConnection ? { phoneNumberId: waConnection.phone_number_id } : null,
         pendingPhones,

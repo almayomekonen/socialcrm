@@ -18,6 +18,7 @@ export default function IntegrationCardMobile({
   role,
   onAction,
   actionHref,
+  actionDisabled,
 }: {
   title: string
   leading: ReactNode
@@ -27,9 +28,10 @@ export default function IntegrationCardMobile({
   role: StatusRole
   onAction?: () => void
   actionHref?: string
+  actionDisabled?: boolean
 }) {
   const actionClass =
-    'press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+    'press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60'
 
   return (
     <article className='rounded-xl border border-gray-200 bg-white p-4'>
@@ -49,7 +51,13 @@ export default function IntegrationCardMobile({
           {actionLabel}
         </a>
       ) : (
-        <button type='button' className={`${actionClass} mt-4`} onClick={onAction}>
+        <button
+          type='button'
+          className={`${actionClass} mt-4`}
+          onClick={onAction}
+          disabled={actionDisabled}
+          aria-busy={actionDisabled || undefined}
+        >
           {actionLabel}
         </button>
       )}

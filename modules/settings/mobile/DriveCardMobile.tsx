@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { IntegrationDescriptor } from '@/components/settings/integrations/catalog'
 import IntegrationCardMobile from './IntegrationCardMobile'
+import { driveReturnCopy } from './oauthReturn'
 
 type DriveStatus =
   | { state: 'loading' }
@@ -16,9 +17,13 @@ type DriveStatus =
 export default function DriveCardMobile({
   integration,
   onManage,
+  returnConnected = false,
+  returnError = null,
 }: {
   integration: IntegrationDescriptor
   onManage: () => void
+  returnConnected?: boolean
+  returnError?: string | null
 }) {
   const [status, setStatus] = useState<DriveStatus>({ state: 'loading' })
 
@@ -40,6 +45,17 @@ export default function DriveCardMobile({
 
   const loading = status.state === 'loading'
   const connected = status.state === 'connected'
+  const overlay = driveReturnCopy({
+    connected,
+    error: returnError,
+    connecting: returnConnected && loading,
+  })
+
+  const statusLabel = overlay?.statusLabel ?? (loading ? 'טוען…' : connected ? 'מחובר' : 'לא מחובר')
+  const explanation =
+    overlay?.explanation ?? (connected && status.email ? `מחובר · ${status.email}` : integration.description)
+  const actionLabel = overlay?.actionLabel ?? (connected ? 'ניהול' : integration.connectLabel)
+  const role = overlay?.role ?? (loading ? 'neutral' : connected ? 'success' : 'neutral')
 
   return (
     <IntegrationCardMobile
@@ -51,12 +67,11 @@ export default function DriveCardMobile({
           <span className='size-7' />
         )
       }
-      statusLabel={loading ? 'טוען…' : connected ? 'מחובר' : 'לא מחובר'}
-      explanation={
-        connected && status.email ? `מחובר · ${status.email}` : integration.description
-      }
-      actionLabel={connected ? 'ניהול' : integration.connectLabel}
-      role={loading ? 'neutral' : connected ? 'success' : 'neutral'}
+      statusLabel={statusLabel}
+      explanation={explanation}
+      actionLabel={actionLabel}
+      role={role}
+      actionDisabled={loading && returnConnected}
       onAction={onManage}
     />
   )

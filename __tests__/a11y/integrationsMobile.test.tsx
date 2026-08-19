@@ -22,9 +22,12 @@ import { facebookLandingCopy, readyMessagesLandingCopy, whatsappLandingCopy } fr
 import type { IntegrationsLandingProps } from '@/modules/settings/mobile/IntegrationsLanding'
 
 beforeEach(() => {
-  global.fetch = vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({ connected: false }),
+  global.fetch = vi.fn().mockImplementation((url: RequestInfo) => {
+    const href = String(url)
+    if (href.includes('/api/auth/facebook/connect') || href.includes('/api/auth/whatsapp/connect')) {
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true }) })
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ connected: false }) })
   }) as unknown as typeof fetch
 })
 
@@ -168,6 +171,107 @@ describe('IntegrationsLanding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ניהול' }))
     expect(screen.getByRole('dialog', { name: 'וואטסאפ' })).toBeTruthy()
   })
+
+  it('Facebook OAuth return with one pending page auto-completes without a second Connect tap', async () => {
+    render(
+      <IntegrationsLanding
+        {...base()}
+        initialSheet='facebook'
+        oauthQuery={{ select: '1' }}
+        facebook={{
+          ...base().facebook,
+          pendingPages: [{ id: 'page-1', name: 'דף הבדיקה', access_token: 'tok' }],
+        }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: /^חבר פייסבוק$/ })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'פייסבוק ואינסטגרם' })).toBeTruthy()
+    expect(screen.getAllByText('משלים חיבור...').length).toBeGreaterThan(0)
+
+    await waitFor(() => {
+      const calls = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      expect(calls.some((c) => String(c[0]).includes('/api/auth/facebook/connect'))).toBe(true)
+    })
+    const connectCall = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
+      String(c[0]).includes('/api/auth/facebook/connect'),
+    )
+    expect(connectCall?.[1]).toMatchObject({ method: 'POST' })
+    expect(JSON.parse((connectCall?.[1] as RequestInit).body as string)).toEqual({
+      pageId: 'page-1',
+      pageName: 'דף הבדיקה',
+      pageAccessToken: 'tok',
+    })
+    expect(screen.queryByText('בחר את הדף שברצונך לחבר:')).toBeNull()
+  })
+
+  it('Facebook return with several pages opens the existing picker, not a silent Connect card', async () => {
+    render(
+      <IntegrationsLanding
+        {...base()}
+        initialSheet='facebook'
+        oauthQuery={{ select: '1' }}
+        facebook={{
+          ...base().facebook,
+          pendingPages: [
+            { id: 'p1', name: 'דף א', access_token: 'a' },
+            { id: 'p2', name: 'דף ב', access_token: 'b' },
+          ],
+        }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: /^חבר פייסבוק$/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'השלימו חיבור' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'פייסבוק ואינסטגרם' })).toBeTruthy()
+    expect(screen.getByText('בחר את הדף שברצונך לחבר:')).toBeTruthy()
+    const calls = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls.some((c) => String(c[0]).includes('/api/auth/facebook/connect'))).toBe(false)
+  })
+
+  it('Facebook OAuth denied shows the approved Hebrew failure, not Connect-as-usual', async () => {
+    render(
+      <IntegrationsLanding
+        {...base()}
+        initialSheet='facebook'
+        oauthQuery={{ error: 'denied' }}
+      />,
+    )
+    expect(screen.getByText('החיבור לפייסבוק לא הושלם')).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'פייסבוק ואינסטגרם' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^חבר פייסבוק$/ })).toBeNull()
+  })
+
+  it('WhatsApp return with one pending phone auto-completes without a second Connect tap', async () => {
+    render(
+      <IntegrationsLanding
+        {...base()}
+        initialSheet='whatsapp'
+        whatsapp={{
+          ...base().whatsapp,
+          pendingPhones: [{ id: 'phone-1', displayPhone: '+97250', verifiedName: 'עסק' }],
+        }}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /^חבר וואטסאפ$/ })).toBeNull()
+    await waitFor(() => {
+      const calls = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      expect(calls.some((c) => String(c[0]).includes('/api/auth/whatsapp/connect'))).toBe(true)
+    })
+  })
+
+  it('Google Calendar cancel opens the calendar sheet with an explicit retry', async () => {
+    render(
+      <IntegrationsLanding
+        {...base()}
+        initialSheet='calendar'
+        oauthQuery={{ gcal_error: 'denied' }}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: 'Google Calendar' })).toBeTruthy()
+    expect(screen.getByText('החיבור לא הושלם')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'לנסות שוב' })).toBeTruthy()
+  })
 })
 
 describe('desktop protection — source contracts', () => {
@@ -180,6 +284,22 @@ describe('desktop protection — source contracts', () => {
     expect(src).toContain('IntegrationsMobile')
     expect(src).toContain('LeadSourcesSection')
     expect(src).toContain('ConnectedToolsSection')
+  })
+
+  it('does not add a page-reload OAuth workaround', () => {
+    const landing = readFileSync(join(process.cwd(), 'modules/settings/mobile/IntegrationsLanding.tsx'), 'utf8')
+    const hook = readFileSync(join(process.cwd(), 'modules/settings/mobile/useIntegrationReturn.ts'), 'utf8')
+    expect(landing).not.toContain('window.location.reload')
+    expect(hook).not.toContain('window.location.reload')
+    expect(hook).toContain('/api/auth/facebook/connect')
+    expect(hook).toContain('/api/auth/whatsapp/connect')
+  })
+
+  it('does not teach desktop FacebookConnect to auto-POST', () => {
+    const src = readFileSync(join(process.cwd(), 'components/settings/FacebookConnect.tsx'), 'utf8')
+    expect(src).not.toContain('shouldAutoCompleteFacebook')
+    expect(src).toContain("window.location.href = '/api/auth/facebook'")
+    expect(src).toContain('disabled={!selectedPageId || loading}')
   })
 
   it('LeadSourcesSection is still the UrlSyncedAccordion', () => {

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import AddAgencyForm from '@/components/agencies/AddAgencyForm'
 import Login from '@/components/auth/Login'
 import { isFacebookUserAuthOpenToNewAgencies } from '@/lib/auth/facebookUserAuthFlags'
+import { isMobileRequest } from '@/lib/device'
 
 export const metadata: Metadata = { title: 'הרשמה' }
 
@@ -27,7 +28,10 @@ export default async function page({ searchParams }) {
                 <span className='px-4 bg-white'>או</span>
               </div>
             </div>
-            <Login facebookAppId={isFacebookUserAuthOpenToNewAgencies() ? process.env.AUTH_FACEBOOK_APP_ID : undefined} />
+            <Login
+              facebookAppId={isFacebookUserAuthOpenToNewAgencies() ? process.env.AUTH_FACEBOOK_APP_ID : undefined}
+              matchSocialButtons={await isMobileRequest()}
+            />
             <p className='text-gray-500 text-xs text-center mt-3'>
               כבר יש לך חשבון?{' '}
               <Link href='/auth' className='text-primary-text font-semibold hover:text-primary transition-colors'>

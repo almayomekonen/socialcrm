@@ -5,6 +5,7 @@ import { getUser } from '@/db/auth'
 import { canUseFacebookUserAuth, isFacebookUserAuthPubliclyAvailable } from '@/lib/auth/facebookUserAuthFlags'
 import { Metadata } from 'next'
 import AccordionItem from '@/lib/AccordionItem'
+import { isMobileRequest } from '@/lib/device'
 import HeroScroll from '@/components/auth/HeroScroll'
 
 export const metadata: Metadata = {
@@ -74,6 +75,7 @@ export default async function AuthPage({ searchParams }) {
   const facebookLoginEnabled = user
     ? canUseFacebookUserAuth(user.agencyId)
     : isFacebookUserAuthPubliclyAvailable()
+  const phoneLogin = await isMobileRequest()
 
   return (
     <>
@@ -90,7 +92,11 @@ export default async function AuthPage({ searchParams }) {
               כל הלידים שלך במקום אחד. בלי לפספס אף אחד.
             </p>
             <div className='grid w-full max-w-sm lg:w-auto lg:max-w-none'>
-              <Login user={user} facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined} />
+              <Login
+                user={user}
+                facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined}
+                matchSocialButtons={phoneLogin}
+              />
               <p className='text-gray-500 text-xs text-center mt-2'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
               <LoginMagicLink error={error} />
 
