@@ -9,19 +9,23 @@ import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/send
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import type { AutoResponseJob } from '@/db/autoResponseJobs'
 import { finalizeCustomerFacingText } from './customerFacingText'
-import type { QualifyCtx } from './qualifyWorker'
+
+export type IreOutboundCtx = {
+  conv: { id: number; businessPhoneNumberId: string; customerWaId: string | null; customerName: string | null }
+  lead: { userId: number | null; handlerId: number | null }
+}
 
 export async function sendIreOutbound(
   job: AutoResponseJob,
-  ctx: QualifyCtx,
+  ctx: IreOutboundCtx,
   send: typeof sendWhatsappText,
   text: string,
-  metadata: { source: string; reason: string; phase: number } = {
+  metadata: { source: string; reason: string; phase: number; kind?: string } = {
     source: 'auto_response',
     reason: job.reason,
     phase: 2,
   },
-): Promise<{ ok: true; messageId: number } | { ok: false; reason: string; settled?: true }> {
+): Promise<{ ok: true; messageId: number; sequence: number } | { ok: false; reason: string; settled?: true }> {
   const body = finalizeCustomerFacingText(text)
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: ctx.conv.businessPhoneNumberId, agency_id: job.agencyId })
@@ -63,5 +67,5 @@ export async function sendIreOutbound(
     .update({
       metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify(metadata)]),
     })
-  return { ok: true, messageId: res.messageId }
+  return { ok: true, messageId: res.messageId, sequence: Number(res.sequence) || 0 }
 }

@@ -8,6 +8,7 @@ const failAutoResponseJob = vi.hoisted(() => vi.fn())
 const skipAutoResponseJob = vi.hoisted(() => vi.fn())
 const completeAutoResponseJob = vi.hoisted(() => vi.fn())
 const countSentToday = vi.hoisted(() => vi.fn())
+const enqueueAutoResponse = vi.hoisted(() => vi.fn())
 const getOrCreateAiState = vi.hoisted(() => vi.fn())
 const recordTurn = vi.hoisted(() => vi.fn())
 const markEscalated = vi.hoisted(() => vi.fn())
@@ -31,6 +32,9 @@ vi.mock('@/db/autoResponseJobs', () => ({
   skipAutoResponseJob,
   completeAutoResponseJob,
   countSentToday,
+  enqueueAutoResponse,
+  deferAutoResponseJob: vi.fn(),
+  skipPendingNoResponseJobs: vi.fn(),
   hasSentFirstContact: vi.fn(),
   claimAutoResponseJobs: vi.fn(),
   reclaimStaleAutoResponseJobs: vi.fn(),
@@ -75,6 +79,7 @@ vi.mock('@/config/db', () => {
     db: Object.assign((table: string) => chainFor(table), {
       raw: (sql: string) => sql,
       fn: { now: () => new Date() },
+      transaction: async (fn: (trx: unknown) => unknown) => fn({}),
     }),
   }
 })
@@ -138,6 +143,7 @@ beforeEach(() => {
   skipAutoResponseJob.mockReset().mockResolvedValue(undefined)
   completeAutoResponseJob.mockReset().mockResolvedValue(undefined)
   countSentToday.mockReset().mockResolvedValue(0)
+  enqueueAutoResponse.mockReset().mockResolvedValue(77)
   recordTurn.mockReset().mockResolvedValue(undefined)
   markEscalated.mockReset().mockResolvedValue(undefined)
   markClosed.mockReset().mockResolvedValue(undefined)
@@ -1181,6 +1187,48 @@ describe('conversation control stop policy (worker)', () => {
     expect(outcome).toBe('sent')
     expect(generateQualify).toHaveBeenCalledTimes(1)
     expect(markClosed).not.toHaveBeenCalled()
+  })
+})
+
+describe('no-response warning after CONTINUE', () => {
+  it('successful CONTINUE outbound schedules warning at +600s using outbound sequence', async () => {
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 12 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.continue-seq' }))
+    const generateQualify = vi.fn(async () => OK_GEN)
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(completeAutoResponseJob).toHaveBeenCalledWith(61, 4001)
+    expect(enqueueAutoResponse).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        reason: 'no_response_warning',
+        delaySeconds: 600,
+        triggerSequence: 12,
+      }),
+    )
+    expect(completeAutoResponseJob.mock.invocationCallOrder[0]).toBeLessThan(
+      enqueueAutoResponse.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('closer outbound does not schedule a no-response warning', async () => {
+    tableRows.messageList = [
+      {
+        direction: 'inbound',
+        text: 'לא מעוניין',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+    ]
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 12 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.closer-seq' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(markClosed).toHaveBeenCalled()
+    expect(enqueueAutoResponse).not.toHaveBeenCalled()
   })
 })
 

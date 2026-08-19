@@ -1,7 +1,9 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 
-export type AutoResponseReason = 'first_contact' | 'qualify_turn'
+export type AutoResponseReason = 'first_contact' | 'qualify_turn' | 'no_response_warning' | 'no_response_close'
+
+export const NO_RESPONSE_JOB_REASONS: AutoResponseReason[] = ['no_response_warning', 'no_response_close']
 
 export interface AutoResponseJob {
   id: number
@@ -55,10 +57,25 @@ export async function enqueueAutoResponse(
                         WHERE j."conversationId" = :conversationId AND j.reason = 'first_contact'
                           AND j.status IN ('pending','processing','sent'))
       )
+      AND (
+        :reason NOT IN ('no_response_warning', 'no_response_close')
+        OR NOT EXISTS (SELECT 1 FROM auto_response_jobs j
+                        WHERE j."conversationId" = :conversationId AND j.reason = :reason
+                          AND j."triggerSequence" = :triggerSequence
+                          AND j.status IN ('pending','processing','sent'))
+      )
     ON CONFLICT DO NOTHING
     RETURNING id
   `,
-    { agencyId: args.agencyId, conversationId: args.conversationId, leadId: args.leadId, channel: args.channel, triggerSequence: args.triggerSequence, reason, delaySeconds },
+    {
+      agencyId: args.agencyId,
+      conversationId: args.conversationId,
+      leadId: args.leadId,
+      channel: args.channel,
+      triggerSequence: args.triggerSequence,
+      reason,
+      delaySeconds,
+    },
   )
   const row = res.rows?.[0]
   if (!row) return null
@@ -114,14 +131,49 @@ export async function reclaimStaleAutoResponseJobs(leaseMs: number): Promise<num
   return res.rows?.length ?? 0
 }
 
-export async function completeAutoResponseJob(id: number, sentMessageId: number | null): Promise<void> {
-  await db('auto_response_jobs').where({ id }).update({
+/** Complete only while still claimed. Inbound may have already set skipped. */
+export async function completeAutoResponseJob(id: number, sentMessageId: number | null): Promise<boolean> {
+  const n = await db('auto_response_jobs').where({ id, status: 'processing' }).update({
     status: 'sent',
     sentMessageId,
     lockedAt: null,
     lockedBy: null,
     updatedAt: db.fn.now(),
   })
+  return Number(n) > 0
+}
+
+export async function skipPendingNoResponseJobs(trx: Knex.Transaction, conversationId: number): Promise<number> {
+  const n = await trx('auto_response_jobs')
+    .where({ conversationId })
+    .whereIn('status', ['pending', 'processing'])
+    .whereIn('reason', NO_RESPONSE_JOB_REASONS)
+    .update({
+      status: 'skipped',
+      skipReason: 'inbound_superseded',
+      lockedAt: null,
+      lockedBy: null,
+      updatedAt: trx.fn.now(),
+    })
+  return Number(n) || 0
+}
+
+/** Quiet-hours defer: keep pending, undo the claim attempt, set notBefore to the next window. */
+export async function deferAutoResponseJob(id: number, notBefore: Date, lastError = 'quiet_hours_deferred'): Promise<void> {
+  await db.raw(
+    `
+    UPDATE auto_response_jobs
+       SET status = 'pending',
+           "lockedAt" = NULL,
+           "lockedBy" = NULL,
+           attempts = GREATEST(attempts - 1, 0),
+           "lastError" = ?,
+           "notBefore" = ?,
+           "updatedAt" = now()
+     WHERE id = ?
+  `,
+    [lastError, notBefore, id],
+  )
 }
 
 export async function skipAutoResponseJob(id: number, skipReason: string): Promise<void> {
@@ -166,7 +218,8 @@ export async function failAutoResponseJob(id: number, error: string): Promise<vo
 export async function countSentToday(agencyId: number): Promise<number> {
   const res = await db.raw(
     `SELECT count(*)::int AS c FROM auto_response_jobs
-      WHERE "agencyId" = ? AND status = 'sent' AND "updatedAt" >= date_trunc('day', now())`,
+      WHERE "agencyId" = ? AND status = 'sent' AND "updatedAt" >= date_trunc('day', now())
+        AND reason NOT IN ('no_response_warning','no_response_close')`,
     [agencyId],
   )
   return Number(res.rows?.[0]?.c ?? 0)

@@ -38,6 +38,9 @@ vi.mock('@/db/autoResponseJobs', () => ({
   reclaimStaleAutoResponseJobs,
   countSentToday,
   hasSentFirstContact,
+  enqueueAutoResponse: vi.fn(),
+  deferAutoResponseJob: vi.fn(),
+  skipPendingNoResponseJobs: vi.fn(),
 }))
 vi.mock('@/db/autoResponseSettings', () => ({
   getMasterEnabled,
@@ -82,6 +85,7 @@ vi.mock('@/config/db', () => {
   const db = Object.assign((table: string) => chainFor(table), {
     raw: (sql: string) => sql,
     fn: { now: () => new Date() },
+    transaction: async (fn: (trx: unknown) => unknown) => fn({}),
   })
   return { db }
 })

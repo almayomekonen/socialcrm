@@ -18,6 +18,8 @@ import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
 import { processQualifyJob } from './qualifyWorker'
+import { processNoResponseJob } from './processNoResponseJob'
+import { withinQuietHours } from './noResponseClose'
 import { isRetryableIreGenerationFailure } from './retryableGeneration'
 import { validateAutoResponse } from './validate'
 import { renderFixedReply } from './renderFixedReply'
@@ -34,16 +36,9 @@ export type WorkerDeps = {
   generateQualify: typeof generateQualifyTurn
 }
 
-type QuietHours = { tz?: string; startHour?: number; endHour?: number }
+export { withinQuietHours }
 
-export function withinQuietHours(qh: QuietHours | undefined, now: Date): boolean {
-  if (qh?.startHour == null || qh?.endHour == null) return false
-  const tz = qh.tz || 'Asia/Jerusalem'
-  const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: tz }).format(now))
-  return qh.startHour <= qh.endHour ? hour >= qh.startHour && hour < qh.endHour : hour >= qh.startHour || hour < qh.endHour
-}
-
-type Outcome = 'sent' | 'skipped' | 'failed'
+type Outcome = 'sent' | 'skipped' | 'failed' | 'deferred'
 
 async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outcome> {
   const doSkip = async (reason: string): Promise<Outcome> => {
@@ -60,9 +55,29 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
       .first('id', 'businessPhoneNumberId', 'customerWaId', 'customerName', 'lastMessageText'),
     db('clients').where({ id: job.leadId }).first('id', 'userId', 'handlerId', 'status', 'firstName'),
   ])
-  if (!conv) return doSkip('conversation_gone')
-  if (!lead) return doSkip('lead_gone')
+  if (!conv) return doSkip(job.reason === 'no_response_warning' || job.reason === 'no_response_close' ? 'conversation_missing' : 'conversation_gone')
+  if (!lead) return doSkip(job.reason === 'no_response_warning' || job.reason === 'no_response_close' ? 'conversation_missing' : 'lead_gone')
   if (lead.status && TERMINAL_STATUSES.includes(lead.status)) return doSkip('lead_terminal')
+
+  if (job.reason === 'no_response_warning' || job.reason === 'no_response_close') {
+    return processNoResponseJob(
+      job,
+      {
+        settings: settings ?? undefined,
+        conv: {
+          id: Number(conv.id),
+          businessPhoneNumberId: String(conv.businessPhoneNumberId),
+          customerWaId: (conv.customerWaId as string | null) ?? null,
+          customerName: (conv.customerName as string | null) ?? null,
+        },
+        lead: {
+          userId: (lead.userId as number | null) ?? null,
+          handlerId: (lead.handlerId as number | null) ?? null,
+        },
+      },
+      { send: deps.send },
+    )
+  }
 
   // Qualify mode (opt-in per agency) branches to its own processor; acknowledge
   // mode (everything below) is unchanged.
@@ -242,7 +257,7 @@ export async function runAutoResponseWorker(
       outcome = r
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
-      else failed++
+      else if (r === 'failed') failed++
     } catch (err) {
       await failAutoResponseJob(job.id, String(err))
       failed++

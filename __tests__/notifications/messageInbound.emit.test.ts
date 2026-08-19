@@ -60,6 +60,7 @@ vi.mock('@/db/conversationIntelligence', () => ({
 
 vi.mock('@/db/autoResponseJobs', () => ({
   enqueueAutoResponse: (...args: unknown[]) => enqueueAutoResponse(...args),
+  skipPendingNoResponseJobs: async () => 0,
 }))
 
 vi.mock('@/lib/inbox/autoresponse/waTrace', () => ({

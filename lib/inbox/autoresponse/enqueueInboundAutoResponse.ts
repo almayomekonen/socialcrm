@@ -1,5 +1,5 @@
 import type { Knex } from 'knex'
-import { enqueueAutoResponse, type AutoResponseReason } from '@/db/autoResponseJobs'
+import { enqueueAutoResponse, skipPendingNoResponseJobs, type AutoResponseReason } from '@/db/autoResponseJobs'
 
 export type UnansweredInbound = {
   id: number
@@ -65,6 +65,7 @@ export async function enqueueInboundAutoResponse(
   const delayRaw = Number(arSettings?.delaySeconds ?? 0)
   const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
   const reason: AutoResponseReason = arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact'
+  await skipPendingNoResponseJobs(trx, args.conversationId)
   const jobId = await enqueueAutoResponse(trx, {
     agencyId: args.agencyId,
     conversationId: args.conversationId,

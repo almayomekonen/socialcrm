@@ -170,6 +170,14 @@ describe('allowsOutbound gate', () => {
         { direction: 'outbound', metadata: { source: 'auto_response' } },
       ]),
     ).toBe(1)
+    expect(
+      countConsecutiveAiOutbounds([
+        { direction: 'inbound', metadata: null },
+        { direction: 'outbound', metadata: { source: 'auto_response' } },
+        { direction: 'outbound', metadata: { source: 'auto_response', kind: 'no_response_warning' } },
+        { direction: 'outbound', metadata: { source: 'auto_response', kind: 'no_response_close' } },
+      ]),
+    ).toBe(1)
     expect(allowsOutbound({ ...base, consecutiveAiWithoutInbound: 1 })).toEqual({
       allowed: false,
       reason: 'consecutive_ai',

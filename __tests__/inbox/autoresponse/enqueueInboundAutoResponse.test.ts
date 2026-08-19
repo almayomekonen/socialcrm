@@ -6,9 +6,11 @@ import {
 } from '@/lib/inbox/autoresponse/enqueueInboundAutoResponse'
 
 const enqueueAutoResponse = vi.hoisted(() => vi.fn())
+const skipPendingNoResponseJobs = vi.hoisted(() => vi.fn())
 
 vi.mock('@/db/autoResponseJobs', () => ({
   enqueueAutoResponse,
+  skipPendingNoResponseJobs,
 }))
 
 function messagesTrx(row: { id: number; direction: string; sequence: number } | undefined) {
@@ -85,6 +87,7 @@ describe('enqueueInboundAutoResponse — existing ingest path', () => {
   beforeEach(() => {
     enqueueAutoResponse.mockReset()
     enqueueAutoResponse.mockResolvedValue(51)
+    skipPendingNoResponseJobs.mockReset().mockResolvedValue(0)
   })
 
   it('qualify mode uses qualify_turn and preserves delaySeconds=5', async () => {
@@ -134,5 +137,23 @@ describe('enqueueInboundAutoResponse — existing ingest path', () => {
     })
     expect(result.jobId).toBeNull()
     expect(enqueueAutoResponse).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips pending no-response jobs in the same transaction before qualify_turn', async () => {
+    skipPendingNoResponseJobs.mockImplementation(async () => {
+      expect(enqueueAutoResponse).not.toHaveBeenCalled()
+      return 1
+    })
+    const trx = settingsTrx({ mode: 'qualify', delaySeconds: 5 })
+    await enqueueInboundAutoResponse(trx as never, {
+      agencyId: 103,
+      conversationId: 371,
+      leadId: 1416,
+      triggerSequence: 2,
+    })
+    expect(skipPendingNoResponseJobs).toHaveBeenCalledWith(trx, 371)
+    expect(skipPendingNoResponseJobs.mock.invocationCallOrder[0]).toBeLessThan(
+      enqueueAutoResponse.mock.invocationCallOrder[0],
+    )
   })
 })

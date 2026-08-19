@@ -46,6 +46,7 @@ import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './product
 import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
 import { sendIreOutbound } from './ireSend'
 import { runImmediateHumanHandoff } from './immediateHandoff'
+import { scheduleNoResponseWarning } from './processNoResponseJob'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -78,7 +79,7 @@ async function sendAndPersist(
   ctx: QualifyCtx,
   send: typeof sendWhatsappText,
   text: string,
-): Promise<{ ok: true; messageId: number } | { ok: false; reason: string; settled?: true }> {
+): Promise<{ ok: true; messageId: number; sequence: number } | { ok: false; reason: string; settled?: true }> {
   return sendIreOutbound(job, ctx, send, text)
 }
 
@@ -526,6 +527,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     turnCount: aiState.aiTurnCount + 1,
   })
   await completeAutoResponseJob(job.id, r.messageId)
+  await scheduleNoResponseWarning({
+    agencyId: job.agencyId,
+    conversationId: conv.id,
+    leadId: job.leadId,
+    channel: job.channel,
+    triggerSequence: r.sequence,
+  })
   console.log(`[IRE] qualify turn conv=${conv.id} turn=${aiState.aiTurnCount + 1} msg=${r.messageId}`)
   await track({ agencyId: job.agencyId, event: 'auto_response_sent', props: { conversationId: conv.id, reason: 'qualify_turn' } })
   return 'sent'

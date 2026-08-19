@@ -52,6 +52,48 @@ describe('auto_response_jobs generation retry', () => {
   })
 })
 
+describe('no-response jobs on auto_response_jobs', () => {
+  it('CHECK allows no_response_warning and no_response_close', () => {
+    const src = read('migrations/20260819120000_auto_response_jobs_no_response.cjs')
+    expect(src).toContain("'first_contact','qualify_turn','no_response_warning','no_response_close'")
+  })
+
+  it('inbound skip of pending/processing no-response jobs uses inbound_superseded', () => {
+    const src = read('db/autoResponseJobs.ts')
+    expect(src).toContain('export async function skipPendingNoResponseJobs')
+    expect(src).toContain("skipReason: 'inbound_superseded'")
+    expect(src).toContain("whereIn('reason', NO_RESPONSE_JOB_REASONS)")
+    expect(src).toContain("whereIn('status', ['pending', 'processing'])")
+  })
+
+  it('quiet-hours defer keeps pending and undoes the claim attempt', () => {
+    const src = read('db/autoResponseJobs.ts')
+    expect(src).toContain('export async function deferAutoResponseJob')
+    expect(src).toContain("status = 'pending'")
+    expect(src).toContain('GREATEST(attempts - 1, 0)')
+  })
+
+  it('completeAutoResponseJob only writes while status is processing', () => {
+    const src = read('db/autoResponseJobs.ts')
+    expect(src).toContain('.where({ id, status: \'processing\' })')
+    expect(src).toContain('return Number(n) > 0')
+  })
+
+  it('countSentToday excludes no-response lifecycle jobs', () => {
+    const src = read('db/autoResponseJobs.ts')
+    expect(src).toContain(`reason NOT IN ('no_response_warning','no_response_close')`)
+  })
+
+  it('shared inbound enqueue skips no-response jobs before qualify_turn', () => {
+    const helper = read('lib/inbox/autoresponse/enqueueInboundAutoResponse.ts')
+    expect(helper).toContain('await skipPendingNoResponseJobs(trx, args.conversationId)')
+    const skipAt = helper.indexOf('skipPendingNoResponseJobs')
+    const enqueueAt = helper.indexOf('enqueueAutoResponse(trx')
+    expect(skipAt).toBeGreaterThan(-1)
+    expect(enqueueAt).toBeGreaterThan(skipAt)
+  })
+})
+
 describe('auto-response delay source of truth', () => {
   it('settings page passes the stored delaySeconds value', () => {
     const src = read('app/(app)/settings/(admin_settings)/auto-response/page.tsx')

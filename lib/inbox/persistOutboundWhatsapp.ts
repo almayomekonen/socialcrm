@@ -19,6 +19,7 @@ export type PersistOutboundWhatsappInput = {
 export type PersistOutboundWhatsappResult = {
   conversationId: number
   messageId: number
+  sequence: number
 }
 
 export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInput): Promise<PersistOutboundWhatsappResult> {
@@ -78,6 +79,6 @@ export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInpu
       })
     }
 
-    return { conversationId, messageId }
+    return { conversationId, messageId, sequence }
   })
 }

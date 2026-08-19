@@ -54,6 +54,15 @@ function metaSource(metadata: unknown): string {
   }
 }
 
+function metaKind(metadata: unknown): string {
+  try {
+    const m = typeof metadata === 'string' ? JSON.parse(metadata) : metadata
+    return (m as { kind?: string } | null)?.kind ?? ''
+  } catch {
+    return ''
+  }
+}
+
 /** True when this inbound contains a real question, even if it also says thanks. */
 export function inboundContainsRealQuestion(text: string): boolean {
   const t = (text ?? '').trim()
@@ -100,6 +109,8 @@ export function countConsecutiveAiOutbounds(
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (!m || m.direction !== 'outbound') break
+    const kind = metaKind(m.metadata)
+    if (kind === 'no_response_warning' || kind === 'no_response_close') continue
     const src = metaSource(m.metadata)
     if (src && src !== 'auto_response') break
     n += 1
