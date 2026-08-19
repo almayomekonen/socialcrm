@@ -56,6 +56,12 @@ describe('sales move classification', () => {
     expect(classifySalesMove('איך אתה יכול לעזור לי?')).toBe('PRODUCT_QUESTION')
     expect(classifySalesMove('איך אתם יכולים לעזור לי?')).toBe('PRODUCT_QUESTION')
     expect(classifySalesMove('מה המערכת עושה?')).toBe('PRODUCT_QUESTION')
+    expect(classifySalesMove('כיצד היא מנהלת את הלידים?')).toBe('PRODUCT_QUESTION')
+    expect(classifySalesMove('האם ניתן לחבר WhatsApp?')).toBe('PRODUCT_QUESTION')
+    expect(classifySalesMove('האם אפשר לחבר פייסבוק?')).toBe('PRODUCT_QUESTION')
+    expect(classifySalesMove('איך המערכת עובדת?')).toBe('PRODUCT_QUESTION')
+    expect(classifySalesMove('מה המערכת מציעה?')).toBe('PRODUCT_QUESTION')
+    expect(classifySalesMove('אפשר לחבר וואטסאפ?')).toBe('PRODUCT_QUESTION')
     expect(classifySalesMove('יש לכם מערכת לניהול לידים?')).toBe('PRODUCT_QUESTION')
     const thread = [
       { direction: 'inbound', text: 'אני צריך מערכת לניהול לידים' },

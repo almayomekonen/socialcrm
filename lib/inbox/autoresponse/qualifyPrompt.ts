@@ -1,5 +1,6 @@
 import type { ConversationCognition, Qualification, SalesStrategy } from './qualification'
 import { isBusinessIdentityQuestion } from './businessIdentityIntent'
+import type { ResponseProfile } from './responseProfile'
 
 export type RegenerationReason = 'shape_validation' | 'safety_validation'
 
@@ -22,7 +23,7 @@ export const QUALIFY_SYSTEM_PROMPT = [
   '- העדיפי שפה שיחתית טבעית על מונחי מכירה.',
   '- בטקסט ללקוח אל תשתמש במקף או בקו מפריד. פסיק או נקודה במקום.',
   '- הגיבי לניסוח של הלקוח. אל תתרגמי אותו למושגי CRM.',
-  '- אל תשבחי כל הודעה. אל תייצרי התלהבות.',
+  '- אל תשבחי כל הודעה. אל תייצרי התלהבות שלא קיימת אצל הלקוח.',
   '- אל תחזרי על דברי הלקוח כסיכום. אל תפתחי ב"מבין שזה" או "זה מלחיץ" אם זה לא מוסיף מידע.',
   '- אל תשאל/י שאלה רק כי שדה חסר.',
   '- עני/י למה שהלקוח כתב עכשיו. כל הודעה צריכה לקדם או לתת מידע שימושי.',
@@ -44,7 +45,17 @@ export const QUALIFY_SYSTEM_PROMPT = [
   '- hotSignal=true רק בכוונת קנייה חזקה או בקשה מפורשת לאדם (מחיר/דמו/פגישה/להתחיל/לדבר עם נציג). תיאור צורך עסקי אינו hotSignal. hotSignal הוא תיוג פנימי בלבד — אל תעביר לאדם ואל תכתוב שמישהו מהצוות יחזור רק בגלל כוונת קנייה. העברה לאדם רק אם הלקוח ביקש במפורש נציג.',
   '- uncertain=true רק כשאי אפשר להמשיך בלי להמציא עובדה על המוצר, או שהלקוח ביקש אדם. תיאור צורך אינו uncertain.',
   '- אסור לנקוב במחיר מספרי, עלות, הנחה, זמינות, מועד, תור, פגישה; התחייבות; המצאת עובדות; מספרים. מותר לומר שאין מחיר מאומת ושנציג יוכל לתת מחיר. אסור להמציא דמו, הרשמה, או תהליך הצטרפות שלא אומת.',
-  '- עברית, גוף ראשון יחיד, טבעי וקצר.',
+  '- Answer in the customer\'s current language. If the inbound contains Hebrew, answer in Hebrew. If the inbound is English-only, answer in English.',
+  '- Use first person singular. Keep the response natural for WhatsApp.',
+  '- MIRROR, DON\'T MIMIC: match the customer\'s register. Do not copy slang the customer has not used. Do not invent familiarity.',
+  '- Reuse a vocative only when the customer actually used it and ResponseProfile provides it.',
+  '- Never raise emotional energy above the customer. Never fake enthusiasm or emotion.',
+  '- At most one emoji. Use an emoji only when the customer is casual and has used an emoji or clearly established casual slang.',
+  '- Professional customers should receive professional language. Casual customers may receive relaxed language.',
+  '- Frustrated customers get one short recognition clause, then continue the existing sales task. No therapy, long empathy, apologies, or closing because of emotion.',
+  '- Confused customers get a clear direct explanation, then continue the existing sales task.',
+  '- Urgency affects brevity and directness, not business policy.',
+  '- ResponseProfile changes delivery only. It never changes facts, sales strategy, eligibility, or whether a response is allowed.',
 ].join('\n')
 
 const REGEN_CONSTRAINT: Record<RegenerationReason, string> = {
@@ -115,6 +126,33 @@ function formatCognitionMemory(
   ].join('\n')
 }
 
+export function formatDeliveryBlock(profile: ResponseProfile): string {
+  const vocative = profile.vocative ?? 'none'
+  const lines = [
+    'Delivery profile:',
+    `language=${profile.language}`,
+    `tone=${profile.tone}`,
+    `establishedTone=${profile.establishedTone}`,
+    `emotion=${profile.emotion}`,
+    `urgency=${profile.urgency}`,
+    `style=${profile.customerStyle}`,
+    `vocative=${vocative}`,
+    'Delivery is style only.',
+    'Do not change facts or conversation policy.',
+    'Mirror the register without mimicking.',
+  ]
+  if (vocative === 'none') {
+    lines.push('Do not invent a vocative.')
+  }
+  if (profile.emotion === 'frustrated') {
+    lines.push('One short recognition clause, then continue the existing sales task.')
+  }
+  if (profile.urgency === 'high') {
+    lines.push('Urgency is delivery only: be brief and direct. Do not change business policy.')
+  }
+  return lines.join('\n')
+}
+
 export function buildQualifyUser(args: {
   transcript: Array<{ direction: 'inbound' | 'outbound'; text: string }>
   qualification: Qualification
@@ -128,6 +166,7 @@ export function buildQualifyUser(args: {
   productKnowledgeBlock?: string | null
   businessIdentityBlock?: string | null
   discoveryBudgetExhausted?: boolean
+  responseProfile?: ResponseProfile | null
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
   // call-site compatibility. They must not appear as "ask this CRM field next".
@@ -199,5 +238,6 @@ export function buildQualifyUser(args: {
   }
   if (args.productKnowledgeBlock) lines.push(args.productKnowledgeBlock)
   if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
+  if (args.responseProfile) lines.push(formatDeliveryBlock(args.responseProfile))
   return lines.join('\n\n')
 }

@@ -32,6 +32,12 @@ describe('detectOptOut', () => {
     ['remove me', true],
     ['אשמח לשמוע פרטים', false],
     ['I need a CRM', false],
+    ['נמאס לי', false],
+    ['נמאס לי לאבד לידים', false],
+    ['אני מתוסכל', false],
+    ['תפסיק לשלוח לי', true],
+    ['אל תשלחו לי יותר', true],
+    ['אני לא רוצה לקבל הודעות', true],
   ])('%s → %s', (text, expected) => {
     expect(detectOptOut(text)).toBe(expected)
   })

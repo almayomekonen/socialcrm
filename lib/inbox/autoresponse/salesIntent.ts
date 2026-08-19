@@ -87,7 +87,9 @@ export function detectHumanRequest(text: string, opts?: HumanRequestOpts): boole
 
 export function detectHotSignal(text: string, opts?: HumanRequestOpts): boolean {
   if (detectHumanRequest(text, opts)) return true
-  return BUYING_INTENT_PATTERNS.some((re) => re.test(text ?? ''))
+  const t = text ?? ''
+  const prepared = prepareUtteranceForClassify(t)
+  return BUYING_INTENT_PATTERNS.some((re) => re.test(t) || re.test(prepared))
 }
 
 export const SALES_MOVES = [
@@ -108,13 +110,29 @@ export function isSalesMove(v: unknown): v is SalesMove {
 
 const PRODUCT_QUESTION_RE: RegExp[] = [
   /האם\s+(אתם|המערכת|יש)/,
+  /האם\s+ניתן/,
+  /האם\s+אפשר/,
   /יש לכם/,
   /אתם עושים/,
-  /המערכת\s+(יודעת|עושה|יכולה)/,
+  /המערכת\s+(יודעת|עושה|יכולה|מציעה|עובדת)/,
+  /כיצד/,
   /איך זה עובד/,
+  /איך המערכת/,
   /איך (אתה|אתם) יכול/,
   /מה המערכת עושה/,
+  /מה המערכת מציעה/,
+  /מה אפשר לעשות/,
   /אפשר לעשות/,
+  /אפשר\s+לחבר/,
+  /אפשר\s+להתחבר/,
+  /ניתן\s+לחבר/,
+  /ניתן\s+להתחבר/,
+  /יש חיבור ל/,
+  /תומך ב/,
+  /עובד עם/,
+  /מתחבר ל/,
+  /מה המחיר/,
+  /כמה עולה/,
   /יודעת לענות/,
   /עושה את זה/,
   /תגיב לו/,
@@ -152,6 +170,7 @@ const CASUAL_EXACT = new Set([
   'אוקי',
   'סבבה',
   'הבנתי',
+  'קיבלתי',
   'מעולה',
   'מצוין',
   'יופי',
@@ -168,13 +187,44 @@ const CASUAL_EXACT = new Set([
   'cool',
 ])
 
-function normalizeUtterance(text: string): string {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/[?!.,;:־]+/g, '')
+/**
+ * Collapse consecutive identical letters/marks to one.
+ * "סבבההה" and "סבבה" share a token key; "מחיררר" → "מחיר".
+ * Punctuation is left intact.
+ */
+export function collapseRepeatedLetters(text: string): string {
+  return (text ?? '').replace(/([\p{L}\p{M}])\1+/gu, '$1')
+}
+
+/** Drop emoji / ZWJ so "😂😂 תודה" classifies as "תודה". Words stay. */
+export function stripClassificationEmoji(text: string): string {
+  return (text ?? '')
+    .replace(/\p{Extended_Pictographic}/gu, ' ')
+    .replace(/[\uFE0F\u200D\u20E3]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Lowercase + strip emoji. Used before token splits. */
+export function lightNormalizeUtterance(text: string): string {
+  return stripClassificationEmoji(text)
+    .toLowerCase()
+    .replace(/[?!.,;:־…]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Letter-collapsed form for regex / exact-set lookup. */
+export function prepareUtteranceForClassify(text: string): string {
+  return collapseRepeatedLetters(stripClassificationEmoji(text ?? ''))
+}
+
+function normalizeUtterance(text: string): string {
+  return collapseRepeatedLetters(lightNormalizeUtterance(text))
+}
+
+function canonToken(tok: string): string {
+  return collapseRepeatedLetters((tok ?? '').toLowerCase())
 }
 
 /** Vocative / colloquial filler around an acknowledgement. Not content. */
@@ -207,6 +257,7 @@ const ACK_CONTENT_TOKENS = new Set([
   'אוקי',
   'סבבה',
   'הבנתי',
+  'קיבלתי',
   'מעולה',
   'מצוין',
   'יופי',
@@ -220,14 +271,39 @@ const ACK_CONTENT_TOKENS = new Set([
   'a',
 ])
 
+const THANKS_PREP_TOKENS = new Set(['על', 'for', 'the'])
+const THANKS_OBJECT_TOKENS = new Set([
+  'ההסבר',
+  'העזרה',
+  'המידע',
+  'התשובה',
+  'הפירוט',
+  'explanation',
+  'help',
+  'info',
+  'information',
+  'answer',
+  'details',
+])
+
+function tokenIn(set: Set<string>, tok: string): boolean {
+  const key = canonToken(tok.replace(/^ו/, ''))
+  if (set.has(tok.replace(/^ו/, '')) || set.has(key)) return true
+  for (const item of set) {
+    if (canonToken(item) === key) return true
+  }
+  return false
+}
+
 /**
  * True only when the entire inbound is an acknowledgement (plus harmless filler).
  * "תודה אחי" / "סבבה תודה אחי" close. "תודה, ויש גם חיבור?" does not.
  */
 export function isCasualAcknowledgement(text: string): boolean {
-  const n = normalizeUtterance(text)
+  const n = lightNormalizeUtterance(text)
   if (!n) return false
-  if (CASUAL_EXACT.has(n)) return true
+  const collapsed = collapseRepeatedLetters(n)
+  if (CASUAL_EXACT.has(n) || CASUAL_EXACT.has(collapsed) || tokenIn(CASUAL_EXACT, collapsed)) return true
   const tokens = n
     .split(' ')
     .map((tok) => tok.replace(/^ו/, ''))
@@ -235,14 +311,152 @@ export function isCasualAcknowledgement(text: string): boolean {
   if (!tokens.length) return false
   let sawAck = false
   for (const tok of tokens) {
-    if (ACK_FILLER_TOKENS.has(tok)) continue
-    if (ACK_CONTENT_TOKENS.has(tok)) {
+    if (tokenIn(ACK_FILLER_TOKENS, tok)) continue
+    if (tokenIn(ACK_CONTENT_TOKENS, tok)) {
       sawAck = true
+      continue
+    }
+    if (sawAck && tokenIn(THANKS_PREP_TOKENS, tok)) continue
+    if (sawAck && tokenIn(THANKS_OBJECT_TOKENS, tok)) continue
+    return false
+  }
+  return sawAck
+}
+
+/**
+ * Whole-utterance goodbye / "we'll talk later" / well-wish.
+ * True only when every token is a closing signal or harmless filler — never
+ * because "נדבר" or "ביי" merely appears next to a real question.
+ */
+const DEAD_END_SIGNAL_TOKENS = new Set(['ביי', 'bye', 'goodbye', 'להתראות', 'נדבר', 'נשתמע'])
+
+const DEAD_END_FILLER_TOKENS = new Set([
+  'יאללה',
+  'בהמשך',
+  'על',
+  'זה',
+  'later',
+  'soon',
+  'כן',
+  'yes',
+  'אז',
+  'אחר',
+  'כך',
+  'have',
+  'good',
+  'nice',
+  'day',
+  'talk',
+  'to',
+  'you',
+  'take',
+  'care',
+])
+
+const DEAD_END_EXACT = new Set([
+  'נשתמע',
+  'נשתמע בהמשך',
+  'תישאר בקשר',
+  'have a good day',
+  'have a nice day',
+  'talk later',
+  'talk to you later',
+  'take care',
+])
+
+function consumeDeadEndPhrase(tokens: string[], i: number): number | null {
+  const a = canonToken(tokens[i] ?? '')
+  const b = canonToken(tokens[i + 1] ?? '')
+  const c = canonToken(tokens[i + 2] ?? '')
+  const d = canonToken(tokens[i + 3] ?? '')
+  if (a === canonToken('יום') && b === canonToken('טוב')) return 2
+  if (a === 'see' && b === 'you') return 2
+  if (a === canonToken('תישאר') && b === canonToken('בקשר')) return 2
+  if (a === 'have' && b === 'a' && (c === 'good' || c === 'nice') && d === 'day') return 4
+  if (a === 'talk' && b === 'to' && c === 'you' && d === 'later') return 4
+  if (a === 'talk' && b === 'later') return 2
+  if (a === 'take' && b === 'care') return 2
+  return null
+}
+
+export function isDeadEndUtterance(text: string): boolean {
+  const n = lightNormalizeUtterance(text)
+  if (!n) return false
+  const collapsed = collapseRepeatedLetters(n)
+  if (DEAD_END_EXACT.has(n) || DEAD_END_EXACT.has(collapsed)) return true
+  const tokens = n
+    .split(' ')
+    .map((tok) => tok.replace(/^ו/, ''))
+    .filter(Boolean)
+  if (!tokens.length) return false
+  let sawSignal = false
+  for (let i = 0; i < tokens.length; ) {
+    const consumed = consumeDeadEndPhrase(tokens, i)
+    if (consumed) {
+      sawSignal = true
+      i += consumed
+      continue
+    }
+    const tok = tokens[i]
+    if (tokenIn(DEAD_END_SIGNAL_TOKENS, tok)) {
+      sawSignal = true
+      i += 1
+      continue
+    }
+    if (
+      tokenIn(ACK_FILLER_TOKENS, tok) ||
+      tokenIn(ACK_CONTENT_TOKENS, tok) ||
+      tokenIn(DEAD_END_FILLER_TOKENS, tok) ||
+      tokenIn(THANKS_PREP_TOKENS, tok)
+    ) {
+      i += 1
       continue
     }
     return false
   }
-  return sawAck
+  return sawSignal
+}
+
+const HOLD_SIGNAL_TOKENS = new Set(['רגע', 'wait'])
+const HOLD_FILLER_TOKENS = new Set(['שנייה', 'שניה', 'sec', 'second', 'one'])
+
+/** Whole-utterance "hold on" — not a close, not a sales turn. */
+export function isHoldOnUtterance(text: string): boolean {
+  const n = lightNormalizeUtterance(text)
+  if (!n) return false
+  const tokens = n
+    .split(' ')
+    .map((tok) => tok.replace(/^ו/, ''))
+    .filter(Boolean)
+  if (!tokens.length) return false
+  let sawHold = false
+  for (const tok of tokens) {
+    if (tokenIn(HOLD_SIGNAL_TOKENS, tok)) {
+      sawHold = true
+      continue
+    }
+    if (tokenIn(HOLD_FILLER_TOKENS, tok) || tokenIn(ACK_FILLER_TOKENS, tok)) continue
+    return false
+  }
+  return sawHold
+}
+
+const HELP_REQUEST_RE =
+  /יש לי (?:עוד )?שאלה|יש לי עוד משהו לשאול|רציתי לשאול|רציתי לדעת|לא הבנתי|לא מבין|לא מבינה|לא ברור(?: לי)?|אני צרי[ךכ]ה?\s+עזרה|תעזר[יי]? לי|תעזור לי|i have (?:another )?question|another question|i (?:don['’]?t|didn['’]?t) understand|i need help|can you help me/i
+
+export function isExplicitHelpRequest(text: string): boolean {
+  const t = prepareUtteranceForClassify(text)
+  return HELP_REQUEST_RE.test(text ?? '') || HELP_REQUEST_RE.test(t)
+}
+
+/** Frustration about losing leads/customers. Not opt-out. Bare "נמאס לי" is not enough. */
+export function isBusinessPainSignal(text: string): boolean {
+  const raw = text ?? ''
+  const prepared = prepareUtteranceForClassify(raw)
+  const hasLead = /ליד|לקוח|\bleads?\b|\bclients?\b/i.test(raw) || /ליד|לקוח|\bleads?\b|\bclients?\b/i.test(prepared)
+  if (!hasLead) return false
+  const pain = /נמאס|מתוסכל|משגע|מאבד|לאבד|losing|\blose\b|\blost\b|frustrated|sick of/i
+  return pain.test(raw) || pain.test(prepared) || inboundStatesPain(raw)
 }
 
 /** Pending question the customer can answer: last sentence is interrogative, or an explain-offer. */
@@ -259,18 +473,22 @@ export function outboundAsksQuestion(text?: string | null): boolean {
 }
 
 export function isProductQuestion(text: string): boolean {
-  return PRODUCT_QUESTION_RE.some((re) => re.test(text)) || isBusinessIdentityQuestion(text)
+  const prepared = prepareUtteranceForClassify(text)
+  return [text ?? '', prepared].some(
+    (t) => PRODUCT_QUESTION_RE.some((re) => re.test(t)) || isBusinessIdentityQuestion(t),
+  )
 }
 
 export function isProductFit(text: string): boolean {
-  return PRODUCT_FIT_RE.some((re) => re.test(text))
+  const prepared = prepareUtteranceForClassify(text)
+  return PRODUCT_FIT_RE.some((re) => re.test(text ?? '') || re.test(prepared))
 }
 
 const EXPLAIN_REQUEST_RE =
   /תן לי הסבר|הסבר קצר|תסביר(?:י)?(?:\s+לי)?|explain (?:the )?(?:system|product)|how does (?:the )?(?:system|product) work/i
 const ORGANIZE_LEADS_RE = /תסדר.{0,16}ליד|לסדר.{0,16}ליד|תארגן.{0,16}ליד/i
 const NEXT_STEP_RE =
-  /איך (?:אנחנו )?מתקדמ|מה עכשיו|איך ממשיכ|what(?:'s| is) next|how (?:do we|to) (?:proceed|continue)/i
+  /איך (?:אנחנו )?מתקדמ|מה עכשיו|איך ממשיכ|\bwhat(?:['’]?s| is) next\b|how (?:do we|to) (?:proceed|continue)/i
 const EXPLAIN_OFFER_RE = /רוצה שאסביר|אשביר|להסביר|איך זה נראה|want me to explain|shall i explain/i
 const AFFIRM_EXACT = new Set([
   'כן',
@@ -296,7 +514,9 @@ export function isOrganizeLeadsIntent(text: string): boolean {
 }
 
 export function isNextStepAsk(text: string): boolean {
-  return NEXT_STEP_RE.test(text)
+  const raw = text ?? ''
+  const prepared = prepareUtteranceForClassify(raw)
+  return NEXT_STEP_RE.test(raw) || NEXT_STEP_RE.test(prepared)
 }
 
 export function isExplanationOffer(text: string): boolean {
@@ -304,8 +524,11 @@ export function isExplanationOffer(text: string): boolean {
 }
 
 export function isShortAffirmative(text: string): boolean {
-  const n = normalizeUtterance(text)
-  return Boolean(n) && AFFIRM_EXACT.has(n)
+  const n = lightNormalizeUtterance(text)
+  if (!n) return false
+  const collapsed = collapseRepeatedLetters(n)
+  if (AFFIRM_EXACT.has(n) || AFFIRM_EXACT.has(collapsed)) return true
+  return tokenIn(AFFIRM_EXACT, n) || tokenIn(AFFIRM_EXACT, collapsed)
 }
 
 export type ClassifySalesOpts = {
@@ -344,11 +567,14 @@ export function classifySalesMove(text: string, opts?: ClassifySalesOpts): Sales
   const sticky = hasEstablishedProductIntent(opts)
   const askedQuestion = outboundAsksQuestion(opts?.previousOutbound)
 
+  if (isHoldOnUtterance(t)) return 'DISCOVERY'
+
   // Affirm / ack after an actual question continues. Thanks/ok after an answer do not.
-  if (askedQuestion && (isShortAffirmative(t) || isCasualAcknowledgement(t))) {
+  // Whole-utterance dead-ends (יאללה ביי / נדבר / יום טוב) still close even after a question.
+  if (askedQuestion && (isShortAffirmative(t) || isCasualAcknowledgement(t)) && !isDeadEndUtterance(t)) {
     return 'PRODUCT_QUESTION'
   }
-  if (isCasualAcknowledgement(t)) return 'CASUAL_ACKNOWLEDGEMENT'
+  if (isCasualAcknowledgement(t) || isDeadEndUtterance(t)) return 'CASUAL_ACKNOWLEDGEMENT'
   if (sticky && isShortAffirmative(t)) return 'PRODUCT_QUESTION'
 
   const deepen = inboundStatesPain(t) || inboundStatesImpact(t) || inboundStatesOutcome(t)

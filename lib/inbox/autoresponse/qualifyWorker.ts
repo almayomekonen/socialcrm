@@ -35,6 +35,8 @@ import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
 import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
 import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
+import { shouldInvokeSalesAi } from './gptEligibility'
+import { classifyResponseProfile } from './responseProfile'
 import { classifySalesTurnFromTranscript, detectHumanRequest, salesMoveUsesProductContract } from './salesIntent'
 import {
   allowsOutbound,
@@ -246,6 +248,34 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return 'sent'
   }
 
+  if (control.action !== 'CONTINUE' && control.action !== 'ASK_QUESTION') {
+    return doSkip('control_no_generate')
+  }
+
+  const inboundTexts = qTranscript.filter((m) => m.direction === 'inbound').map((m) => m.text)
+  const gptEligibility = shouldInvokeSalesAi({
+    inboundText: lastInboundText,
+    previousOutbound,
+    previousOutboundKind,
+    salesMove,
+    controlAction: control.action,
+    customerInboundCount: inboundTexts.length,
+    previousCustomerText: inboundTexts.length >= 2 ? inboundTexts[inboundTexts.length - 2] : undefined,
+  })
+  waTrace(
+    'GPT_ELIGIBILITY',
+    { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+    { decision: gptEligibility.decision, reason: gptEligibility.reason, salesMove, controlAction: control.action },
+  )
+  if (gptEligibility.decision === 'WAIT') {
+    return doSkip(`gpt_wait_${gptEligibility.reason}`)
+  }
+
+  const responseProfile = classifyResponseProfile({
+    lastInbound: lastInboundText,
+    recentCustomerTexts: inboundTexts.slice(-3),
+  })
+
   // ── Generate one structured turn ──
   // CRM fields stay extracted as memory only. They must not pick the WhatsApp question.
   const discoveryBudgetExhausted = isDiscoveryQuestionBudgetExhausted({
@@ -285,6 +315,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     businessIdentityBlock,
     discoveryBudgetExhausted,
     trace: genTrace,
+    responseProfile,
   }
   const gen: QualifyGenResult = await deps.generateQualify(genArgs)
   if (gen.ok === false) {

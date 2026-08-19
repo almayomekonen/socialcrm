@@ -5,8 +5,17 @@
 import type { AiState } from './qualification'
 import {
   isCasualAcknowledgement,
-  outboundAsksQuestion,
+  isDeadEndUtterance,
+  isHoldOnUtterance,
+  isExplicitHelpRequest,
+  isBusinessPainSignal,
+  isProductFit,
   isProductQuestion,
+  outboundAsksQuestion,
+  detectHumanRequest,
+  detectHotSignal,
+  collapseRepeatedLetters,
+  stripClassificationEmoji,
   type SalesMove,
 } from './salesIntent'
 
@@ -40,12 +49,23 @@ const DECLINE_EXACT = new Set([
 const GOODBYE_EXACT = new Set(['bye', 'goodbye', 'להתראות', 'ביי', 'bye bye', 'see you'])
 
 function normalizeUtterance(text: string): string {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/[?!.,;:־]+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return collapseRepeatedLetters(
+    stripClassificationEmoji(text)
+      .trim()
+      .toLowerCase()
+      .replace(/[?!.,;:־…]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  )
+}
+
+function setHasNormalized(set: Set<string>, n: string): boolean {
+  if (!n) return false
+  if (set.has(n)) return true
+  for (const item of set) {
+    if (collapseRepeatedLetters(item) === n) return true
+  }
+  return false
 }
 
 function metaSource(metadata: unknown): string {
@@ -66,27 +86,31 @@ function metaKind(metadata: unknown): string {
   }
 }
 
+/** English how-questions without requiring "?". Parity with Hebrew איך. */
+const ENGLISH_HOW_QUESTION_RE = /\bhow (?:do|can|does|to)\b/i
+
 /** True when this inbound contains a real question, even if it also says thanks. */
 export function inboundContainsRealQuestion(text: string): boolean {
   const t = (text ?? '').trim()
   if (!t) return false
   if (/[?؟]/.test(t)) return true
   if (isProductQuestion(t)) return true
-  return /(?:^|\s)(?:האם|איך|למה|כמה|can you|do you|is there)\b/i.test(t)
+  if (ENGLISH_HOW_QUESTION_RE.test(t)) return true
+  return /(?:^|\s)(?:האם|איך|כיצד|למה|כמה|can you|do you|is there)\b/i.test(t)
 }
 
 export function isConversationDecline(text: string): boolean {
   const n = normalizeUtterance(text)
   if (!n) return false
-  if (DECLINE_EXACT.has(n)) return true
+  if (setHasNormalized(DECLINE_EXACT, n)) return true
   return /^(?:לא מעוניין|לא מעוניינת|לא מעניין|not interested)\b/.test(n)
 }
 
 export function isConversationGoodbye(text: string): boolean {
   const n = normalizeUtterance(text)
   if (!n) return false
-  if (GOODBYE_EXACT.has(n)) return true
-  return /^(?:bye|goodbye|להתראות|ביי)\b/.test(n)
+  if (setHasNormalized(GOODBYE_EXACT, n)) return true
+  return /^(?:bye|goodbye|להתראות|ביי|בי)\b/.test(n)
 }
 
 /**
@@ -176,34 +200,34 @@ export function isClearCloseConfirmation(text: string): boolean {
   if (STAY_PRESENT_RE.test(raw)) return false
   const n = normalizeUtterance(raw)
   if (!n) return false
-  if (CLOSE_CONFIRM_EXACT.has(n)) return true
+  if (setHasNormalized(CLOSE_CONFIRM_EXACT, n)) return true
   const tokens = n.split(' ').filter(Boolean)
   if (!tokens.length) return false
   let sawVerb = false
   for (const tok of tokens) {
-    if (CLOSE_CONFIRM_VERBS.has(tok)) {
+    if (setHasNormalized(CLOSE_CONFIRM_VERBS, tok)) {
       sawVerb = true
       continue
     }
-    if (CLOSE_CONFIRM_MODIFIERS.has(tok)) continue
+    if (setHasNormalized(CLOSE_CONFIRM_MODIFIERS, tok)) continue
     return false
   }
   return sawVerb
 }
 
-const REOPEN_MOVES = new Set<SalesMove>([
-  'HANDOFF_REQUEST',
-  'PRODUCT_QUESTION',
-  'PRODUCT_FIT',
-  'BUYING_SIGNAL',
-  'OBJECTION',
-  'DEEPEN',
-])
+const REOPEN_INDEPENDENT_MOVES = new Set<SalesMove>(['HANDOFF_REQUEST', 'BUYING_SIGNAL', 'OBJECTION', 'DEEPEN'])
 
-/** Closed conversations reopen only on a real question, new need, or human request. */
+/** Closed conversations reopen only on a real question, new need, or human request. Sticky PRODUCT_FIT is not enough. */
 export function isExplicitReopen(args: { salesMove: SalesMove; inboundText: string }): boolean {
-  if (inboundContainsRealQuestion(args.inboundText)) return true
-  return REOPEN_MOVES.has(args.salesMove)
+  const t = args.inboundText ?? ''
+  if (isHoldOnUtterance(t) || isCasualAcknowledgement(t) || isDeadEndUtterance(t)) return false
+  if (args.salesMove === 'HANDOFF_REQUEST' || detectHumanRequest(t)) return true
+  if (inboundContainsRealQuestion(t)) return true
+  if (isExplicitHelpRequest(t)) return true
+  if (isBusinessPainSignal(t)) return true
+  if (detectHotSignal(t)) return true
+  if (isProductQuestion(t) || isProductFit(t)) return true
+  return REOPEN_INDEPENDENT_MOVES.has(args.salesMove)
 }
 
 /** Trailing auto-response outbounds since the last inbound (or human outbound). */
@@ -271,6 +295,9 @@ export function decideConversationControl(args: {
     if (isConversationGoodbye(args.inboundText)) {
       return { action: 'CLOSE_CONVERSATION', send: 'closer', reason: 'goodbye' }
     }
+    if (isDeadEndUtterance(args.inboundText)) {
+      return { action: 'CLOSE_CONVERSATION', send: 'silence', reason: 'goodbye' }
+    }
     return { action: 'CONTINUE' }
   }
   if (inboundContainsRealQuestion(args.inboundText)) {
@@ -283,6 +310,9 @@ export function decideConversationControl(args: {
   }
   if (isConversationGoodbye(args.inboundText)) {
     return { action: 'CLOSE_CONVERSATION', send: 'closer', reason: 'goodbye' }
+  }
+  if (isDeadEndUtterance(args.inboundText)) {
+    return { action: 'CLOSE_CONVERSATION', send: 'silence', reason: 'goodbye' }
   }
   if (isCasualAcknowledgement(args.inboundText) && !outboundAsksQuestion(args.previousOutbound)) {
     return { action: 'CLOSE_CONVERSATION', send: 'silence', reason: 'acknowledgement' }

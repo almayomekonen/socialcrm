@@ -21,6 +21,7 @@ import {
   inboundStatesWorkflow,
   type RegenerationReason,
 } from './qualifyPrompt'
+import type { ResponseProfile } from './responseProfile'
 import {
   detectHotSignal,
   detectHumanRequest,
@@ -38,7 +39,7 @@ export function detectLang(text: string): 'he' | 'en' {
 }
 
 const OPTOUT_PATTERNS: RegExp[] = [
-  /תפסיק|תפסיקו|הסר אותי|להסיר|תורידו אותי|אל תכתבו|הפסיקו|נמאס לי/,
+  /תפסיק|תפסיקו|הסר אותי|להסיר|תורידו אותי|אל תכתבו|אל תשלח|הפסיקו|לא רוצה לקבל הודע/,
   /\bstop\b|unsubscribe|remove me|opt[ -]?out|leave me alone|do not (contact|message)/i,
 ]
 
@@ -271,6 +272,7 @@ export async function generateQualifyTurn(args: {
   productKnowledgeBlock?: string | null
   businessIdentityBlock?: string | null
   discoveryBudgetExhausted?: boolean
+  responseProfile?: ResponseProfile | null
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
 }): Promise<QualifyGenResult> {

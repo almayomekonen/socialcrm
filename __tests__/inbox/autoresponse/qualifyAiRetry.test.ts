@@ -658,7 +658,7 @@ describe('conversation 578 sales-progression worker', () => {
     expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: ADVANCE_FALLBACK }))
   })
 
-  it('CASE B: כן after a product explanation continues how_it_works and does not fall back to discovery', async () => {
+  it('CASE B: כן after a product explanation does not invoke GPT (no pending question)', async () => {
     const productExplanation =
       'בפועל, השיחות מהוואטסאפ ייכנסו למערכת, ומשם מקשרים כל פנייה לליד, מעדכנים סטטוס וקובעים מתי לחזור אליו.'
     tableRows.messageList = [
@@ -672,25 +672,14 @@ describe('conversation 578 sales-progression worker', () => {
       qualification: { need: 'ניהול לידים', cognition: { salesStrategy: 'product_fit' } },
     })
     const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.578-yes-b' }))
-    const generateQualify = vi.fn(async () => ({
-      ...OK_GEN,
-      reply: productExplanation,
-      extracted: { need: 'ניהול לידים' },
-      objective: 'advance' as const,
-      salesMove: 'PRODUCT_QUESTION' as const,
-      hotSignal: false,
-      uncertain: false,
-    }))
+    const generateQualify = vi.fn()
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('sent')
-    expect(generateQualify).toHaveBeenCalledTimes(1)
-    expect(generateQualify).toHaveBeenCalledWith(
-      expect.objectContaining({ salesMove: 'PRODUCT_QUESTION', salesStrategy: 'how_it_works' }),
-    )
-    expect(generateQualify).not.toHaveBeenCalledWith(expect.objectContaining({ salesMove: 'DISCOVERY' }))
+    expect(outcome).toBe('skipped')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'gpt_wait_SHORT_AFFIRMATIVE')
+    expect(markClosed).not.toHaveBeenCalled()
     expect(markEscalated).not.toHaveBeenCalled()
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: productExplanation }))
-    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: ADVANCE_FALLBACK }))
   })
 
   it('תן לי הסבר קצר על המערכת sends an explanation, not a discovery fallback', async () => {
