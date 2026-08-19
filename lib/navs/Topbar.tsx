@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
 import NotificationBell from '@/components/notifications/NotificationBell'
+import HelpTrigger from '@/components/education/HelpTrigger'
 import { ProNameLine } from './ProNameLabel'
 import { getDisplayName } from '@/lib/users/displayName'
 
@@ -45,17 +46,12 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
         <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop' aria-label='פתיחת תפריט'>
           <Icon name='bars' type='reg' />
         </button>
-        {/* Inline-start cluster (visual right in RTL): copilot trigger at the
-            outermost corner, then the notification bell, then user identity.
-            Treats both the copilot and the bell as system-level workspace
-            controls, not navigation items.
-            The bell sits in the desktop cluster only because phones already
-            redirect to /activate, so there is no mobile workspace to put it in —
-            a placement decision, not an assumption inside the component, which
-            renders identically wherever it is mounted. */}
+        {/* Inline-start cluster (visual right in RTL): copilot, notifications,
+            help, then user identity. System-level workspace controls, not nav. */}
         <div className='hidden desktop:flex items-center gap-3'>
           <CopilotTopbarTrigger />
           <NotificationBell />
+          <HelpTrigger />
           <UserNAgency user={user} isPro={isPro} trialDaysRemaining={trialDaysRemaining} />
         </div>
         <Link href='/dashboard' className='flex items-center gap-2'>

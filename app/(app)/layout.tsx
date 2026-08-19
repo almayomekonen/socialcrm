@@ -39,6 +39,7 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
 import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
 import ProActivationSuccess from '@/components/trial/ProActivationSuccess'
+import EducationMount from '@/components/education/EducationMount'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -160,6 +161,12 @@ async function LayoutContent({ children }) {
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
             <ActivationCelebrationProvider>
+            <EducationMount
+              userId={user.id}
+              surface={mobileWorkspace ? 'mobile' : 'desktop'}
+              copilotEnabled={copilotEnabled}
+              toursEnabled={!trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace}
+            >
             <div className='flex flex-col h-dvh min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
@@ -210,6 +217,7 @@ async function LayoutContent({ children }) {
                 TRIAL_ACTIVE workspace; self-gates on justActivated so it appears
                 only right after a genuine activation, never on refresh/re-login. */}
             {trialStatus === 'TRIAL_ACTIVE' && <ProActivationSuccess />}
+            </EducationMount>
             </ActivationCelebrationProvider>
           </CopilotContextStoreProvider>
         </CopilotProvider>

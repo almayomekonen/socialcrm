@@ -27,6 +27,8 @@ describe('quickClassifyGeneral — closed world', () => {
 
   it('maps guide utterances to their guide id', () => {
     expect(quickClassifyGeneral('איך מחברים וואטסאפ').intent).toBe('guide.connectWhatsapp')
+    expect(quickClassifyGeneral('How do I connect WhatsApp?').intent).toBe('guide.connectWhatsapp')
+    expect(quickClassifyGeneral('how do I use the pipeline?').intent).toBe('guide.pipeline')
     expect(quickClassifyGeneral('איך מעלים לידים').intent).toBe('guide.importLeads')
     expect(quickClassifyGeneral('קח אותי ליומן').intent).toBe('guide.calendar')
   })

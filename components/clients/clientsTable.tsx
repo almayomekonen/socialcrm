@@ -251,7 +251,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       >
         {statusAnnounce}
       </div>
-      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'}>
+      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'} data-edu={leads ? 'leads-table' : undefined}>
         <LeadsTableView
           leads={leads}
           activeTab={activeTab}
@@ -309,7 +309,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
               <SelectClientGrpActions user={user} />
               <SelectClientLists />
               <ExportTable data={mergedState} columns={columns} />
-              <Btn lbl={leads ? 'ליד חדש' : 'לקוח חדש'} icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+              <Btn data-edu={leads ? 'leads-add' : undefined} lbl={leads ? 'ליד חדש' : 'לקוח חדש'} icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
             </div>
           </div>
         </LeadsTableView>

@@ -20,6 +20,7 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { getMobileLeadDetail } from '@/modules/leads/queries'
 import LeadDetailMobile from '@/modules/leads/mobile/LeadDetailMobile'
 import { track } from '@/lib/analytics/track'
+import AutoTour from '@/components/education/AutoTour'
 
 export default async function page({ params }) {
   const { clientId } = await params
@@ -56,6 +57,7 @@ export default async function page({ params }) {
   const statusStyle = lead?.status ? STATUS_STYLES[lead.status] : null
   return (
     <div>
+      <AutoTour id='lead' enabled />
       {/* "This lead arrived automatically" context — shown only for genuine
           webhook-ingested (whatsapp:/facebook:) leads. Independent of the
           manual-first-lead FirstLeadCallout below (they never co-occur). */}
@@ -76,6 +78,7 @@ export default async function page({ params }) {
             <div className='flex items-center justify-between gap-3'>
               {statusStyle ? (
                 <span
+                  data-edu='lead-status'
                   className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
                 >
                   <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />

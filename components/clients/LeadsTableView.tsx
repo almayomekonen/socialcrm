@@ -28,7 +28,7 @@ export default function LeadsTableView({
   return (
     <>
       {leads && (
-        <div className='flex gap-1 mb-3 border-b border-gray-200 shrink-0' dir='rtl'>
+        <div className='flex gap-1 mb-3 border-b border-gray-200 shrink-0' dir='rtl' data-edu='lead-status-tabs'>
           {Object.entries(STATUS_STYLES).map(([key, { label, dot, text, bg, border }]) => {
             const count = mergedState.filter((l) => l.status === key).length
             const isActive = activeTab === key

@@ -26,18 +26,22 @@ const ALL_IDS: string[] = [
 ]
 const INTENT_ENUM = [...ALL_IDS, 'unknown'] as unknown as [string, ...string[]]
 
+function matchesExample(text: string, example: string): boolean {
+  return text.includes(example) || text.toLowerCase().includes(example.toLowerCase())
+}
+
 /** Cheap deterministic pass: substring match against the authored examples. */
 export function quickClassifyGeneral(text: string): Classification {
   const t = text.trim()
   for (const g of GUIDE_ENTRIES) {
-    if (g.examples.some((e) => t.includes(e))) return { intent: g.id as GeneralIntentId, confidence: 0.95 }
+    if (g.examples.some((e) => matchesExample(t, e))) return { intent: g.id as GeneralIntentId, confidence: 0.95 }
   }
   for (const id of BRIEFING_INTENT_IDS) {
-    if (BRIEFING_EXAMPLES[id].some((e) => t.includes(e))) return { intent: id, confidence: 0.95 }
+    if (BRIEFING_EXAMPLES[id].some((e) => matchesExample(t, e))) return { intent: id, confidence: 0.95 }
   }
-  if (RECENT_INBOUND_EXAMPLES.some((e) => t.includes(e))) return { intent: RECENT_INBOUND_ID, confidence: 0.95 }
-  if (WAITING_INBOUND_EXAMPLES.some((e) => t.includes(e))) return { intent: WAITING_INBOUND_ID, confidence: 0.95 }
-  if (SYSTEM_OVERVIEW_EXAMPLES.some((e) => t.includes(e))) return { intent: SYSTEM_OVERVIEW_ID, confidence: 0.95 }
+  if (RECENT_INBOUND_EXAMPLES.some((e) => matchesExample(t, e))) return { intent: RECENT_INBOUND_ID, confidence: 0.95 }
+  if (WAITING_INBOUND_EXAMPLES.some((e) => matchesExample(t, e))) return { intent: WAITING_INBOUND_ID, confidence: 0.95 }
+  if (SYSTEM_OVERVIEW_EXAMPLES.some((e) => matchesExample(t, e))) return { intent: SYSTEM_OVERVIEW_ID, confidence: 0.95 }
   return { intent: 'unknown', confidence: 0 }
 }
 

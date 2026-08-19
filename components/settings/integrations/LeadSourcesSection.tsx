@@ -114,6 +114,7 @@ export default async function LeadSourcesSection({
     <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
       <AccordionItem
         id='facebook'
+        edu='facebook-section'
         bodyClass='p-6'
         title='פייסבוק'
         icon='facebook'
@@ -130,6 +131,7 @@ export default async function LeadSourcesSection({
       </AccordionItem>
       <AccordionItem
         id='whatsapp'
+        edu='whatsapp-section'
         bodyClass='p-6'
         title='וואטסאפ'
         icon='whatsapp'

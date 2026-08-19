@@ -65,6 +65,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
                   onClick={() => document.getElementById('navPop')?.hidePopover()}
                   key={i}
                   href={link.href}
+                  data-edu={link.href === '/leads' ? 'nav-leads' : undefined}
                   className={twMerge('flex  hover:bg-dark/50 rounded mt-2', isActive ? 'bg-dark/50' : '')}
                 >
                   <span className={`relative rounded p-2  ${isActive ? 'bg-white' : ''}`}>
@@ -94,6 +95,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
                 <Link
                   key={i}
                   href={link.href}
+                  data-edu={link.href === '/leads' ? 'nav-leads' : undefined}
                   className={twMerge(
                     'flex items-center flex-nowrap my-3 gap-5 hover:bg-dark/50 rounded',
                     isActive ? 'bg-dark/50' : '',

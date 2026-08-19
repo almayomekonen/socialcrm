@@ -23,6 +23,7 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { parseLeadFilters } from '@/modules/leads/filters'
 import { getMobileLeadList, agencyHasAnyLeads } from '@/modules/leads/queries'
 import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
+import AutoTour from '@/components/education/AutoTour'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -105,6 +106,7 @@ export default async function LeadsPage({ searchParams }) {
 
       {hasLeads ? (
         <>
+          <AutoTour id='pipeline' enabled />
           <div data-alert-region='crm-sync' className='shrink-0'>
             <MetaDisconnectedBanner show={meta.needsReconnect} />
             {/* A lead source that is refusing what arrives — same surface, same

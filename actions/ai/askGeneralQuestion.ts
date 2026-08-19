@@ -10,17 +10,21 @@ import { classifyFallback, detectKnownGap, isGrowthQuestion, type FallbackResult
 import { classifyBusinessAdvice } from '@/lib/copilot/general/businessAdvice'
 import { classifyGeneralIntent, quickClassifyGeneral } from '@/lib/copilot/general/classifyGeneralIntent'
 import { GUIDE_ENTRIES } from '@/lib/copilot/general/guideMap'
+import { offerEducationForGuide } from '@/lib/education/offer'
+import { getWhatsappConnectionState } from '@/db/whatsapp'
+import { getFacebookConnectionState } from '@/db/facebook'
 import { GENERAL_HIGH_CONFIDENCE } from '@/lib/copilot/general/constants'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { isCopilotModeId, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { tryReasonedAnswer, shouldReason, type ReasonedAnswer } from '@/lib/copilot/general/reasonedAnswer'
-import { isReasonedGeneralEnabledForUser } from '@/lib/copilot/featureFlag'
+import { isCopilotEnabledForUser, isReasonedGeneralEnabledForUser } from '@/lib/copilot/featureFlag'
 import { classifyConversationIntent } from '@/lib/copilot/general/conversationIntent'
 import { coerceConversationState, type FactBucketId } from '@/lib/copilot/general/conversationState'
 import { hasUsableFollowUpState, resolveFollowUp } from '@/lib/copilot/general/continueConversation'
 import { runBriefingIntent } from '@/lib/copilot/general/runBriefingIntent'
 import { buildGrowthAnswer, buildBusinessAdviceAnswer } from '@/lib/copilot/general/growthAnswer'
 import { Roles } from '@/types/roles'
+import type { EducationActionId } from '@/lib/education'
 
 export type LeadCard = {
   id: number
@@ -36,7 +40,7 @@ export type LeadCard = {
 
 export type GeneralAnswer =
   | ({ kind: 'fallback' } & FallbackResult)
-  | { kind: 'guide'; answer: string; route?: string }
+  | { kind: 'guide'; answer: string; route?: string; educationAction?: EducationActionId }
   | { kind: 'data'; intent: string; payload: unknown }
   | { kind: 'lead'; lead: LeadCard }
   | { kind: 'leadPick'; name: string; candidates: { leadId: number; label: string; status: string | null }[] }
@@ -234,21 +238,32 @@ async function resolveAnswer(
     return { kind: 'fallback', ...classifyFallback(text) }
   }
 
-  if (c.intent.startsWith('guide.')) {
-    const g = GUIDE_ENTRIES.find((e) => e.id === c.intent)
-    if (!g) return { kind: 'fallback', mode: 'redirect', gap: null }
-    return { kind: 'guide', answer: g.answer, route: g.route }
-  }
+  if (c.intent.startsWith('guide.')) return answerGuide(c.intent, user)
 
   return answerClassifiedIntent(c.intent, user)
 }
 
-async function answerClassifiedIntent(intent: string, user: ActingUser): Promise<GeneralAnswer> {
-  if (intent.startsWith('guide.')) {
-    const g = GUIDE_ENTRIES.find((e) => e.id === intent)
-    if (!g) return { kind: 'fallback', mode: 'redirect', gap: null }
-    return { kind: 'guide', answer: g.answer, route: g.route }
+async function answerGuide(intent: string, user: ActingUser): Promise<GeneralAnswer> {
+  const g = GUIDE_ENTRIES.find((e) => e.id === intent)
+  if (!g) return { kind: 'fallback', mode: 'redirect', gap: null }
+  const [whatsapp, facebook] = await Promise.all([
+    getWhatsappConnectionState(user.id),
+    getFacebookConnectionState(user.id),
+  ])
+  const offered = offerEducationForGuide(g, {
+    copilotEnabled: isCopilotEnabledForUser(user),
+    whatsappConnected: whatsapp.connected,
+    facebookConnected: facebook.connected,
+    facebookNeedsReconnect: facebook.needsReconnect,
+  })
+  if (offered.educationAction) {
+    await safeTrack(user, 'education_action_offered', { action: offered.educationAction, guideId: intent })
   }
+  return { kind: 'guide', ...offered }
+}
+
+async function answerClassifiedIntent(intent: string, user: ActingUser): Promise<GeneralAnswer> {
+  if (intent.startsWith('guide.')) return answerGuide(intent, user)
   const { gotPermIds } = await getPerms(user)
   const scope: Scope = { user: { role: user.role }, gotPermIds }
   const payload = await runBriefingIntent(intent, user, scope)
