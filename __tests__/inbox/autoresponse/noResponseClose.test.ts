@@ -717,4 +717,31 @@ describe('no-response integration with Stop Policy / jobs', () => {
     const src = read('migrations/20260819120000_auto_response_jobs_no_response.cjs')
     expect(src).toContain("'first_contact','qualify_turn','no_response_warning','no_response_close'")
   })
+
+  it('qualifyWorker gates close confirmation on the last outbound warning kind', () => {
+    const src = read('lib/inbox/autoresponse/qualifyWorker.ts')
+    expect(src).toContain('closeOfferPending')
+    expect(src).toContain('isNoResponseWarningMessage(previousOutbound, previousOutboundKind)')
+    expect(src).toContain('skipPendingNoResponseJobs(trx, conv.id)')
+  })
+
+  it('confirmed close + 10 minutes later does not send another warning (aiState closed)', async () => {
+    getOrCreateAiState.mockResolvedValue({ aiState: 'closed', stoppedReason: 'no_response_confirmed' })
+    const outcome = await processNoResponseJob(JOB, CTX, { send: vi.fn() })
+    expect(outcome).toBe('skipped')
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(90, 'already_closed')
+    expect(sendIreOutbound).not.toHaveBeenCalled()
+    expect(enqueueAutoResponse).not.toHaveBeenCalled()
+    expect(generateQualifyTurn).not.toHaveBeenCalled()
+  })
+
+  it('confirmed close + later close job does not remain pending or send', async () => {
+    getOrCreateAiState.mockResolvedValue({ aiState: 'closed', stoppedReason: 'no_response_confirmed' })
+    const closeJob = { ...JOB, id: 91, reason: 'no_response_close' as const, triggerSequence: 10 }
+    const outcome = await processNoResponseJob(closeJob, CTX, { send: vi.fn() })
+    expect(outcome).toBe('skipped')
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(91, 'already_closed')
+    expect(sendIreOutbound).not.toHaveBeenCalled()
+    expect(markClosed).not.toHaveBeenCalled()
+  })
 })

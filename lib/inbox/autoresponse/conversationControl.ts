@@ -22,6 +22,9 @@ export type ControlDecision =
   | { action: 'CLOSE_CONVERSATION'; send: CloseSend; reason: string }
   | { action: 'HANDOFF_TO_HUMAN'; reason: string }
 
+/** Persisted on markClosed when the customer confirms the no-response warning. */
+export const NO_RESPONSE_CONFIRMED_REASON = 'no_response_confirmed'
+
 const DECLINE_EXACT = new Set([
   'לא מעוניין',
   'לא מעוניינת',
@@ -86,6 +89,108 @@ export function isConversationGoodbye(text: string): boolean {
   return /^(?:bye|goodbye|להתראות|ביי)\b/.test(n)
 }
 
+/**
+ * Whole-utterance confirmations of a close-offer. Never used globally —
+ * decideConversationControl only consults this when the previous outbound is
+ * the no-response warning. Contrast / a new question / "I'm here" are not close.
+ */
+const CLOSE_CONFIRM_EXACT = new Set([
+  'כן',
+  'כן תסגור',
+  'כן תסגרי',
+  'תסגור',
+  'תסגרי',
+  'סגור',
+  'סגרי',
+  'בטח',
+  'אפשר לסגור',
+  'תסגור את השיחה',
+  'תסגרי את השיחה',
+  'כן תסגור את השיחה',
+  'בסדר תסגור',
+  'כן בבקשה',
+  'go ahead',
+  'close it',
+  'please close',
+  'yes close',
+  'yes',
+  'sure',
+])
+
+const CLOSE_CONFIRM_VERBS = new Set(['תסגור', 'תסגרי', 'לסגור', 'סגור', 'סגרי', 'close'])
+
+/** Harmless filler around a close verb. Never sufficient on their own. */
+const CLOSE_CONFIRM_MODIFIERS = new Set([
+  'כן',
+  'yes',
+  'sure',
+  'בטח',
+  'בבקשה',
+  'אפשר',
+  'את',
+  'השיחה',
+  'זה',
+  'this',
+  'that',
+  'בסדר',
+  'ok',
+  'okay',
+  'please',
+  'go',
+  'ahead',
+  'it',
+  'the',
+  'conversation',
+  'תודה',
+  'thanks',
+  'thank',
+  'אחי',
+  'אח',
+  'גבר',
+  'אלוף',
+  'מלך',
+  'יא',
+  'חבר',
+  'יקר',
+  'bro',
+  'man',
+  'dude',
+])
+
+const CLOSE_OFFER_CONTRAST_RE = /אבל|לפני|אחרי\s+ש|\bbut\b|\bhowever\b|שאלה|לגבי/
+const STAY_PRESENT_RE = /רגע|אני פה|אני כאן|still here|i['’]?m here|\bwait\b/i
+
+export function isCloseOfferContext(args: {
+  closeOfferPending?: boolean
+  previousOutboundKind?: string
+}): boolean {
+  return args.closeOfferPending === true || args.previousOutboundKind === 'no_response_warning'
+}
+
+/** Conservative: false-positive CLOSE is worse than a missed close. */
+export function isClearCloseConfirmation(text: string): boolean {
+  const raw = (text ?? '').trim()
+  if (!raw) return false
+  if (inboundContainsRealQuestion(raw)) return false
+  if (CLOSE_OFFER_CONTRAST_RE.test(raw)) return false
+  if (STAY_PRESENT_RE.test(raw)) return false
+  const n = normalizeUtterance(raw)
+  if (!n) return false
+  if (CLOSE_CONFIRM_EXACT.has(n)) return true
+  const tokens = n.split(' ').filter(Boolean)
+  if (!tokens.length) return false
+  let sawVerb = false
+  for (const tok of tokens) {
+    if (CLOSE_CONFIRM_VERBS.has(tok)) {
+      sawVerb = true
+      continue
+    }
+    if (CLOSE_CONFIRM_MODIFIERS.has(tok)) continue
+    return false
+  }
+  return sawVerb
+}
+
 const REOPEN_MOVES = new Set<SalesMove>([
   'HANDOFF_REQUEST',
   'PRODUCT_QUESTION',
@@ -147,8 +252,27 @@ export function decideConversationControl(args: {
   salesMove: SalesMove
   inboundText: string
   previousOutbound?: string
+  previousOutboundKind?: string
+  closeOfferPending?: boolean
 }): ControlDecision {
   if (args.salesMove === 'HANDOFF_REQUEST') return { action: 'HANDOFF_TO_HUMAN', reason: 'human_request' }
+  if (isCloseOfferContext(args)) {
+    if (inboundContainsRealQuestion(args.inboundText)) {
+      return args.salesMove === 'DISCOVERY' || args.salesMove === 'DEEPEN'
+        ? { action: 'ASK_QUESTION' }
+        : { action: 'CONTINUE' }
+    }
+    if (isClearCloseConfirmation(args.inboundText)) {
+      return { action: 'CLOSE_CONVERSATION', send: 'closer', reason: NO_RESPONSE_CONFIRMED_REASON }
+    }
+    if (isConversationDecline(args.inboundText)) {
+      return { action: 'CLOSE_CONVERSATION', send: 'closer', reason: 'decline' }
+    }
+    if (isConversationGoodbye(args.inboundText)) {
+      return { action: 'CLOSE_CONVERSATION', send: 'closer', reason: 'goodbye' }
+    }
+    return { action: 'CONTINUE' }
+  }
   if (inboundContainsRealQuestion(args.inboundText)) {
     return args.salesMove === 'DISCOVERY' || args.salesMove === 'DEEPEN'
       ? { action: 'ASK_QUESTION' }

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SOCIALCRM_CAPABILITIES, getCapability, INBOUND_AUTO_RESPONSE_ID } from '@/lib/product/capabilities'
 import { classifySalesMove, classifySalesMoveFromTranscript, classifySalesTurnFromTranscript } from '@/lib/inbox/autoresponse/salesIntent'
+import { decideConversationControl } from '@/lib/inbox/autoresponse/conversationControl'
 import {
   formatProductKnowledgeBlock,
   isProductKnowledgeEnabled,
@@ -370,6 +371,13 @@ describe('conversational strategy (sticky product + explanation)', () => {
         salesMove: turn.salesMove,
       }),
     ).toEqual({ action: 'send' })
+    expect(
+      decideConversationControl({
+        salesMove: turn.salesMove,
+        inboundText: 'כן',
+        previousOutbound: EXPLAIN_OFFER,
+      }),
+    ).toEqual({ action: 'CONTINUE' })
   })
 
   it('CASE B: כן after a product explanation (not an offer) continues how_it_works, not DISCOVERY', () => {

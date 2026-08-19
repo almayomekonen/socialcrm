@@ -9,6 +9,7 @@ const skipAutoResponseJob = vi.hoisted(() => vi.fn())
 const completeAutoResponseJob = vi.hoisted(() => vi.fn())
 const countSentToday = vi.hoisted(() => vi.fn())
 const enqueueAutoResponse = vi.hoisted(() => vi.fn())
+const skipPendingNoResponseJobs = vi.hoisted(() => vi.fn())
 const getOrCreateAiState = vi.hoisted(() => vi.fn())
 const recordTurn = vi.hoisted(() => vi.fn())
 const markEscalated = vi.hoisted(() => vi.fn())
@@ -34,7 +35,7 @@ vi.mock('@/db/autoResponseJobs', () => ({
   countSentToday,
   enqueueAutoResponse,
   deferAutoResponseJob: vi.fn(),
-  skipPendingNoResponseJobs: vi.fn(),
+  skipPendingNoResponseJobs,
   hasSentFirstContact: vi.fn(),
   claimAutoResponseJobs: vi.fn(),
   reclaimStaleAutoResponseJobs: vi.fn(),
@@ -86,6 +87,8 @@ vi.mock('@/config/db', () => {
 
 import { processQualifyJob, type QualifyCtx } from '@/lib/inbox/autoresponse/qualifyWorker'
 import { isRetryableIreGenerationFailure } from '@/lib/inbox/autoresponse/retryableGeneration'
+import { NO_RESPONSE_WARNING_TEXT } from '@/lib/inbox/autoresponse/noResponseClose'
+import { NO_RESPONSE_CONFIRMED_REASON } from '@/lib/inbox/autoresponse/conversationControl'
 import type { AutoResponseJob } from '@/db/autoResponseJobs'
 
 const JOB: AutoResponseJob = {
@@ -144,6 +147,7 @@ beforeEach(() => {
   completeAutoResponseJob.mockReset().mockResolvedValue(undefined)
   countSentToday.mockReset().mockResolvedValue(0)
   enqueueAutoResponse.mockReset().mockResolvedValue(77)
+  skipPendingNoResponseJobs.mockReset().mockResolvedValue(1)
   recordTurn.mockReset().mockResolvedValue(undefined)
   markEscalated.mockReset().mockResolvedValue(undefined)
   markClosed.mockReset().mockResolvedValue(undefined)
@@ -1229,6 +1233,119 @@ describe('no-response warning after CONTINUE', () => {
     expect(outcome).toBe('sent')
     expect(markClosed).toHaveBeenCalled()
     expect(enqueueAutoResponse).not.toHaveBeenCalled()
+  })
+})
+
+describe('no-response warning reply (production regression)', () => {
+  function warningThen(inbound: string) {
+    return [
+      {
+        direction: 'inbound' as const,
+        text: inbound,
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+      {
+        direction: 'outbound' as const,
+        text: NO_RESPONSE_WARNING_TEXT,
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response', kind: 'no_response_warning' },
+      },
+    ]
+  }
+
+  it('warning + כן sends one closer, marks CLOSED, skips GPT, and does not schedule another warning', async () => {
+    tableRows.messageList = warningThen('כן')
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 14 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.yes-close' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'אין בעיה, תודה.' }))
+    expect(markClosed).toHaveBeenCalledWith(382, NO_RESPONSE_CONFIRMED_REASON)
+    expect(skipPendingNoResponseJobs).toHaveBeenCalled()
+    expect(enqueueAutoResponse).not.toHaveBeenCalled()
+    expect(recordTurn).not.toHaveBeenCalled()
+  })
+
+  it('warning + כן תסגור closes without GPT and without a follow-up warning', async () => {
+    tableRows.messageList = warningThen('כן תסגור')
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 14 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.yes-close-it' }))
+    const generateQualify = vi.fn()
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).not.toHaveBeenCalled()
+    expect(markClosed).toHaveBeenCalledWith(382, NO_RESPONSE_CONFIRMED_REASON)
+    expect(enqueueAutoResponse).not.toHaveBeenCalled()
+  })
+
+  it('warning + רגע אני פה stays open and runs normal IRE', async () => {
+    tableRows.messageList = warningThen('רגע אני פה')
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 14 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.im-here' }))
+    const generateQualify = vi.fn(async () => ({
+      ...OK_GEN,
+      reply: 'מעולה, במה אפשר לעזור?',
+    }))
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalledTimes(1)
+    expect(markClosed).not.toHaveBeenCalled()
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+  })
+
+  it('warning + כן, אבל יש לי שאלה לגבי וואטסאפ continues with GPT', async () => {
+    tableRows.messageList = warningThen('כן, אבל יש לי שאלה לגבי וואטסאפ')
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 14 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.yes-but' }))
+    const generateQualify = vi.fn(async () => OK_GEN)
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalled()
+    expect(markClosed).not.toHaveBeenCalled()
+  })
+
+  it('latest inbound wins: warning + כן then a new question is not a close', async () => {
+    tableRows.messageList = [
+      {
+        direction: 'inbound' as const,
+        text: 'יש לי עוד שאלה לגבי המחיר',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+      {
+        direction: 'inbound' as const,
+        text: 'כן',
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: null,
+      },
+      {
+        direction: 'outbound' as const,
+        text: NO_RESPONSE_WARNING_TEXT,
+        sentByUserId: null,
+        channelTimestamp: new Date(),
+        createdAt: new Date(),
+        metadata: { source: 'auto_response', kind: 'no_response_warning' },
+      },
+    ]
+    persistOutboundWhatsapp.mockResolvedValue({ messageId: 4001, sequence: 14 })
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'wamid.latest' }))
+    const generateQualify = vi.fn(async () => OK_GEN)
+    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    expect(outcome).toBe('sent')
+    expect(generateQualify).toHaveBeenCalled()
+    expect(markClosed).not.toHaveBeenCalled()
   })
 })
 

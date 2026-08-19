@@ -6,6 +6,7 @@ import {
   completeAutoResponseJob,
   failAutoResponseJob,
   countSentToday,
+  skipPendingNoResponseJobs,
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
@@ -47,6 +48,7 @@ import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIde
 import { sendIreOutbound } from './ireSend'
 import { runImmediateHumanHandoff } from './immediateHandoff'
 import { scheduleNoResponseWarning } from './processNoResponseJob'
+import { isNoResponseWarningMessage, metadataKind } from './noResponseClose'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -133,6 +135,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const maxTurns = settings.maxTurns
   const lastInboundText = (lastInbound?.text as string) ?? ''
   const previousOutbound = (lastOutbound?.text as string | undefined) ?? ''
+  const previousOutboundKind = metadataKind(lastOutbound?.metadata)
+  const closeOfferPending = isNoResponseWarningMessage(previousOutbound, previousOutboundKind)
   const hasUnansweredInbound = lastMsg?.direction === 'inbound'
   const consecutiveAiWithoutInbound = countConsecutiveAiOutbounds(recent)
   const optOut = detectOptOut(lastInboundText)
@@ -199,11 +203,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesMove,
     inboundText: lastInboundText,
     previousOutbound,
+    previousOutboundKind,
+    closeOfferPending,
   })
   waTrace(
     'CONVERSATION_CONTROL',
     { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
-    { action: control.action, reason: 'reason' in control ? control.reason : null, salesMove },
+    { action: control.action, reason: 'reason' in control ? control.reason : null, salesMove, closeOfferPending },
   )
   if (control.action === 'HANDOFF_TO_HUMAN') {
     const gate = outboundGate()
@@ -217,6 +223,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
   if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
+    await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
     await markClosed(conv.id, control.reason)
     return doSkip(`closed_${control.reason}`)
   }
@@ -228,6 +235,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       if (r.settled) return 'failed'
       return doSkip(r.reason)
     }
+    await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
     await markClosed(conv.id, control.reason)
     await completeAutoResponseJob(job.id, r.messageId)
     await track({

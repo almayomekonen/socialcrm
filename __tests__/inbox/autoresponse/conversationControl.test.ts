@@ -5,11 +5,14 @@ import {
   countConsecutiveAiOutbounds,
   decideConversationControl,
   inboundContainsRealQuestion,
+  isClearCloseConfirmation,
   isExplicitReopen,
+  NO_RESPONSE_CONFIRMED_REASON,
   outboundAsksQuestion,
 } from '@/lib/inbox/autoresponse/conversationControl'
 import { classifySalesMove, classifySalesTurnFromTranscript } from '@/lib/inbox/autoresponse/salesIntent'
 import { decidePostGeneration, decidePreGeneration, type PreFacts } from '@/lib/inbox/autoresponse/stateMachine'
+import { NO_RESPONSE_WARNING_TEXT } from '@/lib/inbox/autoresponse/noResponseClose'
 
 const pre = (over: Partial<PreFacts> = {}): PreFacts => ({
   aiState: 'ai_qualifying',
@@ -271,6 +274,178 @@ describe('colloquial acknowledgement-only close', () => {
     expect(salesMove).not.toBe('CASUAL_ACKNOWLEDGEMENT')
     expect(decideConversationControl({ salesMove, inboundText: inbound, previousOutbound: ANSWER })).toEqual({
       action: 'CONTINUE',
+    })
+  })
+})
+
+describe('no-response warning close confirmation', () => {
+  const offer = {
+    closeOfferPending: true as const,
+    previousOutboundKind: 'no_response_warning' as const,
+    previousOutbound: NO_RESPONSE_WARNING_TEXT,
+  }
+
+  function control(inbound: string, extra: { salesMove?: ReturnType<typeof classifySalesMove> } = {}) {
+    const salesMove = extra.salesMove ?? classifySalesMove(inbound, { previousOutbound: NO_RESPONSE_WARNING_TEXT })
+    return decideConversationControl({ salesMove, inboundText: inbound, ...offer })
+  }
+
+  it.each([
+    'כן',
+    'כן תסגור',
+    'תסגור',
+    'סגור',
+    'אפשר לסגור',
+    'כן, תסגור',
+    'כן תודה תסגור',
+    'כן אחי תסגור',
+    'כן, אפשר לסגור',
+    'כן תסגור את זה',
+    'תודה, תסגור',
+    'בסדר, תסגור את השיחה',
+  ])('warning + %s → CLOSE_CONFIRMATION closer', (inbound) => {
+    expect(isClearCloseConfirmation(inbound)).toBe(true)
+    expect(control(inbound)).toEqual({
+      action: 'CLOSE_CONVERSATION',
+      send: 'closer',
+      reason: NO_RESPONSE_CONFIRMED_REASON,
+    })
+  })
+
+  it.each(['בטח', 'yes close', 'please close', 'go ahead'])(
+    'warning + %s still closes (clear close verb / exact affirm)',
+    (inbound) => {
+      expect(control(inbound)).toEqual({
+        action: 'CLOSE_CONVERSATION',
+        send: 'closer',
+        reason: NO_RESPONSE_CONFIRMED_REASON,
+      })
+    },
+  )
+
+  it.each([
+    'לא',
+    'רגע אני פה',
+    'כן, אבל יש לי שאלה',
+    'כן אבל לפני שאתה סוגר יש לי שאלה',
+    'תסגור אחרי שתענה לי על זה',
+    'כן, מה המחיר?',
+    'כן, יש לי עוד שאלה',
+    'אוקיי',
+    'בסדר',
+    'טוב',
+    'יאללה',
+  ])('warning + %s is not an automatic close', (inbound) => {
+    expect(isClearCloseConfirmation(inbound)).toBe(false)
+    expect(control(inbound).action).not.toBe('CLOSE_CONVERSATION')
+    expect(control(inbound)).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('warning + כן, אבל יש לי שאלה לגבי וואטסאפ → CONTINUE', () => {
+    const inbound = 'כן, אבל יש לי שאלה לגבי וואטסאפ'
+    expect(isClearCloseConfirmation(inbound)).toBe(false)
+    expect(control(inbound)).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('warning + סגור, אבל לפני זה → CONTINUE', () => {
+    expect(control('סגור, אבל לפני זה')).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('warning + תסגור אחרי שתענה לי על המחיר → CONTINUE', () => {
+    expect(control('תסגור אחרי שתענה לי על המחיר')).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('warning + לא, יש לי עוד שאלה לגבי המחיר → CONTINUE', () => {
+    expect(control('לא, יש לי עוד שאלה לגבי המחיר')).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('כן globally is not CLOSE without the warning context', () => {
+    expect(
+      decideConversationControl({
+        salesMove: 'PRODUCT_QUESTION',
+        inboundText: 'כן',
+        previousOutbound: QUESTION,
+      }),
+    ).toEqual({ action: 'CONTINUE' })
+    expect(classifySalesMove('כן', { previousOutbound: QUESTION, salesStrategy: 'product_fit' })).toBe('PRODUCT_QUESTION')
+  })
+
+  it('רוצה שאסביר? + כן → CONTINUE, not close', () => {
+    const turn = classifySalesTurnFromTranscript(
+      [
+        { direction: 'inbound', text: 'אני צריך מערכת לניהול לידים' },
+        { direction: 'outbound', text: QUESTION },
+        { direction: 'inbound', text: 'כן' },
+      ],
+      { salesStrategy: 'product_fit' },
+    )
+    expect(turn.salesMove).toBe('PRODUCT_QUESTION')
+    expect(
+      decideConversationControl({
+        salesMove: turn.salesMove,
+        inboundText: 'כן',
+        previousOutbound: QUESTION,
+      }),
+    ).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('normal product question + כן → CONTINUE', () => {
+    const prev = 'יש לכם מענה אוטומטי לוואטסאפ?'
+    expect(
+      decideConversationControl({
+        salesMove: classifySalesMove('כן', { previousOutbound: prev, salesStrategy: 'product_fit' }),
+        inboundText: 'כן',
+        previousOutbound: prev,
+      }),
+    ).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('normal product question + כן תסגור does not use close-confirmation', () => {
+    const prev = 'יש לכם מענה אוטומטי לוואטסאפ?'
+    const decision = decideConversationControl({
+      salesMove: classifySalesMove('כן תסגור', { previousOutbound: prev, salesStrategy: 'product_fit' }),
+      inboundText: 'כן תסגור',
+      previousOutbound: prev,
+    })
+    expect(decision).not.toEqual({
+      action: 'CLOSE_CONVERSATION',
+      send: 'closer',
+      reason: NO_RESPONSE_CONFIRMED_REASON,
+    })
+    expect(decision.action).not.toBe('CLOSE_CONVERSATION')
+  })
+
+  it('an old warning in history is not enough; only the last outbound matters', () => {
+    expect(
+      decideConversationControl({
+        salesMove: 'PRODUCT_QUESTION',
+        inboundText: 'כן',
+        previousOutbound: QUESTION,
+        closeOfferPending: false,
+      }),
+    ).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('latest inbound wins: warning + כן + new question is not close confirmation', () => {
+    const thread = [
+      { direction: 'outbound', text: NO_RESPONSE_WARNING_TEXT },
+      { direction: 'inbound', text: 'כן' },
+      { direction: 'inbound', text: 'יש לי עוד שאלה לגבי המחיר' },
+    ]
+    const turn = classifySalesTurnFromTranscript(thread)
+    expect(
+      decideConversationControl({
+        salesMove: turn.salesMove,
+        inboundText: 'יש לי עוד שאלה לגבי המחיר',
+        ...offer,
+      }),
+    ).toEqual({ action: 'CONTINUE' })
+  })
+
+  it('handoff after the warning still hands off', () => {
+    expect(control('תעביר אותי לנציג', { salesMove: 'HANDOFF_REQUEST' })).toEqual({
+      action: 'HANDOFF_TO_HUMAN',
+      reason: 'human_request',
     })
   })
 })
