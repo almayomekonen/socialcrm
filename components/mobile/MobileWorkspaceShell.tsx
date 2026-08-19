@@ -74,12 +74,15 @@ export default function MobileWorkspaceShell({
       <MobileHeaderActionContext.Provider value={setHeaderAction}>
         {/* `data-mobile-workspace` is the scoping hook for the `full-bleed`
            neutralisation in main.css — see the rule there for why it is needed. */}
-        <div data-mobile-workspace className='flex h-dvh flex-col bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden'>
+        <div
+          data-mobile-workspace
+          className='flex h-dvh flex-col bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden'
+        >
           <MobileHeader title={title} onBack={isTab ? undefined : true} action={headerAction} />
 
-          {/* The ONLY scroll container. `min-h-0` is load-bearing in a flex column:
-              without it the region refuses to shrink and the tab bar is pushed off
-              the bottom of the viewport. */}
+          {/* List pages scroll here. A WhatsApp thread must NOT: it is `h-full`
+              of this region, so scrolling `main` reveals empty space below the
+              thread. `min-h-0` keeps the tab bar on-screen. */}
           <main
             id='main-content'
             ref={scrollerRef}

@@ -12,19 +12,27 @@ import {
 } from '@/actions/whatsapp/promoteConversationToLead'
 import { markConversationPersonal } from '@/actions/whatsapp/markConversationPersonal'
 
-const QUICK_ACTION_CLS =
-  'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50'
+const TONE = {
+  default:
+    'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50',
+  onGreen:
+    'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/40 bg-white/10 px-2.5 py-1 text-xs font-medium text-white no-underline transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-50',
+} as const
 
 export default function LeadlessConversationActions({
   conversationId,
   isPersonal,
+  tone = 'default',
 }: {
   conversationId: number
   isPersonal: boolean
+  /** `onGreen` is the mobile WhatsApp header. Desktop keeps `default`. */
+  tone?: keyof typeof TONE
 }) {
   const router = useRouter()
   const { loading, error, setError, run } = useAction()
   const [matches, setMatches] = useState<ConversationLeadMatch[] | null>(null)
+  const chip = TONE[tone]
 
   function refresh() {
     router.refresh()
@@ -90,16 +98,16 @@ export default function LeadlessConversationActions({
 
   return (
     <div className='flex flex-wrap items-center gap-1.5'>
-      <button type='button' className={QUICK_ACTION_CLS} disabled={loading} onClick={onCreate}>
+      <button type='button' className={chip} disabled={loading} onClick={onCreate}>
         <UserPlus aria-hidden className='size-3.5' />
         + צור ליד
       </button>
-      <button type='button' className={QUICK_ACTION_CLS} disabled={loading} onClick={onLinkClick}>
+      <button type='button' className={chip} disabled={loading} onClick={onLinkClick}>
         <Link2 aria-hidden className='size-3.5' />
         קשר לליד קיים
       </button>
       {!isPersonal && (
-        <button type='button' className={QUICK_ACTION_CLS} disabled={loading} onClick={onPersonal}>
+        <button type='button' className={chip} disabled={loading} onClick={onPersonal}>
           <User aria-hidden className='size-3.5' />
           סמן כאישי
         </button>
@@ -115,7 +123,7 @@ export default function LeadlessConversationActions({
             <button
               key={m.id}
               type='button'
-              className={QUICK_ACTION_CLS}
+              className={chip}
               disabled={loading}
               onClick={() => onPick(m.id)}
             >

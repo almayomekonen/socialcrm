@@ -77,6 +77,8 @@ describe('mobile WhatsApp thread visual language', () => {
     expect(send.className).toContain('bg-[#25D366]')
     expect(send.className).not.toContain('bg-solid')
     expect(screen.getByRole('textbox', { name: 'כתיבת הודעה' }).className).toMatch(/text-base/)
+    expect(screen.getByTestId('wa-thread-scroller')).toBeTruthy()
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
   })
 })
 
@@ -93,9 +95,18 @@ describe('desktop WhatsApp conversation is unchanged', () => {
   it('hides the shell שיחות header only when the WhatsApp thread chrome is mounted', () => {
     const shell = fs.readFileSync(path.join(process.cwd(), 'components/mobile/MobileWorkspaceShell.tsx'), 'utf8')
     expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden')
+    expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden')
     const route = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/MobileInboxRoute.tsx'), 'utf8')
     expect(route).toContain('data-wa-thread-chrome')
+    expect(route).toContain("tone='onGreen'")
     const list = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/ConversationListMobile.tsx'), 'utf8')
     expect(list).not.toContain('data-wa-thread-chrome')
+  })
+
+  it('scrolls the message list itself, not the document or scrollIntoView ancestors', () => {
+    const src = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/ConversationThreadMobile.tsx'), 'utf8')
+    expect(src).not.toMatch(/\.scrollIntoView\s*\(/)
+    expect(src).not.toContain('window.scrollTo')
+    expect(src).toContain('list.scrollTop = list.scrollHeight')
   })
 })

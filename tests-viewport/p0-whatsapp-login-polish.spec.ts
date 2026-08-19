@@ -59,6 +59,21 @@ test.describe('mobile WhatsApp thread polish', () => {
     await expect(thread).toBeVisible()
     expect(await thread.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(236, 229, 221)')
 
+    const main = page.locator('#main-content')
+    expect(await main.evaluate((el) => getComputedStyle(el).overflowY)).toBe('hidden')
+    expect(await main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1)
+
+    const scroller = page.getByTestId('wa-thread-scroller')
+    await expect(scroller).toBeVisible()
+    expect(await scroller.evaluate((el) => getComputedStyle(el).overflowY)).toMatch(/auto|scroll/)
+
+    const createLead = page.getByRole('button', { name: /צור ליד/ })
+    if ((await createLead.count()) > 0) {
+      const color = await createLead.evaluate((el) => getComputedStyle(el).color)
+      expect(color).toBe('rgb(255, 255, 255)')
+      expect(color).not.toMatch(/220,\s*38,\s*38|185,\s*28,\s*28|94,\s*105,\s*210/)
+    }
+
     const outbound = page.locator('[data-testid="message-bubble"][data-direction="outbound"]').first()
     const inbound = page.locator('[data-testid="message-bubble"][data-direction="inbound"]').first()
     if ((await outbound.count()) > 0) {

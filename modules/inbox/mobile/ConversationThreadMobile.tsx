@@ -48,12 +48,16 @@ export default function ConversationThreadMobile({
   const [pending, startTransition] = useTransition()
   const [sending, setSending] = useState(false)
   const [actionText, setActionText] = useState<string | null>(null)
-  const endRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
-  // Land on the newest message, the way every messaging app opens. `auto`, not
-  // `smooth`: on open the user wants to BE at the bottom, not watch a scroll.
+  // Land on the newest message inside THIS list. Never scrollIntoView — that
+  // walks every overflow ancestor and scrolls the shell `main`, which is what
+  // produced the giant blank region under a h-full thread.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' })
+    const main = document.getElementById('main-content')
+    if (main) main.scrollTop = 0
+    const list = listRef.current
+    if (list) list.scrollTop = list.scrollHeight
   }, [messages.length])
 
   useEffect(() => setMessages(initialMessages), [initialMessages])
@@ -91,8 +95,12 @@ export default function ConversationThreadMobile({
   }
 
   return (
-    <div data-testid='wa-thread' className='flex h-full min-h-0 flex-col bg-[#ece5dd]'>
-      <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4'>
+    <div data-testid='wa-thread' className='flex h-full min-h-0 flex-col overflow-hidden bg-[#ece5dd]'>
+      <div
+        ref={listRef}
+        data-testid='wa-thread-scroller'
+        className='min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4'
+      >
         {messages.length === 0 ? (
           <p className='py-10 text-center text-sm text-gray-500'>אין הודעות בשיחה הזו עדיין.</p>
         ) : (
@@ -109,7 +117,6 @@ export default function ConversationThreadMobile({
             ))}
           </ul>
         )}
-        <div ref={endRef} />
       </div>
 
       {leadId != null && (

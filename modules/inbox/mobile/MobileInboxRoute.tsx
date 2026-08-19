@@ -75,7 +75,7 @@ export default async function MobileInboxRoute({
         .join(' · ') || null
 
     return (
-      <div className='flex h-full min-h-0 flex-col'>
+      <div className='flex h-full min-h-0 flex-col overflow-hidden'>
         {/*
           THREAD HEADER — who am I talking to, on what channel, and how fresh.
           The messaging convention: back, identity, then the one onward action.
@@ -89,46 +89,60 @@ export default async function MobileInboxRoute({
 
           Back is explicit: the shell's header keys off pathname, and the list
           and the thread share `/inbox`, so it cannot supply one.
+
+          Leadless actions sit on a second chrome row, not in the identity row:
+          wrapping three pills next to the name blew the header height and
+          painted gray-on-green desktop chips onto the WhatsApp bar.
         */}
         <div
           data-testid='wa-thread-header'
           data-wa-thread-chrome
-          className='flex shrink-0 items-center gap-1 bg-[#008069] px-1.5 pb-1.5 pt-[max(0.375rem,env(safe-area-inset-top,0px))]'
+          className='flex shrink-0 flex-col bg-[#008069] pt-[max(0.375rem,env(safe-area-inset-top,0px))]'
         >
-          <Link
-            href={'/inbox' as Route}
-            aria-label='חזרה לשיחות'
-            className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
-          >
-            <Icon name='arrow-right' type='sol' className='size-5 bg-white' />
-          </Link>
-
-          <span
-            aria-hidden
-            className='flex size-9 shrink-0 items-center justify-center rounded-full bg-white'
-          >
-            <Icon name='whatsapp' type='sol' className='size-[18px] bg-[#25D366]' />
-          </span>
-
-          <div className='min-w-0 flex-1 ps-1'>
-            <h1 className='truncate text-[15px] font-semibold leading-tight text-white'>{name}</h1>
-            {headerMeta && <p className='truncate text-[12px] leading-tight text-white/80'>{headerMeta}</p>}
-          </div>
-
-          {target.leadId != null ? (
+          <div className='flex items-center gap-1 px-1.5 pb-1.5'>
             <Link
-              href={`/clients/${target.leadId}/summary` as Route}
-              aria-label={`פתח את הליד ${name}`}
+              href={'/inbox' as Route}
+              aria-label='חזרה לשיחות'
               className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
             >
-              <Icon name='image-polaroid-user' type='sol' className='size-5 bg-white' />
+              <Icon name='arrow-right' type='sol' className='size-5 bg-white' />
             </Link>
-          ) : (
-            <LeadlessConversationActions conversationId={conversationId} isPersonal={target.isPersonal} />
-          )}
+
+            <span
+              aria-hidden
+              className='flex size-9 shrink-0 items-center justify-center rounded-full bg-white'
+            >
+              <Icon name='whatsapp' type='sol' className='size-[18px] bg-[#25D366]' />
+            </span>
+
+            <div className='min-w-0 flex-1 ps-1'>
+              <h1 className='truncate text-[15px] font-semibold leading-tight text-white'>{name}</h1>
+              {headerMeta && <p className='truncate text-[12px] leading-tight text-white/80'>{headerMeta}</p>}
+            </div>
+
+            {target.leadId != null ? (
+              <Link
+                href={`/clients/${target.leadId}/summary` as Route}
+                aria-label={`פתח את הליד ${name}`}
+                className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
+              >
+                <Icon name='image-polaroid-user' type='sol' className='size-5 bg-white' />
+              </Link>
+            ) : null}
+          </div>
+
+          {target.leadId == null ? (
+            <div className='border-t border-white/20 px-3 py-2'>
+              <LeadlessConversationActions
+                conversationId={conversationId}
+                isPersonal={target.isPersonal}
+                tone='onGreen'
+              />
+            </div>
+          ) : null}
         </div>
 
-        <div className='min-h-0 flex-1'>
+        <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
           <ConversationThreadMobile
             conversationId={conversationId}
             leadId={target.leadId}
