@@ -72,7 +72,7 @@ export default defineConfig({
     phone('phone-430x932', 430, 932),
     {
       name: 'phone-390x844-webkit',
-      testMatch: /p0-nav-stuck-safari/,
+      testMatch: /p0-nav-stuck-safari|p0-mobile-actions/,
       use: {
         browserName: 'webkit',
         userAgent: IPHONE_UA,

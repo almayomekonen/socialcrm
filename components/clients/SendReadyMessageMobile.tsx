@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast'
 import type { Template } from '@/lib/whatsapp/templates/types'
 import { sendTemplateToLead } from '@/actions/whatsapp/templates/sendTemplateToLead'
 import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMessagePreview'
+import { readyMessageTitle } from '@/modules/templates/mobile/readyMessageTitle'
 
 /**
  * Phone picker for sending one approved ready message.
@@ -87,7 +88,7 @@ export default function SendReadyMessageMobile({
                 onChange={() => setSelectedId(t.id)}
               />
               <span className='min-w-0'>
-                <span className='block truncate text-[15px] font-medium text-ink'>{t.displayTitle}</span>
+                <span className='block truncate text-[15px] font-medium text-ink'>{readyMessageTitle(t.displayTitle)}</span>
                 <span className='mt-0.5 block line-clamp-2 text-sm text-gray-500'>{t.bodyText || '—'}</span>
               </span>
             </label>

@@ -145,6 +145,7 @@ export default async function MobileInboxRoute({
     <ConversationListMobile
       items={page.items}
       q={q}
+      nextCursor={page.nextCursor}
       // Formatting happens on the server, per row, against ONE `nowMs`.
       formatWhen={(iso) => relativeTimeHe(iso, nowMs)}
     />

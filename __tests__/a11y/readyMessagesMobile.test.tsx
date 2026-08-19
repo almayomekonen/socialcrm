@@ -64,6 +64,12 @@ describe('ReadyMessagesWorkspace — list', () => {
     expect(container.querySelectorAll('table')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: 'ארכיון' })).toBeNull()
   })
+
+  it('does not display a Meta slug such as lead_first_contact', () => {
+    render(<ReadyMessagesWorkspace initial={[{ ...tpl(4, 'approved'), displayTitle: 'lead_first_contact' }]} />)
+    expect(screen.queryByText('lead_first_contact')).toBeNull()
+    expect(screen.getByText('יצירת קשר ראשוני')).toBeTruthy()
+  })
 })
 
 describe('ReadyMessagesWorkspace — create/edit/delete contracts', () => {

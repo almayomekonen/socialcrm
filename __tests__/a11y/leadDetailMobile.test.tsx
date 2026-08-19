@@ -11,10 +11,10 @@
 
 import { describe, afterEach, test, expect, vi } from 'vitest'
 import React from 'react'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: () => {}, back: () => {}, refresh: () => {} }),
+  useRouter: () => ({ push: () => {}, back: () => {}, refresh: () => {}, replace: () => {} }),
   usePathname: () => '/clients/1/summary',
 }))
 vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({
@@ -27,6 +27,10 @@ vi.mock('@/actions/clients', () => ({
   uploadLeadData: vi.fn(async () => ({ data: [], wrongData: [] })),
   addLeads: vi.fn(async () => ({ success: true, inserted: 0 })),
   importLeadsFromCsv: vi.fn(async () => ({ inserted: 0, updated: 0, unchanged: 0, invalid: 0 })),
+  deleteLead: vi.fn(async () => ({ success: true })),
+}))
+vi.mock('@/modules/inbox/client/openLeadWhatsapp', () => ({
+  openLeadWhatsappInInbox: vi.fn(async () => {}),
 }))
 vi.mock('@/actions/leadFollowUp', () => ({
   setLeadFollowUp: vi.fn(async () => ({})),
@@ -80,6 +84,32 @@ describe('lead detail actions', () => {
     expect(screen.getByRole('dialog', { name: 'תוצאת שיחה' })).toBeTruthy()
   })
 
+  test('overflow actions open a sheet with existing mutations only', () => {
+    render(
+      <LeadDetailActions leadId={1} phone='0541234567' name='דני לוי' status='new' nextFollowUpAt={null} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'פעולות' }))
+    expect(screen.getByRole('dialog', { name: 'פעולות' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'שינוי סטטוס' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'הוספת מעקב' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'פתיחת שיחה' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'מחיקת ליד' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'עריכת ליד' })).toBeNull()
+  })
+
+  test('lead delete is confirm-gated and does not fire on opening פעולות', async () => {
+    const { deleteLead } = await import('@/actions/clients')
+    render(
+      <LeadDetailActions leadId={1} phone='0541234567' name='דני לוי' status='new' nextFollowUpAt={null} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'פעולות' }))
+    fireEvent.click(screen.getByRole('button', { name: 'מחיקת ליד' }))
+    expect(deleteLead).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'מחיקת ליד' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'מחק ליד' }))
+    await waitFor(() => expect(deleteLead).toHaveBeenCalledWith(1))
+  })
+
   test('2. Call is a real tel: anchor', () => {
     render(
       <LeadDetailActions leadId={1} phone='0541234567' name='דני לוי' status='new' nextFollowUpAt={null} />,
@@ -113,6 +143,7 @@ describe('lead detail actions', () => {
     // no fallback, so it must be absent rather than present-and-refusing.
     expect(screen.queryByRole('button', { name: /וואטסאפ/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'סטטוס' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'פעולות' })).toBeTruthy()
   })
 })
 

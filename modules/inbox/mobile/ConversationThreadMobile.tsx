@@ -8,6 +8,7 @@ import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
+import MessageBubbleMobile, { MessageActionSheet } from './MessageBubbleMobile'
 
 /**
  * One conversation, as a messaging screen.
@@ -46,6 +47,7 @@ export default function ConversationThreadMobile({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [sending, setSending] = useState(false)
+  const [actionText, setActionText] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   // Land on the newest message, the way every messaging app opens. `auto`, not
@@ -96,7 +98,14 @@ export default function ConversationThreadMobile({
         ) : (
           <ul className='flex flex-col gap-2'>
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
+              <MessageBubbleMobile
+                key={m.id}
+                message={m}
+                onOpen={() => {
+                  const t = m.text?.trim()
+                  if (t) setActionText(t)
+                }}
+              />
             ))}
           </ul>
         )}
@@ -143,6 +152,8 @@ export default function ConversationThreadMobile({
           />
         </div>
       )}
+
+      <MessageActionSheet text={actionText} onClose={() => setActionText(null)} />
     </div>
   )
 }
@@ -169,21 +180,4 @@ const REASONS: Record<string, string> = {
   'too-long': 'ההודעה ארוכה מדי.',
   'invalid-input': 'לא ניתן לשלוח את ההודעה.',
   empty: 'אי אפשר לשלוח הודעה ריקה.',
-}
-
-function MessageBubble({ message }: { message: LeadWhatsappMessage }) {
-  const outbound = message.direction === 'outbound'
-  return (
-    <li className={`flex ${outbound ? 'justify-start' : 'justify-end'}`}>
-      <div
-        /* max-w keeps long messages readable instead of edge-to-edge; break-words
-           stops a long URL from forcing horizontal overflow. */
-        className={`max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed ${
-          outbound ? 'rounded-es-sm bg-primary-tint text-ink' : 'rounded-ee-sm bg-white text-ink shadow-sm'
-        }`}
-      >
-        {message.text}
-      </div>
-    </li>
-  )
 }

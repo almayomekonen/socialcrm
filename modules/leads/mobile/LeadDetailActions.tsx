@@ -7,6 +7,7 @@ import LeadContactActions from './LeadContactActions'
 import LeadStatusSheet from './LeadStatusSheet'
 import LeadFollowUpSheet from './LeadFollowUpSheet'
 import LeadOutcomeSheet from './LeadOutcomeSheet'
+import LeadOverflowSheet from './LeadOverflowSheet'
 
 type Sheet = 'status' | 'followup' | 'outcome' | null
 
@@ -34,10 +35,19 @@ export default function LeadDetailActions({
 
   return (
     <>
-      <div className='grid grid-cols-3 gap-2 px-4 pb-3'>
-        <ActionBtn label='סטטוס' icon='tag' onClick={() => setSheet('status')} />
-        <ActionBtn label='מעקב' icon='calendar' onClick={() => setSheet('followup')} />
-        <ActionBtn label='תוצאה' icon='comment-check' onClick={() => setSheet('outcome')} />
+      <div className='px-4 pb-3'>
+        <LeadOverflowSheet
+          leadId={leadId}
+          name={name}
+          phone={phone}
+          onStatus={() => setSheet('status')}
+          onFollowUp={() => setSheet('followup')}
+        />
+        <div className='grid grid-cols-3 gap-2'>
+          <ActionBtn label='סטטוס' icon='tag' onClick={() => setSheet('status')} />
+          <ActionBtn label='מעקב' icon='calendar' onClick={() => setSheet('followup')} />
+          <ActionBtn label='תוצאה' icon='comment-check' onClick={() => setSheet('outcome')} />
+        </div>
       </div>
 
       {phone ? (

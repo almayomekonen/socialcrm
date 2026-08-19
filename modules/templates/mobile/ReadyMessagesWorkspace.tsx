@@ -20,6 +20,7 @@ import TemplateStatusBadge from '@/components/settings/templates/TemplateStatusB
 import ReadyMessageEditorMobile from './ReadyMessageEditorMobile'
 import ReadyMessageDetailSheet from './ReadyMessageDetailSheet'
 import ReadyMessagesEmptyMobile from './ReadyMessagesEmptyMobile'
+import { readyMessageTitle } from './readyMessageTitle'
 
 const SORT_ORDER: Record<TemplateStatus, number> = {
   rejected: 0,
@@ -170,7 +171,7 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
                   key={t.id}
                   onClick={() => setDetail(t)}
                   className='press'
-                  title={t.displayTitle}
+                  title={readyMessageTitle(t.displayTitle)}
                   subtitle={t.bodyText || '—'}
                   meta={t.createdAt ? formatDate(t.createdAt) : undefined}
                   badges={
@@ -251,7 +252,7 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
         title='מחיקת הודעה'
         msg={
           confirm
-            ? `למחוק את "${confirm.template.displayTitle}"?\nההודעה תוסר ולא תהיה זמינה לשליחה.`
+            ? `למחוק את "${readyMessageTitle(confirm.template.displayTitle)}"?\nההודעה תוסר ולא תהיה זמינה לשליחה.`
             : ''
         }
         confirmLbl='מחק'
@@ -268,7 +269,7 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
         title='העברה לארכיון'
         msg={
           confirm
-            ? `להעביר את "${confirm.template.displayTitle}" לארכיון?\nההודעה לא תופיע ברשימה ולא תהיה זמינה לשליחה.`
+            ? `להעביר את "${readyMessageTitle(confirm.template.displayTitle)}" לארכיון?\nההודעה לא תופיע ברשימה ולא תהיה זמינה לשליחה.`
             : ''
         }
         confirmLbl='העבר לארכיון'

@@ -4,6 +4,7 @@ import TemplateRejectionNotice from '@/components/settings/templates/TemplateRej
 import TemplatePendingNotice from '@/components/settings/templates/TemplatePendingNotice'
 import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMessagePreview'
 import BottomSheet from '@/components/mobile/BottomSheet'
+import { readyMessageTitle } from './readyMessageTitle'
 
 const PURPOSE_LABEL: Record<string, string> = {
   UTILITY: 'עדכון או תזכורת',
@@ -33,7 +34,7 @@ export default function ReadyMessageDetailSheet({
   const t = template
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={t?.displayTitle || 'הודעה מוכנה'} titleId='ready-message-detail'>
+    <BottomSheet open={open} onClose={onClose} title={t ? readyMessageTitle(t.displayTitle) : 'הודעה מוכנה'} titleId='ready-message-detail'>
       {t && (
         <div className='flex flex-col gap-4'>
           <div className='flex flex-wrap items-center gap-2'>
