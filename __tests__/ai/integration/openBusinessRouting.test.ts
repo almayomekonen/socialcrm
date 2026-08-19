@@ -77,6 +77,9 @@ describe('routing — shouldReason', () => {
     expect(shouldReason('מה מצב העסק?')).toBe(false)
     expect(shouldReason('מה אתה רואה?')).toBe(false)
     expect(shouldReason('איפה אני מפסיד לידים?')).toBe(false)
+    expect(shouldReason('מה כדאי לי לעשות?')).toBe(false)
+    expect(shouldReason('מה הכי חשוב עכשיו?')).toBe(false)
+    expect(shouldReason('אם היית מנהל את העסק שלי, במה היית מתמקד?')).toBe(false)
   })
 })
 

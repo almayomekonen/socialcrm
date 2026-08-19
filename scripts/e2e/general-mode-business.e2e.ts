@@ -1,5 +1,5 @@
 /**
- * One-off local General Mode E2E against the Phase 3A worktree.
+ * One-off local General Mode E2E against the Phase 3B worktree.
  * Does not start a server — expects next on E2E_BASE (default http://localhost:3010).
  * Usage: E2E_BASE=http://localhost:3010 npx tsx scripts/e2e/general-mode-business.e2e.ts
  *
@@ -15,12 +15,13 @@ const BASE = process.env.E2E_BASE ?? 'http://localhost:3010'
 
 const QUESTIONS = [
   'מה מצב העסק?',
-  'מי מחכה לי בוואטסאפ?',
+  'מה אני יכול לעשות כדי לקדם את העסק?',
   'מה הכי דחוף?',
   'למה?',
   'מי עוד?',
-  'יש הודעות שלא קראתי?',
+  'מי מחכה לי בוואטסאפ?',
   'מי שלח לי הודעה לאחרונה?',
+  'יש הודעות שלא קראתי?',
   'כמה כסף עשיתי?',
 ]
 
@@ -103,7 +104,7 @@ async function main() {
   const page = await context.newPage()
   page.setDefaultTimeout(45_000)
 
-  await page.goto(`${BASE}/leads`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${BASE}/leads`, { waitUntil: 'domcontentloaded', timeout: 180_000 })
   await page.waitForURL((url) => !url.pathname.includes('/auth') && !url.pathname.includes('/login'), {
     timeout: 20_000,
   })
@@ -138,6 +139,7 @@ async function main() {
   const bannedHits = transcript.flatMap((t) => BANNED.filter((b) => t.a.includes(b)).map((b) => ({ q: t.q, b })))
   const byQ = Object.fromEntries(transcript.map((t) => [t.q, t.a]))
   const business = byQ['מה מצב העסק?'] ?? ''
+  const growth = byQ['מה אני יכול לעשות כדי לקדם את העסק?'] ?? ''
   const waiting = byQ['מי מחכה לי בוואטסאפ?'] ?? ''
   const urgent = byQ['מה הכי דחוף?'] ?? ''
   const why = byQ['למה?'] ?? ''
@@ -169,6 +171,11 @@ async function main() {
   if (!waiting.includes('ממתין') && !waiting.includes('אין כרגע שיחות')) semantic.push('waiting missing waiting framing')
   if (recent === waiting) semantic.push('recent answer identical to waiting')
   if (!urgent.includes('הכי דחוף') && !urgent.includes('הכול תחת שליטה')) semantic.push('urgency missing ranking')
+  if (business.includes('הכי דחוף כרגע')) semantic.push('business advice resurrected ranking')
+  if (growth.includes('הכי דחוף כרגע')) semantic.push('growth advice resurrected ranking')
+  if (/, ובמקביל .*, ובמקביל /.test(business) || /, ובמקביל .*, ובמקביל /.test(growth)) {
+    semantic.push('business advice is a generic CRM dump')
+  }
   if (why.includes('לא בטוח שהבנתי')) semantic.push('why fell through to clarify')
   if (whoElse.includes('הכי דחוף כרגע')) semantic.push('מי עוד resurrected ranking')
   if (unread.includes('מי שממתין למענה')) semantic.push('unread used waiting header')

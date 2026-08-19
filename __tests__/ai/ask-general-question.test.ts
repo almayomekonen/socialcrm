@@ -393,6 +393,17 @@ describe('askGeneralQuestion — grounded Business Copilot answers', () => {
     expect(classifyGeneralIntent).not.toHaveBeenCalled()
   })
 
+  it('מה הכי חשוב עכשיו? is business advice, not crm.attention', async () => {
+    const res = await askGeneralQuestion('מה הכי חשוב עכשיו?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'business.advice' })
+    expect(classifyGeneralIntent).not.toHaveBeenCalled()
+  })
+
+  it('מה כדאי לי לעשות? is business advice', async () => {
+    const res = await askGeneralQuestion('מה כדאי לי לעשות?')
+    expect(res).toMatchObject({ kind: 'data', intent: 'business.advice' })
+  })
+
   it('C. מה הכי דחוף? ranks with an explainable reason', async () => {
     vi.mocked(listWaitingWhatsappLeads).mockResolvedValue({
       total: 1,

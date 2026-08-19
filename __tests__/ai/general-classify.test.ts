@@ -23,6 +23,9 @@ describe('quickClassifyGeneral — closed world', () => {
     expect(quickClassifyGeneral('מי לא נקרא?').intent).toBe('inbox.unread')
     expect(quickClassifyGeneral('מה חדש במערכת?').intent).toBe('system.overview')
     expect(quickClassifyGeneral('מה מצב הפגישות?').intent).toBe('meetings.today')
+    expect(quickClassifyGeneral('מה הכי חשוב עכשיו?').intent).toBe('unknown')
+    expect(quickClassifyGeneral('מה כדאי לי לעשות?').intent).toBe('unknown')
+    expect(quickClassifyGeneral('אם היית מנהל את העסק שלי, במה היית מתמקד?').intent).toBe('unknown')
   })
 
   it('maps guide utterances to their guide id', () => {
