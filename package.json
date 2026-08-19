@@ -54,6 +54,7 @@
     "axios": "^1.13.2",
     "babel-plugin-react-compiler": "19.1.0-rc.2",
     "class-variance-authority": "^0.7.1",
+    "driver.js": "^1.8.0",
     "emoji-picker-react": "^4.19.1",
     "framer-motion": "^12.38.0",
     "html2canvas-pro": "^1.5.13",

@@ -12,6 +12,7 @@ import Icon, { IconNames } from '@/lib/Icon'
 import Loading from '@/components/ui/Loading'
 import NavBadge from './NavBadge'
 import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
+import { NAV_RAIL_EDU, navEduForHref } from '@/lib/education/types'
 
 export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
   const pathname = usePathname()
@@ -85,7 +86,11 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
       <div
         className={`hidden desktop:block h-screen w-[50px] overflow-x-hidden fixed top-0 start-0 transition-all duration-300 ease-in-out hover:w-48 `}
       >
-        <nav aria-label='ניווט ראשי' className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}>
+        <nav
+          aria-label='ניווט ראשי'
+          data-edu={NAV_RAIL_EDU}
+          className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}
+        >
           <div className='w-full'>
             {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
               if (!link) return null
@@ -94,6 +99,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
                 <Link
                   key={i}
                   href={link.href}
+                  data-edu={navEduForHref(link.href)}
                   className={twMerge(
                     'flex items-center flex-nowrap my-3 gap-5 hover:bg-dark/50 rounded',
                     isActive ? 'bg-dark/50' : '',

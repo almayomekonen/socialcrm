@@ -100,7 +100,7 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
   const label = current ? `מעקב: ${formatDate(current)}` : 'קבע מעקב'
 
   return (
-    <div ref={wrapRef} className='inline-flex'>
+    <div ref={wrapRef} className='inline-flex' data-edu='lead-followup'>
       <Btn
         variant={current ? 'soft' : 'outline'}
         size={compact ? 'icon' : undefined}

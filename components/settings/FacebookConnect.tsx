@@ -108,13 +108,14 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
 
     return (
       <div className='grid gap-4'>
-        <p className='text-sm text-gray-600'>
+        <p className='text-sm text-gray-600' data-edu={needsReconnect ? undefined : 'facebook-connect'}>
           מחובר לדף: <strong>{connection.pageName}</strong>
         </p>
         {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
         {needsReconnect && <ConnectionNotice notice={FACEBOOK_NOTICES.expired} />}
         {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}
         {needsReconnect && (
+          <div data-edu='facebook-connect' className='w-fit'>
           <Btn
             lbl={loading ? 'מעביר לפייסבוק...' : (FACEBOOK_NOTICES.expired.action ?? SHARED.reconnect)}
             icon={loading ? 'spinner' : 'facebook'}
@@ -123,6 +124,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
             className='w-fit'
             onClick={redirectToOAuth}
           />
+          </div>
         )}
         <Btn
           lbl={loading ? 'מנתק...' : 'נתק דף'}
@@ -168,6 +170,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
             ))}
           </select>
         </FormField>
+        <div data-edu='facebook-connect' className='w-fit'>
         <Btn
           lbl={loading ? 'מחבר דף...' : (notice?.action ?? 'חבר דף')}
           icon={loading ? 'spinner' : 'facebook'}
@@ -177,6 +180,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
           className='w-fit'
           onClick={() => selected && connectPage(selected)}
         />
+        </div>
       </div>
     )
   }
@@ -193,6 +197,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
     <div className='grid gap-4'>
       {urlNotice && <ConnectionNotice notice={urlNotice} />}
       {!urlNotice && <p className='text-sm text-gray-500'>חבר את דף הפייסבוק שלך כדי לקבל לידים אוטומטית.</p>}
+      <div data-edu='facebook-connect' className='w-fit'>
       <Btn
         lbl={loading ? 'מעביר לפייסבוק...' : (urlNotice?.action ?? 'חבר חשבון פייסבוק')}
         icon={loading ? 'spinner' : 'facebook'}
@@ -202,6 +207,7 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
         className='w-fit'
         onClick={redirectToOAuth}
       />
+      </div>
     </div>
   )
 }

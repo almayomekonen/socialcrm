@@ -28,6 +28,13 @@ vi.mock('@/lib/analytics/track', () => ({ track: vi.fn() }))
 vi.mock('@/lib/copilot/featureFlag', () => ({
   isReasonedGeneralEnabledForUser: vi.fn(() => false),
   isSynthesisEnabledForUser: vi.fn(() => false),
+  isCopilotEnabledForUser: vi.fn(() => true),
+}))
+vi.mock('@/db/whatsapp', () => ({
+  getWhatsappConnectionState: vi.fn(async () => ({ connected: false })),
+}))
+vi.mock('@/db/facebook', () => ({
+  getFacebookConnectionState: vi.fn(async () => ({ connected: false, needsReconnect: false })),
 }))
 
 import { askGeneralQuestion } from '@/actions/ai/askGeneralQuestion'
@@ -48,6 +55,8 @@ import { getTodaysMeetings } from '@/db/meetings'
 import { track } from '@/lib/analytics/track'
 import { Roles } from '@/types/roles'
 import { isReasonedGeneralEnabledForUser } from '@/lib/copilot/featureFlag'
+import { getWhatsappConnectionState } from '@/db/whatsapp'
+import { getFacebookConnectionState } from '@/db/facebook'
 import { toConversationState } from '@/lib/copilot/general/conversationState'
 import { NOTHING_MORE, NO_MORE_LEADS } from '@/lib/copilot/general/continueConversation'
 
@@ -71,6 +80,8 @@ beforeEach(() => {
   vi.mocked(listWaitingWhatsappLeads).mockResolvedValue(emptyList)
   vi.mocked(countWaitingWhatsappConversations).mockResolvedValue(0)
   vi.mocked(isReasonedGeneralEnabledForUser).mockReturnValue(false)
+  vi.mocked(getWhatsappConnectionState).mockResolvedValue({ connected: false })
+  vi.mocked(getFacebookConnectionState).mockResolvedValue({ connected: false, needsReconnect: false })
 })
 
 describe('askGeneralQuestion — closed world', () => {
@@ -105,7 +116,28 @@ describe('askGeneralQuestion — closed world', () => {
   it('guide intent → authored answer + route', async () => {
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'guide.connectWhatsapp', confidence: 0.95 })
     const res = await askGeneralQuestion('איך מחברים וואטסאפ')
-    expect(res).toMatchObject({ kind: 'guide', route: '/settings/integrations?section=whatsapp' })
+    expect(res).toMatchObject({
+      kind: 'guide',
+      route: '/settings/integrations?section=whatsapp',
+      educationAction: 'open_whatsapp_tour',
+    })
+  })
+
+  it('English how-to offers Show me for the pipeline tour', async () => {
+    const res = await askGeneralQuestion('How do I use the pipeline?')
+    expect(res).toMatchObject({
+      kind: 'guide',
+      educationAction: 'open_pipeline_tour',
+      route: '/leads',
+    })
+    expect(track).toHaveBeenCalledWith(expect.objectContaining({ event: 'education_action_offered' }))
+  })
+
+  it('does not offer a WhatsApp connect tour when WhatsApp is already connected', async () => {
+    vi.mocked(getWhatsappConnectionState).mockResolvedValue({ connected: true })
+    const res = await askGeneralQuestion('How do I connect WhatsApp?')
+    expect(res).toMatchObject({ kind: 'guide', route: '/inbox' })
+    expect(res).not.toHaveProperty('educationAction')
   })
 
   it('data intent → deterministic payload', async () => {
@@ -269,13 +301,22 @@ describe('askGeneralQuestion — Phase 1 follow-up and growth', () => {
     expect(await askGeneralQuestion('איך מחברים וואטסאפ')).toMatchObject({
       kind: 'guide',
       route: '/settings/integrations?section=whatsapp',
+      educationAction: 'open_whatsapp_tour',
     })
 
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'guide.importLeads', confidence: 0.95 })
-    expect(await askGeneralQuestion('איך מעלים לידים')).toMatchObject({ kind: 'guide', route: '/leads' })
+    expect(await askGeneralQuestion('איך מעלים לידים')).toMatchObject({
+      kind: 'guide',
+      route: '/leads',
+      educationAction: 'open_pipeline_tour',
+    })
 
     vi.mocked(classifyGeneralIntent).mockResolvedValue({ intent: 'guide.addLead', confidence: 0.95 })
-    expect(await askGeneralQuestion('איך מוסיפים ליד')).toMatchObject({ kind: 'guide', route: '/leads' })
+    expect(await askGeneralQuestion('איך מוסיפים ליד')).toMatchObject({
+      kind: 'guide',
+      route: '/leads',
+      educationAction: 'open_pipeline_tour',
+    })
   })
 
   it('overview lead list then priority → מי עוד? uses the new ranking, not leaked consumption', async () => {

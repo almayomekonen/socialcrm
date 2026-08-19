@@ -43,3 +43,8 @@ export function useActivationCelebration(): ActivationCelebration {
   if (!ctx) throw new Error('useActivationCelebration must be used within an ActivationCelebrationProvider')
   return ctx
 }
+
+/** True only inside the celebration provider, immediately after a real activation. */
+export function useJustActivated(): boolean {
+  return useContext(ActivationCelebrationContext)?.justActivated === true
+}

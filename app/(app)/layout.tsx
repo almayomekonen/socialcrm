@@ -42,6 +42,7 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
 import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
 import ProActivationSuccess from '@/components/trial/ProActivationSuccess'
+import EducationMount from '@/components/education/EducationMount'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -190,6 +191,12 @@ async function LayoutContent({ children }) {
         <CopilotProvider enabled={copilotEnabled}>
           <CopilotContextStoreProvider>
             <ActivationCelebrationProvider>
+            <EducationMount
+              userId={user.id}
+              surface={mobileWorkspace ? 'mobile' : 'desktop'}
+              copilotEnabled={copilotEnabled}
+              toursEnabled={!trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace}
+            >
             {/*
               LOCAL DEVELOPMENT ONLY. `getActiveDeviceOverride()` returns null
               outside `next dev`, and with null this component renders its
@@ -255,6 +262,7 @@ async function LayoutContent({ children }) {
                 only right after a genuine activation, never on refresh/re-login. */}
             {trialStatus === 'TRIAL_ACTIVE' && <ProActivationSuccess />}
             </DeviceOverrideLinks>
+            </EducationMount>
             </ActivationCelebrationProvider>
           </CopilotContextStoreProvider>
         </CopilotProvider>

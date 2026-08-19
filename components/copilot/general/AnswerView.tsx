@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/dates'
 import { fallbackCopy } from '@/lib/copilot/general/fallback'
 import { attentionAllClear } from '@/lib/copilot/general/attentionState'
 import { buildAttentionDecision } from '@/lib/copilot/general/attentionDecision'
+import ShowMeButton from '@/components/education/ShowMeButton'
 
 const SOURCE_LABEL: Record<string, string> = {
   'followups.dueToday': 'הלידים שלך',
@@ -158,16 +159,19 @@ export default function AnswerView({
   if (answer.kind === 'guide') {
     return (
       <div className='space-y-1.5'>
-        <p className='text-sm text-gray-700'>{answer.answer}</p>
-        {answer.route && (
-          <DeepLink
-            href={answer.route}
-            source='guide'
-            className='inline-block text-xs font-medium text-gray-900 underline-offset-2 hover:underline'
-          >
-            פתח
-          </DeepLink>
-        )}
+        <p className='whitespace-pre-line text-sm text-gray-700'>{answer.answer}</p>
+        <div className='flex flex-wrap items-center gap-2'>
+          {answer.educationAction && <ShowMeButton action={answer.educationAction} disabled={!interactive} />}
+          {answer.route && !answer.educationAction && (
+            <DeepLink
+              href={answer.route}
+              source='guide'
+              className='inline-block text-xs font-medium text-gray-900 underline-offset-2 hover:underline'
+            >
+              {/[\u0590-\u05FF]/.test(answer.answer) ? 'פתח' : 'Open'}
+            </DeepLink>
+          )}
+        </div>
       </div>
     )
   }

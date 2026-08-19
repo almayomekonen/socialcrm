@@ -21,6 +21,8 @@ interface AccordionItemProps {
    * when the user is looking at it.
    */
   iconClassName?: string
+  /** Product education anchor (`data-edu`). Omitted when unused. */
+  edu?: string
 }
 
 export default function AccordionItem({
@@ -33,9 +35,10 @@ export default function AccordionItem({
   badge,
   id,
   iconClassName,
+  edu,
 }: AccordionItemProps) {
   return (
-    <details id={id} name='x' className='group/acrdn border-b-2 last:border-b-0' open={open}>
+    <details id={id} name='x' className='group/acrdn border-b-2 last:border-b-0' open={open} data-edu={edu}>
       <summary className={className}>
         <div className='flex items-center gap-2'>
           {icon && <Icon type='reg' className={twMerge('group-open/acrdn:bg-solid', iconClassName)} name={icon} />}

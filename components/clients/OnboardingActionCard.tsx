@@ -15,6 +15,7 @@ type BaseProps = {
   recommended?: boolean
   disabled?: boolean
   className?: string
+  'data-add-lead'?: string
 }
 
 type Props = BaseProps &
@@ -33,6 +34,7 @@ export default function OnboardingActionCard({
   className = '',
   href,
   onClick,
+  'data-add-lead': addLead,
 }: Props) {
   const base =
     'group flex items-center gap-5 rounded-2xl border bg-white p-6 text-start transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
@@ -62,15 +64,17 @@ export default function OnboardingActionCard({
     </>
   )
 
+  const addLeadAttr = addLead != null ? { 'data-add-lead': addLead } : undefined
+
   if (disabled) return <div className={cls}>{inner}</div>
   if (href)
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} {...addLeadAttr}>
         {inner}
       </Link>
     )
   return (
-    <button type='button' onClick={onClick} className={`${cls} w-full`}>
+    <button type='button' onClick={onClick} className={`${cls} w-full`} {...addLeadAttr}>
       {inner}
     </button>
   )

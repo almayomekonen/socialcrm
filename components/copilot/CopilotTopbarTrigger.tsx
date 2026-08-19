@@ -8,10 +8,11 @@ export default function CopilotTopbarTrigger() {
   if (!enabled) return null
 
   return (
-    <button
-      type='button'
-      onClick={toggle}
-      aria-label='עוזר חכם'
+      <button
+        type='button'
+        onClick={toggle}
+        data-edu='copilot-trigger'
+        aria-label='עוזר חכם'
       aria-expanded={open}
       aria-keyshortcuts='Meta+J Control+J'
       title='עוזר חכם · ⌘J'

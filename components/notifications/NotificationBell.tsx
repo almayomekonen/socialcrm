@@ -7,6 +7,7 @@ import Icon from '@/lib/Icon'
 import NavBadge from '@/lib/navs/NavBadge'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
 import { useNotifications } from '@/modules/notifications/NotificationContext'
+import { NOTIFICATIONS_EDU } from '@/lib/education/types'
 import { bellLabel, idsToStampSeen, renderedNotifications } from '@/modules/notifications/dropdown'
 import NotificationPanel from './NotificationPanel'
 
@@ -110,6 +111,7 @@ function Bell() {
         ref={btnRef}
         type='button'
         onClick={menu.toggle}
+        data-edu={NOTIFICATIONS_EDU}
         aria-label={bellLabel(unreadCount)}
         aria-expanded={menu.open}
         title='התראות'

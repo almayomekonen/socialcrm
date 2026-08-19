@@ -93,12 +93,13 @@ export default function WhatsappConnect({
     const notice = noticeForHealth(status)
     const canReconnect = status === 'unknown' || status === 'token' || status === 'webhook'
     return (
-      <div className='grid gap-4'>
+      <div className='grid gap-4' data-edu={canReconnect ? undefined : 'whatsapp-connect'}>
         {status === 'operational' && (
           <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
         )}
         {notice && <ConnectionNotice notice={notice} />}
         {canReconnect && (
+          <div data-edu='whatsapp-connect' className='w-fit'>
           <Btn
             lbl={loading ? 'מתחבר...' : (notice?.action ?? 'לחבר מחדש ולאמת')}
             icon={loading ? 'spinner' : 'whatsapp'}
@@ -108,6 +109,7 @@ export default function WhatsappConnect({
             className='w-fit bg-green-600'
             onClick={startEmbeddedSignup}
           />
+          </div>
         )}
         <Btn
           lbl={loading ? 'מנתק...' : 'נתק וואטסאפ'}
@@ -153,6 +155,7 @@ export default function WhatsappConnect({
             ))}
           </select>
         </FormField>
+        <div data-edu='whatsapp-connect' className='w-fit'>
         <Btn
           lbl={loading ? 'מחבר...' : (notice?.action ?? 'חבר וואטסאפ')}
           icon={loading ? 'spinner' : 'comment-dots'}
@@ -162,6 +165,7 @@ export default function WhatsappConnect({
           className='w-fit'
           onClick={() => selected && connectPhone(selected)}
         />
+        </div>
       </div>
     )
   }
@@ -173,6 +177,7 @@ export default function WhatsappConnect({
     <div className='grid gap-4'>
       {notice && <ConnectionNotice notice={notice} />}
       <p className='text-sm text-gray-500'>חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.</p>
+      <div data-edu='whatsapp-connect' className='w-fit'>
       <Btn
         lbl={loading ? 'מתחבר...' : (notice?.action ?? 'חבר וואטסאפ עסקי')}
         icon={loading ? 'spinner' : 'whatsapp'}
@@ -181,6 +186,7 @@ export default function WhatsappConnect({
         className='w-fit bg-green-600'
         onClick={startEmbeddedSignup}
       />
+      </div>
     </div>
   )
 }

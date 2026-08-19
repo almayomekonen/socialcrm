@@ -21,7 +21,7 @@ export default function LeadsFirstRun({
   const [openUpload, setOpenUpload] = useState(false);
 
   return (
-    <div dir='rtl' className='flex min-h-full w-full flex-col items-center justify-center px-6 py-16'>
+    <div dir='rtl' data-leads-empty='' className='flex min-h-full w-full flex-col items-center justify-center px-6 py-16'>
       <div className='w-full max-w-2xl'>
         {metaConnected ? (
           <>
@@ -45,6 +45,7 @@ export default function LeadsFirstRun({
                 tileClass='bg-ink'
                 title='הוסף ליד'
                 description='הוסף ליד ידנית עכשיו'
+                data-add-lead=''
               />
               {!whatsappConnected && (
                 <OnboardingActionCard
@@ -97,6 +98,7 @@ export default function LeadsFirstRun({
                 tileClass='bg-ink'
                 title='הוסף ליד ראשון'
                 description='הדרך המהירה ביותר להתחיל'
+                data-add-lead=''
               />
               <OnboardingActionCard
                 onClick={() => setOpenUpload(true)}

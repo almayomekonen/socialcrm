@@ -15,6 +15,13 @@ import type { GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
 vi.mock('@/components/copilot/general/DeepLink', () => ({ default: ({ children }: { children: React.ReactNode }) => <a>{children}</a> }))
 vi.mock('@/components/copilot/general/LeadRows', () => ({ default: () => null }))
 vi.mock('@/components/copilot/bodies/DriveResultsBody', () => ({ DriveResultsBody: () => null }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/leads',
+}))
+vi.mock('@/actions/education/recordEducationEvent', () => ({
+  recordEducationEvent: vi.fn(() => Promise.resolve()),
+}))
 
 const redirect: GeneralAnswer = { kind: 'fallback', mode: 'redirect', gap: null }
 const leadPick: GeneralAnswer = {
@@ -54,5 +61,19 @@ describe('AnswerView — stale turns are non-interactive (P0-2)', () => {
     expect(chip).not.toBeDisabled()
     fireEvent.click(chip)
     expect(onPick).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers a Show me action for a guided how-to and disables it on stale turns', () => {
+    const guide: GeneralAnswer = {
+      kind: 'guide',
+      answer: 'הפייפליין נמצא במסך לידים.\n\nאפשר להראות לך.',
+      route: '/leads',
+      educationAction: 'open_pipeline_tour',
+    }
+    const { rerender } = render(<AnswerView interactive answer={guide} onPick={vi.fn()} onPickLead={vi.fn()} />)
+    const showMe = screen.getByRole('button', { name: /הראה לי/ })
+    expect(showMe).not.toBeDisabled()
+    rerender(<AnswerView interactive={false} answer={guide} onPick={vi.fn()} onPickLead={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /הראה לי/ })).toBeDisabled()
   })
 })

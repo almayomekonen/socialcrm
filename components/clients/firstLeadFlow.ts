@@ -30,6 +30,11 @@ export function isFirstLeadFlow(leadId: number): boolean {
   return flow?.leadId === leadId
 }
 
+/** Any first-lead callout is on screen — other lead tours must wait. */
+export function isAnyFirstLeadFlowActive(): boolean {
+  return flow != null
+}
+
 /** End the flow (dismiss / back-to-leads) so it cannot re-show for this lead. */
 export function endFirstLeadFlow(leadId: number): void {
   if (flow?.leadId === leadId) flow = null

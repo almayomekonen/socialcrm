@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import ExportTable from '@/lib/table/export'
 import { leadSourceChannel, leadSourceLabel } from '@/lib/leads/leadSourceLabel'
+import { LEAD_OPEN_EDU } from '@/lib/education/types'
 import TableFooter from '../../lib/table/TableFooter'
 import { ActionsMenu, DEAL_ACTION_LABELS, DotsMenu, getActions, SelectClientGrpActions } from './funcs'
 import SelectClientLists from './SelectClientLists'
@@ -224,7 +225,15 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setState: setLiveLeads,
     moreHeads,
     moreRows,
-    funcs: { formatName, formatStatus, formatLeadSource, formatLeadStatus, formatState, formatNextAction, formatLastContact },
+    funcs: {
+      formatName: (name, obj) => formatName(name, obj, leads),
+      formatStatus,
+      formatLeadSource,
+      formatLeadStatus,
+      formatState,
+      formatNextAction,
+      formatLastContact,
+    },
     addTrCls: (item) => item.id === highlightedId ? 'bg-green-50 transition-all duration-500' : '',
     getColumns(columns) {
       saveTblPref(tblId, columns)
@@ -251,7 +260,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       >
         {statusAnnounce}
       </div>
-      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'}>
+      <div className={fillHeight ? 'flex flex-col min-h-0 flex-1' : 'grid'} data-edu={leads ? 'leads-table' : undefined}>
         <LeadsTableView
           leads={leads}
           activeTab={activeTab}
@@ -309,7 +318,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
               <SelectClientGrpActions user={user} />
               <SelectClientLists />
               <ExportTable data={mergedState} columns={columns} />
-              <Btn lbl={leads ? 'ליד חדש' : 'לקוח חדש'} icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
+              <Btn data-edu={leads ? 'leads-add' : undefined} lbl={leads ? 'ליד חדש' : 'לקוח חדש'} icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
             </div>
           </div>
         </LeadsTableView>
@@ -529,10 +538,10 @@ function formatLeadSource(source) {
 }
 
 
-function formatName(name, obj) {
+function formatName(name, obj, forLeads = false) {
   return (
     <span className='inline-flex items-center gap-2'>
-      <Link href={`/clients/${obj.id}/summary`} className='underline font-semibold'>
+      <Link href={`/clients/${obj.id}/summary`} className='underline font-semibold' data-edu={forLeads ? LEAD_OPEN_EDU : undefined}>
         {name}
       </Link>
       {obj.lead === false && (

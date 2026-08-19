@@ -103,6 +103,16 @@ export type AnalyticsEventName =
   // requestId, notification type and recipient CATEGORY only — never a message
   // body, subject, address, name or token.
   | 'support_notification_failed'
+  // --- Product education (Driver.js tours + in-app Help) ---
+  | 'tour_started'
+  | 'tour_step_viewed'
+  | 'tour_completed'
+  | 'tour_dismissed'
+  | 'contextual_help_opened'
+  | 'help_action_clicked'
+  | 'education_action_offered'
+  | 'education_action_clicked'
+  | 'education_tour_started_from_copilot'
 
 type TrackInput = {
   agencyId: number
