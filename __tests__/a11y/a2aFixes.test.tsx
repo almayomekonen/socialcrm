@@ -216,4 +216,25 @@ describe('A2a-4 lead card pressed state', () => {
     expect(link.getAttribute('href')).toBe('/clients/7/summary')
     expect(link.className).toContain('focus-visible:ring-2')
   })
+
+  test('status is coloured text with a dot, not a filled capsule', () => {
+    render(<LeadCardMobile lead={{ ...lead, status: 'contacted' }} followUp={null} />)
+    const status = screen.getByText('בטיפול')
+    expect(status.className).toContain('text-yellow-700')
+    expect(status.className).not.toContain('bg-yellow-50')
+    expect(status.className).not.toContain('px-1.5')
+    expect(status.className).not.toMatch(/\brounded\b/)
+  })
+
+  test('overdue follow-up stays distinguishable from status', () => {
+    render(
+      <LeadCardMobile
+        lead={{ ...lead, status: 'contacted' }}
+        followUp={{ label: 'מעקב באיחור', className: 'border-error-border bg-error-bg text-error-text', tone: 'error' }}
+      />,
+    )
+    expect(screen.getByText('בטיפול')).toBeTruthy()
+    const urgency = screen.getByText('מעקב באיחור')
+    expect(urgency.parentElement?.className).toContain('text-error-text')
+  })
 })

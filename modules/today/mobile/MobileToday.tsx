@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
-import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
 import type { MobileTodayModel } from './viewModel'
 import MobileTodayHero from './MobileTodayHero'
-import MobileLeadCallButton from './MobileLeadCallButton'
+import MobileTodayRow from './MobileTodayRow'
 
 /**
  * Today, on a phone. The mobile answer to "what should I do right now?".
@@ -17,8 +16,8 @@ import MobileLeadCallButton from './MobileLeadCallButton'
  * server/client business-day disagreement to have (architecture-rules.md §11).
  *
  * Not a port of the desktop dashboard: no progress bar, no three-up card grid,
- * no paginated table. One hero, two quiet lists, one line of counts —
- * vertically scannable, exactly one primary action.
+ * no paginated table. One hero (with the remaining count in its header), then
+ * the next-up and waiting lists — vertically scannable, action on the hero.
  */
 export default function MobileToday({ model }: { model: MobileTodayModel }) {
   const { hero, nextUp, rest, remaining, restTotal, doneToday, meetings, newLeadsCount } = model
@@ -28,15 +27,10 @@ export default function MobileToday({ model }: { model: MobileTodayModel }) {
   }
 
   return (
-    <div className='flex flex-col gap-4 px-4 pb-6 pt-4'>
-      {/* One line of truth, before anything else. */}
-      <p className='px-1 text-[13px] leading-tight text-gray-500 tabular-nums'>
-        {doneToday > 0 && <span className='font-semibold text-gray-800'>{`${doneToday} טופלו · `}</span>}
-        <span>{`${remaining} ממתינים`}</span>
-        {meetings > 0 ? ` · ${meetings} פגישות` : ''}
-      </p>
-
-      {hero && <MobileTodayHero row={hero} />}
+    <div className='flex flex-col gap-2 px-4 pb-4 pt-2'>
+      {hero && (
+        <MobileTodayHero row={hero} remaining={remaining} />
+      )}
 
       {nextUp.length > 0 && <RowSection id='next' title='אחר כך' rows={nextUp} />}
 
@@ -44,7 +38,6 @@ export default function MobileToday({ model }: { model: MobileTodayModel }) {
         <>
           <RowSection id='rest' title={`ממתינים (${restTotal})`} rows={rest} />
           {restTotal > rest.length && (
-            // Honest about the cap rather than silently truncating (§ "no silent caps").
             <p className='px-1 text-[12px] text-gray-400'>
               {`מוצגים ${rest.length} מתוך ${restTotal}. השאר במסך הלידים.`}
             </p>
@@ -59,21 +52,15 @@ function RowSection({ id, title, rows }: { id: string; title: string; rows: Mobi
   const headingId = `mobile-today-${id}`
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId} className='mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400'>
+      <h2 id={headingId} className='mb-1.5 px-1 text-sm font-semibold text-gray-500'>
         {title}
       </h2>
-      <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
-        <MobileList>
-          {rows.map((row) => (
-            <MobileListRow
-              key={row.id}
-              href={row.href as Route}
-              title={row.name || '—'}
-              subtitle={row.reason}
-              trailing={<MobileLeadCallButton phone={row.phone} name={row.name} />}
-            />
-          ))}
-        </MobileList>
+      {/* The hairlines live here so individual rows don't each carry a border
+          and double up at the seams — the job `MobileList` used to do. */}
+      <div className='divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white'>
+        {rows.map((row) => (
+          <MobileTodayRow key={row.id} row={row} />
+        ))}
       </div>
     </section>
   )

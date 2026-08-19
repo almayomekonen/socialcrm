@@ -1,10 +1,16 @@
+import { isPhoneEntity } from '@/components/mobile/skeletons/isPhoneEntity'
+import InboxListSkeletonMobile from '@/components/mobile/skeletons/InboxListSkeletonMobile'
+
 /**
  * Content-shaped skeleton — mirrors the comment row layout (avatar, name line,
  * body, footer) so the shell stays put while the list loads.
  * `frontend-experience-guidelines.md` §3: skeletons shadow the destination
  * layout; they never invent one, and they respect reduced motion.
+ *
+ * Phone never receives the desktop `grid` fallback.
  */
-export default function Loading() {
+export default async function Loading() {
+  if (await isPhoneEntity()) return <InboxListSkeletonMobile />
   return (
     <div className='grid gap-3 p-3 sm:p-4' aria-busy='true' aria-live='polite'>
       <span className='sr-only'>טוען תגובות</span>

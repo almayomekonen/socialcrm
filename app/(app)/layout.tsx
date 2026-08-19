@@ -16,17 +16,20 @@ import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import { NotificationProvider } from '@/modules/notifications/NotificationContext'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
+import { countUnreadNotifications } from '@/db/notifications/feed'
 import { CrmSyncHealthProvider } from '@/lib/polling/CrmSyncHealthContext'
 import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
-import { getActiveDeviceOverride, isMobileRequest } from '@/lib/device'
+import { getActiveDeviceOverride, getDeviceClass, isMobileRequest } from '@/lib/device'
 import DeviceOverrideLinks from '@/components/dev/DeviceOverrideLinks'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import MobileWorkspaceShell from '@/components/mobile/MobileWorkspaceShell'
+import { requestPathHint } from '@/components/mobile/skeletons/pathHint'
 import SkipLink from '@/components/layout/SkipLink'
 import OAuthResultToast from '@/components/settings/OAuthResultToast'
 import Loading from '@/components/ui/Loading'
+import MobileChromeSkeleton from '@/components/mobile/skeletons/MobileChromeSkeleton'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
@@ -155,6 +158,30 @@ async function LayoutContent({ children }) {
     !trialExpired &&
     trialStatus !== 'NEVER_STARTED'
 
+  /**
+   * The mobile tab bar's NOTIFICATION badge.
+   *
+   * Read separately from `inboxUnread` because they are separate facts:
+   * `inboxUnread` counts unread WhatsApp CONVERSATIONS and clears by replying,
+   * this counts unread NOTIFICATION rows and clears by reading them. The tab bar
+   * shows both, on their own tabs — see `mobileTabsWithBadges` for the defect
+   * this replaces.
+   *
+   * MOBILE-ONLY WORK. Desktop gets its notification count from
+   * `NotificationContext`'s poll (the bell), so this read would be pure waste on
+   * a desktop request — hence the `mobileWorkspace` guard, which also keeps the
+   * desktop render path byte-identical.
+   *
+   * Gated on `notificationsEnabled` for the same reason the provider is: with the
+   * feature off there is nothing to count, and `/api/notifications/*` would 404
+   * anyway. `.catch(() => 0)` mirrors `inboxUnread` exactly — a badge is never
+   * worth failing a workspace render over.
+   */
+  let notificationUnread = 0
+  if (mobileWorkspace && notificationsEnabled && user.agencyId) {
+    notificationUnread = await countUnreadNotifications({ agencyId: user.agencyId, userId: user.id }).catch(() => 0)
+  }
+
   return (
     <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
@@ -202,7 +229,9 @@ async function LayoutContent({ children }) {
                  * here would cost bundle weight on the exact devices that can
                  * least afford it, for a surface with no mobile design yet.
                  */
-                <MobileWorkspaceShell notificationCount={inboxUnread}>{children}</MobileWorkspaceShell>
+                <MobileWorkspaceShell notificationCount={notificationUnread} conversationCount={inboxUnread}>
+                  {children}
+                </MobileWorkspaceShell>
               ) : (
                 <>
                   <Topbar
@@ -239,11 +268,29 @@ async function LayoutContent({ children }) {
 }
 
 export default function AppLayout({ children }) {
+  /**
+   * TWO SUSPENSE LAYERS, because Cache Components forbids `headers()` in the
+   * layout itself.
+   *
+   * PhoneAwareShell is headers-only (no DB) and resolves the entity so the
+   * INNER fallback can be MobileChromeSkeleton on a phone and the existing
+   * spinner on desktop. LayoutContent still suspends on `getUser()` — that is
+   * the wait the user actually sees, and it must not be a desktop table or a
+   * size-32 spinner on a phone.
+   */
   return (
-    <>
-      <Suspense fallback={<Loading />}>
-        <LayoutContent>{children}</LayoutContent>
-      </Suspense>
-    </>
+    <Suspense fallback={<div className='h-dvh bg-bg' aria-busy='true' />}>
+      <PhoneAwareShell>{children}</PhoneAwareShell>
+    </Suspense>
+  )
+}
+
+async function PhoneAwareShell({ children }) {
+  const phone = (await getDeviceClass()) === 'phone'
+  const path = phone ? await requestPathHint() : ''
+  return (
+    <Suspense fallback={phone ? <MobileChromeSkeleton path={path} /> : <Loading />}>
+      <LayoutContent>{children}</LayoutContent>
+    </Suspense>
   )
 }

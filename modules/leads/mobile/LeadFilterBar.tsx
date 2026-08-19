@@ -55,35 +55,27 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
 
   return (
     /**
-     * HEADER HEIGHT IS THE PRODUCT DECISION HERE. The first version spent 91px
-     * of an 844px screen on chrome: a search row, then a whole separate row
-     * holding the single string "30 לידים". On a list screen every pixel above
-     * the fold is a lead the rep cannot see.
+     * PRIMARY TOOLBAR IS ONE ROW: search + filter icon.
      *
-     * The count now shares the row with the active-filter chips instead of
-     * owning one, and the container padding is tightened. Nothing was removed:
-     * search, filtering, the chips, the clear-all control and the live count are
-     * all still here, and the result count still announces itself politely.
-     *
-     * The bar keeps a solid background because it is `sticky` — a translucent
-     * header over a scrolling list is a legibility problem, not a style.
+     * Active-filter tokens never share that row — at 360px they stole width
+     * from the input and dropped the filter onto a second line. Tokens sit
+     * BELOW, only when something is active, as quiet state — not a bubble tray.
      */
     <div className='sticky top-0 z-20 border-b border-gray-200 bg-white px-3 pb-2 pt-2.5'>
-      <div className='flex items-center gap-2'>
+      <div data-testid='lead-search-filter-row' className='flex items-center gap-2'>
         <form onSubmit={submitSearch} role='search' className='relative min-w-0 flex-1'>
           <label htmlFor='lead-search' className='sr-only'>
             חיפוש לידים
           </label>
           <input
             id='lead-search'
-            // `type='search'` gives iOS the search key and a native clear affordance.
             type='search'
             inputMode='search'
             enterKeyHint='search'
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder='חיפוש לפי שם או טלפון'
-            className='h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-[15px] outline-none focus:border-primary focus:bg-white'
+            className='h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-base outline-none focus:border-primary focus:bg-white'
           />
           <Icon
             name='magnifying-glass'
@@ -113,17 +105,19 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
         </button>
       </div>
 
-      {/* Active filters are always visible — a filter you cannot see is a
-          "where did my leads go" support ticket (ux-guidelines §10). */}
       {hasAny && (
-        <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
+        <div
+          data-testid='lead-active-filters'
+          className='mt-0.5 flex min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+        >
           {filters.q && (
-            <Chip label={`"${filters.q}"`} onClear={() => go({ ...filters, q: '' })} clearLabel='נקה חיפוש' />
+            <ActiveFilter label={`"${filters.q}"`} onClear={() => go({ ...filters, q: '' })} clearLabel='נקה חיפוש' />
           )}
           {filters.status.map((s) => (
-            <Chip
+            <ActiveFilter
               key={s}
               label={STATUS_STYLES[s]?.label ?? s}
+              dot={STATUS_STYLES[s]?.dot}
               onClear={() => toggleStatus(s)}
               clearLabel={`הסר ${STATUS_STYLES[s]?.label ?? s}`}
             />
@@ -131,16 +125,13 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
           <button
             type='button'
             onClick={() => go({ q: '', status: [] })}
-            className='ms-auto flex min-h-11 items-center rounded px-2 text-[12px] font-medium text-primary-text underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            className='flex h-11 shrink-0 items-center px-2 text-[12px] font-medium text-primary-text underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             נקה הכל
           </button>
         </div>
       )}
 
-      {/* The count rides in the search row's slipstream rather than owning a
-          row of its own. `aria-live` is unchanged, so a filter change is still
-          announced. */}
       <p aria-live='polite' className='mt-1 text-[11px] tabular-nums leading-none text-gray-400'>
         {pending ? 'מעדכן…' : `${resultCount} לידים`}
       </p>
@@ -180,23 +171,34 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
 }
 
 /**
- * An active filter, as a single removable chip.
+ * An active filter, as a toolbar control — not a floating pill.
  *
- * THE WHOLE CHIP IS THE BUTTON. The first cut nested a 24×24 `×` inside a
- * non-interactive chip — measured at every viewport, that is a tap target barely
- * half the 44px minimum, and on a phone it is the kind of control users stab at
- * three times. One button, `min-h-11`, with the `×` as a visual affordance only.
+ * THE WHOLE CONTROL IS THE BUTTON. A nested 24×24 `×` was measured below the
+ * 44px minimum. One button, `h-11 min-w-11`, with the `×` as a visual affordance
+ * only. Chrome (capsule fill, border, rounded-full) was dropped so the strip
+ * reads as part of the search/filter bar rather than content above the list.
  */
-function Chip({ label, onClear, clearLabel }: { label: string; onClear: () => void; clearLabel: string }) {
+function ActiveFilter({
+  label,
+  dot,
+  onClear,
+  clearLabel,
+}: {
+  label: string
+  dot?: string
+  onClear: () => void
+  clearLabel: string
+}) {
   return (
     <button
       type='button'
       onClick={onClear}
       aria-label={clearLabel}
-      className='inline-flex min-h-11 items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 ps-3 pe-2.5 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+      className='inline-flex h-11 min-w-11 shrink-0 items-center gap-1 px-2 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
     >
-      <span className='text-[12px] font-medium text-gray-700'>{label}</span>
-      <span aria-hidden className='text-[15px] leading-none text-gray-500'>
+      {dot && <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${dot}`} />}
+      <span className='text-[13px] font-medium text-gray-700'>{label}</span>
+      <span aria-hidden className='text-[13px] leading-none text-gray-400'>
         ×
       </span>
     </button>

@@ -20,12 +20,21 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({
   recordLeadActionEvent: vi.fn(async () => {}),
 }))
-vi.mock('@/actions/clients', () => ({ updateLead: vi.fn(async () => ({})) }))
+vi.mock('@/actions/clients', () => ({
+  updateLead: vi.fn(async () => ({})),
+  upsertLead: vi.fn(async () => ({})),
+  getLeadByIdNum: vi.fn(async () => null),
+  uploadLeadData: vi.fn(async () => ({ data: [], wrongData: [] })),
+  addLeads: vi.fn(async () => ({ success: true, inserted: 0 })),
+  importLeadsFromCsv: vi.fn(async () => ({ inserted: 0, updated: 0, unchanged: 0, invalid: 0 })),
+}))
 vi.mock('@/actions/leadFollowUp', () => ({
   setLeadFollowUp: vi.fn(async () => ({})),
   clearLeadFollowUp: vi.fn(async () => ({})),
 }))
 vi.mock('@/actions/leadOutcome', () => ({ logLeadOutcome: vi.fn(async () => ({})) }))
+vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: vi.fn(async () => []) }))
+vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: vi.fn(async () => {}) }))
 
 import LeadDetailActions from '@/modules/leads/mobile/LeadDetailActions'
 import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
@@ -130,8 +139,10 @@ describe('lead list', () => {
     const { rerender } = render(
       <LeadListMobile rows={[]} filters={{ q: '', status: [] }} hasMore={false} page={1} workspaceEmpty nowMs={0} />,
     )
-    expect(screen.getByRole('heading', { name: 'עוד אין לידים במערכת' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'חבר מקור לידים' }).getAttribute('href')).toBe('/settings/integrations')
+    expect(screen.getByRole('heading', { name: 'בואו נתחיל' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'הוסף ליד' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'ייבוא לידים' })).toBeTruthy()
+    expect(screen.queryByText(/מחשב/)).toBeNull()
 
     rerender(
       <LeadListMobile

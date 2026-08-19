@@ -201,6 +201,8 @@ export const MOBILE_READY_ROUTES: Record<string, string> = {
   '/clients/[clientId]/summary': 'ליד — LeadDetailMobile, branched in the summary page; the /clients LIST is desktop-only',
   '/m': 'עוד — the mobile settings hub. Phone-only by server gate; desktop is redirected away',
   '/settings': 'Reached directly from עוד. SettingsChrome drops the desktop nav column on a phone',
+  '/settings/integrations':
+    'אינטגרציות — IntegrationsMobile (status cards + Ready Messages), branched in the integrations page',
   /**
    * NOT a desktop handoff, deliberately — the §5 question, answered by reading
    * the code rather than by assuming.

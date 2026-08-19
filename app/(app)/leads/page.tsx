@@ -51,6 +51,16 @@ export default async function LeadsPage({ searchParams }) {
       getMobileLeadList(user, filters, page),
       agencyHasAnyLeads(user),
     ])
+    let metaConnected = false
+    let whatsappConnected = false
+    if (!workspaceHasLeads) {
+      const [meta, wa] = await Promise.all([
+        getFacebookConnectionState(user.id),
+        user.agencyId != null ? getWhatsappConnectionState(user.agencyId) : Promise.resolve({ connected: false }),
+      ])
+      metaConnected = meta.connected && !meta.needsReconnect
+      whatsappConnected = wa.connected
+    }
     return (
       <LeadListMobile
         rows={list.rows}
@@ -62,6 +72,8 @@ export default async function LeadsPage({ searchParams }) {
         // know which one it is in.
         workspaceEmpty={!workspaceHasLeads}
         nowMs={Date.now()}
+        metaConnected={metaConnected}
+        whatsappConnected={whatsappConnected}
       />
     )
   }

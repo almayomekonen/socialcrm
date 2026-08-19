@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import SendReadyMessage from '@/components/clients/SendReadyMessage'
+import SendReadyMessageMobile from '@/components/clients/SendReadyMessageMobile'
 import {
   INTEGRATIONS_SETTINGS_HREF,
   SERVICE_WINDOW_COPY,
@@ -33,12 +34,15 @@ export default function WhatsappComposerPanel({
   messages,
   facts,
   textComposer,
+  readyMessageSurface = 'modal',
 }: {
   leadId: number | null
   conversationId?: number | null
   messages: ReadonlyArray<{ direction: string; timestamp?: string | null }>
   facts: WhatsappComposerFacts
   textComposer: ReactNode
+  /** Phone Inbox uses a sheet. Desktop keeps the existing middle modal. */
+  readyMessageSurface?: 'modal' | 'sheet'
 }) {
   const window = resolveWhatsappServiceWindow(latestInboundTimestamp(messages))
   const decision = resolveWhatsappComposerDecision({
@@ -81,11 +85,12 @@ export default function WhatsappComposerPanel({
   }
 
   if (decision.kind === 'template' && leadId != null) {
+    const Picker = readyMessageSurface === 'sheet' ? SendReadyMessageMobile : SendReadyMessage
     return (
       <div className='grid gap-2'>
         <p className='text-sm font-medium text-gray-800'>{SERVICE_WINDOW_COPY.closedTitle}</p>
         <p className='text-sm text-gray-500'>{SERVICE_WINDOW_COPY.closedBody}</p>
-        <SendReadyMessage
+        <Picker
           leadId={leadId}
           conversationId={conversationId}
           templates={facts.templates}

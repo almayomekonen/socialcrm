@@ -44,9 +44,13 @@ function titleFor(pathname: string): { title: string; isTab: boolean } {
 export default function MobileWorkspaceShell({
   children,
   notificationCount = 0,
+  conversationCount = 0,
 }: {
   children: ReactNode
+  /** Unread NOTIFICATION rows → the התראות tab. */
   notificationCount?: number
+  /** Unread WhatsApp CONVERSATIONS → the שיחות tab. */
+  conversationCount?: number
 }) {
   const pathname = usePathname()
   const { title, isTab } = titleFor(pathname)
@@ -77,7 +81,7 @@ export default function MobileWorkspaceShell({
         {children}
       </main>
 
-      <MobileTabBar notificationCount={notificationCount} />
+      <MobileTabBar notificationCount={notificationCount} conversationCount={conversationCount} />
     </div>
   )
 }

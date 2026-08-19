@@ -49,6 +49,61 @@ export type MobileTodayModel = {
 
 const leadHref = (id: number) => `/clients/${id}/summary`
 
+/**
+ * How many rows sit in "אחר כך", between the hero and the list.
+ *
+ * ONE constant, applied by ONE function, so the two pipelines cannot drift.
+ */
+const NEXT_UP_MAX = 2
+
+/**
+ * The shared presentation partition — the whole of the v1/v2 normalisation.
+ *
+ * WHAT THIS FIXES. Both pipelines already produced `{hero, nextUp, rest}`, but
+ * each computed the split itself: v2 sliced one ordered list at fixed offsets,
+ * while v1 took `hero`/`nextUp` from `recommended` and `rest` from a different
+ * array, with no shared rule and no cap in common. Two hand-rolled partitions of
+ * the same screen is exactly the kind of divergence that drifts on the next edit.
+ *
+ * WHAT IT DELIBERATELY DOES NOT DO. It does not rank, score, filter, dedupe,
+ * merge or reorder. It receives lists that upstream has ALREADY ordered and
+ * emits the same items, in the same order, cut into three presentation buckets:
+ *
+ *     [...ordered, ...overflow]  ===  [hero, ...nextUp, ...rest]
+ *
+ * That identity is the contract, and it is asserted directly in the tests.
+ *
+ * WHY `overflow` EXISTS RATHER THAN ONE CONCATENATED LIST. v1's `rest` comes from
+ * `snapshot.tableRows`, a genuinely different query from `snapshot.recommended`
+ * (and already disjoint from it: `tableRows = due.filter(r => !recommendedIds
+ * .has(r.id))`, so no lead can appear twice). Concatenating them before the split
+ * would let a `tableRows` item be promoted into "אחר כך" whenever `recommended`
+ * returned fewer than three — moving an item between sections, which is a
+ * behaviour change, not a normalisation. Keeping the head and the tail separate
+ * makes the output byte-identical to what each pipeline produced before.
+ */
+function assemble(args: {
+  /** Priority-ordered head. v2: every brief item. v1: `recommended` (≤ 3). */
+  ordered: MobileTodayRow[]
+  /** Rows that follow the head. v2: none. v1: `tableRows`. */
+  overflow?: MobileTodayRow[]
+  remaining: number
+  restTotal: number
+  doneToday: number
+  meetings: number
+  newLeadsCount: number
+  source: MobileTodayModel['source']
+}): MobileTodayModel {
+  const { ordered, overflow = [], ...counts } = args
+
+  return {
+    hero: ordered[0] ?? null,
+    nextUp: ordered.slice(1, 1 + NEXT_UP_MAX),
+    rest: [...ordered.slice(1 + NEXT_UP_MAX), ...overflow],
+    ...counts,
+  }
+}
+
 function toRow(input: {
   id: number
   name: string | null
@@ -87,17 +142,30 @@ export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
     }),
   )
 
-  return {
-    hero: rows[0] ?? null,
-    nextUp: rows.slice(1, 3),
-    rest: rows.slice(3),
+  return assemble({
+    ordered: rows,
     remaining: brief.remaining,
-    restTotal: Math.max(0, rows.length - 3),
+    /**
+     * Deliberately `rows.length`, not `brief.total`, even though the two are
+     * equal today (`total: items.length`, lib/today/service.ts): the brief
+     * renders every item it selected, with no server-side truncation, so the
+     * rows left over after hero+nextUp ARE the true remainder. Keeping the
+     * literal expression makes this value byte-identical to the previous
+     * implementation rather than merely equal by a coincidence upstream could
+     * change. The "מוצגים X מתוך Y" line therefore stays silent on v2 because
+     * nothing is being hidden — the honest outcome, not a missing warning.
+     */
+    restTotal: Math.max(0, rows.length - (1 + NEXT_UP_MAX)),
     doneToday: brief.handledToday,
     meetings: brief.meetings.length,
+    /**
+     * v2 carries no new-lead count (`TodayBrief` has no such field), and inventing
+     * one would mean a new query — out of scope and forbidden here. The clear-state
+     * CTA falls back to "כל הלידים", which is true for both pipelines.
+     */
     newLeadsCount: 0,
     source: 'brief_v2',
-  }
+  })
 }
 
 /** v1 — the legacy worklist. Same picks the desktop dashboard renders. */
@@ -123,15 +191,21 @@ export function modelFromSnapshot(snapshot: Omit<TodaySnapshot, 'hasLeads'>, now
     href: leadHref(row.id),
   }))
 
-  return {
-    hero: recommended[0] ?? null,
-    nextUp: recommended.slice(1),
-    rest,
+  /**
+   * `recommended` is capped at `recommendCount` (3) upstream — `pickTopRecommended`
+   * ends in `.slice(0, n)` and `mergeWaitingSpotlight` in `.slice(0, limit)` — so
+   * `ordered` never exceeds three and `assemble` puts every one of its non-hero
+   * entries in `nextUp`, exactly as `recommended.slice(1)` did. `tableRows` is
+   * already disjoint from it, so `rest` is unchanged too.
+   */
+  return assemble({
+    ordered: recommended,
+    overflow: rest,
     remaining: snapshot.dueCount,
     restTotal: snapshot.tableTotal,
     doneToday: snapshot.doneToday,
     meetings: snapshot.meetings.length,
     newLeadsCount: snapshot.newLeadsCount,
     source: 'worklist_v1',
-  }
+  })
 }

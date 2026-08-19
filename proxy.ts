@@ -73,6 +73,14 @@ export async function proxy(request: NextRequest) {
 function appResponse(request: NextRequest): NextResponse {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.delete(DEVICE_OVERRIDE_HEADER)
+  // Path for phone loading UI. Deleted first so a client cannot spoof it;
+  // the value is always this request's own URL. Does not participate in
+  // DeviceClass — getDeviceClass() never reads it.
+  requestHeaders.delete('x-socialcrm-path')
+  requestHeaders.set(
+    'x-socialcrm-path',
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+  )
 
   if (isDeviceOverrideAllowed()) {
     const override = parseDeviceOverride(request.nextUrl.searchParams.get(DEVICE_OVERRIDE_PARAM))

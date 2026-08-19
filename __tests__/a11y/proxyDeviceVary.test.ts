@@ -142,6 +142,11 @@ describe('the device override is proxy-owned', () => {
     expect(forwardedOverride(res)).toBeNull()
   })
 
+  test('the request path is forwarded for loading UI, and a spoofed copy loses', async () => {
+    const res = await proxy(signedIn('/leads?status=new', { 'x-socialcrm-path': '/inbox' }))
+    expect(res.headers.get('x-middleware-request-x-socialcrm-path')).toBe('/leads?status=new')
+  })
+
   test('an inbound override header is STRIPPED — a client cannot inject it', async () => {
     // Production is already safe twice over (the proxy will not set it, and
     // lib/device.ts will not read it), but the header is deleted in EVERY

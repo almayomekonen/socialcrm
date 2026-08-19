@@ -150,8 +150,22 @@ describe('mobile Today', () => {
       />,
     )
     expect(screen.getByText('צריך לטפל עכשיו')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'פתח שיחה' }).getAttribute('href')).toBe('/inbox?conversation=88')
     expect(screen.getByText('נותרו 17 שעות בחלון WhatsApp')).toBeTruthy()
+
+    /**
+     * P0-1 CHANGED THE NAME, NOT THE GUARANTEE. The conversation entry point is
+     * still here and still points at thread 88 — it is now the trailing control
+     * and names the lead ("פתח שיחה עם …"), because the wide primary slot is
+     * occupied by the two contact actions this hero previously lacked.
+     */
+    expect(screen.getByRole('link', { name: 'פתח שיחה עם דני לוי 1' }).getAttribute('href')).toBe(
+      '/inbox?conversation=88',
+    )
+
+    // The gain: a waiting hero used to offer exactly ONE action. It can now be
+    // called and messaged without leaving Today.
+    expect(screen.getByRole('link', { name: 'התקשר לדני לוי 1' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'וואטסאפ לדני לוי 1' })).toBeTruthy()
   })
 
   test('4b. a lead with no phone still offers a way in (never a dead row)', () => {

@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
+import { isMobileWorkspaceRequest } from '@/lib/device'
 import LeadSourcesSection from '@/components/settings/integrations/LeadSourcesSection'
 import ConnectedToolsSection from '@/components/settings/integrations/ConnectedToolsSection'
+import IntegrationsMobile from '@/modules/settings/mobile/IntegrationsMobile'
 
 export const metadata: Metadata = { title: 'אינטגרציות' }
 
@@ -33,6 +35,10 @@ export default async function IntegrationsSettingsPage({
   // no client state — UrlSyncedAccordion only writes the param back.
   const { section } = (searchParams ? await searchParams : {}) || {}
   const activeSection = typeof section === 'string' ? section : null
+
+  if (await isMobileWorkspaceRequest(user.agencyId)) {
+    return <IntegrationsMobile user={user} activeSection={activeSection} />
+  }
 
   return (
     <div>

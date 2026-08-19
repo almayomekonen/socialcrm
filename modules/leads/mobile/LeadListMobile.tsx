@@ -11,6 +11,7 @@ import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
 import LeadCardMobile from './LeadCardMobile'
 import { followUpBadge } from './followUpBadge'
 import LeadFilterBar from './LeadFilterBar'
+import LeadsFirstRunMobile from './LeadsFirstRunMobile'
 
 /**
  * The mobile lead list — the Phase A replacement for the `/leads` handoff.
@@ -35,6 +36,8 @@ export default function LeadListMobile({
   page,
   workspaceEmpty,
   nowMs,
+  metaConnected = false,
+  whatsappConnected = false,
 }: {
   rows: MobileLeadRow[]
   filters: LeadFilters
@@ -42,10 +45,14 @@ export default function LeadListMobile({
   page: number
   workspaceEmpty: boolean
   nowMs: number
+  metaConnected?: boolean
+  whatsappConnected?: boolean
 }) {
   // The workspace has no leads at all — a different situation from "your filter
   // matched nothing", and it gets different copy and a different action.
-  if (workspaceEmpty) return <LeadsFirstRunMobile />
+  if (workspaceEmpty) {
+    return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected} />
+  }
 
   const dayStart = startOfBusinessDayMs(nowMs)
 
@@ -133,36 +140,6 @@ function FilteredEmpty({ filters }: { filters: LeadFilters }) {
       >
         נקה סינון
       </Link>
-    </div>
-  )
-}
-
-/**
- * No leads in the workspace at all. Mirrors the intent of the desktop
- * `LeadsFirstRun` — connect a source, because that is the action that makes
- * leads arrive by themselves — without porting its four-card grid. Adding and
- * importing are Phases 8/C and are named as desktop work rather than offered as
- * buttons that do not exist yet.
- */
-function LeadsFirstRunMobile() {
-  return (
-    <div className='flex flex-col items-center gap-5 px-6 py-14 text-center'>
-      <span className='flex size-14 items-center justify-center rounded-2xl bg-primary-tint'>
-        <Icon name='plug' type='sol' className='size-6 bg-primary' />
-      </span>
-      <div className='max-w-[320px]'>
-        <h2 className='text-lg font-bold leading-tight text-ink'>עוד אין לידים במערכת</h2>
-        <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>
-          חברו את וואטסאפ או את פייסבוק ואינסטגרם, וכל ליד חדש יופיע כאן אוטומטית.
-        </p>
-      </div>
-      <Link
-        href={'/settings/integrations' as Route}
-        className='flex min-h-11 items-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-      >
-        חבר מקור לידים
-      </Link>
-      <p className='text-[12px] text-gray-400'>ייבוא מאקסל והוספה ידנית זמינים כרגע במחשב</p>
     </div>
   )
 }

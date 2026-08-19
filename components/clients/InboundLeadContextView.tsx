@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import Icon from '@/lib/Icon'
+import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
+import { facebookCapturedFieldLabels } from '@/lib/leads/inboundLeadContextData'
 
 /**
  * Presentational, side-effect-free view for the "this lead arrived automatically"
@@ -43,7 +45,7 @@ export function InboundLeadContextView({
 }: Props) {
   if (channel === 'facebook') {
     // Evidence labels for the categories actually present — never the values.
-    const capturedLabels = [hasName && 'שם', hasPhone && 'טלפון', hasEmail && 'אימייל'].filter(Boolean) as string[]
+    const capturedLabels = facebookCapturedFieldLabels(hasName, hasPhone, hasEmail)
     return (
       <section dir='rtl' className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
         <div className='flex items-start gap-3'>
@@ -51,13 +53,22 @@ export function InboundLeadContextView({
             <Icon name='facebook' type='reg' aria-hidden className='size-4 bg-[#1877F2]' />
           </span>
           <div className='min-w-0 flex-1'>
-            <h2 className='text-sm font-semibold text-ink'>הליד הזה הגיע אליך אוטומטית מ־Facebook</h2>
-            <p className='mt-0.5 text-sm text-gray-600'>הלקוח מילא את הטופס שלך, ו־SocialCRM קלט את הפרטים עבורך אוטומטית.</p>
+            <h2 className='text-sm font-semibold text-ink'>{INBOUND_LEAD_COPY.facebookHeadline}</h2>
+            <p className='mt-0.5 text-sm text-gray-600'>{INBOUND_LEAD_COPY.facebookBody}</p>
 
             {capturedLabels.length > 0 || capturedAt ? (
               <div className='mt-2 flex flex-col gap-0.5 text-xs text-gray-500'>
-                {capturedLabels.length > 0 ? <p>נקלטו אוטומטית: {capturedLabels.join(' · ')}</p> : null}
-                {capturedAt ? <p>נקלט אצלך ב־{capturedAt}</p> : null}
+                {capturedLabels.length > 0 ? (
+                  <p>
+                    {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {capturedLabels.join(' · ')}
+                  </p>
+                ) : null}
+                {capturedAt ? (
+                  <p>
+                    {INBOUND_LEAD_COPY.capturedAtPrefix}
+                    {capturedAt}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -68,8 +79,8 @@ export function InboundLeadContextView({
 
   // WhatsApp. Supporting copy reflects whether a conversation was captured too.
   const supporting = conversationId
-    ? 'SocialCRM קלט את הליד והשיחה ברגע שהלקוח פנה אליך.'
-    : 'SocialCRM קלט את הליד ברגע שהלקוח פנה אליך.'
+    ? INBOUND_LEAD_COPY.whatsappWithConversation
+    : INBOUND_LEAD_COPY.whatsappWithoutConversation
 
   return (
     <section dir='rtl' className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
@@ -78,7 +89,7 @@ export function InboundLeadContextView({
           <Icon name='whatsapp' type='reg' aria-hidden className='size-4 bg-[#25D366]' />
         </span>
         <div className='min-w-0 flex-1'>
-          <h2 className='text-sm font-semibold text-ink'>הליד הזה הגיע אליך אוטומטית מ־WhatsApp</h2>
+          <h2 className='text-sm font-semibold text-ink'>{INBOUND_LEAD_COPY.whatsappHeadline}</h2>
           <p className='mt-0.5 text-sm text-gray-600'>{supporting}</p>
 
           {preview ? (
@@ -99,7 +110,7 @@ export function InboundLeadContextView({
               className='mt-3 inline-flex h-9 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50'
             >
               <Icon name='whatsapp' type='reg' aria-hidden className='size-3.5 bg-[#25D366]' />
-              פתח את השיחה
+              {INBOUND_LEAD_COPY.openConversation}
             </Link>
           ) : null}
         </div>

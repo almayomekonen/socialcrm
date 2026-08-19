@@ -51,15 +51,15 @@ export default function ConversationSearchBar({ q, resultCount }: { q: string; r
       </form>
 
       {q && (
-        <div className='mt-2 flex items-center gap-2'>
+        <div className='mt-2 flex items-center'>
           <button
             type='button'
             onClick={() => startTransition(() => router.push('/inbox' as never))}
-            className='inline-flex min-h-11 items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 ps-3 pe-2.5 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            className='inline-flex h-11 min-w-11 items-center gap-1 px-1 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             aria-label='נקה חיפוש'
           >
-            <span className='text-[12px] font-medium text-gray-700'>{`"${q}"`}</span>
-            <span aria-hidden className='text-[15px] leading-none text-gray-500'>
+            <span>{`"${q}"`}</span>
+            <span aria-hidden className='text-[13px] leading-none text-gray-400'>
               ×
             </span>
           </button>

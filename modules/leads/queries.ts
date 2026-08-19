@@ -110,6 +110,8 @@ export type MobileLeadDetail = MobileLeadRow & {
   lastOutcomeType: string | null
   leadSource: string | null
   secPhone: string | null
+  firstName: string | null
+  lastName: string | null
 }
 
 /**
@@ -148,5 +150,7 @@ export async function getMobileLeadDetail(leadId: number): Promise<MobileLeadDet
     lastOutcomeType: row.lastOutcomeType ?? null,
     leadSource: row.leadSource ?? null,
     secPhone: row.secPhone ?? null,
+    firstName: row.firstName ?? null,
+    lastName: row.lastName ?? null,
   }
 }

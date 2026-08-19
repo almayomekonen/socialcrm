@@ -1,0 +1,87 @@
+import Link from 'next/link'
+import Icon from '@/lib/Icon'
+import type { IconNames } from '@/lib/Icon'
+import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
+import type { MobileProvenanceModel, ProvenanceVisual } from './leadProvenanceModel'
+
+/**
+ * Mobile-native provenance card. Same information as desktop inbound context,
+ * laid out for a phone: stacked type, wrapping Hebrew, circular channel mark.
+ *
+ * Informational by default — only the existing WhatsApp "open conversation"
+ * control is interactive, and it is a sibling of the copy, never wrapping it.
+ */
+
+const VISUAL: Record<ProvenanceVisual, { icon: IconNames; type: 'reg' | 'sol'; wrap: string; mark: string }> = {
+  facebook: { icon: 'facebook', type: 'reg', wrap: 'bg-[#1877F2]/10', mark: 'bg-[#1877F2]' },
+  whatsapp: { icon: 'whatsapp', type: 'reg', wrap: 'bg-[#25D366]/10', mark: 'bg-[#25D366]' },
+  instagram: { icon: 'instagram', type: 'reg', wrap: 'bg-[#E4405F]/10', mark: 'bg-[#E4405F]' },
+  website: { icon: 'globe', type: 'sol', wrap: 'bg-violet-100', mark: 'bg-violet-700' },
+  manual: { icon: 'user-pen', type: 'sol', wrap: 'bg-gray-100', mark: 'bg-gray-600' },
+  import: { icon: 'file-excel', type: 'sol', wrap: 'bg-gray-100', mark: 'bg-ink' },
+  other: { icon: 'circle-info', type: 'sol', wrap: 'bg-gray-100', mark: 'bg-gray-600' },
+}
+
+export default function LeadProvenanceCard({ model }: { model: MobileProvenanceModel }) {
+  const visual = VISUAL[model.visual]
+  const hasMeta = model.capturedLabels.length > 0 || !!model.capturedAt
+
+  return (
+    <section
+      dir='rtl'
+      data-testid='lead-provenance-mobile'
+      data-source-visual={model.visual}
+      className='mt-4 rounded-xl border border-gray-200 bg-white p-4'
+    >
+      <div className='flex items-start gap-3'>
+        <span
+          className={`flex size-11 shrink-0 items-center justify-center rounded-full ${visual.wrap}`}
+          aria-hidden
+        >
+          <Icon name={visual.icon} type={visual.type} className={`size-5 ${visual.mark}`} />
+        </span>
+        <div className='min-w-0 flex-1'>
+          <h2 className='text-base font-semibold leading-snug break-words text-ink'>{model.headline}</h2>
+          {model.body ? (
+            <p className='mt-1 text-sm leading-relaxed break-words text-gray-600'>{model.body}</p>
+          ) : null}
+
+          {model.preview ? (
+            <p
+              dir='auto'
+              className='mt-3 line-clamp-2 break-words rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-700'
+            >
+              {model.preview}
+            </p>
+          ) : null}
+
+          {hasMeta ? (
+            <div className='mt-3 flex flex-col gap-1 text-sm leading-relaxed text-gray-500'>
+              {model.capturedLabels.length > 0 ? (
+                <p className='break-words'>
+                  {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {model.capturedLabels.join(' · ')}
+                </p>
+              ) : null}
+              {model.capturedAt ? (
+                <p className='break-words'>
+                  {INBOUND_LEAD_COPY.capturedAtPrefix}
+                  {model.capturedAt}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {model.conversationId ? (
+            <Link
+              href={`/inbox?conversation=${model.conversationId}`}
+              className='mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800'
+            >
+              <Icon name='whatsapp' type='reg' aria-hidden className='size-4 bg-[#25D366]' />
+              {INBOUND_LEAD_COPY.openConversation}
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  )
+}

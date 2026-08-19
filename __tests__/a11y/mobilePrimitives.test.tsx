@@ -134,10 +134,51 @@ describe('MobileTabBar', () => {
     expect(screen.getByRole('link', { name: 'התראות' })).toBeTruthy()
   })
 
-  test('4c. the badge helper only ever badges the notifications tab', () => {
-    const tabs = mobileTabsWithBadges(7)
-    expect(tabs.filter((t) => t.badge != null)).toHaveLength(1)
-    expect(tabs.find((t) => t.badge === 7)?.href).toBe('/notifications')
+  /**
+   * P0-3 REGRESSION LOCK — THE TWO BADGES ARE INDEPENDENT.
+   *
+   * This test previously asserted "only ever badges the notifications tab",
+   * which encoded the defect rather than catching it: the single count the
+   * helper took was `inboxUnread` (unread WhatsApp CONVERSATIONS), so the
+   * התראות badge could only be cleared by replying to messages — never by
+   * reading notifications, which is what a user tapping that tab is doing.
+   *
+   * The two counts come from different tables and clear through different
+   * actions, so every assertion below pins them to their own tab with DISTINCT
+   * values. Equal values would let a future swap pass unnoticed.
+   */
+  test('4c. each badge lands on its own tab — notifications ≠ conversations', () => {
+    const tabs = mobileTabsWithBadges({ notifications: 7, conversations: 4 })
+
+    expect(tabs.find((t) => t.href === '/notifications')?.badge).toBe(7)
+    expect(tabs.find((t) => t.href === '/inbox')?.badge).toBe(4)
+
+    // No other tab is badged: היום / לידים / עוד carry no live count.
+    expect(tabs.filter((t) => t.badge != null).map((t) => t.href).sort()).toEqual(['/inbox', '/notifications'])
+  })
+
+  test('4d. the counts are independent — one at zero never suppresses the other', () => {
+    const noNotifs = mobileTabsWithBadges({ notifications: 0, conversations: 5 })
+    expect(noNotifs.find((t) => t.href === '/notifications')?.badge).toBe(0)
+    expect(noNotifs.find((t) => t.href === '/inbox')?.badge).toBe(5)
+
+    const noConvos = mobileTabsWithBadges({ notifications: 5, conversations: 0 })
+    expect(noConvos.find((t) => t.href === '/notifications')?.badge).toBe(5)
+    expect(noConvos.find((t) => t.href === '/inbox')?.badge).toBe(0)
+  })
+
+  test('4e. rendered: reading all notifications clears only the התראות badge', () => {
+    // Unread notifications AND unread conversations.
+    const { unmount } = render(<MobileTabBar notificationCount={3} conversationCount={2} />)
+    expect(screen.getByRole('link', { name: 'התראות, 3 חדשות' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'שיחות, 2 חדשות' })).toBeTruthy()
+    unmount()
+
+    // The user reads every notification. Conversations are untouched, so the
+    // שיחות badge must survive — the exact symptom the bug produced in reverse.
+    render(<MobileTabBar notificationCount={0} conversationCount={2} />)
+    expect(screen.getByRole('link', { name: 'התראות' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'שיחות, 2 חדשות' })).toBeTruthy()
   })
 
   test('every tab has a visible text label, never icon-only', () => {

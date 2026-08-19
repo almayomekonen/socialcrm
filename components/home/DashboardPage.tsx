@@ -9,6 +9,8 @@ import { logBriefServed, logBriefFailure } from '@/lib/today/telemetry'
 import TodayBriefView from '@/components/home/today/TodayBriefView'
 import { getFirstName } from '@/lib/users/displayName'
 import { resolveTodayScope, resolveTodaySnapshot } from '@/modules/today/queries'
+import { getFacebookConnectionState } from '@/db/facebook'
+import { getWhatsappConnectionState } from '@/db/whatsapp'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import MobileToday from '@/modules/today/mobile/MobileToday'
@@ -26,12 +28,19 @@ export default async function DashboardPage() {
   const { gotPermIds, hasLeads } = await resolveTodayScope(user)
 
   if (!hasLeads) {
-    // Desktop keeps its existing redirect to the first-run screen. Mobile does
-    // NOT: /leads on a phone is the Phase 2 handoff, so redirecting a brand-new
-    // mobile user there would land them on "not here yet" as the very first
-    // thing they see. They get a real empty state instead.
+    // Desktop keeps its existing redirect to LeadsFirstRun. Mobile renders the
+    // same first-run surface as empty /leads — add, import, or connect channels.
     if (!mobile) redirect('/leads')
-    return <MobileTodayEmpty />
+    const [meta, wa] = await Promise.all([
+      getFacebookConnectionState(user.id),
+      user.agencyId != null ? getWhatsappConnectionState(user.agencyId) : Promise.resolve({ connected: false }),
+    ])
+    return (
+      <MobileTodayEmpty
+        metaConnected={meta.connected && !meta.needsReconnect}
+        whatsappConnected={wa.connected}
+      />
+    )
   }
 
   // Today Brief v2 — rollout-gated, RSC-only, DARK by default (TODAY_BRIEF_V2 unset

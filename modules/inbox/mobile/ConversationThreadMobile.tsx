@@ -116,6 +116,7 @@ export default function ConversationThreadMobile({
             conversationId={conversationId}
             messages={messages}
             facts={composerFacts}
+            readyMessageSurface='sheet'
             textComposer={
               <form onSubmit={onSend} className='flex items-end gap-2'>
                 <label htmlFor='composer' className='sr-only'>

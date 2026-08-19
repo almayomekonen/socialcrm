@@ -20,9 +20,19 @@ import path from 'node:path'
 import { vi } from 'vitest'
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: () => {}, back: () => {} }),
+  useRouter: () => ({ push: () => {}, back: () => {}, refresh: () => {} }),
   usePathname: () => '/leads',
 }))
+vi.mock('@/actions/clients', () => ({
+  updateLead: async () => ({}),
+  upsertLead: async () => ({}),
+  getLeadByIdNum: async () => null,
+  uploadLeadData: async () => ({ data: [], wrongData: [] }),
+  addLeads: async () => ({ success: true, inserted: 0 }),
+  importLeadsFromCsv: async () => ({ inserted: 0, updated: 0, unchanged: 0, invalid: 0 }),
+}))
+vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
+vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: async () => {} }))
 vi.mock('@/actions/trial', () => ({
   startTrial: async () => ({ ok: true, started: true }),
   trackWelcomeModalSeen: async () => ({ ok: true }),

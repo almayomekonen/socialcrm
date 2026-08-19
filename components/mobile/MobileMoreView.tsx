@@ -40,7 +40,7 @@ export default function MobileMoreView({
           <section key={section} aria-labelledby={`more-${section}`}>
             <h2
               id={`more-${section}`}
-              className='mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400'
+              className='mb-1.5 px-1 text-sm font-semibold text-gray-500'
             >
               {MORE_SECTION_LABELS[section]}
             </h2>
@@ -67,7 +67,7 @@ export default function MobileMoreView({
         that was quietly removed (mobile-parity-matrix.md, RED tier).
       */}
       <section aria-labelledby='more-desktop'>
-        <h2 id='more-desktop' className='mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400'>
+        <h2 id='more-desktop' className='mb-1.5 px-1 text-sm font-semibold text-gray-500'>
           במחשב
         </h2>
         <div className='rounded-xl border border-gray-200 bg-white p-4'>
@@ -81,7 +81,7 @@ export default function MobileMoreView({
       </section>
 
       <section aria-labelledby='more-session'>
-        <h2 id='more-session' className='mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400'>
+        <h2 id='more-session' className='mb-1.5 px-1 text-sm font-semibold text-gray-500'>
           {MORE_SECTION_LABELS.account}
         </h2>
         <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>

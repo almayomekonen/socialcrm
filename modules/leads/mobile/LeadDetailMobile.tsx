@@ -7,14 +7,15 @@ import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSk
 import type { MobileLeadDetail } from '@/modules/leads/queries'
 import { followUpBadge } from './followUpBadge'
 import LeadDetailActions from './LeadDetailActions'
+import LeadProvenance from './LeadProvenance'
 import { startOfBusinessDayMs } from '@/lib/today/time'
 
 /**
  * Dedicated mobile lead detail. Not a responsive desktop summary.
  *
- * Order is the 2-second test: identity → contact → status/follow-up → AI →
- * the sticky actions that close the loop. Desktop chrome (ClientHeader,
- * ClientNav, tasks, files, billing, inbox CTA) is absent on purpose.
+ * Order: identity → status/follow-up → source/provenance → contact → rest →
+ * sticky actions. Desktop chrome (ClientHeader, ClientNav, tasks, files,
+ * billing, inbox CTA) is absent on purpose.
  */
 export default function LeadDetailMobile({ lead, nowMs }: { lead: MobileLeadDetail; nowMs: number }) {
   const status = statusStyle(lead.status)
@@ -25,7 +26,6 @@ export default function LeadDetailMobile({ lead, nowMs }: { lead: MobileLeadDeta
     <div className='flex min-h-full flex-col'>
       <div className='flex-1 px-4 pb-4 pt-4'>
         <h2 className='truncate text-xl font-bold leading-tight text-ink'>{lead.name}</h2>
-        <p className='mt-0.5 truncate text-[13px] text-gray-500'>{lead.sourceLabel}</p>
 
         <div className='mt-3 flex flex-wrap items-center gap-1.5'>
           <span
@@ -40,6 +40,10 @@ export default function LeadDetailMobile({ lead, nowMs }: { lead: MobileLeadDeta
             </span>
           )}
         </div>
+
+        <Suspense fallback={null}>
+          <LeadProvenance lead={lead} />
+        </Suspense>
 
         <ContactBlock lead={lead} />
 

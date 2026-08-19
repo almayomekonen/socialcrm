@@ -55,9 +55,17 @@ export function isTabActive(pathname: string, href: string): boolean {
   return pathname.startsWith('/' + href.split('/')[1])
 }
 
-export default function MobileTabBar({ notificationCount = 0 }: { notificationCount?: number }) {
+export default function MobileTabBar({
+  notificationCount = 0,
+  conversationCount = 0,
+}: {
+  /** Unread NOTIFICATION rows. Never the conversation count. */
+  notificationCount?: number
+  /** Unread WhatsApp CONVERSATIONS. Never the notification count. */
+  conversationCount?: number
+}) {
   const pathname = usePathname()
-  const tabs = mobileTabsWithBadges(notificationCount)
+  const tabs = mobileTabsWithBadges({ notifications: notificationCount, conversations: conversationCount })
 
   return (
     <nav
@@ -107,9 +115,34 @@ export default function MobileTabBar({ notificationCount = 0 }: { notificationCo
 }
 
 /**
- * Fold the live unread count into the tab set. Exported so the Phase 2 shell and
- * the a11y suite exercise the same badge rule the bar itself uses.
+ * Fold the live unread counts into the tab set. Exported so the shell and the
+ * a11y suite exercise the same badge rule the bar itself uses.
+ *
+ * TWO COUNTS, TWO TABS, NAMED — NOT POSITIONAL.
+ *
+ * These are different questions about different tables, and they clear through
+ * different user actions:
+ *
+ *   התראות ← `countUnreadNotifications`          (notifications.readAt)
+ *   שיחות  ← `countUnreadConversationsForUser`   (inbox_conversation_reads.lastReadAt)
+ *
+ * This function previously took ONE positional number and put it on the
+ * notifications tab — while the only caller passed it `inboxUnread`. The bar
+ * therefore showed unread CONVERSATIONS on the התראות tab, so reading every
+ * notification could never clear it (only replying to WhatsApp could). Desktop
+ * never had the bug: `Nav` puts `inboxUnread` on `/inbox`, and the bell reads
+ * the notification count from `NotificationContext` — `NotificationBell` even
+ * carries the comment "THE BADGE IS NOTIFICATIONS, NOT CONVERSATIONS".
+ *
+ * The argument is an OBJECT so the fix cannot silently regress: the two numbers
+ * are indistinguishable to the type system as positional parameters, and the
+ * original defect was passing a correct value into the wrong slot. Named keys
+ * make that mistake unrepresentable rather than merely currently-correct.
  */
-export function mobileTabsWithBadges(notificationCount: number): MobileTab[] {
-  return MOBILE_TABS.map((t) => (t.href === '/notifications' ? { ...t, badge: notificationCount } : t))
+export function mobileTabsWithBadges(counts: { notifications: number; conversations: number }): MobileTab[] {
+  return MOBILE_TABS.map((t) => {
+    if (t.href === '/notifications') return { ...t, badge: counts.notifications }
+    if (t.href === '/inbox') return { ...t, badge: counts.conversations }
+    return t
+  })
 }

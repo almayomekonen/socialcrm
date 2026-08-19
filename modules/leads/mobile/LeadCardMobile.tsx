@@ -22,7 +22,7 @@ import { type FollowUpBadge } from './followUpBadge'
  *
  *   who        → the name, the only bold text in the row
  *   when       → relative time, far end of the same line, muted
- *   status     → a soft tinted chip, no border and no dot
+ *   status     → coloured text with a status dot, secondary to the name
  *   what next  → the urgency, or the next action, as coloured text with a dot
  *   fastest    → call / WhatsApp, as one paired cluster at the end
  *
@@ -98,7 +98,8 @@ export default function LeadCardMobile({
         </div>
 
         <div className='mt-1 flex items-center gap-1.5'>
-          <span className={`shrink-0 rounded px-1.5 py-px text-[11px] font-medium ${status.bg} ${status.text}`}>
+          <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-medium ${status.text}`}>
+            <span aria-hidden className={`size-1 shrink-0 rounded-full ${status.dot}`} />
             {status.label}
           </span>
 
