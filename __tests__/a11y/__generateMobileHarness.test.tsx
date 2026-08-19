@@ -30,9 +30,12 @@ vi.mock('@/actions/clients', () => ({
   uploadLeadData: async () => ({ data: [], wrongData: [] }),
   addLeads: async () => ({ success: true, inserted: 0 }),
   importLeadsFromCsv: async () => ({ inserted: 0, updated: 0, unchanged: 0, invalid: 0 }),
+  deleteLead: async () => ({ success: true }),
+  deleteManyLeads: async () => ({ deletedCount: 0, blockedCount: 0, blockedLeads: [], reason: null }),
 }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
 vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: async () => {} }))
+vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({ recordLeadActionEvent: async () => {} }))
 vi.mock('@/actions/trial', () => ({
   startTrial: async () => ({ ok: true, started: true }),
   trackWelcomeModalSeen: async () => ({ ok: true }),

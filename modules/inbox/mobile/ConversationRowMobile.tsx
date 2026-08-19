@@ -31,7 +31,7 @@ export default function ConversationRowMobile({
 
   const cls = `flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
     selected ? 'bg-primary-tint' : item.unread ? 'bg-primary-tint/40' : 'bg-white active:bg-gray-100'
-  }`
+  } ${selecting ? '' : 'hover:bg-gray-50'}`
 
   const inner = (
     <>
@@ -75,23 +75,6 @@ export default function ConversationRowMobile({
     </>
   )
 
-  if (selecting) {
-    return (
-      <li>
-        <button
-          type='button'
-          data-testid='conversation-row'
-          data-conversation-id={item.conversationId}
-          aria-pressed={selected}
-          className={cls}
-          onClick={onToggle}
-        >
-          {inner}
-        </button>
-      </li>
-    )
-  }
-
   return (
     <li>
       <Link
@@ -99,8 +82,17 @@ export default function ConversationRowMobile({
         prefetch={false}
         data-testid='conversation-row'
         data-conversation-id={item.conversationId}
-        className={`${cls} hover:bg-gray-50`}
+        aria-pressed={selecting ? selected : undefined}
+        className={cls}
         {...longPress}
+        onClick={
+          selecting
+            ? (e) => {
+                e.preventDefault()
+                onToggle()
+              }
+            : undefined
+        }
       >
         {inner}
       </Link>

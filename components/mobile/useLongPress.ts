@@ -70,7 +70,13 @@ export default function useLongPress(onLongPress: () => void, enabled = true): L
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (!enabled) return
+      if (!enabled) {
+        // A later tap must not be treated as the leftover click from the hold
+        // that entered selection (the row stays mounted; suppress would stick).
+        suppressClickRef.current = false
+        firedRef.current = false
+        return
+      }
       if (e.pointerType === 'mouse' && e.button !== 0) return
       if (nestedInteractive(e.target, e.currentTarget)) return
       firedRef.current = false
@@ -119,11 +125,11 @@ export default function useLongPress(onLongPress: () => void, enabled = true): L
 
   const onPointerLeave = useCallback((e: React.PointerEvent) => {
     // jsdom fires pointerleave with a null relatedTarget on pointerdown.
-    // A real leave has a relatedTarget outside the host.
-    const related = e.relatedTarget as Node | null
-    if (!related || !(e.currentTarget as HTMLElement).contains(related)) {
-      if (related && timerRef.current) clear()
-    }
+    // Playwright / WebKit can pass a non-Node. A real leave has a Node
+    // relatedTarget outside the host.
+    const related = e.relatedTarget
+    if (!(related instanceof Node)) return
+    if (!(e.currentTarget as HTMLElement).contains(related) && timerRef.current) clear()
   }, [clear])
 
   const onContextMenu = useCallback(

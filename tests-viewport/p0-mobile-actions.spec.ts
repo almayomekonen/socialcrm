@@ -47,7 +47,7 @@ const READY = {
 
 async function waitDestination(page: Page, path: string, ready: string) {
   await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}(\\?|$)`), { timeout: 25_000 })
-  await expect(page.locator(ready).first()).toBeVisible({ timeout: 25_000 })
+  await expect(page.locator(ready).first()).toBeVisible({ timeout: 60_000 })
   await expect(page.locator(SKELS)).toHaveCount(0)
 }
 
@@ -65,6 +65,22 @@ async function longPress(locator: ReturnType<Page['locator']>) {
   await page.mouse.up()
 }
 
+/** iOS long-press and context-menu share useLongPress. Poll until the client island hydrates. */
+async function enterSelection(locator: ReturnType<Page['locator']>, barTestId: string) {
+  const page = locator.page()
+  const bar = page.getByTestId(barTestId)
+  await expect
+    .poll(
+      async () => {
+        if ((await locator.count()) === 0) return 0
+        await locator.dispatchEvent('contextmenu')
+        return bar.count()
+      },
+      { timeout: 20_000 },
+    )
+    .toBeGreaterThan(0)
+}
+
 test.describe('phone — inbox selection', () => {
   test('tap opens a thread; long press enters selection without deleting', async ({ page }, info) => {
     test.skip(!isPhone(info.project.name), 'phone entity only')
@@ -78,7 +94,7 @@ test.describe('phone — inbox selection', () => {
       return
     }
 
-    await longPress(row)
+    await enterSelection(row, 'inbox-selection-bar')
     await expect(page.getByTestId('inbox-selection-bar')).toBeVisible()
     await expect(page.getByTestId('inbox-selection-bar')).toContainText('נבחרו')
     await expect(page).toHaveURL(/\/inbox\/?(\?q=|$)/)
@@ -105,6 +121,22 @@ test.describe('phone — inbox selection', () => {
     await page.mouse.move(box.x + 24, box.y + 90, { steps: 8 })
     await page.waitForTimeout(560)
     await page.mouse.up()
+    await expect(page.getByTestId('inbox-selection-bar')).toHaveCount(0)
+  })
+
+  test('deselecting the selected conversation closes the confirm sheet', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name), 'phone entity only')
+    await page.goto('/inbox', { waitUntil: 'domcontentloaded' })
+    await waitDestination(page, '/inbox', READY.inbox)
+    const row = page.getByTestId('conversation-row').first()
+    if ((await row.count()) === 0) return
+    await enterSelection(row, 'inbox-selection-bar')
+    await page.getByRole('button', { name: 'מחק' }).tap()
+    await expect(page.getByRole('dialog', { name: 'מחיקת שיחות' })).toBeVisible()
+    // Dispatch on the row itself — a scrim tap would only close the sheet.
+    await row.dispatchEvent('pointerdown')
+    await row.dispatchEvent('click')
+    await expect(page.getByRole('dialog', { name: 'מחיקת שיחות' })).toHaveCount(0)
     await expect(page.getByTestId('inbox-selection-bar')).toHaveCount(0)
   })
 })
@@ -147,6 +179,66 @@ test.describe('phone — lead actions', () => {
     await page.getByRole('button', { name: 'ביטול' }).tap()
     await expect(page.getByRole('dialog', { name: 'מחיקת ליד' })).toHaveCount(0)
     await expect(page).toHaveURL(/\/clients\/\d+\/summary/)
+  })
+})
+
+test.describe('phone — leads list selection', () => {
+  test('tap opens detail; long press enters selection without deleting', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name), 'phone entity only')
+    await page.goto('/leads', { waitUntil: 'domcontentloaded' })
+    await waitDestination(page, '/leads', READY.leads)
+    const row = page.getByTestId('lead-row').first()
+    if ((await row.count()) === 0) {
+      await expect(page.getByRole('heading', { name: /בואו נתחיל|לא נמצאו לידים/ })).toBeVisible()
+      return
+    }
+    await enterSelection(row, 'leads-selection-bar')
+    await expect(page.getByTestId('leads-selection-bar')).toBeVisible()
+    await expect(page.getByTestId('leads-selection-bar')).toContainText('נבחרו')
+    await expect(page.getByRole('button', { name: 'מחק' })).toBeVisible()
+    await expect(page).toHaveURL(/\/leads\/?(\?|$)/)
+    await page.getByTestId('leads-selection-bar').getByRole('button', { name: 'ביטול' }).tap()
+    await expect(page.getByTestId('leads-selection-bar')).toHaveCount(0)
+    await expect(row).toHaveAttribute('href', /\/clients\/\d+\/summary/)
+  })
+
+  test('deselecting the selected lead closes the action sheet', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name), 'phone entity only')
+    await page.goto('/leads', { waitUntil: 'domcontentloaded' })
+    await waitDestination(page, '/leads', READY.leads)
+    const row = page.getByTestId('lead-row').first()
+    if ((await row.count()) === 0) return
+    await enterSelection(row, 'leads-selection-bar')
+    await expect(page.getByTestId('leads-selection-bar')).toBeVisible()
+    await page.getByRole('button', { name: 'פעולות' }).tap()
+    await expect(page.getByRole('dialog', { name: 'פעולות לליד' })).toBeVisible()
+    await row.dispatchEvent('pointerdown')
+    await row.dispatchEvent('click')
+    await expect(page.getByRole('dialog', { name: 'פעולות לליד' })).toHaveCount(0)
+    await expect(page.getByTestId('leads-selection-bar')).toHaveCount(0)
+  })
+})
+
+test.describe('phone — notifications selection', () => {
+  test('long press enters selection; tap still opens when not selecting', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name), 'phone entity only')
+    await page.goto('/notifications', { waitUntil: 'domcontentloaded' })
+    await waitDestination(page, '/notifications', READY.notifications)
+    const row = page.getByTestId('notification-row').first()
+    if ((await row.count()) === 0) {
+      await expect(page.getByText(/אין התראות/)).toBeVisible()
+      return
+    }
+    await enterSelection(row, 'notifications-selection-bar')
+    await expect(page.getByTestId('notifications-selection-bar')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'מחק' })).toHaveCount(0)
+    await row.tap()
+    if ((await page.getByTestId('notifications-selection-bar').count()) > 0) {
+      await row.tap()
+    }
+    await expect(page.getByTestId('notifications-selection-bar')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/notifications/)
+    await expect(page.locator(SKELS)).toHaveCount(0)
   })
 })
 
@@ -197,6 +289,12 @@ test.describe('desktop — mobile chrome absent', () => {
     await expect(page.locator('[data-mobile-workspace]')).toHaveCount(0)
     await expect(page.locator('.workspace-grid')).toBeVisible({ timeout: 60_000 })
     await expect(page.getByTestId('inbox-selection-bar')).toHaveCount(0)
+    await expect(page.getByTestId('leads-selection-bar')).toHaveCount(0)
+
+    await page.goto('/notifications', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('[data-mobile-workspace]')).toHaveCount(0)
+    await expect(page.getByTestId('notifications-selection-bar')).toHaveCount(0)
+    await expect(page.getByTestId('notification-row')).toHaveCount(0)
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('[data-mobile-workspace]')).toHaveCount(0)

@@ -67,6 +67,13 @@ function enterSelection(el: Element) {
   fireEvent.contextMenu(el)
 }
 
+/** Real tap: pointerdown clears leftover-click suppress, then click toggles. */
+function tap(el: Element) {
+  fireEvent.pointerDown(el, { pointerType: 'touch', button: 0, clientX: 8, clientY: 8 })
+  fireEvent.pointerUp(el, { pointerType: 'touch', button: 0, clientX: 8, clientY: 8 })
+  fireEvent.click(el)
+}
+
 describe('mobile inbox selection', () => {
   it('a normal row is a link to the thread', () => {
     renderList([item()])
@@ -79,8 +86,17 @@ describe('mobile inbox selection', () => {
     enterSelection(screen.getByTestId('conversation-row'))
     expect(screen.getByTestId('inbox-selection-bar').textContent).toContain('נבחרו 1')
     expect(H.deleteConversation).not.toHaveBeenCalled()
-    expect(screen.queryByRole('link', { name: /נועה/ })).toBeNull()
-    expect(screen.getByRole('button', { name: /נועה/ }).getAttribute('aria-pressed')).toBe('true')
+    const row = screen.getByRole('link', { name: /נועה/ })
+    expect(row.getAttribute('aria-pressed')).toBe('true')
+    expect(row.getAttribute('href')).toBe('/inbox?conversation=9')
+  })
+
+  it('leftover click after long press does not immediately deselect', () => {
+    renderList([item()])
+    const row = screen.getByTestId('conversation-row')
+    enterSelection(row)
+    fireEvent.click(row)
+    expect(screen.getByTestId('inbox-selection-bar').textContent).toContain('נבחרו 1')
   })
 
   it('the hold timer also enters selection', () => {
@@ -109,9 +125,9 @@ describe('mobile inbox selection', () => {
   it('toggles a second row and updates the count', () => {
     renderList()
     enterSelection(screen.getAllByTestId('conversation-row')[0])
-    fireEvent.click(screen.getAllByTestId('conversation-row')[1])
+    tap(screen.getAllByTestId('conversation-row')[1])
     expect(screen.getByTestId('inbox-selection-bar').textContent).toContain('נבחרו 2')
-    fireEvent.click(screen.getAllByTestId('conversation-row')[1])
+    tap(screen.getAllByTestId('conversation-row')[1])
     expect(screen.getByTestId('inbox-selection-bar').textContent).toContain('נבחרו 1')
   })
 
@@ -152,5 +168,29 @@ describe('mobile inbox selection', () => {
     enterSelection(screen.getByTestId('conversation-row'))
     fireEvent.click(screen.getByRole('button', { name: 'סמן כנקרא' }))
     await waitFor(() => expect(H.markConversationRead).toHaveBeenCalledWith(9))
+  })
+
+  it('deselecting the last item exits selection and closes the confirm sheet', () => {
+    renderList([item()])
+    const row = screen.getByTestId('conversation-row')
+    enterSelection(row)
+    fireEvent.click(screen.getByRole('button', { name: 'מחק' }))
+    expect(screen.getByRole('dialog', { name: 'מחיקת שיחות' })).toBeTruthy()
+    tap(screen.getByRole('link', { name: /נועה/ }))
+    expect(screen.queryByRole('dialog', { name: 'מחיקת שיחות' })).toBeNull()
+    expect(screen.queryByTestId('inbox-selection-bar')).toBeNull()
+    expect(screen.getByRole('link', { name: /נועה/ })).toBeTruthy()
+  })
+
+  it('deselecting A while B remains keeps confirm open for the remaining selection', () => {
+    renderList()
+    enterSelection(screen.getAllByTestId('conversation-row')[0])
+    tap(screen.getAllByTestId('conversation-row')[1])
+    fireEvent.click(screen.getByRole('button', { name: 'מחק' }))
+    expect(screen.getByRole('dialog', { name: 'מחיקת שיחות' })).toBeTruthy()
+    tap(screen.getByRole('link', { name: /נועה/ }))
+    expect(screen.getByRole('dialog', { name: 'מחיקת שיחות' })).toBeTruthy()
+    expect(screen.getByTestId('inbox-selection-bar').textContent).toContain('נבחרו 1')
+    expect(screen.getByRole('link', { name: /דני/ }).getAttribute('aria-pressed')).toBe('true')
   })
 })

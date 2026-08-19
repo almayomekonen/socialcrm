@@ -22,11 +22,16 @@ export default function LeadStatusSheet({
   onClose,
   leadId,
   current,
+  refresh = true,
+  onSaved,
 }: {
   open: boolean
   onClose: () => void
   leadId: number
   current: string | null
+  /** Detail keeps the existing refresh. List selection patches locally instead. */
+  refresh?: boolean
+  onSaved?: (status: string) => void
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -41,8 +46,9 @@ export default function LeadStatusSheet({
         await updateLead({ id: leadId, status })
         recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'status', leadId }).catch(() => {})
         toast('success', 'סטטוס עודכן')
+        onSaved?.(status)
         onClose()
-        router.refresh()
+        if (refresh) router.refresh()
       } catch {
         toast('error', 'לא הצלחנו לעדכן את הסטטוס')
       }

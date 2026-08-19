@@ -28,6 +28,7 @@ vi.mock('@/actions/clients', () => ({
   addLeads: vi.fn(async () => ({ success: true, inserted: 0 })),
   importLeadsFromCsv: vi.fn(async () => ({ inserted: 0, updated: 0, unchanged: 0, invalid: 0 })),
   deleteLead: vi.fn(async () => ({ success: true })),
+  deleteManyLeads: vi.fn(async () => ({ deletedCount: 1, blockedCount: 0, blockedLeads: [], reason: null })),
 }))
 vi.mock('@/modules/inbox/client/openLeadWhatsapp', () => ({
   openLeadWhatsappInInbox: vi.fn(async () => {}),

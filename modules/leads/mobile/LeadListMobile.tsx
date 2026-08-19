@@ -1,33 +1,17 @@
-import Link from 'next/link'
-import type { Route } from 'next'
-import Icon from '@/lib/Icon'
 import { startOfBusinessDayMs } from '@/lib/today/time'
 import type { MobileLeadRow } from '@/modules/leads/queries'
-import { leadsHref, type LeadFilters } from '@/modules/leads/filters'
-// Shared pure helper — imported rather than copied so the two mobile lists
-// phrase "how long ago" identically. No I/O, no clock of its own: it formats
-// against the `nowMs` passed down from the server.
+import { type LeadFilters } from '@/modules/leads/filters'
 import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
-import LeadCardMobile from './LeadCardMobile'
 import { followUpBadge } from './followUpBadge'
-import LeadFilterBar from './LeadFilterBar'
 import LeadsFirstRunMobile from './LeadsFirstRunMobile'
+import LeadListMobileClient from './LeadListMobileClient'
 
 /**
  * The mobile lead list — the Phase A replacement for the `/leads` handoff.
  *
- * NOT the desktop table, and not the desktop table scrolled sideways. A card
- * per lead, ordered by the SAME server-computed priority the desktop table uses
- * (`getLeadsTable`'s CTE), filtered in SQL, paginated by URL.
- *
- * Server Component. The business-day boundary is computed ONCE here, on the
- * server, in BUSINESS_TZ, and passed down — no card reads a clock, so there is
- * no timezone disagreement to hydrate into (architecture-rules.md §11).
- *
- * THREE DISTINCT STATES, never conflated (ux-guidelines.md §11):
- *   · workspace empty  → first-run guidance
- *   · filtered empty   → filters stay visible, with a clear way out
- *   · data             → the list
+ * Server Component wrapper: follow-up badges and relative time are stamped here
+ * against one `nowMs` (architecture-rules.md §11). Long-press selection lives
+ * in the client island.
  */
 export default function LeadListMobile({
   rows,
@@ -48,98 +32,25 @@ export default function LeadListMobile({
   metaConnected?: boolean
   whatsappConnected?: boolean
 }) {
-  // The workspace has no leads at all — a different situation from "your filter
-  // matched nothing", and it gets different copy and a different action.
   if (workspaceEmpty) {
     return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected} />
   }
 
   const dayStart = startOfBusinessDayMs(nowMs)
+  const cards = rows.map((lead) => ({
+    ...lead,
+    followUp: followUpBadge(lead.nextFollowUpAt, nowMs, dayStart),
+    recency: relativeTimeHe(lead.lastActivityAt ?? lead.createdAt, nowMs),
+  }))
 
   return (
-    <div className='flex min-h-full flex-col'>
-      <LeadFilterBar filters={filters} resultCount={rows.length} />
-
-      {rows.length === 0 ? (
-        <FilteredEmpty filters={filters} />
-      ) : (
-        <>
-          {/*
-            A GROUPED CARD ON THE TINTED PAGE, matching היום exactly
-            (`rounded-xl border border-gray-200 bg-white` over `--color-bg`).
-            The first version was an edge-to-edge white sheet, which is why the
-            two screens read as different products side by side. This is the same
-            container היום already uses for its row sections — adopted, not
-            invented.
-          */}
-          <div className='mx-3 mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white'>
-            <ul className='divide-y divide-gray-100'>
-              {rows.map((lead) => (
-                <li key={lead.id}>
-                  <LeadCardMobile
-                    lead={lead}
-                    followUp={followUpBadge(lead.nextFollowUpAt, nowMs, dayStart)}
-                    /* "When did something last happen" — the one question the old
-                       card left unanswered. Formatted on the server. */
-                    recency={relativeTimeHe(lead.lastActivityAt ?? lead.createdAt, nowMs)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Pagination is a link, not an infinite scroller: it keeps the page
-              in the URL, so back/forward and refresh land where the rep was. */}
-          <div className='flex items-center justify-between gap-3 px-4 py-4'>
-            {page > 1 ? (
-              <PageLink filters={filters} page={page - 1} label='הקודם' />
-            ) : (
-              <span aria-hidden className='min-h-11' />
-            )}
-            <span className='text-[12px] tabular-nums text-gray-400'>{`עמוד ${page}`}</span>
-            {hasMore ? <PageLink filters={filters} page={page + 1} label='הבא' /> : <span aria-hidden className='min-h-11' />}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-function PageLink({ filters, page, label }: { filters: LeadFilters; page: number; label: string }) {
-  const href = `${leadsHref(filters)}${leadsHref(filters).includes('?') ? '&' : '?'}page=${page}`
-  return (
-    <Link
-      href={href as Route}
-      className='flex min-h-11 items-center rounded-md border border-gray-200 bg-white px-4 text-[14px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-    >
-      {label}
-    </Link>
-  )
-}
-
-/**
- * Filters matched nothing. The filter bar above stays mounted, so the user can
- * see WHY the screen is empty and undo it in one tap — the difference between
- * "no results" and "the product is broken".
- */
-function FilteredEmpty({ filters }: { filters: LeadFilters }) {
-  return (
-    <div className='flex flex-col items-center gap-4 px-6 py-14 text-center'>
-      <span className='flex size-12 items-center justify-center rounded-full bg-gray-100'>
-        <Icon name='magnifying-glass' type='reg' className='size-5 bg-gray-400' />
-      </span>
-      <div className='max-w-[300px]'>
-        <h2 className='text-base font-bold text-ink'>לא נמצאו לידים</h2>
-        <p className='mt-1 text-sm leading-relaxed text-gray-500'>
-          {filters.q ? `אין תוצאות עבור "${filters.q}".` : 'אין לידים בסטטוסים שנבחרו.'}
-        </p>
-      </div>
-      <Link
-        href={'/leads' as Route}
-        className='flex min-h-11 items-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-      >
-        נקה סינון
-      </Link>
-    </div>
+    <LeadListMobileClient
+      cards={cards}
+      filters={filters}
+      hasMore={hasMore}
+      page={page}
+      nowMs={nowMs}
+      dayStartMs={dayStart}
+    />
   )
 }

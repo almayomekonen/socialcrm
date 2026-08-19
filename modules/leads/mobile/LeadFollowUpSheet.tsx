@@ -36,16 +36,29 @@ export default function LeadFollowUpSheet({
   onClose,
   leadId,
   current,
+  refresh = true,
+  onSaved,
 }: {
   open: boolean
   onClose: () => void
   leadId: number
   current: string | null
+  /** Detail keeps the existing refresh. List selection patches locally instead. */
+  refresh?: boolean
+  onSaved?: (nextFollowUpAt: string | null) => void
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [note, setNote] = useState('')
   const [custom, setCustom] = useState(false)
+
+  const finish = (nextFollowUpAt: string | null) => {
+    setNote('')
+    setCustom(false)
+    onSaved?.(nextFollowUpAt)
+    onClose()
+    if (refresh) router.refresh()
+  }
 
   const apply = (at: Date) => {
     startTransition(async () => {
@@ -53,10 +66,7 @@ export default function LeadFollowUpSheet({
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'follow_up', leadId }).catch(() => {})
       toast('success', `נקבע מעקב ל־${formatDate(at)}`)
-      setNote('')
-      setCustom(false)
-      onClose()
-      router.refresh()
+      finish(at.toISOString())
     })
   }
 
@@ -66,10 +76,7 @@ export default function LeadFollowUpSheet({
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'follow_up', leadId }).catch(() => {})
       toast('success', 'המעקב הוסר')
-      setNote('')
-      setCustom(false)
-      onClose()
-      router.refresh()
+      finish(null)
     })
   }
 

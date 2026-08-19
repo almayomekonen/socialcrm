@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from '@/lib/toast'
 import ConfirmSheet from '@/components/mobile/ConfirmSheet'
+import {
+  emptySelection,
+  enterSelection,
+  isSelecting,
+  setAction,
+  toggleSelection,
+  type SelectionState,
+} from '@/components/mobile/selectionState'
 import { deleteConversation, loadMoreInboxConversations, markConversationRead } from '@/modules/inbox/actions'
 import { DEFAULT_INBOX_FILTERS, type InboxCursor } from '@/modules/inbox/types'
 import ConversationSearchBar from './ConversationSearchBar'
@@ -23,6 +31,9 @@ import { relativeTimeHe } from './relativeTime'
  * Client island for the mobile conversation list: selection, optimistic delete /
  * mark-as-read, and cursor load-more. Mutations are the existing per-id actions.
  * No router.refresh() — the list is local until the next server render.
+ *
+ * Selection IDs are the source of truth. The confirm sheet is `sel.action`; it
+ * cannot stay open after the last selected id is cleared.
  */
 export default function ConversationListMobileClient({
   items: initialItems,
@@ -35,14 +46,16 @@ export default function ConversationListMobileClient({
 }) {
   const [items, setItems] = useState(initialItems)
   const [cursor, setCursor] = useState(initialCursor)
-  const [selected, setSelected] = useState<Set<number>>(() => new Set())
-  const [selecting, setSelecting] = useState(false)
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [sel, setSel] = useState<SelectionState>(emptySelection)
   const [busy, setBusy] = useState(false)
   const [loadingMore, startLoadMore] = useTransition()
   const pendingRef = useRef(0)
   const itemsRef = useRef(items)
   itemsRef.current = items
+
+  const selecting = isSelecting(sel)
+  const selected = sel.ids
+  const confirmOpen = sel.action?.type === 'confirm-delete'
 
   useEffect(() => {
     if (pendingRef.current > 0) return
@@ -51,29 +64,19 @@ export default function ConversationListMobileClient({
   }, [initialItems, initialCursor])
 
   useEffect(() => {
-    setSelecting(false)
-    setSelected(new Set())
-    setConfirmOpen(false)
+    setSel(emptySelection())
   }, [q])
 
   const exit = useCallback(() => {
-    setSelecting(false)
-    setSelected(new Set())
-    setConfirmOpen(false)
+    setSel(emptySelection())
   }, [])
 
   const enter = useCallback((id: number) => {
-    setSelecting(true)
-    setSelected(new Set([id]))
+    setSel(enterSelection(id))
   }, [])
 
   const toggle = useCallback((id: number) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setSel((prev) => toggleSelection(prev, id))
   }, [])
 
   const unreadIds = selectedUnreadIds(items, selected)
@@ -84,7 +87,7 @@ export default function ConversationListMobileClient({
     const snapshot = itemsRef.current
     pendingRef.current += 1
     setBusy(true)
-    setConfirmOpen(false)
+    setSel((prev) => setAction(prev, null))
     setItems(removeSelectedRows(snapshot, ids))
     const results = await Promise.allSettled([...ids].map((id) => deleteConversation(id)))
     const failed = new Set<number>()
@@ -95,7 +98,7 @@ export default function ConversationListMobileClient({
     }
     if (failed.size > 0) {
       setItems((current) => restoreRows(current, snapshot, failed))
-      setSelected(failed)
+      setSel({ ids: failed, action: null })
       toast('error', failed.size === ids.size ? 'מחיקת השיחות נכשלה. נסה שוב.' : 'חלק מהשיחות לא נמחקו. נסה שוב.')
     } else {
       exit()
@@ -196,7 +199,7 @@ export default function ConversationListMobileClient({
           canMarkRead={unreadIds.length > 0}
           busy={busy}
           onCancel={exit}
-          onDelete={() => setConfirmOpen(true)}
+          onDelete={() => setSel((prev) => setAction(prev, { type: 'confirm-delete' }))}
           onMarkRead={runMarkRead}
         />
       )}
@@ -208,7 +211,7 @@ export default function ConversationListMobileClient({
         msg={deleteMsg}
         confirmLbl={count === 1 ? 'מחק שיחה' : 'מחק שיחות'}
         cancelLbl='ביטול'
-        onClose={() => setConfirmOpen(false)}
+        onClose={() => setSel((prev) => setAction(prev, null))}
         onConfirm={runDelete}
       />
     </div>

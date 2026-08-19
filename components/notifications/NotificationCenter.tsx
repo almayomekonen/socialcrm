@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from '@/lib/toast'
 import { useNotifications } from '@/modules/notifications/NotificationContext'
 import {
   appendPage,
@@ -10,8 +11,24 @@ import {
   type CenterFilters,
 } from '@/modules/notifications/center'
 import type { FeedCursor, NotificationFeedItem, NotificationFeedResponse } from '@/modules/notifications/types'
+import {
+  emptySelection,
+  enterSelection,
+  isSelecting,
+  toggleSelection,
+  type SelectionState,
+} from '@/components/mobile/selectionState'
+import {
+  markNotificationsReadLocal,
+  restoreNotificationUnread,
+  selectedUnreadNotificationIds,
+} from '@/modules/notifications/mobile/notificationSelection'
 import NotificationRow from './NotificationRow'
 import NotificationRowMobile from './mobile/NotificationRowMobile'
+import {
+  NotificationSelectionActions,
+  NotificationSelectionHeader,
+} from './mobile/NotificationSelectionBar'
 
 /**
  * The notification center's list. Spec §13, P2.4.
@@ -52,11 +69,17 @@ export default function NotificationCenter({
 }) {
   const { unreadCount, markSeen, markRead, markAllRead } = useNotifications()
   const router = useRouter()
+  const isMobile = variant === 'mobile'
 
   const [items, setItems] = useState<NotificationFeedItem[]>(initialItems)
   const [cursor, setCursor] = useState<FeedCursor | null>(initialCursor)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [sel, setSel] = useState<SelectionState>(emptySelection)
+  const [busy, setBusy] = useState(false)
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const selecting = isMobile && isSelecting(sel)
 
   /**
    * RENDERING A ROW HERE IS A SURFACE EVENT (spec §8.2), so the rows on the page
@@ -120,11 +143,78 @@ export default function NotificationCenter({
     setItems((prev) => prev.map((i) => (i.readAt ? i : { ...i, readAt: now })))
   }
 
+  const exit = useCallback(() => setSel(emptySelection()), [])
+  const unreadSelected = selectedUnreadNotificationIds(items, sel.ids)
+
+  const runMarkRead = async () => {
+    const ids = new Set(unreadSelected)
+    if (ids.size === 0) return
+    const snapshot = itemsRef.current
+    const now = new Date().toISOString()
+    setBusy(true)
+    setItems(markNotificationsReadLocal(snapshot, ids, now))
+    try {
+      const res = await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...ids] }),
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      markRead([...ids])
+    } catch {
+      setItems((current) => restoreNotificationUnread(current, snapshot, ids))
+      toast('error', 'לא הצלחנו לסמן כנקרא. נסה שוב.')
+    }
+    setBusy(false)
+  }
+
   if (items.length === 0) return <EmptyState filters={filters} />
+
+  if (!isMobile) {
+    return (
+      <div className='rounded-lg border border-gray-200 bg-white'>
+        {unreadCount > 0 && (
+          <div className='flex items-center justify-end border-b px-3 py-2'>
+            <button
+              type='button'
+              onClick={readEverything}
+              className='rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
+            >
+              סימון הכל כנקרא
+            </button>
+          </div>
+        )}
+
+        <ul className='divide-y'>
+          {items.map((item) => (
+            <li key={item.id}>
+              <NotificationRow item={item} onSelect={open} />
+            </li>
+          ))}
+        </ul>
+
+        {cursor && (
+          <div className='border-t px-3 py-2 text-center'>
+            <button
+              type='button'
+              onClick={loadMore}
+              disabled={loading}
+              className='rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary'
+            >
+              {loading ? 'טוען...' : failed ? 'לא הצלחנו לטעון — נסה שוב' : 'הצג עוד'}
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className='rounded-lg border border-gray-200 bg-white'>
-      {unreadCount > 0 && (
+      {selecting ? (
+        <NotificationSelectionHeader count={sel.ids.size} busy={busy} onCancel={exit} />
+      ) : unreadCount > 0 ? (
         <div className='flex items-center justify-end border-b px-3 py-2'>
           <button
             type='button'
@@ -134,31 +224,44 @@ export default function NotificationCenter({
             סימון הכל כנקרא
           </button>
         </div>
-      )}
+      ) : null}
 
       <ul className='divide-y'>
         {items.map((item) => (
           <li key={item.id}>
-            {variant === 'mobile' ? (
-              <NotificationRowMobile item={item} onSelect={open} />
-            ) : (
-              <NotificationRow item={item} onSelect={open} />
-            )}
+            <NotificationRowMobile
+              item={item}
+              onSelect={open}
+              selecting={selecting}
+              selected={sel.ids.has(item.id)}
+              onToggle={() => setSel((prev) => toggleSelection(prev, item.id))}
+              onEnterSelection={() => setSel(enterSelection(item.id))}
+            />
           </li>
         ))}
       </ul>
 
-      {cursor && (
+      {!selecting && cursor && (
         <div className='border-t px-3 py-2 text-center'>
           <button
             type='button'
             onClick={loadMore}
             disabled={loading}
-            className='rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary'
+            className='flex min-h-11 w-full items-center justify-center rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary'
           >
             {loading ? 'טוען...' : failed ? 'לא הצלחנו לטעון — נסה שוב' : 'הצג עוד'}
           </button>
         </div>
+      )}
+
+      {selecting && (
+        <NotificationSelectionActions
+          count={sel.ids.size}
+          canMarkRead={unreadSelected.length > 0}
+          busy={busy}
+          onCancel={exit}
+          onMarkRead={runMarkRead}
+        />
       )}
     </div>
   )
