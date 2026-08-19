@@ -98,12 +98,16 @@ describe('desktop WhatsApp conversation is unchanged', () => {
     expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden')
     expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-hidden')
     expect(shell).not.toMatch(/className='flex h-dvh flex-col/)
-    expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-y-auto')
+    expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain')
     const route = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/MobileInboxRoute.tsx'), 'utf8')
     expect(route).toContain('data-wa-thread-chrome')
     expect(route).toContain("tone='onGreen'")
+    expect(route).toContain('MobileInboxReadMarker')
     const list = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/ConversationListMobile.tsx'), 'utf8')
     expect(list).not.toContain('data-wa-thread-chrome')
+    const css = fs.readFileSync(path.join(process.cwd(), 'lib/css/main.css'), 'utf8')
+    expect(css).toContain('html:has([data-mobile-workspace])')
+    expect(css).not.toMatch(/html:has\(\[data-mobile-workspace\]\)[\s\S]{0,180}overscroll-behavior:\s*none/)
   })
 
   it('tab bar is a flex sibling, not sticky, so it cannot detach from the thread', () => {

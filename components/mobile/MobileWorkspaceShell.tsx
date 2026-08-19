@@ -91,7 +91,7 @@ export default function MobileWorkspaceShell({
             id='main-content'
             ref={scrollerRef}
             tabIndex={-1}
-            className='flex min-h-0 flex-1 flex-col overflow-y-auto focus:outline-none'
+            className='flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain focus:outline-none'
           >
             {children}
           </main>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
 import ConfirmSheet from '@/components/mobile/ConfirmSheet'
 import {
@@ -12,6 +13,8 @@ import {
   type SelectionState,
 } from '@/components/mobile/selectionState'
 import { deleteConversation, loadMoreInboxConversations, markConversationRead } from '@/modules/inbox/actions'
+import { useAwareness } from '@/modules/inbox/awareness/AwarenessContext'
+import { refreshWhatsappUnread } from '@/modules/inbox/awareness/refreshWhatsappUnread'
 import { DEFAULT_INBOX_FILTERS, type InboxCursor } from '@/modules/inbox/types'
 import ConversationSearchBar from './ConversationSearchBar'
 import ConversationRowMobile from './ConversationRowMobile'
@@ -52,6 +55,8 @@ export default function ConversationListMobileClient({
   const pendingRef = useRef(0)
   const itemsRef = useRef(items)
   itemsRef.current = items
+  const router = useRouter()
+  const { setCount } = useAwareness()
 
   const selecting = isSelecting(sel)
   const selected = sel.ids
@@ -124,6 +129,11 @@ export default function ConversationListMobileClient({
     if (failed.size > 0) {
       setItems((current) => restoreUnread(current, snapshot, failed))
       toast('error', 'לא הצלחנו לסמן כנקרא. נסה שוב.')
+    } else {
+      await refreshWhatsappUnread(setCount)
+      if (typeof document !== 'undefined' && document.querySelector('[data-mobile-workspace]')) {
+        router.refresh()
+      }
     }
     pendingRef.current -= 1
     setBusy(false)

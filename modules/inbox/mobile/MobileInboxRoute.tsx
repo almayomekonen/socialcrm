@@ -7,6 +7,7 @@ import { getUser } from '@/db/auth'
 import { loadWhatsappComposerContext } from '@/lib/inbox/whatsappComposerContext'
 import ConversationListMobile from './ConversationListMobile'
 import ConversationThreadMobile from './ConversationThreadMobile'
+import MobileInboxReadMarker from './MobileInboxReadMarker'
 import { relativeTimeHe } from './relativeTime'
 import { statusStyle } from '@/lib/leads/statusStyles'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
@@ -143,6 +144,10 @@ export default async function MobileInboxRoute({
         </div>
 
         <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+          <MobileInboxReadMarker
+            conversationId={conversationId}
+            latestMessageId={messages.length > 0 ? messages[messages.length - 1].id : null}
+          />
           <ConversationThreadMobile
             conversationId={conversationId}
             leadId={target.leadId}

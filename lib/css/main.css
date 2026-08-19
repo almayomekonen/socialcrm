@@ -295,12 +295,16 @@ body {
  * visual viewport; the sticky tab bar stays while the WhatsApp header and
  * composer ride that document scroll, leaving a blank gap. Lock the document
  * only while the mobile shell is mounted — desktop has no [data-mobile-workspace].
+ *
+ * Do NOT set `overscroll-behavior` here. On iOS that document-level lock also
+ * swallows touch-scroll on nested overflow:auto regions (list pages and the
+ * thread). Contain overscroll on the actual scroller instead (`main`, the
+ * thread list).
  */
 html:has([data-mobile-workspace]),
 html:has([data-mobile-workspace]) body {
   height: 100%;
   overflow: hidden;
-  overscroll-behavior: none;
 }
 
 /* MEDIA QUERIES */
