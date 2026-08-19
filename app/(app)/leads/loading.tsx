@@ -1,8 +1,12 @@
 import LeadsTableSkeleton from '@/components/clients/LeadsTableSkeleton'
-import { isPhoneEntity } from '@/components/mobile/skeletons/isPhoneEntity'
+import EntityLoading from '@/components/mobile/skeletons/EntityLoading'
 import LeadsSkeletonMobile from '@/components/mobile/skeletons/LeadsSkeletonMobile'
 
-export default async function Loading() {
-  if (await isPhoneEntity()) return <LeadsSkeletonMobile />
-  return <LeadsTableSkeleton withStatusTabs />
+export default function Loading() {
+  return (
+    <EntityLoading
+      phone={<LeadsSkeletonMobile />}
+      desktop={<LeadsTableSkeleton withStatusTabs />}
+    />
+  )
 }

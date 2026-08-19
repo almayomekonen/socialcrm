@@ -1,8 +1,12 @@
 import Loading from '@/components/ui/Loading'
-import { isPhoneEntity } from '@/components/mobile/skeletons/isPhoneEntity'
+import EntityLoading from '@/components/mobile/skeletons/EntityLoading'
 import NotificationsSkeletonMobile from '@/components/mobile/skeletons/NotificationsSkeletonMobile'
 
-export default async function NotificationsLoading() {
-  if (await isPhoneEntity()) return <NotificationsSkeletonMobile />
-  return <Loading />
+export default function NotificationsLoading() {
+  return (
+    <EntityLoading
+      phone={<NotificationsSkeletonMobile />}
+      desktop={<Loading />}
+    />
+  )
 }

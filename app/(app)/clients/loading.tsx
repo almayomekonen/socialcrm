@@ -1,9 +1,13 @@
 import LeadsTableSkeleton from '@/components/clients/LeadsTableSkeleton'
-import { isPhoneEntity } from '@/components/mobile/skeletons/isPhoneEntity'
+import EntityLoading from '@/components/mobile/skeletons/EntityLoading'
 import LeadsSkeletonMobile from '@/components/mobile/skeletons/LeadsSkeletonMobile'
 
 /** Closed-leads list — desktop table chrome; phone uses the leads card skeleton. */
-export default async function Loading() {
-  if (await isPhoneEntity()) return <LeadsSkeletonMobile />
-  return <LeadsTableSkeleton withStatusTabs={false} />
+export default function Loading() {
+  return (
+    <EntityLoading
+      phone={<LeadsSkeletonMobile />}
+      desktop={<LeadsTableSkeleton withStatusTabs={false} />}
+    />
+  )
 }

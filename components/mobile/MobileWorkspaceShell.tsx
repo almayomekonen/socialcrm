@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import MobileTabBar, { MOBILE_TABS, isTabActive } from './MobileTabBar'
 import MobileHeader from './MobileHeader'
+import { MobileWorkspaceContext } from './MobileWorkspaceContext'
 import { useMobileScrollRestoration } from './useMobileScrollRestoration'
 
 /**
@@ -24,6 +25,9 @@ import { useMobileScrollRestoration } from './useMobileScrollRestoration'
  * so no page has to reserve padding for them and no page can be clipped behind
  * them. `dvh` (not `vh`) so mobile browser chrome collapsing does not leave the
  * tab bar floating above the fold.
+ *
+ * `MobileWorkspaceContext` tells synchronous `loading.tsx` files which entity
+ * is already mounted, so they never await `headers()` (the stuck-skeleton bug).
  */
 
 /** Routes with a real mobile presentation. Everything else gets a back arrow. */
@@ -64,24 +68,26 @@ export default function MobileWorkspaceShell({
   useMobileScrollRestoration(scrollerRef)
 
   return (
-    /* `data-mobile-workspace` is the scoping hook for the `full-bleed`
-       neutralisation in main.css — see the rule there for why it is needed. */
-    <div data-mobile-workspace className='flex h-dvh flex-col bg-bg'>
-      <MobileHeader title={title} onBack={isTab ? undefined : true} />
+    <MobileWorkspaceContext.Provider value={true}>
+      {/* `data-mobile-workspace` is the scoping hook for the `full-bleed`
+         neutralisation in main.css — see the rule there for why it is needed. */}
+      <div data-mobile-workspace className='flex h-dvh flex-col bg-bg'>
+        <MobileHeader title={title} onBack={isTab ? undefined : true} />
 
-      {/* The ONLY scroll container. `min-h-0` is load-bearing in a flex column:
-          without it the region refuses to shrink and the tab bar is pushed off
-          the bottom of the viewport. */}
-      <main
-        id='main-content'
-        ref={scrollerRef}
-        tabIndex={-1}
-        className='min-h-0 flex-1 overflow-y-auto focus:outline-none'
-      >
-        {children}
-      </main>
+        {/* The ONLY scroll container. `min-h-0` is load-bearing in a flex column:
+            without it the region refuses to shrink and the tab bar is pushed off
+            the bottom of the viewport. */}
+        <main
+          id='main-content'
+          ref={scrollerRef}
+          tabIndex={-1}
+          className='min-h-0 flex-1 overflow-y-auto focus:outline-none'
+        >
+          {children}
+        </main>
 
-      <MobileTabBar notificationCount={notificationCount} conversationCount={conversationCount} />
-    </div>
+        <MobileTabBar notificationCount={notificationCount} conversationCount={conversationCount} />
+      </div>
+    </MobileWorkspaceContext.Provider>
   )
 }

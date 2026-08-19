@@ -25,7 +25,6 @@ import { getActiveDeviceOverride, getDeviceClass, isMobileRequest } from '@/lib/
 import DeviceOverrideLinks from '@/components/dev/DeviceOverrideLinks'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import MobileWorkspaceShell from '@/components/mobile/MobileWorkspaceShell'
-import { requestPathHint } from '@/components/mobile/skeletons/pathHint'
 import SkipLink from '@/components/layout/SkipLink'
 import OAuthResultToast from '@/components/settings/OAuthResultToast'
 import Loading from '@/components/ui/Loading'
@@ -272,11 +271,15 @@ export default function AppLayout({ children }) {
    * TWO SUSPENSE LAYERS, because Cache Components forbids `headers()` in the
    * layout itself.
    *
-   * PhoneAwareShell is headers-only (no DB) and resolves the entity so the
-   * INNER fallback can be MobileChromeSkeleton on a phone and the existing
-   * spinner on desktop. LayoutContent still suspends on `getUser()` — that is
-   * the wait the user actually sees, and it must not be a desktop table or a
-   * size-32 spinner on a phone.
+   * PhoneAwareShell is headers-only (User-Agent, which does not change between
+   * tab navigations) so the INNER fallback can be MobileChromeSkeleton on a
+   * phone and the existing spinner on desktop. It must not read the request
+   * path: `x-socialcrm-path` changes every client navigation and would
+   * re-suspend this shell, replacing the live tab bar with chrome skeleton.
+   *
+   * LayoutContent still suspends on `getUser()` — that is the wait the user
+   * actually sees on a cold load. Route `loading.tsx` files are synchronous
+   * and must stay that way (see EntityLoading).
    */
   return (
     <Suspense fallback={<div className='h-dvh bg-bg' aria-busy='true' />}>
@@ -287,9 +290,8 @@ export default function AppLayout({ children }) {
 
 async function PhoneAwareShell({ children }) {
   const phone = (await getDeviceClass()) === 'phone'
-  const path = phone ? await requestPathHint() : ''
   return (
-    <Suspense fallback={phone ? <MobileChromeSkeleton path={path} /> : <Loading />}>
+    <Suspense fallback={phone ? <MobileChromeSkeleton /> : <Loading />}>
       <LayoutContent>{children}</LayoutContent>
     </Suspense>
   )

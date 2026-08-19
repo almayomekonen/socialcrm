@@ -1,12 +1,12 @@
 import { getDeviceClass } from '@/lib/device'
 
 /**
- * Loading-UI branch: which ENTITY is this request.
+ * Server-only entity check for non-loading UI.
  *
- * Uses the existing `getDeviceClass()` — does not redefine DeviceClass, does
- * not read rollout flags, does not touch auth. Route `loading.tsx` files call
- * this so a phone never receives a desktop table/grid skeleton and a laptop
- * never receives a mobile card skeleton (architecture-rules.md §9).
+ * Do not call this from `loading.tsx`. Awaiting `headers()` there makes the
+ * App Router fallback a dynamic Cache Components hole; client navigation can
+ * then leave the skeleton mounted after the destination RSC has already 200'd.
+ * Loading files use `EntityLoading` / the mounted `MobileWorkspaceShell` instead.
  */
 export async function isPhoneEntity(): Promise<boolean> {
   return (await getDeviceClass()) === 'phone'

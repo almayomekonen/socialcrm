@@ -1,8 +1,12 @@
 import Loading from '@/components/ui/Loading'
-import { isPhoneEntity } from '@/components/mobile/skeletons/isPhoneEntity'
+import EntityLoading from '@/components/mobile/skeletons/EntityLoading'
 import MoreSkeletonMobile from '@/components/mobile/skeletons/MoreSkeletonMobile'
 
-export default async function MoreLoading() {
-  if (await isPhoneEntity()) return <MoreSkeletonMobile />
-  return <Loading />
+export default function MoreLoading() {
+  return (
+    <EntityLoading
+      phone={<MoreSkeletonMobile />}
+      desktop={<Loading />}
+    />
+  )
 }

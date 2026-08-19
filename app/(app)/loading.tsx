@@ -1,13 +1,11 @@
-import Loading from '@/components/ui/Loading'
-import { isPhoneEntity } from '@/components/mobile/skeletons/isPhoneEntity'
-import MobileInnerSkeleton from '@/components/mobile/skeletons/MobileInnerSkeleton'
-import { requestPathHint } from '@/components/mobile/skeletons/pathHint'
+import AppSegmentLoading from '@/components/mobile/skeletons/AppSegmentLoading'
 
 /**
  * Segment fallback once the mobile/desktop SHELL is already mounted.
- * Phone: destination-shaped content. Desktop: existing spinner.
+ *
+ * Must be synchronous. Reading request headers here is the stuck-skeleton
+ * client-navigation failure under cacheComponents.
  */
-export default async function AppLoading() {
-  if (await isPhoneEntity()) return <MobileInnerSkeleton path={await requestPathHint()} />
-  return <Loading />
+export default function AppLoading() {
+  return <AppSegmentLoading />
 }

@@ -1,12 +1,11 @@
 import { headers } from 'next/headers'
 
 /**
- * Best-effort request path for choosing a loading skeleton.
+ * Best-effort request path for choosing a COLD chrome skeleton.
  *
- * Route `loading.tsx` files do not receive `searchParams`. The layout Suspense
- * fallback cannot await `getUser()`. Headers are the only signal available at
- * the moment a phone would otherwise receive the desktop spinner or a
- * Today-shaped chrome on `/leads`.
+ * Do not call this from `loading.tsx`. Awaiting headers there is the
+ * stuck-skeleton client-navigation failure under cacheComponents.
+ * Destination-shaped route fallbacks now use the mounted shell + `usePathname`.
  *
  * `next-url` is set on client navigations. A cold document request may only
  * expose `referer`. Empty string → caller uses its default (Today chrome).
