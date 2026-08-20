@@ -104,7 +104,7 @@ export default function LeadFollowUpSheet({
           onChange={(e) => setNote(e.target.value)}
           placeholder='הערה (לא חובה)'
           maxLength={200}
-          className='mb-1 h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-[15px] outline-none focus:border-primary focus:bg-white'
+          className='mb-1 h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-base outline-none focus:border-primary focus:bg-white'
         />
 
         {PRESETS.map((p) => (
@@ -134,7 +134,7 @@ export default function LeadFollowUpSheet({
             autoFocus
             min={localISODate(new Date())}
             disabled={pending}
-            className='h-11 rounded-lg border border-gray-200 px-3 text-[15px]'
+            className='h-11 rounded-lg border border-gray-200 px-3 text-base'
             onChange={(e) => {
               if (e.target.value) apply(new Date(`${e.target.value}T00:00:00`))
             }}

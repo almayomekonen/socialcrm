@@ -54,6 +54,11 @@ export default async function MobileInboxRoute({
 
     const name = target.displayName || target.leadName || 'שיחה'
 
+    // Back returns to the list the rep actually came from, search included.
+    // A bare '/inbox' here silently discarded an active search and dropped them
+    // into the full list, which reads as the app losing their place.
+    const backHref = q ? `/inbox?q=${encodeURIComponent(q)}` : '/inbox'
+
     /**
      * Secondary context under the name: lead status, then how long since the
      * last message — "מתעניין · לפני 4 דקות".
@@ -102,7 +107,7 @@ export default async function MobileInboxRoute({
         >
           <div className='flex items-center gap-1 px-1.5 pb-1.5'>
             <Link
-              href={'/inbox' as Route}
+              href={backHref as Route}
               aria-label='חזרה לשיחות'
               className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
             >

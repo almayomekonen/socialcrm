@@ -4,6 +4,7 @@ import Icon from '@/lib/Icon'
 import type { MobileTodayModel } from './viewModel'
 import MobileTodayHero from './MobileTodayHero'
 import MobileTodayRow from './MobileTodayRow'
+import LeadListAddControl from '@/modules/leads/mobile/LeadListAddControl'
 
 /**
  * Today, on a phone. The mobile answer to "what should I do right now?".
@@ -18,16 +19,30 @@ import MobileTodayRow from './MobileTodayRow'
  * Not a port of the desktop dashboard: no progress bar, no three-up card grid,
  * no paginated table. One hero (with the remaining count in its header), then
  * the next-up and waiting lists — vertically scannable, action on the hero.
+ *
+ * ADDING A ליד IS REACHABLE FROM HERE. היום is the mobile landing screen, and
+ * adding leads is the product's first priority action, but the only `+` lived on
+ * the לידים tab — so the most important action in the product cost a tab switch
+ * from the screen every session starts on. `LeadListAddControl` is the SHIPPED
+ * control (header `+` → chooser → the existing form / import sheets); it is
+ * mounted, not reimplemented, so both tabs open the same sheets and land on the
+ * new lead the same way. `selecting` is false because היום has no selection mode.
  */
 export default function MobileToday({ model }: { model: MobileTodayModel }) {
   const { hero, nextUp, rest, remaining, restTotal, doneToday, meetings, newLeadsCount } = model
 
   if (!hero && rest.length === 0 && nextUp.length === 0) {
-    return <MobileTodayClear doneToday={doneToday} meetings={meetings} newLeadsCount={newLeadsCount} />
+    return (
+      <>
+        <LeadListAddControl selecting={false} />
+        <MobileTodayClear doneToday={doneToday} meetings={meetings} newLeadsCount={newLeadsCount} />
+      </>
+    )
   }
 
   return (
     <div className='flex flex-col gap-2 px-4 pb-4 pt-2'>
+      <LeadListAddControl selecting={false} />
       {hero && (
         <MobileTodayHero row={hero} remaining={remaining} />
       )}

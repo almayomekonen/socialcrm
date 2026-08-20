@@ -41,7 +41,7 @@ export default function ConversationSearchBar({ q, resultCount }: { q: string; r
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder='חיפוש שיחה'
-          className='h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-[15px] outline-none focus:border-primary focus:bg-white'
+          className='h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-base outline-none focus:border-primary focus:bg-white'
         />
         <Icon
           name='magnifying-glass'

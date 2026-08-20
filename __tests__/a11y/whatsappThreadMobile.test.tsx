@@ -22,12 +22,21 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+/**
+ * RELATIVE, NOT A FIXED DATE. The composer only renders a text box while Meta's
+ * 24-hour customer-service window is open, and that window is resolved against
+ * the real clock. A hardcoded timestamp therefore made these assertions pass
+ * only for 24 hours after the date someone typed, then fail forever — which is
+ * exactly what happened to the send-button test. Two hours ago is always inside
+ * the window, so the test asserts what it means to assert (an OPEN window) in a
+ * way that does not rot.
+ */
 const msg = (over: Partial<LeadWhatsappMessage> = {}): LeadWhatsappMessage => ({
   id: 1,
   direction: 'inbound',
   type: 'text',
   text: 'שלום',
-  timestamp: '2026-08-19T12:00:00.000Z',
+  timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   status: 'received',
   failureText: null,
   failureCategory: null,
@@ -104,6 +113,10 @@ describe('desktop WhatsApp conversation is unchanged', () => {
     expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain')
     const route = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/MobileInboxRoute.tsx'), 'utf8')
     expect(route).toContain('data-wa-thread-chrome')
+    // Back must return to the list the rep came from, search included — a bare
+    // '/inbox' discards an active search and reads as the app losing their place.
+    expect(route).toContain('const backHref = q ?')
+    expect(route).toContain('href={backHref as Route}')
     expect(route).toContain("tone='onGreen'")
     expect(route).toContain('MobileInboxReadMarker')
     const list = fs.readFileSync(path.join(process.cwd(), 'modules/inbox/mobile/ConversationListMobile.tsx'), 'utf8')

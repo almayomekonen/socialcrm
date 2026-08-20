@@ -81,6 +81,18 @@ describe('mobile inbox selection', () => {
     expect(screen.queryByTestId('inbox-selection-bar')).toBeNull()
   })
 
+  /**
+   * Opening a conversation from a FILTERED list used to drop `q`, so the
+   * thread's back link had nothing to return to and the rep landed on the full
+   * unfiltered list — having to retype the search they were already working in.
+   */
+  it('carries the active search into the thread URL so returning keeps the list', () => {
+    render(<ConversationListMobile items={[item()]} q='נועה' nextCursor={null} formatWhen={() => 'לפני שעה'} />)
+    expect(screen.getByRole('link', { name: /נועה/ }).getAttribute('href')).toBe(
+      '/inbox?conversation=9&q=%D7%A0%D7%95%D7%A2%D7%94',
+    )
+  })
+
   it('long press / context menu enters selection and never calls delete', () => {
     renderList([item()])
     enterSelection(screen.getByTestId('conversation-row'))

@@ -181,6 +181,7 @@ export default function ConversationListMobileClient({
             <ConversationRowMobile
               key={c.conversationId}
               item={c}
+              q={q}
               selecting={selecting}
               selected={selected.has(c.conversationId)}
               onToggle={() => toggle(c.conversationId)}

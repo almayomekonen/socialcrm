@@ -11,15 +11,23 @@ import type { ConversationListRow } from './conversationSelection'
  *
  * Normal: Link to the thread. Long press enters selection (never deletes).
  * Selection: the same row toggles membership by id.
+ *
+ * The active search rides along in the thread URL. Without it, opening a
+ * conversation from a filtered list dropped `q`, so the thread's back link had
+ * nothing to return to and the rep landed on the unfiltered list — having to
+ * retype the search they were already working in.
  */
 export default function ConversationRowMobile({
   item,
+  q = '',
   selecting,
   selected,
   onToggle,
   onEnterSelection,
 }: {
   item: ConversationListRow
+  /** Active search, preserved so returning from the thread keeps the list. */
+  q?: string
   selecting: boolean
   selected: boolean
   onToggle: () => void
@@ -78,7 +86,7 @@ export default function ConversationRowMobile({
   return (
     <li>
       <Link
-        href={`/inbox?conversation=${item.conversationId}` as Route}
+        href={`/inbox?conversation=${item.conversationId}${q ? `&q=${encodeURIComponent(q)}` : ''}` as Route}
         prefetch={false}
         data-testid='conversation-row'
         data-conversation-id={item.conversationId}
