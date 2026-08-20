@@ -1,41 +1,123 @@
 /**
- * Content-Security-Policy — shipped in REPORT-ONLY mode first.
+ * Content-Security-Policy — TWO policies, on purpose.
  *
- * The allowlist below is derived from the origins the app actually loads:
- * Google Sign-In (accounts.google.com), Google Picker (apis.google.com,
- * docs.google.com), and the Meta Pixel / FB SDK (connect.facebook.net,
- * www.facebook.com). Report-Only means violations are reported but nothing is
- * blocked, so a missed origin cannot break the UI. Once real traffic proves the
- * allowlist complete, this flips to the enforcing `Content-Security-Policy`.
+ * WHAT WAS ACTUALLY WRONG. The app shipped only
+ * `Content-Security-Policy-Report-Only`, which is why every scanner reports
+ * "missing CSP": report-only is advisory, so nothing was ever enforced. The
+ * comment here promised a flip "once real traffic proves the allowlist
+ * complete" — but the policy carried no `report-uri`, so nothing was collecting
+ * that proof. Two years of report-only produced zero evidence.
  *
- * 'unsafe-inline' is currently required for scripts (Next injects inline
- * bootstrap scripts) and styles (Tailwind/inline style attributes). Tightening
- * script-src with nonces is a follow-up once the policy is enforcing.
+ * Probing production directly (a `securitypolicyviolation` listener on
+ * getsocialcrm.com/auth) found two holes the old allowlist would have blocked
+ * the day it was enforced:
+ *
+ *   style-src-elem  https://accounts.google.com/gsi/style   ← the Google
+ *       Sign-In button's stylesheet, a <link> in the MAIN document (not inside
+ *       the gsi iframe). Enforcing without this un-styles the login button.
+ *   connect-src     https://*.on.aws                        ← Meta Pixel
+ *       telemetry, POSTed by fbevents.js from the main document.
+ *
+ * Both are fixed below. `fonts.gstatic.com` was ALSO observed, but only inside
+ * Google's own `gsi/button` iframe, which its own CSP governs — so it is
+ * deliberately NOT added here.
+ *
+ * WHY THE ENFORCED POLICY IS LOOSER THAN THE CANDIDATE. The probe covered
+ * public pages. It did NOT exercise the authenticated surfaces that talk to the
+ * most origins — Google Drive Picker, WhatsApp Embedded Signup, S3 uploads, the
+ * copilot PDF worker. Enforcing a tight `connect-src` against surfaces nobody
+ * has measured is how a security header becomes an outage.
+ *
+ * So the enforced policy is strict exactly where strictness cannot break a
+ * fetch — `object-src`, `base-uri`, `form-action`, `frame-ancestors`, and the
+ * script/style/frame allowlists that ARE evidenced — and stays permissive on
+ * `connect-src` until reports say otherwise. That is most of the real value
+ * (clickjacking, base-tag injection, form hijacking, arbitrary plugin/object
+ * loading) at close to zero breakage risk.
+ *
+ * The REPORT-ONLY policy is the tightening target: the same policy with the
+ * narrow `connect-src` restored. It now reports to /api/security/csp-report, so
+ * the next tightening is driven by data instead of by another promise. When the
+ * reports are quiet, the candidate becomes the enforced policy.
  */
-const contentSecurityPolicy = [
+const REPORT_URI = 'report-uri /api/security/csp-report'
+
+/** Directives shared by both policies. Differences live in the two consts below. */
+const cspBase = [
   "default-src 'self'",
+  // 'unsafe-inline' is still required: Next injects inline bootstrap scripts,
+  // and Tailwind plus React style props produce inline style attributes.
+  // Nonces are the follow-up, and they are only worth doing once enforcing.
   "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://connect.facebook.net",
-  "style-src 'self' 'unsafe-inline'",
+  // accounts.google.com added: proven main-document stylesheet (see above).
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://*.amazonaws.com",
-  "frame-src 'self' https://accounts.google.com https://content.googleapis.com https://docs.google.com https://www.facebook.com",
+  "frame-src 'self' https://accounts.google.com https://content.googleapis.com https://docs.google.com https://www.facebook.com https://staticxx.facebook.com",
+  // pdf.js loads its worker from same-origin /copilot/pdf.worker.min.mjs, and
+  // falls back to a blob: worker when that path fails. Without this, worker-src
+  // inherits default-src 'self' and the fallback dies.
+  "worker-src 'self' blob:",
+  // The zero-risk, high-value half: none of these can block a resource the app
+  // legitimately loads, and together they close clickjacking, base-tag
+  // injection, form hijacking and object/plugin injection.
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
+]
+
+/** ENFORCED. Permissive connect-src until authenticated surfaces are measured. */
+const contentSecurityPolicy = [...cspBase, "connect-src 'self' https:", REPORT_URI].join('; ')
+
+/** CANDIDATE, reported only. The narrow connect-src we intend to enforce next. */
+const contentSecurityPolicyCandidate = [
+  ...cspBase,
+  "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://connect.facebook.net https://www.facebook.com https://*.amazonaws.com https://*.on.aws",
+  REPORT_URI,
 ].join('; ')
 
-// Enforced headers. None of these can change rendering: the app has no
-// self-framing iframes (so DENY is safe) and uses no camera/microphone/
-// geolocation APIs (verified by grep before enabling the Permissions-Policy).
+/**
+ * CROSS-ORIGIN ISOLATION IS DELIBERATELY NOT ENABLED.
+ *
+ * Full isolation needs BOTH `COOP: same-origin` and `COEP: require-corp`, and
+ * both break this product:
+ *
+ *   COOP: same-origin severs `window.opener` for cross-origin popups. Google
+ *   Sign-In runs `display=popup` and posts the credential back to its opener
+ *   (verified live on /auth), and WhatsApp Embedded Signup depends on a
+ *   `postMessage` from the Facebook popup (lib/facebook/useEmbeddedSignup.ts).
+ *   Enabling it logs everyone out of the sign-in flow and kills WhatsApp
+ *   onboarding.
+ *
+ *   COEP: require-corp blocks every cross-origin subresource that does not send
+ *   CORP/CORS opt-in — the Facebook SDK, the Google Picker, Cloudinary icons.
+ *
+ * Isolation buys `SharedArrayBuffer` and high-resolution timers. This app uses
+ * neither (grepped: no WebAssembly, no SharedArrayBuffer). So the trade is
+ * "break login and WhatsApp onboarding to unlock capabilities we do not use" —
+ * which is not a security improvement, it is an outage with a good score.
+ *
+ * `same-origin-allow-popups` IS set: it gives the isolation benefit that does
+ * not cost anything (documents WE open cannot reach back into us) while keeping
+ * the OAuth popups we open working. It does not satisfy a scanner looking for
+ * full isolation, and that is the correct answer rather than the flattering one.
+ *
+ * TRUSTED TYPES IS ALSO NOT ENABLED — see the audit note in the same commit.
+ * `require-trusted-types-for 'script'` turns every `script.src = string` into a
+ * throw. The app has three (Google Picker loader, Facebook SDK loader, Meta
+ * Pixel), and Next.js/Turbopack's own chunk loader has more, with no policy
+ * registered. Enabling it today breaks client-side navigation.
+ */
 const securityHeaders = [
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-  { key: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicy },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+  { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+  { key: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicyCandidate },
 ]
 
 /** @type {import('next').NextConfig} */
