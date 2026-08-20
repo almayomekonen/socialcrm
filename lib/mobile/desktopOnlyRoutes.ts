@@ -169,6 +169,49 @@ export const DESKTOP_ONLY_ROUTES: Record<DesktopOnlySection, { path: string; exa
 }
 
 /**
+ * SETTINGS SUB-ROUTES THAT STILL SERVE THEIR DESKTOP PAGE TO A PHONE.
+ *
+ * A BACKLOG, NOT AN ENDORSEMENT. Every entry here is the defect this file was
+ * created to close — `MobileWorkspaceShell` wrapped around a desktop settings
+ * form — surviving because `mobileRouteCoverage` only ever walked TOP-LEVEL
+ * segments. `/settings` is declared mobile-ready (the עוד hub and SettingsChrome
+ * dropping the nav column are real), and that one declaration was silently
+ * covering all twenty-one routes beneath it.
+ *
+ * They are listed rather than fixed because each needs its own product decision
+ * — a phone screen, or a handoff — and that is a larger piece of work than the
+ * route that prompted this list. What the list buys today is that a NEW settings
+ * route cannot join them silently: it will be undeclared, and the coverage test
+ * will fail on the commit that adds it.
+ *
+ * Most of these are reachable from the mobile עוד hub and do reflow onto a phone,
+ * which is why they are tolerable rather than broken. That is not the same as
+ * designed, and none of them should be cited as precedent.
+ *
+ * An entry leaves this list the moment its route gains a phone presentation
+ * (move it to MOBILE_READY_ROUTES) or an explicit handoff (DESKTOP_ONLY_*).
+ */
+export const SETTINGS_MOBILE_BACKLOG: Record<string, string> = {
+  '/settings/self_edit': 'פרופיל אישי — desktop form, linked from עוד',
+  '/settings/update_user_details': 'פרטי נציג — desktop form, linked from עוד',
+  '/settings/edit_teams': 'צוותים — desktop form, linked from עוד',
+  '/settings/edit_users': 'משתמשים — desktop form, linked from עוד',
+  '/settings/update_agency': 'פרטי העסק — desktop form, linked from עוד',
+  '/settings/update_payment': 'מנוי ותשלום — desktop form, linked from עוד',
+  '/settings/update_security': 'אבטחה — desktop form, linked from עוד',
+  '/settings/update_default': 'הגדרות מערכת — desktop form, linked from עוד',
+  '/settings/connections': 'חיבורים — desktop surface, not linked from עוד',
+  '/settings/calendar': 'יומן — desktop surface, not linked from עוד',
+  '/settings/facebook': 'פייסבוק — desktop surface, reached from integrations',
+  '/settings/automations': 'אוטומציות — desktop builder, not linked from עוד',
+  '/settings/automations-pilot': 'אוטומציות (פיילוט) — desktop builder',
+  '/settings/automation-templates': 'תבניות אוטומציה — desktop builder',
+  '/settings/quote-templates': 'תבניות הצעות מחיר — desktop builder',
+  '/settings/edit_tmplts': 'תבניות משימות — desktop builder',
+  '/settings/edit_promotions': 'קמפיינים — desktop surface',
+}
+
+/**
  * The lead-detail tabs, keyed by their directory under
  * `app/(app)/clients/[clientId]/`. `summary` is the ONLY one absent, and the
  * coverage test asserts exactly that — so a new tab added there cannot quietly
@@ -203,6 +246,15 @@ export const MOBILE_READY_ROUTES: Record<string, string> = {
   '/settings': 'Reached directly from עוד. SettingsChrome drops the desktop nav column on a phone',
   '/settings/integrations':
     'אינטגרציות — IntegrationsMobile (status cards + Ready Messages), branched in the integrations page',
+  /**
+   * The master switch, not the settings form. `AutoResponseMobile` shows whether
+   * automatic WhatsApp replies are running and lets an admin stop them; the
+   * seven-field desktop form is deliberately NOT reproduced, and the screen says
+   * so. Listed here rather than as a handoff because there IS a phone screen —
+   * a kill switch is exactly the thing you need without a computer.
+   */
+  '/settings/auto-response':
+    'מענה אוטומטי — AutoResponseMobile (status + read-only message + master kill switch), branched in the auto-response page',
   /**
    * NOT a desktop handoff, deliberately — the §5 question, answered by reading
    * the code rather than by assuming.

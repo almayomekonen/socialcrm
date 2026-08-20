@@ -57,6 +57,20 @@ export const MORE_ITEMS: MoreItem[] = [
   { section: 'business', title: 'מנוי ותשלום', subtitle: 'תוכנית, חשבוניות ותשלומים', href: '/settings/update_payment', icon: 'credit-card', adminOnly: true },
 
   // ---- SYSTEM ----
+  /*
+   * מענה אוטומטי EARNS A ROW, unlike AI Inspector below.
+   *
+   * The rule this file follows is "nothing is a 'coming soon' row" — a listing
+   * has to lead somewhere that does something. This one does: `/settings/auto-response`
+   * has a real phone screen (`AutoResponseMobile`) whose whole purpose is the
+   * control an owner needs away from a computer — seeing that a machine is
+   * replying to customers, and stopping it. Advanced configuration stays on the
+   * desktop form and is stated as such on the screen.
+   *
+   * adminOnly mirrors the `(admin_settings)` route group and the server action's
+   * own `isAdmin` check; it hides the row, it does not enforce anything.
+   */
+  { section: 'system', title: 'מענה אוטומטי', subtitle: 'מענה אוטומטי בוואטסאפ', href: '/settings/auto-response', icon: 'comments', adminOnly: true },
   { section: 'system', title: 'אבטחה', subtitle: 'היסטוריית כניסות והתנתקות', href: '/settings/update_security', icon: 'shield', adminOnly: true },
   { section: 'system', title: 'הגדרות מערכת', subtitle: 'ברירות מחדל', href: '/settings/update_default', icon: 'folders', adminOnly: true },
   /*

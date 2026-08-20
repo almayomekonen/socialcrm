@@ -25,6 +25,7 @@ import {
   MOBILE_READY_ROUTES,
   LEAD_TAB_SECTIONS,
   MOBILE_READY_LEAD_TAB,
+  SETTINGS_MOBILE_BACKLOG,
 } from '@/lib/mobile/desktopOnlyRoutes'
 
 const APP_DIR = path.join(process.cwd(), 'app', '(app)')
@@ -67,6 +68,93 @@ function decidedRoutes(): Set<string> {
   for (const p of Object.keys(MOBILE_READY_ROUTES)) decided.add('/' + p.split('/')[1])
   return decided
 }
+
+/**
+ * THE NESTED-ROUTE HOLE THIS CLOSES.
+ *
+ * The walk above stops at the top level, and `/settings` is declared mobile-ready
+ * — so ONE entry was silently vouching for all twenty-one routes beneath it. That
+ * is how `/settings/auto-response` came to serve its 322-line desktop form inside
+ * `MobileWorkspaceShell`: nothing was lying, nothing was missing, the guarantee
+ * simply never looked that deep.
+ *
+ * Settings is where this matters most — it is the only top-level route with a
+ * large fan of independently-built sub-pages, and the hub links straight into
+ * them. So the same "somebody decided" rule now applies one level down.
+ *
+ * SEGMENT-LEVEL, exactly like the top-level walk: `/settings/edit_tmplts/[id]`
+ * is the `/settings/edit_tmplts` decision, not a second one.
+ */
+function settingsRoutes(): string[] {
+  const SETTINGS_DIR = path.join(APP_DIR, 'settings')
+  const found = new Set<string>()
+
+  // Route groups contribute no URL segment, so descend through them
+  // transparently and take the first REAL segment as the route.
+  const walk = (dir: string, segment: string | null) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name === 'page.tsx' && segment) found.add('/settings/' + segment)
+      if (!entry.isDirectory()) continue
+      const isGroup = entry.name.startsWith('(')
+      walk(path.join(dir, entry.name), isGroup ? segment : (segment ?? entry.name))
+    }
+  }
+  walk(SETTINGS_DIR, null)
+
+  return [...found].sort()
+}
+
+/** Every ledger that can account for a settings sub-route. */
+function decidedSettingsRoutes(): Set<string> {
+  const decided = new Set<string>()
+  const take = (p: string) => {
+    const parts = p.split('/').filter(Boolean)
+    if (parts[0] === 'settings' && parts[1]) decided.add('/settings/' + parts[1])
+  }
+  for (const { path: p } of Object.values(DESKTOP_ONLY_ROUTES)) take(p)
+  for (const p of Object.keys(MOBILE_READY_ROUTES)) take(p)
+  for (const p of Object.keys(SETTINGS_MOBILE_BACKLOG)) take(p)
+  return decided
+}
+
+describe('every nested /settings route has a declared mobile decision', () => {
+  test('the settings walk is not silently empty', () => {
+    const routes = settingsRoutes()
+    expect(routes.length).toBeGreaterThan(10)
+    // Anchors: one real phone screen, one declared handoff, one known backlog item.
+    expect(routes).toContain('/settings/auto-response')
+    expect(routes).toContain('/settings/ai-inspector')
+    expect(routes).toContain('/settings/update_agency')
+  })
+
+  test('no nested settings route is undecided', () => {
+    const decided = decidedSettingsRoutes()
+    const undecided = settingsRoutes().filter((r) => !decided.has(r))
+
+    expect(
+      undecided,
+      undecided.length
+        ? `These /settings routes have no mobile decision, so a phone would render their DESKTOP page ` +
+            `inside MobileWorkspaceShell. Give each a phone presentation (MOBILE_READY_ROUTES) or an ` +
+            `explicit handoff (DESKTOP_ONLY_SECTIONS + DESKTOP_ONLY_ROUTES). Only add to ` +
+            `SETTINGS_MOBILE_BACKLOG if it is a knowingly-deferred desktop form: ${undecided.join(', ')}`
+        : '',
+    ).toEqual([])
+  })
+
+  test('the backlog does not list a settings route that no longer exists', () => {
+    const routes = new Set(settingsRoutes())
+    for (const p of Object.keys(SETTINGS_MOBILE_BACKLOG)) {
+      expect(routes.has(p), `SETTINGS_MOBILE_BACKLOG → ${p}`).toBe(true)
+    }
+  })
+
+  test('a route with a real phone screen is not also parked in the backlog', () => {
+    for (const p of Object.keys(MOBILE_READY_ROUTES)) {
+      expect(SETTINGS_MOBILE_BACKLOG[p], `${p} is mobile-ready and must not be in the backlog`).toBeUndefined()
+    }
+  })
+})
 
 describe('every (app) route has a declared mobile decision', () => {
   test('the walk finds the routes we expect (the test itself is not silently empty)', () => {
