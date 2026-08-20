@@ -24,7 +24,7 @@ export type WhatsappSendFailureInput = {
 
 export type OnWhatsappSendFailureContext = {
   agencyId: number
-  leadId: number
+  leadId: number | null
   businessPhoneNumberId: string
   customerWaId: string
   customerName: string | null
@@ -79,7 +79,7 @@ export async function onWhatsappSendFailure(
 
 /** IRE: account restrictions are dead (existing status). Everything else retries. */
 export async function applyIreWhatsappSendFailure(
-  job: { id: number; agencyId: number; leadId: number },
+  job: { id: number; agencyId: number; leadId: number | null },
   failure: SendWhatsappTextFailure,
   ctx: Omit<OnWhatsappSendFailureContext, 'agencyId' | 'leadId'>,
 ): Promise<OnWhatsappSendFailureResult> {

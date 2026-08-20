@@ -266,11 +266,17 @@ describe('promote Contact → Lead enqueues existing IRE', () => {
 describe('Contact → Lead IRE contracts', () => {
   const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
 
-  it('leadless ingest still skips IRE (contact remains IRE-disabled before promotion)', () => {
+  it('Task 13: IRE follows the durable job, and Copilot analysis stays Lead-only', () => {
     const webhook = read('app/api/webhooks/whatsapp/route.ts')
     const ingest = read('lib/inbox/ingestWhatsappInbound.ts')
-    expect(webhook).toContain('if (result.inserted && leadId != null && leadId > 0)')
+    // The kick is driven by whether ingest actually created a job, so a
+    // non-personal Contact is answered while a personal one never is.
+    expect(webhook).toContain('if (result.inserted && result.ireEnqueued)')
+    expect(webhook).not.toContain('if (result.inserted && leadId != null && leadId > 0)')
+    // Conversation analysis remains gated on a real Lead.
     expect(ingest).toContain('if (input.leadId != null && input.leadId > 0)')
+    // IRE is gated on personal, not on the absence of a Lead.
+    expect(ingest).toContain('if (!isPersonal)')
   })
 
   it('existing Lead inbound still uses the shared enqueue helper', () => {

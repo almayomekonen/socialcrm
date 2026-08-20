@@ -88,7 +88,15 @@ function inboundPayload(over: { referral?: Record<string, unknown> } = {}) {
 beforeEach(() => {
   createLead.mockReset()
   ingestInbound.mockReset()
-  ingestInbound.mockResolvedValue({ conversationId: 9, messageId: 11, inserted: true, autoResponseDelaySeconds: 0 })
+  ingestInbound.mockResolvedValue({
+    conversationId: 9,
+    messageId: 11,
+    inserted: true,
+    autoResponseDelaySeconds: 0,
+    // Task 13: ingest reports whether a durable IRE job was created. The webhook
+    // kicks on that, not on the presence of a Lead.
+    ireEnqueued: true,
+  })
   runKick.mockClear()
   afterFn.mockClear()
   canUse.mockReset()
@@ -108,6 +116,29 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
     expect(createLead).not.toHaveBeenCalled()
     expect(ingestInbound).toHaveBeenCalledTimes(1)
     expect(ingestInbound.mock.calls[0][0].leadId).toBeNull()
+    // Task 13: a non-personal Contact is answered automatically. It is still not
+    // a Lead — promotion is a separate decision driven by business intent.
+    expect(runKick).toHaveBeenCalledWith({ delaySeconds: 0, limit: 5 })
+  })
+
+  it('a personal conversation is never kicked, even when a message is stored', async () => {
+    getMemory.mockResolvedValue({
+      id: 9,
+      agencyId: 69,
+      leadId: null,
+      isPersonal: true,
+      customerWaId: '972501111111',
+      customerName: 'Dana',
+    })
+    ingestInbound.mockResolvedValue({
+      conversationId: 9,
+      messageId: 11,
+      inserted: true,
+      autoResponseDelaySeconds: 0,
+      ireEnqueued: false,
+    })
+    await POST(signed(inboundPayload()) as never)
+    expect(createLead).not.toHaveBeenCalled()
     expect(runKick).not.toHaveBeenCalled()
   })
 
@@ -181,6 +212,7 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
       messageId: 11,
       inserted: true,
       autoResponseDelaySeconds: 5,
+      ireEnqueued: true,
     })
     await POST(signed(inboundPayload()) as never)
     expect(runKick).toHaveBeenCalledWith({ delaySeconds: 5, limit: 5 })
@@ -195,7 +227,13 @@ describe('whatsapp inbound — contact vs lead cascade', () => {
   })
 
   it('retry of the same webhook still returns 200 (ingest owns idempotency)', async () => {
-    ingestInbound.mockResolvedValue({ conversationId: 9, messageId: 11, inserted: false, autoResponseDelaySeconds: 0 })
+    ingestInbound.mockResolvedValue({
+      conversationId: 9,
+      messageId: 11,
+      inserted: false,
+      autoResponseDelaySeconds: 0,
+      ireEnqueued: false,
+    })
     const res = await POST(signed(inboundPayload()) as never)
     expect(res.status).toBe(200)
     expect(createLead).not.toHaveBeenCalled()

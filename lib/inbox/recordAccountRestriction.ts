@@ -13,7 +13,7 @@ import { insertFailedOutboundMessage } from '@/db/inboxMessages'
  */
 export async function recordAccountRestriction(input: {
   agencyId: number
-  leadId: number
+  leadId: number | null
   businessPhoneNumberId: string
   customerWaId: string
   customerName: string | null

@@ -14,6 +14,7 @@ import {
   hasSentFirstContact,
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
+import { isPositiveLeadId } from './contactJob'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
@@ -26,6 +27,7 @@ import { renderFixedReply } from './renderFixedReply'
 import { waTrace } from './waTrace'
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
+import { assertIreSendAllowed } from './ireSendGate'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -40,26 +42,38 @@ export { withinQuietHours }
 
 type Outcome = 'sent' | 'skipped' | 'failed' | 'deferred'
 
-async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outcome> {
+async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Outcome> {
   const doSkip = async (reason: string): Promise<Outcome> => {
-    await skipAutoResponseJob(job.id, reason)
-    await track({ agencyId: job.agencyId, event: 'auto_response_skipped', props: { conversationId: job.conversationId, reason } })
+    await skipAutoResponseJob(rawJob.id, reason)
+    await track({ agencyId: rawJob.agencyId, event: 'auto_response_skipped', props: { conversationId: rawJob.conversationId, reason } })
     return 'skipped'
   }
 
-  const [master, settings, conv, lead] = await Promise.all([
-    getMasterEnabled(job.agencyId),
-    getChannelSettings(job.agencyId, job.channel),
+  const leadQuery = isPositiveLeadId(rawJob.leadId)
+    ? db('clients').where({ id: rawJob.leadId }).first('id', 'userId', 'handlerId', 'status', 'firstName')
+    : Promise.resolve(null)
+  const [master, settings, conv, leadFromJob] = await Promise.all([
+    getMasterEnabled(rawJob.agencyId),
+    getChannelSettings(rawJob.agencyId, rawJob.channel),
     db('inbox_conversations')
-      .where({ id: job.conversationId })
-      .first('id', 'businessPhoneNumberId', 'customerWaId', 'customerName', 'lastMessageText'),
-    db('clients').where({ id: job.leadId }).first('id', 'userId', 'handlerId', 'status', 'firstName'),
+      .where({ id: rawJob.conversationId, agencyId: rawJob.agencyId })
+      .first('id', 'businessPhoneNumberId', 'customerWaId', 'customerName', 'lastMessageText', 'isPersonal', 'leadId'),
+    leadQuery,
   ])
-  if (!conv) return doSkip(job.reason === 'no_response_warning' || job.reason === 'no_response_close' ? 'conversation_missing' : 'conversation_gone')
-  if (!lead) return doSkip(job.reason === 'no_response_warning' || job.reason === 'no_response_close' ? 'conversation_missing' : 'lead_gone')
-  if (lead.status && TERMINAL_STATUSES.includes(lead.status)) return doSkip('lead_terminal')
+  if (!conv) return doSkip(rawJob.reason === 'no_response_warning' || rawJob.reason === 'no_response_close' ? 'conversation_missing' : 'conversation_gone')
+  if (conv.isPersonal === true) return doSkip('personal')
 
+  let job = rawJob
+  let lead = leadFromJob
+  if (!isPositiveLeadId(rawJob.leadId)) {
+    const convLeadId = conv.leadId != null && Number(conv.leadId) > 0 ? Number(conv.leadId) : null
+    if (convLeadId != null) {
+      lead = await db('clients').where({ id: convLeadId }).first('id', 'userId', 'handlerId', 'status', 'firstName')
+      job = { ...rawJob, leadId: convLeadId }
+    }
+  }
   if (job.reason === 'no_response_warning' || job.reason === 'no_response_close') {
+    if (!isPositiveLeadId(job.leadId) || !lead) return doSkip('contact_no_response')
     return processNoResponseJob(
       job,
       {
@@ -78,6 +92,8 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
       { send: deps.send },
     )
   }
+  if (isPositiveLeadId(job.leadId) && !lead) return doSkip('lead_gone')
+  if (lead?.status && TERMINAL_STATUSES.includes(lead.status)) return doSkip('lead_terminal')
 
   // Qualify mode (opt-in per agency) branches to its own processor; acknowledge
   // mode (everything below) is unchanged.
@@ -94,10 +110,10 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
           customerName: (conv.customerName as string | null) ?? null,
         },
         lead: {
-          id: Number(lead.id),
-          userId: (lead.userId as number | null) ?? null,
-          handlerId: (lead.handlerId as number | null) ?? null,
-          status: (lead.status as string | null) ?? null,
+          id: isPositiveLeadId(job.leadId) ? Number(lead?.id) : null,
+          userId: (lead?.userId as number | null) ?? null,
+          handlerId: (lead?.handlerId as number | null) ?? null,
+          status: (lead?.status as string | null) ?? null,
         },
       },
       { send: deps.send, generateQualify: deps.generateQualify },
@@ -133,7 +149,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
     const body = (settings?.fixedBody ?? '').trim()
     if (!body) return doSkip('fixed_body_empty')
     message = renderFixedReply(body, {
-      firstName: (lead.firstName as string | null) ?? null,
+      firstName: (lead?.firstName as string | null) ?? null,
       customerName: (conv.customerName as string | null) ?? null,
     }).trim()
     if (!message) return doSkip('fixed_body_empty')
@@ -161,6 +177,9 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   }
   console.log(`[IRE] generated conv=${job.conversationId} mode=${replyMode} len=${message.length}`)
 
+  const gate = await assertIreSendAllowed(job.agencyId, job.conversationId)
+  if (gate.ok === false) return doSkip(gate.reason)
+
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: conv.businessPhoneNumberId, agency_id: job.agencyId })
     .first('phone_number_id', 'access_token', 'user_id')
@@ -168,7 +187,7 @@ async function processJob(job: AutoResponseJob, deps: WorkerDeps): Promise<Outco
   const to = conv.customerWaId as string | null
   if (!to) return doSkip('no_recipient')
 
-  const sentByUserId = (lead.userId as number | null) ?? (lead.handlerId as number | null) ?? connection.user_id
+  const sentByUserId = (lead?.userId as number | null) ?? (lead?.handlerId as number | null) ?? connection.user_id
   const sent = await deps.send({
     phoneNumberId: conv.businessPhoneNumberId as string,
     accessToken: resolveWhatsappAccessToken(connection.access_token),

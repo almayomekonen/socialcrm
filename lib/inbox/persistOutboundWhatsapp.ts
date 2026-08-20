@@ -6,7 +6,7 @@ import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 
 export type PersistOutboundWhatsappInput = {
   agencyId: number
-  leadId: number
+  leadId: number | null
   businessPhoneNumberId: string
   customerWaId: string
   customerName: string | null

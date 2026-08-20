@@ -24,6 +24,7 @@ export type IngestWhatsappInboundResult = {
   inserted: boolean
   /** Seconds applied to the enqueued IRE job's notBefore. 0 when no job was created. */
   autoResponseDelaySeconds: number
+  ireEnqueued: boolean
 }
 
 export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): Promise<IngestWhatsappInboundResult> {
@@ -82,10 +83,14 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
     )
 
     let autoResponseDelaySeconds = 0
+    let ireEnqueued = false
     if (inserted) {
       await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date(), parsed.text)
-      // Leadless / personal conversations are never sales conversations:
-      // no Copilot analysis, no auto-response, no SLA/follow-up jobs.
+      const convFlags = await trx('inbox_conversations')
+        .where({ id: conversationId, agencyId: input.agencyId })
+        .first('isPersonal')
+      const isPersonal = convFlags?.isPersonal === true
+      // Copilot analysis stays Lead-only. IRE may run for non-personal Contacts.
       if (input.leadId != null && input.leadId > 0) {
         await enqueueConversationAnalysis(trx, {
           conversationId,
@@ -94,15 +99,18 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
           triggerSequence: sequence,
           reason: 'new_message',
         })
-        // Instant Response Engine: same enqueue path as Contact→Lead promotion.
-        // Internally a no-op unless the feature is enabled; the worker re-checks.
+      }
+      if (!isPersonal) {
         const enqueued = await enqueueInboundAutoResponse(trx, {
           agencyId: input.agencyId,
           conversationId,
           leadId: input.leadId,
           triggerSequence: sequence,
         })
-        if (enqueued.jobId != null) autoResponseDelaySeconds = enqueued.delaySeconds
+        if (enqueued.jobId != null) {
+          autoResponseDelaySeconds = enqueued.delaySeconds
+          ireEnqueued = true
+        }
         waTrace(
           'JOB_CREATED',
           { conversationId, agencyId: input.agencyId, jobId: enqueued.jobId, messageId, triggerSequence: sequence },
@@ -134,6 +142,6 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       )
     }
 
-    return { conversationId, messageId, inserted, autoResponseDelaySeconds }
+    return { conversationId, messageId, inserted, autoResponseDelaySeconds, ireEnqueued }
   })
 }

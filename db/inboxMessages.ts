@@ -44,7 +44,7 @@ export type InsertMessageResult = {
 export type InsertOutboundMessageInput = {
   conversationId: number
   agencyId: number
-  leadId: number
+  leadId: number | null
   channel: 'whatsapp'
   externalId: string | null
   fromId: string | null

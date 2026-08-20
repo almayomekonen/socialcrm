@@ -12,6 +12,7 @@ import {
   skipAutoResponseJob,
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
+import { isPositiveLeadId } from './contactJob'
 import { getOrCreateAiState, markClosed } from '@/db/conversationAiState'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
@@ -123,6 +124,8 @@ export async function processNoResponseJob(
     return 'skipped'
   }
 
+  if (!isPositiveLeadId(job.leadId)) return doSkip('contact_no_response')
+
   const recent = await loadTranscript(job.conversationId)
   const last = recent[recent.length - 1]
   const maxInboundSequence = maxInboundSequenceOf(recent)
@@ -157,7 +160,7 @@ export async function processNoResponseJob(
     ) {
       if (maxInboundSequence > job.triggerSequence) return doSkip('customer_replied')
       const completed = await completeAutoResponseJob(job.id, null)
-      if (completed !== false) {
+      if (completed !== false && isPositiveLeadId(job.leadId)) {
         await scheduleNoResponseClose({
           agencyId: job.agencyId,
           conversationId: job.conversationId,
@@ -218,7 +221,7 @@ export async function processNoResponseJob(
     await markClosed(job.conversationId, NO_RESPONSE_CLOSED_STATE_REASON)
   }
   const completed = await completeAutoResponseJob(job.id, sent.messageId)
-  if (phase === 'warning' && completed !== false) {
+  if (phase === 'warning' && completed !== false && isPositiveLeadId(job.leadId)) {
     await scheduleNoResponseClose({
       agencyId: job.agencyId,
       conversationId: job.conversationId,

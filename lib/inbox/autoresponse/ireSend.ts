@@ -9,6 +9,7 @@ import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/send
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import type { AutoResponseJob } from '@/db/autoResponseJobs'
 import { finalizeCustomerFacingText } from './customerFacingText'
+import { assertIreSendAllowed } from './ireSendGate'
 
 export type IreOutboundCtx = {
   conv: { id: number; businessPhoneNumberId: string; customerWaId: string | null; customerName: string | null }
@@ -33,6 +34,9 @@ export async function sendIreOutbound(
   if (!connection) return { ok: false, reason: 'no_connection' }
   const to = ctx.conv.customerWaId
   if (!to) return { ok: false, reason: 'no_recipient' }
+
+  const sendGate = await assertIreSendAllowed(job.agencyId, job.conversationId)
+  if (sendGate.ok === false) return { ok: false, reason: sendGate.reason }
 
   const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const sent = await send({

@@ -348,7 +348,7 @@ describe('push remains governed by existing policy/presence', () => {
 })
 
 describe('leadless inbound — store the conversation, never treat it as a lead', () => {
-  it('still emits message.inbound (הודעה חדשה) and skips analysis + auto-response', async () => {
+  it('still emits message.inbound (הודעה חדשה) and skips Lead-only analysis', async () => {
     insertInboundMessage.mockResolvedValue({ id: 21, inserted: true, sequence: 1 })
 
     await ingestWhatsappInbound(ingestInput({ leadId: null }))
@@ -358,8 +358,17 @@ describe('leadless inbound — store the conversation, never treat it as a lead'
       type: 'message.inbound',
       payload: { leadId: null, messageId: 21, provider: 'whatsapp' },
     })
+    // Copilot conversation analysis stays Lead-scoped.
     expect(enqueueConversationAnalysis).not.toHaveBeenCalled()
-    expect(enqueueAutoResponse).not.toHaveBeenCalled()
+  })
+
+  it('Task 13: a non-personal Contact still gets a durable IRE job with leadId NULL', async () => {
+    insertInboundMessage.mockResolvedValue({ id: 21, inserted: true, sequence: 1 })
+
+    await ingestWhatsappInbound(ingestInput({ leadId: null }))
+
+    expect(enqueueAutoResponse).toHaveBeenCalledTimes(1)
+    expect(enqueueAutoResponse.mock.calls[0][1]).toMatchObject({ leadId: null })
   })
 
   it('leadId=null has no handler — not a new-lead notification', () => {

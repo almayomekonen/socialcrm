@@ -55,7 +55,7 @@ export async function enqueueInboundAutoResponse(
   args: {
     agencyId: number
     conversationId: number
-    leadId: number
+    leadId: number | null
     triggerSequence: number
   },
 ): Promise<EnqueueInboundAutoResponseResult> {

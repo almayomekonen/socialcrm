@@ -162,6 +162,9 @@ beforeEach(() => {
     access_token: 't',
     user_id: 332,
   }
+  // Task 13: the pre-Graph send gate re-reads the conversation and fails closed.
+  // A live, non-personal conversation is the baseline for these Lead scenarios.
+  tableRows.conversations = { id: 340, isPersonal: false }
   tableRows.messageList = [
     {
       direction: 'inbound',

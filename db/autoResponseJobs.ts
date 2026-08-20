@@ -9,13 +9,20 @@ export interface AutoResponseJob {
   id: number
   agencyId: number
   conversationId: number
-  leadId: number
+  /** Null = non-personal Contact IRE job. Positive id = existing Lead. */
+  leadId: number | null
   channel: string
   reason: AutoResponseReason
   triggerSequence: number
   attempts: number
   maxAttempts: number
   createdAt: string
+}
+
+function parseLeadId(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
 /**
@@ -30,7 +37,7 @@ export async function enqueueAutoResponse(
   args: {
     agencyId: number
     conversationId: number
-    leadId: number
+    leadId: number | null
     channel: string
     triggerSequence: number
     reason?: AutoResponseReason
@@ -106,7 +113,7 @@ export async function claimAutoResponseJobs(workerId: string, limit: number): Pr
     id: Number(r.id),
     agencyId: Number(r.agencyId),
     conversationId: Number(r.conversationId),
-    leadId: Number(r.leadId),
+    leadId: parseLeadId(r.leadId),
     channel: String(r.channel),
     reason: r.reason as AutoResponseReason,
     triggerSequence: Number(r.triggerSequence),

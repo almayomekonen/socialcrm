@@ -207,6 +207,8 @@ describe('processQualifyJob ResponseProfile wiring', () => {
       access_token: 't',
       user_id: 332,
     }
+    // Task 13: the pre-Graph send gate re-reads the conversation and fails closed.
+    tableRows.conversations = { id: 340, isPersonal: false }
   })
 
   it('ASK_QUESTION inbound creates ResponseProfile and GPT runs', async () => {

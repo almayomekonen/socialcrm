@@ -15,6 +15,7 @@ import { findClientsByPhoneCore } from '@/lib/whatsapp/matchLeadByPhone'
 import { resolveInboundLeadDecision } from '@/lib/whatsapp/resolveInboundLead'
 import { attachConversationToLead, getConversationMemory } from '@/db/inboxConversations'
 import { db } from '@/config/db'
+import { shouldPromoteContactToLead } from '@/lib/inbox/autoresponse/contactLeadPromotion'
 
 export const maxDuration = 60
 
@@ -202,6 +203,28 @@ export async function POST(req: NextRequest) {
           console.error(`[WhatsappWebhook][create][msgId=${messageId}] CTWA createLead returned null`)
           await notifyWhatsappIngestionFailed(connection, messageId).catch(() => {})
         }
+      } else if (decision.kind === 'contact') {
+        const inboundText = typeof message?.text?.body === 'string' ? message.text.body : ''
+        if (shouldPromoteContactToLead(inboundText)) {
+          const latest = await getConversationMemory(agencyId, phoneNumberId, from)
+          if (latest?.isPersonal === true) {
+            leadId = null
+          } else if (latest?.leadId != null && latest.leadId > 0) {
+            leadId = latest.leadId
+          } else if (matches.length === 1) {
+            leadId = matches[0].id
+          } else if (matches.length === 0) {
+            const lead = await createLeadFromWhatsappWebhook({
+              firstName,
+              lastName,
+              phone,
+              messageId,
+              agencyId,
+              userId: connection.user_id,
+            })
+            if (lead) leadId = Number(lead.id)
+          }
+        }
       }
 
       console.log(
@@ -234,11 +257,9 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // Instant Response Engine: kick only for real Leads. Leadless / personal
-      // conversations must never auto-reply. delaySeconds>0 waits until
-      // approximately notBefore, then the existing worker claims due jobs
-      // (`notBefore <= now()`). Cron remains the drain/backstop.
-      if (result.inserted && leadId != null && leadId > 0) {
+      // Instant Response Engine: kick when ingest created a durable job
+      // (Lead or non-personal Contact). Personal conversations never enqueue.
+      if (result.inserted && result.ireEnqueued) {
         console.log(`[IRE] kick triggered conv=${result.conversationId} msg=${result.messageId}`)
         after(async () => {
           try {

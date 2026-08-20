@@ -326,6 +326,8 @@ describe('processQualifyJob GPT eligibility', () => {
       access_token: 't',
       user_id: 332,
     }
+    // Task 13: the pre-Graph send gate re-reads the conversation and fails closed.
+    tableRows.conversations = { id: 340, isPersonal: false }
   })
 
   it('WAIT thumbs-up skips GPT, does not close, traces GPT_ELIGIBILITY', async () => {

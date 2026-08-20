@@ -13,7 +13,8 @@ import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped, markClosed } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
-import { mergeQualification, requiredComplete, isSalesStrategy } from './qualification'
+import { isPositiveLeadId } from './contactJob'
+import { mergeQualification, requiredComplete, isSalesStrategy, type Qualification } from './qualification'
 import { decidePreGeneration, decidePostGeneration, isDiscoveryQuestionBudgetExhausted } from './stateMachine'
 import {
   generateQualifyTurn,
@@ -58,7 +59,7 @@ export interface QualifyCtx {
   master: boolean
   settings: AutoResponseSettings
   conv: { id: number; businessPhoneNumberId: string; customerWaId: string | null; customerName: string | null }
-  lead: { id: number; userId: number | null; handlerId: number | null; status: string | null }
+  lead: { id: number | null; userId: number | null; handlerId: number | null; status: string | null }
 }
 export interface QualifyDeps {
   send: typeof sendWhatsappText
@@ -85,6 +86,27 @@ async function sendAndPersist(
   text: string,
 ): Promise<{ ok: true; messageId: number; sequence: number } | { ok: false; reason: string; settled?: true }> {
   return sendIreOutbound(job, ctx, send, text)
+}
+
+async function shadowQualificationIfLead(
+  job: AutoResponseJob,
+  convId: number,
+  extracted: Qualification,
+  turnCount: number,
+): Promise<void> {
+  if (!isPositiveLeadId(job.leadId)) return
+  await shadowIngestQualification({
+    agencyId: job.agencyId,
+    leadId: job.leadId,
+    conversationId: convId,
+    extracted,
+  })
+  await shadowReasonAndDecide({
+    agencyId: job.agencyId,
+    leadId: job.leadId,
+    conversationId: convId,
+    turnCount,
+  })
 }
 
 async function persistEscalation(conversationId: number, agencyId: number, summary: EscalationSummary): Promise<void> {
@@ -470,20 +492,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       console.error(`[IRE-DRAFT] persist failed conv=${conv.id}:`, (e as Error).message)
     }
     await mergeOnly(conv.id, persistExtracted)
-    // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
-    await shadowIngestQualification({
-      agencyId: job.agencyId,
-      leadId: job.leadId,
-      conversationId: conv.id,
-      extracted: gen.extracted,
-    })
-    // Shadow-only: run the runtime read spine and record the would-be decision (flag-gated, guarded, no-op off).
-    await shadowReasonAndDecide({
-      agencyId: job.agencyId,
-      leadId: job.leadId,
-      conversationId: conv.id,
-      turnCount: aiState.aiTurnCount,
-    })
+    await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
     await track({
       agencyId: job.agencyId,
       event: 'auto_response_draft',
@@ -516,20 +525,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       return doSkip(r.reason)
     }
     await mergeOnly(conv.id, persistExtracted)
-    // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
-    await shadowIngestQualification({
-      agencyId: job.agencyId,
-      leadId: job.leadId,
-      conversationId: conv.id,
-      extracted: gen.extracted,
-    })
-    // Shadow-only: run the runtime read spine and record the would-be decision (flag-gated, guarded, no-op off).
-    await shadowReasonAndDecide({
-      agencyId: job.agencyId,
-      leadId: job.leadId,
-      conversationId: conv.id,
-      turnCount: aiState.aiTurnCount,
-    })
+    await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
     await markEscalated(conv.id, post.reason)
     await persistEscalation(conv.id, job.agencyId, summary)
     await completeAutoResponseJob(job.id, r.messageId)
@@ -551,28 +547,17 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return doSkip(r.reason)
   }
   await recordTurn(conv.id, persistExtracted)
-  // Shadow-only: mirror the same signal into the runtime World Model (flag-gated, guarded, no-op off).
-  await shadowIngestQualification({
-    agencyId: job.agencyId,
-    leadId: job.leadId,
-    conversationId: conv.id,
-    extracted: gen.extracted,
-  })
-  // Shadow-only: run the runtime read spine and record the would-be decision (flag-gated, guarded, no-op off).
-  await shadowReasonAndDecide({
-    agencyId: job.agencyId,
-    leadId: job.leadId,
-    conversationId: conv.id,
-    turnCount: aiState.aiTurnCount + 1,
-  })
+  await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount + 1)
   await completeAutoResponseJob(job.id, r.messageId)
-  await scheduleNoResponseWarning({
-    agencyId: job.agencyId,
-    conversationId: conv.id,
-    leadId: job.leadId,
-    channel: job.channel,
-    triggerSequence: r.sequence,
-  })
+  if (isPositiveLeadId(job.leadId)) {
+    await scheduleNoResponseWarning({
+      agencyId: job.agencyId,
+      conversationId: conv.id,
+      leadId: job.leadId,
+      channel: job.channel,
+      triggerSequence: r.sequence,
+    })
+  }
   console.log(`[IRE] qualify turn conv=${conv.id} turn=${aiState.aiTurnCount + 1} msg=${r.messageId}`)
   await track({ agencyId: job.agencyId, event: 'auto_response_sent', props: { conversationId: conv.id, reason: 'qualify_turn' } })
   return 'sent'

@@ -88,6 +88,23 @@ const GREETING_EXACT = new Set([
   'היי מה נשמע',
 ])
 
+/**
+ * Task 13 — greeting compounds for the Contact first turn: a run of greeting
+ * cores, each optionally followed by a vocative or a "מה קורה" style tail
+ * ("היי שלום", "היי אחי", "היי אחי מה קורה").
+ *
+ * Recognising these as greetings is what lets an unknown Contact get answered on
+ * turn one. It must never silence a real question — see the REAL_QUESTION escape
+ * in the greeting branch of shouldInvokeSalesAi.
+ */
+const GREETING_CORE = new Set(['היי', 'הי', 'שלום', 'hi', 'hello', 'hey', 'yo'])
+const GREETING_VOCATIVE = new Set(['אחי', 'אח', 'bro', 'dude', 'man'])
+const GREETING_TAIL: Array<[string, string]> = [
+  ['מה', 'קורה'],
+  ['מה', 'נשמע'],
+  ['whats', 'up'],
+]
+
 const HELP_RE =
   /לא הבנתי|לא מבין|לא מבינה|לא ברור(?: לי)?|אני צרי[ךכ]ה?\s+עזרה|תעזר[יי]? לי|תעזור לי|יש לי (?:עוד )?שאלה|רציתי לשאול|didn['’]?t understand|i (?:don['’]?t|didn['’]?t) understand|i need help|can you help me|i have (?:another )?question/i
 
@@ -126,7 +143,29 @@ export function isGreetingOnly(text: string): boolean {
   for (const g of GREETING_EXACT) {
     if (collapseRepeatedLetters(g) === collapsed) return true
   }
-  return false
+  const tokens = light.split(' ').filter(Boolean)
+  if (!tokens.length) return false
+  let i = 0
+  let sawCore = false
+  while (i < tokens.length) {
+    const tok = collapseRepeatedLetters(tokens[i] ?? '')
+    if (GREETING_CORE.has(tok) || GREETING_CORE.has(tokens[i] ?? '')) {
+      sawCore = true
+      i += 1
+      continue
+    }
+    if (GREETING_VOCATIVE.has(tok) || GREETING_VOCATIVE.has(tokens[i] ?? '')) {
+      i += 1
+      continue
+    }
+    const next = collapseRepeatedLetters(tokens[i + 1] ?? '')
+    if (GREETING_TAIL.some(([a, b]) => a === tok && b === next)) {
+      i += 2
+      continue
+    }
+    return false
+  }
+  return sawCore
 }
 
 const HERE_TOKENS = new Set(['פה', 'כאן', 'here'])
@@ -256,7 +295,11 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
   if (isCasualAcknowledgement(inboundText)) return wait('ACKNOWLEDGEMENT')
 
   if (isGreetingOnly(inboundText)) {
+    // Task 13: an unknown Contact deserves an answer to its opening greeting.
     if (input.customerInboundCount <= 1) return run('FIRST_TURN')
+    // A greeting that is also a real question ("היי אחי מה קורה?") is a question
+    // first; only a bare repeated greeting is social residue worth silencing.
+    if (inboundContainsRealQuestion(inboundText)) return run('REAL_QUESTION')
     return wait('GREETING_REPEAT')
   }
 
