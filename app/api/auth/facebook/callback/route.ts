@@ -165,6 +165,13 @@ export async function GET(req: NextRequest) {
     discoverySource: discovery.diagnostics.discoverySource,
     granularAttemptedCount: discovery.diagnostics.granularAttemptedCount,
     granularResolvedCount: discovery.diagnostics.granularResolvedCount,
+    // Per-Page outcome: WHY an authorised Page did or did not resolve. Page ids
+    // appear only as truncated hashes and Meta's text is redacted+truncated —
+    // see PageFetchAttempt. Recorded only when something failed to resolve, so
+    // a healthy connect stays as quiet in the log as it is today.
+    ...(discovery.diagnostics.granularResolvedCount < discovery.diagnostics.granularAttemptedCount
+      ? { granularAttempts: discovery.diagnostics.granularAttempts }
+      : {}),
   }
 
   if (discovery.providerError) {

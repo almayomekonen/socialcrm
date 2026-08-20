@@ -392,6 +392,82 @@ describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)
     expect(failProps()).toMatchObject({ reason: 'PROVIDER_ERROR', httpStatus: 400, metaErrorCode: 190 })
   })
 
+  it('FBD-10: a rejected Page fetch records WHY — status, Meta code/type/message, field presence', async () => {
+    // The blind spot this closes: fetchPageById used to answer a bare null for
+    // every failure mode, so production saw granularResolvedCount 0 with no cause.
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: {
+        'PG-NPE': {
+          status: 400,
+          body: {
+            error: {
+              message: 'Unsupported get request. Object with ID does not exist or lacks permissions',
+              type: 'GraphMethodException',
+              code: 100,
+              error_subcode: 33,
+              fbtrace_id: 'Zz9TraceId',
+            },
+          },
+        },
+      },
+    })
+
+    await GET(req())
+
+    const attempts = failProps()?.granularAttempts as Record<string, unknown>[] | undefined
+    expect(attempts).toHaveLength(1)
+    expect(attempts?.[0]).toMatchObject({
+      httpStatus: 400,
+      metaErrorCode: 100,
+      metaErrorSubcode: 33,
+      metaErrorType: 'GraphMethodException',
+      fbtraceId: 'Zz9TraceId',
+      hasId: false,
+      hasName: false,
+      hasAccessToken: false,
+      graphVersion: 'v19.0',
+      fieldsRequested: 'id,name,access_token',
+    })
+    // The Page id is present only as a truncated, non-reversible hash.
+    expect(String(attempts?.[0].pageIdHash)).toHaveLength(12)
+    expect(attempts?.[0].pageIdHash).not.toBe('PG-NPE')
+  })
+
+  it('FBD-10b: a 200 Page object missing access_token is recorded as exactly that', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': { status: 200, body: { id: 'PG-NPE', name: 'No Token Page' } } },
+    })
+
+    await GET(req())
+
+    expect((failProps()?.granularAttempts as Record<string, unknown>[])?.[0]).toMatchObject({
+      httpStatus: 200,
+      hasId: true,
+      hasName: true,
+      hasAccessToken: false,
+      metaErrorCode: null,
+    })
+  })
+
+  it('FBD-10c: a healthy connect records no per-Page attempt noise', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': NPE_PAGE },
+    })
+
+    await GET(req())
+
+    expect(discoveredProps()?.granularAttempts).toBeUndefined()
+  })
+
   it('FBD-9: no Page id or Page access token in logs or analytics on the granular path', async () => {
     const logs: string[] = []
     for (const level of ['log', 'warn', 'error'] as const) {

@@ -1,4 +1,4 @@
-import { parseMetaError, type MetaErrorDetails } from '@/lib/facebook/pageDiscoveryDiagnostics'
+import { hashAssetId, parseMetaError, type MetaErrorDetails } from '@/lib/facebook/pageDiscoveryDiagnostics'
 
 /**
  * Facebook Page discovery.
@@ -26,11 +26,36 @@ import { parseMetaError, type MetaErrorDetails } from '@/lib/facebook/pageDiscov
  * callback. Changing it is a separate decision, deliberately not made here.
  */
 
-const GRAPH = 'https://graph.facebook.com/v19.0'
+const GRAPH_VERSION_PINNED = 'v19.0'
+const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION_PINNED}`
 /** A Page fetch is on the user's critical path; it must never hang the flow. */
 const PAGE_FETCH_TIMEOUT_MS = 5000
+const PAGE_FIELDS = 'id,name,access_token'
+/** Bound the diagnostic: a pathological grant must not write an unbounded row. */
+const MAX_ATTEMPTS_RECORDED = 5
 
 export type DiscoveredPage = { id: string; name: string; access_token: string }
+
+/**
+ * Why one authorised Page id did or did not resolve.
+ *
+ * Exists because `fetchPageById` previously returned a bare `null` for every
+ * failure mode — HTTP error, missing field, thrown request — so production
+ * could see `granularResolvedCount: 0` without being able to say WHY. Every
+ * field here is safe to log: the Page id appears only as a truncated hash, and
+ * provider text goes through `parseMetaError` (redacted + truncated).
+ */
+export type PageFetchAttempt = {
+  pageIdHash: string | null
+  httpStatus: number | null
+  hasId: boolean
+  hasName: boolean
+  hasAccessToken: boolean
+  graphVersion: string
+  fieldsRequested: string
+  /** Set when the request itself never completed (timeout, DNS, abort). */
+  transportError: string | null
+} & MetaErrorDetails
 
 export type PageDiscoveryDiagnostics = {
   /** Which source produced the Pages. 'none' = neither source returned any. */
@@ -45,6 +70,8 @@ export type PageDiscoveryDiagnostics = {
   dataKeyPresent: boolean | null
   /** Final usable Page count, whichever source produced it. */
   returnedPageCount: number
+  /** Per-Page outcome of the granular attempt. Safe to log; see PageFetchAttempt. */
+  granularAttempts: PageFetchAttempt[]
 }
 
 export type PageDiscovery = {
@@ -60,21 +87,65 @@ export type PageDiscovery = {
  * Total-failure tolerant: a Page that cannot be resolved returns null so the
  * remaining Pages — and the `/me/accounts` fallback — still get their chance.
  */
-async function fetchPageById(pageId: string, userToken: string): Promise<DiscoveredPage | null> {
+async function fetchPageById(
+  pageId: string,
+  userToken: string,
+): Promise<{ page: DiscoveredPage | null; attempt: PageFetchAttempt }> {
+  const noError: MetaErrorDetails = {
+    metaErrorCode: null,
+    metaErrorSubcode: null,
+    metaErrorType: null,
+    metaErrorMessage: null,
+    fbtraceId: null,
+  }
+  const attempt: PageFetchAttempt = {
+    pageIdHash: await hashAssetId(pageId),
+    httpStatus: null,
+    hasId: false,
+    hasName: false,
+    hasAccessToken: false,
+    graphVersion: GRAPH_VERSION_PINNED,
+    fieldsRequested: PAGE_FIELDS,
+    transportError: null,
+    ...noError,
+  }
+
   try {
     const res = await fetch(
-      `${GRAPH}/${encodeURIComponent(pageId)}?fields=id,name,access_token&access_token=${encodeURIComponent(userToken)}`,
+      `${GRAPH}/${encodeURIComponent(pageId)}?fields=${PAGE_FIELDS}&access_token=${encodeURIComponent(userToken)}`,
       { signal: AbortSignal.timeout(PAGE_FETCH_TIMEOUT_MS) },
     )
-    if (!res.ok) return null
-    const page = (await res.json()) as { id?: unknown; name?: unknown; access_token?: unknown } | null
+    attempt.httpStatus = res.status
+
+    // Read as text once: it has to serve both the error parser and the shape
+    // check, and a Response body can only be consumed a single time.
+    const bodyText = await res.text()
+    let body: { id?: unknown; name?: unknown; access_token?: unknown; error?: unknown } | null = null
+    try {
+      body = JSON.parse(bodyText)
+    } catch {
+      // Non-JSON (proxy/HTML error page) — parseMetaError still yields a
+      // redacted, truncated message, which is the whole point here.
+    }
+
+    // Meta can answer 200 with an error envelope, so check the body either way.
+    if (!res.ok || (body && body.error)) Object.assign(attempt, parseMetaError(bodyText))
+
+    attempt.hasId = typeof body?.id === 'string' && body.id.length > 0
+    attempt.hasName = typeof body?.name === 'string' && body.name.length > 0
+    attempt.hasAccessToken = typeof body?.access_token === 'string' && body.access_token.length > 0
+
+    if (!res.ok) return { page: null, attempt }
     // Without a Page access token the Page is useless downstream: the connect
     // route cannot subscribe it to leadgen webhooks.
-    if (typeof page?.id !== 'string' || typeof page.access_token !== 'string' || !page.access_token) return null
-    const name = typeof page.name === 'string' && page.name.length > 0 ? page.name : page.id
-    return { id: page.id, name, access_token: page.access_token }
-  } catch {
-    return null
+    if (!attempt.hasId || !attempt.hasAccessToken) return { page: null, attempt }
+
+    const id = body!.id as string
+    const name = attempt.hasName ? (body!.name as string) : id
+    return { page: { id, name, access_token: body!.access_token as string }, attempt }
+  } catch (err) {
+    attempt.transportError = err instanceof Error ? err.name : 'UnknownError'
+    return { page: null, attempt }
   }
 }
 
@@ -100,12 +171,9 @@ function mapAccountsEntries(data: unknown[]): DiscoveredPage[] {
 export async function discoverFacebookPages(userToken: string, grantedPageIds: string[]): Promise<PageDiscovery> {
   const granularAttemptedCount = grantedPageIds.length
 
-  const granularPages =
-    granularAttemptedCount > 0
-      ? (await Promise.all(grantedPageIds.map((id) => fetchPageById(id, userToken)))).filter(
-          (p): p is DiscoveredPage => p !== null,
-        )
-      : []
+  const results = granularAttemptedCount > 0 ? await Promise.all(grantedPageIds.map((id) => fetchPageById(id, userToken))) : []
+  const granularPages = results.map((r) => r.page).filter((p): p is DiscoveredPage => p !== null)
+  const granularAttempts = results.map((r) => r.attempt).slice(0, MAX_ATTEMPTS_RECORDED)
 
   if (granularPages.length > 0) {
     return {
@@ -118,11 +186,12 @@ export async function discoverFacebookPages(userToken: string, grantedPageIds: s
         httpStatus: null,
         dataKeyPresent: null,
         returnedPageCount: granularPages.length,
+        granularAttempts,
       },
     }
   }
 
-  const base = { granularAttemptedCount, granularResolvedCount: 0 }
+  const base = { granularAttemptedCount, granularResolvedCount: 0, granularAttempts }
   const res = await fetch(`${GRAPH}/me/accounts?access_token=${userToken}`)
 
   if (!res.ok) {

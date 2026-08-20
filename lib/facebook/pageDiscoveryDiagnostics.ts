@@ -136,10 +136,17 @@ export function parseMetaError(bodyText: string): MetaErrorDetails {
   }
 }
 
-/** Truncated SHA-256 of the Facebook user id. Never the id itself. */
-export async function hashFbUserId(fbUserId: string): Promise<string | null> {
+/**
+ * Truncated SHA-256 of a Meta asset id (user id, Page id).
+ *
+ * A correlation key, deliberately not reversible: enough to tell "the same
+ * Page failed twice" from "two different Pages failed", never enough to
+ * identify the asset. This is what lets Page-level diagnostics be logged at
+ * all — raw Page ids may not be (see SAFETY above).
+ */
+export async function hashAssetId(assetId: string): Promise<string | null> {
   try {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fbUserId))
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(assetId))
     return Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
@@ -148,6 +155,9 @@ export async function hashFbUserId(fbUserId: string): Promise<string | null> {
     return null
   }
 }
+
+/** Truncated SHA-256 of the Facebook user id. Never the id itself. */
+export const hashFbUserId = hashAssetId
 
 /**
  * Inspect the freshly-exchanged User Access Token via debug_token.
