@@ -31,6 +31,15 @@ import { useMobileScrollRestoration } from './useMobileScrollRestoration'
  * List pages still scroll in `main`. A WhatsApp thread makes `main` a flex
  * column with overflow hidden so the message list is the only scroller.
  *
+ * `main` also drops `overscroll-contain` for the duration of a thread. On a list
+ * page `main` IS the scroller, so containing its overscroll is correct. Inside a
+ * thread it is instead a zero-slack `overflow: hidden` ancestor sitting between
+ * the finger and the real scroller — the same position `html`/`body` held when
+ * `overscroll-behavior: none` there was found to swallow touch-scroll on nested
+ * overflow regions on iOS (see the rule in main.css). Containing overscroll on
+ * an ancestor that cannot scroll buys nothing and risks the same swallow, so the
+ * thread list keeps its own `overscroll-contain` and `main` steps out of the way.
+ *
  * `MobileWorkspaceContext` tells synchronous `loading.tsx` files which entity
  * is already mounted, so they never await `headers()` (the stuck-skeleton bug).
  */
@@ -80,7 +89,7 @@ export default function MobileWorkspaceShell({
            neutralisation in main.css — see the rule there for why it is needed. */}
         <div
           data-mobile-workspace
-          className='flex min-h-0 flex-1 flex-col overflow-hidden bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden'
+          className='flex min-h-0 flex-1 flex-col overflow-hidden bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overscroll-auto'
         >
           <MobileHeader title={title} onBack={isTab ? undefined : true} action={headerAction} />
 

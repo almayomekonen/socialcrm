@@ -83,10 +83,35 @@ export default function useLongPress(onLongPress: () => void, enabled = true): L
       suppressClickRef.current = false
       startRef.current = { x: e.clientX, y: e.clientY }
       const host = e.currentTarget as HTMLElement
-      try {
-        host.setPointerCapture(e.pointerId)
-      } catch {
-        /* jsdom / older WebKit */
+      /**
+       * NEVER capture a TOUCH pointer.
+       *
+       * iOS Safari treats `setPointerCapture()` during `pointerdown` as the page
+       * claiming the gesture, so the native pan of the enclosing scroller never
+       * starts — a finger that lands on a message bubble (most of the surface in
+       * a long thread) could not scroll the conversation at all, while a finger
+       * that happened to land on wallpaper could. That is the stuck-scroll bug.
+       *
+       * Capture buys nothing here either: WebKit bug 220196 means iOS fires
+       * `gotpointercapture` and then does NOT retarget `pointermove`/`pointerup`
+       * once the contact leaves the element, so the capture the hook asked for
+       * was never actually delivered on the one platform it broke.
+       *
+       * Mouse and pen KEEP capture — there the gesture is a drag, not a pan,
+       * nothing is being scrolled by the pointer, and capture is what keeps the
+       * move/up pair on the host when the cursor slips off it.
+       *
+       * Long press still cancels correctly without capture:
+       *   - `onPointerMove` fires on the host for the first 10px of travel
+       *   - iOS fires `pointercancel` the moment native panning takes over
+       *   - the `scroll` listener below cancels once the scroller actually moves
+       */
+      if (e.pointerType !== 'touch') {
+        try {
+          host.setPointerCapture(e.pointerId)
+        } catch {
+          /* jsdom / older WebKit */
+        }
       }
       const scroller = scrollParent(host)
       scrollTargetRef.current = scroller

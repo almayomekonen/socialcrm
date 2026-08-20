@@ -96,6 +96,9 @@ describe('desktop WhatsApp conversation is unchanged', () => {
     const shell = fs.readFileSync(path.join(process.cwd(), 'components/mobile/MobileWorkspaceShell.tsx'), 'utf8')
     expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden')
     expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden')
+    // `main` must not contain overscroll while it is a zero-slack ancestor of
+    // the thread scroller — that is the second half of the stuck-scroll fix.
+    expect(shell).toContain('has-[[data-wa-thread-chrome]]:[&_#main-content]:overscroll-auto')
     expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-hidden')
     expect(shell).not.toMatch(/className='flex h-dvh flex-col/)
     expect(shell).toContain('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain')
