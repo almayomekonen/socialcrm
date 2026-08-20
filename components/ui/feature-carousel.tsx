@@ -10,28 +10,44 @@ const FEATURES = [
     id: 'facebook',
     label: 'פייסבוק',
     iconName: 'thumbs-up' as IconNames,
-    image: '/media/social/facebook.png',
+    image: '/media/social/facebook.webp',
+    // Intrinsic size of THIS asset — they differ slightly, so one shared pair
+    // would be wrong for three of the four.
+    width: 1348,
+    height: 890,
     description: 'לידים שממלאים טופס Lead Ad מגיעים אוטומטית למערכת תוך שניות מהגשה.',
   },
   {
     id: 'instagram',
     label: 'אינסטגרם',
     iconName: 'at' as IconNames,
-    image: '/media/social/instagram.png',
+    image: '/media/social/instagram.webp',
+    // Intrinsic size of THIS asset — they differ slightly, so one shared pair
+    // would be wrong for three of the four.
+    width: 1304,
+    height: 882,
     description: 'לידים מטפסי Lead Ad באינסטגרם מגיעים ישירות למערכת בלי להעתיק ידנית.',
   },
   {
     id: 'whatsapp',
     label: 'וואטסאפ',
     iconName: 'comment-dots' as IconNames,
-    image: '/media/social/whatsapp.png',
+    image: '/media/social/whatsapp.webp',
+    // Intrinsic size of THIS asset — they differ slightly, so one shared pair
+    // would be wrong for three of the four.
+    width: 1306,
+    height: 892,
     description: 'מחברים את הוואטסאפ העסקי, וכל שיחה מתחברת לליד שלה. עונים מהמערכת ורואים מתי ההודעה נמסרה ונקראה.',
   },
   {
     id: 'excel',
     label: 'אקסל',
     iconName: 'file-excel' as IconNames,
-    image: '/media/social/excel.png',
+    image: '/media/social/excel.webp',
+    // Intrinsic size of THIS asset — they differ slightly, so one shared pair
+    // would be wrong for three of the four.
+    width: 1358,
+    height: 890,
     description: 'יש רשימת לידים ישנה? מעלים קובץ אקסל ובשניות הכל מאורגן במערכת.',
   },
 ]
@@ -177,9 +193,38 @@ export function FeatureCarousel() {
                   className='absolute inset-0 rounded-4xl md:rounded-[2.5rem] overflow-hidden border-4 md:border-8 origin-center'
                   style={{ borderColor: '#0f0d1a', backgroundColor: '#0f0d1a' }}
                 >
+                  {/*
+                    LAZY, INCLUDING THE ACTIVE SLIDE.
+
+                    This carousel is the sixth section of the page — far below
+                    the fold on every viewport — yet all four slides mount at
+                    once (they are stacked `absolute inset-0`, only opacity and
+                    transform differ). As eager <img> they downloaded 5 MB of
+                    PNG during the initial load, which is what pushed mobile LCP
+                    to ~19.5s: the hero text was competing for bandwidth with
+                    images nobody had scrolled to yet.
+
+                    `loading='lazy'` defers all four until the viewport
+                    approaches, so the initial load no longer pays for them at
+                    all. `fetchPriority='high'` on the ACTIVE slide is what
+                    keeps the requirement that the visible card loads reliably:
+                    it does not un-defer the fetch, it only orders the active
+                    card ahead of its neighbours once they do start, so the card
+                    the user actually looks at is never the last to arrive.
+
+                    `width`/`height` are the intrinsic pixel size of the source.
+                    They cannot change layout — the parent is `absolute inset-0`
+                    inside a fixed `aspect-4/5` box — but they give the browser
+                    the intrinsic ratio up front, which is what keeps CLS at 0.
+                  */}
                   <img
                     src={feature.image}
                     alt={feature.label}
+                    width={feature.width}
+                    height={feature.height}
+                    loading='lazy'
+                    decoding='async'
+                    fetchPriority={isActive ? 'high' : 'auto'}
                     className={cn(
                       'w-full h-full object-cover transition-all duration-700',
                       isActive ? 'grayscale-0' : 'grayscale blur-[2px] brightness-75',

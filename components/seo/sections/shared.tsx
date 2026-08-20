@@ -1,20 +1,14 @@
-'use client'
+/**
+ * Shared marketing section pieces. SERVER COMPONENT — deliberately.
+ *
+ * This file used to carry `'use client'` for one reason: `FadeIn` was a
+ * `motion.div`. Six sections import from here, so that single directive made
+ * most of the marketing page client-rendered. `FadeIn` now lives in its own
+ * client file and is re-exported, which keeps every call site unchanged while
+ * letting this module — and the sections that import it — render on the server.
+ */
 
-import { motion } from 'motion/react'
-
-export function FadeIn({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
-}
+export { FadeIn } from './FadeIn'
 
 export function SectionHeader({ badge, title, subtitle }: { badge?: string; title: string; subtitle?: string }) {
   return (

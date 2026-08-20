@@ -1,5 +1,6 @@
-'use client'
-
+// Server Component. It became one when `FadeIn` stopped being a `motion.div`:
+// nothing here touches state, effects, events or browser APIs, and the
+// interactive children below carry their own `'use client'`.
 import { FeatureCarousel } from '@/components/ui/feature-carousel'
 import { FadeIn } from './shared'
 
