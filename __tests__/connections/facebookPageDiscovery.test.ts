@@ -78,8 +78,13 @@ const setCookies = () => {
 const req = () =>
   ({ url: `https://app.test/api/auth/facebook/callback?code=${CODE}&state=${STATE}` }) as unknown as import('next/server').NextRequest
 
-/** `GET /{page-id}?fields=id,name,access_token` — the granular direct fetch. */
-const directPageId = (u: string) => u.match(/graph\.facebook\.com\/v19\.0\/([^?]+)\?fields=id,name,access_token/)?.[1]
+/** `GET /{page-id}?fields=...` — the granular direct fetch. */
+const directPage = (u: string) => {
+  const m = u.match(/graph\.facebook\.com\/v19\.0\/([^?]+)\?fields=([^&]+)/)
+  return m ? { id: m[1], fields: m[2] } : null
+}
+/** Key a `pages` entry by id, or by `id:fields` to answer one field set only. */
+const pageKey = (id: string, fields: string) => `${id}:${fields}`
 
 /**
  * `pages` maps a Page id to the direct-fetch response. A Page id that is not in
@@ -104,9 +109,12 @@ function mockGraph({
     if (u.includes('/me/permissions')) return res({ status: 200, body: perms })
     if (u.includes('/debug_token')) return res({ status: 200, body: debug })
     if (u.includes('/me/accounts')) return res(accounts)
-    const pageId = directPageId(u)
-    if (pageId) {
-      return res(pages[pageId] ?? { status: 400, body: { error: { message: 'Unsupported get request', code: 100 } } })
+    const direct = directPage(u)
+    if (direct) {
+      const exact = pages[pageKey(direct.id, direct.fields)]
+      return res(
+        exact ?? pages[direct.id] ?? { status: 400, body: { error: { message: 'Unsupported get request', code: 100 } } },
+      )
     }
     throw new Error(`unexpected fetch: ${u}`)
   }) as unknown as typeof fetch
@@ -417,8 +425,9 @@ describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)
 
     await GET(req())
 
+    // Two attempts: the full read, then the name-less retry.
     const attempts = failProps()?.granularAttempts as Record<string, unknown>[] | undefined
-    expect(attempts).toHaveLength(1)
+    expect(attempts).toHaveLength(2)
     expect(attempts?.[0]).toMatchObject({
       httpStatus: 400,
       metaErrorCode: 100,
@@ -431,9 +440,68 @@ describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)
       graphVersion: 'v19.0',
       fieldsRequested: 'id,name,access_token',
     })
+    expect(attempts?.[1]).toMatchObject({ fieldsRequested: 'id,access_token' })
     // The Page id is present only as a truncated, non-reversible hash.
     expect(String(attempts?.[0].pageIdHash)).toHaveLength(12)
     expect(attempts?.[0].pageIdHash).not.toBe('PG-NPE')
+  })
+
+  it('FBD-11: pages_read_engagement refused → name-less retry still yields the Page token', async () => {
+    // The exact production rejection, verbatim from Meta 2026-08-20.
+    const READ_ENGAGEMENT_REFUSAL = {
+      status: 400,
+      body: {
+        error: {
+          message:
+            "This endpoint requires the 'pages_read_engagement' permission or the 'Page Public Content Access' feature or the 'Page Public Metadata Access' feature.",
+          type: 'OAuthException',
+          code: 100,
+          fbtrace_id: 'RefusalTrace1',
+        },
+      },
+    }
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: {
+        // `name` is refused; `access_token` alone is granted by pages_show_list.
+        'PG-NPE:id,name,access_token': READ_ENGAGEMENT_REFUSAL,
+        'PG-NPE:id,access_token': { status: 200, body: { id: 'PG-NPE', access_token: PAGE_TOKEN } },
+      },
+    })
+
+    const r = await GET(req())
+
+    expect(location(r)).toContain('/settings/facebook?select=1')
+    expect(discoveredProps()).toMatchObject({
+      count: 1,
+      discoverySource: 'granular',
+      granularResolvedCount: 1,
+      returnedPageCount: 1,
+    })
+    // Page id stands in for the name; the TOKEN is what the integration needs.
+    expect(vi.mocked(encrypt).mock.calls[0]?.[0]).toMatchObject({
+      pages: [{ id: 'PG-NPE', name: 'PG-NPE', access_token: PAGE_TOKEN }],
+    })
+  })
+
+  it('FBD-11b: no pointless retry when the first read already succeeded', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE:id,name,access_token': NPE_PAGE },
+    })
+
+    await GET(req())
+
+    const directCalls = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([u]) => String(u))
+      .filter((u) => u.includes('fields=id'))
+    expect(directCalls).toHaveLength(1)
+    expect(directCalls[0]).toContain('fields=id,name,access_token')
   })
 
   it('FBD-10b: a 200 Page object missing access_token is recorded as exactly that', async () => {

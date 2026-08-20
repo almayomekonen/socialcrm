@@ -30,7 +30,24 @@ const GRAPH_VERSION_PINNED = 'v19.0'
 const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION_PINNED}`
 /** A Page fetch is on the user's critical path; it must never hang the flow. */
 const PAGE_FETCH_TIMEOUT_MS = 5000
-const PAGE_FIELDS = 'id,name,access_token'
+/**
+ * Two field sets, tried in order.
+ *
+ * `name` is Page PUBLIC METADATA: reading it off the Page node requires
+ * `pages_read_engagement` (or the Page Public Content/Metadata Access
+ * features). Production 2026-08-20, Meta verbatim:
+ *   code 100 OAuthException — "This endpoint requires the
+ *   'pages_read_engagement' permission or the 'Page Public Content Access'
+ *   feature or the 'Page Public Metadata Access' feature."
+ *
+ * `access_token` is NOT public metadata — it is an owned-asset field, granted
+ * by `pages_show_list`, which we already hold. So when the full read is
+ * refused we retry without `name`: a Page token with a placeholder name still
+ * connects and still receives leadgen webhooks, whereas no token at all leaves
+ * the customer stuck. The Page name is cosmetic; the token is the integration.
+ */
+const PAGE_FIELDS_FULL = 'id,name,access_token'
+const PAGE_FIELDS_MINIMAL = 'id,access_token'
 /** Bound the diagnostic: a pathological grant must not write an unbounded row. */
 const MAX_ATTEMPTS_RECORDED = 5
 
@@ -87,9 +104,10 @@ export type PageDiscovery = {
  * Total-failure tolerant: a Page that cannot be resolved returns null so the
  * remaining Pages — and the `/me/accounts` fallback — still get their chance.
  */
-async function fetchPageById(
+async function requestPage(
   pageId: string,
   userToken: string,
+  fields: string,
 ): Promise<{ page: DiscoveredPage | null; attempt: PageFetchAttempt }> {
   const noError: MetaErrorDetails = {
     metaErrorCode: null,
@@ -105,14 +123,14 @@ async function fetchPageById(
     hasName: false,
     hasAccessToken: false,
     graphVersion: GRAPH_VERSION_PINNED,
-    fieldsRequested: PAGE_FIELDS,
+    fieldsRequested: fields,
     transportError: null,
     ...noError,
   }
 
   try {
     const res = await fetch(
-      `${GRAPH}/${encodeURIComponent(pageId)}?fields=${PAGE_FIELDS}&access_token=${encodeURIComponent(userToken)}`,
+      `${GRAPH}/${encodeURIComponent(pageId)}?fields=${fields}&access_token=${encodeURIComponent(userToken)}`,
       { signal: AbortSignal.timeout(PAGE_FETCH_TIMEOUT_MS) },
     )
     attempt.httpStatus = res.status
@@ -149,6 +167,30 @@ async function fetchPageById(
   }
 }
 
+/**
+ * Resolve one authorised Page id to a Page + Page access token.
+ *
+ * Tries the full field set first so a normally-permissioned app keeps getting
+ * real Page names. Only when Meta refuses the read does it retry without
+ * `name` — see PAGE_FIELDS_FULL/MINIMAL. Both attempts are recorded so the
+ * analytics row shows exactly which one Meta accepted.
+ */
+async function fetchPageById(
+  pageId: string,
+  userToken: string,
+): Promise<{ page: DiscoveredPage | null; attempts: PageFetchAttempt[] }> {
+  const full = await requestPage(pageId, userToken, PAGE_FIELDS_FULL)
+  if (full.page) return { page: full.page, attempts: [full.attempt] }
+
+  // Retry only when Meta refused the READ. A transport failure or a genuine
+  // "no token for this user" answer is not made better by asking for less.
+  const refused = full.attempt.metaErrorCode !== null && full.attempt.httpStatus !== null
+  if (!refused) return { page: null, attempts: [full.attempt] }
+
+  const minimal = await requestPage(pageId, userToken, PAGE_FIELDS_MINIMAL)
+  return { page: minimal.page, attempts: [full.attempt, minimal.attempt] }
+}
+
 /** Shape `/me/accounts` entries exactly as the pre-existing implementation did. */
 function mapAccountsEntries(data: unknown[]): DiscoveredPage[] {
   return (data as { id: string; name: string; access_token: string }[]).map((p) => ({
@@ -173,7 +215,7 @@ export async function discoverFacebookPages(userToken: string, grantedPageIds: s
 
   const results = granularAttemptedCount > 0 ? await Promise.all(grantedPageIds.map((id) => fetchPageById(id, userToken))) : []
   const granularPages = results.map((r) => r.page).filter((p): p is DiscoveredPage => p !== null)
-  const granularAttempts = results.map((r) => r.attempt).slice(0, MAX_ATTEMPTS_RECORDED)
+  const granularAttempts = results.flatMap((r) => r.attempts).slice(0, MAX_ATTEMPTS_RECORDED)
 
   if (granularPages.length > 0) {
     return {
