@@ -11,7 +11,10 @@
  *   · NO_PAGES                ← 2xx AND an empty Page list
  *   · PAGES_PERMISSION_MISSING← the Page permission was not granted at all
  *   · granular target_ids = 0 is DIAGNOSTIC, never a permission verdict
- *   · no token/secret/code ever reaches a log line or the analytics row
+ *   · granular target_ids ARE the primary discovery source; /me/accounts is the
+ *     fallback (regression from 7d601b1b: a Page authorised granularly but
+ *     invisible to /me/accounts left the customer unable to connect)
+ *   · no token/secret/code/Page id/Page token reaches a log line or analytics
  *
  * Unit-level (mocked db/fetch/auth/cookies) — see facebookConnect.test.ts for
  * why the DB harness is unavailable here.
@@ -23,7 +26,7 @@ vi.mock('@/lib/analytics/track', () => ({ track: vi.fn() }))
 vi.mock('next/headers', () => ({ cookies: vi.fn() }))
 
 import { GET } from '@/app/api/auth/facebook/callback/route'
-import { getUser } from '@/db/auth'
+import { getUser, encrypt } from '@/db/auth'
 import { track } from '@/lib/analytics/track'
 import { cookies } from 'next/headers'
 
@@ -75,13 +78,36 @@ const setCookies = () => {
 const req = () =>
   ({ url: `https://app.test/api/auth/facebook/callback?code=${CODE}&state=${STATE}` }) as unknown as import('next/server').NextRequest
 
-function mockGraph({ perms, debug, accounts }: { perms: unknown; debug: unknown; accounts: Body }) {
+/** `GET /{page-id}?fields=id,name,access_token` — the granular direct fetch. */
+const directPageId = (u: string) => u.match(/graph\.facebook\.com\/v19\.0\/([^?]+)\?fields=id,name,access_token/)?.[1]
+
+/**
+ * `pages` maps a Page id to the direct-fetch response. A Page id that is not in
+ * the map answers 400 — i.e. the granular source cannot resolve it, so the
+ * `/me/accounts` fallback takes over. Omitting `pages` entirely therefore keeps
+ * every pre-existing test exercising the exact path it was written for.
+ */
+function mockGraph({
+  perms,
+  debug,
+  accounts,
+  pages = {},
+}: {
+  perms: unknown
+  debug: unknown
+  accounts: Body
+  pages?: Record<string, Body>
+}) {
   global.fetch = vi.fn(async (input: unknown) => {
     const u = String(input)
     if (u.includes('oauth/access_token')) return res({ status: 200, body: { access_token: USER_TOKEN } })
     if (u.includes('/me/permissions')) return res({ status: 200, body: perms })
     if (u.includes('/debug_token')) return res({ status: 200, body: debug })
     if (u.includes('/me/accounts')) return res(accounts)
+    const pageId = directPageId(u)
+    if (pageId) {
+      return res(pages[pageId] ?? { status: 400, body: { error: { message: 'Unsupported get request', code: 100 } } })
+    }
     throw new Error(`unexpected fetch: ${u}`)
   }) as unknown as typeof fetch
 }
@@ -103,6 +129,9 @@ beforeEach(() => {
   setCookies()
   vi.mocked(getUser).mockResolvedValue({ id: USER_ID, agencyId: AGENCY, email: 'x@example.com' } as never)
   vi.mocked(track).mockClear()
+  // `encrypt` is a vi.mock factory fn — restoreAllMocks does not reset it, so
+  // without this its call history leaks across tests.
+  vi.mocked(encrypt).mockClear()
 })
 
 afterEach(() => {
@@ -232,6 +261,161 @@ describe('Facebook Page discovery — classification', () => {
 
     expect(location(r)).toContain('select=1')
     expect(discoveredProps()).toMatchObject({ debugTokenOk: false, grantedPageIdCount: null, returnedPageCount: 1 })
+  })
+})
+
+describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)', () => {
+  const PAGE_TOKEN = 'EAAGm0PX4ZCpsBAPAGEACCESSTOKENVALUE0099887766'
+  const NPE_PAGE = { status: 200, body: { id: 'PG-NPE', name: 'Business Page', access_token: PAGE_TOKEN } }
+
+  /** What the Page-select screen receives: encrypt({ pages, userId }). */
+  const encrypted = () => vi.mocked(encrypt).mock.calls[0]?.[0] as { pages?: unknown[]; userId?: number } | undefined
+
+  it('FBD-7: the production failure — /me/accounts empty, but the granular Page IS discovered', async () => {
+    // Exactly the reported log line: valid token, pages_show_list granted,
+    // 1 granular target_id, /me/accounts → 200 {"data":[]}.
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': NPE_PAGE },
+    })
+
+    const r = await GET(req())
+
+    // Before this fix: error=no_pages. Now: on to the Page-select screen.
+    expect(location(r)).toContain('/settings/facebook?select=1')
+    expect(location(r)).not.toContain('error')
+    expect(failProps()).toBeUndefined()
+    expect(discoveredProps()).toMatchObject({
+      count: 1,
+      returnedPageCount: 1,
+      discoverySource: 'granular',
+      granularAttemptedCount: 1,
+      granularResolvedCount: 1,
+      grantedPageIdCount: 1,
+    })
+  })
+
+  it('FBD-7b: the Page access token reaches the connection/persistence flow intact', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': NPE_PAGE },
+    })
+
+    await GET(req())
+
+    // connect/route.ts requires all three; a missing one is a 400 "Missing fields".
+    expect(encrypted()?.pages).toEqual([{ id: 'PG-NPE', name: 'Business Page', access_token: PAGE_TOKEN }])
+    expect(encrypted()?.userId).toBe(USER_ID)
+  })
+
+  it('FBD-7c: /me/accounts is not called at all once granular resolves', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': NPE_PAGE },
+    })
+
+    await GET(req())
+
+    const urls = vi.mocked(global.fetch).mock.calls.map(([u]) => String(u))
+    expect(urls.some((u) => u.includes('/me/accounts'))).toBe(false)
+    expect(urls.some((u) => u.includes('fields=id,name,access_token'))).toBe(true)
+  })
+
+  it('FBD-7d: multiple authorised Pages all resolve', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-A', 'PG-B']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: {
+        'PG-A': { status: 200, body: { id: 'PG-A', name: 'A', access_token: 'tok-a' } },
+        'PG-B': { status: 200, body: { id: 'PG-B', name: 'B', access_token: 'tok-b' } },
+      },
+    })
+
+    await GET(req())
+
+    expect(discoveredProps()).toMatchObject({ count: 2, granularAttemptedCount: 2, granularResolvedCount: 2 })
+  })
+
+  it('FBD-8: direct Page fetch fails → falls back to /me/accounts (existing behaviour preserved)', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [{ id: 'PG1', name: 'My Page', access_token: 'page-token-1' }] } },
+      pages: { 'PG-NPE': { status: 400, body: { error: { message: 'nope', code: 100 } } } },
+    })
+
+    const r = await GET(req())
+
+    expect(location(r)).toContain('select=1')
+    expect(discoveredProps()).toMatchObject({
+      count: 1,
+      discoverySource: 'accounts',
+      granularAttemptedCount: 1,
+      granularResolvedCount: 0,
+      httpStatus: 200,
+    })
+  })
+
+  it('FBD-8b: a Page with no access_token is unusable → falls back rather than half-connecting', async () => {
+    // Without a Page token connect/route.ts cannot subscribe leadgen webhooks,
+    // so a saved-but-unsubscribed connection is worse than none.
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': { status: 200, body: { id: 'PG-NPE', name: 'No Token Page' } } },
+    })
+
+    const r = await GET(req())
+
+    expect(location(r)).toContain('error=no_pages')
+    expect(failProps()).toMatchObject({ reason: 'NO_PAGES', granularAttemptedCount: 1, granularResolvedCount: 0 })
+  })
+
+  it('FBD-8c: granular resolves nothing AND /me/accounts errors → still PROVIDER_ERROR', async () => {
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 400, body: { error: { message: 'boom', type: 'OAuthException', code: 190 } } },
+      pages: { 'PG-NPE': { status: 400, body: { error: { message: 'nope', code: 100 } } } },
+    })
+
+    await GET(req())
+
+    expect(failProps()).toMatchObject({ reason: 'PROVIDER_ERROR', httpStatus: 400, metaErrorCode: 190 })
+  })
+
+  it('FBD-9: no Page id or Page access token in logs or analytics on the granular path', async () => {
+    const logs: string[] = []
+    for (const level of ['log', 'warn', 'error'] as const) {
+      vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
+        logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '))
+      })
+    }
+    mockGraph({
+      perms: PERMS_FULL,
+      debug: debugToken(['PG-NPE']),
+      accounts: { status: 200, body: { data: [] } },
+      pages: { 'PG-NPE': NPE_PAGE },
+    })
+
+    await GET(req())
+
+    const analytics = JSON.stringify(vi.mocked(track).mock.calls)
+    const logged = logs.join('\n')
+    for (const secret of [USER_TOKEN, PAGE_TOKEN, APP_SECRET, CODE, FB_USER_ID, 'PG-NPE']) {
+      expect(analytics, `analytics leaked ${secret.slice(0, 8)}…`).not.toContain(secret)
+      expect(logged, `logs leaked ${secret.slice(0, 8)}…`).not.toContain(secret)
+    }
+    // The counts that make the row diagnostic are still there.
+    expect(analytics).toContain('granularResolvedCount')
   })
 })
 

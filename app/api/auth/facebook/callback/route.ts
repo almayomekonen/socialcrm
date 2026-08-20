@@ -3,7 +3,8 @@ import { getUser, encrypt } from '@/db/auth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
 import { FB_REASON, FB_REASON_NOTICE_CODE, type FbReason } from '@/lib/connections/reasons'
-import { inspectFacebookToken, parseMetaError } from '@/lib/facebook/pageDiscoveryDiagnostics'
+import { inspectFacebookToken } from '@/lib/facebook/pageDiscoveryDiagnostics'
+import { discoverFacebookPages } from '@/lib/facebook/discoverPages'
 
 // Option A: the flow origin is the prefix of the `state` param. Reading it for
 // routing is not security-sensitive (the CSRF check below remains exact-match).
@@ -130,23 +131,29 @@ export async function GET(req: NextRequest) {
 
   track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_oauth_completed', props: {} })
 
-  // DIAGNOSTIC ONLY. Reads the freshly-exchanged token's granular scopes so an
-  // empty /me/accounts can be attributed to "the token grants zero Pages"
-  // rather than guessed at. It never gates the flow, never throws, and does NOT
-  // replace /me/accounts as the discovery source — changing discovery is a
-  // separate decision, deliberately deferred until this evidence exists.
+  // Reads the freshly-exchanged token's granular scopes. This is BOTH the
+  // diagnostic that explained the production failure AND — now that it has —
+  // the source of the Page ids discovery resolves. It never gates the flow and
+  // never throws; when it is unavailable, discovery falls back to /me/accounts.
   const tokenDiag = await inspectFacebookToken(longToken, appId, appSecret)
 
-  // Step 3: Fetch all pages the user has access to via /me/accounts
-  const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${longToken}`)
+  // Step 3: Discover the authorised Pages. Granular `target_ids` first (the
+  // exact Pages the user approved — the only source that sees Pages in the New
+  // Pages Experience / owned by a Business Portfolio), /me/accounts as fallback.
+  // See discoverPages.ts for why: `/me/accounts` answers 200 {"data":[]} for
+  // those Pages even though consent was recorded.
+  const discovery = await discoverFacebookPages(longToken, tokenDiag.grantedPageIds)
+  const pages = discovery.pages
 
   // Recorded on EVERY discovery attempt — success and failure alike — so a
   // failing customer can be compared against a working one. Safe by
   // construction: derived counts, permission names, and a truncated user hash.
+  // `tokenDiag.grantedPageIds` is deliberately NOT spread in — raw Page ids
+  // never reach a log line or the analytics table.
   // agencyId/userId are omitted here because `track()` already writes them as
   // first-class indexed columns on analytics_events.
   const discoveryDiag: Record<string, unknown> = {
-    httpStatus: pagesRes.status,
+    httpStatus: discovery.diagnostics.httpStatus,
     pagesShowListGranted,
     grantedPageIdCount: tokenDiag.grantedPageIdCount,
     granularPagesEntryPresent: tokenDiag.granularPagesEntryPresent,
@@ -154,13 +161,16 @@ export async function GET(req: NextRequest) {
     tokenScopes: tokenDiag.scopes,
     tokenIsValid: tokenDiag.tokenIsValid,
     debugTokenOk: tokenDiag.debugTokenOk,
+    // Which source produced the Pages, and how the granular attempt fared.
+    discoverySource: discovery.diagnostics.discoverySource,
+    granularAttemptedCount: discovery.diagnostics.granularAttemptedCount,
+    granularResolvedCount: discovery.diagnostics.granularResolvedCount,
   }
 
-  if (!pagesRes.ok) {
+  if (discovery.providerError) {
     // A non-2xx from Meta is a PROVIDER error, never "this account has no Page".
     // Conflating the two is what made 33 production failures unreadable.
-    const metaError = parseMetaError(await pagesRes.text())
-    const diagnostics = { ...discoveryDiag, ...metaError, returnedPageCount: 0 }
+    const diagnostics = { ...discoveryDiag, ...discovery.providerError, returnedPageCount: 0 }
     console.error('[FacebookOAuth] /me/accounts provider error', diagnostics)
     trackFbFail(FB_REASON.PROVIDER_ERROR, 'discover', diagnostics)
     // User-facing notice stays generic and approved; Meta internals never reach
@@ -168,29 +178,22 @@ export async function GET(req: NextRequest) {
     return failed(req, FB_REASON_NOTICE_CODE[FB_REASON.PROVIDER_ERROR])
   }
 
-  const pagesData = await pagesRes.json()
-  // A 200 whose body carries no `data` key at all is a different state from a
-  // 200 with an empty array; both used to collapse into "no pages".
-  const dataKeyPresent = Array.isArray(pagesData?.data)
-
-  const pages: { id: string; name: string; access_token: string }[] = (pagesData.data || []).map(
-    (p: { id: string; name: string; access_token: string }) => ({
-      id: p.id,
-      name: p.name,
-      access_token: p.access_token,
-    }),
-  )
-
-  const discoveryResult = { ...discoveryDiag, dataKeyPresent, returnedPageCount: pages.length }
+  const discoveryResult = {
+    ...discoveryDiag,
+    dataKeyPresent: discovery.diagnostics.dataKeyPresent,
+    returnedPageCount: pages.length,
+  }
   console.log('[FacebookOAuth] page discovery result', discoveryResult)
 
   if (pages.length === 0) {
-    // Reached ONLY on a successful 2xx response, so `NO_PAGES` now means what it
-    // says: the provider answered, and answered with zero Pages. When the Page
-    // permission was not granted at all we still report the honest
-    // pages_permission state instead. `grantedPageIdCount` in the analytics row
-    // is what separates "granted, scoped to zero Pages" from "granted Pages, yet
-    // the list came back empty" — it does NOT drive this classification.
+    // Reached ONLY after BOTH sources came back clean-but-empty: no granular
+    // Page resolved, and /me/accounts answered 2xx with zero Pages. So
+    // `NO_PAGES` means what it says. When the Page permission was not granted
+    // at all we still report the honest pages_permission state instead.
+    // `grantedPageIdCount` / `granularResolvedCount` in the analytics row are
+    // what separate "granted, scoped to zero Pages" from "granted Pages, yet
+    // neither source could resolve them" — they do NOT drive this
+    // classification.
     const reason = pagesShowListGranted ? FB_REASON.NO_PAGES : FB_REASON.PAGES_PERMISSION_MISSING
     trackFbFail(reason, 'discover', discoveryResult)
     return failed(req, FB_REASON_NOTICE_CODE[reason])

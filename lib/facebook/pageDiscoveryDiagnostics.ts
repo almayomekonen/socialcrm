@@ -13,18 +13,22 @@ import { GRAPH_BASE } from '@/lib/facebook/graph'
  *   2. the token grants Pages, yet /me/accounts still returns an empty list
  *   3. Meta returned a non-2xx error that was relabelled as "no Pages"
  *
- * This module produces the minimum evidence needed to tell them apart. It is
- * DIAGNOSTIC ONLY: it never gates the connection, never throws, and never
- * replaces /me/accounts as the discovery source. Whether discovery should read
- * granular scopes (or a Business-owned Page listing) is a separate decision,
- * deliberately deferred until this evidence exists.
+ * This module produces the minimum evidence needed to tell them apart, and —
+ * since that evidence arrived and answered the question — it also hands the
+ * authorised Page ids to discovery. Case 2 turned out to be real in production
+ * (`grantedPageIdCount: 1` with `returnedPageCount: 0`), so `grantedPageIds` is
+ * now the PRIMARY discovery source; see `discoverPages.ts`. It still never
+ * gates the connection and never throws.
  *
  * SAFETY (binding): nothing returned here may carry an access token, app
- * secret, client secret, OAuth code, raw Page id, or raw Business id. The
- * Facebook user id leaves only as a truncated hash — enough to correlate one
- * customer's repeated attempts, not enough to identify the account.
- * `redactSecrets()` is applied to every provider-authored string before it can
- * reach a log line or the analytics table.
+ * secret, client secret, OAuth code, or raw Business id. `grantedPageIds` is
+ * the single field carrying raw asset ids: it exists so discovery can resolve
+ * Pages directly, and it MUST NEVER be logged or written to analytics — the
+ * callback selects diagnostic fields one by one, and that field is not among
+ * them. The Facebook user id leaves only as a truncated hash — enough to
+ * correlate one customer's repeated attempts, not enough to identify the
+ * account. `redactSecrets()` is applied to every provider-authored string
+ * before it can reach a log line or the analytics table.
  */
 
 /** Truncated SHA-256: a correlation key, deliberately not a reversible id. */
@@ -52,6 +56,13 @@ export type FbTokenDiagnostics = {
    * `granularPagesEntryPresent` disambiguates the null.
    */
   grantedPageIdCount: number | null
+  /**
+   * The Page ids in `granular_scopes` for `pages_show_list` — the exact Pages
+   * the user approved in the OAuth dialog. Consumed by `discoverPages.ts` to
+   * resolve each Page directly, which is what makes discovery work for Pages
+   * the `/me/accounts` edge cannot see. NEVER log or store these (see SAFETY).
+   */
+  grantedPageIds: string[]
   /** Whether granular_scopes carried a pages_show_list entry at all. */
   granularPagesEntryPresent: boolean
   tokenIsValid: boolean | null
@@ -71,6 +82,7 @@ function unavailable(): FbTokenDiagnostics {
     fbUserIdHash: null,
     scopes: [],
     grantedPageIdCount: null,
+    grantedPageIds: [],
     granularPagesEntryPresent: false,
     tokenIsValid: null,
   }
@@ -162,13 +174,15 @@ export async function inspectFacebookToken(
 
     const granular: GranularScope[] = Array.isArray(data.granular_scopes) ? (data.granular_scopes as GranularScope[]) : []
     const pagesEntry = granular.find((g) => g?.scope === PAGES_SCOPE)
+    const targetIds = Array.isArray(pagesEntry?.target_ids) ? pagesEntry.target_ids : null
     const userId = data.user_id != null ? String(data.user_id) : null
 
     return {
       debugTokenOk: true,
       fbUserIdHash: userId ? await hashFbUserId(userId) : null,
       scopes: Array.isArray(data.scopes) ? (data.scopes as unknown[]).filter((s): s is string => typeof s === 'string') : [],
-      grantedPageIdCount: pagesEntry ? (Array.isArray(pagesEntry.target_ids) ? pagesEntry.target_ids.length : null) : null,
+      grantedPageIdCount: pagesEntry ? (targetIds ? targetIds.length : null) : null,
+      grantedPageIds: targetIds ? targetIds.filter((id): id is string => typeof id === 'string' && id.length > 0) : [],
       granularPagesEntryPresent: Boolean(pagesEntry),
       tokenIsValid: typeof data.is_valid === 'boolean' ? data.is_valid : null,
     }
