@@ -15,14 +15,34 @@ import Icon from '@/lib/Icon'
  * manage-plan modal only cancels and resumes, so an "עדכון אמצעי תשלום" link
  * would be a dead end. When card capture lands, the details and the action
  * belong here together.
+ *
+ * `state` exists because this row held the last sentence on the page still
+ * promising a charge that is not coming — in TWO different situations, for the
+ * same reason. It sits directly beneath the plan's status badge and said
+ * "החיוב הבא" would be taken from the card both to a customer whose
+ * subscription had already ended and to one who had cancelled and whose
+ * renewal is already switched off. Neither has a next charge.
+ *
+ * Same rule as ManagePlanModal: a future charge is claimed ONLY while the
+ * subscription is genuinely renewing. The fact about the stored card is
+ * unchanged and still true in all three states; only its tense is. A renewing
+ * customer keeps the original sentence verbatim.
  */
-export default function PaymentMethodRow() {
+export type PaymentMethodState = 'renewing' | 'cancelling' | 'expired'
+
+const CHARGE_COPY: Record<PaymentMethodState, string> = {
+  renewing: 'החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון',
+  cancelling: 'המנוי לא יתחדש — לא ייגבה חיוב נוסף',
+  expired: 'חידוש המנוי יחייב את הכרטיס ששימש לתשלום האחרון',
+}
+
+export default function PaymentMethodRow({ state = 'renewing' }: { state?: PaymentMethodState }) {
   return (
     <div className='flex items-center gap-4 border-t border-gray-100 px-6 py-4'>
       <Icon name='credit-card' type='reg' className='size-5 shrink-0 bg-gray-400' />
       <div className='min-w-0'>
         <p className='text-sm text-gray-800'>אמצעי התשלום שמור אצל ספק הסליקה</p>
-        <p className='mt-0.5 text-xs text-gray-500'>החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון</p>
+        <p className='mt-0.5 text-xs text-gray-500'>{CHARGE_COPY[state]}</p>
       </div>
     </div>
   )

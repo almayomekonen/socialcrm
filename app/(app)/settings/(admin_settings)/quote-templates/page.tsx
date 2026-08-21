@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { canManageQuoteTemplates } from '@/lib/quotes/permissions'
 import { loadQuoteTemplateWorkspace } from '@/db/quotes/templateWrites'
 import QuoteTemplatesSettings from '@/components/quotes/QuoteTemplatesSettings'
@@ -22,6 +24,22 @@ export const metadata: Metadata = { title: 'תבניות הצעות מחיר' }
 export default async function QuoteTemplatesPage() {
   const user = await requireAgencyUser()
   if (!canManageQuoteTemplates(user)) return <div className='max-w-3xl'>אין לך הרשאה לצפות בדף זה</div>
+  /*
+   * Pure-configuration page: every control on it calls a
+   * requireProductAccess-guarded action. Left open to a lapsed
+   * subscription, each button was a doomed request that surfaced as a
+   * generic toast or an unhandled Server Action rejection. Same page-level
+   * lock the notifications page already uses; no customer DATA is hidden by
+   * it, only settings the customer cannot change right now.
+   *
+   * Runs AFTER the existing permission/availability check: who you are is a
+   * stronger statement than what your plan currently covers, and telling
+   * someone who could never use this page that their subscription ended
+   * would simply be wrong.
+   */
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return <SubscriptionExpiredState mode='page' source='quote_templates_settings' feature='תבניות הצעות המחיר מושהות.' />
+  }
 
   const { overviews, documents } = await loadQuoteTemplateWorkspace(user.agencyId)
 

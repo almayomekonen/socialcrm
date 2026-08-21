@@ -9,6 +9,8 @@ import ModalPop from '@/lib/modals/ModalPop'
 import type { BillInvoiceRow } from '@/db/billing/invoices'
 import { sendInvoiceEmailAction, type SendInvoiceErrorReason, type SendInvoiceResult } from '@/actions/billing/send'
 import { formatInvoiceNumber } from './funcs'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 // Map every server-side error reason to a clear Hebrew message. Without
 // this, the `api()` helper showed a success toast on EVERY non-thrown
@@ -38,6 +40,13 @@ export default function SendInvoiceModal({
   onClose: () => void
 }) {
   const router = useRouter()
+  /**
+   * PRE-GATE inside the modal, so BOTH triggers — SendInvoiceBtn and the
+   * post-issue banner — are covered by one gate and no send is ever
+   * dispatched. `sendInvoiceEmailAction` is requireProductAccess-guarded; its
+   * refusal previously surfaced as "שליחת החשבונית נכשלה".
+   */
+  const expired = useAccessDenied()
   const [recipient, setRecipient] = useState(
     invoice.emailSnapshot?.trim() || fallbackEmail?.trim() || '',
   )
@@ -83,6 +92,14 @@ export default function SendInvoiceModal({
     const reason = (result as { reason?: SendInvoiceErrorReason }).reason
     const message = reason ? SEND_ERROR_MESSAGES[reason] : SEND_ERROR_MESSAGES.failed
     toast('error', message)
+  }
+
+  if (expired) {
+    return (
+      <ModalPop open={open} onClose={onClose} label='שליחת חשבונית' pos='middle' className='w-[460px] max-w-[92vw]'>
+        <SubscriptionExpiredState mode='panel' source='invoice_send' feature='שליחת חשבוניות מושהית.' />
+      </ModalPop>
+    )
   }
 
   return (

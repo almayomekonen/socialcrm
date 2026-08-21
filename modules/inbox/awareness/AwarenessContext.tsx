@@ -106,7 +106,14 @@ function AwarenessPoller({ onData }: { onData: AwarenessContextValue['mergeAware
     let res: Response
     try {
       // A lapsed subscription is permanent until renewal — stop asking.
-      if (isAccessDenied()) return
+      // Returns the FULL AdaptivePollResult contract: entitlement denial is a
+      // terminal business state, not a network failure. A bare `return` here
+      // yielded `undefined`, `useAdaptivePoll` read `.failed` off it, threw,
+      // and counted a failure — which is what drove the false
+      // "בעיית חיבור — מנסה שוב" banner and pinned the loop to its 3.5s
+      // recovery cadence forever. `strictNullChecks` is off, so the type
+      // system could not catch it; the tests below pin it instead.
+      if (isAccessDenied()) return { changed: false, failed: false }
       res = await fetch(`/api/inbox/awareness?since=${encodeURIComponent(since.current)}`, { cache: 'no-store' })
     } catch {
       return { changed: false, failed: true }

@@ -1,6 +1,6 @@
 'use server'
 
-import { requireProductAccess } from '@/lib/requireUser'
+import { ProductAccessError, requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { hasAnyLeads } from '@/db/clients'
 import { getTodaysMeetings } from '@/db/meetings'
@@ -17,8 +17,30 @@ import { track } from '@/lib/analytics/track'
 import { BRIEFING_SAMPLE_LIMIT } from '@/lib/copilot/general/constants'
 import type { BriefingResult, BriefingSection } from '@/lib/copilot/general/types'
 
+/**
+ * ENTITLEMENT IS AN OUTCOME HERE, NOT AN EXCEPTION.
+ *
+ * `requireProductAccess` is unchanged and still the only thing deciding access —
+ * this catches its typed refusal and turns it into a value the UI can render.
+ * The panel mounts on every app route, so with the throw escaping, a lapsed
+ * subscription produced an unhandled Server Action rejection that Next masks as
+ * an opaque 500 (React #441) on EVERY page load. A live production audit caught
+ * two per page. The customer saw nothing wrong — the panel already showed the
+ * locked state from the client entitlement context — so the errors were pure
+ * server noise for an expected business state.
+ *
+ * Only `ProductAccessError` is converted. Everything else still throws: a real
+ * bug must not be laundered into a calm "locked" card.
+ *
+ * No AI call is made on this path, and none was made before it — the briefing is
+ * assembled deterministically from CRM rows.
+ */
 export async function getDailyBriefing(): Promise<BriefingResult> {
-  const user = await requireProductAccess()
+  const user = await requireProductAccess().catch((err) => {
+    if (err instanceof ProductAccessError) return null
+    throw err
+  })
+  if (!user) return { kind: 'locked' }
   try {
     const { gotPermIds } = await getPerms(user)
     const scope: Scope = { user: { role: user.role }, gotPermIds }

@@ -8,6 +8,8 @@ import { api } from '@/lib/funcs'
 import { toast } from '@/lib/toast'
 import { issueInvoiceAction } from '@/actions/billing/issue'
 import { issueErrorMessage } from '@/lib/billing/issueErrorMessages'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 export default function IssueInvoiceBtn({
   leadId,
@@ -21,6 +23,13 @@ export default function IssueInvoiceBtn({
   disabledReason?: string
 }) {
   const router = useRouter()
+  /**
+   * PRE-GATE. `issueInvoiceAction` is requireProductAccess-guarded and the
+   * click runs through `api()`, which catches everything and shows the generic
+   * issue-failure toast — so a lapsed subscription read as a billing error.
+   * Issuing is withheld; the draft itself stays fully readable.
+   */
+  const expired = useAccessDenied()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -45,6 +54,10 @@ export default function IssueInvoiceBtn({
       const reason = (result as { reason?: string }).reason
       toast('error', issueErrorMessage(reason))
     }
+  }
+
+  if (expired) {
+    return <SubscriptionExpiredState mode='inline' source='invoice_issue' feature='הפקת חשבונית מושהית' />
   }
 
   return (

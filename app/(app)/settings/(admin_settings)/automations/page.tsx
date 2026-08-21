@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { db } from '@/config/db'
 import { listDefinitions } from '@/db/automations/definitions'
 import { countAutomatedTodayForAgency, countRecentActivityByAutomation } from '@/db/automations/activity'
@@ -27,6 +29,21 @@ export default async function AutomationsSettingsPage() {
   // neither the nav item nor this page.
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) {
     return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
+  }
+
+  /*
+   * Pure-configuration page: every control on it calls a
+   * requireProductAccess-guarded action. Left open to a lapsed subscription,
+   * each button was a doomed request that surfaced as a generic toast or an
+   * unhandled Server Action rejection. Same page-level lock the notifications
+   * page already uses; no customer DATA is hidden by it, only settings the
+   * customer cannot change right now.
+   *
+   * Runs AFTER the existing availability/permission check: who you are is a
+   * stronger statement than what your plan currently covers.
+   */
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return <SubscriptionExpiredState mode='page' source='automations_settings' feature='האוטומציות מושהות.' />
   }
 
   // Midnight in the BUSINESS's day, not the server's. Vercel runs UTC while the

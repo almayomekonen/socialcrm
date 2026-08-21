@@ -2,6 +2,8 @@
 
 import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
 import type { CrmSyncSource } from '@/lib/polling/syncFailure'
+import { isAccessDenied } from '@/lib/entitlement/pollGate'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 type Props = {
   sources: CrmSyncSource[]
@@ -17,6 +19,31 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
   const { get, isBannerVisible } = useCrmSyncHealth()
   const active = sources.find((s) => isBannerVisible(s))
   if (!active) return null
+
+  /**
+   * A LAPSED SUBSCRIPTION IS NOT A CONNECTION PROBLEM.
+   *
+   * This banner fires on consecutive failure COUNT, with no idea what the
+   * failures were — so a permanent `403 product-access-required` produced
+   * "בעיית חיבור — מנסה שוב" plus a retry button that could never succeed. The
+   * live production audit found it still on screen after the poller itself had
+   * correctly stopped.
+   *
+   * THE DISTINCTION IS DELIBERATE, and keyed on `isAccessDenied()` — which
+   * latches ONLY on a 403 from the polled endpoints, never on a 5xx or a network
+   * drop. So:
+   *   403 entitlement  → the locked state below, no retry, no auto-retry
+   *   500 / network    → the amber connection banner, unchanged, retry intact
+   * A genuine infrastructure failure is still reported as one, including on an
+   * expired account, because a 500 never sets the latch.
+   */
+  if (isAccessDenied()) {
+    return (
+      <div className={compact ? 'border-b border-gray-200 px-3 py-2' : 'mb-4'}>
+        <SubscriptionExpiredState mode='inline' source='crm_sync_banner' feature='הסנכרון מושהה' />
+      </div>
+    )
+  }
 
   const health = get(active)
 

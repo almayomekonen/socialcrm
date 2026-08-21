@@ -1,5 +1,6 @@
 import { AlertCircle, Lightbulb, Sparkles } from 'lucide-react'
 import { getLeadIntelligence } from '@/actions/ai/leadIntelligence'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import RefreshLeadIntelligenceButton from './RefreshLeadIntelligenceButton'
 
 type Props = {
@@ -31,6 +32,32 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
 
   if (res.ok === false) {
     if (res.reason === 'disabled' || res.reason === 'forbidden') return null
+
+    /**
+     * ENTITLEMENT, NOT AN OUTAGE.
+     *
+     * `runStructured` already resolves product access through the SAME
+     * `getAgencyProductAccess` the rest of the app uses (lib/ai/access.ts) and
+     * returns a typed business reason for it — before any provider is chosen,
+     * so no AI request is made and none was made here. This card was the only
+     * consumer that did not read that reason: it recognised 'disabled' and
+     * 'forbidden' and let the two entitlement reasons fall through to the
+     * generic retry line. A live audit of the expired account saw the result —
+     * "העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה" — advising a customer to
+     * retry, once a minute, forever, for a lapse only payment can clear.
+     *
+     * The refresh control is deliberately absent here: it calls a
+     * requireProductAccess-guarded action that would throw for this customer.
+     * Nothing about server authorization changes; only which existing answer
+     * this card reads.
+     */
+    if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {
+      return (
+        <div className='mb-8'>
+          <SubscriptionExpiredState mode='panel' source='lead_intelligence' feature='התקציר החכם מושהה.' />
+        </div>
+      )
+    }
 
     return (
       <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8' style={{ minHeight: MIN_HEIGHT }}>

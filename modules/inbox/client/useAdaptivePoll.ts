@@ -80,8 +80,14 @@ export function useAdaptivePoll(
       let changed = false
       try {
         const result = await pollRef.current()
-        failed = !!result.failed
-        changed = !!result.changed && !failed
+        // `result?.` is a contract backstop, not a licence to return nothing.
+        // `strictNullChecks` is off repo-wide, so a poll function that forgets
+        // to return the result object type-checks cleanly; without the guard
+        // the property read throws and the tick is miscounted as a network
+        // failure — an outage the user never had. A missing result is treated
+        // as a quiet, healthy tick so it can never fabricate a failure.
+        failed = !!result?.failed
+        changed = !!result?.changed && !failed
       } catch {
         failed = true
       } finally {

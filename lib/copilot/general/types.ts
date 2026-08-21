@@ -14,3 +14,4 @@ export type BriefingSection =
 export type BriefingResult =
   | { kind: 'empty' } // no CRM data → onboarding
   | { kind: 'briefing'; greeting: string; sections: BriefingSection[] }
+  | { kind: 'locked' } // subscription lapsed → the shared expired state, not an error

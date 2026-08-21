@@ -137,6 +137,12 @@ export default function GeneralModePanel() {
   }, [transcript.length, asking])
 
   const isEmptySystem = briefing?.kind === 'empty'
+  /**
+   * The SERVER's entitlement answer, which outranks the seeded context if the
+   * two ever disagree. When it says locked, the body owns the locked state and
+   * the footer must not render a second copy of it.
+   */
+  const serverLocked = briefing?.kind === 'locked'
 
   // P0-2: only the latest assistant turn stays interactive; older chips/picks freeze.
   let lastAssistantIndex = -1
@@ -154,6 +160,17 @@ export default function GeneralModePanel() {
       <div ref={scrollRef} className='flex-1 overflow-y-auto px-3'>
         {!briefing && <Centered text='טוען…' />}
         {isEmptySystem && <GeneralEmptyState />}
+        {/*
+          A lapsed subscription is not an empty briefing and not a failure: the
+          server now says so deterministically, and the panel says the same
+          thing the rest of the product says. No briefing cards, no quick
+          questions, no fabricated sample output that would imply a request ran.
+        */}
+        {serverLocked && (
+          <div className='py-2'>
+            <SubscriptionExpiredState mode='panel' source='ai_panel' feature='העוזר החכם מושהה.' />
+          </div>
+        )}
         {briefing?.kind === 'briefing' &&
           (transcript.length === 0 ? (
             // Pre-question: Daily Briefing + quick-question chips.
@@ -161,7 +178,15 @@ export default function GeneralModePanel() {
               <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
               <div className='space-y-1.5'>
                 <p className='text-[12px] text-gray-400'>שאלות מהירות</p>
-                <SuggestionChips items={briefingSuggestions()} onPick={(t) => ask(t)} />
+                {/*
+                  Locked chips are `disabled`, not merely un-clickable. The
+                  audit found locked AI controls that CSS had taken out of the
+                  pointer's reach while leaving them in the tab order — a
+                  keyboard user could still fire a paid request the product had
+                  just told them was suspended. `disabled` removes them from the
+                  tab order and announces the state, which CSS cannot do.
+                */}
+                <SuggestionChips items={briefingSuggestions()} onPick={(t) => ask(t)} disabled={expired} />
               </div>
             </div>
           ) : (
@@ -196,7 +221,7 @@ export default function GeneralModePanel() {
           ))}
       </div>
 
-      {!isEmptySystem && briefing && (
+      {!isEmptySystem && !serverLocked && briefing && (
         <div className='w-full px-3 pb-3 pt-3'>
           {subject && (
             <div className='mb-2 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] text-gray-700'>

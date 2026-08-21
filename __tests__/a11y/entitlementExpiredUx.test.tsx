@@ -10,13 +10,42 @@
 //
 // No DB: runs in the no-DB suite.
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { cleanup, render, screen } from '@testing-library/react'
 import { EntitlementProvider } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { isAccessDenied, markAccessDenied, __resetAccessDeniedForTests } from '@/lib/entitlement/pollGate'
+import ManagePlanModal from '@/components/settings/payment/ManagePlanModal'
+import PaymentMethodRow from '@/components/settings/payment/PaymentMethodRow'
+import RefreshLeadIntelligenceButton from '@/components/ai/RefreshLeadIntelligenceButton'
+import type { SubscriptionClientView } from '@/components/settings/payment/ManagePlanLauncher'
+import SuggestionChips from '@/components/copilot/general/SuggestionChips'
+import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
+
+// The modal imports its two server actions at module scope. Neither is invoked
+// by any assertion here — an expired customer is never offered cancellation,
+// which is precisely what these tests pin.
+vi.mock('@/actions/subscription', () => ({
+  cancelRenewal: async () => ({ ok: true }),
+  resumeRenewal: async () => ({ ok: true }),
+}))
+
+// The refresh button imports a requireProductAccess-guarded action at module
+// scope. No assertion reaches it — the point is that an expired customer is
+// never given the control that would call it.
+vi.mock('@/actions/ai/leadIntelligenceRefresh', () => ({
+  refreshLeadIntelligence: async () => ({ ok: true }),
+}))
+
+// The modal calls useRouter for the post-action refresh. No assertion here
+// reaches an action, so a refresh spy is all the router needs to be.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
+  usePathname: () => '/settings/update_payment',
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
@@ -346,5 +375,775 @@ describe('narrow audit: the five remaining surfaces', () => {
     expect(src).toContain('async function searchBase')
     // Still guarded — this audit did not weaken enforcement.
     expect(src).toMatch(/async function searchBase[\s\S]{0,120}requireProductAccess\(\)/)
+  })
+})
+
+describe('production audit follow-ups', () => {
+  it('manage-plan reports EXPIRED status, not "פעיל", and no future billing date', () => {
+    const src = read('components/settings/payment/ManagePlanModal.tsx')
+    // "החיוב הבא" is reachable ONLY from a genuinely renewing subscription —
+    // the single rule that also covers the non-Pro case, which used to fall
+    // through the ternary chain to 'פעיל'.
+    expect(src).toContain("const renewing = !expired && status === 'active'")
+    expect(src).toContain("const dateLabel = renewing ? 'החיוב הבא'")
+    expect(src).toContain("expired\n    ? 'המנוי הסתיים'")
+    // The date must never be labelled as an upcoming charge while expired.
+    expect(src).not.toMatch(/const dateLabel = cancelling \? 'גישה ל־Pro עד' : 'החיוב הבא'/)
+    // Entitlement, never the plan name.
+    expect(src).toContain('useAccessDenied()')
+    expect(src).not.toMatch(/plan\s*===\s*'pro'/)
+  })
+
+  it('the sync banner separates a 403 entitlement stop from a real outage', () => {
+    const src = read('components/clients/CrmSyncBanner.tsx')
+    expect(src).toContain('isAccessDenied()')
+    expect(src).toContain('SubscriptionExpiredState')
+    // The generic connection copy and its retry must survive for non-403 failures.
+    expect(src).toContain('בעיית חיבור — מנסה שוב')
+    expect(src).toContain('נסה שוב')
+    // …but only AFTER the entitlement branch has returned. Compare against the
+    // JSX occurrence, not the explanatory comment above the gate.
+    const code = src
+      .split('\n')
+      .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l))
+      .join('\n')
+    const gate = code.indexOf('if (isAccessDenied())')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(code.indexOf('בעיית חיבור'))
+  })
+
+  it('only a 403 latches the gate — a 500 stays a generic failure', () => {
+    const gate = read('lib/entitlement/pollGate.ts')
+    expect(gate).toContain('markAccessDenied')
+    for (const f of [
+      'modules/inbox/client/InboxSyncLoop.tsx',
+      'modules/inbox/awareness/AwarenessContext.tsx',
+      'modules/notifications/NotificationPoller.tsx',
+    ]) {
+      const src = read(f)
+      expect(src).toContain('if (res.status === 403) markAccessDenied()')
+      expect(src).not.toMatch(/res\.status\s*>=\s*[45]00[\s\S]{0,40}markAccessDenied/)
+    }
+  })
+
+  /**
+   * Proven against production data: every "—" message is `type: 'audio'` with
+   * `text: ''`. Zero null-text rows in the sampled conversation. The em-dash is a
+   * TEXT-ABSENCE fallback for voice notes, NOT entitlement suppression — so read
+   * access is correct and must not be "fixed".
+   */
+  it('message text is never gated by entitlement — the em-dash is absence, not suppression', () => {
+    const src = read('components/summary/WhatsappConversation.tsx')
+    expect(src).toContain("{m.text || '—'}")
+    // The renderer must not consult entitlement for message BODIES.
+    const textLine = src.indexOf("{m.text || '—'}")
+    const before = src.slice(0, textLine)
+    expect(before).not.toContain('useAccessDenied')
+    expect(before).not.toContain('hasAccess')
+  })
+
+  it('the education tour does not open over a paywall', () => {
+    const layout = read('app/(app)/layout.tsx')
+    expect(layout).toContain('productAccess.hasAccess && !trialExpired')
+    // Active accounts keep tours: the other conditions are still present.
+    expect(layout).toContain("trialStatus !== 'NEVER_STARTED'")
+    expect(layout).toContain('!mobileWorkspace')
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * Browser-audit follow-ups.
+ *
+ * Everything below was found by driving the real product against the real
+ * expired account — desktop and a genuine mobile user-agent — not by reading
+ * source. Each test pins a fact the browser proved was wrong.
+ * ------------------------------------------------------------------------- */
+
+const PRO_ROW: SubscriptionClientView = {
+  plan: 'pro',
+  expiresAtIso: '2026-08-20T20:03:27.824Z',
+  cancelAtPeriodEnd: false,
+  status: 'active',
+  manageable: true,
+}
+
+function renderManagePlan(entitlement: typeof EXPIRED, subscription = PRO_ROW) {
+  return render(
+    <EntitlementProvider value={entitlement}>
+      <ManagePlanModal open onClose={() => {}} subscription={subscription} />
+    </EntitlementProvider>,
+  )
+}
+
+describe('manage-plan never reports an expired subscription as active', () => {
+  /**
+   * Observed live on production, on desktop AND on an iPhone user-agent:
+   * "החיוב הבא: 20/8/2026" and "סטטוס: פעיל" — a date already in the past,
+   * presented as the next charge, to a customer whose access had lapsed.
+   */
+  it('says the subscription ended, and never that it is active', () => {
+    renderManagePlan(EXPIRED)
+    expect(screen.getByText('סטטוס: המנוי הסתיים')).toBeTruthy()
+    expect(screen.queryByText('סטטוס: פעיל')).toBeNull()
+  })
+
+  it('relabels the date as an end, and never as a next charge', () => {
+    renderManagePlan(EXPIRED)
+    expect(screen.getByText(/^המנוי הסתיים ב:/)).toBeTruthy()
+    expect(document.body.textContent).not.toContain('החיוב הבא')
+  })
+
+  it('offers renewal and withholds cancellation', () => {
+    renderManagePlan(EXPIRED)
+    expect(screen.getByRole('link', { name: 'חידוש מנוי' }).getAttribute('href')).toContain(
+      '/api/payments/upgrade',
+    )
+    expect(screen.queryByRole('button', { name: 'בטל מנוי' })).toBeNull()
+  })
+
+  /** Rendering the CTA is a link render. It must not touch billing state. */
+  it('does not call the network merely by opening', () => {
+    const calls: string[] = []
+    const original = globalThis.fetch
+    globalThis.fetch = (...a: unknown[]) => {
+      calls.push(String(a[0]))
+      return Promise.reject(new Error('no network in test'))
+    }
+    renderManagePlan(EXPIRED)
+    globalThis.fetch = original
+    expect(calls).toEqual([])
+  })
+
+  /**
+   * The same ternary chain that mislabelled expired also fell through to
+   * 'פעיל' for a plan that is not Pro at all.
+   */
+  it('does not call a non-Pro plan active either', () => {
+    renderManagePlan(ACTIVE, { ...PRO_ROW, plan: 'free' })
+    expect(screen.queryByText('סטטוס: פעיל')).toBeNull()
+    expect(screen.getByText('סטטוס: לא פעיל')).toBeTruthy()
+  })
+
+  it('leaves a genuinely renewing subscription exactly as it was', () => {
+    renderManagePlan(ACTIVE)
+    expect(screen.getByText('סטטוס: פעיל')).toBeTruthy()
+    expect(screen.getByText(/^החיוב הבא:/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'בטל מנוי' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'חידוש מנוי' })).toBeNull()
+  })
+})
+
+describe('the poll contract: a 403 is a terminal business state, not an outage', () => {
+  const POLLERS = [
+    'modules/inbox/client/InboxSyncLoop.tsx',
+    'modules/inbox/awareness/AwarenessContext.tsx',
+    'modules/notifications/NotificationPoller.tsx',
+  ]
+
+  /**
+   * The latched gate used to `return` bare. `useAdaptivePoll` read `.failed`
+   * off undefined, threw, and counted a failure — three ticks later the user
+   * saw "בעיית חיבור — מנסה שוב" for a subscription lapse, with no request in
+   * flight at all. `strictNullChecks` is off repo-wide, so the compiler could
+   * never have caught this. These assertions are the compiler.
+   */
+  it.each(POLLERS)('%s returns the full result object when the gate is latched', (p) => {
+    const src = read(p)
+    expect(src).toContain('if (isAccessDenied()) return { changed: false, failed: false }')
+    expect(src).not.toMatch(/if \(isAccessDenied\(\)\) return\s*$/m)
+  })
+
+  it.each(POLLERS)('%s still reports a genuine transport failure as failed', (p) => {
+    expect(read(p)).toContain('return { changed: false, failed: true }')
+  })
+})
+
+describe('useAdaptivePoll counts failures honestly', () => {
+  function probe(pollFn: () => Promise<{ changed: boolean; failed?: boolean }>) {
+    const seen: number[] = []
+    function Probe() {
+      useAdaptivePoll(pollFn, { onConsecutiveFailures: (n) => seen.push(n) })
+      return null
+    }
+    render(<Probe />)
+    return seen
+  }
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('an entitlement stop is a healthy tick, not a failure', async () => {
+    const seen = probe(async () => ({ changed: false, failed: false }))
+    await vi.advanceTimersByTimeAsync(700)
+    expect(seen.at(-1)).toBe(0)
+  })
+
+  it('a poll that returns nothing cannot fabricate an outage', async () => {
+    const seen = probe(async () => undefined as never)
+    await vi.advanceTimersByTimeAsync(700)
+    expect(seen.at(-1)).toBe(0)
+  })
+
+  it('a real 5xx/network failure still counts, and keeps counting', async () => {
+    const seen = probe(async () => ({ changed: false, failed: true }))
+    await vi.advanceTimersByTimeAsync(700)
+    expect(seen.at(-1)).toBe(1)
+    await vi.advanceTimersByTimeAsync(8000)
+    expect(seen.at(-1)!).toBeGreaterThanOrEqual(2)
+  })
+
+  it('a thrown poll still counts as a failure', async () => {
+    const seen = probe(async () => {
+      throw new Error('network down')
+    })
+    await vi.advanceTimersByTimeAsync(700)
+    expect(seen.at(-1)).toBe(1)
+  })
+})
+
+describe('getDailyBriefing returns entitlement, it does not throw it', () => {
+  const src = () => read('actions/ai/getDailyBriefing.ts')
+
+  /**
+   * The panel mounts on every app route, so the escaping throw produced an
+   * opaque Server Action 500 (React #441) on every page load of an expired
+   * account — observed twice per page in production, for a state the UI was
+   * already rendering correctly.
+   */
+  it('converts the typed refusal into a value the UI can render', () => {
+    expect(src()).toContain('ProductAccessError')
+    expect(src()).toContain("return { kind: 'locked' }")
+  })
+
+  it('does not weaken the guard', () => {
+    expect(src()).toContain('await requireProductAccess()')
+  })
+
+  it('still lets a real bug through instead of laundering it as "locked"', () => {
+    expect(src()).toMatch(/if \(err instanceof ProductAccessError\) return null\s*\n\s*throw err/)
+  })
+
+  it('the locked outcome is part of the briefing type, not an ad-hoc shape', () => {
+    expect(read('lib/copilot/general/types.ts')).toContain("{ kind: 'locked' }")
+  })
+
+  it('the panel renders the shared locked state for it, and no composer', () => {
+    const panel = read('components/copilot/general/GeneralModePanel.tsx')
+    expect(panel).toContain("briefing?.kind === 'locked'")
+    expect(panel).toContain('{serverLocked && (')
+    expect(panel).toContain('{!isEmptySystem && !serverLocked && briefing && (')
+  })
+})
+
+describe('leadless conversation actions gate before the mutation, not after it', () => {
+  const src = () => read('components/inbox/LeadlessConversationActions.tsx')
+
+  /**
+   * Production showed "+ צור ליד" and "קשר לליד קיים" fully enabled on an
+   * expired account. Every action behind them is requireProductAccess-guarded,
+   * so the customer could only discover that by clicking and failing.
+   */
+  it('returns the locked state before any action button is rendered', () => {
+    const s = src()
+    const gate = s.indexOf('if (expired) {')
+    const firstButton = s.indexOf('onClick={onCreate}')
+    expect(gate).toBeGreaterThan(-1)
+    expect(firstButton).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(firstButton)
+  })
+
+  it('reads entitlement from the shared context, not a local rule', () => {
+    expect(src()).toContain("useAccessDenied } from '@/lib/entitlement/EntitlementContext'")
+  })
+
+  it('keeps the post-hoc entitlement branch as the stale-context backstop', () => {
+    expect(src()).toContain('error === ENTITLEMENT_ERROR')
+  })
+
+  it('leaves the active-user path untouched', () => {
+    const s = src()
+    expect(s).toContain('onClick={onCreate}')
+    expect(s).toContain('onClick={onLinkClick}')
+    expect(s).toContain('onClick={onPersonal}')
+  })
+})
+
+describe('locked AI controls are unreachable, not merely un-clickable', () => {
+  /**
+   * The audit found AI quick questions with `pointer-events: none` and an
+   * `aria-hidden` ancestor — but `tabIndex 0`. CSS stopped the mouse; the tab
+   * key still reached a paid control the product had just suspended.
+   */
+  it('a locked quick question leaves the tab order', () => {
+    render(<SuggestionChips items={['מי צריך מעקב היום']} onPick={() => {}} disabled />)
+    const chip = screen.getByRole('button', { name: 'מי צריך מעקב היום' }) as HTMLButtonElement
+    expect(chip.disabled).toBe(true)
+  })
+
+  it('an active user keeps them interactive', () => {
+    const picked: string[] = []
+    render(<SuggestionChips items={['מי צריך מעקב היום']} onPick={(t) => picked.push(t)} />)
+    const chip = screen.getByRole('button', { name: 'מי צריך מעקב היום' }) as HTMLButtonElement
+    expect(chip.disabled).toBe(false)
+    chip.click()
+    expect(picked).toEqual(['מי צריך מעקב היום'])
+  })
+
+  it('the panel disables them on entitlement, not on CSS', () => {
+    expect(read('components/copilot/general/GeneralModePanel.tsx')).toContain('disabled={expired}')
+  })
+
+  /** A closed panel must not hold focusable controls inside an aria-hidden subtree. */
+  it('the closed copilot shell is inert, not just aria-hidden', () => {
+    const shell = read('components/copilot/CopilotShell.tsx')
+    expect(shell).toContain('aria-hidden={!open}')
+    expect(shell).toContain('inert={!open}')
+  })
+})
+
+describe('GET /api/payments/upgrade is audited, and deliberately unchanged', () => {
+  /**
+   * Recorded, not fixed: this pass was scoped to the expired UX. During the
+   * browser audit six `upgrade_clicked` rows and one pending_upgrades write
+   * appeared without any CTA being clicked — a GET with write side effects is
+   * reachable by any prefetcher, scanner or link preview. The correction is a
+   * POST, and it belongs to billing work, not here.
+   */
+  it('still writes analytics and pending_upgrades on GET', () => {
+    const route = read('app/api/payments/upgrade/route.ts')
+    expect(route).toContain('export async function GET(')
+    expect(route).toContain("event: 'upgrade_clicked'")
+    expect(route).toContain("db('pending_upgrades')")
+    expect(route).not.toContain('export async function POST(')
+  })
+
+  it('takes no money and changes no subscription by itself', () => {
+    const route = read('app/api/payments/upgrade/route.ts')
+    expect(route).not.toContain("db('subscriptions')")
+    expect(route).not.toContain("db('payments')")
+    expect(route).not.toContain("db('agencies')")
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * Final narrow audit: the AI summary card and the last billing sentence.
+ * ------------------------------------------------------------------------- */
+
+describe('the lead summary card reads the entitlement reason it was already given', () => {
+  const card = () => read('components/ai/LeadIntelligenceCard.tsx')
+
+  /**
+   * `runStructured` resolves product access through the same
+   * getAgencyProductAccess the rest of the app uses and returns a TYPED reason
+   * for it, before any provider is chosen. This card recognised 'disabled' and
+   * 'forbidden' and let the two entitlement reasons fall through to a generic
+   * retry line — the one the production audit caught on the lead page.
+   */
+  it('renders the shared locked state for both entitlement reasons', () => {
+    const src = card()
+    expect(src).toContain("res.reason === 'subscription-required' || res.reason === 'trial-not-started'")
+    expect(src).toContain('<SubscriptionExpiredState')
+  })
+
+  it('keeps the retry line for genuine AI failures', () => {
+    expect(card()).toContain('העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה.')
+  })
+
+  it('still renders nothing when AI is off or the agency is not allowlisted', () => {
+    expect(card()).toContain("if (res.reason === 'disabled' || res.reason === 'forbidden') return null")
+  })
+
+  it('withholds the refresh control from the locked branch', () => {
+    const src = card()
+    const locked = src.indexOf('<SubscriptionExpiredState')
+    // Both refresh controls — the generic-failure one and the one beside a
+    // successful summary — render only after the locked branch has returned.
+    expect(locked).toBeGreaterThan(-1)
+    for (const at of [...src.matchAll(/<RefreshLeadIntelligenceButton/g)].map((m) => m.index!)) {
+      expect(at).toBeGreaterThan(locked)
+    }
+    // …and the control gates itself, for the stale-cache case where a real
+    // summary from before the lapse still renders.
+    expect(read('components/ai/RefreshLeadIntelligenceButton.tsx')).toContain('if (expired) return null')
+  })
+
+  it('the AI access decision is the shared resolver, not a second entitlement system', () => {
+    const access = read('lib/ai/access.ts')
+    expect(access).toContain("import { getAgencyProductAccess } from '@/lib/access/productAccess'")
+    expect(access).not.toContain('getTrialState')
+    // The router asks it before choosing a provider, so no paid call is made.
+    const router = read('lib/ai/router.ts')
+    const gate = router.indexOf('const access = await resolveAiAccess')
+    const providers = router.indexOf('if (!hasAnyProviderConfigured())')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(providers)
+  })
+})
+
+describe('a cached summary outlives the subscription, its refresh does not', () => {
+  it('withholds the refresh control while access is lapsed', () => {
+    const { container } = render(
+      <EntitlementProvider value={EXPIRED}>
+        <RefreshLeadIntelligenceButton leadId={1} />
+      </EntitlementProvider>,
+    )
+    expect(container.textContent).toBe('')
+    expect(screen.queryByRole('button', { name: 'רענן תובנות' })).toBeNull()
+  })
+
+  it('leaves it exactly as it was for an active subscription', () => {
+    render(
+      <EntitlementProvider value={ACTIVE}>
+        <RefreshLeadIntelligenceButton leadId={1} />
+      </EntitlementProvider>,
+    )
+    expect(screen.getByRole('button', { name: 'רענן תובנות' })).toBeTruthy()
+  })
+})
+
+describe('billing never promises a charge that is not coming', () => {
+  it('does not claim a next charge once access has lapsed', () => {
+    const { container } = render(<PaymentMethodRow state='expired' />)
+    expect(container.textContent).not.toContain('החיוב הבא')
+    expect(container.textContent).toContain('חידוש המנוי יחייב את הכרטיס')
+  })
+
+  /**
+   * A cancelling customer still has access, so `expired` is false — but the
+   * renewal is already switched off, so "החיוב הבא" was equally untrue for
+   * them, on the same row, directly under a "המנוי בוטל" state.
+   */
+  it('does not claim a next charge for a subscription that will not renew', () => {
+    const { container } = render(<PaymentMethodRow state='cancelling' />)
+    expect(container.textContent).not.toContain('החיוב הבא')
+    expect(container.textContent).toContain('לא ייגבה חיוב נוסף')
+  })
+
+  it('keeps the stored-card fact, which is still true in every state', () => {
+    for (const state of ['renewing', 'cancelling', 'expired'] as const) {
+      cleanup()
+      const { container } = render(<PaymentMethodRow state={state} />)
+      expect(container.textContent).toContain('אמצעי התשלום שמור אצל ספק הסליקה')
+    }
+  })
+
+  it('leaves the renewing customer copy verbatim', () => {
+    const { container } = render(<PaymentMethodRow />)
+    expect(container.textContent).toContain('החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון')
+  })
+
+  it('the card drives all three states from subscription state, not the plan name', () => {
+    const src = read('components/settings/payment/ProPlanCard.tsx')
+    expect(src).toContain("<PaymentMethodRow state={expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />")
+    expect(src).toContain('const expired = !hasAccess')
+  })
+})
+
+describe('surfaces the sweep deliberately left alone', () => {
+  /** Already correct: entitlement reasons are named, and cannot offer a retry. */
+  it('the copilot timeline names the subscription and withholds retry', () => {
+    const labels = read('components/copilot/bodies/labels.ts')
+    expect(labels).toContain("'subscription-required':")
+    expect(labels).toContain("'trial-not-started':")
+    const body = read('components/copilot/bodies/ErrorBody.tsx')
+    expect(body).toContain(
+      "const canRetry = reason === 'all-providers-failed' || reason === 'invalid-input' || reason === 'unknown'",
+    )
+  })
+
+  /** Genuine operational errors: these actions are not entitlement-guarded. */
+  it('conversation delete stays a real error, because it is one', () => {
+    expect(read('modules/inbox/actions.ts')).not.toContain('requireProductAccess')
+    expect(read('components/inbox/DeleteConversationMenu.tsx')).toContain('מחיקת השיחה נכשלה. נסה שוב.')
+  })
+
+  it('the notifications list retry is unreachable: the page locks before it renders', () => {
+    const page = read('app/(app)/notifications/page.tsx')
+    const gate = page.indexOf('<SubscriptionExpiredState')
+    const center = page.indexOf('<NotificationCenter')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(center)
+  })
+
+  it('the bell panel locks before rendering its list', () => {
+    expect(read('components/notifications/NotificationPanel.tsx')).toContain('if (useAccessDenied()) {')
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * Final pass: the toast-based mutation paths.
+ *
+ * These surfaces all shared one shape — a requireProductAccess-guarded action
+ * behind a live control, whose refusal reached the customer as a generic retry
+ * toast or (worse) an unhandled Server Action rejection. Each is now pre-gated,
+ * so no doomed request is sent at all.
+ * ------------------------------------------------------------------------- */
+
+describe('pure-configuration settings pages lock instead of failing per click', () => {
+  const PAGES: Array<[string, string]> = [
+    ['app/(app)/settings/(admin_settings)/automation-templates/page.tsx', 'automation_templates_settings'],
+    ['app/(app)/settings/(admin_settings)/automations/page.tsx', 'automations_settings'],
+    ['app/(app)/settings/(admin_settings)/quote-templates/page.tsx', 'quote_templates_settings'],
+    ['app/(app)/settings/(admin_settings)/auto-response/page.tsx', 'auto_response_settings'],
+  ]
+
+  it.each(PAGES)('%s locks on the shared entitlement answer', (file, source) => {
+    const src = read(file)
+    expect(src).toContain('getAgencyProductAccess(user.agencyId)).hasAccess')
+    expect(src).toContain(`source='${source}'`)
+    expect(src).toContain("mode='page'")
+  })
+
+  /**
+   * Identity outranks commercial state: telling someone who could never use a
+   * page that their subscription ended is simply the wrong sentence.
+   */
+  it.each([
+    ['app/(app)/settings/(admin_settings)/automation-templates/page.tsx', 'isAutomationsAgencyAllowlisted'],
+    ['app/(app)/settings/(admin_settings)/automations/page.tsx', 'isAutomationsAgencyAllowlisted'],
+    ['app/(app)/settings/(admin_settings)/quote-templates/page.tsx', 'canManageQuoteTemplates'],
+  ])('%s checks permission before entitlement', (file, permission) => {
+    const src = read(file)
+    expect(src.indexOf(permission)).toBeLessThan(src.indexOf('getAgencyProductAccess(user.agencyId)).hasAccess'))
+  })
+
+  it('auto-response leaves the mobile branch ahead of the gate, untouched', () => {
+    const src = read('app/(app)/settings/(admin_settings)/auto-response/page.tsx')
+    expect(src.indexOf('isMobileWorkspaceRequest')).toBeLessThan(
+      src.indexOf('getAgencyProductAccess(user.agencyId)).hasAccess'),
+    )
+  })
+
+  it('uses the existing resolver, never a second entitlement calculation', () => {
+    for (const [file] of PAGES) {
+      const src = read(file)
+      expect(src).toContain("from '@/lib/access/productAccess'")
+      expect(src).not.toContain('getTrialState')
+    }
+  })
+})
+
+describe('the copilot composer is gated, so no doomed ask or upload is sent', () => {
+  const panel = () => read('components/copilot/CopilotPanel.tsx')
+
+  /**
+   * This composer is the single entry to BOTH `leadAskQuestion` and the
+   * `getPresigned`/`addFiles` upload behind runComposerSubmit. Ungated, an
+   * expired customer got "משהו השתבש. נסה שוב." for the question and
+   * "העלאת הקבצים נכשלה. נסה שוב." for the attachment.
+   */
+  it('replaces the composer with the shared locked state', () => {
+    const src = panel()
+    expect(src).toContain('const expired = useAccessDenied()')
+    expect(src).toContain("source='copilot_panel'")
+    expect(src).toMatch(/expired \? \(\s*<SubscriptionExpiredState/)
+  })
+
+  it('keeps the timeline above it readable', () => {
+    const src = panel()
+    expect(src.indexOf('<CopilotTimeline')).toBeLessThan(src.indexOf('<SubscriptionExpiredState'))
+  })
+
+  it('the upload path has exactly one entry, so gating the composer covers it', () => {
+    expect(read('components/copilot/composer/submitComposer.ts')).toContain('uploadCopilotAttachments')
+    expect(read('lib/copilot/uploadAttachments.ts')).toContain("from '@/actions/files'")
+    // Both file actions are requireProductAccess-guarded — the reason the
+    // upload could never have succeeded for an expired customer.
+    const files = read('actions/files.ts')
+    expect(files).toMatch(/export async function getPresigned[\s\S]{0,120}requireProductAccess\(\)/)
+    expect(files).toMatch(/export async function addFiles\(\{[\s\S]{0,120}requireProductAccess\(\)/)
+  })
+
+  it('leaves the generic upload error in place for real failures', () => {
+    expect(read('components/copilot/composer/submitComposer.ts')).toContain('העלאת הקבצים נכשלה. נסה שוב.')
+  })
+})
+
+describe('lead Drive keeps the files and withholds the mutations', () => {
+  const section = () => read('components/clientPage/LeadDriveSection.tsx')
+
+  it('withholds attach while the subscription is lapsed', () => {
+    const src = section()
+    expect(src).toContain("{!expired && <Btn lbl='צרף קובץ מ-Drive'")
+    expect(src).toContain("source='lead_drive'")
+  })
+
+  it('withholds the suggestion rows, which are attach affordances too', () => {
+    expect(section()).toContain('{!expired && !pickerEnabled && suggestions.length > 0 && (')
+  })
+
+  it('keeps the attached list rendering, because reading never lapses', () => {
+    const src = section()
+    expect(src).toContain('{attachments.length > 0 && (')
+    expect(src).not.toContain('{!expired && attachments.length > 0')
+  })
+
+  it('keeps "פתח" and withholds only detach and re-pick', () => {
+    const row = read('components/clientPage/LeadDriveAttachedRow.tsx')
+    expect(row).toContain("<Btn lbl='פתח'")
+    expect(row).toContain("{!expired && <Btn lbl='הסר'")
+    expect(row).toContain('{!expired && pickerEnabled && leadId != null && (')
+  })
+
+  it('keeps the generic failure copy for real errors', () => {
+    expect(section()).toContain('הצירוף נכשל. נסה שוב.')
+  })
+})
+
+describe('the calendar stays readable and stops offering doomed mutations', () => {
+  const view = () => read('components/calendar/CalendarView.tsx')
+
+  it('withholds create, drag and resize while lapsed', () => {
+    const src = view()
+    expect(src).toContain("{!expired && <Btn lbl='פגישה חדשה'")
+    expect(src).toContain('selectable={!expired}')
+    expect(src).toContain('editable={!expired}')
+  })
+
+  it('names the reason rather than leaving a silent absence', () => {
+    expect(view()).toContain("source='calendar'")
+  })
+
+  it('still renders the meetings themselves', () => {
+    const src = view()
+    expect(src).toContain('const events: EventInput[] = useMemo')
+    expect(src).not.toContain('if (expired) return null')
+  })
+
+  it('the details dialog keeps the meeting and withholds outcome, cancel, edit and retry', () => {
+    const dlg = read('components/calendar/MeetingDetailsDialog.tsx')
+    expect(dlg).toContain("const canRetry = !expired && meeting.syncStatus === 'failed'")
+    expect(dlg).toContain("const isScheduled = !expired && meeting.status === 'scheduled'")
+    expect(dlg).toContain("source='meeting_details'")
+    // The meeting's own details are untouched.
+    expect(dlg).toContain('{formatDateTime(meeting.startAt)}')
+  })
+
+  it('leaves the genuine calendar error copy alone', () => {
+    expect(read('components/calendar/hooks/useMeetingOutcomeActions.ts')).toContain('אירעה שגיאה. נסה שוב.')
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * Closure pass: lead controls, invoices, deals and uploads.
+ *
+ * The last group of requireProductAccess-guarded mutations reachable from an
+ * expired account. Every one is now pre-gated, so no doomed request is sent;
+ * every corresponding read is preserved.
+ * ------------------------------------------------------------------------- */
+
+describe('lead follow-up and outcome controls gate before dispatch', () => {
+  const CONTROLS: Array<[string, string]> = [
+    ['components/leads/FollowUpControl.tsx', 'lead_followup'],
+    ['components/leads/OutcomeControl.tsx', 'lead_outcome'],
+  ]
+
+  /**
+   * Both dispatch inside `startTransition` with NO catch, so on a lapsed
+   * subscription the click was an unhandled Server Action rejection: nothing
+   * happened, and nothing said why.
+   */
+  it.each(CONTROLS)('%s reads the shared entitlement answer', (file) => {
+    expect(read(file)).toContain('const expired = useAccessDenied()')
+  })
+
+  it.each(CONTROLS)('%s explains itself in the full variant', (file, source) => {
+    const src = read(file)
+    expect(src).toContain(`source='${source}'`)
+    expect(src).toContain("mode='inline'")
+  })
+
+  it.each(CONTROLS)('%s withholds silently in list rows, one explanation per screen', (file) => {
+    expect(read(file)).toContain('if (compact) return null')
+  })
+
+  it.each([
+    ['components/leads/FollowUpControl.tsx', "data-edu='lead-followup'"],
+    ['components/leads/OutcomeControl.tsx', 'תוצאת שיחה:'],
+  ])('%s gates before its controls render, not after a click fails', (file, marker) => {
+    const src = read(file)
+    expect(src.indexOf('if (expired) {')).toBeLessThan(src.indexOf(marker))
+  })
+})
+
+describe('invoice mutations are withheld while the records stay readable', () => {
+  it('issuing is gated, and the generic issue error stays for real failures', () => {
+    const src = read('components/billing/IssueInvoiceBtn.tsx')
+    expect(src).toContain('const expired = useAccessDenied()')
+    expect(src).toContain("source='invoice_issue'")
+    expect(src).toContain('issueErrorMessage(reason)')
+  })
+
+  it('sending is gated inside the modal, so both triggers are covered', () => {
+    const src = read('components/billing/SendInvoiceModal.tsx')
+    expect(src).toContain('const expired = useAccessDenied()')
+    expect(src).toContain("source='invoice_send'")
+    // The real failure copy is untouched.
+    expect(src).toContain('שליחת החשבונית נכשלה')
+  })
+
+  it('the new-invoice route locks, because creating is all it does', () => {
+    const src = read('app/(app)/clients/[clientId]/billing/new/page.tsx')
+    expect(src).toContain('getAgencyProductAccess(user.agencyId)).hasAccess')
+    expect(src).toContain("source='invoice_new'")
+    // Identity still outranks commercial state.
+    expect(src.indexOf('canDraftBilling(user)')).toBeLessThan(
+      src.indexOf('getAgencyProductAccess(user.agencyId)).hasAccess'),
+    )
+  })
+
+  it('the billing tab itself is NOT gated — existing invoices stay readable', () => {
+    const tab = read('app/(app)/clients/[clientId]/billing/page.tsx')
+    expect(tab).not.toContain('SubscriptionExpiredState')
+  })
+})
+
+describe('closing a deal and uploading files gate at their single choke point', () => {
+  it('SaleForm gates once, covering all three entries', () => {
+    const src = read('components/sales/saleForm/SaleForm.tsx')
+    expect(src).toContain('const expired = useAccessDenied()')
+    expect(src).toContain("source='close_deal'")
+    expect(src.indexOf('if (expired) {')).toBeLessThan(src.indexOf('<form ref={formRef}'))
+  })
+
+  it('FileUploader gates the one path every upload runs through', () => {
+    const src = read('components/files/FileUploader.tsx')
+    expect(src).toContain('const expired = useAccessDenied()')
+    expect(src).toContain("source='file_upload'")
+    // Authentication still comes first.
+    expect(src.indexOf('if (!user) return null')).toBeLessThan(src.indexOf('if (expired) {'))
+  })
+
+  it('both file actions behind it are guarded — the reason it could never succeed', () => {
+    const files = read('actions/files.ts')
+    expect(files).toMatch(/export async function getPresigned[\s\S]{0,120}requireProductAccess\(\)/)
+    expect(files).toMatch(/export async function addFiles\(\{[\s\S]{0,120}requireProductAccess\(\)/)
+  })
+
+  it('the generic upload failure copy survives for real errors', () => {
+    expect(read('components/files/funcs.tsx')).toContain('getPresigned')
+    expect(read('components/files/FileUploader.tsx')).toContain('העלאת הקבצים נכשלה: ')
+  })
+})
+
+describe('no new entitlement mechanism was introduced anywhere in this workstream', () => {
+  it('every gated surface reads the one resolver or the one context', () => {
+    const FILES = [
+      'components/leads/FollowUpControl.tsx',
+      'components/leads/OutcomeControl.tsx',
+      'components/billing/IssueInvoiceBtn.tsx',
+      'components/billing/SendInvoiceModal.tsx',
+      'components/sales/saleForm/SaleForm.tsx',
+      'components/files/FileUploader.tsx',
+      'app/(app)/clients/[clientId]/billing/new/page.tsx',
+    ]
+    for (const f of FILES) {
+      const src = read(f)
+      const usesContext = src.includes("from '@/lib/entitlement/EntitlementContext'")
+      const usesResolver = src.includes("from '@/lib/access/productAccess'")
+      expect(usesContext || usesResolver, `${f} must reuse the existing entitlement source`).toBe(true)
+      expect(src).not.toContain('getTrialState')
+      expect(src).not.toContain('isPaidPeriodActive')
+    }
   })
 })

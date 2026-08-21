@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { setLeadFollowUp, clearLeadFollowUp } from '@/actions/leadFollowUp'
 import { daysFromNow, formatDate } from '@/lib/dates'
 import { placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
@@ -35,6 +37,8 @@ function localISODate(d: Date): string {
 
 export default function FollowUpControl({ leadId, current, compact }: Props) {
   const router = useRouter()
+  /** Entitlement from the shared context — the same answer the server gives. */
+  const expired = useAccessDenied()
   const [open, setOpen] = useState(false)
   const [custom, setCustom] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
@@ -95,6 +99,23 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
       close()
       router.refresh()
     })
+  }
+
+  /**
+   * PRE-GATE. The action behind this control is requireProductAccess-guarded
+   * and the dispatch has no catch, so on a lapsed subscription the click ended
+   * as an unhandled Server Action rejection — nothing happened, and nothing
+   * said why.
+   *
+   * Full variant: the shared inline locked state takes the control's place, so
+   * the block that promised an action explains itself instead.
+   * Compact variant (list rows, quick actions): withheld silently. One
+   * explanation per screen, not one per row — the lead stays readable and its
+   * own page carries the locked state.
+   */
+  if (expired) {
+    if (compact) return null
+    return <SubscriptionExpiredState mode='inline' source='lead_followup' feature='קביעת מעקב מושהית' />
   }
 
   const label = current ? `מעקב: ${formatDate(current)}` : 'קבע מעקב'

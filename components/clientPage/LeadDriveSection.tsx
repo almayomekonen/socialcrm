@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { attachDriveFile, detachDriveFile, type LeadDriveAttachment } from '@/actions/leadDriveFiles'
 import type { SuggestedDriveFile } from '@/actions/leadDriveFilesSearch'
 import LeadDriveAttachModal from './LeadDriveAttachModal'
@@ -20,6 +22,8 @@ type Props = {
 
 export default function LeadDriveSection({ leadId, attachments, suggestions, pickerEnabled = false }: Props) {
   const router = useRouter()
+  /** Entitlement from the shared context — the same answer the server gives. */
+  const expired = useAccessDenied()
   const [modalOpen, setModalOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -77,8 +81,22 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
           <Icon name='google-drive' className='size-5 bg-gray-900' />
           <h2 className='text-base font-bold text-dark'>Google Drive</h2>
         </div>
-        <Btn lbl='צרף קובץ מ-Drive' size='small' onClick={() => setModalOpen(true)} />
+        {/*
+          PRE-GATE. `attachDriveFile` and `detachDriveFile` are both
+          requireProductAccess-guarded, so for an expired customer the attach
+          button opened a picker whose only possible outcome was
+          "הצירוף נכשל. נסה שוב." — a retry that can never succeed. The button
+          is withheld; the attached files stay listed and openable, because
+          reading their own data is never what lapses.
+        */}
+        {!expired && <Btn lbl='צרף קובץ מ-Drive' size='small' onClick={() => setModalOpen(true)} />}
       </header>
+
+      {expired && (
+        <div className='mb-4'>
+          <SubscriptionExpiredState mode='inline' source='lead_drive' feature='צירוף קבצים מושהה' />
+        </div>
+      )}
 
       {attachments.length > 0 && (
         <div className='grid gap-1.5 mb-4'>
@@ -88,6 +106,7 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
               attachment={att}
               busy={busyId === `a-${att.id}` || pending}
               onDetach={() => handleDetach(att)}
+              expired={expired}
               pickerEnabled={pickerEnabled}
               leadId={leadId}
               onRepicked={refresh}
@@ -100,7 +119,7 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
         <p className='text-sm text-gray-500 mb-4'>אין קבצים מצורפים לליד מ-Drive.</p>
       )}
 
-      {!pickerEnabled && suggestions.length > 0 && (
+      {!expired && !pickerEnabled && suggestions.length > 0 && (
         <div className='grid gap-1.5'>
           <p className='text-[11px] text-gray-400 tracking-wide'>מוצע — נמצאו ב-Drive לפי פרטי הליד</p>
           {suggestions.map((s) => (

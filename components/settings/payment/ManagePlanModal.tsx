@@ -36,6 +36,12 @@ export default function ManagePlanModal({
   subscription: SubscriptionClientView
 }) {
   const router = useRouter()
+  /**
+   * Entitlement from the shared context — the same `getAgencyProductAccess`
+   * answer the rest of the app uses. Read ONCE here and passed down, so the
+   * modal's body and its actions can never disagree about the same fact.
+   */
+  const expired = useAccessDenied()
   const [stage, setStage] = useState<Stage>('manage')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -59,6 +65,10 @@ export default function ManagePlanModal({
   }
 
   const doCancel = () => {
+    // A lapsed subscription has nothing left to cancel. The UI never offers it,
+    // but the guard makes that a property of the component rather than of the
+    // markup that happens to render above it.
+    if (expired) return
     setError(null)
     startTransition(async () => {
       const result = await cancelRenewal()
@@ -77,6 +87,7 @@ export default function ManagePlanModal({
   }
 
   const doResume = () => {
+    if (expired) return
     setError(null)
     startTransition(async () => {
       const result = await resumeRenewal()
@@ -96,8 +107,9 @@ export default function ManagePlanModal({
   return (
     <ModalPop open={open} onClose={close} label='ניהול המנוי' pos='middle' className='w-[min(90vw,28rem)]'>
       <div className='space-y-5' dir='rtl'>
-        {stage === 'manage' && (
+        {(stage === 'manage' || expired) && (
           <ManageBody
+            expired={expired}
             manageable={manageable}
             expiresAtIso={expiresAtIso}
             status={status}
@@ -109,7 +121,12 @@ export default function ManagePlanModal({
           />
         )}
 
-        {stage === 'confirm-cancel' && (
+        {/*
+          The cancel-confirmation step is unreachable for an expired
+          subscription: there is no renewal left to stop, and offering to
+          cancel something that already ended is the dead end the audit found.
+        */}
+        {stage === 'confirm-cancel' && !expired && (
           <ConfirmCancelBody
             expiresAtIso={expiresAtIso}
             pending={pending}
@@ -128,6 +145,7 @@ export default function ManagePlanModal({
 }
 
 function ManageBody({
+  expired,
   manageable,
   expiresAtIso,
   status,
@@ -137,6 +155,7 @@ function ManageBody({
   onResume,
   onClose,
 }: {
+  expired: boolean
   manageable: boolean
   expiresAtIso: string | null
   status: 'active' | 'cancelling' | 'inactive'
@@ -146,14 +165,40 @@ function ManageBody({
   onResume: () => void
   onClose: () => void
 }) {
-  /** Entitlement from the shared context — never a plan-name check here. */
-  const expired = useAccessDenied()
   // 'cancelling' = renewal already off, Pro access remains until expiresAt (an
   // access-end date, no next charge); otherwise it renews and expiresAt is the
   // next charge date.
   const cancelling = status === 'cancelling'
-  const statusLabel = cancelling ? 'המנוי בוטל' : 'פעיל'
-  const dateLabel = cancelling ? 'גישה ל־Pro עד' : 'החיוב הבא'
+  /**
+   * ONE RULE FOR BOTH LABELS: "החיוב הבא" and "פעיל" are shown ONLY when the
+   * subscription is genuinely renewing. Everything else is an end-of-access
+   * state and is labelled as one.
+   *
+   * `status` is the SUBSCRIPTION-ROW status, which stays 'active' after a paid
+   * period lapses — so this modal told an expired customer "סטטוס: פעיל" and
+   * "החיוב הבא: 20/8/2026", a date already in the past presented as the next
+   * charge. A live production audit observed both, on desktop and on mobile.
+   *
+   * `status === 'inactive'` (plan is not Pro) had the same defect for the same
+   * reason: it fell through the ternary chain to 'פעיל'.
+   *
+   * Entitlement comes from the shared context (`getAgencyProductAccess` via
+   * `useAccessDenied`, read by the parent) — never a plan-name check.
+   */
+  const renewing = !expired && status === 'active'
+  const statusLabel = expired
+    ? 'המנוי הסתיים'
+    : cancelling
+      ? 'המנוי בוטל'
+      : status === 'inactive'
+        ? 'לא פעיל'
+        : 'פעיל'
+  /**
+   * There is no NEXT charge for a lapsed subscription, so the date is relabelled
+   * as the end of access rather than suppressed — the customer still needs to
+   * know when it ended, they just must not be told it is upcoming.
+   */
+  const dateLabel = renewing ? 'החיוב הבא' : expired ? 'המנוי הסתיים ב' : 'גישה ל־Pro עד'
 
   return (
     <>

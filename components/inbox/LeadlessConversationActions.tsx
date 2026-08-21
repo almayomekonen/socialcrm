@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, Link2, User } from 'lucide-react'
 import { useAction, ENTITLEMENT_ERROR } from '@/lib/useAction'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import {
   linkConversationToExistingLead,
@@ -31,6 +32,8 @@ export default function LeadlessConversationActions({
   tone?: keyof typeof TONE
 }) {
   const router = useRouter()
+  /** Entitlement from the shared context — the same answer the server gives. */
+  const expired = useAccessDenied()
   const { loading, error, setError, run } = useAction()
   const [matches, setMatches] = useState<ConversationLeadMatch[] | null>(null)
   const chip = TONE[tone]
@@ -95,6 +98,24 @@ export default function LeadlessConversationActions({
       }
       refresh()
     })
+  }
+
+  /**
+   * PRE-SUBMIT GATE, not a post-mortem.
+   *
+   * Every action behind these chips — promote, link, list matches, mark
+   * personal — is `requireProductAccess`-guarded, so for a lapsed subscription
+   * all three are already dead. Rendering them live meant the customer clicked
+   * "+ צור ליד", waited, and only then learned the subscription had ended: the
+   * product let them try something it knew would fail. The locked state now
+   * replaces the row before any mutation is attempted.
+   *
+   * The `ENTITLEMENT_ERROR` branch below stays as the backstop for the one case
+   * this cannot cover: the seeded context being stale relative to the server.
+   * The server remains the only thing enforcing access.
+   */
+  if (expired) {
+    return <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='הפעולה מושהית' />
   }
 
   return (

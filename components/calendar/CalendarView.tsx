@@ -19,6 +19,8 @@ import './calendar.css'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import { toast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import {
   cancelMeeting,
   retrySyncMeeting,
@@ -50,6 +52,8 @@ type Props = {
 
 export default function CalendarView({ meetings, needsReauth = false }: Props) {
   const router = useRouter()
+  /** Entitlement from the shared context — the same answer the server gives. */
+  const expired = useAccessDenied()
   const [formOpen, setFormOpen] = useState(false)
   const [formDefaults, setFormDefaults] = useState<{ start: Date; end: Date } | null>(null)
   const [detail, setDetail] = useState<MeetingSummaryDTO | null>(null)
@@ -369,8 +373,18 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
     <div className='grid gap-4'>
       <div className='flex items-center justify-between gap-3 flex-wrap'>
         <h1 className='title'>פגישות</h1>
-        <Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />
+        {/*
+          PRE-GATE. Every calendar mutation — create, edit, drag, resize,
+          cancel, outcome — runs through a requireProductAccess-guarded action,
+          so for a lapsed subscription each one ended in
+          "אירעה שגיאה. נסה שוב." The meetings themselves stay fully readable;
+          only the affordances that would send a doomed request are withheld.
+        */}
+        {!expired && <Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />}
       </div>
+
+      {/* One line naming why the controls are gone, never a silent absence. */}
+      {expired && <SubscriptionExpiredState mode='inline' source='calendar' feature='קביעת פגישות מושהית' />}
 
       {needsReauth && (
         <div className='rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3 flex-wrap sm:flex-nowrap'>
@@ -420,9 +434,9 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
           slotDuration='00:30:00'
           slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
           eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-          selectable={true}
+          selectable={!expired}
           selectMirror={true}
-          editable={true}
+          editable={!expired}
           eventStartEditable={true}
           eventDurationEditable={true}
           // Resize in month view would extend a meeting across day boundaries

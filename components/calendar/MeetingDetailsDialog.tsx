@@ -12,6 +12,8 @@ import MeetingOutcomeBadge from './MeetingOutcomeBadge'
 import LeadStatusNudge from './LeadStatusNudge'
 import FollowUpControl from '@/components/leads/FollowUpControl'
 import { useMeetingOutcomeActions } from './hooks/useMeetingOutcomeActions'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 type Props = {
   meeting: MeetingSummaryDTO
@@ -33,11 +35,19 @@ export default function MeetingDetailsDialog({
   cancelling,
 }: Props) {
   const [confirmCancel, setConfirmCancel] = useState(false)
+  /**
+   * Entitlement from the shared context. Outcome, cancel, edit and sync-retry
+   * all call requireProductAccess-guarded actions, so on a lapsed subscription
+   * every one of them ended in "אירעה שגיאה. נסה שוב." — a retry for something
+   * only payment can clear. The meeting's details stay fully readable; the
+   * mutating controls are withheld and named once.
+   */
+  const expired = useAccessDenied()
 
   const outcome = useMeetingOutcomeActions({ onSettled: onClose })
 
-  const canRetry = meeting.syncStatus === 'failed'
-  const isScheduled = meeting.status === 'scheduled'
+  const canRetry = !expired && meeting.syncStatus === 'failed'
+  const isScheduled = !expired && meeting.status === 'scheduled'
   const busy = retrying || cancelling || outcome.busy !== null
 
   return (
@@ -137,6 +147,9 @@ export default function MeetingDetailsDialog({
               onClick={outcome.pendingNudge ? outcome.dismissNudge : onClose}
               disabled={busy}
             />
+            {expired && (
+              <SubscriptionExpiredState mode='inline' source='meeting_details' feature='עדכון הפגישה מושהה' />
+            )}
             <div className='flex gap-2 flex-wrap'>
               {canRetry && (
                 <Btn

@@ -10,6 +10,7 @@ export default function LeadDriveAttachedRow({
   attachment,
   busy,
   onDetach,
+  expired = false,
   pickerEnabled = false,
   leadId,
   onRepicked,
@@ -17,6 +18,8 @@ export default function LeadDriveAttachedRow({
   attachment: LeadDriveAttachment
   busy: boolean
   onDetach: () => void
+  /** Withholds the mutating controls while the subscription is lapsed. */
+  expired?: boolean
   pickerEnabled?: boolean
   leadId?: number
   onRepicked?: () => void
@@ -43,9 +46,17 @@ export default function LeadDriveAttachedRow({
         </p>
       </div>
       <div className='shrink-0 flex items-center gap-1.5'>
-        {pickerEnabled && leadId != null && <LeadDriveRepickButton leadId={leadId} onRepicked={onRepicked} />}
+        {/*
+          "פתח" stays: opening an attached file is reading, and reading never
+          lapses. Re-pick and "הסר" both call requireProductAccess-guarded
+          actions, so they are withheld rather than left to fail into a
+          generic retry toast.
+        */}
+        {!expired && pickerEnabled && leadId != null && (
+          <LeadDriveRepickButton leadId={leadId} onRepicked={onRepicked} />
+        )}
         <Btn lbl='פתח' size='small' variant='outline' onClick={open} disabled={!url || busy} />
-        <Btn lbl='הסר' size='small' variant='destructive' onClick={onDetach} disabled={busy} />
+        {!expired && <Btn lbl='הסר' size='small' variant='destructive' onClick={onDetach} disabled={busy} />}
       </div>
     </div>
   )

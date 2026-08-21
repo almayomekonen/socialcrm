@@ -13,6 +13,8 @@ import {
 } from '@/lib/copilot/timeline'
 import CopilotTimeline from './CopilotTimeline'
 import CopilotComposer from './CopilotComposer'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { getCopilotTimeline } from '@/actions/ai/getCopilotTimeline'
 import { useDispatchAsk } from './panel/useDispatchAsk'
 import { useDispatchPredefined } from './panel/useDispatchPredefined'
@@ -38,6 +40,8 @@ const FRESH_WINDOW_MS = 2500
 export default function CopilotPanel() {
   const { closePanel } = useCopilot()
   const ctx = useCopilotContext()
+  /** Entitlement from the shared context — the same answer the server gives. */
+  const expired = useAccessDenied()
   const currentLeadId = ctx?.kind === 'lead' ? ctx.leadId : null
 
   const [entries, setEntries] = useState<TimelineEntry[]>([])
@@ -181,15 +185,29 @@ export default function CopilotPanel() {
       </div>
 
       <div className='w-full px-3 pb-3 pt-3'>
-        <CopilotComposer
-          actions={suggestedActions}
-          onAction={dispatchPredefined}
-          onSubmit={dispatchAsk}
-          loadingId={loadingActionId}
-          placeholder={composerPlaceholder}
-          leadId={currentLeadId}
-          disabled={ctx?.kind !== 'lead'}
-        />
+        {/*
+          PRE-GATE, matching GeneralModePanel. This composer is the ONLY entry
+          to two requireProductAccess-guarded paths — `leadAskQuestion` and, via
+          runComposerSubmit, the `getPresigned`/`addFiles` upload. Left live, an
+          expired customer got "משהו השתבש. נסה שוב." for the question and
+          "העלאת הקבצים נכשלה. נסה שוב." for the attachment: two different
+          generic errors for one subscription fact, neither of which a retry can
+          clear. Replacing the composer means no doomed request is sent at all,
+          and the timeline above stays fully readable.
+        */}
+        {expired ? (
+          <SubscriptionExpiredState mode='panel' source='copilot_panel' feature='העוזר החכם מושהה.' />
+        ) : (
+          <CopilotComposer
+            actions={suggestedActions}
+            onAction={dispatchPredefined}
+            onSubmit={dispatchAsk}
+            loadingId={loadingActionId}
+            placeholder={composerPlaceholder}
+            leadId={currentLeadId}
+            disabled={ctx?.kind !== 'lead'}
+          />
+        )}
       </div>
     </div>
   )

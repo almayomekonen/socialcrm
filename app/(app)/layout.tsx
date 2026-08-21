@@ -216,7 +216,19 @@ async function LayoutContent({ children }) {
               userId={user.id}
               surface={mobileWorkspace ? 'mobile' : 'desktop'}
               copilotEnabled={copilotEnabled}
-              toursEnabled={!trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace}
+              /*
+                A feature tour must never sit on top of a paywall.
+                `trialExpired` carries the platform-owner exemption
+                (`TRIAL_EXPIRED && !owner`), so for an owner whose period lapsed
+                it is false and the tour auto-opened over the product — the live
+                audit had to dismiss it to reach both Billing and Leads, i.e. it
+                stood between the customer and the renewal path.
+                Gated on the same entitlement answer the rest of the app uses;
+                tours are untouched for anyone whose plan is active.
+              */
+              toursEnabled={
+                productAccess.hasAccess && !trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace
+              }
             >
             {/*
               LOCAL DEVELOPMENT ONLY. `getActiveDeviceOverride()` returns null

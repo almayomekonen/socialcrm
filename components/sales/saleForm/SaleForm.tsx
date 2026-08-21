@@ -20,6 +20,8 @@ import Title from '@/lib/Title'
 import { isPayExist, isAmountHigh, isSameUser, hasSaleOnClient } from './funcs'
 import { DealsView } from '@/types/db/tables'
 import { api } from '@/lib/funcs'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { SubmitButton } from '@/lib/btns/SubmitBtn'
 import { omitOffice, omitOfficeExt } from '@/lib/funcs'
 import Fieldset from '@/lib/Fieldset'
@@ -43,6 +45,14 @@ type Props = {
 export default function SaleForm({ props, curSale, onClose }: Props) {
   const { user, officeGotPerm, allUsers } = props
   const router = useRouter()
+  /**
+   * PRE-GATE. `insertSale` is requireProductAccess-guarded and the submit runs
+   * through `api()`, which catches everything into a generic error toast — so
+   * closing a deal on a lapsed subscription looked like a broken form. One
+   * gate here covers all three entries (leads table, lead page, sales section)
+   * and no doomed request is sent.
+   */
+  const expired = useAccessDenied()
 
   const allReps = omitOfficeExt(allUsers)
   const allRepsWithExt = omitOffice(allUsers)
@@ -122,6 +132,10 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   function removeProduct(indexToRemove) {
     if (prdcts.length <= 1) return
     setPrdcts(prdcts.filter((_, i) => i !== indexToRemove))
+  }
+
+  if (expired) {
+    return <SubscriptionExpiredState mode='panel' source='close_deal' feature='סגירת עסקה מושהית.' />
   }
 
   return (

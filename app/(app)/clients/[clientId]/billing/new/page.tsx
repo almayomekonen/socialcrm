@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { db } from '@/config/db'
 import { requireUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
@@ -31,6 +33,16 @@ export default async function NewInvoicePage({
 
   const user = await requireUser()
   if (!canDraftBilling(user)) redirect(`/clients/${leadId}/billing` as any)
+
+  /*
+   * Pure-mutation route: this page exists only to create a document, and every
+   * save/issue on it is requireProductAccess-guarded. Runs AFTER the existing
+   * draft-permission redirect, so identity still outranks commercial state.
+   * Existing invoices remain readable on the billing tab this does not touch.
+   */
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return <SubscriptionExpiredState mode='page' source='invoice_new' feature='יצירת חשבוניות מושהית.' />
+  }
 
   /**
    * DESKTOP-ONLY LEAD TAB. After authentication AND after the existing

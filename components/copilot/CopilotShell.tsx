@@ -29,6 +29,15 @@ export default function CopilotShell({ generalModeEnabled = false }: { generalMo
       role='complementary'
       aria-label='עוזר חכם'
       aria-hidden={!open}
+      /*
+       * `inert` is what makes the closed panel actually unreachable. Without it
+       * `aria-hidden` hid the subtree from assistive tech while leaving every
+       * control in the tab order — a focusable element inside an aria-hidden
+       * subtree, which is both an a11y violation and how a keyboard user could
+       * reach the AI quick questions in a panel they cannot see. CSS
+       * (pointer-events) only ever stopped the mouse.
+       */
+      inert={!open}
       className={`hidden desktop:block h-full min-h-0 w-[320px] bg-white copilot-shell ${
         open ? 'copilot-shell-open' : 'copilot-shell-closed'
       }`}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import { refreshLeadIntelligence } from '@/actions/ai/leadIntelligenceRefresh'
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 
 export default function RefreshLeadIntelligenceButton({ leadId }: Props) {
   const router = useRouter()
+  const expired = useAccessDenied()
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
@@ -34,6 +36,16 @@ export default function RefreshLeadIntelligenceButton({ leadId }: Props) {
       }
     })
   }
+
+  /**
+   * A cached summary outlives the subscription: the entry has a 24h TTL, so an
+   * expired customer can still be looking at a real, previously generated
+   * card. The summary stays — it is their data, and reading is never gated —
+   * but the refresh calls a requireProductAccess-guarded action, which throws
+   * and surfaces as an opaque Server Action 500 (React #441). Withholding the
+   * control is the honest form of "paused": nothing pretends to work.
+   */
+  if (expired) return null
 
   return (
     <div className='flex items-center gap-2'>

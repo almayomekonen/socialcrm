@@ -108,7 +108,7 @@ export default function ProPlanCard({
         </div>
       </div>
 
-      <PaymentMethodRow />
+      <PaymentMethodRow state={expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />
     </div>
   )
 }

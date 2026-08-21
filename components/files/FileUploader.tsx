@@ -7,6 +7,8 @@ import { useUser } from '@/lib/hooksNEvents'
 import dynamic from 'next/dynamic'
 import { twMerge } from 'tailwind-merge'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 const Glry = dynamic(() => import('./Glry'), { ssr: false })
 type folderPath = 'display' | 'docs'
@@ -32,8 +34,21 @@ export default function FileUploader({
   const [fileToRemove, setFileToRemove] = useState<any>(null)
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const user = useUser()
+  /**
+   * PRE-GATE at the single choke point. Every upload path runs through
+   * `uploadS3` → `getPresigned`/`addFiles`, both requireProductAccess-guarded,
+   * and `uploadS3` catches the refusal into
+   * "העלאת הקבצים נכשלה: …" — a lapsed subscription reported as a failed
+   * upload. Gating here covers the lead files tab, task files, the Excel lead
+   * import and the issuer logo in one place. Already-uploaded files stay
+   * listed and downloadable by their own components.
+   */
+  const expired = useAccessDenied()
 
   if (!user) return null
+  if (expired) {
+    return <SubscriptionExpiredState mode='inline' source='file_upload' feature='העלאת קבצים מושהית' />
+  }
 
   function onRemove(file) {
     setFileToRemove(file)
