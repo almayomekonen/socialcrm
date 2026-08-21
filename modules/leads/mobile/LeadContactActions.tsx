@@ -3,37 +3,42 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
-import { toast } from '@/lib/toast'
-import { waMeHref } from '@/modules/leads/whatsapp'
-import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
+import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 
 /**
  * Call and WhatsApp — the two first-class mobile contact actions.
  *
- * ── WhatsApp now stays INSIDE SocialCRM ─────────────────────────────────────
+ * ── WhatsApp ALWAYS stays INSIDE SocialCRM ──────────────────────────────────
  *
- * It used to be a `wa.me` link, which ejected the rep into another application
- * the moment they tapped it: the CRM lost the thread, the reply was never
- * recorded, and coming back meant re-finding the lead. That was a Phase-A
- * stopgap taken because the mobile inbox did not exist yet. It exists now.
+ * Connected: resolve the REAL conversation (`resolveLeadWhatsappConversation` →
+ * find, else `ensureWhatsappConversationForLead`) and navigate to
+ * `/inbox?conversation=<id>`. Same server action the desktop table and the
+ * dashboard quick-actions use — no second lookup, no invented conversation.
  *
- * So the primary action resolves the REAL conversation
- * (`resolveLeadWhatsappConversation` → find, else `ensureWhatsappConversationForLead`)
- * and navigates to `/inbox?conversation=<id>`. Same server action the desktop
- * table and the dashboard quick-actions already use — no second lookup, no
- * invented conversation, no new backend.
+ * NOT connected: navigate to the WhatsApp connect UI —
+ * `/settings/integrations?section=whatsapp`. There is no `wa.me` fallback.
  *
- * `wa.me` survives ONLY as the fallback, for the cases the backend genuinely
- * cannot resolve — no WhatsApp connection, or no valid recipient. A rep with an
- * unconnected workspace still gets a working way to reach the customer instead
- * of a button that only apologises. When even that is impossible (no usable
- * number) the reason is stated.
+ * WHY THE FALLBACK IS GONE. It opened `window.open(wa.me)` from inside
+ * `onUnavailable`, i.e. AFTER an awaited server action had already resolved. By
+ * then the browser's transient user activation was spent, so mobile suppressed
+ * the popup and the FIRST TAP DID NOTHING AT ALL — no navigation, no toast,
+ * because the wa.me branch returned before the toast could run. The second tap
+ * worked only because the warm server action answered inside the activation
+ * window. Reproduced on device; see the audit. Routing through `router.push`
+ * has no such dependency: client-side navigation is never gesture-gated, so it
+ * is correct on the first tap, on mobile, and in PWA standalone — where
+ * `_blank` is unreliable anyway.
+ *
+ * It also ends a split personality: desktop told the rep to connect WhatsApp
+ * while mobile silently ejected them to another app. Both now lead to the same
+ * place; mobile just takes them there instead of describing it.
  *
  * Call is unchanged: `tel:` is a real OS navigation and belongs to the dialer.
  *
  * ANALYTICS. Still the shared `lead_action_taken {surface:'mobile'}` event, with
- * `via` recording which path was taken so in-app vs. fallback is measurable.
+ * `via` recording which path was taken. NOTE it is recorded on TAP, before the
+ * outcome is known — it measures intent, not a delivered conversation.
  * Call stays uninstrumented: the anchor hands off to the dialer and the page may
  * be backgrounded before any handler runs, so recording it would inflate the
  * activation KPI with intent rather than contact.
@@ -56,8 +61,9 @@ export default function LeadContactActions({
   const [pending, startTransition] = useTransition()
   const [busy, setBusy] = useState(false)
 
-  const wa = waMeHref(phone)
-  if (!phone && !wa) return null
+  // `waMeHref(phone)` used to widen this guard; it was always derived from
+  // `phone`, so dropping it changes nothing about when the action renders.
+  if (!phone) return null
 
   const openWhatsapp = () => {
     if (busy || pending) return
@@ -68,15 +74,9 @@ export default function LeadContactActions({
     startTransition(async () => {
       try {
         await openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
-          onUnavailable: () => {
-            // The backend cannot resolve a conversation. Fall back to the app
-            // the customer is already on rather than dead-ending the rep.
-            if (wa) {
-              window.open(wa, '_blank', 'noopener,noreferrer')
-              return
-            }
-            toast('message', 'לליד אין מספר טלפון תקין לשיחת WhatsApp')
-          },
+          // No WhatsApp connected: take the rep to the connect UI rather than
+          // out of the product.
+          onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
         })
       } finally {
         setBusy(false)

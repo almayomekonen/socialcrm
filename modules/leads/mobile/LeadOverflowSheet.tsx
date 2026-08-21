@@ -8,9 +8,8 @@ import ConfirmSheet from '@/components/mobile/ConfirmSheet'
 import { toast } from '@/lib/toast'
 import { deleteLead, type DeleteLeadResult } from '@/actions/clients'
 import { blockReasonText } from '@/lib/leads/deleteResult'
-import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
+import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { waMeHref } from '@/modules/leads/whatsapp'
 
 function deleteError(res: DeleteLeadResult): string {
   if ('success' in res) return ''
@@ -40,7 +39,6 @@ export default function LeadOverflowSheet({
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
-  const wa = waMeHref(phone)
 
   const close = () => {
     if (busy) return
@@ -74,7 +72,7 @@ export default function LeadOverflowSheet({
               onFollowUp()
             }}
           />
-          {(phone || wa) && (
+          {phone && (
             <SheetBtn
               label='פתיחת שיחה'
               onClick={() => {
@@ -86,13 +84,9 @@ export default function LeadOverflowSheet({
                   via: 'inbox',
                 }).catch(() => {})
                 void openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
-                  onUnavailable: () => {
-                    if (wa) {
-                      window.open(wa, '_blank', 'noopener,noreferrer')
-                      return
-                    }
-                    toast('message', 'לליד אין מספר טלפון תקין לשיחת WhatsApp')
-                  },
+                  // No WhatsApp connected: route to the connect UI, never out
+                  // of the app.
+                  onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
                 })
               }}
             />

@@ -18,8 +18,7 @@ import {
 import { deleteManyLeads } from '@/actions/clients'
 import { deleteLeadsMessage } from '@/lib/leads/deleteResult'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
-import { waMeHref } from '@/modules/leads/whatsapp'
+import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { leadsHref, type LeadFilters } from '@/modules/leads/filters'
 import LeadFilterBar from './LeadFilterBar'
 import LeadCardMobile from './LeadCardMobile'
@@ -115,7 +114,6 @@ export default function LeadListMobileClient({
   const openConversation = () => {
     if (!actionLead) return
     const leadId = actionLead.id
-    const wa = waMeHref(actionLead.phone)
     setSel((prev) => setAction(prev, null))
     recordLeadActionEvent('lead_action_taken', {
       surface: 'mobile',
@@ -124,13 +122,8 @@ export default function LeadListMobileClient({
       via: 'inbox',
     }).catch(() => {})
     void openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
-      onUnavailable: () => {
-        if (wa) {
-          window.open(wa, '_blank', 'noopener,noreferrer')
-          return
-        }
-        toast('message', 'לליד אין מספר טלפון תקין לשיחת WhatsApp')
-      },
+      // No WhatsApp connected: route to the connect UI, never out of the app.
+      onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
     })
   }
 
