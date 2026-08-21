@@ -1,5 +1,7 @@
 'use client'
 
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
@@ -44,6 +46,7 @@ export default function WhatsappComposerPanel({
   /** Phone Inbox uses a sheet. Desktop keeps the existing middle modal. */
   readyMessageSurface?: 'modal' | 'sheet'
 }) {
+  const expired = useAccessDenied()
   const window = resolveWhatsappServiceWindow(latestInboundTimestamp(messages))
   const decision = resolveWhatsappComposerDecision({
     leadId,
@@ -52,6 +55,22 @@ export default function WhatsappComposerPanel({
     templatesEnabled: facts.templatesEnabled,
     hasApprovedTemplates: facts.templates.length > 0,
   })
+
+  /**
+   * LOCKED, NOT ABSENT.
+   *
+   * The audit found the reply box simply missing from an expired account's
+   * conversation — no lock, no explanation, no CTA; the thread just ended, and
+   * the customer had no way to tell a paused subscription from a broken product.
+   * History above stays fully readable (the approved read-only policy); only the
+   * ability to SEND is locked, and it says so.
+   *
+   * Checked before every other branch so no send affordance — text composer,
+   * template picker or ready-message sheet — can render while access is lapsed.
+   */
+  if (expired) {
+    return <SubscriptionExpiredState mode='panel' source='whatsapp_composer' feature='שליחת הודעות מושהית.' />
+  }
 
   if (decision.kind === 'leadless') return null
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { isAccessDenied, markAccessDenied } from '@/lib/entitlement/pollGate'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
@@ -104,11 +105,15 @@ function AwarenessPoller({ onData }: { onData: AwarenessContextValue['mergeAware
   const poll = useCallback(async () => {
     let res: Response
     try {
+      // A lapsed subscription is permanent until renewal — stop asking.
+      if (isAccessDenied()) return
       res = await fetch(`/api/inbox/awareness?since=${encodeURIComponent(since.current)}`, { cache: 'no-store' })
     } catch {
       return { changed: false, failed: true }
     }
     if (!res.ok) {
+      // 403 here is entitlement, not a network fault: never retry it.
+      if (res.status === 403) markAccessDenied()
       console.warn('[inbox.awareness]', { status: res.status })
       return { changed: false, failed: true }
     }

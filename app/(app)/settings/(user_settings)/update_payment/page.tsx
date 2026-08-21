@@ -3,6 +3,8 @@ import { getUser } from '@/db/auth'
 import { getAgencyPlan } from '@/lib/quota'
 import { getPlanUsage } from '@/lib/quota/planUsage'
 import { getSubscriptionView } from '@/lib/quota/subscription'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import Packages from '@/components/settings/payment/Packages'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
 import ProPlanCard from '@/components/settings/payment/ProPlanCard'
@@ -40,6 +42,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const isLocalMode = sp.mode === 'local'
 
   const user = await getUser()
+  const productAccess = await getAgencyProductAccess(user.agencyId)
   const plan = await getAgencyPlan(user.agencyId)
   const isPro = plan === 'pro'
   const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
@@ -84,7 +87,19 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       )}
 
       {isPro && subscription ? (
-        <ProPlanCard subscription={subscription} annualAvailable={isAnnualLinkConfigured()} />
+        <>
+          {/* Named first so the truth is the first thing read on the page. */}
+          {!productAccess.hasAccess && (
+            <div className='mb-6 max-w-3xl'>
+              <SubscriptionExpiredState mode='inline' source='billing_page' />
+            </div>
+          )}
+          <ProPlanCard
+            subscription={subscription}
+            annualAvailable={isAnnualLinkConfigured()}
+            hasAccess={productAccess.hasAccess}
+          />
+        </>
       ) : (
         <div className='mb-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
           {trialActive ? (

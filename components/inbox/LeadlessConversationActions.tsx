@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, Link2, User } from 'lucide-react'
-import { useAction } from '@/lib/useAction'
+import { useAction, ENTITLEMENT_ERROR } from '@/lib/useAction'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import {
   linkConversationToExistingLead,
   listConversationLeadMatches,
@@ -112,7 +113,11 @@ export default function LeadlessConversationActions({
           סמן כאישי
         </button>
       )}
-      {error && (
+      {/* A lapsed subscription gets the shared locked state, never a retry line. */}
+      {error === ENTITLEMENT_ERROR && (
+        <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='הפעולה מושהית' />
+      )}
+      {error && error !== ENTITLEMENT_ERROR && (
         <span role='alert' className='text-xs text-error-text'>
           {error}
         </span>

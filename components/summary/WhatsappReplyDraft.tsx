@@ -9,6 +9,8 @@ import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/lib/toast'
 import { generateWhatsappReplyDraft } from '@/actions/ai/whatsappReplyDraft'
 import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 const MAX_CHARS = 4096
@@ -20,6 +22,7 @@ export default function WhatsappReplyDraft({
   leadId: number
   conversationId?: number | null
 }) {
+  const expired = useAccessDenied()
   const router = useRouter()
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +45,7 @@ export default function WhatsappReplyDraft({
     setDraft((d) => {
       const s = start ?? d.length
       const e = end ?? d.length
-      return (d.slice(0, s) + emoji + d.slice(e)).slice(0, MAX_CHARS)
+  return (d.slice(0, s) + emoji + d.slice(e)).slice(0, MAX_CHARS)
     })
     setEmojiOpen(false)
     requestAnimationFrame(() => {
@@ -58,6 +61,13 @@ export default function WhatsappReplyDraft({
     if (reason === 'escape') emojiBtnRef.current?.focus()
   }, [])
 
+  /**
+   * Two prohibited operations live in this component — a PAID AI draft and a
+   * real WhatsApp SEND. Both are entitlement-guarded on the server, but the
+   * guard's refusal surfaced here as "לא ניתן היה לנסח טיוטה כרגע. נסה שוב."
+   * Gating up front means the paid call is never attempted just to discover the
+   * subscription lapsed, and no message can be sent.
+   */
   const generate = () => {
     setError(null)
     startTransition(async () => {
@@ -94,6 +104,10 @@ export default function WhatsappReplyDraft({
     } finally {
       setSending(false)
     }
+  }
+
+  if (expired) {
+    return <SubscriptionExpiredState mode='panel' source='whatsapp_reply_draft' feature='ניסוח ושליחת הודעות מושהים.' />
   }
 
   return (

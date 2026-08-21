@@ -7,6 +7,8 @@ import type { CopilotModeId } from '@/lib/ai/copilotModes'
 import { recordGeneralModeEvent } from '@/actions/analytics/recordGeneralModeEvent'
 import { getDailyBriefing } from '@/actions/ai/getDailyBriefing'
 import { askGeneralQuestion, getLeadCardById, type GeneralAnswer } from '@/actions/ai/askGeneralQuestion'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { toConversationState, type ConversationState } from '@/lib/copilot/general/conversationState'
 import type { BriefingResult } from '@/lib/copilot/general/types'
 import ActiveGenerationRow from '../ActiveGenerationRow'
@@ -26,6 +28,8 @@ const LOADER_MIN_MS = 350
 const LOADER_ESCALATE_MS = 1500
 
 export default function GeneralModePanel() {
+  /** No paid AI request may be attempted while the subscription is lapsed. */
+  const expired = useAccessDenied()
   const { closePanel } = useCopilot()
   const startedRef = useRef(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -207,7 +211,18 @@ export default function GeneralModePanel() {
               </button>
             </div>
           )}
-          <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />
+          {/*
+            The audit found this panel failing SILENTLY: the message appended and
+            then nothing — no reply, no error, no spinner. The composer is
+            replaced by the locked state so the customer is told why, and the
+            paid AI call is never made. No blurred or sample output is shown:
+            fabricating a result to look premium would imply a request ran.
+          */}
+          {expired ? (
+            <SubscriptionExpiredState mode='panel' source='ai_panel' feature='העוזר החכם מושהה.' />
+          ) : (
+            <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />
+          )}
         </div>
       )}
     </div>

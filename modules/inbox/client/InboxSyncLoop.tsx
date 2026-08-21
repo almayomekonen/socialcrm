@@ -1,5 +1,6 @@
 'use client'
 
+import { isAccessDenied, markAccessDenied } from '@/lib/entitlement/pollGate'
 import { useCallback, useEffect, useRef } from 'react'
 import { useAwareness } from '@/modules/inbox/awareness/AwarenessContext'
 import { useInboxStore } from './inboxStore'
@@ -42,11 +43,15 @@ export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }
     }
     let res: Response
     try {
+      // A lapsed subscription is permanent until renewal — stop asking.
+      if (isAccessDenied()) return
       res = await fetch(`/api/inbox/sync?${params.toString()}`, { cache: 'no-store' })
     } catch {
       return { changed: false, failed: true }
     }
     if (!res.ok) {
+      // 403 here is entitlement, not a network fault: never retry it.
+      if (res.status === 403) markAccessDenied()
       console.warn('[inbox.sync]', { status: res.status })
       return { changed: false, failed: true }
     }

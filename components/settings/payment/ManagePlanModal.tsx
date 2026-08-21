@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import ModalPop from '@/lib/modals/ModalPop'
 import { formatDate } from '@/lib/dates'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
@@ -145,6 +146,8 @@ function ManageBody({
   onResume: () => void
   onClose: () => void
 }) {
+  /** Entitlement from the shared context — never a plan-name check here. */
+  const expired = useAccessDenied()
   // 'cancelling' = renewal already off, Pro access remains until expiresAt (an
   // access-end date, no next charge); otherwise it renews and expiresAt is the
   // next charge date.
@@ -170,7 +173,24 @@ function ManageBody({
       {error && <p className='text-sm text-red-700'>{error}</p>}
 
       <div className='flex gap-3 justify-end pt-2'>
-        {manageable && status === 'active' && (
+        {/*
+          EXPIRED: renewal is the primary action, cancel is not offered.
+          The audit found this modal offering only "בטל מנוי" and "סגור" to a
+          customer whose subscription had already lapsed — a dead end for the
+          person you most want back, and an offer to cancel something that has
+          already ended. Entitlement comes from the shared context, never from
+          a plan-name check in client code. The CTA is a link to the EXISTING
+          upgrade route, so rendering it writes nothing.
+        */}
+        {expired ? (
+          <a
+            href='/api/payments/upgrade?source=manage_plan_modal'
+            className='press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          >
+            חידוש מנוי
+          </a>
+        ) : null}
+        {!expired && manageable && status === 'active' && (
           <Btn
             variant='destructive'
             lbl={pending ? 'טוען...' : 'בטל מנוי'}
@@ -178,7 +198,7 @@ function ManageBody({
             onClick={onAskCancel}
           />
         )}
-        {manageable && status === 'cancelling' && (
+        {!expired && manageable && status === 'cancelling' && (
           <Btn
             variant='solid'
             lbl={pending ? 'טוען...' : 'חידוש מסלול'}
@@ -186,7 +206,7 @@ function ManageBody({
             onClick={onResume}
           />
         )}
-        {!manageable && <Btn variant='destructive' lbl='בטל מנוי' disabled onClick={() => {}} />}
+        {!expired && !manageable && <Btn variant='destructive' lbl='בטל מנוי' disabled onClick={() => {}} />}
 
         <Btn variant='outline' lbl='סגור' disabled={pending} onClick={onClose} />
       </div>

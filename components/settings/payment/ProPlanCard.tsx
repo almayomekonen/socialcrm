@@ -33,21 +33,31 @@ import { daysUntil, formatRenewalDate, relativeDaysLabel } from './subscriptionD
 export default function ProPlanCard({
   subscription,
   annualAvailable = false,
+  hasAccess = true,
 }: {
   subscription: SubscriptionView
   annualAvailable?: boolean
+  /**
+   * From `getAgencyProductAccess` — the SAME gate that refuses every request.
+   * Passed in rather than derived here: `agencies.plan` stays 'pro' after a paid
+   * period lapses, so this card used to show a green "מנוי פעיל" chip and a
+   * renewal date already in the past to a customer whose every action was being
+   * refused. The one screen that must tell the truth was the one that didn't.
+   */
+  hasAccess?: boolean
 }) {
-  const cancelling = subscription.status === 'cancelling'
+  const expired = !hasAccess
+  const cancelling = !expired && subscription.status === 'cancelling'
   const annual = subscription.billingPeriod === 'annual'
 
-  const dateLabel = cancelling ? 'גישה ל־Pro עד' : 'החידוש הבא'
+  const dateLabel = expired ? 'המנוי הסתיים ב' : cancelling ? 'גישה ל־Pro עד' : 'החידוש הבא'
   const periodLabel = annual ? 'שנתית' : 'חודשית'
   const priceLabel = annual ? `₪${PRICING.annual} לשנה` : `₪${PRICING.monthly} לחודש`
 
   // Only offered to an active monthly subscriber, and only when the annual
   // link is actually configured — the upgrade route bounces an unconfigured
   // annual request rather than charging the monthly amount.
-  const showAnnualOffer = annualAvailable && !cancelling && !annual
+  const showAnnualOffer = annualAvailable && !cancelling && !annual && !expired
 
   const clientView: SubscriptionClientView = {
     plan: subscription.plan,
@@ -63,7 +73,7 @@ export default function ProPlanCard({
         <div className='flex flex-col gap-3'>
           <div className='flex items-center gap-3'>
             <p className='text-lg font-semibold'>מסלול נוכחי: Pro</p>
-            <StatusBadge cancelling={cancelling} />
+            <StatusBadge cancelling={cancelling} expired={expired} />
           </div>
 
           <div className='flex flex-col gap-2'>
@@ -104,7 +114,15 @@ export default function ProPlanCard({
 }
 
 /** Status carries a text label, never colour alone. */
-function StatusBadge({ cancelling }: { cancelling: boolean }) {
+function StatusBadge({ cancelling, expired = false }: { cancelling: boolean; expired?: boolean }) {
+  if (expired) {
+    return (
+      <span className='inline-flex items-center gap-2 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700'>
+        <span aria-hidden='true' className='size-1.5 rounded-full bg-red-600' />
+        המנוי הסתיים
+      </span>
+    )
+  }
   if (cancelling) {
     return (
       <span className='inline-flex items-center gap-2 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800'>

@@ -1,5 +1,6 @@
 'use client'
 
+import { isAccessDenied, markAccessDenied } from '@/lib/entitlement/pollGate'
 import { useCallback } from 'react'
 import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
 import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
@@ -26,11 +27,15 @@ export default function NotificationPoller({ onData }: { onData: (data: Notifica
     const visible = typeof document === 'undefined' || !document.hidden
     let res: Response
     try {
+      // A lapsed subscription is permanent until renewal — stop asking.
+      if (isAccessDenied()) return
       res = await fetch(`/api/notifications/feed?visible=${visible ? '1' : '0'}`, { cache: 'no-store' })
     } catch {
       return { changed: false, failed: true }
     }
     if (!res.ok) {
+      // 403 here is entitlement, not a network fault: never retry it.
+      if (res.status === 403) markAccessDenied()
       console.warn('[notifications.feed]', { status: res.status })
       return { changed: false, failed: true }
     }

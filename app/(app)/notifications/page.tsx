@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { isToastEligible } from '@/lib/notifications/toastEligibility'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
 import { classifyPresence } from '@/lib/notifications/presence'
@@ -55,7 +56,24 @@ export default async function NotificationsPage({ searchParams }: { searchParams
    * than not having the page (CLAUDE.md §11).
    */
   if (!isNotificationsEnabled() || !isNotificationsAgencyAllowlisted(user.agencyId)) notFound()
-  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) redirect('/')
+  /**
+   * ENTITLEMENT IS NOT AUTHENTICATION.
+   *
+   * This used to be `redirect('/')`, which threw a signed-in customer out of the
+   * product and onto the public marketing homepage — hero copy, "start free"
+   * buttons, no way back but the browser's back button. The forensic audit rated
+   * it the single most damaging pattern found: it removes the customer from the
+   * funnel at the exact moment they are one click from billing.
+   *
+   * A lapsed subscription is not a missing session. The route stays inside the
+   * app shell and renders the same locked state every other gated surface shows,
+   * with the renewal CTA right there. The feed below is never read, so no gated
+   * data is fetched or exposed — the refusal is preserved, only its presentation
+   * changed.
+   */
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return <SubscriptionExpiredState mode='page' source='notifications_page' feature='ההתראות מושהות.' />
+  }
 
   const filters = parseCenterFilters(await searchParams)
   const scope = { agencyId: user.agencyId, userId: user.id }

@@ -43,6 +43,8 @@ import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
 import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
 import ProActivationSuccess from '@/components/trial/ProActivationSuccess'
 import EducationMount from '@/components/education/EducationMount'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import { EntitlementProvider } from '@/lib/entitlement/EntitlementContext'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -81,12 +83,15 @@ async function LayoutContent({ children }) {
   // Preserve the full getTrialState result (status + daysRemaining) from the
   // SAME existing read — reused for the header PRO pill; no extra DB query.
   let trialDaysRemaining: number | null = null
+  /** When the paid period lapsed — for the client's "expired on …" copy only. */
+  let paidPeriodEndsAt: string | null = null
   try {
     const trialRow = await getAgencyTrial(user.agencyId)
     if (trialRow) {
       const trialState = getTrialState(trialRow, new Date())
       trialStatus = trialState.status
       trialDaysRemaining = trialState.daysRemaining
+      paidPeriodEndsAt = trialRow.expiresAt ? new Date(trialRow.expiresAt).toISOString() : null
     }
   } catch (err) {
     console.error('[trial] state read failed; failing open', { userId: user.id, err: String(err) })
@@ -110,6 +115,15 @@ async function LayoutContent({ children }) {
       console.error('[trial] lead preview read failed', { userId: user.id, err: String(err) })
     }
   }
+
+  /**
+   * The ONE entitlement answer, resolved once per request and handed to the
+   * client. `getAgencyProductAccess` is React `cache()`d and is already called
+   * elsewhere in this request, so this adds no query. Nothing is decided here —
+   * server-side enforcement is unchanged; this only lets the UI stop describing
+   * a lapsed subscription as a crash.
+   */
+  const productAccess = await getAgencyProductAccess(user.agencyId)
 
   const copilotEnabled = isCopilotEnabledForUser(user)
   const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
@@ -183,6 +197,13 @@ async function LayoutContent({ children }) {
   }
 
   return (
+    <EntitlementProvider
+      value={{
+        hasAccess: productAccess.hasAccess,
+        status: productAccess.status,
+        expiresAt: paidPeriodEndsAt,
+      }}
+    >
     <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
     <NotificationProvider enabled={notificationsEnabled} initialUnread={notificationUnread}>
@@ -242,7 +263,11 @@ async function LayoutContent({ children }) {
                 <>
                   <Topbar
                     user={user}
-                    isPro={(await getAgencyPlan(user.agencyId)) === 'pro'}
+                    /* Entitlement, not plan name. `plan` stays 'pro' after a
+                       period lapses, so deriving the badge from it told an
+                       expired customer they were PRO while every request they
+                       made was being refused. */
+                    isPro={productAccess.hasAccess && (await getAgencyPlan(user.agencyId)) === 'pro'}
                     trialDaysRemaining={trialStatus === 'TRIAL_ACTIVE' ? trialDaysRemaining : null}
                   />
                   <WorkspaceGrid>
@@ -271,6 +296,7 @@ async function LayoutContent({ children }) {
     </NotificationProvider>
     </AwarenessProvider>
     </CrmSyncHealthProvider>
+    </EntitlementProvider>
   )
 }
 

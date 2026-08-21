@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { getLeadByIdNum, upsertLead } from '../../actions/clients'
 import { findDuplicateLeads } from '../../actions/leadDuplicates'
 import type { DuplicateMatch } from '@/lib/leads/duplicateMatch'
@@ -26,6 +28,7 @@ export default function ClientFormPop({
   onClose?: () => void
   onCreated?: (leadId: number) => void
 }) {
+  const expired = useAccessDenied()
   const user = useUser()
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
@@ -102,10 +105,23 @@ export default function ClientFormPop({
       {!dupDismissed && duplicates.length > 0 && (
         <DuplicateLeadBanner matches={duplicates} onDismiss={() => setDupDismissed(true)} />
       )}
-      <form id='clientForm' onSubmit={onSubmit}>
-        <ClientForm key={client?.id ?? 'new'} data={client} onContactBlur={onContactBlur} />
-        <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
-      </form>
+      {/*
+        Refuse BEFORE submitting rather than after. The server already refuses —
+        correctly — but that refusal arrived as a raw "Minified React error #441"
+        dialog, in English, inside an RTL Hebrew product. Intercepting here means
+        the customer is told what is actually wrong, in their language, with the
+        way to fix it, and the doomed request is never sent.
+      */}
+      {expired ? (
+        <div className='mt-2'>
+          <SubscriptionExpiredState mode='panel' source='create_lead' feature='הוספת לידים מושהית.' />
+        </div>
+      ) : (
+        <form id='clientForm' onSubmit={onSubmit}>
+          <ClientForm key={client?.id ?? 'new'} data={client} onContactBlur={onContactBlur} />
+          <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
+        </form>
+      )}
       <ConfirmPop
         open={!!errMsg}
         hideCancel

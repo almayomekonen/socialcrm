@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { isMobileWorkspaceRequest } from '@/lib/device'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import LeadSourcesSection from '@/components/settings/integrations/LeadSourcesSection'
 import ConnectedToolsSection from '@/components/settings/integrations/ConnectedToolsSection'
 import IntegrationsMobile from '@/modules/settings/mobile/IntegrationsMobile'
@@ -41,8 +43,29 @@ export default async function IntegrationsSettingsPage({
     return <IntegrationsMobile user={user} searchParams={sp} />
   }
 
+  /**
+   * CONNECTION STATE IS NOT ENTITLEMENT STATE.
+   *
+   * Both connectors report "החיבור תקין — לידים מגיעים אוטומטית", which is TRUE
+   * at the integration layer and misleading at the product layer: the audit found
+   * it displayed while the inbox those integrations feed was refusing every
+   * request. The connector copy is left alone — it is accurate about the
+   * connection — and the subscription fact is stated once, above the list, so the
+   * two are not confused.
+   */
+  const productAccess = await getAgencyProductAccess(user.agencyId)
+
   return (
     <div>
+      {!productAccess.hasAccess && (
+        <div className='mb-6 max-w-lg'>
+          <SubscriptionExpiredState
+            mode='inline'
+            source='integrations_page'
+            feature='החיבורים פעילים, אך העיבוד מושהה'
+          />
+        </div>
+      )}
       <h1 className='title'>אינטגרציות</h1>
       <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
         חברו כאן את המערכות שמהן מגיעים הלידים, ואת הכלים שעוזרים לטפל בהם. החיבור מתבצע פעם אחת.

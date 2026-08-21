@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { useAction } from '@/lib/useAction'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { toast } from '@/lib/toast'
 import { convertCommentToLead } from '../actions'
 
@@ -25,7 +26,19 @@ const FAILURE_COPY: Record<string, string> = {
 
 export default function ConvertCommentButton({ commentId }: { commentId: string }) {
   const router = useRouter()
-  const { loading, run } = useAction()
+  /*
+    `useAction`'s entitlement sentinel does NOT reach this component: it reads
+    only `loading`/`run`, and `convertCommentToLead` CATCHES the guard's throw
+    internally and returns `{ ok:false, reason:'db_error' }` — which this button
+    renders as "לא ניתן ליצור ליד מהתגובה. נסה שוב." A retry that can never
+    succeed. Enforcement is intact (creation routes through `upsertLead`, which
+    calls requireProductAccess); only the message was wrong.
+  */
+  const { loading, run, accessDenied } = useAction()
+
+  if (accessDenied) {
+    return <SubscriptionExpiredState mode='inline' source='convert_comment' feature='המרת תגובה לליד מושהית' />
+  }
 
   return (
     <Btn
