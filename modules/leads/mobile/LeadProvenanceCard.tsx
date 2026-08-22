@@ -33,55 +33,63 @@ export default function LeadProvenanceCard({ model }: { model: MobileProvenanceM
       data-source-visual={model.visual}
       className='mt-4 rounded-xl border border-gray-200 bg-white p-4'
     >
-      <div className='flex items-start gap-3'>
-        <span
-          className={`flex size-11 shrink-0 items-center justify-center rounded-full ${visual.wrap}`}
-          aria-hidden
-        >
+      {/*
+        HEADER ROW ONLY — the channel mark sits with the TITLE, not beside the
+        whole card.
+
+        It used to be a flex sibling of the entire content stack (headline, body,
+        quote, capture meta, full-width CTA), so a 44px mark reserved a
+        full-HEIGHT column that was empty below its first 44px. On a phone, with
+        a tall card, that read as a two-column layout with a large blank strip.
+
+        Now it is a compact 40px contextual indicator on the title line, and
+        every block below runs the full card width. RTL is unchanged: the row is
+        still `dir='rtl'`, so the mark stays leading (right) and the title
+        follows it.
+      */}
+      <div className='flex items-center gap-2.5'>
+        <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${visual.wrap}`} aria-hidden>
           <Icon name={visual.icon} type={visual.type} className={`size-5 ${visual.mark}`} />
         </span>
-        <div className='min-w-0 flex-1'>
-          <h2 className='text-base font-semibold leading-snug break-words text-ink'>{model.headline}</h2>
-          {model.body ? (
-            <p className='mt-1 text-sm leading-relaxed break-words text-gray-600'>{model.body}</p>
-          ) : null}
+        <h2 className='min-w-0 flex-1 text-base font-semibold leading-snug break-words text-ink'>{model.headline}</h2>
+      </div>
 
-          {model.preview ? (
-            <p
-              dir='auto'
-              className='mt-3 line-clamp-2 break-words rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-700'
-            >
-              {model.preview}
+      {model.body ? <p className='mt-1 text-sm leading-relaxed break-words text-gray-600'>{model.body}</p> : null}
+
+      {model.preview ? (
+        <p
+          dir='auto'
+          className='mt-3 line-clamp-2 break-words rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-700'
+        >
+          {model.preview}
+        </p>
+      ) : null}
+
+      {hasMeta ? (
+        <div className='mt-3 flex flex-col gap-1 text-sm leading-relaxed text-gray-500'>
+          {model.capturedLabels.length > 0 ? (
+            <p className='break-words'>
+              {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {model.capturedLabels.join(' · ')}
             </p>
           ) : null}
-
-          {hasMeta ? (
-            <div className='mt-3 flex flex-col gap-1 text-sm leading-relaxed text-gray-500'>
-              {model.capturedLabels.length > 0 ? (
-                <p className='break-words'>
-                  {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {model.capturedLabels.join(' · ')}
-                </p>
-              ) : null}
-              {model.capturedAt ? (
-                <p className='break-words'>
-                  {INBOUND_LEAD_COPY.capturedAtPrefix}
-                  {model.capturedAt}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {model.conversationId ? (
-            <Link
-              href={`/inbox?conversation=${model.conversationId}`}
-              className='mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800'
-            >
-              <Icon name='whatsapp' type='reg' aria-hidden className='size-4 bg-[#25D366]' />
-              {INBOUND_LEAD_COPY.openConversation}
-            </Link>
+          {model.capturedAt ? (
+            <p className='break-words'>
+              {INBOUND_LEAD_COPY.capturedAtPrefix}
+              {model.capturedAt}
+            </p>
           ) : null}
         </div>
-      </div>
+      ) : null}
+
+      {model.conversationId ? (
+        <Link
+          href={`/inbox?conversation=${model.conversationId}`}
+          className='mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800'
+        >
+          <Icon name='whatsapp' type='reg' aria-hidden className='size-4 bg-[#25D366]' />
+          {INBOUND_LEAD_COPY.openConversation}
+        </Link>
+      ) : null}
     </section>
   )
 }
