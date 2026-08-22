@@ -21,6 +21,17 @@ type Props = {
   graphVersion: string
   /** Truthful health primary. Never render a green claim unless 'operational'. */
   status: WhatsappHealthPrimary
+  /**
+   * MOBILE-ONLY copy overrides for the not-connected state (State A).
+   *
+   * The phone reaches this component through a bottom sheet the rep lands on by
+   * tapping WhatsApp on a lead, so the copy there answers "why am I being asked
+   * to connect?" rather than settings' "what does connecting get me?". Optional
+   * and defaulted to the desktop strings: desktop passes neither, so its render
+   * is unchanged. They affect State A only — States B and C own their own copy.
+   */
+  description?: string
+  connectLabel?: string
 }
 
 function noticeForHealth(status: WhatsappHealthPrimary) {
@@ -39,6 +50,8 @@ export default function WhatsappConnect({
   configId,
   graphVersion,
   status,
+  description = 'חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.',
+  connectLabel = 'חבר וואטסאפ עסקי',
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -176,10 +189,10 @@ export default function WhatsappConnect({
   return (
     <div className='grid gap-4'>
       {notice && <ConnectionNotice notice={notice} />}
-      <p className='text-sm text-gray-500'>חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.</p>
+      <p className='text-sm text-gray-500'>{description}</p>
       <div data-edu='whatsapp-connect' className='w-fit'>
       <Btn
-        lbl={loading ? 'מתחבר...' : (notice?.action ?? 'חבר וואטסאפ עסקי')}
+        lbl={loading ? 'מתחבר...' : (notice?.action ?? connectLabel)}
         icon={loading ? 'spinner' : 'whatsapp'}
         iconClassName={loading ? 'animate-spin' : undefined}
         disabled={loading}

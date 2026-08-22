@@ -224,10 +224,17 @@ export default function IntegrationsLanding({
         )}
       </section>
 
+      {/*
+        MOBILE ONLY. The rep usually arrives here by tapping WhatsApp on a lead,
+        so in the not-connected state the sheet names the blocker instead of the
+        channel. Conditional on purpose: this is a connect AND manage sheet, and
+        titling it "connection required" while a connection exists would be a lie.
+        `!connection && !pendingPhones` is exactly WhatsappConnect's State A.
+      */}
       <ConnectManageSheet
         open={sheet === 'whatsapp'}
         onClose={() => setSheet(null)}
-        title='וואטסאפ'
+        title={!whatsapp.connection && !whatsapp.pendingPhones ? 'חיבור WhatsApp נדרש' : 'וואטסאפ'}
         titleId='wa-manage-title'
       >
         {whatsappCompleting ? (
@@ -242,6 +249,8 @@ export default function IntegrationsLanding({
             configId={whatsapp.configId}
             graphVersion={whatsapp.graphVersion}
             status={whatsapp.status}
+            description='כדי לשלוח הודעות ללידים ישירות מ־SocialCRM, חבר את ה־WhatsApp העסקי שלך.'
+            connectLabel='חבר WhatsApp עסקי'
           />
         )}
       </ConnectManageSheet>

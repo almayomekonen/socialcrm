@@ -151,12 +151,20 @@ describe('IntegrationsLanding', () => {
     expect(screen.queryByRole('heading', { name: 'הודעות מוכנות' })).toBeNull()
   })
 
-  it('opens the existing WhatsApp connect UI in a sheet', async () => {
+  /**
+   * MOBILE-ONLY copy. The rep normally lands here by tapping WhatsApp on a lead,
+   * so the not-connected sheet names the blocker and the outbound benefit. The
+   * desktop settings copy is unchanged — WhatsappConnect defaults to it and only
+   * this mobile caller overrides. The manage-state title is pinned by the
+   * 'connected WhatsApp shows מחובר and opens manage' test below.
+   */
+  it('opens the existing WhatsApp connect UI in a sheet, with the mobile connect copy', async () => {
     render(<IntegrationsLanding {...base()} />)
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('button', { name: 'חבר וואטסאפ' }))
-    expect(screen.getByRole('dialog', { name: 'וואטסאפ' })).toBeTruthy()
-    expect(screen.getByText(/חבר את מספר הוואטסאפ העסקי/)).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'חיבור WhatsApp נדרש' })).toBeTruthy()
+    expect(screen.getByText(/כדי לשלוח הודעות ללידים ישירות מ־SocialCRM/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'חבר WhatsApp עסקי' })).toBeTruthy()
   })
 
   it('connected WhatsApp shows מחובר and opens manage', async () => {
