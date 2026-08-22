@@ -107,7 +107,7 @@ export default function WhatsappReplyDraft({
   }
 
   if (expired) {
-    return <SubscriptionExpiredState mode='panel' source='whatsapp_reply_draft' feature='ניסוח ושליחת הודעות מושהים.' />
+    return <SubscriptionExpiredState mode='inline' source='whatsapp_reply_draft' feature='ניסוח ושליחת הודעות מושהים' />
   }
 
   return (

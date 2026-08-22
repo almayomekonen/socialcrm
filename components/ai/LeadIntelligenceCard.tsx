@@ -54,7 +54,7 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
     if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {
       return (
         <div className='mb-8'>
-          <SubscriptionExpiredState mode='panel' source='lead_intelligence' feature='התקציר החכם מושהה.' />
+          <SubscriptionExpiredState mode='inline' source='lead_intelligence' feature='התקציר החכם מושהה' />
         </div>
       )
     }

@@ -123,7 +123,11 @@ function toRow(input: {
   }
   if (input.eyebrow) row.eyebrow = input.eyebrow
   if (input.windowHint) row.windowHint = input.windowHint
-  if (input.conversationId || input.href.startsWith('/inbox')) row.cta = 'open_conversation'
+  // `cta` records that this lead HAS a conversation. It no longer decides where
+  // the card navigates: the card, the name and "פתח" all open the lead itself.
+  // Reaching the conversation is the WhatsApp action's job — LeadContactActions
+  // already routes there via openLeadWhatsappInInbox when a channel is connected.
+  if (input.conversationId) row.cta = 'open_conversation'
   return row
 }
 
@@ -135,7 +139,7 @@ export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
       name: i.name,
       phone: i.phone,
       reason: i.waitingFor ?? i.reason,
-      href: i.href ?? leadHref(i.id),
+      href: leadHref(i.id),
       eyebrow: i.conversationId ? 'צריך לטפל עכשיו' : null,
       windowHint: i.windowHint,
       conversationId: i.conversationId,
@@ -176,7 +180,7 @@ export function modelFromSnapshot(snapshot: Omit<TodaySnapshot, 'hasLeads'>, now
       name: item.lead.name,
       phone: item.lead.phone,
       reason: item.reason,
-      href: item.conversationId ? `/inbox?conversation=${item.conversationId}` : leadHref(item.lead.id),
+      href: leadHref(item.lead.id),
       eyebrow: item.eyebrow,
       windowHint: item.windowHint,
       conversationId: item.conversationId,

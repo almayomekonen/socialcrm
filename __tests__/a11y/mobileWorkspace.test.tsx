@@ -133,12 +133,12 @@ describe('mobile Today', () => {
     expect(screen.getByRole('link', { name: 'התקשר לדני לוי 2' })).toBeTruthy()
   })
 
-  test('waiting hero offers פתח שיחה to the conversation', () => {
+  test('waiting hero opens the LEAD, not the WhatsApp thread', () => {
     render(
       <MobileToday
         model={model({
           hero: row(1, {
-            href: '/inbox?conversation=88',
+            href: '/clients/1/summary',
             reason: 'ממתין 7 שעות',
             windowHint: 'נותרו 17 שעות בחלון WhatsApp',
             eyebrow: 'צריך לטפל עכשיו',
@@ -153,14 +153,14 @@ describe('mobile Today', () => {
     expect(screen.getByText('נותרו 17 שעות בחלון WhatsApp')).toBeTruthy()
 
     /**
-     * P0-1 CHANGED THE NAME, NOT THE GUARANTEE. The conversation entry point is
-     * still here and still points at thread 88 — it is now the trailing control
-     * and names the lead ("פתח שיחה עם …"), because the wide primary slot is
+     * The trailing control opens the LEAD, not the thread: a card that opened
+     * WhatsApp when you tapped a lead's name was the reported defect. Reaching
+     * the conversation is the WhatsApp action's job. The wide primary slot is
      * occupied by the two contact actions this hero previously lacked.
      */
-    expect(screen.getByRole('link', { name: 'פתח שיחה עם דני לוי 1' }).getAttribute('href')).toBe(
-      '/inbox?conversation=88',
-    )
+    const open = screen.getByRole('link', { name: 'פתח את דני לוי 1' })
+    expect(open.getAttribute('href')).toBe('/clients/1/summary')
+    expect(open.getAttribute('href')).not.toContain('/inbox')
 
     // The gain: a waiting hero used to offer exactly ONE action. It can now be
     // called and messaged without leaving Today.
@@ -264,7 +264,7 @@ describe('view model — both Today pipelines produce the same shape', () => {
     expect(m.nextUp[0].href).toBe('/clients/11/summary')
   })
 
-  test('7c. a waiting WhatsApp hero deep-links to the exact conversation', () => {
+  test('7c. a waiting WhatsApp hero still opens the lead, never the inbox', () => {
     const m = modelFromBrief({
       greeting: 'בוקר טוב',
       firstName: 'אלמוג',
@@ -291,13 +291,13 @@ describe('view model — both Today pipelines produce the same shape', () => {
       permissionVerdict: 'scoped_all_clear',
       meetings: [],
     })
-    expect(m.hero?.href).toBe('/inbox?conversation=88')
+    expect(m.hero?.href).not.toContain('/inbox')
     expect(m.hero?.cta).toBe('open_conversation')
     expect(m.hero?.reason).toBe('ממתין 7 שעות')
     expect(m.hero?.windowHint).toBe('נותרו 17 שעות בחלון WhatsApp')
   })
 
-  test('7d. v1 waiter uses the same inbox deep link', () => {
+  test('7d. v1 waiter also opens the lead, never the inbox', () => {
     const m = modelFromSnapshot(
       {
         due: [],
@@ -321,7 +321,7 @@ describe('view model — both Today pipelines produce the same shape', () => {
       },
       Date.parse('2026-08-16T12:00:00Z'),
     )
-    expect(m.hero?.href).toBe('/inbox?conversation=88')
+    expect(m.hero?.href).not.toContain('/inbox')
     expect(m.hero?.cta).toBe('open_conversation')
   })
 })

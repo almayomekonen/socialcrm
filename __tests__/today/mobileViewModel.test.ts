@@ -265,11 +265,16 @@ describe('counts are passed through untouched', () => {
 })
 
 describe('row mapping preserves routing and identity', () => {
-  test('a conversation item routes to the inbox thread and is flagged as one', () => {
+  // PRODUCT RULE (changed deliberately): the card ALWAYS opens the lead. It used
+  // to deep-link straight into the WhatsApp thread whenever the lead had one,
+  // which is why tapping a lead's name opened WhatsApp instead of the lead.
+  // Reaching the conversation is the WhatsApp action's job, not the card's.
+  test('a conversation item still routes to the LEAD, and is flagged as having a conversation', () => {
     const m = modelFromBrief(
       brief([briefItem(1, { conversationId: 42, href: '/inbox?conversation=42', waitingFor: 'ממתין 6 ימים' })]),
     )
-    expect(m.hero?.href).toBe('/inbox?conversation=42')
+    expect(m.hero?.href).toBe('/clients/1/summary')
+    expect(m.hero?.href).not.toContain('/inbox')
     expect(m.hero?.cta).toBe('open_conversation')
     // `waitingFor` wins over `reason` when present — unchanged behaviour.
     expect(m.hero?.reason).toBe('ממתין 6 ימים')

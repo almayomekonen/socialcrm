@@ -196,7 +196,7 @@ export default function CopilotPanel() {
           and the timeline above stays fully readable.
         */}
         {expired ? (
-          <SubscriptionExpiredState mode='panel' source='copilot_panel' feature='העוזר החכם מושהה.' />
+          <SubscriptionExpiredState mode='inline' source='copilot_panel' feature='העוזר החכם מושהה' />
         ) : (
           <CopilotComposer
             actions={suggestedActions}

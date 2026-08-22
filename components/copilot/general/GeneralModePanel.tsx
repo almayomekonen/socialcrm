@@ -244,7 +244,7 @@ export default function GeneralModePanel() {
             fabricating a result to look premium would imply a request ran.
           */}
           {expired ? (
-            <SubscriptionExpiredState mode='panel' source='ai_panel' feature='העוזר החכם מושהה.' />
+            <SubscriptionExpiredState mode='inline' source='ai_panel' feature='העוזר החכם מושהה' />
           ) : (
             <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />
           )}

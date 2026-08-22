@@ -26,8 +26,7 @@ export default function MobileTodayHero({
   row: MobileTodayRow
   remaining?: number
 }) {
-  const { id, name, phone, reason, href, eyebrow, windowHint, cta } = row
-  const openConversation = cta === 'open_conversation'
+  const { id, name, phone, reason, href, eyebrow, windowHint } = row
   const reasonTone = todayToneClass(todayReasonTone(reason))
   const hintTone = windowHint ? todayToneClass(todayWindowHintTone(windowHint)) : null
   const summary = remaining && remaining > 0 ? `${remaining} ממתינים` : ''
@@ -62,21 +61,13 @@ export default function MobileTodayHero({
             href={href as Route}
             className='press flex h-11 flex-1 items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            {openConversation ? 'פתח שיחה' : 'פתח ליד'}
+            פתח ליד
           </Link>
         )}
 
         <Link
           href={href as Route}
-          aria-label={
-            openConversation
-              ? name
-                ? `פתח שיחה עם ${name}`
-                : 'פתח שיחה'
-              : name
-                ? `פתח את ${name}`
-                : 'פתח ליד'
-          }
+          aria-label={name ? `פתח את ${name}` : 'פתח ליד'}
           className='press flex h-11 shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
           <span className='text-[13px] font-medium text-gray-700'>פתח</span>

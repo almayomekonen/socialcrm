@@ -133,14 +133,15 @@ describe('4. the hero offers both actions', () => {
     expect(screen.getByRole('link', { name: 'פתח את ליד 1' })).toBeTruthy()
   })
 
-  test('a waiting-conversation hero keeps its conversation entry point', () => {
+  test('a waiting-conversation hero opens the LEAD, not the WhatsApp thread', () => {
     render(
       <MobileTodayHero
-        row={row(1, { href: '/inbox?conversation=42', cta: 'open_conversation', eyebrow: 'צריך לטפל עכשיו' })}
+        row={row(1, { href: '/clients/1/summary', cta: 'open_conversation', eyebrow: 'צריך לטפל עכשיו' })}
       />,
     )
-    const open = screen.getByRole('link', { name: 'פתח שיחה עם ליד 1' })
-    expect(open.getAttribute('href')).toBe('/inbox?conversation=42')
+    const open = screen.getByRole('link', { name: 'פתח את ליד 1' })
+    expect(open.getAttribute('href')).toBe('/clients/1/summary')
+    expect(open.getAttribute('href')).not.toContain('/inbox')
     // …and can now also be called, which the single-action hero could not do.
     expect(screen.getByRole('link', { name: 'התקשר לליד 1' })).toBeTruthy()
   })
