@@ -9,6 +9,8 @@ import { MAX_ITEMS, MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS, validateQuoteTemplateD
 import { getQuoteComposerDataAction, saveQuoteTemplateAction, type QuoteComposerData } from '@/actions/quotes/templates'
 import type { InlineCreatorProps } from '@/components/settings/templates/firstPartyCreators'
 import QuoteComposerRow from './QuoteComposerRow'
+import { proToast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
  * Build the quotation INSIDE the automation install flow.
@@ -49,6 +51,14 @@ const blankItem = (): QuoteTemplateItemDraft => ({
 })
 
 export default function QuoteComposer({ variable, value, onChange, onResolverChange }: InlineCreatorProps) {
+  /** Saving a quote template is Pro configuration. */
+  const expired = useAccessDenied()
+  const promptQuote = () =>
+    proToast({
+      title: 'עריכת הצעות מחיר זמינה עם Pro',
+      body: 'חידוש המנוי יחזיר את עריכת הצעות המחיר.',
+      source: 'quote_composer',
+    })
   const [data, setData] = useState<QuoteComposerData | null>(null)
   const [choice, setChoice] = useState<string>(value || NEW)
   const [name, setName] = useState('')
@@ -91,6 +101,12 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
       }
       const issue = validateQuoteTemplateDraft(draft)
       if (issue) return { ok: false as const, reason: issue }
+      if (expired) {
+        // The resolver contract returns a typed result, so the prompt is shown
+        // alongside a refusal the installer already knows how to render.
+        promptQuote()
+        return { ok: false as const, reason: 'subscription_required' }
+      }
       const res = await saveQuoteTemplateAction({ draft })
       if ('reason' in res) return { ok: false as const, reason: res.reason }
       const id = String(res.templateId)

@@ -7,8 +7,19 @@ import FileUploader from '@/components/files/FileUploader'
 import { addLeads, importLeadsFromCsv, uploadLeadData } from '@/actions/clients'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
+import { proToast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 export default function UploadClientData() {
+  /** Importing leads consumes lead quota, so it is Pro. */
+  const expired = useAccessDenied()
+  const promptImport = () =>
+    proToast({
+      title: 'ייבוא לידים זמין עם Pro',
+      body: 'חידוש המנוי יחזיר את ייבוא הלידים מקובץ.',
+      source: 'lead_import',
+    })
+
   const router = useRouter()
   const [clients, setClients] = useState<Record<string, any>[]>()
   const [wrongClients, setWrongClients] = useState<Record<string, any>[]>()
@@ -18,6 +29,7 @@ export default function UploadClientData() {
   const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
 
   async function onChange(files: any[]) {
+    if (expired) return promptImport()
     const file = files[0]
     if (!file) return
     const { data, wrongData, error } = await uploadLeadData(file)
@@ -40,6 +52,7 @@ export default function UploadClientData() {
   }
 
   async function onCsvChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (expired) return promptImport()
     const file = e.target.files?.[0]
     if (!file) return
     setCsvLoading(true)

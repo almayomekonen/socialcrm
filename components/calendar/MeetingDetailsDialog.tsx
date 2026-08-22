@@ -13,7 +13,7 @@ import LeadStatusNudge from './LeadStatusNudge'
 import FollowUpControl from '@/components/leads/FollowUpControl'
 import { useMeetingOutcomeActions } from './hooks/useMeetingOutcomeActions'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import { proToast } from '@/lib/toast'
 
 type Props = {
   meeting: MeetingSummaryDTO
@@ -46,8 +46,27 @@ export default function MeetingDetailsDialog({
 
   const outcome = useMeetingOutcomeActions({ onSettled: onClose })
 
-  const canRetry = !expired && meeting.syncStatus === 'failed'
-  const isScheduled = !expired && meeting.status === 'scheduled'
+  /**
+   * Derived from the meeting alone. An expired subscription does not make a
+   * scheduled meeting look unscheduled or a failed sync look fine: the record
+   * is shown as it is, and the controls answer with the billing prompt when
+   * they are reached.
+   */
+  const canRetry = meeting.syncStatus === 'failed'
+  const isScheduled = meeting.status === 'scheduled'
+
+  const promptEdit = () =>
+    proToast({
+      title: 'עריכת פגישות זמינה עם Pro',
+      body: 'חידוש המנוי יחזיר את האפשרות לערוך פגישות.',
+      source: 'calendar_edit',
+    })
+  const promptOutcome = () =>
+    proToast({
+      title: 'עדכון תוצאת פגישה זמין עם Pro',
+      body: 'חידוש המנוי יחזיר את האפשרות לעדכן תוצאות.',
+      source: 'calendar_outcome',
+    })
   const busy = retrying || cancelling || outcome.busy !== null
 
   return (
@@ -114,13 +133,13 @@ export default function MeetingDetailsDialog({
               <Btn
                 lbl={outcome.busy === 'completed' ? 'מסמן…' : 'סמן כהושלמה'}
                 variant='solid'
-                onClick={() => outcome.markCompleted(meeting.id)}
+                onClick={() => (expired ? promptOutcome() : outcome.markCompleted(meeting.id))}
                 disabled={busy}
               />
               <Btn
                 lbl={outcome.busy === 'no_show' ? 'מסמן…' : 'סמן כלא הגיע'}
                 variant='outline'
-                onClick={() => outcome.markNoShow(meeting.id)}
+                onClick={() => (expired ? promptOutcome() : outcome.markNoShow(meeting.id))}
                 disabled={busy}
               />
             </div>
@@ -147,9 +166,6 @@ export default function MeetingDetailsDialog({
               onClick={outcome.pendingNudge ? outcome.dismissNudge : onClose}
               disabled={busy}
             />
-            {expired && (
-              <SubscriptionExpiredState mode='inline' source='meeting_details' feature='חידוש המנוי מחזיר את עדכון הפגישות' />
-            )}
             <div className='flex gap-2 flex-wrap'>
               {canRetry && (
                 <Btn
@@ -166,7 +182,7 @@ export default function MeetingDetailsDialog({
                   also offer a hidden third "exit" from the nudge decision. */}
               {isScheduled && !outcome.pendingNudge && (
                 <>
-                  <Btn lbl='ערוך פגישה' variant='outline' onClick={onEdit} disabled={busy} />
+                  <Btn lbl='ערוך פגישה' variant='outline' onClick={expired ? promptEdit : onEdit} disabled={busy} />
                   <Btn
                     lbl={cancelling ? 'מבטל…' : 'ביטול הפגישה'}
                     variant='destructive'

@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { Switch } from '@/lib/form'
 import { setAutoResponseMasterEnabled } from '@/actions/autoResponse/setMasterEnabled'
+import { proToast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
  * The switch, and the one line that says what it currently means.
@@ -26,8 +28,19 @@ export default function AutoResponseToggle({ initialEnabled }: { initialEnabled:
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  /** Governs outbound replies, so the refusal is a billing prompt. */
+  const expired = useAccessDenied()
+
   const toggle = (next: boolean) => {
     if (pending) return
+    if (expired) {
+      // Nothing is optimistically flipped: the switch keeps the saved state.
+      return proToast({
+        title: 'המענה האוטומטי זמין עם Pro',
+        body: 'חידוש המנוי יחזיר את המענה האוטומטי.',
+        source: 'auto_response_toggle_mobile',
+      })
+    }
     const previous = enabled
     setEnabled(next)
     setError(null)

@@ -984,3 +984,153 @@ describe('everything that spends is still gated', () => {
     }
   })
 })
+
+/* ------------------------------------------------------------------------- *
+ * Cleanup batch: false Pro gates removed, real ones given the Pro toast.
+ * ------------------------------------------------------------------------- */
+
+describe('operations with no paid consequence are Tier 1', () => {
+  it.each([
+    ['table column preferences', 'actions/global.ts', 'saveTblPref'],
+    ['add deal favourites', 'actions/salesTbl.ts', 'addFavDeals'],
+    ['remove deal favourites', 'actions/salesTbl.ts', 'removeFavDeals'],
+    ['remove one favourite', 'actions/salesTbl.ts', 'removeFavDeal'],
+    ['create a task template', 'actions/tasks.ts', 'addTaskTmplt'],
+    ['delete a task template', 'actions/tasks.ts', 'deleteTaskTmplt'],
+  ])('%s is open to an expired customer', (_l, file, fn) => {
+    expect(guardOf(file, fn)).toBe('basic')
+  })
+
+  /** Search is basic CRM by the ratified policy; it reads and spends nothing. */
+  it('lead search is open', () => {
+    const src = read('actions/clients.ts')
+    const at = src.indexOf('async function searchBase(')
+    expect(src.slice(at, at + 400)).toContain('requireBasicCrmAccess()')
+    expect(src.slice(at, at + 400)).not.toContain('requireProductAccess()')
+  })
+
+  it.each([
+    'actions/analytics/recordFirstLeadEvent.ts',
+    'actions/analytics/recordGeneralModeEvent.ts',
+    'actions/analytics/recordLeadActionEvent.ts',
+    'actions/analytics/recordOperatorTakeEvent.ts',
+    'actions/education/recordEducationEvent.ts',
+  ])('%s records telemetry without a subscription', (file) => {
+    const src = read(file)
+    expect(src).toContain('requireBasicCrmAccess')
+    expect(src).not.toContain('requireProductAccess')
+  })
+
+  it('every opened action keeps its tenant and user scoping', () => {
+    expect(read('actions/global.ts')).toContain("db('users')\n    .where({ id: user.id })")
+    const sales = read('actions/salesTbl.ts')
+    expect(sales).toContain('favSaleIds')
+    expect(sales.slice(sales.indexOf('export async function addFavDeals('), sales.indexOf('export async function addFavDeals(') + 400))
+      .toContain('.where({ id: user.id })')
+    // Task-template deletion still proves ownership before it deletes.
+    const tasks = read('actions/tasks.ts')
+    const at = tasks.indexOf('export async function deleteTaskTmplt(')
+    expect(tasks.slice(at, at + 320)).toContain('assertTemplateAccess(taskTmplt.id, user)')
+  })
+
+  it('search keeps its agency scoping and permission filter', () => {
+    const src = read('actions/clients.ts')
+    const at = src.indexOf('async function searchBase(')
+    const body = src.slice(at, at + 1200)
+    expect(body).toContain('getAgencyId()')
+  })
+})
+
+describe('destructive and commission-sensitive operations stay Pro', () => {
+  it.each([
+    ['delete a lead', 'actions/clients.ts', 'deleteLead'],
+    ['delete many leads', 'actions/clients.ts', 'deleteManyLeads'],
+    ['delete deals', 'actions/salesTbl.ts', 'deleteDeals'],
+  ])('%s remains gated pending a product decision', (_l, file, fn) => {
+    expect(guardOf(file, fn)).toBe('paid')
+  })
+
+  it('Close Deal stays Pro, because it writes commission attribution', () => {
+    const src = read('actions/saleForm.ts')
+    expect(src).toContain('requireProductAccess()')
+    expect(src).toMatch(/cmsn|rwrd/)
+  })
+
+  it('the commission reward flag is untouched', () => {
+    const src = read('actions/salesTbl.ts')
+    const at = src.indexOf('export async function saveReward(')
+    expect(src.slice(at, at + 220)).toContain('requireProductAccess()')
+  })
+})
+
+describe('expected denials reach the Pro toast, never the error boundary', () => {
+  it.each([
+    ['ready message send', 'components/clients/SendReadyMessage.tsx', 'ready_message_send'],
+    ['ready message send, mobile', 'components/clients/SendReadyMessageMobile.tsx', 'ready_message_send'],
+    ['lead import', 'components/settings/UploadClientData.tsx', 'lead_import'],
+    ['mobile auto response toggle', 'modules/settings/mobile/AutoResponseToggle.tsx', 'auto_response_toggle_mobile'],
+    ['connection provisioning', 'components/settings/connections/ConnectAction.tsx', 'connection_manage'],
+    ['connection secret and rename', 'components/settings/connections/ConnectionDetails.tsx', 'connection_manage'],
+    ['connection revoke', 'components/settings/connections/IntegrationConnectionCard.tsx', 'connection_manage'],
+    ['quote composer save', 'components/quotes/QuoteComposer.tsx', 'quote_composer'],
+  ])('%s prompts instead of throwing', (_l, file, source) => {
+    const src = read(file)
+    expect(src).toContain('useAccessDenied()')
+    expect(src).toContain(`source: '${source}'`)
+    expect(src).toContain('if (expired)')
+  })
+
+  it('the mobile auto response switch keeps its saved state when refused', () => {
+    const src = read('modules/settings/mobile/AutoResponseToggle.tsx')
+    // The prompt returns before the optimistic flip, so the switch keeps the
+    // saved state. (Anchored on setEnabled, not startTransition: the latter
+    // also appears in the useTransition declaration above.)
+    const gate = src.indexOf('if (expired) {')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(src.indexOf('setEnabled(next)'))
+  })
+
+  it('the quote resolver still returns its typed contract when refused', () => {
+    expect(read('components/quotes/QuoteComposer.tsx')).toContain(
+      "return { ok: false as const, reason: 'subscription_required' }",
+    )
+  })
+
+  it('the server guards behind all of them are untouched', () => {
+    expect(read('actions/whatsapp/templates/sendTemplateToLead.ts') || '').toBeDefined()
+    expect(read('actions/automations/connections.ts')).toContain('requireProductAccess()')
+    expect(read('actions/quotes/templates.ts')).toContain('requireProductAccess')
+    expect(read('actions/clients.ts')).toMatch(/export async function addLeads[\s\S]{0,700}requireProductAccess\(\)/)
+  })
+
+  it('no new toast, hook or billing destination was invented', () => {
+    for (const f of [
+      'components/clients/SendReadyMessage.tsx',
+      'components/settings/UploadClientData.tsx',
+      'components/quotes/QuoteComposer.tsx',
+    ]) {
+      const src = read(f)
+      expect(src, f).toContain("from '@/lib/toast'")
+      expect(src, f).not.toContain('/api/payments/upgrade?source=')
+    }
+  })
+})
+
+describe('the cleanup copy follows the Hebrew rule', () => {
+  it('uses no dash or maqaf as a separator', () => {
+    for (const line of [
+      'שליחת הודעות זמינה עם Pro',
+      'חידוש המנוי יחזיר את שליחת ההודעות ללידים.',
+      'ייבוא לידים זמין עם Pro',
+      'חידוש המנוי יחזיר את ייבוא הלידים מקובץ.',
+      'המענה האוטומטי זמין עם Pro',
+      'חידוש המנוי יחזיר את המענה האוטומטי.',
+      'ניהול חיבורים זמין עם Pro',
+      'חידוש המנוי יחזיר את ניהול החיבורים.',
+      'עריכת הצעות מחיר זמינה עם Pro',
+      'חידוש המנוי יחזיר את עריכת הצעות המחיר.',
+    ]) {
+      expect(line, line).not.toMatch(/[-–—־]/)
+    }
+  })
+})

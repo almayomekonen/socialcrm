@@ -502,8 +502,14 @@ export async function transferLeadToRep(clientId, userId) {
   revalidatePath('/leads')
 }
 
+/**
+ * TIER 1. Search is how a customer finds their own records. It reads and spends
+ * nothing, and the ratified policy names search, filter and sort as basic CRM.
+ * Tenant scoping, the permission filter and the query semantics below are
+ * unchanged.
+ */
 async function searchBase(val, isLead) {
-  await requireProductAccess()
+  await requireBasicCrmAccess()
   const terms = val.split(' ').filter((term) => term)
 
   const agencyId = await getAgencyId()

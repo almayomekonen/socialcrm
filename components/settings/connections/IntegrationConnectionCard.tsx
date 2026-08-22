@@ -5,13 +5,14 @@ import Icon, { type IconNames } from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { StatusBadge } from '@/lib/StatusBadge'
-import { toast } from '@/lib/toast'
+import { proToast, toast } from '@/lib/toast'
 import { revokeConnection } from '@/actions/automations/connections'
 import { intakeErrorCopy } from '@/lib/automations/connectors/intakeErrors'
 import type { ConnectionView, IntegrationView } from '@/lib/automations/connectors/overview'
 import ConnectAction from './ConnectAction'
 import ConnectionDetails from './ConnectionDetails'
 import { DELIVERY, HEALTH, STRATEGY, timeAgo } from './copy'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
  * ONE card, for every integration that will ever exist.
@@ -30,6 +31,14 @@ import { DELIVERY, HEALTH, STRATEGY, timeAgo } from './copy'
  * as one product.
  */
 export default function IntegrationConnectionCard({ view, onChanged }: { view: IntegrationView; onChanged: () => void }) {
+  /** Connection credentials are Pro: provisioning mints a live API key. */
+  const expired = useAccessDenied()
+  const promptConnection = () =>
+    proToast({
+      title: 'ניהול חיבורים זמין עם Pro',
+      body: 'חידוש המנוי יחזיר את ניהול החיבורים.',
+      source: 'connection_manage',
+    })
   const [details, setDetails] = useState<ConnectionView | null>(null)
   const [confirm, setConfirm] = useState<ConnectionView | null>(null)
   const [pending, start] = useTransition()
@@ -39,6 +48,7 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
 
   function disconnect(connection: ConnectionView) {
     start(async () => {
+      if (expired) return promptConnection()
       const res = await revokeConnection(connection.id)
       setConfirm(null)
       if (!res.ok) return toast('error', 'הניתוק נכשל. נסו שוב.')

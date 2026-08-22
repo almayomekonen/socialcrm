@@ -18,9 +18,8 @@ import './calendar.css'
 
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
-import { toast } from '@/lib/toast'
+import { toast, proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import {
   cancelMeeting,
   retrySyncMeeting,
@@ -54,6 +53,16 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   const router = useRouter()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
+  /**
+   * Existing meetings stay real and readable; only the actions that create or
+   * change one are answered with the billing prompt. Each names the capability
+   * renewal restores rather than reporting a failure.
+   */
+  const proPrompt = (title: string, body: string, source: string) => proToast({ title, body, source })
+  const promptCreate = () =>
+    proPrompt('יצירת פגישות זמינה עם Pro', 'חידוש המנוי יחזיר את האפשרות לקבוע פגישות.', 'calendar_create')
+  const promptMove = () =>
+    proPrompt('עריכת פגישות זמינה עם Pro', 'חידוש המנוי יחזיר את האפשרות לערוך פגישות.', 'calendar_move')
   const [formOpen, setFormOpen] = useState(false)
   const [formDefaults, setFormDefaults] = useState<{ start: Date; end: Date } | null>(null)
   const [detail, setDetail] = useState<MeetingSummaryDTO | null>(null)
@@ -68,15 +77,20 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   const events: EventInput[] = useMemo(() => meetings.map(toEventInput), [meetings])
 
   function openNewMeeting(start?: Date, end?: Date) {
+    // The affordance stays visible on purpose: the customer sees what the
+    // product does, and learns the boundary only when they reach for it.
+    if (expired) return promptCreate()
     setFormDefaults(start && end ? { start, end } : null)
     setFormOpen(true)
   }
 
   function handleSelect(arg: DateSelectArg) {
+    if (expired) return promptCreate()
     openNewMeeting(arg.start, arg.end)
   }
 
   function handleDateClick(arg: DateClickArg) {
+    if (expired) return promptCreate()
     // Month view returns midnight; bump to a sensible business hour. Week/day
     // returns the exact slot, which we keep as-is.
     const start = new Date(arg.date)
@@ -109,6 +123,12 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   // a meeting the lead already attended AND break the audit invariant
   // that completed_at correlates with the actual start_at.
   async function handleEventDrop(arg: EventDropArg) {
+    // Revert first, exactly as every other refusal in this handler does, so the
+    // event snaps back and nothing is sent.
+    if (expired) {
+      arg.revert()
+      return promptMove()
+    }
     const meeting = arg.event.extendedProps.meeting as MeetingSummaryDTO | undefined
     const newStart = arg.event.start
     if (!meeting || !newStart) {
@@ -232,6 +252,10 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   // ("the meeting ran short"). Server still rejects end <= start and the
   // 5-min floor catches accidental zero-durations.
   async function handleEventResize(arg: EventResizeDoneArg) {
+    if (expired) {
+      arg.revert()
+      return promptMove()
+    }
     const meeting = arg.event.extendedProps.meeting as MeetingSummaryDTO | undefined
     const newEnd = arg.event.end
     // Use FullCalendar's internal view of start/end (arg.event / arg.oldEvent)
@@ -328,6 +352,13 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   }
 
   async function handleRetry() {
+    if (expired) {
+      return proPrompt(
+        'סנכרון יומן זמין עם Pro',
+        'חידוש המנוי יחזיר את הסנכרון ליומן Google.',
+        'calendar_retry_sync',
+      )
+    }
     if (!detail || retryBusy) return
     setRetryBusy(true)
     try {
@@ -347,6 +378,13 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   }
 
   async function handleCancel() {
+    if (expired) {
+      return proPrompt(
+        'ביטול פגישות זמין עם Pro',
+        'חידוש המנוי יחזיר את האפשרות לבטל פגישות.',
+        'calendar_cancel',
+      )
+    }
     if (!detail || cancelBusy) return
     setCancelBusy(true)
     try {
@@ -374,17 +412,17 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
       <div className='flex items-center justify-between gap-3 flex-wrap'>
         <h1 className='title'>פגישות</h1>
         {/*
-          PRE-GATE. Every calendar mutation — create, edit, drag, resize,
-          cancel, outcome — runs through a requireProductAccess-guarded action,
-          so for a lapsed subscription each one ended in
-          "אירעה שגיאה. נסה שוב." The meetings themselves stay fully readable;
-          only the affordances that would send a doomed request are withheld.
+          The affordance stays exactly as it is for every customer. Calendar is
+          a working CRM surface after a subscription lapses, not a locked page:
+          the meetings are all readable and nothing is greyed out. The Pro
+          boundary is met on the way INTO a paid action, where the handler
+          answers with the billing prompt, so the customer discovers it by
+          reaching for something rather than by reading a banner they did not
+          ask for.
         */}
-        {!expired && <Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />}
+        <Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />
       </div>
 
-      {/* One line naming why the controls are gone, never a silent absence. */}
-      {expired && <SubscriptionExpiredState mode='inline' source='calendar' feature='חידוש המנוי מחזיר את קביעת הפגישות' />}
 
       {needsReauth && (
         <div className='rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3 flex-wrap sm:flex-nowrap'>
@@ -434,9 +472,9 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
           slotDuration='00:30:00'
           slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
           eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-          selectable={!expired}
+          selectable={true}
           selectMirror={true}
-          editable={!expired}
+          editable={true}
           eventStartEditable={true}
           eventDurationEditable={true}
           // Resize in month view would extend a meeting across day boundaries

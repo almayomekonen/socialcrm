@@ -29,8 +29,12 @@ export async function getDealDataToExport(token: unknown) {
   return res.rows
 }
 
+/**
+ * TIER 1. A favourite is a per-user marker on the user's own row, used to sort
+ * their own view. No quota, no provider, no commission field.
+ */
 export async function addFavDeals(dealIds: number[]) {
-  await requireProductAccess()
+  await requireBasicCrmAccess()
   const user = await getUser()
 
   await db('users')
@@ -42,8 +46,12 @@ export async function addFavDeals(dealIds: number[]) {
   revalidatePath('/deals')
 }
 
+/**
+ * TIER 1. A favourite is a per-user marker on the user's own row, used to sort
+ * their own view. No quota, no provider, no commission field.
+ */
 export async function removeFavDeals(dealIds: number[]) {
-  await requireProductAccess()
+  await requireBasicCrmAccess()
   const user = await getUser()
 
   await db('users')
@@ -55,8 +63,9 @@ export async function removeFavDeals(dealIds: number[]) {
   revalidatePath('/deals')
 }
 
+/** Same per-user marker as the plural pair above, on the single-deal path. */
 export async function removeFavDeal(dealId: number) {
-  await requireProductAccess()
+  await requireBasicCrmAccess()
   const user = await getUser()
 
   await db('users')

@@ -371,11 +371,15 @@ describe('narrow audit: the five remaining surfaces', () => {
   })
 
   /** Search is a pure read behind the entitlement guard — a product decision. */
-  it('search remains server-gated and unmodified pending a product decision', () => {
+  /**
+   * The product decision landed: search, filter and sort are Tier 1. Finding
+   * your own records reads and spends nothing, so the guard moved to the basic
+   * boundary while the agency scoping stayed exactly as it was.
+   */
+  it('search is Tier 1, and still agency scoped', () => {
     const src = read('actions/clients.ts')
-    expect(src).toContain('async function searchBase')
-    // Still guarded — this audit did not weaken enforcement.
-    expect(src).toMatch(/async function searchBase[\s\S]{0,120}requireProductAccess\(\)/)
+    expect(src).toMatch(/async function searchBase[\s\S]{0,400}requireBasicCrmAccess\(\)/)
+    expect(src).toMatch(/async function searchBase[\s\S]{0,1200}getAgencyId\(\)/)
   })
 })
 
@@ -998,15 +1002,32 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 describe('the calendar stays readable and stops offering doomed mutations', () => {
   const view = () => read('components/calendar/CalendarView.tsx')
 
-  it('withholds create, drag and resize while lapsed', () => {
+  /**
+   * Superseded by the calendar read/write decision: the affordances stay live
+   * so the customer meets the boundary deliberately and is answered by the Pro
+   * prompt, instead of finding controls quietly absent. Depth lives in
+   * calendarExpiredAccess.test.tsx.
+   */
+  it('keeps create, drag and resize live, and answers them with the Pro prompt', () => {
     const src = view()
-    expect(src).toContain("{!expired && <Btn lbl='פגישה חדשה'")
-    expect(src).toContain('selectable={!expired}')
-    expect(src).toContain('editable={!expired}')
+    expect(src).toContain("<Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />")
+    expect(src).toContain('selectable={true}')
+    expect(src).toContain('editable={true}')
+    expect(src).toContain('if (expired) return promptCreate()')
+    expect(src).toContain('return promptMove()')
   })
 
-  it('names the reason rather than leaving a silent absence', () => {
-    expect(view()).toContain("source='calendar'")
+  /**
+   * Final product decision: Calendar carries no standing subscription banner.
+   * It is a working CRM surface, and the Pro boundary is met on the way into a
+   * paid action rather than announced above readable data.
+   */
+  it('carries no persistent subscription notice', () => {
+    const src = view()
+    expect(src).not.toContain('SubscriptionExpiredState')
+    expect(src).not.toContain("source='calendar'")
+    // The boundary lives in the handlers instead.
+    expect(src).toContain('if (expired) return promptCreate()')
   })
 
   it('still renders the meetings themselves', () => {
@@ -1015,12 +1036,12 @@ describe('the calendar stays readable and stops offering doomed mutations', () =
     expect(src).not.toContain('if (expired) return null')
   })
 
-  it('the details dialog keeps the meeting and withholds outcome, cancel, edit and retry', () => {
+  it('the details dialog shows the meeting as it is, and prompts on every write', () => {
     const dlg = read('components/calendar/MeetingDetailsDialog.tsx')
-    expect(dlg).toContain("const canRetry = !expired && meeting.syncStatus === 'failed'")
-    expect(dlg).toContain("const isScheduled = !expired && meeting.status === 'scheduled'")
-    expect(dlg).toContain("source='meeting_details'")
-    // The meeting's own details are untouched.
+    // Derived from the meeting alone: expiry never restyles the record.
+    expect(dlg).toContain("const canRetry = meeting.syncStatus === 'failed'")
+    expect(dlg).toContain("const isScheduled = meeting.status === 'scheduled'")
+    expect(dlg).toContain('onClick={expired ? promptEdit : onEdit}')
     expect(dlg).toContain('{formatDateTime(meeting.startAt)}')
   })
 

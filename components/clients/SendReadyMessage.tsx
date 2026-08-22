@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
-import { toast } from '@/lib/toast'
+import { toast, proToast } from '@/lib/toast'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import type { Template } from '@/lib/whatsapp/templates/types'
 import { sendTemplateToLead } from '@/actions/whatsapp/templates/sendTemplateToLead'
 import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMessagePreview'
@@ -30,6 +31,8 @@ export default function SendReadyMessage({
   conversationId?: number | null
 }) {
   const [open, setOpen] = useState(false)
+  /** Outbound WhatsApp is Tier 3: the refusal is a billing prompt, not a crash. */
+  const expired = useAccessDenied()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
 
@@ -42,6 +45,13 @@ export default function SendReadyMessage({
   }
 
   const handleSend = async () => {
+    if (expired) {
+      return proToast({
+        title: 'שליחת הודעות זמינה עם Pro',
+        body: 'חידוש המנוי יחזיר את שליחת ההודעות ללידים.',
+        source: 'ready_message_send',
+      })
+    }
     if (selectedId == null || sending) return
     setSending(true)
     try {

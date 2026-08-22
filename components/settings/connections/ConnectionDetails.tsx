@@ -6,12 +6,13 @@ import { Btn } from '@/lib/btns/Btn'
 import { Input } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
 import { StatusBadge } from '@/lib/StatusBadge'
-import { toast } from '@/lib/toast'
+import { proToast, toast } from '@/lib/toast'
 import { connectionSetup, regenerateSecret, renameSource } from '@/actions/automations/connections'
 import type { SetupGuide } from '@/lib/automations/connectors/types'
 import type { ConnectionView, IntegrationView } from '@/lib/automations/connectors/overview'
 import SetupGuidePanel, { CopyRow } from './SetupGuidePanel'
 import { DELIVERY, HEALTH, SUBSCRIPTION, errorMessage, timeAgo } from './copy'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
  * One connection, in full: its health, the streams inside it, what it unlocks,
@@ -33,6 +34,14 @@ export default function ConnectionDetails({
   onClose: () => void
   onChanged: () => void
 }) {
+  /** Connection credentials are Pro: provisioning mints a live API key. */
+  const expired = useAccessDenied()
+  const promptConnection = () =>
+    proToast({
+      title: 'ניהול חיבורים זמין עם Pro',
+      body: 'חידוש המנוי יחזיר את ניהול החיבורים.',
+      source: 'connection_manage',
+    })
   const health = HEALTH[connection.health]
   const delivery = DELIVERY[connection.delivery]
   const last = timeAgo(connection.lastActivityAt)
@@ -56,6 +65,7 @@ export default function ConnectionDetails({
 
   function rotate() {
     startRotate(async () => {
+      if (expired) return promptConnection()
       const res = await regenerateSecret(connection.id)
       if (res.ok === false) return toast('error', errorMessage(res.reason))
       setIssuedSecret(res.secret)

@@ -2,6 +2,8 @@
 
 import { createPortal } from 'react-dom'
 import Icon from '@/lib/Icon'
+import { HoverTooltip } from '@/components/ui/HoverTooltip'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
 import { automationSentence } from '@/lib/automations/sentence'
 import { getAction, getEvent } from '@/lib/automations/catalog/registry'
@@ -96,6 +98,18 @@ export default function AutomationCard({
   const menu = useFloatingMenu()
   const hasError = data.counts.failed > 0 || data.connectionProblem === true
   const isActive = data.status === 'active'
+  /**
+   * GREEN IS THE SAVED STATE, NOT PERMISSION TO RUN.
+   *
+   * An automation the customer switched on stays switched on when a
+   * subscription lapses: the toggle reflects `status`, which entitlement never
+   * touches. That is honest about their configuration but silent about why
+   * nothing is happening, so an enabled automation on a lapsed plan carries a
+   * lock beside it that explains the difference. Nothing here reads or writes
+   * the definition, and the toggle's own colour is unchanged.
+   */
+  const expired = useAccessDenied()
+  const configuredButPaused = expired && isActive
   const updated = updatedLabel(data.updatedAt, now)
 
   const problem = hasError
@@ -182,6 +196,23 @@ export default function AutomationCard({
             document.body,
           )}
       </div>
+
+      {configuredButPaused && (
+        <HoverTooltip
+          className='inline-flex flex-none items-center rounded-sm focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-text'
+          label='האוטומציה מוגדרת כפעילה. המנוי שלך הסתיים ולכן היא לא רצה כרגע. חידוש המנוי יחזיר את ההפעלה.'
+          panelClassName='pointer-events-none rounded-lg border border-warning-border bg-warning-bg px-3 py-2 text-xs leading-relaxed text-warning-text shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
+          content={
+            <>
+              <p className='font-semibold'>האוטומציה מוגדרת כפעילה</p>
+              <p className='mt-0.5'>המנוי שלך הסתיים ולכן היא לא רצה כרגע.</p>
+              <p className='mt-1'>חידוש המנוי יחזיר את ההפעלה.</p>
+            </>
+          }
+        >
+          <Icon name='lock' type='sol' className='size-3.5 bg-warning-text' />
+        </HoverTooltip>
+      )}
 
       <button
         type='button'

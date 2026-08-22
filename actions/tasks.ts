@@ -4,7 +4,7 @@ import { db } from '@/config/db'
 import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
 
 type TaskUpdateInput = {
   title?: string
@@ -212,8 +212,13 @@ export async function addTaskFromTmplt(clientId, taskTmpltId) {
 
 // task_tmplts
 
+/**
+ * TIER 1. A task template is the customer's own configuration. Creating one
+ * writes a row they own; it sends nothing, calls no provider and consumes no
+ * quota. Agency scoping is unchanged.
+ */
 export async function addTaskTmplt() {
-  await requireProductAccess()
+  await requireBasicCrmAccess()
   const res = await db('task_tmplts')
     .insert({
       title: 'כתוב כותרת',
@@ -226,8 +231,12 @@ export async function addTaskTmplt() {
   return res[0].id
 }
 
+/**
+ * TIER 1, and still permission checked: `assertTemplateAccess` below is
+ * unchanged, so a template belonging to another tenant is still unreachable.
+ */
 export async function deleteTaskTmplt(taskTmplt) {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   await assertTemplateAccess(taskTmplt.id, user)
   await db('task_tmplts').where({ id: taskTmplt.id }).del()
   redirect(`/settings/edit_tmplts`)

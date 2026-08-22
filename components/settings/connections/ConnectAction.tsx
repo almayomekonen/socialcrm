@@ -4,10 +4,11 @@ import { useState, useTransition } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Input } from '@/lib/form'
 import ModalPop from '@/lib/modals/ModalPop'
-import { toast } from '@/lib/toast'
+import { proToast, toast } from '@/lib/toast'
 import { provisionApiKeyConnection } from '@/actions/automations/connections'
 import type { AuthStrategy } from '@/lib/automations/catalog/vocabularies'
 import { STRATEGY, errorMessage } from './copy'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
  * The connect / reconnect affordance — ONE component, one entry per auth
@@ -76,6 +77,14 @@ function ApiKeyDialog({
   onClose: () => void
   onDone: () => void
 }) {
+  /** Connection credentials are Pro: provisioning mints a live API key. */
+  const expired = useAccessDenied()
+  const promptConnection = () =>
+    proToast({
+      title: 'ניהול חיבורים זמין עם Pro',
+      body: 'חידוש המנוי יחזיר את ניהול החיבורים.',
+      source: 'connection_manage',
+    })
   const [siteUrl, setSiteUrl] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [issued, setIssued] = useState<{ webhookUrl: string; secret: string } | null>(null)
@@ -85,6 +94,7 @@ function ApiKeyDialog({
   function submit() {
     setError(null)
     start(async () => {
+      if (expired) return promptConnection()
       const res = await provisionApiKeyConnection({ integrationKey, siteUrl, displayName })
       if (res.ok === false) return setError(errorMessage(res.reason))
       setIssued({ webhookUrl: res.webhookUrl, secret: res.secret })

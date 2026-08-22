@@ -38,9 +38,15 @@ type Props = {
   label: string
   /** Class for the focusable trigger wrapper (include a visible focus style). */
   className?: string
+  /**
+   * Optional panel styling. Defaults to the neutral white card this component
+   * has always drawn; supplied only when a caller needs the panel to speak a
+   * different established language, such as the warm subscription tokens.
+   */
+  panelClassName?: string
 }
 
-export function HoverTooltip({ children, content, label, className }: Props) {
+export function HoverTooltip({ children, content, label, className, panelClassName }: Props) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const wrapRef = useRef<HTMLSpanElement>(null)
@@ -117,7 +123,10 @@ export function HoverTooltip({ children, content, label, className }: Props) {
               role='tooltip'
               dir='rtl'
               style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 100000 }}
-              className='pointer-events-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
+              className={
+                panelClassName ??
+                'pointer-events-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
+              }
             >
               {content}
             </div>,

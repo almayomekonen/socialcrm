@@ -1,6 +1,6 @@
 'use server'
 
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 
 /**
@@ -34,6 +34,11 @@ export type LeadActionKind = 'status' | 'follow_up' | 'assign' | 'message' | 'no
 const SURFACES = new Set<LeadActionSurface>(['mobile', 'desktop'])
 const ACTIONS = new Set<LeadActionKind>(['status', 'follow_up', 'assign', 'message', 'note', 'outcome'])
 
+/**
+ * TIER 1. Telemetry is measurement, not a customer capability: it costs
+ * nothing and must never be able to break a page. Fire and forget, with the
+ * same allowlist and payload validation as before.
+ */
 export async function recordLeadActionEvent(
   event: AnalyticsEventName,
   props?: { surface?: string; action?: string; [k: string]: unknown },
@@ -48,7 +53,7 @@ export async function recordLeadActionEvent(
   if (action !== undefined && !ACTIONS.has(action as LeadActionKind)) return
 
   try {
-    const user = await requireProductAccess()
+    const user = await requireBasicCrmAccess()
     await track({ agencyId: user.agencyId, userId: user.id, event, props })
   } catch {
     // Analytics must never break a flow; swallow auth/db hiccups.
