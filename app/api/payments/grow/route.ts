@@ -9,6 +9,7 @@ import { agencyOwner } from '@/lib/emailAutomations/recipients'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { resolveBillingPeriod, logPeriodResolution, type PeriodResolution } from '@/lib/payments/resolvePeriod'
+import { classifyPaymentOutcome, isRecurringRun } from '@/lib/payments/paymentOutcome'
 
 const PG_UNIQUE_VIOLATION = '23505'
 
@@ -59,6 +60,30 @@ function assertWebhookEnv(host: string): { env: AppEnv; mode: GrowMode } {
   }
 
   return { env: ENV, mode: MODE }
+}
+
+/**
+ * Deterministic ownership by the payer's email — the resolver that already
+ * existed inline for the "no token" case, lifted out so the expired-token path
+ * can reuse it VERBATIM rather than growing a second copy.
+ *
+ * Unchanged semantics: lower-cased exact match against a still-`pending`
+ * upgrade row, newest first. The old "sole pending row" heuristic stays gone —
+ * it attributed a payment to an agency that did not demonstrably make it.
+ * Returns null when ownership cannot be established, and the caller refuses.
+ */
+async function resolveByPayerEmail(payload: any): Promise<number | null> {
+  const rawEmail = payload?.payerEmail ?? payload?.payer_email ?? payload?.email
+  const payerEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+  if (!payerEmail) return null
+
+  const pending = await db('pending_upgrades')
+    .whereRaw('lower(email) = ?', [payerEmail])
+    .where({ status: 'pending' })
+    .orderBy('createdAt', 'desc')
+    .first()
+
+  return pending ? pending.agencyId : null
 }
 
 export async function POST(req: NextRequest) {
@@ -128,6 +153,49 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Missing fields', { status: 400 })
   }
 
+  /**
+   * PROOF OF PAYMENT, before any entitlement work.
+   *
+   * The handler used to grant a billing period to any authenticated payload
+   * with a fresh transactionId — it never looked at the payment result. Harmless
+   * while Grow delivers only successful one-time transactions; a real hole the
+   * moment "ריצות הוראת קבע" is enabled, because a FAILED standing-order run
+   * would buy the customer another month.
+   *
+   * `not_success` and `pending` are always refused. `unverifiable` (no usable
+   * status field — where today's real, working PaymentLinks webhooks land) is
+   * refused ONLY for a recurring run: that surface is new and unproven, so it
+   * must prove success, while the one-time path keeps the behaviour that is
+   * currently correct in production. See lib/payments/paymentOutcome.ts for why
+   * this is not a blanket "status must equal success" check — that exact check
+   * caused an outage.
+   *
+   * REFUSING A PENDING CHARGE IS NOT FINAL FOR THAT CHARGE. This runs BEFORE
+   * the `payments` insert, so the transaction id is never consumed by a refusal:
+   * if the same charge later settles and Grow sends a confirmed webhook, it is
+   * processed and granted normally. Refusing early costs the customer nothing
+   * and stops an unfinished payment from buying a billing period.
+   *
+   * 200, not 4xx: the decision is final for THIS delivery, so Grow should not
+   * retry it. `granted` makes the refusal explicit and greppable rather than
+   * looking like a success.
+   */
+  const outcome = classifyPaymentOutcome(body, payload)
+  const recurring = isRecurringRun(payload)
+  if (outcome === 'not_success' || outcome === 'pending' || (outcome === 'unverifiable' && recurring)) {
+    console.warn('[GrowWebhook] refusing to grant — payment not confirmed', {
+      transactionId,
+      outcome,
+      recurring,
+    })
+    return NextResponse.json({ ok: true, granted: false, reason: outcome })
+  }
+  if (outcome === 'unverifiable') {
+    console.warn('[GrowWebhook] no payment status on a non-recurring payload — granting on legacy behaviour', {
+      transactionId,
+    })
+  }
+
   console.log('[GrowWebhook] processing transaction:', transactionId)
 
   // Resolve agencyId. Two paths:
@@ -140,8 +208,28 @@ export async function POST(req: NextRequest) {
       agencyId = verifyToken(externalId).agencyId
       console.log('[GrowWebhook] token verified')
     } catch (err) {
-      console.log('[GrowWebhook] token verification failed:', String(err))
-      return new NextResponse('Invalid token', { status: 400 })
+      /**
+       * EXPIRY IS NOT FORGERY.
+       *
+       * The token carries a 1-hour TTL, so any charge that is not the checkout
+       * itself — a renewal above all — arrives with a correctly SIGNED but
+       * expired token. Returning 400 here threw that payment away before the
+       * payerEmail resolver below ever ran.
+       *
+       * Only expiry falls through. A bad signature is still refused on the spot:
+       * that is a forgery attempt, and letting it reach the fallback would be a
+       * weakening rather than a fix.
+       */
+      const expired = String(err).includes('Token expired')
+      if (!expired) {
+        console.log('[GrowWebhook] token verification failed:', String(err))
+        return new NextResponse('Invalid token', { status: 400 })
+      }
+      console.warn('[GrowWebhook] token expired — falling through to payer-email resolution', { transactionId })
+      agencyId = await resolveByPayerEmail(payload)
+      if (agencyId == null) {
+        return new NextResponse('Pending upgrade not found', { status: 404 })
+      }
     }
   } else {
     // No signed token in the payload — resolve ownership deterministically by
@@ -150,22 +238,12 @@ export async function POST(req: NextRequest) {
     // a payment to an agency that did not demonstrably make it. If ownership
     // cannot be matched deterministically, no upgrade occurs.
     console.log('[GrowWebhook] token missing, resolving by payer email')
-    const rawEmail = payload?.payerEmail ?? payload?.payer_email ?? payload?.email
-    const payerEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
-
-    const pending = payerEmail
-      ? await db('pending_upgrades')
-          .whereRaw('lower(email) = ?', [payerEmail])
-          .where({ status: 'pending' })
-          .orderBy('createdAt', 'desc')
-          .first()
-      : null
-
-    if (!pending) {
-      console.error('[GrowWebhook] no deterministic owner match (no token, no matching pending email)', { payerEmail })
+    const resolved = await resolveByPayerEmail(payload)
+    if (resolved == null) {
+      console.error('[GrowWebhook] no deterministic owner match (no token, no matching pending email)')
       return new NextResponse('Pending upgrade not found', { status: 404 })
     }
-    agencyId = pending.agencyId
+    agencyId = resolved
   }
 
   // Captured BEFORE the upgrade flips plan to 'pro', so the analytics event

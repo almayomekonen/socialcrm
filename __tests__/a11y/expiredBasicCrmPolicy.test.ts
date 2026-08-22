@@ -351,9 +351,24 @@ describe('Tier 3: preview is allowed, the expensive call is not', () => {
     ['WhatsApp reply draft', 'components/summary/WhatsappReplyDraft.tsx'],
     ['Copilot lead panel', 'components/copilot/CopilotPanel.tsx'],
     ['Copilot general panel', 'components/copilot/general/GeneralModePanel.tsx'],
-    ['lead AI summary', 'components/ai/LeadIntelligenceCard.tsx'],
   ])('%s still blocks the paid action', (_l, file) => {
     expect(read(file)).toContain('SubscriptionExpiredState')
+  })
+
+  /**
+   * The lead summary is Tier 3: the insight is withheld, but the card is not.
+   * The teaser shows the shape of it and costs nothing to produce, so the
+   * guarantee is now asserted one step earlier — entitlement is resolved before
+   * the AI action is reachable at all, and the router still refuses before a
+   * provider is chosen for every other caller.
+   */
+  it('the lead AI summary is withheld, with no request made', () => {
+    const card = read('components/ai/LeadIntelligenceCard.tsx')
+    expect(card.indexOf('await getAgencyProductAccess(user.agencyId)')).toBeLessThan(
+      card.indexOf('await getLeadIntelligence(leadId)'),
+    )
+    expect(card).toContain('return <LeadIntelligenceTeaser />')
+    expect(read('lib/ai/access.ts')).toContain('getAgencyProductAccess')
   })
 
   it('the AI router still refuses before choosing a provider', () => {
@@ -1132,5 +1147,74 @@ describe('the cleanup copy follows the Hebrew rule', () => {
     ]) {
       expect(line, line).not.toMatch(/[-–—־]/)
     }
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * ONE SUBSCRIPTION NOTICE PER SCREEN.
+ *
+ * Tease Pro where the customer reaches for it, once. A screen that stacks
+ * persistent upsells stops being a product and becomes a payment prompt.
+ * ------------------------------------------------------------------------- */
+
+describe('a screen carries at most one persistent subscription notice', () => {
+  /**
+   * The lead detail page's main column. The follow-up control is the contextual
+   * notice that stays: it sits beside the capability the customer reached for.
+   */
+  it('the lead page keeps exactly one, beside the follow-up control', () => {
+    const followUp = read('components/leads/FollowUpControl.tsx')
+    expect(followUp).toContain("source='lead_followup'")
+    expect(followUp).toContain('חידוש המנוי מחזיר את קביעת המעקבים')
+  })
+
+  it('the AI summary card teases the value rather than adding a second notice', () => {
+    const card = read('components/ai/LeadIntelligenceCard.tsx')
+    expect(card).toContain('return <LeadIntelligenceTeaser />')
+    expect(card).not.toContain('SubscriptionExpiredState')
+    // The teaser raises the subscription on interaction, never as standing copy.
+    const teaser = read('components/ai/LeadIntelligenceTeaser.tsx')
+    expect(teaser).not.toContain('SubscriptionExpiredState')
+    expect(teaser).toContain('proToast({')
+  })
+
+  /** Removing the notice must not resurrect the retry line it replaced. */
+  it('and it never falls back to the generic retry copy for entitlement', () => {
+    const card = read('components/ai/LeadIntelligenceCard.tsx')
+    const entitlement = card.indexOf("res.reason === 'subscription-required'")
+    const retry = card.indexOf('העוזר החכם לא זמין כרגע')
+    expect(entitlement).toBeGreaterThan(-1)
+    expect(entitlement).toBeLessThan(retry) // the entitlement branch returns first
+    // The retry line survives for genuine AI failures.
+    expect(card).toContain('העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.')
+  })
+
+  /**
+   * The Copilot panel's notice lives in the assistant aside, not the lead
+   * column, and it replaces the composer rather than sitting above readable
+   * content. It is that surface's own single notice, so it stays.
+   */
+  it('the copilot aside keeps its own composer replacement', () => {
+    expect(read('components/copilot/CopilotPanel.tsx')).toContain("source='copilot_panel'")
+  })
+
+  it('free CRM functionality on the page is not hidden', () => {
+    // Outcome logging is Tier 1 and carries no notice at all.
+    const outcome = read('components/leads/OutcomeControl.tsx')
+    expect(outcome).not.toContain('useAccessDenied')
+    expect(outcome).not.toContain('SubscriptionExpiredState')
+    // The follow-up control still shows an existing scheduled date.
+    expect(read('components/leads/FollowUpControl.tsx')).toContain('const scheduled = current ?')
+  })
+
+  it('no new mechanism was introduced to achieve this', () => {
+    const card = read('components/ai/LeadIntelligenceCard.tsx')
+    expect(card).not.toContain('proToast')
+    expect(card).not.toContain('/api/payments/upgrade')
+    // The teaser reuses the shared Pro toast, which still owns the destination.
+    const teaser = read('components/ai/LeadIntelligenceTeaser.tsx')
+    expect(teaser).toContain("import { proToast } from '@/lib/toast'")
+    expect(teaser).not.toContain('upgradeHref')
+    expect(teaser).not.toContain('/api/payments/upgrade')
   })
 })

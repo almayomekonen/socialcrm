@@ -744,10 +744,18 @@ describe('the lead summary card reads the entitlement reason it was already give
    * 'forbidden' and let the two entitlement reasons fall through to a generic
    * retry line — the one the production audit caught on the lead page.
    */
-  it('renders the shared locked state for both entitlement reasons', () => {
+  /**
+   * Superseded twice. First by the one-notice-per-screen rule, which stopped
+   * this card from carrying a second banner; then by "don't hide the value,
+   * hide the cost", which stopped it from vanishing. Both entitlement reasons
+   * now answer with the teaser, and neither adds standing subscription copy.
+   * Full coverage lives in leadIntelligenceTeaser.test.tsx.
+   */
+  it('teases the value for either entitlement reason', () => {
     const src = card()
-    expect(src).toContain("res.reason === 'subscription-required' || res.reason === 'trial-not-started'")
-    expect(src).toContain('<SubscriptionExpiredState')
+    expect(src).toContain("if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {")
+    expect(src).toContain('return <LeadIntelligenceTeaser />')
+    expect(src).not.toContain('SubscriptionExpiredState')
   })
 
   it('keeps the retry line for genuine AI failures', () => {
@@ -758,14 +766,13 @@ describe('the lead summary card reads the entitlement reason it was already give
     expect(card()).toContain("if (res.reason === 'disabled' || res.reason === 'forbidden') return null")
   })
 
-  it('withholds the refresh control from the locked branch', () => {
+  it('withholds the refresh control from the entitlement branch', () => {
     const src = card()
-    const locked = src.indexOf('<SubscriptionExpiredState')
-    // Both refresh controls — the generic-failure one and the one beside a
-    // successful summary — render only after the locked branch has returned.
-    expect(locked).toBeGreaterThan(-1)
+    const gated = src.indexOf("res.reason === 'subscription-required'")
+    // Both refresh controls render only after the entitlement branch returned.
+    expect(gated).toBeGreaterThan(-1)
     for (const at of [...src.matchAll(/<RefreshLeadIntelligenceButton/g)].map((m) => m.index!)) {
-      expect(at).toBeGreaterThan(locked)
+      expect(at).toBeGreaterThan(gated)
     }
     // …and the control gates itself, for the stale-cache case where a real
     // summary from before the lapse still renders.

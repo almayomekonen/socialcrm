@@ -45,6 +45,7 @@ import ProActivationSuccess from '@/components/trial/ProActivationSuccess'
 import EducationMount from '@/components/education/EducationMount'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { EntitlementProvider } from '@/lib/entitlement/EntitlementContext'
+import EntitlementRecovery from '@/components/entitlement/EntitlementRecovery'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -204,6 +205,12 @@ async function LayoutContent({ children }) {
         expiresAt: paidPeriodEndsAt,
       }}
     >
+    {/*
+      Renders nothing. For a lapsed session only, it lets this tab recover after
+      the customer renews somewhere else — see the component. A tab seeded with
+      hasAccess: false would otherwise stay locked until a manual reload.
+    */}
+    <EntitlementRecovery />
     <CrmSyncHealthProvider>
     <AwarenessProvider enabled={deltaSyncEnabled} initialUnread={inboxUnread}>
     <NotificationProvider enabled={notificationsEnabled} initialUnread={notificationUnread}>

@@ -1,6 +1,8 @@
 import { AlertCircle, Lightbulb, Sparkles } from 'lucide-react'
+import { requireAgencyUser } from '@/lib/requireUser'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { getLeadIntelligence } from '@/actions/ai/leadIntelligence'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import LeadIntelligenceTeaser from './LeadIntelligenceTeaser'
 import RefreshLeadIntelligenceButton from './RefreshLeadIntelligenceButton'
 
 type Props = {
@@ -28,35 +30,49 @@ const STAGGER_STYLE = `
 `
 
 export default async function LeadIntelligenceCard({ leadId }: Props) {
+  /**
+   * ENTITLEMENT IS RESOLVED BEFORE THE AI PATH IS ENTERED, ON PURPOSE.
+   *
+   * `getLeadIntelligence` would refuse a lapsed subscription safely on its own —
+   * `runStructured` calls `resolveAiAccess` before a provider is chosen — but it
+   * still walks the cached-action dispatcher, reads the lead snapshot and takes
+   * a cache slot to arrive at a refusal we can already predict. Asking the
+   * canonical resolver first means an expired customer's page does none of that
+   * work, and there is no route from this component to a provider at all.
+   *
+   * Both helpers are React `cache()`d and already called by this page's layout,
+   * so this costs no additional query.
+   *
+   * The teaser that follows is local and deterministic: no AI call, no tokens,
+   * no cached summary, nothing derived from the lead.
+   */
+  const user = await requireAgencyUser()
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
+    return <LeadIntelligenceTeaser />
+  }
+
   const res = await getLeadIntelligence(leadId)
 
   if (res.ok === false) {
     if (res.reason === 'disabled' || res.reason === 'forbidden') return null
 
     /**
-     * ENTITLEMENT, NOT AN OUTAGE.
+     * BACKSTOP. The entitlement check above already returned the teaser for a
+     * lapsed subscription, so this branch is reached only if the canonical
+     * resolver and the AI router disagree (a fail-open read, or a plan that
+     * changed mid-render). It answers with the same teaser rather than the
+     * generic retry line, which told a lapsed customer to try again once a
+     * minute for something only payment can clear.
      *
-     * `runStructured` already resolves product access through the SAME
-     * `getAgencyProductAccess` the rest of the app uses (lib/ai/access.ts) and
-     * returns a typed business reason for it — before any provider is chosen,
-     * so no AI request is made and none was made here. This card was the only
-     * consumer that did not read that reason: it recognised 'disabled' and
-     * 'forbidden' and let the two entitlement reasons fall through to the
-     * generic retry line. A live audit of the expired account saw the result —
-     * "העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה" — advising a customer to
-     * retry, once a minute, forever, for a lapse only payment can clear.
+     * Reaching it costs no AI either: `runStructured` resolves product access
+     * through the SAME `getAgencyProductAccess` (lib/ai/access.ts) and returns a
+     * typed business reason before a provider is chosen.
      *
-     * The refresh control is deliberately absent here: it calls a
-     * requireProductAccess-guarded action that would throw for this customer.
-     * Nothing about server authorization changes; only which existing answer
-     * this card reads.
+     * ONE PERSISTENT NOTICE PER SCREEN still holds: the teaser describes the
+     * capability and raises the subscription only on interaction.
      */
     if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {
-      return (
-        <div className='mb-8'>
-          <SubscriptionExpiredState mode='inline' source='lead_intelligence' feature='חידוש המנוי מחזיר את התקציר החכם' />
-        </div>
-      )
+      return <LeadIntelligenceTeaser />
     }
 
     return (

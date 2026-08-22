@@ -33,7 +33,9 @@ const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const ACTION_LOCKS: [string, string][] = [
   ['components/inbox/WhatsappComposerPanel.tsx', 'whatsapp_composer'],
   ['components/summary/WhatsappReplyDraft.tsx', 'whatsapp_reply_draft'],
-  ['components/ai/LeadIntelligenceCard.tsx', 'lead_intelligence'],
+  // LeadIntelligenceCard left this list under the one-notice-per-screen rule.
+  // It carries no notice of any kind: it renders a teaser of the summary and
+  // raises the subscription only on interaction, through the shared Pro toast.
 ]
 
 /**
