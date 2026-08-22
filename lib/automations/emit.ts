@@ -4,6 +4,7 @@ import { track } from '@/lib/analytics/track'
 import { listActiveDefinitionsForTrigger, type AutomationDefinition } from '@/db/automations/definitions'
 import { enqueueAutomationJob } from '@/db/automations/jobs'
 import { isAutomationsAgencyAllowlisted, isAutomationsEnabled } from './flags'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { isValidTiming, resolveSendAtDetailed } from './timing'
 import { snapshotConditionsMatch } from './conditionEvaluator'
 import { eventKeyForEngineTrigger, snapshotFieldsForEvent } from './catalog/engineBridge'
@@ -30,6 +31,10 @@ export type EmitResult =
         | 'origin_import'
         | 'kill_switch'
         | 'agency_not_allowlisted'
+        /** The agency's plan does not currently cover the product. Automations
+         *  spend money (outbound messages, email), so the engine refuses at the
+         *  door regardless of which surface produced the event. */
+        | 'no_product_access'
         | 'no_active_definitions'
         /** The catalog does not describe this trigger, so no condition on it
          *  can be decided. Unreachable while every TriggerType is bridged. */
@@ -51,6 +56,8 @@ export function eventKeyFor(event: AutomationTriggerEvent): string {
 export type EmitDeps = {
   enabled: () => boolean
   allowlisted: (agencyId: number) => boolean
+  /** Effective product access for the agency (the canonical resolver). */
+  entitled: (agencyId: number) => Promise<boolean>
   listActive: (agencyId: number, trigger: AutomationTriggerEvent['trigger']) => Promise<AutomationDefinition[]>
   enqueue: (args: {
     agencyId: number
@@ -76,6 +83,24 @@ export async function emitAutomationEventWith(deps: EmitDeps, event: AutomationT
     }
 
     if (!deps.allowlisted(event.agencyId)) return { blocked: 'agency_not_allowlisted' }
+
+    /**
+     * ENTITLEMENT AT THE PLACE THE MONEY IS SPENT.
+     *
+     * An automation run sends real messages and email, so it is Pro work no
+     * matter who triggered it. Enforcing that here — rather than only on the
+     * surfaces a person clicks — is what lets the free CRM operations upstream
+     * (a status change, a call outcome) stay open to an expired customer
+     * without becoming a way to spend money after the subscription lapsed.
+     *
+     * It is also strictly tighter than before: a cron, webhook or connector
+     * event for a lapsed agency previously reached the queue untouched.
+     *
+     * Placed before `listActive` so a blocked agency costs no engine query, and
+     * it fails OPEN on a read error via the canonical resolver — a transient DB
+     * fault must never silently stop a paying customer's automations.
+     */
+    if (!(await deps.entitled(event.agencyId))) return { blocked: 'no_product_access' }
 
     const definitions = await deps.listActive(event.agencyId, event.trigger)
     if (definitions.length === 0) return { blocked: 'no_active_definitions' }
@@ -194,6 +219,7 @@ export async function emitAutomationEvent(event: AutomationTriggerEvent, opts?: 
     {
       enabled: isAutomationsEnabled,
       allowlisted: isAutomationsAgencyAllowlisted,
+      entitled: async (agencyId) => (await getAgencyProductAccess(agencyId)).hasAccess,
       listActive: listActiveDefinitionsForTrigger,
       enqueue: (args) => enqueueAutomationJob(opts?.trx ?? db, args),
       shadow: shadowMetric,

@@ -115,7 +115,7 @@ export default function LeadlessConversationActions({
    * The server remains the only thing enforcing access.
    */
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='הפעולה מושהית' />
+    return <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='חידוש המנוי מחזיר את ניהול השיחה' />
   }
 
   return (
@@ -136,7 +136,7 @@ export default function LeadlessConversationActions({
       )}
       {/* A lapsed subscription gets the shared locked state, never a retry line. */}
       {error === ENTITLEMENT_ERROR && (
-        <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='הפעולה מושהית' />
+        <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='חידוש המנוי מחזיר את ניהול השיחה' />
       )}
       {error && error !== ENTITLEMENT_ERROR && (
         <span role='alert' className='text-xs text-error-text'>

@@ -1,5 +1,7 @@
 'use client'
 
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { useId, useState, useTransition } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Switch } from '@/lib/form'
@@ -82,6 +84,13 @@ export default function AutoResponseSettingsForm(initial: Props) {
     setSaved(false)
     setError(null)
   }
+
+  /**
+   * TIER 2. The configuration stays visible so an expired customer can see how
+   * their auto responder is set up. Saving is gated because it governs outbound
+   * WhatsApp replies, which cost money to send.
+   */
+  const proLocked = useAccessDenied()
 
   function save() {
     setSaved(false)
@@ -306,16 +315,24 @@ export default function AutoResponseSettingsForm(initial: Props) {
           {!error && !dirty && saved && <p className='text-sm text-gray-500'>השינויים נשמרו</p>}
         </div>
 
-        <div className='flex items-center gap-2.5'>
-          <Btn variant='outline' lbl='ביטול' disabled={!dirty || pending} onClick={cancel} />
-          <Btn
-            lbl={pending ? 'שומר…' : 'שמור שינויים'}
-            icon={pending ? 'spinner' : undefined}
-            iconClassName={pending ? 'animate-spin' : undefined}
-            disabled={pending}
-            onClick={save}
+        {proLocked ? (
+          <SubscriptionExpiredState
+            mode='inline'
+            source='auto_response_save'
+            feature='חידוש המנוי מחזיר את המענה האוטומטי'
           />
-        </div>
+        ) : (
+          <div className='flex items-center gap-2.5'>
+            <Btn variant='outline' lbl='ביטול' disabled={!dirty || pending} onClick={cancel} />
+            <Btn
+              lbl={pending ? 'שומר…' : 'שמור שינויים'}
+              icon={pending ? 'spinner' : undefined}
+              iconClassName={pending ? 'animate-spin' : undefined}
+              disabled={pending}
+              onClick={save}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -25,7 +25,7 @@ describe('CrmSyncBanner (Wave A6)', () => {
         <CrmSyncBanner sources={['leads']} />
       </CrmSyncHealthProvider>,
     )
-    expect(screen.queryByText('בעיית חיבור — מנסה שוב')).toBeNull()
+    expect(screen.queryByText('בעיית חיבור. מנסים שוב')).toBeNull()
   })
 
   it('shows after 3 failures and Retry fires', () => {
@@ -38,7 +38,7 @@ describe('CrmSyncBanner (Wave A6)', () => {
         </div>
       </CrmSyncHealthProvider>,
     )
-    expect(screen.getByText('בעיית חיבור — מנסה שוב')).toBeInTheDocument()
+    expect(screen.getByText('בעיית חיבור. מנסים שוב')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'נסה שוב' }))
     expect(retry).toHaveBeenCalledTimes(1)
   })
@@ -50,13 +50,13 @@ describe('CrmSyncBanner (Wave A6)', () => {
         <CrmSyncBanner sources={['leads']} />
       </CrmSyncHealthProvider>,
     )
-    expect(screen.getByText('בעיית חיבור — מנסה שוב')).toBeInTheDocument()
+    expect(screen.getByText('בעיית חיבור. מנסים שוב')).toBeInTheDocument()
     rerender(
       <CrmSyncHealthProvider>
         <Seed failures={0} />
         <CrmSyncBanner sources={['leads']} />
       </CrmSyncHealthProvider>,
     )
-    expect(screen.queryByText('בעיית חיבור — מנסה שוב')).toBeNull()
+    expect(screen.queryByText('בעיית חיבור. מנסים שוב')).toBeNull()
   })
 })

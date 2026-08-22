@@ -5,8 +5,6 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
-import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { logLeadOutcome } from '@/actions/leadOutcome'
 import type { LeadOutcome } from '@/lib/leads/outcomeRules'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
@@ -47,8 +45,6 @@ export default function OutcomeControl({
   onCompleted?: () => void
 }) {
   const router = useRouter()
-  /** Entitlement from the shared context — the same answer the server gives. */
-  const expired = useAccessDenied()
   const [pending, startTransition] = useTransition()
   const menu = useFloatingMenu()
 
@@ -62,23 +58,6 @@ export default function OutcomeControl({
       onCompleted?.()
       router.refresh()
     })
-  }
-
-  /**
-   * PRE-GATE. The action behind this control is requireProductAccess-guarded
-   * and the dispatch has no catch, so on a lapsed subscription the click ended
-   * as an unhandled Server Action rejection — nothing happened, and nothing
-   * said why.
-   *
-   * Full variant: the shared inline locked state takes the control's place, so
-   * the block that promised an action explains itself instead.
-   * Compact variant (list rows, quick actions): withheld silently. One
-   * explanation per screen, not one per row — the lead stays readable and its
-   * own page carries the locked state.
-   */
-  if (expired) {
-    if (compact) return null
-    return <SubscriptionExpiredState mode='inline' source='lead_outcome' feature='תיעוד תוצאת שיחה מושהה' />
   }
 
   if (!compact) {

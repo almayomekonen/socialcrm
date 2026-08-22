@@ -9,7 +9,7 @@ import { track, trackFirstRealLeadOnce } from '@/lib/analytics/track'
 import { isMobileRequest } from '@/lib/device'
 import { isIdNumValid } from '@/lib/funcs'
 import * as XLSX from 'xlsx'
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { assertLeadQuota, QuotaExceededError, getEffectiveLeadPlan, withAgencyQuotaLock } from '@/lib/quota'
@@ -197,7 +197,15 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true, origin = 'manual') {
-  const user = await requireProductAccess()
+  /**
+   * Same split as `updateLead`, because this action does both jobs. Editing an
+   * existing lead is Tier 1 bookkeeping and stays open; CREATING one consumes
+   * lead quota and escalates below, as does flipping a contact into a lead.
+   *
+   * Identity and tenant scoping are unchanged either way: every read and write
+   * below is filtered by the session's agencyId.
+   */
+  let user = await requireBasicCrmAccess()
   const safeData = pickLeadFields(data ?? {})
   // ADR-010 ownership: this action is client-reachable, so origin is validated
   // — only the in-module CSV caller may claim 'import' (which suppresses
@@ -220,6 +228,9 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
         if (!existing) return null
 
         if (isLeadTrue(safeData.lead) && existing.lead === false) {
+          // Contact becoming a lead: a new quota-consuming record, so this is
+          // the paid branch even though the row already existed.
+          user = await requireProductAccess()
           await assertLeadQuota(user.agencyId, 1, trx)
         }
 
@@ -294,6 +305,8 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
         return updated
       })
     } else {
+      // CREATE branch: a brand new lead against quota. Explicitly Pro gated.
+      user = await requireProductAccess()
       const agencyId = await getAgencyId()
       lead = await withAgencyQuotaLock(agencyId, async (trx) => {
         await assertLeadQuota(agencyId, 1, trx)
@@ -541,7 +554,8 @@ export async function getLeadById(clientId) {
   // id, across tenants, including idNum (national ID). Scoped to the caller's
   // agency and — for non-admins — to leads they hold permission on, matching
   // the access rule updateLead already enforces.
-  const user = await requireProductAccess()
+  // Read of existing data: viewing, not spending. Tenant scoping below is unchanged.
+  const user = await requireBasicCrmAccess()
   const id = Number(clientId)
   if (!Number.isInteger(id)) return null
 
@@ -555,13 +569,28 @@ export async function getLeadById(clientId) {
 }
 
 export async function updateLead(data) {
-  const user = await requireProductAccess()
+  /**
+   * BASIC CRM by default. Editing a lead the customer already owns — status,
+   * rank, phone, notes — rearranges stored data and spends nothing, so an
+   * expired subscription does not block it. Identity and tenant scoping are
+   * unchanged: the same session-derived agencyId scopes every query below, the
+   * same role/permission filter applies, and `pickLeadFields` still limits the
+   * write to the server-side allowlist.
+   */
+  let user = await requireBasicCrmAccess()
   const { id } = data ?? {}
   const safeData: Record<string, any> = pickLeadFields(data ?? {})
 
   if (isLeadTrue(safeData.lead)) {
     const existing = await db('clients').where({ id, agencyId: user.agencyId }).first('lead')
     if (existing && existing.lead === false) {
+      /**
+       * ESCALATION — the one paid branch in this action. Flipping a contact to
+       * a lead consumes lead quota, which is the Pro resource, so this path and
+       * only this path requires product access. Re-guarding here (rather than
+       * at the top) is what lets the free edits above stay open.
+       */
+      user = await requireProductAccess()
       await assertLeadQuota(user.agencyId, 1)
     }
   }
@@ -612,7 +641,8 @@ export async function updateLead(data) {
 }
 
 export async function getLeadByIdNum(idNum: string) {
-  await requireProductAccess()
+  // Read of existing data: viewing, not spending. Tenant scoping below is unchanged.
+  await requireBasicCrmAccess()
   const agencyId = await getAgencyId()
 
   const res = await db('clients')
@@ -737,7 +767,8 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
 export async function getLeadDeals(clientId) {
   // Same class as getLeadById: scope the read to the caller's agency so a lead
   // id from another tenant cannot return that tenant's deals.
-  const user = await requireProductAccess()
+  // Read of existing data: viewing, not spending. Tenant scoping below is unchanged.
+  const user = await requireBasicCrmAccess()
   const id = Number(clientId)
   if (!Number.isInteger(id)) return []
   return db('_sales').where({ clientId: id, agencyId: user.agencyId })
@@ -913,7 +944,8 @@ export async function importLeadsFromCsv(file: File) {
 }
 
 export async function fetchLeadsSince(lastSeenAt: string) {
-  const user = await requireProductAccess()
+  // Read of existing data: viewing, not spending. Tenant scoping below is unchanged.
+  const user = await requireBasicCrmAccess()
   const agencyId = user.agencyId
   const plan = await getEffectiveLeadPlan(agencyId)
   const query = db('clients')

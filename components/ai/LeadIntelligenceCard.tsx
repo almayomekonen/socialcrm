@@ -54,7 +54,7 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
     if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {
       return (
         <div className='mb-8'>
-          <SubscriptionExpiredState mode='inline' source='lead_intelligence' feature='התקציר החכם מושהה' />
+          <SubscriptionExpiredState mode='inline' source='lead_intelligence' feature='חידוש המנוי מחזיר את התקציר החכם' />
         </div>
       )
     }
@@ -70,7 +70,7 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
         </div>
         <p className='flex items-center gap-1.5 text-sm text-gray-500'>
           <AlertCircle aria-hidden className='size-4 shrink-0 text-gray-400' />
-          העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה.
+          העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.
         </p>
       </div>
     )

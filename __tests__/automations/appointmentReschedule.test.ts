@@ -42,6 +42,8 @@ const emitDeps = (defs: AutomationDefinition[]) => {
   const deps: EmitDeps = {
     enabled: () => true,
     allowlisted: () => true,
+    // Entitled agency: the engine's product-access gate is exercised on its own.
+    entitled: async () => true,
     listActive: vi.fn(async () => defs),
     enqueue,
     shadow: vi.fn(async () => {}),

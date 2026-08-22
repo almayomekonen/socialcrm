@@ -148,7 +148,7 @@ export default function MeetingDetailsDialog({
               disabled={busy}
             />
             {expired && (
-              <SubscriptionExpiredState mode='inline' source='meeting_details' feature='עדכון הפגישה מושהה' />
+              <SubscriptionExpiredState mode='inline' source='meeting_details' feature='חידוש המנוי מחזיר את עדכון הפגישות' />
             )}
             <div className='flex gap-2 flex-wrap'>
               {canRetry && (

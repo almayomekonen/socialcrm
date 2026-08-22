@@ -37,7 +37,7 @@ export default function ConvertCommentButton({ commentId }: { commentId: string 
   const { loading, run, accessDenied } = useAction()
 
   if (accessDenied) {
-    return <SubscriptionExpiredState mode='inline' source='convert_comment' feature='המרת תגובה לליד מושהית' />
+    return <SubscriptionExpiredState mode='inline' source='convert_comment' feature='חידוש המנוי מחזיר את המרת התגובות לליד' />
   }
 
   return (

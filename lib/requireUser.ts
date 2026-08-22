@@ -46,6 +46,35 @@ export async function requireAgencyUser(): Promise<AuthenticatedAgencyUser> {
 }
 
 /**
+ * BASIC CRM BOUNDARY — authenticated, tenant-scoped, and deliberately NOT
+ * entitlement-gated.
+ *
+ * THE PRODUCT RULE. An expired subscription suspends what costs money, not the
+ * customer's ability to keep their own house in order. If an operation only
+ * reads or rearranges data the customer already owns — change a lead's status
+ * or rank, correct a phone number, search, sort, filter — it consumes no paid
+ * or external resource and stays available. What stays Pro-gated is what
+ * spends: new leads against quota, outbound messages, AI, automations,
+ * invoices, uploads, anything reaching a paid third party.
+ *
+ * WHY THIS EXISTS RATHER THAN JUST CALLING `requireAgencyUser`. It grants
+ * exactly what `requireAgencyUser` grants and nothing more — same session,
+ * same server-derived agencyId, same tenant scoping, identical security. What
+ * it adds is a NAME for a product decision, so "this action is free by policy"
+ * is greppable and reviewable instead of being indistinguishable from "someone
+ * forgot the entitlement check". Authentication and tenant isolation are
+ * unchanged and are still enforced by every caller's own agencyId-scoped query.
+ *
+ * A call site that performs BOTH kinds of work (e.g. `updateLead`, which edits
+ * an existing lead but can also convert a contact into a new quota-consuming
+ * lead) uses this guard for the free path and escalates to
+ * {@link requireProductAccess} on the paid branch — never the reverse.
+ */
+export async function requireBasicCrmAccess(): Promise<AuthenticatedAgencyUser> {
+  return requireAgencyUser()
+}
+
+/**
  * Product-boundary guard: an authenticated agency user WITH active product
  * access. Authentication/identity is UNCHANGED — it delegates to
  * `requireAgencyUser` (session-derived, server-trusted agencyId). This layers

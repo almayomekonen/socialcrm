@@ -47,7 +47,7 @@ export default function FileUploader({
 
   if (!user) return null
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='file_upload' feature='העלאת קבצים מושהית' />
+    return <SubscriptionExpiredState mode='inline' source='file_upload' feature='חידוש המנוי מחזיר את העלאת הקבצים' />
   }
 
   function onRemove(file) {

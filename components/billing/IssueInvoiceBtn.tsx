@@ -57,7 +57,7 @@ export default function IssueInvoiceBtn({
   }
 
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='invoice_issue' feature='הפקת חשבונית מושהית' />
+    return <SubscriptionExpiredState mode='inline' source='invoice_issue' feature='חידוש המנוי מחזיר את הפקת החשבוניות' />
   }
 
   return (

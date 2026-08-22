@@ -114,7 +114,7 @@ export default function ClientFormPop({
       */}
       {expired ? (
         <div className='mt-2'>
-          <SubscriptionExpiredState mode='panel' source='create_lead' feature='הוספת לידים מושהית.' />
+          <SubscriptionExpiredState mode='panel' source='create_lead' feature='חידוש המנוי מחזיר את הוספת הלידים.' />
         </div>
       ) : (
         <form id='clientForm' onSubmit={onSubmit}>

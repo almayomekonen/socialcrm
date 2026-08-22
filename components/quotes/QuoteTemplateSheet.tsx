@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { Input } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
@@ -71,6 +73,12 @@ export default function QuoteTemplateSheet({
     validityDays: Math.trunc(Number(validityDays)) || 0,
     items,
   })
+
+  /**
+   * TIER 2. The template and its prices stay readable and explorable; saving is
+   * the Pro action, so the gate sits on the write and nowhere else.
+   */
+  const proLocked = useAccessDenied()
 
   function save() {
     setError(null)
@@ -142,14 +150,22 @@ export default function QuoteTemplateSheet({
         />
 
         <div className='grid gap-2'>
-          <Btn
-            lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור תבנית'}
-            icon={pending ? 'spinner' : 'floppy-disk'}
-            iconClassName={pending ? 'animate-spin' : undefined}
-            disabled={pending}
-            className='w-full'
-            onClick={save}
-          />
+          {proLocked ? (
+            <SubscriptionExpiredState
+              mode='inline'
+              source='quote_template_save'
+              feature='חידוש המנוי מחזיר את עריכת תבניות הצעות המחיר'
+            />
+          ) : (
+            <Btn
+              lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור תבנית'}
+              icon={pending ? 'spinner' : 'floppy-disk'}
+              iconClassName={pending ? 'animate-spin' : undefined}
+              disabled={pending}
+              className='w-full'
+              onClick={save}
+            />
+          )}
           {error && (
             <p className='text-sm text-red-600 ms-1' role='alert'>
               {error}

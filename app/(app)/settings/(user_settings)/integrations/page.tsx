@@ -62,7 +62,7 @@ export default async function IntegrationsSettingsPage({
           <SubscriptionExpiredState
             mode='inline'
             source='integrations_page'
-            feature='החיבורים פעילים, אך העיבוד מושהה'
+            feature='החיבורים נשארו פעילים. חידוש המנוי מחזיר את העיבוד האוטומטי'
           />
         </div>
       )}

@@ -94,7 +94,7 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
 
       {expired && (
         <div className='mb-4'>
-          <SubscriptionExpiredState mode='inline' source='lead_drive' feature='צירוף קבצים מושהה' />
+          <SubscriptionExpiredState mode='inline' source='lead_drive' feature='חידוש המנוי מחזיר את צירוף הקבצים' />
         </div>
       )}
 

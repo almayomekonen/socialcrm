@@ -1,7 +1,5 @@
 'use client'
 
-import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import type { RefObject } from 'react'
 import Link from 'next/link'
 import { timeAgo } from '@/components/settings/connections/copy'
@@ -153,18 +151,11 @@ function AwaySummary({ away }: { away: WhileYouWereAway }) {
  */
 function EmptyState() {
   /*
-    An error must never be rendered as emptiness. The feed returns 403
-    product-access-required while the subscription is lapsed, and this panel used
-    to answer that with "אין התראות חדשות" — a comfortable lie that hides the
-    real reason and the way to fix it.
+    The feed is a Tier 1 read and now answers an expired customer normally, so
+    an empty panel once again means exactly what it says. The lapsed-subscription
+    branch that used to live here would have turned "you are up to date" into a
+    paywall.
   */
-  if (useAccessDenied()) {
-    return (
-      <div className='px-3 py-3'>
-        <SubscriptionExpiredState mode='inline' source='notifications_bell' feature='ההתראות' />
-      </div>
-    )
-  }
   return (
     <div className='px-4 py-8 text-center'>
       <p className='text-sm text-gray-700'>אין התראות חדשות</p>

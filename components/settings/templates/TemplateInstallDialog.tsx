@@ -12,6 +12,8 @@ import RemoteParameters from '@/components/settings/automations/RemoteParameters
 import { creatorFor, type InlineResolver } from './firstPartyCreators'
 import InlineCreator from './InlineCreator'
 import { errorMessage } from './copy'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 /**
  * Preview and install.
@@ -48,6 +50,13 @@ export default function TemplateInstallDialog({
   const missing = template.variables.some(
     (v) => v.validation?.required && !(values[v.key] ?? '').trim() && !resolvers[v.key],
   )
+
+  /**
+   * TIER 2. The template gallery and this dialog stay readable, so an expired
+   * customer can see exactly what each automation would do for them. Only the
+   * install itself is gated: it creates automations that go on to send.
+   */
+  const proLocked = useAccessDenied()
 
   function install() {
     setError(null)
@@ -191,7 +200,10 @@ export default function TemplateInstallDialog({
         </section>
 
         <div className='grid gap-2'>
-          <Btn
+{proLocked ? (
+            <SubscriptionExpiredState mode='inline' source='automation_template_install' feature='חידוש המנוי מחזיר את התקנת האוטומציות' />
+          ) : (
+            <Btn
             lbl={pending ? 'מתקין…' : 'התקנה'}
             icon={pending ? 'spinner' : 'plus'}
             iconClassName={pending ? 'animate-spin' : undefined}
@@ -199,6 +211,7 @@ export default function TemplateInstallDialog({
             className='w-full'
             onClick={install}
           />
+          )}
           {error && (
             <p className='text-sm text-red-600 ms-1' role='alert'>
               {error}

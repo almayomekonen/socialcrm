@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
-import { getAgencyProductAccess } from '@/lib/access/productAccess'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { isToastEligible } from '@/lib/notifications/toastEligibility'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
 import { classifyPresence } from '@/lib/notifications/presence'
@@ -71,9 +69,17 @@ export default async function NotificationsPage({ searchParams }: { searchParams
    * data is fetched or exposed — the refusal is preserved, only its presentation
    * changed.
    */
-  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <SubscriptionExpiredState mode='page' source='notifications_page' feature='ההתראות מושהות.' />
-  }
+  /*
+   * TIER 2. Notifications are shown to an expired customer, not withheld: the
+   * rows are their own stored events, reading them costs nothing, and each one
+   * is the shortest path back to a lead or a conversation they can still work
+   * on. Locking the page turned a signal into a dead end.
+   *
+   * The Pro gate lives at the DESTINATION, not on the link. Following a
+   * notification lands on a readable object whose expensive actions (sending,
+   * AI, scheduling) carry their own gate, so navigation can never become a way
+   * around one.
+   */
 
   const filters = parseCenterFilters(await searchParams)
   const scope = { agencyId: user.agencyId, userId: user.id }

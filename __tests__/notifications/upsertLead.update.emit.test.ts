@@ -30,6 +30,9 @@ const withAgencyQuotaLock = vi.fn()
 
 vi.mock('@/lib/requireUser', () => ({
   requireProductAccess: (...args: unknown[]) => requireProductAccess(...args),
+  // upsertLead now enters through the basic-CRM guard and escalates only on its
+  // create/convert branches, so the mock must expose both doors. Same user.
+  requireBasicCrmAccess: (...args: unknown[]) => requireProductAccess(...args),
 }))
 
 vi.mock('@/lib/notifications/emit', () => ({

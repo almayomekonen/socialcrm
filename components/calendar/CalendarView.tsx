@@ -384,7 +384,7 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
       </div>
 
       {/* One line naming why the controls are gone, never a silent absence. */}
-      {expired && <SubscriptionExpiredState mode='inline' source='calendar' feature='קביעת פגישות מושהית' />}
+      {expired && <SubscriptionExpiredState mode='inline' source='calendar' feature='חידוש המנוי מחזיר את קביעת הפגישות' />}
 
       {needsReauth && (
         <div className='rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3 flex-wrap sm:flex-nowrap'>

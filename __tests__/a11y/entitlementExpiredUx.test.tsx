@@ -105,12 +105,12 @@ describe('the expired state says one thing, and never "try again"', () => {
 
   it('states when the subscription lapsed', () => {
     renderState()
-    expect(screen.getByText(/תוקף המנוי הסתיים ב-/)).toBeTruthy()
+    expect(screen.getByText(/תוקף המנוי הסתיים בתאריך/)).toBeTruthy()
   })
 
   it('uses different copy for a trial that never started', () => {
     renderState({ ...EXPIRED, status: 'NEVER_STARTED' })
-    expect(screen.getByText(/הפעילו את המנוי/)).toBeTruthy()
+    expect(screen.getByText(/הפעלת המנוי פותחת/)).toBeTruthy()
   })
 
   it('renders in all three densities', () => {
@@ -172,13 +172,14 @@ describe('the two surfaces that used to lie', () => {
 })
 
 describe('entitlement is not authentication', () => {
-  it('notifications keeps an expired user inside the app', () => {
+  it('notifications keeps an expired user inside the app, and now shows the list', () => {
     const page = read('app/(app)/notifications/page.tsx')
     // The ejection to the marketing homepage is gone…
     expect(page).not.toMatch(/hasAccess\)\s*redirect\('\/'\)/)
-    // …replaced by the shared locked state.
-    expect(page).toContain('<SubscriptionExpiredState')
-    expect(page).toContain("mode='page'")
+    // …and so is the page-level lock that replaced it. Reading your own
+    // notifications costs nothing, so Tier 2 shows them.
+    expect(page).not.toContain('<SubscriptionExpiredState')
+    expect(page).not.toContain('getAgencyProductAccess')
   })
 
   it('seeds entitlement from the existing guard, not a second calculation', () => {
@@ -215,10 +216,10 @@ describe('every gated surface uses the shared state, not a local invention', () 
     ['components/clients/ClientFormPop.tsx', 'create_lead'],
     ['components/inbox/WhatsappComposerPanel.tsx', 'whatsapp_composer'],
     ['components/inbox/LeadlessConversationActions.tsx', 'conversation_actions'],
-    ['components/notifications/NotificationPanel.tsx', 'notifications_bell'],
     ['app/(app)/settings/(user_settings)/integrations/page.tsx', 'integrations_page'],
-    ['app/(app)/notifications/page.tsx', 'notifications_page'],
     ['app/(app)/settings/(user_settings)/update_payment/page.tsx', 'billing_page'],
+    // Notifications moved to Tier 2: the bell and the page now render the real
+    // list for an expired customer, so neither carries a locked state at all.
   ]
 
   it.each(SURFACES)('%s renders SubscriptionExpiredState', (file, source) => {
@@ -399,7 +400,7 @@ describe('production audit follow-ups', () => {
     expect(src).toContain('isAccessDenied()')
     expect(src).toContain('SubscriptionExpiredState')
     // The generic connection copy and its retry must survive for non-403 failures.
-    expect(src).toContain('בעיית חיבור — מנסה שוב')
+    expect(src).toContain('בעיית חיבור. מנסים שוב')
     expect(src).toContain('נסה שוב')
     // …but only AFTER the entitlement branch has returned. Compare against the
     // JSX occurrence, not the explanatory comment above the gate.
@@ -746,7 +747,7 @@ describe('the lead summary card reads the entitlement reason it was already give
   })
 
   it('keeps the retry line for genuine AI failures', () => {
-    expect(card()).toContain('העוזר החכם לא זמין כרגע — נסה שוב בעוד דקה.')
+    expect(card()).toContain('העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.')
   })
 
   it('still renders nothing when AI is off or the agency is not allowlisted', () => {
@@ -857,16 +858,17 @@ describe('surfaces the sweep deliberately left alone', () => {
     expect(read('components/inbox/DeleteConversationMenu.tsx')).toContain('מחיקת השיחה נכשלה. נסה שוב.')
   })
 
-  it('the notifications list retry is unreachable: the page locks before it renders', () => {
+  it('the notifications list renders for an expired customer', () => {
     const page = read('app/(app)/notifications/page.tsx')
-    const gate = page.indexOf('<SubscriptionExpiredState')
-    const center = page.indexOf('<NotificationCenter')
-    expect(gate).toBeGreaterThan(-1)
-    expect(gate).toBeLessThan(center)
+    expect(page).toContain('<NotificationCenter')
+    expect(page).not.toContain('<SubscriptionExpiredState')
   })
 
-  it('the bell panel locks before rendering its list', () => {
-    expect(read('components/notifications/NotificationPanel.tsx')).toContain('if (useAccessDenied()) {')
+  it('the bell panel shows notifications instead of a paywall', () => {
+    const panel = read('components/notifications/NotificationPanel.tsx')
+    expect(panel).not.toContain('useAccessDenied')
+    // An empty panel means "you are up to date", never "your plan ended".
+    expect(panel).toContain('אין התראות חדשות')
   })
 })
 
@@ -887,11 +889,14 @@ describe('pure-configuration settings pages lock instead of failing per click', 
     ['app/(app)/settings/(admin_settings)/auto-response/page.tsx', 'auto_response_settings'],
   ]
 
-  it.each(PAGES)('%s locks on the shared entitlement answer', (file, source) => {
+  it.each(PAGES)('%s stays readable and teases Pro instead of locking', (file, source) => {
     const src = read(file)
     expect(src).toContain('getAgencyProductAccess(user.agencyId)).hasAccess')
     expect(src).toContain(`source='${source}'`)
-    expect(src).toContain("mode='page'")
+    // Tier 2: an inline notice above the real page, never a page-level wall.
+    expect(src).toContain("mode='inline'")
+    expect(src).not.toContain("mode='page'")
+    expect(src).toContain('proLocked')
   })
 
   /**
@@ -1033,10 +1038,10 @@ describe('the calendar stays readable and stops offering doomed mutations', () =
  * ------------------------------------------------------------------------- */
 
 describe('lead follow-up and outcome controls gate before dispatch', () => {
-  const CONTROLS: Array<[string, string]> = [
-    ['components/leads/FollowUpControl.tsx', 'lead_followup'],
-    ['components/leads/OutcomeControl.tsx', 'lead_outcome'],
-  ]
+  // OutcomeControl left this list when call outcomes were ratified as Tier 1:
+  // a disposition on an existing lead spends nothing, and the automation it may
+  // emit is refused at the engine.
+  const CONTROLS: Array<[string, string]> = [['components/leads/FollowUpControl.tsx', 'lead_followup']]
 
   /**
    * Both dispatch inside `startTransition` with NO catch, so on a lapsed
@@ -1053,8 +1058,17 @@ describe('lead follow-up and outcome controls gate before dispatch', () => {
     expect(src).toContain("mode='inline'")
   })
 
-  it.each(CONTROLS)('%s withholds silently in list rows, one explanation per screen', (file) => {
-    expect(read(file)).toContain('if (compact) return null')
+  it('the outcome control is open to an expired customer', () => {
+    const src = read('components/leads/OutcomeControl.tsx')
+    expect(src).not.toContain('useAccessDenied')
+    expect(src).toContain('logLeadOutcome')
+  })
+
+  /** Tier 2: the scheduled follow-up is the customer's own data and stays visible. */
+  it('the follow-up control still shows an existing follow-up date', () => {
+    const src = read('components/leads/FollowUpControl.tsx')
+    expect(src).toContain('const scheduled = current ?')
+    expect(src).toContain('{scheduled}')
   })
 
   it.each([
@@ -1130,7 +1144,6 @@ describe('no new entitlement mechanism was introduced anywhere in this workstrea
   it('every gated surface reads the one resolver or the one context', () => {
     const FILES = [
       'components/leads/FollowUpControl.tsx',
-      'components/leads/OutcomeControl.tsx',
       'components/billing/IssueInvoiceBtn.tsx',
       'components/billing/SendInvoiceModal.tsx',
       'components/sales/saleForm/SaleForm.tsx',

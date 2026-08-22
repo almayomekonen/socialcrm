@@ -168,7 +168,7 @@ export default function GeneralModePanel() {
         */}
         {serverLocked && (
           <div className='py-2'>
-            <SubscriptionExpiredState mode='panel' source='ai_panel' feature='העוזר החכם מושהה.' />
+            <SubscriptionExpiredState mode='panel' source='ai_panel' feature='חידוש המנוי מחזיר את העוזר החכם.' />
           </div>
         )}
         {briefing?.kind === 'briefing' &&
@@ -244,7 +244,7 @@ export default function GeneralModePanel() {
             fabricating a result to look premium would imply a request ran.
           */}
           {expired ? (
-            <SubscriptionExpiredState mode='inline' source='ai_panel' feature='העוזר החכם מושהה' />
+            <SubscriptionExpiredState mode='inline' source='ai_panel' feature='חידוש המנוי מחזיר את העוזר החכם' />
           ) : (
             <GeneralComposer onSubmit={(t, mode) => ask(t, mode)} busy={asking} />
           )}

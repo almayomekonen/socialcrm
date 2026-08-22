@@ -210,6 +210,8 @@ describe('emission treats the external event exactly like an internal one', () =
   const emitDeps = (defs: AutomationDefinition[]): EmitDeps => ({
     enabled: () => true,
     allowlisted: () => true,
+    // Entitled agency: the engine's product-access gate is exercised on its own.
+    entitled: async () => true,
     listActive: vi.fn(async () => defs),
     enqueue: vi.fn(async () => 1),
     shadow: vi.fn(async () => {}),

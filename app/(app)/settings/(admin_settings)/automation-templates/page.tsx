@@ -20,27 +20,24 @@ export default async function AutomationTemplatesPage() {
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) {
     return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
   }
+
   /*
-   * Pure-configuration page: every control on it calls a
-   * requireProductAccess-guarded action. Left open to a lapsed
-   * subscription, each button was a doomed request that surfaced as a
-   * generic toast or an unhandled Server Action rejection. Same page-level
-   * lock the notifications page already uses; no customer DATA is hidden by
-   * it, only settings the customer cannot change right now.
-   *
-   * Runs AFTER the existing permission/availability check: who you are is a
-   * stronger statement than what your plan currently covers, and telling
-   * someone who could never use this page that their subscription ended
-   * would simply be wrong.
+   * TIER 2. The page stays readable: an expired customer can still see what
+   * they built and what the product does for them. Only the actions that spend
+   * money stay gated, each at its own control, so this surface teaches value
+   * instead of turning into a wall.
    */
-  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <SubscriptionExpiredState mode='page' source='automation_templates_settings' feature='האוטומציות מושהות.' />
-  }
+  const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
 
   const views = await templateOverview(user.agencyId)
 
   return (
     <div>
+      {proLocked && (
+        <div className='mb-6 max-w-2xl'>
+          <SubscriptionExpiredState mode='inline' source='automation_templates_settings' feature='חידוש המנוי מחזיר את התקנת האוטומציות' />
+        </div>
+      )}
       <h1 className='title'>תבניות אוטומציה</h1>
       <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
         אוטומציות מוכנות לשימוש. ההתקנה יוצרת אותן כטיוטות אצלכם — משם הן שלכם לחלוטין, לעריכה ולהפעלה.

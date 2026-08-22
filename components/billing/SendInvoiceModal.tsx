@@ -97,7 +97,7 @@ export default function SendInvoiceModal({
   if (expired) {
     return (
       <ModalPop open={open} onClose={onClose} label='שליחת חשבונית' pos='middle' className='w-[460px] max-w-[92vw]'>
-        <SubscriptionExpiredState mode='panel' source='invoice_send' feature='שליחת חשבוניות מושהית.' />
+        <SubscriptionExpiredState mode='panel' source='invoice_send' feature='חידוש המנוי מחזיר את שליחת החשבוניות.' />
       </ModalPop>
     )
   }

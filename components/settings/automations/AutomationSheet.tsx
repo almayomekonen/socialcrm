@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState, useTransition } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { Input, Select } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
 import { toast } from '@/lib/toast'
@@ -215,6 +217,12 @@ export default function AutomationSheet({
     timing,
   })
 
+  /**
+   * TIER 2. The definition stays fully editable to read and explore; saving is
+   * what arms an automation to send, so that is where the gate belongs.
+   */
+  const proLocked = useAccessDenied()
+
   function save() {
     setError(null)
     startTransition(async () => {
@@ -315,14 +323,22 @@ export default function AutomationSheet({
         />
 
         <div className='grid gap-2'>
-          <Btn
-            lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור אוטומציה'}
-            icon={pending ? 'spinner' : 'floppy-disk'}
-            iconClassName={pending ? 'animate-spin' : undefined}
-            disabled={pending || testing || !!locked}
-            className='w-full'
-            onClick={save}
-          />
+          {proLocked ? (
+            <SubscriptionExpiredState
+              mode='inline'
+              source='automation_save'
+              feature='חידוש המנוי מחזיר את הפעלת האוטומציות'
+            />
+          ) : (
+            <Btn
+              lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור אוטומציה'}
+              icon={pending ? 'spinner' : 'floppy-disk'}
+              iconClassName={pending ? 'animate-spin' : undefined}
+              disabled={pending || testing || !!locked}
+              className='w-full'
+              onClick={save}
+            />
+          )}
           {action?.testable && (
             <Btn
               variant='outline'

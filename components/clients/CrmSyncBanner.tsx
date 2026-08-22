@@ -40,7 +40,7 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
   if (isAccessDenied()) {
     return (
       <div className={compact ? 'border-b border-gray-200 px-3 py-2' : 'mb-4'}>
-        <SubscriptionExpiredState mode='inline' source='crm_sync_banner' feature='הסנכרון מושהה' />
+        <SubscriptionExpiredState mode='inline' source='crm_sync_banner' feature='חידוש המנוי מחזיר את הסנכרון החי' />
       </div>
     )
   }
@@ -58,7 +58,7 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
       }
     >
       <p className={`font-semibold text-amber-900 ${compact ? 'text-xs leading-snug' : 'text-sm'}`}>
-        בעיית חיבור — מנסה שוב
+        בעיית חיבור. מנסים שוב
       </p>
       {health.retry && (
         <button

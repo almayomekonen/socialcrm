@@ -41,7 +41,7 @@ export default async function NewInvoicePage({
    * Existing invoices remain readable on the billing tab this does not touch.
    */
   if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <SubscriptionExpiredState mode='page' source='invoice_new' feature='יצירת חשבוניות מושהית.' />
+    return <SubscriptionExpiredState mode='page' source='invoice_new' feature='חידוש המנוי מחזיר את יצירת החשבוניות.' />
   }
 
   /**

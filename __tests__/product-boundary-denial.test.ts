@@ -49,7 +49,6 @@ const BOUNDARIES: [string, () => Promise<unknown>][] = [
   ['files.deleteFile', () => deleteFile({ id: 1, clientId: 1 } as never)],
   ['salesTbl.deleteDeal', () => deleteDeal(1)],
   ['usersNteams.deleteUser', () => deleteUser(1 as never)],
-  ['filter.addSavedFilters', () => addSavedFilters({ id: 1 } as never)],
   ['promos.deletePromo', () => deletePromo(1 as never)],
 ]
 
@@ -68,6 +67,24 @@ describe('TRIAL_EXPIRED → every product boundary denies', () => {
   it.each(BOUNDARIES)('%s throws ProductAccessError(subscription-required)', async (_n, call) => {
     trial.row = TRIAL_EXPIRED
     await expect(call()).rejects.toMatchObject({ name: 'ProductAccessError', reason: 'subscription-required' })
+  })
+})
+
+/**
+ * Saved filters left this list by product decision: search, filter and sort are
+ * Tier 1: they read and arrange data the customer already owns and spend
+ * nothing. The boundary they used to sit behind now guards only the operations
+ * that cost money.
+ */
+describe('TIER 1 → saved filters no longer deny', () => {
+  it.each([
+    ['trial never started', NEVER_STARTED],
+    ['trial expired', TRIAL_EXPIRED],
+  ])('%s still reaches the action instead of ProductAccessError', async (_n, row) => {
+    trial.row = row
+    await expect(addSavedFilters({ id: 1 } as never)).rejects.not.toMatchObject({
+      name: 'ProductAccessError',
+    })
   })
 })
 

@@ -2,7 +2,7 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { daysFromNow } from '@/lib/dates'
@@ -33,12 +33,25 @@ export type LogLeadOutcomeInput = {
 
 export type LogLeadOutcomeResult = { err: true; msg: string } | Record<string, unknown>
 
+/**
+ * TIER 1. A call outcome is a disposition written onto an existing lead: it
+ * stamps activity, may progress status, and may schedule the follow-up the
+ * outcome implies. None of that reaches a paid or external service.
+ *
+ * It CAN emit a status-changed event, but the automation engine now refuses a
+ * lapsed agency at its own door (lib/automations/emit.ts), so the emission
+ * cannot turn into spending. Blocking the record here would have punished the
+ * rep for the engine's cost, and lost the disposition entirely.
+ *
+ * Tenant isolation and permissions are unchanged: the update below is scoped by
+ * agencyId and by the same gotPermIds filter updateLead uses.
+ */
 export async function logLeadOutcome(input: LogLeadOutcomeInput): Promise<LogLeadOutcomeResult> {
   const id = Number(input?.id)
   if (!Number.isFinite(id) || id <= 0) return { err: true, msg: 'ליד לא תקין' }
   if (!isLeadOutcome(input?.outcome)) return { err: true, msg: 'תוצאה לא תקינה' }
 
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   const { gotPermIds } = await getPerms(user)
 
   // Read current status (scoped) to resolve the transition; absence = not found / no permission.

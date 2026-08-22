@@ -36,12 +36,23 @@ const ACTION_LOCKS: [string, string][] = [
   ['components/ai/LeadIntelligenceCard.tsx', 'lead_intelligence'],
 ]
 
-/** Surfaces whose entire route is gated -> large state is correct. */
-const PAGE_LOCKS: string[] = [
-  'app/(app)/clients/[clientId]/billing/new/page.tsx',
+/**
+ * Surfaces whose entire route is gated -> large state is correct.
+ *
+ * Only ONE remains. The three-tier policy moved notifications and the settings
+ * configuration pages to Tier 2: they render their real content for an expired
+ * customer with a compact Pro notice above it, because reading what you already
+ * built spends nothing. Creating an invoice is pure mutation with nothing to
+ * read, so it is still a whole-surface lock.
+ */
+const PAGE_LOCKS: string[] = ['app/(app)/clients/[clientId]/billing/new/page.tsx']
+
+/** Tier 2: the page renders, and the notice above it is compact. */
+const TIER_2_PAGES: string[] = [
   'app/(app)/settings/(admin_settings)/auto-response/page.tsx',
   'app/(app)/settings/(admin_settings)/automations/page.tsx',
-  'app/(app)/notifications/page.tsx',
+  'app/(app)/settings/(admin_settings)/automation-templates/page.tsx',
+  'app/(app)/settings/(admin_settings)/quote-templates/page.tsx',
 ]
 
 afterEach(() => cleanup())
@@ -88,6 +99,19 @@ describe('compact action lock', () => {
 
   it.each(PAGE_LOCKS)('EXP-5: %s stays a full page lock (whole surface unavailable)', (file) => {
     expect(src(file)).toContain("mode='page'")
+  })
+
+  it.each(TIER_2_PAGES)('EXP-5b: %s keeps its content and teases Pro compactly', (file) => {
+    const s = src(file)
+    expect(s).toContain('proLocked')
+    expect(s).toContain("mode='inline'")
+    expect(s).not.toContain("mode='page'")
+  })
+
+  it('EXP-5c: notifications are readable, not locked', () => {
+    const page = src('app/(app)/notifications/page.tsx')
+    expect(page).toContain('<NotificationCenter')
+    expect(page).not.toContain('SubscriptionExpiredState')
   })
 
   it('EXP-6: the inbox thread itself is never replaced by an expired state', () => {

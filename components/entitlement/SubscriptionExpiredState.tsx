@@ -36,12 +36,19 @@ export type ExpiredMode = 'page' | 'panel' | 'inline'
 
 const TITLE = 'המנוי שלך הסתיים'
 
-/** Trial-never-started is a different sentence from a lapsed paid plan. */
+/**
+ * COPY RULE. No dash is used to join words or clauses, and no capability is
+ * described merely as "מושהה". Every string here says what renewing GIVES the
+ * customer, because a locked state that only announces a loss gives them
+ * nothing to do with the information.
+ *
+ * Trial-never-started is a different sentence from a lapsed paid plan.
+ */
 function bodyFor(status: string): string {
   if (status === 'NEVER_STARTED') {
-    return 'הפעילו את המנוי כדי להשתמש ביכולות המתקדמות. כל הלידים והשיחות שלכם שמורים וימשיכו להיות זמינים.'
+    return 'הפעלת המנוי פותחת את היכולות המתקדמות. כל הלידים והשיחות שלכם שמורים ונשארים זמינים.'
   }
-  return 'היכולות המתקדמות מושהות כרגע. כל הלידים, השיחות וההיסטוריה שלכם שמורים — חידוש המנוי מחזיר את הגישה מיד.'
+  return 'כל הלידים, השיחות וההיסטוריה שלכם שמורים ונשארים זמינים. חידוש המנוי מחזיר את היכולות המתקדמות מיד.'
 }
 
 function ctaHref(source: string): string {
@@ -84,7 +91,12 @@ export default function SubscriptionExpiredState({
       >
         <Icon name='lock' type='sol' className='size-4 shrink-0 bg-warning-text' />
         <p className='min-w-0 flex-1 text-[13px] leading-snug text-warning-text'>
-          {feature ? `${feature} — ${TITLE}` : TITLE}
+          {/*
+            One value sentence, never a dash-joined "feature is paused"
+            fragment. The `feature` a caller passes IS the sentence, phrased as
+            what renewing restores, so it reads on its own beside the CTA.
+          */}
+          {feature ?? TITLE}
         </p>
         <a
           href={ctaHref(source)}
@@ -110,7 +122,7 @@ export default function SubscriptionExpiredState({
       <div className='max-w-[380px]'>
         <h2 className='text-lg font-bold text-ink'>{TITLE}</h2>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>{feature ? `${feature} ${bodyFor(status)}` : bodyFor(status)}</p>
-        {lapsed && <p className='mt-1.5 text-[13px] text-gray-400'>{`תוקף המנוי הסתיים ב-${lapsed}`}</p>}
+        {lapsed && <p className='mt-1.5 text-[13px] text-gray-400'>{`תוקף המנוי הסתיים בתאריך ${lapsed}`}</p>}
       </div>
 
       {cta}

@@ -20,6 +20,9 @@ let lastBulkInsert: Record<string, unknown>[] | null = null
 
 vi.mock('@/lib/requireUser', () => ({
   requireProductAccess: (...args: unknown[]) => requireProductAccess(...args),
+  // upsertLead opens on the basic guard and escalates on its create/convert
+  // branches, so both doors must exist on the mock.
+  requireBasicCrmAccess: (...args: unknown[]) => requireProductAccess(...args),
 }))
 
 vi.mock('@/db/auth', () => ({

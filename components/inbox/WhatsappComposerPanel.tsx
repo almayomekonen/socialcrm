@@ -69,7 +69,7 @@ export default function WhatsappComposerPanel({
    * template picker or ready-message sheet — can render while access is lapsed.
    */
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='whatsapp_composer' feature='שליחת הודעות מושהית' />
+    return <SubscriptionExpiredState mode='inline' source='whatsapp_composer' feature='חידוש המנוי מחזיר את שליחת ההודעות' />
   }
 
   if (decision.kind === 'leadless') return null

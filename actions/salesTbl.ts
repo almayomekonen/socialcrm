@@ -4,7 +4,7 @@ import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { toIso } from '@/lib/dates'
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
 
 // Export the deals table without a row limit. The query is NOT supplied by the
 // client: getDealTableData signs the server-generated query into `token`, and
@@ -138,8 +138,17 @@ export async function updateDealDt(dealId: number, saleDt: string) {
 }
 
 // עדכון סטטוס לעסקאות
+/**
+ * TIER 1. Moving an existing deal between statuses is CRM bookkeeping on a row
+ * the agency already owns. It spends nothing, reaches nothing external, and
+ * writes no commission field, so a lapsed subscription does not block it.
+ *
+ * Authentication, agency scoping and the surrounding permission checks are
+ * untouched: every query below still filters on the session's agencyId, and
+ * commission and transfer logic is not read or written here.
+ */
 export async function updateDealStatus(dealId: number, status: string) {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   const obj = { status } as any
   if (status === 'הופק') obj.saleDt = toIso(new Date())
   await db('sales').where({ id: dealId, agencyId: user.agencyId }).update(obj)
@@ -148,8 +157,17 @@ export async function updateDealStatus(dealId: number, status: string) {
 }
 
 // עדכון סטטוס לעסקאות
+/**
+ * TIER 1. Moving an existing deal between statuses is CRM bookkeeping on a row
+ * the agency already owns. It spends nothing, reaches nothing external, and
+ * writes no commission field, so a lapsed subscription does not block it.
+ *
+ * Authentication, agency scoping and the surrounding permission checks are
+ * untouched: every query below still filters on the session's agencyId, and
+ * commission and transfer logic is not read or written here.
+ */
 export async function updateManyDealStatus(dealIds: number[], status: string) {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   const res = await db('sales').whereIn('id', dealIds).where({ agencyId: user.agencyId }).update({ status })
   revalidatePath('/deals')
   revalidatePath('/sum_sales')

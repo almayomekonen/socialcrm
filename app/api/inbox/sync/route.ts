@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUser } from '@/db/auth'
-import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { db } from '@/config/db'
 import { getInboxDelta, getInboxAwareness } from '@/modules/inbox/queries'
 import {
@@ -22,9 +21,16 @@ export async function GET(req: NextRequest) {
   const started = Date.now()
   const user = await getUser()
   if (!user?.agencyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return NextResponse.json({ error: 'product-access-required' }, { status: 403 })
-  }
+  /*
+   * TIER 1 READ. This endpoint only reads the agency's own stored rows and
+   * stamps presence; it consumes no paid or external resource. Viewing what is
+   * already there is exactly what an expired customer keeps, so the
+   * product-access gate that used to sit here has been removed.
+   *
+   * Authentication and tenant isolation are untouched: the 401 above still
+   * runs first, and every query below is scoped by the session's agencyId. The
+   * Pro gates live where money is spent, at the actions this data links to.
+   */
 
   const url = new URL(req.url)
   const since = url.searchParams.get('since')

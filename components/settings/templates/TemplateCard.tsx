@@ -10,6 +10,8 @@ import type { TemplateView } from '@/lib/automations/templates/overview'
 import TemplateArt from './TemplateArt'
 import TemplateInstallDialog from './TemplateInstallDialog'
 import { errorMessage } from './copy'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 /**
  * ONE card for every template: the scene, then the name, then one line, then
@@ -71,6 +73,12 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
 
   const { template, availability, installed, updateAvailable } = view
   const locked = availability.state === 'locked' ? availability.requirement : null
+
+  /**
+   * TIER 2. The card and its status stay readable; removing a template deletes
+   * the automations it created, which is Pro management of paid behaviour.
+   */
+  const proLocked = useAccessDenied()
 
   function remove() {
     start(async () => {
@@ -148,14 +156,24 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
               role='menu'
               className='anim-popanchor-in absolute end-0 top-full z-20 mt-1.5 flex w-40 flex-col gap-0.5 rounded-xl border border-border bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
             >
-              <button
-                type='button'
-                role='menuitem'
-                onClick={() => (setMenuOpen(false), setConfirmRemove(true))}
-                className='rounded-md px-3 py-2 text-start text-[13px] text-error hover:bg-[#f7f8fa]'
-              >
-                הסרה
-              </button>
+              {proLocked ? (
+                <div className='px-1 py-1'>
+                  <SubscriptionExpiredState
+                    mode='inline'
+                    source='automation_template_remove'
+                    feature='חידוש המנוי מחזיר את ניהול התבניות'
+                  />
+                </div>
+              ) : (
+                <button
+                  type='button'
+                  role='menuitem'
+                  onClick={() => (setMenuOpen(false), setConfirmRemove(true))}
+                  className='rounded-md px-3 py-2 text-start text-[13px] text-error hover:bg-[#f7f8fa]'
+                >
+                  הסרה
+                </button>
+              )}
             </div>
           )}
         </div>

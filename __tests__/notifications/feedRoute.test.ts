@@ -122,11 +122,18 @@ describe('authorization', () => {
     expect(h.stampPresence).not.toHaveBeenCalled()
   })
 
-  it('403 without product access, and still nothing is written', async () => {
+  /**
+   * TIER 1. Reading your own stored notifications spends nothing, so a lapsed
+   * subscription no longer refuses this endpoint. The Pro boundary moved to the
+   * engine that CREATES deliveries (lib/notifications/emit.ts); it was never
+   * the read that cost anything.
+   */
+  it('serves an expired agency its own notifications', async () => {
     h.getAgencyProductAccess.mockResolvedValue({ hasAccess: false })
     const res = await GET(req())
-    expect(res.status).toBe(403)
-    expect(h.stampPresence).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    // Still scoped to the session's agency and user, exactly as before.
+    expect(h.listNotifications).toHaveBeenCalledWith(expect.objectContaining({ agencyId: 7, userId: 55 }))
   })
 })
 

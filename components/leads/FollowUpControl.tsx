@@ -102,20 +102,28 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
   }
 
   /**
-   * PRE-GATE. The action behind this control is requireProductAccess-guarded
-   * and the dispatch has no catch, so on a lapsed subscription the click ended
-   * as an unhandled Server Action rejection — nothing happened, and nothing
-   * said why.
+   * TIER 2. Setting a follow-up schedules future work, so the ACTION is gated,
+   * but the follow-up already on the lead is the customer's own data and stays
+   * visible. The earlier version replaced the whole control with a lock, which
+   * hid the very date the rep came to check.
    *
-   * Full variant: the shared inline locked state takes the control's place, so
-   * the block that promised an action explains itself instead.
-   * Compact variant (list rows, quick actions): withheld silently. One
-   * explanation per screen, not one per row — the lead stays readable and its
-   * own page carries the locked state.
+   * Compact variant (list rows, quick actions): the date renders as plain text
+   * with no lock line, because one explanation per screen is enough and the
+   * lead's own page carries it.
    */
   if (expired) {
-    if (compact) return null
-    return <SubscriptionExpiredState mode='inline' source='lead_followup' feature='קביעת מעקב מושהית' />
+    const scheduled = current ? `מעקב: ${formatDate(current)}` : null
+    if (compact) {
+      return scheduled ? (
+        <span className='text-xs tabular-nums text-gray-500'>{scheduled}</span>
+      ) : null
+    }
+    return (
+      <div className='grid gap-2'>
+        {scheduled && <p className='text-sm tabular-nums text-gray-700'>{scheduled}</p>}
+        <SubscriptionExpiredState mode='inline' source='lead_followup' feature='חידוש המנוי מחזיר את קביעת המעקבים' />
+      </div>
+    )
   }
 
   const label = current ? `מעקב: ${formatDate(current)}` : 'קבע מעקב'

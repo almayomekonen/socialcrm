@@ -2,10 +2,17 @@
 
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess } from '@/lib/requireUser'
+
+/**
+ * Saved filters are the user's own view preferences, stored on their own row.
+ * Search, filter and sort stay available after a subscription lapses — they
+ * spend nothing, and taking them away would make the customer's remaining data
+ * harder to read for no reason. Scoped to `user.id` exactly as before.
+ */
 
 export async function addSavedFilters({ data }: { data: { name: string; href: string }; id?: number }) {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   await db('users')
     .where({ id: user.id })
     .update({
@@ -16,7 +23,7 @@ export async function addSavedFilters({ data }: { data: { name: string; href: st
 }
 
 export async function updateSavedFilters({ data }: { data: { name: string; href: string }; id?: number }) {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   await db('users')
     .where({ id: user.id })
     .update({

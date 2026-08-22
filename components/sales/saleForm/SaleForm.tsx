@@ -135,7 +135,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   }
 
   if (expired) {
-    return <SubscriptionExpiredState mode='panel' source='close_deal' feature='סגירת עסקה מושהית.' />
+    return <SubscriptionExpiredState mode='panel' source='close_deal' feature='חידוש המנוי מחזיר את סגירת העסקאות.' />
   }
 
   return (

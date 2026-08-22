@@ -31,24 +31,18 @@ export default async function AutomationsSettingsPage() {
     return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
   }
 
-  /*
-   * Pure-configuration page: every control on it calls a
-   * requireProductAccess-guarded action. Left open to a lapsed subscription,
-   * each button was a doomed request that surfaced as a generic toast or an
-   * unhandled Server Action rejection. Same page-level lock the notifications
-   * page already uses; no customer DATA is hidden by it, only settings the
-   * customer cannot change right now.
-   *
-   * Runs AFTER the existing availability/permission check: who you are is a
-   * stronger statement than what your plan currently covers.
-   */
-  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <SubscriptionExpiredState mode='page' source='automations_settings' feature='האוטומציות מושהות.' />
-  }
 
   // Midnight in the BUSINESS's day, not the server's. Vercel runs UTC while the
   // business runs Asia/Jerusalem, so "today" has to come from the canonical
   // helper (architecture-rules §11) rather than from the process clock.
+  /*
+   * TIER 2. The page stays readable: an expired customer can still see what
+   * they built and what the product does for them. Only the actions that spend
+   * money stay gated, each at its own control, so this surface teaches value
+   * instead of turning into a wall.
+   */
+  const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
+
   const startOfToday = new Date(startOfBusinessDayMs(Date.now()))
 
   // The agency-wide activity feed is no longer read here: the workspace shows
@@ -154,16 +148,23 @@ export default async function AutomationsSettingsPage() {
   }
 
   return (
-    <AutomationsSettings
-      requirementContext={requirementContext}
-      connections={connections}
-      automations={automations}
-      drafts={drafts}
-      templates={JSON.parse(JSON.stringify(templates))}
-      todayRuns={todayRuns}
-      previewName={recentLead?.firstName ?? null}
-      identityProblem={sender.problem}
-      observationMode={getAutomationsSendMode() === 'log'}
-    />
+    <>
+      {proLocked && (
+        <div className='mb-6 max-w-2xl'>
+          <SubscriptionExpiredState mode='inline' source='automations_settings' feature='חידוש המנוי מחזיר את הפעלת האוטומציות' />
+        </div>
+      )}
+      <AutomationsSettings
+        requirementContext={requirementContext}
+        connections={connections}
+        automations={automations}
+        drafts={drafts}
+        templates={JSON.parse(JSON.stringify(templates))}
+        todayRuns={todayRuns}
+        previewName={recentLead?.firstName ?? null}
+        identityProblem={sender.problem}
+        observationMode={getAutomationsSendMode() === 'log'}
+      />
+    </>
   )
 }

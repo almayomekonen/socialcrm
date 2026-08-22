@@ -43,6 +43,8 @@ function makeDeps(overrides: Partial<EmitDeps> = {}): EmitDeps {
   return {
     enabled: () => true,
     allowlisted: () => true,
+    // Entitled agency: the engine's product-access gate is exercised on its own.
+    entitled: async () => true,
     listActive: vi.fn(async () => [definition(3)]),
     enqueue: vi.fn(async () => 101),
     shadow: vi.fn(async () => {}),

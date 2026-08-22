@@ -27,19 +27,14 @@ export default async function AutoResponseSettingsPage() {
     return <AutoResponseMobile agencyId={user.agencyId} role={user.role} />
   }
 
+
   /*
-   * Pure-configuration page: the form's every control calls a
-   * requireProductAccess-guarded action (setMasterEnabled, updateSettings), so
-   * for a lapsed subscription each one was a doomed request.
-   *
-   * Placed AFTER the mobile branch above, which is left exactly as it was: the
-   * mobile workspace owns its own routing and is out of scope here. That leaves
-   * the phone's kill switch ungated — recorded as a known gap rather than fixed
-   * by reaching into mobile routing.
+   * TIER 2. The page stays readable: an expired customer can still see what
+   * they built and what the product does for them. Only the actions that spend
+   * money stay gated, each at its own control, so this surface teaches value
+   * instead of turning into a wall.
    */
-  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <SubscriptionExpiredState mode='page' source='auto_response_settings' feature='המענה האוטומטי מושהה.' />
-  }
+  const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
 
   const [master, channel] = await Promise.all([
     getMasterEnabled(user.agencyId),
@@ -47,14 +42,25 @@ export default async function AutoResponseSettingsPage() {
   ])
 
   return (
-    <AutoResponseSettingsForm
-      masterEnabled={master}
-      channelEnabled={channel?.enabled ?? false}
-      dailyCap={channel?.dailyCap ?? 200}
-      guidance={channel?.guidance ?? null}
-      replyMode={channel?.replyMode ?? 'ai'}
-      fixedBody={channel?.fixedBody ?? null}
-      delaySeconds={channel?.delaySeconds ?? 0}
-    />
+    <>
+      {proLocked && (
+        <div className='mb-6 max-w-2xl'>
+          <SubscriptionExpiredState
+            mode='inline'
+            source='auto_response_settings'
+            feature='חידוש המנוי מחזיר את המענה האוטומטי'
+          />
+        </div>
+      )}
+      <AutoResponseSettingsForm
+        masterEnabled={master}
+        channelEnabled={channel?.enabled ?? false}
+        dailyCap={channel?.dailyCap ?? 200}
+        guidance={channel?.guidance ?? null}
+        replyMode={channel?.replyMode ?? 'ai'}
+        fixedBody={channel?.fixedBody ?? null}
+        delaySeconds={channel?.delaySeconds ?? 0}
+      />
+    </>
   )
 }

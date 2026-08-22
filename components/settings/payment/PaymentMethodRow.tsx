@@ -32,7 +32,7 @@ export type PaymentMethodState = 'renewing' | 'cancelling' | 'expired'
 
 const CHARGE_COPY: Record<PaymentMethodState, string> = {
   renewing: 'החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון',
-  cancelling: 'המנוי לא יתחדש — לא ייגבה חיוב נוסף',
+  cancelling: 'המנוי לא יתחדש ולא ייגבה חיוב נוסף',
   expired: 'חידוש המנוי יחייב את הכרטיס ששימש לתשלום האחרון',
 }
 
