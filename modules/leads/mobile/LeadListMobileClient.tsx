@@ -11,6 +11,7 @@ import {
   emptySelection,
   enterSelection,
   isSelecting,
+  reconcileAction,
   setAction,
   toggleSelection,
   type SelectionState,
@@ -126,6 +127,35 @@ export default function LeadListMobileClient({
     setBatch(page)
     setMore(hasMore)
     requestKeyRef.current = `${filters.q}|${filters.status.join(',')}`
+
+    /**
+     * RECONCILE SELECTION AGAINST THE LIST.
+     *
+     * `reconcileAction` keeps the open sheet honest against `ids`, but nothing
+     * kept `ids` honest against the ROWS. Changing a lead's status revalidates
+     * `/leads`; the lead can then leave this list — filtered out by an active
+     * status filter, or reordered past the loaded batch — while its id stayed
+     * selected. The bar went on reading "נבחרו 1" for a row that no longer
+     * existed, and every per-item control resolved `items.find(...)` to null, so
+     * `פעולות` opened nothing and looked broken.
+     *
+     * Only orphaned ids are dropped, never the whole selection: a lead that is
+     * still visible stays selected, and in a multi-select the survivors keep
+     * theirs. Returning `prev` unchanged when nothing was orphaned keeps the
+     * object identity stable, so the common case causes no extra render.
+     *
+     * The delete path already reconciles this way (it restores `ids` for blocked
+     * leads); this closes the same gap for status and follow-up, and for any
+     * future mutation, because it hooks the list REPLACEMENT rather than each
+     * individual `onSaved`.
+     */
+    setSel((prev) => {
+      if (prev.ids.size === 0) return prev
+      const live = new Set(initialCards.map((card) => card.id))
+      const kept = new Set([...prev.ids].filter((id) => live.has(id)))
+      if (kept.size === prev.ids.size) return prev
+      return { ids: kept, action: reconcileAction(kept, prev.action) }
+    })
   }, [initialCards, page, hasMore, filters.q, filters.status])
 
   useEffect(() => {
