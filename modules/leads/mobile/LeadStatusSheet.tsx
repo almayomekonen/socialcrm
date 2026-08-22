@@ -9,6 +9,8 @@ import { updateLead } from '@/actions/clients'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { STATUS_STYLES, statusStyle } from '@/lib/leads/statusStyles'
 import { LEAD_STATUSES } from '@/modules/leads/filters'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 /**
  * Status picker — the existing `updateLead` mutation, presented as a sheet.
@@ -35,6 +37,7 @@ export default function LeadStatusSheet({
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const accessDenied = useAccessDenied()
 
   const pick = (status: string) => {
     if (status === current) {
@@ -50,13 +53,20 @@ export default function LeadStatusSheet({
         onClose()
         if (refresh) router.refresh()
       } catch {
-        toast('error', 'לא הצלחנו לעדכן את הסטטוס')
+        // `updateLead` calls requireProductAccess(), which THROWS on a lapsed
+        // subscription. This catch already prevented React #441 here, but it
+        // reported a permanent entitlement state as a transient failure the
+        // customer could retry. Naming the real reason is the fix.
+        toast('error', accessDenied ? 'עדכון סטטוס מושהה — המנוי הסתיים' : 'לא הצלחנו לעדכן את הסטטוס')
       }
     })
   }
 
   return (
     <BottomSheet open={open} onClose={onClose} title='סטטוס'>
+      {accessDenied ? (
+        <SubscriptionExpiredState mode='inline' source='lead_status_mobile' feature='עדכון סטטוס מושהה' />
+      ) : (
       <div className='flex flex-col gap-2'>
         {LEAD_STATUSES.map((s) => {
           const on = s === current
@@ -79,6 +89,7 @@ export default function LeadStatusSheet({
           )
         })}
       </div>
+      )}
     </BottomSheet>
   )
 }

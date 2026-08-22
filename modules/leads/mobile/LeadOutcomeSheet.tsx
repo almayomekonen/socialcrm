@@ -6,6 +6,8 @@ import BottomSheet from '@/components/mobile/BottomSheet'
 import { toast } from '@/lib/toast'
 import { logLeadOutcome } from '@/actions/leadOutcome'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import type { LeadOutcome } from '@/lib/leads/outcomeRules'
 import { formatDate } from '@/lib/dates'
 
@@ -51,10 +53,25 @@ export default function LeadOutcomeSheet({
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const accessDenied = useAccessDenied()
 
   const log = (o: (typeof OUTCOMES)[number]) => {
     startTransition(async () => {
-      const res = await logLeadOutcome({ id: leadId, outcome: o.outcome })
+      /**
+       * `logLeadOutcome` calls `requireProductAccess()`, which THROWS on a lapsed
+       * subscription — it does not return `{ err }`. Awaiting it inside
+       * `startTransition` with only an `isErr(res)` check left that rejection
+       * unhandled, and React surfaced it as "Minified React error #441" instead
+       * of telling the customer their subscription lapsed. The catch is what
+       * keeps a business state from reaching the renderer.
+       */
+      let res: Awaited<ReturnType<typeof logLeadOutcome>>
+      try {
+        res = await logLeadOutcome({ id: leadId, outcome: o.outcome })
+      } catch {
+        // The server is authoritative: if it refused, say why and keep the sheet.
+        return toast('error', accessDenied ? 'תיעוד תוצאת שיחה מושהה — המנוי הסתיים' : 'לא הצלחנו לשמור את התוצאה')
+      }
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'outcome', leadId }).catch(() => {})
       toast('success', outcomeToast(o.outcome, res as { nextFollowUpAt?: string | Date | null }))
@@ -65,6 +82,9 @@ export default function LeadOutcomeSheet({
 
   return (
     <BottomSheet open={open} onClose={onClose} title='תוצאת שיחה'>
+      {accessDenied ? (
+        <SubscriptionExpiredState mode='inline' source='lead_outcome_mobile' feature='תיעוד תוצאת שיחה מושהה' />
+      ) : (
       <div className='flex flex-col gap-2'>
         {OUTCOMES.map((o) => (
           <button
@@ -78,6 +98,7 @@ export default function LeadOutcomeSheet({
           </button>
         ))}
       </div>
+      )}
     </BottomSheet>
   )
 }
