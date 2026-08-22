@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Icon from '@/lib/Icon'
 import { useCopilot } from '@/lib/copilot/useCopilot'
 import type { CopilotModeId } from '@/lib/ai/copilotModes'
@@ -17,15 +17,9 @@ import BriefingCards from './BriefingCards'
 import AnswerView from './AnswerView'
 import GeneralComposer from './GeneralComposer'
 import SuggestionChips, { briefingSuggestions } from './SuggestionChips'
+import { useLoaderTiming, LOADER_ESCALATE_MS } from './useLoaderTiming'
 
 type Turn = { role: 'user'; text: string } | { role: 'assistant'; answer: GeneralAnswer }
-
-// Honest loading timings. Sub-DELAY answers never show a loader (no flash). Once
-// shown it holds for MIN (no strobe). The pulse escalates to step text only after
-// ESCALATE — a threshold no deterministic path reaches, so text is always honest.
-const LOADER_DELAY_MS = 150
-const LOADER_MIN_MS = 350
-const LOADER_ESCALATE_MS = 1500
 
 export default function GeneralModePanel() {
   /** No paid AI request may be attempted while the subscription is lapsed. */
@@ -44,10 +38,19 @@ export default function GeneralModePanel() {
   const [asking, setAsking] = useState(false)
   // Delayed/min-held loader visibility — distinct from `asking` (which drives the
   // composer busy state immediately). `loaderEscalates` = the path may be expensive.
-  const [showLoader, setShowLoader] = useState(false)
-  const [loaderEscalates, setLoaderEscalates] = useState(false)
+  const { showLoader, loaderEscalates, withLoader } = useLoaderTiming()
   // Session-only active lead subject (Step 2). Not persisted, no DB, resets on remount.
   const [subject, setSubject] = useState<{ id: number; name: string } | null>(null)
+
+  // Re-readable so the zero-data state can flip the panel into the real AI
+  // experience the moment a lead exists. Kept separate from the mount effect below
+  // so a refresh never re-emits `general_mode.opened`. The server stays the
+  // entitlement authority: a refresh can return `locked` and the locked branch wins.
+  const loadBriefing = useCallback(() => {
+    getDailyBriefing()
+      .then(setBriefing)
+      .catch(() => setBriefing({ kind: 'briefing', greeting: '', sections: [] }))
+  }, [])
 
   useEffect(() => {
     if (startedRef.current) return
@@ -66,30 +69,6 @@ export default function GeneralModePanel() {
   // A resolved lead card becomes the active subject (set on a new name OR a pick).
   function adopt(answer: GeneralAnswer) {
     if (answer.kind === 'lead') setSubject({ id: answer.lead.id, name: answer.lead.name })
-  }
-
-  // Show the loader only if the work outlives DELAY; once shown, hold it MIN so it
-  // never strobes. The awaited value resolves only after the min hold, smoothing the
-  // hand-off to the answer.
-  async function withLoader<T>(escalates: boolean, run: () => Promise<T>): Promise<T> {
-    let shown = false
-    let shownAt = 0
-    const showTimer = setTimeout(() => {
-      shown = true
-      shownAt = Date.now()
-      setLoaderEscalates(escalates)
-      setShowLoader(true)
-    }, LOADER_DELAY_MS)
-    try {
-      return await run()
-    } finally {
-      clearTimeout(showTimer)
-      if (shown) {
-        const remaining = LOADER_MIN_MS - (Date.now() - shownAt)
-        if (remaining > 0) await new Promise((r) => setTimeout(r, remaining))
-      }
-      setShowLoader(false)
-    }
   }
 
   async function ask(text: string, mode?: CopilotModeId) {
@@ -159,7 +138,9 @@ export default function GeneralModePanel() {
 
       <div ref={scrollRef} className='flex-1 overflow-y-auto px-3'>
         {!briefing && <Centered text='טוען…' />}
-        {isEmptySystem && <GeneralEmptyState />}
+        {/* ZERO DATA (not entitlement). A real interactive state: the composer below
+            stays mounted alongside it. Never collapsed with the locked branch. */}
+        {isEmptySystem && transcript.length === 0 && <GeneralEmptyState onDataChanged={loadBriefing} />}
         {/*
           A lapsed subscription is not an empty briefing and not a failure: the
           server now says so deterministically, and the panel says the same
@@ -171,14 +152,13 @@ export default function GeneralModePanel() {
             <SubscriptionExpiredState mode='panel' source='ai_panel' feature='חידוש המנוי מחזיר את העוזר החכם.' />
           </div>
         )}
-        {briefing?.kind === 'briefing' &&
-          (transcript.length === 0 ? (
-            // Pre-question: Daily Briefing + quick-question chips.
-            <div className='space-y-2.5 pb-2'>
-              <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
-              <div className='space-y-1.5'>
-                <p className='text-[12px] text-gray-400'>שאלות מהירות</p>
-                {/*
+        {briefing?.kind === 'briefing' && transcript.length === 0 && (
+          // Pre-question: Daily Briefing + quick-question chips.
+          <div className='space-y-2.5 pb-2'>
+            <BriefingCards greeting={briefing.greeting} sections={briefing.sections} />
+            <div className='space-y-1.5'>
+              <p className='text-[12px] text-gray-400'>שאלות מהירות</p>
+              {/*
                   Locked chips are `disabled`, not merely un-clickable. The
                   audit found locked AI controls that CSS had taken out of the
                   pointer's reach while leaving them in the tab order — a
@@ -186,42 +166,52 @@ export default function GeneralModePanel() {
                   just told them was suspended. `disabled` removes them from the
                   tab order and announces the state, which CSS cannot do.
                 */}
-                <SuggestionChips items={briefingSuggestions()} onPick={(t) => ask(t)} disabled={expired} />
-              </div>
+              <SuggestionChips items={briefingSuggestions()} onPick={(t) => ask(t)} disabled={expired} />
             </div>
-          ) : (
-            // Conversation: the briefing is replaced by the running transcript.
-            <div className='space-y-2.5 pb-2'>
-              {transcript.map((turn, i) =>
-                turn.role === 'user' ? (
-                  <p key={i} className='text-sm text-gray-800'>
-                    <span className='font-medium text-gray-500'>אתה: </span>
-                    {turn.text}
-                  </p>
-                ) : (
-                  <div key={i} className='gm-answer-enter'>
-                    <AnswerView
-                      interactive={i === lastAssistantIndex}
-                      answer={turn.answer}
-                      onPick={(t) => ask(t)}
-                      onPickLead={(id, label) => pickLead(id, label)}
-                    />
-                  </div>
-                ),
-              )}
-              {showLoader && (
-                <ActiveGenerationRow
-                  fallbackLabel='מגבש תשובה'
-                  hint='general-mode'
-                  startPhase='pulse'
-                  escalateAfterMs={loaderEscalates ? LOADER_ESCALATE_MS : undefined}
-                />
-              )}
-            </div>
-          ))}
+          </div>
+        )}
+
+        {/* Conversation. Rendered whenever the panel has data of EITHER kind — a
+            question asked with zero leads must show its answer, or the composer
+            would submit into nothing. `!serverLocked` keeps the locked body the
+            single owner of an entitlement-blocked panel. */}
+        {!serverLocked && briefing && transcript.length > 0 && (
+          <div className='space-y-2.5 pb-2'>
+            {transcript.map((turn, i) =>
+              turn.role === 'user' ? (
+                <p key={i} className='text-sm text-gray-800'>
+                  <span className='font-medium text-gray-500'>אתה: </span>
+                  {turn.text}
+                </p>
+              ) : (
+                <div key={i} className='gm-answer-enter'>
+                  <AnswerView
+                    interactive={i === lastAssistantIndex}
+                    answer={turn.answer}
+                    onPick={(t) => ask(t)}
+                    onPickLead={(id, label) => pickLead(id, label)}
+                  />
+                </div>
+              ),
+            )}
+            {showLoader && (
+              <ActiveGenerationRow
+                fallbackLabel='מגבש תשובה'
+                hint='general-mode'
+                startPhase='pulse'
+                escalateAfterMs={loaderEscalates ? LOADER_ESCALATE_MS : undefined}
+              />
+            )}
+          </div>
+        )}
       </div>
 
-      {!isEmptySystem && !serverLocked && briefing && (
+      {/* AVAILABILITY, not data state: `hasAnyLeads` (isEmptySystem) no longer gates
+          the composer — that conflation is what made the zero-lead panel a dead end
+          with no input. `!serverLocked` is UNCHANGED: the locked body still owns an
+          entitlement-blocked panel, and the `expired` swap below is untouched, so no
+          paid AI request becomes reachable. */}
+      {!serverLocked && briefing && (
         <div className='w-full px-3 pb-3 pt-3'>
           {subject && (
             <div className='mb-2 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[12px] text-gray-700'>

@@ -636,7 +636,13 @@ describe('getDailyBriefing returns entitlement, it does not throw it', () => {
     const panel = read('components/copilot/general/GeneralModePanel.tsx')
     expect(panel).toContain("briefing?.kind === 'locked'")
     expect(panel).toContain('{serverLocked && (')
-    expect(panel).toContain('{!isEmptySystem && !serverLocked && briefing && (')
+    // `!serverLocked` is the term that enforces "no composer while locked" and is
+    // asserted verbatim below. The gate no longer carries `!isEmptySystem`: a
+    // zero-lead workspace is a DATA state and must keep an interactive composer,
+    // which is a separate concern from entitlement. The locked guarantee is
+    // unchanged and is additionally covered behaviourally in
+    // __tests__/ai/general-mode-zero-leads.test.tsx.
+    expect(panel).toContain('{!serverLocked && briefing && (')
   })
 })
 
