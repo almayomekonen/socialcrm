@@ -39,21 +39,8 @@ vi.mock('@/actions/ai/askGeneralQuestion', () => ({ askGeneralQuestion: vi.fn(),
 vi.mock('@/components/copilot/ActiveGenerationRow', () => ({ default: () => null }))
 vi.mock('@/components/copilot/general/BriefingCards', () => ({ default: () => <div data-testid='briefing-cards' /> }))
 
-// The real create/import flows are stubbed at their module boundary: these tests
-// assert the WIRING (an existing flow is invoked — not a fake button, not a dead
-// link). The forms' own behaviour has its own suites and needs a UserProvider + DB.
-vi.mock('@/components/clients/ClientFormPop', () => ({
-  default: ({ onCreated }: { onCreated?: (id: number) => void }) => (
-    <div data-testid='client-form-pop'>
-      <button type='button' onClick={() => onCreated?.(7)}>
-        stub-save
-      </button>
-    </div>
-  ),
-}))
-vi.mock('@/components/settings/UploadClientData', () => ({ default: () => <div data-testid='upload-client-data' /> }))
-
 import GeneralModePanel from '@/components/copilot/general/GeneralModePanel'
+import GeneralEmptyState from '@/components/copilot/general/GeneralEmptyState'
 import { getDailyBriefing } from '@/actions/ai/getDailyBriefing'
 import { askGeneralQuestion } from '@/actions/ai/askGeneralQuestion'
 import type { BriefingResult } from '@/lib/copilot/general/types'
@@ -62,6 +49,7 @@ const EMPTY: BriefingResult = { kind: 'empty' }
 const LOCKED: BriefingResult = { kind: 'locked' }
 const WITH_LEADS: BriefingResult = { kind: 'briefing', greeting: 'היום: 2 מעקבים.', sections: [] }
 const COMPOSER = 'שאל את העוזר…'
+const READY_TITLE = 'העוזר העסקי שלך מוכן'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -83,9 +71,8 @@ describe('AI panel availability is NOT gated by hasAnyLeads', () => {
     vi.mocked(getDailyBriefing).mockResolvedValue(EMPTY)
     render(<GeneralModePanel />)
 
-    expect(await screen.findByText('עדיין אין לך לידים')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'צור ליד' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'ייבא לידים' })).toBeInTheDocument()
+    expect(await screen.findByText(READY_TITLE)).toBeInTheDocument()
+    expect(screen.getByText(/אפשר לשאול כל דבר/)).toBeInTheDocument()
   })
 
   it('answers a question asked with zero leads instead of swallowing it', async () => {
@@ -101,55 +88,64 @@ describe('AI panel availability is NOT gated by hasAnyLeads', () => {
 
     await waitFor(() => expect(screen.getByText('תשובה')).toBeInTheDocument())
     // The zero-data state yields to the conversation once a turn exists.
-    expect(screen.queryByText('עדיין אין לך לידים')).not.toBeInTheDocument()
+    expect(screen.queryByText(READY_TITLE)).not.toBeInTheDocument()
   })
 })
 
-describe('zero-data actions invoke the REAL existing flows', () => {
-  it('"צור ליד" opens the existing lead-creation flow', async () => {
+describe('the resting state presents an available assistant, not a missing prerequisite', () => {
+  /**
+   * Product direction: General Mode is a BUSINESS assistant. Leads are one source
+   * of context, not the assistant's identity. Copy that frames the assistant as
+   * lead-dependent ("becomes useful once you have leads", "add leads to unlock")
+   * teaches the user it is unavailable, which is both wrong and the reason the
+   * zero-lead panel read as a dead end.
+   */
+  it('does not frame the assistant as unavailable or lead-dependent', async () => {
+    vi.mocked(getDailyBriefing).mockResolvedValue(EMPTY)
+    const { container } = render(<GeneralModePanel />)
+
+    await screen.findByText(READY_TITLE)
+    const text = container.textContent ?? ''
+    for (const forbidden of ['אין לך לידים', 'אין לידים', 'ברגע שיהיו', 'כדי להתחיל, הוסף']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('states readiness and invites a question without requiring data', async () => {
     vi.mocked(getDailyBriefing).mockResolvedValue(EMPTY)
     render(<GeneralModePanel />)
 
-    await screen.findByRole('button', { name: 'צור ליד' })
-    expect(screen.queryByTestId('client-form-pop')).not.toBeInTheDocument()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'צור ליד' }))
-    })
-
-    expect(await screen.findByTestId('client-form-pop')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(await screen.findByText(READY_TITLE)).toBeInTheDocument()
+    expect(screen.getByText(/אפשר לשאול כל דבר/)).toBeInTheDocument()
   })
+})
 
-  it('"ייבא לידים" opens the existing import flow', async () => {
+describe('the resting state carries no calls to action', () => {
+  /**
+   * The composer is the only interaction in this state. Create/import CTAs lived
+   * here while the panel was being un-dead-ended; they were removed once the
+   * composer was reliably available, so nothing competes with the conversation.
+   * Adding leads keeps its own dedicated surfaces (/leads first run, settings).
+   */
+  it('renders no create or import CTA', async () => {
     vi.mocked(getDailyBriefing).mockResolvedValue(EMPTY)
     render(<GeneralModePanel />)
 
-    await screen.findByRole('button', { name: 'ייבא לידים' })
-    expect(screen.queryByTestId('upload-client-data')).not.toBeInTheDocument()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'ייבא לידים' }))
-    })
-
-    expect(await screen.findByTestId('upload-client-data')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await screen.findByText(READY_TITLE)
+    expect(screen.queryByRole('button', { name: 'צור ליד' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'ייבא לידים' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('creating a lead re-reads the briefing and stays inside the panel', async () => {
-    vi.mocked(getDailyBriefing).mockResolvedValueOnce(EMPTY).mockResolvedValueOnce(WITH_LEADS)
-    render(<GeneralModePanel />)
+  it('the empty state itself renders no controls at all', () => {
+    // Asserted on the component directly: it is presentational now, so "no
+    // buttons" is a property of this state rather than of the whole panel
+    // (which legitimately still has its close control and the composer).
+    const { container } = render(<GeneralEmptyState />)
 
-    await screen.findByRole('button', { name: 'צור ליד' })
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'צור ליד' }))
-    })
-    await act(async () => {
-      fireEvent.click(await screen.findByText('stub-save'))
-    })
-
-    await waitFor(() => expect(screen.getByTestId('briefing-cards')).toBeInTheDocument())
-    expect(screen.queryByText('עדיין אין לך לידים')).not.toBeInTheDocument()
-    expect(getDailyBriefing).toHaveBeenCalledTimes(2)
-    expect(screen.getByPlaceholderText(COMPOSER)).toBeInTheDocument()
+    expect(container.querySelectorAll('button')).toHaveLength(0)
+    expect(container.querySelectorAll('a')).toHaveLength(0)
+    expect(screen.getByText(READY_TITLE)).toBeInTheDocument()
   })
 })
 
@@ -161,7 +157,7 @@ describe('users WITH leads keep the existing experience exactly', () => {
     expect(await screen.findByTestId('briefing-cards')).toBeInTheDocument()
     expect(screen.getByText('שאלות מהירות')).toBeInTheDocument()
     expect(screen.getByPlaceholderText(COMPOSER)).toBeInTheDocument()
-    expect(screen.queryByText('עדיין אין לך לידים')).not.toBeInTheDocument()
+    expect(screen.queryByText(READY_TITLE)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'צור ליד' })).not.toBeInTheDocument()
   })
 })
@@ -174,7 +170,7 @@ describe('ENTITLEMENT GUARD — production expired behaviour is unchanged', () =
     expect(await screen.findByTestId('expired-panel')).toBeInTheDocument()
     // The availability change must not re-open the composer for a locked account.
     expect(screen.queryByPlaceholderText(COMPOSER)).not.toBeInTheDocument()
-    expect(screen.queryByText('עדיין אין לך לידים')).not.toBeInTheDocument()
+    expect(screen.queryByText(READY_TITLE)).not.toBeInTheDocument()
   })
 
   it('server-locked never renders a second, inline copy of the expired state', async () => {
