@@ -201,6 +201,127 @@ function realOneTimePayload(directDebitId: unknown): Record<string, unknown> {
   }
 }
 
+/* ------------------------------------------------------------------------- *
+ * TEMPORARY DIAGNOSTIC LOGGING.
+ *
+ * The route now prints the values of the fields that feed classification,
+ * because two root-cause analyses were argued from the payload KEY list alone
+ * and the first was wrong. These assert the two things that matter about a
+ * diagnostic: it must change no decision, and it must leak nothing.
+ * ------------------------------------------------------------------------- */
+
+describe('diagnostic logging observes without deciding', () => {
+  const ROUTE = read('app/api/payments/grow/route.ts')
+
+  it('logs exactly the ten classification fields, and no others', () => {
+    const at = ROUTE.indexOf('const DIAGNOSTIC_FIELDS')
+    const list = ROUTE.slice(at, ROUTE.indexOf(']', at))
+    for (const f of [
+      'paymentType',
+      'transactionType',
+      'status',
+      'statusCode',
+      'asmachta',
+      'directDebitId',
+      'paymentsNum',
+      'allPaymentNum',
+      'firstPaymentSum',
+      'periodicalPaymentSum',
+    ]) {
+      expect(list, f).toContain(`'${f}'`)
+    }
+    expect(list.match(/'/g)!.length / 2).toBe(10)
+  })
+
+  it('never names a payer, an instrument, or the secret', () => {
+    const at = ROUTE.indexOf('const DIAGNOSTIC_FIELDS')
+    const region = ROUTE.slice(at, ROUTE.indexOf('// 5. Required-fields gate', at))
+    for (const forbidden of [
+      'payerEmail',
+      'payerPhone',
+      'fullName',
+      'ip',
+      'cardSuffix',
+      'cardBin',
+      'cardBrand',
+      'cardType',
+      'webhookKey',
+    ]) {
+      expect(region, forbidden).not.toContain(`'${forbidden}'`)
+    }
+  })
+
+  it('runs only after authentication, so a forged payload logs nothing', () => {
+    const authAt = ROUTE.indexOf("return new NextResponse('Unauthorized', { status: 401 })")
+    const logAt = ROUTE.indexOf("[GrowWebhook] classification fields:")
+    expect(authAt).toBeGreaterThan(-1)
+    expect(logAt).toBeGreaterThan(authAt)
+  })
+
+  it('the picker is pure: it reads the payload and writes nothing', () => {
+    const at = ROUTE.indexOf('function classificationFields')
+    const body = ROUTE.slice(at, ROUTE.indexOf('\n}', at))
+    expect(body).not.toMatch(/db\(|trx\(|insert|update|delete|await/)
+  })
+
+  it('the classifier and the recurrence test were not touched', () => {
+    const outcome = read('lib/payments/paymentOutcome.ts')
+    expect(outcome).toContain('export function isRecurringRun')
+    expect(outcome).toContain('export function classifyPaymentOutcome')
+    // the route must not re-implement either
+    expect(ROUTE).toContain('const outcome = classifyPaymentOutcome(body, payload)')
+    expect(ROUTE).toContain('const recurring = isRecurringRun(payload)')
+  })
+
+  /* --- behaviour parity: every decision path still lands where it did --- */
+
+  it('a confirmed success still grants', async () => {
+    const res = await POST(req(growBody({ statusCode: '2', status: 'שולם', externalId: 'tok' })))
+    expect(res.status).toBe(200)
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed charge still refuses', async () => {
+    const res = await POST(req(growBody({ statusCode: '4', status: 'נדחה', externalId: 'tok' })))
+    expect(await res.json()).toMatchObject({ granted: false, reason: 'not_success' })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('a pending charge still refuses', async () => {
+    const res = await POST(req(growBody({ status: 'pending', externalId: 'tok' })))
+    expect(await res.json()).toMatchObject({ granted: false, reason: 'pending' })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('unverifiable + recurring still refuses — the incident payload is unchanged', async () => {
+    const res = await POST(req({ err: '', status: '1', data: realOneTimePayload('778899') }))
+    expect(await res.json()).toMatchObject({ granted: false, reason: 'unverifiable' })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('an invalid secret is still 401, and never reaches the diagnostic', async () => {
+    const body = growBody({ statusCode: '2', externalId: 'tok' })
+    body.data.webhookKey = 'wrong-secret-value-of-the-same-shape'
+    const res = await POST(req(body))
+    expect(res.status).toBe(401)
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('idempotency is unchanged', async () => {
+    H.paymentsInsert.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }))
+    const res = await POST(req(growBody({ statusCode: '2', externalId: 'tok' })))
+    expect(await res.json()).toMatchObject({ duplicate: true })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('writes no database record on account of the diagnostic', async () => {
+    await POST(req({ err: '', status: '1', data: realOneTimePayload('778899') }))
+    // a refused charge touches nothing at all
+    expect(H.paymentsInsert).not.toHaveBeenCalled()
+    expect(H.pendingUpdate).not.toHaveBeenCalled()
+  })
+})
+
 describe('the real one-time Payment Link is not a standing order', () => {
   /** Whatever placeholder Grow used, none of these may read as an identifier. */
   it.each([0, '0', '', null, undefined, false, '-1', 'null'])(

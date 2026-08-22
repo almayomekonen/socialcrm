@@ -13,6 +13,46 @@ import { classifyPaymentOutcome, isRecurringRun } from '@/lib/payments/paymentOu
 
 const PG_UNIQUE_VIOLATION = '23505'
 
+/**
+ * TEMPORARY DIAGNOSTIC — REMOVE ONCE THE RECURRING CLASSIFICATION IS SETTLED.
+ *
+ * WHY THIS EXISTS. Transaction GvNe/kVpyRfBqOuIks4kXA== was the FIRST charge of
+ * a monthly הוראת קבע subscription. It was refused as
+ * `unverifiable + recurring`, and we could not tell whether that verdict was
+ * right, because the handler only ever logged payload KEYS. Two separate
+ * root-cause analyses were argued from the key list alone; the first was wrong.
+ * Values are the missing evidence, and guessing at them has already cost a
+ * wrong diagnosis and a wrong fix.
+ *
+ * WHAT IS SAFE TO LOG. Only the fields that feed the classification decision.
+ * Everything identifying the payer or the instrument is deliberately absent:
+ * payerEmail, payerPhone, fullName, ip, cardSuffix, cardBin, cardBrand,
+ * cardType — and webhookKey, which is the shared secret. `asmachta` is the
+ * acquirer approval number, not a card or personal identifier.
+ *
+ * THIS DECIDES NOTHING. It reads values and prints them. The classification,
+ * the entitlement path and the response are computed exactly as before, and no
+ * database record is written on account of it.
+ */
+const DIAGNOSTIC_FIELDS = [
+  'paymentType',
+  'transactionType',
+  'status',
+  'statusCode',
+  'asmachta',
+  'directDebitId',
+  'paymentsNum',
+  'allPaymentNum',
+  'firstPaymentSum',
+  'periodicalPaymentSum',
+] as const
+
+function classificationFields(payload: any): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const k of DIAGNOSTIC_FIELDS) out[k] = payload?.[k]
+  return out
+}
+
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
 
@@ -143,6 +183,10 @@ export async function POST(req: NextRequest) {
     transactionId,
     externalId,
   })
+
+  // TEMPORARY DIAGNOSTIC. Authenticated requests only — a forged payload never
+  // reaches this line. See classificationFields for what is and is not logged.
+  console.log('[GrowWebhook] classification fields:', classificationFields(payload))
 
   // 5. Required-fields gate.
   // Required-fields gate. transactionId is non-negotiable (idempotency key
