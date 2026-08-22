@@ -11,7 +11,10 @@
 // No secrets are printed: the fake webhook secret is a local constant.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import fs from 'node:fs'
 import { classifyPaymentOutcome, isRecurringRun } from '@/lib/payments/paymentOutcome'
+
+const read = (p: string) => fs.readFileSync(p, 'utf8')
 
 const SECRET = 'test-only-webhook-secret-not-a-real-value'
 const AGENCY_ID = 4242
@@ -148,6 +151,100 @@ describe('classifier — evidence-based, never invents Grow codes', () => {
     expect(isRecurringRun({ directDebitId: '55' })).toBe(true)
     expect(isRecurringRun({ regular_payment_id: '9' })).toBe(true)
     expect(isRecurringRun({ transactionId: 'x' })).toBe(false)
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * THE REAL ONE-TIME PAYMENT LINK PAYLOAD.
+ *
+ * Transaction GvNe/kVpyRfBqOuIks4kXA==, agency 103, a genuine ₪1 charge. The
+ * webhook authenticated and was then REFUSED: the payload carries no status
+ * field (correctly `unverifiable`) and a placeholder `directDebitId` flipped it
+ * to `recurring`, so `unverifiable && recurring` denied a payment already taken.
+ *
+ * These keys are copied verbatim from the production log. Grow emits its full
+ * PaymentLinks envelope every time and fills inapplicable fields with
+ * placeholders, so NO presence test on any of them can tell one-time from
+ * recurring — only the value can.
+ * ------------------------------------------------------------------------- */
+
+/** The 26 keys Grow actually sent, with the recurrence field overridable. */
+function realOneTimePayload(directDebitId: unknown): Record<string, unknown> {
+  return {
+    webhookKey: SECRET,
+    identifyParam: '',
+    transactionCode: 'GvNe/kVpyRfBqOuIks4kXA==',
+    transactionType: 'signle',
+    paymentSum: 1,
+    paymentsNum: 0,
+    allPaymentNum: 1,
+    firstPaymentSum: 0,
+    periodicalPaymentSum: 0,
+    paymentType: 'authorize',
+    paymentDate: '22/08/26',
+    asmachta: '0000000',
+    paymentDesc: 'SocialCRM Pro',
+    fullName: 'Test Payer',
+    payerPhone: '0500000000',
+    payerEmail: 'alamayo274@gmail.com',
+    cardSuffix: '0000',
+    cardBrand: 'Visa',
+    cardType: 'Local',
+    cardBin: '000000',
+    paymentSource: 'PaymentLink',
+    ip: '0.0.0.0',
+    invoiceURL: '',
+    invoiceName: '',
+    invoiceLicenseNumber: '',
+    directDebitId,
+    transactionId: 'GvNe/kVpyRfBqOuIks4kXA==',
+  }
+}
+
+describe('the real one-time Payment Link is not a standing order', () => {
+  /** Whatever placeholder Grow used, none of these may read as an identifier. */
+  it.each([0, '0', '', null, undefined, false, '-1', 'null'])(
+    'directDebitId placeholder %p is not a recurrence signal',
+    (v) => {
+      expect(isRecurringRun(realOneTimePayload(v))).toBe(false)
+    },
+  )
+
+  it('classifies the real payload as unverifiable, because Grow sends no status', () => {
+    expect(classifyPaymentOutcome({ err: '' }, realOneTimePayload(0))).toBe('unverifiable')
+  })
+
+  /** The exact combination that refused the customer. */
+  it('unverifiable + one-time now takes the compatibility path and grants', async () => {
+    const res = await POST(req({ err: '', status: '1', data: realOneTimePayload(0) }))
+    expect(res.status).toBe(200)
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('a genuine recurring identifier is still recurring', () => {
+    expect(isRecurringRun(realOneTimePayload('778899'))).toBe(true)
+    expect(isRecurringRun(realOneTimePayload(778899))).toBe(true)
+    expect(isRecurringRun({ regular_payment_id: '55' })).toBe(true)
+    expect(isRecurringRun({ regularPaymentId: 'abc-123' })).toBe(true)
+    expect(isRecurringRun({ recurringDebitId: 'x1' })).toBe(true)
+  })
+
+  /** The Phase 1 boundary is untouched: an unproven recurring run still fails closed. */
+  it('unverifiable + genuine recurring still refuses', async () => {
+    const res = await POST(req({ err: '', status: '1', data: realOneTimePayload('778899') }))
+    expect(await res.json()).toMatchObject({ granted: false, reason: 'unverifiable' })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('a FAILED recurring run still refuses, placeholder or not', async () => {
+    await POST(req({ err: '', status: '1', data: { ...realOneTimePayload('778899'), statusCode: '5' } }))
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('the fix reads the value, never the key', () => {
+    const src = read('lib/payments/paymentOutcome.ts')
+    expect(src).toContain('function hasRecurringIdentifier')
+    expect(src).not.toContain("return typeof v === 'string' ? v.trim() !== '' : v != null")
   })
 })
 

@@ -119,19 +119,50 @@ function text(v: unknown): string {
 }
 
 /**
+ * Values that mean "this field is present but holds no identifier".
+ *
+ * PROVEN NECESSARY BY A REAL PAYMENT. Transaction `GvNe/kVpyRfBqOuIks4kXA==`
+ * was a one-time Payment Link charge, and its payload still contained
+ * `directDebitId` — alongside `periodicalPaymentSum`, `paymentsNum`,
+ * `allPaymentNum` and `firstPaymentSum`. Grow emits its FULL PaymentLinks
+ * envelope on every transaction and fills the inapplicable fields with
+ * placeholders, so the presence of a key says nothing at all about recurrence.
+ *
+ * The list is deliberately conservative: only values that cannot be a real Grow
+ * identifier. That keeps the failure mode safe. If Grow ever uses a placeholder
+ * spelling not listed here, the payload is still read as recurring and the
+ * charge is still REFUSED — unfixed, never wrongly granted. Widening this list
+ * is the direction that could hand a grant to a failed standing order, so it
+ * must never grow to cover anything that might be a genuine id.
+ */
+function hasRecurringIdentifier(v: unknown): boolean {
+  if (v == null) return false
+  if (typeof v === 'boolean') return v
+  const s = String(v).trim().toLowerCase()
+  if (s === '' || s === '0' || s === 'null' || s === 'undefined' || s === 'false' || s === '-1') return false
+  return true
+}
+
+/**
  * Does this payload look like a standing-order (הוראת קבע) run rather than a
  * one-time payment? Keyed on the recurring identifiers Grow's webhook docs list
  * — `directDebitId` on a recurring charge, `regular_payment_id` on a failed one.
+ *
+ * IT IS THE VALUE THAT CARRIES THE SIGNAL, NOT THE KEY.
+ *
+ * This used to return true whenever one of these keys existed with any non-null
+ * value. That refused a real customer's successful one-time payment: the charge
+ * classified as `unverifiable` (Grow's PaymentLinks payload carries no status
+ * field at all, which is exactly why the one-time path is permissive) and then
+ * the presence of a placeholder `directDebitId` flipped it to `recurring`, so
+ * the `unverifiable && recurring` rule denied a payment that had been taken.
  *
  * Read-only classification. This phase stores none of these fields.
  */
 export function isRecurringRun(payload: Record<string, unknown> | null | undefined): boolean {
   if (!payload || typeof payload !== 'object') return false
   return ['directDebitId', 'direct_debit_id', 'regular_payment_id', 'regularPaymentId', 'recurringDebitId'].some(
-    (k) => {
-      const v = (payload as Record<string, unknown>)[k]
-      return typeof v === 'string' ? v.trim() !== '' : v != null
-    },
+    (k) => hasRecurringIdentifier((payload as Record<string, unknown>)[k]),
   )
 }
 
