@@ -14,6 +14,8 @@ import type { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 import DuplicateLeadBanner from '@/components/clients/DuplicateLeadBanner'
 import BottomSheet from '@/components/mobile/BottomSheet'
 import QuotaPaywallMobile from './QuotaPaywallMobile'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
 const DUPLICATE_CHECK_DEBOUNCE_MS = 400
 const CONTACT_FIELDS = ['firstName', 'lastName', 'idNum', 'phone', 'secPhone', 'email'] as const
@@ -43,6 +45,7 @@ export default function LeadFormMobile({
   const user = useUser()
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
+  const expired = useAccessDenied()
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([])
   const [dupDismissed, setDupDismissed] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -132,6 +135,22 @@ export default function LeadFormMobile({
             {errMsg}
           </p>
         )}
+        {/*
+          CREATING a lead is Tier 2 (`upsertLead` escalates to
+          `requireProductAccess()` on its create branch); EDITING one is Tier 1
+          and stays free. The server refuses correctly, but `upsertLead` catches
+          that refusal alongside every other failure and returns the generic
+          `{ err: true, msg: 'שגיאה בשמירת לקוח' }`, so an expired customer was
+          told their lead failed to save rather than that creating leads needs a
+          subscription — and was invited to retry something that cannot succeed.
+
+          Refusing here is the pattern desktop already uses (`ClientFormPop`):
+          same component, same `source='create_lead'`, same copy. The doomed
+          request is never sent, and no new entitlement mechanism is introduced.
+        */}
+        {expired ? (
+          <SubscriptionExpiredState mode='panel' source='create_lead' feature='חידוש המנוי מחזיר את הוספת הלידים.' />
+        ) : (
         <form aria-label='הוסף ליד' className='flex flex-col gap-3' onSubmit={onSubmit}>
           <input type='hidden' name='userId' value={user.id} />
           <input type='hidden' name='lead' value='true' />
@@ -207,6 +226,7 @@ export default function LeadFormMobile({
             {saving ? 'שומר...' : 'הוסף ליד'}
           </button>
         </form>
+        )}
       </BottomSheet>
       <QuotaPaywallMobile state={paywall} onClose={() => setPaywall(null)} />
     </>

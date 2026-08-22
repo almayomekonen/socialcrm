@@ -83,19 +83,39 @@ export async function getMobileLeadList(
   const { gotPermIds } = await getPerms(user as any)
   const settings = await getDefaultSettings(user.id)
 
-  const raw = await getLeadsTable({
+  const query = {
     user,
-    params: { pageNum: page, tableLimit: MOBILE_LEAD_PAGE_SIZE + 1 },
     leads: true,
     gotPermIds,
     settings,
     filters: { q: filters.q || undefined, status: filters.status.length ? filters.status : undefined },
-  })
+  }
 
+  /**
+   * OFFSET CORRECTNESS. `getLeadsTable` computes `offset = (pageNum - 1) * tableLimit`
+   * (db/clients.ts). Asking it for `PAGE_SIZE + 1` rows as a "has more" probe
+   * therefore also WIDENED the stride: batch 2 started at offset 31 while batch 1
+   * had only shown 30, so exactly one lead was skipped at every boundary and was
+   * unreachable from the phone. The probe must not decide the stride.
+   *
+   * Rows use the true page size, so the offset is `(page - 1) * PAGE_SIZE`.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const all = (raw as any[]) ?? []
-  const hasMore = all.length > MOBILE_LEAD_PAGE_SIZE
-  return { rows: all.slice(0, MOBILE_LEAD_PAGE_SIZE).map(toMobileRow), hasMore, page }
+  const rows = ((await getLeadsTable({ ...query, params: { pageNum: page, tableLimit: MOBILE_LEAD_PAGE_SIZE } })) as any[]) ?? []
+
+  /**
+   * "Is there anything after this batch?" as a LIMIT 1 look-ahead. With the same
+   * arithmetic, `pageNum = page * PAGE_SIZE + 1` and `tableLimit = 1` lands the
+   * offset exactly on the first row AFTER this batch — one cheap row, and the
+   * stride stays correct because it is a separate query.
+   */
+  const lookahead =
+    rows.length < MOBILE_LEAD_PAGE_SIZE
+      ? [] // a short batch is already the end; no probe needed
+      : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (((await getLeadsTable({ ...query, params: { pageNum: page * MOBILE_LEAD_PAGE_SIZE + 1, tableLimit: 1 } })) as any[]) ?? [])
+
+  return { rows: rows.map(toMobileRow), hasMore: lookahead.length > 0, page }
 }
 
 /** Does this workspace have any leads at all? Distinguishes empty from filtered-empty. */

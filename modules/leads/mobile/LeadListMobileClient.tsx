@@ -19,7 +19,7 @@ import { deleteManyLeads } from '@/actions/clients'
 import { deleteLeadsMessage } from '@/lib/leads/deleteResult'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
-import { leadsHref, type LeadFilters } from '@/modules/leads/filters'
+import { type LeadFilters } from '@/modules/leads/filters'
 import LeadFilterBar from './LeadFilterBar'
 import LeadCardMobile from './LeadCardMobile'
 import LeadStatusSheet from './LeadStatusSheet'
@@ -28,6 +28,8 @@ import LeadListActionsSheet from './LeadListActionsSheet'
 import LeadListAddControl from './LeadListAddControl'
 import { LeadSelectionActions, LeadSelectionHeader } from './LeadSelectionBar'
 import { followUpBadge } from './followUpBadge'
+import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
+import { loadMoreMobileLeads } from '@/actions/leads/loadMoreMobileLeads'
 import { patchLead, removeSelectedLeads, restoreLeads, type LeadListCard } from './leadSelection'
 
 export default function LeadListMobileClient({
@@ -47,11 +49,65 @@ export default function LeadListMobileClient({
 }) {
   const router = useRouter()
   const [items, setItems] = useState(initialCards)
+  /**
+   * BATCH LOADING, NOT PAGE SWITCHING. `/leads` on a phone used `?page=`, which
+   * REPLACED the visible list: reaching lead 31 meant losing leads 1-30 and the
+   * scroll position. Batches accumulate here instead — the server still renders
+   * batch 1, and every later batch is appended.
+   */
+  const [batch, setBatch] = useState(page)
+  const [more, setMore] = useState(hasMore)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadingRef = useRef(false)
+  /**
+   * Identifies WHICH result set a batch belongs to. A request started before the
+   * user changed the search is still in flight when the new first batch renders;
+   * without this its rows would be appended to a list they do not belong to.
+   */
+  const requestKeyRef = useRef('')
   const [sel, setSel] = useState<SelectionState>(emptySelection)
   const [busy, setBusy] = useState(false)
   const pendingRef = useRef(0)
   const itemsRef = useRef(items)
   itemsRef.current = items
+
+  /**
+   * `loadingRef` — not `loadingMore` — is the duplicate guard: state updates are
+   * async, so two taps in the same tick would both see `loadingMore === false`
+   * and fire two identical requests.
+   */
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !more) return
+    loadingRef.current = true
+    setLoadingMore(true)
+    const startedFor = `${filters.q}|${filters.status.join(',')}`
+    requestKeyRef.current = startedFor
+    try {
+      const next = await loadMoreMobileLeads(filters, batch + 1)
+      // Filters changed while this was in flight — discard, do not append.
+      if (requestKeyRef.current !== startedFor) return
+      // Stamp badges from the SERVER's clock (`nowMs`), never a fresh client
+      // read — the same rule the first batch follows (architecture-rules.md §11).
+      const cards = next.rows.map((lead) => ({
+        ...lead,
+        followUp: followUpBadge(lead.nextFollowUpAt, nowMs, dayStartMs),
+        recency: relativeTimeHe(lead.lastActivityAt ?? lead.createdAt, nowMs),
+      }))
+      // De-duplicate defensively: a lead created between batches could otherwise
+      // appear twice and collide on its React key.
+      setItems((prev) => {
+        const seen = new Set(prev.map((r) => r.id))
+        return [...prev, ...cards.filter((c) => !seen.has(c.id))]
+      })
+      setBatch(next.page)
+      setMore(next.hasMore)
+    } catch {
+      toast('error', 'לא הצלחנו לטעון עוד לידים')
+    } finally {
+      loadingRef.current = false
+      setLoadingMore(false)
+    }
+  }, [batch, dayStartMs, filters, more, nowMs])
 
   const selecting = isSelecting(sel)
   const selected = sel.ids
@@ -60,7 +116,17 @@ export default function LeadListMobileClient({
   useEffect(() => {
     if (pendingRef.current > 0) return
     setItems(initialCards)
-  }, [initialCards])
+    /**
+     * Reset the batch cursor WITH the list. A new search re-renders batch 1 from
+     * the server; leaving `batch` at 3 would make the next "טען עוד" ask for
+     * batch 4 of the NEW result set and silently skip its batches 2-3, and a
+     * stale `more` would keep offering the button on an exhausted list.
+     * Invalidating `requestKeyRef` also drops any batch still in flight.
+     */
+    setBatch(page)
+    setMore(hasMore)
+    requestKeyRef.current = `${filters.q}|${filters.status.join(',')}`
+  }, [initialCards, page, hasMore, filters.q, filters.status])
 
   useEffect(() => {
     setSel(emptySelection())
@@ -168,15 +234,29 @@ export default function LeadListMobileClient({
             </ul>
           </div>
 
-          {!selecting && (
-            <div className='flex items-center justify-between gap-3 px-4 py-4'>
-              {page > 1 ? (
-                <PageLink filters={filters} page={page - 1} label='הקודם' />
-              ) : (
-                <span aria-hidden className='min-h-11' />
-              )}
-              <span className='text-[12px] tabular-nums text-gray-400'>{`עמוד ${page}`}</span>
-              {hasMore ? <PageLink filters={filters} page={page + 1} label='הבא' /> : <span aria-hidden className='min-h-11' />}
+          {/*
+            One control, and it only exists while there IS a next batch — when
+            the list is exhausted it disappears rather than becoming a dead
+            "עמוד N" with nowhere to go.
+          */}
+          {!selecting && more && (
+            <div className='px-4 py-4'>
+              <button
+                type='button'
+                onClick={loadMore}
+                disabled={loadingMore}
+                aria-busy={loadingMore}
+                className='press flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white text-sm font-medium text-gray-800 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              >
+                {loadingMore ? (
+                  <>
+                    <Icon name='spinner' type='sol' aria-hidden className='size-4 animate-spin bg-gray-500' />
+                    טוען…
+                  </>
+                ) : (
+                  'טען עוד'
+                )}
+              </button>
             </div>
           )}
         </>
@@ -257,18 +337,6 @@ export default function LeadListMobileClient({
 
       <LeadListAddControl selecting={selecting} />
     </div>
-  )
-}
-
-function PageLink({ filters, page, label }: { filters: LeadFilters; page: number; label: string }) {
-  const href = `${leadsHref(filters)}${leadsHref(filters).includes('?') ? '&' : '?'}page=${page}`
-  return (
-    <Link
-      href={href as Route}
-      className='flex min-h-11 items-center rounded-md border border-gray-200 bg-white px-4 text-[14px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-    >
-      {label}
-    </Link>
   )
 }
 
