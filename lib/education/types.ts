@@ -81,6 +81,13 @@ export type EligibilityContext = {
   firstLeadActive: boolean
   pathname: string
   force?: boolean
+  /**
+   * WHO ASKED. `force` alone says a completion record may be bypassed; it does
+   * not say whether a human asked. Only `'help'` is a direct, deliberate
+   * request from the customer — every other source is the product deciding for
+   * them, and stays subject to `toursEnabled`. See isTourEligible.
+   */
+  source?: TourStartSource
   record?: TourRecord
 }
 

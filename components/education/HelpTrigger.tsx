@@ -4,9 +4,32 @@ import Icon from '@/lib/Icon'
 import { HELP_TRIGGER_EDU } from '@/lib/education'
 import { useEducation } from './EducationProvider'
 
+/**
+ * HELP IS NOT A TOUR, AND ITS VISIBILITY IS NOT TOUR ELIGIBILITY.
+ *
+ * This used to read `toursEnabled`, which conflated two unrelated questions:
+ * "may a guided tour auto-run?" and "can the customer ask for help?". When
+ * `productAccess.hasAccess` was added to `toursEnabled` — correctly, to stop a
+ * tour auto-opening on top of the paywall and standing between a lapsed
+ * customer and the renewal path — the Help button silently vanished with it.
+ * The customer least able to self-serve lost the way to ask.
+ *
+ * `surface` is the honest condition: Help is a desktop affordance, and that is
+ * the whole of it. Mobile is unchanged — it has never had this button, and
+ * `surface` is 'mobile' for the mobile workspace.
+ *
+ * This cannot resurrect the button where it does not belong. The Topbar that
+ * renders it is only reachable on the branch where the real workspace renders,
+ * which already excludes NEVER_STARTED, trialExpired and the mobile workspace —
+ * three of the four terms `toursEnabled` carries. The single term this drops in
+ * practice is `hasAccess`, which is exactly the coupling being undone.
+ *
+ * `toursEnabled` is untouched and still governs every auto-run path, so no tour
+ * starts merely because this button exists.
+ */
 export default function HelpTrigger() {
-  const { openHelp, helpOpen, toursEnabled, surface } = useEducation()
-  if (!toursEnabled || surface !== 'desktop') return null
+  const { openHelp, helpOpen, surface } = useEducation()
+  if (surface !== 'desktop') return null
 
   return (
     <button

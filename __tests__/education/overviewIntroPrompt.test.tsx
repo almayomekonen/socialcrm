@@ -186,7 +186,12 @@ describe('first-time Help spotlight invitation', () => {
     expect(mockedRunTour.mock.calls[0]?.[0]).toMatchObject({ id: 'overview', version: overview.version })
   })
 
-  it('does not invite while the trial is NEVER_STARTED', async () => {
+  /**
+   * The invitation is tour behaviour and stays gated. The Help BUTTON is not:
+   * its visibility was decoupled from `toursEnabled`, because a customer who
+   * cannot be toured is exactly the one who may need to ask for help.
+   */
+  it('does not invite when tours are disabled, but still offers Help', async () => {
     seedEligible()
     render(
       <EducationMount userId={USER_ID} surface='desktop' copilotEnabled toursEnabled={false}>
@@ -194,7 +199,7 @@ describe('first-time Help spotlight invitation', () => {
       </EducationMount>,
     )
     await expectNoInvitation()
-    expect(screen.queryByRole('button', { name: 'עזרה' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'עזרה' })).toBeTruthy()
     expect(mockedRunTour).not.toHaveBeenCalled()
   })
 

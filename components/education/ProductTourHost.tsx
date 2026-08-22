@@ -37,19 +37,35 @@ export default function ProductTourHost() {
   const queryLaunchKey = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!toursEnabled || justActivated) return
+    // Deferred, not consumed: the activation celebration owns the screen, so the
+    // param is left intact and this runs again once it clears.
+    if (justActivated) return
     if (!isTourId(tourParam)) return
     const key = `${tourParam}:${fromParam ?? ''}`
     if (queryLaunchKey.current === key) return
     queryLaunchKey.current = key
-    settleOverviewIntro()
-    const source = fromParam === 'copilot' ? 'copilot' : 'query'
-    startTour(tourParam, { force: true, source })
+
+    /**
+     * THE URL IS CLEANED WHETHER OR NOT THE TOUR RUNS.
+     *
+     * The cleanup used to sit after the `toursEnabled` guard, so a session that
+     * could not be toured returned before reaching it and `?tour=pipeline` stuck
+     * to the URL permanently — bookmarkable, shareable, and never resolving. The
+     * param is a one-shot instruction: once this effect has consumed it, it is
+     * spent regardless of the answer.
+     */
     const next = new URLSearchParams(window.location.search)
     next.delete('tour')
     if (fromParam === 'copilot') next.delete('from')
     const qs = next.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+
+    // The LAUNCH stays gated. A query-param tour is the product starting
+    // something by itself, so it is not the Help exemption and fails closed.
+    if (!toursEnabled) return
+    settleOverviewIntro()
+    const source = fromParam === 'copilot' ? 'copilot' : 'query'
+    startTour(tourParam, { force: true, source })
   }, [fromParam, justActivated, pathname, router, settleOverviewIntro, startTour, tourParam, toursEnabled])
 
   useEffect(() => {

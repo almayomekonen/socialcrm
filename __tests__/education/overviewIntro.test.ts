@@ -80,14 +80,29 @@ describe('overview intro record', () => {
 describe('invitation wiring', () => {
   it('reuses the existing workspace gate and does not add a second tour host', () => {
     const layout = readFileSync('app/(app)/layout.tsx', 'utf8')
-    expect(layout).toContain("toursEnabled={!trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace}")
+    /**
+     * `toursEnabled` is TOUR ELIGIBILITY. It gained `productAccess.hasAccess`
+     * so a tour can never auto-open on top of the paywall, where it stood
+     * between a lapsed customer and the renewal path. It is asserted here to
+     * keep that term, and to keep it dedicated to tours — the Help button's
+     * visibility must NOT be derived from it.
+     */
+    expect(layout).toContain(
+      "productAccess.hasAccess && !trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace",
+    )
     expect(layout).toContain('isOnboarded')
     expect(layout).toContain('ProActivationSuccess')
     expect(layout).toContain('WelcomeTrialModal')
 
     const mount = readFileSync('components/education/EducationMount.tsx', 'utf8')
-    expect(mount).toContain("toursEnabled && surface === 'desktop'")
+    // The host renders HelpMenu, so it mounts wherever the Help button can be
+    // pressed — not only where tours may run. Auto-run stays gated inside it.
+    expect(mount).toContain("surface === 'desktop' ? (")
+    expect(mount).not.toContain("toursEnabled && surface === 'desktop'")
     expect(mount).toContain('ProductTourHost')
+
+    const tourHost = readFileSync('components/education/ProductTourHost.tsx', 'utf8')
+    expect(tourHost.match(/if \(!toursEnabled/g)?.length).toBeGreaterThanOrEqual(3)
 
     const host = readFileSync('components/education/ProductTourHost.tsx', 'utf8')
     expect(host).not.toContain('OverviewIntroPrompt')

@@ -113,7 +113,15 @@ export function EducationProvider({
       if (!def) return
       const state = readState(userId)
       const firstLeadActive = isAnyFirstLeadFlowActive()
-      const source: TourStartSource = opts?.source ?? (opts?.force ? 'help' : 'auto')
+      /**
+       * `'help'` is now an EXEMPTION from the auto-run gate, so it must be
+       * claimed explicitly and never inferred. The old default read
+       * `opts?.force ? 'help' : 'auto'`, which would have handed the exemption
+       * to any future caller that passed `force` without saying who asked.
+       * Every current caller passes its source, so this changes nothing today —
+       * it stops the hole from opening later.
+       */
+      const source: TourStartSource = opts?.source ?? 'auto'
       const eligible = isTourEligible(def, {
         surface,
         toursEnabled,
@@ -121,6 +129,9 @@ export function EducationProvider({
         firstLeadActive,
         pathname: typeof window === 'undefined' ? '' : window.location.pathname,
         force: opts?.force,
+        // Carries WHO asked, so an explicit Help request can be told apart from
+        // the product starting a tour by itself. See isTourEligible.
+        source,
         record: state.tours[id],
       })
       if (!eligible) return
