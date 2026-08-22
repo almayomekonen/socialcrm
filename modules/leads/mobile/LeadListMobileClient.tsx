@@ -205,7 +205,24 @@ export default function LeadListMobileClient({
   const followUpOpen = sel.action?.type === 'followup'
 
   return (
-    <div className='flex min-h-full flex-col'>
+    /*
+      `shrink-0` is load-bearing, not cosmetic.
+
+      `#main-content` is the single scroll owner and is `display:flex;
+      flex-direction:column`, so this div is a flex item. Flex items default to
+      `min-height:auto`, which is what normally stops them shrinking below their
+      content and lets a tall list grow the scroller. `min-h-full` REPLACES that
+      with `min-height:100%`, so the item became shrinkable and `flex-shrink:1`
+      collapsed it to exactly the viewport height — `scrollHeight` never exceeded
+      `clientHeight` and the list simply could not be scrolled, no matter how
+      many batches were appended.
+
+      Measured in a real browser at 390x844: 30 cards (~2130px of content) left
+      the child clamped at 844px and unscrollable; with `shrink-0` it measures
+      2130px and scrolls. `min-h-full` is kept so a short/empty list still fills
+      the screen.
+    */
+    <div className='flex min-h-full shrink-0 flex-col'>
       {selecting ? (
         <LeadSelectionHeader count={count} busy={busy} onCancel={exit} />
       ) : (

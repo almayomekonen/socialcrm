@@ -228,6 +228,27 @@ describe('filter changes invalidate accumulated batch state', () => {
   })
 })
 
+describe('the list can actually be scrolled', () => {
+  it('LM-16: the root stays shrink-0 so appended batches grow the scroller', () => {
+    /*
+      Layout cannot be asserted in jsdom, so this pins the CLASS that was
+      measured in a real browser. `#main-content` is a flex column and the single
+      scroll owner; `min-h-full` overrides a flex item's default
+      `min-height:auto`, which lets `flex-shrink:1` collapse this div to the
+      viewport height. At 390x844 with 30 cards the child measured 844px and was
+      unscrollable; with `shrink-0` it measured 2130px and scrolled.
+    */
+    const src = readFileSync(join(process.cwd(), 'modules/leads/mobile/LeadListMobileClient.tsx'), 'utf8')
+    expect(src).toContain("className='flex min-h-full shrink-0 flex-col'")
+  })
+
+  it('LM-17: no second scroll container is introduced inside the list', () => {
+    const src = readFileSync(join(process.cwd(), 'modules/leads/mobile/LeadListMobileClient.tsx'), 'utf8')
+    expect(src).not.toContain('overflow-y-auto')
+    expect(src).not.toContain('overflow-y-scroll')
+  })
+})
+
 describe('the query stride is correct (the skipped-lead bug)', () => {
   const src = readFileSync(join(process.cwd(), 'modules/leads/queries.ts'), 'utf8')
 
