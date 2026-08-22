@@ -6,6 +6,8 @@ import BottomSheet from '@/components/mobile/BottomSheet'
 import { toast } from '@/lib/toast'
 import { setLeadFollowUp, clearLeadFollowUp } from '@/actions/leadFollowUp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { daysFromNow, formatDate } from '@/lib/dates'
 
 /**
@@ -49,6 +51,7 @@ export default function LeadFollowUpSheet({
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const accessDenied = useAccessDenied()
   const [note, setNote] = useState('')
   const [custom, setCustom] = useState(false)
 
@@ -60,9 +63,28 @@ export default function LeadFollowUpSheet({
     if (refresh) router.refresh()
   }
 
+  /**
+   * TIER 2 — scheduling a follow-up is gated (`leadFollowUp.ts` guards with
+   * `requireProductAccess`, which THROWS). Unlike outcome and status, which are
+   * Tier 1 and stay free, this action genuinely is withheld when a subscription
+   * lapses, so the sheet shows the compact locked state instead of the controls.
+   *
+   * The catches below are still required as a MID-SESSION backstop: the server
+   * is authoritative and entitlement can lapse while this client still believes
+   * it has access. Without them the throw rejects unhandled inside
+   * `startTransition` and React reports "Minified React error #441".
+   */
+  const denied = (fallback: string) =>
+    toast('error', accessDenied ? 'חידוש המנוי מחזיר את קביעת המעקב' : fallback)
+
   const apply = (at: Date) => {
     startTransition(async () => {
-      const res = await setLeadFollowUp({ id: leadId, at: at.toISOString(), note: note.trim() || null })
+      let res: Awaited<ReturnType<typeof setLeadFollowUp>>
+      try {
+        res = await setLeadFollowUp({ id: leadId, at: at.toISOString(), note: note.trim() || null })
+      } catch {
+        return denied('לא הצלחנו לקבוע את המעקב')
+      }
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'follow_up', leadId }).catch(() => {})
       toast('success', `נקבע מעקב ל־${formatDate(at)}`)
@@ -72,7 +94,12 @@ export default function LeadFollowUpSheet({
 
   const clear = () => {
     startTransition(async () => {
-      const res = await clearLeadFollowUp({ id: leadId })
+      let res: Awaited<ReturnType<typeof clearLeadFollowUp>>
+      try {
+        res = await clearLeadFollowUp({ id: leadId })
+      } catch {
+        return denied('לא הצלחנו להסיר את המעקב')
+      }
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'follow_up', leadId }).catch(() => {})
       toast('success', 'המעקב הוסר')
@@ -89,6 +116,9 @@ export default function LeadFollowUpSheet({
       }}
       title='מעקב'
     >
+      {accessDenied ? (
+        <SubscriptionExpiredState mode='inline' source='lead_followup_mobile' feature='חידוש המנוי מחזיר את קביעת המעקב' />
+      ) : (
       <div className='flex flex-col gap-2'>
         {current && (
           <p className='mb-1 text-[13px] text-gray-500'>{`מעקב נוכחי: ${formatDate(current)}`}</p>
@@ -152,6 +182,7 @@ export default function LeadFollowUpSheet({
           </button>
         )}
       </div>
+      )}
     </BottomSheet>
   )
 }

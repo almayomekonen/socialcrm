@@ -54,7 +54,22 @@ export default function LeadOutcomeSheet({
 
   const log = (o: (typeof OUTCOMES)[number]) => {
     startTransition(async () => {
-      const res = await logLeadOutcome({ id: leadId, outcome: o.outcome })
+      /**
+       * TIER 1 — recording an outcome is free (`leadOutcome.ts` guards with
+       * `requireBasicCrmAccess`), so there is deliberately NO entitlement
+       * pre-gate here: an expired customer keeps this action.
+       *
+       * The catch is a crash backstop, not a gate. `isErr(res)` only handles a
+       * RETURNED error; a Server Action that THROWS (a guard change, a genuine
+       * 500) would otherwise reject unhandled inside `startTransition` and React
+       * would report "Minified React error #441" instead of a message.
+       */
+      let res: Awaited<ReturnType<typeof logLeadOutcome>>
+      try {
+        res = await logLeadOutcome({ id: leadId, outcome: o.outcome })
+      } catch {
+        return toast('error', 'לא הצלחנו לשמור את התוצאה')
+      }
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'outcome', leadId }).catch(() => {})
       toast('success', outcomeToast(o.outcome, res as { nextFollowUpAt?: string | Date | null }))
