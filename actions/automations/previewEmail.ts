@@ -1,6 +1,6 @@
 'use server'
 
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { catalog, getAction } from '@/lib/automations/catalog/registry'
@@ -22,6 +22,15 @@ import type { PreviewResult } from '@/lib/automations/executors/types'
  * no claim, no activity row — so it is safe to call while typing.
  */
 
+/**
+ * TIER 2 READ. Renders from rows this agency already owns and sends nothing:
+ * the template is loaded from the database and the message or email is composed
+ * locally. Showing a customer what their automation WOULD do is the whole point
+ * of the teasing experience, so it stays available after a subscription lapses.
+ *
+ * Execution remains gated at the automation engine, and the admin and allowlist
+ * checks below are unchanged.
+ */
 export async function previewAutomationEmail(input: {
   subject: string
   body: string
@@ -29,7 +38,7 @@ export async function previewAutomationEmail(input: {
   ctaUrl?: string | null
   actionKey?: string
 }): Promise<PreviewResult> {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) return { ok: false, reason: 'not_available' }
 

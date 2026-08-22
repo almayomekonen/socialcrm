@@ -181,7 +181,11 @@ describe('5 — the dependency arrow points one way only', () => {
     const path = await import('node:path')
     const code = fs.readFileSync(path.join(process.cwd(), 'actions/automations/firstPartyOptions.ts'), 'utf8')
     expect(code).toContain("'use server'")
-    expect(code).toContain('requireProductAccess')
+    // Loading a parameter's options is a Tier 2 read: it resolves values from
+    // rows the agency already owns, calls no provider and sends nothing, so it
+    // is authenticated and tenant scoped rather than entitlement gated.
+    // Execution of the automation remains gated at the engine.
+    expect(code).toContain('requireBasicCrmAccess')
     // Closed-set check, and the tenant comes from the session — never the wire.
     expect(code).toContain('isFirstPartySource(optionSource)')
     expect(code).toContain('user.agencyId')

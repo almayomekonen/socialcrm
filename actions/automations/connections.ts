@@ -1,6 +1,6 @@
 'use server'
 
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import crypto from 'node:crypto'
 import { revalidatePath } from 'next/cache'
@@ -23,20 +23,41 @@ export type ConnectionsResult = { ok: true; connections: Connection[] } | { ok: 
 export type OptionsResult = { ok: true; options: ConnectionOption[] } | { ok: false; reason: string }
 export type SourcesResult = { ok: true; sources: Source[] } | { ok: false; reason: string }
 
+/**
+ * WRITES: provisioning, revoking, regenerating and renaming. Unchanged, and
+ * still behind the paid boundary.
+ */
 async function guard() {
   const user = await requireProductAccess()
   if (!isAdmin(user.role)) return null
   return user
 }
 
+/**
+ * READS: the four list actions below. Identical identity and admin check, no
+ * entitlement check.
+ *
+ * Listing connections, sources and option values reads rows this agency already
+ * owns; no provider is called, nothing is sent and nothing changes. They exist
+ * so a customer can open an automation and understand what it does, which is
+ * exactly the inspection an expired subscription should keep. Gating them meant
+ * the Builder showed empty pickers and inline failures for a plan state, which
+ * taught the customer nothing.
+ */
+async function readGuard() {
+  const user = await requireBasicCrmAccess()
+  if (!isAdmin(user.role)) return null
+  return user
+}
+
 export async function listConnectionsAction(): Promise<ConnectionsResult> {
-  const user = await guard()
+  const user = await readGuard()
   if (!user) return { ok: false, reason: 'forbidden' }
   return { ok: true, connections: await listAllConnections(user.agencyId) }
 }
 
 export async function listSourcesAction(connectionId: string): Promise<SourcesResult> {
-  const user = await guard()
+  const user = await readGuard()
   if (!user) return { ok: false, reason: 'forbidden' }
   const sources = await listSourcesFor(user.agencyId, connectionId)
   return { ok: true, sources: await applyCustomLabels(user.agencyId, connectionId, sources) }
@@ -44,7 +65,7 @@ export async function listSourcesAction(connectionId: string): Promise<SourcesRe
 
 /** Resolves an `enum_remote` parameter's options via the declared source key. */
 export async function listOptionsAction(connectionId: string, optionSource: string): Promise<OptionsResult> {
-  const user = await guard()
+  const user = await readGuard()
   if (!user) return { ok: false, reason: 'forbidden' }
   // The Builder's picker shows the names the BUSINESS gave its sources, not
   // the provider's. Same overlay as the Connections page — one implementation.
@@ -67,7 +88,7 @@ export async function listOptionsAction(connectionId: string, optionSource: stri
  * which it can only do by recognising an integration — exactly what Law 1 forbids.
  */
 export async function listOptionsForCapabilityAction(capability: string, optionSource: string): Promise<OptionsResult> {
-  const user = await guard()
+  const user = await readGuard()
   if (!user) return { ok: false, reason: 'forbidden' }
   const connections = await connectionsForCapability(user.agencyId, capability)
   const connection = connections[0]

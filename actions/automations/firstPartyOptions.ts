@@ -1,6 +1,6 @@
 'use server'
 
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { firstPartyOptionsFor, isFirstPartySource } from '@/lib/automations/firstPartyOptions'
@@ -30,10 +30,19 @@ import type { ConnectionOption } from '@/lib/automations/catalog/types'
 
 export type FirstPartyOptionsResult = { ok: true; options: ConnectionOption[] } | { ok: false; reason: string }
 
+/**
+ * TIER 2 READ. Renders from rows this agency already owns and sends nothing:
+ * the template is loaded from the database and the message or email is composed
+ * locally. Showing a customer what their automation WOULD do is the whole point
+ * of the teasing experience, so it stays available after a subscription lapses.
+ *
+ * Execution remains gated at the automation engine, and the admin and allowlist
+ * checks below are unchanged.
+ */
 export async function listFirstPartyOptionsAction(optionSource: string): Promise<FirstPartyOptionsResult> {
   // Same gate as `connections.ts`: the Builder is an admin surface, and this
   // action exists only to populate it.
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) return { ok: false, reason: 'not_available' }
 

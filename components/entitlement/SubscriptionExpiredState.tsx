@@ -1,6 +1,7 @@
 'use client'
 
 import Icon from '@/lib/Icon'
+import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 import { useEntitlement } from '@/lib/entitlement/EntitlementContext'
 
 /**
@@ -51,9 +52,7 @@ function bodyFor(status: string): string {
   return 'כל הלידים, השיחות וההיסטוריה שלכם שמורים ונשארים זמינים. חידוש המנוי מחזיר את היכולות המתקדמות מיד.'
 }
 
-function ctaHref(source: string): string {
-  return `/api/payments/upgrade?source=${encodeURIComponent(source)}`
-}
+
 
 export default function SubscriptionExpiredState({
   mode = 'panel',
@@ -76,7 +75,7 @@ export default function SubscriptionExpiredState({
 
   const cta = (
     <a
-      href={ctaHref(source)}
+      href={upgradeHref(source)}
       className='press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
     >
       חידוש מנוי
@@ -99,7 +98,7 @@ export default function SubscriptionExpiredState({
           {feature ?? TITLE}
         </p>
         <a
-          href={ctaHref(source)}
+          href={upgradeHref(source)}
           className='shrink-0 text-[13px] font-semibold text-warning-text underline underline-offset-2'
         >
           חידוש מנוי

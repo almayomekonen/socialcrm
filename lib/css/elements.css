@@ -235,3 +235,12 @@
   inset: auto;
   animation: popanchor-in 300ms;
 }
+
+/*
+ * Subscription toast. Same popover as `.toast`, wearing the renewal banner's
+ * warm tokens so a billing prompt never reads as an application error. Defined
+ * after `.toast` so the background override wins at equal specificity.
+ */
+.toast-pro {
+  @apply bg-warning-bg border border-warning-border shadow-lg;
+}

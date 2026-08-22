@@ -7,7 +7,7 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { Input, Select } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
-import { toast } from '@/lib/toast'
+import { toast, proToast } from '@/lib/toast'
 import { variableChipsForEvent } from '@/lib/automations/variables'
 import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
 import {
@@ -234,6 +234,15 @@ export default function AutomationSheet({
   }
 
   function test() {
+    // Sending a test email is real outbound delivery, so it is gated like any
+    // other spend. Answered as a billing prompt before the request is made.
+    if (proLocked) {
+      return proToast({
+        title: 'שליחת אימייל בדיקה זמינה עם Pro',
+        body: 'חידוש המנוי יחזיר את שליחת הבדיקות.',
+        source: 'automation_test_send',
+      })
+    }
     setError(null)
     startTest(async () => {
       const res = await sendTestEmail({

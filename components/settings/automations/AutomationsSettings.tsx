@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
-import { toast } from '@/lib/toast'
+import { toast, proToast } from '@/lib/toast'
 import type { RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
 import type { IdentityProblem } from '@/lib/automations/identity'
@@ -60,6 +61,8 @@ export default function AutomationsSettings({
   observationMode,
 }: Props) {
   const router = useRouter()
+  /** Entitlement from the shared context — the same answer the server gives. */
+  const expired = useAccessDenied()
   const [sheet, setSheet] = useState<SheetDraft | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<AutomationCardData | null>(null)
   const [log, setLog] = useState<{ name: string; rows: ActivityRow[] } | null>(null)
@@ -76,6 +79,25 @@ export default function AutomationsSettings({
    * toggle call site; every other action keeps the plain 3s confirmation it had.
    * The undo simply re-issues the existing status action — no new endpoint.
    */
+  /**
+   * A lapsed subscription is answered BEFORE anything happens: no action is
+   * called, no busy state is set, the toggle does not move, nothing is
+   * persisted and nothing is queued. The automation's own `enabled` state is
+   * never touched, because entitlement governs EXECUTION, not what the
+   * customer configured.
+   *
+   * The reply is a billing prompt rather than a failure. Left to run, the
+   * guarded action threw and Next surfaced it on the segment error boundary as
+   * "חלה שגיאה במערכת", which told the customer their product was broken when
+   * in fact their subscription had simply ended.
+   */
+  const proPrompt = () =>
+    proToast({
+      title: 'הפעלת האוטומציות זמינה עם Pro',
+      body: 'חידוש המנוי יחזיר את הפעלת האוטומציות.',
+      source: 'automations_action',
+    })
+
   const run = (
     id: number,
     fn: () => Promise<{ ok: boolean; reason?: string }>,
@@ -83,9 +105,18 @@ export default function AutomationsSettings({
     undoId?: number,
     undoFrom?: DefinitionStatus,
   ) => {
+    if (expired) return proPrompt()
     setBusyId(id)
     startTransition(async () => {
-      const res = await fn()
+      let res: { ok: boolean; reason?: string }
+      try {
+        res = await fn()
+      } catch {
+        // Backstop for a stale context: never let a refusal reach the error
+        // boundary. A genuine fault still reads as one.
+        setBusyId(null)
+        return expired ? proPrompt() : toast('error', 'הפעולה נכשלה. נסו שוב.')
+      }
       setBusyId(null)
       if (!res.ok) return toast('error', 'הפעולה נכשלה. נסו שוב.')
       if (undoId !== undefined && (undoFrom === 'active' || undoFrom === 'paused')) {
@@ -103,7 +134,14 @@ export default function AutomationsSettings({
   }
 
   async function openLog(card: AutomationCardData) {
-    const res = await listActivityForAutomationAction(card.id)
+    // The run log is execution history, which is part of the paid capability.
+    if (expired) return proPrompt()
+    let res: Awaited<ReturnType<typeof listActivityForAutomationAction>>
+    try {
+      res = await listActivityForAutomationAction(card.id)
+    } catch {
+      return toast('error', 'לא ניתן לטעון את יומן הפעילות')
+    }
     if (res.ok === false) return toast('error', 'לא ניתן לטעון את יומן הפעילות')
     setLog({ name: card.name, rows: res.rows })
   }

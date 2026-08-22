@@ -744,3 +744,243 @@ describe('reading notifications is untouched by the delivery gate', () => {
     expect(src).not.toContain('select(')
   })
 })
+
+/* ------------------------------------------------------------------------- *
+ * Automations: teasing, not breaking.
+ *
+ * Entitlement governs EXECUTION. The stored automation keeps whatever the
+ * customer configured, and a refusal reads as a billing prompt rather than an
+ * application error.
+ * ------------------------------------------------------------------------- */
+
+describe('the automations page answers a lapsed subscription with billing, not an error', () => {
+  const settings = () => read('components/settings/automations/AutomationsSettings.tsx')
+
+  /**
+   * The reported defect: the toggle threw a guarded Server Action, Next routed
+   * it to the segment error boundary, and the customer saw the whole page
+   * replaced by "חלה שגיאה במערכת" — app/(app)/error.tsx.
+   */
+  it('pre-gates before any action runs, so nothing is dispatched', () => {
+    const src = settings()
+    expect(src).toContain('if (expired) return proPrompt()')
+    // The guard sits ahead of the busy state and the transition.
+    const gate = src.indexOf('if (expired) return proPrompt()')
+    expect(gate).toBeLessThan(src.indexOf('setBusyId(id)', gate))
+    expect(gate).toBeLessThan(src.indexOf('startTransition', gate))
+  })
+
+  it('never reaches the segment error boundary, even from a stale context', () => {
+    const src = settings()
+    // Every awaited action is wrapped, so a refusal cannot escape the component.
+    expect(src).toMatch(/try \{\s*\n\s*res = await fn\(\)/)
+    expect(src).toContain('return expired ? proPrompt() : ')
+  })
+
+  it('a genuine failure still reads as a failure', () => {
+    expect(settings()).toContain("toast('error', 'הפעולה נכשלה. נסו שוב.')")
+  })
+
+  it('the run log is gated too, and cannot throw to the boundary', () => {
+    const src = settings()
+    expect(src).toContain('// The run log is execution history')
+    expect(src).toMatch(/res = await listActivityForAutomationAction\(card\.id\)/)
+  })
+
+  it('the test send is gated, because it is real outbound delivery', () => {
+    const src = read('components/settings/automations/AutomationSheet.tsx')
+    expect(src).toContain("source: 'automation_test_send'")
+    expect(src.indexOf('if (proLocked) {')).toBeLessThan(src.indexOf('await sendTestEmail('))
+  })
+})
+
+describe('the automation definition is never touched by expiry', () => {
+  /**
+   * The stored state is the customer's configuration. Nothing in the expired
+   * path writes it, and no parallel "disabled because expired" flag exists.
+   */
+  it('no client surface writes enabled/status on expiry', () => {
+    for (const f of [
+      'components/settings/automations/AutomationsSettings.tsx',
+      'components/settings/automations/AutomationCard.tsx',
+      'components/settings/automations/AutomationControlCenter.tsx',
+    ]) {
+      const src = read(f)
+      expect(src, f).not.toMatch(/expired[\s\S]{0,80}setAutomationStatus/)
+      expect(src, f).not.toContain('subscriptionExpiredDisabled')
+    }
+  })
+
+  it('the toggle renders from server props, so a blocked click cannot move it', () => {
+    const card = read('components/settings/automations/AutomationCard.tsx')
+    expect(card).toContain('aria-pressed={isActive}')
+    // No local optimistic mirror of the toggle.
+    expect(card).not.toMatch(/useState[^\n]*isActive/)
+  })
+
+  it('the engine refuses execution without changing anything', () => {
+    const engine = read('lib/automations/emit.ts')
+    expect(engine).toContain("blocked: 'no_product_access'")
+    expect(engine).not.toContain('update(')
+    expect(engine).not.toContain("status: 'paused'")
+  })
+
+  it('server-side gating remains the final authority', () => {
+    expect(read('actions/automations/manage.ts')).toContain('requireProductAccess')
+    expect(read('actions/automations/templates.ts')).toContain('requireProductAccess')
+    expect(read('actions/automations/sendTest.ts')).toContain('requireProductAccess')
+  })
+})
+
+describe('the Pro toast is a subscription action, not an error', () => {
+  const toastSrc = () => read('lib/toast.tsx')
+
+  it('wears the renewal banner tokens, never the destructive red', () => {
+    const css = read('lib/css/elements.css')
+    expect(css).toContain('.toast-pro')
+    expect(css).toContain('bg-warning-bg')
+    expect(css).toContain('border-warning-border')
+    expect(toastSrc()).toContain("bg-warning-text size-5")
+    expect(toastSrc()).not.toMatch(/toast-pro[\s\S]{0,120}(bg-red|text-error|bg-error)/)
+  })
+
+  it('carries a title, a body and the renewal CTA', () => {
+    const src = toastSrc()
+    expect(src).toContain('{pop.pro.title}')
+    expect(src).toContain('{pop.pro.body}')
+    expect(src).toContain("{pop.pro.cta ?? 'חידוש מנוי'}")
+  })
+
+  it('the CTA reuses the existing billing destination, with no second mechanism', () => {
+    const src = toastSrc()
+    expect(src).toContain('href={upgradeHref(pop.pro.source)}')
+    expect(src).not.toContain('/api/payments/upgrade?source=')
+    // One definition of that destination, shared with the expired states.
+    const shared = read('lib/entitlement/upgradeHref.ts')
+    expect(shared).toContain('/api/payments/upgrade?source=')
+    expect(read('components/entitlement/SubscriptionExpiredState.tsx')).toContain('upgradeHref(source)')
+  })
+
+  it('is a variant of the existing toast, not a new notification system', () => {
+    const src = toastSrc()
+    expect(src).toContain("id='popMsg'")
+    expect(src).toContain("pop.icon === 'pro' ? 'toast toast-pro' : 'toast'")
+  })
+
+  it('announces itself to assistive tech like the other toasts', () => {
+    expect(toastSrc()).toContain('setLive(`${opts.title}. ${opts.body}`)')
+  })
+})
+
+describe('the new automation copy follows the Hebrew rule', () => {
+  const NEW_COPY = [
+    'הפעלת האוטומציות זמינה עם Pro',
+    'חידוש המנוי יחזיר את הפעלת האוטומציות.',
+    'שליחת אימייל בדיקה זמינה עם Pro',
+    'חידוש המנוי יחזיר את שליחת הבדיקות.',
+  ]
+
+  it('contains no dash or maqaf used as a separator', () => {
+    for (const line of NEW_COPY) {
+      expect(line, line).not.toMatch(/[-–—־]/)
+    }
+  })
+
+  it('is the copy the product actually renders', () => {
+    const settings = read('components/settings/automations/AutomationsSettings.tsx')
+    expect(settings).toContain(NEW_COPY[0])
+    expect(settings).toContain(NEW_COPY[1])
+    const sheet = read('components/settings/automations/AutomationSheet.tsx')
+    expect(sheet).toContain(NEW_COPY[2])
+    expect(sheet).toContain(NEW_COPY[3])
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * Automation inspection: read to understand, pay to run.
+ * ------------------------------------------------------------------------- */
+
+describe('automation previews and option loading are open', () => {
+  it.each([
+    ['template slots', 'actions/automations/previewMessage.ts', 'listTemplateSlots'],
+    ['message preview', 'actions/automations/previewMessage.ts', 'previewAutomationMessage'],
+    ['email preview', 'actions/automations/previewEmail.ts', 'previewAutomationEmail'],
+    ['first party options', 'actions/automations/firstPartyOptions.ts', 'listFirstPartyOptionsAction'],
+  ])('%s reads without asking about the plan', (_l, file, fn) => {
+    expect(guardOf(file, fn)).toBe('basic')
+  })
+
+  it('the four connector list actions use the read guard', () => {
+    const src = read('actions/automations/connections.ts')
+    for (const fn of [
+      'listConnectionsAction',
+      'listSourcesAction',
+      'listOptionsAction',
+      'listOptionsForCapabilityAction',
+    ]) {
+      const at = src.indexOf(`export async function ${fn}(`)
+      expect(at, fn).toBeGreaterThan(-1)
+      expect(src.slice(at, at + 320), fn).toContain('await readGuard()')
+    }
+  })
+
+  /** The same file's writes must NOT have moved. */
+  it('connection provisioning, revoking, regenerating and renaming stay paid', () => {
+    const src = read('actions/automations/connections.ts')
+    for (const fn of ['provisionApiKeyConnection', 'revokeConnection', 'regenerateSecret', 'renameSource']) {
+      const at = src.indexOf(`export async function ${fn}(`)
+      expect(at, fn).toBeGreaterThan(-1)
+      expect(src.slice(at, at + 420), fn).toContain('await guard()')
+    }
+    expect(src).toContain('const user = await requireProductAccess()')
+  })
+
+  it('the admin check is unchanged on both guards', () => {
+    const src = read('actions/automations/connections.ts')
+    expect(src.match(/if \(!isAdmin\(user\.role\)\) return null/g)?.length).toBe(2)
+  })
+
+  /** Proof these are reads: no provider call, no send, anywhere in the chain. */
+  it('previews render from stored rows and dispatch nothing', () => {
+    const wa = read('lib/automations/executors/whatsapp.ts')
+    const at = wa.indexOf('async preview(')
+    const body = wa.slice(at, at + 700)
+    expect(body).toContain('deps.loadTemplate(')
+    expect(body).not.toContain('deps.send')
+    // The template loader is a plain database read.
+    expect(read('db/whatsappTemplates.ts')).toMatch(/loadTemplateForSend[\s\S]{0,200}db\('whatsapp_templates'\)/)
+  })
+
+  it('connector option sources resolve locally, with no outbound call', () => {
+    for (const f of ['lib/automations/connectors/whatsapp.ts', 'lib/automations/connectors/contactForm7.ts']) {
+      const src = read(f)
+      expect(src, f).not.toMatch(/async options\([\s\S]{0,400}(fetch\(|axios)/)
+    }
+  })
+})
+
+describe('everything that spends is still gated', () => {
+  it.each([
+    ['send a test email', 'actions/automations/sendTest.ts'],
+    ['create or save an automation', 'actions/automations/manage.ts'],
+    ['install or remove a template', 'actions/automations/templates.ts'],
+    ['read the run log', 'actions/automations/activity.ts'],
+  ])('%s stays Pro gated', (_l, file) => {
+    expect(read(file)).toContain('requireProductAccess')
+  })
+
+  it('the engine is still the authority on execution', () => {
+    expect(read('lib/automations/emit.ts')).toContain("blocked: 'no_product_access'")
+  })
+
+  it('opening a preview writes nothing to the definition', () => {
+    for (const f of [
+      'actions/automations/previewMessage.ts',
+      'actions/automations/previewEmail.ts',
+      'actions/automations/firstPartyOptions.ts',
+    ]) {
+      const src = read(f)
+      expect(src, f).not.toMatch(/\.update\(|\.insert\(|\.del\(\)/)
+    }
+  })
+})

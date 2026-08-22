@@ -1,6 +1,6 @@
 'use server'
 
-import { requireProductAccess } from '@/lib/requireUser'
+import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { loadTemplateForSend } from '@/db/whatsappTemplates'
@@ -37,8 +37,17 @@ export type TemplateSlotsResult =
  * `field: null`, which is the Builder's cue to ask, and the reason it must never
  * guess from the slot's index.
  */
+/**
+ * TIER 2 READ. Renders from rows this agency already owns and sends nothing:
+ * the template is loaded from the database and the message or email is composed
+ * locally. Showing a customer what their automation WOULD do is the whole point
+ * of the teasing experience, so it stays available after a subscription lapses.
+ *
+ * Execution remains gated at the automation engine, and the admin and allowlist
+ * checks below are unchanged.
+ */
 export async function listTemplateSlots(templateIdRaw: number | string): Promise<TemplateSlotsResult> {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) return { ok: false, reason: 'not_available' }
 
@@ -63,11 +72,20 @@ export async function listTemplateSlots(templateIdRaw: number | string): Promise
  * and the send cannot disagree. Same contract as the email preview; only the
  * shape of the answer differs.
  */
+/**
+ * TIER 2 READ. Renders from rows this agency already owns and sends nothing:
+ * the template is loaded from the database and the message or email is composed
+ * locally. Showing a customer what their automation WOULD do is the whole point
+ * of the teasing experience, so it stays available after a subscription lapses.
+ *
+ * Execution remains gated at the automation engine, and the admin and allowlist
+ * checks below are unchanged.
+ */
 export async function previewAutomationMessage(input: {
   templateId: number | string | null
   templateBindings?: Record<string, string> | null
 }): Promise<PreviewResult> {
-  const user = await requireProductAccess()
+  const user = await requireBasicCrmAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) return { ok: false, reason: 'not_available' }
 
