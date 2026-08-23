@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { db } from '@/config/db'
 import { verifyToken } from '@/lib/payments/token'
 import { performAgencyUpgrade } from '@/lib/quota/performUpgrade'
@@ -11,69 +10,15 @@ import { getTrialState } from '@/lib/trial'
 import { resolveBillingPeriod, logPeriodResolution, type PeriodResolution } from '@/lib/payments/resolvePeriod'
 import { classifyPaymentOutcome, classifyPaymentMode, classifyPaymentSequence } from '@/lib/payments/paymentOutcome'
 import { phoneCore } from '@/lib/leads/normalizeContact'
+import {
+  assertWebhookEnv,
+  unwrapPayload,
+  verifyWebhookSecret,
+  readMandateId,
+  maskEmail,
+} from '@/lib/payments/growWebhook'
 
 const PG_UNIQUE_VIOLATION = '23505'
-
-/**
- * Enough of an email to correlate a failure with a pending row, and no more.
- * The full address is never logged: `ala***@gmail.com`.
- */
-function maskEmail(raw: unknown): string {
-  if (typeof raw !== 'string' || !raw.trim()) return '(absent)'
-  const e = raw.trim()
-  const at = e.lastIndexOf('@')
-  if (at < 1) return `${e.slice(0, 3)}***`
-  return `${e.slice(0, 3)}***@${e.slice(at + 1)}`
-}
-
-type AppEnv = 'local' | 'staging' | 'test' | 'production'
-type GrowMode = 'sandbox' | 'production'
-
-function isAppEnv(value: string | undefined): value is AppEnv {
-  return value === 'local' || value === 'staging' || value === 'test' || value === 'production'
-}
-
-function isGrowMode(value: string | undefined): value is GrowMode {
-  return value === 'sandbox' || value === 'production'
-}
-
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a)
-  const bb = Buffer.from(b)
-  return ab.length === bb.length && timingSafeEqual(ab, bb)
-}
-
-function assertWebhookEnv(host: string): { env: AppEnv; mode: GrowMode } {
-  const ENV = process.env.APP_ENV
-  const MODE = process.env.GROW_MODE
-
-  if (!isAppEnv(ENV)) {
-    throw new Error('🚨 APP_ENV must be local, staging, test, or production')
-  }
-  if (!isGrowMode(MODE)) {
-    throw new Error('🚨 GROW_MODE must be sandbox or production')
-  }
-  if (ENV === 'local' && MODE !== 'sandbox') {
-    throw new Error('🚨 LOCAL must use sandbox payments')
-  }
-  if (ENV === 'staging' && MODE !== 'sandbox') {
-    throw new Error('🚨 STAGING must use sandbox payments')
-  }
-  if (ENV === 'test' && MODE !== 'sandbox') {
-    throw new Error('🚨 TEST must use sandbox payments')
-  }
-  if (ENV === 'production' && MODE !== 'production') {
-    throw new Error('🚨 PROD must use real payments')
-  }
-  if (ENV === 'production') {
-    const appHost = process.env.APP_HOST
-    if (!appHost || !host.includes(appHost)) {
-      throw new Error('🚨 Host mismatch in production')
-    }
-  }
-
-  return { env: ENV, mode: MODE }
-}
 
 /**
  * Deterministic ownership by the payer's email — the resolver that already
@@ -183,7 +128,7 @@ export async function POST(req: NextRequest) {
   })
 
   // 1. Environment guard
-  let envInfo: { env: AppEnv; mode: GrowMode }
+  let envInfo: ReturnType<typeof assertWebhookEnv>
   try {
     envInfo = assertWebhookEnv(host)
   } catch (err) {
@@ -204,7 +149,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Invalid JSON', { status: 400 })
   }
 
-  const payload = body?.data ?? body
+  const payload = unwrapPayload(body)
   console.log('[GrowWebhook] payload keys:', Object.keys(payload || {}))
 
   // Authenticate the webhook BEFORE any business logic runs. The shared
@@ -212,16 +157,16 @@ export async function POST(req: NextRequest) {
   // the identifyParam token is visible to the user in their payment URL and is
   // NOT proof of payment. Verification is mandatory: a missing or invalid
   // webhookKey is rejected here, before any DB read or ownership resolution.
-  const secret = process.env.GROW_WEBHOOK_SECRET
-  if (!secret) {
-    console.error('[GrowWebhook] GROW_WEBHOOK_SECRET is not set — refusing to process')
-    return new NextResponse('Server misconfigured', { status: 500 })
-  }
-  const webhookKey: unknown = payload?.webhookKey ?? payload?.webhook_key
-  if (typeof webhookKey !== 'string' || !safeEqual(webhookKey, secret)) {
+  const auth = verifyWebhookSecret(payload)
+  if (auth.ok === false) {
+    if (auth.reason === 'not_configured') {
+      console.error('[GrowWebhook] GROW_WEBHOOK_SECRET is not set — refusing to process')
+      return new NextResponse('Server misconfigured', { status: 500 })
+    }
     console.warn('[GrowWebhook] rejected: missing or invalid webhookKey')
     return new NextResponse('Unauthorized', { status: 401 })
   }
+  const webhookKey: unknown = payload?.webhookKey ?? payload?.webhook_key
 
   const transactionId: unknown = payload?.transactionId ?? payload?.transactionCode
   const externalId: unknown = payload?.externalId ?? payload?.external_id ?? payload?.identifyParam
@@ -400,6 +345,31 @@ export async function POST(req: NextRequest) {
       await trx('payments').insert({ transactionId, agencyId })
       const result = await performAgencyUpgrade(agencyId, `grow:${transactionId}`, trx, resolution.period)
       if ('error' in result) throw new Error(`upgrade_failed:${result.error}`)
+
+      /**
+       * Keep the standing-order mandate id, which every payload has always
+       * carried and this handler has always discarded.
+       *
+       * Grow documents `directDebitId` as "קוד הוראת קבע ולא קוד עסקה" — the
+       * MANDATE code, not a transaction code. It is the only identifier that
+       * names the subscription rather than a single charge, so without it we
+       * cannot later cancel that standing order, reconcile it, or tie a
+       * recurring charge back to the subscription its mandate created.
+       *
+       * WRITTEN HERE, NOT IN performAgencyUpgrade. The upsert is shared with
+       * admin grants and trial conversions that have no Grow mandate at all,
+       * and it is deliberately a pure period calculation. This is a webhook
+       * fact, so it is recorded by the webhook — inside the SAME transaction,
+       * so a mandate id can never outlive a rolled-back activation.
+       *
+       * ABSENT MEANS ABSENT. A payload without a usable mandate id writes
+       * nothing, leaving the column NULL rather than inventing a value or
+       * overwriting a good id with an empty string.
+       */
+      const mandateId = readMandateId(payload)
+      if (mandateId) {
+        await trx('subscriptions').where({ agencyId }).update({ growDirectDebitId: mandateId })
+      }
     })
   } catch (err: any) {
     if (err?.code === PG_UNIQUE_VIOLATION) {

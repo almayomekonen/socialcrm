@@ -560,6 +560,100 @@ const OTHER_AGENCY = 5150
 const pendingWithPhones = (rows: Array<{ agencyId: number; agencyPhone: string | null }>) =>
   H.pendingRows.mockReturnValue(rows)
 
+/* ------------------------------------------------------------------------- *
+ * THE MANDATE ID.
+ *
+ * Grow documents `directDebitId` as "קוד הוראת קבע ולא קוד עסקה" — the standing
+ * order code, not a transaction code. It arrives on every payload and the
+ * handler discarded it, so a live subscription's mandate could not be addressed
+ * afterwards. It is now persisted, and ONLY persisted: nothing about payment
+ * classification reads it.
+ * ------------------------------------------------------------------------- */
+
+/** Every `.update()` the route issued, as [table, patch] pairs. */
+const updatesFor = (table: string) =>
+  H.pendingUpdate.mock.calls.filter((c: any[]) => c[0] === table).map((c: any[]) => c[1])
+
+describe('the standing-order mandate id is persisted with the subscription', () => {
+  it('a successful activation stores directDebitId on the subscription', async () => {
+    await POST(req(growBody({ statusCode: '2', externalId: 'tok', directDebitId: '778899' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+    expect(updatesFor('subscriptions')).toEqual([{ growDirectDebitId: '778899' }])
+  })
+
+  it('a numeric mandate id is stored as text, unchanged', async () => {
+    await POST(req(growBody({ statusCode: '2', externalId: 'tok', directDebitId: 778899 })))
+    expect(updatesFor('subscriptions')).toEqual([{ growDirectDebitId: '778899' }])
+  })
+
+  it.each([undefined, null, '', '0', 0, 'null', 'false', '-1'])(
+    'an absent or placeholder mandate id (%p) writes nothing, leaving the column null',
+    async (v) => {
+      await POST(req(growBody({ statusCode: '2', externalId: 'tok', directDebitId: v })))
+      expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1) // activation still succeeds
+      expect(updatesFor('subscriptions')).toEqual([]) // …but no mandate is invented
+    },
+  )
+
+  it('the write happens inside the activation transaction', () => {
+    const src = read('app/api/payments/grow/route.ts')
+    const txAt = src.indexOf('await db.transaction(async (trx) => {')
+    const closeAt = src.indexOf('  } catch (err: any) {', txAt)
+    const body = src.slice(txAt, closeAt)
+    expect(body).toContain("trx('subscriptions').where({ agencyId }).update({ growDirectDebitId: mandateId })")
+    // and after the upgrade, so the row it updates exists
+    expect(body.indexOf('performAgencyUpgrade')).toBeLessThan(body.indexOf('growDirectDebitId'))
+  })
+
+  it('a duplicate transaction stays idempotent and stores no mandate', async () => {
+    H.paymentsInsert.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }))
+    const res = await POST(req(growBody({ statusCode: '2', externalId: 'tok', directDebitId: '778899' })))
+    expect(await res.json()).toMatchObject({ duplicate: true })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+    expect(updatesFor('subscriptions')).toEqual([])
+  })
+
+  it('a refused payment stores no mandate', async () => {
+    await POST(req(growBody({ statusCode: '5', externalId: 'tok', directDebitId: '778899' })))
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+    expect(updatesFor('subscriptions')).toEqual([])
+  })
+
+  /** The regression that caused the outage must not creep back in. */
+  it('the mandate id does NOT influence payment classification', () => {
+    for (const id of ['778899', 778899, '', 0, null]) {
+      expect(classifyPaymentMode({ directDebitId: id, paymentType: 'רגיל' })).toBe('one_time')
+      expect(classifyPaymentMode({ directDebitId: id, paymentType: 'הוראת קבע' })).toBe('recurring')
+    }
+    const outcome = read('lib/payments/paymentOutcome.ts')
+    expect(outcome).not.toContain('growDirectDebitId')
+  })
+
+  it('performAgencyUpgrade was not given a new responsibility', () => {
+    const src = read('lib/quota/performUpgrade.ts')
+    expect(src).not.toContain('growDirectDebitId')
+    expect(src).not.toContain('directDebitId')
+  })
+
+  it('existing activation behaviour is unchanged when no mandate id is present', async () => {
+    await POST(req(growBody({ statusCode: '2', externalId: 'tok' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+    const [agency, reason] = H.performAgencyUpgrade.mock.calls[0]
+    expect(agency).toBe(AGENCY_ID)
+    expect(String(reason)).toMatch(/^grow:tx_/)
+    expect(updatesFor('pending_upgrades').length).toBe(1) // still marked completed
+  })
+
+  it('the column is nullable and indexed, so old rows keep working', () => {
+    const mig = read('migrations/20260823090000_subscriptions_grow_direct_debit_id.cjs')
+    const addCol = mig.split('\n').find((l) => l.includes('ADD COLUMN IF NOT EXISTS "growDirectDebitId"'))!
+    expect(addCol).toContain('"growDirectDebitId" text')
+    // nullable, no default: the column itself carries no NOT NULL / DEFAULT.
+    expect(addCol).not.toMatch(/NOT NULL "|text NOT NULL|DEFAULT/)
+    expect(mig).toContain('CREATE INDEX IF NOT EXISTS subscriptions_grow_direct_debit_id_idx')
+  })
+})
+
 describe('owner resolution: token, then email, then phone', () => {
   it('a valid token wins, and neither email nor phone is consulted', async () => {
     H.verifyToken.mockReturnValue({ agencyId: AGENCY_ID, issuedAt: Date.now() })
@@ -670,9 +764,11 @@ describe('the ownership failure is diagnosable without leaking PII', () => {
   const SRC = read('app/api/payments/grow/route.ts')
 
   it('masks the payer email: first 3 characters and the domain only', () => {
-    expect(SRC).toContain('function maskEmail')
+    // the helper now lives in the shared Grow webhook module
+    const shared = read('lib/payments/growWebhook.ts')
+    expect(shared).toContain('export function maskEmail')
+    expect(shared).toContain("return `${e.slice(0, 3)}***@${e.slice(at + 1)}`")
     expect(SRC).toContain('payerEmail: maskEmail(')
-    expect(SRC).toContain("return `${e.slice(0, 3)}***@${e.slice(at + 1)}`")
   })
 
   it('never logs the full address, the phone, the name, the card or the secret', () => {
