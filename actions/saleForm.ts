@@ -97,6 +97,9 @@ export async function insertSale(data: saleObj) {
           agencyId: user.agencyId,
           leadId: Number(clientId),
           newStatus: CLOSED_STATUS,
+          // `closing` already guarantees `before` is present and not closed.
+          previousStatus: before.status,
+          source: 'sale',
           occurredAt: now,
           // Closing a deal is the closer's own action, so they are not notified
           // about it; an admin closing someone else's lead still informs the rep.
