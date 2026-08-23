@@ -12,7 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
-import { classifyPaymentOutcome, isRecurringRun } from '@/lib/payments/paymentOutcome'
+import { classifyPaymentOutcome, classifyPaymentMode, classifyPaymentSequence } from '@/lib/payments/paymentOutcome'
 
 const read = (p: string) => fs.readFileSync(p, 'utf8')
 
@@ -147,44 +147,65 @@ describe('classifier — evidence-based, never invents Grow codes', () => {
     },
   )
 
-  it('detects a standing-order run by its recurring identifier', () => {
-    expect(isRecurringRun({ directDebitId: '55' })).toBe(true)
-    expect(isRecurringRun({ regular_payment_id: '9' })).toBe(true)
-    expect(isRecurringRun({ transactionId: 'x' })).toBe(false)
+  it('reads payment mode from the documented paymentType enum', () => {
+    expect(classifyPaymentMode({ paymentType: 'הוראת קבע' })).toBe('recurring')
+    expect(classifyPaymentMode({ paymentType: 'רגיל' })).toBe('one_time')
+    expect(classifyPaymentMode({ paymentType: 'תשלומים' })).toBe('one_time')
+  })
+
+  /**
+   * The conflation that caused the outage. Grow documents directDebitId as
+   * "קוד הוראת קבע ולא קוד עסקה" — the MANDATE code, not a transaction code —
+   * so a charge that opens a mandate carries it exactly as a later charge does.
+   */
+  it('does not read payment mode from a mandate id', () => {
+    expect(classifyPaymentMode({ directDebitId: '55' })).toBe('one_time')
+    expect(classifyPaymentMode({ regular_payment_id: '9' })).toBe('one_time')
   })
 })
 
 /* ------------------------------------------------------------------------- *
- * THE REAL ONE-TIME PAYMENT LINK PAYLOAD.
+ * THE REAL PRODUCTION PAYLOAD — AN INITIAL RECURRING CHARGE.
  *
- * Transaction GvNe/kVpyRfBqOuIks4kXA==, agency 103, a genuine ₪1 charge. The
- * webhook authenticated and was then REFUSED: the payload carries no status
- * field (correctly `unverifiable`) and a placeholder `directDebitId` flipped it
- * to `recurring`, so `unverifiable && recurring` denied a payment already taken.
+ * Transaction GvNe/kVpyRfBqOuIks4kXA==, agency 103, a genuine ₪1 charge. Grow's
+ * merchant record identifies it as "הו"ק / 1", source עמוד קבוע: the FIRST
+ * charge of a monthly standing order, not a one-time payment.
  *
- * These keys are copied verbatim from the production log. Grow emits its full
- * PaymentLinks envelope every time and fills inapplicable fields with
- * placeholders, so NO presence test on any of them can tell one-time from
- * recurring — only the value can.
+ * The webhook authenticated and was then refused. The payload carries no status
+ * field (correctly `unverifiable`), and the presence of `directDebitId` was
+ * misread as "this is a recurring RUN" — so `unverifiable && recurring` denied a
+ * payment that had already been taken, and with it every subscription
+ * activation the product has.
+ *
+ * WHAT IS REAL HERE AND WHAT IS NOT. The 26 KEYS are copied verbatim from the
+ * production log. The VALUES were never captured — the handler logged keys only
+ * — so every value below is SYNTHETIC. Where Grow's documentation establishes
+ * an enum the documented value is used (`paymentType`, `transactionType`);
+ * everything else is a plausible placeholder and must not be read as observed
+ * fact. An earlier revision of this file invented `transactionType: 'signle'`
+ * and `paymentType: 'authorize'` and presented them as real; that is how a
+ * wrong diagnosis got written down twice.
  * ------------------------------------------------------------------------- */
 
-/** The 26 keys Grow actually sent, with the recurrence field overridable. */
-function realOneTimePayload(directDebitId: unknown): Record<string, unknown> {
+/** SYNTHETIC values, real key set. `paymentType` and `directDebitId` overridable. */
+function growPayload(
+  over: { paymentType?: unknown; directDebitId?: unknown } = {},
+): Record<string, unknown> {
   return {
     webhookKey: SECRET,
     identifyParam: '',
     transactionCode: 'GvNe/kVpyRfBqOuIks4kXA==',
-    transactionType: 'signle',
+    transactionType: 'אשראי', // documented example value: credit
     paymentSum: 1,
     paymentsNum: 0,
     allPaymentNum: 1,
     firstPaymentSum: 0,
     periodicalPaymentSum: 0,
-    paymentType: 'authorize',
+    paymentType: 'paymentType' in over ? over.paymentType : 'הוראת קבע', // documented enum
     paymentDate: '22/08/26',
-    asmachta: '0000000',
+    asmachta: 'SYNTHETIC-REFERENCE',
     paymentDesc: 'SocialCRM Pro',
-    fullName: 'Test Payer',
+    fullName: 'Synthetic Payer',
     payerPhone: '0500000000',
     payerEmail: 'alamayo274@gmail.com',
     cardSuffix: '0000',
@@ -196,176 +217,147 @@ function realOneTimePayload(directDebitId: unknown): Record<string, unknown> {
     invoiceURL: '',
     invoiceName: '',
     invoiceLicenseNumber: '',
-    directDebitId,
+    directDebitId: 'directDebitId' in over ? over.directDebitId : '778899',
     transactionId: 'GvNe/kVpyRfBqOuIks4kXA==',
   }
 }
 
+/** The incident payload: initial standing-order charge, mandate id, no status. */
+const realInitialRecurringPayload = () => growPayload()
+
 /* ------------------------------------------------------------------------- *
- * TEMPORARY DIAGNOSTIC LOGGING.
+ * MODE AND SEQUENCE — THE FIX FOR THE PRODUCTION OUTAGE.
  *
- * The route now prints the values of the fields that feed classification,
- * because two root-cause analyses were argued from the payload KEY list alone
- * and the first was wrong. These assert the two things that matter about a
- * diagnostic: it must change no decision, and it must leak nothing.
+ * Grow documents `directDebitId` as the standing-order MANDATE code, and the
+ * dedicated recurring webhook as "Triggered for recurring payments starting
+ * from the second charge". Our route is the transaction webhook, so a
+ * standing-order charge arriving here is the one that OPENED the mandate.
  * ------------------------------------------------------------------------- */
 
-describe('diagnostic logging observes without deciding', () => {
-  const ROUTE = read('app/api/payments/grow/route.ts')
-
-  it('logs exactly the ten classification fields, and no others', () => {
-    const at = ROUTE.indexOf('const DIAGNOSTIC_FIELDS')
-    const list = ROUTE.slice(at, ROUTE.indexOf(']', at))
-    for (const f of [
-      'paymentType',
-      'transactionType',
-      'status',
-      'statusCode',
-      'asmachta',
-      'directDebitId',
-      'paymentsNum',
-      'allPaymentNum',
-      'firstPaymentSum',
-      'periodicalPaymentSum',
-    ]) {
-      expect(list, f).toContain(`'${f}'`)
-    }
-    expect(list.match(/'/g)!.length / 2).toBe(10)
+describe('mode and sequence classification', () => {
+  it('D. the real incident payload is recurring + initial', () => {
+    const p = realInitialRecurringPayload()
+    expect(classifyPaymentMode(p)).toBe('recurring')
+    expect(classifyPaymentSequence(p, 'recurring')).toBe('initial')
+    expect(classifyPaymentOutcome({ err: '' }, p)).toBe('unverifiable')
   })
 
-  it('never names a payer, an instrument, or the secret', () => {
-    const at = ROUTE.indexOf('const DIAGNOSTIC_FIELDS')
-    const region = ROUTE.slice(at, ROUTE.indexOf('// 5. Required-fields gate', at))
-    for (const forbidden of [
-      'payerEmail',
-      'payerPhone',
-      'fullName',
-      'ip',
-      'cardSuffix',
-      'cardBin',
-      'cardBrand',
-      'cardType',
-      'webhookKey',
-    ]) {
-      expect(region, forbidden).not.toContain(`'${forbidden}'`)
+  it('L. a mandate id alone does NOT make a charge subsequent', () => {
+    for (const id of ['778899', 778899, 'abc-123']) {
+      const p = growPayload({ paymentType: 'רגיל', directDebitId: id })
+      expect(classifyPaymentMode(p), String(id)).toBe('one_time')
+      expect(classifyPaymentSequence(p, 'one_time'), String(id)).toBe('initial')
     }
   })
 
-  it('runs only after authentication, so a forged payload logs nothing', () => {
-    const authAt = ROUTE.indexOf("return new NextResponse('Unauthorized', { status: 401 })")
-    const logAt = ROUTE.indexOf("[GrowWebhook] classification fields:")
-    expect(authAt).toBeGreaterThan(-1)
-    expect(logAt).toBeGreaterThan(authAt)
+  it('G. a documented one-time paymentType is one_time', () => {
+    const p = growPayload({ paymentType: 'רגיל', directDebitId: '' })
+    expect(classifyPaymentMode(p)).toBe('one_time')
+    expect(classifyPaymentSequence(p, 'one_time')).toBe('initial')
   })
 
-  it('the picker is pure: it reads the payload and writes nothing', () => {
-    const at = ROUTE.indexOf('function classificationFields')
-    const body = ROUTE.slice(at, ROUTE.indexOf('\n}', at))
-    expect(body).not.toMatch(/db\(|trx\(|insert|update|delete|await/)
+  /** Fail closed: a mandate id with no recognisable paymentType is ambiguous. */
+  it('F. an unrecognised paymentType alongside a mandate id is unknown', () => {
+    for (const t of [undefined, '', 'something-else']) {
+      const p = growPayload({ paymentType: t, directDebitId: '778899' })
+      expect(classifyPaymentSequence(p, classifyPaymentMode(p)), String(t)).toBe('unknown')
+    }
   })
 
-  it('the classifier and the recurrence test were not touched', () => {
-    const outcome = read('lib/payments/paymentOutcome.ts')
-    expect(outcome).toContain('export function isRecurringRun')
-    expect(outcome).toContain('export function classifyPaymentOutcome')
-    // the route must not re-implement either
-    expect(ROUTE).toContain('const outcome = classifyPaymentOutcome(body, payload)')
-    expect(ROUTE).toContain('const recurring = isRecurringRun(payload)')
+  it('a payload with neither paymentType nor mandate id stays one_time + initial', () => {
+    const p = growPayload({ paymentType: undefined, directDebitId: '' })
+    expect(classifyPaymentMode(p)).toBe('one_time')
+    expect(classifyPaymentSequence(p, 'one_time')).toBe('initial')
   })
 
-  /* --- behaviour parity: every decision path still lands where it did --- */
+  it('the classifier reads paymentType, and no longer keys mode on a mandate id', () => {
+    const src = read('lib/payments/paymentOutcome.ts')
+    expect(src).toContain("const GROW_PAYMENT_TYPE_RECURRING = 'הוראת קבע'")
+    expect(src).toContain('export function classifyPaymentMode')
+    expect(src).toContain('export function classifyPaymentSequence')
+    expect(src).not.toContain('export function isRecurringRun')
+  })
 
-  it('a confirmed success still grants', async () => {
-    const res = await POST(req(growBody({ statusCode: '2', status: 'שולם', externalId: 'tok' })))
+  it('the false comments from the earlier fix are gone', () => {
+    const src = read('lib/payments/paymentOutcome.ts')
+    expect(src).not.toContain('was a one-time Payment Link charge')
+    expect(src).not.toContain('fills the inapplicable fields with')
+    expect(src).not.toContain("refused a real customer's successful one-time payment")
+  })
+
+  it('the temporary diagnostic logging was removed from the route', () => {
+    const route = read('app/api/payments/grow/route.ts')
+    expect(route).not.toContain('DIAGNOSTIC_FIELDS')
+    expect(route).not.toContain('classificationFields')
+    expect(route).not.toContain('classification fields')
+  })
+})
+
+describe('the initial subscription charge activates; a later one still fails closed', () => {
+  it('D. unverifiable + recurring + initial GRANTS — the outage payload', async () => {
+    const res = await POST(req({ err: '', status: '1', data: realInitialRecurringPayload() }))
     expect(res.status).toBe(200)
     expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
   })
 
-  it('a failed charge still refuses', async () => {
-    const res = await POST(req(growBody({ statusCode: '4', status: 'נדחה', externalId: 'tok' })))
+  it('G. unverifiable + one_time still grants, unchanged', async () => {
+    const res = await POST(req({ err: '', status: '1', data: growPayload({ paymentType: 'רגיל', directDebitId: '' }) }))
+    expect(res.status).toBe(200)
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('F. unverifiable + recurring + unknown REFUSES', async () => {
+    const res = await POST(
+      req({ err: '', status: '1', data: growPayload({ paymentType: 'something-else', directDebitId: '778899' }) }),
+    )
+    expect(await res.json()).toMatchObject({ granted: false, reason: 'unverifiable' })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('H. a FAILED recurring charge still refuses', async () => {
+    const res = await POST(
+      req({ err: '', status: '1', data: { ...realInitialRecurringPayload(), statusCode: '5' } }),
+    )
     expect(await res.json()).toMatchObject({ granted: false, reason: 'not_success' })
     expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
   })
 
-  it('a pending charge still refuses', async () => {
-    const res = await POST(req(growBody({ status: 'pending', externalId: 'tok' })))
+  it('C. a pending recurring charge still refuses', async () => {
+    const res = await POST(
+      req({ err: '', status: '1', data: { ...realInitialRecurringPayload(), status: 'pending' } }),
+    )
     expect(await res.json()).toMatchObject({ granted: false, reason: 'pending' })
     expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
   })
 
-  it('unverifiable + recurring still refuses — the incident payload is unchanged', async () => {
-    const res = await POST(req({ err: '', status: '1', data: realOneTimePayload('778899') }))
-    expect(await res.json()).toMatchObject({ granted: false, reason: 'unverifiable' })
-    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
-  })
-
-  it('an invalid secret is still 401, and never reaches the diagnostic', async () => {
-    const body = growBody({ statusCode: '2', externalId: 'tok' })
-    body.data.webhookKey = 'wrong-secret-value-of-the-same-shape'
-    const res = await POST(req(body))
-    expect(res.status).toBe(401)
-    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
-  })
-
-  it('idempotency is unchanged', async () => {
-    H.paymentsInsert.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }))
-    const res = await POST(req(growBody({ statusCode: '2', externalId: 'tok' })))
-    expect(await res.json()).toMatchObject({ duplicate: true })
-    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
-  })
-
-  it('writes no database record on account of the diagnostic', async () => {
-    await POST(req({ err: '', status: '1', data: realOneTimePayload('778899') }))
-    // a refused charge touches nothing at all
-    expect(H.paymentsInsert).not.toHaveBeenCalled()
-    expect(H.pendingUpdate).not.toHaveBeenCalled()
-  })
-})
-
-describe('the real one-time Payment Link is not a standing order', () => {
-  /** Whatever placeholder Grow used, none of these may read as an identifier. */
-  it.each([0, '0', '', null, undefined, false, '-1', 'null'])(
-    'directDebitId placeholder %p is not a recurrence signal',
-    (v) => {
-      expect(isRecurringRun(realOneTimePayload(v))).toBe(false)
-    },
-  )
-
-  it('classifies the real payload as unverifiable, because Grow sends no status', () => {
-    expect(classifyPaymentOutcome({ err: '' }, realOneTimePayload(0))).toBe('unverifiable')
-  })
-
-  /** The exact combination that refused the customer. */
-  it('unverifiable + one-time now takes the compatibility path and grants', async () => {
-    const res = await POST(req({ err: '', status: '1', data: realOneTimePayload(0) }))
+  it('A. a confirmed success grants regardless of mode', async () => {
+    const res = await POST(
+      req({ err: '', status: '1', data: { ...realInitialRecurringPayload(), statusCode: '2', status: 'שולם' } }),
+    )
     expect(res.status).toBe(200)
     expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
   })
 
-  it('a genuine recurring identifier is still recurring', () => {
-    expect(isRecurringRun(realOneTimePayload('778899'))).toBe(true)
-    expect(isRecurringRun(realOneTimePayload(778899))).toBe(true)
-    expect(isRecurringRun({ regular_payment_id: '55' })).toBe(true)
-    expect(isRecurringRun({ regularPaymentId: 'abc-123' })).toBe(true)
-    expect(isRecurringRun({ recurringDebitId: 'x1' })).toBe(true)
+  it('K. a refused charge writes nothing at all', async () => {
+    await POST(req({ err: '', status: '1', data: { ...realInitialRecurringPayload(), statusCode: '5' } }))
+    expect(H.paymentsInsert).not.toHaveBeenCalled()
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+    expect(H.pendingUpdate).not.toHaveBeenCalled()
   })
 
-  /** The Phase 1 boundary is untouched: an unproven recurring run still fails closed. */
-  it('unverifiable + genuine recurring still refuses', async () => {
-    const res = await POST(req({ err: '', status: '1', data: realOneTimePayload('778899') }))
-    expect(await res.json()).toMatchObject({ granted: false, reason: 'unverifiable' })
+  it('I. idempotency is unchanged for the initial charge', async () => {
+    H.paymentsInsert.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }))
+    const res = await POST(req({ err: '', status: '1', data: realInitialRecurringPayload() }))
+    expect(await res.json()).toMatchObject({ duplicate: true })
     expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
   })
 
-  it('a FAILED recurring run still refuses, placeholder or not', async () => {
-    await POST(req({ err: '', status: '1', data: { ...realOneTimePayload('778899'), statusCode: '5' } }))
+  it('J. an invalid webhookKey is still 401, before any classification', async () => {
+    const data = realInitialRecurringPayload()
+    data.webhookKey = 'wrong-secret-value-of-the-same-shape'
+    const res = await POST(req({ err: '', status: '1', data }))
+    expect(res.status).toBe(401)
     expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
-  })
-
-  it('the fix reads the value, never the key', () => {
-    const src = read('lib/payments/paymentOutcome.ts')
-    expect(src).toContain('function hasRecurringIdentifier')
-    expect(src).not.toContain("return typeof v === 'string' ? v.trim() !== '' : v != null")
   })
 })
 

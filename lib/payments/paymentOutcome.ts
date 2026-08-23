@@ -119,51 +119,102 @@ function text(v: unknown): string {
 }
 
 /**
- * Values that mean "this field is present but holds no identifier".
+ * IS THIS CHARGE PART OF A STANDING ORDER — and if so, which charge?
  *
- * PROVEN NECESSARY BY A REAL PAYMENT. Transaction `GvNe/kVpyRfBqOuIks4kXA==`
- * was a one-time Payment Link charge, and its payload still contained
- * `directDebitId` — alongside `periodicalPaymentSum`, `paymentsNum`,
- * `allPaymentNum` and `firstPaymentSum`. Grow emits its FULL PaymentLinks
- * envelope on every transaction and fills the inapplicable fields with
- * placeholders, so the presence of a key says nothing at all about recurrence.
+ * These two questions used to be one, answered by the presence of
+ * `directDebitId`, and that conflation caused a production billing outage.
  *
- * The list is deliberately conservative: only values that cannot be a real Grow
- * identifier. That keeps the failure mode safe. If Grow ever uses a placeholder
- * spelling not listed here, the payload is still read as recurring and the
- * charge is still REFUSED — unfixed, never wrongly granted. Widening this list
- * is the direction that could hand a grant to a failed standing order, so it
- * must never grow to cover anything that might be a genuine id.
+ * WHAT GROW ACTUALLY DOCUMENTS (developers.grow.business/docs/overview-7):
+ *
+ *   directDebitId  "קוד הוראת קבע ולא קוד עסקה" — the standing-order MANDATE
+ *                  code, explicitly NOT a transaction code. A charge that
+ *                  CREATES a mandate carries it just as a later charge against
+ *                  that mandate does, so it says nothing about which charge
+ *                  this is.
+ *   paymentType    documented enum: 'רגיל' | 'הוראת קבע' | 'תשלומים'.
+ *                  THIS is the discriminator for payment mode.
+ *   webhook types  a dedicated "Recurring payment" subscription is
+ *                  "Triggered for recurring payments starting from the second
+ *                  charge", and a separate "Failure recurring payments"
+ *                  subscription fires when a recurring charge fails. Both are
+ *                  DIFFERENT SUBSCRIPTIONS from the transaction webhook this
+ *                  route is registered as.
+ *
+ * WHAT WENT WRONG. Transaction `GvNe/kVpyRfBqOuIks4kXA==` was the INITIAL ₪1
+ * charge of a monthly הוראת קבע subscription — confirmed by Grow's merchant
+ * record ("הו\"ק / 1", source עמוד קבוע). It legitimately carried a
+ * `directDebitId`, because it established the mandate. The old check read that
+ * as "this is a recurring run", the `unverifiable && recurring` rule refused it,
+ * and no subscription could activate at all: the initial charge is the only
+ * activation path, and this payload format carries no status field.
+ *
+ * The sequence axis exists so the guard keeps protecting what it was written
+ * for — an unproven LATER charge — without blocking the first one.
  */
-function hasRecurringIdentifier(v: unknown): boolean {
-  if (v == null) return false
-  if (typeof v === 'boolean') return v
-  const s = String(v).trim().toLowerCase()
-  if (s === '' || s === '0' || s === 'null' || s === 'undefined' || s === 'false' || s === '-1') return false
-  return true
+const GROW_PAYMENT_TYPE_RECURRING = 'הוראת קבע'
+const GROW_PAYMENT_TYPE_ONE_TIME = ['רגיל', 'תשלומים']
+
+/** Mandate identifiers. Evidence of a standing order, never of WHICH charge. */
+const MANDATE_ID_FIELDS = ['directDebitId', 'direct_debit_id', 'regular_payment_id', 'regularPaymentId', 'recurringDebitId']
+
+export type PaymentMode = 'one_time' | 'recurring'
+export type PaymentSequence = 'initial' | 'subsequent' | 'unknown'
+
+function hasMandateId(payload: Record<string, unknown>): boolean {
+  return MANDATE_ID_FIELDS.some((k) => {
+    const v = payload[k]
+    if (v == null) return false
+    if (typeof v === 'boolean') return v
+    const s = String(v).trim().toLowerCase()
+    return s !== '' && s !== '0' && s !== 'null' && s !== 'undefined' && s !== 'false' && s !== '-1'
+  })
 }
 
 /**
- * Does this payload look like a standing-order (הוראת קבע) run rather than a
- * one-time payment? Keyed on the recurring identifiers Grow's webhook docs list
- * — `directDebitId` on a recurring charge, `regular_payment_id` on a failed one.
+ * One-time or standing order, from the documented `paymentType` enum.
  *
- * IT IS THE VALUE THAT CARRIES THE SIGNAL, NOT THE KEY.
- *
- * This used to return true whenever one of these keys existed with any non-null
- * value. That refused a real customer's successful one-time payment: the charge
- * classified as `unverifiable` (Grow's PaymentLinks payload carries no status
- * field at all, which is exactly why the one-time path is permissive) and then
- * the presence of a placeholder `directDebitId` flipped it to `recurring`, so
- * the `unverifiable && recurring` rule denied a payment that had been taken.
- *
- * Read-only classification. This phase stores none of these fields.
+ * An unrecognised or absent `paymentType` resolves to `one_time`, which
+ * preserves the behaviour that is correct in production today: real Payment
+ * Links webhooks have always been permitted through the unverifiable path. The
+ * sequence classifier below is what refuses when that guess would be unsafe.
  */
-export function isRecurringRun(payload: Record<string, unknown> | null | undefined): boolean {
-  if (!payload || typeof payload !== 'object') return false
-  return ['directDebitId', 'direct_debit_id', 'regular_payment_id', 'regularPaymentId', 'recurringDebitId'].some(
-    (k) => hasRecurringIdentifier((payload as Record<string, unknown>)[k]),
-  )
+export function classifyPaymentMode(payload: Record<string, unknown> | null | undefined): PaymentMode {
+  if (!payload || typeof payload !== 'object') return 'one_time'
+  const t = text((payload as Record<string, unknown>).paymentType)
+  if (t === GROW_PAYMENT_TYPE_RECURRING) return 'recurring'
+  if (GROW_PAYMENT_TYPE_ONE_TIME.includes(t)) return 'one_time'
+  return 'one_time'
+}
+
+/**
+ * Which charge of the standing order is this?
+ *
+ * `initial` — a recurring charge arriving on THIS webhook. Grow delivers charge
+ *   #2 onward through a separate "Recurring payment" subscription, so a
+ *   standing-order charge reaching the transaction webhook is the one that
+ *   opened the mandate.
+ *
+ * `unknown` — a mandate id is present but `paymentType` did not identify the
+ *   mode. The payload is talking about a standing order in a shape we cannot
+ *   read, so we decline to guess. FAIL CLOSED: the caller refuses.
+ *
+ * `subsequent` is reserved for a payload that positively identifies itself as a
+ * later execution. Grow documents no such field on this webhook, so nothing
+ * returns it today — it exists so the decision table is total, and so that
+ * pointing the "Recurring payment" subscription at this route later has an
+ * obvious place to be handled rather than silently granting.
+ */
+export function classifyPaymentSequence(
+  payload: Record<string, unknown> | null | undefined,
+  mode: PaymentMode,
+): PaymentSequence {
+  if (!payload || typeof payload !== 'object') return 'initial'
+  const p = payload as Record<string, unknown>
+  if (mode === 'recurring') return 'initial'
+  // one_time by mode, but a mandate id says otherwise and paymentType was not
+  // one of the documented values — ambiguous, so refuse rather than guess.
+  if (hasMandateId(p) && !GROW_PAYMENT_TYPE_ONE_TIME.includes(text(p.paymentType))) return 'unknown'
+  return 'initial'
 }
 
 /**

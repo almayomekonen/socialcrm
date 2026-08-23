@@ -9,49 +9,9 @@ import { agencyOwner } from '@/lib/emailAutomations/recipients'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { resolveBillingPeriod, logPeriodResolution, type PeriodResolution } from '@/lib/payments/resolvePeriod'
-import { classifyPaymentOutcome, isRecurringRun } from '@/lib/payments/paymentOutcome'
+import { classifyPaymentOutcome, classifyPaymentMode, classifyPaymentSequence } from '@/lib/payments/paymentOutcome'
 
 const PG_UNIQUE_VIOLATION = '23505'
-
-/**
- * TEMPORARY DIAGNOSTIC — REMOVE ONCE THE RECURRING CLASSIFICATION IS SETTLED.
- *
- * WHY THIS EXISTS. Transaction GvNe/kVpyRfBqOuIks4kXA== was the FIRST charge of
- * a monthly הוראת קבע subscription. It was refused as
- * `unverifiable + recurring`, and we could not tell whether that verdict was
- * right, because the handler only ever logged payload KEYS. Two separate
- * root-cause analyses were argued from the key list alone; the first was wrong.
- * Values are the missing evidence, and guessing at them has already cost a
- * wrong diagnosis and a wrong fix.
- *
- * WHAT IS SAFE TO LOG. Only the fields that feed the classification decision.
- * Everything identifying the payer or the instrument is deliberately absent:
- * payerEmail, payerPhone, fullName, ip, cardSuffix, cardBin, cardBrand,
- * cardType — and webhookKey, which is the shared secret. `asmachta` is the
- * acquirer approval number, not a card or personal identifier.
- *
- * THIS DECIDES NOTHING. It reads values and prints them. The classification,
- * the entitlement path and the response are computed exactly as before, and no
- * database record is written on account of it.
- */
-const DIAGNOSTIC_FIELDS = [
-  'paymentType',
-  'transactionType',
-  'status',
-  'statusCode',
-  'asmachta',
-  'directDebitId',
-  'paymentsNum',
-  'allPaymentNum',
-  'firstPaymentSum',
-  'periodicalPaymentSum',
-] as const
-
-function classificationFields(payload: any): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const k of DIAGNOSTIC_FIELDS) out[k] = payload?.[k]
-  return out
-}
 
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
@@ -184,10 +144,6 @@ export async function POST(req: NextRequest) {
     externalId,
   })
 
-  // TEMPORARY DIAGNOSTIC. Authenticated requests only — a forged payload never
-  // reaches this line. See classificationFields for what is and is not logged.
-  console.log('[GrowWebhook] classification fields:', classificationFields(payload))
-
   // 5. Required-fields gate.
   // Required-fields gate. transactionId is non-negotiable (idempotency key
   // for the payments UNIQUE constraint). externalId is now allowed to be
@@ -225,18 +181,34 @@ export async function POST(req: NextRequest) {
    * looking like a success.
    */
   const outcome = classifyPaymentOutcome(body, payload)
-  const recurring = isRecurringRun(payload)
-  if (outcome === 'not_success' || outcome === 'pending' || (outcome === 'unverifiable' && recurring)) {
+  const mode = classifyPaymentMode(payload)
+  const sequence = classifyPaymentSequence(payload, mode)
+
+  /**
+   * An unverifiable charge is refused only when it is a standing order whose
+   * position in the series we cannot establish.
+   *
+   * The INITIAL charge of a subscription is granted on the same basis as a
+   * one-time payment. Grow's transaction webhook carries no status field at
+   * all, and charge #2 onward arrives through a different subscription
+   * entirely, so refusing every standing-order charge here did not fail closed
+   * on a doubtful payment — it refused every activation the product has.
+   */
+  const unprovenCharge = sequence !== 'initial'
+  if (outcome === 'not_success' || outcome === 'pending' || (outcome === 'unverifiable' && unprovenCharge)) {
     console.warn('[GrowWebhook] refusing to grant — payment not confirmed', {
       transactionId,
       outcome,
-      recurring,
+      mode,
+      sequence,
     })
     return NextResponse.json({ ok: true, granted: false, reason: outcome })
   }
   if (outcome === 'unverifiable') {
-    console.warn('[GrowWebhook] no payment status on a non-recurring payload — granting on legacy behaviour', {
+    console.warn('[GrowWebhook] no payment status on this payload — granting on the compatibility path', {
       transactionId,
+      mode,
+      sequence,
     })
   }
 
