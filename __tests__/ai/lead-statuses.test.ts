@@ -61,3 +61,33 @@ describe('canonical status sets', () => {
     expect(ACTIVE_STATUSES.has('ממתין לתשובה')).toBe(true)
   })
 })
+
+// ─── Persisted (English) vocabulary ─────────────────────────────────────────
+// clients.status stores the English keys declared in lib/leads/statusStyles.ts
+// and mirrored as catalog data in lib/automations/catalog/entries/events.ts.
+// The canonical sets previously held only Hebrew LABELS, so they matched no row:
+// every real status fell through to 'cool', which meant closed/lost leads still
+// received copilot sales suggestions and follow-up pulses.
+
+describe('canonical sets cover the persisted English vocabulary', () => {
+  it('terminal set contains the persisted close-states', () => {
+    expect(TERMINAL_STATUSES.has('closed')).toBe(true)
+    expect(TERMINAL_STATUSES.has('lost')).toBe(true)
+  })
+
+  it('active set contains the persisted engagement-states', () => {
+    expect(ACTIVE_STATUSES.has('new')).toBe(true)
+    expect(ACTIVE_STATUSES.has('contacted')).toBe(true)
+    expect(ACTIVE_STATUSES.has('interested')).toBe(true)
+  })
+})
+
+describe('classifyLeadStatus — persisted English statuses', () => {
+  it.each([['closed'], ['lost']])('%s → terminal', (status) => {
+    expect(classifyLeadStatus(status)).toBe('terminal')
+  })
+
+  it.each([['new'], ['contacted'], ['interested']])('%s → active', (status) => {
+    expect(classifyLeadStatus(status)).toBe('active')
+  })
+})

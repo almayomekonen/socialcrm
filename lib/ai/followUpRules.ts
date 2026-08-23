@@ -45,11 +45,16 @@ export function followUpPulse(s: FollowUpSignals): FollowUpResult | null {
     return result('momentum-cooling')
   }
 
+  // The band is deliberately the "being worked" status only — not every active
+  // status. 'contacted' is the persisted key; 'בטיפול' is its legacy alias, kept
+  // so historical rows still classify. See lib/ai/leadStatuses.ts.
+  const isBeingWorked = s.status === 'contacted' || s.status === 'בטיפול'
+
   if (
     typeof s.daysInCurrentStatus === 'number' &&
     s.daysInCurrentStatus >= 7 &&
     s.daysInCurrentStatus < 14 &&
-    s.status === 'בטיפול'
+    isBeingWorked
   ) {
     return result('stalled-early')
   }

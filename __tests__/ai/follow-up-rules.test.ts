@@ -197,3 +197,35 @@ describe('followUpPulse — null status handling', () => {
     expect(followUpPulse(merge({ status: null, overdueTaskCount: 1 }))?.pulse).toBe('follow-up-overdue')
   })
 })
+
+// ─── Persisted (English) vocabulary ─────────────────────────────────────────
+// The cases above pin the Hebrew LABELS, which are retained as legacy aliases.
+// clients.status actually stores English keys (new | contacted | interested |
+// closed | lost), so these pin the values the rule engine really receives.
+
+describe('followUpPulse — persisted English statuses', () => {
+  it.each([['closed'], ['lost']])(
+    'returns null for %s — even with overdue and due-today tasks',
+    (status) => {
+      expect(followUpPulse(merge({ status, overdueTaskCount: 5, dueTodayTaskCount: 5 }))).toBeNull()
+    },
+  )
+
+  it('no-open-task fires for an active English status', () => {
+    expect(
+      followUpPulse(merge({ status: 'new', openTaskCount: 0, daysInCurrentStatus: 5 }))?.pulse,
+    ).toBe('no-open-task')
+  })
+
+  it('stalled-early fires for contacted at 9 days in status', () => {
+    expect(
+      followUpPulse(merge({ status: 'contacted', daysInCurrentStatus: 9, taskCompletionRate: 0.2 }))?.pulse,
+    ).toBe('stalled-early')
+  })
+
+  it('stalled-early does NOT fire for interested (band is contacted only)', () => {
+    expect(
+      followUpPulse(merge({ status: 'interested', daysInCurrentStatus: 9, taskCompletionRate: 0.2 })),
+    ).toBeNull()
+  })
+})
