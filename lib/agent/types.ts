@@ -48,16 +48,87 @@ export type EvidenceRef =
 export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
 
 /**
- * Epistemic class of one statement. The validator enforces the difference —
- * an INFERENCE written as a bare assertion is dropped rather than surfaced.
+ * Epistemic class of one statement.
+ *
+ * These are a DISCRIMINATED UNION with class-specific evidence field names, not
+ * a single shape with a label. That is deliberate: if every class carried the
+ * same `evidence: string[]`, relabelling an inference as a fact would cost the
+ * model one string and only prose inspection could catch it — which would make
+ * the whole trust boundary rest on a regex.
+ *
+ * Instead each class asks for a differently-named field holding a different
+ * KIND of evidence, and the validator checks the refs actually resolve to that
+ * kind in the collector:
+ *
+ *   FACT           entityEvidence — lead / conversation / message refIds
+ *   OBSERVATION    metricEvidence — metric names that exist WITH their sample size
+ *   INFERENCE      evidence (either kind) AND a hedge in the prose
+ *   RECOMMENDATION evidence (either kind)
+ *
+ * Promoting an inference to a FACT therefore means moving refs into
+ * `entityEvidence` and having them resolve to real entities; promoting it to an
+ * OBSERVATION means naming a metric the collector actually holds. Mislabelling
+ * costs fabrication the validator can detect, rather than a relabel it cannot.
  */
-export type ClaimClass = 'FACT' | 'OBSERVATION' | 'INFERENCE' | 'RECOMMENDATION'
+export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION'] as const
+export type ClaimClass = (typeof CLAIM_CLASSES)[number]
 
-export type Claim = {
-  claimClass: ClaimClass
+/** Something read directly from source rows. Cites the rows. */
+export type FactClaim = {
+  claimClass: 'FACT'
   text: string
-  /** refIds (or metric names) this claim rests on. Validated against the collector. */
+  /** lead / conversation / message refIds. Must resolve as entities. */
+  entityEvidence: string[]
+}
+
+/** A measurement. Cites the metric, which carries its own window and sample size. */
+export type ObservationClaim = {
+  claimClass: 'OBSERVATION'
+  text: string
+  /** Metric names. Must exist in the collector — a metric ref carries `n`. */
+  metricEvidence: string[]
+}
+
+/** A judgement about relationship or cause. Must be hedged AND grounded. */
+export type InferenceClaim = {
+  claimClass: 'INFERENCE'
+  text: string
+  /** Entity refIds or metric names — either kind grounds an inference. */
   evidence: string[]
+}
+
+/** Proposed next action. Advice, never asserted as fact. */
+export type RecommendationClaim = {
+  claimClass: 'RECOMMENDATION'
+  text: string
+  /** Entity refIds or metric names — either kind grounds a recommendation. */
+  evidence: string[]
+}
+
+export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim
+
+/** The refs a claim cites, whatever its class calls the field. */
+export function claimRefs(claim: Claim): string[] {
+  switch (claim.claimClass) {
+    case 'FACT':
+      return claim.entityEvidence
+    case 'OBSERVATION':
+      return claim.metricEvidence
+    default:
+      return claim.evidence
+  }
+}
+
+/** Rebuild a claim with a new ref list, preserving its class and field name. */
+export function withClaimRefs(claim: Claim, refs: string[]): Claim {
+  switch (claim.claimClass) {
+    case 'FACT':
+      return { ...claim, entityEvidence: refs }
+    case 'OBSERVATION':
+      return { ...claim, metricEvidence: refs }
+    default:
+      return { ...claim, evidence: refs }
+  }
 }
 
 export type AgentAnswer = {
