@@ -20,19 +20,28 @@ import Icon from '@/lib/Icon'
  * promising a charge that is not coming — in TWO different situations, for the
  * same reason. It sits directly beneath the plan's status badge and said
  * "החיוב הבא" would be taken from the card both to a customer whose
- * subscription had already ended and to one who had cancelled and whose
- * renewal is already switched off. Neither has a next charge.
+ * subscription had already ended and to one who had cancelled.
  *
  * Same rule as ManagePlanModal: a future charge is claimed ONLY while the
  * subscription is genuinely renewing. The fact about the stored card is
  * unchanged and still true in all three states; only its tense is. A renewing
  * customer keeps the original sentence verbatim.
+ *
+ * THE CANCELLING LINE MAKES NO PREDICTION EITHER WAY. It used to read "המנוי
+ * לא יתחדש ולא ייגבה חיוב נוסף" — the most explicit promise on the page, and
+ * the one this system is least able to keep: cancelling sets a flag on our own
+ * subscriptions row and contacts no payment provider, so the standing order is
+ * untouched and a further charge is entirely possible. Predicting "no further
+ * charge" was therefore a guess presented as a guarantee, and predicting the
+ * opposite would be a different guess. It now states the one thing that is
+ * true — the request is recorded — and stops there. When provider cancellation
+ * is genuinely confirmed, a definite sentence becomes available again.
  */
 export type PaymentMethodState = 'renewing' | 'cancelling' | 'expired'
 
 const CHARGE_COPY: Record<PaymentMethodState, string> = {
   renewing: 'החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון',
-  cancelling: 'המנוי לא יתחדש ולא ייגבה חיוב נוסף',
+  cancelling: 'בקשת הביטול נקלטה',
   expired: 'חידוש המנוי יחייב את הכרטיס ששימש לתשלום האחרון',
 }
 

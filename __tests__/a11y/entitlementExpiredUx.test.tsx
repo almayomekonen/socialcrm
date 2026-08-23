@@ -827,14 +827,22 @@ describe('billing never promises a charge that is not coming', () => {
   })
 
   /**
-   * A cancelling customer still has access, so `expired` is false — but the
-   * renewal is already switched off, so "החיוב הבא" was equally untrue for
-   * them, on the same row, directly under a "המנוי בוטל" state.
+   * A cancelling customer still has access, so `expired` is false — but
+   * "החיוב הבא" was equally untrue for them, on the same row.
+   *
+   * The positive half of this assertion changed. It used to require the row to
+   * read "לא ייגבה חיוב נוסף", which pinned a promise the system cannot keep:
+   * cancelling sets a flag on our own subscriptions row and contacts no payment
+   * provider, so a further charge remains possible. The row now records the
+   * request and predicts nothing, and this test pins THAT — while keeping the
+   * original "no next charge is claimed" guarantee, which is still the point.
    */
-  it('does not claim a next charge for a subscription that will not renew', () => {
+  it('predicts no charge either way for a cancelling subscription', () => {
     const { container } = render(<PaymentMethodRow state='cancelling' />)
     expect(container.textContent).not.toContain('החיוב הבא')
-    expect(container.textContent).toContain('לא ייגבה חיוב נוסף')
+    expect(container.textContent).toContain('בקשת הביטול נקלטה')
+    // The promise that replaced it must not come back under either polarity.
+    expect(container.textContent).not.toContain('לא ייגבה חיוב נוסף')
   })
 
   it('keeps the stored-card fact, which is still true in every state', () => {

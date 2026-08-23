@@ -123,11 +123,16 @@ function StatusBadge({ cancelling, expired = false }: { cancelling: boolean; exp
       </span>
     )
   }
+  // Reads "request received", not "cancelled". The badge is driven by
+  // `cancelAtPeriodEnd`, a flag this app sets on its own subscriptions row;
+  // nothing contacts the payment provider to stop the standing order, so
+  // "המנוי בוטל" asserted an outcome that had not been performed or observed.
+  // Amber is unchanged — this is still a state between active and ended.
   if (cancelling) {
     return (
       <span className='inline-flex items-center gap-2 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800'>
         <span aria-hidden='true' className='size-1.5 rounded-full bg-amber-500' />
-        המנוי בוטל
+        בקשת הביטול נקלטה
       </span>
     )
   }

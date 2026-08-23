@@ -165,9 +165,11 @@ function ManageBody({
   onResume: () => void
   onClose: () => void
 }) {
-  // 'cancelling' = renewal already off, Pro access remains until expiresAt (an
-  // access-end date, no next charge); otherwise it renews and expiresAt is the
-  // next charge date.
+  // 'cancelling' = the customer's cancellation request is RECORDED HERE
+  // (cancelAtPeriodEnd). Pro access still runs to expiresAt, so the date stays
+  // an access-end date; otherwise it renews and expiresAt is the next charge
+  // date. What this state does NOT mean is that the standing order at the
+  // payment provider has been stopped — see the label below.
   const cancelling = status === 'cancelling'
   /**
    * ONE RULE FOR BOTH LABELS: "החיוב הבא" and "פעיל" are shown ONLY when the
@@ -184,12 +186,20 @@ function ManageBody({
    *
    * Entitlement comes from the shared context (`getAgencyProductAccess` via
    * `useAccessDenied`, read by the parent) — never a plan-name check.
+   *
+   * THE CANCELLING LABEL STATES ONLY WHAT WE KNOW. It used to read "המנוי
+   * בוטל", asserted from `cancelAtPeriodEnd` alone — a flag this app sets on
+   * its own row. Nothing in the system contacts the payment provider to stop
+   * the standing order, so "בוטל" claimed an outcome we had neither performed
+   * nor observed. The one fact we can stand behind is that the request was
+   * recorded, so that is what it now says. When provider cancellation is
+   * genuinely confirmed, THAT is what earns the word "בוטל" — not this flag.
    */
   const renewing = !expired && status === 'active'
   const statusLabel = expired
     ? 'המנוי הסתיים'
     : cancelling
-      ? 'המנוי בוטל'
+      ? 'בקשת הביטול נקלטה'
       : status === 'inactive'
         ? 'לא פעיל'
         : 'פעיל'
@@ -276,9 +286,16 @@ function ConfirmCancelBody({
     <>
       <h2 className='text-xl font-bold'>לבטל את מסלול ה־Pro?</h2>
 
+      {/*
+        The access half of this sentence is verified — entitlement is driven by
+        `expiresAt` and cancelling touches neither it nor the plan — so it is
+        kept verbatim. The billing half ("המנוי לא יתחדש") was not: nothing here
+        stops the standing order, so promising no future charge was a claim the
+        system had no way to keep. It is replaced by what actually happens.
+      */}
       {expiresAtIso && (
         <p className='text-sm text-gray-700'>
-          המנוי לא יתחדש, והגישה שלך ל־Pro תישאר פעילה עד {formatDate(expiresAtIso)}.
+          בקשת הביטול תירשם, והגישה שלך ל־Pro תישאר פעילה עד {formatDate(expiresAtIso)}.
         </p>
       )}
 

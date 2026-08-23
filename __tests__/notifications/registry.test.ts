@@ -37,7 +37,9 @@ const enabled = entries.filter((e) => e.enabled)
 describe('invariant 1 — exactly one entry per type', () => {
   it('every declared type has an entry, and nothing extra exists', () => {
     expect(Object.keys(NOTIFICATION_REGISTRY).sort()).toEqual([...NOTIFICATION_TYPES].sort())
-    expect(entries).toHaveLength(16)
+    // Counted from the union rather than a literal, so adding a type cannot make
+    // this assertion stale — the previous hard-coded 16 had to be edited by hand.
+    expect(entries).toHaveLength(NOTIFICATION_TYPES.length)
   })
 
   it("each entry's own type field matches its key — a copy/paste guard", () => {
@@ -50,7 +52,10 @@ describe('invariant 1 — exactly one entry per type', () => {
     for (const def of entries) {
       expect(NOTIFICATION_CATEGORIES).toContain(def.category)
       expect(PRIORITIES).toContain(def.basePriority)
-      expect(['handler_or_admin', 'admin_only']).toContain(def.recipients)
+      // 'platform_operator' is the platform-level rule: it resolves to the
+      // platform-owner allowlist instead of the agency's users, and is the only
+      // rule that may address someone outside the event's tenant.
+      expect(['handler_or_admin', 'admin_only', 'platform_operator']).toContain(def.recipients)
     }
   })
 
@@ -62,6 +67,12 @@ describe('invariant 1 — exactly one entry per type', () => {
       followup: 'followups',
       integration: 'integrations',
       sla: 'sla',
+      // Deliberate reuse, not a mismatch: `notifications.category` carries a
+      // database CHECK over exactly five values, so a 'subscription' category
+      // would require a migration. An external payment mandate awaiting action
+      // is genuinely the integrations bucket, and the mapping is recorded here
+      // so the reuse stays intentional rather than looking like a slip.
+      subscription: 'integrations',
     }
     for (const def of entries) {
       expect(def.category).toBe(prefixToCategory[def.type.split('.')[0]])
@@ -302,8 +313,11 @@ describe('deep links target entities, never notifications (§20.2)', () => {
       // route, and the two old ones are redirect stubs), so the correct
       // destination carries no id.
       // Comments likewise: only /inbox/comments exists (no per-comment URL yet).
+      // Subscriptions likewise: the destination is /admin, the platform-owner
+      // surface that already lists every agency. There is no per-subscription
+      // route, and the notification's reader is the operator, not the tenant.
       const entityType = def.entity(c).type
-      if (entityType !== 'integration' && entityType !== 'comment') {
+      if (entityType !== 'integration' && entityType !== 'comment' && entityType !== 'subscription') {
         expect(def.deepLink(c)).toContain(String(def.entity(c).id))
       }
     }

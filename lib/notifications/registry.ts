@@ -46,6 +46,8 @@ const leadEntity = (ctx: EventContext) => ({ type: 'lead' as const, id: ctx.enti
 const conversationEntity = (ctx: EventContext) => ({ type: 'conversation' as const, id: ctx.entityId })
 const integrationEntity = (ctx: EventContext) => ({ type: 'integration' as const, id: ctx.entityId })
 const commentEntity = (ctx: EventContext) => ({ type: 'comment' as const, id: ctx.entityId })
+/** The CANCELLING agency — never ctx.agencyId, which here is the platform owner's. */
+const subscriptionEntity = (ctx: EventContext) => ({ type: 'subscription' as const, id: ctx.entityId })
 
 /**
  * Deep links target the ENTITY, never a notification (spec §20.2). There is no
@@ -61,6 +63,10 @@ const conversationLink = (ctx: EventContext) => `/inbox?conversation=${ctx.entit
 const integrationLink = () => '/settings/integrations'
 /** Comments Inbox list — no per-comment route exists yet. */
 const commentsInboxLink = () => '/inbox/comments'
+/** The platform-owner surface. Gated by isPlatformOwner, the same allowlist the
+ *  `platform_operator` recipient rule resolves by, so the link can only be
+ *  followed by someone entitled to receive the notification in the first place. */
+const adminLink = () => '/admin'
 
 export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef> = {
   'lead.created': {
@@ -306,6 +312,39 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     deepLink: leadLink,
     recipients: 'handler_or_admin',
     channels: CRITICAL_WITH_EMAIL,
+  },
+
+  /**
+   * The one PLATFORM-level entry. A customer cancelled in SocialCRM, and their
+   * standing order at Grow still has to be stopped by hand — there is no
+   * documented cancellation API and no outbound Grow client, so nothing in this
+   * system can do it. The notification exists to make that manual step
+   * impossible to forget; it never claims the standing order was cancelled.
+   *
+   * `category: 'integrations'` is REUSED, not invented: `notifications.category`
+   * carries a database CHECK over exactly five values, so a new category would
+   * require a migration, and an external payment mandate needing attention is
+   * genuinely the integrations bucket. `entity`/`deepLink` point at the cancelling
+   * agency and /admin — the platform-owner surface that already lists agencies
+   * and is gated by the same `isPlatformOwner` allowlist this type resolves by.
+   *
+   * `PUSH_WHEN_AWAY` rather than `CRITICAL_WITH_EMAIL`: email is capability-false
+   * in `buildWorkerCapabilities` and has no dispatcher in processJob, so
+   * declaring it would promise a channel that silently never fires. In-app
+   * always, push once attention lapses — both proven paths.
+   */
+  'subscription.cancellation_requested': {
+    type: 'subscription.cancellation_requested',
+    category: 'integrations',
+    enabled: true,
+    basePriority: 'high',
+    collapseKey: keys.subscriptionCancelKey,
+    title: copy.subscriptionCancellationTitle,
+    body: copy.subscriptionCancellationBody,
+    entity: subscriptionEntity,
+    deepLink: adminLink,
+    recipients: 'platform_operator',
+    channels: PUSH_WHEN_AWAY,
   },
 }
 

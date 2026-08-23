@@ -116,5 +116,29 @@ export const integrationIngestionFailedBody = (ctx: EventContext): string =>
 export const SLA_PLACEHOLDER_TITLE = 'SLA'
 export const slaPlaceholderTitle = (): string => SLA_PLACEHOLDER_TITLE
 
+/**
+ * Platform-operator copy for a cancellation that still needs handling at the
+ * payment provider.
+ *
+ * IT STATES AN INSTRUCTION, NEVER AN OUTCOME. SocialCRM has no way to stop a
+ * Grow standing order — there is no documented cancellation API and no outbound
+ * Grow client — so the only verified facts are that the customer cancelled here
+ * and that the mandate is still standing. "יש לבטל" is a task; anything in the
+ * past tense about Grow would be a claim this system cannot make (care-charter
+ * Law 1), which is the same defect already corrected in the customer-facing
+ * cancellation copy.
+ *
+ * Not a customer-facing surface: the reader is whoever runs SocialCRM, so the
+ * subject is the agency by name. An absent name degrades to a name-free
+ * sentence rather than a placeholder, exactly like every other builder here.
+ */
+export const subscriptionCancellationTitle = (): string => 'ביטול מנוי דורש טיפול'
+
+export const subscriptionCancellationBody = (ctx: EventContext): string => {
+  const name = ctx.payload.cancellingAgencyName?.trim()
+  const subject = name ? `${name} ביטל` : 'עסק ביטל'
+  return `${subject} את מנוי SocialCRM. יש לבטל את הוראת הקבע שלו ב-Grow.`
+}
+
 /** No body for the common case — a title plus a deep link is the whole message. */
 export const noBody = (): null => null
