@@ -34,6 +34,7 @@ import { cookies } from 'next/headers'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
+import { canPreviewExpiredWorkspace } from '@/lib/auth/expiredWorkspacePreview'
 import { getAgencyPlan } from '@/lib/quota'
 import { track, trackOncePerAgency } from '@/lib/analytics/track'
 import { after } from 'next/server'
@@ -105,7 +106,21 @@ async function LayoutContent({ children }) {
   // and clear it with
   //   document.cookie = 'preview_paywall=;path=/;max-age=0'
   const previewPaywall = owner && (await cookies()).get('preview_paywall')?.value === '1'
-  const trialExpired = (trialStatus === 'TRIAL_EXPIRED' && !owner) || previewPaywall
+  /**
+   * QA affordance: render the real workspace for an allowlisted EXPIRED session
+   * so the expired experience can be tested from inside the product.
+   *
+   * It grants no product access. `productAccess.hasAccess` below is untouched,
+   * so every server guard, both engine gates, the AI router and every
+   * expired-UX surface behave exactly as they do for a real expired customer.
+   *
+   * Deliberately NOT `isPlatformOwner`, which is an admin authority that also
+   * unlocks /admin and the cross-tenant support inbox. See
+   * lib/auth/expiredWorkspacePreview.ts. Unset by default, matching nobody.
+   */
+  const previewExpiredWorkspace = canPreviewExpiredWorkspace(user.email)
+  const trialExpired =
+    (trialStatus === 'TRIAL_EXPIRED' && !owner && !previewExpiredWorkspace) || previewPaywall
   let leadPreview = { total: 0, names: [] as string[] }
   if (trialExpired) {
     if (!previewPaywall) await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_expired' })
