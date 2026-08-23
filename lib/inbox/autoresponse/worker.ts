@@ -28,6 +28,7 @@ import { waTrace } from './waTrace'
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
 import { assertIreSendAllowed } from './ireSendGate'
+import { assertAgentSendAllowed } from './agentSendGuard'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -179,6 +180,21 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
 
   const gate = await assertIreSendAllowed(job.agencyId, job.conversationId)
   if (gate.ok === false) return doSkip(gate.reason)
+
+  // ── HUMAN PRESENCE (second of two send guards) ─────────────────────────────
+  // Acknowledge mode does not route through sendIreOutbound, so the boundary is
+  // enforced explicitly here — same pair of guards, same order, same last moment.
+  const presence = await assertAgentSendAllowed({
+    conversationId: job.conversationId,
+    turnStartedAt: job.createdAt,
+    trace: {
+      conversationId: job.conversationId,
+      jobId: job.id,
+      agencyId: job.agencyId,
+      triggerSequence: job.triggerSequence,
+    },
+  })
+  if (presence.authorized === false) return doSkip(presence.reason)
 
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: conv.businessPhoneNumberId, agency_id: job.agencyId })

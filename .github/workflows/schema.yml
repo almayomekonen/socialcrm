@@ -1,0 +1,93 @@
+name: Schema
+
+# The invariant this enforces:
+#     baseline → current knex migrations → valid schema
+#
+# The `conversation_ai_state` CHECK constraint that omitted 'closed' survived ~40
+# test assertions and reached review because no test could reach real DDL. This
+# job is what makes that impossible: every migration runs against a real Postgres
+# built from the committed baseline, so a migration that cannot apply fails on the
+# PR that introduces it.
+#
+# Deliberately NOT a deploy step. Migrations are applied manually before release —
+# see claude/release-deployment-workflow.md.
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'db/baseline/**'
+      - 'scripts/bootstrap-schema.cjs'
+      - 'scripts/regenerate-baseline.cjs'
+      - '__tests__/globalSetup.ts'
+      - 'knexfile.cjs'
+  workflow_dispatch:
+
+jobs:
+  fresh-database:
+    name: Fresh database builds from the baseline
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: socialcrm_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # A disposable service container: remote by nature, so the bootstrap's
+      # local-host rule is explicitly waived. Every other refusal rule still
+      # applies — including the one that matters, that the database be empty.
+      BOOTSTRAP_ALLOW_REMOTE: '1'
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/socialcrm_test?sslmode=disable
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm must exist before setup-node, or `cache: pnpm` has nothing to detect.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bootstrap the baseline
+        run: node scripts/bootstrap-schema.cjs
+
+      - name: Apply every migration after the baseline
+        run: pnpm exec knex --knexfile knexfile.cjs migrate:latest
+
+      - name: Migrations are idempotent
+        run: |
+          out=$(pnpm exec knex --knexfile knexfile.cjs migrate:latest 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "Already up to date" || { echo "::error::re-running migrations was not a no-op"; exit 1; }
+
+      - name: Bootstrap refuses a non-empty database
+        run: |
+          if node scripts/bootstrap-schema.cjs; then
+            echo "::error::bootstrap did NOT refuse a populated database"
+            exit 1
+          fi
+          echo "refused, as it must"
+
+      - name: Schema contract tests
+        run: pnpm run test:schema
+
+      - name: Rollback of the newest migration is reversible
+        run: |
+          pnpm exec knex --knexfile knexfile.cjs migrate:down
+          pnpm exec knex --knexfile knexfile.cjs migrate:latest

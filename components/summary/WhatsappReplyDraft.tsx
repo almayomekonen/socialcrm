@@ -12,6 +12,7 @@ import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
+import { useComposerTypingSignal } from '@/modules/inbox/client/useComposerTypingSignal'
 
 const MAX_CHARS = 4096
 
@@ -31,6 +32,8 @@ export default function WhatsappReplyDraft({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emojiBtnRef = useRef<HTMLButtonElement>(null)
+  // Human Presence: the first keystroke parks the WhatsApp agent for this turn.
+  const signalTyping = useComposerTypingSignal(conversationId)
 
   const hasDraft = draft.trim().length > 0
   const busy = pending || sending
@@ -135,7 +138,10 @@ export default function WhatsappReplyDraft({
           ref={textareaRef}
           id='wa-reply-draft'
           value={draft}
-          onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHARS))}
+          onChange={(e) => {
+            signalTyping()
+            setDraft(e.target.value.slice(0, MAX_CHARS))
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()

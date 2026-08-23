@@ -10,6 +10,7 @@ import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import type { AutoResponseJob } from '@/db/autoResponseJobs'
 import { finalizeCustomerFacingText } from './customerFacingText'
 import { assertIreSendAllowed } from './ireSendGate'
+import { assertAgentSendAllowed } from './agentSendGuard'
 
 export type IreOutboundCtx = {
   conv: { id: number; businessPhoneNumberId: string; customerWaId: string | null; customerName: string | null }
@@ -37,6 +38,23 @@ export async function sendIreOutbound(
 
   const sendGate = await assertIreSendAllowed(job.agencyId, job.conversationId)
   if (sendGate.ok === false) return { ok: false, reason: sendGate.reason }
+
+  // ── HUMAN PRESENCE (second of two send guards) ─────────────────────────────
+  // Runs after the IRE gate, immediately before Meta. The IRE gate answers "is
+  // this a legitimate conversation to send on"; this answers "does the agent
+  // still own this turn". Both must authorize. Fresh read, no cached verdict —
+  // the whole point is that the world may have changed while the model ran.
+  const presence = await assertAgentSendAllowed({
+    conversationId: job.conversationId,
+    turnStartedAt: job.createdAt,
+    trace: {
+      conversationId: ctx.conv.id,
+      jobId: job.id,
+      agencyId: job.agencyId,
+      triggerSequence: job.triggerSequence,
+    },
+  })
+  if (presence.authorized === false) return { ok: false, reason: presence.reason }
 
   const sentByUserId = ctx.lead.userId ?? ctx.lead.handlerId ?? connection.user_id
   const sent = await send({

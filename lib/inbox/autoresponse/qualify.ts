@@ -275,6 +275,8 @@ export async function generateQualifyTurn(args: {
   responseProfile?: ResponseProfile | null
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
+  /** Aborts the provider call when a human rep starts typing mid-generation. */
+  abortSignal?: AbortSignal
 }): Promise<QualifyGenResult> {
   const out = await runStructured({
     kind: 'inbox.autoResponse',
@@ -284,6 +286,7 @@ export async function generateQualifyTurn(args: {
     user: buildQualifyUser(args),
     agencyId: args.agencyId,
     bypassAllowlist: args.bypassAllowlist,
+    abortSignal: args.abortSignal,
   })
   if (out.ok === false) {
     waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, { ok: false, reason: out.reason })
