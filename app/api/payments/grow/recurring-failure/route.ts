@@ -65,12 +65,13 @@ export async function POST(req: NextRequest) {
   }
   console.log('[GrowRecurringFailure] payload keys:', Object.keys(payload))
 
-  // 3. Authenticate. Same secret, same constant-time compare; option 7's
-  //    documented `webhook_key` spelling is handled inside the shared helper.
-  const auth = verifyWebhookSecret(payload)
+  // 3. Authenticate against this endpoint's OWN secret — Grow issues a
+  //    separate key per webhook subscription. Same constant-time compare;
+  //    option 7's documented `webhook_key` spelling is handled in the helper.
+  const auth = verifyWebhookSecret(payload, 'GROW_RECURRING_FAILURE_WEBHOOK_SECRET')
   if (auth.ok === false) {
     if (auth.reason === 'not_configured') {
-      console.error('[GrowRecurringFailure] GROW_WEBHOOK_SECRET is not set — refusing to process')
+      console.error('[GrowRecurringFailure] GROW_RECURRING_FAILURE_WEBHOOK_SECRET is not set — refusing to process')
       return new NextResponse('Server misconfigured', { status: 500 })
     }
     console.warn('[GrowRecurringFailure] rejected: missing or invalid webhook key')

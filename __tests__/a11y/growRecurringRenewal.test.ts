@@ -96,7 +96,7 @@ beforeEach(async () => {
   vi.stubEnv('APP_ENV', 'production')
   vi.stubEnv('GROW_MODE', 'production')
   vi.stubEnv('APP_HOST', 'example.test')
-  vi.stubEnv('GROW_WEBHOOK_SECRET', SECRET)
+  vi.stubEnv('GROW_RECURRING_WEBHOOK_SECRET', SECRET)
   H.order.length = 0
   H.subRows.mockReturnValue([{ agencyId: AGENCY_ID }])
   H.insert.mockImplementation(async () => {})
@@ -347,8 +347,38 @@ describe('authentication', () => {
     expect(H.upgrade).not.toHaveBeenCalled()
   })
 
+  /**
+   * Grow generates each webhook's key and will not let us edit it, so the three
+   * endpoints hold three unrelated secrets. The renewal endpoint is the one that
+   * grants paid time, so reaching it with another endpoint's key must fail.
+   */
+  it('refuses the INITIAL webhook secret', async () => {
+    vi.stubEnv('GROW_WEBHOOK_SECRET', 'initial-endpoint-secret-value')
+    const res = await POST(req(renewalBody({ webhookKey: 'initial-endpoint-secret-value' })))
+    expect(res.status).toBe(401)
+    expect(H.upgrade).not.toHaveBeenCalled()
+  })
+
+  it('refuses the RECURRING-FAILURE webhook secret', async () => {
+    vi.stubEnv('GROW_RECURRING_FAILURE_WEBHOOK_SECRET', 'failure-endpoint-secret-value')
+    const res = await POST(req(renewalBody({ webhookKey: 'failure-endpoint-secret-value' })))
+    expect(res.status).toBe(401)
+    expect(H.upgrade).not.toHaveBeenCalled()
+  })
+
+  it('reads only its own env var — the others cannot stand in for it', async () => {
+    vi.stubEnv('GROW_RECURRING_WEBHOOK_SECRET', '')
+    vi.stubEnv('GROW_WEBHOOK_SECRET', SECRET)
+    vi.stubEnv('GROW_RECURRING_FAILURE_WEBHOOK_SECRET', SECRET)
+    vi.resetModules()
+    const mod = await import('@/app/api/payments/grow/recurring/route')
+    const res = await mod.POST(req(renewalBody()))
+    expect(res.status).toBe(500)
+    expect(H.upgrade).not.toHaveBeenCalled()
+  })
+
   it('an unset server secret refuses to process', async () => {
-    vi.stubEnv('GROW_WEBHOOK_SECRET', '')
+    vi.stubEnv('GROW_RECURRING_WEBHOOK_SECRET', '')
     vi.resetModules()
     const mod = await import('@/app/api/payments/grow/recurring/route')
     const res = await mod.POST(req(renewalBody()))
@@ -358,7 +388,7 @@ describe('authentication', () => {
 
   it('authenticates before any DB access', () => {
     const src = code(ROUTE)
-    const auth = src.indexOf('verifyWebhookSecret(payload)')
+    const auth = src.indexOf('verifyWebhookSecret(payload,')
     const firstDb = src.indexOf("db('subscriptions')")
     expect(auth).toBeGreaterThan(-1)
     expect(firstDb).toBeGreaterThan(auth)
@@ -493,7 +523,7 @@ describe('separation from the other Grow endpoints', () => {
     const src = code(ROUTE)
     expect(src).toContain("from '@/lib/payments/growWebhook'")
     expect(src).not.toContain('timingSafeEqual')
-    expect(src).not.toContain('process.env.GROW_WEBHOOK_SECRET')
+    expect(src).not.toContain('process.env.GROW_RECURRING_WEBHOOK_SECRET')
   })
 
   it('does not classify outcome or sequence — option 6 has no fields to classify', () => {

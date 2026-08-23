@@ -84,21 +84,46 @@ export function unwrapPayload(body: any): any {
 }
 
 /**
- * The shared secret, under either spelling Grow uses.
+ * The environment variable holding a given endpoint's shared secret.
+ *
+ * ONE SECRET PER ENDPOINT, BECAUSE GROW GIVES US NO CHOICE. Grow generates a
+ * webhook key itself and does not let the merchant edit it, so three Grow
+ * webhook subscriptions mean three unrelated keys. A single shared secret could
+ * only be made to work by accepting any of them anywhere — which is precisely
+ * the property that must not exist: the recurring endpoint grants paid time, and
+ * it must not be reachable with the transaction webhook's key.
+ *
+ * A union rather than a bare string so a typo is a compile error instead of a
+ * silent `undefined` that turns into a 500 in production.
+ */
+export type GrowWebhookSecretName =
+  | 'GROW_WEBHOOK_SECRET'
+  | 'GROW_RECURRING_WEBHOOK_SECRET'
+  | 'GROW_RECURRING_FAILURE_WEBHOOK_SECRET'
+
+/**
+ * Verify a delivery against ONE named secret, under either spelling Grow uses.
  *
  * The transaction and recurring webhooks document `webhookKey`; the
- * recurring-failure webhook documents `webhook_key`. Accepting both is not a
- * weakening — the same secret is still compared in constant time, and a payload
- * carrying neither is refused. It only avoids a second, subtly different
- * verification for the snake_case type.
+ * recurring-failure webhook documents `webhook_key`. Accepting both spellings is
+ * not a weakening — the same single secret is still compared in constant time,
+ * and a payload carrying neither is refused. It only avoids a second, subtly
+ * different verification for the snake_case type.
+ *
+ * `secretName` IS DELIBERATELY REQUIRED, WITH NO DEFAULT. A default would be a
+ * fallback in disguise: a new endpoint that forgot to name its secret would
+ * silently authenticate against the transaction webhook's key. Requiring it
+ * makes every call site state which key it trusts, and makes forgetting a
+ * compile error. There is exactly one secret per call — never a chain, never an
+ * `??` between two of them.
  *
  * Returns a discriminated result so callers can answer 500 for "we are
  * misconfigured" and 401 for "you are not Grow" without conflating them.
  */
 export type SecretCheck = { ok: true } | { ok: false; reason: 'not_configured' | 'invalid' }
 
-export function verifyWebhookSecret(payload: any): SecretCheck {
-  const secret = process.env.GROW_WEBHOOK_SECRET
+export function verifyWebhookSecret(payload: any, secretName: GrowWebhookSecretName): SecretCheck {
+  const secret = process.env[secretName]
   if (!secret) return { ok: false, reason: 'not_configured' }
   const provided: unknown = payload?.webhookKey ?? payload?.webhook_key
   if (typeof provided !== 'string' || !safeEqual(provided, secret)) {

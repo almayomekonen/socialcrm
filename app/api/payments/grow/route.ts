@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
   // the identifyParam token is visible to the user in their payment URL and is
   // NOT proof of payment. Verification is mandatory: a missing or invalid
   // webhookKey is rejected here, before any DB read or ownership resolution.
-  const auth = verifyWebhookSecret(payload)
+  const auth = verifyWebhookSecret(payload, 'GROW_WEBHOOK_SECRET')
   if (auth.ok === false) {
     if (auth.reason === 'not_configured') {
       console.error('[GrowWebhook] GROW_WEBHOOK_SECRET is not set — refusing to process')

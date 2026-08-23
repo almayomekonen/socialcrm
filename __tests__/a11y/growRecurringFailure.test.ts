@@ -62,7 +62,7 @@ beforeEach(async () => {
   vi.stubEnv('APP_ENV', 'production')
   vi.stubEnv('GROW_MODE', 'production')
   vi.stubEnv('APP_HOST', 'example.test')
-  vi.stubEnv('GROW_WEBHOOK_SECRET', SECRET)
+  vi.stubEnv('GROW_RECURRING_FAILURE_WEBHOOK_SECRET', SECRET)
   H.subSelect.mockReturnValue([])
   ;({ POST } = await import('@/app/api/payments/grow/recurring-failure/route'))
 })
@@ -118,8 +118,20 @@ describe('authentication uses the same secret, under option 7 spelling', () => {
     expect(res.status).toBe(401)
   })
 
+  it('refuses the INITIAL webhook secret', async () => {
+    vi.stubEnv('GROW_WEBHOOK_SECRET', 'initial-endpoint-secret-value')
+    const res = await POST(req(failureBody({ webhook_key: 'initial-endpoint-secret-value' })))
+    expect(res.status).toBe(401)
+  })
+
+  it('refuses the RECURRING webhook secret', async () => {
+    vi.stubEnv('GROW_RECURRING_WEBHOOK_SECRET', 'recurring-endpoint-secret-value')
+    const res = await POST(req(failureBody({ webhook_key: 'recurring-endpoint-secret-value' })))
+    expect(res.status).toBe(401)
+  })
+
   it('refuses to process when the server secret is unset', async () => {
-    vi.stubEnv('GROW_WEBHOOK_SECRET', '')
+    vi.stubEnv('GROW_RECURRING_FAILURE_WEBHOOK_SECRET', '')
     vi.resetModules()
     const mod = await import('@/app/api/payments/grow/recurring-failure/route')
     const res = await mod.POST(req(failureBody()))
@@ -131,7 +143,7 @@ describe('authentication uses the same secret, under option 7 spelling', () => {
     expect(shared).toContain('timingSafeEqual')
     expect(shared).toContain('ab.length === bb.length && timingSafeEqual(ab, bb)')
     const route = read('app/api/payments/grow/recurring-failure/route.ts')
-    expect(route).toContain('verifyWebhookSecret(payload)')
+    expect(route).toContain('verifyWebhookSecret(payload,')
     // no hand-rolled second implementation
     expect(route).not.toContain('timingSafeEqual')
   })

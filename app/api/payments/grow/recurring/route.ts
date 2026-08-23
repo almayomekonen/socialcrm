@@ -95,12 +95,14 @@ export async function POST(req: NextRequest) {
   }
   console.log('[GrowRecurring] payload keys:', Object.keys(payload))
 
-  // 3. Authenticate BEFORE any business logic or DB access. Same secret, same
-  //    constant-time compare as the transaction webhook.
-  const auth = verifyWebhookSecret(payload)
+  // 3. Authenticate BEFORE any business logic or DB access. Its OWN secret —
+  //    Grow generates a separate key per webhook subscription, and the
+  //    transaction webhook's key must never open this endpoint, which grants
+  //    paid time. Same constant-time compare as everywhere else.
+  const auth = verifyWebhookSecret(payload, 'GROW_RECURRING_WEBHOOK_SECRET')
   if (auth.ok === false) {
     if (auth.reason === 'not_configured') {
-      console.error('[GrowRecurring] GROW_WEBHOOK_SECRET is not set — refusing to process')
+      console.error('[GrowRecurring] GROW_RECURRING_WEBHOOK_SECRET is not set — refusing to process')
       return new NextResponse('Server misconfigured', { status: 500 })
     }
     console.warn('[GrowRecurring] rejected: missing or invalid webhookKey')
