@@ -32,7 +32,11 @@
     "migrate:rollback": "knex --knexfile knexfile.cjs migrate:rollback",
     "migrate:make": "knex --knexfile knexfile.cjs migrate:make",
     "db:migrate": "node scripts/migrate.cjs",
-    "db:migrate:prod": "DATABASE_URL=$PROD_DATABASE_URL node scripts/migrate.cjs"
+    "db:migrate:prod": "DATABASE_URL=$PROD_DATABASE_URL node scripts/migrate.cjs",
+    "db:bootstrap": "node scripts/bootstrap-schema.cjs",
+    "db:baseline": "node scripts/regenerate-baseline.cjs",
+    "test:db": "NODE_ENV=test vitest run --no-file-parallelism",
+    "test:schema": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/schema"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.76",

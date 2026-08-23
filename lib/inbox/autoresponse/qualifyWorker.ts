@@ -49,6 +49,9 @@ import {
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
 import { sendIreOutbound } from './ireSend'
+import { watchHumanPresence } from './humanPresenceWatch'
+import { readHumanPresence } from '@/db/conversationHumanPresence'
+import { humanTypingBlocksTurn } from './humanPresence'
 import { runImmediateHumanHandoff } from './immediateHandoff'
 import { scheduleNoResponseWarning } from './processNoResponseJob'
 import { isNoResponseWarningMessage, metadataKind } from './noResponseClose'
@@ -154,6 +157,12 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const humanTookOver = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) !== 'auto_response')
 
   const aiState = await getOrCreateAiState(conv.id, job.agencyId)
+  // Human Presence, read once for the cheap pre-generation stop. Covers both a
+  // live signal AND a keystroke already inside this turn, so a job the cron picks
+  // up minutes later does not spend an AI call on a reply the boundary will then
+  // refuse. This is an early exit, not the guarantee: agentSendGuard re-reads
+  // presence at the boundary, after generation, and is what actually decides.
+  const presenceAtTurnStart = await readHumanPresence(conv.id)
   const sentToday = await countSentToday(job.agencyId)
   const lastInboundAt = lastInbound ? new Date((lastInbound.channelTimestamp ?? lastInbound.createdAt) as string | Date) : null
   const maxTurns = settings.maxTurns
@@ -189,6 +198,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     masterEnabled: master,
     channelEnabled: settings.enabled,
     humanTookOver,
+    humanTyping: humanTypingBlocksTurn(presenceAtTurnStart, job.createdAt),
     optOut,
     humanRequest: detectHumanRequest(lastInboundText, { previousOutbound }),
     hasUnansweredInbound,
@@ -339,13 +349,29 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     trace: genTrace,
     responseProfile,
   }
-  const gen: QualifyGenResult = await deps.generateQualify(genArgs)
+  // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
+  // Best effort only. Whatever happens here, the outbound guard re-checks.
+  const presenceWatch = watchHumanPresence({
+    conversationId: conv.id,
+    turnStartedAt: job.createdAt,
+    trace: genTrace,
+  })
+  const gen: QualifyGenResult = await deps.generateQualify({ ...genArgs, abortSignal: presenceWatch.signal })
   if (gen.ok === false) {
+    presenceWatch.stop()
+    // An abort is not a provider outage: retrying it would burn the job's
+    // attempts and eventually deliver the reply the human displaced.
+    if (presenceWatch.cancelled()) return doSkip('human_typing')
     if (isRetryableIreGenerationFailure(gen.skipReason)) {
       await failAutoResponseJob(job.id, gen.skipReason)
       return 'failed'
     }
     return doSkip(gen.skipReason)
+  }
+  if (presenceWatch.cancelled()) {
+    // The model won the race with the abort. The reply is discarded, not sent.
+    presenceWatch.stop()
+    return doSkip('human_typing')
   }
 
   const lang = detectLang(lastInbound?.text ?? '')
@@ -361,7 +387,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     const originalViolation = 'violation' in validation ? validation.violation : 'invalid'
     const regenerationReason: RegenerationReason =
       classifyViolation(originalViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
-    const gen2 = await deps.generateQualify({ ...genArgs, regenerationReason })
+    const gen2 = await deps.generateQualify({ ...genArgs, regenerationReason, abortSignal: presenceWatch.signal })
     const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, { questionPolicy })
     let finalResolution: 'regenerated' | 'deterministic' | 'guardrail_handoff'
     let validationResult: string
@@ -421,6 +447,10 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       finalResolution,
     })
   }
+
+  // Generation (and any repair regeneration) is done — release the watcher.
+  presenceWatch.stop()
+  if (presenceWatch.cancelled()) return doSkip('human_typing')
 
   const incomingCog = cognitionFromUnderstanding(
     gen.understanding,

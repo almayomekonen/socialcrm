@@ -9,6 +9,9 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 60_000,
     setupFiles: ['./__tests__/setup.ts'],
+    // Builds the test database ONCE per run (baseline + migrations). No-ops when
+    // VITEST_NO_DB=1. See __tests__/globalSetup.ts.
+    globalSetup: ['./__tests__/globalSetup.ts'],
   },
   resolve: {
     alias: {

@@ -8,6 +8,7 @@ import { sendWhatsappReply } from '@/actions/whatsapp/sendWhatsappReply'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
+import { useComposerTypingSignal } from '@/modules/inbox/client/useComposerTypingSignal'
 import MessageBubbleMobile, { MessageActionSheet } from './MessageBubbleMobile'
 
 /**
@@ -49,6 +50,8 @@ export default function ConversationThreadMobile({
   const [sending, setSending] = useState(false)
   const [actionText, setActionText] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  // Human Presence: the first keystroke parks the WhatsApp agent for this turn.
+  const signalTyping = useComposerTypingSignal(conversationId)
 
   // Land on the newest message inside THIS list. Never scrollIntoView — that
   // walks every overflow ancestor and scrolls the shell `main`, which is what
@@ -142,7 +145,10 @@ export default function ConversationThreadMobile({
                   id='composer'
                   rows={1}
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    signalTyping()
+                    setText(e.target.value)
+                  }}
                   placeholder='כתיבת הודעה...'
                   className='max-h-32 min-h-11 flex-1 resize-none rounded-full border-0 bg-white px-4 py-2.5 text-base outline-none focus:ring-2 focus:ring-[#25D366]/40'
                 />

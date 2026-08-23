@@ -1,3 +1,25 @@
+/**
+ * LEGACY RUNNER — NOT the authoritative migration system. Do not add to it.
+ *
+ * Knex owns the schema from the baseline forward (`migrations/*.cjs`, tracked in
+ * `knex_migrations`). This runner predates it, reads `db/migrations/*.sql`, and
+ * tracks its work in a separate `_migrations` table.
+ *
+ * RETAINED DELIBERATELY, NOT BECAUSE IT IS USED. Evidence gathered 2026-08-23:
+ *   · `_migrations` exists in the development database with ZERO rows, and does
+ *     not exist at all in the test database — this runner has never successfully
+ *     applied anything in either;
+ *   · both tables its two `.sql` files create (`facebook_pages`,
+ *     `whatsapp_connections`) are present in the schema baseline, so a fresh
+ *     database does not need it;
+ *   · `20260328000001_create_whatsapp_connections.cjs` already guards with
+ *     `hasTable(...)` precisely so knex and this runner cannot collide.
+ *
+ * It is kept because its state in PRODUCTION is unverified, and deleting a
+ * migration runner whose bookkeeping might be live elsewhere is not reversible
+ * by inspection. Retiring it is a separate, deliberate decision — see
+ * claude/research/engineering/migration-chain-drift-decision.md §6.
+ */
 const { Client } = require('pg')
 const fs = require('fs')
 const path = require('path')

@@ -13,6 +13,7 @@ import { renderResolvedBody } from '@/lib/whatsapp/templates/variables'
 import { resolveTemplateSendParameters, renderPositionalBody } from '@/lib/whatsapp/templates/parameters'
 import { sendWhatsappTemplate } from '@/lib/whatsapp/sendTemplateMessage'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
+import { recordHumanTakeover } from '@/lib/inbox/humanTakeover'
 import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 
 /**
@@ -117,6 +118,10 @@ export async function sendTemplateToLead(
     template.variables.length > 0
       ? renderResolvedBody(template.bodyText, template.variables, ctx)
       : renderPositionalBody(template.bodyText, params)
+
+  // A template a rep chose and sent is a human message: permanent takeover, marked
+  // before the Graph call so a concurrent agent reply is refused at the boundary.
+  await recordHumanTakeover({ agencyId: user.agencyId, leadId, conversationId })
 
   // SEND first — persist only on a confirmed wamid.
   const sent = await sendWhatsappTemplate({

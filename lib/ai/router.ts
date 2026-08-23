@@ -16,6 +16,25 @@ import { attemptBudget, skipRetryOnTimeout } from './router/interactivePolicy'
 
 export { _resetDailySpendForTests } from './router/spend'
 
+/**
+ * Timeout + caller cancellation as one signal. `AbortSignal.any` exists on every
+ * runtime this app ships to; the manual fallback keeps an older/exotic runtime
+ * from losing the timeout entirely.
+ */
+function combineAbortSignals(timeout: AbortSignal, caller?: AbortSignal): AbortSignal {
+  if (!caller) return timeout
+  const any = (AbortSignal as unknown as { any?: (s: AbortSignal[]) => AbortSignal }).any
+  if (typeof any === 'function') return any([timeout, caller])
+  const controller = new AbortController()
+  const forward = (s: AbortSignal) => {
+    if (s.aborted) controller.abort(s.reason)
+    else s.addEventListener('abort', () => controller.abort(s.reason), { once: true })
+  }
+  forward(timeout)
+  forward(caller)
+  return controller.signal
+}
+
 function ireOpenAiCallOptions(
   kind: TaskKind,
   provider: ProviderName,
@@ -41,6 +60,12 @@ export type RunStructuredOptions<S extends FlexibleSchema<unknown>> = {
   bypassAllowlist?: boolean
   roleOverride?: ModelRole
   copilotModeId?: CopilotModeId
+  /**
+   * Caller-owned cancellation, combined with (never replacing) the per-attempt
+   * interactive timeout. Used by the WhatsApp Agent to abandon a generation the
+   * moment a human rep starts typing — see lib/inbox/autoresponse/humanPresenceWatch.ts.
+   */
+  abortSignal?: AbortSignal
 }
 
 export type RunStructuredImageAttachment = {
@@ -143,7 +168,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
           system: opts.system,
           ...prompt,
           maxOutputTokens: cfg.maxOutputTokens,
-          abortSignal: AbortSignal.timeout(budget.timeoutMs),
+          abortSignal: combineAbortSignals(AbortSignal.timeout(budget.timeoutMs), opts.abortSignal),
           ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
           ...ireOpenAiCallOptions(opts.kind, handle.provider, handle.modelId),
         })

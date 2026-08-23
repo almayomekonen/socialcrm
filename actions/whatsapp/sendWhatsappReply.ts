@@ -9,6 +9,7 @@ import {
   resolveWhatsappOutboundTargetForConversation,
 } from '@/lib/inbox/whatsappOutboundTarget'
 import { assertWhatsappFreeTextAllowed } from '@/lib/inbox/whatsappFreeTextGate'
+import { recordHumanTakeover } from '@/lib/inbox/humanTakeover'
 import type { WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 
 /**
@@ -61,6 +62,10 @@ export async function sendWhatsappReply(
   if (resolved.ok === false) return { ok: false, reason: resolved.reason }
 
   const { target } = resolved
+
+  // The rep is speaking. Stop the agent BEFORE the round trip to Meta, not after:
+  // that round trip is exactly the window a worker could slip a reply through.
+  await recordHumanTakeover({ agencyId: user.agencyId, leadId, conversationId })
 
   // SEND first — persist only on a confirmed wamid.
   const sent = await sendWhatsappText({

@@ -43,6 +43,14 @@ export interface PreFacts {
   masterEnabled: boolean
   channelEnabled: boolean
   humanTookOver: boolean // a human customer-facing outbound exists (metadata.source != auto_response)
+  /**
+   * Human Presence: a rep is typing in the composer right now (transient TTL),
+   * or a keystroke already landed inside this turn. Cheapest possible stop — it
+   * fires BEFORE the AI call is spent. It is not the guarantee: agentSendGuard
+   * re-reads presence at the outbound boundary after generation. Optional so
+   * callers that only reason about lifecycle state stay unchanged.
+   */
+  humanTyping?: boolean
   optOut: boolean // latest inbound is an opt-out request
   hasUnansweredInbound: boolean // there is a customer message awaiting a reply (turn-taking)
   withinQuietHours: boolean
@@ -74,6 +82,9 @@ export function decidePreGeneration(f: PreFacts): PreDecision {
   if (f.aiState === 'opted_out') return { action: 'skip', reason: 'opted_out' }
   // Human always wins — before any other consideration. No exceptions.
   if (f.humanTookOver) return { action: 'stop', state: 'human_active', reason: 'human_active' }
+  // Typing is presence, not takeover: skip this turn, never change aiState.
+  // A rep who starts a sentence and abandons it must not silence the agent for good.
+  if (f.humanTyping) return { action: 'skip', reason: 'human_typing' }
   if (f.optOut) return { action: 'stop', state: 'opted_out', reason: 'opt_out' }
   // Feature gates.
   if (!f.masterEnabled) return { action: 'skip', reason: 'feature_off' }

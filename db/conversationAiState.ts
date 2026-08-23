@@ -17,6 +17,11 @@ export interface ConversationAiStateRow {
   escalatedAt: string | null
   escalationReason: string | null
   stoppedReason: string | null
+  /** Human Presence — TTL expiry of the transient typing signal. Never a latch. */
+  humanTypingUntil: string | null
+  /** Human Presence — last keystroke heartbeat. Compared against the turn epoch. */
+  humanTypingAt: string | null
+  humanTypingUserId: number | null
 }
 
 const toIso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null)
@@ -33,6 +38,9 @@ function mapRow(r: Record<string, unknown>): ConversationAiStateRow {
     escalatedAt: toIso(r.escalatedAt),
     escalationReason: (r.escalationReason as string | null) ?? null,
     stoppedReason: (r.stoppedReason as string | null) ?? null,
+    humanTypingUntil: toIso(r.humanTypingUntil),
+    humanTypingAt: toIso(r.humanTypingAt),
+    humanTypingUserId: r.humanTypingUserId == null ? null : Number(r.humanTypingUserId),
   }
 }
 

@@ -160,6 +160,107 @@ live." Never claim production is live without a concrete verification signal.
 
 ---
 
+## 8b. Database schema contract (AUTHORITATIVE)
+
+**Status:** binding. Establishes who owns the schema, how a database is built,
+and how a migration reaches production.
+
+### Ownership
+
+| Layer | Owner | Where |
+| --- | --- | --- |
+| **Baseline** — the starting point | A captured `pg_dump --schema-only` snapshot | `db/baseline/schema-baseline.sql` + `baseline.json` |
+| **Everything after the baseline** | **Knex, exclusively** | `migrations/*.cjs`, tracked in `knex_migrations` |
+
+The baseline exists because the knex chain cannot build a database from zero and
+was never designed to: it was retrofitted in 2026-03 onto a database first built
+by Prisma (2024-07 → 2025-01) and then hand-edited for ~14 months with no
+migration system. 21 of the 25 tables the app queries are created by nothing in
+this repository. Full history:
+`claude/research/engineering/migration-chain-drift-decision.md`.
+
+**The baseline is not migration history and holds no authority over it.** It is
+where the chain starts. Never fold an ordinary schema change into it — write a
+migration, exactly as before.
+
+### Fresh database
+
+```
+DROP SCHEMA public CASCADE; CREATE SCHEMA public;
+npm run db:bootstrap        # loads the baseline, stamps what it already contains
+npm run migrate             # applies everything after it
+```
+
+`__tests__/globalSetup.ts` does this once per test run. DB-backed test runs must
+be serialized (`npm run test:db`, i.e. `--no-file-parallelism`): one shared
+database cannot give parallel files independent data.
+
+### Production migration procedure
+
+1. Migrations are applied **manually, before the deploy**, never by it.
+2. Confirm what would run: `npx knex --knexfile knexfile.cjs migrate:list`.
+3. Apply: `npm run migrate` against the production `DATABASE_URL`.
+   **Not** `npm run db:migrate:prod` — that script runs the LEGACY runner over
+   `db/migrations/*.sql` and would report success without applying anything from
+   the knex chain.
+4. Record the applied migration filenames and the resulting commit SHA in the
+   deployment report (§8).
+5. Only then deploy the code.
+
+### Migrations are NOT run during the Vercel build
+
+`vercel.json` has no build override and `package.json`'s `build` is plain
+`next build`. This is deliberate:
+
+- Vercel builds run concurrently (preview + production, retries, redeploys).
+  Concurrent migrations against one database is a data-integrity hazard that
+  `knex_migrations_lock` mitigates but does not make safe.
+- A build runs on every push to every branch. Migrations must run once, at a
+  moment a human chose.
+- A failed migration inside a build surfaces as an opaque build failure, at the
+  worst possible time to reason about schema state.
+
+**Never add a migration step to `build`, `prebuild`, `postinstall`, or
+`vercel.json`.**
+
+### CI verification
+
+`.github/workflows/schema.yml` runs on any PR touching `migrations/`,
+`db/baseline/`, the bootstrap scripts, `knexfile.cjs`, or the test globalSetup.
+It builds a fresh Postgres from the baseline, applies every migration, and
+asserts the invariant:
+
+> **baseline → current knex migrations → valid current schema**
+
+plus idempotency (a second `migrate:latest` is a no-op), that bootstrap refuses a
+populated database, and that the newest migration is reversible.
+
+**A migration that cannot apply from zero does not merge.**
+
+### Safety rules
+
+- **Applied migrations are immutable.** Never edit the `up()`/`down()` of a
+  migration that has run anywhere; environments that already ran it will not
+  re-run it, so the edit silently diverges them.
+- **Never delete a migration file.** Knex refuses to run when a migration
+  recorded in `knex_migrations` is missing from the directory.
+- `migrations/` is **append-only**.
+- **Never add a second migration for something the chain already does.** Check
+  `migrations/` before writing one — a duplicate CHECK-constraint migration drops
+  and re-adds a byte-equivalent constraint in production for no benefit.
+- **Bootstrap never runs against production.** It refuses hosted-provider URLs,
+  remote hosts (without `BOOTSTRAP_ALLOW_REMOTE=1`), non-test database names
+  (without an exact `BOOTSTRAP_CONFIRM_DB`), and — the rule that actually
+  protects data — any database that already contains tables.
+- **The baseline is regenerated only by `npm run db:baseline`**, never by hand,
+  and only from a database whose migration chain is current. A hand-written
+  baseline is a guess, and the details a human skips (generated columns, sequence
+  ownership, enum order, partial-index predicates, view bodies) are exactly the
+  ones that decide whether a migration behaves the same in CI as in production.
+- Regenerating the baseline requires re-verifying a fresh build in the same PR.
+
+---
+
 ## 9. Accessibility workflow (closed audit)
 
 - The audited WCAG 2.2 AA remediation is **closed**. Its regression suite
