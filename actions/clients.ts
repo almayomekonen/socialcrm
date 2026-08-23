@@ -284,6 +284,10 @@ export async function upsertLead(userId, data, clientId, revalidate = true, orig
             agencyId: user.agencyId,
             leadId: Number(clientId),
             newStatus: nextStatus,
+            // Read above under SELECT ... FOR UPDATE inside this transaction, so
+            // the transition log's origin is exact on this path.
+            previousStatus: prevStatus,
+            source: 'manual',
             occurredAt: safeData.statusChangedAt as Date,
             actorUserId: user.id,
             leadName: name,
@@ -573,6 +577,22 @@ export async function updateLead(data) {
   safeData.updatedAt = new Date()
 
   const { gotPermIds } = await getPerms(user)
+
+  // Transition-log origin. `.returning('*')` below yields the row AFTER the
+  // update, so the status the lead is moving OUT of has to be read first. Scoped
+  // identically to the write (same agencyId, same isAdmin branch, same
+  // gotPermIds) and reusing the permission set already resolved above — so this
+  // adds one SELECT on status writes only, and changes no authorization
+  // semantics. Unlocked and outside any transaction on this path; see the race
+  // window documented in db/leadStatusTransitions.ts.
+  let previousStatus: string | null = null
+  if ('status' in safeData) {
+    const prevQuery = db('clients').where({ id, agencyId: user.agencyId })
+    if (!isAdmin(user.role)) prevQuery.whereIn('userId', gotPermIds)
+    const prevRow = await prevQuery.first('status')
+    previousStatus = (prevRow?.status as string | null) ?? null
+  }
+
   const query = db('clients').where({ id, agencyId: user.agencyId })
   if (!isAdmin(user.role)) query.whereIn('userId', gotPermIds)
   const res = await query
@@ -599,6 +619,10 @@ export async function updateLead(data) {
       agencyId: user.agencyId,
       leadId: Number(id),
       newStatus: safeData.status,
+      // Read above, before the update. A no-op status re-save records no
+      // transition (buildTransitionInput drops it).
+      previousStatus,
+      source: 'manual',
       occurredAt: safeData.statusChangedAt as Date,
       // The authenticated caller, not a client-supplied id — so the
       // self-notification drop cannot be bypassed. The updated row is already in
