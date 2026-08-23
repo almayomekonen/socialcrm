@@ -10,8 +10,21 @@ import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { resolveBillingPeriod, logPeriodResolution, type PeriodResolution } from '@/lib/payments/resolvePeriod'
 import { classifyPaymentOutcome, classifyPaymentMode, classifyPaymentSequence } from '@/lib/payments/paymentOutcome'
+import { phoneCore } from '@/lib/leads/normalizeContact'
 
 const PG_UNIQUE_VIOLATION = '23505'
+
+/**
+ * Enough of an email to correlate a failure with a pending row, and no more.
+ * The full address is never logged: `ala***@gmail.com`.
+ */
+function maskEmail(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) return '(absent)'
+  const e = raw.trim()
+  const at = e.lastIndexOf('@')
+  if (at < 1) return `${e.slice(0, 3)}***`
+  return `${e.slice(0, 3)}***@${e.slice(at + 1)}`
+}
 
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
@@ -84,6 +97,81 @@ async function resolveByPayerEmail(payload: any): Promise<number | null> {
     .first()
 
   return pending ? pending.agencyId : null
+}
+
+/**
+ * SECONDARY ownership signal: the payer's phone against the phones already on
+ * record for agencies that are waiting for a payment.
+ *
+ * WHY THIS EXISTS. Two real charges were taken and neither activated. Grow does
+ * not echo `identifyParam` back on this link type, so the signed token — the
+ * only deterministic signal — arrives empty every time, and ownership rests
+ * entirely on `payerEmail`, a free-text field the payer types at checkout. When
+ * that differs from the account email by even one character, a paid customer
+ * gets a 404.
+ *
+ * WHY IT IS STILL NOT A GUESS. Candidates are drawn ONLY from rows that are
+ * already `status='pending'` — an agency that demonstrably started a checkout —
+ * and the match must be UNIQUE. Two candidates, or none, resolve to null and
+ * the caller refuses. This is emphatically not the "sole pending agency"
+ * heuristic that was removed: that one attributed a payment to whoever happened
+ * to be waiting; this one requires the payer's own phone to match that agency's
+ * own phone.
+ *
+ * `phoneCore` is the existing normaliser (last 9 significant digits), so
+ * `053-531-7356`, `0535317356` and `972535317356` all compare equal — the same
+ * convention lead de-duplication already uses.
+ *
+ * Coverage is honestly partial: at the time of writing only 2 of 6 pending
+ * agencies have a phone on record anywhere. This narrows the failure, it does
+ * not close it. The real repair is getting the token to round-trip.
+ */
+async function resolveByPayerPhone(payload: any): Promise<{ agencyId: number | null; candidates: number }> {
+  const raw = payload?.payerPhone ?? payload?.payer_phone ?? payload?.phone
+  const core = phoneCore(typeof raw === 'string' || typeof raw === 'number' ? String(raw) : null)
+  if (!core) return { agencyId: null, candidates: 0 }
+
+  const pending = await db('pending_upgrades')
+    .leftJoin('agencies', 'agencies.id', 'pending_upgrades.agencyId')
+    .where('pending_upgrades.status', 'pending')
+    .select('pending_upgrades.agencyId as agencyId', 'agencies.phone as agencyPhone')
+
+  if (pending.length === 0) return { agencyId: null, candidates: 0 }
+
+  const agencyIds = pending.map((r: any) => r.agencyId)
+  const users = await db('users').whereIn('agencyId', agencyIds).select('agencyId', 'phone')
+
+  const matched = new Set<number>()
+  for (const row of pending) {
+    if (phoneCore(row.agencyPhone) === core) matched.add(row.agencyId)
+  }
+  for (const u of users) {
+    if (phoneCore((u as any).phone) === core) matched.add((u as any).agencyId)
+  }
+
+  // Exactly one, or nothing. Ambiguity is refused, never resolved.
+  const ids = [...matched]
+  return { agencyId: ids.length === 1 ? ids[0] : null, candidates: ids.length }
+}
+
+/**
+ * Ownership, in strict order of authority: token → email → phone.
+ *
+ * A valid token is never overridden. The phone signal is consulted only as a
+ * fallback, and when BOTH email and phone resolve to DIFFERENT agencies the
+ * payment is refused rather than attributed to either — a disagreement between
+ * two weak signals is not evidence, it is a reason to stop.
+ */
+async function resolveOwner(payload: any): Promise<{ agencyId: number | null; via: 'email' | 'phone' | 'none'; conflict?: boolean; phoneCandidates: number }> {
+  const byEmail = await resolveByPayerEmail(payload)
+  const byPhone = await resolveByPayerPhone(payload)
+
+  if (byEmail != null && byPhone.agencyId != null && byEmail !== byPhone.agencyId) {
+    return { agencyId: null, via: 'none', conflict: true, phoneCandidates: byPhone.candidates }
+  }
+  if (byEmail != null) return { agencyId: byEmail, via: 'email', phoneCandidates: byPhone.candidates }
+  if (byPhone.agencyId != null) return { agencyId: byPhone.agencyId, via: 'phone', phoneCandidates: byPhone.candidates }
+  return { agencyId: null, via: 'none', phoneCandidates: byPhone.candidates }
 }
 
 export async function POST(req: NextRequest) {
@@ -241,11 +329,19 @@ export async function POST(req: NextRequest) {
         console.log('[GrowWebhook] token verification failed:', String(err))
         return new NextResponse('Invalid token', { status: 400 })
       }
-      console.warn('[GrowWebhook] token expired — falling through to payer-email resolution', { transactionId })
-      agencyId = await resolveByPayerEmail(payload)
-      if (agencyId == null) {
+      console.warn('[GrowWebhook] token expired — falling through to payer identity resolution', { transactionId })
+      const resolvedExpired = await resolveOwner(payload)
+      if (resolvedExpired.agencyId == null) {
+        console.error('[GrowWebhook] no deterministic owner match (expired token)', {
+          transactionId,
+          payerEmail: maskEmail(payload?.payerEmail ?? payload?.payer_email ?? payload?.email),
+          phoneCandidates: resolvedExpired.phoneCandidates,
+          conflict: Boolean(resolvedExpired.conflict),
+        })
         return new NextResponse('Pending upgrade not found', { status: 404 })
       }
+      agencyId = resolvedExpired.agencyId
+      console.log('[GrowWebhook] owner resolved', { transactionId, via: resolvedExpired.via })
     }
   } else {
     // No signed token in the payload — resolve ownership deterministically by
@@ -253,13 +349,19 @@ export async function POST(req: NextRequest) {
     // only pending agency when nothing else matched) is removed: it attributes
     // a payment to an agency that did not demonstrably make it. If ownership
     // cannot be matched deterministically, no upgrade occurs.
-    console.log('[GrowWebhook] token missing, resolving by payer email')
-    const resolved = await resolveByPayerEmail(payload)
-    if (resolved == null) {
-      console.error('[GrowWebhook] no deterministic owner match (no token, no matching pending email)')
+    console.log('[GrowWebhook] token missing, resolving by payer identity')
+    const resolved = await resolveOwner(payload)
+    if (resolved.agencyId == null) {
+      console.error('[GrowWebhook] no deterministic owner match (no token)', {
+        transactionId,
+        payerEmail: maskEmail(payload?.payerEmail ?? payload?.payer_email ?? payload?.email),
+        phoneCandidates: resolved.phoneCandidates,
+        conflict: Boolean(resolved.conflict),
+      })
       return new NextResponse('Pending upgrade not found', { status: 404 })
     }
-    agencyId = resolved
+    agencyId = resolved.agencyId
+    console.log('[GrowWebhook] owner resolved', { transactionId, via: resolved.via })
   }
 
   // Captured BEFORE the upgrade flips plan to 'pro', so the analytics event

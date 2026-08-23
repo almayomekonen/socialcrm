@@ -25,6 +25,8 @@ const H = vi.hoisted(() => ({
   paymentsInsert: vi.fn(),
   pendingFirst: vi.fn(),
   pendingUpdate: vi.fn(),
+  pendingRows: vi.fn(() => []),
+  userRows: vi.fn(() => []),
 }))
 
 vi.mock('@/lib/quota/performUpgrade', () => ({ performAgencyUpgrade: H.performAgencyUpgrade }))
@@ -40,16 +42,27 @@ vi.mock('@/lib/payments/resolvePeriod', () => ({
 }))
 vi.mock('next/server', async (orig) => ({ ...(await orig<any>()), after: (fn: any) => fn() }))
 
-// Minimal knex double: only the shapes the route actually uses.
+/**
+ * Minimal knex double: only the shapes the route actually uses.
+ *
+ * Owner resolution needs two more than before — the pending⋈agencies select for
+ * phone candidates, and the users lookup. `H.pendingRows` and `H.userRows` feed
+ * those; a chain that is awaited without `.first()` resolves to the array.
+ */
 vi.mock('@/config/db', () => {
   const table = (name: string) => {
     const chain: any = {
       insert: (...a: unknown[]) => H.paymentsInsert(name, ...a),
       whereRaw: () => chain,
       where: () => chain,
+      whereIn: () => chain,
+      leftJoin: () => chain,
       orderBy: () => chain,
+      select: () => chain,
       first: () => H.pendingFirst(name),
       update: (...a: unknown[]) => H.pendingUpdate(name, ...a),
+      then: (res: any, rej: any) =>
+        Promise.resolve(name === 'users' ? H.userRows() : H.pendingRows()).then(res, rej),
     }
     return chain
   }
@@ -70,6 +83,8 @@ beforeEach(async () => {
   H.paymentsInsert.mockResolvedValue(undefined)
   H.pendingFirst.mockResolvedValue({ agencyId: AGENCY_ID })
   H.pendingUpdate.mockResolvedValue(1)
+  H.pendingRows.mockReturnValue([])
+  H.userRows.mockReturnValue([])
   ;({ POST } = await import('@/app/api/payments/grow/route'))
 })
 
@@ -525,6 +540,160 @@ describe('webhook — entitlement requires proof of payment', () => {
     const res = await POST(req(body))
     expect(res.status).toBe(401)
     expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+})
+
+/* ------------------------------------------------------------------------- *
+ * OWNER RESOLUTION — token, then email, then phone.
+ *
+ * Grow does not echo `identifyParam` on this link type, so the signed token
+ * arrives empty and ownership falls to `payerEmail`, a free-text field the payer
+ * types at checkout. Two real charges were taken and refused with 404 because
+ * that value did not match the pending row. Phone is a SECOND deterministic
+ * signal drawn only from agencies that already have a pending checkout, and it
+ * must be unique or it is not used.
+ * ------------------------------------------------------------------------- */
+
+const OTHER_AGENCY = 5150
+
+/** Pending rows joined to agencies, as the phone resolver selects them. */
+const pendingWithPhones = (rows: Array<{ agencyId: number; agencyPhone: string | null }>) =>
+  H.pendingRows.mockReturnValue(rows)
+
+describe('owner resolution: token, then email, then phone', () => {
+  it('a valid token wins, and neither email nor phone is consulted', async () => {
+    H.verifyToken.mockReturnValue({ agencyId: AGENCY_ID, issuedAt: Date.now() })
+    pendingWithPhones([{ agencyId: OTHER_AGENCY, agencyPhone: '053-531-7356' }])
+    await POST(req(growBody({ statusCode: '2', externalId: 'tok', payerPhone: '0535317356' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+    expect(H.performAgencyUpgrade.mock.calls[0][0]).toBe(AGENCY_ID)
+  })
+
+  it('an email match resolves the agency (primary fallback, unchanged)', async () => {
+    H.pendingFirst.mockResolvedValue({ agencyId: AGENCY_ID })
+    await POST(req(growBody({ statusCode: '2', payerEmail: 'a@b.test' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+    expect(H.performAgencyUpgrade.mock.calls[0][0]).toBe(AGENCY_ID)
+  })
+
+  it('email miss + a UNIQUE phone match resolves the agency', async () => {
+    H.pendingFirst.mockResolvedValue(undefined) // no email match
+    pendingWithPhones([{ agencyId: AGENCY_ID, agencyPhone: '053-531-7356' }])
+    await POST(req(growBody({ statusCode: '2', payerEmail: 'nobody@b.test', payerPhone: '0535317356' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+    expect(H.performAgencyUpgrade.mock.calls[0][0]).toBe(AGENCY_ID)
+  })
+
+  it('normalises the phone: 972-prefixed and 0-prefixed compare equal', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([{ agencyId: AGENCY_ID, agencyPhone: '0535317356' }])
+    await POST(req(growBody({ statusCode: '2', payerEmail: 'x@y.test', payerPhone: '972535317356' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('a user phone resolves when the agency itself has none', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([{ agencyId: AGENCY_ID, agencyPhone: null }])
+    H.userRows.mockReturnValue([{ agencyId: AGENCY_ID, phone: '053-531-7356' }])
+    await POST(req(growBody({ statusCode: '2', payerEmail: 'x@y.test', payerPhone: '0535317356' })))
+    expect(H.performAgencyUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('email miss + phone miss REFUSES with 404 and writes nothing', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([{ agencyId: OTHER_AGENCY, agencyPhone: '050-000-0000' }])
+    const res = await POST(req(growBody({ statusCode: '2', payerEmail: 'x@y.test', payerPhone: '0535317356' })))
+    expect(res.status).toBe(404)
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+    expect(H.paymentsInsert).not.toHaveBeenCalled()
+    expect(H.pendingUpdate).not.toHaveBeenCalled()
+  })
+
+  it('MULTIPLE phone candidates refuse — ambiguity is never resolved', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([
+      { agencyId: AGENCY_ID, agencyPhone: '0535317356' },
+      { agencyId: OTHER_AGENCY, agencyPhone: '053-531-7356' },
+    ])
+    const res = await POST(req(growBody({ statusCode: '2', payerEmail: 'x@y.test', payerPhone: '0535317356' })))
+    expect(res.status).toBe(404)
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('email and phone pointing at DIFFERENT agencies refuses', async () => {
+    H.pendingFirst.mockResolvedValue({ agencyId: AGENCY_ID })
+    pendingWithPhones([{ agencyId: OTHER_AGENCY, agencyPhone: '0535317356' }])
+    const res = await POST(req(growBody({ statusCode: '2', payerEmail: 'a@b.test', payerPhone: '0535317356' })))
+    expect(res.status).toBe(404)
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('token, email and phone all missing refuses', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([])
+    const res = await POST(req(growBody({ statusCode: '2' })))
+    expect(res.status).toBe(404)
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('a phone too short to be a real number is not a signal', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([{ agencyId: AGENCY_ID, agencyPhone: '12345' }])
+    const res = await POST(req(growBody({ statusCode: '2', payerEmail: 'x@y.test', payerPhone: '12345' })))
+    expect(res.status).toBe(404)
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+
+  it('candidates are drawn only from PENDING rows — never the global agency table', () => {
+    const src = read('app/api/payments/grow/route.ts')
+    expect(src).toContain("where('pending_upgrades.status', 'pending')")
+    expect(src).not.toMatch(/db\('agencies'\)\s*\n?\s*\.select/)
+  })
+
+  it('the removed sole-pending-agency heuristic did not come back', () => {
+    const src = read('app/api/payments/grow/route.ts')
+    expect(src).toContain('ids.length === 1 ? ids[0] : null')
+    expect(src).not.toContain('the only pending agency')
+  })
+
+  it('idempotency is unchanged when ownership resolves by phone', async () => {
+    H.pendingFirst.mockResolvedValue(undefined)
+    pendingWithPhones([{ agencyId: AGENCY_ID, agencyPhone: '0535317356' }])
+    H.paymentsInsert.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }))
+    const res = await POST(req(growBody({ statusCode: '2', payerEmail: 'x@y.test', payerPhone: '0535317356' })))
+    expect(await res.json()).toMatchObject({ duplicate: true })
+    expect(H.performAgencyUpgrade).not.toHaveBeenCalled()
+  })
+})
+
+describe('the ownership failure is diagnosable without leaking PII', () => {
+  const SRC = read('app/api/payments/grow/route.ts')
+
+  it('masks the payer email: first 3 characters and the domain only', () => {
+    expect(SRC).toContain('function maskEmail')
+    expect(SRC).toContain('payerEmail: maskEmail(')
+    expect(SRC).toContain("return `${e.slice(0, 3)}***@${e.slice(at + 1)}`")
+  })
+
+  it('never logs the full address, the phone, the name, the card or the secret', () => {
+    const code = SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    const logged = [...code.matchAll(/console\.(log|warn|error)\(([\s\S]*?)\)\n/g)].map((m) => m[2]).join(' ')
+    for (const bad of ['payerPhone:', 'fullName', 'cardSuffix', 'cardBin']) {
+      expect(logged, bad).not.toContain(bad)
+    }
+    // the raw email must never be passed to a logger unmasked
+    expect(logged).not.toMatch(/payerEmail: payload/)
+    /**
+     * The secret is only ever logged as a PRESENCE flag, never as a value:
+     * `webhookKey ? 'present' : 'absent'` is fine, passing the variable is not.
+     */
+    expect(logged).toContain("webhookKey ? 'present' : 'absent'")
+    expect(logged).not.toMatch(/webhookKey: webhookKey\s*[,}]/)
+  })
+
+  it('reports how many phone candidates were seen, so ambiguity is visible', () => {
+    expect(SRC).toContain('phoneCandidates:')
+    expect(SRC).toContain('conflict:')
   })
 })
 
