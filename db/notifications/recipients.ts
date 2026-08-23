@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
 import { Roles } from '@/types/roles'
+import { platformOwnerEmails } from '@/lib/auth/platformOwner'
 import type { RecipientRule } from '@/lib/notifications/types'
 
 /**
@@ -33,6 +34,18 @@ export type RecipientContext = {
    *  from one tenant can never resolve against another's row. */
   handlerByLead: Map<string, number | null>
   adminsByAgency: Map<number, number[]>
+  /**
+   * Users on the platform-owner allowlist. Loaded ONLY when the pass actually
+   * claimed a job that needs them, so the ordinary two-query pass stays two
+   * queries.
+   *
+   * OPTIONAL, and absent means the same thing as empty: nobody. Every existing
+   * caller and fixture predates platform-level types and legitimately has no
+   * opinion here, so requiring the field would have forced an edit through eight
+   * unrelated test files to express "still nobody". Absent ⇒ `[]` ⇒ no
+   * recipients ⇒ nothing delivered, which is the fail-closed answer.
+   */
+  platformOperatorIds?: number[]
 }
 
 export const leadKey = (agencyId: number, leadId: number): string => `${agencyId}:${leadId}`
@@ -95,7 +108,35 @@ export async function loadAgencyAdmins(agencyIds: number[]): Promise<Map<number,
 }
 
 /**
- * Build the whole pass's recipient context up front — two queries total.
+ * Users on the platform-owner allowlist — the recipients of PLATFORM facts,
+ * never of an agency's own work.
+ *
+ * Identity comes from `platformOwnerEmails()` (lib/auth/platformOwner.ts), the
+ * SAME deny-by-default allowlist that already gates /admin. Reusing it is the
+ * point: there is exactly one definition of "who runs SocialCRM", so this can
+ * never drift from the surfaces that answer the same question.
+ *
+ * Suspended users are excluded on the same reasoning as `loadAgencyAdmins` — a
+ * user who cannot reach the application cannot read what is addressed to them.
+ *
+ * Email comparison is lower-cased on both sides: `platformOwnerEmails()` already
+ * normalises, and `users.email` is compared with `lower()` so a differently-cased
+ * stored address still matches.
+ */
+export function loadPlatformOperatorsQuery(emails: string[]) {
+  return db('users').select('id', 'agencyId').whereRaw('lower(email) = ANY(?)', [emails]).where('suspended', false)
+}
+
+export async function loadPlatformOperators(): Promise<{ id: number; agencyId: number | null }[]> {
+  const emails = platformOwnerEmails()
+  if (emails.length === 0) return []
+  const rows = (await loadPlatformOperatorsQuery(emails)) as { id: number; agencyId: number | null }[]
+  return rows.map((r) => ({ id: Number(r.id), agencyId: r.agencyId == null ? null : Number(r.agencyId) }))
+}
+
+/**
+ * Build the whole pass's recipient context up front — two queries total, plus a
+ * third ONLY when the pass claimed a job that targets the platform operator.
  *
  * `leadPairs` carries the lead behind each job: the lead itself for lead-entity
  * events, or the conversation's lead for conversation-entity events.
@@ -103,14 +144,17 @@ export async function loadAgencyAdmins(agencyIds: number[]): Promise<Map<number,
 export async function buildRecipientContext(input: {
   leadPairs: { agencyId: number; leadId: number }[]
   agencyIds: number[]
+  /** True when at least one claimed job's type resolves to `platform_operator`. */
+  needPlatformOperators?: boolean
 }): Promise<RecipientContext> {
-  const [ownership, adminsByAgency] = await Promise.all([
+  const [ownership, adminsByAgency, operators] = await Promise.all([
     loadLeadOwnership(input.leadPairs),
     loadAgencyAdmins(input.agencyIds),
+    input.needPlatformOperators ? loadPlatformOperators() : Promise.resolve([]),
   ])
   const handlerByLead = new Map<string, number | null>()
   for (const row of ownership) handlerByLead.set(leadKey(row.agencyId, row.leadId), row.handlerId)
-  return { handlerByLead, adminsByAgency }
+  return { handlerByLead, adminsByAgency, platformOperatorIds: operators.map((o) => o.id) }
 }
 
 /**
@@ -132,6 +176,15 @@ export function resolveRecipients(input: {
 }): number[] {
   const { rule, agencyId, leadId, context } = input
   const admins = context.adminsByAgency.get(agencyId) ?? []
+
+  /**
+   * PLATFORM, NOT TENANT. Resolves ONLY from the platform-owner allowlist and
+   * never consults `admins` — an agency administrator must never receive a
+   * platform billing fact, and no fallback to one exists. An empty list returns
+   * empty, which the planner turns into `skip: 'no_recipients'`: nobody is
+   * notified rather than the wrong person being notified.
+   */
+  if (rule === 'platform_operator') return dedupe(context.platformOperatorIds ?? [])
 
   if (rule === 'admin_only') return dedupe(admins)
 

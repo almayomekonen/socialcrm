@@ -7,7 +7,15 @@
  * that is what the migrations declare.
  */
 
-/** The 16 types. Spec §4 — the registry (registry.ts) holds one entry per type. */
+/**
+ * The types. Spec §4 — the registry (registry.ts) holds one entry per type.
+ *
+ * `subscription.cancellation_requested` is the one PLATFORM-level member. Every
+ * other type tells an agency about its own work; this one tells the platform
+ * operator that a customer cancelled and a standing order at the payment
+ * provider still needs stopping by hand. It rides the same engine because the
+ * engine is generic — only its recipient rule differs (see RecipientRule).
+ */
 export const NOTIFICATION_TYPES = [
   'lead.created',
   'lead.hot',
@@ -25,6 +33,7 @@ export const NOTIFICATION_TYPES = [
   'integration.ingestion_failed',
   'sla.approaching',
   'sla.breached',
+  'subscription.cancellation_requested',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -42,12 +51,32 @@ export type Channel = (typeof CHANNELS)[number]
 export const PRESENCE_STATES = ['online', 'idle', 'offline'] as const
 export type Presence = (typeof PRESENCE_STATES)[number]
 
-/** Polymorphic, un-foreign-keyed entity reference (spec §18). */
-export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment'] as const
+/**
+ * Polymorphic, un-foreign-keyed entity reference (spec §18).
+ *
+ * `subscription` carries the CANCELLING agency's id — the thing the operator has
+ * to act on. There is no CHECK constraint on either `entityType` column, so this
+ * member is a TypeScript widening only; no migration accompanies it.
+ */
+export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription'] as const
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
-/** Recipient rules. Exactly two — spec §6.1 and amendment 2 (§28). */
-export type RecipientRule = 'handler_or_admin' | 'admin_only'
+/**
+ * Recipient rules. Spec §6.1 and amendment 2 (§28).
+ *
+ * The first two are AGENCY-SCOPED: they resolve inside `job.agencyId` and can
+ * never reach outside it, which is what keeps one tenant's notifications inside
+ * that tenant.
+ *
+ * `platform_operator` is deliberately different, and is the only rule that does
+ * not consult the agency's own users. It resolves to the platform-owner
+ * allowlist (lib/auth/platformOwner.ts) — the same deny-by-default mechanism
+ * that already gates /admin — and is for facts that belong to whoever RUNS
+ * SocialCRM rather than to anyone who uses it. It is not "the agency's admin"
+ * under another name: an agency admin must never receive one of these, and an
+ * empty allowlist resolves to nobody rather than falling back to anyone.
+ */
+export type RecipientRule = 'handler_or_admin' | 'admin_only' | 'platform_operator'
 
 /**
  * Business facts an emission site already holds, carried to the worker so copy
@@ -101,6 +130,23 @@ export type NotificationPayload = {
    * Required for that type when present on the row (schema: NOT NULL).
    */
   postId?: string | null
+  /**
+   * The agency that cancelled — carried explicitly even though it is also the
+   * entityId, because for `subscription.cancellation_requested` the event's
+   * `agencyId` is the PLATFORM OWNER'S agency (the recipient's tenant), not the
+   * cancelling customer's. Without this field the payload would silently read as
+   * if the owner had cancelled their own subscription.
+   */
+  cancellingAgencyId?: number | null
+  /** Display name of the cancelling agency. Absent ⇒ name-free copy, never a guess. */
+  cancellingAgencyName?: string | null
+  /**
+   * The PERSISTED `subscriptions.updatedAt` of the false→true transition, epoch
+   * ms. The event-key discriminator: a retry of the same cancellation carries
+   * the same moment and collapses; a genuine later cancellation carries a new
+   * one and is news. Never `Date.now()` — see eventKey.ts.
+   */
+  cancelledAt?: number | null
 }
 
 /**

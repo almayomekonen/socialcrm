@@ -153,6 +153,30 @@ export function followupAtEventKey(event: NotificationEvent): string {
 }
 
 /**
+ * A cancellation is episodic — cancel, resume, cancel again is a second thing
+ * the operator must act on — so identity includes the moment of the transition.
+ *
+ * The discriminator is the PERSISTED `subscriptions.updatedAt` written by the
+ * false→true UPDATE, exactly as `statusChangedEventKey` uses the row's own
+ * statusChangedAt. That is what makes a retried request idempotent rather than a
+ * second notification: same transition, same moment, same key. `Date.now()` is
+ * forbidden here for that precise reason — a double-submitted cancel would
+ * otherwise ask the operator to cancel one mandate twice.
+ *
+ * Note the base already carries the platform owner's agencyId and the cancelling
+ * agency as the entity, so two customers cancelling in the same millisecond
+ * still produce distinct keys.
+ */
+export function subscriptionCancellationEventKey(event: NotificationEvent): string {
+  const raw = event.payload?.cancelledAt
+  const cancelledAt = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(cancelledAt) || cancelledAt <= 0) {
+    throw new Error('subscription.cancellation_requested eventKey requires payload.cancelledAt')
+  }
+  return eventKeyFor(event, `at:${cancelledAt}`)
+}
+
+/**
  * The identity rule per type — one place, so no call site has to know it.
  *
  * Everything except a status change, an inbound message, an unanswered reminder,
@@ -171,5 +195,6 @@ export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'integration.disconnected') return integrationDisconnectedEventKey(event)
   if (event.type === 'integration.ingestion_failed') return integrationIngestionFailedEventKey(event)
   if (event.type === 'followup.due' || event.type === 'followup.overdue') return followupAtEventKey(event)
+  if (event.type === 'subscription.cancellation_requested') return subscriptionCancellationEventKey(event)
   return eventKeyFor(event)
 }

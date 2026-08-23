@@ -8,6 +8,7 @@ import {
 } from '@/db/notifications/jobs'
 import { buildRecipientContext } from '@/db/notifications/recipients'
 import { leadIdForJob } from './plan'
+import { getNotificationType } from './registry'
 import { buildPresenceLookup } from './presenceLookup'
 import { processNotificationJob } from './processJob'
 
@@ -52,14 +53,22 @@ function logT(transition: string, job: NotificationJob, extra: Record<string, un
  * The (agencyId, leadId) pairs are deduplicated first, so twenty jobs about one
  * lead cost one row, and the tuple predicate keeps every lookup tenant-scoped
  * (see db/notifications/recipients.ts).
+ *
+ * The platform-owner lookup is a THIRD query, and only when the claimed batch
+ * actually contains a job whose type resolves to `platform_operator`. The
+ * decision is read off the registry rather than hard-coded to a type name, so a
+ * future platform-level type needs no edit here. An ordinary pass — which is
+ * every pass today — still costs exactly two queries.
  */
 async function contextForPass(jobs: NotificationJob[]) {
   const pairSeen = new Set<string>()
   const leadPairs: { agencyId: number; leadId: number }[] = []
   const agencyIds = new Set<number>()
+  let needPlatformOperators = false
 
   for (const job of jobs) {
     agencyIds.add(job.agencyId)
+    if (getNotificationType(job.type)?.recipients === 'platform_operator') needPlatformOperators = true
     const leadId = leadIdForJob(job)
     if (leadId == null) continue
     const key = `${job.agencyId}:${leadId}`
@@ -68,7 +77,7 @@ async function contextForPass(jobs: NotificationJob[]) {
     leadPairs.push({ agencyId: job.agencyId, leadId })
   }
 
-  return buildRecipientContext({ leadPairs, agencyIds: Array.from(agencyIds) })
+  return buildRecipientContext({ leadPairs, agencyIds: Array.from(agencyIds), needPlatformOperators })
 }
 
 export async function runNotificationWorker(opts?: { limit?: number; workerId?: string }): Promise<WorkerSummary> {

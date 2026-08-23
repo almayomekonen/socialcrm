@@ -50,3 +50,18 @@ export const integrationKey = (ctx: EventContext): string =>
 
 /** Registered-but-disabled sla.* types (spec §4.5). Never emitted. */
 export const slaKey = (ctx: EventContext): string => `lead:${ctx.entityId}:sla`
+
+/**
+ * One open action per CANCELLING agency.
+ *
+ * Keyed on `entityId` — the cancelling agency — and deliberately NOT on
+ * `ctx.agencyId`, which for this type is the platform owner's own agency and is
+ * therefore identical across every cancellation. Keying on that would collapse
+ * two different customers' cancellations into one row and lose one of them,
+ * while each still needs its own manual action at the provider.
+ *
+ * Repeat cancellations by the SAME agency while the row is unread collapse into
+ * it (still one pending action). Once read, the partial unique index releases
+ * the key, so a later cancellation by that agency is correctly a new row.
+ */
+export const subscriptionCancelKey = (ctx: EventContext): string => `subscription-cancel:${ctx.entityId}`
