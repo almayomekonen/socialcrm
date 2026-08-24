@@ -1,5 +1,6 @@
 import 'server-only'
 import { makeGetTodayState } from './getTodayState'
+import { makeFindLead } from './findLead'
 export { TODAY_METRIC_IDS } from './getTodayState'
 import { makeGetLead } from './getLead'
 import { makeGetConversation } from './getConversation'
@@ -10,7 +11,7 @@ import type { EvidenceCollector } from '../evidence'
 /**
  * The ENTIRE Agent tool surface.
  *
- * Three read-only business capabilities, each built per investigation and each
+ * Four read-only business capabilities, each built per investigation and each
  * closing over the server-resolved scope. Adding a capability means adding an
  * entry here — there is no dynamic registration, no database handle, and no
  * tool that accepts a filter it does not control.
@@ -35,6 +36,7 @@ export type ToolDeps = {
 export function buildAgentTools(deps: ToolDeps) {
   return {
     get_today_state: makeGetTodayState(deps),
+    find_lead: makeFindLead(deps),
     get_lead: makeGetLead(deps),
     get_conversation: makeGetConversation(deps),
   }
