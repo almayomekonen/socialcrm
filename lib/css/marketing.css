@@ -1,0 +1,231 @@
+/**
+ * MARKETING DESIGN SYSTEM — token layer.
+ *
+ * Ported from the purchased Lumen template (Shadcnblocks) and rethemed to
+ * SocialCRM. Scope: the public SEO/marketing site ONLY.
+ *
+ * ── WHY EVERY TOKEN IS `mkt-` PREFIXED ────────────────────────────────────
+ *
+ * Lumen's own `globals.css` declares `@theme inline { --color-primary:
+ * var(--primary); --color-accent: var(--accent); --color-border: var(--border) }`.
+ * Importing that shape as-is would redefine utility names the authenticated CRM
+ * already uses — `bg-primary` appears 95 times and `text-accent`/`bg-accent` 11
+ * times in app code. The product would silently repaint.
+ *
+ * So nothing here reuses a name the app owns. New namespace, additive only, and
+ * the contextual values live on `.mkt-ground-*` classes rather than `:root`.
+ * Deleting this file cannot change a single pixel of the CRM.
+ *
+ * ── LUMEN'S ACTUAL DNA (measured from its token values, not its screenshots) ──
+ *
+ * Lumen reads expensive for three reasons, and all three are ported:
+ *   1. `--primary` is near-black INK, not a brand hue. Primary buttons are
+ *      ink-on-white, and the brand colour appears sparingly. Loud brand fills
+ *      are what make a SaaS site look cheap.
+ *   2. Borders are almost invisible (`oklch(0.98 0 0)`), so structure comes
+ *      from spacing rather than from lines.
+ *   3. Surfaces are translucent washes, not solid greys.
+ *
+ * ── THE ACCENT ────────────────────────────────────────────────────────────
+ *
+ * Lumen's accent is `oklch(0.585 0.132 257)`. SocialCRM's product primary
+ * `#5e6ad2` is `oklch(0.567 0.159 275)` — 0.018 lighter, 0.027 more chromatic,
+ * 18° round the hue wheel. It drops into Lumen's palette almost natively, which
+ * is why this retheme is a substitution rather than a redesign.
+ *
+ * We use the PRODUCT's accent, not marketing's legacy `#3f20f5` (52 occurrences
+ * across the old pages), so the brand no longer changes when a visitor signs up.
+ */
+
+@theme {
+  /* ── Brand ─────────────────────────────────────────────────────────────
+     `ink` drives primary actions and headings. `accent` is used sparingly:
+     eyebrows, focus rings, links, the button sheen, and one glow. */
+  --color-mkt-ink: oklch(0.041 0.002 314);
+  --color-mkt-accent: oklch(0.567 0.159 275); /* #5e6ad2 — the product primary */
+  --color-mkt-accent-soft: oklch(0.72 0.1 275);
+
+  /* Contextual — resolved by the ground class on the nearest section. */
+  --color-mkt-bg: var(--mkt-bg);
+  --color-mkt-fg: var(--mkt-fg);
+  --color-mkt-muted: var(--mkt-muted);
+  --color-mkt-faint: var(--mkt-faint);
+  --color-mkt-surface: var(--mkt-surface);
+  --color-mkt-border: var(--mkt-border);
+  --color-mkt-hairline: var(--mkt-hairline);
+
+  /* ── Type scale ────────────────────────────────────────────────────────
+     Fluid, and MONOTONIC by construction. Lumen steps its sizes at
+     breakpoints with no clamp(), which leaves its h1 at 30px while its h2 is
+     36px below 768px — the primary heading is smaller than the section
+     headings on every phone. Verified on the live demo. A continuous ramp
+     cannot invert, and it removes the 448px dead zone where Lumen's h1 never
+     changes size. */
+  --text-mkt-display: clamp(2.5rem, 1.55rem + 4.4vw, 5rem);
+  --text-mkt-display--line-height: 1.05;
+  --text-mkt-display--letter-spacing: -0.03em;
+  --text-mkt-h1: clamp(2.125rem, 1.5rem + 2.9vw, 3.75rem);
+  --text-mkt-h1--line-height: 1.08;
+  --text-mkt-h1--letter-spacing: -0.025em;
+  --text-mkt-h2: clamp(1.625rem, 1.28rem + 1.6vw, 2.5rem);
+  --text-mkt-h2--line-height: 1.16;
+  --text-mkt-h2--letter-spacing: -0.02em;
+  --text-mkt-h3: clamp(1.125rem, 1.03rem + 0.42vw, 1.375rem);
+  --text-mkt-h3--line-height: 1.35;
+  --text-mkt-lead: clamp(1.0625rem, 0.99rem + 0.36vw, 1.25rem);
+  --text-mkt-lead--line-height: 1.6;
+  /* 1rem floor: Lumen ships 14px body on mobile. Hebrew at 14px reads smaller
+     than Latin at 14px, and 16px is the comfort floor on touch. */
+  --text-mkt-body: clamp(1rem, 0.97rem + 0.14vw, 1.0625rem);
+  --text-mkt-body--line-height: 1.7;
+  --text-mkt-caption: 0.8125rem;
+  --text-mkt-caption--line-height: 1.5;
+
+  /* ── Containers ── Lumen's three widths, kept exactly. */
+  --container-mkt: 69.5rem; /* 1112px — Lumen `.container` */
+  --container-mkt-wide: 78.375rem; /* 1254px — Lumen `.bigger-container` */
+  --container-mkt-nav: 83.375rem; /* 1334px — Lumen `.navbar-container` */
+  --container-mkt-prose: 44rem;
+
+  /* ── Radius ── Lumen's --radius: 0.625rem and its derived scale. */
+  --radius-mkt-sm: 0.375rem;
+  --radius-mkt-md: 0.5rem;
+  --radius-mkt-lg: 0.625rem;
+  --radius-mkt-xl: 0.875rem;
+  --radius-mkt-2xl: 1.25rem;
+
+  --ease-mkt: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Grounds ───────────────────────────────────────────────────────────────
+   Two, on an editorial rule: LIGHT for narrative and long-form SEO copy,
+   DARK for product moments. A ground always carries its own foreground, so
+   copy can never inherit a background nobody chose — the defect that left
+   /privacy, /terms and /data-deletion at 1.03:1 measured contrast. */
+
+.mkt-ground-light {
+  --mkt-bg: oklch(1 0 0);
+  --mkt-fg: oklch(0.041 0.002 314);
+  --mkt-muted: oklch(0.44 0.008 300); /* 7.4:1 — body copy, not decoration */
+  --mkt-faint: oklch(0.56 0.008 300); /* 4.6:1 — captions, still AA */
+  --mkt-surface: oklch(0.985 0.002 300);
+  --mkt-border: oklch(0.93 0.003 300);
+  --mkt-hairline: oklch(0.965 0.002 300); /* Lumen's near-invisible line */
+
+  background-color: var(--mkt-bg);
+  color: var(--mkt-fg);
+}
+
+.mkt-ground-dark {
+  --mkt-bg: oklch(0.095 0.002 314); /* Lumen's dark background, exactly */
+  --mkt-fg: oklch(1 0 0);
+  --mkt-muted: oklch(0.72 0.005 300); /* 7.6:1 on the dark ground */
+  --mkt-faint: oklch(0.6 0.005 300); /* 4.8:1 */
+  --mkt-surface: oklch(0.132 0 0);
+  --mkt-border: oklch(0.24 0 0);
+  --mkt-hairline: oklch(0.173 0 0); /* Lumen's dark border */
+
+  background-color: var(--mkt-bg);
+  color: var(--mkt-fg);
+}
+
+/* ── Section rhythm ── Lumen's `.section-padding`, kept verbatim. */
+.mkt-section {
+  padding-block: calc(var(--spacing) * 17);
+}
+@media (width >= 48rem) {
+  .mkt-section {
+    padding-block: calc(var(--spacing) * 24);
+  }
+}
+@media (width >= 64rem) {
+  .mkt-section {
+    padding-block: calc(var(--spacing) * 28);
+  }
+}
+
+/* ── Reveal ────────────────────────────────────────────────────────────────
+   Lumen's entrance language — rise + de-blur — as CSS rather than Motion.
+   Lumen drives it with `motion/react` springs; reproducing that would put
+   ~64 KiB transferred / ~195 KiB decoded into the marketing bundle for a
+   decorative fade. The class is toggled by a small IntersectionObserver leaf. */
+.mkt-reveal {
+  opacity: 0;
+  transform: translateY(1.25rem);
+  filter: blur(2px);
+  transition:
+    opacity 0.7s var(--ease-mkt),
+    transform 0.7s var(--ease-mkt),
+    filter 0.7s var(--ease-mkt);
+}
+
+.mkt-reveal-in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-reveal,
+  .mkt-reveal-in {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}
+
+/* ── The button sheen ──────────────────────────────────────────────────────
+   Lumen's most distinctive mechanic: a blurred accent sheen parked just below
+   the button that sweeps up on hover, over an ink fill. It is the reason the
+   primary action reads as crafted rather than as a coloured rectangle — and it
+   is direction-neutral, so it survives RTL untouched. */
+.mkt-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.mkt-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-mkt-accent);
+  filter: blur(6px);
+  transform: translateY(105%);
+  transition: transform 0.45s var(--ease-mkt);
+  z-index: 0;
+}
+
+.mkt-sheen:hover::after {
+  transform: translateY(72%);
+}
+
+.mkt-sheen > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-sheen::after {
+    transition: none;
+  }
+}
+
+/* ── Product frame ─────────────────────────────────────────────────────────
+   The single device every product visual sits in, so the software reads as one
+   product on every page. */
+.mkt-frame {
+  background-color: color-mix(in oklab, var(--mkt-fg) 5%, transparent);
+  border-radius: var(--radius-mkt-2xl);
+  padding: 0.5rem;
+}
+
+.mkt-frame-inner {
+  border-radius: var(--radius-mkt-xl);
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--mkt-fg) 9%, transparent);
+  border-top-color: color-mix(in oklab, var(--mkt-fg) 18%, transparent);
+  box-shadow:
+    0 28px 64px -24px rgb(0 0 0 / 0.5),
+    0 8px 20px -12px rgb(0 0 0 / 0.28);
+}

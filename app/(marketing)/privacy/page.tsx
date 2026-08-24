@@ -1,5 +1,5 @@
 import { buildPageMetadata } from '@/lib/seo/metadata'
-import { MarketingLayout } from '@/components/seo/MarketingLayout'
+import { Section, Container } from '@/components/marketing/system'
 
 export const metadata = buildPageMetadata({
   path: '/privacy',
@@ -9,9 +9,9 @@ export const metadata = buildPageMetadata({
 
 export default function PrivacyPage() {
   return (
-    <MarketingLayout>
-      <section className='py-16 px-8' dir='rtl'>
-        <div className='max-w-3xl mx-auto'>
+    <Section ground='light'>
+      <Container width='prose'>
+      <div dir='rtl'>
           <h1 className='text-3xl font-bold mb-2'>מדיניות פרטיות</h1>
           <p className='text-gray-500 text-sm mb-10'>עודכן לאחרונה: מרץ 2026</p>
 
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
             </div>
           </div>
         </div>
-      </section>
-    </MarketingLayout>
+    </Container>
+    </Section>
   )
 }

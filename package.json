@@ -23,6 +23,7 @@
     "test:unit": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/ai",
     "test:runtime": "NODE_ENV=test vitest run --config vitest.runtime.config.ts",
     "test:a11y": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/a11y",
+    "test:marketing": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/marketing",
     "test:catalog": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/automations",
     "test:support": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/support",
     "test:notifications": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/notifications",

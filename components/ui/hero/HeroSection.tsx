@@ -1,4 +1,3 @@
-import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { HeroContent } from './HeroContent'
 import { HeroScene } from './HeroScene'
 
@@ -9,7 +8,6 @@ export function HeroSection() {
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(63,32,245,0.06),transparent_60%)]' />
 
       <div className='relative z-10'>
-        <MarketingNavbar />
 
         <div
           dir='rtl'

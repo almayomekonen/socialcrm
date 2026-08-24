@@ -1,5 +1,4 @@
 import { buildPageMetadata } from '@/lib/seo/metadata'
-import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import PricingPageComponent from '@/components/ui/pricing-card'
 
 export const metadata = buildPageMetadata({
@@ -15,7 +14,6 @@ export default function PricingPage() {
   return (
     <>
       <div className='bg-white'>
-        <MarketingNavbar />
       </div>
       <PricingPageComponent />
     </>

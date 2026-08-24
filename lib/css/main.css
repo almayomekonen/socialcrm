@@ -5,6 +5,7 @@
 @import './elements.css';
 @import './copilot-motion.css';
 @import './business-profile-art.css';
+@import './marketing.css';
 @config "../../tailwind.config.ts";
 
 @theme {

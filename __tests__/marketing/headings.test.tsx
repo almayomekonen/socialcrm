@@ -1,0 +1,75 @@
+// @vitest-environment jsdom
+/**
+ * Heading-hierarchy guardrail for the public marketing routes.
+ *
+ * One `<h1>` per document is the baseline every search engine and screen reader
+ * assumes. It is also the assertion most likely to be broken by a visual
+ * redesign — a hero gets rebuilt, the headline becomes a styled `<div>`, and
+ * nothing visibly changes while the page silently loses its heading.
+ *
+ * `<h2>`s are checked for non-emptiness rather than count: section structure is
+ * free to change, but a heading element with no accessible text is a defect at
+ * any scale.
+ */
+
+import { describe, test, expect, vi, afterEach } from 'vitest'
+import React from 'react'
+import { cleanup } from '@testing-library/react'
+import { renderPage, norm } from './harness'
+
+// Inline, not imported: `vi.mock` is hoisted above the import block.
+vi.mock('@/actions/auth', () => ({ getSessionState: async () => false, logout: async () => {} }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: () => {}, replace: () => {}, prefetch: () => {}, back: () => {}, forward: () => {}, refresh: () => {} }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+  redirect: () => {},
+  notFound: () => {},
+}))
+
+import Home from '@/app/(marketing)/page'
+import Crm from '@/app/(marketing)/crm/page'
+import Features from '@/app/(marketing)/features/page'
+import FacebookLeads from '@/app/(marketing)/facebook-leads/page'
+import WhatsappLeads from '@/app/(marketing)/whatsapp-leads/page'
+import CrmVsExcel from '@/app/(marketing)/crm-vs-excel/page'
+import CrmForWhatsapp from '@/app/(marketing)/crm-for-whatsapp-business/page'
+import InstagramLeads from '@/app/(marketing)/instagram-leads-crm/page'
+import Pricing from '@/app/(marketing)/pricing/page'
+import Privacy from '@/app/(marketing)/privacy/page'
+import Terms from '@/app/(marketing)/terms/page'
+import DataDeletion from '@/app/(marketing)/data-deletion/page'
+
+afterEach(cleanup)
+
+const PAGES: Array<[path: string, Component: () => React.ReactNode]> = [
+  ['/', Home],
+  ['/crm', Crm],
+  ['/features', Features],
+  ['/facebook-leads', FacebookLeads],
+  ['/whatsapp-leads', WhatsappLeads],
+  ['/crm-vs-excel', CrmVsExcel],
+  ['/crm-for-whatsapp-business', CrmForWhatsapp],
+  ['/instagram-leads-crm', InstagramLeads],
+  ['/pricing', Pricing],
+  ['/privacy', Privacy],
+  ['/terms', Terms],
+  ['/data-deletion', DataDeletion],
+]
+
+describe.each(PAGES)('%s headings', (path, Component) => {
+  test('renders exactly one <h1>, with text', () => {
+    const { container } = renderPage(<Component />)
+    const h1s = [...container.querySelectorAll('h1')]
+    expect(h1s, `${path} must have exactly one <h1>`).toHaveLength(1)
+    expect(norm(h1s[0].textContent).length).toBeGreaterThan(0)
+  })
+
+  test('no heading element is empty', () => {
+    const { container } = renderPage(<Component />)
+    const empty = [...container.querySelectorAll('h1,h2,h3,h4,h5,h6')]
+      .filter((h) => norm(h.textContent).length === 0)
+      .map((h) => h.tagName)
+    expect(empty, `${path} has empty headings`).toEqual([])
+  })
+})
