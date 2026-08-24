@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '.'
 import { debounce } from '@/lib/hooksNEvents'
+import { useSelectSearchKeyboard } from './useSelectSearchKeyboard'
 
 type Props = {
   obj?: any
@@ -19,6 +20,8 @@ type Props = {
   inputCls?: string
   initShow?: string
   required?: boolean
+  /** Fired when the user empties the input. Lets a consumer drop its URL scope. */
+  onClear?: () => void
 }
 
 export function SelectSearch({
@@ -35,6 +38,7 @@ export function SelectSearch({
   initShow = null,
   searchFunc,
   onSelectOpt,
+  onClear,
   required = true,
 }: Props) {
   const debouncedSearch = useMemo(
@@ -85,7 +89,10 @@ export function SelectSearch({
   // NEW ----------------
 
   async function onChange(value) {
-    if (value.trim().length === 0) return setData(opts)
+    if (value.trim().length === 0) {
+      onClear?.()
+      return setData(opts)
+    }
     if (searchFunc) {
       if (value.length < 2) return
       return debouncedSearch(value, setData)
@@ -101,8 +108,16 @@ export function SelectSearch({
   function onSelect(el) {
     inputRef.current.value = el[show]
     valueRef.current.value = el[val]
+    setIsOpen(false)
     if (onSelectOpt) onSelectOpt(el)
   }
+
+  const { listboxId, highlight, setHighlight, optionRefs, onKeyDown } = useSelectSearchKeyboard({
+    data,
+    isOpen,
+    setIsOpen,
+    onSelect,
+  })
 
   // function deselect() {
   //   inputRef.current.value = ''
@@ -125,9 +140,16 @@ export function SelectSearch({
         onFocus={showFunc}
         onBlur={() => setIsOpen(false)}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         required={false}
         className={inputCls}
+        role='combobox'
+        aria-expanded={isOpen && data.length > 0}
+        aria-controls={isOpen && data.length > 0 ? listboxId : undefined}
+        aria-activedescendant={isOpen && highlight >= 0 ? `${listboxId}-${highlight}` : undefined}
+        aria-autocomplete='list'
+        autoComplete='off'
       />
 
       <Input
@@ -143,14 +165,27 @@ export function SelectSearch({
         <div
           style={{ minWidth: `${inputRef.current?.offsetWidth}px` }}
           ref={popRef}
+          id={listboxId}
+          role='listbox'
           className='absolute top-full right-0 z-9999 border border-gray-200 rounded-md  scrollbar-slim max-h-50 overflow-y-auto bg-white'
         >
-          {data.map((el) => (
+          {data.map((el, i) => (
             <button
               key={el[val]}
+              id={`${listboxId}-${i}`}
+              ref={(node) => {
+                optionRefs.current[i] = node
+              }}
+              role='option'
+              aria-selected={i === highlight}
+              // Mouse selection is unchanged: mousedown still fires before the
+              // input's blur closes the list.
               onMouseDown={() => onSelect(el)}
+              onMouseEnter={() => setHighlight(i)}
               type='button'
-              className='hover:bg-gray-100 px-3 py-0.5 rounded w-full whitespace-nowrap text-right'
+              className={`px-3 py-0.5 rounded w-full whitespace-nowrap text-right ${
+                i === highlight ? 'bg-gray-100' : 'hover:bg-gray-100'
+              }`}
             >
               {el[show]}
             </button>

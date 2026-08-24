@@ -14,7 +14,7 @@ import ModalPop from '../../lib/modals/ModalPop'
 import ConfirmPop from '../../lib/modals/ConfirmPop'
 import SaleForm from '@/components/sales/saleForm/SaleForm'
 import UploadClientData from '@/components/settings/UploadClientData'
-import { redirect, useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
@@ -28,13 +28,40 @@ import ShowColumns from '@/lib/table/ShowColumns'
 import { saveTblPref } from '@/actions/global'
 import LeadStatusCell, { STATUS_STYLES } from './LeadStatusCell'
 import LeadsTableView from './LeadsTableView'
+import LeadsTableEmptyState from './LeadsTableEmptyState'
+import { clearLeadScopeParams, clearLeadSearchParams, hasActiveLeadScope, parseLeadId } from '@/lib/leads/leadScope'
 import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
 import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
 
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null }) {
-  const [activeTab, setActiveTab] = useState('new')
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const clientId = searchParams.get('clientId')
+  const clientDetails = searchParams.get('clientDetails')
+
+  /**
+   * URL SCOPE. `?clientId=` means "the rep picked this lead out of the search" —
+   * the server has already narrowed the query to it. Two things follow, and both
+   * used to be missing.
+   *
+   * The tab: `activeTab` opened on 'new' unconditionally, so a requested lead in
+   * any of the other four statuses was filtered straight back out of a result
+   * set that contained nothing else. It now opens on the requested lead's own
+   * status. Browsing with no lead requested is untouched — still 'new'.
+   *
+   * `scoped` tells the empty state which story it is in; see LeadsTableEmptyState.
+   *
+   * Read before the state so it can seed it. Both list pages key this component
+   * on `clientId`, so a new request remounts and re-seeds.
+   */
+  const scoped = hasActiveLeadScope({
+    clientId,
+    listId: searchParams.get('listId'),
+    view: searchParams.get('view'),
+  })
+  const [activeTab, setActiveTab] = useState(() => initialStatusTab(data, parseLeadId(clientId)))
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
   const hasMultipleUsers = false
 
@@ -99,11 +126,6 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [confirmDeleteLead, setConfirmDeleteLead] = useState(null)
   const [deleteErrMsg, setDeleteErrMsg] = useState<string | null>(null)
 
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const clientId = searchParams.get('clientId')
-  const clientDetails = searchParams.get('clientDetails')
-
   useKeepTblScrollPos(tblId)
 
   function moreRows(client) {
@@ -130,85 +152,46 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     )
   }
 
-  const emptyState = filteredData.length === 0 ? (
-    <div className='text-center py-8 flex flex-col items-center gap-4'>
-      {mergedState.length === 0 ? (
-        leads ? (
-          <>
-            <p className='text-lg font-semibold'>אין עדיין לידים</p>
-            <p className='text-sm text-gray-500'>חבר פייסבוק או הוסף ליד ידנית</p>
-            <div className='flex gap-3 justify-center'>
-              <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
-              <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
-            </div>
-          </>
-        ) : (
-          <>
-            <p className='text-lg font-semibold'>אין לקוחות עדיין</p>
-            <p className='text-sm text-gray-500'>אפשר להתחיל על ידי יצירת ליד או העלאת קובץ</p>
-            <div className='flex gap-3 justify-center'>
-              <Btn lbl='הוסף ליד' icon='plus' onClick={() => (setOpenForm(true), setCurClient(null))} />
-              <Btn lbl='העלה לידים' variant='soft' onClick={() => setOpenUpload(true)} />
-            </div>
-          </>
-        )
-      ) : (
-        (() => {
-          const countByStatus = Object.keys(STATUS_STYLES).reduce(
-            (acc, key) => ({ ...acc, [key]: mergedState.filter((l) => l.status === key).length }),
-            {} as Record<string, number>,
-          )
-          // Non-actionable statuses (סגור / אבוד) — excluded from primary suggestion.
-          const NON_ACTIONABLE = new Set(['closed', 'lost'])
-          const actionableTop = Object.keys(STATUS_STYLES)
-            .filter((k) => k !== activeTab && !NON_ACTIONABLE.has(k) && countByStatus[k] > 0)
-            .sort((a, b) => countByStatus[b] - countByStatus[a])[0]
-          // Fallback: first status with leads (even if non-actionable).
-          const fallbackWithLeads = Object.keys(STATUS_STYLES).find(
-            (k) => k !== activeTab && countByStatus[k] > 0,
-          )
-          const topStatus = actionableTop ?? fallbackWithLeads
-          const firstWithLeads =
-            Object.keys(STATUS_STYLES).find((k) => countByStatus[k] > 0) ?? topStatus
-          return (
-            <>
-              <p className='text-sm text-gray-500'>אין לידים בסטטוס זה כרגע</p>
-              {topStatus && (
-                <div className='flex gap-3 justify-center'>
-                  <Btn
-                    lbl={`הצג לידים ב"${STATUS_STYLES[topStatus].label}" (${countByStatus[topStatus]})`}
-                    onClick={() => setActiveTab(topStatus)}
-                  />
-                  <Btn
-                    variant='outline'
-                    lbl='הצג את כל הלידים'
-                    onClick={() => firstWithLeads && setActiveTab(firstWithLeads)}
-                  />
-                </div>
-              )}
-              <p className='text-sm text-gray-600'>
-                <button
-                  type='button'
-                  className='underline hover:text-gray-800'
-                  onClick={() => (setOpenForm(true), setCurClient(null))}
-                >
-                  הוסף ליד ידנית
-                </button>
-                {' או '}
-                <button
-                  type='button'
-                  className='underline hover:text-gray-800'
-                  onClick={() => setOpenUpload(true)}
-                >
-                  העלה קובץ לידים
-                </button>
-              </p>
-            </>
-          )
-        })()
-      )}
-    </div>
-  ) : null
+  /**
+   * Clearing the search must clear the SCOPE, not just the input. Emptying the
+   * box while `?clientId=` stayed in the URL left the list pinned to one lead
+   * with nothing on screen explaining why. Guarded so it only ever navigates
+   * when there is something to clear — focusing an already-empty box must not.
+   */
+  function clearSearchScope() {
+    if (!clientId && !clientDetails) return
+    goTo(clearLeadSearchParams(new URLSearchParams(searchParams.toString())))
+  }
+
+  /**
+   * The empty state's single way out. Wider than clearing the box: the screen
+   * can also be empty because of a saved list or a `?view=due` arrival from the
+   * dashboard, and a button that lifts only the search would visibly do nothing
+   * there.
+   */
+  function clearAllScope() {
+    goTo(clearLeadScopeParams(new URLSearchParams(searchParams.toString())))
+  }
+
+  function goTo(params: URLSearchParams) {
+    const next = params.toString()
+    router.replace((next ? `?${next}` : '?') as any, { scroll: false })
+  }
+
+  const emptyState = (
+    <LeadsTableEmptyState
+      leads={leads}
+      filteredCount={filteredData.length}
+      rows={mergedState}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      scoped={scoped}
+      scopeKind={parseLeadId(clientId) !== null ? 'search' : 'filter'}
+      onClearScope={clearAllScope}
+      onAddLead={() => (setOpenForm(true), setCurClient(null))}
+      onUploadLeads={() => setOpenUpload(true)}
+    />
+  )
 
 
   const hiddenKeys = useMemo(() => {
@@ -246,7 +229,36 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     const currentParams = new URLSearchParams(searchParams.toString())
     currentParams.set('clientId', client.id)
     currentParams.set('clientDetails', client.details)
-    redirect(('?' + currentParams.toString()) as any)
+    // The offset belongs to the list the rep was paging through, not to the one
+    // lead they just asked for. The query already ignores it for a targeted
+    // lookup; dropping it here keeps the footer from reading "עמוד 3" over a
+    // single result, and keeps the URL honest if it is shared.
+    currentParams.delete('pageNum')
+
+    /**
+     * ONE HISTORY ENTRY PER SEARCH, NOT PER RESULT.
+     *
+     * This used to call `redirect()` — which, in a DOM event handler, does not
+     * navigate at all: it throws, and the app-router's `window` error listener
+     * catches it and calls `router.replace`, because on the client
+     * `redirect()`'s type defaults to `replace`. So entering a search left no
+     * history entry and Back could not return the rep to their full list, while
+     * pagination and the eraser button (a `<Link>`) both pushed. Same toolbar,
+     * three different history behaviours.
+     *
+     * Entering a search from the unscoped list is a place worth coming back to,
+     * so it pushes. Refining — picking a different lead while already inside a
+     * search — replaces, so five searches in a row do not cost five Back
+     * presses. `scroll: false` keeps the rep where they were; the old path could
+     * not pass it (`replace(url, {})`).
+     *
+     * Everything about the URL itself is unchanged: same params, same
+     * `pageNum` drop, same query, same scoping.
+     */
+    const href = ('?' + currentParams.toString()) as any
+    const refiningExistingSearch = parseLeadId(clientId) !== null
+    if (refiningExistingSearch) router.replace(href, { scroll: false })
+    else router.push(href, { scroll: false })
   }
 
   return (
@@ -280,6 +292,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 inputCls='w-52 rounded-e-none'
                 searchFunc={leads ? searchLeads : searchContacts}
                 onSelectOpt={getSelectedClient}
+                onClear={clearSearchScope}
                 initShow={clientDetails}
               />
               <Btn variant='outline' size='icon' icon='eraser' aria-label='נקה חיפוש' href='?' scroll={false} className='rounded-s-none border-s-0' />
@@ -482,6 +495,21 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       />
     </>
   )
+}
+
+/**
+ * Which status tab to open on.
+ *
+ * 'new' for ordinary browsing — unchanged. When the URL requests one specific
+ * lead, its own status, so the requested lead is actually on screen: the table
+ * filters rows by the active tab, and a targeted query returns nothing else to
+ * fall back to. Unknown/absent status falls back to 'new'.
+ */
+function initialStatusTab(rows, targetLeadId) {
+  if (targetLeadId === null) return 'new'
+  const row = Array.isArray(rows) ? rows.find((r) => Number(r?.id) === targetLeadId) : null
+  const status = row?.status
+  return status && STATUS_STYLES[status] ? status : 'new'
 }
 
 export function getHeaders(leads, hasMultipleUsers = true) {
