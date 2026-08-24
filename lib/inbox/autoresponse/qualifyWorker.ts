@@ -13,6 +13,7 @@ import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped, markClosed } from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
+import { recordTurnClassification } from '@/db/conversationTurnClassification'
 import { isPositiveLeadId } from './contactJob'
 import { mergeQualification, requiredComplete, isSalesStrategy, type Qualification } from './qualification'
 import { decidePreGeneration, decidePostGeneration, isDiscoveryQuestionBudgetExhausted } from './stateMachine'
@@ -495,6 +496,28 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     post.action === 'escalate'
       ? buildSummary({ qualification: merged, reason: post.reason, turnCount: aiState.aiTurnCount + 1, lang })
       : null
+
+  // ── Classification log: exactly one row per customer turn, covering all three
+  //    outcomes below. It sits here because every classification field is final at
+  //    this point and none of the branches change them, while the early exits above
+  //    have no responseProfile or hotSignal to record. Guarded like the draft-review
+  //    write: observability must never break a customer message.
+  try {
+    await recordTurnClassification({
+      job,
+      salesMove,
+      salesStrategy,
+      responseProfile,
+      hotSignal: gen.hotSignal,
+      uncertain: gen.uncertain,
+      decision: post,
+      draft,
+      turnCount: aiState.aiTurnCount + 1,
+      model: gen.model,
+    })
+  } catch (e) {
+    console.error(`[IRE-CLASSIFY] persist failed conv=${conv.id}:`, (e as Error).message)
+  }
 
   // ── Draft/canary: never send; persist + log the would-be output for review ──
   if (draft) {
