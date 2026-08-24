@@ -21,14 +21,13 @@ import type { AgentResult } from '@/lib/agent/types'
  * DEPLOYMENT NOTE — `maxDuration` cannot live here. A `'use server'` module may
  * only export async functions, so the platform function timeout is inherited
  * from the ROUTE SEGMENT that invokes this action. The Agent's budget allows up
- * to DEFAULT_DEADLINE_MS (40s), which exceeds the default serverless limit, so
- * whichever page or route first calls this MUST declare the repository's
- * convention for long work:
+ * to DEFAULT_DEADLINE_MS (40s), so the caller's segment must declare the
+ * repository's convention for long work — `export const maxDuration = 60`.
  *
- *     export const maxDuration = 60
- *
- * No such caller exists yet — B5 ships no UI. Adding one without that line will
- * let the platform cut an investigation off mid-flight.
+ * `app/api/ai/agent/route.ts` is that caller and declares it. A globally-mounted
+ * Copilot could not: a Server Action runs under whichever of the 46 page
+ * segments the user happens to be on, so a route is the only place the Agent's
+ * runtime has a single, controllable home.
  */
 
 /** Upper bound on one question. Long enough for any real ask, short enough to bound cost. */
@@ -51,12 +50,20 @@ async function persistQuietly(record: AgentInvestigationInput): Promise<void> {
   }
 }
 
-export async function askAgent(question: string): Promise<AgentResult> {
+/**
+ * `abortSignal` is the ONLY thing besides the question a caller may supply, and
+ * it can only ever shorten an investigation. The route passes the request's own
+ * signal so a rep who navigates away stops paying for a generation nobody will
+ * read. Everything else — agency, permissions, entitlement, budget, model,
+ * investigation id — stays server-derived and is unreachable from a request.
+ */
+export async function askAgent(question: string, abortSignal?: AbortSignal): Promise<AgentResult> {
   const trimmed = (question ?? '').trim()
   if (!trimmed) return { ok: false, reason: 'error', message: 'empty-question' }
 
   return runAgentInvestigation({
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
+    abortSignal,
     onPersist: persistQuietly,
   })
 }

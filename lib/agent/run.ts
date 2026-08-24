@@ -90,7 +90,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const admission = await admitAiRun({ kind: AGENT_TASK_KIND, agencyId: scope.agencyId })
   if (admission.ok === false) {
     agentTrace('ADMISSION_DENIED', ctx, { reason: admission.reason })
-    return { ok: false, reason: 'gate_denied', message: admission.reason }
+    return { ok: false, reason: 'gate_denied', message: admission.reason, investigationId }
   }
   const { cfg, chain } = admission
   const handle = chain[0]!
@@ -139,7 +139,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       failureReason: message,
     })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'error' })
-    return { ok: false, reason: 'error', message }
+    return { ok: false, reason: 'error', message, investigationId }
   }
 
   // Charge before validating: the tokens were spent whatever we do with the
@@ -176,7 +176,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       failureReason: null,
     })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'no_evidence' })
-    return { ok: false, reason: 'no_evidence' }
+    return { ok: false, reason: 'no_evidence', investigationId }
   }
 
   // A budget stop that still produced a supportable answer is reported as the
@@ -212,5 +212,6 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     evidence: evidence.all(),
     steps: budget.stepsUsed(),
     stopReason,
+    investigationId,
   }
 }

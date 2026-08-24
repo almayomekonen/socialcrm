@@ -150,6 +150,23 @@ export type StopReason =
   | 'gate_denied'
   | 'error'
 
+/**
+ * `investigationId` is minted server-side in lib/agent/run.ts and is the same id
+ * that correlates the trace lines and the persisted row. It is returned so a
+ * later question about an answer can be traced to the run that produced it. It
+ * is NEVER accepted as input: a caller-supplied id would let one client
+ * overwrite another's history, because persistence is first-write-wins.
+ *
+ * Optional on failure because a request can fail before an id exists — an empty
+ * question is rejected before any investigation starts.
+ */
 export type AgentResult =
-  | { ok: true; answer: AgentAnswer; evidence: EvidenceRef[]; steps: number; stopReason: StopReason }
-  | { ok: false; reason: StopReason; message?: string }
+  | {
+      ok: true
+      answer: AgentAnswer
+      evidence: EvidenceRef[]
+      steps: number
+      stopReason: StopReason
+      investigationId: string
+    }
+  | { ok: false; reason: StopReason; message?: string; investigationId?: string }

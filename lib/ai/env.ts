@@ -16,6 +16,7 @@ export type AiEnv = {
   reasonedGeneralAgencyAllowlist: number[] | 'all'
   synthesisAgencyAllowlist: number[] | 'all'
   runtimeCognitionAgencyAllowlist: number[] | 'all'
+  agentAgencyAllowlist: number[] | 'all'
 }
 
 let cached: AiEnv | null = null
@@ -62,6 +63,7 @@ function loadEnv(): AiEnv {
     reasonedGeneralAgencyAllowlist: parseAgencyAllowlist(process.env.REASONED_GENERAL_AGENCY_IDS),
     synthesisAgencyAllowlist: parseAgencyAllowlist(process.env.SYNTHESIS_AGENCY_IDS),
     runtimeCognitionAgencyAllowlist: parseAgencyAllowlist(process.env.RUNTIME_COGNITION_AGENCY_IDS),
+    agentAgencyAllowlist: parseAgencyAllowlist(process.env.AGENT_AGENCY_IDS),
     agencyAllowlist: parseAgencyAllowlist(process.env.AI_AGENCY_ALLOWLIST),
     dailyUsdCap: cap,
     healthSecret: process.env.AI_HEALTH_SECRET?.trim() || null,

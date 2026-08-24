@@ -126,7 +126,12 @@ describe('admission decides whether a model is called at all', () => {
     admitAiRun.mockResolvedValue({ ok: false, reason })
     const res = await runAgentInvestigation({ question: 'מה דורש טיפול?' })
 
-    expect(res).toEqual({ ok: false, reason: 'gate_denied', message: reason })
+    expect(res).toEqual({
+      ok: false,
+      reason: 'gate_denied',
+      message: reason,
+      investigationId: expect.stringMatching(/^inv_/),
+    })
     expect(generateTextSpy).not.toHaveBeenCalled()
     expect(addDailySpend).not.toHaveBeenCalled()
     expect(buildTodayBrief).not.toHaveBeenCalled()

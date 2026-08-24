@@ -256,7 +256,12 @@ describe('failure policy', () => {
   it('an admission denial persists NOTHING', async () => {
     admitAiRun.mockResolvedValue({ ok: false, reason: 'over-quota' })
     const res = await askAgent('q')
-    expect(res).toEqual({ ok: false, reason: 'gate_denied', message: 'over-quota' })
+    expect(res).toEqual({
+      ok: false,
+      reason: 'gate_denied',
+      message: 'over-quota',
+      investigationId: expect.stringMatching(/^inv_/),
+    })
     expect(recordAgentInvestigation).not.toHaveBeenCalled()
   })
 
@@ -279,12 +284,20 @@ describe('failure policy', () => {
     expect(dump).not.toContain('RAW-CLAIM')
   })
 
-  it('a persistence failure leaves the AgentResult byte-identical', async () => {
+  it('a persistence failure leaves the AgentResult otherwise identical', async () => {
     const good = await askAgent('q')
     recordAgentInvestigation.mockReset().mockRejectedValue(new Error('relation does not exist'))
     generateTextSpy.mockImplementation(modelAnswers())
     const withFailure = await askAgent('q')
-    expect(withFailure).toEqual(good)
+
+    // Every investigation mints its own id, so two runs are never byte-identical
+    // by design. Everything the rep actually reads must be.
+    const strip = (r: unknown) => {
+      const { investigationId, ...rest } = r as Record<string, unknown>
+      expect(String(investigationId)).toMatch(/^inv_/)
+      return rest
+    }
+    expect(strip(withFailure)).toEqual(strip(good))
     expect(withFailure).toMatchObject({ ok: true })
   })
 })
