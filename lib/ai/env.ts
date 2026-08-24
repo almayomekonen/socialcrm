@@ -7,7 +7,13 @@ export type AiEnv = {
   healthSecret: string | null
   anthropic: { apiKey: string; primaryModel: string; heavyModel: string } | null
   google: { apiKey: string; model: string } | null
-  openai: { apiKey: string; model: string; ireModel: string; ireReasoningEffort: IreReasoningEffort } | null
+  openai: {
+    apiKey: string
+    model: string
+    ireModel: string
+    agentModel: string
+    ireReasoningEffort: IreReasoningEffort
+  } | null
   copilotEnabled: boolean
   copilotAgencyAllowlist: number[] | 'all'
   copilotPersistenceEnabled: boolean
@@ -22,6 +28,16 @@ export type AiEnv = {
 let cached: AiEnv | null = null
 
 export const DEFAULT_IRE_OPENAI_MODEL = 'gpt-5.6'
+
+/**
+ * The CRM Agent's model, deliberately its OWN variable rather than a reuse of
+ * IRE_OPENAI_MODEL. The two surfaces happen to want the same model today, but
+ * they are unrelated products with unrelated tuning: retargeting the WhatsApp
+ * Qualifier must never silently retarget the Agent, and vice versa. The default
+ * matches the IRE's only because that is the current flagship, not because they
+ * are linked.
+ */
+export const DEFAULT_AGENT_OPENAI_MODEL = 'gpt-5.6'
 export const DEFAULT_IRE_REASONING_EFFORT: IreReasoningEffort = 'high'
 
 function parseIreReasoningEffort(raw: string | undefined): IreReasoningEffort {
@@ -85,6 +101,7 @@ function loadEnv(): AiEnv {
           apiKey: openaiKey,
           model: process.env.OPENAI_MODEL?.trim() || 'gpt-4.1-mini',
           ireModel: process.env.IRE_OPENAI_MODEL?.trim() || DEFAULT_IRE_OPENAI_MODEL,
+          agentModel: process.env.AGENT_OPENAI_MODEL?.trim() || DEFAULT_AGENT_OPENAI_MODEL,
           ireReasoningEffort: parseIreReasoningEffort(process.env.IRE_OPENAI_REASONING_EFFORT),
         }
       : null,
