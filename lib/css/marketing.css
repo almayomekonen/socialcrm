@@ -44,15 +44,36 @@
   --color-mkt-ink: oklch(0.041 0.002 314);
   --color-mkt-accent: oklch(0.567 0.159 275); /* #5e6ad2 — the product primary */
   --color-mkt-accent-soft: oklch(0.72 0.1 275);
+  /* Brand-coloured TEXT. Contextual, because one value cannot serve both
+     grounds: #5e6ad2 is 4.4:1 on white (under AA at 13px), and the darker
+     variant that fixes white drops to 3.2:1 on the dark ground. Resolved per
+     ground below — the same mistake the old site made with `text-white/40`. */
 
-  /* Contextual — resolved by the ground class on the nearest section. */
-  --color-mkt-bg: var(--mkt-bg);
-  --color-mkt-fg: var(--mkt-fg);
-  --color-mkt-muted: var(--mkt-muted);
-  --color-mkt-faint: var(--mkt-faint);
-  --color-mkt-surface: var(--mkt-surface);
-  --color-mkt-border: var(--mkt-border);
-  --color-mkt-hairline: var(--mkt-hairline);
+  /* ── Contextual colours ────────────────────────────────────────────────
+     These carry the LIGHT-ground values as literals, and `.mkt-ground-dark`
+     re-declares the SAME `--color-mkt-*` variables with dark values.
+
+     The indirection this replaces (`--color-mkt-bg: var(--color-mkt-bg)`, with
+     `--mkt-bg` set only inside a ground class) did not work: Tailwind resolves
+     `@theme` values at build time, `var(--color-mkt-bg)` is undefined at `:root`, and
+     the whole token was dropped. Every `bg-mkt-*` / `text-mkt-*` utility became
+     a silent no-op — `bg-mkt-bg` computed to `rgba(0,0,0,0)`, which is why the
+     sticky header rendered with no background over dark sections. The page
+     still looked mostly right only because the ground classes set `color` and
+     `background-color` directly and inheritance covered the rest.
+
+     Overriding the `--color-*` variable itself is the supported Tailwind v4
+     pattern: the generated utility reads `var(--color-mkt-…)`, so it picks up
+     whichever ground it sits in, and opacity modifiers (`bg-mkt-bg/85`) keep
+     working because Tailwind composes them with `color-mix`. */
+  --color-mkt-bg: oklch(1 0 0);
+  --color-mkt-fg: oklch(0.041 0.002 314);
+  --color-mkt-muted: oklch(0.44 0.008 300);
+  --color-mkt-faint: oklch(0.56 0.008 300);
+  --color-mkt-surface: oklch(0.985 0.002 300);
+  --color-mkt-border: oklch(0.93 0.003 300);
+  --color-mkt-hairline: oklch(0.965 0.002 300);
+  --color-mkt-accent-text: #4b53b8;
 
   /* ── Type scale ────────────────────────────────────────────────────────
      Fluid, and MONOTONIC by construction. Lumen steps its sizes at
@@ -104,29 +125,38 @@
    /privacy, /terms and /data-deletion at 1.03:1 measured contrast. */
 
 .mkt-ground-light {
-  --mkt-bg: oklch(1 0 0);
-  --mkt-fg: oklch(0.041 0.002 314);
-  --mkt-muted: oklch(0.44 0.008 300); /* 7.4:1 — body copy, not decoration */
-  --mkt-faint: oklch(0.56 0.008 300); /* 4.6:1 — captions, still AA */
-  --mkt-surface: oklch(0.985 0.002 300);
-  --mkt-border: oklch(0.93 0.003 300);
-  --mkt-hairline: oklch(0.965 0.002 300); /* Lumen's near-invisible line */
+  --color-mkt-bg: oklch(1 0 0);
+  --color-mkt-fg: oklch(0.041 0.002 314);
+  /* 7.4:1 on white — body copy, not decoration. */
+  --color-mkt-muted: oklch(0.44 0.008 300);
+  /* 4.6:1 — captions and eyebrows, still AA for normal text. */
+  --color-mkt-faint: oklch(0.56 0.008 300);
+  --color-mkt-surface: oklch(0.985 0.002 300);
+  --color-mkt-border: oklch(0.93 0.003 300);
+  --color-mkt-hairline: oklch(0.965 0.002 300);
+  /* 6.3:1 on white. Matches the app's own `--color-primary-text`, which exists
+     for exactly this: brand colour legible at small sizes. */
+  --color-mkt-accent-text: #4b53b8;
 
-  background-color: var(--mkt-bg);
-  color: var(--mkt-fg);
+  background-color: var(--color-mkt-bg);
+  color: var(--color-mkt-fg);
 }
 
 .mkt-ground-dark {
-  --mkt-bg: oklch(0.095 0.002 314); /* Lumen's dark background, exactly */
-  --mkt-fg: oklch(1 0 0);
-  --mkt-muted: oklch(0.72 0.005 300); /* 7.6:1 on the dark ground */
-  --mkt-faint: oklch(0.6 0.005 300); /* 4.8:1 */
-  --mkt-surface: oklch(0.132 0 0);
-  --mkt-border: oklch(0.24 0 0);
-  --mkt-hairline: oklch(0.173 0 0); /* Lumen's dark border */
+  --color-mkt-bg: oklch(0.095 0.002 314); /* Lumen's dark background, exactly */
+  --color-mkt-fg: oklch(1 0 0);
+  /* 7.6:1 on the dark ground. The old site used white/40 (~3.4:1) for body. */
+  --color-mkt-muted: oklch(0.72 0.005 300);
+  /* 4.8:1 — the floor for anything carrying meaning. */
+  --color-mkt-faint: oklch(0.6 0.005 300);
+  --color-mkt-surface: oklch(0.132 0 0);
+  --color-mkt-border: oklch(0.24 0 0);
+  --color-mkt-hairline: oklch(0.173 0 0);
+  /* 8.1:1 here. The light-ground value measures 3.2:1 on this ground. */
+  --color-mkt-accent-text: oklch(0.79 0.1 277);
 
-  background-color: var(--mkt-bg);
-  color: var(--mkt-fg);
+  background-color: var(--color-mkt-bg);
+  color: var(--color-mkt-fg);
 }
 
 /* ── Section rhythm ── Lumen's `.section-padding`, kept verbatim. */
@@ -215,7 +245,7 @@
    The single device every product visual sits in, so the software reads as one
    product on every page. */
 .mkt-frame {
-  background-color: color-mix(in oklab, var(--mkt-fg) 5%, transparent);
+  background-color: color-mix(in oklab, var(--color-mkt-fg) 5%, transparent);
   border-radius: var(--radius-mkt-2xl);
   padding: 0.5rem;
 }
@@ -223,9 +253,52 @@
 .mkt-frame-inner {
   border-radius: var(--radius-mkt-xl);
   overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--mkt-fg) 9%, transparent);
-  border-top-color: color-mix(in oklab, var(--mkt-fg) 18%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-mkt-fg) 9%, transparent);
+  border-top-color: color-mix(in oklab, var(--color-mkt-fg) 18%, transparent);
   box-shadow:
     0 28px 64px -24px rgb(0 0 0 / 0.5),
     0 8px 20px -12px rgb(0 0 0 / 0.28);
+}
+
+/* ── Type scale as utilities, NOT `text-*` ─────────────────────────────────
+   These deliberately do not live in the `text-*` namespace.
+   `lib/utils.ts` composes classes through `tailwind-merge`, which groups every
+   `text-…` utility together — so `cn('text-mkt-h2', 'text-mkt-fg')` resolved to
+   the COLOUR alone and silently dropped the font size. Every section heading
+   rendered at the 16px default while the tokens looked correct in the
+   stylesheet. Verified: twMerge('text-mkt-h2 … text-mkt-fg') → 'font-semibold
+   text-balance text-mkt-fg'.
+   `mkt-*` is not a namespace tailwind-merge knows, so it passes through
+   untouched and size and colour can coexist. */
+
+.mkt-display {
+  font-size: var(--text-mkt-display);
+  line-height: var(--text-mkt-display--line-height);
+  letter-spacing: var(--text-mkt-display--letter-spacing);
+}
+.mkt-h1 {
+  font-size: var(--text-mkt-h1);
+  line-height: var(--text-mkt-h1--line-height);
+  letter-spacing: var(--text-mkt-h1--letter-spacing);
+}
+.mkt-h2 {
+  font-size: var(--text-mkt-h2);
+  line-height: var(--text-mkt-h2--line-height);
+  letter-spacing: var(--text-mkt-h2--letter-spacing);
+}
+.mkt-h3 {
+  font-size: var(--text-mkt-h3);
+  line-height: var(--text-mkt-h3--line-height);
+}
+.mkt-lead {
+  font-size: var(--text-mkt-lead);
+  line-height: var(--text-mkt-lead--line-height);
+}
+.mkt-body {
+  font-size: var(--text-mkt-body);
+  line-height: var(--text-mkt-body--line-height);
+}
+.mkt-caption {
+  font-size: var(--text-mkt-caption);
+  line-height: var(--text-mkt-caption--line-height);
 }

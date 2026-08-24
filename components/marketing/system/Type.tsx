@@ -20,17 +20,17 @@ import { cn } from '@/lib/utils'
 
 export function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={cn('text-mkt-caption font-semibold tracking-[0.12em] text-mkt-accent', className)}>
+    <p className={cn('mkt-caption font-semibold tracking-[0.12em] text-mkt-accent-text', className)}>
       {children}
     </p>
   )
 }
 
 const HEADING_SIZE = {
-  display: 'text-mkt-display',
-  h1: 'text-mkt-h1',
-  h2: 'text-mkt-h2',
-  h3: 'text-mkt-h3',
+  display: 'mkt-display',
+  h1: 'mkt-h1',
+  h2: 'mkt-h2',
+  h3: 'mkt-h3',
 } as const
 
 type HeadingProps = {
@@ -52,11 +52,11 @@ export function Heading({ children, className, id, size = 'h2', as = 'h2' }: Hea
 }
 
 export function Lead({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <p className={cn('text-mkt-lead text-pretty text-mkt-muted', className)}>{children}</p>
+  return <p className={cn('mkt-lead text-pretty text-mkt-muted', className)}>{children}</p>
 }
 
 export function Body({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <p className={cn('text-mkt-body text-pretty text-mkt-muted', className)}>{children}</p>
+  return <p className={cn('mkt-body text-pretty text-mkt-muted', className)}>{children}</p>
 }
 
 /** Section intro: eyebrow → heading → lead, at one rhythm. */

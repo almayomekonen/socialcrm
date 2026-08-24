@@ -69,10 +69,10 @@ export function MarketingFooter() {
               </span>
               SocialCRM
             </div>
-            <p className='text-mkt-body mt-4 max-w-xs text-mkt-muted'>
+            <p className='mkt-body mt-4 max-w-xs text-mkt-muted'>
               כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם שיחה, סטטוס ומעקב לכל ליד.
             </p>
-            <p className='text-mkt-caption mt-6 whitespace-pre-line text-mkt-faint'>
+            <p className='mkt-caption mt-6 whitespace-pre-line text-mkt-faint'>
               {'מופעל על ידי:\nאלמיהו מקונן (עוסק פטור)\n\nשם מסחרי:\nSocialCRM'}
             </p>
             <div className='mt-6 flex items-center gap-4'>
@@ -101,7 +101,7 @@ export function MarketingFooter() {
 
           {COLUMNS.map((col) => (
             <nav key={col.title} aria-label={col.title}>
-              <h2 className='text-mkt-caption font-semibold tracking-[0.1em] text-mkt-faint'>{col.title}</h2>
+              <h2 className='mkt-caption font-semibold tracking-[0.1em] text-mkt-faint'>{col.title}</h2>
               <ul className='mt-4 flex flex-col'>
                 {col.links.map((l) => (
                   <li key={l.href + l.label}>
@@ -118,7 +118,7 @@ export function MarketingFooter() {
           ))}
         </div>
 
-        <div className='text-mkt-caption mt-14 flex flex-col gap-2 border-t border-mkt-border pt-6 text-mkt-faint sm:flex-row sm:items-center sm:justify-between'>
+        <div className='mkt-caption mt-14 flex flex-col gap-2 border-t border-mkt-border pt-6 text-mkt-faint sm:flex-row sm:items-center sm:justify-between'>
           {/*
             No `new Date()`. Next 16 rejects reading the current time in a
             Server Component without a request-data source, and

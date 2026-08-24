@@ -1,14 +1,17 @@
 import { buildPageMetadata } from '@/lib/seo/metadata'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { MarketingLayout } from '@/components/seo/MarketingLayout'
-import { buildFAQSchema } from '@/components/seo/FAQ'
-import { FAQ } from '@/components/ui/faq-tabs'
-import { HeroSection } from '@/components/ui/hero/HeroSection'
-import { Features7Section, OrbitalFeaturesSection, HowItWorksSection, StatsSection, LeadSourcesSection, FinalCTA } from '@/components/seo/CRMSections'
-import dynamic from 'next/dynamic'
-
-const TestimonialsSection = dynamic(() => import('@/components/seo/CRMSections').then(m => ({ default: m.TestimonialsSection })))
-import { AnimatedCta } from '@/components/ui/animated-cta'
+import { buildFAQSchema, type FAQItem } from '@/components/seo/FAQ'
+import {
+  Hero,
+  Problem,
+  ProductProof,
+  Copilot,
+  Channels,
+  OperationalControl,
+  PricingPreview,
+  Faq,
+  FinalCta,
+} from '@/components/marketing/sections'
 
 export const metadata = buildPageMetadata({
   path: '/crm',
@@ -20,46 +23,77 @@ export const metadata = buildPageMetadata({
   canonical: 'https://getsocialcrm.com/',
 })
 
-const faqItems = [
+/**
+ * The FAQ, defined ONCE.
+ *
+ * This page used to carry two lists: an eight-item `faqItems` feeding the
+ * `FAQPage` JSON-LD, and a separate twelve-item literal inlined into the
+ * renderer. They had drifted — the markup told Google the page answered a
+ * question the page did not actually render. Structured data that misrepresents
+ * the page is a Google structured-data violation, and neither half looked wrong
+ * on its own, which is why it survived.
+ *
+ * Both the rendered accordion and the JSON-LD are derived from this array, so
+ * they cannot disagree. The guardrail suite asserts that parity.
+ *
+ * Every answer is checked against shipped behaviour, not against
+ * `marketing-knowledge/features.md`, which is three months stale.
+ */
+const faqItems: FAQItem[] = [
   {
     question: 'מה זה ניהול לידים?',
     answer:
       'ניהול לידים הוא תהליך של איסוף, ארגון ומעקב אחר פניות של לקוחות פוטנציאליים. המטרה היא לוודא שכל ליד מטופל בזמן ולא נשכח, עד לסגירת עסקה או להחלטה שהוא לא רלוונטי.',
   },
   {
-    question: 'מה זה CRM?',
+    question: 'מה זה CRM לעסק קטן?',
     answer:
-      'CRM (Customer Relationship Management) הוא מערכת לניהול קשרי לקוחות. עבור עסקים קטנים, CRM היא בדרך כלל תוכנה שמאגדת את כל הלידים ואנשי הקשר, מאפשרת לעדכן סטטוס, לשייך נציגים ולעקוב אחר ההתקדמות.',
+      'CRM לעסק קטן היא תוכנה שמאגדת את כל הלידים ואנשי הקשר במקום אחד, ומאפשרת לעדכן סטטוס, לשייך נציג ולעקוב אחר ההתקדמות. בניגוד למערכות ארגוניות, היא לא דורשת הטמעה, הכשרה או הגדרת תהליכים לפני שמתחילים לעבוד.',
   },
   {
-    question: 'מדוע עסקים קטנים צריכים מערכת ניהול לידים?',
+    question: 'איך הלידים מפייסבוק ומאינסטגרם נכנסים למערכת?',
     answer:
-      'בלי מערכת, לידים מגיעים מכל מקום, פייסבוק, וואטסאפ, מייל, אינסטגרם, ומפוזרים. קשה לדעת מי טופל ומי לא, מי צריך מעקב, ומה המצב של כל ליד. מערכת CRM פותרת את הבעיה הזו באופן מלא.',
+      'מחברים את הדף העסקי בפייסבוק, וכל ליד שממלא טופס Lead Ad נכנס למערכת אוטומטית תוך שניות, עם מקור וסטטוס. לידים ממודעות אינסטגרם מגיעים באותה דרך.',
+  },
+  {
+    question: 'האם פניות בהודעה ישירה באינסטגרם נכנסות אוטומטית?',
+    answer:
+      'לא. אינסטגרם לא מאפשר למערכות חיצוניות לקרוא את תוכן ההודעות, ולכן פנייה בהודעה ישירה מוסיפים ידנית בעשר שניות: שם, טלפון ומקור אינסטגרם. לידים ממודעות אינסטגרם, לעומת זאת, נכנסים אוטומטית.',
+  },
+  {
+    question: 'איך עובד החיבור לוואטסאפ?',
+    answer:
+      'מחברים את הוואטסאפ העסקי, והשיחות נכנסות למערכת ומתחברות לליד עם מקור, סטטוס ובעלים. עונים ישירות מהמערכת, ורואים מתי ההודעה נמסרה ומתי נקראה. לפנייה חוזרת אפשר לשלוח תבנית מאושרת.',
+  },
+  {
+    question: 'אילו סטטוסים יש לליד?',
+    answer:
+      'חדש, בטיפול, מעוניין, סגור ואבוד. אלה הסטטוסים שהמערכת עובדת איתם בפועל. ליד שנסגר נשאר ליד — אין ישות נפרדת של לקוח ואין רשימה שנייה לתחזק.',
   },
   {
     question: 'מה ההבדל בין ניהול לידים באקסל לבין מערכת CRM?',
     answer:
-      'אקסל מצוין לאחסון, אבל הוא לא מנהל תהליך מכירה. מערכת CRM מחברת את מקורות הלידים, שומרת את השיחה וההיסטוריה על כל ליד, שולחת תזכורות ומחלקת עבודה בין נציגים. זה ההבדל בין רשימה סטטית לבין תהליך חי.',
+      'אקסל מצוין לאחסון, אבל הוא לא מנהל תהליך מכירה. מערכת CRM מחברת את מקורות הלידים, שומרת את השיחה וההיסטוריה על כל ליד, מחזירה לידים לרשימת היום כשמגיע תאריך המעקב, ומחלקת עבודה בין נציגים.',
   },
   {
-    question: 'מאיפה מגיעים הלידים בדרך כלל לעסקים קטנים?',
+    question: 'האם ניתן לייבא לידים קיימים מאקסל?',
     answer:
-      'רוב הלידים לעסקים קטנים מגיעים מפרסום בפייסבוק ואינסטגרם (Lead Ads), מהמלצות בוואטסאפ, מטפסי יצירת קשר באתר, ומפה לאוזן. SocialCRM מתמקדת בלידים ממקורות אלו.',
+      'כן. מעלים קובץ אקסל קיים והלידים מאורגנים במערכת. אפשר גם לייצא בחזרה לאקסל או ל-PDF בכל רגע, כך שאין נעילה על הנתונים.',
   },
   {
-    question: 'כמה זמן לוקח ליד להפוך ל"קר" ולא שמיש?',
+    question: 'מה ה-AI במערכת עושה בפועל?',
     answer:
-      'מחקרים מראים שסיכוי יצירת קשר מוצלח יורד ב-80% תוך 5 דקות מהפניה, וב-90% תוך שעה. לכן מהירות המענה היא הגורם הקריטי ביותר בניהול לידים.',
+      'על כל ליד יש תקציר קצר, שתי נקודות מפתח ופעולה מומלצת עם הסיבה שלה, מבוססים על ההיסטוריה שנשמרה על הליד. אפשר לבקש טיוטה להודעת מעקב, לשאול מה הצעד הבא או לשאול שאלה על הליד. ה-AI לא שולח הודעות בעצמו — כל הודעה נשלחת רק בלחיצה שלך. שכבת ה-AI נפתחת בתוכנית Pro.',
   },
   {
     question: 'האם SocialCRM מתאים לעסק של אדם אחד?',
     answer:
-      'בהחלט. SocialCRM מתוכנן קודם כל לבעל עסק יחיד שמנהל לידים בעצמו. ניתן להוסיף נציגים בהמשך, אבל גם לבד המערכת שווה הרבה.',
+      'כן. המערכת מתוכננת קודם כל לבעל עסק יחיד שמנהל את הלידים בעצמו. אפשר להוסיף נציגים בהמשך, לשייך להם לידים ולחלק עמלות על עסקה משותפת, בלי לשנות תוכנית.',
   },
   {
-    question: 'האם אפשר לנסות את SocialCRM בחינם?',
+    question: 'כמה זה עולה?',
     answer:
-      'כן. ניתן להירשם ולהתחיל לעבוד עם המערכת ללא עלות. אין צורך בכרטיס אשראי להתחלה.',
+      'המערכת חינמית עד 50 לידים, ללא כרטיס אשראי. תוכנית Pro מסירה את מגבלת הלידים ופותחת את שכבת ה-AI, במחיר אחד לכל סביבת העבודה — בלי תוספת לכל נציג.',
   },
 ]
 
@@ -108,7 +142,6 @@ const howToSchema = {
 
 const faqSchema = buildFAQSchema(faqItems)
 
-
 export default function CRMPage() {
   return (
     <>
@@ -116,57 +149,31 @@ export default function CRMPage() {
       <JsonLd data={howToSchema} />
       <JsonLd data={faqSchema} />
 
-      <MarketingLayout>
-        <HeroSection />
-        <Features7Section />
-        <OrbitalFeaturesSection />
-        <HowItWorksSection />
-        <StatsSection />
-        <LeadSourcesSection />
+      {/*
+        ONE STORY, in one order:
+        arrive → the problem → the product doing the work → the layer that reads
+        it → where leads come from → what stops things falling → what it costs →
+        what people ask → the ask.
 
-        <TestimonialsSection />
+        Each beat picks its ground by the editorial rule in
+        `lib/css/marketing.css`: light for narrative and SEO copy, dark for
+        product moments. The page alternates light → light → dark → dark →
+        light → dark → light → light → dark, so the product chapters read as
+        chapters rather than as alternating stripes.
 
-        <AnimatedCta
-          title='כל הלידים במקום אחד'
-          highlight='כל העסק בשליטה אחת'
-          buttonText='התחל לנהל לידים בחינם'
-          buttonHref='/auth'
-        />
-
-        <FAQ
-          title='שאלות נפוצות'
-          subtitle='שאלות נפוצות על ניהול לידים'
-          categories={{
-            general: 'כללי',
-            features: 'פיצ׳רים',
-            integrations: 'חיבורים',
-            pricing: 'תמחור',
-          }}
-          faqData={{
-            general: [
-              { question: 'מה זה ניהול לידים?', answer: 'ניהול לידים הוא תהליך של איסוף, ארגון ומעקב אחר פניות של לקוחות פוטנציאליים. המטרה היא לוודא שכל ליד מטופל בזמן ולא נשכח, עד לסגירת עסקה או להחלטה שהוא לא רלוונטי.' },
-              { question: 'מה זה CRM?', answer: 'CRM (Customer Relationship Management) הוא מערכת לניהול קשרי לקוחות. עבור עסקים קטנים, CRM היא בדרך כלל תוכנה שמאגדת את כל הלידים ואנשי הקשר, מאפשרת לעדכן סטטוס, לשייך נציגים ולעקוב אחר ההתקדמות.' },
-              { question: 'מדוע עסקים קטנים צריכים מערכת ניהול לידים?', answer: 'בלי מערכת, לידים מגיעים מכל מקום פייסבוק, וואטסאפ, מייל, אינסטגרם ומפוזרים. קשה לדעת מי טופל ומי לא, מי צריך מעקב, ומה המצב של כל ליד. מערכת CRM פותרת את הבעיה הזו באופן מלא.' },
-              { question: 'כמה זמן לוקח ליד להפוך ל"קר"?', answer: 'מחקרים מראים שסיכוי יצירת קשר מוצלח יורד ב-80% תוך 5 דקות מהפניה, וב-90% תוך שעה. לכן מהירות המענה היא הגורם הקריטי ביותר בניהול לידים.' },
-            ],
-            features: [
-              { question: 'מה ההבדל בין ניהול לידים באקסל לבין מערכת CRM?', answer: 'אקסל מצוין לאחסון, אבל הוא לא מנהל תהליך מכירה. מערכת CRM מחברת את מקורות הלידים, שומרת את השיחה וההיסטוריה על כל ליד, שולחת תזכורות ומחלקת עבודה בין נציגים. זה ההבדל בין רשימה סטטית לבין תהליך חי.' },
-              { question: 'האם אפשר לשייך לידים לנציגים שונים?', answer: 'כן. ניתן לשייך כל ליד לנציג ספציפי. כל נציג רואה רק את הלידים שלו, והמנהל רואה הכל.' },
-              { question: 'האם ניתן לעקוב אחר היסטוריה של כל ליד?', answer: 'כל שיחה, עדכון סטטוס והערה נשמרים על הליד עצמו. גם כשנציג מתחלף, ההקשר המלא נשאר במקום, ותמיד יודעים מה קרה ומה השלב הבא.' },
-            ],
-            integrations: [
-              { question: 'מאיפה מגיעים הלידים בדרך כלל לעסקים קטנים?', answer: 'רוב הלידים לעסקים קטנים מגיעים מפרסום בפייסבוק ואינסטגרם (Lead Ads), מהמלצות בוואטסאפ, מטפסי יצירת קשר באתר, ומפה לאוזן. SocialCRM מתמקדת בלידים ממקורות אלו.' },
-              { question: 'איך מחברים פייסבוק למערכת?', answer: 'מחברים את הדף העסקי בפייסבוק בלחיצה אחת. לאחר החיבור, כל ליד שממלא טופס Lead Ad מגיע אוטומטית למערכת תוך שניות.' },
-              { question: 'האם ניתן לייבא לידים מאקסל?', answer: 'כן. ניתן להעלות קובץ אקסל קיים ובשניות כל הלידים מאורגנים במערכת. מושלם לעסקים שמתחילים לעבוד עם המערכת עם לידים קיימים.' },
-            ],
-            pricing: [
-              { question: 'האם SocialCRM מתאים לעסק של אדם אחד?', answer: 'בהחלט. SocialCRM מתוכנן קודם כל לבעל עסק יחיד שמנהל לידים בעצמו. ניתן להוסיף נציגים בהמשך, אבל גם לבד המערכת שווה הרבה.' },
-              { question: 'האם אפשר לנסות את SocialCRM בחינם?', answer: 'כן. ניתן להירשם ולהתחיל לעבוד עם המערכת ללא עלות. אין צורך בכרטיס אשראי להתחלה.' },
-            ],
-          }}
-        />
-        <FinalCTA />
-      </MarketingLayout>
+        There is no testimonial section and no logo cloud. There are no verified
+        customers to quote, and `marketing-knowledge/winning-angles.md` lists
+        fabricated proof under "angles we do NOT run". Product proof replaces it.
+      */}
+      <Hero />
+      <Problem />
+      <ProductProof />
+      <Copilot />
+      <Channels />
+      <OperationalControl />
+      <PricingPreview />
+      <Faq items={faqItems} lead='שאלות נפוצות על ניהול לידים ועל המערכת' />
+      <FinalCta />
     </>
   )
 }

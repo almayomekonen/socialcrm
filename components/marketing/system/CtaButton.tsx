@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 const VARIANT = {
   primary: 'mkt-sheen bg-mkt-ink text-white ring-1 ring-white/12 shadow-lg shadow-black/15',
   secondary:
-    'border border-mkt-border bg-mkt-surface text-mkt-fg hover:border-[color-mix(in_oklab,var(--mkt-fg)_24%,transparent)]',
+    'border border-mkt-border bg-mkt-surface text-mkt-fg hover:border-[color-mix(in_oklab,var(--color-mkt-fg)_24%,transparent)]',
 } as const
 
 const SIZE = {

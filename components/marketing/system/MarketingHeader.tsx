@@ -38,7 +38,7 @@ const CTA = { label: 'התחל בחינם', href: '/auth' }
 
 function Logo() {
   return (
-    <Link href='/' className='flex shrink-0 items-center gap-2.5 font-semibold text-mkt-fg'>
+    <Link href='/' className='flex h-11 shrink-0 items-center gap-2.5 font-semibold text-mkt-fg'>
       <span
         aria-hidden='true'
         className='grid size-7 place-items-center rounded-mkt-md bg-mkt-ink text-[13px] font-bold text-white'
@@ -120,7 +120,7 @@ export function MarketingHeader() {
             <li key={l.href}>
               <Link
                 href={l.href}
-                className='rounded-mkt-md px-3 py-2 text-[0.9375rem] text-mkt-muted transition-colors hover:text-mkt-fg'
+                className='flex min-h-11 items-center rounded-mkt-md px-3 text-[0.9375rem] text-mkt-muted transition-colors hover:text-mkt-fg'
               >
                 {l.label}
               </Link>
