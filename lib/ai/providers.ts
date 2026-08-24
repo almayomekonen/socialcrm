@@ -71,23 +71,42 @@ export function getModel(role: ModelRole): ResolvedModel | null {
   }
 }
 
-/** WhatsApp IRE uses GPT-5.6 (Responses API) first. Other tasks keep Anthropic/Gemini-first. */
-function getIreOpenAi(): ResolvedModel | null {
+/**
+ * Task kinds that LEAD with a specific OpenAI model (Responses API) instead of
+ * the generic role order, and the env-configured model each one uses.
+ *
+ * Each kind names its OWN variable. The WhatsApp Qualifier and the CRM Agent
+ * both point at GPT-5.6 today, but they are unrelated products: routing them
+ * through one shared variable would mean retuning either surface silently
+ * retunes the other.
+ *
+ * Everything else — every other kind, and every role — keeps the existing
+ * Anthropic/Gemini-first order untouched.
+ */
+function leadOpenAiModelId(kind: TaskKind | undefined): string | null {
   const env = getAiEnv()
+  if (!env.openai) return null
+  if (kind === 'inbox.autoResponse') return env.openai.ireModel
+  if (kind === 'agent.investigate') return env.openai.agentModel
+  return null
+}
+
+/** One OpenAI handle for an explicitly chosen model id, via the shared provider. */
+function getOpenAiModel(modelId: string): ResolvedModel | null {
   const o = getOpenAI()
-  if (!o || !env.openai) return null
-  const modelId = env.openai.ireModel
+  if (!o) return null
   return { provider: 'openai', modelId, model: o(modelId) }
 }
 
 export function getProviderChain(role: ModelRole, kind?: TaskKind): ResolvedModel[] {
   const seen = new Set<ProviderName>()
   const chain: ResolvedModel[] = []
-  if (kind === 'inbox.autoResponse') {
-    const ire = getIreOpenAi()
-    if (ire) {
-      seen.add(ire.provider)
-      chain.push(ire)
+  const leadModelId = leadOpenAiModelId(kind)
+  if (leadModelId) {
+    const lead = getOpenAiModel(leadModelId)
+    if (lead) {
+      seen.add(lead.provider)
+      chain.push(lead)
     }
   }
   const order: ModelRole[] = role === 'heavy' ? ['heavy', 'primary', 'volume', 'fallback'] : [role, 'volume', 'fallback']
