@@ -284,6 +284,55 @@ describe('failure policy', () => {
     expect(dump).not.toContain('RAW-CLAIM')
   })
 
+  it('persists the REAL dropped/stripped counts on a refusal, never hardcoded zeros', async () => {
+    // Two claims, both citing evidence no tool produced: the gate drops both and
+    // refuses. What must survive is WHY — a refusal that reports 0 dropped is
+    // indistinguishable from every other refusal, which is what made the
+    // production investigation inv_mt7795vh_ptvevm undiagnosable.
+    generateTextSpy.mockImplementation(
+      modelAnswers({
+        headline: 'סיכום',
+        claims: [
+          { claimClass: 'FACT', text: 'א', entityEvidence: ['99999'] },
+          { claimClass: 'FACT', text: 'ב', entityEvidence: ['88888'] },
+        ],
+        unknown: null,
+      }),
+    )
+    await askAgent('q')
+    expect(persisted()).toMatchObject({
+      status: 'refused',
+      stopReason: 'no_evidence',
+      answer: null,
+      droppedClaims: 2,
+      failureReason: 'no-supportable-claim',
+    })
+  })
+
+  it('records the whole-answer rejection category when the blocklist fires', async () => {
+    generateTextSpy.mockImplementation(
+      modelAnswers({
+        headline: 'ליד חם ממתין.',
+        claims: [{ claimClass: 'FACT', text: 'דוד ממתין.', entityEvidence: ['42'] }],
+        unknown: null,
+      }),
+    )
+    await askAgent('q')
+    expect(persisted()).toMatchObject({ status: 'refused', failureReason: 'unsupported-claim' })
+  })
+
+  it('persists stripped-ref counts on an ACCEPTED answer', async () => {
+    generateTextSpy.mockImplementation(
+      modelAnswers({
+        headline: 'ליד אחד ממתין.',
+        claims: [{ claimClass: 'FACT', text: 'דוד ממתין.', entityEvidence: ['42', '99999'] }],
+        unknown: null,
+      }),
+    )
+    await askAgent('q')
+    expect(persisted()).toMatchObject({ status: 'answered', strippedRefs: 1, droppedClaims: 0 })
+  })
+
   it('a persistence failure leaves the AgentResult otherwise identical', async () => {
     const good = await askAgent('q')
     recordAgentInvestigation.mockReset().mockRejectedValue(new Error('relation does not exist'))
