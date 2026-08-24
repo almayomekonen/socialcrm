@@ -1,14 +1,11 @@
 import { generateObject } from 'ai'
 import type { FlexibleSchema, InferSchema } from 'ai'
 import { getAiEnv } from './env'
-import { hasAnyProviderConfigured, isAgencyAllowlisted, isAiEnabled } from './flags'
-import { getProviderChain } from './providers'
-import { estimateCostUsd, getTaskConfig } from './tasks'
+import { estimateCostUsd } from './tasks'
 import { AiRunResult, ModelRole, ProviderName, TaskKind } from './types'
-import { evaluateShadowGate } from '@/lib/entitlements'
-import { resolveAiAccess } from './access'
+import { admitAiRun } from './gate'
 import type { CopilotModeId } from './copilotModes'
-import { addDailySpend, getDailySpend } from './router/spend'
+import { addDailySpend } from './router/spend'
 import { buildPrompt } from './router/promptBuilder'
 import { classifyError, isPermanentError } from './router/errorClassify'
 import { logAttemptFailure, logAttemptSuccess, logFallbackTrace } from './router/attemptLogger'
@@ -78,45 +75,18 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
   opts: RunStructuredOptions<S>,
 ): Promise<AiRunResult<InferSchema<S>>> {
   const startedAt = Date.now()
-  const env = getAiEnv()
 
-  if (!isAiEnabled()) return { ok: false, reason: 'disabled' }
-
-  const allowlisted = isAgencyAllowlisted(opts.agencyId)
-  const oldAllowed = opts.bypassAllowlist === true || allowlisted
-
-  await evaluateShadowGate({
-    surface: opts.bypassAllowlist === true ? 'router.runStructured.bypass' : 'router.runStructured',
-    agencyId: opts.agencyId ?? null,
-    oldAllowed,
-    copilotModeId: opts.copilotModeId ?? null,
-    taskKind: opts.kind,
-    role: opts.roleOverride ?? null,
-    bypassAllowlist: opts.bypassAllowlist ?? false,
+  // Admission — env, allowlist, shadow telemetry, entitlement, providers, spend
+  // cap, and model resolution, in that exact order. See lib/ai/gate.ts.
+  const admission = await admitAiRun({
+    kind: opts.kind,
+    agencyId: opts.agencyId,
+    bypassAllowlist: opts.bypassAllowlist,
+    roleOverride: opts.roleOverride,
+    copilotModeId: opts.copilotModeId,
   })
-
-  if (!oldAllowed) return { ok: false, reason: 'forbidden' }
-
-  // Product-access entitlement (Phase 2). Runs only for real agency traffic that
-  // already passed the allowlist/rollout gate above. Internal bypass callers
-  // (health check, offline scripts) and agency-less calls skip it — they carry
-  // no subscription to evaluate. This is the server-authoritative revenue/access
-  // boundary; UI state is not authorization. resolveAiAccess FAILS OPEN on any
-  // read error, so a transient DB failure never denies a paying customer.
-  if (opts.bypassAllowlist !== true && opts.agencyId) {
-    const access = await resolveAiAccess(opts.agencyId)
-    if (access.allowed === false) return { ok: false, reason: access.reason }
-  }
-
-  if (!hasAnyProviderConfigured()) return { ok: false, reason: 'no-providers' }
-  if (opts.agencyId && getDailySpend(opts.agencyId) >= env.dailyUsdCap) {
-    return { ok: false, reason: 'over-quota' }
-  }
-
-  const cfg = getTaskConfig(opts.kind)
-  const effectiveRole = opts.roleOverride ?? cfg.role
-  const chain = getProviderChain(effectiveRole, opts.kind)
-  if (chain.length === 0) return { ok: false, reason: 'no-providers' }
+  if (admission.ok === false) return { ok: false, reason: admission.reason }
+  const { cfg, effectiveRole, chain } = admission
 
   let lastErrorMessage: string | undefined
   let lastErrorCode: string | undefined

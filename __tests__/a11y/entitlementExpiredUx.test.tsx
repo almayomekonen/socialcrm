@@ -790,7 +790,7 @@ describe('the lead summary card reads the entitlement reason it was already give
     expect(access).toContain("import { getAgencyProductAccess } from '@/lib/access/productAccess'")
     expect(access).not.toContain('getTrialState')
     // The router asks it before choosing a provider, so no paid call is made.
-    const router = read('lib/ai/router.ts')
+    const router = read('lib/ai/gate.ts')
     const gate = router.indexOf('const access = await resolveAiAccess')
     const providers = router.indexOf('if (!hasAnyProviderConfigured())')
     expect(gate).toBeGreaterThan(-1)
