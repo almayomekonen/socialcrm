@@ -1,6 +1,7 @@
 'use server'
 
 import { runAgentInvestigation } from '@/lib/agent/run'
+import { recordAgentInvestigation, type AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult } from '@/lib/agent/types'
 
 /**
@@ -33,9 +34,29 @@ import type { AgentResult } from '@/lib/agent/types'
 /** Upper bound on one question. Long enough for any real ask, short enough to bound cost. */
 const MAX_QUESTION_CHARS = 1_000
 
+/**
+ * The durable record, and the guard around it.
+ *
+ * The loop calls this only AFTER validation, and never for an admission denial —
+ * nothing was investigated, so there is nothing to record. A write failure is
+ * swallowed here and nowhere else: the rep's answer is already correct, and
+ * losing a history row must never turn a good answer into an error. This is the
+ * same posture `insertQualifyDraftReview` takes in the Qualifier.
+ */
+async function persistQuietly(record: AgentInvestigationInput): Promise<void> {
+  try {
+    await recordAgentInvestigation(record)
+  } catch (e) {
+    console.error(`[AGENT-PERSIST] failed inv=${record.investigationId}:`, (e as Error).message)
+  }
+}
+
 export async function askAgent(question: string): Promise<AgentResult> {
   const trimmed = (question ?? '').trim()
   if (!trimmed) return { ok: false, reason: 'error', message: 'empty-question' }
 
-  return runAgentInvestigation({ question: trimmed.slice(0, MAX_QUESTION_CHARS) })
+  return runAgentInvestigation({
+    question: trimmed.slice(0, MAX_QUESTION_CHARS),
+    onPersist: persistQuietly,
+  })
 }

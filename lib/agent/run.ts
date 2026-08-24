@@ -11,6 +11,7 @@ import { AGENT_SYSTEM_PROMPT } from './prompt'
 import { validateAgentAnswer } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
+import type { AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult, StopReason } from './types'
 
 /**
@@ -57,6 +58,14 @@ export type RunAgentInput = {
   deadlineMs?: number
   /** Correlates every trace line for one investigation. */
   investigationId?: string
+  /**
+   * Durable record of the outcome, called AFTER validation with post-gate
+   * content only. It is never called for an admission denial — nothing was
+   * investigated. The loop does NOT guard it: the caller owns that, so a
+   * persistence failure is visibly the caller's contract to absorb rather than
+   * something this function silently swallows. See actions/ai/askAgent.ts.
+   */
+  onPersist?: (record: AgentInvestigationInput) => Promise<void>
 }
 
 function newInvestigationId(nowMs: number): string {
@@ -87,6 +96,17 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const handle = chain[0]!
   agentTrace('ADMISSION_OK', ctx, { provider: handle.provider, model: handle.modelId, chainLength: chain.length })
 
+  // Identity for the durable record. Every field is server-resolved: the agency
+  // and rep come from the scope, the id was minted here. None is reachable by
+  // the model or the caller.
+  const identity = {
+    agencyId: scope.agencyId,
+    userId: scope.userId,
+    investigationId,
+    leadId: null,
+    question: input.question,
+  }
+
   const budget = createBudget({ maxSteps, deadlineMs, now })
   const evidence = createEvidenceCollector()
   const tools = buildAgentTools({ scope, evidence, budget, nowMs })
@@ -107,6 +127,17 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   } catch (err) {
     const message = (err as Error)?.message ?? 'unknown'
     agentTrace('GENERATION_FAILED', ctx, { provider: handle.provider, steps: budget.stepsUsed() })
+    await input.onPersist?.({
+      ...identity,
+      status: 'failed',
+      stopReason: 'error',
+      answer: null,
+      evidence: evidence.all(),
+      droppedClaims: 0,
+      strippedRefs: 0,
+      steps: budget.stepsUsed(),
+      failureReason: message,
+    })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'error' })
     return { ok: false, reason: 'error', message }
   }
@@ -131,6 +162,19 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const validated = validateAgentAnswer(result.output as never, evidence)
   if (!validated) {
     agentTrace('ANSWER_REJECTED', ctx, { evidenceCount: evidence.size() })
+    // The rejected prose is NOT recorded. The gate destroyed it; storing it here
+    // would give an unsupported claim a second life in whatever reads this next.
+    await input.onPersist?.({
+      ...identity,
+      status: 'refused',
+      stopReason: 'no_evidence',
+      answer: null,
+      evidence: evidence.all(),
+      droppedClaims: 0,
+      strippedRefs: 0,
+      steps: budget.stepsUsed(),
+      failureReason: null,
+    })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'no_evidence' })
     return { ok: false, reason: 'no_evidence' }
   }
@@ -149,9 +193,22 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     strippedRefs: validated.diagnostics.strippedRefs.length,
   })
 
+  const answer = { headline: validated.headline, claims: validated.claims, unknown: validated.unknown }
+  await input.onPersist?.({
+    ...identity,
+    status: 'answered',
+    stopReason,
+    answer,
+    evidence: evidence.all(),
+    droppedClaims: validated.diagnostics.dropped.length,
+    strippedRefs: validated.diagnostics.strippedRefs.length,
+    steps: budget.stepsUsed(),
+    failureReason: null,
+  })
+
   return {
     ok: true,
-    answer: { headline: validated.headline, claims: validated.claims, unknown: validated.unknown },
+    answer,
     evidence: evidence.all(),
     steps: budget.stepsUsed(),
     stopReason,
