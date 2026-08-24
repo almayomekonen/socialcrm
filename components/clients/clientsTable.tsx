@@ -14,7 +14,7 @@ import ModalPop from '../../lib/modals/ModalPop'
 import ConfirmPop from '../../lib/modals/ConfirmPop'
 import SaleForm from '@/components/sales/saleForm/SaleForm'
 import UploadClientData from '@/components/settings/UploadClientData'
-import { redirect, useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
@@ -234,7 +234,31 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     // lookup; dropping it here keeps the footer from reading "עמוד 3" over a
     // single result, and keeps the URL honest if it is shared.
     currentParams.delete('pageNum')
-    redirect(('?' + currentParams.toString()) as any)
+
+    /**
+     * ONE HISTORY ENTRY PER SEARCH, NOT PER RESULT.
+     *
+     * This used to call `redirect()` — which, in a DOM event handler, does not
+     * navigate at all: it throws, and the app-router's `window` error listener
+     * catches it and calls `router.replace`, because on the client
+     * `redirect()`'s type defaults to `replace`. So entering a search left no
+     * history entry and Back could not return the rep to their full list, while
+     * pagination and the eraser button (a `<Link>`) both pushed. Same toolbar,
+     * three different history behaviours.
+     *
+     * Entering a search from the unscoped list is a place worth coming back to,
+     * so it pushes. Refining — picking a different lead while already inside a
+     * search — replaces, so five searches in a row do not cost five Back
+     * presses. `scroll: false` keeps the rep where they were; the old path could
+     * not pass it (`replace(url, {})`).
+     *
+     * Everything about the URL itself is unchanged: same params, same
+     * `pageNum` drop, same query, same scoping.
+     */
+    const href = ('?' + currentParams.toString()) as any
+    const refiningExistingSearch = parseLeadId(clientId) !== null
+    if (refiningExistingSearch) router.replace(href, { scroll: false })
+    else router.push(href, { scroll: false })
   }
 
   return (
