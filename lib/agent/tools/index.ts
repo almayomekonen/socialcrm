@@ -1,5 +1,6 @@
 import 'server-only'
 import { makeGetTodayState } from './getTodayState'
+export { TODAY_METRIC_IDS } from './getTodayState'
 import { makeGetLead } from './getLead'
 import { makeGetConversation } from './getConversation'
 import type { AgentScope } from '../types'

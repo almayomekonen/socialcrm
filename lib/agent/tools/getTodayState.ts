@@ -24,6 +24,13 @@ import type { EvidenceCollector } from '../evidence'
  * The item count is deliberately NOT capped: the Today engine is data-driven by
  * design, and truncating it here would make the Agent understate the workload.
  */
+/** Metric ids, shared by the evidence ledger and the model-facing payload. */
+const METRIC_TOTAL = 'today.total'
+const METRIC_REMAINING = 'today.remaining'
+
+/** The ids this tool guarantees to both record and expose. */
+export const TODAY_METRIC_IDS = [METRIC_TOTAL, METRIC_REMAINING] as const
+
 export function makeGetTodayState(deps: {
   scope: AgentScope
   evidence: EvidenceCollector
@@ -50,8 +57,13 @@ export function makeGetTodayState(deps: {
 
       const asOf = new Date(deps.nowMs).toISOString()
       const window = { from: asOf, to: asOf }
-      deps.evidence.add({ kind: 'metric', metric: 'today.total', window, n: brief.total })
-      deps.evidence.add({ kind: 'metric', metric: 'today.remaining', window, n: brief.remaining })
+      // ONE source for each metric id: the same constant is recorded as evidence
+      // and returned to the model, so the two cannot drift apart again.
+      const metrics: Record<string, number> = {
+        [METRIC_TOTAL]: brief.total,
+        [METRIC_REMAINING]: brief.remaining,
+      }
+      for (const [metric, n] of Object.entries(metrics)) deps.evidence.add({ kind: 'metric', metric, window, n })
       for (const item of brief.items) deps.evidence.add({ kind: 'lead', refId: String(item.id) })
 
       const payload = {
@@ -62,6 +74,11 @@ export function makeGetTodayState(deps: {
           reason: i.reason,
           targetSurface: i.targetSurface,
         })),
+        // The metric IDENTIFIERS, not just their values. A claim may only cite a
+        // name the collector holds, so a payload that showed `total: 19` and hid
+        // `today.total` asked the model to cite something it had never seen —
+        // and every count-shaped answer lost all its evidence (inv_mt7795vh_ptvevm).
+        metrics,
         total: brief.total,
         remaining: brief.remaining,
         handledToday: brief.handledToday,

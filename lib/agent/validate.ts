@@ -74,6 +74,48 @@ export type ValidatedAgentAnswer = {
   diagnostics: AgentTrustDiagnostics
 }
 
+/** Why a whole answer was refused, when no individual claim survived to explain it. */
+export type RejectionReason = 'malformed' | 'unsupported-claim' | 'no-supportable-claim'
+
+/**
+ * PROSE-FREE summary of what the gate did. Safe to trace and to persist.
+ *
+ * The rejected text itself is deliberately absent: the gate destroyed it, and
+ * writing it into a log or a history row would give an unsupported claim a
+ * second life. Counts answer the operational question — how often, and which
+ * rule — without carrying the content.
+ */
+export type AgentTrustCounts = {
+  droppedClaims: number
+  strippedRefs: number
+  byReason: Record<DropReason, number>
+}
+
+/**
+ * The full outcome, including WHY a refusal happened.
+ *
+ * `validateAgentAnswer` returns only the answer and is unchanged; this exists
+ * because returning a bare `null` threw away the one thing an operator needs
+ * when the Agent refuses in production. Investigation inv_mt7795vh_ptvevm
+ * completed generation, collected 21 evidence items, refused — and left no
+ * record of whether the blocklist, the hedge rule or reference resolution fired.
+ */
+export type AgentValidation = {
+  /** null when the answer was refused. */
+  answer: ValidatedAgentAnswer | null
+  /** null when the answer was accepted. */
+  rejection: RejectionReason | null
+  counts: AgentTrustCounts
+}
+
+function zeroCounts(): AgentTrustCounts {
+  return { droppedClaims: 0, strippedRefs: 0, byReason: { 'no-valid-evidence': 0, 'inference-not-hedged': 0 } }
+}
+
+function refused(rejection: RejectionReason, counts: AgentTrustCounts = zeroCounts()): AgentValidation {
+  return { answer: null, rejection, counts }
+}
+
 /** Strip the `refId=` prefix the model may echo from a payload label, and trim. */
 function normalizeRef(raw: string): string {
   return String(raw ?? '')
@@ -147,17 +189,17 @@ function isWellFormed(answer: AgentAnswer | null | undefined): answer is AgentAn
  * actually gathered. Returns null when nothing supportable survives — the
  * caller degrades honestly rather than surfacing a repaired guess.
  */
-export function validateAgentAnswer(
+export function validateAgentAnswerDetailed(
   answer: AgentAnswer,
   evidence: EvidenceCollector,
-): ValidatedAgentAnswer | null {
-  if (!isWellFormed(answer)) return null
+): AgentValidation {
+  if (!isWellFormed(answer)) return refused('malformed')
 
   // Whole-answer reject: an unsupported business claim anywhere poisons it.
   // Matches the Copilot gate's stance — this is not repairable per-claim,
   // because the headline and the unknown line are the model's own prose.
   const prose = [answer.headline, ...answer.claims.map((c) => c.text), answer.unknown ?? ''].join('\n')
-  if (containsUnsupportedBusinessClaim(prose)) return null
+  if (containsUnsupportedBusinessClaim(prose)) return refused('unsupported-claim')
 
   const kept: Claim[] = []
   const dropped: DroppedClaim[] = []
@@ -187,13 +229,40 @@ export function validateAgentAnswer(
     kept.push(withClaimRefs(claim, valid))
   }
 
-  // Never rescue an answer with nothing supportable left.
-  if (kept.length === 0) return null
+  const counts: AgentTrustCounts = {
+    droppedClaims: dropped.length,
+    strippedRefs: strippedRefs.length,
+    byReason: {
+      'no-valid-evidence': dropped.filter((d) => d.reason === 'no-valid-evidence').length,
+      'inference-not-hedged': dropped.filter((d) => d.reason === 'inference-not-hedged').length,
+    },
+  }
+
+  // Never rescue an answer with nothing supportable left. The counts survive the
+  // refusal so the reason is answerable afterwards.
+  if (kept.length === 0) return refused('no-supportable-claim', counts)
 
   return {
-    headline: answer.headline,
-    claims: kept,
-    unknown: answer.unknown,
-    diagnostics: { dropped, strippedRefs },
+    answer: {
+      headline: answer.headline,
+      claims: kept,
+      unknown: answer.unknown,
+      diagnostics: { dropped, strippedRefs },
+    },
+    rejection: null,
+    counts,
   }
+}
+
+/**
+ * The original contract, unchanged: the validated answer, or null.
+ *
+ * Kept as the ergonomic entry point so every existing call site and test reads
+ * exactly as before. It delegates — there is one implementation, not two.
+ */
+export function validateAgentAnswer(
+  answer: AgentAnswer,
+  evidence: EvidenceCollector,
+): ValidatedAgentAnswer | null {
+  return validateAgentAnswerDetailed(answer, evidence).answer
 }

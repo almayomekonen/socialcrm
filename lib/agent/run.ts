@@ -8,7 +8,7 @@ import { DEFAULT_DEADLINE_MS, DEFAULT_MAX_STEPS, createBudget } from './budget'
 import { createEvidenceCollector } from './evidence'
 import { buildAgentTools } from './tools'
 import { AGENT_SYSTEM_PROMPT } from './prompt'
-import { validateAgentAnswer } from './validate'
+import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
@@ -159,21 +159,31 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     costUsd,
   })
 
-  const validated = validateAgentAnswer(result.output as never, evidence)
+  const validation = validateAgentAnswerDetailed(result.output as never, evidence)
+  const validated = validation.answer
   if (!validated) {
-    agentTrace('ANSWER_REJECTED', ctx, { evidenceCount: evidence.size() })
-    // The rejected prose is NOT recorded. The gate destroyed it; storing it here
-    // would give an unsupported claim a second life in whatever reads this next.
+    // The rejected PROSE is still not recorded — the gate destroyed it, and
+    // storing it would give an unsupported claim a second life. What is recorded
+    // is why: the rule that fired and how many claims it took. Without this a
+    // production refusal is indistinguishable from every other refusal, which is
+    // exactly what made inv_mt7795vh_ptvevm undiagnosable.
+    agentTrace('ANSWER_REJECTED', ctx, {
+      evidenceCount: evidence.size(),
+      rejection: validation.rejection,
+      droppedClaims: validation.counts.droppedClaims,
+      strippedRefs: validation.counts.strippedRefs,
+      byReason: validation.counts.byReason,
+    })
     await input.onPersist?.({
       ...identity,
       status: 'refused',
       stopReason: 'no_evidence',
       answer: null,
       evidence: evidence.all(),
-      droppedClaims: 0,
-      strippedRefs: 0,
+      droppedClaims: validation.counts.droppedClaims,
+      strippedRefs: validation.counts.strippedRefs,
       steps: budget.stepsUsed(),
-      failureReason: null,
+      failureReason: validation.rejection,
     })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'no_evidence' })
     return { ok: false, reason: 'no_evidence', investigationId }
@@ -189,8 +199,8 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     stopReason,
     steps: budget.stepsUsed(),
     claims: validated.claims.length,
-    droppedClaims: validated.diagnostics.dropped.length,
-    strippedRefs: validated.diagnostics.strippedRefs.length,
+    droppedClaims: validation.counts.droppedClaims,
+    strippedRefs: validation.counts.strippedRefs,
   })
 
   const answer = { headline: validated.headline, claims: validated.claims, unknown: validated.unknown }
@@ -200,8 +210,8 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     stopReason,
     answer,
     evidence: evidence.all(),
-    droppedClaims: validated.diagnostics.dropped.length,
-    strippedRefs: validated.diagnostics.strippedRefs.length,
+    droppedClaims: validation.counts.droppedClaims,
+    strippedRefs: validation.counts.strippedRefs,
     steps: budget.stepsUsed(),
     failureReason: null,
   })
