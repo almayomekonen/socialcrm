@@ -29,7 +29,7 @@ import { saveTblPref } from '@/actions/global'
 import LeadStatusCell, { STATUS_STYLES } from './LeadStatusCell'
 import LeadsTableView from './LeadsTableView'
 import LeadsTableEmptyState from './LeadsTableEmptyState'
-import { clearLeadScopeParams, clearLeadSearchParams, hasActiveLeadScope, parseLeadSearch, withLeadSearch } from '@/lib/leads/leadScope'
+import { clearLeadScopeParams, hasActiveLeadScope, parseLeadSearch, withLeadSearch } from '@/lib/leads/leadScope'
 import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
@@ -150,34 +150,93 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   }
 
   /**
-   * A committed search REPLACES the previous one. `pageNum` goes with it — the
-   * offset belonged to a wider result set — and legacy `clientId`/`clientDetails`
-   * are swept out of any bookmarked URL on the way past.
+   * LIVE SEARCH. The table is the result: typing narrows it, and the URL is how
+   * that narrowing reaches the server. `q` is written on a ~300ms debounce, so a
+   * fast typist costs one render, not one per character.
    *
-   * History: entering a search from an unfiltered workspace is a place worth
-   * coming back to, so it pushes. Changing an active search replaces, so five
-   * searches in a row do not cost five Back presses. `scroll: false` keeps the
-   * rep where they were.
+   * `paramsRef` and `searchTermRef` exist because the debounced callback would
+   * otherwise close over a stale render's values and rebuild the URL from what
+   * the workspace looked like several keystrokes ago.
    */
-  function commitSearch(term: string) {
-    const next = withLeadSearch(new URLSearchParams(searchParams.toString()), term)
-    goTo(next, searchTerm ? 'replace' : 'push')
-  }
+  const SEARCH_DEBOUNCE_MS = 300
+  const paramsRef = useRef(searchParams.toString())
+  useEffect(() => {
+    paramsRef.current = searchParams.toString()
+  }, [searchParams])
 
-  /** Clearing the box clears the search and nothing else. Always a replace. */
-  function clearSearch() {
-    if (!searchTerm) return
-    goTo(clearLeadSearchParams(new URLSearchParams(searchParams.toString())), 'replace')
+  /** The term WE last put in the URL. Anything else arriving is external. */
+  const searchTermRef = useRef(searchTerm)
+  /** The most recent text the box produced. Guards against stale debounce ticks. */
+  const pendingRef = useRef(searchTerm)
+
+  /**
+   * WHAT THE BOX SHOWS — and the reason it is a separate value from `searchTerm`.
+   *
+   * The input is uncontrolled, so it only gets overwritten when this changes.
+   * It changes ONLY on external navigation: mount, back/forward, the eraser
+   * link. It deliberately does NOT change when the URL is merely echoing a
+   * search we just issued — by the time that echo lands, the rep has usually
+   * typed two more characters, and writing the older term back would eat them.
+   */
+  const [boxTerm, setBoxTerm] = useState(searchTerm)
+  useEffect(() => {
+    if (searchTerm === searchTermRef.current) return // our own echo — the box is already ahead
+    searchTermRef.current = searchTerm
+    pendingRef.current = searchTerm
+    setBoxTerm(searchTerm)
+  }, [searchTerm])
+
+  /**
+   * HISTORY: exactly one entry per search session.
+   *
+   * Unfiltered → filtered pushes, so one Back returns the rep to their whole
+   * workspace. Every later change — including clearing — replaces, so Back never
+   * walks backwards through "ספי ברה", "ספי בר", "ספי ב"…
+   */
+  function applySearch(term: string) {
+    const next = term.trim()
+    // A tick from a keystroke the user has already moved past.
+    if (next !== pendingRef.current.trim()) return
+    if (next === searchTermRef.current) return
+
+    const mode = searchTermRef.current ? 'replace' : 'push'
+    searchTermRef.current = next
+    goTo(withLeadSearch(new URLSearchParams(paramsRef.current), next), mode)
   }
 
   /**
-   * The empty state's single way out. Wider than clearing the box: the screen
-   * can also be empty because of a saved list or a `?view=due` arrival from the
-   * dashboard, and a button that lifted only the search would visibly do nothing
-   * there.
+   * The debounce is owned here rather than taken from the shared helper because
+   * that one cannot be cancelled: a timer left running past unmount would fire a
+   * navigation at a page the rep has already left.
+   */
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    },
+    [],
+  )
+
+  function onSearchChange(text: string) {
+    pendingRef.current = text
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    // Clearing is immediate — waiting 300ms to get your workspace back feels
+    // broken. Any tick still in flight is dropped by the guard in applySearch.
+    if (!text.trim()) return applySearch('')
+    searchTimerRef.current = setTimeout(() => applySearch(text), SEARCH_DEBOUNCE_MS)
+  }
+
+  /**
+   * The empty state's way out. Wider than clearing the box: the screen can also
+   * be empty because of a saved list or a `?view=due` arrival from the
+   * dashboard, and a button that lifted only the search would visibly do
+   * nothing there.
    */
   function clearAllScope() {
-    goTo(clearLeadScopeParams(new URLSearchParams(searchParams.toString())), 'replace')
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    pendingRef.current = ''
+    searchTermRef.current = ''
+    goTo(clearLeadScopeParams(new URLSearchParams(paramsRef.current)), 'replace')
   }
 
   function goTo(params: URLSearchParams, mode: 'push' | 'replace') {
@@ -188,33 +247,32 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   }
 
   /**
-   * THE TAB FOLLOWS THE RESULTS.
+   * THE TAB MUST NOT TWITCH WHILE TYPING.
    *
-   * The table filters rows by the active status tab, so a rep sitting on "חדש"
-   * who searches a lead in "בטיפול" would get an empty table over a result set
-   * that does contain their lead. When a new search lands and the current tab
-   * holds none of its results, move to the first status that does.
+   * The table filters rows by the active status tab, so a rep on "חדש" whose
+   * search only matches leads in "בטיפול" would stare at an empty table over a
+   * result set that does contain their lead. The tab therefore follows the
+   * results — but only when it has to, and only until the rep says otherwise:
    *
-   * Only on a search change, and only when the current tab is empty — browsing
-   * and manual tab clicks are never overridden. This is the one piece of the
-   * old `clientId` behaviour worth keeping, re-keyed from "a record was picked"
-   * to "a search landed".
+   *   · the current tab still has matches  → leave it alone
+   *   · the rep has clicked a tab during this search → never override them again
+   *   · otherwise → move to the first status that has matches
+   *
+   * Clearing the search re-arms it for the next one.
    */
-  /**
-   * Seeded ONCE per search, and only once results actually exist — the URL and
-   * the rows do not always arrive in the same render. After that the rep owns
-   * the tab: clicking one is never overridden, and clearing the search arms the
-   * next one.
-   */
-  const seededForRef = useRef<string | null>(null)
+  const manualTabRef = useRef(false)
+  function selectTab(status: string) {
+    manualTabRef.current = true
+    setActiveTab(status)
+  }
+
   useEffect(() => {
     if (!leads) return
     if (!searchTerm) {
-      seededForRef.current = null
+      manualTabRef.current = false
       return
     }
-    if (mergedState.length === 0 || seededForRef.current === searchTerm) return
-    seededForRef.current = searchTerm
+    if (manualTabRef.current || mergedState.length === 0) return
     setActiveTab((current) => {
       if (mergedState.some((l) => l.status === current)) return current
       return Object.keys(STATUS_STYLES).find((k) => mergedState.some((l) => l.status === k)) ?? current
@@ -227,7 +285,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       filteredCount={filteredData.length}
       rows={mergedState}
       activeTab={activeTab}
-      setActiveTab={setActiveTab}
+      setActiveTab={selectTab}
       scoped={scoped}
       scopeKind={searchTerm ? 'search' : 'filter'}
       onClearScope={clearAllScope}
@@ -278,10 +336,16 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
    * would put a national ID in the URL — shareable, loggable — and still match
    * nothing, because `q` does not search `details`.
    */
+  function suggestionName(client) {
+    return [client?.firstName, client?.lastName].filter(Boolean).join(' ').trim()
+  }
+
   function getSelectedClient(client) {
-    const name = [client?.firstName, client?.lastName].filter(Boolean).join(' ').trim()
+    const name = suggestionName(client)
     if (!name) return
-    commitSearch(name)
+    // An explicit pick is a decision, not a keystroke — it skips the debounce.
+    pendingRef.current = name
+    applySearch(name)
   }
 
   return (
@@ -299,13 +363,11 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
         <LeadsTableView
           leads={leads}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={selectTab}
           filteredData={filteredData}
           mergedState={mergedState}
           config={config}
           fillHeight={fillHeight}
-          searchTerm={searchTerm}
-          onClearSearch={clearSearch}
         >
           <div className={`flex justify-between gap-2 mb-2 items-end ${fillHeight ? 'shrink-0' : ''}`}>
             <div className='flex gap-0 items-end'>
@@ -317,11 +379,23 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 inputCls='w-52 rounded-e-none'
                 searchFunc={leads ? searchLeads : searchContacts}
                 onSelectOpt={getSelectedClient}
-                onSubmitText={commitSearch}
-                onClear={clearSearch}
-                initShow={searchTerm}
+                onSubmitText={(text) => {
+                  pendingRef.current = text
+                  applySearch(text)
+                }}
+                onSearchChange={onSearchChange}
+                selectText={suggestionName}
+                initShow={boxTerm}
               />
               <Btn variant='outline' size='icon' icon='eraser' aria-label='נקה חיפוש' href='?' scroll={false} className='rounded-s-none border-s-0' />
+              {/* The status tabs count the FILTERED set, so under a search their
+                  zeros need a number beside them that says why. Only while a
+                  search is active — an unfiltered workspace needs no caption. */}
+              {searchTerm && (
+                <p aria-live='polite' className='ms-2 self-center text-[12px] tabular-nums whitespace-nowrap text-gray-500'>
+                  {mergedState.length === 1 ? 'תוצאה אחת' : `${mergedState.length} תוצאות`}
+                </p>
+              )}
             </div>
 
             <div className='flex gap-2 items-end'>

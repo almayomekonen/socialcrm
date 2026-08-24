@@ -3,7 +3,6 @@
 import React from 'react'
 import Table, { ConfigT } from '@/lib/table'
 import { STATUS_STYLES } from './LeadStatusCell'
-import ActiveSearchChip from './ActiveSearchChip'
 
 type Props = {
   leads: boolean
@@ -14,9 +13,6 @@ type Props = {
   config: ConfigT
   children?: React.ReactNode
   fillHeight?: boolean
-  /** Active search term from the URL, or '' when the workspace is unfiltered. */
-  searchTerm?: string
-  onClearSearch?: () => void
 }
 
 export default function LeadsTableView({
@@ -28,16 +24,9 @@ export default function LeadsTableView({
   config,
   children,
   fillHeight = false,
-  searchTerm = '',
-  onClearSearch,
 }: Props) {
   return (
     <>
-      {/* Sits ABOVE the status tabs on purpose: the tabs are the numbers that
-          look alarming under a search, so the explanation has to be read first. */}
-      {onClearSearch && (
-        <ActiveSearchChip term={searchTerm} resultCount={mergedState.length} onClear={onClearSearch} leads={leads} />
-      )}
       {leads && (
         <div className='flex gap-1 mb-3 border-b border-gray-200 shrink-0' dir='rtl' data-edu='lead-status-tabs'>
           {Object.entries(STATUS_STYLES).map(([key, { label, dot, text, bg, border }]) => {
