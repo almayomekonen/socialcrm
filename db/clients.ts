@@ -7,6 +7,7 @@ import { filesJsonAgg } from './helpers/aggregations'
 import { Lead, LeadInfo } from '@/types/db/tables'
 import { requireUser } from '@/lib/requireUser'
 import { getEffectiveLeadPlan } from '@/lib/quota'
+import { parseLeadId, parseListId } from '@/lib/leads/leadScope'
 
 export type LeadKey = keyof Lead | keyof LeadInfo
 
@@ -149,9 +150,27 @@ export async function getLeadsTable({
   const agencyId = await getAgencyId()
   const plan = await getEffectiveLeadPlan(agencyId)
 
-  let { listId, pageNum, tableLimit, clientId } = params
+  let { listId, pageNum, tableLimit } = params
   pageNum = Number(pageNum) || 1
   tableLimit = Number(tableLimit) || 100
+
+  /**
+   * TARGETED LOOKUP. `?clientId=` is not a list filter — it is "show me this
+   * one lead", written by the toolbar search when a rep picks a result. It used
+   * to be applied *on top of* whatever else the URL carried, so a rep who was on
+   * page 2, or in the `due` view, searched a lead that exists and is theirs and
+   * got zero rows back — which the table then rendered as "you have no לידים".
+   *
+   * When a targeted lookup is active, the constraints that select a *slice of a
+   * list* are skipped: the page offset, the page size, and `view=due`. The
+   * constraints that decide whether this viewer may see the row at all —
+   * agency, permissions, plan — are untouched and applied exactly as before.
+   *
+   * An unparseable id is treated as absent (see `parseLeadId`): it never reaches
+   * SQL, so it can neither crash the render nor silently scope the list.
+   */
+  const targetLeadId = parseLeadId(params.clientId)
+  const targeted = targetLeadId !== null
 
   const base = db('clients')
     .where('clients.agencyId', agencyId)
@@ -171,7 +190,7 @@ export async function getLeadsTable({
   if (gotPermIds && !isAdmin(user.role)) base.whereIn('clients.userId', gotPermIds)
   if (plan === 'free') base.where('clients.overQuota', false)
 
-  if (params.view === 'due') applyDueMembership(base)
+  if (!targeted && params.view === 'due') applyDueMembership(base)
 
   /**
    * Mobile filters. Applied to `base`, i.e. BEFORE the priority/SLA CTE, so the
@@ -197,12 +216,34 @@ export async function getLeadsTable({
     })
   }
 
-  if (clientId) {
-    base.where('clients.id', clientId)
-  } else if (listId) {
-    const list = await db('client_lists').where({ id: listId }).first()
-    base.whereIn('clients.id', list.clientIds)
+  if (targeted) {
+    base.where('clients.id', targetLeadId)
+  } else {
+    /**
+     * Saved lists belong to a user, and `client_lists` carries no agencyId of
+     * its own — so the ownership check is a join to `users`. Without it any id
+     * read another agency's list and used its `clientIds`; the rows stayed
+     * agency-scoped by `base`, so nothing leaked, but an unknown id also meant
+     * `list.clientIds` on `undefined` — a TypeError that took the page down
+     * from a querystring. A list we cannot resolve is treated as absent, the
+     * same way an unparseable `clientId` is; an empty list correctly matches
+     * nothing.
+     */
+    const listIdNum = parseListId(listId)
+    if (listIdNum !== null) {
+      const list = await db('client_lists as cl')
+        .join('users as u', 'cl.userId', 'u.id')
+        .where('cl.id', listIdNum)
+        .where('u.agencyId', agencyId)
+        .first('cl.clientIds')
+      if (list) base.whereIn('clients.id', list.clientIds ?? [])
+    }
   }
+
+  // A targeted lookup returns at most one row by construction (`id` is the
+  // primary key), so paginating it could only ever hide it. See `targeted`.
+  const limit = targeted ? 1 : tableLimit
+  const offset = targeted ? 0 : (pageNum - 1) * tableLimit
 
   if (settings) {
     const coldMonths = Number(settings.monthsLidimSheloHufku) || 8
@@ -273,8 +314,8 @@ export async function getLeadsTable({
     .select('*')
     .from('with_computed')
     .orderByRaw('priority DESC, "statusChangedAt" DESC')
-    .limit(tableLimit)
-    .offset((pageNum - 1) * tableLimit)
+    .limit(limit)
+    .offset(offset)
 }
 
 export type LeadColumnAvailability = {

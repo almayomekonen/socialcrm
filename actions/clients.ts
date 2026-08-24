@@ -494,12 +494,29 @@ export async function transferLeadToRep(clientId, userId) {
 }
 
 async function searchBase(val, isLead) {
-  await requireProductAccess()
+  const user = await requireProductAccess()
   const terms = val.split(' ').filter((term) => term)
 
   const agencyId = await getAgencyId()
   const plan = await getEffectiveLeadPlan(agencyId)
   const query = db('clients').select('id', 'details', 'firstName', 'lastName', 'idNum', 'userId').where('agencyId', agencyId)
+
+  /**
+   * The SAME permission rule the lead table, `hasAnyLeads`, `getLeadsByRep` and
+   * `getLeadById` already apply — this was the one lead read that omitted it.
+   *
+   * Two consequences of the omission, both real: a rep could autocomplete a
+   * colleague's lead, and the rows carry `idNum` — which `details` also embeds,
+   * being generated as `firstName || ' ' || lastName || ' (' || idNum || ')'`.
+   * So a national ID was reachable for leads the caller holds no permission on.
+   * Filtering at the query means an inaccessible lead is never a row, so no
+   * field of it can be returned. Admins are unconstrained, exactly as elsewhere.
+   */
+  if (!isAdmin(user.role)) {
+    const { gotPermIds } = await getPerms(user)
+    query.whereIn('userId', gotPermIds)
+  }
+
   if (plan === 'free') query.where('overQuota', false)
   if (isLead === true) {
     query.where('lead', true)
