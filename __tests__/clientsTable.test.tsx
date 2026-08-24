@@ -20,10 +20,11 @@ import { vi } from 'vitest'
 // the table's empty state and opening tab both read it.
 const url = { search: '' }
 const routerReplace = vi.fn()
+const routerPush = vi.fn()
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(url.search),
   redirect: vi.fn(),
-  useRouter: () => ({ push: vi.fn(), replace: routerReplace, refresh: vi.fn() }),
+  useRouter: () => ({ push: routerPush, replace: routerReplace, refresh: vi.fn() }),
   usePathname: () => '/leads',
 }))
 
@@ -69,13 +70,14 @@ import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { redirect } from 'next/navigation'
-import { searchLeads } from '@/actions/clients'
+import { searchContacts, searchLeads } from '@/actions/clients'
 import ClientsTable from '@/components/clients/clientsTable'
 
 afterEach(() => {
   cleanup()
   url.search = ''
   routerReplace.mockClear()
+  routerPush.mockClear()
   vi.mocked(redirect).mockClear()
 })
 
@@ -357,9 +359,8 @@ describe('ClientsTable — search scope', () => {
 
     fireEvent.mouseDown(option)
 
-    await waitFor(() => expect(redirect).toHaveBeenCalled())
-    const target = vi.mocked(redirect).mock.calls.at(-1)![0] as string
-    const next = new URLSearchParams(target.replace(/^\?/, ''))
+    await waitFor(() => expect(routerPush).toHaveBeenCalled())
+    const next = new URLSearchParams((routerPush.mock.calls.at(-1)![0] as string).replace(/^\?/, ''))
     expect(next.get('clientId')).toBe('7')
     expect(next.get('pageNum')).toBeNull()
     expect(next.get('tableLimit')).toBe('100')
@@ -373,5 +374,129 @@ describe('ClientsTable — search scope', () => {
     fireEvent.change(search, { target: { value: '' } })
 
     expect(routerReplace).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Search history behaviour.
+ *
+ * Selecting a result used to go through `redirect()` in a DOM event handler,
+ * which does not navigate: it throws, and the app-router's window error listener
+ * turns it into `router.replace` (the client-side default). Entering a search
+ * therefore left no history entry, so Back could not restore the full list —
+ * while pagination and the eraser `<Link>` in the same toolbar both pushed.
+ *
+ * These tests pin the policy only. Nothing about the URL, the query, tab/sort
+ * state or permissions is in scope here.
+ */
+describe('ClientsTable — search navigation history', () => {
+  const RESULT = [{ id: 7, details: 'ספי ברהנה' }]
+
+  async function pickFirstResult() {
+    const search = screen.getAllByRole('combobox')[0]
+    fireEvent.focus(search)
+    fireEvent.change(search, { target: { value: 'ספי' } })
+    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה' }))
+  }
+
+  it('unscoped list → selecting a lead PUSHES (Back can return to the full list)', async () => {
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+
+    await pickFirstResult()
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
+    expect(routerReplace).not.toHaveBeenCalled()
+    expect(routerPush.mock.calls[0][0]).toContain('clientId=7')
+  })
+
+  it('already inside a search → selecting another lead REPLACES (no history pile-up)', async () => {
+    url.search = 'clientId=5&clientDetails=%D7%A7%D7%95%D7%93%D7%9D'
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead({ id: 5 })]} user={null} leads={true} />)
+
+    await pickFirstResult()
+
+    await waitFor(() => expect(routerReplace).toHaveBeenCalledTimes(1))
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(routerReplace.mock.calls[0][0]).toContain('clientId=7')
+  })
+
+  it('an unparseable clientId counts as UNSCOPED, so it still pushes', async () => {
+    // The query ignores such a value, so the rep is not actually inside a
+    // search — the entry is worth keeping.
+    url.search = 'clientId=%D7%9C%D7%90-%D7%9E%D7%A1%D7%A4%D7%A8&clientDetails=%D7%A7%D7%95%D7%93%D7%9D'
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+
+    await pickFirstResult()
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('passes scroll:false on both paths — the rep stays where they were', async () => {
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    const { unmount } = render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    await pickFirstResult()
+    await waitFor(() => expect(routerPush).toHaveBeenCalled())
+    expect(routerPush.mock.calls[0][1]).toEqual({ scroll: false })
+    unmount()
+
+    url.search = 'clientId=5&clientDetails=%D7%A7%D7%95%D7%93%D7%9D'
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead({ id: 5 })]} user={null} leads={true} />)
+    await pickFirstResult()
+    await waitFor(() => expect(routerReplace).toHaveBeenCalled())
+    expect(routerReplace.mock.calls[0][1]).toEqual({ scroll: false })
+  })
+
+  it('preserves every other query parameter', async () => {
+    url.search = 'listId=3&view=due&tableLimit=500&pageNum=4'
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+
+    await pickFirstResult()
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalled())
+    const next = new URLSearchParams((routerPush.mock.calls[0][0] as string).replace(/^\?/, ''))
+    expect(next.get('listId')).toBe('3')
+    expect(next.get('view')).toBe('due')
+    expect(next.get('tableLimit')).toBe('500')
+    expect(next.get('clientId')).toBe('7')
+    expect(next.get('clientDetails')).toBe('ספי ברהנה')
+    // Unchanged from the previous fix: the offset belongs to the list, not to
+    // the one lead just asked for.
+    expect(next.get('pageNum')).toBeNull()
+  })
+
+  it('/clients gets the same behaviour — it shares ClientsTable', async () => {
+    vi.mocked(searchContacts).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead()]} user={null} leads={false} />)
+
+    await pickFirstResult()
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
+    expect(routerPush.mock.calls[0][1]).toEqual({ scroll: false })
+
+    // …and refining replaces there too.
+    cleanup()
+    routerPush.mockClear()
+    url.search = 'clientId=5&clientDetails=%D7%A7%D7%95%D7%93%D7%9D'
+    vi.mocked(searchContacts).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead({ id: 5 })]} user={null} leads={false} />)
+    await pickFirstResult()
+    await waitFor(() => expect(routerReplace).toHaveBeenCalledTimes(1))
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it('no longer routes navigation through the throwing redirect()', async () => {
+    vi.mocked(searchLeads).mockResolvedValueOnce(RESULT as never)
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+
+    await pickFirstResult()
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalled())
+    expect(redirect).not.toHaveBeenCalled()
   })
 })
