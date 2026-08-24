@@ -11,7 +11,7 @@ import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
 import { CopilotProvider } from '@/lib/copilot/useCopilot'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
-import { isGeneralModeEnabled } from '@/lib/ai/flags'
+import { isGeneralModeEnabled, isAgentEnabled } from '@/lib/ai/flags'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import { NotificationProvider } from '@/modules/notifications/NotificationContext'
@@ -143,6 +143,9 @@ async function LayoutContent({ children }) {
 
   const copilotEnabled = isCopilotEnabledForUser(user)
   const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
+  // Agent rollout, resolved server-side beside General Mode. Defaults OFF until
+  // AGENT_AGENCY_IDS names the agency, so this changes nothing on its own.
+  const agentEnabled = isAgentEnabled(user.agencyId)
 
   let inboxUnread = 0
   if (user.agencyId && user.role !== Roles.OFFICE) {
@@ -309,7 +312,7 @@ async function LayoutContent({ children }) {
                     <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
                       {children}
                     </main>
-                    <CopilotShell generalModeEnabled={generalModeEnabled} />
+                    <CopilotShell generalModeEnabled={generalModeEnabled} agentEnabled={agentEnabled} />
                   </WorkspaceGrid>
                 </>
               )}
