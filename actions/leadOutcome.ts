@@ -106,6 +106,11 @@ export async function logLeadOutcome(input: LogLeadOutcomeInput): Promise<LogLea
       agencyId: user.agencyId,
       leadId: id,
       newStatus: res.nextStatus,
+      // The scoped read above, taken before the write. This path has no
+      // transaction and no row lock — see the race window documented in
+      // db/leadStatusTransitions.ts.
+      previousStatus: lead.status ?? null,
+      source: 'outcome',
       occurredAt: now,
       // A rep logging their own call outcome must not be notified about it; the
       // updated row supplies the name without another read.

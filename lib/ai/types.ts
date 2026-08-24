@@ -10,6 +10,7 @@ export type TaskKind =
   | 'copilot.generalReason'
   | 'conversation.analysis'
   | 'inbox.autoResponse'
+  | 'agent.investigate'
 
 export type ProviderName = 'anthropic' | 'google' | 'openai' | 'internal'
 

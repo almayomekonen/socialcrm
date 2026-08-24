@@ -98,6 +98,28 @@ const TASKS: Record<TaskKind, TaskConfig> = {
     // GPT-5.6 high reasoning is slow; one attempt, then Anthropic/Gemini failover.
     providerMaxRetries: 0,
   },
+
+  /**
+   * The Agent investigation: one multi-step tool loop answering one question.
+   *
+   * It does NOT run through `runStructured`, so the router-loop fields would be
+   * dead config here — only `role` (which chain admission resolves),
+   * `maxOutputTokens` and `providerMaxRetries` are actually read. The Agent runs
+   * a SINGLE provider by design: its own step/deadline budget is the binding
+   * constraint, and a fallback that re-investigates from scratch cannot fit
+   * inside it. `providerMaxRetries: 0` keeps a dead provider from burning that
+   * budget on SDK-internal backoff.
+   *
+   * `timeoutMs` matches DEFAULT_DEADLINE_MS in lib/agent/budget.ts; the budget
+   * remains the authority, this is the per-call ceiling.
+   */
+  'agent.investigate': {
+    role: 'primary',
+    maxOutputTokens: 1_200,
+    timeoutMs: 40_000,
+    retryOnSameProvider: 0,
+    providerMaxRetries: 0,
+  },
 }
 
 export function getTaskConfig(kind: TaskKind): TaskConfig {

@@ -15,13 +15,28 @@ import ActiveGenerationRow from '../ActiveGenerationRow'
 import GeneralEmptyState from './GeneralEmptyState'
 import BriefingCards from './BriefingCards'
 import AnswerView from './AnswerView'
+import AgentAnswerView, { AgentErrorView } from './AgentAnswerView'
+import { askAgentApi, type AgentAskFailure } from '@/lib/copilot/general/agentClient'
+import type { AgentResult } from '@/lib/agent/types'
 import GeneralComposer from './GeneralComposer'
 import SuggestionChips, { briefingSuggestions } from './SuggestionChips'
 import { useLoaderTiming, LOADER_ESCALATE_MS } from './useLoaderTiming'
 
-type Turn = { role: 'user'; text: string } | { role: 'assistant'; answer: GeneralAnswer }
+type Turn =
+  | { role: 'user'; text: string }
+  | { role: 'assistant'; answer: GeneralAnswer }
+  /** One Agent investigation. Carries the whole result; the view decides what is shown. */
+  | { role: 'agent'; result: AgentResult }
+  /** Transport/authorization failure — never silent, always readable. */
+  | { role: 'agentError'; reason: AgentAskFailure }
 
-export default function GeneralModePanel() {
+/**
+ * `agentEnabled` is resolved on the SERVER (isAgentEnabled → AGENT_AGENCY_IDS)
+ * and threaded down like `generalModeEnabled` before it. It defaults to false,
+ * so every agency that is not opted in keeps today's General Mode behaviour
+ * unchanged, byte for byte.
+ */
+export default function GeneralModePanel({ agentEnabled = false }: { agentEnabled?: boolean } = {}) {
   /** No paid AI request may be attempted while the subscription is lapsed. */
   const expired = useAccessDenied()
   const { closePanel } = useCopilot()
@@ -78,6 +93,17 @@ export default function GeneralModePanel() {
     setTranscript((t) => [...t, { role: 'user', text }])
     setAsking(true)
     try {
+      // The Agent path sends the question and nothing else. It never throws, so
+      // a failure is a rendered turn rather than a transcript that just stops.
+      if (agentEnabled) {
+        const res = await withLoader(true, () => askAgentApi(text))
+        // `=== false`, not `!res.ok`: this repo runs with strictNullChecks off,
+        // where a boolean discriminant does not narrow a union (same reason the
+        // Agent tools compare `verdict.allowed === false`).
+        if (res.ok === false) setTranscript((t) => [...t, { role: 'agentError', reason: res.reason }])
+        else setTranscript((t) => [...t, { role: 'agent', result: res.result }])
+        return
+      }
       const answer = await withLoader(true, () => askGeneralQuestion(text, mode, subject?.id, conversationState))
       lastStateRef.current = toConversationState(answer, conversationState)
       adopt(answer)
@@ -177,13 +203,30 @@ export default function GeneralModePanel() {
             single owner of an entitlement-blocked panel. */}
         {!serverLocked && briefing && transcript.length > 0 && (
           <div className='space-y-2.5 pb-2'>
-            {transcript.map((turn, i) =>
-              turn.role === 'user' ? (
-                <p key={i} className='text-sm text-gray-800'>
-                  <span className='font-medium text-gray-500'>אתה: </span>
-                  {turn.text}
-                </p>
-              ) : (
+            {transcript.map((turn, i) => {
+              if (turn.role === 'user') {
+                return (
+                  <p key={i} className='text-sm text-gray-800'>
+                    <span className='font-medium text-gray-500'>אתה: </span>
+                    {turn.text}
+                  </p>
+                )
+              }
+              if (turn.role === 'agent') {
+                return (
+                  <div key={i} className='gm-answer-enter'>
+                    <AgentAnswerView result={turn.result} />
+                  </div>
+                )
+              }
+              if (turn.role === 'agentError') {
+                return (
+                  <div key={i} className='gm-answer-enter'>
+                    <AgentErrorView reason={turn.reason} />
+                  </div>
+                )
+              }
+              return (
                 <div key={i} className='gm-answer-enter'>
                   <AnswerView
                     interactive={i === lastAssistantIndex}
@@ -192,8 +235,8 @@ export default function GeneralModePanel() {
                     onPickLead={(id, label) => pickLead(id, label)}
                   />
                 </div>
-              ),
-            )}
+              )
+            })}
             {showLoader && (
               <ActiveGenerationRow
                 fallbackLabel='מגבש תשובה'

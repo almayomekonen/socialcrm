@@ -42,3 +42,25 @@ export function isGeneralModeEnabled(agencyId: number | null | undefined): boole
   if (list === 'all') return true
   return list.includes(agencyId)
 }
+
+/**
+ * CRM Agent rollout gate. Defaults OFF: with no agency on `AGENT_AGENCY_IDS`
+ * this returns false everywhere, so the Agent route 404s until an agency is
+ * explicitly opted in.
+ *
+ * This is a ROLLOUT gate, not an authorization one. It sits ON TOP of the global
+ * AI admission sequence — `admitAiRun` still runs inside every investigation and
+ * still owns AI_ENABLED, the agency allowlist, entitlement, providers and the
+ * spend cap. Nothing here replaces or duplicates any of that; it only decides
+ * whether this particular surface is switched on for an agency yet.
+ *
+ * Mirrors `isGeneralModeEnabled`, including its `isAiEnabled()` short-circuit, so
+ * turning AI off turns the Agent off with it.
+ */
+export function isAgentEnabled(agencyId: number | null | undefined): boolean {
+  if (!isAiEnabled()) return false
+  if (!agencyId) return false
+  const list = getAiEnv().agentAgencyAllowlist
+  if (list === 'all') return true
+  return list.includes(agencyId)
+}

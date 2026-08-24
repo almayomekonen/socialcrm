@@ -372,7 +372,7 @@ describe('Tier 3: preview is allowed, the expensive call is not', () => {
   })
 
   it('the AI router still refuses before choosing a provider', () => {
-    const router = read('lib/ai/router.ts')
+    const router = read('lib/ai/gate.ts')
     expect(router.indexOf('const access = await resolveAiAccess')).toBeLessThan(
       router.indexOf('if (!hasAnyProviderConfigured())'),
     )

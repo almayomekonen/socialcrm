@@ -133,7 +133,7 @@ describe('the teaser costs nothing to produce', () => {
   })
 
   it('the AI pre provider entitlement check is untouched', () => {
-    const router = read('lib/ai/router.ts')
+    const router = read('lib/ai/gate.ts')
     expect(router.indexOf('const access = await resolveAiAccess')).toBeLessThan(
       router.indexOf('if (!hasAnyProviderConfigured())'),
     )

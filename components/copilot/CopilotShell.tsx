@@ -6,7 +6,13 @@ import { useCopilotContext } from '@/lib/copilot/copilotContextStore'
 import CopilotPanel from './CopilotPanel'
 import GeneralModePanel from './general/GeneralModePanel'
 
-export default function CopilotShell({ generalModeEnabled = false }: { generalModeEnabled?: boolean }) {
+export default function CopilotShell({
+  generalModeEnabled = false,
+  agentEnabled = false,
+}: {
+  generalModeEnabled?: boolean
+  agentEnabled?: boolean
+}) {
   const { enabled, open, closePanel } = useCopilot()
   const ctx = useCopilotContext()
 
@@ -42,7 +48,7 @@ export default function CopilotShell({ generalModeEnabled = false }: { generalMo
         open ? 'copilot-shell-open' : 'copilot-shell-closed'
       }`}
     >
-      {generalModeEnabled && !ctx ? <GeneralModePanel /> : <CopilotPanel />}
+      {generalModeEnabled && !ctx ? <GeneralModePanel agentEnabled={agentEnabled} /> : <CopilotPanel />}
     </aside>
   )
 }
