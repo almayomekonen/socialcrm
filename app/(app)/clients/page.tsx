@@ -9,6 +9,7 @@ import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import { isMobileWorkspaceRequest } from '@/lib/device'
+import { parseLeadFilters } from '@/modules/leads/filters'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 
 export const metadata: Metadata = {
@@ -38,7 +39,18 @@ export default async function ClientsPage({ searchParams }) {
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
     getQuotaStatus(user.agencyId),
   ])
-  const clients = await getLeadsTable({ user, params, leads: false, gotPermIds: handlers.gotPermIds, settings })
+  // Same search model as /leads — see the note there. `/clients` shares
+  // `ClientsTable`, so it must consume `q` too or its search silently stops
+  // filtering the moment the toolbar starts writing it.
+  const search = parseLeadFilters(params).q
+  const clients = await getLeadsTable({
+    user,
+    params,
+    leads: false,
+    gotPermIds: handlers.gotPermIds,
+    settings,
+    filters: search ? { q: search } : null,
+  })
   const columnAvailability = await getLeadColumnAvailability({ user, leads: false, gotPermIds: handlers.gotPermIds })
   const formProps = { user, officeGotPerm: handlers.gotPermUsers, allUsers }
   return (
@@ -58,7 +70,7 @@ export default async function ClientsPage({ searchParams }) {
       <OverQuotaBanner count={quota.overQuotaCount} />
 
       <Suspense fallback={null}>
-        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} key={params.clientId ?? 'all'} />
+        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} />
       </Suspense>
     </Provider>
   )

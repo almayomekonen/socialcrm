@@ -6,95 +6,125 @@
  * narrowed right now" that the server query and the empty state both read.
  */
 import { describe, it, expect } from 'vitest'
-import { clearLeadScopeParams, clearLeadSearchParams, hasActiveLeadScope, parseLeadId, parseListId } from '@/lib/leads/leadScope'
+import {
+  clearLeadScopeParams,
+  clearLeadSearchParams,
+  hasActiveLeadScope,
+  parseLeadSearch,
+  parseListId,
+  withLeadSearch,
+} from '@/lib/leads/leadScope'
 
-describe('parseLeadId', () => {
+describe('parseListId', () => {
   it('accepts a plain positive integer', () => {
-    expect(parseLeadId('12')).toBe(12)
-    expect(parseLeadId('1')).toBe(1)
-    expect(parseLeadId('2147483647')).toBe(2147483647)
+    expect(parseListId('12')).toBe(12)
+    expect(parseListId('1')).toBe(1)
+    expect(parseListId('2147483647')).toBe(2147483647)
   })
 
   it('takes the first value when the param is repeated', () => {
-    expect(parseLeadId(['7', '9'])).toBe(7)
+    expect(parseListId(['7', '9'])).toBe(7)
   })
 
   it('rejects anything that is not an id — never reaches SQL as an integer', () => {
-    // The reported crash: a Hebrew name in ?clientId= is `22P02 invalid input
-    // syntax for type integer`, which takes down the whole page render.
-    expect(parseLeadId('ספי ברהנה')).toBeNull()
-    expect(parseLeadId('abc')).toBeNull()
-    expect(parseLeadId('12abc')).toBeNull()
-    expect(parseLeadId('1;DROP TABLE clients')).toBeNull()
+    // `22P02 invalid input syntax for type integer` takes down the whole page
+    // render, so a non-numeric id must never reach SQL.
+    expect(parseListId('ספי ברהנה')).toBeNull()
+    expect(parseListId('abc')).toBeNull()
+    expect(parseListId('12abc')).toBeNull()
+    expect(parseListId('1;DROP TABLE clients')).toBeNull()
   })
 
   it('rejects the numeric-looking values Number() would have accepted', () => {
-    expect(parseLeadId('12e3')).toBeNull()
-    expect(parseLeadId('0x0c')).toBeNull()
-    expect(parseLeadId('Infinity')).toBeNull()
-    expect(parseLeadId('1.5')).toBeNull()
-    expect(parseLeadId('-4')).toBeNull()
+    expect(parseListId('12e3')).toBeNull()
+    expect(parseListId('0x0c')).toBeNull()
+    expect(parseListId('Infinity')).toBeNull()
+    expect(parseListId('1.5')).toBeNull()
+    expect(parseListId('-4')).toBeNull()
   })
 
   it('rejects out-of-range and empty values', () => {
-    expect(parseLeadId('0')).toBeNull()
-    expect(parseLeadId('2147483648')).toBeNull()
-    expect(parseLeadId('')).toBeNull()
-    expect(parseLeadId(undefined)).toBeNull()
-    expect(parseLeadId(null)).toBeNull()
+    expect(parseListId('0')).toBeNull()
+    expect(parseListId('2147483648')).toBeNull()
+    expect(parseListId('')).toBeNull()
+    expect(parseListId(undefined)).toBeNull()
+    expect(parseListId(null)).toBeNull()
   })
 
-  it('parseListId applies the same rule — client_lists.id is also integer', () => {
+  it('guards the client_lists lookup — a bad id never reaches an integer column', () => {
     expect(parseListId('3')).toBe(3)
     expect(parseListId('nope')).toBeNull()
   })
 })
 
 describe('hasActiveLeadScope', () => {
-  it('is false for an unscoped list', () => {
+  it('is false for an unfiltered workspace', () => {
     expect(hasActiveLeadScope({})).toBe(false)
     expect(hasActiveLeadScope(null)).toBe(false)
     expect(hasActiveLeadScope({ pageNum: '2', tableLimit: '100' })).toBe(false)
   })
 
-  it('is true for each scoping parameter', () => {
-    expect(hasActiveLeadScope({ clientId: '12' })).toBe(true)
+  it('is true for each narrowing the user can clear', () => {
+    expect(hasActiveLeadScope({ q: 'ספי' })).toBe(true)
     expect(hasActiveLeadScope({ listId: '3' })).toBe(true)
     expect(hasActiveLeadScope({ view: 'due' })).toBe(true)
   })
 
-  it('does NOT count the mobile ?q= param — desktop never applies it', () => {
-    // `getLeadsTable` reads `q` only from its explicit `filters` argument, never
-    // from `params`. Counting it here would describe a narrowing the desktop
-    // query does not perform.
-    expect(hasActiveLeadScope({ q: 'ספי' })).toBe(false)
+  it('does NOT count a leftover clientId — nothing writes it and the query ignores it', () => {
+    expect(hasActiveLeadScope({ clientId: '12' })).toBe(false)
   })
 
-  it('does NOT count an unparseable id as a scope', () => {
-    // The query ignores it, so the empty state must not claim a narrowing that
-    // is not applied — it would describe a filter the user cannot clear.
-    expect(hasActiveLeadScope({ clientId: 'ספי ברהנה' })).toBe(false)
-    expect(hasActiveLeadScope({ listId: 'abc' })).toBe(false)
+  it('ignores whitespace-only search terms', () => {
+    expect(hasActiveLeadScope({ q: '   ' })).toBe(false)
+  })
+})
+
+describe('parseLeadSearch', () => {
+  it('returns the trimmed term, or empty', () => {
+    expect(parseLeadSearch({ q: '  ספי ברהנה ' })).toBe('ספי ברהנה')
+    expect(parseLeadSearch({})).toBe('')
+    expect(parseLeadSearch(null)).toBe('')
+  })
+
+  it('takes the first value when the param is repeated', () => {
+    expect(parseLeadSearch({ q: ['ספי', 'אחר'] })).toBe('ספי')
+  })
+})
+
+describe('withLeadSearch', () => {
+  it('sets the term, resets the page offset and preserves everything else', () => {
+    const out = withLeadSearch(new URLSearchParams('listId=3&view=due&tableLimit=500&pageNum=4'), 'ספי ברהנה')
+    expect(out.get('q')).toBe('ספי ברהנה')
+    expect(out.get('listId')).toBe('3')
+    expect(out.get('view')).toBe('due')
+    expect(out.get('tableLimit')).toBe('500')
+    expect(out.get('pageNum')).toBeNull()
+  })
+
+  it('sweeps out legacy clientId/clientDetails from a bookmarked URL', () => {
+    const out = withLeadSearch(new URLSearchParams('clientId=7&clientDetails=x'), 'ספי')
+    expect(out.get('clientId')).toBeNull()
+    expect(out.get('clientDetails')).toBeNull()
+  })
+
+  it('an empty term removes the search', () => {
+    expect(withLeadSearch(new URLSearchParams('q=ספי&listId=3'), '').toString()).toBe('listId=3')
   })
 })
 
 describe('clearLeadSearchParams', () => {
-  it('drops the picked lead, its display text and the stale page offset', () => {
-    const out = clearLeadSearchParams(new URLSearchParams('clientId=12&clientDetails=%D7%A1%D7%A4%D7%99&pageNum=2'))
-    expect(out.toString()).toBe('')
-  })
-
-  it('leaves every other parameter alone', () => {
-    const out = clearLeadSearchParams(new URLSearchParams('clientId=12&listId=3&tableLimit=500'))
+  it('clears the search but leaves other narrowings alone', () => {
+    const out = clearLeadSearchParams(new URLSearchParams('q=ספי&listId=3&view=due&pageNum=2'))
+    expect(out.get('q')).toBeNull()
+    expect(out.get('pageNum')).toBeNull()
     expect(out.get('listId')).toBe('3')
-    expect(out.get('tableLimit')).toBe('500')
-    expect(out.get('clientId')).toBeNull()
+    expect(out.get('view')).toBe('due')
   })
 })
 
 describe('clearLeadScopeParams', () => {
   it('lifts every narrowing, not just the search box', () => {
-    const out = clearLeadScopeParams(new URLSearchParams('clientId=12&clientDetails=x&listId=3&view=due&pageNum=4'))
+    const out = clearLeadScopeParams(new URLSearchParams('q=ספי&listId=3&view=due&pageNum=4'))
     expect(out.toString()).toBe('')
   })
 

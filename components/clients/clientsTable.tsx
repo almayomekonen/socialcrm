@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import ExportTable from '@/lib/table/export'
 import { leadSourceChannel, leadSourceLabel } from '@/lib/leads/leadSourceLabel'
@@ -29,7 +29,7 @@ import { saveTblPref } from '@/actions/global'
 import LeadStatusCell, { STATUS_STYLES } from './LeadStatusCell'
 import LeadsTableView from './LeadsTableView'
 import LeadsTableEmptyState from './LeadsTableEmptyState'
-import { clearLeadScopeParams, clearLeadSearchParams, hasActiveLeadScope, parseLeadId } from '@/lib/leads/leadScope'
+import { clearLeadScopeParams, clearLeadSearchParams, hasActiveLeadScope, parseLeadSearch, withLeadSearch } from '@/lib/leads/leadScope'
 import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
@@ -38,30 +38,27 @@ import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const clientId = searchParams.get('clientId')
-  const clientDetails = searchParams.get('clientDetails')
+  const searchTerm = parseLeadSearch({ q: searchParams.get('q') })
 
   /**
-   * URL SCOPE. `?clientId=` means "the rep picked this lead out of the search" —
-   * the server has already narrowed the query to it. Two things follow, and both
-   * used to be missing.
-   *
-   * The tab: `activeTab` opened on 'new' unconditionally, so a requested lead in
-   * any of the other four statuses was filtered straight back out of a result
-   * set that contained nothing else. It now opens on the requested lead's own
-   * status. Browsing with no lead requested is untouched — still 'new'.
+   * URL SCOPE. `?q=` is the workspace search — the SAME filter the mobile list
+   * uses, applied server-side. It narrows the workspace; it does not replace it
+   * with one record, which is what `?clientId=` used to do and why a search
+   * could read as "all my leads are gone".
    *
    * `scoped` tells the empty state which story it is in; see LeadsTableEmptyState.
-   *
-   * Read before the state so it can seed it. Both list pages key this component
-   * on `clientId`, so a new request remounts and re-seeds.
+   * The component is deliberately NOT keyed on the search: re-keying would
+   * remount on every keystroke-committed search and throw away the rep's sort,
+   * column layout and selection.
    */
   const scoped = hasActiveLeadScope({
-    clientId,
+    q: searchTerm,
     listId: searchParams.get('listId'),
     view: searchParams.get('view'),
   })
-  const [activeTab, setActiveTab] = useState(() => initialStatusTab(data, parseLeadId(clientId)))
+  // Plain default. A landing search moves it only when the current tab holds
+  // none of the results — see the effect below.
+  const [activeTab, setActiveTab] = useState('new')
   const tblId = leads ? 'leadsTable435' : 'clientsTable435'
   const hasMultipleUsers = false
 
@@ -153,30 +150,76 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   }
 
   /**
-   * Clearing the search must clear the SCOPE, not just the input. Emptying the
-   * box while `?clientId=` stayed in the URL left the list pinned to one lead
-   * with nothing on screen explaining why. Guarded so it only ever navigates
-   * when there is something to clear — focusing an already-empty box must not.
+   * A committed search REPLACES the previous one. `pageNum` goes with it — the
+   * offset belonged to a wider result set — and legacy `clientId`/`clientDetails`
+   * are swept out of any bookmarked URL on the way past.
+   *
+   * History: entering a search from an unfiltered workspace is a place worth
+   * coming back to, so it pushes. Changing an active search replaces, so five
+   * searches in a row do not cost five Back presses. `scroll: false` keeps the
+   * rep where they were.
    */
-  function clearSearchScope() {
-    if (!clientId && !clientDetails) return
-    goTo(clearLeadSearchParams(new URLSearchParams(searchParams.toString())))
+  function commitSearch(term: string) {
+    const next = withLeadSearch(new URLSearchParams(searchParams.toString()), term)
+    goTo(next, searchTerm ? 'replace' : 'push')
+  }
+
+  /** Clearing the box clears the search and nothing else. Always a replace. */
+  function clearSearch() {
+    if (!searchTerm) return
+    goTo(clearLeadSearchParams(new URLSearchParams(searchParams.toString())), 'replace')
   }
 
   /**
    * The empty state's single way out. Wider than clearing the box: the screen
    * can also be empty because of a saved list or a `?view=due` arrival from the
-   * dashboard, and a button that lifts only the search would visibly do nothing
+   * dashboard, and a button that lifted only the search would visibly do nothing
    * there.
    */
   function clearAllScope() {
-    goTo(clearLeadScopeParams(new URLSearchParams(searchParams.toString())))
+    goTo(clearLeadScopeParams(new URLSearchParams(searchParams.toString())), 'replace')
   }
 
-  function goTo(params: URLSearchParams) {
+  function goTo(params: URLSearchParams, mode: 'push' | 'replace') {
     const next = params.toString()
-    router.replace((next ? `?${next}` : '?') as any, { scroll: false })
+    const href = (next ? `?${next}` : '?') as any
+    if (mode === 'push') router.push(href, { scroll: false })
+    else router.replace(href, { scroll: false })
   }
+
+  /**
+   * THE TAB FOLLOWS THE RESULTS.
+   *
+   * The table filters rows by the active status tab, so a rep sitting on "חדש"
+   * who searches a lead in "בטיפול" would get an empty table over a result set
+   * that does contain their lead. When a new search lands and the current tab
+   * holds none of its results, move to the first status that does.
+   *
+   * Only on a search change, and only when the current tab is empty — browsing
+   * and manual tab clicks are never overridden. This is the one piece of the
+   * old `clientId` behaviour worth keeping, re-keyed from "a record was picked"
+   * to "a search landed".
+   */
+  /**
+   * Seeded ONCE per search, and only once results actually exist — the URL and
+   * the rows do not always arrive in the same render. After that the rep owns
+   * the tab: clicking one is never overridden, and clearing the search arms the
+   * next one.
+   */
+  const seededForRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!leads) return
+    if (!searchTerm) {
+      seededForRef.current = null
+      return
+    }
+    if (mergedState.length === 0 || seededForRef.current === searchTerm) return
+    seededForRef.current = searchTerm
+    setActiveTab((current) => {
+      if (mergedState.some((l) => l.status === current)) return current
+      return Object.keys(STATUS_STYLES).find((k) => mergedState.some((l) => l.status === k)) ?? current
+    })
+  }, [searchTerm, leads, mergedState])
 
   const emptyState = (
     <LeadsTableEmptyState
@@ -186,7 +229,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       scoped={scoped}
-      scopeKind={parseLeadId(clientId) !== null ? 'search' : 'filter'}
+      scopeKind={searchTerm ? 'search' : 'filter'}
       onClearScope={clearAllScope}
       onAddLead={() => (setOpenForm(true), setCurClient(null))}
       onUploadLeads={() => setOpenUpload(true)}
@@ -225,40 +268,20 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     clsBody: deleting ? 'opacity-50 pointer-events-none' : '',
   } as ConfigT
 
+  /**
+   * Picking a suggestion searches for that lead BY NAME — it does not open a
+   * private one-record workspace. `firstName lastName` is exactly what the
+   * server's `q` matcher tests against `name`/`firstName`/`lastName`.
+   *
+   * Never `details`: that column is generated as
+   * `firstName || ' ' || lastName || ' (' || idNum || ')'`, so committing it
+   * would put a national ID in the URL — shareable, loggable — and still match
+   * nothing, because `q` does not search `details`.
+   */
   function getSelectedClient(client) {
-    const currentParams = new URLSearchParams(searchParams.toString())
-    currentParams.set('clientId', client.id)
-    currentParams.set('clientDetails', client.details)
-    // The offset belongs to the list the rep was paging through, not to the one
-    // lead they just asked for. The query already ignores it for a targeted
-    // lookup; dropping it here keeps the footer from reading "עמוד 3" over a
-    // single result, and keeps the URL honest if it is shared.
-    currentParams.delete('pageNum')
-
-    /**
-     * ONE HISTORY ENTRY PER SEARCH, NOT PER RESULT.
-     *
-     * This used to call `redirect()` — which, in a DOM event handler, does not
-     * navigate at all: it throws, and the app-router's `window` error listener
-     * catches it and calls `router.replace`, because on the client
-     * `redirect()`'s type defaults to `replace`. So entering a search left no
-     * history entry and Back could not return the rep to their full list, while
-     * pagination and the eraser button (a `<Link>`) both pushed. Same toolbar,
-     * three different history behaviours.
-     *
-     * Entering a search from the unscoped list is a place worth coming back to,
-     * so it pushes. Refining — picking a different lead while already inside a
-     * search — replaces, so five searches in a row do not cost five Back
-     * presses. `scroll: false` keeps the rep where they were; the old path could
-     * not pass it (`replace(url, {})`).
-     *
-     * Everything about the URL itself is unchanged: same params, same
-     * `pageNum` drop, same query, same scoping.
-     */
-    const href = ('?' + currentParams.toString()) as any
-    const refiningExistingSearch = parseLeadId(clientId) !== null
-    if (refiningExistingSearch) router.replace(href, { scroll: false })
-    else router.push(href, { scroll: false })
+    const name = [client?.firstName, client?.lastName].filter(Boolean).join(' ').trim()
+    if (!name) return
+    commitSearch(name)
   }
 
   return (
@@ -281,19 +304,22 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
           mergedState={mergedState}
           config={config}
           fillHeight={fillHeight}
+          searchTerm={searchTerm}
+          onClearSearch={clearSearch}
         >
           <div className={`flex justify-between gap-2 mb-2 items-end ${fillHeight ? 'shrink-0' : ''}`}>
             <div className='flex gap-0 items-end'>
               <SelectSearch
                 options={[]}
                 show='details'
-                selected={clientId}
+                selected={null}
                 val='id'
                 inputCls='w-52 rounded-e-none'
                 searchFunc={leads ? searchLeads : searchContacts}
                 onSelectOpt={getSelectedClient}
-                onClear={clearSearchScope}
-                initShow={clientDetails}
+                onSubmitText={commitSearch}
+                onClear={clearSearch}
+                initShow={searchTerm}
               />
               <Btn variant='outline' size='icon' icon='eraser' aria-label='נקה חיפוש' href='?' scroll={false} className='rounded-s-none border-s-0' />
             </div>
@@ -495,21 +521,6 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       />
     </>
   )
-}
-
-/**
- * Which status tab to open on.
- *
- * 'new' for ordinary browsing — unchanged. When the URL requests one specific
- * lead, its own status, so the requested lead is actually on screen: the table
- * filters rows by the active tab, and a targeted query returns nothing else to
- * fall back to. Unknown/absent status falls back to 'new'.
- */
-function initialStatusTab(rows, targetLeadId) {
-  if (targetLeadId === null) return 'new'
-  const row = Array.isArray(rows) ? rows.find((r) => Number(r?.id) === targetLeadId) : null
-  const status = row?.status
-  return status && STATUS_STYLES[status] ? status : 'new'
 }
 
 export function getHeaders(leads, hasMultipleUsers = true) {

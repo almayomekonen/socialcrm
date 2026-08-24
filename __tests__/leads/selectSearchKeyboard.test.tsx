@@ -44,12 +44,21 @@ function setup(overrides: Record<string, unknown> = {}) {
   return { input, onSelectOpt, searchFunc }
 }
 
-/** Type a term and wait for the dropdown to be populated. */
+/**
+ * Type a term and wait for the dropdown to be fully settled.
+ *
+ * Waiting for the listbox alone is not enough: a new result set resets the
+ * highlight in an effect, and under load that effect can flush AFTER the
+ * listbox is queryable — landing on top of an arrow press and making the next
+ * assertion fail intermittently. Waiting until no option is active means the
+ * reset has already happened.
+ */
 async function openWithResults() {
   const ctx = setup()
   fireEvent.focus(ctx.input)
   fireEvent.change(ctx.input, { target: { value: 'ספי' } })
   await screen.findByRole('listbox')
+  await waitFor(() => expect(activeOption()).toBeUndefined())
   return ctx
 }
 
@@ -74,12 +83,70 @@ describe('SelectSearch keyboard navigation', () => {
     expect(onSelectOpt).toHaveBeenCalledWith(RESULTS[1])
   })
 
-  it('Enter with nothing highlighted selects the top match', async () => {
+  it('Enter with nothing highlighted takes the top match for a PICKER consumer', async () => {
+    // No `onSubmitText` — the SaleForm / AddTaskForm behaviour, unchanged.
     const { input, onSelectOpt } = await openWithResults()
 
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(onSelectOpt).toHaveBeenCalledWith(RESULTS[0])
+  })
+
+  it('Enter with nothing highlighted commits the TYPED TEXT for a search consumer', async () => {
+    const onSubmitText = vi.fn()
+    const onSelectOpt = vi.fn()
+    const searchFunc = vi.fn(async () => RESULTS)
+    render(
+      <SelectSearch
+        options={[]}
+        show='details'
+        val='id'
+        selected={null}
+        initShow={null}
+        searchFunc={searchFunc as never}
+        onSelectOpt={onSelectOpt}
+        onSubmitText={onSubmitText}
+      />,
+    )
+    const input = screen.getAllByRole('combobox')[0]
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'ספי' } })
+    await screen.findByRole('listbox')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    // The whole point: a partial term reaches the server as itself, instead of
+    // silently resolving to one lead's full name.
+    expect(onSubmitText).toHaveBeenCalledWith('ספי')
+    expect(onSelectOpt).not.toHaveBeenCalled()
+  })
+
+  it('an explicit highlight still wins over the typed text', async () => {
+    const onSubmitText = vi.fn()
+    const onSelectOpt = vi.fn()
+    const searchFunc = vi.fn(async () => RESULTS)
+    render(
+      <SelectSearch
+        options={[]}
+        show='details'
+        val='id'
+        selected={null}
+        initShow={null}
+        searchFunc={searchFunc as never}
+        onSelectOpt={onSelectOpt}
+        onSubmitText={onSubmitText}
+      />,
+    )
+    const input = screen.getAllByRole('combobox')[0]
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'ספי' } })
+    await screen.findByRole('listbox')
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onSelectOpt).toHaveBeenCalledWith(RESULTS[0])
+    expect(onSubmitText).not.toHaveBeenCalled()
   })
 
   it('ArrowDown moves the highlight down and stops at the last option', async () => {

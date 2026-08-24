@@ -7,7 +7,10 @@ import { filesJsonAgg } from './helpers/aggregations'
 import { Lead, LeadInfo } from '@/types/db/tables'
 import { requireUser } from '@/lib/requireUser'
 import { getEffectiveLeadPlan } from '@/lib/quota'
-import { parseLeadId, parseListId } from '@/lib/leads/leadScope'
+import { parseListId } from '@/lib/leads/leadScope'
+
+/** Whitespace-separated terms honoured in one search. See the matcher below. */
+const MAX_SEARCH_TERMS = 6
 
 export type LeadKey = keyof Lead | keyof LeadInfo
 
@@ -119,13 +122,23 @@ export async function getGlobalLatestUpdatedAt(): Promise<string> {
 }
 
 /**
- * Optional server-side filters for the lead list.
+ * Server-side filters for the lead list — now BOTH presentations.
  *
- * Passed as an EXPLICIT argument, never read out of `params`. `params` is the
- * raw `searchParams` object, so reading `params.q` here would mean a desktop
- * user opening a mobile-shared URL silently gets a different result set than
- * they do today — a desktop behaviour change smuggled in through a URL. Desktop
- * omits this argument entirely and its SQL is byte-identical to before.
+ * Still passed as an EXPLICIT argument, never read out of `params` here. The
+ * original note said desktop must not consume `q` because a mobile-shared URL
+ * would then "silently" change what a desktop user sees — a behaviour change
+ * "smuggled in through a URL". That was a blast-radius guard for a flag-gated
+ * mobile rollout, and its load-bearing word was *silently*.
+ *
+ * Desktop now opts in DELIBERATELY (see the two list pages), and the workspace
+ * renders a visible, clearable active-search indicator whenever `q` is applied.
+ * A shared `/leads?q=…` is no longer a silent narrowing; it is a shared filtered
+ * view that announces itself — which is what a URL-backed filter is supposed to
+ * be. The guard is retired on purpose, not by accident.
+ *
+ * Callers pass ONLY what their surface can communicate: the desktop pages pass
+ * `q` and not `status`, because desktop has no status-filter chrome to explain
+ * a status narrowing.
  */
 export type LeadListFilters = { q?: string; status?: string[] }
 
@@ -154,24 +167,6 @@ export async function getLeadsTable({
   pageNum = Number(pageNum) || 1
   tableLimit = Number(tableLimit) || 100
 
-  /**
-   * TARGETED LOOKUP. `?clientId=` is not a list filter — it is "show me this
-   * one lead", written by the toolbar search when a rep picks a result. It used
-   * to be applied *on top of* whatever else the URL carried, so a rep who was on
-   * page 2, or in the `due` view, searched a lead that exists and is theirs and
-   * got zero rows back — which the table then rendered as "you have no לידים".
-   *
-   * When a targeted lookup is active, the constraints that select a *slice of a
-   * list* are skipped: the page offset, the page size, and `view=due`. The
-   * constraints that decide whether this viewer may see the row at all —
-   * agency, permissions, plan — are untouched and applied exactly as before.
-   *
-   * An unparseable id is treated as absent (see `parseLeadId`): it never reaches
-   * SQL, so it can neither crash the render nor silently scope the list.
-   */
-  const targetLeadId = parseLeadId(params.clientId)
-  const targeted = targetLeadId !== null
-
   const base = db('clients')
     .where('clients.agencyId', agencyId)
     .where('lead', leads)
@@ -190,7 +185,7 @@ export async function getLeadsTable({
   if (gotPermIds && !isAdmin(user.role)) base.whereIn('clients.userId', gotPermIds)
   if (plan === 'free') base.where('clients.overQuota', false)
 
-  if (!targeted && params.view === 'due') applyDueMembership(base)
+  if (params.view === 'due') applyDueMembership(base)
 
   /**
    * Mobile filters. Applied to `base`, i.e. BEFORE the priority/SLA CTE, so the
@@ -203,47 +198,58 @@ export async function getLeadsTable({
   if (filters?.status?.length) base.whereIn('clients.status', filters.status)
 
   if (filters?.q) {
-    // Name / phone / email. `whereILike` parameterises the value, and the
-    // wildcards are ours — the user's `%` or `_` are matched literally after
-    // escaping, so a search for "50%" cannot turn into a full scan pattern.
-    const term = `%${filters.q.replace(/[\\%_]/g, (c) => '\\' + c)}%`
-    base.where((b) => {
-      b.whereILike('clients.name', term)
-        .orWhereILike('clients.phone', term)
-        .orWhereILike('clients.email', term)
-        .orWhereILike('clients.firstName', term)
-        .orWhereILike('clients.lastName', term)
-    })
-  }
-
-  if (targeted) {
-    base.where('clients.id', targetLeadId)
-  } else {
     /**
-     * Saved lists belong to a user, and `client_lists` carries no agencyId of
-     * its own — so the ownership check is a join to `users`. Without it any id
-     * read another agency's list and used its `clientIds`; the rows stayed
-     * agency-scoped by `base`, so nothing leaked, but an unknown id also meant
-     * `list.clientIds` on `undefined` — a TypeError that took the page down
-     * from a querystring. A list we cannot resolve is treated as absent, the
-     * same way an unparseable `clientId` is; an empty list correctly matches
-     * nothing.
+     * TERM-SPLIT SEARCH — the table now matches the way the autocomplete does.
+     *
+     * One un-split `%q%` used to be tested against each column, so "ספי ברהנה"
+     * only hit a row whose `name` held that exact string, and "ברהנה ספי" hit
+     * nothing at all — while the autocomplete, which splits on whitespace and
+     * ANDs the terms, cheerfully suggested the lead. The dropdown and the table
+     * could disagree about the same query, which is the one thing a search must
+     * never do.
+     *
+     * Every term must match somewhere (AND across terms, OR across fields), so
+     * word order stops mattering. `whereILike` parameterises each value and the
+     * wildcards are ours — a user's `%` or `_` is matched literally after
+     * escaping, so searching "50%" cannot become a full-scan pattern.
+     *
+     * Terms are capped as well as `q`'s length: each one adds a five-column OR
+     * group, and no name search needs more than this.
      */
-    const listIdNum = parseListId(listId)
-    if (listIdNum !== null) {
-      const list = await db('client_lists as cl')
-        .join('users as u', 'cl.userId', 'u.id')
-        .where('cl.id', listIdNum)
-        .where('u.agencyId', agencyId)
-        .first('cl.clientIds')
-      if (list) base.whereIn('clients.id', list.clientIds ?? [])
+    const terms = filters.q.split(/\s+/).filter(Boolean).slice(0, MAX_SEARCH_TERMS)
+    for (const rawTerm of terms) {
+      const term = `%${rawTerm.replace(/[\\%_]/g, (c) => '\\' + c)}%`
+      base.where((b) => {
+        b.whereILike('clients.name', term)
+          .orWhereILike('clients.phone', term)
+          .orWhereILike('clients.email', term)
+          .orWhereILike('clients.firstName', term)
+          .orWhereILike('clients.lastName', term)
+      })
     }
   }
 
-  // A targeted lookup returns at most one row by construction (`id` is the
-  // primary key), so paginating it could only ever hide it. See `targeted`.
-  const limit = targeted ? 1 : tableLimit
-  const offset = targeted ? 0 : (pageNum - 1) * tableLimit
+  /**
+   * Saved lists belong to a user, and `client_lists` carries no agencyId of
+   * its own — so the ownership check is a join to `users`. Without it any id
+   * read another agency's list and used its `clientIds`; the rows stayed
+   * agency-scoped by `base`, so nothing leaked, but an unknown id also meant
+   * `list.clientIds` on `undefined` — a TypeError that took the page down
+   * from a querystring. A list we cannot resolve is treated as absent; an
+   * empty list correctly matches nothing.
+   */
+  const listIdNum = parseListId(listId)
+  if (listIdNum !== null) {
+    const list = await db('client_lists as cl')
+      .join('users as u', 'cl.userId', 'u.id')
+      .where('cl.id', listIdNum)
+      .where('u.agencyId', agencyId)
+      .first('cl.clientIds')
+    if (list) base.whereIn('clients.id', list.clientIds ?? [])
+  }
+
+  const limit = tableLimit
+  const offset = (pageNum - 1) * tableLimit
 
   if (settings) {
     const coldMonths = Number(settings.monthsLidimSheloHufku) || 8

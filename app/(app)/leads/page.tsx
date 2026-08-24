@@ -95,8 +95,26 @@ export default async function LeadsPage({ searchParams }) {
   const suppressGreeting = trialRow ? getTrialState(trialRow, new Date()).status === 'NEVER_STARTED' : false
 
   const hasLeads = await hasAnyLeads(user.agencyId, handlers.gotPermIds, user.role)
+  /**
+   * DESKTOP SEARCH. The toolbar search writes `?q=` and the workspace narrows
+   * through the SAME filter the mobile list uses — one search model, two
+   * presentations. `parseLeadFilters` does the validation (trimmed, capped).
+   *
+   * Only `q` is forwarded, never `status`: desktop's status tabs are a
+   * client-side control with no chrome to explain a URL-driven status narrowing,
+   * and a filter the user cannot see is the bug this whole change exists to
+   * remove. Desktop opts in deliberately — see the note in `db/clients.ts`.
+   */
+  const search = parseLeadFilters(params).q
   const clients = hasLeads
-    ? await getLeadsTable({ user, params, leads: true, gotPermIds: handlers.gotPermIds, settings })
+    ? await getLeadsTable({
+        user,
+        params,
+        leads: true,
+        gotPermIds: handlers.gotPermIds,
+        settings,
+        filters: search ? { q: search } : null,
+      })
     : []
   const columnAvailability = hasLeads
     ? await getLeadColumnAvailability({ user, leads: true, gotPermIds: handlers.gotPermIds })
@@ -128,7 +146,7 @@ export default async function LeadsPage({ searchParams }) {
             <CrmSyncBanner sources={['leads', 'awareness']} />
           </div>
           <Suspense fallback={null}>
-            <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} key={params.clientId ?? 'all'} />
+            <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} />
           </Suspense>
         </>
       ) : (
