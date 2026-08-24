@@ -30,6 +30,18 @@ type Props = {
    * keep the pick-the-top-match behaviour.
    */
   onSubmitText?: (text: string) => void
+  /**
+   * Every keystroke, including the first character. A live search consumer
+   * debounces this itself; the suggestion query keeps its own threshold.
+   */
+  onSearchChange?: (text: string) => void
+  /**
+   * The text to put in the input when a suggestion is chosen. Defaults to the
+   * suggestion's `show` field. The workspace search overrides it because `show`
+   * is `details` — which carries the national id — while the search itself runs
+   * on the plain name.
+   */
+  selectText?: (el: any) => string
 }
 
 export function SelectSearch({
@@ -48,6 +60,8 @@ export function SelectSearch({
   onSelectOpt,
   onClear,
   onSubmitText,
+  onSearchChange,
+  selectText,
   required = true,
 }: Props) {
   const debouncedSearch = useMemo(
@@ -79,15 +93,14 @@ export function SelectSearch({
   const prevSelectedRef = useRef<any>(selected)
 
   /**
-   * Follow `initShow` when the OWNER changes it.
+   * Follow `initShow` whenever the OWNER changes it.
    *
-   * `onSelect` writes the suggestion's display text straight into the input, and
-   * for the workspace search that text is `details` — "ספי ברהנה (123456789)" —
-   * while the committed term, the URL and the chip all say "ספי ברהנה". The box
-   * would keep showing a national id the search is not using. The input is
-   * uncontrolled, so a changed `defaultValue` does nothing on its own; this
-   * syncs it to whatever the URL now says the search is, and empties it when the
-   * search is cleared.
+   * The input stays uncontrolled on purpose: the DOM value is the source of
+   * truth while typing, so text never lags a keystroke and the caret is never
+   * moved. That means the owner — not this component — must decide when the box
+   * should be overwritten. A live-search owner passes a value that changes ONLY
+   * on external navigation (mount, back/forward, a cleared search) and never on
+   * the echo of its own in-flight search, so this can stay a plain sync.
    */
   const prevInitShowRef = useRef<any>(initShow)
   useEffect(() => {
@@ -116,6 +129,10 @@ export function SelectSearch({
   // NEW ----------------
 
   async function onChange(value) {
+    // Reported first and unconditionally: the TABLE search must see the very
+    // first character, even though the suggestion query below still waits for
+    // two before asking the server for suggestions.
+    onSearchChange?.(value)
     if (value.trim().length === 0) {
       onClear?.()
       return setData(opts)
@@ -133,7 +150,8 @@ export function SelectSearch({
   }
 
   function onSelect(el) {
-    inputRef.current.value = el[show]
+    const display = selectText ? selectText(el) : el[show]
+    inputRef.current.value = display
     valueRef.current.value = el[val]
     setIsOpen(false)
     if (onSelectOpt) onSelectOpt(el)

@@ -224,136 +224,96 @@ describe('source badge — the internal composite never reaches the screen', () 
 })
 
 /**
- * Workspace search — the regression suite for "where did all my leads go?".
+ * Live workspace search.
  *
- * The toolbar search is a FILTER over the workspace, not a lookup that swaps the
- * workspace for one record. It writes `?q=`, the same parameter the mobile list
- * uses, and the workspace says out loud that it is filtered.
+ * The table IS the result: typing narrows it. The search box is the only place
+ * the term appears, the URL carries it to the server, and exactly one history
+ * entry is created per search session no matter how many characters are typed.
  */
-describe('ClientsTable — workspace search', () => {
-  // `details` carries the national id (it is generated as
-  // firstName || ' ' || lastName || ' (' || idNum || ')'), which is exactly why
-  // it must never become the search term.
+describe('ClientsTable — live workspace search', () => {
+  // `details` carries the national id (generated as
+  // firstName || ' ' || lastName || ' (' || idNum || ')'), which is precisely
+  // why it must never become the search term or the input's value.
   const SEFI = { id: 7, firstName: 'ספי', lastName: 'ברהנה', details: 'ספי ברהנה (123456789)' }
   const OTHER = { id: 9, firstName: 'ספי', lastName: 'מזרחי', details: 'ספי מזרחי (987654321)' }
 
-  async function type(term: string, results = [SEFI, OTHER]) {
-    vi.mocked(searchLeads).mockResolvedValueOnce(results as never)
-    vi.mocked(searchContacts).mockResolvedValueOnce(results as never)
-    const search = screen.getAllByRole('combobox')[0]
-    fireEvent.focus(search)
-    fireEvent.change(search, { target: { value: term } })
-    return search
+  const box = () => screen.getAllByRole('combobox')[0] as HTMLInputElement
+
+  function typeText(term: string, results = [SEFI, OTHER]) {
+    vi.mocked(searchLeads).mockResolvedValue(results as never)
+    vi.mocked(searchContacts).mockResolvedValue(results as never)
+    fireEvent.change(box(), { target: { value: term } })
   }
 
-  const lastNav = () => (routerPush.mock.calls[0] ?? routerReplace.mock.calls[0])
+  const lastNav = () => (routerPush.mock.calls.at(-1) ?? routerReplace.mock.calls.at(-1))!
   const navParams = () => new URLSearchParams((lastNav()[0] as string).replace(/^\?/, ''))
 
-  // ── committing a search ───────────────────────────────────────────────────
+  // ── A. live typing ────────────────────────────────────────────────────────
 
-  it('typed text + Enter searches for what was typed (partial terms work)', async () => {
+  it('the FIRST character produces a q — no two-character floor', async () => {
     render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    const search = await type('ספי')
-    await screen.findByRole('listbox')
-
-    fireEvent.keyDown(search, { key: 'Enter' })
+    typeText('ס')
 
     await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    expect(navParams().get('q')).toBe('ספי')
+    expect(navParams().get('q')).toBe('ס')
   })
 
-  it('an explicitly highlighted result + Enter searches that lead by name', async () => {
+  it('the input never lags — its value updates before any navigation', () => {
     render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    const search = await type('ספי')
-    await screen.findByRole('listbox')
+    typeText('ספ')
 
-    fireEvent.keyDown(search, { key: 'ArrowDown' })
-    fireEvent.keyDown(search, { key: 'ArrowDown' })
-    fireEvent.keyDown(search, { key: 'Enter' })
-
-    await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    expect(navParams().get('q')).toBe('ספי מזרחי')
+    // Synchronously, in the same tick as the keystroke.
+    expect(box().value).toBe('ספ')
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(routerReplace).not.toHaveBeenCalled()
   })
 
-  it('mouse selection produces exactly what highlighted-Enter produces', async () => {
+  it('debounce collapses a burst of keystrokes into ONE navigation', async () => {
     render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    await type('ספי')
-    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי מזרחי (987654321)' }))
-
-    await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    expect(navParams().get('q')).toBe('ספי מזרחי')
-  })
-
-  it('the search term NEVER contains idNum, even though the suggestion shows it', async () => {
-    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    await type('ספי')
-    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
-
-    await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    const url = lastNav()[0] as string
-    expect(url).not.toContain('123456789')
-    expect(navParams().get('q')).toBe('ספי ברהנה')
-    expect(navParams().get('clientId')).toBeNull()
-  })
-
-  it('never writes clientId — the workspace is filtered, not replaced', async () => {
-    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    await type('ספי')
-    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
-
-    await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    const url = lastNav()[0] as string
-    expect(url).not.toContain('clientId')
-    expect(url).not.toContain('clientDetails')
-  })
-
-  // ── URL bookkeeping ──────────────────────────────────────────────────────
-
-  it('resets the page offset and preserves unrelated parameters', async () => {
-    url.search = 'pageNum=3&tableLimit=500&listId=4&view=due'
-    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    await type('ספי')
-    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
-
-    await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    const next = navParams()
-    expect(next.get('pageNum')).toBeNull()
-    expect(next.get('tableLimit')).toBe('500')
-    expect(next.get('listId')).toBe('4')
-    expect(next.get('view')).toBe('due')
-  })
-
-  // ── history policy ───────────────────────────────────────────────────────
-
-  it('PUSHES when entering a search from an unfiltered workspace', async () => {
-    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    const search = await type('ספי')
-    await screen.findByRole('listbox')
-    fireEvent.keyDown(search, { key: 'Enter' })
+    typeText('ס')
+    typeText('ספ')
+    typeText('ספי')
+    typeText('ספי ברהנה')
 
     await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
     expect(routerReplace).not.toHaveBeenCalled()
+    expect(navParams().get('q')).toBe('ספי ברהנה')
+  })
+
+  it('a multi-word term reaches the server intact', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    typeText('ספי ברהנה')
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalled())
+    expect(navParams().get('q')).toBe('ספי ברהנה')
+  })
+
+  // ── B. history ────────────────────────────────────────────────────────────
+
+  it('PUSHES exactly once on empty → non-empty', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    typeText('ס')
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
     expect(routerPush.mock.calls[0][1]).toEqual({ scroll: false })
   })
 
-  it('REPLACES when changing an already-active search', async () => {
-    url.search = 'q=%D7%A7%D7%95%D7%93%D7%9D'
+  it('REPLACES on non-empty → different non-empty', async () => {
+    url.search = 'q=%D7%A1'
     render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    const search = await type('ספי')
-    await screen.findByRole('listbox')
-    fireEvent.keyDown(search, { key: 'Enter' })
+    typeText('ספי')
 
     await waitFor(() => expect(routerReplace).toHaveBeenCalledTimes(1))
     expect(routerPush).not.toHaveBeenCalled()
     expect(routerReplace.mock.calls[0][1]).toEqual({ scroll: false })
   })
 
-  it('clearing the box uses REPLACE and restores the full workspace', () => {
+  it('REPLACES on non-empty → empty, and does so immediately', () => {
     url.search = 'q=%D7%A1%D7%A4%D7%99&tableLimit=500'
     render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.change(box(), { target: { value: '' } })
 
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '' } })
-
+    // No debounce wait: getting your workspace back must feel instant.
     expect(routerReplace).toHaveBeenCalledTimes(1)
     expect(routerPush).not.toHaveBeenCalled()
     const next = new URLSearchParams((routerReplace.mock.calls[0][0] as string).replace(/^\?/, ''))
@@ -361,61 +321,143 @@ describe('ClientsTable — workspace search', () => {
     expect(next.get('tableLimit')).toBe('500')
   })
 
-  it('focusing an already-empty search box never navigates', () => {
+  it('never stacks history — one push, then only replaces', async () => {
     render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    const search = screen.getAllByRole('combobox')[0]
-    fireEvent.focus(search)
-    fireEvent.change(search, { target: { value: '' } })
+    typeText('ס')
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
 
-    expect(routerReplace).not.toHaveBeenCalled()
-    expect(routerPush).not.toHaveBeenCalled()
+    url.search = 'q=%D7%A1'
+    typeText('ספי')
+    await waitFor(() => expect(routerReplace).toHaveBeenCalledTimes(1))
+
+    expect(routerPush).toHaveBeenCalledTimes(1)
   })
 
-  // ── the indicator ────────────────────────────────────────────────────────
+  it('focusing an already-empty box never navigates', () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    fireEvent.change(box(), { target: { value: '' } })
 
-  it('shows the active-search chip with term, result count and a clear action', () => {
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('retyping the term already in the URL does not navigate', async () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    typeText('ספי')
+
+    await new Promise((r) => setTimeout(r, 400))
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  // ── C. autocomplete as accelerator ────────────────────────────────────────
+
+  it('suggestions are still offered while typing', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    typeText('ספי')
+
+    expect(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' })).toBeInTheDocument()
+  })
+
+  it('clicking a suggestion commits its name immediately, skipping the debounce', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    typeText('ספי')
+    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי מזרחי (987654321)' }))
+
+    expect(routerPush).toHaveBeenCalledTimes(1)
+    expect(navParams().get('q')).toBe('ספי מזרחי')
+  })
+
+  it('a highlighted suggestion + Enter commits that name', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    typeText('ספי')
+    await screen.findByRole('listbox')
+
+    fireEvent.keyDown(box(), { key: 'ArrowDown' })
+    fireEvent.keyDown(box(), { key: 'Enter' })
+
+    expect(navParams().get('q')).toBe('ספי ברהנה')
+  })
+
+  it('plain Enter commits the typed text, no suggestion required', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    typeText('ספי')
+    await screen.findByRole('listbox')
+
+    fireEvent.keyDown(box(), { key: 'Enter' })
+
+    expect(navParams().get('q')).toBe('ספי')
+  })
+
+  it('a chosen suggestion never puts idNum in the input or the URL', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    typeText('ספי')
+    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
+
+    expect(box().value).toBe('ספי ברהנה')
+    expect(box().value).not.toContain('123456789')
+    expect(lastNav()[0]).not.toContain('123456789')
+    expect(navParams().get('q')).toBe('ספי ברהנה')
+  })
+
+  it('never writes clientId', async () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    fireEvent.focus(box())
+    typeText('ספי')
+    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
+
+    expect(lastNav()[0]).not.toContain('clientId')
+    expect(lastNav()[0]).not.toContain('clientDetails')
+  })
+
+  // ── D. URL synchronisation ────────────────────────────────────────────────
+
+  it('an initial ?q= populates the input on mount', () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99%20%D7%91%D7%A8%D7%94%D7%A0%D7%94'
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    expect(box().value).toBe('ספי ברהנה')
+  })
+
+  it('an EXTERNAL url change (back/forward) updates the input', () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    const { rerender } = render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    expect(box().value).toBe('ספי')
+
+    url.search = ''
+    rerender(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    expect(box().value).toBe('')
+  })
+
+  it('the url echoing our OWN search back does not disturb the typed text', async () => {
+    const { rerender } = render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    typeText('ספי')
+    await waitFor(() => expect(routerPush).toHaveBeenCalled())
+
+    // The server re-render lands with our own term in the URL, while the user
+    // has already typed further. The box must keep what they typed.
+    typeText('ספי ב')
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    rerender(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+
+    expect(box().value).toBe('ספי ב')
+  })
+
+  // ── E. table + empty states ───────────────────────────────────────────────
+
+  it('the table renders whatever the server returned for the term', () => {
     url.search = 'q=%D7%A1%D7%A4%D7%99'
     render(<ClientsTable data={[makeLead({ id: 7, name: 'ספי ברהנה' }), makeLead({ id: 9, name: 'ספי מזרחי' })]} user={null} leads={true} />)
 
-    const chip = screen.getByRole('button', { name: /נקה חיפוש: ספי/ })
-    expect(chip).toHaveTextContent('חיפוש: "ספי"')
-    expect(screen.getByText('2 לידים')).toBeInTheDocument()
-
-    fireEvent.click(chip)
-    expect(routerReplace).toHaveBeenCalledTimes(1)
-    expect(routerReplace.mock.calls[0][0]).not.toContain('q=')
+    expect(screen.getByText('ספי ברהנה')).toBeInTheDocument()
+    expect(screen.getByText('ספי מזרחי')).toBeInTheDocument()
   })
-
-  it('the search box shows the committed term, never the idNum-bearing suggestion text', async () => {
-    const { rerender } = render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    await type('ספי')
-    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
-
-    // The URL is what the workspace is now filtered by; the box must agree.
-    url.search = 'q=%D7%A1%D7%A4%D7%99%20%D7%91%D7%A8%D7%94%D7%A0%D7%94'
-    rerender(<ClientsTable data={[makeLead({ id: 7, name: 'ספי ברהנה' })]} user={null} leads={true} />)
-
-    const search = screen.getAllByRole('combobox')[0] as HTMLInputElement
-    await waitFor(() => expect(search.value).toBe('ספי ברהנה'))
-    expect(search.value).not.toContain('123456789')
-  })
-
-  it('hides the chip when the workspace is unfiltered', () => {
-    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
-    expect(screen.queryByRole('button', { name: /נקה חיפוש:/ })).not.toBeInTheDocument()
-  })
-
-  // ── the tab follows the results ──────────────────────────────────────────
-
-  it('opens the status tab that actually holds the results', async () => {
-    url.search = 'q=%D7%A1%D7%A4%D7%99'
-    const { rerender } = render(<ClientsTable data={[]} user={null} leads={true} />)
-    rerender(<ClientsTable data={[makeLead({ id: 7, name: 'ספי ברהנה', status: 'contacted' })]} user={null} leads={true} />)
-
-    await waitFor(() => expect(screen.getByText('ספי ברהנה')).toBeInTheDocument())
-  })
-
-  // ── empty states ─────────────────────────────────────────────────────────
 
   it('a search that matched nothing is filtered-empty, never first-run', () => {
     url.search = 'q=%D7%9C%D7%90%D7%A7%D7%99%D7%99%D7%9D'
@@ -430,22 +472,88 @@ describe('ClientsTable — workspace search', () => {
     expect(screen.getByText('אין עדיין לידים')).toBeInTheDocument()
   })
 
-  // ── /clients shares the model ────────────────────────────────────────────
+  // ── result count ──────────────────────────────────────────────────────────
 
-  it('/clients uses the same search model — q, never clientId', async () => {
+  it('shows a compact result count beside the input while searching', () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    render(<ClientsTable data={[makeLead({ id: 7 }), makeLead({ id: 9 })]} user={null} leads={true} />)
+    expect(screen.getByText('2 תוצאות')).toBeInTheDocument()
+  })
+
+  it('singularises one result', () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    render(<ClientsTable data={[makeLead({ id: 7 })]} user={null} leads={true} />)
+    expect(screen.getByText('תוצאה אחת')).toBeInTheDocument()
+  })
+
+  it('shows NO count when the workspace is unfiltered', () => {
+    render(<ClientsTable data={[makeLead()]} user={null} leads={true} />)
+    expect(screen.queryByText(/תוצא/)).not.toBeInTheDocument()
+  })
+
+  it('does not repeat the search term anywhere outside the input', () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    render(<ClientsTable data={[makeLead({ id: 7, name: 'אחר' })]} user={null} leads={true} />)
+
+    // The old chip echoed the term above the tabs; the box is now the only place.
+    expect(screen.queryByText(/חיפוש: /)).not.toBeInTheDocument()
+    expect(screen.getAllByDisplayValue('ספי')).toHaveLength(1)
+  })
+
+  // ── F. tabs ───────────────────────────────────────────────────────────────
+
+  it('opens the status tab that actually holds the results', async () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    const { rerender } = render(<ClientsTable data={[]} user={null} leads={true} />)
+    rerender(<ClientsTable data={[makeLead({ id: 7, name: 'ספי ברהנה', status: 'contacted' })]} user={null} leads={true} />)
+
+    await waitFor(() => expect(screen.getByText('ספי ברהנה')).toBeInTheDocument())
+  })
+
+  it('leaves the tab alone when it still holds results', async () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    render(
+      <ClientsTable
+        data={[makeLead({ id: 7, name: 'ספי חדש', status: 'new' }), makeLead({ id: 9, name: 'ספי בטיפול', status: 'contacted' })]}
+        user={null}
+        leads={true}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('ספי חדש')).toBeInTheDocument())
+    expect(screen.queryByText('ספי בטיפול')).not.toBeInTheDocument()
+  })
+
+  it('respects a manual tab choice and never overrides it again', async () => {
+    url.search = 'q=%D7%A1%D7%A4%D7%99'
+    const { rerender } = render(<ClientsTable data={[makeLead({ id: 9, name: 'ספי בטיפול', status: 'contacted' })]} user={null} leads={true} />)
+    await waitFor(() => expect(screen.getByText('ספי בטיפול')).toBeInTheDocument())
+
+    // The rep deliberately moves to an empty tab…
+    fireEvent.click(screen.getByRole('button', { name: /^מעוניין\b/ }))
+    expect(screen.queryByText('ספי בטיפול')).not.toBeInTheDocument()
+
+    // …and a further result set must not bounce them out of it.
+    rerender(<ClientsTable data={[makeLead({ id: 9, name: 'ספי בטיפול', status: 'contacted' })]} user={null} leads={true} />)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.queryByText('ספי בטיפול')).not.toBeInTheDocument()
+  })
+
+  // ── G. /clients ───────────────────────────────────────────────────────────
+
+  it('/clients searches live the same way', async () => {
     render(<ClientsTable data={[makeLead()]} user={null} leads={false} />)
-    await type('ספי')
-    fireEvent.mouseDown(await screen.findByRole('option', { name: 'ספי ברהנה (123456789)' }))
+    typeText('ספי')
 
-    await waitFor(() => expect(routerPush).toHaveBeenCalled())
-    expect(navParams().get('q')).toBe('ספי ברהנה')
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1))
+    expect(navParams().get('q')).toBe('ספי')
     expect(lastNav()[0]).not.toContain('clientId')
     expect(routerPush.mock.calls[0][1]).toEqual({ scroll: false })
   })
 
-  it('/clients shows the chip too', () => {
+  it('/clients shows the result count too', () => {
     url.search = 'q=%D7%A1%D7%A4%D7%99'
-    render(<ClientsTable data={[makeLead()]} user={null} leads={false} />)
-    expect(screen.getByRole('button', { name: /נקה חיפוש: ספי/ })).toBeInTheDocument()
+    render(<ClientsTable data={[makeLead({ id: 7 })]} user={null} leads={false} />)
+    expect(screen.getByText('תוצאה אחת')).toBeInTheDocument()
   })
 })
