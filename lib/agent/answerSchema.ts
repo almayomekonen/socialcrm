@@ -44,7 +44,25 @@ const recommendationClaim = z.object({
   evidence: z.array(z.string()),
 })
 
-export const agentClaimSchema = z.discriminatedUnion('claimClass', [
+/**
+ * A PLAIN union, not `z.discriminatedUnion`, and that is a provider constraint
+ * rather than a modelling choice.
+ *
+ * OpenAI Structured Outputs permits `anyOf` and explicitly forbids `oneOf`. Zod
+ * emits `oneOf` for a discriminated union and `anyOf` for a plain one, so the
+ * discriminated form made every OpenAI request fail schema validation before any
+ * inference — `Invalid schema for response_format 'response': In
+ * context=('properties','claims','items'), 'oneOf' is not permitted` — while
+ * Anthropic, which accepts `oneOf`, had been fine with it.
+ *
+ * Nothing about the contract changes. The four variants keep their distinct
+ * `claimClass` literals and their differently-named evidence fields, so parsing
+ * still admits exactly the same payloads and rejects exactly the same ones. What
+ * is given up is only zod's parse-time discriminator shortcut — an optimisation,
+ * never a guarantee. The guarantee lives in lib/agent/validate.ts, which resolves
+ * each class's refs against the evidence the tools actually collected.
+ */
+export const agentClaimSchema = z.union([
   factClaim,
   observationClaim,
   inferenceClaim,
