@@ -21,12 +21,18 @@ export function useSelectSearchKeyboard<T>({
   data,
   isOpen,
   setIsOpen,
-  onSelect,
+  onCommit,
 }: {
   data: T[]
   isOpen: boolean
   setIsOpen: (open: boolean) => void
-  onSelect: (el: T) => void
+  /**
+   * Commit whatever Enter should commit. Receives the highlighted index, or -1
+   * when the user has not explicitly chosen a row. Returns true if it handled
+   * the key — the hook only calls `preventDefault` when it did, so a consumer
+   * with nothing to commit leaves a host form's implicit submit intact.
+   */
+  onCommit: (highlightedIndex: number) => boolean
 }) {
   const listboxId = useId()
   const [highlight, setHighlight] = useState(-1)
@@ -49,7 +55,7 @@ export function useSelectSearchKeyboard<T>({
    *
    * `SelectSearch` sits inside real forms elsewhere (SaleForm, AddTaskForm, the
    * tasks filter bar), where Enter submits the form today and must keep doing
-   * so. With no list open — or an open list with nothing in it — every key is
+   * so. With no list open — or nothing for the consumer to commit — every key is
    * passed straight through. No form is introduced, and Enter causes no
    * navigation a mouse click would not have caused.
    */
@@ -76,11 +82,10 @@ export function useSelectSearchKeyboard<T>({
     }
 
     if (e.key === 'Enter') {
-      if (!isOpen || data.length === 0) return
+      if (!isOpen) return
+      if (!onCommit(highlight)) return
       e.preventDefault()
-      const chosen = data[highlight >= 0 ? highlight : 0]
       setHighlight(-1)
-      onSelect(chosen)
     }
   }
 

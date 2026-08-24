@@ -7,9 +7,10 @@
  * returned zero rows, not a component that mis-rendered a known result.
  *
  * Covers, in order:
- *   · a targeted `?clientId=` lookup survives pagination and `view=due`
- *   · an unparseable `?clientId=` cannot crash the page (was `22P02`)
- *   · a targeted lookup is still agency- and permission-scoped
+ *   · `?q=` narrows the workspace instead of replacing it with one record
+ *   · multi-term search is order-independent and agrees with the autocomplete
+ *   · search composes with a saved list and with `view=due`
+ *   · search is still agency- and permission-scoped
  *   · the autocomplete obeys the same permission rule as the table
  *   · a bad or foreign `?listId=` cannot crash or expose anything
  */
@@ -65,6 +66,7 @@ let adminB: TestUser
 let leadNew: number // agencyA / repA1 / status 'new'
 let leadClosed: number // agencyA / repA1 / status 'closed' — never "due"
 let leadOfOtherRep: number // agencyA / repA2 — invisible to repA1
+let leadSecondSefi: number // agencyA / repA1 — proves a partial term returns a SET
 let leadOfAgencyB: number
 
 function setCurrentUser(user: TestUser) {
@@ -93,7 +95,8 @@ async function purge(ids: number[]) {
 /** The list read exactly as `app/(app)/leads/page.tsx` performs it. */
 async function leadsTableFor(user: TestUser, params: Record<string, unknown>) {
   const { gotPermIds } = await getPerms(user)
-  return getLeadsTable({ user, params, leads: true, gotPermIds })
+  const q = typeof params.q === 'string' ? params.q : ''
+  return getLeadsTable({ user, params, leads: true, gotPermIds, filters: q ? { q } : null })
 }
 
 const ids = (rows: { id: number }[]) => rows.map((r) => Number(r.id))
@@ -138,6 +141,7 @@ describe('lead search scope', () => {
     leadNew = await mkLead(repA1, { firstName: 'ספי', lastName: 'ברהנה', status: 'new' })
     leadClosed = await mkLead(repA1, { firstName: 'סגור', lastName: 'עסקה', status: 'closed' })
     leadOfOtherRep = await mkLead(repA2, { firstName: 'שייך', lastName: 'לאחר', status: 'new', idNum: '123456789' })
+    leadSecondSefi = await mkLead(repA1, { firstName: 'ספי', lastName: 'מזרחי', status: 'interested' })
     leadOfAgencyB = await mkLead(adminB, { firstName: 'סוכנות', lastName: 'אחרת', status: 'new' })
   })
 
@@ -149,50 +153,78 @@ describe('lead search scope', () => {
     }
   })
 
-  // ── Targeted lookup vs list constraints ────────────────────────────────────
+  // ── Search narrows the workspace; it does not replace it ───────────────────
 
-  it('returns the requested lead on pageNum=2 (offset must not hide it)', async () => {
+  it('an exact two-word search finds the lead', async () => {
     setCurrentUser(adminA)
-    const rows = await leadsTableFor(adminA, { clientId: String(leadNew), pageNum: '2' })
-    expect(ids(rows)).toEqual([leadNew])
+    expect(ids(await leadsTableFor(adminA, { q: 'ספי ברהנה' }))).toEqual([leadNew])
   })
 
-  it('returns the requested lead on pageNum=3', async () => {
+  it('a partial term returns every match — a search, not a record lookup', async () => {
     setCurrentUser(adminA)
-    const rows = await leadsTableFor(adminA, { clientId: String(leadNew), pageNum: '3', tableLimit: '100' })
-    expect(ids(rows)).toEqual([leadNew])
+    const rows = await leadsTableFor(adminA, { q: 'ספי' })
+    expect(ids(rows)).toEqual(expect.arrayContaining([leadNew, leadSecondSefi]))
+    expect(rows.length).toBeGreaterThan(1)
   })
 
-  it('returns the requested lead under view=due even though it is not due', async () => {
+  it('reversed terms match — the table agrees with the autocomplete', async () => {
     setCurrentUser(adminA)
-    // Sanity: a closed lead is never a member of the due worklist.
-    const dueOnly = await leadsTableFor(adminA, { view: 'due' })
-    expect(ids(dueOnly)).not.toContain(leadClosed)
-
-    const rows = await leadsTableFor(adminA, { clientId: String(leadClosed), view: 'due' })
-    expect(ids(rows)).toEqual([leadClosed])
+    // The autocomplete splits on whitespace and ANDs the terms; before this the
+    // table matched one un-split `%q%` and returned nothing for this query.
+    expect(ids(await leadsTableFor(adminA, { q: 'ברהנה ספי' }))).toEqual([leadNew])
   })
 
-  it('an unparseable clientId does not throw 22P02 and falls back to the normal list', async () => {
+  it('a search that matches nothing returns zero rows without throwing', async () => {
     setCurrentUser(adminA)
-    const rows = await leadsTableFor(adminA, { clientId: 'ספי ברהנה' })
-    expect(ids(rows)).toEqual(expect.arrayContaining([leadNew, leadClosed, leadOfOtherRep]))
-    expect(ids(rows)).not.toContain(leadOfAgencyB)
+    await expect(leadsTableFor(adminA, { q: 'לאקייםבכלל' })).resolves.toHaveLength(0)
+  })
+
+  it('search composes with view=due instead of bypassing it', async () => {
+    setCurrentUser(adminA)
+    // leadClosed is never a member of the due worklist, so a due-scoped search
+    // for it must return nothing — the search narrows, it does not override.
+    expect(ids(await leadsTableFor(adminA, { q: 'סגור', view: 'due' }))).toHaveLength(0)
+    expect(ids(await leadsTableFor(adminA, { q: 'סגור' }))).toEqual([leadClosed])
+  })
+
+  it('search composes with a saved list', async () => {
+    setCurrentUser(adminA)
+    const [list] = await db('client_lists')
+      .insert({ userId: adminA.id, title: '__test_list_compose__', clientIds: [leadNew] })
+      .returning('id')
+
+    expect(ids(await leadsTableFor(adminA, { q: 'ספי', listId: String(list.id) }))).toEqual([leadNew])
+    // …and a lead outside the list is excluded even though it matches the term.
+    expect(ids(await leadsTableFor(adminA, { q: 'ספי', listId: String(list.id) }))).not.toContain(leadSecondSefi)
+  })
+
+  it('pagination applies normally to search results', async () => {
+    setCurrentUser(adminA)
+    const page1 = await leadsTableFor(adminA, { q: 'ספי', tableLimit: '1', pageNum: '1' })
+    const page2 = await leadsTableFor(adminA, { q: 'ספי', tableLimit: '1', pageNum: '2' })
+    expect(page1).toHaveLength(1)
+    expect(page2).toHaveLength(1)
+    expect(ids(page1)[0]).not.toBe(ids(page2)[0])
+  })
+
+  it('a leftover ?clientId= no longer scopes the list to one record', async () => {
+    setCurrentUser(adminA)
+    const rows = await leadsTableFor(adminA, { clientId: String(leadNew) })
+    expect(rows.length).toBeGreaterThan(1)
   })
 
   // ── Security boundaries the fix must NOT relax ─────────────────────────────
 
-  it('a targeted lookup stays agency-scoped', async () => {
+  it('search stays agency-scoped', async () => {
     setCurrentUser(adminA)
-    const rows = await leadsTableFor(adminA, { clientId: String(leadOfAgencyB) })
-    expect(rows).toHaveLength(0)
+    expect(await leadsTableFor(adminA, { q: 'אחרת' })).toHaveLength(0)
   })
 
-  it('a targeted lookup stays permission-scoped for non-admins', async () => {
+  it('search stays permission-scoped for non-admins', async () => {
     setCurrentUser(repA1)
-    expect(ids(await leadsTableFor(repA1, { clientId: String(leadOfOtherRep) }))).toHaveLength(0)
-    // …and the rep's own lead is still reachable the same way.
-    expect(ids(await leadsTableFor(repA1, { clientId: String(leadNew) }))).toEqual([leadNew])
+    expect(ids(await leadsTableFor(repA1, { q: 'לאחר' }))).toHaveLength(0)
+    // …and the rep's own lead is still reachable by the same search.
+    expect(ids(await leadsTableFor(repA1, { q: 'ברהנה' }))).toEqual([leadNew])
   })
 
   // ── Autocomplete permissions ───────────────────────────────────────────────

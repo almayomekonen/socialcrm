@@ -22,6 +22,14 @@ type Props = {
   required?: boolean
   /** Fired when the user empties the input. Lets a consumer drop its URL scope. */
   onClear?: () => void
+  /**
+   * Commit the raw typed text as a search. When provided, Enter with no row
+   * explicitly highlighted searches for what the user typed instead of jumping
+   * to the top suggestion — which is the only way a partial term like "ספי" can
+   * ever reach the server. Consumers that are pickers, not searches, omit it and
+   * keep the pick-the-top-match behaviour.
+   */
+  onSubmitText?: (text: string) => void
 }
 
 export function SelectSearch({
@@ -39,6 +47,7 @@ export function SelectSearch({
   searchFunc,
   onSelectOpt,
   onClear,
+  onSubmitText,
   required = true,
 }: Props) {
   const debouncedSearch = useMemo(
@@ -68,6 +77,24 @@ export function SelectSearch({
 
   // NEW ----------------
   const prevSelectedRef = useRef<any>(selected)
+
+  /**
+   * Follow `initShow` when the OWNER changes it.
+   *
+   * `onSelect` writes the suggestion's display text straight into the input, and
+   * for the workspace search that text is `details` — "ספי ברהנה (123456789)" —
+   * while the committed term, the URL and the chip all say "ספי ברהנה". The box
+   * would keep showing a national id the search is not using. The input is
+   * uncontrolled, so a changed `defaultValue` does nothing on its own; this
+   * syncs it to whatever the URL now says the search is, and empties it when the
+   * search is cleared.
+   */
+  const prevInitShowRef = useRef<any>(initShow)
+  useEffect(() => {
+    if (prevInitShowRef.current === initShow) return
+    prevInitShowRef.current = initShow
+    if (inputRef.current) inputRef.current.value = initShow ?? ''
+  }, [initShow])
 
   useEffect(() => {
     if (prevSelectedRef.current !== selected) {
@@ -112,11 +139,39 @@ export function SelectSearch({
     if (onSelectOpt) onSelectOpt(el)
   }
 
+  /**
+   * What Enter commits.
+   *
+   * An explicit highlight always wins — arrowing to a row and pressing Enter is
+   * the same act as clicking it. Otherwise a search consumer commits the typed
+   * text (so "ספי" searches for "ספי"), and a picker consumer keeps taking the
+   * top match, which is what every non-search `SelectSearch` in the app has
+   * always done. Returning false means "not mine" and lets the key through.
+   */
+  function onCommit(index: number): boolean {
+    if (index >= 0 && data[index]) {
+      onSelect(data[index])
+      return true
+    }
+    const typed = (inputRef.current?.value ?? '').trim()
+    if (onSubmitText) {
+      if (!typed) return false
+      setIsOpen(false)
+      onSubmitText(typed)
+      return true
+    }
+    if (data.length > 0) {
+      onSelect(data[0])
+      return true
+    }
+    return false
+  }
+
   const { listboxId, highlight, setHighlight, optionRefs, onKeyDown } = useSelectSearchKeyboard({
     data,
     isOpen,
     setIsOpen,
-    onSelect,
+    onCommit,
   })
 
   // function deselect() {
