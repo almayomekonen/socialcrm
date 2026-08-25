@@ -156,14 +156,14 @@ Phases 4–6 are explicitly speculative. They will not be designed in detail unt
 
 These are the failure modes we have seen in similar products. Avoid all of them.
 
-| Anti-pattern                                                 | Why it fails                                                                            |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Building a chatbot first, then "intelligence features" later | Locks the product into conversational UX. We never recover the operational positioning. |
-| Shipping cold-only AI surfaces                               | First impressions are slow → users decide AI is broken → they ignore it forever.        |
-| One AI surface that does too much                            | Becomes a kitchen sink. Users don't trust it. We can't measure it.                      |
-| Adding AI to dashboards before per-entity AI is solid        | Aggregations expose hallucinations at scale. Trust collapses.                           |
-| Building "AI settings" before AI is consistent               | Surfaces our internal trade-offs to users who do not care.                              |
-| Letting AI drive notifications                               | Users disable notifications, and now AI is invisible.                                   |
+| Anti-pattern                                                 | Why it fails                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Building a chatbot first, then "intelligence features" later | Locks the product into conversational UX. We never recover the operational positioning.                                                                                                                                                                                                                           |
+| Shipping cold-only AI surfaces                               | First impressions are slow → users decide AI is broken → they ignore it forever.                                                                                                                                                                                                                                  |
+| One AI surface that does too much                            | Becomes a kitchen sink. Users don't trust it. We can't measure it.                                                                                                                                                                                                                                                |
+| Adding AI to dashboards before per-entity AI is solid        | Aggregations expose hallucinations at scale. Trust collapses.                                                                                                                                                                                                                                                     |
+| Building "AI settings" before AI is consistent               | Surfaces our internal trade-offs to users who do not care.                                                                                                                                                                                                                                                        |
+| Letting AI drive notification **volume**                     | Users disable notifications, and now AI is invisible. Narrowed by DA-001: a notification produced under the Vigilance Notification Exception (`ai-safety-boundaries.md` §9.1) is not this anti-pattern — that path is deterministically gated and defaults to silence. AI choosing _how much_ to notify still is. |
 
 ---
 
@@ -185,3 +185,15 @@ The product wins by **deepening** existing AI surfaces, not by **multiplying** t
 ## 11. RELATIONSHIP TO PROJECT ROADMAP
 
 This doc covers **AI** sequencing only. Non-AI roadmap concerns (lead import improvements, settings UX, etc.) are owned outside this folder. AI work yields right-of-way to non-AI work whenever the product's priority actions (`CLAUDE.md` §9) need attention.
+
+---
+
+## AMENDMENT HISTORY
+
+Append-only.
+
+- **DA-001 — The Vigilance Notification Exception (2026-08-25).** Narrowed this doc's
+  prohibition on AI-driven notifications to a single deterministically gated path.
+  The exception and its thirteen conditions are defined in
+  [`ai-safety-boundaries.md`](./ai-safety-boundaries.md) §9.1 and are deliberately not
+  restated here.

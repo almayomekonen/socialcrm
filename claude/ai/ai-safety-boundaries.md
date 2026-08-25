@@ -132,7 +132,7 @@ The distinction: the AI may describe **what is observable in the CRM**. It may n
 AI is a quiet helper, not a presenter.
 
 - One primary AI surface per user view. (Refresh button is not a separate surface.)
-- No AI notifications outside surfaces the user already opened.
+- No AI notifications outside surfaces the user already opened, except under §9.1.
 - No AI banners across the top of unrelated pages.
 - No AI-driven popups or modals.
 - No AI badges that escalate visually over time ("urgent!", "important!", color-coded panic).
@@ -140,6 +140,94 @@ AI is a quiet helper, not a presenter.
 If AI has nothing to say, it says nothing. An empty insight area is mature, not broken.
 
 → See [`ai-ux-principles.md`](./ai-ux-principles.md) §3 for surface density rules.
+
+### 9.1 The Vigilance Notification Exception (amendment DA-001)
+
+This is the **only** circumstance in which AI output may reach a user who has not
+opened a surface. It narrows the rule above; it does not reverse it. An absolute
+prohibition becomes a prohibition with one gate, and every condition of that gate
+is deterministic.
+
+**Why the prohibition existed.** It was written when AI output was a per-lead card,
+generated on demand from a prompt, with no evidence validation, no admission control,
+and no mechanism capable of deciding _not_ to speak. Under those conditions a
+notification channel would have been a volume channel: the model would have chosen
+both what to say and how loudly. One unnecessary interruption discounts every future
+one, and that loss is unrecoverable (`/claude/brand-principles.md` §6.1).
+
+**What changed.** The ratified architecture now supplies the decider that was missing.
+Constitution XI.4 makes surfacing a genuinely dropped critical item a **duty**, and
+states that escalating one is never "noise"; XI.5 keeps the interruption bar over
+everything else. Cognitive Architecture J routes exactly one grounded, reversible
+outcome — `Recommend` — to the human, behind a value and taste gate, and AI Runtime
+Architecture §3.9 names the effector that carries it. The prohibition was written
+against a system that could not tell a dropped ball from a remark. That system no
+longer describes what we build.
+
+**Why the exception is necessary.** Without it the duty in XI.4 cannot be discharged.
+A dropped ball surfaced only inside a page the user already opened is surfaced only
+to a user who was already looking — which is precisely the case where nothing was
+dropped. The vigilance duty and the "already opened" rule cannot both hold. The
+Constitution is supreme (Article 0.1, 0.3), so this rule yields, explicitly and in
+writing rather than silently (Article 0.4).
+
+**The gate.** An AI-originated notification is permitted only when **all thirteen** of
+the following hold. If any one fails, the notification is not permitted and the
+correct outcome is silence.
+
+1.  The originating signal was **deterministically detected**. No model participated
+    in deciding that something happened.
+2.  The investigation was **admitted by deterministic policy** — budget, staleness,
+    coverage and fairness. No model participates in admission.
+3.  Reasoning completed through the **existing Agent runtime**. No second agent loop,
+    no second reasoning path.
+4.  Every surfaced claim passed the **existing evidence validation**, with
+    class-specific evidence membership unchanged.
+5.  **Subject anchoring** is satisfied: at least one surviving citation is an entity
+    belonging to the subject the notification is about.
+6.  The **deterministic Tool/Action Gate** accepted the conclusion, and its ordered
+    decision trace is recorded.
+7.  The **deterministic value/taste bar** accepted it (Cognitive Architecture J
+    Gate 2; Constitution XIII).
+8.  The model set **no urgency, severity, priority, or delivery decision**. These are
+    not model-writable fields. The model's judgement may only ever _reduce_ what is
+    surfaced; it may never authorize it.
+9.  Delivery went through the **existing notification lifecycle** — the same registry,
+    recipient rules, collapse keys and channel policy every other notification uses.
+    No parallel delivery path.
+10. The notification remains **subject/entity-addressed**: it deep-links to the ליד,
+    never to an AI artefact, and it creates no new AI surface.
+11. The system remained **read-only** — no CRM write, no autonomous send, no belief
+    written back into the world model.
+12. **Silence remained the default.** Producing nothing is the expected outcome and
+    must cost nothing extra.
+13. The notification **does not duplicate a fact an existing deterministic
+    notification type already owns and delivers**. Where the same business fact is
+    already owned by deterministic notification infrastructure, deterministic
+    delivery wins and the AI stays silent. AI may surface only a materially new,
+    evidence-grounded conclusion that the existing deterministic notification could
+    not have delivered on its own. (One owner per live signal —
+    `/claude/brand-principles.md` §6.3.)
+
+**What remains prohibited — unchanged by this amendment.**
+
+- Every other bullet of §9. No AI banners, no AI-driven popups or modals, no
+  escalating AI badges, and still one primary AI surface per user view.
+- AI-driven notification of anything that is not a gated `Recommend` — summaries,
+  digests, tips, product education, engagement, usage reminders, and anything whose
+  purpose serves the system rather than the user (`/claude/care-charter.md` Law 12;
+  `/claude/brand-principles.md` §6.4).
+- A model deciding _whether_ to notify. It may decline. It may never authorize.
+- A new AI page, dock, tab, feed, or notification centre
+  ([`ai-ux-principles.md`](./ai-ux-principles.md) §1).
+- §1 in full: AI still mutates, sends, schedules and commits nothing without an
+  explicit user click. A notification is a surfacing, not an action.
+- §13 in full: an AI surface that could mislead the user about the state of their
+  business is still not safe enough to ship.
+
+This exception is **not a general permission for AI-driven notifications** and must
+never be cited as one. It authorizes a single path, gated thirteen ways, whose only
+purpose is to discharge a constitutional duty the previous wording made impossible.
 
 ---
 
@@ -183,3 +271,26 @@ A prompt-only fix to a safety violation is not enough. Safety failures get archi
 No exceptions. Editorial polish does not override this. Speed does not override this. Cost pressure does not override this.
 
 → Companion: [`/claude/do-not-touch.md`](../do-not-touch.md) §7 (the project's golden rule for protected systems). Same posture, applied to AI.
+
+---
+
+## 14. AMENDMENT HISTORY
+
+Append-only. This doc sits below the ratified stack and carries no version of its
+own; amendments are recorded here so a change to a trust rule can never be silent
+(Constitution Article 0.4, 0.6).
+
+### DA-001 — The Vigilance Notification Exception (2026-08-25)
+
+- **Motivation.** Phase 4 (autonomous investigation) must deliver a deterministically
+  gated `Recommend` to a נציג who is not currently looking at a surface. Constitution
+  XI.4 makes that a duty; §9 forbade it absolutely.
+- **What changed.** §9 bullet 2 gains an exception pointer. New §9.1 defines the
+  exception, its thirteen conditions, and what stays prohibited.
+- **Why the previous doctrine became insufficient.** It was written for on-demand
+  prompt output with no evidence validation, no admission control, and no ability to
+  decide not to speak. The ratified stack now supplies a deterministic decider, so a
+  blanket prohibition no longer matches the system it governs.
+- **Scope.** A narrowing, not a reversal: one path, thirteen conditions, silence by
+  default. Companion edits: `ai-roadmap.md` §9, `ai-product-philosophy.md` §2.3.
+  **No ratified document was modified**, and no code or test changed.
