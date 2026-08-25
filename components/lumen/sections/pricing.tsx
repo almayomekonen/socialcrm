@@ -1,0 +1,275 @@
+'use client';
+
+import { Check, ChevronRight, X } from 'lucide-react';
+import { motion } from 'motion/react';
+import Link from 'next/link';
+import { useState } from 'react';
+
+import Noise from '@/components/lumen/noise';
+import { Badge } from '@/components/lumen/ui/badge';
+import { Button } from '@/components/lumen/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/lumen/ui/card';
+import { Switch } from '@/components/lumen/ui/switch';
+import { cn } from '@/components/lumen/utils';
+
+import Logo from '../layout/logo';
+import {
+  PRICING,
+  ANNUAL_MONTHLY_EQUIVALENT,
+  ANNUAL_DISCOUNT_PERCENT,
+} from '@/lib/pricing';
+
+const pricingPlans = {
+  individual: {
+    title: 'חינם',
+    subtitle: 'להתחיל בלי כרטיס אשראי',
+    description: 'לבעל עסק שמנהל לידים לבד',
+    monthlyPrice: 0,
+    annualPrice: 0,
+    popular: false,
+    features: [
+      { name: 'עד 50 לידים', included: true },
+      { name: 'חיבור לפייסבוק, אינסטגרם ווואטסאפ', included: true },
+      { name: 'סטטוסים, נציגים ותאריכי מעקב', included: true },
+      { name: 'ייבוא מאקסל, ייצוא לאקסל ו-PDF', included: true },
+      { name: 'לידים ללא הגבלה', included: false },
+      { name: 'תקציר חכם ופעולה מומלצת', included: false },
+      { name: 'טיוטות להודעות מעקב', included: false },
+      { name: 'שאלות חופשיות על הליד', included: false },
+    ],
+    cta: { text: 'ההרשמה לוקחת פחות מדקה', button: 'התחל בחינם' },
+  },
+  team: {
+    title: 'Pro',
+    subtitle: 'כשהלידים מתחילים להצטבר',
+    description: 'לעסק או לצוות מכירות',
+    monthlyPrice: PRICING.monthly,
+    annualPrice: ANNUAL_MONTHLY_EQUIVALENT,
+    popular: true,
+    features: [
+      { name: 'לידים ללא הגבלה', included: true },
+      { name: 'תקציר חכם על כל ליד', included: true },
+      { name: 'פעולה מומלצת עם הסיבה שלה', included: true },
+      { name: 'טיוטות להודעות מעקב', included: true },
+      { name: 'שאלות חופשיות על הליד', included: true },
+      { name: 'שיוך לידים לנציגים', included: true },
+      { name: 'חלוקת עמלות על עסקה משותפת', included: true },
+      { name: 'מחיר אחד לסביבת העבודה', included: true },
+    ],
+    cta: { text: 'בלי תוספת לכל נציג', button: 'שדרגו ל-Pro' },
+  },
+};
+
+
+/**
+ * `headingLevel` exists only so the dedicated `/pricing` route can own the
+ * page's single <h1> while the homepage — which already has its own <h1> —
+ * keeps this section at <h2>. Same classes, same copy: the tag is the only
+ * difference, so nothing moves visually.
+ */
+export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' | 'h2' } = {}) {
+  const Heading = headingLevel
+  const [isAnnual, setIsAnnual] = useState(false);
+
+  return (
+    <section className="section-padding relative overflow-hidden">
+      {/* Background Image with Mask */}
+      <div className="absolute size-full mask-t-from-50% mask-t-to-100% mask-b-from-50% mask-b-to-90%">
+        <div
+          className={cn(
+            'bg-chart-2 absolute size-full rounded-full blur-3xl will-change-transform',
+            'top-0 left-0 -translate-y-1/3 md:-translate-x-1/3 md:translate-y-0',
+          )}
+        />
+        <div
+          className={cn(
+            'bg-chart-3 absolute size-full rounded-full blur-3xl will-change-transform',
+            'right-0 bottom-0 translate-y-1/3 md:top-0 md:translate-x-1/3 md:-translate-y-0',
+          )}
+        />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="from-background/30 to-background/30 pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b"
+      />
+      <div className="relative z-[2]">
+        <Noise />
+      </div>
+
+      <div className="bigger-container relative z-10">
+        {/* Section Header */}
+        <div className="flex flex-col items-center justify-between gap-8 md:flex-row md:items-end">
+          {/* Left side - Title and subtitle */}
+          <div className="">
+            <Heading className="text-center text-4xl font-semibold tracking-tighter md:text-start md:text-6xl md:leading-none lg:text-7xl">
+              מתנסים שבוע במערכת המלאה, <br className="hidden md:block" />
+              וממשיכים רק אם זה עובד לכם.
+            </Heading>
+            <p className="text-muted-foreground/70 mt-3 hidden text-lg leading-relaxed md:block lg:mt-4">
+              שבעה ימים עם כל מה שיש במערכת, כולל ה-AI המלא. בלי כרטיס אשראי,
+              בלי התחייבות.
+            </p>
+          </div>
+
+          {/* Right side - Billing Switch */}
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  'text-lg font-semibold transition-colors',
+                  !isAnnual ? 'text-foreground' : 'text-muted-foreground/70',
+                )}
+              >חודשי</span>
+              <Switch
+                checked={isAnnual}
+                onCheckedChange={setIsAnnual}
+                // `bg-secondary` is rebranded to #5e6ad2 site-wide; pin this
+                // control back to the template's own accent.
+                className="data-[state=checked]:bg-[oklch(0.585_0.132_257)]"
+              />
+              <span
+                className={cn(
+                  'text-lg font-semibold transition-colors',
+                  isAnnual ? 'text-foreground' : 'text-muted-foreground/70',
+                )}
+              >שנתי</span>
+            </div>
+            <p className="text-center text-sm font-semibold">
+              חיסכון של {ANNUAL_DISCOUNT_PERCENT}% בתשלום שנתי
+            </p>
+          </div>
+        </div>
+
+        {/* Pricing Cards */}
+        <div className="mx-auto mt-8 grid gap-4 lg:mt-12 lg:grid-cols-2">
+          {Object.entries(pricingPlans).map(([key, plan]) => {
+            /**
+             * Free plan enters the registration funnel. The paid plan goes
+             * through the EXISTING upgrade endpoint — the same one every
+             * in-product upgrade button uses — because that route already owns
+             * auth (anonymous → /auth), annual-link gating, intent recording
+             * and analytics. Sending the paid CTA to /auth instead is what made
+             * a signed-in visitor who clicked "שדרגו ל-Pro" land on the
+             * dashboard with no way to buy. No session is read here: the route
+             * decides, so the marketing page stays static and DB-free.
+             */
+            const isFreePlan = key === 'individual'
+            const upgradeHref = `/api/payments/upgrade?period=${isAnnual ? 'annual' : 'monthly'}&source=marketing_pricing`
+            return (
+            <Card
+              key={key}
+              className="bg-border hover:shadow-primary/5 h-full gap-4 p-3 transition-all duration-300 hover:shadow-lg md:p-6"
+            >
+              <CardHeader className="bg-card rounded-md p-4 md:p-6">
+                {/* Header with title and badge */}
+                <div className="flex items-start justify-between">
+                  <h3 className="text-xl">{plan.title}</h3>
+                  {plan.popular && (
+                    <Badge className="rounded-none bg-[#FFE6D0] px-4 py-1 text-[#8A3600]">
+                      התוכנית המומלצת
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Subtitle and description */}
+                <div className="mt-6 text-2xl md:mt-8 md:space-y-2 md:text-4xl">
+                  <div className="text-muted-foreground/70">
+                    {plan.subtitle}
+                  </div>
+                  <div className="font-semibold">{plan.description}</div>
+                </div>
+
+                {/* Price and contact section */}
+                <div className="mt-8 flex flex-col justify-between gap-8 md:mt-10 md:flex-row">
+                  {/* Left side - Price and main CTA */}
+                  <div className="flex flex-1 flex-wrap justify-between gap-4 md:flex-col md:gap-8">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-semibold">{PRICING.currency}</span>
+                      <span className="text-5xl md:text-6xl">
+                        {isAnnual ? plan.annualPrice : plan.monthlyPrice}
+                      </span>
+                      <span className="text-2xl">/לחודש</span>
+                    </div>
+                    <Button className="h-10 !pl-5.5" asChild>
+                      {isFreePlan ? (
+                        <Link href="/auth">
+                          {plan.cta.button}
+                          <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
+                            <ChevronRight className="size-4 rtl:rotate-180" />
+                          </div>
+                        </Link>
+                      ) : (
+                        /* Plain <a>, matching every other upgrade entry point:
+                           this is a route handler that issues a redirect, not a
+                           page for the client router to prefetch. */
+                        <a href={upgradeHref}>
+                          {plan.cta.button}
+                          <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
+                            <ChevronRight className="size-4 rtl:rotate-180" />
+                          </div>
+                        </a>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Right side - Contact info */}
+                  <div className="bg-border flex-1 space-y-4 p-6">
+                    <div className="flex justify-between gap-6">
+                      <p className="text-card-foreground text-xs leading-none font-semibold">
+                        {plan.cta.text}
+                      </p>
+                      <Logo className="h-5 w-auto gap-1.5 [&_img]:size-4 [&_span]:text-[13px]" />
+                    </div>
+                    <Button
+                      variant="light"
+                      className="group h-10 w-full"
+                      asChild
+                    >
+                      <Link href="mailto:alamayo274@gmail.com">
+                        דברו איתנו
+                        <div className="bg-border border-input grid size-5.5 place-items-center rounded-full border">
+                          <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.25" />
+                        </div>
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-4 p-4 md:grid-cols-2 md:p-6">
+                {plan.features.map((feature, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <div className="">
+                      {feature.included ? (
+                        <div className="border-muted-foreground flex size-4 items-center justify-center rounded-full border-[0.5px]">
+                          <Check className="text-muted-foreground size-2" />
+                        </div>
+                      ) : (
+                        <div className="border-muted-foreground flex size-4 items-center justify-center rounded-full border-[0.5px]">
+                          <X className="text-muted-foreground/70 size-2" />
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-sm',
+                        feature.included
+                          ? 'text-muted-foreground'
+                          : 'text-muted-foreground/70',
+                      )}
+                    >
+                      {feature.name}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { buildPageMetadata } from '@/lib/seo/metadata'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
-import { MarketingNavbar } from '@/components/marketing/MarketingNavbar'
 import { FinalCTA } from '@/components/seo/CRMSections'
 import { FAQ } from '@/components/ui/faq-tabs'
 import { AnimatedCta } from '@/components/ui/animated-cta'
@@ -137,7 +136,6 @@ export default function CRMvsExcelPage() {
             <div className='absolute top-0 left-0 w-1/2 h-full bg-blue-400 transform -skew-y-6 origin-top-left -translate-y-1/4 opacity-30 z-0' />
           </div>
 
-          <MarketingNavbar />
 
           <div className='relative z-10 max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden'>
             <div className='flex flex-col items-center text-center p-8 lg:px-12 lg:pt-8 lg:pb-16' dir='rtl'>
@@ -157,7 +155,7 @@ export default function CRMvsExcelPage() {
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
-                  href='/features'
+                  href='/'
                   className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
                 >
                   ראה את כל הפיצ׳רים

@@ -33,7 +33,9 @@ describe('mobile social login alignment', () => {
     expect(googleIcon?.getAttribute('class')).toContain('left-3')
     expect(facebookIcon?.getAttribute('class')).toContain('left-3')
     expect(facebookBtn.className).toContain('h-11')
-    expect(facebookBtn.className).toContain('w-[250px]')
+    // Social buttons fill the auth column so they match the primary CTA edges.
+    expect(facebookBtn.className).toContain('w-full')
+    expect(row.className).toContain('w-full')
   })
 
   it('preserves the signed-in Google account line when a user is present', () => {

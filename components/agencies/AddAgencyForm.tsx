@@ -1,7 +1,8 @@
 'use client'
 import { Input } from '@/lib/form'
 import { getMultiObjFormData } from '@/lib/form/funcs'
-import { SubmitButton } from '@/lib/btns/SubmitBtn'
+import { Button } from '@/components/lumen/ui/button'
+import AuthControlRow from '@/components/auth/AuthControlRow'
 import { addAgency } from '@/actions/agencies'
 import { useEffect, useRef, useState } from 'react'
 import { unstable_rethrow } from 'next/navigation'
@@ -64,20 +65,42 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <div data-prefix='agency' className='mt-2'>
+    /* Lumen `/signup` supplies the block rhythm (`grid gap-4`) and the submit
+       (`mt-2 w-full shadow-none`), but the FIELD ARRANGEMENT is ours: the
+       original two-column name row is kept so the form stays short. The old
+       `mt-4` on the user block is dropped because the form's `gap-4` is the
+       same 16px — re-adding it would double the gap.
+       `data-prefix` wrappers are untouched: `getNestedPrefix` walks ancestors
+       for them, so the agency/user namespacing is unchanged. */
+    <form onSubmit={onSubmit} className='grid gap-4'>
+      <div data-prefix='agency'>
         <Input name='name' lbl='שם העסק' />
       </div>
-      <div data-prefix='user' className='grid grid-cols-2 gap-4 mt-4'>
+      <div data-prefix='user' className='grid grid-cols-2 gap-4'>
         <Input name='firstName' lbl='שם פרטי' defaultValue={defaultName} />
         <Input name='lastName' lbl='שם משפחה' />
-        {/* Full-width on mobile; lg restores the original desktop half-width cell */}
-        <div className='col-span-2 lg:col-span-1'>
+        {/* Email keeps its own full row. The original `lg:col-span-1` was sized
+            against the old `lg:max-w-none` container; inside Lumen's `max-w-sm`
+            it measures 162px, too narrow for an address — and since email owns
+            this row either way, full width costs no height. */}
+        <div className='col-span-2'>
           <Input name='email' lbl='אימייל' defaultValue={defaultEmail} />
         </div>
       </div>
-      {error && <p className='text-sm text-red-500 mt-2'>{error}</p>}
-      <SubmitButton lbl={submitting ? 'טוען...' : 'צור חשבון'} className='w-full mt-4' icon={false} disabled={submitting} />
+      {/* Same component, same row as `/auth` — Lumen fills this slot on signup
+          with the terms checkbox + terms link. `/terms` is a real route. */}
+      <AuthControlRow
+        checkboxId='terms'
+        checkboxLabel='אני מסכים לתנאים'
+        actionLabel='תנאי השימוש'
+        href='/terms'
+      />
+      {error && <p className='text-destructive text-sm'>{error}</p>}
+      <div>
+        <Button type='submit' className='mt-2 w-full shadow-none' disabled={submitting}>
+          {submitting ? 'טוען...' : 'צור חשבון'}
+        </Button>
+      </div>
     </form>
   )
 }

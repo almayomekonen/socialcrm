@@ -1,0 +1,114 @@
+/*
+ * auth.css — Lumen form-control spec for `/auth` and `/auth/register`.
+ *
+ * The auth screens now render inside `.lumen`, so Lumen's tokens, `Button` and
+ * type scale apply directly. The one thing that cannot come from a component is
+ * the field styling: both forms use the shared `@/lib/form` `Input`, which owns
+ * the label/`aria-describedby`/error wiring the a11y suite depends on. Swapping
+ * it for Lumen's bare `input.tsx` would trade that wiring for styling.
+ *
+ * So the CONTROL keeps our accessible markup and takes Lumen's exact visual
+ * spec, transcribed from `_reference/.../src/components/ui/input.tsx`:
+ *   h-9 · rounded-sm · border-input · bg-transparent · px-3 · md:text-sm
+ *   focus-visible:border-ring + ring-ring/50 ring-[3px]
+ * and `label.tsx`: text-sm · leading-none · font-medium.
+ *
+ * Scoped to `.auth-surface` so it cannot reach the CRM's forms.
+ */
+
+.auth-surface :is(input, textarea):not([type='checkbox']):not([type='radio']) {
+  border-radius: var(--radius-sm);
+  border-color: var(--color-input);
+  background-color: transparent;
+  padding-inline: 0.75rem;
+  font-size: 0.875rem;
+  transition:
+    color 150ms,
+    box-shadow 150ms,
+    border-color 150ms;
+}
+
+.auth-surface input:not([type='checkbox']):not([type='radio']) {
+  height: 2.25rem;
+}
+
+.auth-surface :is(input, textarea):focus-visible {
+  outline: none;
+  border-color: var(--color-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ring) 50%, transparent);
+}
+
+/* Lumen's label.tsx. The shared Input renders its own label element. */
+.auth-surface label {
+  font-size: 0.875rem;
+  line-height: 1;
+  font-weight: 500;
+}
+
+/* Lumen's field row is `grid gap-1.5` — a 6px gap between label and control,
+   with no inline offset and the label in `foreground`. `FormField` renders the
+   label row with `mb-1 ms-1` in `text-gray-600`, so both are corrected here
+   rather than by editing a primitive the whole CRM shares. */
+.auth-surface div:has(> label) {
+  margin-bottom: 0.375rem;
+  margin-inline-start: 0;
+}
+
+.auth-surface label {
+  color: var(--color-foreground);
+}
+
+/*
+ * Lumen's `checkbox.tsx`, transcribed for the shared control row.
+ *
+ * Lumen uses a Radix checkbox; ours is a native input so it keeps the label
+ * association the a11y suite relies on — same trade as the Input above. The
+ * visual spec is copied exactly:
+ *   size-4 · rounded-[4px] · border-input · shadow-xs
+ *   checked        → bg-primary · border-primary · white check (size-3.5)
+ *   focus-visible  → border-ring + ring-ring/50 ring-[3px]
+ */
+.auth-surface input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-input);
+  background-color: transparent;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.auth-surface input[type='checkbox']:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.875rem;
+}
+
+.auth-surface input[type='checkbox']:focus-visible {
+  outline: none;
+  border-color: var(--color-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ring) 50%, transparent);
+}
+
+/* The field-row rule above targets any `div:has(> label)` to give label+control
+   its 6px gap. The control row is a label BESIDE a control, not above one, so
+   that offset is cancelled here rather than by narrowing the shared rule. */
+.auth-surface .auth-control-row div:has(> label) {
+  margin-bottom: 0;
+}
+
+/* Lumen's row label sits on the baseline of its checkbox and is not clickable
+   chrome beyond the label itself. */
+.auth-surface .auth-control-row label {
+  cursor: pointer;
+}

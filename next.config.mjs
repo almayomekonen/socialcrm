@@ -123,6 +123,39 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
+  images: {
+    // Hosts the purchased Lumen template's marketing sections load avatars and
+    // logos from. Matches its own next.config; marketing surface only.
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'logo.clearbit.com' },
+    ],
+  },
+  /**
+   * `/crm` was the Lumen homepage while it was proved out; it is now `/`.
+   *
+   * A permanent (308) redirect, not a second page: `/crm` is linked from the
+   * production nav and has index presence, so it retires by pointing at the
+   * canonical homepage rather than 404ing. Config redirects run before the
+   * proxy, so this never reaches auth. Fragments survive a 3xx, so any stale
+   * `/crm#features-grid` still lands on the right section.
+   */
+  async redirects() {
+    return [
+      { source: '/crm', destination: '/', permanent: true },
+      /**
+       * Retired marketing pages. They were indexed, so they must not simply
+       * disappear: without an entry here they fall through to the proxy, which
+       * sees a non-public path and 302s them to /auth — a login screen is a
+       * dead end for a visitor arriving from a search result, and a soft-404
+       * to a crawler. Each points at the closest surviving page so the link
+       * equity and the reader both land somewhere that answers the query.
+       */
+      { source: '/features', destination: '/', permanent: true },
+      { source: '/facebook-leads', destination: '/channels', permanent: true },
+      { source: '/whatsapp-leads', destination: '/crm-for-whatsapp-business', permanent: true },
+    ]
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

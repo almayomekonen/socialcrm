@@ -4,9 +4,8 @@ import LoginMagicLink from '@/components/auth/LoginMagicLink'
 import { getUser } from '@/db/auth'
 import { canUseFacebookUserAuth, isFacebookUserAuthPubliclyAvailable } from '@/lib/auth/facebookUserAuthFlags'
 import { Metadata } from 'next'
-import AccordionItem from '@/lib/AccordionItem'
 import { isMobileRequest } from '@/lib/device'
-import HeroScroll from '@/components/auth/HeroScroll'
+import Logo from '@/components/lumen/layout/logo'
 
 export const metadata: Metadata = {
   title: 'התחברות | SocialCRM — מערכת ניהול לידים',
@@ -22,53 +21,6 @@ export const metadata: Metadata = {
   },
 }
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'מה זה SocialCRM?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'SocialCRM היא מערכת ניהול לידים לעסקים קטנים. היא מאגדת את כל הלידים שמגיעים מפייסבוק, אינסטגרם ווואטסאפ למקום אחד, כך שלא מפספסים אף ליד.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם SocialCRM עובד עם פייסבוק ואינסטגרם?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. SocialCRM מתחבר ישירות לדף הפייסבוק שלך ומביא אוטומטית כל ליד שממלא טופס מודעה. לא צריך להעתיק ידנית.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'האם אפשר לייבא לידים מאקסל?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'כן. ניתן להעלות קובץ אקסל עם לידים קיימים ולייבא אותם למערכת בכמה שניות.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'כמה זמן לוקח להתחיל?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'ההרשמה לוקחת פחות מדקה. לאחר ההתחברות ניתן מיד להוסיף לידים ולהתחיל לעבוד.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'למי SocialCRM מתאים?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'SocialCRM מתאים לבעלי עסקים קטנים ונציגי מכירות שמקבלים לידים ממדיה חברתית ורוצים לנהל אותם בצורה מסודרת ויעילה.',
-      },
-    },
-  ],
-}
-
 export default async function AuthPage({ searchParams }) {
   const { error } = await searchParams
   const user = await getUser()
@@ -79,65 +31,61 @@ export default async function AuthPage({ searchParams }) {
 
   return (
     <>
-      <div className='min-h-screen bg-white'>
-        {/* Login section */}
-        <div className='grid lg:grid-cols-2 w-screen place-items-center'>
-          <div className='grid place-items-center gap-6 lg:gap-8 py-14 lg:py-0 px-6 lg:px-0'>
-            {/* Mobile-only logo — app-login feel for ad traffic; md+ unchanged */}
-            <div className='md:hidden mt-4 flex size-20 items-center justify-center rounded-2xl border border-gray-200 bg-white shadow-sm'>
-              <img src='/media/fav.svg' alt='SocialCRM' className='size-12' />
-            </div>
-            <h1 className='text-3xl md:text-5xl font-bold text-center'>SocialCRM הכל במקום אחד</h1>
-            <p className='text-gray-500 font-normal text-base mt-2 text-center'>
-              כל הלידים שלך במקום אחד. בלי לפספס אף אחד.
-            </p>
-            <div className='grid w-full max-w-sm lg:w-auto lg:max-w-none'>
-              <Login
-                user={user}
-                facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined}
-                matchSocialButtons={phoneLogin}
-              />
-              <p className='text-gray-500 text-xs text-center mt-2'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
-              <LoginMagicLink error={error} />
+      <div className='relative min-h-screen bg-white'>
+        {/*
+          Reproduces Lumen `/signin`
+          (`_reference/lumen-nextjs-template-1.0.0/src/app/signin/page.tsx`)
+          element for element:
 
-              <p className='text-gray-500 text-xs text-center mt-3'>
+            grid min-h-svh lg:grid-cols-2
+            └ container w-full max-w-sm self-center justify-self-center
+              └ flex flex-col py-20 lg:py-0
+                ├ flex flex-col items-center gap-6 text-center
+                │   ├ <Logo onlyLogo />
+                │   └ flex flex-col items-center gap-2
+                │       ├ h1  text-2xl font-bold
+                │       └ p   text-muted-foreground text-sm
+                ├ mt-6 grid gap-4
+                │   ├ field(s) + submit  (mt-2 w-full shadow-none)
+                │   └ grid gap-4  ← social buttons
+                └ mt-8 text-center text-sm  ← secondary nav
+
+          Lumen's order is fields → submit → social; it ships no divider. Only
+          the copy is ours. An outer <div> replaces Lumen's <form> because the
+          magic-link component owns its own <form> and forms cannot nest.
+          `auth.jpg` replaces Lumen's gradient panel, untouched.
+        */}
+        <div className='lumen auth-surface grid min-h-svh lg:grid-cols-2' dir='rtl'>
+          <div className='container w-full max-w-sm self-center justify-self-center'>
+            <div className='flex flex-col py-20 lg:py-0'>
+              <div className='flex flex-col items-center gap-6 text-center'>
+                <Logo onlyLogo />
+                <div className='flex flex-col items-center gap-2'>
+                  <h1 className='text-2xl font-bold'>ברוך שובך</h1>
+                  <p className='text-muted-foreground text-sm'>ברוך שובך, הזן את הפרטים שלך כדי להמשיך</p>
+                </div>
+              </div>
+              <div className='mt-6 grid gap-4'>
+                <LoginMagicLink error={error} />
+                <div className='grid gap-4 [&>div]:items-center'>
+                  <Login
+                    user={user}
+                    facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined}
+                    matchSocialButtons={phoneLogin}
+                  />
+                  <p className='text-muted-foreground text-center text-xs'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
+                </div>
+              </div>
+              <div className='mt-8 text-center text-sm'>
                 אין לך חשבון?{' '}
-                <Link
-                  href='/auth/register'
-                  className='text-primary-text font-semibold hover:text-primary transition-colors'
-                >
+                <Link href='/auth/register' className='font-medium hover:underline'>
                   הצטרף עכשיו
                 </Link>
-              </p>
+              </div>
             </div>
           </div>
           <img src='/media/auth.jpg' alt='ניהול לידים לעסקים קטנים' className='w-full h-screen object-cover hidden lg:block' />
         </div>
-
-        {/* SEO content — visible to crawlers and AI engines, useful for users */}
-        {/* SEO/marketing content — hidden on phones (login stays frictionless for ad
-            traffic); still in the DOM for crawlers, rendered from md up as before */}
-        <section aria-label='מידע על המערכת' className='hidden md:block bg-white border-t border-gray-100'>
-          <HeroScroll />
-
-          <div className='max-w-4xl mx-auto px-8 pb-16'>
-            <div className='max-w-2xl mx-auto'>
-              <h2 className='text-2xl text-center font-bold mb-6'>שאלות נפוצות</h2>
-              <div className='bg-white rounded-lg overflow-hidden border border-gray-100 shadow-sm'>
-                {faqSchema.mainEntity.map((item) => (
-                  <AccordionItem
-                    key={item.name}
-                    title={item.name}
-                    className='flex items-center justify-between px-5 py-4 cursor-pointer select-none'
-                    bodyClass='px-5 pb-4 text-gray-500 text-sm leading-relaxed'
-                  >
-                    {item.acceptedAnswer.text}
-                  </AccordionItem>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
     </>
   )

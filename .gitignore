@@ -72,3 +72,12 @@ public/media/automation-feedback-images/
 # local machine artifacts (never commit)
 .claude/settings.local.json
 social-crm.db
+
+# Purchased design reference (Lumen, Shadcnblocks).
+# NEVER commit: the licence forbids publishing the source in a repository, and
+# Lumen.fig alone is 218MB.
+#
+# No trailing slash on purpose. In this worktree `_reference` is a SYMLINK to
+# the copy outside it, and git does not treat a symlink as a directory — the
+# `_reference/` form silently fails to match it.
+_reference

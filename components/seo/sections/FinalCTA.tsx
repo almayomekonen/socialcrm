@@ -39,7 +39,7 @@ export function FinalCTA() {
             style={{ backgroundColor: '#3f20f5', color: 'white' }}
           />
           <Link
-            href='/features'
+            href='/'
             className='w-full sm:w-auto text-center px-8 py-4 rounded-xl text-base font-semibold border border-white/20 text-white/80 hover:border-white/50 hover:text-white transition-all duration-200'
           >
             כל הפיצ׳רים
