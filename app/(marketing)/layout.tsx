@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { ShellHeader, ShellFooter } from '@/components/marketing/system/ShellChrome'
+import { ShellFrame } from '@/components/marketing/system/ShellChrome'
 import { organizationSchema, softwareApplicationSchema, websiteSchema } from '@/lib/seo/schemas'
 
 /**
@@ -24,11 +24,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <JsonLd data={organizationSchema()} />
       <JsonLd data={softwareApplicationSchema()} />
       <JsonLd data={websiteSchema()} />
-      <ShellHeader />
+      {/* `ShellFrame` owns header, <main> and footer together: the Lumen shell
+          wraps all three in one `.lumen` div, which a header/footer pair
+          rendered as separate siblings could not express. */}
       <Suspense>
-        <main>{children}</main>
+        <ShellFrame>{children}</ShellFrame>
       </Suspense>
-      <ShellFooter />
     </div>
   )
 }
