@@ -48,10 +48,11 @@ The user already has the dashboard. The AI's job is the layer above the dashboar
 
 ### 2.3 Proactive, but restrained
 
-AI is allowed to surface unprompted insights — but only inside surfaces the user is already looking at.
+AI is allowed to surface unprompted insights inside surfaces the user is already looking at, and — under one narrow gated exception — in the notification channel the user already receives.
 
 - AI may **highlight** something on a page the user opened.
-- AI must not **interrupt** the user with notifications, popups, modals, or banners they didn't ask for.
+- AI must not **interrupt** the user with popups, modals, or banners they didn't ask for.
+- AI must not **notify** the user, with exactly one exception: a dropped critical item that satisfied every condition of the Vigilance Notification Exception ([`ai-safety-boundaries.md`](./ai-safety-boundaries.md) §9.1, amendment DA-001). That exception is defined there and only there; this doc deliberately does not restate its conditions, so the two can never drift.
 - AI must not **pile up** — one AI surface per user view, unless explicitly justified.
 
 ### 2.4 Perceived intelligence over flashy intelligence
@@ -148,3 +149,15 @@ This doc extends, never overrides:
 - `product.md` §5 (core value: clarity), §12 (anti-patterns)
 
 If this doc and project doctrine ever appear to conflict, project doctrine wins. AI is a feature inside this product, not the product itself.
+
+---
+
+## AMENDMENT HISTORY
+
+Append-only.
+
+- **DA-001 — The Vigilance Notification Exception (2026-08-25).** Narrowed this doc's
+  prohibition on AI-driven notifications to a single deterministically gated path.
+  The exception and its thirteen conditions are defined in
+  [`ai-safety-boundaries.md`](./ai-safety-boundaries.md) §9.1 and are deliberately not
+  restated here.

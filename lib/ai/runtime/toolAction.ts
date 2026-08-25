@@ -1,4 +1,5 @@
 import type { ReasonedUnderstanding, ReasonedQuestion, ReasoningLens } from './reasoning'
+import { evaluateValue } from './valueBar'
 import type { Scope, SubjectRef, TraceRef, InferentialDistance } from '@/db/ai/stateManagement'
 
 /**
@@ -41,106 +42,27 @@ import type { Scope, SubjectRef, TraceRef, InferentialDistance } from '@/db/ai/s
  * and emitting the Outcome contract back for learning (Metacognition, Wave 2).
  */
 
-// ─────────────────────────────── terminal model ─────────────────────────────
+import {
+  WAVE1_AUTONOMY,
+  WAVE1_REACHABLE_OUTCOMES,
+  type BoundaryCheck,
+  type CandidateEffect,
+  type DecisionTraceStep,
+  type GateContext,
+  type GateDecision,
+  type GateDecisionBase,
+  type GateIntent,
+  type ReasoningChainLink,
+  type Recommendation,
+  type ReversibilityClass,
+  type SilenceReason,
+  type TerminalOutcome,
+} from './toolActionTypes'
 
-/** The four permanent constitutional terminal outputs (Cog J, M; Constitution XI). */
-export type TerminalOutcome = 'act' | 'recommend' | 'ask' | 'stay_silent'
+/** Every declaration stays importable from this module — the Phase 4.1 extraction is invisible to callers. */
+export * from './toolActionTypes'
 
-/** The only terminal outcomes a Wave-1 gate may emit. Act/Ask are never returned. */
-export const WAVE1_REACHABLE_OUTCOMES: ReadonlySet<TerminalOutcome> = new Set(['recommend', 'stay_silent'])
-
-/** The ordered safety seams every candidate must pass (the safety spine, Part 7). */
-export type BoundaryCheck = 'scope' | 'provenance' | 'groundedness' | 'reversibility' | 'earned_autonomy'
-
-/** Reversibility at the point of execution — the gate is the sole authority. */
-export type ReversibilityClass = 'reversible' | 'irreversible'
-
-/** Why the gate stayed silent (a constitutional outcome, not a rejection). */
-export type SilenceReason = 'no_grounded_understanding' | 'no_settled_conclusion'
-
-/** Earned-autonomy stub (M0 §1.7). Fixed at `none` for all of Wave 1. */
-export interface EarnedAutonomy {
-  level: 'none'
-}
-
-export const WAVE1_AUTONOMY: EarnedAutonomy = Object.freeze({ level: 'none' })
-
-/** An internal boundary rejection. Recorded for traceability; never emitted. */
-export interface BoundaryRejection {
-  boundary: BoundaryCheck
-  reason: string
-}
-
-/** One step in the ordered decision trace — every candidate carries the full walk. */
-export interface DecisionTraceStep {
-  boundary: BoundaryCheck
-  passed: boolean
-  detail: string
-}
-
-// ─────────────────────────────── recommendation ─────────────────────────────
-
-/** The Wave-1 candidate effect. Surfacing a recommendation is fully reversible. */
-type CandidateEffect = 'surface_recommendation'
-
-/** One link of the exact reasoning chain that produced a recommendation. */
-export interface ReasoningChainLink {
-  key: string
-  leading: { label: string; credence: number; groundedness: number }
-  evidenceForCount: number
-  evidenceAgainstCount: number
-  inferentialDistance: InferentialDistance
-  isAbsenceDerived: boolean
-  /** The traces this conclusion walks back to (empty only for an absence-derived link). */
-  traceRefs: TraceRef[]
-}
-
-/**
- * A recommendation awaiting the human hand. It is fully explainable and fully
- * traceable: it carries the exact reasoning chain and the merged provenance that
- * produced it (Constitution I, XI.1, XI.8).
- */
-export interface Recommendation {
-  effect: CandidateEffect
-  scope: Scope
-  subject: SubjectRef
-  asOf: string
-  lens: ReasoningLens
-  reversibility: ReversibilityClass
-  autonomy: EarnedAutonomy
-  provenance: {
-    /** Every trace the recommendation rests on, merged and de-duplicated. */
-    traceRefs: TraceRef[]
-    anyHighInference: boolean
-    anyAbsenceDerived: boolean
-  }
-  reasoningChain: ReasoningChainLink[]
-  rationale: string
-}
-
-// ─────────────────────────────── gate decision ──────────────────────────────
-
-interface GateDecisionBase {
-  scope: Scope
-  subject: SubjectRef
-  decidedAt: string
-  trace: DecisionTraceStep[]
-}
-
-/** The complete result of one gate evaluation. */
-export type GateDecision =
-  | (GateDecisionBase & { emitted: true; outcome: 'recommend'; recommendation: Recommendation })
-  | (GateDecisionBase & { emitted: true; outcome: 'stay_silent'; silence: { reason: SilenceReason } })
-  | (GateDecisionBase & { emitted: false; outcome: null; rejection: BoundaryRejection })
-
-export interface GateContext {
-  /** The operator/agency scope the gate is enforcing for. */
-  scope: Scope
-  /** Earned autonomy for this operator/action-class. Defaults to the Wave-1 none. */
-  autonomy?: EarnedAutonomy
-  /** Injectable clock for deterministic decision stamping. */
-  now?: Date
-}
+const INSPECT: GateIntent = Object.freeze({ mode: 'inspect' })
 
 // ─────────────────────────────── pure helpers ───────────────────────────────
 
@@ -269,6 +191,45 @@ export function decide(understanding: ReasonedUnderstanding, ctx: GateContext): 
   // — Seam 5: Earned-autonomy (stub = none). With no earned autonomy, the gate may
   //   only Recommend or Stay Silent — never Act (M0 §1.7; Constitution VIII.5). —
   base.trace.push({ boundary: 'earned_autonomy', passed: true, detail: `autonomy ${autonomy.level} → recommend only` })
+
+  // — Seam 6: the Value / Taste Bar (Cog J Gate 2; Constitution XI.5, XIII;
+  //   DA-001 §9.1). Everything above establishes that this COULD be said; this
+  //   seam decides whether it has earned the right to be. Reached only by a
+  //   candidate that would otherwise be emitted as Recommend — every earlier exit
+  //   has already returned — so "only a valid Recommend reaches Gate 2" is
+  //   structural, not asserted.
+  //
+  //   Applied ONLY in surface mode. Under inspect the caller is reading the
+  //   standing decision and surfacing nothing, which DA-001 does not govern. —
+  const intent = ctx.intent ?? INSPECT
+  if (intent.mode === 'surface') {
+    const verdict = evaluateValue({
+      subject: understanding.subject,
+      settled,
+      observationCount: understanding.observationCount,
+      reversibility,
+      context: intent.value,
+    })
+    base.value = verdict
+    if (verdict.surface !== true) {
+      base.trace.push({
+        boundary: 'value',
+        passed: false,
+        detail: `below the value bar: ${verdict.failed.join(', ')}`,
+      })
+      // A failed bar is STAY SILENT — a constitutional terminal outcome, not a
+      // boundary rejection. Nothing was breached; there was simply nothing worth
+      // spending the operator's attention on.
+      const silent: GateDecision = { ...base, emitted: true, outcome: 'stay_silent', silence: { reason: 'below_value_bar' } }
+      assertWave1Reachable(silent.outcome)
+      return silent
+    }
+    base.trace.push({
+      boundary: 'value',
+      passed: true,
+      detail: verdict.waived.length > 0 ? `cleared (vigilance waived: ${verdict.waived.join(', ')})` : 'cleared',
+    })
+  }
 
   const provenanceTraces = mergeTraceRefs(settled.flatMap((q) => q.provenance.traceRefs))
   const recommendation: Recommendation = {

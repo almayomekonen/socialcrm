@@ -34,6 +34,13 @@ export const NOTIFICATION_TYPES = [
   'sla.approaching',
   'sla.breached',
   'subscription.cancellation_requested',
+  /**
+   * The one AI-originated type. Emitted ONLY by a conclusion that passed the
+   * deterministic Value Bar and every condition of the Vigilance Notification
+   * Exception (ai-safety-boundaries.md §9.1, DA-001). Its registry entry ships
+   * `enabled: false`, so this member is inert until deliberately turned on.
+   */
+  'lead.insight',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]

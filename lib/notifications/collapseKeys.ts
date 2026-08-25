@@ -45,8 +45,20 @@ export const commentPostKey = (ctx: EventContext): string => {
  * someone fixes it. The agencyId is included because the entityId for an
  * integration is a provider-scoped id, not a globally unique row id.
  */
-export const integrationKey = (ctx: EventContext): string =>
-  `integration:${ctx.payload.provider ?? 'unknown'}:${ctx.agencyId}`
+export const integrationKey = (ctx: EventContext): string => `integration:${ctx.payload.provider ?? 'unknown'}:${ctx.agencyId}`
+
+/**
+ * One open AI insight per ליד per rep.
+ *
+ * Deliberately DISTINCT from `followupKey` so an insight never overwrites a
+ * deterministic follow-up notification's copy. The two can only ever coexist about
+ * one ליד when they concern different facts, because DA-001 §9.1 condition 13
+ * forbids the AI from surfacing anything a deterministic type already owns.
+ *
+ * This is the DELIVERY dedup, per user. The CONCLUSION's own dedup lives on
+ * `ai_insights.insightKey` and is not released when a notification is read.
+ */
+export const insightKey = (ctx: EventContext): string => `lead:${ctx.entityId}:insight`
 
 /** Registered-but-disabled sla.* types (spec §4.5). Never emitted. */
 export const slaKey = (ctx: EventContext): string => `lead:${ctx.entityId}:sla`
