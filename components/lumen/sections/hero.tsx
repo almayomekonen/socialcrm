@@ -108,7 +108,15 @@ export default function Hero() {
 
         <motion.p
           variants={itemVariants}
-          className="text-muted-foreground my-2 text-sm md:my-4 md:text-lg lg:my-6 lg:text-xl"
+          /* `text-balance` is the one adaptation the Hebrew copy needs to land
+             Lumen's composition. Lumen's English subtitle rags 87%/68% of the
+             text column — a wide line over a slightly shorter one. Ours broke
+             naturally at 91%/43%, leaving a stub second line that reads as a
+             widow, and that is what made the mobile hero feel unlike the
+             reference. Balancing gives 68%/65%: the same tidy two-line block at
+             the same 40px height, with no change to copy, type scale, spacing
+             or desktop (where the line is single and balance is a no-op). */
+          className="text-muted-foreground my-2 text-sm text-balance md:my-4 md:text-lg lg:my-6 lg:text-xl"
         >
           אתם כבר לא צריכים לזכור מי מחכה לתשובה. פותחים בבוקר ורואים בדיוק
           למי לחזור היום.

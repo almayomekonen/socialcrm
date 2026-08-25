@@ -169,7 +169,7 @@ export default function FeaturesCarousel() {
               </span>
             </h2>
             <p className="text-muted-foreground text-lg leading-snug">
-              ארבעה דברים שקורים על כל ליד, בלי שתצטרך לזכור אותם.
+              ארבעה דברים שקורים על כל ליד אוטומטית, בלי שתצטרך לזכור אותם.
             </p>
           </motion.div>
 

@@ -142,7 +142,7 @@ const TestimonialsMarquee = () => {
           </h2>
           <p className="text-muted-foreground text-lg leading-snug">
             מה מספרים מי שכבר עברו מהאקסל, מהמחברת ומקבוצות הוואטסאפ לרשימה
-            אחת עם סטטוס ומעקב.
+            אחת עם סטטוס, נציג אחראי ותאריך מעקב על כל פנייה.
           </p>
         </div>
       </div>
