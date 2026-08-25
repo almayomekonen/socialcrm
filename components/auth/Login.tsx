@@ -239,7 +239,7 @@ export default function Login({
             <button
               type='button'
               dir='ltr'
-              className='relative mt-3 flex h-10 w-full items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
+              className='relative mt-3 flex h-10 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
               onClick={onFacebookClick}
             >
               <FacebookMark />
@@ -252,8 +252,13 @@ export default function Login({
   )
 }
 
+/**
+ * Border only: `border-input` is the token Lumen's own `Button variant="outline"`
+ * uses for the equivalent auth controls, replacing Google's `#747775`. Width,
+ * height, radius, padding, type, background and hover are untouched.
+ */
 const SOCIAL_BTN =
-  'relative flex h-11 w-full items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
+  'relative flex h-11 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
 
 function FacebookMark() {
   return (
