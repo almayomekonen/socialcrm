@@ -238,6 +238,44 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     channels: PUSH_WHEN_AWAY,
   },
 
+  /**
+   * The one AI-originated type (Phase 4.4).
+   *
+   * `enabled: false` — it ships INERT. `notifyEvent` refuses a disabled type at
+   * the registry lookup, before entitlement and before any INSERT, so this entry
+   * cannot deliver even if every environment flag were set by mistake. It is the
+   * innermost of four independent gates.
+   *
+   * NO `escalation`, and NO `isResolved` ladder companion: an insight must never
+   * escalate. Repeating yourself more loudly is precisely how a channel loses the
+   * credibility that makes it worth having (care-charter Law 16; brand-principles
+   * §6.1). Staleness is handled by resolving the row, not by shouting.
+   *
+   * `basePriority` is ONE declared constant. It is not derived from the insight,
+   * not per-subject, and unreachable from anything the model wrote — the guarantee
+   * is an absence, exactly as in the Value Bar's ValueContext.
+   *
+   * `handler_or_admin` is the SAME rule that bounded the evidence the conclusion
+   * rests on. The emitter re-resolves it at delivery and refuses to deliver if the
+   * answer has changed, so an insight can never reach someone who could not have
+   * seen the evidence beneath it.
+   */
+  'lead.insight': {
+    type: 'lead.insight',
+    // `leads`, following the registry's prefix→category invariant: the type is
+    // named for the ליד it concerns, not for the machinery that produced it.
+    category: 'leads',
+    enabled: false,
+    basePriority: 'medium',
+    collapseKey: keys.insightKey,
+    title: copy.insightSurfacedTitle,
+    body: copy.insightSurfacedBody,
+    entity: leadEntity,
+    deepLink: leadLink,
+    recipients: 'handler_or_admin',
+    channels: PUSH_WHEN_AWAY,
+  },
+
   // A נציג cannot fix a broken Facebook token, so integration health is
   // admin_only — telling a rep about it would be noise they cannot act on
   // (spec §6.1, care-charter Law 7).

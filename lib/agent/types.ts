@@ -168,5 +168,23 @@ export type AgentResult =
       steps: number
       stopReason: StopReason
       investigationId: string
+      /**
+       * What this investigation actually cost, in USD.
+       *
+       * Exposed in Phase 4.3 because the autonomous path holds a durable budget
+       * reservation that must be SETTLED against the real figure — a hold that is
+       * never closed against actuals is a hold that silently over-charges the day.
+       * The interactive path may ignore it; nothing about its behaviour changes.
+       *
+       * Zero when generation never began (an admission denial spends nothing).
+       */
+      costUsd: number
     }
-  | { ok: false; reason: StopReason; message?: string; investigationId?: string }
+  | {
+      ok: false
+      reason: StopReason
+      message?: string
+      investigationId?: string
+      /** Tokens are spent even when the answer is refused or the provider fails. */
+      costUsd?: number
+    }

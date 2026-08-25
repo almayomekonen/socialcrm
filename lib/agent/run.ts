@@ -12,7 +12,7 @@ import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
-import type { AgentResult, StopReason } from './types'
+import type { AgentResult, AgentScope, StopReason } from './types'
 
 /**
  * One Agent investigation, end to end.
@@ -59,6 +59,30 @@ export type RunAgentInput = {
   /** Correlates every trace line for one investigation. */
   investigationId?: string
   /**
+   * PRE-RESOLVED authority, for a caller that has no session.
+   *
+   * The interactive path omits this and `resolveAgentScope()` runs exactly as it
+   * always has. The autonomous path (Phase 4.3) supplies a scope that
+   * `resolveAutonomousScope` already derived from `resolveRecipients` — the same
+   * `handler_or_admin` rule the notification engine uses — so proactive work
+   * reads precisely what the operator who will receive it could read.
+   *
+   * This is NOT a way to widen authority: it accepts an AgentScope, which can
+   * only be built from a session or from that recipient resolution, and it is
+   * never reachable from a request body, a tool input, or a model argument.
+   */
+  scope?: AgentScope
+  /**
+   * Skip the in-memory interactive spend counter.
+   *
+   * `addDailySpend` is a single module-scope Map shared with every interactive
+   * question. Charging proactive work to it would let a burst of autonomous
+   * investigations push a paying rep over `AI_DAILY_USD_CAP` and deny them an
+   * answer they asked for. Autonomous work is accounted DURABLY instead, in
+   * `ai_spend_reservations`, so it sets this and settles there.
+   */
+  skipInteractiveSpend?: boolean
+  /**
    * Durable record of the outcome, called AFTER validation with post-gate
    * content only. It is never called for an admission denial — nothing was
    * investigated. The loop does NOT guard it: the caller owns that, so a
@@ -81,7 +105,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   // Authority first. A session that cannot pass requireProductAccess never
   // reaches the gate, let alone a model — and that failure is a session error,
   // not an investigation outcome, so it propagates rather than becoming a result.
-  const scope = await resolveAgentScope()
+  // A caller with no session supplies an already-resolved scope instead; see
+  // RunAgentInput.scope.
+  const scope = input.scope ?? (await resolveAgentScope())
 
   const investigationId = input.investigationId ?? newInvestigationId(nowMs)
   const ctx = { investigationId, agencyId: scope.agencyId, userId: scope.userId }
@@ -90,7 +116,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const admission = await admitAiRun({ kind: AGENT_TASK_KIND, agencyId: scope.agencyId })
   if (admission.ok === false) {
     agentTrace('ADMISSION_DENIED', ctx, { reason: admission.reason })
-    return { ok: false, reason: 'gate_denied', message: admission.reason, investigationId }
+    return { ok: false, reason: 'gate_denied', message: admission.reason, investigationId, costUsd: 0 }
   }
   const { cfg, chain } = admission
   const handle = chain[0]!
@@ -139,7 +165,10 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       failureReason: message,
     })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'error' })
-    return { ok: false, reason: 'error', message, investigationId }
+    // Cost is 0 because the call threw before usage was reported. Tokens MAY have
+    // been spent upstream; there is no honest figure available, and inventing one
+    // would put a guess into a durable ledger.
+    return { ok: false, reason: 'error', message, investigationId, costUsd: 0 }
   }
 
   // Charge before validating: the tokens were spent whatever we do with the
@@ -148,7 +177,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const inputTokens = usage?.inputTokens ?? 0
   const outputTokens = usage?.outputTokens ?? 0
   const costUsd = estimateCostUsd(handle.modelId, inputTokens, outputTokens)
-  addDailySpend(scope.agencyId, costUsd)
+  // Interactive runs charge the shared in-memory counter, unchanged. Autonomous
+  // runs deliberately do not — they hold a durable reservation and settle there.
+  if (input.skipInteractiveSpend !== true) addDailySpend(scope.agencyId, costUsd)
 
   agentTrace('GENERATION_COMPLETE', ctx, {
     steps: budget.stepsUsed(),
@@ -186,7 +217,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       failureReason: validation.rejection,
     })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'no_evidence' })
-    return { ok: false, reason: 'no_evidence', investigationId }
+    return { ok: false, reason: 'no_evidence', investigationId, costUsd }
   }
 
   // A budget stop that still produced a supportable answer is reported as the
@@ -223,5 +254,6 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     steps: budget.stepsUsed(),
     stopReason,
     investigationId,
+    costUsd,
   }
 }

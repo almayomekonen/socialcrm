@@ -59,6 +59,18 @@ export const leadAssignedTitle = (ctx: EventContext): string => withName('ליד
 export const leadActivityTitle = (ctx: EventContext): string => withName('פעילות חדשה בליד', ctx)
 
 /**
+ * AI insight copy — DETERMINISTIC, exactly like every other builder here.
+ *
+ * The model's own headline is stored on `ai_insights` and read on the ליד page.
+ * What INTERRUPTS the rep is system-authored: the same restrained Hebrew shape
+ * every other notification uses, so the bell never carries model prose and never
+ * carries urgency the model chose. Terminology per ux-guidelines §6 — ליד, never
+ * לקוח — and no emoji, no drama, no blame (care-charter Law 8, 13, 17).
+ */
+export const insightSurfacedTitle = (ctx: EventContext): string => withName('כדאי לחזור לליד', ctx)
+export const insightSurfacedBody = (): string => 'נמצא משהו שכדאי לבדוק. פתח את הליד לפרטים.'
+
+/**
  * Deliberately does NOT name the new status.
  *
  * The lead-status vocabulary lives inline in `components/clients/clientForm.tsx`

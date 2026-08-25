@@ -91,7 +91,15 @@ const OPTS = { toolCallId: 't', messages: [] } as never
 function modelAnswers(answer: unknown = GOOD) {
   return async (args: { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> }) => {
     await args.tools.get_today_state.execute({}, OPTS)
-    return { output: answer, totalUsage: { inputTokens: 10, outputTokens: 5 }, finishReason: 'stop', steps: [], text: '', toolCalls: [], toolResults: [] }
+    return {
+      output: answer,
+      totalUsage: { inputTokens: 10, outputTokens: 5 },
+      finishReason: 'stop',
+      steps: [],
+      text: '',
+      toolCalls: [],
+      toolResults: [],
+    }
   }
 }
 const persisted = () => recordAgentInvestigation.mock.calls[0]![0] as AgentInvestigationInput
@@ -172,9 +180,19 @@ describe('buildAgentInvestigationRow', () => {
 describe('database-enforced guarantees', () => {
   it('is first-write-wins on exactly (agencyId, investigationId)', () => {
     const row = buildAgentInvestigationRow({
-      agencyId: 7, userId: 3, investigationId: 'inv_abc', leadId: null, question: 'q',
-      status: 'answered', stopReason: 'answered', answer: GOOD, evidence: [],
-      droppedClaims: 0, strippedRefs: 0, steps: 1, failureReason: null,
+      agencyId: 7,
+      userId: 3,
+      investigationId: 'inv_abc',
+      leadId: null,
+      question: 'q',
+      status: 'answered',
+      stopReason: 'answered',
+      answer: GOOD,
+      evidence: [],
+      droppedClaims: 0,
+      strippedRefs: 0,
+      steps: 1,
+      failureReason: null,
     })
     const { sql } = agentInvestigationInsertQuery(row).toSQL()
     expect(sql).toContain(`insert into "${AGENT_INVESTIGATIONS_TABLE}"`)
@@ -261,6 +279,7 @@ describe('failure policy', () => {
       reason: 'gate_denied',
       message: 'over-quota',
       investigationId: expect.stringMatching(/^inv_/),
+      costUsd: 0,
     })
     expect(recordAgentInvestigation).not.toHaveBeenCalled()
   })
@@ -275,7 +294,11 @@ describe('failure policy', () => {
 
   it('a validation rejection persists refusal, never the raw prose', async () => {
     generateTextSpy.mockImplementation(
-      modelAnswers({ headline: 'RAW-UNSUPPORTED-PROSE', claims: [{ claimClass: 'FACT', text: 'RAW-CLAIM', entityEvidence: ['9999'] }], unknown: null }),
+      modelAnswers({
+        headline: 'RAW-UNSUPPORTED-PROSE',
+        claims: [{ claimClass: 'FACT', text: 'RAW-CLAIM', entityEvidence: ['9999'] }],
+        unknown: null,
+      }),
     )
     await askAgent('q')
     const dump = JSON.stringify(persisted())
@@ -367,9 +390,19 @@ describe('idempotency and concurrency', () => {
     // what enforces it, and this pins that the key is built from the row.
     const mk = (id: string) =>
       buildAgentInvestigationRow({
-        agencyId: 7, userId: 3, investigationId: id, leadId: null, question: 'q',
-        status: 'answered', stopReason: 'answered', answer: GOOD, evidence: [],
-        droppedClaims: 0, strippedRefs: 0, steps: 1, failureReason: null,
+        agencyId: 7,
+        userId: 3,
+        investigationId: id,
+        leadId: null,
+        question: 'q',
+        status: 'answered',
+        stopReason: 'answered',
+        answer: GOOD,
+        evidence: [],
+        droppedClaims: 0,
+        strippedRefs: 0,
+        steps: 1,
+        failureReason: null,
       })
     expect([mk('inv_x').agencyId, mk('inv_x').investigationId]).toEqual([7, 'inv_x'])
     expect(mk('inv_y').investigationId).toBe('inv_y')

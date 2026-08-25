@@ -6,6 +6,7 @@ import { reconcileMissedLeadCreated } from '@/lib/notifications/reconcile'
 import { tickFollowupNotifications } from '@/lib/notifications/followupTick'
 import { tickUnansweredNotifications } from '@/lib/notifications/unansweredTick'
 import { runNotificationWorker } from '@/lib/notifications/worker'
+import { sweepInsightResolution } from '@/lib/ai/integration/insightResolution'
 
 /**
  * Notification drain — the engine's heartbeat (spec §23.3).
@@ -15,7 +16,12 @@ import { runNotificationWorker } from '@/lib/notifications/worker'
  *   2. reconcile — recover events lost between a lead INSERT and its job INSERT
  *   3. follow-up tick — enqueue followup.due / followup.overdue from persisted state
  *   4. unanswered tick — enqueue message.unanswered from conversation state
- *   5. prune — terminal queue rows, settled notifications, orphans
+ *   5. insight resolution — close AI insights whose business state moved on
+ *   6. prune — terminal queue rows, settled notifications, orphans
+ *
+ * Step 5 is Phase 4.4 and adds NO schedule: an insight's staleness is a
+ * notification-lifecycle concern, so it belongs on the notification heartbeat
+ * rather than in a cron of its own. It is inert until AI insights exist.
  *
  * `after()` kicks make the common case immediate; THIS is the correctness and
  * recovery guarantee. Safe to overlap with itself and with kicks (leases +
@@ -59,12 +65,13 @@ async function handle(req: NextRequest) {
   const reconciled = await reconcileMissedLeadCreated()
   const followups = await tickFollowupNotifications()
   const unanswered = await tickUnansweredNotifications()
+  const insights = await sweepInsightResolution()
 
   const cutoff = new Date(Date.now() - PRUNE_AFTER_DAYS * 24 * 60 * 60 * 1000)
   await pruneTerminalNotificationJobs(cutoff)
   await pruneNotifications(cutoff)
 
-  return NextResponse.json({ ok: true, ...summary, reconciled, followups, unanswered })
+  return NextResponse.json({ ok: true, ...summary, reconciled, followups, unanswered, insights })
 }
 
 export async function GET(req: NextRequest) {

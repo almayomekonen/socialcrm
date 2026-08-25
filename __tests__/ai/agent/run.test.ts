@@ -112,6 +112,22 @@ beforeEach(() => {
 
 // ── Admission ─────────────────────────────────────────────────────────────────
 
+describe('B8 · autonomous spend is isolated from interactive spend', () => {
+  it('an interactive run charges the shared in-memory counter', async () => {
+    addDailySpend.mockClear()
+    await runAgentInvestigation({ question: 'q' })
+    expect(addDailySpend).toHaveBeenCalled()
+  })
+
+  it('an autonomous run charges NOTHING to it — proactive work can never deny a rep', async () => {
+    addDailySpend.mockClear()
+    const res = await runAgentInvestigation({ question: 'q', skipInteractiveSpend: true })
+    expect(addDailySpend).not.toHaveBeenCalled()
+    // The cost is still computed and returned, for the durable ledger to settle.
+    expect(typeof res.costUsd).toBe('number')
+  })
+})
+
 describe('admission decides whether a model is called at all', () => {
   it.each([
     'disabled',
@@ -131,6 +147,10 @@ describe('admission decides whether a model is called at all', () => {
       reason: 'gate_denied',
       message: reason,
       investigationId: expect.stringMatching(/^inv_/),
+      // Phase 4.3 exposes the real cost so an autonomous run can settle its
+      // durable hold. A denial spends nothing, and says so explicitly rather
+      // than omitting the field.
+      costUsd: 0,
     })
     expect(generateTextSpy).not.toHaveBeenCalled()
     expect(addDailySpend).not.toHaveBeenCalled()
@@ -221,9 +241,19 @@ describe('tools carry authority from the scope, never from the model', () => {
 
   it('a cross-agency lead is not found — the gate uses the scope agency', async () => {
     generateTextSpy.mockImplementation(async (args: never) => {
-      const tools = (args as unknown as { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> }).tools
+      const tools = (args as unknown as { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> })
+        .tools
       const out = await tools.get_lead.execute({ leadId: 999 }, OPTS)
-      return { output: GOOD_ANSWER, totalUsage: {}, finishReason: 'stop', steps: [], text: '', toolCalls: [], toolResults: [], probe: out }
+      return {
+        output: GOOD_ANSWER,
+        totalUsage: {},
+        finishReason: 'stop',
+        steps: [],
+        text: '',
+        toolCalls: [],
+        toolResults: [],
+        probe: out,
+      }
     })
     await runAgentInvestigation({ question: 'q' })
     // The gate receives the session-derived permission scope plus the model's
@@ -242,7 +272,8 @@ describe('the Budget, not stopWhen, is the authority', () => {
   it('refuses tool calls past the ceiling even if the loop keeps going', async () => {
     const results: unknown[] = []
     generateTextSpy.mockImplementation(async (args: never) => {
-      const tools = (args as unknown as { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> }).tools
+      const tools = (args as unknown as { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> })
+        .tools
       for (let i = 0; i < DEFAULT_MAX_STEPS + 3; i++) {
         results.push(await tools.get_lead.execute({ leadId: 100 + i }, OPTS))
       }
@@ -257,7 +288,8 @@ describe('the Budget, not stopWhen, is the authority', () => {
 
   it('reports the budget stop reason on an answer produced after the ceiling', async () => {
     generateTextSpy.mockImplementation(async (args: never) => {
-      const tools = (args as unknown as { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> }).tools
+      const tools = (args as unknown as { tools: Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }> })
+        .tools
       await tools.get_today_state.execute({}, OPTS)
       for (let i = 0; i < DEFAULT_MAX_STEPS + 1; i++) await tools.get_lead.execute({ leadId: 200 + i }, OPTS)
       return { output: GOOD_ANSWER, totalUsage: {}, finishReason: 'stop', steps: [], text: '', toolCalls: [], toolResults: [] }
@@ -350,7 +382,11 @@ describe('spend accounting', () => {
 
   it('still charges when the answer is refused — the tokens were spent', async () => {
     generateTextSpy.mockImplementation(
-      modelCallsTodayThenAnswers({ headline: 'x', claims: [{ claimClass: 'FACT', text: 'x', entityEvidence: ['9999'] }], unknown: null }),
+      modelCallsTodayThenAnswers({
+        headline: 'x',
+        claims: [{ claimClass: 'FACT', text: 'x', entityEvidence: ['9999'] }],
+        unknown: null,
+      }),
     )
     expect(await runAgentInvestigation({ question: 'q' })).toMatchObject({ ok: false })
     expect(addDailySpend).toHaveBeenCalledTimes(1)

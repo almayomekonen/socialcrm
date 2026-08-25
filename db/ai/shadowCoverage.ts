@@ -9,7 +9,16 @@ import { db } from '@/config/db'
  * window) via upsert.
  */
 
-export type CoverageReason = 'coverage_sweep' | 'staleness'
+/**
+ * Why cognition ran for this subject in this sweep window.
+ *
+ * `coverage_sweep` and `staleness` are the Tier-1 sweep's two admission
+ * reasons. `absence` arrives from the deterministic CRM detectors through
+ * `RuntimeScheduler.admit()` — a passed deadline is neither membership
+ * coverage nor belief staleness, so it is recorded as what it is.
+ * Mirrors the CHECK on `ai_shadow_coverage.reason`; the two move together.
+ */
+export type CoverageReason = 'coverage_sweep' | 'staleness' | 'absence'
 export type CoverageOutcome = 'recommend' | 'stay_silent' | 'rejected'
 
 export interface CoverageDecisionInput {
