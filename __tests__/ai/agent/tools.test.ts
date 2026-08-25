@@ -269,10 +269,21 @@ describe('get_lead', () => {
     expect(JSON.stringify(out)).not.toContain('call_reached')
   })
 
-  it('records exactly one lead evidence ref', async () => {
+  it('records the lead ref plus a metric ref for every measurement it exposes', async () => {
+    // The measurements were always returned; they now carry citable identifiers,
+    // because an OBSERVATION must name a metric and previously had none to name.
     const d = deps()
-    await run(buildAgentTools(d).get_lead, { leadId: 15015 })
-    expect(d.evidence.all()).toEqual([{ kind: 'lead', refId: '15015' }])
+    const out = await run(buildAgentTools(d).get_lead, { leadId: 15015 })
+    expect(d.evidence.has('lead', '15015')).toBe(true)
+
+    const metricIds = d.evidence
+      .all()
+      .filter((e) => e.kind === 'metric')
+      .map((e) => (e as { metric: string }).metric)
+      .sort()
+    expect(metricIds).toEqual(Object.keys(out.metrics as object).sort())
+    // Exactly the lead ref and those metrics — nothing else is recorded.
+    expect(d.evidence.size()).toBe(1 + metricIds.length)
   })
 
   it('still answers when enrichment is unavailable', async () => {
