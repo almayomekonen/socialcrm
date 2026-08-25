@@ -123,8 +123,9 @@ beforeEach(() => {
 // ─── Tool surface & scope safety ────────────────────────────────────────────
 
 describe('agent tool surface', () => {
-  it('exposes exactly the three read-only tools', () => {
+  it('exposes exactly the four read-only tools', () => {
     expect(Object.keys(buildAgentTools(deps())).sort()).toEqual([
+      'find_lead',
       'get_conversation',
       'get_lead',
       'get_today_state',

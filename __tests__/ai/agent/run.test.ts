@@ -193,9 +193,14 @@ describe('the admitted model and config drive the call', () => {
 // ── Tools, scope and isolation ────────────────────────────────────────────────
 
 describe('tools carry authority from the scope, never from the model', () => {
-  it('hands the model exactly the three read-only tools', async () => {
+  it('hands the model exactly the four read-only tools', async () => {
     await runAgentInvestigation({ question: 'q' })
-    expect(Object.keys(lastCall().tools as object).sort()).toEqual(['get_conversation', 'get_lead', 'get_today_state'])
+    expect(Object.keys(lastCall().tools as object).sort()).toEqual([
+      'find_lead',
+      'get_conversation',
+      'get_lead',
+      'get_today_state',
+    ])
   })
 
   it('no tool input schema exposes a scope field the model could set', async () => {
