@@ -83,7 +83,7 @@ export function makeGetConversation(deps: {
           conversationId: null,
           messageCount: 0,
           returned: 0,
-          messages: [] as { sequence: number; direction: string; text: string; at: string }[],
+          messages: [] as { id: number; sequence: number; direction: string; text: string; at: string }[],
         }
         deps.budget.noteResult(JSON.stringify(empty))
         return empty
@@ -107,6 +107,10 @@ export function makeGetConversation(deps: {
         messageCount: conversation.messageCount,
         returned: messages.length,
         messages: messages.map((m) => ({
+          // The id the evidence ledger records. Without it the model was shown
+          // `sequence` and asked to cite `id` — every message claim was dropped
+          // (inv_mt8mev3v_x24g97: 19 messages read, 3 claims, 3 dropped).
+          id: m.id,
           sequence: m.sequence,
           direction: m.direction,
           text: m.text,
