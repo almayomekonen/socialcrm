@@ -6,9 +6,9 @@
  * 404. Both are invisible in review. This asserts the two agree, and that the
  * authenticated surface stays disallowed.
  *
- * It also pins the ONE deliberate asymmetry — `/crm` is indexable and reachable
- * from the nav, but is not a sitemap entry because it canonicalises to `/`.
- * Submitting both would ask Google to index two URLs for one page.
+ * Since the homepage migration there is no asymmetry left to pin: every
+ * indexable route canonicalises to itself, and `/crm` is a 308 to `/`
+ * (next.config.mjs) rather than a second indexable page.
  */
 
 import { test, expect } from 'vitest'
@@ -31,8 +31,8 @@ test('the sitemap lists every indexable route that canonicalises to itself', () 
 
 test('the sitemap never lists a route that canonicalises elsewhere', () => {
   const canonicalisedAway = MARKETING_ROUTES.filter((r) => r.canonical !== `${SITE_URL}${r.path}`).map((r) => r.path)
-  // `/crm` re-exports `/`; advertising both would split one page across two URLs.
-  expect(canonicalisedAway).toEqual(['/crm'])
+  // Nothing canonicalises away any more; `/crm` retired to a 308.
+  expect(canonicalisedAway).toEqual([])
   for (const path of canonicalisedAway) {
     expect(sitemapPaths()).not.toContain(path)
   }

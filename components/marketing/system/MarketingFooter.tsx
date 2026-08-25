@@ -16,26 +16,25 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: 'המוצר',
     links: [
-      { label: 'ניהול לידים', href: '/crm' },
-      { label: 'כל היכולות', href: '/features' },
+      { label: 'ניהול לידים', href: '/' },
+      { label: 'כל היכולות', href: '/' },
       { label: 'מחירים', href: '/pricing' },
     ],
   },
   {
     title: 'ערוצים',
     links: [
-      { label: 'לידים מוואטסאפ', href: '/whatsapp-leads' },
-      { label: 'CRM לוואטסאפ עסקי', href: '/crm-for-whatsapp-business' },
-      { label: 'לידים מפייסבוק', href: '/facebook-leads' },
-      { label: 'לידים מאינסטגרם', href: '/instagram-leads-crm' },
+      { label: 'לידים מוואטסאפ', href: '/channels' },
+      { label: 'CRM לוואטסאפ עסקי', href: '/channels' },
+      { label: 'לידים מפייסבוק', href: '/channels' },
+      { label: 'לידים מאינסטגרם', href: '/channels' },
     ],
   },
   {
     title: 'להשוואה',
     links: [
       { label: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
-      { label: 'איך זה עובד', href: '/crm#how-it-works' },
-      { label: 'שאלות נפוצות', href: '/crm#faq' },
+      { label: 'שאלות נפוצות', href: '/faq' },
     ],
   },
   {

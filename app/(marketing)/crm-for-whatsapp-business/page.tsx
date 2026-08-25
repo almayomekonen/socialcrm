@@ -172,7 +172,7 @@ export default function CrmForWhatsAppBusinessPage() {
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
-                  href='/features'
+                  href='/'
                   className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
                 >
                   ראה את כל הפיצ׳רים

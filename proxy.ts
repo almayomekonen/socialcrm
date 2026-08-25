@@ -10,13 +10,14 @@ import {
 const PUBLIC_ROUTES = [
   '/',
   '/crm',
-  '/features',
-  '/facebook-leads',
-  '/whatsapp-leads',
-  '/crm-vs-excel',
+  '/pricing',
+  '/channels',
+  '/faq',
+  // SEO acquisition pages: deliberately outside the primary navigation, but
+  // they exist to be entered from search, so they must stay crawlable.
   '/instagram-leads-crm',
   '/crm-for-whatsapp-business',
-  '/pricing',
+  '/crm-vs-excel',
   '/privacy',
   '/terms',
   '/data-deletion',
@@ -28,6 +29,14 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/ipuy')) return NextResponse.next()
   if (pathname.startsWith('/thank-you')) return NextResponse.next()
+  /**
+   * Crawler manifests. Neither is in PUBLIC_ROUTES and the matcher does not
+   * exclude .xml/.txt, so both were falling through to the auth redirect below
+   * and answering Googlebot with a 302 to /auth — the sitemap could not be
+   * fetched at all, which makes every entry in it moot. They contain nothing
+   * but public marketing URLs.
+   */
+  if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return NextResponse.next()
   // Push service worker (public/sw.js) — push + notificationclick only, no secrets.
   // Must be fetchable without a session so registration/update cannot 302 to /auth.
   if (pathname === '/sw.js') return NextResponse.next()

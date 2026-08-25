@@ -39,11 +39,11 @@ function Ticks({ status }: { status: NonNullable<Msg['status']> }) {
   )
 }
 
-export function ConversationWorkspace() {
+export function ConversationWorkspace({ chatOnly = false }: { chatOnly?: boolean }) {
   return (
     <div
       dir='rtl'
-      className='grid text-[13px] lg:grid-cols-[1fr_260px]'
+      className={`grid text-[13px] ${chatOnly ? '' : 'lg:grid-cols-[1fr_260px]'}`}
       style={{ backgroundColor: APP.bg, color: APP.ink }}
     >
       {/* Thread */}
@@ -106,8 +106,8 @@ export function ConversationWorkspace() {
         </div>
       </div>
 
-      {/* Lead context — desktop only. */}
-      <aside
+      {/* Lead context — desktop only, and dropped entirely when chatOnly. */}
+      {!chatOnly && <aside
         className='hidden flex-col gap-3 border-s p-4 lg:flex'
         style={{ backgroundColor: APP.surface, borderColor: APP.border }}
       >
@@ -128,7 +128,7 @@ export function ConversationWorkspace() {
             </div>
           ))}
         </dl>
-      </aside>
+      </aside>}
     </div>
   )
 }

@@ -1,4 +1,11 @@
 @import 'tailwindcss';
+/* Lumen's own entry does `@import 'tw-animate-css'` right after Tailwind; its
+   `animate-in` / `zoom-in-95` / `fade-in-0` utilities drive the navigation-menu
+   and dropdown enter/exit motion. Without it those classes were inert and the
+   panel appeared with no animation at all. The utilities are opt-in class
+   names and nothing outside components/lumen/ uses them. */
+@import 'tw-animate-css';
+
 @import './anim.css';
 @import './animations.css';
 @import './base.css';
@@ -6,6 +13,8 @@
 @import './copilot-motion.css';
 @import './business-profile-art.css';
 @import './marketing.css';
+@import './lumen.css';
+@import './auth.css';
 @config "../../tailwind.config.ts";
 
 @theme {

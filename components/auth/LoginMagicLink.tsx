@@ -4,7 +4,8 @@ import { Input } from '@/lib/form'
 import { isUserExists, sendToken } from '../../actions/auth'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { SubmitButton } from '@/lib/btns/SubmitBtn'
+import { Button } from '@/components/lumen/ui/button'
+import AuthControlRow from './AuthControlRow'
 import { getFormData2 } from '@/lib/form/funcs'
 import { toast } from '@/lib/toast'
 
@@ -14,6 +15,7 @@ export default function LoginMagicLink({ error }) {
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
   const reqIdRef = useRef(0)
+  const formRef = useRef<HTMLFormElement>(null)
   const timersRef = useRef<{ slow?: ReturnType<typeof setTimeout>; retry?: ReturnType<typeof setTimeout> }>({})
 
   useEffect(() => () => {
@@ -75,24 +77,26 @@ export default function LoginMagicLink({ error }) {
     }
   }
   return (
-    <>
-      <div className='relative pt-6 pb-5'>
-        <div className='absolute inset-0 flex mt-1'>
-          <div className='w-full border-t border-gray-500' />
-        </div>
-
-        <div className='relative flex justify-center'>
-          <span className='px-4 bg-white'>או</span>
-        </div>
+    /* Lumen `/signin`: the field stack is `grid gap-4`, each field a
+       `grid gap-1.5` Label+Input, and the submit is `mt-2 w-full shadow-none`.
+       Lumen has no divider before the fields, so the old one is gone. Every
+       handler above is untouched. */
+    <form ref={formRef} onSubmit={handleSubmit} className='grid gap-4'>
+      <div>
+        <Input name='email' lbl='אימייל' type='email' />
       </div>
-
-      <form onSubmit={handleSubmit} className=''>
-        <Input name='email' lbl='התחברות עם מייל' type='email' />
-        {/* <Btn lbl='התחברות' className='w-full mt-2' /> */}
-        <SubmitButton lbl={submitting ? 'טוען...' : 'התחל בחינם'} className='w-full mt-2' icon='envelope' disabled={submitting} />
-
-        {msg && <p className='text-red-600 text-lg mt-4'>* {msg}</p>}
-      </form>
-    </>
+      {/* Lumen's signin control row. The action re-submits THIS form, i.e. the
+          existing send-token path — no new auth logic, no new route. */}
+      <AuthControlRow
+        checkboxId='remember-me'
+        checkboxLabel='זכור אותי'
+        actionLabel='שלח קישור שוב'
+        onAction={() => formRef.current?.requestSubmit()}
+      />
+      <Button type='submit' className='mt-2 w-full shadow-none' disabled={submitting}>
+        {submitting ? 'טוען...' : 'התחל בחינם'}
+      </Button>
+      {msg && <p className='text-destructive text-sm'>{msg}</p>}
+    </form>
   )
 }

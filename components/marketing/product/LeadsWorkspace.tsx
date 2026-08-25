@@ -55,7 +55,7 @@ export function LeadsWorkspace() {
       }
     >
       <div
-        className='flex items-center gap-1.5 overflow-hidden border-b px-3.5 py-2 sm:px-4'
+        className='flex items-center gap-1.5 overflow-x-auto border-b px-3.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4'
         style={{ backgroundColor: APP.surface, borderColor: APP.border }}
       >
         <Chip active>הכל · 248</Chip>

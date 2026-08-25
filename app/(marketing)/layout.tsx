@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { MarketingHeader } from '@/components/marketing/system/MarketingHeader'
-import { MarketingFooter } from '@/components/marketing/system/MarketingFooter'
+import { ShellHeader, ShellFooter } from '@/components/marketing/system/ShellChrome'
 import { organizationSchema, softwareApplicationSchema, websiteSchema } from '@/lib/seo/schemas'
 
 /**
@@ -25,11 +24,11 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <JsonLd data={organizationSchema()} />
       <JsonLd data={softwareApplicationSchema()} />
       <JsonLd data={websiteSchema()} />
-      <MarketingHeader />
+      <ShellHeader />
       <Suspense>
         <main>{children}</main>
       </Suspense>
-      <MarketingFooter />
+      <ShellFooter />
     </div>
   )
 }

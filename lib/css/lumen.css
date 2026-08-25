@@ -1,0 +1,474 @@
+/**
+ * LUMEN DESIGN TOKENS — scoped to the marketing surface.
+ *
+ * The values below are the purchased Lumen template's own
+ * (`_reference/lumen-nextjs-template-1.0.0/src/app/globals.css`), reproduced so
+ * its components render exactly as shipped. Only ONE value is substituted:
+ * `--secondary` / `--chart-1`, Lumen's accent hue, becomes SocialCRM's product
+ * primary. Lumen's `--primary` stays near-black INK — that restraint is the
+ * template's signature and is not ours to change.
+ *
+ * ── WHY THE OVERRIDES ARE SCOPED TO `.lumen` ──────────────────────────────
+ *
+ * Lumen's globals declare `--primary`, `--accent`, `--border` and `--radius-*`.
+ * The authenticated CRM already owns those utility names: `bg-primary` appears
+ * 95 times, `bg/text-accent` 11, `border-border` 8, and `rounded-lg` is
+ * everywhere. Declaring Lumen's values at `:root` would silently repaint the
+ * product.
+ *
+ * So they are overridden ONLY inside `.lumen`. Custom properties cascade, and a
+ * Tailwind utility resolves `var(--color-primary)` against the element using
+ * it — so `bg-primary` is Lumen's ink inside the scope and the CRM's #5e6ad2
+ * outside it, from one class. Deleting this file cannot change the CRM.
+ *
+ * The `@theme` block below adds ONLY names the CRM does not define (verified:
+ * background, foreground, card, popover, muted, muted-foreground, secondary,
+ * input, ring, chart-*, primary-foreground, accent-foreground). Those are
+ * required so Tailwind GENERATES the utilities at all; their values are
+ * overridden per-scope below.
+ */
+
+/* Lumen drives dark mode from a class on <html>, not from prefers-color-scheme.
+   Safe to declare globally: `dark:` appears zero times outside components/lumen. */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.041 0.002 314);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.132 0.024 254);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.132 0.024 254);
+  --color-primary-foreground: oklch(1 0 0);
+  --color-secondary: oklch(0.567 0.159 275); /* SocialCRM #5e6ad2 */
+  --color-secondary-foreground: oklch(0.041 0.002 314);
+  --color-muted: oklch(0.15 0.03 50 / 0.08);
+  --color-muted-foreground: oklch(0.369 0.005 300);
+  --color-accent-foreground: oklch(0.08 0.02 290);
+  --color-input: oklch(0.916 0.002 300);
+  --color-ring: oklch(0.84 0.01 50);
+  --color-chart-1: oklch(0.567 0.159 275); /* SocialCRM #5e6ad2 */
+  --color-chart-2: oklch(0.741 0.088 220);
+  --color-chart-3: oklch(0.862 0.069 320);
+  --color-chart-4: oklch(0.988 0.003 260);
+  --color-chart-5: oklch(0.585 0.132 257);
+
+  /* Lumen's two extra display steps. */
+  --text-4xxl: 2.5rem;
+  --text-6xxl: 4rem;
+
+  /* Lumen's logo marquee. */
+  /* Lumen gets these from `@import 'tw-animate-css'`. Importing the whole
+     package would push its utilities onto the CRM app too, so only the two
+     accordion animations the FAQ uses are reproduced, at the same .2s ease-out
+     the package defines. `--radix-accordion-content-height` is set by Radix on
+     the content element at open/close time. */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height, auto);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height, auto);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  --animate-marquee: marquee var(--duration) infinite linear;
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+}
+
+/* ── Lumen's containers, reproduced exactly ────────────────────────────────
+   Note the design logic: a CONSTANT 1.375rem gutter at every width, and a
+   max-width that only engages at ≥1200px. Below that the layout is fluid
+   edge-to-edge. This is what gives Lumen its breathing room, and it is not the
+   same as a stepped-gutter container. */
+
+@utility container {
+  /* `width: 100%` is Tailwind's BUILT-IN container behaviour. Lumen's own
+     `@utility container` omits it because it extends the built-in; declaring
+     the utility here replaced it instead, so the container became
+     shrink-to-fit. Inside the hero's `flex flex-col items-center` that made the
+     headline wrap one word per line on mobile — and made the desktop width look
+     correct only by accident, because a long single line hit the 1112px cap. */
+  width: 100%;
+  /* Explicit base. Without it the built-in container's own max-width chain
+     leaks in and computes to 0px below the first breakpoint, collapsing the
+     column to its padding (44px) — which is what wrapped the hero headline one
+     word per line on mobile. */
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: 1.375rem;
+  @media (width >= 40rem) {
+    max-width: none;
+  }
+  @media (width >= 1200px) {
+    max-width: 1112px;
+  }
+}
+
+@utility bigger-container {
+  width: 100%;
+  /* Explicit base. Without it the built-in container's own max-width chain
+     leaks in and computes to 0px below the first breakpoint, collapsing the
+     column to its padding (44px) — which is what wrapped the hero headline one
+     word per line on mobile. */
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: 1.375rem;
+  @media (width >= 40rem) {
+    max-width: none;
+  }
+  @media (width >= 1200px) {
+    max-width: 1254px;
+  }
+}
+
+@utility navbar-container {
+  width: 100%;
+  /* Explicit base. Without it the built-in container's own max-width chain
+     leaks in and computes to 0px below the first breakpoint, collapsing the
+     column to its padding (44px) — which is what wrapped the hero headline one
+     word per line on mobile. */
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: 1.375rem;
+  @media (width >= 40rem) {
+    max-width: none;
+  }
+  @media (width >= 1200px) {
+    max-width: 1334px;
+  }
+}
+
+@utility font-weight-display {
+  font-weight: var(--display-weight);
+}
+
+@utility font-weight-text {
+  font-weight: var(--text-weight);
+}
+
+/* ── The scope ─────────────────────────────────────────────────────────────
+   Applied to the marketing shell. Everything above is a global utility
+   definition; everything here is a per-scope value override. */
+
+.lumen {
+  /* Collide with the CRM — scoped only. */
+  --color-primary: oklch(0.041 0.002 314); /* Lumen's ink primary */
+  --color-accent: oklch(0.96 0.01 320);
+  --color-border: oklch(0.98 0 0);
+  --color-destructive: oklch(0.604 0.191 22.216);
+
+  --color-sidebar: oklch(0.9 0.01 80);
+  --color-sidebar-foreground: oklch(0.041 0.002 314);
+  --color-sidebar-primary: oklch(0.488 0.243 264.376);
+  --color-sidebar-primary-foreground: oklch(0.041 0.002 314);
+  --color-sidebar-accent: oklch(0.731 0 0);
+  --color-sidebar-accent-foreground: oklch(0.041 0.002 314);
+  --color-sidebar-border: oklch(0 0 0 / 10%);
+  --color-sidebar-ring: oklch(0.43 0 0);
+
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Lumen: 56px mobile / 92px from lg. */
+  --header-height: calc(var(--spacing) * 14);
+
+  /* Lumen's headings are Inter 600. This surface is Hebrew, so the display
+     face is Assistant — which draws visibly lighter strokes than Inter at the
+     same numeric weight. 700 is the deliberate Hebrew equivalent, matching the
+     reference's visual presence rather than its numeric value. Assistant is a
+     200–800 variable font, so this costs no extra download. */
+  --display-weight: 700;
+  --text-weight: 400;
+  --font-display: var(--font-assistant);
+  --font-text: var(--font-assistant);
+
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-weight: var(--text-weight);
+}
+
+@media (width >= 64rem) {
+  .lumen {
+    --header-height: calc(var(--spacing) * 23);
+  }
+}
+
+/* Lumen applies display weight to every heading in its base layer — and the
+   layer matters. Declared outside it, `.lumen :is(h1…h6)` (specificity 0,1,1)
+   outranks a utility like `font-bold` (0,1,0), so per-heading weight overrides
+   silently did nothing. In `@layer base` utilities win, as they do in Lumen. */
+@layer base {
+  .lumen :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--font-display);
+    font-weight: var(--display-weight);
+  }
+}
+
+/* Lumen's section rhythm. */
+/* `--shadow-sm: none` in main.css flattens CRM cards, and because it is declared
+   inside `@theme` it is COMPILED INTO the utility (`.shadow-sm{box-shadow:none}`)
+   — so re-declaring the custom property inside `.lumen` does nothing at runtime.
+   It has to be a real rule, and `.lumen .shadow-sm` (0,2,0) outranks the
+   utility (0,1,0).
+
+   Lumen's navbar depends on this: once scrolled it detaches into a floating
+   pill over white content, and with no shadow it stops reading as a bar at all.
+   Value measured off the reference navbar at the same scroll offset. */
+.lumen .shadow-sm {
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.1),
+    0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.lumen .section-padding {
+  padding-block: calc(var(--spacing) * 17);
+}
+@media (width >= 48rem) {
+  .lumen .section-padding {
+    padding-block: calc(var(--spacing) * 24);
+  }
+}
+@media (width >= 64rem) {
+  .lumen .section-padding {
+    padding-block: calc(var(--spacing) * 28);
+  }
+}
+
+/* ── Dark chapters ─────────────────────────────────────────────────────────
+   Lumen inverts via a `.dark` class on <html>. SocialCRM's marketing site is
+   single-theme, so the same inversion is applied per-section instead, using
+   Lumen's own dark values. */
+
+.dark .lumen,
+.lumen-dark {
+  --color-background: oklch(0.095 0.002 314);
+  --color-foreground: oklch(1 0 0);
+  --color-card: oklch(0.108 0 0);
+  --color-card-foreground: oklch(1 0 0);
+  --color-popover: oklch(0.108 0 0);
+  --color-popover-foreground: oklch(1 0 0);
+  --color-primary: oklch(1 0 0);
+  --color-primary-foreground: oklch(0.041 0.002 314);
+  --color-secondary-foreground: oklch(1 0 0);
+  --color-muted: oklch(0.15 0.03 50 / 0.12);
+  --color-muted-foreground: oklch(0.691 0.005 300);
+  --color-accent: oklch(0.15 0.01 320);
+  --color-accent-foreground: oklch(0.92 0.02 290);
+  --color-border: oklch(0.173 0 0);
+  --color-input: oklch(0.298 0 0);
+  --color-ring: oklch(0.24 0.01 50);
+  --color-chart-4: oklch(0.108 0 0);
+
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* ── RTL ───────────────────────────────────────────────────────────────────
+   The smallest possible set of directional corrections. Lumen is LTR-authored;
+   these flip the handful of physical values that would otherwise point the
+   wrong way, without touching its layout system. */
+
+.lumen [dir='rtl'] .lumen-flip,
+[dir='rtl'] .lumen .lumen-flip {
+  transform: scaleX(-1);
+}
+
+
+
+/* ── Hero wash ─────────────────────────────────────────────────────────────
+   Lumen's hero background is `/images/gradient.webp`, a soft plasma in its own
+   pink/blue brand. The composition is kept — a wide, low-contrast bloom behind
+   centred text, with the section's own scrims layered over it — but rendered in
+   CSS so the hue is SocialCRM's rather than Lumen's, and so it stays sharp at
+   any width without shipping a raster.
+
+   Deliberately low chroma. The brief is explicit that the accent stays an
+   accent; this is atmosphere, not a purple page. */
+.lumen-hero-wash {
+  background-color: var(--color-background);
+  /* Four overlapping blooms at high spread and low individual alpha. Lumen's
+     `gradient.webp` is a full-bleed plasma, not a tint — at low opacity the
+     hero reads as plain white and the frosted product frame on top has nothing
+     to sit against. Hue family is SocialCRM's indigo with a warm and a cool
+     neighbour, so it stays a brand wash rather than a rainbow. */
+  background-image:
+    radial-gradient(
+      ellipse 90% 75% at 18% 22%,
+      color-mix(in oklab, var(--color-secondary) 62%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 85% 70% at 82% 18%,
+      color-mix(in oklab, oklch(0.78 0.13 330) 58%, transparent),
+      transparent 66%
+    ),
+    radial-gradient(
+      ellipse 95% 65% at 62% 78%,
+      color-mix(in oklab, oklch(0.8 0.12 230) 60%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 55% at 8% 82%,
+      color-mix(in oklab, oklch(0.88 0.07 90) 45%, transparent),
+      transparent 65%
+    );
+  background-repeat: no-repeat;
+}
+
+
+/* ── RTL: contain the off-canvas mobile menu ───────────────────────────────
+   Lumen's collapsed mobile menu sits outside the viewport on the INLINE-START
+   side. In LTR that is the left, and content hanging off the left never grows
+   `scrollWidth`. Mirrored into RTL the same panel hangs off the right, where it
+   does — 9px of horizontal scroll at 320px, and more on narrower phones.
+
+   This is containment of an off-canvas layer, not an overflow band-aid: the
+   clip is on the header that owns the panel, never on the page, so a genuine
+   layout overflow anywhere else still shows up. `clip` rather than `hidden` so
+   no scroll container is created and `position: sticky` on the header keeps
+   working. */
+/* The RTL mobile drawer sits off-canvas at `inset-0` translated aside, which
+   widens the page unless the header clips it. That clip must NOT apply from
+   `lg` up: the desktop dropdown panel hangs BELOW the header, and once the
+   navbar compacts on scroll the panel fell outside the clip box and stopped
+   receiving pointer events — the menu looked dead after the first click.
+   The drawer is mobile-only and the dropdown is `lg:block`, so scope the clip
+   to the range that actually needs it. */
+@media (width < 64rem) {
+  .lumen > header {
+    overflow-x: clip;
+  }
+}
+
+/* ── Theme toggle view transition (Lumen's globals.css, verbatim) ──────────
+   The circular mask wipes from the toggle's own centre; `--x`/`--y` are set by
+   `components/lumen/theme-toggle.tsx` before `startViewTransition`. */
+@keyframes theme-mask {
+  0% {
+    clip-path: circle(0% at var(--x, 50%) var(--y, 50%));
+  }
+  100% {
+    clip-path: circle(150% at var(--x, 50%) var(--y, 50%));
+  }
+}
+
+html.theme-transition::view-transition-old(root),
+html.theme-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html.theme-transition::view-transition-old(root) {
+  z-index: 1;
+}
+
+html.theme-transition::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-mask 0.5s ease-in forwards;
+}
+
+/* ── Marquee ───────────────────────────────────────────────────────────────
+   `--animate-marquee` is declared in @theme, but Tailwind never generated the
+   `.animate-marquee` utility: the class only appears inside a `cn()` OBJECT KEY
+   in components/lumen/magicui/marquee.tsx, which its scanner does not read.
+
+   This was previously patched with a hand-written `.lumen .animate-marquee`
+   rule using the `animation` SHORTHAND — which resets `animation-play-state`
+   to `running` and therefore silently killed Lumen's
+   `group-hover:[animation-play-state:paused]`. pauseOnHover did nothing.
+
+   `@source inline(...)` makes Tailwind emit its own utility, identical to the
+   one the template ships, so the hover pause composes exactly as upstream. */
+
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}
+
+/* Lumen draws the accent edge on its featured testimonial cards with a
+   `before:z-[-1]` pseudo-element, which relies on every ancestor being
+   transparent. Our `.lumen` wrapper paints an opaque ground, so that edge
+   escaped behind it and vanished. Giving each section its own stacking
+   context contains the negative z-index inside the section, where the
+   background is transparent — the edge renders exactly as in the template. */
+.lumen section {
+  isolation: isolate;
+}
+
+/* Radix's switch thumb is positioned with `translate-x`, which is PHYSICAL —
+   it moves right in both directions. Lumen is LTR so it never notices; under
+   our `dir="rtl"` wrapper the thumb walked off the right edge of the track
+   (22px outside it when checked). Mirroring the two translations puts the
+   thumb the same distance inside the track as the reference, and keeps it
+   travelling toward whichever label is active. Scoped to `.lumen` so the
+   app's own switches are untouched. Tailwind v4 emits the standalone
+   `translate` property (not `transform`), so the override must use it too. */
+.lumen [data-slot='switch-thumb'][data-state='unchecked'] {
+  translate: -15% 0;
+}
+.lumen [data-slot='switch-thumb'][data-state='checked'] {
+  translate: -115% 0;
+}
+
+/* Lumen's dropdown panel carries Tailwind's small elevation. The template's
+   class (`group-data-[viewport=false]/navigation-menu:shadow`) emits nothing on
+   our Tailwind (4.1.18 vs the template's 4.1.14), so the panel rendered flat
+   while the reference had a card edge. Set the reference's own computed value
+   directly, scoped to the marketing surface. */
+.lumen [data-slot='navigation-menu-content'] {
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.1),
+    0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+/* ── Marquee ───────────────────────────────────────────────────────────────
+   `animate-marquee` only appears inside a `cn()` OBJECT KEY in
+   components/lumen/magicui/marquee.tsx, which Tailwind's scanner does not read,
+   so the utility is never generated and the track sits still. `@source inline`
+   does not help here either: the `--animate-marquee` theme token is dropped
+   because nothing Tailwind can see references it.
+
+   Declared explicitly with LONGHAND properties. The previous version used the
+   `animation` shorthand, which resets `animation-play-state` to `running` and
+   silently killed Lumen's `group-hover:[animation-play-state:paused]` — the
+   rows never paused on hover. Longhands leave play-state untouched, so the
+   template's own pause rule composes exactly as upstream. */
+.lumen .animate-marquee {
+  animation-name: marquee;
+  animation-duration: var(--duration);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+.lumen .animate-marquee-vertical {
+  animation-name: marquee-vertical;
+  animation-duration: var(--duration);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}

@@ -65,7 +65,7 @@ const FAQTabs = ({
         key={key}
         onClick={() => setSelected(key)}
         className={cn(
-          'relative overflow-hidden whitespace-nowrap rounded-md border px-4 py-2.5 md:px-3 md:py-1.5 text-sm font-medium transition-colors duration-500',
+          'relative overflow-hidden whitespace-nowrap rounded-md border px-4 py-2.5 md:px-3 md:py-1.5 text-sm font-semibold transition-colors duration-500',
           selected === key
             ? 'border-primary text-background'
             : 'border-border bg-transparent text-muted-foreground hover:text-foreground',
@@ -130,7 +130,7 @@ const FAQItem = ({ question, answer }: FAQItem) => {
         onClick={() => setIsOpen(!isOpen)}
         className='flex w-full items-center justify-between gap-4 p-4 text-right'
       >
-        <span className={cn('text-lg font-medium transition-colors', isOpen ? 'text-foreground' : 'text-muted-foreground')}>
+        <span className={cn('text-lg font-semibold transition-colors', isOpen ? 'text-foreground' : 'text-muted-foreground')}>
           {question}
         </span>
         <motion.span

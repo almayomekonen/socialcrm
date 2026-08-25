@@ -28,14 +28,12 @@ vi.mock('next/navigation', () => ({
 }))
 
 import Home from '@/app/(marketing)/page'
-import Crm from '@/app/(marketing)/crm/page'
-import Features from '@/app/(marketing)/features/page'
-import FacebookLeads from '@/app/(marketing)/facebook-leads/page'
-import WhatsappLeads from '@/app/(marketing)/whatsapp-leads/page'
-import CrmVsExcel from '@/app/(marketing)/crm-vs-excel/page'
-import CrmForWhatsapp from '@/app/(marketing)/crm-for-whatsapp-business/page'
-import InstagramLeads from '@/app/(marketing)/instagram-leads-crm/page'
+import Channels from '@/app/(marketing)/channels/page'
 import Pricing from '@/app/(marketing)/pricing/page'
+import Faq from '@/app/(marketing)/faq/page'
+import InstagramLeads from '@/app/(marketing)/instagram-leads-crm/page'
+import CrmForWhatsapp from '@/app/(marketing)/crm-for-whatsapp-business/page'
+import CrmVsExcel from '@/app/(marketing)/crm-vs-excel/page'
 import Privacy from '@/app/(marketing)/privacy/page'
 import Terms from '@/app/(marketing)/terms/page'
 import DataDeletion from '@/app/(marketing)/data-deletion/page'
@@ -44,14 +42,12 @@ afterEach(cleanup)
 
 const PAGES: Array<[path: string, Component: () => React.ReactNode]> = [
   ['/', Home],
-  ['/crm', Crm],
-  ['/features', Features],
-  ['/facebook-leads', FacebookLeads],
-  ['/whatsapp-leads', WhatsappLeads],
-  ['/crm-vs-excel', CrmVsExcel],
-  ['/crm-for-whatsapp-business', CrmForWhatsapp],
-  ['/instagram-leads-crm', InstagramLeads],
+  ['/channels', Channels],
   ['/pricing', Pricing],
+  ['/faq', Faq],
+  ['/instagram-leads-crm', InstagramLeads],
+  ['/crm-for-whatsapp-business', CrmForWhatsapp],
+  ['/crm-vs-excel', CrmVsExcel],
   ['/privacy', Privacy],
   ['/terms', Terms],
   ['/data-deletion', DataDeletion],

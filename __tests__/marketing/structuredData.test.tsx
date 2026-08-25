@@ -30,26 +30,14 @@ vi.mock('next/navigation', () => ({
   notFound: () => {},
 }))
 
-import Crm from '@/app/(marketing)/crm/page'
-import Features from '@/app/(marketing)/features/page'
-import FacebookLeads from '@/app/(marketing)/facebook-leads/page'
-import WhatsappLeads from '@/app/(marketing)/whatsapp-leads/page'
-import CrmVsExcel from '@/app/(marketing)/crm-vs-excel/page'
-import CrmForWhatsapp from '@/app/(marketing)/crm-for-whatsapp-business/page'
-import InstagramLeads from '@/app/(marketing)/instagram-leads-crm/page'
+import Home from '@/app/(marketing)/page'
 import MarketingLayout from '@/app/(marketing)/layout'
 
 afterEach(cleanup)
 
 /** Pages that carry their own JSON-LD (the layout supplies the site-wide graphs). */
 const PAGES: Array<[path: string, Component: () => React.ReactNode]> = [
-  ['/crm', Crm],
-  ['/features', Features],
-  ['/facebook-leads', FacebookLeads],
-  ['/whatsapp-leads', WhatsappLeads],
-  ['/crm-vs-excel', CrmVsExcel],
-  ['/crm-for-whatsapp-business', CrmForWhatsapp],
-  ['/instagram-leads-crm', InstagramLeads],
+  ['/', Home],
 ]
 
 test('the marketing layout emits the three site-wide graphs', () => {

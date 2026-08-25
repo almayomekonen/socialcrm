@@ -26,9 +26,16 @@ const font = Assistant({
 
 export const metadata = metaData
 
+/**
+ * `suppressHydrationWarning` on <html> is required by next-themes, which powers
+ * the theme toggle on the marketing surface: it writes `class` on <html> before
+ * React hydrates, so server and client markup differ by that one attribute by
+ * design. The flag applies to THIS element's own attributes only — it does not
+ * silence mismatches anywhere inside the tree, and changes nothing at runtime.
+ */
 export default async function RootLayout({ children }) {
   return (
-    <html lang='he' dir='rtl' data-scroll-behavior='smooth'>
+    <html lang='he' dir='rtl' data-scroll-behavior='smooth' suppressHydrationWarning>
       <body className={font.className}>
         <LayoutPageEvents />
         <ToastMsg />

@@ -26,11 +26,11 @@ import { cn } from '@/lib/utils'
  */
 
 const LINKS = [
-  { label: 'ניהול לידים', href: '/crm' },
-  { label: 'יכולות', href: '/features' },
-  { label: 'וואטסאפ', href: '/whatsapp-leads' },
-  { label: 'פייסבוק', href: '/facebook-leads' },
-  { label: 'אינסטגרם', href: '/instagram-leads-crm' },
+  { label: 'ניהול לידים', href: '/' },
+  { label: 'יכולות', href: '/' },
+  { label: 'וואטסאפ', href: '/channels' },
+  { label: 'פייסבוק', href: '/channels' },
+  { label: 'אינסטגרם', href: '/channels' },
   { label: 'מחירים', href: '/pricing' },
 ]
 
@@ -137,7 +137,7 @@ export function MarketingHeader() {
           </Link>
           <Link
             href={CTA.href}
-            className='mkt-sheen inline-flex h-11 items-center rounded-mkt-lg bg-mkt-ink px-4 text-[0.9375rem] font-medium text-white ring-1 ring-white/12 transition-transform active:scale-[0.98] motion-reduce:transition-none'
+            className='mkt-sheen inline-flex h-11 items-center rounded-mkt-lg bg-mkt-ink px-4 text-[0.9375rem] font-semibold text-white ring-1 ring-white/12 transition-transform active:scale-[0.98] motion-reduce:transition-none'
           >
             {CTA.label}
           </Link>
@@ -200,7 +200,7 @@ export function MarketingHeader() {
           <Link
             href={CTA.href}
             onClick={closeMenu}
-            className='mt-5 grid h-12 place-items-center rounded-mkt-lg bg-mkt-accent text-base font-medium text-white'
+            className='mt-5 grid h-12 place-items-center rounded-mkt-lg bg-mkt-accent text-base font-semibold text-white'
           >
             {CTA.label}
           </Link>

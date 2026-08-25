@@ -16,14 +16,12 @@ import { MARKETING_ROUTES, SITE_URL } from './routes'
 vi.mock('@/actions/auth', () => ({ getSessionState: async () => false, logout: async () => {} }))
 
 import { metadata as home } from '@/app/(marketing)/page'
-import { metadata as crm } from '@/app/(marketing)/crm/page'
-import { metadata as features } from '@/app/(marketing)/features/page'
-import { metadata as facebookLeads } from '@/app/(marketing)/facebook-leads/page'
-import { metadata as whatsappLeads } from '@/app/(marketing)/whatsapp-leads/page'
-import { metadata as crmVsExcel } from '@/app/(marketing)/crm-vs-excel/page'
-import { metadata as crmForWhatsapp } from '@/app/(marketing)/crm-for-whatsapp-business/page'
-import { metadata as instagramLeads } from '@/app/(marketing)/instagram-leads-crm/page'
+import { metadata as channels } from '@/app/(marketing)/channels/page'
 import { metadata as pricing } from '@/app/(marketing)/pricing/page'
+import { metadata as faq } from '@/app/(marketing)/faq/page'
+import { metadata as instagramLeads } from '@/app/(marketing)/instagram-leads-crm/page'
+import { metadata as crmForWhatsapp } from '@/app/(marketing)/crm-for-whatsapp-business/page'
+import { metadata as crmVsExcel } from '@/app/(marketing)/crm-vs-excel/page'
 import { metadata as privacy } from '@/app/(marketing)/privacy/page'
 import { metadata as terms } from '@/app/(marketing)/terms/page'
 import { metadata as dataDeletion } from '@/app/(marketing)/data-deletion/page'
@@ -32,14 +30,12 @@ import type { Metadata } from 'next'
 
 const BY_PATH: Record<string, Metadata> = {
   '/': home,
-  '/crm': crm,
-  '/features': features,
-  '/facebook-leads': facebookLeads,
-  '/whatsapp-leads': whatsappLeads,
-  '/crm-vs-excel': crmVsExcel,
-  '/crm-for-whatsapp-business': crmForWhatsapp,
-  '/instagram-leads-crm': instagramLeads,
+  '/channels': channels,
   '/pricing': pricing,
+  '/faq': faq,
+  '/instagram-leads-crm': instagramLeads,
+  '/crm-for-whatsapp-business': crmForWhatsapp,
+  '/crm-vs-excel': crmVsExcel,
   '/privacy': privacy,
   '/terms': terms,
   '/data-deletion': dataDeletion,
@@ -106,9 +102,8 @@ test('no two indexable routes claim the same canonical, except the /crm → / re
     seen.set(r.canonical, [...(seen.get(r.canonical) ?? []), r.path])
   }
   const shared = [...seen.entries()].filter(([, paths]) => paths.length > 1)
-  // `/` and `/crm` render the same component by design, so they share one
-  // canonical. Any OTHER duplicate is two pages competing for one URL.
-  expect(shared.map(([canonical, paths]) => [canonical, paths.sort()])).toEqual([
-    [`${SITE_URL}/`, ['/', '/crm']],
-  ])
+  // One page per canonical, with no exceptions: `/crm` is a 308 to `/` now,
+  // not a second component sharing the homepage canonical. Any duplicate here
+  // is two pages competing for one URL.
+  expect(shared.map(([canonical, paths]) => [canonical, paths.sort()])).toEqual([])
 })

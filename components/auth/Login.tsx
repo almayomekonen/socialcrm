@@ -29,6 +29,8 @@ export default function Login({
   const client_id = process.env.NEXT_PUBLIC_GGLID
   const mounted = useRef(true)
   const fbReady = useRef(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const gisWidth = useRef(0)
 
   // A login that is still in flight when the screen goes away must not toast
   // against a dead screen. The timers themselves are cleared per-attempt below.
@@ -39,6 +41,16 @@ export default function Login({
       mounted.current = false
     }
   }, [facebookAppId])
+
+  // The GIS button is a fixed-width iframe, so it has to be re-rendered when
+  // the column it sits in changes width. Guarded for SSR and jsdom.
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => renderGoogleButton())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [matchSocialButtons])
 
   async function finishSocialLogin(
     res: { fail?: boolean; msg?: string; email?: string; name?: string; register?: boolean } | void,
@@ -99,14 +111,20 @@ export default function Login({
     }
   }
 
-  function initGoogle() {
-    google.accounts.id.initialize({
-      client_id,
-      callback,
-    })
+  /* GIS only accepts a PIXEL width (max 400), so a fluid button has to be
+     measured and re-rendered. Everything else about the button — theme, size,
+     text, locale, shape, the initialize() call and the callback — is byte for
+     byte what it was; only the width number changes. */
+  function renderGoogleButton() {
+    const el = document.getElementById('gglBtn')
+    if (!el || typeof google === 'undefined') return
+    const measured = Math.round(rootRef.current?.getBoundingClientRect().width ?? 0)
+    const width = measured > 0 ? Math.min(measured, 400) : 250
+    if (width === gisWidth.current) return
+    gisWidth.current = width
 
-    google.accounts.id.renderButton(document.getElementById('gglBtn'), {
-      width: 250,
+    google.accounts.id.renderButton(el, {
+      width,
       theme: 'outline',
       size: 'large',
       text: 'signin_with',
@@ -114,6 +132,15 @@ export default function Login({
       shape: 'rectangular',
       ...(matchSocialButtons ? { logo_alignment: 'left' } : {}),
     })
+  }
+
+  function initGoogle() {
+    google.accounts.id.initialize({
+      client_id,
+      callback,
+    })
+
+    renderGoogleButton()
   }
 
   function initFacebook() {
@@ -182,7 +209,7 @@ export default function Login({
   }
 
   return (
-    <div className='flex w-full flex-col items-center lg:items-start'>
+    <div ref={rootRef} className='flex w-full flex-col items-center lg:items-start'>
       {user && <p className='text-sm text-gray-600 mb-1'>כניסה בשם {getDisplayName(user)}</p>}
       <Script src='https://accounts.google.com/gsi/client' onLoad={initGoogle} strategy='lazyOnload' />
       {facebookAppId && (
@@ -190,8 +217,8 @@ export default function Login({
       )}
 
       {matchSocialButtons ? (
-        <div className='flex w-[250px] flex-col gap-3' dir='ltr' data-testid='social-auth-buttons'>
-          <div className='relative h-11 w-[250px]'>
+        <div className='flex w-full flex-col gap-3' dir='ltr' data-testid='social-auth-buttons'>
+          <div className='relative h-11 w-full'>
             <div aria-hidden className={SOCIAL_BTN}>
               <GoogleMark />
               <span>כניסה באמצעות Google</span>
@@ -207,12 +234,12 @@ export default function Login({
         </div>
       ) : (
         <>
-          <div id='gglBtn' className='flex w-[250px] justify-center' dir='ltr'></div>
+          <div id='gglBtn' className='flex w-full justify-center' dir='ltr'></div>
           {facebookAppId && (
             <button
               type='button'
               dir='ltr'
-              className='relative mt-3 flex h-10 w-[250px] items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
+              className='relative mt-3 flex h-10 w-full items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
               onClick={onFacebookClick}
             >
               <FacebookMark />
@@ -226,7 +253,7 @@ export default function Login({
 }
 
 const SOCIAL_BTN =
-  'relative flex h-11 w-[250px] items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
+  'relative flex h-11 w-full items-center justify-center rounded border border-[#747775] bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50'
 
 function FacebookMark() {
   return (
