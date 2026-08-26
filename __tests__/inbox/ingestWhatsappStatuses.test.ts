@@ -189,11 +189,100 @@ describe('ingestWhatsappStatuses — misses are logged, never inserted', () => {
     expect(warn.mock.calls[0][1]).toMatchObject({ reason: 'terminal_or_stale' })
   })
 
+  it('a stale out-of-order event on a still-advanceable row stays terminal_or_stale', async () => {
+    // delivered already applied; a late `sent` is genuinely rejected, not a duplicate.
+    state.updateResult = 0
+    state.probeRow = { id: 5, agencyId: 103, status: 'delivered' }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await ingestWhatsappStatuses('1216762448189306', [{ id: 'wamid.A', status: 'sent', timestamp: TS }])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][1]).toMatchObject({ reason: 'terminal_or_stale', currentStatus: 'delivered' })
+  })
+
   it('never logs message content', async () => {
     state.updateResult = 0
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await ingestWhatsappStatuses('1216762448189306', [{ id: 'wamid.X', status: 'sent', timestamp: TS }])
     expect(JSON.stringify(warn.mock.calls[0][1])).not.toMatch(/text|body|message"/i)
+  })
+})
+
+/**
+ * Re-arriving at the status the row already holds is the single most common
+ * outcome in production (101 of 101 outbound messages), because our own send
+ * flow writes `sent` before Meta's `sent` webhook lands. It is idempotent, and
+ * must be told apart from a transition that was genuinely discarded.
+ */
+describe('ingestWhatsappStatuses — benign duplicates are not warnings', () => {
+  for (const status of ['sent', 'delivered', 'read', 'failed'] as const) {
+    it(`${status} → ${status} is classified duplicate_same_status, not terminal_or_stale`, async () => {
+      state.updateResult = 0
+      state.probeRow = { id: 5, agencyId: 103, status }
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      await ingestWhatsappStatuses('1216762448189306', [{ id: 'wamid.A', status, timestamp: TS }])
+
+      expect(warn).not.toHaveBeenCalled()
+      expect(log).toHaveBeenCalledTimes(1)
+      expect(log.mock.calls[0][1]).toMatchObject({
+        reason: 'duplicate_same_status',
+        status,
+        currentStatus: status,
+      })
+    })
+  }
+
+  it('a duplicate belonging to ANOTHER agency is still foreign_agency, not a duplicate', async () => {
+    // Tenant isolation outranks the duplicate shortcut.
+    state.updateResult = 0
+    state.probeRow = { id: 5, agencyId: 69, status: 'sent' }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await ingestWhatsappStatuses('1216762448189306', [{ id: 'wamid.A', status: 'sent', timestamp: TS }])
+    expect(warn.mock.calls[0][1]).toMatchObject({ reason: 'foreign_agency' })
+  })
+})
+
+/**
+ * Coexistence businesses send from the WhatsApp Business app on their own phone.
+ * Meta reports delivery for those messages, we never store them, so the status
+ * can never match. Expected traffic — but an unmatched CLOUD API id is not.
+ */
+describe('ingestWhatsappStatuses — unknown wamid is split by id family', () => {
+  // Real ids observed in production 2026-08-20..26 (ids only, no content).
+  const BUSINESS_APP = 'wamid.HBgTSUwuMTczOTcyMTM4NDAzNjUwNBUUABEYFDJBRjE5MzdCMzE4NThGOENDRTU3AA=='
+  const CLOUD_API = 'wamid.HBgMOTcyNTM1MzE2OTQzFQIAERgUQ0U1NzY2OTdBM0Q3QjgxQ0FGOTkA'
+
+  it('a business-app id with no row is expected — logged, never warned', async () => {
+    state.updateResult = 0
+    state.probeRow = undefined
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await ingestWhatsappStatuses('1216762448189306', [{ id: BUSINESS_APP, status: 'delivered', timestamp: TS }])
+
+    expect(warn).not.toHaveBeenCalled()
+    expect(log.mock.calls[0][1]).toMatchObject({ reason: 'coexistence_echo_status', currentStatus: null })
+  })
+
+  it('a CLOUD API id with no row stays a warning — that is the real signal', async () => {
+    state.updateResult = 0
+    state.probeRow = undefined
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await ingestWhatsappStatuses('1216762448189306', [{ id: CLOUD_API, status: 'failed', timestamp: TS }])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][1]).toMatchObject({ reason: 'unknown_wamid' })
+  })
+
+  it('a lost CLOUD API failed event is never silenced by the coexistence branch', async () => {
+    // The one outcome this whole classification must never hide.
+    state.updateResult = 0
+    state.probeRow = undefined
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await ingestWhatsappStatuses('1216762448189306', [
+      { id: CLOUD_API, status: 'failed', timestamp: TS, errors: [{ code: 131047 }] },
+    ])
+    expect(warn.mock.calls[0][1]).toMatchObject({ reason: 'unknown_wamid', status: 'failed', errorCode: 131047 })
   })
 })
 
