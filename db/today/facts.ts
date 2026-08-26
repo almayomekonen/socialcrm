@@ -82,7 +82,7 @@ export function candidateFactsQuery(agencyId: number, plan: string, scope: Scope
 }
 
 export async function getBriefCandidateFacts(scope: Scope): Promise<LeadFact[]> {
-  const agencyId = await getAgencyId()
+  const agencyId = scope.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const rows = (await candidateFactsQuery(agencyId, plan, scope)) as Record<string, unknown>[]
   return rows.map(toLeadFact)
