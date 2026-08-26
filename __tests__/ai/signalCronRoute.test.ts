@@ -142,6 +142,17 @@ describe('the cron entry', () => {
       { path: '/api/cron/automations-dispatch', schedule: '*/5 * * * *' },
       { path: '/api/cron/notifications-dispatch', schedule: '*/1 * * * *' },
       { path: '/api/cron/send-auto-responses', schedule: '*/1 * * * *' },
+      // Wave 0 (Meta P0-4 / P0-5): the lead-ingestion recovery drain and the
+      // scheduled connection-health sweep. Both are Facebook/WhatsApp
+      // integration crons; neither touches the signal pipeline, which is the
+      // property this assertion exists to protect.
+      { path: '/api/cron/retry-webhook-failures', schedule: '*/15 * * * *' },
+      { path: '/api/cron/connection-health', schedule: '0 * * * *' },
+      // Wave 2A.2f: the WhatsApp Coexistence history importer's drain. Like the
+      // Wave 0 entries above it is an integration cron and touches no part of
+      // the signal pipeline — and it is doubly inert today, because history is
+      // gated off and its allowlist is empty by default.
+      { path: '/api/cron/history-import', schedule: '*/5 * * * *' },
     ])
   })
 })

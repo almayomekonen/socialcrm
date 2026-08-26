@@ -1,4 +1,8 @@
 import { db } from '@/config/db'
+// The canonical union rather than a fourth copy of it. Coverage is the sink
+// every processed signal lands in, so it must represent every subject the queue
+// can hold — including `conversation`, which is observable but never investigable.
+import type { SubjectType } from './stateManagement'
 
 /**
  * Integration-3 — the isolated coverage-sweep decision sink.
@@ -23,7 +27,7 @@ export type CoverageOutcome = 'recommend' | 'stay_silent' | 'rejected'
 
 export interface CoverageDecisionInput {
   agencyId: number
-  subjectType: 'lead' | 'portfolio'
+  subjectType: SubjectType
   subjectId: string
   reason: CoverageReason
   outcome: CoverageOutcome
@@ -38,7 +42,7 @@ export interface CoverageDecisionInput {
 export interface CoverageDecisionRow {
   id: number
   agencyId: number
-  subjectType: 'lead' | 'portfolio'
+  subjectType: SubjectType
   subjectId: string
   reason: CoverageReason
   outcome: CoverageOutcome
@@ -100,7 +104,7 @@ export async function recordCoverageDecision(input: CoverageDecisionInput): Prom
 /** Read a subject's coverage decisions, most recent first. Scoped. */
 export async function readCoverageDecisions(
   agencyId: number,
-  subject: { subjectType: 'lead' | 'portfolio'; subjectId: string },
+  subject: { subjectType: SubjectType; subjectId: string },
 ): Promise<CoverageDecisionRow[]> {
   const rows = (await db('ai_shadow_coverage')
     .where({ agencyId, subjectType: subject.subjectType, subjectId: subject.subjectId })
@@ -108,7 +112,7 @@ export async function readCoverageDecisions(
   return rows.map((r) => ({
     id: Number(r.id),
     agencyId: Number(r.agencyId),
-    subjectType: r.subjectType as 'lead' | 'portfolio',
+    subjectType: r.subjectType as SubjectType,
     subjectId: String(r.subjectId),
     reason: r.reason as CoverageReason,
     outcome: r.outcome as CoverageOutcome,

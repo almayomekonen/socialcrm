@@ -2,7 +2,30 @@ import { db } from '@/config/db'
 import type { Knex } from 'knex'
 import { decayConfidence, DEFAULT_DECAY_POLICY, type DecayPolicy } from './decay'
 
-export type SubjectType = 'lead' | 'portfolio'
+/**
+ * What a signal, belief or narrative record can be ABOUT.
+ *
+ * `conversation` names a leadless WhatsApp Contact conversation — a real person
+ * the business is talking to who is not (yet) a Lead. It exists because such a
+ * conversation can raise an objection or stall mid-deal, and both alternatives
+ * were wrong: fabricating a Lead invents a CRM record nobody created, and
+ * `portfolio` means the whole agency.
+ *
+ * IT IS AN OBSERVATION SUBJECT ONLY. A conversation subject may be detected,
+ * queued in `signal_jobs`, and recorded in `ai_shadow_coverage`. It may NOT be
+ * investigated: `checkPreconditions` declines any subject that is not a `lead`
+ * BEFORE it reserves spend, because a Contact has no handler and
+ * `resolveAutonomousScope` cannot name a responsible person without inventing
+ * one. The CHECKs on `ai_spend_reservations`, `ai_investigations`, `ai_beliefs`
+ * and `ai_insights` are deliberately NOT widened, so the database enforces that
+ * boundary rather than trusting code to remember it.
+ *
+ * Promotion is the supported route to investigability, and it is a human
+ * decision — `actions/whatsapp/promoteConversationToLead.ts`, surfaced in the
+ * inbox. Once promoted, the conversation is Lead-linked and every existing
+ * lead-subject path applies unchanged.
+ */
+export type SubjectType = 'lead' | 'conversation' | 'portfolio'
 export type UncertaintyKind = 'epistemic' | 'aleatoric'
 export type InferentialDistance = 'low' | 'medium' | 'high'
 export type NarrativeKind = 'history' | 'promise' | 'outcome'

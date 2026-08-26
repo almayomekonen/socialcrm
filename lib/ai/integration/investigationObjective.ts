@@ -23,6 +23,12 @@ export const INVESTIGATION_OBJECTIVE: Record<ExpectationKind, string> = {
     'Investigate this overdue follow-up. Determine what the lead was waiting for, what the latest conversation/context indicates, whether the expected follow-up is still relevant, and what concrete action the business should take now. Base every conclusion on cited CRM evidence. Do not invent missing facts.',
   'sla.open_loop':
     'This lead was answered and then the conversation stopped, with no follow-up scheduled and no open task. Determine what the customer was last waiting for, whether anything they asked for remains unresolved, whether the conversation reached a natural end, and what concrete action the business should take now. Base every conclusion on cited CRM evidence. Do not invent missing facts.',
+  'conversation.unanswered':
+    'This customer sent a message and no person has replied to it. Determine what they asked for, whether any part of it was already handled by an automated reply, whether the request is still open, and what concrete answer the business owes them now. Base every conclusion on cited CRM evidence. Do not invent missing facts.',
+  'conversation.objection':
+    'This customer raised an objection, already identified by the deterministic classifier. Determine what the objection actually is, whether it was addressed in the conversation that followed, whether it is a recurring theme for this lead, and what concrete response the business should give. Do not re-judge whether an objection occurred — that is established. Base every conclusion on cited CRM evidence. Do not invent missing facts.',
+  'conversation.stalled':
+    'This conversation showed real commercial engagement, was answered, and then stopped, with nothing scheduled. Determine what the customer was engaged about, whether their last point was resolved, whether the silence reads as a decision or as a dropped thread, and what concrete step would restart it. Base every conclusion on cited CRM evidence. Do not invent missing facts.',
 }
 
 /** The objective for an expectation, or null when none is declared. */

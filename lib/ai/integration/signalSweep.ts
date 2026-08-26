@@ -1,5 +1,9 @@
 import { enqueueSignal as defaultEnqueue, type EnqueueResult } from '@/db/ai/signalJobs'
 import { listAgencyLeadFacts as defaultListFacts } from '@/db/ai/leadFacts'
+import {
+  listAgencyConversationFacts as defaultListConversationFacts,
+  NO_CONVERSATION_FACTS,
+} from '@/db/ai/conversationFacts'
 import { businessDayBounds } from '@/lib/today/time'
 import { DETECTOR_LIST } from './detectors/registry'
 import type { Scope } from '@/db/ai/stateManagement'
@@ -39,6 +43,13 @@ import type { Scope } from '@/db/ai/stateManagement'
 
 export interface SignalSweepDeps {
   listAgencyLeadFacts?: typeof defaultListFacts
+  /**
+   * The qualifier's persisted turn classifications, for the conversation-sourced
+   * detectors. Injected like every other dependency so the sweep stays testable
+   * without a database; a failure to read them degrades to
+   * `NO_CONVERSATION_FACTS` rather than losing the lead-state detectors.
+   */
+  listAgencyConversationFacts?: typeof defaultListConversationFacts
   enqueueSignal?: typeof defaultEnqueue
 }
 
@@ -130,6 +141,7 @@ export async function runSignalSweep(opts: RunSignalSweepOptions = {}): Promise<
 
   const deps = opts.deps ?? {}
   const listFacts = deps.listAgencyLeadFacts ?? defaultListFacts
+  const listConversationFacts = deps.listAgencyConversationFacts ?? defaultListConversationFacts
   const enqueue = deps.enqueueSignal ?? defaultEnqueue
 
   const summary: SignalSweepSummary = {
@@ -147,8 +159,22 @@ export async function runSignalSweep(opts: RunSignalSweepOptions = {}): Promise<
       const scope: Scope = { agencyId }
       const facts = await listFacts(scope)
 
+      /**
+       * Conversation facts are ADDITIVE, so their failure must be too. A broken
+       * classification read costs the three conversation detectors their input;
+       * it must never cost `followup.overdue` and `sla.open_loop` a sweep they
+       * would otherwise have completed. Degrading to the empty set makes those
+       * detectors emit nothing, which is exactly what they would emit anyway.
+       */
+      let conversation = NO_CONVERSATION_FACTS
+      try {
+        conversation = await listConversationFacts(scope, now.getTime())
+      } catch (convErr) {
+        console.error(`[signal-sweep] agency=${agencyId} conversation facts unavailable:`, (convErr as Error).message)
+      }
+
       // Detection. Pure, per registry entry, no ranking applied to the union.
-      const signals = DETECTOR_LIST.flatMap((d) => d.detect(facts, ctx, scope))
+      const signals = DETECTOR_LIST.flatMap((d) => d.detect(facts, ctx, scope, conversation))
       summary.agencies += 1
       summary.detected += signals.length
 

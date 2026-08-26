@@ -79,9 +79,33 @@ export const DEFAULT_REFRACTORY_MS = 12 * 60 * 60 * 1000
  * detector cannot reach production without declaring what its violation means —
  * the same compiler enforcement `notificationOwnership.ts` applies to ownership.
  */
-export const EXPECTED_STATE: Record<ExpectationKind, QualifyingState> = {
+export const EXPECTED_STATE: Record<ExpectationKind, QualifyingState | null> = {
   'followup.overdue': 'FOLLOWUP_OVERDUE',
   'sla.open_loop': 'OPEN_LOOP_SLA',
+  // The detector emits only when `classifyLead` returns WAITING_REPLY, so this
+  // re-check is the identical assertion against FRESH facts: if a human answered
+  // between detection and admission, the state is no longer WAITING_REPLY and the
+  // precondition correctly declines. That is the whole point of re-deriving it.
+  'conversation.unanswered': 'WAITING_REPLY',
+  /**
+   * NULL — no Today state asserts these, and inventing one would be worse than
+   * skipping the check.
+   *
+   * The six `QualifyingState`s describe what a rep OWES a lead. An objection is
+   * not one of them: it is something the CUSTOMER did, recorded once by the
+   * qualifier. A stall is deliberately distinct from `OPEN_LOOP_SLA` — that is
+   * the state-based version of the same silence, and mapping to it here would
+   * make this detector re-assert a claim the other one already owns.
+   *
+   * WHAT STILL GUARDS THEM. Null skips ONLY the P4 state comparison. Every other
+   * precondition is untouched and runs first: ownership novelty (P1), the
+   * per-pass subject claim (P2), the refractory window (P3), and the
+   * `readLeadFact` read immediately above — which still rejects a lead that is
+   * gone, terminal, or over quota. Freshness for these expectations lives in the
+   * observation key instead: a new customer turn is a new observation.
+   */
+  'conversation.objection': null,
+  'conversation.stalled': null,
 }
 
 export interface PreconditionDeps {
@@ -168,11 +192,24 @@ export async function checkPreconditions(job: SignalJob, opts: PreconditionOptio
   }
   const ctx = businessDayBounds(now.getTime())
   const state = classifyLead(fact, ctx)
-  if (state === null || state !== EXPECTED_STATE[expectation]) {
+  /**
+   * The state re-check applies only to expectations a Today state asserts.
+   *
+   * A null declaration means "no `QualifyingState` makes this claim" — see
+   * EXPECTED_STATE — and comparing against one anyway would reject every
+   * conversation-sourced signal on a state it never claimed to be in. The lead
+   * is still required to exist, be non-terminal and be in quota: that is the
+   * `readLeadFact` guard directly above, and it is not skipped.
+   *
+   * Every expectation that declared a state keeps the identical comparison,
+   * including the `state === null` rejection.
+   */
+  const expectedState = EXPECTED_STATE[expectation]
+  if (expectedState !== null && (state === null || state !== expectedState)) {
     return {
       proceed: false,
       code: 'state_no_longer_holds',
-      detail: `expected ${EXPECTED_STATE[expectation]}, now ${state ?? 'no qualifying state'}`,
+      detail: `expected ${expectedState}, now ${state ?? 'no qualifying state'}`,
     }
   }
 

@@ -15,6 +15,7 @@ import { detectFollowupOverdue, FOLLOWUP_OVERDUE_EXPECTATION } from '@/lib/ai/in
 import { DETECTORS, DETECTOR_LIST } from '@/lib/ai/integration/detectors/registry'
 import { interpret } from '@/lib/ai/runtime/eventInterpretation'
 import { businessDayBounds } from '@/lib/today/time'
+import { NO_CONVERSATION_FACTS } from '@/db/ai/conversationFacts'
 import type { LeadFact } from '@/lib/today/types'
 import type { Scope } from '@/db/ai/stateManagement'
 
@@ -265,8 +266,19 @@ describe('detector registry', () => {
 
   it("every entry's own signals name that entry's expectation", () => {
     for (const def of DETECTOR_LIST) {
-      for (const s of def.detect([fact(OVERDUE)], ctx, SCOPE)) {
-        expect(s.absence?.violatedExpectation).toBe(def.expectation)
+      // Wave 1 added conversation-sourced detectors, which read the qualifier's
+      // persisted classifications rather than lead state. Passing the empty set
+      // keeps this a LEAD-FACT assertion: those detectors correctly emit nothing
+      // here, and the ones under test are unaffected.
+      for (const s of def.detect([fact(OVERDUE)], ctx, SCOPE, NO_CONVERSATION_FACTS)) {
+        // An `absence` names its violated expectation. An observation signal
+        // (`message`) has no absence marker — its detector identity lives on
+        // `source.id`, which is the form `observationKeyFor` relies on.
+        if (s.signalType === 'absence') {
+          expect(s.absence?.violatedExpectation).toBe(def.expectation)
+        } else {
+          expect(s.source.id).toBe(`detector:${def.expectation}`)
+        }
       }
     }
   })
