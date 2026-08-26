@@ -13,6 +13,7 @@ import {
   releaseExpired as defaultReleaseExpired,
   isReservationActive as defaultIsReservationActive,
 } from '@/db/ai/spendReservations'
+import { agentTrace } from '@/lib/agent/trace'
 import type { SignalJob } from '@/db/ai/signalJobs'
 
 /**
@@ -103,6 +104,57 @@ export async function reclaimExpiredReservations(now: Date = new Date(), deps: A
   return (deps.releaseExpired ?? defaultReleaseExpired)(now)
 }
 
+/**
+ * Run one durable write, and make its failure VISIBLE without changing what
+ * happens next.
+ *
+ * WHY THIS EXISTS. Every post-Agent write here was `.catch(() => undefined)`.
+ * The swallow is deliberate and stays: by the time these run the model call is
+ * already paid for and the job's disposition is already a judgement, so failing
+ * the investigation over a transient database fault would re-spend real money to
+ * reach the same verdict. What was wrong was the SILENCE.
+ *
+ * On 2026-08-26 an externally poisoned read-only connection (SQLSTATE 25006)
+ * made `settle` and `recordInvestigation` fail for investigation
+ * inv_mtadvvv4_34yip1. $0.011825 of provider spend was genuinely billed, the
+ * ledger recorded nothing, and NOT ONE LOG LINE said so — the loss was only
+ * discoverable by querying production. That is the defect this closes.
+ *
+ * Emits through `agentTrace`, the trace primitive the Agent already uses, so
+ * these lines land in the same `[AGENT-TRACE]` stream as INVESTIGATION_START and
+ * GENERATION_COMPLETE and correlate by `investigationId`. Identifiers, an
+ * operation name and the driver's message only — no answer text, no claim text,
+ * no customer content, no connection string.
+ *
+ * BEHAVIOUR IS UNCHANGED. Same resolved value, same `undefined` on failure, still
+ * never throws. This adds observability and nothing else.
+ */
+async function persist<T>(
+  operation: string,
+  ctx: { investigationId?: string | null; agencyId: number; signalJobId: number; reservationId?: number | null },
+  run: () => Promise<T>,
+): Promise<T | undefined> {
+  try {
+    return await run()
+  } catch (err) {
+    const e = err as { message?: string; code?: string }
+    agentTrace(
+      'PERSISTENCE_FAILED',
+      { investigationId: ctx.investigationId ?? null, agencyId: ctx.agencyId },
+      {
+        operation,
+        signalJobId: ctx.signalJobId,
+        reservationId: ctx.reservationId ?? null,
+        // The driver's own message and SQLSTATE. `25006` would have named the
+        // read-only connection instantly instead of costing an afternoon.
+        error: e?.message ?? String(err),
+        errorCode: e?.code ?? null,
+      },
+    )
+    return undefined
+  }
+}
+
 export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions = {}): Promise<AdmissionResult> {
   const now = opts.now ?? new Date()
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS
@@ -184,15 +236,19 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
       now: () => now.getTime(),
     })
   } catch (err) {
-    await settle(reservationId, 0, 'admitted').catch(() => undefined)
-    await recordInvestigation({
-      ...base,
-      investigationId: `inv_failed_${job.id}`,
-      status: 'failed',
-      stopReason: 'error',
-      costUsd: 0,
-      failureReason: (err as Error).message,
-    }).catch(() => undefined)
+    const failedId = `inv_failed_${job.id}`
+    const pctx = { investigationId: failedId, agencyId: job.agencyId, signalJobId: job.id, reservationId }
+    await persist('settle', pctx, () => settle(reservationId, 0, 'admitted'))
+    await persist('recordInvestigation', pctx, () =>
+      recordInvestigation({
+        ...base,
+        investigationId: failedId,
+        status: 'failed',
+        stopReason: 'error',
+        costUsd: 0,
+        failureReason: (err as Error).message,
+      }),
+    )
     return {
       outcome: 'transport_failed',
       jobDisposition: 'fail',
@@ -208,7 +264,12 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
 
   // Settle FIRST, on every path. Tokens were spent whatever happens next, and an
   // accounting step that only runs on success is an accounting step that lies.
-  await settle(reservationId, costUsd, 'admitted').catch(() => undefined)
+  const pctx = { investigationId, agencyId: job.agencyId, signalJobId: job.id, reservationId }
+  // A failed settle leaves the hold unsettled: the expiry sweep later RELEASES it,
+  // and a released row contributes nothing to `dailyTotalUsd`. Real provider spend
+  // then exists with no ledger entry, so this line is the only record that it
+  // happened. See the module header.
+  await persist('settle', pctx, () => settle(reservationId, costUsd, 'admitted'))
 
   if (result.ok === false) {
     // gate_denied is CAPACITY: the AI gate refused before generation, so nothing
@@ -216,14 +277,16 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
     // judgement (refusal) or transport (error).
     const capacity = result.reason === 'gate_denied'
     const transport = result.reason === 'error'
-    await recordInvestigation({
-      ...base,
-      investigationId,
-      status: capacity || transport ? 'failed' : 'refused',
-      stopReason: result.reason,
-      costUsd,
-      failureReason: result.message ?? null,
-    }).catch(() => undefined)
+    await persist('recordInvestigation', pctx, () =>
+      recordInvestigation({
+        ...base,
+        investigationId,
+        status: capacity || transport ? 'failed' : 'refused',
+        stopReason: result.reason,
+        costUsd,
+        failureReason: result.message ?? null,
+      }),
+    )
     return {
       outcome: capacity ? 'declined_capacity' : transport ? 'transport_failed' : 'refused',
       jobDisposition: capacity ? 'leave_pending' : transport ? 'fail' : 'succeed',
@@ -258,15 +321,17 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
 
   // 6. Record. A Recommend is written only while the hold is provably alive.
   if (gateOutcome === 'recommend' && (await isActive(reservationId, now)) === false) {
-    await recordInvestigation({
-      ...base,
-      investigationId,
-      status: 'refused',
-      stopReason: 'deadline',
-      gateOutcome: 'rejected',
-      costUsd,
-      failureReason: 'lease-expired-before-record',
-    }).catch(() => undefined)
+    await persist('recordInvestigation', pctx, () =>
+      recordInvestigation({
+        ...base,
+        investigationId,
+        status: 'refused',
+        stopReason: 'deadline',
+        gateOutcome: 'rejected',
+        costUsd,
+        failureReason: 'lease-expired-before-record',
+      }),
+    )
     return {
       outcome: 'gate_rejected',
       jobDisposition: 'succeed',
@@ -278,31 +343,35 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
     }
   }
 
-  await recordInvestigation({
-    ...base,
-    investigationId,
-    status: 'answered',
-    stopReason: result.stopReason,
-    gateOutcome,
-    silenceReason,
-    answer: result.answer,
-    evidence: [...result.evidence],
-    steps: result.steps,
-    costUsd,
-  }).catch(() => undefined)
+  await persist('recordInvestigation', pctx, () =>
+    recordInvestigation({
+      ...base,
+      investigationId,
+      status: 'answered',
+      stopReason: result.stopReason,
+      gateOutcome,
+      silenceReason,
+      answer: result.answer,
+      evidence: [...result.evidence],
+      steps: result.steps,
+      costUsd,
+    }),
+  )
 
-  await recordCoverage({
-    agencyId: job.agencyId,
-    subjectType: 'lead',
-    subjectId: job.subjectId,
-    reason: 'absence',
-    outcome: gateOutcome,
-    emitted: decision.emitted,
-    rejectionBoundary: 'rejection' in decision ? decision.rejection.boundary : null,
-    decision,
-    sweptAt: now.toISOString(),
-    sweepBucket: opts.sweepBucket ?? Math.floor(now.getTime() / (60 * 60 * 1000)),
-  }).catch(() => undefined)
+  await persist('recordCoverage', pctx, () =>
+    recordCoverage({
+      agencyId: job.agencyId,
+      subjectType: 'lead',
+      subjectId: job.subjectId,
+      reason: 'absence',
+      outcome: gateOutcome,
+      emitted: decision.emitted,
+      rejectionBoundary: 'rejection' in decision ? decision.rejection.boundary : null,
+      decision,
+      sweptAt: now.toISOString(),
+      sweepBucket: opts.sweepBucket ?? Math.floor(now.getTime() / (60 * 60 * 1000)),
+    }),
+  )
 
   // ── 7. Phase 4.4: a Recommend becomes a durable CONCLUSION. ───────────────
   //
@@ -335,7 +404,18 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
       // model call is already paid for and the run is already audited. The signal
       // job stays SUCCEEDED and the next investigation can conclude again.
       insightDetail = `insight-failed:${(err as Error).message}`
-      console.error(`[investigation] insight emit failed job=${job.id}:`, (err as Error).message)
+      const e = err as { message?: string; code?: string }
+      agentTrace(
+        'PERSISTENCE_FAILED',
+        { investigationId, agencyId: job.agencyId },
+        {
+          operation: 'emitInsight',
+          signalJobId: job.id,
+          reservationId,
+          error: e?.message ?? String(err),
+          errorCode: e?.code ?? null,
+        },
+      )
     }
   }
 
