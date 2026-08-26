@@ -42,7 +42,12 @@ const run = (t: unknown, i: unknown) =>
   (t as { execute: (i: unknown, o: unknown) => Promise<Record<string, unknown>> }).execute(i, OPTS)
 
 function deps(scope: AgentScope = SCOPE) {
-  return { scope, evidence: createEvidenceCollector(), budget: createBudget({ maxSteps: 6, deadlineMs: 60_000, now: () => 0 }), nowMs: 0 }
+  return {
+    scope,
+    evidence: createEvidenceCollector(),
+    budget: createBudget({ maxSteps: 6, deadlineMs: 60_000, now: () => 0 }),
+    nowMs: 0,
+  }
 }
 
 const SALI = { id: 1527, name: 'Sali', status: 'interested', nextFollowUpAt: null }
@@ -113,7 +118,12 @@ describe('search behaviour', () => {
   it('exposes no field beyond the approved four', async () => {
     getLeadsByName.mockResolvedValue([{ ...SALI, phone: '050-0000000', email: 'x@y.z' } as never])
     const out = await run(buildAgentTools(deps()).find_lead, { name: 'Sali' })
-    expect(Object.keys((out.matches as Record<string, unknown>[])[0]).sort()).toEqual(['leadId', 'name', 'nextFollowUpAt', 'status'])
+    expect(Object.keys((out.matches as Record<string, unknown>[])[0]).sort()).toEqual([
+      'leadId',
+      'name',
+      'nextFollowUpAt',
+      'status',
+    ])
     expect(JSON.stringify(out)).not.toContain('050-0000000')
   })
 })
@@ -141,12 +151,13 @@ describe('authorization and isolation', () => {
   // G / H — the scope the reader receives is the session's, never the caller's.
   it('passes the server-derived permission scope, and only that', async () => {
     await run(buildAgentTools(deps(AGENT)).find_lead, { name: 'Sali' })
-    expect(getLeadsByName).toHaveBeenCalledWith({ user: { role: Roles.AGNT }, gotPermIds: [3, 9] }, 'Sali')
+    // agencyId is part of the gate now: the reader must never re-derive it from a session.
+    expect(getLeadsByName).toHaveBeenCalledWith({ user: { role: Roles.AGNT }, gotPermIds: [3, 9], agencyId: 7 }, 'Sali')
   })
 
   it('an admin scope carries the admin role through unchanged', async () => {
     await run(buildAgentTools(deps()).find_lead, { name: 'Sali' })
-    expect(getLeadsByName.mock.calls[0]![0]).toEqual({ user: { role: Roles.ADMIN }, gotPermIds: [] })
+    expect(getLeadsByName.mock.calls[0]![0]).toEqual({ user: { role: Roles.ADMIN }, gotPermIds: [], agencyId: 7 })
   })
 
   it('a cross-agency search yields nothing — the reader is the gate', async () => {
@@ -197,7 +208,7 @@ describe('multi-step reachability — the reason this tool exists', () => {
 
     expect(leadId).toBe(1527)
     expect(detail.found).toBe(true)
-    expect(getNamedLeadById).toHaveBeenCalledWith({ user: { role: Roles.ADMIN }, gotPermIds: [] }, 1527)
+    expect(getNamedLeadById).toHaveBeenCalledWith({ user: { role: Roles.ADMIN }, gotPermIds: [], agencyId: 7 }, 1527)
     expect(d.evidence.has('lead', '1527')).toBe(true)
   })
 

@@ -18,6 +18,7 @@ import {
 } from '@/lib/ai/integration/investigationAdmission'
 import { checkPreconditions, EXPECTED_STATE, DEFAULT_REFRACTORY_MS } from '@/lib/ai/integration/preconditions'
 import { DETECTORS } from '@/lib/ai/integration/detectors/registry'
+import { NOTIFICATION_OWNERSHIP } from '@/lib/ai/integration/notificationOwnership'
 import type { SignalJob } from '@/db/ai/signalJobs'
 import type { AgentScope } from '@/lib/agent/types'
 import type { LeadFact } from '@/lib/today/types'
@@ -536,6 +537,51 @@ describe('boundaries — no provider, no Agent loop, no delivery, no second clas
     expect(code('lib/ai/integration/investigationAdmission.ts')).toMatch(/scope: pre\.scope/)
   })
 
+  /**
+   * B12 above was ONE HOP TOO SHALLOW, and production paid for it.
+   *
+   * It asserts the four Phase-4 modules contain no session call TEXTUALLY. They do
+   * not — and the suite was green while four `sla.open_loop` observations
+   * dead-lettered on agency 103, because `autonomousScope` called `getPerms`, whose
+   * ADMIN branch reaches `getUsersAndTeams()` -> `getAgencyId()` -> `getUser()`.
+   * The hazard sat one call below the text being asserted.
+   *
+   * This pins the guard that removed it. The real proof is behavioural and lives in
+   * `__tests__/ai/agent/sessionlessAutonomousScope.test.ts`, which runs the actual
+   * function with `getPerms` throwing what production threw; this is the cheap
+   * static companion that fails fast if the branch is deleted.
+   */
+  it('B12b · getPerms — the transitive session hazard — is reached only on the non-admin branch', () => {
+    const src = code('lib/ai/integration/autonomousScope.ts')
+    expect(src).toMatch(/import \{ isAdmin \} from '@\/types\/roles'/)
+    // Whitespace-flattened so formatting can never break the assertion: the
+    // isAdmin test and the getPerms call must live in ONE ternary statement.
+    expect(src.replace(/\s+/g, ' ')).toMatch(/isAdmin\([^;]*\?[^;]*getPerms\(/)
+  })
+
+  /**
+   * B12 above passed for the entire life of the defect.
+   *
+   * It asserts these four modules contain no DIRECT session call, and they never
+   * did. The hazard was one hop below the text it read: `autonomousScope` called
+   * `getPerms`, whose ADMIN branch reaches `getUsersAndTeams()` -> `getAgencyId()`
+   * -> `getUser()`, which is null on a cron. Four production `sla.open_loop`
+   * observations dead-lettered on that null while this test was green.
+   *
+   * A text assertion cannot see through a call. This narrows the specific hop, and
+   * `__tests__/ai/agent/sessionlessAutonomousScope.test.ts` is the real guard: it
+   * runs the function for real with `getPerms` throwing what production threw.
+   */
+  it('B12b · getPerms — the transitive session hazard — is reached only on the non-admin branch', () => {
+    const src = code('lib/ai/integration/autonomousScope.ts')
+    expect(src).toMatch(/import \{ isAdmin \} from '@\/types\/roles'/)
+    // Whitespace-flattened so a formatter cannot break the assertion: the isAdmin
+    // test and the getPerms call must sit in ONE statement — the ternary that
+    // skips the session-dependent branch entirely for admins.
+    const flat = src.replace(/\s+/g, ' ')
+    expect(flat, 'getPerms must be guarded by isAdmin, not called unconditionally').toMatch(/isAdmin\([^;]*\?[^;]*getPerms\(/)
+  })
+
   it('I12 · no notification delivery is importable', () => {
     for (const f of FILES) {
       expect(code(f)).not.toMatch(/notifyEvent|enqueueNotification|deliverWebPush|notifications\/emit|notifications\/worker/)
@@ -730,5 +776,92 @@ describe('C7 · the Value Bar remains authoritative over whether an insight exis
     const r = await admitInvestigation(job(), { now: NOW, deps: throwing as unknown as AdmissionDeps })
     expect(r.jobDisposition).toBe('succeed')
     expect(r.detail).toContain('insight-failed')
+  })
+})
+
+/**
+ * The production regression, at the admission boundary.
+ *
+ * P5 threw before any reservation existed, so the worker's outer catch failed the
+ * job and the retry ladder dead-lettered it on the third attempt — with no
+ * reservation, no investigation record, and no spend. That ordering is what kept
+ * the outage free; this pins it.
+ */
+describe('regression · a P5 throw costs nothing and reserves nothing', () => {
+  it('an exception inside preconditions never reaches reserve, the Agent, or settle', async () => {
+    const reserve = vi.fn()
+    const runAgent = vi.fn()
+    const settle = vi.fn()
+    const boom = vi.fn(async () => {
+      throw new TypeError("Cannot read properties of null (reading 'agencyId')")
+    })
+
+    await expect(
+      admitInvestigation(job({ expectation: 'sla.open_loop', subjectId: '1502' }), {
+        now: NOW,
+        deps: { checkPreconditions: boom, reserve, runAgent, settle } as unknown as AdmissionDeps,
+      }),
+    ).rejects.toThrow(/reading 'agencyId'/)
+
+    expect(boom).toHaveBeenCalledTimes(1)
+    expect(reserve).not.toHaveBeenCalled()
+    expect(runAgent).not.toHaveBeenCalled()
+    expect(settle).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The production regression, at the admission boundary.
+ *
+ * On 2026-08-26 four `sla.open_loop` jobs (10866, 10869, 10879, 10894) were claimed,
+ * failed three times each and dead-lettered with
+ * "Cannot read properties of null (reading 'agencyId')". The throw came from P5 —
+ * BEFORE `reserve()` — which is why production showed zero `ai_spend_reservations`
+ * and zero `ai_investigations` for the failures, and why the refractory window
+ * never suppressed the retries: there was no prior reservation for it to see.
+ *
+ * These lock in the two properties that made the outage cheap instead of expensive.
+ */
+describe('regression · a P5 throw costs nothing and reaches no model', () => {
+  it('a precondition THROW never reserves, never runs the Agent, and never settles', async () => {
+    const reserve = vi.fn()
+    const runAgent = vi.fn()
+    const settle = vi.fn()
+    const deps: AdmissionDeps = {
+      checkPreconditions: vi.fn(async () => {
+        throw new TypeError("Cannot read properties of null (reading 'agencyId')")
+      }),
+      reserve,
+      runAgent,
+      settle,
+    }
+
+    await expect(admitInvestigation(job({ expectation: 'sla.open_loop' }), { now: NOW, deps })).rejects.toThrow(
+      /reading 'agencyId'/,
+    )
+
+    expect(reserve).not.toHaveBeenCalled()
+    expect(runAgent).not.toHaveBeenCalled()
+    expect(settle).not.toHaveBeenCalled()
+  })
+
+  it('the throw PROPAGATES rather than becoming a verdict — the worker owns the retry ladder', async () => {
+    // A judgement is returned; an unexpected fault is raised. Swallowing this into
+    // `declined_precondition` would have marked the four jobs SUCCEEDED and hidden
+    // the defect completely.
+    const deps: AdmissionDeps = {
+      checkPreconditions: vi.fn(async () => {
+        throw new Error('boom')
+      }),
+    }
+    await expect(admitInvestigation(job(), { now: NOW, deps })).rejects.toThrow('boom')
+  })
+
+  it('sla.open_loop is genuinely unowned, so P1 lets it reach P5 at all', () => {
+    // If this ever flips, the four jobs could not have reached the failing code —
+    // and neither can any future one. It is the precondition of the regression.
+    expect(DETECTORS['sla.open_loop']).toBeDefined()
+    expect(NOTIFICATION_OWNERSHIP['sla.open_loop']).toBeNull()
+    expect(NOTIFICATION_OWNERSHIP['followup.overdue']).not.toBeNull()
   })
 })

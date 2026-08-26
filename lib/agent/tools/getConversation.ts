@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { tool } from 'ai'
 import { getNamedLeadById } from '@/db/briefing'
+import { readerScope } from './readerScope'
 import {
   AGENT_MESSAGE_LIMIT_DEFAULT,
   AGENT_MESSAGE_LIMIT_MAX,
@@ -36,11 +37,7 @@ const MIN_LIMIT = 10
  * that a person wrote it. Telling a rep they said something the system said for
  * them is a worse failure than saying less.
  */
-export function makeGetConversation(deps: {
-  scope: AgentScope
-  evidence: EvidenceCollector
-  budget: Budget
-}) {
+export function makeGetConversation(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget }) {
   return tool({
     description:
       'The real WhatsApp thread with a lead: the most recent messages, oldest first, each marked inbound (from the customer) or outbound (from the business). Use it whenever the answer depends on what was actually said — drafting a reply, judging intent, or explaining why a lead went quiet. Outbound messages may have been sent automatically; the data does not say who wrote them.',
@@ -62,10 +59,7 @@ export function makeGetConversation(deps: {
       if (verdict.allowed === false) return { refused: true as const, reason: verdict.reason }
 
       // ── 1. Gate the lead. Never read messages for a lead the caller cannot see.
-      const named = await getNamedLeadById(
-        { user: { role: deps.scope.role }, gotPermIds: deps.scope.gotPermIds },
-        leadId,
-      )
+      const named = await getNamedLeadById(readerScope(deps.scope), leadId)
       if (!named) {
         deps.budget.noteResult(`not_found:${leadId}`)
         return { found: false as const, leadId }

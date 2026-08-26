@@ -29,9 +29,15 @@ function toMeetingItem(m: MeetingRow): MeetingItem {
 export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<TodayBrief> {
   const ctx = businessDayBounds(nowMs)
 
+  // The agency travels WITH the scope. `viewer.agencyId` is already required and
+  // already server-resolved, so a sessionless caller never reaches
+  // getAgencyId() -> getUser(); an interactive caller passes the same value the
+  // viewer was built from, so the resolved agency — and behaviour — is identical.
+  const scope = { ...viewer.scope, agencyId: viewer.agencyId }
+
   const [facts, touchedTodayIds, freshness, meetingsRaw] = await Promise.all([
-    getBriefCandidateFacts(viewer.scope),
-    getTouchedTodayIds(viewer.scope, ctx.dayStart),
+    getBriefCandidateFacts(scope),
+    getTouchedTodayIds(scope, ctx.dayStart),
     getInboundSyncFreshness(),
     getTodaysMeetings({ agencyId: viewer.agencyId, organizerUserId: viewer.userId }),
   ])

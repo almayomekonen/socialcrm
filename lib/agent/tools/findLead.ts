@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { tool } from 'ai'
 import { getLeadsByName } from '@/db/briefing'
+import { readerScope } from './readerScope'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
 import type { EvidenceCollector } from '../evidence'
@@ -43,10 +44,7 @@ export function makeFindLead(deps: { scope: AgentScope; evidence: EvidenceCollec
     description:
       'Find leads by person name when you do NOT already have a leadId. Use this FIRST whenever the question names a person — "who is Sali", "what happened with David" — and then pass the returned leadId to get_lead or get_conversation. It searches every lead the rep may see, not just today\'s queue. It may return zero, one, or several matches: if several, present the candidates and let the rep choose rather than picking one. Never invent or guess a leadId.',
     inputSchema: z.object({
-      name: z
-        .string()
-        .min(1)
-        .describe('The person name, or part of it, exactly as the rep said it. Never an id.'),
+      name: z.string().min(1).describe('The person name, or part of it, exactly as the rep said it. Never an id.'),
     }),
     execute: async ({ name }) => {
       const query = (name ?? '').trim()
@@ -62,7 +60,7 @@ export function makeFindLead(deps: { scope: AgentScope; evidence: EvidenceCollec
 
       // The gate. The permission scope comes from the server-resolved AgentScope;
       // the agency comes from the session, inside the reader.
-      const found = await getLeadsByName({ user: { role: deps.scope.role }, gotPermIds: deps.scope.gotPermIds }, query)
+      const found = await getLeadsByName(readerScope(deps.scope), query)
 
       const matches = found.slice(0, MATCH_LIMIT).map((l) => ({
         leadId: l.id,
