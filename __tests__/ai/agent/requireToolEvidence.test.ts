@@ -93,12 +93,14 @@ describe('autonomous path · first step requires a tool', () => {
       await tools.find_lead!.execute({ name: 'דוד' }, { toolCallId: 't', messages: [] })
       seen.push(prepareStep().toolChoice) // after one tool executed
 
+      // The autonomous turn carries no structured output, so the answer arrives
+      // as TEXT and run.ts parses it with agentAnswerSchema. See wireContract.test.
       return {
-        output: {
+        text: JSON.stringify({
           headline: 'h',
           claims: [{ claimClass: 'FACT', text: 'f', entityEvidence: ['42'] }],
           unknown: null,
-        },
+        }),
         totalUsage: { inputTokens: 10, outputTokens: 5 },
         finishReason: 'stop',
       }
@@ -140,11 +142,25 @@ describe('nothing else about the request moved', () => {
     }
   })
 
-  it('maxSteps, structured output and the system prompt are untouched', async () => {
+  it('maxSteps and the system prompt are untouched on both paths', async () => {
     await runAgentInvestigation({ question: 'q', scope: SCOPE, requireToolEvidence: true, maxSteps: 4 })
     expect(args().stopWhen).toBeDefined()
-    expect(args().output).toBeDefined()
     expect(args().system).toBeTypeOf('string')
+  })
+
+  /**
+   * The structural fix: `Output.object` becomes `text.format` on the OpenAI
+   * Responses API, and sending it alongside `tool_choice: "required"` is what let
+   * the model answer instead of calling a tool. It must be absent from the
+   * evidence-required turn and present everywhere else.
+   */
+  it('structured output is OMITTED for autonomous and KEPT for interactive', async () => {
+    await runAgentInvestigation({ question: 'q', scope: SCOPE, requireToolEvidence: true })
+    expect(args().output, 'autonomous must not carry Output.object').toBeUndefined()
+
+    generateTextSpy.mockClear()
+    await runAgentInvestigation({ question: 'q', scope: SCOPE })
+    expect(args().output, 'interactive must keep Output.object').toBeDefined()
   })
 })
 
@@ -153,5 +169,78 @@ describe('the autonomous caller actually asks for it', () => {
     const { readFileSync } = await import('node:fs')
     const src = readFileSync('lib/ai/integration/investigationAdmission.ts', 'utf8')
     expect(src).toContain('requireToolEvidence: true')
+  })
+})
+
+/**
+ * C · PARSING — the autonomous answer arrives as text and is parsed by run.ts.
+ *
+ * The parser returns a SHAPE, never a verdict. Anything it cannot parse becomes
+ * null, and `isWellFormed(null)` is false, so the answer is refused as malformed —
+ * the same door a schema violation already went through. Malformed output cannot
+ * reach the Value Bar, and cannot bypass validateAgentAnswerDetailed.
+ */
+describe('C · autonomous answer parsing', () => {
+  const withText = (text: unknown) =>
+    generateTextSpy.mockImplementation(async () => ({
+      text,
+      totalUsage: { inputTokens: 10, outputTokens: 5 },
+      finishReason: 'stop',
+    }))
+
+  it('valid JSON becomes the existing agent answer shape', async () => {
+    const { getLeadsByName } = await import('@/db/briefing')
+    vi.mocked(getLeadsByName).mockResolvedValue([{ id: 42, name: 'דוד', status: 'contacted', nextFollowUpAt: null }] as never)
+
+    generateTextSpy.mockImplementation(async (a: Record<string, never>) => {
+      const tools = a.tools as unknown as Record<string, { execute: (i: unknown, o: unknown) => Promise<unknown> }>
+      await tools.find_lead!.execute({ name: 'דוד' }, { toolCallId: 't', messages: [] })
+      return {
+        text: JSON.stringify({
+          headline: 'כותרת',
+          claims: [{ claimClass: 'FACT', text: 'f', entityEvidence: ['42'] }],
+          unknown: null,
+        }),
+        totalUsage: { inputTokens: 10, outputTokens: 5 },
+        finishReason: 'stop',
+      }
+    })
+
+    const r = await runAgentInvestigation({ question: 'q', scope: SCOPE, requireToolEvidence: true })
+    expect(r.ok).toBe(true)
+    if (r.ok === false) throw new Error('unreachable')
+    expect(r.answer.headline).toBe('כותרת')
+    expect(r.answer.claims).toHaveLength(1)
+  })
+
+  it.each([
+    ['not json at all', 'I could not find anything.'],
+    ['empty string', ''],
+    ['valid json, wrong shape', JSON.stringify({ nope: true })],
+    ['missing headline', JSON.stringify({ claims: [], unknown: null })],
+    ['claims not an array', JSON.stringify({ headline: 'h', claims: 'x', unknown: null })],
+    ['undefined text', undefined],
+  ])('malformed output fails safely: %s', async (_label, text) => {
+    withText(text)
+    const r = await runAgentInvestigation({ question: 'q', scope: SCOPE, requireToolEvidence: true })
+    expect(r.ok).toBe(false)
+    if (r.ok === true) throw new Error('unreachable')
+    // Refused, never delivered — and never a crash.
+    expect(r.reason).toBe('no_evidence')
+  })
+
+  it('malformed output cannot bypass the validator — an unevidenced claim is still refused', async () => {
+    // Well-formed JSON, but the cited evidence was never collected.
+    withText(
+      JSON.stringify({
+        headline: 'h',
+        claims: [{ claimClass: 'FACT', text: 'invented', entityEvidence: ['9999'] }],
+        unknown: null,
+      }),
+    )
+    const r = await runAgentInvestigation({ question: 'q', scope: SCOPE, requireToolEvidence: true })
+    expect(r.ok).toBe(false)
+    if (r.ok === true) throw new Error('unreachable')
+    expect(r.reason).toBe('no_evidence')
   })
 })

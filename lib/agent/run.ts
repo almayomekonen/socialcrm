@@ -12,7 +12,7 @@ import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
-import type { AgentResult, AgentScope, StopReason } from './types'
+import type { AgentAnswer, AgentResult, AgentScope, StopReason } from './types'
 
 /**
  * One Agent investigation, end to end.
@@ -109,6 +109,37 @@ export type RunAgentInput = {
   onPersist?: (record: AgentInvestigationInput) => Promise<void>
 }
 
+/**
+ * Parse an autonomous answer out of PLAIN TEXT.
+ *
+ * The evidence-required turn cannot carry `Output.object`. On the OpenAI Responses
+ * API that option becomes `text.format` — a strict json_schema — and it is sent in
+ * the SAME request as `tool_choice: "required"`. Those are contradictory
+ * instructions for one turn, and OpenAI resolves them in favour of `text.format`:
+ * the model returns a schema-conforming message instead of calling a function.
+ * Production did exactly that twice (inv_mtakjigp_tviv8y, inv_mtali8du_a534mo),
+ * both `steps 0` / `no_evidence`, at $0.042850 combined. Removing `text.format`
+ * from that turn is what makes `required` unopposed.
+ *
+ * NOTHING IS TRUSTED HERE. This returns a SHAPE, never a verdict. A payload that
+ * parses cleanly is still handed to `validateAgentAnswerDetailed`, which re-checks
+ * the shape itself and drops every claim whose evidence the collector cannot
+ * resolve. On any failure this returns null, and `isWellFormed(null)` is false, so
+ * the answer is `refused('malformed')` — the same path a schema violation already
+ * took. Malformed output cannot bypass the validator; it lands one step earlier.
+ */
+function parseAutonomousAnswer(text: string | undefined): AgentAnswer | null {
+  if (typeof text !== 'string' || text.trim() === '') return null
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const parsed = agentAnswerSchema.safeParse(raw)
+  return parsed.success ? (parsed.data as AgentAnswer) : null
+}
+
 function newInvestigationId(nowMs: number): string {
   return `inv_${nowMs.toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -181,7 +212,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
             prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
           }
         : {}),
-      output: Output.object({ schema: agentAnswerSchema }),
+      // Structured output is omitted for the evidence-required turn — see
+      // parseAutonomousAnswer. Interactive callers keep it exactly as before.
+      ...(input.requireToolEvidence === true ? {} : { output: Output.object({ schema: agentAnswerSchema }) }),
       maxOutputTokens: cfg.maxOutputTokens,
       abortSignal: input.abortSignal,
       ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
@@ -226,7 +259,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     costUsd,
   })
 
-  const validation = validateAgentAnswerDetailed(result.output as never, evidence)
+  const proposed =
+    input.requireToolEvidence === true ? parseAutonomousAnswer((result as { text?: string }).text) : (result.output as never)
+  const validation = validateAgentAnswerDetailed(proposed as never, evidence)
   const validated = validation.answer
   if (!validated) {
     // The rejected PROSE is still not recorded — the gate destroyed it, and
