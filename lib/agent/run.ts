@@ -83,6 +83,23 @@ export type RunAgentInput = {
    */
   skipInteractiveSpend?: boolean
   /**
+   * Require EVIDENCE BEFORE AN ANSWER — the autonomous path only.
+   *
+   * `toolChoice` defaults to `auto`: the model may call a tool, and may equally
+   * answer without one. For an interactive question that is right — "nothing needs
+   * attention" is a useful reply to a rep who asked. For an autonomous
+   * investigation it is not: the system has already established that a specific
+   * expectation was violated, so an answer built on nothing is never the finding.
+   *
+   * Production proved the difference. `inv_mtakjigp_tviv8y` (job 23985, lead 1516)
+   * returned a schema-valid answer having made ZERO tool calls, against a lead with
+   * 30 messages sitting one tool call away. The validator correctly destroyed it —
+   * `no_evidence` — after the tokens were already paid for.
+   *
+   * The interactive path omits this and its request is byte-identical to before.
+   */
+  requireToolEvidence?: boolean
+  /**
    * Durable record of the outcome, called AFTER validation with post-gate
    * content only. It is never called for an admission denial — nothing was
    * investigated. The loop does NOT guard it: the caller owns that, so a
@@ -145,6 +162,25 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       prompt: input.question,
       tools,
       stopWhen: stepCountIs(maxSteps),
+      /**
+       * FIRST STEP REQUIRES A TOOL; EVERY LATER STEP IS FREE.
+       *
+       * `prepareStep` runs before each step and its `toolChoice` overrides the
+       * call-level one, so this is the SDK's own mechanism rather than a second
+       * agent loop. The predicate is `budget.stepsUsed() === 0`, which is
+       * literally "no tool has executed yet" — the same counter `steps` reports —
+       * so the gate lifts on the first EXECUTED tool, not merely the first model
+       * round-trip. A blanket `toolChoice: 'required'` would be wrong: the model
+       * could then never emit the final structured object and every investigation
+       * would run to the step ceiling.
+       *
+       * Omitted entirely for interactive callers, so their request is unchanged.
+       */
+      ...(input.requireToolEvidence === true
+        ? {
+            prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
+          }
+        : {}),
       output: Output.object({ schema: agentAnswerSchema }),
       maxOutputTokens: cfg.maxOutputTokens,
       abortSignal: input.abortSignal,

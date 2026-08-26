@@ -228,6 +228,9 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
     result = await runAgent({
       question: objective,
       scope: pre.scope,
+      // An autonomous investigation must look before it concludes. See
+      // RunAgentInput.requireToolEvidence — the interactive path never sets this.
+      requireToolEvidence: true,
       // Autonomous work is accounted DURABLY. Charging the shared in-memory
       // counter would let proactive work deny a rep an interactive answer.
       skipInteractiveSpend: true,
