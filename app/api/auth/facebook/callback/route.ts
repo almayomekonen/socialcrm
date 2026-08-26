@@ -37,6 +37,13 @@ export async function GET(req: NextRequest) {
       props: { reason, stage, ...diagnostics },
     })
   let pagesShowListGranted = false
+  /**
+   * Every permission Meta reports as GRANTED for this user, captured so the
+   * connection row can record what the Page token can actually do. Names only —
+   * never asset ids, never a token. Empty when the permission read fails, which
+   * is the fail-closed answer: capability false, reconnect offered.
+   */
+  let grantedScopes: string[] = []
 
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
@@ -123,6 +130,13 @@ export async function GET(req: NextRequest) {
     // Page". Both currently share the approved 'no_pages' notice; the precise
     // reason is recorded in analytics for the recovery-UX slice.
     pagesShowListGranted = granted('pages_show_list')
+    // The full granted set, carried to the connect route and persisted on the
+    // Page row. `pages_read_user_content` is deliberately NOT gated on here:
+    // it is optional to Lead Ads, so a user who declines it must still complete
+    // the connection — they simply do not get comment text until they reconnect.
+    grantedScopes = ((permData.data ?? []) as { permission?: unknown; status?: unknown }[])
+      .filter((p) => p?.status === 'granted' && typeof p?.permission === 'string' && p.permission)
+      .map((p) => p.permission as string)
     console.log('[FacebookOAuth] leads_retrieval confirmed granted — userId:', user.id)
   } catch (err) {
     console.error('[FacebookOAuth] Permission check threw:', err)
@@ -213,7 +227,12 @@ export async function GET(req: NextRequest) {
     props: { count: pages.length, ...discoveryResult },
   })
 
-  const encrypted = await encrypt({ pages, userId: user.id })
+  // `grantedScopes` rides the SAME encrypted, httpOnly cookie the Page list
+  // already uses, so the connect route can persist it server-side without a
+  // second Graph call and without the browser ever supplying it. The page
+  // picker reads only `payload.pages`, so adding a sibling key changes nothing
+  // it renders.
+  const encrypted = await encrypt({ pages, userId: user.id, grantedScopes })
   cookieStore.set('fb_pages', encrypted, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

@@ -11,7 +11,12 @@ export const TERMINAL_STATUSES = ['closed', 'lost'] as const
 
 // Amendment C-1: leadSource is a composite `channel:externalId`. A new lead is
 // "inbound" when its leadSource starts with an ingested-channel prefix.
-export const INBOUND_CHANNEL_PREFIXES = ['whatsapp:', 'facebook:'] as const
+// `instagram:` joins the set with Instagram separation (P0-3). Instagram Lead
+// Ads always arrived through the same webhook and were always inbound — they
+// were simply stored under the `facebook:` prefix, so they already qualified.
+// Adding the prefix keeps them qualifying now that they are labelled honestly;
+// omitting it would have silently dropped them out of NEW_INBOUND.
+export const INBOUND_CHANNEL_PREFIXES = ['whatsapp:', 'facebook:', 'instagram:'] as const
 
 // Amendment C-2: outbound counts as automated when metadata.source is this value.
 export const AUTO_RESPONSE_SOURCE = 'auto_response'

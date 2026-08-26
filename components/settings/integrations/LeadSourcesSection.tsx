@@ -7,6 +7,8 @@ import UrlSyncedAccordion from '@/lib/UrlSyncedAccordion'
 import FacebookConnect from '@/components/settings/FacebookConnect'
 import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
+import { getFacebookCommentTextCapability } from '@/db/facebook'
+import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
 import { resolveWhatsappHealth, type WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
@@ -78,6 +80,21 @@ export default async function LeadSourcesSection({
     }
   }
 
+  /**
+   * Comment-text reconnect prompt. BOTH gates must hold: our rollout switch for
+   * this agency, and Meta's grant recorded on the Page row. An agency without
+   * the Comments feature is never shown a permission it cannot use, and no
+   * Graph call is made — this reads one already-loaded column.
+   */
+  let commentsNeedReconnect = false
+  if (fbConnection && isFacebookCommentsEnabledForAgency(user.agencyId)) {
+    try {
+      commentsNeedReconnect = (await getFacebookCommentTextCapability(user.agencyId)).needsReconnect
+    } catch {
+      // Non-critical — a failed capability read must never break the settings page.
+    }
+  }
+
   // WhatsApp connection — agency-scoped. A persisted row is NOT proof the
   // integration works (see resolveWhatsappHealth). TemplatesSection keeps the
   // phone-level readiness boolean below.
@@ -124,6 +141,7 @@ export default async function LeadSourcesSection({
             connection={fbConnection ? { pageId: fbConnection.page_id, pageName: fbConnection.page_name } : null}
             pendingPages={pendingPages}
             health={health}
+            commentsNeedReconnect={commentsNeedReconnect}
           />
         </Suspense>
       </AccordionItem>

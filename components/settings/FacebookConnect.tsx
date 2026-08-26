@@ -18,9 +18,21 @@ type Props = {
   connection: Connection | null
   pendingPages: Page[] | null
   health: FacebookHealthStatus | null
+  /**
+   * True only when the Comments feature is live for this agency AND the
+   * connected Page's recorded grant is missing `pages_read_user_content`.
+   * Resolved server-side; absent/false renders nothing, so an agency without
+   * the feature is never told about a permission it cannot use.
+   */
+  commentsNeedReconnect?: boolean
 }
 
-export default function FacebookConnect({ connection, pendingPages, health }: Props) {
+export default function FacebookConnect({
+  connection,
+  pendingPages,
+  health,
+  commentsNeedReconnect = false,
+}: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('error')
@@ -114,6 +126,26 @@ export default function FacebookConnect({ connection, pendingPages, health }: Pr
         {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
         {needsReconnect && <ConnectionNotice notice={FACEBOOK_NOTICES.expired} />}
         {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}
+        {/*
+          Comment-text reconnect. Suppressed while `needsReconnect` is showing —
+          a dead token is the bigger problem and reconnecting fixes both, so two
+          competing reconnect prompts would be noise with one shared cure.
+        */}
+        {!needsReconnect && commentsNeedReconnect && (
+          <>
+            <ConnectionNotice notice={FACEBOOK_NOTICES.comments_permission} />
+            <div className='w-fit'>
+              <Btn
+                lbl={loading ? 'מעביר לפייסבוק...' : (FACEBOOK_NOTICES.comments_permission.action ?? SHARED.reconnect)}
+                icon={loading ? 'spinner' : 'facebook'}
+                iconClassName={loading ? 'animate-spin' : undefined}
+                disabled={loading}
+                className='w-fit'
+                onClick={redirectToOAuth}
+              />
+            </div>
+          </>
+        )}
         {needsReconnect && (
           <div data-edu='facebook-connect' className='w-fit'>
           <Btn
