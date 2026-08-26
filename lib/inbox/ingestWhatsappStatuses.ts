@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
 import { isWhatsappStatusEvent, statusRank, type WhatsappStatusEvent } from '@/lib/inbox/messageStatus'
+import { isCloudApiWamid } from '@/lib/inbox/wamidFormat'
 import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
 
 /**
@@ -12,6 +13,18 @@ import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
  * This function NEVER throws (the webhook must always answer 200 or Meta will
  * retry and can disable the subscription) and NEVER inserts (a status for an
  * unknown wamid is a diagnostic, not a message).
+ *
+ * An event that does not apply is classified by WHY, and the severity follows:
+ *
+ *   duplicate_same_status   expected  the row already holds this status
+ *   coexistence_echo_status expected  a business-app message we never stored
+ *   terminal_or_stale       warning   a transition genuinely rejected
+ *   foreign_agency          warning   the id belongs to another tenant
+ *   unknown_wamid           warning   a CLOUD API id with no row — the real signal
+ *
+ * The two expected reasons are the overwhelming majority of production volume.
+ * Logging them at `warn` is what made an idempotent no-op indistinguishable from
+ * data loss, and would bury a genuinely lost event if one ever occurred.
  */
 
 type RawStatus = {
@@ -39,6 +52,17 @@ function resolveTimestamp(raw: unknown): { iso: string; malformed: boolean } {
 function warn(reason: string, ctx: Record<string, unknown>): void {
   // Never log message content — counts/ids/timing only.
   console.warn('[WhatsappWebhook][status] event not applied', { reason, ...ctx })
+}
+
+/**
+ * Same line, same shape, lower severity — for outcomes that are EXPECTED.
+ *
+ * Two of the four not-applied reasons are routine and high volume. Logging them
+ * at `warn` alongside real losses is what made a benign duplicate read as data
+ * loss in the logs, and buries the one signal that would matter.
+ */
+function note(reason: string, ctx: Record<string, unknown>): void {
+  console.log('[WhatsappWebhook][status] event not applied', { reason, ...ctx })
 }
 
 async function applyOne(agencyId: number, phoneNumberId: string, raw: RawStatus): Promise<void> {
@@ -89,17 +113,40 @@ async function applyOne(agencyId: number, phoneNumberId: string, raw: RawStatus)
     return
   }
 
-  // Zero rows has three very different causes. Without the discriminator all
-  // three read as data loss in the logs.
+  // Zero rows has four very different causes. Without the discriminator all four
+  // read as data loss in the logs — and two of them are entirely routine.
   const existing = await db('inbox_messages')
     .where({ channel: 'whatsapp', externalId: wamid })
     .first('id', 'agencyId', 'status')
-  const reason = !existing
-    ? 'unknown_wamid'
-    : Number(existing.agencyId) !== agencyId
-      ? 'foreign_agency'
-      : 'terminal_or_stale'
-  warn(reason, { ...base, currentStatus: existing?.status ?? null })
+
+  if (!existing) {
+    // No row for this id. For a Coexistence business that is expected: Meta
+    // reports delivery for messages sent from their own phone, and those are
+    // acknowledged without being stored. Only an unmatched CLOUD API id means a
+    // status for a message we really should have — that one stays a warning.
+    if (isCloudApiWamid(wamid)) warn('unknown_wamid', { ...base, currentStatus: null })
+    else note('coexistence_echo_status', { ...base, currentStatus: null })
+    return
+  }
+
+  if (Number(existing.agencyId) !== agencyId) {
+    warn('foreign_agency', { ...base, currentStatus: existing.status })
+    return
+  }
+
+  // Already at the status being reported. Meta redelivers, and our own send flow
+  // writes `sent` before Meta's `sent` webhook lands, so this is the single most
+  // common outcome — 101 of 101 outbound messages in production. Re-arriving at
+  // the status we already hold changes nothing; the strict `<` rank guard above
+  // is exactly what makes it a no-op, and it stays strict.
+  if (existing.status === status) {
+    note('duplicate_same_status', { ...base, currentStatus: existing.status })
+    return
+  }
+
+  // A transition that was genuinely rejected: the row is terminal (read/failed),
+  // or this event is older than where the row already is. Still a warning.
+  warn('terminal_or_stale', { ...base, currentStatus: existing.status })
 }
 
 export async function ingestWhatsappStatuses(
