@@ -372,7 +372,25 @@ describe('N · no provider is reachable from the Phase 3 path', () => {
      */
     const AUTHORIZED = new Set(['lib/ai/integration/investigationAdmission.ts → @/lib/agent/run'])
     const typeOnly = (v: string) => v.endsWith('→ @/lib/agent/types')
-    const real = violations.filter((v) => !typeOnly(v) && !AUTHORIZED.has(v))
+
+    /**
+     * `@/lib/agent/trace` is INERT, and this exemption PROVES it rather than
+     * asserting it. The module is a single console.log emitter with ZERO imports,
+     * so it cannot reach a provider transitively or otherwise — the same reasoning
+     * that already authorizes `@/lib/agent/types`, but checked instead of argued.
+     *
+     * The admission module reaches it so a swallowed persistence failure is
+     * reported on the SAME `[AGENT-TRACE]` stream, correlated by investigationId.
+     * Duplicating the emitter under `lib/ai/integration/` would satisfy the path
+     * rule while splitting one observability format across two modules.
+     *
+     * Give trace.ts an import and this exemption evaporates — which is the point.
+     */
+    const traceOnly = (v: string) => v.endsWith('→ @/lib/agent/trace')
+    const traceImports = (read('lib/agent/trace.ts').match(/^import\s/gm) ?? []).length
+    expect(traceImports, '@/lib/agent/trace is exempt ONLY while it imports nothing').toBe(0)
+
+    const real = violations.filter((v) => !typeOnly(v) && !traceOnly(v) && !AUTHORIZED.has(v))
     expect([...AUTHORIZED].every((a) => violations.includes(a))).toBe(true)
     expect(real, `unauthorized provider reach:\n${real.join('\n')}`).toEqual([])
     expect(seen.size).toBeGreaterThanOrEqual(PHASE3_SURFACE.length)
