@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   isCoexistenceWebhookField,
   resolvePhoneNumberIdForWaba,
@@ -6,6 +7,7 @@ import {
   fetchPhoneBizAppState,
   resolveOnboardingType,
   processCoexistenceWebhook,
+  HISTORY_SYNC_ENABLED,
 } from '@/lib/whatsapp/coexistence'
 
 const originalFetch = global.fetch
@@ -184,11 +186,24 @@ describe('fetchPhoneBizAppState', () => {
 })
 
 describe('processCoexistenceWebhook', () => {
-  it('acknowledges each coexistence field', () => {
+  // Async since Wave 2A.1: the echo branch persists. History and state_sync
+  // still only acknowledge, which is exactly what these assertions pin.
+  it('acknowledges each coexistence field', async () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
-    expect(processCoexistenceWebhook('history', { history: [] })).toEqual({ ok: true, field: 'history' })
-    expect(processCoexistenceWebhook('smb_app_state_sync', {})).toEqual({ ok: true, field: 'smb_app_state_sync' })
-    expect(processCoexistenceWebhook('smb_message_echoes', {})).toEqual({ ok: true, field: 'smb_message_echoes' })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await expect(processCoexistenceWebhook('history', { history: [] })).resolves.toEqual({
+      ok: true,
+      field: 'history',
+    })
+    await expect(processCoexistenceWebhook('smb_app_state_sync', {})).resolves.toEqual({
+      ok: true,
+      field: 'smb_app_state_sync',
+    })
+    // An echo payload carrying no phone_number_id is refused before any DB access.
+    await expect(processCoexistenceWebhook('smb_message_echoes', {})).resolves.toEqual({
+      ok: true,
+      field: 'smb_message_echoes',
+    })
   })
 })
 
@@ -197,48 +212,129 @@ describe('syncSmbAppData', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  // Meta requires contacts to be synchronised before message history.
-  it('requests contacts before history', async () => {
+  /**
+   * WAVE 2A.0 — the history gate.
+   *
+   * These assertions were rewritten, not added beside the originals. The old
+   * ones asserted that `sync_type:'history'` IS requested, which is now exactly
+   * the behaviour that must never happen: the webhook discards the reply, and
+   * Meta's history sync is one-time and non-repeatable, so asking for it
+   * destroys the customer's archive permanently.
+   *
+   * Leaving the originals in place beside a gate test would have meant a suite
+   * that passes whichever way the gate is set.
+   */
+  it('1 · still requests contacts', async () => {
+    const fn = mockFetchOnce([{ ok: true, body: { success: true } }])
+    const result = await syncSmbAppData('PHONE', 'TOKEN')
+
+    expect(result.contacts).toBe(true)
+    expect(JSON.parse(String(fn.mock.calls[0][1].body)).sync_type).toBe('smb_app_state_sync')
+  })
+
+  it("2 · NEVER requests sync_type:'history' while the gate holds", async () => {
     const fn = mockFetchOnce([
       { ok: true, body: { success: true } },
       { ok: true, body: { success: true } },
     ])
-    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({ contacts: true, history: true })
+    const result = await syncSmbAppData('PHONE', 'TOKEN')
 
-    expect(fn).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(String(fn.mock.calls[0][1].body)).sync_type).toBe('smb_app_state_sync')
-    expect(JSON.parse(String(fn.mock.calls[1][1].body)).sync_type).toBe('history')
-  })
-
-  // The sync may only be performed once per onboarding, so spending the history
-  // attempt after a failed contact sync would waste the customer's only chance.
-  it('does not attempt history when contacts fail', async () => {
-    const fn = mockFetchOnce([{ ok: false, status: 500 }])
-    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({ contacts: false, history: false })
+    // Exactly one call — contacts. The archive is left unspent with Meta.
     expect(fn).toHaveBeenCalledTimes(1)
+    for (const call of fn.mock.calls) {
+      expect(JSON.parse(String(call[1].body)).sync_type).not.toBe('history')
+    }
+    expect(result.historyRequested).toBe(false)
+    expect(result.history).toBe(false)
   })
 
-  it('reports partial success when history fails', async () => {
-    mockFetchOnce([
-      { ok: true, body: { success: true } },
-      { ok: false, status: 500 },
-    ])
-    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({ contacts: true, history: false })
+  it('3 · coexistence setup still completes — contacts succeed and nothing throws', async () => {
+    mockFetchOnce([{ ok: true, body: { success: true } }])
+    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({
+      contacts: true,
+      history: false,
+      historyRequested: false,
+    })
+  })
+
+  it('4 · a gated history is NOT reported as a failed sync', async () => {
+    mockFetchOnce([{ ok: true, body: { success: true } }])
+    const result = await syncSmbAppData('PHONE', 'TOKEN')
+    // `historyRequested:false` is what lets the caller tell a deliberate
+    // omission from a real failure, so onboarding does not warn every time.
+    expect(result.historyRequested && !result.history).toBe(false)
+  })
+
+  it('6 · the gate is deterministic — repeated calls never request history', async () => {
+    for (let i = 0; i < 3; i++) {
+      const fn = mockFetchOnce([{ ok: true, body: { success: true } }])
+      const result = await syncSmbAppData('PHONE', 'TOKEN')
+      expect(fn).toHaveBeenCalledTimes(1)
+      expect(result.historyRequested).toBe(false)
+    }
+  })
+
+  it('the gate is a code constant, not an environment flag', () => {
+    // An env var can be flipped by someone unaware the importer is missing, and
+    // the loss is irreversible per customer. Lifting it must show up in a diff.
+    expect(HISTORY_SYNC_ENABLED).toBe(false)
+    const src = readFileSync('lib/whatsapp/coexistence.ts', 'utf8')
+    // The declaration is a literal `false`, not a computed or env-derived value.
+    expect(src).toContain('export const HISTORY_SYNC_ENABLED = false')
+    expect(src).not.toMatch(/HISTORY_SYNC_ENABLED\s*=\s*(process\.env|Boolean|!!)/)
+  })
+
+  // Contacts remain independent: a failed contact sync still short-circuits.
+  it('does not attempt anything further when contacts fail', async () => {
+    const fn = mockFetchOnce([{ ok: false, status: 500 }])
+    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({
+      contacts: false,
+      history: false,
+      historyRequested: false,
+    })
+    expect(fn).toHaveBeenCalledTimes(1)
   })
 
   it('never throws when the network fails', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('boom')) as unknown as typeof fetch
-    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({ contacts: false, history: false })
+    await expect(syncSmbAppData('PHONE', 'TOKEN')).resolves.toEqual({
+      contacts: false,
+      history: false,
+      historyRequested: false,
+    })
   })
 
   it('targets a Graph version that supports smb_app_data', async () => {
-    const fn = mockFetchOnce([
-      { ok: true, body: {} },
-      { ok: true, body: {} },
-    ])
+    const fn = mockFetchOnce([{ ok: true, body: {} }])
     await syncSmbAppData('PHONE', 'TOKEN')
     const url = String(fn.mock.calls[0][0])
     expect(url).toContain('/smb_app_data')
     expect(url).not.toContain('/v19.0/')
+  })
+})
+
+/**
+ * 5 · The webhook side is deliberately UNCHANGED. The gate stops us ASKING for
+ * history; it must not remove the ability to RECEIVE it, or lifting the gate
+ * later would require re-doing the routing work.
+ */
+describe('the history webhook path remains intact', () => {
+  it("still recognises 'history' as a coexistence field", () => {
+    expect(isCoexistenceWebhookField('history')).toBe(true)
+    expect(isCoexistenceWebhookField('smb_app_state_sync')).toBe(true)
+    expect(isCoexistenceWebhookField('smb_message_echoes')).toBe(true)
+  })
+
+  it('still acknowledges a history payload terminally', async () => {
+    await expect(processCoexistenceWebhook('history', { history: [{ id: 'x' }] })).resolves.toEqual({
+      ok: true,
+      field: 'history',
+    })
+  })
+
+  it('the webhook route still routes coexistence fields before inbound handling', () => {
+    const route = readFileSync('app/api/webhooks/whatsapp/route.ts', 'utf8')
+    expect(route).toContain('isCoexistenceWebhookField(incomingField)')
+    expect(route).toContain('processCoexistenceWebhook(incomingField, change?.value)')
   })
 })

@@ -79,7 +79,25 @@ export async function POST(req: NextRequest) {
   // `history` and `smb_app_state_sync` are likewise not new inbound traffic.
   const incomingField = change?.field
   if (typeof incomingField === 'string' && isCoexistenceWebhookField(incomingField)) {
-    processCoexistenceWebhook(incomingField, change?.value)
+    // Awaited: `smb_message_echoes` now persists the business's own outbound
+    // traffic, and a fire-and-forget call could be cut short when the function
+    // returns. `history` records the delivery durably and returns — the archive
+    // is imported later by a worker, never inside this request — and only when
+    // HISTORY_SYNC_ENABLED is lifted; today that branch cannot be taken.
+    // `smb_app_state_sync` still does nothing but acknowledge.
+    const coexistence = await processCoexistenceWebhook(incomingField, change?.value)
+    // A coexistence field is acknowledged only when it was actually handled.
+    // Today only `history` can refuse, and only when its durable write failed:
+    // Meta redelivers on a non-2xx, and a one-shot archive has no second
+    // chance, so answering 200 for a delivery we did not store would destroy it.
+    // 503 rather than 500 — the work is retryable, nothing about it is invalid.
+    if (!coexistence.ok) {
+      console.error('[WhatsappWebhook][coexistence] not acknowledged', {
+        field: incomingField,
+        reason: coexistence.reason,
+      })
+      return NextResponse.json({ ok: false, error: coexistence.reason }, { status: 503 })
+    }
     return NextResponse.json({ ok: true })
   }
 
