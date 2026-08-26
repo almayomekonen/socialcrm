@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { messageTimelineOrderSql } from '@/lib/inbox/messageTimeline'
 
 /**
  * Agent conversation reads — the bounded, agency-scoped thread reader.
@@ -107,7 +108,10 @@ export function agentConversationMessagesQuery(args: {
 }) {
   return db('inbox_messages')
     .where({ agencyId: args.agencyId, conversationId: args.conversationId })
-    .orderBy('sequence', 'desc')
+    // Newest-first by OCCURRENCE (the caller reverses into reading order).
+    // `sequence` is still selected and still means order-of-arrival; it is just
+    // no longer mistaken for chronology.
+    .orderByRaw(messageTimelineOrderSql('inbox_messages', 'desc'))
     .limit(clampLimit(args.limit))
     .select('id', 'sequence', 'direction', 'text', 'channelTimestamp', 'createdAt')
 }

@@ -68,7 +68,12 @@ describe('agencyLeadFactsQuery — business rules reused, not re-derived', () =>
   it('uses the C-2 human-outbound marker, never sentByUserId', () => {
     const s = compiled()
     expect(s).toContain("metadata->>'source') is distinct from 'auto_response'")
-    expect(s).toContain("filter (where m.direction = 'inbound')")
+    expect(s).toContain("filter (where m.direction = 'inbound'")
+    // Wave 2A.2a: the inbound FILTER gained a history exclusion. This is a
+    // CURRENT-STATE fact, so an imported archive must not become the lead's
+    // "last inbound". The auto_response marker above is unchanged and still
+    // guards the outbound side — two markers, two independent reasons.
+    expect(s).toContain("is distinct from 'whatsapp_history'")
     expect(s).not.toContain('sentbyuserid')
   })
 

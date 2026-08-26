@@ -63,8 +63,15 @@ describe('agentConversationMessagesQuery — bounded at the database', () => {
     expect(s).toContain(String(CONVERSATION))
   })
 
-  it('takes the NEWEST messages (order by sequence desc)', () => {
-    expect(messagesSql()).toMatch(/order by "sequence" desc/)
+  it('takes the NEWEST messages (by occurrence, with a deterministic tiebreak)', () => {
+    // Wave 2A.2a: newest-first moved from `sequence desc` to
+    // `COALESCE(channelTimestamp, createdAt) desc, id desc`. `sequence` means
+    // order of ARRIVAL, so under the old ordering an imported history archive
+    // would have held the highest sequences and handed the Agent a months-old
+    // transcript as the live conversation. `sequence` is still selected below.
+    const s = messagesSql()
+    expect(s).toMatch(/order by coalesce\(inbox_messages\."channeltimestamp", inbox_messages\."createdat"\) desc/)
+    expect(s).toContain('inbox_messages.id desc')
   })
 
   it('selects the fields the Agent needs and nothing more', () => {

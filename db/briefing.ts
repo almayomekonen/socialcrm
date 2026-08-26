@@ -3,6 +3,7 @@ import { getAgencyId } from '@/db/agencies'
 import { getEffectiveLeadPlan } from '@/lib/quota'
 import { isAdmin, Roles } from '@/types/roles'
 import { BRIEFING_SAMPLE_LIMIT, STALE_DAYS, WEEK_START_SQL } from '@/lib/copilot/general/constants'
+import { notHistorySql } from '@/lib/inbox/messageTimeline'
 
 export type Scope = { user: { role: Roles }; gotPermIds: number[] }
 
@@ -159,8 +160,11 @@ export function promisedButWaitingQuery(agencyId: number, plan: string, s: Scope
     .groupBy('cv.leadId')
     .select(
       'cv.leadId as lead_id',
-      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'inbound')  AS last_inbound_at`),
-      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'outbound') AS last_outbound_at`),
+      // CURRENT STATE: imported history excluded from both sides. This query
+      // decides whether a lead is "promised but waiting" RIGHT NOW; an archived
+      // message is evidence about the past, not about who is owed a reply today.
+      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'inbound'  AND ${notHistorySql('m')}) AS last_inbound_at`),
+      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'outbound' AND ${notHistorySql('m')}) AS last_outbound_at`),
     )
 
   return scopedLeads(agencyId, plan, s)
