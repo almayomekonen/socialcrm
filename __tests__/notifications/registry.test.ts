@@ -164,13 +164,14 @@ describe('invariant 3 — escalation requires a resolution predicate (fail-close
 describe('invariant 4 — disabled types are inert', () => {
   it('exactly the sla.* placeholders and the AI insight type are disabled', () => {
     const disabled = entries.filter((e) => !e.enabled).map((e) => e.type)
-    // Three deliberate cases, and the invariant is that NOTHING ELSE is off:
-    // the two sla.* placeholders have no semantics yet, and `lead.insight` ships
-    // inert because an AI-originated notification must be turned on explicitly
-    // (ai-safety-boundaries.md §9.1 / DA-001). A fourth disabled type is a slip.
-    expect(disabled.sort()).toEqual(['lead.insight', 'sla.approaching', 'sla.breached'])
+    // TWO deliberate cases, and the invariant is that NOTHING ELSE is off: the two
+    // sla.* placeholders have no semantics yet. `lead.insight` was the third until
+    // 2026-08-26, when it was enabled as its own reviewed change — an AI-originated
+    // notification must be turned on explicitly (ai-safety-boundaries.md §9.1 /
+    // DA-001), and it was. A third disabled type is a slip.
+    expect(disabled.sort()).toEqual(['sla.approaching', 'sla.breached'])
     expect(isEmittableType('sla.breached')).toBe(false)
-    expect(isEmittableType('lead.insight')).toBe(false)
+    expect(isEmittableType('lead.insight')).toBe(true)
     expect(isEmittableType('lead.created')).toBe(true)
   })
 

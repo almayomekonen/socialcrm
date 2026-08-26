@@ -84,10 +84,18 @@ const input = {
 // ───────────── C13 · dark by default ─────────────
 
 describe('C13 · everything is dark by default', () => {
-  it('the registry entry ships disabled', () => {
+  /**
+   * The registry entry was `enabled: false` through Phase 4.4 and was opened on
+   * 2026-08-26 as its own reviewed change, once the autonomous path had been proven
+   * in production. THREE gates still stand — the per-agency canary, the notification
+   * engine's own master switch + allowlist, and the kill switch — and the tests
+   * below assert each of them still blocks on its own. "Dark by default" now lives
+   * in those three, not in the registry.
+   */
+  it('the registry entry is enabled, and delivery still depends on the other gates', () => {
     const def = getNotificationType('lead.insight')
     expect(def).toBeDefined()
-    expect(def!.enabled).toBe(false)
+    expect(def!.enabled).toBe(true)
   })
 
   it('C14 · the entry declares NO escalation ladder', () => {

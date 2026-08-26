@@ -241,10 +241,17 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
   /**
    * The one AI-originated type (Phase 4.4).
    *
-   * `enabled: false` — it ships INERT. `notifyEvent` refuses a disabled type at
-   * the registry lookup, before entitlement and before any INSERT, so this entry
-   * cannot deliver even if every environment flag were set by mistake. It is the
-   * innermost of four independent gates.
+   * `enabled: true` since 2026-08-26. This entry was the innermost of four
+   * independent gates and shipped INERT through Phase 4.4 so that no environment
+   * flag alone could deliver an AI-originated notification. It was opened
+   * deliberately, as its own reviewed change, once the autonomous path had been
+   * proven in production for the canary agency.
+   *
+   * THREE GATES STILL STAND, and none of them moved: the per-agency canary
+   * `SIGNAL_INSIGHT_DELIVER_AGENCY_IDS`, the notification engine's own
+   * `NOTIFICATIONS_ENABLED` + agency allowlist, and the `SIGNAL_INSIGHT_KILL`
+   * emergency stop. Delivery also remains capped at `INSIGHT_DAILY_CAP` per agency
+   * per UTC day. Turning this flag on widens nothing by itself.
    *
    * NO `escalation`, and NO `isResolved` ladder companion: an insight must never
    * escalate. Repeating yourself more loudly is precisely how a channel loses the
@@ -265,7 +272,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     // `leads`, following the registry's prefix→category invariant: the type is
     // named for the ליד it concerns, not for the machinery that produced it.
     category: 'leads',
-    enabled: false,
+    enabled: true,
     basePriority: 'medium',
     collapseKey: keys.insightKey,
     title: copy.insightSurfacedTitle,
