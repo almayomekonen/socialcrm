@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { tool } from 'ai'
 import { buildTodayBrief } from '@/lib/today/service'
+import { readerScope } from './readerScope'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
 import type { EvidenceCollector } from '../evidence'
@@ -31,12 +32,7 @@ const METRIC_REMAINING = 'today.remaining'
 /** The ids this tool guarantees to both record and expose. */
 export const TODAY_METRIC_IDS = [METRIC_TOTAL, METRIC_REMAINING] as const
 
-export function makeGetTodayState(deps: {
-  scope: AgentScope
-  evidence: EvidenceCollector
-  budget: Budget
-  nowMs: number
-}) {
+export function makeGetTodayState(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
       'The rep\'s current work queue: every lead that needs action today, already prioritised and deduplicated by the CRM, plus the totals and today\'s meetings. Call this first for any "what needs attention / what should I do / what is waiting" question. Takes no arguments.',
@@ -47,7 +43,7 @@ export function makeGetTodayState(deps: {
 
       const brief = await buildTodayBrief(
         {
-          scope: { user: { role: deps.scope.role }, gotPermIds: deps.scope.gotPermIds },
+          scope: readerScope(deps.scope),
           agencyId: deps.scope.agencyId,
           userId: deps.scope.userId,
           firstName: deps.scope.firstName,

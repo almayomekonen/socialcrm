@@ -5,7 +5,26 @@ import { isAdmin, Roles } from '@/types/roles'
 import { BRIEFING_SAMPLE_LIMIT, STALE_DAYS, WEEK_START_SQL } from '@/lib/copilot/general/constants'
 import { notHistorySql } from '@/lib/inbox/messageTimeline'
 
-export type Scope = { user: { role: Roles }; gotPermIds: number[] }
+/**
+ * Who is reading, and — optionally — which agency.
+ *
+ * `agencyId` is OPTIONAL here and REQUIRED on {@link SessionlessScope}. That split
+ * is the whole contract: an interactive caller omits it and the reader falls back
+ * to `getAgencyId()` exactly as before, byte for byte; a caller with no session
+ * MUST supply it, and the compiler is what enforces that rather than a comment.
+ */
+export type Scope = { user: { role: Roles }; gotPermIds: number[]; agencyId?: number }
+
+/**
+ * A scope that carries its own agency, for readers invoked with NO REQUEST SESSION.
+ *
+ * `getAgencyId()` resolves the agency from the session cookie via `getUser()`,
+ * which returns null on a cron/worker path — production dead-lettered four
+ * `sla.open_loop` observations on exactly that null. Sessionless callers build
+ * this type instead, so `?? (await getAgencyId())` is unreachable for them and
+ * the fallback survives only for the interactive callers it was written for.
+ */
+export type SessionlessScope = Scope & { agencyId: number }
 
 export type BriefingLeadRow = {
   id: number
@@ -32,7 +51,7 @@ export type NamedLead = { id: number; name: string; status: string | null; nextF
 export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[]> {
   const terms = name.trim().split(/\s+/).filter(Boolean).slice(0, 3)
   if (terms.length === 0) return []
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const q = scopedLeads(agencyId, plan, s)
   for (const term of terms) {
@@ -52,7 +71,7 @@ export async function getLeadsByName(s: Scope, name: string): Promise<NamedLead[
 
 export async function getNamedLeadById(s: Scope, id: number): Promise<NamedLead | null> {
   if (!Number.isFinite(id) || id <= 0) return null
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const r = await scopedLeads(agencyId, plan, s).where('id', id).first('id', 'firstName', 'lastName', 'status', 'nextFollowUpAt')
   if (!r) return null

@@ -124,12 +124,7 @@ beforeEach(() => {
 
 describe('agent tool surface', () => {
   it('exposes exactly the four read-only tools', () => {
-    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual([
-      'find_lead',
-      'get_conversation',
-      'get_lead',
-      'get_today_state',
-    ])
+    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_conversation', 'get_lead', 'get_today_state'])
   })
 
   it('no tool input schema accepts a scope field', () => {
@@ -157,7 +152,7 @@ describe('get_today_state', () => {
     await run(buildAgentTools(d).get_today_state, {})
     const viewer = buildTodayBrief.mock.calls[0][0]
     expect(viewer).toEqual({
-      scope: { user: { role: Roles.ADMIN }, gotPermIds: [] },
+      scope: { user: { role: Roles.ADMIN }, gotPermIds: [], agencyId: 7 },
       agencyId: 7,
       userId: 3,
       firstName: 'עלמה',
@@ -225,7 +220,7 @@ describe('get_lead', () => {
 
   it('gates on getNamedLeadById with the server-derived scope', async () => {
     await run(buildAgentTools(deps()).get_lead, { leadId: 15015 })
-    expect(getNamedLeadById).toHaveBeenCalledWith({ user: { role: Roles.ADMIN }, gotPermIds: [] }, 15015)
+    expect(getNamedLeadById).toHaveBeenCalledWith({ user: { role: Roles.ADMIN }, gotPermIds: [], agencyId: 7 }, 15015)
   })
 
   it('denies an unauthorized or cross-agency lead as not-found', async () => {

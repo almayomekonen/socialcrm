@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { tool } from 'ai'
 import { getNamedLeadById } from '@/db/briefing'
+import { readerScope } from './readerScope'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
 import type { AgentScope } from '../types'
@@ -57,15 +58,10 @@ export const LEAD_METRIC_ID_LIST = Object.values(LEAD_METRIC_IDS)
  * reach the model: they are not needed to decide what to do next, and the
  * demographic fields are legacy columns that must not become AI inputs.
  */
-export function makeGetLead(deps: {
-  scope: AgentScope
-  evidence: EvidenceCollector
-  budget: Budget
-  nowMs: number
-}) {
+export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
-      'Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and the rep\'s notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from an earlier tool result.',
+      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and the rep's notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from an earlier tool result.",
     inputSchema: z.object({
       leadId: z.number().int().positive().describe('The lead id, taken from an earlier tool result. Never invented.'),
     }),
@@ -75,10 +71,7 @@ export function makeGetLead(deps: {
 
       // ── Gate. A lead outside the agency, outside gotPermIds, over quota on a
       //    free plan, or no longer flagged as a lead is simply not found.
-      const named = await getNamedLeadById(
-        { user: { role: deps.scope.role }, gotPermIds: deps.scope.gotPermIds },
-        leadId,
-      )
+      const named = await getNamedLeadById(readerScope(deps.scope), leadId)
       if (!named) {
         deps.budget.noteResult(`not_found:${leadId}`)
         return { found: false as const, leadId }

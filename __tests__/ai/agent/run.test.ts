@@ -260,7 +260,7 @@ describe('tools carry authority from the scope, never from the model', () => {
     // leadId — and nothing else. The agency itself is resolved INSIDE
     // getNamedLeadById via getAgencyId(), so it is not merely absent from the
     // model's reach, it is absent from the tool's reach too.
-    expect(getNamedLeadById).toHaveBeenCalledWith({ user: { role: Roles.ADMIN }, gotPermIds: [] }, 999)
+    expect(getNamedLeadById).toHaveBeenCalledWith({ user: { role: Roles.ADMIN }, gotPermIds: [], agencyId: 7 }, 999)
     // Denied ⇒ nothing beneath the gate is ever touched.
     expect(getLeadIntelligenceInputs).not.toHaveBeenCalled()
   })

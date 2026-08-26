@@ -2,6 +2,7 @@ import 'server-only'
 import { buildRecipientContext, resolveRecipients } from '@/db/notifications/recipients'
 import { resolveAiAccess } from '@/lib/ai/access'
 import { getPerms } from '@/db/filter'
+import { isAdmin } from '@/types/roles'
 import { getEffectiveLeadPlan } from '@/lib/quota'
 import { getFirstName } from '@/lib/users/displayName'
 import { db } from '@/config/db'
@@ -79,7 +80,31 @@ export async function resolveAutonomousScope(input: { agencyId: number; leadId: 
   // cannot become a scope, even if the recipient context somehow offered one.
   if (!row) return { ok: false, reason: 'operator_unreadable' }
 
-  const [{ gotPermIds }, plan] = await Promise.all([getPerms(row as never), getEffectiveLeadPlan(agencyId)])
+  // AN ADMIN OPERATOR NEVER CALLS getPerms. This is a correctness fix, not an
+  // optimisation.
+  //
+  // `getPerms`'s admin branch calls `getUsersAndTeams()` -> `getUsers()` ->
+  // `getAgencyId()` -> `getUser()`, and `getUser()` returns null on this path:
+  // there is no request session behind an autonomous investigation. `user.agencyId`
+  // then threw inside P5, BEFORE any spend reservation existed, and the worker's
+  // retry ladder dead-lettered the observation on the third attempt. Four
+  // production `sla.open_loop` jobs died that way on agency 103, whose single
+  // handler is an admin.
+  //
+  // The substitution is EXACT, not an approximation. That branch returns
+  // `gotPermIds: []` unconditionally; this function destructures `gotPermIds` and
+  // discards every other field it builds; and `scopedLeads` skips the `gotPermIds`
+  // filter entirely for admins (`if (!isAdmin(...)) q.whereIn(...)`), so an empty
+  // array is what "unrestricted" already meant — see AgentScope.gotPermIds. The
+  // resolved scope is byte-identical; only the session dependency is gone.
+  //
+  // `db/filter.ts` is permissions code and is deliberately NOT touched.
+  const [gotPermIds, plan] = await Promise.all([
+    isAdmin(row.role as AgentScope['role'])
+      ? Promise.resolve<number[]>([])
+      : getPerms(row as never).then((p: { gotPermIds: number[] }) => p.gotPermIds),
+    getEffectiveLeadPlan(agencyId),
+  ])
 
   return {
     ok: true,

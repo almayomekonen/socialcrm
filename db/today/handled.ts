@@ -12,7 +12,7 @@ export function touchedTodayQuery(agencyId: number, plan: string, scope: Scope, 
 }
 
 export async function getTouchedTodayIds(scope: Scope, dayStartMs: number): Promise<number[]> {
-  const agencyId = await getAgencyId()
+  const agencyId = scope.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const rows = (await touchedTodayQuery(agencyId, plan, scope, dayStartMs)) as { id: number }[]
   return rows.map((r) => Number(r.id))

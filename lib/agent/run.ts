@@ -12,7 +12,7 @@ import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
-import type { AgentResult, AgentScope, StopReason } from './types'
+import type { AgentAnswer, AgentResult, AgentScope, StopReason } from './types'
 
 /**
  * One Agent investigation, end to end.
@@ -83,6 +83,23 @@ export type RunAgentInput = {
    */
   skipInteractiveSpend?: boolean
   /**
+   * Require EVIDENCE BEFORE AN ANSWER — the autonomous path only.
+   *
+   * `toolChoice` defaults to `auto`: the model may call a tool, and may equally
+   * answer without one. For an interactive question that is right — "nothing needs
+   * attention" is a useful reply to a rep who asked. For an autonomous
+   * investigation it is not: the system has already established that a specific
+   * expectation was violated, so an answer built on nothing is never the finding.
+   *
+   * Production proved the difference. `inv_mtakjigp_tviv8y` (job 23985, lead 1516)
+   * returned a schema-valid answer having made ZERO tool calls, against a lead with
+   * 30 messages sitting one tool call away. The validator correctly destroyed it —
+   * `no_evidence` — after the tokens were already paid for.
+   *
+   * The interactive path omits this and its request is byte-identical to before.
+   */
+  requireToolEvidence?: boolean
+  /**
    * Durable record of the outcome, called AFTER validation with post-gate
    * content only. It is never called for an admission denial — nothing was
    * investigated. The loop does NOT guard it: the caller owns that, so a
@@ -90,6 +107,37 @@ export type RunAgentInput = {
    * something this function silently swallows. See actions/ai/askAgent.ts.
    */
   onPersist?: (record: AgentInvestigationInput) => Promise<void>
+}
+
+/**
+ * Parse an autonomous answer out of PLAIN TEXT.
+ *
+ * The evidence-required turn cannot carry `Output.object`. On the OpenAI Responses
+ * API that option becomes `text.format` — a strict json_schema — and it is sent in
+ * the SAME request as `tool_choice: "required"`. Those are contradictory
+ * instructions for one turn, and OpenAI resolves them in favour of `text.format`:
+ * the model returns a schema-conforming message instead of calling a function.
+ * Production did exactly that twice (inv_mtakjigp_tviv8y, inv_mtali8du_a534mo),
+ * both `steps 0` / `no_evidence`, at $0.042850 combined. Removing `text.format`
+ * from that turn is what makes `required` unopposed.
+ *
+ * NOTHING IS TRUSTED HERE. This returns a SHAPE, never a verdict. A payload that
+ * parses cleanly is still handed to `validateAgentAnswerDetailed`, which re-checks
+ * the shape itself and drops every claim whose evidence the collector cannot
+ * resolve. On any failure this returns null, and `isWellFormed(null)` is false, so
+ * the answer is `refused('malformed')` — the same path a schema violation already
+ * took. Malformed output cannot bypass the validator; it lands one step earlier.
+ */
+function parseAutonomousAnswer(text: string | undefined): AgentAnswer | null {
+  if (typeof text !== 'string' || text.trim() === '') return null
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const parsed = agentAnswerSchema.safeParse(raw)
+  return parsed.success ? (parsed.data as AgentAnswer) : null
 }
 
 function newInvestigationId(nowMs: number): string {
@@ -145,7 +193,28 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       prompt: input.question,
       tools,
       stopWhen: stepCountIs(maxSteps),
-      output: Output.object({ schema: agentAnswerSchema }),
+      /**
+       * FIRST STEP REQUIRES A TOOL; EVERY LATER STEP IS FREE.
+       *
+       * `prepareStep` runs before each step and its `toolChoice` overrides the
+       * call-level one, so this is the SDK's own mechanism rather than a second
+       * agent loop. The predicate is `budget.stepsUsed() === 0`, which is
+       * literally "no tool has executed yet" — the same counter `steps` reports —
+       * so the gate lifts on the first EXECUTED tool, not merely the first model
+       * round-trip. A blanket `toolChoice: 'required'` would be wrong: the model
+       * could then never emit the final structured object and every investigation
+       * would run to the step ceiling.
+       *
+       * Omitted entirely for interactive callers, so their request is unchanged.
+       */
+      ...(input.requireToolEvidence === true
+        ? {
+            prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
+          }
+        : {}),
+      // Structured output is omitted for the evidence-required turn — see
+      // parseAutonomousAnswer. Interactive callers keep it exactly as before.
+      ...(input.requireToolEvidence === true ? {} : { output: Output.object({ schema: agentAnswerSchema }) }),
       maxOutputTokens: cfg.maxOutputTokens,
       abortSignal: input.abortSignal,
       ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
@@ -190,7 +259,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     costUsd,
   })
 
-  const validation = validateAgentAnswerDetailed(result.output as never, evidence)
+  const proposed =
+    input.requireToolEvidence === true ? parseAutonomousAnswer((result as { text?: string }).text) : (result.output as never)
+  const validation = validateAgentAnswerDetailed(proposed as never, evidence)
   const validated = validation.answer
   if (!validated) {
     // The rejected PROSE is still not recorded — the gate destroyed it, and
