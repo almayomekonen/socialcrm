@@ -275,12 +275,15 @@ describe('syncSmbAppData', () => {
   })
 
   it('the gate is a code constant, not an environment flag', () => {
-    // An env var can be flipped by someone unaware the importer is missing, and
-    // the loss is irreversible per customer. Lifting it must show up in a diff.
-    expect(HISTORY_SYNC_ENABLED).toBe(false)
+    // An env var can be flipped by someone unaware of the consequences, and the
+    // loss is irreversible per customer. Lifting it must show up in a diff — as
+    // it did: the sanctioned activation commit flipped this literal to `true`.
+    expect(HISTORY_SYNC_ENABLED).toBe(true)
     const src = readFileSync('lib/whatsapp/coexistence.ts', 'utf8')
-    // The declaration is a literal `false`, not a computed or env-derived value.
-    expect(src).toContain('export const HISTORY_SYNC_ENABLED = false')
+    // Still a literal, not a computed or env-derived value. THIS is the property
+    // the test exists to protect, and it outlives the value itself: the narrow
+    // key is the per-number allowlist, never a runtime toggle on this constant.
+    expect(src).toContain('export const HISTORY_SYNC_ENABLED = true')
     expect(src).not.toMatch(/HISTORY_SYNC_ENABLED\s*=\s*(process\.env|Boolean|!!)/)
   })
 

@@ -290,12 +290,15 @@ describe('REGRESSION · an answered conversation is no longer "waiting for us"',
   })
 })
 
-// ───────────────────────── 10 · the history gate is untouched ────────────────
+// ───────────────────── 10 · echoes are independent of history ────────────────
 
 describe('independent of history', () => {
-  it('HISTORY_SYNC_ENABLED remains exactly false', () => {
+  it('HISTORY_SYNC_ENABLED is a literal constant, now lifted to true', () => {
+    // Echo persistence never depended on the gate's VALUE — only on the two
+    // being separate mechanisms. That separation is what this pins.
     const src = readFileSync('lib/whatsapp/coexistence.ts', 'utf8')
-    expect(src).toContain('export const HISTORY_SYNC_ENABLED = false')
+    expect(src).toContain('export const HISTORY_SYNC_ENABLED = true')
+    expect(src).not.toMatch(/HISTORY_SYNC_ENABLED\s*=\s*(process\.env|Boolean|!!)/)
   })
 
   it('state_sync is still acknowledged and unread; history is GATED, not unhandled', () => {
