@@ -258,7 +258,7 @@ export async function resolvePhoneNumberIdForWaba(wabaId: string, accessToken: s
  * the same change. Nothing else here needs to move — the webhook routing and the
  * `history` field handler are untouched and already able to receive the replay.
  */
-export const HISTORY_SYNC_ENABLED = false
+export const HISTORY_SYNC_ENABLED = true
 
 export type SmbSyncResult = {
   contacts: boolean
