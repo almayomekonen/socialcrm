@@ -209,7 +209,9 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
   }
   const reservationId = held.row.id
 
-  const objective = objectiveFor(job.expectation)
+  // The subject the signal already recorded. Dropping it here is what left two
+  // production investigations unable to name the lead they were asked about.
+  const objective = objectiveFor(job.expectation, { subjectType: job.subjectType, subjectId: job.subjectId })
   const base = {
     agencyId: job.agencyId,
     signalJobId: job.id,

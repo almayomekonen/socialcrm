@@ -42,7 +42,13 @@ export function makeGetConversation(deps: { scope: AgentScope; evidence: Evidenc
     description:
       'The real WhatsApp thread with a lead: the most recent messages, oldest first, each marked inbound (from the customer) or outbound (from the business). Use it whenever the answer depends on what was actually said — drafting a reply, judging intent, or explaining why a lead went quiet. Outbound messages may have been sent automatically; the data does not say who wrote them.',
     inputSchema: z.object({
-      leadId: z.number().int().positive().describe('The lead id, taken from an earlier tool result. Never invented.'),
+      leadId: z
+        .number()
+        .int()
+        .positive()
+        .describe(
+          'The lead id. Use the investigation subject when the objective names one, otherwise an id from an earlier tool result. Never invented.',
+        ),
       limit: z
         .number()
         .int()
