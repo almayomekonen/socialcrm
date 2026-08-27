@@ -16,6 +16,19 @@
  * is only a hint for the window before Meta flips that flag.
  */
 
+/**
+ * SERVER ONLY. This module ingests webhooks, writes to Postgres and reads the
+ * session; none of it may reach the browser. The marker is not decoration — it
+ * is what stops the Client Component graph from silently re-acquiring
+ * `db/auth.ts` and `config/db.ts` the next time something imports a constant
+ * from here, which is exactly how the production build broke.
+ *
+ * The Embedded Signup event constants the browser DOES need live in
+ * `lib/whatsapp/coexistenceEvents.ts` and are re-exported below, so every
+ * server caller keeps importing them from here unchanged.
+ */
+import 'server-only'
+import type { OnboardingType } from '@/lib/whatsapp/coexistenceEvents'
 import { ingestWhatsappEchoes } from '@/lib/inbox/ingestWhatsappEcho'
 import { receiveHistoryWebhook } from '@/lib/inbox/history/receiveHistory'
 import { isHistoryEnabledForPhoneNumber, historyActivationState } from '@/lib/whatsapp/historyFlags'
@@ -30,15 +43,14 @@ export const COEXISTENCE_GRAPH_VERSION = process.env.META_COEXISTENCE_GRAPH_VERS
 const COEXISTENCE_GRAPH_BASE = `https://graph.facebook.com/${COEXISTENCE_GRAPH_VERSION}`
 
 /** Which Embedded Signup flow the customer actually completed. */
-export type OnboardingType = 'cloud_api' | 'coexistence'
+export type { OnboardingType } from '@/lib/whatsapp/coexistenceEvents'
 
 /**
  * Embedded Signup completion events. Meta emits a distinct event for the
  * Business app flow, so the two are told apart at the source rather than
  * guessed at later.
  */
-export const ES_EVENT_FINISH = 'FINISH'
-export const ES_EVENT_FINISH_COEXISTENCE = 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'
+export { ES_EVENT_FINISH, ES_EVENT_FINISH_COEXISTENCE } from '@/lib/whatsapp/coexistenceEvents'
 
 /**
  * Webhook fields that coexistence adds. They are NOT inbound customer messages
