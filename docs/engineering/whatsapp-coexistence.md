@@ -76,6 +76,12 @@ Meta: *"make sure… you are subscribed to the additional webhook fields,
 otherwise you will miss important webhooks."* Until this is done, the sync will
 be requested but its data will never be delivered.
 
+> **Before activating history, follow
+> [`whatsapp-history-activation.md`](./whatsapp-history-activation.md)** — the
+> pre-flight checklist, the two-key gate, the activation order and the rollback
+> procedure. The archive is one-shot; an unsubscribed field spends it for
+> nothing.
+
 ## Rollback
 
 `NEXT_PUBLIC_WA_COEXISTENCE_DISABLED=1` restores the previous `featureType: ''`

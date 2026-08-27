@@ -104,6 +104,18 @@ export const FACEBOOK_NOTICES: Record<string, ConnectionNotice> = {
     nextStep: 'אחרי שווידאתם את הגישה לדף — אפשר לנסות להתחבר שוב.',
     action: 'בדקתי את הגישה לדף, לנסות שוב',
   },
+  // Deliberately 'attention', not 'error': the connection is healthy and לידים
+  // keep arriving. Only comment TEXT is unavailable, and the fix is a reconnect
+  // — an already-issued token can never gain a scope in place.
+  comments_permission: {
+    tone: 'attention',
+    title: 'תוכן התגובות עדיין לא זמין',
+    explanation:
+      'הדף מחובר והלידים ממשיכים להגיע כרגיל. בלי ההרשאה הזו פייסבוק לא שולח את תוכן התגובות, ולכן הן מוצגות בלי הטקסט.',
+    reasons: ['הדף חובר לפני שההרשאה נוספה', 'ההרשאה לא סומנה במסך האישור של Facebook'],
+    nextStep: 'להתחבר שוב ולאשר את כל ההרשאות. הלידים הקיימים והחיבור הנוכחי לא ייפגעו.',
+    action: 'להתחבר שוב ולאשר',
+  },
   pages_permission: {
     tone: 'error',
     title: 'חסרה הרשאה להצגת הדפים שלך',

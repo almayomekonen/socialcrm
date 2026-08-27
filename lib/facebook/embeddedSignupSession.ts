@@ -1,4 +1,11 @@
-import { ES_EVENT_FINISH, ES_EVENT_FINISH_COEXISTENCE, type OnboardingType } from '@/lib/whatsapp/coexistence'
+// Imported from the PURE events module, never from `coexistence.ts`: this file
+// is reachable from `useEmbeddedSignup` ('use client'), and importing the
+// server-only module here pulls db/auth.ts and knex into the browser bundle.
+import {
+  ES_EVENT_FINISH,
+  ES_EVENT_FINISH_COEXISTENCE,
+  type OnboardingType,
+} from '@/lib/whatsapp/coexistenceEvents'
 
 /**
  * Embedded Signup completion is two independent browser events:

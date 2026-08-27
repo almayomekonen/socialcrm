@@ -1,5 +1,6 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
+import { messageTimelineOrderSql } from '@/lib/inbox/messageTimeline'
 
 export const conversationIntelligenceTag = (conversationId: number): string => `conv-intel:${conversationId}`
 
@@ -267,7 +268,11 @@ export async function markAnalysisJobFailedTerminal(jobId: number, error: string
 export async function listMessagesForAnalysis(conversationId: number, agencyId: number, limit = 30): Promise<AnalysisMessage[]> {
   const rows = await db('inbox_messages')
     .where({ conversationId, agencyId })
-    .orderBy('sequence', 'desc')
+    // The newest N messages BY OCCURRENCE, then reversed into reading order.
+    // Under the old `sequence desc` an imported history archive would have held
+    // the highest sequences and hijacked this whole window, feeding the analyzer
+    // a months-old transcript as if it were the live conversation.
+    .orderByRaw(messageTimelineOrderSql('inbox_messages', 'desc'))
     .limit(limit)
     .select('id', 'sequence', 'direction', 'text')
 

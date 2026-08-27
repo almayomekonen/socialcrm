@@ -174,11 +174,17 @@ export async function POST(req: NextRequest) {
       console.log('[WA EmbeddedSignup] coexistence reconnect; smb_app_data already requested', { phoneNumberId })
     } else {
       const sync = await syncSmbAppData(phoneNumberId, accessToken)
-      if (!sync.contacts || !sync.history) {
+      // History being absent is only "incomplete" when it was actually asked
+      // for. While the Wave 2A.0 gate holds it is a deliberate omission that
+      // PRESERVES the one-time archive, and reporting that as a failure every
+      // time would train us to ignore the line that matters.
+      const historyFailed = sync.historyRequested && !sync.history
+      if (!sync.contacts || historyFailed) {
         console.warn('[WA EmbeddedSignup] coexistence sync incomplete', {
           phoneNumberId,
           contacts: sync.contacts,
           history: sync.history,
+          historyRequested: sync.historyRequested,
         })
       }
     }

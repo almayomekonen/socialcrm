@@ -3,6 +3,7 @@ import { getEffectiveLeadPlan } from '@/lib/quota'
 import { TERMINAL_STATUSES, AUTO_RESPONSE_SOURCE } from '@/lib/today/constants'
 import type { LeadFact } from '@/lib/today/types'
 import type { Scope } from '@/db/ai/stateManagement'
+import { notHistorySql } from '@/lib/inbox/messageTimeline'
 
 /**
  * Phase-1 signal detection — AGENCY-scoped lead facts.
@@ -52,9 +53,14 @@ export function agencyLeadFactsQuery(agencyId: number, plan: string) {
     .groupBy('cv.leadId')
     .select(
       'cv.leadId as lead_id',
-      db.raw(`MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'inbound') AS last_inbound_at`),
       db.raw(
-        `MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'outbound' AND (m.metadata->>'source') IS DISTINCT FROM ?) AS last_human_outbound_at`,
+        // CURRENT STATE: imported history excluded. A January message must not
+        // become this lead's "last inbound" and make a settled lead look like it
+        // is waiting for a reply today.
+        `MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'inbound' AND ${notHistorySql('m')}) AS last_inbound_at`,
+      ),
+      db.raw(
+        `MAX(COALESCE(m."channelTimestamp", m."createdAt")) FILTER (WHERE m.direction = 'outbound' AND ${notHistorySql('m')} AND (m.metadata->>'source') IS DISTINCT FROM ?) AS last_human_outbound_at`,
         [AUTO_RESPONSE_SOURCE],
       ),
     )

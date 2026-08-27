@@ -33,7 +33,20 @@ export async function GET(_req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    scope: ['pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'leads_retrieval'].join(','),
+    // `pages_read_user_content` is APPROVED by Meta and is the only permission
+    // that makes a Page comment's `message` appear on the `feed` webhook. It was
+    // never requested, so `hasCommentTextCapability` — written to flip on its own
+    // once granted — could never become true and the Comments Inbox showed rows
+    // with no text. It is OPTIONAL to the flow: unlike `leads_retrieval` the
+    // callback must never hard-fail without it (Lead Ads keep working), it only
+    // records the grant so the UI can offer a reconnect.
+    scope: [
+      'pages_show_list',
+      'pages_read_engagement',
+      'pages_manage_metadata',
+      'leads_retrieval',
+      'pages_read_user_content',
+    ].join(','),
     state,
     response_type: 'code',
     auth_type: 'rerequest',

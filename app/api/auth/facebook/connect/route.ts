@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { getUser } from '@/db/auth'
+import { getUser, decrypt } from '@/db/auth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import { emitLifecycleEvent } from '@/lib/events/emit'
@@ -75,6 +75,34 @@ export async function POST(req: NextRequest) {
 
   track({ agencyId, userId: user.id, event: 'facebook_webhook_subscribed', props: {} })
 
+  const cookieStore = await cookies()
+
+  /**
+   * The permissions Meta reported as granted during this OAuth round trip,
+   * written by the callback into the same encrypted httpOnly cookie as the Page
+   * list. Read SERVER-SIDE only — the browser posts just the selected Page, so
+   * a client can never inflate its own capability set.
+   *
+   * Fail-closed: a missing, expired or foreign cookie yields `[]`, which means
+   * "we do not know", which the capability gate reads as no comment text and
+   * the settings page reads as "offer a reconnect". Never a reason to fail the
+   * connection — Lead Ads do not depend on this.
+   */
+  let grantedScopes: string[] = []
+  try {
+    const pending = cookieStore.get('fb_pages')?.value
+    if (pending) {
+      const payload = await decrypt(pending)
+      if (payload?.userId === user.id && Array.isArray(payload.grantedScopes)) {
+        grantedScopes = (payload.grantedScopes as unknown[]).filter(
+          (s): s is string => typeof s === 'string' && s.length > 0,
+        )
+      }
+    }
+  } catch {
+    // Expired or tampered cookie — keep the fail-closed empty set.
+  }
+
   // Subscription confirmed — now safe to upsert by page_id
   try {
     await db('facebook_pages')
@@ -84,6 +112,7 @@ export async function POST(req: NextRequest) {
         page_id: pageId,
         page_name: pageName,
         page_access_token: pageAccessToken,
+        granted_scopes: JSON.stringify(grantedScopes),
       })
       .onConflict('page_id')
       .merge({
@@ -91,6 +120,9 @@ export async function POST(req: NextRequest) {
         agency_id: user.agencyId,
         page_name: pageName,
         page_access_token: pageAccessToken,
+        // Reconnect is the ONLY way an already-issued token gains a scope, so a
+        // reconnect must overwrite this — that is the whole point of the flow.
+        granted_scopes: JSON.stringify(grantedScopes),
       })
   } catch (err) {
     console.error('[FacebookConnect] DB upsert failed:', err)
@@ -98,7 +130,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Clear the pending pages cookie
-  const cookieStore = await cookies()
   cookieStore.delete('fb_pages')
 
   track({ agencyId, userId: user.id, event: 'facebook_page_selected', props: {} })

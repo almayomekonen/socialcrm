@@ -38,6 +38,64 @@ const MAX_TRANSCRIPT = 80
 
 type TranscriptRow = { direction: string; text?: string | null; sequence: number; metadata?: unknown }
 
+/**
+ * Enqueue one delayed no-response job. NEVER THROWS.
+ *
+ * Both schedulers run AFTER the customer-facing message has already been sent
+ * and the originating job marked complete (see qualifyWorker, immediately after
+ * `completeAutoResponseJob`). At that point the send is an accomplished fact, so
+ * a failure to schedule a courtesy follow-up must not be allowed to turn it into
+ * a thrown error — that would re-fail an already-successful turn and invite the
+ * worker to retry a send the customer has received.
+ *
+ * The concrete failure this guards is a schema one. `reason` is constrained by a
+ * CHECK that only accepts `no_response_warning`/`no_response_close` once
+ * `migrations/20260819120000_auto_response_jobs_no_response.cjs` has run, and
+ * that migration is deliberately held back ("Do not run until production
+ * rollout is approved"). Anywhere it has not been applied — the local
+ * development database included, verified via `migrate:list` — these inserts
+ * violate the constraint. Swallowing keeps the agent correct on a narrow schema
+ * and makes the widening migration a pure upgrade rather than a prerequisite.
+ *
+ * Returning null on failure matches the existing "no job scheduled" answer the
+ * invalid-sequence guard already returns, so callers need no new branch.
+ */
+async function scheduleNoResponseJob(
+  reason: 'no_response_warning' | 'no_response_close',
+  delaySeconds: number,
+  args: {
+    agencyId: number
+    conversationId: number
+    leadId: number
+    channel: string
+    triggerSequence: number | null | undefined
+  },
+): Promise<number | null> {
+  const seq = Number(args.triggerSequence)
+  if (!Number.isFinite(seq) || seq <= 0) return null
+  try {
+    return await db.transaction((trx) =>
+      enqueueAutoResponse(trx, {
+        agencyId: args.agencyId,
+        conversationId: args.conversationId,
+        leadId: args.leadId,
+        channel: args.channel,
+        triggerSequence: seq,
+        reason,
+        delaySeconds,
+      }),
+    )
+  } catch (err) {
+    console.error('[no-response] schedule failed (swallowed)', {
+      reason,
+      conversationId: args.conversationId,
+      agencyId: args.agencyId,
+      err: String(err),
+    })
+    return null
+  }
+}
+
 export async function scheduleNoResponseWarning(args: {
   agencyId: number
   conversationId: number
@@ -45,19 +103,7 @@ export async function scheduleNoResponseWarning(args: {
   channel: string
   triggerSequence: number | null | undefined
 }): Promise<number | null> {
-  const seq = Number(args.triggerSequence)
-  if (!Number.isFinite(seq) || seq <= 0) return null
-  return db.transaction((trx) =>
-    enqueueAutoResponse(trx, {
-      agencyId: args.agencyId,
-      conversationId: args.conversationId,
-      leadId: args.leadId,
-      channel: args.channel,
-      triggerSequence: seq,
-      reason: 'no_response_warning',
-      delaySeconds: NO_RESPONSE_WARNING_DELAY_SECONDS,
-    }),
-  )
+  return scheduleNoResponseJob('no_response_warning', NO_RESPONSE_WARNING_DELAY_SECONDS, args)
 }
 
 export async function scheduleNoResponseClose(args: {
@@ -67,19 +113,7 @@ export async function scheduleNoResponseClose(args: {
   channel: string
   triggerSequence: number | null | undefined
 }): Promise<number | null> {
-  const seq = Number(args.triggerSequence)
-  if (!Number.isFinite(seq) || seq <= 0) return null
-  return db.transaction((trx) =>
-    enqueueAutoResponse(trx, {
-      agencyId: args.agencyId,
-      conversationId: args.conversationId,
-      leadId: args.leadId,
-      channel: args.channel,
-      triggerSequence: seq,
-      reason: 'no_response_close',
-      delaySeconds: NO_RESPONSE_CLOSE_DELAY_SECONDS,
-    }),
-  )
+  return scheduleNoResponseJob('no_response_close', NO_RESPONSE_CLOSE_DELAY_SECONDS, args)
 }
 
 export type NoResponseJobCtx = IreOutboundCtx & {

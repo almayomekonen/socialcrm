@@ -2,6 +2,7 @@ import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { getUser } from '@/db/auth'
 import { failureTextForCategory, normalizeFailureCategory, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
+import { messageTimelineOrderSql, notHistorySql } from '@/lib/inbox/messageTimeline'
 
 export type InboxMessageDirection = 'inbound' | 'outbound'
 export type InboxMessageStatus = 'received' | 'sent' | 'delivered' | 'read' | 'failed'
@@ -181,6 +182,43 @@ export async function insertOutboundMessage(
   })
 }
 
+/**
+ * Insert one message from a WhatsApp Coexistence history archive.
+ *
+ * A FOURTH PRESET over the same `insertChannelMessage` the live paths use — not
+ * a second insert path. It exists because neither existing wrapper fits:
+ * `insertInboundMessage` hardcodes `direction: 'inbound'`, and
+ * `insertOutboundMessage` hardcodes `type: 'text'` with an empty payload, which
+ * would silently discard a historical `media_placeholder` or an image's
+ * metadata the moment the business was the sender.
+ *
+ * Direction is a PARAMETER because a history archive contains both halves of
+ * every conversation. Status is the live-path default for the direction —
+ * Meta's `history_context.status` is preserved verbatim in metadata instead of
+ * being mapped onto our delivery states, because 'failed' renders rep-facing
+ * Hebrew error copy and an archived message is not a delivery problem to act on.
+ *
+ * `sequence` is assigned by the shared primitive exactly as for live traffic:
+ * `MAX(sequence) + 1` under the conversation's row lock. That is CORRECT — it
+ * means order of arrival at us, and a history row genuinely did arrive now.
+ * Chronology comes from `channelTimestamp` via the Wave 2A.2a timeline; no
+ * existing row is renumbered.
+ */
+export async function insertHistoryMessage(
+  trx: Knex.Transaction,
+  input: InsertInboundMessageInput & { direction: InboxMessageDirection },
+): Promise<InsertMessageResult> {
+  return insertChannelMessage(trx, {
+    ...input,
+    direction: input.direction,
+    status: input.direction === 'inbound' ? 'received' : 'sent',
+    // No SocialCRM user sent this, and no user sent the customer's half either.
+    // The column distinguishes "a person replied through the product" from any
+    // other outbound, and naming a user here would be a lie about who acted.
+    sentByUserId: null,
+  })
+}
+
 export type LeadWhatsappMessage = {
   id: number
   direction: InboxMessageDirection
@@ -260,10 +298,10 @@ export async function listLeadWhatsappMessages(leadId: number): Promise<LeadWhat
     .where('cv.leadId', leadId)
     .andWhere('m.agencyId', user.agencyId)
     .andWhere('m.channel', 'whatsapp')
-    .orderBy([
-      { column: 'cv.id', order: 'asc' },
-      { column: 'm.sequence', order: 'asc' },
-    ])
+    // Conversations stay grouped (cv.id), and WITHIN a conversation the order is
+    // chronological rather than arrival-ordered. The grouping is a deliberate
+    // layout choice and is unchanged; only the inner order moved off `sequence`.
+    .orderByRaw(`cv.id ASC, ${messageTimelineOrderSql('m')}`)
     .select(...LEAD_MESSAGE_COLUMNS)
 
   return rows.map(mapLeadWhatsappMessageRow)
@@ -279,6 +317,15 @@ export async function getConversationMessagesAfter(
     .where('m.conversationId', conversationId)
     .andWhere('m.agencyId', agencyId)
     .andWhere('m.id', '>', afterId)
+    // Imported history never enters the delta. The cursor is `id`, and an
+    // imported archive receives the HIGHEST ids in its conversation, so without
+    // this an import would stream a customer's months-old messages at every
+    // already-open browser as though they had just arrived. History becomes
+    // visible on the next full thread load, in its correct chronological place.
+    .andWhereRaw(notHistorySql('m'))
+    // The cursor stays id-based on purpose: it pairs with
+    // `getConversationOutboundStatuses`, which is also id-ordered, and
+    // redesigning it is not part of this phase.
     .orderBy('m.id', 'asc')
     .select(...LEAD_MESSAGE_COLUMNS)
 
@@ -293,7 +340,9 @@ export async function listConversationMessages(conversationId: number): Promise<
     .join('inbox_conversations as cv', 'cv.id', 'm.conversationId')
     .where('cv.id', conversationId)
     .andWhere('m.agencyId', user.agencyId)
-    .orderBy('m.sequence', 'asc')
+    // Full render INCLUDES history (product Decision 2) and places it
+    // chronologically, which is the whole point of importing an archive.
+    .orderByRaw(messageTimelineOrderSql('m'))
     .select(...LEAD_MESSAGE_COLUMNS)
 
   return rows.map(mapLeadWhatsappMessageRow)
@@ -306,6 +355,13 @@ export async function listConversationMessages(conversationId: number): Promise<
  * change mutates an OLD one. This projection is how those changes reach the
  * client. Capped at the 60 most recent outbound messages — beyond that a rep is
  * scrolled into history, not watching for delivery.
+ *
+ * DELIBERATELY STILL id-ORDERED, unlike the thread readers. This is not a
+ * chronological render; it is the companion of the id-based delta cursor above,
+ * and the two must agree on what "recent" means or the client can be handed a
+ * status for a message it has not received. When the cursor is redesigned this
+ * moves with it. Imported history is outbound-and-`sent` with no failure, so it
+ * can only dilute this window, never misreport a delivery state.
  */
 export async function getConversationOutboundStatuses(
   conversationId: number,

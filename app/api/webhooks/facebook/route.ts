@@ -10,6 +10,13 @@ import {
 } from '@/lib/facebook/integrationNotifications'
 import { logCanaryFeedEvent } from '@/lib/facebook/commentsCanary'
 import { ingestFacebookComment } from '@/lib/system/ingestFacebookComment'
+import {
+  LEAD_MINIMAL_GRAPH_FIELDS,
+  buildLeadAttribution,
+  leadSourceCandidates,
+} from '@/lib/facebook/leadAttribution'
+import { fetchLeadWithTimeout } from '@/lib/facebook/leadNodeFetch'
+import { recordWebhookFailure } from '@/db/webhookFailures'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -27,30 +34,23 @@ export async function GET(req: NextRequest) {
   return new NextResponse('Forbidden', { status: 403 })
 }
 
-// FIX 4: extracted fetch helper so retry can call the same logic
-async function fetchLeadWithTimeout(leadId: string, accessToken: string): Promise<Response> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 6000)
-  try {
-    return await fetch(`https://graph.facebook.com/v19.0/${leadId}?fields=field_data`, {
-      signal: controller.signal,
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-  } finally {
-    clearTimeout(timeout)
-  }
-}
+// FIX 4: the fetch helper now lives in lib/facebook/leadNodeFetch so the
+// recovery worker reads a lead identically to ingestion. Behaviour unchanged:
+// same version, same 6s abort, same default field set.
 
 // FIX 1: extracted to a function so the outer loop can call it per lead
-async function processSingleLead(leadId: string, pageId: string): Promise<void> {
+async function processSingleLead(leadId: string, pageId: string, changeValue?: unknown): Promise<void> {
   // Skip test leads — Graph API returns code 100 for synthetic leadgen_ids
   if (leadId.startsWith('test_')) {
     console.log(`[FacebookWebhook] Skipping test lead — leadId=${leadId}`)
     return
   }
 
-  // Step 1: Early idempotency check — skip Graph API call if lead already exists
-  const existing = await db('clients').where({ leadSource: `facebook:${leadId}` }).first()
+  // Step 1: Early idempotency check — skip Graph API call if lead already exists.
+  // BOTH prefixes are checked: since Instagram separation, the same leadgen id
+  // may already be stored as `facebook:` (ingested before the split) or
+  // `instagram:`, and checking only one would let a redelivery create a duplicate.
+  const existing = await db('clients').whereIn('leadSource', leadSourceCandidates(leadId)).first()
   if (existing) {
     console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Already exists (id=${existing.id}) — skipping`)
     return
@@ -72,9 +72,13 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
   } catch (firstErr: any) {
     if (firstErr?.name !== 'AbortError') {
       console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Fetch threw:`, firstErr)
-      await db('webhook_failures')
-        .insert({ lead_id: leadId, page_id: pageId, error_type: 'fetch_error', error_detail: String(firstErr) })
-        .catch(() => {})
+      await recordWebhookFailure({
+        leadId,
+        pageId,
+        agencyId: connection.agency_id,
+        errorType: 'fetch_error',
+        errorDetail: String(firstErr),
+      })
       await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
       return
     }
@@ -85,11 +89,42 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
     } catch (retryErr: any) {
       const isAbort = retryErr?.name === 'AbortError'
       console.error(`[FacebookWebhook][fetch][leadId=${leadId}] ${isAbort ? 'Timeout' : 'Error'} on retry — giving up`)
-      await db('webhook_failures')
-        .insert({ lead_id: leadId, page_id: pageId, error_type: 'timeout' })
-        .catch(() => {})
+      await recordWebhookFailure({
+        leadId,
+        pageId,
+        agencyId: connection.agency_id,
+        errorType: 'timeout',
+      })
       await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
       return
+    }
+  }
+
+  /**
+   * ATTRIBUTION MUST NEVER COST A LEAD.
+   *
+   * The widened field set asks for campaign / adset / ad names alongside
+   * `field_data`. Meta refuses a field set as a whole, so a single unavailable
+   * field would fail the entire read and lose a paid lead — which is strictly
+   * worse than having no attribution. So a refusal falls back to the shipped
+   * minimal set and the lead proceeds exactly as it does today, simply without
+   * campaign data.
+   *
+   * 401/403 is deliberately excluded: that is a dead token, not a field problem,
+   * and it must reach the existing disconnect-and-repair path unchanged.
+   *
+   * Mirrors the PAGE_FIELDS_FULL → PAGE_FIELDS_MINIMAL ladder already proven in
+   * lib/facebook/discoverPages.ts.
+   */
+  if (!metaRes!.ok && metaRes!.status !== 401 && metaRes!.status !== 403) {
+    console.warn(
+      `[FacebookWebhook][fetch][leadId=${leadId}] Widened field read refused (HTTP ${metaRes!.status}) — retrying minimal`,
+    )
+    try {
+      const minimal = await fetchLeadWithTimeout(leadId, connection.page_access_token, LEAD_MINIMAL_GRAPH_FIELDS)
+      if (minimal.ok) metaRes = minimal
+    } catch {
+      // Keep the original response and fall through to the existing handling.
     }
   }
 
@@ -100,11 +135,12 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
     if (metaRes!.status === 401 || metaRes!.status === 403) {
       await Promise.allSettled([
         markFacebookDisconnectedAndNotify(connection),
-        db('webhook_failures').insert({
-          lead_id: leadId,
-          page_id: pageId,
-          error_type: 'token_expired',
-          error_detail: `HTTP ${metaRes!.status}`,
+        recordWebhookFailure({
+          leadId,
+          pageId,
+          agencyId: connection.agency_id,
+          errorType: 'token_expired',
+          errorDetail: `HTTP ${metaRes!.status}`,
         }),
       ])
       repairFacebookConnection(pageId).catch((err) =>
@@ -113,9 +149,13 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
       return
     }
 
-    await db('webhook_failures')
-      .insert({ lead_id: leadId, page_id: pageId, error_type: 'graph_api_error', error_detail: `HTTP ${metaRes!.status}` })
-      .catch(() => {})
+    await recordWebhookFailure({
+      leadId,
+      pageId,
+      agencyId: connection.agency_id,
+      errorType: 'graph_api_error',
+      errorDetail: `HTTP ${metaRes!.status}`,
+    })
     await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
     return
   }
@@ -130,6 +170,16 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
 
   const { firstName, lastName, phone, email } = parseFacebookLead(metaData.field_data)
 
+  // Both sources merged: the Graph node (authoritative, may be absent after the
+  // minimal fallback) and the signed webhook body (always present). `pageId` is
+  // the verified `entry.id`, never a payload field.
+  const attribution = buildLeadAttribution({
+    leadgenId: leadId,
+    pageId,
+    webhookValue: changeValue,
+    graphNode: metaData,
+  })
+
   const lead = await createLeadFromWebhook({
     firstName,
     lastName,
@@ -138,13 +188,17 @@ async function processSingleLead(leadId: string, pageId: string): Promise<void> 
     leadId,
     agencyId: connection.agency_id,
     userId: connection.user_id,
+    attribution,
   })
 
   if (!lead) {
     console.error(`[FacebookWebhook][create][leadId=${leadId}] createLeadFromWebhook returned null — logging failure`)
-    await db('webhook_failures')
-      .insert({ lead_id: leadId, page_id: pageId, error_type: 'db_error' })
-      .catch(() => {})
+    await recordWebhookFailure({
+      leadId,
+      pageId,
+      agencyId: connection.agency_id,
+      errorType: 'db_error',
+    })
     await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
     return
   }
@@ -240,13 +294,18 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        await processSingleLead(leadId, pageId)
+        // `change.value` carries form/ad/adgroup/created_time — the attribution
+        // that was previously read for `leadgen_id` alone and then discarded.
+        await processSingleLead(leadId, pageId, change.value)
       } catch (err) {
         // Catch unhandled errors per-lead so one failure does not stop other leads in the batch
         console.error(`[FacebookWebhook] Unhandled error for leadId=${leadId}:`, err)
-        await db('webhook_failures')
-          .insert({ lead_id: leadId, page_id: pageId ?? 'unknown', error_type: 'unhandled_error', error_detail: String(err) })
-          .catch(() => {})
+        await recordWebhookFailure({
+          leadId,
+          pageId: pageId ?? 'unknown',
+          errorType: 'unhandled_error',
+          errorDetail: String(err),
+        })
         if (pageId) {
           const connection = await db('facebook_pages').where({ page_id: pageId }).first().catch(() => null)
           if (connection) {

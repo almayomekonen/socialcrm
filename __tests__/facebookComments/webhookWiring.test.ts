@@ -34,6 +34,12 @@ const h = vi.hoisted(() => {
       return b
     }
     b.whereLike = () => b
+    // Lead-Ads dedup now looks up BOTH source prefixes for one leadgen id
+    // (`facebook:` and `instagram:`) since Instagram separation, so the builder
+    // has to answer whereIn/orWhereLike as well. Behaviour is unchanged: these
+    // are filters, and `first()` still returns whatever the fixture staged.
+    b.whereIn = () => b
+    b.orWhereLike = () => b
     b.first = async () => {
       if (table === 'facebook_pages') return state.connection
       if (table === 'clients') return state.existingClient

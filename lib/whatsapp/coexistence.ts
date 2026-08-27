@@ -17,6 +17,23 @@
  */
 
 /**
+ * SERVER ONLY. This module ingests webhooks, writes to Postgres and reads the
+ * session; none of it may reach the browser. The marker is not decoration — it
+ * is what stops the Client Component graph from silently re-acquiring
+ * `db/auth.ts` and `config/db.ts` the next time something imports a constant
+ * from here, which is exactly how the production build broke.
+ *
+ * The Embedded Signup event constants the browser DOES need live in
+ * `lib/whatsapp/coexistenceEvents.ts` and are re-exported below, so every
+ * server caller keeps importing them from here unchanged.
+ */
+import 'server-only'
+import type { OnboardingType } from '@/lib/whatsapp/coexistenceEvents'
+import { ingestWhatsappEchoes } from '@/lib/inbox/ingestWhatsappEcho'
+import { receiveHistoryWebhook } from '@/lib/inbox/history/receiveHistory'
+import { isHistoryEnabledForPhoneNumber, historyActivationState } from '@/lib/whatsapp/historyFlags'
+
+/**
  * `smb_app_data` postdates the app-wide Graph version (v19.0), so this one
  * feature pins its own. Deliberately NOT a global bump — GRAPH_VERSION is used
  * by message sending, template sync, health checks and the Conversions API, and
@@ -26,15 +43,14 @@ export const COEXISTENCE_GRAPH_VERSION = process.env.META_COEXISTENCE_GRAPH_VERS
 const COEXISTENCE_GRAPH_BASE = `https://graph.facebook.com/${COEXISTENCE_GRAPH_VERSION}`
 
 /** Which Embedded Signup flow the customer actually completed. */
-export type OnboardingType = 'cloud_api' | 'coexistence'
+export type { OnboardingType } from '@/lib/whatsapp/coexistenceEvents'
 
 /**
  * Embedded Signup completion events. Meta emits a distinct event for the
  * Business app flow, so the two are told apart at the source rather than
  * guessed at later.
  */
-export const ES_EVENT_FINISH = 'FINISH'
-export const ES_EVENT_FINISH_COEXISTENCE = 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'
+export { ES_EVENT_FINISH, ES_EVENT_FINISH_COEXISTENCE } from '@/lib/whatsapp/coexistenceEvents'
 
 /**
  * Webhook fields that coexistence adds. They are NOT inbound customer messages
@@ -58,10 +74,59 @@ export function isCoexistenceWebhookField(field: unknown): boolean {
 }
 
 /**
- * Entry point for coexistence webhook fields. They reach this pipeline and
- * are acknowledged; they must never be treated as inbound customer messages.
+ * Entry point for coexistence webhook fields. They reach this pipeline and are
+ * acknowledged; they must never be treated as inbound customer messages.
+ *
+ * `smb_message_echoes` is now PERSISTED (Wave 2A.1) — as OUTBOUND, through a
+ * dedicated path that shares the inbox persistence primitives and executes none
+ * of the inbound side effects. Everything the original guard was protecting
+ * against still holds: an echo cannot create a lead, cannot enqueue an
+ * auto-response, and cannot be read as a customer message.
+ *
+ * `history` and `smb_app_state_sync` remain acknowledged and unread. History is
+ * additionally not even REQUESTED — see `HISTORY_SYNC_ENABLED`, which this wave
+ * does not touch. Persisting echoes is deliberately independent of the history
+ * importer: echoes are live traffic arriving continuously, history is a
+ * one-time archive, and fixing the former does not require the latter.
  */
-export function processCoexistenceWebhook(field: string, _value: unknown): { ok: true; field: string } {
+export async function processCoexistenceWebhook(
+  field: string,
+  value: unknown,
+): Promise<{ ok: boolean; field: string; reason?: string }> {
+  if (field === 'smb_message_echoes') {
+    // Never throws — the webhook must answer 200 regardless.
+    await ingestWhatsappEchoes(value)
+    return { ok: true, field }
+  }
+
+  if (field === 'history') {
+    /**
+     * THE GATE IS THE REACHABILITY BOUNDARY, and it is checked here because this
+     * file owns the constant. While `HISTORY_SYNC_ENABLED` is false the importer
+     * is unreachable from production by construction — not by configuration, not
+     * by a feature flag someone can flip in a dashboard, but by a branch that
+     * cannot be taken. Wave 2A.2d built the durable receive, the queue and the
+     * worker behind it; none of it can run until this constant changes in a diff.
+     *
+     * It is also consistent: history is not being REQUESTED either, so in
+     * production this branch has nothing to receive. The archive stays unspent
+     * at Meta, which is the entire point of Wave 2A.0.
+     */
+    if (HISTORY_SYNC_ENABLED) {
+      // Fast path only: one tenant lookup, one durable insert, then 200. The
+      // archive is imported later by the worker, never inside this request.
+      const received = await receiveHistoryWebhook(value)
+      // THE ONLY UNACKNOWLEDGED OUTCOME (F-2). A delivery is acknowledged once
+      // it is durably stored — or proven to be one we already hold. If the write
+      // failed, this refuses to say 200, because Meta redelivers only on a
+      // non-2xx and the archive cannot be requested a second time.
+      if (received.outcome === 'failed') {
+        return { ok: false, field, reason: 'history_durable_write_failed' }
+      }
+    }
+    return { ok: true, field }
+  }
+
   console.log('[WhatsappWebhook][coexistence] processed; never treated as inbound', { field })
   return { ok: true, field }
 }
@@ -165,9 +230,46 @@ export async function resolvePhoneNumberIdForWaba(wabaId: string, accessToken: s
   }
 }
 
+/**
+ * WAVE 2A.0 — THE HISTORY GATE.
+ *
+ * History sync is temporarily disabled because the webhook currently DISCARDS
+ * the one-time archive. It must remain disabled until the history importer is
+ * implemented and verified.
+ *
+ * Why this is a data-loss guard rather than a feature flag. Meta's history sync
+ * is one-time and non-repeatable: "You can only perform this step once. If you
+ * need to perform it again, the customer must first offboard, then complete the
+ * Embedded Signup flow again." Today `processCoexistenceWebhook` acknowledges
+ * the `history` field and reads nothing from it, so every request made here
+ * spends a customer's entire prior WhatsApp archive and throws it away —
+ * permanently, and with no way to ask again.
+ *
+ * Not requesting it PRESERVES the archive. Meta holds it until asked; the
+ * importer can request it later and receive the same replay.
+ *
+ * DELIBERATELY A CONSTANT, NOT AN ENV FLAG. An environment variable can be
+ * flipped in a dashboard by someone who does not know the importer is missing,
+ * and the damage is irreversible per customer. Lifting this gate must be a code
+ * change that appears in a diff and is reviewed alongside the importer that
+ * makes it safe.
+ *
+ * TO LIFT: implement + verify the history importer, then set this to `true` in
+ * the same change. Nothing else here needs to move — the webhook routing and the
+ * `history` field handler are untouched and already able to receive the replay.
+ */
+export const HISTORY_SYNC_ENABLED = false
+
 export type SmbSyncResult = {
   contacts: boolean
+  /** True only when Meta accepted a history request. False when it failed OR was never asked. */
   history: boolean
+  /**
+   * Whether history was REQUESTED at all. Distinguishes the deliberate gate
+   * above from a genuine failure, so a caller cannot misreport "sync incomplete"
+   * for a request that was intentionally never made.
+   */
+  historyRequested: boolean
 }
 
 async function postSmbAppData(phoneNumberId: string, accessToken: string, syncType: string): Promise<boolean> {
@@ -201,13 +303,32 @@ async function postSmbAppData(phoneNumberId: string, accessToken: string, syncTy
  * only attempted if contacts succeeded, because requesting history against a
  * failed contact sync burns the one allowed attempt.
  *
+ * HISTORY IS CURRENTLY GATED OFF — see `HISTORY_SYNC_ENABLED`. Contacts are
+ * unaffected and still requested exactly as before: the two are independent
+ * calls, and the contact list is consumed by nothing today either but costs
+ * nothing to hold, whereas history is destroyed by being asked for.
+ *
  * Never throws. A failed sync degrades the connection (no imported history);
  * it must not fail an otherwise good onboarding.
  */
 export async function syncSmbAppData(phoneNumberId: string, accessToken: string): Promise<SmbSyncResult> {
   const contacts = await postSmbAppData(phoneNumberId, accessToken, 'smb_app_state_sync')
-  if (!contacts) return { contacts: false, history: false }
+  if (!contacts) return { contacts: false, history: false, historyRequested: false }
+
+  // BOTH KEYS. The constant is the reviewed one; the allowlist is the narrow
+  // one. Requesting history SPENDS the archive irreversibly, so this is the
+  // single most consequential branch in the feature — and it is deny-by-default
+  // twice over.
+  if (!HISTORY_SYNC_ENABLED || !isHistoryEnabledForPhoneNumber(phoneNumberId)) {
+    // The archive is left with Meta, unrequested and therefore unspent, so the
+    // future importer can still claim it. This is the whole point of the gate.
+    console.log('[WA Coexistence] history sync gated off; archive preserved for the importer', {
+      phoneNumberId,
+      ...historyActivationState(),
+    })
+    return { contacts, history: false, historyRequested: false }
+  }
 
   const history = await postSmbAppData(phoneNumberId, accessToken, 'history')
-  return { contacts, history }
+  return { contacts, history, historyRequested: true }
 }

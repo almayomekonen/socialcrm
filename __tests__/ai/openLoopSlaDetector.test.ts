@@ -206,12 +206,22 @@ describe('the signal traverses the existing pipeline unchanged', () => {
 // ───────────── every registry is complete, and ownership is null ─────────────
 
 describe('the five registries stay compiler-complete', () => {
-  const EXPECTATIONS = ['followup.overdue', 'sla.open_loop']
+  // `conversation.unanswered` joins the set with the first conversation-sourced
+  // detector. This list is the golden assertion that every one of the five
+  // registries stays total — adding a detector is EXACTLY the change that must
+  // update it, and leaving it stale is how an unowned expectation would slip past.
+  const EXPECTATIONS = [
+    'followup.overdue',
+    'sla.open_loop',
+    'conversation.unanswered',
+    'conversation.objection',
+    'conversation.stalled',
+  ]
 
   it('the detector is registered and iterable', () => {
     expect(Object.keys(DETECTORS).sort()).toEqual([...EXPECTATIONS].sort())
     expect(DETECTORS['sla.open_loop']!.expectation).toBe(OPEN_LOOP_SLA_EXPECTATION)
-    expect(DETECTOR_LIST).toHaveLength(2)
+    expect(DETECTOR_LIST).toHaveLength(EXPECTATIONS.length)
   })
 
   it('every registry declares an entry for every expectation', () => {

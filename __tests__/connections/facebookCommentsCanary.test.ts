@@ -23,6 +23,11 @@ const h = vi.hoisted(() => {
     const qb: Record<string, unknown> = {}
     qb.where = () => qb
     qb.whereLike = () => qb
+    // Lead-Ads dedup resolves BOTH source prefixes for one leadgen id since
+    // Instagram separation; these are filters, so the staged `first()` result
+    // and every canary assertion are unchanged.
+    qb.whereIn = () => qb
+    qb.orWhereLike = () => qb
     qb.first = async () => (table === 'facebook_pages' ? state.connection : state.existingClient)
     qb.insert = (obj: unknown) => {
       if (table === 'webhook_failures') state.failures.push(obj)

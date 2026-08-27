@@ -53,7 +53,11 @@ export async function GET() {
   try {
     const lastLead = await db('clients')
       .where({ handlerId: user.id })
-      .whereRaw(`"leadSource" LIKE ?`, ['facebook:%'])
+      // Both Lead Ads prefixes: this answers "when did this Page last deliver a
+      // lead", and an Instagram-placement lead is delivered by the same Page
+      // connection. Matching only `facebook:%` would make a healthy Instagram
+      // -only Page look like it had never produced a lead.
+      .whereRaw(`("leadSource" LIKE ? OR "leadSource" LIKE ?)`, ['facebook:%', 'instagram:%'])
       .orderBy('createdAt', 'desc')
       .select('createdAt')
       .first()

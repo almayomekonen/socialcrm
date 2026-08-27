@@ -17,8 +17,11 @@ import {
   type AdmissionDeps,
 } from '@/lib/ai/integration/investigationAdmission'
 import { checkPreconditions, EXPECTED_STATE, DEFAULT_REFRACTORY_MS } from '@/lib/ai/integration/preconditions'
-import { DETECTORS } from '@/lib/ai/integration/detectors/registry'
-import { NOTIFICATION_OWNERSHIP } from '@/lib/ai/integration/notificationOwnership'
+import { DETECTORS, type ExpectationKind } from '@/lib/ai/integration/detectors/registry'
+import {
+  NOTIFICATION_OWNERSHIP,
+  isOwnedByDeterministicNotification,
+} from '@/lib/ai/integration/notificationOwnership'
 import type { SignalJob } from '@/db/ai/signalJobs'
 import type { AgentScope } from '@/lib/agent/types'
 import type { LeadFact } from '@/lib/today/types'
@@ -147,10 +150,31 @@ describe('P1 · deterministic notification ownership is the first and cheapest g
     expect(deps.deps.resolveAutonomousScope).not.toHaveBeenCalled()
   })
 
-  it('followup.overdue — the only expectation that exists — is owned, so today nothing investigates', async () => {
+  /**
+   * Wave 1 changed this deliberately, so the test now states the RULE rather
+   * than an outcome that happened to be universal.
+   *
+   * Before it, every registered expectation was owned by a deterministic
+   * notification, so P1 declined all of them and nothing ever reached
+   * investigation. `conversation.objection` and `conversation.stalled` are the
+   * first expectations nothing deterministic delivers — no emitter tells a rep
+   * that a customer pushed back, or that an engaged thread went quiet — so they
+   * are the first that may legitimately pass P1.
+   *
+   * Passing P1 is not permission to surface: P2–P5 still run, the Value Bar
+   * still decides, and the reachable outcomes remain `recommend`/`stay_silent`.
+   */
+  it('an OWNED expectation is declined at P1; an unowned one is allowed past it', async () => {
     for (const expectation of Object.keys(DETECTORS)) {
+      const owned = isOwnedByDeterministicNotification(expectation as ExpectationKind)
       const r = await checkPreconditions(job({ expectation }), preDeps())
-      expect(r.proceed).toBe(false)
+      if (owned) {
+        expect(r.proceed).toBe(false)
+        expect(r.proceed === false && r.code).toBe('owned_by_deterministic_notification')
+      } else {
+        // Whatever P2–P5 then decide, the refusal must not be ownership.
+        expect(r.proceed === false && r.code).not.toBe('owned_by_deterministic_notification')
+      }
     }
   })
 

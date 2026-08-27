@@ -236,7 +236,13 @@ describe('L · every wired detector is declared across all five registries', () 
     const files = readdirSync(join(ROOT, 'lib/ai/integration/detectors'))
       .filter((f) => f.endsWith('.ts') && f !== 'registry.ts')
       .sort()
-    expect(files).toEqual(['followupOverdue.ts', 'openLoopSla.ts'])
+    expect(files).toEqual([
+      'conversationObjection.ts',
+      'conversationStalled.ts',
+      'conversationUnanswered.ts',
+      'followupOverdue.ts',
+      'openLoopSla.ts',
+    ])
     expect(files).toHaveLength(Object.keys(DETECTORS).length)
   })
 
