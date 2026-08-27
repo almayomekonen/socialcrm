@@ -108,15 +108,19 @@ describe('B · interactive wire contract is unchanged', () => {
 })
 
 describe('E · mutation guard', () => {
-  it('the source must not attach Output.object on the evidence-required path', () => {
+  it('Phase 1 must not attach Output.object; Phase 2 must', () => {
     const src = require('node:fs')
       .readFileSync('lib/agent/run.ts', 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .split('\n')
       .map((l: string) => l.split('//')[0])
       .join('\n')
-    // The option must be behind the requireToolEvidence branch, never unconditional.
-    expect(src).not.toMatch(/^\s*output: Output\.object/m)
-    expect(src).toMatch(/requireToolEvidence === true \? \{\} : \{ output: Output\.object/)
+    // Exactly two Output.object sites: the interactive call and Phase 2. The evidence
+    // phase must have none, or `tool_choice: "required"` is opposed again.
+    const sites = (src.match(/output: Output\.object/g) ?? []).length
+    expect(sites, 'interactive + Phase 2, and nothing else').toBe(2)
+    // The evidence phase is the block that sends prepareStep; it must carry no output.
+    const phase1 = src.slice(src.indexOf('prepareStep:'), src.indexOf('evidenceUsage ='))
+    expect(phase1).not.toContain('Output.object')
   })
 })
