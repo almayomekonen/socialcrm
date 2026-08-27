@@ -109,37 +109,6 @@ export type RunAgentInput = {
   onPersist?: (record: AgentInvestigationInput) => Promise<void>
 }
 
-/**
- * Parse an autonomous answer out of PLAIN TEXT.
- *
- * The evidence-required turn cannot carry `Output.object`. On the OpenAI Responses
- * API that option becomes `text.format` — a strict json_schema — and it is sent in
- * the SAME request as `tool_choice: "required"`. Those are contradictory
- * instructions for one turn, and OpenAI resolves them in favour of `text.format`:
- * the model returns a schema-conforming message instead of calling a function.
- * Production did exactly that twice (inv_mtakjigp_tviv8y, inv_mtali8du_a534mo),
- * both `steps 0` / `no_evidence`, at $0.042850 combined. Removing `text.format`
- * from that turn is what makes `required` unopposed.
- *
- * NOTHING IS TRUSTED HERE. This returns a SHAPE, never a verdict. A payload that
- * parses cleanly is still handed to `validateAgentAnswerDetailed`, which re-checks
- * the shape itself and drops every claim whose evidence the collector cannot
- * resolve. On any failure this returns null, and `isWellFormed(null)` is false, so
- * the answer is `refused('malformed')` — the same path a schema violation already
- * took. Malformed output cannot bypass the validator; it lands one step earlier.
- */
-function parseAutonomousAnswer(text: string | undefined): AgentAnswer | null {
-  if (typeof text !== 'string' || text.trim() === '') return null
-  let raw: unknown
-  try {
-    raw = JSON.parse(text)
-  } catch {
-    return null
-  }
-  const parsed = agentAnswerSchema.safeParse(raw)
-  return parsed.success ? (parsed.data as AgentAnswer) : null
-}
-
 function newInvestigationId(nowMs: number): string {
   return `inv_${nowMs.toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -186,39 +155,85 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const tools = buildAgentTools({ scope, evidence, budget, nowMs })
 
   let result
+  /** Phase 1's token usage, folded into the cost so a two-phase run bills honestly. */
+  let evidenceUsage: { inputTokens?: number; outputTokens?: number } | undefined
   try {
-    result = await generateText({
-      model: handle.model,
-      system: AGENT_SYSTEM_PROMPT,
-      prompt: input.question,
-      tools,
-      stopWhen: stepCountIs(maxSteps),
+    if (input.requireToolEvidence === true) {
       /**
-       * FIRST STEP REQUIRES A TOOL; EVERY LATER STEP IS FREE.
+       * TWO PHASES, because ai@6.0.176 cannot vary structured output per step.
        *
-       * `prepareStep` runs before each step and its `toolChoice` overrides the
-       * call-level one, so this is the SDK's own mechanism rather than a second
-       * agent loop. The predicate is `budget.stepsUsed() === 0`, which is
-       * literally "no tool has executed yet" — the same counter `steps` reports —
-       * so the gate lifts on the first EXECUTED tool, not merely the first model
-       * round-trip. A blanket `toolChoice: 'required'` would be wrong: the model
-       * could then never emit the final structured object and every investigation
-       * would run to the step ceiling.
+       * `PrepareStepResult` exposes model / toolChoice / activeTools / system /
+       * messages / experimental_context / providerOptions — and nothing else. The
+       * loop reads `responseFormat` from the CALL-level `output` closure
+       * (dist/index.mjs:4354), so one call is either schema-enforced for every step
+       * or for none.
        *
-       * Omitted entirely for interactive callers, so their request is unchanged.
+       * That is the whole problem. `text.format` and `tool_choice: "required"` in one
+       * Responses turn are contradictory and OpenAI honours the format, so the model
+       * answered instead of calling a tool — steps 0, three times. Dropping the format
+       * freed the tool call (production then measured steps 1, evidence 40) but removed
+       * the only guarantee the answer was parseable, and the run died `malformed`.
+       *
+       * So the phases split: gather under `required` with no format, then answer under
+       * the format with no tools. Each turn carries exactly one constraint.
        */
-      ...(input.requireToolEvidence === true
-        ? {
-            prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
-          }
-        : {}),
-      // Structured output is omitted for the evidence-required turn — see
-      // parseAutonomousAnswer. Interactive callers keep it exactly as before.
-      ...(input.requireToolEvidence === true ? {} : { output: Output.object({ schema: agentAnswerSchema }) }),
-      maxOutputTokens: cfg.maxOutputTokens,
-      abortSignal: input.abortSignal,
-      ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
-    })
+
+      // ── PHASE 1 · evidence. Tools, required first call, NO structured output. ──
+      const evidencePhase = await generateText({
+        model: handle.model,
+        system: AGENT_SYSTEM_PROMPT,
+        prompt: input.question,
+        tools,
+        stopWhen: stepCountIs(maxSteps),
+        // The gate lifts on the first EXECUTED tool — `budget.stepsUsed()` is the same
+        // counter `steps` reports, so the gate and the audit cannot disagree.
+        prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
+        maxOutputTokens: cfg.maxOutputTokens,
+        abortSignal: input.abortSignal,
+        ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
+      })
+      evidenceUsage = evidencePhase.totalUsage
+
+      /**
+       * THE HANDOFF is the SDK's own `response.messages` — the assistant message
+       * carrying the tool calls plus the tool-result messages the loop appended. Phase 2
+       * therefore sees the real tool results in the shape the SDK produced, not a
+       * hand-rolled transcript, and can cite exactly the refs the EvidenceCollector
+       * recorded. That collector is SHARED: both phases close over the same `tools` and
+       * the same `evidence`, so `evidence.all()` already holds Phase 1's work and the
+       * validator checks Phase 2's claims against it.
+       *
+       * Phase 1's own prose is deliberately DISCARDED. It was produced without a schema
+       * and is not an answer.
+       *
+       * Phase 2 passes NO tools, so it consumes no Budget: the autonomous tool ceiling
+       * stays `maxSteps` across the whole investigation rather than doubling.
+       */
+
+      // ── PHASE 2 · answer. Structured output, NO tools, no forced choice. ──
+      result = await generateText({
+        model: handle.model,
+        system: AGENT_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: input.question }, ...evidencePhase.response.messages],
+        output: Output.object({ schema: agentAnswerSchema }),
+        maxOutputTokens: cfg.maxOutputTokens,
+        abortSignal: input.abortSignal,
+        ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
+      })
+    } else {
+      // ── INTERACTIVE · unchanged: one call, tools, structured output. ──
+      result = await generateText({
+        model: handle.model,
+        system: AGENT_SYSTEM_PROMPT,
+        prompt: input.question,
+        tools,
+        stopWhen: stepCountIs(maxSteps),
+        output: Output.object({ schema: agentAnswerSchema }),
+        maxOutputTokens: cfg.maxOutputTokens,
+        abortSignal: input.abortSignal,
+        ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
+      })
+    }
   } catch (err) {
     const message = (err as Error)?.message ?? 'unknown'
     agentTrace('GENERATION_FAILED', ctx, { provider: handle.provider, steps: budget.stepsUsed() })
@@ -252,8 +267,10 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   // Charge before validating: the tokens were spent whatever we do with the
   // answer, and a refused answer that bills nothing would hide real cost.
   const usage = result.totalUsage
-  const inputTokens = usage?.inputTokens ?? 0
-  const outputTokens = usage?.outputTokens ?? 0
+  // Phase 1's tokens are real tokens. Billing only the answer turn would understate an
+  // autonomous run and under-count the durable reservation it settles.
+  const inputTokens = (usage?.inputTokens ?? 0) + (evidenceUsage?.inputTokens ?? 0)
+  const outputTokens = (usage?.outputTokens ?? 0) + (evidenceUsage?.outputTokens ?? 0)
   const costUsd = estimateCostUsd(handle.modelId, inputTokens, outputTokens)
   // Interactive runs charge the shared in-memory counter, unchanged. Autonomous
   // runs deliberately do not — they hold a durable reservation and settle there.
@@ -268,9 +285,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     costUsd,
   })
 
-  const proposed =
-    input.requireToolEvidence === true ? parseAutonomousAnswer((result as { text?: string }).text) : (result.output as never)
-  const validation = validateAgentAnswerDetailed(proposed as never, evidence)
+  // Both paths are schema-enforced again: interactive in its single call, autonomous in
+  // Phase 2. The C2 text parser is gone along with the turn that needed it.
+  const validation = validateAgentAnswerDetailed(result.output as never, evidence)
   const validated = validation.answer
   if (!validated) {
     // The rejected PROSE is still not recorded — the gate destroyed it, and
