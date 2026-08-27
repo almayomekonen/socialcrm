@@ -237,7 +237,16 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     // Cost is 0 because the call threw before usage was reported. Tokens MAY have
     // been spent upstream; there is no honest figure available, and inventing one
     // would put a guess into a durable ledger.
-    return { ok: false, reason: 'error', message, investigationId, costUsd: 0 }
+    return {
+      ok: false,
+      reason: 'error',
+      message,
+      investigationId,
+      costUsd: 0,
+      // Tools may have executed before the provider threw; report what really ran.
+      steps: budget.stepsUsed(),
+      evidence: evidence.all(),
+    }
   }
 
   // Charge before validating: the tokens were spent whatever we do with the
@@ -288,7 +297,19 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       failureReason: validation.rejection,
     })
     agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'no_evidence' })
-    return { ok: false, reason: 'no_evidence', investigationId, costUsd }
+    return {
+      ok: false,
+      reason: 'no_evidence',
+      investigationId,
+      costUsd,
+      // The same values `onPersist` receives above. Returned so a caller that
+      // persists from the result — the autonomous path — records the real run.
+      steps: budget.stepsUsed(),
+      evidence: evidence.all(),
+      droppedClaims: validation.counts.droppedClaims,
+      strippedRefs: validation.counts.strippedRefs,
+      rejection: validation.rejection,
+    }
   }
 
   // A budget stop that still produced a supportable answer is reported as the

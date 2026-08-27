@@ -287,7 +287,22 @@ export async function admitInvestigation(job: SignalJob, opts: AdmissionOptions 
         status: capacity || transport ? 'failed' : 'refused',
         stopReason: result.reason,
         costUsd,
-        failureReason: result.message ?? null,
+        // WHY the answer was refused, not merely that it was. `rejection` is the
+        // validator's own reason; `message` is a provider/transport message.
+        failureReason: result.message ?? result.rejection ?? null,
+        // THE REAL EXECUTION TELEMETRY, not the column defaults.
+        //
+        // Previously omitted, so `steps 0` / `evidence []` / `droppedClaims 0` /
+        // `strippedRefs 0` were what the SCHEMA supplies, not what the run did.
+        // Three production investigations were diagnosed against that, and
+        // "tools ran, then the validator refused" was indistinguishable from
+        // "no tool ran, then the validator refused". Spread conditionally so a
+        // failure that genuinely measured nothing keeps the default — an absent
+        // value must never be recorded as a measured zero.
+        ...(result.steps != null ? { steps: result.steps } : {}),
+        ...(result.evidence != null ? { evidence: [...result.evidence] } : {}),
+        ...(result.droppedClaims != null ? { droppedClaims: result.droppedClaims } : {}),
+        ...(result.strippedRefs != null ? { strippedRefs: result.strippedRefs } : {}),
       }),
     )
     return {

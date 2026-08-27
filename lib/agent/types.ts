@@ -187,4 +187,26 @@ export type AgentResult =
       investigationId?: string
       /** Tokens are spent even when the answer is refused or the provider fails. */
       costUsd?: number
+      /**
+       * EXECUTION TELEMETRY ON THE FAILURE PATH — present whenever generation ran.
+       *
+       * These were assembled for `onPersist` and then dropped from the return, so a
+       * caller that persists from the AgentResult rather than from `onPersist` — the
+       * autonomous path — wrote nothing and `ai_investigations` fell back to its
+       * column defaults (`steps 0`, `evidence []`, `droppedClaims 0`,
+       * `strippedRefs 0`). That made "four tools ran, then the validator refused"
+       * indistinguishable from "no tool ran, then the validator refused", and three
+       * production investigations were diagnosed against a number that was a DEFAULT,
+       * never a measurement.
+       *
+       * Optional because two failures genuinely have no telemetry: an admission
+       * denial never began, and a provider throw before any step has nothing to
+       * report. Absent means "not measured", never "measured as zero".
+       */
+      steps?: number
+      evidence?: EvidenceRef[]
+      droppedClaims?: number
+      strippedRefs?: number
+      /** The validator's own rejection reason, so a refusal says WHY. */
+      rejection?: string | null
     }
