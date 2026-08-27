@@ -345,10 +345,14 @@ describe('purity', () => {
 })
 
 describe('scope guard', () => {
-  it('no importer, no jobs, no enablement', () => {
-    expect(codeOf('lib/whatsapp/coexistence.ts')).toContain('export const HISTORY_SYNC_ENABLED = false')
+  it('the parser stays a pure boundary; the gate is a literal, now true', () => {
+    expect(codeOf('lib/whatsapp/coexistence.ts')).toContain('export const HISTORY_SYNC_ENABLED = true')
+    expect(codeOf('lib/whatsapp/coexistence.ts')).not.toMatch(
+      /HISTORY_SYNC_ENABLED\s*=\s*(process\.env|Boolean|!!)/,
+    )
+    // The parser is still reached only through the receive path, never imported
+    // directly by the coexistence dispatcher or the webhook route.
     expect(codeOf('lib/whatsapp/coexistence.ts')).not.toContain('parseHistory')
-    // Nothing calls the parser yet; wiring it up is 2A.2c.
     expect(codeOf('app/api/webhooks/whatsapp/route.ts')).not.toContain('parseHistory')
   })
 })
