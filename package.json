@@ -50,6 +50,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.8",
+    "@vercel/analytics": "^2.0.1",
     "ai": "^6.0.176",
     "axios": "^1.13.2",
     "babel-plugin-react-compiler": "19.1.0-rc.2",
