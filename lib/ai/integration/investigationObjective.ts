@@ -9,10 +9,22 @@ import type { ExpectationKind } from './detectors/registry'
  * to widen its own remit, and the Agent's authority is supposed to be decided
  * entirely outside the model.
  *
- * There is no interpolation of lead data here — no name, no phone, no status.
- * The subject reaches the Agent through its SCOPE and its tools, which are
- * permission-bounded reads; putting customer identity into the prompt string
- * would route it around exactly those bounds.
+ * NO CUSTOMER IDENTITY IS INTERPOLATED — no name, no phone, no status, no message
+ * text. Those reach the Agent only through its tools, which are permission-bounded
+ * reads; putting them in the prompt string would route around exactly those bounds.
+ *
+ * THE SUBJECT ID IS THE ONE EXCEPTION, and it is narrow on purpose. Two production
+ * investigations (inv_mtb9z7nb_2yua5m, inv_mtbbdzql_0cd7po) proved the cost of
+ * omitting it: the objective said "this lead" with no referent, so the Agent could
+ * only reach `get_today_state` — the sole tool taking no argument — and correctly
+ * reported it could not identify a single lead among 36. The Value Bar then rejected
+ * on provenance. A question about a subject the model cannot name is unanswerable.
+ *
+ * An opaque row id is not customer identity: it carries no personal data, it is the
+ * same id the signal already recorded in `signal_jobs.subjectId`, and the tenancy
+ * CHECK `signal_jobs_agency_matches_signal` ties it to the signal's own agency. It
+ * is SERVER-SUPPLIED — never chosen, rewritten or widened by the model — and every
+ * read it enables is still bounded by the operator scope the tools close over.
  *
  * Total over `ExpectationKind`, enforced by the compiler in the same way
  * `notificationOwnership.ts` and `preconditions.ts` are: a new detector cannot
@@ -31,8 +43,18 @@ export const INVESTIGATION_OBJECTIVE: Record<ExpectationKind, string> = {
     'This conversation showed real commercial engagement, was answered, and then stopped, with nothing scheduled. Determine what the customer was engaged about, whether their last point was resolved, whether the silence reads as a decision or as a dropped thread, and what concrete step would restart it. Base every conclusion on cited CRM evidence. Do not invent missing facts.',
 }
 
-/** The objective for an expectation, or null when none is declared. */
-export function objectiveFor(expectation: string): string {
+/** The investigation's subject, exactly as the signal recorded it. */
+export type InvestigationSubject = { subjectType: string; subjectId: string }
+
+/**
+ * The objective for an expectation, optionally addressed to a specific subject.
+ *
+ * The declared text is returned VERBATIM and only ever prefixed — the subject line
+ * gives "this lead" a referent without rewriting the question the system decided to
+ * ask. Omitting the subject yields the original string unchanged, so a caller that
+ * has no subject is unaffected.
+ */
+export function objectiveFor(expectation: string, subject?: InvestigationSubject): string {
   const known = INVESTIGATION_OBJECTIVE[expectation as ExpectationKind]
   if (typeof known !== 'string' || known.length === 0) {
     // Unreachable through admission, which rejects an undeclared expectation at
@@ -40,5 +62,6 @@ export function objectiveFor(expectation: string): string {
     // system inventing its own question.
     throw new Error(`investigationObjective: no declared objective for '${expectation}'`)
   }
-  return known
+  if (subject == null) return known
+  return `Subject: ${subject.subjectType} ${subject.subjectId}.\n\n${known}`
 }

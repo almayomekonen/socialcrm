@@ -61,9 +61,15 @@ export const LEAD_METRIC_ID_LIST = Object.values(LEAD_METRIC_IDS)
 export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
-      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and the rep's notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from an earlier tool result.",
+      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and the rep's notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
     inputSchema: z.object({
-      leadId: z.number().int().positive().describe('The lead id, taken from an earlier tool result. Never invented.'),
+      leadId: z
+        .number()
+        .int()
+        .positive()
+        .describe(
+          'The lead id. Use the investigation subject when the objective names one, otherwise an id from an earlier tool result. Never invented.',
+        ),
     }),
     execute: async ({ leadId }) => {
       const verdict = deps.budget.canStep('get_lead', String(leadId))
