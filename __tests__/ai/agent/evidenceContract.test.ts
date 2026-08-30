@@ -53,7 +53,12 @@ const run = (t: unknown, i: unknown) =>
   (t as { execute: (i: unknown, o: unknown) => Promise<Record<string, unknown>> }).execute(i, OPTS)
 
 function deps() {
-  return { scope: SCOPE, evidence: createEvidenceCollector(), budget: createBudget({ maxSteps: 6, deadlineMs: 60_000, now: () => 0 }), nowMs: 0 }
+  return {
+    scope: SCOPE,
+    evidence: createEvidenceCollector(),
+    budget: createBudget({ maxSteps: 6, deadlineMs: 60_000, now: () => 0 }),
+    nowMs: 0,
+  }
 }
 
 /**
@@ -90,8 +95,15 @@ const INPUTS = {
 
 beforeEach(() => {
   buildTodayBrief.mockReset().mockResolvedValue({
-    greeting: '', firstName: '', items: [{ id: 1527, name: 'Sali', state: 'x', reason: 'y', targetSurface: 'inbox' }],
-    total: 19, remaining: 19, handledToday: 0, volumeState: 'clear', statusVerdict: 'covered', meetings: [],
+    greeting: '',
+    firstName: '',
+    items: [{ id: 1527, name: 'Sali', state: 'x', reason: 'y', targetSurface: 'inbox' }],
+    total: 19,
+    remaining: 19,
+    handledToday: 0,
+    volumeState: 'clear',
+    statusVerdict: 'covered',
+    meetings: [],
   })
   getNamedLeadById.mockReset().mockResolvedValue(LEAD)
   getLeadsByName.mockReset().mockResolvedValue([LEAD])
@@ -155,6 +167,28 @@ describe('get_lead metric contract', () => {
     expect(d.evidence.hasMetric('lead.daysSinceLastInteraction')).toBe(false)
   })
 
+  it('binds every metric to the lead it was measured on', async () => {
+    // Without this binding a metric is subject-less: a claim resting on it has no
+    // provenance to walk and the gate rejects at the provenance seam — the exact
+    // production failure of investigation 7 (lead 1696).
+    const d = deps()
+    await run(buildAgentTools(d).get_lead, { leadId: 1527 })
+    const metrics = d.evidence.all().filter((e) => e.kind === 'metric')
+    expect(metrics.length).toBeGreaterThan(0)
+    for (const m of metrics) expect(m.measuredOn).toEqual({ kind: 'lead', refId: '1527' })
+  })
+
+  it('get_today_state metrics are portfolio-wide and borrow NO subject', async () => {
+    // A today metric is measured over the whole queue, not over one lead. Giving
+    // it a measuredOn would let a portfolio number masquerade as evidence about
+    // whichever lead happened to be under investigation.
+    const d = deps()
+    await run(buildAgentTools(d).get_today_state, {})
+    const metrics = d.evidence.all().filter((e) => e.kind === 'metric')
+    expect(metrics.length).toBeGreaterThan(0)
+    for (const m of metrics) expect(m.measuredOn).toBeUndefined()
+  })
+
   it('still records the lead evidence and the existing payload fields', async () => {
     const d = deps()
     const out = await run(buildAgentTools(d).get_lead, { leadId: 1527 })
@@ -194,7 +228,9 @@ describe('get_lead — the production answer now grounds, invalid citations stil
   it('still REJECTS a raw numeric citation', async () => {
     const d = deps()
     await run(buildAgentTools(d).get_lead, { leadId: 1527 })
-    expect(validateAgentAnswer(answer([{ claimClass: 'OBSERVATION', text: '12 ימים.', metricEvidence: ['12'] }]), d.evidence)).toBeNull()
+    expect(
+      validateAgentAnswer(answer([{ claimClass: 'OBSERVATION', text: '12 ימים.', metricEvidence: ['12'] }]), d.evidence),
+    ).toBeNull()
   })
 
   it('still REJECTS an invented metric id', async () => {
@@ -208,7 +244,9 @@ describe('get_lead — the production answer now grounds, invalid citations stil
   it('still REJECTS an OBSERVATION citing the lead id', async () => {
     const d = deps()
     await run(buildAgentTools(d).get_lead, { leadId: 1527 })
-    expect(validateAgentAnswer(answer([{ claimClass: 'OBSERVATION', text: 'x', metricEvidence: ['1527'] }]), d.evidence)).toBeNull()
+    expect(
+      validateAgentAnswer(answer([{ claimClass: 'OBSERVATION', text: 'x', metricEvidence: ['1527'] }]), d.evidence),
+    ).toBeNull()
   })
 })
 
@@ -225,7 +263,13 @@ describe('get_conversation message-id contract', () => {
 
   it('keeps every existing message field intact', async () => {
     const out = await run(buildAgentTools(deps()).get_conversation, { leadId: 1527 })
-    expect(Object.keys((out.messages as Record<string, unknown>[])[0]).sort()).toEqual(['at', 'direction', 'id', 'sequence', 'text'])
+    expect(Object.keys((out.messages as Record<string, unknown>[])[0]).sort()).toEqual([
+      'at',
+      'direction',
+      'id',
+      'sequence',
+      'text',
+    ])
   })
 
   it('ACCEPTS a FACT citing a real message id', async () => {

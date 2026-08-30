@@ -37,12 +37,26 @@ export type AgentScope = {
  * Entity refs carry the id a tool actually returned. A metric ref carries its
  * name, the window it was measured over and the sample size — so an OBSERVATION
  * can never be surfaced without the `n` that makes it honest.
+ *
+ * A metric also records WHAT IT WAS MEASURED ON, when it was measured over one
+ * entity. Without that binding a metric is subject-less: `lead.overdueTaskCount
+ * = 0` states a number but names nothing a rep could open, so a claim resting
+ * only on it has no provenance to walk and can never be surfaced. `measuredOn`
+ * is written by the TOOL that took the measurement, never by the model, and is
+ * absent for portfolio-wide metrics (`get_today_state`), which are measured over
+ * no single subject and must not borrow one.
  */
 export type EvidenceRef =
   | { kind: 'lead'; refId: string }
   | { kind: 'conversation'; refId: string }
   | { kind: 'message'; refId: string }
-  | { kind: 'metric'; metric: string; window: { from: string; to: string }; n: number }
+  | {
+      kind: 'metric'
+      metric: string
+      window: { from: string; to: string }
+      n: number
+      measuredOn?: { kind: EvidenceEntityKind; refId: string }
+    }
 
 /** The entity kinds addressable by `EvidenceCollector.has`. */
 export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
