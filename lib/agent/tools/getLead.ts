@@ -106,7 +106,12 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
       }
       const asOf = new Date(deps.nowMs).toISOString()
       const window = { from: asOf, to: asOf }
-      for (const [metric, n] of Object.entries(metrics)) deps.evidence.add({ kind: 'metric', metric, window, n })
+      // Every metric here was measured over THIS lead, so it records that. The
+      // binding is what lets a claim resting on the measurement walk back to a
+      // real row; without it the number names nothing openable and the claim
+      // cannot be surfaced. Written here, by the tool that took the reading.
+      const measuredOn = { kind: 'lead' as const, refId: String(leadId) }
+      for (const [metric, n] of Object.entries(metrics)) deps.evidence.add({ kind: 'metric', metric, window, n, measuredOn })
 
       const payload = {
         found: true as const,

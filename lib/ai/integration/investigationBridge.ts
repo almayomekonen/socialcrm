@@ -90,8 +90,20 @@ export function distanceForClaim(claim: Claim): InferentialDistance {
  * Resolve a claim's surviving refs to traces.
  *
  * Only ENTITY evidence has a trace identity. A metric is a measurement, not a
- * thing the rep can open, so it deliberately yields nothing — and a claim resting
- * only on metrics therefore carries no provenance for the gate to walk.
+ * thing the rep can open, so it never becomes a trace OF ITS OWN — there is no
+ * `{ type: 'metric' }` ref, because a metric name is not something anyone can
+ * open. What a metric does have is the entity it was MEASURED ON, and that
+ * entity is a real, openable row. So a claim citing `lead.overdueTaskCount`
+ * resolves to the lead the count was taken over: the honest answer to "where
+ * does this number come from" is "that lead".
+ *
+ * Two bounds keep this from becoming a loophole:
+ *   - a metric measured over no single entity (a portfolio metric from
+ *     `get_today_state`) carries no `measuredOn` and still resolves to nothing;
+ *   - the referenced entity must itself be in the evidence pool, so a trace can
+ *     only ever name a row some tool actually returned.
+ *
+ * Entity refs win over metric names, so FACT resolution is untouched.
  */
 function tracesFor(claim: Claim, evidence: readonly EvidenceRef[]): TraceRef[] {
   const entities = new Map<string, TraceRef>()
@@ -99,14 +111,26 @@ function tracesFor(claim: Claim, evidence: readonly EvidenceRef[]): TraceRef[] {
     if (ref.kind === 'metric') continue
     entities.set(ref.refId, { type: ref.kind, id: ref.refId })
   }
+
+  const measurements = new Map<string, TraceRef>()
+  for (const ref of evidence) {
+    if (ref.kind !== 'metric' || ref.measuredOn == null) continue
+    const subject = entities.get(ref.measuredOn.refId)
+    if (subject != null && subject.type === ref.measuredOn.kind) measurements.set(ref.metric, subject)
+  }
+
   const out: TraceRef[] = []
   const seen = new Set<string>()
   for (const raw of claimRefs(claim)) {
-    const hit = entities.get(raw)
-    if (hit && !seen.has(raw)) {
-      seen.add(raw)
-      out.push(hit)
-    }
+    const hit = entities.get(raw) ?? measurements.get(raw)
+    if (hit == null) continue
+    // Dedup on the RESOLVED trace: two metrics measured on one lead are one
+    // trace, not two. For entity refs this is identical to the previous
+    // ref-keyed dedup, so FACT output is unchanged.
+    const key = `${hit.type}:${hit.id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(hit)
   }
   return out
 }
