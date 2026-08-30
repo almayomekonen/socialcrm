@@ -22,6 +22,66 @@ declare global {
 const SDK_SRC = 'https://connect.facebook.net/en_US/sdk.js'
 
 /**
+ * How long `launch` may wait for `FB.init()` when the SDK is not ready yet.
+ *
+ * Short on purpose. The 5-minute LAUNCH_TIMEOUT_MS below bounds the whole
+ * flow INCLUDING the customer's time inside Meta's popup; this bounds only the
+ * script/init step, which either happens in a second or is not going to happen.
+ * Making the customer wait five minutes to learn the SDK never loaded would be
+ * the wrong trade.
+ */
+const SDK_READY_TIMEOUT_MS = 15_000
+
+/**
+ * SDK readiness, tracked at MODULE scope because `window.FB` is global — a
+ * per-component ref would forget what another mount already established.
+ *
+ * `window.FB` existing is NOT the same as `FB.init()` having run. Between the
+ * script executing and `fbAsyncInit` firing there is a window in which
+ * `window.FB` is truthy but the SDK is uninitialised, and `FB.login` on an
+ * uninitialised SDK opens no popup and never invokes its callback — an
+ * indefinite hang with no error. Observed in production 2026-08-30.
+ */
+let sdkReady = false
+let sdkReadyPromise: Promise<void> | null = null
+let resolveSdkReady: (() => void) | null = null
+
+function sdkReadySignal(): Promise<void> {
+  if (!sdkReadyPromise) {
+    sdkReadyPromise = new Promise<void>((res) => {
+      resolveSdkReady = res
+    })
+  }
+  return sdkReadyPromise
+}
+
+/** Called only from `init`, i.e. strictly after `FB.init()` returns. */
+function markSdkReady(): void {
+  sdkReady = true
+  sdkReadySignal()
+  resolveSdkReady?.()
+}
+
+/** Resolves true once `FB.init()` has run, or false if `timeoutMs` elapses first. */
+function waitForSdkReady(timeoutMs: number): Promise<boolean> {
+  if (sdkReady) return Promise.resolve(true)
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeoutMs)
+    void sdkReadySignal().then(() => {
+      clearTimeout(timer)
+      resolve(true)
+    })
+  })
+}
+
+/** Test seam: reset the module-level readiness latch. */
+export function __resetSdkReadyForTests(): void {
+  sdkReady = false
+  sdkReadyPromise = null
+  resolveSdkReady = null
+}
+
+/**
  * Opt into the WhatsApp Business App coexistence flow.
  *
  * With no feature type, Meta runs the default Cloud API flow, which for a number
@@ -85,12 +145,19 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
 
   useEffect(() => {
     if (!appId) return
-    const init = () => window.FB?.init({ appId, cookie: true, xfbml: false, version: graphVersion })
+    const init = () => {
+      window.FB?.init({ appId, cookie: true, xfbml: false, version: graphVersion })
+      markSdkReady()
+    }
+    sdkReadySignal()
+    // Registered BEFORE anything else, and unconditionally. Previously this ran
+    // only on the not-yet-loaded branch, so a script tag that already existed
+    // with init still pending had nothing left to call it.
+    window.fbAsyncInit = init
     if (window.FB) {
       init()
       return
     }
-    window.fbAsyncInit = init
     if (!document.getElementById('facebook-jssdk')) {
       const s = document.createElement('script')
       s.id = 'facebook-jssdk'
@@ -112,7 +179,19 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
-  const launch = useCallback((): Promise<EmbeddedSignupResult> => {
+  const launch = useCallback(async (): Promise<EmbeddedSignupResult> => {
+    // `window.FB` existing does not mean `FB.init()` has run, and FB.login on an
+    // uninitialised SDK never calls back — the UI just spins forever. Gate on
+    // real readiness instead, bounded so a script that never loads becomes a
+    // normal 'sdk' error rather than a five-minute hang.
+    //
+    // When the SDK IS ready this hits no `await`, so the promise executor — and
+    // therefore FB.login — still runs synchronously inside the click handler.
+    // That matters: an await here would spend the user-activation token and the
+    // browser would block the popup.
+    if (!sdkReady && !(await waitForSdkReady(SDK_READY_TIMEOUT_MS))) {
+      return { ok: false, error: 'sdk' }
+    }
     return new Promise((resolve) => {
       // A Promise ignores every resolve after the first, so the timeout and a
       // late callback cannot fight: whichever lands first wins and the other is
