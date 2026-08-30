@@ -56,6 +56,18 @@ export function parseListId(raw: string | string[] | undefined | null): number |
   return n >= 1 && n <= PG_INT_MAX ? n : null
 }
 
+/**
+ * The same parser, named for what the mobile API actually parses: a LEAD id from
+ * a path segment, not a list id from a query string.
+ *
+ * An alias rather than a copy, deliberately. The validation that matters here is
+ * the strictness above — rejecting `' 12 '`, `'12e3'`, `'0x0c'` and `'Infinity'`
+ * so a malformed path cannot reach Postgres as `22P02`. Two implementations
+ * would eventually disagree about which of those is an id, and the mobile route
+ * would be the one that stopped rejecting them.
+ */
+export const parseLeadId = parseListId
+
 /** The active search term, or `''`. Length is capped server-side by `parseLeadFilters`. */
 export function parseLeadSearch(params: RawScopeParams | null | undefined): string {
   if (!params) return ''
