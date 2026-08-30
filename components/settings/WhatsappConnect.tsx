@@ -76,6 +76,18 @@ export default function WhatsappConnect({
   const [selectedPhoneId, setSelectedPhoneId] = useState('')
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
+  /**
+   * Disconnect owns its OWN action state.
+   *
+   * With one shared `useAction`, starting a connect flipped `loading` and the
+   * red disconnect button rendered "מתנתק..." and went disabled — as if a
+   * disconnect were underway. On a stuck Embedded Signup that is genuinely
+   * alarming: the destructive control appears to be running when nothing was
+   * clicked. Two independent states make each button describe only its own
+   * action. ConfirmPop still guards the disconnect itself; nothing about that
+   * protection changes.
+   */
+  const { loading: disconnecting, error: disconnectError, run: runDisconnect } = useAction()
   const { launch } = useEmbeddedSignup(appId, configId, graphVersion)
 
   const startEmbeddedSignup = () =>
@@ -93,7 +105,7 @@ export default function WhatsappConnect({
 
   const performDisconnect = () => {
     setConfirmDisconnect(false)
-    run(async () => {
+    runDisconnect(async () => {
       await fetch('/api/auth/whatsapp/disconnect', { method: 'POST' })
       router.refresh()
     })
@@ -152,13 +164,13 @@ export default function WhatsappConnect({
           </div>
         )}
         <Btn
-          lbl={loading ? 'מנתק...' : 'נתק וואטסאפ'}
-          icon={loading ? 'spinner' : undefined}
-          iconClassName={loading ? 'animate-spin' : undefined}
+          lbl={disconnecting ? 'מנתק...' : 'נתק וואטסאפ'}
+          icon={disconnecting ? 'spinner' : undefined}
+          iconClassName={disconnecting ? 'animate-spin' : undefined}
           variant='destructive'
           size='small'
           className='w-fit'
-          disabled={loading}
+          disabled={disconnecting}
           onClick={() => setConfirmDisconnect(true)}
         />
         <ConfirmPop
@@ -211,7 +223,7 @@ export default function WhatsappConnect({
   }
 
   // State A: Not connected
-  const notice = whatsappNotice(error ?? urlError)
+  const notice = whatsappNotice(error ?? disconnectError ?? urlError)
 
   return (
     <div className='grid gap-4'>

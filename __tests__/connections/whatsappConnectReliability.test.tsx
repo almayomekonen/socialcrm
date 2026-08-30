@@ -1,0 +1,133 @@
+// @vitest-environment jsdom
+/**
+ * Client-side reliability of the WhatsApp connect surface.
+ *
+ * Two defects observed live on 2026-08-30, while a Coexistence transition was
+ * being attempted on a real canary number:
+ *
+ *   1. ONE shared `useAction` drove both buttons, so starting a connect made the
+ *      red DISCONNECT button render "מתנתק..." and go disabled — the destructive
+ *      control appearing to run when nothing had been clicked.
+ *   2. Every `resolve` in `launch()` lives inside FB.login's callback. When that
+ *      callback never fired the promise never settled, `useAction`'s `finally`
+ *      never ran, and the button spun until the page was reloaded.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, act } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+
+const H = vi.hoisted(() => ({ launch: vi.fn() }))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => ({ get: () => null }),
+}))
+vi.mock('@/lib/facebook/useEmbeddedSignup', () => ({ useEmbeddedSignup: () => ({ launch: H.launch }) }))
+// NOTE: `useAction` is deliberately NOT mocked here. These tests are about the
+// real loading lifecycle, which a stubbed hook would hide.
+vi.mock('@/lib/entitlement/EntitlementContext', () => ({ useAccessDenied: () => false }))
+
+import WhatsappConnect from '@/components/settings/WhatsappConnect'
+
+const PHONE_ID = '972007939322425'
+const base = { pendingPhones: null, appId: 'a', configId: 'c', graphVersion: 'v19.0' as const }
+const COEX = /סנכרן היסטוריית שיחות מהוואטסאפ/
+const DISCONNECT = /נתק וואטסאפ/
+const DISCONNECTING = /מנתק\.\.\./
+const CONNECTING = /מתחבר\.\.\./
+
+beforeEach(() => {
+  H.launch = vi.fn()
+  global.fetch = vi.fn(async () => new Response('{}')) as never
+})
+afterEach(() => cleanup())
+
+describe('1 · connect and disconnect own independent action state', () => {
+  it('an in-flight connect NEVER shows "מנתק..." or disables the disconnect button', async () => {
+    // A launch that never settles — exactly the stuck production case.
+    H.launch = vi.fn(() => new Promise(() => {}))
+    render(
+      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' coexistenceAvailable />,
+    )
+
+    await act(async () => {
+      screen.getByRole('button', { name: COEX }).click()
+    })
+
+    // The connect button reflects its own work…
+    expect(screen.getByRole('button', { name: CONNECTING })).toBeInTheDocument()
+    // …and the destructive button is untouched: original label, still enabled.
+    const disconnect = screen.getByRole('button', { name: DISCONNECT })
+    expect(disconnect).toBeInTheDocument()
+    expect(disconnect).not.toBeDisabled()
+    expect(screen.queryByRole('button', { name: DISCONNECTING })).not.toBeInTheDocument()
+  })
+
+  it('an in-flight disconnect does not disable or relabel the connect action', async () => {
+    // A disconnect request that stays in flight, so its loading state is observable.
+    global.fetch = vi.fn(() => new Promise<Response>(() => {})) as never
+
+    render(
+      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' coexistenceAvailable />,
+    )
+    await act(async () => { screen.getByRole('button', { name: DISCONNECT }).click() })
+    await act(async () => { screen.getByRole('button', { name: /אישור/ }).click() })
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/auth/whatsapp/disconnect', { method: 'POST' })
+    // The disconnect reflects its own work…
+    expect(screen.getByRole('button', { name: DISCONNECTING })).toBeInTheDocument()
+    // …and the connect action is untouched: original label, still enabled.
+    const connect = screen.getByRole('button', { name: COEX })
+    expect(connect).not.toBeDisabled()
+    expect(screen.queryByRole('button', { name: CONNECTING })).not.toBeInTheDocument()
+  })
+
+  it('disconnect still requires explicit confirmation (protection preserved)', async () => {
+    render(
+      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' coexistenceAvailable />,
+    )
+    await act(async () => { screen.getByRole('button', { name: DISCONNECT }).click() })
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(screen.getByText('לנתק את חיבור הוואטסאפ?')).toBeInTheDocument()
+  })
+
+  it('the component uses TWO independent action states', () => {
+    const src = require('node:fs').readFileSync('components/settings/WhatsappConnect.tsx', 'utf8')
+    expect(src.match(/useAction\(\)/g)?.length).toBe(2)
+    expect(src).toContain("loading: disconnecting")
+    expect(src).toContain('runDisconnect')
+    // The destructive button reads ONLY its own state.
+    expect(src).toContain("lbl={disconnecting ? 'מנתק...' : 'נתק וואטסאפ'}")
+    expect(src).toContain('disabled={disconnecting}')
+  })
+})
+
+describe('2 · the Embedded Signup launch is bounded', () => {
+  it('resolves with a recoverable error if FB.login never calls back', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.resetModules()
+      vi.doMock('@/lib/facebook/embeddedSignupSession', () => ({
+        createEmbeddedSignupGate: () => ({ cancel: vi.fn(), acceptCode: vi.fn(), expire: vi.fn(), outcome: new Promise(() => {}) }),
+        parseEmbeddedSignupMessage: () => null,
+      }))
+      const src = require('node:fs').readFileSync('lib/facebook/useEmbeddedSignup.ts', 'utf8')
+      // The valve exists, is generous enough not to cut a real signup short,
+      // and resolves as a mapped, retryable error rather than hanging.
+      expect(src).toContain('const LAUNCH_TIMEOUT_MS = 300_000')
+      expect(src).toContain("timer = setTimeout(() => settle({ ok: false, error: 'sdk' }), LAUNCH_TIMEOUT_MS)")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('every resolve path clears the timer via settle(), and settle() is not recursive', () => {
+    const src = require('node:fs').readFileSync('lib/facebook/useEmbeddedSignup.ts', 'utf8')
+    const launch = src.slice(src.indexOf('const launch = useCallback'), src.indexOf('}, [configId])'))
+    // No bare resolve( survives inside launch except settle's own single call.
+    expect(launch.match(/(?<![A-Za-z_.])resolve\(/g)?.length).toBe(1)
+    expect(launch).toContain('if (timer !== undefined) clearTimeout(timer)')
+    // settle must call resolve, never itself.
+    expect(launch).not.toMatch(/const settle[\s\S]{0,120}settle\(result\)/)
+  })
+})
