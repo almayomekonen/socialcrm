@@ -13,6 +13,7 @@ import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
 import { resolveWhatsappHealth, type WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 import { getWhatsappConnectionForAgency } from '@/db/whatsapp'
+import { fetchPhoneBizAppState } from '@/lib/whatsapp/coexistence'
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
@@ -102,9 +103,27 @@ export default async function LeadSourcesSection({
 
   let waMessagingReady = true
   let waStatus: WhatsappHealthPrimary = 'disconnected'
+  /**
+   * Does this healthy connection still qualify for Coexistence?
+   *
+   * Only asked when the stored onboarding_type is NOT already 'coexistence' —
+   * once the transition has happened the answer cannot change anything, so the
+   * Graph call is skipped and this page costs exactly what it did before for
+   * every already-migrated connection.
+   *
+   * `fetchPhoneBizAppState` is fail-closed: any Graph error yields
+   * `isOnBizApp: false`, so a hiccup hides the action rather than offering a
+   * transition that would not work.
+   */
+  let waCoexistenceAvailable = false
   if (waConnection) {
     waMessagingReady = await checkMessagingReady(waConnection.phone_number_id, waConnection.access_token)
     waStatus = (await resolveWhatsappHealth(waConnection, user.agencyId)).primary
+    if (waConnection.onboarding_type !== 'coexistence') {
+      waCoexistenceAvailable = (
+        await fetchPhoneBizAppState(waConnection.phone_number_id, waConnection.access_token)
+      ).isOnBizApp
+    }
   }
 
   const waPhonesCookie = cookieStore.get('wa_phones')?.value
@@ -157,6 +176,7 @@ export default async function LeadSourcesSection({
         <Suspense fallback={null}>
           <WhatsappConnect
             connection={waConnection ? { phoneNumberId: waConnection.phone_number_id } : null}
+            coexistenceAvailable={waCoexistenceAvailable}
             pendingPhones={pendingPhones}
             appId={process.env.META_APP_ID ?? ''}
             configId={process.env.META_EMBEDDED_SIGNUP_CONFIGURATION_ID ?? ''}
