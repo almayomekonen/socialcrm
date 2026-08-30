@@ -22,6 +22,21 @@ type Props = {
   /** Truthful health primary. Never render a green claim unless 'operational'. */
   status: WhatsappHealthPrimary
   /**
+   * The connection is healthy, but the number is STILL live in the WhatsApp
+   * Business app and has not been through Coexistence onboarding
+   * (`onboarding_type = 'cloud_api'` while Graph reports `is_on_biz_app: true`).
+   *
+   * Without this, an operational connection offers no way to reach Embedded
+   * Signup — `canReconnect` covers only the broken states — so a number that
+   * qualifies for Coexistence has no path to it except disconnecting, which
+   * destroys the stored token for no reason.
+   *
+   * Resolved on the SERVER, because `is_on_biz_app` is a Graph fact the browser
+   * cannot see. Defaults to false, so every caller that does not pass it — the
+   * mobile surfaces included — renders exactly as before.
+   */
+  coexistenceAvailable?: boolean
+  /**
    * MOBILE-ONLY copy overrides for the not-connected state (State A).
    *
    * The phone reaches this component through a bottom sheet the rep lands on by
@@ -50,6 +65,7 @@ export default function WhatsappConnect({
   configId,
   graphVersion,
   status,
+  coexistenceAvailable = false,
   description = 'חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.',
   connectLabel = 'חבר וואטסאפ עסקי',
 }: Props) {
@@ -105,16 +121,27 @@ export default function WhatsappConnect({
   if (connection) {
     const notice = noticeForHealth(status)
     const canReconnect = status === 'unknown' || status === 'token' || status === 'webhook'
+    // A HEALTHY connection that still qualifies for Coexistence. Kept separate
+    // from `canReconnect`: those are repair states, this one is not broken at
+    // all. Both launch the SAME existing Embedded Signup flow — the server
+    // decides `onboarding_type` from Graph, so nothing here can force it.
+    const canStartCoexistence = status === 'operational' && coexistenceAvailable
     return (
       <div className='grid gap-4' data-edu={canReconnect ? undefined : 'whatsapp-connect'}>
         {status === 'operational' && (
           <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
         )}
         {notice && <ConnectionNotice notice={notice} />}
-        {canReconnect && (
+        {(canReconnect || canStartCoexistence) && (
           <div data-edu='whatsapp-connect' className='w-fit'>
           <Btn
-            lbl={loading ? 'מתחבר...' : (notice?.action ?? 'לחבר מחדש ולאמת')}
+            lbl={
+              loading
+                ? 'מתחבר...'
+                : canReconnect
+                  ? (notice?.action ?? 'לחבר מחדש ולאמת')
+                  : 'סנכרן היסטוריית שיחות מהוואטסאפ'
+            }
             icon={loading ? 'spinner' : 'whatsapp'}
             iconClassName={loading ? 'animate-spin' : undefined}
             size='small'
