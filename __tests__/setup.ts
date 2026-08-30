@@ -29,6 +29,13 @@ if (process.env.NODE_ENV !== 'test') {
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-only-not-a-real-secret'
 process.env.SECRETS_ENC_KEY = process.env.SECRETS_ENC_KEY || Buffer.alloc(32, 7).toString('base64')
 
+// The mobile signing key. `mobileKey()` throws below 32 chars, and this
+// DELIBERATELY differs from JWT_SECRET — the production boot check treats an
+// identical value as a misconfiguration, so the test environment must not model
+// the very thing it forbids.
+process.env.MOBILE_JWT_SECRET =
+  process.env.MOBILE_JWT_SECRET || 'test-only-mobile-key-not-a-real-secret-xxxxxxxx'
+
 // ── Per-file data isolation (skipped entirely when there is no database) ──────
 if (process.env.VITEST_NO_DB !== '1') {
   beforeAll(async () => {

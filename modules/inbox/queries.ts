@@ -259,6 +259,30 @@ export async function getInboxSmartCounts(agencyId: number): Promise<InboxSmartC
   }
 }
 
+/**
+ * One conversation, shaped exactly like a LIST row.
+ *
+ * `getInboxConversationById` below returns an `InboxConversationTarget` — enough
+ * to address a conversation, but without `unread`, `attention`, `lastMessageAt`
+ * or the intelligence fields. A client opening a thread needs the same facts the
+ * list showed it, and the only honest way to supply them is the same query and
+ * the same mapper: anything else would be a second implementation that quietly
+ * disagrees with the list about whether a thread is unread.
+ *
+ * Agency-scoped like every other reader here. `userId` is required because
+ * `unread` is per-user, resolved through the `inbox_conversation_reads` join.
+ */
+export async function getInboxConversationListItemById(
+  agencyId: number,
+  userId: number,
+  conversationId: number,
+  nowMs: number = Date.now(),
+): Promise<InboxConversationListItem | null> {
+  const r = await inboxSelectQuery(userId).where('cv.agencyId', agencyId).andWhere('cv.id', conversationId).first()
+
+  return r ? mapInboxRow(r as Record<string, unknown>, nowMs) : null
+}
+
 export async function getInboxConversationById(
   agencyId: number,
   conversationId: number,
