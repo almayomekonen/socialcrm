@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { GRAPH_BASE } from '@/lib/facebook/graph'
+import { isMetaTrackingEnabled } from '@/lib/facebook/pixelEnv'
 
 /**
  * Meta Conversions API (CAPI) — server-side event sender.
@@ -89,6 +90,22 @@ function buildUserData(userData: MetaUserData): Record<string, unknown> {
  */
 export async function sendServerEvent(input: SendServerEventInput): Promise<SendServerEventResult> {
   try {
+    // Environment gate, BEFORE readConfig(). A preview or a laptop inherits the
+    // production dataset id from `.env`, so a configured CAPI token there would
+    // otherwise post real server events into the production dataset.
+    // Deliberately reuses the existing 'not_configured' reason so
+    // `SendServerEventResult` is unchanged; the distinct log line keeps it
+    // diagnosable. See lib/facebook/pixelEnv.ts.
+    if (!isMetaTrackingEnabled()) {
+      console.log(`${LOG_PREFIX}:skip`, {
+        event: input.eventName,
+        reason: 'not_configured',
+        gate: 'meta_tracking_disabled',
+        vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV ?? null,
+      })
+      return { status: 'skipped', reason: 'not_configured' }
+    }
+
     const { datasetId, accessToken, testEventCode } = readConfig()
 
     if (!datasetId || !accessToken) {
