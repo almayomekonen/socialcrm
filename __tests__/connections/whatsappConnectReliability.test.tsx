@@ -42,6 +42,45 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
+describe('0 · a failed launch is visible in State C', () => {
+  // Production 2026-08-30: State C read ONLY `noticeForHealth(status)`, so a
+  // failed Embedded Signup called setError into state that nothing rendered.
+  // The button reverted to the health action and the operator saw no reason —
+  // indistinguishable from never having clicked.
+  const RECONNECT = /לחבר מחדש/
+  const SDK_TITLE = /חלון ההתחברות לא נפתח/
+  const EXPIRED_TITLE = /החיבור לוואטסאפ פג/
+
+  it('shows the SDK notice instead of silently reverting to the health notice', async () => {
+    H.launch = vi.fn(async () => ({ ok: false, error: 'sdk' }))
+    render(<WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='token' />)
+
+    // Before the click: the health notice owns the surface.
+    expect(screen.getByText(EXPIRED_TITLE)).toBeInTheDocument()
+
+    await act(async () => {
+      screen.getByRole('button', { name: RECONNECT }).click()
+    })
+
+    expect(screen.getByText(SDK_TITLE)).toBeInTheDocument()
+    expect(screen.queryByText(EXPIRED_TITLE)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: CONNECTING })).not.toBeInTheDocument()
+  })
+
+  it('keeps the health notice when the user simply cancelled Meta\'s popup', async () => {
+    // Cancelling is not a failure to explain; whatsappNotice returns null for it.
+    H.launch = vi.fn(async () => ({ ok: false, error: 'cancelled' }))
+    render(<WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='token' />)
+
+    await act(async () => {
+      screen.getByRole('button', { name: RECONNECT }).click()
+    })
+
+    expect(screen.getByText(EXPIRED_TITLE)).toBeInTheDocument()
+    expect(screen.queryByText(SDK_TITLE)).not.toBeInTheDocument()
+  })
+})
+
 describe('1 · connect and disconnect own independent action state', () => {
   it('an in-flight connect NEVER shows "מנתק..." or disables the disconnect button', async () => {
     // A launch that never settles — exactly the stuck production case.

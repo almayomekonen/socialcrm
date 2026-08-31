@@ -5,81 +5,20 @@ import {
   parseEmbeddedSignupMessage,
   type EmbeddedSignupGate,
 } from '@/lib/facebook/embeddedSignupSession'
-
-declare global {
-  interface Window {
-    FB?: {
-      init: (params: { appId: string; cookie?: boolean; xfbml?: boolean; version: string }) => void
-      login: (
-        cb: (response: { authResponse?: { code?: string } | null; status?: string }) => void,
-        opts: Record<string, unknown>,
-      ) => void
-    }
-    fbAsyncInit?: () => void
-  }
-}
-
-const SDK_SRC = 'https://connect.facebook.net/en_US/sdk.js'
+import {
+  ensureFacebookSdkScript,
+  facebookSdkIsReady,
+  initFacebookApp,
+  waitForFacebookSdk,
+} from '@/lib/facebook/facebookSdk'
 
 /**
- * How long `launch` may wait for `FB.init()` when the SDK is not ready yet.
+ * How long `launch` may wait for the real SDK bundle.
  *
- * Short on purpose. The 5-minute LAUNCH_TIMEOUT_MS below bounds the whole
- * flow INCLUDING the customer's time inside Meta's popup; this bounds only the
- * script/init step, which either happens in a second or is not going to happen.
- * Making the customer wait five minutes to learn the SDK never loaded would be
- * the wrong trade.
+ * Bounds only the script/init step. The 5-minute LAUNCH_TIMEOUT_MS below bounds
+ * the whole flow including the customer's time inside Meta's popup.
  */
 const SDK_READY_TIMEOUT_MS = 15_000
-
-/**
- * SDK readiness, tracked at MODULE scope because `window.FB` is global — a
- * per-component ref would forget what another mount already established.
- *
- * `window.FB` existing is NOT the same as `FB.init()` having run. Between the
- * script executing and `fbAsyncInit` firing there is a window in which
- * `window.FB` is truthy but the SDK is uninitialised, and `FB.login` on an
- * uninitialised SDK opens no popup and never invokes its callback — an
- * indefinite hang with no error. Observed in production 2026-08-30.
- */
-let sdkReady = false
-let sdkReadyPromise: Promise<void> | null = null
-let resolveSdkReady: (() => void) | null = null
-
-function sdkReadySignal(): Promise<void> {
-  if (!sdkReadyPromise) {
-    sdkReadyPromise = new Promise<void>((res) => {
-      resolveSdkReady = res
-    })
-  }
-  return sdkReadyPromise
-}
-
-/** Called only from `init`, i.e. strictly after `FB.init()` returns. */
-function markSdkReady(): void {
-  sdkReady = true
-  sdkReadySignal()
-  resolveSdkReady?.()
-}
-
-/** Resolves true once `FB.init()` has run, or false if `timeoutMs` elapses first. */
-function waitForSdkReady(timeoutMs: number): Promise<boolean> {
-  if (sdkReady) return Promise.resolve(true)
-  return new Promise<boolean>((resolve) => {
-    const timer = setTimeout(() => resolve(false), timeoutMs)
-    void sdkReadySignal().then(() => {
-      clearTimeout(timer)
-      resolve(true)
-    })
-  })
-}
-
-/** Test seam: reset the module-level readiness latch. */
-export function __resetSdkReadyForTests(): void {
-  sdkReady = false
-  sdkReadyPromise = null
-  resolveSdkReady = null
-}
 
 /**
  * Opt into the WhatsApp Business App coexistence flow.
@@ -145,29 +84,12 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
 
   useEffect(() => {
     if (!appId) return
-    const init = () => {
-      window.FB?.init({ appId, cookie: true, xfbml: false, version: graphVersion })
-      markSdkReady()
-    }
-    sdkReadySignal()
-    // Registered BEFORE anything else, and unconditionally. Previously this ran
-    // only on the not-yet-loaded branch, so a script tag that already existed
-    // with init still pending had nothing left to call it.
-    window.fbAsyncInit = init
-    if (window.FB) {
-      init()
-      return
-    }
-    if (!document.getElementById('facebook-jssdk')) {
-      const s = document.createElement('script')
-      s.id = 'facebook-jssdk'
-      s.src = SDK_SRC
-      s.async = true
-      s.defer = true
-      s.crossOrigin = 'anonymous'
-      document.body.appendChild(s)
-    }
-  }, [appId, graphVersion])
+    // Only get the loader onto the page. Binding OUR app is deliberately NOT
+    // done here: the auth components call FB.init with AUTH_FACEBOOK_APP_ID from
+    // their own effects, so a mount-time binding is whatever ran last. We assert
+    // it synchronously at launch instead.
+    ensureFacebookSdkScript()
+  }, [appId])
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -180,16 +102,17 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
   }, [])
 
   const launch = useCallback(async (): Promise<EmbeddedSignupResult> => {
-    // `window.FB` existing does not mean `FB.init()` has run, and FB.login on an
-    // uninitialised SDK never calls back — the UI just spins forever. Gate on
-    // real readiness instead, bounded so a script that never loads becomes a
-    // normal 'sdk' error rather than a five-minute hang.
+    // `window.FB` existing proves nothing: the loader stub installs a buffering
+    // shim under that name, and FB.login on the shim is queued into
+    // `FB.__buffer.calls` — no popup, no callback, no error. Gate on the REAL
+    // bundle, bounded, so a load that never completes becomes a normal 'sdk'
+    // error rather than a silent hang.
     //
     // When the SDK IS ready this hits no `await`, so the promise executor — and
     // therefore FB.login — still runs synchronously inside the click handler.
     // That matters: an await here would spend the user-activation token and the
     // browser would block the popup.
-    if (!sdkReady && !(await waitForSdkReady(SDK_READY_TIMEOUT_MS))) {
+    if (!facebookSdkIsReady() && !(await waitForFacebookSdk(SDK_READY_TIMEOUT_MS))) {
       return { ok: false, error: 'sdk' }
     }
     return new Promise((resolve) => {
@@ -205,8 +128,11 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
       timer = setTimeout(() => settle({ ok: false, error: 'sdk' }), LAUNCH_TIMEOUT_MS)
 
       try {
-        if (!window.FB) return settle({ ok: false, error: 'sdk' })
+        if (!facebookSdkIsReady() || !window.FB) return settle({ ok: false, error: 'sdk' })
         if (!configId) return settle({ ok: false, error: 'config' })
+        // Re-assert our app on the shared SDK, synchronously, in the same task
+        // as the click. Another consumer may have bound AUTH_FACEBOOK_APP_ID.
+        initFacebookApp(appId, graphVersion)
         const gate = createEmbeddedSignupGate()
         gateRef.current = gate
         // FB.login requires a SYNCHRONOUS callback. Handing the SDK an async
@@ -272,7 +198,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
         settle({ ok: false, error: 'sdk' })
       }
     })
-  }, [configId])
+  }, [appId, configId, graphVersion])
 
   return { launch }
 }
