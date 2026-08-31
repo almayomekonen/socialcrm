@@ -3,6 +3,7 @@ import { createCookie, getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { after } from 'next/server'
 import { requireProductAccess } from '@/lib/requireUser'
 import { normalizeEmail } from '@/lib/normalizeEmail'
@@ -142,6 +143,33 @@ export async function addAgency(data) {
     // empty value is valid and yields the nameless greeting. Never a placeholder
     // like `1`, which would render as "ברוך הבא ל-SocialCRM, 1".
     const welcome = encodeURIComponent((newUser!.firstName ?? '').trim())
+
+    /**
+     * REGISTRATION CONVERSION SIGNAL — deliberately a cookie, not the URL.
+     *
+     * `welcome` cannot carry the CompleteRegistration pixel, because both
+     * emitters that keyed off it were dead in production: on desktop /leads
+     * never renders for a brand-new agency (the (app) layout renders
+     * WorkspaceTeaser INSTEAD of {children} while the trial is NEVER_STARTED),
+     * and on mobile /activate redirects an onboarded, allowlisted phone to
+     * /dashboard before RegistrationPixel mounts — with redirect() dropping the
+     * query string on the way, so ?welcome is gone regardless.
+     *
+     * A cookie survives both redirects and every layout branch. Read once by
+     * <RegistrationConversion/> and deleted there; 10 minutes is the outer bound
+     * on "the browser that just registered". `httpOnly: false` is required — a
+     * client component is the reader — and the value is the new user id, which
+     * is not a secret and is already RegistrationPixel's localStorage dedup key.
+     */
+    const cookieStore = await cookies()
+    cookieStore.set('scrm_reg', String(createdUserId), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10,
+      path: '/',
+    })
+
     redirect((await isMobileRequest()) ? `/activate?welcome=${welcome}` : `/leads?welcome=${welcome}`)
   }
   return success

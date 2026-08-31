@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from '@/lib/toast'
 import { useUser } from '@/lib/hooksNEvents'
-import { trackCompleteRegistration } from '@/lib/facebook/pixelEvents'
 
 const STORAGE_KEY_PREFIX = 'socialcrm:welcomeToastSeen:'
 const TOAST_DURATION_MS = 5000
@@ -30,8 +29,15 @@ export default function WelcomeToast({ suppressGreeting = false }: { suppressGre
 
     if (!alreadySeen) {
       // When the Welcome Trial Modal is about to show, it IS the welcome —
-      // suppress the toast (one welcome, one state) but keep the pixel and
-      // the seen-marker so registration attribution never depends on trial UI.
+      // suppress the toast (one welcome, one state) but keep the seen-marker.
+      //
+      // The CompleteRegistration pixel used to fire here too. It moved to
+      // <RegistrationConversion/>, which the (app) layout mounts
+      // unconditionally, because this component only renders once the trial
+      // gate lets /leads render at all. It cannot stay as a second emitter:
+      // this dedups on `socialcrm:welcomeToastSeen:`, a DIFFERENT key from the
+      // `socialcrm:completeRegFired:` one the conversion uses, so the two would
+      // double count each other.
       if (!suppressGreeting) {
         const firstName = welcomeParam.trim()
         const greeting = firstName
@@ -39,7 +45,6 @@ export default function WelcomeToast({ suppressGreeting = false }: { suppressGre
           : '🚀 ברוך הבא ל-SocialCRM'
         toast('success', `${greeting}\nהמערכת שלך מוכנה להתחלה`, TOAST_DURATION_MS)
       }
-      trackCompleteRegistration()
       try {
         window.localStorage.setItem(key, 'true')
       } catch {}

@@ -4,6 +4,7 @@ import Script from 'next/script'
 import { Suspense, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { ensureFbq } from './fbqBootstrap'
+import { isMetaTrackingEnabled } from './pixelEnv'
 
 const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID
 
@@ -61,7 +62,10 @@ function RouteChangeTracker() {
  * external script element is what that allowlist entry has always covered.
  */
 export default function MetaPixel() {
-  if (!PIXEL_ID) return null
+  // The pixel id alone is not permission to fire: `.env`/`.env.local` carry the
+  // production id, so without this gate `next dev` and every preview wrote
+  // PageView into the production dataset. See lib/facebook/pixelEnv.ts.
+  if (!PIXEL_ID || !isMetaTrackingEnabled()) return null
 
   return (
     <>

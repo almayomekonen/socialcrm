@@ -1,3 +1,5 @@
+import { isMetaTrackingEnabled } from './pixelEnv'
+
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void
@@ -11,6 +13,11 @@ type MetaStandardEvent = 'PageView' | 'CompleteRegistration' | 'StartTrial' | 'S
  * Safe to call anywhere — no-ops on the server or if the pixel hasn't loaded.
  */
 export function trackPixelEvent(event: MetaStandardEvent, params?: Record<string, unknown>) {
+  // Defence in depth. MetaPixel already refuses to boot outside production, so
+  // `window.fbq` is normally absent there — but a stray fbq (a browser
+  // extension, a stale tab, a future caller that bootstraps its own stub) must
+  // not become a write path into the production dataset.
+  if (!isMetaTrackingEnabled()) return
   if (typeof window === 'undefined' || !window.fbq) return
   window.fbq('track', event, params)
 }

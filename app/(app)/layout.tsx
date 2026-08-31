@@ -47,6 +47,7 @@ import EducationMount from '@/components/education/EducationMount'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { EntitlementProvider } from '@/lib/entitlement/EntitlementContext'
 import EntitlementRecovery from '@/components/entitlement/EntitlementRecovery'
+import RegistrationConversion from '@/components/analytics/RegistrationConversion'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -319,6 +320,11 @@ async function LayoutContent({ children }) {
             </div>
             {trialExpired && <TrialExpiredScreen leadCount={leadPreview.total} leadNames={leadPreview.names} />}
             {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
+            {/* Registration attribution. UNCONDITIONAL on purpose: it must sit
+                outside the trial ternary, because a brand-new agency is
+                NEVER_STARTED and gets WorkspaceTeaser instead of {children} —
+                which is why the /leads emitter never fired. See the component. */}
+            <RegistrationConversion />
             {/* One-time Pro activation celebration. Rendered only for the real
                 TRIAL_ACTIVE workspace; self-gates on justActivated so it appears
                 only right after a genuine activation, never on refresh/re-login. */}

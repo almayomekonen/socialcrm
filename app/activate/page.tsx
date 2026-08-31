@@ -6,6 +6,7 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import ActivationExperience from '@/components/activation/ActivationExperience'
 import MobileHandoff from '@/components/activation/mobile/MobileHandoff'
 import RegistrationPixel from '@/components/activation/RegistrationPixel'
+import RegistrationConversion from '@/components/analytics/RegistrationConversion'
 
 export default async function ActivatePage() {
   const user = await getUser()
@@ -25,6 +26,12 @@ export default async function ActivatePage() {
           the only place the CompleteRegistration pixel can fire for a phone. It
           stays mounted on BOTH branches. */}
       <RegistrationPixel userId={user.id} />
+
+      {/* The cookie-based emitter, which survives the /dashboard redirect above
+          and the dropped query string that leaves RegistrationPixel inert for an
+          onboarded, allowlisted phone. Both stay mounted: they share the
+          `socialcrm:completeRegFired:` key, so only one of them can fire. */}
+      <RegistrationConversion />
 
       {/* The device decision is made HERE, on the server, and each branch
           receives only its own markup — architecture-rules.md §9 (gate by

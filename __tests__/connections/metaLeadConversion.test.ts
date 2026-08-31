@@ -122,6 +122,10 @@ beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_META_PIXEL_ID', PIXEL_ID)
   vi.stubEnv('META_CAPI_ACCESS_TOKEN', 'test-capi-token')
   vi.stubEnv('META_CAPI_TEST_EVENT_CODE', '')
+  // CAPI now refuses to send outside production, so a test that observes a real
+  // send has to declare a sending environment. Setup only — every ML-* assertion
+  // below is unchanged. See lib/facebook/pixelEnv.ts.
+  vi.stubEnv('NEXT_PUBLIC_VERCEL_ENV', 'production')
   h.state.leadMarker = null
   h.state.existingPage = null
   h.state.merged = []
