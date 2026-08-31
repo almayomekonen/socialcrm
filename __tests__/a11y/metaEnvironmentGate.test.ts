@@ -16,6 +16,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isMetaTrackingEnabled } from '@/lib/facebook/pixelEnv'
+import { sendServerEvent } from '@/lib/facebook/conversionsApi'
 
 beforeEach(() => {
   vi.unstubAllEnvs()
@@ -117,5 +118,47 @@ describe('MetaPixel — a pixel id is not permission to fire', () => {
     vi.stubEnv('NEXT_PUBLIC_VERCEL_ENV', 'production')
     const MetaPixel = await loadMetaPixel()
     expect(MetaPixel()).toBeNull()
+  })
+})
+
+/**
+ * The server half of the gate. The browser Pixel going quiet is only half the
+ * leak: CAPI reads the same `NEXT_PUBLIC_META_PIXEL_ID` as its dataset, so a
+ * laptop or a preview holding a CAPI token would post real server events into
+ * the production dataset — no `window.fbq` required.
+ *
+ * The load-bearing half of this test is `not.toHaveBeenCalled()`. A 'skipped'
+ * status returned AFTER a fetch would still have written to the dataset, so
+ * asserting the return value alone would not prove the leak is closed.
+ *
+ * (The positive control lives in __tests__/connections/metaLeadConversion.test.ts,
+ * where ML-1/ML-2 stub a production environment and assert the Lead IS posted.)
+ */
+describe('sendServerEvent — the gate short-circuits before any network call', () => {
+  const realFetch = global.fetch
+  afterEach(() => {
+    global.fetch = realFetch
+  })
+
+  it('returns skipped and never calls fetch when tracking is disabled', async () => {
+    const fetchSpy = vi.fn()
+    global.fetch = fetchSpy as unknown as typeof fetch
+
+    // Fully configured CAPI — dataset id, token, and a real identifier. Without
+    // the gate this exact input reaches fetch, which is precisely the leak.
+    vi.stubEnv('NEXT_PUBLIC_META_PIXEL_ID', '2587091141705317')
+    vi.stubEnv('META_CAPI_ACCESS_TOKEN', 'test-capi-token')
+    vi.stubEnv('NEXT_PUBLIC_META_TRACKING_ENABLED', '')
+    vi.stubEnv('NEXT_PUBLIC_VERCEL_ENV', 'preview')
+    expect(isMetaTrackingEnabled()).toBe(false)
+
+    const result = await sendServerEvent({
+      eventName: 'Lead',
+      eventId: 'evt-gate-1',
+      userData: { email: 'rep@example.com' },
+    })
+
+    expect(result).toEqual({ status: 'skipped', reason: 'not_configured' })
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
