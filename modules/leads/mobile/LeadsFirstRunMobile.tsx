@@ -7,15 +7,33 @@ import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
 import Icon from '@/lib/Icon'
 import { MetaLeadAdsBadge, WhatsappBadge } from '@/components/ui/MetaLeadAdsBadge'
 import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
+import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { useFirstRunAnalytics } from '@/hooks/useFirstRunAnalytics'
 import LeadFormMobile from './LeadFormMobile'
 import LeadImportMobile from './LeadImportMobile'
 
 /**
  * The mobile first-run surface — shared by empty Leads and empty Today.
  *
- * Desktop `LeadsFirstRun` stays the four-card grid. This screen is a phone
- * onboarding surface: add or import now, then connect the channels that feed
- * new leads. Nothing here tells the user to continue on a computer.
+ * TWO NAMED PATHS, not four undifferentiated choices.
+ *
+ *   1. Connect the source your leads already arrive through — the product
+ *      promise, recommended, and the only thing that keeps working tomorrow.
+ *   2. Already have leads? Add or import them now — immediate real value, and
+ *      `product.md` §7's own first success moment.
+ *
+ * Each block gets a heading and one line saying why it is worth doing. The
+ * second is NOT an escape hatch: on a phone inside Facebook's in-app browser —
+ * where a measurable share of this product's signups arrive — OAuth popups are
+ * unreliable, and typing one lead is the path most likely to complete. Making
+ * it look like a consolation prize would cost the activation it exists to win.
+ *
+ * Emphasis is carried by the connect block's tint (the same treatment
+ * `OnboardingActionCard` already uses for `recommended` on desktop), never by
+ * making the second block look disabled. One recommendation, zero demotion.
+ *
+ * Copy lives in `lib/activation/firstRunCopy.ts` — shared with desktop so the
+ * two screens can never again describe the same product differently.
  */
 export default function LeadsFirstRunMobile({
   metaConnected = false,
@@ -28,63 +46,115 @@ export default function LeadsFirstRunMobile({
   const [formOpen, setFormOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
-  const heading = metaConnected ? 'אין עדיין לידים' : 'בואו נתחיל'
-  const body = metaConnected
-    ? 'חשבון ה‑Meta שלך מחובר. הליד הראשון יופיע כאן אוטומטית, ואפשר גם להוסיף או לייבא עכשיו.'
-    : 'הוסיפו את הליד הראשון שלכם או חברו את הערוצים שמהם מגיעים הלידים.'
+  const { markConnectIntent } = useFirstRunAnalytics({
+    surface: 'mobile',
+    metaConnected,
+    whatsappConnected,
+  })
+
+  const bothConnected = metaConnected && whatsappConnected
+  const heading = metaConnected ? C.connected.headline : C.headline
+  const body = metaConnected ? C.connected.subhead : C.subhead
 
   return (
     <>
       <div dir='rtl' className='flex flex-col px-4 py-6'>
-        <header className='mb-5'>
+        <header className='mb-6'>
           <h1 className='text-xl font-bold leading-tight text-ink'>{heading}</h1>
           <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>{body}</p>
         </header>
 
-        <div className='flex flex-col gap-2'>
-          <button
-            type='button'
-            className='press flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            onClick={() => {
-              setImportOpen(false)
-              setFormOpen(true)
-            }}
-          >
-            <Icon name='plus' type='sol' className='size-4 bg-white' />
-            הוסף ליד
-          </button>
-          <button
-            type='button'
-            className='press flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            onClick={() => {
-              setFormOpen(false)
-              setImportOpen(true)
-            }}
-          >
-            <Icon name='file-excel' type='sol' className='size-4 bg-ink' />
-            ייבוא לידים
-          </button>
-        </div>
+        {/*
+          PATH 1 — connect a source. Hidden only when there is nothing left to
+          offer, which is the one case where showing it would be noise.
+          Tinted to mark it as the recommendation; `bg-primary-tint/50` +
+          `border-primary/40` are the exact tokens OnboardingActionCard uses for
+          `recommended`, so the two surfaces read as one product.
+        */}
+        {!bothConnected && (
+          <section className='mb-7'>
+            <h2 className='text-sm font-semibold text-ink'>{C.connect.heading}</h2>
+            <p className='mb-2.5 mt-0.5 text-[13px] leading-relaxed text-gray-500'>{C.connect.rationale}</p>
+            <div className='overflow-hidden rounded-xl border border-primary/40 bg-primary-tint/50'>
+              <MobileList>
+                {!whatsappConnected && (
+                  <MobileListRow
+                    href={C.connect.whatsapp.href as Route}
+                    onClick={markConnectIntent}
+                    className='press'
+                    title={C.connect.whatsapp.title}
+                    subtitle={C.connect.whatsapp.description}
+                    leading={<WhatsappBadge size='sm' />}
+                    badges={
+                      <span className='rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-medium text-info-text'>
+                        {C.connect.recommendedBadge}
+                      </span>
+                    }
+                  />
+                )}
+                {!metaConnected && (
+                  <MobileListRow
+                    href={C.connect.meta.href as Route}
+                    onClick={markConnectIntent}
+                    className='press'
+                    title={C.connect.meta.title}
+                    subtitle={C.connect.meta.description}
+                    leading={<MetaLeadAdsBadge size='sm' />}
+                  />
+                )}
+              </MobileList>
+            </div>
+          </section>
+        )}
 
-        <h2 className='mb-2 mt-8 text-sm font-semibold text-gray-500'>חיבור ערוצים</h2>
-        <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
-          <MobileList>
-            <MobileListRow
-              href={'/settings/integrations?section=whatsapp' as Route}
-              className='press'
-              title='וואטסאפ'
-              subtitle={whatsappConnected ? 'מחובר' : 'לא מחובר'}
-              leading={<WhatsappBadge size='sm' />}
-            />
-            <MobileListRow
-              href={'/settings/integrations?section=facebook' as Route}
-              className='press'
-              title='פייסבוק ואינסטגרם'
-              subtitle={metaConnected ? 'מחובר' : 'לא מחובר'}
-              leading={<MetaLeadAdsBadge size='sm' />}
-            />
-          </MobileList>
-        </div>
+        {/*
+          PATH 2 — leads the business already has. Same row primitive, same
+          container shape, its own heading and rationale. Structurally a peer of
+          the block above; only the tint differs.
+        */}
+        <section>
+          <h2 className='text-sm font-semibold text-ink'>{C.own.heading}</h2>
+          <p className='mb-2.5 mt-0.5 text-[13px] leading-relaxed text-gray-500'>{C.own.rationale}</p>
+          <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
+            <MobileList>
+              <MobileListRow
+                onClick={() => {
+                  setImportOpen(false)
+                  setFormOpen(true)
+                }}
+                className='press'
+                title={C.own.add.title}
+                subtitle={C.own.add.description}
+                leading={
+                  <span className='flex size-9 items-center justify-center rounded-lg bg-ink'>
+                    <Icon name='plus' type='sol' className='size-4 bg-white' />
+                  </span>
+                }
+              />
+              <MobileListRow
+                onClick={() => {
+                  setFormOpen(false)
+                  setImportOpen(true)
+                }}
+                className='press'
+                title={C.own.import.title}
+                subtitle={C.own.import.description}
+                leading={
+                  <span className='flex size-9 items-center justify-center rounded-lg bg-[#217346]'>
+                    <Icon name='file-excel' type='sol' className='size-4 bg-white' />
+                  </span>
+                }
+              />
+            </MobileList>
+          </div>
+        </section>
+
+        {/* Reassurance for the already-connected workspace, kept quiet and last. */}
+        {bothConnected && (
+          <p className='mt-6 text-center text-[13px] text-gray-400'>
+            {C.connect.whatsapp.title} · {C.connect.meta.title} — {C.statusConnected}
+          </p>
+        )}
       </div>
 
       <LeadFormMobile

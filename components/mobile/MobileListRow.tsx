@@ -88,8 +88,19 @@ export default function MobileListRow({
   } ${className}`
 
   if (href) {
+    /**
+     * `onClick` is forwarded to the LINK as well, not just to the button branch
+     * below. It previously was not, so a row given both props silently dropped
+     * the handler — a latent trap for exactly the case that found it: the
+     * first-run screen marks connect intent as the row is tapped, so unmount is
+     * not misreported as a deferral.
+     *
+     * Navigation is untouched. The handler runs first and the Link then
+     * navigates as before; callers use it for side effects only, never to
+     * cancel a tap.
+     */
     return (
-      <Link href={href} prefetch={false} className={cls}>
+      <Link href={href} prefetch={false} className={cls} onClick={onClick}>
         {inner}
       </Link>
     )

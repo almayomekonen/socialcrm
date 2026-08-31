@@ -5,6 +5,7 @@ import { after } from 'next/server'
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startTrialForAgency, recordWelcomeModalSeen } from '@/db/trial'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
+import { isMobileRequest } from '@/lib/device'
 
 export type StartTrialResult = { ok: true; started: boolean } | { error: 'unauthorized' }
 
@@ -53,6 +54,10 @@ export async function trackWelcomeModalSeen(): Promise<TrackSeenResult> {
     throw err
   }
 
-  await recordWelcomeModalSeen(user.agencyId, user.id)
+  // Resolved server-side from the User-Agent, the same single source of truth
+  // the (app) layout gate uses — never a client-supplied value, which would let
+  // the one device signal in this funnel be spoofed by the surface it measures.
+  const surface = (await isMobileRequest()) ? 'mobile' : 'desktop'
+  await recordWelcomeModalSeen(user.agencyId, user.id, surface)
   return { ok: true }
 }

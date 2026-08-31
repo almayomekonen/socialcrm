@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { ShellFrame } from '@/components/marketing/system/ShellChrome'
 import { organizationSchema, softwareApplicationSchema, websiteSchema } from '@/lib/seo/schemas'
+import AttributionCapture from '@/components/analytics/AttributionCapture'
 
 /**
  * The marketing shell.
@@ -24,6 +25,11 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <JsonLd data={organizationSchema()} />
       <JsonLd data={softwareApplicationSchema()} />
       <JsonLd data={websiteSchema()} />
+      {/* Records the campaign/referrer that brought this visitor, for the
+          registration they may complete later. Renders nothing; writes one
+          cookie. Mounted on the shell so every marketing entry point is
+          covered, including the legal pages people land on from ads. */}
+      <AttributionCapture />
       {/* `ShellFrame` owns header, <main> and footer together: the Lumen shell
           wraps all three in one `.lumen` div, which a header/footer pair
           rendered as separate siblings could not express. */}

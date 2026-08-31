@@ -8,7 +8,37 @@ import UploadClientData from '@/components/settings/UploadClientData'
 import { MetaLeadAdsBadge } from '@/components/ui/MetaLeadAdsBadge'
 import OnboardingActionCard from './OnboardingActionCard'
 import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
+import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { useFirstRunAnalytics } from '@/hooks/useFirstRunAnalytics'
 
+/**
+ * The desktop first-run surface.
+ *
+ * SAME MESSAGE AS MOBILE, OWN LAYOUT. The copy comes from
+ * `lib/activation/firstRunCopy.ts`, which the phone's first-run screen reads
+ * too; the presentation stays a tile grid, because a desktop has the room and
+ * forcing it into the phone's list shape would be change for its own sake.
+ * (This file deliberately references no mobile component — the a11y suite
+ * asserts that separation, and the shared constants file is the only seam.)
+ *
+ * WHAT CHANGED AND WHY. This screen previously showed four cards of equal
+ * weight under a headline describing a data-entry task, with a subtitle that
+ * ended by selling the Pro plan. Three specific defects, all fixed here:
+ *
+ *   · No outcome statement. The reader was asked to work before being told what
+ *     the work produces — the same failure the mobile screen has, and the reason
+ *     four consecutive mobile signups left within seconds.
+ *   · No hierarchy. `OnboardingActionCard` has shipped a `recommended` prop with
+ *     a real primary treatment since it was written, and this file never passed
+ *     it; a text badge carried the whole burden of saying "start here".
+ *   · Two uses of "לקוחות" ("נהל שיחות עם לקוחות", "העבר את כל הלקוחות"), which
+ *     `ux-guidelines.md` §6 forbids outright — leads are not customers.
+ *
+ * The four actions are now grouped into the two paths the user actually has,
+ * each with a heading and a reason: connect a source (recommended, because it
+ * is what keeps working tomorrow), or bring leads you already have (immediate
+ * value, and `product.md` §7's own first success moment). Neither is a fallback.
+ */
 export default function LeadsFirstRun({
   metaConnected = false,
   whatsappConnected = false,
@@ -16,100 +46,90 @@ export default function LeadsFirstRun({
   metaConnected?: boolean
   whatsappConnected?: boolean
 }) {
-  const router = useRouter();
-  const [openForm, setOpenForm] = useState(false);
-  const [openUpload, setOpenUpload] = useState(false);
+  const router = useRouter()
+  const [openForm, setOpenForm] = useState(false)
+  const [openUpload, setOpenUpload] = useState(false)
+
+  const { markConnectIntent } = useFirstRunAnalytics({
+    surface: 'desktop',
+    metaConnected,
+    whatsappConnected,
+  })
+
+  const bothConnected = metaConnected && whatsappConnected
 
   return (
-    <div dir='rtl' data-leads-empty='' className='flex min-h-full w-full flex-col items-center justify-center px-6 py-16'>
+    <div
+      dir='rtl'
+      data-leads-empty=''
+      className='flex min-h-full w-full flex-col items-center justify-center px-6 py-16'
+    >
       <div className='w-full max-w-2xl'>
-        {metaConnected ? (
-          <>
-            <header className='mb-10 text-center'>
-              <h1 className='text-4xl font-bold tracking-tight text-ink'>אין עדיין לידים</h1>
-              <p className='mx-auto mt-3 max-w-xl text-lg leading-relaxed text-gray-600'>
-                חשבון ה‑Meta שלך מחובר בהצלחה.
-                <br />
-                הליד הראשון יופיע כאן באופן אוטומטי ברגע שיגיע.
-              </p>
-            </header>
+        <header className='mb-9 text-center'>
+          <h1 className='text-4xl font-bold tracking-tight text-ink'>
+            {metaConnected ? C.connected.headline : C.headline}
+          </h1>
+          <p className='mx-auto mt-3 max-w-xl text-lg leading-relaxed text-gray-600'>
+            {metaConnected ? C.connected.subhead : C.subhead}
+          </p>
+        </header>
 
-            {/* Same grid idiom as below. When WhatsApp is still unconnected we
-                offer it as one more equal card (never a highlighted "next step"),
-                and Import drops to a centered card on its own row — 2 + 1, so
-                three cards stay balanced instead of reading as a checklist. */}
+        {/* PATH 1 — connect a source. Omitted only when both are already on. */}
+        {!bothConnected && (
+          <section className='mb-8'>
+            <h2 className='text-base font-semibold text-ink'>{C.connect.heading}</h2>
+            <p className='mb-3 mt-0.5 text-sm text-gray-500'>{C.connect.rationale}</p>
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-              <OnboardingActionCard
-                onClick={() => setOpenForm(true)}
-                icon='plus'
-                tileClass='bg-ink'
-                title='הוסף ליד'
-                description='הוסף ליד ידנית עכשיו'
-                data-add-lead=''
-              />
               {!whatsappConnected && (
                 <OnboardingActionCard
-                  href='/settings/integrations?section=whatsapp'
+                  href={C.connect.whatsapp.href}
+                  onClick={markConnectIntent}
                   icon='whatsapp'
                   tileClass='bg-[#25D366]'
-                  title='חבר וואטסאפ'
-                  description='קבל גם לידים מוואטסאפ אוטומטית'
+                  title={C.connect.whatsapp.title}
+                  description={C.connect.whatsapp.description}
+                  badge={C.connect.recommendedBadge}
+                  badgeClass='bg-info-bg text-info-text'
+                  /* The prop that has existed unused since this card was
+                     written. This is what makes one action look primary. */
+                  recommended
                 />
               )}
-              <div className={whatsappConnected ? '' : 'sm:col-span-2 sm:mx-auto sm:w-[calc(50%-0.5rem)]'}>
+              {!metaConnected && (
                 <OnboardingActionCard
-                  onClick={() => setOpenUpload(true)}
-                  icon='file-excel'
-                  tileClass='bg-[#217346]'
-                  title='ייבוא מאקסל'
-                  description='העבר את כל הלקוחות בשניות'
+                  href={C.connect.meta.href}
+                  onClick={markConnectIntent}
+                  tile={<MetaLeadAdsBadge size='lg' />}
+                  title={C.connect.meta.title}
+                  description={C.connect.meta.description}
                 />
-              </div>
+              )}
             </div>
-          </>
-        ) : (
-          <>
-            <header className='mb-10 text-center'>
-              <h1 className='text-4xl font-bold tracking-tight text-ink'>בוא נכניס את הלידים שלך ל־SocialCRM</h1>
-              <p className='mx-auto mt-3 max-w-xl text-lg leading-relaxed text-gray-600'>
-                חבר את הערוצים שלך או הוסף לידים, ותוכל להתחיל לעבוד עם כל יכולות ה־Pro.
-              </p>
-            </header>
-
-            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-              <OnboardingActionCard
-                href='/settings/integrations?section=whatsapp'
-                icon='whatsapp'
-                tileClass='bg-[#25D366]'
-                title='וואטסאפ'
-                description='נהל שיחות עם לקוחות במקום אחד'
-                badge='מומלץ'
-                badgeClass='bg-info-bg text-info-text'
-              />
-              <OnboardingActionCard
-                href='/settings/integrations?section=facebook'
-                tile={<MetaLeadAdsBadge size='lg' />}
-                title='פייסבוק ואינסטגרם'
-                description='קבל לידים מהמודעות אוטומטית'
-              />
-              <OnboardingActionCard
-                onClick={() => setOpenForm(true)}
-                icon='plus'
-                tileClass='bg-ink'
-                title='הוסף ליד ראשון'
-                description='הדרך המהירה ביותר להתחיל'
-                data-add-lead=''
-              />
-              <OnboardingActionCard
-                onClick={() => setOpenUpload(true)}
-                icon='file-excel'
-                tileClass='bg-[#217346]'
-                title='ייבוא מאקסל'
-                description='העבר את כל הלקוחות בשניות'
-              />
-            </div>
-          </>
+          </section>
         )}
+
+        {/* PATH 2 — leads the business already has. A peer, not a footnote. */}
+        <section>
+          <h2 className='text-base font-semibold text-ink'>{C.own.heading}</h2>
+          <p className='mb-3 mt-0.5 text-sm text-gray-500'>{C.own.rationale}</p>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <OnboardingActionCard
+              onClick={() => setOpenForm(true)}
+              icon='plus'
+              tileClass='bg-ink'
+              title={C.own.add.title}
+              description={C.own.add.description}
+              data-add-lead=''
+            />
+            <OnboardingActionCard
+              onClick={() => setOpenUpload(true)}
+              icon='file-excel'
+              tileClass='bg-[#217346]'
+              title={C.own.import.title}
+              description={C.own.import.description}
+            />
+          </div>
+        </section>
       </div>
 
       <ModalPop open={openForm} label='פרטי ליד' pos='middle' onClose={() => setOpenForm(false)}>

@@ -56,6 +56,7 @@ import MobileWorkspaceShell from '@/components/mobile/MobileWorkspaceShell'
 import MobileMoreView from '@/components/mobile/MobileMoreView'
 import { visibleMoreItems } from '@/components/mobile/moreDestinations'
 import type { MobileLeadRow } from '@/modules/leads/queries'
+import { FIRST_RUN_COPY } from '@/lib/activation/firstRunCopy'
 
 afterEach(() => {
   cleanup()
@@ -246,9 +247,9 @@ describe('populated mobile Leads add/import', () => {
 describe('empty workspace is unchanged', () => {
   it('still offers add/import on the page and does not show the populated +', () => {
     render(empty())
-    expect(screen.getByRole('heading', { name: 'בואו נתחיל' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'הוסף ליד' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'ייבוא לידים' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.headline })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.add.title) })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.import.title) })).toBeTruthy()
     expect(screen.queryByTestId('leads-add-action')).toBeNull()
     expect(screen.queryByText(/מחשב/)).toBeNull()
   })

@@ -35,6 +35,7 @@ vi.mock('@/lib/toast', () => ({ toast: H.toast }))
 
 import LeadFormMobile from '@/modules/leads/mobile/LeadFormMobile'
 import LeadsFirstRunMobile from '@/modules/leads/mobile/LeadsFirstRunMobile'
+import { FIRST_RUN_COPY } from '@/lib/activation/firstRunCopy'
 
 afterEach(() => {
   cleanup()
@@ -115,7 +116,7 @@ describe('LeadFormMobile', () => {
   it('successful create navigates to the existing lead detail route', async () => {
     H.upsertLead.mockResolvedValue({ id: 88 })
     render(<LeadsFirstRunMobile />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'הוסף ליד' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.add.title) })[0])
     fillNames()
     fireEvent.submit(screen.getByRole('form', { name: 'הוסף ליד' }))
     await waitFor(() => expect(H.push).toHaveBeenCalledWith('/clients/88/summary?firstLead=1'))

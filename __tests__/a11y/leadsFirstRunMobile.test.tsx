@@ -24,11 +24,13 @@ vi.mock('@/actions/clients', () => ({
 }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: vi.fn(async () => []) }))
 vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: vi.fn(async () => {}) }))
+vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({ recordLeadActionEvent: vi.fn(async () => {}) }))
 vi.mock('@/lib/toast', () => ({ toast: vi.fn() }))
 
 import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
 import MobileTodayEmpty from '@/modules/today/mobile/MobileTodayEmpty'
 import LeadsFirstRunMobile from '@/modules/leads/mobile/LeadsFirstRunMobile'
+import { FIRST_RUN_COPY } from '@/lib/activation/firstRunCopy'
 
 afterEach(() => {
   cleanup()
@@ -43,9 +45,9 @@ function emptyList() {
 describe('P0-A empty Leads first-run', () => {
   it('renders the new first-run, not a desktop handoff', () => {
     render(emptyList())
-    expect(screen.getByRole('heading', { name: 'בואו נתחיל' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'הוסף ליד' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'ייבוא לידים' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.headline })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.add.title) })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.import.title) })).toBeTruthy()
     expect(screen.getByRole('link', { name: /וואטסאפ/ })).toHaveAttribute('href', '/settings/integrations?section=whatsapp')
     expect(screen.getByRole('link', { name: /פייסבוק ואינסטגרם/ })).toHaveAttribute(
       'href',
@@ -56,9 +58,34 @@ describe('P0-A empty Leads first-run', () => {
     expect(screen.queryByTestId('leads-add-action')).toBeNull()
   })
 
+  /**
+   * ACTIVATION CONTRACT. The screen's job is to say what SocialCRM does before
+   * asking for work — the defect that made four consecutive mobile signups leave
+   * within seconds without touching a control. These assertions fail if the
+   * outcome copy is ever quietly replaced by a greeting again.
+   */
+  it('states the outcome before asking for any work', () => {
+    const { container } = render(emptyList())
+    // What the product does, named before any control.
+    expect(screen.getByText(FIRST_RUN_COPY.subhead)).toBeTruthy()
+    // Both paths are present, each with its own reason to exist.
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.connect.heading })).toBeTruthy()
+    expect(screen.getByText(FIRST_RUN_COPY.connect.rationale)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.own.heading })).toBeTruthy()
+    expect(screen.getByText(FIRST_RUN_COPY.own.rationale)).toBeTruthy()
+    // Channels are described by outcome, never by connection status. A brand-new
+    // workspace must never be greeted by a column of "לא מחובר" labels.
+    expect(container.textContent).not.toMatch(/לא מחובר/)
+    expect(screen.getByText(FIRST_RUN_COPY.connect.whatsapp.description)).toBeTruthy()
+    // Meta ingestion is Lead Ads only — the word that keeps the claim honest.
+    expect(FIRST_RUN_COPY.connect.meta.description).toMatch(/מהמודעות/)
+    // Terminology: leads are never "customers" (ux-guidelines.md §6).
+    expect(container.textContent).not.toMatch(/לקוח/)
+  })
+
   it('add-lead CTA opens the vertical mobile form', () => {
     render(emptyList())
-    fireEvent.click(screen.getByRole('button', { name: 'הוסף ליד' }))
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.add.title) }))
     const form = screen.getByRole('form', { name: 'הוסף ליד' })
     expect(form.className).toMatch(/flex-col/)
     expect(form.querySelector('.flex.w-full.gap-3')).toBeNull()
@@ -70,7 +97,7 @@ describe('P0-A empty Leads first-run', () => {
 
   it('import CTA opens a file picker that accepts xlsx, xls, and csv', () => {
     render(emptyList())
-    fireEvent.click(screen.getByRole('button', { name: 'ייבוא לידים' }))
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.import.title) }))
     const input = screen.getByLabelText('בחירת קובץ לידים') as HTMLInputElement
     expect(input.type).toBe('file')
     expect(input.accept).toContain('.xlsx')
@@ -82,15 +109,30 @@ describe('P0-A empty Leads first-run', () => {
 describe('P0-A Today empty matches Leads first-run', () => {
   it('does not contradict Leads and does not send the user to a computer', () => {
     const { container: today } = render(<MobileTodayEmpty />)
-    expect(screen.getByRole('heading', { name: 'בואו נתחיל' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'הוסף ליד' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'ייבוא לידים' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.headline })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.add.title) })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.import.title) })).toBeTruthy()
     expect(today.textContent).not.toMatch(/מחשב/)
 
     cleanup()
     const { container: leads } = render(<LeadsFirstRunMobile />)
-    expect(screen.getByRole('heading', { name: 'בואו נתחיל' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.headline })).toBeTruthy()
     expect(leads.querySelector('table')).toBeNull()
+  })
+
+  /**
+   * A workspace with Meta already connected is a DIFFERENT situation from first
+   * run — the user has acted and is waiting. It keeps its own reassurance copy,
+   * and must not be shown a connect offer it has already taken.
+   */
+  it('connected workspace gets reassurance, not the connect pitch again', () => {
+    const { container } = render(<LeadsFirstRunMobile metaConnected whatsappConnected />)
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.connected.headline })).toBeTruthy()
+    expect(container.textContent).toContain(FIRST_RUN_COPY.connected.subhead)
+    expect(screen.queryByRole('link', { name: /פייסבוק ואינסטגרם/ })).toBeNull()
+    // The alternative path stays available — a connected workspace can still
+    // want to import the list it already has.
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.import.title) })).toBeTruthy()
   })
 })
 

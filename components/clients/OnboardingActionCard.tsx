@@ -18,8 +18,16 @@ type BaseProps = {
   'data-add-lead'?: string
 }
 
-type Props = BaseProps &
-  ({ href?: string; onClick?: undefined } | { onClick?: () => void; href?: undefined })
+/**
+ * A card either navigates (`href`) or acts (`onClick`) — but a navigating card
+ * may ALSO carry an `onClick` side effect, which is why this is no longer an
+ * exclusive union. The first-run screen uses it to record connect intent as the
+ * card is clicked, so leaving the screen is not misreported as a deferral.
+ *
+ * The handler never cancels navigation; when `href` is set the link still
+ * navigates exactly as before.
+ */
+type Props = BaseProps & { href?: string; onClick?: () => void }
 
 export default function OnboardingActionCard({
   icon,
@@ -69,7 +77,7 @@ export default function OnboardingActionCard({
   if (disabled) return <div className={cls}>{inner}</div>
   if (href)
     return (
-      <Link href={href} className={cls} {...addLeadAttr}>
+      <Link href={href} className={cls} onClick={onClick} {...addLeadAttr}>
         {inner}
       </Link>
     )

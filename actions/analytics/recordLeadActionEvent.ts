@@ -24,6 +24,7 @@ const CLIENT_EMITTABLE = new Set<AnalyticsEventName>([
   'lead_created_manual',
   'mobile_lead_opened',
   'mobile_workspace_viewed',
+  'first_run_viewed',
   'connection_offered',
   'connection_deferred',
 ])
@@ -52,9 +53,26 @@ export async function recordLeadActionEvent(
   if (surface !== undefined && !SURFACES.has(surface as LeadActionSurface)) return
   if (action !== undefined && !ACTIONS.has(action as LeadActionKind)) return
 
+  /**
+   * `first_run_viewed` carries two connection flags. They are COERCED to real
+   * booleans rather than forwarded as-is: this action's contract is that
+   * untrusted client input never reaches `props` unchecked, and a client that
+   * posted `metaConnected: "yes"` would otherwise put a string into a jsonb
+   * field every funnel query reads as a boolean. Coercion, not rejection —
+   * a malformed flag must not cost us the view event itself.
+   */
+  const safeProps =
+    props && (props.metaConnected !== undefined || props.whatsappConnected !== undefined)
+      ? {
+          ...props,
+          ...(props.metaConnected !== undefined ? { metaConnected: props.metaConnected === true } : {}),
+          ...(props.whatsappConnected !== undefined ? { whatsappConnected: props.whatsappConnected === true } : {}),
+        }
+      : props
+
   try {
     const user = await requireBasicCrmAccess()
-    await track({ agencyId: user.agencyId, userId: user.id, event, props })
+    await track({ agencyId: user.agencyId, userId: user.id, event, props: safeProps })
   } catch {
     // Analytics must never break a flow; swallow auth/db hiccups.
   }

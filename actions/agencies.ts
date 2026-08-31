@@ -18,6 +18,7 @@ import {
   readFacebookLoginProof,
 } from '@/lib/auth/fbLoginProof'
 import { isFacebookUserAuthOpenToNewAgencies } from '@/lib/auth/facebookUserAuthFlags'
+import { readSignupAttribution } from '@/lib/activation/signupAttribution'
 
 export async function addAgency(data) {
   const start = Date.now()
@@ -96,6 +97,16 @@ export async function addAgency(data) {
      * Resolved HERE because headers are unreadable inside after().
      */
     const isPhone = await isMobileRequest()
+    /**
+     * Campaign attribution, written on the marketing shell up to 30 days ago.
+     * Merged into the EXISTING props jsonb — no column, no migration. Absent for
+     * anyone who reached /auth directly, which is a normal result and not an
+     * error: the props simply carry what they carried before.
+     *
+     * Read here, beside isPhone, for the same reason — cookies are unreadable
+     * inside after().
+     */
+    const attribution = await readSignupAttribution()
     const agencyIdForEvent = createdAgencyId
     const userIdForEvent = createdUserId
     after(() =>
@@ -103,7 +114,7 @@ export async function addAgency(data) {
         agencyId: agencyIdForEvent!,
         userId: userIdForEvent,
         event: 'registration_completed',
-        props: { device, isPhone },
+        props: { device, isPhone, ...attribution },
       }),
     )
     after(() =>

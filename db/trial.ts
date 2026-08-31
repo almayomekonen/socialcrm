@@ -67,12 +67,28 @@ export async function startTrialForAgency(
  * events so the funnel stays uniform if detection and display ever diverge.
  * Each is independently deduped once-per-agency by the DB index. Exempt
  * (legacy) and pro agencies are outside the funnel entirely.
+ *
+ * `desktop_first_access` IS MISNAMED and is deliberately NOT renamed here.
+ * It fires whenever the welcome modal is seen, on any device — every phone
+ * signup in production carries one, so any dashboard splitting device on the
+ * event NAME is wrong. Renaming it would break `scripts/verify-trial-dev.ts`,
+ * which asserts the exact event sequence, and silently break any external
+ * consumer reading the old name.
+ *
+ * The fix applied instead is ADDITIVE: `surface` is recorded as a prop. Every
+ * existing consumer keeps working unchanged, and the event becomes correctly
+ * splittable from this deploy forward. The rename remains a documented
+ * follow-up, not a silent breaking change.
  */
-export async function recordWelcomeModalSeen(agencyId: number, userId?: number | null): Promise<void> {
+export async function recordWelcomeModalSeen(
+  agencyId: number,
+  userId?: number | null,
+  surface: 'mobile' | 'desktop' = 'desktop',
+): Promise<void> {
   const row = await getAgencyTrial(agencyId)
   if (!row || row.trialExempt || row.plan === 'pro') return
-  await track({ agencyId, userId, event: 'desktop_first_access' })
-  await track({ agencyId, userId, event: 'welcome_modal_shown' })
+  await track({ agencyId, userId, event: 'desktop_first_access', props: { surface } })
+  await track({ agencyId, userId, event: 'welcome_modal_shown', props: { surface } })
 }
 
 /**

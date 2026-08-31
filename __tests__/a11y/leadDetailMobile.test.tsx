@@ -44,6 +44,7 @@ vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEven
 import LeadDetailActions from '@/modules/leads/mobile/LeadDetailActions'
 import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
 import type { MobileLeadRow } from '@/modules/leads/queries'
+import { FIRST_RUN_COPY } from '@/lib/activation/firstRunCopy'
 
 afterEach(() => {
   cleanup()
@@ -171,9 +172,13 @@ describe('lead list', () => {
     const { rerender } = render(
       <LeadListMobile rows={[]} filters={{ q: '', status: [] }} hasMore={false} page={1} workspaceEmpty nowMs={0} />,
     )
-    expect(screen.getByRole('heading', { name: 'בואו נתחיל' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'הוסף ליד' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'ייבוא לידים' })).toBeTruthy()
+    // First-run copy is owned by lib/activation/firstRunCopy.ts and asserted
+    // through it, so a copy change updates every surface at once instead of
+    // failing four suites. Names are matched loosely: each control's accessible
+    // name is its title plus the outcome line beneath it.
+    expect(screen.getByRole('heading', { name: FIRST_RUN_COPY.headline })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.add.title) })).toBeTruthy()
+    expect(screen.getByRole('button', { name: new RegExp(FIRST_RUN_COPY.own.import.title) })).toBeTruthy()
     expect(screen.queryByText(/מחשב/)).toBeNull()
 
     rerender(

@@ -54,6 +54,24 @@ export type AnalyticsEventName =
    * props: { surface }
    */
   | 'workspace_first_viewed'
+  /**
+   * The FIRST-RUN SCREEN itself rendered — a workspace with zero leads showing
+   * `LeadsFirstRun` (desktop) or `LeadsFirstRunMobile` (mobile).
+   *
+   * Deliberately NOT once-per-agency, and deliberately distinct from
+   * `workspace_first_viewed`. That event is emitted by the (app) layout, once,
+   * for the whole agency — so it cannot say whether this screen rendered, nor
+   * how many times a user came back to an empty workspace and left again.
+   * Coming back to nothing is itself the signal.
+   *
+   * This is the denominator for first-run activation: the funnel is
+   * `first_run_viewed` → (`connection_offered` →) `*_connect_started` |
+   * `lead_created_manual` | `leads_imported`. An agency with `first_run_viewed`
+   * and no following event is the abandonment cohort the funnel audit could not
+   * see.
+   * props: { surface: 'mobile'|'desktop', metaConnected, whatsappConnected }
+   */
+  | 'first_run_viewed'
   /** Connect options were rendered / navigated away from. Separates "chose not
    *  to connect" from "never saw the option". props: { channel, surface } */
   | 'connection_offered'
