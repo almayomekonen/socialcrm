@@ -19,7 +19,7 @@
  * nothing registered to ever run init.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, cleanup } from '@testing-library/react'
 
 vi.mock('@/lib/facebook/embeddedSignupSession', () => ({
   createEmbeddedSignupGate: () => ({
@@ -32,7 +32,8 @@ vi.mock('@/lib/facebook/embeddedSignupSession', () => ({
   parseEmbeddedSignupMessage: () => null,
 }))
 
-import { useEmbeddedSignup, __resetSdkReadyForTests } from '@/lib/facebook/useEmbeddedSignup'
+import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
+import { __resetFacebookSdkForTests } from '@/lib/facebook/facebookSdk'
 
 const APP_ID = '123'
 const CONFIG_ID = 'cfg_1'
@@ -40,13 +41,27 @@ const VERSION = 'v21.0'
 
 /** A stand-in for the real SDK. `init` is what readiness must actually wait on. */
 function fakeFB() {
+  // The REAL SDK: no `__buffer`. See `facebookSdk.ts` for why that is the
+  // discriminator.
   return { init: vi.fn(), login: vi.fn() }
+}
+
+/** The loader stub's buffering shim: truthy `window.FB`, `login` queues silently. */
+function bufferingShim() {
+  const calls: unknown[] = []
+  return {
+    __buffer: { calls, opts: null },
+    init: vi.fn(),
+    login: vi.fn((...args: unknown[]) => {
+      calls.push(args)
+    }),
+  }
 }
 
 const mount = () => renderHook(() => useEmbeddedSignup(APP_ID, CONFIG_ID, VERSION))
 
 beforeEach(() => {
-  __resetSdkReadyForTests()
+  __resetFacebookSdkForTests()
   vi.useFakeTimers()
   delete (window as { FB?: unknown }).FB
   delete (window as { fbAsyncInit?: unknown }).fbAsyncInit
@@ -54,6 +69,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
@@ -64,7 +80,9 @@ describe('SDK already initialised', () => {
     ;(window as unknown as { FB: typeof FB }).FB = FB
 
     const { result } = mount()
-    expect(FB.init).toHaveBeenCalledTimes(1) // effect initialised the present SDK
+    // Binding is asserted at LAUNCH, not at mount — the auth components init the
+    // same global with a different app from their own effects.
+    expect(FB.init).not.toHaveBeenCalled()
 
     act(() => {
       void result.current.launch()
@@ -96,14 +114,13 @@ describe('SDK already initialised', () => {
 })
 
 describe('SDK present but init not yet run', () => {
-  it('does not call FB.login until init completes', async () => {
-    // The exact production race: window.FB exists, fbAsyncInit has not fired.
-    const FB = fakeFB()
+  it('does not call FB.login while only the buffering shim is present', async () => {
+    // THE PRODUCTION FAILURE. window.FB is truthy, but it is the loader stub's
+    // shim whose `login` only queues. Calling it opens nothing and never calls
+    // back — the original indefinite "מתחבר...".
+    const shim = bufferingShim()
     const { result } = mount()
-
-    // Hook injected the script and registered fbAsyncInit. sdk.js now "executes":
-    // it defines window.FB but the loader has not called fbAsyncInit yet.
-    ;(window as unknown as { FB: typeof FB }).FB = FB
+    ;(window as unknown as { FB: typeof shim }).FB = shim
 
     let settled = false
     act(() => {
@@ -112,40 +129,21 @@ describe('SDK present but init not yet run', () => {
       })
     })
 
-    expect(FB.login).not.toHaveBeenCalled() // waits — does not fire blind
+    expect(shim.login).not.toHaveBeenCalled() // must never be queued
     expect(settled).toBe(false)
 
+    // The real bundle arrives and replaces the shim.
+    const FB = fakeFB()
     await act(async () => {
-      window.fbAsyncInit?.() // the loader finally runs init
+      ;(window as unknown as { FB: typeof FB }).FB = FB
+      await vi.advanceTimersByTimeAsync(100)
     })
 
-    expect(FB.init).toHaveBeenCalledTimes(1)
-    expect(FB.login).toHaveBeenCalledTimes(1) // released by readiness, not by luck
+    expect(FB.login).toHaveBeenCalledTimes(1) // released by observation
+    expect(shim.login).not.toHaveBeenCalled()
   })
 
-  it('registers fbAsyncInit before injecting the script tag', () => {
-    mount()
-    expect(typeof window.fbAsyncInit).toBe('function')
-    expect(document.getElementById('facebook-jssdk')).not.toBeNull()
-  })
 
-  it('registers fbAsyncInit even when window.FB is already present', () => {
-    // The third hole: the original code assigned fbAsyncInit only on the
-    // not-yet-loaded branch, so whenever window.FB happened to exist at mount
-    // nothing was left registered for the loader to call. An existing script tag
-    // then made it unrecoverable — getElementById saw the tag and skipped
-    // re-injection, so init never ran for anyone who needed it.
-    const tag = document.createElement('script')
-    tag.id = 'facebook-jssdk'
-    document.body.appendChild(tag)
-    const FB = fakeFB()
-    ;(window as unknown as { FB: typeof FB }).FB = FB
-
-    mount()
-
-    expect(typeof window.fbAsyncInit).toBe('function')
-    expect(document.querySelectorAll('#facebook-jssdk')).toHaveLength(1) // no duplicate
-  })
 })
 
 describe('SDK never becomes ready', () => {
@@ -253,7 +251,7 @@ describe('FB.login callback still drives the result', () => {
 })
 
 describe('initialisation is not duplicated', () => {
-  it('injects the script once and inits once across re-renders', () => {
+  it('injects no stub when a consumer already owns window.FB, across re-renders', () => {
     const FB = fakeFB()
     ;(window as unknown as { FB: typeof FB }).FB = FB
 
@@ -261,7 +259,9 @@ describe('initialisation is not duplicated', () => {
     rerender()
     rerender()
 
-    expect(FB.init).toHaveBeenCalledTimes(1)
-    expect(document.querySelectorAll('#facebook-jssdk')).toHaveLength(0) // FB already present
+    // Nothing to load: window.FB is already owned. And our app is bound at
+    // launch, never at mount, so no init has happened yet either.
+    expect(document.querySelectorAll('#facebook-jssdk')).toHaveLength(0)
+    expect(FB.init).not.toHaveBeenCalled()
   })
 })

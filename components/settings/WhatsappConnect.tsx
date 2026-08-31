@@ -131,7 +131,14 @@ export default function WhatsappConnect({
   // Only 'operational' earns the green, leads-arrive claim. Restricted / token /
   // webhook never render as green. Reconnect is not the default for restricted.
   if (connection) {
-    const notice = noticeForHealth(status)
+    // A failed launch must outrank the health notice. Previously State C read
+    // ONLY the health status, so `setError` from a failed Embedded Signup
+    // updated state that nothing rendered: the button reverted to the health
+    // action and the operator saw no reason at all. An SDK failure has to say
+    // "חלון ההתחברות לא נפתח", not silently look like a fresh reconnect prompt.
+    // `whatsappNotice` returns null for cancelled/denied, so dismissing Meta's
+    // popup correctly leaves the health notice in place.
+    const notice = whatsappNotice(error) ?? noticeForHealth(status)
     const canReconnect = status === 'unknown' || status === 'token' || status === 'webhook'
     // A HEALTHY connection that still qualifies for Coexistence. Kept separate
     // from `canReconnect`: those are repair states, this one is not broken at
