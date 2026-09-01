@@ -91,7 +91,10 @@ export async function sendTemplateToLead(
   // a restricted / disconnected phone on THIS conversation must not send.
   if (conversationId) {
     const ctx = await loadWhatsappComposerContext(user.agencyId, conversationId)
-    if (ctx.health !== 'operational') {
+    // `throttled` passes for the same reason as the free-text gate: Meta
+    // rate-limited the status probe, so the check could not run. Every other
+    // non-operational state still returns HEALTH_BLOCKED exactly as before.
+    if (ctx.health !== 'operational' && ctx.health !== 'throttled') {
       return { ok: false, error: HEALTH_BLOCKED }
     }
   }
