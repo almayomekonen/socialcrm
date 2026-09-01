@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inboxConversations'
 import { ensureParticipant } from '@/db/inboxParticipants'
-import { insertOutboundMessage } from '@/db/inboxMessages'
+import { ATTACHMENT_MEDIA_TYPES, insertOutboundMessage } from '@/db/inboxMessages'
 import { parseMessageEchoes, echoPhoneNumberId, type ParsedMessageEcho } from '@/lib/whatsapp/parseMessageEcho'
 
 /**
@@ -117,6 +117,19 @@ async function persistOne(
       fromId: businessPhoneNumberId,
       toId: echo.customerWaId,
       text: echo.text,
+      /**
+       * Straight through from the parser — the SAME parser that types inbound
+       * media correctly. Flattening these to text here is what made a file the
+       * business sent render as "—", unrecoverably: the media id was never
+       * written, so nothing was left to fetch afterwards.
+       *
+       * The payload is carried only for media. For a text echo the parser
+       * returns `{ body }`, and persisting that would both duplicate the message
+       * body into a second column and change what every existing outbound text
+       * row looks like — a change this fix has no reason to make.
+       */
+      type: echo.type,
+      payload: ATTACHMENT_MEDIA_TYPES.has(echo.type) ? echo.payload : {},
       // NULL: no SocialCRM user sent this. The column is how the IRE tells
       // "any outbound" from "a person replied through the product", and naming
       // an arbitrary user here would be a lie about who acted.

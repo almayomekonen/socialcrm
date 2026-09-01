@@ -63,6 +63,17 @@ export type InsertOutboundMessageInput = {
    */
   sentByUserId: number | null
   channelTimestamp: Date | null
+  /**
+   * Media type and metadata for an outbound message the BUSINESS sent as a file.
+   *
+   * Optional, defaulting to a plain text message, so every existing caller is
+   * behaviourally unchanged. It exists because a Coexistence echo of a file used
+   * to arrive fully parsed and then be flattened to `type: 'text'` with an empty
+   * payload here — the media id was destroyed at insert, and the thread rendered
+   * the file as "—" with nothing left to recover.
+   */
+  type?: InboxMessageType
+  payload?: Record<string, unknown>
 }
 
 type InsertChannelMessageInput = {
@@ -173,9 +184,9 @@ export async function insertOutboundMessage(
     externalId: input.externalId,
     fromId: input.fromId,
     toId: input.toId,
-    type: 'text',
+    type: input.type ?? 'text',
     text: input.text,
-    payload: {},
+    payload: input.payload ?? {},
     rawPayload: null,
     channelTimestamp: input.channelTimestamp,
     sentByUserId: input.sentByUserId,
