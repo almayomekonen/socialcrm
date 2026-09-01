@@ -16,7 +16,7 @@ import type { StatusRole } from '@/lib/StatusBadge'
 export type IntegrationCardCopy = {
   statusLabel: string
   explanation: string
-  actionLabel: string
+  actionLabel?: string
   role: StatusRole
 }
 
@@ -39,6 +39,23 @@ export function whatsappLandingCopy(input: {
       explanation: 'החיבור תקין — לידים מגיעים אוטומטית.',
       actionLabel: 'ניהול',
       role: 'success',
+    }
+  }
+
+  /**
+   * Throttled is handled BEFORE the generic mapping below.
+   *
+   * That mapping turns any non-operational notice into `role: 'warning'` with
+   * `notice.action ?? 'ניהול'`, which would dress a transient Meta rate limit as
+   * something needing attention and hand the owner a button for a state that
+   * asks nothing of them. `info` + no action says what is true: the connection
+   * works, only our status check is briefly limited, and it clears itself.
+   */
+  if (input.status === 'throttled') {
+    return {
+      statusLabel: WHATSAPP_NOTICES.throttled.title,
+      explanation: WHATSAPP_NOTICES.throttled.explanation,
+      role: 'info',
     }
   }
 

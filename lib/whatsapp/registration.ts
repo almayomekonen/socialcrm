@@ -64,16 +64,39 @@ async function registerPhoneNumber(
 
 export type PhoneStatusProbe =
   | { ok: true; status?: string; codeVerificationStatus?: string; platformType?: string }
-  | { ok: false; kind: 'token' | 'error' | 'timeout'; httpStatus?: number }
+  | { ok: false; kind: 'token' | 'throttled' | 'error' | 'timeout'; httpStatus?: number }
 
 export type SubscribedAppsProbe =
   | { ok: true; subscribed: boolean }
-  | { ok: false; kind: 'token' | 'error' | 'timeout'; httpStatus?: number }
+  | { ok: false; kind: 'token' | 'throttled' | 'error' | 'timeout'; httpStatus?: number }
 
 type GraphErrorBody = { error?: { code?: number }; status?: string; code_verification_status?: string; platform_type?: string; data?: unknown[] }
 
-function classifyGraphFailure(res: Response, data: GraphErrorBody): 'token' | 'error' | null {
+/**
+ * Meta's WABA-level rate limit.
+ *
+ * `#80008` — "There have been too many calls to this WhatsApp Business account"
+ * — arrives as HTTP 400 with an `OAuthException` type, so both the status code
+ * and the type invite the wrong conclusion. It says nothing about the
+ * credential: the token is fine, the account is simply being throttled, and the
+ * condition clears on its own.
+ *
+ * It had been landing in the generic `'error'` bucket, which the health resolver
+ * turns into `unknown`, which tells the customer their connection needs
+ * re-verification and blocks the composer. Every part of that is false, and the
+ * suggested cure — reconnect — spends more calls against the account that is
+ * already over its limit.
+ */
+const RATE_LIMIT_CODE = 80008
+
+function classifyGraphFailure(
+  res: Response,
+  data: GraphErrorBody,
+): 'token' | 'throttled' | 'error' | null {
+  // Checked FIRST and on its own terms: a genuine auth failure must never be
+  // mistaken for a throttle, so 401/190 keeps priority over everything below.
   if (res.status === 401 || data.error?.code === 190) return 'token'
+  if (data.error?.code === RATE_LIMIT_CODE) return 'throttled'
   if (!res.ok) return 'error'
   return null
 }
@@ -87,6 +110,7 @@ export async function probePhoneStatus(phoneNumberId: string, accessToken: strin
     const data = (await res.json().catch(() => ({}))) as GraphErrorBody
     const fail = classifyGraphFailure(res, data)
     if (fail === 'token') return { ok: false, kind: 'token', httpStatus: res.status }
+    if (fail === 'throttled') return { ok: false, kind: 'throttled', httpStatus: res.status }
     if (fail === 'error') return { ok: false, kind: 'error', httpStatus: res.status }
     return {
       ok: true,
@@ -106,6 +130,7 @@ export async function probeAppSubscribed(wabaId: string, accessToken: string): P
     const data = (await res.json().catch(() => ({}))) as GraphErrorBody
     const fail = classifyGraphFailure(res, data)
     if (fail === 'token') return { ok: false, kind: 'token', httpStatus: res.status }
+    if (fail === 'throttled') return { ok: false, kind: 'throttled', httpStatus: res.status }
     if (fail === 'error') return { ok: false, kind: 'error', httpStatus: res.status }
     return { ok: true, subscribed: Array.isArray(data.data) && data.data.length > 0 }
   } catch {

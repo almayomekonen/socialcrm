@@ -21,6 +21,14 @@ import {
 export type WhatsappHealthPrimary =
   | 'disconnected'
   | 'unknown'
+  /**
+   * Meta is rate-limiting the status probe (#80008). We could not CHECK the
+   * connection; nothing suggests it is broken. Distinct from `unknown`, which
+   * means a real check failed, and from `token`, which means the credential was
+   * rejected. Sending is deliberately still permitted — see
+   * `resolveWhatsappComposerDecision`.
+   */
+  | 'throttled'
   | 'token'
   | 'webhook'
   | 'registration_pending'
@@ -136,6 +144,20 @@ export async function resolveWhatsappHealth(
   }
   if (subProbe && subProbe.ok === false && subProbe.kind === 'token') {
     return tokenHealth(inboundHit ? 'ready' : 'unknown')
+  }
+
+  // Throttle is read AFTER the token guards, never before: a genuine 401/190
+  // must keep priority, so a rate limit can never mask a dead credential.
+  //
+  // A throttled probe is an absence of information, not evidence of a fault, so
+  // it must not be reported as a broken connection. Inbound is unaffected either
+  // way — webhooks carry no token and make no Graph call — so a known inbound
+  // hit is still reported as ready.
+  if (
+    (phoneProbe.ok === false && phoneProbe.kind === 'throttled') ||
+    (subProbe && subProbe.ok === false && subProbe.kind === 'throttled')
+  ) {
+    return { primary: 'throttled', inbound: inboundHit ? 'ready' : 'unknown', outbound: 'unknown' }
   }
 
   const subscribed = subProbe?.ok === true && subProbe.subscribed

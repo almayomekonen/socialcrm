@@ -339,6 +339,33 @@ describe('sendTemplateToLead — conversation-scoped Inbox targeting', () => {
     expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
   })
 
+  /**
+   * #80008. Meta rate-limited the STATUS PROBE, so health could not be checked —
+   * an absence of information, not a broken connection. This gate used to compare
+   * against 'operational' alone, so it refused a send the composer had already
+   * offered the rep.
+   */
+  it('throttled phone on the selected conversation → template IS sent', async () => {
+    h.loadWhatsappComposerContext.mockResolvedValue({ ...OPERATIONAL_CTX, health: 'throttled' })
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).not.toMatchObject({ error: 'לא ניתן לשלוח הודעות כרגע' })
+    expect(h.sendWhatsappTemplate).toHaveBeenCalled()
+  })
+
+  it('token health on the selected conversation → still blocked, no Graph call', async () => {
+    h.loadWhatsappComposerContext.mockResolvedValue({ ...OPERATIONAL_CTX, health: 'token' })
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: false, error: 'לא ניתן לשלוח הודעות כרגע' })
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+
+  it('unknown health on the selected conversation → still blocked, no Graph call', async () => {
+    h.loadWhatsappComposerContext.mockResolvedValue({ ...OPERATIONAL_CTX, health: 'unknown' })
+    const res = await sendTemplateToLead(9, 55, 44)
+    expect(res).toEqual({ ok: false, error: 'לא ניתן לשלוח הודעות כרגע' })
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+
   it('CLOSED + operational + conversationId allows the template (no 24h window gate)', async () => {
     const res = await sendTemplateToLead(9, 55, 44)
     expect(res).toEqual({ ok: true })

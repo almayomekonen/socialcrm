@@ -113,3 +113,56 @@ describe('assertWhatsappFreeTextAllowed', () => {
     expect(res).toEqual({ ok: false, reason: 'window-unknown' })
   })
 })
+
+/**
+ * SERVER-SIDE gate, not the composer decision.
+ *
+ * The composer was taught that `throttled` (#80008) is sendable, but this gate —
+ * the one `actions/whatsapp/sendWhatsappReply.ts` actually calls — still compared
+ * against `'operational'` alone. The result was a composer that invited a send
+ * the server then refused. These tests pin the server rule itself.
+ */
+describe('assertWhatsappFreeTextAllowed · health rule', () => {
+  const run = (primary: string) =>
+    assertWhatsappFreeTextAllowed(
+      { agencyId: 23, leadId: 9, conversationId: 44 },
+      deps({ resolveHealth: vi.fn(async () => ({ primary: primary as never })) }),
+    )
+
+  it('throttled is ALLOWED — a rate-limited probe is not a broken connection', async () => {
+    await expect(run('throttled')).resolves.toEqual({ ok: true })
+  })
+
+  it('operational is allowed, unchanged', async () => {
+    await expect(run('operational')).resolves.toEqual({ ok: true })
+  })
+
+  it('token is still blocked — a dead credential must never reach Graph', async () => {
+    await expect(run('token')).resolves.toEqual({ ok: false, reason: 'health-blocked' })
+  })
+
+  it('restricted is still blocked', async () => {
+    await expect(run('restricted')).resolves.toEqual({ ok: false, reason: 'health-blocked' })
+  })
+
+  it('unknown is still blocked — a failed check is not a throttled one', async () => {
+    await expect(run('unknown')).resolves.toEqual({ ok: false, reason: 'health-blocked' })
+  })
+
+  it('webhook, registration_pending and disconnected all still block', async () => {
+    for (const h of ['webhook', 'registration_pending', 'disconnected']) {
+      await expect(run(h)).resolves.toEqual({ ok: false, reason: 'health-blocked' })
+    }
+  })
+
+  it('throttled does NOT bypass the service window', async () => {
+    // Health is only the first gate; the 24-hour window still applies.
+    const d = deps({
+      resolveHealth: vi.fn(async () => ({ primary: 'throttled' as never })),
+      getLatestInboundAt: async () => new Date(now - 30 * HOUR).toISOString(),
+    })
+    await expect(
+      assertWhatsappFreeTextAllowed({ agencyId: 23, leadId: 9, conversationId: 44 }, d),
+    ).resolves.toEqual({ ok: false, reason: 'window-closed' })
+  })
+})

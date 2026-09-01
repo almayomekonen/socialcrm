@@ -87,6 +87,52 @@ describe('whatsappLandingCopy', () => {
     expect(copy.role).toBe('error')
     expect(copy.statusLabel).toContain('פג')
   })
+
+  /**
+   * Throttled (#80008) is a transient Meta rate limit on our STATUS PROBE. The
+   * connection works and messages keep flowing, so the card must not dress it as
+   * something needing attention, and must not hand the owner a button for a
+   * state that asks nothing of them. Before this branch existed it fell through
+   * to the generic mapping and became `role: 'warning'` with the generic
+   * "ניהול" action.
+   */
+  describe('throttled (#80008)', () => {
+    const copy = () => whatsappLandingCopy({ connected: true, status: 'throttled' })
+
+    it('1 · renders neutrally, not as a warning or an error', () => {
+      expect(copy().role).toBe('info')
+      expect(copy().role).not.toBe('warning')
+      expect(copy().role).not.toBe('error')
+    })
+
+    it('2 · carries NO action at all', () => {
+      expect(copy().actionLabel).toBeUndefined()
+    })
+
+    it('3 · does not fall through to the generic "ניהול" action', () => {
+      expect(copy().actionLabel).not.toBe('ניהול')
+    })
+
+    it('keeps the calm copy and never asks the owner to reconnect', () => {
+      expect(copy().statusLabel).toBe('החיבור תקין — בדיקת הסטטוס מוגבלת זמנית')
+      expect(copy().statusLabel).not.toMatch(/צריך לאמת/)
+      expect(copy().explanation).not.toMatch(/לחבר מחדש/)
+    })
+
+    it('4 · leaves genuine token and disconnected states untouched', () => {
+      const token = whatsappLandingCopy({ connected: true, status: 'token' })
+      expect(token.role).toBe('error')
+      expect(token.actionLabel).toBeDefined()
+
+      const off = whatsappLandingCopy({ connected: false, status: 'disconnected' })
+      expect(off.role).toBe('neutral')
+      expect(off.actionLabel).toContain('וואטסאפ')
+
+      const ok = whatsappLandingCopy({ connected: true, status: 'operational' })
+      expect(ok.role).toBe('success')
+      expect(ok.actionLabel).toBe('ניהול')
+    })
+  })
 })
 
 describe('facebookLandingCopy', () => {

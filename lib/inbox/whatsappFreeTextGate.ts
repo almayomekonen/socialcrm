@@ -13,7 +13,9 @@ export type FreeTextGateResult = { ok: true } | { ok: false; reason: FreeTextGat
 
 /**
  * Server-side free-text guard. Same health-then-window rule as the composer.
- * CLOSED / UNKNOWN / non-operational health never reach Graph as session text.
+ * CLOSED / UNKNOWN / non-operational health never reach Graph as session text —
+ * except `throttled`, which means the status probe was rate-limited rather than
+ * the connection being broken.
  */
 export async function assertWhatsappFreeTextAllowed(
   input: {
@@ -40,7 +42,15 @@ export async function assertWhatsappFreeTextAllowed(
   }
 
   const ctx = await loadWhatsappComposerContext(input.agencyId, scope.conversationId, { deps: injected })
-  if (ctx.health !== 'operational') {
+  // `throttled` passes. Meta rate-limited our status PROBE (#80008), so the check
+  // could not run — an absence of information, not evidence of a fault. The
+  // credential here is the same one the probe was using, so a genuinely dead
+  // token still fails at Graph and reports itself. Refusing on "we could not
+  // check" would turn a transient Meta limit into an outage.
+  //
+  // Every genuinely broken state — token, restricted, webhook,
+  // registration_pending, unknown, disconnected — still blocks, unchanged.
+  if (ctx.health !== 'operational' && ctx.health !== 'throttled') {
     return { ok: false, reason: 'health-blocked' }
   }
 
