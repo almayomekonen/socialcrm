@@ -10,7 +10,7 @@
 // This walks one media echo the whole way — parse → insert → map → render — so
 // the flattening cannot come back, and pins that a plain text echo is unchanged.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Knex } from 'knex'
 import { parseMessageEchoes } from '@/lib/whatsapp/parseMessageEcho'
@@ -492,5 +492,198 @@ describe('image is the bubble — timestamp overlays the photo', () => {
   it('omits the overlay entirely when no timestamp is supplied', () => {
     const { container } = render(<WhatsappAttachment messageId={4} attachment={photo} />)
     expect(container.querySelector('[aria-hidden="true"]')).toBeNull()
+  })
+})
+
+/**
+ * Voice-note playback mechanics.
+ *
+ * jsdom ships no HTMLMediaElement implementation — `duration` is NaN, `play()`
+ * throws "not implemented" — so the element is stubbed and the real media events
+ * are dispatched. That is the point: the UI must be driven by what the element
+ * reports, so the test drives the element and asserts the UI follows.
+ */
+describe('voice note — element-driven playback', () => {
+  const audioAttachment = { filename: null, mimeType: 'audio/ogg' }
+
+  type Stub = { el: HTMLAudioElement; setTime: (t: number) => void; setDuration: (d: number) => void; playSpy: ReturnType<typeof vi.fn>; pauseSpy: ReturnType<typeof vi.fn> }
+
+  function stubAudio(el: HTMLAudioElement, opts: { duration?: number; seekableEnd?: number } = {}): Stub {
+    let dur = opts.duration ?? NaN
+    let cur = 0
+    let paused = true
+    const seekableEnd = opts.seekableEnd ?? 0
+    Object.defineProperty(el, 'duration', { configurable: true, get: () => dur })
+    Object.defineProperty(el, 'currentTime', { configurable: true, get: () => cur, set: (v: number) => { cur = v } })
+    Object.defineProperty(el, 'paused', { configurable: true, get: () => paused })
+    Object.defineProperty(el, 'seekable', {
+      configurable: true,
+      get: () => ({ length: seekableEnd > 0 ? 1 : 0, end: () => seekableEnd }),
+    })
+    const playSpy = vi.fn(async () => { paused = false; fireEvent(el, new Event('play')) })
+    const pauseSpy = vi.fn(() => { paused = true; fireEvent(el, new Event('pause')) })
+    el.play = playSpy as unknown as HTMLAudioElement['play']
+    el.pause = pauseSpy as unknown as HTMLAudioElement['pause']
+    return {
+      el, playSpy, pauseSpy,
+      setTime: (t: number) => { cur = t; fireEvent(el, new Event('timeupdate')) },
+      setDuration: (d: number) => { dur = d; fireEvent(el, new Event('loadedmetadata')) },
+    }
+  }
+
+  const slider = (c: HTMLElement) => c.querySelector('input[type=range]') as HTMLInputElement
+  const audioEl = (c: HTMLElement) => c.querySelector('audio') as HTMLAudioElement
+
+  it('renders two independent players in one conversation', () => {
+    const { container } = render(
+      <div>
+        <WhatsappAttachment messageId={1} attachment={audioAttachment} />
+        <WhatsappAttachment messageId={2} attachment={audioAttachment} />
+      </div>,
+    )
+    const audios = container.querySelectorAll('audio')
+    expect(audios).toHaveLength(2)
+    expect(audios[0].getAttribute('src')).toBe('/api/whatsapp/media/1')
+    expect(audios[1].getAttribute('src')).toBe('/api/whatsapp/media/2')
+    expect(screen.getAllByRole('button', { name: 'נגן הקלטה' })).toHaveLength(2)
+  })
+
+  it('playing B never pauses A — the invariant', () => {
+    const { container } = render(
+      <div>
+        <WhatsappAttachment messageId={1} attachment={audioAttachment} />
+        <WhatsappAttachment messageId={2} attachment={audioAttachment} />
+      </div>,
+    )
+    const [a, b] = [...container.querySelectorAll('audio')] as HTMLAudioElement[]
+    const sa = stubAudio(a, { duration: 10 })
+    const sb = stubAudio(b, { duration: 10 })
+    const buttons = screen.getAllByRole('button', { name: 'נגן הקלטה' })
+    fireEvent.click(buttons[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'נגן הקלטה' })[0]) // B's button (A is now "השהה")
+    expect(sa.playSpy).toHaveBeenCalled()
+    expect(sb.playSpy).toHaveBeenCalled()
+    expect(sa.pauseSpy).not.toHaveBeenCalled()
+  })
+
+  it('each player keeps its own playing state and its own position', () => {
+    const { container } = render(
+      <div>
+        <WhatsappAttachment messageId={1} attachment={audioAttachment} />
+        <WhatsappAttachment messageId={2} attachment={audioAttachment} />
+      </div>,
+    )
+    const [a, b] = [...container.querySelectorAll('audio')] as HTMLAudioElement[]
+    const sa = stubAudio(a, { duration: 20 })
+    stubAudio(b, { duration: 20 })
+    sa.setDuration(20)
+    fireEvent.click(screen.getAllByRole('button', { name: 'נגן הקלטה' })[0])
+    sa.setTime(7)
+    // A is playing and at 0:07; B is untouched.
+    expect(screen.getAllByRole('button', { name: 'השהה הקלטה' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'נגן הקלטה' })).toHaveLength(1)
+    const sliders = container.querySelectorAll('input[type=range]')
+    expect(Number((sliders[0] as HTMLInputElement).value)).toBeCloseTo(7)
+    expect(Number((sliders[1] as HTMLInputElement).value)).toBe(0)
+  })
+
+  it('loadedmetadata takes the duration from the element', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    stubAudio(audioEl(container), { duration: 12.5 }).setDuration(12.5)
+    expect(screen.getByText('0:00 / 0:12')).toBeTruthy()
+    expect(Number(slider(container).max)).toBeCloseTo(12.5)
+    expect(slider(container).disabled).toBe(false)
+  })
+
+  it('timeupdate moves both the readout and the bar to the real position', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: 60 })
+    s.setDuration(60)
+    s.setTime(33)
+    expect(screen.getByText('0:33 / 1:00')).toBeTruthy()
+    expect(Number(slider(container).value)).toBeCloseTo(33)
+  })
+
+  it('seeking writes to audio.currentTime and the UI follows immediately', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: 40 })
+    s.setDuration(40)
+    fireEvent.change(slider(container), { target: { value: '25' } })
+    expect(audioEl(container).currentTime).toBe(25)
+    expect(Number(slider(container).value)).toBeCloseTo(25)
+    expect(screen.getByText('0:25 / 0:40')).toBeTruthy()
+  })
+
+  it('pause freezes the bar at the real position', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: 30 })
+    s.setDuration(30)
+    fireEvent.click(screen.getByRole('button', { name: 'נגן הקלטה' }))
+    s.setTime(9)
+    fireEvent.click(screen.getByRole('button', { name: 'השהה הקלטה' }))
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' })).toBeTruthy()
+    expect(Number(slider(container).value)).toBeCloseTo(9)
+    expect(screen.getByText('0:09 / 0:30')).toBeTruthy()
+  })
+
+  it('ended returns to the play state with the bar at the end', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: 15 })
+    s.setDuration(15)
+    fireEvent.click(screen.getByRole('button', { name: 'נגן הקלטה' }))
+    s.setTime(14.7)
+    fireEvent(audioEl(container), new Event('ended'))
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' })).toBeTruthy()
+    expect(Number(slider(container).value)).toBeCloseTo(15)
+    expect(screen.getByText('0:15 / 0:15')).toBeTruthy()
+  })
+
+  it('never renders NaN or Infinity before metadata exists', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    stubAudio(audioEl(container), { duration: NaN })
+    fireEvent(audioEl(container), new Event('loadedmetadata'))
+    const v = slider(container)
+    expect(v.disabled).toBe(true)
+    expect(Number(v.value)).toBe(0)
+    expect(container.textContent).not.toMatch(/NaN|Infinity/)
+    expect(screen.getByText('0:00 / 0:00')).toBeTruthy()
+  })
+
+  it('recovers a usable length when the element reports Infinity', () => {
+    // The media route sends no Range support, so browsers commonly report an
+    // infinite duration until the whole file is buffered. The seekable end is
+    // the fallback that keeps the bar alive instead of freezing it.
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: Infinity, seekableEnd: 8 })
+    s.setDuration(Infinity)
+    expect(slider(container).disabled).toBe(false)
+    expect(Number(slider(container).max)).toBeCloseTo(8)
+    expect(screen.getByText('0:00 / 0:08')).toBeTruthy()
+    expect(container.textContent).not.toMatch(/NaN|Infinity/)
+  })
+
+  it('an element error clears the playing state and falls back to the file card', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: 10 })
+    s.setDuration(10)
+    fireEvent.click(screen.getByRole('button', { name: 'נגן הקלטה' }))
+    fireEvent(audioEl(container), new Event('error'))
+    expect(container.querySelector('audio')).toBeNull()
+    expect(screen.getByRole('link', { name: /פתח את הקובץ/ })).toBeTruthy()
+  })
+
+  it('gives the readout breathing room from the rail', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const col = slider(container).parentElement as HTMLElement
+    expect(col.getAttribute('class')).toContain('gap-2')
+    expect(col.getAttribute('class')).not.toContain('gap-1')
+  })
+
+  it('keeps the row compact and the controls accessible', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const row = container.querySelector('div.flex.items-center') as HTMLElement
+    expect(row.getAttribute('class')).toContain('w-[230px]')
+    expect(screen.getByRole('slider', { name: 'מיקום בהקלטה' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' }).getAttribute('class')).toContain('focus-visible:ring-2')
   })
 })

@@ -61,6 +61,33 @@ export function isAudioAttachment(mimeType: string | null | undefined): boolean 
 /** Shown for a voice note, which WhatsApp sends with no filename at all. */
 export const UNNAMED_AUDIO_LABEL = 'הקלטה מוואטסאפ'
 
+/**
+ * A duration we can actually put on a progress bar.
+ *
+ * `HTMLMediaElement.duration` is `NaN` before metadata and, for a response
+ * served without Range support, frequently `Infinity` until the whole file has
+ * been buffered — which is exactly what the WhatsApp media route sends. The old
+ * code collapsed anything non-finite to 0, which disabled the seek bar and froze
+ * the readout at `0:00 / 0:00` while the audio played on. Falling back to the
+ * browser's own seekable end recovers a usable length in that case.
+ */
+export function resolveMediaDuration(rawDuration: number, seekableEnd: number): number {
+  if (Number.isFinite(rawDuration) && rawDuration > 0) return rawDuration
+  if (Number.isFinite(seekableEnd) && seekableEnd > 0) return seekableEnd
+  return 0
+}
+
+/**
+ * Keep a playback position inside the track. Guards the progress control against
+ * ever receiving NaN, Infinity or a value past the end — any of which make a
+ * range input render at a nonsense position.
+ */
+export function clampPlaybackTime(time: number, duration: number): number {
+  if (!Number.isFinite(time) || time < 0) return 0
+  if (!Number.isFinite(duration) || duration <= 0) return 0
+  return Math.min(time, duration)
+}
+
 /** Authenticated download path for a message's media. */
 export function attachmentHref(messageId: number): string {
   return `/api/whatsapp/media/${messageId}`

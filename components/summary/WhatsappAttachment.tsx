@@ -8,7 +8,9 @@ import {
   attachmentHref,
   fileKindLabel,
   isAudioAttachment,
+  clampPlaybackTime,
   isImageAttachment,
+  resolveMediaDuration,
   UNNAMED_ATTACHMENT_LABEL,
 } from '@/lib/inbox/attachmentDisplay'
 
@@ -138,6 +140,12 @@ function VoiceNote({
   onFailed: () => void
   timestampLabel?: string
 }) {
+  /**
+   * Every instance owns its own element and its own state — no shared store, no
+   * singleton, and nothing here ever touches another player. Starting a second
+   * voice note therefore cannot stop the first: two recordings play at once,
+   * which is the behaviour a rep expects when comparing them.
+   */
   const ref = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
@@ -146,37 +154,81 @@ function VoiceNote({
   const toggle = useCallback(() => {
     const el = ref.current
     if (!el) return
-    if (el.paused) void el.play().catch(onFailed)
-    else el.pause()
+    if (el.paused) {
+      void el.play().catch(() => {
+        setPlaying(false)
+        onFailed()
+      })
+    } else {
+      el.pause()
+    }
   }, [onFailed])
 
+  /**
+   * The ELEMENT is the source of truth. Every value on screen is read back off it
+   * in a media event — never a timer, never wall-clock arithmetic — so the bar
+   * cannot drift away from what is actually being heard.
+   */
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const onTime = () => setCurrent(el.currentTime)
-    const onMeta = () => setDuration(Number.isFinite(el.duration) ? el.duration : 0)
+
+    const readDuration = () => {
+      let seekableEnd = 0
+      try {
+        if (el.seekable && el.seekable.length > 0) seekableEnd = el.seekable.end(el.seekable.length - 1)
+      } catch {
+        seekableEnd = 0
+      }
+      return resolveMediaDuration(el.duration, seekableEnd)
+    }
+
+    const sync = () => {
+      const d = readDuration()
+      setDuration(d)
+      setCurrent(clampPlaybackTime(el.currentTime, d))
+    }
     const onPlay = () => setPlaying(true)
     const onPause = () => setPlaying(false)
-    el.addEventListener('timeupdate', onTime)
-    el.addEventListener('loadedmetadata', onMeta)
-    el.addEventListener('durationchange', onMeta)
-    el.addEventListener('play', onPlay)
-    el.addEventListener('pause', onPause)
-    el.addEventListener('ended', onPause)
-    return () => {
-      el.removeEventListener('timeupdate', onTime)
-      el.removeEventListener('loadedmetadata', onMeta)
-      el.removeEventListener('durationchange', onMeta)
-      el.removeEventListener('play', onPlay)
-      el.removeEventListener('pause', onPause)
-      el.removeEventListener('ended', onPause)
+    const onEnded = () => {
+      // Land the bar exactly on the end; the last `timeupdate` usually fires a
+      // fraction short, which leaves the track looking unfinished.
+      const d = readDuration()
+      setDuration(d)
+      setCurrent(d)
+      setPlaying(false)
     }
-  }, [])
+    const onError = () => {
+      setPlaying(false)
+      onFailed()
+    }
 
-  const max = duration > 0 ? duration : 0
+    for (const ev of ['loadedmetadata', 'durationchange', 'timeupdate', 'seeking', 'seeked', 'progress'] as const) {
+      el.addEventListener(ev, sync)
+    }
+    el.addEventListener('play', onPlay)
+    el.addEventListener('playing', onPlay)
+    el.addEventListener('pause', onPause)
+    el.addEventListener('ended', onEnded)
+    el.addEventListener('error', onError)
+    sync()
+
+    return () => {
+      for (const ev of ['loadedmetadata', 'durationchange', 'timeupdate', 'seeking', 'seeked', 'progress'] as const) {
+        el.removeEventListener(ev, sync)
+      }
+      el.removeEventListener('play', onPlay)
+      el.removeEventListener('playing', onPlay)
+      el.removeEventListener('pause', onPause)
+      el.removeEventListener('ended', onEnded)
+      el.removeEventListener('error', onError)
+    }
+  }, [onFailed])
+
+  const seekable = duration > 0
   return (
     <div className='flex w-[230px] max-w-full items-center gap-2'>
-      <audio ref={ref} src={src} preload='metadata' onError={onFailed} className='hidden' />
+      <audio ref={ref} src={src} preload='metadata' className='hidden' />
       <button
         type='button'
         onClick={toggle}
@@ -185,20 +237,23 @@ function VoiceNote({
       >
         <Icon name={playing ? 'pause' : 'play'} type='sol' className='size-3.5 bg-white' />
       </button>
-      <div className='flex min-w-0 flex-1 flex-col gap-1'>
+      {/* gap-2 rather than gap-1: the numbers were sitting on the rail. */}
+      <div className='flex min-w-0 flex-1 flex-col gap-2'>
         <input
           type='range'
           min={0}
-          max={max || 1}
-          step={0.1}
-          value={Math.min(current, max || 1)}
-          disabled={max === 0}
+          max={seekable ? duration : 1}
+          step='any'
+          value={clampPlaybackTime(current, seekable ? duration : 1)}
+          disabled={!seekable}
           aria-label='מיקום בהקלטה'
           onChange={(e) => {
             const el = ref.current
-            if (!el) return
-            el.currentTime = Number(e.target.value)
-            setCurrent(Number(e.target.value))
+            if (!el || !seekable) return
+            const next = clampPlaybackTime(Number(e.target.value), duration)
+            el.currentTime = next
+            // Optimistic, then `seeked` re-reads the element in case it clamped.
+            setCurrent(next)
           }}
           className='h-1 w-full cursor-pointer accent-solid'
         />
