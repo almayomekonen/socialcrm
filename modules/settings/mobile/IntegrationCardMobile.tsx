@@ -24,7 +24,7 @@ export default function IntegrationCardMobile({
   leading: ReactNode
   statusLabel: string
   explanation: string
-  actionLabel: string
+  actionLabel?: string
   role: StatusRole
   onAction?: () => void
   actionHref?: string
@@ -46,21 +46,28 @@ export default function IntegrationCardMobile({
         </div>
       </div>
 
-      {actionHref ? (
-        <a href={actionHref} className={`${actionClass} mt-4`}>
-          {actionLabel}
-        </a>
-      ) : (
-        <button
-          type='button'
-          className={`${actionClass} mt-4`}
-          onClick={onAction}
-          disabled={actionDisabled}
-          aria-busy={actionDisabled || undefined}
-        >
-          {actionLabel}
-        </button>
-      )}
+      {/*
+        No label, no control. A state that needs nothing from the owner should
+        not present a button — a transient Meta rate limit is information, not a
+        task. Every other state still passes a label and renders exactly as
+        before.
+      */}
+      {actionLabel &&
+        (actionHref ? (
+          <a href={actionHref} className={`${actionClass} mt-4`}>
+            {actionLabel}
+          </a>
+        ) : (
+          <button
+            type='button'
+            className={`${actionClass} mt-4`}
+            onClick={onAction}
+            disabled={actionDisabled}
+            aria-busy={actionDisabled || undefined}
+          >
+            {actionLabel}
+          </button>
+        ))}
     </article>
   )
 }

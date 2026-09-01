@@ -211,6 +211,21 @@ export const WHATSAPP_NOTICES: Record<string, ConnectionNotice> = {
     nextStep: 'להשבית זמנית את החוסם, או לנסות בדפדפן אחר.',
     action: SHARED.retry,
   },
+  /**
+   * Meta is rate-limiting our status probe (#80008).
+   *
+   * Deliberately reassuring and deliberately ACTIONLESS: the connection is fine,
+   * messages keep flowing, and the condition clears itself. No `action` field, so
+   * every surface that renders `notice.action` shows nothing to click — a
+   * reconnect here would spend more calls against an account already over its
+   * limit, which is the opposite of the fix.
+   */
+  throttled: {
+    tone: 'attention',
+    title: 'החיבור תקין — בדיקת הסטטוס מוגבלת זמנית',
+    explanation: 'מטא הגבילה זמנית את בדיקות הסטטוס. ההודעות והלידים ממשיכים לעבוד כרגיל.',
+    nextStep: SHARED.noActionNeeded,
+  },
   config: {
     tone: 'error',
     title: 'החיבור לוואטסאפ אינו זמין כרגע',

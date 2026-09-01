@@ -39,6 +39,7 @@ function noticeForHealth(status: WhatsappHealthPrimary) {
   if (status === 'restricted') return WHATSAPP_NOTICES.restricted
   if (status === 'token') return WHATSAPP_NOTICES.expired
   if (status === 'webhook') return WHATSAPP_NOTICES.webhook
+  if (status === 'throttled') return WHATSAPP_NOTICES.throttled
   if (status === 'unknown') return WHATSAPP_NOTICES.needs_verification
   return null
 }

@@ -58,7 +58,15 @@ export function resolveWhatsappComposerDecision(input: {
     return { ...blocked, kind: 'leadless' }
   }
 
-  if (health !== 'operational') {
+  // `throttled` passes. It means Meta rate-limited our STATUS PROBE — we could
+  // not check the connection — and that is not a reason to stop the rep sending.
+  // The send path has no health gate of its own and carries the same credential
+  // the probe was using, so if the token really were dead the send would fail and
+  // say so. Blocking on "we could not check" turns a Meta hiccup into an outage.
+  //
+  // Every genuinely broken state — token, webhook, restricted, registration
+  // pending, unknown — still blocks exactly as before.
+  if (health !== 'operational' && health !== 'throttled') {
     return { ...blocked, kind: 'health_blocked' }
   }
 
@@ -86,6 +94,7 @@ export function noticeForComposerHealth(health: WhatsappHealthPrimary): Connecti
   if (health === 'restricted') return WHATSAPP_NOTICES.restricted
   if (health === 'token') return WHATSAPP_NOTICES.expired
   if (health === 'webhook') return WHATSAPP_NOTICES.webhook
+  if (health === 'throttled') return WHATSAPP_NOTICES.throttled
   if (health === 'unknown') return WHATSAPP_NOTICES.needs_verification
   return null
 }
