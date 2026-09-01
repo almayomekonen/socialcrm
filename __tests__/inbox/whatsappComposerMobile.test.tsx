@@ -33,6 +33,7 @@ const inboundClosed = [
     status: 'received' as const,
     failureText: null,
     failureCategory: null,
+    attachment: null,
   },
 ]
 

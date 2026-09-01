@@ -83,6 +83,7 @@ describe('mobile conversation uses the sheet picker', () => {
             status: 'received',
             failureText: null,
             failureCategory: null,
+            attachment: null,
           },
         ]}
         composerFacts={{

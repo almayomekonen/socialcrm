@@ -432,16 +432,23 @@ describe('production audit follow-ups', () => {
   })
 
   /**
-   * Proven against production data: every "—" message is `type: 'audio'` with
-   * `text: ''`. Zero null-text rows in the sampled conversation. The em-dash is a
-   * TEXT-ABSENCE fallback for voice notes, NOT entitlement suppression — so read
-   * access is correct and must not be "fixed".
+   * Proven against production data: every "—" message is media with `text: ''` —
+   * originally `type: 'audio'` voice notes, and later the PDFs a print-shop
+   * customer sent. Zero null-text rows in the sampled conversation. The em-dash
+   * is a TEXT-ABSENCE fallback, NOT entitlement suppression — so read access is
+   * correct and must not be "fixed".
+   *
+   * Media now renders as an attachment and an unsupported type gets an honest
+   * notice, so the fallback no longer swallows files. The invariant this test
+   * exists for is unchanged: the text branch is never gated by entitlement, and
+   * "—" is still what a bodyless TEXT message shows.
    */
   it('message text is never gated by entitlement — the em-dash is absence, not suppression', () => {
     const src = read('components/summary/WhatsappConversation.tsx')
-    expect(src).toContain("{m.text || '—'}")
+    expect(src).toContain('{m.text ||')
+    expect(src).toContain("'—'")
     // The renderer must not consult entitlement for message BODIES.
-    const textLine = src.indexOf("{m.text || '—'}")
+    const textLine = src.indexOf('{m.text ||')
     const before = src.slice(0, textLine)
     expect(before).not.toContain('useAccessDenied')
     expect(before).not.toContain('hasAccess')

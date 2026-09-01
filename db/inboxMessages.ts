@@ -219,6 +219,65 @@ export async function insertHistoryMessage(
   })
 }
 
+/**
+ * The ONLY attachment shape a client ever sees.
+ *
+ * Deliberately excludes the WhatsApp media id, Meta's media `url`, `sha256` and
+ * the raw payload. The media id is the capability to fetch the file; it stays
+ * server-side and is re-derived by the download route from the message row, so
+ * a leaked client payload can never be replayed against Graph.
+ */
+export type InboxMessageAttachment = {
+  filename: string | null
+  mimeType: string | null
+}
+
+/** Message types that can carry a fetchable media file. */
+export const ATTACHMENT_MEDIA_TYPES: ReadonlySet<string> = new Set([
+  'document',
+  'image',
+  'audio',
+  'video',
+  'sticker',
+])
+
+const MAX_FILENAME_CHARS = 120
+
+/**
+ * A customer controls this string. Stripping CR/LF and control characters here
+ * — not only at the response — is what stops a filename like
+ * `x.pdf\r\nSet-Cookie: …` from becoming a header injection downstream.
+ */
+export function sanitizeAttachmentFilename(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const cleaned = raw.replace(/[\r\n\t\u0000-\u001F\u007F]/g, '').trim()
+  return cleaned ? cleaned.slice(0, MAX_FILENAME_CHARS) : null
+}
+
+/** Accept only a well-formed `type/subtype`; parameters (`; charset=…`) dropped. */
+export function sanitizeAttachmentMime(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const bare = raw.split(';')[0].trim().toLowerCase()
+  return /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(bare) ? bare : null
+}
+
+/**
+ * Row payload → the safe client shape. Returns null unless the message is a
+ * supported media type AND carries a media id, because without an id the file
+ * can never be fetched and an "open" action would be a lie.
+ */
+export function toSafeAttachment(type: unknown, payload: unknown): InboxMessageAttachment | null {
+  if (typeof type !== 'string' || !ATTACHMENT_MEDIA_TYPES.has(type)) return null
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
+  const p = payload as Record<string, unknown>
+  const mediaId = typeof p.id === 'string' ? p.id.trim() : ''
+  if (!mediaId) return null
+  return {
+    filename: sanitizeAttachmentFilename(p.filename),
+    mimeType: sanitizeAttachmentMime(p.mime_type),
+  }
+}
+
 export type LeadWhatsappMessage = {
   id: number
   direction: InboxMessageDirection
@@ -231,6 +290,8 @@ export type LeadWhatsappMessage = {
   failureText: string | null
   /** Allowlisted failure category (the persisted errorReason key). Null unless failed. */
   failureCategory: WhatsappErrorCategory | null
+  /** Safe media metadata for an inbound file. Null for text and unsupported types. */
+  attachment: InboxMessageAttachment | null
 }
 
 /** Compact status projection for the sync delta (status changes mutate old rows). */
@@ -247,6 +308,7 @@ const LEAD_MESSAGE_COLUMNS = [
   'm.direction',
   'm.type',
   'm.text',
+  'm.payload',
   'm.status',
   'm.errorReason',
   'm.channelTimestamp',
@@ -286,6 +348,7 @@ export function mapLeadWhatsappMessageRow(r: Record<string, unknown>): LeadWhats
     status,
     failureText: failureTextForRow(status, r.errorReason),
     failureCategory: failureCategoryForRow(status, r.errorReason),
+    attachment: toSafeAttachment(r.type, r.payload),
   }
 }
 

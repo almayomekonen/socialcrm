@@ -2,6 +2,8 @@
 
 import BottomSheet from '@/components/mobile/BottomSheet'
 import Icon, { type IconNames } from '@/lib/Icon'
+import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
+import { UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
 import { toast } from '@/lib/toast'
 import useLongPress from '@/components/mobile/useLongPress'
 import { formatTime } from '@/lib/dates'
@@ -29,6 +31,11 @@ export function MessageBubbleMobile({
   const longPress = useLongPress(onOpen, Boolean(message.text?.trim()))
   const tick = outbound ? TICK[message.status] : undefined
   const failed = outbound && message.status === 'failed'
+  /**
+   * An unsupported type must never render as an empty bubble — that is exactly
+   * what made a received PDF look like nothing had arrived.
+   */
+  const body = message.text || (message.attachment || message.type === 'text' ? '' : UNSUPPORTED_MESSAGE_NOTICE)
 
   return (
     <li className={`flex ${outbound ? 'justify-start' : 'justify-end'}`}>
@@ -45,7 +52,8 @@ export function MessageBubbleMobile({
         {...longPress}
       >
         <span className='sr-only'>{outbound ? 'הודעה שנשלחה מהמערכת' : 'הודעה נכנסת'}</span>
-        <p className='whitespace-pre-wrap wrap-break-word'>{message.text}</p>
+        {message.attachment && <WhatsappAttachment messageId={message.id} attachment={message.attachment} />}
+        {body && <p className='whitespace-pre-wrap wrap-break-word'>{body}</p>}
         <div className='mt-0.5 flex items-center justify-end gap-1'>
           <span
             dir='ltr'

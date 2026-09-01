@@ -7,6 +7,8 @@ import WhatsappConversationHeader from '@/components/summary/WhatsappConversatio
 import WhatsappMessageStatus from '@/components/summary/WhatsappMessageStatus'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
+import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
+import { UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
 
 const WALLPAPER =
   'bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]'
@@ -113,9 +115,10 @@ export default function WhatsappConversation({
                     }`}
                   >
                     <span className='sr-only'>{inbound ? 'הודעה נכנסת' : 'הודעה שנשלחה מהמערכת'}</span>
+                    {m.attachment && <WhatsappAttachment messageId={m.id} attachment={m.attachment} />}
                     <div className='flex items-end gap-2'>
                       <p className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'>
-                        {m.text || '—'}
+                        {m.text || (m.attachment ? '' : m.type === 'text' ? '—' : UNSUPPORTED_MESSAGE_NOTICE)}
                       </p>
                       <span
                         dir='ltr'

@@ -11,6 +11,7 @@ const msg = (id: number, status: LeadWhatsappMessage['status']): LeadWhatsappMes
   status,
   failureText: null,
   failureCategory: null,
+  attachment: null,
 })
 
 describe('applyStatusesToMessages', () => {

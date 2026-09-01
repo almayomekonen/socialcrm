@@ -38,6 +38,7 @@ const msg = (over: Partial<LeadWhatsappMessage> = {}): LeadWhatsappMessage => ({
   text: 'שלום',
   timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   status: 'received',
+  attachment: null,
   failureText: null,
   failureCategory: null,
   ...over,

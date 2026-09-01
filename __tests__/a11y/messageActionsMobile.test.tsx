@@ -40,6 +40,7 @@ describe('mobile message long-press', () => {
             status: 'received',
             failureText: null,
             failureCategory: null,
+            attachment: null,
           },
         ]}
         composerFacts={{ health: 'operational', templatesEnabled: false, templates: [], canManageTemplates: false }}
