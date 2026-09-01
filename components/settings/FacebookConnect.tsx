@@ -127,25 +127,21 @@ export default function FacebookConnect({
         {needsReconnect && <ConnectionNotice notice={FACEBOOK_NOTICES.expired} />}
         {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}
         {/*
-          Comment-text reconnect. Suppressed while `needsReconnect` is showing —
-          a dead token is the bigger problem and reconnecting fixes both, so two
-          competing reconnect prompts would be noise with one shared cure.
+          The comment-text notice and its reconnect CTA are deliberately NOT
+          rendered. Suppressed, not deleted.
+
+          `pages_read_user_content` is unapproved, so the capability check reports
+          the permission missing and this notice fired — while comments arrive
+          with their text, the Page is connected, and לידים keep coming. It told
+          customers something was broken that demonstrably works, and its CTA sent
+          them through a reconnect that fixes nothing. A notice that is wrong in
+          production is worse than no notice.
+
+          The detection stays wired end to end — `getFacebookCommentTextCapability`
+          in LeadSourcesSection, the `commentsNeedReconnect` prop, and this branch
+          — so restoring it is a JSX change here, once the permission is approved
+          AND its absence genuinely degrades what the customer sees.
         */}
-        {!needsReconnect && commentsNeedReconnect && (
-          <>
-            <ConnectionNotice notice={FACEBOOK_NOTICES.comments_permission} />
-            <div className='w-fit'>
-              <Btn
-                lbl={loading ? 'מעביר לפייסבוק...' : (FACEBOOK_NOTICES.comments_permission.action ?? SHARED.reconnect)}
-                icon={loading ? 'spinner' : 'facebook'}
-                iconClassName={loading ? 'animate-spin' : undefined}
-                disabled={loading}
-                className='w-fit'
-                onClick={redirectToOAuth}
-              />
-            </div>
-          </>
-        )}
         {needsReconnect && (
           <div data-edu='facebook-connect' className='w-fit'>
           <Btn

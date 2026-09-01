@@ -31,7 +31,11 @@ import WhatsappConnect from '@/components/settings/WhatsappConnect'
 
 const PHONE_ID = '972007939322425'
 const base = { pendingPhones: null, appId: 'a', configId: 'c', graphVersion: 'v19.0' as const }
-const COEX = /סנכרן היסטוריית שיחות מהוואטסאפ/
+// The launch control on an existing connection is RECONNECT. These two cases
+// are about `useAction` independence, not about coexistence — they only ever
+// needed a control that starts a launch. The history-labelled button they used
+// to click no longer exists: it was Embedded Signup wearing history copy.
+const LAUNCH = /לחבר מחדש/
 const DISCONNECT = /נתק וואטסאפ/
 const DISCONNECTING = /מנתק\.\.\./
 const CONNECTING = /מתחבר\.\.\./
@@ -86,11 +90,11 @@ describe('1 · connect and disconnect own independent action state', () => {
     // A launch that never settles — exactly the stuck production case.
     H.launch = vi.fn(() => new Promise(() => {}))
     render(
-      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' coexistenceAvailable />,
+      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='token' />,
     )
 
     await act(async () => {
-      screen.getByRole('button', { name: COEX }).click()
+      screen.getByRole('button', { name: LAUNCH }).click()
     })
 
     // The connect button reflects its own work…
@@ -107,7 +111,7 @@ describe('1 · connect and disconnect own independent action state', () => {
     global.fetch = vi.fn(() => new Promise<Response>(() => {})) as never
 
     render(
-      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' coexistenceAvailable />,
+      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='token' />,
     )
     await act(async () => { screen.getByRole('button', { name: DISCONNECT }).click() })
     await act(async () => { screen.getByRole('button', { name: /אישור/ }).click() })
@@ -116,14 +120,14 @@ describe('1 · connect and disconnect own independent action state', () => {
     // The disconnect reflects its own work…
     expect(screen.getByRole('button', { name: DISCONNECTING })).toBeInTheDocument()
     // …and the connect action is untouched: original label, still enabled.
-    const connect = screen.getByRole('button', { name: COEX })
+    const connect = screen.getByRole('button', { name: LAUNCH })
     expect(connect).not.toBeDisabled()
     expect(screen.queryByRole('button', { name: CONNECTING })).not.toBeInTheDocument()
   })
 
   it('disconnect still requires explicit confirmation (protection preserved)', async () => {
     render(
-      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' coexistenceAvailable />,
+      <WhatsappConnect {...base} connection={{ phoneNumberId: PHONE_ID }} status='operational' />,
     )
     await act(async () => { screen.getByRole('button', { name: DISCONNECT }).click() })
     expect(global.fetch).not.toHaveBeenCalled()
