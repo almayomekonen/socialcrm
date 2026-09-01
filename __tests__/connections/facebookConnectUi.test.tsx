@@ -86,3 +86,49 @@ describe('Facebook recovery UX', () => {
     expect(document.body.textContent).not.toMatch(/\b999\b/)
   })
 })
+
+/**
+ * The comment-text permission notice is suppressed.
+ *
+ * Production 2026-09: `pages_read_user_content` is unapproved, so the capability
+ * check reported it missing and the settings page showed
+ * "תוכן התגובות עדיין לא זמין" with a "להתחבר שוב ולאשר" CTA — while comments
+ * were arriving WITH their text and לידים kept coming. The notice told customers
+ * something was broken that demonstrably worked, and its CTA led to a reconnect
+ * that changed nothing.
+ *
+ * `commentsNeedReconnect` is still computed and still passed. These tests pin
+ * that it renders nothing, so the notice cannot return by accident.
+ */
+describe('comment-text permission notice is not shown', () => {
+  const connected = {
+    connection: { pageId: '1', pageName: 'Socialcrm' },
+    pendingPages: null,
+    health: { tokenValid: true, permissionsOk: true, subscribed: true, needsReconnect: false, errors: [] },
+  }
+
+  it('renders no permission warning when the capability says the grant is missing', () => {
+    render(<FacebookConnect {...connected} commentsNeedReconnect />)
+    expect(screen.queryByText(/תוכן התגובות עדיין לא זמין/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /להתחבר שוב ולאשר/ })).not.toBeInTheDocument()
+  })
+
+  it('keeps the healthy state exactly as it was', () => {
+    render(<FacebookConnect {...connected} commentsNeedReconnect />)
+    expect(screen.getByText(/מחובר לדף/)).toBeInTheDocument()
+    expect(screen.getByText(/Socialcrm/)).toBeInTheDocument()
+    expect(screen.getByText(/החיבור תקין/)).toBeInTheDocument()
+  })
+
+  it('a genuinely expired token still gets its own reconnect prompt', () => {
+    // Suppressing the comment notice must not suppress real health warnings.
+    render(
+      <FacebookConnect
+        {...connected}
+        health={{ tokenValid: false, permissionsOk: true, subscribed: true, needsReconnect: true, errors: [] }}
+        commentsNeedReconnect
+      />,
+    )
+    expect(screen.getByText(/החיבור לפייסבוק פג/)).toBeInTheDocument()
+  })
+})
