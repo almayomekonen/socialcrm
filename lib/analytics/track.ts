@@ -101,6 +101,14 @@ export type AnalyticsEventName =
   | 'whatsapp_messaging_ready'
   | 'whatsapp_connected_operational'
   | 'whatsapp_connect_failed'
+  /**
+   * Terminal end of the WhatsApp lifecycle. The connection row is HARD
+   * deleted, so once it is gone the database holds no trace of when the
+   * disconnect happened, who did it, or from where — this event is the only
+   * durable record. Agency 130 disconnected an operational, lead-producing
+   * number and left us nothing to read; that is the gap this closes.
+   */
+  | 'whatsapp_disconnected'
   // --- First delivered value ---
   | 'activation_first_real_lead'
   // --- Meta Ads attribution ---

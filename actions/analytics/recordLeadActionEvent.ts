@@ -27,6 +27,13 @@ const CLIENT_EMITTABLE = new Set<AnalyticsEventName>([
   'first_run_viewed',
   'connection_offered',
   'connection_deferred',
+  /**
+   * The WhatsApp connect DENOMINATOR. It has to be client-emittable because the
+   * real entry point is the Meta Embedded Signup dialog launched in the browser
+   * — the server sees nothing until that dialog SUCCEEDS, which is exactly the
+   * abandonment this event exists to measure.
+   */
+  'whatsapp_connect_started',
 ])
 
 export type LeadActionSurface = 'mobile' | 'desktop'

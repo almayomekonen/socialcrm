@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
+import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import {
   createEmbeddedSignupGate,
   parseEmbeddedSignupMessage,
@@ -102,6 +103,19 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
   }, [])
 
   const launch = useCallback(async (): Promise<EmbeddedSignupResult> => {
+    /**
+     * DENOMINATOR of the WhatsApp connect funnel, and the only honest place for
+     * it: this is the click, before the Meta dialog opens. `/api/auth/whatsapp`
+     * also emits `whatsapp_connect_started`, but nothing in the product calls
+     * that route — which is why production shows 0 of these against 53
+     * `facebook_connect_started`.
+     *
+     * NOT awaited, and that is load-bearing, not laziness: the comment below
+     * spells out that an await here spends the user-activation token and the
+     * browser blocks the popup. Fire and forget only.
+     */
+    void recordLeadActionEvent('whatsapp_connect_started')
+
     // `window.FB` existing proves nothing: the loader stub installs a buffering
     // shim under that name, and FB.login on the shim is queued into
     // `FB.__buffer.calls` — no popup, no callback, no error. Gate on the REAL
