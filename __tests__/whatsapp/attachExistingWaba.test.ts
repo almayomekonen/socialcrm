@@ -77,6 +77,7 @@ function deps(overrides: Partial<AttachExistingWabaDeps> & { inserted?: Record<s
     fetchImpl: graphOkFetch(),
     isEnabled: () => true,
     findByPhone: async () => null,
+    rotateToken: async () => 1,
     findByAgency: async () => null,
     insertConnection: async (row) => {
       inserted.push(row)
@@ -189,7 +190,14 @@ describe('attachExistingWabaForUser', () => {
     const r = await attachExistingWabaForUser(
       ADMIN,
       VALID_INPUT,
-      deps({ inserted, findByPhone: async () => ({ agency_id: 64 }) }),
+      deps({
+        inserted,
+        findByPhone: async () => ({
+          agency_id: 64,
+          waba_id: MANUAL_ATTACH_WABA_ID,
+          onboarding_type: 'cloud_api',
+        }),
+      }),
     )
     expect(r).toEqual({ ok: false, reason: 'phone_claimed' })
     expect(inserted).toHaveLength(0)
@@ -284,5 +292,152 @@ describe('verifyManualAttachGraph', () => {
   it('rejects a different display number', async () => {
     const r = await verifyManualAttachGraph(VALID_INPUT, graphOkFetch({ display: '0549221572' }))
     expect(r).toEqual({ ok: false, reason: 'blocked_phone' })
+  })
+})
+
+/**
+ * Token rotation on an already-claimed phone.
+ *
+ * Production 2026-09-01: row 25's System User token expired (Graph 401 /
+ * OAuthException 190). Inbound kept working — webhooks need no token — but every
+ * outbound Graph call failed. The attach path was INSERT-only and refused a
+ * claimed phone outright, so the only way to install a new credential was to
+ * delete the row and re-attach: i.e. to disconnect the very connection being
+ * repaired, on a number whose WhatsApp Business App history must be preserved.
+ *
+ * Rotation replaces `access_token` in place, and only when the row is
+ * unmistakably the same connection.
+ */
+describe('attachExistingWabaForUser · token rotation', () => {
+  const CLAIMED = {
+    agency_id: MANUAL_ATTACH_AGENCY_ID,
+    waba_id: MANUAL_ATTACH_WABA_ID,
+    onboarding_type: 'cloud_api',
+  }
+
+  type RotateCall = { phoneNumberId: string; agencyId: number; wabaId: string; sealed: string }
+
+  function rotatingDeps(
+    claimed: { agency_id: number; waba_id: string; onboarding_type: string } | null,
+    calls: RotateCall[],
+    inserted: Record<string, unknown>[] = [],
+    affected = 1,
+  ) {
+    return deps({
+      inserted,
+      findByPhone: async () => claimed,
+      rotateToken: async (input) => {
+        calls.push(input)
+        return affected
+      },
+    })
+  }
+
+  it('a. rotates when agency, WABA and onboarding_type all match', async () => {
+    const calls: RotateCall[] = []
+    const inserted: Record<string, unknown>[] = []
+    const r = await attachExistingWabaForUser(ADMIN, VALID_INPUT, rotatingDeps(CLAIMED, calls, inserted))
+
+    expect(r).toEqual({ ok: true })
+    expect(calls).toHaveLength(1)
+    expect(inserted).toHaveLength(0) // never insert; never delete/recreate
+  })
+
+  it('b. refuses a phone claimed by a DIFFERENT agency', async () => {
+    const calls: RotateCall[] = []
+    const r = await attachExistingWabaForUser(
+      ADMIN,
+      VALID_INPUT,
+      rotatingDeps({ ...CLAIMED, agency_id: 64 }, calls),
+    )
+    expect(r).toEqual({ ok: false, reason: 'phone_claimed' })
+    expect(calls).toHaveLength(0) // no write attempted at all
+  })
+
+  it('c. refuses when the stored WABA differs', async () => {
+    const calls: RotateCall[] = []
+    const r = await attachExistingWabaForUser(
+      ADMIN,
+      VALID_INPUT,
+      rotatingDeps({ ...CLAIMED, waba_id: '999999999999999' }, calls),
+    )
+    expect(r).toEqual({ ok: false, reason: 'phone_claimed' })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('d. refuses a row that is not cloud_api', async () => {
+    // A coexistence row is a different lifecycle and is not this path's to touch.
+    const calls: RotateCall[] = []
+    const r = await attachExistingWabaForUser(
+      ADMIN,
+      VALID_INPUT,
+      rotatingDeps({ ...CLAIMED, onboarding_type: 'coexistence' }, calls),
+    )
+    expect(r).toEqual({ ok: false, reason: 'phone_claimed' })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('e. touches ONLY access_token — identity columns are guards, never writes', async () => {
+    const calls: RotateCall[] = []
+    await attachExistingWabaForUser(ADMIN, VALID_INPUT, rotatingDeps(CLAIMED, calls))
+
+    // The only value carried to the writer is the sealed token. Every other
+    // field is an identity guard the UPDATE matches on, so id / user_id /
+    // created_at / onboarding_type / health_status cannot be reached from here.
+    expect(Object.keys(calls[0]).sort()).toEqual(['agencyId', 'phoneNumberId', 'sealed', 'wabaId'])
+    expect(calls[0].phoneNumberId).toBe(MANUAL_ATTACH_PHONE_NUMBER_ID)
+    expect(calls[0].wabaId).toBe(MANUAL_ATTACH_WABA_ID)
+    expect(calls[0].agencyId).toBe(MANUAL_ATTACH_AGENCY_ID)
+  })
+
+  it('f. stores the token SEALED, never the raw value', async () => {
+    const calls: RotateCall[] = []
+    await attachExistingWabaForUser(ADMIN, VALID_INPUT, rotatingDeps(CLAIMED, calls))
+
+    const { sealed } = calls[0]
+    expect(sealed.startsWith(WHATSAPP_TOKEN_SEAL_PREFIX)).toBe(true)
+    expect(sealed).not.toBe(TOKEN)
+    expect(sealed).not.toContain(TOKEN)
+    expect(resolveWhatsappAccessToken(sealed)).toBe(TOKEN)
+  })
+
+  it('validates the new token against Graph BEFORE writing anything', async () => {
+    // A dead credential must never replace a live one.
+    const calls: RotateCall[] = []
+    const r = await attachExistingWabaForUser(ADMIN, VALID_INPUT, {
+      ...rotatingDeps(CLAIMED, calls),
+      fetchImpl: graphOkFetch({ tokenBad: true }),
+    })
+    expect(r).toEqual({ ok: false, reason: 'graph_token' })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a token that cannot see the app subscription', async () => {
+    const calls: RotateCall[] = []
+    const r = await attachExistingWabaForUser(ADMIN, VALID_INPUT, {
+      ...rotatingDeps(CLAIMED, calls),
+      fetchImpl: graphOkFetch({ subscribed: false }),
+    })
+    expect(r).toEqual({ ok: false, reason: 'not_subscribed' })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('reports db_error when the guarded UPDATE matches no row', async () => {
+    // The guards live in the WHERE clause, so a row that changed underneath us
+    // updates zero rows rather than being silently overwritten.
+    const calls: RotateCall[] = []
+    const r = await attachExistingWabaForUser(ADMIN, VALID_INPUT, rotatingDeps(CLAIMED, calls, [], 0))
+    expect(r).toEqual({ ok: false, reason: 'db_error' })
+  })
+
+  it('still refuses a non-admin and a foreign agency before reaching rotation', async () => {
+    const calls: RotateCall[] = []
+    expect(
+      await attachExistingWabaForUser({ ...ADMIN, role: 'AGNT' }, VALID_INPUT, rotatingDeps(CLAIMED, calls)),
+    ).toEqual({ ok: false, reason: 'forbidden' })
+    expect(
+      await attachExistingWabaForUser({ ...ADMIN, agencyId: 23 }, VALID_INPUT, rotatingDeps(CLAIMED, calls)),
+    ).toEqual({ ok: false, reason: 'agency_not_allowed' })
+    expect(calls).toHaveLength(0)
   })
 })

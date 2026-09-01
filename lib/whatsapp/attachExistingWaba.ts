@@ -54,7 +54,24 @@ type GraphErrorBody = { error?: { code?: number; message?: string } }
 export type AttachExistingWabaDeps = {
   fetchImpl: typeof fetch
   isEnabled: () => boolean
-  findByPhone: (phoneNumberId: string) => Promise<{ agency_id: number } | null>
+  findByPhone: (
+    phoneNumberId: string,
+  ) => Promise<{ agency_id: number; waba_id: string; onboarding_type: string } | null>
+  /**
+   * Rotate ONLY `access_token` on a row that already exists, returning the
+   * number of rows affected.
+   *
+   * The identity guards live in the WHERE clause rather than in a preceding
+   * SELECT, so there is no window between checking and writing: a row whose
+   * agency, WABA, or onboarding_type changed underneath us matches nothing and
+   * updates zero rows. Only `access_token` is named, so no other column can move.
+   */
+  rotateToken: (input: {
+    phoneNumberId: string
+    agencyId: number
+    wabaId: string
+    sealed: string
+  }) => Promise<number>
   findByAgency: (agencyId: number) => Promise<{ id: number } | null>
   insertConnection: (row: {
     user_id: number
@@ -192,9 +209,26 @@ export function createDefaultAttachDeps(): AttachExistingWabaDeps {
     fetchImpl: fetch,
     isEnabled: () => isManualAttachEnabled(),
     findByPhone: async (phoneNumberId) => {
-      const row = await db('whatsapp_connections').where({ phone_number_id: phoneNumberId }).first('agency_id')
-      return row ? { agency_id: Number(row.agency_id) } : null
+      const row = await db('whatsapp_connections')
+        .where({ phone_number_id: phoneNumberId })
+        .first('agency_id', 'waba_id', 'onboarding_type')
+      return row
+        ? {
+            agency_id: Number(row.agency_id),
+            waba_id: String(row.waba_id),
+            onboarding_type: String(row.onboarding_type),
+          }
+        : null
     },
+    rotateToken: async ({ phoneNumberId, agencyId, wabaId, sealed }) =>
+      db('whatsapp_connections')
+        .where({
+          phone_number_id: phoneNumberId,
+          agency_id: agencyId,
+          waba_id: wabaId,
+          onboarding_type: 'cloud_api',
+        })
+        .update({ access_token: sealed }),
     findByAgency: async (agencyId) => {
       const row = await db('whatsapp_connections').where({ agency_id: agencyId }).first('id')
       return row ? { id: Number(row.id) } : null
@@ -238,7 +272,52 @@ export async function attachExistingWabaForUser(
   if (phoneNumberId !== MANUAL_ATTACH_PHONE_NUMBER_ID) return { ok: false, reason: 'phone_mismatch' }
 
   const claimed = await deps.findByPhone(phoneNumberId)
-  if (claimed) return { ok: false, reason: 'phone_claimed' }
+  if (claimed) {
+    // ROTATION. A claimed phone used to be a flat refusal, which meant an expired
+    // credential could only be replaced by deleting the row — i.e. by
+    // disconnecting, losing the connection the operator is trying to repair.
+    //
+    // Rotation is allowed only when the row is unmistakably the SAME connection:
+    // same agency (never move a number between tenants), same WABA, and still
+    // `cloud_api` (a coexistence row is a different lifecycle and is not ours to
+    // touch here). Anything else stays `phone_claimed` exactly as before.
+    const sameConnection =
+      Number(claimed.agency_id) === user.agencyId &&
+      String(claimed.waba_id) === wabaId &&
+      String(claimed.onboarding_type) === 'cloud_api'
+    if (!sameConnection) return { ok: false, reason: 'phone_claimed' }
+
+    // The new credential earns its way in through the same Graph gauntlet a
+    // first-time attach faces. A token that cannot read the WABA, the phone, or
+    // the subscription must never replace one that could.
+    const graph = await verifyManualAttachGraph({ wabaId, phoneNumberId, accessToken }, deps.fetchImpl)
+    if (graph.ok === false) return graph
+
+    let rotated: string
+    try {
+      rotated = sealWhatsappAccessToken(accessToken)
+    } catch {
+      return { ok: false, reason: 'db_error' }
+    }
+
+    let affected: number
+    try {
+      affected = await deps.rotateToken({
+        phoneNumberId,
+        agencyId: user.agencyId,
+        wabaId,
+        sealed: rotated,
+      })
+    } catch {
+      return { ok: false, reason: 'db_error' }
+    }
+    // Exactly one row, or the guards did not hold and nothing was written.
+    if (affected !== 1) return { ok: false, reason: 'db_error' }
+
+    await deps.trackAttach(user.agencyId, user.id)
+    return { ok: true }
+  }
+
   const existingAgency = await deps.findByAgency(user.agencyId)
   if (existingAgency) return { ok: false, reason: 'already_connected' }
 
