@@ -33,6 +33,34 @@ export function fileKindLabel(mimeType: string | null | undefined): string | nul
   return subtype ? subtype.toUpperCase().slice(0, 12) : null
 }
 
+/**
+ * Should this attachment be shown AS the picture rather than as a file card?
+ *
+ * The distinction is the whole point of the media UX: an image message is an
+ * image, not a generic download. Keyed on the mime group already carried in the
+ * safe client shape, so no extra data is exposed to decide it.
+ */
+export function isImageAttachment(mimeType: string | null | undefined): boolean {
+  return typeof mimeType === 'string' && mimeType.startsWith('image/')
+}
+
+/**
+ * Should this attachment be played rather than downloaded?
+ *
+ * Every audio message seen in production is a WhatsApp voice note —
+ * `audio/ogg; codecs=opus`, 241 of 241, all carrying `voice: true` in the raw
+ * payload. That flag is NOT part of the safe client shape and is not needed
+ * here: a voice note and an ordinary audio file both want a player, so the mime
+ * group alone decides. The existing mime sanitiser has already stripped the
+ * `; codecs=opus` parameter by this point.
+ */
+export function isAudioAttachment(mimeType: string | null | undefined): boolean {
+  return typeof mimeType === 'string' && mimeType.startsWith('audio/')
+}
+
+/** Shown for a voice note, which WhatsApp sends with no filename at all. */
+export const UNNAMED_AUDIO_LABEL = 'הקלטה מוואטסאפ'
+
 /** Authenticated download path for a message's media. */
 export function attachmentHref(messageId: number): string {
   return `/api/whatsapp/media/${messageId}`
