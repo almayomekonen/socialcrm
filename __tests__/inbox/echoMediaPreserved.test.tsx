@@ -16,7 +16,7 @@ import type { Knex } from 'knex'
 import { parseMessageEchoes } from '@/lib/whatsapp/parseMessageEcho'
 import { ATTACHMENT_MEDIA_TYPES, insertOutboundMessage, mapLeadWhatsappMessageRow } from '@/db/inboxMessages'
 import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
-import { UNNAMED_ATTACHMENT_LABEL, UNNAMED_AUDIO_LABEL } from '@/lib/inbox/attachmentDisplay'
+import { UNNAMED_ATTACHMENT_LABEL } from '@/lib/inbox/attachmentDisplay'
 
 const TS = '1738796547'
 
@@ -280,12 +280,23 @@ describe('media UX — audio renders a player', () => {
   const audio = (mimeType: string | null = 'audio/ogg', filename: string | null = null) => ({ filename, mimeType })
   const playerOf = (c: HTMLElement) => c.querySelector('audio') as HTMLAudioElement | null
 
-  it('renders an audio player, not the file card', () => {
+  it('renders a voice-note control, not the file card', () => {
     const { container } = render(<WhatsappAttachment messageId={7} attachment={audio()} />)
-    const el = playerOf(container)!
-    expect(el).toBeTruthy()
-    expect(el.hasAttribute('controls')).toBe(true)
+    expect(playerOf(container)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' })).toBeTruthy()
     expect(screen.queryByText('פתח')).toBeNull()
+  })
+
+  it('hides the raw browser player chrome — the row is the conversation UI', () => {
+    const { container } = render(<WhatsappAttachment messageId={7} attachment={audio()} />)
+    expect(playerOf(container)!.hasAttribute('controls')).toBe(false)
+  })
+
+  it('shows play, a seekable position and a duration readout', () => {
+    render(<WhatsappAttachment messageId={7} attachment={audio()} />)
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' })).toBeTruthy()
+    expect(screen.getByRole('slider', { name: 'מיקום בהקלטה' })).toBeTruthy()
+    expect(screen.getByText(/0:00 \/ 0:00/)).toBeTruthy()
   })
 
   it('plays through the existing authenticated media route', () => {
@@ -298,16 +309,16 @@ describe('media UX — audio renders a player', () => {
     expect(playerOf(container)).toBeTruthy()
   })
 
-  it('names an unnamed voice note in Hebrew instead of leaving it anonymous', () => {
-    const { container } = render(<WhatsappAttachment messageId={7} attachment={audio()} />)
-    expect(screen.getByText(UNNAMED_AUDIO_LABEL)).toBeTruthy()
-    expect(playerOf(container)!.getAttribute('aria-label')).toBe(`נגן הקלטה: ${UNNAMED_AUDIO_LABEL}`)
+  it('drops the explanatory label — a voice note announces itself by its control', () => {
+    render(<WhatsappAttachment messageId={7} attachment={audio()} />)
+    expect(screen.queryByText('הקלטה מוואטסאפ')).toBeNull()
+    // The Hebrew name lives on the control, so nothing is lost for screen readers.
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' })).toBeTruthy()
   })
 
-  it('prefers a real filename when WhatsApp supplies one', () => {
-    const { container } = render(<WhatsappAttachment messageId={7} attachment={audio('audio/mpeg', 'jingle.mp3')} />)
-    expect(screen.getByText('jingle.mp3')).toBeTruthy()
-    expect(playerOf(container)!.getAttribute('aria-label')).toBe('נגן הקלטה: jingle.mp3')
+  it('renders the message timestamp beside the control, never a second one', () => {
+    render(<WhatsappAttachment messageId={7} attachment={audio()} timestampLabel='16:27' />)
+    expect(screen.getAllByText('16:27')).toHaveLength(1)
   })
 
   it('does not download the whole recording just to show the thread', () => {
@@ -315,11 +326,13 @@ describe('media UX — audio renders a player', () => {
     expect(playerOf(container)!.getAttribute('preload')).toBe('metadata')
   })
 
-  it('is bounded so it cannot overflow the bubble', () => {
+  it('is compact and bounded so it cannot overflow the bubble', () => {
     const { container } = render(<WhatsappAttachment messageId={7} attachment={audio()} />)
-    const cls = playerOf(container)!.getAttribute('class') ?? ''
+    const row = container.querySelector('div.flex.items-center') as HTMLElement
+    const cls = row.getAttribute('class') ?? ''
     expect(cls).toContain('max-w-full')
-    expect(cls).toContain('focus-visible:ring-2')
+    expect(cls).toMatch(/w-\[\d+px\]/)
+    expect(screen.getByRole('button', { name: 'נגן הקלטה' }).getAttribute('class')).toContain('focus-visible:ring-2')
   })
 
   it('falls back to the file card when the audio cannot play', () => {
@@ -364,5 +377,120 @@ describe('media UX — audio renders a player', () => {
     const c = render(<WhatsappAttachment messageId={3} attachment={{ filename: null, mimeType: null }} />)
     expect(c.container.querySelector('audio')).toBeNull()
     expect(screen.getAllByText(UNNAMED_ATTACHMENT_LABEL).length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Image viewer — clicking a photo VIEWS it.
+ *
+ * It used to be an <a href> at the media route, and the route says
+ * `Content-Disposition: attachment`, so a click downloaded the photo instead of
+ * showing it. The fix is not a route change: an <img> never navigates, so
+ * rendering the picture in a dialog sidesteps the disposition entirely while the
+ * route, its headers and its auth stay exactly as they were.
+ */
+describe('image viewer', () => {
+  const photo = { filename: 'wedding.jpg', mimeType: 'image/jpeg' }
+  const openViewer = () => {
+    render(<WhatsappAttachment messageId={4} attachment={photo} />)
+    const trigger = screen.getByRole('button', { name: /הצג את התמונה/ })
+    // A real click focuses the button; jsdom's fireEvent does not, and the
+    // dialog restores focus to whatever was focused when it opened.
+    trigger.focus()
+    fireEvent.click(trigger)
+    return trigger
+  }
+
+  it('the thumbnail is a button, not a download link', () => {
+    render(<WhatsappAttachment messageId={4} attachment={photo} />)
+    expect(screen.getByRole('button', { name: /הצג את התמונה/ })).toBeTruthy()
+    expect(screen.queryByRole('link')).toBeNull()
+  })
+
+  it('advertises that it opens a dialog', () => {
+    render(<WhatsappAttachment messageId={4} attachment={photo} />)
+    expect(screen.getByRole('button', { name: /הצג את התמונה/ }).getAttribute('aria-haspopup')).toBe('dialog')
+  })
+
+  it('opens a dialog with an accessible name', () => {
+    openViewer()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeTruthy()
+    expect(dialog.getAttribute('aria-label') ?? '').toContain('תמונה')
+  })
+
+  it('shows the picture from the SAME authenticated route, full size', () => {
+    openViewer()
+    const shown = screen.getByRole('dialog').querySelector('img') as HTMLImageElement
+    expect(shown.getAttribute('src')).toBe('/api/whatsapp/media/4')
+    expect(shown.getAttribute('class') ?? '').toContain('object-contain')
+  })
+
+  it('the picture keeps a meaningful alt inside the viewer', () => {
+    openViewer()
+    expect((screen.getByRole('dialog').querySelector('img') as HTMLImageElement).getAttribute('alt')).toBe('wedding.jpg')
+  })
+
+  it('has a labelled close control', () => {
+    openViewer()
+    expect(screen.getByRole('button', { name: 'סגירה' })).toBeTruthy()
+  })
+
+  it('closes on the close control and returns focus to the photo', () => {
+    const trigger = openViewer()
+    fireEvent.click(screen.getByRole('button', { name: 'סגירה' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('Escape closes it', () => {
+    openViewer()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('never leaks a Meta URL or media id into the viewer', () => {
+    openViewer()
+    const html = screen.getByRole('dialog').innerHTML
+    expect(html).not.toContain('lookaside')
+    expect(html).toContain('/api/whatsapp/media/4')
+  })
+})
+
+describe('image is the bubble — timestamp overlays the photo', () => {
+  const photo = { filename: 'p.jpg', mimeType: 'image/jpeg' }
+
+  it('renders the message time over the image exactly once', () => {
+    render(<WhatsappAttachment messageId={4} attachment={photo} timestampLabel='12:43' />)
+    expect(screen.getAllByText('12:43')).toHaveLength(1)
+  })
+
+  it('positions the time in a bottom corner, over the picture', () => {
+    const { container } = render(<WhatsappAttachment messageId={4} attachment={photo} timestampLabel='12:43' />)
+    const stamp = screen.getByText('12:43')
+    const cls = stamp.getAttribute('class') ?? ''
+    expect(cls).toContain('absolute')
+    expect(cls).toContain('bottom-')
+    // The wrapper is the positioning context, so the stamp sits on the image.
+    expect((container.querySelector('button') as HTMLElement).getAttribute('class')).toContain('relative')
+  })
+
+  it('adds a readability gradient that does not swallow clicks or the picture', () => {
+    const { container } = render(<WhatsappAttachment messageId={4} attachment={photo} timestampLabel='12:43' />)
+    const grad = container.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(grad.getAttribute('class')).toContain('pointer-events-none')
+    expect(grad.getAttribute('class')).toContain('bg-gradient-to-t')
+  })
+
+  it('renders no explanatory file text around the photo', () => {
+    render(<WhatsappAttachment messageId={4} attachment={photo} timestampLabel='12:43' />)
+    expect(screen.queryByText('קובץ מוואטסאפ')).toBeNull()
+    expect(screen.queryByText('תמונה')).toBeNull()
+    expect(screen.queryByText('פתח')).toBeNull()
+  })
+
+  it('omits the overlay entirely when no timestamp is supplied', () => {
+    const { container } = render(<WhatsappAttachment messageId={4} attachment={photo} />)
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull()
   })
 })

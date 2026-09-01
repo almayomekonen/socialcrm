@@ -8,7 +8,7 @@ import WhatsappMessageStatus from '@/components/summary/WhatsappMessageStatus'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
-import { UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
+import { isAudioAttachment, isImageAttachment, UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
 
 const WALLPAPER =
   'bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]'
@@ -91,6 +91,10 @@ export default function WhatsappConversation({
         >
           {thread.map(({ m, newDay, groupStart }) => {
             const inbound = m.direction === 'inbound'
+            // A photo IS the bubble: the picture fills it and carries the time in
+            // its corner, so the bubble drops its padding and its own time row.
+            const photoBubble = isImageAttachment(m.attachment?.mimeType) && !m.text
+            const mediaCarriesTime = photoBubble || isAudioAttachment(m.attachment?.mimeType)
             return (
               <div key={m.id} className={newDay ? '' : groupStart ? 'mt-2' : 'mt-0.5'}>
                 {newDay && (
@@ -106,7 +110,9 @@ export default function WhatsappConversation({
                 <div className={`flex ${inbound ? 'justify-start' : 'justify-end'}`}>
                   <div
                     id={`msg-${m.id}`}
-                    className={`max-w-[80%] rounded-2xl border px-3 py-1.5 transition-shadow xl:max-w-[70%] ${
+                    className={`max-w-[80%] rounded-2xl border transition-shadow xl:max-w-[70%] ${
+                      photoBubble ? 'overflow-hidden p-1' : 'px-3 py-1.5'
+                    } ${
                       inbound
                         ? `border-gray-200 bg-white ${groupStart ? 'rounded-ss-none' : ''}`
                         : m.status === 'failed'
@@ -115,18 +121,28 @@ export default function WhatsappConversation({
                     }`}
                   >
                     <span className='sr-only'>{inbound ? 'הודעה נכנסת' : 'הודעה שנשלחה מהמערכת'}</span>
-                    {m.attachment && <WhatsappAttachment messageId={m.id} attachment={m.attachment} />}
+                    {m.attachment && (
+                      <WhatsappAttachment
+                        messageId={m.id}
+                        attachment={m.attachment}
+                        timestampLabel={formatTime(m.timestamp)}
+                      />
+                    )}
                     <div className='flex items-end gap-2'>
                       <p className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'>
                         {m.text || (m.attachment ? '' : m.type === 'text' ? '—' : UNSUPPORTED_MESSAGE_NOTICE)}
                       </p>
-                      <span
-                        dir='ltr'
-                        suppressHydrationWarning
-                        className='shrink-0 pb-px text-[10px] leading-none tabular-nums text-gray-500'
-                      >
-                        {formatTime(m.timestamp)}
-                      </span>
+                      {/* A photo and a voice note carry the time inside the media itself,
+                          so repeating it under the bubble would show it twice. */}
+                      {!mediaCarriesTime && (
+                        <span
+                          dir='ltr'
+                          suppressHydrationWarning
+                          className='shrink-0 pb-px text-[10px] leading-none tabular-nums text-gray-500'
+                        >
+                          {formatTime(m.timestamp)}
+                        </span>
+                      )}
                       {!inbound && <WhatsappMessageStatus status={m.status} failureCategory={m.failureCategory} />}
                     </div>
                     {!inbound && m.status === 'failed' && m.failureText && (

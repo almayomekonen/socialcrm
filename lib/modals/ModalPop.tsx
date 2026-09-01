@@ -27,6 +27,7 @@ export default function ModalPop({
   label,
   labelledBy,
   describedBy,
+  scrimClassName,
 }: Props): JSX.Element {
   // Portals require `document`, so wait for client-side mount before rendering.
   // Without the gate, SSR would crash on `document.body` and hydration would
@@ -138,7 +139,7 @@ export default function ModalPop({
   return createPortal(
     <div
       onClick={closeOutside ? onClose : null}
-      className={`flex  justify-center fixed top-0 left-0 size-full bg-black/15 z-99999 anim-fade-in ${
+      className={`flex  justify-center fixed top-0 left-0 size-full ${scrimClassName ?? 'bg-black/15'} z-99999 anim-fade-in ${
         pos === 'middle' ? 'items-center' : pos === 'bottom' ? 'items-end' : 'items-start'
       }`}
     >
@@ -209,4 +210,10 @@ type Props = {
   labelledBy?: string
   // id of an element describing the dialog, exposed via aria-describedby.
   describedBy?: string
+  /**
+   * Scrim override. Defaults to the existing `bg-black/15` so every current
+   * dialog is untouched; the image viewer darkens it so a photo is judged
+   * against neutral surroundings rather than the page bleeding through.
+   */
+  scrimClassName?: string
 }
