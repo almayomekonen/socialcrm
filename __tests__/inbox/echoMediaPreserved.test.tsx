@@ -10,12 +10,13 @@
 // This walks one media echo the whole way — parse → insert → map → render — so
 // the flattening cannot come back, and pins that a plain text echo is unchanged.
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Knex } from 'knex'
 import { parseMessageEchoes } from '@/lib/whatsapp/parseMessageEcho'
 import { ATTACHMENT_MEDIA_TYPES, insertOutboundMessage, mapLeadWhatsappMessageRow } from '@/db/inboxMessages'
 import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
+import { resetVoiceNoteRegistry } from '@/lib/inbox/voiceNotePlayback'
 import { UNNAMED_ATTACHMENT_LABEL } from '@/lib/inbox/attachmentDisplay'
 
 const TS = '1738796547'
@@ -504,6 +505,10 @@ describe('image is the bubble — timestamp overlays the photo', () => {
  * reports, so the test drives the element and asserts the UI follows.
  */
 describe('voice note — element-driven playback', () => {
+  // Module-level registry: without this, players from a previous case stay
+  // registered and get paused by the next one.
+  beforeEach(() => resetVoiceNoteRegistry())
+
   const audioAttachment = { filename: null, mimeType: 'audio/ogg' }
 
   type Stub = { el: HTMLAudioElement; setTime: (t: number) => void; setDuration: (d: number) => void; playSpy: ReturnType<typeof vi.fn>; pauseSpy: ReturnType<typeof vi.fn> }
@@ -548,7 +553,13 @@ describe('voice note — element-driven playback', () => {
     expect(screen.getAllByRole('button', { name: 'נגן הקלטה' })).toHaveLength(2)
   })
 
-  it('playing B never pauses A — the invariant', () => {
+  /**
+   * REPLACES the earlier "playing B never pauses A" assertion. That pinned an
+   * explicitly requested behaviour which the product then reversed to WhatsApp
+   * semantics: at most one recording plays at a time. The old expectation is
+   * inverted here rather than deleted, so the invariant stays covered.
+   */
+  it('starting B pauses A — at most one voice note plays', () => {
     const { container } = render(
       <div>
         <WhatsappAttachment messageId={1} attachment={audioAttachment} />
@@ -558,12 +569,44 @@ describe('voice note — element-driven playback', () => {
     const [a, b] = [...container.querySelectorAll('audio')] as HTMLAudioElement[]
     const sa = stubAudio(a, { duration: 10 })
     const sb = stubAudio(b, { duration: 10 })
-    const buttons = screen.getAllByRole('button', { name: 'נגן הקלטה' })
-    fireEvent.click(buttons[0])
-    fireEvent.click(screen.getAllByRole('button', { name: 'נגן הקלטה' })[0]) // B's button (A is now "השהה")
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'נגן הקלטה' })[0]) // A
     expect(sa.playSpy).toHaveBeenCalled()
-    expect(sb.playSpy).toHaveBeenCalled()
     expect(sa.pauseSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'נגן הקלטה' })) // B (A now shows "השהה")
+    expect(sb.playSpy).toHaveBeenCalled()
+    expect(sa.pauseSpy).toHaveBeenCalled()
+    // Exactly one player is in the playing state.
+    expect(screen.getAllByRole('button', { name: 'השהה הקלטה' })).toHaveLength(1)
+  })
+
+  it('a player never pauses itself when it claims playback', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stubAudio(audioEl(container), { duration: 10 })
+    fireEvent.click(screen.getByRole('button', { name: 'נגן הקלטה' }))
+    expect(s.playSpy).toHaveBeenCalled()
+    expect(s.pauseSpy).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'השהה הקלטה' })).toBeTruthy()
+  })
+
+  it('the paused player keeps its own position for resume', () => {
+    const { container } = render(
+      <div>
+        <WhatsappAttachment messageId={1} attachment={audioAttachment} />
+        <WhatsappAttachment messageId={2} attachment={audioAttachment} />
+      </div>,
+    )
+    const [a, b] = [...container.querySelectorAll('audio')] as HTMLAudioElement[]
+    const sa = stubAudio(a, { duration: 30 })
+    stubAudio(b, { duration: 30 })
+    sa.setDuration(30)
+    fireEvent.click(screen.getAllByRole('button', { name: 'נגן הקלטה' })[0])
+    sa.setTime(11)
+    fireEvent.click(screen.getByRole('button', { name: 'נגן הקלטה' })) // start B, pausing A
+    const sliders = container.querySelectorAll('input[type=range]')
+    expect(Number((sliders[0] as HTMLInputElement).value)).toBeCloseTo(11)
+    expect(a.currentTime).toBeCloseTo(11)
   })
 
   it('each player keeps its own playing state and its own position', () => {
@@ -674,7 +717,9 @@ describe('voice note — element-driven playback', () => {
 
   it('gives the readout breathing room from the rail', () => {
     const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
-    const col = slider(container).parentElement as HTMLElement
+    // The slider now sits inside a positioned rail wrapper; the spacing lives on
+    // the column that holds the rail and the numbers.
+    const col = slider(container).parentElement!.parentElement as HTMLElement
     expect(col.getAttribute('class')).toContain('gap-2')
     expect(col.getAttribute('class')).not.toContain('gap-1')
   })
@@ -685,5 +730,98 @@ describe('voice note — element-driven playback', () => {
     expect(row.getAttribute('class')).toContain('w-[230px]')
     expect(screen.getByRole('slider', { name: 'מיקום בהקלטה' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'נגן הקלטה' }).getAttribute('class')).toContain('focus-visible:ring-2')
+  })
+})
+
+/**
+ * The visible progress element.
+ *
+ * The rail LOOKED frozen in production while `value` was updating perfectly: at
+ * `h-1` Chrome derives a slider thumb as wide as the whole track (measured 190px
+ * on a 190px track), so the control painted identically at 0%, 50% and 100%.
+ * Progress is now an explicit element with a real width, and these tests assert
+ * that width actually moves — the thing the earlier suite never checked.
+ */
+describe('voice note — visible progress fill', () => {
+  beforeEach(() => resetVoiceNoteRegistry())
+  const audioAttachment = { filename: null, mimeType: 'audio/ogg' }
+  const fillOf = (c: HTMLElement) => c.querySelector('[data-testid=voice-progress-fill]') as HTMLElement
+  const audioEl2 = (c: HTMLElement) => c.querySelector('audio') as HTMLAudioElement
+
+  function stub(el: HTMLAudioElement, duration: number) {
+    let cur = 0
+    Object.defineProperty(el, 'duration', { configurable: true, get: () => duration })
+    Object.defineProperty(el, 'currentTime', { configurable: true, get: () => cur, set: (v: number) => { cur = v } })
+    Object.defineProperty(el, 'paused', { configurable: true, get: () => true })
+    Object.defineProperty(el, 'seekable', { configurable: true, get: () => ({ length: 0, end: () => 0 }) })
+    el.play = vi.fn(async () => {}) as unknown as HTMLAudioElement['play']
+    el.pause = vi.fn() as unknown as HTMLAudioElement['pause']
+    return {
+      setTime: (t: number) => { cur = t; fireEvent(el, new Event('timeupdate')) },
+      meta: () => fireEvent(el, new Event('loadedmetadata')),
+    }
+  }
+
+  it('renders a dedicated progress element, not just a native thumb', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    expect(fillOf(container)).toBeTruthy()
+  })
+
+  it('the fill WIDTH tracks currentTime — 0%, 50%, 100%', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stub(audioEl2(container), 10)
+    s.meta()
+    expect(fillOf(container).style.width).toBe('0%')
+    s.setTime(5)
+    expect(fillOf(container).style.width).toBe('50%')
+    s.setTime(10)
+    expect(fillOf(container).style.width).toBe('100%')
+  })
+
+  it('the fill and the elapsed readout never disagree', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stub(audioEl2(container), 60)
+    s.meta()
+    s.setTime(15)
+    expect(fillOf(container).style.width).toBe('25%')
+    expect(screen.getByText('0:15 / 1:00')).toBeTruthy()
+  })
+
+  it('ended drives the fill to exactly 100%', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stub(audioEl2(container), 20)
+    s.meta()
+    s.setTime(19.6)
+    fireEvent(audioEl2(container), new Event('ended'))
+    expect(fillOf(container).style.width).toBe('100%')
+    expect(screen.getByText('0:20 / 0:20')).toBeTruthy()
+  })
+
+  it('stays at 0% and never NaN%% before a duration is known', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    stub(audioEl2(container), NaN)
+    fireEvent(audioEl2(container), new Event('loadedmetadata'))
+    expect(fillOf(container).style.width).toBe('0%')
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/)
+  })
+
+  it('the rail is tall enough for a real thumb and is direction-pinned for RTL', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const rail = fillOf(container).parentElement as HTMLElement
+    // h-3, not h-1: the 4px box is what produced a full-width degenerate thumb.
+    expect(rail.getAttribute('class')).toContain('h-3')
+    expect(rail.getAttribute('dir')).toBe('ltr')
+    const input = container.querySelector('input[type=range]') as HTMLInputElement
+    expect(input.getAttribute('class')).toContain('appearance-none')
+    expect(input.getAttribute('class')).toContain('slider-thumb')
+  })
+
+  it('seeking moves the fill with the element', () => {
+    const { container } = render(<WhatsappAttachment messageId={1} attachment={audioAttachment} />)
+    const s = stub(audioEl2(container), 40)
+    s.meta()
+    fireEvent.change(container.querySelector('input[type=range]') as HTMLInputElement, { target: { value: '30' } })
+    expect(audioEl2(container).currentTime).toBe(30)
+    expect(fillOf(container).style.width).toBe('75%')
   })
 })

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Icon from '@/lib/Icon'
 import type { InboxMessageAttachment } from '@/db/inboxMessages'
 import WhatsappImageViewer from '@/components/summary/WhatsappImageViewer'
+import { claimVoiceNotePlayback, registerVoiceNote } from '@/lib/inbox/voiceNotePlayback'
 import {
   attachmentHref,
   fileKindLabel,
@@ -140,21 +141,33 @@ function VoiceNote({
   onFailed: () => void
   timestampLabel?: string
 }) {
-  /**
-   * Every instance owns its own element and its own state — no shared store, no
-   * singleton, and nothing here ever touches another player. Starting a second
-   * voice note therefore cannot stop the first: two recordings play at once,
-   * which is the behaviour a rep expects when comparing them.
-   */
   const ref = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(0)
 
+  /**
+   * WhatsApp semantics: starting one recording stops the other. Registered at
+   * the module level rather than through React state because the thing being
+   * stopped is a DOM element, and the players are siblings with no shared
+   * ancestor. Each instance still owns its element and its position, so the
+   * paused one resumes from exactly where it left off.
+   */
+  const pauseSelfRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    // The SAME identity must be registered and passed when claiming, or the
+    // registry cannot tell the caller apart from the others and the player
+    // pauses itself the instant it starts.
+    const pauseSelf = () => ref.current?.pause()
+    pauseSelfRef.current = pauseSelf
+    return registerVoiceNote(pauseSelf)
+  }, [])
+
   const toggle = useCallback(() => {
     const el = ref.current
     if (!el) return
     if (el.paused) {
+      claimVoiceNotePlayback(pauseSelfRef.current)
       void el.play().catch(() => {
         setPlaying(false)
         onFailed()
@@ -165,9 +178,8 @@ function VoiceNote({
   }, [onFailed])
 
   /**
-   * The ELEMENT is the source of truth. Every value on screen is read back off it
-   * in a media event — never a timer, never wall-clock arithmetic — so the bar
-   * cannot drift away from what is actually being heard.
+   * The ELEMENT is the source of truth. Every displayed value is read back off it
+   * inside a media event — never a timer, never wall-clock arithmetic.
    */
   useEffect(() => {
     const el = ref.current
@@ -188,11 +200,13 @@ function VoiceNote({
       setDuration(d)
       setCurrent(clampPlaybackTime(el.currentTime, d))
     }
-    const onPlay = () => setPlaying(true)
+    const onPlay = () => {
+      // Also claim here: playback can start without our button (e.g. resume).
+      claimVoiceNotePlayback(pauseSelfRef.current)
+      setPlaying(true)
+    }
     const onPause = () => setPlaying(false)
     const onEnded = () => {
-      // Land the bar exactly on the end; the last `timeupdate` usually fires a
-      // fraction short, which leaves the track looking unfinished.
       const d = readDuration()
       setDuration(d)
       setCurrent(d)
@@ -203,9 +217,8 @@ function VoiceNote({
       onFailed()
     }
 
-    for (const ev of ['loadedmetadata', 'durationchange', 'timeupdate', 'seeking', 'seeked', 'progress'] as const) {
-      el.addEventListener(ev, sync)
-    }
+    const syncEvents = ['loadedmetadata', 'durationchange', 'timeupdate', 'seeking', 'seeked', 'progress'] as const
+    for (const ev of syncEvents) el.addEventListener(ev, sync)
     el.addEventListener('play', onPlay)
     el.addEventListener('playing', onPlay)
     el.addEventListener('pause', onPause)
@@ -214,9 +227,7 @@ function VoiceNote({
     sync()
 
     return () => {
-      for (const ev of ['loadedmetadata', 'durationchange', 'timeupdate', 'seeking', 'seeked', 'progress'] as const) {
-        el.removeEventListener(ev, sync)
-      }
+      for (const ev of syncEvents) el.removeEventListener(ev, sync)
       el.removeEventListener('play', onPlay)
       el.removeEventListener('playing', onPlay)
       el.removeEventListener('pause', onPause)
@@ -226,6 +237,9 @@ function VoiceNote({
   }, [onFailed])
 
   const seekable = duration > 0
+  const railMax = seekable ? duration : 1
+  const pct = seekable ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0
+
   return (
     <div className='flex w-[230px] max-w-full items-center gap-2'>
       <audio ref={ref} src={src} preload='metadata' className='hidden' />
@@ -237,26 +251,45 @@ function VoiceNote({
       >
         <Icon name={playing ? 'pause' : 'play'} type='sol' className='size-3.5 bg-white' />
       </button>
-      {/* gap-2 rather than gap-1: the numbers were sitting on the rail. */}
       <div className='flex min-w-0 flex-1 flex-col gap-2'>
-        <input
-          type='range'
-          min={0}
-          max={seekable ? duration : 1}
-          step='any'
-          value={clampPlaybackTime(current, seekable ? duration : 1)}
-          disabled={!seekable}
-          aria-label='מיקום בהקלטה'
-          onChange={(e) => {
-            const el = ref.current
-            if (!el || !seekable) return
-            const next = clampPlaybackTime(Number(e.target.value), duration)
-            el.currentTime = next
-            // Optimistic, then `seeked` re-reads the element in case it clamped.
-            setCurrent(next)
-          }}
-          className='h-1 w-full cursor-pointer accent-solid'
-        />
+        {/*
+          `dir='ltr'` so the fill and the native control agree on which end is
+          zero. Inside the RTL thread an untagged range fills right-to-left while
+          an inset-anchored fill grows left-to-right — they would disagree.
+
+          The rail is 12px tall, NOT the 4px it used to be. At 4px Chrome derives
+          a degenerate thumb the full width of the track (measured: 190px wide on
+          a 190px track), so the control painted identically at 0%, 50% and 100%
+          however correct its `value` was. The visible progress is now an explicit
+          element whose width is the real ratio; the input stays for keyboard,
+          screen readers and dragging.
+        */}
+        <div dir='ltr' className='relative flex h-3 items-center'>
+          <span aria-hidden='true' className='absolute inset-x-0 h-1 rounded-full bg-gray-200' />
+          <span
+            aria-hidden='true'
+            data-testid='voice-progress-fill'
+            style={{ width: `${pct}%` }}
+            className='absolute left-0 h-1 rounded-full bg-solid'
+          />
+          <input
+            type='range'
+            min={0}
+            max={railMax}
+            step='any'
+            value={clampPlaybackTime(current, railMax)}
+            disabled={!seekable}
+            aria-label='מיקום בהקלטה'
+            onChange={(e) => {
+              const el = ref.current
+              if (!el || !seekable) return
+              const next = clampPlaybackTime(Number(e.target.value), duration)
+              el.currentTime = next
+              setCurrent(next)
+            }}
+            className='relative m-0 h-3 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary [&::-moz-range-thumb]:size-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-solid [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:size-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-solid'
+          />
+        </div>
         <div className='flex items-center justify-between gap-2'>
           <span dir='ltr' className='text-[10px] leading-none tabular-nums text-gray-500'>
             {formatClock(current)} / {formatClock(duration)}
