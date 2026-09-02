@@ -121,9 +121,33 @@ describe('a thrown server action can no longer end the submit in silence', () =>
   })
 
   it('an existing user is still blocked before any invitation is sent', async () => {
+    // The block is correct, not incidental: the redemption route refuses an
+    // email that already has a user, and `Agnt_email_key` makes a duplicate
+    // impossible — an invitation here could only ever fail on acceptance.
     vi.mocked(isUserExists).mockResolvedValueOnce({ id: 99 } as never)
     submit()
-    await waitFor(() => expect(screen.getByText('המשתמש כבר קיים')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/המשתמש כבר קיים במערכת/)).toBeTruthy())
     expect(sendInvitation).not.toHaveBeenCalled()
+  })
+
+  /**
+   * "Already a user" must not read as "cannot be a נציג". The message has to
+   * name the path that actually works — the role field on the users table on
+   * this same page — rather than stop at the fact.
+   */
+  it('tells the admin how to make that existing person a נציג', async () => {
+    vi.mocked(isUserExists).mockResolvedValueOnce({ id: 99 } as never)
+    submit()
+    const msg = await screen.findByText(/המשתמש כבר קיים במערכת/)
+    expect(msg.textContent).toMatch(/נציג/)
+    expect(msg.textContent).toMatch(/תפקיד/)
+    expect(msg.textContent).toMatch(/אין צורך בהזמנה/)
+  })
+
+  it('does not reset the form, so the address can be corrected', async () => {
+    vi.mocked(isUserExists).mockResolvedValueOnce({ id: 99 } as never)
+    const form = submit()
+    await screen.findByText(/המשתמש כבר קיים במערכת/)
+    expect((form.querySelector('[name=email]') as HTMLInputElement).value).toBe('dana@example.com')
   })
 })

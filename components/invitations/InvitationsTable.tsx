@@ -117,6 +117,8 @@ function formatStatus(_, obj) {
 }
 
 const GENERIC_ERROR = 'אירעה שגיאה, נסה שוב'
+const EXISTING_USER_MESSAGE =
+  'המשתמש כבר קיים במערכת, ולכן אין צורך בהזמנה. כדי שיהיה נציג — אפשר לשנות את התפקיד שלו בטבלת המשתמשים שמעל.'
 
 function InvitationsForm() {
   const [errMsg, setErrMsg] = useState<string | null>(null)
@@ -134,7 +136,24 @@ function InvitationsForm() {
      */
     const existing = await api(isUserExists, [data.email], undefined, undefined, { silentSuccess: true })
     if (existing?.err) return setErrMsg(existing.msg || GENERIC_ERROR)
-    if (existing?.id) return setErrMsg('המשתמש כבר קיים')
+    /**
+     * The guard stays — but it is no longer a dead end.
+     *
+     * An invitation for an existing address is guaranteed to fail when it is
+     * redeemed: app/api/invitation/route.ts refuses an email that already has a
+     * user, and `Agnt_email_key` makes a duplicate impossible anyway. So issuing
+     * one would only produce a row that can never be accepted.
+     *
+     * "Already a user" must not mean "cannot be a נציג", and it does not: an
+     * ADMIN can set that person's role on this very page, in the users table
+     * above, through the role field EditUser already exposes. That is the path
+     * this message now names, instead of stopping at the fact.
+     *
+     * A second, EXT-style record for the same person is NOT the answer here:
+     * `users_firstName_lastName_agencyId_unique` forbids a same-name twin inside
+     * one agency.
+     */
+    if (existing?.id) return setErrMsg(EXISTING_USER_MESSAGE)
 
     /**
      * `silentSuccess` matters here. `api()` toasts success for anything that does

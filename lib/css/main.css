@@ -393,6 +393,47 @@ html:has([data-mobile-workspace]) body {
   }
 }
 
+/*
+ * ModalPop's scrim, promoted into the browser's TOP LAYER.
+ *
+ * A dialog portaled to <body> at z-99999 is still painted in the ordinary
+ * stacking order, and this app opens dialogs from inside native
+ * `popover='auto'` surfaces — the invite form, the user editor, filters, the
+ * gallery. A top-layer popover paints above ALL ordinary content regardless of
+ * z-index, so a confirm or error dialog opened from one of those forms landed
+ * BEHIND it: invisible, and impossible to dismiss. Putting the scrim in the
+ * same layer makes show order decide instead, and the dialog is shown last.
+ *
+ * `manual`, never `auto`: an auto popover light-dismisses and forces every
+ * other auto popover closed, which would tear down the form the dialog was
+ * opened from. ModalPop already owns Escape, the scrim click, and the focus
+ * trap, so it needs none of that behaviour.
+ *
+ * The UA stylesheet gives every [popover] a border, padding, auto margins,
+ * fit-content sizing and an opaque `canvas` background, and hides it until it
+ * is shown. All of that is wrong for a full-viewport scrim, so it is undone
+ * here; the element's own utility classes still supply the layout. `display`
+ * is set explicitly so the scrim is painted on its first frame rather than
+ * waiting for the effect that shows it.
+ *
+ * The scrim tint is deliberately NOT reset here: this rule is unlayered and
+ * would outrank the `bg-black/15` utility that dims the page behind every
+ * dialog. The utility already overrides the UA `canvas` background.
+ */
+.modal-layer {
+  display: flex;
+  inset: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  color: inherit;
+  overflow: visible;
+}
+
 [data-tip] {
   position: relative;
 }

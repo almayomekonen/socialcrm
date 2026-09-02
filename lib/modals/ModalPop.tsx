@@ -36,6 +36,18 @@ export default function ModalPop({
   useEffect(() => setMounted(true), [])
 
   const contentRef = useRef<HTMLDivElement>(null)
+  const scrimRef = useRef<HTMLDivElement>(null)
+
+  // Whether this engine can put an element in the top layer. The `popover`
+  // attribute is only worth setting where it can: on its own it changes no
+  // stacking at all, but it does bring the UA popover styling with it —
+  // including `display: none` until the element is shown. On an engine without
+  // `showPopover` that is pure downside, a dialog that cannot be promoted AND
+  // is hidden by the UA sheet. Measured on the client, never assumed.
+  const [canTopLayer, setCanTopLayer] = useState(false)
+  useEffect(() => {
+    setCanTopLayer(typeof document.createElement('div').showPopover === 'function')
+  }, [])
   // The element that had focus when the dialog opened, so we can restore it on
   // close — keyboard/screen-reader users return to where they were.
   const restoreFocusRef = useRef<HTMLElement | null>(null)
@@ -94,6 +106,39 @@ export default function ModalPop({
     }
   }, [open, mounted])
 
+  /**
+   * Promote the scrim into the browser's top layer.
+   *
+   * The portal already guarantees the overlay is a child of <body>, but that
+   * only settles which ancestor can clip it — not what it can paint above. A
+   * native `[popover]` lives in the top layer, which sits above every ordinary
+   * stacking context no matter how high its z-index climbs. Dialogs here are
+   * routinely opened from inside `popover='auto'` forms, so the scrim has to
+   * join that layer too, or it is painted behind the form that opened it.
+   *
+   * Feature-detected rather than assumed: where `showPopover` is unavailable
+   * the overlay still renders exactly as it did before, one layer lower.
+   * `hidePopover` on cleanup keeps a closing dialog from leaving a stale entry
+   * in the layer when React removes the node.
+   */
+  useEffect(() => {
+    if (!open || !mounted || !canTopLayer) return
+    const el = scrimRef.current
+    if (!el || typeof el.showPopover !== 'function') return
+    try {
+      el.showPopover()
+    } catch {
+      // Already shown, or the node left the document first — nothing to undo.
+    }
+    return () => {
+      try {
+        el.hidePopover?.()
+      } catch {
+        // The node was already detached; it left the top layer with it.
+      }
+    }
+  }, [open, mounted, canTopLayer])
+
   if (!open || !mounted) return null
 
   // Escape closes; Tab/Shift+Tab are trapped within the dialog. Bound to the
@@ -138,8 +183,10 @@ export default function ModalPop({
   // the modal — which is exactly what was happening on the draft editor.
   return createPortal(
     <div
+      ref={scrimRef}
+      popover={canTopLayer ? 'manual' : undefined}
       onClick={closeOutside ? onClose : null}
-      className={`flex  justify-center fixed top-0 left-0 size-full ${scrimClassName ?? 'bg-black/15'} z-99999 anim-fade-in ${
+      className={`${canTopLayer ? 'modal-layer ' : ''}flex  justify-center fixed top-0 left-0 size-full ${scrimClassName ?? 'bg-black/15'} z-99999 anim-fade-in ${
         pos === 'middle' ? 'items-center' : pos === 'bottom' ? 'items-end' : 'items-start'
       }`}
     >
