@@ -10,6 +10,7 @@ import { Input, Select } from '@/lib/form'
 import Title from '../../lib/Title'
 import { deleteInvitation, sendInvitation } from '@/actions/invitations'
 import { api } from '@/lib/funcs'
+import { toast } from '@/lib/toast'
 import { isUserExists } from '@/actions/auth'
 import { getFormData2 } from '@/lib/form/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
@@ -115,15 +116,39 @@ function formatStatus(_, obj) {
   return <p>{new Date(obj.expiresAt) < new Date() ? 'פג תוקף' : 'ממתין לאישור'}</p>
 }
 
+const GENERIC_ERROR = 'אירעה שגיאה, נסה שוב'
+
 function InvitationsForm() {
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function handleSubmit(e) {
     const data = getFormData2(e)
-    console.log('data:', data)
-    const res = (await isUserExists(data.email)) as any
-    if (res.id) return setErrMsg('המשתמש כבר קיים')
-    await api(sendInvitation, [data])
+    // Captured before the awaits: the handler resets it on success, and the
+    // event object should not be relied on after an await.
+    const form = e.target as HTMLFormElement
+
+    /**
+     * Wrapped, where it used to be a bare call. A rejected server action here
+     * terminated the handler with no toast, no dialog and nothing rendered — the
+     * submit simply did nothing.
+     */
+    const existing = await api(isUserExists, [data.email], undefined, undefined, { silentSuccess: true })
+    if (existing?.err) return setErrMsg(existing.msg || GENERIC_ERROR)
+    if (existing?.id) return setErrMsg('המשתמש כבר קיים')
+
+    /**
+     * `silentSuccess` matters here. `api()` toasts success for anything that does
+     * not THROW, and `sendInvitation` reports its expected failures by RETURNING
+     * `{ error }` — permission, invalid role, send failure. The result was also
+     * discarded, so a failed invitation announced itself as sent and the admin
+     * had no way to know. Feedback is decided here instead, from the value.
+     */
+    const res = await api(sendInvitation, [data], undefined, undefined, { silentSuccess: true })
+    if (res?.err) return setErrMsg(res.msg || GENERIC_ERROR)
+    if (res?.error) return setErrMsg(res.error)
+
+    toast('success')
+    form.reset()
   }
   return (
     <div popover='auto' id='invitationsForm' className='pop'>

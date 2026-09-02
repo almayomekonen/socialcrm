@@ -36,7 +36,12 @@ function errorMessage(error: unknown): string {
 }
 
 function keyPrefix(): string {
-  const k = process.env.RESEND_API_KEY?.trim() ?? ''
+  // The client is constructed from `RESEND` (config/resend.ts), which is the
+  // canonical name — see lib/email/config.ts. Reading RESEND_API_KEY here, a
+  // variable set nowhere, made this line report `(missing)` on every send even
+  // with Resend correctly configured, which is exactly backwards for a
+  // diagnostic. Logging only; sending is untouched.
+  const k = process.env.RESEND?.trim() ?? ''
   if (!k) return '(missing)'
   return `${k.slice(0, 6)}…(len=${k.length})`
 }
