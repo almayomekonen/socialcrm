@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import Icon, { type IconNames } from '@/lib/Icon'
-import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
+import { startTrial, trackTrialStartClicked, trackTrialStartFailed, trackWelcomeModalSeen } from '@/actions/trial'
 import { trackStartTrial } from '@/lib/facebook/pixelEvents'
 import { useActivationCelebration } from './ActivationCelebrationContext'
 
@@ -100,10 +100,15 @@ export default function WelcomeTrialModal() {
     if (pending) return
     setPending(true)
     setError(null)
+    // After the pending guard, so a double-click cannot inflate the count.
+    // Never awaited: the CTA is the only way out of a non-dismissible modal and
+    // must not wait on telemetry.
+    trackTrialStartClicked().catch(() => {})
     try {
       const res = await startTrial()
       if ('error' in res) {
         setError('אירעה שגיאה, נסה שוב')
+        trackTrialStartFailed(res.error === 'unauthorized' ? 'unauthorized' : 'unknown').catch(() => {})
         setPending(false)
         return
       }
@@ -127,6 +132,7 @@ export default function WelcomeTrialModal() {
       setDone(true)
     } catch {
       setError('אירעה שגיאה ברשת, נסה שוב')
+      trackTrialStartFailed('network').catch(() => {})
       setPending(false)
     }
   }

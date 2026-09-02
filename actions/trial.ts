@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
+import { track } from '@/lib/analytics/track'
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startTrialForAgency, recordWelcomeModalSeen } from '@/db/trial'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
@@ -44,6 +45,43 @@ export async function startTrial(): Promise<StartTrialResult> {
 }
 
 export type TrackSeenResult = { ok: true } | { error: 'unauthorized' }
+
+/**
+ * Allowlisted failure categories. A category, never a message: the raw error
+ * could carry account or network detail, and this lands in analytics_events
+ * permanently.
+ */
+export type TrialStartFailure = 'unauthorized' | 'network' | 'unknown'
+const TRIAL_START_FAILURES = new Set<TrialStartFailure>(['unauthorized', 'network', 'unknown'])
+
+/**
+ * The CTA was pressed. Paired with `trial_started`, a click with no start is the
+ * signal that separates "walked away" from "tried and it failed".
+ *
+ * Fire-and-forget: telemetry must never block or break the only way out of a
+ * non-dismissible modal.
+ */
+export async function trackTrialStartClicked(): Promise<void> {
+  try {
+    const user = await requireAgencyUser()
+    await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_start_clicked' })
+  } catch {
+    // Swallowed on purpose — see above.
+  }
+}
+
+/** The start failed, with a safe category. Same fire-and-forget contract. */
+export async function trackTrialStartFailed(reason: TrialStartFailure): Promise<void> {
+  if (!TRIAL_START_FAILURES.has(reason)) return
+  try {
+    const user = await requireAgencyUser()
+    await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_start_failed', props: { reason } })
+  } catch {
+    // An `unauthorized` failure cannot resolve a user, so that one case records
+    // nothing. The click event still fired, which is what separates it from
+    // abandonment.
+  }
+}
 
 export async function trackWelcomeModalSeen(): Promise<TrackSeenResult> {
   let user

@@ -40,6 +40,11 @@ const markActivated = vi.fn()
 vi.mock('@/actions/trial', () => ({
   startTrial: (...a: unknown[]) => startTrial(...(a as [])),
   trackWelcomeModalSeen: () => trackWelcomeModalSeen(),
+  // Observability added after agency 132 showed the modal and never started a
+  // trial. Stubbed as resolved no-ops: this suite is about the trial path and
+  // the dialog's mobile safety, and telemetry must never affect either.
+  trackTrialStartClicked: async () => {},
+  trackTrialStartFailed: async () => {},
 }))
 vi.mock('@/lib/facebook/pixelEvents', () => ({
   trackStartTrial: () => trackStartTrial(),

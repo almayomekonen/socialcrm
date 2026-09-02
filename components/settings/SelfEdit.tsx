@@ -5,6 +5,7 @@ import UserDetailsForm from '@/components/settings/userDetails/UserDetailsForm'
 import AccordionItem from '@/lib/AccordionItem'
 import UploadClientData from '@/components/settings/UploadClientData'
 
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import ExtUsers from '../extUsers'
 
@@ -48,14 +49,41 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
           <p className='text-gray-500 text-sm mb-4'>שליטה בגישה ללידים שלך קבע מי רשאי לצפות ולטפל בהם</p>
           <AddAuthUsersComp users={users} gavePerm={gavePerm} user={user} />
         </AccordionItem>
+        {/*
+          Titled for what this actually creates. It read "אנשי צוות" over a form
+          that takes only a name, so two ADMINs in two days added someone here
+          expecting to give them access and got a label that cannot log in.
+          Across all of production this path was used twice and the real
+          invitation zero times. The EXT model is unchanged and correct — these
+          are assignment names for לידים. Only the wording, and a route to the
+          real invitation, change.
+        */}
         <AccordionItem
           icon='user-alien'
           bodyClass={'p-6'}
-          title='אנשי צוות'
+          title='נציגים לשיוך לידים'
           open={tab === 'ext_users'}
           badge={<Badge label='אופציונלי' variant='muted' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>ניהול אנשים שעובדים איתך הוסף נציגים ושייך אליהם לידים</p>
+          <p className='text-gray-500 text-sm mb-2'>
+            נציגים הם שמות לשיוך לידים בלבד. הם לא מקבלים גישה למערכת ולא יכולים להתחבר אליה.
+          </p>
+          {/*
+            The destination is ADMIN-only — the (admin_settings) layout rejects
+            every other role — so linking anyone else would lead straight to a
+            permission wall. Non-admins get the same fact without the dead end.
+          */}
+          {user?.role === 'ADMIN' ? (
+            <p className='text-sm mb-4'>
+              <Link href='/settings/edit_users' className='text-sm font-medium text-primary hover:underline'>
+                לשליחת הזמנה למשתמש במערכת
+              </Link>
+            </p>
+          ) : (
+            <p className='text-gray-500 text-sm mb-4'>
+              כדי לתת למישהו גישה למערכת — יש לבקש ממנהל החשבון לשלוח לו הזמנה.
+            </p>
+          )}
           <ExtUsers extUsers={extUsers} users={allUsers} />
         </AccordionItem>
         <AccordionItem

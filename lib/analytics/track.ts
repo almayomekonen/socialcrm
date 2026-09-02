@@ -5,6 +5,15 @@ export type AnalyticsEventName =
   | 'desktop_first_access'
   | 'welcome_modal_shown'
   | 'trial_started'
+  /**
+   * The welcome modal is NON-DISMISSIBLE: the CTA is the only way through. So a
+   * `welcome_modal_shown` with no `trial_started` could mean the user walked
+   * away, or that the CTA was pressed and the start failed — and production had
+   * exactly one such agency with no way to tell which. These two close that gap.
+   * There is deliberately no `dismissed` event: the state cannot occur.
+   */
+  | 'trial_start_clicked'
+  | 'trial_start_failed'
   | 'trial_expired'
   | 'upgrade_clicked'
   | 'subscription_activated'

@@ -27,11 +27,13 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 vi.mock('@/actions/trial', () => ({
   startTrial: vi.fn(async () => ({ ok: true, started: true })),
   trackWelcomeModalSeen: vi.fn(async () => ({ ok: true })),
+  trackTrialStartClicked: vi.fn(async () => {}),
+  trackTrialStartFailed: vi.fn(async () => {}),
 }))
 
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
-import { startTrial, trackWelcomeModalSeen } from '@/actions/trial'
+import { startTrial, trackTrialStartClicked, trackTrialStartFailed, trackWelcomeModalSeen } from '@/actions/trial'
 
 /**
  * Rendered inside the REAL celebration provider rather than a mock: the modal
@@ -121,5 +123,68 @@ describe('WelcomeTrialModal — trial reachability (EC-16)', () => {
       </ActivationCelebrationProvider>,
     )
     expect(trackWelcomeModalSeen).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * Observability of the CTA — added after agency 132 registered, saw the modal,
+ * and never started a trial, with no way to tell whether they walked away or
+ * pressed the button and it failed. The modal is non-dismissible, so those are
+ * the only two possibilities and only telemetry can separate them.
+ */
+describe('trial-start observability', () => {
+  // Call counts are asserted exactly, and the module mock is shared across the
+  // file. Scoped here so the existing suite's setup is left untouched.
+  beforeEach(() => vi.clearAllMocks())
+
+  test('modal shown is recorded on mount', async () => {
+    renderModal()
+    await waitFor(() => expect(trackWelcomeModalSeen).toHaveBeenCalled())
+  })
+
+  test('pressing the CTA records the click', async () => {
+    renderModal()
+    fireEvent.click(await screen.findByRole('button'))
+    await waitFor(() => expect(trackTrialStartClicked).toHaveBeenCalledTimes(1))
+  })
+
+  test('a successful start records the click and no failure', async () => {
+    vi.mocked(startTrial).mockResolvedValueOnce({ ok: true, started: true } as never)
+    renderModal()
+    fireEvent.click(await screen.findByRole('button'))
+    await waitFor(() => expect(startTrial).toHaveBeenCalled())
+    expect(trackTrialStartClicked).toHaveBeenCalledTimes(1)
+    expect(trackTrialStartFailed).not.toHaveBeenCalled()
+  })
+
+  test('a rejected start records the failure with its category', async () => {
+    vi.mocked(startTrial).mockResolvedValueOnce({ error: 'unauthorized' } as never)
+    renderModal()
+    fireEvent.click(await screen.findByRole('button'))
+    await waitFor(() => expect(trackTrialStartFailed).toHaveBeenCalledWith('unauthorized'))
+    expect(trackTrialStartClicked).toHaveBeenCalledTimes(1)
+  })
+
+  test('a thrown start is recorded as a network failure', async () => {
+    vi.mocked(startTrial).mockRejectedValueOnce(new Error('boom'))
+    renderModal()
+    fireEvent.click(await screen.findByRole('button'))
+    await waitFor(() => expect(trackTrialStartFailed).toHaveBeenCalledWith('network'))
+  })
+
+  test('double-clicking cannot inflate the click count', async () => {
+    renderModal()
+    const cta = await screen.findByRole('button')
+    fireEvent.click(cta)
+    fireEvent.click(cta)
+    await waitFor(() => expect(startTrial).toHaveBeenCalledTimes(1))
+    expect(trackTrialStartClicked).toHaveBeenCalledTimes(1)
+  })
+
+  test('telemetry failure never blocks the only way out of the modal', async () => {
+    vi.mocked(trackTrialStartClicked).mockRejectedValueOnce(new Error('analytics down'))
+    renderModal()
+    fireEvent.click(await screen.findByRole('button'))
+    await waitFor(() => expect(startTrial).toHaveBeenCalled())
   })
 })
