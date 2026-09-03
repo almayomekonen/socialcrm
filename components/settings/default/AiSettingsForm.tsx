@@ -16,7 +16,6 @@ export default function AiSettingsForm({ data, userId }) {
 
   async function onSubmit(e) {
     const formData = getFormData2(e)
-    console.log(formData)
     api(updateDefaultSettings, [formData, userId])
   }
 

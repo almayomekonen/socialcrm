@@ -125,7 +125,7 @@ function SelectBranch({ goalLength, setGoalLength, promo, index }) {
   return (
     <div>
       <div className='flex items-end gap-2 '>
-        <SelectPrdctOpts withCmsnBranch key={Math.random()} prdct={promo?.goals?.conditions?.[index] || {}} index={index} />
+        <SelectPrdctOpts key={Math.random()} prdct={promo?.goals?.conditions?.[index] || {}} index={index} />
 
         <Btn onClick={() => setGoalLength(goalLength + 1)} className='px-3 ' icon='plus' variant='soft' type='button' />
         {goalLength !== 1 && (
