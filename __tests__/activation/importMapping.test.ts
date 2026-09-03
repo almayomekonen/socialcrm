@@ -94,3 +94,27 @@ describe('mapImportRows — a real social-media lead list', () => {
     expect(res.wrongData).toHaveLength(0)
   })
 })
+
+/**
+ * Found in browser QA: an .xlsx cell reading "054-111-0005" was stored verbatim
+ * while the same number pasted became "0541110005". `addLeads` dedupes on the
+ * exact phone string, so one person would have become two לידים depending on
+ * which import path their number arrived through.
+ */
+describe('mapImportRows — phones are stored in one shape', () => {
+  it('normalises a formatted phone the way the paste path does', () => {
+    const res = mapImportRows(['שם פרטי', 'טלפון'], [['יעל', '054-111-0005']])
+    expect(res.data[0].phone).toBe('0541110005')
+  })
+
+  it('normalises an international prefix', () => {
+    const res = mapImportRows(['שם פרטי', 'טלפון'], [['יעל', '+972541110005']])
+    expect(res.data[0].phone).toBe('0541110005')
+  })
+
+  it('keeps an unrecognisable number as typed rather than losing the lead', () => {
+    const res = mapImportRows(['שם פרטי', 'טלפון'], [['יעל', '+1 415 555 0100']])
+    expect(res.data).toHaveLength(1)
+    expect(res.data[0].phone).toBe('+1 415 555 0100')
+  })
+})

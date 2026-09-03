@@ -1,4 +1,7 @@
 import { isIdNumValid } from '@/lib/funcs'
+// Value import. `pastedLeads` imports only the TYPE back from here, which is
+// erased at compile time, so there is no runtime cycle.
+import { normalizePhone } from '@/lib/leads/pastedLeads'
 
 /**
  * Spreadsheet import mapping — headers to lead fields.
@@ -117,6 +120,18 @@ export function mapImportRows(headers: unknown[], rows: unknown[][]): ImportMapp
       // dropped rather than failing the row, so a lead with a good phone and a
       // typo'd id still imports.
       if (field === 'idNum' && !isIdNumValid(value)) return
+      /**
+       * Store phones in ONE shape, the same one the paste path produces.
+       * A cell reading "054-111-0005" was previously stored verbatim while the
+       * same number pasted became "0541110005"; `addLeads` dedupes on the exact
+       * string, so the two would have become two separate לידים. An
+       * unrecognisable number is kept as typed rather than dropped — the lead is
+       * still worth having, and refusing it would lose the customer's data.
+       */
+      if (field === 'phone') {
+        mapped.phone = normalizePhone(value) ?? value
+        return
+      }
       mapped[field] = value
     })
 

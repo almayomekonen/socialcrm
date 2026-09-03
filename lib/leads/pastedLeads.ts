@@ -29,7 +29,14 @@ const INTL_RE = /^972\d{8,9}$/
  *  renders as an empty lead card and reads like a bug. */
 const UNNAMED = 'ליד'
 
-function normalizePhone(raw: string): string | null {
+/**
+ * Exported so the SPREADSHEET mapper stores phones in the same shape this does.
+ * Browser QA caught the divergence: a cell reading "054-111-0005" was stored
+ * verbatim while the same number pasted became "0541110005", so `addLeads`
+ * (which dedupes on the exact phone string) would have inserted both as two
+ * separate לידים.
+ */
+export function normalizePhone(raw: string): string | null {
   // Keep digits and a leading +; drop spaces, dashes, dots, parentheses.
   const digits = raw.replace(/[^\d+]/g, '').replace(/^\+/, '')
   if (!digits) return null
