@@ -25,6 +25,7 @@ export default function LeadListMobile({
   whatsappConnected = false,
   firstImport = 0,
   firstLeadId,
+  firstImportSkipped = 0,
 }: {
   rows: MobileLeadRow[]
   filters: LeadFilters
@@ -37,6 +38,7 @@ export default function LeadListMobile({
   /** One-shot: leads that just arrived via import, and the first of them. */
   firstImport?: number
   firstLeadId?: number
+  firstImportSkipped?: number
 }) {
   if (workspaceEmpty) {
     return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected} />
@@ -55,7 +57,7 @@ export default function LeadListMobile({
           Sits above the list, never over it. */}
       {firstImport > 0 && (
         <div className='px-4 pt-4'>
-          <FirstImportCallout count={firstImport} leadId={firstLeadId} />
+          <FirstImportCallout count={firstImport} leadId={firstLeadId} skipped={firstImportSkipped} />
         </div>
       )}
       <LeadListMobileClient

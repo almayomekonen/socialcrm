@@ -45,7 +45,7 @@ export default function LeadImportMobile({
   open: boolean
   onClose: () => void
   /** First-run passes this to route into the imported leads; others refresh. */
-  onImported?: (inserted: number, firstId?: number) => void
+  onImported?: (inserted: number, firstId?: number, skipped?: number) => void
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<'file' | 'paste'>('file')
@@ -118,7 +118,7 @@ export default function LeadImportMobile({
       const inserted = (res as any)?.inserted ?? excel.valid.length
       onClose()
       reset()
-      if (onImported) onImported(inserted, (res as any)?.firstId)
+      if (onImported) onImported(inserted, (res as any)?.firstId, excel.invalid.length)
       else router.refresh()
     } catch {
       setErrMsg('לא הצלחנו לייבא את הלידים')
@@ -163,7 +163,7 @@ export default function LeadImportMobile({
             onImported={(n, id) => {
               onClose()
               reset()
-              if (onImported) onImported(n, id)
+              if (onImported) onImported(n, id, 0)
               else router.refresh()
             }}
           />

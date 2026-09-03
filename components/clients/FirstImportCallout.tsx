@@ -24,7 +24,16 @@ import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
  * One-shot: the params are stripped on the first interaction, so a refresh or a
  * back-navigation never replays it.
  */
-export default function FirstImportCallout({ count, leadId }: { count: number; leadId?: number }) {
+export default function FirstImportCallout({
+  count,
+  leadId,
+  skipped = 0,
+}: {
+  count: number
+  leadId?: number
+  /** Rows the file carried that could not be imported. */
+  skipped?: number
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
@@ -37,6 +46,7 @@ export default function FirstImportCallout({ count, leadId }: { count: number; l
     const next = new URLSearchParams(sp.toString())
     next.delete('firstImport')
     next.delete('firstLeadId')
+    next.delete('firstImportSkipped')
     const qs = next.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
@@ -55,6 +65,9 @@ export default function FirstImportCallout({ count, leadId }: { count: number; l
         <div className='min-w-0'>
           <h2 className='text-sm font-bold text-ink'>{C.firstImport.title(count)}</h2>
           <p className='mt-0.5 text-sm text-gray-600'>{C.firstImport.body}</p>
+          {skipped > 0 && (
+            <p className='mt-1 text-sm text-warning-text'>{C.firstImport.skipped(skipped)}</p>
+          )}
         </div>
 
         {/* Only offered when we actually have a lead to open. Without an id the

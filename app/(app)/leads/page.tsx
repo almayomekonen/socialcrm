@@ -71,6 +71,7 @@ export default async function LeadsPage({ searchParams }) {
            callout exists to prevent, on the surface most signups arrive from. */
         firstImport={Number(params.firstImport) || 0}
         firstLeadId={Number(params.firstLeadId) || undefined}
+        firstImportSkipped={Number(params.firstImportSkipped) || 0}
         rows={list.rows}
         filters={filters}
         hasMore={list.hasMore}
@@ -150,6 +151,7 @@ export default async function LeadsPage({ searchParams }) {
             <FirstImportCallout
               count={Number(params.firstImport) || 0}
               leadId={Number(params.firstLeadId) || undefined}
+              skipped={Number(params.firstImportSkipped) || 0}
             />
             <MetaDisconnectedBanner show={meta.needsReconnect} />
             {/* A lead source that is refusing what arrives — same surface, same
