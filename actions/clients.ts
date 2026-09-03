@@ -873,6 +873,20 @@ export async function addLeads(leads, format: LeadImportFormat = 'excel'): Promi
       userId,
       lead: true,
       ...lead,
+      /**
+       * `clients.firstName` and `clients.lastName` are both NOT NULL with no
+       * default. Every lead list this product's users actually have — a pasted
+       * column of numbers, a sheet with "שם פרטי, טלפון" — carries no surname,
+       * so without these two lines the insert dies with a not-null violation
+       * and the whole import fails. Found by the value-loop DB test; a mocked
+       * `db` cannot see a column constraint.
+       *
+       * Empty string, never a placeholder name: the UI already composes a
+       * display name from what exists, and inventing "לא ידוע" would put a word
+       * in the customer's list that they never typed.
+       */
+      firstName: lead.firstName ?? '',
+      lastName: lead.lastName ?? '',
       createdById: userId,
       status: 'new',
       agencyId,
