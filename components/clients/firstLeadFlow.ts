@@ -49,14 +49,15 @@ export function claimOpenedEvent(leadId: number): boolean {
   return false
 }
 
-/** Returns true exactly once per flow — de-dupes the first_follow_up_set event across remounts. */
-export function claimFollowUpEvent(leadId: number): boolean {
-  if (flow?.leadId === leadId && !flow.followUpFired) {
-    flow.followUpFired = true
-    return true
-  }
-  return false
-}
+/**
+ * REMOVED: `claimFollowUpEvent`.
+ *
+ * It de-duped a client-side `first_follow_up_set`, which no longer exists — the
+ * event is emitted by `setLeadFollowUp` and de-duped per agency by
+ * `trackOncePerAgency`. A latch in one document could never have been the right
+ * guard for an agency-level milestone anyway: it was invisible to the mobile
+ * surface entirely, and reset on every reload.
+ */
 
 /** Test-only reset so module state does not leak between test cases. */
 export function __resetFirstLeadFlowForTests(): void {

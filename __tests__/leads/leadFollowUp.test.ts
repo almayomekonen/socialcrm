@@ -57,6 +57,14 @@ vi.mock('@/lib/requireUser', () => ({
 vi.mock('@/db/filter', () => ({ getPerms: () => Promise.resolve({ gotPermIds: state.gotPermIds }) }))
 vi.mock('@/types/roles', () => ({ isAdmin: (r: string) => r === 'admin' }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+/**
+ * `setLeadFollowUp` now emits the `first_follow_up_set` activation milestone via
+ * `after()`, which throws outside a request scope. Run it inline against a
+ * mocked emitter; the milestone's own behaviour is covered in
+ * `__tests__/activation/firstFollowUp.test.ts`.
+ */
+vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }))
+vi.mock('@/lib/analytics/track', () => ({ track: vi.fn(), trackOncePerAgency: vi.fn() }))
 
 import { setLeadFollowUp, clearLeadFollowUp } from '@/actions/leadFollowUp'
 

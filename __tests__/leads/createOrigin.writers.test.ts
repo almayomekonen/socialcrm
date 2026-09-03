@@ -70,6 +70,21 @@ vi.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }))
 
+/**
+ * `addLeads` schedules its analytics with `after()`, which throws outside a
+ * request scope — so without this mock the bulk-insert case failed on
+ * origin/main with "`after` was called outside a request scope", unrelated to
+ * anything it asserts. Run the callback inline; analytics is mocked below so
+ * nothing reaches a database.
+ */
+vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }))
+
+vi.mock('@/lib/analytics/track', () => ({
+  track: vi.fn(),
+  trackOncePerAgency: vi.fn(),
+  trackFirstRealLeadOnce: vi.fn(),
+}))
+
 vi.mock('@/config/db', () => {
   const db: any = (table: string) => {
     if (table !== 'clients') throw new Error(`unexpected table ${table}`)
