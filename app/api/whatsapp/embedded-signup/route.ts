@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser } from '@/db/auth'
+import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
 import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
@@ -30,9 +30,15 @@ function fail(agencyId: number, userId: number, reason: WaReason, stage: string,
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const agencyId = user.agencyId!
+  // The Embedded Signup path is the sibling of /api/auth/whatsapp/connect and
+  // writes the same `whatsapp_connections` row, so it carries the same admin
+  // boundary. Guarding only the other endpoint would have left this one open.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.reason }, { status: statusFor(auth.reason) })
+  }
+  const user = auth.user
+  const agencyId = user.agencyId
 
   let body: { code?: string; wabaId?: string; phoneNumberId?: string; onboardingType?: OnboardingType }
   try {

@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser } from '@/db/auth'
+import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
 
 export async function GET(_req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/auth`)
+  // Connecting a Page and re-running OAuth to change it both start here, so the
+  // admin boundary belongs at this step rather than only at /connect — a user
+  // who may not finish the flow should not be sent to Meta to begin it.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    if (auth.reason === 'unauthenticated') {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/auth`)
+    }
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/settings/integrations?notice=forbidden`)
+  }
+  const user = auth.user
 
   // Generate CSRF state token and store in short-lived cookie.
   // Option A: the origin of the flow is carried in the state prefix so the

@@ -135,7 +135,11 @@ beforeEach(() => {
   vi.stubEnv('META_APP_SECRET', APP_SECRET)
   vi.stubEnv('META_REDIRECT_URI', 'https://app.test/api/auth/facebook/callback')
   setCookies()
-  vi.mocked(getUser).mockResolvedValue({ id: USER_ID, agencyId: AGENCY, email: 'x@example.com' } as never)
+  // Phase 2 gave the integration routes an admin boundary. This suite covers
+  // connect/discovery MECHANICS, so the fixture now represents a caller who is
+  // permitted to reach them; authorization itself is covered separately in
+  // __tests__/connections/phase2AuthorizationBoundaries.test.ts.
+  vi.mocked(getUser).mockResolvedValue({ id: USER_ID, agencyId: AGENCY, role: 'ADMIN', email: 'x@example.com' } as never)
   vi.mocked(track).mockClear()
   // `encrypt` is a vi.mock factory fn — restoreAllMocks does not reset it, so
   // without this its call history leaks across tests.

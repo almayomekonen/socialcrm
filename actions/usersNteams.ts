@@ -189,6 +189,19 @@ export async function fetchIsUserHaveSales(userId: number) {
 
 export async function transferSales(fromUserId: number, toUserId: number) {
   const user = await requireProductAccess()
+  /**
+   * ADMIN-ONLY, and checked before the endpoint rows are even read.
+   *
+   * "May act on a lead" is not "may transfer ownership of it". This rewrites
+   * `sale_users.userId`, `sales.handlerId`, `sales.createdById` and
+   * `clients.createdById` in one transaction — the commission/transfer path
+   * `do-not-touch.md` names as high-risk, where a partial failure leaves data
+   * corrupt. It was reachable by any authenticated agency user.
+   *
+   * The two agency-membership lookups below are retained unchanged: they are
+   * tenant isolation, which the role test does not replace.
+   */
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
   const [from, to] = await Promise.all([
     db('users').where({ id: fromUserId, agencyId: user.agencyId }).first('id'),
     db('users').where({ id: toUserId, agencyId: user.agencyId }).first('id'),
@@ -206,6 +219,16 @@ export async function transferSales(fromUserId: number, toUserId: number) {
 
 export async function upsertExtUser(extUser, id?) {
   const user = await requireProductAccess()
+  /**
+   * EXT records are agency roster data: a partner created here becomes an
+   * assignment target for everyone. Creating and renaming them is administration,
+   * so it carries the same boundary as the rest of the roster.
+   *
+   * The `role: 'EXT'` forcing and the agency-scoped update below are unchanged —
+   * they are what keeps EXT assignment-only and stops this path being turned
+   * against a real login account. This adds the missing caller check, nothing else.
+   */
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
   const safe = pickCols(extUser, EXT_USER_WRITABLE)
 
   if (id) {
@@ -231,6 +254,8 @@ export async function upsertExtUser(extUser, id?) {
 
 export async function deleteExtUser(id) {
   const user = await requireProductAccess()
+  // Destructive, and it detaches whatever leads were assigned to the partner.
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
   // Only an EXT user within the caller's agency may be deleted.
   const target = await db('users')
     .where({ id, agencyId: user.agencyId, role: 'EXT' as Role })

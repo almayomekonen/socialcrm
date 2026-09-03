@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser, encrypt } from '@/db/auth'
+import { encrypt } from '@/db/auth'
+import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { resolveWabaIdsFromToken } from '@/lib/whatsapp/resolveWaba'
 
@@ -10,8 +11,14 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL!
 const failed = (_req: NextRequest, reason: string) => NextResponse.redirect(`${BASE_URL}/settings/facebook?wa_error=${reason}`)
 
 export async function GET(req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.redirect(`${BASE_URL}/auth`)
+  // Same boundary as the start of the flow, checked before the code is
+  // exchanged so a forbidden caller never causes a token to be minted.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    if (auth.reason === 'unauthenticated') return NextResponse.redirect(`${BASE_URL}/auth`)
+    return NextResponse.redirect(`${BASE_URL}/settings/integrations?notice=forbidden`)
+  }
+  const user = auth.user
 
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')

@@ -31,7 +31,11 @@ import { POST } from '@/app/api/auth/whatsapp/disconnect/route'
 beforeEach(() => {
   h.lastWhere = null
   h.lastTable = ''
-  vi.mocked(getUser).mockResolvedValue({ id: 99, agencyId: 23, email: 'x@example.com' } as never)
+  // Phase 2 gave the integration routes an admin boundary. This suite covers
+  // connect/disconnect MECHANICS, so the fixture now represents a caller who is
+  // permitted to reach them; authorization itself is covered separately in
+  // __tests__/connections/phase2AuthorizationBoundaries.test.ts.
+  vi.mocked(getUser).mockResolvedValue({ id: 99, agencyId: 23, role: 'ADMIN', email: 'x@example.com' } as never)
 })
 
 describe('agency-scoped WhatsApp connection', () => {

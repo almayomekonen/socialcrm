@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getUser } from '@/db/auth'
+import { requireActiveAgencyUser, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
 import { checkFacebookConnection } from '@/lib/facebook/health'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
@@ -8,8 +8,13 @@ import { getAgencyProductAccess } from '@/lib/access/productAccess'
 const HEALTH_CACHE_MS = 30 * 60 * 1000 // 30 minutes
 
 export async function GET() {
-  const user = await getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Reads and health-updates the caller's OWN connection, so no role test — but
+  // `getUser()` never consulted `suspended`, and this writes `health_status`.
+  const auth = await requireActiveAgencyUser()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.reason }, { status: statusFor(auth.reason) })
+  }
+  const user = auth.user
   // Returns lastLeadAt (CRM-derived) — gate on product access.
   if (user.agencyId && !(await getAgencyProductAccess(user.agencyId)).hasAccess) {
     return NextResponse.json({ error: 'product-access-required' }, { status: 403 })

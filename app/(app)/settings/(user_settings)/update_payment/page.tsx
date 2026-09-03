@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
 import { getUser } from '@/db/auth'
+import { isAdmin } from '@/types/roles'
 import { getAgencyPlan } from '@/lib/quota'
 import { getPlanUsage } from '@/lib/quota/planUsage'
 import { getSubscriptionView } from '@/lib/quota/subscription'
@@ -42,6 +43,16 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const isLocalMode = sp.mode === 'local'
 
   const user = await getUser()
+  /**
+   * The nav entry for this page sits inside the `role == 'ADMIN'` block, so it
+   * was hidden from other roles — but hidden is not denied. The page itself had
+   * no role check, and a direct URL rendered the agency's plan, usage and
+   * billing history to any authenticated user. `isAdmin` is the predicate the
+   * subscription actions use, so page and action now agree.
+   */
+  if (!user || !isAdmin(user.role)) {
+    return <div>אין לך הרשאה לצפות בדף זה</div>
+  }
   const productAccess = await getAgencyProductAccess(user.agencyId)
   const plan = await getAgencyPlan(user.agencyId)
   const isPro = plan === 'pro'

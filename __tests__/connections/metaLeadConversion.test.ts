@@ -132,7 +132,11 @@ beforeEach(() => {
   h.state.tracked = []
   calls = []
   h.pending.length = 0
-  vi.mocked(getUser).mockResolvedValue({ id: USER, agencyId: AGENCY, email: 'Rep@Example.com ' } as never)
+  // Phase 2 gave the integration routes an admin boundary. This suite covers
+  // connect/discovery MECHANICS, so the fixture now represents a caller who is
+  // permitted to reach them; authorization itself is covered separately in
+  // __tests__/connections/phase2AuthorizationBoundaries.test.ts.
+  vi.mocked(getUser).mockResolvedValue({ id: USER, agencyId: AGENCY, role: 'ADMIN', email: 'Rep@Example.com ' } as never)
 })
 
 afterEach(() => vi.unstubAllEnvs())

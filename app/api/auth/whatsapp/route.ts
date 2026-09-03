@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser } from '@/db/auth'
+import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
 
 export async function GET(req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.redirect(new URL('/auth', req.url))
+  // The start of the connect flow, so it carries the same admin boundary as the
+  // connect endpoint it leads to — otherwise the restriction is only enforced at
+  // the last step, after the user has already been sent to Meta.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    if (auth.reason === 'unauthenticated') return NextResponse.redirect(new URL('/auth', req.url))
+    return NextResponse.redirect(new URL('/settings/integrations?notice=forbidden', req.url))
+  }
+  const user = auth.user
 
   // Denominator for the WhatsApp connect funnel — the symmetric counterpart to
   // `facebook_connect_started`. Declared in the event union but emitted nowhere

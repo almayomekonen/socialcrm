@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser } from '@/db/auth'
+import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { deleteWhatsappConnectionsForAgency, getWhatsappConnectionAuditForAgency } from '@/db/whatsapp'
 import { track } from '@/lib/analytics/track'
 
@@ -18,9 +18,20 @@ import { track } from '@/lib/analytics/track'
  * its own source rather than inventing a second name.
  */
 export async function POST(_req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!user.agencyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  /**
+   * ADMIN-ONLY, AND CHECKED BEFORE THE READ.
+   *
+   * This deletes every `whatsapp_connections` row for the agency, not the
+   * caller's own — one POST from any authenticated session severed inbound
+   * WhatsApp for an entire business. The guard sits above the audit read as
+   * well as the delete: a caller who may not disconnect may not enumerate the
+   * connection's metadata either.
+   */
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.reason }, { status: statusFor(auth.reason) })
+  }
+  const user = auth.user
 
   const audit = await getWhatsappConnectionAuditForAgency(user.agencyId)
 

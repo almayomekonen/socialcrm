@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser, encrypt } from '@/db/auth'
+import { encrypt } from '@/db/auth'
+import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
 import { FB_REASON, FB_REASON_NOTICE_CODE, type FbReason } from '@/lib/connections/reasons'
@@ -22,8 +23,14 @@ const failed = (req: NextRequest, reason: string) => {
 }
 
 export async function GET(req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.redirect(new URL('/auth', req.url))
+  // Same boundary as the start of the flow. Checked before the code is
+  // exchanged, so a forbidden caller never causes a token to be minted.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    if (auth.reason === 'unauthenticated') return NextResponse.redirect(new URL('/auth', req.url))
+    return NextResponse.redirect(new URL('/settings/integrations?notice=forbidden', req.url))
+  }
+  const user = auth.user
 
   // Precise, non-PII failure reason → analytics. Notice code (redirect) is
   // unchanged; only the observability reason is added. `diagnostics` carries

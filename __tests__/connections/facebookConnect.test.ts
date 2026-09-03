@@ -74,7 +74,11 @@ const validBody = { pageId: 'PG1', pageName: 'My Page', pageAccessToken: 'ptok' 
 beforeEach(() => {
   h.state.existing = null
   h.state.merged = []
-  vi.mocked(getUser).mockResolvedValue({ id: 1, agencyId: AGENCY, email: 'x@example.com' } as never)
+  // Phase 2 gave the integration routes an admin boundary. This suite covers
+  // connect/disconnect MECHANICS, so the fixture now represents a caller who is
+  // permitted to reach them; authorization itself is covered separately in
+  // __tests__/connections/phase2AuthorizationBoundaries.test.ts.
+  vi.mocked(getUser).mockResolvedValue({ id: 1, agencyId: AGENCY, role: 'ADMIN', email: 'x@example.com' } as never)
 })
 
 describe('Facebook connect — persistence & tenancy', () => {

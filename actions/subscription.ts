@@ -4,6 +4,7 @@ import type { Knex } from 'knex'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
+import { isAdmin } from '@/types/roles'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { loadPlatformOperators } from '@/db/notifications/recipients'
 import { notifyEvent } from '@/lib/notifications/emit'
@@ -21,6 +22,12 @@ async function setCancelFlag(value: boolean): Promise<CancelResumeResult> {
     if (err instanceof AuthError) return { error: 'unauthorized' }
     throw err
   }
+  /**
+   * Subscription state is agency-wide: cancelling ends the workspace for every
+   * user in it. The page that hosts this control was reachable by direct URL
+   * from any role, so the boundary has to live here rather than in the page.
+   */
+  if (!isAdmin(user.role)) return { error: 'unauthorized' }
 
   const rowcount = await db('subscriptions')
     .where({ agencyId: user.agencyId })
@@ -138,6 +145,12 @@ export async function cancelRenewal(): Promise<CancelResumeResult> {
     if (err instanceof AuthError) return { error: 'unauthorized' }
     throw err
   }
+  /**
+   * Subscription state is agency-wide: cancelling ends the workspace for every
+   * user in it. The page that hosts this control was reachable by direct URL
+   * from any role, so the boundary has to live here rather than in the page.
+   */
+  if (!isAdmin(user.role)) return { error: 'unauthorized' }
 
   let outcome: CancelResumeResult = { ok: true }
 

@@ -71,7 +71,11 @@ beforeEach(() => {
   h.state.existing = null
   h.state.merged = []
   h.state.inserted = []
-  vi.mocked(getUser).mockResolvedValue({ id: USER, agencyId: AGENCY, email: 'x@example.com' } as never)
+  // Phase 2 gave the Embedded Signup route an admin boundary. This suite covers
+  // the PERSISTENCE GATE, so the fixture now represents a caller who is permitted
+  // to reach it; authorization itself is covered separately in
+  // __tests__/connections/phase2AuthorizationBoundaries.test.ts.
+  vi.mocked(getUser).mockResolvedValue({ id: USER, agencyId: AGENCY, role: 'ADMIN', email: 'x@example.com' } as never)
   vi.mocked(ensureMessagingReady).mockClear()
   vi.mocked(ensureMessagingReady).mockResolvedValue({ ready: true, status: 'CONNECTED' })
 })

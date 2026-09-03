@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { getUser, decrypt } from '@/db/auth'
+import { decrypt } from '@/db/auth'
+import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import { emitLifecycleEvent } from '@/lib/events/emit'
@@ -13,9 +14,14 @@ function fail(agencyId: number, userId: number, reason: WaReason, stage: string,
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const agencyId = user.agencyId!
+  // Connecting a number is agency configuration: the resulting row serves every
+  // user in the tenant. Checked before the Graph calls and before any write.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.reason }, { status: statusFor(auth.reason) })
+  }
+  const user = auth.user
+  const agencyId = user.agencyId
 
   let body: { phoneNumberId: string }
   try {

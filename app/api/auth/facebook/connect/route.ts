@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { getUser, decrypt } from '@/db/auth'
+import { decrypt } from '@/db/auth'
+import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
 import { cookies } from 'next/headers'
 import { emitLifecycleEvent } from '@/lib/events/emit'
@@ -9,7 +10,13 @@ import { sendFacebookConnectedLeadOnce } from '@/lib/facebook/metaLeadConversion
 import { FACEBOOK_PAGE_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
 
 export async function POST(req: NextRequest) {
-  const user = await getUser()
+  // Selecting the Page writes the agency's lead source. Checked before the
+  // ownership lookup, the Graph subscribe call and the write.
+  const auth = await requireAgencyAdmin()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.reason }, { status: statusFor(auth.reason) })
+  }
+  const user = auth.user
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const agencyId = user.agencyId!
 

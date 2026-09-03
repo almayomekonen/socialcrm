@@ -52,7 +52,11 @@ beforeEach(() => {
   h.deleted = 1
   h.row = { id: 77, waba_id: 'waba_1', onboarding_type: 'embedded_signup', health_status: 'operational', created_at: new Date() }
   h.tracked = []
-  vi.mocked(getUser).mockResolvedValue({ id: 99, agencyId: 23, email: 'x@example.com' } as never)
+  // Phase 2 gave the integration routes an admin boundary. This suite covers
+  // connect/disconnect MECHANICS, so the fixture now represents a caller who is
+  // permitted to reach them; authorization itself is covered separately in
+  // __tests__/connections/phase2AuthorizationBoundaries.test.ts.
+  vi.mocked(getUser).mockResolvedValue({ id: 99, agencyId: 23, role: 'ADMIN', email: 'x@example.com' } as never)
 })
 
 describe('user-initiated WhatsApp disconnect', () => {
