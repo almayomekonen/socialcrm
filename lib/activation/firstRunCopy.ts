@@ -109,7 +109,7 @@ export const FIRST_RUN_COPY = {
       title: 'הרשימה שלכם, מסודרת',
       description: 'קובץ אקסל, או פשוט הדביקו מספרי טלפון',
     },
-    add: { title: 'הוסף ליד אחד', description: 'ידנית, אם אין לכם רשימה מוכנה' },
+    add: { title: 'הוסף ליד אחד', description: 'ידנית, כשאין רשימה לייבא' },
   },
 
   /**
@@ -169,4 +169,15 @@ export const FIRST_RUN_COPY = {
     cta: 'פתח את הליד הראשון',
     dismiss: 'סגירה',
   },
+} as const
+
+/**
+ * First-lead guidance — the words the desktop `FirstLeadCallout` already uses,
+ * lifted here so the phone says the same thing. Same rule as FIRST_RUN_COPY:
+ * layout may differ per surface, the message may not.
+ */
+export const FIRST_LEAD_MOBILE = {
+  title: 'הליד הראשון שלך בפנים',
+  body: 'קבעו מתי לחזור אליו, ו־SocialCRM ידאג להזכיר לכם בזמן.',
+  cta: 'קבע מתי לחזור אליו',
 } as const

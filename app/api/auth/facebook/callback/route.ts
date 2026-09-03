@@ -222,7 +222,31 @@ export async function GET(req: NextRequest) {
     // what separate "granted, scoped to zero Pages" from "granted Pages, yet
     // neither source could resolve them" — they do NOT drive this
     // classification.
-    const reason = pagesShowListGranted ? FB_REASON.NO_PAGES : FB_REASON.PAGES_PERMISSION_MISSING
+    /**
+     * Three different situations, three different messages.
+     *
+     *  · permission never granted        → PAGES_PERMISSION_MISSING
+     *  · granted, but scoped to ZERO Pages → NO_PAGE_SELECTED (the user pressed
+     *    through Meta's consent screen without ticking a Page — the token says
+     *    so, so we can assert it and name the one-checkbox fix)
+     *  · granted Pages, none resolvable   → NO_PAGES (non-conclusive copy that
+     *    does not accuse the user's account)
+     *
+     * `grantedPageIdCount` is null when the granular entry carries no target
+     * ids at all, and 0 when it carries an empty list; both mean "no Page was
+     * selected". It is only trustworthy when debug_token actually answered.
+     */
+    const noPageSelected =
+      pagesShowListGranted &&
+      tokenDiag.debugTokenOk &&
+      tokenDiag.granularPagesEntryPresent &&
+      !tokenDiag.grantedPageIdCount
+
+    const reason = !pagesShowListGranted
+      ? FB_REASON.PAGES_PERMISSION_MISSING
+      : noPageSelected
+        ? FB_REASON.NO_PAGE_SELECTED
+        : FB_REASON.NO_PAGES
     trackFbFail(reason, 'discover', discoveryResult)
     return failed(req, FB_REASON_NOTICE_CODE[reason])
   }

@@ -152,14 +152,20 @@ afterEach(() => {
 })
 
 describe('Facebook Page discovery — classification', () => {
-  it('FBD-1: 200 + empty data → NO_PAGES (provider answered, with zero Pages)', async () => {
+  it('FBD-1: granted with zero target_ids + empty data → NO_PAGE_SELECTED', async () => {
+    // RECLASSIFIED. `debugToken([])` is a token that HAS pages_show_list and
+    // carries no Page ids — i.e. the user pressed through Meta's consent screen
+    // without ticking a Page. This used to collapse into NO_PAGES ("we couldn't
+    // find a Page"), which sent a user whose account is fine off to audit it.
+    // Production agency 131 hit exactly this. The provider-answered/zero-Pages
+    // case is still NO_PAGES — see FBD-5b, where Pages WERE granted.
     mockGraph({ perms: PERMS_FULL, debug: debugToken([]), accounts: { status: 200, body: { data: [] } } })
 
     const r = await GET(req())
 
-    expect(location(r)).toContain('error=no_pages')
+    expect(location(r)).toContain('error=no_page_selected')
     const props = failProps()
-    expect(props).toMatchObject({ reason: 'NO_PAGES', stage: 'discover', httpStatus: 200, returnedPageCount: 0, dataKeyPresent: true })
+    expect(props).toMatchObject({ reason: 'NO_PAGE_SELECTED', stage: 'discover', httpStatus: 200, returnedPageCount: 0, dataKeyPresent: true })
   })
 
   it('FBD-2: 200 + Pages → existing successful flow is unchanged', async () => {
@@ -232,22 +238,26 @@ describe('Facebook Page discovery — classification', () => {
 
     const props = failProps()
     expect(props).toMatchObject({
-      reason: 'NO_PAGES',
+      reason: 'NO_PAGE_SELECTED',
       pagesShowListGranted: true,
       grantedPageIdCount: 0,
       granularPagesEntryPresent: true,
       debugTokenOk: true,
     })
     expect(props?.reason).not.toBe('PAGES_PERMISSION_MISSING')
-    // This is the discriminator the whole patch exists to produce.
+    // The discriminator this patch produced now also DRIVES the message, not
+    // just the analytics row: granted-but-scoped-to-zero-Pages is its own state.
     expect(props?.grantedPageIdCount).toBe(0)
   })
 
-  it('FBD-5b: granted WITH Pages but /me/accounts empty → distinguishable from FBD-5', async () => {
+  it('FBD-5b: granted WITH Pages but /me/accounts empty → still NO_PAGES', async () => {
+    // The case where we genuinely cannot tell why the Page did not resolve, so
+    // the non-conclusive copy is right and must NOT become NO_PAGE_SELECTED.
     mockGraph({ perms: PERMS_FULL, debug: debugToken(['PG1', 'PG2']), accounts: { status: 200, body: { data: [] } } })
 
-    await GET(req())
+    const r = await GET(req())
 
+    expect(location(r)).toContain('error=no_pages')
     expect(failProps()).toMatchObject({ reason: 'NO_PAGES', grantedPageIdCount: 2, returnedPageCount: 0 })
   })
 
@@ -256,7 +266,9 @@ describe('Facebook Page discovery — classification', () => {
 
     await GET(req())
 
-    expect(failProps()).toMatchObject({ reason: 'NO_PAGES', dataKeyPresent: false, returnedPageCount: 0 })
+    // dataKeyPresent is the assertion under test here; the reason follows FBD-1
+    // because this token also carries zero granted Page ids.
+    expect(failProps()).toMatchObject({ reason: 'NO_PAGE_SELECTED', dataKeyPresent: false, returnedPageCount: 0 })
   })
 
   it('FBD-diag: debug_token failure degrades safely and never breaks the connection', async () => {

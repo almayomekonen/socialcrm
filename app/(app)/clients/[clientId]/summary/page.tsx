@@ -22,8 +22,9 @@ import LeadDetailMobile from '@/modules/leads/mobile/LeadDetailMobile'
 import { track } from '@/lib/analytics/track'
 import AutoTour from '@/components/education/AutoTour'
 
-export default async function page({ params }) {
+export default async function page({ params, searchParams }) {
   const { clientId } = await params
+  const sp = (await searchParams) || {}
   const user = await getUser()
 
   /**
@@ -42,7 +43,14 @@ export default async function page({ params }) {
         props: { leadId: Number(clientId) },
       }),
     )
-    return <LeadDetailMobile lead={lead} nowMs={Date.now()} />
+    /**
+     * The first-lead flow reaches MOBILE too. Previously this early return
+     * happened before FirstLeadCallout was ever rendered, so a phone user who
+     * had just created their first lead got no guidance at all — which is why
+     * agencies 119 and 135 created a first lead on a phone and never emitted
+     * first_lead_opened.
+     */
+    return <LeadDetailMobile lead={lead} nowMs={Date.now()} firstLead={sp.firstLead === '1'} />
   }
 
   const [tasks, lead] = await Promise.all([
