@@ -53,7 +53,16 @@ export const FIRST_RUN_COPY = {
    * is asked of the reader. Verb-free on purpose so one string serves both
    * surfaces without a singular/plural fork.
    */
-  headline: 'כל הלידים שלך במקום אחד',
+  /**
+   * States the true state of the account: OPEN, and empty. Never "ready".
+   *
+   * "מוכן" was the product's habit — the welcome modal said the Pro plan was
+   * ready, the activation screen said the workspace was ready — and both were
+   * true about the software while the user still had nothing. A new user heard
+   * a claim about their business, went looking for the part that was ready,
+   * and left. Naming the emptiness is what makes the next line worth reading.
+   */
+  headline: 'סביבת העבודה שלכם פתוחה — עכשיו נכניס את הלידים',
   subhead:
     'SocialCRM מרכז את הלידים מוואטסאפ וממודעות פייסבוק ואינסטגרם לרשימה אחת, עם סטטוס ומעקב לכל ליד.',
 
@@ -87,10 +96,41 @@ export const FIRST_RUN_COPY = {
    * heading and its own reason to exist, not a footnote under the "real" option.
    */
   own: {
-    heading: 'כבר יש לכם לידים?',
-    rationale: 'הוסיפו או ייבאו אותם עכשיו, ותתחילו לעבוד מיד.',
-    add: { title: 'הוסף ליד', description: 'התחילו עם ליד אחד, בפחות מדקה' },
-    import: { title: 'ייבוא מאקסל', description: 'העלו רשימה קיימת ותראו את כולם מסודרים' },
+    heading: 'הכניסו את הלידים שיש לכם עכשיו',
+    rationale: 'תוך דקה תראו רשימה אחת של כל מי שצריך לחזור אליו.',
+    recommendedBadge: 'הכי מהיר',
+    /**
+     * Named by its OUTCOME, not by its file format. "ייבוא מאקסל" describes a
+     * mechanism the user has no appetite for; "הרשימה שלכם, מסודרת" describes
+     * the thing they came to get. The formats belong in the description, where
+     * they answer "can I?" instead of asking "do you want to?".
+     */
+    import: {
+      title: 'הרשימה שלכם, מסודרת',
+      description: 'קובץ אקסל, או פשוט הדביקו מספרי טלפון',
+    },
+    add: { title: 'הוסף ליד אחד', description: 'ידנית, אם אין לכם רשימה מוכנה' },
+  },
+
+  /**
+   * The paste path. On a phone — and especially inside Facebook's in-app
+   * browser, where a measurable share of signups land — there is no spreadsheet
+   * to pick, so a file input is a dead end. A column of numbers from WhatsApp
+   * is the list these users actually have.
+   */
+  paste: {
+    tabFile: 'קובץ',
+    tabPaste: 'הדבקת מספרים',
+    label: 'הדביקו מספרי טלפון, אחד בכל שורה',
+    placeholder: '0521234567\nדנה לוי, 0537654321',
+    hint: 'אפשר גם "שם, טלפון" בכל שורה.',
+    /** Count is filled in by the caller — never a promise before parsing. */
+    submit: (n: number) => (n === 1 ? 'הוסף ליד אחד' : `הוסף ${n} לידים`),
+    submitEmpty: 'הוסף לידים',
+    pending: 'מוסיף…',
+    skipped: (n: number) => (n === 1 ? 'שורה אחת לא נקראה ולא תתווסף' : `${n} שורות לא נקראו ולא יתווספו`),
+    truncated: 'נוספו 1000 השורות הראשונות. אפשר להדביק את השאר אחר כך.',
+    empty: 'לא זיהינו מספרי טלפון בטקסט שהודבק.',
   },
 
   /**
@@ -111,4 +151,22 @@ export const FIRST_RUN_COPY = {
    * offer — the single most damaging detail on the current mobile screen.
    */
   statusConnected: 'מחובר',
+
+  /**
+   * THE STATE NOBODY HAD DESIGNED: leads just landed, and now what?
+   *
+   * Import used to drop the user straight into an ordinary table. In production
+   * five of six leads created by new agencies were never opened again, and
+   * `first_follow_up_set` had never fired once in the product's history — the
+   * loop simply had no next step after the data arrived.
+   *
+   * This names the one action worth taking, and points at a specific lead, so
+   * the user leaves with a follow-up set instead of a list to admire.
+   */
+  firstImport: {
+    title: (n: number) => (n === 1 ? 'הליד שלכם נכנס' : `${n} לידים נכנסו`),
+    body: 'הצעד הבא: פתחו את הראשון וקבעו מתי לחזור אליו.',
+    cta: 'פתח את הליד הראשון',
+    dismiss: 'סגירה',
+  },
 } as const

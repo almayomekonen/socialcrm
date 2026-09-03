@@ -31,7 +31,14 @@ export type DeleteLeadResult =
   | { error: true; reason: 'no_permission' | 'not_found' }
   | { error: true; reason: 'has_billing'; block: LeadBlockReason }
 
-export type AddLeadsResult = { success: true; inserted: number } | (QuotaErrorResult & { wouldInsert: number })
+export type AddLeadsResult =
+  /**
+   * `firstId` is the id of the first row actually inserted, so the caller can
+   * open a REAL lead straight after an import instead of dropping the user on a
+   * table. Undefined when nothing was inserted (all duplicates).
+   */
+  | { success: true; inserted: number; firstId?: number }
+  | (QuotaErrorResult & { wouldInsert: number })
 
 /**
  * How a bulk insert reached us. Carried on `leads_imported.props.format`, which
@@ -915,10 +922,12 @@ export async function addLeads(leads, format: LeadImportFormat = 'excel'): Promi
 
   if (!newLeads.length) return { success: true, inserted: 0 }
 
+  let firstId: number | undefined
   try {
     await withAgencyQuotaLock(agencyId, async (trx) => {
       await assertLeadQuota(agencyId, newLeads.length, trx)
-      await trx('clients').insert(newLeads)
+      const rows = await trx('clients').insert(newLeads).returning('id')
+      firstId = Number((Array.isArray(rows) ? rows[0] : undefined)?.id ?? rows?.[0]) || undefined
     })
   } catch (error) {
     if (error instanceof QuotaExceededError) {
@@ -948,7 +957,7 @@ export async function addLeads(leads, format: LeadImportFormat = 'excel'): Promi
   after(() => track({ agencyId, userId, event: 'leads_imported', props: { count: newLeads.length, format } }))
   after(() => trackFirstRealLeadOnce(agencyId, 'import'))
 
-  return { success: true, inserted: newLeads.length }
+  return { success: true, inserted: newLeads.length, firstId }
 }
 
 export async function getLeadDeals(clientId) {

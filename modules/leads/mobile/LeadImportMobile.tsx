@@ -6,6 +6,8 @@ import { addLeads, importLeadsFromCsv, uploadLeadData } from '@/actions/clients'
 import type { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 import BottomSheet from '@/components/mobile/BottomSheet'
 import QuotaPaywallMobile from './QuotaPaywallMobile'
+import PasteLeadsPanel from '@/components/clients/PasteLeadsPanel'
+import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
 
 const ACCEPT = '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
 
@@ -35,8 +37,18 @@ function rowLabel(row: Record<string, any>) {
  * (`uploadLeadData` + `addLeads`, `importLeadsFromCsv`) — a native file picker
  * and a stacked summary instead of the desktop grid / S3 uploader.
  */
-export default function LeadImportMobile({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function LeadImportMobile({
+  open,
+  onClose,
+  onImported,
+}: {
+  open: boolean
+  onClose: () => void
+  /** First-run passes this to route into the imported leads; others refresh. */
+  onImported?: (inserted: number, firstId?: number) => void
+}) {
   const router = useRouter()
+  const [tab, setTab] = useState<'file' | 'paste'>('file')
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
@@ -103,9 +115,11 @@ export default function LeadImportMobile({ open, onClose }: { open: boolean; onC
         setPaywall({ current: (res as any).current, limit: (res as any).limit, attempted: (res as any).attempted })
         return
       }
-      router.refresh()
+      const inserted = (res as any)?.inserted ?? excel.valid.length
       onClose()
       reset()
+      if (onImported) onImported(inserted, (res as any)?.firstId)
+      else router.refresh()
     } catch {
       setErrMsg('לא הצלחנו לייבא את הלידים')
     } finally {
@@ -127,8 +141,36 @@ export default function LeadImportMobile({ open, onClose }: { open: boolean; onC
         titleId='lead-import-mobile-title'
         dismissOnScrim={false}
       >
+        <div role='tablist' aria-label='דרך הייבוא' className='mb-3 flex gap-1 rounded-lg bg-gray-100 p-1'>
+          {(['file', 'paste'] as const).map((t) => (
+            <button
+              key={t}
+              type='button'
+              role='tab'
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                tab === t ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {t === 'file' ? C.paste.tabFile : C.paste.tabPaste}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'paste' ? (
+          <PasteLeadsPanel
+            onImported={(n, id) => {
+              onClose()
+              reset()
+              if (onImported) onImported(n, id)
+              else router.refresh()
+            }}
+          />
+        ) : (
+        <>
         <p className='text-sm leading-relaxed text-gray-600'>
-          קובץ Excel: שם פרטי, שם משפחה, תעודת זהות. קובץ CSV: שם, טלפון, מייל.
+          שורה ראשונה: שם פרטי, טלפון. אפשר גם שם משפחה, מייל, תעודת זהות.
         </p>
 
         <input
@@ -184,6 +226,8 @@ export default function LeadImportMobile({ open, onClose }: { open: boolean; onC
         )}
 
         {csv && <CsvSummary result={csv} />}
+        </>
+        )}
       </BottomSheet>
       <QuotaPaywallMobile state={paywall} onClose={() => setPaywall(null)} />
     </>
