@@ -8,6 +8,7 @@ import { toast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { setLeadFollowUp, clearLeadFollowUp } from '@/actions/leadFollowUp'
+import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { daysFromNow, formatDate } from '@/lib/dates'
 import { placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
 
@@ -85,6 +86,11 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
     startTransition(async () => {
       const res = await setLeadFollowUp({ id: leadId, at: at.toISOString() })
       if (isErr(res)) return toast('error', res.msg)
+      // Activation milestone, DESKTOP half. The same `lead_action_taken` the
+      // mobile sheets emit — one event, `surface` as a prop — so the 7-day
+      // activation KPI covers both devices. Emitted only after the server action
+      // succeeded, never on click. Fire-and-forget: analytics never blocks a lead.
+      recordLeadActionEvent('lead_action_taken', { surface: 'desktop', action: 'follow_up', leadId }).catch(() => {})
       toast('success', `נקבע מעקב ל־${formatDate(at)}`)
       close()
       router.refresh()

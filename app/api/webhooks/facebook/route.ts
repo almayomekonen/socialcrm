@@ -180,6 +180,11 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
     graphNode: metaData,
   })
 
+  // Captured from the create path so the dead-letter row records WHY the lead
+  // was dropped (SQLSTATE + constraint, PII-free) instead of the generic
+  // "returned null" that made 18 production failures indistinguishable.
+  let insertErrorDetail: string | null = null
+
   const lead = await createLeadFromWebhook({
     firstName,
     lastName,
@@ -189,6 +194,9 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
     agencyId: connection.agency_id,
     userId: connection.user_id,
     attribution,
+    onInsertError: (detail) => {
+      insertErrorDetail = detail
+    },
   })
 
   if (!lead) {
@@ -198,6 +206,7 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
       pageId,
       agencyId: connection.agency_id,
       errorType: 'db_error',
+      errorDetail: insertErrorDetail,
     })
     await notifyFacebookIngestionFailed(connection, leadId).catch(() => {})
     return

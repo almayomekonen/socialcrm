@@ -13,6 +13,7 @@ import {
   type LeadAttribution,
 } from '@/lib/facebook/leadAttribution'
 import { recordLeadAttribution } from '@/db/leadAttribution'
+import type { DbErrorInfo } from '@/lib/system/dbErrorInfo'
 
 type WebhookLeadInput = {
   firstName: string
@@ -28,6 +29,13 @@ type WebhookLeadInput = {
    * which is the exact behaviour every lead had before Instagram separation.
    */
   attribution?: LeadAttribution
+  /**
+   * Receives a PII-free description of the DB failure when — and only when —
+   * this function is about to return null. The webhook route persists it into
+   * `webhook_failures.error_detail`, so a dropped lead can be diagnosed from the
+   * dead-letter row instead of inferred from server logs that have since rolled.
+   */
+  onInsertError?: (detail: string) => void
 }
 
 export async function createLeadFromWebhook({
@@ -39,6 +47,7 @@ export async function createLeadFromWebhook({
   agencyId,
   userId,
   attribution,
+  onInsertError,
 }: WebhookLeadInput) {
   // Normalize phone → 972XXXXXXXXX before any dedup check or insert
   const digits = rawPhone?.replace(/\D/g, '') ?? ''
@@ -55,33 +64,64 @@ export async function createLeadFromWebhook({
   const channel = channelFromPlatform(attribution?.platform)
   const leadSource = leadSourceFor(channel, leadId)
 
+  /**
+   * DEDUP MUST MIRROR THE UNIQUE INDEXES, OR THE LEAD IS DESTROYED.
+   *
+   * Three indexes decide whether the insert below can succeed:
+   *   clients_agency_phone_unique  UNIQUE ("agencyId", phone) WHERE phone IS NOT NULL
+   *   clients_agency_email_unique  UNIQUE ("agencyId", email) WHERE email IS NOT NULL
+   *   clients_idNum_agencyId_unique
+   * All three are AGENCY-SCOPED and none of them care about `leadSource`.
+   *
+   * The previous checks did not match them on either axis:
+   *   - they were NOT scoped by agencyId, so a match in ANOTHER tenant could
+   *     "dedup" this lead away and even return that tenant's row to the caller;
+   *   - the phone check was filtered to `facebook:%`/`instagram:%`, so an
+   *     existing WhatsApp / manual / imported lead with the same phone was
+   *     invisible to dedup but still fatal to the insert;
+   *   - email was never checked at all, while the index rejects on it.
+   * The insert then raised a unique violation, insertLeadSystem returned null,
+   * and the lead was permanently lost. Every match is now agency-scoped and
+   * source-agnostic, so anything the index would reject is found here first and
+   * returned as the existing lead — the same contract the leadId path already had.
+   */
+
   // Priority 1: dedup by leadId. BOTH prefixes, because the same leadgen id may
   // already be stored under `facebook:` (ingested before the split) while this
   // delivery resolves to `instagram:` — checking one would duplicate the lead.
-  const existingByLeadId = await db('clients').whereIn('leadSource', leadSourceCandidates(leadId)).first()
+  const existingByLeadId = await db('clients')
+    .where({ agencyId })
+    .whereIn('leadSource', leadSourceCandidates(leadId))
+    .first()
   if (existingByLeadId) {
     console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by leadId — skipping. lead id: ${existingByLeadId.id}`)
     return existingByLeadId
   }
 
-  // Priority 2: fallback dedup by phone — only when phone is present.
-  // Semantics preserved exactly (still Lead-Ads-sourced rows only); the match is
-  // merely widened to the Instagram prefix so the split cannot reintroduce the
-  // duplicate this check exists to prevent.
+  // Priority 2: dedup by phone, agency-scoped and across ALL sources — exactly
+  // the rows clients_agency_phone_unique covers.
   if (phone) {
-    const existingByPhone = await db('clients')
-      .where({ phone })
-      .where((b) => b.whereLike('leadSource', 'facebook:%').orWhereLike('leadSource', 'instagram:%'))
-      .first()
+    const existingByPhone = await db('clients').where({ agencyId, phone }).first()
     if (existingByPhone) {
       console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by phone — skipping. lead id: ${existingByPhone.id}`)
       return existingByPhone
     }
   }
 
+  // Priority 3: dedup by email — the check that did not exist. Same shape and
+  // same scope as clients_agency_email_unique.
+  if (email) {
+    const existingByEmail = await db('clients').where({ agencyId, email }).first()
+    if (existingByEmail) {
+      console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by email — skipping. lead id: ${existingByEmail.id}`)
+      return existingByEmail
+    }
+  }
+
   const quota = await getQuotaStatus(agencyId)
   const overQuota = quota.plan === 'free' && quota.limit !== null && quota.used >= quota.limit
 
+  let insertError: DbErrorInfo | null = null
   const lead = await insertLeadSystem({
     firstName,
     lastName,
@@ -100,18 +140,35 @@ export async function createLeadFromWebhook({
     // `lead_attribution.platform`. `createOrigin` is also CHECK-constrained to
     // an existing vocabulary, and widening it is a separate, breaking decision.
     createOrigin: 'facebook',
-  })
+  }, { onError: (info) => { insertError = info } })
 
   if (!lead) {
-    // The unique index on clients."leadSource" means a concurrent insert for the same leadId
-    // will cause insertLeadSystem to fail. Re-check the DB before treating this as a real error.
-    // Both prefixes again — a concurrent writer may have resolved the other channel.
-    const concurrentLead = await db('clients').whereIn('leadSource', leadSourceCandidates(leadId)).first()
+    /**
+     * A concurrent writer may have inserted this same lead between our dedup
+     * checks and our insert, in which case the correct answer is that lead, not
+     * an error. Re-check all three dedup axes, agency-scoped — the phone and
+     * email indexes are what a racing writer would have tripped, and checking
+     * only leadSource would report a loss that did not happen.
+     *
+     * (There is no unique index on `leadSource`; an earlier comment here claimed
+     * one and `pg_indexes` does not list it. The real guards are the agency
+     * phone/email/idNum indexes.)
+     */
+    const concurrentLead = await db('clients')
+      .where({ agencyId })
+      .where((b) => {
+        b.whereIn('leadSource', leadSourceCandidates(leadId))
+        if (phone) b.orWhere({ phone })
+        if (email) b.orWhere({ email })
+      })
+      .first()
     if (concurrentLead) {
       console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Concurrent insert resolved — lead id: ${concurrentLead.id}`)
       return concurrentLead
     }
-    console.error(`[FacebookWebhook][create][leadId=${leadId}] insertLeadSystem failed`)
+    const detail = (insertError as DbErrorInfo | null)?.summary ?? 'insertLeadSystem returned null with no driver error'
+    console.error(`[FacebookWebhook][create][leadId=${leadId}] insertLeadSystem failed — ${detail}`)
+    onInsertError?.(detail)
     return null
   }
 

@@ -67,7 +67,17 @@ export default function OnboardingActionCard({
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>{badge}</span>
           )}
         </div>
-        <p className='mt-1 truncate text-sm font-medium text-primary-text'>{description}</p>
+        {/*
+          `truncate` clipped every description on the first-run screen to one
+          line. On the recommended import card that cut "קובץ אקסל, או פשוט
+          הדביקו מספרי טלפון" at "מספ…", hiding the word טלפון — i.e. the single
+          detail that tells a phone user the paste path exists at all. Found in
+          browser QA at 1440px; it is not a narrow-viewport edge case.
+
+          `line-clamp-2` keeps the height bounded so cards in a grid stay even,
+          while letting a real sentence render.
+        */}
+        <p className='mt-1 line-clamp-2 text-sm font-medium text-primary-text'>{description}</p>
       </div>
     </>
   )
