@@ -16,6 +16,7 @@ import SaleForm from '@/components/sales/saleForm/SaleForm'
 import UploadClientData from '@/components/settings/UploadClientData'
 import { useRouter, useSearchParams } from 'next/navigation'
 import TransferClientForm from './TransferClientForm'
+import BulkAssignLeadsForm from './BulkAssignLeadsForm'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { Select } from '@/lib/form'
@@ -97,6 +98,11 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     performBulkDelete,
     bulkInfoMsg,
     closeBulkInfo,
+    handleBulkAssign,
+    performBulkAssign,
+    assignOpen,
+    closeAssign,
+    assigning,
   } = useLeadSelection({
     leads,
     tblId,
@@ -399,6 +405,18 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
             </div>
 
             <div className='flex gap-2 items-end'>
+              {/* Assign sits before delete: it is the routine action, and the
+                  destructive one should not be the first button reached. */}
+              {selectedIds.length > 0 && (
+                <Btn
+                  variant='outline'
+                  icon={assigning ? 'spinner' : 'user-check'}
+                  iconClassName={assigning ? 'animate-spin' : ''}
+                  disabled={assigning}
+                  lbl={assigning ? `משייך... (${selectedIds.length})` : `שיוך לנציג (${selectedIds.length})`}
+                  onClick={handleBulkAssign}
+                />
+              )}
               {selectedIds.length > 0 && (
                 <Btn
                   variant='destructive'
@@ -446,6 +464,10 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
 
       <ModalPop open={openForm} label='פרטי ליד' pos='middle' onClose={() => (setCurClient(null), setOpenForm(false))}>
         <ClientFormPop client={curClient} onClose={() => (setCurClient(null), setOpenForm(false))} />
+      </ModalPop>
+
+      <ModalPop open={assignOpen} label='שיוך לידים לנציג' pos='middle' onClose={closeAssign}>
+        <BulkAssignLeadsForm count={selectedIds.length} onAssign={performBulkAssign} onCancel={closeAssign} />
       </ModalPop>
 
       <ModalPop open={openTransferClientForm} label='שיוך ליד לנציג' pos='middle' onClose={() => (setCurClient(null), setOpenTransferClientForm(false))}>

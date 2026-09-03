@@ -185,6 +185,17 @@ export async function getLeadsTable({
   if (gotPermIds && !isAdmin(user.role)) base.whereIn('clients.userId', gotPermIds)
   if (plan === 'free') base.where('clients.overQuota', false)
 
+  /**
+   * `?assignedTo=` — the destination a bulk-assignment notification links to.
+   *
+   * NARROWING ONLY. It is applied on top of the agency scope and the permission
+   * filter above, so it can subtract from what the viewer may already see and
+   * never add to it: a rep who follows the link sees their own newly assigned
+   * leads, and cannot use the parameter to reach anyone else's.
+   */
+  const assignedTo = Number(params.assignedTo)
+  if (Number.isInteger(assignedTo) && assignedTo > 0) base.where('clients.userId', assignedTo)
+
   if (params.view === 'due') applyDueMembership(base)
 
   /**

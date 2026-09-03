@@ -2,6 +2,7 @@
 
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
+import { createHash } from 'crypto'
 import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
@@ -194,6 +195,127 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
     if (isFkViolation(err)) return { deletedCount: 0, blockedCount: ids.length, blockedLeads: [], reason: 'mixed' }
     throw err
   }
+}
+
+/**
+ * The batch's identity: a stable digest of WHICH leads moved.
+ *
+ * Pure and order-independent (ids are sorted before hashing), so it satisfies the
+ * collapse-key purity rules — no clock, no actor — while still telling two
+ * different batches to the same rep apart. A retry of the identical batch yields
+ * the identical digest and therefore collapses rather than duplicating.
+ */
+function assignmentBatchId(sortedIds: number[]): string {
+  return createHash('sha1').update(sortedIds.join(',')).digest('hex').slice(0, 12)
+}
+
+export type AssignLeadsResult = { assignedCount: number; skippedCount: number }
+
+/**
+ * Assign a chosen set of leads to a representative.
+ *
+ * THE SELECTED-LEADS FLOW, not an inference from who owns what. The admin ticks
+ * the leads they mean and picks the recipient; exactly those rows move. This is
+ * the bulk counterpart of `transferLeadToRep` and writes the same two columns,
+ * so both paths agree on what "assigned" means:
+ *
+ *   userId    — ownership, the column every permission filter reads
+ *   handlerId — the assignee notifications resolve against
+ *   createdById — DELIBERATELY UNTOUCHED. Provenance is not ownership.
+ *
+ * Not to be confused with `transferSales`, which moves a departing rep's DEALS
+ * from the user-management screen and does not change lead ownership at all.
+ *
+ * ADMIN-ONLY. Reassigning another rep's pipeline is an administrative act, and
+ * the scoping below is tenant isolation, which the role test does not replace.
+ */
+export async function assignLeadsToRep(ids: number[], targetUserId: number): Promise<AssignLeadsResult> {
+  const user = await requireProductAccess()
+  if (!isAdmin(user.role)) throw new Error('Forbidden')
+
+  const leadIds = (Array.isArray(ids) ? ids : []).map(Number).filter((n) => Number.isInteger(n) && n > 0)
+  const target = Number(targetUserId)
+  if (leadIds.length === 0 || !Number.isInteger(target) || target <= 0) {
+    return { assignedCount: 0, skippedCount: 0 }
+  }
+
+  /**
+   * The recipient must belong to the acting agency, checked BEFORE anything is
+   * written. `lead.bulk_assigned` resolves its recipient from the payload rather
+   * than from the database, so this is the check that keeps that rule
+   * tenant-safe — see `resolveRecipients`.
+   */
+  const recipient = await db('users').where({ id: target, agencyId: user.agencyId }).first('id')
+  if (!recipient) throw new Error('Forbidden')
+
+  const result = await db.transaction(async (trx): Promise<AssignLeadsResult> => {
+    // Agency-scoped, and locked so a concurrent edit cannot move a row out from
+    // under the update between the read and the write.
+    const inScope = await trx('clients')
+      .whereIn('id', leadIds)
+      .andWhere({ agencyId: user.agencyId })
+      .forUpdate()
+      .select('id', 'userId', 'handlerId')
+
+    // Already on this rep in both columns — a double-click or retry is a no-op,
+    // and must not produce a second notification. Same guard as transferLeadToRep.
+    const toMove = inScope.filter((r: any) => Number(r.userId) !== target || Number(r.handlerId) !== target)
+    if (toMove.length === 0) return { assignedCount: 0, skippedCount: leadIds.length }
+
+    await trx('clients')
+      .whereIn('id', toMove.map((r: any) => Number(r.id)))
+      .andWhere({ agencyId: user.agencyId })
+      .update({ userId: target, handlerId: target })
+
+    /**
+     * ONE notification for the whole action, not one per lead — forty rows in the
+     * bell for one administrator action is the dump care-charter Law 6 forbids.
+     *
+     * The collapse key is per target recipient AND per assignment batch, the
+     * batch being identified by a digest of the moved lead-id set. Two
+     * consequences follow, and both are intended:
+     *
+     *   same recipient + same lead set  → same key, so a retry or a re-emission
+     *                                     collapses onto the existing row rather
+     *                                     than duplicating it
+     *   same recipient + different set  → a different key, so a later assignment
+     *                                     of OTHER leads is its own notification.
+     *                                     It does not upgrade the earlier row —
+     *                                     it is genuinely separate work.
+     *
+     * Emitted after the write, inside the transaction: if the assignment rolls
+     * back, so does the notification.
+     */
+    const movedIds = toMove.map((r: any) => Number(r.id)).sort((a: number, b: number) => a - b)
+    await notifyEvent(
+      {
+        type: 'lead.bulk_assigned',
+        agencyId: user.agencyId,
+        // The AGGREGATE entity: the set of leads now assigned to this rep,
+        // addressed by the rep's id. `assignedUserId` below is the same value —
+        // entity and recipient are one thing here, derived from one variable so
+        // they cannot drift apart.
+        entityType: 'lead_assignment',
+        entityId: target,
+        actorUserId: user.id,
+        occurredAt: new Date(),
+        payload: {
+          assignedUserId: target,
+          assignedCount: movedIds.length,
+          assignmentBatchId: assignmentBatchId(movedIds),
+        },
+      },
+      { trx },
+    )
+
+    return { assignedCount: toMove.length, skippedCount: leadIds.length - toMove.length }
+  })
+
+  if (result.assignedCount > 0) {
+    revalidatePath('/leads')
+    revalidatePath('/clients')
+  }
+  return result
 }
 
 export async function upsertLead(userId, data, clientId, revalidate = true, origin = 'manual') {

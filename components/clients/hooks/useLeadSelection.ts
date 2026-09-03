@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { deleteManyLeads } from '@/actions/clients'
+import { assignLeadsToRep, deleteManyLeads } from '@/actions/clients'
 import { api } from '@/lib/funcs'
 import { checkedIds } from '@/lib/table/funcs'
 import { toast } from '@/lib/toast'
@@ -90,10 +90,56 @@ export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiv
     }
   }
 
+  /**
+   * Bulk assign — the selected-leads flow.
+   *
+   * Deliberately parallel to the delete trio above: the same `selectedIds`, the
+   * same confirm-then-act shape, the same `clearDomChecks()` afterwards. The rows
+   * are refreshed from the server rather than patched locally, because ownership
+   * decides whether a lead is still visible to the current viewer at all.
+   */
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assigning, setAssigning] = useState(false)
+
+  function handleBulkAssign() {
+    if (!selectedIds.length) return
+    setAssignOpen(true)
+  }
+
+  async function performBulkAssign(targetUserId: number) {
+    setAssignOpen(false)
+    if (!selectedIds.length || !targetUserId) return
+
+    setAssigning(true)
+    try {
+      const res = await api(assignLeadsToRep, [selectedIds, targetUserId], undefined, undefined, { silentSuccess: true })
+      if (res?.err) return
+
+      const assigned = typeof res?.assignedCount === 'number' ? res.assignedCount : 0
+      const skipped = typeof res?.skippedCount === 'number' ? res.skippedCount : 0
+
+      clearDomChecks()
+      if (assigned === 0) {
+        toast('success', 'הלידים כבר משויכים לנציג הזה')
+      } else if (skipped > 0) {
+        toast('success', `${assigned} לידים שויכו. ${skipped} כבר היו משויכים`)
+      } else {
+        toast('success', assigned === 1 ? 'הליד שויך לנציג' : `${assigned} לידים שויכו לנציג`)
+      }
+    } finally {
+      setAssigning(false)
+    }
+  }
+
   return {
     selectedIds,
     handleBulkDelete,
     clearDomChecks,
+    handleBulkAssign,
+    performBulkAssign,
+    assignOpen,
+    closeAssign: () => setAssignOpen(false),
+    assigning,
     bulkConfirmOpen,
     closeBulkConfirm: () => setBulkConfirmOpen(false),
     performBulkDelete,

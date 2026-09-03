@@ -55,8 +55,75 @@ describe('invariant 1 — exactly one entry per type', () => {
       // 'platform_operator' is the platform-level rule: it resolves to the
       // platform-owner allowlist instead of the agency's users, and is the only
       // rule that may address someone outside the event's tenant.
-      expect(['handler_or_admin', 'admin_only', 'platform_operator']).toContain(def.recipients)
+      //
+      // 'explicit_user' names its recipient on the payload instead of resolving
+      // one from the database. Only an AGGREGATE may use it: a batch has no
+      // single lead whose handler identifies the reader, and the emission site
+      // verifies the named user's agency before emitting. Asserted below, so a
+      // per-row type cannot quietly adopt it.
+      expect(['handler_or_admin', 'admin_only', 'platform_operator', 'explicit_user']).toContain(def.recipients)
     }
+  })
+
+  /**
+   * AGGREGATE TYPES (§18 extension).
+   *
+   * An aggregate stands for a SET rather than a row. These assertions exist so
+   * that concession buys nothing else: an aggregate is still held to every
+   * invariant above, and the two privileges it does get — a payload-named
+   * recipient and a set-shaped entity — are available to nothing else.
+   */
+  describe('aggregate types are held to the same invariants', () => {
+    const aggregates = entries.filter((d) => d.aggregate)
+    const perRow = entries.filter((d) => !d.aggregate)
+
+    it('there is at least one, or these assertions are vacuous', () => {
+      expect(aggregates.length).toBeGreaterThan(0)
+    })
+
+    it('only an aggregate may name its recipient on the payload', () => {
+      for (const def of perRow) expect(def.recipients).not.toBe('explicit_user')
+    })
+
+    it('only an aggregate may use a set-shaped entity type', () => {
+      for (const def of perRow) {
+        expect(def.entity(ctx({ type: def.type })).type).not.toBe('lead_assignment')
+      }
+    })
+
+    it('an aggregate still separates entities in its collapse key', () => {
+      for (const def of aggregates) {
+        const a = def.collapseKey(ctx({ type: def.type, entityId: 42 }))
+        const b = def.collapseKey(ctx({ type: def.type, entityId: 43 }))
+        expect(a).not.toBe(b)
+      }
+    })
+
+    it('an aggregate still targets its own entity in the deep link', () => {
+      for (const def of aggregates) {
+        const c = ctx({ type: def.type, entityId: 42 })
+        expect(def.entity(c).id).toBe(c.entityId)
+        expect(def.deepLink(c)).toContain('42')
+      }
+    })
+
+    it('two different batches for one recipient are distinct work', () => {
+      for (const def of aggregates) {
+        const one = def.collapseKey(ctx({ type: def.type, entityId: 42, payload: { assignmentBatchId: 'aaa' } }))
+        const two = def.collapseKey(ctx({ type: def.type, entityId: 42, payload: { assignmentBatchId: 'bbb' } }))
+        expect(one).not.toBe(two)
+      }
+    })
+
+    it('the same batch re-emitted is the same work — a retry collapses', () => {
+      for (const def of aggregates) {
+        const first = def.collapseKey(ctx({ type: def.type, entityId: 42, payload: { assignmentBatchId: 'aaa' } }))
+        const again = def.collapseKey(
+          ctx({ type: def.type, entityId: 42, payload: { assignmentBatchId: 'aaa' }, actorUserId: 99 }),
+        )
+        expect(first).toBe(again)
+      }
+    })
   })
 
   it('the category prefix of a type matches its category field', () => {

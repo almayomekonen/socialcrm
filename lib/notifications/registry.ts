@@ -59,6 +59,17 @@ const subscriptionEntity = (ctx: EventContext) => ({ type: 'subscription' as con
  * page, so it 404s — every other lead link in the app carries the suffix too.
  */
 const leadLink = (ctx: EventContext) => `/clients/${ctx.entityId}/summary`
+/**
+ * The AGGREGATE destination: the לידים list narrowed to one representative.
+ *
+ * Carries the entity id like every per-row link does, so the aggregate is held to
+ * the same invariant rather than excused from it — `/leads?assignedTo={repId}` is
+ * the addressable view of "the leads assigned to this rep". The route is read-only
+ * and narrowing: it can only ever subtract from what the viewer may already see.
+ */
+const assignedLeadsLink = (ctx: EventContext) => `/leads?assignedTo=${ctx.entityId}`
+/** The set's owner — a representative, not a lead row. See ENTITY_TYPES. */
+const leadAssignmentEntity = (ctx: EventContext) => ({ type: 'lead_assignment' as const, id: ctx.entityId })
 const conversationLink = (ctx: EventContext) => `/inbox?conversation=${ctx.entityId}`
 const integrationLink = () => '/settings/integrations'
 /** Comments Inbox list — no per-comment route exists yet. */
@@ -110,6 +121,33 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     entity: leadEntity,
     deepLink: leadLink,
     recipients: 'handler_or_admin',
+    channels: TOAST_THEN_PUSH_WHEN_OFFLINE,
+  },
+
+  /**
+   * THE AGGREGATE TYPE — one summary for a whole assignment, not one per lead.
+   *
+   * Its entity is the SET of leads assigned to a representative, addressed by
+   * that representative's id (see ENTITY_TYPES). That is what makes every
+   * registry invariant hold honestly rather than by exemption: the collapse key
+   * separates by entity id, and the deep link carries it.
+   *
+   * `explicit_user` rather than `handler_or_admin`: no single lead's handler can
+   * stand for a batch, and the recipient is known at the emission site. It MUST
+   * equal `entityId` — the emission site derives both from one value.
+   */
+  'lead.bulk_assigned': {
+    type: 'lead.bulk_assigned',
+    category: 'leads',
+    enabled: true,
+    basePriority: 'medium',
+    aggregate: true,
+    collapseKey: keys.assignmentBatchKey,
+    title: copy.leadsBulkAssignedTitle,
+    body: copy.noBody,
+    entity: leadAssignmentEntity,
+    deepLink: assignedLeadsLink,
+    recipients: 'explicit_user',
     channels: TOAST_THEN_PUSH_WHEN_OFFLINE,
   },
 

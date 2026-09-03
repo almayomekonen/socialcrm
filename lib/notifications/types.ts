@@ -20,6 +20,8 @@ export const NOTIFICATION_TYPES = [
   'lead.created',
   'lead.hot',
   'lead.assigned',
+  /** One summary for a bulk assignment, addressed to the receiving rep. */
+  'lead.bulk_assigned',
   'lead.status_changed',
   'lead.activity',
   'message.inbound',
@@ -64,8 +66,15 @@ export type Presence = (typeof PRESENCE_STATES)[number]
  * `subscription` carries the CANCELLING agency's id — the thing the operator has
  * to act on. There is no CHECK constraint on either `entityType` column, so this
  * member is a TypeScript widening only; no migration accompanies it.
+ *
+ * `lead_assignment` is the AGGREGATE entity, and its id is defined the same way:
+ * it carries the id of the REPRESENTATIVE the leads were assigned to. The thing
+ * being notified about is not any one lead but "the set of leads assigned to this
+ * rep", which is a real, addressable view — `/leads?assignedTo={id}`. It is the
+ * only entity type here that stands for a set rather than a row, which is why it
+ * needs `aggregate: true` on the type definition rather than passing unnoticed.
  */
-export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription'] as const
+export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription', 'lead_assignment'] as const
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
 /**
@@ -83,7 +92,7 @@ export type EntityType = (typeof ENTITY_TYPES)[number]
  * under another name: an agency admin must never receive one of these, and an
  * empty allowlist resolves to nobody rather than falling back to anyone.
  */
-export type RecipientRule = 'handler_or_admin' | 'admin_only' | 'platform_operator'
+export type RecipientRule = 'handler_or_admin' | 'admin_only' | 'platform_operator' | 'explicit_user'
 
 /**
  * Business facts an emission site already holds, carried to the worker so copy
@@ -111,6 +120,17 @@ export type NotificationPayload = {
    * Required for that type; absent elsewhere.
    */
   assignedUserId?: number | null
+  /** How many leads one bulk assignment moved. Counted at the emission site. */
+  assignedCount?: number | null
+  /**
+   * Stable digest of the assigned lead-id SET — the batch's identity.
+   *
+   * A pure function of which leads moved, so it is time- and actor-independent
+   * (the collapse-key purity rules) while still separating two different batches
+   * to the same rep. Re-emitting the identical batch produces the identical key
+   * and therefore collapses instead of duplicating.
+   */
+  assignmentBatchId?: string | null
   /**
    * Wall-clock of the disconnect transition written to facebook_pages.health_checked_at.
    * Discriminator for `integration.disconnected` so a later reconnect→disconnect
@@ -237,6 +257,21 @@ export type NotificationTypeDef = {
   /** Targets the ENTITY. Never contains a notification id (§20.2). */
   deepLink: (ctx: EventContext) => string
   recipients: RecipientRule
+  /**
+   * TRUE ⇒ `entity` names a SET, not a row (§18 extension).
+   *
+   * Every other type is about one row, and the registry invariants assume it:
+   * one collapse identity per entity, one deep link to that row. An aggregate
+   * keeps both promises — its entity id is the representative, its collapse key
+   * separates by that id, and its link opens that rep's lead view — but the SET
+   * it stands for is identified by a batch digest on the payload rather than by
+   * a row id. Absent ⇒ per-row, which is every existing type.
+   *
+   * NOT an exemption from the invariants. An aggregate is still required to
+   * separate entities, stay time- and actor-independent, and target its own
+   * entity; it simply defines "entity" as the set's owner.
+   */
+  aggregate?: true
   channels: ChannelPolicy
   /** Absent ⇒ this type NEVER escalates (fail-closed, §9.2 rule 4). */
   escalation?: EscalationLadder

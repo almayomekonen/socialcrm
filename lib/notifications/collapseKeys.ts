@@ -19,6 +19,22 @@
 import type { EventContext } from './types'
 
 export const arrivalKey = (ctx: EventContext): string => `lead:${ctx.entityId}:arrival`
+/**
+ * One row per BATCH, per representative.
+ *
+ * Two components, and each earns its place. `entityId` is the representative, so
+ * the key separates entities exactly as every other key does. The batch digest is
+ * a pure function of which leads moved, so two different assignments to the same
+ * rep are two pieces of work — while re-emitting the same batch (a retry) lands
+ * on the same key and collapses instead of duplicating.
+ *
+ * Deliberately NOT keyed per lead: forty rows in the bell for one administrator
+ * action is the dump care-charter Law 6 forbids. And deliberately not keyed on
+ * time, which would break the purity rule the other keys hold to.
+ */
+export const assignmentBatchKey = (ctx: EventContext): string =>
+  `assignment:${ctx.entityId}:${ctx.payload.assignmentBatchId ?? 'unbatched'}`
+
 export const leadStatusKey = (ctx: EventContext): string => `lead:${ctx.entityId}:status`
 export const leadActivityKey = (ctx: EventContext): string => `lead:${ctx.entityId}:activity`
 export const conversationInboundKey = (ctx: EventContext): string => `conversation:${ctx.entityId}:inbound`

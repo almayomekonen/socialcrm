@@ -56,6 +56,17 @@ function forProvider(withLabel: (label: string) => string, fallback: string, ctx
 export const leadCreatedTitle = (ctx: EventContext): string => withName('ליד חדש', ctx)
 export const leadHotTitle = (ctx: EventContext): string => withName('ליד חם', ctx)
 export const leadAssignedTitle = (ctx: EventContext): string => withName('ליד שויך אליך', ctx)
+/**
+ * Counted, never guessed: the number comes from the emission site (Law 1). With
+ * no count the phrasing degrades to the name-free form rather than inventing one.
+ */
+export const leadsBulkAssignedTitle = (ctx: EventContext): string => {
+  const n = ctx.payload.assignedCount ?? 0
+  if (n <= 0) return 'לידים שויכו אליך'
+  if (n === 1) return 'ליד שויך אליך'
+  return `${n} לידים שויכו אליך`
+}
+
 export const leadActivityTitle = (ctx: EventContext): string => withName('פעילות חדשה בליד', ctx)
 
 /**

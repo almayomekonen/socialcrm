@@ -173,8 +173,28 @@ export function resolveRecipients(input: {
   agencyId: number
   leadId: number | null
   context: RecipientContext
+  /** Business facts from the emission site. Only `explicit_user` reads it. */
+  payload?: { assignedUserId?: number | null }
 }): number[] {
-  const { rule, agencyId, leadId, context } = input
+  const { rule, agencyId, leadId, context, payload } = input
+
+  /**
+   * ADDRESSED TO ONE NAMED USER, carried on the payload.
+   *
+   * Every other rule resolves from the database, which is what keeps them
+   * tenant-safe. This one cannot: a bulk assignment has no single lead whose
+   * handler identifies the recipient. The emission site therefore MUST verify
+   * that the user belongs to the acting agency before emitting — `assignLeadsToRep`
+   * does, in the same transaction that moves the rows.
+   *
+   * Safe because payloads are server-authored: no client input reaches this
+   * field. It is not a general-purpose "notify anyone" hatch, and a new caller
+   * must repeat that agency check.
+   */
+  if (rule === 'explicit_user') {
+    const target = payload?.assignedUserId
+    return typeof target === 'number' && target > 0 ? [target] : []
+  }
   const admins = context.adminsByAgency.get(agencyId) ?? []
 
   /**
