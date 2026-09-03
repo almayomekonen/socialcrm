@@ -11,7 +11,6 @@ import EditUser from './EditUser'
 import { Select } from '@/lib/form'
 import { Btn } from '@/lib/btns/Btn'
 import ExportTable from '@/lib/table/export'
-import { ToolTip } from '@/lib/Tooltip'
 
 export default function UsersTable({ users, agnts, tblPref, teams }) {
   const tblId = 'usersTable194'
@@ -19,7 +18,6 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
   const [columns, setColumns] = useState(tblPref?.[tblId] || usersTableHeaders)
 
   const [curUser, setCurUser] = useState({})
-  console.log('curUser', curUser)
 
   function moreRows(user) {
     return (
@@ -47,7 +45,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
     setState,
     moreHeads,
     moreRows,
-    funcs: { formatArr, formatRole, formatGoals },
+    funcs: { formatArr, formatRole },
     noCheckboxs: true,
     getColumns(columns) {
       saveTblPref(tblId, columns)
@@ -93,14 +91,6 @@ export const usersTableHeaders = [
   { key: 'role', label: 'תפקיד', format: 'formatRole' },
   { key: 'email', label: 'אימייל' },
   { key: 'phone', label: 'טלפון' },
-  // { key: 'goals', label: 'יעדים', format: 'formatGoals' },
-  { key: 'goals.משוקלל', label: 'יעד עמלה', format: 'formatCurrency' },
-  { key: 'goals.סיכונים', label: 'יעד שירותים', format: 'formatCurrency' },
-  { key: 'goals.פנסיוני-שוטף', label: 'יעד מנויים-שוטף', format: 'formatCurrency' },
-  { key: 'goals.פיננסים', label: 'יעד חבילות', format: 'formatCurrency' },
-  { key: 'goals.פנסיוני-ניוד', label: 'יעד מנויים-ניוד', format: 'formatCurrency' },
-  { key: 'goals.פיננסים-שוטף', label: 'יעד חבילות-שוטף', format: 'formatCurrency' },
-  { key: 'goals.אלמנטרי', label: 'יעד מוצרים', format: 'formatCurrency' },
   { key: 'suspended', label: 'מושעה' },
   { key: 'gavePerm', label: 'הרשאות שנתן', format: 'formatArr' },
   { key: 'gotPerm', label: 'הרשאות שקיבל', format: 'formatArr' },
@@ -113,20 +103,6 @@ function formatArr(arr) {
   if (!arr) return ''
   return arr.map((item) => item.name).join(', ')
 }
-function formatGoals(_, obj) {
-  let goals = obj.goals
-  if (!goals) return ''
-
-  const gls = Object.keys(goals).filter((key) => goals[key] !== null && goals[key] !== 0)
-  const res = gls.map((key) => `${key}: ${goals[key]}`).join(', ')
-
-  return (
-    <div>
-      <ToolTip lbl={gls.length > 0 ? res : ''}>({`${gls.length}`})</ToolTip>
-    </div>
-  )
-}
-
 function formatRole(role) {
   return MapRoles[role]
 }

@@ -23,7 +23,6 @@ export default function EditUser({ user, agnts, teams }) {
 
   async function onSubmit(e) {
     const fd = getFormData2(e) as any
-    console.log('fd:', fd)
 
     // IF FORM DATA ROLE IS OFFICE
     if (fd.role === Roles.OFFICE) {
@@ -34,7 +33,6 @@ export default function EditUser({ user, agnts, teams }) {
         }
       }
 
-      fd.goals = null
       api(upsertUserNPerms, [fd, user?.id])
       return
     }
@@ -64,8 +62,6 @@ export default function EditUser({ user, agnts, teams }) {
 
     await api(deleteUser, user?.id, null, 'לא ניתן למחוק את הנציג כי מקושרים אליו לידים')
   }
-
-  const isExtOrOffice = [Roles.OFFICE, Roles.EXT].includes(role)
 
   return (
     <div popover='auto' id='editUserForm' className='modal_pop'>
@@ -101,42 +97,6 @@ export default function EditUser({ user, agnts, teams }) {
           />
           {role !== Roles.EXT && <InputCheckbox lbl='חשבון מושעה' name='suspended' defaultChecked={user?.suspended} />}
         </div>
-
-        {!isExtOrOffice && (
-          <div className='mb-8'>
-            <h2 className='my-4 text-lg border-b text-gray-600 w-full'>יעדים</h2>
-
-            <div className='grid grid-cols-3 gap-4'>
-              <Input lbl='שירותים' name='goals.סיכונים' defaultValue={user?.goals?.סיכונים} type='number' required={false} />
-              <Input
-                lbl='מנויים-שוטף'
-                name='goals.פנסיוני-שוטף'
-                defaultValue={user?.goals?.['פנסיוני-שוטף']}
-                type='number'
-                required={false}
-              />
-              <Input
-                lbl='מנויים-ניוד'
-                name='goals.פנסיוני-ניוד'
-                defaultValue={user?.goals?.['פנסיוני-ניוד']}
-                type='number'
-                required={false}
-              />
-
-              {/* חד"פ & ניוד */}
-              <Input lbl='חבילות' name='goals.פיננסים' defaultValue={user?.goals?.פיננסים} type='number' required={false} />
-              <Input
-                lbl='חבילות-שוטף'
-                name='goals.פיננסים-שוטף'
-                defaultValue={user?.goals?.['פיננסים-שוטף']}
-                type='number'
-                required={false}
-              />
-              <Input lbl='מוצרים' name='goals.אלמנטרי' defaultValue={user?.goals?.אלמנטרי} type='number' required={false} />
-              <Input lbl='יעד עמלה' name='goals.משוקלל' defaultValue={user?.goals?.משוקלל} type='number' required={false} />
-            </div>
-          </div>
-        )}
 
         {role == 'OFFICE' && (
           <div className='my-4 space-y-4'>

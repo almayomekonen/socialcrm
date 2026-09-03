@@ -12,16 +12,13 @@ const USER_SELF_WRITABLE = ['firstName', 'lastName', 'email', 'idNum', 'phone'] 
 const USER_INFO_WRITABLE = [
   'fax',
   'officePhone',
-  'agentLicenseNum',
   'logoutMinutes',
   'tifulEmail',
-  'agentLicenseType',
-  'agentLicenseName',
 ] as const
 const EXT_USER_WRITABLE = ['firstName', 'lastName'] as const
 // Columns an ADMIN may set on a managed user via the edit-users form. Excludes
 // identity/tenant columns (id, agencyId, otp, gglSub, createdById).
-const USER_ADMIN_WRITABLE = ['firstName', 'lastName', 'email', 'phone', 'role', 'suspended', 'goals'] as const
+const USER_ADMIN_WRITABLE = ['firstName', 'lastName', 'email', 'phone', 'role', 'suspended'] as const
 
 function pickCols(data: unknown, allowed: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {}
