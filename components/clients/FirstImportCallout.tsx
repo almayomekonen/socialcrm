@@ -63,6 +63,10 @@ export default function FirstImportCallout({ count, leadId }: { count: number; l
           <Btn
             variant='solid'
             size='small'
+            /* `size='small'` renders 36px — fine under a mouse, under the
+               comfortable touch target on a phone, and this banner now renders
+               on BOTH surfaces. Measured at 390px during browser QA. */
+            className='mobile:min-h-11 mobile:w-full mobile:justify-center'
             lbl={C.firstImport.cta}
             onClick={() => {
               clearParams()

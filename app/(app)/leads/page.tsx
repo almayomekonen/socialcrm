@@ -65,6 +65,12 @@ export default async function LeadsPage({ searchParams }) {
     }
     return (
       <LeadListMobile
+        /* The import redirect lands here on a phone as well. Without these the
+           mobile list showed the imported leads with no banner and no route
+           into the first-lead flow — the exact "unexplained table" state the
+           callout exists to prevent, on the surface most signups arrive from. */
+        firstImport={Number(params.firstImport) || 0}
+        firstLeadId={Number(params.firstLeadId) || undefined}
         rows={list.rows}
         filters={filters}
         hasMore={list.hasMore}
