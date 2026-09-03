@@ -10,10 +10,20 @@ import { track, type AnalyticsEventName } from '@/lib/analytics/track'
  * analytics events, exactly like recordGeneralModeEvent. Fire-and-forget:
  * analytics must never break the lead flow, so all failures are swallowed.
  */
+/**
+ * `first_follow_up_set` is deliberately NOT here.
+ *
+ * It moved to `setLeadFollowUp`, where it is tied to a real persisted write and
+ * de-duped per agency by `trackOncePerAgency`. Leaving it client-emittable kept
+ * a second door open to the exact defect that was fixed: a caller could emit it
+ * without a save having happened, and without the once-per-agency gate, which
+ * is how the milestone became unreliable in the first place. No caller passes
+ * it any more, so removing it changes no behaviour today — it stops the door
+ * being re-opened by accident.
+ */
 const CLIENT_EMITTABLE = new Set<AnalyticsEventName>([
   'first_manual_lead_created',
   'first_lead_opened',
-  'first_follow_up_set',
 ])
 
 /**

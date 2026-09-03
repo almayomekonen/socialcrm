@@ -102,3 +102,20 @@ describe('first_follow_up_set', () => {
     expect(trackOncePerAgency).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * The milestone must have exactly ONE emitter. It previously came from a client
+ * component, which is how it became unreliable; leaving it client-emittable
+ * would let that path be re-opened without the persisted-write requirement or
+ * the once-per-agency gate.
+ */
+describe('first_follow_up_set has a single emitter', () => {
+  it('is not client-emittable through recordFirstLeadEvent', async () => {
+    const src = await import('node:fs').then((fs) =>
+      fs.readFileSync(new URL('../../actions/analytics/recordFirstLeadEvent.ts', import.meta.url), 'utf8'),
+    )
+    const allowlist = src.slice(src.indexOf('CLIENT_EMITTABLE'), src.indexOf('])', src.indexOf('CLIENT_EMITTABLE')))
+    expect(allowlist).toContain('first_lead_opened')
+    expect(allowlist).not.toContain("'first_follow_up_set'")
+  })
+})
