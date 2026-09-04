@@ -62,7 +62,7 @@ export const FIRST_RUN_COPY = {
    * a claim about their business, went looking for the part that was ready,
    * and left. Naming the emptiness is what makes the next line worth reading.
    */
-  headline: 'סביבת העבודה שלכם פתוחה — עכשיו נכניס את הלידים',
+  headline: 'סביבת העבודה שלכם פתוחה, עכשיו נכניס את הלידים',
   subhead:
     'SocialCRM מרכז את הלידים מוואטסאפ וממודעות פייסבוק ואינסטגרם לרשימה אחת, עם סטטוס ומעקב לכל ליד.',
 
