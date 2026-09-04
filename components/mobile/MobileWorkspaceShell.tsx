@@ -7,6 +7,7 @@ import MobileHeader from './MobileHeader'
 import { MobileHeaderActionContext } from './MobileHeaderAction'
 import { MobileWorkspaceContext } from './MobileWorkspaceContext'
 import { useMobileScrollRestoration } from './useMobileScrollRestoration'
+import { useVisibleViewportHeight } from './useVisibleViewportHeight'
 
 /**
  * The mobile workspace chrome: header on top, page in the middle, tab bar below.
@@ -81,6 +82,14 @@ export default function MobileWorkspaceShell({
    */
   const scrollerRef = useRef<HTMLElement | null>(null)
   useMobileScrollRestoration(scrollerRef)
+
+  /**
+   * Sizes the workspace column to the viewport the user can actually see, so the
+   * software keyboard cannot push the thread header off the top. Publishes a CSS
+   * property and nothing else — the height itself is `h-visible-viewport` on the
+   * column in `app/(app)/layout.tsx`.
+   */
+  useVisibleViewportHeight()
 
   return (
     <MobileWorkspaceContext.Provider value={true}>
