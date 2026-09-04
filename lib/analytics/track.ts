@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { businessDateString } from '@/lib/today/time'
 
 export type AnalyticsEventName =
   | 'registration_completed'
@@ -148,6 +149,17 @@ export type AnalyticsEventName =
   | 'education_action_offered'
   | 'education_action_clicked'
   | 'education_tour_started_from_copilot'
+  /**
+   * Retention primitive: one row per user per SocialCRM business day on which
+   * they actually entered the authenticated workspace.
+   *
+   * Return behaviour previously had no honest instrument — "did this agency come
+   * back" was inferred from "did any other event happen on a later date", which
+   * measures instrumentation coverage as much as user behaviour. A user who
+   * returned, read an empty lead list and clicked nothing was indistinguishable
+   * from one who never came back.
+   */
+  | 'session_started'
 
 type TrackInput = {
   agencyId: number
@@ -200,6 +212,60 @@ export async function trackOncePerAgency(
     await track({ agencyId, userId, event, props })
   } catch (err) {
     console.error('[analytics] once-per-agency track failed', { agencyId, event, err: String(err) })
+  }
+}
+
+type SessionStartedInput = {
+  agencyId: number
+  userId: number
+  /** Injected only by tests; production uses the current instant. */
+  now?: Date
+  /** The workspace shell already knows whether this was desktop or mobile. */
+  surface?: 'desktop' | 'mobile'
+}
+
+/**
+ * Emit one `session_started` event for a user on each SocialCRM business day.
+ *
+ * The date is derived with the existing `Asia/Jerusalem` business-calendar
+ * helper rather than the server's local/UTC clock — a rep opening the workspace
+ * at 00:30 Jerusalem time is on the new business day, which is the boundary
+ * every other "today" question in this product already uses.
+ *
+ * The analytics table has no schema-level unique key for a per-user/day event,
+ * so this follows the repository's existing best-effort read-then-track pattern
+ * (same as `trackOncePerAgency`). Sequential reloads are deduplicated; a
+ * simultaneous cross-request race could emit twice, which is acceptable for a
+ * funnel row and never affects the user's request. Adding a unique index is a
+ * migration and is deliberately out of scope.
+ *
+ * Called only after the authenticated workspace has passed every access gate —
+ * never for a redirect, and never for the trial teaser.
+ *
+ * Fully swallowed: analytics must never break a page render.
+ */
+export async function trackSessionStartedOncePerDay({
+  agencyId,
+  userId,
+  now = new Date(),
+  surface,
+}: SessionStartedInput): Promise<void> {
+  const date = businessDateString(now.getTime())
+  try {
+    const existing = await db('analytics_events')
+      .where({ userId, event: 'session_started' })
+      .whereRaw("props->>'date' = ?", [date])
+      .first()
+    if (existing) return
+
+    await track({
+      agencyId,
+      userId,
+      event: 'session_started',
+      props: surface ? { date, surface } : { date },
+    })
+  } catch (err) {
+    console.error('[analytics] session-start track failed', { agencyId, userId, err: String(err) })
   }
 }
 

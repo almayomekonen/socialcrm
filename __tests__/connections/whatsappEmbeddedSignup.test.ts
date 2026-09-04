@@ -35,13 +35,18 @@ const h = vi.hoisted(() => {
 
 vi.mock('@/config/db', () => ({ db: h.db }))
 vi.mock('@/db/auth', () => ({ getUser: vi.fn() }))
-vi.mock('@/lib/analytics/track', () => ({ track: vi.fn(), trackFirstRealLeadOnce: vi.fn() }))
+vi.mock('@/lib/analytics/track', () => ({
+  track: vi.fn(),
+  trackOncePerAgency: vi.fn(),
+  trackFirstRealLeadOnce: vi.fn(),
+}))
 vi.mock('@/lib/whatsapp/registration', () => ({
   ensureMessagingReady: vi.fn(async () => ({ ready: true, status: 'CONNECTED' })),
 }))
 
 import { POST } from '@/app/api/whatsapp/embedded-signup/route'
 import { getUser } from '@/db/auth'
+import { trackOncePerAgency } from '@/lib/analytics/track'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
 
 const AGENCY = 69
@@ -78,7 +83,13 @@ beforeEach(() => {
   vi.mocked(getUser).mockResolvedValue({ id: USER, agencyId: AGENCY, role: 'ADMIN', email: 'x@example.com' } as never)
   vi.mocked(ensureMessagingReady).mockClear()
   vi.mocked(ensureMessagingReady).mockResolvedValue({ ready: true, status: 'CONNECTED' })
+  vi.mocked(trackOncePerAgency).mockClear()
 })
+
+/** Calls to the shared once-per-agency tracker for one measurement event. */
+function analyticsCalls(event: 'whatsapp_signup_completed' | 'whatsapp_phone_discovered') {
+  return vi.mocked(trackOncePerAgency).mock.calls.filter((call) => call[1] === event)
+}
 
 describe('WhatsApp Embedded Signup — persistence gate', () => {
   it('WA-1: subscribed_apps succeeds → connection persisted, ok:true', async () => {
@@ -198,5 +209,62 @@ describe('WhatsApp Embedded Signup — persistence gate', () => {
     const urls = vi.mocked(global.fetch).mock.calls.map((c) => String(c[0]))
     expect(urls.some((u) => u.includes('/smb_app_data'))).toBe(false)
     expect(vi.mocked(ensureMessagingReady).mock.calls[0][2]).toEqual({ skipRegistration: true })
+  })
+
+  it('emits signup completion and confirmed-phone events once after a new connection is persisted', async () => {
+    mockFetch({ subscribedOk: true })
+
+    const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1', onboardingType: 'cloud_api' }))
+
+    expect(r.status).toBe(200)
+    expect(h.state.merged).toHaveLength(1)
+    expect(analyticsCalls('whatsapp_signup_completed')).toEqual([
+      [AGENCY, 'whatsapp_signup_completed', USER, { onboardingType: 'cloud_api' }],
+    ])
+    expect(analyticsCalls('whatsapp_phone_discovered')).toEqual([
+      [AGENCY, 'whatsapp_phone_discovered', USER, { onboardingType: 'cloud_api' }],
+    ])
+  })
+
+  it('does not emit either event for a failed or abandoned signup', async () => {
+    mockFetch({ subscribedOk: false })
+    const failed = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(failed.status).toBe(502)
+
+    const abandoned = await POST(req({ wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(abandoned.status).toBe(400)
+
+    expect(analyticsCalls('whatsapp_signup_completed')).toHaveLength(0)
+    expect(analyticsCalls('whatsapp_phone_discovered')).toHaveLength(0)
+  })
+
+  it('does not emit a phone-discovered event when no confirmed phone can be resolved', async () => {
+    global.fetch = vi.fn(async (url: unknown) => {
+      const u = String(url)
+      if (u.includes('oauth/access_token')) return res(200, { access_token: 'tok_abc' })
+      if (u.includes('/phone_numbers')) return res(200, { data: [] })
+      return res(200, {})
+    }) as unknown as typeof fetch
+
+    const r = await POST(req({ code: 'c', wabaId: 'W1' }))
+
+    expect(r.status).toBe(400)
+    expect((await r.json()).reason).toBe('PHONE_NOT_FOUND')
+    expect(h.state.merged).toHaveLength(0)
+    expect(analyticsCalls('whatsapp_signup_completed')).toHaveLength(0)
+    expect(analyticsCalls('whatsapp_phone_discovered')).toHaveLength(0)
+  })
+
+  it('does not duplicate either event when a success callback is retried for an existing connection', async () => {
+    mockFetch({ subscribedOk: true })
+    const first = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(first.status).toBe(200)
+
+    h.state.existing = { agency_id: AGENCY }
+    const replay = await POST(req({ code: 'c2', wabaId: 'W1', phoneNumberId: 'P1' }))
+    expect(replay.status).toBe(200)
+
+    expect(analyticsCalls('whatsapp_signup_completed')).toHaveLength(1)
+    expect(analyticsCalls('whatsapp_phone_discovered')).toHaveLength(1)
   })
 })
