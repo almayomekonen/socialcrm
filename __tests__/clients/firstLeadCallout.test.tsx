@@ -53,7 +53,11 @@ describe('FirstLeadCallout — one-shot + lifecycle', () => {
     expect(screen.getByText('הליד הראשון שלך בפנים')).toBeTruthy()
     expect(screen.getByText('קבע מתי לחזור אליו, ו־SocialCRM ידאג להחזיר אותו אליך בזמן.')).toBeTruthy()
     expect(replace).toHaveBeenCalledWith('/clients/5/summary', { scroll: false })
-    expect(recordFirstLeadEvent).toHaveBeenCalledWith('first_lead_opened')
+    // `surface` is carried on the event (8b383f58): this route is desktop-only,
+    // and the mobile first-lead screen emits its own. Asserted explicitly rather
+    // than loosely, so dropping the prop — which would silently merge the two
+    // surfaces back together in the funnel — fails here.
+    expect(recordFirstLeadEvent).toHaveBeenCalledWith('first_lead_opened', { surface: 'desktop' })
   })
 
   it('RSC refresh (same instance, new props): follow-up set → completion, and NO event from here', () => {
