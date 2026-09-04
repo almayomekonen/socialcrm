@@ -300,27 +300,6 @@ body {
 }
 
 /*
- * VISIBLE-VIEWPORT HEIGHT — the mobile workspace column's height unit.
- *
- * `100dvh` is a LAYOUT-viewport unit, and iOS Safari does not shrink the layout
- * viewport for the software keyboard: it shrinks the VISUAL viewport and pans
- * the layout viewport up to reveal the focused field. The document lock below
- * does not prevent that pan — it is not document scroll — so a `100dvh` column
- * with a composer at its bottom still gets the thread header pushed off the top
- * the moment the WhatsApp composer is tapped.
- *
- * `--mobile-visible-h` is published by `useVisibleViewportHeight`
- * (components/mobile) from `window.visualViewport`, so the column is sized to
- * the area that is actually visible and there is nothing left to pan. The
- * `100dvh` fallback is what renders on the server, on browsers without the API,
- * and on desktop — where the property is never published — so behaviour there is
- * unchanged.
- */
-@utility h-visible-viewport {
-  height: var(--mobile-visible-h, 100dvh);
-}
-
-/*
  * iOS Safari: `body { overflow-x: hidden }` computes overflow-y to `auto`, so
  * the document is a second vertical scroller. Nested 100dvh then exceeds the
  * visual viewport; the sticky tab bar stays while the WhatsApp header and
