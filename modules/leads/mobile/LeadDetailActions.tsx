@@ -57,7 +57,7 @@ export default function LeadDetailActions({
   useEffect(() => {
     if (!firstLead || openedRef.current) return
     openedRef.current = true
-    recordFirstLeadEvent('first_lead_opened').catch(() => {})
+    recordFirstLeadEvent('first_lead_opened', { surface: 'mobile' }).catch(() => {})
   }, [firstLead])
 
   return (
