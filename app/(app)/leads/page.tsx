@@ -4,6 +4,7 @@ import { getLeadLists, getLeadsTable, getGlobalLatestUpdatedAt, hasAnyLeads, get
 import { Metadata } from 'next'
 import ClientsTable from '@/components/clients/clientsTable'
 import LeadsFirstRun from '@/components/clients/LeadsFirstRun'
+import FirstImportCallout from '@/components/clients/FirstImportCallout'
 import { Provider } from '@/lib/hooksNEvents'
 import { getPerms } from '@/db/filter'
 import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
@@ -138,6 +139,12 @@ export default async function LeadsPage({ searchParams }) {
         <>
           <AutoTour id='pipeline' enabled />
           <div data-alert-region='crm-sync' className='shrink-0'>
+            {/* Just imported: name what landed and hand the user into the
+                first-lead loop. One-shot, driven by the import redirect. */}
+            <FirstImportCallout
+              count={Number(params.firstImport) || 0}
+              leadId={Number(params.firstLeadId) || undefined}
+            />
             <MetaDisconnectedBanner show={meta.needsReconnect} />
             {/* A lead source that is refusing what arrives — same surface, same
                 consequence, same shape as the Meta banner above it. */}

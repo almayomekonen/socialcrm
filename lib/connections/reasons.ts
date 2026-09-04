@@ -19,6 +19,17 @@
 
 export const FB_REASON = {
   NO_PAGES: 'NO_PAGES',
+  /**
+   * The user completed Meta's consent screen but ticked NO Page.
+   *
+   * Distinguished from NO_PAGES by the token's own granular scopes:
+   * `pages_show_list` was granted, yet it carries zero Page ids. Production
+   * agency 131 is exactly this shape — `granularPagesEntryPresent: true` with
+   * `grantedPageIdCount: null` and `returnedPageCount: 0`. Telling that user
+   * "we couldn't find a Page" sends them to check a Facebook account that is
+   * fine; the actual fix is one checkbox on the next attempt.
+   */
+  NO_PAGE_SELECTED: 'NO_PAGE_SELECTED',
   PAGES_PERMISSION_MISSING: 'PAGES_PERMISSION_MISSING',
   LEADS_PERMISSION_MISSING: 'LEADS_PERMISSION_MISSING',
   ACCESS_DENIED: 'ACCESS_DENIED',
@@ -54,6 +65,7 @@ export type WaReason = (typeof WA_REASON)[keyof typeof WA_REASON]
  */
 export const FB_REASON_NOTICE_CODE: Record<FbReason, string> = {
   NO_PAGES: 'no_pages',
+  NO_PAGE_SELECTED: 'no_page_selected',
   PAGES_PERMISSION_MISSING: 'pages_permission',
   LEADS_PERMISSION_MISSING: 'missing_permission',
   ACCESS_DENIED: 'denied',

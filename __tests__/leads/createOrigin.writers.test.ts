@@ -70,6 +70,21 @@ vi.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }))
 
+/**
+ * `addLeads` schedules its analytics with `after()`, which throws outside a
+ * request scope — so without this mock the bulk-insert case failed on
+ * origin/main with "`after` was called outside a request scope", unrelated to
+ * anything it asserts. Run the callback inline; analytics is mocked below so
+ * nothing reaches a database.
+ */
+vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }))
+
+vi.mock('@/lib/analytics/track', () => ({
+  track: vi.fn(),
+  trackOncePerAgency: vi.fn(),
+  trackFirstRealLeadOnce: vi.fn(),
+}))
+
 vi.mock('@/config/db', () => {
   const db: any = (table: string) => {
     if (table !== 'clients') throw new Error(`unexpected table ${table}`)
@@ -89,7 +104,11 @@ vi.mock('@/config/db', () => {
       insert: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
         if (Array.isArray(rows)) {
           lastBulkInsert = rows
-          return Promise.resolve(rows.length)
+          // addLeads now reads back the first inserted id so the caller can open
+          // a real lead after an import; the bulk insert is `.returning('id')`.
+          const p: any = Promise.resolve(rows.length)
+          p.returning = async () => rows.map((_, i) => ({ id: i + 1 }))
+          return p
         }
         lastInsert = rows
         return {
@@ -153,7 +172,11 @@ beforeEach(() => {
         insert: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
           if (Array.isArray(rows)) {
             lastBulkInsert = rows
-            return Promise.resolve(rows.length)
+            // addLeads reads back the first inserted id (`.returning('id')`) so
+            // the caller can open a real lead straight after an import.
+            const p: any = Promise.resolve(rows.length)
+            p.returning = async () => rows.map((_, i) => ({ id: i + 1 }))
+            return p
           }
           lastInsert = rows
           return {
@@ -198,7 +221,7 @@ describe('addLeads createOrigin (Excel import)', () => {
       { firstName: 'א', idNum: '100000001', createOrigin: 'manual' },
       { firstName: 'ב', idNum: '100000002' },
     ])
-    expect(res).toEqual({ success: true, inserted: 2 })
+    expect(res).toEqual({ success: true, inserted: 2, firstId: 1 })
     expect(lastBulkInsert).toHaveLength(2)
     expect(lastBulkInsert![0]).toMatchObject({ createOrigin: 'import', firstName: 'א' })
     expect(lastBulkInsert![1]).toMatchObject({ createOrigin: 'import', firstName: 'ב' })

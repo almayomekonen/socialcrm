@@ -5,13 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
-import {
-  beginFirstLeadFlow,
-  claimFollowUpEvent,
-  claimOpenedEvent,
-  endFirstLeadFlow,
-  isFirstLeadFlow,
-} from './firstLeadFlow'
+import { beginFirstLeadFlow, claimOpenedEvent, endFirstLeadFlow, isFirstLeadFlow } from './firstLeadFlow'
 
 /**
  * One-time "first manual lead" guidance, shown INLINE at the top of the lead
@@ -74,10 +68,20 @@ export default function FirstLeadCallout({
   const active = isFirstLeadFlow(leadId)
   const done = active && hasFollowUp
 
-  // Funnel completion — fires exactly once per flow, module-guarded against remount.
-  useEffect(() => {
-    if (done && claimFollowUpEvent(leadId)) recordFirstLeadEvent('first_follow_up_set').catch(() => {})
-  }, [done, leadId])
+  /**
+   * `first_follow_up_set` is NO LONGER emitted here.
+   *
+   * It moved to `setLeadFollowUp` (actions/leadFollowUp.ts), the one action both
+   * this screen's FollowUpControl and the mobile follow-up sheet already call.
+   * Emitting from this component made the milestone desktop-only — this file is
+   * rendered by the desktop lead-summary route alone — and made it depend on a
+   * `?firstLead=1` arrival plus a module latch surviving a router refresh. It
+   * fired zero times in production. The server action cannot be reached without
+   * a real persisted write, and `trackOncePerAgency` handles idempotency.
+   *
+   * This component keeps its UX job: the guidance, and the done state below,
+   * both still driven by the real `hasFollowUp` prop.
+   */
 
   function finish() {
     endFirstLeadFlow(leadId) // durable: cannot re-show for this lead, even after a remount

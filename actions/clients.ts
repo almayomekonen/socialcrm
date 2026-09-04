@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { track, trackFirstRealLeadOnce } from '@/lib/analytics/track'
 import { isMobileRequest } from '@/lib/device'
-import { isIdNumValid } from '@/lib/funcs'
+import { mapImportRows } from '@/lib/leads/importMapping'
 import * as XLSX from 'xlsx'
 import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
@@ -31,7 +31,21 @@ export type DeleteLeadResult =
   | { error: true; reason: 'no_permission' | 'not_found' }
   | { error: true; reason: 'has_billing'; block: LeadBlockReason }
 
-export type AddLeadsResult = { success: true; inserted: number } | (QuotaErrorResult & { wouldInsert: number })
+export type AddLeadsResult =
+  /**
+   * `firstId` is the id of the first row actually inserted, so the caller can
+   * open a REAL lead straight after an import instead of dropping the user on a
+   * table. Undefined when nothing was inserted (all duplicates).
+   */
+  | { success: true; inserted: number; firstId?: number }
+  | (QuotaErrorResult & { wouldInsert: number })
+
+/**
+ * How a bulk insert reached us. Carried on `leads_imported.props.format`, which
+ * already existed — this is a new VALUE, deliberately not a new event, so the
+ * import funnel stays one number across every entry point.
+ */
+export type LeadImportFormat = 'excel' | 'csv' | 'paste'
 
 const CLIENT_WRITABLE_LEAD_FIELDS = new Set<string>([
   'firstName',
@@ -836,40 +850,19 @@ export async function uploadLeadData(file) {
   const worksheet = workbook.Sheets[firstSheetName]
   const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
-  let headers = (jsonData[0] as string[]).map((h) => (typeof h === 'string' ? h.trim() : ''))
+  const headers = (jsonData[0] as unknown[]) ?? []
+  const dataRows = jsonData.slice(1) as unknown[][]
 
-  const requiredHeaders = ['שם פרטי', 'שם משפחה', 'תעודת זהות']
-  const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h))
-  if (missingHeaders.length > 0) {
-    return { data: [], wrongData: [], error: `העמודות הבאות חסרות בקובץ: ${missingHeaders.join(', ')}` }
-  }
-
-  const dataRows = jsonData.slice(1) as any[][]
-  const mappedData = []
-  const mappedCancelData = []
-  for (const row of dataRows) {
-    if (row?.length) {
-      const rowObject = {} as any
-      let isOk = true
-      headers.forEach((header, index) => {
-        if (!row[index]) return (isOk = false)
-
-        if (header === 'תעודת זהות' && !isIdNumValid(row[index])) isOk = false
-
-        if (header === 'תעודת זהות') return (rowObject.idNum = row[index])
-        if (header === 'שם פרטי') return (rowObject.firstName = row[index]?.trim())
-        if (header === 'שם משפחה') return (rowObject.lastName = row[index]?.trim())
-
-        isOk = false
-      })
-      isOk ? mappedData.push(rowObject) : mappedCancelData.push(rowObject)
-    }
-  }
-
-  return { data: mappedData, wrongData: mappedCancelData }
+  /**
+   * Mapping moved to `lib/leads/importMapping.ts`. The rules it replaced
+   * required a national ID on every row, never mapped a phone number, and
+   * discarded a row for any unrecognised column — which made the target user's
+   * own lead list impossible to import. See that module's header.
+   */
+  return mapImportRows(headers, dataRows)
 }
 
-export async function addLeads(leads): Promise<AddLeadsResult> {
+export async function addLeads(leads, format: LeadImportFormat = 'excel'): Promise<AddLeadsResult> {
   await requireProductAccess()
   const { id: userId } = await getUser()
   const agencyId = await getAgencyId()
@@ -880,6 +873,20 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
       userId,
       lead: true,
       ...lead,
+      /**
+       * `clients.firstName` and `clients.lastName` are both NOT NULL with no
+       * default. Every lead list this product's users actually have — a pasted
+       * column of numbers, a sheet with "שם פרטי, טלפון" — carries no surname,
+       * so without these two lines the insert dies with a not-null violation
+       * and the whole import fails. Found by the value-loop DB test; a mocked
+       * `db` cannot see a column constraint.
+       *
+       * Empty string, never a placeholder name: the UI already composes a
+       * display name from what exists, and inventing "לא ידוע" would put a word
+       * in the customer's list that they never typed.
+       */
+      firstName: lead.firstName ?? '',
+      lastName: lead.lastName ?? '',
       createdById: userId,
       status: 'new',
       agencyId,
@@ -887,20 +894,54 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
     }
   })
 
-  const existingIdNums = await db('clients')
-    .select('idNum')
-    .whereIn(
-      'idNum',
-      formatLeads.map((lead) => lead.idNum),
-    )
-  const newLeads = formatLeads.filter((lead) => !existingIdNums.some((idNum) => idNum.idNum === lead.idNum))
+  /**
+   * DEDUPE. Previously this was a single `whereIn('idNum', …)` over every row.
+   * Now that a national ID is optional, that array can be all-undefined, and
+   * knex throws "Undefined binding(s) detected" — which would have made every
+   * phone-only import fail outright. Each key is queried only over the rows
+   * that actually carry it, and both queries are skipped when empty.
+   *
+   * Phone is deduped agency-scoped (a phone is only "already a lead" inside the
+   * tenant that owns it); the id check keeps its original global scope so the
+   * behaviour of existing ID-bearing files is unchanged.
+   */
+  const idNums: string[] = formatLeads.map((l) => l.idNum).filter(Boolean)
+  const phones: string[] = formatLeads.map((l) => l.phone).filter(Boolean)
+
+  const existingIdNums = idNums.length ? await db('clients').select('idNum').whereIn('idNum', idNums) : []
+  const existingPhones = phones.length
+    ? await db('clients').select('phone').where({ agencyId }).whereIn('phone', phones)
+    : []
+
+  const takenIds = new Set(existingIdNums.map((r: any) => r.idNum))
+  const takenPhones = new Set(existingPhones.map((r: any) => r.phone))
+  // Also collapse duplicates WITHIN the same file/paste, which the old
+  // implementation let through and inserted twice.
+  const seenIds = new Set<string>()
+  const seenPhones = new Set<string>()
+
+  const newLeads = formatLeads.filter((lead) => {
+    if (lead.idNum) {
+      if (takenIds.has(lead.idNum) || seenIds.has(lead.idNum)) return false
+      seenIds.add(lead.idNum)
+      return true
+    }
+    if (lead.phone) {
+      if (takenPhones.has(lead.phone) || seenPhones.has(lead.phone)) return false
+      seenPhones.add(lead.phone)
+      return true
+    }
+    return false
+  })
 
   if (!newLeads.length) return { success: true, inserted: 0 }
 
+  let firstId: number | undefined
   try {
     await withAgencyQuotaLock(agencyId, async (trx) => {
       await assertLeadQuota(agencyId, newLeads.length, trx)
-      await trx('clients').insert(newLeads)
+      const rows = await trx('clients').insert(newLeads).returning('id')
+      firstId = Number((Array.isArray(rows) ? rows[0] : undefined)?.id ?? rows?.[0]) || undefined
     })
   } catch (error) {
     if (error instanceof QuotaExceededError) {
@@ -927,10 +968,10 @@ export async function addLeads(leads): Promise<AddLeadsResult> {
    * return before this line), after the transaction has committed. `after()`
    * keeps the analytics write off the response path, and track() never throws.
    */
-  after(() => track({ agencyId, userId, event: 'leads_imported', props: { count: newLeads.length, format: 'excel' } }))
+  after(() => track({ agencyId, userId, event: 'leads_imported', props: { count: newLeads.length, format } }))
   after(() => trackFirstRealLeadOnce(agencyId, 'import'))
 
-  return { success: true, inserted: newLeads.length }
+  return { success: true, inserted: newLeads.length, firstId }
 }
 
 export async function getLeadDeals(clientId) {

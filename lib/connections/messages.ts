@@ -75,6 +75,22 @@ export const FACEBOOK_NOTICES: Record<string, ConnectionNotice> = {
     nextStep: 'להתחבר שוב ולאשר את כל ההרשאות המבוקשות.',
     action: 'להתחבר ולאשר',
   },
+  /**
+   * The token granted `pages_show_list` with ZERO Page ids: the user pressed
+   * through Meta's consent screen without ticking a Page. We CAN assert this —
+   * it is what the token itself says — so unlike `no_pages` this message names
+   * the cause and the exact fix, and does not send anyone to audit an account
+   * that is working correctly.
+   */
+  no_page_selected: {
+    tone: 'attention',
+    title: 'לא נבחר דף במסך האישור של Facebook',
+    explanation:
+      'ההתחברות ל-Facebook הצליחה, אבל במסך האישור לא סומן אף דף, ולכן אין ממה למשוך לידים.',
+    reasons: ['במסך "איזה דפים תרצה להשתמש בהם" לא סומן דף'],
+    nextStep: 'להתחבר שוב, ובמסך האישור של Facebook לסמן את הדף שממנו מגיעים הלידים.',
+    action: 'להתחבר ולסמן את הדף',
+  },
   no_pages: {
     tone: 'error',
     // We do NOT assert "you have no Page" — an empty result does not prove that.

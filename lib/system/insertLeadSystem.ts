@@ -11,6 +11,7 @@
 
 import { db } from '@/config/db'
 import type { ClientCreateOrigin } from '@/lib/leads/createOrigin'
+import { describeDbError, type DbErrorInfo } from '@/lib/system/dbErrorInfo'
 
 export type SystemLeadInput = {
   agencyId: number
@@ -39,7 +40,22 @@ export type SystemLeadInput = {
   status?: string
 }
 
-export async function insertLeadSystem(input: SystemLeadInput): Promise<any | null> {
+/**
+ * Optional error sink. The return contract is UNCHANGED (row or null) so every
+ * existing caller keeps compiling and behaving identically; a caller that needs
+ * to know WHY the insert failed — currently only the Meta lead webhook, which
+ * persists it to `webhook_failures.error_detail` — passes this and receives a
+ * PII-free description. Without it, a failure is indistinguishable from any
+ * other, which is what made the 18 dropped production leads unexplainable.
+ */
+export type InsertLeadSystemOptions = {
+  onError?: (info: DbErrorInfo) => void
+}
+
+export async function insertLeadSystem(
+  input: SystemLeadInput,
+  options?: InsertLeadSystemOptions,
+): Promise<any | null> {
   const row = {
     firstName: input.firstName,
     lastName: input.lastName ?? null,
@@ -61,7 +77,15 @@ export async function insertLeadSystem(input: SystemLeadInput): Promise<any | nu
     const [lead] = await db('clients').insert(row).returning('*')
     return lead ?? null
   } catch (err) {
-    console.error('[insertLeadSystem] insert failed:', err)
+    // Structured first, so the caller can persist a real diagnosis; the raw
+    // error still goes to the server log for anything the summary omits.
+    const info = describeDbError(err)
+    console.error(`[insertLeadSystem] insert failed: ${info.summary}`, err)
+    try {
+      options?.onError?.(info)
+    } catch {
+      // A broken error sink must never turn a failed insert into a thrown one.
+    }
     return null
   }
 }

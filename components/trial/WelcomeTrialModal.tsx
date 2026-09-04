@@ -173,11 +173,19 @@ export default function WelcomeTrialModal() {
           <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
             SOCIALCRM PRO
           </span>
+          {/*
+            NOT "מוכן". This modal is the first thing 19 of 19 production
+            agencies have seen, it is non-dismissible, and at this moment the
+            workspace has zero לידים. "ה־SocialCRM Pro שלך מוכן" was true about
+            the entitlement and false about the user's business — they went
+            looking for the part that was ready and left. It names what is OPEN,
+            then points at the next real step.
+          */}
           <h2 id='welcome-trial-title' className='text-2xl font-bold leading-snug mobile:text-xl'>
-            ה־SocialCRM Pro שלך מוכן
+            SocialCRM Pro פתוח לכם ל־7 ימים
           </h2>
           <p id='welcome-trial-subtitle' className='text-sm text-gray-600'>
-            7 ימים עם כל המערכת פתוחה עבורך
+            הצעד הבא: להכניס את הלידים שלכם למערכת
           </p>
           <p className='text-xs text-gray-400'>ללא עלות · ללא כרטיס אשראי</p>
         </div>

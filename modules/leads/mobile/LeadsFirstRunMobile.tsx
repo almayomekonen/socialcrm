@@ -71,11 +71,63 @@ export default function LeadsFirstRunMobile({
           `border-primary/40` are the exact tokens OnboardingActionCard uses for
           `recommended`, so the two surfaces read as one product.
         */}
+        {/*
+          PATH 1 — the leads the business already has. PROMOTED TO FIRST and
+          tinted as the recommendation.
+
+          On a phone this is not the lesser path, it is the likelier one: inside
+          Facebook's in-app browser an OAuth popup is unreliable and there may be
+          no spreadsheet on the device, so "paste your numbers" is the import
+          most likely to complete. `product.md` §7 also names it the product's
+          first success moment.
+        */}
+        <section className='mb-7'>
+          <h2 className='text-sm font-semibold text-ink'>{C.own.heading}</h2>
+          <p className='mb-2.5 mt-0.5 text-[13px] leading-relaxed text-gray-500'>{C.own.rationale}</p>
+          <div className='overflow-hidden rounded-xl border border-primary/40 bg-primary-tint/50'>
+            <MobileList>
+              <MobileListRow
+                onClick={() => {
+                  setFormOpen(false)
+                  setImportOpen(true)
+                }}
+                className='press'
+                title={C.own.import.title}
+                subtitle={C.own.import.description}
+                leading={
+                  <span className='flex size-9 items-center justify-center rounded-lg bg-[#217346]'>
+                    <Icon name='file-excel' type='sol' className='size-4 bg-white' />
+                  </span>
+                }
+                badges={
+                  <span className='rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-medium text-info-text'>
+                    {C.own.recommendedBadge}
+                  </span>
+                }
+              />
+              <MobileListRow
+                onClick={() => {
+                  setImportOpen(false)
+                  setFormOpen(true)
+                }}
+                className='press'
+                title={C.own.add.title}
+                subtitle={C.own.add.description}
+                leading={
+                  <span className='flex size-9 items-center justify-center rounded-lg bg-ink'>
+                    <Icon name='plus' type='sol' className='size-4 bg-white' />
+                  </span>
+                }
+              />
+            </MobileList>
+          </div>
+        </section>
+
         {!bothConnected && (
           <section className='mb-7'>
             <h2 className='text-sm font-semibold text-ink'>{C.connect.heading}</h2>
             <p className='mb-2.5 mt-0.5 text-[13px] leading-relaxed text-gray-500'>{C.connect.rationale}</p>
-            <div className='overflow-hidden rounded-xl border border-primary/40 bg-primary-tint/50'>
+            <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
               <MobileList>
                 {!whatsappConnected && (
                   <MobileListRow
@@ -85,11 +137,6 @@ export default function LeadsFirstRunMobile({
                     title={C.connect.whatsapp.title}
                     subtitle={C.connect.whatsapp.description}
                     leading={<WhatsappBadge size='sm' />}
-                    badges={
-                      <span className='rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-medium text-info-text'>
-                        {C.connect.recommendedBadge}
-                      </span>
-                    }
                   />
                 )}
                 {!metaConnected && (
@@ -107,48 +154,6 @@ export default function LeadsFirstRunMobile({
           </section>
         )}
 
-        {/*
-          PATH 2 — leads the business already has. Same row primitive, same
-          container shape, its own heading and rationale. Structurally a peer of
-          the block above; only the tint differs.
-        */}
-        <section>
-          <h2 className='text-sm font-semibold text-ink'>{C.own.heading}</h2>
-          <p className='mb-2.5 mt-0.5 text-[13px] leading-relaxed text-gray-500'>{C.own.rationale}</p>
-          <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
-            <MobileList>
-              <MobileListRow
-                onClick={() => {
-                  setImportOpen(false)
-                  setFormOpen(true)
-                }}
-                className='press'
-                title={C.own.add.title}
-                subtitle={C.own.add.description}
-                leading={
-                  <span className='flex size-9 items-center justify-center rounded-lg bg-ink'>
-                    <Icon name='plus' type='sol' className='size-4 bg-white' />
-                  </span>
-                }
-              />
-              <MobileListRow
-                onClick={() => {
-                  setFormOpen(false)
-                  setImportOpen(true)
-                }}
-                className='press'
-                title={C.own.import.title}
-                subtitle={C.own.import.description}
-                leading={
-                  <span className='flex size-9 items-center justify-center rounded-lg bg-[#217346]'>
-                    <Icon name='file-excel' type='sol' className='size-4 bg-white' />
-                  </span>
-                }
-              />
-            </MobileList>
-          </div>
-        </section>
-
         {/* Reassurance for the already-connected workspace, kept quiet and last. */}
         {bothConnected && (
           <p className='mt-6 text-center text-[13px] text-gray-400'>
@@ -165,7 +170,16 @@ export default function LeadsFirstRunMobile({
           router.push(`/clients/${leadId}/summary?firstLead=1`)
         }}
       />
-      <LeadImportMobile open={importOpen} onClose={() => setImportOpen(false)} />
+      <LeadImportMobile
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        /* Hand the user into the first-lead loop rather than a refreshed list. */
+        onImported={(inserted, firstId) => {
+          const qs = new URLSearchParams({ firstImport: String(inserted) })
+          if (firstId) qs.set('firstLeadId', String(firstId))
+          router.push(`/leads?${qs.toString()}`)
+        }}
+      />
     </>
   )
 }

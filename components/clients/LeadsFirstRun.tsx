@@ -56,6 +56,19 @@ export default function LeadsFirstRun({
     whatsappConnected,
   })
 
+  /**
+   * After a first import, hand the user into the first-lead loop instead of
+   * refreshing a table underneath them. `firstLeadId` opens a REAL lead with
+   * the existing `?firstLead=1` signal, so import and manual create converge on
+   * one flow — see components/clients/FirstImportCallout.tsx.
+   */
+  const onImported = (inserted: number, firstId?: number) => {
+    const qs = new URLSearchParams({ firstImport: String(inserted) })
+    if (firstId) qs.set('firstLeadId', String(firstId))
+    setOpenUpload(false)
+    router.push(`/leads?${qs.toString()}`)
+  }
+
   const bothConnected = metaConnected && whatsappConnected
 
   return (
@@ -74,7 +87,42 @@ export default function LeadsFirstRun({
           </p>
         </header>
 
-        {/* PATH 1 — connect a source. Omitted only when both are already on. */}
+        {/* PATH 1 — the leads the business already has.
+            PROMOTED TO FIRST, and marked `recommended`.
+
+            This is the only path that puts real data on the screen today, and
+            `product.md` §7 names it the product's first success moment. It had
+            been the fourth of four tiles, described by its file format. In
+            production `leads_imported` had two rows, ever, from one agency. */}
+        <section className='mb-8'>
+          <h2 className='text-base font-semibold text-ink'>{C.own.heading}</h2>
+          <p className='mb-3 mt-0.5 text-sm text-gray-500'>{C.own.rationale}</p>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <OnboardingActionCard
+              onClick={() => setOpenUpload(true)}
+              icon='file-excel'
+              tileClass='bg-[#217346]'
+              title={C.own.import.title}
+              description={C.own.import.description}
+              badge={C.own.recommendedBadge}
+              badgeClass='bg-info-bg text-info-text'
+              recommended
+            />
+            <OnboardingActionCard
+              onClick={() => setOpenForm(true)}
+              icon='plus'
+              tileClass='bg-ink'
+              title={C.own.add.title}
+              description={C.own.add.description}
+              data-add-lead=''
+            />
+          </div>
+        </section>
+
+        {/* PATH 2 — connect a source. Still a real path, and still the thing
+            that keeps working tomorrow — but it delivers zero leads today, so it
+            no longer leads. The `recommended` treatment moved to import above;
+            this block keeps its heading and reason and is never demoted. */}
         {!bothConnected && (
           <section className='mb-8'>
             <h2 className='text-base font-semibold text-ink'>{C.connect.heading}</h2>
@@ -88,11 +136,6 @@ export default function LeadsFirstRun({
                   tileClass='bg-[#25D366]'
                   title={C.connect.whatsapp.title}
                   description={C.connect.whatsapp.description}
-                  badge={C.connect.recommendedBadge}
-                  badgeClass='bg-info-bg text-info-text'
-                  /* The prop that has existed unused since this card was
-                     written. This is what makes one action look primary. */
-                  recommended
                 />
               )}
               {!metaConnected && (
@@ -108,28 +151,6 @@ export default function LeadsFirstRun({
           </section>
         )}
 
-        {/* PATH 2 — leads the business already has. A peer, not a footnote. */}
-        <section>
-          <h2 className='text-base font-semibold text-ink'>{C.own.heading}</h2>
-          <p className='mb-3 mt-0.5 text-sm text-gray-500'>{C.own.rationale}</p>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <OnboardingActionCard
-              onClick={() => setOpenForm(true)}
-              icon='plus'
-              tileClass='bg-ink'
-              title={C.own.add.title}
-              description={C.own.add.description}
-              data-add-lead=''
-            />
-            <OnboardingActionCard
-              onClick={() => setOpenUpload(true)}
-              icon='file-excel'
-              tileClass='bg-[#217346]'
-              title={C.own.import.title}
-              description={C.own.import.description}
-            />
-          </div>
-        </section>
       </div>
 
       <ModalPop open={openForm} label='פרטי ליד' pos='middle' onClose={() => setOpenForm(false)}>
@@ -148,7 +169,7 @@ export default function LeadsFirstRun({
       </ModalPop>
 
       <ModalPop open={openUpload} label='העלאת לידים' pos='middle' onClose={() => setOpenUpload(false)}>
-        <UploadClientData />
+        <UploadClientData onImported={onImported} />
       </ModalPop>
     </div>
   )

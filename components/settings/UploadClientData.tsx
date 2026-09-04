@@ -9,8 +9,21 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 import { proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import PasteLeadsPanel from '@/components/clients/PasteLeadsPanel'
+import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
 
-export default function UploadClientData() {
+/**
+ * `onImported` lets the FIRST-RUN caller take the user somewhere after a
+ * successful import instead of refreshing a table in place. Optional on
+ * purpose: the settings / sales / populated-table callers pass nothing and keep
+ * the existing `router.refresh()` behaviour exactly.
+ */
+export default function UploadClientData({
+  onImported,
+}: {
+  onImported?: (inserted: number, firstId?: number) => void
+}) {
+  const [tab, setTab] = useState<'file' | 'paste'>('file')
   /** Importing leads consumes lead quota, so it is Pro. */
   const expired = useAccessDenied()
   const promptImport = () =>
@@ -47,7 +60,9 @@ export default function UploadClientData() {
         setPaywall({ current: (res as any).current, limit: (res as any).limit, attempted: (res as any).attempted })
         return
       }
-      router.refresh()
+      const inserted = (res as any)?.inserted ?? data.length
+      if (onImported) onImported(inserted, (res as any)?.firstId)
+      else router.refresh()
     }
   }
 
@@ -73,11 +88,38 @@ export default function UploadClientData() {
   }
 
   return (
-    <div className='p-4 w-fit'>
+    <div className='p-4 w-fit' dir='rtl'>
+      {/* File / paste. Paste is a peer tab, not a hidden fallback: on a phone
+          inside an in-app browser it is the only import that can complete. */}
+      <div role='tablist' aria-label='דרך הייבוא' className='mb-4 flex gap-1 rounded-lg bg-gray-100 p-1'>
+        {(['file', 'paste'] as const).map((t) => (
+          <button
+            key={t}
+            type='button'
+            role='tab'
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === t ? 'bg-white text-ink shadow-sm' : 'text-gray-500 hover:text-ink'
+            }`}
+          >
+            {t === 'file' ? C.paste.tabFile : C.paste.tabPaste}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'paste' ? (
+        <div className='w-[min(28rem,80vw)]'>
+          <PasteLeadsPanel onImported={(n, id) => (onImported ? onImported(n, id) : router.refresh())} />
+        </div>
+      ) : (
+        <>
       <div className='mb-4 font-semibold'>
-        <p>רק קובץ בפורמט excel, סיומת xlsx,xls</p>
-        <p>שורה ראשונה בקובץ:</p>
-        <p>שם פרטי, שם משפחה, תעודת זהות</p>
+        {/* Rewritten with the mapper. The old text promised the OPPOSITE of what
+            the importer now accepts: it demanded a national-ID column and never
+            mentioned a phone. See lib/leads/importMapping.ts. */}
+        <p>קובץ Excel או CSV (xlsx, xls, csv)</p>
+        <p className='text-sm font-normal text-gray-500'>שורה ראשונה: שם פרטי, טלפון — ואפשר גם שם משפחה, מייל, תעודת זהות.</p>
       </div>
 
       <FileUploader title='העלאת קובץ excel' getFiles={onChange} type='file' single />
@@ -139,15 +181,15 @@ export default function UploadClientData() {
           let subline: string | null = null
 
           if (inserted === 0 && unchanged > 0) {
-            headline = { text: '⚠️ כל הלידים כבר קיימים במערכת', cls: 'text-amber-700' }
+            headline = { text: 'כל הלידים כבר קיימים במערכת', cls: 'text-amber-700' }
             subline = 'נראה שהקובץ כבר הועלה בעבר'
           } else if (inserted > 0 && unchanged > 0) {
-            headline = { text: `✔ נוספו ${inserted} לידים חדשים`, cls: 'text-green-700' }
-            subline = `⚠️ ${unchanged} לידים כבר קיימים ולא שונו`
+            headline = { text: `נוספו ${inserted} לידים חדשים`, cls: 'text-green-700' }
+            subline = `${unchanged} לידים כבר קיימים ולא שונו`
           } else if (inserted > 0 && unchanged === 0) {
-            headline = { text: '✔ כל הלידים נוספו בהצלחה', cls: 'text-green-700' }
+            headline = { text: 'כל הלידים נוספו בהצלחה', cls: 'text-green-700' }
           } else if (inserted === 0 && unchanged === 0 && invalid > 0) {
-            headline = { text: '⚠️ לא נוספו לידים', cls: 'text-amber-700' }
+            headline = { text: 'לא נוספו לידים', cls: 'text-amber-700' }
             subline = 'בדוק שהקובץ כולל עמודת טלפון או מייל'
           }
 
@@ -179,6 +221,8 @@ export default function UploadClientData() {
           )
         })()}
       </div>
+        </>
+      )}
       <ConfirmPop
         open={!!errMsg}
         hideCancel

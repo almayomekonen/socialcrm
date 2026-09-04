@@ -17,7 +17,16 @@ import { startOfBusinessDayMs } from '@/lib/today/time'
  * sticky actions. Desktop chrome (ClientHeader, ClientNav, tasks, files,
  * billing, inbox CTA) is absent on purpose.
  */
-export default function LeadDetailMobile({ lead, nowMs }: { lead: MobileLeadDetail; nowMs: number }) {
+export default function LeadDetailMobile({
+  lead,
+  nowMs,
+  firstLead = false,
+}: {
+  lead: MobileLeadDetail
+  nowMs: number
+  /** Arrived straight from creating/importing the workspace's first lead. */
+  firstLead?: boolean
+}) {
   const status = statusStyle(lead.status)
   const followUp = followUpBadge(lead.nextFollowUpAt, nowMs, startOfBusinessDayMs(nowMs))
   const lastOutcome = outcomeLabel(lead.lastOutcomeType)
@@ -67,6 +76,7 @@ export default function LeadDetailMobile({ lead, nowMs }: { lead: MobileLeadDeta
         name={lead.name}
         status={lead.status}
         nextFollowUpAt={lead.nextFollowUpAt}
+        firstLead={firstLead}
       />
     </div>
   )

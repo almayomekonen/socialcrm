@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
 import { logLeadOutcome } from '@/actions/leadOutcome'
+import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import type { LeadOutcome } from '@/lib/leads/outcomeRules'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
 import { formatDate } from '@/lib/dates'
@@ -52,6 +53,9 @@ export default function OutcomeControl({
     startTransition(async () => {
       const res = await logLeadOutcome({ id: leadId, outcome: o.outcome })
       if (isErr(res)) return toast('error', res.msg)
+      // Activation milestone, DESKTOP half — see FollowUpControl for the
+      // one-event/`surface`-prop rationale. Post-success only.
+      recordLeadActionEvent('lead_action_taken', { surface: 'desktop', action: 'outcome', leadId }).catch(() => {})
       const lead = res as { nextFollowUpAt?: string | Date | null }
       toast('success', outcomeToast(o.outcome, lead))
       menu.close()

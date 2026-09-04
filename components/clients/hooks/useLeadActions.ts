@@ -2,6 +2,7 @@
 
 import React, { useCallback, useRef, useState } from 'react'
 import { updateLead } from '@/actions/clients'
+import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { api } from '@/lib/funcs'
 import {
   isLatestStatusRequest,
@@ -73,6 +74,12 @@ export function useLeadActions({ activeTab, setActiveTab, setOptimisticStatuses 
         })
         return
       }
+
+      // Activation milestone, DESKTOP half. Reached only on a CONFIRMED server
+      // update: the rollback branch above has already returned, so an optimistic
+      // status that the server rejected never emits. One event, `surface` as a
+      // prop — see lib/analytics/track.ts on `lead_action_taken`.
+      recordLeadActionEvent('lead_action_taken', { surface: 'desktop', action: 'status', leadId: obj.id }).catch(() => {})
 
       setHighlightedId(obj.id)
       setStatusAnnounce(STATUS_UPDATED_ANNOUNCE)

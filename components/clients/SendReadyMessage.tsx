@@ -7,6 +7,7 @@ import { toast, proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import type { Template } from '@/lib/whatsapp/templates/types'
 import { sendTemplateToLead } from '@/actions/whatsapp/templates/sendTemplateToLead'
+import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMessagePreview'
 
 /**
@@ -60,6 +61,14 @@ export default function SendReadyMessage({
           ? await sendTemplateToLead(leadId, selectedId, conversationId)
           : await sendTemplateToLead(leadId, selectedId)
       if (res.ok) {
+        // Activation milestone, DESKTOP half — mirrors the mobile
+        // LeadContactActions emitter. Post-send only; a failed send emits nothing.
+        recordLeadActionEvent('lead_action_taken', {
+          surface: 'desktop',
+          action: 'message',
+          leadId,
+          via: 'template',
+        }).catch(() => {})
         toast('success', 'ההודעה נשלחה')
         setOpen(false)
         setSelectedId(null)
