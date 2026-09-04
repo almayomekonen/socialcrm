@@ -124,6 +124,8 @@ describe('LeadImportMobile — paste is a peer of file, not a hidden fallback', 
     type('0521234567\n0537654321')
     fireEvent.click(screen.getByRole('button', { name: /הוסף 2 לידים/ }))
 
-    await waitFor(() => expect(onImported).toHaveBeenCalledWith(2, 77))
+    // Third arg is the count of rows the source could not read. Paste reports
+    // its unreadable lines inline BEFORE submit, so nothing is skipped here.
+    await waitFor(() => expect(onImported).toHaveBeenCalledWith(2, 77, 0))
   })
 })

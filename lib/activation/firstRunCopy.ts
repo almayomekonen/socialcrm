@@ -166,6 +166,14 @@ export const FIRST_RUN_COPY = {
   firstImport: {
     title: (n: number) => (n === 1 ? 'הליד שלכם נכנס' : `${n} לידים נכנסו`),
     body: 'הצעד הבא: פתחו את הראשון וקבעו מתי לחזור אליו.',
+    /**
+     * Rows the file carried that we could not turn into לידים. Reported here
+     * because routing straight to the list skips the importer's own invalid
+     * panel — and a customer silently losing rows from their file is exactly
+     * the kind of quiet data loss `care-charter.md` Law 1 forbids.
+     */
+    skipped: (n: number) =>
+      n === 1 ? 'שורה אחת בקובץ לא נקראה ולא נוספה' : `${n} שורות בקובץ לא נקראו ולא נוספו`,
     cta: 'פתח את הליד הראשון',
     dismiss: 'סגירה',
   },

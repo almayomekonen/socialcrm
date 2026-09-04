@@ -59,6 +59,27 @@ export function copilotYieldsToPipeline(pathname: string, pipelineSettled: boole
   return pathname.startsWith('/leads') && !pipelineSettled
 }
 
+/**
+ * The pipeline tour yields to the first-import activation handoff.
+ *
+ * WHY. Driver.js paints a full-viewport SVG with a cutout around the element it
+ * highlights; everything OUTSIDE that cutout is covered and cannot be clicked.
+ * The pipeline tour highlights the leads table, while the first-import banner
+ * sits above it — so the moment an import made `hasLeads` true, the tour's
+ * overlay landed on top of `פתח את הליד הראשון`, the one control the whole
+ * activation loop depends on. Measured with `document.elementFromPoint` at the
+ * CTA's centre: the topmost node was Driver's `<svg class="driver-overlay">`.
+ *
+ * This is the same rule the copilot tour already follows for the first-LEAD
+ * flow (`copilotYieldsToLead`): an activation handoff in progress outranks an
+ * educational tour. It DEFERS rather than cancels — the tour is never started,
+ * so it is never recorded as settled, and it launches on the next visit to
+ * /leads once the banner's one-shot params are gone.
+ */
+export function pipelineYieldsToFirstImport(firstImportCount: number): boolean {
+  return firstImportCount > 0
+}
+
 /** Lead tour is in-flight on a lead page — same stacking rule. */
 export function copilotYieldsToLead(pathname: string, leadSettled: boolean, firstLeadActive: boolean): boolean {
   if (!pathname.startsWith('/clients/')) return false

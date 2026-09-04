@@ -59,7 +59,8 @@ export default function FirstLeadCallout({
   // and (with the module wiped by the reload) the callout never replays.
   useEffect(() => {
     if (sp.get('firstLead') !== '1') return
-    if (claimOpenedEvent(leadId)) recordFirstLeadEvent('first_lead_opened').catch(() => {})
+    if (claimOpenedEvent(leadId))
+      recordFirstLeadEvent('first_lead_opened', { surface: 'desktop' }).catch(() => {})
     router.replace(pathname, { scroll: false })
     // Run once on mount; do not re-run when params change.
     // eslint-disable-next-line react-hooks/exhaustive-deps

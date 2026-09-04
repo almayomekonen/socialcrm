@@ -27,7 +27,13 @@ export {
 } from './types'
 export { emptyState, parseState, readState, recordTour, storageKey, writeState } from './storage'
 export { isOverviewIntroSettled, markOverviewIntroEligible, recordOverviewIntro, shouldOfferOverviewIntro } from './overviewIntro'
-export { copilotYieldsToLead, copilotYieldsToPipeline, isSettled, isTourEligible } from './eligibility'
+export {
+  copilotYieldsToLead,
+  copilotYieldsToPipeline,
+  isSettled,
+  isTourEligible,
+  pipelineYieldsToFirstImport,
+} from './eligibility'
 export {
   ADD_LEAD_SEL,
   LEADS_EMPTY_SEL,

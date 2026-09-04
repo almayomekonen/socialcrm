@@ -4,6 +4,7 @@ import { type LeadFilters } from '@/modules/leads/filters'
 import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
 import { followUpBadge } from './followUpBadge'
 import LeadsFirstRunMobile from './LeadsFirstRunMobile'
+import FirstImportCallout from '@/components/clients/FirstImportCallout'
 import LeadListMobileClient from './LeadListMobileClient'
 
 /**
@@ -22,6 +23,9 @@ export default function LeadListMobile({
   nowMs,
   metaConnected = false,
   whatsappConnected = false,
+  firstImport = 0,
+  firstLeadId,
+  firstImportSkipped = 0,
 }: {
   rows: MobileLeadRow[]
   filters: LeadFilters
@@ -31,6 +35,10 @@ export default function LeadListMobile({
   nowMs: number
   metaConnected?: boolean
   whatsappConnected?: boolean
+  /** One-shot: leads that just arrived via import, and the first of them. */
+  firstImport?: number
+  firstLeadId?: number
+  firstImportSkipped?: number
 }) {
   if (workspaceEmpty) {
     return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected} />
@@ -44,13 +52,22 @@ export default function LeadListMobile({
   }))
 
   return (
-    <LeadListMobileClient
-      cards={cards}
-      filters={filters}
-      hasMore={hasMore}
-      page={page}
-      nowMs={nowMs}
-      dayStartMs={dayStart}
-    />
+    <>
+      {/* Same component as desktop — one banner, one message, both surfaces.
+          Sits above the list, never over it. */}
+      {firstImport > 0 && (
+        <div className='px-4 pt-4'>
+          <FirstImportCallout count={firstImport} leadId={firstLeadId} skipped={firstImportSkipped} />
+        </div>
+      )}
+      <LeadListMobileClient
+        cards={cards}
+        filters={filters}
+        hasMore={hasMore}
+        page={page}
+        nowMs={nowMs}
+        dayStartMs={dayStart}
+      />
+    </>
   )
 }

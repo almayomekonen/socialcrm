@@ -21,7 +21,7 @@ import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
 export default function UploadClientData({
   onImported,
 }: {
-  onImported?: (inserted: number, firstId?: number) => void
+  onImported?: (inserted: number, firstId?: number, skipped?: number) => void
 }) {
   const [tab, setTab] = useState<'file' | 'paste'>('file')
   /** Importing leads consumes lead quota, so it is Pro. */
@@ -61,7 +61,7 @@ export default function UploadClientData({
         return
       }
       const inserted = (res as any)?.inserted ?? data.length
-      if (onImported) onImported(inserted, (res as any)?.firstId)
+      if (onImported) onImported(inserted, (res as any)?.firstId, wrongData?.length ?? 0)
       else router.refresh()
     }
   }
@@ -110,7 +110,7 @@ export default function UploadClientData({
 
       {tab === 'paste' ? (
         <div className='w-[min(28rem,80vw)]'>
-          <PasteLeadsPanel onImported={(n, id) => (onImported ? onImported(n, id) : router.refresh())} />
+          <PasteLeadsPanel onImported={(n, id) => (onImported ? onImported(n, id, 0) : router.refresh())} />
         </div>
       ) : (
         <>

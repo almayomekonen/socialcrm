@@ -174,9 +174,11 @@ export default function LeadsFirstRunMobile({
         open={importOpen}
         onClose={() => setImportOpen(false)}
         /* Hand the user into the first-lead loop rather than a refreshed list. */
-        onImported={(inserted, firstId) => {
+        onImported={(inserted, firstId, skipped) => {
           const qs = new URLSearchParams({ firstImport: String(inserted) })
           if (firstId) qs.set('firstLeadId', String(firstId))
+          if (skipped) qs.set('firstImportSkipped', String(skipped))
+    if (skipped) qs.set('firstImportSkipped', String(skipped))
           router.push(`/leads?${qs.toString()}`)
         }}
       />

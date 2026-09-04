@@ -25,6 +25,7 @@ import { parseLeadFilters } from '@/modules/leads/filters'
 import { getMobileLeadList, agencyHasAnyLeads } from '@/modules/leads/queries'
 import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
 import AutoTour from '@/components/education/AutoTour'
+import { pipelineYieldsToFirstImport } from '@/lib/education'
 
 export const metadata: Metadata = {
   title: 'נתוני לידים',
@@ -65,6 +66,13 @@ export default async function LeadsPage({ searchParams }) {
     }
     return (
       <LeadListMobile
+        /* The import redirect lands here on a phone as well. Without these the
+           mobile list showed the imported leads with no banner and no route
+           into the first-lead flow — the exact "unexplained table" state the
+           callout exists to prevent, on the surface most signups arrive from. */
+        firstImport={Number(params.firstImport) || 0}
+        firstLeadId={Number(params.firstLeadId) || undefined}
+        firstImportSkipped={Number(params.firstImportSkipped) || 0}
         rows={list.rows}
         filters={filters}
         hasMore={list.hasMore}
@@ -137,13 +145,17 @@ export default async function LeadsPage({ searchParams }) {
 
       {hasLeads ? (
         <>
-          <AutoTour id='pipeline' enabled />
+          {/* The tour yields while the import handoff owns the screen, so its
+              overlay cannot cover `פתח את הליד הראשון`. Deferred, not cancelled:
+              it starts on the next /leads visit once the params are gone. */}
+          <AutoTour id='pipeline' enabled={!pipelineYieldsToFirstImport(Number(params.firstImport) || 0)} />
           <div data-alert-region='crm-sync' className='shrink-0'>
             {/* Just imported: name what landed and hand the user into the
                 first-lead loop. One-shot, driven by the import redirect. */}
             <FirstImportCallout
               count={Number(params.firstImport) || 0}
               leadId={Number(params.firstLeadId) || undefined}
+              skipped={Number(params.firstImportSkipped) || 0}
             />
             <MetaDisconnectedBanner show={meta.needsReconnect} />
             {/* A lead source that is refusing what arrives — same surface, same

@@ -62,9 +62,10 @@ export default function LeadsFirstRun({
    * the existing `?firstLead=1` signal, so import and manual create converge on
    * one flow — see components/clients/FirstImportCallout.tsx.
    */
-  const onImported = (inserted: number, firstId?: number) => {
+  const onImported = (inserted: number, firstId?: number, skipped?: number) => {
     const qs = new URLSearchParams({ firstImport: String(inserted) })
     if (firstId) qs.set('firstLeadId', String(firstId))
+    if (skipped) qs.set('firstImportSkipped', String(skipped))
     setOpenUpload(false)
     router.push(`/leads?${qs.toString()}`)
   }

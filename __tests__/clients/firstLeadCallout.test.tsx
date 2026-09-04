@@ -53,17 +53,25 @@ describe('FirstLeadCallout — one-shot + lifecycle', () => {
     expect(screen.getByText('הליד הראשון שלך בפנים')).toBeTruthy()
     expect(screen.getByText('קבע מתי לחזור אליו, ו־SocialCRM ידאג להחזיר אותו אליך בזמן.')).toBeTruthy()
     expect(replace).toHaveBeenCalledWith('/clients/5/summary', { scroll: false })
-    expect(recordFirstLeadEvent).toHaveBeenCalledWith('first_lead_opened')
+    // `surface` is carried on the event (8b383f58): this route is desktop-only,
+    // and the mobile first-lead screen emits its own. Asserted explicitly rather
+    // than loosely, so dropping the prop — which would silently merge the two
+    // surfaces back together in the funnel — fails here.
+    expect(recordFirstLeadEvent).toHaveBeenCalledWith('first_lead_opened', { surface: 'desktop' })
   })
 
-  it('RSC refresh (same instance, new props): follow-up set → completion + first_follow_up_set', () => {
+  it('RSC refresh (same instance, new props): follow-up set → completion, and NO event from here', () => {
     searchParams = withParam()
     const { rerender } = render(<FirstLeadCallout leadId={5} hasFollowUp={false} />)
     // router.refresh() re-renders the server page: same client instance, new prop.
     searchParams = noParam() // param already stripped
     rerender(<FirstLeadCallout leadId={5} hasFollowUp={true} />)
     expect(screen.getByText('מעולה. הליד שלך בטיפול.')).toBeTruthy()
-    expect(recordFirstLeadEvent).toHaveBeenCalledWith('first_follow_up_set')
+    // `first_follow_up_set` is emitted by `setLeadFollowUp` AFTER the write
+    // persists — the one action both surfaces call — not by this screen, which
+    // only the desktop lead-summary route renders. Asserting its ABSENCE here is
+    // what keeps the single-emitter rule from silently regressing.
+    expect(followUpFireCount()).toBe(0)
   })
 
   it('REMOUNT after strip (worst case): completion STILL survives via the module latch', () => {
@@ -128,17 +136,21 @@ describe('FirstLeadCallout — one-shot + lifecycle', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 
-  it('first_follow_up_set fires only once across a remount', () => {
+  it('never emits first_follow_up_set — not on arrival, not across a remount', () => {
     searchParams = withParam()
     const first = render(<FirstLeadCallout leadId={5} hasFollowUp={true} />)
-    expect(recordFirstLeadEvent).toHaveBeenCalledWith('first_follow_up_set')
     const calls = followUpFireCount()
     first.unmount()
     searchParams = noParam()
     render(<FirstLeadCallout leadId={5} hasFollowUp={true} />)
     const callsAfter = followUpFireCount()
-    expect(calls).toBe(1)
-    expect(callsAfter).toBe(1) // module de-dupes; not re-fired on remount
+    // Zero on both sides. This screen previously owned the event, which meant the
+    // loop could never complete on a phone (this route is desktop-only) — the
+    // reason `first_follow_up_set` had zero rows in all of production. The
+    // emitter now lives in `setLeadFollowUp`; a re-added client emitter here
+    // would double-count against it, so the assertion is exact, not a bound.
+    expect(calls).toBe(0)
+    expect(callsAfter).toBe(0)
   })
 })
 

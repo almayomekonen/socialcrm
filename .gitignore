@@ -81,3 +81,8 @@ social-crm.db
 # the copy outside it, and git does not treat a symlink as a directory — the
 # `_reference/` form silently fails to match it.
 _reference
+
+# npm lockfile. This repo is pnpm-managed (pnpm-lock.yaml is the tracked
+# lockfile); a package-lock.json only appears when someone runs `npm install`
+# instead of `pnpm install`, and committing both lets the two drift.
+package-lock.json
