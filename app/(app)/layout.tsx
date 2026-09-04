@@ -36,7 +36,7 @@ import { getTrialState, type TrialStatus } from '@/lib/trial'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
 import { canPreviewExpiredWorkspace } from '@/lib/auth/expiredWorkspacePreview'
 import { getAgencyPlan } from '@/lib/quota'
-import { track, trackOncePerAgency } from '@/lib/analytics/track'
+import { track, trackOncePerAgency, trackSessionStartedOncePerDay } from '@/lib/analytics/track'
 import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
@@ -173,6 +173,9 @@ async function LayoutContent({ children }) {
   if (!trialExpired && trialStatus !== 'NEVER_STARTED') {
     const surface = mobileWorkspace ? 'mobile' : 'desktop'
     after(() => trackOncePerAgency(user.agencyId, 'workspace_first_viewed', user.id, { surface }))
+    // This branch renders the authenticated workspace, rather than a redirect
+    // or the trial teaser. Daily deduplication happens in the analytics helper.
+    after(() => trackSessionStartedOncePerDay({ agencyId: user.agencyId, userId: user.id, surface }))
     if (mobileWorkspace) {
       after(() => trackOncePerAgency(user.agencyId, 'mobile_workspace_viewed', user.id, {}))
     }

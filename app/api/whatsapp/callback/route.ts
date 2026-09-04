@@ -3,6 +3,7 @@ import { encrypt } from '@/db/auth'
 import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { resolveWabaIdsFromToken } from '@/lib/whatsapp/resolveWaba'
+import { trackOncePerAgency } from '@/lib/analytics/track'
 
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/whatsapp/callback`
 
@@ -89,6 +90,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (phones.length === 0) return failed(req, 'no_phones')
+
+  // The Graph lookup above has yielded at least one concrete phone identity for
+  // this authenticated agency. Record that discovery before presenting the
+  // pending-phone chooser; failed/empty discovery returns above and cannot emit.
+  await trackOncePerAgency(user.agencyId!, 'whatsapp_phone_discovered', user.id, {})
 
   const encrypted = await encrypt({ phones, userId: user.id })
   cookieStore.set('wa_phones', encrypted, {

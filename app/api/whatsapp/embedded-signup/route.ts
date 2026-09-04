@@ -3,7 +3,7 @@ import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
 import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
-import { track } from '@/lib/analytics/track'
+import { track, trackOncePerAgency } from '@/lib/analytics/track'
 import { WA_REASON, WA_REASON_NOTICE_CODE, type WaReason } from '@/lib/connections/reasons'
 import {
   resolvePhoneNumberIdForWaba,
@@ -158,6 +158,18 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[WA EmbeddedSignup] DB upsert failed:', err)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
+  }
+
+  // Both events belong AFTER the WABA subscription and durable connection row:
+  // this is the first point at which SocialCRM has confirmed the phone identity
+  // and completed the signup. `existing` is read before the upsert, so repeated
+  // callbacks/retries for the same connection cannot create a new funnel step.
+  // `trackOncePerAgency` additionally protects a reconnect after disconnect.
+  if (!existing) {
+    await Promise.all([
+      trackOncePerAgency(agencyId, 'whatsapp_signup_completed', user.id, { onboardingType }),
+      trackOncePerAgency(agencyId, 'whatsapp_phone_discovered', user.id, { onboardingType }),
+    ])
   }
 
   // 5. Readiness is a softer, separate state: the connection is subscribed, but
