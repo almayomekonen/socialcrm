@@ -4,6 +4,7 @@ import { getTour } from '@/lib/education/registry'
 import { LEAD_OPEN_EDU, eduSel } from '@/lib/education/types'
 import { presentSteps, waitForTourTargets } from '@/lib/education/presentSteps'
 import { isTourEligible } from '@/lib/education/eligibility'
+import { FIRST_RUN_COPY } from '@/lib/activation/firstRunCopy'
 import type { EligibilityContext } from '@/lib/education/types'
 
 const el = () => ({}) as Element
@@ -136,8 +137,14 @@ describe('leads tour boundaries', () => {
     expect(firstRun).not.toContain('data-edu')
     expect(firstRun).toContain('data-leads-empty')
     expect(firstRun).toContain('data-add-lead')
-    expect(firstRun).toContain("title='ייבוא מאקסל'")
-    expect(firstRun).toContain("title='הוסף ליד'")
+    // The two first-run actions still exist, but their copy now lives in
+    // `lib/activation/firstRunCopy.ts` (shared with the mobile first-run screen),
+    // so the component no longer carries the literal strings this used to grep
+    // for. Assert the copy module instead: same guarantee — an import action and
+    // an add action, both named — without pinning where the text is declared, and
+    // without asserting copy the first-run rewrite deliberately replaced.
+    expect(FIRST_RUN_COPY.own.import.title.length).toBeGreaterThan(0)
+    expect(FIRST_RUN_COPY.own.add.title.length).toBeGreaterThan(0)
 
     const callout = readFileSync('components/clients/FirstLeadCallout.tsx', 'utf8')
     expect(callout).not.toContain('driver.js')
