@@ -11,6 +11,7 @@ import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
+import { isAgentEnabled } from '@/lib/ai/flags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import { NotificationProvider } from '@/modules/notifications/NotificationContext'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
@@ -147,6 +148,16 @@ async function LayoutContent({ children }) {
   }
 
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
+
+  /**
+   * The agent rollout, resolved once and handed to the nav.
+   *
+   * `/agent` and `POST /api/ai/agent/stream` both 404 for an agency outside
+   * `AGENT_AGENCY_IDS`, so the nav entry has to agree with them — a link to a
+   * 404 is worse than no link. Absence blocks: with the env unset the allowlist
+   * parses to an empty list and this is false for everyone.
+   */
+  const agentEnabled = isAgentEnabled(user.agencyId)
 
   /**
    * WORKSPACE REACHED. The denominator for every in-product metric, and the one
@@ -316,7 +327,7 @@ async function LayoutContent({ children }) {
                     trialDaysRemaining={trialStatus === 'TRIAL_ACTIVE' ? trialDaysRemaining : null}
                   />
                   <WorkspaceGrid>
-                    <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
+                    <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} agentEnabled={agentEnabled} />
                     <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
                       {children}
                     </main>

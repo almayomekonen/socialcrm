@@ -1,4 +1,7 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
+import { getUser } from '@/db/auth'
+import { isAgentEnabled } from '@/lib/ai/flags'
 import AgentWorkspace from '@/components/agent/AgentWorkspace'
 
 export const metadata: Metadata = {
@@ -15,11 +18,18 @@ export const metadata: Metadata = {
  * is the same boundary every other page in this group relies on, so there is
  * nothing for this page to re-check and no reason for it to touch the server.
  *
- * The workspace below is a Client Component holding local conversation state
- * seeded from sample data. Nothing here reaches the agent backend that already
- * exists (`app/api/ai/agent`, `lib/agent/**`) — wiring it is the next change,
- * and it is deliberately not this one.
+ * GATED BY THE SAME FLAG AS THE API. `POST /api/ai/agent/stream` already returns
+ * 404 for an agency outside `AGENT_AGENCY_IDS`, so without this the page would
+ * render, accept a question, and fail on every send — a dead end that looks like
+ * a bug rather than a feature that is not on yet. `notFound()` rather than a
+ * disabled state: an agency that is not in the rollout has no agent, and saying
+ * so with a 404 matches what the route already says.
+ *
+ * `isAgentEnabled` is the EXISTING mechanism, reused unchanged — absence blocks,
+ * because `parseAgencyAllowlist(undefined)` returns an empty list. No new flag.
  */
-export default function AgentPage() {
+export default async function AgentPage() {
+  const user = await getUser()
+  if (!isAgentEnabled(user?.agencyId)) notFound()
   return <AgentWorkspace />
 }
