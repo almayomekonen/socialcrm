@@ -249,7 +249,12 @@ describe('the budget still governs the new surface', () => {
 describe('tool descriptions route the model to the right capability', () => {
   it('separates the queue, the overview and the segments', () => {
     const tools = buildAgentTools(deps()) as Record<string, { description: string }>
-    expect(tools.get_today_state!.description).toMatch(/what needs attention|what should I do/i)
+    // Today owns the DAILY question only. It deliberately no longer claims
+    // "what should I do" — that phrasing is a broad judgement question, and it
+    // caused the model to answer from the queue and never look at structural
+    // health. See broadInvestigation.test.ts.
+    expect(tools.get_today_state!.description).toMatch(/what do I have today|today's work queue/i)
+    expect(tools.get_today_state!.description).not.toMatch(/call this first for any/i)
     expect(tools.get_business_summary!.description).toMatch(/count/i)
     expect(tools.get_lead_segment!.description).toMatch(/segment|categor/i)
     // The summary must send the model onward for names rather than inviting it

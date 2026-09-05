@@ -61,7 +61,7 @@ export function makeGetLeadHealth(deps: {
 }) {
   return tool({
     description:
-      'The health of the lead book, in one call: which leads are waiting on a reply, which have a follow-up due today, which have a follow-up already overdue, which have NO next step at all, which have gone cold, and which arrived this week. Returns the true total per category plus a few citable leads from each. Use it for "who needs attention", "am I missing leads", "which leads matter most". There is no lead score in SocialCRM and this tool returns none — rank by the states it reports and say why. Takes no arguments.',
+      'The health of the lead book, in one call: which leads are waiting on a reply, which have a follow-up due today, which have a follow-up already overdue, which have NO next step at all, which have gone cold, and which arrived this week. Returns the true total per category plus a few citable leads from each. Use it for "who needs attention", "am I missing leads", "which leads matter most" — and ALWAYS for a broad judgement question (biggest problem, what to focus on, what is being missed), including when get_today_state already returned items, because the daily queue does not show stale leads or leads with no next step. There is no lead score in SocialCRM and this tool returns none — rank by the states it reports and say why. Takes no arguments.',
     inputSchema: z.object({}),
     execute: async () => {
       const verdict = deps.budget.canStep('get_lead_health', '')
