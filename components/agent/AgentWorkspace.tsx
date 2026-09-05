@@ -17,8 +17,9 @@ import { mockAnswerFor, type AgentTurn } from './agentMockData'
  * agent is the only change this file needs when the backend is wired.
  *
  * The canvas is `.agent-canvas` (lib/css/agent.css) — the reference's gradient
- * composition rebuilt from this product's own tokens, anchored on the navy the
- * nav rail is painted with. Foreground text is ink, never white; see that file.
+ * composition rebuilt from this product's own tokens, anchored at both ends on
+ * the navy the nav rail is painted with. It is dark-dominant, so foreground text
+ * on this page is white throughout; see that file for the contrast figures.
  *
  * LAYOUT: one column, composer pinned to the bottom of the scroller.
  *
@@ -67,7 +68,7 @@ export default function AgentWorkspace() {
           <button
             type='button'
             onClick={() => setTurns([])}
-            className='tap-44 rounded-lg bg-white/85 px-3 py-1.5 text-[12.5px] font-semibold text-ink/80 ring-1 ring-white/60 backdrop-blur-xl shadow-[0_1px_2px_rgba(10,37,64,0.06)] transition-colors hover:bg-white hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 motion-reduce:transition-none'
+            className='tap-44 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white/85 ring-1 ring-white/20 backdrop-blur-xl transition-colors hover:bg-white/18 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none'
           >
             שיחה חדשה
           </button>
@@ -85,9 +86,12 @@ export default function AgentWorkspace() {
       </div>
 
       <div className='sticky bottom-0 z-10'>
+        {/* /85, not the /70 used for secondary copy higher up: this line sits in
+            the brightest part of the canvas glow (measured rgb(73,86,169)), where
+            /70 falls to 4.4:1 and /85 holds 5.2:1. */}
         <div className='mx-auto w-full max-w-3xl px-4 pb-4 pt-3 desktop:px-0'>
           <AgentPromptInput value={input} onChange={setInput} onSubmit={ask} />
-          <p className='mt-2.5 text-center text-[11px] font-medium leading-relaxed tracking-[0.01em] text-ink/60'>
+          <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-white/85'>
             תצוגה מקדימה. התשובות והכרטיסים בעמוד הזה הם נתוני דוגמה ואינם מהעסק שלך.
           </p>
         </div>

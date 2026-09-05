@@ -28,9 +28,9 @@ export default function AgentThread({ turns }: { turns: AgentTurn[] }) {
           <div key={turn.id} className='flex justify-start'>
             <p
               className={[
-                'max-w-[85%] rounded-2xl bg-white/95 px-4 py-2.5 ring-1 ring-white/60 backdrop-blur-xl',
-                'shadow-[0_1px_2px_rgba(10,37,64,0.06),0_10px_24px_-16px_rgba(10,37,64,0.5)]',
-                'text-[15px] leading-6 font-medium text-ink',
+                'max-w-[85%] rounded-2xl bg-white/12 px-4 py-2.5 ring-1 ring-white/20 backdrop-blur-xl',
+                'shadow-[0_1px_2px_rgba(0,0,0,0.15),0_12px_28px_-18px_rgba(0,0,0,0.7)]',
+                'text-[15px] leading-6 font-medium text-white',
                 'animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none',
               ].join(' ')}
             >
@@ -42,7 +42,7 @@ export default function AgentThread({ turns }: { turns: AgentTurn[] }) {
             key={turn.id}
             className='animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none'
           >
-            <p className='text-[15px] font-medium leading-7 tracking-[-0.005em] text-ink'>{turn.text}</p>
+            <p className='text-base font-medium leading-7 tracking-[-0.005em] text-white'>{turn.text}</p>
             {turn.cards && turn.cards.length > 0 && <AgentCards cards={turn.cards} />}
           </div>
         ),

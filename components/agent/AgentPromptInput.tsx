@@ -227,7 +227,7 @@ export default function AgentPromptInput({
               opacity: hasAttachments && expanded ? 1 : 0,
               transition: smooth ? 'transform 0.15s ease-out, opacity 0.15s ease-out' : 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out',
             }}
-            className='flex items-start gap-2 overflow-x-auto rounded-t-2xl border border-b-0 border-white/10 bg-ink/90 px-2 pb-1 pt-2 agent-scroll'
+            className='flex items-start gap-2 overflow-x-auto rounded-t-2xl border border-b-0 border-white/20 bg-white/10 px-2 pb-1 pt-2 agent-scroll'
           >
             {attachments.map((a, i) => (
               <AttachmentThumb key={a.id} attachment={a} index={i} onRemove={removeAttachment} onOpen={(att, rect) => setPreview({ attachment: att, rect })} />
@@ -250,10 +250,10 @@ export default function AgentPromptInput({
             overflow: expanded ? 'visible' : 'hidden',
           }}
           className={cn(
-            'relative z-10 w-full border border-white/12 bg-ink',
-            'shadow-[0_1px_2px_rgba(10,37,64,0.2),0_18px_40px_-16px_rgba(10,37,64,0.75)]',
-            'transition-[border-color,box-shadow] duration-200 focus-within:border-white/25',
-            'focus-within:shadow-[0_1px_2px_rgba(10,37,64,0.2),0_24px_52px_-18px_rgba(10,37,64,0.85)]',
+            'relative z-10 w-full border border-white/20 bg-white/10 backdrop-blur-2xl',
+            'shadow-[0_2px_8px_rgba(0,0,0,0.2),0_20px_44px_-18px_rgba(0,0,0,0.8)]',
+            'transition-[border-color,box-shadow,background-color] duration-200 focus-within:border-white/35 focus-within:bg-white/14',
+            'focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.22),0_28px_56px_-20px_rgba(0,0,0,0.9)]',
             expanded ? 'cursor-text' : 'cursor-default',
           )}
         >
@@ -273,16 +273,16 @@ export default function AgentPromptInput({
             style={{ transition: smooth ? 'height 0.15s ease-out' : 'opacity 0.3s ease-out, transform 0.3s ease-out, height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
             /* 16px so iOS Safari does not zoom the page on focus. */
             className={cn(
-              'agent-scroll absolute inset-x-0 top-0 z-1 w-full resize-none bg-transparent ps-5 pe-14 py-3.5 text-base leading-6 text-white outline-none placeholder:font-medium placeholder:text-white/45',
+              'agent-scroll absolute inset-x-0 top-0 z-1 w-full resize-none bg-transparent ps-5 pe-14 py-3.5 text-base leading-6 text-white outline-none placeholder:font-medium placeholder:text-white/60',
               expanded ? 'translate-y-0 scale-100 opacity-100' : 'pointer-events-none -translate-y-1 scale-95 opacity-0',
               scrolls ? 'overflow-y-auto' : 'overflow-y-hidden',
             )}
           />
 
-          <div ref={topFade} className='pointer-events-none absolute start-5 end-14 top-0 z-2 h-8 bg-gradient-to-b from-ink via-ink/90 to-transparent' />
+          <div ref={topFade} className='pointer-events-none absolute start-5 end-14 top-0 z-2 h-8 bg-gradient-to-b from-[#20305a] via-[#20305a]/80 to-transparent' />
           <div
             ref={bottomFade}
-            className='pointer-events-none absolute start-5 end-14 z-2 h-8 bg-gradient-to-t from-ink via-ink/90 to-transparent'
+            className='pointer-events-none absolute start-5 end-14 z-2 h-8 bg-gradient-to-t from-[#20305a] via-[#20305a]/80 to-transparent'
             style={{ opacity: 0, top: `${textareaHeight - 32}px`, transition: smooth ? 'top 0.15s ease-out' : 'top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
           />
 
@@ -313,7 +313,7 @@ export default function AgentPromptInput({
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => { e.stopPropagation(); setDepthIndex((p) => (p + 1) % depths.length) }}
               aria-label={`עומק הניתוח: ${depths[depthIndex]}`}
-              className='group flex items-center gap-1 rounded-full px-2 py-1 text-white/55 outline-none transition-all duration-200 hover:bg-white/10 hover:text-white'
+              className='group flex items-center gap-1 rounded-full px-2 py-1 text-white/75 outline-none transition-all duration-200 hover:bg-white/10 hover:text-white'
             >
               <DepthBarsIcon level={depthIndex} />
               <span className='select-none text-xs font-semibold'><MorphingText text={depths[depthIndex]} /></span>
@@ -325,7 +325,7 @@ export default function AgentPromptInput({
               onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }}
               disabled={attachments.length >= maxAttachments}
               aria-label='הוספת תמונה'
-              className='ms-auto flex size-7 items-center justify-center rounded-full text-white/55 outline-none transition-all duration-200 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40'
+              className='ms-auto flex size-7 items-center justify-center rounded-full text-white/75 outline-none transition-all duration-200 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40'
             >
               <PlusIcon />
             </button>

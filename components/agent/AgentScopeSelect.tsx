@@ -44,7 +44,7 @@ export default function AgentScopeSelect({
         aria-expanded={open}
         aria-label={`תחום החיפוש: ${value}`}
         className={cn(
-          'group flex items-center gap-1 rounded-full px-2 py-1 text-white/55 outline-none transition-all duration-200',
+          'group flex items-center gap-1 rounded-full px-2 py-1 text-white/75 outline-none transition-all duration-200',
           'hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60',
           open && 'bg-white/10 text-white',
         )}
@@ -59,7 +59,7 @@ export default function AgentScopeSelect({
         onMouseLeave={() => setHighlight((p) => ({ ...p, opacity: 0, transition: 'opacity 0.2s ease-in' }))}
         className={cn(
           'absolute bottom-full start-0 z-50 mb-2.5 flex w-44 origin-bottom-left flex-col gap-0.5 rounded-2xl',
-          'border border-white/10 bg-ink/95 p-1 shadow-xl backdrop-blur-md transition-all duration-300 rtl:origin-bottom-right',
+          'border border-white/20 bg-[#16264a]/95 p-1 shadow-xl backdrop-blur-2xl transition-all duration-300 rtl:origin-bottom-right',
           open
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
             : 'pointer-events-none translate-y-3 scale-95 opacity-0',

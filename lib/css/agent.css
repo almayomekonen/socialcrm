@@ -1,34 +1,47 @@
 /*
  * "הסוכן שלך" — the agent workspace canvas.
  *
- * The gradient is the reference's composition (a saturated hot spot at
- * bottom-centre resolving to the page background at the top) rebuilt entirely
- * from SocialCRM tokens: it starts at `--color-ink` #0a2540, the exact navy the
- * nav rail is painted with, runs up through `--color-primary` and
- * `--color-accent`, and lands on `--color-bg` so the canvas meets the rest of
- * the app rather than stopping against it.
+ * DARK-DOMINANT, so white is the correct ink.
+ *
+ * The first cut ran light-dominant (a brand glow at the bottom resolving to the
+ * app background at the top) and forced every label to ink: the band behind the
+ * centred content sat around #8b91f0, where white lands at 2.7:1. Inverting the
+ * ramp is what actually buys white type — the field behind the content is now
+ * #0a2540 to #253057, where white measures 15.5:1.
+ *
+ * Anchored at BOTH ends on tokens that already exist: the top and the far field
+ * are `--color-ink` #0a2540, the exact navy the nav rail is painted with, so the
+ * page meets the rail rather than stopping against it; the hot spot at
+ * bottom-centre is a muted `--color-primary`.
+ *
+ * THE RAMP IS WIDE AND THE CORE IS CAPPED, both for measured reasons. The first
+ * dark cut put the bright stops inside the first 13% of the radius — which, for
+ * a 125% ellipse centred at 50%/101%, is the bottom ~150px of the viewport — so
+ * the glow fell off the bottom of the screen and the page read as flat navy.
+ * Spreading them to 27% puts it across the bottom third, where it can actually
+ * be seen. The core stops at #4d5ab8 rather than the full #8b91f0 because the
+ * preview notice sits in exactly that band: at full accent it lost its contrast
+ * floor, and a caption you cannot read is not a caption.
  *
  * Literal hex rather than var() on purpose: `radial-gradient` colour stops are
  * not interpolated from custom properties in every engine the app supports, and
- * a stop that fails to parse drops the whole gradient. The values are copied
- * from the @theme block in main.css and must be kept in step with it.
- *
- * Foreground text on this canvas is `--color-ink`, never white: the band behind
- * the centred content is around #8b91f0, where ink clears 5.9:1 and white sits
- * at 2.7:1.
+ * a stop that fails to parse drops the whole gradient. The values derive from
+ * the @theme block in main.css and must be kept in step with it.
  */
 .agent-canvas {
+  background-color: #0a2540;
   background-image: radial-gradient(
     125% 125% at 50% 101%,
-    #0a2540 10.5%,
-    #14336b 16%,
-    #1d47a0 17.5%,
-    #3f51c8 25%,
-    #5e6ad2 40%,
-    #8b91f0 55%,
-    #b6bbf5 70%,
-    #dfe2fb 88%,
-    #f6f9fc 100%
+    #4d5ab8 0%,
+    #47539f 6%,
+    #3f4a8c 12%,
+    #364177 19%,
+    #2d3866 27%,
+    #253057 36%,
+    #1e2b4d 46%,
+    #172846 58%,
+    #112643 74%,
+    #0a2540 100%
   );
 }
 
@@ -56,7 +69,15 @@
   .agent-canvas {
     margin-inline: calc(var(--spacing) * -8);
     width: calc(100% + var(--spacing) * 16);
+    /*
+     * BOTH must be cleared. The element paints its own background above a
+     * `z-index: -1` pseudo-element, so leaving the base rule's solid
+     * `background-color` in place hid the fixed layer completely and the page
+     * rendered as flat #0a2540 — the fallback colour, not the ramp. The layer
+     * below carries its own background-color, so nothing loses its floor.
+     */
     background-image: none;
+    background-color: transparent;
   }
 
   .agent-canvas::before {
@@ -64,20 +85,21 @@
     position: fixed;
     inset: 2.5rem 0 0 0;
     z-index: -1;
-    background-image: inherit;
+    pointer-events: none;
+    background-color: #0a2540;
     background-image: radial-gradient(
       125% 125% at 50% 101%,
-      #0a2540 10.5%,
-      #14336b 16%,
-      #1d47a0 17.5%,
-      #3f51c8 25%,
-      #5e6ad2 40%,
-      #8b91f0 55%,
-      #b6bbf5 70%,
-      #dfe2fb 88%,
-      #f6f9fc 100%
+      #4d5ab8 0%,
+      #47539f 6%,
+      #3f4a8c 12%,
+      #364177 19%,
+      #2d3866 27%,
+      #253057 36%,
+      #1e2b4d 46%,
+      #172846 58%,
+      #112643 74%,
+      #0a2540 100%
     );
-    pointer-events: none;
   }
 }
 
