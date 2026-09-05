@@ -85,13 +85,22 @@ export default function AgentWorkspace() {
         <div ref={endRef} />
       </div>
 
-      <div className='sticky bottom-0 z-10'>
-        {/* /85, not the /70 used for secondary copy higher up: this line sits in
-            the brightest part of the canvas glow (measured rgb(73,86,169)), where
-            /70 falls to 4.4:1 and /85 holds 5.2:1. */}
-        <div className='mx-auto w-full max-w-3xl px-4 pb-4 pt-3 desktop:px-0'>
+      {/*
+        THE PLINTH. `sticky` keeps the composer in flow, so the thread scrolls
+        UNDER it — and with a transparent band the pale glass cards slid straight
+        through, flashing light right below the input on every scroll.
+        The scrim is a gradient rather than a flat fill so there is no hard edge
+        where it starts, but it reaches FULL opacity at 55% rather than fading all
+        the way down: a scrim that is still translucent at the bottom let a card
+        show faintly through behind the notice. Only the top half fades.
+        It lands on `--color-ink`, the same navy the nav rail is painted with, so
+        the bottom of the page and the rail read as one continuous surface
+        instead of two panels meeting.
+      */}
+      <div className='sticky bottom-0 z-10 bg-gradient-to-t from-ink from-55% to-transparent pt-10'>
+        <div className='mx-auto w-full max-w-3xl px-4 pb-4 desktop:px-0'>
           <AgentPromptInput value={input} onChange={setInput} onSubmit={ask} />
-          <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-white/85'>
+          <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-white/70'>
             תצוגה מקדימה. התשובות והכרטיסים בעמוד הזה הם נתוני דוגמה ואינם מהעסק שלך.
           </p>
         </div>
