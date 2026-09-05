@@ -223,10 +223,30 @@ describe('the admitted model and config drive the call', () => {
     expect(lastCall().output).toBeDefined()
   })
 
-  it('forwards the caller abort signal', async () => {
+  it('forwards caller cancellation to the model call', async () => {
+    // The model now receives a COMBINED signal — the caller's cancellation
+    // chained with the run's own wall-clock deadline — so identity is no longer
+    // the contract. What matters is that aborting the caller aborts what the
+    // provider is holding, which is what this asserts. The deadline half is
+    // covered in wallClock.test.ts.
     const ac = new AbortController()
     await runAgentInvestigation({ question: 'q', abortSignal: ac.signal })
-    expect(lastCall().abortSignal).toBe(ac.signal)
+    const forwarded = lastCall().abortSignal as unknown as AbortSignal
+    expect(forwarded).toBeInstanceOf(AbortSignal)
+    // Deliberately NOT the caller's own object any more.
+    expect(forwarded).not.toBe(ac.signal)
+    expect(forwarded.aborted).toBe(false)
+
+    // And the chain is released when the run ends: aborting afterwards must not
+    // reach back into a finished investigation. Propagation WHILE in flight is
+    // proven in wallClock.test.ts.
+    ac.abort()
+    expect(forwarded.aborted).toBe(false)
+  })
+
+  it('starts already-cancelled when the caller signal is', async () => {
+    await runAgentInvestigation({ question: 'q', abortSignal: AbortSignal.abort() })
+    expect((lastCall().abortSignal as unknown as AbortSignal).aborted).toBe(true)
   })
 })
 

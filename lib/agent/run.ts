@@ -187,6 +187,50 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const budget = createBudget({ maxSteps, deadlineMs, now, onStep: input.onProgress })
 
   /**
+   * THE WALL CLOCK — the deadline the Budget cannot enforce.
+   *
+   * `Budget.canStep` is consulted inside a tool's execute, so it bounds an
+   * investigation that is CALLING TOOLS. It cannot bound one that is waiting on
+   * the provider, because no tool runs while that wait happens. A live run hit
+   * exactly that hole: a single question stalled for 487 seconds having made zero
+   * tool calls, so the 40s deadline was never once consulted.
+   *
+   * This closes it by cancelling the request itself rather than abandoning it.
+   * Racing a timer against the promise would return control while the provider
+   * call kept running — still billing tokens, still holding a socket — so the
+   * signal goes INTO `generateText`, which forwards it to the provider request.
+   *
+   * ONE ABSOLUTE CEILING, not a per-call timer. `deadlineAt` is computed once
+   * from the investigation's own start, so the two-phase autonomous path shares
+   * a single budget across both model calls and a slow Phase 1 leaves Phase 2
+   * less time rather than granting it a fresh 40 seconds. It reuses the SAME
+   * `deadlineMs` the Budget uses — one number, two enforcement points, no second
+   * timeout constant to drift.
+   *
+   * The caller's own signal is chained in, so a rep who navigates away still
+   * cancels immediately; `timedOut` records which of the two fired, because a
+   * deadline and a cancellation are different outcomes to report.
+   */
+  const deadlineAt = nowMs + deadlineMs
+  const deadlineController = new AbortController()
+  let timedOut = false
+  const deadlineTimer = setTimeout(
+    () => {
+      timedOut = true
+      deadlineController.abort(new Error('agent-wall-clock-deadline'))
+    },
+    Math.max(0, deadlineAt - now()),
+  )
+
+  const callerSignal = input.abortSignal
+  const onCallerAbort = () => deadlineController.abort(callerSignal?.reason)
+  if (callerSignal?.aborted) deadlineController.abort(callerSignal.reason)
+  else callerSignal?.addEventListener('abort', onCallerAbort, { once: true })
+
+  /** What every model call receives: the deadline and the caller, as one signal. */
+  const runSignal = deadlineController.signal
+
+  /**
    * The conversation as the model sees it: prior turns, then the new question.
    *
    * `messages` rather than `prompt` in BOTH branches. With no history the array
@@ -235,7 +279,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         // counter `steps` reports, so the gate and the audit cannot disagree.
         prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
         maxOutputTokens: cfg.maxOutputTokens,
-        abortSignal: input.abortSignal,
+        abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
       evidenceUsage = evidencePhase.totalUsage
@@ -263,7 +307,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         messages: [...conversation, ...evidencePhase.response.messages],
         output: Output.object({ schema: agentAnswerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
-        abortSignal: input.abortSignal,
+        abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
     } else {
@@ -276,38 +320,56 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         stopWhen: stepCountIs(maxSteps),
         output: Output.object({ schema: agentAnswerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
-        abortSignal: input.abortSignal,
+        abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
     }
   } catch (err) {
+    // A deadline abort and a provider failure arrive through the same throw, so
+    // the flag set by the timer is what tells them apart — the error's own
+    // message cannot, and would carry provider text into a durable record.
     const message = (err as Error)?.message ?? 'unknown'
-    agentTrace('GENERATION_FAILED', ctx, { provider: handle.provider, steps: budget.stepsUsed() })
+    const stopReason: StopReason = timedOut ? 'deadline' : 'error'
+    agentTrace('GENERATION_FAILED', ctx, {
+      provider: handle.provider,
+      steps: budget.stepsUsed(),
+      timedOut,
+      deadlineMs,
+    })
     await input.onPersist?.({
       ...identity,
       status: 'failed',
-      stopReason: 'error',
+      stopReason,
       answer: null,
       evidence: evidence.all(),
       droppedClaims: 0,
       strippedRefs: 0,
       steps: budget.stepsUsed(),
-      failureReason: message,
+      // A stable token for a timeout: the thrown message is ours, but keeping the
+      // branch means a provider string can never reach the ledger by this path.
+      failureReason: timedOut ? 'wall-clock-deadline' : message,
     })
-    agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'error' })
+    agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: stopReason })
     // Cost is 0 because the call threw before usage was reported. Tokens MAY have
     // been spent upstream; there is no honest figure available, and inventing one
     // would put a guess into a durable ledger.
     return {
       ok: false,
-      reason: 'error',
-      message,
+      reason: stopReason,
+      // Never the provider's message on a timeout: the client renders by reason,
+      // and a raw provider string can carry model ids and internals.
+      message: timedOut ? 'deadline' : message,
       investigationId,
       costUsd: 0,
       // Tools may have executed before the provider threw; report what really ran.
       steps: budget.stepsUsed(),
       evidence: evidence.all(),
     }
+  } finally {
+    // Both paths, always: an uncleared timer holds the event loop, and a listener
+    // left on a caller signal that outlives this run leaks across investigations.
+    clearTimeout(deadlineTimer)
+    callerSignal?.removeEventListener('abort', onCallerAbort)
   }
 
   // Charge before validating: the tokens were spent whatever we do with the

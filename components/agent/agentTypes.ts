@@ -53,11 +53,18 @@ export function toolLabel(tool: string): string {
  * `no_evidence` is deliberately NOT phrased as a failure. The validator refusing
  * an ungrounded answer is the system working — the honest report is that it had
  * nothing solid to say, not that it broke.
+ *
+ * `deadline` names the outcome and offers the two things that actually help —
+ * retry, or narrow the question — and nothing else. The runtime distinguishes a
+ * wall-clock abort from a provider error so this line can be specific, but the
+ * mechanism stays on the server: no signal, no SDK, no timeout value, no
+ * provider name. The rep is told what happened to their request, not how the
+ * request was made.
  */
 export const FAILURE_MESSAGES: Record<string, string> = {
   no_evidence: 'לא מצאתי מספיק נתונים כדי לענות על זה בביטחון. אפשר לנסות לשאול על ליד מסוים.',
   gate_denied: 'הסוכן לא זמין כרגע. אפשר לנסות שוב מאוחר יותר.',
-  deadline: 'הבדיקה ארכה יותר מדי זמן. אפשר לנסות לשאול משהו ממוקד יותר.',
+  deadline: 'לא הספקתי להשלים את הבדיקה בזמן. אפשר לנסות שוב, או לשאול משהו ממוקד יותר.',
   step_ceiling: 'הגעתי למגבלת הבדיקות לשאלה אחת. אפשר לפצל את השאלה לשתיים.',
   error: 'משהו השתבש בדרך. אפשר לנסות שוב.',
 }
