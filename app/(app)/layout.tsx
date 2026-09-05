@@ -271,7 +271,16 @@ async function LayoutContent({ children }) {
               shell, the desktop shell and the teaser alike.
             */}
             <DeviceOverrideLinks device={deviceOverride}>
-            <div className='flex flex-col h-dvh min-h-0 items-stretch'>
+            {/*
+              `mobile-viewport-column`, not `h-dvh`. `dvh` does not shrink for the
+              iOS software keyboard — measured, dvh=714 while only 377px was
+              visible — so Safari panned the page to reach the composer and threw
+              the WhatsApp thread header off the top. The utility pins this
+              column to the visible viewport and falls back to `100dvh`, and the
+              properties behind it are published only by the mobile shell, so
+              desktop resolves exactly as before.
+            */}
+            <div className='mobile-viewport-column flex flex-col min-h-0 items-stretch'>
               <SkipLink />
               <OAuthResultToast />
               {trialStatus === 'NEVER_STARTED' || trialExpired ? (
