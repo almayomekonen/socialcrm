@@ -11,6 +11,7 @@ import { setLeadFollowUp, clearLeadFollowUp } from '@/actions/leadFollowUp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { daysFromNow, formatDate } from '@/lib/dates'
 import { placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
+import { useCanTopLayer, useTopLayerPromotion } from '@/lib/useTopLayer'
 
 type Props = {
   leadId: number
@@ -43,9 +44,19 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
   const [open, setOpen] = useState(false)
   const [custom, setCustom] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  /**
+   * This menu is opened from inside a dialog (MeetingDetailsDialog), and
+   * ModalPop's scrim lives in the browser's TOP LAYER — which paints above
+   * every ordinary stacking context, so the z-index below cannot reach it. See
+   * `lib/useTopLayer.ts`. `open` and `pos` are set in the same handler, so they
+   * flip in the commit that mounts the menu and the promotion finds its node.
+   */
+  const canTopLayer = useCanTopLayer()
   const [pending, startTransition] = useTransition()
   const wrapRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useTopLayerPromotion(menuRef, canTopLayer && open && pos !== null)
 
   function openMenu() {
     const el = wrapRef.current
@@ -155,7 +166,19 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
           <div
             ref={menuRef}
             role='menu'
-            style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 100000 }}
+            popover={canTopLayer ? 'manual' : undefined}
+            style={{
+              position: 'fixed',
+              // The UA `[popover]` box, undone so this menu's own classes stay
+              // authoritative: `inset: 0` would stretch it to the viewport's
+              // bottom-left, and it is `display: none` until it is shown.
+              // `inset` must be written before the top/left that place it.
+              ...(canTopLayer ? { display: 'flex', inset: 'auto', height: 'auto', color: 'inherit' } : null),
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+              zIndex: 100000,
+            }}
             className='flex flex-col gap-0.5 rounded-lg border border-gray-200 bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
           >
             {PRESETS.map((p) => (
