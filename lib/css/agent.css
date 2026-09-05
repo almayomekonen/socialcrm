@@ -87,7 +87,56 @@
     z-index: -1;
     pointer-events: none;
     background-color: #0a2540;
-    background-image: radial-gradient(
+    /*
+     * FOUR LIGHTS. The last is the page ramp; the first three are edge lights along
+     * the frame. The inline-end one exists to solve a contrast problem rather than
+     * to decorate.
+     *
+     * The nav rail is `bg-dark/90` — the same `--color-ink` this canvas resolves
+     * to at its edges — so on this page the rail was navy on navy and effectively
+     * disappeared. Lifting the strip of canvas it sits against silhouettes it:
+     * the rail stays exactly as dark as it is everywhere else in the app, and the
+     * separation comes from the page rather than from restyling shared chrome.
+     *
+     * Anchored at `100%`, the physical right. That is the inline end here because
+     * the app is `dir='rtl'` at the root and the rail is pinned with `start-0`;
+     * gradient positions are physical, so this follows the rail rather than the
+     * writing mode.
+     *
+     * The matching lights on the LEFT and TOP edges are the same idea carried
+     * round the frame: they lift the canvas away from the window edge so the page
+     * reads as a lit surface with a defined boundary, rather than dark navy
+     * running out to nothing on three sides. The top one is weaker (0.30 against
+     * 0.40) and wider, because it is the only one that passes behind body copy —
+     * the headline and subtitle sit inside its falloff, and their contrast is
+     * measured after every change to these stops.
+     *
+     * DESKTOP ONLY, by living on this layer: a phone has no rail — its navigation
+     * is the bottom tab bar — so there is nothing there to separate.
+     */
+    background-image:
+      radial-gradient(
+        40% 70% at 100% 44%,
+        rgba(109, 122, 226, 0.4) 0%,
+        rgba(109, 122, 226, 0.22) 34%,
+        rgba(109, 122, 226, 0.08) 58%,
+        rgba(109, 122, 226, 0) 80%
+      ),
+      radial-gradient(
+        40% 70% at 0% 44%,
+        rgba(109, 122, 226, 0.4) 0%,
+        rgba(109, 122, 226, 0.22) 34%,
+        rgba(109, 122, 226, 0.08) 58%,
+        rgba(109, 122, 226, 0) 80%
+      ),
+      radial-gradient(
+        75% 42% at 50% 0%,
+        rgba(109, 122, 226, 0.3) 0%,
+        rgba(109, 122, 226, 0.16) 36%,
+        rgba(109, 122, 226, 0.06) 60%,
+        rgba(109, 122, 226, 0) 82%
+      ),
+      radial-gradient(
       125% 125% at 50% 101%,
       #4d5ab8 0%,
       #47539f 6%,
