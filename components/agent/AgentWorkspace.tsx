@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import AgentComposer from './AgentComposer'
 import AgentIntro from './AgentIntro'
+import AgentPromptInput, { type PromptMeta } from './AgentPromptInput'
 import AgentThread from './AgentThread'
 import { mockAnswerFor, type AgentTurn } from './agentMockData'
 
@@ -15,6 +15,10 @@ import { mockAnswerFor, type AgentTurn } from './agentMockData'
  * lead names without saying they are invented is the one thing the care charter
  * forbids outright (Law 1). Replacing the `mockAnswerFor` call with the real
  * agent is the only change this file needs when the backend is wired.
+ *
+ * The canvas is `.agent-canvas` (lib/css/agent.css) — the reference's gradient
+ * composition rebuilt from this product's own tokens, anchored on the navy the
+ * nav rail is painted with. Foreground text is ink, never white; see that file.
  *
  * LAYOUT: one column, composer pinned to the bottom of the scroller.
  *
@@ -34,7 +38,7 @@ export default function AgentWorkspace() {
   const endRef = useRef<HTMLDivElement>(null)
   const nextId = useRef(0)
 
-  const ask = useCallback((prompt: string) => {
+  const ask = useCallback((prompt: string, _meta?: PromptMeta) => {
     const text = prompt.trim()
     if (!text) return
     const answer = mockAnswerFor(text)
@@ -57,13 +61,13 @@ export default function AgentWorkspace() {
   const started = turns.length > 0
 
   return (
-    <div className='flex min-h-full flex-1 flex-col bg-surface'>
+    <div className='agent-canvas flex min-h-full flex-1 flex-col'>
       {started && (
-        <div className='mx-auto flex w-full max-w-3xl justify-end px-4 pb-2 pt-1 desktop:px-0'>
+        <div className='mx-auto flex w-full max-w-3xl justify-end px-4 pb-2 pt-2 desktop:px-0'>
           <button
             type='button'
             onClick={() => setTurns([])}
-            className='tap-44 rounded-lg px-2 py-1 text-[13px] text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none'
+            className='tap-44 rounded-lg bg-white/70 px-2.5 py-1 text-[13px] font-medium text-ink/80 backdrop-blur-sm transition-colors hover:bg-white/80 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 motion-reduce:transition-none'
           >
             שיחה חדשה
           </button>
@@ -80,15 +84,10 @@ export default function AgentWorkspace() {
         <div ref={endRef} />
       </div>
 
-      <div className='sticky bottom-0 z-10 bg-surface'>
-        {/* Content dissolves into the composer band instead of being cut by it. */}
-        <div
-          aria-hidden='true'
-          className='pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-t from-surface to-transparent'
-        />
+      <div className='sticky bottom-0 z-10'>
         <div className='mx-auto w-full max-w-3xl px-4 pb-4 pt-3 desktop:px-0'>
-          <AgentComposer value={input} onChange={setInput} onSubmit={() => ask(input)} />
-          <p className='mt-2 text-center text-[11px] leading-relaxed text-gray-400'>
+          <AgentPromptInput value={input} onChange={setInput} onSubmit={ask} />
+          <p className='mt-2.5 text-center text-[11px] font-medium leading-relaxed text-ink/70'>
             תצוגה מקדימה. התשובות והכרטיסים בעמוד הזה הם נתוני דוגמה ואינם מהעסק שלך.
           </p>
         </div>

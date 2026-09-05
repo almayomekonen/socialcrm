@@ -1,0 +1,61 @@
+/*
+ * "הסוכן שלך" — the agent workspace canvas.
+ *
+ * The gradient is the reference's composition (a saturated hot spot at
+ * bottom-centre resolving to the page background at the top) rebuilt entirely
+ * from SocialCRM tokens: it starts at `--color-ink` #0a2540, the exact navy the
+ * nav rail is painted with, runs up through `--color-primary` and
+ * `--color-accent`, and lands on `--color-bg` so the canvas meets the rest of
+ * the app rather than stopping against it.
+ *
+ * Literal hex rather than var() on purpose: `radial-gradient` colour stops are
+ * not interpolated from custom properties in every engine the app supports, and
+ * a stop that fails to parse drops the whole gradient. The values are copied
+ * from the @theme block in main.css and must be kept in step with it.
+ *
+ * Foreground text on this canvas is `--color-ink`, never white: the band behind
+ * the centred content is around #8b91f0, where ink clears 5.9:1 and white sits
+ * at 2.7:1.
+ */
+.agent-canvas {
+  background-image: radial-gradient(
+    125% 125% at 50% 101%,
+    #0a2540 10.5%,
+    #14336b 16%,
+    #1d47a0 17.5%,
+    #3f51c8 25%,
+    #5e6ad2 40%,
+    #8b91f0 55%,
+    #b6bbf5 70%,
+    #dfe2fb 88%,
+    #f6f9fc 100%
+  );
+}
+
+/*
+ * Thin, self-effacing scrollbars inside the composer and the attachment strip.
+ * Transparent until the region is hovered, so a two-line prompt does not gain a
+ * visible bar. Firefox gets the standard properties; WebKit needs its own.
+ */
+.agent-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.agent-scroll:hover {
+  scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+}
+.agent-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+  background: transparent;
+}
+.agent-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.agent-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+.agent-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.3);
+}
