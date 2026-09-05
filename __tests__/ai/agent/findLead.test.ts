@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const getLeadTotals = vi.hoisted(() => vi.fn())
+const getOverdueFollowUps = vi.hoisted(() => vi.fn())
+const getLeadsWithoutNextStep = vi.hoisted(() => vi.fn())
+const getActivityWindow = vi.hoisted(() => vi.fn())
 import { createEvidenceCollector } from '@/lib/agent/evidence'
 import { createBudget } from '@/lib/agent/budget'
 import type { AgentScope } from '@/lib/agent/types'
@@ -9,6 +14,7 @@ const getNamedLeadById = vi.hoisted(() => vi.fn())
 const getLeadIntelligenceInputs = vi.hoisted(() => vi.fn())
 
 vi.mock('@/db/briefing', () => ({ getLeadsByName, getNamedLeadById }))
+vi.mock('@/db/agentBusiness', () => ({ getLeadTotals, getOverdueFollowUps, getLeadsWithoutNextStep, getActivityWindow }))
 vi.mock('@/db/aiSummaries', () => ({ getLeadIntelligenceInputs }))
 vi.mock('@/lib/today/service', () => ({ buildTodayBrief: vi.fn() }))
 vi.mock('@/db/agentConversation', () => ({
@@ -61,7 +67,7 @@ beforeEach(() => {
 
 describe('the tool surface gains exactly one entry point', () => {
   it('exposes find_lead alongside the other read-only tools', () => {
-    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_business_summary', 'get_conversation', 'get_lead', 'get_lead_segment', 'get_today_state'])
+    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_today_state'])
   })
 
   // F / L — the security contract of the input schema.

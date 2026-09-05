@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const getLeadTotals = vi.hoisted(() => vi.fn())
+const getOverdueFollowUps = vi.hoisted(() => vi.fn())
+const getLeadsWithoutNextStep = vi.hoisted(() => vi.fn())
+const getActivityWindow = vi.hoisted(() => vi.fn())
 import { createEvidenceCollector } from '@/lib/agent/evidence'
 import { validateAgentAnswer, validateAgentAnswerDetailed } from '@/lib/agent/validate'
 import { buildAgentTools, TODAY_METRIC_IDS } from '@/lib/agent/tools'
@@ -8,6 +13,7 @@ import { Roles } from '@/types/roles'
 const buildTodayBrief = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/today/service', () => ({ buildTodayBrief }))
 vi.mock('@/db/briefing', () => ({ getNamedLeadById: vi.fn() }))
+vi.mock('@/db/agentBusiness', () => ({ getLeadTotals, getOverdueFollowUps, getLeadsWithoutNextStep, getActivityWindow }))
 vi.mock('@/db/aiSummaries', () => ({ getLeadIntelligenceInputs: vi.fn() }))
 vi.mock('@/db/agentConversation', () => ({
   findLatestLeadConversation: vi.fn(),

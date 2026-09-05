@@ -253,13 +253,16 @@ describe('the admitted model and config drive the call', () => {
 // ── Tools, scope and isolation ────────────────────────────────────────────────
 
 describe('tools carry authority from the scope, never from the model', () => {
-  it('hands the model exactly the six read-only tools', async () => {
+  it('hands the model exactly the nine read-only tools', async () => {
     await runAgentInvestigation({ question: 'q' })
     expect(Object.keys(lastCall().tools as object).sort()).toEqual([
       'find_lead',
+      'get_activity_trends',
       'get_business_summary',
       'get_conversation',
+      'get_follow_up_health',
       'get_lead',
+      'get_lead_health',
       'get_lead_segment',
       'get_today_state',
     ])

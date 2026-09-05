@@ -9,6 +9,7 @@ import {
   getPromisedButWaiting,
   getUnreadInboxSummary,
 } from '@/db/briefing'
+import { getLeadTotals } from '@/db/agentBusiness'
 import { readerScope } from './readerScope'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
@@ -40,6 +41,8 @@ import type { EvidenceCollector } from '../evidence'
  */
 
 export const BUSINESS_SUMMARY_METRIC_IDS = [
+  'business.total_leads',
+  'business.open_leads',
   'business.followups_due_today',
   'business.not_contacted_recently',
   'business.new_this_week',
@@ -57,14 +60,15 @@ export function makeGetBusinessSummary(deps: {
 }) {
   return tool({
     description:
-      'A count-only overview of the whole book: how many leads have follow-ups due today, how many have gone cold, how many arrived this week, how many carry an overdue task, how many are waiting on a reply, and how much of the inbox is unread. Call this to orient yourself on broad questions — "what is going on in the business", "what did I miss this week" — then use get_lead_segment or get_today_state to see the actual leads. Returns no names and no ids. Takes no arguments.',
+      'A count-only overview of the whole book: how many leads there are in total and how many are still open, how many have follow-ups due today, how many have gone cold, how many arrived this week, how many carry an overdue task, how many are waiting on a reply, and how much of the inbox is unread. Call this to orient yourself on broad questions — "what is going on in the business", "what did I miss this week" — then use get_lead_segment or get_today_state to see the actual leads. Returns no names and no ids. Takes no arguments.',
     inputSchema: z.object({}),
     execute: async () => {
       const verdict = deps.budget.canStep('get_business_summary', '')
       if (verdict.allowed === false) return { refused: true as const, reason: verdict.reason }
 
       const s = readerScope(deps.scope)
-      const [followUps, cold, fresh, overdue, waiting, inbox] = await Promise.all([
+      const [totals, followUps, cold, fresh, overdue, waiting, inbox] = await Promise.all([
+        getLeadTotals(s),
         getFollowUpsDueToday(s),
         getLeadsNotContactedRecently(s),
         getNewLeadsThisWeek(s),
@@ -74,6 +78,12 @@ export function makeGetBusinessSummary(deps: {
       ])
 
       const metrics: Record<string, number> = {
+        // The size of the book. Added because the first live evaluation could not
+        // answer "כמה לידים יש לי?" — every other reader counts a SEGMENT, and
+        // none counted the whole, so the honest answer was "unavailable" for a
+        // number the database plainly holds.
+        'business.total_leads': totals.all,
+        'business.open_leads': totals.open,
         'business.followups_due_today': followUps.total,
         'business.not_contacted_recently': cold.total,
         'business.new_this_week': fresh.total,

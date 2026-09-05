@@ -11,6 +11,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const getLeadTotals = vi.hoisted(() => vi.fn())
+const getOverdueFollowUps = vi.hoisted(() => vi.fn())
+const getLeadsWithoutNextStep = vi.hoisted(() => vi.fn())
+const getActivityWindow = vi.hoisted(() => vi.fn())
+
 const getFollowUpsDueToday = vi.hoisted(() => vi.fn())
 const getLeadsNotContactedRecently = vi.hoisted(() => vi.fn())
 const getNewLeadsThisWeek = vi.hoisted(() => vi.fn())
@@ -36,6 +41,7 @@ vi.mock('@/db/briefing', () => ({
   getPromisedButWaiting,
   getUnreadInboxSummary,
 }))
+vi.mock('@/db/agentBusiness', () => ({ getLeadTotals, getOverdueFollowUps, getLeadsWithoutNextStep, getActivityWindow }))
 
 import { buildAgentTools } from '@/lib/agent/tools'
 import { createEvidenceCollector } from '@/lib/agent/evidence'
@@ -76,6 +82,10 @@ const LIST = (total: number) => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  getLeadTotals.mockResolvedValue({ all: 42, open: 30 })
+  getOverdueFollowUps.mockResolvedValue(LIST(2))
+  getLeadsWithoutNextStep.mockResolvedValue(LIST(6))
+  getActivityWindow.mockResolvedValue({ newLeads: 4, statusChanges: 3, inboundMessages: 5, outboundMessages: 2, activeDays: 3 })
   getFollowUpsDueToday.mockResolvedValue(LIST(3))
   getLeadsNotContactedRecently.mockResolvedValue(LIST(11))
   getNewLeadsThisWeek.mockResolvedValue(LIST(5))

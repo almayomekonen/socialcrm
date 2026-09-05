@@ -138,12 +138,12 @@ describe('interactive path is unchanged', () => {
 })
 
 describe('nothing else about the request moved', () => {
-  it('all six tools remain registered, with schemas, on both paths', async () => {
+  it('all nine tools remain registered, with schemas, on both paths', async () => {
     for (const requireToolEvidence of [true, false]) {
       generateTextSpy.mockClear()
       await runAgentInvestigation({ question: 'q', scope: SCOPE, requireToolEvidence })
       const tools = args().tools as unknown as Record<string, { inputSchema?: unknown }>
-      expect(Object.keys(tools).sort()).toEqual(['find_lead', 'get_business_summary', 'get_conversation', 'get_lead', 'get_lead_segment', 'get_today_state'])
+      expect(Object.keys(tools).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_today_state'])
       for (const [name, t] of Object.entries(tools)) {
         expect(t.inputSchema, `${name} must carry a schema`).toBeDefined()
       }
