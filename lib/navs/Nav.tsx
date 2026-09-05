@@ -135,6 +135,15 @@ function getNavLinks(user, inboxUnread = 0, isOwner = false) {
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
     notOffice && { icon: 'comments', href: '/inbox', title: 'שיחות', badge: inboxUnread },
+    /*
+     * The AI workspace, as a destination rather than a panel. It sits after
+     * שיחות because that is where the working day actually reaches it: the rep
+     * has just seen what came in and is asking what to do about it.
+     *
+     * `sparkles` is the mark the assistant already used in the header trigger
+     * and its empty state — the same idea keeps the same icon.
+     */
+    notOffice && { icon: 'sparkles', href: '/agent', title: 'הסוכן שלך' },
     { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
     {
       icon: 'chart-pie',
