@@ -333,7 +333,12 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
 
   // Both paths are schema-enforced again: interactive in its single call, autonomous in
   // Phase 2. The C2 text parser is gone along with the turn that needed it.
-  const validation = validateAgentAnswerDetailed(result.output as never, evidence)
+  // `requireToolEvidence` is the autonomous path's marker; a proactive finding
+  // that asserts nothing is not a finding, so a claimless answer is refused there
+  // and accepted for an interactive question. See the option in ./validate.
+  const validation = validateAgentAnswerDetailed(result.output as never, evidence, {
+    requireClaim: input.requireToolEvidence === true,
+  })
   const validated = validation.answer
   if (!validated) {
     // The rejected PROSE is still not recorded — the gate destroyed it, and

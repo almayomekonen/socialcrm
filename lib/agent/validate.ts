@@ -1,6 +1,7 @@
 import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
 import { CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type Claim } from './types'
 import { parseEntityRef } from './evidence'
+import { isProductTopic } from './product/knowledge'
 import type { EvidenceCollector } from './evidence'
 
 /**
@@ -168,6 +169,24 @@ function resolvesAsMetric(ref: string, evidence: EvidenceCollector): boolean {
 }
 
 /**
+ * Does this ref name a real product topic?
+ *
+ * Checked against the canonical registry rather than the evidence collector,
+ * because product knowledge is not gathered per investigation — it is a
+ * server-owned constant, identical for every agency, and carries no customer
+ * data. There is nothing to scope and nothing a tool could have fetched.
+ *
+ * It is still a MEMBERSHIP CHECK, not a waiver: `product.invented_feature` fails
+ * exactly as an invented lead id does. What a PRODUCT claim cannot do is carry a
+ * business number, because no topic holds one — a claim that tried would have to
+ * cite CRM evidence, and would then be a FACT or an OBSERVATION and be judged as
+ * one.
+ */
+function resolvesAsProduct(ref: string): boolean {
+  return isProductTopic(ref)
+}
+
+/**
  * The evidence kind a claim class demands. FACT and OBSERVATION are narrow on
  * purpose; INFERENCE and RECOMMENDATION accept either, because a judgement can
  * rest on a measurement as legitimately as on a row.
@@ -178,6 +197,8 @@ function refResolver(claim: Claim): (ref: string, evidence: EvidenceCollector) =
       return resolvesAsEntity
     case 'OBSERVATION':
       return resolvesAsMetric
+    case 'PRODUCT':
+      return (ref) => resolvesAsProduct(ref)
     default:
       return (ref, evidence) => resolvesAsEntity(ref, evidence) || resolvesAsMetric(ref, evidence)
   }
@@ -213,6 +234,23 @@ function isWellFormed(answer: AgentAnswer | null | undefined): answer is AgentAn
 export function validateAgentAnswerDetailed(
   answer: AgentAnswer,
   evidence: EvidenceCollector,
+  opts?: {
+    /**
+     * Refuse an answer that proposed NO claims at all.
+     *
+     * The autonomous path sets this. There, the system has already established
+     * that a specific expectation was violated, so a "finding" asserting nothing
+     * is not a finding — it is a wasted run, and surfacing it would put an empty
+     * notification in front of an operator. The interactive path leaves it off,
+     * because there a claimless answer is usually a greeting or an honest
+     * "I cannot determine this", both of which are useful replies to a person
+     * who asked a question.
+     *
+     * It has no effect on claims that WERE proposed: those are judged the same
+     * way on both paths.
+     */
+    requireClaim?: boolean
+  },
 ): AgentValidation {
   if (!isWellFormed(answer)) return refused('malformed')
 
@@ -259,9 +297,30 @@ export function validateAgentAnswerDetailed(
     },
   }
 
-  // Never rescue an answer with nothing supportable left. The counts survive the
-  // refusal so the reason is answerable afterwards.
-  if (kept.length === 0) return refused('no-supportable-claim', counts)
+  /**
+   * Nothing survived — but WHY decides whether that is a refusal.
+   *
+   * If claims were proposed and every one was destroyed, the answer rested on
+   * things that are not true and must not be shown. That is the original rule
+   * and it is unchanged.
+   *
+   * If the model proposed NO claims at all, nothing was destroyed and there is
+   * nothing unsupported to hide. That is a greeting, or an honest "I cannot
+   * determine this" — and refusing it was a real defect: a live run produced four
+   * answers whose `unknown` correctly explained that conversion rate and revenue
+   * are not available, and all four were discarded, so the rep saw a generic
+   * error instead of the accurate explanation the model had actually written.
+   *
+   * The distinction is exactly `dropped.length`, which is why it can be made
+   * safely: an unsupported claim still cannot reach the user by this path,
+   * because a claim that was never proposed cannot be one.
+   *
+   * `requireClaim` restores the stricter rule for the autonomous path — see the
+   * option's own note.
+   */
+  if (kept.length === 0 && (dropped.length > 0 || opts?.requireClaim === true)) {
+    return refused('no-supportable-claim', counts)
+  }
 
   return {
     answer: {

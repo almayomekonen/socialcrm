@@ -78,13 +78,22 @@ export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
  *   OBSERVATION    metricEvidence — metric names that exist WITH their sample size
  *   INFERENCE      evidence (either kind) AND a hedge in the prose
  *   RECOMMENDATION evidence (either kind)
+ *   PRODUCT        productEvidence — canonical product topic ids
+ *
+ * PRODUCT IS A DIFFERENT KNOWLEDGE DOMAIN, not a loosened one. A statement about
+ * what SocialCRM does is not a statement about this customer's rows, so demanding
+ * CRM evidence for it was a category error — that is why "למה המערכת הזו טובה?"
+ * came back as "לא מצאתי מספיק נתונים". It still has to cite: a PRODUCT claim
+ * names a topic in `lib/agent/product/knowledge`, and a topic that does not exist
+ * fails exactly as an invented lead id does. What changes is WHICH source has to
+ * hold the reference, never whether one is required.
  *
  * Promoting an inference to a FACT therefore means moving refs into
  * `entityEvidence` and having them resolve to real entities; promoting it to an
  * OBSERVATION means naming a metric the collector actually holds. Mislabelling
  * costs fabrication the validator can detect, rather than a relabel it cannot.
  */
-export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION'] as const
+export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION', 'PRODUCT'] as const
 export type ClaimClass = (typeof CLAIM_CLASSES)[number]
 
 /** Something read directly from source rows. Cites the rows. */
@@ -111,6 +120,20 @@ export type InferenceClaim = {
   evidence: string[]
 }
 
+/**
+ * Something true about SocialCRM itself — capability, terminology, how to start.
+ *
+ * Grounded in the canonical topics, never in the customer's data. It can never
+ * carry a business number: no product topic holds one, so a claim that tried
+ * would have to cite CRM evidence and would be a FACT or an OBSERVATION instead.
+ */
+export type ProductClaim = {
+  claimClass: 'PRODUCT'
+  text: string
+  /** Product topic ids. Must exist in the canonical registry. */
+  productEvidence: string[]
+}
+
 /** Proposed next action. Advice, never asserted as fact. */
 export type RecommendationClaim = {
   claimClass: 'RECOMMENDATION'
@@ -119,7 +142,7 @@ export type RecommendationClaim = {
   evidence: string[]
 }
 
-export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim
+export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim | ProductClaim
 
 /** The refs a claim cites, whatever its class calls the field. */
 export function claimRefs(claim: Claim): string[] {
@@ -128,6 +151,8 @@ export function claimRefs(claim: Claim): string[] {
       return claim.entityEvidence
     case 'OBSERVATION':
       return claim.metricEvidence
+    case 'PRODUCT':
+      return claim.productEvidence
     default:
       return claim.evidence
   }
@@ -140,6 +165,8 @@ export function withClaimRefs(claim: Claim, refs: string[]): Claim {
       return { ...claim, entityEvidence: refs }
     case 'OBSERVATION':
       return { ...claim, metricEvidence: refs }
+    case 'PRODUCT':
+      return { ...claim, productEvidence: refs }
     default:
       return { ...claim, evidence: refs }
   }

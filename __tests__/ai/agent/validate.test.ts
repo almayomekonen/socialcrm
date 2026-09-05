@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateAgentAnswer, HEDGE_MARKERS } from '@/lib/agent/validate'
+import { validateAgentAnswerDetailed, validateAgentAnswer, HEDGE_MARKERS } from '@/lib/agent/validate'
 import { createEvidenceCollector, type EvidenceCollector } from '@/lib/agent/evidence'
 import type { AgentAnswer, Claim } from '@/lib/agent/types'
 
@@ -235,9 +235,22 @@ describe('whole-answer rejection', () => {
     expect(validateAgentAnswer(answer([{ claimClass: 'NOPE' } as unknown as Claim]), collector())).toBeNull()
   })
 
-  it('18. rejects an empty answer', () => {
-    expect(validateAgentAnswer(answer([]), collector())).toBeNull()
+  it('18. ACCEPTS a claimless answer for an interactive question', () => {
+    // Changed deliberately. A model that proposed nothing destroyed nothing, so
+    // there is no unsupported statement to hide — this is a greeting, or an
+    // honest "I cannot determine that". Refusing it discarded four correct
+    // explanations in a live run and showed a generic error instead.
+    expect(validateAgentAnswer(answer([]), collector())).not.toBeNull()
+    // A malformed answer is still malformed: no headline, no answer.
     expect(validateAgentAnswer(answer([], { headline: '' }), collector())).toBeNull()
+  })
+
+  it('18b. still refuses a claimless answer on the autonomous path', () => {
+    // There the system already knows an expectation was violated, so a finding
+    // that asserts nothing is not a finding.
+    const v = validateAgentAnswerDetailed(answer([]), collector(), { requireClaim: true })
+    expect(v.answer).toBeNull()
+    expect(v.rejection).toBe('no-supportable-claim')
   })
 
   it('rejects when nothing survives validation — never rescues', () => {

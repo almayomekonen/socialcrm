@@ -38,6 +38,12 @@ const inferenceClaim = z.object({
   evidence: z.array(z.string()),
 })
 
+const productClaim = z.object({
+  claimClass: z.literal('PRODUCT'),
+  text: z.string().min(1),
+  productEvidence: z.array(z.string()),
+})
+
 const recommendationClaim = z.object({
   claimClass: z.literal('RECOMMENDATION'),
   text: z.string().min(1),
@@ -67,6 +73,7 @@ export const agentClaimSchema = z.union([
   observationClaim,
   inferenceClaim,
   recommendationClaim,
+  productClaim,
 ])
 
 export const agentAnswerSchema = z.object({

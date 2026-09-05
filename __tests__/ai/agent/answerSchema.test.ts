@@ -45,7 +45,7 @@ describe('emitted JSON Schema is OpenAI Structured Outputs compatible', () => {
     const items = js.properties.claims.items
     expect(Object.keys(items)).toContain('anyOf')
     expect(Object.keys(items)).not.toContain('oneOf')
-    expect((items.anyOf as unknown[]).length).toBe(4)
+    expect((items.anyOf as unknown[]).length).toBe(5)
   })
 
   it('sets additionalProperties:false on every object', () => {
@@ -63,7 +63,7 @@ describe('emitted JSON Schema is OpenAI Structured Outputs compatible', () => {
   })
 })
 
-describe('the four claim variants remain structurally distinct', () => {
+describe('the five claim variants remain structurally distinct', () => {
   it('each variant keeps its own claimClass literal and evidence field name', () => {
     const js = emitted() as { properties: { claims: { items: { anyOf: Record<string, never>[] } } } }
     const shapes = js.properties.claims.items.anyOf.map((v) => {
@@ -73,11 +73,16 @@ describe('the four claim variants remain structurally distinct', () => {
         evidenceField: Object.keys(props).find((k) => k !== 'claimClass' && k !== 'text'),
       }
     })
+    // PRODUCT carries its OWN field name for the same reason every other class
+    // does: relabelling a CRM fact as product knowledge has to cost moving refs
+    // into a differently-named field that resolves against a different source,
+    // not editing one string.
     expect(shapes).toEqual([
       { claimClass: 'FACT', evidenceField: 'entityEvidence' },
       { claimClass: 'OBSERVATION', evidenceField: 'metricEvidence' },
       { claimClass: 'INFERENCE', evidenceField: 'evidence' },
       { claimClass: 'RECOMMENDATION', evidenceField: 'evidence' },
+      { claimClass: 'PRODUCT', evidenceField: 'productEvidence' },
     ])
   })
 })
@@ -88,6 +93,7 @@ describe('parse semantics are unchanged by the union swap', () => {
     [{ claimClass: 'OBSERVATION', text: 'x', metricEvidence: ['m'] }],
     [{ claimClass: 'INFERENCE', text: 'ייתכן', evidence: ['1'] }],
     [{ claimClass: 'RECOMMENDATION', text: 'x', evidence: ['1'] }],
+    [{ claimClass: 'PRODUCT', text: 'x', productEvidence: ['core_value'] }],
   ])('accepts a well-formed %o', (claim) => {
     expect(agentClaimSchema.safeParse(claim).success).toBe(true)
   })

@@ -238,6 +238,8 @@ describe('rejection preserves prose-free diagnostics', () => {
       unknown: null,
     }
     expect(validateAgentAnswer(ok, c())?.claims).toHaveLength(1)
-    expect(validateAgentAnswer({ ...ok, claims: [] }, c())).toBeNull()
+    // A claimless answer is now a valid interactive reply (greeting / honest
+    // unknown); the autonomous path keeps the stricter rule via requireClaim.
+    expect(validateAgentAnswer({ ...ok, claims: [] }, c())).not.toBeNull()
   })
 })
