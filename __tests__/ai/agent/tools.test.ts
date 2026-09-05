@@ -172,7 +172,7 @@ describe('get_today_state', () => {
   it('projects only the HEAD-stable BriefItem fields — no WIP-dependent fields', async () => {
     const out = await run(buildAgentTools(deps()).get_today_state, {})
     const item = (out.items as Record<string, unknown>[])[0]
-    expect(Object.keys(item).sort()).toEqual(['leadId', 'name', 'reason', 'state', 'targetSurface'])
+    expect(Object.keys(item).sort()).toEqual(['evidenceRef', 'leadId', 'name', 'reason', 'state', 'targetSurface'])
     for (const wip of ['conversationId', 'href', 'waitingFor', 'windowHint']) {
       expect(item).not.toHaveProperty(wip)
     }

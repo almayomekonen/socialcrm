@@ -84,7 +84,9 @@ describe('search behaviour', () => {
   it('returns a matching lead with the approved projection', async () => {
     const out = await run(buildAgentTools(deps()).find_lead, { name: 'Sali' })
     expect(out.total).toBe(1)
-    expect(out.matches).toEqual([{ leadId: 1527, name: 'Sali', status: 'interested', nextFollowUpAt: null }])
+    expect(out.matches).toEqual([
+      { leadId: 1527, evidenceRef: 'lead:1527', name: 'Sali', status: 'interested', nextFollowUpAt: null },
+    ])
   })
 
   // B — the reader owns the matching semantics; the tool must not re-implement them.
@@ -115,10 +117,15 @@ describe('search behaviour', () => {
     expect(getLeadsByName).not.toHaveBeenCalled()
   })
 
-  it('exposes no field beyond the approved four', async () => {
+  it('exposes no field beyond the approved projection', async () => {
     getLeadsByName.mockResolvedValue([{ ...SALI, phone: '050-0000000', email: 'x@y.z' } as never])
     const out = await run(buildAgentTools(deps()).find_lead, { name: 'Sali' })
+    // `evidenceRef` is the canonical citation string the model is told to copy.
+    // It carries no new information — it is the id it sits beside — so it does
+    // not widen what the model can see, and the phone assertion below still
+    // pins the boundary this test exists for.
     expect(Object.keys((out.matches as Record<string, unknown>[])[0]).sort()).toEqual([
+      'evidenceRef',
       'leadId',
       'name',
       'nextFollowUpAt',

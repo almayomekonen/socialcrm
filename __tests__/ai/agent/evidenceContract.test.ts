@@ -266,10 +266,24 @@ describe('get_conversation message-id contract', () => {
     expect(Object.keys((out.messages as Record<string, unknown>[])[0]).sort()).toEqual([
       'at',
       'direction',
+      'evidenceRef',
       'id',
       'sequence',
       'text',
     ])
+  })
+
+  it('ACCEPTS a FACT citing the canonical message reference', async () => {
+    const d = deps()
+    const out0 = await run(buildAgentTools(d).get_conversation, { leadId: 1527 })
+    const ref = (out0.messages as Record<string, unknown>[])[0]!.evidenceRef as string
+    expect(ref).toMatch(/^message:/)
+    expect(
+      validateAgentAnswer(
+        { headline: 'x', claims: [{ claimClass: 'FACT', text: 'הלקוח כתב שלום.', entityEvidence: [ref] }], unknown: null },
+        d.evidence,
+      ),
+    ).not.toBeNull()
   })
 
   it('ACCEPTS a FACT citing a real message id', async () => {

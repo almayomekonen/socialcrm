@@ -1,5 +1,6 @@
 import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
 import { CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type Claim } from './types'
+import { parseEntityRef } from './evidence'
 import type { EvidenceCollector } from './evidence'
 
 /**
@@ -136,8 +137,28 @@ function uniq(values: string[]): string[] {
   return out
 }
 
-/** Does this ref resolve to a real ENTITY (lead / conversation / message)? */
+/**
+ * Does this ref resolve to a real ENTITY (lead / conversation / message)?
+ *
+ * TWO ACCEPTED FORMS, ONE MEANING. `lead:161` is the canonical form tools now
+ * emit and the prompt states; `161` is the bare id that every existing tool and
+ * test already produces. Both resolve to the same evidence.
+ *
+ * A QUALIFIED REF IS CHECKED AGAINST ITS OWN KIND AND NOTHING ELSE. That is what
+ * keeps the kind meaningful: `lead:161` asks the collector for a LEAD 161, and
+ * if the collector holds only a message 161 it does not resolve. Stripping the
+ * prefix and trying all three kinds would have made `lead:161` and
+ * `message:161` interchangeable, which is a weaker contract than the one this
+ * codebase had before the fix.
+ *
+ * An UNRECOGNISED prefix parses as null and falls through to the bare lookup,
+ * where it cannot match: `customer:161` is asked for as the literal id
+ * `"customer:161"` and no tool ever emitted that. So a made-up entity kind fails
+ * closed rather than quietly resolving on its digits.
+ */
 function resolvesAsEntity(ref: string, evidence: EvidenceCollector): boolean {
+  const qualified = parseEntityRef(ref)
+  if (qualified) return evidence.has(qualified.kind, qualified.id)
   return evidence.has('lead', ref) || evidence.has('conversation', ref) || evidence.has('message', ref)
 }
 

@@ -12,6 +12,7 @@ import {
 import { readerScope } from './readerScope'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
+import { entityRef } from '../evidence'
 import type { EvidenceCollector } from '../evidence'
 
 /**
@@ -135,6 +136,8 @@ export function makeGetLeadSegment(deps: {
         total: list.total,
         sample: list.sample.map((r) => ({
           leadId: r.id,
+          /** Cite THIS string. See `entityRef` — the format is given, not inferred. */
+          evidenceRef: entityRef('lead', r.id),
           name: r.name,
           status: r.status,
           ageDays: r.ageDays ?? null,

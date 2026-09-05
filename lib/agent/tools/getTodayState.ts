@@ -5,6 +5,7 @@ import { buildTodayBrief } from '@/lib/today/service'
 import { readerScope } from './readerScope'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
+import { entityRef } from '../evidence'
 import type { EvidenceCollector } from '../evidence'
 
 /**
@@ -65,6 +66,8 @@ export function makeGetTodayState(deps: { scope: AgentScope; evidence: EvidenceC
       const payload = {
         items: brief.items.map((i) => ({
           leadId: i.id,
+          /** Cite THIS string. See `entityRef` — the format is given, not inferred. */
+          evidenceRef: entityRef('lead', i.id),
           name: i.name,
           state: i.state,
           reason: i.reason,

@@ -27,6 +27,16 @@ import { HEDGE_MARKERS } from './validate'
  *
  * The hedge markers are imported rather than retyped so the prompt cannot ask
  * for a word the validator does not accept.
+ *
+ * THE CITATION FORMAT IS STATED, not left to be inferred. Tools emit an
+ * `evidenceRef` beside every id (`lead:161`) and the prompt tells the model to
+ * copy it verbatim. Before that, the model invented `lead:161` while the
+ * collector keyed on `161`, and a live 21-question run lost 40 claims to
+ * `no-valid-evidence` — every FACT and RECOMMENDATION naming a lead, while
+ * OBSERVATIONs survived because a metric is cited by a bare name that happens to
+ * match. This is an instruction about WIRE FORMAT, not about business behaviour;
+ * the validator still decides what is supportable, and now accepts both the
+ * canonical and the bare form.
  */
 
 const HEDGES_HE = HEDGE_MARKERS.filter((m) => /[֐-׿]/.test(m))
@@ -40,6 +50,8 @@ export const AGENT_SYSTEM_PROMPT = `אתה עוזר תפעולי של נציג �
 - כשהשאלה נוגעת לליד מסוים — קרא ל-get_lead.
 - כשהתשובה תלויה במה שנאמר בפועל — קרא ל-get_conversation. אל תנחש מה נכתב בשיחה.
 - מזהי ליד מגיעים רק מתוצאות של כלים. לעולם אל תמציא מזהה.
+- כשאתה מצטט ישות, העתק בדיוק את הערך של evidenceRef שהכלי החזיר — למשל lead:161 או message:42. אל תמציא צורת ציטוט משלך.
+- מדד מצטטים בשמו כפי שהוא מופיע ב-metrics, למשל today.total. בלי קידומת.
 - אל תקרא לאותו כלי פעמיים עם אותם פרמטרים.
 - כשיש לך מספיק כדי לענות, עצור וענה. חקירה מיותרת עולה לנציג בזמן.
 
