@@ -67,7 +67,7 @@ export default function AgentWorkspace() {
           <button
             type='button'
             onClick={() => setTurns([])}
-            className='tap-44 rounded-lg bg-white/70 px-2.5 py-1 text-[13px] font-medium text-ink/80 backdrop-blur-sm transition-colors hover:bg-white/80 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 motion-reduce:transition-none'
+            className='tap-44 rounded-lg bg-white/85 px-3 py-1.5 text-[12.5px] font-semibold text-ink/80 ring-1 ring-white/60 backdrop-blur-xl shadow-[0_1px_2px_rgba(10,37,64,0.06)] transition-colors hover:bg-white hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 motion-reduce:transition-none'
           >
             שיחה חדשה
           </button>
@@ -87,7 +87,7 @@ export default function AgentWorkspace() {
       <div className='sticky bottom-0 z-10'>
         <div className='mx-auto w-full max-w-3xl px-4 pb-4 pt-3 desktop:px-0'>
           <AgentPromptInput value={input} onChange={setInput} onSubmit={ask} />
-          <p className='mt-2.5 text-center text-[11px] font-medium leading-relaxed text-ink/70'>
+          <p className='mt-2.5 text-center text-[11px] font-medium leading-relaxed tracking-[0.01em] text-ink/60'>
             תצוגה מקדימה. התשובות והכרטיסים בעמוד הזה הם נתוני דוגמה ואינם מהעסק שלך.
           </p>
         </div>

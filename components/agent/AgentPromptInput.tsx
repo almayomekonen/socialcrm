@@ -250,8 +250,10 @@ export default function AgentPromptInput({
             overflow: expanded ? 'visible' : 'hidden',
           }}
           className={cn(
-            'relative z-10 w-full border border-white/10 bg-ink shadow-[0_8px_30px_-8px_rgba(10,37,64,0.45)]',
-            'focus-within:border-white/25',
+            'relative z-10 w-full border border-white/12 bg-ink',
+            'shadow-[0_1px_2px_rgba(10,37,64,0.2),0_18px_40px_-16px_rgba(10,37,64,0.75)]',
+            'transition-[border-color,box-shadow] duration-200 focus-within:border-white/25',
+            'focus-within:shadow-[0_1px_2px_rgba(10,37,64,0.2),0_24px_52px_-18px_rgba(10,37,64,0.85)]',
             expanded ? 'cursor-text' : 'cursor-default',
           )}
         >

@@ -33,6 +33,55 @@
 }
 
 /*
+ * EDGE TO EDGE.
+ *
+ * The desktop shell hands this page a `main` that is `.wrap mt-2` — 32px of
+ * horizontal padding and an 8px top margin — which left the gradient floating
+ * on a white margin instead of filling the workspace. Measured, not guessed:
+ * 32px left, 32px right, and an 8px band above `main` that belongs to the grid
+ * cell rather than to `main`.
+ *
+ * The two axes need different answers. Horizontal padding is INSIDE `main`'s
+ * scroll box, so a negative inline margin reaches it. The 8px top margin is
+ * OUTSIDE it, past `overflow-y: auto`, where no child can paint — so the canvas
+ * is a fixed layer behind the content rather than a background on it. Starting
+ * at 40px (the topbar's height) keeps the bar itself untinted while the band
+ * directly under it is filled.
+ *
+ * Desktop only. The mobile shell's `main` already sits flush on all four sides
+ * (measured 0/0/0/0), and a fixed layer there would sit behind the tab bar for
+ * no gain.
+ */
+@media (min-width: 1000px) {
+  .agent-canvas {
+    margin-inline: calc(var(--spacing) * -8);
+    width: calc(100% + var(--spacing) * 16);
+    background-image: none;
+  }
+
+  .agent-canvas::before {
+    content: '';
+    position: fixed;
+    inset: 2.5rem 0 0 0;
+    z-index: -1;
+    background-image: inherit;
+    background-image: radial-gradient(
+      125% 125% at 50% 101%,
+      #0a2540 10.5%,
+      #14336b 16%,
+      #1d47a0 17.5%,
+      #3f51c8 25%,
+      #5e6ad2 40%,
+      #8b91f0 55%,
+      #b6bbf5 70%,
+      #dfe2fb 88%,
+      #f6f9fc 100%
+    );
+    pointer-events: none;
+  }
+}
+
+/*
  * Thin, self-effacing scrollbars inside the composer and the attachment strip.
  * Transparent until the region is hovered, so a two-line prompt does not gain a
  * visible bar. Firefox gets the standard properties; WebKit needs its own.

@@ -29,7 +29,14 @@ export default function AgentCards({ cards }: { cards: AgentCard[] }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <article className='rounded-2xl border border-white/70 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm transition-shadow duration-150 hover:shadow-md motion-reduce:transition-none'>
+    <article
+      className={[
+        'rounded-2xl bg-white/95 px-4 py-3.5 ring-1 ring-white/60 backdrop-blur-xl',
+        'shadow-[0_1px_2px_rgba(10,37,64,0.06),0_10px_24px_-16px_rgba(10,37,64,0.5)]',
+        'transition-shadow duration-200 motion-reduce:transition-none',
+        'hover:shadow-[0_2px_4px_rgba(10,37,64,0.08),0_16px_32px_-16px_rgba(10,37,64,0.6)]',
+      ].join(' ')}
+    >
       {children}
     </article>
   )
