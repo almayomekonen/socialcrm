@@ -60,8 +60,8 @@ beforeEach(() => {
 })
 
 describe('the tool surface gains exactly one entry point', () => {
-  it('exposes find_lead alongside the existing three', () => {
-    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_conversation', 'get_lead', 'get_today_state'])
+  it('exposes find_lead alongside the other read-only tools', () => {
+    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_business_summary', 'get_conversation', 'get_lead', 'get_lead_segment', 'get_today_state'])
   })
 
   // F / L — the security contract of the input schema.

@@ -62,10 +62,10 @@ async function capture(requireToolEvidence: boolean): Promise<Record<string, unk
 beforeEach(() => admitAiRun.mockReset())
 
 describe('A · autonomous wire contract', () => {
-  it('sends all four evidence tools', async () => {
+  it('sends every evidence tool', async () => {
     const b = await capture(true)
     const names = ((b.tools ?? []) as { name?: string }[]).map((t) => t.name).sort()
-    expect(names).toEqual(['find_lead', 'get_conversation', 'get_lead', 'get_today_state'])
+    expect(names).toEqual(['find_lead', 'get_business_summary', 'get_conversation', 'get_lead', 'get_lead_segment', 'get_today_state'])
   })
 
   it('sends tool_choice "required" on the first step', async () => {
@@ -101,9 +101,13 @@ describe('B · interactive wire contract is unchanged', () => {
     expect(b.tool_choice).not.toBe('required')
   })
 
-  it('still sends all four tools', async () => {
+  it('still sends every tool', async () => {
     const b = await capture(false)
-    expect(((b.tools ?? []) as unknown[]).length).toBe(4)
+    // This harness records `tools` as a positional array, so the assertion is
+    // on size: the contract here is that the interactive path sends the WHOLE
+    // surface, and the per-name check lives in run.test.ts and tools.test.ts
+    // where the registry itself is in scope.
+    expect(((b.tools ?? []) as unknown[]).length).toBe(6)
   })
 })
 

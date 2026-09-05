@@ -1,20 +1,24 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AgentIntro from './AgentIntro'
-import AgentPromptInput, { type PromptMeta } from './AgentPromptInput'
+import AgentPromptInput from './AgentPromptInput'
 import AgentThread from './AgentThread'
-import { mockAnswerFor, type AgentTurn } from './agentMockData'
+import { useAgentConversation } from './useAgentConversation'
 
 /**
  * "הסוכן שלך" — the agent workspace.
  *
- * UI PROTOTYPE. Every answer comes from `agentMockData` in this same folder;
- * this component calls no API, reads no CRM data and writes nothing. The notice
- * under the composer says so on screen, because a surface that shows invented
- * lead names without saying they are invented is the one thing the care charter
- * forbids outright (Law 1). Replacing the `mockAnswerFor` call with the real
- * agent is the only change this file needs when the backend is wired.
+ * It renders and it routes input. Every other concern lives behind
+ * `useAgentConversation`: transport, streaming, history, error mapping. Nothing
+ * in this tree calls a model, holds a key, or decides anything about the
+ * business — the brief's boundary, made structural rather than promised.
+ *
+ * The answers are REAL. Each question reaches `POST /api/ai/agent/stream`, which
+ * runs the same investigation the rest of the product's agent path runs:
+ * server-resolved scope, admission gate, budgeted tool calls against the CRM,
+ * and `validateAgentAnswer` dropping any claim the tools did not actually
+ * support. Nothing on this page invents CRM content.
  *
  * The canvas is `.agent-canvas` (lib/css/agent.css) — the reference's gradient
  * composition rebuilt from this product's own tokens, anchored at both ends on
@@ -34,40 +38,32 @@ import { mockAnswerFor, type AgentTurn } from './agentMockData'
  * Sticky stays inside the scroll region the shell already sized correctly.
  */
 export default function AgentWorkspace() {
-  const [turns, setTurns] = useState<AgentTurn[]>([])
+  const { turns, busy, ask, reset } = useAgentConversation()
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
-  const nextId = useRef(0)
 
-  const ask = useCallback((prompt: string, _meta?: PromptMeta) => {
-    const text = prompt.trim()
-    if (!text) return
-    const answer = mockAnswerFor(text)
-    // One state update for both turns: appending the question, painting, then
-    // appending the answer would animate the thread twice for one action.
-    setTurns((prev) => [
-      ...prev,
-      { id: `u${nextId.current++}`, role: 'user', text },
-      { id: `a${nextId.current++}`, role: 'agent', text: answer.text, cards: answer.cards },
-    ])
+  function submit(question: string) {
+    ask(question)
     setInput('')
-  }, [])
+  }
 
+  // Follow the thread as turns arrive AND as the thinking row rewrites itself,
+  // so a long answer does not land below the fold.
   useEffect(() => {
     if (turns.length === 0) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     endRef.current?.scrollIntoView({ block: 'end', behavior: reduced ? 'auto' : 'smooth' })
-  }, [turns.length])
+  }, [turns])
 
   const started = turns.length > 0
 
   return (
-    <div className='agent-canvas flex min-h-full flex-1 flex-col'>
+    <div data-agent-canvas className='agent-canvas flex min-h-full flex-1 flex-col'>
       {started && (
         <div className='mx-auto flex w-full max-w-3xl justify-end px-4 pb-2 pt-2 desktop:px-0'>
           <button
             type='button'
-            onClick={() => setTurns([])}
+            onClick={reset}
             className='tap-44 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white/85 ring-1 ring-white/20 backdrop-blur-xl transition-colors hover:bg-white/18 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none'
           >
             שיחה חדשה
@@ -81,7 +77,7 @@ export default function AgentWorkspace() {
       <div
         className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 desktop:px-0 ${started ? 'justify-start pt-2' : 'justify-center'}`}
       >
-        {started ? <AgentThread turns={turns} /> : <AgentIntro onPick={ask} />}
+        {started ? <AgentThread turns={turns} /> : <AgentIntro onPick={submit} />}
         <div ref={endRef} />
       </div>
 
@@ -99,9 +95,9 @@ export default function AgentWorkspace() {
       */}
       <div className='sticky bottom-0 z-10 bg-gradient-to-t from-ink from-55% to-transparent pt-10'>
         <div className='mx-auto w-full max-w-3xl px-4 pb-4 desktop:px-0'>
-          <AgentPromptInput value={input} onChange={setInput} onSubmit={ask} />
+          <AgentPromptInput value={input} onChange={setInput} onSubmit={submit} />
           <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-white/70'>
-            תצוגה מקדימה. התשובות והכרטיסים בעמוד הזה הם נתוני דוגמה ואינם מהעסק שלך.
+            {busy ? 'הסוכן בודק את הנתונים שלך' : 'הסוכן עונה על סמך הנתונים של העסק שלך בלבד.'}
           </p>
         </div>
       </div>

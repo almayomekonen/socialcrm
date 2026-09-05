@@ -47,6 +47,16 @@ import type { AgentAnswer, AgentResult, AgentScope, StopReason } from './types'
 
 export const AGENT_TASK_KIND = 'agent.investigate' as const
 
+/**
+ * One prior exchange, as the model should see it.
+ *
+ * `assistant` content is the previous answer's HEADLINE only — one sentence.
+ * The full claim list would triple the prompt for every follow-up and re-assert
+ * evidence-backed statements in a turn where that evidence no longer exists;
+ * the headline is enough for the model to know what it just said.
+ */
+export type AgentTurn = { role: 'user' | 'assistant'; content: string }
+
 export type RunAgentInput = {
   /** The rep's question, verbatim. */
   question: string
@@ -100,6 +110,30 @@ export type RunAgentInput = {
    */
   requireToolEvidence?: boolean
   /**
+   * PRIOR TURNS of this conversation, oldest first.
+   *
+   * What makes "ומה דחוף?" and "ומה עם יוסי?" answerable: without them each
+   * question reached the model alone and a follow-up had no referent.
+   *
+   * THE TRUST BOUNDARY IS UNCHANGED, and this is the part worth being precise
+   * about. These turns are PROMPT CONTEXT, never evidence. Every claim in the
+   * answer is still validated against the EvidenceCollector for THIS run only,
+   * so a caller who fabricates an assistant turn can steer the model's attention
+   * but cannot put an unsupported claim into the output — the validator has
+   * never seen the earlier run's evidence and will not resolve a ref from it.
+   * Tool results are deliberately NOT replayed here for the same reason: they
+   * would look like evidence without being registered as any.
+   *
+   * The caller is responsible for bounding the list; `askAgent` caps it.
+   */
+  history?: AgentTurn[]
+  /**
+   * Progress observer, fired as each tool call is admitted. Used by the
+   * streaming transport to show which capability is running. Purely
+   * observational — see `CreateBudgetOptions.onStep`.
+   */
+  onProgress?: (event: { tool: string; step: number }) => void
+  /**
    * Durable record of the outcome, called AFTER validation with post-gate
    * content only. It is never called for an admission denial — nothing was
    * investigated. The loop does NOT guard it: the caller owns that, so a
@@ -150,7 +184,19 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     question: input.question,
   }
 
-  const budget = createBudget({ maxSteps, deadlineMs, now })
+  const budget = createBudget({ maxSteps, deadlineMs, now, onStep: input.onProgress })
+
+  /**
+   * The conversation as the model sees it: prior turns, then the new question.
+   *
+   * `messages` rather than `prompt` in BOTH branches. With no history the array
+   * is a single user message, which is exactly what `prompt` desugars to — so a
+   * first question produces the same request it always did.
+   */
+  const conversation = [
+    ...(input.history ?? []).map((t) => ({ role: t.role, content: t.content }) as const),
+    { role: 'user' as const, content: input.question },
+  ]
   const evidence = createEvidenceCollector()
   const tools = buildAgentTools({ scope, evidence, budget, nowMs })
 
@@ -182,7 +228,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       const evidencePhase = await generateText({
         model: handle.model,
         system: AGENT_SYSTEM_PROMPT,
-        prompt: input.question,
+        messages: conversation,
         tools,
         stopWhen: stepCountIs(maxSteps),
         // The gate lifts on the first EXECUTED tool — `budget.stepsUsed()` is the same
@@ -214,7 +260,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       result = await generateText({
         model: handle.model,
         system: AGENT_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: input.question }, ...evidencePhase.response.messages],
+        messages: [...conversation, ...evidencePhase.response.messages],
         output: Output.object({ schema: agentAnswerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
         abortSignal: input.abortSignal,
@@ -225,7 +271,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       result = await generateText({
         model: handle.model,
         system: AGENT_SYSTEM_PROMPT,
-        prompt: input.question,
+        messages: conversation,
         tools,
         stopWhen: stepCountIs(maxSteps),
         output: Output.object({ schema: agentAnswerSchema }),

@@ -1,6 +1,6 @@
 'use server'
 
-import { runAgentInvestigation } from '@/lib/agent/run'
+import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
 import { recordAgentInvestigation, type AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult } from '@/lib/agent/types'
 
@@ -34,6 +34,19 @@ import type { AgentResult } from '@/lib/agent/types'
 const MAX_QUESTION_CHARS = 1_000
 
 /**
+ * Prior turns forwarded to the model, newest kept.
+ *
+ * Six is three exchanges — enough for "מי צריך טיפול" → "ומה דחוף" → "ומה עם
+ * יוסי", which is the depth follow-ups actually reach — and bounded so a long
+ * session cannot grow the prompt without limit. Each turn is capped too: an
+ * assistant headline is one sentence and a question is already capped, but the
+ * cap is applied here rather than trusted because this list arrives from a
+ * request.
+ */
+const MAX_HISTORY_TURNS = 6
+const MAX_TURN_CHARS = 600
+
+/**
  * The durable record, and the guard around it.
  *
  * The loop calls this only AFTER validation, and never for an admission denial —
@@ -57,13 +70,40 @@ async function persistQuietly(record: AgentInvestigationInput): Promise<void> {
  * read. Everything else — agency, permissions, entitlement, budget, model,
  * investigation id — stays server-derived and is unreachable from a request.
  */
-export async function askAgent(question: string, abortSignal?: AbortSignal): Promise<AgentResult> {
+export async function askAgent(
+  question: string,
+  abortSignal?: AbortSignal,
+  options?: { history?: AgentTurn[]; onProgress?: (e: { tool: string; step: number }) => void },
+): Promise<AgentResult> {
   const trimmed = (question ?? '').trim()
   if (!trimmed) return { ok: false, reason: 'error', message: 'empty-question' }
 
   return runAgentInvestigation({
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
+    history: sanitiseHistory(options?.history),
+    onProgress: options?.onProgress,
     abortSignal,
     onPersist: persistQuietly,
   })
+}
+
+/**
+ * Bound and normalise caller-supplied turns.
+ *
+ * It caps count and length and drops anything that is not one of the two roles
+ * or not a non-empty string. It deliberately does NOT attempt to verify that an
+ * assistant turn is something this system actually said — that is unverifiable
+ * from a request, and the trust boundary does not depend on it: history is
+ * prompt context, and every claim in the answer is still validated against the
+ * evidence collected in THIS run. See `RunAgentInput.history`.
+ */
+function sanitiseHistory(history?: AgentTurn[]): AgentTurn[] {
+  if (!Array.isArray(history)) return []
+  return history
+    .filter((t): t is AgentTurn => {
+      if (!t || (t.role !== 'user' && t.role !== 'assistant')) return false
+      return typeof t.content === 'string' && t.content.trim().length > 0
+    })
+    .slice(-MAX_HISTORY_TURNS)
+    .map((t) => ({ role: t.role, content: t.content.trim().slice(0, MAX_TURN_CHARS) }))
 }

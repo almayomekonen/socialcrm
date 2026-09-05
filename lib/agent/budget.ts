@@ -18,6 +18,13 @@ import type { StopReason } from './types'
  * deliberately NOT terminal: the model may still make a different, useful call.
  *
  * No clock read of its own — `now` is injected so every rule is testable.
+ *
+ * `onStep` is an OBSERVER, never a participant. It fires only after a call has
+ * been allowed and the step consumed, it cannot change the verdict, and it is
+ * wrapped so a throwing observer can never fail an investigation. It lives here
+ * rather than inside each tool because `canStep` is the one line every tool
+ * already runs first — so progress reporting covers all six tools, and any tool
+ * added later, without touching one of them.
  */
 
 /** Hard cap on tool calls in one investigation. */
@@ -46,6 +53,12 @@ export type CreateBudgetOptions = {
   deadlineMs?: number
   /** Injectable clock. Defaults to Date.now. */
   now?: () => number
+  /**
+   * Notified when a tool call is ALLOWED, with the tool's name and the step
+   * number it consumed. Never called for a refusal. Purely for observability —
+   * the streaming route turns these into progress events.
+   */
+  onStep?: (event: { tool: string; step: number }) => void
 }
 
 export function createBudget(opts?: CreateBudgetOptions): Budget {
@@ -86,6 +99,13 @@ export function createBudget(opts?: CreateBudgetOptions): Budget {
 
       seenCalls.add(key)
       steps++
+      // Observation only. A throwing listener must not turn a healthy tool call
+      // into a failed investigation.
+      try {
+        opts?.onStep?.({ tool: toolName, step: steps })
+      } catch {
+        /* ignored by design */
+      }
       return { allowed: true }
     },
 

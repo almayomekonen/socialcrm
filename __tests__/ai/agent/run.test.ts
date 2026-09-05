@@ -187,7 +187,27 @@ describe('the admitted model and config drive the call', () => {
   it('sends the system prompt and the caller question', async () => {
     await runAgentInvestigation({ question: 'מה דורש טיפול?' })
     expect(String(lastCall().system)).toContain('SocialCRM')
-    expect(lastCall().prompt).toBe('מה דורש טיפול?')
+    // `messages`, not `prompt`: the request carries the conversation so a
+    // follow-up has a referent. With no history the array is a single user
+    // message — exactly what `prompt` desugars to, so a first question is the
+    // same request it always was.
+    expect(lastCall().prompt).toBeUndefined()
+    expect(lastCall().messages).toEqual([{ role: 'user', content: 'מה דורש טיפול?' }])
+  })
+
+  it('places prior turns before the new question, oldest first', async () => {
+    await runAgentInvestigation({
+      question: 'ומה עם יוסי?',
+      history: [
+        { role: 'user', content: 'מי צריך טיפול?' },
+        { role: 'assistant', content: 'שלושה לידים ממתינים.' },
+      ],
+    })
+    expect(lastCall().messages).toEqual([
+      { role: 'user', content: 'מי צריך טיפול?' },
+      { role: 'assistant', content: 'שלושה לידים ממתינים.' },
+      { role: 'user', content: 'ומה עם יוסי?' },
+    ])
   })
 
   it('bounds the loop with stopWhen at the step ceiling', async () => {
@@ -213,12 +233,14 @@ describe('the admitted model and config drive the call', () => {
 // ── Tools, scope and isolation ────────────────────────────────────────────────
 
 describe('tools carry authority from the scope, never from the model', () => {
-  it('hands the model exactly the four read-only tools', async () => {
+  it('hands the model exactly the six read-only tools', async () => {
     await runAgentInvestigation({ question: 'q' })
     expect(Object.keys(lastCall().tools as object).sort()).toEqual([
       'find_lead',
+      'get_business_summary',
       'get_conversation',
       'get_lead',
+      'get_lead_segment',
       'get_today_state',
     ])
   })

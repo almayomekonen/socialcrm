@@ -1,7 +1,7 @@
 'use client'
 
 import Icon from '@/lib/Icon'
-import { AGENT_SUGGESTIONS } from './agentMockData'
+import { AGENT_SUGGESTIONS } from './agentSuggestions'
 
 /**
  * The resting state, before the first question.
