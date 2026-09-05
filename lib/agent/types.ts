@@ -172,12 +172,37 @@ export function withClaimRefs(claim: Claim, refs: string[]): Claim {
   }
 }
 
+/**
+ * The agent's read on the business right now — its diagnosis, not its report.
+ *
+ * It exists so the model has to COMMIT to one, which is the difference between
+ * an advisor and a dashboard: "nothing is urgent" and "nothing is worth doing"
+ * are different findings, and a surface with no word for the gap between them
+ * defaults to the first and stops there.
+ *
+ *   URGENT       something needs attention now
+ *   AT_RISK      no fire, but a pattern that becomes one if ignored
+ *   OPPORTUNITY  no problem, and still a clearly better use of the next hour
+ *   HEALTHY      no risk and no opportunity the evidence can actually support
+ *
+ * `null` when the question was not about the business at all — a greeting or a
+ * product question has no business state, and inventing one would be noise.
+ *
+ * NOT a claim, and deliberately not evidence-cited: it is a label over claims
+ * that carry their own evidence. The validator still refuses to let it assert
+ * pressure out of nothing — see the downgrade rule in ./validate.
+ */
+export const BUSINESS_STATES = ['URGENT', 'AT_RISK', 'OPPORTUNITY', 'HEALTHY'] as const
+export type BusinessState = (typeof BUSINESS_STATES)[number]
+
 export type AgentAnswer = {
   /** The one-line conclusion the rep reads first. */
   headline: string
   claims: Claim[]
   /** Honest statement of what could not be determined, or null. */
   unknown: string | null
+  /** The business diagnosis, or null for a non-business question. */
+  businessState?: BusinessState | null
 }
 
 /** Why an investigation ended. Recorded on every run for observability. */

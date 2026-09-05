@@ -1,5 +1,5 @@
 import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
-import { CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type Claim } from './types'
+import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim } from './types'
 import { parseEntityRef } from './evidence'
 import { isProductTopic } from './product/knowledge'
 import type { EvidenceCollector } from './evidence'
@@ -73,7 +73,31 @@ export type ValidatedAgentAnswer = {
   headline: string
   claims: Claim[]
   unknown: string | null
+  businessState: BusinessState | null
   diagnostics: AgentTrustDiagnostics
+}
+
+/**
+ * A diagnosis of pressure has to rest on something.
+ *
+ * URGENT and AT_RISK both assert that the business needs attention. If every
+ * claim was dropped — or none was ever made — there is nothing behind the
+ * assertion, and stamping it on the answer would be exactly the manufactured
+ * urgency this surface must never produce: the one thing that makes a rep stop
+ * believing the signals that are real.
+ *
+ * OPPORTUNITY and HEALTHY are not downgraded. Neither claims anything is wrong,
+ * so neither can invent pressure — and HEALTHY on a thin answer is an honest
+ * "I found nothing", which is a finding worth keeping.
+ *
+ * A downgrade returns null rather than rewriting the state to something milder:
+ * the model's other diagnoses were not what it meant, and substituting one would
+ * be the validator inventing a business read of its own.
+ */
+function groundedBusinessState(state: BusinessState | null, keptClaims: Claim[]): BusinessState | null {
+  if (state !== 'URGENT' && state !== 'AT_RISK') return state
+  const hasEvidencedFinding = keptClaims.some((c) => c.claimClass === 'FACT' || c.claimClass === 'OBSERVATION')
+  return hasEvidencedFinding ? state : null
 }
 
 /** Why a whole answer was refused, when no individual claim survived to explain it. */
@@ -215,6 +239,9 @@ function isWellFormed(answer: AgentAnswer | null | undefined): answer is AgentAn
   if (typeof answer.headline !== 'string' || answer.headline.trim() === '') return false
   if (!Array.isArray(answer.claims)) return false
   if (answer.unknown !== null && typeof answer.unknown !== 'string') return false
+  // Absent is fine (an older payload); a present value must be a real state.
+  const state = (answer as AgentAnswer).businessState
+  if (state != null && !(BUSINESS_STATES as readonly string[]).includes(state)) return false
   return answer.claims.every(
     (c) =>
       c &&
@@ -327,6 +354,7 @@ export function validateAgentAnswerDetailed(
       headline: answer.headline,
       claims: kept,
       unknown: answer.unknown,
+      businessState: groundedBusinessState(answer.businessState ?? null, kept),
       diagnostics: { dropped, strippedRefs },
     },
     rejection: null,

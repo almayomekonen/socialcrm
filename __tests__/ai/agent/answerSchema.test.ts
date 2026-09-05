@@ -113,10 +113,18 @@ describe('parse semantics are unchanged by the union swap', () => {
       headline: 'ליד אחד ממתין.',
       claims: [{ claimClass: 'FACT', text: 'דוד ממתין.', entityEvidence: ['42'] }],
       unknown: null,
+      businessState: null,
     }
     expect(agentAnswerSchema.safeParse(ok).success).toBe(true)
     expect(agentAnswerSchema.safeParse({ ...ok, unknown: 'לא ידוע' }).success).toBe(true)
+    expect(agentAnswerSchema.safeParse({ ...ok, businessState: 'OPPORTUNITY' }).success).toBe(true)
+    // Both keys are REQUIRED, not optional: OpenAI Structured Outputs drops a
+    // property that is not in `required`, so an optional one would never be asked
+    // for and the model would simply not answer it.
     expect(agentAnswerSchema.safeParse({ headline: 'x', claims: [] }).success).toBe(false)
-    expect(agentAnswerSchema.safeParse({ headline: '', claims: [], unknown: null }).success).toBe(false)
+    expect(agentAnswerSchema.safeParse({ headline: 'x', claims: [], unknown: null }).success).toBe(false)
+    expect(agentAnswerSchema.safeParse({ headline: '', claims: [], unknown: null, businessState: null }).success).toBe(false)
+    // And it must be one of the four states.
+    expect(agentAnswerSchema.safeParse({ ...ok, businessState: 'PANIC' }).success).toBe(false)
   })
 })

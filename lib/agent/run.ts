@@ -451,12 +451,18 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     ok: true,
     stopReason,
     steps: budget.stepsUsed(),
+    businessState: validated.businessState,
     claims: validated.claims.length,
     droppedClaims: validation.counts.droppedClaims,
     strippedRefs: validation.counts.strippedRefs,
   })
 
-  const answer = { headline: validated.headline, claims: validated.claims, unknown: validated.unknown }
+  const answer = {
+    headline: validated.headline,
+    claims: validated.claims,
+    unknown: validated.unknown,
+    businessState: validated.businessState,
+  }
   await input.onPersist?.({
     ...identity,
     status: 'answered',

@@ -80,6 +80,16 @@ export const agentAnswerSchema = z.object({
   headline: z.string().min(1),
   claims: z.array(agentClaimSchema),
   unknown: z.string().nullable(),
+  /**
+   * The business diagnosis. Nullable rather than optional for the same reason
+   * `unknown` is: OpenAI Structured Outputs requires every property in
+   * `required`, so an optional key would be dropped from the emitted schema and
+   * the model would never be asked for it.
+   *
+   * A plain enum union rather than `z.enum(...).nullable()` so the emitted JSON
+   * Schema stays `anyOf`-shaped, which is what that provider accepts.
+   */
+  businessState: z.union([z.literal('URGENT'), z.literal('AT_RISK'), z.literal('OPPORTUNITY'), z.literal('HEALTHY'), z.null()]),
 })
 
 /**
