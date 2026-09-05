@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { readFileSync } from 'node:fs'
@@ -32,6 +32,35 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 vi.mock('@/lib/toast', () => ({ toast: vi.fn() }))
 
 const { default: MeetingFormDialog } = await import('@/components/calendar/MeetingFormDialog')
+
+/**
+ * JSDOM has no Popover API, so `showPopover` is stubbed. The stub records WHICH
+ * element entered the layer and in what order — show order is the only thing
+ * that orders the top layer — and it does not actually open anything, so a
+ * `[popover]` element keeps the UA sheet's `display: none` and every role query
+ * beneath it needs `hidden: true` (same reason as notificationToast.test.tsx).
+ */
+const proto = HTMLElement.prototype as unknown as Record<string, unknown>
+const hadNativePopover = 'showPopover' in proto
+
+function stubTopLayerSupport() {
+  const shown: HTMLElement[] = []
+  const hidden: HTMLElement[] = []
+  proto.showPopover = function (this: HTMLElement) {
+    shown.push(this)
+  }
+  proto.hidePopover = function (this: HTMLElement) {
+    hidden.push(this)
+  }
+  return { shown, hidden }
+}
+
+afterEach(() => {
+  if (!hadNativePopover) {
+    delete proto.showPopover
+    delete proto.hidePopover
+  }
+})
 
 const future = (hoursAhead: number) => {
   const d = new Date()
@@ -102,12 +131,22 @@ describe('the no-lead state is explicit, not silent', () => {
 
 describe('the picker opens ABOVE the dialog', () => {
   /**
-   * The bug: the panel carried `z-50` while ModalPop is `z-99999`. Both portal to
-   * `document.body`, so they are siblings and z-order alone decides — the
-   * dropdown opened behind the dialog it was launched from.
+   * This has been the same symptom twice, one layer apart.
    *
-   * 100000 is the app's existing portal-popover layer (OutcomeControl,
-   * LeadQuickActions), not a number invented here.
+   * FIRST: the panel carried `z-50` while ModalPop was `z-99999`. Both portal to
+   * `document.body`, so they are siblings and z-order alone decided — the
+   * dropdown opened behind the dialog it was launched from. 100000 is the app's
+   * existing portal-popover layer (OutcomeControl, LeadQuickActions), not a
+   * number invented here.
+   *
+   * THEN: ModalPop moved its scrim into the browser's TOP LAYER, which paints
+   * above every ordinary stacking context no matter how high a z-index climbs,
+   * and the dropdown sank behind the dialog again — on /calendar, the meeting
+   * form's picker. No number can win that; the panel has to join the layer.
+   *
+   * So both are asserted, in priority order: the z-index below is now the
+   * FALLBACK for engines with no top layer, and the layer itself is what
+   * actually decides. See `lib/useTopLayer.ts`.
    */
   /**
    * Read from ModalPop rather than hardcoded, so the invariant is anchored to the
@@ -154,6 +193,81 @@ describe('the picker opens ABOVE the dialog', () => {
     const panel = await screen.findByPlaceholderText('חיפוש לקוח/ה...')
     // Not nested inside the dialog element — it is a body-level sibling.
     expect(panel.closest('[role="dialog"]')).toBeNull()
+  })
+
+  describe('and where the browser has a top layer, joins it', () => {
+    /** The picker's root: the search field's parent, which carries the styling. */
+    const panel = () => screen.getByPlaceholderText('חיפוש לקוח/ה...').parentElement as HTMLElement
+
+    async function openPicker() {
+      // `hidden: true`: the trigger sits inside the scrim, which is a [popover]
+      // and therefore display:none to JSDOM.
+      fireEvent.click(await screen.findByRole('button', { name: /בחר לקוח/, hidden: true }))
+      await screen.findByPlaceholderText('חיפוש לקוח/ה...')
+    }
+
+    it('marks the panel as a popover, so the dialog cannot paint over it', async () => {
+      stubTopLayerSupport()
+      open()
+      await openPicker()
+      expect(panel().getAttribute('popover')).toBe('manual')
+    })
+
+    it("is 'manual', which cannot force the dialog underneath it closed", async () => {
+      stubTopLayerSupport()
+      open()
+      await openPicker()
+      // 'auto' light-dismisses AND closes every other auto popover — it would
+      // tear down the meeting form the picker was opened from.
+      expect(panel().getAttribute('popover')).not.toBe('auto')
+    })
+
+    it('enters the layer AFTER the dialog, which is what puts it on top', async () => {
+      const { shown } = stubTopLayerSupport()
+      open()
+      const scrim = await waitFor(() => {
+        const el = document.querySelector('.modal-layer')
+        expect(el).not.toBeNull()
+        return el as HTMLElement
+      })
+      await openPicker()
+      await waitFor(() => expect(shown).toContain(panel()))
+      expect(shown.indexOf(panel())).toBeGreaterThan(shown.indexOf(scrim))
+    })
+
+    it('releases the layer on close, leaving the dialog in it', async () => {
+      const { hidden } = stubTopLayerSupport()
+      open()
+      await openPicker()
+      const opened = panel()
+      fireEvent.mouseDown(document.body)
+      await waitFor(() => expect(screen.queryByPlaceholderText('חיפוש לקוח/ה...')).toBeNull())
+      expect(hidden).toContain(opened)
+      // The dialog keeps its own place in the layer; only the picker left.
+      expect(document.querySelector('.modal-layer')).not.toBeNull()
+    })
+
+    it('undoes the UA popover box, so the panel still sits under its trigger', async () => {
+      stubTopLayerSupport()
+      open()
+      await openPicker()
+      const style = panel().style
+      // `inset: 0` from the UA sheet would stretch the panel to the viewport's
+      // bottom-left corner, and it is `display: none` until it is shown.
+      expect(style.inset).toBe('auto')
+      expect(style.display).toBe('block')
+      expect(style.position).toBe('fixed')
+    })
+
+    it('sets no popover attribute where the engine has no top layer', async () => {
+      // No stub: the UA sheet would hide a [popover] outright on an engine that
+      // cannot promote it, so the attribute must be absent, not just inert.
+      open()
+      fireEvent.click(await screen.findByRole('button', { name: /בחר לקוח/ }))
+      await screen.findByPlaceholderText('חיפוש לקוח/ה...')
+      expect(panel().hasAttribute('popover')).toBe(false)
+      expect(panel().style.zIndex).toBe('100000')
+    })
   })
 })
 

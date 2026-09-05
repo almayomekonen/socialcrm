@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Icon from '@/lib/Icon'
+import { useCanTopLayer } from '@/lib/useTopLayer'
 import { searchLeads } from '@/actions/clients'
-import LeadPickerRow, { dropdownGroupHeaderCls } from './LeadPickerRow'
+import LeadPickerPanel from './LeadPickerPanel'
 import type { RecentLead } from './types'
 
 /**
@@ -41,6 +42,7 @@ export default function LeadPicker({
   const [pos, setPos] = useState<{ top: number; right: number; width: number } | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const canTopLayer = useCanTopLayer()
 
   useEffect(() => setMounted(true), [])
 
@@ -126,6 +128,7 @@ export default function LeadPicker({
           <LeadPickerPanel
             panelRef={panelRef}
             pos={pos}
+            canTopLayer={canTopLayer}
             query={query}
             setQuery={setQuery}
             results={results}
@@ -139,107 +142,5 @@ export default function LeadPicker({
           document.body,
         )}
     </>
-  )
-}
-
-/**
- * The portal-rendered dropdown body. Pulled out so LeadPicker stays
- * focused on state + positioning, and the panel JSX stays glanceable.
- */
-function LeadPickerPanel({
-  panelRef,
-  pos,
-  query,
-  setQuery,
-  results,
-  currentLeadId,
-  onPickLead,
-  onCreateNew,
-}: {
-  panelRef: React.RefObject<HTMLDivElement>
-  pos: { top: number; right: number; width: number }
-  query: string
-  setQuery: (q: string) => void
-  results: ReadonlyArray<RecentLead>
-  currentLeadId: number
-  onPickLead: (id: number) => void
-  onCreateNew: () => void
-}) {
-  const billed = results.filter((l) => (l.invoiceCount ?? 0) > 0)
-  const unbilled = results.filter((l) => !(l.invoiceCount ?? 0))
-  const showGroups = query.trim().length === 0 && billed.length > 0 && unbilled.length > 0
-
-  return (
-    <div
-      ref={panelRef}
-      /**
-       * `zIndex: 100000` is the app's PORTAL-POPOVER LAYER, not a local fix:
-       * OutcomeControl and LeadQuickActions both portal to `document.body` at
-       * exactly this value, chosen to sit above ModalPop's `z-99999` (99999).
-       * At the previous `z-50` this panel rendered BEHIND any dialog it was
-       * opened from — both are body-level siblings, so z-order alone decides.
-       *
-       * Set inline rather than as a class to match those two call sites exactly.
-       *
-       * The mechanics deliberately do NOT move to `useFloatingMenu`: that hook
-       * CLOSES on scroll, while this picker RE-MEASURES so the panel tracks its
-       * trigger — which is what keeps it usable inside a scrollable dialog body.
-       * Adopting the hook would regress that.
-       */
-      style={{ position: 'fixed', top: pos.top, right: pos.right, width: pos.width, zIndex: 100000 }}
-      className='bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden'
-    >
-      <input
-        type='text'
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder='חיפוש לקוח/ה...'
-        autoFocus
-        className='w-full h-10 px-3 border-b border-gray-100 bg-gray-50 focus:bg-white focus:outline-none text-base placeholder:text-gray-400'
-      />
-      <div className='max-h-72 overflow-y-auto'>
-        {results.length === 0 ? (
-          <p className='px-3 py-6 text-sm text-gray-500 text-center'>אין תוצאות</p>
-        ) : !showGroups ? (
-          results.map((lead) => (
-            <LeadPickerRow
-              key={lead.id}
-              lead={lead}
-              isCurrent={lead.id === currentLeadId}
-              onClick={() => onPickLead(lead.id)}
-            />
-          ))
-        ) : (
-          <>
-            <div className={dropdownGroupHeaderCls}>כבר חויבו</div>
-            {billed.map((lead) => (
-              <LeadPickerRow
-                key={lead.id}
-                lead={lead}
-                isCurrent={lead.id === currentLeadId}
-                onClick={() => onPickLead(lead.id)}
-              />
-            ))}
-            <div className={dropdownGroupHeaderCls}>לידים אחרונים</div>
-            {unbilled.map((lead) => (
-              <LeadPickerRow
-                key={lead.id}
-                lead={lead}
-                isCurrent={lead.id === currentLeadId}
-                onClick={() => onPickLead(lead.id)}
-              />
-            ))}
-          </>
-        )}
-      </div>
-      <button
-        type='button'
-        onClick={onCreateNew}
-        className='border-t border-gray-200 px-3 py-3 hover:bg-gray-50 text-sm font-medium text-solid flex items-center gap-1.5 bg-white shrink-0 w-full'
-      >
-        <span aria-hidden>+</span>
-        <span>יצירת לקוח/ה חדש/ה</span>
-      </button>
-    </div>
   )
 }
