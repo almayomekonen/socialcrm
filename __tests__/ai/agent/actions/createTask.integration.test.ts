@@ -151,7 +151,7 @@ describe('the proposal boundary', () => {
 // ── 6-10 · approval ─────────────────────────────────────────────────────────
 
 describe('approval governs the write', () => {
-  it('6 — create_task requires approval, every time', async () => {
+  it('6 — an agent-initiated create_task requires approval', async () => {
     const out = await runtime().execute(propose(okArgs(LEAD_A), actorA), {
       authenticated: actorA, deadlineAtMs: DEADLINE(), grants: [],
     })
@@ -328,7 +328,7 @@ describe('verification, audit and isolation', () => {
     const row = await findActionByActionId(AGENCY_A, out.actionId)
     expect(row).toMatchObject({
       agencyId: AGENCY_A, userId: USER_A, actionType: 'create_task',
-      risk: 'APPROVAL_REQUIRED', approvalState: 'APPROVED', approvedByUserId: USER_A,
+      risk: 'LOW_RISK_WRITE', intent: 'AGENT_PROPOSAL', approvalState: 'APPROVED', approvedByUserId: USER_A,
       executionState: 'SUCCEEDED', executionStatus: 'SUCCESS', verificationState: 'VERIFIED',
     })
     expect(row!.targetIds[0]!.kind).toBe('task')

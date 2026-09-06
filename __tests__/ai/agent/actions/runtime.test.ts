@@ -69,8 +69,21 @@ function runtime() {
     store,
     tick: (by: number) => { clock += by },
     rt: createActionRuntime({ store, now: () => clock }),
-    ctx: (over: Partial<{ grants: readonly ApprovalGrant[]; deadlineAtMs: number; authenticated: ActionActor }> = {}) => ({
-      authenticated: ACTOR, deadlineAtMs: DEADLINE, grants: [], ...over,
+    /**
+     * Defaults to EXPLICIT_COMMAND because these tests exercise the execution
+     * machinery — claiming, verifying, auditing — and would otherwise all stop
+     * at an approval card. The authorization decision itself is tested in
+     * ./intent.test.ts and in the integration suite.
+     */
+    ctx: (
+      over: Partial<{
+        grants: readonly ApprovalGrant[]
+        deadlineAtMs: number
+        authenticated: ActionActor
+        intent: 'EXPLICIT_COMMAND' | 'AGENT_PROPOSAL'
+      }> = {},
+    ) => ({
+      authenticated: ACTOR, deadlineAtMs: DEADLINE, grants: [], intent: 'EXPLICIT_COMMAND' as const, ...over,
     }),
   }
 }

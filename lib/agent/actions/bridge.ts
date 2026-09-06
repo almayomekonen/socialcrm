@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { createDbActionStore, findActionByActionId } from '@/db/agentActions'
 import { loadApprovalGrants, recordApprovalDecision } from '@/db/agentActionApprovals'
 import { registerDomainActions } from './domain'
+import { deriveActionIntent } from './intent'
 import { parseActionProposal } from './proposal'
 import { createActionRuntime } from './runtime'
 import { DEFAULT_DEADLINE_MS } from '../budget'
@@ -54,6 +55,17 @@ export async function submitProposedAction(input: {
   proposal: ProposedAction
   scope: AgentScope
   agentRunId: string
+  /**
+   * The question the authenticated request carried, verbatim.
+   *
+   * THE AUTHORIZATION INPUT. Whether this action executes now or waits for a
+   * card is decided from these words — the rep's own — and not from anything
+   * the model produced. Omitting it makes the action wait, which is the safe
+   * direction.
+   */
+  userMessage?: string
+  /** The assistant turn before it, so "כן, תעשה" has something to affirm. */
+  priorAssistantMessage?: string | null
   deadlineAtMs?: number
   nowMs?: number
 }): Promise<ActionOutcome | null> {
@@ -71,10 +83,16 @@ export async function submitProposedAction(input: {
   // around it may be perfectly good. It simply does not become an action.
   if (parsed.ok === false) return null
 
+  const intent = deriveActionIntent({
+    userMessage: input.userMessage ?? '',
+    priorAssistantMessage: input.priorAssistantMessage,
+  })
+
   return runtimeFor().execute(parsed.proposal, {
     authenticated: scopeToActor(input.scope),
     deadlineAtMs: input.deadlineAtMs ?? nowMs + DEFAULT_DEADLINE_MS,
     grants: [],
+    intent: intent.intent,
     investigationId: input.agentRunId,
   })
 }
@@ -146,6 +164,13 @@ export async function decideOnAction(input: {
     authenticated: scopeToActor(input.scope),
     deadlineAtMs: nowMs + DEFAULT_DEADLINE_MS,
     grants,
+    /**
+     * The card path is an AGENT_PROPOSAL by construction — it exists precisely
+     * because the action was not commanded — so approval stays required and the
+     * grant just recorded is what satisfies it. Passing EXPLICIT_COMMAND here
+     * would make the approval decorative.
+     */
+    intent: 'AGENT_PROPOSAL',
     investigationId: record.agentRunId,
   })
 

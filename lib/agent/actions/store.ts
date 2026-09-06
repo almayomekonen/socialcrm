@@ -1,3 +1,4 @@
+import type { ActionIntent } from './intent'
 import type { ActionTargetRef, ApprovalState, RiskLevel, VerificationCheck, VerificationState } from './types'
 
 /**
@@ -31,6 +32,12 @@ export type ActionRecord = {
   args: Record<string, unknown>
   argsHash: string
   risk: RiskLevel
+  /**
+   * Who asked — the audit's answer to "why did this run without a card?".
+   * EXPLICIT_COMMAND, AGENT_PROPOSAL, or null on a row written before the
+   * distinction existed.
+   */
+  intent: ActionIntent | null
   approvalState: ApprovalState
   approvedByUserId: number | null
   executionState: ActionExecutionState

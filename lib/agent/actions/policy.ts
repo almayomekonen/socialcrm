@@ -1,4 +1,5 @@
 import { approvalRequiredFor, getAgentAction, type AgentActionDefinition } from './registry'
+import type { ActionIntent } from './intent'
 import type { ActionActor, ActionProposal, RiskLevel } from './types'
 
 /**
@@ -57,6 +58,11 @@ export function evaluatePolicy(
   proposal: ActionProposal,
   /** The authenticated scope. This wins over anything on the proposal. */
   authenticated: ActionActor,
+  /**
+   * Derived by the application from the USER'S message — never from the
+   * proposal, which has no field for it. See ./intent.
+   */
+  intent: ActionIntent,
 ): PolicyVerdict {
   const definition = getAgentAction(proposal.actionType)
   if (!definition) {
@@ -87,6 +93,6 @@ export function evaluatePolicy(
     allowed: true,
     definition,
     risk: definition.risk,
-    approvalRequired: approvalRequiredFor(definition),
+    approvalRequired: approvalRequiredFor(definition, intent),
   }
 }

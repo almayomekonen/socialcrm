@@ -18,6 +18,8 @@ export {
   type AgentActionDefinition, type ExecuteContext,
 } from './registry'
 export { evaluatePolicy, type PolicyVerdict } from './policy'
+export { deriveActionIntent, ACTION_INTENTS, type ActionIntent, type IntentVerdict } from './intent'
+export { requiresReconciliation, reconcileAction, type ReconciliationVerdict } from './reconcile'
 export { evaluateApproval, type ApprovalVerdict } from './approval'
 export { canonicalize, canonicalJson, hashArgs, deriveIdempotencyKey, decideOnExistingClaim } from './idempotency'
 export { reportFor, baseRecord } from './outcome'

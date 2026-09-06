@@ -27,7 +27,7 @@ function record(over: Partial<ActionRecord> = {}): ActionRecord {
   return {
     agencyId: 7, userId: 3, actionId: 'act_r', agentRunId: 'run_r', planId: null,
     idempotencyKey: 'key_r', actionType: 'fake', args: { leadId: 1 }, argsHash: 'h',
-    risk: 'APPROVAL_REQUIRED', approvalState: 'APPROVED', approvedByUserId: 3,
+    risk: 'APPROVAL_REQUIRED', intent: 'AGENT_PROPOSAL', approvalState: 'APPROVED', approvedByUserId: 3,
     executionState: 'EXECUTING', executionStatus: null, verificationState: 'NOT_ATTEMPTED',
     verificationChecks: [], targetIds: [], evidenceRefs: [], retryable: null,
     failureReason: null, timingsMs: {},

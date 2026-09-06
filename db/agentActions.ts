@@ -37,6 +37,7 @@ type Row = {
   args: unknown
   argsHash: string
   risk: string
+  intent: string | null
   approvalState: string
   approvedByUserId: number | null
   executionState: string
@@ -79,6 +80,7 @@ export function toActionRecord(row: Row): ActionRecord {
     args: json<Record<string, unknown>>(row.args, {}),
     argsHash: row.argsHash,
     risk: row.risk as RiskLevel,
+    intent: (row.intent as ActionRecord['intent']) ?? null,
     approvalState: row.approvalState as ApprovalState,
     approvedByUserId: row.approvedByUserId,
     executionState: row.executionState as ActionExecutionState,
@@ -108,6 +110,7 @@ export function toRow(record: ActionRecord): Record<string, unknown> {
     args: JSON.stringify(record.args),
     argsHash: record.argsHash,
     risk: record.risk,
+    intent: record.intent,
     approvalState: record.approvalState,
     approvedByUserId: record.approvedByUserId,
     executionState: record.executionState,

@@ -1,3 +1,4 @@
+import type { ActionIntent } from './intent'
 import type { ActionRecord } from './store'
 import type {
   ActionProposal,
@@ -23,7 +24,7 @@ export const ZERO_TIMINGS: ActionTimings = {
   executionMs: 0, verificationMs: 0, auditMs: 0, totalMs: 0,
 }
 
-export function baseRecord(p: ActionProposal, risk: RiskLevel, nowMs: number): ActionRecord {
+export function baseRecord(p: ActionProposal, risk: RiskLevel, nowMs: number, intent: ActionIntent): ActionRecord {
   return {
     agencyId: p.agencyId,
     userId: p.actor.userId,
@@ -35,6 +36,7 @@ export function baseRecord(p: ActionProposal, risk: RiskLevel, nowMs: number): A
     args: p.args,
     argsHash: p.argsHash,
     risk,
+    intent,
     approvalState: 'NOT_REQUIRED',
     approvedByUserId: null,
     executionState: 'PENDING',

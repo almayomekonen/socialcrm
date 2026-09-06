@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import type { ActionIntent } from './intent'
 import type {
   ActionActor,
   ActionProposal,
@@ -48,9 +49,12 @@ export type AgentActionDefinition<TArgs extends Record<string, unknown> = Record
   argsSchema: z.ZodType<TArgs>
   risk: RiskLevel
   /**
-   * Approval requirement, when it is not simply implied by the risk level.
-   * Present so a deployment can start an action stricter than its risk class and
-   * relax it later on evidence, without editing the risk ladder.
+   * Force approval regardless of who asked.
+   *
+   * An OVERRIDE, not the normal path: setting it means this action always shows
+   * a card even when a rep explicitly commanded it. Reserved for actions whose
+   * risk class does not capture why they are dangerous. Leave it unset and the
+   * risk ladder decides.
    */
   requiresApproval?: boolean
   /**
@@ -119,8 +123,28 @@ export function __resetAgentActionRegistry(): void {
   REGISTRY.clear()
 }
 
-/** Does this action need a human before it runs? */
-export function approvalRequiredFor(definition: AgentActionDefinition): boolean {
-  if (definition.requiresApproval !== undefined) return definition.requiresApproval
-  return definition.risk === 'APPROVAL_REQUIRED' || definition.risk === 'HIGH_RISK'
+/**
+ * Does this action need a human before it runs?
+ *
+ * `WRITE == APPROVAL` was the rule and it was wrong. Asking a rep who just typed
+ * "תיצור לי משימה" whether they meant it is not safety, it is the product
+ * failing to listen — while the same action, same arguments, proposed by the
+ * agent on its own initiative, must wait. The decision is therefore
+ * RISK × INTENT, not risk alone.
+ *
+ *   READ                 never
+ *   LOW_RISK_WRITE       only when the agent proposed it
+ *   APPROVAL_REQUIRED    always
+ *   HIGH_RISK            always, however explicitly it was demanded
+ *
+ * The two upper rungs ignore intent entirely, which is the point of having
+ * them: sending a customer a message or deleting a record is not made safe by
+ * someone having asked for it in a hurry.
+ */
+export function approvalRequiredFor(definition: AgentActionDefinition, intent: ActionIntent): boolean {
+  if (definition.requiresApproval === true) return true
+  if (definition.risk === 'HIGH_RISK' || definition.risk === 'APPROVAL_REQUIRED') return true
+  if (definition.risk === 'READ') return false
+  // LOW_RISK_WRITE — the only rung where who asked actually decides.
+  return intent !== 'EXPLICIT_COMMAND'
 }

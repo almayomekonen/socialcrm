@@ -89,9 +89,11 @@ export async function askAgent(
    */
   const scope = await resolveAgentScope()
 
+  const history = sanitiseHistory(options?.history)
+
   const result = await runAgentInvestigation({
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
-    history: sanitiseHistory(options?.history),
+    history,
     onProgress: options?.onProgress,
     abortSignal,
     scope,
@@ -112,10 +114,21 @@ export async function askAgent(
   const proposal = result.answer.proposedAction
   if (!proposal) return { ...result, actionOutcome: null }
 
+  /**
+   * THE AUTHORIZATION INPUTS, and note what they are: the rep's own question and
+   * the assistant turn before it. Both are values this function already held
+   * before any model ran. Nothing derived from the model's output decides
+   * whether the action executes — that is the whole reason intent lives here and
+   * not on the proposal.
+   */
+  const priorAssistantMessage = [...history].reverse().find((t) => t.role === 'assistant')?.content ?? null
+
   const actionOutcome = await submitProposedAction({
     proposal,
     scope,
     agentRunId: result.investigationId,
+    userMessage: trimmed,
+    priorAssistantMessage,
   })
 
   return { ...result, actionOutcome }

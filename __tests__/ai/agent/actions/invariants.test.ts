@@ -27,7 +27,7 @@ function harness() {
   return {
     store,
     rt: createActionRuntime({ store, now: () => T0 }),
-    ctx: { authenticated: ACTOR, deadlineAtMs: T0 + DEFAULT_DEADLINE_MS, grants: [] },
+    ctx: { authenticated: ACTOR, deadlineAtMs: T0 + DEFAULT_DEADLINE_MS, grants: [], intent: 'EXPLICIT_COMMAND' as const },
   }
 }
 
@@ -157,7 +157,7 @@ describe('the runtime does not weaken what already existed', () => {
     define()
     const { rt, store } = harness()
     const out = await rt.execute(proposal(), {
-      authenticated: ACTOR, deadlineAtMs: T0 - 1, grants: [],
+      authenticated: ACTOR, deadlineAtMs: T0 - 1, grants: [], intent: 'EXPLICIT_COMMAND',
     })
     expect(out.failureReason).toBe('deadline-before-execution')
     expect(store.all()[0]!.executionState).toBe('NOT_EXECUTED')

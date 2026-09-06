@@ -3,6 +3,7 @@ import { decideOnExistingClaim } from './idempotency'
 import { evaluatePolicy } from './policy'
 import { evaluateApproval } from './approval'
 import { baseRecord, reportFor, ZERO_TIMINGS } from './outcome'
+import type { ActionIntent } from './intent'
 import type { ActionStore } from './store'
 import type {
   ActionActor,
@@ -48,6 +49,16 @@ import type {
 export type ActionRuntimeContext = {
   /** The authenticated scope. Beats anything on the proposal, always. */
   authenticated: ActionActor
+  /**
+   * Whether the PERSON asked for this or the agent thought of it.
+   *
+   * Supplied by the caller, which derives it from the user's own message — see
+   * ./intent. It is not on `ActionProposal` and must never be: a model that
+   * could set it would be declaring its own authorisation. Defaults to
+   * AGENT_PROPOSAL when a caller omits it, so forgetting to pass it makes the
+   * system more careful rather than less.
+   */
+  intent?: ActionIntent
   /** The investigation's single absolute deadline. This layer never extends it. */
   deadlineAtMs: number
   grants?: readonly ApprovalGrant[]
@@ -77,7 +88,7 @@ export function createActionRuntime(deps: { store: ActionStore; now?: () => numb
       const { report, reconciliationRequired } = reportFor(execution, verification, approval)
       agentTrace('ACTION_COMPLETE', trace, {
         actionId: proposal.actionId, actionType: proposal.actionType,
-        risk, approval, execution: execution.status, verification: verification?.state ?? 'NOT_ATTEMPTED',
+        risk, intent, approval, execution: execution.status, verification: verification?.state ?? 'NOT_ATTEMPTED',
         report, reconciliationRequired, ...timings,
       })
       return {
@@ -89,13 +100,15 @@ export function createActionRuntime(deps: { store: ActionStore; now?: () => numb
 
     // ── POLICY ────────────────────────────────────────────────────────────────
     const policyStart = now()
-    const verdict = evaluatePolicy(proposal, ctx.authenticated)
+    // Fail closed: an omitted intent is treated as the agent's own idea.
+    const intent: ActionIntent = ctx.intent ?? 'AGENT_PROPOSAL'
+    const verdict = evaluatePolicy(proposal, ctx.authenticated, intent)
     timings.policyMs = now() - policyStart
     if (verdict.allowed === false) {
       // Audited even though nothing ran: an attempt to act outside the tenant is
       // the single most important thing in this table.
       const auditStart = now()
-      const record = baseRecord(proposal, proposal.risk, startedAt)
+      const record = baseRecord(proposal, proposal.risk, startedAt, intent)
       await deps.store.audit({
         ...record,
         agencyId: ctx.authenticated.agencyId,
@@ -111,7 +124,7 @@ export function createActionRuntime(deps: { store: ActionStore; now?: () => numb
 
     // ── CLAIM ─────────────────────────────────────────────────────────────────
     const claimStart = now()
-    const claim = await deps.store.claim(baseRecord(proposal, risk, startedAt))
+    const claim = await deps.store.claim(baseRecord(proposal, risk, startedAt, intent))
     timings.claimMs = now() - claimStart
 
     if (claim.claimed === false) {

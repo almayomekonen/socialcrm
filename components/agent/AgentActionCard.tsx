@@ -52,7 +52,13 @@ export default function AgentActionCard({
           <Icon name='clipboard-check' type='sol' className='size-3.5 bg-white' />
         </span>
         <div className='min-w-0 flex-1'>
-          <p className='text-[15px] font-medium leading-6 text-white'>יצירת משימה</p>
+          {/* THE APPLICATION SAYS "created", NEVER THE MODEL. The agent writes
+              its answer before the action runs, so it cannot know; this line is
+              rendered only from a verified outcome, which is the one thing that
+              can. */}
+          <p className='text-[15px] font-medium leading-6 text-white'>
+            {verified ? `יצרתי את המשימה: ${proposal.args.title}` : 'יצירת משימה'}
+          </p>
           <p className={`text-sm leading-6 ${toneClass(label.tone)}`}>{label.title}</p>
         </div>
       </header>

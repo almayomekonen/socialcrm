@@ -142,14 +142,26 @@ async function verify(
  * So a stale `create_task` goes to NEEDS_HUMAN, which is the honest answer until
  * the insert carries a correlation id that makes the search exact.
  */
+/**
+ * LOW_RISK_WRITE, and the risk class is an honest description rather than a
+ * convenience.
+ *
+ * A task is internal, visible only to the agency that owns the lead, reversible
+ * by deleting a row, and sends nothing to a customer. The worst outcome of a
+ * wrong one is a rep seeing a line they did not expect. It was
+ * APPROVAL_REQUIRED in the first slice because it was the first write the
+ * product had ever performed and caution was worth more than convenience;
+ * keeping it there would have meant asking a rep who typed "תיצור לי משימה"
+ * whether they meant it, which is the product failing to listen.
+ *
+ * `requiresApproval` is deliberately UNSET, so the risk ladder decides: an
+ * explicit instruction executes, an agent-initiated proposal waits. Sending a
+ * message or deleting a record will not be able to make the same claim.
+ */
 export const createTaskAction: AgentActionDefinition = {
   type: 'create_task',
   argsSchema: createTaskArgs as never,
-  risk: 'APPROVAL_REQUIRED',
-  // Stated explicitly rather than inherited from the risk level: the first write
-  // action the product ever performs asks a human every time, whatever the
-  // ladder later allows.
-  requiresApproval: true,
+  risk: 'LOW_RISK_WRITE',
   execute,
   verify,
 }
