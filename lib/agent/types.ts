@@ -215,6 +215,19 @@ export type ProposedAction =
       args: { clientId: number; at: string; note?: string | null }
       evidenceRefs: string[]
     }
+  | {
+      actionType: 'create_meeting'
+      /** The one action that really persists a time of day. */
+      args: {
+        clientId: number
+        title: string
+        date: string
+        startTime: string
+        durationMinutes: number
+        note?: string | null
+      }
+      evidenceRefs: string[]
+    }
 
 export type AgentAnswer = {
   /** The one-line conclusion the rep reads first. */

@@ -2,6 +2,7 @@ import 'server-only'
 import { getAgentAction, registerAgentAction } from '../registry'
 import { createTaskAction } from './createTask'
 import { createFollowUpAction } from './createFollowUp'
+import { createMeetingAction } from './createMeeting'
 
 /**
  * The domain actions, and the one place they are turned on.
@@ -15,9 +16,9 @@ import { createFollowUpAction } from './createFollowUp'
  * than once in a serverless process.
  */
 export function registerDomainActions(): void {
-  for (const definition of [createTaskAction, createFollowUpAction]) {
+  for (const definition of [createTaskAction, createFollowUpAction, createMeetingAction]) {
     if (!getAgentAction(definition.type)) registerAgentAction(definition)
   }
 }
 
-export { createTaskAction, createFollowUpAction }
+export { createTaskAction, createFollowUpAction, createMeetingAction }

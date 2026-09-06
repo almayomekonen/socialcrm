@@ -215,18 +215,17 @@ describe('the prompt asks for a decision, not a report', () => {
     expect(AGENT_SYSTEM_PROMPT).toMatch(/אל תכפה את המבנה הזה על שאלה פשוטה/)
   })
 
-  it('offers exactly the two reviewed write verbs, and no others', () => {
+  it('offers exactly the three reviewed write verbs, and no others', () => {
     /**
-     * CHANGED AGAIN, and the assertion moves rather than being deleted each
-     * time. It once pinned "no write verbs at all", then "exactly one". The
-     * guarantee that survives every revision is the DENY LIST below: everything
-     * the agent still cannot do. A third verb appearing without its own review
-     * is exactly the drift this test exists to catch.
+     * The assertion moves with each reviewed action rather than being deleted:
+     * it has pinned "none", then "one", then "two". What survives every revision
+     * is the DENY LIST — everything the agent still cannot do. A fourth verb
+     * appearing without its own review is the drift this exists to catch.
      */
-    for (const allowed of ['create_task', 'create_follow_up']) {
+    for (const allowed of ['create_task', 'create_follow_up', 'create_meeting']) {
       expect(AGENT_SYSTEM_PROMPT, allowed).toContain(allowed)
     }
-    for (const forbidden of ['create_meeting', 'update_lead', 'send_whatsapp', 'assign_lead', 'delete_lead', 'send_email']) {
+    for (const forbidden of ['update_lead', 'send_whatsapp', 'assign_lead', 'delete_lead', 'send_email', 'cancel_meeting']) {
       expect(AGENT_SYSTEM_PROMPT, forbidden).not.toContain(forbidden)
     }
   })
@@ -235,6 +234,6 @@ describe('the prompt asks for a decision, not a report', () => {
     // The prose failure this guards: an answer that says "created the task" for
     // an action still sitting in AWAITING_APPROVAL.
     expect(AGENT_SYSTEM_PROMPT).toMatch(/אתה לא מבצע את הפעולה/)
-    expect(AGENT_SYSTEM_PROMPT).toMatch(/אסור לכתוב שהמשימה נוצרה או שהמעקב נקבע/)
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/אסור לכתוב שהמשימה נוצרה, שהמעקב נקבע או שהפגישה נקבעה/)
   })
 })

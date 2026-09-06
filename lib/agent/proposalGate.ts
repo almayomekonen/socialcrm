@@ -16,10 +16,10 @@ import type { ProposedAction } from './types'
  * THIS run, which only tools write to. There is no path from a number the model
  * produced to an action, unless a tool returned that number first.
  *
- * BOTH ACTIONS TARGET A LEAD, which is why one check covers them: a task hangs
- * off `tasks."clientId"` and a follow-up IS two columns on the lead. An action
- * whose target is not a lead would need its own membership rule here rather than
- * borrowing this one.
+ * ALL THREE ACTIONS TARGET A LEAD, which is why one check covers them: a task
+ * hangs off `tasks."clientId"`, a follow-up IS two columns on the lead, and a
+ * meeting carries `meetings.lead_id`. An action whose target is not a lead would
+ * need its own membership rule here rather than borrowing this one.
  *
  * DROPPING, NOT REFUSING. An ungrounded proposal is removed and the answer is
  * still shown. The prose is judged on its own evidence by the claim gate; losing
@@ -34,7 +34,8 @@ export function groundedProposal(
   if (!proposal) return null
   // A closed list, matching the registry. An action type the gate does not know
   // cannot reach the runtime, whatever the schema happened to admit.
-  if (proposal.actionType !== 'create_task' && proposal.actionType !== 'create_follow_up') return null
+  const KNOWN = ['create_task', 'create_follow_up', 'create_meeting']
+  if (!KNOWN.includes(proposal.actionType)) return null
 
   const clientId = proposal.args?.clientId
   if (!Number.isInteger(clientId) || clientId <= 0) return null

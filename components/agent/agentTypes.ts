@@ -99,6 +99,11 @@ const PER_ACTION_LABELS: Record<string, Record<string, { title: string; tone: Ac
     EXECUTED_UNVERIFIED: { title: 'המעקב נשלח, אבל לא הצלחתי לאמת אותו', tone: 'warn' },
     DUPLICATE_NOOP: { title: 'המעקב כבר נקבע קודם — לא נקבע שוב', tone: 'ok' },
   },
+  create_meeting: {
+    VERIFIED_SUCCESS: { title: 'הפגישה נקבעה ואומתה', tone: 'ok' },
+    EXECUTED_UNVERIFIED: { title: 'הפגישה נשלחה, אבל לא הצלחתי לאמת אותה', tone: 'warn' },
+    DUPLICATE_NOOP: { title: 'הפגישה כבר נקבעה קודם — לא נקבעה שוב', tone: 'ok' },
+  },
 }
 
 export const ACTION_REPORT_FALLBACK = { title: 'סטטוס הפעולה לא ידוע', tone: 'warn' as const }

@@ -120,6 +120,27 @@ const createFollowUpProposal = z.object({
   evidenceRefs: z.array(z.string()),
 })
 
+const createMeetingProposal = z.object({
+  actionType: z.literal('create_meeting'),
+  args: z.object({
+    clientId: z.number(),
+    title: z.string(),
+    /** `YYYY-MM-DD` in the business timezone. */
+    date: z.string(),
+    /**
+     * `HH:MM`, 24-hour, in the business timezone.
+     *
+     * A meeting is the ONE action where a time is really persisted — the row
+     * holds `start_at`/`end_at` as instants and its own timezone. The task and
+     * follow-up rule that time is not stored does not apply here.
+     */
+    startTime: z.string(),
+    durationMinutes: z.number(),
+    note: z.union([z.string(), z.null()]),
+  }),
+  evidenceRefs: z.array(z.string()),
+})
+
 export const agentAnswerSchema = z.object({
   headline: z.string().min(1),
   claims: z.array(agentClaimSchema),
@@ -141,7 +162,7 @@ export const agentAnswerSchema = z.object({
    * every property in `required`, so an optional key would be dropped from the
    * emitted schema and never asked for.
    */
-  proposedAction: z.union([createTaskProposal, createFollowUpProposal, z.null()]),
+  proposedAction: z.union([createTaskProposal, createFollowUpProposal, createMeetingProposal, z.null()]),
 })
 
 /**

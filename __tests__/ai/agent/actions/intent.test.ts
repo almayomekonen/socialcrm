@@ -183,7 +183,7 @@ describe('the model never claims the task exists', () => {
   it('the prompt forbids it, even for an explicit command', () => {
     // The answer is written BEFORE the action runs, so any claim of success in
     // it would be a guess. The application says "created", after verifying.
-    expect(AGENT_SYSTEM_PROMPT).toMatch(/אסור לכתוב שהמשימה נוצרה או שהמעקב נקבע/)
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/אסור לכתוב שהמשימה נוצרה, שהמעקב נקבע או שהפגישה נקבעה/)
     expect(AGENT_SYSTEM_PROMPT).toMatch(/גם אם המשתמש ביקש זאת במפורש/)
     expect(AGENT_SYSTEM_PROMPT).toMatch(/המערכת מריצה את הפעולה אחרי התשובה שלך/)
   })

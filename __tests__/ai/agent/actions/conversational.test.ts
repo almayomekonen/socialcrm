@@ -91,8 +91,20 @@ describe('the agent fills slots instead of running a form', () => {
 })
 
 describe('unsupported precision is explained, not refused', () => {
-  it('says the system stores a date and no time, for both actions', () => {
-    expect(AGENT_SYSTEM_PROMPT).toMatch(/המערכת שומרת תאריך בלבד — לא במשימה ולא במעקב/)
+  it('says a task and a follow-up store a date and no time', () => {
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/במשימה ובמעקב המערכת שומרת תאריך בלבד, בלי שעה/)
+  })
+
+  it('says a MEETING does store the time — the one action where it is real', () => {
+    // A meeting at ten and a meeting at four are different meetings, and the
+    // row holds real instants. Telling a rep the time was dropped would be a lie.
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/בפגישה השעה כן נשמרת/)
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/אל תאמר על פגישה שהשעה לא נשמרת/)
+  })
+
+  it('asks only for the duration when only the duration is missing', () => {
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/אין לו ברירת מחדל/)
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/שאל רק על המשך/)
   })
 
   it('continues executing rather than stopping on a time the rep gave', () => {
@@ -120,23 +132,28 @@ describe('conversational references', () => {
 
 describe('a follow-up is never called a task', () => {
   it('the prompt says so', () => {
-    expect(AGENT_SYSTEM_PROMPT).toMatch(/לעולם אל תקרא למעקב משימה/)
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/לעולם אל תקרא לאחד מהם בשם של אחר/)
   })
 
   it('the UI says so, in every state that names the object', () => {
     for (const report of ['VERIFIED_SUCCESS', 'EXECUTED_UNVERIFIED', 'DUPLICATE_NOOP']) {
       const task = actionReportLabel(report, 'create_task').title
       const followUp = actionReportLabel(report, 'create_follow_up').title
+      const meeting = actionReportLabel(report, 'create_meeting').title
       expect(task, report).toContain('המשימה')
       expect(followUp, report).toContain('המעקב')
-      // The exact defect this guards: a follow-up rendered as a task.
+      expect(meeting, report).toContain('הפגישה')
+      // The exact defect this guards: one object rendered as another.
       expect(followUp, report).not.toContain('משימה')
+      expect(meeting, report).not.toContain('משימה')
+      expect(meeting, report).not.toContain('מעקב')
     }
   })
 
   it('shares the wording only where no object is named', () => {
     for (const report of ['AWAITING_APPROVAL', 'REJECTED', 'FAILED', 'NOT_EXECUTED', 'UNKNOWN_RECONCILE']) {
       expect(actionReportLabel(report, 'create_task')).toEqual(actionReportLabel(report, 'create_follow_up'))
+      expect(actionReportLabel(report, 'create_task')).toEqual(actionReportLabel(report, 'create_meeting'))
     }
   })
 
@@ -144,6 +161,6 @@ describe('a follow-up is never called a task', () => {
     expect(actionReportLabel('WAT', 'create_task')).toEqual(ACTION_REPORT_FALLBACK)
     expect(actionReportLabel(null)).toEqual(ACTION_REPORT_FALLBACK)
     // An unknown ACTION still gets the neutral wording for a known state.
-    expect(actionReportLabel('REJECTED', 'create_meeting').title).toBe('ביטלת את הפעולה')
+    expect(actionReportLabel('REJECTED', 'create_invoice').title).toBe('ביטלת את הפעולה')
   })
 })

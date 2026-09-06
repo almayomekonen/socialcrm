@@ -60,7 +60,7 @@ export default function AgentActionCard({
     >
       <header className='flex items-start gap-3'>
         <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/15'>
-          <Icon name={proposal.actionType === 'create_follow_up' ? 'calendar-check' : 'clipboard-check'} type='sol' className='size-3.5 bg-white' />
+          <Icon name={actionIcon(proposal.actionType)} type='sol' className='size-3.5 bg-white' />
         </span>
         <div className='min-w-0 flex-1'>
           <p className='text-[15px] font-medium leading-6 text-white'>
@@ -115,6 +115,12 @@ export default function AgentActionCard({
   )
 }
 
+function actionIcon(actionType: ProposedAction['actionType']) {
+  if (actionType === 'create_meeting') return 'calendar-days' as const
+  if (actionType === 'create_follow_up') return 'calendar-check' as const
+  return 'clipboard-check' as const
+}
+
 /** `2026-09-07` → `7.9.2026`. The form a Hebrew reader expects to see. */
 function displayDate(iso: string): string {
   const [y, m, d] = iso.split('-')
@@ -147,6 +153,26 @@ function describeAction(
       working: 'קובע מעקב…',
       rows: [
         { term: 'תאריך מעקב', value: when },
+        ...(note ? [{ term: 'הערה', value: note }] : []),
+        { term: 'ליד', value: ctx.leadName ?? `#${proposal.args.clientId}` },
+      ],
+    }
+  }
+
+  if (proposal.actionType === 'create_meeting') {
+    const { date, startTime, durationMinutes, title } = proposal.args
+    const note = proposal.args.note?.trim()
+    const when = `${displayDate(date)} בשעה ${startTime}`
+    return {
+      heading: 'קביעת פגישה',
+      // A meeting is never "a task": different word, different screen.
+      confirmed: `יצרתי את הפגישה '${title}'${forLead(ctx.leadName)} ל־${when}.`,
+      confirmLabel: 'אשר וקבע פגישה',
+      working: 'קובע פגישה…',
+      rows: [
+        { term: 'כותרת', value: title },
+        { term: 'מועד', value: when },
+        { term: 'משך', value: `${durationMinutes} דקות` },
         ...(note ? [{ term: 'הערה', value: note }] : []),
         { term: 'ליד', value: ctx.leadName ?? `#${proposal.args.clientId}` },
       ],
