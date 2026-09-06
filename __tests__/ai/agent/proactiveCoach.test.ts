@@ -111,17 +111,28 @@ describe('pressure has to rest on something', () => {
   })
 })
 
-// ─── The calm states are never downgraded ───────────────────────────────────
+// ─── OPPORTUNITY stays calm; HEALTHY became a claim ─────────────────────────
 
-describe('OPPORTUNITY and HEALTHY survive a thin answer', () => {
+describe('OPPORTUNITY survives a thin answer — HEALTHY no longer does', () => {
   it('keeps OPPORTUNITY with no claims — it asserts no problem', () => {
     expect(validateAgentAnswer(answer([], 'OPPORTUNITY'), crm())?.businessState).toBe('OPPORTUNITY')
   })
 
-  it('keeps HEALTHY on an honest "I found nothing"', () => {
+  it('downgrades HEALTHY on an honest "I found nothing"', () => {
+    /**
+     * CHANGED IN PHASE 3a, deliberately reversing what this test used to pin.
+     *
+     * It previously asserted HEALTHY survived here, on the reasoning that "I
+     * found nothing" is an honest finding worth keeping. It is honest — but
+     * `businessState` is rendered as a verdict on the BUSINESS, and "I did not
+     * find a problem" is not "there is no problem". The prose stays; the label
+     * does not. See lib/agent/businessState.ts.
+     */
     const v = validateAgentAnswer(answer([], 'HEALTHY', 'לא מצאתי בעיה ולא הזדמנות מבוססת.'), crm())
-    expect(v?.businessState).toBe('HEALTHY')
-    expect(v?.unknown).toMatch(/לא מצאתי/)
+    expect(v).not.toBeNull()
+    expect(v!.businessState).toBeNull()
+    // Only the label was wrong — the honest explanation reaches the rep intact.
+    expect(v!.unknown).toMatch(/לא מצאתי/)
   })
 
   it('keeps OPPORTUNITY alongside a grounded recommendation', () => {

@@ -7,6 +7,7 @@ import { resolveAgentScope } from './scope'
 import { DEFAULT_DEADLINE_MS, DEFAULT_MAX_STEPS, createBudget } from './budget'
 import { createEvidenceCollector } from './evidence'
 import { buildAgentTools } from './tools'
+import { createToolTimings, instrumentTools } from './instrument'
 import { AGENT_SYSTEM_PROMPT } from './prompt'
 import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
@@ -143,6 +144,22 @@ export type RunAgentInput = {
   onPersist?: (record: AgentInvestigationInput) => Promise<void>
 }
 
+/**
+ * ROUND TRIPS, not tool calls.
+ *
+ * A step in the SDK's sense is one assistant turn; the tool calls it contains
+ * execute together. So two tools emitted in one turn are one wait and two calls,
+ * which is exactly the difference the prompt's parallel-retrieval instruction is
+ * trying to buy. `budget.stepsUsed()` counts calls and cannot see it.
+ */
+function countToolRoundTrips(steps: unknown): number {
+  if (!Array.isArray(steps)) return 0
+  return steps.filter((step) => {
+    const calls = (step as { toolCalls?: unknown })?.toolCalls
+    return Array.isArray(calls) && calls.length > 0
+  }).length
+}
+
 function newInvestigationId(nowMs: number): string {
   return `inv_${nowMs.toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -242,7 +259,35 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     { role: 'user' as const, content: input.question },
   ]
   const evidence = createEvidenceCollector()
-  const tools = buildAgentTools({ scope, evidence, budget, nowMs })
+  /**
+   * Instrumentation only — the tools are wrapped, never altered. `now` is the
+   * SAME injected clock the deadline uses, so a test with a frozen clock reports
+   * a coherent zero rather than mixing two time sources.
+   */
+  const toolTimings = createToolTimings()
+  const tools = instrumentTools(buildAgentTools({ scope, evidence, budget, nowMs }), toolTimings, now)
+
+  const generationStartedAt = now()
+  let toolRoundTrips = 0
+
+  /**
+   * Where the wait went. `modelWaitMs` is DERIVED, not measured: the SDK owns
+   * the loop, so the time not spent inside a tool is by construction time spent
+   * waiting on the provider. Reported on both the success and the failure path —
+   * a run that died at 40 seconds is the one where this matters most.
+   */
+  const timingFields = () => {
+    const generationMs = now() - generationStartedAt
+    const toolWallMs = toolTimings.wallMs()
+    return {
+      generationMs,
+      modelWaitMs: Math.max(0, generationMs - toolWallMs),
+      toolWallMs,
+      toolSumMs: toolTimings.sumMs(),
+      toolCalls: toolTimings.calls(),
+      toolRoundTrips,
+    }
+  }
 
   let result
   /** Phase 1's token usage, folded into the cost so a two-phase run bills honestly. */
@@ -283,6 +328,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
       evidenceUsage = evidencePhase.totalUsage
+      toolRoundTrips = countToolRoundTrips(evidencePhase.steps)
 
       /**
        * THE HANDOFF is the SDK's own `response.messages` — the assistant message
@@ -323,6 +369,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
+      toolRoundTrips = countToolRoundTrips(result.steps)
     }
   } catch (err) {
     // A deadline abort and a provider failure arrive through the same throw, so
@@ -335,6 +382,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       steps: budget.stepsUsed(),
       timedOut,
       deadlineMs,
+      ...timingFields(),
     })
     await input.onPersist?.({
       ...identity,
@@ -391,7 +439,10 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     inputTokens,
     outputTokens,
     costUsd,
+    ...timingFields(),
   })
+
+  const validationStartedAt = now()
 
   // Both paths are schema-enforced again: interactive in its single call, autonomous in
   // Phase 2. The C2 text parser is gone along with the turn that needed it.
@@ -401,6 +452,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const validation = validateAgentAnswerDetailed(result.output as never, evidence, {
     requireClaim: input.requireToolEvidence === true,
   })
+  const validationMs = now() - validationStartedAt
   const validated = validation.answer
   if (!validated) {
     // The rejected PROSE is still not recorded — the gate destroyed it, and
@@ -426,7 +478,12 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       steps: budget.stepsUsed(),
       failureReason: validation.rejection,
     })
-    agentTrace('INVESTIGATION_END', ctx, { ok: false, reason: 'no_evidence' })
+    agentTrace('INVESTIGATION_END', ctx, {
+      ok: false,
+      reason: 'no_evidence',
+      validationMs,
+      totalMs: now() - nowMs,
+    })
     return {
       ok: false,
       reason: 'no_evidence',
@@ -455,6 +512,8 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     claims: validated.claims.length,
     droppedClaims: validation.counts.droppedClaims,
     strippedRefs: validation.counts.strippedRefs,
+    validationMs,
+    totalMs: now() - nowMs,
   })
 
   const answer = {

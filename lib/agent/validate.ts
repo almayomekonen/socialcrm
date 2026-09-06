@@ -1,6 +1,13 @@
 import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
 import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim } from './types'
 import { parseEntityRef } from './evidence'
+/**
+ * The state gate lives in ./businessState, not here. It is a rule about what a
+ * DIAGNOSIS may assert given what survived, which is a different question from
+ * whether a claim is supportable — and it now needs the evidence collector, not
+ * just the kept claims, to tell "no problem found" from "did not look".
+ */
+import { groundedBusinessState } from './businessState'
 import { isProductTopic } from './product/knowledge'
 import type { EvidenceCollector } from './evidence'
 
@@ -75,29 +82,6 @@ export type ValidatedAgentAnswer = {
   unknown: string | null
   businessState: BusinessState | null
   diagnostics: AgentTrustDiagnostics
-}
-
-/**
- * A diagnosis of pressure has to rest on something.
- *
- * URGENT and AT_RISK both assert that the business needs attention. If every
- * claim was dropped — or none was ever made — there is nothing behind the
- * assertion, and stamping it on the answer would be exactly the manufactured
- * urgency this surface must never produce: the one thing that makes a rep stop
- * believing the signals that are real.
- *
- * OPPORTUNITY and HEALTHY are not downgraded. Neither claims anything is wrong,
- * so neither can invent pressure — and HEALTHY on a thin answer is an honest
- * "I found nothing", which is a finding worth keeping.
- *
- * A downgrade returns null rather than rewriting the state to something milder:
- * the model's other diagnoses were not what it meant, and substituting one would
- * be the validator inventing a business read of its own.
- */
-function groundedBusinessState(state: BusinessState | null, keptClaims: Claim[]): BusinessState | null {
-  if (state !== 'URGENT' && state !== 'AT_RISK') return state
-  const hasEvidencedFinding = keptClaims.some((c) => c.claimClass === 'FACT' || c.claimClass === 'OBSERVATION')
-  return hasEvidencedFinding ? state : null
 }
 
 /** Why a whole answer was refused, when no individual claim survived to explain it. */
@@ -354,7 +338,7 @@ export function validateAgentAnswerDetailed(
       headline: answer.headline,
       claims: kept,
       unknown: answer.unknown,
-      businessState: groundedBusinessState(answer.businessState ?? null, kept),
+      businessState: groundedBusinessState(answer.businessState ?? null, kept, evidence),
       diagnostics: { dropped, strippedRefs },
     },
     rejection: null,
