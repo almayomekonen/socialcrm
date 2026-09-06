@@ -2,6 +2,7 @@
 
 import AgentAnswerView from './AgentAnswerView'
 import AgentActionCard from './AgentActionCard'
+import { ShiningText } from '@/components/ui/shining-text'
 import { toolLabel, type AgentUiTurn } from './agentTypes'
 
 /**
@@ -87,24 +88,30 @@ export default function AgentThread({
  * there is genuinely nothing to report, so it says only that it is working
  * rather than inventing a step it has not taken.
  *
+ * ONE SIGNAL, NOT TWO. This used to pulse three dots BESIDE the label; the
+ * shimmer now carries the same message through the words themselves, so the
+ * dots went with it. Two animations saying "still working" is the competing
+ * pending state the experience guidelines rule out — and the sweep is the more
+ * honest of the two, because it moves across the sentence that is actually
+ * changing rather than beside it.
+ *
+ * The motion is decorative ONLY in the sense that it carries no data; it is not
+ * fake progress, because the label under it is always a capability the server
+ * really admitted, and it stops the moment the answer arrives.
+ *
  * `aria-live='polite'` because the row rewrites itself while the rep waits: a
  * screen reader should hear the progress without being interrupted mid-sentence.
+ * The live region stays on this paragraph — `ShiningText` only paints.
  */
 function Thinking({ tools }: { tools: string[] }) {
   const label = tools.length ? toolLabel(tools[tools.length - 1]!) : 'חושב על זה'
 
   return (
-    <p className='flex items-center gap-2.5 text-[15px] leading-6 text-white/70' aria-live='polite'>
-      <span aria-hidden='true' className='flex gap-1'>
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className='size-1.5 animate-pulse rounded-full bg-white/50 motion-reduce:animate-none'
-            style={{ animationDelay: `${i * 160}ms`, animationDuration: '1.1s' }}
-          />
-        ))}
-      </span>
-      {label}
+    <p className='text-[15px] leading-6' aria-live='polite'>
+      {/* Keyed by the label so a new capability restarts the sweep rather than
+          continuing mid-pass, which would read as one long unchanging wait. */}
+      <ShiningText key={label} text={label} base='rgba(255,255,255,0.5)' highlight='#ffffff' />
     </p>
   )
 }
+
