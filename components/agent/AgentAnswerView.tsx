@@ -1,6 +1,7 @@
 'use client'
 
 import Icon from '@/lib/Icon'
+import { ResponseStream } from '@/components/ui/response-stream'
 import type { AgentAnswer, Claim } from '@/lib/agent/types'
 
 /**
@@ -28,14 +29,36 @@ import type { AgentAnswer, Claim } from '@/lib/agent/types'
  * `unknown` is rendered whenever it is present, never hidden. An honest "I could
  * not determine X" is the most important line in some answers, and a UI that
  * silently drops it turns a careful answer into an overconfident one.
+ *
+ * THE PROSE FADES IN WORD BY WORD, and the mode matters. `fade` puts every word
+ * in the DOM at once and animates opacity, so the whole answer is readable by a
+ * screen reader, selectable and copyable from the first frame — it is a REVEAL.
+ * A typewriter would slice a completed string over time, which is the
+ * "animated typing of a response that already finished on the server" the
+ * experience guidelines name as fake streaming; the Agent's answer is validated
+ * in full before a word of it may be shown, so there is nothing left to stream.
+ *
+ * RECOMMENDATIONS DO NOT FADE. They are the one thing on screen the rep can act
+ * on, and interaction must never wait on an animation.
  */
+
+/** Short on purpose: about a second for a long sentence, not a performance. */
+const FADE_MS = 340
+const WORD_DELAY_MS = 26
 export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
   const statements = answer.claims.filter((c) => c.claimClass !== 'RECOMMENDATION')
   const recommendations = answer.claims.filter((c) => c.claimClass === 'RECOMMENDATION')
 
   return (
     <div className='space-y-3'>
-      <p className='text-base font-medium leading-7 tracking-[-0.005em] text-white'>{answer.headline}</p>
+      <ResponseStream
+        as='p'
+        mode='fade'
+        textStream={answer.headline}
+        fadeDuration={FADE_MS}
+        segmentDelay={WORD_DELAY_MS}
+        className='text-base font-medium leading-7 tracking-[-0.005em] text-white'
+      />
 
       {statements.length > 0 && (
         <ul className='space-y-1.5'>
@@ -47,7 +70,14 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
                   claim.claimClass === 'INFERENCE' ? 'bg-white/35' : 'bg-accent'
                 }`}
               />
-              <span className='text-[15px] leading-6 text-white/85'>{claimText(claim)}</span>
+              <ResponseStream
+                as='span'
+                mode='fade'
+                textStream={claimText(claim)}
+                fadeDuration={FADE_MS}
+                segmentDelay={WORD_DELAY_MS}
+                className='text-[15px] leading-6 text-white/85'
+              />
             </li>
           ))}
         </ul>
@@ -76,7 +106,14 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
       )}
 
       {answer.unknown && (
-        <p className='text-sm leading-6 text-white/60'>{answer.unknown}</p>
+        <ResponseStream
+          as='p'
+          mode='fade'
+          textStream={answer.unknown}
+          fadeDuration={FADE_MS}
+          segmentDelay={WORD_DELAY_MS}
+          className='text-sm leading-6 text-white/60'
+        />
       )}
     </div>
   )
