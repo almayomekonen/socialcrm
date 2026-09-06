@@ -118,8 +118,27 @@ export type IntentInput = {
  * Three turns covers a real slot-filling exchange — target, then date, then
  * title — and stops well short of letting an instruction from earlier in a long
  * session authorise something the rep has since moved on from.
+ *
+ * THE WINDOW IS THE OUTER BOUND, NEVER THE RULE. A command is spent the moment
+ * it produces its action, whether that took one turn or three; the caller
+ * establishes that from the durable record and simply stops passing prior turns.
+ * See `STANDING_COMMAND_WINDOW_MS` in the bridge.
  */
 export const COMMAND_CARRY_TURNS = 3
+
+/**
+ * CONTEXT IS NOT AUTHORIZATION, and the two must not be conflated.
+ *
+ * The conversation may go on knowing perfectly well that the active lead is
+ * דניאל כהן, that the last task was called "לחזור לדניאל", and that the date in
+ * play is 2026-09-07. All of that is CONTEXT: it lets the model resolve "אותו
+ * ליד" and inherit a note, and it may outlive any number of turns.
+ *
+ * None of it is permission to mutate. Authorization comes from the rep's current
+ * turn — an instruction, or an affirmation of something just proposed — or from
+ * that turn completing an instruction still in progress. A message that merely
+ * arrives while the system happens to remember things authorises nothing.
+ */
 
 export function deriveActionIntent(input: IntentInput): IntentVerdict {
   const text = (input.userMessage ?? '').trim()

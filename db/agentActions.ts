@@ -240,6 +240,49 @@ export function createDbActionStore(): ActionStore {
   }
 }
 
+/**
+ * Has this rep already completed an action of this type, recently?
+ *
+ * THE STANDING-COMMAND LIFECYCLE DEPENDS ON THIS. "תיצור לי משימה" authorises the
+ * turns that COMPLETE it — the title, the date — and nothing after that. Once
+ * the command has produced its action it is spent, and a later fragment like
+ * "תזכורת לדניאל" must not inherit authority from an instruction that was
+ * already carried out. A pure time window cannot express that; the durable
+ * record can, because an executed row IS the evidence the command was fulfilled.
+ *
+ * Scoped to the acting rep as well as the agency: one rep's completed command
+ * says nothing about another's.
+ *
+ * ANY ACTION TYPE COUNTS, deliberately. A command is fulfilled by whatever it
+ * produced, so narrowing this to one type would leave the hole it exists to
+ * close: "תיצור לי משימה" executes a task, and the next fragment — read by the
+ * model as a follow-up instead — would find no spent command of THAT type and
+ * inherit the authority anyway.
+ */
+export function recentExecutedActionQuery(args: {
+  agencyId: number
+  userId: number
+  sinceMs: number
+  /** Optional narrowing. Omit it to ask "did anything execute", which is the rule. */
+  actionType?: string
+}) {
+  const q = db(AGENT_ACTIONS_TABLE)
+    .where({ agencyId: args.agencyId, userId: args.userId, executionState: 'SUCCEEDED' })
+    .andWhere('createdAt', '>=', new Date(args.sinceMs))
+  if (args.actionType) q.andWhere({ actionType: args.actionType })
+  return q.orderBy('createdAt', 'desc').limit(1).select('actionId')
+}
+
+export async function hasRecentlyExecutedAction(args: {
+  agencyId: number
+  userId: number
+  sinceMs: number
+  actionType?: string
+}): Promise<boolean> {
+  const rows = (await recentExecutedActionQuery(args)) as unknown[]
+  return rows.length > 0
+}
+
 /** One action by its minted id. Agency-scoped: an id is not a capability. */
 export async function findActionByActionId(agencyId: number, actionId: string): Promise<ActionRecord | null> {
   const row = (await db(AGENT_ACTIONS_TABLE).where({ agencyId, actionId }).first()) as Row | undefined

@@ -343,7 +343,32 @@ describe('failure policy', () => {
       }),
     )
     await askAgent('q')
-    expect(persisted()).toMatchObject({ status: 'refused', failureReason: 'unsupported-claim' })
+    /**
+     * The rule is NAMED. `unsupported-claim` alone is the same record for
+     * twenty-six different problems, and because the gate never persists the
+     * prose it destroyed, an opaque refusal cannot be classified afterwards —
+     * which is exactly what happened twice in live evaluation. 'ליד חם' is
+     * RULE_05.
+     */
+    expect(persisted()).toMatchObject({ status: 'refused', failureReason: 'unsupported-claim/RULE_05' })
+  })
+
+  it('still persists NONE of the prose it refused', async () => {
+    generateTextSpy.mockImplementation(
+      modelAnswers({
+        headline: 'ליד חם ממתין.',
+        claims: [{ claimClass: 'FACT', text: 'דוד ממתין ויש סיכוי גבוה לסגירה.', entityEvidence: ['42'] }],
+        unknown: null,
+      }),
+    )
+    await askAgent('q')
+    const row = persisted()
+    // Diagnosability must not have become a back door for the destroyed text.
+    const serialised = JSON.stringify(row)
+    expect(serialised).not.toContain('ליד חם')
+    expect(serialised).not.toContain('סיכוי גבוה')
+    expect(serialised).not.toContain('דוד ממתין')
+    expect(row.answer).toBeNull()
   })
 
   it('persists stripped-ref counts on an ACCEPTED answer', async () => {

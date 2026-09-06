@@ -307,5 +307,10 @@ export type AgentResult =
       droppedClaims?: number
       strippedRefs?: number
       /** The validator's own rejection reason, so a refusal says WHY. */
-      rejection?: string | null
+      rejection?: string
+      /**
+       * Which blocklist rule fired, for an `unsupported-claim` refusal —
+       * `RULE_17` and so on. Names our own phrase, never the user's text.
+       */
+      rejectionRuleId?: string | null | null
     }

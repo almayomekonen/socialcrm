@@ -492,12 +492,29 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     // is why: the rule that fired and how many claims it took. Without this a
     // production refusal is indistinguishable from every other refusal, which is
     // exactly what made inv_mt7795vh_ptvevm undiagnosable.
+    /**
+     * THE DIAGNOSTIC RECORD FOR A REFUSAL, and every field in it is metadata.
+     *
+     * The rejected prose is still destroyed and still never written anywhere —
+     * that is the point of the gate. What is recorded is the SHAPE of the
+     * failure: which rule fired (`RULE_17`), how much the model proposed, how
+     * much survived, how generation ended, and how much evidence it had. A live
+     * evaluation refused two answers on two different questions and neither
+     * could be classified afterwards, because `unsupported-claim` is the same
+     * string for twenty-six different problems.
+     *
+     * `rejectionRuleId` names OUR blocklist phrase, never the user's text.
+     */
     agentTrace('ANSWER_REJECTED', ctx, {
       evidenceCount: evidence.size(),
       rejection: validation.rejection,
+      rejectionRuleId: validation.rejectionRuleId,
+      proposedClaims: validation.counts.proposedClaims,
       droppedClaims: validation.counts.droppedClaims,
       strippedRefs: validation.counts.strippedRefs,
       byReason: validation.counts.byReason,
+      finishReason: result.finishReason,
+      steps: budget.stepsUsed(),
     })
     await input.onPersist?.({
       ...identity,
@@ -508,7 +525,11 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       droppedClaims: validation.counts.droppedClaims,
       strippedRefs: validation.counts.strippedRefs,
       steps: budget.stepsUsed(),
-      failureReason: validation.rejection,
+      // Durable and diagnosable: `unsupported-claim/RULE_17`, not just
+      // `unsupported-claim`. Still carries none of the destroyed prose.
+      failureReason: validation.rejectionRuleId
+        ? `${validation.rejection}/${validation.rejectionRuleId}`
+        : validation.rejection,
     })
     agentTrace('INVESTIGATION_END', ctx, {
       ok: false,
@@ -528,6 +549,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       droppedClaims: validation.counts.droppedClaims,
       strippedRefs: validation.counts.strippedRefs,
       rejection: validation.rejection,
+      rejectionRuleId: validation.rejectionRuleId,
     }
   }
 

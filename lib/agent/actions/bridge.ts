@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
-import { createDbActionStore, findActionByActionId } from '@/db/agentActions'
+import { createDbActionStore, findActionByActionId, hasRecentlyExecutedAction } from '@/db/agentActions'
 import { loadApprovalGrants, recordApprovalDecision } from '@/db/agentActionApprovals'
 import { registerDomainActions } from './domain'
 import { deriveActionIntent } from './intent'
@@ -38,6 +38,37 @@ function runtimeFor() {
   // because a module was loaded.
   registerDomainActions()
   return createActionRuntime({ store: createDbActionStore() })
+}
+
+/**
+ * How long a command can still be "in progress" before it is treated as stale.
+ *
+ * The outer bound on the standing-command lifecycle. The inner bound — and the
+ * one that actually fires — is fulfilment: a command that produced its action is
+ * spent immediately, whatever the clock says.
+ */
+export const STANDING_COMMAND_WINDOW_MS = 10 * 60 * 1000
+
+/**
+ * COMMAND_STARTED → COLLECTING_REQUIRED_FIELDS → READY → EXECUTED → CLOSED.
+ *
+ * The application owns this lifecycle, and this function is where it CLOSES. A
+ * standing command authorises the turns that complete the action it asked for;
+ * once that action exists, the instruction has been carried out and a later
+ * fragment must stand on its own words.
+ *
+ * Determined from the durable action record rather than from anything the
+ * client sent, because a client that could report "nothing executed yet" could
+ * keep an authorization open indefinitely — which is the one direction this must
+ * never fail in.
+ */
+async function standingCommandIsSpent(scope: AgentScope, nowMs: number): Promise<boolean> {
+  // Any executed action spends it — see the note on `recentExecutedActionQuery`.
+  return hasRecentlyExecutedAction({
+    agencyId: scope.agencyId,
+    userId: scope.userId,
+    sinceMs: nowMs - STANDING_COMMAND_WINDOW_MS,
+  })
 }
 
 function scopeToActor(scope: AgentScope) {
@@ -88,11 +119,34 @@ export async function submitProposedAction(input: {
   // around it may be perfectly good. It simply does not become an action.
   if (parsed.ok === false) return null
 
-  const intent = deriveActionIntent({
+  /**
+   * Authorization is derived in two passes, and the order matters.
+   *
+   * FIRST from the current turn alone. A turn that carries its own instruction
+   * or affirmation needs no history and costs no query — which is the common
+   * case, and the only case for a brand-new command.
+   *
+   * ONLY THEN, if the turn is a bare value, is the standing command consulted —
+   * and only if it has not already been spent. That check is a durable read
+   * rather than anything the client asserted, so a completed command cannot be
+   * kept alive by a request that simply omits the evidence of its completion.
+   */
+  const own = deriveActionIntent({
     userMessage: input.userMessage ?? '',
     priorAssistantMessage: input.priorAssistantMessage,
-    priorUserMessages: input.priorUserMessages,
   })
+
+  let intent = own
+  if (own.intent !== 'EXPLICIT_COMMAND' && (input.priorUserMessages?.length ?? 0) > 0) {
+    const spent = await standingCommandIsSpent(input.scope, nowMs)
+    if (!spent) {
+      intent = deriveActionIntent({
+        userMessage: input.userMessage ?? '',
+        priorAssistantMessage: input.priorAssistantMessage,
+        priorUserMessages: input.priorUserMessages,
+      })
+    }
+  }
 
   return runtimeFor().execute(parsed.proposal, {
     authenticated: scopeToActor(input.scope),

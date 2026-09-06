@@ -1,4 +1,4 @@
-import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
+import { matchUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
 import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim, type ProposedAction } from './types'
 import { parseEntityRef } from './evidence'
 /**
@@ -99,6 +99,8 @@ export type RejectionReason = 'malformed' | 'unsupported-claim' | 'no-supportabl
  * rule — without carrying the content.
  */
 export type AgentTrustCounts = {
+  /** How many claims the model PROPOSED, before any were judged. */
+  proposedClaims: number
   droppedClaims: number
   strippedRefs: number
   byReason: Record<DropReason, number>
@@ -118,15 +120,29 @@ export type AgentValidation = {
   answer: ValidatedAgentAnswer | null
   /** null when the answer was accepted. */
   rejection: RejectionReason | null
+  /**
+   * WHICH blocklist rule fired, for an `unsupported-claim` refusal — `RULE_17`
+   * and so on. Null for every other outcome.
+   *
+   * It exists because the gate deliberately never persists the prose it
+   * destroyed, so without it a refusal is the same opaque record for
+   * twenty-six different problems. The id names OUR phrase, never the user's
+   * text, which is what makes it safe to trace and to store.
+   */
+  rejectionRuleId: string | null
   counts: AgentTrustCounts
 }
 
 function zeroCounts(): AgentTrustCounts {
-  return { droppedClaims: 0, strippedRefs: 0, byReason: { 'no-valid-evidence': 0, 'inference-not-hedged': 0 } }
+  return { proposedClaims: 0, droppedClaims: 0, strippedRefs: 0, byReason: { 'no-valid-evidence': 0, 'inference-not-hedged': 0 } }
 }
 
-function refused(rejection: RejectionReason, counts: AgentTrustCounts = zeroCounts()): AgentValidation {
-  return { answer: null, rejection, counts }
+function refused(
+  rejection: RejectionReason,
+  counts: AgentTrustCounts = zeroCounts(),
+  rejectionRuleId: string | null = null,
+): AgentValidation {
+  return { answer: null, rejection, rejectionRuleId, counts }
 }
 
 /** Strip the `refId=` prefix the model may echo from a payload label, and trim. */
@@ -272,7 +288,11 @@ export function validateAgentAnswerDetailed(
   // Matches the Copilot gate's stance — this is not repairable per-claim,
   // because the headline and the unknown line are the model's own prose.
   const prose = [answer.headline, ...answer.claims.map((c) => c.text), answer.unknown ?? ''].join('\n')
-  if (containsUnsupportedBusinessClaim(prose)) return refused('unsupported-claim')
+  const banned = matchUnsupportedBusinessClaim(prose)
+  if (banned) {
+    // The rule id and the shape of what was proposed — never the prose itself.
+    return refused('unsupported-claim', { ...zeroCounts(), proposedClaims: answer.claims.length }, banned.id)
+  }
 
   const kept: Claim[] = []
   const dropped: DroppedClaim[] = []
@@ -303,6 +323,7 @@ export function validateAgentAnswerDetailed(
   }
 
   const counts: AgentTrustCounts = {
+    proposedClaims: answer.claims.length,
     droppedClaims: dropped.length,
     strippedRefs: strippedRefs.length,
     byReason: {
@@ -337,6 +358,8 @@ export function validateAgentAnswerDetailed(
   }
 
   return {
+    rejection: null,
+    rejectionRuleId: null,
     answer: {
       headline: answer.headline,
       claims: kept,
@@ -345,7 +368,6 @@ export function validateAgentAnswerDetailed(
       proposedAction: groundedProposal(answer.proposedAction ?? null, evidence),
       diagnostics: { dropped, strippedRefs },
     },
-    rejection: null,
     counts,
   }
 }
