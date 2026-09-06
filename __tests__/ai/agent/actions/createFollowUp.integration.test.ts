@@ -121,7 +121,25 @@ describe('an explicit command executes', () => {
     expect(out.verification!.checks.map((c) => c.name).sort())
       .toEqual(['agencyOwnership', 'clientId', 'followUpDate', 'followUpExists', 'note'])
     expect(out.verification!.checks.every((c) => c.ok)).toBe(true)
-    expect(out.verification!.targetIds).toEqual([{ kind: 'lead', id: String(LEAD_A) }])
+    // The target carries the lead's name, read back by the VERIFIER from the
+    // database — which is what lets the confirmation say "עבור יוסי" instead of
+    // "#93001" without the model supplying a name.
+    expect(out.verification!.targetIds).toEqual([
+      { kind: 'lead', id: String(LEAD_A), label: `יוסי ${AGENCY_A}` },
+    ])
+  })
+
+  it('reports whether it SET or REPLACED, so the confirmation can be truthful', async () => {
+    /**
+     * "קבעתי מעקב" and "עדכנתי את המעקב" are different statements, and a rep
+     * whose hand-picked date was overwritten should be told the second one. The
+     * executor reports what it found; nothing infers it from the words.
+     */
+    const first = (await submit(proposal(LEAD_A), adminA(), COMMAND, null, 'run_fu_set'))!
+    expect(first.execution.detail).toMatchObject({ replacedExisting: false })
+
+    const second = (await submit(proposal(LEAD_A, '2026-09-11'), adminA(), COMMAND, null, 'run_fu_set'))!
+    expect(second.execution.detail).toMatchObject({ replacedExisting: true })
   })
 
   it('replaces an existing follow-up, as the product does everywhere else', async () => {

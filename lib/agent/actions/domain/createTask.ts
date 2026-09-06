@@ -47,7 +47,17 @@ const createTaskArgs = z.object({
 
 export type CreateTaskArgs = z.infer<typeof createTaskArgs>
 
-type TaskRow = { id: number; clientId: number; title: string; dueDate: string; userId: number | null; agencyId: number }
+type TaskRow = {
+  id: number; clientId: number; title: string; dueDate: string
+  userId: number | null; agencyId: number
+  firstName: string | null; lastName: string | null
+}
+
+/** The lead's name, for a confirmation sentence. Read back, never asserted. */
+function leadLabel(row: { firstName: string | null; lastName: string | null }): string | undefined {
+  const name = [row.firstName, row.lastName].filter(Boolean).join(' ').trim()
+  return name || undefined
+}
 
 /**
  * The one read that establishes a task's tenant, used by both verify and probe.
@@ -64,6 +74,8 @@ function taskWithTenantQuery(agencyId: number) {
       't.title',
       't.userId',
       'c.agencyId',
+      'c.firstName',
+      'c.lastName',
       // Rendered in SQL so a DATE column cannot arrive as a timezone-shifted
       // Date object and fail a comparison it should pass.
       db.raw(`to_char(t."dueDate", 'YYYY-MM-DD') as "dueDate"`),
@@ -135,7 +147,7 @@ async function verify(
     state: allOk ? 'VERIFIED' : 'MISMATCH',
     verified: allOk,
     checks,
-    targetIds: [{ kind: 'task', id: String(row.id) }],
+    targetIds: [{ kind: 'task', id: String(row.id), label: leadLabel(row) }],
     reason: allOk ? null : 'postcondition-mismatch',
   }
 }

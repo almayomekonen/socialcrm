@@ -66,21 +66,47 @@ export const TOOL_LABELS: Record<string, string> = {
  * but I could not confirm it" and "it ran and I checked" must never read the
  * same, and "I could not tell what happened" must never read as either.
  */
-export const ACTION_REPORT_LABELS: Record<string, { title: string; tone: 'wait' | 'ok' | 'bad' | 'warn' }> = {
+type ActionTone = 'wait' | 'ok' | 'bad' | 'warn'
+
+/**
+ * The status line, in the rep's words — and in the RIGHT words for the action.
+ *
+ * A follow-up is never a task. Rendering "המשימה נוצרה" for a follow-up would be
+ * the UI contradicting the product's own vocabulary, and a rep who reads it
+ * would go looking in the wrong place. So the states that NAME the object are
+ * per-action; the ones that do not are shared.
+ *
+ * The states themselves are the Action Runtime's `ActionReport`, uncollapsed:
+ * "it ran and I checked" and "it ran but I could not confirm it" must never read
+ * the same, and "I could not tell what happened" must never read as either.
+ */
+const NEUTRAL_LABELS: Record<string, { title: string; tone: ActionTone }> = {
   AWAITING_APPROVAL: { title: 'ממתין לאישור שלך', tone: 'wait' },
-  VERIFIED_SUCCESS: { title: 'המשימה נוצרה ואומתה', tone: 'ok' },
-  EXECUTED_UNVERIFIED: { title: 'המשימה נשלחה, אבל לא הצלחתי לאמת אותה', tone: 'warn' },
-  DUPLICATE_NOOP: { title: 'המשימה כבר נוצרה קודם — לא נוצרה שוב', tone: 'ok' },
   REJECTED: { title: 'ביטלת את הפעולה', tone: 'bad' },
   NOT_EXECUTED: { title: 'הפעולה לא בוצעה', tone: 'bad' },
   FAILED: { title: 'הפעולה נכשלה', tone: 'bad' },
   UNKNOWN_RECONCILE: { title: 'לא ברור אם הפעולה בוצעה — נדרשת בדיקה ידנית', tone: 'warn' },
 }
 
+const PER_ACTION_LABELS: Record<string, Record<string, { title: string; tone: ActionTone }>> = {
+  create_task: {
+    VERIFIED_SUCCESS: { title: 'המשימה נוצרה ואומתה', tone: 'ok' },
+    EXECUTED_UNVERIFIED: { title: 'המשימה נשלחה, אבל לא הצלחתי לאמת אותה', tone: 'warn' },
+    DUPLICATE_NOOP: { title: 'המשימה כבר נוצרה קודם — לא נוצרה שוב', tone: 'ok' },
+  },
+  create_follow_up: {
+    VERIFIED_SUCCESS: { title: 'המעקב נקבע ואומת', tone: 'ok' },
+    EXECUTED_UNVERIFIED: { title: 'המעקב נשלח, אבל לא הצלחתי לאמת אותו', tone: 'warn' },
+    DUPLICATE_NOOP: { title: 'המעקב כבר נקבע קודם — לא נקבע שוב', tone: 'ok' },
+  },
+}
+
 export const ACTION_REPORT_FALLBACK = { title: 'סטטוס הפעולה לא ידוע', tone: 'warn' as const }
 
-export function actionReportLabel(report?: string | null) {
-  return (report && ACTION_REPORT_LABELS[report]) || ACTION_REPORT_FALLBACK
+export function actionReportLabel(report?: string | null, actionType?: string | null) {
+  if (!report) return ACTION_REPORT_FALLBACK
+  const perAction = actionType ? PER_ACTION_LABELS[actionType]?.[report] : undefined
+  return perAction ?? NEUTRAL_LABELS[report] ?? ACTION_REPORT_FALLBACK
 }
 
 export const TOOL_LABEL_FALLBACK = 'בודק את הנתונים'

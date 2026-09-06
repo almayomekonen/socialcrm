@@ -121,7 +121,10 @@ export async function askAgent(
    * whether the action executes — that is the whole reason intent lives here and
    * not on the proposal.
    */
-  const priorAssistantMessage = [...history].reverse().find((t) => t.role === 'assistant')?.content ?? null
+  const reversed = [...history].reverse()
+  const priorAssistantMessage = reversed.find((t) => t.role === 'assistant')?.content ?? null
+  /** The rep's own turns, newest first — never the assistant's. */
+  const priorUserMessages = reversed.filter((t) => t.role === 'user').map((t) => t.content)
 
   const actionOutcome = await submitProposedAction({
     proposal,
@@ -129,6 +132,7 @@ export async function askAgent(
     agentRunId: result.investigationId,
     userMessage: trimmed,
     priorAssistantMessage,
+    priorUserMessages,
   })
 
   return { ...result, actionOutcome }

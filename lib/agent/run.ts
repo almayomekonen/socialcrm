@@ -8,7 +8,7 @@ import { DEFAULT_DEADLINE_MS, DEFAULT_MAX_STEPS, createBudget } from './budget'
 import { createEvidenceCollector } from './evidence'
 import { buildAgentTools } from './tools'
 import { createToolTimings, instrumentTools } from './instrument'
-import { AGENT_SYSTEM_PROMPT } from './prompt'
+import { buildAgentSystemPrompt } from './prompt'
 import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
@@ -258,6 +258,12 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     ...(input.history ?? []).map((t) => ({ role: t.role, content: t.content }) as const),
     { role: 'user' as const, content: input.question },
   ]
+  /**
+   * Built once per investigation, so every phase of a two-phase run sees the
+   * same date. Recomputing it per call would be harmless today and exactly the
+   * kind of thing that stops being harmless at midnight.
+   */
+  const systemPrompt = buildAgentSystemPrompt(nowMs)
   const evidence = createEvidenceCollector()
   /**
    * Instrumentation only — the tools are wrapped, never altered. `now` is the
@@ -316,7 +322,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       // ── PHASE 1 · evidence. Tools, required first call, NO structured output. ──
       const evidencePhase = await generateText({
         model: handle.model,
-        system: AGENT_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: conversation,
         tools,
         stopWhen: stepCountIs(maxSteps),
@@ -349,7 +355,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       // ── PHASE 2 · answer. Structured output, NO tools, no forced choice. ──
       result = await generateText({
         model: handle.model,
-        system: AGENT_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [...conversation, ...evidencePhase.response.messages],
         output: Output.object({ schema: agentAnswerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
@@ -360,7 +366,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       // ── INTERACTIVE · unchanged: one call, tools, structured output. ──
       result = await generateText({
         model: handle.model,
-        system: AGENT_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: conversation,
         tools,
         stopWhen: stepCountIs(maxSteps),

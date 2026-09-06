@@ -92,6 +92,67 @@ describe('confirming what the agent just suggested', () => {
   })
 })
 
+describe('a command survives the turns that complete it', () => {
+  const COMMAND = 'תיצור לי משימה עבור דניאל כהן'
+
+  it('a bare value completing a prior instruction is still that instruction', () => {
+    /**
+     * The defect live conversation exposed. "תיצור לי משימה עבור דניאל כהן" →
+     * "למחר בשעה 10:00" → "לחזור לדניאל" put an approval card in front of a rep
+     * who had already given the order and was answering the agent's own
+     * question. The last turn carries no verb because the verb was three turns
+     * ago.
+     */
+    expect(
+      deriveActionIntent({
+        userMessage: 'לחזור לדניאל',
+        priorUserMessages: ['למחר בשעה 10:00 בבוקר', COMMAND],
+      }).intent,
+    ).toBe('EXPLICIT_COMMAND')
+    expect(deriveActionIntent({ userMessage: 'לחזור לדניאל', priorUserMessages: [COMMAND] }).reason)
+      .toBe('continues-prior-command')
+  })
+
+  it('does not reach back further than the carry window', () => {
+    const stale = ['ד', 'ג', 'ב', COMMAND] // the command is 4 turns back
+    expect(deriveActionIntent({ userMessage: 'לחזור לדניאל', priorUserMessages: stale }).intent)
+      .toBe('AGENT_PROPOSAL')
+  })
+
+  it('a hedge in the CURRENT turn still demotes, whatever came before', () => {
+    expect(
+      deriveActionIntent({ userMessage: 'אולי כדאי גם משימה', priorUserMessages: [COMMAND] }).intent,
+    ).toBe('AGENT_PROPOSAL')
+  })
+
+  it('a question in the current turn still demotes', () => {
+    expect(
+      deriveActionIntent({ userMessage: 'מה הבעיה הכי גדולה שלי?', priorUserMessages: [COMMAND] }).intent,
+    ).toBe('AGENT_PROPOSAL')
+  })
+
+  it('a hedged prior turn is not a standing command', () => {
+    expect(
+      deriveActionIntent({ userMessage: 'לחזור לדניאל', priorUserMessages: ['אולי כדאי ליצור משימה'] }).intent,
+    ).toBe('AGENT_PROPOSAL')
+  })
+
+  it('inherits only from the USER\'s turns, never the assistant\'s', () => {
+    // An assistant that wrote "תיצור משימה" in its own prose authorises nothing.
+    expect(
+      deriveActionIntent({
+        userMessage: 'לחזור לדניאל',
+        priorAssistantMessage: 'אני ממליץ: תיצור משימה לדניאל',
+        priorUserMessages: ['מה קורה בעסק?'],
+      }).intent,
+    ).toBe('AGENT_PROPOSAL')
+  })
+
+  it('with no history at all, a bare value is not a command', () => {
+    expect(deriveActionIntent({ userMessage: 'לחזור לדניאל' }).intent).toBe('AGENT_PROPOSAL')
+  })
+})
+
 describe('the model cannot declare its own authorization', () => {
   it('the answer schema has no intent, risk or approval field', () => {
     const shape = JSON.stringify(agentAnswerSchema.shape.proposedAction)

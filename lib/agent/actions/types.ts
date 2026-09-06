@@ -80,8 +80,16 @@ export type ExecutionResult = {
   detail?: Record<string, unknown>
 }
 
-/** A thing in the CRM the action claims to have affected. */
-export type ActionTargetRef = { kind: string; id: string }
+/**
+ * A thing in the CRM the action claims to have affected.
+ *
+ * `label` exists so a confirmation can say "עבור דניאל כהן" instead of "#106".
+ * It is set by the VERIFIER, from the row it read back — never by the model and
+ * never by the executor's own claim about what it did. A name on this ref is
+ * therefore a name that was in the database a moment ago, which is the only
+ * kind worth putting in a sentence that says something happened.
+ */
+export type ActionTargetRef = { kind: string; id: string; label?: string }
 
 export const VERIFICATION_STATES = ['NOT_ATTEMPTED', 'VERIFIED', 'MISMATCH', 'NOT_FOUND', 'UNVERIFIABLE'] as const
 export type VerificationState = (typeof VERIFICATION_STATES)[number]

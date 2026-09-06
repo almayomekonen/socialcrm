@@ -6,23 +6,30 @@ import type { ActionOutcome } from '@/lib/agent/actions/types'
 import type { ProposedAction } from '@/lib/agent/types'
 
 /**
- * One proposed action, and what the application says became of it.
+ * One action, and what the application says became of it.
  *
- * THE RULE THIS COMPONENT EXISTS TO HOLD: the status line comes from
- * `outcome.report` and from nothing else. The agent's prose may say it "will
- * create a task"; only the Action Runtime can say one was created, and only
- * after a verifier read it back. So there is no branch here that derives success
- * from the proposal, from the absence of an error, or from anything the model
- * wrote — an outcome that is missing renders as "waiting", never as done.
+ * THE RULE THIS COMPONENT HOLDS: every word about what happened comes from
+ * `outcome`, and never from the agent's prose. The model writes its answer
+ * BEFORE the action runs, so it cannot know; a missing outcome renders as
+ * waiting, never as done. There is no branch here that derives success from the
+ * proposal, from the absence of an error, or from anything the model said.
  *
- * EVERY STATE IS DISTINCT, deliberately. "Created and verified", "sent but I
- * could not confirm it", and "I cannot tell what happened" are three different
- * situations for a rep, and collapsing them into a tick would be the exact lie
- * this architecture was built to prevent.
+ * THE CONFIRMATION IS THE HEADLINE, THE PROOF IS THE FOOTNOTE. A rep wants to
+ * read "יצרתי את המשימה 'לחזור לדניאל' עבור דניאל כהן ל־7.9.2026" — not
+ * "VERIFIED_SUCCESS", and not a verification vocabulary they never asked to
+ * learn. So the natural sentence is primary and the check count sits under it as
+ * a quiet "✓ אומת מול המערכת — 5/5". The detailed arguments stay on the card in
+ * both cases, because what was approved and what ran must be comparable
+ * afterwards.
  *
- * THE ARGUMENTS ARE SHOWN BEFORE THEY RUN, in full, because that is what makes
- * the approval real: the hash the button sends is bound to these exact values,
- * so what is on screen is what will execute.
+ * THE LEAD'S NAME COMES FROM THE VERIFIER, which read it back from the database
+ * a moment ago — not from the model, which only ever saw it in a tool result.
+ * A name in a sentence that says something happened should be a name that was
+ * really there.
+ *
+ * A FOLLOW-UP IS NEVER A TASK. The two actions get different verbs, different
+ * rows and different status wording; a rep told "המשימה נוצרה" for a follow-up
+ * would go looking in the wrong place.
  */
 export default function AgentActionCard({
   proposal,
@@ -36,10 +43,13 @@ export default function AgentActionCard({
   onDecide?: (decision: 'APPROVED' | 'REJECTED') => void
 }) {
   const report = outcome?.report ?? 'AWAITING_APPROVAL'
-  const label = actionReportLabel(report)
+  const label = actionReportLabel(report, proposal.actionType)
   const awaiting = report === 'AWAITING_APPROVAL'
   const verified = outcome?.verification?.verified === true
-  const described = describeAction(proposal)
+  const checks = outcome?.verification?.checks ?? []
+  const passed = checks.filter((c) => c.ok).length
+  const leadName = outcome?.verification?.targetIds?.find((t) => t.label)?.label
+  const described = describeAction(proposal, { verified, leadName, outcome })
 
   return (
     <article
@@ -50,21 +60,24 @@ export default function AgentActionCard({
     >
       <header className='flex items-start gap-3'>
         <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/15'>
-          <Icon name='clipboard-check' type='sol' className='size-3.5 bg-white' />
+          <Icon name={proposal.actionType === 'create_follow_up' ? 'calendar-check' : 'clipboard-check'} type='sol' className='size-3.5 bg-white' />
         </span>
         <div className='min-w-0 flex-1'>
-          {/* THE APPLICATION SAYS "created", NEVER THE MODEL. The agent writes
-              its answer before the action runs, so it cannot know; this line is
-              rendered only from a verified outcome, which is the one thing that
-              can. */}
           <p className='text-[15px] font-medium leading-6 text-white'>
             {verified ? described.confirmed : described.heading}
           </p>
-          <p className={`text-sm leading-6 ${toneClass(label.tone)}`}>{label.title}</p>
+          {/* Verified: the proof, quietly. Otherwise: what state this is in. */}
+          {verified && checks.length > 0 ? (
+            <p className='text-sm leading-6 text-emerald-300'>
+              ✓ אומת מול המערכת — {passed}/{checks.length}
+            </p>
+          ) : (
+            <p className={`text-sm leading-6 ${toneClass(label.tone)}`}>{label.title}</p>
+          )}
         </div>
       </header>
 
-      {/* What will run, or what ran. Shown in both cases so the rep can check
+      {/* What will run, or what ran. Present in both cases so the rep can check
           afterwards that the thing they approved is the thing that happened. */}
       <dl className='space-y-1 text-sm leading-6'>
         {described.rows.map((row) => (
@@ -93,62 +106,63 @@ export default function AgentActionCard({
         </div>
       )}
 
-      {/* The proof, when there is proof. Named checks rather than a tick: the
-          rep can see WHAT was confirmed, which is what makes it worth trusting. */}
-      {verified && outcome?.verification?.checks?.length ? (
-        <p className='text-sm leading-6 text-white/60'>
-          אומת מול המערכת: {outcome.verification.checks.filter((c) => c.ok).length} מתוך{' '}
-          {outcome.verification.checks.length} בדיקות עברו.
-        </p>
-      ) : null}
-
       {report === 'UNKNOWN_RECONCILE' && (
         <p className='text-sm leading-6 text-white/60'>
-          כדאי לבדוק במסך המשימות אם המשימה קיימת לפני שמנסים שוב, כדי לא ליצור אותה פעמיים.
+          כדאי לבדוק במערכת אם הפעולה כבר קיימת לפני שמנסים שוב, כדי לא לבצע אותה פעמיים.
         </p>
       )}
     </article>
   )
 }
 
-/**
- * One action, in the rep's words.
- *
- * Per-type rather than generic because the two actions are not the same shape of
- * thing: a task has a title and a due date, a follow-up is a date and a note on
- * the lead itself. Rendering both through one abstract "arguments" table would
- * show a rep field names instead of a sentence.
- */
-function describeAction(proposal: ProposedAction): {
-  heading: string
-  confirmed: string
-  confirmLabel: string
-  working: string
-  rows: { term: string; value: string }[]
-} {
+/** `2026-09-07` → `7.9.2026`. The form a Hebrew reader expects to see. */
+function displayDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  if (!y || !m || !d) return iso
+  return `${Number(d)}.${Number(m)}.${y}`
+}
+
+/** "עבור דניאל כהן", or nothing when the verifier could not read a name. */
+const forLead = (leadName?: string) => (leadName ? ` עבור ${leadName}` : '')
+
+function describeAction(
+  proposal: ProposedAction,
+  ctx: { verified: boolean; leadName?: string; outcome?: ActionOutcome | null },
+): { heading: string; confirmed: string; confirmLabel: string; working: string; rows: { term: string; value: string }[] } {
   if (proposal.actionType === 'create_follow_up') {
     const note = proposal.args.note?.trim()
+    const when = displayDate(proposal.args.at)
+    /**
+     * "קבעתי" or "עדכנתי", decided by what the executor actually found. Setting
+     * a follow-up replaces any existing one, and a rep whose date was replaced
+     * should be told that rather than shown a word that implies there was
+     * nothing there before.
+     */
+    const replaced = (ctx.outcome?.execution?.detail as { replacedExisting?: boolean } | undefined)?.replacedExisting === true
+    const verb = replaced ? 'עדכנתי את המעקב' : 'קבעתי מעקב'
     return {
       heading: 'קביעת מעקב',
-      confirmed: `קבעתי מעקב ל־${proposal.args.at}`,
+      confirmed: `${verb}${forLead(ctx.leadName)} ל־${when}${note ? ` עם ההערה '${note}'` : ''}.`,
       confirmLabel: 'אשר וקבע מעקב',
       working: 'קובע מעקב…',
       rows: [
-        { term: 'תאריך מעקב', value: proposal.args.at },
+        { term: 'תאריך מעקב', value: when },
         ...(note ? [{ term: 'הערה', value: note }] : []),
-        { term: 'ליד', value: `#${proposal.args.clientId}` },
+        { term: 'ליד', value: ctx.leadName ?? `#${proposal.args.clientId}` },
       ],
     }
   }
+
+  const due = displayDate(proposal.args.dueDate)
   return {
     heading: 'יצירת משימה',
-    confirmed: `יצרתי את המשימה: ${proposal.args.title}`,
+    confirmed: `יצרתי את המשימה '${proposal.args.title}'${forLead(ctx.leadName)} ל־${due}.`,
     confirmLabel: 'אשר ויצור משימה',
     working: 'יוצר משימה…',
     rows: [
       { term: 'כותרת', value: proposal.args.title },
-      { term: 'תאריך יעד', value: proposal.args.dueDate },
-      { term: 'ליד', value: `#${proposal.args.clientId}` },
+      { term: 'תאריך יעד', value: due },
+      { term: 'ליד', value: ctx.leadName ?? `#${proposal.args.clientId}` },
     ],
   }
 }

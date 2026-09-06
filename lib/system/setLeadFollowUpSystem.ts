@@ -46,16 +46,29 @@ export async function setLeadFollowUpSystem({
   at: Date
   note?: string | null
   nowMs?: number
-}): Promise<{ updated: boolean }> {
+}): Promise<{ updated: boolean; replacedExisting: boolean }> {
   const now = new Date(nowMs ?? Date.now())
-  const query = db('clients').where({ id: leadId, agencyId })
-  // Mirrors actions/leadFollowUp.ts — the same restriction, from a scope rather
-  // than from a cookie.
-  if (!isAdmin(role as Parameters<typeof isAdmin>[0])) query.whereIn('userId', gotPermIds)
+  const scoped = () => {
+    const q = db('clients').where({ id: leadId, agencyId })
+    // Mirrors actions/leadFollowUp.ts — the same restriction, from a scope
+    // rather than from a cookie.
+    if (!isAdmin(role as Parameters<typeof isAdmin>[0])) q.whereIn('userId', gotPermIds)
+    return q
+  }
 
-  const rows = await query
+  /**
+   * Read the prior value first, so the caller can say "קבעתי" or "עדכנתי"
+   * truthfully. It is reported, never acted on: the update below is
+   * unconditional either way, exactly as the product's own control is.
+   */
+  const before = (await scoped().first('nextFollowUpAt')) as { nextFollowUpAt: Date | string | null } | undefined
+
+  const rows = await scoped()
     .update({ nextFollowUpAt: at, followUpNote: note?.trim() || null, lastActivityAt: now, updatedAt: now })
     .returning('id')
 
-  return { updated: Array.isArray(rows) && rows.length > 0 }
+  return {
+    updated: Array.isArray(rows) && rows.length > 0,
+    replacedExisting: before?.nextFollowUpAt != null,
+  }
 }

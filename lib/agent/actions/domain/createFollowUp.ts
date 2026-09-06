@@ -43,7 +43,17 @@ const createFollowUpArgs = z.object({
 
 export type CreateFollowUpArgs = z.infer<typeof createFollowUpArgs>
 
-type LeadRow = { id: number; agencyId: number; nextFollowUpAt: Date | string | null; followUpNote: string | null; userId: number | null }
+type LeadRow = {
+  id: number; agencyId: number
+  nextFollowUpAt: Date | string | null; followUpNote: string | null; userId: number | null
+  firstName: string | null; lastName: string | null
+}
+
+/** The lead's name, for a confirmation sentence. Read back, never asserted. */
+function leadLabel(row: LeadRow): string | undefined {
+  const name = [row.firstName, row.lastName].filter(Boolean).join(' ').trim()
+  return name || undefined
+}
 
 /**
  * The calendar date as an instant, in the business timezone.
@@ -85,7 +95,7 @@ async function execute(action: ActionProposal, ctx: ExecuteContext): Promise<Exe
    * target outside either bound updates zero rows and reports it, rather than
    * being checked separately and racing the write.
    */
-  const { updated } = await setLeadFollowUpSystem({
+  const { updated, replacedExisting } = await setLeadFollowUpSystem({
     leadId: args.clientId,
     agencyId: ctx.actor.agencyId,
     role: ctx.actor.role,
@@ -97,8 +107,14 @@ async function execute(action: ActionProposal, ctx: ExecuteContext): Promise<Exe
 
   if (!updated) return { status: 'NOT_AUTHORIZED', reason: 'lead-not-in-agency-or-not-permitted' }
 
-  // The lead IS the target: a follow-up has no id of its own.
-  return { status: 'SUCCESS', targetIds: [{ kind: 'lead', id: String(args.clientId) }] }
+  // The lead IS the target: a follow-up has no id of its own. `replacedExisting`
+  // is carried so the confirmation can say "קבעתי" or "עדכנתי" truthfully rather
+  // than picking one and hoping.
+  return {
+    status: 'SUCCESS',
+    targetIds: [{ kind: 'lead', id: String(args.clientId) }],
+    detail: { replacedExisting },
+  }
 }
 
 async function verify(
@@ -118,7 +134,7 @@ async function verify(
    */
   const row = (await db('clients')
     .where({ id: args.clientId, agencyId: ctx.actor.agencyId })
-    .first('id', 'agencyId', 'nextFollowUpAt', 'followUpNote', 'userId')) as LeadRow | undefined
+    .first('id', 'agencyId', 'nextFollowUpAt', 'followUpNote', 'userId', 'firstName', 'lastName')) as LeadRow | undefined
 
   if (!row) {
     return {
@@ -134,7 +150,7 @@ async function verify(
     state: allOk ? 'VERIFIED' : 'MISMATCH',
     verified: allOk,
     checks,
-    targetIds: [{ kind: 'lead', id: String(row.id) }],
+    targetIds: [{ kind: 'lead', id: String(row.id), label: leadLabel(row) }],
     reason: allOk ? null : 'postcondition-mismatch',
   }
 }

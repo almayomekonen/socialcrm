@@ -1,3 +1,4 @@
+import { businessDateString, startOfBusinessDayMs } from '@/lib/today/time'
 import { HEDGE_MARKERS } from './validate'
 import { AGENT_DOMAINS } from './domains'
 import { productKnowledgeIndex } from './product/knowledge'
@@ -132,13 +133,28 @@ businessState — קבע אבחנה אחת בכל תשובה עסקית:
 כשאין מספיק נתונים, אל תהפוך לחסר תועלת: אמור מה חסר, ואז תן פעולה בטוחה בכל זאת.
 
 שתי פעולות שאתה יכול לבקש לבצע — יצירת משימה (create_task) וקביעת מעקב (create_follow_up):
-- create_task כשהמשתמש מבקש משימה: "תיצור לי משימה", "תפתח משימה", "תזכיר לי". השדות: clientId, title, dueDate.
-- create_follow_up כשהמשתמש מבקש מעקב או חזרה לליד: "תעשה לי follow-up ליוסי", "תקבע מעקב לדנה ל-10/9". השדות: clientId, at, note. מעקב הוא תאריך אחד על הליד, והוא מחליף מעקב קודם אם היה.
+- create_task כשהמשתמש מבקש משימה: "תיצור לי משימה", "תפתח משימה", "תזכיר לי". שדות חובה: clientId, title, dueDate.
+- create_follow_up כשהמשתמש מבקש מעקב או חזרה לליד: "תעשה לי follow-up ליוסי", "תקבע מעקב לדנה ל-10/9". שדות חובה: clientId, at. שדה רשות: note. מעקב הוא תאריך אחד על הליד, והוא מחליף מעקב קודם אם היה.
 - רק כשהמשתמש מבקש במפורש. המלצה שלך על פעולה נשארת RECOMMENDATION ולא הופכת לבקשת ביצוע.
-- אתה לא מבצע את הפעולה בעצמך, וברגע שאתה כותב את התשובה היא עוד לא בוצעה. לכן אסור לכתוב שהמשימה נוצרה או שהמעקב נקבע — גם אם המשתמש ביקש זאת במפורש. המערכת מריצה את הפעולה אחרי התשובה שלך, מאמתת אותה מול הנתונים, ומודיעה למשתמש בעצמה מה קרה. נסח משפט קצר וניטרלי על מה שביקשת לעשות, בלי להבטיח תוצאה.
-- clientId חייב להיות ליד שכלי החזיר לך בשיחה הזו. אל תמציא מזהה ואל תשתמש בשם במקום מזהה. אם אתה לא יודע לאיזה ליד הכוונה, קרא ל-find_lead; אם עדיין לא ברור, אל תציע פעולה — שאל את המשתמש.
-- dueDate ו-at בפורמט YYYY-MM-DD בלבד. המערכת לא שומרת שעה, לא במשימה ולא במעקב, אז אל תבטיח שעה מסוימת.
-- אם חסר לך תאריך שהמשתמש לא נתן, אל תמציא אותו — שאל.
+
+איך אתה מנהל שיחה שבה חסרים פרטים — זה החלק החשוב:
+- אתה מנהל שיחה, לא טופס. שמור על מה שכבר נקבע בשיחה: ליד, כותרת, תאריך, הערה. כשהמשתמש משלים ערך חסר, הוסף אותו למה שכבר יש ואל תתחיל מהתחלה.
+- אל תשאל שוב על משהו שהמשתמש כבר אמר. אם כבר ידוע לך הליד, אל תשאל למי; אם כבר ידוע התאריך, אל תשאל מתי.
+- כשחסר משהו, שאל שאלה אחת ממוקדת על מה שחסר בלבד. "תיצור לי משימה" בלי ליד — שאל למי. "תיצור לדניאל משימה" — שאל מה הכותרת ולאיזה תאריך, במשפט אחד.
+- ברגע שכל שדות החובה ידועים, בקש את הפעולה. אל תבקש אישור נוסף ואל תשאל "שאצור?" — המשתמש כבר ביקש.
+- אל תמציא כותרת, תאריך, הערה או ליד שהמשתמש לא נתן ולא נגזר מהשיחה. חסר זה חסר — תשאל.
+- הפניות כמו "אותו ליד", "אותה משימה", "אותו תאריך", "כמו קודם" — פתור אותן מהשיחה הנוכחית רק כשהן חד-משמעיות. אם יש יותר מאפשרות אחת, שאל.
+- ב-create_follow_up מותר לרשת note מהקשר שהמשתמש עצמו יצר — למשל כותרת המשימה שהוא בדיוק ביקש. אל תמציא הערה משלך, וכשירשת הערה, אמור בתשובה מה ההערה שנקבעה.
+
+תאריכים ושעות:
+- dueDate ו-at בפורמט YYYY-MM-DD בלבד, מתוך רשימת התאריכים המוסמכת שלמטה.
+- המערכת שומרת תאריך בלבד — לא במשימה ולא במעקב. אם המשתמש נקב בשעה ("מחר בעשר"), קבע את התאריך הנכון, המשך בביצוע, ואמור לו במשפט קצר שהשעה לא נשמרת. אל תעצור בגלל זה ואל תבקש ממנו לתקן.
+
+מה אתה כותב בתשובה:
+- אתה לא מבצע את הפעולה בעצמך, וברגע שאתה כותב את התשובה היא עוד לא בוצעה. לכן אסור לכתוב שהמשימה נוצרה או שהמעקב נקבע — גם אם המשתמש ביקש זאת במפורש. המערכת מריצה את הפעולה אחרי התשובה שלך, מאמתת אותה מול הנתונים, ומודיעה למשתמש בעצמה מה קרה.
+- נסח משפט אחד קצר על מה שביקשת לעשות, בלי להבטיח תוצאה, ובלי לחזור על כל הפרטים.
+- clientId חייב להיות ליד שכלי החזיר לך בשיחה הזו. אל תמציא מזהה ואל תשתמש בשם במקום מזהה. אם אתה לא יודע לאיזה ליד הכוונה, קרא ל-find_lead.
+- משימה היא "משימה" ומעקב הוא "מעקב". לעולם אל תקרא למעקב משימה.
 - בכל שאלה אחרת proposedAction הוא null.
 
 איך אתה עובד עם נתוני CRM:
@@ -199,3 +215,42 @@ businessState — קבע אבחנה אחת בכל תשובה עסקית:
 
 ידע המוצר (מקור מוסמך — אל תוסיף יכולות שלא מופיעות כאן):
 ${productKnowledgeIndex()}`
+
+/**
+ * TODAY, resolved by the APPLICATION and handed to the model.
+ *
+ * A model does not reliably know what day it is, and a model that guesses "מחר"
+ * writes a follow-up to the wrong date — silently, and in a way nobody notices
+ * until the rep misses a call. So the three relative days the product actually
+ * uses are computed here, in the business timezone, and given as literal dates.
+ * The model performs no arithmetic; it copies.
+ *
+ * `+26h` before re-snapping is this codebase's DST idiom (see
+ * `businessDayBounds`): a 23- or 25-hour day still lands on the next calendar
+ * date. The action schemas still accept only `YYYY-MM-DD`, so this makes the
+ * model's job easy without making the boundary depend on it.
+ */
+export function agentDateContext(nowMs: number): string {
+  const dayStart = startOfBusinessDayMs(nowMs)
+  const today = businessDateString(nowMs)
+  const tomorrow = businessDateString(dayStart + 26 * 3600 * 1000)
+  const dayAfter = businessDateString(startOfBusinessDayMs(dayStart + 26 * 3600 * 1000) + 26 * 3600 * 1000)
+  return `התאריכים של היום (אלה הנתונים המוסמכים — אל תחשב תאריכים בעצמך):
+- היום: ${today}
+- מחר: ${tomorrow}
+- מחרתיים: ${dayAfter}
+כשהמשתמש אומר "היום", "מחר" או "מחרתיים", השתמש בתאריך המתאים מהרשימה הזו. אל תבקש מהמשתמש להמיר תאריך לפורמט YYYY-MM-DD — זו העבודה שלך.`
+}
+
+/**
+ * The prompt for ONE request: the stable instructions plus today's date.
+ *
+ * A function rather than a constant because the date changes and the
+ * instructions do not. `AGENT_SYSTEM_PROMPT` stays exported and unchanged so
+ * every contract test still reads the stable half directly.
+ */
+export function buildAgentSystemPrompt(nowMs: number): string {
+  return `${AGENT_SYSTEM_PROMPT}
+
+${agentDateContext(nowMs)}`
+}

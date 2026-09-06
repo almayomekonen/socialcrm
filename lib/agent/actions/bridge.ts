@@ -69,6 +69,8 @@ export async function submitProposedAction(input: {
   userMessage?: string
   /** The assistant turn before it, so "כן, תעשה" has something to affirm. */
   priorAssistantMessage?: string | null
+  /** The rep's own recent turns, newest first, so a command survives being filled in. */
+  priorUserMessages?: readonly string[]
   deadlineAtMs?: number
   nowMs?: number
 }): Promise<ActionOutcome | null> {
@@ -89,6 +91,7 @@ export async function submitProposedAction(input: {
   const intent = deriveActionIntent({
     userMessage: input.userMessage ?? '',
     priorAssistantMessage: input.priorAssistantMessage,
+    priorUserMessages: input.priorUserMessages,
   })
 
   return runtimeFor().execute(parsed.proposal, {

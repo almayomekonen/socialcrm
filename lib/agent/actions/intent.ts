@@ -101,7 +101,25 @@ export type IntentInput = {
    * evidence, and never to widen what the affirmation authorises.
    */
   priorAssistantMessage?: string | null
+  /**
+   * The USER'S OWN recent turns, newest first — never the assistant's.
+   *
+   * A command survives the conversation that completes it. "תיצור לי משימה
+   * לדניאל" followed by "לחזור לדניאל" is one instruction being filled in, not
+   * an instruction and then a stray phrase, and making the rep re-issue the verb
+   * at the end is exactly the form-wizard behaviour this is meant to remove.
+   */
+  priorUserMessages?: readonly string[]
 }
+
+/**
+ * How far back a standing command reaches.
+ *
+ * Three turns covers a real slot-filling exchange — target, then date, then
+ * title — and stops well short of letting an instruction from earlier in a long
+ * session authorise something the rep has since moved on from.
+ */
+export const COMMAND_CARRY_TURNS = 3
 
 export function deriveActionIntent(input: IntentInput): IntentVerdict {
   const text = (input.userMessage ?? '').trim()
@@ -125,6 +143,30 @@ export function deriveActionIntent(input: IntentInput): IntentVerdict {
       return { intent: 'AGENT_PROPOSAL', reason: 'affirmation-without-context' }
     }
     return { intent: 'EXPLICIT_COMMAND', reason: 'affirmation-of-prior-turn' }
+  }
+
+  /**
+   * A STANDING COMMAND, still being filled in.
+   *
+   * Reached only after every demotion above has declined to fire, so the current
+   * message is neither a question nor hedged — it is a bare value like a title
+   * or a name. If one of the rep's own recent turns was an unambiguous
+   * instruction, this turn is completing it. Live conversation is what showed
+   * this was missing: "תיצור לי משימה עבור דניאל כהן" → "למחר בשעה 10:00" →
+   * "לחזור לדניאל" put an approval card in front of a rep who had already given
+   * the order and was answering the agent's own question.
+   *
+   * The prior turn is judged by these same rules, on the USER'S words, so
+   * nothing here can be inherited from something the model wrote.
+   */
+  const recent = (input.priorUserMessages ?? []).slice(0, COMMAND_CARRY_TURNS)
+  for (const prior of recent) {
+    const priorText = (prior ?? '').trim()
+    if (!priorText) continue
+    if (hasAny(priorText, HEDGES)) continue
+    if (hasAny(priorText, COMMAND_VERBS)) {
+      return { intent: 'EXPLICIT_COMMAND', reason: 'continues-prior-command' }
+    }
   }
 
   return PROPOSAL
