@@ -449,7 +449,33 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   // `requireToolEvidence` is the autonomous path's marker; a proactive finding
   // that asserts nothing is not a finding, so a claimless answer is refused there
   // and accepted for an interactive question. See the option in ./validate.
-  const validation = validateAgentAnswerDetailed(result.output as never, evidence, {
+  /**
+   * `result.output` THROWS rather than returning null when the model produced no
+   * structured payload — `finishReason: 'length'`, the output budget spent on
+   * reasoning before the schema was ever emitted. It is a GETTER, and it is read
+   * here, past the try/catch that guards generation, so the throw escaped
+   * `runAgentInvestigation` entirely: the caller got an exception instead of a
+   * result, nothing was persisted, and the rep saw a generic error for a run that
+   * had already been paid for.
+   *
+   * Observed on question D7 of the Phase 3a evaluation — 13,269 input tokens,
+   * 1,367 output tokens, `finishReason: 'length'`, no payload, and the whole
+   * 40-question run died on it.
+   *
+   * Reading it defensively turns that into an outcome the system already has a
+   * name for. `undefined` fails `isWellFormed`, so the validator refuses it as
+   * `malformed` and the existing rejection path persists, traces and returns it
+   * exactly like any other refusal. Nothing is repaired and nothing is invented;
+   * the run is simply reported as having produced no usable answer.
+   */
+  let proposed: unknown
+  try {
+    proposed = result.output
+  } catch {
+    proposed = undefined
+  }
+
+  const validation = validateAgentAnswerDetailed(proposed as never, evidence, {
     requireClaim: input.requireToolEvidence === true,
   })
   const validationMs = now() - validationStartedAt
