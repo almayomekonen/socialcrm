@@ -547,6 +547,14 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     claims: validated.claims,
     unknown: validated.unknown,
     businessState: validated.businessState,
+    /**
+     * A REQUEST, carried out of the loop unexecuted. `runAgentInvestigation`
+     * does not run actions and must not start: it holds the model's single
+     * deadline and its evidence gate, and an execution inside it would be a
+     * mutation racing a wall clock. The caller hands this to the Action Runtime,
+     * which has its own decisions to make about it.
+     */
+    proposedAction: validated.proposedAction,
   }
   await input.onPersist?.({
     ...identity,

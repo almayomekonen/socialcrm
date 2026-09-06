@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import { decideOnAgentAction } from '@/actions/ai/agentAction'
 import type { AgentAnswer, AgentResult } from '@/lib/agent/types'
+import type { ActionOutcome } from '@/lib/agent/actions/types'
 import { failureMessage, type AgentUiTurn } from './agentTypes'
 
 /**
@@ -78,6 +80,13 @@ export type UseAgentConversation = {
   busy: boolean
   ask: (question: string) => void
   reset: () => void
+  /** A human approving or rejecting a proposed action. No model call. */
+  decide: (
+    turnId: string,
+    actionId: string,
+    argsHash: string,
+    decision: 'APPROVED' | 'REJECTED',
+  ) => Promise<void>
 }
 
 export function useAgentConversation(): UseAgentConversation {
@@ -158,6 +167,10 @@ export function useAgentConversation(): UseAgentConversation {
                 status: 'done',
                 answer: result.answer as AgentAnswer,
                 investigationId: result.investigationId,
+                // Carried straight through. The UI never derives an action's
+                // fate from the answer's prose; if this is absent the card
+                // renders as waiting, which is the honest default.
+                actionOutcome: result.actionOutcome ?? null,
               })
             } else if (result && result.ok === false) {
               replace({ id: agentId, role: 'agent', status: 'error', message: failureMessage(result.reason) })
@@ -192,7 +205,40 @@ export function useAgentConversation(): UseAgentConversation {
     })()
   }, [])
 
-  return { turns, busy, ask, reset }
+  /**
+   * A human approving or rejecting a proposed action.
+   *
+   * The client sends an id and the hash it displayed — never arguments. The
+   * server rebuilds the action from its own durable row, so there is no
+   * parameter here through which a different task could be created than the one
+   * the rep read on screen.
+   *
+   * The outcome replaces the turn's own outcome in place, so the card moves
+   * through its states without the thread re-ordering underneath the rep.
+   */
+  const decide = useCallback(async (turnId: string, actionId: string, argsHash: string, decision: 'APPROVED' | 'REJECTED') => {
+    setTurns((prev) =>
+      prev.map((t) => (t.id === turnId && t.role === 'agent' && t.status === 'done' ? { ...t, actionPending: true } : t)),
+    )
+    let outcome: ActionOutcome | null = null
+    try {
+      const res = await decideOnAgentAction({ actionId, argsHash, decision })
+      outcome = res.ok ? res.outcome : null
+    } catch {
+      // Leave the outcome null: the card falls back to waiting rather than
+      // claiming anything happened.
+      outcome = null
+    }
+    setTurns((prev) =>
+      prev.map((t) =>
+        t.id === turnId && t.role === 'agent' && t.status === 'done'
+          ? { ...t, actionPending: false, actionOutcome: outcome ?? t.actionOutcome ?? null }
+          : t,
+      ),
+    )
+  }, [])
+
+  return { turns, busy, ask, reset, decide }
 }
 
 /** HTTP-level outcomes the stream never starts for. */

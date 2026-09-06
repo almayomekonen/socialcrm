@@ -1,6 +1,7 @@
 'use client'
 
 import AgentAnswerView from './AgentAnswerView'
+import AgentActionCard from './AgentActionCard'
 import { toolLabel, type AgentUiTurn } from './agentTypes'
 
 /**
@@ -18,7 +19,14 @@ import { toolLabel, type AgentUiTurn } from './agentTypes'
  * different products; the shared rule is worth more than either preference.
  * Logical classes throughout, never `right`/`left`.
  */
-export default function AgentThread({ turns }: { turns: AgentUiTurn[] }) {
+export default function AgentThread({
+  turns,
+  onDecide,
+}: {
+  turns: AgentUiTurn[]
+  /** Supplied by the workspace; absent in read-only renders (history, tests). */
+  onDecide?: (turnId: string, actionId: string, argsHash: string, decision: 'APPROVED' | 'REJECTED') => void
+}) {
   return (
     <div className='space-y-6 pb-2'>
       {turns.map((turn) =>
@@ -43,7 +51,24 @@ export default function AgentThread({ turns }: { turns: AgentUiTurn[] }) {
             {turn.status === 'thinking' ? (
               <Thinking tools={turn.tools} />
             ) : turn.status === 'done' ? (
-              <AgentAnswerView answer={turn.answer} />
+              <div className='space-y-3'>
+                <AgentAnswerView answer={turn.answer} />
+                {/* Rendered only when the model actually asked to act. The card
+                    owns the status; the answer above it owns the reasoning. */}
+                {turn.answer.proposedAction && (
+                  <AgentActionCard
+                    proposal={turn.answer.proposedAction}
+                    outcome={turn.actionOutcome}
+                    pending={turn.actionPending}
+                    onDecide={
+                      onDecide && turn.actionOutcome?.actionId
+                        ? (decision) =>
+                            onDecide(turn.id, turn.actionOutcome!.actionId, turn.actionOutcome!.argsHash, decision)
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
             ) : (
               <p className='text-[15px] leading-6 text-white/70'>{turn.message}</p>
             )}

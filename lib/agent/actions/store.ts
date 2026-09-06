@@ -55,6 +55,26 @@ export type ClaimOutcome =
 export type ActionStore = {
   /** Atomic. First writer for ("agencyId","idempotencyKey") wins. */
   claim(record: ActionRecord): Promise<ClaimOutcome>
+  /**
+   * COMPARE-AND-SWAP into EXECUTING. Returns false when someone else got there.
+   *
+   * THE CLAIM ALONE IS NOT ENOUGH, and an integration test proved it: an action
+   * that stops at AWAITING_APPROVAL leaves its row at NOT_EXECUTED, which is a
+   * legitimately retryable state. Three approved duplicates then all read
+   * NOT_EXECUTED before any of them wrote EXECUTING, all three passed the claim
+   * check, and all three created a task. The claim prevents a duplicate ROW; it
+   * cannot by itself prevent a duplicate EXECUTION of the row it created.
+   *
+   * This is the lock. The state transition is the guard rather than a value read
+   * beforehand, so exactly one caller can move a row from a resumable state into
+   * EXECUTING, and the losers are told to re-read rather than to proceed.
+   */
+  beginExecution(
+    agencyId: number,
+    idempotencyKey: string,
+    from: readonly ActionExecutionState[],
+    patch: Partial<ActionRecord>,
+  ): Promise<boolean>
   /** Addressed by the DURABLE identity, never by actionId — see the runtime. */
   update(agencyId: number, idempotencyKey: string, patch: Partial<ActionRecord>): Promise<void>
   /**
@@ -83,8 +103,26 @@ export function createInMemoryActionStore(): ActionStore & { all(): ActionRecord
       const k = key(record.agencyId, record.idempotencyKey)
       const existing = rows.get(k)
       if (existing) return { claimed: false, existing }
+      // An action id is unique per tenant too, mirroring the second unique index
+      // in Postgres: the same id carrying different arguments is an integrity
+      // violation, not a retry, and the runtime refuses it.
+      const byActionId = [...rows.values()].find(
+        (r) => r.agencyId === record.agencyId && r.actionId === record.actionId,
+      )
+      if (byActionId) return { claimed: false, existing: byActionId }
       rows.set(k, { ...record })
       return { claimed: true, record: { ...record } }
+    },
+
+    async beginExecution(agencyId, idempotencyKey, from, patch) {
+      const k = key(agencyId, idempotencyKey)
+      const existing = rows.get(k)
+      if (!existing) return false
+      // Check and set with no await between them — the same indivisibility the
+      // single UPDATE statement has in Postgres.
+      if (!from.includes(existing.executionState)) return false
+      rows.set(k, { ...existing, ...patch, executionState: 'EXECUTING' })
+      return true
     },
     async update(agencyId, idempotencyKey, patch) {
       const k = key(agencyId, idempotencyKey)

@@ -38,7 +38,7 @@ import { useAgentConversation } from './useAgentConversation'
  * Sticky stays inside the scroll region the shell already sized correctly.
  */
 export default function AgentWorkspace() {
-  const { turns, busy, ask, reset } = useAgentConversation()
+  const { turns, busy, ask, reset , decide } = useAgentConversation()
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -77,7 +77,7 @@ export default function AgentWorkspace() {
       <div
         className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 desktop:px-0 ${started ? 'justify-start pt-2' : 'justify-center'}`}
       >
-        {started ? <AgentThread turns={turns} /> : <AgentIntro onPick={submit} />}
+        {started ? <AgentThread turns={turns} onDecide={decide} /> : <AgentIntro onPick={submit} />}
         <div ref={endRef} />
       </div>
 

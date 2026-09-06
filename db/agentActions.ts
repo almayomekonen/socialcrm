@@ -156,10 +156,56 @@ export function updateQuery(agencyId: number, idempotencyKey: string, patch: Par
   return db(AGENT_ACTIONS_TABLE).where({ agencyId, idempotencyKey }).update(set)
 }
 
+/**
+ * The transition into EXECUTING, expressed as a guarded UPDATE.
+ *
+ * The `whereIn` on the current state is the lock: two callers racing to start
+ * the same action both issue this, and Postgres applies them in order, so the
+ * second finds no row in a startable state and updates zero rows.
+ */
+export function beginExecutionQuery(
+  agencyId: number,
+  idempotencyKey: string,
+  from: readonly string[],
+  patch: Partial<ActionRecord>,
+) {
+  const set: Record<string, unknown> = {
+    executionState: 'EXECUTING',
+    updatedAt: new Date(patch.updatedAtMs ?? Date.now()),
+  }
+  if ('approvalState' in patch) set.approvalState = patch.approvalState
+  if ('approvedByUserId' in patch) set.approvedByUserId = patch.approvedByUserId
+  return db(AGENT_ACTIONS_TABLE)
+    .where({ agencyId, idempotencyKey })
+    .whereIn('executionState', from as string[])
+    .update(set)
+}
+
 export function createDbActionStore(): ActionStore {
   return {
     async claim(record): Promise<ClaimOutcome> {
-      const inserted = (await claimQuery(record)) as Row[]
+      let inserted: Row[]
+      try {
+        inserted = (await claimQuery(record)) as Row[]
+      } catch (err) {
+        /**
+         * `ON CONFLICT` names the idempotency key, so the OTHER unique index —
+         * ("agencyId","actionId") — still raises. That happens when one action
+         * id is reused with different arguments, which derives a different key
+         * and therefore misses the conflict target entirely.
+         *
+         * It is an integrity violation rather than a retry, and it must not
+         * escape as a raw driver error. The row that already owns the id is
+         * returned, and the runtime refuses it after comparing argument hashes.
+         */
+        if ((err as { code?: string })?.code !== '23505') throw err
+        const owner = (await db(AGENT_ACTIONS_TABLE)
+          .where({ agencyId: record.agencyId, actionId: record.actionId })
+          .first()) as Row | undefined
+        if (!owner) throw err
+        return { claimed: false, existing: toActionRecord(owner) }
+      }
+
       if (inserted.length > 0) return { claimed: true, record: toActionRecord(inserted[0]!) }
       const existing = (await db(AGENT_ACTIONS_TABLE)
         .where({ agencyId: record.agencyId, idempotencyKey: record.idempotencyKey })
@@ -169,6 +215,11 @@ export function createDbActionStore(): ActionStore {
       // candidate, and returning it would be a leak. Fail closed instead.
       if (!existing) throw new Error('agent action claim conflicted but no row is visible in this agency')
       return { claimed: false, existing: toActionRecord(existing) }
+    },
+
+    async beginExecution(agencyId, idempotencyKey, from, patch) {
+      const updated = await beginExecutionQuery(agencyId, idempotencyKey, from, patch)
+      return Number(updated) > 0
     },
 
     async update(agencyId, idempotencyKey, patch) {
@@ -184,6 +235,36 @@ export function createDbActionStore(): ActionStore {
       return row ? toActionRecord(row) : null
     },
   }
+}
+
+/** One action by its minted id. Agency-scoped: an id is not a capability. */
+export async function findActionByActionId(agencyId: number, actionId: string): Promise<ActionRecord | null> {
+  const row = (await db(AGENT_ACTIONS_TABLE).where({ agencyId, actionId }).first()) as Row | undefined
+  return row ? toActionRecord(row) : null
+}
+
+/**
+ * The reconciliation queue: rows whose outcome nobody knows.
+ *
+ * `UNKNOWN` always qualifies. `EXECUTING` only once the lease has passed, which
+ * is expressed as a timestamp bound rather than filtered in memory so the
+ * partial index on ("agencyId","executionState") does the work.
+ */
+export function unresolvedActionsQuery(args: { agencyId: number; staleBefore: Date; limit?: number }) {
+  return db(AGENT_ACTIONS_TABLE)
+    .where({ agencyId: args.agencyId })
+    .andWhere((b) =>
+      b.where({ executionState: 'UNKNOWN' }).orWhere((c) =>
+        c.where({ executionState: 'EXECUTING' }).andWhere('updatedAt', '<', args.staleBefore),
+      ),
+    )
+    .orderBy('updatedAt', 'asc')
+    .limit(Math.min(Math.max(args.limit ?? 50, 1), 200))
+}
+
+export async function listUnresolvedActions(args: { agencyId: number; staleBefore: Date; limit?: number }): Promise<ActionRecord[]> {
+  const rows = (await unresolvedActionsQuery(args)) as Row[]
+  return rows.map(toActionRecord)
 }
 
 /** Agency-scoped audit read, newest first. Never reachable by a model. */

@@ -1,5 +1,5 @@
 import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
-import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim } from './types'
+import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim, type ProposedAction } from './types'
 import { parseEntityRef } from './evidence'
 /**
  * The state gate lives in ./businessState, not here. It is a rule about what a
@@ -8,6 +8,7 @@ import { parseEntityRef } from './evidence'
  * just the kept claims, to tell "no problem found" from "did not look".
  */
 import { groundedBusinessState } from './businessState'
+import { groundedProposal } from './proposalGate'
 import { isProductTopic } from './product/knowledge'
 import type { EvidenceCollector } from './evidence'
 
@@ -81,6 +82,8 @@ export type ValidatedAgentAnswer = {
   claims: Claim[]
   unknown: string | null
   businessState: BusinessState | null
+  /** Survives only if its target is a lead the tools actually returned. */
+  proposedAction: ProposedAction | null
   diagnostics: AgentTrustDiagnostics
 }
 
@@ -339,6 +342,7 @@ export function validateAgentAnswerDetailed(
       claims: kept,
       unknown: answer.unknown,
       businessState: groundedBusinessState(answer.businessState ?? null, kept, evidence),
+      proposedAction: groundedProposal(answer.proposedAction ?? null, evidence),
       diagnostics: { dropped, strippedRefs },
     },
     rejection: null,

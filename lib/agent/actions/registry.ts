@@ -67,6 +67,23 @@ export type AgentActionDefinition<TArgs extends Record<string, unknown> = Record
     execution: ExecutionResult,
     ctx: ExecuteContext,
   ) => Promise<VerificationResult>
+  /**
+   * RECONCILIATION PROBE — optional, and its absence is meaningful.
+   *
+   * `verify` answers "is target 55 correct", which needs a target id. A crashed
+   * execution is precisely the case where no target id was ever recorded, so
+   * verification cannot resolve it. A probe answers the harder question from the
+   * ARGUMENTS alone: "does the postcondition this action would have produced
+   * exist in the CRM at all?"
+   *
+   * Writing one is domain work — searching for a task by lead, title and date is
+   * not the same shape of query as searching for a sent message — and getting it
+   * subtly wrong resolves a stale row the wrong way, which is worse than leaving
+   * it for a human. So a definition without a probe is not a gap to be filled by
+   * a generic fallback: `reconcileAction` routes it to NEEDS_HUMAN, which is the
+   * correct answer when nothing can safely determine what happened.
+   */
+  probe?: (action: ActionProposal, ctx: ExecuteContext) => Promise<VerificationResult>
 }
 
 /**

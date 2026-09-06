@@ -179,6 +179,15 @@ export type ActionOutcome = {
   agentRunId: string
   agencyId: number
   actionType: string
+  /**
+   * The exact arguments this outcome pertains to.
+   *
+   * Carried out to the caller so an approval UI can echo back the hash of what
+   * it displayed. That echo is what makes the approval mean "yes to THIS": the
+   * server compares it against the stored row and refuses when they differ, so a
+   * card showing stale arguments cannot authorise the current ones.
+   */
+  argsHash: string
   risk: RiskLevel
   approval: ApprovalState
   execution: ExecutionResult

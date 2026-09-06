@@ -240,8 +240,9 @@ describe('a successful investigation', () => {
 
   it('persists the validated answer and the evidence the tools produced', async () => {
     await askAgent('q')
-    // The persisted answer now carries the diagnosis alongside the claims.
-    expect(persisted().answer).toEqual({ ...GOOD, businessState: null })
+    // The persisted answer carries the diagnosis alongside the claims, and the
+    // action slot — null here, because this answer proposed nothing.
+    expect(persisted().answer).toEqual({ ...GOOD, businessState: null, proposedAction: null })
     expect(persisted().evidence).toEqual(expect.arrayContaining([{ kind: 'lead', refId: '42' }]))
   })
 })

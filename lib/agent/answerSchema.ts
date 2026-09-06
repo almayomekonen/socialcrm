@@ -76,6 +76,37 @@ export const agentClaimSchema = z.union([
   productClaim,
 ])
 
+/**
+ * The ONE thing the model may propose doing, as opposed to saying.
+ *
+ * IT IS A PROPOSAL AND NOTHING ELSE. Emitting this executes nothing: the payload
+ * is parsed by `parseActionProposal`, which discards any identity it carries,
+ * and then handed to the Action Runtime, which decides. A model that fills this
+ * in has asked a question, not performed a mutation.
+ *
+ * CONCRETE, NOT GENERIC, and that is a provider constraint as much as a design
+ * one. OpenAI Structured Outputs rejects an open `additionalProperties` record,
+ * so `args` cannot be `z.record(...)` here; it must name its fields. The
+ * consequence is that the answer schema knows about `create_task` specifically
+ * — the only registered action — and generalising to a second one means a
+ * discriminated union on `actionType`, not a loosening of this shape.
+ *
+ * `evidenceRefs` is required for the same reason every claim carries evidence:
+ * an action proposed on nothing is a guess about someone's business.
+ */
+const proposedActionSchema = z.object({
+  actionType: z.literal('create_task'),
+  args: z.object({
+    /** A lead id that appeared in a tool result. Never a name, never invented. */
+    clientId: z.number(),
+    title: z.string(),
+    /** `YYYY-MM-DD`. The column stores no time of day. */
+    dueDate: z.string(),
+  }),
+  /** Refs from this investigation — `lead:161`. The runtime records them. */
+  evidenceRefs: z.array(z.string()),
+})
+
 export const agentAnswerSchema = z.object({
   headline: z.string().min(1),
   claims: z.array(agentClaimSchema),
@@ -90,6 +121,14 @@ export const agentAnswerSchema = z.object({
    * Schema stays `anyOf`-shaped, which is what that provider accepts.
    */
   businessState: z.union([z.literal('URGENT'), z.literal('AT_RISK'), z.literal('OPPORTUNITY'), z.literal('HEALTHY'), z.null()]),
+  /**
+   * Null for every question that is not an explicit instruction to create a
+   * task — which is almost all of them. Nullable rather than optional for the
+   * same reason `unknown` and `businessState` are: Structured Outputs requires
+   * every property in `required`, so an optional key would be dropped from the
+   * emitted schema and never asked for.
+   */
+  proposedAction: z.union([proposedActionSchema, z.null()]),
 })
 
 /**

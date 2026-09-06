@@ -1,6 +1,8 @@
 'use server'
 
 import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
+import { resolveAgentScope } from '@/lib/agent/scope'
+import { submitProposedAction } from '@/lib/agent/actions/bridge'
 import { recordAgentInvestigation, type AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult } from '@/lib/agent/types'
 
@@ -78,13 +80,45 @@ export async function askAgent(
   const trimmed = (question ?? '').trim()
   if (!trimmed) return { ok: false, reason: 'error', message: 'empty-question' }
 
-  return runAgentInvestigation({
+  /**
+   * Resolved ONCE, here, and handed down. `runAgentInvestigation` would resolve
+   * it itself, but this function needs the same authority afterwards to submit
+   * any proposed action — and resolving twice would mean the scope that
+   * investigated and the scope that acts are two separate reads of the session,
+   * which is a difference nobody would notice until it mattered.
+   */
+  const scope = await resolveAgentScope()
+
+  const result = await runAgentInvestigation({
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
     history: sanitiseHistory(options?.history),
     onProgress: options?.onProgress,
     abortSignal,
+    scope,
     onPersist: persistQuietly,
   })
+
+  if (result.ok !== true) return result
+
+  /**
+   * The proposal reaches the Action Runtime here and nowhere else.
+   *
+   * Deliberately OUTSIDE `runAgentInvestigation`: that function owns the model's
+   * wall clock, and a mutation racing a deadline is how an execution becomes
+   * UNKNOWN for no reason. For `create_task` this call ends at
+   * AWAITING_APPROVAL, so the request returns having written an action row and
+   * changed nothing in the CRM.
+   */
+  const proposal = result.answer.proposedAction
+  if (!proposal) return { ...result, actionOutcome: null }
+
+  const actionOutcome = await submitProposedAction({
+    proposal,
+    scope,
+    agentRunId: result.investigationId,
+  })
+
+  return { ...result, actionOutcome }
 }
 
 /**

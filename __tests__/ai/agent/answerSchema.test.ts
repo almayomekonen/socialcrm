@@ -114,6 +114,8 @@ describe('parse semantics are unchanged by the union swap', () => {
       claims: [{ claimClass: 'FACT', text: 'דוד ממתין.', entityEvidence: ['42'] }],
       unknown: null,
       businessState: null,
+      // Required for the same reason the two above are — see the note below.
+      proposedAction: null,
     }
     expect(agentAnswerSchema.safeParse(ok).success).toBe(true)
     expect(agentAnswerSchema.safeParse({ ...ok, unknown: 'לא ידוע' }).success).toBe(true)

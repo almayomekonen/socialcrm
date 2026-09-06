@@ -172,8 +172,14 @@ describe('the runtime does not weaken what already existed', () => {
 
   it('no module in this layer imports the agent answer validator or its tools', async () => {
     const { readFileSync, readdirSync } = await import('node:fs')
-    for (const file of readdirSync('lib/agent/actions')) {
-      const src = readFileSync(`lib/agent/actions/${file}`, 'utf8')
+    // Recursive: `domain/` holds the executors, which are exactly the files most
+    // likely to reach for something they should not.
+    const files = readdirSync('lib/agent/actions', { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile() && e.name.endsWith('.ts'))
+      .map((e) => `${e.parentPath ?? e.path}/${e.name}`)
+    expect(files.length).toBeGreaterThan(8)
+    for (const file of files) {
+      const src = readFileSync(file, 'utf8')
       // Evidence validation and the read tools are untouched by this phase.
       expect(src, file).not.toMatch(/from '\.\.\/validate'/)
       expect(src, file).not.toMatch(/from '\.\.\/tools'/)

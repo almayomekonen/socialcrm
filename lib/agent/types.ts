@@ -195,6 +195,20 @@ export function withClaimRefs(claim: Claim, refs: string[]): Claim {
 export const BUSINESS_STATES = ['URGENT', 'AT_RISK', 'OPPORTUNITY', 'HEALTHY'] as const
 export type BusinessState = (typeof BUSINESS_STATES)[number]
 
+/**
+ * An action the model is ASKING to perform. It has performed nothing.
+ *
+ * Kept out of `Claim` deliberately: a claim is something asserted to be true
+ * about the business, and "I would like to create a task" is neither true nor
+ * false yet. Only an `ActionOutcome` from the Action Runtime can say whether
+ * anything happened.
+ */
+export type ProposedAction = {
+  actionType: 'create_task'
+  args: { clientId: number; title: string; dueDate: string }
+  evidenceRefs: string[]
+}
+
 export type AgentAnswer = {
   /** The one-line conclusion the rep reads first. */
   headline: string
@@ -203,6 +217,8 @@ export type AgentAnswer = {
   unknown: string | null
   /** The business diagnosis, or null for a non-business question. */
   businessState?: BusinessState | null
+  /** A request to act, or null. Never evidence that acting happened. */
+  proposedAction?: ProposedAction | null
 }
 
 /** Why an investigation ended. Recorded on every run for observability. */
@@ -234,6 +250,16 @@ export type AgentResult =
       steps: number
       stopReason: StopReason
       investigationId: string
+      /**
+       * The Action Runtime's verdict on `answer.proposedAction`, or null when the
+       * answer proposed nothing.
+       *
+       * THIS IS THE ONLY FIELD THAT MAY SAY ANYTHING HAPPENED. The answer's prose
+       * is the model's; this is the application's, and the two are kept apart on
+       * purpose — a headline saying a task was created alongside an outcome of
+       * AWAITING_APPROVAL means the prose is wrong, not that the task exists.
+       */
+      actionOutcome?: import('./actions/types').ActionOutcome | null
       /**
        * What this investigation actually cost, in USD.
        *

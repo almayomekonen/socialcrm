@@ -82,7 +82,7 @@ export function createActionRuntime(deps: { store: ActionStore; now?: () => numb
       })
       return {
         actionId: proposal.actionId, agentRunId: proposal.agentRunId, agencyId: proposal.agencyId,
-        actionType: proposal.actionType, risk, approval, execution, verification, report,
+        actionType: proposal.actionType, argsHash: proposal.argsHash, risk, approval, execution, verification, report,
         reconciliationRequired, failureReason: execution.reason ?? null, timings,
       }
     }
@@ -115,6 +115,16 @@ export function createActionRuntime(deps: { store: ActionStore; now?: () => numb
     timings.claimMs = now() - claimStart
 
     if (claim.claimed === false) {
+      /**
+       * The row that already owns this identity must be the SAME action. It is
+       * not when one action id is reused with different arguments — which
+       * derives a different idempotency key, so the claim conflicts on the
+       * action-id index instead. Treating that as a retry would let an approval
+       * granted for one set of arguments be spent on another.
+       */
+      if (claim.existing.argsHash !== proposal.argsHash) {
+        return finish({ status: 'INVALID_ACTION', reason: 'action-id-reused' }, null, 'NOT_REQUIRED', risk)
+      }
       const decision = decideOnExistingClaim(claim.existing, now())
       if (decision.kind === 'ALREADY_EXECUTED') {
         return finish(
@@ -168,11 +178,52 @@ export function createActionRuntime(deps: { store: ActionStore; now?: () => numb
     }
 
     // ── EXECUTE ───────────────────────────────────────────────────────────────
-    await deps.store.update(proposal.agencyId, proposal.idempotencyKey, {
-      approvalState: approval.state,
-      approvedByUserId: approval.state === 'APPROVED' ? ctx.authenticated.userId : null,
-      executionState: 'EXECUTING', updatedAtMs: now(),
-    })
+    /**
+     * THE LOCK, and the claim is not it.
+     *
+     * An action that stopped at AWAITING_APPROVAL leaves its row at
+     * NOT_EXECUTED, which is a legitimately resumable state — so several
+     * approved duplicates can all pass the claim check, having each read that
+     * state before any of them wrote EXECUTING. An integration test with three
+     * concurrent approvals created three tasks exactly this way.
+     *
+     * Moving the row into EXECUTING is therefore a guarded transition rather
+     * than a write: exactly one caller can make it, and a caller that loses
+     * re-reads instead of proceeding.
+     */
+    const started = await deps.store.beginExecution(
+      proposal.agencyId,
+      proposal.idempotencyKey,
+      ['PENDING', 'NOT_EXECUTED', 'FAILED'],
+      {
+        approvalState: approval.state,
+        approvedByUserId: approval.state === 'APPROVED' ? ctx.authenticated.userId : null,
+        updatedAtMs: now(),
+      },
+    )
+
+    if (!started) {
+      // Someone else moved it. Whatever they are doing, this caller must not do
+      // it as well — the current row decides what to report.
+      const current = await deps.store.find(proposal.agencyId, proposal.idempotencyKey)
+      const decision = decideOnExistingClaim(current, now())
+      if (decision.kind === 'ALREADY_EXECUTED') {
+        return finish(
+          { status: 'ALREADY_EXECUTED', targetIds: current?.targetIds ?? [], reason: 'duplicate-suppressed' },
+          current?.verificationState === 'VERIFIED'
+            ? { state: 'VERIFIED', verified: true, checks: current.verificationChecks, targetIds: current.targetIds }
+            : null,
+          approval.state, risk,
+        )
+      }
+      if (decision.kind === 'IN_FLIGHT') {
+        return finish(
+          { status: 'ALREADY_EXECUTED', reason: 'in-flight-elsewhere', targetIds: current?.targetIds ?? [] },
+          null, approval.state, risk,
+        )
+      }
+      return finish({ status: 'UNKNOWN', reason: 'concurrent-transition-lost' }, null, approval.state, risk)
+    }
 
     const execCtx = { actor: ctx.authenticated, deadlineAtMs: ctx.deadlineAtMs, nowMs: now() }
     const executionStart = now()
