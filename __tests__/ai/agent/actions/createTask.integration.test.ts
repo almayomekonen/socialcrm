@@ -35,8 +35,8 @@ const USER_B = 91_102
 let LEAD_A = 0
 let LEAD_B = 0
 
-const actorA: ActionActor = { agencyId: AGENCY_A, userId: USER_A, role: 'ADMIN' }
-const actorB: ActionActor = { agencyId: AGENCY_B, userId: USER_B, role: 'ADMIN' }
+const actorA: ActionActor = { agencyId: AGENCY_A, userId: USER_A, role: 'ADMIN', gotPermIds: [] }
+const actorB: ActionActor = { agencyId: AGENCY_B, userId: USER_B, role: 'ADMIN', gotPermIds: [] }
 
 const DEADLINE = () => Date.now() + 40_000
 const runtime = () => createActionRuntime({ store: createDbActionStore() })

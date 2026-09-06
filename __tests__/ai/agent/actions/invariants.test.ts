@@ -18,7 +18,7 @@ import {
 } from '@/lib/agent/actions'
 import { DEFAULT_DEADLINE_MS } from '@/lib/agent/budget'
 
-const ACTOR: ActionActor = { agencyId: 7, userId: 3, role: 'ADMIN' }
+const ACTOR: ActionActor = { agencyId: 7, userId: 3, role: 'ADMIN', gotPermIds: [] }
 const T0 = 1_000_000
 const OK: ExecutionResult = { status: 'SUCCESS', targetIds: [{ kind: 'task', id: '9' }] }
 

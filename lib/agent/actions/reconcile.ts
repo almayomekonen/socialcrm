@@ -59,7 +59,9 @@ function proposalFromRecord(record: ActionRecord): ActionProposal {
     actionId: record.actionId,
     agentRunId: record.agentRunId,
     agencyId: record.agencyId,
-    actor: { agencyId: record.agencyId, userId: record.userId, role: '' },
+    // A reconciliation probe READS to establish what happened; it must never
+    // need write authority, so none is reconstructed here.
+    actor: { agencyId: record.agencyId, userId: record.userId, role: '', gotPermIds: [] },
     actionType: record.actionType,
     args: record.args,
     argsHash: record.argsHash,
@@ -117,7 +119,11 @@ export async function reconcileAction(record: ActionRecord, deps: ReconcileDeps)
     )
   }
 
-  const ctx: ExecuteContext = { actor: { agencyId: record.agencyId, userId: record.userId, role: '' }, deadlineAtMs: nowMs + EXECUTION_LEASE_MS, nowMs }
+  const ctx: ExecuteContext = {
+    actor: { agencyId: record.agencyId, userId: record.userId, role: '', gotPermIds: [] },
+    deadlineAtMs: nowMs + EXECUTION_LEASE_MS,
+    nowMs,
+  }
 
   let probed: VerificationResult
   try {

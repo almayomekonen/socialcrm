@@ -41,7 +41,10 @@ function runtimeFor() {
 }
 
 function scopeToActor(scope: AgentScope) {
-  return { agencyId: scope.agencyId, userId: scope.userId, role: scope.role }
+  // The WHOLE authority the scope resolved, permissions included. An actor
+  // carrying less than the scope knows is an executor that cannot reproduce the
+  // product's own gate.
+  return { agencyId: scope.agencyId, userId: scope.userId, role: scope.role, gotPermIds: scope.gotPermIds ?? [] }
 }
 
 /**

@@ -30,7 +30,7 @@ import {
   type VerificationResult,
 } from '@/lib/agent/actions'
 
-const ACTOR: ActionActor = { agencyId: 7, userId: 3, role: 'ADMIN' }
+const ACTOR: ActionActor = { agencyId: 7, userId: 3, role: 'ADMIN', gotPermIds: [] }
 const RUN = 'inv_test_1'
 const T0 = 1_000_000
 const DEADLINE = T0 + 40_000
@@ -318,6 +318,31 @@ describe('plans, audit and boundaries', () => {
     expect(out.summary).toMatchObject({ total: 3, verified: 2, failed: 1 })
   })
 
+  it('15b — the executor receives the actor\'s FULL authority, permissions included', async () => {
+    /**
+     * REGRESSION FOR THE ONE ABSTRACTION CHANGE `create_follow_up` forced.
+     *
+     * `ActionActor` used to carry agency, user and role. That was enough for
+     * `create_task`, and not enough for a follow-up: the product's own write is
+     * agency-scoped AND, for non-admins, restricted to the leads the rep owns,
+     * and an executor holding only the agency cannot reproduce the second half —
+     * it would write to a colleague's lead. The field is required rather than
+     * optional so a call site that forgets it fails to compile.
+     */
+    let seen: unknown = null
+    defineFake({
+      risk: 'LOW_RISK_WRITE',
+      execute: async (_action, ctx) => {
+        seen = ctx.actor
+        return OK_EXEC
+      },
+    })
+    const actor = { agencyId: 7, userId: 3, role: 'AGNT', gotPermIds: [11, 12] }
+    const { rt, ctx } = runtime()
+    await rt.execute({ ...propose(), actor }, ctx({ authenticated: actor }))
+    expect(seen).toEqual(actor)
+  })
+
   it('16 — a verified action reports VERIFIED_SUCCESS with its checks', async () => {
     defineFake()
     const { rt, ctx } = runtime()
@@ -381,7 +406,7 @@ describe('plans, audit and boundaries', () => {
   it('20 — a role below the risk ceiling cannot execute, whatever the model asked', async () => {
     defineFake({ risk: 'HIGH_RISK' })
     const { rt, ctx } = runtime()
-    const actor = { agencyId: 7, userId: 3, role: 'AGNT' }
+    const actor = { agencyId: 7, userId: 3, role: 'AGNT', gotPermIds: [] }
     const out = await rt.execute({ ...propose(), actor }, ctx({ authenticated: actor }))
     expect(out.execution).toMatchObject({ status: 'NOT_AUTHORIZED', reason: 'role-below-risk-ceiling' })
   })

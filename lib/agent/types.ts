@@ -203,11 +203,18 @@ export type BusinessState = (typeof BUSINESS_STATES)[number]
  * false yet. Only an `ActionOutcome` from the Action Runtime can say whether
  * anything happened.
  */
-export type ProposedAction = {
-  actionType: 'create_task'
-  args: { clientId: number; title: string; dueDate: string }
-  evidenceRefs: string[]
-}
+export type ProposedAction =
+  | {
+      actionType: 'create_task'
+      args: { clientId: number; title: string; dueDate: string }
+      evidenceRefs: string[]
+    }
+  | {
+      actionType: 'create_follow_up'
+      /** A follow-up is lead state, so the lead IS the target. Date-level only. */
+      args: { clientId: number; at: string; note?: string | null }
+      evidenceRefs: string[]
+    }
 
 export type AgentAnswer = {
   /** The one-line conclusion the rep reads first. */

@@ -86,15 +86,16 @@ export const agentClaimSchema = z.union([
  *
  * CONCRETE, NOT GENERIC, and that is a provider constraint as much as a design
  * one. OpenAI Structured Outputs rejects an open `additionalProperties` record,
- * so `args` cannot be `z.record(...)` here; it must name its fields. The
- * consequence is that the answer schema knows about `create_task` specifically
- * — the only registered action — and generalising to a second one means a
- * discriminated union on `actionType`, not a loosening of this shape.
+ * so `args` cannot be `z.record(...)` here; it must name its fields. Each
+ * registered action therefore gets its own literal-tagged branch, and the union
+ * below is a PLAIN one rather than `z.discriminatedUnion` for the reason stated
+ * on `agentClaimSchema`: zod emits `oneOf` for the discriminated form and that
+ * provider permits only `anyOf`.
  *
  * `evidenceRefs` is required for the same reason every claim carries evidence:
  * an action proposed on nothing is a guess about someone's business.
  */
-const proposedActionSchema = z.object({
+const createTaskProposal = z.object({
   actionType: z.literal('create_task'),
   args: z.object({
     /** A lead id that appeared in a tool result. Never a name, never invented. */
@@ -104,6 +105,18 @@ const proposedActionSchema = z.object({
     dueDate: z.string(),
   }),
   /** Refs from this investigation — `lead:161`. The runtime records them. */
+  evidenceRefs: z.array(z.string()),
+})
+
+const createFollowUpProposal = z.object({
+  actionType: z.literal('create_follow_up'),
+  args: z.object({
+    clientId: z.number(),
+    /** `YYYY-MM-DD`. SocialCRM follow-ups are a DAY, not a time. */
+    at: z.string(),
+    /** Nullable rather than optional — Structured Outputs drops optional keys. */
+    note: z.union([z.string(), z.null()]),
+  }),
   evidenceRefs: z.array(z.string()),
 })
 
@@ -128,7 +141,7 @@ export const agentAnswerSchema = z.object({
    * every property in `required`, so an optional key would be dropped from the
    * emitted schema and never asked for.
    */
-  proposedAction: z.union([proposedActionSchema, z.null()]),
+  proposedAction: z.union([createTaskProposal, createFollowUpProposal, z.null()]),
 })
 
 /**

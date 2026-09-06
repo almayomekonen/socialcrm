@@ -39,6 +39,7 @@ export default function AgentActionCard({
   const label = actionReportLabel(report)
   const awaiting = report === 'AWAITING_APPROVAL'
   const verified = outcome?.verification?.verified === true
+  const described = describeAction(proposal)
 
   return (
     <article
@@ -57,7 +58,7 @@ export default function AgentActionCard({
               rendered only from a verified outcome, which is the one thing that
               can. */}
           <p className='text-[15px] font-medium leading-6 text-white'>
-            {verified ? `יצרתי את המשימה: ${proposal.args.title}` : 'יצירת משימה'}
+            {verified ? described.confirmed : described.heading}
           </p>
           <p className={`text-sm leading-6 ${toneClass(label.tone)}`}>{label.title}</p>
         </div>
@@ -66,9 +67,9 @@ export default function AgentActionCard({
       {/* What will run, or what ran. Shown in both cases so the rep can check
           afterwards that the thing they approved is the thing that happened. */}
       <dl className='space-y-1 text-sm leading-6'>
-        <Row term='כותרת' value={proposal.args.title} />
-        <Row term='תאריך יעד' value={proposal.args.dueDate} />
-        <Row term='ליד' value={`#${proposal.args.clientId}`} />
+        {described.rows.map((row) => (
+          <Row key={row.term} term={row.term} value={row.value} />
+        ))}
       </dl>
 
       {awaiting && onDecide && (
@@ -79,7 +80,7 @@ export default function AgentActionCard({
             onClick={() => onDecide('APPROVED')}
             className='rounded-xl bg-white px-3.5 py-2 text-sm font-medium text-ink transition disabled:opacity-50'
           >
-            {pending ? 'יוצר משימה…' : 'אשר ויצור משימה'}
+            {pending ? described.working : described.confirmLabel}
           </button>
           <button
             type='button'
@@ -108,6 +109,48 @@ export default function AgentActionCard({
       )}
     </article>
   )
+}
+
+/**
+ * One action, in the rep's words.
+ *
+ * Per-type rather than generic because the two actions are not the same shape of
+ * thing: a task has a title and a due date, a follow-up is a date and a note on
+ * the lead itself. Rendering both through one abstract "arguments" table would
+ * show a rep field names instead of a sentence.
+ */
+function describeAction(proposal: ProposedAction): {
+  heading: string
+  confirmed: string
+  confirmLabel: string
+  working: string
+  rows: { term: string; value: string }[]
+} {
+  if (proposal.actionType === 'create_follow_up') {
+    const note = proposal.args.note?.trim()
+    return {
+      heading: 'קביעת מעקב',
+      confirmed: `קבעתי מעקב ל־${proposal.args.at}`,
+      confirmLabel: 'אשר וקבע מעקב',
+      working: 'קובע מעקב…',
+      rows: [
+        { term: 'תאריך מעקב', value: proposal.args.at },
+        ...(note ? [{ term: 'הערה', value: note }] : []),
+        { term: 'ליד', value: `#${proposal.args.clientId}` },
+      ],
+    }
+  }
+  return {
+    heading: 'יצירת משימה',
+    confirmed: `יצרתי את המשימה: ${proposal.args.title}`,
+    confirmLabel: 'אשר ויצור משימה',
+    working: 'יוצר משימה…',
+    rows: [
+      { term: 'כותרת', value: proposal.args.title },
+      { term: 'תאריך יעד', value: proposal.args.dueDate },
+      { term: 'ליד', value: `#${proposal.args.clientId}` },
+    ],
+  }
 }
 
 function Row({ term, value }: { term: string; value: string }) {

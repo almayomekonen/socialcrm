@@ -19,11 +19,24 @@
  * from the executor to the sentence the rep reads.
  */
 
-/** Server-resolved authority. Never built from model output or a request body. */
+/**
+ * Server-resolved authority. Never built from model output or a request body.
+ *
+ * `gotPermIds` was added when `create_follow_up` arrived and showed the actor
+ * was carrying less authority than the scope had resolved. The product's own
+ * follow-up write is agency-scoped AND, for non-admins, restricted to the leads
+ * the rep owns (`applyFollowUp` in actions/leadFollowUp.ts); an executor holding
+ * only the agency could not reproduce that second half, and would have written
+ * to leads the rep cannot see. It is REQUIRED rather than optional so a call
+ * site that forgets it fails to compile instead of silently widening — and an
+ * empty list for a non-admin grants nothing, which is the safe direction.
+ */
 export type ActionActor = {
   agencyId: number
   userId: number
   role: string
+  /** The lead owners this actor may write to. Ignored for admins, as elsewhere. */
+  gotPermIds: number[]
 }
 
 /**

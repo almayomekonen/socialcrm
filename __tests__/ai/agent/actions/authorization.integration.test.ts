@@ -158,7 +158,7 @@ describe('nothing else relaxed', () => {
   })
 
   it('8 — a forged identity in the payload is ignored', async () => {
-    const forged = { ...proposal(LEAD_A), agencyId: AGENCY_B, actor: { agencyId: AGENCY_B, userId: USER_B } } as ProposedAction
+    const forged = { ...proposal(LEAD_A), agencyId: AGENCY_B, actor: { agencyId: AGENCY_B, userId: USER_B } } as unknown as ProposedAction
     const out = (await submit(forged, scopeA(), COMMAND))!
     // It ran as agency A, under user A — the authenticated scope, not the claim.
     expect(out.agencyId).toBe(AGENCY_A)

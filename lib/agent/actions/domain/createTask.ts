@@ -1,6 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { db } from '@/config/db'
+import { isAdmin } from '@/types/roles'
 import { createSystemTask } from '@/lib/system/createSystemTask'
 import type { AgentActionDefinition, ExecuteContext } from '../registry'
 import type { ActionProposal, ExecutionResult, VerificationCheck, VerificationResult } from '../types'
@@ -87,7 +88,17 @@ async function execute(action: ActionProposal, ctx: ExecuteContext): Promise<Exe
   if (!parsed.success) return { status: 'INVALID_ACTION', reason: 'invalid-args' }
   const args = parsed.data
 
-  const lead = await db('clients').where({ id: args.clientId, agencyId: ctx.actor.agencyId }).first('id')
+  /**
+   * Agency AND owner, matching the product's own `createTask`, which calls
+   * `assertClientAccess`. Agency alone would let a rep put a task on a
+   * colleague's lead — an agency-scoped write that is still not an authorised
+   * one. Admins are unrestricted here exactly as they are everywhere else.
+   */
+  const leadQuery = db('clients').where({ id: args.clientId, agencyId: ctx.actor.agencyId })
+  if (!isAdmin(ctx.actor.role as Parameters<typeof isAdmin>[0])) {
+    leadQuery.whereIn('userId', ctx.actor.gotPermIds)
+  }
+  const lead = await leadQuery.first('id')
   if (!lead) return { status: 'NOT_AUTHORIZED', reason: 'lead-not-in-agency' }
 
   const taskId = await createSystemTask({
