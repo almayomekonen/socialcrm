@@ -283,6 +283,23 @@ export async function hasRecentlyExecutedAction(args: {
   return rows.length > 0
 }
 
+/**
+ * Every action belonging to one plan, oldest first.
+ *
+ * Additive read only — the store contract is unchanged. Ordered by id so a
+ * batch rebuilt for approval always expands in the same sequence, which is what
+ * keeps its plan hash stable between the turn that proposed it and the turn that
+ * approves it.
+ */
+export function actionsForPlanQuery(agencyId: number, planId: string) {
+  return db(AGENT_ACTIONS_TABLE).where({ agencyId, planId }).orderBy('id', 'asc')
+}
+
+export async function listActionsForPlan(agencyId: number, planId: string): Promise<ActionRecord[]> {
+  const rows = (await actionsForPlanQuery(agencyId, planId)) as Row[]
+  return rows.map(toActionRecord)
+}
+
 /** One action by its minted id. Agency-scoped: an id is not a capability. */
 export async function findActionByActionId(agencyId: number, actionId: string): Promise<ActionRecord | null> {
   const row = (await db(AGENT_ACTIONS_TABLE).where({ agencyId, actionId }).first()) as Row | undefined

@@ -2,7 +2,7 @@
 
 import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
 import { resolveAgentScope } from '@/lib/agent/scope'
-import { submitProposedAction } from '@/lib/agent/actions/bridge'
+import { submitProposedAction, submitProposedBatch } from '@/lib/agent/actions/bridge'
 import { recordAgentInvestigation, type AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult } from '@/lib/agent/types'
 
@@ -112,7 +112,8 @@ export async function askAgent(
    * changed nothing in the CRM.
    */
   const proposal = result.answer.proposedAction
-  if (!proposal) return { ...result, actionOutcome: null }
+  const batch = result.answer.proposedBatch
+  if (!proposal && !batch) return { ...result, actionOutcome: null, batchOutcome: null }
 
   /**
    * THE AUTHORIZATION INPUTS, and note what they are: the rep's own question and
@@ -126,16 +127,32 @@ export async function askAgent(
   /** The rep's own turns, newest first — never the assistant's. */
   const priorUserMessages = reversed.filter((t) => t.role === 'user').map((t) => t.content)
 
-  const actionOutcome = await submitProposedAction({
-    proposal,
+  const authorization = {
     scope,
     agentRunId: result.investigationId,
     userMessage: trimmed,
     priorAssistantMessage,
     priorUserMessages,
-  })
+  }
 
-  return { ...result, actionOutcome }
+  /**
+   * A BATCH TAKES PRECEDENCE, and only one of the two ever runs.
+   *
+   * The schema permits both fields, so a model could fill in each; executing
+   * both would mean a rep who asked for one thing got two mutations. The batch
+   * is the more specific request — nothing emits it by accident — so it wins,
+   * and the single proposal is dropped rather than run alongside it.
+   *
+   * Neither path costs a model call. The batch is expanded deterministically
+   * into N ordinary actions; there is no conversation per mutation.
+   */
+  if (batch) {
+    const batchOutcome = await submitProposedBatch({ batch, ...authorization })
+    return { ...result, actionOutcome: null, batchOutcome }
+  }
+
+  const actionOutcome = await submitProposedAction({ proposal: proposal!, ...authorization })
+  return { ...result, actionOutcome, batchOutcome: null }
 }
 
 /**

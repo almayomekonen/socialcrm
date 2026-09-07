@@ -141,6 +141,31 @@ const createMeetingProposal = z.object({
   evidenceRefs: z.array(z.string()),
 })
 
+/**
+ * ONE action, applied to MANY leads the investigation actually found.
+ *
+ * The model chooses the set and the shared arguments; the application expands
+ * that into N independent `create_task` proposals, each with its own identity,
+ * its own idempotency key, its own policy check and its own verification. There
+ * is no batch mutation — there is a plan made of ordinary actions.
+ *
+ * `targets` is a list of LEAD IDS, and every one of them has to appear in this
+ * run's evidence (see `groundedBatch`). A batch is the most expensive place a
+ * hallucinated id could land, because it lands N times.
+ *
+ * Only `create_task` for now. Batching a follow-up would overwrite dates reps
+ * set by hand, and batching a meeting would put N events on a calendar — both
+ * deserve their own review rather than arriving as a side effect of this one.
+ */
+const createTaskBatchProposal = z.object({
+  actionType: z.literal('create_task'),
+  /** Lead ids from tool results. Never names, never invented. */
+  targets: z.array(z.number()),
+  /** Shared by every task in the batch. */
+  args: z.object({ title: z.string(), dueDate: z.string() }),
+  evidenceRefs: z.array(z.string()),
+})
+
 export const agentAnswerSchema = z.object({
   headline: z.string().min(1),
   claims: z.array(agentClaimSchema),
@@ -163,6 +188,8 @@ export const agentAnswerSchema = z.object({
    * emitted schema and never asked for.
    */
   proposedAction: z.union([createTaskProposal, createFollowUpProposal, createMeetingProposal, z.null()]),
+  /** Null unless the user asked for one action across several leads. */
+  proposedBatch: z.union([createTaskBatchProposal, z.null()]),
 })
 
 /**

@@ -583,6 +583,8 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
      * which has its own decisions to make about it.
      */
     proposedAction: validated.proposedAction,
+    /** Same contract as `proposedAction`: a request, carried out unexecuted. */
+    proposedBatch: validated.proposedBatch,
   }
   await input.onPersist?.({
     ...identity,

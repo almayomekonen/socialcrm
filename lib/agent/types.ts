@@ -229,6 +229,17 @@ export type ProposedAction =
       evidenceRefs: string[]
     }
 
+/**
+ * One action across many leads. Expanded by the application into N ordinary
+ * `ActionProposal`s — never executed as a single bulk mutation.
+ */
+export type ProposedBatch = {
+  actionType: 'create_task'
+  targets: number[]
+  args: { title: string; dueDate: string }
+  evidenceRefs: string[]
+}
+
 export type AgentAnswer = {
   /** The one-line conclusion the rep reads first. */
   headline: string
@@ -239,6 +250,8 @@ export type AgentAnswer = {
   businessState?: BusinessState | null
   /** A request to act, or null. Never evidence that acting happened. */
   proposedAction?: ProposedAction | null
+  /** A request to act on several leads at once, or null. */
+  proposedBatch?: ProposedBatch | null
 }
 
 /** Why an investigation ended. Recorded on every run for observability. */
@@ -280,6 +293,14 @@ export type AgentResult =
        * AWAITING_APPROVAL means the prose is wrong, not that the task exists.
        */
       actionOutcome?: import('./actions/types').ActionOutcome | null
+      /**
+       * The Action Runtime's verdict on `answer.proposedBatch`, or null.
+       *
+       * An aggregation of N independent outcomes — never a single bulk result.
+       * Like `actionOutcome`, this and not the prose is what may say anything
+       * happened.
+       */
+      batchOutcome?: import('./actions/batch').BatchOutcome | null
       /**
        * What this investigation actually cost, in USD.
        *

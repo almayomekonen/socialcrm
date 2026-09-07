@@ -1,5 +1,5 @@
 import { matchUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
-import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim, type ProposedAction } from './types'
+import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim, type ProposedAction, type ProposedBatch } from './types'
 import { parseEntityRef } from './evidence'
 /**
  * The state gate lives in ./businessState, not here. It is a rule about what a
@@ -9,6 +9,7 @@ import { parseEntityRef } from './evidence'
  */
 import { groundedBusinessState } from './businessState'
 import { groundedProposal } from './proposalGate'
+import { groundedBatch } from './batchGate'
 import { isProductTopic } from './product/knowledge'
 import type { EvidenceCollector } from './evidence'
 
@@ -84,6 +85,8 @@ export type ValidatedAgentAnswer = {
   businessState: BusinessState | null
   /** Survives only if its target is a lead the tools actually returned. */
   proposedAction: ProposedAction | null
+  /** Survives only if EVERY target is a lead the tools actually returned. */
+  proposedBatch: ProposedBatch | null
   diagnostics: AgentTrustDiagnostics
 }
 
@@ -366,6 +369,7 @@ export function validateAgentAnswerDetailed(
       unknown: answer.unknown,
       businessState: groundedBusinessState(answer.businessState ?? null, kept, evidence),
       proposedAction: groundedProposal(answer.proposedAction ?? null, evidence),
+      proposedBatch: groundedBatch(answer.proposedBatch ?? null, evidence),
       diagnostics: { dropped, strippedRefs },
     },
     counts,

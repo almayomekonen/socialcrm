@@ -2,6 +2,7 @@
 
 import AgentAnswerView from './AgentAnswerView'
 import AgentActionCard from './AgentActionCard'
+import AgentBatchCard from './AgentBatchCard'
 import { ShiningText } from '@/components/ui/shining-text'
 import { toolLabel, type AgentUiTurn } from './agentTypes'
 
@@ -23,10 +24,13 @@ import { toolLabel, type AgentUiTurn } from './agentTypes'
 export default function AgentThread({
   turns,
   onDecide,
+  onDecideBatch,
 }: {
   turns: AgentUiTurn[]
   /** Supplied by the workspace; absent in read-only renders (history, tests). */
   onDecide?: (turnId: string, actionId: string, argsHash: string, decision: 'APPROVED' | 'REJECTED') => void
+  /** One decision for a whole batch — never one per lead. */
+  onDecideBatch?: (turnId: string, planId: string, planHash: string, decision: 'APPROVED' | 'REJECTED') => void
 }) {
   return (
     <div className='space-y-6 pb-2'>
@@ -56,6 +60,20 @@ export default function AgentThread({
                 <AgentAnswerView answer={turn.answer} />
                 {/* Rendered only when the model actually asked to act. The card
                     owns the status; the answer above it owns the reasoning. */}
+                {/* One card for the whole set — never one per lead. */}
+                {turn.answer.proposedBatch && (
+                  <AgentBatchCard
+                    batch={turn.answer.proposedBatch}
+                    outcome={turn.batchOutcome}
+                    pending={turn.actionPending}
+                    onDecide={
+                      onDecideBatch && turn.batchOutcome?.planId && turn.batchOutcome?.planHash
+                        ? (decision) =>
+                            onDecideBatch(turn.id, turn.batchOutcome!.planId!, turn.batchOutcome!.planHash!, decision)
+                        : undefined
+                    }
+                  />
+                )}
                 {turn.answer.proposedAction && (
                   <AgentActionCard
                     proposal={turn.answer.proposedAction}

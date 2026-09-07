@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { decideOnAgentAction } from '@/actions/ai/agentAction'
+import { decideOnAgentAction, decideOnAgentBatch } from '@/actions/ai/agentAction'
 import type { AgentAnswer, AgentResult } from '@/lib/agent/types'
 import type { ActionOutcome } from '@/lib/agent/actions/types'
+import type { BatchOutcome } from '@/lib/agent/actions/batch'
 import { failureMessage, type AgentUiTurn } from './agentTypes'
 
 /**
@@ -85,6 +86,13 @@ export type UseAgentConversation = {
     turnId: string,
     actionId: string,
     argsHash: string,
+    decision: 'APPROVED' | 'REJECTED',
+  ) => Promise<void>
+  /** One decision for a whole batch. No model call, and no card per lead. */
+  decideBatch: (
+    turnId: string,
+    planId: string,
+    planHash: string,
     decision: 'APPROVED' | 'REJECTED',
   ) => Promise<void>
 }
@@ -171,6 +179,7 @@ export function useAgentConversation(): UseAgentConversation {
                 // fate from the answer's prose; if this is absent the card
                 // renders as waiting, which is the honest default.
                 actionOutcome: result.actionOutcome ?? null,
+                batchOutcome: result.batchOutcome ?? null,
               })
             } else if (result && result.ok === false) {
               replace({ id: agentId, role: 'agent', status: 'error', message: failureMessage(result.reason) })
@@ -238,7 +247,32 @@ export function useAgentConversation(): UseAgentConversation {
     )
   }, [])
 
-  return { turns, busy, ask, reset, decide }
+  const decideBatch = useCallback(
+    async (turnId: string, planId: string, planHash: string, decision: 'APPROVED' | 'REJECTED') => {
+      setTurns((prev) =>
+        prev.map((t) => (t.id === turnId && t.role === 'agent' && t.status === 'done' ? { ...t, actionPending: true } : t)),
+      )
+      let outcome: BatchOutcome | null = null
+      try {
+        const res = await decideOnAgentBatch({ planId, planHash, decision })
+        outcome = res.ok ? res.outcome : null
+      } catch {
+        // Leave it null: the card falls back to waiting rather than claiming
+        // that seven tasks were created.
+        outcome = null
+      }
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === turnId && t.role === 'agent' && t.status === 'done'
+            ? { ...t, actionPending: false, batchOutcome: outcome ?? t.batchOutcome ?? null }
+            : t,
+        ),
+      )
+    },
+    [],
+  )
+
+  return { turns, busy, ask, reset, decide, decideBatch }
 }
 
 /** HTTP-level outcomes the stream never starts for. */

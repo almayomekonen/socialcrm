@@ -1,14 +1,16 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
-import { createDbActionStore, findActionByActionId, hasRecentlyExecutedAction } from '@/db/agentActions'
+import { createDbActionStore, findActionByActionId, hasRecentlyExecutedAction, listActionsForPlan } from '@/db/agentActions'
 import { loadApprovalGrants, recordApprovalDecision } from '@/db/agentActionApprovals'
 import { registerDomainActions } from './domain'
 import { deriveActionIntent } from './intent'
 import { parseActionProposal } from './proposal'
 import { createActionRuntime } from './runtime'
 import { DEFAULT_DEADLINE_MS } from '../budget'
-import type { AgentScope, ProposedAction } from '../types'
-import type { ActionOutcome, ActionProposal } from './types'
+import { aggregateBatch, expandBatch, planHashOf, refusedBatch, type BatchOutcome } from './batch'
+import { MAX_BATCH_TARGETS } from './batchLimits'
+import type { AgentScope, ProposedAction, ProposedBatch } from '../types'
+import type { ActionOutcome, ActionPlan, ActionProposal } from './types'
 
 /**
  * The seam between the Brain and the Action Runtime.
@@ -71,6 +73,35 @@ async function standingCommandIsSpent(scope: AgentScope, nowMs: number): Promise
   })
 }
 
+/**
+ * The authorization decision, identical for one action and for a batch.
+ *
+ * Derived from the rep's own words first; the standing command is consulted only
+ * when the current turn is a bare value, and only while it is unspent. Shared so
+ * a batch can never accidentally be authorised on softer terms than a single
+ * action.
+ */
+async function resolveIntent(
+  input: { scope: AgentScope; userMessage?: string; priorAssistantMessage?: string | null; priorUserMessages?: readonly string[] },
+  _actionType: string,
+  nowMs: number,
+) {
+  const own = deriveActionIntent({
+    userMessage: input.userMessage ?? '',
+    priorAssistantMessage: input.priorAssistantMessage,
+  })
+  if (own.intent === 'EXPLICIT_COMMAND' || (input.priorUserMessages?.length ?? 0) === 0) return own.intent
+
+  const spent = await standingCommandIsSpent(input.scope, nowMs)
+  if (spent) return own.intent
+
+  return deriveActionIntent({
+    userMessage: input.userMessage ?? '',
+    priorAssistantMessage: input.priorAssistantMessage,
+    priorUserMessages: input.priorUserMessages,
+  }).intent
+}
+
 function scopeToActor(scope: AgentScope) {
   // The WHOLE authority the scope resolved, permissions included. An actor
   // carrying less than the scope knows is an executor that cannot reproduce the
@@ -119,40 +150,15 @@ export async function submitProposedAction(input: {
   // around it may be perfectly good. It simply does not become an action.
   if (parsed.ok === false) return null
 
-  /**
-   * Authorization is derived in two passes, and the order matters.
-   *
-   * FIRST from the current turn alone. A turn that carries its own instruction
-   * or affirmation needs no history and costs no query — which is the common
-   * case, and the only case for a brand-new command.
-   *
-   * ONLY THEN, if the turn is a bare value, is the standing command consulted —
-   * and only if it has not already been spent. That check is a durable read
-   * rather than anything the client asserted, so a completed command cannot be
-   * kept alive by a request that simply omits the evidence of its completion.
-   */
-  const own = deriveActionIntent({
-    userMessage: input.userMessage ?? '',
-    priorAssistantMessage: input.priorAssistantMessage,
-  })
-
-  let intent = own
-  if (own.intent !== 'EXPLICIT_COMMAND' && (input.priorUserMessages?.length ?? 0) > 0) {
-    const spent = await standingCommandIsSpent(input.scope, nowMs)
-    if (!spent) {
-      intent = deriveActionIntent({
-        userMessage: input.userMessage ?? '',
-        priorAssistantMessage: input.priorAssistantMessage,
-        priorUserMessages: input.priorUserMessages,
-      })
-    }
-  }
+  // The same derivation a batch uses — one action must never be authorised on
+  // softer terms than several.
+  const intent = await resolveIntent(input, parsed.proposal.actionType, nowMs)
 
   return runtimeFor().execute(parsed.proposal, {
     authenticated: scopeToActor(input.scope),
     deadlineAtMs: input.deadlineAtMs ?? nowMs + DEFAULT_DEADLINE_MS,
     grants: [],
-    intent: intent.intent,
+    intent,
     investigationId: input.agentRunId,
   })
 }
@@ -235,4 +241,149 @@ export async function decideOnAction(input: {
   })
 
   return { ok: true, outcome }
+}
+
+/**
+ * Turn 1 for a batch — the model asked to do one thing to several leads.
+ *
+ * Identical in every respect to the single-action path except that the plan has
+ * more than one member: the SAME intent derivation, the SAME policy per action,
+ * the SAME idempotency claim per action, the SAME verification. No model call
+ * happens here, and none happens per mutation — that is the entire point of
+ * expanding deterministically rather than conversing N times.
+ */
+export async function submitProposedBatch(input: {
+  batch: ProposedBatch
+  scope: AgentScope
+  agentRunId: string
+  userMessage?: string
+  priorAssistantMessage?: string | null
+  priorUserMessages?: readonly string[]
+  deadlineAtMs?: number
+  nowMs?: number
+}): Promise<BatchOutcome> {
+  const nowMs = input.nowMs ?? Date.now()
+  const actor = scopeToActor(input.scope)
+
+  const expansion = expandBatch({ batch: input.batch, actor, agentRunId: input.agentRunId })
+  // Answered here, never by the runtime: an empty plan would come back as
+  // NONE_EXECUTED, which cannot be told apart from "everything failed".
+  if (expansion.ok === false) {
+    return refusedBatch(input.batch.actionType, expansion.reason, expansion.eligible, expansion.limit)
+  }
+
+  const intent = await resolveIntent(input, expansion.plan.actions[0]!.actionType, nowMs)
+
+  const planOutcome = await runtimeFor().executePlan(expansion.plan, {
+    authenticated: actor,
+    deadlineAtMs: input.deadlineAtMs ?? nowMs + DEFAULT_DEADLINE_MS,
+    grants: [],
+    intent,
+    investigationId: input.agentRunId,
+  })
+
+  return aggregateBatch(planOutcome, {
+    actionType: input.batch.actionType,
+    planHash: expansion.planHash,
+    eligible: expansion.plan.actions.length,
+    limit: MAX_BATCH_TARGETS,
+  })
+}
+
+export type BatchDecisionResult =
+  | { ok: false; reason: 'not-found' | 'batch-changed' }
+  | { ok: true; outcome: BatchOutcome }
+
+/**
+ * Turn 2 for a batch — a human decided, once, about the whole set.
+ *
+ * ONE CARD, N GRANTS. The approval model binds a grant to one action id AND that
+ * action's own args hash; a single plan-level grant cannot authorise a
+ * multi-action plan, because every member has a different hash. So approving
+ * writes one grant per member, which is the model used exactly as designed and
+ * is strictly stronger than a plan grant would be: changing any one target's
+ * title or date voids that member specifically.
+ *
+ * `planHash` guards what a per-action grant cannot — the COMPOSITION. The caller
+ * echoes the hash of the batch it displayed, and it is recomputed from the
+ * stored rows; adding or removing a member moves it and the decision is refused
+ * rather than reinterpreted.
+ */
+export async function decideOnBatch(input: {
+  planId: string
+  planHash: string
+  decision: 'APPROVED' | 'REJECTED'
+  scope: AgentScope
+  nowMs?: number
+}): Promise<BatchDecisionResult> {
+  const nowMs = input.nowMs ?? Date.now()
+  const actor = scopeToActor(input.scope)
+
+  // Agency-scoped: a plan id from another tenant simply does not exist.
+  const records = await listActionsForPlan(input.scope.agencyId, input.planId)
+  if (records.length === 0) return { ok: false, reason: 'not-found' }
+
+  const storedHash = planHashOf(records.map((r) => ({ actionType: r.actionType, argsHash: r.argsHash })))
+  if (storedHash !== input.planHash) return { ok: false, reason: 'batch-changed' }
+
+  for (const record of records) {
+    await recordApprovalDecision({
+      agencyId: record.agencyId,
+      actionId: record.actionId,
+      planId: record.planId,
+      argsHash: record.argsHash,
+      decision: input.decision,
+      decidedByUserId: input.scope.userId,
+      nowMs,
+    })
+  }
+
+  /**
+   * Rebuilt from the DURABLE ROWS, never from anything the client sent — the
+   * client supplies a plan id and a hash it must already match, and the
+   * arguments that execute are the ones the runtime stored when the batch was
+   * proposed.
+   */
+  const actions: ActionProposal[] = records.map((record) => ({
+    actionId: record.actionId,
+    agentRunId: record.agentRunId,
+    agencyId: record.agencyId,
+    actor,
+    actionType: record.actionType,
+    args: record.args,
+    argsHash: record.argsHash,
+    evidenceRefs: record.evidenceRefs,
+    risk: record.risk,
+    approvalRequired: true,
+    idempotencyKey: record.idempotencyKey,
+    expectedPostcondition: record.args,
+    planId: record.planId,
+  }))
+
+  const grants = (
+    await Promise.all(
+      records.map((r) => loadApprovalGrants({ agencyId: r.agencyId, actionId: r.actionId, planId: r.planId })),
+    )
+  ).flat()
+
+  const plan: ActionPlan = { planId: input.planId, agentRunId: records[0]!.agentRunId, actions }
+  const planOutcome = await runtimeFor().executePlan(plan, {
+    authenticated: actor,
+    deadlineAtMs: nowMs + DEFAULT_DEADLINE_MS,
+    grants,
+    // The card path is an agent proposal by construction; the grants just
+    // written are what satisfy the approval.
+    intent: 'AGENT_PROPOSAL',
+    investigationId: records[0]!.agentRunId,
+  })
+
+  return {
+    ok: true,
+    outcome: aggregateBatch(planOutcome, {
+      actionType: records[0]!.actionType,
+      planHash: storedHash,
+      eligible: records.length,
+      limit: MAX_BATCH_TARGETS,
+    }),
+  }
 }

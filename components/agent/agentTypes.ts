@@ -1,5 +1,6 @@
 import type { AgentAnswer } from '@/lib/agent/types'
 import type { ActionOutcome } from '@/lib/agent/actions/types'
+import type { BatchOutcome } from '@/lib/agent/actions/batch'
 
 /**
  * What the agent surface renders. UI state only — no business logic.
@@ -29,6 +30,14 @@ export type AgentUiTurn =
        * AWAITING_APPROVAL means the prose is wrong, not that a task exists.
        */
       actionOutcome?: ActionOutcome | null
+      /**
+       * The aggregated verdict on a batch, when the answer proposed one.
+       *
+       * An aggregation of N independent outcomes — never a bulk result. Held
+       * beside the answer for the same reason `actionOutcome` is: the prose is
+       * the model's and this is the application's record of what happened.
+       */
+      batchOutcome?: BatchOutcome | null
       /** True while an approve/reject decision is in flight from this client. */
       actionPending?: boolean
     }

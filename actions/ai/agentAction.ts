@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { resolveAgentScope } from '@/lib/agent/scope'
-import { decideOnAction, type ActionDecisionResult } from '@/lib/agent/actions/bridge'
+import { decideOnAction, decideOnBatch, type ActionDecisionResult, type BatchDecisionResult } from '@/lib/agent/actions/bridge'
 
 /**
  * The approval boundary — a person deciding, not a model.
@@ -38,6 +38,44 @@ export async function decideOnAgentAction(input: {
   // Only a verified mutation is worth invalidating a cache for. Anything else
   // left the CRM as it was, and revalidating would imply otherwise.
   if (result.ok && result.outcome.report === 'VERIFIED_SUCCESS') {
+    revalidatePath('/tasks')
+    revalidatePath('/clients', 'layout')
+  }
+
+  return result
+}
+
+/**
+ * The approval boundary for a BATCH — one human decision about a whole set.
+ *
+ * Thin for the same reason its single-action sibling is. The bridge refuses a
+ * plan whose stored composition no longer matches the hash the card displayed,
+ * writes one grant per member — the approval model used exactly as designed,
+ * since a plan-level grant cannot authorise members with differing argument
+ * hashes — and the Action Runtime then re-runs the full policy → approval →
+ * execute → verify sequence for each one.
+ *
+ * WHAT THE CLIENT MAY SEND is a plan id and a hash. Never targets, never
+ * arguments: there is no parameter here through which a different set of tasks
+ * could be created than the one that was proposed and shown.
+ */
+export async function decideOnAgentBatch(input: {
+  planId: string
+  /** The hash of the batch the approval UI displayed. */
+  planHash: string
+  decision: 'APPROVED' | 'REJECTED'
+}): Promise<BatchDecisionResult> {
+  const planId = String(input?.planId ?? '').trim()
+  const planHash = String(input?.planHash ?? '').trim()
+  if (!planId || !planHash) return { ok: false, reason: 'not-found' }
+  if (input.decision !== 'APPROVED' && input.decision !== 'REJECTED') return { ok: false, reason: 'not-found' }
+
+  const scope = await resolveAgentScope()
+  const result = await decideOnBatch({ planId, planHash, decision: input.decision, scope })
+
+  // Only a batch that actually created something is worth invalidating a cache
+  // for. Partial counts: some tasks exist.
+  if (result.ok && (result.outcome.summary.verified > 0 || result.outcome.summary.duplicates > 0)) {
     revalidatePath('/tasks')
     revalidatePath('/clients', 'layout')
   }
