@@ -20,7 +20,27 @@
  */
 import type { AgentAnswer } from '@/lib/agent/types'
 
-export const SCORING_VERSION = 'scoring@1.0.0'
+export const SCORING_VERSION = 'scoring@1.1.0'
+
+/**
+ * Stop reasons that mean THE AGENT NEVER RAN.
+ *
+ * `gate_denied` is the AI admission gate refusing before a single token is
+ * spent — a disabled flag, an un-allowlisted agency, no configured provider, a
+ * spent daily cap, or a lapsed product-access entitlement. None of those is a
+ * statement about the agent's answer, because there was no answer.
+ *
+ * WHY THIS EXISTS. The 2026-09-08 run scored ten such cases as `other failures`
+ * under scoring@1.0.0, which made a fixture whose trial had expired read as ten
+ * agent failures. Both numbers were "10"; only one of them meant anything. A
+ * case that could not be evaluated and a case the agent answered badly are
+ * different facts and now have different counters.
+ *
+ * DELIBERATELY NARROW. `error` is not here: a provider throw or a runtime fault
+ * happened while the agent was running and is a real failure of the run. Only
+ * refusals that precede execution are unevaluable.
+ */
+export const UNEVALUABLE_STOP_REASONS = ['gate_denied'] as const
 
 /**
  * Tools that answer a question about the BUSINESS rather than about today.
@@ -79,6 +99,10 @@ export type CaseResult = {
 export type Totals = {
   cases: number
   retired: number
+  /** Cases that actually reached the agent. The honest denominator. */
+  evaluated: number
+  /** Cases refused before the agent ran. Never counted as agent failures. */
+  unevaluable: number
   answered: number
   unsupportedClaimFailures: number
   groundingFailures: number
@@ -97,6 +121,13 @@ export type Totals = {
   modelWaitMs: number
   toolWallMs: number
 }
+
+/**
+ * The case never reached the agent, so it measures the environment, not the
+ * product. Reported in its own counter and excluded from every quality metric.
+ */
+export const isUnevaluable = (r: CaseResult): boolean =>
+  r.answered === false && (UNEVALUABLE_STOP_REASONS as readonly string[]).includes(r.stopReason)
 
 /**
  * A refusal caused by the claim gate — the model asserted something the evidence
@@ -146,9 +177,12 @@ const sum = (rows: readonly CaseResult[], pick: (r: CaseResult) => number | null
   rows.reduce((acc, r) => acc + (pick(r) ?? 0), 0)
 
 export function tally(rows: readonly CaseResult[], retired: number): Totals {
+  const unevaluable = rows.filter(isUnevaluable).length
   return {
     cases: rows.length,
     retired,
+    evaluated: rows.length - unevaluable,
+    unevaluable,
     answered: rows.filter((r) => r.answered).length,
     unsupportedClaimFailures: rows.filter(isUnsupportedClaimFailure).length,
     groundingFailures: rows.filter(isGroundingFailure).length,
@@ -160,8 +194,14 @@ export function tally(rows: readonly CaseResult[], retired: number): Totals {
     sawStructuralTool: rows.filter(sawStructural).length,
     deadlineFailures: rows.filter((r) => r.answered === false && r.stopReason === 'deadline').length,
     harnessErrors: rows.filter((r) => r.harnessError !== null).length,
+    // Excludes unevaluable: a gate refusal is not a failure of the agent.
     otherFailures: rows.filter(
-      (r) => r.answered === false && r.stopReason !== 'deadline' && !isUnsupportedClaimFailure(r) && r.harnessError === null,
+      (r) =>
+        r.answered === false &&
+        r.stopReason !== 'deadline' &&
+        !isUnsupportedClaimFailure(r) &&
+        r.harnessError === null &&
+        !isUnevaluable(r),
     ).length,
     roundTrips: sum(rows, (r) => r.timing.toolRoundTrips),
     toolCalls: sum(rows, (r) => r.timing.toolCalls),

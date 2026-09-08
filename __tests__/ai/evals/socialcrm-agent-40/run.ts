@@ -17,6 +17,7 @@
  */
 import { writeFileSync } from 'node:fs'
 import { db } from '@/config/db'
+import { admitAiRun } from '@/lib/ai/gate'
 import { getEffectiveLeadPlan } from '@/lib/quota'
 import { getFirstName } from '@/lib/users/displayName'
 import { runAgentInvestigation } from '@/lib/agent/run'
@@ -109,10 +110,46 @@ async function runCase(c: BenchmarkCase, scope: AgentScope): Promise<CaseResult>
   }
 }
 
+/**
+ * PREFLIGHT — refuse to start a run that cannot produce a valid result.
+ *
+ * The 2026-09-08 run spent real money and ten minutes discovering, one case at a
+ * time, that a tenant's trial had expired the previous day. The information was
+ * available before the first token: `admitAiRun` is a cheap, side-effect-free
+ * decision, and asking it four times up front is the whole check.
+ *
+ * REFUSING IS THE POINT. A benchmark that half-runs by default produces numbers
+ * that get quoted without their asterisk. Overriding is deliberate and leaves a
+ * mark: `EVAL_ALLOW_UNEVALUABLE=1` permits the run, and the verdict is INCOMPLETE
+ * no matter how clean the cases that did run turn out to be.
+ */
+async function preflight(labels: readonly string[]): Promise<string[]> {
+  const blocked: string[] = []
+  for (const tenant of TENANTS) {
+    if (!labels.includes(tenant.label)) continue
+    const admission = await admitAiRun({ kind: 'agent.investigate', agencyId: tenant.agencyId })
+    if (admission.ok === false) blocked.push(`${tenant.label} (agency ${tenant.agencyId}): ${admission.reason}`)
+  }
+  return blocked
+}
+
 async function main() {
   const only = process.argv[2]
   const cases = only ? ACTIVE_CASES.filter((c) => c.id === only) : ACTIVE_CASES
   if (cases.length === 0) throw new Error(`no such case: ${only}`)
+
+  const blocked = await preflight([...new Set(cases.map((c) => c.tenant.label))])
+  if (blocked.length > 0) {
+    console.error('PREFLIGHT FAILED — these tenants cannot be evaluated:')
+    for (const b of blocked) console.error(`  ${b}`)
+    console.error('\nThese cases would be UNEVALUABLE: refused before the agent runs, measuring the')
+    console.error('fixture rather than the product. See fixtures/ENTITLEMENT.md for what to restore.')
+    if (process.env.EVAL_ALLOW_UNEVALUABLE !== '1') {
+      console.error('\nRefusing to run. Set EVAL_ALLOW_UNEVALUABLE=1 to run anyway (verdict will be INCOMPLETE).')
+      return 2
+    }
+    console.error('\nEVAL_ALLOW_UNEVALUABLE=1 — running anyway. The verdict will be INCOMPLETE.')
+  }
 
   const startedAt = new Date().toISOString()
   const before = await crmCounts(AGENCY_IDS)

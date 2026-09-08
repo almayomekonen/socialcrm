@@ -18,7 +18,7 @@
  */
 import { writeFileSync } from 'node:fs'
 import { BENCHMARK_VERSION, RETIRED } from './benchmark'
-import { SCORING_VERSION, latency, tally, type CaseResult } from './scoring'
+import { SCORING_VERSION, isUnevaluable, latency, tally, type CaseResult } from './scoring'
 import type { FirewallVerdict } from './firewall'
 
 export type RunVerdict = 'PASS' | 'FAIL' | 'INCOMPLETE'
@@ -42,13 +42,25 @@ export type BenchmarkReport = {
  *
  * A firewall breach outranks everything: an evaluation that changed the data it
  * was measuring has invalidated its own numbers, whatever they say.
+ *
+ * THEN COMES COVERAGE, AND IT IS NOT A FAILURE — IT IS AN ABSENCE. A case the
+ * gate refused before the agent ran (scoring@1.1.0's `unevaluable`) tells us
+ * nothing about the agent, so a run containing one is INCOMPLETE: it did not
+ * measure what it claims to measure. Scoring it FAIL would blame the product for
+ * an expired fixture; scoring it PASS on the remainder would be the rounding
+ * this file exists to forbid.
+ *
+ * PASS THEREFORE REQUIRES ALL FORTY TO HAVE BEEN EVALUATED. There is no
+ * arithmetic anywhere below that can produce PASS from a partial set.
  */
 export function verdictFor(report: Omit<BenchmarkReport, 'verdict'>): RunVerdict {
   if (report.firewall.ok === false) return 'FAIL'
   if (report.totals.cases < report.expectedCases) return 'INCOMPLETE'
+  if (report.totals.unevaluable > 0) return 'INCOMPLETE'
   if (report.totals.harnessErrors > 0) return 'INCOMPLETE'
   const t = report.totals
   const clean =
+    t.evaluated === report.expectedCases &&
     t.answered === t.cases &&
     t.unsupportedClaimFailures === 0 &&
     t.groundingFailures === 0 &&
@@ -72,7 +84,13 @@ export function buildReport(input: {
     .filter((c) => c.answered === false || c.harnessError !== null || c.droppedClaims > 0 || c.strippedRefs > 0)
     .map((c) => ({
       id: c.id,
-      reason: c.harnessError ? 'harness-error' : c.answered ? 'grounding' : (c.rejection ?? c.stopReason),
+      reason: c.harnessError
+        ? 'harness-error'
+        : isUnevaluable(c)
+          ? 'UNEVALUABLE'
+          : c.answered
+            ? 'grounding'
+            : (c.rejection ?? c.stopReason),
       // Everything a claim-gate failure needs to be diagnosed, and no prose.
       detail:
         `rule=${c.rejectionRuleId ?? '—'} dropped=${c.droppedClaims} stripped=${c.strippedRefs} ` +
@@ -94,7 +112,12 @@ export function formatReport(r: BenchmarkReport): string {
     `started ${r.startedAt}`,
     ``,
     `VERDICT: ${r.verdict}   (${t.cases} of ${r.expectedCases} cases ran${t.retired ? `, ${t.retired} retired` : ''})`,
+    ...(t.unevaluable > 0
+      ? [`  ${t.unevaluable} UNEVALUABLE — refused before the agent ran; they measure the fixture, not the product`]
+      : []),
     ``,
+    `evaluated                 ${t.evaluated}/${r.expectedCases}`,
+    `unevaluable               ${t.unevaluable}`,
     `answered                  ${pct(t.answered)}`,
     `unsupported-claim failures ${t.unsupportedClaimFailures}`,
     `grounding failures         ${t.groundingFailures}`,
@@ -124,7 +147,7 @@ export function formatReport(r: BenchmarkReport): string {
   lines.push('', 'PER CASE', 'id    state       ms     tools')
   for (const c of r.cases) {
     lines.push(
-      `${c.id.padEnd(6)}${(c.businessState ?? (c.answered ? 'null' : 'FAILED')).padEnd(12)}` +
+      `${c.id.padEnd(6)}${(c.businessState ?? (c.answered ? 'null' : isUnevaluable(c) ? 'UNEVAL' : 'FAILED')).padEnd(12)}` +
         `${String(c.timing.totalMs).padEnd(7)}${c.toolsUsed.join(',') || '—'}`,
     )
   }

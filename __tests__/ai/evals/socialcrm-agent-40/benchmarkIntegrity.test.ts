@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { ACTIVE_CASES, BENCHMARK_VERSION, CASES, QUESTIONS, RETIRED, TENANTS } from './benchmark'
-import { SCORING_VERSION, isTodayOnlyBroad, sawStructural, tally, latency, type CaseResult } from './scoring'
+import { SCORING_VERSION, isTodayOnlyBroad, isUnevaluable, sawStructural, tally, latency, type CaseResult } from './scoring'
 import { compareCounts } from './firewall'
 import { verdictFor } from './report'
 
@@ -135,6 +135,45 @@ describe('totals never flatter the run', () => {
   })
 })
 
+// ── scoring@1.1.0: a case that never reached the agent ───────────────────────
+
+describe('UNEVALUABLE is not an agent failure', () => {
+  const gateDenied = () => caseResult({ answered: false, stopReason: 'gate_denied' })
+
+  it('classifies a gate refusal as unevaluable', () => {
+    expect(isUnevaluable(gateDenied())).toBe(true)
+  })
+
+  it('does not classify a real agent failure as unevaluable', () => {
+    // Each of these happened WHILE the agent ran, so each is a genuine result.
+    for (const stopReason of ['deadline', 'error', 'no_evidence', 'step_ceiling']) {
+      expect(isUnevaluable(caseResult({ answered: false, stopReason })), stopReason).toBe(false)
+    }
+    expect(isUnevaluable(caseResult())).toBe(false)
+  })
+
+  it('keeps it out of every failure counter, and out of the evaluated denominator', () => {
+    const t = tally([gateDenied(), caseResult()], 0)
+    expect(t).toMatchObject({
+      cases: 2,
+      evaluated: 1,
+      unevaluable: 1,
+      answered: 1,
+      // The whole point: none of these absorb it.
+      otherFailures: 0,
+      deadlineFailures: 0,
+      unsupportedClaimFailures: 0,
+      groundingFailures: 0,
+      harnessErrors: 0,
+    })
+  })
+
+  it('still counts a non-gate failure as a real failure alongside it', () => {
+    const t = tally([gateDenied(), caseResult({ answered: false, stopReason: 'no_evidence' })], 0)
+    expect(t).toMatchObject({ unevaluable: 1, otherFailures: 1, evaluated: 1 })
+  })
+})
+
 describe('the verdict', () => {
   const clean = { totals: tally([caseResult()], 0), firewall: compareCounts(ZERO(), ZERO()), expectedCases: 1 }
   function ZERO() {
@@ -157,5 +196,18 @@ describe('the verdict', () => {
 
   it('FAILS on a deadline failure', () => {
     expect(verdictFor({ ...clean, totals: tally([caseResult({ answered: false, stopReason: 'deadline' })], 0) } as never)).toBe('FAIL')
+  })
+
+  it('is INCOMPLETE — not FAIL — when a case never reached the agent', () => {
+    // Blaming the product for an expired fixture is the error scoring@1.1.0 fixes.
+    const totals = tally([caseResult({ answered: false, stopReason: 'gate_denied' })], 0)
+    expect(verdictFor({ ...clean, totals, expectedCases: 1 } as never)).toBe('INCOMPLETE')
+  })
+
+  it('never reaches PASS while any case is unevaluable, however clean the rest', () => {
+    const totals = tally([caseResult(), caseResult({ id: 'A2', answered: false, stopReason: 'gate_denied' })], 0)
+    // One perfect answer, one case that never ran. Not a pass.
+    expect(totals).toMatchObject({ answered: 1, unevaluable: 1, otherFailures: 0 })
+    expect(verdictFor({ ...clean, totals, expectedCases: 2 } as never)).toBe('INCOMPLETE')
   })
 })

@@ -1,6 +1,6 @@
 # socialcrm-agent-40 — the pinned Agent regression
 
-**Benchmark version:** `socialcrm-agent-40@1.0.0` · **Scoring version:** `scoring@1.0.0`
+**Benchmark version:** `socialcrm-agent-40@1.0.0` · **Scoring version:** `scoring@1.1.0`
 
 Forty cases: ten broad business-judgement questions asked of four tenants.
 Case ids are `A1`–`A10`, `B1`–`B10`, `C1`–`C10`, `D1`–`D10`.
@@ -74,11 +74,18 @@ touch the CRM.
 | `Today-only broad` | answered, touched `get_today_state`, touched **no** structural tool. A case that used *no* tools is excluded — that is a different failure |
 | `saw a structural tool` | touched any of `get_business_summary`, `get_lead_health`, `get_follow_up_health`, `get_activity_trends` |
 | `deadline failures` | `ok === false && stopReason === 'deadline'` |
+| `unevaluable` | `stopReason === 'gate_denied'` — the AI admission gate refused **before the agent ran**. Not an agent failure, and excluded from every quality metric and from `evaluated` |
+| `evaluated` | `cases − unevaluable`. The honest denominator |
 | `harness errors` | the harness itself threw. **Not** an agent failure; forces `INCOMPLETE` |
 
-**Verdict order.** A firewall breach → `FAIL`, ahead of everything. Fewer cases
-run than the benchmark defines, or any harness error → `INCOMPLETE`. Otherwise
-`PASS` only if every count above is clean.
+**Verdict order.** A firewall breach → `FAIL`, ahead of everything. Then
+coverage, which is an absence rather than a failure: fewer cases run than the
+benchmark defines, **any unevaluable case**, or any harness error → `INCOMPLETE`.
+Otherwise `PASS` only if every count above is clean.
+
+**`PASS` requires all forty to have been evaluated.** No arithmetic in
+`report.ts` can produce `PASS` from a partial set — a run where the gate refused
+even one tenant is `INCOMPLETE`, however clean the cases that ran.
 
 **An incomplete run is never rounded to a passing score.** If 38 of 40 ran, the
 report says `38 of 40` and the verdict is `INCOMPLETE` — never `38/38`.
@@ -90,7 +97,9 @@ report says `38 of 40` and the verdict is `INCOMPLETE` — never `38/38`.
 - Changing any of them **fails that test** with an instruction: bump
   `BENCHMARK_VERSION` and accept that historical totals are no longer comparable.
 - Scoring changes bump `SCORING_VERSION` instead — questions stay comparable,
-  totals do not.
+  totals do not. `scoring@1.1.0` added the `unevaluable` classification; the
+  `results/2026-09-08.md` record was scored under `scoring@1.0.0` and is left
+  exactly as recorded, never recomputed under newer rules.
 - A case that becomes invalid is **retired** in `RETIRED` with a reason. It is
   never reworded and never deleted; its id is never reused, and `retired` is
   reported as its own count rather than shrinking a denominator.
@@ -98,9 +107,21 @@ report says `38 of 40` and the verdict is `INCOMPLETE` — never `38/38`.
 ## 6. Running it
 
 ```bash
-npx tsx __tests__/ai/evals/socialcrm-agent-40/run.ts        # all 40
-npx tsx __tests__/ai/evals/socialcrm-agent-40/run.ts B8     # one case
+npx tsx --tsconfig __tests__/ai/evals/socialcrm-agent-40/tsconfig.eval.json \
+  __tests__/ai/evals/socialcrm-agent-40/run.ts        # all 40
+… run.ts B8                                            # one case
 ```
+
+**Preflight.** The runner asks `admitAiRun` about each tenant before spending
+anything, and **refuses to start** if any is blocked — those cases would be
+`UNEVALUABLE` and the run could not produce a valid result.
+`EVAL_ALLOW_UNEVALUABLE=1` overrides it for a deliberate diagnostic run and
+forces the verdict to `INCOMPLETE`.
+
+> **The benchmark is currently blocked.** Tenant B's trial expired 2026-09-07;
+> tenants A and D expire 2026-09-11. See
+> [`fixtures/ENTITLEMENT.md`](./fixtures/ENTITLEMENT.md) — restoring it is an
+> operator decision, and this repository does not make it.
 
 Exit code `0` = PASS, `1` = FAIL/INCOMPLETE, `2` = could not run.
 A text report and the **raw per-case JSON** are written to `$EVAL_OUT_DIR`
@@ -128,7 +149,9 @@ on. Best-of-N is not a benchmark.
 The four tenants are **pre-existing rows in the local development database**
 (agencies 56, 49, 41, 51; fixture leads marked `AGENTVAL` in agency 56 and
 `PH25EVAL` in 49/41/51, in `followUpNote`). They are *not* seeded by this
-directory, and this is the benchmark's weakest point:
+directory, and this is the benchmark's weakest point — see
+[`fixtures/ENTITLEMENT.md`](./fixtures/ENTITLEMENT.md) for the entitlement half,
+which has already cost one run:
 
 - A clean checkout on another machine **cannot** reproduce the numbers, only the
   procedure.
