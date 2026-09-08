@@ -22,8 +22,10 @@ import { listActionsForPlan } from '@/db/agentActions'
 import { submitProposedBatch, decideOnBatch } from '@/lib/agent/actions/bridge'
 import { registerDomainActions } from '@/lib/agent/actions/domain'
 import { MAX_BATCH_TARGETS } from '@/lib/agent/actions/batchLimits'
+import { createEvidenceCollector } from '@/lib/agent/evidence'
+import { validateAgentAnswerDetailed } from '@/lib/agent/validate'
 import { Roles } from '@/types/roles'
-import type { AgentScope, ProposedBatch } from '@/lib/agent/types'
+import type { AgentAnswer, AgentScope, ProposedBatch } from '@/lib/agent/types'
 import type { BatchOutcome } from '@/lib/agent/actions/batch'
 
 const AGENCY_A = 96_001
@@ -310,5 +312,33 @@ describe('what the batch reports and records', () => {
     await submit(batch(LEADS_A.slice(0, MAX_BATCH_TARGETS)), adminA(), COMMAND)
     // Ten mutations, zero conversations. Expansion is deterministic code.
     expect(generateTextSpy).not.toHaveBeenCalled()
+  })
+
+  it('20 — evaluating an answer that CONTAINS a batch mutates nothing', async () => {
+    /**
+     * The intelligence half runs on every question, including ones nobody
+     * approved. Producing and grounding a `proposedBatch` is evaluation: it
+     * decides what COULD be asked for, and the runtime alone decides whether
+     * anything happens. If validation could write, every investigation would be
+     * a mutation and the approval gate would be decoration.
+     */
+    const targets = LEADS_A.slice(0, 3)
+    const evidence = createEvidenceCollector()
+    for (const id of targets) evidence.add({ kind: 'lead', refId: String(id) })
+
+    const answer: AgentAnswer = {
+      headline: 'שלושה לידים בלי צעד הבא.',
+      claims: [{ claimClass: 'FACT', text: 'שלושה לידים ללא צעד הבא.', entityEvidence: targets.map(String) }],
+      unknown: null,
+      proposedBatch: batch(targets),
+    }
+
+    const validated = validateAgentAnswerDetailed(answer, evidence)
+
+    // The proposal survives evaluation — and stays a proposal.
+    expect(validated.answer.proposedBatch?.targets).toEqual(targets)
+    expect(await tasksIn(targets)).toHaveLength(0)
+    expect(await db('agent_actions').where({ agencyId: AGENCY_A })).toHaveLength(0)
+    expect(await db('agent_action_approvals').where({ agencyId: AGENCY_A })).toHaveLength(0)
   })
 })
