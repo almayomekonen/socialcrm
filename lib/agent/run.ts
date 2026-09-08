@@ -6,7 +6,7 @@ import { addDailySpend } from '@/lib/ai/router/spend'
 import { resolveAgentScope } from './scope'
 import { DEFAULT_DEADLINE_MS, DEFAULT_MAX_STEPS, createBudget } from './budget'
 import { RESEARCH_DEADLINE_MS, admitsResearch } from './research/admission'
-import { harvestSources, sourceManifest } from './research/harvest'
+import { harvestSources, openedPageUrls, sourceManifest } from './research/harvest'
 import { RESEARCH_TOOL_NAME, researchTool, providerSupportsHostedSearch } from './research/tool'
 import { emptyResearchTelemetry, researchFailureReasonOf, type ResearchTelemetry } from './research/telemetry'
 import { createEvidenceCollector } from './evidence'
@@ -436,18 +436,26 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
        * this is the moment the collector holds everything the run actually saw
        * and nothing the model has yet claimed about it.
        *
-       * Evidence is derived from `evidencePhase.sources` — the provider's own
-       * record of pages it consulted. It is never derived from the model's prose,
-       * which is why a URL printed on a web page cannot become a citation: the
-       * model can only cite refIds minted here, from URLs the search returned.
+       * Evidence is derived from TWO provider records, never from the model's
+       * prose: `evidencePhase.sources` (pages the model CITED, via
+       * `url_citation`) and the `openPage` actions in `evidencePhase.toolResults`
+       * (pages the provider actually FETCHED). A URL printed on a web page still
+       * cannot become a citation — the model can only cite refIds minted here.
        *
-       * Nothing is created if the search never ran. An empty `sources` array
-       * harvests nothing, the collector gains nothing, and every SOURCED claim
-       * the model might attempt is dropped by the validator as unsupported — a
-       * failed search cannot become a fabricated answer.
+       * SEARCH-ENGINE HITS ARE NOT AMONG THEM. `action.sources` carries 12-20
+       * results per call that the model may never have opened; admitting one
+       * would assert a source for a page nobody read. See ./harvest.ts.
+       *
+       * Nothing is created if the search never ran. No citations and no opened
+       * pages harvests nothing, the collector gains nothing, and every SOURCED
+       * claim the model might attempt is dropped by the validator as
+       * unsupported — a failed search cannot become a fabricated answer.
        */
       if (researchAdmitted) {
-        const harvest = harvestSources(evidencePhase.sources as never, { retrievedAt: new Date(nowMs).toISOString() })
+        const harvest = harvestSources(evidencePhase.sources as never, {
+          retrievedAt: new Date(nowMs).toISOString(),
+          opened: openedPageUrls(evidencePhase.toolResults as never),
+        })
         for (const ref of harvest.refs) evidence.add(ref)
 
         /**

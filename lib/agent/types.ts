@@ -84,6 +84,19 @@ export type EvidenceRef =
       /** Publisher identity, derived from the URL we were given — never from page content. */
       domain: string
       /**
+       * How this page reached us. Both are admissible evidence; neither changes
+       * what a SOURCED claim must do to survive validation.
+       *
+       * `opened` — the provider actually fetched it (`openPage` action).
+       * `cited`  — the model attributed the answer to it (`url_citation`).
+       *
+       * A page can be opened without being cited, which is the case Phase 4e
+       * exists for. Search-engine hits (`action.sources`) set neither, because
+       * they are never admitted.
+       */
+      opened?: boolean
+      cited?: boolean
+      /**
        * The publisher's own name, when the provider supplies one.
        *
        * OPTIONAL AND USUALLY ABSENT, deliberately. The hosted search returns
