@@ -158,3 +158,10 @@ conditions on the day.
 
 Quote them as history. Do not present a new run as beating them unless
 questions, fixtures, scoring and conditions are demonstrably identical.
+
+## 8. Results
+
+Each run's record lives in `results/`, newest last. The first run under this
+harness — `results/2026-09-08.md` — is the reference point for everything after
+it, and also documents the first fixture failure: tenant B's product-access
+entitlement had lapsed, so ten of the forty never reached the model.
