@@ -83,6 +83,17 @@ export type EvidenceRef =
       title: string
       /** Publisher identity, derived from the URL we were given — never from page content. */
       domain: string
+      /**
+       * The publisher's own name, when the provider supplies one.
+       *
+       * OPTIONAL AND USUALLY ABSENT, deliberately. The hosted search returns
+       * `{id, url, title}` and no publisher field, so today this is never set and
+       * `domain` is the honest stand-in — "according to cio.com" is true, and
+       * "according to CIO" would be us deciding what the domain is called.
+       * The field exists so a provider that starts returning one can be carried
+       * through without reshaping the evidence ref; it is never inferred.
+       */
+      publisher?: string
       /** ISO. The only time claim we can honestly support; publication date is not available. */
       retrievedAt: string
     }

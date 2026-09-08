@@ -7,7 +7,8 @@ import { resolveAgentScope } from './scope'
 import { DEFAULT_DEADLINE_MS, DEFAULT_MAX_STEPS, createBudget } from './budget'
 import { RESEARCH_DEADLINE_MS, admitsResearch } from './research/admission'
 import { harvestSources, sourceManifest } from './research/harvest'
-import { RESEARCH_TOOL_NAME, researchTool } from './research/tool'
+import { RESEARCH_TOOL_NAME, researchTool, providerSupportsHostedSearch } from './research/tool'
+import { emptyResearchTelemetry, researchFailureReasonOf, type ResearchTelemetry } from './research/telemetry'
 import { createEvidenceCollector } from './evidence'
 import { buildAgentTools } from './tools'
 import { createToolTimings, instrumentTools } from './instrument'
@@ -206,6 +207,19 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const handle = chain[0]!
   agentTrace('ADMISSION_OK', ctx, { provider: handle.provider, model: handle.modelId, chainLength: chain.length })
 
+  /**
+   * REQUESTED IS NOT ADMITTED, and the gap is a real failure mode rather than a
+   * bookkeeping nicety.
+   *
+   * `researchTool()` returns OpenAI's hosted tool. The provider chain falls back
+   * to Anthropic and then Google when OpenAI is unavailable, and handing an
+   * OpenAI hosted-tool definition to a different provider is not a search that
+   * returns nothing — it is a malformed request. So a question that asked about
+   * the outside world, on a run that failed over, is REQUESTED and NOT ADMITTED,
+   * and the answer proceeds from CRM evidence alone rather than failing.
+   */
+  const researchAdmitted = research.admitted && providerSupportsHostedSearch(handle.provider)
+
   // Identity for the durable record. Every field is server-resolved: the agency
   // and rep come from the scope, the id was minted here. None is reachable by
   // the model or the caller.
@@ -300,7 +314,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
    */
   const tools = {
     ...instrumentTools(buildAgentTools({ scope, evidence, budget, nowMs }), toolTimings, now),
-    ...(research.admitted ? researchTool() : {}),
+    ...(researchAdmitted ? researchTool() : {}),
   }
 
   const generationStartedAt = now()
@@ -329,11 +343,28 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   /** Phase 1's token usage, folded into the cost so a two-phase run bills honestly. */
   let evidenceUsage: { inputTokens?: number; outputTokens?: number } | undefined
   /**
-   * What the research actually cost in breadth. Counts only — never a URL and
-   * never a snippet, so a trace line cannot become a place page content is
-   * stored. Null on every non-research run, which is most of them.
+   * PROVIDER-RESOURCE ACCOUNTING, kept deliberately apart from `Budget`.
+   *
+   * The Budget counts calls that ran our code; none of these did. Every number
+   * here is read from the provider's own response — see ./research/telemetry.ts
+   * for why deriving them from `stepsUsed()` would be fiction. Counts only: never
+   * a snippet, so a trace line cannot become a place page content is stored.
    */
-  let researchStats: { searches: number; sourcesOffered: number; sourcesKept: number; sourcesCapped: number } | null = null
+  let researchTelemetry: ResearchTelemetry = {
+    ...emptyResearchTelemetry(deadlineMs),
+    researchRequested: research.admitted,
+    researchAdmitted,
+    // Overwritten by the harvest on an admitted run. Standing value covers the
+    // two cases the harvest never reaches: never asked, and asked on a provider
+    // that cannot search.
+    researchFailureReason: researchFailureReasonOf({
+      researchRequested: research.admitted,
+      researchAdmitted,
+      hostedSearchCalls: 0,
+      rawSourceRecords: 0,
+      admittedSources: 0,
+    }),
+  }
   try {
     /**
      * TWO PHASES FOR RESEARCH TOO, and for the same reason the autonomous path
@@ -344,7 +375,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
      * produced `malformed` every time. Gathering and answering separate, exactly
      * as they already do.
      */
-    if (input.requireToolEvidence === true || research.admitted) {
+    if (input.requireToolEvidence === true || researchAdmitted) {
       /**
        * TWO PHASES, because ai@6.0.176 cannot vary structured output per step.
        *
@@ -365,6 +396,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
        */
 
       // ── PHASE 1 · evidence. Tools, required first call, NO structured output. ──
+      // The hosted search runs INSIDE this call, so this span is the research
+      // wall clock — there is no narrower boundary we can observe.
+      const phase1StartedAt = now()
       const evidencePhase = await generateText({
         model: handle.model,
         system: systemPrompt,
@@ -412,19 +446,42 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
        * the model might attempt is dropped by the validator as unsupported — a
        * failed search cannot become a fabricated answer.
        */
-      if (research.admitted) {
+      if (researchAdmitted) {
         const harvest = harvestSources(evidencePhase.sources as never, { retrievedAt: new Date(nowMs).toISOString() })
         for (const ref of harvest.refs) evidence.add(ref)
-        researchStats = {
-          searches: evidencePhase.steps.reduce(
-            (n, st) => n + (st.toolCalls ?? []).filter((c) => c.toolName === RESEARCH_TOOL_NAME).length,
-            0,
-          ),
-          sourcesOffered: harvest.offered,
-          sourcesKept: harvest.refs.length,
-          sourcesCapped: harvest.cappedOut,
+
+        /**
+         * COUNTED FROM THE PROVIDER, never from the step counter. Each hosted
+         * call is a `toolCall` the provider reports; measured, seven of them can
+         * arrive inside one SDK step, which is exactly why `stepsUsed()` cannot
+         * stand in for this number.
+         */
+        const hostedSearchCalls = evidencePhase.steps.reduce(
+          (n, st) => n + (st.toolCalls ?? []).filter((c) => c.toolName === RESEARCH_TOOL_NAME).length,
+          0,
+        )
+        researchTelemetry = {
+          researchRequested: research.admitted,
+          researchAdmitted: true,
+          hostedSearchCalls,
+          rawSourceRecords: harvest.rawRecords,
+          uniqueSources: harvest.unique,
+          admittedSources: harvest.refs.length,
+          rejectedSources: harvest.cappedOut + harvest.unusable,
+          sourcesByDomain: harvest.byDomain,
+          researchWallMs: now() - phase1StartedAt,
+          researchDeadlineMs: deadlineMs,
+          researchHarvested: harvest.refs.length > 0,
+          groundedSourcedClaims: 0, // filled after validation; unknown here
+          researchFailureReason: researchFailureReasonOf({
+            researchRequested: research.admitted,
+            researchAdmitted: true,
+            hostedSearchCalls,
+            rawSourceRecords: harvest.rawRecords,
+            admittedSources: harvest.refs.length,
+          }),
         }
-        agentTrace('RESEARCH_HARVEST', ctx, { marker: research.marker, ...researchStats })
+        agentTrace('RESEARCH_HARVEST', ctx, { marker: research.marker, ...researchTelemetry })
       }
 
       /**
@@ -474,6 +531,17 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     // message cannot, and would carry provider text into a durable record.
     const message = (err as Error)?.message ?? 'unknown'
     const stopReason: StopReason = timedOut ? 'deadline' : 'error'
+    /**
+     * A research run that died mid-flight must say WHY in its own terms. Without
+     * this the telemetry would report `no-searches` — indistinguishable from a
+     * model that simply chose not to search, which is the opposite diagnosis.
+     */
+    if (researchTelemetry.researchAdmitted) {
+      researchTelemetry = {
+        ...researchTelemetry,
+        researchFailureReason: timedOut ? 'deadline' : 'provider-error',
+      }
+    }
     agentTrace('GENERATION_FAILED', ctx, {
       provider: handle.provider,
       steps: budget.stepsUsed(),
@@ -532,8 +600,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   agentTrace('GENERATION_COMPLETE', ctx, {
     steps: budget.stepsUsed(),
     evidenceCount: evidence.size(),
-    researchAdmitted: research.admitted,
-    ...(researchStats ?? {}),
+    ...researchTelemetry,
     finishReason: result.finishReason,
     inputTokens,
     outputTokens,
@@ -650,6 +717,25 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   // budget's reason, not 'answered' — the rep is told the investigation was cut
   // short, rather than being handed a partial answer dressed as a complete one.
   const stopReason: StopReason = budget.reason() ?? 'answered'
+
+  /**
+   * THE ONE LINE THAT ANSWERS "how did this research answer happen?".
+   *
+   * Emitted after validation, which is the earliest point the last field is
+   * knowable: `GENERATION_COMPLETE` fires before the claim gate has run, so the
+   * number of SOURCED claims that actually SURVIVED cannot be reported there.
+   *
+   * That number is the one worth having. Sources admitted with zero grounded
+   * claims means the search worked and the answer did not use it — a different
+   * problem from a search that found nothing, and invisible without this pair.
+   */
+  if (researchTelemetry.researchRequested) {
+    researchTelemetry = {
+      ...researchTelemetry,
+      groundedSourcedClaims: validated.claims.filter((c) => c.claimClass === 'SOURCED').length,
+    }
+    agentTrace('RESEARCH_COMPLETE', ctx, researchTelemetry)
+  }
 
   agentTrace('INVESTIGATION_END', ctx, {
     ok: true,

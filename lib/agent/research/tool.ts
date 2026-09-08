@@ -39,3 +39,22 @@ export function researchTool() {
 
 /** The tool name the provider reports, used to count searches in the trace. */
 export const RESEARCH_TOOL_NAME = 'web_search'
+
+/**
+ * Can the resolved provider run the hosted tool this module returns?
+ *
+ * The tool is OpenAI's. The router's chain falls back to Anthropic and then
+ * Google when OpenAI is unavailable, and handing an OpenAI hosted-tool
+ * definition to either of those is a malformed request rather than a search that
+ * finds nothing — so a failed-over run must answer from CRM evidence instead of
+ * failing outright.
+ *
+ * A STRING COMPARISON, not a capability probe, because `ResolvedModel.provider`
+ * is the router's own label and is the only thing available before the call.
+ * When another provider ships an equivalent hosted search this is where it is
+ * admitted — and it will need its own harvest mapping, since the source shape
+ * would be its own.
+ */
+export function providerSupportsHostedSearch(provider: string): boolean {
+  return provider === 'openai'
+}

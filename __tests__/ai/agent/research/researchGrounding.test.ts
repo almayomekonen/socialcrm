@@ -54,7 +54,8 @@ describe('provider output becomes evidence', () => {
     // Measured: six entries over three URLs in one run. Two refs citing one page
     // would let a claim look twice-supported.
     const { evidence, harvest } = harvestedInto()
-    expect(harvest.offered).toBe(2)
+    expect(harvest.rawRecords).toBe(3)
+    expect(harvest.unique).toBe(2)
     expect(evidence.sources()).toHaveLength(2)
   })
 

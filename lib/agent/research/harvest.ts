@@ -1,3 +1,4 @@
+import { canonicalUrl, domainOf } from './url'
 import type { EvidenceRef } from '../types'
 
 /**
@@ -30,6 +31,12 @@ import type { EvidenceRef } from '../types'
  * controlled prose so it can be replayed into a later prompt is the injection
  * surface this whole phase is built to avoid. The model read the page during the
  * search; the citation is what survives.
+ *
+ * DEDUPLICATION IS ON CANONICAL FORM, CITATION IS ON THE ORIGINAL. `./url.ts`
+ * answers "is this the same page?"; the ref keeps the URL the provider actually
+ * fetched, because a rewritten address in a citation points at a page nobody
+ * visited. The measured run that motivated this returned the same Pipedrive
+ * pricing page twice, once carrying `?utm_source=openai`.
  */
 
 /** The shape the AI SDK exposes on `result.sources`. Narrowed to what we use. */
@@ -38,6 +45,8 @@ export type ProviderSource = {
   id?: string
   url?: string
   title?: string
+  /** Not returned today. Carried through if a provider ever supplies one. */
+  publisher?: string
 }
 
 export type HarvestLimits = {
@@ -57,28 +66,18 @@ export type HarvestLimits = {
  */
 export const DEFAULT_HARVEST_LIMITS: HarvestLimits = { maxSources: 8, maxPerDomain: 2 }
 
-/**
- * Publisher identity, from the URL we were handed — NEVER from page content.
- *
- * A page claiming to be someone is exactly the spoof this avoids: the domain is
- * a property of where the provider actually went, not of what it found there.
- * `www.` is stripped so one publisher cannot occupy two per-domain slots.
- */
-function domainOf(url: string): string | null {
-  try {
-    const host = new URL(url).hostname.toLowerCase()
-    return host.startsWith('www.') ? host.slice(4) : host
-  } catch {
-    return null
-  }
-}
-
 export type HarvestResult = {
   refs: Extract<EvidenceRef, { kind: 'source' }>[]
-  /** Distinct URLs the provider returned, before caps. For observability. */
-  offered: number
-  /** Dropped by a cap rather than by being unusable. */
+  /** Source entries the provider returned, before anything was applied. */
+  rawRecords: number
+  /** Distinct pages after canonical deduplication. */
+  unique: number
+  /** Unique pages turned away by a cap. */
   cappedOut: number
+  /** Entries that were not usable page addresses at all. */
+  unusable: number
+  /** Publisher → admitted count. Concentration, reported rather than scored. */
+  byDomain: Record<string, number>
 }
 
 /**
@@ -98,21 +97,29 @@ export function harvestSources(
 ): HarvestResult {
   const limits = opts.limits ?? DEFAULT_HARVEST_LIMITS
   const refs: Extract<EvidenceRef, { kind: 'source' }>[] = []
-  const seenUrls = new Set<string>()
+  const seenCanonical = new Set<string>()
   const perDomain = new Map<string, number>()
-  let offered = 0
+  const byDomain: Record<string, number> = {}
+  let rawRecords = 0
+  let unique = 0
   let cappedOut = 0
+  let unusable = 0
 
   for (const s of provided ?? []) {
+    rawRecords++
     const url = typeof s?.url === 'string' ? s.url.trim() : ''
-    if (!url) continue
-    // Only http(s). A `javascript:` or `data:` "source" is not a page anyone read.
-    if (!/^https?:\/\//i.test(url)) continue
-    const domain = domainOf(url)
-    if (!domain) continue
-    if (seenUrls.has(url)) continue
-    seenUrls.add(url)
-    offered++
+    // `canonicalUrl` is the single usability test: it returns null for an empty
+    // string, a malformed URL, and any non-http(s) scheme — a `javascript:` or
+    // `data:` "source" is not a page anyone read.
+    const canonical = url ? canonicalUrl(url) : null
+    const domain = url ? domainOf(url) : null
+    if (!canonical || !domain) {
+      unusable++
+      continue
+    }
+    if (seenCanonical.has(canonical)) continue
+    seenCanonical.add(canonical)
+    unique++
 
     if (refs.length >= limits.maxSources) {
       cappedOut++
@@ -124,20 +131,24 @@ export function harvestSources(
       continue
     }
     perDomain.set(domain, used + 1)
+    byDomain[domain] = (byDomain[domain] ?? 0) + 1
 
     refs.push({
       kind: 'source',
       refId: `src_${refs.length + 1}`,
+      // THE PROVIDER'S OWN URL, not the canonical one — this is what a reader opens.
       url,
       // A missing title is the domain rather than an empty string: a citation
       // with no label is unreadable, and the domain is always true.
       title: typeof s.title === 'string' && s.title.trim() ? s.title.trim() : domain,
       domain,
+      // Only if the provider actually gave one. Never derived from the title.
+      ...(typeof s.publisher === 'string' && s.publisher.trim() ? { publisher: s.publisher.trim() } : {}),
       retrievedAt: opts.retrievedAt,
     })
   }
 
-  return { refs, offered, cappedOut }
+  return { refs, rawRecords, unique, cappedOut, unusable, byDomain }
 }
 
 /**
