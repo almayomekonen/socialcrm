@@ -134,6 +134,18 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
     ...(answer.unknown ? [answer.unknown] : []),
   ])
   const recStart = 1 + statements.length
+  /**
+   * The chrome's fade, on its own line's clock.
+   *
+   * A bullet or a card that is painted before the sentence it belongs to shows
+   * the answer's skeleton assembling itself — the reveal reads as a UI building
+   * rather than as an answer arriving. Each piece now waits for its own line.
+   *
+   * Layout is unaffected: the text is in the DOM at full size from the first
+   * frame either way, so these elements already occupy their space and only
+   * their opacity is animated. Nothing below them moves.
+   */
+  const revealAt = (delay: number) => ({ '--rs-delay': `${delay}ms`, '--rs-fade-duration': `${FADE_MS}ms` }) as React.CSSProperties
   const unknownDelay = answer.unknown ? (schedule[recStart + recommendations.length] ?? 0) : 0
 
   return (
@@ -154,7 +166,8 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
             <li key={i} className='flex items-start gap-2.5'>
               <span
                 aria-hidden='true'
-                className={`mt-[9px] size-1.5 shrink-0 rounded-full ${
+                style={revealAt(schedule[i + 1] ?? 0)}
+                className={`response-stream-reveal mt-[9px] size-1.5 shrink-0 rounded-full ${
                   claim.claimClass === 'INFERENCE' ? 'bg-neutral-dot' : 'bg-accent'
                 }`}
               />
@@ -179,7 +192,10 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
               {/* An ordinary SocialCRM surface. The recommendation is emphasised
                   by being a card, not by a visual language of its own; the accent
                   on the mark is the system's existing AI highlight. */}
-              <article className='flex items-start gap-3 rounded-md border bg-white px-4 py-3.5'>
+              <article
+                style={revealAt(schedule[recStart + i] ?? 0)}
+                className='response-stream-reveal flex items-start gap-3 rounded-md border bg-white px-4 py-3.5'
+              >
                 <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-primary-tint'>
                   <Icon name='sparkles' type='sol' className='size-3.5 bg-primary' />
                 </span>

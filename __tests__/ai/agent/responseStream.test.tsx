@@ -135,13 +135,39 @@ describe('the agent answer uses the honest mode', () => {
     expect(firstDelayIn(recommendation)).toBeGreaterThan(firstDelayIn(headline))
   })
 
-  it('paints the recommendation CARD immediately, so nothing below it moves', () => {
+  /**
+   * CHROME ARRIVES WITH ITS LINE, not before it. Bullets and the recommendation
+   * card used to be painted on the first frame while their sentences were still
+   * fading in, so the answer's skeleton assembled itself in front of the reader
+   * — a UI building rather than an answer arriving.
+   *
+   * They fade on `.response-stream-reveal`, which shares the segments' keyframes
+   * and delay variable but not their `display: inline-block`; blockifying a flex
+   * card would flatten it.
+   */
+  it('fades each bullet on its own line\'s clock, not before it', () => {
     const { container } = render(<AgentAnswerView answer={answer} />)
-    // The surface and its mark are not gated on the reveal: only the prose is.
+    const row = container.querySelector('li')
+    const dot = row?.querySelector('.response-stream-reveal') as HTMLElement | null
+    const firstWord = row?.querySelector('.response-stream-segment') as HTMLElement | null
+
+    expect(dot).not.toBeNull()
+    // The dot and the line's first word start together.
+    expect(dot!.style.getPropertyValue('--rs-delay')).toBe(firstWord!.style.getPropertyValue('--rs-delay'))
+  })
+
+  it('fades the recommendation CARD with its own prose, and moves nothing', () => {
+    const { container } = render(<AgentAnswerView answer={answer} />)
     const card = container.querySelector('article')
-    expect(card).not.toBeNull()
+    expect(card?.className).toContain('response-stream-reveal')
+    // Still a card, and still not blockified into an inline segment.
     expect(card?.className).toContain('bg-white')
+    expect(card?.className).toContain('flex')
     expect(card?.closest('.response-stream-segment')).toBeNull()
+
+    // Layout is unaffected: the prose is in the DOM at full size from frame one,
+    // so only opacity is animated and nothing below it shifts.
+    expect(card?.textContent).toContain('הייתי מתחיל בהם.')
   })
 
   /**

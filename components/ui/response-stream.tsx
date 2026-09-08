@@ -318,6 +318,12 @@ export type ResponseStreamProps = {
 const STYLE_ID = 'response-stream-fade'
 
 /**
+ * `.response-stream-reveal` is the same fade WITHOUT `display: inline-block`, for
+ * the chrome that belongs to a revealed line rather than for the words in it —
+ * a bullet, a card. The segment rule cannot be reused there: it blockifies, so
+ * it would flatten a flex card into an inline box. Both share the keyframes and
+ * both stop under `prefers-reduced-motion`.
+ *
  * Declared once, in the document head — NOT inside the container.
  *
  * Rendering a `<style>` child put the CSS into the element's own text content,
@@ -334,9 +340,14 @@ const FADE_KEYFRAMES = `
   animation: responseStreamFadeIn var(--rs-fade-duration, 400ms) ease-out forwards;
   animation-delay: var(--rs-delay, 0ms);
 }
+.response-stream-reveal {
+  opacity: 0;
+  animation: responseStreamFadeIn var(--rs-fade-duration, 400ms) ease-out forwards;
+  animation-delay: var(--rs-delay, 0ms);
+}
 .response-stream-segment-space { white-space: pre }
 @media (prefers-reduced-motion: reduce) {
-  .response-stream-segment { animation: none; opacity: 1 }
+  .response-stream-segment, .response-stream-reveal { animation: none; opacity: 1 }
 }
 `
 
