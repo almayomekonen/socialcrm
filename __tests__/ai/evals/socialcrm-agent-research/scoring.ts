@@ -101,7 +101,14 @@ export function scoreCase(c: ResearchCase, o: CaseObservation | null, unevaluabl
   if (e.requiresCitation === true && o.groundedSourcedClaims === 0) {
     fail('requiresCitation', 'no SOURCED claim survived, on a question that needs one')
   }
-  if (e.requiresCitation === true && o.citationUrls.length === 0) {
+  /**
+   * Guarded on a claim having survived, because otherwise this fires alongside
+   * the check above and reports the opposite of what happened: R01 harvested
+   * nothing, so NO sourced claim survived, and an unguarded message announced
+   * that one had — with no URL. Two violations, one of them describing a state
+   * the run was never in, is how a diagnosis gets read backwards later.
+   */
+  if (e.requiresCitation === true && o.groundedSourcedClaims > 0 && o.citationUrls.length === 0) {
     fail('requiresCitation', 'a SOURCED claim survived with no resolvable source URL')
   }
   if (e.citationUrlIs !== undefined && !o.citationUrls.includes(e.citationUrlIs)) {
