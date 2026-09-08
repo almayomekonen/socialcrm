@@ -112,6 +112,22 @@ export default function AgentThread({
  * honest of the two, because it moves across the sentence that is actually
  * changing rather than beside it.
  *
+ * THE SWEEP IS DARK, NOT BRIGHT — which is the whole adaptation to a light page.
+ * On the old navy canvas the band brightened toward white and was obvious. The
+ * first light-mode pass kept that shape and merely swapped the stops for
+ * `--color-neutral-text` → `--color-ink`, which are 2.7:1 apart: the pass was
+ * technically running and effectively invisible. It now rests at
+ * `--color-primary` and darkens to `--color-ink`, 5.6:1 apart with a hue shift
+ * as well, so the band actually reads.
+ *
+ * BOTH ENDS STAY LEGIBLE, which is what rules out the brighter options. The
+ * obvious way to make a sweep pop on a light page is to lift one end toward the
+ * background — `--color-accent` would be the most visible of all — but the
+ * resting colour is what the label wears most of the time, and accent lands at
+ * 2.4:1 on `--color-bg`. Primary is the member of the brand family that clears
+ * the text floor (5.6:1), and ink is the reduced-motion fallback, so neither
+ * state of this label is ever hard to read.
+ *
  * The motion is decorative ONLY in the sense that it carries no data; it is not
  * fake progress, because the label under it is always a capability the server
  * really admitted, and it stops the moment the answer arrives.
@@ -127,7 +143,7 @@ function Thinking({ tools }: { tools: string[] }) {
     <p className='text-[15px] leading-6' aria-live='polite'>
       {/* Keyed by the label so a new capability restarts the sweep rather than
           continuing mid-pass, which would read as one long unchanging wait. */}
-      <ShiningText key={label} text={label} base='var(--color-neutral-text)' highlight='var(--color-ink)' />
+      <ShiningText key={label} text={label} base='var(--color-primary)' highlight='var(--color-ink)' />
     </p>
   )
 }
