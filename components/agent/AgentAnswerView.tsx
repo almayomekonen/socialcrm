@@ -38,16 +38,103 @@ import type { AgentAnswer, Claim } from '@/lib/agent/types'
  * experience guidelines name as fake streaming; the Agent's answer is validated
  * in full before a word of it may be shown, so there is nothing left to stream.
  *
- * RECOMMENDATIONS DO NOT FADE. They are the one thing on screen the rep can act
- * on, and interaction must never wait on an animation.
+ * THE RECOMMENDATION'S CARD IS INSTANT; ITS PROSE IS NOT. The surface, the mark
+ * and the space it occupies are painted on the first frame, so nothing below it
+ * moves as the answer arrives — and the sentence inside it fades in its turn,
+ * last, because an answer that revealed its conclusion before its reasoning
+ * would read backwards.
+ *
+ * This is a narrowing of an earlier rule, not a reversal of one. That rule said
+ * recommendations must never fade because interaction must not wait on an
+ * animation — true, and it still governs `AgentActionCard`, which has buttons.
+ * This card has none: it is a paragraph in a box, and the only thing waiting is
+ * reading.
  */
 
 /** Short on purpose: about a second for a long sentence, not a performance. */
 const FADE_MS = 340
 const WORD_DELAY_MS = 26
+
+/**
+ * A pause between blocks, on top of the words each one owes.
+ *
+ * Without it the reveal is technically sequential and reads as continuous prose
+ * running on; a beat at each boundary is what makes the headline land as a
+ * headline and each line as its own statement.
+ */
+const BLOCK_GAP_MS = 90
+
+/**
+ * Where a block's own stagger begins, so the answer reads DOWN the page.
+ *
+ * Every `ResponseStream` starts its stagger at zero, so the headline and every
+ * line under it used to reveal their first word in the same frame: the block
+ * appeared all at once, which is the "thrown" landing rather than the pass a
+ * reader expects from a generated answer.
+ *
+ * The offset is derived from what is above, not from a fixed step per block, so
+ * a long headline holds the line under it for longer than a short one — the
+ * cadence follows the prose instead of a metronome.
+ *
+ * COUNTED THE WAY THE RENDERER COUNTS. `ResponseStream` staggers by SEGMENT and
+ * `Intl.Segmenter` emits the spaces as segments too, so words alone would run
+ * roughly half as long as the animation actually takes and every block would
+ * start before the one above it finished. This is the same whitespace split the
+ * component falls back to, which tracks the segmenter closely enough for timing.
+ */
+function segmentCount(text: string): number {
+  return text.split(/(\s+)/).filter(Boolean).length
+}
+
+/**
+ * BOUNDED, because a long answer must not make its last line wait.
+ *
+ * Past this the reveal stops being a pass and becomes a queue: the rep is
+ * reading the top while the bottom is still hidden for no reason they can see.
+ * Blocks beyond the cap simply start together — the pass has already done its
+ * work by then.
+ */
+const MAX_START_DELAY_MS = 1400
+
+/**
+ * When each block in a sequence should begin, given the blocks above it.
+ *
+ * Pure and total: the same list always yields the same schedule, so a re-render
+ * cannot shift a delay and restart an animation mid-pass.
+ */
+function revealSchedule(blocks: readonly string[]): number[] {
+  let elapsed = 0
+  return blocks.map((text) => {
+    const at = Math.min(elapsed, MAX_START_DELAY_MS)
+    elapsed += segmentCount(text) * WORD_DELAY_MS + BLOCK_GAP_MS
+    return at
+  })
+}
 export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
   const statements = answer.claims.filter((c) => c.claimClass !== 'RECOMMENDATION')
   const recommendations = answer.claims.filter((c) => c.claimClass === 'RECOMMENDATION')
+
+  /**
+   * The reveal clock, resolved BEFORE the JSX rather than accumulated inside it.
+   *
+   * An accumulator mutated in render, read from JSX argument positions, is
+   * correct only while those expressions are evaluated exactly once and in
+   * source order. This app compiles with the React Compiler, which is free to
+   * memoize sub-expressions — so the ordering that makes such a counter work is
+   * an assumption the build is under no obligation to keep. Computing the whole
+   * schedule up front is pure, and each block just reads its own slot.
+   *
+   * Recommendations are absent from the schedule deliberately: they do not fade
+   * (see the header), so they owe the sequence nothing.
+   */
+  const schedule = revealSchedule([
+    answer.headline,
+    ...statements.map(claimText),
+    ...recommendations.map(claimText),
+    ...(answer.unknown ? [answer.unknown] : []),
+  ])
+  const recStart = 1 + statements.length
+  const unknownDelay = answer.unknown ? (schedule[recStart + recommendations.length] ?? 0) : 0
 
   return (
     <div className='space-y-3'>
@@ -57,6 +144,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
         textStream={answer.headline}
         fadeDuration={FADE_MS}
         segmentDelay={WORD_DELAY_MS}
+        startDelay={schedule[0] ?? 0}
         className='text-base font-medium leading-7 tracking-[-0.005em] text-ink'
       />
 
@@ -76,6 +164,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
                 textStream={claimText(claim)}
                 fadeDuration={FADE_MS}
                 segmentDelay={WORD_DELAY_MS}
+                startDelay={schedule[i + 1] ?? 0}
                 className='text-[15px] leading-6 text-gray-800'
               />
             </li>
@@ -94,7 +183,15 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
                 <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-primary-tint'>
                   <Icon name='sparkles' type='sol' className='size-3.5 bg-primary' />
                 </span>
-                <p className='text-[15px] font-medium leading-6 text-ink'>{claimText(claim)}</p>
+                <ResponseStream
+                  as='p'
+                  mode='fade'
+                  textStream={claimText(claim)}
+                  fadeDuration={FADE_MS}
+                  segmentDelay={WORD_DELAY_MS}
+                  startDelay={schedule[recStart + i] ?? 0}
+                  className='text-[15px] font-medium leading-6 text-ink'
+                />
               </article>
             </li>
           ))}
@@ -108,6 +205,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
           textStream={answer.unknown}
           fadeDuration={FADE_MS}
           segmentDelay={WORD_DELAY_MS}
+          startDelay={unknownDelay}
           className='text-sm leading-6 text-gray-600'
         />
       )}

@@ -106,12 +106,68 @@ describe('the agent answer uses the honest mode', () => {
     expect(container.textContent).toContain('אין נתוני הכנסה.')
   })
 
-  it('does not fade the recommendation — the one thing the rep can act on', () => {
+  /**
+   * REPLACES an earlier rule that said the recommendation must never fade,
+   * because interaction must not wait on an animation. That rule was right about
+   * `AgentActionCard`, which has buttons, and wrong here: this card is a
+   * paragraph in a box with nothing to click, so the only thing waiting is
+   * reading — and a conclusion that appeared before its own reasoning read
+   * backwards.
+   *
+   * What replaced it is stricter, not looser: the prose must be revealed AND it
+   * must be revealed last.
+   */
+  it('reveals the recommendation last, after every statement above it', () => {
     const { container } = render(<AgentAnswerView answer={answer} />)
-    const recommendation = screen.getByText('הייתי מתחיל בהם.')
-    expect(recommendation.closest('.response-stream-segment')).toBeNull()
-    // …while the prose above it is revealed.
-    expect(container.querySelectorAll('.response-stream-segment').length).toBeGreaterThan(3)
+
+    const firstDelayIn = (node: Element | null | undefined): number => {
+      const seg = node?.querySelector('.response-stream-segment') as HTMLElement | null
+      return Number.parseInt(seg?.style.getPropertyValue('--rs-delay') ?? '', 10)
+    }
+
+    const paragraphs = Array.from(container.querySelectorAll('p'))
+    const headline = paragraphs.find((p) => p.textContent?.includes('כותרת התשובה'))
+    const recommendation = paragraphs.find((p) => p.textContent?.includes('הייתי מתחיל בהם'))
+
+    // It is revealed — the old rule's opposite.
+    expect(recommendation?.querySelector('.response-stream-segment')).not.toBeNull()
+    // And it starts after the headline, so the answer reads down the page.
+    expect(firstDelayIn(recommendation)).toBeGreaterThan(firstDelayIn(headline))
+  })
+
+  it('paints the recommendation CARD immediately, so nothing below it moves', () => {
+    const { container } = render(<AgentAnswerView answer={answer} />)
+    // The surface and its mark are not gated on the reveal: only the prose is.
+    const card = container.querySelector('article')
+    expect(card).not.toBeNull()
+    expect(card?.className).toContain('bg-white')
+    expect(card?.closest('.response-stream-segment')).toBeNull()
+  })
+
+  /**
+   * THE DEFECT THIS GUARDS. Every `ResponseStream` staggers from zero, so before
+   * `startDelay` existed the headline, each claim and the unknown line all began
+   * their first word in the same frame: the answer landed as a block instead of
+   * running down the page. The property is that each block's FIRST word waits
+   * for the blocks above it — not merely that some delay somewhere is non-zero,
+   * which was true of the broken version too.
+   */
+  it('starts each block after the one above it, rather than all at once', () => {
+    const { container } = render(<AgentAnswerView answer={answer} />)
+
+    // One entry per revealed block, in document order.
+    const blockStarts = Array.from(container.querySelectorAll('p, li span.text-\\[15px\\]'))
+      .map((el) => el.querySelector('.response-stream-segment') as HTMLElement | null)
+      .filter((seg): seg is HTMLElement => seg !== null)
+      .map((seg) => Number.parseInt(seg.style.getPropertyValue('--rs-delay'), 10))
+
+    // headline + one statement + one recommendation + unknown
+    expect(blockStarts).toHaveLength(4)
+    expect(blockStarts[0]).toBe(0)
+    // Strictly increasing: no two blocks may start together.
+    for (let i = 1; i < blockStarts.length; i++) {
+      expect(blockStarts[i]).toBeGreaterThan(blockStarts[i - 1]!)
+    }
   })
 
   it('never renders a typewriter anywhere in the answer', () => {

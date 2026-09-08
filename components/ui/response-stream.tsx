@@ -295,6 +295,22 @@ export type ResponseStreamProps = {
   fadeDuration?: number
   /** Delay between segments in ms; overrides `speed`. */
   segmentDelay?: number
+  /**
+   * Milliseconds to wait before this instance's FIRST segment fades in.
+   *
+   * Every instance otherwise starts its stagger at zero, so several of them
+   * mounted in the same frame all reveal their first word together and the
+   * block lands at once instead of running down the page. A caller that renders
+   * a sequence — a headline and the lines under it — passes each one the time
+   * the ones above it need, and the reveal reads as a single pass through the
+   * whole answer rather than as every paragraph arriving simultaneously.
+   *
+   * Purely additive to each segment's own delay; it changes when the animation
+   * starts, never whether the text is present. `fade` puts every word in the DOM
+   * on the first frame regardless, so a delayed block is still selectable,
+   * copyable and readable to a screen reader before it is visible.
+   */
+  startDelay?: number
   /** Characters per frame in typewriter mode; overrides `speed`. */
   characterChunkSize?: number
 }
@@ -346,6 +362,7 @@ function ResponseStream({
   as = 'div',
   fadeDuration,
   segmentDelay,
+  startDelay = 0,
   characterChunkSize,
 }: ResponseStreamProps) {
   const animationEndRef = useRef<(() => void) | null>(null)
@@ -385,7 +402,7 @@ function ResponseStream({
           style={
             {
               '--rs-fade-duration': `${getFadeDuration()}ms`,
-              '--rs-delay': `${idx * getSegmentDelay()}ms`,
+              '--rs-delay': `${startDelay + idx * getSegmentDelay()}ms`,
             } as React.CSSProperties
           }
           onAnimationEnd={idx === segments.length - 1 ? handleLastSegmentAnimationEnd : undefined}
