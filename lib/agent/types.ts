@@ -57,8 +57,44 @@ export type EvidenceRef =
       n: number
       measuredOn?: { kind: EvidenceEntityKind; refId: string }
     }
+  /**
+   * A page the hosted web search actually consulted. THE ONLY EXTERNAL EVIDENCE.
+   *
+   * Harvested from the provider's own output after the search ran — never from
+   * the model, which cannot add a URL it did not receive, and never before the
+   * search returns.
+   *
+   * IT IS NOT AN ENTITY, and that is the whole security boundary. `source` is
+   * absent from `EvidenceEntityKind`, so `evidence.has()` cannot be asked for
+   * one, `parseEntityRef` refuses `source:...`, and the action gates — which ask
+   * `has('lead', id)` — have no argument that a source could satisfy. External
+   * content can support a sentence; it can never select a row to write to.
+   *
+   * WHAT IT DELIBERATELY OMITS is retrieved page text. Storing attacker-
+   * controlled prose so it can be replayed into a later prompt is the injection
+   * surface this design exists to avoid; the model read the page during the
+   * search and the citation is what survives.
+   */
+  | {
+      kind: 'source'
+      /** Short, stable, model-citable: `src_1`. Assigned at harvest, never by the model. */
+      refId: string
+      url: string
+      title: string
+      /** Publisher identity, derived from the URL we were given — never from page content. */
+      domain: string
+      /** ISO. The only time claim we can honestly support; publication date is not available. */
+      retrievedAt: string
+    }
 
-/** The entity kinds addressable by `EvidenceCollector.has`. */
+/**
+ * The entity kinds addressable by `EvidenceCollector.has`.
+ *
+ * `source` and `metric` are deliberately absent: each has its own accessor
+ * (`hasSource`, `hasMetric`) because each grounds a different class of claim.
+ * Widening this union is the single edit that would let external content ground
+ * a FACT or an action — see the note on the `source` ref above.
+ */
 export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
 
 /**
@@ -93,7 +129,7 @@ export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
  * OBSERVATION means naming a metric the collector actually holds. Mislabelling
  * costs fabrication the validator can detect, rather than a relabel it cannot.
  */
-export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION', 'PRODUCT'] as const
+export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION', 'PRODUCT', 'SOURCED'] as const
 export type ClaimClass = (typeof CLAIM_CLASSES)[number]
 
 /** Something read directly from source rows. Cites the rows. */
@@ -134,6 +170,27 @@ export type ProductClaim = {
   productEvidence: string[]
 }
 
+/**
+ * Something the world says, read from a page the search actually consulted.
+ *
+ * THE COUNTERPART TO `FACT`, AND KEPT APART FROM IT ON PURPOSE. A FACT is a row
+ * in this customer's database; a SOURCED claim is someone else's publication.
+ * Collapsing them would let "a competitor raised prices" wear the same badge as
+ * "this lead has waited six days", and only one of those is something we can
+ * actually stand behind.
+ *
+ * It cites `sourceEvidence` — source refIds that must resolve in THIS run's
+ * collector. It can carry a number, unlike PRODUCT, because a page can state
+ * one; what it cannot do is present that number as the customer's own, since a
+ * claim about the customer's data has to cite the customer's data.
+ */
+export type SourcedClaim = {
+  claimClass: 'SOURCED'
+  text: string
+  /** Source refIds. Must resolve against harvested sources — never entities. */
+  sourceEvidence: string[]
+}
+
 /** Proposed next action. Advice, never asserted as fact. */
 export type RecommendationClaim = {
   claimClass: 'RECOMMENDATION'
@@ -142,7 +199,7 @@ export type RecommendationClaim = {
   evidence: string[]
 }
 
-export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim | ProductClaim
+export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim | ProductClaim | SourcedClaim
 
 /** The refs a claim cites, whatever its class calls the field. */
 export function claimRefs(claim: Claim): string[] {
@@ -153,6 +210,8 @@ export function claimRefs(claim: Claim): string[] {
       return claim.metricEvidence
     case 'PRODUCT':
       return claim.productEvidence
+    case 'SOURCED':
+      return claim.sourceEvidence
     default:
       return claim.evidence
   }
@@ -167,6 +226,8 @@ export function withClaimRefs(claim: Claim, refs: string[]): Claim {
       return { ...claim, metricEvidence: refs }
     case 'PRODUCT':
       return { ...claim, productEvidence: refs }
+    case 'SOURCED':
+      return { ...claim, sourceEvidence: refs }
     default:
       return { ...claim, evidence: refs }
   }

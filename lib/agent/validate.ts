@@ -217,6 +217,23 @@ function resolvesAsProduct(ref: string): boolean {
 }
 
 /**
+ * Does this ref name a page the search actually consulted in THIS run?
+ *
+ * Checked against the run's own collector, exactly like an entity — and unlike
+ * PRODUCT, which is a server-owned constant. External evidence is gathered per
+ * investigation, so a source that was not harvested this run cannot be cited
+ * this run, and a source harvested for another agency's question never entered
+ * this collector at all.
+ *
+ * A source ref is opaque to the model: `src_3` means nothing except by lookup.
+ * That is deliberate — an id the model could construct from a URL it read on a
+ * page would be an id it could invent.
+ */
+function resolvesAsSource(ref: string, evidence: EvidenceCollector): boolean {
+  return evidence.hasSource(ref)
+}
+
+/**
  * The evidence kind a claim class demands. FACT and OBSERVATION are narrow on
  * purpose; INFERENCE and RECOMMENDATION accept either, because a judgement can
  * rest on a measurement as legitimately as on a row.
@@ -229,8 +246,19 @@ function refResolver(claim: Claim): (ref: string, evidence: EvidenceCollector) =
       return resolvesAsMetric
     case 'PRODUCT':
       return (ref) => resolvesAsProduct(ref)
+    case 'SOURCED':
+      return resolvesAsSource
+    /**
+     * INFERENCE and RECOMMENDATION accept ANY of the three worlds, because a
+     * judgement may legitimately rest on a row, a measurement or a publication —
+     * and joining internal to external is precisely what an inference is for.
+     * They remain the only classes that can span them, and INFERENCE additionally
+     * has to hedge, so "the market is slowing" can never be asserted flatly as
+     * the cause of a lead dip.
+     */
     default:
-      return (ref, evidence) => resolvesAsEntity(ref, evidence) || resolvesAsMetric(ref, evidence)
+      return (ref, evidence) =>
+        resolvesAsEntity(ref, evidence) || resolvesAsMetric(ref, evidence) || resolvesAsSource(ref, evidence)
   }
 }
 

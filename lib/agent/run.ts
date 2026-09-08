@@ -5,6 +5,9 @@ import { estimateCostUsd } from '@/lib/ai/tasks'
 import { addDailySpend } from '@/lib/ai/router/spend'
 import { resolveAgentScope } from './scope'
 import { DEFAULT_DEADLINE_MS, DEFAULT_MAX_STEPS, createBudget } from './budget'
+import { RESEARCH_DEADLINE_MS, admitsResearch } from './research/admission'
+import { harvestSources, sourceManifest } from './research/harvest'
+import { RESEARCH_TOOL_NAME, researchTool } from './research/tool'
 import { createEvidenceCollector } from './evidence'
 import { buildAgentTools } from './tools'
 import { createToolTimings, instrumentTools } from './instrument'
@@ -168,7 +171,20 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const now = input.now ?? (() => Date.now())
   const nowMs = now()
   const maxSteps = input.maxSteps ?? DEFAULT_MAX_STEPS
-  const deadlineMs = input.deadlineMs ?? DEFAULT_DEADLINE_MS
+  /**
+   * RESEARCH IS ADMITTED BY THE APPLICATION, from the rep's own words, before any
+   * tool list is built. A question that does not ask about the outside world
+   * never receives the search tool — so "zero web searches on a CRM question" is
+   * a property of what the model was handed, not of what it chose.
+   */
+  const research = admitsResearch(input.question)
+  /**
+   * A research run gets its own wall clock. Measured hosted searches ran 33.8s
+   * and 72.9s, so the 40s CRM ceiling would fail them by construction — and
+   * raising that ceiling would slow every ordinary question to accommodate a
+   * rarer one. An explicit caller override still wins over both.
+   */
+  const deadlineMs = input.deadlineMs ?? (research.admitted ? RESEARCH_DEADLINE_MS : DEFAULT_DEADLINE_MS)
 
   // Authority first. A session that cannot pass requireProductAccess never
   // reaches the gate, let alone a model — and that failure is a session error,
@@ -271,7 +287,21 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
    * a coherent zero rather than mixing two time sources.
    */
   const toolTimings = createToolTimings()
-  const tools = instrumentTools(buildAgentTools({ scope, evidence, budget, nowMs }), toolTimings, now)
+  /**
+   * The nine CRM readers, instrumented — plus, only when research was admitted,
+   * OpenAI's hosted web search.
+   *
+   * The hosted tool is NOT instrumented and NOT budgeted, because it cannot be:
+   * it is provider-executed and never runs our code. Measured, seven of its
+   * calls arrived inside a single SDK step, so neither `stepCountIs` nor
+   * `budget.canStep` sees them. What bounds it is the wall clock above and the
+   * harvest caps below — stated here rather than assumed, because a reader who
+   * believes the Budget covers every tool would be wrong about this one.
+   */
+  const tools = {
+    ...instrumentTools(buildAgentTools({ scope, evidence, budget, nowMs }), toolTimings, now),
+    ...(research.admitted ? researchTool() : {}),
+  }
 
   const generationStartedAt = now()
   let toolRoundTrips = 0
@@ -298,8 +328,23 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   let result
   /** Phase 1's token usage, folded into the cost so a two-phase run bills honestly. */
   let evidenceUsage: { inputTokens?: number; outputTokens?: number } | undefined
+  /**
+   * What the research actually cost in breadth. Counts only — never a URL and
+   * never a snippet, so a trace line cannot become a place page content is
+   * stored. Null on every non-research run, which is most of them.
+   */
+  let researchStats: { searches: number; sourcesOffered: number; sourcesKept: number; sourcesCapped: number } | null = null
   try {
-    if (input.requireToolEvidence === true) {
+    /**
+     * TWO PHASES FOR RESEARCH TOO, and for the same reason the autonomous path
+     * needs them: one Responses turn is either schema-enforced or tool-driven,
+     * never both. The autonomous path hit that with `tool_choice: required`;
+     * hosted web search hits it from the other side — measured, a search turn
+     * finishes with plain prose, and asking the same turn for structured output
+     * produced `malformed` every time. Gathering and answering separate, exactly
+     * as they already do.
+     */
+    if (input.requireToolEvidence === true || research.admitted) {
       /**
        * TWO PHASES, because ai@6.0.176 cannot vary structured output per step.
        *
@@ -326,15 +371,61 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         messages: conversation,
         tools,
         stopWhen: stepCountIs(maxSteps),
-        // The gate lifts on the first EXECUTED tool — `budget.stepsUsed()` is the same
-        // counter `steps` reports, so the gate and the audit cannot disagree.
-        prepareStep: () => ({ toolChoice: budget.stepsUsed() === 0 ? ('required' as const) : ('auto' as const) }),
+        /**
+         * The gate lifts on the first EXECUTED tool — `budget.stepsUsed()` is the same
+         * counter `steps` reports, so the gate and the audit cannot disagree.
+         *
+         * A HOSTED CALL ALSO LIFTS IT, and must. Provider-executed searches never
+         * reach the Budget, so on a research run `stepsUsed()` stays 0 no matter how
+         * much work happened — and the gate would force another tool call on every
+         * step until the ceiling, turning one search into six.
+         */
+        prepareStep: (opts) => {
+          // Defensive destructure: the SDK always supplies `steps`, and the wire
+          // tests call this with no argument to sample the required→auto flip.
+          const steps = opts?.steps ?? []
+          const hostedCallMade = steps.some((st) => (st.toolCalls ?? []).some((c) => c.providerExecuted === true))
+          return { toolChoice: budget.stepsUsed() === 0 && !hostedCallMade ? ('required' as const) : ('auto' as const) }
+        },
         maxOutputTokens: cfg.maxOutputTokens,
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
       evidenceUsage = evidencePhase.totalUsage
       toolRoundTrips = countToolRoundTrips(evidencePhase.steps)
+
+      /**
+       * ── THE HARVEST SEAM ──────────────────────────────────────────────────
+       *
+       * The one place a source can become citable, and it is here for a reason:
+       * Phase 1 has finished gathering and Phase 2 has not started answering, so
+       * this is the moment the collector holds everything the run actually saw
+       * and nothing the model has yet claimed about it.
+       *
+       * Evidence is derived from `evidencePhase.sources` — the provider's own
+       * record of pages it consulted. It is never derived from the model's prose,
+       * which is why a URL printed on a web page cannot become a citation: the
+       * model can only cite refIds minted here, from URLs the search returned.
+       *
+       * Nothing is created if the search never ran. An empty `sources` array
+       * harvests nothing, the collector gains nothing, and every SOURCED claim
+       * the model might attempt is dropped by the validator as unsupported — a
+       * failed search cannot become a fabricated answer.
+       */
+      if (research.admitted) {
+        const harvest = harvestSources(evidencePhase.sources as never, { retrievedAt: new Date(nowMs).toISOString() })
+        for (const ref of harvest.refs) evidence.add(ref)
+        researchStats = {
+          searches: evidencePhase.steps.reduce(
+            (n, st) => n + (st.toolCalls ?? []).filter((c) => c.toolName === RESEARCH_TOOL_NAME).length,
+            0,
+          ),
+          sourcesOffered: harvest.offered,
+          sourcesKept: harvest.refs.length,
+          sourcesCapped: harvest.cappedOut,
+        }
+        agentTrace('RESEARCH_HARVEST', ctx, { marker: research.marker, ...researchStats })
+      }
 
       /**
        * THE HANDOFF is the SDK's own `response.messages` — the assistant message
@@ -356,7 +447,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
-        messages: [...conversation, ...evidencePhase.response.messages],
+        messages: [...conversation, ...evidencePhase.response.messages, ...sourceManifest(evidence)],
         output: Output.object({ schema: agentAnswerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
         abortSignal: runSignal,
@@ -441,6 +532,8 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   agentTrace('GENERATION_COMPLETE', ctx, {
     steps: budget.stepsUsed(),
     evidenceCount: evidence.size(),
+    researchAdmitted: research.admitted,
+    ...(researchStats ?? {}),
     finishReason: result.finishReason,
     inputTokens,
     outputTokens,

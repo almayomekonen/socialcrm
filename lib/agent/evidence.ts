@@ -1,6 +1,16 @@
 import type { EvidenceEntityKind, EvidenceRef } from './types'
 
-/** The entity kinds a claim may cite. Metrics are cited by name, not by ref. */
+/**
+ * The entity kinds a claim may cite. Metrics are cited by name, not by ref.
+ *
+ * `source` IS DELIBERATELY NOT HERE, and the omission is load-bearing rather
+ * than tidy. Adding it would make `parseEntityRef` accept `source:src_1` as a
+ * qualified entity ref, `resolvesAsEntity` would then find it, and a web page
+ * would be one membership check away from grounding a FACT — and from there an
+ * action, since both action gates ask `has('lead', id)`. External evidence has
+ * its own accessor and its own resolver for exactly this reason.
+ * Pinned by `__tests__/ai/agent/research/actionAuthorityBoundary.test.ts`.
+ */
 export const EVIDENCE_ENTITY_KINDS = ['lead', 'conversation', 'message'] as const
 
 /**
@@ -55,6 +65,10 @@ export type EvidenceCollector = {
   all(): EvidenceRef[]
   has(kind: EvidenceEntityKind, refId: string): boolean
   hasMetric(metric: string): boolean
+  /** Does this ref name a page the search actually consulted in THIS run? */
+  hasSource(refId: string): boolean
+  /** Harvested sources, in insertion order — for citation rendering and counts. */
+  sources(): Extract<EvidenceRef, { kind: 'source' }>[]
   size(): number
 }
 
@@ -71,6 +85,13 @@ export type EvidenceCollector = {
  * measured on.
  */
 function keyOf(ref: EvidenceRef): string {
+  /**
+   * A source is identified by its URL, not by its assigned refId. The provider
+   * returns the same page more than once in a single run — measured: six source
+   * entries over three distinct URLs — and two refIds pointing at one page would
+   * let a claim look twice-supported by citing both.
+   */
+  if (ref.kind === 'source') return `source:${ref.url}`
   if (ref.kind !== 'metric') return `${ref.kind}:${ref.refId}`
   const on = ref.measuredOn ? `${ref.measuredOn.kind}:${ref.measuredOn.refId}` : ''
   return `metric:${ref.metric}:${ref.window.from}:${ref.window.to}:${on}`
@@ -93,6 +114,22 @@ export function createEvidenceCollector(): EvidenceCollector {
         if (ref.kind === 'metric' && ref.metric === metric) return true
       }
       return false
+    },
+
+    /**
+     * Looked up by refId, while storage is keyed by URL — so this scans rather
+     * than indexes. The set is capped at harvest (single digits), and the
+     * alternative, a second index, is a second thing to keep in step.
+     */
+    hasSource(refId) {
+      for (const ref of byKey.values()) {
+        if (ref.kind === 'source' && ref.refId === refId) return true
+      }
+      return false
+    },
+
+    sources() {
+      return [...byKey.values()].filter((r): r is Extract<EvidenceRef, { kind: 'source' }> => r.kind === 'source')
     },
 
     size: () => byKey.size,

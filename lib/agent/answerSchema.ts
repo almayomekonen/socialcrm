@@ -44,6 +44,20 @@ const productClaim = z.object({
   productEvidence: z.array(z.string()),
 })
 
+/**
+ * An external statement, grounded in a page the search actually consulted.
+ *
+ * Its evidence field is named apart from `entityEvidence` for the same reason
+ * every other class's is: promoting "a competitor raised prices" to a FACT then
+ * costs the model a differently-shaped object the validator can detect, rather
+ * than one relabelled string it cannot.
+ */
+const sourcedClaim = z.object({
+  claimClass: z.literal('SOURCED'),
+  text: z.string().min(1),
+  sourceEvidence: z.array(z.string()),
+})
+
 const recommendationClaim = z.object({
   claimClass: z.literal('RECOMMENDATION'),
   text: z.string().min(1),
@@ -74,6 +88,7 @@ export const agentClaimSchema = z.union([
   inferenceClaim,
   recommendationClaim,
   productClaim,
+  sourcedClaim,
 ])
 
 /**

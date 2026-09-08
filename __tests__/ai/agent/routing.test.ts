@@ -21,19 +21,37 @@
  * moved.
  */
 import { describe, expect, it } from 'vitest'
-import { AGENT_DOMAINS, BUSINESS_DOMAINS, type AgentDomain } from '@/lib/agent/domains'
+import { AGENT_DOMAINS, BUSINESS_DOMAINS, domainAdmitsResearch, type AgentDomain } from '@/lib/agent/domains'
 import { AGENT_SYSTEM_PROMPT } from '@/lib/agent/prompt'
 
 describe('the domain model', () => {
-  it('is exactly the five routes the agent can actually serve', () => {
-    expect([...AGENT_DOMAINS]).toEqual(['GENERAL', 'PRODUCT', 'CRM', 'BUSINESS_ADVICE', 'MIXED'])
+  it('is exactly the six routes the agent can actually serve', () => {
+    expect([...AGENT_DOMAINS]).toEqual(['GENERAL', 'PRODUCT', 'CRM', 'BUSINESS_ADVICE', 'MIXED', 'RESEARCH'])
   })
 
-  it('does NOT advertise WEB_RESEARCH — there is no tool at the end of it', () => {
-    // Naming a route with no capability produces an agent that promises to look
-    // something up. The domain arrives with its tools or not at all.
-    expect(AGENT_DOMAINS as readonly string[]).not.toContain('WEB_RESEARCH')
-    expect(AGENT_SYSTEM_PROMPT).not.toContain('WEB_RESEARCH')
+  /**
+   * REPLACES the rule that no research route may exist. That rule was right for
+   * as long as naming one would have advertised a capability with nothing behind
+   * it; it was never a rule against research, it was a rule against promising.
+   *
+   * RESEARCH arrived under exactly the conditions the old test protected: a tool
+   * (hosted web search), a citation contract (the `source` evidence ref) and its
+   * own trust rules (SOURCED, which resolves only against harvested pages). What
+   * replaces the prohibition is stricter than it was — the route must exist AND
+   * the capability must be gated by domain rather than granted to every question.
+   */
+  it('admits research only where the answer is genuinely outside the business', () => {
+    expect(domainAdmitsResearch('RESEARCH')).toBe(true)
+    // MIXED spans two sources of truth, which is what "is my slowdown the market?" is.
+    expect(domainAdmitsResearch('MIXED')).toBe(true)
+  })
+
+  it('never admits research on a domain that already has a source of truth', () => {
+    // CRM has rows, PRODUCT has the registry, GENERAL has nothing to look up, and
+    // advice about THIS business is a reading of its own data.
+    for (const domain of ['CRM', 'PRODUCT', 'GENERAL', 'BUSINESS_ADVICE'] as const) {
+      expect(domainAdmitsResearch(domain), domain).toBe(false)
+    }
   })
 
   it('treats MIXED as a business domain, so it can carry a diagnosis', () => {

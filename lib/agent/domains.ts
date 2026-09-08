@@ -20,16 +20,41 @@
  * union of two minimums is not the union of every capability. The prompt states
  * this in those words and `__tests__/ai/agent/routing.test.ts` pins it.
  *
- * WEB_RESEARCH IS DELIBERATELY ABSENT. There is no search tool, no HTTP egress,
- * and no external-evidence claim class, so naming the domain here would advertise
- * a route with nothing at the end of it — and the most likely consequence is an
- * agent that promises to look something up. When that capability is built it
- * arrives with its tools, its citation contract and its own trust rules, not
- * before.
+ * RESEARCH now exists, and it arrived under the conditions this file previously
+ * set for it: a tool (OpenAI's hosted web search), a citation contract (the
+ * `source` evidence ref), and its own trust rules (the SOURCED claim class, which
+ * resolves only against pages the search actually consulted).
+ *
+ * IT IS A ROUTE, NOT A PERMISSION. The search tool is attached to the model only
+ * when the routed domain admits it — see `domainAdmitsResearch`. A CRM question
+ * cannot reach the web even if the model would like to, because the tool is not
+ * in the set it was given. That is the difference between routing metadata and a
+ * capability grant, and it is what keeps "search just in case" from becoming the
+ * default on questions the database already answers.
  */
-export const AGENT_DOMAINS = ['GENERAL', 'PRODUCT', 'CRM', 'BUSINESS_ADVICE', 'MIXED'] as const
+export const AGENT_DOMAINS = ['GENERAL', 'PRODUCT', 'CRM', 'BUSINESS_ADVICE', 'MIXED', 'RESEARCH'] as const
 
 export type AgentDomain = (typeof AGENT_DOMAINS)[number]
 
 /** Domains that carry a business diagnosis. The others answer with `businessState: null`. */
 export const BUSINESS_DOMAINS: readonly AgentDomain[] = ['CRM', 'BUSINESS_ADVICE', 'MIXED']
+
+/**
+ * May this question reach the open web?
+ *
+ * RESEARCH is the question that is ABOUT the outside world. MIXED is admitted
+ * because it is the domain that exists for questions spanning two sources of
+ * truth, and "my leads slowed down — is something happening in my market?" is
+ * exactly that shape: unanswerable from the database alone, and dishonest
+ * answered from the web alone.
+ *
+ * CRM, PRODUCT and GENERAL are excluded on purpose. Each has a source of truth
+ * that already answers it — rows, the product registry, or nothing at all — and
+ * a search there costs the rep latency and money to produce a worse-grounded
+ * answer. BUSINESS_ADVICE is excluded too: advice about THIS business is a
+ * reading of its own data, and letting it wander onto the web is how generic
+ * consulting prose gets presented as a diagnosis.
+ */
+export function domainAdmitsResearch(domain: AgentDomain): boolean {
+  return domain === 'RESEARCH' || domain === 'MIXED'
+}

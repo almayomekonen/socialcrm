@@ -45,7 +45,7 @@ describe('emitted JSON Schema is OpenAI Structured Outputs compatible', () => {
     const items = js.properties.claims.items
     expect(Object.keys(items)).toContain('anyOf')
     expect(Object.keys(items)).not.toContain('oneOf')
-    expect((items.anyOf as unknown[]).length).toBe(5)
+    expect((items.anyOf as unknown[]).length).toBe(6)
   })
 
   it('sets additionalProperties:false on every object', () => {
@@ -63,7 +63,7 @@ describe('emitted JSON Schema is OpenAI Structured Outputs compatible', () => {
   })
 })
 
-describe('the five claim variants remain structurally distinct', () => {
+describe('the six claim variants remain structurally distinct', () => {
   it('each variant keeps its own claimClass literal and evidence field name', () => {
     const js = emitted() as { properties: { claims: { items: { anyOf: Record<string, never>[] } } } }
     const shapes = js.properties.claims.items.anyOf.map((v) => {
@@ -77,12 +77,18 @@ describe('the five claim variants remain structurally distinct', () => {
     // does: relabelling a CRM fact as product knowledge has to cost moving refs
     // into a differently-named field that resolves against a different source,
     // not editing one string.
+    //
+    // SOURCED is the sixth, and the one where the property matters most. It is
+    // the only class whose evidence comes from outside the tenant, so promoting
+    // a web page to a CRM FACT must cost moving refs from `sourceEvidence` into
+    // `entityEvidence` — where they resolve against the collector and fail.
     expect(shapes).toEqual([
       { claimClass: 'FACT', evidenceField: 'entityEvidence' },
       { claimClass: 'OBSERVATION', evidenceField: 'metricEvidence' },
       { claimClass: 'INFERENCE', evidenceField: 'evidence' },
       { claimClass: 'RECOMMENDATION', evidenceField: 'evidence' },
       { claimClass: 'PRODUCT', evidenceField: 'productEvidence' },
+      { claimClass: 'SOURCED', evidenceField: 'sourceEvidence' },
     ])
   })
 })
