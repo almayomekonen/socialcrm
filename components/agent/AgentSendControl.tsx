@@ -67,9 +67,9 @@ export default function AgentSendControl({
         disabled={disabled}
         aria-label={label}
         className={cn(
-          'tap-44 absolute bottom-2 end-2 z-10 flex size-9 items-center justify-center rounded-full',
-          'bg-white text-ink outline-none transition-all duration-300',
-          'hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40',
+          'tap-44 absolute bottom-2 end-2 z-10 flex size-9 items-center justify-center rounded-md',
+          'bg-solid text-white outline-none transition-all duration-300',
+          'hover:bg-solid/85 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40',
         )}
       >
         <span className='relative flex size-full items-center justify-center'>

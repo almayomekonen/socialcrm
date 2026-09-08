@@ -61,20 +61,19 @@ async function AgentGate() {
 }
 
 /**
- * The canvas, and nothing else.
+ * The empty shell, and nothing else.
  *
- * It carries the SAME root classes as `AgentWorkspace` so the dark surface is
- * already painted when the boundary resolves — a generic spinner here would
- * flash the white app background against a page whose whole identity is the navy
- * canvas. Deliberately empty of content: the composer and intro arrive together
- * a moment later, and half-drawing them would be a worse frame than none.
+ * It carries the SAME root classes as `AgentWorkspace`, so the boundary resolves
+ * into an identically-sized region on the ordinary app background — no flash of
+ * a different surface, because there is no longer a different surface.
+ * Deliberately empty of content: the composer and intro arrive together a moment
+ * later, and half-drawing them would be a worse frame than none.
  */
 function AgentCanvasFallback() {
   return (
     <div
-      data-agent-canvas
       aria-busy='true'
-      className='agent-canvas flex min-h-full flex-1 flex-col'
+      className='flex min-h-full flex-1 flex-col'
     />
   )
 }

@@ -57,7 +57,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
         textStream={answer.headline}
         fadeDuration={FADE_MS}
         segmentDelay={WORD_DELAY_MS}
-        className='text-base font-medium leading-7 tracking-[-0.005em] text-white'
+        className='text-base font-medium leading-7 tracking-[-0.005em] text-ink'
       />
 
       {statements.length > 0 && (
@@ -67,7 +67,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
               <span
                 aria-hidden='true'
                 className={`mt-[9px] size-1.5 shrink-0 rounded-full ${
-                  claim.claimClass === 'INFERENCE' ? 'bg-white/35' : 'bg-accent'
+                  claim.claimClass === 'INFERENCE' ? 'bg-neutral-dot' : 'bg-accent'
                 }`}
               />
               <ResponseStream
@@ -76,7 +76,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
                 textStream={claimText(claim)}
                 fadeDuration={FADE_MS}
                 segmentDelay={WORD_DELAY_MS}
-                className='text-[15px] leading-6 text-white/85'
+                className='text-[15px] leading-6 text-gray-800'
               />
             </li>
           ))}
@@ -87,18 +87,14 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
         <ul className='space-y-2 pt-0.5'>
           {recommendations.map((claim, i) => (
             <li key={i}>
-              {/* Same glass card the rest of the surface uses — the recommendation
-                  is emphasised by being a surface, not by a new visual language. */}
-              <article
-                className={[
-                  'flex items-start gap-3 rounded-2xl bg-white/10 px-4 py-3.5 ring-1 ring-white/20 backdrop-blur-xl',
-                  'shadow-[0_1px_2px_rgba(0,0,0,0.15),0_12px_28px_-18px_rgba(0,0,0,0.7)]',
-                ].join(' ')}
-              >
-                <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/15'>
-                  <Icon name='sparkles' type='sol' className='size-3.5 bg-white' />
+              {/* An ordinary SocialCRM surface. The recommendation is emphasised
+                  by being a card, not by a visual language of its own; the accent
+                  on the mark is the system's existing AI highlight. */}
+              <article className='flex items-start gap-3 rounded-md border bg-white px-4 py-3.5'>
+                <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-primary-tint'>
+                  <Icon name='sparkles' type='sol' className='size-3.5 bg-primary' />
                 </span>
-                <p className='text-[15px] font-medium leading-6 text-white'>{claimText(claim)}</p>
+                <p className='text-[15px] font-medium leading-6 text-ink'>{claimText(claim)}</p>
               </article>
             </li>
           ))}
@@ -112,7 +108,7 @@ export default function AgentAnswerView({ answer }: { answer: AgentAnswer }) {
           textStream={answer.unknown}
           fadeDuration={FADE_MS}
           segmentDelay={WORD_DELAY_MS}
-          className='text-sm leading-6 text-white/60'
+          className='text-sm leading-6 text-gray-600'
         />
       )}
     </div>

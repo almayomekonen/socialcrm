@@ -53,9 +53,9 @@ export function AttachmentThumb({
       }}
       style={{ animationDelay: `${index * 35}ms`, animationFillMode: 'backwards' }}
       className={cn(
-        'group relative size-12 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-white/10 outline-none',
+        'group relative size-12 shrink-0 overflow-hidden rounded-md border bg-white outline-none',
         'transition-transform duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:scale-[1.04] active:scale-[0.96]',
-        'focus-visible:ring-2 focus-visible:ring-white/60',
+        'focus-visible:ring-2 focus-visible:ring-primary',
         'animate-in fade-in zoom-in-90 slide-in-from-top-3 duration-300 motion-reduce:animate-none',
       )}
       aria-label={`תצוגה מקדימה של ${attachment.name}`}
@@ -74,8 +74,8 @@ export function AttachmentThumb({
             onRemove(attachment.id)
           }}
           className={cn(
-            'm-1 flex size-4 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm',
-            'transition-all duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-white hover:scale-110',
+            'm-1 flex size-4 items-center justify-center rounded-full border bg-white text-gray-700',
+            'transition-all duration-200 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-gray-50 hover:scale-110',
             hovered ? 'scale-100 opacity-100' : 'pointer-events-none scale-50 opacity-0',
           )}
           aria-label={`הסרת ${attachment.name}`}
@@ -135,7 +135,7 @@ export function AttachmentPreview({
 
   return (
     <div className='fixed inset-0 z-9999' onClick={close} role='dialog' aria-modal='true' aria-label={attachment.name}>
-      <div className='absolute inset-0 bg-ink/70 backdrop-blur-md transition-opacity duration-300' style={{ opacity: isOpen ? 1 : 0 }} />
+      <div className='absolute inset-0 bg-ink/70 transition-opacity duration-300' style={{ opacity: isOpen ? 1 : 0 }} />
       <div
         style={{
           position: 'fixed',
@@ -161,8 +161,8 @@ export function AttachmentPreview({
         onClick={close}
         style={{ opacity: isOpen ? 1 : 0, transform: isOpen ? 'scale(1)' : 'scale(0.7)' }}
         className={cn(
-          'fixed end-4 top-4 flex size-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-md backdrop-blur-sm',
-          'transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-white',
+          'fixed end-4 top-4 flex size-9 items-center justify-center rounded-full bg-white text-gray-700 shadow-md',
+          'transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:bg-gray-50',
           !isOpen && 'pointer-events-none',
         )}
         aria-label='סגירה'

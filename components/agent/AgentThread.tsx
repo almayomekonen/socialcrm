@@ -39,9 +39,8 @@ export default function AgentThread({
           <div key={turn.id} className='flex justify-start'>
             <p
               className={[
-                'max-w-[85%] rounded-2xl bg-white/12 px-4 py-2.5 ring-1 ring-white/20 backdrop-blur-xl',
-                'shadow-[0_1px_2px_rgba(0,0,0,0.15),0_12px_28px_-18px_rgba(0,0,0,0.7)]',
-                'text-[15px] leading-6 font-medium text-white',
+                'max-w-[85%] rounded-md border bg-primary-tint px-4 py-2.5',
+                'text-[15px] leading-6 font-medium text-ink',
                 'animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none',
               ].join(' ')}
             >
@@ -89,7 +88,7 @@ export default function AgentThread({
                 )}
               </div>
             ) : (
-              <p className='text-[15px] leading-6 text-white/70'>{turn.message}</p>
+              <p className='text-[15px] leading-6 text-error-text'>{turn.message}</p>
             )}
           </div>
         ),
@@ -128,7 +127,7 @@ function Thinking({ tools }: { tools: string[] }) {
     <p className='text-[15px] leading-6' aria-live='polite'>
       {/* Keyed by the label so a new capability restarts the sweep rather than
           continuing mid-pass, which would read as one long unchanging wait. */}
-      <ShiningText key={label} text={label} base='rgba(255,255,255,0.5)' highlight='#ffffff' />
+      <ShiningText key={label} text={label} base='var(--color-neutral-text)' highlight='var(--color-ink)' />
     </p>
   )
 }

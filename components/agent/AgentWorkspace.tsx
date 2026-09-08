@@ -20,10 +20,11 @@ import { useAgentConversation } from './useAgentConversation'
  * and `validateAgentAnswer` dropping any claim the tools did not actually
  * support. Nothing on this page invents CRM content.
  *
- * The canvas is `.agent-canvas` (lib/css/agent.css) — the reference's gradient
- * composition rebuilt from this product's own tokens, anchored at both ends on
- * the navy the nav rail is painted with. It is dark-dominant, so foreground text
- * on this page is white throughout; see that file for the contrast figures.
+ * NO CANVAS OF ITS OWN. This page used to paint a dark navy gradient and set
+ * every foreground to white, which made the agent read as a separate product
+ * embedded in SocialCRM. It now inherits the app background (`--color-bg`) like
+ * every other route, and sits inside the shell's ordinary `.wrap` padding — so
+ * the intelligence is new and the surface is not.
  *
  * LAYOUT: one column, composer pinned to the bottom of the scroller.
  *
@@ -58,13 +59,13 @@ export default function AgentWorkspace() {
   const started = turns.length > 0
 
   return (
-    <div data-agent-canvas className='agent-canvas flex min-h-full flex-1 flex-col'>
+    <div className='flex min-h-full flex-1 flex-col'>
       {started && (
         <div className='mx-auto flex w-full max-w-3xl justify-end px-4 pb-2 pt-2 desktop:px-0'>
           <button
             type='button'
             onClick={reset}
-            className='tap-44 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white/85 ring-1 ring-white/20 backdrop-blur-xl transition-colors hover:bg-white/18 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none'
+            className='tap-44 rounded-md border bg-white px-3 py-1.5 text-[13px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none'
           >
             שיחה חדשה
           </button>
@@ -83,20 +84,18 @@ export default function AgentWorkspace() {
 
       {/*
         THE PLINTH. `sticky` keeps the composer in flow, so the thread scrolls
-        UNDER it — and with a transparent band the pale glass cards slid straight
-        through, flashing light right below the input on every scroll.
-        The scrim is a gradient rather than a flat fill so there is no hard edge
-        where it starts, but it reaches FULL opacity at 55% rather than fading all
-        the way down: a scrim that is still translucent at the bottom let a card
-        show faintly through behind the notice. Only the top half fades.
-        It lands on `--color-ink`, the same navy the nav rail is painted with, so
-        the bottom of the page and the rail read as one continuous surface
-        instead of two panels meeting.
+        UNDER it, and the band needs to be opaque or cards show through behind
+        the input.
+        It is a FLAT FILL of the app background, not a gradient. The gradient this
+        replaced faded to `--color-ink` — it existed to blend the composer into a
+        navy canvas that no longer exists, and on the app background a scrim the
+        same colour as the page is invisible except for the one thing it is for:
+        hiding what scrolls beneath it.
       */}
-      <div className='sticky bottom-0 z-10 bg-gradient-to-t from-ink from-55% to-transparent pt-10'>
+      <div className='sticky bottom-0 z-10 bg-gray pt-10'>
         <div className='mx-auto w-full max-w-3xl px-4 pb-4 desktop:px-0'>
           <AgentPromptInput value={input} onChange={setInput} onSubmit={submit} />
-          <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-white/70'>
+          <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-gray-600'>
             {busy ? 'הסוכן בודק את הנתונים שלך' : 'הסוכן עונה על סמך הנתונים של העסק שלך בלבד.'}
           </p>
         </div>

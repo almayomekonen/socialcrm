@@ -45,17 +45,14 @@ export default function AgentBatchCard({
 
   return (
     <article
-      className={[
-        'space-y-3 rounded-2xl bg-white/10 px-4 py-3.5 ring-1 ring-white/20 backdrop-blur-xl',
-        'shadow-[0_1px_2px_rgba(0,0,0,0.15),0_12px_28px_-18px_rgba(0,0,0,0.7)]',
-      ].join(' ')}
+      className='space-y-3 rounded-md border bg-white px-4 py-3.5'
     >
       <header className='flex items-start gap-3'>
-        <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/15'>
-          <Icon name='clipboard-check' type='sol' className='size-3.5 bg-white' />
+        <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-primary-tint'>
+          <Icon name='clipboard-check' type='sol' className='size-3.5 bg-primary' />
         </span>
         <div className='min-w-0 flex-1'>
-          <p className='text-[15px] font-medium leading-6 text-white'>{headline(batch, outcome)}</p>
+          <p className='text-[15px] font-medium leading-6 text-ink'>{headline(batch, outcome)}</p>
           <p className={`text-sm leading-6 ${toneClass(report)}`}>{statusLine(report, outcome)}</p>
         </div>
       </header>
@@ -68,7 +65,7 @@ export default function AgentBatchCard({
 
       {/* Partial results are spelled out, never averaged into a verdict. */}
       {summary && summary.total > 0 && report !== 'AWAITING_APPROVAL' && (
-        <ul className='space-y-0.5 text-sm leading-6 text-white/60'>
+        <ul className='space-y-0.5 text-sm leading-6 text-gray-600'>
           {summary.verified > 0 && <li>{summary.verified} נוצרו ואומתו</li>}
           {summary.duplicates > 0 && <li>{summary.duplicates} כבר היו קיימות — לא נוצרו שוב</li>}
           {summary.failed > 0 && <li>{summary.failed} לא בוצעו</li>}
@@ -77,7 +74,7 @@ export default function AgentBatchCard({
       )}
 
       {report === 'OVER_LIMIT' && outcome && (
-        <p className='text-sm leading-6 text-white/60'>
+        <p className='text-sm leading-6 text-gray-600'>
           נמצאו {outcome.eligible} לידים, ואפשר לטפל בעד {outcome.limit} בבת אחת. אפשר לצמצם את הבקשה — למשל לפי סטטוס
           או לפי תאריך — ואז אבצע.
         </p>
@@ -89,7 +86,7 @@ export default function AgentBatchCard({
             type='button'
             disabled={pending}
             onClick={() => onDecide('APPROVED')}
-            className='rounded-xl bg-white px-3.5 py-2 text-sm font-medium text-ink transition disabled:opacity-50'
+            className='rounded-md bg-solid px-3.5 py-2 text-sm font-medium text-white transition hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50'
           >
             {pending ? 'יוצר משימות…' : `אשר ויצור ${batch.targets.length} משימות`}
           </button>
@@ -97,7 +94,7 @@ export default function AgentBatchCard({
             type='button'
             disabled={pending}
             onClick={() => onDecide('REJECTED')}
-            className='rounded-xl bg-white/10 px-3.5 py-2 text-sm font-medium text-white ring-1 ring-white/20 transition disabled:opacity-50'
+            className='rounded-md border bg-white px-3.5 py-2 text-sm font-medium text-ink transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50'
           >
             בטל
           </button>
@@ -152,16 +149,16 @@ function displayDate(iso: string): string {
 function Row({ term, value }: { term: string; value: string }) {
   return (
     <div className='flex gap-2'>
-      <dt className='shrink-0 text-white/50'>{term}</dt>
-      <dd className='min-w-0 flex-1 truncate text-white/85'>{value}</dd>
+      <dt className='shrink-0 text-gray-600'>{term}</dt>
+      <dd className='min-w-0 flex-1 truncate text-gray-800'>{value}</dd>
     </div>
   )
 }
 
 /** Colour carries meaning only. Partial is warned about, never shown as success. */
 function toneClass(report: string): string {
-  if (report === 'ALL_SUCCEEDED') return 'text-emerald-300'
-  if (report === 'PARTIAL_SUCCESS') return 'text-amber-300'
-  if (report === 'AWAITING_APPROVAL') return 'text-white/70'
-  return 'text-white/55'
+  if (report === 'ALL_SUCCEEDED') return 'text-success-text'
+  if (report === 'PARTIAL_SUCCESS') return 'text-warning-text'
+  if (report === 'AWAITING_APPROVAL') return 'text-gray-600'
+  return 'text-error-text'
 }

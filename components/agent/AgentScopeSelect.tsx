@@ -44,9 +44,9 @@ export default function AgentScopeSelect({
         aria-expanded={open}
         aria-label={`תחום החיפוש: ${value}`}
         className={cn(
-          'group flex items-center gap-1 rounded-full px-2 py-1 text-white/75 outline-none transition-all duration-200',
-          'hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60',
-          open && 'bg-white/10 text-white',
+          'group flex items-center gap-1 rounded-md px-2 py-1 text-gray-600 outline-none transition-colors duration-200',
+          'hover:bg-gray-100 hover:text-ink focus-visible:ring-2 focus-visible:ring-primary',
+          open && 'bg-gray-100 text-ink',
         )}
       >
         <ModeMarkIcon />
@@ -58,15 +58,15 @@ export default function AgentScopeSelect({
       <div
         onMouseLeave={() => setHighlight((p) => ({ ...p, opacity: 0, transition: 'opacity 0.2s ease-in' }))}
         className={cn(
-          'absolute bottom-full start-0 z-50 mb-2.5 flex w-44 origin-bottom-left flex-col gap-0.5 rounded-2xl',
-          'border border-white/20 bg-[#16264a]/95 p-1 shadow-xl backdrop-blur-2xl transition-all duration-300 rtl:origin-bottom-right',
+          'absolute bottom-full start-0 z-50 mb-2.5 flex w-44 origin-bottom-left flex-col gap-0.5 rounded-md',
+          'border bg-white p-1 shadow-md transition-all duration-300 rtl:origin-bottom-right',
           open
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
             : 'pointer-events-none translate-y-3 scale-95 opacity-0',
         )}
       >
         <div className='relative flex flex-col gap-0.5'>
-          <div style={highlight} className='pointer-events-none absolute inset-x-0 top-0 -z-10 h-8 rounded-xl bg-white/10' />
+          <div style={highlight} className='pointer-events-none absolute inset-x-0 top-0 -z-10 h-8 rounded-md bg-primary-soft' />
           {scopes.map((scope, idx) => (
             <button
               key={scope}
@@ -88,7 +88,7 @@ export default function AgentScopeSelect({
                 onOpenChange(false)
               }}
               aria-current={scope === value}
-              className='group relative flex h-8 w-full items-center rounded-xl px-2.5 py-1.5 text-start text-xs font-medium text-white/80 outline-none transition-colors hover:text-white active:scale-[0.98]'
+              className='group relative flex h-8 w-full items-center rounded-md px-2.5 py-1.5 text-start text-xs font-medium text-gray-600 outline-none transition-colors hover:text-ink active:scale-[0.98]'
             >
               <span className='flex items-center gap-2'>
                 <ModeMarkIcon />
