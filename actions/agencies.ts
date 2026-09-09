@@ -148,11 +148,10 @@ export async function addAgency(data) {
     //             redirect() drops the query string, so ?welcome would be gone
     //             before RegistrationPixel could fire and mobile registration
     //             attribution would be silently lost.
-    //   desktop → /leads — WelcomeToast fires the same CompleteRegistration
-    //             pixel there, and LeadsFirstRun is the first-run experience.
-    // `welcome` carries the first name because WelcomeToast greets by it; an
-    // empty value is valid and yields the nameless greeting. Never a placeholder
-    // like `1`, which would render as "ברוך הבא ל-SocialCRM, 1".
+    //   desktop → /leads — LeadsFirstRun is the first-run experience.
+    // `welcome` no longer drives any UI: the greeting toast it fed was removed,
+    // and <WelcomeParamCleanup/> on /leads strips it from the URL. An empty
+    // value is valid.
     const welcome = encodeURIComponent((newUser!.firstName ?? '').trim())
 
     /**

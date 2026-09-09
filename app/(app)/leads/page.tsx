@@ -13,9 +13,7 @@ import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import MetaDisconnectedBanner from '@/components/clients/MetaDisconnectedBanner'
 import LeadIntakeBanner from '@/components/clients/LeadIntakeBanner'
 import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
-import WelcomeToast from '@/components/auth/WelcomeToast'
-import { getAgencyTrial } from '@/db/trial'
-import { getTrialState } from '@/lib/trial'
+import WelcomeParamCleanup from '@/components/auth/WelcomeParamCleanup'
 import { getFacebookConnectionState } from '@/db/facebook'
 import { getWhatsappConnectionState } from '@/db/whatsapp'
 import { intakeAlerts } from '@/lib/automations/connectors/intakeAlerts'
@@ -88,20 +86,17 @@ export default async function LeadsPage({ searchParams }) {
     )
   }
 
-  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, trialRow, meta, wa, intake] = await Promise.all([
+  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, meta, wa, intake] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
     getLeadLists(user.id),
     getGlobalLatestUpdatedAt(),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
     getQuotaStatus(user.agencyId),
-    getAgencyTrial(user.agencyId),
     getFacebookConnectionState(user.id),
     getWhatsappConnectionState(user.agencyId),
     intakeAlerts(user.agencyId),
   ])
-
-  const suppressGreeting = trialRow ? getTrialState(trialRow, new Date()).status === 'NEVER_STARTED' : false
 
   const hasLeads = await hasAnyLeads(user.agencyId, handlers.gotPermIds, user.role)
   /**
@@ -141,7 +136,7 @@ export default async function LeadsPage({ searchParams }) {
       }}
       className='flex flex-col min-h-0 h-full'
     >
-      <WelcomeToast suppressGreeting={suppressGreeting} />
+      <WelcomeParamCleanup />
 
       {hasLeads ? (
         <>
