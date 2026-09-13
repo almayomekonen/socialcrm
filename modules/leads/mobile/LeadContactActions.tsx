@@ -3,42 +3,61 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
+import { toast } from '@/lib/toast'
 import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
+import { resolveLeadContactPlan } from '@/modules/leads/contactPlan'
+import { contactBlocked, contactClicked, contactSucceeded } from '@/modules/leads/contactEvents'
 
 /**
  * Call and WhatsApp — the two first-class mobile contact actions.
  *
- * ── WhatsApp ALWAYS stays INSIDE SocialCRM ──────────────────────────────────
+ * ── WHATSAPP: IN-APP WHEN WE CAN, THE REP'S OWN WHATSAPP WHEN WE CANNOT ─────
  *
- * Connected: resolve the REAL conversation (`resolveLeadWhatsappConversation` →
- * find, else `ensureWhatsappConversationForLead`) and navigate to
+ * Connected (or unknown): resolve the REAL conversation
+ * (`resolveLeadWhatsappConversation` → find, else
+ * `ensureWhatsappConversationForLead`) and navigate to
  * `/inbox?conversation=<id>`. Same server action the desktop table and the
  * dashboard quick-actions use — no second lookup, no invented conversation.
+ * THIS PATH IS UNCHANGED. It is the one contact route in the product that
+ * already works end to end, and this component must not disturb it.
  *
- * NOT connected: navigate to the WhatsApp connect UI —
- * `/settings/integrations?section=whatsapp`. There is no `wa.me` fallback.
+ * NOT connected: hand off to WhatsApp itself with this lead's number.
  *
- * WHY THE FALLBACK IS GONE. It opened `window.open(wa.me)` from inside
- * `onUnavailable`, i.e. AFTER an awaited server action had already resolved. By
- * then the browser's transient user activation was spent, so mobile suppressed
- * the popup and the FIRST TAP DID NOTHING AT ALL — no navigation, no toast,
- * because the wa.me branch returned before the toast could run. The second tap
- * worked only because the warm server action answered inside the activation
- * window. Reproduced on device; see the audit. Routing through `router.push`
- * has no such dependency: client-side navigation is never gesture-gated, so it
- * is correct on the first tap, on mobile, and in PWA standalone — where
- * `_blank` is unreliable anyway.
+ * WHY THE FALLBACK CAME BACK, AND WHY IT IS SHAPED LIKE THIS. It used to route
+ * to `/settings/integrations?section=whatsapp`. In production five businesses
+ * tapped this control nine times and produced zero conversations; one of them
+ * had just imported two hundred contacts, was sent to that settings page three
+ * times, and never started a connection. Asking someone to complete a Meta
+ * onboarding before they may phone a lead they already have is a prerequisite we
+ * invented, not one Meta imposes.
  *
- * It also ends a split personality: desktop told the rep to connect WhatsApp
- * while mobile silently ejected them to another app. Both now lead to the same
- * place; mobile just takes them there instead of describing it.
+ * The ORIGINAL fallback was genuinely broken, and this is not it. That one called
+ * `window.open(wa.me)` from inside `onUnavailable`, i.e. AFTER an awaited server
+ * action had resolved. By then the browser's transient user activation was spent,
+ * mobile suppressed the popup, and the FIRST TAP DID NOTHING AT ALL. Here the
+ * decision is made SYNCHRONOUSLY at render (`resolveLeadContactPlan`, which does
+ * no I/O) and the control is a real `<a href>`: the browser follows it on the
+ * first tap, with no gesture to spend. No `window.open`, no await before the
+ * navigation. That is the whole difference, and it is load-bearing.
+ *
+ * `whatsappConnected` undefined means "caller does not know" and resolves to the
+ * in-app path, so surfaces that have not been threaded the workspace connection
+ * state behave exactly as before.
  *
  * Call is unchanged: `tel:` is a real OS navigation and belongs to the dialer.
  *
- * ANALYTICS. Still the shared `lead_action_taken {surface:'mobile'}` event, with
- * `via` recording which path was taken. NOTE it is recorded on TAP, before the
- * outcome is known — it measures intent, not a delivered conversation.
+ * ANALYTICS. `lead_action_taken` is KEPT so the existing Activation KPI does not
+ * break mid-experiment, but it only ever measured INTENT — it fires on tap,
+ * before the outcome is known. The contact triad
+ * (`lead_contact_clicked` → exactly one of `lead_contact_succeeded` /
+ * `lead_contact_blocked`) is what separates intent from result.
+ *
+ * For the native branch `lead_contact_succeeded { channel: 'whatsapp_native' }`
+ * means ONLY that SocialCRM handed the rep to WhatsApp with this number. It does
+ * NOT mean a message was written, sent, delivered, or answered — once the anchor
+ * is followed the conversation leaves our process entirely.
+ *
  * Call stays uninstrumented: the anchor hands off to the dialer and the page may
  * be backgrounded before any handler runs, so recording it would inflate the
  * activation KPI with intent rather than contact.
@@ -49,6 +68,7 @@ export default function LeadContactActions({
   size = 'row',
   className = '',
   name,
+  whatsappConnected,
 }: {
   leadId: number
   phone: string | null | undefined
@@ -56,6 +76,8 @@ export default function LeadContactActions({
   size?: 'row' | 'bar'
   className?: string
   name?: string | null
+  /** Workspace WhatsApp connection. Omit when unknown — keeps the in-app path. */
+  whatsappConnected?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -65,28 +87,64 @@ export default function LeadContactActions({
   // `phone`, so dropping it changes nothing about when the action renders.
   if (!phone) return null
 
+  const plan = resolveLeadContactPlan({ phone, whatsappConnected })
+
+  /** In-app path. Unchanged behaviour; the triad is added around it. */
   const openWhatsapp = () => {
     if (busy || pending) return
     setBusy(true)
     recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'message', leadId, via: 'inbox' }).catch(
       () => {},
     )
+    contactClicked(leadId, 'mobile', 'whatsapp_api')
     startTransition(async () => {
       try {
-        await openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
-          // No WhatsApp connected: take the rep to the connect UI rather than
-          // out of the product.
+        const outcome = await openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
+          /**
+           * UNCHANGED for callers that do not pass `whatsappConnected`. Those
+           * surfaces have not opted into the native fallback, so a workspace with
+           * no connection must still land exactly where it did before — the
+           * connect UI — rather than silently acquiring new behaviour. Callers
+           * that DO know the state never reach this branch: `plan` resolves to
+           * `native` for them before the in-app path is ever taken.
+           */
           onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
         })
+        if (outcome.kind === 'opened') contactSucceeded(leadId, 'mobile', 'whatsapp_api')
+        else if (outcome.kind === 'no-connection') contactBlocked(leadId, 'mobile', 'no_connection')
+        else if (outcome.kind === 'no-recipient') contactBlocked(leadId, 'mobile', 'no_phone')
+        else contactBlocked(leadId, 'mobile', 'no_connection')
       } finally {
         setBusy(false)
       }
     })
   }
 
+  /**
+   * Native path. Runs INSIDE the anchor's own click, before the browser follows
+   * the href — never awaited, so the navigation is never delayed or gated.
+   */
+  const onNativeHandoff = () => {
+    recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'message', leadId, via: 'inbox' }).catch(
+      () => {},
+    )
+    contactClicked(leadId, 'mobile', 'whatsapp_native')
+    contactSucceeded(leadId, 'mobile', 'whatsapp_native')
+  }
+
+  /** A number we cannot dial. Block cleanly; never render a malformed wa.me. */
+  const onUnusableNumber = () => {
+    contactClicked(leadId, 'mobile', 'whatsapp_native')
+    contactBlocked(leadId, 'mobile', 'no_phone')
+    toast('message', 'לליד אין מספר טלפון תקין לוואטסאפ')
+  }
+
   const working = busy || pending
+  const waLabel = name ? `וואטסאפ ל${name}` : 'וואטסאפ'
 
   if (size === 'bar') {
+    const barClass =
+      'press flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#25D366] font-medium text-white hover:opacity-90 disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         {phone && (
@@ -99,16 +157,27 @@ export default function LeadContactActions({
             <span>התקשר</span>
           </a>
         )}
-        <button
-          type='button'
-          onClick={openWhatsapp}
-          disabled={working}
-          aria-label={name ? `וואטסאפ ל${name}` : 'וואטסאפ'}
-          className='press flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#25D366] font-medium text-white hover:opacity-90 disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-        >
-          <Icon name={working ? 'spinner' : 'whatsapp'} type='sol' className={`size-4 bg-white ${working ? 'animate-spin' : ''}`} />
-          <span>{working ? 'פותח…' : 'וואטסאפ'}</span>
-        </button>
+        {plan.kind === 'native' ? (
+          <a href={plan.href} onClick={onNativeHandoff} aria-label={waLabel} className={barClass}>
+            <Icon name='whatsapp' type='sol' className='size-4 bg-white' />
+            <span>וואטסאפ</span>
+          </a>
+        ) : (
+          <button
+            type='button'
+            onClick={plan.kind === 'blocked' ? onUnusableNumber : openWhatsapp}
+            disabled={working}
+            aria-label={waLabel}
+            className={barClass}
+          >
+            <Icon
+              name={working ? 'spinner' : 'whatsapp'}
+              type='sol'
+              className={`size-4 bg-white ${working ? 'animate-spin' : ''}`}
+            />
+            <span>{working ? 'פותח…' : 'וואטסאפ'}</span>
+          </button>
+        )}
       </div>
     )
   }
@@ -126,24 +195,42 @@ export default function LeadContactActions({
    * GEOMETRY UNCHANGED throughout: `size-11` (44px), `gap-1.5`, centres 50px
    * apart, so hit areas cannot collide.
    */
+  const rowClass =
+    'press flex size-11 items-center justify-center rounded-full active:bg-[#25D366]/10 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+
   return (
     <div className={`flex shrink-0 items-center gap-1.5 ${className}`}>
-      <button
-        type='button'
-        onClick={(e) => {
-          e.stopPropagation()
-          openWhatsapp()
-        }}
-        disabled={working}
-        aria-label={name ? `וואטסאפ ל${name}` : 'וואטסאפ'}
-        className='press flex size-11 items-center justify-center rounded-full active:bg-[#25D366]/10 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-      >
-        <Icon
-          name={working ? 'spinner' : 'whatsapp'}
-          type='sol'
-          className={`size-5 bg-[#25D366] ${working ? 'animate-spin' : ''}`}
-        />
-      </button>
+      {plan.kind === 'native' ? (
+        <a
+          href={plan.href}
+          onClick={(e) => {
+            e.stopPropagation()
+            onNativeHandoff()
+          }}
+          aria-label={waLabel}
+          className={rowClass}
+        >
+          <Icon name='whatsapp' type='sol' className='size-5 bg-[#25D366]' />
+        </a>
+      ) : (
+        <button
+          type='button'
+          onClick={(e) => {
+            e.stopPropagation()
+            if (plan.kind === 'blocked') onUnusableNumber()
+            else openWhatsapp()
+          }}
+          disabled={working}
+          aria-label={waLabel}
+          className={rowClass}
+        >
+          <Icon
+            name={working ? 'spinner' : 'whatsapp'}
+            type='sol'
+            className={`size-5 bg-[#25D366] ${working ? 'animate-spin' : ''}`}
+          />
+        </button>
+      )}
 
       {phone && (
         <a

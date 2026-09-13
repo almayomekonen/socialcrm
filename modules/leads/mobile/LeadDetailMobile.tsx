@@ -21,11 +21,14 @@ export default function LeadDetailMobile({
   lead,
   nowMs,
   firstLead = false,
+  whatsappConnected,
 }: {
   lead: MobileLeadDetail
   nowMs: number
   /** Arrived straight from creating/importing the workspace's first lead. */
   firstLead?: boolean
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }) {
   const status = statusStyle(lead.status)
   const followUp = followUpBadge(lead.nextFollowUpAt, nowMs, startOfBusinessDayMs(nowMs))
@@ -77,6 +80,7 @@ export default function LeadDetailMobile({
         status={lead.status}
         nextFollowUpAt={lead.nextFollowUpAt}
         firstLead={firstLead}
+        whatsappConnected={whatsappConnected}
       />
     </div>
   )

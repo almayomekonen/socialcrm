@@ -27,6 +27,7 @@ export default function LeadDetailActions({
   status,
   nextFollowUpAt,
   firstLead = false,
+  whatsappConnected,
 }: {
   leadId: number
   phone: string | null
@@ -35,6 +36,8 @@ export default function LeadDetailActions({
   nextFollowUpAt: string | null
   /** Arrived straight from creating/importing the workspace's first lead. */
   firstLead?: boolean
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }) {
   const [sheet, setSheet] = useState<Sheet>(null)
 
@@ -69,6 +72,7 @@ export default function LeadDetailActions({
           phone={phone}
           onStatus={() => setSheet('status')}
           onFollowUp={() => setSheet('followup')}
+          whatsappConnected={whatsappConnected}
         />
         {guiding && (
           <div
@@ -97,7 +101,14 @@ export default function LeadDetailActions({
 
       {phone ? (
         <MobileStickyActions aboveTabBar>
-          <LeadContactActions leadId={leadId} phone={phone} name={name} size='bar' className='w-full' />
+          <LeadContactActions
+            leadId={leadId}
+            phone={phone}
+            name={name}
+            size='bar'
+            className='w-full'
+            whatsappConnected={whatsappConnected}
+          />
         </MobileStickyActions>
       ) : null}
 

@@ -32,28 +32,40 @@ import { resolveLeadWhatsappConversation } from '@/modules/inbox/actions'
  */
 export const WHATSAPP_CONNECT_HREF = '/settings/integrations?section=whatsapp'
 
+/**
+ * How the attempt ended, so the caller can close the contact-triad invariant
+ * with exactly one terminal event. Returned rather than inferred: only this
+ * function knows which branch ran.
+ */
+export type OpenLeadWhatsappOutcome =
+  | { kind: 'opened' }
+  | { kind: 'no-connection' }
+  | { kind: 'no-recipient' }
+  | { kind: 'unavailable' }
+
 export async function openLeadWhatsappInInbox(
   leadId: number,
   push: (href: string) => void,
   opts?: { onNoConnection?: () => void },
-): Promise<void> {
+): Promise<OpenLeadWhatsappOutcome> {
   const { conversationId, reason } = await resolveLeadWhatsappConversation(leadId)
   if (conversationId) {
     push(`/inbox?conversation=${conversationId}`)
-    return
+    return { kind: 'opened' }
   }
 
   if (reason === 'no-connection') {
     if (opts?.onNoConnection) {
       opts.onNoConnection()
-      return
+      return { kind: 'no-connection' }
     }
     toast('message', 'יש לחבר WhatsApp בהגדרות לפני פתיחת שיחה')
-    return
+    return { kind: 'no-connection' }
   }
   if (reason === 'no-recipient') {
     toast('message', 'לליד אין מספר טלפון תקין לשיחת WhatsApp')
-    return
+    return { kind: 'no-recipient' }
   }
   toast('message', 'לא ניתן לפתוח שיחת WhatsApp לליד זה כרגע')
+  return { kind: 'unavailable' }
 }

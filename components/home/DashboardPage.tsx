@@ -27,18 +27,21 @@ export default async function DashboardPage() {
 
   const { gotPermIds, hasLeads } = await resolveTodayScope(user)
 
+  // Hoisted above the branches: every lead-contact control on this page needs it,
+  // not just the first-run surface. One indexed single-row lookup.
+  const wa =
+    user.agencyId != null ? await getWhatsappConnectionState(user.agencyId) : { connected: false }
+  const whatsappConnected = wa.connected
+
   if (!hasLeads) {
     // Desktop keeps its existing redirect to LeadsFirstRun. Mobile renders the
     // same first-run surface as empty /leads — add, import, or connect channels.
     if (!mobile) redirect('/leads')
-    const [meta, wa] = await Promise.all([
-      getFacebookConnectionState(user.id),
-      user.agencyId != null ? getWhatsappConnectionState(user.agencyId) : Promise.resolve({ connected: false }),
-    ])
+    const meta = await getFacebookConnectionState(user.id)
     return (
       <MobileTodayEmpty
         metaConnected={meta.connected && !meta.needsReconnect}
-        whatsappConnected={wa.connected}
+        whatsappConnected={whatsappConnected}
       />
     )
   }
@@ -65,7 +68,11 @@ export default async function DashboardPage() {
       // Mobile renders the SAME brief through the mobile presentation, so an
       // agency on v2 is never told to call one person on its phone and a
       // different one on its laptop.
-      return mobile ? <MobileToday model={modelFromBrief(brief)} /> : <TodayBriefView brief={brief} />
+      return mobile ? (
+        <MobileToday model={modelFromBrief(brief)} whatsappConnected={whatsappConnected} />
+      ) : (
+        <TodayBriefView brief={brief} />
+      )
     } catch (err) {
       logBriefFailure({
         agencyId: user.agencyId,
@@ -79,7 +86,7 @@ export default async function DashboardPage() {
   const now = Date.now()
   const snapshot = await resolveTodaySnapshot(user, gotPermIds, now)
 
-  if (mobile) return <MobileToday model={modelFromSnapshot(snapshot, now)} />
+  if (mobile) return <MobileToday model={modelFromSnapshot(snapshot, now)} whatsappConnected={whatsappConnected} />
 
   const { recommended, tableRows, tableTotal, dueCount, doneToday, meetings, newLeadsCount, upcomingCount, progressPct } =
     snapshot
@@ -108,7 +115,7 @@ export default async function DashboardPage() {
         }))}
       />
 
-      <FollowupsTable rows={tableRows} total={tableTotal} />
+      <FollowupsTable rows={tableRows} total={tableTotal} whatsappConnected={whatsappConnected} />
 
       <QuickLinks dueCount={dueCount} newCount={newLeadsCount} upcomingCount={upcomingCount} meetingsCount={meetings.length} />
     </div>

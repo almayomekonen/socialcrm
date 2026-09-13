@@ -52,15 +52,19 @@ export default async function LeadsPage({ searchParams }) {
       getMobileLeadList(user, filters, page),
       agencyHasAnyLeads(user),
     ])
+    // WhatsApp state is resolved UNCONDITIONALLY, not just for the empty
+    // workspace. The contact action needs it on every row: a workspace WITH
+    // leads is exactly where contacting happens, and defaulting it to `false`
+    // there would route a connected agency — the one case that already works —
+    // to the native handoff instead of its real in-app conversation.
+    // Facebook state stays inside the branch; only first-run reads it.
+    const wa =
+      user.agencyId != null ? await getWhatsappConnectionState(user.agencyId) : { connected: false }
+    const whatsappConnected = wa.connected
     let metaConnected = false
-    let whatsappConnected = false
     if (!workspaceHasLeads) {
-      const [meta, wa] = await Promise.all([
-        getFacebookConnectionState(user.id),
-        user.agencyId != null ? getWhatsappConnectionState(user.agencyId) : Promise.resolve({ connected: false }),
-      ])
+      const meta = await getFacebookConnectionState(user.id)
       metaConnected = meta.connected && !meta.needsReconnect
-      whatsappConnected = wa.connected
     }
     return (
       <LeadListMobile
@@ -160,7 +164,7 @@ export default async function LeadsPage({ searchParams }) {
             <CrmSyncBanner sources={['leads', 'awareness']} />
           </div>
           <Suspense fallback={null}>
-            <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} />
+            <ClientsTable leads={true} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} whatsappConnected={wa.connected} />
           </Suspense>
         </>
       ) : (

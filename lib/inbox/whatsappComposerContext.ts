@@ -20,6 +20,14 @@ export type ConversationSendScope = {
   conversationId: number
   leadId: number | null
   businessPhoneNumberId: string
+  /**
+   * The CUSTOMER's WhatsApp number (E.164 digits), as stored on the
+   * conversation. Carried so the composer can offer a native WhatsApp fallback
+   * in the states where Meta's rules leave no in-app way to write. Optional:
+   * older callers and test doubles that do not supply it simply get no
+   * fallback, never a malformed link.
+   */
+  customerWaId?: string | null
 }
 
 export type WhatsappComposerContext = {
@@ -27,6 +35,8 @@ export type WhatsappComposerContext = {
   templatesEnabled: boolean
   templates: Template[]
   canManageTemplates: boolean
+  /** Customer number for the composer's native-WhatsApp fallback. */
+  customerWaId?: string | null
   businessPhoneNumberId: string | null
 }
 
@@ -46,7 +56,7 @@ export async function queryConversationSendScope(
 ): Promise<ConversationSendScope | null> {
   const row = await db('inbox_conversations')
     .where({ id: conversationId, agencyId })
-    .first('id', 'leadId', 'businessPhoneNumberId')
+    .first('id', 'leadId', 'businessPhoneNumberId', 'customerWaId')
   if (!row) return null
   const phone = String(row.businessPhoneNumberId ?? '').trim()
   if (!phone) return null
@@ -54,6 +64,7 @@ export async function queryConversationSendScope(
     conversationId: Number(row.id),
     leadId: row.leadId != null ? Number(row.leadId) : null,
     businessPhoneNumberId: phone,
+    customerWaId: row.customerWaId != null ? String(row.customerWaId) : null,
   }
 }
 
@@ -125,6 +136,7 @@ export async function loadWhatsappComposerContext(
     templates: [],
     canManageTemplates: isAdmin(opts?.role as Roles),
     businessPhoneNumberId: null,
+    customerWaId: null,
   }
 
   const scope = await deps.getConversation(agencyId, conversationId)
@@ -141,5 +153,6 @@ export async function loadWhatsappComposerContext(
     templates,
     canManageTemplates: isAdmin(opts?.role as Roles),
     businessPhoneNumberId: scope.businessPhoneNumberId,
+    customerWaId: scope.customerWaId ?? null,
   }
 }

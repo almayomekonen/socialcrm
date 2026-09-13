@@ -25,6 +25,7 @@ export default function LeadCardMobile({
   selected = false,
   onToggle,
   onEnterSelection,
+  whatsappConnected,
 }: {
   lead: MobileLeadRow
   followUp: FollowUpBadge | null
@@ -34,6 +35,8 @@ export default function LeadCardMobile({
   selected?: boolean
   onToggle?: () => void
   onEnterSelection?: () => void
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }) {
   const status = statusStyle(lead.status)
   const longPress = useLongPress(onEnterSelection ?? (() => {}), Boolean(onEnterSelection) && !selecting)
@@ -108,7 +111,14 @@ export default function LeadCardMobile({
         <span className='min-w-0 flex-1'>{body}</span>
       </Link>
 
-      {!selecting && <LeadContactActions leadId={lead.id} phone={lead.phone} name={lead.name} />}
+      {!selecting && (
+        <LeadContactActions
+          leadId={lead.id}
+          phone={lead.phone}
+          name={lead.name}
+          whatsappConnected={whatsappConnected}
+        />
+      )}
     </div>
   )
 }

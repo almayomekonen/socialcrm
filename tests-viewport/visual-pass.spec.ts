@@ -147,11 +147,19 @@ test.describe('phone — Today visual + P0-1 floor', () => {
     const nested = await page.evaluate(nestedInteractive)
     expect(nested, `nested tap targets: ${JSON.stringify(nested)}`).toHaveLength(0)
 
-    const wa = page.locator('main#main-content button[aria-label^="וואטסאפ"]')
+    // The WhatsApp control is a BUTTON when the workspace has WhatsApp connected
+    // and an ANCHOR (wa.me handoff) when it does not — one doctrine, two shapes.
+    // Match on the accessible name so the assertion survives both.
+    const wa = page.locator('main#main-content [aria-label^="וואטסאפ"]')
     const call = page.locator('main#main-content a[aria-label^="התקשר"]')
     expect(await wa.count()).toBeGreaterThan(0)
     expect(await call.count()).toBeGreaterThan(0)
-    expect(await page.locator('a[href*="wa.me"]').count()).toBe(0)
+    // wa.me anchors are legitimate now; malformed ones never are.
+    for (const href of await page.locator('a[href*="wa.me"]').evaluateAll((els) =>
+      els.map((e) => e.getAttribute('href') ?? ''),
+    )) {
+      expect(href).toMatch(/^https:\/\/wa\.me\/\d{9,15}$/)
+    }
     await expect(page.getByRole('link', { name: /^פתח / }).first()).toBeVisible()
 
     await page.screenshot({ path: `${SHOT_DIR}/${testInfo.project.name}-today.png` })

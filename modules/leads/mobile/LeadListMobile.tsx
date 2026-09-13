@@ -22,7 +22,7 @@ export default function LeadListMobile({
   workspaceEmpty,
   nowMs,
   metaConnected = false,
-  whatsappConnected = false,
+  whatsappConnected,
   firstImport = 0,
   firstLeadId,
   firstImportSkipped = 0,
@@ -34,6 +34,16 @@ export default function LeadListMobile({
   workspaceEmpty: boolean
   nowMs: number
   metaConnected?: boolean
+  /**
+   * Workspace WhatsApp connection.
+   *
+   * INTENTIONALLY UNDEFAULTED. `undefined` means "the caller does not know", and
+   * `resolveLeadContactPlan` treats that as the in-app path — i.e. exactly the
+   * behaviour this surface had before the native handoff existed. Defaulting it
+   * to `false` would silently opt every caller that forgets the prop into the
+   * handoff, including tests and any future render site, which is the wrong way
+   * round for a change that routes people out of the product.
+   */
   whatsappConnected?: boolean
   /** One-shot: leads that just arrived via import, and the first of them. */
   firstImport?: number
@@ -41,7 +51,7 @@ export default function LeadListMobile({
   firstImportSkipped?: number
 }) {
   if (workspaceEmpty) {
-    return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected} />
+    return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected ?? false} />
   }
 
   const dayStart = startOfBusinessDayMs(nowMs)
@@ -67,6 +77,7 @@ export default function LeadListMobile({
         page={page}
         nowMs={nowMs}
         dayStartMs={dayStart}
+        whatsappConnected={whatsappConnected}
       />
     </>
   )

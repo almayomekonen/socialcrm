@@ -99,11 +99,26 @@ test.describe('P0-1 mobile Today', () => {
     expect(wa.length, 'no WhatsApp action rendered on Today').toBeGreaterThan(0)
     expect(call.length, 'no Call action rendered on Today').toBeGreaterThan(0)
 
-    // WhatsApp goes through the in-app conversation, so it is a button with no
-    // href — never a `wa.me` anchor.
+    /**
+     * ONE CONTACT DOCTRINE. The WhatsApp control resolves by workspace state, so
+     * its ELEMENT is not fixed and asserting a shape here would pin the wrong
+     * thing:
+     *
+     *   WhatsApp connected → a BUTTON that opens the in-app conversation
+     *   not connected      → an ANCHOR handing off to wa.me with the lead's number
+     *
+     * What must hold in BOTH states is that the control is real and leads
+     * somewhere usable — never a dead button, never a malformed link. That is
+     * what this asserts. The per-state component contract is pinned as a unit
+     * test in __tests__/leads/whatsappAction.test.tsx (NF-1, NF-6, NF-8).
+     */
     for (const a of wa) {
-      expect(a.tag, `WhatsApp rendered as ${a.tag}`).toBe('BUTTON')
-      expect(a.href).toBe('')
+      if (a.tag === 'A') {
+        expect(a.href, `WhatsApp anchor href was "${a.href}"`).toMatch(/^https:\/\/wa\.me\/\d{9,15}$/)
+      } else {
+        expect(a.tag, `WhatsApp rendered as ${a.tag}`).toBe('BUTTON')
+        expect(a.href).toBe('')
+      }
     }
     // Call stays a real tel: navigation, owned by the OS dialler.
     for (const a of call) expect(a.href.startsWith('tel:'), `Call href was "${a.href}"`).toBe(true)
@@ -112,7 +127,14 @@ test.describe('P0-1 mobile Today', () => {
       expect(Math.min(a.w, a.h), `"${a.name}" is ${a.w}x${a.h}`).toBeGreaterThanOrEqual(MIN_TARGET)
     }
 
-    expect(await page.locator('a[href*="wa.me"]').count(), 'wa.me used as a primary path').toBe(0)
+    // A `wa.me` anchor is now a legitimate outcome — the fallback for a workspace
+    // with no WhatsApp connected. What must never happen is a MALFORMED one, so
+    // every such anchor is checked rather than counted.
+    for (const href of await page.locator('a[href*="wa.me"]').evaluateAll((els) =>
+      els.map((e) => e.getAttribute('href') ?? ''),
+    )) {
+      expect(href, `malformed wa.me href "${href}"`).toMatch(/^https:\/\/wa\.me\/\d{9,15}$/)
+    }
   })
 
   test('WhatsApp and Call hit areas never overlap', async ({ page }, testInfo) => {

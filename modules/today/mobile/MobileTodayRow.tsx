@@ -37,7 +37,14 @@ import { todayReasonTone, todayToneClass, todayWindowHintTone } from './reasonTo
  * Server Component. `reason` and `eyebrow` were computed upstream; no clock is
  * read here (architecture-rules.md §11).
  */
-export default function MobileTodayRow({ row }: { row: Row }) {
+export default function MobileTodayRow({
+  row,
+  whatsappConnected,
+}: {
+  row: Row
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
+}) {
   const { id, name, phone, reason, href, windowHint } = row
   const reasonTone = todayToneClass(todayReasonTone(reason))
   const hintTone = windowHint ? todayToneClass(todayWindowHintTone(windowHint)) : null
@@ -72,7 +79,7 @@ export default function MobileTodayRow({ row }: { row: Row }) {
         )}
       </Link>
 
-      <LeadContactActions leadId={id} phone={phone} name={name} />
+      <LeadContactActions leadId={id} phone={phone} name={name}  whatsappConnected={whatsappConnected} />
     </div>
   )
 }

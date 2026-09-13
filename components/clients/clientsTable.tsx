@@ -34,9 +34,9 @@ import { clearLeadScopeParams, hasActiveLeadScope, parseLeadSearch, withLeadSear
 import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
-import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
+import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 
-export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null }) {
+export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null, whatsappConnected = undefined }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchTerm = parseLeadSearch({ q: searchParams.get('q') })
@@ -511,7 +511,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
                 variant='simple'
                 size='simple'
                 lbl='WhatsApp'
-                onClick={() => openLeadWhatsappInInbox(curClient.id, router.push)}
+                onClick={() => contactLeadViaWhatsapp(curClient, whatsappConnected, router.push, 'desktop')}
               />
             </div>
           </>

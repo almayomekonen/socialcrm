@@ -8,7 +8,8 @@ import ConfirmSheet from '@/components/mobile/ConfirmSheet'
 import { toast } from '@/lib/toast'
 import { deleteLead, type DeleteLeadResult } from '@/actions/clients'
 import { blockReasonText } from '@/lib/leads/deleteResult'
-import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
+import { WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
+import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 
 function deleteError(res: DeleteLeadResult): string {
@@ -28,12 +29,15 @@ export default function LeadOverflowSheet({
   phone,
   onStatus,
   onFollowUp,
+  whatsappConnected,
 }: {
   leadId: number
   name: string
   phone: string | null
   onStatus: () => void
   onFollowUp: () => void
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -83,9 +87,8 @@ export default function LeadOverflowSheet({
                   leadId,
                   via: 'inbox',
                 }).catch(() => {})
-                void openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
-                  // No WhatsApp connected: route to the connect UI, never out
-                  // of the app.
+                contactLeadViaWhatsapp({ id: leadId, phone }, whatsappConnected, (href) => router.push(href), 'mobile', {
+                  // Unchanged for callers that do not know the connection state.
                   onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
                 })
               }}

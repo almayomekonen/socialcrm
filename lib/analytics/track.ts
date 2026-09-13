@@ -52,6 +52,48 @@ export type AnalyticsEventName =
    * props: { surface: 'mobile'|'desktop', action: 'status'|'follow_up'|'assign'|'message'|'note'|'outcome' }
    */
   | 'lead_action_taken'
+  /**
+   * THE CONTACT TRIAD. `lead_action_taken` measures INTENT ONLY — it is recorded
+   * on tap, before the outcome is known, which is why production shows nine
+   * `action: 'message'` taps and zero conversations. These three separate the
+   * three things that tap can mean, and they carry one invariant:
+   *
+   *   every `lead_contact_clicked` resolves to exactly ONE
+   *   `lead_contact_succeeded` OR `lead_contact_blocked`, and NEITHER terminal
+   *   is ever emitted without a matching intent for the same action.
+   *
+   * Both halves matter. A terminal without an intent — e.g. emitted because a
+   * blocked composer merely RENDERED — would count passive reading as a failed
+   * contact attempt and make the blocked rate meaningless. Measuring how often
+   * blocked conversation states are viewed is a separate question and needs its
+   * own event; it is deliberately not one of these.
+   *
+   * `lead_action_taken` is deliberately KEPT alongside them so the existing
+   * Activation KPI does not break mid-experiment; it is the intent numerator,
+   * these are the outcome.
+   *
+   * props: { leadId, surface, intendedChannel? }
+   */
+  | 'lead_contact_clicked'
+  /**
+   * The user wanted to contact a lead and the product could not deliver a
+   * channel. `reason` is the whole point of the event.
+   * props: { leadId, surface, reason: 'no_phone'|'no_connection'|'window_unknown'|'window_closed_no_template' }
+   */
+  | 'lead_contact_blocked'
+  /**
+   * SocialCRM delivered a usable contact channel for this lead.
+   *
+   * SEMANTICS, and they differ per channel — read this before building a funnel
+   * on top of it. For `whatsapp_api` the rep reached a real composer they can
+   * type into. For `whatsapp_native` it means ONLY that SocialCRM successfully
+   * handed the rep to WhatsApp with this lead's number. It does NOT mean a
+   * message was composed, sent, delivered, or replied to: once the handoff
+   * happens the conversation leaves our process and we can observe nothing
+   * further. Never report `whatsapp_native` as "messages sent".
+   * props: { leadId, surface, channel: 'whatsapp_api'|'whatsapp_native'|'phone' }
+   */
+  | 'lead_contact_succeeded'
   /** Bulk import completed. props: { count, format: 'excel'|'csv', surface } */
   | 'leads_imported'
   /** A lead typed in by hand (every one, not just the first). props: { surface, origin } */

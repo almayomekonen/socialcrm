@@ -10,8 +10,21 @@
 // the toast could run. Reproduced on device: tap once, nothing; tap again, the
 // phone leaves SocialCRM for WhatsApp.
 //
-// The product decision: never leave the product. Connected → the SocialCRM
-// conversation. Not connected → the WhatsApp connect UI.
+// THE PRODUCT DECISION, AS IT NOW STANDS. Connected (or unknown) → the
+// SocialCRM conversation, unchanged. NOT connected → hand the rep to WhatsApp
+// itself with this lead's number.
+//
+// The earlier rule was "never leave the product", and it cost us the thing the
+// product exists for: in production five businesses tapped this control nine
+// times and produced zero conversations, because every tap ended on a settings
+// page. The fallback is back — but shaped so the original defect cannot return.
+// The decision is made SYNCHRONOUSLY at render (`resolveLeadContactPlan`, no
+// I/O) and the control is a real anchor, so the browser follows it on the first
+// tap with no gesture to spend. `window.open`-after-await is what these tests
+// still forbid, and that guard is unchanged.
+//
+// Surfaces that do NOT pass `whatsappConnected` keep the old behaviour exactly —
+// WA-1..WA-8 below are those surfaces, and they are untouched on purpose.
 //
 // Runs without a database (VITEST_NO_DB=1).
 
@@ -22,6 +35,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 const push = vi.fn()
 const toastFn = vi.fn()
 const resolveConversation = vi.fn()
+const recordEvent = vi.fn(async (..._args: unknown[]) => {})
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, back: () => {}, refresh: () => {} }),
@@ -29,7 +43,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/lib/toast', () => ({ toast: (...args: unknown[]) => toastFn(...args) }))
 vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({
-  recordLeadActionEvent: vi.fn(async () => {}),
+  recordLeadActionEvent: (...args: unknown[]) => recordEvent(...args),
 }))
 vi.mock('@/modules/inbox/actions', () => ({
   resolveLeadWhatsappConversation: (...args: unknown[]) => resolveConversation(...args),
@@ -47,6 +61,7 @@ beforeEach(() => {
   push.mockClear()
   toastFn.mockClear()
   resolveConversation.mockReset()
+  recordEvent.mockClear()
 })
 
 afterEach(() => {
@@ -194,5 +209,123 @@ describe('lead overflow sheet — same rule', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /פעולות|עוד/ }))
     expect(screen.queryByRole('button', { name: 'פתיחת שיחה' })).toBeNull()
+  })
+})
+
+/**
+ * THE ACTIVATION EXPERIMENT — the native handoff, and the triad that measures it.
+ *
+ * Everything above this line describes surfaces that do NOT know the workspace
+ * connection state and therefore keep their previous behaviour. Everything below
+ * passes `whatsappConnected` explicitly, which is what opts a surface in.
+ */
+const events = (name: string) =>
+  recordEvent.mock.calls.filter((c) => c[0] === name).map((c) => c[1] as Record<string, unknown>)
+
+const WA_LINK = { name: 'וואטסאפ לדני לוי' }
+
+describe('native WhatsApp fallback (not connected)', () => {
+  it('NF-1: not connected + valid phone → a real wa.me ANCHOR, not a button', () => {
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' size='bar' whatsappConnected={false} />)
+
+    const link = screen.getByRole('link', WA_LINK)
+    expect(link.tagName).toBe('A')
+    expect(link.getAttribute('href')).toBe('https://wa.me/972541234567')
+    // The in-app path must not even be consulted: no server round-trip at all.
+    expect(resolveConversation).not.toHaveBeenCalled()
+  })
+
+  it('NF-2: the row variant is an anchor too, so a list row opens on the first tap', () => {
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' whatsappConnected={false} />)
+    expect(screen.getByRole('link', WA_LINK).getAttribute('href')).toBe('https://wa.me/972541234567')
+  })
+
+  it('NF-3: MOBILE REGRESSION GUARD — the handoff never uses window.open', () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' size='bar' whatsappConnected={false} />)
+
+    fireEvent.click(screen.getByRole('link', WA_LINK))
+
+    // The original defect: window.open after an awaited action is gesture-gated
+    // and silently did nothing on the first tap. The anchor's own href replaces
+    // it entirely, so window.open must not appear on this path.
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('NF-4: the tap emits clicked + succeeded(whatsapp_native), and nothing else', () => {
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' size='bar' whatsappConnected={false} />)
+
+    fireEvent.click(screen.getByRole('link', WA_LINK))
+
+    expect(events('lead_contact_clicked')).toEqual([
+      { leadId: 1531, surface: 'mobile', intendedChannel: 'whatsapp_native' },
+    ])
+    expect(events('lead_contact_succeeded')).toEqual([
+      { leadId: 1531, surface: 'mobile', channel: 'whatsapp_native' },
+    ])
+    expect(events('lead_contact_blocked')).toEqual([])
+  })
+
+  it('NF-5: an unusable number never renders a wa.me anchor, and blocks cleanly', () => {
+    // Present but not normalisable — the case `if (!phone) return null` misses.
+    render(<LeadContactActions leadId={1531} phone='123' name='דני לוי' size='bar' whatsappConnected={false} />)
+
+    expect(screen.queryByRole('link', WA_LINK)).toBeNull()
+    const btn = screen.getByRole('button', WA_LINK)
+    fireEvent.click(btn)
+
+    expect(events('lead_contact_blocked')).toEqual([{ leadId: 1531, surface: 'mobile', reason: 'no_phone' }])
+    expect(events('lead_contact_succeeded')).toEqual([])
+    expect(document.querySelectorAll('a[href*="wa.me"]').length).toBe(0)
+  })
+})
+
+describe('connected path is untouched by the experiment', () => {
+  it('NF-6: connected + open window → still the in-app conversation, still a button', async () => {
+    resolveConversation.mockResolvedValue({ conversationId: 88 })
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' size='bar' whatsappConnected={true} />)
+
+    // No anchor: a connected workspace never gets the handoff.
+    expect(screen.queryByRole('link', WA_LINK)).toBeNull()
+    fireEvent.click(screen.getByRole('button', WA_LINK))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/inbox?conversation=88'))
+    expect(document.querySelectorAll('a[href*="wa.me"]').length).toBe(0)
+    expect(events('lead_contact_succeeded')).toEqual([
+      { leadId: 1531, surface: 'mobile', channel: 'whatsapp_api' },
+    ])
+  })
+
+  it('NF-7: the triad invariant — one click resolves to exactly one terminal', async () => {
+    resolveConversation.mockResolvedValue({ conversationId: 88 })
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' size='bar' whatsappConnected={true} />)
+
+    fireEvent.click(screen.getByRole('button', WA_LINK))
+
+    await waitFor(() => expect(events('lead_contact_succeeded')).toHaveLength(1))
+    expect(events('lead_contact_clicked')).toHaveLength(1)
+    expect(events('lead_contact_blocked')).toHaveLength(0)
+  })
+})
+
+describe('the undefined-prop contract', () => {
+  /**
+   * Every lead-contact surface in the product now passes `whatsappConnected`.
+   * This pins what happens when one does NOT — a new render site, a test
+   * fixture, a future refactor that forgets it.
+   *
+   * `undefined` must mean "keep the in-app path", never "assume disconnected".
+   * The opposite default would route people out of the product by omission,
+   * which is the wrong way round for a change of this kind. `LeadListMobile`
+   * once defaulted this prop to `false` and that is exactly the bug it caused.
+   */
+  it('NF-8: no whatsappConnected prop → BUTTON, no href, no wa.me anchor', () => {
+    render(<LeadContactActions leadId={1531} phone='0541234567' name='דני לוי' size='bar' />)
+
+    const btn = screen.getByRole('button', WA_LINK)
+    expect(btn.tagName).toBe('BUTTON')
+    expect(btn.getAttribute('href')).toBeNull()
+    expect(screen.queryByRole('link', WA_LINK)).toBeNull()
+    expect(document.querySelectorAll('a[href*="wa.me"]').length).toBe(0)
   })
 })

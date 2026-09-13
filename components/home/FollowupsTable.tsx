@@ -22,7 +22,7 @@ function urgencyOf(row: DueWorklistRow, nowMs: number): { label: string; tone: s
   return { label: 'ממתין', tone: 'text-gray-400' }
 }
 
-export default function FollowupsTable({ rows, total }: { rows: DueWorklistRow[]; total: number }) {
+export default function FollowupsTable({ rows, total, whatsappConnected }: { rows: DueWorklistRow[]; total: number; whatsappConnected?: boolean }) {
   const [page, setPage] = useState(0)
 
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set())
@@ -63,6 +63,7 @@ export default function FollowupsTable({ rows, total }: { rows: DueWorklistRow[]
                   nextFollowUpAt={row.nextFollowUpAt}
                   quiet
                   onCompleted={() => setCompletedIds((s) => new Set(s).add(row.id))}
+                  whatsappConnected={whatsappConnected}
                 />
               </li>
             )

@@ -7,6 +7,7 @@ import { Provider } from '@/lib/hooksNEvents'
 import { getPerms } from '@/db/filter'
 import { getDefaultSettings, getUsers } from '@/db/usersNTeams'
 import { getQuotaStatus } from '@/lib/quota'
+import { getWhatsappConnectionState } from '@/db/whatsapp'
 import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import { parseLeadFilters } from '@/modules/leads/filters'
@@ -31,13 +32,18 @@ export default async function ClientsPage({ searchParams }) {
    */
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='clients' />
 
-  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota] = await Promise.all([
+  const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, wa] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
     getLeadLists(user.id),
     getGlobalLatestUpdatedAt(),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
     getQuotaStatus(user.agencyId),
+    // `/clients` renders the SAME ClientsTable and therefore the same
+    // lead-contact action; without this its WhatsApp control would resolve
+    // `whatsappConnected` as undefined and silently keep the old behaviour while
+    // /leads had the new one. One doctrine means both pages supply it.
+    getWhatsappConnectionState(user.agencyId),
   ])
   // Same search model as /leads — see the note there. `/clients` shares
   // `ClientsTable`, so it must consume `q` too or its search silently stops
@@ -70,7 +76,7 @@ export default async function ClientsPage({ searchParams }) {
       <OverQuotaBanner count={quota.overQuotaCount} />
 
       <Suspense fallback={null}>
-        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} />
+        <ClientsTable leads={false} fillHeight data={clients} user={user} globalLatestUpdatedAt={globalLatestUpdatedAt} formProps={formProps} columnAvailability={columnAvailability} whatsappConnected={wa.connected} />
       </Suspense>
     </Provider>
   )

@@ -20,6 +20,7 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { getMobileLeadDetail } from '@/modules/leads/queries'
 import LeadDetailMobile from '@/modules/leads/mobile/LeadDetailMobile'
 import { track } from '@/lib/analytics/track'
+import { getWhatsappConnectionState } from '@/db/whatsapp'
 import AutoTour from '@/components/education/AutoTour'
 
 export default async function page({ params, searchParams }) {
@@ -50,7 +51,19 @@ export default async function page({ params, searchParams }) {
      * agencies 119 and 135 created a first lead on a phone and never emitted
      * first_lead_opened.
      */
-    return <LeadDetailMobile lead={lead} nowMs={Date.now()} firstLead={sp.firstLead === '1'} />
+    // The contact action needs to know whether an in-app conversation is even
+    // possible for this workspace; without it every lead detail would fall back
+    // to the native handoff, including for agencies whose inbox already works.
+    const wa =
+      user.agencyId != null ? await getWhatsappConnectionState(user.agencyId) : { connected: false }
+    return (
+      <LeadDetailMobile
+        lead={lead}
+        nowMs={Date.now()}
+        firstLead={sp.firstLead === '1'}
+        whatsappConnected={wa.connected}
+      />
+    )
   }
 
   const [tasks, lead] = await Promise.all([

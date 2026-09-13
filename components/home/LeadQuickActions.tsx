@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import OutcomeControl from '@/components/leads/OutcomeControl'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
-import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
+import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 
 type Props = {
   id: number
@@ -15,9 +15,11 @@ type Props = {
   nextFollowUpAt?: string | Date | null
   quiet?: boolean
   onCompleted?: () => void
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }
 
-export default function LeadQuickActions({ id, phone, quiet = false, onCompleted }: Props) {
+export default function LeadQuickActions({ id, phone, quiet = false, onCompleted, whatsappConnected }: Props) {
   const router = useRouter()
   const menu = useFloatingMenu()
 
@@ -49,7 +51,7 @@ export default function LeadQuickActions({ id, phone, quiet = false, onCompleted
                   className='text-right rounded-md px-3 py-2 text-sm hover:bg-gray-50'
                   onClick={() => {
                     menu.close()
-                    void openLeadWhatsappInInbox(id, router.push)
+                    contactLeadViaWhatsapp({ id, phone }, whatsappConnected, router.push, 'desktop')
                   }}
                 >
                   וואטסאפ

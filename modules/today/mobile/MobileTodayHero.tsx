@@ -22,9 +22,12 @@ import { todayReasonTone, todayToneClass, todayWindowHintTone } from './reasonTo
 export default function MobileTodayHero({
   row,
   remaining,
+  whatsappConnected,
 }: {
   row: MobileTodayRow
   remaining?: number
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }) {
   const { id, name, phone, reason, href, eyebrow, windowHint } = row
   const reasonTone = todayToneClass(todayReasonTone(reason))
@@ -55,7 +58,7 @@ export default function MobileTodayHero({
 
       <div className='mt-3 flex items-center gap-2'>
         {phone ? (
-          <LeadContactActions leadId={id} phone={phone} name={name} size='bar' className='min-w-0 flex-1' />
+          <LeadContactActions leadId={id} phone={phone} name={name} size='bar' className='min-w-0 flex-1'  whatsappConnected={whatsappConnected} />
         ) : (
           <Link
             href={href as Route}

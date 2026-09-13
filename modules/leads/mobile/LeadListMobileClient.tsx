@@ -19,10 +19,11 @@ import {
 import { deleteManyLeads } from '@/actions/clients'
 import { deleteLeadsMessage } from '@/lib/leads/deleteResult'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
+import { WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { type LeadFilters } from '@/modules/leads/filters'
 import LeadFilterBar from './LeadFilterBar'
 import LeadCardMobile from './LeadCardMobile'
+import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 import LeadStatusSheet from './LeadStatusSheet'
 import LeadFollowUpSheet from './LeadFollowUpSheet'
 import LeadListActionsSheet from './LeadListActionsSheet'
@@ -40,6 +41,7 @@ export default function LeadListMobileClient({
   page,
   nowMs,
   dayStartMs,
+  whatsappConnected,
 }: {
   cards: LeadListCard[]
   filters: LeadFilters
@@ -47,6 +49,8 @@ export default function LeadListMobileClient({
   page: number
   nowMs: number
   dayStartMs: number
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
 }) {
   const router = useRouter()
   const [items, setItems] = useState(initialCards)
@@ -217,8 +221,9 @@ export default function LeadListMobileClient({
       leadId,
       via: 'inbox',
     }).catch(() => {})
-    void openLeadWhatsappInInbox(leadId, (href) => router.push(href), {
-      // No WhatsApp connected: route to the connect UI, never out of the app.
+
+    contactLeadViaWhatsapp(actionLead, whatsappConnected, (href) => router.push(href), 'mobile', {
+      // Unchanged for callers that do not know the connection state.
       onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
     })
   }
@@ -275,6 +280,7 @@ export default function LeadListMobileClient({
                     selected={selected.has(lead.id)}
                     onToggle={() => toggle(lead.id)}
                     onEnterSelection={() => enter(lead.id)}
+                    whatsappConnected={whatsappConnected}
                   />
                 </li>
               ))}

@@ -28,7 +28,14 @@ import LeadListAddControl from '@/modules/leads/mobile/LeadListAddControl'
  * mounted, not reimplemented, so both tabs open the same sheets and land on the
  * new lead the same way. `selecting` is false because היום has no selection mode.
  */
-export default function MobileToday({ model }: { model: MobileTodayModel }) {
+export default function MobileToday({
+  model,
+  whatsappConnected,
+}: {
+  model: MobileTodayModel
+  /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
+  whatsappConnected?: boolean
+}) {
   const { hero, nextUp, rest, remaining, restTotal, doneToday, meetings, newLeadsCount } = model
 
   if (!hero && rest.length === 0 && nextUp.length === 0) {
@@ -44,14 +51,14 @@ export default function MobileToday({ model }: { model: MobileTodayModel }) {
     <div className='flex flex-col gap-2 px-4 pb-4 pt-2'>
       <LeadListAddControl selecting={false} />
       {hero && (
-        <MobileTodayHero row={hero} remaining={remaining} />
+        <MobileTodayHero row={hero} remaining={remaining} whatsappConnected={whatsappConnected} />
       )}
 
-      {nextUp.length > 0 && <RowSection id='next' title='אחר כך' rows={nextUp} />}
+      {nextUp.length > 0 && <RowSection id='next' title='אחר כך' rows={nextUp} whatsappConnected={whatsappConnected} />}
 
       {rest.length > 0 && (
         <>
-          <RowSection id='rest' title={`ממתינים (${restTotal})`} rows={rest} />
+          <RowSection id='rest' title={`ממתינים (${restTotal})`} rows={rest} whatsappConnected={whatsappConnected} />
           {restTotal > rest.length && (
             <p className='px-1 text-[12px] text-gray-400'>
               {`מוצגים ${rest.length} מתוך ${restTotal}. השאר במסך הלידים.`}
@@ -63,7 +70,17 @@ export default function MobileToday({ model }: { model: MobileTodayModel }) {
   )
 }
 
-function RowSection({ id, title, rows }: { id: string; title: string; rows: MobileTodayModel['rest'] }) {
+function RowSection({
+  id,
+  title,
+  rows,
+  whatsappConnected,
+}: {
+  id: string
+  title: string
+  rows: MobileTodayModel['rest']
+  whatsappConnected?: boolean
+}) {
   const headingId = `mobile-today-${id}`
   return (
     <section aria-labelledby={headingId}>
@@ -74,7 +91,7 @@ function RowSection({ id, title, rows }: { id: string; title: string; rows: Mobi
           and double up at the seams — the job `MobileList` used to do. */}
       <div className='divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white'>
         {rows.map((row) => (
-          <MobileTodayRow key={row.id} row={row} />
+          <MobileTodayRow key={row.id} row={row} whatsappConnected={whatsappConnected} />
         ))}
       </div>
     </section>
