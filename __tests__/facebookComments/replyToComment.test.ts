@@ -13,6 +13,8 @@ const h = vi.hoisted(() => {
   process.env.META_APP_SECRET = 'app-secret'
   process.env.FACEBOOK_COMMENTS_ENABLED = '1'
   process.env.FACEBOOK_COMMENTS_AGENCY_ALLOWLIST = '103'
+  process.env.FACEBOOK_COMMENT_REPLIES_ENABLED = '1'
+  process.env.FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST = '103'
   const state = {
     comment: null as Record<string, unknown> | null,
     page: null as Record<string, unknown> | null,
@@ -124,6 +126,17 @@ describe('replyToComment — authorization and tenancy', () => {
     h.state.comment!.authorIsPage = true
     expect(await replyToComment(ROOT, 'היי')).toEqual({ ok: false, reason: 'page_authored' })
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('replies have their own rollout gate: off → not_enabled, nothing read, Meta never called (comments unaffected)', async () => {
+    process.env.FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST = '999'
+    try {
+      expect(await replyToComment(ROOT, 'היי')).toEqual({ ok: false, reason: 'not_enabled' })
+      expect(h.state.wheres).toHaveLength(0)
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      process.env.FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST = '103'
+    }
   })
 
   it('rejects empty text without calling Meta', async () => {

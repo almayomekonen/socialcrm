@@ -5,7 +5,11 @@ import { db } from '@/config/db'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
 import { listCommentReplies, listPageComments } from '@/modules/facebookComments/queries'
 import { parseGrantedScopes } from '@/db/facebook'
-import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
+import {
+  hasFeatureScopes,
+  isFacebookCommentRepliesEnabledForAgency,
+  isFacebookMessengerEnabledForAgency,
+} from '@/lib/facebook/permissions'
 import { threadRootId } from '@/lib/facebook/comments/thread'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
@@ -75,9 +79,11 @@ export default async function FacebookCommentsPage({
   const connection = pages[0] ?? null
   const page = connection ? await listPageComments(user.agencyId, { status }) : { items: [], nextCursor: null }
 
-  const replyablePageIds = pages
-    .filter((p) => hasFeatureScopes(parseGrantedScopes(p.granted_scopes), 'comment_replies'))
-    .map((p) => p.page_id)
+  // Replies are their own rollout: without it no reply form and no permission prompt appear.
+  const repliesEnabled = isFacebookCommentRepliesEnabledForAgency(user.agencyId)
+  const replyablePageIds = repliesEnabled
+    ? pages.filter((p) => hasFeatureScopes(parseGrantedScopes(p.granted_scopes), 'comment_replies')).map((p) => p.page_id)
+    : []
   const replies = await listCommentReplies(
     user.agencyId,
     page.items.map((c) => ({ pageId: c.pageId, commentId: threadRootId(c) })),
@@ -86,7 +92,7 @@ export default async function FacebookCommentsPage({
   // One prompt, above the list, only when there are comments to reply to and a
   // Page that cannot. Returning from a declined consent says so plainly.
   const replyNotice =
-    page.items.length === 0 || replyablePageIds.length === pages.length
+    !repliesEnabled || page.items.length === 0 || replyablePageIds.length === pages.length
       ? null
       : sp.permission === 'missing'
         ? FACEBOOK_NOTICES.comment_replies_declined

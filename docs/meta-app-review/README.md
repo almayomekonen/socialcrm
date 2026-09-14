@@ -1,8 +1,7 @@
 # Meta App Review — implementation, configuration and rollout
 
-Branch `feat/meta-app-review`, based on `origin/main` @ `08cd1d33`. `main` has
-since advanced to `662d7cac` (PR #52, Instagram in-app-browser warning), which
-touches six of the same files; integrate before opening a PR (see §7). Covers the four
+Branch `feat/meta-app-review`, with `origin/main` merged up to `ac0b2b0d`.
+Operational steps live in [`rollout-runbook.md`](./rollout-runbook.md). Covers the four
 permissions in the App Review draft: `pages_read_user_content`,
 `pages_manage_engagement`, `pages_messaging`, `ads_read`.
 
@@ -28,7 +27,7 @@ This document is the engineering source of truth. Submission copy lives in
 | Permissions | One scope set for everything | Base set unchanged; each feature requests only its own permissions (`?feature=comment_replies`, `?feature=messenger`, separate `ads_read` flow) |
 | Page tokens | Plaintext in DB; sent to the browser during Page selection; `/connect` trusted a token from the request body | Sealed at rest (AES-256-GCM, `SECRETS_ENC_KEY`, `scm1.` prefix, legacy plaintext still readable); the pending-Pages cookie is one encrypted envelope; browser receives `{id,name}` only; `/connect` resolves the token server-side. All new Graph calls send the token in the `Authorization` header. **Not changed** (server-to-server, never logged, left untouched to avoid altering Lead Ads onboarding): the OAuth code/token exchange and Page discovery (`discoverPages.ts`, `pageDiscoveryDiagnostics.ts`) still pass tokens as query parameters |
 | Reconnect | A connected Page's reconnect never refreshed its token on desktop (picker not shown) | Callback refreshes the Pages **this admin** connected, server-side (token, grant, webhook fields). Pages another admin connected, and the activation flow, keep the existing picker path |
-| Webhook retries | Every failure acknowledged with 200 | Unchanged for the endpoint: always 200 (it also carries Lead Ads; a sustained non-2xx gets the app's webhooks disabled). A Messenger event hitting a transient DB error gets one immediate in-request retry; if that fails it is logged (no content) and lost — a durable Messenger retry ledger is a follow-up that needs a schema change |
+| Webhook reliability | Every failure acknowledged with 200 | Messenger events are written to `messenger_webhook_events` in one statement **before** the response. If that write fails the delivery is answered 503 (never a false 200) after Lead Ads and comments in it were processed (both idempotent). Receipts are processed after the response and by `/api/cron/messenger-events`: leased claim, backoff, terminal `failed` requeued with `scripts/requeue_messenger_events.cjs`, stale-lease reclaim, tenancy re-checked, 30-day pruning. Deliveries without Messenger events answer exactly as before |
 
 ### Deliberately not built
 
@@ -44,9 +43,8 @@ This document is the engineering source of truth. Submission copy lives in
 - **Instagram DMs**, `ads_management`, any campaign mutation.
 - **Comment text backfill / Page post text.** Only a link to the post (no
   `pages_read_engagement` post read).
-- **A durable retry ledger for Messenger events.** The shared webhook always
-  answers 200; a Messenger event that still fails after one in-request retry on a
-  transient DB error is logged and not stored. Closing that needs a new table.
+- **The same durable receipt for comment (`feed`) events.** Comment ingest still
+  acknowledges and logs on a database error (existing behaviour, unchanged here).
 - **Admin deletion tool** for a commenter's comments or a Messenger contact's
   conversation (see `privacy-and-data-deletion.md` §3).
 
@@ -56,8 +54,10 @@ This document is the engineering source of truth. Submission copy lives in
 
 | Variable | Values | Default | Gates |
 | --- | --- | --- | --- |
-| `FACEBOOK_COMMENTS_ENABLED` | `1` | off | Existing: comment ingest, list, convert — and now in-app replies |
+| `FACEBOOK_COMMENTS_ENABLED` | `1` | off | Existing: comment ingest, list, convert (replies additionally need the reply flag) |
 | `FACEBOOK_COMMENTS_AGENCY_ALLOWLIST` | `all` or `103,108` | none | Existing |
+| `FACEBOOK_COMMENT_REPLIES_ENABLED` | `1` | off | Replying to comments from SocialCRM (separate so it can be switched off without stopping comment ingestion) |
+| `FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST` | `all` or ids | none | same |
 | `FACEBOOK_MESSENGER_ENABLED` | `1` | off | Messenger ingest, tab, send, lead actions, and whether a Page is subscribed to `messages,message_echoes` |
 | `FACEBOOK_MESSENGER_AGENCY_ALLOWLIST` | `all` or ids | none | same |
 | `FACEBOOK_ADS_REPORTING_ENABLED` | `1` | off | ads OAuth, `/sum_sales/ads`, the "מודעות" tab |
@@ -105,6 +105,7 @@ approval → allowlist customers one at a time → `all`.
 | `20260914000001_facebook_page_comments_page_replies` | `facebook_page_comments."authorIsPage" boolean NOT NULL DEFAULT false`, `"sentByUserId" integer REFERENCES users ON DELETE SET NULL`, backfill `authorIsPage` where `"authorExternalId" = "pageId"`, indexes `("pageId","parentId")` and partial `("sentByUserId")` |
 | `20260914000002_create_messenger_tables` | `messenger_conversations` (unique `("agencyId","pageId", psid)` — a Page reconnected by another agency starts fresh conversations), `messenger_messages` (unique `("pageId", mid)`), `messenger_conversation_reads` (unique `("conversationId","userId")`); indexes on the `sentByUserId` / `userId` foreign keys |
 | `20260914000003_create_facebook_ad_connections` | `facebook_ad_connections` (unique `("agencyId","userId")`, sealed `accessToken`) |
+| `20260915000001_create_messenger_webhook_events` | `messenger_webhook_events` durable receipts (unique `("pageId","eventKey")`, claim and status indexes) |
 
 Verified locally on Postgres 18: fresh build (baseline + all migrations), each
 migration `down` then `up`, and the backfill (a Page-authored row flips to
@@ -146,50 +147,17 @@ App: the SocialCRM app whose id is `META_APP_ID`.
    sends `appsecret_proof` on every Graph call, but the existing Lead Ads,
    health, WhatsApp and Conversions API paths do not; turning it on would break
    production lead intake. Enable only after those paths are migrated.
-7. **Graph API version.** Code uses `META_GRAPH_VERSION` (unset → `v19.0`) plus
+7. **Graph API version.** Code uses `META_GRAPH_VERSION` (set in Vercel production — value not read; `v19.0` when unset) plus
    pinned `v18.0`/`v19.0` in older paths; Meta upgrades calls to retired
    versions to the oldest available one. Manual tests used `v26.0`. Changing
    `META_GRAPH_VERSION` also changes WhatsApp calls — treat as its own change.
 
 ---
 
-## 5. Exposed test tokens — revocation without disrupting production
+## 5. Exposed test tokens
 
-Treat every token pasted into Graph API Explorer, a terminal history, a chat or a
-screenshot as compromised. Long-lived Page tokens do not expire on their own.
-
-1. **Identify owner and app** without spreading the token further: in Graph API
-   Explorer's *Access Token Debugger* (or `GET /debug_token` with an app token,
-   run from a server shell), read `app_id`, `user_id`, `scopes`. Note whether the
-   token belongs to the SocialCRM app or the "Graph API Explorer" app, and which
-   Facebook user.
-2. **If the Facebook user is a test-only account** (not the one that connected
-   any production Page in SocialCRM): de-authorize the app for that user —
-   `DELETE /me/permissions` with that user's token, or Facebook → Settings &
-   privacy → Settings → Business integrations → Remove. Meta: de-authorizing
-   invalidates every user access token for that person and app; Page tokens
-   derived from them stop working. Production connections are unaffected because
-   they were issued to other users. Also remove "Graph API Explorer" from that
-   user's Business integrations if it was used.
-3. **If it is the same Facebook user that connected production Pages**, any
-   invalidation (de-authorize, password change, logout-all-sessions) also
-   invalidates those Pages' tokens and stops their Lead Ads until reconnected. Do
-   it as a planned window, in this order:
-   1. Deploy this branch first (the reconnect fix; tokens stored sealed).
-   2. Invalidate (de-authorize the app for that user, or change the password).
-   3. Immediately reconnect each affected Page in SocialCRM → Settings →
-      Integrations → Facebook (reconnect refreshes the stored token server-side).
-   4. Verify: `health_status = 'healthy'` for those rows and a test lead from
-      Meta's Lead Ads Testing Tool arrives. Then inspect `webhook_failures` rows
-      created during the window: failures recorded as `token_expired` are not
-      retried automatically (they need the reconnect), so resolve them
-      deliberately. Keep the window to minutes.
-4. **Revoking only extra permissions** (`DELETE /me/permissions/pages_messaging`)
-   does **not** invalidate a leaked token — it still carries the remaining
-   scopes. It is not a substitute for step 2 or 3.
-5. The app secret was not reported as exposed. If it was: reset it in the
-   dashboard and update `META_APP_SECRET` in Vercel in the same minute (webhook
-   signatures and `appsecret_proof` both use it).
+The coordinated replacement procedure is `rollout-runbook.md` §9. It is a separate,
+scheduled step that requires this build to be live first.
 
 ---
 
@@ -242,15 +210,5 @@ assume the documented shared id; confirm with the SQL in `submission.md`).
 
 ## 7. Integration and deploy order
 
-1. Commit this work on `feat/meta-app-review` (not done — awaiting your go-ahead).
-2. Bring in `origin/main` 662d7cac. Expected conflicts are mechanical, keeping
-   both sides: `app/api/auth/facebook/route.ts` (analytics props become
-   `{ origin, feature, inApp }`), `components/settings/FacebookConnect.tsx`,
-   `components/settings/integrations/LeadSourcesSection.tsx`,
-   `modules/settings/mobile/IntegrationsLanding.tsx`, `IntegrationsMobile.tsx`,
-   `lib/connections/messages.ts` (keep `in_app_browser` and the spread of
-   `META_FEATURE_NOTICES`). Re-run `tsc` and the suites above afterwards.
-3. Confirm `SECRETS_ENC_KEY` in Vercel Production; apply the three migrations;
-   deploy with all three `*_ENABLED` flags unset (no behaviour change except the
-   token hygiene, comment Page-reply flagging and reconnect fix).
-4. Enable for agency 103, then run `submission.md` §4 on production.
+See `rollout-runbook.md`: migrations → deploy with new flags unset → seal existing
+plaintext tokens → enable agency 103 feature by feature with live checks.

@@ -5,7 +5,7 @@ import { db } from '@/config/db'
 import { requireProductAccess } from '@/lib/requireUser'
 import { parseGrantedScopes } from '@/db/facebook'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
-import { hasFeatureScopes } from '@/lib/facebook/permissions'
+import { hasFeatureScopes, isFacebookCommentRepliesEnabledForAgency } from '@/lib/facebook/permissions'
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { describeGraphError, graphRequest } from '@/lib/facebook/graphClient'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
@@ -27,7 +27,8 @@ export type ReplyResult = { ok: true; replyId: string } | { ok: false; reason: R
  *     access is active (a reply is outbound engagement, like a WhatsApp send).
  *     Its ProductAccessError is deliberately NOT caught, so `useAction` shows
  *     the subscription state instead of a retry that can never succeed.
- *  2. our rollout gate for Facebook comments.
+ *  2. our rollout gates: Facebook comments AND comment replies (separate, so
+ *     replies can be switched off without stopping comment ingestion).
  *  3. the comment must belong to the caller's agency — `commentId` is a
  *     Meta-global id, so filtering by it alone would be an IDOR.
  *  4. the Page is resolved from THAT comment's `pageId` inside the same agency
@@ -38,7 +39,9 @@ export type ReplyResult = { ok: true; replyId: string } | { ok: false; reason: R
  */
 export async function replyToComment(commentId: string, message: string): Promise<ReplyResult> {
   const user = await requireProductAccess()
-  if (!isFacebookCommentsEnabledForAgency(user.agencyId)) return { ok: false, reason: 'not_enabled' }
+  if (!isFacebookCommentsEnabledForAgency(user.agencyId) || !isFacebookCommentRepliesEnabledForAgency(user.agencyId)) {
+    return { ok: false, reason: 'not_enabled' }
+  }
 
   const text = typeof message === 'string' ? message.trim() : ''
   if (!text) return { ok: false, reason: 'empty' }

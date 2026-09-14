@@ -63,6 +63,20 @@ function gate(enabledVar: string | undefined, allowlistVar: string | undefined, 
   return list === 'all' || list.includes(agencyId)
 }
 
+/**
+ * Our rollout gate for REPLYING to comments from SocialCRM. Separate from
+ * FACEBOOK_COMMENTS_ENABLED on purpose: comment ingestion is an existing,
+ * enabled integration, and replies must be switchable on and off without
+ * touching it. Replies still also require the comments gate and the grant.
+ */
+export function isFacebookCommentRepliesEnabledForAgency(agencyId: number | null | undefined): boolean {
+  return gate(
+    process.env.FACEBOOK_COMMENT_REPLIES_ENABLED,
+    process.env.FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST,
+    agencyId,
+  )
+}
+
 /** Our rollout gate for Messenger. Unset ⇒ OFF everywhere. */
 export function isFacebookMessengerEnabledForAgency(agencyId: number | null | undefined): boolean {
   return gate(process.env.FACEBOOK_MESSENGER_ENABLED, process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST, agencyId)

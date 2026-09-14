@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
-import { pageOAuthScopes, parsePageFeature } from '@/lib/facebook/permissions'
+import {
+  isFacebookCommentRepliesEnabledForAgency,
+  isFacebookMessengerEnabledForAgency,
+  pageOAuthScopes,
+  parsePageFeature,
+} from '@/lib/facebook/permissions'
 import { inAppBrowserFromHeaders } from '@/lib/device'
 
 export async function GET(_req: NextRequest) {
@@ -28,7 +33,16 @@ export async function GET(_req: NextRequest) {
   // or `?feature=comment_replies` adds ONLY that feature's permissions to the
   // unchanged base set. The feature rides the state so the callback can return
   // the user to the surface that asked. Routing only — CSRF stays exact-match.
-  const feature = parsePageFeature(search.get('feature'))
+  // A feature outside this agency's rollout is ignored: nobody is asked for a
+  // permission the product will not use for them.
+  const requested = parsePageFeature(search.get('feature'))
+  const rolledOut =
+    requested === 'messenger'
+      ? isFacebookMessengerEnabledForAgency(user.agencyId)
+      : requested === 'comment_replies'
+        ? isFacebookCommentRepliesEnabledForAgency(user.agencyId)
+        : false
+  const feature = rolledOut ? requested : null
   const state = feature ? `${origin}.${feature}.${crypto.randomUUID()}` : `${origin}.${crypto.randomUUID()}`
 
   // The DENOMINATOR of the Facebook connect funnel. `facebook_connect_started`

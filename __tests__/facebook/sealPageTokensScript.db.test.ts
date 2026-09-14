@@ -104,6 +104,24 @@ describe('sealing existing plaintext Page tokens', () => {
     expect(output).toMatch(/unreadable_seals=[1-9]/)
   })
 
+  it('--unseal (emergency rollback) needs explicit confirmation, then restores the originals; --apply re-seals', async () => {
+    const sealedState = await tokens()
+    const refused = run(['--unseal', '--apply'])
+    expect(refused.code).toBe(1)
+    expect(refused.output).toContain('--confirm-writes-plaintext')
+    expect(await tokens()).toEqual(sealedState)
+
+    const { code, output } = run(['--unseal', '--apply', '--confirm-writes-plaintext'])
+    expect(code).toBe(0)
+    expect(output).toMatch(/sealed_remaining=0/)
+    const plain = await tokens()
+    expect([plain[PAGES[0]], plain[PAGES[1]], plain[PAGES[2]]]).toEqual([PLAIN_A, PLAIN_B, ALREADY])
+
+    expect(run(['--apply']).code).toBe(0)
+    const resealed = await tokens()
+    expect(Object.values(resealed).every((t) => t.startsWith('scm1.'))).toBe(true)
+  })
+
   it('refuses to run without SECRETS_ENC_KEY, touching nothing', async () => {
     const before = await tokens()
     const { code, output } = run(['--apply'], '')

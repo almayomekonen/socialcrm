@@ -79,6 +79,13 @@ describe('OAuth dialog', () => {
 })
 
 describe('OAuth dialog — per-feature permissions', () => {
+  beforeEach(() => {
+    process.env.FACEBOOK_MESSENGER_ENABLED = '1'
+    process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST = '103'
+    process.env.FACEBOOK_COMMENT_REPLIES_ENABLED = '1'
+    process.env.FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST = '103'
+  })
+
   const scopeFor = async (url: string) => {
     const { GET } = await import('@/app/api/auth/facebook/route')
     const res = await GET(new Request(url) as never)
@@ -102,6 +109,13 @@ describe('OAuth dialog — per-feature permissions', () => {
     const scope = await scopeFor('https://getsocialcrm.com/api/auth/facebook?feature=messenger')
     expect(scope).toEqual(expect.arrayContaining(['pages_messaging', 'pages_manage_metadata', 'pages_show_list']))
     expect(scope).not.toContain('pages_manage_engagement')
+  })
+
+  it('a feature outside the agency\'s rollout is ignored: base permissions only', async () => {
+    process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST = '999'
+    const scope = await scopeFor('https://getsocialcrm.com/api/auth/facebook?feature=messenger')
+    expect(scope).not.toContain('pages_messaging')
+    expect(scope).toContain('leads_retrieval')
   })
 
   it('an unknown feature value is ignored, and the feature rides the CSRF state', async () => {
