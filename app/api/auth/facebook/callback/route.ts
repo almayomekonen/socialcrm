@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { encrypt } from '@/db/auth'
 import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
 import { FB_REASON, FB_REASON_NOTICE_CODE, type FbReason } from '@/lib/connections/reasons'
 import { inspectFacebookToken } from '@/lib/facebook/pageDiscoveryDiagnostics'
 import { discoverFacebookPages } from '@/lib/facebook/discoverPages'
+import { finishPageOAuth } from '@/lib/facebook/finishPageOAuth'
+import { ADS_OAUTH_STATE_PREFIX, handleAdsOAuthCallback } from '@/lib/facebook/ads/handleAdsOAuthCallback'
 
 // Option A: the flow origin is the prefix of the `state` param. Reading it for
 // routing is not security-sensitive (the CSRF check below remains exact-match).
@@ -31,6 +32,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/settings/integrations?notice=forbidden', req.url))
   }
   const user = auth.user
+
+  // Ad reporting has its own consent (`ads_read`) and shares only this
+  // registered redirect URI. Dispatched before any Page-connection logic runs.
+  if ((new URL(req.url).searchParams.get('state') ?? '').startsWith(ADS_OAUTH_STATE_PREFIX)) {
+    return handleAdsOAuthCallback(req, { id: user.id, agencyId: user.agencyId! })
+  }
 
   // Precise, non-PII failure reason → analytics. Notice code (redirect) is
   // unchanged; only the observability reason is added. `diagnostics` carries
@@ -117,7 +124,10 @@ export async function GET(req: NextRequest) {
   // Facebook allows users to uncheck individual scopes during OAuth — the token exchange
   // still succeeds, but without leads_retrieval the integration is silently broken.
   try {
-    const permRes = await fetch(`https://graph.facebook.com/v19.0/me/permissions?access_token=${longToken}`)
+    // Token in the Authorization header, never in the URL.
+    const permRes = await fetch('https://graph.facebook.com/v19.0/me/permissions', {
+      headers: { Authorization: `Bearer ${longToken}` },
+    })
     if (!permRes.ok) {
       console.error('[FacebookOAuth] Permission check failed:', await permRes.text())
       return failed(req, 'token')
@@ -258,21 +268,14 @@ export async function GET(req: NextRequest) {
     props: { count: pages.length, ...discoveryResult },
   })
 
-  // `grantedScopes` rides the SAME encrypted, httpOnly cookie the Page list
-  // already uses, so the connect route can persist it server-side without a
-  // second Graph call and without the browser ever supplying it. The page
-  // picker reads only `payload.pages`, so adding a sibling key changes nothing
-  // it renders.
-  const encrypted = await encrypt({ pages, userId: user.id, grantedScopes })
-  cookieStore.set('fb_pages', encrypted, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 10, // 10 minutes
-    path: '/',
+  // Reconnect refresh, or the picker's Page list — see lib/facebook/finishPageOAuth.ts.
+  return finishPageOAuth({
+    req,
+    cookieStore,
+    user: { id: user.id, agencyId: user.agencyId! },
+    origin: originOf(req),
+    pages,
+    grantedScopes,
+    failed: (reason) => failed(req, reason),
   })
-
-  const successUrl =
-    originOf(req) === 'activation' ? '/activate?activation=select' : '/settings/facebook?select=1'
-  return NextResponse.redirect(new URL(successUrl, req.url))
 }

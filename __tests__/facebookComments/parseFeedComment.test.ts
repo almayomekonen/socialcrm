@@ -36,11 +36,29 @@ describe('parseFeedComment — happy path', () => {
       isTopLevel: true,
       authorId: '5566778899',
       authorName: 'דוד כהן',
+      authorIsPage: false,
       message: '',
       messageAvailable: false,
       createdTime: new Date(1786364410 * 1000),
       verb: 'add',
     })
+  })
+
+  it("flags the Page's own reply: from.id === the verified page id", () => {
+    const reply = parseFeedComment(PAGE, {
+      ...base,
+      parent_id: COMMENT,
+      comment_id: '122113311069337165_222',
+      from: { id: PAGE, name: 'העסק של דנה' },
+    })!
+    expect(reply.authorIsPage).toBe(true)
+    expect(reply.isTopLevel).toBe(false)
+  })
+
+  it('a payload cannot claim Page authorship by naming a different page id', () => {
+    // from.id matches the payload's page claim, not the SIGNED entry id → not the Page.
+    const e = parseFeedComment(PAGE, { ...base, page_id: '999', from: { id: '999', name: 'x' } })!
+    expect(e.authorIsPage).toBe(false)
   })
 
   it('carries the pageId supplied by the caller, never one derived from the payload', () => {

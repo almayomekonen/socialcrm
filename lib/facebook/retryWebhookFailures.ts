@@ -1,3 +1,4 @@
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { db } from '@/config/db'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
@@ -76,8 +77,10 @@ async function attemptOne(row: WebhookFailureRow): Promise<AttemptOutcome> {
   if (existing) return { kind: 'already_exists' }
 
   let res: Response
+  let pageAccessToken: string
   try {
-    res = await fetchLeadWithTimeout(row.lead_id, connection.page_access_token)
+    pageAccessToken = resolvePageAccessToken(connection.page_access_token)
+    res = await fetchLeadWithTimeout(row.lead_id, pageAccessToken)
   } catch (err) {
     return { kind: 'transient', error: String(err) }
   }
@@ -85,7 +88,7 @@ async function attemptOne(row: WebhookFailureRow): Promise<AttemptOutcome> {
   // Same widened→minimal ladder as ingestion: attribution must never cost a lead.
   if (!res.ok && res.status !== 401 && res.status !== 403) {
     try {
-      const minimal = await fetchLeadWithTimeout(row.lead_id, connection.page_access_token, LEAD_MINIMAL_GRAPH_FIELDS)
+      const minimal = await fetchLeadWithTimeout(row.lead_id, pageAccessToken, LEAD_MINIMAL_GRAPH_FIELDS)
       if (minimal.ok) res = minimal
     } catch {
       // Fall through to the status handling below.

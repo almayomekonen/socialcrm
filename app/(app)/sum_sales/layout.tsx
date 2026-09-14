@@ -5,6 +5,8 @@ import SumSalesNav from '@/components/sumSales/SumSalesNav'
 import { Metadata } from 'next'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { isAdmin, type Roles } from '@/types/roles'
+import { isFacebookAdsReportingEnabledForAgency } from '@/lib/facebook/permissions'
 
 export const metadata: Metadata = {
   title: 'ביצועים',
@@ -35,7 +37,11 @@ export default async function SumSalesLayout({ children }: { children: React.Rea
   return (
     <div>
       <Suspense fallback={null}>
-        <SumSalesNav user={user} showAgents={showAgents} />
+        <SumSalesNav
+          user={user}
+          showAgents={showAgents}
+          showAds={!!user && isAdmin(user.role as Roles) && isFacebookAdsReportingEnabledForAgency(user.agencyId)}
+        />
       </Suspense>
       {children}
     </div>

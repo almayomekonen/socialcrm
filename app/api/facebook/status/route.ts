@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireActiveAgencyUser, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
 import { checkFacebookConnection } from '@/lib/facebook/health'
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 
@@ -41,16 +42,36 @@ export async function GET() {
       errors: isKnownExpired ? ['token_expired'] : [],
     }
   } else {
-    health = await checkFacebookConnection(connection.page_id, connection.page_access_token)
-    if (health.needsReconnect) {
-      // Transition-only emit: already-expired short-circuit above never reaches here.
-      await markFacebookDisconnectedAndNotify(connection).catch(() => {})
+    let token: string | null = null
+    try {
+      token = resolvePageAccessToken(connection.page_access_token)
+    } catch {
+      // A sealed token that cannot be opened is a deployment fault (SECRETS_ENC_KEY),
+      // not a disconnect: report stored state, never mark the Page expired for it.
+      console.error('[FacebookStatus] Page token could not be opened — check SECRETS_ENC_KEY')
+    }
+    if (token === null) {
+      // Same response contract as the cached branch; the stored state stands and
+      // nothing is recorded — an unreadable seal is not evidence about the Page.
+      health = {
+        tokenValid: connection.health_status === 'healthy',
+        permissionsOk: connection.health_status === 'healthy',
+        subscribed: connection.health_status === 'healthy',
+        needsReconnect: false,
+        errors: ['token_unreadable'],
+      }
     } else {
-      const newStatus = health.subscribed ? 'healthy' : 'not_subscribed'
-      await db('facebook_pages')
-        .where({ page_id: connection.page_id })
-        .update({ health_status: newStatus, health_checked_at: new Date() })
-        .catch(() => {})
+      health = await checkFacebookConnection(connection.page_id, token)
+      if (health.needsReconnect) {
+        // Transition-only emit: already-expired short-circuit above never reaches here.
+        await markFacebookDisconnectedAndNotify(connection).catch(() => {})
+      } else {
+        const newStatus = health.subscribed ? 'healthy' : 'not_subscribed'
+        await db('facebook_pages')
+          .where({ page_id: connection.page_id })
+          .update({ health_status: newStatus, health_checked_at: new Date() })
+          .catch(() => {})
+      }
     }
   }
 

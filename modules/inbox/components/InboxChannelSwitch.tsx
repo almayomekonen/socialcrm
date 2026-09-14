@@ -6,17 +6,30 @@ import ChannelIcon from './ChannelIcon'
  * plan decision D1). WhatsApp conversations and Facebook comments share one
  * nav section — no new top-level item.
  */
-type InboxChannelTab = 'whatsapp' | 'facebook'
+export type InboxChannelTab = 'whatsapp' | 'facebook' | 'messenger'
 
 const TABS: { id: InboxChannelTab; href: string; label: string }[] = [
   { id: 'whatsapp', href: '/inbox', label: 'שיחות' },
+  { id: 'messenger', href: '/inbox/messenger', label: 'Messenger' },
   { id: 'facebook', href: '/inbox/comments', label: 'תגובות' },
 ]
 
-export default function InboxChannelSwitch({ active }: { active: InboxChannelTab }) {
+/**
+ * `showMessenger` is resolved server-side from the Messenger rollout gate, so an
+ * agency without Messenger never sees a tab that leads nowhere. Default false:
+ * every existing caller renders exactly the two tabs it rendered before.
+ */
+export default function InboxChannelSwitch({
+  active,
+  showMessenger = false,
+}: {
+  active: InboxChannelTab
+  showMessenger?: boolean
+}) {
+  const tabs = TABS.filter((tab) => tab.id !== 'messenger' || showMessenger || active === 'messenger')
   return (
     <nav aria-label='ערוץ' className='flex flex-wrap items-center gap-1.5'>
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = tab.id === active
         return (
           <Link

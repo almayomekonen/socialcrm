@@ -129,6 +129,34 @@ describe('ingestFacebookComment → notifyEvent(comment.received)', () => {
     })
   })
 
+  it("the Page's own reply → stored, flagged authorIsPage, and NO notification", async () => {
+    h.state.insertSignals = [true]
+
+    await ingestFacebookComment(
+      PAGE,
+      comment({ comment_id: '122113311069337165_555', parent_id: COMMENT, from: { id: PAGE, name: 'העסק' } }),
+    )
+
+    expect(notifyEvent).not.toHaveBeenCalled()
+    expect(h.state.inserts[0]).toMatchObject({ authorIsPage: true, commentId: '122113311069337165_555' })
+  })
+
+  it('a reply echo without text never blanks the text we already hold, nor clears who sent it', async () => {
+    h.state.insertSignals = [false]
+
+    await ingestFacebookComment(
+      PAGE,
+      comment({ comment_id: '122113311069337165_555', parent_id: COMMENT, from: { id: PAGE, name: 'העסק' } }),
+    )
+
+    const merged = h.state.merges[0]
+    expect(merged).not.toHaveProperty('message')
+    expect(merged).not.toHaveProperty('messageAvailable')
+    expect(merged).not.toHaveProperty('sentByUserId')
+    // Sticky: merged with OR, never overwritten by a later event.
+    expect(String(merged.authorIsPage)).toContain('OR EXCLUDED."authorIsPage"')
+  })
+
   it('duplicate webhook/upsert → no second notification', async () => {
     h.state.insertSignals = [true, false]
 

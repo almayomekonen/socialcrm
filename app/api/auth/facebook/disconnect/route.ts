@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/config/db'
 import { requireActiveAgencyUser, statusFor } from '@/lib/api/routeAuth'
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 
 /**
  * Disconnect the caller's connected Facebook Page.
@@ -48,12 +49,13 @@ export async function POST(_req: NextRequest) {
 
   // Attempt to unsubscribe the page — best effort, don't block deletion on failure
   try {
-    const res = await fetch(
-      `https://graph.facebook.com/v18.0/${connection.page_id}/subscribed_apps?access_token=${connection.page_access_token}`,
-      { method: 'DELETE' },
-    )
+    // Token in the Authorization header, never in the URL.
+    const res = await fetch(`https://graph.facebook.com/v18.0/${connection.page_id}/subscribed_apps`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${resolvePageAccessToken(connection.page_access_token)}` },
+    })
     if (!res.ok) {
-      console.warn(`[FacebookDisconnect] Unsubscribe failed [pageId=${connection.page_id}]:`, await res.text())
+      console.warn(`[FacebookDisconnect] Unsubscribe failed [pageId=${connection.page_id}] status=${res.status}`)
     } else {
       console.log(`[FacebookDisconnect] Page unsubscribed [pageId=${connection.page_id}]`)
     }

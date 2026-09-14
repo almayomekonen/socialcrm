@@ -7,6 +7,8 @@ import UrlSyncedAccordion from '@/lib/UrlSyncedAccordion'
 import FacebookConnect from '@/components/settings/FacebookConnect'
 import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
+import { PENDING_PAGES_COOKIE, readPendingPages, toClientPages } from '@/lib/facebook/pendingPages'
 import { getFacebookCommentTextCapability } from '@/db/facebook'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
@@ -57,24 +59,14 @@ export default async function LeadSourcesSection({
   const fbConnection = await db('facebook_pages').where({ user_id: user.id }).first()
 
   const cookieStore = await cookies()
-  const fbPagesCookie = cookieStore.get('fb_pages')?.value
-  let pendingPages: { id: string; name: string; access_token: string }[] | null = null
-
-  if (fbPagesCookie) {
-    try {
-      const payload = await decrypt(fbPagesCookie)
-      if (payload?.userId === user.id) {
-        pendingPages = payload.pages
-      }
-    } catch {
-      // Cookie expired or tampered — ignore
-    }
-  }
+  // Display data only: `{ id, name }`. Page tokens stay in the server-only
+  // cookie and /connect resolves them server-side — same rule as `wa_phones`.
+  const pendingPages = toClientPages(await readPendingPages(cookieStore.get(PENDING_PAGES_COOKIE)?.value, user.id))
 
   let health: FacebookHealthStatus | null = null
   if (fbConnection) {
     try {
-      health = await checkFacebookConnection(fbConnection.page_id, fbConnection.page_access_token)
+      health = await checkFacebookConnection(fbConnection.page_id, resolvePageAccessToken(fbConnection.page_access_token))
     } catch {
       // Non-critical
     }

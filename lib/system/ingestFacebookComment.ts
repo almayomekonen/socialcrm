@@ -15,6 +15,13 @@
 // Persistence + comment.received notify on FIRST INSERT only. No Lead is created
 // here (conversion is a separate user action). No Graph API call. Lead Ads
 // behaviour is untouched. Edits/removes/hide are silent for notifications.
+//
+// THE PAGE'S OWN COMMENTS are stored (they are the reply thread) but flagged
+// `authorIsPage` and NEVER notify: a reply the business wrote — on Facebook or
+// from SocialCRM — is not a new comment for the business to handle. When the
+// reply was sent from SocialCRM the row usually already exists (written from
+// the Graph response), so this upsert merges into it and never clears
+// `sentByUserId`, which is not in the merge set.
 
 import { db } from '@/config/db'
 import { parseFeedComment } from '@/lib/facebook/comments/parseFeedComment'
@@ -41,6 +48,7 @@ async function upsertFacebookPageComment(row: {
   isTopLevel: boolean
   authorExternalId: string | null
   authorName: string | null
+  authorIsPage: boolean
   message: string
   messageAvailable: boolean
   verb: string
@@ -52,9 +60,14 @@ async function upsertFacebookPageComment(row: {
     .insert(row)
     .onConflict(['pageId', 'commentId'])
     .merge({
-      message: row.message,
-      messageAvailable: row.messageAvailable,
-      authorName: row.authorName,
+      // Text is refreshed only when Meta actually sent it: an event without
+      // text must never blank a comment we already hold (e.g. a reply recorded
+      // from the Graph response before its webhook echo arrived).
+      ...(row.messageAvailable ? { message: row.message, messageAvailable: true } : {}),
+      ...(row.authorName ? { authorName: row.authorName } : {}),
+      // Once known to be the Page's own comment, always the Page's: a later
+      // event that omits `from` must never turn a reply back into a work item.
+      authorIsPage: db.raw('facebook_page_comments."authorIsPage" OR EXCLUDED."authorIsPage"'),
       verb: row.verb,
       updatedAt: row.updatedAt,
     })
@@ -109,6 +122,7 @@ export async function ingestFacebookComment(pageId: string, value: unknown): Pro
       isTopLevel: event.isTopLevel,
       authorExternalId: event.authorId,
       authorName: event.authorName,
+      authorIsPage: event.authorIsPage,
       message: event.message,
       messageAvailable: event.messageAvailable,
       verb: event.verb,
@@ -134,7 +148,7 @@ export async function ingestFacebookComment(pageId: string, value: unknown): Pro
     // edited/remove stays silent.
     const { id, inserted } = await upsertFacebookPageComment(row)
 
-    if (inserted) {
+    if (inserted && !event.authorIsPage) {
       await notifyEvent({
         type: 'comment.received',
         agencyId,

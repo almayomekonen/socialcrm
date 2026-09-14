@@ -17,6 +17,7 @@
  */
 const ENV_FILE = process.env.ENV_FILE || '.env.local'
 require('dotenv').config({ path: ENV_FILE, override: true })
+const { resolvePageToken } = require('./resolvePageToken.cjs')
 
 const knex = require('knex')({
   client: 'pg',
@@ -87,7 +88,9 @@ async function main() {
     return
   }
 
-  const token = connection.page_access_token
+  // Sealed at rest; scrub both the sealed and the opened form from output.
+  secrets.push(connection.page_access_token)
+  const token = resolvePageToken(connection.page_access_token)
   secrets.push(token)
   if (process.env.META_APP_SECRET) secrets.push(process.env.META_APP_SECRET)
 

@@ -21,7 +21,15 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
+vi.hoisted(() => {
+  // Page tokens inside the pending-pages cookie are sealed (lib/facebook/pendingPages.ts).
+  process.env.SECRETS_ENC_KEY = Buffer.alloc(32, 9).toString('base64')
+})
 vi.mock('@/db/auth', () => ({ getUser: vi.fn(), encrypt: vi.fn(async () => 'encrypted-blob') }))
+// No already-connected Pages: these tests cover first-time discovery → picker.
+vi.mock('@/lib/facebook/refreshConnectedPages', () => ({
+  refreshConnectedPages: vi.fn(async () => ({ refreshed: 0, subscribeFailed: 0 })),
+}))
 vi.mock('@/lib/analytics/track', () => ({ track: vi.fn() }))
 vi.mock('next/headers', () => ({ cookies: vi.fn() }))
 
@@ -29,6 +37,23 @@ import { GET } from '@/app/api/auth/facebook/callback/route'
 import { getUser, encrypt } from '@/db/auth'
 import { track } from '@/lib/analytics/track'
 import { cookies } from 'next/headers'
+import { readPendingPages } from '@/lib/facebook/pendingPages'
+
+/**
+ * The `fb_pages` cookie the callback set: one encrypted envelope. Returns what
+ * /connect will read from it server-side, plus whether the raw value leaks the
+ * token in clear.
+ */
+async function pendingFromCookie(store: { set: ReturnType<typeof vi.fn> }, plaintext = 'EAAGm0PX4ZCpsBAPAGEACCESSTOKENVALUE0099887766') {
+  const call = store.set.mock.calls.find(([name]) => name === 'fb_pages')
+  if (!call) return null
+  const raw = String(call[1])
+  const pending = await readPendingPages(raw, 293)
+  return {
+    encrypted: raw.startsWith('scmp1.') && !raw.includes(plaintext) && !raw.includes(Buffer.from(plaintext).toString('base64')),
+    pages: pending?.pages.map((p) => ({ id: p.id, name: p.name, access_token: p.token })) ?? [],
+  }
+}
 
 const AGENCY = 64
 const USER_ID = 293
@@ -64,6 +89,7 @@ function debugToken(targetIds: string[] | null) {
   }
 }
 
+let lastStore: { set: ReturnType<typeof vi.fn> } | null = null
 const setCookies = () => {
   const store = {
     get: vi.fn(() => ({ value: STATE })),
@@ -71,6 +97,7 @@ const setCookies = () => {
     set: vi.fn(),
   }
   vi.mocked(cookies).mockResolvedValue(store as never)
+  lastStore = store
   return store
 }
 
@@ -292,8 +319,6 @@ describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)
   const PAGE_TOKEN = 'EAAGm0PX4ZCpsBAPAGEACCESSTOKENVALUE0099887766'
   const NPE_PAGE = { status: 200, body: { id: 'PG-NPE', name: 'Business Page', access_token: PAGE_TOKEN } }
 
-  /** What the Page-select screen receives: encrypt({ pages, userId }). */
-  const encrypted = () => vi.mocked(encrypt).mock.calls[0]?.[0] as { pages?: unknown[]; userId?: number } | undefined
 
   it('FBD-7: the production failure — /me/accounts empty, but the granular Page IS discovered', async () => {
     // Exactly the reported log line: valid token, pages_show_list granted,
@@ -331,9 +356,11 @@ describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)
 
     await GET(req())
 
-    // connect/route.ts requires all three; a missing one is a 400 "Missing fields".
-    expect(encrypted()?.pages).toEqual([{ id: 'PG-NPE', name: 'Business Page', access_token: PAGE_TOKEN }])
-    expect(encrypted()?.userId).toBe(USER_ID)
+    // One encrypted envelope (the token never in clear), readable only for this user,
+    // yielding exactly the Page token /connect needs.
+    const cookie = await pendingFromCookie(lastStore!)
+    expect(cookie).toEqual({ encrypted: true, pages: [{ id: 'PG-NPE', name: 'Business Page', access_token: PAGE_TOKEN }] })
+    expect(encrypt).not.toHaveBeenCalled()
   })
 
   it('FBD-7c: /me/accounts is not called at all once granular resolves', async () => {
@@ -497,7 +524,8 @@ describe('Facebook Page discovery — granular target_ids (regression: 7d601b1b)
       returnedPageCount: 1,
     })
     // Page id stands in for the name; the TOKEN is what the integration needs.
-    expect(vi.mocked(encrypt).mock.calls[0]?.[0]).toMatchObject({
+    expect(await pendingFromCookie(lastStore!)).toEqual({
+      encrypted: true,
       pages: [{ id: 'PG-NPE', name: 'PG-NPE', access_token: PAGE_TOKEN }],
     })
   })

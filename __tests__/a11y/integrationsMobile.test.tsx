@@ -234,7 +234,7 @@ describe('IntegrationsLanding', () => {
         oauthQuery={{ select: '1' }}
         facebook={{
           ...base().facebook,
-          pendingPages: [{ id: 'page-1', name: 'דף הבדיקה', access_token: 'tok' }],
+          pendingPages: [{ id: 'page-1', name: 'דף הבדיקה' }],
         }}
       />,
     )
@@ -251,11 +251,8 @@ describe('IntegrationsLanding', () => {
       String(c[0]).includes('/api/auth/facebook/connect'),
     )
     expect(connectCall?.[1]).toMatchObject({ method: 'POST' })
-    expect(JSON.parse((connectCall?.[1] as RequestInit).body as string)).toEqual({
-      pageId: 'page-1',
-      pageName: 'דף הבדיקה',
-      pageAccessToken: 'tok',
-    })
+    // The Page id only: the token never reaches the client, so it cannot be posted back.
+    expect(JSON.parse((connectCall?.[1] as RequestInit).body as string)).toEqual({ pageId: 'page-1' })
     expect(screen.queryByText('בחר את הדף שברצונך לחבר:')).toBeNull()
   })
 
@@ -268,8 +265,8 @@ describe('IntegrationsLanding', () => {
         facebook={{
           ...base().facebook,
           pendingPages: [
-            { id: 'p1', name: 'דף א', access_token: 'a' },
-            { id: 'p2', name: 'דף ב', access_token: 'b' },
+            { id: 'p1', name: 'דף א' },
+            { id: 'p2', name: 'דף ב' },
           ],
         }}
       />,

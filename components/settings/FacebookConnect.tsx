@@ -11,7 +11,8 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { FACEBOOK_NOTICES, SHARED, facebookNotice } from '@/lib/connections/messages'
 
-type Page = { id: string; name: string; access_token: string }
+/** Display data only — the Page token stays server-side (lib/facebook/pendingPages.ts). */
+type Page = { id: string; name: string }
 type Connection = { pageId: string; pageName: string }
 
 type Props = {
@@ -36,6 +37,8 @@ export default function FacebookConnect({
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('error')
+  // Set by the OAuth callback after it refreshed this admin's connected Page.
+  const reconnected = searchParams.get('reconnected') === '1'
   const [selectedPageId, setSelectedPageId] = useState('')
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
@@ -94,11 +97,7 @@ export default function FacebookConnect({
       const res = await fetch('/api/auth/facebook/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pageId: page.id,
-          pageName: page.name,
-          pageAccessToken: page.access_token,
-        }),
+        body: JSON.stringify({ pageId: page.id }),
       })
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
@@ -123,6 +122,7 @@ export default function FacebookConnect({
         <p className='text-sm text-gray-600' data-edu={needsReconnect ? undefined : 'facebook-connect'}>
           מחובר לדף: <strong>{connection.pageName}</strong>
         </p>
+        {reconnected && !needsReconnect && <p role='status' className='text-sm text-green-600'>החיבור לפייסבוק חודש</p>}
         {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
         {needsReconnect && <ConnectionNotice notice={FACEBOOK_NOTICES.expired} />}
         {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}

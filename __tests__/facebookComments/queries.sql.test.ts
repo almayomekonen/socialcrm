@@ -8,7 +8,12 @@
  */
 import { describe, expect, it } from 'vitest'
 import { db } from '@/config/db'
-import { listPageCommentsQuery, countOpenCommentsQuery, COMMENTS_PAGE_SIZE } from '@/modules/facebookComments/queries'
+import {
+  listPageCommentsQuery,
+  countOpenCommentsQuery,
+  listCommentRepliesQuery,
+  COMMENTS_PAGE_SIZE,
+} from '@/modules/facebookComments/queries'
 
 const AGENCY = 103
 
@@ -111,5 +116,44 @@ describe('listPageCommentsQuery — ordering and pagination', () => {
     ]) {
       expect(sql).toContain(`"${col}"`)
     }
+  })
+})
+
+describe("Page-authored replies stay out of the work list", () => {
+  it('the list excludes the Page\'s own comments on every status', () => {
+    for (const status of ['open', 'converted', 'ignored', 'deleted', 'all'] as const) {
+      const { sql, bindings } = listPageCommentsQuery(db, AGENCY, { status }).toSQL()
+      expect(sql.toLowerCase()).toContain('"authorispage" = ?')
+      expect(bindings).toContain(false)
+    }
+  })
+
+  it('the open count excludes them too', () => {
+    const { sql, bindings } = countOpenCommentsQuery(db, AGENCY).toSQL()
+    expect(sql.toLowerCase()).toContain('"authorispage" = ?')
+    expect(bindings).toContain(false)
+  })
+})
+
+describe('listCommentRepliesQuery — thread read', () => {
+  const roots = [
+    { pageId: 'P1', commentId: 'C1' },
+    { pageId: 'P2', commentId: 'C2' },
+  ]
+
+  it('is tenant-scoped and keyed by (pageId, parentId), never by comment id alone', () => {
+    const { sql, bindings } = listCommentRepliesQuery(db, AGENCY, roots).toSQL()
+    const s = sql.toLowerCase()
+    expect(s).toContain('"agencyid" = ?')
+    expect(s).toContain('("pageid", "parentid") in')
+    expect(bindings).toEqual(expect.arrayContaining([AGENCY, 'P1', 'C1', 'P2', 'C2']))
+    expect(s).not.toContain('join')
+  })
+
+  it('hides deleted replies and caps from the newest, so the latest reply is never the one dropped', () => {
+    const { sql, bindings } = listCommentRepliesQuery(db, AGENCY, roots).toSQL()
+    expect(sql.toLowerCase()).toContain('not "status" = ?')
+    expect(bindings).toContain('deleted')
+    expect(sql.toLowerCase()).toContain('order by coalesce("createdtime", "receivedat") desc, "id" desc')
   })
 })

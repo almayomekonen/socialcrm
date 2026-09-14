@@ -47,7 +47,24 @@ const h = vi.hoisted(() => {
   return { state, db, pending }
 })
 
+const pendingState = vi.hoisted(() => {
+  process.env.SECRETS_ENC_KEY = Buffer.alloc(32, 7).toString('base64')
+  return {
+    value: null as null | { pages: { id: string; name: string; token: string }[]; grantedScopes: string[] },
+  }
+})
+const defaultPending = () => ({ pages: [{ id: 'PG1', name: 'My Page', token: 'ptok' }], grantedScopes: [] as string[] })
+
 vi.mock('@/config/db', () => ({ db: h.db }))
+vi.mock('@/lib/facebook/pendingPages', () => ({
+  PENDING_PAGES_COOKIE: 'fb_pages',
+  // The server-side cookie the OAuth callback wrote. Tests control it directly.
+  readPendingPages: vi.fn(async () => pendingState.value),
+  pendingPageToken: (pending: { pages: { id: string; name: string; token: string }[] } | null, pageId: string) => {
+    const p = pending?.pages.find((x) => x.id === pageId)
+    return p ? { name: p.name, token: p.token } : null
+  },
+}))
 vi.mock('@/db/auth', () => ({ getUser: vi.fn() }))
 vi.mock('@/lib/analytics/track', () => ({
   track: vi.fn(async ({ event, agencyId }: { event: string; agencyId: number }) => {
@@ -119,6 +136,7 @@ function req(body: unknown, headers: Record<string, string> = {}) {
 const validBody = { pageId: 'PG1', pageName: 'My Page', pageAccessToken: 'ptok' }
 
 beforeEach(() => {
+  pendingState.value = defaultPending()
   vi.stubEnv('NEXT_PUBLIC_META_PIXEL_ID', PIXEL_ID)
   vi.stubEnv('META_CAPI_ACCESS_TOKEN', 'test-capi-token')
   vi.stubEnv('META_CAPI_TEST_EVENT_CODE', '')

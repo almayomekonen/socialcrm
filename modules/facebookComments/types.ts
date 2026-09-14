@@ -20,6 +20,8 @@ export const COMMENT_STATUSES: readonly CommentStatusFilter[] = [
 
 export type CommentListItem = {
   id: number
+  /** The Page the comment was left on — an agency may own several. */
+  pageId: string
   commentId: string
   postId: string
   /** Parent OBJECT: the post for a top-level comment, a comment for a reply. */
@@ -49,4 +51,24 @@ export type CommentsCursor = { receivedAt: string; id: number }
 export type CommentsPage = {
   items: CommentListItem[]
   nextCursor: CommentsCursor | null
+}
+
+/**
+ * One entry in a comment's reply thread: another commenter's reply, or the
+ * Page's own reply (from Facebook or from SocialCRM).
+ */
+export type CommentReply = {
+  id: number
+  pageId: string
+  commentId: string
+  parentId: string
+  authorName: string | null
+  authorIsPage: boolean
+  /** Set only when the reply was sent from inside SocialCRM. */
+  sentByUserId: number | null
+  message: string
+  messageAvailable: boolean
+  status: CommentStatus
+  createdTime: Date | null
+  receivedAt: Date
 }

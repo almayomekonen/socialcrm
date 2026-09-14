@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
+import { pageOAuthScopes, parsePageFeature } from '@/lib/facebook/permissions'
 
 export async function GET(_req: NextRequest) {
   // Connecting a Page and re-running OAuth to change it both start here, so the
@@ -20,8 +21,14 @@ export async function GET(_req: NextRequest) {
   // Option A: the origin of the flow is carried in the state prefix so the
   // callback can return to the right surface. Default 'settings' preserves the
   // existing desktop behavior; 'activation' is the mobile activation flow.
-  const origin = new URL(_req.url).searchParams.get('origin') === 'activation' ? 'activation' : 'settings'
-  const state = `${origin}.${crypto.randomUUID()}`
+  const search = new URL(_req.url).searchParams
+  const origin = search.get('origin') === 'activation' ? 'activation' : 'settings'
+  // Per-feature permissions (lib/facebook/permissions.ts): `?feature=messenger`
+  // or `?feature=comment_replies` adds ONLY that feature's permissions to the
+  // unchanged base set. The feature rides the state so the callback can return
+  // the user to the surface that asked. Routing only — CSRF stays exact-match.
+  const feature = parsePageFeature(search.get('feature'))
+  const state = feature ? `${origin}.${feature}.${crypto.randomUUID()}` : `${origin}.${crypto.randomUUID()}`
 
   // The DENOMINATOR of the Facebook connect funnel. `facebook_connect_started`
   // was declared in the event union but emitted nowhere, so OAuth-dialog
@@ -29,7 +36,7 @@ export async function GET(_req: NextRequest) {
   // the funnel could only ever start at `facebook_oauth_completed`, i.e. at the
   // users who already succeeded. Not awaited; track() never throws and an
   // analytics write must not delay the redirect to Meta.
-  void track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_started', props: { origin } })
+  void track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_started', props: { origin, feature } })
   const cookieStore = await cookies()
   cookieStore.set('fb_oauth_state', state, {
     httpOnly: true,
@@ -42,20 +49,10 @@ export async function GET(_req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    // `pages_read_user_content` is APPROVED by Meta and is the only permission
-    // that makes a Page comment's `message` appear on the `feed` webhook. It was
-    // never requested, so `hasCommentTextCapability` — written to flip on its own
-    // once granted — could never become true and the Comments Inbox showed rows
-    // with no text. It is OPTIONAL to the flow: unlike `leads_retrieval` the
-    // callback must never hard-fail without it (Lead Ads keep working), it only
-    // records the grant so the UI can offer a reconnect.
-    scope: [
-      'pages_show_list',
-      'pages_read_engagement',
-      'pages_manage_metadata',
-      'leads_retrieval',
-      'pages_read_user_content',
-    ].join(','),
+    // Base set unchanged: Lead Ads (`leads_retrieval`) plus comment text
+    // (`pages_read_user_content`, OPTIONAL — the callback never hard-fails
+    // without it). A feature adds only its own permissions; see permissions.ts.
+    scope: pageOAuthScopes(feature).join(','),
     state,
     response_type: 'code',
     auth_type: 'rerequest',

@@ -18,6 +18,7 @@ import { convertCommentToLead } from '../actions'
 const FAILURE_COPY: Record<string, string> = {
   not_found: 'התגובה לא נמצאה',
   deleted: 'התגובה נמחקה בפייסבוק ולא ניתן להמיר אותה',
+  page_authored: 'זו תגובה של הדף שלך, ולא ניתן ליצור ממנה ליד',
   not_enabled: 'התכונה אינה זמינה בחשבון הזה',
   quota_exceeded: 'הגעת למכסת הלידים בחבילה הנוכחית',
   create_failed: 'לא ניתן ליצור ליד מהתגובה',

@@ -6,8 +6,19 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import FilterBtn from '@/components/filter/FilterBtn'
 
-export default function SumSalesNav({ user, showAgents = false }: { user: any; showAgents?: boolean }) {
+export default function SumSalesNav({
+  user,
+  showAgents = false,
+  showAds = false,
+}: {
+  user: any
+  showAgents?: boolean
+  /** Ad performance tab: admin + rollout gate, resolved server-side by the layout. */
+  showAds?: boolean
+}) {
   const pathname = usePathname()
+  // The sales filter does not apply to ad performance; showing it there would imply it does.
+  const onAds = pathname === '/sum_sales/ads'
 
   const searchParams = useSearchParams()
   const rawFilter = searchParams.get('filter')
@@ -28,10 +39,11 @@ export default function SumSalesNav({ user, showAgents = false }: { user: any; s
             <SimpleLink href={`/sum_sales/agents${filter}`} lbl='נציגים' />
           )}
           <SimpleLink href={`/sum_sales/months${filter}`} lbl='חודשים' />
+          {showAds && <SimpleLink href='/sum_sales/ads' lbl='מודעות' />}
         </div>
       </div>
 
-      <FilterBtn user={user} filter={jsonObj} />
+      {!onAds && <FilterBtn user={user} filter={jsonObj} />}
     </div>
   )
 }

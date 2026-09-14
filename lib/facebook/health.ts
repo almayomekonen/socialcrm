@@ -1,9 +1,8 @@
 import { db } from '@/config/db'
 import { GRAPH_BASE as GRAPH_API } from '@/lib/facebook/graph'
-import {
-  FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS,
-  FACEBOOK_PAGE_WEBHOOK_FIELDS,
-} from '@/lib/facebook/pageWebhookFields'
+import { FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
+import { fieldsForPageRow, subscribePageWebhooks } from '@/lib/facebook/pageSubscription'
 
 const FETCH_TIMEOUT_MS = 6000
 
@@ -49,7 +48,10 @@ export async function checkFacebookConnection(pageId: string, pageAccessToken: s
   let subscribed = false
 
   try {
-    const res = await fetchWithTimeout(`${GRAPH_API}/${pageId}/subscribed_apps?access_token=${pageAccessToken}`)
+    // Token in the Authorization header, never in the URL.
+    const res = await fetchWithTimeout(`${GRAPH_API}/${pageId}/subscribed_apps`, {
+      headers: { Authorization: `Bearer ${pageAccessToken}` },
+    })
     const data = await res.json()
     if (res.ok && Array.isArray(data?.data)) {
       tokenValid = true
@@ -73,7 +75,9 @@ export async function checkFacebookConnection(pageId: string, pageAccessToken: s
 
     // Check subscription — SocialCRM requires leadgen (Lead Ads) AND feed (comments).
     try {
-      const res = await fetchWithTimeout(`${GRAPH_API}/${pageId}/subscribed_apps?access_token=${pageAccessToken}`)
+      const res = await fetchWithTimeout(`${GRAPH_API}/${pageId}/subscribed_apps`, {
+        headers: { Authorization: `Bearer ${pageAccessToken}` },
+      })
       const data = await res.json()
       if (res.ok && Array.isArray(data?.data)) {
         const fields = subscribedFieldsFromApps(data.data)
@@ -130,7 +134,8 @@ export async function repairFacebookConnection(pageId: string): Promise<{
     }
   }
 
-  const status = await checkFacebookConnection(pageId, connection.page_access_token)
+  const pageAccessToken = resolvePageAccessToken(connection.page_access_token)
+  const status = await checkFacebookConnection(pageId, pageAccessToken)
 
   if (status.needsReconnect) {
     console.warn(`[FacebookRepair] Reconnect required [pageId=${pageId}] — errors: ${status.errors.join(', ')}`)
@@ -138,27 +143,18 @@ export async function repairFacebookConnection(pageId: string): Promise<{
   }
 
   if (!status.subscribed) {
-    console.log(`[FacebookRepair] Re-subscribing [pageId=${pageId}] fields=${FACEBOOK_PAGE_WEBHOOK_FIELDS}`)
-    try {
-      const res = await fetch(`${GRAPH_API}/${pageId}/subscribed_apps`, {
-        method: 'POST',
-        body: new URLSearchParams({
-          access_token: connection.page_access_token,
-          subscribed_fields: FACEBOOK_PAGE_WEBHOOK_FIELDS,
-        }),
-      })
-      const data = await res.json()
-      if (res.ok && data?.success) {
-        console.log(`[FacebookRepair] Re-subscribed successfully [pageId=${pageId}]`)
-        status.subscribed = true
-        status.errors = status.errors.filter((e) => e !== 'not_subscribed' && e !== 'subscription_check_failed')
-        return { repaired: true, needsReconnect: false, status }
-      } else {
-        console.error(`[FacebookRepair] Re-subscription failed [pageId=${pageId}]:`, JSON.stringify(data).slice(0, 200))
-      }
-    } catch (err) {
-      console.error(`[FacebookRepair] Re-subscription threw [pageId=${pageId}]:`, err)
+    // The Page's OWN field set (leadgen,feed + Messenger fields when granted and
+    // rolled out). Re-sending a constant here would silently unsubscribe Messenger.
+    const fields = fieldsForPageRow(connection)
+    console.log(`[FacebookRepair] Re-subscribing [pageId=${pageId}] fields=${fields}`)
+    const sub = await subscribePageWebhooks(pageId, pageAccessToken, fields)
+    if (sub.ok) {
+      console.log(`[FacebookRepair] Re-subscribed successfully [pageId=${pageId}]`)
+      status.subscribed = true
+      status.errors = status.errors.filter((e) => e !== 'not_subscribed' && e !== 'subscription_check_failed')
+      return { repaired: true, needsReconnect: false, status }
     }
+    console.error(`[FacebookRepair] Re-subscription failed [pageId=${pageId}] status=${sub.status}`)
     return { repaired: false, needsReconnect: false, status }
   }
 

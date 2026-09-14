@@ -1,3 +1,4 @@
+import { META_FEATURE_NOTICES } from '@/lib/connections/metaFeatureNotices'
 /**
  * Approved user-facing copy for the Facebook and WhatsApp connection flows.
  *
@@ -181,6 +182,9 @@ export const FACEBOOK_NOTICES: Record<string, ConnectionNotice> = {
     action: SHARED.retry,
     secondary: 'בדיקת הרשאות',
   },
+  // Per-feature Meta permission notices and the expired Page selection live in
+  // metaFeatureNotices.ts; spread here so facebookNotice() resolves them as before.
+  ...META_FEATURE_NOTICES,
   save_failed: {
     tone: 'error',
     title: 'החיבור לא נשמר',
