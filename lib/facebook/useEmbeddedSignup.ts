@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
+import { clientConnectFailureReason } from '@/lib/connections/connectFailure'
 import {
   createEmbeddedSignupGate,
   parseEmbeddedSignupMessage,
@@ -102,7 +103,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
-  const launch = useCallback(async (): Promise<EmbeddedSignupResult> => {
+  const launchFlow = useCallback(async (): Promise<EmbeddedSignupResult> => {
     /**
      * DENOMINATOR of the WhatsApp connect funnel, and the only honest place for
      * it: this is the click, before the Meta dialog opens. `/api/auth/whatsapp`
@@ -139,7 +140,9 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
         if (timer !== undefined) clearTimeout(timer)
         resolve(result)
       }
-      timer = setTimeout(() => settle({ ok: false, error: 'sdk' }), LAUNCH_TIMEOUT_MS)
+      // `reason: 'timeout'` keeps the 'sdk' notice but lets analytics tell a
+      // flow that never opened from one that opened and never came back.
+      timer = setTimeout(() => settle({ ok: false, error: 'sdk', reason: 'timeout' }), LAUNCH_TIMEOUT_MS)
 
       try {
         if (!facebookSdkIsReady() || !window.FB) return settle({ ok: false, error: 'sdk' })
@@ -213,6 +216,19 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
       }
     })
   }, [appId, configId, graphVersion])
+
+  /**
+   * Reports the outcomes only the browser can see — see
+   * `CLIENT_CONNECT_FAILURE_REASONS`. `launchFlow()` is CALLED synchronously
+   * here, so FB.login still runs inside the click task; only the report waits.
+   */
+  const launch = useCallback((): Promise<EmbeddedSignupResult> => {
+    return launchFlow().then((result) => {
+      const reason = clientConnectFailureReason(result)
+      if (reason) void recordLeadActionEvent('whatsapp_connect_failed', { reason })
+      return result
+    })
+  }, [launchFlow])
 
   return { launch }
 }
