@@ -153,6 +153,10 @@ describe('the cron entry', () => {
       // the signal pipeline — and it is doubly inert today, because history is
       // gated off and its allowlist is empty by default.
       { path: '/api/cron/history-import', schedule: '*/5 * * * *' },
+      // Meta App Review: the Messenger webhook-receipt drain (retries, stale
+      // leases, retention). An integration cron with no part in the signal
+      // pipeline, and inert unless FACEBOOK_MESSENGER_ENABLED records receipts.
+      { path: '/api/cron/messenger-events', schedule: '*/1 * * * *' },
     ])
   })
 })

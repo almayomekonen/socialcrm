@@ -25,6 +25,7 @@ import { db } from '@/config/db'
 import { POST } from '@/app/api/webhooks/facebook/route'
 import { insertMessengerMessage, recordSentMessengerMessage } from '@/db/messenger'
 import { listMessengerConversations, listMessengerMessages } from '@/modules/messenger/queries'
+import { runMessengerEventWorker } from '@/lib/facebook/messenger/eventWorker'
 
 const PAGE_A = '__msgr_page_a__'
 const PAGE_B = '__msgr_page_b__'
@@ -79,6 +80,13 @@ const echo = (appId: string, mid: string, text = 'תשובה') => ({
   ],
 })
 
+/** A signed delivery, then the durable receipts drained by the real worker (the route's after() kick is a no-op here). */
+async function deliver(body: unknown) {
+  const res = await POST(signedRequest(body))
+  await runMessengerEventWorker({ workerId: 'test' })
+  return res
+}
+
 async function conversationsFor(page: string) {
   return db('messenger_conversations').where({ pageId: page })
 }
@@ -106,9 +114,11 @@ beforeEach(async () => {
   await db('messenger_messages').whereIn('pageId', [PAGE_A, PAGE_B]).del()
   await db('messenger_conversation_reads').whereIn('agencyId', [agencyA, agencyB]).del()
   await db('messenger_conversations').whereIn('pageId', [PAGE_A, PAGE_B]).del()
+  await db('messenger_webhook_events').whereIn('pageId', [PAGE_A, PAGE_B]).del()
 })
 
 afterAll(async () => {
+  await db('messenger_webhook_events').whereIn('pageId', [PAGE_A, PAGE_B]).del()
   await db('messenger_messages').whereIn('pageId', [PAGE_A, PAGE_B]).del()
   await db('messenger_conversation_reads').whereIn('agencyId', [agencyA, agencyB]).del()
   await db('messenger_conversations').whereIn('pageId', [PAGE_A, PAGE_B]).del()
@@ -120,7 +130,7 @@ afterAll(async () => {
 
 describe('inbound messages', () => {
   it('M1: a signed inbound message is stored under the Page\'s agency, keyed by (Page, PSID)', async () => {
-    const res = await POST(signedRequest(inbound()))
+    const res = await deliver(inbound())
     expect(res.status).toBe(200)
 
     const [conv] = await conversationsFor(PAGE_A)
@@ -133,16 +143,16 @@ describe('inbound messages', () => {
   })
 
   it('M2: Meta redelivering the same event stores nothing new', async () => {
-    await POST(signedRequest(inbound()))
-    await POST(signedRequest(inbound()))
-    await POST(signedRequest(inbound()))
+    await deliver(inbound())
+    await deliver(inbound())
+    await deliver(inbound())
     expect(await messagesFor(PAGE_A)).toHaveLength(1)
     expect(await conversationsFor(PAGE_A)).toHaveLength(1)
   })
 
   it('M3: an older message arriving late never becomes the conversation\'s last message', async () => {
-    await POST(signedRequest(inbound({ mid: 'm_new', text: 'חדש', ts: Date.parse('2026-09-14T12:00:00Z') })))
-    await POST(signedRequest(inbound({ mid: 'm_old', text: 'ישן', ts: Date.parse('2026-09-14T09:00:00Z') })))
+    await deliver(inbound({ mid: 'm_new', text: 'חדש', ts: Date.parse('2026-09-14T12:00:00Z') }))
+    await deliver(inbound({ mid: 'm_old', text: 'ישן', ts: Date.parse('2026-09-14T09:00:00Z') }))
     const [conv] = await conversationsFor(PAGE_A)
     expect(conv.lastMessageText).toBe('חדש')
     expect(new Date(conv.lastInboundAt).toISOString()).toBe('2026-09-14T12:00:00.000Z')
@@ -150,7 +160,7 @@ describe('inbound messages', () => {
   })
 
   it('M4: an unsupported attachment is kept with a marker, never dropped', async () => {
-    await POST(signedRequest(inbound({ mid: 'm_tpl', text: '', attachments: [{ type: 'template', payload: {} }] })))
+    await deliver(inbound({ mid: 'm_tpl', text: '', attachments: [{ type: 'template', payload: {} }] }))
     const [msg] = await messagesFor(PAGE_A)
     const attachments = typeof msg.attachments === 'string' ? JSON.parse(msg.attachments) : msg.attachments
     expect(attachments).toEqual([{ type: 'unsupported', url: null }])
@@ -161,7 +171,7 @@ describe('inbound messages', () => {
 
 describe('echoes', () => {
   it('M5: the echo of a message SocialCRM already recorded from the Send API response is a no-op', async () => {
-    await POST(signedRequest(inbound()))
+    await deliver(inbound())
     const [conv] = await conversationsFor(PAGE_A)
     await insertMessengerMessage(db, {
       conversationId: Number(conv.id),
@@ -175,15 +185,15 @@ describe('echoes', () => {
       sentByUserId: userA,
       channelTimestamp: new Date(),
     })
-    await POST(signedRequest(echo('APP123', 'm_sent_by_app')))
+    await deliver(echo('APP123', 'm_sent_by_app'))
     const outbound = (await messagesFor(PAGE_A)).filter((m) => m.direction === 'outbound')
     expect(outbound).toHaveLength(1)
     expect(outbound[0]).toMatchObject({ source: 'socialcrm', sentByUserId: userA })
   })
 
   it('M5b: the echo arrives BEFORE the Send API response → still one row, and the sender is attributed', async () => {
-    await POST(signedRequest(inbound()))
-    await POST(signedRequest(echo('APP123', 'm_raced', 'תשובה')))
+    await deliver(inbound())
+    await deliver(echo('APP123', 'm_raced', 'תשובה'))
     const [conv] = await conversationsFor(PAGE_A)
     const before = await conversationsFor(PAGE_A)
 
@@ -206,8 +216,8 @@ describe('echoes', () => {
   })
 
   it('M6: a reply a person sent from the Page inbox is kept as an outbound Page message', async () => {
-    await POST(signedRequest(inbound()))
-    await POST(signedRequest(echo('263902037430900', 'm_from_inbox', 'ענינו מהתיבה')))
+    await deliver(inbound())
+    await deliver(echo('263902037430900', 'm_from_inbox', 'ענינו מהתיבה'))
     const outbound = (await messagesFor(PAGE_A)).filter((m) => m.direction === 'outbound')
     expect(outbound).toHaveLength(1)
     expect(outbound[0]).toMatchObject({ source: 'page_inbox', text: 'ענינו מהתיבה' })
@@ -220,8 +230,8 @@ describe('echoes', () => {
 
 describe('tenancy and gating', () => {
   it('M7: the same PSID on another agency\'s Page is a different conversation, invisible to agency A', async () => {
-    await POST(signedRequest(inbound()))
-    await POST(signedRequest(inbound({ page: PAGE_B, mid: 'm_b' })))
+    await deliver(inbound())
+    await deliver(inbound({ page: PAGE_B, mid: 'm_b' }))
     const listA = await listMessengerConversations(agencyA, userA)
     expect(listA.map((c) => c.pageId)).toEqual([PAGE_A])
     const [convB] = await conversationsFor(PAGE_B)
@@ -230,14 +240,14 @@ describe('tenancy and gating', () => {
   })
 
   it('M8: an event whose recipient is not the signed entry Page is ignored', async () => {
-    await POST(signedRequest(inbound({ recipient: PAGE_B })))
+    await deliver(inbound({ recipient: PAGE_B }))
     expect(await conversationsFor(PAGE_A)).toHaveLength(0)
     expect(await conversationsFor(PAGE_B)).toHaveLength(0)
   })
 
   it('M9: an agency outside the Messenger rollout stores nothing', async () => {
     process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST = String(agencyB)
-    const res = await POST(signedRequest(inbound()))
+    const res = await deliver(inbound())
     expect(res.status).toBe(200)
     expect(await conversationsFor(PAGE_A)).toHaveLength(0)
   })
@@ -256,11 +266,11 @@ describe('tenancy and gating', () => {
   })
 
   it('M12: a Page reconnected by another agency starts that agency\'s own conversation — messages are never refused', async () => {
-    await POST(signedRequest(inbound({ mid: 'm_before_move' })))
+    await deliver(inbound({ mid: 'm_before_move' }))
     // The Page moves: agency A disconnects, agency B connects the same Page.
     await db('facebook_pages').where({ page_id: PAGE_A }).update({ agency_id: agencyB })
     try {
-      await POST(signedRequest(inbound({ mid: 'm_after_move', text: 'אחרי המעבר' })))
+      await deliver(inbound({ mid: 'm_after_move', text: 'אחרי המעבר' }))
       const convs = await conversationsFor(PAGE_A)
       expect(convs.map((c) => c.agencyId).sort()).toEqual([agencyA, agencyB].sort())
       expect((await listMessengerConversations(agencyB, userA)).map((c) => c.lastMessageText)).toEqual(['אחרי המעבר'])
@@ -272,7 +282,7 @@ describe('tenancy and gating', () => {
   })
 
   it('M11: unread is per user and clears when that user reads', async () => {
-    await POST(signedRequest(inbound()))
+    await deliver(inbound())
     let [item] = await listMessengerConversations(agencyA, userA)
     expect(item.unread).toBe(true)
     await db('messenger_conversation_reads').insert({ conversationId: item.id, userId: userA, agencyId: agencyA, lastReadAt: new Date('2026-09-14T11:00:00Z') })

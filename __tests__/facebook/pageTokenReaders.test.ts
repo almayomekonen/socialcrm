@@ -27,7 +27,7 @@ function sourceFiles(): string[] {
 }
 
 /** Files allowed to touch the column: each must also call the resolver or the sealer. */
-const RESOLVER = /resolvePageAccessToken\(|sealPageAccessToken\(|resolvePageToken\(/
+const RESOLVER = /resolvePageAccessToken\(|sealPageAccessToken\(|resolvePageToken\(|sealPageToken\(/
 
 describe('every page_access_token reader resolves the sealed value', () => {
   it('no file touches the column — property, bracket, destructuring or select list — without the resolver or sealer', () => {
@@ -48,6 +48,9 @@ describe('every page_access_token reader resolves the sealed value', () => {
     const unwrapped: string[] = []
     for (const f of sourceFiles()) {
       if (f.endsWith('lib/facebook/pageToken.ts') || f.endsWith('scripts/resolvePageToken.cjs')) continue
+      // The one-off migration reads plaintext precisely to seal it (compare-and-swap);
+      // its own DB test proves every row ends sealed and no token is ever printed.
+      if (f.endsWith('scripts/seal_facebook_page_tokens.cjs')) continue
       readFileSync(f, 'utf8')
         .split('\n')
         .forEach((line, i) => {

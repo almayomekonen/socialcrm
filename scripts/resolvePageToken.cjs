@@ -10,13 +10,28 @@ const crypto = require('node:crypto')
 
 const PREFIX = 'scm1.'
 
+function encryptionKey() {
+  const raw = process.env.SECRETS_ENC_KEY
+  if (!raw) throw new Error('SECRETS_ENC_KEY is not set')
+  const key = Buffer.from(raw, 'base64')
+  if (key.length !== 32) throw new Error('SECRETS_ENC_KEY must decode to 32 bytes')
+  return key
+}
+
+/** Same wire format as lib/facebook/pageToken.ts#sealPageAccessToken. */
+function sealPageToken(plaintext) {
+  const token = String(plaintext || '').trim()
+  if (!token) throw new Error('empty token')
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv)
+  const enc = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()])
+  return PREFIX + Buffer.concat([iv, cipher.getAuthTag(), enc]).toString('base64')
+}
+
 function resolvePageToken(stored) {
   if (!stored) return ''
   if (!String(stored).startsWith(PREFIX)) return stored
-  const raw = process.env.SECRETS_ENC_KEY
-  if (!raw) throw new Error('SECRETS_ENC_KEY is not set — cannot open a sealed Page token')
-  const key = Buffer.from(raw, 'base64')
-  if (key.length !== 32) throw new Error('SECRETS_ENC_KEY must decode to 32 bytes')
+  const key = encryptionKey()
   const data = Buffer.from(String(stored).slice(PREFIX.length), 'base64')
   const iv = data.subarray(0, 12)
   const tag = data.subarray(12, 28)
@@ -26,4 +41,4 @@ function resolvePageToken(stored) {
   return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8')
 }
 
-module.exports = { resolvePageToken }
+module.exports = { resolvePageToken, sealPageToken, encryptionKey, PREFIX }

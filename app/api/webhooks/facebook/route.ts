@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
@@ -18,7 +18,8 @@ import {
 import { fetchLeadWithTimeout } from '@/lib/facebook/leadNodeFetch'
 import { recordWebhookFailure } from '@/db/webhookFailures'
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
-import { handleMessagingEntries } from '@/lib/facebook/messenger/handleMessagingEntries'
+import { receiveMessagingEvents } from '@/lib/facebook/messenger/receiveMessagingEvents'
+import { runMessengerEventWorker } from '@/lib/facebook/messenger/eventWorker'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -270,12 +271,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // MESSENGER: durable receipt first (receiveMessagingEvents), processed after the response.
+  // A failed write is not acknowledged: leads/comments below still run (idempotent), then 503.
+  const messenger = await receiveMessagingEvents(body.entry)
+  const recorded = messenger.outcome === 'recorded' ? messenger.recordedIds : []
+  if (recorded.length > 0) after(() => runMessengerEventWorker({ ids: recorded, workerId: 'webhook-kick' }))
+
   // FIX 1: loop through ALL entries and ALL changes — Meta can batch multiple leads per delivery
   for (const entry of body.entry) {
     const pageId: string | undefined = entry.id
-
-    // MESSENGER: `entry.messaging[]` (never `changes`). Always acknowledged — see handleMessagingEntries.
-    if (pageId && Array.isArray(entry.messaging)) await handleMessagingEntries(pageId, entry.messaging)
 
     if (!Array.isArray(entry.changes)) continue
 
@@ -336,5 +340,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (messenger.outcome === 'failed') {
+    return NextResponse.json({ ok: false, error: 'messenger_receipt_failed' }, { status: 503 })
+  }
   return NextResponse.json({ ok: true })
 }

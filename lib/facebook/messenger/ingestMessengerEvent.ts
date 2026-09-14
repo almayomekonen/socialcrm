@@ -19,8 +19,8 @@ import {
  * both land on an existing row and change nothing — no second message, no
  * second bump.
  *
- * FAILURE. THROWS on a database error; handleMessagingEntries decides whether
- * one immediate in-request retry is worthwhile (transient errors only).
+ * FAILURE. THROWS on a database error; the event worker records the failure on
+ * the durable receipt and retries it with backoff.
  */
 
 export type MessengerIngestResult =
@@ -35,13 +35,22 @@ export type MessengerIngestResult =
   | { status: 'duplicate' }
   | { status: 'ignored'; reason: string }
 
-export async function ingestMessengerEvent(pageId: string, raw: unknown): Promise<MessengerIngestResult> {
+export async function ingestMessengerEvent(
+  pageId: string,
+  raw: unknown,
+  opts: { expectedAgencyId?: number } = {},
+): Promise<MessengerIngestResult> {
   const event = parseMessagingEvent(pageId, raw)
   if (event.kind === 'ignored') return { status: 'ignored', reason: event.reason }
 
   const connection = await db('facebook_pages').where({ page_id: pageId }).first('agency_id')
   if (!connection) return { status: 'ignored', reason: 'no_connection' }
   const agencyId = Number(connection.agency_id)
+  // A receipt recorded for one agency is never stored under another: if the Page
+  // changed hands between receipt and processing, the message belongs to neither.
+  if (opts.expectedAgencyId !== undefined && opts.expectedAgencyId !== agencyId) {
+    return { status: 'ignored', reason: 'tenant_changed' }
+  }
   if (!isFacebookMessengerEnabledForAgency(agencyId)) return { status: 'ignored', reason: 'not_enabled' }
 
   // Narrowed by the `ignored` return above; `kind` is now inbound | echo.
