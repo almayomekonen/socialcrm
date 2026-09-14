@@ -10,6 +10,7 @@ import type { FacebookHealthStatus } from '@/lib/facebook/health'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { FACEBOOK_NOTICES, SHARED, facebookNotice } from '@/lib/connections/messages'
+import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 
 type Page = { id: string; name: string; access_token: string }
 type Connection = { pageId: string; pageName: string }
@@ -25,6 +26,8 @@ type Props = {
    * the feature is never told about a permission it cannot use.
    */
   commentsNeedReconnect?: boolean
+  /** Server-detected Instagram/Facebook in-app browser (lib/device.ts). */
+  inAppBrowser?: InAppBrowser
 }
 
 export default function FacebookConnect({
@@ -32,6 +35,7 @@ export default function FacebookConnect({
   pendingPages,
   health,
   commentsNeedReconnect = false,
+  inAppBrowser,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -64,11 +68,14 @@ export default function FacebookConnect({
     }
   }, [urlError, connection, pendingPages])
 
-  const redirectToOAuth = () =>
+  const { warned: inAppWarned, intercept } = useInAppWarning(inAppBrowser)
+  const redirectToOAuth = () => {
+    if (intercept()) return
     run(async () => {
       window.location.href = '/api/auth/facebook'
       await wait(30_000)
     })
+  }
 
   const disconnectPage = () => {
     if (!connection) return
@@ -117,6 +124,7 @@ export default function FacebookConnect({
     const needsReconnect = health?.needsReconnect ?? false
     const subscriptionIssue = health && !health.needsReconnect && !health.subscribed
     const isHealthy = health && health.tokenValid && health.permissionsOk && health.subscribed
+    const reconnectNotice = inAppWarned ? FACEBOOK_NOTICES.in_app_browser : FACEBOOK_NOTICES.expired
 
     return (
       <div className='grid gap-4'>
@@ -124,7 +132,7 @@ export default function FacebookConnect({
           מחובר לדף: <strong>{connection.pageName}</strong>
         </p>
         {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
-        {needsReconnect && <ConnectionNotice notice={FACEBOOK_NOTICES.expired} />}
+        {needsReconnect && <ConnectionNotice notice={reconnectNotice} />}
         {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}
         {/*
           The comment-text notice and its reconnect CTA are deliberately NOT
@@ -145,7 +153,7 @@ export default function FacebookConnect({
         {needsReconnect && (
           <div data-edu='facebook-connect' className='w-fit'>
           <Btn
-            lbl={loading ? 'מעביר לפייסבוק...' : (FACEBOOK_NOTICES.expired.action ?? SHARED.reconnect)}
+            lbl={loading ? 'מעביר לפייסבוק...' : (reconnectNotice.action ?? SHARED.reconnect)}
             icon={loading ? 'spinner' : 'facebook'}
             iconClassName={loading ? 'animate-spin' : undefined}
             disabled={loading}
@@ -219,7 +227,11 @@ export default function FacebookConnect({
   // After a repeated identical discovery failure, swap to the escalated notice
   // and de-emphasize the retry (secondary style, recovery-framed label). Retry
   // stays available — the user is guided to fix the prerequisite first, not locked out.
-  const urlNotice = escalated ? FACEBOOK_NOTICES.no_pages_repeat : facebookNotice(urlError)
+  const urlNotice = inAppWarned
+    ? FACEBOOK_NOTICES.in_app_browser
+    : escalated
+      ? FACEBOOK_NOTICES.no_pages_repeat
+      : facebookNotice(urlError)
 
   return (
     <div className='grid gap-4'>

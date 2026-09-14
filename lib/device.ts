@@ -52,6 +52,35 @@ export function deviceClassFromHeaders(h: Headers): DeviceClass {
 }
 
 /**
+ * IS THIS REQUEST INSIDE INSTAGRAM'S OR FACEBOOK'S IN-APP BROWSER?
+ *
+ * A separate question from device class, with a separate consequence: an in-app
+ * browser is a phone, but one where Meta's own login dialog does not reliably
+ * complete. Production agency 149 signed up from an Instagram bio link and
+ * started seven Meta connections in sixteen minutes; not one returned to a
+ * callback, success or failure. Knowing this BEFORE opening the dialog is the
+ * only way to say something useful instead of nothing.
+ *
+ * Server-side for the same reason as `deviceClassFromHeaders`: no Client
+ * Component reads `navigator.userAgent`. Render sites pass the answer down as a
+ * prop. Messenger's in-app browser reports as 'facebook' (FBAN/FBAV/FB_IAB).
+ */
+export type InAppBrowser = 'instagram' | 'facebook' | null
+
+export function inAppBrowserFromHeaders(h: Headers | null | undefined): InAppBrowser {
+  // Tolerates a missing Headers object: callers use this for analytics on the
+  // way to Meta, and a detection hiccup must never cost the redirect.
+  const ua = h?.get('user-agent') ?? ''
+  if (/\bInstagram\b/.test(ua)) return 'instagram'
+  if (/\b(FBAN|FBAV|FB_IAB)\//.test(ua)) return 'facebook'
+  return null
+}
+
+export async function getInAppBrowser(): Promise<InAppBrowser> {
+  return inAppBrowserFromHeaders(await headers())
+}
+
+/**
  * The one call every server surface makes.
  *
  * Order is load-bearing: the development override is consulted FIRST so

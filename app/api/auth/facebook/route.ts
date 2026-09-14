@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
+import { inAppBrowserFromHeaders } from '@/lib/device'
 
 export async function GET(_req: NextRequest) {
   // Connecting a Page and re-running OAuth to change it both start here, so the
@@ -29,7 +30,10 @@ export async function GET(_req: NextRequest) {
   // the funnel could only ever start at `facebook_oauth_completed`, i.e. at the
   // users who already succeeded. Not awaited; track() never throws and an
   // analytics write must not delay the redirect to Meta.
-  void track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_started', props: { origin } })
+  // `inApp`: inside Instagram's/Facebook's in-app browser this redirect often
+  // never returns from Meta, so the start is the only place that fact is known.
+  const inApp = inAppBrowserFromHeaders(_req.headers)
+  void track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_started', props: { origin, inApp } })
   const cookieStore = await cookies()
   cookieStore.set('fb_oauth_state', state, {
     httpOnly: true,

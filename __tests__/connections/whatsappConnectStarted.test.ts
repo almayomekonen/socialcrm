@@ -42,9 +42,10 @@ describe('whatsapp_connect_started', () => {
     expect(h.tracked[0]).toMatchObject({ agencyId: 42, userId: 5 })
   })
 
-  it('carries no client-supplied payload', async () => {
-    await recordLeadActionEvent('whatsapp_connect_started')
-    expect(h.tracked[0].props).toBeUndefined()
+  it('carries no client-supplied payload — only the server-detected in-app browser', async () => {
+    await recordLeadActionEvent('whatsapp_connect_started', { surface: 'mobile' })
+    // Outside a request there is no User-Agent to read, so detection degrades to null.
+    expect(h.tracked[0].props).toEqual({ inApp: null })
   })
 
   it('never throws, so a failed emit cannot block the Meta dialog', async () => {

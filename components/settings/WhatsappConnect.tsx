@@ -8,6 +8,8 @@ import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { WHATSAPP_NOTICES, whatsappNotice } from '@/lib/connections/messages'
+import { whatsappLaunchNoticeCode } from '@/lib/connections/connectFailure'
+import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 
 type Phone = { id: string; displayPhone: string; verifiedName: string }
@@ -32,6 +34,8 @@ type Props = {
    */
   description?: string
   connectLabel?: string
+  /** Server-detected Instagram/Facebook in-app browser (lib/device.ts). */
+  inAppBrowser?: InAppBrowser
 }
 
 function noticeForHealth(status: WhatsappHealthPrimary) {
@@ -53,6 +57,7 @@ export default function WhatsappConnect({
   status,
   description = 'חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.',
   connectLabel = 'חבר וואטסאפ עסקי',
+  inAppBrowser,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -74,18 +79,18 @@ export default function WhatsappConnect({
    */
   const { loading: disconnecting, error: disconnectError, run: runDisconnect } = useAction()
   const { launch } = useEmbeddedSignup(appId, configId, graphVersion)
+  const { intercept } = useInAppWarning(inAppBrowser)
 
   const startEmbeddedSignup = () =>
     run(async () => {
       setError(null)
+      if (intercept()) return setError('in_app_browser')
       const result = await launch()
       if (result.ok) {
         router.refresh()
         return
       }
-
-      if (result.error === 'cancelled') return
-      setError(result.error ?? 'token')
+      setError(whatsappLaunchNoticeCode(result, !!connection))
     })
 
   const performDisconnect = () => {
