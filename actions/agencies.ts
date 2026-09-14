@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { after } from 'next/server'
 import { requireProductAccess } from '@/lib/requireUser'
-import { normalizeEmail } from '@/lib/normalizeEmail'
+import { isValidEmail, normalizeEmail } from '@/lib/normalizeEmail'
 import { isMobileRequest } from '@/lib/device'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { track } from '@/lib/analytics/track'
@@ -23,6 +23,13 @@ import { readSignupAttribution } from '@/lib/activation/signupAttribution'
 export async function addAgency(data) {
   const start = Date.now()
   const email = normalizeEmail(data?.user?.email)
+  // The email is the account's only login key (magic link). An unusable one
+  // creates a workspace nobody can ever sign back into, so refuse it before any
+  // write. The form's type='email' catches this first; this is the authority.
+  if (!isValidEmail(email)) {
+    console.warn(`[AUTH] route=register ms=${Date.now() - start} result=fail reason=invalid_email`)
+    return { error: 'כתובת האימייל לא תקינה. בדקו שהיא כתובה במלואה, למשל name@gmail.com' }
+  }
   let success = false
   let newUser: { email: string; firstName: string } | null = null
   let createdUserId: number | null = null
