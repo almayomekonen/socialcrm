@@ -27,6 +27,7 @@
  */
 const ENV_FILE = process.env.ENV_FILE || '.env.local'
 require('dotenv').config({ path: ENV_FILE, override: true })
+const { resolvePageToken } = require('./resolvePageToken.cjs')
 
 const knex = require('knex')({
   client: 'pg',
@@ -119,28 +120,31 @@ async function resolveCanary() {
     return null
   }
 
+  // Sealed at rest; resolve once into `token`, and scrub both forms from every output line.
   secrets.push(row.page_access_token)
+  const token = resolvePageToken(row.page_access_token)
+  secrets.push(token)
   if (process.env.META_APP_SECRET) secrets.push(process.env.META_APP_SECRET)
 
   say(`[FacebookCommentsCanary] pageId=${mask(row.page_id)}`)
   say(`[FacebookCommentsCanary] agency_id=${row.agency_id} user_id=${row.user_id} health=${row.health_status}`)
-  return row
+  return { page_id: row.page_id, agency_id: row.agency_id, user_id: row.user_id, health_status: row.health_status, token }
 }
 
 const COMMANDS = {
   async status(row) {
-    const apps = await readSubscription(row.page_id, row.page_access_token)
+    const apps = await readSubscription(row.page_id, row.token)
     if (!apps) return
     printFields(apps)
   },
 
   async subscribe(row) {
     say(`[FacebookCommentsCanary] subscribing fields=${CANARY_FIELDS}`)
-    if (!(await writeSubscription(row.page_id, row.page_access_token, CANARY_FIELDS))) return
+    if (!(await writeSubscription(row.page_id, row.token, CANARY_FIELDS))) return
 
     // Verify rather than trust the 200 — a successful POST is not proof that
     // Meta actually retained `feed` under our permission set.
-    const apps = await readSubscription(row.page_id, row.page_access_token)
+    const apps = await readSubscription(row.page_id, row.token)
     if (!apps) return
     const fields = printFields(apps)
     say(
@@ -152,9 +156,9 @@ const COMMANDS = {
 
   async unsubscribe(row) {
     say(`[FacebookCommentsCanary] restoring fields=${BASELINE_FIELDS}`)
-    if (!(await writeSubscription(row.page_id, row.page_access_token, BASELINE_FIELDS))) return
+    if (!(await writeSubscription(row.page_id, row.token, BASELINE_FIELDS))) return
 
-    const apps = await readSubscription(row.page_id, row.page_access_token)
+    const apps = await readSubscription(row.page_id, row.token)
     if (!apps) return
     const fields = printFields(apps)
     say(

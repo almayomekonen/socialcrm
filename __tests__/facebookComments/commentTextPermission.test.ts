@@ -16,7 +16,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { COMMENT_TEXT_PERMISSION } from '@/lib/facebook/comments/capability'
 
 const h = vi.hoisted(() => ({
-  user: { id: 7, agencyId: 103, email: 'rep@example.com' } as Record<string, unknown> | null,
+  // The OAuth routes are admin-only (Phase 2 boundary); the fixture predated it.
+  user: { id: 7, agencyId: 103, email: 'rep@example.com', role: 'ADMIN' } as Record<string, unknown> | null,
   cookieJar: new Map<string, string>(),
   pageRow: null as Record<string, unknown> | null,
 }))
@@ -48,7 +49,7 @@ vi.mock('@/config/db', () => {
 })
 
 beforeEach(() => {
-  h.user = { id: 7, agencyId: 103, email: 'rep@example.com' }
+  h.user = { id: 7, agencyId: 103, email: 'rep@example.com', role: 'ADMIN' }
   h.cookieJar.clear()
   h.pageRow = null
   process.env.META_APP_ID = 'app-id'
@@ -74,6 +75,58 @@ describe('OAuth dialog', () => {
     for (const required of ['pages_show_list', 'pages_manage_metadata', 'leads_retrieval']) {
       expect(scope).toContain(required)
     }
+  })
+})
+
+describe('OAuth dialog — per-feature permissions', () => {
+  beforeEach(() => {
+    process.env.FACEBOOK_MESSENGER_ENABLED = '1'
+    process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST = '103'
+    process.env.FACEBOOK_COMMENT_REPLIES_ENABLED = '1'
+    process.env.FACEBOOK_COMMENT_REPLIES_AGENCY_ALLOWLIST = '103'
+  })
+
+  const scopeFor = async (url: string) => {
+    const { GET } = await import('@/app/api/auth/facebook/route')
+    const res = await GET(new Request(url) as never)
+    return new URL(res.headers.get('location')!).searchParams.get('scope')!.split(',')
+  }
+
+  it('the plain connection does NOT ask for reply, messaging or ads permissions', async () => {
+    const scope = await scopeFor('https://getsocialcrm.com/api/auth/facebook')
+    for (const extra of ['pages_manage_engagement', 'pages_messaging', 'ads_read']) {
+      expect(scope).not.toContain(extra)
+    }
+  })
+
+  it('feature=comment_replies adds pages_manage_engagement and keeps Lead Ads permissions', async () => {
+    const scope = await scopeFor('https://getsocialcrm.com/api/auth/facebook?feature=comment_replies')
+    expect(scope).toEqual(expect.arrayContaining(['pages_manage_engagement', 'pages_read_user_content', 'leads_retrieval']))
+    expect(scope).not.toContain('pages_messaging')
+  })
+
+  it('feature=messenger adds pages_messaging with its documented dependencies', async () => {
+    const scope = await scopeFor('https://getsocialcrm.com/api/auth/facebook?feature=messenger')
+    expect(scope).toEqual(expect.arrayContaining(['pages_messaging', 'pages_manage_metadata', 'pages_show_list']))
+    expect(scope).not.toContain('pages_manage_engagement')
+  })
+
+  it('a feature outside the agency\'s rollout is ignored: base permissions only', async () => {
+    process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST = '999'
+    const scope = await scopeFor('https://getsocialcrm.com/api/auth/facebook?feature=messenger')
+    expect(scope).not.toContain('pages_messaging')
+    expect(scope).toContain('leads_retrieval')
+  })
+
+  it('an unknown feature value is ignored, and the feature rides the CSRF state', async () => {
+    const { GET } = await import('@/app/api/auth/facebook/route')
+    const res = await GET(new Request('https://getsocialcrm.com/api/auth/facebook?feature=ads_management') as never)
+    const params = new URL(res.headers.get('location')!).searchParams
+    expect(params.get('scope')).not.toContain('ads_management')
+    expect(params.get('state')).toBe(h.cookieJar.get('fb_oauth_state'))
+
+    const res2 = await GET(new Request('https://getsocialcrm.com/api/auth/facebook?feature=messenger') as never)
+    expect(new URL(res2.headers.get('location')!).searchParams.get('state')).toMatch(/^settings\.messenger\.[0-9a-f-]+$/)
   })
 })
 

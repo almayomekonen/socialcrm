@@ -108,3 +108,17 @@ describe('the existing channels are untouched by the website addition', () => {
     expect(inboundChannelFromSource('contact_form_7:3:abc')).toBeNull()
   })
 })
+
+describe('rep-created Facebook comment and Messenger leads', () => {
+  it('display as Facebook and never expose the comment id, Page id or Page-scoped user id', () => {
+    for (const source of ['facebook_comment:122113311069337165_987654321', 'messenger:103:1175908668934802:24680135792468']) {
+      expect(leadSourceLabel(source)).toBe('Facebook')
+      expect(leadSourceChannel(source)).toBe('facebook')
+    }
+  })
+
+  it('are not treated as webhook-ingested leads', () => {
+    expect(inboundChannelFromSource('messenger:103:1:2')).toBeNull()
+    expect(inboundChannelFromSource('facebook_comment:1_2')).toBeNull()
+  })
+})

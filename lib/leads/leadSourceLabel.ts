@@ -49,6 +49,11 @@ export function leadSourceChannel(source: string | null | undefined): LeadSource
   if (lower.startsWith('facebook:')) return 'facebook'
   if (lower.startsWith('instagram:')) return 'instagram'
   if (lower.startsWith('contact_form_7:')) return 'website'
+  // Leads created by a rep from a Facebook comment or a Messenger conversation.
+  // Their suffixes are Meta ids (comment id, Page id, Page-scoped user id) and
+  // must never be displayed. Deliberately NOT in inboundChannelFromSource: they
+  // were created by a person, not auto-ingested by a webhook.
+  if (lower.startsWith('facebook_comment:') || lower.startsWith('messenger:')) return 'facebook'
 
   // Known plain values (channel names + the manual synonyms).
   if (lower === 'whatsapp') return 'whatsapp'

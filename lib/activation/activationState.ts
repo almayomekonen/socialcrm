@@ -6,7 +6,8 @@ export type ActivationStatus =
   | 'activationCompleted'
   | 'failed'
 
-export type FacebookPage = { id: string; name: string; access_token: string }
+/** Display data only. Page access tokens never reach the client (lib/facebook/pendingPages.ts). */
+export type FacebookPage = { id: string; name: string }
 
 export type ActivationContext = {
   pages: FacebookPage[]

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
@@ -17,6 +17,9 @@ import {
 } from '@/lib/facebook/leadAttribution'
 import { fetchLeadWithTimeout } from '@/lib/facebook/leadNodeFetch'
 import { recordWebhookFailure } from '@/db/webhookFailures'
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
+import { receiveMessagingEvents } from '@/lib/facebook/messenger/receiveMessagingEvents'
+import { runMessengerEventWorker } from '@/lib/facebook/messenger/eventWorker'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -65,10 +68,15 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
 
   console.log(`[FacebookWebhook][routing][leadId=${leadId}] Resolved — pageId=${pageId}, userId=${connection.user_id}`)
 
+  // Sealed at rest since the token-hygiene change; legacy plaintext rows pass
+  // through unchanged. A seal that cannot be opened throws into the per-lead
+  // catch below, which records the failure for the retry worker.
+  const pageAccessToken = resolvePageAccessToken(connection.page_access_token)
+
   // Step 3: Fetch lead field_data — FIX 4: retry once on timeout
   let metaRes: Response
   try {
-    metaRes = await fetchLeadWithTimeout(leadId, connection.page_access_token)
+    metaRes = await fetchLeadWithTimeout(leadId, pageAccessToken)
   } catch (firstErr: any) {
     if (firstErr?.name !== 'AbortError') {
       console.error(`[FacebookWebhook][fetch][leadId=${leadId}] Fetch threw:`, firstErr)
@@ -85,7 +93,7 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
     // Timeout on first attempt — retry once
     console.warn(`[FacebookWebhook][fetch][leadId=${leadId}] Timeout on attempt 1 — retrying`)
     try {
-      metaRes = await fetchLeadWithTimeout(leadId, connection.page_access_token)
+      metaRes = await fetchLeadWithTimeout(leadId, pageAccessToken)
     } catch (retryErr: any) {
       const isAbort = retryErr?.name === 'AbortError'
       console.error(`[FacebookWebhook][fetch][leadId=${leadId}] ${isAbort ? 'Timeout' : 'Error'} on retry — giving up`)
@@ -121,7 +129,7 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
       `[FacebookWebhook][fetch][leadId=${leadId}] Widened field read refused (HTTP ${metaRes!.status}) — retrying minimal`,
     )
     try {
-      const minimal = await fetchLeadWithTimeout(leadId, connection.page_access_token, LEAD_MINIMAL_GRAPH_FIELDS)
+      const minimal = await fetchLeadWithTimeout(leadId, pageAccessToken, LEAD_MINIMAL_GRAPH_FIELDS)
       if (minimal.ok) metaRes = minimal
     } catch {
       // Keep the original response and fall through to the existing handling.
@@ -263,9 +271,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // MESSENGER: durable receipt first (receiveMessagingEvents), processed after the response.
+  // A failed write is not acknowledged: leads/comments below still run (idempotent), then 503.
+  const messenger = await receiveMessagingEvents(body.entry)
+  const recorded = messenger.outcome === 'recorded' ? messenger.recordedIds : []
+  if (recorded.length > 0) after(() => runMessengerEventWorker({ ids: recorded, workerId: 'webhook-kick' }))
+
   // FIX 1: loop through ALL entries and ALL changes — Meta can batch multiple leads per delivery
   for (const entry of body.entry) {
     const pageId: string | undefined = entry.id
+
     if (!Array.isArray(entry.changes)) continue
 
     for (const change of entry.changes) {
@@ -325,5 +340,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (messenger.outcome === 'failed') {
+    return NextResponse.json({ ok: false, error: 'messenger_receipt_failed' }, { status: 503 })
+  }
   return NextResponse.json({ ok: true })
 }

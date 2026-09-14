@@ -39,6 +39,10 @@
     {
       "path": "/api/cron/history-import",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/messenger-events",
+      "schedule": "*/1 * * * *"
     }
   ]
 }

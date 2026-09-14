@@ -70,7 +70,8 @@ export function useActivationController() {
         const res = await fetch('/api/auth/facebook/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageId: page.id, pageName: page.name, pageAccessToken: page.access_token }),
+          // The Page id only — the server resolves the token from its own cookie.
+          body: JSON.stringify({ pageId: page.id }),
           signal: ac.signal,
         })
         if (res.ok) {
@@ -103,7 +104,7 @@ export function useActivationController() {
 
     let cancelled = false
     ;(async () => {
-      let data: { alreadyConnected: boolean; pendingPages: { id: string; name: string; access_token: string }[] }
+      let data: { alreadyConnected: boolean; pendingPages: { id: string; name: string }[] }
       try {
         data = await getActivationData()
       } catch {

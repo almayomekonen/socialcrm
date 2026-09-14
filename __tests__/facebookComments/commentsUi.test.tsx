@@ -16,13 +16,14 @@ vi.mock('@/lib/useAction', () => ({
   useAction: () => ({ loading: false, error: null, setError: vi.fn(), run: (fn: () => unknown) => fn() }),
 }))
 vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.fn(async () => ({ ok: true, leadId: 7 })) }))
+vi.mock('@/modules/facebookComments/replyActions', () => ({ replyToComment: vi.fn(async () => ({ ok: true, replyId: 'r1' })) }))
 
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInboxMobile'
 import CommentsListMobile from '@/modules/facebookComments/mobile/CommentsListMobile'
-import type { CommentListItem } from '@/modules/facebookComments/types'
+import type { CommentListItem, CommentReply } from '@/modules/facebookComments/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -30,6 +31,7 @@ afterEach(() => cleanup())
 
 const base: CommentListItem = {
   id: 1,
+  pageId: '1175908668934802',
   commentId: '122113311069337165_987654321',
   postId: '1175908668934802_122113311069337165',
   parentId: '1175908668934802_122113311069337165',
@@ -179,6 +181,63 @@ describe('CommentsList — status states', () => {
     const rows = screen.getAllByRole('listitem')
     expect(rows).toHaveLength(3)
     expect(rows.map((r) => r.getAttribute('data-comment-id'))).toEqual(['C1', 'C2', 'C3'])
+  })
+})
+
+describe('CommentsList — reply thread and in-app replies', () => {
+  const reply = (over: Partial<CommentReply> = {}): CommentReply => ({
+    id: 9,
+    pageId: base.pageId,
+    commentId: '122113311069337165_555',
+    parentId: base.commentId,
+    authorName: 'העסק של דנה',
+    authorIsPage: true,
+    sentByUserId: 7,
+    message: 'שלחנו לך הודעה פרטית',
+    messageAvailable: true,
+    status: 'open',
+    createdTime: new Date('2026-08-11T10:00:00.000Z'),
+    receivedAt: new Date('2026-08-11T10:00:01.000Z'),
+    ...over,
+  })
+
+  it("shows the thread under the comment and labels the Page's reply sent from SocialCRM", () => {
+    render(<CommentsList comments={[item()]} replies={[reply()]} />)
+    const thread = screen.getByRole('list', { name: 'תגובות בשרשור' })
+    expect(thread).toHaveTextContent('שלחנו לך הודעה פרטית')
+    expect(thread).toHaveTextContent('(הדף שלך)')
+    expect(thread).toHaveTextContent('נשלח מ-SocialCRM')
+  })
+
+  it("a Page reply written on Facebook is the Page's, but not labelled as sent from SocialCRM", () => {
+    render(<CommentsList comments={[item()]} replies={[reply({ sentByUserId: null })]} />)
+    expect(screen.getByRole('list', { name: 'תגובות בשרשור' })).not.toHaveTextContent('נשלח מ-SocialCRM')
+  })
+
+  it('does not attach a reply from another Page with the same comment id to this thread', () => {
+    render(<CommentsList comments={[item()]} replies={[reply({ pageId: 'OTHER_PAGE' })]} />)
+    expect(screen.queryByRole('list', { name: 'תגובות בשרשור' })).not.toBeInTheDocument()
+  })
+
+  it('offers the reply form only on Pages whose grant allows replies', () => {
+    const { rerender } = render(<CommentsList comments={[item()]} />)
+    expect(screen.queryByRole('button', { name: 'פרסם תשובה' })).not.toBeInTheDocument()
+
+    rerender(<CommentsList comments={[item()]} replyablePageIds={[base.pageId]} />)
+    expect(screen.getByRole('button', { name: 'פרסם תשובה' })).toBeDisabled()
+    expect(screen.getByPlaceholderText('כתוב תשובה בשם הדף...')).toBeInTheDocument()
+  })
+
+  it('never offers a reply on a comment deleted on Facebook', () => {
+    render(<CommentsList comments={[item({ status: 'deleted' })]} replyablePageIds={[base.pageId]} />)
+    expect(screen.queryByRole('button', { name: 'פרסם תשובה' })).not.toBeInTheDocument()
+  })
+
+  it('links to the post on Facebook, opened at this comment, in a new tab', () => {
+    render(<CommentsList comments={[item()]} />)
+    const link = screen.getByRole('link', { name: 'פתח את הפוסט בפייסבוק' })
+    expect(link).toHaveAttribute('href', 'https://www.facebook.com/1175908668934802_122113311069337165?comment_id=987654321')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 })
 

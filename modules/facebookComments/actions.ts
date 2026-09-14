@@ -37,7 +37,14 @@ export type ConvertResult =
   | { ok: true; leadId: number }
   | {
       ok: false
-      reason: 'not_found' | 'deleted' | 'not_enabled' | 'quota_exceeded' | 'create_failed' | 'db_error'
+      reason:
+        | 'not_found'
+        | 'deleted'
+        | 'page_authored'
+        | 'not_enabled'
+        | 'quota_exceeded'
+        | 'create_failed'
+        | 'db_error'
     }
 
 /** "דוד כהן" → first + last. A one-word name has no last name. */
@@ -63,6 +70,8 @@ export async function convertCommentToLead(commentId: string): Promise<ConvertRe
     const comment = await db('facebook_page_comments').where({ commentId, agencyId: user.agencyId }).first()
     if (!comment) return { ok: false, reason: 'not_found' }
     if (comment.status === 'deleted') return { ok: false, reason: 'deleted' }
+    // The Page's own reply is the business talking, not a prospect.
+    if (comment.authorIsPage) return { ok: false, reason: 'page_authored' }
 
     // Already converted — return the same ליד rather than making a second.
     if (comment.convertedLeadId) return { ok: true, leadId: comment.convertedLeadId }

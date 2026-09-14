@@ -9,6 +9,7 @@ import { InboxStoreProvider } from '@/modules/inbox/client/inboxStore'
 import { isInboxDeltaSyncEnabled, getInboxRefreshIntervalMs } from '@/lib/flags/inboxFlags'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import MobileInboxRoute from '@/modules/inbox/mobile/MobileInboxRoute'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxLiveModeLog from '@/components/summary/InboxLiveModeLog'
@@ -79,7 +80,12 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <div data-alert-region='crm-sync' className='shrink-0'>
             <CrmSyncBanner sources={['inbox-sync']} compact />
           </div>
-          <InboxToolbar filters={filters} selectedConversation={selectedConversationId} smartCounts={smartCounts} />
+          <InboxToolbar
+            filters={filters}
+            selectedConversation={selectedConversationId}
+            smartCounts={smartCounts}
+            showMessenger={isFacebookMessengerEnabledForAgency(user.agencyId)}
+          />
           <InboxConversationList selectedConversationId={selectedConversationId} />
         </aside>
 

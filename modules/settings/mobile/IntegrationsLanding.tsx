@@ -43,7 +43,7 @@ export type IntegrationsLandingProps = {
   }
   facebook: {
     connection: { pageId: string; pageName: string } | null
-    pendingPages: { id: string; name: string; access_token: string }[] | null
+    pendingPages: { id: string; name: string }[] | null
     health: FacebookHealthStatus | null
   }
   templates: {

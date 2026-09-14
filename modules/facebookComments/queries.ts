@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import {
   COMMENT_STATUSES,
   type CommentListItem,
+  type CommentReply,
   type CommentsCursor,
   type CommentsPage,
   type CommentStatusFilter,
@@ -26,6 +27,7 @@ const MAX_PAGE_SIZE = 100
 
 const SELECTED_COLUMNS = [
   'id',
+  'pageId',
   'commentId',
   'postId',
   'parentId',
@@ -54,6 +56,8 @@ export function listPageCommentsQuery(
 
   let q = knex('facebook_page_comments')
     .where({ agencyId })
+    // The Page's own replies are thread context, never work items.
+    .where({ authorIsPage: false })
     .orderByRaw('"receivedAt" desc, "id" desc')
     // One extra row is the "is there a next page" probe.
     .limit(limit + 1)
@@ -72,7 +76,51 @@ export function listPageCommentsQuery(
 
 /** Badge count for the Inbox switcher. Open comments only — the actionable ones. */
 export function countOpenCommentsQuery(knex: Knex, agencyId: number) {
-  return knex('facebook_page_comments').where({ agencyId, status: 'open' }).count({ count: '*' })
+  return knex('facebook_page_comments').where({ agencyId, status: 'open', authorIsPage: false }).count({ count: '*' })
+}
+
+const REPLY_COLUMNS = [
+  'id',
+  'pageId',
+  'commentId',
+  'parentId',
+  'authorName',
+  'authorIsPage',
+  'sentByUserId',
+  'message',
+  'messageAvailable',
+  'status',
+  'createdTime',
+  'receivedAt',
+] as const
+
+const MAX_THREAD_ROWS = 300
+
+/**
+ * Replies under a set of thread roots. Keyed by (pageId, parentId) — a comment
+ * id is only meaningful inside its Page — and filtered by the tenant like every
+ * other read here. Newest first so the row cap drops the OLDEST replies, never
+ * the one just sent; `listCommentReplies` returns them oldest first for reading.
+ */
+export function listCommentRepliesQuery(knex: Knex, agencyId: number, roots: { pageId: string; commentId: string }[]) {
+  return knex('facebook_page_comments')
+    .where({ agencyId })
+    .whereNot({ status: 'deleted' })
+    .whereIn(
+      ['pageId', 'parentId'],
+      roots.map((r) => [r.pageId, r.commentId]),
+    )
+    .orderByRaw('COALESCE("createdTime", "receivedAt") desc, "id" desc')
+    .limit(MAX_THREAD_ROWS)
+    .select(...REPLY_COLUMNS)
+}
+
+export async function listCommentReplies(
+  agencyId: number,
+  roots: { pageId: string; commentId: string }[],
+): Promise<CommentReply[]> {
+  if (roots.length === 0) return []
+  return ((await listCommentRepliesQuery(db, agencyId, roots)) as CommentReply[]).reverse()
 }
 
 export async function listPageComments(

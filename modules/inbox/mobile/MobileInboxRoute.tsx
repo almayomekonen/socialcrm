@@ -12,6 +12,7 @@ import { relativeTimeHe } from './relativeTime'
 import { statusStyle } from '@/lib/leads/statusStyles'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
+import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 
 /**
  * The mobile שיחות route — list, or one thread when `?conversation=` is set.
@@ -171,7 +172,7 @@ export default async function MobileInboxRoute({
   return (
     <div>
       <div className='border-b border-gray-200 bg-white px-3 py-2 [&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
-        <InboxChannelSwitch active='whatsapp' />
+        <InboxChannelSwitch active='whatsapp' showMessenger={isFacebookMessengerEnabledForAgency(agencyId)} />
       </div>
       <ConversationListMobile
         items={page.items}

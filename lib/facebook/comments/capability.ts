@@ -18,7 +18,8 @@
 /** The one permission that unlocks comment text. */
 export const COMMENT_TEXT_PERMISSION = 'pages_read_user_content'
 
-function parseAllowlist(raw: string | undefined): 'all' | number[] {
+/** `all`, or a comma-separated list of agency ids. Shared by every Meta rollout gate. */
+export function parseAllowlist(raw: string | undefined): 'all' | number[] {
   const v = (raw ?? '').trim()
   if (!v) return []
   if (v.toLowerCase() === 'all') return 'all'

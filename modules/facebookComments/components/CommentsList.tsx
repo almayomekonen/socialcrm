@@ -3,7 +3,11 @@ import { formatDateTime } from '@/lib/dates'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import ConvertCommentButton from './ConvertCommentButton'
-import type { CommentListItem, CommentStatus } from '../types'
+import CommentThread from './CommentThread'
+import CommentReplyForm from './CommentReplyForm'
+import { facebookCommentUrl } from '@/lib/facebook/comments/links'
+import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thread'
+import type { CommentListItem, CommentReply, CommentStatus } from '../types'
 
 /**
  * Comment rows for the Comments Inbox.
@@ -25,7 +29,19 @@ const STATUS_BADGE: Partial<Record<CommentStatus, { label: string; cls: string }
   deleted: { label: 'נמחקה בפייסבוק', cls: 'bg-gray-100 text-gray-500' },
 }
 
-export default function CommentsList({ comments }: { comments: CommentListItem[] }) {
+export default function CommentsList({
+  comments,
+  replies = [],
+  replyablePageIds = [],
+}: {
+  comments: CommentListItem[]
+  /** Thread entries for the listed comments (see listCommentReplies). */
+  replies?: CommentReply[]
+  /** Pages whose recorded grant includes the reply permission. */
+  replyablePageIds?: string[]
+}) {
+  const threads = groupRepliesByThread(replies)
+  const replyable = new Set(replyablePageIds)
   return (
     <ul className='divide-y divide-gray-100 rounded-md border border-gray-200 bg-white'>
       {comments.map((c) => {
@@ -33,6 +49,8 @@ export default function CommentsList({ comments }: { comments: CommentListItem[]
         // not, so the row always has an honest timestamp to show.
         const when = c.createdTime ?? c.receivedAt
         const badge = STATUS_BADGE[c.status]
+        const thread = threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []
+        const facebookUrl = facebookCommentUrl(c.postId, c.commentId)
 
         return (
           <li
@@ -88,7 +106,25 @@ export default function CommentsList({ comments }: { comments: CommentListItem[]
                     comment no longer exists on Facebook; a converted one
                     already has its ליד. */}
                 {c.status === 'open' && !c.convertedLeadId && <ConvertCommentButton commentId={c.commentId} />}
+
+                {/* The post the comment was left on, opened at this comment. External. */}
+                {facebookUrl && (
+                  <a
+                    href={facebookUrl}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='text-[11px] text-primary underline underline-offset-2'
+                  >
+                    פתח את הפוסט בפייסבוק
+                  </a>
+                )}
               </div>
+
+              <CommentThread replies={thread} excludeCommentId={c.commentId} />
+
+              {c.status !== 'deleted' && replyable.has(c.pageId) && (
+                <CommentReplyForm commentId={c.commentId} authorName={c.authorName} />
+              )}
             </div>
           </li>
         )

@@ -35,6 +35,12 @@ export type FeedCommentEvent = {
   /** Page-scoped author id. Not a phone, not an email, not contactable. */
   authorId: string | null
   authorName: string | null
+  /**
+   * The Page wrote this itself — a reply the business posted, from Facebook or
+   * from SocialCRM. Such a comment is thread context, never incoming work and
+   * never a lead. Decided by `from.id === pageId` (the verified entry id).
+   */
+  authorIsPage: boolean
   message: string
   /**
    * Whether Meta actually sent text.
@@ -99,6 +105,7 @@ export function parseFeedComment(pageId: string, value: unknown): FeedCommentEve
     isTopLevel: parentId === null || parentId === postId,
     authorId: str(from.id),
     authorName: str(from.name),
+    authorIsPage: str(from.id) === pageId,
     message,
     messageAvailable: message.length > 0,
     createdTime,

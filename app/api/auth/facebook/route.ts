@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAgencyAdmin } from '@/lib/api/routeAuth'
 import { cookies } from 'next/headers'
 import { track } from '@/lib/analytics/track'
+import {
+  isFacebookCommentRepliesEnabledForAgency,
+  isFacebookMessengerEnabledForAgency,
+  pageOAuthScopes,
+  parsePageFeature,
+} from '@/lib/facebook/permissions'
 import { inAppBrowserFromHeaders } from '@/lib/device'
 
 export async function GET(_req: NextRequest) {
@@ -21,8 +27,23 @@ export async function GET(_req: NextRequest) {
   // Option A: the origin of the flow is carried in the state prefix so the
   // callback can return to the right surface. Default 'settings' preserves the
   // existing desktop behavior; 'activation' is the mobile activation flow.
-  const origin = new URL(_req.url).searchParams.get('origin') === 'activation' ? 'activation' : 'settings'
-  const state = `${origin}.${crypto.randomUUID()}`
+  const search = new URL(_req.url).searchParams
+  const origin = search.get('origin') === 'activation' ? 'activation' : 'settings'
+  // Per-feature permissions (lib/facebook/permissions.ts): `?feature=messenger`
+  // or `?feature=comment_replies` adds ONLY that feature's permissions to the
+  // unchanged base set. The feature rides the state so the callback can return
+  // the user to the surface that asked. Routing only — CSRF stays exact-match.
+  // A feature outside this agency's rollout is ignored: nobody is asked for a
+  // permission the product will not use for them.
+  const requested = parsePageFeature(search.get('feature'))
+  const rolledOut =
+    requested === 'messenger'
+      ? isFacebookMessengerEnabledForAgency(user.agencyId)
+      : requested === 'comment_replies'
+        ? isFacebookCommentRepliesEnabledForAgency(user.agencyId)
+        : false
+  const feature = rolledOut ? requested : null
+  const state = feature ? `${origin}.${feature}.${crypto.randomUUID()}` : `${origin}.${crypto.randomUUID()}`
 
   // The DENOMINATOR of the Facebook connect funnel. `facebook_connect_started`
   // was declared in the event union but emitted nowhere, so OAuth-dialog
@@ -32,8 +53,15 @@ export async function GET(_req: NextRequest) {
   // analytics write must not delay the redirect to Meta.
   // `inApp`: inside Instagram's/Facebook's in-app browser this redirect often
   // never returns from Meta, so the start is the only place that fact is known.
+  // `feature`: a per-feature permission request (null for a plain connection), so
+  // the connect funnel can separate onboarding from permission upgrades.
   const inApp = inAppBrowserFromHeaders(_req.headers)
-  void track({ agencyId: user.agencyId!, userId: user.id, event: 'facebook_connect_started', props: { origin, inApp } })
+  void track({
+    agencyId: user.agencyId!,
+    userId: user.id,
+    event: 'facebook_connect_started',
+    props: { origin, feature, inApp },
+  })
   const cookieStore = await cookies()
   cookieStore.set('fb_oauth_state', state, {
     httpOnly: true,
@@ -46,20 +74,10 @@ export async function GET(_req: NextRequest) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
-    // `pages_read_user_content` is APPROVED by Meta and is the only permission
-    // that makes a Page comment's `message` appear on the `feed` webhook. It was
-    // never requested, so `hasCommentTextCapability` — written to flip on its own
-    // once granted — could never become true and the Comments Inbox showed rows
-    // with no text. It is OPTIONAL to the flow: unlike `leads_retrieval` the
-    // callback must never hard-fail without it (Lead Ads keep working), it only
-    // records the grant so the UI can offer a reconnect.
-    scope: [
-      'pages_show_list',
-      'pages_read_engagement',
-      'pages_manage_metadata',
-      'leads_retrieval',
-      'pages_read_user_content',
-    ].join(','),
+    // Base set unchanged: Lead Ads (`leads_retrieval`) plus comment text
+    // (`pages_read_user_content`, OPTIONAL — the callback never hard-fails
+    // without it). A feature adds only its own permissions; see permissions.ts.
+    scope: pageOAuthScopes(feature).join(','),
     state,
     response_type: 'code',
     auth_type: 'rerequest',

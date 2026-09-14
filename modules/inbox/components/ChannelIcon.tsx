@@ -10,6 +10,10 @@ import { MessageSquare } from 'lucide-react'
 const CHANNEL_GLYPHS: Record<string, { src: string; color: string }> = {
   whatsapp: { src: '/media/social-icons/whatsapp.svg', color: 'var(--color-success)' },
   facebook: { src: '/media/social-icons/facebook.svg', color: '#1877F2' },
+  // No Messenger SVG in public/media/social-icons: the app icon set's existing
+  // `facebook-messenger` glyph (the source lib/Icon uses), drawn with this
+  // component's own span + mask so it stays valid inside <p> and <span>.
+  messenger: { src: 'https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-messenger.svg', color: '#0866FF' },
 }
 
 export default function ChannelIcon({ channel, className = 'size-3.5' }: { channel: string; className?: string }) {

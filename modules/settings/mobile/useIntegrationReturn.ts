@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
 import { shouldAutoCompleteFacebook, shouldAutoCompleteWhatsapp } from './oauthReturn'
 
-type FacebookPage = { id: string; name: string; access_token: string }
+type FacebookPage = { id: string; name: string }
 type WhatsappPhone = { id: string; displayPhone: string; verifiedName: string }
 
 /**
@@ -51,11 +51,8 @@ export function useIntegrationReturnContinuation(input: {
         const res = await fetch('/api/auth/facebook/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pageId: fbPage.id,
-            pageName: fbPage.name,
-            pageAccessToken: fbPage.access_token,
-          }),
+          // The Page id only — the server resolves the token from its own cookie.
+          body: JSON.stringify({ pageId: fbPage.id }),
           signal: ac.signal,
         })
         if (ac.signal.aborted) return
@@ -73,7 +70,7 @@ export function useIntegrationReturnContinuation(input: {
       }
     })()
     return () => ac.abort()
-  }, [fbPage?.id, fbPage?.name, fbPage?.access_token, router])
+  }, [fbPage?.id, fbPage?.name, router])
 
   useEffect(() => {
     if (!waPhone) {

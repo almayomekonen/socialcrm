@@ -55,3 +55,27 @@ export function businessDayBounds(nowMs: number, tz: string = BUSINESS_TZ): NowC
   const dayEnd = startOfBusinessDayMs(dayStart + 26 * 3_600_000, tz)
   return { nowMs, dayStart, dayEnd }
 }
+
+/**
+ * Display formatting in the business timezone. Server Components run in UTC on
+ * Vercel, so `lib/dates` formatters would show a 13:00 Israel message as 10:00
+ * and split day separators at UTC midnight. Same output shape as lib/dates
+ * (`dd/mm/yyyy`, `HH:MM`), explicit timezone.
+ */
+export function formatBusinessDate(value: Date | string | number, tz: string = BUSINESS_TZ): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('he-IL', { timeZone: tz }).format(d).replaceAll('.', '/')
+}
+
+export function formatBusinessTime(value: Date | string | number, tz: string = BUSINESS_TZ): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('he-IL', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(d)
+}
+
+export function formatBusinessDateTime(value: Date | string | number, tz: string = BUSINESS_TZ): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('he-IL', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }).format(d).replaceAll('.', '/')
+}

@@ -65,3 +65,29 @@ export function describeDbError(err: unknown): DbErrorInfo {
 
   return { code, constraint, table, column, summary: parts.join(' ') }
 }
+
+/**
+ * Would retrying the same write plausibly succeed?
+ *
+ * True only for failures of the CONNECTION or of CONCURRENCY — never for a
+ * constraint, type or syntax error, which will fail identically on every
+ * redelivery. Webhook routes use this to decide between asking Meta to
+ * redeliver (a non-2xx) and acknowledging: a permanent error answered with 500
+ * would be redelivered until Meta disables the app's webhooks, taking Lead Ads
+ * down with it.
+ *
+ * SQLSTATE classes: 08 connection exception, 40001 serialization failure,
+ * 40P01 deadlock, 53 insufficient resources, 57P01-57P03 shutdown/cannot connect,
+ * 55P03 lock not available.
+ */
+export function isTransientDbError(err: unknown): boolean {
+  const e = (err ?? {}) as { code?: unknown; message?: unknown }
+  const code = typeof e.code === 'string' ? e.code : ''
+  if (code.startsWith('08') || code.startsWith('53')) return true
+  if (['40001', '40P01', '57P01', '57P02', '57P03', '55P03'].includes(code)) return true
+  if (['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'ENOTFOUND'].includes(code)) return true
+  const message = typeof e.message === 'string' ? e.message : ''
+  return /Connection terminated|Timeout acquiring a connection|connect ETIMEDOUT|Client has encountered a connection error/i.test(
+    message,
+  )
+}

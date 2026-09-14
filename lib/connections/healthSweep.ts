@@ -1,3 +1,4 @@
+import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { db } from '@/config/db'
 import { checkFacebookConnection, repairFacebookConnection } from '@/lib/facebook/health'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
@@ -55,7 +56,7 @@ async function sweepFacebook(result: HealthSweepResult): Promise<void> {
   for (const page of pages) {
     try {
       result.facebookChecked++
-      const health = await checkFacebookConnection(page.page_id, page.page_access_token)
+      const health = await checkFacebookConnection(page.page_id, resolvePageAccessToken(page.page_access_token))
 
       if (health.needsReconnect) {
         // Transition-guarded inside: silent when already token_expired.

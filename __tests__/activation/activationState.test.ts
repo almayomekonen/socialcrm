@@ -10,10 +10,10 @@ import {
   type ActivationMachine,
 } from '@/lib/activation/activationState'
 
-const onePage: FacebookPage[] = [{ id: 'p1', name: 'Salon Dana', access_token: 't1' }]
+const onePage: FacebookPage[] = [{ id: 'p1', name: 'Salon Dana' }]
 const twoPages: FacebookPage[] = [
-  { id: 'p1', name: 'Salon Dana', access_token: 't1' },
-  { id: 'p2', name: 'Studio B', access_token: 't2' },
+  { id: 'p1', name: 'Salon Dana' },
+  { id: 'p2', name: 'Studio B' },
 ]
 
 const at = (status: ActivationMachine['status'], partial = {}): ActivationMachine => ({

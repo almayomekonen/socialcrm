@@ -2,7 +2,11 @@ import Link from 'next/link'
 import { formatDateTime } from '@/lib/dates'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import ConvertCommentButton from '@/modules/facebookComments/components/ConvertCommentButton'
-import type { CommentListItem, CommentStatus } from '../types'
+import CommentThread from '@/modules/facebookComments/components/CommentThread'
+import CommentReplyForm from '@/modules/facebookComments/components/CommentReplyForm'
+import { facebookCommentUrl } from '@/lib/facebook/comments/links'
+import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thread'
+import type { CommentListItem, CommentReply, CommentStatus } from '../types'
 
 /**
  * Phone comment rows. Same records as desktop `CommentsList` — author, text,
@@ -16,12 +20,24 @@ const STATUS_COPY: Partial<Record<CommentStatus, { label: string; dot: string; t
   deleted: { label: 'נמחקה בפייסבוק', dot: 'bg-gray-400', text: 'text-gray-500' },
 }
 
-export default function CommentsListMobile({ comments }: { comments: CommentListItem[] }) {
+export default function CommentsListMobile({
+  comments,
+  replies = [],
+  replyablePageIds = [],
+}: {
+  comments: CommentListItem[]
+  replies?: CommentReply[]
+  replyablePageIds?: string[]
+}) {
+  const threads = groupRepliesByThread(replies)
+  const replyable = new Set(replyablePageIds)
   return (
     <ul className='divide-y divide-gray-100 overflow-hidden rounded-md border border-gray-200 bg-white'>
       {comments.map((c) => {
         const when = c.createdTime ?? c.receivedAt
         const status = STATUS_COPY[c.status]
+        const thread = threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []
+        const facebookUrl = facebookCommentUrl(c.postId, c.commentId)
 
         return (
           <li
@@ -79,6 +95,25 @@ export default function CommentsListMobile({ comments }: { comments: CommentList
               {c.status === 'open' && !c.convertedLeadId && (
                 <div className='mt-1 [&_button]:min-h-11 [&_button]:rounded-md'>
                   <ConvertCommentButton commentId={c.commentId} />
+                </div>
+              )}
+
+              {facebookUrl && (
+                <a
+                  href={facebookUrl}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='mt-1 inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-2'
+                >
+                  פתח את הפוסט בפייסבוק
+                </a>
+              )}
+
+              <CommentThread replies={thread} excludeCommentId={c.commentId} />
+
+              {c.status !== 'deleted' && replyable.has(c.pageId) && (
+                <div className='[&_button]:min-h-11 [&_button]:rounded-md'>
+                  <CommentReplyForm commentId={c.commentId} authorName={c.authorName} />
                 </div>
               )}
             </div>

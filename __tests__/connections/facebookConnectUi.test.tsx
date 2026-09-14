@@ -80,7 +80,7 @@ describe('Facebook recovery UX', () => {
 
   it('FB-UX-6: RESOURCE_CLAIMED → safe conflict message, no other-agency identity leaked', async () => {
     H.actionError = 'resource_claimed'
-    render(<FacebookConnect connection={null} pendingPages={[{ id: 'PG1', name: 'דף', access_token: 't' }]} health={null} />)
+    render(<FacebookConnect connection={null} pendingPages={[{ id: 'PG1', name: 'דף' }]} health={null} />)
     expect(await screen.findByText('הדף כבר מחובר לחשבון אחר')).toBeInTheDocument()
     // no numeric agency id leaked anywhere in the rendered notice
     expect(document.body.textContent).not.toMatch(/\b999\b/)
