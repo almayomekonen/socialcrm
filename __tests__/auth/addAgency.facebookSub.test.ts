@@ -160,3 +160,41 @@ describe('addAgency facebookSub attachment', () => {
     expect(h.createCookie).toHaveBeenCalledWith(20)
   })
 })
+
+/**
+ * The email is the account's only login key. Production agency 150 registered
+ * as "natel" (a phone typo), could never sign back in, and re-registered 7
+ * minutes later as a duplicate workspace. The server must refuse an unusable
+ * address before writing anything.
+ */
+describe('addAgency email validation', () => {
+  beforeEach(() => {
+    h.proof = null
+    h.capturedUserInsert = null
+    h.transactionError = null
+    vi.clearAllMocks()
+    h.redirect.mockImplementation(() => {
+      throw new Error('NEXT_REDIRECT')
+    })
+  })
+
+  it.each(['natel', '', '   ', 'natel@', '@gmail.com', 'natel@gmail', 'na tel@gmail.com'])(
+    'refuses %j without creating an agency, a user, or a session',
+    async (email) => {
+      const res = await addAgency({ ...FORM, user: { ...FORM.user, email } })
+
+      expect(res).toEqual({ error: 'כתובת האימייל לא תקינה. בדקו שהיא כתובה במלואה, למשל name@gmail.com' })
+      expect(h.capturedUserInsert).toBeNull()
+      expect(h.createCookie).not.toHaveBeenCalled()
+      expect(emitLifecycleEvent).not.toHaveBeenCalled()
+    },
+  )
+
+  it('still registers a normal address, normalized', async () => {
+    await expect(addAgency({ ...FORM, user: { ...FORM.user, email: '  Batel@Gmail.com ' } })).rejects.toThrow(
+      'NEXT_REDIRECT',
+    )
+    expect(h.capturedUserInsert).toMatchObject({ email: 'batel@gmail.com' })
+    expect(h.createCookie).toHaveBeenCalledWith(20)
+  })
+})

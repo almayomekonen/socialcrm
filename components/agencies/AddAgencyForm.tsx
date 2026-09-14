@@ -84,7 +84,10 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
             it measures 162px, too narrow for an address — and since email owns
             this row either way, full width costs no height. */}
         <div className='col-span-2'>
-          <Input name='email' lbl='אימייל' defaultValue={defaultEmail} />
+          {/* type='email' makes the browser refuse "natel" before submit and
+              gives phones the @ keyboard; autoComplete='email' lets the phone
+              offer the saved address, so most people never type it at all. */}
+          <Input name='email' lbl='אימייל' type='email' autoComplete='email' defaultValue={defaultEmail} />
         </div>
       </div>
       {/* Same component, same row as `/auth` — Lumen fills this slot on signup
