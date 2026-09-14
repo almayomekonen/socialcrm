@@ -6,6 +6,7 @@ import { isAdmin, type Roles } from '@/types/roles'
 import { isFacebookAdsReportingEnabledForAgency } from '@/lib/facebook/permissions'
 import { adsRangeLabel, parseAdsRange } from '@/lib/facebook/ads/dateRange'
 import { businessDateString } from '@/lib/today/time'
+import { getInAppBrowser, type InAppBrowser } from '@/lib/device'
 import { getAdsReport, listAdAccounts, type AdsFailure } from '@/lib/facebook/ads/insights'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import MetaPermissionButton from '@/components/settings/MetaPermissionButton'
@@ -34,12 +35,12 @@ const FAILURE_NOTICE: Record<AdsFailure, AdsNoticeKind> = {
   meta_error: 'meta_error',
 }
 
-function Notice({ kind, extra }: { kind: AdsNoticeKind; extra?: React.ReactNode }) {
+function Notice({ kind, extra, inAppBrowser }: { kind: AdsNoticeKind; extra?: React.ReactNode; inAppBrowser?: InAppBrowser }) {
   const notice = ADS_NOTICES[kind]
   return (
     <div className='grid max-w-2xl gap-2'>
       <ConnectionNotice notice={notice} />
-      {notice.cta === 'connect' && <MetaPermissionButton href='/api/auth/facebook/ads' lbl={notice.action!} />}
+      {notice.cta === 'connect' && <MetaPermissionButton href='/api/auth/facebook/ads' lbl={notice.action!} inAppBrowser={inAppBrowser} />}
       {notice.cta === 'retry' && <Btn lbl={notice.action!} variant='outline' size='small' className='w-fit' href='/sum_sales/ads' />}
       {extra}
     </div>
@@ -63,21 +64,22 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
   }
 
   const sp = await searchParams
+  const inAppBrowser = await getInAppBrowser()
   let connection: Awaited<ReturnType<typeof getAdConnection>> = null
   try {
     connection = await getAdConnection(user.agencyId, user.id)
   } catch {
-    return page(<Notice kind='expired' />)
+    return page(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
   }
 
-  if (!connection) return page(<Notice kind={sp.ads_error === 'declined' ? 'declined' : 'connect'} />)
-  if (!connection.grantedScopes.includes('ads_read')) return page(<Notice kind='declined' />)
-  if (connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now()) return page(<Notice kind='expired' />)
+  if (!connection) return page(<Notice inAppBrowser={inAppBrowser} kind={sp.ads_error === 'declined' ? 'declined' : 'connect'} />)
+  if (!connection.grantedScopes.includes('ads_read')) return page(<Notice inAppBrowser={inAppBrowser} kind='declined' />)
+  if (connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now()) return page(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
 
   const disconnect = <DisconnectAdsButton />
   const accounts = await listAdAccounts(connection.token)
-  if ('reason' in accounts) return page(<Notice kind={FAILURE_NOTICE[accounts.reason]} extra={disconnect} />)
-  if (accounts.value.length === 0) return page(<Notice kind='no_accounts' extra={disconnect} />)
+  if ('reason' in accounts) return page(<Notice inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[accounts.reason]} extra={disconnect} />)
+  if (accounts.value.length === 0) return page(<Notice inAppBrowser={inAppBrowser} kind='no_accounts' extra={disconnect} />)
 
   // Only an account Meta listed for THIS token can be read; anything else falls back to the first.
   const account = accounts.value.find((a) => a.id === sp.account) ?? accounts.value[0]
@@ -95,10 +97,10 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
   const report = await getAdsReport(connection.token, account.id, range)
   const body =
     'reason' in report ? (
-      <Notice kind={FAILURE_NOTICE[report.reason]} />
+      <Notice inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[report.reason]} />
     ) : report.value.totals === null ? (
       // Meta returned no rows for the account in this range: no spend, no delivery.
-      <Notice kind='no_activity' />
+      <Notice inAppBrowser={inAppBrowser} kind='no_activity' />
     ) : (
       <AdsReportView report={report.value} currency={account.currency} rangeLabel={adsRangeLabel(range)} />
     )

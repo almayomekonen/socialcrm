@@ -11,6 +11,7 @@ import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
 import { resolveWhatsappHealth, type WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 import { getWhatsappConnectionForAgency } from '@/db/whatsapp'
+import { getInAppBrowser } from '@/lib/device'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import { countByStatus } from '@/db/whatsappTemplates'
 import WebsiteConnection, { isWebsiteSectionVisible } from '@/components/settings/integrations/WebsiteConnection'
@@ -117,10 +118,12 @@ export default async function IntegrationsMobile({
     pendingPages,
     pendingPhones,
   })
+  const inAppBrowser = await getInAppBrowser()
 
   return (
     <IntegrationsLanding
       initialSheet={initialSheet}
+      inAppBrowser={inAppBrowser}
       oauthQuery={oauthQuery}
       whatsapp={{
         connection: waConnection ? { phoneNumberId: waConnection.phone_number_id } : null,

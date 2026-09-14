@@ -158,7 +158,10 @@ describe('2 · the Embedded Signup launch is bounded', () => {
       // The valve exists, is generous enough not to cut a real signup short,
       // and resolves as a mapped, retryable error rather than hanging.
       expect(src).toContain('const LAUNCH_TIMEOUT_MS = 300_000')
-      expect(src).toContain("timer = setTimeout(() => settle({ ok: false, error: 'sdk' }), LAUNCH_TIMEOUT_MS)")
+      // `reason: 'timeout'` is analytics-only; the UI still maps the 'sdk' notice.
+      expect(src).toContain(
+        "timer = setTimeout(() => settle({ ok: false, error: 'sdk', reason: 'timeout' }), LAUNCH_TIMEOUT_MS)",
+      )
     } finally {
       vi.useRealTimers()
     }
@@ -166,7 +169,11 @@ describe('2 · the Embedded Signup launch is bounded', () => {
 
   it('every resolve path clears the timer via settle(), and settle() is not recursive', () => {
     const src = require('node:fs').readFileSync('lib/facebook/useEmbeddedSignup.ts', 'utf8')
-    const launch = src.slice(src.indexOf('const launch = useCallback'), src.indexOf('}, [configId])'))
+    // The flow body is `launchFlow`; `launch` is only its reporting wrapper.
+    const launch = src.slice(
+      src.indexOf('const launchFlow = useCallback'),
+      src.indexOf('}, [appId, configId, graphVersion])'),
+    )
     // No bare resolve( survives inside launch except settle's own single call.
     expect(launch.match(/(?<![A-Za-z_.])resolve\(/g)?.length).toBe(1)
     expect(launch).toContain('if (timer !== undefined) clearTimeout(timer)')

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { parseGrantedScopes } from '@/db/facebook'
-import { isMobileWorkspaceRequest } from '@/lib/device'
+import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import { messengerWindow, messengerWindowHint } from '@/lib/facebook/messenger/rules'
 import { FACEBOOK_NOTICES } from '@/lib/connections/messages'
@@ -64,7 +64,12 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   )
   const notice = sp.permission === 'missing' ? FACEBOOK_NOTICES.messenger_declined : FACEBOOK_NOTICES.messenger_permission
   const permissionPrompt = (
-    <MetaPermissionPrompt notice={notice} href='/api/auth/facebook?feature=messenger' canAuthorize={isAdmin(user.role as Roles)} />
+    <MetaPermissionPrompt
+      notice={notice}
+      href='/api/auth/facebook?feature=messenger'
+      canAuthorize={isAdmin(user.role as Roles)}
+      inAppBrowser={await getInAppBrowser()}
+    />
   )
   if (messagingPageIds.size === 0) return shell(permissionPrompt)
 

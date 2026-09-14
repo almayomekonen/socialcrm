@@ -15,6 +15,7 @@ import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
 import { resolveWhatsappHealth, type WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 import { getWhatsappConnectionForAgency } from '@/db/whatsapp'
+import { getInAppBrowser } from '@/lib/device'
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
@@ -117,6 +118,8 @@ export default async function LeadSourcesSection({
     }
   }
 
+  const inAppBrowser = await getInAppBrowser()
+
   return (
     <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
       <AccordionItem
@@ -134,6 +137,7 @@ export default async function LeadSourcesSection({
             pendingPages={pendingPages}
             health={health}
             commentsNeedReconnect={commentsNeedReconnect}
+            inAppBrowser={inAppBrowser}
           />
         </Suspense>
       </AccordionItem>
@@ -154,6 +158,7 @@ export default async function LeadSourcesSection({
             configId={process.env.META_EMBEDDED_SIGNUP_CONFIGURATION_ID ?? ''}
             graphVersion={GRAPH_VERSION}
             status={waStatus}
+            inAppBrowser={inAppBrowser}
           />
         </Suspense>
       </AccordionItem>

@@ -2,6 +2,8 @@
 
 import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
+import { getInAppBrowser } from '@/lib/device'
+import { CLIENT_CONNECT_FAILURE_REASONS } from '@/lib/connections/connectFailure'
 
 /**
  * Client bridge for the activation milestone: a rep acted on a lead.
@@ -35,6 +37,13 @@ const CLIENT_EMITTABLE = new Set<AnalyticsEventName>([
    */
   'whatsapp_connect_started',
   /**
+   * The WhatsApp connect outcomes the server never sees (popup closed, SDK never
+   * loaded, timeout). Client-emittable for the same reason as the denominator;
+   * its `reason` has its own vocabulary and `stage` is stamped here, never taken
+   * from the client.
+   */
+  'whatsapp_connect_failed',
+  /**
    * THE CONTACT TRIAD. Client-emittable because the outcome of a contact attempt
    * is only knowable in the browser: the native-WhatsApp handoff is a plain
    * anchor navigation the server never sees, so a server-side emitter could
@@ -66,6 +75,7 @@ const BLOCKED_REASONS = new Set<LeadContactBlockedReason>([
   'window_closed_no_template',
 ])
 const CHANNELS = new Set<LeadContactChannel>(['whatsapp_api', 'whatsapp_native', 'phone'])
+const CONNECT_FAILURE_REASONS = new Set<string>(CLIENT_CONNECT_FAILURE_REASONS)
 
 /**
  * TIER 1. Telemetry is measurement, not a customer capability: it costs
@@ -88,7 +98,10 @@ export async function recordLeadActionEvent(
   const reason = props?.reason
   const channel = props?.channel
   const intendedChannel = props?.intendedChannel
-  if (reason !== undefined && !BLOCKED_REASONS.has(reason as LeadContactBlockedReason)) return
+  const isConnectFailure = event === 'whatsapp_connect_failed'
+  // A connect failure without a known reason is worthless — reject it outright.
+  if (isConnectFailure && !CONNECT_FAILURE_REASONS.has(reason ?? '')) return
+  if (!isConnectFailure && reason !== undefined && !BLOCKED_REASONS.has(reason as LeadContactBlockedReason)) return
   if (channel !== undefined && !CHANNELS.has(channel as LeadContactChannel)) return
   if (intendedChannel !== undefined && !CHANNELS.has(intendedChannel as LeadContactChannel)) return
 
@@ -111,7 +124,20 @@ export async function recordLeadActionEvent(
 
   try {
     const user = await requireBasicCrmAccess()
-    await track({ agencyId: user.agencyId, userId: user.id, event, props: safeProps })
+    /**
+     * WhatsApp connect events carry ONLY server-built props. `inApp` comes from
+     * this request's own User-Agent (the Server Action POST is the same browser),
+     * so nothing the client sends can claim or hide an in-app browser. `null`
+     * means "checked, not in-app" — distinct from events recorded before this.
+     */
+    const inApp = () => getInAppBrowser().catch(() => null)
+    const eventProps =
+      event === 'whatsapp_connect_started'
+        ? { inApp: await inApp() }
+        : isConnectFailure
+          ? { reason, stage: 'client', inApp: await inApp() }
+          : safeProps
+    await track({ agencyId: user.agencyId, userId: user.id, event, props: eventProps })
   } catch {
     // Analytics must never break a flow; swallow auth/db hiccups.
   }

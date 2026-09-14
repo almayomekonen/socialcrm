@@ -26,10 +26,13 @@ import {
   type OAuthReturnQuery,
 } from './oauthReturn'
 import { useIntegrationReturnContinuation } from './useIntegrationReturn'
+import type { InAppBrowser } from '@/lib/connections/useInAppWarning'
 
 export type IntegrationsLandingProps = {
   initialSheet: 'whatsapp' | 'facebook' | 'calendar' | 'drive' | null
   oauthQuery?: OAuthReturnQuery
+  /** Server-detected Instagram/Facebook in-app browser, forwarded to both connect flows. */
+  inAppBrowser?: InAppBrowser
   whatsapp: {
     connection: { phoneNumberId: string } | null
     pendingPhones: { id: string; displayPhone: string; verifiedName: string }[] | null
@@ -71,6 +74,7 @@ type Sheet = 'whatsapp' | 'facebook' | 'calendar' | 'drive' | null
 export default function IntegrationsLanding({
   initialSheet,
   oauthQuery = {},
+  inAppBrowser,
   whatsapp,
   facebook,
   templates,
@@ -251,6 +255,7 @@ export default function IntegrationsLanding({
             status={whatsapp.status}
             description='כדי לשלוח הודעות ללידים ישירות מ־SocialCRM, חבר את ה־WhatsApp העסקי שלך.'
             connectLabel='חבר WhatsApp עסקי'
+            inAppBrowser={inAppBrowser}
           />
         )}
       </ConnectManageSheet>
@@ -270,6 +275,7 @@ export default function IntegrationsLanding({
             connection={facebook.connection}
             pendingPages={facebook.pendingPages}
             health={facebook.health}
+            inAppBrowser={inAppBrowser}
           />
         )}
       </ConnectManageSheet>

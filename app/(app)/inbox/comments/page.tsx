@@ -14,7 +14,7 @@ import { COMMENT_STATUSES, type CommentStatusFilter } from '@/modules/facebookCo
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
-import { isMobileWorkspaceRequest } from '@/lib/device'
+import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInboxMobile'
 
 /**
@@ -96,6 +96,7 @@ export default async function FacebookCommentsPage({
       notice={replyNotice}
       href='/api/auth/facebook?feature=comment_replies'
       canAuthorize={isAdmin(user.role as Roles)}
+      inAppBrowser={await getInAppBrowser()}
     />
   ) : sp.permission === 'granted' && replyablePageIds.length > 0 ? (
     // Returned from Facebook with the permission granted: say so once (ux-guidelines §8).

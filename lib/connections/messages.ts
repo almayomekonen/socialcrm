@@ -17,6 +17,10 @@ import { META_FEATURE_NOTICES } from '@/lib/connections/metaFeatureNotices'
  *
  * Keys are the codes the existing routes already emit. Error detection was not
  * changed — this is a copy-only layer.
+ *
+ * NOTE: this file is over the 350-line limit intentionally. It is a flat copy
+ * registry whose entries must be read side by side to stay one voice; splitting
+ * it by channel would scatter approved wording without reducing any logic.
  */
 export type ConnectionNotice = {
   title: string
@@ -51,6 +55,20 @@ export const SHARED = {
 } as const
 
 /**
+ * Shown on the first connect tap inside Instagram's in-app browser (detected
+ * server-side, see `inAppBrowserFromHeaders`; scoped in `useInAppWarning`). One
+ * entry for both channels: the cause and the fix are identical. Its action is
+ * "try anyway" — detection can be wrong, so the notice warns and never blocks.
+ */
+const IN_APP_BROWSER_NOTICE: ConnectionNotice = {
+  tone: 'attention',
+  title: 'כדאי לפתוח את האתר בדפדפן',
+  explanation: 'בתוך אינסטגרם, חלון ההתחברות של Meta לא תמיד נפתח או חוזר למערכת.',
+  nextStep: 'לפתוח את getsocialcrm.com ב-Safari או ב-Chrome, להתחבר ולנסות שוב.',
+  action: 'לנסות בכל זאת',
+}
+
+/**
  * Facebook. Keys match `?error=` values from the OAuth callback, plus the
  * connect-result and health states the component sets directly.
  *
@@ -60,6 +78,7 @@ export const SHARED = {
  * so a missing entry degrades quietly instead of breaking.
  */
 export const FACEBOOK_NOTICES: Record<string, ConnectionNotice> = {
+  in_app_browser: IN_APP_BROWSER_NOTICE,
   denied: {
     tone: 'error',
     title: 'החיבור לפייסבוק לא הושלם',
@@ -223,6 +242,22 @@ export const FACEBOOK_NOTICES: Record<string, ConnectionNotice> = {
  * copy-only pass.
  */
 export const WHATSAPP_NOTICES: Record<string, ConnectionNotice> = {
+  in_app_browser: IN_APP_BROWSER_NOTICE,
+  /**
+   * Meta's popup closed before the flow finished, with NO connection yet.
+   * (`cancelled` on a live connection stays silent — see SILENT_WHATSAPP_CODES
+   * and `whatsappLaunchNoticeCode`.) On a phone this is also how a flow ends
+   * when it dies mid-switch to the WhatsApp Business app, hence the computer
+   * alternative.
+   */
+  not_completed: {
+    tone: 'attention',
+    title: 'החיבור לוואטסאפ לא הושלם',
+    explanation: 'חלון ההתחברות של Meta נסגר לפני שכל השלבים הסתיימו.',
+    reasons: ['החלון נסגר לפני הסיום', 'מעבר לאפליקציה אחרת באמצע התהליך'],
+    nextStep: 'לנסות שוב ולהשלים את השלבים ברצף, או להשלים את החיבור מהמחשב.',
+    action: SHARED.retry,
+  },
   sdk: {
     tone: 'error',
     title: 'חלון ההתחברות לא נפתח',
