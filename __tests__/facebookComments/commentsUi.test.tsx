@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 vi.mock('@/lib/useAction', () => ({
   useAction: () => ({ loading: false, error: null, setError: vi.fn(), run: (fn: () => unknown) => fn() }),
 }))
-vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.fn(async () => ({ ok: true, leadId: 7 })) }))
+vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.fn(async () => ({ ok: true, leadId: 7, created: true })) }))
 vi.mock('@/modules/facebookComments/replyActions', () => ({ replyToComment: vi.fn(async () => ({ ok: true, replyId: 'r1' })) }))
 
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
@@ -163,13 +163,13 @@ describe('CommentsList — status states', () => {
 
   it('links to the created ליד after conversion, using the standard lead route', () => {
     render(<CommentsList comments={[item({ status: 'converted', convertedLeadId: 42 })]} />)
-    const link = screen.getByRole('link', { name: /פתח את הליד/ })
+    const link = screen.getByRole('link', { name: 'פתח ליד' })
     expect(link).toHaveAttribute('href', '/clients/42/summary')
   })
 
   it('shows no lead link when nothing was converted', () => {
     render(<CommentsList comments={[item({ status: 'open', convertedLeadId: null })]} />)
-    expect(screen.queryByRole('link', { name: /פתח את הליד/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'פתח ליד' })).not.toBeInTheDocument()
   })
 
   it('renders every comment in the list, newest-first order preserved from the query', () => {
@@ -360,7 +360,7 @@ describe('CommentsEmptyState', () => {
   })
 
   it('uses no emoji anywhere', () => {
-    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'awaiting-text'] as const) {
+    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'no-open', 'no-converted', 'awaiting-text'] as const) {
       const { unmount } = render(<CommentsEmptyState kind={kind} />)
       expect(document.body.textContent ?? '').not.toMatch(/\p{Extended_Pictographic}/u)
       unmount()

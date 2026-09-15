@@ -16,6 +16,8 @@ export default function CommentsInboxMobile({
   replies = [],
   replyablePageIds = [],
   replyPrompt = null,
+  statusFilter = null,
+  leavesViewOnConvert = false,
   showMessenger = false,
 }: {
   emptyKind: CommentsEmptyKind | null
@@ -25,6 +27,9 @@ export default function CommentsInboxMobile({
   replyablePageIds?: string[]
   /** The reply-permission notice + CTA, built by the route; null when not needed. */
   replyPrompt?: ReactNode
+  /** The status filter, built by the route; null when there is no Page to filter. */
+  statusFilter?: ReactNode
+  leavesViewOnConvert?: boolean
   showMessenger?: boolean
 }) {
   return (
@@ -33,13 +38,24 @@ export default function CommentsInboxMobile({
         <InboxChannelSwitch active='facebook' showMessenger={showMessenger} />
       </div>
 
+      {statusFilter && (
+        <div className='[&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
+          {statusFilter}
+        </div>
+      )}
+
       {emptyKind && <CommentsEmptyState kind={emptyKind} compact />}
 
       {comments.length > 0 && (
         <>
           {awaitingText && <CommentsEmptyState kind='awaiting-text' compact />}
           {replyPrompt}
-          <CommentsListMobile comments={comments} replies={replies} replyablePageIds={replyablePageIds} />
+          <CommentsListMobile
+            comments={comments}
+            replies={replies}
+            replyablePageIds={replyablePageIds}
+            leavesViewOnConvert={leavesViewOnConvert}
+          />
         </>
       )}
     </div>

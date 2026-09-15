@@ -14,9 +14,10 @@ import { threadRootId } from '@/lib/facebook/comments/thread'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import { FACEBOOK_NOTICES } from '@/lib/connections/messages'
-import { COMMENT_STATUSES, type CommentStatusFilter } from '@/modules/facebookComments/types'
+import type { CommentStatusFilter } from '@/modules/facebookComments/types'
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
+import CommentsStatusFilter, { PAGE_STATUS_FILTERS } from '@/modules/facebookComments/components/CommentsStatusFilter'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInboxMobile'
@@ -67,9 +68,12 @@ export default async function FacebookCommentsPage({
   }
 
   const sp = await searchParams
-  const status: CommentStatusFilter = COMMENT_STATUSES.includes(sp.status as CommentStatusFilter)
+  // Default "הכל", like the WhatsApp inbox: a comment turned into a ליד stays in
+  // view with its link instead of vanishing from an open-only list. Only the
+  // filters this page offers are accepted; anything else is "הכל".
+  const status: CommentStatusFilter = PAGE_STATUS_FILTERS.includes(sp.status as CommentStatusFilter)
     ? (sp.status as CommentStatusFilter)
-    : 'open'
+    : 'all'
 
   // Every Page this agency owns (an agency may hold several), with the grant
   // Meta recorded for each. Replying is offered per Page, never assumed.
@@ -113,12 +117,18 @@ export default async function FacebookCommentsPage({
   // is not an empty state — comments exist, so the notice sits ABOVE the list
   // to explain the blanks rather than replacing the data.
   const awaitingText = page.items.length > 0 && page.items.every((c) => !c.messageAvailable)
+  // Zero rows under a narrowing filter is filtered-empty, not "no comments yet".
+  const noRowsKind = status === 'open' ? 'no-open' : status === 'converted' ? 'no-converted' : 'no-comments'
+  // System-empty (no comments at all) shows no filter; filtered-empty keeps it (ux-guidelines §11).
+  const statusFilter = status !== 'all' || page.items.length > 0 ? <CommentsStatusFilter active={status} /> : null
 
   if (mobile) {
-    const emptyKind = !connection ? 'not-connected' : page.items.length === 0 ? 'no-comments' : null
+    const emptyKind = !connection ? 'not-connected' : page.items.length === 0 ? noRowsKind : null
     return (
       <CommentsInboxMobile
         emptyKind={emptyKind}
+        statusFilter={connection && statusFilter}
+        leavesViewOnConvert={status === 'open'}
         comments={connection ? page.items : []}
         awaitingText={awaitingText}
         replies={replies}
@@ -138,13 +148,20 @@ export default async function FacebookCommentsPage({
 
       {!connection && <CommentsEmptyState kind='not-connected' />}
 
-      {connection && page.items.length === 0 && <CommentsEmptyState kind='no-comments' />}
+      {connection && statusFilter}
+
+      {connection && page.items.length === 0 && <CommentsEmptyState kind={noRowsKind} />}
 
       {connection && page.items.length > 0 && (
         <>
           {awaitingText && <CommentsEmptyState kind='awaiting-text' />}
           {replyPrompt}
-          <CommentsList comments={page.items} replies={replies} replyablePageIds={replyablePageIds} />
+          <CommentsList
+            comments={page.items}
+            replies={replies}
+            replyablePageIds={replyablePageIds}
+            leavesViewOnConvert={status === 'open'}
+          />
         </>
       )}
     </div>

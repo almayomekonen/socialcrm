@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { useAction } from '@/lib/useAction'
@@ -8,64 +10,145 @@ import { toast } from '@/lib/toast'
 import { convertCommentToLead } from '../actions'
 
 /**
- * "צור ליד" for one comment. Pending state is local to this button — the rest
- * of the list stays usable (frontend-experience §7).
+ * The ליד slot of one comment row: "צור ליד" while the comment has no ליד,
+ * "פתח ליד" once it is linked. ONE component for both, rendered at the same place
+ * in the row, so the outcome of a click survives the page refresh the action
+ * triggers (its revalidatePath re-renders the list with the comment converted).
  *
- * Failures are named, not generic: a rep who hits the quota needs to know that,
- * not "something went wrong". No raw error text ever reaches here; the action
- * returns typed reasons.
+ * Success is confirmed only by the action's result — never optimistically — and
+ * says which of the two happened: a new ליד, or a link to one that already
+ * existed. A failure stays next to the button, which stays available to retry.
+ * Pending state is local, and a second click while the first is in flight sends
+ * nothing (frontend-experience §7); the server is idempotent regardless.
+ *
+ * ACCESSIBILITY: the `role='status'` region is mounted in every state and only
+ * its content changes, so the confirmation is announced (a live region inserted
+ * together with its text often is not). The clicked button disappears on
+ * success, so focus moves to "פתח ליד" instead of falling to the page.
+ *
+ * Under a filter the comment no longer matches once converted ("פתוחות"), the
+ * refresh removes the row and this confirmation with it — so there, and only
+ * there, success is also confirmed by a toast that opens the ליד.
+ *
+ * No raw error text ever reaches here; the action returns typed reasons.
  */
 const FAILURE_COPY: Record<string, string> = {
-  not_found: 'התגובה לא נמצאה',
-  deleted: 'התגובה נמחקה בפייסבוק ולא ניתן להמיר אותה',
-  page_authored: 'זו תגובה של הדף שלך, ולא ניתן ליצור ממנה ליד',
-  not_enabled: 'התכונה אינה זמינה בחשבון הזה',
-  quota_exceeded: 'הגעת למכסת הלידים בחבילה הנוכחית',
-  create_failed: 'לא ניתן ליצור ליד מהתגובה',
-  db_error: 'לא ניתן ליצור ליד מהתגובה. נסה שוב.',
+  not_found: 'התגובה לא נמצאה. רענן את הדף ונסה שוב.',
+  deleted: 'התגובה נמחקה בפייסבוק, ולכן לא ניתן ליצור ממנה ליד.',
+  page_authored: 'זו תגובה של הדף שלך, ולכן לא ניתן ליצור ממנה ליד.',
+  not_enabled: 'יצירת לידים מתגובות אינה זמינה בחשבון הזה.',
+  quota_exceeded: 'הגעת למכסת הלידים בחבילה הנוכחית. שדרג את החבילה כדי ליצור ליד מהתגובה.',
+  create_failed: 'הליד לא נוצר. נסה שוב.',
+  // The ליד may exist with the link unsaved; a retry adopts it, so do not claim "not created".
+  db_error: 'לא הצלחנו להשלים את יצירת הליד. נסה שוב.',
 }
+const THROWN_COPY = 'לא הצלחנו להשלים את יצירת הליד. בדוק את החיבור ונסה שוב.'
 
-export default function ConvertCommentButton({ commentId }: { commentId: string }) {
+type Outcome = { kind: 'created' | 'existing'; leadId: number } | { kind: 'error'; message: string }
+
+const leadHref = (leadId: number) => `/clients/${leadId}/summary`
+const successCopy = (kind: 'created' | 'existing') => (kind === 'created' ? 'הליד נוצר בהצלחה' : 'התגובה כבר מקושרת לליד קיים')
+const linkCls = 'text-xs font-medium text-primary underline underline-offset-2'
+
+export default function ConvertCommentButton({
+  commentId,
+  convertedLeadId = null,
+  leavesViewOnConvert = false,
+}: {
+  commentId: string
+  /** The ליד this comment is already linked to, from the server; null while it has none. */
+  convertedLeadId?: number | null
+  /** True when the current list excludes converted comments, so this row will disappear. */
+  leavesViewOnConvert?: boolean
+}) {
   const router = useRouter()
   /*
-    `useAction`'s entitlement sentinel does NOT reach this component: it reads
-    only `loading`/`run`, and `convertCommentToLead` CATCHES the guard's throw
-    internally and returns `{ ok:false, reason:'db_error' }` — which this button
-    renders as "לא ניתן ליצור ליד מהתגובה. נסה שוב." A retry that can never
-    succeed. Enforcement is intact (creation routes through `upsertLead`, which
-    calls requireProductAccess); only the message was wrong.
+    A lapsed subscription never throws out of `convertCommentToLead`: `upsertLead`
+    catches its own entitlement guard and returns an error result, which becomes
+    `create_failed`. So the locked state is recognised from `accessDenied` (seeded
+    client-side). Enforcement is intact: creation routes through `upsertLead`.
   */
-  const { loading, run, accessDenied } = useAction()
+  const { loading, run, error, accessDenied } = useAction()
+  const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const inFlight = useRef(false)
+  const openLeadRef = useRef<HTMLAnchorElement>(null)
+
+  const success = outcome && outcome.kind !== 'error' ? outcome : null
+  useEffect(() => {
+    if (success) openLeadRef.current?.focus()
+  }, [success])
 
   if (accessDenied) {
-    return <SubscriptionExpiredState mode='inline' source='convert_comment' feature='חידוש המנוי מחזיר את המרת התגובות לליד' />
+    // Opening an existing ליד stays available on a lapsed subscription; creating one does not.
+    if (!convertedLeadId && !success) {
+      return <SubscriptionExpiredState mode='inline' source='convert_comment' feature='חידוש המנוי מחזיר את המרת התגובות לליד' />
+    }
+  }
+
+  // A thrown action (network, server crash) reaches `error` via useAction.
+  const failure = outcome?.kind === 'error' ? outcome.message : error ? THROWN_COPY : null
+
+  const onClick = () => {
+    // `run` checks its own `loading`, but that is state: two clicks in one
+    // frame would both pass it. The ref closes that window.
+    if (inFlight.current) return
+    inFlight.current = true
+    run(async () => {
+      setOutcome(null)
+      try {
+        const result = await convertCommentToLead(commentId)
+        // `in` rather than narrowing on `result.ok`: the repo compiles with
+        // strictNullChecks:false, which disables discriminated-union narrowing.
+        if ('leadId' in result) {
+          const kind = result.created ? 'created' : 'existing'
+          const leadId = result.leadId
+          setOutcome({ kind, leadId })
+          if (leavesViewOnConvert) toast('success', `${successCopy(kind)} · פתח ליד`, 8000, () => router.push(leadHref(leadId)))
+          return
+        }
+        const reason = 'reason' in result ? result.reason : undefined
+        setOutcome({ kind: 'error', message: (reason && FAILURE_COPY[reason]) || FAILURE_COPY.create_failed })
+      } finally {
+        inFlight.current = false
+      }
+    })
   }
 
   return (
-    <Btn
-      lbl={loading ? 'יוצר ליד...' : 'צור ליד'}
-      icon={loading ? 'spinner' : undefined}
-      iconClassName={loading ? 'animate-spin' : undefined}
-      variant='outline'
-      size='small'
-      className='w-fit'
-      disabled={loading}
-      onClick={() =>
-        run(async () => {
-          const result = await convertCommentToLead(commentId)
-          if (result.ok) {
-            toast('success', 'הליד נוצר בהצלחה')
-            router.refresh()
-            return
-          }
-          // `in` rather than narrowing on `result.ok`: the repo compiles with
-          // strictNullChecks:false, which disables discriminated-union
-          // narrowing on a boolean discriminant. This is the same shape the
-          // codebase already uses for upsertLead's `'error' in lead` result.
-          const reason = 'reason' in result ? result.reason : undefined
-          toast('error', (reason && FAILURE_COPY[reason]) || FAILURE_COPY.create_failed)
-        })
-      }
-    />
+    <span className='inline-flex flex-wrap items-center gap-x-2 gap-y-1'>
+      {!success && convertedLeadId && (
+        <Link href={leadHref(convertedLeadId)} className={linkCls}>
+          פתח ליד
+        </Link>
+      )}
+      {!success && !convertedLeadId && (
+        <Btn
+          lbl={loading ? 'יוצר ליד...' : 'צור ליד'}
+          icon={loading ? 'spinner' : undefined}
+          iconClassName={loading ? 'animate-spin' : undefined}
+          variant='outline'
+          size='small'
+          className='w-fit'
+          disabled={loading}
+          onClick={onClick}
+        />
+      )}
+      {/* Always mounted (never display:none), so screen readers announce what appears in it. */}
+      <span role='status' className='inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
+        {success && (
+          <>
+            <span className='font-medium text-green-700'>{successCopy(success.kind)}</span>
+            <Link ref={openLeadRef} href={leadHref(success.leadId)} className={linkCls}>
+              פתח ליד
+            </Link>
+          </>
+        )}
+      </span>
+      {failure && (
+        <span role='alert' className='text-xs text-red-600'>
+          {failure}
+        </span>
+      )}
+    </span>
   )
 }

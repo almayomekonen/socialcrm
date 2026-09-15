@@ -17,6 +17,8 @@ export default function Loading() {
         <div className='grid gap-3 p-3 sm:p-4' aria-busy='true' aria-live='polite'>
           <span className='sr-only'>טוען תגובות</span>
           <div className='h-6 w-40 rounded bg-gray-100 motion-safe:animate-pulse' />
+          {/* The status filter row. */}
+          <div className='h-6 w-52 rounded-full bg-gray-100 motion-safe:animate-pulse' />
           <ul className='divide-y divide-gray-100 rounded-md border border-gray-200 bg-white'>
             {[0, 1, 2, 3, 4].map((i) => (
               <li key={i} className='flex gap-2.5 px-3 py-2.5'>

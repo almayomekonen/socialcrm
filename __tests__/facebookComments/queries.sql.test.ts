@@ -63,6 +63,19 @@ describe('listPageCommentsQuery — status filtering', () => {
     expect(bindings).toContain('deleted')
   })
 
+  it('a comment deleted on Facebook that produced a ליד stays under "all" and "converted", grouped inside the tenant filter', () => {
+    for (const status of ['all', 'converted'] as const) {
+      const { sql, bindings } = listPageCommentsQuery(db, AGENCY, { status }).toSQL()
+      const s = sql.toLowerCase()
+      expect(s).toContain('"convertedleadid" is not null')
+      // The OR is parenthesised after the agency predicate — it cannot widen the tenant scope.
+      expect(s).toMatch(/"agencyid" = \? and "authorispage" = \? and \(.*or.*"convertedleadid" is not null.*\)/)
+      expect(bindings[0]).toBe(AGENCY)
+    }
+    const open = listPageCommentsQuery(db, AGENCY, { status: 'open' }).toSQL().sql.toLowerCase()
+    expect(open).not.toContain('convertedleadid" is not null')
+  })
+
   it('rejects an unknown status by falling back to open — no injection surface', () => {
     // A querystring is user input; an unrecognised value must not reach SQL.
     const { bindings } = listPageCommentsQuery(db, AGENCY, {

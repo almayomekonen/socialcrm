@@ -34,7 +34,8 @@ import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capa
  */
 
 export type ConvertResult =
-  | { ok: true; leadId: number }
+  /** `created: false` — the comment was already linked to this ליד (an earlier or concurrent click). */
+  | { ok: true; leadId: number; created: boolean }
   | {
       ok: false
       reason:
@@ -47,11 +48,15 @@ export type ConvertResult =
         | 'db_error'
     }
 
-/** "דוד כהן" → first + last. A one-word name has no last name. */
-function splitAuthorName(full: string | null | undefined): { firstName: string; lastName: string | null } {
+/**
+ * "דוד כהן" → first + last. A one-word or missing name has an EMPTY last name:
+ * `clients."lastName"` is NOT NULL, so null would fail the insert for every
+ * commenter whose Facebook name is a single word.
+ */
+function splitAuthorName(full: string | null | undefined): { firstName: string; lastName: string } {
   const parts = (full ?? '').trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return { firstName: 'מגיב מפייסבוק', lastName: null }
-  return { firstName: parts[0], lastName: parts.slice(1).join(' ') || null }
+  if (parts.length === 0) return { firstName: 'מגיב מפייסבוק', lastName: '' }
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
 }
 
 export async function convertCommentToLead(commentId: string): Promise<ConvertResult> {
@@ -73,8 +78,12 @@ export async function convertCommentToLead(commentId: string): Promise<ConvertRe
     // The Page's own reply is the business talking, not a prospect.
     if (comment.authorIsPage) return { ok: false, reason: 'page_authored' }
 
-    // Already converted — return the same ליד rather than making a second.
-    if (comment.convertedLeadId) return { ok: true, leadId: comment.convertedLeadId }
+    // Already converted — return the same ליד rather than making a second. The
+    // refresh brings a stale tab's row up to date (it may still show "צור ליד").
+    if (comment.convertedLeadId) {
+      revalidatePath('/inbox/comments')
+      return { ok: true, leadId: Number(comment.convertedLeadId), created: false }
+    }
 
     const link = async (leadId: number) => {
       await db('facebook_page_comments')
@@ -84,11 +93,15 @@ export async function convertCommentToLead(commentId: string): Promise<ConvertRe
 
     // Recovery: an earlier attempt may have created the ליד and died before
     // linking. The unique index means we cannot create another, so adopt it.
-    const orphan = await db('clients').where({ leadSource, agencyId: user.agencyId }).first()
-    if (orphan?.id) {
-      await link(orphan.id)
+    const findExisting = async () => {
+      const row = await db('clients').where({ leadSource, agencyId: user.agencyId }).first()
+      return row?.id ? Number(row.id) : null
+    }
+    const orphanId = await findExisting()
+    if (orphanId) {
+      await link(orphanId)
       revalidatePath('/inbox/comments')
-      return { ok: true, leadId: orphan.id }
+      return { ok: true, leadId: orphanId, created: false }
     }
 
     const { firstName, lastName } = splitAuthorName(comment.authorName)
@@ -97,22 +110,38 @@ export async function convertCommentToLead(commentId: string): Promise<ConvertRe
     // anything longer, so any synthetic `FB_{id}` collapses to 9 characters and
     // collides on clients_idNum_agencyId_unique. Omitting it leaves NULL, which
     // is correct and is the norm for leads with no national id.
+    // VISIBILITY: `status` and `userId` are set explicitly. Left out, the column
+    // defaults win — `clients.status` defaults to the legacy string 'true' and
+    // `userId` to NULL — and such a ליד matches no status tab in לידים and no
+    // rep's permission filter: created, linked, and impossible to find
+    // (production, 2026-09-15). Same values as every other intake path.
     const lead = await upsertLead(
       user.id,
-      { firstName, lastName, leadSource, lead: true, handlerId: user.id },
+      { firstName, lastName, leadSource, lead: true, status: 'new', userId: user.id, handlerId: user.id },
       undefined,
       true,
       'manual',
     )
 
-    if (!lead) return { ok: false, reason: 'create_failed' }
-    if (typeof lead === 'object' && 'error' in lead) {
-      return { ok: false, reason: lead.error === 'quota_exceeded' ? 'quota_exceeded' : 'create_failed' }
+    // No id means no ליד from THIS call: quota, entitlement or a DB error (upsertLead
+    // catches those and returns `{ err }` / `{ error }`). A concurrent click may have
+    // created this comment's ליד first — the unique leadSource index refuses ours, or
+    // its insert used the last quota slot — so adopt that one before reporting failure.
+    // Never link without an id: that would mark the comment converted with no ליד.
+    if (!lead || typeof lead !== 'object' || !('id' in lead) || lead.id == null) {
+      const concurrentId = await findExisting()
+      if (concurrentId) {
+        await link(concurrentId)
+        revalidatePath('/inbox/comments')
+        return { ok: true, leadId: concurrentId, created: false }
+      }
+      const quota = typeof lead === 'object' && lead !== null && 'error' in lead && lead.error === 'quota_exceeded'
+      return { ok: false, reason: quota ? 'quota_exceeded' : 'create_failed' }
     }
 
-    await link(lead.id)
+    await link(Number(lead.id))
     revalidatePath('/inbox/comments')
-    return { ok: true, leadId: lead.id }
+    return { ok: true, leadId: Number(lead.id), created: true }
   } catch (err) {
     // Never surface a raw error to the client (frontend-experience §5).
     console.error('[FacebookComments] convertCommentToLead failed:', err)

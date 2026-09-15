@@ -99,6 +99,9 @@ export async function promoteConversationToLead(conversationIdRaw: number | stri
       lastName: parsed.lastName || '',
       phone: parsed.phone,
       lead: true,
+      // Explicit: the column defaults (status 'true', userId NULL) hide a ליד from every status tab and rep filter.
+      status: 'new',
+      userId: user.id,
       handlerId: user.id,
     },
     null,

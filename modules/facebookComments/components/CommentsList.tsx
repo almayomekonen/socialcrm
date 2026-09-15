@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { formatDateTime } from '@/lib/dates'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import LeadAvatar from '@/components/ui/lead-avatar'
@@ -7,6 +6,7 @@ import CommentThread from './CommentThread'
 import CommentReplyForm from './CommentReplyForm'
 import { facebookCommentUrl } from '@/lib/facebook/comments/links'
 import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thread'
+import { badgeStatus, hasLeadSlot } from '../rowState'
 import type { CommentListItem, CommentReply, CommentStatus } from '../types'
 
 /**
@@ -19,8 +19,6 @@ import type { CommentListItem, CommentReply, CommentStatus } from '../types'
  * NO CONTACT DETAILS ARE SHOWN OR IMPLIED. A Facebook comment carries a display
  * name and a page-scoped id: no phone, no email. Rendering a call or mail
  * affordance here would be inventing data.
- *
- * There is no "create lead" action yet — that is Task 6.
  */
 
 const STATUS_BADGE: Partial<Record<CommentStatus, { label: string; cls: string }>> = {
@@ -33,12 +31,15 @@ export default function CommentsList({
   comments,
   replies = [],
   replyablePageIds = [],
+  leavesViewOnConvert = false,
 }: {
   comments: CommentListItem[]
   /** Thread entries for the listed comments (see listCommentReplies). */
   replies?: CommentReply[]
   /** Pages whose recorded grant includes the reply permission. */
   replyablePageIds?: string[]
+  /** The list is filtered to open comments: a converted row drops out on refresh. */
+  leavesViewOnConvert?: boolean
 }) {
   const threads = groupRepliesByThread(replies)
   const replyable = new Set(replyablePageIds)
@@ -48,7 +49,8 @@ export default function CommentsList({
         // createdTime is nullable (Meta may omit created_time); receivedAt is
         // not, so the row always has an honest timestamp to show.
         const when = c.createdTime ?? c.receivedAt
-        const badge = STATUS_BADGE[c.status]
+        const shown = badgeStatus(c)
+        const badge = shown ? STATUS_BADGE[shown] : undefined
         const thread = threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []
         const facebookUrl = facebookCommentUrl(c.postId, c.commentId)
 
@@ -91,21 +93,17 @@ export default function CommentsList({
                   </span>
                 )}
 
-                {/* After conversion the row points at the ליד it produced —
-                    the same /clients/{id}/summary link every other surface uses. */}
-                {c.convertedLeadId && (
-                  <Link
-                    href={`/clients/${c.convertedLeadId}/summary`}
-                    className='text-[11px] text-primary underline underline-offset-2'
-                  >
-                    פתח את הליד
-                  </Link>
+                {/* The ליד slot: "צור ליד" for a live, unconverted comment, "פתח ליד"
+                    (the standard /clients/{id}/summary route) once linked. One
+                    component in one position, so a click's confirmation survives
+                    the refresh that follows it. See rowState for who gets one. */}
+                {hasLeadSlot(c) && (
+                  <ConvertCommentButton
+                    commentId={c.commentId}
+                    convertedLeadId={c.convertedLeadId}
+                    leavesViewOnConvert={leavesViewOnConvert}
+                  />
                 )}
-
-                {/* Offered only for a live, unconverted comment. A deleted
-                    comment no longer exists on Facebook; a converted one
-                    already has its ליד. */}
-                {c.status === 'open' && !c.convertedLeadId && <ConvertCommentButton commentId={c.commentId} />}
 
                 {/* The post the comment was left on, opened at this comment. External. */}
                 {facebookUrl && (
