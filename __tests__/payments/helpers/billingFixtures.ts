@@ -23,7 +23,7 @@ export async function seedAgency(over: Record<string, unknown> = {}): Promise<nu
 
 export async function seedUser(agencyId: number, role: Roles = Roles.ADMIN): Promise<number> {
   const [row] = await db('users')
-    .insert({ agencyId, firstName: 'Owner', lastName: 'Test', email: `${TAG}${rand()}@example.com`, role })
+    .insert({ agencyId, firstName: 'Owner', lastName: `Test ${rand()}`, email: `${TAG}${rand()}@example.com`, role })
     .returning('id')
   return idOf(row)
 }
