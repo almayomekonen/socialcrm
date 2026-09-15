@@ -19,6 +19,8 @@ const h = vi.hoisted(() => {
   const state = {
     comment: null as Record<string, unknown> | null,
     existingLead: undefined as Record<string, unknown> | undefined,
+    /** When set, successive `clients` probes return these in order (then `existingLead`). */
+    leadProbes: [] as (Record<string, unknown> | undefined)[],
     wheres: [] as { table: string; where: unknown }[],
     updates: [] as { table: string; where: unknown; row: Record<string, unknown> }[],
     throwOnTable: null as string | null,
@@ -34,7 +36,7 @@ const h = vi.hoisted(() => {
     }
     b.first = async () => {
       if (table === 'facebook_page_comments') return state.comment
-      if (table === 'clients') return state.existingLead
+      if (table === 'clients') return state.leadProbes.length ? state.leadProbes.shift() : state.existingLead
       return undefined
     }
     b.update = async (row: Record<string, unknown>) => {
@@ -80,6 +82,7 @@ beforeEach(() => {
   process.env.FACEBOOK_COMMENTS_AGENCY_ALLOWLIST = String(AGENCY)
   h.state.comment = openComment()
   h.state.existingLead = undefined
+  h.state.leadProbes = []
   h.state.wheres = []
   h.state.updates = []
   h.state.throwOnTable = null
@@ -95,7 +98,7 @@ describe('convertCommentToLead — successful conversion', () => {
   it('creates the Lead and returns its id', async () => {
     const r = await convertCommentToLead(COMMENT)
 
-    expect(r).toEqual({ ok: true, leadId: 777 })
+    expect(r).toEqual({ ok: true, leadId: 777, created: true })
     expect(upsertLead).toHaveBeenCalledTimes(1)
   })
 
@@ -113,6 +116,17 @@ describe('convertCommentToLead — successful conversion', () => {
       lead: true,
       handlerId: 332,
     })
+  })
+
+  it('creates the ליד where לידים can show it: status "new", owned by the initiating user', async () => {
+    // Regression (production, 2026-09-15): without these the column defaults
+    // applied — status 'true', userId NULL — and the ליד matched no status tab
+    // in לידים and no rep's permission filter, though the comment said converted.
+    await convertCommentToLead(COMMENT)
+    const data = vi.mocked(upsertLead).mock.calls[0][1] as Record<string, unknown>
+
+    expect(data.status).toBe('new')
+    expect(data.userId).toBe(332)
   })
 
   it('NEVER sets idNum — add_zeros_trigger LPADs to 9 chars and truncates', async () => {
@@ -137,7 +151,8 @@ describe('convertCommentToLead — successful conversion', () => {
     const data = vi.mocked(upsertLead).mock.calls[0][1] as Record<string, unknown>
 
     expect(data.firstName).toBe('דוד')
-    expect(data.lastName).toBeNull()
+    // clients."lastName" is NOT NULL — null would make the insert fail.
+    expect(data.lastName).toBe('')
   })
 
   it('falls back to a neutral name when the author is unknown', async () => {
@@ -209,7 +224,7 @@ describe('convertCommentToLead — idempotency', () => {
 
     const r = await convertCommentToLead(COMMENT)
 
-    expect(r).toEqual({ ok: true, leadId: 777 })
+    expect(r).toEqual({ ok: true, leadId: 777, created: false })
     expect(upsertLead).not.toHaveBeenCalled()
   })
 
@@ -221,9 +236,9 @@ describe('convertCommentToLead — idempotency', () => {
     const third = await convertCommentToLead(COMMENT)
 
     expect([first, second, third]).toEqual([
-      { ok: true, leadId: 777 },
-      { ok: true, leadId: 777 },
-      { ok: true, leadId: 777 },
+      { ok: true, leadId: 777, created: true },
+      { ok: true, leadId: 777, created: false },
+      { ok: true, leadId: 777, created: false },
     ])
     expect(upsertLead).toHaveBeenCalledTimes(1)
   })
@@ -236,9 +251,22 @@ describe('convertCommentToLead — idempotency', () => {
 
     const r = await convertCommentToLead(COMMENT)
 
-    expect(r).toEqual({ ok: true, leadId: 555 })
+    expect(r).toEqual({ ok: true, leadId: 555, created: false })
     expect(upsertLead).not.toHaveBeenCalled()
     expect(h.state.updates[0].row).toMatchObject({ convertedLeadId: 555, status: 'converted' })
+  })
+
+  it('a concurrent click that created the ליד first is adopted, not reported as a failure', async () => {
+    // Nothing exists when this request looks; the other request's insert then
+    // wins the unique leadSource index, so ours comes back without an id.
+    h.state.leadProbes = [undefined, { id: 901 }]
+    vi.mocked(upsertLead).mockResolvedValue({ err: true, msg: 'duplicate key value violates unique constraint' } as never)
+
+    const r = await convertCommentToLead(COMMENT)
+
+    expect(r).toEqual({ ok: true, leadId: 901, created: false })
+    expect(h.state.updates).toHaveLength(1)
+    expect(h.state.updates[0].row).toMatchObject({ convertedLeadId: 901, status: 'converted' })
   })
 
   it('looks for the orphan by leadSource within the tenant', async () => {
@@ -273,6 +301,15 @@ describe('convertCommentToLead — failure handling', () => {
 
   it('reports a Lead-creation failure without linking anything', async () => {
     vi.mocked(upsertLead).mockResolvedValue(null as never)
+
+    const r = await convertCommentToLead(COMMENT)
+
+    expect(r).toEqual({ ok: false, reason: 'create_failed' })
+    expect(h.state.updates).toHaveLength(0)
+  })
+
+  it('an error result from upsertLead (no id) is a failure: the comment stays open', async () => {
+    vi.mocked(upsertLead).mockResolvedValue({ err: true, msg: 'insert failed' } as never)
 
     const r = await convertCommentToLead(COMMENT)
 

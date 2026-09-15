@@ -190,6 +190,8 @@ describe('promote Contact → Lead enqueues existing IRE', () => {
 
     const res = await promoteConversationToLead(371)
     expect(res).toEqual({ ok: true, leadId: 1416, created: true })
+    // Visible in לידים: status "new" and owned by the promoting user, not the column defaults ('true', NULL).
+    expect(upsertLead.mock.calls[0][1]).toMatchObject({ lead: true, status: 'new', userId: 332, handlerId: 332 })
     expect(attach).toHaveBeenCalledTimes(1)
     expect(enqueue).toHaveBeenCalledTimes(1)
     expect(enqueueIre).toHaveBeenCalledTimes(1)

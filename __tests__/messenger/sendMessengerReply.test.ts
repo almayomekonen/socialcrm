@@ -168,7 +168,8 @@ describe('lead association', () => {
     vi.mocked(upsertLead).mockResolvedValueOnce({ id: 900 } as never)
     expect(await createLeadFromMessengerConversation(12)).toEqual({ ok: true, leadId: 900 })
     const [, data, , , origin] = vi.mocked(upsertLead).mock.calls[0]
-    expect(data).toEqual({ firstName: 'דנה', lastName: 'לוי', leadSource: 'messenger:103:PAGE1:PSID-1', lead: true, handlerId: 7 })
+    // status/userId explicit: the column defaults ('true', NULL) hide the ליד from every לידים tab and rep filter.
+    expect(data).toEqual({ firstName: 'דנה', lastName: 'לוי', leadSource: 'messenger:103:PAGE1:PSID-1', lead: true, status: 'new', userId: 7, handlerId: 7 })
     expect(origin).toBe('manual')
   })
 

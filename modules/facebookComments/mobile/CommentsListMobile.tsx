@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { formatDateTime } from '@/lib/dates'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import ConvertCommentButton from '@/modules/facebookComments/components/ConvertCommentButton'
@@ -24,10 +23,13 @@ export default function CommentsListMobile({
   comments,
   replies = [],
   replyablePageIds = [],
+  leavesViewOnConvert = false,
 }: {
   comments: CommentListItem[]
   replies?: CommentReply[]
   replyablePageIds?: string[]
+  /** The list is filtered to open comments: a converted row drops out on refresh. */
+  leavesViewOnConvert?: boolean
 }) {
   const threads = groupRepliesByThread(replies)
   const replyable = new Set(replyablePageIds)
@@ -83,18 +85,13 @@ export default function CommentsListMobile({
                 )}
               </div>
 
-              {c.convertedLeadId && (
-                <Link
-                  href={`/clients/${c.convertedLeadId}/summary`}
-                  className='mt-1 inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-2'
-                >
-                  פתח את הליד
-                </Link>
-              )}
-
-              {c.status === 'open' && !c.convertedLeadId && (
-                <div className='mt-1 [&_button]:min-h-11 [&_button]:rounded-md'>
-                  <ConvertCommentButton commentId={c.commentId} />
+              {(c.convertedLeadId || c.status === 'open') && (
+                <div className='mt-1 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center [&_a]:text-sm [&_button]:min-h-11 [&_button]:rounded-md'>
+                  <ConvertCommentButton
+                    commentId={c.commentId}
+                    convertedLeadId={c.convertedLeadId}
+                    leavesViewOnConvert={leavesViewOnConvert}
+                  />
                 </div>
               )}
 
