@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
 import { encryptSecret } from '@/lib/crypto/secrets'
+import { Roles } from '@/types/roles'
 
 /**
  * Shared fixtures for card-token billing DB tests. Local test data only.
@@ -20,7 +21,7 @@ export async function seedAgency(over: Record<string, unknown> = {}): Promise<nu
   return id
 }
 
-export async function seedUser(agencyId: number, role = 'ADMIN'): Promise<number> {
+export async function seedUser(agencyId: number, role: Roles = Roles.ADMIN): Promise<number> {
   const [row] = await db('users')
     .insert({ agencyId, firstName: 'Owner', lastName: 'Test', email: `${TAG}${rand()}@example.com`, role })
     .returning('id')
