@@ -13,6 +13,16 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({ get: vi.fn(() => null), set: vi.fn(), delete: vi.fn() })),
   headers: vi.fn(() => ({ get: vi.fn(() => null) })),
 }))
+// No email ever leaves a test. The route's activation email goes through
+// lib/emailAutomations/live, whose sender builds the Resend client from env
+// RESEND at import time. Same convention as the a11y Grow webhook suites.
+vi.mock('@/lib/emailAutomations/live', () => ({ dispatchLifecycleEvent: vi.fn(async () => {}) }))
+// The route defers post-commit work with next/server after(), which throws
+// outside a request scope; run it inline, as the a11y Grow webhook suites do.
+vi.mock('next/server', async (orig) => ({
+  ...(await orig<typeof import('next/server')>()),
+  after: (fn: () => unknown) => fn(),
+}))
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
@@ -49,6 +59,9 @@ afterAll(async () => {
     await db('pending_upgrades').whereIn('agencyId', agencyIds).delete()
     await db('subscriptions').whereIn('agencyId', agencyIds).delete()
     await db('payments').whereIn('agencyId', agencyIds).delete()
+    // The route records analytics (track) for real, and analytics_events.agencyId
+    // references agencies — remove those rows first or the agency delete fails.
+    await db('analytics_events').whereIn('agencyId', agencyIds).delete()
     await db('agencies').whereIn('id', agencyIds).delete()
   }
   await db.destroy()
@@ -69,6 +82,9 @@ afterEach(async () => {
     await db('pending_upgrades').whereIn('agencyId', agencyIds).delete()
     await db('subscriptions').whereIn('agencyId', agencyIds).delete()
     await db('payments').whereIn('agencyId', agencyIds).delete()
+    // The route records analytics (track) for real, and analytics_events.agencyId
+    // references agencies — remove those rows first or the agency delete fails.
+    await db('analytics_events').whereIn('agencyId', agencyIds).delete()
     await db('agencies').whereIn('id', agencyIds).delete()
     agencyIds = []
   }
@@ -83,14 +99,30 @@ async function seedAgency(): Promise<number> {
   return id
 }
 
-function buildReq(opts: { body: unknown; bodyOverride?: string }) {
+/**
+ * Every genuine Grow delivery carries the endpoint's webhookKey in the body.
+ * It has been MANDATORY since fcf0daad (C-6): missing or invalid → 401, secret
+ * unset → 500. Fixtures therefore authenticate by default, placing the key where
+ * the route reads it (`body.data ?? body`). A fixture that already sets
+ * webhookKey / webhook_key keeps exactly what it set; `auth: 'none'` sends no key.
+ */
+function withWebhookKey(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body
+  const outer = body as Record<string, unknown>
+  const target = outer.data && typeof outer.data === 'object' ? (outer.data as Record<string, unknown>) : outer
+  if ('webhookKey' in target || 'webhook_key' in target) return body
+  return target === outer ? { ...outer, webhookKey: WEBHOOK_SECRET } : { ...outer, data: { ...target, webhookKey: WEBHOOK_SECRET } }
+}
+
+function buildReq(opts: { body: unknown; bodyOverride?: string; auth?: 'valid' | 'none' }) {
   // No auth header — production captures confirmed Grow PaymentLinks sends
-  // none. Auth (when present) is body-side via payload.webhookKey.
+  // none. Auth is body-side via payload.webhookKey.
   const headers: Record<string, string> = { 'content-type': 'application/json', host: APP_HOST }
+  const body = opts.auth === 'none' ? opts.body : withWebhookKey(opts.body)
   return new NextRequest('http://localhost:3000/api/payments/grow', {
     method: 'POST',
     headers,
-    body: opts.bodyOverride ?? JSON.stringify(opts.body),
+    body: opts.bodyOverride ?? JSON.stringify(body),
   })
 }
 
@@ -198,19 +230,24 @@ describe('POST /api/payments/grow — security', () => {
     expect(agency.plan).toBe('free')
   })
 
-  it('allows webhooks with NO webhookKey when GROW_WEBHOOK_SECRET is unset (URL-secrecy mode)', async () => {
-    // PaymentLinks variant: no webhookKey in payload, no auth header — auth
-    // rests entirely on URL secrecy + HMAC external_id verification.
+  it('refuses (500) a webhook with NO webhookKey when GROW_WEBHOOK_SECRET is unset — there is no URL-secrecy mode', async () => {
+    // URL-secrecy mode was removed in fcf0daad (C-6). Without a configured
+    // secret the handler fails closed before any business logic, even for a
+    // validly signed identifyParam token: that token is visible to the payer in
+    // their own payment URL, so it identifies an agency but proves no payment.
     delete process.env.GROW_WEBHOOK_SECRET
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
     const transactionId = 'tx_no_secret_no_key_' + Date.now()
 
-    const res = await POST(buildReq({ body: { transactionId, external_id: externalId } }))
+    const res = await POST(buildReq({ body: { transactionId, external_id: externalId }, auth: 'none' }))
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('Server misconfigured')
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
     const agency = await db('agencies').where({ id: agencyId }).first()
-    expect(agency.plan).toBe('pro')
+    expect(agency.plan).toBe('free')
   })
 
   it('rejects local-environment webhooks before touching DB', async () => {
@@ -239,6 +276,23 @@ describe('POST /api/payments/grow — security', () => {
       buildReq({
         body: { transactionId, external_id: externalId, webhookKey: 'wrong_key_' + 'x'.repeat(40) },
       }),
+    )
+
+    expect(res.status).toBe(401)
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('free')
+  })
+
+  it('rejects with 401 when the payload carries NO webhookKey while GROW_WEBHOOK_SECRET is set', async () => {
+    // A validly signed token alone is not authentication (fcf0daad, C-6).
+    const agencyId = await seedAgency()
+    const externalId = signToken(agencyId)
+    const transactionId = 'tx_nokey_' + Date.now()
+
+    const res = await POST(
+      buildReq({ body: { transactionId, status: 'success', external_id: externalId }, auth: 'none' }),
     )
 
     expect(res.status).toBe(401)
@@ -282,8 +336,8 @@ describe('POST /api/payments/grow — security', () => {
 
   it('ignores absent x-grow-signature header (no longer used)', async () => {
     // Regression guard: the old header-based check is gone. A request with
-    // no header at all should authenticate purely on body-key (or, when
-    // absent, on URL secrecy + verifyToken).
+    // no header at all authenticates purely on the body webhookKey (the
+    // fixture's default); there is no header or URL-secrecy fallback.
     const agencyId = await seedAgency()
     const externalId = signToken(agencyId)
     const transactionId = 'tx_no_header_' + Date.now()
@@ -307,17 +361,28 @@ describe('POST /api/payments/grow — security', () => {
     expect(agency.plan).toBe('free')
   })
 
-  it('rejects expired token with 400', async () => {
+  it('does not treat an expired (validly signed) token as forgery: payer identity decides, 404 when no owner matches', async () => {
+    // 0383df28 — "EXPIRY IS NOT FORGERY". The token has a 1-hour TTL, so a
+    // renewal arrives with a correctly signed but expired token. The handler
+    // resolves ownership by payer identity instead of rejecting with 400; a bad
+    // signature is still refused on the spot (test above). With no pending
+    // upgrade matching the payer, nothing is granted.
     const agencyId = await seedAgency()
     // Hand-craft an expired but signed token
     const { createHmac } = await import('crypto')
     const payloadB64 = Buffer.from(JSON.stringify({ a: agencyId, t: Date.now() - 60 * 60 * 1000 - 1000 })).toString('base64url')
     const sig = createHmac('sha256', TOKEN_SECRET).update(payloadB64).digest('base64url')
     const expired = `${payloadB64}.${sig}`
+    const transactionId = 'tx_exp_' + Date.now()
 
-    const res = await POST(buildReq({ body: { transactionId: 'tx_exp', status: 'success', external_id: expired } }))
+    const res = await POST(buildReq({ body: { transactionId, status: 'success', external_id: expired } }))
 
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe('Pending upgrade not found')
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
+    const agency = await db('agencies').where({ id: agencyId }).first()
+    expect(agency.plan).toBe('free')
   })
 })
 
@@ -423,8 +488,11 @@ describe('POST /api/payments/grow — pending_upgrades fallback', () => {
   })
 
   // TEST C2 — payerEmail empty (real Grow shape when checkout collects no
-  // email) but exactly one pending row exists → sole-row fallback resolves
-  it('C2: payerEmail empty + exactly one pending row → sole-pending fallback succeeds', async () => {
+  // email) and exactly one pending row exists. The "sole pending row" fallback
+  // was REMOVED in fcf0daad (C-6): it upgraded whichever agency happened to be
+  // waiting, which an unauthenticated caller could exploit. Ownership must be
+  // deterministic (token, payer email, or a unique payer phone); none → 404.
+  it('C2: payerEmail empty + exactly one pending row → refused (404), never attributed to the sole pending agency', async () => {
     const agencyId = await seedAgency()
     await seedPending(agencyId, 'owner-' + Date.now() + '@example.com', 'pending')
 
@@ -436,12 +504,15 @@ describe('POST /api/payments/grow — pending_upgrades fallback', () => {
       }),
     )
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe('Pending upgrade not found')
     const agency = await db('agencies').where({ id: agencyId }).first()
-    expect(agency.plan).toBe('pro')
+    expect(agency.plan).toBe('free')
+    const payments = await db('payments').where({ transactionId })
+    expect(payments).toHaveLength(0)
 
     const pendingAfter = await db('pending_upgrades').where({ agencyId }).first()
-    expect(pendingAfter.status).toBe('completed')
+    expect(pendingAfter.status).toBe('pending')
   })
 
   // TEST C3 — email casing differences must not break attribution

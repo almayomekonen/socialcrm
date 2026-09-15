@@ -160,24 +160,26 @@ describe('GET /api/payments/upgrade', () => {
     expect(urlSig.length).toBe(freshSig.length) // signature size is constant for the same algorithm
   })
 
-  it('redirects to /login when no session (AuthError no_session)', async () => {
+  // The sign-in page is /auth. /login never existed; 9009dab3 fixed the route's
+  // redirect, and these expectations had kept the old typo.
+  it('redirects to /auth when no session (AuthError no_session)', async () => {
     vi.mocked(requireUser).mockRejectedValueOnce(new AuthError('no_session'))
 
     const res = await GET(makeReq())
 
     expect(res.status).toBe(302)
     const location = res.headers.get('location')!
-    expect(location).toContain('/login')
+    expect(new URL(location).pathname).toBe('/auth')
     expect(location).toContain('next=%2Fapi%2Fpayments%2Fupgrade')
     // Critical: NEVER bare-401 a user-facing redirect endpoint
     expect(res.status).not.toBe(401)
   })
 
-  it('redirects to /login when user is suspended', async () => {
+  it('redirects to /auth when user is suspended', async () => {
     vi.mocked(requireUser).mockRejectedValueOnce(new AuthError('suspended'))
     const res = await GET(makeReq())
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toContain('/login')
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/auth')
   })
 
   it('returns 500 (not redirect) on unexpected auth errors', async () => {
