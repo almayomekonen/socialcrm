@@ -10,6 +10,8 @@ import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { describeGraphError } from '@/lib/facebook/graphClient'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
 import { sendMessengerText } from '@/lib/facebook/messenger/send'
+import { markNotificationsReadByCollapseKey } from '@/db/notifications/reads'
+import { messengerConversationInboundKey } from '@/lib/notifications/collapseKeys'
 import {
   MESSENGER_TEXT_MAX,
   messengerWindow,
@@ -102,6 +104,13 @@ async function markRead(conversationId: number, agencyId: number, userId: number
     .insert({ conversationId, userId, agencyId, lastReadAt: new Date() })
     .onConflict(['conversationId', 'userId'])
     .merge({ lastReadAt: new Date() })
+  // Read or answered here ⇒ the bell row for it is done, so the customer's NEXT
+  // message is a new notification (toast / push) instead of a silent collapse.
+  await markNotificationsReadByCollapseKey({
+    agencyId,
+    userId,
+    collapseKey: messengerConversationInboundKey(conversationId),
+  }).catch(() => {})
 }
 
 /** Opening a conversation marks it read for THIS user only. Free action (no send, no spend). */

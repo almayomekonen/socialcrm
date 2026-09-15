@@ -94,6 +94,23 @@ export async function markNotificationsRead(args: {
   return markNotificationsReadQuery(args)
 }
 
+/**
+ * Close THIS user's open row for one piece of work — e.g. a Messenger conversation
+ * they just read or answered. Without it the row stays open, every later message
+ * collapses into it silently (no new toast, no push), and the conversation goes
+ * quiet until someone happens to clear the bell.
+ */
+export async function markNotificationsReadByCollapseKey(args: {
+  agencyId: number
+  userId: number
+  collapseKey: string
+}): Promise<number> {
+  return db('notifications')
+    .where({ agencyId: args.agencyId, userId: args.userId, collapseKey: args.collapseKey })
+    .whereNull('readAt')
+    .update({ readAt: db.fn.now(), updatedAt: db.fn.now() })
+}
+
 export async function markAllNotificationsRead(args: { agencyId: number; userId: number }): Promise<number> {
   return markAllNotificationsReadQuery(args)
 }

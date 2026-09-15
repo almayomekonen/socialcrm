@@ -27,6 +27,8 @@ export const NOTIFICATION_TYPES = [
   'message.inbound',
   'message.inbound_multiple',
   'message.unanswered',
+  /** Its own type, not message.inbound: Messenger has its own tables, links and recipients. */
+  'message.messenger_inbound',
   'comment.received',
   'followup.due',
   'followup.overdue',
@@ -74,7 +76,8 @@ export type Presence = (typeof PRESENCE_STATES)[number]
  * only entity type here that stands for a set rather than a row, which is why it
  * needs `aggregate: true` on the type definition rather than passing unnoticed.
  */
-export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription', 'lead_assignment'] as const
+// `messenger_conversation` is messenger_conversations.id — a different id space from `conversation`.
+export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription', 'lead_assignment', 'messenger_conversation'] as const
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
 /**
@@ -92,7 +95,7 @@ export type EntityType = (typeof ENTITY_TYPES)[number]
  * under another name: an agency admin must never receive one of these, and an
  * empty allowlist resolves to nobody rather than falling back to anyone.
  */
-export type RecipientRule = 'handler_or_admin' | 'admin_only' | 'platform_operator' | 'explicit_user'
+export type RecipientRule = 'handler_or_admin' | 'lead_handler_or_admins' | 'admin_only' | 'platform_operator' | 'explicit_user'
 
 /**
  * Business facts an emission site already holds, carried to the worker so copy
@@ -111,8 +114,8 @@ export type NotificationPayload = {
   leadId?: number | null
   /**
    * Persisted `inbox_messages.id` — discriminator for `message.inbound` and
-   * `message.unanswered` (latest unanswered inbound head). Required for those
-   * types; absent elsewhere.
+   * `message.unanswered` (latest unanswered inbound head); `messenger_messages.id`
+   * for `message.messenger_inbound`. Required for those types; absent elsewhere.
    */
   messageId?: number | null
   /**

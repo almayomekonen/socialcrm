@@ -61,7 +61,11 @@ describe('invariant 1 — exactly one entry per type', () => {
       // single lead whose handler identifies the reader, and the emission site
       // verifies the named user's agency before emitting. Asserted below, so a
       // per-row type cannot quietly adopt it.
-      expect(['handler_or_admin', 'admin_only', 'platform_operator', 'explicit_user']).toContain(def.recipients)
+      // 'lead_handler_or_admins' is for a CONVERSATION that may not have a ליד yet
+      // (Messenger): the ליד's נציג when there is one, otherwise the agency admins.
+      expect(['handler_or_admin', 'lead_handler_or_admins', 'admin_only', 'platform_operator', 'explicit_user']).toContain(
+        def.recipients,
+      )
     }
   })
 

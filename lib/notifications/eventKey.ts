@@ -71,7 +71,7 @@ export function messageInboundEventKey(event: NotificationEvent): string {
   const raw = event.payload?.messageId
   const messageId = typeof raw === 'number' ? raw : Number(raw)
   if (!Number.isFinite(messageId) || messageId <= 0) {
-    throw new Error('message.inbound eventKey requires payload.messageId')
+    throw new Error(`${event.type} eventKey requires payload.messageId`)
   }
   return eventKeyFor(event, `msg:${messageId}`)
 }
@@ -189,7 +189,7 @@ export function subscriptionCancellationEventKey(event: NotificationEvent): stri
  */
 export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.status_changed') return statusChangedEventKey(event)
-  if (event.type === 'message.inbound') return messageInboundEventKey(event)
+  if (event.type === 'message.inbound' || event.type === 'message.messenger_inbound') return messageInboundEventKey(event)
   if (event.type === 'message.unanswered') return messageUnansweredEventKey(event)
   if (event.type === 'lead.assigned') return leadAssignedEventKey(event)
   if (event.type === 'integration.disconnected') return integrationDisconnectedEventKey(event)

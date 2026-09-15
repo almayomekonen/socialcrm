@@ -157,8 +157,9 @@ export function planNotification(input: PlanInput): { plan: NotificationPlan } |
 /**
  * Rebuild copy against the count the database actually landed on.
  *
- * Only `message.inbound_multiple` reads groupCount, so for every other type this
- * returns exactly what was already written and the caller skips the update. See
+ * Only `message.inbound_multiple` and `message.messenger_inbound` read groupCount,
+ * so for every other type this returns exactly what was already written and the
+ * caller skips the update. See
  * updateNotificationCopy in db/notifications/notifications.ts for why the count
  * cannot be known before the upsert.
  */

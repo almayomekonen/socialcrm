@@ -2,7 +2,7 @@
  * THE NOTIFICATION REGISTRY — the single source of truth. Spec §5.
  *
  * NOTE ON SIZE (architecture-rules.md §6): this file is over the 250-line soft
- * limit, and intentionally so. It is sixteen uniform data entries with one
+ * limit, and intentionally so. It is uniform data entries (one per type) with one
  * concern and no branching — every behavior it references lives in copy.ts,
  * collapseKeys.ts and policy.ts, which is where new logic goes. The spec
  * requires the registry to be THE single source of truth (§5); splitting it by
@@ -71,6 +71,9 @@ const assignedLeadsLink = (ctx: EventContext) => `/leads?assignedTo=${ctx.entity
 /** The set's owner — a representative, not a lead row. See ENTITY_TYPES. */
 const leadAssignmentEntity = (ctx: EventContext) => ({ type: 'lead_assignment' as const, id: ctx.entityId })
 const conversationLink = (ctx: EventContext) => `/inbox?conversation=${ctx.entityId}`
+const messengerConversationEntity = (ctx: EventContext) => ({ type: 'messenger_conversation' as const, id: ctx.entityId })
+/** The Messenger tab selects a conversation by `c`, re-checked against the viewer's agency. */
+const messengerConversationLink = (ctx: EventContext) => `/inbox/messenger?c=${ctx.entityId}`
 const integrationLink = () => '/settings/integrations'
 /** Comments Inbox list — no per-comment route exists yet. */
 const commentsInboxLink = () => '/inbox/comments'
@@ -227,6 +230,28 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     recipients: 'handler_or_admin',
     // V1: in-app only — no toast (Awareness owns live inbound), no push.
     channels: IN_APP_ONLY,
+  },
+
+  /**
+   * A customer's Messenger message. Same urgency and channels as a WhatsApp
+   * arrival. Recipients: the linked ליד's נציג (admins when unassigned), or the
+   * agency admins while the conversation has no ליד yet — every agency member can
+   * see Messenger, but an unowned conversation is the admins' to route.
+   * AWARENESS does not poll Messenger, so this type toasts through the registry
+   * (MESSAGE_TYPES_TOASTED_BY_REGISTRY in modules/notifications/surface.ts).
+   */
+  'message.messenger_inbound': {
+    type: 'message.messenger_inbound',
+    category: 'messages',
+    enabled: true,
+    basePriority: 'high',
+    collapseKey: keys.messengerInboundKey,
+    title: copy.messengerInboundTitle,
+    body: copy.noBody,
+    entity: messengerConversationEntity,
+    deepLink: messengerConversationLink,
+    recipients: 'lead_handler_or_admins',
+    channels: TOAST_THEN_PUSH_WHEN_AWAY,
   },
 
   /**
