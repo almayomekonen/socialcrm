@@ -4,6 +4,7 @@ import { getUpgradeLink, isAnnualLinkConfigured } from '@/lib/payments/link'
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
 import type { BillingPeriod } from '@/lib/pricing'
+import { hasConfirmedPaymentMethod } from '@/db/payments/paymentMethods'
 
 type AppEnv = 'local' | 'staging' | 'test' | 'production'
 type GrowMode = 'sandbox' | 'production'
@@ -68,6 +69,13 @@ export async function GET(req: NextRequest) {
     }
     console.error('[upgrade] unexpected auth error', { err: String(err) })
     return new NextResponse('Server error', { status: 500 })
+  }
+
+  // A card-token billed agency pays with its saved card. A Payment Link would
+  // open a second, independent Grow standing order — never send it there.
+  if (await hasConfirmedPaymentMethod(user.agencyId)) {
+    console.warn('[upgrade] card-token billed agency redirected to billing settings', { agencyId: user.agencyId })
+    return NextResponse.redirect(new URL('/settings/update_payment', req.url), 302)
   }
 
   // Billing period selection. Anything but an exact, configured 'annual'
