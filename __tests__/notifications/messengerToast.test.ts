@@ -20,7 +20,7 @@ const item = (over: Partial<NotificationFeedItem> = {}): NotificationFeedItem =>
   type: 'message.messenger_inbound',
   category: 'messages',
   priority: 'high',
-  title: 'הודעה חדשה ב-Messenger',
+  title: 'הודעת Messenger חדשה',
   body: null,
   entityType: 'messenger_conversation',
   entityId: CONV,

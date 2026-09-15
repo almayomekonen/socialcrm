@@ -104,9 +104,14 @@ export const messageUnansweredTitle = (ctx: EventContext): string => withName('�
  * Messenger — one open row per conversation that counts its arrivals. The count
  * is the row's own groupCount, never recomputed. The sender's name comes from the
  * Messenger profile or the linked ליד; absent ⇒ name-free, never guessed.
+ *
+ * WORD ORDER IS LOAD-BEARING (right-to-left rendering). "Messenger" sits BETWEEN
+ * Hebrew words, so the text before " — " ends in Hebrew. "הודעה חדשה ב-Messenger —
+ * Almayo Mekonen" let the Latin brand, the dash and a Latin name fuse into one
+ * left-to-right run, which rendered as "Messenger — Almayo Mekonen-הודעה חדשה ב".
  */
 export const messengerInboundTitle = (ctx: EventContext): string =>
-  withName(ctx.groupCount > 1 ? `${ctx.groupCount} הודעות חדשות ב-Messenger` : 'הודעה חדשה ב-Messenger', ctx)
+  withName(ctx.groupCount > 1 ? `${ctx.groupCount} הודעות Messenger חדשות` : 'הודעת Messenger חדשה', ctx)
 
 /**
  * Facebook Page comment — author display name is carried in `leadName` at the

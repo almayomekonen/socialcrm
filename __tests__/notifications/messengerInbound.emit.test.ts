@@ -94,15 +94,26 @@ describe('identity — never collides with the WhatsApp inbox', () => {
 
 describe('copy', () => {
   it('names the sender when known, and says Messenger', () => {
-    expect(DEF.title(ctx())).toBe('הודעה חדשה ב-Messenger — דנה לוי')
+    expect(DEF.title(ctx())).toBe('הודעת Messenger חדשה — דנה לוי')
   })
 
   it('degrades to name-free copy instead of inventing a name', () => {
-    expect(DEF.title(ctx({ payload: { messageId: 55, leadName: null } }))).toBe('הודעה חדשה ב-Messenger')
+    expect(DEF.title(ctx({ payload: { messageId: 55, leadName: null } }))).toBe('הודעת Messenger חדשה')
+  })
+
+  it('reads correctly right-to-left with a Latin name: Hebrew always closes the text before the dash', () => {
+    // A Latin word right before " — " fuses with a Latin name into one left-to-right
+    // run and the line renders scrambled ("Messenger — Almayo Mekonen-הודעה חדשה ב").
+    for (const groupCount of [1, 4]) {
+      const title = DEF.title(ctx({ groupCount, payload: { messageId: 55, leadName: 'Almayo Mekonen' } }))
+      const [lead, name] = title.split(' — ')
+      expect(name).toBe('Almayo Mekonen')
+      expect(lead).toMatch(/[\u0590-\u05FF]$/)
+    }
   })
 
   it('counts the arrivals the open row absorbed', () => {
-    expect(DEF.title(ctx({ groupCount: 3 }))).toBe('3 הודעות חדשות ב-Messenger — דנה לוי')
+    expect(DEF.title(ctx({ groupCount: 3 }))).toBe('3 הודעות Messenger חדשות — דנה לוי')
   })
 })
 

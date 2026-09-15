@@ -160,7 +160,7 @@ describe('a customer writes on Messenger', () => {
       userId: adminA,
       category: 'messages',
       priority: 'high',
-      title: 'הודעה חדשה ב-Messenger — Dana Tester',
+      title: 'הודעת Messenger חדשה — Dana Tester',
       entityType: 'messenger_conversation',
       deepLink: `/inbox/messenger?c=${conversation.id}`,
       collapseKey: `messenger:${conversation.id}:inbound`,
@@ -178,7 +178,7 @@ describe('a customer writes on Messenger', () => {
     expect(await jobsFor(agencyA)).toHaveLength(2)
     const rows = await notificationsFor(agencyA)
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({ groupCount: 2, title: '2 הודעות חדשות ב-Messenger — Dana Tester' })
+    expect(rows[0]).toMatchObject({ groupCount: 2, title: '2 הודעות Messenger חדשות — Dana Tester' })
   })
 
   it("N3: a conversation linked to a ליד notifies that ליד's נציג, by the ליד's name", async () => {
@@ -202,7 +202,7 @@ describe('a customer writes on Messenger', () => {
     await deliver(inbound('m_n3b'))
     const rows = await notificationsFor(agencyA)
     expect(rows.map((r) => r.userId)).toEqual([agentA])
-    expect(rows[0].title).toBe('הודעה חדשה ב-Messenger — דנה לוי')
+    expect(rows[0].title).toBe('הודעת Messenger חדשה — דנה לוי')
   })
 
   it('N4: messages the Page sends (from SocialCRM or the Page inbox) never notify', async () => {
@@ -223,7 +223,7 @@ describe('a customer writes on Messenger', () => {
     await deliver(inbound('m_n3d'))
     const rows = await notificationsFor(agencyA)
     expect(rows.map((r) => r.userId)).toEqual([adminA])
-    expect(rows[0].title).toBe('הודעה חדשה ב-Messenger — Dana Tester')
+    expect(rows[0].title).toBe('הודעת Messenger חדשה — Dana Tester')
     expect(await db('notifications').where({ userId: adminB })).toHaveLength(0)
   })
 
@@ -249,7 +249,7 @@ describe('a customer writes on Messenger', () => {
     await deliver(inbound('m_n7b'))
     const rows = await notificationsFor(agencyA)
     expect(rows).toHaveLength(2)
-    expect(rows[1]).toMatchObject({ readAt: null, seenAt: null, groupCount: 1, title: 'הודעה חדשה ב-Messenger — Dana Tester' })
+    expect(rows[1]).toMatchObject({ readAt: null, seenAt: null, groupCount: 1, title: 'הודעת Messenger חדשה — Dana Tester' })
   })
 
   it('N5: an agency outside the Messenger rollout stores nothing and is told nothing', async () => {
