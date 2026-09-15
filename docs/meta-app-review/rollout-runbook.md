@@ -144,12 +144,27 @@ available, or by the UI appearing for agency 103 only.
    `comment_id` differ → disable replies (§8) and fix before continuing.
 
 ### 5b. Messenger
-1. Meta dashboard: Messenger product added; Webhooks → Page subscriptions include
-   `messages` and `message_echoes` (in addition to `leadgen`, `feed`).
+Messenger needs BOTH subscriptions. Either one missing means Meta sends nothing,
+and the flag, the tab and a recorded grant all look fine (incident 2026-09-14:
+app subscribed to `leadgen,feed` only, Page subscribed to `leadgen,feed` only).
+
+1. Meta dashboard (app-level): Messenger product added; Webhooks → **Page** →
+   `messages` and `message_echoes` subscribed, in addition to `leadgen` and
+   `feed`. Do not change the callback URL. Verify it through the API, not the
+   screen: `GET /{app-id}/subscriptions` (app token) → the `page` object lists
+   all four fields.
 2. Set `FACEBOOK_MESSENGER_ENABLED=1`, `FACEBOOK_MESSENGER_AGENCY_ALLOWLIST=103`. Redeploy.
-3. The agency 103 admin who connected the Page: Conversations → Messenger →
-   "אשר הרשאה ל-Messenger" → approve. The callback re-subscribes the Page with
-   `leadgen,feed,messages,message_echoes`; confirm with
+   The flag does NOT re-subscribe any Page.
+3. Page-level: `GET /{page-id}/subscribed_apps` (Page token, never printed) must
+   list `leadgen,feed,messages,message_echoes` for our app. Three things get it
+   there, all through the same field computation (grant recorded + rollout):
+   - the agency admin who connected the Page authorizes Messenger
+     (`/api/auth/facebook?feature=messenger`) — the callback re-subscribes it;
+   - opening Conversations → Messenger while no conversation exists (checks and
+     repairs, at most once per Page per 5 minutes; shows "חבר מחדש את הדף
+     ל-Messenger" if Meta refuses);
+   - the hourly connection-health sweep.
+   Confirm the grant with
    `select granted_scopes ? 'pages_messaging' from facebook_pages where agency_id = 103;`.
 4. Live checks (unresolved until done), from an app-Tester account only — never a
    real customer:
@@ -177,7 +192,13 @@ available, or by the UI appearing for agency 103 only.
   `received` should drain to 0 within minutes; **`failed` > 0 needs action**:
   `node scripts/requeue_messenger_events.cjs failed` → fix cause →
   `node scripts/requeue_messenger_events.cjs requeue --ids … --apply`.
-- Vercel logs: `[Messenger] durable receipt FAILED` (the webhook answered 503;
+- Vercel logs: `[healthSweep][facebook] Meta app Page webhook subscription is missing
+  Messenger fields` (hourly; the dashboard lost `messages`/`message_echoes` — fix in
+  the Meta dashboard, no customer can),
+  `[Messenger] events acknowledged without storing` (counts of events
+  for an unknown Page or an agency outside the rollout),
+  `[FacebookRepair] Re-subscribing … missing=messages,message_echoes`,
+  `[Messenger] durable receipt FAILED` (the webhook answered 503;
   Meta will redeliver) and `[messenger-events] receipts in terminal failed state`.
 - Meta sends "webhook failing" alerts after 15 min of failures and disables the
   app's webhooks after 1 h. If disabled: fix the cause, then re-subscribe the app

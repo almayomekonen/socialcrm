@@ -70,6 +70,7 @@ beforeEach(() => {
   h.disconnectCalls = []
   h.disconnectResult = 'emitted'
   h.repairCalls = []
+  vi.stubEnv('FACEBOOK_MESSENGER_ENABLED', '')
 })
 
 const FB_PAGE = { id: 11, agency_id: 103, page_id: 'PAGE_1', page_access_token: 'tok', health_status: 'healthy' }

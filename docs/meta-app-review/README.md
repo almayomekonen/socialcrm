@@ -132,11 +132,14 @@ App: the SocialCRM app whose id is `META_APP_ID`.
    access tier in the dashboard allows reading insights for app-role users; the
    Graph Explorer test listed accounts but returned no insights rows, so
    insights access with real delivery is **not yet verified**.
-3. **Webhooks → Page object** (callback `https://getsocialcrm.com/api/webhooks/facebook`,
-   verify token = `META_VERIFY_TOKEN`). App-level subscriptions must include
+3. **Webhooks → Page object** (the callback currently registered is
+   `https://socialcrm.vercel.app/api/webhooks/facebook`, a production alias —
+   leave it; verify token = `META_VERIFY_TOKEN`). App-level subscriptions must include
    `leadgen`, `feed`, **`messages`**, **`message_echoes`**. The per-Page
    subscription (`/{page-id}/subscribed_apps`) is done by the app on connect,
-   reconnect and repair. `message_deliveries`, `message_reads` and
+   reconnect, the hourly repair, and the Messenger tab's delivery check
+   (`lib/facebook/messenger/deliveryCheck.ts`); rolling Messenger out to an
+   agency does not subscribe its Pages by itself. `message_deliveries`, `message_reads` and
    `messaging_postbacks` are not used — leave them off.
 4. **Facebook Login → Valid OAuth Redirect URIs** must contain `META_REDIRECT_URI`
    exactly. No new URI is needed: the ads flow reuses it (`ads.` state prefix).

@@ -1,6 +1,8 @@
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { db } from '@/config/db'
 import { checkFacebookConnection, repairFacebookConnection } from '@/lib/facebook/health'
+import { fieldsForPageRow } from '@/lib/facebook/pageSubscription'
+import { missingAppMessengerFields } from '@/lib/facebook/appWebhookSubscription'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
 import { resolveWhatsappHealth } from '@/lib/whatsapp/operationalStatus'
 import { notifyEvent } from '@/lib/notifications/emit'
@@ -44,19 +46,31 @@ export type HealthSweepResult = {
 /** WhatsApp states that mean "the customer needs to do something". */
 const WHATSAPP_BROKEN_STATES = new Set(['disconnected', 'token', 'webhook', 'restricted'])
 
-async function sweepFacebook(result: HealthSweepResult): Promise<void> {
-  const pages = (await db('facebook_pages').select('id', 'agency_id', 'page_id', 'page_access_token', 'health_status')) as {
+async function sweepFacebook(result: HealthSweepResult): Promise<{ agency_id: number; granted_scopes: unknown }[]> {
+  const pages = (await db('facebook_pages').select(
+    'id',
+    'agency_id',
+    'page_id',
+    'page_access_token',
+    'health_status',
+    'granted_scopes',
+  )) as {
     id: number
     agency_id: number
     page_id: string
     page_access_token: string
     health_status: string
+    granted_scopes: unknown
   }[]
 
   for (const page of pages) {
     try {
       result.facebookChecked++
-      const health = await checkFacebookConnection(page.page_id, resolvePageAccessToken(page.page_access_token))
+      const health = await checkFacebookConnection(
+        page.page_id,
+        resolvePageAccessToken(page.page_access_token),
+        fieldsForPageRow(page).split(','),
+      )
 
       if (health.needsReconnect) {
         // Transition-guarded inside: silent when already token_expired.
@@ -77,6 +91,15 @@ async function sweepFacebook(result: HealthSweepResult): Promise<void> {
         continue
       }
 
+      // Lead Ads and comments are subscribed, but a field this Page should also
+      // have is not — Messenger once granted and rolled out. Turning the rollout
+      // on never re-subscribes a Page by itself, so this pass is what converges
+      // it. The Page is healthy either way: bookkeeping below still runs.
+      if (health.missingFields && health.missingFields.length > 0) {
+        const repair = await repairFacebookConnection(page.page_id)
+        if (repair.repaired) result.facebookRepaired++
+      }
+
       // Recovered: record it so the settings page and the reconnect banner agree.
       if (page.health_status !== 'healthy') {
         await db('facebook_pages').where({ id: page.id }).update({ health_status: 'healthy', health_checked_at: new Date() })
@@ -87,6 +110,20 @@ async function sweepFacebook(result: HealthSweepResult): Promise<void> {
       result.errors++
       console.error('[healthSweep][facebook] page check failed', { pageId: page.page_id, err: String(err) })
     }
+  }
+  return pages
+}
+
+/**
+ * Once per pass, and only when some Page is due Messenger: is the APP subscribed
+ * to the Messenger fields (Meta dashboard)? Page-level repair cannot fix this and
+ * no customer can, so it is an operator log. Never throws into the sweep.
+ */
+async function checkAppMessengerSubscription(pages: { agency_id: number; granted_scopes: unknown }[]): Promise<void> {
+  if (!pages.some((p) => fieldsForPageRow(p).split(',').includes('messages'))) return
+  const missing = await missingAppMessengerFields()
+  if (missing && missing.length > 0) {
+    console.error('[healthSweep][facebook] Meta app Page webhook subscription is missing Messenger fields', { missing })
   }
 }
 
@@ -161,8 +198,10 @@ export async function runConnectionHealthSweep(): Promise<HealthSweepResult> {
     errors: 0,
   }
 
-  await sweepFacebook(result)
+  const facebookPages = await sweepFacebook(result)
   await sweepWhatsapp(result)
+  // Last, so its Graph latency can never cost the WhatsApp pass its time budget.
+  await checkAppMessengerSubscription(facebookPages).catch(() => {})
 
   console.log('[healthSweep] pass complete', result)
   return result

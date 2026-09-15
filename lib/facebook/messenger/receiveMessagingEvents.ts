@@ -49,12 +49,18 @@ export async function receiveMessagingEvents(entries: unknown): Promise<Messenge
     const agencyByPage = new Map(rows.map((r) => [r.page_id, Number(r.agency_id)]))
 
     const events: NewMessengerEvent[] = []
+    let unknownPage = 0
+    let notEnabled = 0
     for (const c of candidates) {
       const agencyId = agencyByPage.get(c.pageId)
-      if (agencyId === undefined || !isFacebookMessengerEnabledForAgency(agencyId)) continue
-      events.push({ agencyId, pageId: c.pageId, eventKey: `mid:${c.mid}`, kind: c.kind, payload: c.raw })
+      if (agencyId === undefined) unknownPage++
+      else if (!isFacebookMessengerEnabledForAgency(agencyId)) notEnabled++
+      else events.push({ agencyId, pageId: c.pageId, eventKey: `mid:${c.mid}`, kind: c.kind, payload: c.raw })
     }
     const ignored = candidates.length - events.length
+    // Counts only. Without this line a delivery Meta made and we chose not to store
+    // is indistinguishable in the logs from a delivery Meta never made.
+    if (ignored > 0) console.warn('[Messenger] events acknowledged without storing', { unknownPage, notEnabled })
     if (events.length === 0) return { outcome: 'recorded', recordedIds: [], duplicates: 0, ignored }
 
     const { recordedIds, duplicates } = await recordMessengerEvents(events)

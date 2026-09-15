@@ -36,6 +36,17 @@ export const META_FEATURE_NOTICES: Record<string, ConnectionNotice> = {
     nextStep: 'לאשר את ההרשאה במסך של פייסבוק. החיבור והלידים הקיימים לא ייפגעו.',
     action: 'אשר הרשאה ל-Messenger',
   },
+  // The grant is recorded, but Meta is not sending this Page's messages to
+  // SocialCRM (not subscribed to Messenger events, and re-subscribing failed).
+  // Reconnecting refreshes the token and re-subscribes the Page. Says nothing
+  // about leads: this state is also reached when leadgen could not be restored.
+  messenger_not_subscribed: {
+    tone: 'attention',
+    title: 'הודעות Messenger עדיין לא מגיעות לכאן',
+    explanation: 'פייסבוק עדיין לא שולחת ל-SocialCRM את הודעות ה-Messenger של הדף, ולכן הודעות חדשות לא יופיעו כאן.',
+    nextStep: 'לחבר מחדש את הדף בפייסבוק. החיבור והלידים הקיימים לא ייפגעו.',
+    action: 'חבר מחדש את הדף ל-Messenger',
+  },
   messenger_declined: {
     tone: 'attention',
     title: 'ההרשאה ל-Messenger לא אושרה',

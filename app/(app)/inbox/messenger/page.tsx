@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { after } from 'next/server'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { parseGrantedScopes } from '@/db/facebook'
 import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import { messengerWindow, messengerWindowHint } from '@/lib/facebook/messenger/rules'
-import { FACEBOOK_NOTICES } from '@/lib/connections/messages'
+import { checkMessengerDelivery, pendingMessengerDeliveryChecks } from '@/lib/facebook/messenger/deliveryCheck'
+import { FACEBOOK_NOTICES, type ConnectionNotice } from '@/lib/connections/messages'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
@@ -56,20 +58,28 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
 
   const pages = (await db('facebook_pages')
     .where({ agency_id: agencyId })
-    .select('page_id', 'granted_scopes')) as { page_id: string; granted_scopes: unknown }[]
+    .select('page_id', 'granted_scopes', 'health_checked_at')) as {
+    page_id: string
+    granted_scopes: unknown
+    health_checked_at: Date | string | null
+  }[]
   if (pages.length === 0) return empty('not-connected')
 
-  const messagingPageIds = new Set(
-    pages.filter((p) => hasFeatureScopes(parseGrantedScopes(p.granted_scopes), 'messenger')).map((p) => p.page_id),
-  )
-  const notice = sp.permission === 'missing' ? FACEBOOK_NOTICES.messenger_declined : FACEBOOK_NOTICES.messenger_permission
-  const permissionPrompt = (
+  const messagingPages = pages.filter((p) => hasFeatureScopes(parseGrantedScopes(p.granted_scopes), 'messenger'))
+  const messagingPageIds = new Set(messagingPages.map((p) => p.page_id))
+  const inAppBrowser = await getInAppBrowser()
+  // Every Messenger fix is the same admin action: the Facebook authorization, whose
+  // callback refreshes the token and re-subscribes the Page (refreshConnectedPages).
+  const promptFor = (notice: ConnectionNotice) => (
     <MetaPermissionPrompt
       notice={notice}
       href='/api/auth/facebook?feature=messenger'
       canAuthorize={isAdmin(user.role as Roles)}
-      inAppBrowser={await getInAppBrowser()}
+      inAppBrowser={inAppBrowser}
     />
+  )
+  const permissionPrompt = promptFor(
+    sp.permission === 'missing' ? FACEBOOK_NOTICES.messenger_declined : FACEBOOK_NOTICES.messenger_permission,
   )
   if (messagingPageIds.size === 0) return shell(permissionPrompt)
 
@@ -80,8 +90,22 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   ])
   // No conversation yet: one page-level state, not an empty list beside an empty thread.
   if (conversations.length === 0) {
+    // "No messages yet" promises that messages WILL arrive. A recorded grant does
+    // not make that true; Meta's subscription for the Page does (deliveryCheck.ts).
+    const delivery = await Promise.all(
+      messagingPages.map((p) => checkMessengerDelivery(p.page_id, { rowCheckedAt: p.health_checked_at })),
+    )
+    after(pendingMessengerDeliveryChecks)
+    // The refresh is what shows the first message without a reload, and what clears
+    // the prompt once a reconnect or the hourly repair has subscribed the Page.
+    const poller = <ConversationRefreshPoller intervalMs={REFRESH_MS} />
+    if (delivery.includes('reconnect')) return shell(<>{poller}{promptFor(FACEBOOK_NOTICES.expired)}</>)
+    if (delivery.includes('not_subscribed')) {
+      return shell(<>{poller}{promptFor(FACEBOOK_NOTICES.messenger_not_subscribed)}</>)
+    }
     return shell(
       <>
+        {poller}
         {sp.permission === 'granted' && (
           <p role='status' className='text-sm text-green-600'>ההרשאה אושרה. הודעות Messenger חדשות יופיעו כאן.</p>
         )}
