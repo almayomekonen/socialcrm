@@ -10,12 +10,21 @@ import { renewalPeriodKey } from './periodKeys'
  * first, then billing rows. cancelRenewal and confirmCardSetup take the same
  * order, so these transactions serialize instead of deadlocking.
  *
+ * An attempt that sat undispatched for longer than STALE_UNDISPATCHED_MS is
+ * cancelled rather than sent: a period queued while dispatch was disabled (or
+ * while the scheduler was down) must not surprise a customer with a charge days
+ * later — they go through the reactivation flow instead.
+ *
  * This transaction re-checks cancellation and eligibility, stamps
  * `dispatchedAt`, and COMMITS before the caller contacts Grow — no transaction
  * is ever held open across a network call. A cancellation therefore either
  * commits first (this attempt stops here) or sees `dispatchedAt` and tells the
  * customer honestly that a charge is already being processed.
  */
+
+/** A charge due more than this long ago was queued in a different situation than the one it would charge in. */
+export const STALE_UNDISPATCHED_MS = 24 * 3_600_000
+
 export async function beginChargeAttempt(chargeId: number): Promise<AttemptContext | null> {
   const peek = await db(CHARGES_TABLE).where({ id: chargeId }).first('agencyId')
   if (!peek) return null
@@ -31,6 +40,7 @@ export async function beginChargeAttempt(chargeId: number): Promise<AttemptConte
       return null
     }
 
+    if (Date.now() - charge.nextAttemptAt.getTime() > STALE_UNDISPATCHED_MS) return stop('cancelled', 'stale_undispatched')
     if (!sub) return stop('failed_final', 'no_subscription')
     if (sub.cancelAtPeriodEnd) return stop('cancelled', 'cancelled_by_customer')
 

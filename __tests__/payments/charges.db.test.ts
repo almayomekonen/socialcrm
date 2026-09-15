@@ -83,6 +83,15 @@ describe('claim, dispatch and lease recovery', () => {
     expect(await beginChargeAttempt(claimed.id)).toBeNull()
   })
 
+  it('never dispatches an attempt that sat queued for more than a day (e.g. dispatch was disabled)', async () => {
+    const { agencyId, pm } = await dueTrial()
+    const stale = await seedCharge(agencyId, pm, { status: 'pending', nextAttemptAt: hoursFromNow(-48) })
+    const [claimed] = await claimDueCharges('w1', 1, agencyId)
+    expect(claimed.id).toBe(stale)
+    expect(await beginChargeAttempt(stale)).toBeNull()
+    expect(await db('billing_charges').where({ id: stale }).first()).toMatchObject({ status: 'cancelled', errorClass: 'stale_undispatched', dispatchedAt: null })
+  })
+
   it('stops instead of dispatching when the customer cancelled after scheduling', async () => {
     const { agencyId } = await dueTrial()
     await scheduleDueTrialConversions(50)
