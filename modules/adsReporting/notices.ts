@@ -7,6 +7,7 @@ import type { ConnectionNotice } from '@/lib/connections/messages'
  */
 export type AdsNoticeKind =
   | 'connect'
+  | 'connect_failed'
   | 'declined'
   | 'expired'
   | 'no_accounts'
@@ -23,6 +24,17 @@ export const ADS_NOTICES: Record<AdsNoticeKind, ConnectionNotice & { cta?: 'conn
     explanation: 'כדי להציג כאן הוצאה, חשיפות וקליקים של הקמפיינים שלך, פייסבוק דורש אישור לקריאת נתוני המודעות (קריאה בלבד, ללא שינוי קמפיינים).',
     nextStep: 'לאשר את ההרשאה במסך של פייסבוק ולבחור את חשבונות המודעות.',
     action: 'חבר חשבון מודעות',
+    cta: 'connect',
+  },
+  // The OAuth return itself failed (token exchange, permission read, save, or an
+  // expired CSRF state). Distinct from "never connected": the user just tried.
+  connect_failed: {
+    tone: 'error',
+    title: 'החיבור לחשבון המודעות לא הושלם',
+    explanation: 'חזרת מפייסבוק, אבל לא הצלחנו להשלים ולשמור את החיבור. לא נשמר חיבור ולא נקראו נתונים.',
+    reasons: ['מסך האישור של פייסבוק נשאר פתוח יותר מ-10 דקות', 'תקלה זמנית בפייסבוק או אצלנו'],
+    nextStep: 'לחבר שוב.',
+    action: 'חבר שוב',
     cta: 'connect',
   },
   declined: {
@@ -86,4 +98,16 @@ export const ADS_NOTICES: Record<AdsNoticeKind, ConnectionNotice & { cta?: 'conn
     title: 'טווח התאריכים לא תקין',
     explanation: 'הטווח שנבחר אינו תקין או חורג מ-37 החודשים שפייסבוק מאפשר, ולכן מוצגים 30 הימים האחרונים.',
   },
+}
+
+/**
+ * The state for a user with NO stored ad connection, from the OAuth return's
+ * `ads_error` (lib/facebook/ads/handleAdsOAuthCallback.ts). Cancelling on Meta's
+ * screen and unticking the permission are both a decline; a failure after Meta
+ * returned is `connect_failed`, never the neutral first-time prompt.
+ */
+export function noConnectionNotice(adsError: string | undefined): AdsNoticeKind {
+  if (adsError === 'declined' || adsError === 'denied') return 'declined'
+  if (adsError === 'token' || adsError === 'save' || adsError === 'state') return 'connect_failed'
+  return 'connect'
 }
