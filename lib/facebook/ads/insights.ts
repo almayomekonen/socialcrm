@@ -1,41 +1,30 @@
 import { describeGraphError, graphRequest, type MetaGraphError } from '@/lib/facebook/graphClient'
-import { insightsRangeParams, type AdsRange } from '@/lib/facebook/ads/dateRange'
+import { toNumber } from '@/lib/facebook/ads/metrics'
 
 /**
- * Read-only ad performance through `ads_read`:
- *   GET /me/adaccounts                    — accounts this user may read
- *   GET /{act_id}/insights (level=account) — totals
- *   GET /{act_id}/insights (level=campaign) — per campaign
- * No mutation endpoint is called, and `ads_management` is never requested.
- *
- * NUMBERS ARE META'S. A metric Meta did not return stays `null` and renders as
- * "—"; nothing is defaulted to 0, because "no data" and "zero" mean different
- * things to someone deciding where to spend.
+ * Read-only access to Meta's Marketing API through `ads_read`: the accounts this
+ * user may read, and the shared insights reader the report and the drill-down
+ * use. No mutation endpoint is called, and `ads_management` is never requested.
  *
  * Pagination follows cursors (`after`) through graphClient — never Meta's
  * `paging.next` URL, which embeds the access token.
  */
 
-export type AdAccount = { id: string; name: string; currency: string | null; status: number | null }
-
-export type AdsMetrics = {
-  spend: number | null
-  impressions: number | null
-  clicks: number | null
-  ctr: number | null
-  cpc: number | null
+export type AdAccount = {
+  id: string
+  name: string
+  currency: string | null
+  /** IANA name, e.g. "Asia/Jerusalem" — Meta resolves date presets in this zone. */
+  timezone: string | null
+  status: number | null
 }
-
-export type CampaignPerformance = AdsMetrics & { campaignId: string; campaignName: string }
 
 export type AdsFailure = 'reconnect_required' | 'permission_missing' | 'rate_limited' | 'meta_error'
 
 export type AdsResult<T> = { ok: true; value: T } | { ok: false; reason: AdsFailure }
 
-const METRIC_FIELDS = ['spend', 'impressions', 'clicks', 'ctr', 'cpc']
 const MAX_ACCOUNT_PAGES = 5
-const CAMPAIGN_PAGE_SIZE = 100
-const MAX_CAMPAIGN_PAGES = 5
+const INSIGHTS_PAGE_SIZE = 100
 
 /**
  * Error → reason, per the Graph error-handling guide: 190 invalid token;
@@ -53,23 +42,7 @@ export function adsFailureFromGraph(error: MetaGraphError): AdsFailure {
   return 'meta_error'
 }
 
-const toNumber = (v: unknown): number | null => {
-  if (typeof v !== 'string' && typeof v !== 'number') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
-function metricsOf(row: Record<string, unknown> | undefined): AdsMetrics {
-  return {
-    spend: toNumber(row?.spend),
-    impressions: toNumber(row?.impressions),
-    clicks: toNumber(row?.clicks),
-    ctr: toNumber(row?.ctr),
-    cpc: toNumber(row?.cpc),
-  }
-}
-
-function fail<T>(error: MetaGraphError, what: string): AdsResult<T> {
+export function adsFail<T>(error: MetaGraphError, what: string): AdsResult<T> {
   const reason = adsFailureFromGraph(error)
   console.warn(`[AdsReporting] ${what} failed`, { reason, detail: describeGraphError(error) })
   return { ok: false, reason }
@@ -82,15 +55,16 @@ export async function listAdAccounts(token: string): Promise<AdsResult<AdAccount
     const result = await graphRequest<{ data?: Record<string, unknown>[]; paging?: { cursors?: { after?: string } } }>({
       path: '/me/adaccounts',
       token,
-      query: { fields: 'id,name,currency,account_status', limit: 100, after },
+      query: { fields: 'id,name,currency,timezone_name,account_status', limit: 100, after },
     })
-    if ('error' in result) return fail(result.error, 'list ad accounts')
+    if ('error' in result) return adsFail(result.error, 'list ad accounts')
     for (const a of result.data.data ?? []) {
       if (typeof a.id !== 'string' || !a.id.startsWith('act_')) continue
       accounts.push({
         id: a.id,
         name: typeof a.name === 'string' && a.name ? a.name : a.id,
         currency: typeof a.currency === 'string' ? a.currency : null,
+        timezone: typeof a.timezone_name === 'string' && a.timezone_name ? a.timezone_name : null,
         status: toNumber(a.account_status),
       })
     }
@@ -100,56 +74,59 @@ export async function listAdAccounts(token: string): Promise<AdsResult<AdAccount
   return { ok: true, value: accounts }
 }
 
-export type AdsReport = {
-  /** Null when Meta returned no rows for the range — no activity, not an error. */
-  totals: AdsMetrics | null
-  campaigns: CampaignPerformance[]
-}
+export const isAdAccountId = (id: string) => /^act_\d+$/.test(id)
+export const isAdObjectId = (id: string | undefined | null): id is string => typeof id === 'string' && /^\d{1,32}$/.test(id)
 
 /**
- * `accountId` MUST already be verified as one of `listAdAccounts(token)` for
- * this token — the page does that before calling. The id shape is re-checked
- * here so a malformed value can never be spliced into a Graph path.
+ * GET /{act_id}/insights, following cursors up to `maxPages`. The path is always
+ * the VERIFIED ad account, so a `filtering` value can only narrow inside it.
  */
-export async function getAdsReport(token: string, accountId: string, range: AdsRange): Promise<AdsResult<AdsReport>> {
-  if (!/^act_\d+$/.test(accountId)) return { ok: false, reason: 'permission_missing' }
-  const rangeParams = insightsRangeParams(range)
-
-  const totals = await graphRequest<{ data?: Record<string, unknown>[] }>({
-    path: `/${accountId}/insights`,
-    token,
-    query: { level: 'account', fields: METRIC_FIELDS.join(','), ...rangeParams },
-  })
-  if ('error' in totals) return fail(totals.error, 'account insights')
-
-  // Campaign rows, following cursors (never paging.next) up to a bounded number of pages.
-  const campaignRows: Record<string, unknown>[] = []
+export async function readInsights(
+  token: string,
+  accountId: string,
+  query: Record<string, string | number | undefined>,
+  opts: { maxPages?: number; what: string },
+): Promise<AdsResult<Record<string, unknown>[]>> {
+  if (!isAdAccountId(accountId)) return { ok: false, reason: 'permission_missing' }
+  const rows: Record<string, unknown>[] = []
   let after: string | undefined
-  for (let page = 0; page < MAX_CAMPAIGN_PAGES; page++) {
+  for (let page = 0; page < (opts.maxPages ?? 1); page++) {
     const res = await graphRequest<{ data?: Record<string, unknown>[]; paging?: { cursors?: { after?: string } } }>({
       path: `/${accountId}/insights`,
       token,
-      query: {
-        level: 'campaign',
-        fields: ['campaign_id', 'campaign_name', ...METRIC_FIELDS].join(','),
-        limit: CAMPAIGN_PAGE_SIZE,
-        after,
-        ...rangeParams,
-      },
+      query: { limit: INSIGHTS_PAGE_SIZE, ...query, after },
       timeoutMs: 15000,
     })
-    if ('error' in res) return fail(res.error, 'campaign insights')
+    if ('error' in res) return adsFail(res.error, opts.what)
     const batch = res.data.data ?? []
-    campaignRows.push(...batch)
+    rows.push(...batch)
     after = res.data.paging?.cursors?.after
-    if (!after || batch.length < CAMPAIGN_PAGE_SIZE) break
+    if (!after || batch.length < INSIGHTS_PAGE_SIZE) break
   }
+  return { ok: true, value: rows }
+}
 
-  const totalRow = (totals.data.data ?? [])[0]
-  const rows = campaignRows
-    .filter((r) => typeof r.campaign_id === 'string')
-    .map((r) => ({ campaignId: r.campaign_id as string, campaignName: String(r.campaign_name ?? r.campaign_id), ...metricsOf(r) }))
-    .sort((a, b) => (b.spend ?? -1) - (a.spend ?? -1))
-
-  return { ok: true, value: { totals: totalRow ? metricsOf(totalRow) : null, campaigns: rows } }
+/**
+ * Delivery status for objects Meta just returned in insights (ids never come from
+ * the URL here). Multi-id lookup, 50 ids per call. A failure is not fatal: the
+ * report still shows Meta's numbers, with the status unknown ("—").
+ */
+export async function readStatuses(token: string, ids: string[]): Promise<Map<string, string> | null> {
+  const statuses = new Map<string, string>()
+  const valid = [...new Set(ids.filter(isAdObjectId))]
+  for (let i = 0; i < valid.length; i += 50) {
+    const res = await graphRequest<Record<string, { effective_status?: unknown }>>({
+      path: '/',
+      token,
+      query: { ids: valid.slice(i, i + 50).join(','), fields: 'effective_status' },
+    })
+    if ('error' in res) {
+      adsFail(res.error, 'delivery status')
+      return null
+    }
+    for (const [id, obj] of Object.entries(res.data ?? {})) {
+      if (typeof obj?.effective_status === 'string') statuses.set(id, obj.effective_status)
+    }
+  }
+  return statuses
 }
