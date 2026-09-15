@@ -40,6 +40,12 @@ export const leadActivityKey = (ctx: EventContext): string => `lead:${ctx.entity
 export const conversationInboundKey = (ctx: EventContext): string => `conversation:${ctx.entityId}:inbound`
 export const conversationUnansweredKey = (ctx: EventContext): string => `conversation:${ctx.entityId}:unanswered`
 export const followupKey = (ctx: EventContext): string => `lead:${ctx.entityId}:followup`
+/**
+ * Its own prefix: a Messenger conversation id can equal a WhatsApp conversation id.
+ * Exported by conversation id too, because reading the conversation closes this row.
+ */
+export const messengerConversationInboundKey = (conversationId: number): string => `messenger:${conversationId}:inbound`
+export const messengerInboundKey = (ctx: EventContext): string => messengerConversationInboundKey(ctx.entityId)
 
 /**
  * Facebook comments collapse per post: several comments on one post are one

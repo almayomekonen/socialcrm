@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
-import { AWARENESS_OWNED_CATEGORIES, feedSignature, selectToastable } from './surface'
+import { AWARENESS_OWNED_CATEGORIES, MESSAGE_TYPES_TOASTED_BY_REGISTRY, feedSignature, selectToastable } from './surface'
 import type { NotificationFeedItem, NotificationFeedResponse, WhileYouWereAway } from './types'
 import type { Presence } from '@/lib/notifications/types'
 import NotificationPoller from './NotificationPoller'
@@ -249,6 +249,8 @@ export function NotificationProvider({
         mountedAt: boundary.current,
         alreadyToasted: toasted.current,
         suppressedCategories: AWARENESS_OWNED_CATEGORIES,
+        exemptTypes: MESSAGE_TYPES_TOASTED_BY_REGISTRY,
+        currentPath: window.location.pathname,
       })
       if (!fresh.length) return
 

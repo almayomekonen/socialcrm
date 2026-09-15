@@ -208,6 +208,19 @@ export function resolveRecipients(input: {
 
   if (rule === 'admin_only') return dedupe(admins)
 
+  /**
+   * A CONVERSATION that may or may not have a ליד yet (Messenger). With a ליד it
+   * is exactly `handler_or_admin`. Without one it goes to the admins, who route
+   * unowned inbound work — unlike `handler_or_admin`, whose entity IS the lead and
+   * therefore has nobody to tell when the lead is absent. A ליד id the context does
+   * not know (deleted, or not this agency's) also goes to the admins: the
+   * conversation still exists and still needs an owner.
+   */
+  if (rule === 'lead_handler_or_admins') {
+    const handlerId = leadId == null ? null : (context.handlerByLead.get(leadKey(agencyId, leadId)) ?? null)
+    return handlerId != null ? [handlerId] : dedupe(admins)
+  }
+
   if (leadId == null) return []
   const key = leadKey(agencyId, leadId)
   if (!context.handlerByLead.has(key)) return []

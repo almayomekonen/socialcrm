@@ -34,12 +34,23 @@ export function selectToastable(args: {
   alreadyToasted: ReadonlySet<number>
   /** Categories another live system still owns (see AWARENESS_OWNED_CATEGORIES). */
   suppressedCategories: ReadonlySet<string>
+  /** Types inside a suppressed category that no other system toasts (see MESSAGE_TYPES_TOASTED_BY_REGISTRY). */
+  exemptTypes?: ReadonlySet<string>
+  /**
+   * The page the user is on. An exempt type is not toasted on its own surface — a
+   * rep in the Messenger tab already sees the conversation arrive (frontend
+   * guidelines §15), the same silence Awareness keeps inside the WhatsApp inbox.
+   */
+  currentPath?: string
 }): NotificationFeedItem[] {
   return args.items.filter((item) => {
     if (!item.toastEligible) return false
     if (item.seenAt !== null) return false
     if (args.alreadyToasted.has(item.id)) return false
-    if (args.suppressedCategories.has(item.category)) return false
+    if (args.suppressedCategories.has(item.category)) {
+      if (!args.exemptTypes?.has(item.type)) return false
+      if (args.currentPath && item.deepLink.split('?')[0] === args.currentPath) return false
+    }
     return item.createdAt > args.mountedAt
   })
 }
@@ -65,6 +76,13 @@ export function selectToastable(args: {
  * TWO toasts for one inbound WhatsApp message — Awareness plus NotificationContext.
  */
 export const AWARENESS_OWNED_CATEGORIES: ReadonlySet<string> = new Set(['messages'])
+
+/**
+ * Message types Awareness does NOT own. Awareness polls the WhatsApp inbox only,
+ * so suppressing Messenger with the rest of `messages` would leave a Messenger
+ * arrival with no toast at all — nothing would ever double it.
+ */
+export const MESSAGE_TYPES_TOASTED_BY_REGISTRY: ReadonlySet<string> = new Set(['message.messenger_inbound'])
 
 /**
  * A cheap change signature, used to skip state updates when a poll returns

@@ -101,6 +101,14 @@ export const messageInboundMultipleTitle = (ctx: EventContext): string =>
 export const messageUnansweredTitle = (ctx: EventContext): string => withName('הודעה ממתינה למענה', ctx)
 
 /**
+ * Messenger — one open row per conversation that counts its arrivals. The count
+ * is the row's own groupCount, never recomputed. The sender's name comes from the
+ * Messenger profile or the linked ליד; absent ⇒ name-free, never guessed.
+ */
+export const messengerInboundTitle = (ctx: EventContext): string =>
+  withName(ctx.groupCount > 1 ? `${ctx.groupCount} הודעות חדשות ב-Messenger` : 'הודעה חדשה ב-Messenger', ctx)
+
+/**
  * Facebook Page comment — author display name is carried in `leadName` at the
  * emit site (there is no Lead yet). Absent name ⇒ less specific, never guessed.
  */

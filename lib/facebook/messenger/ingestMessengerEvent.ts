@@ -31,8 +31,21 @@ export type MessengerIngestResult =
       direction: 'inbound' | 'outbound'
       /** First message of a new conversation — the one moment a name lookup is worth a Graph call. */
       newConversation: boolean
+      /** The stored `messenger_messages.id` — the notification's event identity. */
+      messageId: number
+      /** When the message was sent (Meta's timestamp), or when it was stored. */
+      occurredAt: Date
     }
-  | { status: 'duplicate' }
+  | {
+      status: 'duplicate'
+      /**
+       * The already-stored customer message, when the duplicate is one. Lets the
+       * worker re-offer its notification: a crash between storing and notifying
+       * must not lose it, and the notification's event key makes a second offer a
+       * no-op. Absent for echoes of messages the Page sent.
+       */
+      inbound?: { conversationId: number; agencyId: number; messageId: number; occurredAt: Date; storedAt: Date }
+    }
   | { status: 'ignored'; reason: string }
 
 export async function ingestMessengerEvent(
@@ -73,7 +86,23 @@ export async function ingestMessengerEvent(
       attachments: event.attachments,
       channelTimestamp: event.timestamp,
     })
-    if (messageId === null) return { status: 'duplicate' } as const
+    if (messageId === null) {
+      if (direction !== 'inbound') return { status: 'duplicate' } as const
+      const stored = await trx('messenger_messages')
+        .where({ pageId, mid: event.mid, agencyId, direction: 'inbound' })
+        .first('id', 'conversationId', 'channelTimestamp', 'createdAt')
+      if (!stored) return { status: 'duplicate' } as const
+      return {
+        status: 'duplicate',
+        inbound: {
+          conversationId: Number(stored.conversationId),
+          agencyId,
+          messageId: Number(stored.id),
+          occurredAt: new Date(stored.channelTimestamp ?? stored.createdAt),
+          storedAt: new Date(stored.createdAt),
+        },
+      } as const
+    }
 
     await bumpMessengerConversation(trx, {
       conversationId: conversation.id,
@@ -88,6 +117,8 @@ export async function ingestMessengerEvent(
       agencyId,
       direction,
       newConversation: conversation.created,
+      messageId,
+      occurredAt: at,
     } as const
   })
 }
