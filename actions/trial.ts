@@ -7,8 +7,9 @@ import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startTrialForAgency, recordWelcomeModalSeen } from '@/db/trial'
 import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { isMobileRequest } from '@/lib/device'
+import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
 
-export type StartTrialResult = { ok: true; started: boolean } | { error: 'unauthorized' }
+export type StartTrialResult = { ok: true; started: boolean } | { error: 'unauthorized' | 'card_required' }
 
 export async function startTrial(): Promise<StartTrialResult> {
   let user
@@ -18,6 +19,10 @@ export async function startTrial(): Promise<StartTrialResult> {
     if (err instanceof AuthError) return { error: 'unauthorized' }
     throw err
   }
+
+  // Card-required trials start ONLY from the verified Grow callback. The DB
+  // write point enforces this too; refusing here keeps a stale client honest.
+  if (isCardRequiredTrialEnabled()) return { error: 'card_required' }
 
   const { started } = await startTrialForAgency(user.agencyId, user.id)
 
@@ -64,7 +69,7 @@ const TRIAL_START_FAILURES = new Set<TrialStartFailure>(['unauthorized', 'networ
 export async function trackTrialStartClicked(): Promise<void> {
   try {
     const user = await requireAgencyUser()
-    await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_start_clicked' })
+    await track({ agencyId: user.agencyId, userId: user.id, event: 'trial_start_clicked', props: { cardRequired: isCardRequiredTrialEnabled() } })
   } catch {
     // Swallowed on purpose — see above.
   }

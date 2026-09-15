@@ -1,5 +1,8 @@
+import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
+import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
+import { CONVERSION_GRACE_ENDS_AT_SQL } from '@/db/payments/conversionGrace'
 
 /**
  * Trial persistence. Lives in its own module (not db/agencies.ts) on purpose:
@@ -29,6 +32,7 @@ export async function getAgencyTrial(agencyId: number) {
       'agencies.trialEndsAt',
       'agencies.planReason',
       'subscriptions.expiresAt',
+      db.raw(`${CONVERSION_GRACE_ENDS_AT_SQL} AS "conversionGraceEndsAt"`),
     )
     .first()
 }
@@ -39,21 +43,35 @@ export async function getAgencyTrial(agencyId: number) {
  * idempotent (concurrent clicks resolve to one winner and silent no-ops) and
  * makes activation impossible for exempt (legacy) and pro (paid) agencies —
  * both guards are load-bearing, not defensive decoration.
+ *
+ * CARD-REQUIRED TRIAL. With CARD_REQUIRED_TRIAL_ENABLED the guard also requires
+ * an active Grow card token, so no caller — including the still-exported
+ * startTrial() action — can start a trial without one. The verified Grow
+ * callback calls this inside the transaction that activates the card. With the
+ * flag off the extra condition is `false = false` and nothing changes.
  */
-export async function startTrialForAgency(
-  agencyId: number,
-  userId?: number | null,
-): Promise<{ started: boolean }> {
-  const res = await db.raw(
+export async function startTrialInTransaction(q: Knex, agencyId: number): Promise<boolean> {
+  const res = await q.raw(
     `UPDATE agencies
      SET "trialStartedAt" = now(), "trialEndsAt" = now() + interval '7 days'
      WHERE id = ?
        AND "trialExempt" = false
        AND plan <> 'pro'
-       AND "trialStartedAt" IS NULL`,
-    [agencyId],
+       AND "trialStartedAt" IS NULL
+       AND (?::boolean = false OR EXISTS (
+         SELECT 1 FROM billing_payment_methods pm
+          WHERE pm."agencyId" = agencies.id AND pm.status = 'active'
+       ))`,
+    [agencyId, isCardRequiredTrialEnabled()],
   )
-  const started = res.rowCount === 1
+  return res.rowCount === 1
+}
+
+export async function startTrialForAgency(
+  agencyId: number,
+  userId?: number | null,
+): Promise<{ started: boolean }> {
+  const started = await startTrialInTransaction(db, agencyId)
 
   if (started) {
     await track({ agencyId, userId, event: 'trial_started' })
@@ -87,8 +105,10 @@ export async function recordWelcomeModalSeen(
 ): Promise<void> {
   const row = await getAgencyTrial(agencyId)
   if (!row || row.trialExempt || row.plan === 'pro') return
+  // cardRequired separates card-modal walk-aways from the click-to-start cohort.
+  const cardRequired = isCardRequiredTrialEnabled()
   await track({ agencyId, userId, event: 'desktop_first_access', props: { surface } })
-  await track({ agencyId, userId, event: 'welcome_modal_shown', props: { surface } })
+  await track({ agencyId, userId, event: 'welcome_modal_shown', props: { surface, cardRequired } })
 }
 
 /**
