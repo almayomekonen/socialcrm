@@ -62,6 +62,7 @@ import { db } from '@/config/db'
 import { getLeadsTable } from '@/db/clients'
 import { getPerms } from '@/db/filter'
 import { convertCommentToLead } from '@/modules/facebookComments/actions'
+import { listPageComments } from '@/modules/facebookComments/queries'
 import { Roles } from '@/types/roles'
 
 const AGENCY = '__test_comment_lead__'
@@ -160,7 +161,7 @@ describe.skipIf(process.env.VITEST_NO_DB === '1')('comment → ליד (real DB)'
     }
   })
 
-  it('an admin’s ליד is status "new", owned by them, and listed in לידים under the "new" tab', async () => {
+  it('an admin’s ליד is status "new" (the default לידים tab), owned by them, and returned by the לידים read', async () => {
     actAs(admin)
     const commentId = await seedComment()
 
@@ -292,6 +293,40 @@ describe.skipIf(process.env.VITEST_NO_DB === '1')('comment → ליד (real DB)'
         .first()
       expect(lead).toMatchObject({ firstName: authorName ?? 'מגיב מפייסבוק', lastName: '' })
     }
+  })
+
+  it('a comment an old failed click left "converted" with no ליד can be finished now', async () => {
+    actAs(admin)
+    const commentId = await seedComment({ status: 'converted' })
+
+    const r = await convertCommentToLead(commentId)
+
+    expect(r).toMatchObject({ ok: true, created: true })
+    expect(await db('facebook_page_comments').where({ commentId, agencyId }).first()).toMatchObject({
+      status: 'converted',
+      convertedLeadId: 'leadId' in r ? r.leadId : -1,
+    })
+  })
+
+  it('a converted comment later deleted on Facebook stays listed under "all" and "converted" — for its own workspace only', async () => {
+    actAs(admin)
+    const commentId = await seedComment()
+    const r = await convertCommentToLead(commentId)
+    await db('facebook_page_comments').where({ commentId, agencyId }).update({ status: 'deleted' })
+    const unlinkedDeleted = await seedComment({ status: 'deleted' })
+
+    for (const status of ['all', 'converted'] as const) {
+      const ids = (await listPageComments(agencyId, { status, limit: 100 })).items.map((c) => c.commentId)
+      expect(ids).toContain(commentId)
+      expect(ids).not.toContain(unlinkedDeleted)
+    }
+    expect((await listPageComments(agencyId, { status: 'open', limit: 100 })).items.map((c) => c.commentId)).not.toContain(
+      commentId,
+    )
+    expect((await listPageComments(otherAgencyId, { status: 'all', limit: 100 })).items.map((c) => c.commentId)).not.toContain(
+      commentId,
+    )
+    expect(r.ok).toBe(true)
   })
 
   it('a deleted comment is refused and left untouched', async () => {

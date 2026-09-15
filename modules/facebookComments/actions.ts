@@ -78,8 +78,12 @@ export async function convertCommentToLead(commentId: string): Promise<ConvertRe
     // The Page's own reply is the business talking, not a prospect.
     if (comment.authorIsPage) return { ok: false, reason: 'page_authored' }
 
-    // Already converted — return the same ליד rather than making a second.
-    if (comment.convertedLeadId) return { ok: true, leadId: Number(comment.convertedLeadId), created: false }
+    // Already converted — return the same ליד rather than making a second. The
+    // refresh brings a stale tab's row up to date (it may still show "צור ליד").
+    if (comment.convertedLeadId) {
+      revalidatePath('/inbox/comments')
+      return { ok: true, leadId: Number(comment.convertedLeadId), created: false }
+    }
 
     const link = async (leadId: number) => {
       await db('facebook_page_comments')
@@ -119,19 +123,20 @@ export async function convertCommentToLead(commentId: string): Promise<ConvertRe
       'manual',
     )
 
-    if (lead && typeof lead === 'object' && 'error' in lead && lead.error === 'quota_exceeded') {
-      return { ok: false, reason: 'quota_exceeded' }
-    }
+    // No id means no ליד from THIS call: quota, entitlement or a DB error (upsertLead
+    // catches those and returns `{ err }` / `{ error }`). A concurrent click may have
+    // created this comment's ליד first — the unique leadSource index refuses ours, or
+    // its insert used the last quota slot — so adopt that one before reporting failure.
+    // Never link without an id: that would mark the comment converted with no ליד.
     if (!lead || typeof lead !== 'object' || !('id' in lead) || lead.id == null) {
-      // A concurrent click may have created this comment's ליד first; the unique
-      // leadSource index then refuses ours. Adopt that one instead of failing.
       const concurrentId = await findExisting()
       if (concurrentId) {
         await link(concurrentId)
         revalidatePath('/inbox/comments')
         return { ok: true, leadId: concurrentId, created: false }
       }
-      return { ok: false, reason: 'create_failed' }
+      const quota = typeof lead === 'object' && lead !== null && 'error' in lead && lead.error === 'quota_exceeded'
+      return { ok: false, reason: quota ? 'quota_exceeded' : 'create_failed' }
     }
 
     await link(Number(lead.id))

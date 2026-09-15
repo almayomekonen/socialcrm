@@ -6,6 +6,7 @@ import CommentThread from './CommentThread'
 import CommentReplyForm from './CommentReplyForm'
 import { facebookCommentUrl } from '@/lib/facebook/comments/links'
 import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thread'
+import { badgeStatus, hasLeadSlot } from '../rowState'
 import type { CommentListItem, CommentReply, CommentStatus } from '../types'
 
 /**
@@ -48,7 +49,8 @@ export default function CommentsList({
         // createdTime is nullable (Meta may omit created_time); receivedAt is
         // not, so the row always has an honest timestamp to show.
         const when = c.createdTime ?? c.receivedAt
-        const badge = STATUS_BADGE[c.status]
+        const shown = badgeStatus(c)
+        const badge = shown ? STATUS_BADGE[shown] : undefined
         const thread = threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []
         const facebookUrl = facebookCommentUrl(c.postId, c.commentId)
 
@@ -94,8 +96,8 @@ export default function CommentsList({
                 {/* The ליד slot: "צור ליד" for a live, unconverted comment, "פתח ליד"
                     (the standard /clients/{id}/summary route) once linked. One
                     component in one position, so a click's confirmation survives
-                    the refresh that follows it. A deleted comment gets neither. */}
-                {(c.convertedLeadId || c.status === 'open') && (
+                    the refresh that follows it. See rowState for who gets one. */}
+                {hasLeadSlot(c) && (
                   <ConvertCommentButton
                     commentId={c.commentId}
                     convertedLeadId={c.convertedLeadId}

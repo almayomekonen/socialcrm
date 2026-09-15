@@ -47,14 +47,18 @@ export async function createLeadFromMessengerConversation(conversationId: number
     revalidatePath('/inbox/messenger')
   }
 
-  const orphan = await db('clients').where({ leadSource, agencyId: user.agencyId }).first('id')
-  if (orphan?.id) {
-    await link(orphan.id)
-    return { ok: true, leadId: orphan.id }
+  const findExisting = async () => {
+    const row = await db('clients').where({ leadSource, agencyId: user.agencyId }).first('id')
+    return row?.id ? Number(row.id) : null
+  }
+  const orphanId = await findExisting()
+  if (orphanId) {
+    await link(orphanId)
+    return { ok: true, leadId: orphanId }
   }
 
   const { firstName, lastName } = splitName(conversation.customerName)
-  // Entitlement/quota errors thrown by upsertLead's own guard propagate to useAction.
+  // upsertLead CATCHES entitlement and DB errors and returns `{ err }` (quota: `{ error }`).
   // status/userId explicit: the column defaults ('true', NULL) hide a ליד from every status tab and rep filter.
   const lead = await upsertLead(
     user.id,
@@ -63,12 +67,19 @@ export async function createLeadFromMessengerConversation(conversationId: number
     true,
     'manual',
   )
-  if (!lead) return { ok: false, reason: 'create_failed' }
-  if (typeof lead === 'object' && 'error' in lead) {
-    return { ok: false, reason: lead.error === 'quota_exceeded' ? 'quota_exceeded' : 'create_failed' }
+  // No id means no ליד from this call. Never link without one (that "succeeded" with no
+  // lead). A concurrent click that won the unique leadSource index is adopted instead.
+  if (!lead || typeof lead !== 'object' || !('id' in lead) || lead.id == null) {
+    const concurrentId = await findExisting()
+    if (concurrentId) {
+      await link(concurrentId)
+      return { ok: true, leadId: concurrentId }
+    }
+    const quota = typeof lead === 'object' && lead !== null && 'error' in lead && lead.error === 'quota_exceeded'
+    return { ok: false, reason: quota ? 'quota_exceeded' : 'create_failed' }
   }
-  await link(lead.id)
-  return { ok: true, leadId: lead.id }
+  await link(Number(lead.id))
+  return { ok: true, leadId: Number(lead.id) }
 }
 
 /**

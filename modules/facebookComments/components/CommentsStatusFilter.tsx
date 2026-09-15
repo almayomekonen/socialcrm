@@ -2,9 +2,10 @@ import Link from 'next/link'
 import type { CommentStatusFilter } from '../types'
 
 /**
- * Status filter for the Comments Inbox — the same vocabulary and pill style as
- * the WhatsApp inbox toolbar ("הכל" first and default), kept in the URL
- * (`?status=`) so it survives refresh, Back and a shared link.
+ * Status filter for the Comments Inbox — the WhatsApp inbox's status vocabulary
+ * ("הכל" first and default) in the chip style of `InboxChannelSwitch` /
+ * `NotificationFilters`, kept in the URL (`?status=`) so it survives refresh,
+ * Back and a shared link.
  *
  * "הכל" is the default so a comment turned into a ליד stays where the user left
  * it, with its "פתח ליד" link. Links, not buttons: this is navigation.
@@ -14,6 +15,9 @@ const OPTIONS: { value: CommentStatusFilter; label: string; href: string }[] = [
   { value: 'open', label: 'פתוחות', href: '/inbox/comments?status=open' },
   { value: 'converted', label: 'הומרו לליד', href: '/inbox/comments?status=converted' },
 ]
+
+/** The only `?status=` values the Comments Inbox page accepts. */
+export const PAGE_STATUS_FILTERS: readonly CommentStatusFilter[] = OPTIONS.map((o) => o.value)
 
 export default function CommentsStatusFilter({ active }: { active: CommentStatusFilter }) {
   return (

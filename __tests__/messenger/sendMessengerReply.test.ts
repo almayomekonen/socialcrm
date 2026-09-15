@@ -16,6 +16,8 @@ const h = vi.hoisted(() => {
     wheres: [] as { table: string; w: unknown }[],
     inserts: [] as { table: string; row: Record<string, unknown> }[],
     updates: [] as { table: string; u: unknown }[],
+    /** Successive `clients` probes (orphan / concurrent-winner lookups). */
+    leadProbes: [] as (Record<string, unknown> | undefined)[],
   }
   function qb(table: string) {
     const b: Record<string, unknown> = {}
@@ -24,7 +26,13 @@ const h = vi.hoisted(() => {
       return b
     }
     b.first = async () =>
-      table === 'messenger_conversations' ? state.conversation : table === 'facebook_pages' ? state.page : undefined
+      table === 'messenger_conversations'
+        ? state.conversation
+        : table === 'facebook_pages'
+          ? state.page
+          : table === 'clients'
+            ? state.leadProbes.shift()
+            : undefined
     b.insert = (row: Record<string, unknown>) => {
       state.inserts.push({ table, row })
       return b
@@ -171,6 +179,22 @@ describe('lead association', () => {
     // status/userId explicit: the column defaults ('true', NULL) hide the ליד from every לידים tab and rep filter.
     expect(data).toEqual({ firstName: 'דנה', lastName: 'לוי', leadSource: 'messenger:103:PAGE1:PSID-1', lead: true, status: 'new', userId: 7, handlerId: 7 })
     expect(origin).toBe('manual')
+  })
+
+  it('an error result from upsertLead (entitlement, DB) is a failure — never a "success" with no ליד', async () => {
+    vi.mocked(upsertLead).mockResolvedValueOnce({ err: true, msg: 'x' } as never)
+    expect(await createLeadFromMessengerConversation(12)).toEqual({ ok: false, reason: 'create_failed' })
+    expect(h.state.updates.filter((u) => u.table === 'messenger_conversations')).toHaveLength(0)
+  })
+
+  it('quota is reported as quota; a concurrent click that already created the ליד is adopted instead', async () => {
+    vi.mocked(upsertLead).mockResolvedValueOnce({ error: 'quota_exceeded', current: 50, limit: 50 } as never)
+    expect(await createLeadFromMessengerConversation(12)).toEqual({ ok: false, reason: 'quota_exceeded' })
+
+    h.state.leadProbes = [undefined, { id: 777 }]
+    vi.mocked(upsertLead).mockResolvedValueOnce({ err: true, msg: 'duplicate key' } as never)
+    expect(await createLeadFromMessengerConversation(12)).toEqual({ ok: true, leadId: 777 })
+    expect(h.state.updates).toContainEqual({ table: 'messenger_conversations', u: expect.objectContaining({ leadId: 777 }) })
   })
 
   it('an already-linked conversation returns its lead instead of creating another', async () => {

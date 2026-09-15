@@ -59,6 +59,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 import { convertCommentToLead } from '@/modules/facebookComments/actions'
 import { upsertLead } from '@/actions/clients'
 import { requireAgencyUser } from '@/lib/requireUser'
+import { revalidatePath } from 'next/cache'
 
 const COMMENT = '122113311069337165_987654321'
 const AGENCY = 103
@@ -267,6 +268,11 @@ describe('convertCommentToLead — idempotency', () => {
     expect(r).toEqual({ ok: true, leadId: 901, created: false })
     expect(h.state.updates).toHaveLength(1)
     expect(h.state.updates[0].row).toMatchObject({ convertedLeadId: 901, status: 'converted' })
+
+    // Same when the winner took the last quota slot: adopt, don't report quota.
+    h.state.leadProbes = [undefined, { id: 902 }]
+    vi.mocked(upsertLead).mockResolvedValue({ error: 'quota_exceeded', current: 50, limit: 50 } as never)
+    expect(await convertCommentToLead(COMMENT)).toEqual({ ok: true, leadId: 902, created: false })
   })
 
   it('looks for the orphan by leadSource within the tenant', async () => {
@@ -299,21 +305,20 @@ describe('convertCommentToLead — failure handling', () => {
     expect(h.state.updates).toHaveLength(0) // comment untouched
   })
 
-  it('reports a Lead-creation failure without linking anything', async () => {
-    vi.mocked(upsertLead).mockResolvedValue(null as never)
-
-    const r = await convertCommentToLead(COMMENT)
-
-    expect(r).toEqual({ ok: false, reason: 'create_failed' })
-    expect(h.state.updates).toHaveLength(0)
+  it('an already-linked comment refreshes the list, so a stale tab stops offering "צור ליד"', async () => {
+    h.state.comment = openComment({ status: 'converted', convertedLeadId: 777 })
+    vi.mocked(revalidatePath).mockClear()
+    await convertCommentToLead(COMMENT)
+    expect(revalidatePath).toHaveBeenCalledWith('/inbox/comments')
   })
 
-  it('an error result from upsertLead (no id) is a failure: the comment stays open', async () => {
-    vi.mocked(upsertLead).mockResolvedValue({ err: true, msg: 'insert failed' } as never)
-
-    const r = await convertCommentToLead(COMMENT)
-
-    expect(r).toEqual({ ok: false, reason: 'create_failed' })
+  it('reports a Lead-creation failure without linking anything — including an `{ err }` result with no id', async () => {
+    // Regression: `{ err }` (entitlement, DB error) used to be linked as `link(undefined)`,
+    // marking the comment converted with no ליד and reporting success.
+    for (const result of [null, { err: true, msg: 'insert failed' }]) {
+      vi.mocked(upsertLead).mockResolvedValue(result as never)
+      expect(await convertCommentToLead(COMMENT)).toEqual({ ok: false, reason: 'create_failed' })
+    }
     expect(h.state.updates).toHaveLength(0)
   })
 

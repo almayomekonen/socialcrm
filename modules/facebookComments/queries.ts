@@ -64,8 +64,17 @@ export function listPageCommentsQuery(
     .select(...SELECTED_COLUMNS)
 
   // A deleted comment is a tombstone kept for provenance, not work to do, so it
-  // is excluded from every view except the one that asks for it by name.
-  q = status === 'all' ? q.whereNot({ status: 'deleted' }) : q.where({ status })
+  // is excluded from every view except the one that asks for it by name —
+  // UNLESS it produced a ליד: Facebook deleting the comment must not hide the
+  // association, so it stays under "all" and "converted". Each OR is grouped,
+  // so it can never widen the agency/author predicates above.
+  if (status === 'all') {
+    q = q.where((b) => b.whereNot({ status: 'deleted' }).orWhereNotNull('convertedLeadId'))
+  } else if (status === 'converted') {
+    q = q.where((b) => b.where({ status: 'converted' }).orWhere((d) => d.where({ status: 'deleted' }).whereNotNull('convertedLeadId')))
+  } else {
+    q = q.where({ status })
+  }
 
   if (opts.cursor) {
     q = q.whereRaw('("receivedAt", id) < (?, ?)', [opts.cursor.receivedAt, opts.cursor.id])

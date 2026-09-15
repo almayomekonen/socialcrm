@@ -5,6 +5,7 @@ import CommentThread from '@/modules/facebookComments/components/CommentThread'
 import CommentReplyForm from '@/modules/facebookComments/components/CommentReplyForm'
 import { facebookCommentUrl } from '@/lib/facebook/comments/links'
 import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thread'
+import { badgeStatus, hasLeadSlot } from '../rowState'
 import type { CommentListItem, CommentReply, CommentStatus } from '../types'
 
 /**
@@ -37,7 +38,8 @@ export default function CommentsListMobile({
     <ul className='divide-y divide-gray-100 overflow-hidden rounded-md border border-gray-200 bg-white'>
       {comments.map((c) => {
         const when = c.createdTime ?? c.receivedAt
-        const status = STATUS_COPY[c.status]
+        const shown = badgeStatus(c)
+        const status = shown ? STATUS_COPY[shown] : undefined
         const thread = threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []
         const facebookUrl = facebookCommentUrl(c.postId, c.commentId)
 
@@ -85,7 +87,7 @@ export default function CommentsListMobile({
                 )}
               </div>
 
-              {(c.convertedLeadId || c.status === 'open') && (
+              {hasLeadSlot(c) && (
                 <div className='mt-1 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center [&_a]:text-sm [&_button]:min-h-11 [&_button]:rounded-md'>
                   <ConvertCommentButton
                     commentId={c.commentId}
