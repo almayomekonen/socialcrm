@@ -37,10 +37,13 @@ function appsWithFields(fields: string[]) {
 
 beforeEach(() => {
   h.state.connection = { page_id: 'PG1', page_access_token: 'ptok', agency_id: 23 }
+  // Fixtures use app id 'APP'; a developer .env.test must not filter them out.
+  vi.stubEnv('META_APP_ID', '')
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
 })
 
