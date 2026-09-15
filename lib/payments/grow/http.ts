@@ -5,16 +5,22 @@ import { getGrowApiConfig } from './config'
  * the server only (Grow blocks browser requests). Every answer uses the same
  * documented envelope: { status: 1|0, err: '' | { id, message }, data }.
  *
- * Transport failures (timeout, network, non-2xx, non-JSON) are THROWN as
- * GrowTransportError because their money outcome is unknown. A Grow business
- * error (status 0) is RETURNED in the envelope, because Grow answered.
+ * Transport failures (timeout, network, redirect, non-2xx, non-JSON, or a body
+ * that is not the documented envelope) are THROWN as GrowTransportError because
+ * their money outcome is unknown. A Grow business error (status 0) is RETURNED
+ * in the envelope, because Grow answered.
+ *
+ * One request per call, never retried here: a repeated charge request is only
+ * safe once Grow's duplicate-identifier behaviour is proven (Gate B). Redirects
+ * are never followed — a 307/308 would re-send the form (userId, pageCode,
+ * cardToken) to whatever host the Location names.
  */
 
 export type GrowEnvelope = { status: 0 | 1; err: { id: number | null; message: string } | null; data: unknown }
 
 export class GrowTransportError extends Error {
   constructor(
-    public reason: 'timeout' | 'network' | 'http_status' | 'invalid_json',
+    public reason: 'timeout' | 'network' | 'redirect' | 'http_status' | 'invalid_json' | 'invalid_envelope',
     public httpStatus?: number,
   ) {
     super(`grow.transport.${reason}`)
@@ -24,9 +30,18 @@ export class GrowTransportError extends Error {
 
 const DEFAULT_TIMEOUT_MS = 15_000
 
+function isTimeout(err: unknown): boolean {
+  const name = (err as { name?: string })?.name
+  return name === 'TimeoutError' || name === 'AbortError'
+}
+
+/** Throws unless `status` is the documented 1 or 0: anything else is an unknown outcome, never a Grow refusal. */
 export function normalizeEnvelope(body: unknown): GrowEnvelope {
-  const b = (body ?? {}) as Record<string, unknown>
-  const status = Number(b.status) === 1 ? 1 : 0
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new GrowTransportError('invalid_envelope')
+  const b = body as Record<string, unknown>
+  const rawStatus = typeof b.status === 'string' ? b.status.trim() : b.status
+  if (rawStatus !== 1 && rawStatus !== 0 && rawStatus !== '1' && rawStatus !== '0') throw new GrowTransportError('invalid_envelope')
+  const status = Number(rawStatus) === 1 ? 1 : 0
   const rawErr = b.err
   let err: GrowEnvelope['err'] = null
   if (rawErr && typeof rawErr === 'object') {
@@ -53,19 +68,23 @@ export async function postGrowForm(
       method: 'POST',
       body: form,
       cache: 'no-store',
+      redirect: 'manual',
       signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {
-    const name = (err as { name?: string })?.name
-    throw new GrowTransportError(name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network')
+    throw new GrowTransportError(isTimeout(err) ? 'timeout' : 'network')
+  }
+  if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) {
+    throw new GrowTransportError('redirect', res.status || undefined)
   }
   if (!res.ok) throw new GrowTransportError('http_status', res.status)
 
   let body: unknown
   try {
     body = await res.json()
-  } catch {
-    throw new GrowTransportError('invalid_json', res.status)
+  } catch (err) {
+    // The timeout also covers reading the body; a stalled body is a timeout, not bad JSON.
+    throw new GrowTransportError(isTimeout(err) ? 'timeout' : 'invalid_json', res.status)
   }
   return normalizeEnvelope(body)
 }

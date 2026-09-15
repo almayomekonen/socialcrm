@@ -133,15 +133,20 @@ export type ChargeTokenInput = {
 
 export type TokenChargeResult =
   | { kind: 'paid'; transactionId: string; transactionToken: string | null; asmachta: string | null; statusCode: string }
-  | { kind: 'not_paid'; statusCode: string | null; transactionId: string | null }
+  /** Grow accepted the request but the answer is not the documented paid shape. The outcome is UNKNOWN. */
+  | { kind: 'unrecognized'; statusCode: string | null; transactionId: string | null }
   | { kind: 'grow_error'; errorId: number | null; errorMessage: string }
 
 /**
- * createTransactionWithToken, one regular charge (paymentType 2, paymentNum 1).
- * `paid` means statusCode 2 — "paid" in Grow's parameter-mapping table. A Grow
- * error (envelope status 0) is returned verbatim, NOT classified as a decline:
- * it may equally be a validation or duplicate-identifier refusal. Transport
- * failures propagate, because the money outcome is unknown.
+ * createTransactionWithToken, one regular charge (paymentType 2, paymentNum 1),
+ * sent exactly once.
+ * - `paid`: statusCode 2 ("paid" in Grow's parameter-mapping table) with a
+ *   transactionId — the documented success example.
+ * - `unrecognized`: status 1 with any other shape. Undocumented for this call,
+ *   so the money outcome is unknown: reconcile, never retry or treat as declined.
+ * - `grow_error`: envelope status 0, returned verbatim and NOT classified as a
+ *   decline — it may equally be a validation or duplicate-identifier refusal.
+ * Transport failures (GrowTransportError) propagate: outcome unknown.
  */
 export async function chargeToken(input: ChargeTokenInput): Promise<TokenChargeResult> {
   const { userId } = getGrowApiConfig()
@@ -163,7 +168,7 @@ export async function chargeToken(input: ChargeTokenInput): Promise<TokenChargeR
   if (statusCode === '2' && transactionId) {
     return { kind: 'paid', transactionId, transactionToken: s(data.transactionToken), asmachta: s(data.asmachta), statusCode }
   }
-  return { kind: 'not_paid', statusCode, transactionId }
+  return { kind: 'unrecognized', statusCode, transactionId }
 }
 
 /**

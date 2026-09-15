@@ -6,7 +6,7 @@ import {
   SandboxProbeRefusal,
   type ProbeGuardInput,
 } from '@/scripts/lib/growSandboxProbeGuard'
-import { sanitizeGrowEvidence } from '@/scripts/lib/sanitizeGrowEvidence'
+import { redactKnownSecrets, sanitizeGrowEvidence } from '@/scripts/lib/sanitizeGrowEvidence'
 
 const good = (): ProbeGuardInput => ({
   envFileExists: true,
@@ -110,6 +110,35 @@ describe('sanitizeGrowEvidence', () => {
       expect(String(out.data[k])).toMatch(/^<redacted len \d+>$/)
     }
     expect(JSON.stringify(out)).not.toMatch(/9294decf|4e6ca0b4|e2202e3c|0500000000|a@b\.com|1234567|secret-in-url/)
+  })
+
+  it('masks values under keys it does not know, keeping only the key names (undocumented responses)', () => {
+    const out = sanitizeGrowEvidence({
+      status: 1,
+      data: { items: [{ statusCode: '2', payerIdNumber: '123456789', cardOwnerSocialId: '987654321', weirdNewField: 'x@y.z' }], total: 7 },
+    }) as { data: { items: Record<string, unknown>[]; total: unknown } }
+    expect(Object.keys(out.data.items[0])).toEqual(['statusCode', 'payerIdNumber', 'cardOwnerSocialId', 'weirdNewField'])
+    expect(out.data.items[0].statusCode).toBe('2')
+    expect(out.data.total).toBe('<redacted len 1>')
+    expect(JSON.stringify(out)).not.toMatch(/123456789|987654321|x@y\.z/)
+  })
+
+  it('removes known secret values even from fields it keeps (e.g. an error that echoes the pageCode)', () => {
+    const secrets = ['sandbox-page-code-123', 'user-id-4567', 'card-token-abcdef']
+    const out = sanitizeGrowEvidence({ status: 0, err: { id: 54, message: 'pageCode sandbox-page-code-123 invalid for user-id-4567' }, data: '' }, secrets)
+    expect(JSON.stringify(out)).not.toMatch(/sandbox-page-code-123|user-id-4567/)
+    expect(out).toMatchObject({ err: { id: 54, message: 'pageCode <redacted secret> invalid for <redacted secret>' } })
+    expect(redactKnownSecrets('failed card-token-abcdef', secrets)).toBe('failed <redacted secret>')
+  })
+})
+
+describe('the probe script never prints stored values', () => {
+  const src = readFileSync('scripts/grow-sandbox-probe.ts', 'utf8')
+  it('does not echo the state file when it cannot be parsed (JSON errors quote the input)', () => {
+    expect(src).toMatch(/state_file_unreadable/)
+  })
+  it('opens the hosted page instead of printing its url', () => {
+    expect(src).not.toMatch(/console\.(log|error)\([^)]*\.url/)
   })
 })
 

@@ -9,8 +9,10 @@
  * Identifiers come ONLY from .env.grow-sandbox.local (see growSandboxProbeGuard).
  * It touches no database and no application data. Tokens are kept in a
  * gitignored 0600 state file and never printed; every Grow response is recorded
- * sanitized in the gitignored evidence log. What the responses MEAN is decided
- * by a human reading the evidence, not by this script.
+ * through an allowlist sanitizer in the gitignored evidence log, and the Grow
+ * identifiers and stored tokens are redacted from everything it prints. The
+ * hosted page is opened in the browser, not printed. What the responses MEAN is
+ * decided by a human reading the evidence, not by this script.
  */
 import { execFileSync } from 'child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
@@ -22,7 +24,7 @@ import {
   SANDBOX_STATE_DIR,
   SandboxProbeRefusal,
 } from './lib/growSandboxProbeGuard'
-import { sanitizeGrowEvidence } from './lib/sanitizeGrowEvidence'
+import { redactKnownSecrets, sanitizeGrowEvidence } from './lib/sanitizeGrowEvidence'
 import { GROW_SANDBOX_BASE_URL, getGrowApiConfig } from '../lib/payments/grow/config'
 import { chargeToken, createTokenOnlyProcess, getPaymentProcessInfo, lookupTokenTransactionsRaw } from '../lib/payments/grow/api'
 import { validateCardHolder } from '../lib/payments/cardTrial/cardHolder'
@@ -38,6 +40,16 @@ const MAX_PROBE_SUM = 89
 
 type ProcessState = { processToken: string; cardToken?: string }
 type State = Record<string, ProcessState>
+
+/** Values that must never reach the terminal or the evidence log, whatever carries them. */
+const secretValues = new Set<string>()
+function rememberSecrets(state: State): void {
+  for (const entry of Object.values(state)) {
+    secretValues.add(entry.processToken)
+    if (entry.cardToken) secretValues.add(entry.cardToken)
+  }
+}
+const secrets = () => [...secretValues]
 
 function gitIgnored(path: string): boolean {
   try {
@@ -58,6 +70,8 @@ function prepare(): void {
     envFileVars: envFileExists ? parse(readFileSync(SANDBOX_ENV_FILE)) : {},
     processEnv: process.env,
   })
+  secretValues.add(identity.userId)
+  secretValues.add(identity.tokenPageCode)
   process.env.GROW_MODE = 'sandbox'
   process.env.GROW_USER_ID = identity.userId
   process.env.GROW_PAGE_CODE_TOKEN = identity.tokenPageCode
@@ -70,17 +84,27 @@ function captureGrowResponses(): void {
   const original = globalThis.fetch
   globalThis.fetch = async (input, init) => {
     const res = await original(input, init)
-    lastRaw = await res.clone().json().catch(() => '<non-json body>')
+    lastRaw = await res.clone().json().catch(() => ({ nonJsonBody: true }))
     return res
   }
 }
 
 function readState(): State {
-  return existsSync(STATE_FILE) ? (JSON.parse(readFileSync(STATE_FILE, 'utf8')) as State) : {}
+  if (!existsSync(STATE_FILE)) return {}
+  let state: State
+  try {
+    state = JSON.parse(readFileSync(STATE_FILE, 'utf8')) as State
+  } catch {
+    // JSON.parse errors quote the input, and this file holds tokens.
+    throw new Error('state_file_unreadable')
+  }
+  rememberSecrets(state)
+  return state
 }
 
 function writeState(state: State): void {
   mkdirSync(SANDBOX_STATE_DIR, { recursive: true })
+  rememberSecrets(state)
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), { mode: 0o600 })
 }
 
@@ -90,12 +114,12 @@ function record(command: string, summary: Record<string, unknown>): void {
     `## ${new Date().toISOString()} — ${command}`,
     '',
     '```json',
-    JSON.stringify({ summary, response: sanitizeGrowEvidence(lastRaw) }, null, 2),
+    JSON.stringify({ summary, response: sanitizeGrowEvidence(lastRaw, secrets()) }, null, 2),
     '```',
     '',
   ].join('\n')
-  appendFileSync(EVIDENCE_FILE, block)
-  console.log(JSON.stringify(summary, null, 2))
+  appendFileSync(EVIDENCE_FILE, redactKnownSecrets(block, secrets()))
+  console.log(redactKnownSecrets(JSON.stringify(summary, null, 2), secrets()))
   console.log(`evidence appended to ${EVIDENCE_FILE}`)
 }
 
@@ -135,7 +159,8 @@ async function main(): Promise<void> {
     })
     writeState({ ...state, [out.processId]: { processToken: out.processToken } })
     record('create', { processId: out.processId, reference })
-    console.log(`open in a browser (sandbox test card): ${out.url}`)
+    execFileSync(process.platform === 'darwin' ? 'open' : 'xdg-open', [out.url], { stdio: 'ignore' })
+    console.log('hosted page opened in the browser: complete it with a sandbox test card, then run `info`')
     return
   }
 
@@ -170,7 +195,7 @@ async function main(): Promise<void> {
       uniqueIdentifier,
       groupIdentifier,
     })
-    record(`charge ${args[0]} ${uniqueIdentifier} ${groupIdentifier} ${sum}`, { clientClassification: result.kind, result: sanitizeGrowEvidence(result) })
+    record(`charge ${args[0]} ${uniqueIdentifier} ${groupIdentifier} ${sum}`, { clientClassification: result.kind, result: sanitizeGrowEvidence(result, secrets()) })
     return
   }
 
@@ -186,7 +211,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  const failure = err instanceof Error ? `${err.name}: ${err.message}` : 'probe failed'
+  const failure = redactKnownSecrets(err instanceof Error ? `${err.name}: ${err.message}` : 'probe failed', secrets())
   // lastRaw is only set after prepare() passed, so the evidence path is known to be gitignored.
   if (lastRaw !== null) record(`FAILED ${process.argv.slice(2).join(' ')}`, { failure })
   console.error(failure)

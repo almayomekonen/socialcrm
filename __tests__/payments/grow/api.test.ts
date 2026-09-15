@@ -48,6 +48,12 @@ describe('normalizeEnvelope', () => {
       data: '',
     })
   })
+  it.each([[{}], [[]], [null], ['ok'], [{ status: 'success', data: {} }], [{ status: 2, data: {} }], [{ message: 'Internal error' }]])(
+    'throws invalid_envelope for a body that is not the documented envelope: %j (unknown outcome, never a Grow refusal)',
+    (body) => {
+      expect(() => normalizeEnvelope(body)).toThrow(expect.objectContaining({ name: 'GrowTransportError', reason: 'invalid_envelope' }))
+    },
+  )
 })
 
 describe('postGrowForm transport', () => {
@@ -72,6 +78,21 @@ describe('postGrowForm transport', () => {
   it('maps a non-JSON body to GrowTransportError(invalid_json)', async () => {
     fetchMock.mockResolvedValue(new Response('<html>', { status: 200 }))
     await expect(postGrowForm('x', {})).rejects.toMatchObject({ reason: 'invalid_json' })
+  })
+  it('maps a timeout while reading the body to GrowTransportError(timeout), not invalid_json', async () => {
+    const stalled = { ok: true, status: 200, type: 'basic', json: () => Promise.reject(Object.assign(new Error('t'), { name: 'TimeoutError' })) }
+    fetchMock.mockResolvedValue(stalled)
+    await expect(postGrowForm('x', {})).rejects.toMatchObject({ reason: 'timeout' })
+  })
+  it('never follows redirects: the form would be re-sent to the Location host', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 307, headers: { location: 'https://attacker.example/collect' } }))
+    await expect(postGrowForm('x', { cardToken: 'ct' })).rejects.toMatchObject({ name: 'GrowTransportError', reason: 'redirect', httpStatus: 307 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][1].redirect).toBe('manual')
+  })
+  it('treats an opaque redirect response as a redirect', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 0, type: 'opaqueredirect', json: async () => ({}) })
+    await expect(postGrowForm('x', {})).rejects.toMatchObject({ reason: 'redirect' })
   })
 })
 
@@ -187,9 +208,15 @@ describe('chargeToken (createTransactionWithToken)', () => {
     expect(form.get('transactionGroupIdentifier')).toBe('1790000001')
   })
 
-  it('reports not_paid for any other statusCode ("Not paid" 0 in parameter-mapping)', async () => {
-    fetchMock.mockResolvedValue(growResponse({ status: 1, err: '', data: { statusCode: '0', transactionId: '9' } }))
-    expect(await chargeToken(input)).toEqual({ kind: 'not_paid', statusCode: '0', transactionId: '9' })
+  it.each([
+    [{ statusCode: '0', transactionId: '9' }, { statusCode: '0', transactionId: '9' }],
+    [{ statusCode: '11', transactionId: '9' }, { statusCode: '11', transactionId: '9' }],
+    [{ transactionId: '9' }, { statusCode: null, transactionId: '9' }],
+    [{ statusCode: '2' }, { statusCode: '2', transactionId: null }],
+    [{}, { statusCode: null, transactionId: null }],
+  ])('reports unrecognized — outcome unknown, not a decline — for a status-1 answer outside the documented paid shape: %j', async (data, expected) => {
+    fetchMock.mockResolvedValue(growResponse({ status: 1, err: '', data }))
+    expect(await chargeToken(input)).toEqual({ kind: 'unrecognized', ...expected })
   })
 
   it('returns Grow errors verbatim without classifying them (documented token error example)', async () => {
@@ -197,9 +224,19 @@ describe('chargeToken (createTransactionWithToken)', () => {
     expect(await chargeToken(input)).toEqual({ kind: 'grow_error', errorId: 103, errorMessage: 'כרטיס גנוב - עסקה לא מאושרת' })
   })
 
-  it('lets transport failures propagate: the money outcome is unknown', async () => {
-    fetchMock.mockRejectedValue(Object.assign(new Error('t'), { name: 'TimeoutError' }))
-    await expect(chargeToken(input)).rejects.toBeInstanceOf(GrowTransportError)
+  it.each([
+    ['timeout', () => fetchMock.mockRejectedValue(Object.assign(new Error('t'), { name: 'TimeoutError' })), 'timeout'],
+    ['connection reset', () => fetchMock.mockRejectedValue(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } })), 'network'],
+    ['gateway error', () => fetchMock.mockResolvedValue(new Response('upstream timed out', { status: 504 })), 'http_status'],
+    ['redirect', () => fetchMock.mockResolvedValue(new Response(null, { status: 308, headers: { location: 'https://x.example/' } })), 'redirect'],
+    ['non-envelope body', () => fetchMock.mockResolvedValue(growResponse({ message: 'Internal error' })), 'invalid_envelope'],
+  ])('%s: throws GrowTransportError (outcome unknown) after exactly one request, never retried', async (_label, arrange, reason) => {
+    arrange()
+    const err = await chargeToken({ ...input, cardToken: 'TOKEN-VALUE-MUST-NOT-LEAK' }).catch((e) => e)
+    expect(err).toBeInstanceOf(GrowTransportError)
+    expect(err.reason).toBe(reason)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(`${err.message} ${JSON.stringify(err)}`).not.toMatch(/TOKEN-VALUE|user-1|page-1/)
   })
 })
 

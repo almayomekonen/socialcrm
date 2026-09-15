@@ -1,31 +1,63 @@
 /**
  * Makes a Grow response safe to print or save as Gate B evidence.
  *
- * Kept verbatim: status/statusCode/sum/ids and every key NAME — the shape is the
- * evidence. Masked: anything that can charge, identify or contact a person
- * (tokens, names, phones, emails, bank details) and the hosted page url (it may
- * embed a process token). Card digits keep only their shape ("NNNN"), which is
- * what the cardExp-format question needs.
+ * ALLOWLIST, not denylist: some responses (getTokenTransactionsByExternalIdentifiers)
+ * are undocumented, so no list of "sensitive" keys can be complete. Every key
+ * NAME is kept — the shape is the evidence — but a value is shown only when its
+ * key is one Gate B needs and cannot identify, contact or charge anyone. Card
+ * digits keep only their shape ("NNNN"). Known secret values (Grow userId,
+ * pageCode, stored tokens) are then removed from whatever text remains.
  */
 
-const MASK_KEY = /token|phone|email|fullname|name$|bank|account|^url$/i
-const SHAPE_ONLY_KEY = /^(cardExp|cardSuffix)$/
+const VERBATIM_KEYS = new Set([
+  'status',
+  'statusCode',
+  'err',
+  'id',
+  'message',
+  'errorId',
+  'errorMessage',
+  'kind',
+  'sum',
+  'processId',
+  'transactionId',
+  'asmachta',
+  'cardBrand',
+  'cardType',
+  'paymentType',
+  'paymentsNum',
+  'paymentDate',
+  'description',
+  'cField1',
+  'transactionUniqueIdentifier',
+  'transactionGroupIdentifier',
+  'nonJsonBody',
+])
+const SHAPE_ONLY_KEYS = new Set(['cardExp', 'cardSuffix'])
 
 function mask(value: unknown): string {
-  return `<redacted len ${String(value ?? '').length}>`
+  return `<redacted len ${String(value).length}>`
 }
 
-export function sanitizeGrowEvidence(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((v) => sanitizeGrowEvidence(v))
+export function redactKnownSecrets(text: string, secrets: readonly string[]): string {
+  return [...secrets]
+    .filter((v) => v.length >= 4)
+    .sort((a, b) => b.length - a.length)
+    .reduce((out, secret) => out.split(secret).join('<redacted secret>'), text)
+}
+
+function sanitizeValue(key: string, value: unknown, secrets: readonly string[]): unknown {
+  if (value === null || value === undefined) return value
+  if (typeof value === 'object') return sanitizeGrowEvidence(value, secrets)
+  if (SHAPE_ONLY_KEYS.has(key)) return String(value).replace(/\d/g, 'N')
+  if (!VERBATIM_KEYS.has(key)) return mask(value)
+  return typeof value === 'string' ? redactKnownSecrets(value, secrets) : value
+}
+
+export function sanitizeGrowEvidence(value: unknown, secrets: readonly string[] = []): unknown {
+  if (Array.isArray(value)) return value.map((v) => sanitizeValue('', v, secrets))
   if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (v && typeof v === 'object') out[k] = MASK_KEY.test(k) ? mask(JSON.stringify(v)) : sanitizeGrowEvidence(v)
-      else if (SHAPE_ONLY_KEY.test(k)) out[k] = String(v ?? '').replace(/\d/g, 'N')
-      else if (MASK_KEY.test(k)) out[k] = mask(v)
-      else out[k] = v
-    }
-    return out
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeValue(k, v, secrets)]))
   }
-  return value
+  return value === null || value === undefined ? value : mask(value)
 }
