@@ -11,7 +11,7 @@ import { getAdsReport, listAdAccounts, type AdsFailure } from '@/lib/facebook/ad
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import MetaPermissionButton from '@/components/settings/MetaPermissionButton'
 import { Btn } from '@/lib/btns/Btn'
-import { ADS_NOTICES, type AdsNoticeKind } from '@/modules/adsReporting/notices'
+import { ADS_NOTICES, noConnectionNotice, type AdsNoticeKind } from '@/modules/adsReporting/notices'
 import AdsReportControls from '@/modules/adsReporting/components/AdsReportControls'
 import AdsReportView from '@/modules/adsReporting/components/AdsReportView'
 import DisconnectAdsButton from '@/modules/adsReporting/components/DisconnectAdsButton'
@@ -72,7 +72,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
     return page(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
   }
 
-  if (!connection) return page(<Notice inAppBrowser={inAppBrowser} kind={sp.ads_error === 'declined' ? 'declined' : 'connect'} />)
+  if (!connection) return page(<Notice inAppBrowser={inAppBrowser} kind={noConnectionNotice(sp.ads_error)} />)
   if (!connection.grantedScopes.includes('ads_read')) return page(<Notice inAppBrowser={inAppBrowser} kind='declined' />)
   if (connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now()) return page(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
 
