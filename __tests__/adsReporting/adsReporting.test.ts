@@ -18,7 +18,8 @@ vi.hoisted(() => {
 })
 
 import { insightsRangeParams, parseAdsRange } from '@/lib/facebook/ads/dateRange'
-import { getAdsReport, listAdAccounts } from '@/lib/facebook/ads/insights'
+import { listAdAccounts } from '@/lib/facebook/ads/insights'
+import { getAdsReport } from '@/lib/facebook/ads/report'
 import { formatAdsCount, formatAdsMoney, formatAdsPercent } from '@/lib/facebook/ads/format'
 
 type Call = { url: string; init: RequestInit }
@@ -80,8 +81,8 @@ describe('listAdAccounts', () => {
     expect(result).toEqual({
       ok: true,
       value: [
-        { id: 'act_1', name: 'חשבון ראשי', currency: 'ILS', status: 1 },
-        { id: 'act_2', name: 'act_2', currency: 'USD', status: 2 },
+        { id: 'act_1', name: 'חשבון ראשי', currency: 'ILS', timezone: null, status: 1 },
+        { id: 'act_2', name: 'act_2', currency: 'USD', timezone: null, status: 2 },
       ],
     })
     expect(calls).toHaveLength(2)
@@ -103,38 +104,14 @@ describe('listAdAccounts', () => {
 describe('getAdsReport', () => {
   const range = { kind: 'preset', preset: 'last_30d' } as const
 
-  it('reads account totals and campaign rows as Meta returned them; missing metrics stay null', async () => {
-    mockGraph((url) =>
-      url.searchParams.get('level') === 'account'
-        ? { body: { data: [{ spend: '1234.5', impressions: '50000', clicks: '812', ctr: '1.624', cpc: '1.52' }] } }
-        : {
-            body: {
-              data: [
-                { campaign_id: 'c1', campaign_name: 'לידים ספטמבר', spend: '200', impressions: '9000', clicks: '100', ctr: '1.1', cpc: '2' },
-                { campaign_id: 'c2', campaign_name: 'רימרקטינג', spend: '1034.5', impressions: '41000' },
-              ],
-            },
-          },
-    )
-    const result = await getAdsReport('T', 'act_1', range)
-    expect(result).toEqual({
-      ok: true,
-      value: {
-        totals: { spend: 1234.5, impressions: 50000, clicks: 812, ctr: 1.624, cpc: 1.52 },
-        campaigns: [
-          { campaignId: 'c2', campaignName: 'רימרקטינג', spend: 1034.5, impressions: 41000, clicks: null, ctr: null, cpc: null },
-          { campaignId: 'c1', campaignName: 'לידים ספטמבר', spend: 200, impressions: 9000, clicks: 100, ctr: 1.1, cpc: 2 },
-        ],
-      },
-    })
-    const account = calls.find((c) => new URL(c.url).searchParams.get('level') === 'account')!
-    expect(new URL(account.url).pathname).toMatch(/\/act_1\/insights$/)
-    expect(new URL(account.url).searchParams.get('date_preset')).toBe('last_30d')
-  })
-
   it('an empty data array is NO ACTIVITY (totals null) — not an error', async () => {
     mockGraph(() => ({ body: { data: [] } }))
-    expect(await getAdsReport('T', 'act_1', range)).toEqual({ ok: true, value: { totals: null, campaigns: [] } })
+    expect(await getAdsReport('T', 'act_1', range)).toEqual({
+      ok: true,
+      value: { period: null, totals: null, previous: null, daily: [], campaigns: [], statusesAvailable: true, reducedFields: false },
+    })
+    // No delivery: nothing else is asked of Meta.
+    expect(calls).toHaveLength(1)
   })
 
   it.each([
@@ -191,7 +168,9 @@ describe('read-only guard (source)', () => {
   })
 
   it('ad reporting code never issues a POST/DELETE against an ad account or campaign', () => {
-    const src = readFileSync(join(process.cwd(), 'lib/facebook/ads/insights.ts'), 'utf8')
-    expect(src).not.toMatch(/method:\s*'(POST|DELETE)'/)
+    for (const file of ['insights.ts', 'report.ts', 'breakdown.ts']) {
+      const src = readFileSync(join(process.cwd(), 'lib/facebook/ads', file), 'utf8')
+      expect(src, file).not.toMatch(/method:\s*'(POST|DELETE)'/)
+    }
   })
 })

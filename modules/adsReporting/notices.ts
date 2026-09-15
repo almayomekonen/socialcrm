@@ -1,3 +1,4 @@
+import type { AdsFailure } from '@/lib/facebook/ads/insights'
 import type { ConnectionNotice } from '@/lib/connections/messages'
 
 /**
@@ -16,6 +17,14 @@ export type AdsNoticeKind =
   | 'meta_error'
   | 'no_activity'
   | 'invalid_range'
+
+/** Meta's failure reason → the notice that explains it (never rendered as zero). */
+export const FAILURE_NOTICE: Record<AdsFailure, AdsNoticeKind> = {
+  reconnect_required: 'expired',
+  permission_missing: 'permission',
+  rate_limited: 'rate_limited',
+  meta_error: 'meta_error',
+}
 
 export const ADS_NOTICES: Record<AdsNoticeKind, ConnectionNotice & { cta?: 'connect' | 'retry' }> = {
   connect: {
@@ -90,8 +99,9 @@ export const ADS_NOTICES: Record<AdsNoticeKind, ConnectionNotice & { cta?: 'conn
   no_activity: {
     tone: 'attention',
     title: 'אין פעילות בטווח הזה',
-    explanation: 'פייסבוק לא החזיר נתוני ביצועים לחשבון הזה בטווח התאריכים שנבחר — לא הייתה הוצאה או חשיפה.',
-    nextStep: 'אפשר לבחור טווח תאריכים אחר או חשבון מודעות אחר.',
+    explanation:
+      'Meta לא החזירה נתוני ביצועים לחשבון הזה בטווח התאריכים שנבחר — לא הייתה הוצאה או חשיפה בטווח הזה. זה לא אומר שהחשבון לא פרסם בתקופות אחרות.',
+    nextStep: 'אפשר לבחור טווח תאריכים אחר (למשל טווח מותאם) או חשבון מודעות אחר.',
   },
   invalid_range: {
     tone: 'attention',

@@ -19,6 +19,7 @@ const h = vi.hoisted(() => ({
   accounts: { ok: true, value: [] } as unknown,
   report: { ok: true, value: { totals: null, campaigns: [] } } as unknown,
   reportCalls: [] as string[],
+  breakdownCalls: [] as unknown[],
   redirects: [] as string[],
 }))
 
@@ -39,11 +40,21 @@ vi.mock('@/db/facebookAds', () => ({
   },
 }))
 vi.mock('@/lib/device', () => ({ getInAppBrowser: async () => null }))
-vi.mock('@/lib/facebook/ads/insights', () => ({
-  listAdAccounts: async () => h.accounts,
+vi.mock('@/lib/facebook/ads/insights', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/facebook/ads/insights')>()
+  return { ...actual, listAdAccounts: async () => h.accounts }
+})
+vi.mock('@/lib/facebook/ads/report', () => ({
+  DAILY_MAX_DAYS: 92,
   getAdsReport: async (_token: string, accountId: string) => {
     h.reportCalls.push(accountId)
     return h.report
+  },
+}))
+vi.mock('@/lib/facebook/ads/breakdown', () => ({
+  getAdsBreakdown: async (_t: string, accountId: string, _r: unknown, parent: unknown) => {
+    h.breakdownCalls.push({ accountId, parent })
+    return { ok: true, value: { level: 'adset', campaign: { id: '111', name: 'Leads' }, adset: null, rows: [], statusesAvailable: true } }
   },
 }))
 vi.mock('@/modules/adsReporting/actions', () => ({ disconnectAds: vi.fn() }))
@@ -76,8 +87,9 @@ beforeEach(() => {
   h.connection = CONNECTED
   h.connectionThrows = false
   h.accounts = ACCOUNTS
-  h.report = { ok: true, value: { totals: null, campaigns: [] } }
+  h.report = { ok: true, value: { period: null, totals: null, previous: null, daily: [], campaigns: [], statusesAvailable: true } }
   h.reportCalls = []
+  h.breakdownCalls = []
   h.redirects = []
 })
 
@@ -178,18 +190,37 @@ describe('Meta responses — failures are never zero', () => {
     expect(screen.queryByText('הוצאה')).not.toBeInTheDocument()
   })
 
-  it("shows Meta's numbers; a metric Meta did not return is a dash", async () => {
+  it("shows Meta's numbers inside the report shell; a metric Meta did not return is a dash", async () => {
+    const metrics = { spend: 1234.5, impressions: 56789, reach: null, frequency: null, clicks: 321, ctr: null, cpc: 3.85, cpm: null, linkClicks: 200, linkCtr: null, linkCpc: null, leads: 12, purchases: 0, purchaseValue: null, messagingConversations: 0, attribution: '7d_click,1d_view' }
     h.report = {
       ok: true,
       value: {
-        totals: { spend: 1234.5, impressions: 56789, clicks: 321, ctr: null, cpc: 3.85 },
-        campaigns: [{ campaignId: 'c1', campaignName: 'קמפיין לידים', spend: 1234.5, impressions: 56789, clicks: 321, ctr: null, cpc: 3.85 }],
+        period: { since: '2026-08-16', until: '2026-09-14' },
+        totals: metrics,
+        previous: null,
+        daily: [],
+        campaigns: [{ id: '111', name: 'קמפיין לידים', objective: 'OUTCOME_LEADS', status: 'ACTIVE', metrics, result: { kind: 'leads', count: 12, cost: 102.88 } }],
+        statusesAvailable: true,
       },
     }
     await renderPage()
     expect(screen.getAllByText('הוצאה').length).toBeGreaterThan(0)
     expect(screen.getByText('קמפיין לידים')).toBeInTheDocument()
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('ads-report-status')).toHaveTextContent('הבחירה: Socialcrm Ads · 30 ימים אחרונים')
+  })
+
+  it('repeated or malformed query values never crash the page or reach Meta', async () => {
+    h.report = { ok: true, value: { period: null, totals: { spend: 1 }, previous: null, daily: [], campaigns: [], statusesAvailable: true } }
+    render(await AdsReportingPage({ searchParams: Promise.resolve({ range: ['last_7d', 'last_30d'], campaign: 'not-a-number' }) as never }))
+    expect(h.reportCalls).toEqual(['act_1'])
+    expect(h.breakdownCalls).toEqual([])
+  })
+
+  it('a drill-down id in the URL is read only inside the verified account', async () => {
+    h.report = { ok: true, value: { period: null, totals: { spend: 1 }, previous: null, daily: [], campaigns: [], statusesAvailable: true } }
+    await renderPage({ account: 'act_999', campaign: '111' })
+    expect(h.breakdownCalls).toEqual([{ accountId: 'act_1', parent: { campaignId: '111', adsetId: undefined } }])
   })
 
   it('an account id the token cannot see is never queried — the first listed account is', async () => {
