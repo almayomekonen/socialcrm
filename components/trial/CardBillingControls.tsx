@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
+import { Checkbox } from '@/lib/form'
+import { CARD_STORAGE_CONSENT_LABEL } from '@/lib/payments/cardTrial/terms'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
 import { startCardSetup } from '@/actions/paymentMethod'
 import { CARD_TRIAL_AMOUNT } from '@/lib/payments/cardTrial/terms'
@@ -29,6 +31,8 @@ type Props = {
 
 export default function CardBillingControls({ cancelAtPeriodEnd, chargeInProgress = false, onReplaceRedirect }: Props) {
   const [confirming, setConfirming] = useState(false)
+  const [replacing, setReplacing] = useState(false)
+  const [storageAccepted, setStorageAccepted] = useState(false)
   const [pending, startTransition] = useTransition()
   const [notice, setNotice] = useState<string | null>(chargeInProgress ? 'החיוב כבר נשלח לעיבוד ואי אפשר לעצור אותו. נעדכן ברגע שתתקבל תשובה.' : null)
   const [error, setError] = useState<string | null>(null)
@@ -52,10 +56,16 @@ export default function CardBillingControls({ cancelAtPeriodEnd, chargeInProgres
       window.location.reload()
     })
 
-  const replaceCard = () =>
+  /**
+   * Replacing a card puts a NEW card on file, so it needs the same explicit
+   * storage consent as saving the first one. The button therefore opens the
+   * consent step rather than calling straight through — a bare click cannot
+   * stand in for a permission the customer has to give.
+   */
+  const replaceCard = (acceptedCardStorage: boolean) =>
     startTransition(async () => {
       setError(null)
-      const res = await startCardSetup({ purpose: 'card_update' }).catch(() => ({ error: 'network' }) as const)
+      const res = await startCardSetup({ purpose: 'card_update', acceptedCardStorage }).catch(() => ({ error: 'network' }) as const)
       if ('error' in res) {
         setError('לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.')
         return
@@ -63,6 +73,33 @@ export default function CardBillingControls({ cancelAtPeriodEnd, chargeInProgres
       if (onReplaceRedirect) onReplaceRedirect(res.url)
       else window.location.assign(res.url)
     })
+
+  if (replacing) {
+    return (
+      <div className='flex flex-col gap-3'>
+        <p className='text-sm text-gray-700'>הכרטיס החדש יישמר במקום הקיים, והחיוב החודשי יימשך ממנו.</p>
+        <Checkbox
+          lbl={CARD_STORAGE_CONSENT_LABEL}
+          checked={storageAccepted}
+          onChange={(e) => setStorageAccepted(e.target.checked)}
+        />
+        {error && (
+          <p className='text-sm text-red-500' role='alert'>
+            {error}
+          </p>
+        )}
+        <div className='flex gap-2'>
+          <Btn
+            variant='solid'
+            lbl={pending ? 'טוען...' : 'המשך להחלפת הכרטיס'}
+            disabled={pending || !storageAccepted}
+            onClick={() => replaceCard(storageAccepted)}
+          />
+          <Btn variant='outline' lbl='חזרה' disabled={pending} onClick={() => setReplacing(false)} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className='flex flex-col gap-2'>
@@ -81,7 +118,7 @@ export default function CardBillingControls({ cancelAtPeriodEnd, chargeInProgres
           <Btn variant='solid' lbl={pending ? 'טוען...' : 'חידוש המנוי'} disabled={pending} onClick={() => run(resumeRenewal)} />
         ) : (
           <>
-            <Btn variant='outline' lbl='החלפת כרטיס' disabled={pending} onClick={replaceCard} />
+            <Btn variant='outline' lbl='החלפת כרטיס' disabled={pending} onClick={() => setReplacing(true)} />
             <Btn variant='ghost' lbl='ביטול לפני החיוב' disabled={pending} onClick={() => setConfirming(true)} />
           </>
         )}

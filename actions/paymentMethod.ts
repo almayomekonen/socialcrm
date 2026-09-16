@@ -22,6 +22,12 @@ export async function startCardSetup(input: StartCardSetupInput): Promise<StartC
       fullName: typeof input.fullName === 'string' ? input.fullName : undefined,
       phone: typeof input.phone === 'string' ? input.phone : undefined,
       acceptedTerms: input.acceptedTerms === true,
+      // Forwarded explicitly, like every other field: this wrapper rebuilds the
+      // input as an allow-list so nothing unvetted reaches the domain. That is
+      // also why omitting a NEW field is silent — the property is simply absent
+      // and every remaining one is optional, so the compiler sees nothing wrong
+      // and the server reads it as "not consented".
+      acceptedCardStorage: input.acceptedCardStorage === true,
     },
   )
 }

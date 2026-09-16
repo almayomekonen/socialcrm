@@ -123,6 +123,29 @@ describe('startCardSetupForUser', () => {
     expect(createTokenOnlyProcess).not.toHaveBeenCalled()
   })
 
+  it('both consents given: validation passes and the setup reaches the provider boundary', async () => {
+    const r = await owner()
+    expect(await startCardSetupForUser(r, good, deps)).toMatchObject({ ok: true })
+    expect(createTokenOnlyProcess).toHaveBeenCalledTimes(1)
+  })
+
+  it('either required consent missing: refused BEFORE any provider call', async () => {
+    const a = await owner()
+    expect(await startCardSetupForUser(a, { ...good, acceptedTerms: false }, deps)).toEqual({ error: 'terms_required' })
+    const b = await owner()
+    expect(await startCardSetupForUser(b, { ...good, acceptedCardStorage: false }, deps)).toEqual({ error: 'card_storage_consent_required' })
+    expect(createTokenOnlyProcess).not.toHaveBeenCalled()
+  })
+
+  it('correcting a missing consent lets the same customer succeed on resubmit', async () => {
+    const r = await owner()
+    expect(await startCardSetupForUser(r, { ...good, acceptedCardStorage: false }, deps)).toEqual({ error: 'card_storage_consent_required' })
+    expect(createTokenOnlyProcess).not.toHaveBeenCalled()
+    // Ticks the box and submits again — no leftover state blocks the retry.
+    expect(await startCardSetupForUser(r, good, deps)).toMatchObject({ ok: true })
+    expect(createTokenOnlyProcess).toHaveBeenCalledTimes(1)
+  })
+
   it('records the card-storage consent with its version', async () => {
     const r = await owner()
     await startCardSetupForUser(r, good, deps)

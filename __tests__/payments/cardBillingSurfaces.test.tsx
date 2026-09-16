@@ -99,11 +99,19 @@ describe('cancellation copy', () => {
     expect(await screen.findByText(/יש לאשר אמצעי תשלום מחדש/)).toBeTruthy()
   })
 
-  it('replaces a card without reactivating anything', async () => {
+  it('asks for card-storage consent before replacing, and cannot proceed without it', async () => {
     const onReplaceRedirect = vi.fn()
     render(<CardBillingControls cancelAtPeriodEnd={false} onReplaceRedirect={onReplaceRedirect} />)
     fireEvent.click(screen.getByText('החלפת כרטיס'))
-    await waitFor(() => expect(startCardSetup).toHaveBeenCalledWith({ purpose: 'card_update' }))
+
+    // A replacement puts a NEW card on file, so the permission is asked again.
+    const proceed = screen.getByText('המשך להחלפת הכרטיס').closest('button')!
+    expect(proceed.disabled).toBe(true)
+    expect(startCardSetup).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByText('המשך להחלפת הכרטיס'))
+    await waitFor(() => expect(startCardSetup).toHaveBeenCalledWith({ purpose: 'card_update', acceptedCardStorage: true }))
     expect(onReplaceRedirect).toHaveBeenCalledWith('https://sandbox.meshulam.co.il/far?l=x')
     expect(resumeRenewal).not.toHaveBeenCalled()
   })
