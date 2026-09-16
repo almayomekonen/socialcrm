@@ -368,7 +368,11 @@ describe('processQualifyJob GPT eligibility', () => {
     expect(generateQualify).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
     expect(markClosed).not.toHaveBeenCalled()
-    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'gpt_wait_NO_MEANINGFUL_INTENT')
+    // The protection is unchanged — no GPT, no send, no close. Only the recorded
+    // reason is now specific: the engaged gate names the deferral instead of
+    // filing it under the NO_MEANINGFUL_INTENT catch-all, which is what made
+    // dropped answers and legitimate silence indistinguishable in production.
+    expect(skipAutoResponseJob).toHaveBeenCalledWith(61, 'gpt_wait_DEFERRAL')
   })
 
   it('RUN_AI product question invokes GPT', async () => {

@@ -3,6 +3,23 @@
  * Conversation Control owns CLOSE / HANDOFF. This gate only answers:
  * does this CONTINUE / ASK_QUESTION inbound need an AI-generated reply?
  * The LLM never decides whether the LLM should run.
+ *
+ * TWO GATES, NOT ONE. Which applies depends on whether the agent has spoken in
+ * this conversation:
+ *
+ *   ENGAGED (the agent owns the thread) → `decideEngagedTurn`. The message is
+ *     read in the context of the conversation. Answers are answers, however
+ *     short, and the only reasons to stay silent are positive ones.
+ *
+ *   OPENING (the agent has never spoken here) → the whitelist below. A stranger's
+ *     first words must earn a reply, because there is no conversation yet to read
+ *     them against and an unprompted agent talking to social residue is worse
+ *     than silence.
+ *
+ * The split is what lets the engaged case be permissive without loosening
+ * anything about first contact. Everything to do with PERMISSION — enabled,
+ * tenant, opt-out, takeover, closed, duplicates — lives in decidePreGeneration
+ * and assertAgentSendAllowed and is untouched by either gate.
  */
 import {
   classifySalesMove,
@@ -18,6 +35,7 @@ import {
   type SalesMove,
 } from './salesIntent'
 import { inboundContainsRealQuestion } from './conversationControl'
+import { decideEngagedTurn, type EngagedTurnReason } from './engagedTurn'
 
 export type GptEligibilityDecision = 'RUN_AI' | 'WAIT'
 
@@ -42,6 +60,7 @@ export type GptEligibilityReason =
   | 'DISCOVERY'
   | 'INFORMATION_REQUEST'
   | 'NO_MEANINGFUL_INTENT'
+  | EngagedTurnReason
 
 export type GptEligibility = {
   decision: GptEligibilityDecision
@@ -56,6 +75,17 @@ export type GptEligibilityInput = {
   controlAction: 'CONTINUE' | 'ASK_QUESTION'
   customerInboundCount: number
   previousCustomerText?: string
+  /**
+   * The agent has already spoken in this conversation, so it owns the thread and
+   * the customer is replying to it.
+   *
+   * Defaults to FALSE, which is the conservative reading: without it the opening
+   * whitelist applies and behaviour is exactly what it was. The worker derives
+   * it from durable state (`aiTurnCount`) rather than from the transcript
+   * window, so a long conversation whose opening scrolled out of view is still
+   * recognised as engaged.
+   */
+  agentHasSpoken?: boolean
 }
 
 const MEANINGFUL_MOVES = new Set<SalesMove>([
@@ -291,6 +321,23 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
   if (afterWarning && isExplicitStayPresent(inboundText)) return run('STAY_PRESENT')
 
   if (HELP_RE.test(inboundText) || HELP_RE.test(collapseRepeatedLetters(inboundText))) return run('HELP')
+
+  // ── THE ENGAGED GATE ───────────────────────────────────────────────────────
+  // The agent has spoken here, so this message is a turn in a conversation and
+  // is read as one. Deliberately placed after the no-response-warning branches
+  // above: "are you still there?" is a different question with its own tested
+  // semantics, and a reply to it is not an ordinary conversational turn.
+  if (input.agentHasSpoken && !afterWarning) {
+    const engaged = decideEngagedTurn({
+      agentAwaitingAnswer: pendingQuestion,
+      inboundText,
+      previousCustomerText: input.previousCustomerText,
+      isGreetingOnly: isGreetingOnly(inboundText),
+      isLowInformation: isLowInformationInbound(inboundText),
+      containsRealQuestion: inboundContainsRealQuestion(inboundText),
+    })
+    return engaged.answer ? run(engaged.reason) : wait(engaged.reason)
+  }
 
   if (isShortAffirmative(inboundText) && pendingQuestion && !afterWarning) return run('PENDING_QUESTION')
   if (isShortAffirmative(inboundText)) return wait('SHORT_AFFIRMATIVE')

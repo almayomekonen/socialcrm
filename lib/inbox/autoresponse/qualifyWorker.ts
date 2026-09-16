@@ -167,6 +167,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const lastInbound = [...recent].reverse().find((m) => m.direction === 'inbound')
   const lastOutbound = [...recent].reverse().find((m) => m.direction === 'outbound')
   const humanTookOver = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) !== 'auto_response')
+  const agentSpokeInWindow = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) === 'auto_response')
 
   const aiState = await getOrCreateAiState(conv.id, job.agencyId)
   // Human Presence, read once for the cheap pre-generation stop. Covers both a
@@ -185,6 +186,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const hasUnansweredInbound = lastMsg?.direction === 'inbound'
   const consecutiveAiWithoutInbound = countConsecutiveAiOutbounds(recent)
   const optOut = detectOptOut(lastInboundText)
+  /**
+   * Does the agent own this conversation? Two independent signals, for the same
+   * reason the greeting uses two: `aiTurnCount` is durable and survives a
+   * transcript window that has scrolled past the opening, while the window scan
+   * catches a turn that was sent before the count existed. Either alone would
+   * mis-read a long conversation as a first contact and re-apply the opening
+   * whitelist to someone mid-sentence.
+   */
+  const agentHasSpoken = aiState.aiTurnCount > 0 || agentSpokeInWindow
   // Sequenced turns feed the summary planner; qTranscript stays the shape the
   // classifier and prompt builder already take.
   const sequencedTurns: SummaryTurn[] = recent
@@ -361,6 +371,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     controlAction: control.action,
     customerInboundCount: inboundTexts.length,
     previousCustomerText: inboundTexts.length >= 2 ? inboundTexts[inboundTexts.length - 2] : undefined,
+    agentHasSpoken,
   })
   waTrace(
     'GPT_ELIGIBILITY',
