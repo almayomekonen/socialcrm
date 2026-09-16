@@ -139,7 +139,8 @@ Log prefixes: `[GrowNotify]`, `[CardSetup]`, `[SubscriptionCharge]`,
 4. **Refund policy** for a charge that succeeds after a cancellation (owner
    decision). Today the paid period stands, renewal stops, nothing is refunded
    automatically and no refund is promised anywhere.
-5. `vercel.json` cron entry and Grow production identifiers.
+5. **Grow production identifiers** (`GROW_USER_ID`, `GROW_PAGE_CODE_TOKEN` for
+   `GROW_MODE=production`). The `vercel.json` cron entry is in place.
 
 ## 10. Known limits (v1)
 
@@ -147,3 +148,42 @@ Monthly only; no decline-notification email; card digits and brand are stored
 only as Grow reports them; tokens are deleted on our side only (Grow documents
 no deletion API); mobile signups start the trial on desktop (phones are
 redirected to `/activate`).
+
+## 11. Sandbox staging environment
+
+Grow's callbacks are registered against a staging deployment, never production.
+
+| | |
+| --- | --- |
+| Callback URL | `https://socialcrm-git-feat-card-required-trial-almayos-projects.vercel.app/api/payments/grow/notify` |
+| Deployment | the Vercel preview alias for `feat/card-required-trial` (stable across redeploys) |
+| Database | a **separate Neon project** (`card-trial-staging`), provisioned empty — not a branch or clone of production, and not another feature's database |
+
+Staging configuration is branch-scoped to `feat/card-required-trial` so nothing
+leaks into other previews: `APP_ENV=staging`, `GROW_MODE=sandbox`, `APP_HOST` =
+the alias, `GROW_SANDBOX_ISOLATED_DATA=true`, a staging-only `DATABASE_URL`,
+`SECRETS_ENC_KEY` and `CRON_SECRET`, and `CARD_REQUIRED_TRIAL_ENABLED`,
+`SUBSCRIPTION_CHARGES_ENABLED`, `EMAIL_AUTOMATIONS_ENABLED`,
+`WELCOME_EMAIL_ENABLED` all `false`.
+
+Two notes on what that does and does not prove:
+
+- `GROW_SANDBOX_ISOLATED_DATA` is an **operator assertion**, not evidence. It
+  lets `assertGrowRuntime()` proceed; it does not check where `DATABASE_URL`
+  points. Isolation was established separately — a distinct Neon project id and
+  endpoint, distinct credentials, an empty schema, and the fact that
+  `config/db.ts` and `knexfile.cjs` are the only runtime readers of
+  `DATABASE_URL` (the inherited `DATABASE_URL_UNPOOLED` / `POSTGRES_*` variables
+  still point at production but nothing reads them). Re-verify those facts, not
+  the flag, whenever the staging target changes.
+- The schema was built with the repository's own baseline and migration chain.
+  `scripts/bootstrap-schema.cjs` refuses any `neon.tech` URL with no override —
+  a deliberate guard that was **not** modified; its exported `readBaseline` /
+  `assertDatabaseEmpty` / `bootstrap` were driven directly against the verified
+  empty, verified non-production target instead.
+
+A 503 from the callback means the runtime guard refused (staging misconfigured),
+not that Grow sent something invalid. Do not "fix" it by relaxing the guard.
+Grow resends an unacknowledged update up to 5 more times and then stops, so a
+sustained 503 window loses callbacks — it bounds the loss, it does not
+prevent it.
