@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateAutoResponse, validateConciergeReply } from '@/lib/inbox/autoresponse/validate'
+import { classifyViolation, validateAutoResponse, validateConciergeReply } from '@/lib/inbox/autoresponse/validate'
 import { safeFallbackReply } from '@/lib/inbox/autoresponse/safeFallback'
 import { conversationCloser } from '@/lib/inbox/autoresponse/conversationControl'
 import { handoffMessage } from '@/lib/inbox/autoresponse/qualify'
@@ -168,6 +168,32 @@ describe('a figure is allowed only when the business actually stated it', () => 
     expect(ok('אין לי מחיר מדויק לתת כאן, נציג יחזור אלייך.').ok).toBe(true)
   })
 
+  /**
+   * Found by a real-model run, not by inspection: the agent produced an
+   * exemplary refusal to a jailbreak and the guardrail rejected it as a price
+   * claim, because only "I don't have" phrasings were recognised. Declining is
+   * strictly safer than limiting and must pass at least as easily.
+   */
+  it('a REFUSAL to quote a price passes, not just a stated limitation', () => {
+    const refusals = [
+      'אני לא יכול לאשר הזמנת טיסה או מחיר לטיסה.',
+      'לא ניתן למסור מחיר בצ׳אט, הצוות יחזור אלייך.',
+      'אין לי כאן את פרטי המחירים, הצוות יוכל למסור אותם.',
+      'הצעות מחיר ניתנות רק במוסך.',
+      'מחיר אני לא יכול לתת כאן.',
+      "I can't give you a price here, the team will follow up.",
+      'I have no verified price for that.',
+    ]
+    for (const text of refusals) {
+      const r = ok(text)
+      expect(r.ok, `refusal rejected as ${'violation' in r ? r.violation : ''}: ${text}`).toBe(true)
+    }
+  })
+
+  it('but a refusal-shaped sentence still cannot smuggle a figure', () => {
+    expect(ok('אני לא יכול לאשר מחיר, אבל זה בערך 450 שקל.').ok).toBe(false)
+  })
+
   it('the workers pass the business facts in', async () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
@@ -176,5 +202,103 @@ describe('a figure is allowed only when the business actually stated it', () => 
       expect(src, `${file} does not pass groundedFacts`).toContain('groundedFacts')
       expect(src).toContain('groundedFactsFor(identity)')
     }
+  })
+})
+
+/**
+ * `require_one` guards against a dead-end turn — one that neither answers nor
+ * asks. It was implemented as "must contain a '?'", and real-model evaluation
+ * showed that proxy rejecting good replies. An indirect question or a stated
+ * next step now satisfies it; a genuine dead end still does not.
+ */
+describe('a reply can move forward without a question mark', () => {
+  const req = (text: string) => validateAutoResponse(text, { questionPolicy: 'require_one' })
+
+  // Only a stated limitation is exempt — see STATES_LIMITATION for why the
+  // exemption is deliberately this narrow.
+  const forward = [
+    'הגעת למוסך אלון, ואנחנו לא מציעים טיפולי פנים.',
+    'אין לי את הפרט הזה, הצוות יחזור אלייך עם תשובה.',
+    'אין לנו שירות כזה.',
+    'I cannot confirm that here, someone will get back to you.',
+    'We do not offer that service.',
+  ]
+  for (const text of forward) {
+    it(`accepts: ${text.slice(0, 44)}…`, () => {
+      const r = req(text)
+      expect(r.ok, `rejected as ${'violation' in r ? r.violation : ''}`).toBe(true)
+    })
+  }
+
+  it('a substantive reply that neither asks nor states a limitation still goes through repair', () => {
+    // From a real-model run. It is a good reply, but in discovery it should ask
+    // — so it is repaired rather than exempted. Widening the exemption to cover
+    // it silently weakened three unrelated protections.
+    const real =
+      'יש לי כבר את פרטי הרכב והתקלה. רק כתוב לי איזה יום נוח לך להגיע, מלבד יום שלישי, ואעביר לצוות כדי שיחזרו אליך לאישור התיאום.'
+    expect(req(real).ok).toBe(false)
+    expect(req(real)).toHaveProperty('violation', 'no_question')
+    // …and it is a shape violation, so it is repaired, never escalated.
+    expect(classifyViolation('no_question')).toBe('shape')
+  })
+
+  const deadEnds = ['קיבלתי.', 'תודה רבה.', 'מעולה.', 'Got it.', 'אוקיי.', 'בסדר גמור.']
+  for (const text of deadEnds) {
+    it(`still rejects the dead end: ${text}`, () => {
+      const r = req(text)
+      expect(r.ok).toBe(false)
+      expect(r).toHaveProperty('violation', 'no_question')
+    })
+  }
+
+  it('a question mark alone still satisfies it', () => {
+    expect(req('איזה רכב יש לך?').ok).toBe(true)
+  })
+
+  it('zero_or_one is unaffected — a dead end is fine there', () => {
+    expect(validateAutoResponse('קיבלתי.', { questionPolicy: 'zero_or_one' }).ok).toBe(true)
+  })
+})
+
+describe('generic filler fails by its own name', () => {
+  const req = (text: string) => validateAutoResponse(text, { questionPolicy: 'require_one' })
+
+  it('rejects the boilerplate the prompt already bans', () => {
+    const fillers = [
+      'שלום וברוך הבא לעסק שלנו אנחנו פה כדי לעזור לך בכל מה שתצטרך אז ספר לנו עוד קצת על עצמך',
+      'נעים להכיר! ספר לי קצת על מה שאתה מחפש כדי שנוכל להבין.',
+      'Welcome, we are here to help, tell me a bit about what you need.',
+    ]
+    for (const text of fillers) {
+      const r = req(text)
+      expect(r.ok, `filler accepted: ${text.slice(0, 40)}`).toBe(false)
+      expect(r).toHaveProperty('violation', 'filler')
+    }
+  })
+
+  it('does not trip an ordinary offer of help', () => {
+    expect(req('שלום! קיבלנו את פנייתך, נשמח לדעת איך נוכל לעזור?').ok).toBe(true)
+    expect(req('אפשר לעזור עם הבלמים. איזה רכב יש לך?').ok).toBe(true)
+  })
+
+  it('is a shape violation — repairable, never an escalation', () => {
+    expect(classifyViolation('filler')).toBe('shape')
+  })
+})
+
+describe('the filler rule does not catch a genuinely useful question', () => {
+  const req = (text: string) => validateAutoResponse(text, { questionPolicy: 'require_one' })
+
+  it("asking about the customer's NEED is not filler", () => {
+    // Both of these are the engine's own deterministic fallbacks. An earlier,
+    // looser filler pattern rejected one of them.
+    expect(req('Could you tell me a bit more about what you need?').ok).toBe(true)
+    expect(req('תוכל/י לספר קצת יותר על מה שאת/ה צריך/ה?').ok).toBe(true)
+    expect(req('ספר לי עוד קצת על הרכב?').ok).toBe(true)
+  })
+
+  it('asking them to describe THEMSELVES still is', () => {
+    expect(req('ספר לנו עוד קצת על עצמך?').ok).toBe(false)
+    expect(req('Tell me a bit about yourself?').ok).toBe(false)
   })
 })

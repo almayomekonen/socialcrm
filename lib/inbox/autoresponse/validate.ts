@@ -80,8 +80,35 @@ const FABRICATED_ACTION = [
  * limitation ("I have no verified price"), which is the answer we want.
  */
 const PRICE_CLAIM = /מחיר|עלות/
-const HONEST_PRICE_LIMITATION =
-  /אין לי .{0,24}מחיר|מחיר מאומת|מחיר מדויק|לא רוצה להמציא.{0,20}מחיר|נציג .{0,48}(?:את )?המחיר|בלי לנקוב.{0,16}מחיר/
+/**
+ * Saying "I have no price" or "I can't confirm a price" is the answer we WANT.
+ * The refusal branch was added after a real-model run: the agent replied
+ * "אני לא יכול לאשר הזמנת טיסה או מחיר לטיסה" to a jailbreak — an exemplary
+ * refusal — and the guardrail rejected it as a price claim, because only the
+ * "I don't have" phrasings were recognised. Declining is strictly safer than
+ * limiting, so it must pass at least as easily.
+ */
+const HONEST_PRICE_LIMITATION = new RegExp(
+  [
+    // "I don't have a price / a verified price / an exact price"
+    'אין לי .{0,24}מחיר',
+    'אין (?:לי )?כאן .{0,24}מחיר',
+    'מחיר מאומת',
+    'מחיר מדויק',
+    'לא רוצה להמציא.{0,20}מחיר',
+    'בלי לנקוב.{0,16}מחיר',
+    // "a rep / the team will give you the price"
+    'נציג .{0,48}(?:את )?המחיר',
+    '(?:הצוות|צוות) .{0,48}מחיר',
+    'הצעות מחיר .{0,32}(?:רק|במוסך|בעסק|אצלנו)',
+    // Refusals: "I can't quote / confirm / give a price"
+    '(?:לא יכול|לא יכולה|לא ניתן|אי אפשר)[^.!?]{0,40}מחיר',
+    'מחיר[^.!?]{0,40}(?:לא יכול|לא יכולה|לא ניתן|אי אפשר)',
+    // English equivalents
+    "(?:don't|do not|cannot|can't)[^.!?]{0,40}\\b(?:price|quote|cost)",
+    "no (?:verified |exact )?price",
+  ].join('|'),
+)
 
 /**
  * An onboarding process the business may not have: a demo, a signup, a form.
@@ -168,6 +195,80 @@ export type ValidationResult =
 /** Discovery/deepen still prefer a question. Product/explain/next-step may answer without one. */
 export type QuestionPolicy = 'require_one' | 'zero_or_one'
 
+/**
+ * A complete turn that legitimately carries no question mark.
+ *
+ * `require_one` exists to stop a discovery turn dead-ending. It is implemented
+ * as "must contain a '?'", and that proxy is right almost always — but not when
+ * the honest answer is a limitation. Real-model evaluation produced:
+ *
+ *   "הגעת למוסך אלון, ואנחנו לא מציעים טיפולי פנים."
+ *
+ * A correct, complete reply, rejected for punctuation and then replaced by a
+ * generic canned question — a worse message for the customer than the one the
+ * model wrote.
+ *
+ * DELIBERATELY NARROW. An earlier attempt accepted any sufficiently long reply,
+ * and that silently weakened three unrelated protections which had been leaning
+ * on `no_question`: the banned "I'm transferring you to the team" line, a
+ * product answer that must still ask in discovery, and generic filler. Stating
+ * a limitation is the one case where no question is genuinely complete, so it
+ * is the only exemption. Everything else keeps going through the repair loop,
+ * which is what that loop is for.
+ */
+const STATES_LIMITATION = new RegExp(
+  [
+    'אין לי',
+    'אין לנו',
+    'לא יכול|לא יכולה|לא ניתן|אי אפשר',
+    'אנחנו לא מציעים|איננו מציעים|לא מציעים',
+    'לא עוסקים ב|לא מטפלים ב',
+    "\\b(?:i|we) (?:don't|do not|cannot|can't)\\b",
+    '\\bno (?:verified |exact )?price\\b',
+    "\\bwe (?:don't|do not) offer\\b",
+  ].join('|'),
+  'i',
+)
+
+/** True when a reply with no question is nonetheless a complete turn. */
+export function movesForward(text: string): boolean {
+  return STATES_LIMITATION.test((text ?? '').trim())
+}
+
+/**
+ * Generic filler the system prompt already bans, encoded so it fails
+ * deterministically rather than depending on the model to police itself.
+ *
+ * It used to be caught incidentally by `no_question` — a "welcome, we're here to
+ * help, tell us a bit about yourself" reply has no question mark AND says
+ * nothing. It is worth failing by its own name: the problem is that it is
+ * filler, not that it is missing punctuation. The phrases are multi-word so an
+ * ordinary offer of help does not trip them.
+ */
+const GENERIC_FILLER = new RegExp(
+  [
+    '(?:אנחנו|אני) (?:פה|כאן) כדי לעזור',
+    // The vague self-introduction request, not any "tell me more". Asking a
+    // customer to say more about THEIR NEED is a good question; asking them to
+    // describe themselves is the boilerplate. An earlier, looser version of this
+    // rejected one of the engine's own fallbacks, which is how the distinction
+    // surfaced.
+    'ספר(?:י)? (?:לי|לנו) (?:עוד )?קצת על (?:עצמך|העסק שלך|מה שאתה מחפש|מה שאת מחפשת)',
+    'כדי שנוכל להבין',
+    'נעים להכיר',
+    'איזה כיף',
+    '\\bhere to help\\b',
+    "\\btell (?:me|us) a (?:bit|little) about (?:yourself|your business|what you(?:'re| are) looking for)\\b",
+  ].join('|'),
+  'i',
+)
+
+/** True when the reply is the boilerplate the prompt forbids. */
+export function isGenericFiller(text: string): boolean {
+  return GENERIC_FILLER.test(text ?? '')
+}
+
+
 export function questionPolicyForSalesMove(
   move: string | null | undefined,
   opts?: { discoveryBudgetExhausted?: boolean },
@@ -219,7 +320,10 @@ export function validateAutoResponse(
   if (!t) return { ok: false, violation: 'empty', details }
   if (sentences.length > maxSentences) return { ok: false, violation: 'too_long', details }
   if (t.length > maxChars) return { ok: false, violation: 'too_long', details }
-  if (policy === 'require_one' && questionMarks === 0) return { ok: false, violation: 'no_question', details }
+  if (isGenericFiller(t)) return { ok: false, violation: 'filler', details }
+  if (policy === 'require_one' && questionMarks === 0 && !movesForward(t)) {
+    return { ok: false, violation: 'no_question', details }
+  }
   if (questionMarks > 1) return { ok: false, violation: 'too_many_questions', details }
   if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
   return { ok: true, details }

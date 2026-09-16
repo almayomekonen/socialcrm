@@ -81,6 +81,7 @@ const SYSTEM = [
   'אם לא נכתבו שעות — hours ריק. אם לא נכתבה מדיניות — policies ריק.',
   'אל תמציא/י שירותים, יכולות, אינטגרציות, אחריות או התחייבויות.',
   'facts: מה העסק הוא ועושה, במילים של בעל/ת העסק עד כמה שאפשר.',
+  'שם העסק נמסר לך רק כהקשר. אסור להכניס אותו ל-facts ואסור לכתוב שורה בסגנון "שם העסק: ...". הוא כבר ידוע למערכת בנפרד.',
   'objectives: מה בעל/ת העסק רוצה שהשיחה תשיג. זו מטרה, לא יכולת טכנית.',
   'collect: פרטים שכדאי לברר מהלקוח.',
   'unsupportedRequests: אם נכתב שהסוכן "יקבע תור", "ישלח הצעת מחיר", "יגבה תשלום", "יעדכן במערכת" או כל פעולה שדורשת ביצוע בעולם — רשום/רשמי אותה כאן. אלה מטרות שהסוכן יכול לקדם אך לא לבצע.',
@@ -109,10 +110,17 @@ export async function deriveBusinessProfile(args: {
   const description = (args.description ?? '').trim()
   if (!description) return { ok: false, reason: 'empty_description' }
 
+  // The name is context, not content. An earlier version put it on its own
+  // "שם העסק: X" line immediately above the description, and the model
+  // transcribed that line straight into `facts` — so a profile could assert a
+  // business name that contradicted the description. It is now clearly labelled
+  // as out-of-band, and the system prompt forbids copying it.
   const user = [
-    args.businessName ? `שם העסק: ${args.businessName}` : 'שם העסק: (לא סופק)',
+    args.businessName
+      ? `(הקשר בלבד, לא להעתיק ולא להכניס ל-facts) העסק נקרא: ${args.businessName}`
+      : '(הקשר בלבד) שם העסק לא סופק.',
     '',
-    'התיאור שבעל/ת העסק כתב/ה:',
+    'התיאור שבעל/ת העסק כתב/ה, וממנו בלבד יש לחלץ:',
     description,
   ].join('\n')
 

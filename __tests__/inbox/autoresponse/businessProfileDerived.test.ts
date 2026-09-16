@@ -235,3 +235,36 @@ describe('an undescribed business gets the old prose path, not a hollow profile'
     expect(block).toContain('מה העסק עושה, ומה מותר לומר בשמו')
   })
 })
+
+/**
+ * Found in the browser, not by inspection: the derivation prompt passed the
+ * business name on its own "שם העסק: X" line directly above the description,
+ * and the model transcribed that line into `facts`. A profile could then assert
+ * a business name contradicting the description the owner actually wrote.
+ */
+describe('the business name is context for derivation, never a derived fact', () => {
+  it('the prompt labels it out-of-band and forbids copying it', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'lib/inbox/autoresponse/businessProfile.ts'), 'utf8')
+    expect(src).toContain('אסור להכניס אותו ל-facts')
+    expect(src).toContain('(הקשר בלבד, לא להעתיק ולא להכניס ל-facts) העסק נקרא:')
+    // The old shape, which the model copied, must not come back.
+    expect(src).not.toMatch(/`שם העסק: \$\{args\.businessName\}`/)
+  })
+
+  it('a profile carrying a name line is still rendered, but the block never states a second name', () => {
+    // Defence in depth: even a profile derived by the old prompt renders under
+    // the identity block's own "שם העסק" line, which comes from the account.
+    const block = formatBusinessIdentityBlock({
+      agencyId: 9001,
+      name: 'מוסך אלון',
+      guidance: GARAGE_DESCRIPTION,
+      agentInstructions: null,
+      isOwnProductBusiness: false,
+      profile: { ...GARAGE_PROFILE, facts: ['שם העסק: עסק אחר', 'מוסך בחולון'] },
+    })
+    const nameLines = block.split('\n').filter((l) => l.startsWith('שם העסק:'))
+    expect(nameLines).toEqual(['שם העסק: מוסך אלון'])
+  })
+})

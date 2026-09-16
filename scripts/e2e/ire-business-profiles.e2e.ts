@@ -17,10 +17,14 @@
  * agency on AI_AGENCY_ALLOWLIST. Nothing is sent to WhatsApp: the script calls
  * generation directly and prints the would-be reply.
  */
-import { generateQualifyTurn } from '@/lib/inbox/autoresponse/qualify'
-import { formatBusinessIdentityBlock, type BusinessIdentity } from '@/lib/inbox/autoresponse/businessIdentity'
+import { generateQualifyTurn, deterministicQualifyFallback } from '@/lib/inbox/autoresponse/qualify'
+import {
+  formatBusinessIdentityBlock,
+  groundedFactsFor,
+  type BusinessIdentity,
+} from '@/lib/inbox/autoresponse/businessIdentity'
 import { greetingLine } from '@/lib/inbox/autoresponse/greeting'
-import { validateAutoResponse, questionPolicyForSalesMove } from '@/lib/inbox/autoresponse/validate'
+import { classifyViolation, validateAutoResponse, questionPolicyForSalesMove } from '@/lib/inbox/autoresponse/validate'
 import { classifySalesTurnFromTranscript } from '@/lib/inbox/autoresponse/salesIntent'
 
 type Turn = { direction: 'inbound' | 'outbound'; text: string }
@@ -136,7 +140,7 @@ async function runOne(identity: BusinessIdentity, scenario: (typeof SCENARIOS)[n
   const classified = classifySalesTurnFromTranscript(scenario.transcript)
   const line = scenario.greet ? greetingLine(identity.name, /[֐-׿]/.test(lastInbound) ? 'he' : 'en') : null
 
-  const gen = await generateQualifyTurn({
+  const genArgs = {
     agencyId: identity.agencyId,
     transcript: scenario.transcript,
     qualification: {},
@@ -148,29 +152,64 @@ async function runOne(identity: BusinessIdentity, scenario: (typeof SCENARIOS)[n
     salesStrategy: classified.salesStrategy,
     greetingLine: line,
     bypassAllowlist: true,
-  })
+  }
+  const gen = await generateQualifyTurn(genArgs)
 
   if (gen.ok === false) {
     console.log(`    ✗ generation unavailable: ${gen.skipReason}`)
     return
   }
 
-  const validation = validateAutoResponse(gen.reply, {
+  // Run the SAME repair loop production runs. Without it this script reports a
+  // raw first attempt, which is not what a customer would ever receive: the
+  // worker regenerates once on a validation failure and falls back to
+  // deterministic text after that. Reporting the first attempt as the verdict
+  // overstates failures and understates the system.
+  const validateOpts = {
     questionPolicy: questionPolicyForSalesMove(classified.salesMove),
     greetingTurn: Boolean(line),
-  })
+    groundedFacts: groundedFactsFor(identity),
+  }
+  let reply = gen.reply
+  let validation = validateAutoResponse(reply, validateOpts)
+  let repaired: string | null = null
 
-  console.log(`    reply     : ${gen.reply}`)
+  if (!validation.ok) {
+    const firstViolation = 'violation' in validation ? validation.violation : 'invalid'
+    const regenerationReason = classifyViolation(firstViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
+    const gen2 = await generateQualifyTurn({ ...genArgs, regenerationReason })
+    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, validateOpts)
+    if (gen2.ok !== false && gen2Valid?.ok) {
+      reply = gen2.reply
+      validation = gen2Valid
+      repaired = `regenerated after ${firstViolation}`
+    } else {
+      reply = deterministicQualifyFallback({
+        qualification: {},
+        lastInboundText: lastInbound,
+        transcript: scenario.transcript,
+        salesMove: classified.salesMove,
+        salesStrategy: classified.salesStrategy,
+        lang: /[֐-׿]/.test(lastInbound) ? 'he' : 'en',
+      })
+      if (line) reply = `${line} ${reply}`
+      validation = validateAutoResponse(reply, validateOpts)
+      repaired = `deterministic fallback after ${firstViolation}`
+    }
+  }
+
+  console.log(`    reply     : ${reply}`)
   console.log(`    validator : ${validation.ok ? 'ok' : `REJECTED (${'violation' in validation ? validation.violation : ''})`}`)
+  if (repaired) console.log(`    repair    : ${repaired}`)
   console.log(`    corrected : ${JSON.stringify(gen.corrected)}`)
   if (line) {
-    console.log(`    greeting  : ${gen.reply.startsWith(line) ? 'opens with the welcome' : `MISSING — expected "${line}"`}`)
+    console.log(`    greeting  : ${reply.startsWith(line) ? 'opens with the welcome' : `MISSING — expected "${line}"`}`)
   }
   if (!identity.isOwnProductBusiness) {
-    const leaked = LEAKS.filter((re) => re.test(gen.reply)).map(String)
+    const leaked = LEAKS.filter((re) => re.test(reply)).map(String)
     console.log(`    leakage   : ${leaked.length ? `LEAKED ${leaked.join(', ')}` : 'none'}`)
   }
-  const claimed = COMPLETED_ACTION.filter((re) => re.test(gen.reply)).map(String)
+  const claimed = COMPLETED_ACTION.filter((re) => re.test(reply)).map(String)
   console.log(`    action    : ${claimed.length ? `CLAIMED A COMPLETED ACTION — ${claimed.join(', ')}` : 'none claimed'}`)
   console.log(`    expected  : ${scenario.expect}`)
 }
