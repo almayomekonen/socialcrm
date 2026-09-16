@@ -103,8 +103,11 @@ async function main() {
       turnCount: aiTurnCount,
       maxTurns: 5,
     })
+    // Every non-'proceed' member of PreDecision carries `reason`, so narrowing
+    // on the action is enough. An `'reason' in pre` guard here makes the else
+    // branch `never`, which is the type error that failed the production build.
     if (pre.action !== 'proceed') {
-      return { replied: false, reason: `pre_${'reason' in pre ? pre.reason : pre.action}` }
+      return { replied: false, reason: `pre_${pre.reason}` }
     }
 
     const { salesMove, salesStrategy } = classifySalesTurnFromTranscript(transcript)
