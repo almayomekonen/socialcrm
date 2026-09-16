@@ -118,7 +118,13 @@ export default function AgentPreview({
       setError('משהו השתבש. נסו שוב.')
     } finally {
       setPending(false)
-      requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: 'nearest' }))
+      // Scrolling is a nicety. It must never be able to throw inside `finally`
+      // and leave the composer stuck in its pending state.
+      try {
+        endRef.current?.scrollIntoView?.({ block: 'nearest' })
+      } catch {
+        /* not scrollable here; the reply is already rendered */
+      }
     }
   }
 
@@ -126,9 +132,7 @@ export default function AgentPreview({
     return (
       <div className='mt-5.5 border-t border-gray-200 pt-5.5'>
         <div className='flex flex-wrap items-center gap-3'>
-          <Btn type='button' onClick={() => setOpen(true)} disabled={!hasDescription}>
-            בדקו את הסוכן שלכם
-          </Btn>
+          <Btn type='button' lbl='בדקו את הסוכן שלכם' onClick={() => setOpen(true)} disabled={!hasDescription} />
           <p className='text-sm text-gray-600'>
             {hasDescription
               ? 'שיחת בדיקה שלא נשלחת לאף אחד. אפשר לכתוב כמו לקוח ולראות מה הסוכן עונה.'
@@ -221,9 +225,12 @@ export default function AgentPreview({
           placeholder='כתבו כאן כמו לקוח…'
           className='min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:outline-2 focus:outline-offset-0 focus:outline-primary'
         />
-        <Btn type='button' onClick={() => void send()} disabled={pending || !input.trim()}>
-          {pending ? 'שולח…' : 'שליחה'}
-        </Btn>
+        <Btn
+          type='button'
+          lbl={pending ? 'שולח…' : 'שליחה'}
+          onClick={() => void send()}
+          disabled={pending || !input.trim()}
+        />
       </div>
     </section>
   )
