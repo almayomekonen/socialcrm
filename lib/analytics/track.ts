@@ -24,6 +24,13 @@ export type AnalyticsEventName =
    * processId or Grow error text (plan Amendment A4 M7).
    *   card_setup_started            { purpose }
    *   card_setup_confirmed          { purpose }
+   *   card_save_observed            { statusCode, sum, cardTokenPresent, cardExpShape,
+   *                                   transactionCount } — what Grow returned for a
+   *                                   token-only save. Shape only: no card token, no
+   *                                   PAN. This is how the tokenSaveVerification gate
+   *                                   is opened from a real observation instead of a
+   *                                   guess, and it is recorded whether or not the
+   *                                   gate is open.
    *   card_setup_failed             { stage: 'create' | 'callback', reason }
    *   subscription_charge_succeeded { chargeId, kind, attempt }
    *   subscription_charge_failed    { chargeId, kind, attempt, errorClass }
@@ -32,6 +39,7 @@ export type AnalyticsEventName =
    */
   | 'card_setup_started'
   | 'card_setup_confirmed'
+  | 'card_save_observed'
   | 'card_setup_failed'
   | 'subscription_charge_succeeded'
   | 'subscription_charge_failed'

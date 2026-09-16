@@ -2,7 +2,8 @@ import { describe, it, expect, afterAll, afterEach, beforeEach, vi } from 'vites
 import { db } from '@/config/db'
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secrets'
 import { confirmCardSetup, type ConfirmDeps } from '@/lib/payments/cardTrial/confirmCardSetup'
-import { verifyTokenSaveWithGrow, type TokenSaveVerification } from '@/lib/payments/cardTrial/verifyTokenSave'
+import { GROW_PROVIDER_EVIDENCE } from '@/lib/payments/grow/providerEvidence'
+import { createGrowTokenSaveVerifier, verifyTokenSaveWithGrow, type TokenSaveVerification } from '@/lib/payments/cardTrial/verifyTokenSave'
 import type { GrowCallback } from '@/lib/payments/grow/callbackPayload'
 import { seedAgency, seedMethod, seedSubscription, seedUser, seedCharge, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'
 
@@ -48,9 +49,32 @@ const methodRow = (id: number) => db('billing_payment_methods').where({ id }).fi
 const agencyRow = (id: number) => db('agencies').where({ id }).first()
 
 describe('confirmCardSetup — fail closed by default', () => {
-  it('with the real verifier and no sandbox evidence: records the callback, activates nothing, starts no trial', async () => {
+  it('with the real verifier and no Grow credentials: records the callback, activates nothing, starts no trial', async () => {
+    // This environment has no GROW_USER_ID/GROW_PAGE_CODE_TOKEN, so the lookup
+    // cannot even be addressed. That is a misconfiguration, not a verdict:
+    // retry_later (503) rather than a 500 that would look like our bug.
     const s = await pendingSetup()
-    expect(await confirmCardSetup(cb(s), { verify: verifyTokenSaveWithGrow, runtimeMode: () => 'sandbox' })).toEqual({ kind: 'awaiting_evidence', agencyId: s.agencyId })
+    expect(await confirmCardSetup(cb(s), { verify: verifyTokenSaveWithGrow, runtimeMode: () => 'sandbox' })).toEqual({
+      kind: 'retry_later',
+      agencyId: s.agencyId,
+      reason: 'provider_not_configured',
+    })
+    expect(await methodRow(s.methodId)).toMatchObject({ status: 'pending', lastVerificationError: 'provider_not_configured', cardToken: null })
+    expect((await agencyRow(s.agencyId)).trialStartedAt).toBeNull()
+  })
+
+  it('with credentials but the evidence gate closed: observes, records, and STILL activates nothing', async () => {
+    // The non-circular case: the lookup runs and its shape is recorded, so the
+    // gate can later be opened from a real observation — but nothing is granted.
+    const s = await pendingSetup()
+    const verify = createGrowTokenSaveVerifier({
+      getPaymentProcessInfo: async () => [
+        { transactionId: 't', transactionToken: 'tt', statusCode: '11', sum: '1', cardToken: 'ct-new', cardSuffix: '4242', cardBrand: 'Visa', cardExp: '1230' },
+      ],
+      evidence: GROW_PROVIDER_EVIDENCE,
+      observe: async () => {},
+    })
+    expect(await confirmCardSetup(cb(s), { verify, runtimeMode: () => 'sandbox' })).toEqual({ kind: 'awaiting_evidence', agencyId: s.agencyId })
     expect(await methodRow(s.methodId)).toMatchObject({ status: 'pending', lastVerificationError: 'provider_evidence_missing', cardToken: null })
     expect((await agencyRow(s.agencyId)).trialStartedAt).toBeNull()
   })
@@ -61,7 +85,7 @@ describe('confirmCardSetup — trial start', () => {
     const s = await pendingSetup()
     const d = deps()
     expect(await confirmCardSetup(cb(s), d)).toEqual({ kind: 'confirmed', agencyId: s.agencyId, purpose: 'trial_start', createdByUserId: s.userId, trialStarted: true })
-    expect(d.verify).toHaveBeenCalledWith({ processId: s.processId, processToken: s.processToken, cardToken: 'ct-new' })
+    expect(d.verify).toHaveBeenCalledWith({ processId: s.processId, processToken: s.processToken, cardToken: 'ct-new', agencyId: s.agencyId })
     const method = await methodRow(s.methodId)
     expect(method.status).toBe('active')
     expect(decryptSecret(method.cardToken)).toBe('ct-new')
