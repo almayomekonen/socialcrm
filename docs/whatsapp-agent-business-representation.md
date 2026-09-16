@@ -977,3 +977,200 @@ in the pilot is `gpt_wait_NO_MEANINGFUL_INTENT` on second and later inbounds —
 every one of those is a conversation the agent chose to end in silence.
 
 **Not deployed.** Committed only.
+
+---
+
+## 12. Round five — conversation context, and who owns the conversation
+
+### 12.1 The measurement that drove this
+
+Ten direct answers to the agent's own questions, run through the real pipeline
+for a garage, a clinic and SocialCRM. **Nine were dropped.**
+
+```
+garage    "איזה רכב יש לך ומה התקלה?"  → "טויוטה 2020"       SILENT  NO_MEANINGFUL_INTENT
+garage    "מתי נוח לך להביא?"           → "מחר"               SILENT  NO_MEANINGFUL_INTENT
+garage    "רק טיפול או גם בדיקה?"       → "רק טיפול"          SILENT  NO_MEANINGFUL_INTENT
+garage    "אפשר לתאם מול הצוות?"        → "כן"                answered (PENDING_QUESTION)
+clinic    "ביטוח פרטי או קופה?"         → "מכבי"              SILENT  NO_MEANINGFUL_INTENT
+clinic    "מתי נוח לך?"                 → "בבוקר"             SILENT  NO_MEANINGFUL_INTENT
+socialcrm "כמה לידים בחודש?"            → "בערך 200"          SILENT  NO_MEANINGFUL_INTENT
+socialcrm "אתם צוות או לבד?"            → "לבד"               SILENT  NO_MEANINGFUL_INTENT
+…
+```
+
+The agent asked a question and then ignored the reply. Conversation 6694 was not
+a special case; it was the one instance that happened to be noticed.
+
+### 12.2 Why a whitelist could not have worked
+
+The gate recognised intent as a list of shapes — a real question, a stated pain,
+an explicit "I need help", a recognised sales move — evaluated on the current
+message in near-isolation. **An answer has no shape.** Its meaning lives in the
+question, not in itself: "מכבי" means nothing, and means "my insurer is Maccabi"
+immediately after "private insurance or a fund?". No list of phrases can express
+that, which is why widening the list (§11) fixed one sentence and left the class
+untouched.
+
+### 12.3 The rule now
+
+Two gates, chosen by whether the agent has spoken in this conversation.
+
+**Engaged** — `decideEngagedTurn`. The message is read as a turn. Answers are
+answers however short, and silence requires a positive reason, of which there
+are seven: nothing was said, hold on, a verbatim repeat, a closing
+acknowledgement, a bare greeting, a bare "כן" with nothing asked, an unprompted
+deferral. A real question outranks all of them.
+
+**Opening** — the previous whitelist, plus one addition (§12.5). A stranger's
+first words still have to earn a reply.
+
+`agentHasSpoken` defaults to false, so every existing caller kept its behaviour;
+the worker derives it from durable `aiTurnCount` plus an `auto_response` outbound
+in the window — two signals, for the same reason the greeting uses two.
+
+**The deliberate cost**, stated in the module: in an engaged conversation with an
+open question, a genuinely meaningless message now draws "what do you mean?"
+rather than silence. No deterministic rule separates "מכבי" from noise without a
+dictionary of every possible answer, and the two failures are not equal.
+Answering noise is briefly awkward; dropping an answer ends the conversation.
+
+### 12.4 A number is an answer
+
+`isLowInformationInbound` counts letters only, so **"2019", "200" and "1" scored
+zero and were dropped as "nothing was said"**. Asked which year, a customer
+answers "2019". Asked how many leads a month, "200". The engaged gate now uses a
+digit-aware `saysNothing`; the opening gate keeps the letters-only rule
+deliberately, because a stranger whose first-ever message is "2020" has not
+started a conversation while the same string after "which year?" is the answer.
+
+### 12.5 The more they told us, the less likely a reply
+
+A bare "היי" was answered. "היי, יש לי בעיה ברכב", "אני צריך תור" and
+"הרכב שלי עושה רעש" were not.
+
+The cause was `isBusinessPainSignal`, which recognises SocialCRM's own pain —
+losing leads — and nothing a garage's or a clinic's customer would ever say. Every
+other business's stated need fell through to the catch-all. This is the same
+business-specificity §1 set out to remove, surviving in the gate rather than the
+prompt.
+
+First contact that is not social residue now runs. `isSocialResidue` is what
+makes that safe and is a positive list — thanks, sign-offs, deferrals, "hold on"
+— because the old ending silenced "לילה טוב" and "אני צריך תור" identically.
+
+### 12.6 Ownership
+
+Already correct, now pinned by tests rather than argued:
+
+- **Opening a conversation transfers nothing.** The typing signal is bound to
+  `onChange` alone — not focus, mount, scroll or read — and the presence writer
+  never touches `aiState`. A test reads the source and fails if `onFocus` ever
+  appears, because that refactor would turn "I opened the thread to look" into
+  "the agent is off forever".
+- **The agent cannot silence itself.** Its own outbound is stamped
+  `auto_response`; a Coexistence echo of that same message carries the same
+  wamid and deduplicates into the row already written. Both orderings are tested
+  against a real database, **including the one where the echo wins the race** —
+  which passes only because `ireSend`'s metadata merge is unconditional. A
+  genuine echo of a different message, typed by a person on their phone, still
+  stops the agent.
+- **Ownership is re-read immediately before sending**, so a take-over during
+  generation suppresses the pending reply.
+
+Added:
+
+- **"אני עונה מכאן"** — an explicit pause, distinct from pausing by replying.
+- **"החזרת המענה לסוכן"** — the only way a paused conversation resumes.
+
+Both refuse by `WHERE` clause rather than read-then-write, so a concurrent
+opt-out between check and write cannot slip through, and both are agency-scoped
+in SQL. Return refuses `opted_out` and `closed`: the customer's own stop is not a
+rep's to lift, and re-engaging a finished conversation is a new approach rather
+than a resumption. Resuming restores `ai_qualifying`, never `new`, and keeps
+`aiTurnCount`, so nobody is welcomed to a business twenty messages in.
+
+The banner renders only when Automatic Reply is on. No owner configuration was
+added, and **Fixed Message is untouched by construction** — `replyMode === 'fixed'`
+forces acknowledge mode, which returns before `processQualifyJob` is reached.
+
+### 12.7 The automatic resume that existed, and is now closed
+
+`recordTurn` wrote `aiState = 'ai_qualifying'` **unconditionally**. Recording a
+turn against a human-owned, opted-out or closed conversation handed it straight
+back to the agent.
+
+Nothing reaches `recordTurn` in those states today, because `decidePreGeneration`
+stops first. That is exactly what made it invisible — and exactly one reordering
+away from the agent speaking over a rep, or messaging a customer who had asked us
+to stop. `stateAfterAgentTurn` now leaves those lifecycles alone; the turn count
+and merged memory still advance.
+
+`dormant` resuming and `closed` reopening on an explicit customer reopen are
+customer-driven and unchanged — they are not human ownership and were never in
+scope for "resume only through an explicit action".
+
+### 12.8 Verification — mocked workflow vs real model
+
+**Deterministic (in CI, will not drift).** 88 files / 1,714 tests across
+`inbox/autoresponse`, `autoresponse`, `inbox/humanPresence` and `settings`;
+`tsc --noEmit` clean. Whole conversations replayed turn by turn for the three
+businesses, including short answers, corrections, a bare-year correction and
+rapid bursts; the seven silence rules; ownership policy over the entire state
+space; the SQL writers against a real Postgres with a genuine second agency for
+tenant isolation; the echo race in both orderings.
+
+**Real model (one run, non-deterministic, not a guarantee).**
+`scripts/e2e/ire-multi-turn.e2e.ts`, gpt-5.6, agency 103:
+
+```
+✓ garage     answered 7/7  unintended drops 0  re-asks 0  double-greetings 0  first drafts rejected 1
+✓ clinic     answered 6/6  unintended drops 0  re-asks 0  double-greetings 0  first drafts rejected 0
+✓ socialcrm  answered 6/6  unintended drops 0  re-asks 0  double-greetings 0  first drafts rejected 0
+```
+
+19/19 customer turns answered. The model used the short answers rather than
+merely receiving them — "בערך 200" → "רק לוודא, מדובר בכ־200 לידים בחודש?",
+"לבד" → "הכוונה שהמעקב אחר הלידים נעשה לבד?" — and applied the correction:
+"הבנתי, טויוטה 2021. תודה על התיקון."
+
+Two measurement bugs were found and fixed in the harness itself, and are worth
+recording because both scored CORRECT behaviour as failure:
+
+1. A re-ask probe flagged "מתי נוח לך?" → after "מחר" → "באיזו שעה נוח לך מחר?".
+   That is narrowing day to hour while carrying the answer forward.
+2. Probes scanned every reply, so they caught the agent asking a question the
+   first time, before the customer had answered it. They now scan only replies
+   produced after the fact was supplied.
+
+A first draft rejected by the validator is guardrail activity, not a message
+sent: production regenerates, and only falls back to a safe holding reply if the
+second draft fails too.
+
+### 12.9 NO_MEANINGFUL_INTENT is no longer a catch-all
+
+The previous report treated a `NO_MEANINGFUL_INTENT` skip as evidence a
+conversation had ended. **It is not, and it never was** — it was the bucket every
+unrecognised message fell into, so a dropped answer and a legitimate silence were
+recorded identically. That is why the failure was invisible for as long as it was.
+
+The reason is now specific in every case, and on an engaged conversation
+`NO_MEANINGFUL_INTENT` is unreachable — asserted as a test over the whole
+reason space. A skip therefore says which of the seven deliberate silences
+applied, and any `NO_MEANINGFUL_INTENT` that appears at all is an opening-path
+decision about a stranger's first message.
+
+**The rate to watch in a pilot** is any engaged-conversation skip whose reason is
+not one of the seven, and the ratio of `auto_response_returned_to_agent` to
+`auto_response_human_takeover` — the only honest measure of whether reps trust
+the agent enough to give a conversation back after taking one.
+
+### 12.10 Baseline reconciliation
+
+The §11.5 note said 17 failing files and accounted for 16. The seventeenth is
+`__tests__/payments-webhook-route.test.ts`, which reports **(0 test)**: it throws
+during collection because `config/resend.ts` runs `new Resend(process.env.RESEND)`
+at import and `RESEND` is absent from `.env.test`. Vitest counts the file as
+failed while contributing zero failing tests, which is why 16 files carried all
+66 failures. Pre-existing, unrelated to the agent, and reproduced on
+`origin/main` @ `7618a40c`.

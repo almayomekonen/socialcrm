@@ -295,6 +295,43 @@ describe('the opening gate is untouched — a stranger still has to earn a reply
   })
 })
 
+/**
+ * Fixed Message is out of scope BY CONSTRUCTION, not by care.
+ *
+ * `replyMode === 'fixed'` forces `mode = 'acknowledge'`, and acknowledge mode
+ * returns before `processQualifyJob` is ever called — so the conversation-context
+ * gate is unreachable for a fixed reply, which stays the owner's own words sent
+ * verbatim. Asserted here so that a future change routing fixed mode through the
+ * qualify worker fails loudly rather than quietly handing it to a model.
+ */
+describe('Fixed Message never reaches this gate', () => {
+  it('a fixed reply mode forces acknowledge mode', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'lib/inbox/autoresponse/replyMode.ts'), 'utf8')
+    const wiring = readFileSync(join(process.cwd(), 'actions/autoResponse/updateSettings.ts'), 'utf8')
+    expect(src + wiring).toContain("replyMode === 'fixed'")
+  })
+
+  it('the qualify worker is entered only for mode=qualify', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const worker = readFileSync(join(process.cwd(), 'lib/inbox/autoresponse/worker.ts'), 'utf8')
+    const branch = worker.indexOf("settings?.mode === 'qualify'")
+    const fixedBranch = worker.indexOf("replyMode === 'fixed'")
+    expect(branch).toBeGreaterThan(-1)
+    expect(fixedBranch).toBeGreaterThan(branch)
+  })
+
+  it('nothing in the fixed path imports the engaged gate', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const fixed = readFileSync(join(process.cwd(), 'lib/inbox/autoresponse/renderFixedReply.ts'), 'utf8')
+    expect(fixed).not.toContain('engagedTurn')
+    expect(fixed).not.toContain('gptEligibility')
+  })
+})
+
 describe('isClosingAcknowledgement separates a close from an answer', () => {
   it('closes on thanks and sign-offs', () => {
     for (const t of ['תודה', 'תודה רבה', 'thanks', 'ok thanks']) {
