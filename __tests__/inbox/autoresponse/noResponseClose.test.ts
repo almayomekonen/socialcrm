@@ -106,6 +106,7 @@ const CTX = {
     quietHours: {},
     dailyCap: 200,
     guidance: null,
+    agentInstructions: null,
     mode: 'qualify' as const,
     maxTurns: 5,
     collectFields: { required: [], optional: [] },

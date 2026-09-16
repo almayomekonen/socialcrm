@@ -57,6 +57,7 @@ export default async function AutoResponseSettingsPage() {
         channelEnabled={channel?.enabled ?? false}
         dailyCap={channel?.dailyCap ?? 200}
         guidance={channel?.guidance ?? null}
+        agentInstructions={channel?.agentInstructions ?? null}
         replyMode={channel?.replyMode ?? 'ai'}
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}

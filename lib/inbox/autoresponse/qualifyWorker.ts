@@ -49,6 +49,9 @@ import {
 } from './conversationControl'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
+import { decideGreeting, withGreeting } from './greeting'
+import { safeFallbackReply } from './safeFallback'
+import { hasPriorOutbound } from '@/db/inboxMessages'
 import { sendIreOutbound } from './ireSend'
 import { watchHumanPresence } from './humanPresenceWatch'
 import { readHumanPresence } from '@/db/conversationHumanPresence'
@@ -194,6 +197,48 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       reopenEligible,
     })
 
+  const lang = detectLang(lastInboundText)
+
+  // ── First greeting ────────────────────────────────────────────────────────
+  // Decided deterministically here and handed to the model as a verbatim line.
+  // The model is never asked to judge "is this the start of the conversation?"
+  // from a transcript — that is how a greeting lands on turn five and goes
+  // missing on turn one.
+  //
+  // Resolved lazily and memoized, because most claimed jobs end in a skip
+  // (no_pending_inbound, quiet_hours, human_active…) and must not pay for two
+  // extra queries to answer a question no send will ask.
+  //
+  // `countPriorOutbound` is a durable COUNT, not a scan of `recent`: that array
+  // is capped at MAX_TRANSCRIPT, so past the cap an early greeting would fall
+  // out of the window and the same customer would be greeted twice.
+  let greetingResolved: { identity: Awaited<ReturnType<typeof loadBusinessIdentity>>; line: string | null } | null = null
+  const resolveGreeting = async () => {
+    if (greetingResolved) return greetingResolved
+    const identity = await loadBusinessIdentity(job.agencyId, job.channel)
+    const priorOutbound = await hasPriorOutbound(conv.id)
+    const decision = decideGreeting({
+      hasPriorOutbound: priorOutbound,
+      aiTurnCount: aiState.aiTurnCount,
+      businessName: identity.name,
+      lang,
+      aiState: aiState.aiState,
+    })
+    waTrace(
+      'GREETING_DECISION',
+      { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+      {
+        greet: decision.greet,
+        reason: 'reason' in decision ? decision.reason : null,
+        hasBusinessName: Boolean(identity.name),
+        priorOutbound,
+        lang,
+      },
+    )
+    greetingResolved = { identity, line: decision.greet ? decision.line : null }
+    return greetingResolved
+  }
+
   const pre = decidePreGeneration({
     aiState: aiState.aiState,
     masterEnabled: master,
@@ -231,6 +276,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       send: deps.send,
       aiState,
       lastInboundText,
+      greetingLine: (await resolveGreeting()).line,
     })
   }
 
@@ -255,6 +301,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       send: deps.send,
       aiState,
       lastInboundText,
+      greetingLine: (await resolveGreeting()).line,
     })
   }
   if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
@@ -265,7 +312,12 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   if (control.action === 'CLOSE_CONVERSATION' && control.send === 'closer') {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
-    const r = await sendAndPersist(job, ctx, deps.send, conversationCloser(detectLang(lastInboundText)))
+    // Deliberately NOT greeted. A closer is sent when the customer declined,
+    // said goodbye, or confirmed they are done. "Welcome to X 👋 No problem,
+    // thanks." welcomes someone out of the door, which reads worse than no
+    // welcome at all. The greeting belongs on a reply that opens a
+    // conversation, including a handoff — not on one that ends it.
+    const r = await sendAndPersist(job, ctx, deps.send, conversationCloser(lang))
     if (r.ok === false) {
       if (r.settled) return 'failed'
       return doSkip(r.reason)
@@ -325,7 +377,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesMoveUsesProductContract(salesMove) || salesMove === 'OBJECTION'
       ? formatProductKnowledgeBlock(productKnowledge)
       : null
-  const identity = await loadBusinessIdentity(job.agencyId, job.channel)
+  const { identity, line: greetingLine } = await resolveGreeting()
   const businessIdentityBlock = formatBusinessIdentityBlock(identity)
   const questionPolicy = questionPolicyForSalesMove(salesMove, { discoveryBudgetExhausted })
   const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
@@ -349,6 +401,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     discoveryBudgetExhausted,
     trace: genTrace,
     responseProfile,
+    greetingLine,
   }
   // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
   // Best effort only. Whatever happens here, the outbound guard re-checks.
@@ -375,21 +428,20 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return doSkip('human_typing')
   }
 
-  const lang = detectLang(lastInbound?.text ?? '')
-
   // ── Validate the reply; resolve shape/safety violations BEFORE the policy ──
   // A validation failure is NOT model uncertainty. Shape → one stricter
   // regeneration, else a strategy-aware fallback question (never a handoff).
   // Safety → regenerate once, then escalate ('guardrail'). `uncertain` fed to
   // the policy below is model-only.
-  let validation = validateAutoResponse(gen.reply, { questionPolicy })
+  const validateOpts = { questionPolicy, greetingTurn: Boolean(greetingLine) }
+  let validation = validateAutoResponse(gen.reply, validateOpts)
   let forcedGuardrail = false
   if (!validation.ok) {
     const originalViolation = 'violation' in validation ? validation.violation : 'invalid'
     const regenerationReason: RegenerationReason =
       classifyViolation(originalViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
     const gen2 = await deps.generateQualify({ ...genArgs, regenerationReason, abortSignal: presenceWatch.signal })
-    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, { questionPolicy })
+    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, validateOpts)
     let finalResolution: 'regenerated' | 'deterministic' | 'guardrail_handoff'
     let validationResult: string
     if (gen2.ok !== false && gen2Valid && gen2Valid.ok) {
@@ -398,6 +450,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       // and gen2 hotSignal/salesMove are ignored.
       gen.reply = gen2.reply
       gen.extracted = gen2.extracted
+      gen.corrected = gen2.corrected
       gen.uncertain = gen2.uncertain
       gen.objective = gen2.objective
       gen.understanding = gen2.understanding
@@ -424,7 +477,11 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
           }),
           salesStrategy,
         )
-        const mergedNow = mergeQualification(aiState.qualification, { ...gen.extracted, cognition: incomingCog })
+        const mergedNow = mergeQualification(
+          aiState.qualification,
+          { ...gen.extracted, cognition: incomingCog },
+          { corrected: gen.corrected },
+        )
         gen.reply = deterministicQualifyFallback({
           qualification: mergedNow,
           lastInboundText,
@@ -436,7 +493,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
           discoveryBudgetExhausted,
           lang,
         })
-        validation = validateAutoResponse(gen.reply, { questionPolicy })
+        gen.reply = withGreeting(greetingLine, gen.reply)
+        validation = validateAutoResponse(gen.reply, validateOpts)
         finalResolution = 'deterministic'
       }
     }
@@ -464,7 +522,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesStrategy,
   )
   const persistExtracted = { ...gen.extracted, cognition: incomingCog }
-  const merged = mergeQualification(aiState.qualification, persistExtracted)
+  const merged = mergeQualification(aiState.qualification, persistExtracted, { corrected: gen.corrected })
   let post = decidePostGeneration({
     hotSignal: gen.hotSignal, // observability only — policy ignores LLM hotness
     uncertain: gen.uncertain, // model-only; validation failures are resolved above
@@ -544,7 +602,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     } catch (e) {
       console.error(`[IRE-DRAFT] persist failed conv=${conv.id}:`, (e as Error).message)
     }
-    await mergeOnly(conv.id, persistExtracted)
+    await mergeOnly(conv.id, persistExtracted, gen.corrected)
     await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
     await track({
       agencyId: job.agencyId,
@@ -572,12 +630,12 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     }
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
-    const r = await sendAndPersist(job, ctx, deps.send, handoffText)
+    const r = await sendAndPersist(job, ctx, deps.send, withGreeting(greetingLine, handoffText))
     if (r.ok === false) {
       if (r.settled) return 'failed'
       return doSkip(r.reason)
     }
-    await mergeOnly(conv.id, persistExtracted)
+    await mergeOnly(conv.id, persistExtracted, gen.corrected)
     await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
     await markEscalated(conv.id, post.reason)
     await persistEscalation(conv.id, job.agencyId, summary)
@@ -599,7 +657,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     if (r.settled) return 'failed'
     return doSkip(r.reason)
   }
-  await recordTurn(conv.id, persistExtracted)
+  await recordTurn(conv.id, persistExtracted, gen.corrected)
   await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount + 1)
   await completeAutoResponseJob(job.id, r.messageId)
   if (isPositiveLeadId(job.leadId)) {

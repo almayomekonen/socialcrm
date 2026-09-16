@@ -37,6 +37,7 @@ const props = {
   channelEnabled: true,
   dailyCap: 200,
   guidance: null as string | null,
+  agentInstructions: null as string | null,
   replyMode: 'ai' as const,
   fixedBody: null as string | null,
 }
