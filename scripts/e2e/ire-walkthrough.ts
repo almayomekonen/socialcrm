@@ -80,7 +80,7 @@ for (const p of [CLINIC, UNCONFIGURED]) {
   h2(p.name ?? '(no business name configured)')
   for (const c of greetCases) {
     const d = decideGreeting({ ...c, businessName: p.name })
-    const outcome = d.greet ? `GREET  → "${d.line}"` : `silent (${d.reason})`
+    const outcome = d.greet ? `GREET  → "${d.line}"` : `silent (${'reason' in d ? d.reason : ''})`
     console.log(`  ${c.label.padEnd(26)} ${outcome}`)
   }
 }
