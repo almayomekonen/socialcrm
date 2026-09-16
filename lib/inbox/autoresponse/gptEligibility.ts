@@ -10,6 +10,7 @@ import {
   isCasualAcknowledgement,
   isExplicitHelpRequest,
   isHoldOnUtterance,
+  isInformationRequest,
   isShortAffirmative,
   outboundAsksQuestion,
   collapseRepeatedLetters,
@@ -39,6 +40,7 @@ export type GptEligibilityReason =
   | 'OBJECTION'
   | 'DEEPEN'
   | 'DISCOVERY'
+  | 'INFORMATION_REQUEST'
   | 'NO_MEANINGFUL_INTENT'
 
 export type GptEligibility = {
@@ -258,6 +260,7 @@ export function inboundHasMeaningfulSalesIntent(text: string): boolean {
   const t = (text ?? '').trim()
   if (!t || isLowInformationInbound(t)) return false
   if (inboundContainsRealQuestion(t)) return true
+  if (isInformationRequest(t)) return true
   if (isExplicitHelpRequest(t)) return true
   if (isBusinessPainSignal(t)) return true
   if (HELP_RE.test(t) || HELP_RE.test(collapseRepeatedLetters(t))) return true
@@ -304,6 +307,11 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
   }
 
   if (inboundContainsRealQuestion(inboundText)) return run('REAL_QUESTION')
+
+  // A request is intent even though it is not a question. See conversation 6694:
+  // "היי אשמח לקבל פרטים על המערכת שלכם" answered the agent's own question and
+  // was skipped as NO_MEANINGFUL_INTENT, silencing the conversation for good.
+  if (isInformationRequest(inboundText)) return run('INFORMATION_REQUEST')
 
   if (isBusinessPainSignal(inboundText)) return run('PAIN_SIGNAL')
 

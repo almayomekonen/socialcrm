@@ -858,3 +858,114 @@ holds up past a few hundred messages.
 - `.env.local` in the worktree carries `SMART_REPLY_AGENT_ENABLED=1` /
   `SMART_REPLY_AGENT_AGENCY_IDS=all`. **Production is unchanged** — neither key
   is set there, so `mode` is never written for any production agency.
+
+---
+
+## 11. Round four — the conversation that went silent (production conv 6694)
+
+A live conversation on agency 103, 2026-09-16. The agent greeted at 16:07 and
+asked a question. The customer answered it at 16:08. The agent never spoke
+again.
+
+```
+seq 1  16:07:24  in   היי מה קורה?
+seq 2  16:07:33  in   יחרא
+seq 3  16:07:37  OUT  היי, ברוך הבא למנכל SocialCrm 👋
+                      הכול טוב, מה רצית לדעת על המערכת?
+seq 4  16:08:19  in   היי אשמח לקבל פרטים על המערכת שלכם
+```
+
+### 11.1 The stopping point, from the production rows
+
+```
+job 2358  conv 6694  qualify_turn        sent     seq 1  16:07:25
+job 2361  conv 6694  no_response_warning skipped  seq 3  16:07:37  inbound_superseded
+job 2366  conv 6694  qualify_turn        SKIPPED  seq 4  16:08:20  gpt_wait_NO_MEANINGFUL_INTENT
+```
+
+The message was persisted, a job was created for it, the job ran, and the
+deterministic eligibility gate decided the turn did not merit a reply.
+Generation was never reached, so there was no model call, no validation failure
+and no send attempt.
+
+### 11.2 The four hypotheses, each refuted with evidence
+
+| Hypothesis | Evidence | Verdict |
+| --- | --- | --- |
+| The agent's own outbound triggered human takeover | seq 3's `metadata.source = auto_response`; `humanTookOver` is computed as "an outbound whose source is *not* auto_response" | refuted |
+| A WhatsApp echo of our own message was ingested as inbound | no duplicate row; `inbox_messages` holds exactly four rows for this conversation | refuted |
+| A cooldown or pending job blocked the turn | job 2366 was created and claimed; the no-response job 2361 was correctly superseded by the new inbound | refuted |
+| Validation rejected the reply | the skip reason is recorded before generation; no `validation_failed` event exists for this job | refuted |
+
+### 11.3 The actual cause
+
+`shouldInvokeSalesAi` recognised intent as: a real question, a stated business
+pain, an explicit "I need help", or a meaningful sales move. Every one of those
+requires either an interrogative or a complaint.
+
+"אשמח לקבל פרטים" is neither. It is a **request** — no question mark, no
+question word, no pain, no "help me". The single most natural way a lead says
+*tell me more* was the one shape the gate could not see, and it arrived directly
+after the agent invited it. Reproduced locally before changing anything:
+
+```
+classifySalesMove         DISCOVERY
+inboundContainsRealQuestion   false
+isExplicitHelpRequest         false
+isProductQuestion             false
+meaningfulSalesIntent         false
+gate → {"decision":"WAIT","reason":"NO_MEANINGFUL_INTENT"}
+```
+
+— identical to production.
+
+### 11.4 The fix
+
+`isInformationRequest()` in `salesIntent.ts`: a request verb **plus** an
+information object, in Hebrew and English. Both halves are required, so "אשמח"
+alone and a bare "פרטים" do not qualify. `gptEligibility.ts` consults it in two
+places — `shouldInvokeSalesAi` (new reason `INFORMATION_REQUEST`) and
+`inboundHasMeaningfulSalesIntent`.
+
+**A refusal wears the same verbs as a request.** The first version of the
+predicate matched a bare "תשלח", so `אל תשלחו לי הודעות` — an opt-out — read as
+a request for information. The existing Task-13 suite caught it, not inspection.
+The imperative branch now requires an object too, and a `NEGATED_REQUEST_RE`
+guard rejects `אל/לא + verb` and `don't/stop + send/tell/contact` outright. The
+opt-out itself was never at risk — `decidePreGeneration` stops it upstream — but
+a misclassified opt-out would have spent a model call.
+
+### 11.5 What was verified
+
+- **The failure reproduces and the fix removes it.** With the two
+  `isInformationRequest` call sites commented out, 16 assertions across the two
+  new test files fail, including both headline cases; restored, all pass.
+- **Gate level** (`conv6694.regression.test.ts`, 29 tests): the exact production
+  message now returns `RUN_AI/INFORMATION_REQUEST`; 14 further phrasings a lead
+  actually uses; `NO_MEANINGFUL_INTENT`, `NO_NEW_CONTENT`, `LOW_INFORMATION` and
+  `ACKNOWLEDGEMENT` all still fire; refusals are not requests.
+- **Worker level** (`conv6694.worker.test.ts`, 6 tests): `processQualifyJob`
+  over the same four messages reaches generation, validation and the send,
+  returns `sent`, sends exactly once, completes the job, and does not greet
+  again. Human takeover (`source != auto_response`), opt-out and human-request
+  handoff still stop the agent on the same transcript.
+- **No regression in the surrounding suites:** 68 files / 1,459 tests across
+  `__tests__/inbox/autoresponse`, `__tests__/autoresponse` and
+  `__tests__/inbox/humanPresence` pass. `npx tsc --noEmit` is clean.
+- **Blast radius checked by import, not assumption:** every test file importing
+  `salesIntent` or `gptEligibility` (18 of them) is inside that green set.
+
+### 11.6 What this does not settle
+
+Widening the gate makes the agent reply in a case it used to skip. Whether the
+reply it then produces is *good* is a model-behaviour question this fix does not
+touch — the validator, grounding and capability boundary from §1 are what govern
+that, unchanged here.
+
+The deeper point is that the gate encodes intent as a list of shapes, and a
+shape nobody listed reads as no intent at all. `INFORMATION_REQUEST` closes the
+most common gap; it does not prove the list is now complete. The rate to watch
+in the pilot is `gpt_wait_NO_MEANINGFUL_INTENT` on second and later inbounds —
+every one of those is a conversation the agent chose to end in silence.
+
+**Not deployed.** Committed only.
