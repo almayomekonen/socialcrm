@@ -66,12 +66,27 @@ const STOPWORDS = new Set([
 ])
 const PAIN_RE = /עומס|דחוף|גבוה|לחץ|מיידי|נופל|קושי|overload|urgent|high|press/i
 
+/**
+ * No digits may be interpolated into a warm handoff, at all.
+ *
+ * This used to ride on FORBIDDEN's blanket `\d{2,}` rule. That rule has been
+ * removed from the reply guardrail on purpose — a reply must be able to say
+ * "מאזדה 3 משנת 2018" — but the two uses were never the same thing. Here we are
+ * splicing an UNTRUSTED extracted value into a template the business appears to
+ * have written, where a stray number reads as a price, a date or a phone number
+ * the business never promised. So the rule lives here explicitly, scoped to
+ * interpolation, rather than being inherited by accident from a list that is
+ * about something else.
+ */
+const INTERPOLATION_DIGITS = /\d/
+
 /** First given-name token, sanitized; null if unusable (empty / too long / digits / forbidden). */
 function sanitizeName(raw: string | undefined): string | null {
   const t = (raw ?? '').trim().replace(/^["'«»[(]+|["'»«\])]+$/g, '')
   if (!t) return null
   const first = t.split(/\s+/)[0]
   if (first.length < 2 || first.length > 20) return null
+  if (INTERPOLATION_DIGITS.test(first)) return null
   if (FORBIDDEN.some((re) => re.test(first))) return null
   return first
 }
@@ -103,7 +118,7 @@ function assessNeed(normalized: string): { accepted: boolean; reason: NeedReject
   if (!normalized) return { accepted: false, reason: 'empty', quality: 'none' }
   if (normalized.length < NEED_MIN) return { accepted: false, reason: 'too_short', quality: classifyNeedQuality(normalized) }
   if (normalized.length > NEED_MAX) return { accepted: false, reason: 'too_long', quality: classifyNeedQuality(normalized) }
-  if (FORBIDDEN.some((re) => re.test(normalized)))
+  if (INTERPOLATION_DIGITS.test(normalized) || FORBIDDEN.some((re) => re.test(normalized)))
     return { accepted: false, reason: 'forbidden', quality: classifyNeedQuality(normalized) }
   const quality = classifyNeedQuality(normalized)
   if (quality === 'low' || quality === 'none') return { accepted: false, reason: 'low_quality', quality }
