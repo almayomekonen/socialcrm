@@ -28,6 +28,10 @@ const IDENTITY = formatBusinessIdentityBlock({
   agencyId: 103,
   name: 'SocialCRM',
   guidance: 'מערכת לניהול לידים מרשתות חברתיות. מרכזת פניות, וואטסאפ וסטטוס במקום אחד.',
+  agentInstructions: null,
+  // This fixture IS SocialCRM's own account — the one tenant for which the
+  // product catalogue is legitimately its own business information.
+  isOwnProductBusiness: true,
 })
 
 const ENV_KEYS = new Set([

@@ -71,13 +71,17 @@ export type QualifyFallbackObjective = ConversationObjective
 
 // Objective-aware canned questions. Static copy only — used as the shape-repair
 // fallback so a malformed reply never causes a handoff. Each is a single short
-// question (one '?', no FORBIDDEN tokens, no digits) so it passes validateAutoResponse.
+// question (one '?', no FORBIDDEN tokens) so it passes validateAutoResponse.
 // Never keyed by a missing CRM field.
+//
+// Every line here is industry-neutral on purpose: this text can be sent on
+// behalf of a clinic, a garage or a software vendor, so it must name no trade,
+// assume no sales motion, and claim nothing about what the business offers.
 const FALLBACK_BY_OBJECTIVE: Record<QualifyFallbackObjective, { he: string; en: string }> = {
   discover_need: { he: 'איך אפשר לעזור?', en: 'How can I help?' },
-  understand_pain: { he: 'מה הכי מפריע לך בזה עכשיו?', en: 'What is getting in the way most right now?' },
-  understand_impact: { he: 'מה קורה בדרך כלל כשזה לא מסתדר?', en: 'What usually happens when that does not work out?' },
-  understand_outcome: { he: 'מה היית רוצה שיהיה אחרת?', en: 'What would you want to be different?' },
+  understand_pain: { he: 'מה הכי חשוב לך שנבין כדי לעזור?', en: 'What is the main thing you need help with?' },
+  understand_impact: { he: 'תוכל/י לספר קצת יותר על מה שאת/ה צריך/ה?', en: 'Could you tell me a bit more about what you need?' },
+  understand_outcome: { he: 'מה היית רוצה שיקרה מכאן?', en: 'What would you like to happen from here?' },
   advance: { he: 'מה הכי חשוב לך שנסדר עכשיו?', en: 'What matters most to sort out now?' },
 }
 
@@ -158,10 +162,16 @@ export function deterministicQualifyFallback(args: {
     // Dead path: conversationControl closes acknowledgements before generation.
     return args.lang === 'en' ? 'Got it.' : 'קיבלתי.'
   }
+  // A question about what the business offers, reached only after generation
+  // already failed twice. There is no verified fact to quote here, so the only
+  // honest reply is to say so and route to a person. It must never describe a
+  // capability — this text is sent on behalf of whichever business owns the
+  // conversation, and naming one business's product inside another's chat is
+  // the exact failure this fallback used to cause.
   if (salesMoveUsesProductContract(args.salesMove) || isProductStrategy(args.salesStrategy)) {
     return args.lang === 'en'
-      ? 'If you mean an automatic reply when someone writes on WhatsApp and you are not at the screen, yes, SocialCRM can do that. Proactive messages after a lead goes quiet are a different mechanism.'
-      : 'אם הכוונה היא שהמערכת תענה כשכותבים אליך בוואטסאפ ואתה לא ליד המסך, כן, יש מענה אוטומטי להודעות נכנסות. אם מדובר בהודעות יזומות אחרי שהלקוח נעלם, זה כבר לא אותו מנגנון.'
+      ? 'I want to give you an accurate answer on that rather than guess, so let me pass it to someone from the team. What is a good time to reach you?'
+      : 'אני רוצה לתת לך תשובה מדויקת ולא לנחש, אז אעביר את זה למישהו מהצוות. מתי נוח לך שיחזרו אלייך?'
   }
   const objective = resolveFallbackObjective(args)
   const q = FALLBACK_BY_OBJECTIVE[objective]
@@ -236,7 +246,10 @@ const QualifySchema = z.object({
       'CASUAL_ACKNOWLEDGEMENT',
     ])
     .describe('סיווג התור הנוכחי; האסטרטגיה נקבעת דטרמיניסטית מחוץ למודל'),
-  hotSignal: z.boolean().describe('כוונת קנייה חזקה (מחיר/דמו/פגישה/להתחיל/בקשה לדבר עם נציג)'),
+  corrected: z
+    .array(z.enum(['name', 'need', 'urgency', 'budget', 'location', 'callback', 'pain', 'impact', 'currentWorkflow', 'desiredOutcome']))
+    .describe('שדות שהלקוח תיקן במפורש בתור הזה (אמר ערך אחר ממה שמסר קודם). ריק אם לא תיקן כלום'),
+  hotSignal: z.boolean().describe('כוונת קנייה חזקה (מחיר/פגישה/להתחיל/בקשה לדבר עם נציג)'),
   uncertain: z.boolean().describe('לא ניתן לענות באמת בלי להמציא, או שצריך אדם'),
 })
 
@@ -245,6 +258,8 @@ export type QualifyGenResult =
       ok: true
       reply: string
       extracted: Qualification
+      /** Fields the customer explicitly corrected this turn; drives the merge. */
+      corrected: string[]
       objective: ConversationObjective | null
       understanding: UnderstandingDelta
       salesMove: SalesMove | null
@@ -273,6 +288,7 @@ export async function generateQualifyTurn(args: {
   businessIdentityBlock?: string | null
   discoveryBudgetExhausted?: boolean
   responseProfile?: ResponseProfile | null
+  greetingLine?: string | null
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
   /** Aborts the provider call when a human rep starts typing mid-generation. */
@@ -311,6 +327,7 @@ export async function generateQualifyTurn(args: {
     ok: true as const,
     reply: d.reply,
     extracted,
+    corrected: Array.isArray(d.corrected) ? d.corrected.map(String) : [],
     objective,
     understanding,
     salesMove: isSalesMove(d.salesMove) ? d.salesMove : null,
@@ -329,6 +346,7 @@ export async function generateQualifyTurn(args: {
     usage: { inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd },
     latencyMs: out.latencyMs,
     extracted,
+    corrected: result.corrected,
     objective,
     understanding,
     salesMove: result.salesMove,
