@@ -63,7 +63,7 @@ describe('the owner pilot widens who is asked for a card, and nothing else', () 
 
   it('never opens a provider-evidence gate', () => {
     pilot('42')
-    expect(isTokenSaveVerificationEstablished()).toBe(false)
+    expect(isTokenSaveVerificationEstablished('production')).toBe(false)
     expect(isTokenChargeDispatchEstablished()).toBe(false)
     expect(isTokenChargeReconciliationEstablished()).toBe(false)
   })

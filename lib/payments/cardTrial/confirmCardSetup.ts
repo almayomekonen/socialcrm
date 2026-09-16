@@ -70,7 +70,7 @@ export async function confirmCardSetup(callback: GrowCallback, deps: ConfirmDeps
     return { kind: 'refused', agencyId, reason: 'setup_owner_changed' }
   }
 
-  const verification = await deps.verify({ processId, processToken, cardToken, agencyId })
+  const verification = await deps.verify({ processId, processToken, cardToken, agencyId, mode: deps.runtimeMode() })
   if (verification.kind === 'unavailable') {
     await recordCallbackReceived(method.id, verification.reason)
     return verification.reason === 'provider_evidence_missing'

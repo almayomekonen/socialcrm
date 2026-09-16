@@ -1,6 +1,7 @@
 import { GrowApiError, getPaymentProcessInfo } from '@/lib/payments/grow/api'
 import { GrowTransportError } from '@/lib/payments/grow/http'
-import { GROW_PROVIDER_EVIDENCE, isTokenSaveVerificationEstablished, type GrowProviderEvidence } from '@/lib/payments/grow/providerEvidence'
+import { GROW_PROVIDER_EVIDENCE, acceptedTokenSaveStatusCodes, isTokenSaveVerificationEstablished, type GrowProviderEvidence } from '@/lib/payments/grow/providerEvidence'
+import type { GrowMode } from '@/lib/payments/grow/config'
 import type { ConfirmedCard } from '@/db/payments/paymentMethods'
 import { TOKEN_SAVE_SUM } from './terms'
 import { track } from '@/lib/analytics/track'
@@ -40,6 +41,8 @@ export type TokenSaveVerifier = (input: {
   processToken: string
   cardToken: string
   agencyId: number
+  /** Evidence is per environment: sandbox observations never speak for production. */
+  mode: GrowMode
 }) => Promise<TokenSaveVerification>
 
 /**
@@ -69,7 +72,7 @@ export function createGrowTokenSaveVerifier(
     observe: recordTokenSaveObservation,
   },
 ): TokenSaveVerifier {
-  return async ({ processId, processToken, cardToken, agencyId }) => {
+  return async ({ processId, processToken, cardToken, agencyId, mode }) => {
     // Read-only, moves no money, and runs whatever the gate says — this is the
     // only way the gate can ever be opened from a real save.
     let transactions
@@ -100,12 +103,12 @@ export function createGrowTokenSaveVerifier(
     }
 
     // Gate applied AFTER the observation: evidence first, authorization second.
-    if (!isTokenSaveVerificationEstablished(deps.evidence)) return { kind: 'unavailable', reason: 'provider_evidence_missing' }
+    if (!isTokenSaveVerificationEstablished(mode, deps.evidence)) return { kind: 'unavailable', reason: 'provider_evidence_missing' }
 
     const tx = transactions.find((t) => t.cardToken === cardToken)
     if (!tx) return { kind: 'refused', reason: 'token_not_in_process' }
     if (tx.sum === null || Number(tx.sum) !== TOKEN_SAVE_SUM) return { kind: 'refused', reason: 'unexpected_sum' }
-    if (tx.statusCode === null || !deps.evidence.tokenSaveVerification.acceptedStatusCodes.includes(tx.statusCode)) {
+    if (tx.statusCode === null || !acceptedTokenSaveStatusCodes(mode, deps.evidence).includes(tx.statusCode)) {
       return { kind: 'refused', reason: 'unexpected_status' }
     }
 

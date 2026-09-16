@@ -2,7 +2,10 @@ import { describe, it, expect, afterAll, afterEach, beforeEach, vi } from 'vites
 import { db } from '@/config/db'
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secrets'
 import { confirmCardSetup, type ConfirmDeps } from '@/lib/payments/cardTrial/confirmCardSetup'
-import { GROW_PROVIDER_EVIDENCE } from '@/lib/payments/grow/providerEvidence'
+import type { GrowProviderEvidence } from '@/lib/payments/grow/providerEvidence'
+
+/** Sandbox token-save is OPEN in the committed evidence; this represents 'closed'. */
+const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
 import { createGrowTokenSaveVerifier, verifyTokenSaveWithGrow, type TokenSaveVerification } from '@/lib/payments/cardTrial/verifyTokenSave'
 import type { GrowCallback } from '@/lib/payments/grow/callbackPayload'
 import { seedAgency, seedMethod, seedSubscription, seedUser, seedCharge, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'
@@ -71,7 +74,7 @@ describe('confirmCardSetup — fail closed by default', () => {
       getPaymentProcessInfo: async () => [
         { transactionId: 't', transactionToken: 'tt', statusCode: '11', sum: '1', cardToken: 'ct-new', cardSuffix: '4242', cardBrand: 'Visa', cardExp: '1230' },
       ],
-      evidence: GROW_PROVIDER_EVIDENCE,
+      evidence: CLOSED_EVIDENCE,
       observe: async () => {},
     })
     expect(await confirmCardSetup(cb(s), { verify, runtimeMode: () => 'sandbox' })).toEqual({ kind: 'awaiting_evidence', agencyId: s.agencyId })
@@ -85,7 +88,7 @@ describe('confirmCardSetup — trial start', () => {
     const s = await pendingSetup()
     const d = deps()
     expect(await confirmCardSetup(cb(s), d)).toEqual({ kind: 'confirmed', agencyId: s.agencyId, purpose: 'trial_start', createdByUserId: s.userId, trialStarted: true })
-    expect(d.verify).toHaveBeenCalledWith({ processId: s.processId, processToken: s.processToken, cardToken: 'ct-new', agencyId: s.agencyId })
+    expect(d.verify).toHaveBeenCalledWith({ processId: s.processId, processToken: s.processToken, cardToken: 'ct-new', agencyId: s.agencyId, mode: 'sandbox' })
     const method = await methodRow(s.methodId)
     expect(method.status).toBe('active')
     expect(decryptSecret(method.cardToken)).toBe('ct-new')

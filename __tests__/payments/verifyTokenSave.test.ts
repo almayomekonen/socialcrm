@@ -15,7 +15,7 @@ import { GrowTransportError } from '@/lib/payments/grow/http'
  * invented for this test so no real Grow status is implied to be verified.
  */
 const LOCAL_TEST_EVIDENCE: GrowProviderEvidence = {
-  tokenSaveVerification: { acceptedStatusCodes: ['FIXTURE-SAVED'], evidenceRef: 'LOCAL TEST DOUBLE — not sandbox evidence' },
+  tokenSaveVerification: { sandbox: { acceptedStatusCodes: ['FIXTURE-SAVED'], evidenceRef: 'LOCAL TEST DOUBLE — not sandbox evidence' }, production: { acceptedStatusCodes: [], evidenceRef: null } },
   tokenChargeDispatch: { evidenceRef: null },
   tokenChargeReconciliation: { evidenceRef: null },
 }
@@ -31,7 +31,7 @@ const tx = (over: Partial<GrowProcessTransaction> = {}): GrowProcessTransaction 
   cardExp: '1125',
   ...over,
 })
-const input = { processId: '462950', processToken: 'ptok', cardToken: 'ct-1', agencyId: 1 }
+const input = { processId: '462950', processToken: 'ptok', cardToken: 'ct-1', agencyId: 1, mode: 'sandbox' as const }
 
 function verifier(result: GrowProcessTransaction[] | Error, evidence = LOCAL_TEST_EVIDENCE) {
   const getPaymentProcessInfo = vi.fn(async () => {
@@ -48,14 +48,14 @@ describe('a closed gate observes, and still grants nothing', () => {
    * opening it needs the statusCode Grow returns for a token-only save, and
    * nothing was allowed to look.
    */
-  const CLOSED = { tokenSaveVerification: { acceptedStatusCodes: [], evidenceRef: null }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
+  const CLOSED = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
   const saved: GrowProcessTransaction[] = [
     { transactionId: 't1', transactionToken: 'tt', statusCode: '11', sum: '1', cardToken: 'TOKEN-SECRET-VALUE', cardSuffix: '4242', cardBrand: 'Visa', cardExp: '1230' },
   ]
 
   it('still asks Grow, and records what it saw', async () => {
     const v = verifier(saved, CLOSED)
-    const out = await v.verify({ processId: 'p', processToken: 'pt', cardToken: 'TOKEN-SECRET-VALUE', agencyId: 7 })
+    const out = await v.verify({ processId: 'p', processToken: 'pt', cardToken: 'TOKEN-SECRET-VALUE', agencyId: 7, mode: 'sandbox' as const })
     expect(v.getPaymentProcessInfo).toHaveBeenCalledTimes(1)
     expect(v.observe).toHaveBeenCalledWith(7, {
       statusCode: '11',
@@ -70,7 +70,7 @@ describe('a closed gate observes, and still grants nothing', () => {
 
   it('records no card token and no expiry digits', async () => {
     const v = verifier(saved, CLOSED)
-    await v.verify({ processId: 'p', processToken: 'pt', cardToken: 'TOKEN-SECRET-VALUE', agencyId: 7 })
+    await v.verify({ processId: 'p', processToken: 'pt', cardToken: 'TOKEN-SECRET-VALUE', agencyId: 7, mode: 'sandbox' as const })
     const recorded = JSON.stringify(v.observe.mock.calls[0][1])
     expect(recorded).not.toContain('TOKEN-SECRET-VALUE')
     expect(recorded).not.toContain('1230')
@@ -83,30 +83,36 @@ describe('a closed gate observes, and still grants nothing', () => {
       throw new Error('analytics down')
     })
     const verify = createGrowTokenSaveVerifier({ getPaymentProcessInfo, evidence: CLOSED, observe })
-    expect(await verify({ processId: 'p', processToken: 'pt', cardToken: 'TOKEN-SECRET-VALUE', agencyId: 7 })).toEqual({
+    expect(await verify({ processId: 'p', processToken: 'pt', cardToken: 'TOKEN-SECRET-VALUE', agencyId: 7, mode: 'sandbox' as const })).toEqual({
       kind: 'unavailable',
       reason: 'provider_evidence_missing',
     })
   })
 })
 
+/** Sandbox token-save is OPEN in the committed evidence; this represents 'closed'. */
+const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
+
 describe('provider evidence gates', () => {
-  it('are all closed in the committed code: nothing provider-dependent is enabled without sandbox evidence', () => {
-    expect(isTokenSaveVerificationEstablished()).toBe(false)
+  it('charging stays closed, and production token-save stays closed: nothing provider-dependent is enabled without sandbox evidence', () => {
+    expect(isTokenSaveVerificationEstablished('production')).toBe(false)
     expect(isTokenChargeDispatchEstablished()).toBe(false)
     expect(isTokenChargeReconciliationEstablished()).toBe(false)
-    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.acceptedStatusCodes).toEqual([])
+    // Sandbox is open on real observed evidence; production stays shut.
+    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.acceptedStatusCodes).toEqual([])
+    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.evidenceRef).toBeNull()
+    expect(isTokenSaveVerificationEstablished('sandbox')).toBe(true)
   })
 
   it('need both accepted codes and an evidence reference to open', () => {
-    expect(isTokenSaveVerificationEstablished({ ...LOCAL_TEST_EVIDENCE, tokenSaveVerification: { acceptedStatusCodes: ['11'], evidenceRef: null } })).toBe(false)
-    expect(isTokenSaveVerificationEstablished({ ...LOCAL_TEST_EVIDENCE, tokenSaveVerification: { acceptedStatusCodes: [], evidenceRef: 'x' } })).toBe(false)
+    expect(isTokenSaveVerificationEstablished('sandbox', { ...LOCAL_TEST_EVIDENCE, tokenSaveVerification: { sandbox: { acceptedStatusCodes: ['11'], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } } })).toBe(false)
+    expect(isTokenSaveVerificationEstablished('sandbox', { ...LOCAL_TEST_EVIDENCE, tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: 'x' }, production: { acceptedStatusCodes: [], evidenceRef: null } } })).toBe(false)
   })
 })
 
 describe('createGrowTokenSaveVerifier', () => {
   it('activates nothing while the evidence gate is closed — but DOES look, so the gate can be opened', async () => {
-    const { verify, getPaymentProcessInfo } = verifier([tx()], GROW_PROVIDER_EVIDENCE)
+    const { verify, getPaymentProcessInfo } = verifier([tx()], CLOSED_EVIDENCE)
     expect(await verify(input)).toEqual({ kind: 'unavailable', reason: 'provider_evidence_missing' })
     // The lookup is read-only and moves no money. Skipping it was circular:
     // opening the gate needs the statusCode this call returns.

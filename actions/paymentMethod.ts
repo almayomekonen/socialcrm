@@ -3,6 +3,7 @@
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startCardSetupForUser, type StartCardSetupInput, type StartCardSetupResult } from '@/lib/payments/cardTrial/startCardSetup'
 import { getCardSetupStateForAgency, type CardSetupState } from '@/lib/payments/cardTrial/setupStatus'
+import { recoverPendingCardSetup } from '@/lib/payments/cardTrial/recoverCardSetup'
 
 const PURPOSES = new Set(['trial_start', 'card_update', 'reactivate'])
 
@@ -32,9 +33,29 @@ export async function startCardSetup(input: StartCardSetupInput): Promise<StartC
   )
 }
 
+/**
+ * The return page polls this. When a setup is still `verifying` but its callback
+ * already arrived, the verification is retried first: a callback that could not
+ * be verified at the time (the evidence gate was closed for that environment)
+ * would otherwise leave a saved card and no trial forever, with nothing to
+ * re-trigger it — Grow does not resend an update it already got a 200 for.
+ *
+ * Recovery is the ordinary verified path (recoverPendingCardSetup →
+ * confirmCardSetup), so it is idempotent and agency-scoped: a second pass finds
+ * the row no longer pending. A failure here never fails the poll — the caller
+ * gets the true current state either way.
+ */
 export async function getCardSetupStatus(): Promise<CardSetupState> {
   try {
     const user = await requireAgencyUser()
+    const current = await getCardSetupStateForAgency(user.agencyId)
+    if (current.state !== 'verifying' || !current.callbackReceived) return current
+    try {
+      await recoverPendingCardSetup(user.agencyId)
+    } catch (err) {
+      console.error('[CardSetup] recovery attempt failed', { agencyId: user.agencyId, err: String(err) })
+      return current
+    }
     return await getCardSetupStateForAgency(user.agencyId)
   } catch (err) {
     if (err instanceof AuthError) return { state: 'verifying', callbackReceived: false, firstChargeAt: null }
