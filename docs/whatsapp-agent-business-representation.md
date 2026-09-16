@@ -536,3 +536,153 @@ Not done here, and each step is yours:
    `qualify_draft_review` before anything is sent.
 6. Then add that agency to `SMART_REPLY_AGENT_AGENCY_IDS`, and have the owner
    re-save their settings so `mode` is written.
+
+
+---
+
+## 9. Round two — setup from one description, and a preview
+
+Delivered on the approved product direction. Everything in §1–§8 still stands;
+this is what was added on top.
+
+### 9.1 One box
+
+Smart Agent now asks for exactly one thing —
+**״ספרו לסוכן על העסק ומה תרצו שיעשה״** — with the approved helper text and the
+garage example as the placeholder. No prompts, stages, schemas or turn counts
+appear anywhere on the screen (asserted). The optional instruction field moved
+behind a collapsed **הגדרות מתקדמות**. The business name comes from the account
+and is asked inline only when there isn't one. **Fixed Message is untouched**,
+and no saved value is discarded: `guidance`, `agentInstructions` and `fixedBody`
+all keep their meanings.
+
+### 9.2 Description → profile, once
+
+On save the description becomes a structured profile — facts, explicit
+prices/hours/policies, objectives, details to collect, tone, handoff — stored in
+the new `businessProfile` column. Derived **once**, never per customer message.
+The owner's words stay in `guidance` and remain the source of truth, so a stale
+profile is detectable by hash and a failed derivation is retryable from the
+original text.
+
+The rule of derivation is *transcribe, never enrich*. A garage that mentioned no
+prices gets no price section at all, and empty sections are omitted rather than
+rendered as "(none)" — an empty heading is an invitation.
+
+**Failure is recoverable and honest:** the input is saved, the profile is
+*cleared* rather than left stale, the agent falls back to reading the description
+as prose, and the error says exactly that and invites a retry. A partially
+generated configuration is never presented as active.
+
+### 9.3 Objectives are not tools
+
+`agentCapabilities.ts` is system-owned and identical for every business. Writing
+"book appointments" states a goal; it installs no calendar. Each prohibition
+carries the honest alternative — collect the preference, name who will confirm —
+because a prohibition without one produces a dead end. Anything the owner asked
+for that the agent cannot do is listed back to them on the settings page rather
+than silently downgraded.
+
+### 9.4 Long-conversation memory
+
+The rolling summary that §5 listed as missing now exists. Three layers that do
+not overlap: structured facts (exact, never summarised), the summary (prose that
+outlived the window), and the last 24 messages verbatim. It advances only when
+the window actually rolls, so cost is roughly flat per turn rather than growing
+with the conversation.
+
+**Recall is tested after a detail has actually fallen out of the window**, not on
+a short transcript: the tests build a 44-message conversation, assert the detail
+is *gone* from the verbatim slice, assert it *is* inside the batch handed to the
+summariser, and only then assert the summary carries it.
+
+### 9.5 Preview
+
+**״בדקו את הסוכן שלכם״** runs the same identity block, greeting decision, control
+policy, generation and validator as the live agent, then stops. No WhatsApp send,
+conversation, message, lead, job, notification, AI-state write or live handoff —
+enforced in the action and locked by a static guard that fails if a future edit
+imports a writer. It labels every reply as saved-settings or unsaved-draft, and
+shows a reason rather than an empty bubble when the agent would have stayed
+silent.
+
+### 9.6 Verification, round two
+
+| Suite | Result |
+| --- | --- |
+| Typecheck | 0 errors |
+| `businessProfileDerived` | 22 passed |
+| `conversationSummary` | 13 passed |
+| `agentPreviewIsolation` | 27 passed |
+| `agentPreviewRender` | 8 passed |
+| All agent + settings suites | 1549 passed, 0 failed |
+| a11y gate | 1470 passed |
+| `__tests__/autoresponse` + `inbox` + `whatsapp` + `settings` | 2467 passed, **6 failed** |
+
+Those 6 are the same pre-existing `history*` / `messageTimeline` failures proved
+against `origin/main` in §3. Two files reported suite-level failures in the big
+run and pass 52/52 in isolation — DB contention from many DB-backed files in one
+process, not a behaviour change.
+
+**Mounting the preview found two real defects**, which is the argument for
+writing it: `Btn` takes `lbl` rather than children, so both preview buttons
+rendered with **no accessible name at all**; and `scrollIntoView` sat unguarded
+in a `finally`, so anywhere it is unavailable it threw after the reply arrived
+and left the composer permanently stuck pending. Both fixed.
+
+### 9.7 Real-model evaluation: BLOCKED
+
+Not run, and not substituted with anything.
+
+```
+$ npx tsx scripts/e2e/ire-business-profiles.e2e.ts
+[WA-TRACE] RUN_STRUCTURED_RESULT {"ok":false,"reason":"disabled"}
+    ✗ generation unavailable: ai_unavailable
+```
+
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and `GOOGLE_GENERATIVE_AI_API_KEY` are all
+empty placeholders in `.env.test`, and `AI_ENABLED=false`. The script is wired
+and fails cleanly with a stated reason; it now also covers a
+booking-without-integration scenario and checks every reply for a
+completed-action claim. Supply a key and run it to get evidence of response
+quality. **Everything above is evidence of what the agent is told and allowed to
+send — none of it is evidence of what a model replies.**
+
+### 9.8 Local walkthrough
+
+Dev server running at **http://localhost:3000** → `/settings/auto-response`
+(Google login first; the route 302s to login without a session).
+
+```
+# deterministic, no API key — now also covers capabilities, the derived
+# profile shape, and memory past the window
+set -a && . ./.env.test && set +a
+npx tsx scripts/e2e/ire-walkthrough.ts
+```
+
+Two local-environment notes, both confined to the worktree:
+
+1. `.env.local` was copied from the main checkout and given
+   `SMART_REPLY_AGENT_ENABLED=1` / `SMART_REPLY_AGENT_AGENCY_IDS=all` so Smart
+   Agent is selectable locally. **Production remains gated** — neither key is set
+   there.
+2. The local dev database (`socialcrm`) has `knex_migrations` rows from other
+   branches, so `migrate:latest` refuses to run. The four additive nullable
+   columns were applied directly with `ALTER TABLE … ADD COLUMN IF NOT EXISTS`
+   and the two migration rows recorded, which is exactly what the migrations do.
+   The production procedure is unchanged and unrun.
+
+### 9.9 Limitations still open
+
+Everything in §5 that was not addressed, minus the summary (now built), plus:
+
+- **A grounded price must match digit-for-digit.** `450` in the facts permits
+  `450`; it does not permit `450-500` or `כ-450`. Erring toward a deferral.
+- **Derivation quality is unverified.** The shape, staleness, grounding and
+  capability boundary are tested deterministically; whether a real model derives
+  a *good* profile from real prose needs §9.7.
+- **The preview does not exercise the rolling summary.** A preview conversation
+  is far shorter than the window, so long-context behaviour is covered by the
+  unit tests and the walkthrough, not by the panel.
+- **Preview conversations are not persisted**, by design. Closing the panel
+  discards the test conversation.
