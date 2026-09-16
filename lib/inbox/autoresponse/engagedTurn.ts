@@ -85,8 +85,6 @@ export type EngagedTurnFacts = {
   previousCustomerText?: string
   /** A bare greeting, per the caller's own greeting predicate. */
   isGreetingOnly?: boolean
-  /** Fewer than two letters, per the caller's own predicate. */
-  isLowInformation?: boolean
   /**
    * The message asks us something, per the caller's own predicate.
    *
@@ -98,6 +96,28 @@ export type EngagedTurnFacts = {
 
 const answer = (reason: EngagedTurnReason): EngagedTurnDecision => ({ answer: true, reason })
 const silent = (reason: EngagedTurnReason): EngagedTurnDecision => ({ answer: false, reason })
+
+/**
+ * Did the customer actually say nothing — emoji, punctuation, a stray character?
+ *
+ * DIGITS COUNT AS CONTENT, and that is the whole reason this exists rather than
+ * reusing `isLowInformationInbound`, which counts letters only. Asked "which
+ * year?" a customer answers "2019". Asked "how many leads a month?" they answer
+ * "200". Asked to pick an option they answer "1". Every one of those was read as
+ * nothing-was-said and dropped.
+ *
+ * The opening gate deliberately keeps the letters-only rule: a stranger whose
+ * first-ever message is "2020" has not started a conversation, while the same
+ * string after "which year?" is the answer. Same text, different meaning,
+ * because meaning comes from the conversation — which is this file's thesis.
+ */
+export function saysNothing(text: string): boolean {
+  const t = stripClassificationEmoji(text ?? '').trim()
+  if (!t) return true
+  const letters = t.match(/[A-Za-z֐-׿]/g) ?? []
+  const digits = t.match(/\d/g) ?? []
+  return letters.length < 2 && digits.length < 1
+}
 
 function normalize(text: string): string {
   return collapseRepeatedLetters(
@@ -132,10 +152,40 @@ export function isClosingAcknowledgement(text: string): boolean {
  * follow-up reads as pressure rather than help.
  */
 const DEFERRAL_RE =
-  /אחשוב על|נחשוב על|אני אחשוב|צרי[ךכ] לחשוב|נדבר (?:אחר כך|בהמשך|מאוחר יותר)|לא עכשיו|אחזור אלי(?:כם|ך)|נחזור לזה|\bi(?:'|’)?ll think\b|\bthink about it\b|\bget back to you\b|\bnot right now\b|\bmaybe later\b/i
+  /אחשוב על|נחשוב על|אני אחשוב|צרי[ךכ] לחשוב|נדבר (?:אחר כך|בהמשך|מאוחר יותר|מחר)|לא עכשיו|אחזור אלי(?:כם|ך)|נחזור לזה|\bi(?:'|’)?ll think\b|\bthink about it\b|\bget back to you\b|\bnot right now\b|\bmaybe later\b/i
 
 export function isConversationDeferral(text: string): boolean {
   return DEFERRAL_RE.test(text ?? '')
+}
+
+/**
+ * A sign-off, or a request to wait — as the WHOLE message.
+ *
+ * Anchored deliberately. "רגע, כמה זה עולה?" is a question with a filler word
+ * in front of it and must not be silenced; a bare "רגע" is someone asking for a
+ * moment. The difference is whether the utterance is only the phrase.
+ */
+const SIGN_OFF_RE =
+  /^(?:לילה טוב|ליל מנוחה|שבת שלום|שבוע טוב|חג שמח|ביי|להתראות|נתראה|good ?night|good ?bye|bye|see ya|see you)[\s!.…]*$/i
+
+const HOLD_PHRASE_RE =
+  /^(?:שנייה|שניה|רגע|רגע אחד|שנייה אחת|תן לי רגע|תני לי רגע|תנו לי רגע|חכה רגע|חכי רגע|one sec(?:ond)?|hold on|give me a (?:sec(?:ond)?|minute|min))[\s!.…]*$/i
+
+/**
+ * Purely social traffic that carries no request: thanks, a sign-off, a deferral,
+ * or "hold on".
+ *
+ * This is the SHORT, POSITIVE silence list that replaced a catch-all. The gate
+ * used to end in `NO_MEANINGFUL_INTENT`, which silenced social residue and
+ * genuine first messages alike — "לילה טוב" and "אני צריך תור" met exactly the
+ * same fate. Naming the residue is what makes it safe to answer everything else.
+ */
+export function isSocialResidue(text: string): boolean {
+  const t = (text ?? '').trim()
+  if (!t) return true
+  if (isClosingAcknowledgement(t)) return true
+  if (isConversationDeferral(t)) return true
+  return SIGN_OFF_RE.test(t) || HOLD_PHRASE_RE.test(t)
 }
 
 /**
@@ -150,8 +200,9 @@ export function decideEngagedTurn(f: EngagedTurnFacts): EngagedTurnDecision {
   const text = f.inboundText ?? ''
 
   // Nothing was said. True whether or not a question is open: an emoji is not
-  // an answer, and replying to one produces a reply about nothing.
-  if (f.isLowInformation) return silent('LOW_INFORMATION')
+  // an answer, and replying to one produces a reply about nothing. Digits are
+  // content here — see saysNothing.
+  if (saysNothing(text)) return silent('LOW_INFORMATION')
 
   // "רגע" / "one sec" is an explicit request to wait. Honour it — the message
   // they are typing is the one worth answering.

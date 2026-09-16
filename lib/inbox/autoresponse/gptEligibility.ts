@@ -35,7 +35,7 @@ import {
   type SalesMove,
 } from './salesIntent'
 import { inboundContainsRealQuestion } from './conversationControl'
-import { decideEngagedTurn, type EngagedTurnReason } from './engagedTurn'
+import { decideEngagedTurn, isSocialResidue, type EngagedTurnReason } from './engagedTurn'
 
 export type GptEligibilityDecision = 'RUN_AI' | 'WAIT'
 
@@ -314,8 +314,6 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
   const pendingQuestion = outboundAsksQuestion(input.previousOutbound)
   const afterWarning = input.previousOutboundKind === 'no_response_warning'
 
-  if (isLowInformationInbound(inboundText)) return wait('LOW_INFORMATION')
-
   if (isHoldOnUtterance(inboundText)) return wait('HOLD_ON')
 
   if (afterWarning && isExplicitStayPresent(inboundText)) return run('STAY_PRESENT')
@@ -327,17 +325,23 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
   // is read as one. Deliberately placed after the no-response-warning branches
   // above: "are you still there?" is a different question with its own tested
   // semantics, and a reply to it is not an ordinary conversational turn.
+  //
+  // It sits ABOVE the letters-only LOW_INFORMATION check below, which is what
+  // lets "2019" and "200" be answers rather than nothing — the engaged gate
+  // applies its own digit-aware test. See `saysNothing`.
   if (input.agentHasSpoken && !afterWarning) {
     const engaged = decideEngagedTurn({
       agentAwaitingAnswer: pendingQuestion,
       inboundText,
       previousCustomerText: input.previousCustomerText,
       isGreetingOnly: isGreetingOnly(inboundText),
-      isLowInformation: isLowInformationInbound(inboundText),
       containsRealQuestion: inboundContainsRealQuestion(inboundText),
     })
     return engaged.answer ? run(engaged.reason) : wait(engaged.reason)
   }
+
+  // ── THE OPENING GATE ───────────────────────────────────────────────────────
+  if (isLowInformationInbound(inboundText)) return wait('LOW_INFORMATION')
 
   if (isShortAffirmative(inboundText) && pendingQuestion && !afterWarning) return run('PENDING_QUESTION')
   if (isShortAffirmative(inboundText)) return wait('SHORT_AFFIRMATIVE')
@@ -376,6 +380,24 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
     if (input.customerInboundCount <= 1) return run('FIRST_TURN')
     return run('DISCOVERY')
   }
+
+  /**
+   * FIRST CONTACT THAT SAYS SOMETHING.
+   *
+   * The gate answered a bare "היי" through the greeting branch above, and then
+   * dropped "היי, יש לי בעיה ברכב", "אני צריך תור" and "הרכב שלי עושה רעש" — so
+   * the more a customer told the business, the less likely they were to hear
+   * back. The cause was `isBusinessPainSignal`, which recognises SocialCRM's own
+   * pain (losing leads) and nothing a garage's or a clinic's customer would ever
+   * say; every other business's stated need fell through to silence.
+   *
+   * `isSocialResidue` is what keeps this safe, and it is a positive list rather
+   * than a catch-all: thanks, a sign-off, a deferral, "hold on". Everything
+   * contentless was already handled above — emoji, a bare greeting, an
+   * acknowledgement. What reaches here on a first message is a stranger writing
+   * to a business's WhatsApp with something to say, which is a lead.
+   */
+  if (input.customerInboundCount <= 1 && !isSocialResidue(inboundText)) return run('FIRST_TURN')
 
   return wait('NO_MEANINGFUL_INTENT')
 }
