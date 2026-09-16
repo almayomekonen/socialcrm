@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 
 vi.mock('@/actions/subscription', () => ({ cancelRenewal: vi.fn(), resumeRenewal: vi.fn() }))
 vi.mock('@/actions/paymentMethod', () => ({ startCardSetup: vi.fn(), getCardSetupStatus: vi.fn() }))
@@ -135,6 +135,14 @@ describe('expired trial recovery', () => {
     expect(screen.getByText('עדכון אמצעי תשלום והמשך')).toBeTruthy()
     expect(screen.getByRole('checkbox')).toBeTruthy()
     expect(screen.queryByText('שדרג עכשיו')).toBeNull()
+  })
+
+  it('never advertises the annual plan in a monthly-only card flow', () => {
+    render(<TrialExpiredScreen cardReactivation={{ reason: 'ended' }} />)
+    expect(document.body.textContent).not.toContain('לשנה')
+    cleanup()
+    render(<TrialExpiredScreen />)
+    expect(document.body.textContent).toContain('לשנה')
   })
 
   it('a no-card agency still gets the Payment-Link upgrade', () => {

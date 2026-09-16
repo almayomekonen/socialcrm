@@ -91,7 +91,7 @@ describe('startCardSetupForUser', () => {
     expect(row).toMatchObject({ status: 'pending', purpose: 'trial_start', reference: call.reference, providerMode: 'sandbox', termsVersion: '2026-09-15' })
     expect(row.termsAcceptedAt).not.toBeNull()
     expect(row.setupProcessToken).not.toBe('ptok-plain')
-    expect(await getCardSetupStateForAgency(r.agencyId)).toEqual({ state: 'verifying', reason: null })
+    expect(await getCardSetupStateForAgency(r.agencyId)).toEqual({ state: 'verifying', callbackReceived: false, firstChargeAt: null })
     expect((await events(r.agencyId, 'card_setup_started').first()).props).toEqual({ purpose: 'trial_start' })
   })
 
