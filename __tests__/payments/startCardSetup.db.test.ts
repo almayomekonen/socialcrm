@@ -56,12 +56,20 @@ describe('startCardSetupForUser', () => {
     expect(row.props).toEqual({ stage: 'create', reason: 'provider_unavailable', purpose: 'trial_start' })
   })
 
-  it('refuses a trial start when cards are not required, and an agency whose trial already started', async () => {
+  it('refuses a trial start when cards are not required', async () => {
     vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', '')
     expect(await startCardSetupForUser(await owner(), good, deps)).toEqual({ error: 'not_eligible' })
-    vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', 'true')
-    const started = await owner(Roles.ADMIN, { trialStartedAt: hoursFromNow(-1), trialEndsAt: hoursFromNow(100) })
-    expect(await startCardSetupForUser(started, good, deps)).toEqual({ error: 'not_eligible' })
+  })
+
+  it('accepts a trial that is already running WITHOUT a card, and refuses one that has a card', async () => {
+    // The click-to-start cohort: with Payment Links gone, saving a card here is
+    // their only way to pay. The clock is not touched (cardRequiredJourney).
+    const running = await owner(Roles.ADMIN, { trialStartedAt: hoursFromNow(-1), trialEndsAt: hoursFromNow(100) })
+    expect(await startCardSetupForUser(running, good, deps)).toMatchObject({ ok: true })
+
+    const carded = await owner(Roles.ADMIN, { trialStartedAt: hoursFromNow(-1), trialEndsAt: hoursFromNow(100) })
+    await seedMethod(carded.agencyId)
+    expect(await startCardSetupForUser(carded, good, deps)).toEqual({ error: 'not_eligible' })
   })
 
   it('refuses without explicit acceptance of the subscription terms', async () => {
