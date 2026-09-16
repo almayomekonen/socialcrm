@@ -22,6 +22,10 @@ export interface ConversationAiStateRow {
   /** Human Presence — last keystroke heartbeat. Compared against the turn epoch. */
   humanTypingAt: string | null
   humanTypingUserId: number | null
+  /** Rolling summary of everything older than the recent-message window. */
+  summary: string | null
+  /** Highest message sequence the summary accounts for. 0 = nothing summarised. */
+  summaryThroughSequence: number
 }
 
 const toIso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null)
@@ -41,6 +45,8 @@ function mapRow(r: Record<string, unknown>): ConversationAiStateRow {
     humanTypingUntil: toIso(r.humanTypingUntil),
     humanTypingAt: toIso(r.humanTypingAt),
     humanTypingUserId: r.humanTypingUserId == null ? null : Number(r.humanTypingUserId),
+    summary: (r.summary as string | null) ?? null,
+    summaryThroughSequence: Number(r.summaryThroughSequence ?? 0),
   }
 }
 
@@ -96,6 +102,19 @@ export async function mergeOnly(
   const cur = await getAiState(conversationId)
   const merged = mergeQualification(cur?.qualification ?? {}, extracted, { corrected })
   await patch(conversationId, { qualification: JSON.stringify(merged), aiLastAt: db.fn.now() })
+}
+
+/**
+ * Advance the rolling summary. Separate from `recordTurn` because the two move
+ * on different schedules: a turn is recorded every time the agent speaks, while
+ * the summary only moves when the recent-message window actually rolls.
+ */
+export async function saveConversationSummary(
+  conversationId: number,
+  summary: string,
+  throughSequence: number,
+): Promise<void> {
+  await patch(conversationId, { summary, summaryThroughSequence: throughSequence })
 }
 
 export async function markEscalated(conversationId: number, reason: string): Promise<void> {

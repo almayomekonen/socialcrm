@@ -33,6 +33,7 @@ const CLINIC: BusinessIdentity = {
     'חניה בחצר. שעות פעילות ראשון עד חמישי.',
   agentInstructions: 'לברר איזה טיפול מעניין ומה הזמינות. מחירים והתאמה רפואית להשאיר לצוות.',
   isOwnProductBusiness: false,
+  profile: null,
 }
 
 const GARAGE: BusinessIdentity = {
@@ -50,6 +51,7 @@ const SOCIALCRM: BusinessIdentity = {
   guidance: 'מערכת לניהול לידים מרשתות חברתיות. מרכזת פניות, וואטסאפ וסטטוס במקום אחד.',
   agentInstructions: null,
   isOwnProductBusiness: true,
+  profile: null,
 }
 
 /** The same questions, asked of every business. */

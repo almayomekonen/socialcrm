@@ -174,7 +174,7 @@ describe('a figure is allowed only when the business actually stated it', () => 
     for (const file of ['lib/inbox/autoresponse/qualifyWorker.ts', 'lib/inbox/autoresponse/worker.ts']) {
       const src = readFileSync(join(process.cwd(), file), 'utf8')
       expect(src, `${file} does not pass groundedFacts`).toContain('groundedFacts')
-      expect(src).toContain('identity.guidance')
+      expect(src).toContain('groundedFactsFor(identity)')
     }
   })
 })

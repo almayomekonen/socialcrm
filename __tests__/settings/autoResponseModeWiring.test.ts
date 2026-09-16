@@ -43,7 +43,7 @@ describe('mode is actually written now', () => {
 
   it('reads mode and agentInstructions back', () => {
     const src = read('db/autoResponseSettings.ts')
-    expect(src).toMatch(/'guidance',\s*\n\s*'agentInstructions',\s*\n\s*'mode',/)
+    expect(src).toMatch(/'guidance',\s*\n\s*'agentInstructions',\s*\n\s*'businessProfile',\s*\n\s*'mode',/)
     expect(src).toContain('agentInstructions: row.agentInstructions ?? null')
   })
 })
@@ -115,7 +115,7 @@ describe('existing customers are not migrated by this change', () => {
 })
 
 describe('the three kinds of text are told apart on screen', () => {
-  const form = read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')
+  const form = read('components/settings/autoResponse/AutoResponseReplyStyle.tsx')
   const field = read('components/settings/autoResponse/AutoResponseTextField.tsx')
 
   it('every field says whether the customer receives it', () => {
@@ -123,8 +123,8 @@ describe('the three kinds of text are told apart on screen', () => {
   })
 
   it('business information and agent instructions are separate fields, neither sent', () => {
-    expect(form).toContain("label='על העסק שלכם'")
-    expect(form).toContain("label='איך לנהל את השיחה'")
+    expect(form).toContain("label='ספרו לסוכן על העסק ומה תרצו שיעשה'")
+    expect(form).toContain("label='הנחיות נוספות לסוכן'")
     const aiBlock = form.slice(form.indexOf("replyMode === 'ai' ? ("), form.indexOf(') : ('))
     expect(aiBlock).toContain('sent={false}')
     expect(aiBlock).not.toContain('sent\n')
@@ -141,8 +141,8 @@ describe('the three kinds of text are told apart on screen', () => {
   })
 
   it('saved content is preserved — both values are held and submitted', () => {
-    expect(form).toContain('guidance: guidance.trim() || null')
-    expect(form).toContain('agentInstructions: agentInstructions.trim() || null')
-    expect(form).toContain('fixedBody: fixedBody.trim() || null')
+    expect(read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')).toContain('guidance: guidance.trim() || null')
+    expect(read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')).toContain('agentInstructions: agentInstructions.trim() || null')
+    expect(read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')).toContain('fixedBody: fixedBody.trim() || null')
   })
 })

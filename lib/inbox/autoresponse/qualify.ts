@@ -289,6 +289,7 @@ export async function generateQualifyTurn(args: {
   discoveryBudgetExhausted?: boolean
   responseProfile?: ResponseProfile | null
   greetingLine?: string | null
+  summaryBlock?: string | null
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
   /** Aborts the provider call when a human rep starts typing mid-generation. */

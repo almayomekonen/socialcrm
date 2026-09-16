@@ -8,7 +8,8 @@ import { Switch } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { updateAutoResponseSettings } from '@/actions/autoResponse/updateSettings'
 import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
-import AutoResponseTextField from './AutoResponseTextField'
+import AutoResponseReplyStyle from './AutoResponseReplyStyle'
+import AgentPreview from './AgentPreview'
 
 type Props = {
   masterEnabled: boolean
@@ -19,6 +20,8 @@ type Props = {
   replyMode: AutoResponseReplyMode
   fixedBody: string | null
   delaySeconds: number
+  /** From the account. Empty ⇒ the form asks for it inline. */
+  businessName: string
 }
 
 type Draft = {
@@ -30,6 +33,7 @@ type Draft = {
   replyMode: AutoResponseReplyMode
   fixedBody: string
   delaySeconds: string
+  businessName: string
 }
 
 const BODY_MAX = 1000
@@ -44,6 +48,7 @@ function toDraft(p: Props): Draft {
     replyMode: p.replyMode,
     fixedBody: p.fixedBody ?? '',
     delaySeconds: String(p.delaySeconds),
+    businessName: p.businessName ?? '',
   }
 }
 
@@ -71,12 +76,18 @@ export default function AutoResponseSettingsForm(initial: Props) {
 
   const bodyId = useId()
   const instructionsId = useId()
+  const nameId = useId()
   const delayId = useId()
   const capId = useId()
 
-  const { master, channel, dailyCap, guidance, agentInstructions, replyMode, fixedBody, delaySeconds } = draft
+  const { master, channel, dailyCap, guidance, agentInstructions, replyMode, fixedBody, delaySeconds, businessName } =
+    draft
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [unsupported, setUnsupported] = useState<string[]>([])
+  const [savedDescription, setSavedDescription] = useState(initial.guidance ?? '')
   const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== baseline[k])
   const fixedBodyError = error === 'יש להזין הודעה קבועה' ? error : undefined
+  const businessNameError = error === 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה' ? error : undefined
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -107,16 +118,32 @@ export default function AutoResponseSettingsForm(initial: Props) {
         dailyCap: Number(dailyCap) || 0,
         guidance: guidance.trim() || null,
         agentInstructions: agentInstructions.trim() || null,
+        businessName: businessName.trim() || null,
         replyMode,
         fixedBody: fixedBody.trim() || null,
         delaySeconds: Number(delaySeconds) || 0,
       })
       if (result.ok === false) {
-        setError(result.reason === 'fixed_body_required' ? 'יש להזין הודעה קבועה' : 'לא ניתן לשמור')
+        // `profile_derivation_failed` is the recoverable one: everything the
+        // owner typed IS saved and the agent still works from their words —
+        // only the structured view is missing, and saving again retries it.
+        const copy: Record<string, string> = {
+          fixed_body_required: 'יש להזין הודעה קבועה',
+          business_name_required: 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה',
+          profile_derivation_failed:
+            'הטקסט נשמר, אבל לא הצלחנו לעבד אותו כרגע. הסוכן עדיין עובד לפי מה שכתבתם. אפשר לשמור שוב כדי לנסות.',
+        }
+        setError(copy[result.reason] ?? 'לא ניתן לשמור')
+        if (result.reason === 'profile_derivation_failed') {
+          setBaseline(draft)
+          setSavedDescription(guidance)
+        }
         return
       }
       setBaseline(draft)
+      setSavedDescription(guidance)
       setSaved(true)
+      setUnsupported(result.unsupportedRequests)
     })
   }
 
@@ -174,87 +201,37 @@ export default function AutoResponseSettingsForm(initial: Props) {
 
       {master && (
         <>
-          <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-            <h2 className='text-base font-semibold text-ink'>סגנון התשובה</h2>
-            <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>בחרו איך SocialCRM מנסחת את המענה.</p>
+          <AutoResponseReplyStyle
+            replyMode={replyMode}
+            onReplyMode={(m) => set('replyMode', m)}
+            guidance={guidance}
+            onGuidance={(v) => set('guidance', v)}
+            agentInstructions={agentInstructions}
+            onAgentInstructions={(v) => set('agentInstructions', v)}
+            advancedOpen={advancedOpen}
+            onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
+            fixedBody={fixedBody}
+            onFixedBody={(v) => set('fixedBody', v)}
+            fixedBodyError={fixedBodyError}
+            businessName={businessName}
+            onBusinessName={(v) => set('businessName', v)}
+            needsBusinessName={!initial.businessName}
+            businessNameError={businessNameError}
+            unsupported={unsupported}
+            bodyId={bodyId}
+            instructionsId={instructionsId}
+            nameId={nameId}
+            maxLength={BODY_MAX}
+          />
 
-            <div className='mt-4 grid gap-x-3 gap-y-4 sm:grid-cols-2'>
-              <label className='flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'>
-                <span className='flex items-center justify-between gap-2.5'>
-                  <span className='text-md font-semibold text-ink'>מענה חכם</span>
-                  <input
-                    type='radio'
-                    name='replyMode'
-                    className='size-4 accent-solid'
-                    checked={replyMode === 'ai'}
-                    onChange={() => set('replyMode', 'ai')}
-                  />
-                </span>
-                <span className='text-sm leading-relaxed text-gray-600'>עונה לפי מה שנכתב וממשיך את השיחה</span>
-              </label>
-
-              <label className='flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'>
-                <span className='flex items-center justify-between gap-2.5'>
-                  <span className='text-md font-semibold text-ink'>הודעה קבועה</span>
-                  <input
-                    type='radio'
-                    name='replyMode'
-                    className='size-4 accent-solid'
-                    checked={replyMode === 'fixed'}
-                    onChange={() => set('replyMode', 'fixed')}
-                  />
-                </span>
-                <span className='text-sm leading-relaxed text-gray-600'>אותו נוסח בכל פעם, פעם אחת בשיחה</span>
-              </label>
-
-              {/*
-                Smart Reply needs two separate texts — what the business IS, and
-                how it should talk — and neither is ever sent. Fixed Message needs
-                one text, which is sent verbatim. They occupy the same column as
-                the selected radio, which is what ties the fields to their option
-                without drawing a container around them.
-              */}
-              {replyMode === 'ai' ? (
-                <div className='flex flex-col gap-4 sm:col-start-1'>
-                  <AutoResponseTextField
-                    id={bodyId}
-                    label='על העסק שלכם'
-                    hint='מה אתם עושים, ומה מותר לענות בשמכם'
-                    value={guidance}
-                    onChange={(v) => set('guidance', v)}
-                    maxLength={BODY_MAX}
-                    sent={false}
-                    placeholder='למשל: סטודיו לעיצוב פנים, מתמחים בדירות. מלווים מהתכנון ועד הביצוע.'
-                  />
-                  <AutoResponseTextField
-                    id={instructionsId}
-                    label='איך לנהל את השיחה'
-                    hint='לא חובה. סגנון, מה לשאול, ומה להשאיר לכם'
-                    value={agentInstructions}
-                    onChange={(v) => set('agentInstructions', v)}
-                    maxLength={BODY_MAX}
-                    sent={false}
-                    rows={2}
-                    placeholder='למשל: לשאול מה סוג הנכס ומה הלוח זמנים. מחירים ותיאום פגישה להשאיר לנו.'
-                  />
-                </div>
-              ) : (
-                <div className='sm:col-start-2'>
-                  <AutoResponseTextField
-                    id={bodyId}
-                    label='ההודעה שתישלח'
-                    hint='אפשר לשלב {{firstName}}'
-                    value={fixedBody}
-                    onChange={(v) => set('fixedBody', v)}
-                    maxLength={BODY_MAX}
-                    sent
-                    error={fixedBodyError}
-                    placeholder='שלום {{firstName}}, תודה שפנית אלינו! קיבלנו את ההודעה ונחזור אליך בהקדם.'
-                  />
-                </div>
-              )}
-            </div>
-          </section>
+          {replyMode === 'ai' && (
+            <AgentPreview
+              draftDescription={guidance}
+              draftAgentInstructions={agentInstructions}
+              savedDescription={savedDescription}
+              businessName={businessName || initial.businessName}
+            />
+          )}
 
           <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
             <h2 className='text-base font-semibold text-ink'>תזמון ומגבלות</h2>

@@ -178,6 +178,11 @@ export function buildQualifyUser(args: {
    * greeting.ts). Null on every turn that must not open with a greeting.
    */
   greetingLine?: string | null
+  /**
+   * Rolling summary of everything older than the verbatim window
+   * (conversationSummary.ts). Null when the conversation still fits.
+   */
+  summaryBlock?: string | null
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
   // call-site compatibility. They must not appear as "ask this field next".
@@ -262,6 +267,11 @@ export function buildQualifyUser(args: {
   }
   if (args.regenerationReason) lines.push(REGEN_CONSTRAINT[args.regenerationReason])
   if (args.responseProfile) lines.push(formatDeliveryBlock(args.responseProfile))
+
+  // The summary sits with the other memory the agent is given, BEFORE the
+  // fenced transcript — it is our own note about the conversation, not customer
+  // text, and must not read as something the customer said.
+  if (args.summaryBlock) lines.push(args.summaryBlock)
 
   lines.push(fenceTranscript(args.transcript))
   lines.push(fenceReminder())

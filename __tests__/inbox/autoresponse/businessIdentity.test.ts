@@ -17,6 +17,7 @@ const AGENCY_A: BusinessIdentity = {
   // SocialCRM's own account: the one tenant whose business facts ARE the
   // product catalogue.
   isOwnProductBusiness: true,
+  profile: null,
 }
 const AGENCY_B: BusinessIdentity = {
   agencyId: 99,
@@ -24,6 +25,7 @@ const AGENCY_B: BusinessIdentity = {
   guidance: 'סטודיו לעיצוב פנים, מתמחים בדירות.',
   agentInstructions: null,
   isOwnProductBusiness: false,
+  profile: null,
 }
 
 function identityUser(inbound: string, identity: BusinessIdentity, salesMove?: string) {
@@ -237,14 +239,14 @@ describe('loadBusinessIdentity tenant scope', () => {
     const { loadBusinessIdentity } = await import('@/lib/inbox/autoresponse/businessIdentity')
     const a = await loadBusinessIdentity(103, 'whatsapp')
     const b = await loadBusinessIdentity(99, 'whatsapp')
-    expect(a).toEqual({ agencyId: 103, name: 'SocialCRM', guidance: 'CRM ללידים מרשתות' , agentInstructions: null, isOwnProductBusiness: false})
-    expect(b).toEqual({ agencyId: 99, name: 'סטודיו אור', guidance: 'סטודיו לעיצוב פנים' , agentInstructions: null, isOwnProductBusiness: false})
+    expect(a).toEqual({ agencyId: 103, name: 'SocialCRM', guidance: 'CRM ללידים מרשתות', agentInstructions: null, isOwnProductBusiness: false, profile: null })
+    expect(b).toEqual({ agencyId: 99, name: 'סטודיו אור', guidance: 'סטודיו לעיצוב פנים', agentInstructions: null, isOwnProductBusiness: false, profile: null })
     expect(a.guidance).not.toBe(b.guidance)
     expect(a.name).not.toBe(b.name)
   })
   it('does not return another agency when the id is missing', async () => {
     const { loadBusinessIdentity } = await import('@/lib/inbox/autoresponse/businessIdentity')
     const missing = await loadBusinessIdentity(777, 'whatsapp')
-    expect(missing).toEqual({ agencyId: 777, name: null, guidance: null , agentInstructions: null, isOwnProductBusiness: false})
+    expect(missing).toEqual({ agencyId: 777, name: null, guidance: null, agentInstructions: null, isOwnProductBusiness: false, profile: null })
   })
 })

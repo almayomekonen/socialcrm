@@ -4,6 +4,7 @@
  * Additive, read/write only — no business logic.
  */
 import { db } from '@/config/db'
+import { parseBusinessProfile, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfile'
 import {
   parseReplyMode,
   clampDelaySeconds,
@@ -34,6 +35,8 @@ export interface AutoResponseSettings {
   guidance: string | null
   /** How the agent should converse for this business. Never sent verbatim. */
   agentInstructions: string | null
+  /** Structured profile derived from `guidance` on save. Null until derived. */
+  businessProfile: BusinessProfile | null
   // Qualifier (P0b additive). Defaults reproduce one-shot acknowledge behavior.
   mode: 'acknowledge' | 'qualify'
   maxTurns: number
@@ -53,6 +56,7 @@ interface SettingsRow {
   dailyCap: number
   guidance: string | null
   agentInstructions: string | null
+  businessProfile: unknown
   mode: string | null
   maxTurns: number | null
   collectFields: CollectFields | string | null
@@ -84,6 +88,7 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
       'dailyCap',
       'guidance',
       'agentInstructions',
+      'businessProfile',
       'mode',
       'maxTurns',
       'collectFields',
@@ -102,6 +107,7 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
     dailyCap: row.dailyCap,
     guidance: row.guidance,
     agentInstructions: row.agentInstructions ?? null,
+    businessProfile: parseBusinessProfile(row.businessProfile),
     mode: row.mode === 'qualify' ? 'qualify' : 'acknowledge',
     maxTurns: row.maxTurns ?? 5,
     collectFields: (typeof cf === 'string' ? JSON.parse(cf) : (cf ?? DEFAULT_COLLECT)) as CollectFields,
@@ -128,6 +134,12 @@ export type UpsertChannelSettingsInput = Pick<
   /** Optional: callers that do not manage these leave the stored value alone. */
   agentInstructions?: string | null
   mode?: AutoResponseSettings['mode']
+  /**
+   * `undefined` leaves the stored profile alone; `null` clears it. Clearing
+   * matters: a description saved while derivation was down must not keep serving
+   * the profile built from the previous text.
+   */
+  businessProfile?: BusinessProfile | null
 }
 
 /**
@@ -147,6 +159,9 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
 
   const optional: Record<string, unknown> = {}
   if (input.mode !== undefined) optional.mode = input.mode === 'qualify' ? 'qualify' : 'acknowledge'
+  if (input.businessProfile !== undefined) {
+    optional.businessProfile = input.businessProfile ? JSON.stringify(input.businessProfile) : null
+  }
   if (input.agentInstructions !== undefined) {
     optional.agentInstructions = (input.agentInstructions ?? '')?.trim()
       ? (input.agentInstructions as string).trim().slice(0, MAX_FIXED_BODY_LENGTH)

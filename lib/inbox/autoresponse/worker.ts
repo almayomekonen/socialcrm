@@ -26,7 +26,7 @@ import { validateAutoResponse } from './validate'
 import { renderFixedReply } from './renderFixedReply'
 import { waTrace } from './waTrace'
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
-import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
+import { formatBusinessIdentityBlock, groundedFactsFor, loadBusinessIdentity } from './businessIdentity'
 import { decideGreeting, withGreeting } from './greeting'
 import { safeFallbackReply } from './safeFallback'
 import { detectLang } from './qualify'
@@ -200,8 +200,12 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
         }
         return doSkip(gen.skipReason)
       }
-      const grounded = [identity.guidance, identity.agentInstructions].filter(Boolean).join('\n') || null
-      if (validateAutoResponse(gen.message, { greetingTurn: Boolean(greetingLine), groundedFacts: grounded }).ok) {
+      if (
+        validateAutoResponse(gen.message, {
+          greetingTurn: Boolean(greetingLine),
+          groundedFacts: groundedFactsFor(identity),
+        }).ok
+      ) {
         message = gen.message
       }
     }

@@ -32,6 +32,7 @@ const IDENTITY = formatBusinessIdentityBlock({
   // This fixture IS SocialCRM's own account — the one tenant for which the
   // product catalogue is legitimately its own business information.
   isOwnProductBusiness: true,
+  profile: null,
 })
 
 const ENV_KEYS = new Set([

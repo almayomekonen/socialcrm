@@ -137,6 +137,7 @@ const baseSettings = {
   dailyCap: 200,
   guidance: null,
   agentInstructions: null,
+  businessProfile: null,
   mode: 'qualify' as const,
   maxTurns: 5,
   collectFields: { required: ['name'], optional: [] },

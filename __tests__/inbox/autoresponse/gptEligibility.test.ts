@@ -266,6 +266,7 @@ const CTX: QualifyCtx = {
     dailyCap: 200,
     guidance: null,
     agentInstructions: null,
+    businessProfile: null,
     mode: 'qualify',
     maxTurns: 5,
     collectFields: { required: ['name'], optional: [] },

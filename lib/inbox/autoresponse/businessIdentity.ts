@@ -13,6 +13,14 @@
  */
 import { db } from '@/config/db'
 import { isOwnBusinessAccount } from './ownBusinessAccount'
+import { formatAgentCapabilityBlock } from './agentCapabilities'
+import {
+  formatBusinessProfileBlock,
+  groundedFactsFromProfile,
+  isProfileCurrent,
+  parseBusinessProfile,
+  type BusinessProfile,
+} from './businessProfile'
 
 export type BusinessIdentity = {
   agencyId: number
@@ -23,10 +31,16 @@ export type BusinessIdentity = {
   agentInstructions: string | null
   /** True only for SocialCRM's own account — see ownBusinessAccount.ts. */
   isOwnProductBusiness: boolean
+  /**
+   * The structured profile derived from `guidance` when the owner saved. Null
+   * when never derived, or stale relative to the current text — in which case
+   * the agent falls back to reading the description as prose, exactly as before.
+   */
+  profile: BusinessProfile | null
 }
 
 export function emptyBusinessIdentity(agencyId: number): BusinessIdentity {
-  return { agencyId, name: null, guidance: null, agentInstructions: null, isOwnProductBusiness: false }
+  return { agencyId, name: null, guidance: null, agentInstructions: null, isOwnProductBusiness: false, profile: null }
 }
 
 function asPositiveAgencyId(agencyId: number): number | null {
@@ -50,15 +64,32 @@ export async function loadBusinessIdentity(agencyId: number, channel: string): P
   if (!agency || Number(agency.id) !== id) return emptyBusinessIdentity(id)
   const settings = await db('auto_response_settings')
     .where({ agencyId: id, channel })
-    .first('agencyId', 'guidance', 'agentInstructions')
+    .first('agencyId', 'guidance', 'agentInstructions', 'businessProfile')
   const own = settings && Number(settings.agencyId) === id ? settings : null
+  const guidance = trimmedOrNull(own?.guidance)
+  const stored = parseBusinessProfile(own?.businessProfile)
+  // A profile derived from different text is not used. The owner edited their
+  // description; serving the old structure would answer from words they removed.
+  const profile = isProfileCurrent(stored, guidance) ? stored : null
   return {
     agencyId: id,
     name: trimmedOrNull(agency.name),
-    guidance: trimmedOrNull(own?.guidance),
+    guidance,
     agentInstructions: trimmedOrNull(own?.agentInstructions),
     isOwnProductBusiness: isOwnBusinessAccount(id),
+    profile,
   }
+}
+
+/**
+ * The corpus a price figure or process claim is checked against. The derived
+ * profile's quotable sections when present, else the raw description.
+ * Objectives are excluded by `groundedFactsFromProfile` — "we book
+ * appointments" must never license a booking claim.
+ */
+export function groundedFactsFor(identity: BusinessIdentity): string | null {
+  const fallback = [identity.guidance, identity.agentInstructions].filter(Boolean).join('\n') || null
+  return groundedFactsFromProfile(identity.profile, fallback)
 }
 
 /** True when the owner has given the agent real facts to speak from. */
@@ -76,11 +107,20 @@ export function formatBusinessIdentityBlock(identity: BusinessIdentity): string 
   const lines: string[] = ['זהות העסק — העסק שאת/ה מייצג/ת בשיחת הוואטסאפ הזו:']
 
   lines.push(identity.name ? `שם העסק: ${identity.name}` : 'שם העסק: (לא סופק)')
-  lines.push(
-    identity.guidance
-      ? `מה העסק עושה, ומה מותר לומר בשמו (עובדות מאומתות; מותר לצטט): ${identity.guidance}`
-      : 'מה העסק עושה: (לא סופק). אין לך עובדות מאומתות על העסק הזה.',
-  )
+
+  // The derived profile when it is current, because it separates facts from
+  // objectives; the raw description otherwise, which is what the agent read
+  // before profiles existed and remains a working fallback.
+  const structured = identity.profile ? formatBusinessProfileBlock(identity.profile) : null
+  if (structured) {
+    lines.push(structured)
+  } else {
+    lines.push(
+      identity.guidance
+        ? `מה העסק עושה, ומה מותר לומר בשמו (עובדות מאומתות; מותר לצטט): ${identity.guidance}`
+        : 'מה העסק עושה: (לא סופק). אין לך עובדות מאומתות על העסק הזה.',
+    )
+  }
 
   if (identity.agentInstructions) {
     lines.push(`הנחיות מבעל/ת העסק לניהול השיחה: ${identity.agentInstructions}`)
@@ -101,6 +141,11 @@ export function formatBusinessIdentityBlock(identity: BusinessIdentity): string 
   lines.push(
     'בירור צרכים הוא תמיד על הלקוח ועל מה שהוא צריך — לא על העסק. לעולם אל תשאל/י את הלקוח מה העסק הזה עושה, מאיזה קישור הגיע, או לבקש צילום מסך של פרסום.',
   )
+
+  // Capabilities are system-owned and identical for every business. Emitted
+  // last, so a description asking for something impossible is corrected after
+  // it has been read. See agentCapabilities.ts.
+  lines.push(formatAgentCapabilityBlock())
 
   return lines.join('\n')
 }

@@ -32,6 +32,7 @@ const CLINIC: BusinessIdentity = {
     'קליניקה לטיפולי עור ואסתטיקה. מטפלות מוסמכות. הצהרת בריאות נחתמת אונליין בקישור שנשלח לפני ההגעה. חניה בחצר.',
   agentInstructions: 'לברר איזה טיפול מעניין. מחירים והתאמה רפואית להשאיר לצוות.',
   isOwnProductBusiness: false,
+  profile: null,
 }
 
 const GARAGE: BusinessIdentity = {
@@ -40,6 +41,7 @@ const GARAGE: BusinessIdentity = {
   guidance: 'מוסך מורשה לרכבים פרטיים. טיפולי שגרה, בלמים, מזגן ובדיקה לפני טסט. עבודה בתיאום מראש.',
   agentInstructions: 'לברר איזה רכב ומה התקלה. הצעות מחיר נותנים רק במוסך.',
   isOwnProductBusiness: false,
+  profile: null,
 }
 
 const SOCIALCRM: BusinessIdentity = {
@@ -48,6 +50,7 @@ const SOCIALCRM: BusinessIdentity = {
   guidance: 'מערכת לניהול לידים מרשתות חברתיות. מרכזת פניות, וואטסאפ וסטטוס במקום אחד.',
   agentInstructions: null,
   isOwnProductBusiness: true,
+  profile: null,
 }
 
 const UNCONFIGURED: BusinessIdentity = {
@@ -56,6 +59,7 @@ const UNCONFIGURED: BusinessIdentity = {
   guidance: null,
   agentInstructions: null,
   isOwnProductBusiness: false,
+  profile: null,
 }
 
 const PROFILES = [CLINIC, GARAGE, SOCIALCRM, UNCONFIGURED]

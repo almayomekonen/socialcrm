@@ -19,6 +19,7 @@ const CLINIC: BusinessIdentity = {
   guidance: 'קליניקה לטיפולי עור ואסתטיקה.',
   agentInstructions: null,
   isOwnProductBusiness: false,
+  profile: null,
 }
 
 const ATTACKS = [

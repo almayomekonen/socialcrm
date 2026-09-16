@@ -48,7 +48,15 @@ import {
   isExplicitReopen,
 } from './conversationControl'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
-import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
+import { formatBusinessIdentityBlock, groundedFactsFor, loadBusinessIdentity } from './businessIdentity'
+import {
+  formatSummaryBlock,
+  planSummary,
+  recentWindow,
+  summariseConversation,
+  type Turn as SummaryTurn,
+} from './conversationSummary'
+import { saveConversationSummary } from '@/db/conversationAiState'
 import { decideGreeting, withGreeting } from './greeting'
 import { safeFallbackReply } from './safeFallback'
 import { hasPriorOutbound } from '@/db/inboxMessages'
@@ -153,7 +161,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     .where({ conversationId: conv.id })
     .orderBy('sequence', 'desc')
     .limit(MAX_TRANSCRIPT)
-    .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata')
+    .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata', 'sequence')
   const recent = rows.slice().reverse()
   const lastMsg = recent[recent.length - 1]
   const lastInbound = [...recent].reverse().find((m) => m.direction === 'inbound')
@@ -177,9 +185,16 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const hasUnansweredInbound = lastMsg?.direction === 'inbound'
   const consecutiveAiWithoutInbound = countConsecutiveAiOutbounds(recent)
   const optOut = detectOptOut(lastInboundText)
-  const qTranscript = recent
-    .map((m) => ({ direction: m.direction as 'inbound' | 'outbound', text: (m.text as string) ?? '' }))
+  // Sequenced turns feed the summary planner; qTranscript stays the shape the
+  // classifier and prompt builder already take.
+  const sequencedTurns: SummaryTurn[] = recent
+    .map((m) => ({
+      direction: m.direction as 'inbound' | 'outbound',
+      text: (m.text as string) ?? '',
+      sequence: Number(m.sequence ?? 0),
+    }))
     .filter((m) => m.text)
+  const qTranscript = recentWindow(sequencedTurns).map((m) => ({ direction: m.direction, text: m.text }))
   const persistedStrategy = isSalesStrategy(aiState.qualification.cognition?.salesStrategy)
     ? aiState.qualification.cognition?.salesStrategy
     : undefined
@@ -377,8 +392,49 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     salesMoveUsesProductContract(salesMove) || salesMove === 'OBJECTION'
       ? formatProductKnowledgeBlock(productKnowledge)
       : null
+  const genTraceCtx = () => ({
+    conversationId: conv.id,
+    jobId: job.id,
+    agencyId: job.agencyId,
+    triggerSequence: job.triggerSequence,
+  })
   const { identity, line: greetingLine } = await resolveGreeting()
   const businessIdentityBlock = formatBusinessIdentityBlock(identity)
+
+  // ── Rolling summary ────────────────────────────────────────────────────────
+  // Only moves when the recent-message window actually rolled past unsummarised
+  // messages, so an ordinary turn costs nothing extra. A failure here is logged
+  // and dropped: memory is worth a model call, never worth losing the reply.
+  let conversationSummary = aiState.summary
+  const summaryPlan = planSummary(sequencedTurns, {
+    summary: aiState.summary,
+    summaryThroughSequence: aiState.summaryThroughSequence,
+  })
+  if (summaryPlan.action === 'summarise') {
+    try {
+      const summarised = await summariseConversation({
+        agencyId: job.agencyId,
+        previousSummary: aiState.summary,
+        olderTurns: summaryPlan.olderTurns,
+        upToSequence: summaryPlan.upToSequence,
+      })
+      if (summarised.ok) {
+        conversationSummary = summarised.summary
+        await saveConversationSummary(conv.id, summarised.summary, summarised.throughSequence)
+        waTrace('CONVERSATION_SUMMARISED', genTraceCtx(), {
+          throughSequence: summarised.throughSequence,
+          summarisedTurns: summaryPlan.olderTurns.length,
+          length: summarised.summary.length,
+        })
+      } else {
+        waTrace('CONVERSATION_SUMMARISED', genTraceCtx(), { ok: false, reason: 'reason' in summarised ? summarised.reason : null })
+      }
+    } catch (summaryErr) {
+      console.error('[IRE] summary failed', { conversationId: conv.id, reason: (summaryErr as Error)?.message })
+    }
+  }
+  const summaryBlock = formatSummaryBlock(conversationSummary)
+
   const questionPolicy = questionPolicyForSalesMove(salesMove, { discoveryBudgetExhausted })
   const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
   waTrace('GENERATE_QUALIFY_START', genTrace, {
@@ -402,6 +458,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     trace: genTrace,
     responseProfile,
     greetingLine,
+    summaryBlock,
   }
   // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
   // Best effort only. Whatever happens here, the outbound guard re-checks.
@@ -440,7 +497,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const validateOpts = {
     questionPolicy,
     greetingTurn: Boolean(greetingLine),
-    groundedFacts: [identity.guidance, identity.agentInstructions].filter(Boolean).join('\n') || null,
+    groundedFacts: groundedFactsFor(identity),
   }
   let validation = validateAutoResponse(gen.reply, validateOpts)
   let forcedGuardrail = false
