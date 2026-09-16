@@ -8,15 +8,20 @@ import { Switch } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { updateAutoResponseSettings } from '@/actions/autoResponse/updateSettings'
 import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
+import AutoResponseReplyStyle from './AutoResponseReplyStyle'
+import AgentPreview from './AgentPreview'
 
 type Props = {
   masterEnabled: boolean
   channelEnabled: boolean
   dailyCap: number
   guidance: string | null
+  agentInstructions: string | null
   replyMode: AutoResponseReplyMode
   fixedBody: string | null
   delaySeconds: number
+  /** From the account. Empty ⇒ the form asks for it inline. */
+  businessName: string
 }
 
 type Draft = {
@@ -24,9 +29,11 @@ type Draft = {
   channel: boolean
   dailyCap: string
   guidance: string
+  agentInstructions: string
   replyMode: AutoResponseReplyMode
   fixedBody: string
   delaySeconds: string
+  businessName: string
 }
 
 const BODY_MAX = 1000
@@ -37,9 +44,11 @@ function toDraft(p: Props): Draft {
     channel: p.channelEnabled,
     dailyCap: String(p.dailyCap),
     guidance: p.guidance ?? '',
+    agentInstructions: p.agentInstructions ?? '',
     replyMode: p.replyMode,
     fixedBody: p.fixedBody ?? '',
     delaySeconds: String(p.delaySeconds),
+    businessName: p.businessName ?? '',
   }
 }
 
@@ -66,12 +75,19 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [pending, startTransition] = useTransition()
 
   const bodyId = useId()
+  const instructionsId = useId()
+  const nameId = useId()
   const delayId = useId()
   const capId = useId()
 
-  const { master, channel, dailyCap, guidance, replyMode, fixedBody, delaySeconds } = draft
+  const { master, channel, dailyCap, guidance, agentInstructions, replyMode, fixedBody, delaySeconds, businessName } =
+    draft
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [unsupported, setUnsupported] = useState<string[]>([])
+  const [savedDescription, setSavedDescription] = useState(initial.guidance ?? '')
   const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== baseline[k])
   const fixedBodyError = error === 'יש להזין הודעה קבועה' ? error : undefined
+  const businessNameError = error === 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה' ? error : undefined
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -101,16 +117,33 @@ export default function AutoResponseSettingsForm(initial: Props) {
         channelEnabled: channel,
         dailyCap: Number(dailyCap) || 0,
         guidance: guidance.trim() || null,
+        agentInstructions: agentInstructions.trim() || null,
+        businessName: businessName.trim() || null,
         replyMode,
         fixedBody: fixedBody.trim() || null,
         delaySeconds: Number(delaySeconds) || 0,
       })
       if (result.ok === false) {
-        setError(result.reason === 'fixed_body_required' ? 'יש להזין הודעה קבועה' : 'לא ניתן לשמור')
+        // `profile_derivation_failed` is the recoverable one: everything the
+        // owner typed IS saved and the agent still works from their words —
+        // only the structured view is missing, and saving again retries it.
+        const copy: Record<string, string> = {
+          fixed_body_required: 'יש להזין הודעה קבועה',
+          business_name_required: 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה',
+          profile_derivation_failed:
+            'הטקסט נשמר, אבל לא הצלחנו לעבד אותו כרגע. הסוכן עדיין עובד לפי מה שכתבתם. אפשר לשמור שוב כדי לנסות.',
+        }
+        setError(copy[result.reason] ?? 'לא ניתן לשמור')
+        if (result.reason === 'profile_derivation_failed') {
+          setBaseline(draft)
+          setSavedDescription(guidance)
+        }
         return
       }
       setBaseline(draft)
+      setSavedDescription(guidance)
       setSaved(true)
+      setUnsupported(result.unsupportedRequests)
     })
   }
 
@@ -168,81 +201,37 @@ export default function AutoResponseSettingsForm(initial: Props) {
 
       {master && (
         <>
-          <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-            <h2 className='text-base font-semibold text-ink'>סגנון התשובה</h2>
-            <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>בחרו איך SocialCRM מנסחת את המענה.</p>
+          <AutoResponseReplyStyle
+            replyMode={replyMode}
+            onReplyMode={(m) => set('replyMode', m)}
+            guidance={guidance}
+            onGuidance={(v) => set('guidance', v)}
+            agentInstructions={agentInstructions}
+            onAgentInstructions={(v) => set('agentInstructions', v)}
+            advancedOpen={advancedOpen}
+            onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
+            fixedBody={fixedBody}
+            onFixedBody={(v) => set('fixedBody', v)}
+            fixedBodyError={fixedBodyError}
+            businessName={businessName}
+            onBusinessName={(v) => set('businessName', v)}
+            needsBusinessName={!initial.businessName}
+            businessNameError={businessNameError}
+            unsupported={unsupported}
+            bodyId={bodyId}
+            instructionsId={instructionsId}
+            nameId={nameId}
+            maxLength={BODY_MAX}
+          />
 
-            <div className='mt-4 grid gap-x-3 gap-y-4 sm:grid-cols-2'>
-              <label className='flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'>
-                <span className='flex items-center justify-between gap-2.5'>
-                  <span className='text-md font-semibold text-ink'>מענה חכם</span>
-                  <input
-                    type='radio'
-                    name='replyMode'
-                    className='size-4 accent-solid'
-                    checked={replyMode === 'ai'}
-                    onChange={() => set('replyMode', 'ai')}
-                  />
-                </span>
-                <span className='text-sm leading-relaxed text-gray-600'>תשובה קצרה שמתאימה להודעה שהתקבלה</span>
-              </label>
-
-              <label className='flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'>
-                <span className='flex items-center justify-between gap-2.5'>
-                  <span className='text-md font-semibold text-ink'>הודעה קבועה</span>
-                  <input
-                    type='radio'
-                    name='replyMode'
-                    className='size-4 accent-solid'
-                    checked={replyMode === 'fixed'}
-                    onChange={() => set('replyMode', 'fixed')}
-                  />
-                </span>
-                <span className='text-sm leading-relaxed text-gray-600'>אותו נוסח בכל פעם, עם שם הליד</span>
-              </label>
-
-              <div className={replyMode === 'ai' ? 'sm:col-start-1' : 'sm:col-start-2'}>
-                <div className='flex items-baseline gap-2.5'>
-                  <label htmlFor={bodyId} className='text-sm font-semibold text-gray-700'>
-                    {replyMode === 'ai' ? 'על העסק שלכם' : 'ההודעה שתישלח'}
-                  </label>
-                  <p className='text-xs text-gray-500'>
-                    {replyMode === 'ai' ? 'המענה החכם משתמש בזה כדי לדעת מי אתם' : 'אפשר לשלב {{firstName}}'}
-                  </p>
-                </div>
-
-                <div className='mt-3.5 rounded-md border border-gray-200 bg-white focus-within:outline-2 focus-within:outline-offset-0 focus-within:outline-primary aria-invalid:border-red-500 aria-invalid:focus-within:outline-red-200'>
-                  <textarea
-                    id={bodyId}
-                    rows={3}
-                    maxLength={BODY_MAX}
-                    className='block w-full resize-none bg-transparent px-4 pt-3.5 text-sm leading-relaxed outline-none'
-                    value={replyMode === 'ai' ? guidance : fixedBody}
-                    onChange={(e) => set(replyMode === 'ai' ? 'guidance' : 'fixedBody', e.target.value)}
-                    aria-invalid={replyMode === 'fixed' && !!fixedBodyError}
-                    aria-describedby={fixedBodyError ? `${bodyId}-error` : undefined}
-                    placeholder={
-                      replyMode === 'ai'
-                        ? 'למשל: סטודיו לעיצוב פנים, מתמחים בדירות'
-                        : 'שלום {{firstName}}, תודה שפנית אלינו! קיבלנו את ההודעה ונחזור אליך בהקדם.'
-                    }
-                  />
-                  <div className='mx-4 flex items-center justify-between border-t border-gray-100 py-2 text-xs text-gray-500'>
-                    <span>{replyMode === 'ai' ? 'אפשר לעדכן בכל רגע' : 'השם ייכנס אוטומטית'}</span>
-                    <span>
-                      {(replyMode === 'ai' ? guidance : fixedBody).length} / {BODY_MAX}
-                    </span>
-                  </div>
-                </div>
-
-                {fixedBodyError && replyMode === 'fixed' && (
-                  <p id={`${bodyId}-error`} role='alert' className='mt-1 text-sm text-red-600'>
-                    {fixedBodyError}
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
+          {replyMode === 'ai' && (
+            <AgentPreview
+              draftDescription={guidance}
+              draftAgentInstructions={agentInstructions}
+              savedDescription={savedDescription}
+              businessName={businessName || initial.businessName}
+            />
+          )}
 
           <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
             <h2 className='text-base font-semibold text-ink'>תזמון ומגבלות</h2>

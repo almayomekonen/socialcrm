@@ -64,15 +64,28 @@ export function isConversationObjective(v: unknown): v is ConversationObjective 
 }
 
 /**
- * Fill-empty merge for conversational understanding. Facts never overwrite a
- * known value. lastObjective and salesStrategy always advance to the latest
- * valid decision — strategy is "what the AI is doing NOW", not a frozen fact.
+ * Fields the customer explicitly corrected on this turn. See
+ * {@link mergeQualification} for why a correction is a separate signal rather
+ * than a plain overwrite.
+ */
+export type CorrectedFields = readonly string[]
+
+function correctedSet(corrected: CorrectedFields | undefined): Set<string> {
+  return new Set((corrected ?? []).map((f) => String(f).trim()).filter(Boolean))
+}
+
+/**
+ * Fill-empty merge for conversational understanding, with corrections honoured.
+ * lastObjective and salesStrategy always advance to the latest valid decision —
+ * strategy is "what the AI is doing NOW", not a frozen fact.
  */
 export function mergeCognition(
   current: ConversationCognition | undefined,
   incoming: ConversationCognition | undefined,
+  corrected?: CorrectedFields,
 ): ConversationCognition | undefined {
   const out: ConversationCognition = { ...(current ?? {}) }
+  const fix = correctedSet(corrected)
   if (incoming?.lastObjective && isConversationObjective(incoming.lastObjective)) {
     out.lastObjective = incoming.lastObjective
   }
@@ -80,24 +93,48 @@ export function mergeCognition(
     out.salesStrategy = incoming.salesStrategy
   }
   for (const f of COGNITION_FACT_FIELDS) {
-    if (isEmpty(out[f]) && !isEmpty(incoming?.[f])) out[f] = String(incoming?.[f]).trim()
+    if (isEmpty(incoming?.[f])) continue
+    if (isEmpty(out[f]) || fix.has(f)) out[f] = String(incoming?.[f]).trim()
   }
   return Object.keys(out).length ? out : undefined
 }
 
 /**
- * Fill-empty merge: copies an extracted value into the result ONLY when the
- * current field is empty. Never overwrites a value already present (human-entered
- * or previously collected). Trims whitespace. Ignores keys outside the field set.
- * Nested cognition is merged separately and is never treated as a CRM field.
+ * Merge what the agent learned this turn into what it already knew.
+ *
+ * DEFAULT: fill-empty. A value already present is never replaced by a
+ * re-extraction of the same thing worded slightly differently, which is what
+ * keeps the agent's memory stable across a long conversation.
+ *
+ * EXCEPTION: `corrected`. A customer who says "Dana… sorry, Danit" must not be
+ * called Dana for the rest of the conversation. Before this, fill-empty made the
+ * first value permanent, so the structured memory kept asserting a fact the
+ * customer had already retracted — and because the raw transcript was still in
+ * context, the prompt then contained both, which is worse than either alone.
+ *
+ * The overwrite is deliberately gated on an explicit per-turn signal rather than
+ * being unconditional last-value-wins: the model has to say "the customer
+ * corrected this field", and only the named fields move. That keeps ordinary
+ * re-extraction from churning stable values.
+ *
+ * SCOPE. This is the agent's OWN memory (`conversation_ai_state.qualification`),
+ * written only by the agent — `recordTurn` and `mergeOnly` are its sole writers.
+ * Human-maintained CRM data lives on `clients` and is not touched here.
  */
-export function mergeQualification(current: Qualification, extracted: Qualification): Qualification {
+export function mergeQualification(
+  current: Qualification,
+  extracted: Qualification,
+  opts?: { corrected?: CorrectedFields },
+): Qualification {
   const out: Qualification = {}
+  const fix = correctedSet(opts?.corrected)
   for (const f of QUALIFICATION_FIELDS) {
-    if (!isEmpty(current[f])) out[f] = String(current[f]).trim()
-    else if (!isEmpty(extracted[f])) out[f] = String(extracted[f]).trim()
+    const incoming = extracted[f]
+    const keepCurrent = !isEmpty(current[f]) && !(fix.has(f) && !isEmpty(incoming))
+    if (keepCurrent) out[f] = String(current[f]).trim()
+    else if (!isEmpty(incoming)) out[f] = String(incoming).trim()
   }
-  const cognition = mergeCognition(current.cognition, extracted.cognition)
+  const cognition = mergeCognition(current.cognition, extracted.cognition, opts?.corrected)
   if (cognition) out.cognition = cognition
   return out
 }

@@ -22,6 +22,10 @@ export interface ConversationAiStateRow {
   /** Human Presence — last keystroke heartbeat. Compared against the turn epoch. */
   humanTypingAt: string | null
   humanTypingUserId: number | null
+  /** Rolling summary of everything older than the recent-message window. */
+  summary: string | null
+  /** Highest message sequence the summary accounts for. 0 = nothing summarised. */
+  summaryThroughSequence: number
 }
 
 const toIso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null)
@@ -41,6 +45,8 @@ function mapRow(r: Record<string, unknown>): ConversationAiStateRow {
     humanTypingUntil: toIso(r.humanTypingUntil),
     humanTypingAt: toIso(r.humanTypingAt),
     humanTypingUserId: r.humanTypingUserId == null ? null : Number(r.humanTypingUserId),
+    summary: (r.summary as string | null) ?? null,
+    summaryThroughSequence: Number(r.summaryThroughSequence ?? 0),
   }
 }
 
@@ -64,10 +70,21 @@ async function patch(conversationId: number, fields: Record<string, unknown>): P
     .update({ ...fields, updatedAt: db.fn.now() })
 }
 
-/** Record one AI turn: bump count, fill-empty-merge the extracted fields, stamp aiLastAt, keep qualifying. */
-export async function recordTurn(conversationId: number, extracted: Qualification): Promise<void> {
+/**
+ * Record one AI turn: bump count, merge the extracted fields, stamp aiLastAt,
+ * keep qualifying.
+ *
+ * `corrected` names the fields the customer explicitly corrected this turn, and
+ * is the only way a known value is replaced — without it the merge stays
+ * fill-empty and the first value the customer gave becomes permanent.
+ */
+export async function recordTurn(
+  conversationId: number,
+  extracted: Qualification,
+  corrected?: readonly string[],
+): Promise<void> {
   const cur = await getAiState(conversationId)
-  const merged = mergeQualification(cur?.qualification ?? {}, extracted)
+  const merged = mergeQualification(cur?.qualification ?? {}, extracted, { corrected })
   await patch(conversationId, {
     aiState: 'ai_qualifying',
     aiTurnCount: db.raw('"aiTurnCount" + 1'),
@@ -77,10 +94,27 @@ export async function recordTurn(conversationId: number, extracted: Qualificatio
 }
 
 /** Merge extracted fields without advancing the turn (used in draft mode). */
-export async function mergeOnly(conversationId: number, extracted: Qualification): Promise<void> {
+export async function mergeOnly(
+  conversationId: number,
+  extracted: Qualification,
+  corrected?: readonly string[],
+): Promise<void> {
   const cur = await getAiState(conversationId)
-  const merged = mergeQualification(cur?.qualification ?? {}, extracted)
+  const merged = mergeQualification(cur?.qualification ?? {}, extracted, { corrected })
   await patch(conversationId, { qualification: JSON.stringify(merged), aiLastAt: db.fn.now() })
+}
+
+/**
+ * Advance the rolling summary. Separate from `recordTurn` because the two move
+ * on different schedules: a turn is recorded every time the agent speaks, while
+ * the summary only moves when the recent-message window actually rolls.
+ */
+export async function saveConversationSummary(
+  conversationId: number,
+  summary: string,
+  throughSequence: number,
+): Promise<void> {
+  await patch(conversationId, { summary, summaryThroughSequence: throughSequence })
 }
 
 export async function markEscalated(conversationId: number, reason: string): Promise<void> {

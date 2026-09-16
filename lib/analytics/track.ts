@@ -50,6 +50,9 @@ export type AnalyticsEventName =
   | 'auto_response_skipped'
   | 'auto_response_escalated'
   | 'auto_response_draft'
+  // Generation failed validation twice and a safe holding reply went out
+  // instead of silence. Counts the recovery path, not an error.
+  | 'auto_response_recovered'
   | 'post_handoff_sent'
   | 'post_handoff_stop'
   | 'activation_started'

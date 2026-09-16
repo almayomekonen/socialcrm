@@ -207,8 +207,8 @@ describe('maxTurns and casual ack policy', () => {
 
 describe('prompt + Phase B + safety unchanged', () => {
   it('product question instructs answer-first, not discovery-first', () => {
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('בשאלת מוצר: קודם תשובה ישירה')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אסור לשאול שאלת גילוי לפני התשובה')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('בשאלה על מה שהעסק מציע: קודם תשובה ישירה')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אסור לשאול שאלת בירור לפני התשובה')
     const user = buildQualifyUser({
       transcript: [{ direction: 'inbound', text: E2E_WARMUP }],
       qualification: {},
@@ -217,13 +217,13 @@ describe('prompt + Phase B + safety unchanged', () => {
       salesMove: 'PRODUCT_QUESTION',
       productKnowledgeBlock: formatProductKnowledgeBlock(retrieve(E2E_WARMUP)),
     })
-    expect(user).toContain('זו שאלת מוצר')
-    expect(user).toContain('אל תשאל שאלת גילוי לפני התשובה')
+    expect(user).toContain('זו שאלה על מה שהעסק מציע')
+    expect(user).toContain('אל תשאל/י שאלת בירור לפני התשובה')
     expect(user).not.toMatch(/נוגעת ל: name/)
   })
   it('product fit instructs explain-value, not a reflexive discovery question', () => {
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('בהתאמת מוצר:')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תצרפי שאלת גילוי על כאב/השפעה/תהליך רק כי אפשר לשאול')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('בהתאמה לצורך:')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תצרף/י שאלת בירור רק כי אפשר לשאול')
     const inbound = 'יש לי עסק של נדל״ן ונכנסים לי הרבה לקוחות אני צריך עזרה בניהול לידים'
     const user = buildQualifyUser({
       transcript: [{ direction: 'inbound', text: inbound }],
@@ -233,9 +233,9 @@ describe('prompt + Phase B + safety unchanged', () => {
       salesMove: 'PRODUCT_FIT',
       productKnowledgeBlock: formatProductKnowledgeBlock(retrieve(inbound)),
     })
-    expect(user).toContain('זו התאמת מוצר')
-    expect(user).toContain('אל תשאל שאלת גילוי על כאב, השפעה או תהליך עכשיו')
-    expect(user).toContain('היעד עכשיו הוא להסביר ערך מהמוצר')
+    expect(user).toContain('הלקוח רוצה לדעת אם זה מתאים לו')
+    expect(user).toContain('אל תשאל/י שאלת בירור נוספת עכשיו')
+    expect(user).toContain('היעד עכשיו הוא להסביר, מעובדות העסק')
     expect(user).not.toContain('לכל היותר שאלת המשך אחת אחרי התשובה')
     expect(user).not.toContain('בחרי יעד אחד עם הערך הכי גבוה עכשיו')
   })

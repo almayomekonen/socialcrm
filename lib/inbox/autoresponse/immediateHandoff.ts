@@ -8,6 +8,7 @@ import { mergeOnly, markEscalated, type ConversationAiStateRow } from '@/db/conv
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
+import { withGreeting } from './greeting'
 import { buildSummary } from './summary'
 import { detectLang, handoffMessage } from './qualify'
 import { sendIreOutbound } from './ireSend'
@@ -40,11 +41,17 @@ export async function runImmediateHumanHandoff(args: {
   send: typeof sendWhatsappText
   aiState: ConversationAiStateRow
   lastInboundText: string
+  /**
+   * Set when this handoff is the FIRST thing the business ever says here — a
+   * customer whose opening message is "can I talk to a person?" should still be
+   * welcomed before being passed on. Null on every later turn.
+   */
+  greetingLine?: string | null
 }): Promise<'sent' | 'skipped' | 'failed'> {
   const { job, ctx, send, aiState, lastInboundText } = args
   const lang = detectLang(lastInboundText)
   const reason = 'human_request'
-  const handoffText = handoffMessage(reason, lang)
+  const handoffText = withGreeting(args.greetingLine ?? null, handoffMessage(reason, lang))
   const summary = buildSummary({
     qualification: aiState.qualification,
     reason,

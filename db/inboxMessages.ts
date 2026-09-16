@@ -460,3 +460,21 @@ export async function getConversationOutboundStatuses(
     }
   })
 }
+
+/**
+ * Has the business already sent anything on this conversation — an agent reply
+ * or a human one?
+ *
+ * Used by the first-greeting decision. It asks the table rather than scanning
+ * the worker's in-memory transcript because that transcript is capped
+ * (MAX_TRANSCRIPT): past the cap an early greeting would fall out of the window
+ * and the same customer would be welcomed a second time.
+ *
+ * An existence check, not a COUNT: the greeting only cares whether the number is
+ * zero, and `.first('id')` is the same query shape the worker already uses for
+ * `outboundExists`.
+ */
+export async function hasPriorOutbound(conversationId: number): Promise<boolean> {
+  const row = await db('inbox_messages').where({ conversationId, direction: 'outbound' }).first('id')
+  return Boolean(row)
+}
