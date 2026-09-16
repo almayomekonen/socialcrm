@@ -954,6 +954,14 @@ a misclassified opt-out would have spent a model call.
   `__tests__/inbox/humanPresence` pass. `npx tsc --noEmit` is clean.
 - **Blast radius checked by import, not assumption:** every test file importing
   `salesIntent` or `gptEligibility` (18 of them) is inside that green set.
+- **The rest of the repo's failures are pre-existing, measured rather than
+  assumed.** The full serialized suite is 10,112 passing / 66 failing across 17
+  files (payments, subscriptions, leads, automations, calendar, history, AI
+  cache, auth) — none of which reference `autoresponse` at all. Running exactly
+  those files against `origin/main` @ `7618a40c`, with this fix absent, gives
+  the same 15 files failing with identical per-file counts. The single
+  difference is `notifications/integration.emit.test.ts`, which fails in a full
+  run and passes in isolation on main too: order-dependent, and not this.
 
 ### 11.6 What this does not settle
 
