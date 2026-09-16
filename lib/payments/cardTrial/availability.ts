@@ -1,7 +1,7 @@
 import { assertGrowRuntime, getGrowApiConfig, publicAppOrigin } from '@/lib/payments/grow/config'
 import { isGrowLocalMockEnabled } from '@/lib/payments/grow/localMock'
 import { isCardSetupEligible } from './startCardSetup'
-import type { PaymentMethodPurpose } from '@/db/payments/paymentMethods'
+import { getLatestPaymentMethod, type PaymentMethodPurpose } from '@/db/payments/paymentMethods'
 
 /**
  * Can a card setup actually be completed right now?
@@ -50,4 +50,32 @@ export async function billingSetupPurpose(agencyId: number): Promise<PaymentMeth
     if (await isCardSetupEligible(agencyId, purpose)) return purpose
   }
   return null
+}
+
+/**
+ * What the welcome screen must show a registered account that has no trial yet.
+ *
+ * The journey is: register → save a card → verify it server-to-server → only
+ * then the 7 days start. Between the redirect and the verified callback the
+ * account is simply not activated, and the screen has to say that rather than
+ * hand the customer the form again — offering it back both hides the truth and
+ * invites a second setup that supersedes the pending one.
+ *
+ *   'setup'       no card saved yet, and a setup can complete → show the form
+ *   'awaiting'    a setup is pending verification → say so, offer nothing
+ *   'unavailable' the provider cannot complete a setup → say so, promise nothing
+ *
+ * 'unavailable' matters most: with the card wall on and no way to finish a
+ * setup, a new registration would otherwise be stranded behind a form that
+ * cannot work.
+ */
+export type WelcomeCardStage = 'setup' | 'awaiting' | 'unavailable'
+
+export async function welcomeCardStage(agencyId: number): Promise<WelcomeCardStage> {
+  const latest = await getLatestPaymentMethod(agencyId)
+  if (latest?.status === 'pending') return 'awaiting'
+  // An 'active' card with no trial started is a verified setup whose trial write
+  // has not landed yet — still awaiting, never a fresh form.
+  if (latest?.status === 'active') return 'awaiting'
+  return isCardBillingAvailable() ? 'setup' : 'unavailable'
 }

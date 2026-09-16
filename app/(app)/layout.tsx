@@ -39,6 +39,7 @@ import { getAgencyPlan } from '@/lib/quota'
 import { track, trackOncePerAgency, trackSessionStartedOncePerDay } from '@/lib/analytics/track'
 import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
+import { welcomeCardStage } from '@/lib/payments/cardTrial/availability'
 import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
 import { cardReactivationFor } from '@/lib/payments/cardTrial/cardTrialView'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
@@ -343,7 +344,11 @@ async function LayoutContent({ children }) {
               <WelcomeTrialModal
                 cardSetup={
                   isCardRequiredTrialEnabled()
-                    ? { defaultFullName: user.name ?? '', canManageBilling: isAdmin(user.role) }
+                    ? {
+                        defaultFullName: user.name ?? '',
+                        canManageBilling: isAdmin(user.role),
+                        stage: await welcomeCardStage(user.agencyId),
+                      }
                     : undefined
                 }
               />

@@ -40,7 +40,17 @@ const BENEFITS: { icon: IconNames; title: string; sub: string }[] = [
  * resolved on the SERVER in the (app) layout). The trial then starts only after
  * Grow's callback is verified, so this variant never calls startTrial().
  */
-export type WelcomeCardSetup = { defaultFullName: string; canManageBilling: boolean }
+export type WelcomeCardSetup = {
+  defaultFullName: string
+  canManageBilling: boolean
+  /**
+   * 'setup' offers the form. 'awaiting' means a card is already saved and being
+   * verified — the account is not activated and must not be told otherwise, and
+   * must not be handed the form again (a second setup supersedes the pending
+   * one). 'unavailable' means no setup can complete right now.
+   */
+  stage: 'setup' | 'awaiting' | 'unavailable'
+}
 
 export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCardSetup }) {
   const [pending, setPending] = useState(false)
@@ -235,7 +245,19 @@ export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCa
         )}
 
         {cardSetup ? (
-          cardSetup.canManageBilling ? (
+          cardSetup.stage === 'awaiting' ? (
+            <div role='status' className='space-y-2 text-center'>
+              <p className='text-sm font-semibold text-gray-900'>הכרטיס נשמר. אנחנו מאמתים אותו מול חברת הסליקה.</p>
+              <p className='text-sm text-gray-600'>תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.</p>
+              <p className='text-xs text-gray-500'>האימות נמשך בדרך כלל מספר שניות. אפשר לרענן את העמוד.</p>
+            </div>
+          ) : cardSetup.stage === 'unavailable' ? (
+            <div role='status' className='space-y-2 text-center'>
+              <p className='text-sm font-semibold text-gray-900'>לא ניתן להוסיף אמצעי תשלום כרגע</p>
+              <p className='text-sm text-gray-600'>מערכת התשלומים אינה זמינה זמנית, ולכן לא ניתן להתחיל את תקופת הניסיון. לא בוצע חיוב.</p>
+              <p className='text-xs text-gray-500'>אפשר לנסות שוב מאוחר יותר, או לפנות אלינו ונטפל בזה.</p>
+            </div>
+          ) : cardSetup.canManageBilling ? (
             <CardTrialSetupForm purpose='trial_start' defaultFullName={cardSetup.defaultFullName} submitLabel='הוספת כרטיס והפעלת הניסיון' />
           ) : (
             <p className='text-sm text-gray-600 text-center'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>

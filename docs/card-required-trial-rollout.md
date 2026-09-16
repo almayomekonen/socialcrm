@@ -6,11 +6,22 @@ terms are not approved. See "Launch requirements" below.
 
 ## 1. What it does
 
-A new agency saves a credit card on Grow's hosted page before its 7-day trial
-starts. Nothing is charged at that moment. The trial starts only when Grow's
-server-to-server callback has been verified with Grow itself. At the end of the
-trial the saved token is charged ₪89, and monthly after that, unless the
-customer cancelled.
+The required journey, confirmed by the owner (2026-09-16) and not open for
+revision:
+
+1. Register an account.
+2. Accept the subscription disclosure and save a card through Grow.
+3. Verify the saved card server-to-server.
+4. **Only then** the 7-day trial starts and CRM access opens.
+5. ₪89 at trial end unless cancelled, monthly after that.
+
+Nothing is charged when the card is saved. Registering, opening Grow's page and
+landing on the return page all activate nothing: the trial clock is written in
+one place (`startTrialInTransaction`), which requires an `active` card row and
+refuses unless `trialStartedAt IS NULL`. So a repeated callback, a replaced card
+and a cancel-then-resume can none of them grant a second trial or move the
+clock. Until the card is verified the account stays `NEVER_STARTED`, which
+`getAgencyProductAccess` answers with `hasAccess: false`.
 
 **This is the only way to pay.** Grow Payment Links, their webhooks and the
 standing-order renewal path were removed: there is no checkout link, no annual

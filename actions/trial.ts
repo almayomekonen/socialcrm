@@ -5,7 +5,6 @@ import { after } from 'next/server'
 import { track } from '@/lib/analytics/track'
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startTrialForAgency, recordWelcomeModalSeen } from '@/db/trial'
-import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 import { isMobileRequest } from '@/lib/device'
 import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
 
@@ -31,8 +30,10 @@ export async function startTrial(): Promise<StartTrialResult> {
   // (DB WHERE guard + rowCount === 1), so refresh, modal re-view, double-click
   // and concurrent calls all resolve to started=false and send nothing; PAID /
   // LEGACY / already-started / expired never satisfy the guard. The send runs
-  // in after() (post-response) and dispatchLifecycleEvent never throws, so email
-  // delivery can neither delay nor roll back trial activation. Recipient is the
+  // in after() (post-response) and the mailer is imported THERE, not at module
+  // load: config/resend.ts builds its client on import and throws when RESEND is
+  // unset, which would otherwise make a missing email key break trial
+  // activation itself. Email can neither delay nor roll back activation. Recipient is the
   // authenticated activator; the automation's dedup key ('trial_started') is the
   // belt-and-suspenders second guarantee of exactly-once delivery.
   if (started) {
@@ -42,7 +43,14 @@ export async function startTrial(): Promise<StartTrialResult> {
       email: user.email,
       firstName: user.name?.trim().split(/\s+/)[0] || null,
     }
-    after(() => dispatchLifecycleEvent('trial.started', recipient, new Date()))
+    after(async () => {
+      try {
+        const { dispatchLifecycleEvent } = await import('@/lib/emailAutomations/live')
+        await dispatchLifecycleEvent('trial.started', recipient, new Date())
+      } catch (err) {
+        console.error('[trial] trial.started not dispatched', { agencyId: user.agencyId, err: String(err) })
+      }
+    })
   }
 
   revalidatePath('/', 'layout')

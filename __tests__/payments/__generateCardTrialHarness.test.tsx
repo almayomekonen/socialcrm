@@ -63,7 +63,7 @@ describe.skipIf(!ENABLED)('generate card-trial harness', () => {
       fs.writeFileSync(path.join(OUT, `${name}.html`), page)
     }
 
-    await dump('1-welcome-card', <WelcomeTrialModal cardSetup={{ defaultFullName: 'ישראל ישראלי', canManageBilling: true }} />)
+    await dump('1-welcome-card', <WelcomeTrialModal cardSetup={{ defaultFullName: 'ישראל ישראלי', canManageBilling: true, stage: 'setup' }} />)
     await dump('2-success-verifying', <CardSetupVerifier purpose='card_trial' poll={async () => ({ state: 'verifying', callbackReceived: true, firstChargeAt: null })} />)
     await dump(
       '3-success-confirmed',

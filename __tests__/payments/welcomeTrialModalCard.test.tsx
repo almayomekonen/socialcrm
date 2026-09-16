@@ -17,7 +17,7 @@ import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import { startCardSetup } from '@/actions/paymentMethod'
 import { startTrial } from '@/actions/trial'
 
-const cardSetup = { defaultFullName: 'ישראל ישראלי', canManageBilling: true }
+const cardSetup = { defaultFullName: 'ישראל ישראלי', canManageBilling: true, stage: 'setup' as const }
 
 beforeEach(() => {
   vi.mocked(startCardSetup).mockReset()
