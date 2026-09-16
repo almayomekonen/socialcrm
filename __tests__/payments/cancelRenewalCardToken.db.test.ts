@@ -21,6 +21,7 @@ import { encryptSecret } from '@/lib/crypto/secrets'
 import { claimDueCharges } from '@/db/payments/charges'
 import { beginChargeAttempt } from '@/db/payments/chargeDispatch'
 import { scheduleDueTrialConversions } from '@/db/payments/chargeScheduling'
+import { renewalPeriodKey } from '@/db/payments/periodKeys'
 import { confirmCardSetup } from '@/lib/payments/cardTrial/confirmCardSetup'
 import { seedAgency, seedMethod, seedSubscription, seedUser, seedCharge, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'
 
@@ -117,13 +118,16 @@ describe('resumeRenewal — card-token billing', () => {
     expect((await event(agencyId, 'subscription_resumed')).map((r) => r.props)).toEqual([{ billing: 'card_token' }])
   })
 
-  it('reopens the periods the cancellation stopped', async () => {
+  it('reopens the current renewal period the cancellation stopped, and never a historical one', async () => {
+    const expiresAt = new Date(Math.floor((Date.now() + 30 * 60_000) / 1000) * 1000)
     const { agencyId } = await signedIn({ plan: 'pro', planReason: 'grow:1', trialStartedAt: hoursFromNow(-900), trialEndsAt: hoursFromNow(-730) })
     const pm = await seedMethod(agencyId)
-    await seedSubscription(agencyId, { cancelAtPeriodEnd: true, expiresAt: hoursFromNow(0.5) })
-    await seedCharge(agencyId, pm, { kind: 'renewal', periodKey: 'renewal:p1', status: 'cancelled', errorClass: 'cancelled_by_customer' })
+    await seedSubscription(agencyId, { cancelAtPeriodEnd: true, expiresAt })
+    await seedCharge(agencyId, pm, { kind: 'renewal', periodKey: 'renewal:2026-02-01T00:00:00Z', status: 'cancelled', errorClass: 'cancelled_by_customer' })
+    await seedCharge(agencyId, pm, { kind: 'renewal', periodKey: renewalPeriodKey(expiresAt), status: 'cancelled', errorClass: 'cancelled_by_customer' })
     expect(await resumeRenewal()).toEqual({ ok: true })
-    expect(await db('billing_charges').where({ agencyId, periodKey: 'renewal:p1', attempt: 2 }).first()).toMatchObject({ status: 'pending' })
+    expect(await db('billing_charges').where({ agencyId, periodKey: renewalPeriodKey(expiresAt), attempt: 2 }).first()).toMatchObject({ status: 'pending' })
+    expect(await db('billing_charges').where({ agencyId, periodKey: 'renewal:2026-02-01T00:00:00Z' })).toHaveLength(1)
   })
 
   it('refuses a silent immediate charge: a card subscription whose access ended must reactivate', async () => {

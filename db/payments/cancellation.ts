@@ -3,8 +3,10 @@ import { db } from '@/config/db'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { getTrialState, hasActiveProductAccess } from '@/lib/trial'
 import { getAgencyTrial } from '@/db/trial'
+import { RENEWAL_LEAD_HOURS } from '@/lib/payments/cardTrial/terms'
 import { hasConfirmedPaymentMethod, supersedePendingPaymentMethods } from './paymentMethods'
 import { insertNextAttempt, mapCharge } from './charges'
+import { renewalPeriodKey, TRIAL_END_PERIOD_KEY } from './periodKeys'
 
 /**
  * What a cancellation or resume means for card-token billing. Called from
@@ -58,15 +60,37 @@ export async function isCardResumeBlocked(agencyId: number): Promise<boolean> {
   return !hasActiveProductAccess(getTrialState(row, new Date()).status)
 }
 
-/** A resumed subscription gets back every period the customer's cancellation stopped. */
-export async function reopenCustomerCancelledCharges(trx: Knex.Transaction, agencyId: number): Promise<number> {
+/**
+ * Resuming gives back only the CURRENT period the cancellation stopped, at the
+ * time that period is actually due:
+ *   - a renewal: only the period the agency's expiresAt still points at, due at
+ *     the usual lead before it. A period that has since passed is never revived,
+ *     so resuming can never produce catch-up charges for months not used.
+ *   - the trial conversion: the trial has already ended and access is still on
+ *     (isCardResumeBlocked stops the rest), so it is due now — the resume UI
+ *     says so before the customer confirms.
+ * Per-period deduplication is unchanged: insertNextAttempt refuses while any
+ * attempt for the period is still open or already succeeded.
+ */
+export async function reopenCurrentPeriodAfterResume(trx: Knex.Transaction, agencyId: number): Promise<number | null> {
+  const sub = await trx('subscriptions').where({ agencyId }).first('expiresAt')
   const rows = await trx('billing_charges as c')
     .where({ 'c.agencyId': agencyId, 'c.status': 'cancelled', 'c.errorClass': 'cancelled_by_customer' })
     .whereNotExists((q) => q.select(1).from('billing_charges as later').whereRaw('later."agencyId" = c."agencyId" AND later."periodKey" = c."periodKey" AND later.attempt > c.attempt'))
+    .orderBy('c.id', 'desc')
     .select('c.*')
-  let reopened = 0
-  for (const row of rows) if (await insertNextAttempt(trx, mapCharge(row), new Date())) reopened++
-  return reopened
+  const currentRenewalKey = sub?.expiresAt ? renewalPeriodKey(new Date(sub.expiresAt)) : null
+
+  for (const raw of rows) {
+    const row = mapCharge(raw)
+    if (row.kind === 'renewal') {
+      if (!currentRenewalKey || row.periodKey !== currentRenewalKey) continue
+      const due = new Date(new Date(sub.expiresAt).getTime() - RENEWAL_LEAD_HOURS * 3_600_000)
+      return insertNextAttempt(trx, row, due)
+    }
+    if (row.periodKey === TRIAL_END_PERIOD_KEY) return insertNextAttempt(trx, row, new Date())
+  }
+  return null
 }
 
 export async function trackBillingTransition(

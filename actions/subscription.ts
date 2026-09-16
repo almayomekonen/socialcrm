@@ -42,7 +42,7 @@ async function setCancelFlag(value: boolean): Promise<CancelResumeResult> {
     const before = await trx('subscriptions').where({ agencyId: user.agencyId }).forUpdate().first('cancelAtPeriodEnd')
     const n = await trx('subscriptions').where({ agencyId: user.agencyId }).update({ cancelAtPeriodEnd: value, updatedAt: new Date() })
     resumed = n > 0 && !value && before?.cancelAtPeriodEnd === true
-    if (resumed) await cardBilling.reopenCustomerCancelledCharges(trx, user.agencyId)
+    if (resumed) await cardBilling.reopenCurrentPeriodAfterResume(trx, user.agencyId)
     return n
   })
 

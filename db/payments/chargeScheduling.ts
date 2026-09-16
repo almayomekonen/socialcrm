@@ -77,7 +77,14 @@ export async function scheduleDueRenewals(limit: number): Promise<number> {
   return res.rows?.length ?? 0
 }
 
-const REOPENABLE_ERRORS = new Set(['cancelled_by_customer', 'no_active_method'])
+/**
+ * Periods a newly confirmed card may reopen. `stale_undispatched` is here on
+ * purpose: a period cancelled because it waited too long (dispatch disabled, or
+ * the scheduler down) must stay recoverable — otherwise the subscription is
+ * stranded, never charged and never able to come back. `already_paid` and
+ * `period_already_renewed` are absent: those periods are settled.
+ */
+const REOPENABLE_ERRORS = new Set(['cancelled_by_customer', 'no_active_method', 'stale_undispatched'])
 
 /**
  * A newly confirmed card retries the latest failed period now. Never for a

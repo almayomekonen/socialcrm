@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import { scheduleDueTrialConversions, scheduleDueRenewals, scheduleImmediateAttemptForOpenPeriod } from '@/db/payments/chargeScheduling'
 import { claimDueCharges, insertNextAttempt, markChargeFailed, reclaimStaleInFlightCharges, releaseUndispatchedClaim } from '@/db/payments/charges'
 import { beginChargeAttempt } from '@/db/payments/chargeDispatch'
+import { reopenCurrentPeriodAfterResume } from '@/db/payments/cancellation'
 import { renewalPeriodKey, TRIAL_END_PERIOD_KEY } from '@/db/payments/periodKeys'
 import { seedAgency, seedMethod, seedSubscription, seedCharge, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'
 
@@ -156,5 +157,44 @@ describe('retries and reopened periods', () => {
     const paid = await dueTrial()
     await seedCharge(paid.agencyId, paid.pm, { status: 'cancelled', errorClass: 'already_paid' })
     expect(await db.transaction((trx) => scheduleImmediateAttemptForOpenPeriod(trx, paid.agencyId, paid.pm))).toBeNull()
+  })
+})
+
+describe('resume reopens only the current period', () => {
+  it('never revives a historical renewal period (no catch-up charges) and schedules the current one at its lead time', async () => {
+    const expiresAt = new Date(Math.floor((Date.now() + 6 * 3_600_000) / 1000) * 1000)
+    const agencyId = await seedAgency({ plan: 'pro', planReason: 'grow:1' })
+    const pm = await seedMethod(agencyId)
+    await seedSubscription(agencyId, { expiresAt, cancelAtPeriodEnd: true })
+    const old = await seedCharge(agencyId, pm, { kind: 'renewal', periodKey: 'renewal:2026-01-01T00:00:00Z', status: 'cancelled', errorClass: 'cancelled_by_customer' })
+    const current = await seedCharge(agencyId, pm, { kind: 'renewal', periodKey: renewalPeriodKey(expiresAt), status: 'cancelled', errorClass: 'cancelled_by_customer' })
+    const reopenedId = await db.transaction((trx) => reopenCurrentPeriodAfterResume(trx, agencyId))
+    const reopened = await db('billing_charges').where({ id: reopenedId }).first()
+    expect(reopened).toMatchObject({ periodKey: renewalPeriodKey(expiresAt), attempt: 2, status: 'pending' })
+    expect(new Date(reopened.nextAttemptAt).getTime()).toBe(expiresAt.getTime() - 3_600_000)
+    expect(await db('billing_charges').where({ agencyId, periodKey: 'renewal:2026-01-01T00:00:00Z' })).toHaveLength(1)
+    expect([old, current]).toContain(Number(reopened.groupIdentifier) === 0 ? old : current)
+  })
+
+  it('reopens an ended trial conversion now, and reopens nothing during an active trial', async () => {
+    const { agencyId, pm } = await dueTrial({ cancelAtPeriodEnd: true })
+    await seedCharge(agencyId, pm, { status: 'cancelled', errorClass: 'cancelled_by_customer' })
+    const id = await db.transaction((trx) => reopenCurrentPeriodAfterResume(trx, agencyId))
+    expect(await db('billing_charges').where({ id }).first()).toMatchObject({ periodKey: TRIAL_END_PERIOD_KEY, attempt: 2 })
+
+    const active = await seedAgency({ trialStartedAt: hoursFromNow(-24), trialEndsAt: hoursFromNow(120) })
+    await seedMethod(active)
+    await seedSubscription(active, { cancelAtPeriodEnd: true })
+    expect(await db.transaction((trx) => reopenCurrentPeriodAfterResume(trx, active))).toBeNull()
+  })
+
+  it('a stale-cancelled period stays recoverable through a new card', async () => {
+    const { agencyId, pm } = await dueTrial()
+    await seedCharge(agencyId, pm, { status: 'cancelled', errorClass: 'stale_undispatched' })
+    const newPm = await seedMethod(agencyId, { status: 'pending', cardToken: null, confirmedAt: null })
+    await db('billing_payment_methods').where({ id: pm }).update({ status: 'replaced' })
+    await db('billing_payment_methods').where({ id: newPm }).update({ status: 'active', cardToken: 'x', confirmedAt: new Date() })
+    const id = await db.transaction((trx) => scheduleImmediateAttemptForOpenPeriod(trx, agencyId, newPm))
+    expect(await db('billing_charges').where({ id }).first()).toMatchObject({ status: 'pending', attempt: 2 })
   })
 })
