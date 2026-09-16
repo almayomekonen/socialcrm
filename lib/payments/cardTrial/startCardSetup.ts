@@ -56,7 +56,17 @@ export async function isCardSetupEligible(agencyId: number, purpose: PaymentMeth
   const row = await getAgencyTrial(agencyId)
   if (!row) return false
   const status = getTrialState(row, new Date()).status
-  if (purpose === 'trial_start') return isCardRequiredTrialEnabledForAgency(agencyId) && status === 'NEVER_STARTED'
+  if (purpose === 'trial_start') {
+    if (!isCardRequiredTrialEnabledForAgency(agencyId)) return false
+    // NEVER_STARTED is the normal case. TRIAL_ACTIVE-without-a-card is the
+    // customer who began a trial before a card was required: with Payment Links
+    // gone they would otherwise have no way to pay, ever. Saving a card here
+    // cannot move their clock — startTrialInTransaction only writes when
+    // trialStartedAt IS NULL — and schedules no immediate charge; the ordinary
+    // trial-end conversion picks them up once a card is active.
+    if (status === 'NEVER_STARTED') return true
+    return status === 'TRIAL_ACTIVE' && (await getActivePaymentMethod(agencyId)) === null
+  }
   if (purpose === 'card_update') return (await getActivePaymentMethod(agencyId)) !== null
   return status === 'TRIAL_EXPIRED' && (await getLatestConfirmedPaymentMethod(agencyId)) !== null
 }

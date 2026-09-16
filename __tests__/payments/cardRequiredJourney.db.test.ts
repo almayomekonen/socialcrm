@@ -2,6 +2,7 @@ import { describe, it, expect, afterAll, afterEach, beforeEach, vi } from 'vites
 import { db } from '@/config/db'
 import { startTrialInTransaction, getAgencyTrial } from '@/db/trial'
 import { welcomeCardStage } from '@/lib/payments/cardTrial/availability'
+import { isCardSetupEligible } from '@/lib/payments/cardTrial/startCardSetup'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { seedAgency, seedMethod, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'
 
@@ -85,6 +86,34 @@ describe('no second trial, and no second clock', () => {
     await seedMethod(agencyId)
     expect(await startTrialInTransaction(db, agencyId)).toBe(false)
     expect((await trialOf(agencyId))!.trialEndsAt.getTime()).toBeLessThan(Date.now())
+  })
+})
+
+describe('a trial that began before a card was required', () => {
+  /**
+   * The owner hit this on staging: a click-to-start trial, no card, and with
+   * Payment Links gone there was no way left to pay. Saving a card must be
+   * possible — and must not touch the clock they already have.
+   */
+  it('may save a card mid-trial, and the clock does not move', async () => {
+    const agencyId = await seedAgency({ trialStartedAt: hoursFromNow(-24), trialEndsAt: hoursFromNow(144) })
+    const before = (await trialOf(agencyId))!.trialEndsAt
+    expect(await isCardSetupEligible(agencyId, 'trial_start')).toBe(true)
+
+    // Confirming that setup cannot restart or extend the trial.
+    expect(await startTrialInTransaction(db, agencyId)).toBe(false)
+    expect((await trialOf(agencyId))!.trialEndsAt).toEqual(before)
+  })
+
+  it('is not offered once a card is already active', async () => {
+    const agencyId = await seedAgency({ trialStartedAt: hoursFromNow(-24), trialEndsAt: hoursFromNow(144) })
+    await seedMethod(agencyId)
+    expect(await isCardSetupEligible(agencyId, 'trial_start')).toBe(false)
+  })
+
+  it('is not offered once the trial has expired — that is reactivation', async () => {
+    const agencyId = await seedAgency({ trialStartedAt: hoursFromNow(-200), trialEndsAt: hoursFromNow(-30) })
+    expect(await isCardSetupEligible(agencyId, 'trial_start')).toBe(false)
   })
 })
 
