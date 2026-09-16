@@ -6,6 +6,7 @@
  */
 import { db } from '@/config/db'
 import { mergeQualification, type AiState, type Qualification } from '@/lib/inbox/autoresponse/qualification'
+import { stateAfterAgentTurn } from '@/lib/inbox/autoresponse/agentOwnership'
 
 export interface ConversationAiStateRow {
   conversationId: number
@@ -77,6 +78,14 @@ async function patch(conversationId: number, fields: Record<string, unknown>): P
  * `corrected` names the fields the customer explicitly corrected this turn, and
  * is the only way a known value is replaced — without it the merge stays
  * fill-empty and the first value the customer gave becomes permanent.
+ *
+ * DOES NOT RESURRECT. This used to write `aiState = 'ai_qualifying'`
+ * unconditionally, so recording a turn against a human-owned, opted-out or
+ * closed conversation handed it straight back to the agent. Nothing reaches here
+ * in those states today because decidePreGeneration stops first — which is
+ * exactly what made it invisible, and exactly one reordering away from the agent
+ * speaking over a rep or messaging someone who had opted out. The turn count and
+ * the merged memory are still recorded; only the lifecycle is left alone.
  */
 export async function recordTurn(
   conversationId: number,
@@ -85,8 +94,9 @@ export async function recordTurn(
 ): Promise<void> {
   const cur = await getAiState(conversationId)
   const merged = mergeQualification(cur?.qualification ?? {}, extracted, { corrected })
+  const nextState = stateAfterAgentTurn(cur?.aiState)
   await patch(conversationId, {
-    aiState: 'ai_qualifying',
+    ...(nextState ? { aiState: nextState } : {}),
     aiTurnCount: db.raw('"aiTurnCount" + 1'),
     aiLastAt: db.fn.now(),
     qualification: JSON.stringify(merged),

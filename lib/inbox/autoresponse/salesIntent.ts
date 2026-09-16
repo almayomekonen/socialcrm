@@ -449,6 +449,64 @@ export function isExplicitHelpRequest(text: string): boolean {
   return HELP_REQUEST_RE.test(text ?? '') || HELP_REQUEST_RE.test(t)
 }
 
+/**
+ * A polite REQUEST for information — the most common way a real lead asks to be
+ * told more, and the one shape the intent gate did not recognise.
+ *
+ * Production conversation 6694 stopped dead here: the agent greeted and asked
+ * "מה רצית לדעת על המערכת?", the customer answered
+ * "היי אשמח לקבל פרטים על המערכת שלכם", and the turn was skipped as
+ * `NO_MEANINGFUL_INTENT`. Every existing predicate missed it, because the
+ * sentence is not interrogative: no question mark, no question word, no stated
+ * pain, no explicit "I need help". It is a request, and a request was intent
+ * nobody had encoded.
+ *
+ * Deliberately requires BOTH a request verb and an information object, so
+ * "אשמח לקבל" alone (happy to receive… what?) and a bare "פרטים" do not qualify.
+ */
+const INFORMATION_OBJECT =
+  '(?:פרטים|מידע|הצעת מחיר|הצעה|פירוט|הסבר|מחירון|קטלוג|לשמוע עוד|לדעת עוד|לשמוע על|לדעת על)'
+
+const INFORMATION_REQUEST_RE = new RegExp(
+  [
+    // Hebrew: <request verb> … <information object>
+    '(?:אשמח|ישמח לי|אפשר|איך אפשר|רוצה|רוצי|מעוניי[נן]|מעוניינת|מחפש|מחפשת|תוכל|תוכלי|אפשרי)' +
+      '[^.!?\n]{0,40}' +
+      INFORMATION_OBJECT,
+    // Hebrew imperative: "send me …". The object is required here too. Without
+    // it, "אל תשלחו לי הודעות" — stop messaging me — read as a request for
+    // information and spent a model call on an opt-out.
+    '(?:תשלח|תשלחי|תשלחו|שלח לי|שלחי לי|שלחו לי)' + '[^.!?\n]{0,40}' + INFORMATION_OBJECT,
+    // Hebrew: "tell me about X" — the object is built into the phrase.
+    '(?:ספר לי על|ספרי לי על|ספרו לי על|תספר לי על|תספרי לי על|תספרו לי על)',
+    // English
+    "\\b(?:i(?:'d| would) like|can i get|could i get|i want|i need|interested in|looking for)\\b[^.!?\\n]{0,40}\\b(?:details?|info(?:rmation)?|pricing|a quote|more)\\b",
+    '\\b(?:send|tell) me (?:more|about|the details?|some info)',
+    '\\btell me about\\b',
+  ].join('|'),
+  'i',
+)
+
+/**
+ * A refusal wears the same verbs as a request. "אל תשלחו לי", "לא מעוניין",
+ * "don't send me" must never reach the request branch — an opt-out that costs a
+ * model call is a defect even though the opt-out itself is honoured upstream by
+ * decidePreGeneration.
+ */
+const NEGATED_REQUEST_RE =
+  /(?:^|\s)(?:אל|לא)\s+(?:תשלח|תשלחי|תשלחו|תספר|תספרי|תספרו|רוצה|רוצים|מעוניין|מעוניינת|מעוניינים)|\b(?:do\s?n[o']?t|do not|please stop|stop)\s+(?:send|sending|tell|telling|contact|contacting|messag)/i
+
+/**
+ * True when the customer asked to be told something, without phrasing it as a
+ * question. Intent, not interrogation.
+ */
+export function isInformationRequest(text: string): boolean {
+  const raw = text ?? ''
+  const prepared = prepareUtteranceForClassify(raw)
+  if (NEGATED_REQUEST_RE.test(raw) || NEGATED_REQUEST_RE.test(prepared)) return false
+  return INFORMATION_REQUEST_RE.test(raw) || INFORMATION_REQUEST_RE.test(prepared)
+}
+
 /** Frustration about losing leads/customers. Not opt-out. Bare "נמאס לי" is not enough. */
 export function isBusinessPainSignal(text: string): boolean {
   const raw = text ?? ''

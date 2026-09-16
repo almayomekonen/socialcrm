@@ -5,6 +5,7 @@ import InboxThread from './InboxThread'
 import { SUPPORTED_WORKSPACE_CHANNELS, channelLabel } from '@/modules/inbox/channels'
 import InboxReadMarker from './InboxReadMarker'
 import OperatorTake from './OperatorTake'
+import AgentOwnership from './AgentOwnership'
 
 export default async function InboxWorkspace({
   conversationId,
@@ -51,7 +52,12 @@ export default async function InboxWorkspace({
         displayName={displayName}
         leadStatus={leadStatus}
         customerWaId={customerWaId}
-        banner={<OperatorTake conversationId={conversationId} />}
+        banner={
+          <>
+            <AgentOwnership conversationId={conversationId} />
+            <OperatorTake conversationId={conversationId} />
+          </>
+        }
         composerFacts={composerFacts}
       />
     </div>

@@ -3,6 +3,23 @@
  * Conversation Control owns CLOSE / HANDOFF. This gate only answers:
  * does this CONTINUE / ASK_QUESTION inbound need an AI-generated reply?
  * The LLM never decides whether the LLM should run.
+ *
+ * TWO GATES, NOT ONE. Which applies depends on whether the agent has spoken in
+ * this conversation:
+ *
+ *   ENGAGED (the agent owns the thread) → `decideEngagedTurn`. The message is
+ *     read in the context of the conversation. Answers are answers, however
+ *     short, and the only reasons to stay silent are positive ones.
+ *
+ *   OPENING (the agent has never spoken here) → the whitelist below. A stranger's
+ *     first words must earn a reply, because there is no conversation yet to read
+ *     them against and an unprompted agent talking to social residue is worse
+ *     than silence.
+ *
+ * The split is what lets the engaged case be permissive without loosening
+ * anything about first contact. Everything to do with PERMISSION — enabled,
+ * tenant, opt-out, takeover, closed, duplicates — lives in decidePreGeneration
+ * and assertAgentSendAllowed and is untouched by either gate.
  */
 import {
   classifySalesMove,
@@ -10,6 +27,7 @@ import {
   isCasualAcknowledgement,
   isExplicitHelpRequest,
   isHoldOnUtterance,
+  isInformationRequest,
   isShortAffirmative,
   outboundAsksQuestion,
   collapseRepeatedLetters,
@@ -17,6 +35,7 @@ import {
   type SalesMove,
 } from './salesIntent'
 import { inboundContainsRealQuestion } from './conversationControl'
+import { decideEngagedTurn, isSocialResidue, type EngagedTurnReason } from './engagedTurn'
 
 export type GptEligibilityDecision = 'RUN_AI' | 'WAIT'
 
@@ -39,7 +58,9 @@ export type GptEligibilityReason =
   | 'OBJECTION'
   | 'DEEPEN'
   | 'DISCOVERY'
+  | 'INFORMATION_REQUEST'
   | 'NO_MEANINGFUL_INTENT'
+  | EngagedTurnReason
 
 export type GptEligibility = {
   decision: GptEligibilityDecision
@@ -54,6 +75,17 @@ export type GptEligibilityInput = {
   controlAction: 'CONTINUE' | 'ASK_QUESTION'
   customerInboundCount: number
   previousCustomerText?: string
+  /**
+   * The agent has already spoken in this conversation, so it owns the thread and
+   * the customer is replying to it.
+   *
+   * Defaults to FALSE, which is the conservative reading: without it the opening
+   * whitelist applies and behaviour is exactly what it was. The worker derives
+   * it from durable state (`aiTurnCount`) rather than from the transcript
+   * window, so a long conversation whose opening scrolled out of view is still
+   * recognised as engaged.
+   */
+  agentHasSpoken?: boolean
 }
 
 const MEANINGFUL_MOVES = new Set<SalesMove>([
@@ -258,6 +290,7 @@ export function inboundHasMeaningfulSalesIntent(text: string): boolean {
   const t = (text ?? '').trim()
   if (!t || isLowInformationInbound(t)) return false
   if (inboundContainsRealQuestion(t)) return true
+  if (isInformationRequest(t)) return true
   if (isExplicitHelpRequest(t)) return true
   if (isBusinessPainSignal(t)) return true
   if (HELP_RE.test(t) || HELP_RE.test(collapseRepeatedLetters(t))) return true
@@ -281,13 +314,34 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
   const pendingQuestion = outboundAsksQuestion(input.previousOutbound)
   const afterWarning = input.previousOutboundKind === 'no_response_warning'
 
-  if (isLowInformationInbound(inboundText)) return wait('LOW_INFORMATION')
-
   if (isHoldOnUtterance(inboundText)) return wait('HOLD_ON')
 
   if (afterWarning && isExplicitStayPresent(inboundText)) return run('STAY_PRESENT')
 
   if (HELP_RE.test(inboundText) || HELP_RE.test(collapseRepeatedLetters(inboundText))) return run('HELP')
+
+  // ── THE ENGAGED GATE ───────────────────────────────────────────────────────
+  // The agent has spoken here, so this message is a turn in a conversation and
+  // is read as one. Deliberately placed after the no-response-warning branches
+  // above: "are you still there?" is a different question with its own tested
+  // semantics, and a reply to it is not an ordinary conversational turn.
+  //
+  // It sits ABOVE the letters-only LOW_INFORMATION check below, which is what
+  // lets "2019" and "200" be answers rather than nothing — the engaged gate
+  // applies its own digit-aware test. See `saysNothing`.
+  if (input.agentHasSpoken && !afterWarning) {
+    const engaged = decideEngagedTurn({
+      agentAwaitingAnswer: pendingQuestion,
+      inboundText,
+      previousCustomerText: input.previousCustomerText,
+      isGreetingOnly: isGreetingOnly(inboundText),
+      containsRealQuestion: inboundContainsRealQuestion(inboundText),
+    })
+    return engaged.answer ? run(engaged.reason) : wait(engaged.reason)
+  }
+
+  // ── THE OPENING GATE ───────────────────────────────────────────────────────
+  if (isLowInformationInbound(inboundText)) return wait('LOW_INFORMATION')
 
   if (isShortAffirmative(inboundText) && pendingQuestion && !afterWarning) return run('PENDING_QUESTION')
   if (isShortAffirmative(inboundText)) return wait('SHORT_AFFIRMATIVE')
@@ -305,6 +359,11 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
 
   if (inboundContainsRealQuestion(inboundText)) return run('REAL_QUESTION')
 
+  // A request is intent even though it is not a question. See conversation 6694:
+  // "היי אשמח לקבל פרטים על המערכת שלכם" answered the agent's own question and
+  // was skipped as NO_MEANINGFUL_INTENT, silencing the conversation for good.
+  if (isInformationRequest(inboundText)) return run('INFORMATION_REQUEST')
+
   if (isBusinessPainSignal(inboundText)) return run('PAIN_SIGNAL')
 
   if (MEANINGFUL_MOVES.has(input.salesMove) && inboundHasMeaningfulSalesIntent(inboundText)) {
@@ -321,6 +380,24 @@ export function shouldInvokeSalesAi(input: GptEligibilityInput): GptEligibility 
     if (input.customerInboundCount <= 1) return run('FIRST_TURN')
     return run('DISCOVERY')
   }
+
+  /**
+   * FIRST CONTACT THAT SAYS SOMETHING.
+   *
+   * The gate answered a bare "היי" through the greeting branch above, and then
+   * dropped "היי, יש לי בעיה ברכב", "אני צריך תור" and "הרכב שלי עושה רעש" — so
+   * the more a customer told the business, the less likely they were to hear
+   * back. The cause was `isBusinessPainSignal`, which recognises SocialCRM's own
+   * pain (losing leads) and nothing a garage's or a clinic's customer would ever
+   * say; every other business's stated need fell through to silence.
+   *
+   * `isSocialResidue` is what keeps this safe, and it is a positive list rather
+   * than a catch-all: thanks, a sign-off, a deferral, "hold on". Everything
+   * contentless was already handled above — emoji, a bare greeting, an
+   * acknowledgement. What reaches here on a first message is a stranger writing
+   * to a business's WhatsApp with something to say, which is a lead.
+   */
+  if (input.customerInboundCount <= 1 && !isSocialResidue(inboundText)) return run('FIRST_TURN')
 
   return wait('NO_MEANINGFUL_INTENT')
 }
