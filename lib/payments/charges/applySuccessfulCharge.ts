@@ -2,6 +2,8 @@ import { db } from '@/config/db'
 import { performAgencyUpgrade } from '@/lib/quota/performUpgrade'
 import { track } from '@/lib/analytics/track'
 import { markChargeFailed, markChargeSucceeded, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
+import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
+import { agencyOwner } from '@/lib/emailAutomations/recipients'
 
 /**
  * A Grow-confirmed token charge becomes paid time through the SAME Model B path
@@ -68,7 +70,28 @@ async function settleDuplicate(charge: ChargeRow, paid: PaidCharge): Promise<{ a
   return { applied: false }
 }
 
+/**
+ * Runs after the paid period has COMMITTED, never inside the transaction.
+ *
+ * `subscription.activated` is the same thank-you a Payment-Link customer gets
+ * (app/api/payments/grow/route.ts). Without it a card-billed customer would be
+ * charged ₪89 and hear nothing at all. It is send-once-forever by construction
+ * (no `recurring` ⇒ periodKey ''), so renewals re-fire the event, find the claim
+ * already taken and skip — exactly as on the Payment-Link path.
+ *
+ * Fully guarded: an email must never fail a transaction that already took money.
+ */
 async function announce(charge: ChargeRow): Promise<void> {
   await track({ agencyId: charge.agencyId, event: 'subscription_activated', props: { period: charge.billingPeriod, source: 'card_token', kind: charge.kind } })
   await track({ agencyId: charge.agencyId, event: 'subscription_charge_succeeded', props: { chargeId: charge.id, kind: charge.kind, attempt: charge.attempt } })
+  try {
+    const owner = await agencyOwner(charge.agencyId)
+    if (!owner) {
+      console.warn(`${LOG} subscription.activated: no owner resolved`, { agencyId: charge.agencyId })
+      return
+    }
+    await dispatchLifecycleEvent('subscription.activated', owner, new Date())
+  } catch (err) {
+    console.error(`${LOG} subscription.activated dispatch failed`, { agencyId: charge.agencyId, err: String(err) })
+  }
 }

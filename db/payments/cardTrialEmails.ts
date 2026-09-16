@@ -40,3 +40,48 @@ export function cardTrialChargeSoonQuery() {
     .whereNotExists((q) => q.select(1).from('billing_charges as bc').whereRaw('bc."agencyId" = a.id AND bc."periodKey" = ?', ['trial_end']))
     .select('u.id as userId', 'u.agencyId', 'u.email', 'u.firstName')
 }
+
+export type ChargeFailureNotice = {
+  periodKey: string
+  /** No attempt is left: the card must be replaced for the subscription to continue. */
+  final: boolean
+  /** When we will try the same card again, if we will. */
+  nextAttemptAt: Date | null
+}
+
+/**
+ * The charge failure this agency should be told about, or null.
+ *
+ * Deliberately excludes a failure that no longer means anything to the customer:
+ * a period that has since been paid (a later attempt succeeded), and an agency
+ * that has cancelled — telling someone who cancelled to "update your card" is
+ * both wrong and pushy. `unknown` is not a failure and never appears here; an
+ * unreconciled outcome must never be announced as a decline.
+ */
+export async function agencyChargeFailure(agencyId: number): Promise<ChargeFailureNotice | null> {
+  const failure = await db('billing_charges as c')
+    .join('subscriptions as s', 's.agencyId', 'c.agencyId')
+    .where('c.agencyId', agencyId)
+    .whereIn('c.status', ['failed_final', 'failed_retryable'])
+    .where('s.cancelAtPeriodEnd', false)
+    .whereNotExists((q) =>
+      q
+        .select(1)
+        .from('billing_charges as paid')
+        .whereRaw('paid."agencyId" = c."agencyId" AND paid."periodKey" = c."periodKey" AND paid.status = ?', ['succeeded']),
+    )
+    .orderBy('c.id', 'desc')
+    .first('c.periodKey as periodKey', 'c.status as status')
+  if (!failure) return null
+
+  const pending = await db('billing_charges')
+    .where({ agencyId, periodKey: failure.periodKey, status: 'pending' })
+    .min({ at: 'nextAttemptAt' })
+    .first()
+
+  return {
+    periodKey: String(failure.periodKey),
+    final: failure.status === 'failed_final',
+    nextAttemptAt: (pending?.at as Date | null) ?? null,
+  }
+}
