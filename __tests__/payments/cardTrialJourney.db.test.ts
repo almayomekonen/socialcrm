@@ -84,7 +84,7 @@ async function signUp() {
 }
 
 async function openSetup(requester: { id: number; agencyId: number; email: string; role: Roles }, purpose: 'trial_start' | 'card_update' | 'reactivate' = 'trial_start') {
-  const res = await startCardSetupForUser(requester, { purpose, fullName: 'John Smith', phone: '0501234567', acceptedTerms: true }, { createTokenOnlyProcess })
+  const res = await startCardSetupForUser(requester, { purpose, fullName: 'John Smith', phone: '0501234567', acceptedTerms: true, acceptedCardStorage: true }, { createTokenOnlyProcess })
   if (!('ok' in res)) throw new Error(`fixture: setup refused (${JSON.stringify(res)})`)
   const row = await db('billing_payment_methods').where({ agencyId: requester.agencyId, status: 'pending' }).orderBy('id', 'desc').first()
   return { methodId: Number(row.id), processId: row.setupProcessId as string, reference: row.reference as string }

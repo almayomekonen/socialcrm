@@ -30,6 +30,7 @@ async function pending(agencyId: number, processId: string, purpose: 'trial_star
     providerMode: 'sandbox',
     purpose,
     reference: `ref-${processId}-${agencyId}`,
+    cardStorageConsentVersion: '2026-09-16',
     holder,
     termsVersion: purpose === 'card_update' ? null : 'test',
   })

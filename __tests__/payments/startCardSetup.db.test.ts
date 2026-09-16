@@ -39,7 +39,7 @@ async function owner(role: Roles = Roles.ADMIN, agencyOver: Record<string, unkno
   const id = await seedUser(agencyId, role)
   return { id, agencyId, email: 'owner@example.com', role }
 }
-const good = { purpose: 'trial_start' as const, fullName: 'John Smith', phone: '050-123-4567', acceptedTerms: true }
+const good = { purpose: 'trial_start' as const, fullName: 'John Smith', phone: '050-123-4567', acceptedTerms: true, acceptedCardStorage: true }
 const events = (agencyId: number, event: string) => db('analytics_events').where({ agencyId, event })
 
 describe('startCardSetupForUser', () => {
@@ -67,7 +67,7 @@ describe('startCardSetupForUser', () => {
   it('refuses without explicit acceptance of the subscription terms', async () => {
     const r = await owner()
     expect(await startCardSetupForUser(r, { ...good, acceptedTerms: false }, deps)).toEqual({ error: 'terms_required' })
-    expect(await startCardSetupForUser(r, { purpose: 'trial_start', fullName: 'John Smith', phone: '0501234567' }, deps)).toEqual({ error: 'terms_required' })
+    expect(await startCardSetupForUser(r, { purpose: 'trial_start', fullName: 'John Smith', phone: '0501234567', acceptedCardStorage: true }, deps)).toEqual({ error: 'terms_required' })
     expect(createTokenOnlyProcess).not.toHaveBeenCalled()
     expect(await db('billing_payment_methods').where({ agencyId: r.agencyId })).toHaveLength(0)
   })
@@ -104,10 +104,29 @@ describe('startCardSetupForUser', () => {
     expect(rows[0].invalidReason).toBe('superseded_by_newer_setup')
   })
 
+  it('refuses without explicit consent to store the card, for every purpose', async () => {
+    const r = await owner()
+    expect(await startCardSetupForUser(r, { ...good, acceptedCardStorage: false }, deps)).toEqual({ error: 'card_storage_consent_required' })
+    expect(createTokenOnlyProcess).not.toHaveBeenCalled()
+    // card_update needs no new subscription terms, but still needs this one.
+    const updater = await owner(Roles.ADMIN, { trialStartedAt: hoursFromNow(-24), trialEndsAt: hoursFromNow(100) })
+    await seedMethod(updater.agencyId)
+    expect(await startCardSetupForUser(updater, { purpose: 'card_update' }, deps)).toEqual({ error: 'card_storage_consent_required' })
+    expect(createTokenOnlyProcess).not.toHaveBeenCalled()
+  })
+
+  it('records the card-storage consent with its version', async () => {
+    const r = await owner()
+    await startCardSetupForUser(r, good, deps)
+    const row = await db('billing_payment_methods').where({ agencyId: r.agencyId }).first()
+    expect(row.cardStorageConsentVersion).toBe('2026-09-16')
+    expect(row.cardStorageConsentAt).not.toBeNull()
+  })
+
   it('replaces a card without new terms, reusing the saved holder', async () => {
     const r = await owner(Roles.ADMIN, { trialStartedAt: hoursFromNow(-24), trialEndsAt: hoursFromNow(100) })
     await seedMethod(r.agencyId)
-    expect(await startCardSetupForUser(r, { purpose: 'card_update' }, deps)).toMatchObject({ ok: true })
+    expect(await startCardSetupForUser(r, { purpose: 'card_update', acceptedCardStorage: true }, deps)).toMatchObject({ ok: true })
     const row = await db('billing_payment_methods').where({ agencyId: r.agencyId, status: 'pending' }).first()
     expect(row).toMatchObject({ purpose: 'card_update', termsVersion: null, holderFullName: 'John Smith' })
     expect(createTokenOnlyProcess.mock.calls[0][0].cancelUrl).toBe('https://staging.example.com/settings/update_payment')

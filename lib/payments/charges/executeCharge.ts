@@ -82,6 +82,14 @@ export async function executeCharge(chargeId: number, deps: ExecuteDeps = liveDe
 
   const errorClass = classifyTokenChargeError(result.errorId, result.errorMessage)
   const detail = { errorId: result.errorId, errorMessage: result.errorMessage, statusCode: null }
+  if (errorClass === 'duplicate_identifier') {
+    // Grow has already seen this transactionUniqueIdentifier, so a charge for it
+    // may exist. Reconcile it; never send a fresh one with a new identifier,
+    // which is exactly how a customer gets billed twice.
+    await markChargeUnknown(charge.id, 'duplicate_identifier', detail)
+    console.error(`${LOG} duplicate identifier — reconcile, do not charge again`, { chargeId: charge.id, agencyId: charge.agencyId })
+    return 'unknown'
+  }
   if (errorClass === 'unknown') {
     await markChargeUnknown(charge.id, 'grow_error_unclassified', detail)
     console.error(`${LOG} unclassified Grow error — outcome unknown`, { chargeId: charge.id, agencyId: charge.agencyId, errorId: result.errorId })

@@ -9,7 +9,18 @@
  * Anything outside the table is 'unknown' — this module never guesses.
  */
 
-export type TokenErrorClass = 'final' | 'retryable' | 'unknown'
+export type TokenErrorClass = 'final' | 'retryable' | 'duplicate_identifier' | 'unknown'
+
+/**
+ * Grow error 1010: the transactionUniqueIdentifier has already been used.
+ *
+ * This is NOT a decline and NOT a reason to charge again. It means Grow has
+ * already seen this attempt, so a charge for it may well exist — sending a fresh
+ * one with a new identifier is how a customer gets billed twice. The only safe
+ * response is to reconcile: ask Grow what happened to that identifier, and act
+ * on the answer.
+ */
+export const DUPLICATE_IDENTIFIER_ERROR_ID = 1010
 
 const normalize = (message: string) => message.trim().replace(/\.+$/, '').trim()
 
@@ -26,6 +37,10 @@ const DOCUMENTED_MESSAGES: ReadonlyMap<string, Exclude<TokenErrorClass, 'unknown
 const FINAL_ONLY_IDS = new Set([451, 452, 453])
 
 export function classifyTokenChargeError(errorId: number | null, message: string): TokenErrorClass {
+  // Checked FIRST, and by id: a duplicate-identifier refusal must never fall
+  // through to a message rule that could read it as a decline (which would stop
+  // the card) or as retryable (which would charge again).
+  if (errorId === DUPLICATE_IDENTIFIER_ERROR_ID) return 'duplicate_identifier'
   const documented = DOCUMENTED_MESSAGES.get(normalize(message))
   if (documented) return documented
   if (errorId !== null && FINAL_ONLY_IDS.has(errorId)) return 'final'

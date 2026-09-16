@@ -127,7 +127,14 @@ export type ChargeTokenInput = {
   description: string
   /** Sent as transactionUniqueIdentifier. Grow's real handling of a repeat is unverified (G7). */
   uniqueIdentifier: number
-  /** Sent as transactionGroupIdentifier. Grow's real handling of a repeat is unverified (G7). */
+  /**
+   * Sent as transactionGroupIdentifier, to GROUP the attempts of one billing
+   * period. It is not a duplicate-charge guard and must never be used as one —
+   * Grow's support guidance is explicit that it cannot be relied on for that.
+   * Double-charge prevention is ours: the unique (agencyId, periodKey, attempt)
+   * and one-success-per-period constraints, the unique providerTransactionId,
+   * and transactionUniqueIdentifier per attempt.
+   */
   groupIdentifier: number
 }
 
@@ -173,15 +180,29 @@ export async function chargeToken(input: ChargeTokenInput): Promise<TokenChargeR
 
 /**
  * getTokenTransactionsByExternalIdentifiers. The request is documented; the
- * RESPONSE IS NOT. This returns Grow's envelope as received so the sandbox probe
+ * RESPONSE IS NOT.
+ *
+ * EXACTLY ONE external identifier per request — Grow's support guidance. The
+ * union type is the enforcement: there is no way to express "both" or "neither",
+ * so a future caller cannot send two by accident. This returns Grow's envelope as received so the sandbox probe
  * can record the real shape. Reconciliation logic must not be built on it until
  * Gate B evidence exists.
  */
-export async function lookupTokenTransactionsRaw(input: { cardToken: string; uniqueIdentifier: number }): Promise<GrowEnvelope> {
+export type TokenLookupIdentifier = { uniqueIdentifier: number } | { groupIdentifier: number }
+
+export async function lookupTokenTransactionsRaw(input: {
+  cardToken: string
+  /** EXACTLY ONE external identifier — see the type, which admits no other shape. */
+  identifier: TokenLookupIdentifier
+}): Promise<GrowEnvelope> {
   const { userId } = getGrowApiConfig()
+  const external =
+    'uniqueIdentifier' in input.identifier
+      ? { transactionUniqueIdentifier: input.identifier.uniqueIdentifier }
+      : { transactionGroupIdentifier: input.identifier.groupIdentifier }
   return postGrowForm('getTokenTransactionsByExternalIdentifiers/', {
     userId,
     cardToken: input.cardToken,
-    transactionUniqueIdentifier: input.uniqueIdentifier,
+    ...external,
   })
 }

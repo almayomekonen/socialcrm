@@ -82,6 +82,8 @@ export async function createPendingPaymentMethod(input: {
   holder: CardHolder
   /** Required (DB CHECK) for trial_start and reactivate; null for card_update. */
   termsVersion: string | null
+  /** Explicit permission to keep this card on file. Required for EVERY purpose. */
+  cardStorageConsentVersion: string
 }): Promise<number> {
   const [row] = await db(TABLE)
     .insert({
@@ -96,6 +98,8 @@ export async function createPendingPaymentMethod(input: {
       holderEmail: input.holder.email,
       termsVersion: input.termsVersion,
       termsAcceptedAt: input.termsVersion ? new Date() : null,
+      cardStorageConsentVersion: input.cardStorageConsentVersion,
+      cardStorageConsentAt: new Date(),
     })
     .returning('id')
   return Number(typeof row === 'object' ? row.id : row)

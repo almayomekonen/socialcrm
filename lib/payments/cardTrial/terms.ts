@@ -52,3 +52,15 @@ export function cardTrialDisclosureLines(): string[] {
 
 /** The label of the explicit subscription consent — separate from Grow's card-storage checkbox. */
 export const CARD_TRIAL_CONSENT_LABEL = 'אני מאשר/ת את תנאי המנוי: חיוב חודשי אוטומטי בתום תקופת הניסיון, עד לביטול'
+
+/**
+ * The SECOND, separate consent: permission to keep the card on file and charge
+ * it later. Grow's page asks this too, but their integration guidance is that it
+ * must be given explicitly in our interface as well — it is the permission the
+ * customer is most entitled to be asked for directly, and it is not the same
+ * thing as agreeing to the subscription.
+ */
+export const CARD_STORAGE_CONSENT_LABEL =
+  'אני מאשר/ת שפרטי הכרטיס יישמרו באופן מאובטח אצל ספק הסליקה Grow, ושניתן יהיה לחייב אותו בעתיד עבור המנוי'
+
+export const CARD_STORAGE_CONSENT_VERSION = '2026-09-16'

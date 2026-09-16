@@ -72,6 +72,30 @@ untouched either way.
 `assertGrowRuntime()` refuses every other combination: production mode only on
 the Vercel production deployment, sandbox mode never on it.
 
+## 3b. Grow support integration guidance (2026-09-16)
+
+Applied, and pinned by `__tests__/payments/growSupportGuidance.test.ts`:
+
+- **Card-storage consent is ours to collect.** Two separate checkboxes: the
+  subscription agreement, and explicit permission to keep the card on file and
+  charge it later. Required server-side for EVERY purpose (a replacement is
+  still a new card being stored) and recorded with its version
+  (`cardStorageConsentAt` / `cardStorageConsentVersion`).
+- **`transactionGroupIdentifier` is not a duplicate-charge guard.** It groups the
+  attempts of one period and nothing decides an outcome from it. Double-charge
+  prevention is ours: unique `(agencyId, periodKey, attempt)`, one success per
+  period, unique `providerTransactionId`, and one
+  `transactionUniqueIdentifier` per attempt.
+- **Error 1010 (duplicate unique identifier) is reconciled, never recharged.**
+  Classified by id before any message rule, so it can never be read as a decline
+  or as retryable. The attempt becomes `unknown` with `duplicate_identifier` and
+  no new attempt is scheduled — sending a fresh identifier is precisely how a
+  customer gets billed twice.
+- **A lookup carries exactly one external identifier.** `TokenLookupIdentifier`
+  is a union, so "both" and "neither" cannot be expressed.
+- **No `ApproveTransaction`** for token-only saving or token charges, pending
+  clarification. Asserted absent from the Grow client and the card-trial code.
+
 ## 4. Provider-evidence gates (`lib/payments/grow/providerEvidence.ts`)
 
 Three behaviours depend on Grow specifics the documentation does not establish.

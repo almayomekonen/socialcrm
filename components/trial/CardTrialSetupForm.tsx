@@ -5,16 +5,20 @@ import { Btn } from '@/lib/btns/Btn'
 import { Input, Checkbox } from '@/lib/form'
 import { startCardSetup } from '@/actions/paymentMethod'
 import { trackTrialStartClicked, trackTrialStartFailed } from '@/actions/trial'
-import { CARD_TRIAL_CONSENT_LABEL, cardTrialDisclosureLines } from '@/lib/payments/cardTrial/terms'
+import { CARD_TRIAL_CONSENT_LABEL, CARD_STORAGE_CONSENT_LABEL, cardTrialDisclosureLines } from '@/lib/payments/cardTrial/terms'
 import type { PaymentMethodPurpose } from '@/db/payments/paymentMethods'
 
 /**
  * Card setup, before anything is granted.
  *
- * TWO CONSENTS, NEVER CONFLATED. The checkbox here is agreement to the
- * SUBSCRIPTION — automatic monthly billing after the trial — and it is recorded
- * with its terms version. Grow's own page separately asks the customer to
- * approve SAVING the card; that consent is Grow's and is not repeated here.
+ * TWO CONSENTS, NEVER CONFLATED, and both given HERE:
+ *   1. agreement to the SUBSCRIPTION — automatic monthly billing after the
+ *      trial — recorded with its terms version;
+ *   2. permission to STORE the card with Grow and charge it later.
+ *
+ * The second used to be left to Grow's own page. Grow's integration guidance is
+ * that it must be asked explicitly in our interface too, so it is a separate
+ * checkbox: ticking one must never be read as agreeing to the other.
  *
  * Nothing on this screen starts a trial: the CTA opens Grow's payment page, and
  * only the verified callback activates anything. The submit button is disabled
@@ -26,6 +30,7 @@ const ERRORS: Record<string, string> = {
   not_eligible: 'לא ניתן להפעיל את תקופת הניסיון עבור החשבון הזה',
   provider_unavailable: 'לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.',
   terms_required: 'יש לאשר את תנאי המנוי כדי להמשיך',
+  card_storage_consent_required: 'יש לאשר את שמירת פרטי הכרטיס כדי להמשיך',
 }
 
 export type CardTrialSetupFormProps = {
@@ -40,6 +45,7 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
   const [fullName, setFullName] = useState(defaultFullName)
   const [phone, setPhone] = useState('')
   const [accepted, setAccepted] = useState(false)
+  const [storageAccepted, setStorageAccepted] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<{ field: 'fullName' | 'phone' | null; message: string } | null>(null)
 
@@ -49,7 +55,7 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
     setError(null)
     trackTrialStartClicked().catch(() => {})
     try {
-      const res = await startCardSetup({ purpose, fullName, phone, acceptedTerms: accepted })
+      const res = await startCardSetup({ purpose, fullName, phone, acceptedTerms: accepted, acceptedCardStorage: storageAccepted })
       if ('error' in res) {
         setError({
           field: res.error === 'invalid_holder' ? res.field : null,
@@ -99,6 +105,11 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
 
       <div className='flex flex-col gap-1.5'>
         <Checkbox lbl={CARD_TRIAL_CONSENT_LABEL} checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+        <Checkbox
+          lbl={CARD_STORAGE_CONSENT_LABEL}
+          checked={storageAccepted}
+          onChange={(e) => setStorageAccepted(e.target.checked)}
+        />
         <a href='/terms' target='_blank' rel='noreferrer' className='text-xs text-gray-500 underline self-start'>
           תנאי השימוש
         </a>

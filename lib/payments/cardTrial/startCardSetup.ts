@@ -17,7 +17,7 @@ import {
 } from '@/db/payments/paymentMethods'
 import { isGrowLocalMockEnabled, localMockCreateTokenOnlyProcess, localMockOrigin } from '@/lib/payments/grow/localMock'
 import { validateCardHolder } from './cardHolder'
-import { CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
+import { CARD_STORAGE_CONSENT_VERSION, CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
 
 /**
  * Opens a Grow "Get Token Only" payment page for this agency. Nothing here
@@ -32,10 +32,10 @@ import { CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
  */
 
 export type CardSetupRequester = { id: number; agencyId: number; email: string | null; role: Roles }
-export type StartCardSetupInput = { purpose: PaymentMethodPurpose; fullName?: string; phone?: string; acceptedTerms?: boolean }
+export type StartCardSetupInput = { purpose: PaymentMethodPurpose; fullName?: string; phone?: string; acceptedTerms?: boolean; acceptedCardStorage?: boolean }
 export type StartCardSetupResult =
   | { ok: true; url: string }
-  | { error: 'unauthorized' | 'not_eligible' | 'provider_unavailable' | 'terms_required' }
+  | { error: 'unauthorized' | 'not_eligible' | 'provider_unavailable' | 'terms_required' | 'card_storage_consent_required' }
   | { error: 'invalid_holder'; field: 'fullName' | 'phone'; message: string }
 
 /** /billing/success?source=… — decides which verifier copy the customer sees. */
@@ -100,6 +100,9 @@ export async function startCardSetupForUser(
 
   if (!(await isCardSetupEligible(requester.agencyId, input.purpose))) return { error: 'not_eligible' }
   if (needsTerms(input.purpose) && input.acceptedTerms !== true) return { error: 'terms_required' }
+  // Required for EVERY purpose, card_update included: a replacement is still a
+  // new card being put on file, and that is the permission this consent covers.
+  if (input.acceptedCardStorage !== true) return { error: 'card_storage_consent_required' }
   const holder = await resolveHolder(requester, input)
   if ('field' in holder) return { error: 'invalid_holder', field: holder.field, message: holder.message }
 
@@ -112,6 +115,7 @@ export async function startCardSetupForUser(
     reference,
     holder: holder.holder,
     termsVersion: needsTerms(input.purpose) ? CARD_TRIAL_TERMS_VERSION : null,
+    cardStorageConsentVersion: CARD_STORAGE_CONSENT_VERSION,
   })
   // One live setup per agency: a callback for an older page can no longer activate anything.
   await supersedePendingPaymentMethods(db, requester.agencyId, 'superseded_by_newer_setup', methodId)

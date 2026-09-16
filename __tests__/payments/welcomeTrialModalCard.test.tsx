@@ -65,10 +65,17 @@ describe('welcome modal — card-required variant', () => {
     const onRedirect = vi.fn()
     render(<CardTrialSetupForm purpose='trial_start' defaultFullName='ישראל ישראלי' submitLabel='המשך' onRedirect={onRedirect} />)
     fireEvent.change(screen.getByLabelText(/טלפון נייד/), { target: { value: '0501234567' } })
-    fireEvent.click(screen.getByRole('checkbox'))
+    // Two separate consents: the subscription, and storing the card.
+    screen.getAllByRole('checkbox').forEach((box) => fireEvent.click(box))
     fireEvent.click(screen.getByText('המשך'))
     await waitFor(() => expect(onRedirect).toHaveBeenCalledWith('https://sandbox.meshulam.co.il/far?l=x'))
-    expect(startCardSetup).toHaveBeenCalledWith({ purpose: 'trial_start', fullName: 'ישראל ישראלי', phone: '0501234567', acceptedTerms: true })
+    expect(startCardSetup).toHaveBeenCalledWith({
+      purpose: 'trial_start',
+      fullName: 'ישראל ישראלי',
+      phone: '0501234567',
+      acceptedTerms: true,
+      acceptedCardStorage: true,
+    })
   })
 
   it('shows the field message for an invalid holder and does not redirect', async () => {
@@ -94,7 +101,7 @@ describe('welcome modal — card-required variant', () => {
   it('tells a non-admin who can do this', () => {
     render(<WelcomeTrialModal cardSetup={{ ...cardSetup, canManageBilling: false }} />)
     expect(screen.getByText('רק מנהל החשבון יכול להפעיל את תקופת הניסיון.')).toBeTruthy()
-    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
   })
 })
 
@@ -103,7 +110,7 @@ describe('welcome modal — click-to-start (no card) is unchanged', () => {
     render(<WelcomeTrialModal />)
     expect(await screen.findByText('הפעל את ה-Pro שלי')).toBeTruthy()
     expect(document.body.textContent).toContain('ללא כרטיס אשראי')
-    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
     fireEvent.click(screen.getByText('הפעל את ה-Pro שלי'))
     await waitFor(() => expect(startTrial).toHaveBeenCalled())
     expect(startCardSetup).not.toHaveBeenCalled()

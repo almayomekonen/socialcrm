@@ -244,7 +244,7 @@ describe('lookupTokenTransactionsRaw (response undocumented)', () => {
   it('sends the documented request fields and returns the envelope uninterpreted', async () => {
     const body = { status: 1, err: '', data: { anything: ['as', 'grow', 'sent', 'it'] } }
     fetchMock.mockResolvedValue(growResponse(body))
-    expect(await lookupTokenTransactionsRaw({ cardToken: 'ct', uniqueIdentifier: 5 })).toEqual({ status: 1, err: null, data: body.data })
+    expect(await lookupTokenTransactionsRaw({ cardToken: 'ct', identifier: { uniqueIdentifier: 5 } })).toEqual({ status: 1, err: null, data: body.data })
     const { url, form } = sent()
     expect(url.endsWith('/getTokenTransactionsByExternalIdentifiers/')).toBe(true)
     expect(form.get('userId')).toBe('user-1')

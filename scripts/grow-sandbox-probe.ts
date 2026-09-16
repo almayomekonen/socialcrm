@@ -202,7 +202,7 @@ async function main(): Promise<void> {
   if (command === 'lookup') {
     const entry = processState(state, args[0])
     if (!entry.cardToken) throw new Error('no cardToken recorded for this process: run `info` first')
-    const env = await lookupTokenTransactionsRaw({ cardToken: entry.cardToken, uniqueIdentifier: positiveInt(args[1], 'uniqueId') })
+    const env = await lookupTokenTransactionsRaw({ cardToken: entry.cardToken, identifier: { uniqueIdentifier: positiveInt(args[1], 'uniqueId') } })
     record(`lookup ${args[0]} ${args[1]}`, { envelopeStatus: env.status, errId: env.err?.id ?? null })
     return
   }

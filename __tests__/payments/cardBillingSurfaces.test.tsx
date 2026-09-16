@@ -133,7 +133,8 @@ describe('expired trial recovery', () => {
     render(<TrialExpiredScreen cardReactivation={{ reason }} />)
     expect(document.body.textContent).toContain(copy)
     expect(screen.getByText('עדכון אמצעי תשלום והמשך')).toBeTruthy()
-    expect(screen.getByRole('checkbox')).toBeTruthy()
+    // Subscription agreement AND explicit card-storage consent.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2)
     expect(screen.queryByText('שדרג עכשיו')).toBeNull()
   })
 
@@ -148,6 +149,6 @@ describe('expired trial recovery', () => {
   it('a no-card agency still gets the Payment-Link upgrade', () => {
     render(<TrialExpiredScreen />)
     expect(screen.getByText('שדרג עכשיו')).toBeTruthy()
-    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
   })
 })
