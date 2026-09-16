@@ -174,7 +174,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
             {canStartSetup && setupPurpose ? (
               <CardTrialSetupForm purpose={setupPurpose} submitLabel={SETUP_LABEL[setupPurpose]} />
             ) : (
-              <PaymentsUnavailableNotice action='start' />
+              <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
             )}
           </div>
         </section>

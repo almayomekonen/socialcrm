@@ -254,7 +254,7 @@ export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCa
           ) : cardSetup.stage === 'unavailable' ? (
             <div role='status' className='space-y-2 text-center'>
               <p className='text-sm font-semibold text-gray-900'>לא ניתן להוסיף אמצעי תשלום כרגע</p>
-              <p className='text-sm text-gray-600'>מערכת התשלומים אינה זמינה זמנית, ולכן לא ניתן להתחיל את תקופת הניסיון. לא בוצע חיוב.</p>
+              <p className='text-sm text-gray-600'>מערכת התשלומים אינה זמינה זמנית, ולכן לא ניתן להתחיל את תקופת הניסיון והגישה למערכת עדיין לא נפתחה. לא בוצע חיוב.</p>
               <p className='text-xs text-gray-500'>אפשר לנסות שוב מאוחר יותר, או לפנות אלינו ונטפל בזה.</p>
             </div>
           ) : cardSetup.canManageBilling ? (

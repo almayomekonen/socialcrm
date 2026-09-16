@@ -70,6 +70,9 @@ describe('the billing screen never offers a retired checkout', () => {
   it('does not promise a trial or a payment while billing is unavailable', () => {
     const notice = readFileSync('components/billing/PaymentsUnavailableNotice.tsx', 'utf8')
     expect(notice).toContain('לא בוצע חיוב')
+    // "your access is unaffected" is a lie to an account that has none.
+    expect(notice).toContain('hasAccess')
+    expect(notice).toContain('לא ניתן להפעיל כרגע את הגישה למערכת')
     for (const forbidden of ['הניסיון הופעל', 'התשלום בוצע', 'שולם']) {
       expect(notice).not.toContain(forbidden)
     }
