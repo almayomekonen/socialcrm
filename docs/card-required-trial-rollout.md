@@ -161,13 +161,21 @@ Grow's callbacks are registered against a staging deployment, never production.
 
 Staging configuration is branch-scoped to `feat/card-required-trial` so nothing
 leaks into other previews: `APP_ENV=staging`, `GROW_MODE=sandbox`, `APP_HOST` =
-the alias, `GROW_SANDBOX_ISOLATED_DATA=true`, a staging-only `DATABASE_URL`,
-`SECRETS_ENC_KEY` and `CRON_SECRET`, and `CARD_REQUIRED_TRIAL_ENABLED`,
+the alias, `GROW_SANDBOX_ISOLATED_DATA=true`, a staging-only
+`STAGING_DATABASE_URL`, `SECRETS_ENC_KEY` and `CRON_SECRET`, and
+`CARD_REQUIRED_TRIAL_ENABLED`,
 `SUBSCRIPTION_CHARGES_ENABLED`, `EMAIL_AUTOMATIONS_ENABLED`,
 `WELCOME_EMAIL_ENABLED` all `false`.
 
 Two notes on what that does and does not prove:
 
+- **`STAGING_DATABASE_URL`, not `DATABASE_URL`.** The Neon marketplace
+  integration injects `DATABASE_URL` into every environment it is connected to,
+  and that injection outranks a branch-scoped project variable — a branch-scoped
+  `DATABASE_URL` is accepted, stored, and then ignored at runtime, so the
+  preview reads production while appearing configured. `config/db.ts` resolves
+  `STAGING_DATABASE_URL` instead on a non-production Vercel deployment with
+  `APP_ENV=staging`, and throws rather than falling back.
 - `GROW_SANDBOX_ISOLATED_DATA` is an **operator assertion**, not evidence. It
   lets `assertGrowRuntime()` proceed; it does not check where `DATABASE_URL`
   points. Isolation was established separately — a distinct Neon project id and
