@@ -58,7 +58,7 @@ export async function getCardSetupStatus(): Promise<CardSetupState> {
     }
     return await getCardSetupStateForAgency(user.agencyId)
   } catch (err) {
-    if (err instanceof AuthError) return { state: 'verifying', callbackReceived: false, firstChargeAt: null }
+    if (err instanceof AuthError) return { state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false }
     throw err
   }
 }

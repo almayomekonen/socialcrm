@@ -1,5 +1,6 @@
 import { getLatestPaymentMethod } from '@/db/payments/paymentMethods'
 import { getAgencyTrial } from '@/db/trial'
+import { areSubscriptionChargesEnabled } from '@/lib/payments/grow/config'
 import { firstChargeAt } from './firstCharge'
 
 /**
@@ -14,6 +15,14 @@ export type CardSetupState = {
   callbackReceived: boolean
   /** From the persisted trial end — present once the trial is actually running. */
   firstChargeAt: string | null
+  /**
+   * Whether a charge can actually be dispatched. With it false the date is when
+   * the trial ENDS, not when money will move, and the screen must not promise
+   * otherwise.
+   */
+  chargesEnabled: boolean
+  /** A sandbox result is a test, and has to say so. */
+  sandbox: boolean
 }
 
 export async function getCardSetupStateForAgency(agencyId: number): Promise<CardSetupState> {
@@ -29,5 +38,7 @@ export async function getCardSetupStateForAgency(agencyId: number): Promise<Card
     state,
     callbackReceived: Boolean(latest?.lastCallbackAt),
     firstChargeAt: firstChargeAt(trial?.trialEndsAt)?.toISOString() ?? null,
+    chargesEnabled: areSubscriptionChargesEnabled(),
+    sandbox: latest?.providerMode === 'sandbox',
   }
 }

@@ -8,8 +8,15 @@ vi.mock('@/actions/paymentMethod', () => ({ getCardSetupStatus: vi.fn() }))
 import CardSetupVerifier from '@/components/billing/CardSetupVerifier'
 import type { CardSetupState } from '@/lib/payments/cardTrial/setupStatus'
 
-const verifying: CardSetupState = { state: 'verifying', callbackReceived: false, firstChargeAt: null }
-const confirmed = (firstChargeAt: string): CardSetupState => ({ state: 'confirmed', callbackReceived: true, firstChargeAt })
+const verifying: CardSetupState = { state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false }
+const confirmed = (firstChargeAt: string, over: Partial<CardSetupState> = {}): CardSetupState => ({
+  state: 'confirmed',
+  callbackReceived: true,
+  firstChargeAt,
+  chargesEnabled: false,
+  sandbox: false,
+  ...over,
+})
 
 beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
 afterEach(() => vi.useRealTimers())
@@ -18,15 +25,30 @@ describe('the return page never announces what the server has not confirmed', ()
   it('says it is verifying, and that nothing is charged, while the answer is pending', async () => {
     render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => verifying)} />)
     expect(await screen.findByText(/מאמתים מול חברת הסליקה/)).toBeTruthy()
-    expect(document.body.textContent).toContain('לא יבוצע חיוב עכשיו')
+    expect(document.body.textContent).toContain('לא מבוצע חיוב עבור המנוי')
     expect(document.body.textContent).not.toContain('תקופת הניסיון הופעלה')
   })
 
-  it('announces activation with the first-charge date only once the server confirms', async () => {
-    render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => confirmed('2026-09-23T09:00:00.000Z'))} />)
+  it('names a real charge only when charging can actually happen', async () => {
+    render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => confirmed('2026-09-23T09:00:00.000Z', { chargesEnabled: true }))} />)
     expect(await screen.findByText('תקופת הניסיון הופעלה')).toBeTruthy()
     expect(document.body.textContent).toContain('23/09/2026')
     expect(document.body.textContent).toContain('₪89')
+  })
+
+  it('does NOT promise a charge on that date while charging is disabled', async () => {
+    render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => confirmed('2026-09-23T09:00:00.000Z'))} />)
+    expect(await screen.findByText('תקופת הניסיון הופעלה')).toBeTruthy()
+    expect(document.body.textContent).toContain('23/09/2026')
+    // The date is when the TRIAL ends, not when money moves.
+    expect(document.body.textContent).toContain('חיוב אוטומטי אינו פעיל')
+    expect(document.body.textContent).not.toContain('₪89')
+  })
+
+  it('says plainly when the result is a sandbox test', async () => {
+    render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => confirmed('2026-09-23T09:00:00.000Z', { sandbox: true }))} />)
+    expect(await screen.findByText(/Sandbox/)).toBeTruthy()
+    expect(document.body.textContent).toContain('לא בוצעה עסקה אמיתית')
   })
 
   it('stops polling once the outcome is known', async () => {
@@ -51,7 +73,7 @@ describe('the return page never announces what the server has not confirmed', ()
   })
 
   it('a failed setup says no charge was made and points at the retry', async () => {
-    render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => ({ state: 'failed' as const, callbackReceived: true, firstChargeAt: null }))} />)
+    render(<CardSetupVerifier purpose='card_trial' poll={vi.fn(async () => ({ state: 'failed' as const, callbackReceived: true, firstChargeAt: null, chargesEnabled: false, sandbox: false }))} />)
     expect(await screen.findByText('לא הצלחנו לאמת את הכרטיס')).toBeTruthy()
     expect(document.body.textContent).toContain('לא בוצע חיוב')
   })

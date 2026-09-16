@@ -18,7 +18,7 @@ import { render, cleanup } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
 
-vi.mock('@/actions/paymentMethod', () => ({ startCardSetup: async () => ({ ok: true, url: '#' }), getCardSetupStatus: async () => ({ state: 'verifying', callbackReceived: false, firstChargeAt: null }) }))
+vi.mock('@/actions/paymentMethod', () => ({ startCardSetup: async () => ({ ok: true, url: '#' }), getCardSetupStatus: async () => ({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false }) }))
 vi.mock('@/actions/trial', () => ({
   startTrial: async () => ({ ok: true, started: true }),
   trackTrialStartClicked: async () => {},
@@ -64,10 +64,10 @@ describe.skipIf(!ENABLED)('generate card-trial harness', () => {
     }
 
     await dump('1-welcome-card', <WelcomeTrialModal cardSetup={{ defaultFullName: 'ישראל ישראלי', canManageBilling: true, stage: 'setup' }} />)
-    await dump('2-success-verifying', <CardSetupVerifier purpose='card_trial' poll={async () => ({ state: 'verifying', callbackReceived: true, firstChargeAt: null })} />)
+    await dump('2-success-verifying', <CardSetupVerifier purpose='card_trial' poll={async () => ({ state: 'verifying', callbackReceived: true, firstChargeAt: null, chargesEnabled: false, sandbox: false })} />)
     await dump(
       '3-success-confirmed',
-      <CardSetupVerifier purpose='card_trial' poll={async () => ({ state: 'confirmed', callbackReceived: true, firstChargeAt: FIRST_CHARGE.toISOString() })} />,
+      <CardSetupVerifier purpose='card_trial' poll={async () => ({ state: 'confirmed', callbackReceived: true, firstChargeAt: FIRST_CHARGE.toISOString(), chargesEnabled: false, sandbox: false })} />,
     )
     await dump(
       '4-billing-active',

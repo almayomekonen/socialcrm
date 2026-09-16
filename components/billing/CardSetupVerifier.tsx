@@ -34,7 +34,7 @@ const HEADLINE: Record<Props['purpose'], string> = {
 }
 
 export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus }: Props) {
-  const [status, setStatus] = useState<CardSetupState>({ state: 'verifying', callbackReceived: false, firstChargeAt: null })
+  const [status, setStatus] = useState<CardSetupState>({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false })
   const [timedOut, setTimedOut] = useState(false)
 
   useEffect(() => {
@@ -67,9 +67,16 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus }
       {status.state === 'confirmed' ? (
         <>
           <h1 className='text-xl font-bold'>{HEADLINE[purpose]}</h1>
+          {status.sandbox && (
+            <p className='text-sm font-semibold text-amber-800' role='status'>
+              בדיקת סליקה בסביבת Sandbox — לא בוצעה עסקה אמיתית ולא נשמר כרטיס אמיתי.
+            </p>
+          )}
           {purpose === 'card_trial' && chargeDate && (
             <p className='text-sm text-gray-600'>
-              הכרטיס נשמר ולא חויב. החיוב הראשון, ₪{CARD_TRIAL_AMOUNT}, יתבצע ב־{chargeDate}. אפשר לבטל לפני כן בעמוד המנוי.
+              {status.chargesEnabled
+                ? `הכרטיס נשמר. החיוב הראשון, ₪${CARD_TRIAL_AMOUNT}, יתבצע ב־${chargeDate}. אפשר לבטל לפני כן בעמוד המנוי.`
+                : `הכרטיס נשמר. תקופת הניסיון מסתיימת ב־${chargeDate}; חיוב אוטומטי אינו פעיל כרגע, ולכן לא ייגבה תשלום במועד הזה.`}
             </p>
           )}
           {purpose !== 'card_trial' && <p className='text-sm text-gray-600'>הפרטים נשמרו. אפשר להמשיך לעבוד.</p>}
@@ -105,7 +112,7 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus }
         <>
           <h1 className='text-xl font-bold'>רק רגע, מאמתים מול חברת הסליקה</h1>
           <p className='text-sm text-gray-600' role='status'>
-            הכרטיס נשמר בצד של Grow ואנחנו מאשרים אותו. לא יבוצע חיוב עכשיו.
+            הכרטיס נשמר בצד של Grow ואנחנו מאשרים אותו. לא מבוצע חיוב עבור המנוי בשלב הזה.
           </p>
         </>
       )}
