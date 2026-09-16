@@ -1,7 +1,6 @@
-import { db } from '@/config/db'
 import { getPaymentProcessInfo } from '@/lib/payments/grow/api'
 import { assertGrowRuntime } from '@/lib/payments/grow/config'
-import { decryptSetupProcessToken, type PaymentMethodRow } from '@/db/payments/paymentMethods'
+import { decryptSetupProcessToken, getLatestPaymentMethod } from '@/db/payments/paymentMethods'
 import { confirmCardSetup, type ConfirmOutcome } from './confirmCardSetup'
 import { verifyTokenSaveWithGrow } from './verifyTokenSave'
 
@@ -26,13 +25,13 @@ export async function recoverPendingCardSetup(
   agencyId: number,
   deps = { getPaymentProcessInfo, verify: verifyTokenSaveWithGrow },
 ): Promise<RecoverOutcome> {
-  const method = (await db('billing_payment_methods')
-    .where({ agencyId, status: 'pending' })
-    .whereNotNull('setupProcessId')
-    .whereNotNull('lastCallbackAt')
-    .orderBy('id', 'desc')
-    .first()) as PaymentMethodRow | undefined
-  if (!method?.setupProcessId) return { kind: 'nothing_to_recover' }
+  // Through the mapper, never a raw row: the column is `setupProcessToken` and
+  // the mapped field is `setupProcessTokenEnc`, so a raw row cast to the type
+  // looks fine to the compiler and then cannot be decrypted.
+  const method = await getLatestPaymentMethod(agencyId)
+  if (!method || method.status !== 'pending' || !method.setupProcessId || !method.setupProcessTokenEnc || !method.lastCallbackAt) {
+    return { kind: 'nothing_to_recover' }
+  }
 
   const runtime = assertGrowRuntime()
   const processToken = decryptSetupProcessToken(method)
