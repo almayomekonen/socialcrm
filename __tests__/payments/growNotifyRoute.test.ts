@@ -8,11 +8,14 @@ vi.mock('next/server', async (importOriginal) => {
 })
 vi.mock('@/lib/payments/cardTrial/confirmCardSetup', () => ({ confirmCardSetup: vi.fn() }))
 vi.mock('@/lib/analytics/track', () => ({ track: vi.fn(async () => {}) }))
+vi.mock('@/lib/emailAutomations/live', () => ({ dispatchLifecycleEvent: vi.fn(async () => {}) }))
+vi.mock('@/lib/emailAutomations/recipients', () => ({ agencyOwner: vi.fn(async () => ({ userId: 5, agencyId: 9, email: 'o@example.com', firstName: 'O' })) }))
 
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/payments/grow/notify/route'
 import { confirmCardSetup } from '@/lib/payments/cardTrial/confirmCardSetup'
 import { track } from '@/lib/analytics/track'
+import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
 
 const SECRET_VALUES = { processId: '462950', processToken: 'e2202e3c-secret', cardToken: 'ct-secret-value', statusCode: '11', sum: '1', cField1: 'ref-1' }
 const form = (fields: Record<string, string> = SECRET_VALUES) =>
@@ -30,6 +33,7 @@ beforeEach(() => {
   vi.stubEnv('GROW_SANDBOX_ISOLATED_DATA', 'true')
   vi.mocked(confirmCardSetup).mockReset()
   vi.mocked(track).mockClear()
+  vi.mocked(dispatchLifecycleEvent).mockClear()
   hoisted.tasks.length = 0
 })
 afterEach(() => {
@@ -64,6 +68,14 @@ describe('POST /api/payments/grow/notify', () => {
     expect(track).toHaveBeenCalledWith({ agencyId: 9, userId: 5, event: 'card_setup_confirmed', props: { purpose: 'trial_start' } })
     expect(track).toHaveBeenCalledWith({ agencyId: 9, userId: 5, event: 'trial_started', props: { cardRequired: true } })
     expect(JSON.stringify(vi.mocked(track).mock.calls)).not.toMatch(/secret|462950|ref-1/)
+  })
+
+  it('sends the card-trial activation email, never the no-card one', async () => {
+    vi.mocked(confirmCardSetup).mockResolvedValue({ kind: 'confirmed', agencyId: 9, purpose: 'trial_start', createdByUserId: 5, trialStarted: true })
+    await POST(form())
+    await Promise.all(hoisted.tasks)
+    expect(dispatchLifecycleEvent).toHaveBeenCalledWith('trial.card_started', expect.objectContaining({ userId: 5 }), expect.any(Date))
+    expect(vi.mocked(dispatchLifecycleEvent).mock.calls.map((c) => c[0])).not.toContain('trial.started')
   })
 
   it('does not record trial_started when no trial started', async () => {
