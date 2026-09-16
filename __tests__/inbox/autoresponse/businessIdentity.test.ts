@@ -13,11 +13,19 @@ const AGENCY_A: BusinessIdentity = {
   agencyId: 103,
   name: 'SocialCRM',
   guidance: 'מערכת לניהול לידים מרשתות חברתיות. מרכזת פניות, וואטסאפ וסטטוס במקום אחד.',
+  agentInstructions: null,
+  // SocialCRM's own account: the one tenant whose business facts ARE the
+  // product catalogue.
+  isOwnProductBusiness: true,
+  profile: null,
 }
 const AGENCY_B: BusinessIdentity = {
   agencyId: 99,
   name: 'סטודיו אור',
   guidance: 'סטודיו לעיצוב פנים, מתמחים בדירות.',
+  agentInstructions: null,
+  isOwnProductBusiness: false,
+  profile: null,
 }
 
 function identityUser(inbound: string, identity: BusinessIdentity, salesMove?: string) {
@@ -86,10 +94,10 @@ describe('business identity prompt contract', () => {
   it('במה אתם עוסקים? gets a citeable identity block, not discovery interrogation', () => {
     const user = identityUser('במה אתם עוסקים?', AGENCY_A)
     expect(user).toContain('שם העסק: SocialCRM')
-    expect(user).toContain('מה העסק עושה:')
+    expect(user).toContain('מה העסק עושה, ומה מותר לומר בשמו')
     expect(user).toContain('ניהול לידים')
     expect(user).toContain('זו שאלת זהות העסק')
-    expect(user).toContain('אל תשאל שאלת גילוי על העסק')
+    expect(user).toContain('אל תשאל/י את הלקוח על העסק')
     expect(user).not.toContain('לא לציטוט כעובדה')
     expect(user).not.toContain('בחרי יעד אחד עם הערך הכי גבוה עכשיו')
   })
@@ -101,7 +109,7 @@ describe('business identity prompt contract', () => {
   it('הגעתי מהמודעה שלכם forbids screenshot/link fishing', () => {
     const user = identityUser('הגעתי מהמודעה שלכם', AGENCY_A)
     expect(user).toMatch(/צילום מסך/)
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תבקש צילום מסך')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תבקש/י צילום מסך')
   })
   it('מה השירותים שלכם? is answer-first with PK when allowlisted', () => {
     const pk = retrieveProductKnowledge({
@@ -119,7 +127,7 @@ describe('business identity prompt contract', () => {
   it('price questions stay BUYING_SIGNAL and the prompt forbids invented prices', () => {
     expect(classifySalesMove('מה המחיר?')).toBe('BUYING_SIGNAL')
     const user = identityUser('מה המחיר?', AGENCY_A, 'BUYING_SIGNAL')
-    expect(user).toContain('אסור להמציא מחיר')
+    expect(user).toContain('אסור להמציא שירות, מוצר, יכולת, מחיר')
     expect(validateAutoResponse('המחיר הוא 199 שקל לחודש', { questionPolicy: 'zero_or_one' }).ok).toBe(false)
     expect(validateAutoResponse('אין לי מחיר מאומת כרגע', { questionPolicy: 'zero_or_one' }).ok).toBe(true)
   })
@@ -139,11 +147,16 @@ describe('business identity prompt contract', () => {
       SOCIALCRM_CAPABILITIES.every((c) => !/הדגמה|\bdemo\b/i.test(`${c.name} ${c.safeExplanationHe} ${c.safeExplanationEn}`)),
     ).toBe(true)
     const user = identityUser('איך מתחילים?', AGENCY_A, 'BUYING_SIGNAL')
-    expect(user).toContain('אסור להמציא דמו')
-    expect(user).toContain('צעד מאומת')
+    expect(user).toContain('אסור להמציא תהליך הצטרפות, טופס, או שלב כלשהו')
+    expect(user).toContain('צעד שמופיע במפורש בזהות העסק')
     expect(user).not.toContain('הצע צעד הבא ברור מהמוצר')
     expect(AGENCY_A.guidance).not.toMatch(/הדגמה|\bdemo\b/i)
-    expect(validateAutoResponse('נתחיל בהדגמה קצרה', { questionPolicy: 'zero_or_one' }).ok).toBe(false)
+    // "Do not invent an onboarding step" is enforced where the fact lives — the
+    // prompt plus this business's own saved information — and no longer by a
+    // global ban on the WORD הדגמה in the shared validator. That ban encoded one
+    // tenant's fact (SocialCRM has no verified demo) into a guardrail every
+    // tenant shares, so a business that genuinely runs demos could not say so.
+    // The assertions above are the real protection; this one is its complement.
     expect(
       validateAutoResponse('אני לא רוצה להמציא לך את תהליך ההצטרפות המדויק. נציג יוכל לכוון אותך.', {
         questionPolicy: 'zero_or_one',
@@ -226,14 +239,14 @@ describe('loadBusinessIdentity tenant scope', () => {
     const { loadBusinessIdentity } = await import('@/lib/inbox/autoresponse/businessIdentity')
     const a = await loadBusinessIdentity(103, 'whatsapp')
     const b = await loadBusinessIdentity(99, 'whatsapp')
-    expect(a).toEqual({ agencyId: 103, name: 'SocialCRM', guidance: 'CRM ללידים מרשתות' })
-    expect(b).toEqual({ agencyId: 99, name: 'סטודיו אור', guidance: 'סטודיו לעיצוב פנים' })
+    expect(a).toEqual({ agencyId: 103, name: 'SocialCRM', guidance: 'CRM ללידים מרשתות', agentInstructions: null, isOwnProductBusiness: false, profile: null })
+    expect(b).toEqual({ agencyId: 99, name: 'סטודיו אור', guidance: 'סטודיו לעיצוב פנים', agentInstructions: null, isOwnProductBusiness: false, profile: null })
     expect(a.guidance).not.toBe(b.guidance)
     expect(a.name).not.toBe(b.name)
   })
   it('does not return another agency when the id is missing', async () => {
     const { loadBusinessIdentity } = await import('@/lib/inbox/autoresponse/businessIdentity')
     const missing = await loadBusinessIdentity(777, 'whatsapp')
-    expect(missing).toEqual({ agencyId: 777, name: null, guidance: null })
+    expect(missing).toEqual({ agencyId: 777, name: null, guidance: null, agentInstructions: null, isOwnProductBusiness: false, profile: null })
   })
 })

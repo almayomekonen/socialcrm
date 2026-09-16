@@ -113,6 +113,8 @@ const CTX: QualifyCtx = {
     quietHours: {},
     dailyCap: 200,
     guidance: null,
+    agentInstructions: null,
+    businessProfile: null,
     mode: 'qualify',
     maxTurns: 5,
     collectFields: { required: ['name'], optional: [] },
@@ -134,6 +136,7 @@ const OK_GEN = {
   ok: true as const,
   reply: 'מה הכי מפריע לך בזה עכשיו?',
   extracted: {},
+  corrected: [],
   objective: 'understand_pain' as const,
   understanding: { pain: null, impact: null, currentWorkflow: null, desiredOutcome: null },
   hotSignal: false,
@@ -473,7 +476,7 @@ describe('qualify AI generation retry', () => {
     expect(generateQualify).toHaveBeenCalledTimes(2)
     expect(outcome).toBe('sent')
     expect(markEscalated).not.toHaveBeenCalled()
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'מה הכי מפריע לך בזה עכשיו?' }))
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: 'מה הכי חשוב לך שנבין כדי לעזור?' }))
     expect(recordTurn).toHaveBeenCalledTimes(1)
   })
 
@@ -516,6 +519,7 @@ describe('qualify AI generation retry', () => {
       ...OK_GEN,
       reply: generated,
       extracted: { need: 'עזרה בניהול כמות גדולה של לידים בעסק נדל״ן' },
+      corrected: [],
       objective: 'advance' as const,
       salesMove: 'BUYING_SIGNAL' as const,
       hotSignal: true,
@@ -645,6 +649,7 @@ describe('conversation 578 sales-progression worker', () => {
       ...OK_GEN,
       reply: EXPLANATION,
       extracted: { need: 'ניהול לידים' },
+      corrected: [],
       objective: 'advance' as const,
       salesMove: 'PRODUCT_QUESTION' as const,
       hotSignal: false,
@@ -701,6 +706,7 @@ describe('conversation 578 sales-progression worker', () => {
       ...OK_GEN,
       reply: EXPLANATION,
       extracted: { need: 'ניהול לידים' },
+      corrected: [],
       objective: 'advance' as const,
       salesMove: 'PRODUCT_QUESTION' as const,
       hotSignal: false,
@@ -733,6 +739,7 @@ describe('conversation 578 sales-progression worker', () => {
       ...OK_GEN,
       reply: EXPLANATION,
       extracted: { need: 'ניהול לידים' },
+      corrected: [],
       objective: 'advance' as const,
       salesMove: 'PRODUCT_FIT' as const,
       hotSignal: false,

@@ -26,9 +26,14 @@ import { validateAutoResponse } from './validate'
 import { renderFixedReply } from './renderFixedReply'
 import { waTrace } from './waTrace'
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
-import { formatBusinessIdentityBlock, loadBusinessIdentity } from './businessIdentity'
+import { formatBusinessIdentityBlock, groundedFactsFor, loadBusinessIdentity } from './businessIdentity'
+import { decideGreeting, withGreeting } from './greeting'
+import { safeFallbackReply } from './safeFallback'
+import { detectLang } from './qualify'
+import { hasPriorOutbound } from '@/db/inboxMessages'
 import { assertIreSendAllowed } from './ireSendGate'
 import { assertAgentSendAllowed } from './agentSendGuard'
+import { enqueueFollowUpTurnIfOwed } from './followUpTurn'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -144,9 +149,13 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
   if (elig.shouldRespond === false) return doSkip(elig.skipReason)
 
   const replyMode = settings?.replyMode ?? 'ai'
+  const lastCustomerMessage = (conv.lastMessageText as string | null) ?? ''
+  const lang = detectLang(lastCustomerMessage)
   let message: string | null = null
 
   if (replyMode === 'fixed') {
+    // A fixed reply is the owner's own words, sent verbatim. It is never
+    // prefixed with a greeting: whatever welcome they want is already in it.
     const body = (settings?.fixedBody ?? '').trim()
     if (!body) return doSkip('fixed_body_empty')
     message = renderFixedReply(body, {
@@ -157,13 +166,32 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
   } else {
     const identity = await loadBusinessIdentity(job.agencyId, job.channel)
     const businessIdentityBlock = formatBusinessIdentityBlock(identity)
+    const priorOutbound = await hasPriorOutbound(job.conversationId)
+    const greeting = decideGreeting({
+      hasPriorOutbound: priorOutbound,
+      businessName: identity.name,
+      lang,
+      aiState: null,
+    })
+    const greetingLine = greeting.greet ? greeting.line : null
+    waTrace('GREETING_DECISION', { conversationId: job.conversationId, jobId: job.id, agencyId: job.agencyId }, {
+      greet: greeting.greet,
+      reason: 'reason' in greeting ? greeting.reason : null,
+      hasBusinessName: Boolean(identity.name),
+      priorOutbound,
+      lang,
+      mode: 'acknowledge',
+    })
+
     for (let attempt = 0; attempt < 2 && !message; attempt++) {
       const gen = await deps.generate({
         agencyId: job.agencyId,
         customerName: (conv.customerName as string | null) ?? null,
-        lastCustomerMessage: (conv.lastMessageText as string | null) ?? '',
+        lastCustomerMessage,
         guidance: settings?.guidance ?? null,
         businessIdentityBlock,
+        greetingLine,
+        lang,
       })
       if (gen.ok === false) {
         if (isRetryableIreGenerationFailure(gen.skipReason)) {
@@ -172,9 +200,32 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
         }
         return doSkip(gen.skipReason)
       }
-      if (validateAutoResponse(gen.message).ok) message = gen.message
+      if (
+        validateAutoResponse(gen.message, {
+          greetingTurn: Boolean(greetingLine),
+          groundedFacts: groundedFactsFor(identity),
+        }).ok
+      ) {
+        message = gen.message
+      }
     }
-    if (!message) return doSkip('validation_failed')
+
+    // RECOVERY, not silence. Two failed generations used to end the turn with
+    // skipReason 'validation_failed' and the customer received nothing at all —
+    // the worst available outcome, because they assume they were ignored and the
+    // owner never learns it happened. A short honest holding message keeps the
+    // conversation alive for a human. It still passes every gate below: the
+    // send-eligibility re-check, the personal/tenant gate, and the human-presence
+    // boundary all run after this point, unchanged.
+    if (!message) {
+      message = safeFallbackReply('acknowledgement', lang, greetingLine)
+      console.warn(`[IRE] validation_failed_recovered conv=${job.conversationId} job=${job.id}`)
+      await track({
+        agencyId: job.agencyId,
+        event: 'auto_response_recovered',
+        props: { conversationId: job.conversationId, reason: 'validation_failed' },
+      })
+    }
   }
   console.log(`[IRE] generated conv=${job.conversationId} mode=${replyMode} len=${message.length}`)
 
@@ -301,6 +352,39 @@ export async function runAutoResponseWorker(
         const fin = await db('auto_response_jobs')
           .where({ id: job.id })
           .first('status', 'skipReason', 'lastError', 'sentMessageId')
+
+        // ── Close the loop on a message that landed mid-turn ────────────────
+        // The worker read its transcript once, at the start. Anything the
+        // customer sent after that was refused by the in-flight unique index and
+        // is covered by no job at all. Check now, while we know exactly which
+        // sequence this job covered, and enqueue one more turn if a newer
+        // inbound is waiting. See followUpTurn.ts for why this terminates.
+        //
+        // Wrapped with the trace write: a failure here must never change the
+        // outcome of the job that just completed.
+        let followUp: { jobId: number | null; decision: unknown } | null = null
+        try {
+          followUp = await db.transaction((trx) =>
+            enqueueFollowUpTurnIfOwed(
+              trx,
+              {
+                agencyId: job.agencyId,
+                conversationId: job.conversationId,
+                leadId: job.leadId,
+                channel: job.channel,
+                reason: job.reason,
+                triggerSequence: job.triggerSequence,
+              },
+              { outcome, skipReason: (fin?.skipReason as string | null) ?? null },
+            ),
+          )
+        } catch (followUpErr) {
+          console.error('[IRE] follow-up enqueue failed', {
+            conversationId: job.conversationId,
+            reason: (followUpErr as Error)?.message,
+          })
+        }
+
         waTrace(
           'JOB_FINISHED',
           { ...traceCtx, messageId: (fin?.sentMessageId as number | null) ?? null },
@@ -310,6 +394,8 @@ export async function runAutoResponseWorker(
             skipReason: fin?.skipReason ?? null,
             lastError: fin?.lastError ?? null,
             durationMs: Date.now() - startedAt,
+            followUpJobId: followUp?.jobId ?? null,
+            followUpDecision: followUp?.decision ?? null,
           },
         )
       } catch {

@@ -123,7 +123,7 @@ describe('unlimited engaged conversation lifetime', () => {
       salesMove: 'DISCOVERY',
       discoveryBudgetExhausted: true,
     })
-    expect(user).toContain('תקציב שאלות הגילוי הסתיים')
+    expect(user).toContain('תקציב שאלות הבירור היזומות הסתיים')
     expect(isDiscoveryQuestionBudgetExhausted({ salesMove: 'PRODUCT_QUESTION', turnCount: 5, maxTurns: 5 })).toBe(false)
     expect(questionPolicyForSalesMove('PRODUCT_QUESTION', { discoveryBudgetExhausted: true })).toBe('zero_or_one')
   })

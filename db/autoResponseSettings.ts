@@ -4,6 +4,7 @@
  * Additive, read/write only — no business logic.
  */
 import { db } from '@/config/db'
+import { parseBusinessProfile, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfile'
 import {
   parseReplyMode,
   clampDelaySeconds,
@@ -30,13 +31,19 @@ export interface AutoResponseSettings {
   enabled: boolean
   quietHours: { tz?: string; startHour?: number; endHour?: number }
   dailyCap: number
+  /** Business information: what this business is and what it may say. */
   guidance: string | null
+  /** How the agent should converse for this business. Never sent verbatim. */
+  agentInstructions: string | null
+  /** Structured profile derived from `guidance` on save. Null until derived. */
+  businessProfile: BusinessProfile | null
   // Qualifier (P0b additive). Defaults reproduce one-shot acknowledge behavior.
   mode: 'acknowledge' | 'qualify'
   maxTurns: number
   collectFields: CollectFields
   draft: boolean
   replyMode: AutoResponseReplyMode
+  /** The literal outgoing message, used only by replyMode 'fixed'. */
   fixedBody: string | null
   delaySeconds: number
 }
@@ -48,6 +55,8 @@ interface SettingsRow {
   quietHours: AutoResponseSettings['quietHours'] | null
   dailyCap: number
   guidance: string | null
+  agentInstructions: string | null
+  businessProfile: unknown
   mode: string | null
   maxTurns: number | null
   collectFields: CollectFields | string | null
@@ -78,6 +87,8 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
       'quietHours',
       'dailyCap',
       'guidance',
+      'agentInstructions',
+      'businessProfile',
       'mode',
       'maxTurns',
       'collectFields',
@@ -95,6 +106,8 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
     quietHours: row.quietHours ?? {},
     dailyCap: row.dailyCap,
     guidance: row.guidance,
+    agentInstructions: row.agentInstructions ?? null,
+    businessProfile: parseBusinessProfile(row.businessProfile),
     mode: row.mode === 'qualify' ? 'qualify' : 'acknowledge',
     maxTurns: row.maxTurns ?? 5,
     collectFields: (typeof cf === 'string' ? JSON.parse(cf) : (cf ?? DEFAULT_COLLECT)) as CollectFields,
@@ -107,39 +120,73 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
 
 export type UpsertChannelSettingsInput = Pick<
   AutoResponseSettings,
-  'agencyId' | 'channel' | 'enabled' | 'quietHours' | 'dailyCap' | 'guidance' | 'replyMode' | 'fixedBody' | 'delaySeconds'
-> & { updatedBy: number }
+  | 'agencyId'
+  | 'channel'
+  | 'enabled'
+  | 'quietHours'
+  | 'dailyCap'
+  | 'guidance'
+  | 'replyMode'
+  | 'fixedBody'
+  | 'delaySeconds'
+> & {
+  updatedBy: number
+  /** Optional: callers that do not manage these leave the stored value alone. */
+  agentInstructions?: string | null
+  mode?: AutoResponseSettings['mode']
+  /**
+   * `undefined` leaves the stored profile alone; `null` clears it. Clearing
+   * matters: a description saved while derivation was down must not keep serving
+   * the profile built from the previous text.
+   */
+  businessProfile?: BusinessProfile | null
+}
 
+/**
+ * `mode` is written here for the first time. It was previously reachable only by
+ * a hand-written UPDATE, which is why every agency sat on the column default and
+ * the conversational agent was unreachable through the product.
+ *
+ * It stays OPTIONAL on the input: a caller that omits it must not silently reset
+ * a row that is already on `qualify`, so the merge only touches the column when a
+ * value was supplied. Same for `agentInstructions`.
+ */
 export async function upsertChannelSettings(input: UpsertChannelSettingsInput): Promise<void> {
   const replyMode = parseReplyMode(input.replyMode)
   const delaySeconds = clampDelaySeconds(input.delaySeconds)
   const fixedBody =
     replyMode === 'fixed' ? (input.fixedBody ?? '').trim().slice(0, MAX_FIXED_BODY_LENGTH) || null : input.fixedBody
 
+  const optional: Record<string, unknown> = {}
+  if (input.mode !== undefined) optional.mode = input.mode === 'qualify' ? 'qualify' : 'acknowledge'
+  if (input.businessProfile !== undefined) {
+    optional.businessProfile = input.businessProfile ? JSON.stringify(input.businessProfile) : null
+  }
+  if (input.agentInstructions !== undefined) {
+    optional.agentInstructions = (input.agentInstructions ?? '')?.trim()
+      ? (input.agentInstructions as string).trim().slice(0, MAX_FIXED_BODY_LENGTH)
+      : null
+  }
+
+  const shared = {
+    enabled: input.enabled,
+    quietHours: JSON.stringify(input.quietHours ?? {}),
+    dailyCap: input.dailyCap,
+    guidance: input.guidance,
+    replyMode,
+    fixedBody,
+    delaySeconds,
+    updatedBy: input.updatedBy,
+    updatedAt: db.fn.now(),
+    ...optional,
+  }
+
   await db('auto_response_settings')
     .insert({
       agencyId: input.agencyId,
       channel: input.channel,
-      enabled: input.enabled,
-      quietHours: JSON.stringify(input.quietHours ?? {}),
-      dailyCap: input.dailyCap,
-      guidance: input.guidance,
-      replyMode,
-      fixedBody,
-      delaySeconds,
-      updatedBy: input.updatedBy,
-      updatedAt: db.fn.now(),
+      ...shared,
     })
     .onConflict(['agencyId', 'channel'])
-    .merge({
-      enabled: input.enabled,
-      quietHours: JSON.stringify(input.quietHours ?? {}),
-      dailyCap: input.dailyCap,
-      guidance: input.guidance,
-      replyMode,
-      fixedBody,
-      delaySeconds,
-      updatedBy: input.updatedBy,
-      updatedAt: db.fn.now(),
-    })
+    .merge(shared)
 }

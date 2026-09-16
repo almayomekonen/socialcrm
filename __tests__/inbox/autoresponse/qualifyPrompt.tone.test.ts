@@ -31,8 +31,8 @@ describe('QUALIFY_SYSTEM_PROMPT delivery', () => {
   })
 
   it('keeps product, pricing, and safety rules', () => {
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אסור לנקוב במחיר מספרי')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('בשאלת מוצר: קודם תשובה ישירה')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אסור להתחייב בשם העסק')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('בשאלה על מה שהעסק מציע: קודם תשובה ישירה')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('ResponseProfile changes delivery only')
   })
 

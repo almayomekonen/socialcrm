@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
+import { db } from '@/config/db'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { isMobileWorkspaceRequest } from '@/lib/device'
@@ -36,9 +37,10 @@ export default async function AutoResponseSettingsPage() {
    */
   const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
 
-  const [master, channel] = await Promise.all([
+  const [master, channel, agency] = await Promise.all([
     getMasterEnabled(user.agencyId),
     getChannelSettings(user.agencyId, 'whatsapp'),
+    db('agencies').where({ id: user.agencyId }).first('name'),
   ])
 
   return (
@@ -57,6 +59,8 @@ export default async function AutoResponseSettingsPage() {
         channelEnabled={channel?.enabled ?? false}
         dailyCap={channel?.dailyCap ?? 200}
         guidance={channel?.guidance ?? null}
+        agentInstructions={channel?.agentInstructions ?? null}
+        businessName={typeof agency?.name === 'string' ? agency.name.trim() : ''}
         replyMode={channel?.replyMode ?? 'ai'}
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}

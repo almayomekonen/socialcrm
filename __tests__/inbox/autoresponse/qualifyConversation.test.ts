@@ -22,9 +22,9 @@ const WORKFLOW_INBOUND = 'הכל באקסל'
 
 const NAME_QUESTION_HE = 'איך לפנות אליך?'
 const NAME_QUESTION_EN = 'What should I call you?'
-const PAIN_FALLBACK_HE = 'מה הכי מפריע לך בזה עכשיו?'
-const IMPACT_FALLBACK_HE = 'מה קורה בדרך כלל כשזה לא מסתדר?'
-const OUTCOME_FALLBACK_HE = 'מה היית רוצה שיהיה אחרת?'
+const PAIN_FALLBACK_HE = 'מה הכי חשוב לך שנבין כדי לעזור?'
+const IMPACT_FALLBACK_HE = 'תוכל/י לספר קצת יותר על מה שאת/ה צריך/ה?'
+const OUTCOME_FALLBACK_HE = 'מה היית רוצה שיקרה מכאן?'
 const NEED_DISCOVERY_HE = 'איך אפשר לעזור?'
 
 const CRM_FIELD_QUESTIONS = [
@@ -61,15 +61,15 @@ describe('qualify conversation quality (prompt + decision)', () => {
   })
 
   it('does not instruct the model to collect every missing field in order', () => {
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('את לא מנהלת שאלון. את מנהלת שיחה.')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תנסי להשלים את השדות החסרים בזה אחר זה.')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('את/ה מנהל/ת שיחה, לא שאלון.')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תנסה/י להשלים את השדות החסרים בזה אחר זה.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('העובדות שנאספו הן זיכרון פנימי בלבד, לא רשימת משימות.')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('שדות מובנים הם זיכרון CRM, לא רשימת שאלות שמכתיבה את השאלה הבאה.')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשאלי על urgency/budget/location/callback רק משום שהם חסרים.')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('שדות מובנים הם זיכרון פנימי, לא רשימת שאלות שמכתיבה את השאלה הבאה.')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשאל/י על urgency/budget/location/callback רק משום שהם חסרים.')
     expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשאל/י שאלה רק כי שדה חסר.')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשבחי כל הודעה')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תחזרי על דברי הלקוח כסיכום')
-    expect(QUALIFY_SYSTEM_PROMPT).toContain('הגיבי לניסוח של הלקוח')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תשבח/י כל הודעה')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('אל תחזור/חזרי על דברי הלקוח כסיכום')
+    expect(QUALIFY_SYSTEM_PROMPT).toContain('הגיב/י לניסוח של הלקוח')
     expect(QUALIFY_SYSTEM_PROMPT).not.toMatch(/ברגע ששם וצורך/)
     expect(QUALIFY_SYSTEM_PROMPT).not.toContain('שקף/י בקצרה')
   })
@@ -87,7 +87,7 @@ describe('qualify conversation quality (prompt + decision)', () => {
     expect(user).not.toContain('name חסר')
     expect(user).not.toMatch(/\bname, need\b/)
     expect(user).not.toMatch(/\bname, urgency\b/)
-    expect(user).toContain('קודם כל הגיבי לזה')
+    expect(user).toContain('קודם כל הגיב/י לזה')
     expect(user).toContain('אל תשאל/י לשם')
     const exploreNeed = 'ברור. מה הכי מפריע לך היום בניהול הלקוחות?'
     expect(validateAutoResponse(exploreNeed).ok).toBe(true)
@@ -475,7 +475,7 @@ describe('Phase B conversation brain (objective + cognition)', () => {
     expect(user).toContain('pain=שוכחת לחזור להודעות')
     expect(user).toContain('impact=(לא ידוע)')
     expect(user).toContain('יעד קודם: understand_pain')
-    expect(user).toContain('impact לפני עוד תהליך')
+    expect(user).toContain('אל תעבור/עברי סדר קבוע')
     expect(user).not.toContain('מידע פנימי שעוד חסר')
     expect(user).not.toMatch(/נוגעת ל:/)
   })
