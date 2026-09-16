@@ -1,7 +1,13 @@
 import knex from 'knex'
 import dotenv from 'dotenv'
 
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env.local'
+/**
+ * `.env.local` by default, exactly as before. APP_ENV_FILE lets a throwaway
+ * local instance (the card-trial demo walkthrough) point at its own env file and
+ * its own database without editing the shared one another dev server is using.
+ * Test runs keep their fixed file.
+ */
+const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : process.env.APP_ENV_FILE || '.env.local'
 dotenv.config({ path: envFile, override: true })
 
 const rawUrl = process.env.DATABASE_URL ?? ''

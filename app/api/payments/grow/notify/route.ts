@@ -6,6 +6,7 @@ import { assertGrowRuntime } from '@/lib/payments/grow/config'
 import { readGrowCallback, GrowCallbackError } from '@/lib/payments/grow/callbackPayload'
 import { confirmCardSetup } from '@/lib/payments/cardTrial/confirmCardSetup'
 import { verifyTokenSaveWithGrow } from '@/lib/payments/cardTrial/verifyTokenSave'
+import { isGrowLocalMockEnabled, localMockVerifyTokenSave } from '@/lib/payments/grow/localMock'
 
 /**
  * Grow server-to-server callback (notifyUrl) for card-token setup:
@@ -28,9 +29,13 @@ import { verifyTokenSaveWithGrow } from '@/lib/payments/cardTrial/verifyTokenSav
 const LOG = '[GrowNotify]'
 
 export async function POST(req: NextRequest) {
-  let runtime: ReturnType<typeof assertGrowRuntime>
+  // Local demo only: the mock stands in for the whole provider, verification
+  // included. It fails closed off a developer machine, and it does not change
+  // the provider-evidence gates that govern the real verifier.
+  const mocked = isGrowLocalMockEnabled()
+  let runtime: ReturnType<typeof assertGrowRuntime> = { env: 'staging', mode: 'sandbox' }
   try {
-    runtime = assertGrowRuntime()
+    if (!mocked) runtime = assertGrowRuntime()
   } catch (err) {
     console.error(`${LOG} runtime not allowed`, { err: String(err) })
     return new NextResponse('Service unavailable', { status: 503 })
@@ -51,7 +56,8 @@ export async function POST(req: NextRequest) {
 
   let outcome: Awaited<ReturnType<typeof confirmCardSetup>>
   try {
-    outcome = await confirmCardSetup(parsed.callback, { verify: verifyTokenSaveWithGrow, runtimeMode: () => runtime.mode })
+    const verify = mocked ? localMockVerifyTokenSave : verifyTokenSaveWithGrow
+    outcome = await confirmCardSetup(parsed.callback, { verify, runtimeMode: () => runtime.mode })
   } catch (err) {
     console.error(`${LOG} processing failed — Grow will retry`, { err: String(err) })
     return new NextResponse('Processing error', { status: 500 })

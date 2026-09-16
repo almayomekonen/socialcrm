@@ -15,6 +15,7 @@ import {
   supersedePendingPaymentMethods,
   type PaymentMethodPurpose,
 } from '@/db/payments/paymentMethods'
+import { isGrowLocalMockEnabled, localMockCreateTokenOnlyProcess, localMockOrigin } from '@/lib/payments/grow/localMock'
 import { validateCardHolder } from './cardHolder'
 import { CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
 
@@ -81,9 +82,12 @@ export async function startCardSetupForUser(
 ): Promise<StartCardSetupResult> {
   if (!isAdmin(requester.role)) return { error: 'unauthorized' }
 
+  // The local demo mock replaces Grow entirely on a developer machine; it fails
+  // closed everywhere else, where the real runtime guard decides (localMock.ts).
+  const mocked = isGrowLocalMockEnabled()
   let mode: 'sandbox' | 'production'
   try {
-    mode = assertGrowRuntime().mode
+    mode = mocked ? 'sandbox' : assertGrowRuntime().mode
   } catch (err) {
     console.error('[CardSetup] Grow runtime not allowed', { err: String(err) })
     return providerUnavailable(requester, input.purpose)
@@ -108,8 +112,9 @@ export async function startCardSetupForUser(
   await supersedePendingPaymentMethods(db, requester.agencyId, 'superseded_by_newer_setup', methodId)
 
   try {
-    const origin = publicAppOrigin()
-    const grow = await deps.createTokenOnlyProcess({
+    const origin = mocked ? localMockOrigin() : publicAppOrigin()
+    const createProcess = mocked ? localMockCreateTokenOnlyProcess : deps.createTokenOnlyProcess
+    const grow = await createProcess({
       holder: holder.holder,
       reference,
       description: TOKEN_PROCESS_DESCRIPTION,
