@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
  * Blocked in production, like the POST above.
  */
 export async function GET(req: NextRequest) {
-  if (IS_PROD) return new NextResponse('Not found', { status: 404 })
+  if (IS_PROD || process.env.VERCEL_ENV) return new NextResponse('Not found', { status: 404 })
   const key = req.nextUrl.searchParams.get('automation')
   const agencyId = Number(req.nextUrl.searchParams.get('agencyId') ?? 0)
   const recipient: Recipient = { userId: 0, agencyId, email: PREVIEW_TO, firstName: 'דוד' }

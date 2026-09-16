@@ -18,6 +18,9 @@ import type { TokenSaveVerification } from '@/lib/payments/cardTrial/verifyToken
  */
 
 export function isGrowLocalMockEnabled(): boolean {
+  // A Vercel deployment of any kind is never a developer machine, whatever the
+  // other variables say.
+  if (process.env.VERCEL || process.env.VERCEL_ENV || process.env.NEXT_PUBLIC_VERCEL_ENV) return false
   return process.env.NODE_ENV !== 'production' && process.env.APP_ENV === 'local' && process.env.GROW_LOCAL_MOCK === 'true'
 }
 

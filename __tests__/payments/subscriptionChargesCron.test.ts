@@ -47,7 +47,13 @@ describe('/api/cron/subscription-charges', () => {
     expect((await GET(req({ 'x-cron-secret': 'cron-secret' }))).status).toBe(500)
   })
 
-  it('is not scheduled yet: vercel.json has no entry for it (a launch step)', () => {
-    expect(readFileSync('vercel.json', 'utf8')).not.toContain('subscription-charges')
+  it('is scheduled, and the schedule is harmless while the flag is off', () => {
+    const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'))
+    const entry = vercel.crons.find((c: { path: string }) => c.path === '/api/cron/subscription-charges')
+    expect(entry).toMatchObject({ schedule: '*/5 * * * *' })
+    // Every cron that existed before is still scheduled.
+    expect(vercel.crons.length).toBeGreaterThanOrEqual(12)
+    // runChargePass returns before touching the database when the flag is absent
+    // (asserted in runChargePass.db.test.ts), so the schedule is a no-op then.
   })
 })

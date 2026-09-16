@@ -4,6 +4,9 @@ import { isGrowLocalMockEnabled, localMockOrigin, localMockCreateTokenOnlyProces
 afterEach(() => vi.unstubAllEnvs())
 
 const enable = () => {
+  vi.stubEnv('VERCEL', '')
+  vi.stubEnv('VERCEL_ENV', '')
+  vi.stubEnv('NEXT_PUBLIC_VERCEL_ENV', '')
   vi.stubEnv('NODE_ENV', 'development')
   vi.stubEnv('APP_ENV', 'local')
   vi.stubEnv('GROW_LOCAL_MOCK', 'true')
@@ -13,7 +16,7 @@ describe('the local Grow demo mock fails closed', () => {
   it('is off unless all three conditions hold', () => {
     enable()
     expect(isGrowLocalMockEnabled()).toBe(true)
-    for (const [k, v] of [['NODE_ENV', 'production'], ['APP_ENV', 'staging'], ['GROW_LOCAL_MOCK', '']] as const) {
+    for (const [k, v] of [['NODE_ENV', 'production'], ['APP_ENV', 'staging'], ['GROW_LOCAL_MOCK', ''], ['VERCEL', '1'], ['VERCEL_ENV', 'preview'], ['NEXT_PUBLIC_VERCEL_ENV', 'production']] as const) {
       enable()
       vi.stubEnv(k, v)
       expect(isGrowLocalMockEnabled()).toBe(false)

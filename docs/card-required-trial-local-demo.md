@@ -6,12 +6,12 @@ mock stands in for Grow's hosted page and its verification.
 
 ## What is real and what is simulated
 
-| Real | Simulated (local mock) |
-|---|---|
-| The app's routes, components, server actions and database lifecycle | Grow's hosted payment page (`/api/dev/grow-mock/pay`) |
+| Real                                                                        | Simulated (local mock)                                                                  |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| The app's routes, components, server actions and database lifecycle         | Grow's hosted payment page (`/api/dev/grow-mock/pay`)                                   |
 | `/api/payments/grow/notify` — the real parser, correlation and confirmation | The callback Grow would post (`/api/dev/grow-mock/callback` posts it to the real route) |
-| Trial activation, charge rows, cancellation, analytics, emails | The token-save verification result |
-| The magic-link sign-in the product already uses | The "payment" rows for the declined / unknown / cancelled screens, inserted by the seed |
+| Trial activation, charge rows, cancellation, analytics, emails              | The token-save verification result                                                      |
+| The magic-link sign-in the product already uses                             | The "payment" rows for the declined / unknown / cancelled screens, inserted by the seed |
 
 The mock is `lib/payments/grow/localMock.ts`. It needs **all three** of
 `NODE_ENV !== 'production'`, `APP_ENV === 'local'` and `GROW_LOCAL_MOCK=true`,
@@ -47,16 +47,16 @@ LINKS_ONLY=1 DATABASE_URL=… APP_BASE=http://localhost:3002 npx tsx scripts/dem
 Each sign-in link logs into one synthetic agency. Open the link, then go to the
 page named.
 
-| # | Scenario | Sign in as | Then open |
-|---|---|---|---|
-| 1 | Welcome modal: cardholder fields, disclosure, consent, CTA | `demo.welcome` | `/dashboard` (modal opens by itself) |
-| 2 | Card setup returned, awaiting server verification | `demo.awaiting` | `/billing/success?source=card_trial` (after ~30s it shows the bounded pending screen) |
-| 3 | Verified active trial | `demo.active` | `/settings/update_payment` |
-| 4 | Billing page: first-charge date, replace card, cancel | `demo.active` | `/settings/update_payment` → "החלפת כרטיס" / "ביטול לפני החיוב" |
-| 5 | Expired trial → reactivation | `demo.expired` | `/dashboard` |
-| 6 | Declined payment | `demo.declined` | `/dashboard`, then `/settings/update_payment` |
-| 7 | Payment in progress / outcome unknown | `demo.in-flight` | `/settings/update_payment` |
-| 8 | Cancelled subscription | `demo.cancelled` | `/settings/update_payment` |
+| #   | Scenario                                                   | Sign in as       | Then open                                                                             |
+| --- | ---------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------- |
+| 1   | Welcome modal: cardholder fields, disclosure, consent, CTA | `demo.welcome`   | `/dashboard` (modal opens by itself)                                                  |
+| 2   | Card setup returned, awaiting server verification          | `demo.awaiting`  | `/billing/success?source=card_trial` (after ~30s it shows the bounded pending screen) |
+| 3   | Verified active trial                                      | `demo.active`    | `/settings/update_payment`                                                            |
+| 4   | Billing page: first-charge date, replace card, cancel      | `demo.active`    | `/settings/update_payment` → "החלפת כרטיס" / "ביטול לפני החיוב"                       |
+| 5   | Expired trial → reactivation                               | `demo.expired`   | `/dashboard`                                                                          |
+| 6   | Declined payment                                           | `demo.declined`  | `/dashboard`, then `/settings/update_payment`                                         |
+| 7   | Payment in progress / outcome unknown                      | `demo.in-flight` | `/settings/update_payment`                                                            |
+| 8   | Cancelled subscription                                     | `demo.cancelled` | `/settings/update_payment`                                                            |
 
 **The full happy path** (scenario 1 → 2 → 3): sign in as `demo.welcome`, fill
 the name and mobile, tick the consent, press "הוספת כרטיס והפעלת הניסיון". The
