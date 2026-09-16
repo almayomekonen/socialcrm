@@ -31,7 +31,7 @@ export async function getCardSetupStatus(): Promise<CardSetupState> {
     const user = await requireAgencyUser()
     return await getCardSetupStateForAgency(user.agencyId)
   } catch (err) {
-    if (err instanceof AuthError) return { state: 'verifying', reason: null }
+    if (err instanceof AuthError) return { state: 'verifying', callbackReceived: false, firstChargeAt: null }
     throw err
   }
 }
