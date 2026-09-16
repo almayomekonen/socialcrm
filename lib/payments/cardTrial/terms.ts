@@ -32,3 +32,23 @@ export const CHARGE_DESCRIPTION = 'SocialCRM Pro מנוי חודשי'
 export function cardTrialTermsLine(): string {
   return `${TRIAL_LENGTH_DAYS} ימים ללא עלות, ולאחר מכן ₪${CARD_TRIAL_AMOUNT} לחודש. אפשר לבטל בכל רגע לפני סיום הניסיון ולא יבוצע חיוב.`
 }
+
+/**
+ * The subscription disclosure shown BEFORE the redirect, above the primary
+ * action (plan Amendment A6 S1). Before activation the trial is described as
+ * "7 days from activation" — the exact first-charge date does not exist yet and
+ * is shown afterwards from the persisted trial end (firstCharge.ts).
+ *
+ * Deliberately silent about Grow's ₪1 card check: that copy waits for Grow's
+ * written answer (Gate B, B2 / owner decision D3).
+ */
+export function cardTrialDisclosureLines(): string[] {
+  return [
+    `${TRIAL_LENGTH_DAYS} ימים ללא עלות מרגע ההפעלה. היום לא יבוצע חיוב.`,
+    `בתום ${TRIAL_LENGTH_DAYS} הימים יחויב הכרטיס ב־₪${CARD_TRIAL_AMOUNT} לחודש, ומדי חודש לאחר מכן, עד לביטול.`,
+    'אפשר לבטל בכל רגע לפני החיוב הראשון בעמוד המנוי — ואז לא יבוצע חיוב.',
+  ]
+}
+
+/** The label of the explicit subscription consent — separate from Grow's card-storage checkbox. */
+export const CARD_TRIAL_CONSENT_LABEL = 'אני מאשר/ת את תנאי המנוי: חיוב חודשי אוטומטי בתום תקופת הניסיון, עד לביטול'

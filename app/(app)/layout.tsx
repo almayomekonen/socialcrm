@@ -4,7 +4,7 @@ import { getAgencyById } from '@/db/agencies'
 import { getTrialPreviewLeads } from '@/db/clients'
 import { getPerms } from '@/db/filter'
 import { countUnreadConversationsForUser } from '@/db/inboxConversationReads'
-import { Roles } from '@/types/roles'
+import { Roles, isAdmin } from '@/types/roles'
 import Topbar from '@/lib/navs/Topbar'
 import Nav from '@/lib/navs/Nav'
 import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
@@ -39,6 +39,7 @@ import { getAgencyPlan } from '@/lib/quota'
 import { track, trackOncePerAgency, trackSessionStartedOncePerDay } from '@/lib/analytics/track'
 import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
+import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
 import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
@@ -331,7 +332,15 @@ async function LayoutContent({ children }) {
               )}
             </div>
             {trialExpired && <TrialExpiredScreen leadCount={leadPreview.total} leadNames={leadPreview.names} />}
-            {trialStatus === 'NEVER_STARTED' && <WelcomeTrialModal />}
+            {trialStatus === 'NEVER_STARTED' && (
+              <WelcomeTrialModal
+                cardSetup={
+                  isCardRequiredTrialEnabled()
+                    ? { defaultFullName: user.name ?? '', canManageBilling: isAdmin(user.role) }
+                    : undefined
+                }
+              />
+            )}
             {/* Registration attribution. UNCONDITIONAL on purpose: it must sit
                 outside the trial ternary, because a brand-new agency is
                 NEVER_STARTED and gets WorkspaceTeaser instead of {children} —
