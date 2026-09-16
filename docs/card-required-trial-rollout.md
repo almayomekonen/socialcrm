@@ -34,6 +34,7 @@ Both flags are read at request time — no deploy is needed to turn them off.
 | `GROW_SANDBOX_ISOLATED_DATA` | `true` only on a staging deployment whose database is NOT production. Required for any sandbox Grow call |
 | `APP_HOST` | Public host used for the Grow success/cancel/notify URLs (never localhost) |
 | `CRON_SECRET` | Authorizes `/api/cron/subscription-charges` |
+| `STAGING_DATABASE_URL` | Staging only. Read instead of `DATABASE_URL` when `APP_ENV=staging` on a non-production Vercel deployment, because the Neon integration's `DATABASE_URL` injection outranks a branch-scoped variable. Staging throws rather than falling back to it |
 
 `assertGrowRuntime()` refuses every other combination: production mode only on
 the Vercel production deployment, sandbox mode never on it.
@@ -60,26 +61,64 @@ the flows are exercised by the test suites (`__tests__/payments/**`).
 CARD_REQUIRED_TRIAL_ENABLED=true SUBSCRIPTION_CHARGES_ENABLED=true npm run dev
 ```
 
-## 6. Production rollout (order matters)
+## 6. Deploying the code (safe now) vs activating the flow (not yet)
 
-1. Approve the customer terms (section 9) and publish them on `/terms`.
-2. Obtain Grow production `userId` / `pageCode` after Grow's integration review.
-3. Apply the migrations manually, before deploying: `npm run migrate`.
-4. Give Grow the notify URL: `https://<APP_HOST>/api/payments/grow/notify`.
-5. Add the cron entry to `vercel.json` (deliberately absent today):
-   `{ "path": "/api/cron/subscription-charges", "schedule": "*/5 * * * *" }`.
-6. Record sandbox evidence and open the provider-evidence gates.
-7. Turn on `CARD_REQUIRED_TRIAL_ENABLED`, watch new signups, then
-   `SUBSCRIPTION_CHARGES_ENABLED`.
+These are two separate events. Deploying changes nothing a customer can see.
 
-## 7. Disable safely
+### Phase A — deploy, flags off
 
-Unset `SUBSCRIPTION_CHARGES_ENABLED` to stop all charging (pending attempts stay
-pending; an attempt that waits more than 24 hours is cancelled as
-`stale_undispatched` rather than charged late — the customer recovers by
-confirming a card, which reopens that period). Unset
-`CARD_REQUIRED_TRIAL_ENABLED` to return new signups to click-to-start.
-Confirmed cards and their subscriptions are untouched by either.
+Neither `CARD_REQUIRED_TRIAL_ENABLED` nor `SUBSCRIPTION_CHARGES_ENABLED` exists
+in the production environment, and both are absence-blocks, so the shipped code
+is inert: no signup sees a card wall, no charge is dispatched, and the scheduled
+pass returns before it touches the database.
+
+1. **Check the migration precondition** (once, per `release-deployment-workflow.md` §8b):
+   `SELECT 1 FROM knex_migrations WHERE name = '20240101000000_create_users.cjs';`
+   If that row is absent, STOP — `migrate` would try to `CREATE TABLE users`.
+2. **Confirm what would run**: `npx knex --knexfile knexfile.cjs migrate:list`
+   against production. Expect exactly two pending:
+   `20260916000001_create_billing_payment_methods.cjs` and
+   `20260916000002_create_billing_charges.cjs`. Both only CREATE new tables —
+   they alter no existing table, so no running query can break.
+3. **Apply them manually, before deploying**: `npm run migrate`.
+4. **Merge and deploy**: fast-forward `feat/card-required-trial` into `main`.
+5. **Verify** signup, login, the billing page for an existing paying customer,
+   and `POST /api/payments/grow/notify` (a fabricated body must answer 401, not
+   500 — 500 means the migrations did not run).
+6. The cron entry runs every 5 minutes from the moment it deploys and does
+   nothing while the flag is absent (`runChargePass` returns first).
+
+### Phase B — activate for customers (all four required)
+
+1. Publish the approved subscription terms on `/terms` (section 9).
+2. Grow production `userId` + token-only `pageCode` after Grow's review, and the
+   written confirmation that the ₪1 check is never captured.
+3. Record sandbox evidence and open the three provider-evidence gates.
+4. `CARD_REQUIRED_TRIAL_ENABLED=true`, watch new signups complete a card setup
+   end to end, and only then `SUBSCRIPTION_CHARGES_ENABLED=true`.
+
+Never enable the card wall while a setup cannot complete: a new registration
+that cannot save a card cannot start a trial, which strands the signup.
+
+## 7. Disable safely, and rolling back
+
+**Stop the flow (seconds, no deploy).** Unset `SUBSCRIPTION_CHARGES_ENABLED` to
+stop all charging; pending attempts stay pending, and an attempt that waits more
+than 24 hours is cancelled as `stale_undispatched` rather than charged late — the
+customer recovers by confirming a card, which reopens that period. Unset
+`CARD_REQUIRED_TRIAL_ENABLED` to return new signups to click-to-start. Confirmed
+cards and their subscriptions are untouched by either.
+
+**Roll the code back.** Revert the merge on `main` and redeploy. The schema may
+stay: both tables are additive and nothing outside this feature reads them, so a
+reverted deployment simply stops using them. Existing Payment-Link billing never
+went through either table.
+
+**Undo the schema** (only when abandoning the feature — this destroys saved card
+tokens and the charge history): `npx knex --knexfile knexfile.cjs migrate:down`
+twice, which drops `billing_charges` then `billing_payment_methods`. Take a dump
+first. Do not do this as a reaction to an incident; unsetting the flags already
+stops everything.
 
 ## 8. Monitoring
 
@@ -144,7 +183,7 @@ Log prefixes: `[GrowNotify]`, `[CardSetup]`, `[SubscriptionCharge]`,
 
 ## 10. Known limits (v1)
 
-Monthly only; no decline-notification email; card digits and brand are stored
+Monthly only; card digits and brand are stored
 only as Grow reports them; tokens are deleted on our side only (Grow documents
 no deletion API); mobile signups start the trial on desktop (phones are
 redirected to `/activate`).

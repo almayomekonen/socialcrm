@@ -30,7 +30,7 @@ describe('email automation registry', () => {
     }
   })
 
-  it('is welcome + the two card-trial emails + subscription-activated + trial-started + the five state emails + the educational journey drip', () => {
+  it('is welcome + the two card-trial emails + the payment-failure email + subscription-activated + trial-started + the five state emails + the educational journey drip', () => {
     expect(AUTOMATIONS.map((a) => a.key).sort()).toEqual(
       [
         'card_trial_charge_reminder',
@@ -40,6 +40,7 @@ describe('email automation registry', () => {
         'first_lead_received',
         'no_activity',
         'subscription_activated',
+        'subscription_payment_failed',
         'trial_ending',
         'trial_started',
         'welcome',

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { track } from '@/lib/analytics/track'
-import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
-import { agencyOwner } from '@/lib/emailAutomations/recipients'
+import { notifyAgencyOwner } from '@/lib/payments/notifyOwner'
 import { assertGrowRuntime } from '@/lib/payments/grow/config'
 import { readGrowCallback, GrowCallbackError } from '@/lib/payments/grow/callbackPayload'
 import { confirmCardSetup } from '@/lib/payments/cardTrial/confirmCardSetup'
@@ -90,8 +89,7 @@ export async function POST(req: NextRequest) {
           // The card-trial activation email: states the exact first-charge date.
           // The click-to-start email ('trial.started', "no credit card needed")
           // is never dispatched for this path.
-          const owner = await agencyOwner(confirmed.agencyId)
-          if (owner) await dispatchLifecycleEvent('trial.card_started', owner, new Date())
+          await notifyAgencyOwner('trial.card_started', confirmed.agencyId, LOG)
         }
       })
       return NextResponse.json({ ok: true })

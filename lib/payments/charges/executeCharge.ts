@@ -8,8 +8,7 @@ import { CHARGE_DESCRIPTION } from '@/lib/payments/cardTrial/terms'
 import { markPaymentMethodStatus } from '@/db/payments/paymentMethods'
 import { insertNextAttempt, markChargeFailed, markChargeUnknown, releaseUndispatchedClaim, type ChargeRow } from '@/db/payments/charges'
 import { beginChargeAttempt } from '@/db/payments/chargeDispatch'
-import { dispatchLifecycleEvent } from '@/lib/emailAutomations/live'
-import { agencyOwner } from '@/lib/emailAutomations/recipients'
+import { notifyAgencyOwner } from '@/lib/payments/notifyOwner'
 import { applySuccessfulCharge } from './applySuccessfulCharge'
 import { nextRetryAt } from './retryPolicy'
 
@@ -36,22 +35,13 @@ const liveDeps: ExecuteDeps = { chargeToken, dispatchAllowed: () => isTokenCharg
 /**
  * Called only after the failure has COMMITTED, so the email can never describe a
  * state the database did not keep — and never inside the transaction, which must
- * not be held across an email send. A notification failure must not turn a
- * settled decline into a thrown charge pass, so it is logged and swallowed: the
- * row is already correct and the billing page still shows the truth.
+ * not be held across an email send. notifyAgencyOwner swallows its own failures
+ * and imports the mailer lazily, so neither a Resend outage nor an unset RESEND
+ * key can turn a settled decline into a thrown charge pass.
  */
 async function failed(charge: ChargeRow, errorClass: 'final' | 'retryable'): Promise<void> {
   await track({ agencyId: charge.agencyId, event: 'subscription_charge_failed', props: { chargeId: charge.id, kind: charge.kind, attempt: charge.attempt, errorClass } })
-  try {
-    const owner = await agencyOwner(charge.agencyId)
-    if (!owner) {
-      console.warn(`${LOG} payment-failure email: no owner resolved`, { agencyId: charge.agencyId })
-      return
-    }
-    await dispatchLifecycleEvent('subscription.payment_failed', owner, new Date())
-  } catch (err) {
-    console.error(`${LOG} payment-failure email not dispatched`, { agencyId: charge.agencyId, chargeId: charge.id, err: String(err) })
-  }
+  await notifyAgencyOwner('subscription.payment_failed', charge.agencyId, LOG)
 }
 
 export async function executeCharge(chargeId: number, deps: ExecuteDeps = liveDeps): Promise<ExecuteOutcome> {
