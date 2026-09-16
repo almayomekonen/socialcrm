@@ -34,6 +34,11 @@ export type AnalyticsEventName =
   // Generation failed validation twice and a safe holding reply went out
   // instead of silence. Counts the recovery path, not an error.
   | 'auto_response_recovered'
+  // A rep explicitly paused the agent on one conversation, and explicitly handed
+  // it back. The pair is the only honest measure of whether reps trust the agent
+  // enough to give a conversation back after taking one.
+  | 'auto_response_human_takeover'
+  | 'auto_response_returned_to_agent'
   | 'post_handoff_sent'
   | 'post_handoff_stop'
   | 'activation_started'

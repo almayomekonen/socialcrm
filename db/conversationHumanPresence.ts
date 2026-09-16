@@ -109,3 +109,71 @@ export async function markHumanActiveByConversation(conversationId: number, agen
   )
   return (res.rows?.length ?? 0) > 0
 }
+
+/**
+ * A rep pressed "take over": the same permanent pause, recorded as a deliberate
+ * act rather than a side effect of sending.
+ *
+ * REFUSES ON opted_out. An opted-out conversation is already silent, and
+ * replacing the customer's own stop with a weaker, rep-authored one would let a
+ * later "return to agent" resume messaging someone who asked us not to. The
+ * refusal is a WHERE clause, not a read-then-write, so a concurrent opt-out
+ * arriving between the two cannot slip through.
+ *
+ * Agency-scoped by construction, like every writer in this file.
+ */
+export async function takeOverConversationByRep(args: {
+  conversationId: number
+  agencyId: number
+}): Promise<boolean> {
+  const res = await db.raw(
+    `INSERT INTO conversation_ai_state ("conversationId","agencyId","aiState","stoppedReason")
+     SELECT c.id, c."agencyId", 'human_active', 'human_takeover_explicit'
+       FROM inbox_conversations c
+      WHERE c.id = :conversationId AND c."agencyId" = :agencyId
+     ON CONFLICT ("conversationId") DO UPDATE
+        SET "aiState"       = 'human_active',
+            -- Preserve how ownership was FIRST acquired. "they replied" and
+            -- "they pressed the button" are different histories.
+            "stoppedReason" = COALESCE(conversation_ai_state."stoppedReason", 'human_takeover_explicit'),
+            "updatedAt"     = now()
+      WHERE conversation_ai_state."aiState" <> 'opted_out'
+     RETURNING "conversationId"`,
+    { conversationId: args.conversationId, agencyId: args.agencyId },
+  )
+  return (res.rows?.length ?? 0) > 0
+}
+
+/**
+ * A rep pressed "return to agent" — the ONLY way a paused conversation comes
+ * back. No timer, no sweep, no lifecycle edge does this.
+ *
+ * The state guard lives in the WHERE clause for the same reason as above: it is
+ * the difference between "this conversation was human-owned when I checked" and
+ * "this conversation is human-owned as I write". Only `human_active` and
+ * `escalated` qualify, so `opted_out` and `closed` are refused by construction
+ * rather than by remembering to check.
+ *
+ * Returns to `ai_qualifying`, never `new`: the agent has spoken here, and `new`
+ * would re-arm the first-contact greeting for someone twenty messages deep.
+ * `aiTurnCount` is untouched for the same reason.
+ */
+export async function returnConversationToAgent(args: {
+  conversationId: number
+  agencyId: number
+}): Promise<boolean> {
+  const res = await db.raw(
+    `UPDATE conversation_ai_state s
+        SET "aiState"       = 'ai_qualifying',
+            "stoppedReason" = NULL,
+            "updatedAt"     = now()
+       FROM inbox_conversations c
+      WHERE s."conversationId" = c.id
+        AND c.id = :conversationId
+        AND c."agencyId" = :agencyId
+        AND s."aiState" IN ('human_active','escalated')
+     RETURNING s."conversationId"`,
+    { conversationId: args.conversationId, agencyId: args.agencyId },
+  )
+  return (res.rows?.length ?? 0) > 0
+}
