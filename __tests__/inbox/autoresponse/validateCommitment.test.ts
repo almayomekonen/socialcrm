@@ -125,3 +125,56 @@ describe('deterministic customer-facing text passes its own validator', () => {
     expect(validateConciergeReply(text).ok).toBe(true)
   })
 })
+
+/**
+ * Grounding. The brief asks for two things that pull against each other: let a
+ * business discuss its own prices and processes, and never let the agent invent
+ * one. The validator resolves it by checking, not by trusting: a figure or a
+ * process claim is allowed only when it appears in that business's saved facts.
+ */
+describe('a figure is allowed only when the business actually stated it', () => {
+  const CLINIC_FACTS = 'קליניקה לטיפולי עור. טיפול פנים 450 ש"ח. הדגמה קצרה אפשרית בתיאום.'
+
+  it('quotes a price that is in the business facts', () => {
+    expect(ok('טיפול פנים אצלנו 450 ש"ח.', { groundedFacts: CLINIC_FACTS }).ok).toBe(true)
+  })
+
+  it('refuses a figure the business never stated', () => {
+    expect(ok('טיפול פנים אצלנו 900 ש"ח.', { groundedFacts: CLINIC_FACTS }).ok).toBe(false)
+  })
+
+  it('refuses any figure when the business configured nothing', () => {
+    for (const facts of [null, undefined, '']) {
+      expect(ok('טיפול פנים אצלנו 450 ש"ח.', { groundedFacts: facts }).ok).toBe(false)
+    }
+  })
+
+  it('allows a process the business offers, refuses one it does not', () => {
+    expect(ok('אפשר לתאם הדגמה קצרה.', { groundedFacts: CLINIC_FACTS }).ok).toBe(true)
+    expect(ok('אפשר להירשם באתר.', { groundedFacts: CLINIC_FACTS }).ok).toBe(false)
+    expect(ok('אפשר לתאם הדגמה קצרה.', { groundedFacts: 'מוסך מורשה לרכבים פרטיים.' }).ok).toBe(false)
+  })
+
+  it('a discount or a confirmed booking is never groundable, whatever the facts say', () => {
+    const permissive = 'אנחנו נותנים הנחה של 10 אחוז וקובעים תורים. קבעתי לך תור.'
+    expect(ok('יש הנחה של 10 אחוז.', { groundedFacts: permissive }).ok).toBe(false)
+    expect(ok('קבעתי לך תור.', { groundedFacts: permissive }).ok).toBe(false)
+    expect(ok('אני מבטיח שזה יעבוד.', { groundedFacts: permissive }).ok).toBe(false)
+  })
+
+  it('an unsupported claim about price is refused even with no figure', () => {
+    expect(ok('המחיר שלנו משתלם מאוד.').ok).toBe(false)
+    // …but the honest limitation we actually want is allowed.
+    expect(ok('אין לי מחיר מדויק לתת כאן, נציג יחזור אלייך.').ok).toBe(true)
+  })
+
+  it('the workers pass the business facts in', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    for (const file of ['lib/inbox/autoresponse/qualifyWorker.ts', 'lib/inbox/autoresponse/worker.ts']) {
+      const src = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(src, `${file} does not pass groundedFacts`).toContain('groundedFacts')
+      expect(src).toContain('identity.guidance')
+    }
+  })
+})

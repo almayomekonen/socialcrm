@@ -200,7 +200,10 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
         }
         return doSkip(gen.skipReason)
       }
-      if (validateAutoResponse(gen.message, { greetingTurn: Boolean(greetingLine) }).ok) message = gen.message
+      const grounded = [identity.guidance, identity.agentInstructions].filter(Boolean).join('\n') || null
+      if (validateAutoResponse(gen.message, { greetingTurn: Boolean(greetingLine), groundedFacts: grounded }).ok) {
+        message = gen.message
+      }
     }
 
     // RECOVERY, not silence. Two failed generations used to end the turn with

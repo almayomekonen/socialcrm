@@ -433,7 +433,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // regeneration, else a strategy-aware fallback question (never a handoff).
   // Safety → regenerate once, then escalate ('guardrail'). `uncertain` fed to
   // the policy below is model-only.
-  const validateOpts = { questionPolicy, greetingTurn: Boolean(greetingLine) }
+  // `groundedFacts` is what makes a price figure or a process claim checkable:
+  // the validator allows one only when it appears in this business's own saved
+  // information. Agent instructions are included because an owner may state a
+  // real figure there ("consultation is 200").
+  const validateOpts = {
+    questionPolicy,
+    greetingTurn: Boolean(greetingLine),
+    groundedFacts: [identity.guidance, identity.agentInstructions].filter(Boolean).join('\n') || null,
+  }
   let validation = validateAutoResponse(gen.reply, validateOpts)
   let forcedGuardrail = false
   if (!validation.ok) {
