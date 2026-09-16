@@ -64,10 +64,21 @@ async function patch(conversationId: number, fields: Record<string, unknown>): P
     .update({ ...fields, updatedAt: db.fn.now() })
 }
 
-/** Record one AI turn: bump count, fill-empty-merge the extracted fields, stamp aiLastAt, keep qualifying. */
-export async function recordTurn(conversationId: number, extracted: Qualification): Promise<void> {
+/**
+ * Record one AI turn: bump count, merge the extracted fields, stamp aiLastAt,
+ * keep qualifying.
+ *
+ * `corrected` names the fields the customer explicitly corrected this turn, and
+ * is the only way a known value is replaced — without it the merge stays
+ * fill-empty and the first value the customer gave becomes permanent.
+ */
+export async function recordTurn(
+  conversationId: number,
+  extracted: Qualification,
+  corrected?: readonly string[],
+): Promise<void> {
   const cur = await getAiState(conversationId)
-  const merged = mergeQualification(cur?.qualification ?? {}, extracted)
+  const merged = mergeQualification(cur?.qualification ?? {}, extracted, { corrected })
   await patch(conversationId, {
     aiState: 'ai_qualifying',
     aiTurnCount: db.raw('"aiTurnCount" + 1'),
@@ -77,9 +88,13 @@ export async function recordTurn(conversationId: number, extracted: Qualificatio
 }
 
 /** Merge extracted fields without advancing the turn (used in draft mode). */
-export async function mergeOnly(conversationId: number, extracted: Qualification): Promise<void> {
+export async function mergeOnly(
+  conversationId: number,
+  extracted: Qualification,
+  corrected?: readonly string[],
+): Promise<void> {
   const cur = await getAiState(conversationId)
-  const merged = mergeQualification(cur?.qualification ?? {}, extracted)
+  const merged = mergeQualification(cur?.qualification ?? {}, extracted, { corrected })
   await patch(conversationId, { qualification: JSON.stringify(merged), aiLastAt: db.fn.now() })
 }
 
