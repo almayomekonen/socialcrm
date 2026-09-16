@@ -167,11 +167,28 @@ their customers write about. Two generations later the job skipped as
 | `אין לי מחיר מדויק לתת כאן…` | `אני מבטיח שזה יעבוד.` |
 | | `שלחתי לך קישור למייל.` |
 
-Grounding — whether a stated time or price actually appears in the business's
-saved facts — is the prompt's and the owner's job; a pure string check cannot
-know what a given clinic charges. What the validator still guarantees is narrower
-and checkable: nothing leaves that **promises, confirms, or reports a completed
-action**.
+**Grounding is checked, not assumed.** The first attempt left it to the prompt,
+on the reasoning that a string check cannot know what a clinic charges. True but
+incomplete: it cannot know the price, but it *can* check whether the figure the
+reply just used appears in that business's saved facts. `validateAutoResponse`
+now takes `groundedFacts`, and the workers pass the tenant's own guidance plus
+agent instructions:
+
+| Business facts | Reply | Verdict |
+| --- | --- | --- |
+| `טיפול פנים 450 ש"ח` | `טיפול פנים אצלנו 450 ש"ח.` | allowed |
+| `טיפול פנים 450 ש"ח` | `טיפול פנים אצלנו 900 ש"ח.` | refused |
+| *(nothing about price)* | any figure | refused |
+| `הדגמה קצרה אפשרית` | `אפשר לתאם הדגמה קצרה.` | allowed |
+| *(no demo mentioned)* | `אפשר לתאם הדגמה קצרה.` | refused |
+
+Never groundable, whatever the settings say: a discount, a confirmed booking, a
+guarantee, a claimed action. Those are promises the agent makes, not facts it
+quotes, so no configuration can license them.
+
+This was found late: `__tests__/autoresponse/` (distinct from
+`__tests__/inbox/autoresponse/`) was missed in the first verification pass, and
+three of its protections had been loosened. See §3.
 
 **Recovery replaces silence.** Two failed generations now send a short honest
 holding message (`lib/inbox/autoresponse/safeFallback.ts`) instead of nothing.
@@ -264,6 +281,7 @@ Run against a real PostgreSQL (`npm run test:db` semantics, serialised).
 | `followUpTurn.test.ts` | 29 | V11 — decision rules, termination, terminal states |
 | `followUpTurn.db.test.ts` | 9 | V11 — **real DB**, reproduces the drop and proves the invariant |
 | `autoResponseModeWiring.test.ts` | 14 | Settings: mode persisted, rollout gated, three fields distinguished |
+| `autoresponse/validate.test.ts` | 31 | Pre-existing suite — the three protections that regressed, now restored |
 
 ### Pre-existing protections that still pass
 
@@ -285,6 +303,25 @@ Verified by running the same files on a pristine `origin/main` worktree:
 
 `__tests__/inbox` + `__tests__/whatsapp` + `__tests__/settings` on this branch:
 **2311 passed, 6 failed** — exactly the six above.
+
+Beyond those, the full suite has failures in areas this work never touches
+(quota, subscriptions, calendar, automations, payments, intelligence cache). To
+attribute them rather than assume, the same 14 files were run on both trees:
+
+| | failing tests |
+| --- | --- |
+| `origin/main` baseline | 59 |
+| this branch | 59 |
+
+**No regressions.** One file (`clientsTable.test.tsx`) appeared to differ, but
+passes 38/38 in isolation on *both* trees — a suite-level flake from running
+many DB-backed files in one process, not a behaviour change.
+
+A caution learned here: two vitest runs against the same `socialcrm_test`
+database stall each other, because `globalSetup` resets the schema. Run them
+sequentially.
+
+All autoresponse suites, serialized: **1366 passed, 0 failed.**
 
 ### Tests updated, and why
 
@@ -366,6 +403,9 @@ Needs `OPENAI_API_KEY`, `AI_ENABLED=true`. Read by hand.
 
 1. **The customer's actual configuration is still unknown.** §0.2. The queries
    in §7 remain unrun.
+1a. **A grounded price must match digit-for-digit.** `450` in the facts permits
+   `450` in the reply; it does not permit `450-500` or a rounded `כ-450`. Erring
+   toward refusal, which costs a deferral rather than a wrong number.
 2. **No model-response evaluation has been run.** The script exists; it needs a
    key and a human reading the output.
 3. **No rolling conversation summary.** Context is the existing 80-message window
