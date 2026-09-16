@@ -72,11 +72,11 @@ async function settleDuplicate(charge: ChargeRow, paid: PaidCharge): Promise<{ a
 /**
  * Runs after the paid period has COMMITTED, never inside the transaction.
  *
- * `subscription.activated` is the same thank-you a Payment-Link customer gets
- * (app/api/payments/grow/route.ts). Without it a card-billed customer would be
- * charged ₪89 and hear nothing at all. It is send-once-forever by construction
+ * `subscription.activated` is the thank-you every paying customer gets. It used
+ * to be dispatched by the Payment-Link webhook, which is gone; this is now the
+ * only place it fires. It is send-once-forever by construction
  * (no `recurring` ⇒ periodKey ''), so renewals re-fire the event, find the claim
- * already taken and skip — exactly as on the Payment-Link path.
+ * already taken and skip.
  *
  * Fully guarded by notifyAgencyOwner, which also imports the mailer lazily: an
  * email must never fail a transaction that already took money, and a missing

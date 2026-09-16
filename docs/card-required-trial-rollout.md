@@ -12,17 +12,39 @@ server-to-server callback has been verified with Grow itself. At the end of the
 trial the saved token is charged ₪89, and monthly after that, unless the
 customer cancelled.
 
-Agencies without a confirmed card — every existing customer, every legacy
-(`trialExempt`) agency, every Payment-Link subscriber — behave exactly as before.
+**This is the only way to pay.** Grow Payment Links, their webhooks and the
+standing-order renewal path were removed: there is no checkout link, no annual
+purchase and no second billing system to fall back to. Monthly ₪89 only.
+
+Agencies without a confirmed card — every legacy (`trialExempt`) agency, every
+no-card trial — keep their existing non-payment access rules unchanged. What
+they no longer have is a Payment Link to buy through: they are routed to the
+billing screen, which either offers a card setup or says why it cannot.
 
 ## 2. Flags (absence-blocks — unset means OFF)
 
 | Flag | `'true'` enables | Unset (default) |
 |---|---|---|
-| `CARD_REQUIRED_TRIAL_ENABLED` | The welcome modal asks for a card; the trial write point requires an active card; `startTrial()` refuses | Click-to-start trial, exactly as today |
+| `CARD_REQUIRED_TRIAL_ENABLED` | The welcome modal asks for a card; the trial write point requires an active card; `startTrial()` refuses | Click-to-start trial. New signups still get their 7 days; they simply cannot buy yet |
 | `SUBSCRIPTION_CHARGES_ENABLED` | The cron pass schedules and (when dispatch is established) charges; the pre-charge reminder has an audience | No charge is ever attempted, no reminder is sent |
 
 Both flags are read at request time — no deploy is needed to turn them off.
+
+### What the customer sees while billing is off or the provider is unreachable
+
+`isCardBillingAvailable()` answers whether a card setup can actually complete:
+the runtime may call Grow, `GROW_USER_ID` / `GROW_PAGE_CODE_TOKEN` exist, and
+`APP_HOST` is a public host Grow can call back. Every surface that would offer
+to add, replace or reactivate a card asks it first.
+
+When it is false — or when no setup purpose applies to this agency — the screen
+shows `PaymentsUnavailableNotice`: payments are temporarily unavailable, access
+is unaffected, nothing was charged. It never renders a button that opens a setup
+which cannot finish, and it never says a trial started or a payment succeeded.
+
+Turning the flags off is therefore no longer a fallback to a working Payment
+Link — it means nobody can buy. Access rules for existing customers are
+untouched either way.
 
 ## 3. Environment variables (server-only, per Vercel environment)
 
@@ -111,8 +133,11 @@ cards and their subscriptions are untouched by either.
 
 **Roll the code back.** Revert the merge on `main` and redeploy. The schema may
 stay: both tables are additive and nothing outside this feature reads them, so a
-reverted deployment simply stops using them. Existing Payment-Link billing never
-went through either table.
+reverted deployment simply stops using them.
+
+Reverting the code does NOT restore Payment Links: they were deleted, not
+disabled. A rollback returns the product to "nobody can buy", not to the old
+checkout.
 
 **Undo the schema** (only when abandoning the feature — this destroys saved card
 tokens and the charge history): `npx knex --knexfile knexfile.cjs migrate:down`

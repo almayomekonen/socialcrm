@@ -5,6 +5,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
 import LeadEntryToasts from './LeadEntryToasts'
 import CardTrialSetupForm from './CardTrialSetupForm'
+import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 
 const PRO_BENEFITS = ['AI ללא הגבלה במצב מהיר ובמצב חכם', 'היסטוריית AI מלאה לכל ליד', 'ניסוח הודעות, המלצות וצעדים הבאים']
 
@@ -88,7 +89,7 @@ export default function TrialExpiredScreen({ leadCount = 0, leadNames = [], card
               lbl='שדרג עכשיו'
               className='w-full bg-white text-gray-900 font-bold hover:bg-gray-100'
               onClick={() => {
-                window.location.href = '/api/payments/upgrade?source=trial_expired_screen'
+                window.location.href = upgradeHref('trial_expired_screen')
               }}
             />
             <p className='text-[11px] text-white/40 text-center'>ללא התחייבות · ניתן לבטל בכל רגע · כל הנתונים שלך שמורים</p>

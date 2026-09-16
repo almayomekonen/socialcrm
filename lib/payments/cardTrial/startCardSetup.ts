@@ -47,7 +47,12 @@ export const SUCCESS_SOURCE: Record<PaymentMethodPurpose, string> = {
 
 const needsTerms = (purpose: PaymentMethodPurpose) => purpose !== 'card_update'
 
-async function isEligible(agencyId: number, purpose: PaymentMethodPurpose): Promise<boolean> {
+/**
+ * Exported so a surface can offer exactly what this server action will accept.
+ * A CTA the request would refuse is a dead end, and with Payment Links gone
+ * there is no second way to pay to fall back to.
+ */
+export async function isCardSetupEligible(agencyId: number, purpose: PaymentMethodPurpose): Promise<boolean> {
   const row = await getAgencyTrial(agencyId)
   if (!row) return false
   const status = getTrialState(row, new Date()).status
@@ -93,7 +98,7 @@ export async function startCardSetupForUser(
     return providerUnavailable(requester, input.purpose)
   }
 
-  if (!(await isEligible(requester.agencyId, input.purpose))) return { error: 'not_eligible' }
+  if (!(await isCardSetupEligible(requester.agencyId, input.purpose))) return { error: 'not_eligible' }
   if (needsTerms(input.purpose) && input.acceptedTerms !== true) return { error: 'terms_required' }
   const holder = await resolveHolder(requester, input)
   if ('field' in holder) return { error: 'invalid_holder', field: holder.field, message: holder.message }

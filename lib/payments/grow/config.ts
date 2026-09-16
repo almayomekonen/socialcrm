@@ -1,4 +1,5 @@
-import type { GrowMode } from '@/lib/payments/growWebhook'
+/** Which Grow environment a call is made against. */
+export type GrowMode = 'sandbox' | 'production'
 
 /**
  * Grow Light API configuration for card-token billing.

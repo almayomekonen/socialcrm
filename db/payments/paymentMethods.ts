@@ -1,7 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secrets'
-import type { GrowMode } from '@/lib/payments/growWebhook'
+import type { GrowMode } from '@/lib/payments/grow/config'
 import type { CardHolder } from '@/lib/payments/grow/api'
 
 /**

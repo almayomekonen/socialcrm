@@ -71,7 +71,7 @@ describe('the expired state says one thing, and never "try again"', () => {
   it('offers renewal through the EXISTING upgrade route', () => {
     renderState()
     const cta = screen.getByRole('link', { name: 'חידוש מנוי' })
-    expect(cta.getAttribute('href')).toContain('/api/payments/upgrade')
+    expect(cta.getAttribute('href')).toContain('/settings/update_payment')
   })
 
   /**
@@ -298,7 +298,7 @@ describe('manage-plan offers renewal, not cancellation, to an expired customer',
   it('renew is primary and cancel is withheld', () => {
     const src = read('components/settings/payment/ManagePlanModal.tsx')
     expect(src).toContain('חידוש מנוי')
-    expect(src).toContain('/api/payments/upgrade?source=manage_plan_modal')
+    expect(src).toContain("upgradeHref('manage_plan_modal')")
     // Cancel paths are all suppressed while expired.
     expect(src).toContain("{!expired && manageable && status === 'active'")
     expect(src).toContain("{!expired && !manageable &&")
@@ -508,7 +508,7 @@ describe('manage-plan never reports an expired subscription as active', () => {
   it('offers renewal and withholds cancellation', () => {
     renderManagePlan(EXPIRED)
     expect(screen.getByRole('link', { name: 'חידוש מנוי' }).getAttribute('href')).toContain(
-      '/api/payments/upgrade',
+      '/settings/update_payment',
     )
     expect(screen.queryByRole('button', { name: 'בטל מנוי' })).toBeNull()
   })
@@ -719,20 +719,30 @@ describe('locked AI controls are unreachable, not merely un-clickable', () => {
   })
 })
 
-describe('GET /api/payments/upgrade is audited, and deliberately unchanged', () => {
+describe('GET /api/payments/upgrade is retired, and no longer writes', () => {
   /**
-   * Recorded, not fixed: this pass was scoped to the expired UX. During the
-   * browser audit six `upgrade_clicked` rows and one pending_upgrades write
-   * appeared without any CTA being clicked — a GET with write side effects is
-   * reachable by any prefetcher, scanner or link preview. The correction is a
-   * POST, and it belongs to billing work, not here.
+   * The audit recorded, but could not fix from an expired-UX pass, that this
+   * GET had write side effects: six `upgrade_clicked` rows and a
+   * pending_upgrades write appeared during the browser audit without any CTA
+   * being clicked, because a GET with side effects is reachable by any
+   * prefetcher, scanner or link preview.
+   *
+   * Removing Payment Links fixed it. The route is a redirect to the billing
+   * screen; the only write left is the analytics row, which is what the
+   * prefetch noise was about but is not state a customer can be billed on.
    */
-  it('still writes analytics and pending_upgrades on GET', () => {
+  it('no longer writes pending_upgrades on GET', () => {
     const route = read('app/api/payments/upgrade/route.ts')
     expect(route).toContain('export async function GET(')
-    expect(route).toContain("event: 'upgrade_clicked'")
-    expect(route).toContain("db('pending_upgrades')")
+    expect(route).not.toContain("db('pending_upgrades')")
     expect(route).not.toContain('export async function POST(')
+  })
+
+  it('sends the customer to the billing screen and to no payment provider', () => {
+    const route = read('app/api/payments/upgrade/route.ts')
+    expect(route).toContain("'/settings/update_payment'")
+    expect(route).not.toContain('getUpgradeLink')
+    expect(route).not.toContain('GROW_PAYMENT_LINK')
   })
 
   it('takes no money and changes no subscription by itself', () => {

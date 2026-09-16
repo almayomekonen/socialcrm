@@ -69,7 +69,8 @@ const pricingPlans = {
  */
 export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' | 'h2' } = {}) {
   const Heading = headingLevel
-  const [isAnnual, setIsAnnual] = useState(false);
+  // Annual purchasing was removed with Payment Links; monthly is the only plan.
+  const isAnnual = false;
 
   return (
     <section className="section-padding relative overflow-hidden">
@@ -114,33 +115,6 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
             </p>
           </div>
 
-          {/* Right side - Billing Switch */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  'text-lg font-semibold transition-colors',
-                  !isAnnual ? 'text-foreground' : 'text-muted-foreground/70',
-                )}
-              >חודשי</span>
-              <Switch
-                checked={isAnnual}
-                onCheckedChange={setIsAnnual}
-                // `bg-secondary` is rebranded to #5e6ad2 site-wide; pin this
-                // control back to the template's own accent.
-                className="data-[state=checked]:bg-[oklch(0.585_0.132_257)]"
-              />
-              <span
-                className={cn(
-                  'text-lg font-semibold transition-colors',
-                  isAnnual ? 'text-foreground' : 'text-muted-foreground/70',
-                )}
-              >שנתי</span>
-            </div>
-            <p className="text-center text-sm font-semibold">
-              חיסכון של {ANNUAL_DISCOUNT_PERCENT}% בתשלום שנתי
-            </p>
-          </div>
         </div>
 
         {/* Pricing Cards */}
@@ -148,16 +122,17 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
           {Object.entries(pricingPlans).map(([key, plan]) => {
             /**
              * Free plan enters the registration funnel. The paid plan goes
-             * through the EXISTING upgrade endpoint — the same one every
-             * in-product upgrade button uses — because that route already owns
-             * auth (anonymous → /auth), annual-link gating, intent recording
-             * and analytics. Sending the paid CTA to /auth instead is what made
-             * a signed-in visitor who clicked "שדרגו ל-Pro" land on the
-             * dashboard with no way to buy. No session is read here: the route
-             * decides, so the marketing page stays static and DB-free.
+             * through the retired-checkout shim, which is kept precisely
+             * because it owns auth (anonymous → /auth) and lands a signed-in
+             * visitor on the billing screen. Sending the paid CTA to /auth
+             * instead is what made a signed-in visitor who clicked
+             * "שדרגו ל-Pro" land on the dashboard with no way to buy. No
+             * session is read here, so the marketing page stays static.
+             *
+             * No period is sent: this release sells monthly only.
              */
             const isFreePlan = key === 'individual'
-            const upgradeHref = `/api/payments/upgrade?period=${isAnnual ? 'annual' : 'monthly'}&source=marketing_pricing`
+            const upgradeHref = '/api/payments/upgrade?source=marketing_pricing'
             return (
             <Card
               key={key}

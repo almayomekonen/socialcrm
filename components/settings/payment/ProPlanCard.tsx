@@ -1,5 +1,5 @@
 import Icon from '@/lib/Icon'
-import { ANNUAL_SAVINGS, PRICING } from '@/lib/pricing'
+import { PRICING } from '@/lib/pricing'
 import type { SubscriptionView } from '@/lib/quota/subscription'
 import ManagePlanLauncher, { type SubscriptionClientView } from './ManagePlanLauncher'
 import PaymentMethodRow from './PaymentMethodRow'
@@ -21,9 +21,11 @@ import { daysUntil, formatRenewalDate, relativeDaysLabel } from './subscriptionD
  * `status` stays the source of truth for the cancelled state (deriveStatus):
  * 'cancelling' means renewal is already off but Pro access runs to expiresAt,
  * so that date is an access-end date, not a next charge — the labels below
- * switch accordingly, and the annual offer disappears entirely. Pitching an
- * upsell to someone who has just cancelled is the commercial ask the care
- * charter puts furthest out of bounds.
+ * switch accordingly.
+ *
+ * There is no annual upsell here any more: this release sells one thing, a
+ * monthly subscription on a saved card. The old link went to the retired
+ * Payment Link checkout.
  *
  * Date serialization happens here at the server→client boundary: the
  * SubscriptionView's `expiresAt: Date | null` becomes `expiresAtIso` for the
@@ -32,11 +34,9 @@ import { daysUntil, formatRenewalDate, relativeDaysLabel } from './subscriptionD
  */
 export default function ProPlanCard({
   subscription,
-  annualAvailable = false,
   hasAccess = true,
 }: {
   subscription: SubscriptionView
-  annualAvailable?: boolean
   /**
    * From `getAgencyProductAccess` — the SAME gate that refuses every request.
    * Passed in rather than derived here: `agencies.plan` stays 'pro' after a paid
@@ -54,10 +54,6 @@ export default function ProPlanCard({
   const periodLabel = annual ? 'שנתית' : 'חודשית'
   const priceLabel = annual ? `₪${PRICING.annual} לשנה` : `₪${PRICING.monthly} לחודש`
 
-  // Only offered to an active monthly subscriber, and only when the annual
-  // link is actually configured — the upgrade route bounces an unconfigured
-  // annual request rather than charging the monthly amount.
-  const showAnnualOffer = annualAvailable && !cancelling && !annual && !expired
 
   const clientView: SubscriptionClientView = {
     plan: subscription.plan,
@@ -97,14 +93,6 @@ export default function ProPlanCard({
 
         <div className='flex shrink-0 flex-col items-end gap-3 mobile:w-full mobile:items-start'>
           <ManagePlanLauncher subscription={clientView} />
-          {showAnnualOffer && (
-            <a
-              href='/api/payments/upgrade?period=annual&source=billing_subscription_card'
-              className='text-sm text-solid hover:underline'
-            >
-              מעבר לחיוב שנתי · ₪{PRICING.annual} לשנה, חיסכון ₪{ANNUAL_SAVINGS}
-            </a>
-          )}
         </div>
       </div>
 

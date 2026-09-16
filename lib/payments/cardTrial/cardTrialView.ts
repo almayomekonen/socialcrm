@@ -71,7 +71,8 @@ export async function getCardTrialView(agencyId: number): Promise<CardTrialView>
 
 /**
  * Why a card-billed agency lost access — the expired screen's copy. `undefined`
- * for every agency that is not card-billed: they keep the Payment-Link upgrade.
+ * for an agency that never saved a card — its expired screen sends it to the
+ * billing screen, which offers a card setup or says why it cannot.
  */
 export async function cardReactivationFor(agencyId: number): Promise<{ reason: 'declined' | 'cancelled' | 'ended' } | undefined> {
   const view = await getCardTrialView(agencyId)

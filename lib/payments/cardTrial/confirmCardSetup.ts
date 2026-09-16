@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
-import { safeEqual, type GrowMode } from '@/lib/payments/growWebhook'
+import { safeEqual } from '@/lib/payments/grow/constantTime'
+import type { GrowMode } from '@/lib/payments/grow/config'
 import type { GrowCallback } from '@/lib/payments/grow/callbackPayload'
 import { startTrialInTransaction } from '@/db/trial'
 import {

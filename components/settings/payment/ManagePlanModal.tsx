@@ -8,6 +8,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { formatDate } from '@/lib/dates'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
 import type { SubscriptionClientView } from './ManagePlanLauncher'
+import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 
 type Stage = 'manage' | 'confirm-cancel'
 
@@ -239,7 +240,7 @@ function ManageBody({
         */}
         {expired ? (
           <a
-            href='/api/payments/upgrade?source=manage_plan_modal'
+            href={upgradeHref('manage_plan_modal')}
             className='press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             חידוש מנוי

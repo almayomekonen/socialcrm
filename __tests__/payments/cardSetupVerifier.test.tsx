@@ -56,10 +56,14 @@ describe('the return page never announces what the server has not confirmed', ()
     expect(document.body.textContent).toContain('לא בוצע חיוב')
   })
 
-  it('keeps the Payment-Link verifier on the success page, and routes card returns by source', () => {
+  it('is the only thing the success page can render, and a stale Payment-Link return goes to billing', () => {
     const page = readFileSync('app/billing/success/page.tsx', 'utf8')
-    expect(page).toContain('<BillingActivationVerifier />')
     expect(page).toContain('CardSetupVerifier')
+    // The Payment-Link entitlement verifier is gone with Payment Links.
+    expect(page).not.toContain('BillingActivationVerifier')
+    // A return with no recognised source is a stale bookmark: send it to the
+    // billing screen rather than polling for a setup nobody started.
+    expect(page).toContain("redirect('/settings/update_payment')")
     const verifier = readFileSync('components/billing/CardSetupVerifier.tsx', 'utf8')
     expect(verifier).toContain('const POLL_INTERVAL_MS = 2_000')
     expect(verifier).toContain('const MAX_WAIT_MS = 30_000')

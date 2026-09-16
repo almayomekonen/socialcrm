@@ -3,6 +3,7 @@
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
+import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 
 export type QuotaPaywallState = {
   current: number
@@ -49,7 +50,7 @@ export default function QuotaPaywallModal({ state, onClose }: Props) {
             variant='solid'
             lbl='שדרג עכשיו'
             onClick={() => {
-              window.open('/api/payments/upgrade?source=quota_paywall', '_blank', 'noopener,noreferrer')
+              window.open(upgradeHref('quota_paywall'), '_blank', 'noopener,noreferrer')
               onClose()
             }}
           />

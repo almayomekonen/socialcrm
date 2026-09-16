@@ -872,7 +872,7 @@ describe('the Pro toast is a subscription action, not an error', () => {
     expect(src).not.toContain('/api/payments/upgrade?source=')
     // One definition of that destination, shared with the expired states.
     const shared = read('lib/entitlement/upgradeHref.ts')
-    expect(shared).toContain('/api/payments/upgrade?source=')
+    expect(shared).toContain('/settings/update_payment?source=')
     expect(read('components/entitlement/SubscriptionExpiredState.tsx')).toContain('upgradeHref(source)')
   })
 
