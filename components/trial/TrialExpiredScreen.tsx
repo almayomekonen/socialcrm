@@ -4,15 +4,29 @@ import { Check } from 'lucide-react'
 import { Btn } from '@/lib/btns/Btn'
 import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
 import LeadEntryToasts from './LeadEntryToasts'
+import CardTrialSetupForm from './CardTrialSetupForm'
 
 const PRO_BENEFITS = ['AI ללא הגבלה במצב מהיר ובמצב חכם', 'היסטוריית AI מלאה לכל ליד', 'ניסוח הודעות, המלצות וצעדים הבאים']
+
+export type CardReactivationReason = 'declined' | 'cancelled' | 'ended'
 
 type Props = {
   leadCount?: number
   leadNames?: string[]
+  /**
+   * Card-token agency: recovery is updating the card and continuing, not a
+   * Payment Link (which would open a second Grow standing order).
+   */
+  cardReactivation?: { reason: CardReactivationReason }
 }
 
-export default function TrialExpiredScreen({ leadCount = 0, leadNames = [] }: Props) {
+const REACTIVATION_BODY: Record<CardReactivationReason, string> = {
+  declined: 'לא הצלחנו לחייב את הכרטיס ששמרת. הלידים והנתונים שלך נשמרו בדיוק כפי שהשארת אותם. כדי להמשיך, יש לאשר אמצעי תשלום.',
+  cancelled: 'ביטלת את המשך המנוי. הלידים והנתונים שלך נשמרו בדיוק כפי שהשארת אותם, ואפשר להמשיך בכל רגע.',
+  ended: 'הלידים והנתונים שלך נשמרו בדיוק כפי שהשארת אותם. כדי להמשיך, יש לאשר אמצעי תשלום.',
+}
+
+export default function TrialExpiredScreen({ leadCount = 0, leadNames = [], cardReactivation }: Props) {
   const hasLeads = leadCount > 0
 
   return (
@@ -30,7 +44,7 @@ export default function TrialExpiredScreen({ leadCount = 0, leadNames = [] }: Pr
             {hasLeads ? 'הלידים שלך מחכים' : 'המערכת שלך מחכה לך'}
           </h1>
           <p className='text-sm text-white/70 mt-2 leading-relaxed'>
-            הלידים והנתונים שלך נשמרו בדיוק כפי שהשארת אותם. כדי להמשיך לעבוד יש לשדרג.
+            {cardReactivation ? REACTIVATION_BODY[cardReactivation.reason] : 'הלידים והנתונים שלך נשמרו בדיוק כפי שהשארת אותם. כדי להמשיך לעבוד יש לשדרג.'}
           </p>
           {hasLeads && (
             <p className='text-sm text-white/80 mt-3'>
@@ -58,18 +72,24 @@ export default function TrialExpiredScreen({ leadCount = 0, leadNames = [] }: Pr
           ))}
         </ul>
 
-        <div className='flex flex-col gap-2'>
-          <Btn
-            variant='solid'
-            size='large'
-            lbl='שדרג עכשיו'
-            className='w-full bg-white text-gray-900 font-bold hover:bg-gray-100'
-            onClick={() => {
-              window.location.href = '/api/payments/upgrade?source=trial_expired_screen'
-            }}
-          />
-          <p className='text-[11px] text-white/40 text-center'>ללא התחייבות · ניתן לבטל בכל רגע · כל הנתונים שלך שמורים</p>
-        </div>
+        {cardReactivation ? (
+          <div className='rounded-xl bg-white p-4'>
+            <CardTrialSetupForm purpose='reactivate' submitLabel='עדכון אמצעי תשלום והמשך' />
+          </div>
+        ) : (
+          <div className='flex flex-col gap-2'>
+            <Btn
+              variant='solid'
+              size='large'
+              lbl='שדרג עכשיו'
+              className='w-full bg-white text-gray-900 font-bold hover:bg-gray-100'
+              onClick={() => {
+                window.location.href = '/api/payments/upgrade?source=trial_expired_screen'
+              }}
+            />
+            <p className='text-[11px] text-white/40 text-center'>ללא התחייבות · ניתן לבטל בכל רגע · כל הנתונים שלך שמורים</p>
+          </div>
+        )}
       </div>
     </div>
   )

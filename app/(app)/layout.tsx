@@ -40,6 +40,7 @@ import { track, trackOncePerAgency, trackSessionStartedOncePerDay } from '@/lib/
 import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
+import { cardReactivationFor } from '@/lib/payments/cardTrial/cardTrialView'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
 import { ActivationCelebrationProvider } from '@/components/trial/ActivationCelebrationContext'
@@ -331,7 +332,13 @@ async function LayoutContent({ children }) {
                 </>
               )}
             </div>
-            {trialExpired && <TrialExpiredScreen leadCount={leadPreview.total} leadNames={leadPreview.names} />}
+            {trialExpired && (
+              <TrialExpiredScreen
+                leadCount={leadPreview.total}
+                leadNames={leadPreview.names}
+                cardReactivation={await cardReactivationFor(user.agencyId)}
+              />
+            )}
             {trialStatus === 'NEVER_STARTED' && (
               <WelcomeTrialModal
                 cardSetup={

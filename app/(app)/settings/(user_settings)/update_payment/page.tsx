@@ -12,6 +12,8 @@ import ProPlanCard from '@/components/settings/payment/ProPlanCard'
 import SubscriptionUsage from '@/components/settings/payment/SubscriptionUsage'
 import BillingHistory from '@/components/settings/payment/BillingHistory'
 import TrialStatusCard from '@/components/trial/TrialStatusCard'
+import CardOnFileSummary from '@/components/trial/CardOnFileSummary'
+import { getCardTrialView } from '@/lib/payments/cardTrial/cardTrialView'
 import Icon from '@/lib/Icon'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
@@ -58,6 +60,8 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const isPro = plan === 'pro'
   const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
 
+  // Card-token billing facts (empty for every Payment-Link or no-card agency).
+  const cardView = await getCardTrialView(user.agencyId)
   const trialRow = isPro ? null : await getAgencyTrial(user.agencyId)
   const trial = trialRow ? getTrialState(trialRow, new Date()) : null
   const trialActive = trial?.status === 'TRIAL_ACTIVE'
@@ -89,11 +93,15 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
         </div>
       )}
 
+      {cardView.cardBilled && <CardOnFileSummary view={cardView} />}
+
       {trialActive && trial?.endsAt && trialRow?.trialStartedAt && (
         <TrialStatusCard
           startedAt={new Date(trialRow.trialStartedAt)}
           endsAt={trial.endsAt}
           daysRemaining={trial.daysRemaining ?? 0}
+          cardBilled={cardView.cardBilled}
+          cancelAtPeriodEnd={cardView.cancelAtPeriodEnd}
         />
       )}
 

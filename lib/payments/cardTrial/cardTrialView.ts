@@ -68,3 +68,15 @@ export async function getCardTrialView(agencyId: number): Promise<CardTrialView>
     cardBilled: Boolean(latest?.confirmedAt || active),
   }
 }
+
+/**
+ * Why a card-billed agency lost access — the expired screen's copy. `undefined`
+ * for every agency that is not card-billed: they keep the Payment-Link upgrade.
+ */
+export async function cardReactivationFor(agencyId: number): Promise<{ reason: 'declined' | 'cancelled' | 'ended' } | undefined> {
+  const view = await getCardTrialView(agencyId)
+  if (!view.cardBilled) return undefined
+  if (view.payment === 'declined') return { reason: 'declined' }
+  if (view.cancelAtPeriodEnd) return { reason: 'cancelled' }
+  return { reason: 'ended' }
+}

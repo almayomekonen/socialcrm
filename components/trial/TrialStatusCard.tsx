@@ -1,15 +1,23 @@
 import { formatDate } from '@/lib/dates'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
-import { ANNUAL_SAVINGS } from '@/lib/pricing'
+import { ANNUAL_SAVINGS, PRICING } from '@/lib/pricing'
+import { formatBillingDate } from '@/lib/payments/cardTrial/firstCharge'
 
 type Props = {
   startedAt: Date
   endsAt: Date
   daysRemaining: number
+  /**
+   * Card-token trial: the trial converts automatically instead of suspending
+   * access, so the closing copy and the action differ. The card itself and its
+   * controls live in CardOnFileSummary, directly above this card.
+   */
+  cardBilled?: boolean
+  cancelAtPeriodEnd?: boolean
 }
 
 
-export default function TrialStatusCard({ startedAt, endsAt, daysRemaining }: Props) {
+export default function TrialStatusCard({ startedAt, endsAt, daysRemaining, cardBilled = false, cancelAtPeriodEnd = false }: Props) {
   const endingSoon = daysRemaining <= 2
   const totalMs = Math.max(endsAt.getTime() - startedAt.getTime(), 1)
   const elapsedMs = Math.min(Math.max(Date.now() - startedAt.getTime(), 0), totalMs)
@@ -48,13 +56,21 @@ export default function TrialStatusCard({ startedAt, endsAt, daysRemaining }: Pr
         <div className={`h-full rounded-full ${endingSoon ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
       </div>
 
-      <div className='flex items-center justify-between gap-4 flex-wrap'>
+      {cardBilled ? (
         <p className='text-sm text-gray-600'>
-          בסיום תקופת הניסיון הגישה תושהה עד לשדרוג, כל הלידים והנתונים שלך נשמרים.
-          <span className='block text-xs text-gray-500 mt-0.5'>מסלול שנתי חוסך ₪{ANNUAL_SAVINGS} בשנה — פרטים בחבילות למטה.</span>
+          {cancelAtPeriodEnd
+            ? `ביטלת את המשך המנוי. הגישה נמשכת עד ${formatBillingDate(endsAt)} ולא יבוצע חיוב.`
+            : `בתום תקופת הניסיון, ב־${formatBillingDate(endsAt)}, יחויב הכרטיס השמור ב־₪${PRICING.monthly} לחודש והעבודה תימשך ללא הפסקה.`}
         </p>
-        <UpgradeBtn source='billing_trial_card' />
-      </div>
+      ) : (
+        <div className='flex items-center justify-between gap-4 flex-wrap'>
+          <p className='text-sm text-gray-600'>
+            בסיום תקופת הניסיון הגישה תושהה עד לשדרוג, כל הלידים והנתונים שלך נשמרים.
+            <span className='block text-xs text-gray-500 mt-0.5'>מסלול שנתי חוסך ₪{ANNUAL_SAVINGS} בשנה — פרטים בחבילות למטה.</span>
+          </p>
+          <UpgradeBtn source='billing_trial_card' />
+        </div>
+      )}
     </div>
   )
 }
