@@ -1,6 +1,7 @@
 import { db } from '@/config/db'
 import { isTokenChargeReconciliationEstablished } from '@/lib/payments/grow/providerEvidence'
 import { insertNextAttempt, listUnknownCharges, markChargeFailed, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
+import { decryptCardToken, getPaymentMethodById } from '@/db/payments/paymentMethods'
 import { applySuccessfulCharge } from './applySuccessfulCharge'
 
 /**
@@ -13,6 +14,11 @@ import { applySuccessfulCharge } from './applySuccessfulCharge'
  * getTokenTransactionsByExternalIdentifiers, so no verdict is derived from it
  * until sandbox evidence exists (providerEvidence). Nothing is ever retried on
  * a guess.
+ *
+ * A token charge cannot be reconciled by waiting for a callback. Grow's server
+ * updates apply to the FIRST transaction only, so every subsequent charge is
+ * known from its synchronous response or from a lookup — never from an update
+ * that will not arrive.
  */
 
 export type ReconcileVerdict = { kind: 'paid'; paid: PaidCharge } | { kind: 'not_charged' } | { kind: 'undetermined'; reason: string }
@@ -22,10 +28,44 @@ export type ReconcileSummary = { paid: number; notCharged: number; undetermined:
 export const UNKNOWN_RETRY_DELAY_MS = 60 * 60_000
 const LOG = '[SubscriptionCharge]'
 
-export const growChargeReconciler: ChargeReconciler = async () =>
-  isTokenChargeReconciliationEstablished()
-    ? { kind: 'undetermined', reason: 'lookup_interpreter_not_implemented' }
-    : { kind: 'undetermined', reason: 'provider_evidence_missing' }
+/**
+ * The card to ask Grow about is the one THAT ATTEMPT used, not whatever the
+ * agency has on file now: a customer who replaced a card while an outcome was
+ * unknown would otherwise have the wrong token queried, and the answer would be
+ * about a different card. Ownership is re-checked here rather than assumed —
+ * the method id travels on the charge row, and a mismatch means something is
+ * wrong enough to stop rather than guess with.
+ */
+export type ReconciliationSubject = { cardToken: string; uniqueIdentifier: number }
+
+export async function reconciliationSubject(charge: ChargeRow): Promise<ReconciliationSubject | { error: string }> {
+  const method = await getPaymentMethodById(charge.paymentMethodId)
+  if (!method) return { error: 'attempt_payment_method_missing' }
+  if (method.agencyId !== charge.agencyId) return { error: 'attempt_payment_method_agency_mismatch' }
+  try {
+    const cardToken = decryptCardToken(method)
+    if (!cardToken) return { error: 'attempt_card_token_unavailable' }
+    // The attempt's own id is its transactionUniqueIdentifier (executeCharge).
+    // Coerced: bigint columns arrive as strings from an unmapped row, and Grow
+    // requires an integer — a quoted id would be a different identifier.
+    const uniqueIdentifier = Number(charge.id)
+    if (!Number.isInteger(uniqueIdentifier) || uniqueIdentifier <= 0) return { error: 'attempt_identifier_invalid' }
+    return { cardToken, uniqueIdentifier }
+  } catch {
+    return { error: 'attempt_card_token_unreadable' }
+  }
+}
+
+export const growChargeReconciler: ChargeReconciler = async (charge) => {
+  // Resolved first, and on every pass: if the attempt's card cannot be
+  // identified there is nothing to ask about, whatever the gate says.
+  const subject = await reconciliationSubject(charge)
+  if ('error' in subject) return { kind: 'undetermined', reason: subject.error }
+  if (!isTokenChargeReconciliationEstablished()) return { kind: 'undetermined', reason: 'provider_evidence_missing' }
+  // Gate open, interpreter still absent: Grow does not document this response,
+  // and a verdict invented here would settle or re-charge real money.
+  return { kind: 'undetermined', reason: 'lookup_interpreter_not_implemented' }
+}
 
 export async function reconcileUnknownCharges(limit: number, reconcile: ChargeReconciler = growChargeReconciler): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = { paid: 0, notCharged: 0, undetermined: 0 }

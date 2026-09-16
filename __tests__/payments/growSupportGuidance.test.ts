@@ -51,11 +51,14 @@ describe('transactionGroupIdentifier is not a duplicate-charge guard', () => {
 })
 
 describe('a lookup carries exactly one external identifier', () => {
-  it('the type admits one and only one', () => {
+  it('the type admits one and only one, and runtime checks it too', () => {
     const api = read('lib/payments/grow/api.ts')
     expect(api).toContain("export type TokenLookupIdentifier = { uniqueIdentifier: number } | { groupIdentifier: number }")
-    // Built by choosing a branch, so both can never be spread into one request.
-    expect(api).toContain("'uniqueIdentifier' in input.identifier")
+    // The request is assembled by a validator that throws before anything is
+    // sent — the type alone cannot police input that arrives at runtime.
+    // (both/neither/non-integer rejection is covered in ownerPilotAndLookup.test.ts)
+    expect(api).toContain('buildSingleExternalIdentifier(input.identifier)')
+    expect(api).toContain('GrowLookupArgumentError')
   })
 })
 

@@ -190,16 +190,37 @@ export async function chargeToken(input: ChargeTokenInput): Promise<TokenChargeR
  */
 export type TokenLookupIdentifier = { uniqueIdentifier: number } | { groupIdentifier: number }
 
+/** Thrown before any request leaves, so a malformed lookup is never sent. */
+export class GrowLookupArgumentError extends Error {
+  constructor(public reason: 'no_identifier' | 'multiple_identifiers' | 'invalid_identifier') {
+    super(`grow.lookup.${reason}`)
+    this.name = 'GrowLookupArgumentError'
+  }
+}
+
+const isPositiveInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0
+
+export function buildSingleExternalIdentifier(identifier: TokenLookupIdentifier): Record<string, number> {
+  const raw = (identifier ?? {}) as Partial<Record<'uniqueIdentifier' | 'groupIdentifier', unknown>>
+  const present = (['uniqueIdentifier', 'groupIdentifier'] as const).filter((k) => raw[k] !== undefined && raw[k] !== null)
+  if (present.length === 0) throw new GrowLookupArgumentError('no_identifier')
+  if (present.length > 1) throw new GrowLookupArgumentError('multiple_identifiers')
+  const key = present[0]
+  const value = raw[key]
+  if (!isPositiveInt(value)) throw new GrowLookupArgumentError('invalid_identifier')
+  return key === 'uniqueIdentifier' ? { transactionUniqueIdentifier: value } : { transactionGroupIdentifier: value }
+}
+
 export async function lookupTokenTransactionsRaw(input: {
   cardToken: string
   /** EXACTLY ONE external identifier — see the type, which admits no other shape. */
   identifier: TokenLookupIdentifier
 }): Promise<GrowEnvelope> {
   const { userId } = getGrowApiConfig()
-  const external =
-    'uniqueIdentifier' in input.identifier
-      ? { transactionUniqueIdentifier: input.identifier.uniqueIdentifier }
-      : { transactionGroupIdentifier: input.identifier.groupIdentifier }
+  // The union is a compile-time promise; this is the runtime one. Input can
+  // arrive from a probe argument, a JSON body or a widened `any`, none of which
+  // the type system sees, and Grow requires exactly one external identifier.
+  const external = buildSingleExternalIdentifier(input.identifier)
   return postGrowForm('getTokenTransactionsByExternalIdentifiers/', {
     userId,
     cardToken: input.cardToken,

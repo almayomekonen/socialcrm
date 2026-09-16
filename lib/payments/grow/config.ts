@@ -88,6 +88,34 @@ export function isCardRequiredTrialEnabled(): boolean {
 }
 
 /** The cron may charge saved tokens. Absent ⇒ no Grow charge is ever attempted. */
+/**
+ * Agency-scoped pilot for the card-required journey, so the owner can validate a
+ * real card save in production before it is opened to anyone else.
+ *
+ * `CARD_TRIAL_PILOT_AGENCY_IDS` is a comma-separated list of agency ids. It
+ * widens ONLY who is asked for a card. It does not open a provider-evidence
+ * gate, does not enable charging (`SUBSCRIPTION_CHARGES_ENABLED` stays global
+ * and separate), and has no wildcard: an unparseable or empty entry is dropped,
+ * never read as "everyone". Deny by default.
+ */
+export function cardTrialPilotAgencyIds(): ReadonlySet<number> {
+  const ids = (process.env.CARD_TRIAL_PILOT_AGENCY_IDS ?? '')
+    .split(',')
+    .map((raw) => Number(raw.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0)
+  return new Set(ids)
+}
+
+/**
+ * Is a card required for THIS agency? The global flag, or the pilot allowlist.
+ * Every decision in the journey asks this, not the global flag alone — a pilot
+ * agency that were asked for a card by one surface and offered click-to-start by
+ * another would get a trial without one.
+ */
+export function isCardRequiredTrialEnabledForAgency(agencyId: number): boolean {
+  return isCardRequiredTrialEnabled() || cardTrialPilotAgencyIds().has(agencyId)
+}
+
 export function areSubscriptionChargesEnabled(): boolean {
   return process.env.SUBSCRIPTION_CHARGES_ENABLED === 'true'
 }

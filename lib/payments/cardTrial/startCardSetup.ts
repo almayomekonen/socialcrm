@@ -5,7 +5,7 @@ import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { track } from '@/lib/analytics/track'
 import { createTokenOnlyProcess, type CardHolder } from '@/lib/payments/grow/api'
-import { assertGrowRuntime, isCardRequiredTrialEnabled, publicAppOrigin } from '@/lib/payments/grow/config'
+import { assertGrowRuntime, isCardRequiredTrialEnabledForAgency, publicAppOrigin } from '@/lib/payments/grow/config'
 import {
   attachSetupProcess,
   createPendingPaymentMethod,
@@ -56,7 +56,7 @@ export async function isCardSetupEligible(agencyId: number, purpose: PaymentMeth
   const row = await getAgencyTrial(agencyId)
   if (!row) return false
   const status = getTrialState(row, new Date()).status
-  if (purpose === 'trial_start') return isCardRequiredTrialEnabled() && status === 'NEVER_STARTED'
+  if (purpose === 'trial_start') return isCardRequiredTrialEnabledForAgency(agencyId) && status === 'NEVER_STARTED'
   if (purpose === 'card_update') return (await getActivePaymentMethod(agencyId)) !== null
   return status === 'TRIAL_EXPIRED' && (await getLatestConfirmedPaymentMethod(agencyId)) !== null
 }

@@ -67,6 +67,7 @@ untouched either way.
 | `GROW_SANDBOX_ISOLATED_DATA` | `true` only on a staging deployment whose database is NOT production. Required for any sandbox Grow call |
 | `APP_HOST` | Public host used for the Grow success/cancel/notify URLs (never localhost) |
 | `CRON_SECRET` | Authorizes `/api/cron/subscription-charges` |
+| `CARD_TRIAL_PILOT_AGENCY_IDS` | Comma-separated agency ids asked for a card while the global flag is off — the owner's own production validation. Widens ONLY who is asked; opens no evidence gate and enables no charging. No wildcard: junk entries are dropped, never read as "everyone" |
 | `STAGING_DATABASE_URL` | Staging only. Read instead of `DATABASE_URL` when `APP_ENV=staging` on a non-production Vercel deployment, because the Neon integration's `DATABASE_URL` injection outranks a branch-scoped variable. Staging throws rather than falling back to it |
 
 `assertGrowRuntime()` refuses every other combination: production mode only on
@@ -94,7 +95,40 @@ Applied, and pinned by `__tests__/payments/growSupportGuidance.test.ts`:
 - **A lookup carries exactly one external identifier.** `TokenLookupIdentifier`
   is a union, so "both" and "neither" cannot be expressed.
 - **No `ApproveTransaction`** for token-only saving or token charges, pending
-  clarification. Asserted absent from the Grow client and the card-trial code.
+  explicit clarification. Asserted absent from the Grow client and the
+  card-trial code.
+
+  Grow's statement that server updates apply to the first transaction is about
+  **notification delivery**. It is NOT permission to capture the ₪1
+  authorization, and must not be read as one. Whether that ₪1 is ever captured,
+  and when it is released, remains an open written question — no code captures
+  it and no screen says anything about it.
+
+### Where the identifiers go
+
+Grow has supplied identifiers but **has not yet confirmed which environment they
+belong to**. Until they do, they go nowhere:
+
+| If Grow confirms | They belong in | They must never be put in |
+|---|---|---|
+| Sandbox | the isolated staging configuration (branch-scoped Preview on `feat/card-required-trial`, alongside `GROW_MODE=sandbox`) | production |
+| Production | the approved production configuration, with `GROW_MODE=production` | staging, where they would transact for real against a test database |
+
+Do not put them in Preview "to try", and do not test them against both
+environments to discover which they are: one of those two attempts is a real
+call to a live business account. `assertGrowRuntime()` refuses the mismatched
+combinations, but that guard is the last line, not a substitute for knowing.
+
+### A token charge is known from its own response, not from a callback
+
+Grow's server updates apply to the FIRST transaction only, so a subsequent token
+charge will not produce one. Completion is therefore established by the
+synchronous `createTransactionWithToken` response, and where that is missing or
+ambiguous, by reconciliation — never by waiting for an update that is not coming.
+Reconciliation asks about the card THAT ATTEMPT used (`reconciliationSubject`,
+ownership re-checked), because a customer may have replaced the card meanwhile.
+The lookup response is still undocumented, so the reconciler returns
+`undetermined` and invents no verdict.
 
 ## 4. Provider-evidence gates (`lib/payments/grow/providerEvidence.ts`)
 
@@ -133,10 +167,26 @@ pass returns before it touches the database.
    `SELECT 1 FROM knex_migrations WHERE name = '20240101000000_create_users.cjs';`
    If that row is absent, STOP — `migrate` would try to `CREATE TABLE users`.
 2. **Confirm what would run**: `npx knex --knexfile knexfile.cjs migrate:list`
-   against production. Expect exactly two pending:
-   `20260916000001_create_billing_payment_methods.cjs` and
-   `20260916000002_create_billing_charges.cjs`. Both only CREATE new tables —
-   they alter no existing table, so no running query can break.
+   against production. **Three** are pending as of the consent work — the
+   earlier "exactly two" precondition is stale:
+
+   | # | File | What it does |
+   |---|---|---|
+   | 1 | `20260916000001_create_billing_payment_methods.cjs` | CREATE TABLE |
+   | 2 | `20260916000002_create_billing_charges.cjs` | CREATE TABLE |
+   | 3 | `20260916000003_card_storage_consent.cjs` | ADD COLUMN IF NOT EXISTS ×2, nullable |
+
+   None alters an existing table or column, so no running query can break.
+   Order matters: 3 adds columns to the table 1 creates, and the filenames
+   already sort that way.
+
+   **3 is not optional.** `createPendingPaymentMethod` writes
+   `cardStorageConsentAt` / `cardStorageConsentVersion` on every insert, so the
+   code and this migration must ship together — deploying the code against a
+   database without it fails every card setup.
+
+   If `migrate:list` shows a different set, STOP and reconcile before applying:
+   the number here is only correct for this branch at this commit.
 3. **Apply them manually, before deploying**: `npm run migrate`.
 4. **Merge and deploy**: fast-forward `feat/card-required-trial` into `main`.
 5. **Verify** signup, login, the billing page for an existing paying customer,

@@ -40,7 +40,7 @@ import { track, trackOncePerAgency, trackSessionStartedOncePerDay } from '@/lib/
 import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import { welcomeCardStage } from '@/lib/payments/cardTrial/availability'
-import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
+import { isCardRequiredTrialEnabledForAgency } from '@/lib/payments/grow/config'
 import { cardReactivationFor } from '@/lib/payments/cardTrial/cardTrialView'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
@@ -343,7 +343,7 @@ async function LayoutContent({ children }) {
             {trialStatus === 'NEVER_STARTED' && (
               <WelcomeTrialModal
                 cardSetup={
-                  isCardRequiredTrialEnabled()
+                  isCardRequiredTrialEnabledForAgency(user.agencyId)
                     ? {
                         defaultFullName: user.name ?? '',
                         canManageBilling: isAdmin(user.role),

@@ -1,7 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
-import { isCardRequiredTrialEnabled } from '@/lib/payments/grow/config'
+import { isCardRequiredTrialEnabledForAgency } from '@/lib/payments/grow/config'
 import { CONVERSION_GRACE_ENDS_AT_SQL } from '@/db/payments/conversionGrace'
 
 /**
@@ -62,7 +62,7 @@ export async function startTrialInTransaction(q: Knex, agencyId: number): Promis
          SELECT 1 FROM billing_payment_methods pm
           WHERE pm."agencyId" = agencies.id AND pm.status = 'active'
        ))`,
-    [agencyId, isCardRequiredTrialEnabled()],
+    [agencyId, isCardRequiredTrialEnabledForAgency(agencyId)],
   )
   return res.rowCount === 1
 }
@@ -106,7 +106,7 @@ export async function recordWelcomeModalSeen(
   const row = await getAgencyTrial(agencyId)
   if (!row || row.trialExempt || row.plan === 'pro') return
   // cardRequired separates card-modal walk-aways from the click-to-start cohort.
-  const cardRequired = isCardRequiredTrialEnabled()
+  const cardRequired = isCardRequiredTrialEnabledForAgency(agencyId)
   await track({ agencyId, userId, event: 'desktop_first_access', props: { surface } })
   await track({ agencyId, userId, event: 'welcome_modal_shown', props: { surface, cardRequired } })
 }
