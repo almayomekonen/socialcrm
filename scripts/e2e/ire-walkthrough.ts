@@ -20,6 +20,39 @@ import { classifySalesTurnFromTranscript } from '@/lib/inbox/autoresponse/salesI
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from '@/lib/inbox/autoresponse/productRetrieve'
 import { safeFallbackReply } from '@/lib/inbox/autoresponse/safeFallback'
 import { detectLang } from '@/lib/inbox/autoresponse/qualify'
+import { formatAgentCapabilityBlock } from '@/lib/inbox/autoresponse/agentCapabilities'
+import {
+  BUSINESS_PROFILE_VERSION,
+  formatBusinessProfileBlock,
+  groundedFactsFromProfile,
+  hashDescription,
+  type BusinessProfile,
+} from '@/lib/inbox/autoresponse/businessProfile'
+import {
+  formatSummaryBlock,
+  planSummary,
+  recentWindow,
+  RECENT_WINDOW,
+} from '@/lib/inbox/autoresponse/conversationSummary'
+
+/** The example placeholder from the settings page, used end to end below. */
+const GARAGE_DESCRIPTION =
+  'אנחנו מוסך בחולון, פתוחים א׳–ה׳ 8:00–17:00. עושים טיפולים ותיקונים. ' +
+  'ברר מה הבעיה ברכב, דגם ושנתון, ואסוף פרטים כדי שנחזור ללקוח לתיאום.'
+
+/** What derivation produces from it. Hand-written so this runs without a key. */
+const GARAGE_PROFILE_EXAMPLE: BusinessProfile = {
+  version: BUSINESS_PROFILE_VERSION,
+  sourceHash: hashDescription(GARAGE_DESCRIPTION),
+  derivedAt: new Date().toISOString(),
+  facts: ['מוסך בחולון', 'טיפולים ותיקונים לרכב'],
+  explicit: { prices: [], hours: ['א׳–ה׳ 8:00–17:00'], policies: [] },
+  objectives: ['לברר מה הבעיה ברכב', 'לאסוף פרטים כדי שהעסק יחזור ללקוח לתיאום'],
+  collect: ['מה הבעיה ברכב', 'דגם', 'שנתון'],
+  tone: null,
+  handoff: null,
+  unsupportedRequests: [],
+}
 
 const RULE = '─'.repeat(78)
 const h1 = (t: string) => console.log(`\n${'═'.repeat(78)}\n${t}\n${'═'.repeat(78)}`)
@@ -182,6 +215,43 @@ for (const inbound of ['שלום, יש לי שאלה', 'Hi, I have a question'])
   const g = decideGreeting({ hasPriorOutbound: false, aiTurnCount: 0, businessName: CLINIC.name, lang, aiState: 'new' })
   console.log(`  "${inbound}" → ${lang} → ${g.greet ? g.line : '(no greeting)'}`)
 }
+
+// ── 8. Objectives are not tools ─────────────────────────────────────────────
+h1('8. OBJECTIVES ARE NOT TOOLS — "book appointments" installs no calendar')
+console.log(formatAgentCapabilityBlock())
+
+// ── 9. One description becomes configuration ────────────────────────────────
+h1('9. ONE DESCRIPTION → STRUCTURED PROFILE')
+console.log('The owner writes this in the single box on the settings page:\n')
+console.log(`  "${GARAGE_DESCRIPTION}"\n`)
+console.log('On save it becomes the profile below, which is what the agent reads.')
+console.log('Deriving needs a provider key; this is the shape, filled in by hand so')
+console.log('the structure is inspectable without one:\n')
+h2('derived profile, rendered into the prompt')
+console.log(formatBusinessProfileBlock(GARAGE_PROFILE_EXAMPLE) ?? '(empty)')
+h2('what a price figure is checked against (facts only, never objectives)')
+console.log(groundedFactsFromProfile(GARAGE_PROFILE_EXAMPLE, null))
+console.log('\n  >> note: "ברר מה הבעיה ברכב" is an OBJECTIVE and is absent here —')
+console.log('     an objective can never ground a claim.')
+
+// ── 10. Long-conversation memory ────────────────────────────────────────────
+h1('10. MEMORY PAST THE WINDOW')
+const longConvo = Array.from({ length: RECENT_WINDOW + 20 }, (_, i) => ({
+  sequence: i + 1,
+  direction: (i % 2 === 0 ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
+  text: i === 2 ? 'הרכב הוא מאזדה 3 שנת 2018' : `הודעה ${i + 1}`,
+}))
+const kept = recentWindow(longConvo)
+const plan = planSummary(longConvo, { summary: null, summaryThroughSequence: 0 })
+console.log(`  conversation length      : ${longConvo.length} messages`)
+console.log(`  kept verbatim            : ${kept.length} (sequences ${kept[0].sequence}–${kept[kept.length - 1].sequence})`)
+console.log(`  "מאזדה 3 שנת 2018" still verbatim? ${kept.some((t) => t.text.includes('מאזדה')) ? 'yes' : 'NO — it fell out of the window'}`)
+if (plan.action === 'summarise') {
+  console.log(`  handed to the summariser : ${plan.olderTurns.length} messages, through sequence ${plan.upToSequence}`)
+  console.log(`  detail inside that batch : ${plan.olderTurns.some((t) => t.text.includes('מאזדה')) ? 'yes' : 'no'}`)
+}
+console.log('\n  So the only thing that can carry it forward is the summary:')
+console.log(formatSummaryBlock('הרכב: מאזדה 3 שנת 2018. הלקוח שאל על רעש בבלמים.') ?? '')
 
 console.log(`\n${RULE}`)
 console.log('Everything above is deterministic. For real model replies, set a provider key and run:')
