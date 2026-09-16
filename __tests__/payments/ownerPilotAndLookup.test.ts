@@ -31,10 +31,21 @@ describe('a lookup is refused before it is sent unless exactly one identifier is
     expect(build({ groupIdentifier: null })).toThrow(/no_identifier/)
   })
 
-  it('rejects a value that is not a positive integer', () => {
-    for (const bad of [0, -1, 1.5, NaN, '7', {}]) {
+  it('rejects a value that is not a positive whole number', () => {
+    for (const bad of [0, -1, 1.5, NaN, Infinity, {}, 'abc', '']) {
       expect(build({ uniqueIdentifier: bad }), String(bad)).toThrow(/invalid_identifier/)
     }
+  })
+
+  it('accepts a numeric STRING, because a bigint column arrives as one', () => {
+    expect(buildSingleExternalIdentifier({ uniqueIdentifier: '7' } as unknown as TokenLookupIdentifier)).toEqual({
+      transactionUniqueIdentifier: 7,
+    })
+  })
+
+  it('rejects an identifier JavaScript cannot represent exactly', () => {
+    // Silently becomes 9007199254740992 — a different transaction.
+    expect(build({ uniqueIdentifier: '9007199254740993' })).toThrow(/invalid_identifier/)
   })
 })
 

@@ -2,6 +2,7 @@ import { db } from '@/config/db'
 import { isTokenChargeReconciliationEstablished } from '@/lib/payments/grow/providerEvidence'
 import { insertNextAttempt, listUnknownCharges, markChargeFailed, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
 import { decryptCardToken, getPaymentMethodById } from '@/db/payments/paymentMethods'
+import { tryExactGrowIdentifier } from '@/lib/payments/grow/identifiers'
 import { applySuccessfulCharge } from './applySuccessfulCharge'
 
 /**
@@ -46,10 +47,10 @@ export async function reconciliationSubject(charge: ChargeRow): Promise<Reconcil
     const cardToken = decryptCardToken(method)
     if (!cardToken) return { error: 'attempt_card_token_unavailable' }
     // The attempt's own id is its transactionUniqueIdentifier (executeCharge).
-    // Coerced: bigint columns arrive as strings from an unmapped row, and Grow
-    // requires an integer — a quoted id would be a different identifier.
-    const uniqueIdentifier = Number(charge.id)
-    if (!Number.isInteger(uniqueIdentifier) || uniqueIdentifier <= 0) return { error: 'attempt_identifier_invalid' }
+    // Exact or refuse: bigint columns arrive as strings from an unmapped row,
+    // and a rounded id names a DIFFERENT transaction.
+    const uniqueIdentifier = tryExactGrowIdentifier(charge.id)
+    if (uniqueIdentifier === null) return { error: 'attempt_identifier_not_exact' }
     return { cardToken, uniqueIdentifier }
   } catch {
     return { error: 'attempt_card_token_unreadable' }

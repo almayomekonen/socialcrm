@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import type { BillingPeriod } from '@/lib/pricing'
 import type { PaymentMethodRow } from './paymentMethods'
+import { exactGrowIdentifier } from '@/lib/payments/grow/identifiers'
 
 /**
  * Charge attempts: claim, lease recovery and terminal transitions. Every
@@ -45,12 +46,12 @@ const OPEN_FOR_RESULT = ['in_flight', 'unknown']
 
 export function mapCharge(r: Record<string, any>): ChargeRow {
   return {
-    id: Number(r.id),
+    id: exactGrowIdentifier(r.id),
     agencyId: Number(r.agencyId),
     paymentMethodId: Number(r.paymentMethodId),
     kind: r.kind,
     periodKey: r.periodKey,
-    groupIdentifier: Number(r.groupIdentifier),
+    groupIdentifier: exactGrowIdentifier(r.groupIdentifier),
     attempt: Number(r.attempt),
     firstAttemptAt: new Date(r.firstAttemptAt),
     amount: Number(r.amount),

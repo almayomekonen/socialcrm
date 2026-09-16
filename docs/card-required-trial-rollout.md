@@ -158,10 +158,19 @@ These are two separate events. Deploying changes nothing a customer can see.
 
 ### Phase A — deploy, flags off
 
-Neither `CARD_REQUIRED_TRIAL_ENABLED` nor `SUBSCRIPTION_CHARGES_ENABLED` exists
-in the production environment, and both are absence-blocks, so the shipped code
-is inert: no signup sees a card wall, no charge is dispatched, and the scheduled
-pass returns before it touches the database.
+**This is not behaviourally inert.** Payment Links were removed, so purchasing
+changes the moment it ships: the checkout is gone, `/api/payments/upgrade`
+redirects to the billing screen, and that screen offers a card setup or says
+payments are unavailable. With no Grow identifiers configured it says
+unavailable — so after Phase A, nobody can buy until Phase B.
+
+What the flags do still hold back: `CARD_REQUIRED_TRIAL_ENABLED` unset means no
+signup meets a card wall (new trials still start click-to-start), and
+`SUBSCRIPTION_CHARGES_ENABLED` unset means no charge is dispatched and the
+scheduled pass returns before it touches the database.
+
+The first real validation runs through `docs/card-trial-first-validation.md`,
+not through this phase.
 
 1. **Check the migration precondition** (once, per `release-deployment-workflow.md` §8b):
    `SELECT 1 FROM knex_migrations WHERE name = '20240101000000_create_users.cjs';`

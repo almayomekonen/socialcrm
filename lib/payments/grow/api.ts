@@ -1,5 +1,6 @@
 import { getGrowApiConfig } from './config'
 import { postGrowForm, type GrowEnvelope } from './http'
+import { exactGrowIdentifier } from './identifiers'
 
 /**
  * Grow Light API calls needed for card-token billing, limited to DOCUMENTED
@@ -198,16 +199,19 @@ export class GrowLookupArgumentError extends Error {
   }
 }
 
-const isPositiveInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0
-
 export function buildSingleExternalIdentifier(identifier: TokenLookupIdentifier): Record<string, number> {
   const raw = (identifier ?? {}) as Partial<Record<'uniqueIdentifier' | 'groupIdentifier', unknown>>
   const present = (['uniqueIdentifier', 'groupIdentifier'] as const).filter((k) => raw[k] !== undefined && raw[k] !== null)
   if (present.length === 0) throw new GrowLookupArgumentError('no_identifier')
   if (present.length > 1) throw new GrowLookupArgumentError('multiple_identifiers')
   const key = present[0]
-  const value = raw[key]
-  if (!isPositiveInt(value)) throw new GrowLookupArgumentError('invalid_identifier')
+  let value: number
+  try {
+    // Exact, never rounded: a rounded identifier names a different transaction.
+    value = exactGrowIdentifier(raw[key])
+  } catch {
+    throw new GrowLookupArgumentError('invalid_identifier')
+  }
   return key === 'uniqueIdentifier' ? { transactionUniqueIdentifier: value } : { transactionGroupIdentifier: value }
 }
 
