@@ -686,3 +686,175 @@ Everything in §5 that was not addressed, minus the summary (now built), plus:
   unit tests and the walkthrough, not by the panel.
 - **Preview conversations are not persisted**, by design. Closing the panel
   discards the test conversation.
+
+
+---
+
+## 10. Round three — pushed, evaluated against a real model, verified in a browser
+
+### 10.1 Secret scan and push
+
+Scanned the branch diff for key-shaped strings (`sk-`, `sk-ant-`, `AIza`, `ghp_`,
+`AKIA`, JWTs, PEM blocks), credentialed connection URLs, and long
+secret-looking assignments: **none**. No `.env`, `.pem`, `.key` or credential
+file is added or tracked; `.env.local` / `.env.test` are gitignored and untracked
+in the worktree, and `.env.test.example` (placeholders only) is not touched by
+this branch.
+
+Pushed to `origin/feat/wa-agent-business-neutral`. **The draft PR could not be
+opened from here** — `gh` is not installed and no `GITHUB_TOKEN`/`GH_TOKEN` is
+available, so per `release-deployment-workflow.md` §5 the compare URL is handed
+over instead.
+
+### 10.2 Real-model evaluation — RUN, not blocked
+
+Credentials came from the developer's own `.env.local` (`AI_ENABLED=true`,
+`AI_AGENCY_ALLOWLIST=all`), so nothing had to be pasted anywhere. Provider
+`openai`, model `gpt-5.6`.
+
+**Three businesses × seven scenarios = 21 turns:**
+
+| | |
+| --- | --- |
+| Validator ok | **21 / 21** |
+| Rejected | 0 |
+| SocialCRM vocabulary leaked into another business | **0** |
+| Completed-action claims ("I booked you") | **0** |
+| Repairs used | 1 (deterministic fallback after `no_question`) |
+
+**Long-context recall**, 41-message conversation, four facts planted early and
+buried past the verbatim window:
+
+| | |
+| --- | --- |
+| Facts still visible verbatim | 0 / 4 — the test is valid |
+| Facts retained in the summary | **4 / 4** |
+| Correction applied (2018 → 2019) | **yes**, and the stale value is gone |
+| Re-asked something already answered | **none** |
+| Greeted again mid-conversation | **no** |
+
+The reply it produced from the summary alone:
+
+> נשאר רק לדעת איזה יום נוח לך להגיע, א׳, ב׳, ד׳ או ה׳ בין 8:00 ל־17:00. אפשר
+> להשאיר בבוקר ולאסוף בסוף היום. מה הכי מתאים לך?
+
+It excludes Tuesday, because the customer said 34 messages earlier that Tuesdays
+do not work.
+
+### 10.3 Four defects the evaluation found
+
+None were visible from the code or the mocked tests.
+
+1. **A price refusal read as a price claim.** "אני לא יכול לאשר … מחיר לטיסה" —
+   an exemplary refusal — was rejected, because only "I don't have a price"
+   phrasings were recognised.
+2. **`no_question` rejecting a complete turn.** "אנחנו לא מציעים טיפולי פנים."
+   is correct and complete and was being replaced by a generic canned question.
+   A stated limitation now satisfies the rule — and deliberately nothing more:
+   a first, looser attempt silently weakened three unrelated protections that
+   had been leaning on the missing question mark.
+3. **Generic filler had no name.** It was caught incidentally by `no_question`;
+   it now fails as `filler`.
+4. **The business name leaking into derived facts.** Found by reading the row
+   after a real save in the browser: the derivation prompt put the name on its
+   own line above the description and the model copied it into `facts`, so a
+   profile asserted a name contradicting the description.
+
+The evaluation script also now runs the **same repair loop production runs** —
+reporting a raw first attempt as the verdict overstated failures, since no
+customer ever receives an unrepaired reply.
+
+### 10.4 Browser verification — the whole flow
+
+Driven through Playwright against `localhost:3000`, signed in as an existing
+admin, on agency 1 — deliberately, because it was an **existing** configuration
+(`mode=acknowledge`, no description), which is the backward-compatibility case.
+
+| Step | Result |
+| --- | --- |
+| Screen renders one box with the approved label, helper, placeholder | ✓ |
+| Advanced collapsed; no prompts/stages/schemas on screen | ✓ |
+| Test button disabled with a stated reason before a description exists | ✓ |
+| Save → "השינויים נשמרו" | ✓ |
+| Profile derived: facts / hours / prices / policies separated | ✓ |
+| "תקבע ללקוח תור" surfaced as an unsupported request, on screen | ✓ |
+| `mode` moved `acknowledge` → `qualify` | ✓ |
+| Preview: greeted, quoted the **grounded** price, refused to confirm the booking | ✓ |
+| Preview labelled "נבדק לפי ההגדרות השמורות" + the isolation notice | ✓ |
+| Edit description (450→520, drop A/C) → save → re-derived | ✓ |
+| Preview after edit quotes **520**, never 450, and declines A/C | ✓ |
+
+The preview replies, verbatim:
+
+> **before the edit** — היי, ברוך הבא לפיתוח תוכנה 👋 טיפול שגרה עולה 450 ש"ח.
+> אוכל לקדם בקשה ליום ראשון, באיזו שעה נוח לך? אדם מהצוות יחזור לאשר את התור.
+>
+> **after the edit** — היי, ברוך הבא לפיתוח תוכנה 👋 טיפול שגרה עולה 520 ש״ח.
+> במזגן אנחנו כבר לא מטפלים.
+
+(The greeting says "פיתוח תוכנה" because that is agency 1's saved account name,
+while the description I typed describes a garage. That is the specified
+behaviour — the name comes from the account — not a defect.)
+
+### 10.5 Migrations on a clean isolated database
+
+The manual column additions on the dev database validated nothing. Run properly
+on a fresh `socialcrm_migtest`:
+
+| Step | Result |
+| --- | --- |
+| `createdb`, confirmed 0 tables | ✓ |
+| `npm run db:bootstrap` | baseline loaded: 91 tables, 86 migrations stamped |
+| `npx knex migrate:latest` | **batch 2: 26 migrations**, both new ones included |
+| Columns present, correct types/nullability | ✓ (4/4) |
+| Idempotency — second `migrate:latest` | "Already up to date" |
+| Reversibility — `migrate:down` then re-apply | columns 2 → 0 → 2 |
+| Final table count | 113 |
+
+So `baseline → migrations → valid current schema` holds from zero.
+
+### 10.6 Verification totals, round three
+
+| | |
+| --- | --- |
+| Typecheck | 0 errors |
+| All agent + settings suites | **1578 passed, 0 failed** |
+| `autoresponse` + `inbox` + `whatsapp` + `settings` | **2525 passed, 6 failed** |
+| a11y gate | **1470 passed** |
+
+The 6 are the same pre-existing `history*` / `messageTimeline` failures proved
+against `origin/main` in §3. One file showed a suite-level failure in the big run
+and passes 8/8 in isolation — DB contention, not a behaviour change.
+
+### 10.7 Pilot readiness
+
+**Ready for a controlled pilot** — one agency, `draft=true` first — with the
+evidence separated honestly:
+
+**Code-test evidence (deterministic, in CI, will not drift):** business
+neutrality and the absence of cross-tenant vocabulary; the greeting decision and
+its idempotency; the guardrail's allow/refuse boundary and grounding; prompt
+isolation ordering; the corrections merge; the follow-up-turn concurrency fix
+against a real database; preview isolation; the migration chain from zero.
+
+**Actual model behaviour (observed once, on one model, not a guarantee):** 21/21
+clean turns across three businesses; 4/4 long-context recall with a correction
+applied; no invented booking; no cross-business leakage; a grounded price quoted
+correctly and an edited price followed. This is a good sample, not a proof — it
+is one run of a non-deterministic system, and it should be re-run before the
+pilot widens and after any prompt change.
+
+**What a pilot still needs to watch,** because nothing here can settle it:
+`auto_response_recovered` and `validation_failed` rates; how often the repair
+loop replaces a model reply with a canned one; derivation quality on real
+owner-written prose rather than my synthetic profiles; and whether the summary
+holds up past a few hundred messages.
+
+### 10.8 Local state left behind
+
+- Agency 1's `auto_response_settings` is now configured as a garage with
+  `mode=qualify`. Its pre-change row is saved; restoring it is one statement.
+- `socialcrm_migtest` was created for §10.5 and can be dropped.
+- `.env.local` in the worktree carries `SMART_REPLY_AGENT_ENABLED=1` /
+  `SMART_REPLY_AGENT_AGENCY_IDS=all`. **Production is unchanged** — neither key
+  is set there, so `mode` is never written for any production agency.
