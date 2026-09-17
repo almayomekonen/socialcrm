@@ -34,6 +34,31 @@ export type GrowProviderEvidence = {
   tokenChargeReconciliation: { evidenceRef: string | null }
 }
 
+/**
+ * Grow support, in writing, 2026-09-17 — closes three items that were open:
+ *
+ *  1. "The identifiers are for the test environment."  Matches what the
+ *     credential check found on 2026-09-16: sandbox created a hosted page,
+ *     production refused with error 701 naming userId.
+ *  2. "ApproveTransaction is not required in this case."  It stays absent from
+ *     token-only saving and token charges, now by confirmation rather than by
+ *     caution.
+ *  3. "Token saving without charging is an authorization hold only, released
+ *     within 10 days."  This is the ₪1 answer. A HOLD, not a capture — so the
+ *     customer is told it may appear and that it clears (TOKEN_HOLD_NOTICE),
+ *     and it is never described as a subscription charge.
+ *
+ * It says nothing about the PRODUCTION account, which is a different business
+ * profile issued after Grow's review. Production gates stay closed.
+ */
+export const GROW_SUPPORT_CONFIRMATIONS = {
+  environment: 'test' as const,
+  approveTransactionRequired: false,
+  tokenSaveIsAuthorizationHoldOnly: true,
+  holdReleasedWithinDays: 10,
+  confirmedAt: '2026-09-17',
+} as const
+
 export const GROW_PROVIDER_EVIDENCE: GrowProviderEvidence = {
   tokenSaveVerification: {
     /**

@@ -102,3 +102,27 @@ describe('card storage is consented to in our own interface', () => {
     expect(db).toContain('cardStorageConsentAt: new Date()')
   })
 })
+
+describe('Grow’s written confirmations (2026-09-17) are recorded, not remembered', () => {
+  it('records the environment, the ApproveTransaction answer, and the hold', async () => {
+    const { GROW_SUPPORT_CONFIRMATIONS } = await import('@/lib/payments/grow/providerEvidence')
+    expect(GROW_SUPPORT_CONFIRMATIONS).toMatchObject({
+      environment: 'test',
+      approveTransactionRequired: false,
+      tokenSaveIsAuthorizationHoldOnly: true,
+      holdReleasedWithinDays: 10,
+    })
+  })
+
+  it('discloses the hold to the customer, and never as a subscription charge', async () => {
+    const { TOKEN_HOLD_NOTICE, cardTrialDisclosureLines } = await import('@/lib/payments/cardTrial/terms')
+    expect(TOKEN_HOLD_NOTICE).toContain('10 ימים')
+    expect(TOKEN_HOLD_NOTICE).toContain('אינה גבייה')
+    expect(cardTrialDisclosureLines()).toContain(TOKEN_HOLD_NOTICE)
+  })
+
+  it('production evidence stays closed — a test-account answer is not a production one', async () => {
+    const { isTokenSaveVerificationEstablished } = await import('@/lib/payments/grow/providerEvidence')
+    expect(isTokenSaveVerificationEstablished('production')).toBe(false)
+  })
+})

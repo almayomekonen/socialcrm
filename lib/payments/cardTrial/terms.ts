@@ -42,9 +42,20 @@ export function cardTrialTermsLine(): string {
  * Deliberately silent about Grow's ₪1 card check: that copy waits for Grow's
  * written answer (Gate B, B2 / owner decision D3).
  */
+/**
+ * The ₪1 hold is disclosed because it can APPEAR on a statement, and a customer
+ * who sees it without warning reasonably concludes we charged them. Grow
+ * confirmed in writing (2026-09-17) that saving a token without charging is an
+ * authorization hold only, released within 10 days. It is named separately from
+ * the subscription charge so the two are never read as the same thing.
+ */
+export const TOKEN_HOLD_NOTICE =
+  `לצורך אימות הכרטיס תיתכן הקפאה זמנית של ₪${TOKEN_SAVE_SUM} אצל חברת האשראי. זו אינה גבייה, והיא משתחררת בתוך 10 ימים.`
+
 export function cardTrialDisclosureLines(): string[] {
   return [
     `${TRIAL_LENGTH_DAYS} ימים ללא עלות מרגע ההפעלה. היום לא יבוצע חיוב.`,
+    TOKEN_HOLD_NOTICE,
     `בתום ${TRIAL_LENGTH_DAYS} הימים יחויב הכרטיס ב־₪${CARD_TRIAL_AMOUNT} לחודש, ומדי חודש לאחר מכן, עד לביטול.`,
     'אפשר לבטל בכל רגע לפני החיוב הראשון בעמוד המנוי — ואז לא יבוצע חיוב.',
   ]

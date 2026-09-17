@@ -99,10 +99,18 @@ Applied, and pinned by `__tests__/payments/growSupportGuidance.test.ts`:
   card-trial code.
 
   Grow's statement that server updates apply to the first transaction is about
-  **notification delivery**. It is NOT permission to capture the ₪1
-  authorization, and must not be read as one. Whether that ₪1 is ever captured,
-  and when it is released, remains an open written question — no code captures
-  it and no screen says anything about it.
+  **notification delivery**, and was never permission to capture the ₪1.
+
+  **Answered 2026-09-17, in writing:** "The identifiers are for the test
+  environment. ApproveTransaction is not required in this case. Token saving
+  without charging is an authorization hold only, released within 10 days."
+  Recorded as `GROW_SUPPORT_CONFIRMATIONS`. So the ₪1 is a HOLD, not a capture:
+  the customer is told it may appear and that it clears within 10 days
+  (`TOKEN_HOLD_NOTICE`), stated separately from the subscription charge.
+  ApproveTransaction stays absent — now by confirmation, not caution.
+
+  This answer is about the TEST account. The production business profile is
+  issued after Grow's review, and its gates stay closed.
 
 ### Where the identifiers go
 
@@ -289,8 +297,9 @@ Log prefixes: `[GrowNotify]`, `[CardSetup]`, `[SubscriptionCharge]`,
 ## 9. Launch requirements still open
 
 1. **Grow sandbox evidence** for the three gates in section 4.
-2. **Grow's written answers** (₪1 check never captured and when it is released;
-   duplicate-identifier behaviour; reconciliation after a lost response).
+2. ~~₪1 behaviour, environment, ApproveTransaction~~ — **answered 2026-09-17**
+   (see section 3b). Still open with Grow: duplicate-identifier behaviour and
+   the `getTokenTransactionsByExternalIdentifiers` response shape.
 3. **Customer terms**: `/terms` has no subscription, automatic-billing,
    cancellation or refund clauses. Proposed wording awaits owner approval; the
    consent checkbox links there, so this blocks launch, not development.

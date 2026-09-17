@@ -108,8 +108,15 @@ describe('terms — documented or owner-decided constants only', () => {
     for (const d of [TOKEN_PROCESS_DESCRIPTION, CHARGE_DESCRIPTION]) expect(d).toMatch(/^[\p{L}\p{N} ]+$/u)
   })
 
-  it('does not yet declare facts Gate B has not established', () => {
+  it('declares the hold only because Grow confirmed it, and still declares nothing else', () => {
+    // Was absent while the hold was unestablished. Grow confirmed in writing on
+    // 2026-09-17 that a token save is an authorization hold released within 10
+    // days, so the customer is now told — see GROW_SUPPORT_CONFIRMATIONS.
+    expect('TOKEN_HOLD_NOTICE' in terms).toBe(true)
+    expect(terms.TOKEN_HOLD_NOTICE).toContain('10 ימים')
+
+    // Still unestablished: which statusCodes mean "saved" is evidence, and it
+    // lives in providerEvidence per environment — never as a constant here.
     expect('TOKEN_SAVE_STATUS_CODES' in terms).toBe(false)
-    expect('TOKEN_HOLD_NOTICE' in terms).toBe(false)
   })
 })
