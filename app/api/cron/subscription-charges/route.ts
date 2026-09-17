@@ -4,11 +4,22 @@ import { runChargePass } from '@/lib/payments/charges/runChargePass'
 /**
  * Card-token billing scheduler pass (lib/payments/charges/runChargePass.ts).
  *
- * NOT SCHEDULED YET: there is deliberately no vercel.json cron entry — adding it
- * is a production launch step (plan Amendment A7). With
- * SUBSCRIPTION_CHARGES_ENABLED absent the pass returns before touching the
- * database, and charge dispatch stays disabled until Grow sandbox evidence is
- * recorded (lib/payments/grow/providerEvidence.ts).
+ * SCHEDULED every 5 minutes in vercel.json (05a33aaa). Vercel runs crons only
+ * against production deployments, so this does not fire on the staging preview.
+ *
+ * Being scheduled is not being armed. Three independent things must all be true
+ * before this pass can move money, and none of them is:
+ *
+ *   1. SUBSCRIPTION_CHARGES_ENABLED — absent in production, so runChargePass
+ *      returns before it touches the database at all.
+ *   2. The per-environment dispatch gate — tokenChargeDispatch.production has no
+ *      evidenceRef (lib/payments/grow/providerEvidence.ts), so dispatch stays
+ *      false even with the flag on. Sandbox is open; production is not.
+ *   3. GROW_USER_ID / GROW_PAGE_CODE_TOKEN — absent in production, so a call to
+ *      Grow throws grow.config.* before a request is built.
+ *
+ * Turning billing on is opening those deliberately, in that order — never
+ * discovering that the cron was already running.
  */
 
 export const maxDuration = 60
