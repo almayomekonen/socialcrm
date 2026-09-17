@@ -43,19 +43,55 @@ const OPTOUT_PATTERNS: RegExp[] = [
   /\bstop\b|unsubscribe|remove me|opt[ -]?out|leave me alone|do not (contact|message)/i,
 ]
 
+/**
+ * Plural and second-person imperatives asking to be taken off the list.
+ *
+ * The list above carries `הסר אותי` (singular imperative) and `להסיר`
+ * (infinitive), but not `הסירו` or `תסירו` — so "הסירו אותי" and "תסירו אותי
+ * מהרשימה", both ordinary ways to ask, were NOT opt-outs. The agent would have
+ * kept replying, including with a courtesy line.
+ *
+ * Deliberately narrow: the removal verb must be paired with a first-person
+ * object (אותי / אותנו) or an explicit list. "תסירו את הכתם" is not an opt-out,
+ * and neither is a rep discussing removing somebody else.
+ */
+const REMOVAL_PATTERNS: RegExp[] = [
+  /(?:הסירו|הסירי|תסירו|תסיר|תורידו|תוריד)\s+אות(?:י|נו)(?:\s|$|[.,!?])/,
+  /(?:הסירו|הסירי|תסירו|תסיר|להסיר)[^.!?\n]{0,24}מ(?:ה?רשימה|ה?תפוצה|ה?דיוור)/,
+]
+
+/**
+ * Quoted spans, removed before the removal patterns are tested, so a message
+ * ABOUT the phrase is not treated as the phrase — "לקוח כתב לי 'הסירו אותי'".
+ * Applied ONLY to the patterns added here: the pre-existing list is a compliance
+ * stop and loosening it is not this change's business.
+ */
+const QUOTED_SPAN = /["'״’«][^"'״’»\n]{0,80}["'״’»]/g
+
 /** Customer opt-out / unsubscribe request → permanent stop + compliance. */
 export function detectOptOut(text: string): boolean {
-  return OPTOUT_PATTERNS.some((re) => re.test(text))
+  const t = text ?? ''
+  if (OPTOUT_PATTERNS.some((re) => re.test(t))) return true
+  return REMOVAL_PATTERNS.some((re) => re.test(t.replace(QUOTED_SPAN, ' ')))
 }
 
+/**
+ * WHAT A HANDOFF ACTUALLY GUARANTEES: the request is now durably in the staff
+ * inbox, marked as waiting for a rep. It does NOT guarantee that anyone has
+ * committed to calling, or when.
+ *
+ * The old copy promised both — "ויחזור אליך בהקדם" is a callback AND a time — and
+ * nothing in the system backs either. The wording now states the part that is
+ * true and verifiable.
+ */
 const HANDOFF = {
   qualified: {
-    he: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.',
-    en: 'Someone from the team will continue with you and get back shortly.',
+    he: 'הפנייה שלך ממתינה כעת לטיפול הצוות.',
+    en: 'Your request is now waiting for the team to pick up.',
   },
   uncertain: {
-    he: 'מישהו מהצוות ימשיך איתך מכאן.',
-    en: 'Someone from the team will continue with you from here.',
+    he: 'הפנייה שלך ממתינה כעת לטיפול הצוות.',
+    en: 'Your request is now waiting for the team to pick up.',
   },
 }
 
@@ -216,6 +252,10 @@ const QualifySchema = z.object({
   extracted: z
     .object({
       name: z.string().nullable(),
+      businessType: z
+        .string()
+        .nullable()
+        .describe('סוג העסק של הלקוח כפי שנמסר ("מספרת כלבים", "מוסך"). לא שם העסק, ולא להמציא'),
       need: z.string().nullable(),
       urgency: z.string().nullable(),
       budget: z.string().nullable(),
@@ -290,6 +330,8 @@ export async function generateQualifyTurn(args: {
   responseProfile?: ResponseProfile | null
   greetingLine?: string | null
   summaryBlock?: string | null
+  answeringOurRequest?: boolean
+  handoffAlreadyOffered?: boolean
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
   /** Aborts the provider call when a human rep starts typing mid-generation. */

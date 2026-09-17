@@ -45,7 +45,9 @@ import {
   conversationCloser,
   countConsecutiveAiOutbounds,
   decideConversationControl,
+  isConfirmedHandoffOffer,
   isExplicitReopen,
+  outboundOffersHandoff,
 } from './conversationControl'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 import { formatBusinessIdentityBlock, groundedFactsFor, loadBusinessIdentity } from './businessIdentity'
@@ -67,6 +69,12 @@ import { humanTypingBlocksTurn } from './humanPresence'
 import { runImmediateHumanHandoff } from './immediateHandoff'
 import { scheduleNoResponseWarning } from './processNoResponseJob'
 import { isNoResponseWarningMessage, metadataKind } from './noResponseClose'
+import {
+  COURTESY_KIND,
+  courtesyLine,
+  decideCourtesyClose,
+  isCourtesyMessage,
+} from './courtesyClose'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -124,7 +132,12 @@ async function shadowQualificationIfLead(
   })
 }
 
-async function persistEscalation(conversationId: number, agencyId: number, summary: EscalationSummary): Promise<void> {
+async function persistEscalation(
+  conversationId: number,
+  agencyId: number,
+  summary: EscalationSummary,
+  q: Qualification,
+): Promise<void> {
   const coveredSequence = await getMaxMessageSequence(conversationId)
   const base = {
     conversationId,
@@ -137,7 +150,21 @@ async function persistEscalation(conversationId: number, agencyId: number, summa
   }
   await upsertManyConversationIntelligence([
     { ...base, kind: INTEL_KIND_TEMPERATURE, data: { temperature: summary.temperature } },
-    { ...base, kind: 'qualification_summary', data: { text: summary.text, suggestedAction: summary.suggestedAction } },
+    {
+      ...base,
+      kind: 'qualification_summary',
+      data: {
+        text: summary.text,
+        suggestedAction: summary.suggestedAction,
+        // Structured alongside the rendered note, so the staff surface can show
+        // the fields without parsing a formatted blob.
+        name: q.name ?? null,
+        businessType: q.businessType ?? null,
+        need: q.need ?? null,
+        urgency: q.urgency ?? null,
+        temperature: summary.temperature,
+      },
+    },
   ])
 }
 
@@ -264,6 +291,66 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return greetingResolved
   }
 
+  /**
+   * One warm line for "thank you", and nothing else.
+   *
+   * Called from TWO places, which is the whole point: the silent-close path, and
+   * — before the pre-generation gate — a conversation already handed to a human.
+   * `escalated` is a hard skip in decidePreGeneration, so a customer who thanks
+   * the business after a real handoff would otherwise never reach the courtesy
+   * branch at all. That is exactly the case the original transcript could not
+   * exercise, because it never entered handoff state.
+   *
+   * Never changes ownership and never records a turn. On an escalated
+   * conversation the state is left escalated: the request is still waiting for a
+   * person, and a pleasantry does not change that.
+   */
+  const attemptCourtesy = async (opts: { closeAfter: string | null }): Promise<Outcome | null> => {
+    const decision = decideCourtesyClose({
+      inboundText: lastInboundText,
+      agentHasSpoken,
+      humanTookOver,
+      optOut,
+      alreadySentCourtesy: recent.some((m) => m.direction === 'outbound' && isCourtesyMessage(m.metadata)),
+    })
+    waTrace(
+      'COURTESY_CLOSE',
+      { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+      { send: decision.send, reason: 'reason' in decision ? decision.reason : null, aiState: aiState.aiState },
+    )
+    if (!decision.send) return null
+    const gate = outboundGate()
+    if (gate.allowed === false) return doSkip(gate.reason)
+    const r = await sendIreOutbound(job, ctx, deps.send, courtesyLine(lang, conv.id), {
+      source: 'auto_response',
+      reason: job.reason,
+      phase: 2,
+      kind: COURTESY_KIND,
+    })
+    if (r.ok === false) {
+      if (r.settled) return 'failed'
+      return doSkip(r.reason)
+    }
+    await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
+    // Only the ordinary close path closes. An escalated conversation stays
+    // escalated — a person still owns it.
+    if (opts.closeAfter) await markClosed(conv.id, opts.closeAfter)
+    await completeAutoResponseJob(job.id, r.messageId)
+    await track({
+      agencyId: job.agencyId,
+      event: 'auto_response_sent',
+      props: { conversationId: conv.id, reason: `courtesy_${opts.closeAfter ?? aiState.aiState}` },
+    })
+    return 'sent'
+  }
+
+  // A conversation waiting on a person may still say thank you. Checked BEFORE
+  // the pre-generation gate, which treats `escalated` as a hard stop.
+  if (aiState.aiState === 'escalated') {
+    const courtesyOutcome = await attemptCourtesy({ closeAfter: null })
+    if (courtesyOutcome) return courtesyOutcome
+  }
+
   const pre = decidePreGeneration({
     aiState: aiState.aiState,
     masterEnabled: master,
@@ -317,7 +404,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
     { action: control.action, reason: 'reason' in control ? control.reason : null, salesMove, closeOfferPending },
   )
-  if (control.action === 'HANDOFF_TO_HUMAN') {
+  // ── An offer the customer accepted IS a handoff request ────────────────────
+  // Without this, "להעביר את הפנייה שלך לצוות?" → "כן אשמח במיידי!" classified
+  // as DISCOVERY, decidePostGeneration returned `send`, and the model wrote
+  // "אעביר את הפנייה לצוות" in free text while nothing was transferred: no
+  // escalation, no operator summary, no state change. The customer was told a
+  // thing had happened that had not. Running the real handoff here makes the
+  // sentence true, and writes the summary that carries the urgency.
+  const handoffAccepted = isConfirmedHandoffOffer({ previousOutbound, inboundText: lastInboundText })
+  if (control.action === 'HANDOFF_TO_HUMAN' || handoffAccepted) {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     return runImmediateHumanHandoff({
@@ -330,6 +425,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
   if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
+    const courtesyOutcome = await attemptCourtesy({ closeAfter: control.reason })
+    if (courtesyOutcome) return courtesyOutcome
     await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
     await markClosed(conv.id, control.reason)
     return doSkip(`closed_${control.reason}`)
@@ -470,6 +567,19 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     responseProfile,
     greetingLine,
     summaryBlock,
+    /**
+     * The customer supplied content in a conversation we are already in.
+     *
+     * Covers ENGAGED_CONTENT as well as ANSWERS_OPEN_QUESTION, because the agent
+     * does not reliably end its request with a question mark: in a real-model
+     * replay it wrote "כדי להתקדם, כתבו לי מספר טלפון…", so the reply came back
+     * as ENGAGED_CONTENT, the narrower flag never fired, and the model
+     * re-explained the product to someone who had just answered it. Re-pitching
+     * is wrong on either turn, so the directive applies to both.
+     */
+    answeringOurRequest:
+      gptEligibility.reason === 'ANSWERS_OPEN_QUESTION' || gptEligibility.reason === 'ENGAGED_CONTENT',
+    handoffAlreadyOffered: outboundOffersHandoff(previousOutbound),
   }
   // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
   // Best effort only. Whatever happens here, the outbound guard re-checks.
@@ -714,7 +824,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     await mergeOnly(conv.id, persistExtracted, gen.corrected)
     await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
     await markEscalated(conv.id, post.reason)
-    await persistEscalation(conv.id, job.agencyId, summary)
+    await persistEscalation(conv.id, job.agencyId, summary, merged)
     await completeAutoResponseJob(job.id, r.messageId)
     console.log(`[IRE] qualify escalate conv=${conv.id} reason=${post.reason} temp=${summary.temperature} msg=${r.messageId}`)
     await track({

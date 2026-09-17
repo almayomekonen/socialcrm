@@ -1,4 +1,5 @@
 import type { ConversationCognition, Qualification, SalesStrategy } from './qualification'
+import { isProductQuestion } from './salesIntent'
 import { isBusinessIdentityQuestion } from './businessIdentityIntent'
 import { fenceReminder, fenceTranscript } from './promptFence'
 import type { ResponseProfile } from './responseProfile'
@@ -183,6 +184,20 @@ export function buildQualifyUser(args: {
    * (conversationSummary.ts). Null when the conversation still fits.
    */
   summaryBlock?: string | null
+  /**
+   * The customer's message is a direct ANSWER to the question we just asked, and
+   * a next step is already on the table.
+   *
+   * Real conversation: the agent offered to pass the request to the team and
+   * asked for a name and business. The customer replied "קרן מקונן / עסק
+   * למספרת כלבים" — and the agent re-explained the product and asked for the
+   * same permission a second time. Sticky PRODUCT_FIT strategy had carried a
+   * pitch objective across the answer, so the answer was treated as another
+   * chance to sell rather than as the thing that unblocks the next step.
+   */
+  answeringOurRequest?: boolean
+  /** We have already offered to bring in a person; do not ask that again. */
+  handoffAlreadyOffered?: boolean
 }): string {
   // collectFields / focusField / runtimeCognition stay on the signature for
   // call-site compatibility. They must not appear as "ask this field next".
@@ -195,10 +210,22 @@ export function buildQualifyUser(args: {
     .join(', ')
   const lastInbound = [...args.transcript].reverse().find((m) => m.direction === 'inbound')?.text ?? ''
   const needKnown = Boolean(args.qualification.need) || inboundStatesBusinessNeed(lastInbound)
+  /**
+   * Product mode tells the model to answer FROM product facts — which is right
+   * when the customer asked about the product, and wrong when they just answered
+   * a question we asked.
+   *
+   * The sticky PRODUCT_FIT strategy carries across turns, so "קרן מקונן / עסק
+   * למספרת כלבים" — a direct answer to "what is your name and business?" —
+   * arrived in product mode and drew the product description for the second
+   * time. An answer is not a request for a pitch. Unless THIS message is itself
+   * a product question, an answering turn leaves product mode.
+   */
   const productMode =
-    args.salesMove === 'PRODUCT_QUESTION' ||
-    args.salesMove === 'PRODUCT_FIT' ||
-    args.salesMove === 'BUYING_SIGNAL'
+    (args.salesMove === 'PRODUCT_QUESTION' ||
+      args.salesMove === 'PRODUCT_FIT' ||
+      args.salesMove === 'BUYING_SIGNAL') &&
+    !(args.answeringOurRequest && !isProductQuestion(lastInbound))
 
   // ── Owner authority first: identity, then facts, then how to behave. The
   //    customer's words come last, fenced, with the authority restated after.
@@ -212,6 +239,32 @@ export function buildQualifyUser(args: {
   if (args.productKnowledgeBlock) lines.push(args.productKnowledgeBlock)
 
   lines.push(`מידע פנימי שכבר נאסף (לא להזכיר ללקוח, לא לקבוע לפי זה את השאלה הבאה): ${have || '(אין)'}`)
+  if (args.answeringOurRequest) {
+    lines.push(
+      'הלקוח/ה בדיוק ענה/תה לשאלה ששאלת. אשר/י בקצרה את מה שנמסר (בשם, אם נמסר שם), ' +
+        'והמשך/המשיכי מהנקודה הזו. אסור לחזור ולהסביר מה העסק עושה, ואסור לשאול שוב את אותה שאלה.',
+    )
+    lines.push(
+      'איסור חוזר על יכולות: אם כבר תיארת בשיחה הזו מה המערכת עושה או באילו ערוצים היא תומכת, ' +
+        'אסור לחזור על זה — גם לא בניסוח אחר ולא "מותאם" לסוג העסק. ' +
+        'התשובה כאן היא אישור קצר ומה קורה עכשיו, ותו לא.',
+    )
+    lines.push(
+      'סוג העסק ("מספרת כלבים", "מוסך", "מרפאה") הוא לא שם העסק. אל תתייחס/י אליו כשם, ' +
+        'אל תמציא/י שם, ואל תדרוש/דרשי שם אלא אם באמת אי אפשר להמשיך בלעדיו.',
+    )
+  }
+  if (args.handoffAlreadyOffered) {
+    lines.push(
+      'כבר הצעת להעביר את הפנייה לאדם מהצוות והלקוח/ה לא סירב/ה. אל תבקש/י את אותו אישור שוב, ' +
+        'ואל תתאר/י שוב את המערכת. הצעד הבא כבר סוכם: אמור/אמרי בקצרה מה קורה עכשיו.',
+    )
+    lines.push(
+      'אסור להצהיר שביצעת העברה, שמסרת לצוות או שעדכנת מישהו. אתה/את לא מבצע/ת את הפעולה הזו בהודעה. ' +
+        'אסור גם להבטיח שיחזרו אליו/ה או מתי — אף אחד לא התחייב לחזור. ' +
+        'מותר לשאול מתי נוח שיחזרו, אבל אסור להבטיח שזה יקרה.',
+    )
+  }
   lines.push(formatCognitionMemory(args.qualification.cognition, productMode ? 'product' : 'discover'))
 
   if (needKnown && !productMode) {

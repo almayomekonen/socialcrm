@@ -8,7 +8,7 @@ const TURN1 = 'יש לי עסק של נדל״ן ונכנסים לי הרבה ל�
 const TURN2 = 'אוקיי איך אנחנו מתקדמים?'
 const GENERATED =
   'כדי להתקדם, נתחיל במיפוי קצר של מקורות הלידים ונראה איך לרכז את המעקב. מאיפה רוב הלידים נכנסים היום—וואטסאפ, פייסבוק או האתר?'
-const CANNED = 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.'
+const CANNED = 'הפנייה שלך ממתינה כעת לטיפול הצוות.'
 
 describe('production conversation 561 regression (lead 1458)', () => {
   it('turn 1 is PRODUCT_FIT; turn 2 is next-step BUYING_SIGNAL and must CONTINUE', () => {

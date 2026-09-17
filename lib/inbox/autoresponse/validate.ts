@@ -68,6 +68,55 @@ const COMMITMENT = [
  * Claiming an action the agent cannot perform. It has no tools: it never sends
  * anything, files anything, or updates anything.
  */
+/**
+ * A claim that the request has been, or is being, handed to a person.
+ *
+ * ONLY TRUE ON AN ESCALATING TURN. Production transcript, 11:59: the customer
+ * accepted an offered transfer, the agent wrote "אעביר את הפנייה לצוות ואציין
+ * שביקשת שיחזרו אלייך בהקדם" — and nothing was transferred. decidePostGeneration
+ * had returned `send`, so there was no escalation, no operator summary and no
+ * state change behind the sentence.
+ *
+ * Note FABRICATED_ACTION below carries `/העברתי את הפרטים ל(?!צוות)/` — a
+ * negative lookahead that deliberately EXEMPTED "…לצוות". That exemption is what
+ * let the claim through. It is kept for every other fabricated action; this rule
+ * covers the transfer case and is lifted only when the turn really escalates.
+ */
+const TRANSFER_CLAIM = [
+  /אעביר|העברתי|מעביר(?:ה)? (?:את )?(?:ה?פנייה|ה?פרטים|אותך)|אמסור ל?צוות|אעדכן את הצוות|מעבירה? לצוות/,
+  /\b(?:i(?:'ll| will)? (?:pass|forward|hand)(?: this| it| you| the request)?|i(?:'ve| have) (?:passed|forwarded|handed))\b/i,
+]
+
+/**
+ * A PROMISE that someone will get back to the customer.
+ *
+ * Nothing in the system commits a person to calling, so the agent cannot say one
+ * will. A handoff means the request is durably in the staff inbox and waiting —
+ * that is the only claim the code can support, and it is what the canned handoff
+ * copy says once the handoff has actually persisted.
+ *
+ * ASKING is allowed, PROMISING is not. "מתי נוח שיחזרו אלייך?" plans a callback
+ * the customer chooses; "אדם מהצוות יחזור אלייך" asserts one will happen.
+ *
+ * Two signals separate them, and BOTH are needed: the ש prefix marking a Hebrew
+ * subordinate clause, and the presence of an interrogative. The lookbehind alone
+ * was not enough — in "מתי נוח לך שאדם מהצוות יחזור אלייך?" the ש sits on the
+ * noun, not the verb, so the verb still looked like a promise.
+ */
+// Anchored on whitespace: the bare substring matched "רשמתי" (ר-ש-מ-ת-י), which
+// exempted an outright promise because the word happens to end in מ-ת-י.
+const CALLBACK_QUESTION = /(?:^|\s)מתי(?:\s|$|[?,])|when would|what time/i
+const CALLBACK_PROMISE = [
+  /(?<!ש)(?:יחזור|יחזרו|נחזור|אחזור)\s+אלי(?:ך|יך|כם|כן)/,
+  // Infinitive form: "אבקש מאדם מהצוות לחזור אלייך" arranges a callback just as
+  // firmly, and slipped past the conjugated pattern above.
+  /(?:אבקש|אדאג|נדאג|אסדר|נסדר|אעביר בקשה)[^.!?\n]{0,40}לחזור\s+אלי(?:ך|יך|כם|כן)/,
+  // Any callback with a TIME attached, however phrased. "בהקדם" is the promise
+  // the code cannot keep.
+  /(?:יחזור|יחזרו|לחזור|חוזרים)\s+אלי(?:ך|יך|כם|כן)[^.!?\n]{0,24}(?:בהקדם|בקרוב|מייד|מיידי|היום|מחר|תוך)/,
+  /\b(?:i|we|they)(?:'ll| will)\s+(?:get back to you|call you|contact you|be in touch)\b/i,
+]
+
 const FABRICATED_ACTION = [
   /שלחתי לך|שלחנו לך|צירפתי|העברתי את הפרטים ל(?!צוות)|פתחתי לך|יצרתי לך/,
   /\bi(?:'ve| have)? (?:sent|attached|emailed|created|opened|filed) (?:you|your)/i,
@@ -298,6 +347,11 @@ export function validateAutoResponse(
     questionPolicy?: QuestionPolicy
     greetingTurn?: boolean
     /**
+     * This turn is the escalation itself, so a transfer claim is true. Every
+     * other turn may not claim one — see TRANSFER_CLAIM.
+     */
+    escalating?: boolean
+    /**
      * The business's own saved information. A price figure or a process claim is
      * allowed only when it appears here — see {@link isGrounded}. Omitted ⇒
      * nothing is grounded, which is the safe default.
@@ -325,6 +379,12 @@ export function validateAutoResponse(
     return { ok: false, violation: 'no_question', details }
   }
   if (questionMarks > 1) return { ok: false, violation: 'too_many_questions', details }
+  if (!opts?.escalating && TRANSFER_CLAIM.some((re) => re.test(t))) {
+    return { ok: false, violation: 'unsupported_transfer_claim', details }
+  }
+  if (!opts?.escalating && !CALLBACK_QUESTION.test(t) && CALLBACK_PROMISE.some((re) => re.test(t))) {
+    return { ok: false, violation: 'unsupported_callback_promise', details }
+  }
   if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
   return { ok: true, details }
 }
@@ -343,7 +403,14 @@ export type ViolationKind = 'safety' | 'shape'
  * violation. FORBIDDEN and all thresholds are unchanged.
  */
 export function classifyViolation(violation: string): ViolationKind {
-  return violation === 'forbidden' ? 'safety' : 'shape'
+  // A claimed transfer is a truthfulness failure, not a shape one, so it gets
+  // the safety path: regenerate once, and if the model insists, hand to a human
+  // — which is what the customer was being promised anyway.
+  return violation === 'forbidden' ||
+    violation === 'unsupported_transfer_claim' ||
+    violation === 'unsupported_callback_promise'
+    ? 'safety'
+    : 'shape'
 }
 
 /**

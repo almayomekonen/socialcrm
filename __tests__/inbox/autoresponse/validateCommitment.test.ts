@@ -15,13 +15,42 @@ const ok = (text: string, opts?: Parameters<typeof validateAutoResponse>[1]) =>
  * failed, two generations later the job skipped as `validation_failed`, and the
  * customer received nothing.
  */
+/**
+ * A generated reply may not claim it transferred the request. The claim is only
+ * true on an escalating turn, and a generated turn never is — production
+ * transcript 11:59 said "אעביר את הפנייה לצוות" with no escalation behind it.
+ */
+describe('a generated reply cannot claim a transfer', () => {
+  const claims = [
+    'אעביר את הפנייה לצוות.',
+    'העברתי את הפרטים לצוות.',
+    'בשמחה, אעביר את הפנייה לצוות ואציין שביקשת שיחזרו אלייך בהקדם.',
+    "I'll pass this on to the team.",
+  ]
+  for (const text of claims) {
+    it(`rejects: ${text}`, () => {
+      const r = validateAutoResponse(text, { questionPolicy: 'zero_or_one' })
+      expect(r.ok).toBe(false)
+      expect('violation' in r ? r.violation : '').toBe('unsupported_transfer_claim')
+    })
+  }
+
+  it('but allows it on the turn that really escalates', () => {
+    const r = validateAutoResponse('אעביר את הפנייה לצוות.', {
+      questionPolicy: 'zero_or_one',
+      escalating: true,
+    })
+    expect(r.ok).toBe(true)
+  })
+})
+
 describe('guardrail allows ordinary scheduling talk', () => {
   const allowed = [
     'אפשר לתאם פגישה, מתי נוח לך?',
     'אנחנו עובדים עם פגישות בתיאום מראש.',
-    'התורים אצלנו נקבעים מראש, אעביר את הבקשה לצוות.',
+    'התורים אצלנו נקבעים מראש, ומתי נוח שיחזרו אלייך לתיאום?',
     'יש לנו שעות קבלה בבוקר ואחר הצהריים.',
-    'אפשר גם מחר, אבדוק מול הצוות ונחזור אלייך.',
+    'אפשר גם מחר, אבדוק מול הצוות ואעדכן כאן.',
     'הבדיקה זמינה אצלנו, נצטרך לתאם מולך.',
     'Happy to look at an appointment, when suits you?',
     'We are available on weekdays.',
@@ -69,7 +98,7 @@ describe('guardrail still rejects commitments and invented facts', () => {
   }
 
   it('still allows an honest statement that no price is available', () => {
-    expect(ok('אין לי מחיר מדויק לתת כאן, נציג יחזור אלייך עם זה.').ok).toBe(true)
+    expect(ok('אין לי מחיר מדויק לתת כאן, הפנייה ממתינה לטיפול הצוות.').ok).toBe(true)
   })
 })
 
@@ -165,7 +194,7 @@ describe('a figure is allowed only when the business actually stated it', () => 
   it('an unsupported claim about price is refused even with no figure', () => {
     expect(ok('המחיר שלנו משתלם מאוד.').ok).toBe(false)
     // …but the honest limitation we actually want is allowed.
-    expect(ok('אין לי מחיר מדויק לתת כאן, נציג יחזור אלייך.').ok).toBe(true)
+    expect(ok('אין לי מחיר מדויק לתת כאן, הפנייה ממתינה לטיפול הצוות.').ok).toBe(true)
   })
 
   /**
@@ -177,7 +206,7 @@ describe('a figure is allowed only when the business actually stated it', () => 
   it('a REFUSAL to quote a price passes, not just a stated limitation', () => {
     const refusals = [
       'אני לא יכול לאשר הזמנת טיסה או מחיר לטיסה.',
-      'לא ניתן למסור מחיר בצ׳אט, הצוות יחזור אלייך.',
+      'לא ניתן למסור מחיר בצ׳אט, הפנייה ממתינה לטיפול הצוות.',
       'אין לי כאן את פרטי המחירים, הצוות יוכל למסור אותם.',
       'הצעות מחיר ניתנות רק במוסך.',
       'מחיר אני לא יכול לתת כאן.',
@@ -218,7 +247,7 @@ describe('a reply can move forward without a question mark', () => {
   // exemption is deliberately this narrow.
   const forward = [
     'הגעת למוסך אלון, ואנחנו לא מציעים טיפולי פנים.',
-    'אין לי את הפרט הזה, הצוות יחזור אלייך עם תשובה.',
+    'אין לי את הפרט הזה, הפנייה ממתינה לטיפול הצוות.',
     'אין לנו שירות כזה.',
     'I cannot confirm that here, someone will get back to you.',
     'We do not offer that service.',

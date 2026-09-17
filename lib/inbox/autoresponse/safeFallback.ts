@@ -22,12 +22,12 @@ import { withGreeting } from './greeting'
 export type FallbackLang = 'he' | 'en'
 
 const ACKNOWLEDGEMENT: Record<FallbackLang, string> = {
-  he: 'קיבלתי את ההודעה שלך, תודה. מישהו מהצוות יחזור אלייך בהמשך.',
+  he: 'קיבלתי את ההודעה שלך, תודה. הפנייה ממתינה לטיפול נציג.',
   en: 'Thanks, I have your message. Someone from the team will get back to you.',
 }
 
 const CANNOT_ANSWER: Record<FallbackLang, string> = {
-  he: 'אני רוצה לתת לך תשובה מדויקת ולא לנחש, אז אעביר את זה למישהו מהצוות. מתי נוח לך שיחזרו אלייך?',
+  he: 'אני רוצה לתת לך תשובה מדויקת ולא לנחש. מתי נוח לך שאדם מהצוות יחזור אלייך?',
   en: 'I want to give you an accurate answer rather than guess, so let me pass this to someone from the team. When is a good time to reach you?',
 }
 
