@@ -64,12 +64,50 @@ export const metaData: Metadata = {
   },
 }
 
-function resolveBaseUrl(): string {
+/** The only origin production is ever allowed to mint links to. */
+const PRODUCTION_ORIGIN = 'https://getsocialcrm.com'
+
+/**
+ * `host` arrives bare ("x.vercel.app") or with a scheme, from CONFIGURATION —
+ * APP_HOST, which we set, or VERCEL_URL, which the platform sets. Never from a
+ * Host or X-Forwarded-* header: those are supplied by the caller, and an origin
+ * taken from them would let anyone aim our sign-in emails wherever they liked.
+ */
+function originFromHost(host: string | undefined): string | null {
+  const bare = host?.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '')
+  return bare ? `https://${bare}` : null
+}
+
+export function resolveBaseUrl(): string {
+  /**
+   * A NON-PRODUCTION deployment must never mint a link to production.
+   *
+   * Both branches below resolve to getsocialcrm.com on a preview:
+   * APP_URL / NEXT_PUBLIC_APP_URL are shared Production+Preview variables
+   * holding the production origin, and NODE_ENV is 'production' in every Vercel
+   * build, previews included. That is what broke email sign-in on staging: the
+   * magic-link token is written to THIS environment's database, so a link
+   * pointing at production is verified against a database that has never seen
+   * the token, and the sign-in fails every time.
+   *
+   * APP_HOST is the same configured origin Grow callbacks already trust. A
+   * preview that merely inherited the production APP_HOST is not a staging
+   * origin, so it falls through to the deployment's own URL, which cannot be
+   * production by construction.
+   */
+  const deployment = process.env.VERCEL_ENV
+  if (deployment && deployment !== 'production') {
+    const configured = originFromHost(process.env.APP_HOST)
+    if (configured && configured !== PRODUCTION_ORIGIN) return configured
+    const own = originFromHost(process.env.VERCEL_URL)
+    if (own) return own
+  }
+
   const explicit = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL)?.trim()
   if (explicit) return explicit.replace(/\/$/, '')
 
-  if (process.env.VERCEL_ENV === 'production') return 'https://getsocialcrm.com'
-  if (process.env.NODE_ENV === 'production') return 'https://getsocialcrm.com'
+  if (process.env.VERCEL_ENV === 'production') return PRODUCTION_ORIGIN
+  if (process.env.NODE_ENV === 'production') return PRODUCTION_ORIGIN
 
   const vercel = process.env.VERCEL_URL?.trim()
   if (vercel) return `https://${vercel}`
