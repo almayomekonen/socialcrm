@@ -37,6 +37,16 @@ import Footer from '@/components/lumen/layout/footer'
  */
 
 /** Routes that mount the Lumen shell themselves; the frame renders only <main>. */
+/**
+ * Every branch below renders <main id="main-content" tabIndex={-1}> so the
+ * marketing skip link in the layout has a target to jump to. The app shell and
+ * the support shell already did this; the marketing pages did not, which left
+ * the site's most-linked pages — the home page, /pricing, /terms — with no way
+ * to bypass the header from the keyboard (WCAG 2.4.1).
+ *
+ * tabIndex={-1} makes <main> programmatically focusable so the jump moves the
+ * caret, not just the scroll position; focus:outline-none keeps that invisible.
+ */
 const SELF_SHELLED = new Set(['/', '/pricing', '/channels', '/faq'])
 
 /** Content-only routes that receive the Lumen shell from here. */
@@ -45,14 +55,14 @@ const LUMEN_SHELLED = new Set(['/terms', '/privacy', '/data-deletion'])
 export function ShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  if (SELF_SHELLED.has(pathname)) return <main>{children}</main>
+  if (SELF_SHELLED.has(pathname)) return <main id='main-content' tabIndex={-1} className='focus:outline-none'>{children}</main>
 
   if (LUMEN_SHELLED.has(pathname)) {
     return (
       <ThemeProvider attribute='class' defaultTheme='light' enableSystem={false} disableTransitionOnChange>
         <div className='lumen min-h-screen' dir='rtl'>
           <Navbar initialBannerVisible={false} />
-          <main>{children}</main>
+          <main id='main-content' tabIndex={-1} className='focus:outline-none'>{children}</main>
           <Footer />
         </div>
       </ThemeProvider>
@@ -62,7 +72,7 @@ export function ShellFrame({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MarketingHeader />
-      <main>{children}</main>
+      <main id='main-content' tabIndex={-1} className='focus:outline-none'>{children}</main>
       <MarketingFooter />
     </>
   )
