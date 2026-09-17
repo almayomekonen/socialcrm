@@ -117,6 +117,34 @@ const CALLBACK_PROMISE = [
   /\b(?:i|we|they)(?:'ll| will)\s+(?:get back to you|call you|contact you|be in touch)\b/i,
 ]
 
+/**
+ * OFFERING a handoff is not CLAIMING one.
+ *
+ * "תרצי שאעביר להם את הפנייה?" asks permission; "אעביר את הפנייה לצוות."
+ * asserts it happened. The first rule here matched the verb in either mood, so
+ * the agent could no longer offer a handoff at all — and offering is precisely
+ * how a legitimate handoff begins, since isConfirmedHandoffOffer looks for that
+ * question before treating "כן" as acceptance. Production conversation 7224 hit
+ * this: two drafts offering to pass the request on were both rejected, and the
+ * repair path escalated to a person for what was an ordinary question.
+ *
+ * So the check is per SENTENCE, and a sentence is an offer when it ends in a
+ * question mark or opens with an offer marker.
+ */
+const OFFER_MARKER = /(?:^|\s)(?:תרצה|תרצי|תרצו|רוצה ש|רוצים ש|האם|רוצה שאני|want me to|shall i|should i)/i
+
+function assertsTransfer(text: string): boolean {
+  for (const raw of (text ?? '').split(/(?<=[.!?\n])/)) {
+    const sentence = raw.trim()
+    if (!sentence) continue
+    if (!TRANSFER_CLAIM.some((re) => re.test(sentence))) continue
+    if (sentence.endsWith('?')) continue
+    if (OFFER_MARKER.test(sentence)) continue
+    return true
+  }
+  return false
+}
+
 const FABRICATED_ACTION = [
   /שלחתי לך|שלחנו לך|צירפתי|העברתי את הפרטים ל(?!צוות)|פתחתי לך|יצרתי לך/,
   /\bi(?:'ve| have)? (?:sent|attached|emailed|created|opened|filed) (?:you|your)/i,
@@ -320,11 +348,25 @@ export function isGenericFiller(text: string): boolean {
 
 export function questionPolicyForSalesMove(
   move: string | null | undefined,
-  opts?: { discoveryBudgetExhausted?: boolean },
+  opts?: { discoveryBudgetExhausted?: boolean; inboundWasQuestion?: boolean },
 ): QuestionPolicy {
   if (opts?.discoveryBudgetExhausted && (move === 'DISCOVERY' || move === 'DEEPEN' || !move)) {
     return 'zero_or_one'
   }
+  /**
+   * THE CUSTOMER ASKED SOMETHING — answering it is the job, and demanding a
+   * counter-question on top is how a correct answer became a rejection.
+   *
+   * "מה זה בעצם עושה?" drew a complete, grounded description of the product;
+   * it carried no trailing question, failed `require_one` twice, and the repair
+   * path handed an ordinary product question to a person. Every one of the eight
+   * validator rejections in the long-conversation replay was this rule.
+   *
+   * Discovery still drives the conversation everywhere else: this only relaxes
+   * the turn where the customer is waiting for an answer, not the turns where
+   * the agent is meant to be asking.
+   */
+  if (opts?.inboundWasQuestion) return 'zero_or_one'
   if (move === 'DISCOVERY' || move === 'DEEPEN' || !move) return 'require_one'
   return 'zero_or_one'
 }
@@ -379,7 +421,7 @@ export function validateAutoResponse(
     return { ok: false, violation: 'no_question', details }
   }
   if (questionMarks > 1) return { ok: false, violation: 'too_many_questions', details }
-  if (!opts?.escalating && TRANSFER_CLAIM.some((re) => re.test(t))) {
+  if (!opts?.escalating && assertsTransfer(t)) {
     return { ok: false, violation: 'unsupported_transfer_claim', details }
   }
   if (!opts?.escalating && !CALLBACK_QUESTION.test(t) && CALLBACK_PROMISE.some((re) => re.test(t))) {
