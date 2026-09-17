@@ -135,6 +135,18 @@ describe('the first activation: the clock is created BY the verified card, not b
     expect(Math.round(days)).toBe(7)
   })
 
+  it("retains GROW's transactionId for the token save — not our ids, not the processId", async () => {
+    // Grow needs its own transactionId to trace either side of the integration.
+    // processId identifies the hosted page, and our row id is ours; neither is a
+    // substitute, so the save must persist what Grow returned.
+    const s = await pendingSetup()
+    await confirmCardSetup(callback(s.processId), { verify: verified('ct-first'), runtimeMode: () => 'sandbox' })
+    const card = await db('billing_payment_methods').where({ id: s.methodId }).first()
+    expect(card.setupTransactionId).toBe('tx1')
+    expect(card.setupTransactionToken).toBeTruthy()
+    expect(card.setupStatusCode).toBe('11')
+  })
+
   it('a duplicate callback and a recovery both leave that one clock exactly where it was', async () => {
     const s = await pendingSetup()
     await confirmCardSetup(callback(s.processId), { verify: verified('ct-first'), runtimeMode: () => 'sandbox' })
