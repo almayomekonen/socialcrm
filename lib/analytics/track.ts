@@ -40,6 +40,8 @@ export type AnalyticsEventName =
   | 'card_setup_started'
   | 'card_setup_confirmed'
   | 'card_save_observed'
+  /** Temporary sandbox charge probe: the single attempt identifier, written before dispatch. */
+  | 'charge_probe_attempt'
   | 'card_setup_failed'
   | 'subscription_charge_succeeded'
   | 'subscription_charge_failed'
