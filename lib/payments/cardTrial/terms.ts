@@ -44,13 +44,17 @@ export function cardTrialTermsLine(): string {
  */
 /**
  * The ₪1 hold is disclosed because it can APPEAR on a statement, and a customer
- * who sees it without warning reasonably concludes we charged them. Grow
- * confirmed in writing (2026-09-17) that saving a token without charging is an
- * authorization hold only, released within 10 days. It is named separately from
- * the subscription charge so the two are never read as the same thing.
+ * who sees it without warning reasonably concludes we charged them.
+ *
+ * Attributed to Grow on purpose. They confirmed in writing (2026-09-17) that
+ * saving a token without charging is an authorization hold released within 10
+ * days — that is their stated policy, not something we have watched happen on a
+ * statement. So the copy says "according to Grow" and "up to", and promises no
+ * date. It is named separately from the subscription charge so the two are
+ * never read as the same thing.
  */
 export const TOKEN_HOLD_NOTICE =
-  `לצורך אימות הכרטיס תיתכן הקפאה זמנית של ₪${TOKEN_SAVE_SUM} אצל חברת האשראי. זו אינה גבייה, והיא משתחררת בתוך 10 ימים.`
+  `לצורך אימות הכרטיס תיתכן הקפאה זמנית של ₪${TOKEN_SAVE_SUM} אצל חברת האשראי. זו אינה גבייה. לפי ספק הסליקה Grow, ההקפאה משתחררת בתוך עד 10 ימים.`
 
 export function cardTrialDisclosureLines(): string[] {
   return [

@@ -112,7 +112,7 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus }
         <>
           <h1 className='text-xl font-bold'>רק רגע, מאמתים מול חברת הסליקה</h1>
           <p className='text-sm text-gray-600' role='status'>
-            הכרטיס נשמר בצד של Grow ואנחנו מאשרים אותו. לא מבוצע חיוב עבור המנוי בשלב הזה; תיתכן הקפאה זמנית של ₪1 לאימות, שמשתחררת בתוך 10 ימים.
+            הכרטיס נשמר בצד של Grow ואנחנו מאשרים אותו. לא מבוצע חיוב עבור המנוי בשלב הזה; תיתכן הקפאה זמנית של ₪1 לאימות; לפי Grow היא משתחררת בתוך עד 10 ימים.
           </p>
         </>
       )}

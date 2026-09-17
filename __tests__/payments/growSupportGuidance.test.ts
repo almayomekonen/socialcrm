@@ -116,8 +116,10 @@ describe('Grow’s written confirmations (2026-09-17) are recorded, not remember
 
   it('discloses the hold to the customer, and never as a subscription charge', async () => {
     const { TOKEN_HOLD_NOTICE, cardTrialDisclosureLines } = await import('@/lib/payments/cardTrial/terms')
-    expect(TOKEN_HOLD_NOTICE).toContain('10 ימים')
     expect(TOKEN_HOLD_NOTICE).toContain('אינה גבייה')
+    // Grow's stated policy, attributed and bounded — never a promised date.
+    expect(TOKEN_HOLD_NOTICE).toContain('לפי ספק הסליקה Grow')
+    expect(TOKEN_HOLD_NOTICE).toContain('עד 10 ימים')
     expect(cardTrialDisclosureLines()).toContain(TOKEN_HOLD_NOTICE)
   })
 

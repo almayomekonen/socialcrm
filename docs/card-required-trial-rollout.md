@@ -104,9 +104,11 @@ Applied, and pinned by `__tests__/payments/growSupportGuidance.test.ts`:
   **Answered 2026-09-17, in writing:** "The identifiers are for the test
   environment. ApproveTransaction is not required in this case. Token saving
   without charging is an authorization hold only, released within 10 days."
-  Recorded as `GROW_SUPPORT_CONFIRMATIONS`. So the ₪1 is a HOLD, not a capture:
-  the customer is told it may appear and that it clears within 10 days
-  (`TOKEN_HOLD_NOTICE`), stated separately from the subscription charge.
+  Recorded as `GROW_SUPPORT_CONFIRMATIONS`. So the ₪1 is a HOLD, not a capture.
+  That is Grow's STATED POLICY, not something observed on a statement: the copy
+  attributes it ("לפי ספק הסליקה Grow"), says "up to 10 days", and promises no
+  release date (`TOKEN_HOLD_NOTICE`). It is stated separately from the
+  subscription charge.
   ApproveTransaction stays absent — now by confirmation, not caution.
 
   This answer is about the TEST account. The production business profile is
