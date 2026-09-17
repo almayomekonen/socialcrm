@@ -5,6 +5,7 @@
 import { track } from '@/lib/analytics/track'
 import { completeAutoResponseJob, skipAutoResponseJob, type AutoResponseJob } from '@/db/autoResponseJobs'
 import { mergeOnly, markEscalated, type ConversationAiStateRow } from '@/db/conversationAiState'
+import type { Qualification } from './qualification'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
@@ -18,6 +19,7 @@ async function persistEscalation(
   conversationId: number,
   agencyId: number,
   summary: { temperature: string; text: string; suggestedAction: string },
+  q: Qualification,
 ): Promise<void> {
   const coveredSequence = await getMaxMessageSequence(conversationId)
   const base = {
@@ -31,7 +33,21 @@ async function persistEscalation(
   }
   await upsertManyConversationIntelligence([
     { ...base, kind: INTEL_KIND_TEMPERATURE, data: { temperature: summary.temperature } },
-    { ...base, kind: 'qualification_summary', data: { text: summary.text, suggestedAction: summary.suggestedAction } },
+    {
+      ...base,
+      kind: 'qualification_summary',
+      data: {
+        text: summary.text,
+        suggestedAction: summary.suggestedAction,
+        // Structured alongside the rendered note, so the staff surface can show
+        // the fields without parsing a formatted blob.
+        name: q.name ?? null,
+        businessType: q.businessType ?? null,
+        need: q.need ?? null,
+        urgency: q.urgency ?? null,
+        temperature: summary.temperature,
+      },
+    },
   ])
 }
 
@@ -93,7 +109,7 @@ export async function runImmediateHumanHandoff(args: {
   }
   await mergeOnly(ctx.conv.id, {})
   await markEscalated(ctx.conv.id, reason)
-  await persistEscalation(ctx.conv.id, job.agencyId, summary)
+  await persistEscalation(ctx.conv.id, job.agencyId, summary, args.aiState.qualification ?? {})
   await completeAutoResponseJob(job.id, r.messageId)
   console.log(`[IRE] qualify escalate conv=${ctx.conv.id} reason=${reason} temp=${summary.temperature} msg=${r.messageId}`)
   await track({

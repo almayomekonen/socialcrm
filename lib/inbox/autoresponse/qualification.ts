@@ -12,7 +12,23 @@ export type AiState =
   | 'human_active'
   | 'closed'
 
-export const QUALIFICATION_FIELDS = ['name', 'need', 'urgency', 'budget', 'location', 'callback'] as const
+/**
+ * `businessType` is what the customer's business DOES ("מספרת כלבים", "מוסך"),
+ * which is not its name. The transcript that prompted this had the customer
+ * answer "קרן מקונן / עסק למספרת כלבים" to a request for a name and a business
+ * name — there was no business name to give, and the trade is the useful fact.
+ * Keeping it in its own field is what lets the operator note show it without
+ * anyone inventing a company name.
+ */
+export const QUALIFICATION_FIELDS = [
+  'name',
+  'businessType',
+  'need',
+  'urgency',
+  'budget',
+  'location',
+  'callback',
+] as const
 export type QualificationField = (typeof QUALIFICATION_FIELDS)[number]
 
 export const CONVERSATION_OBJECTIVES = [

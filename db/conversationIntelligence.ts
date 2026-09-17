@@ -516,3 +516,54 @@ function safeJson(s: string): unknown {
     return {}
   }
 }
+
+/**
+ * The handoff note for one conversation — the operator-facing record written
+ * when the agent passes a request to a person.
+ *
+ * WHY IT NEEDS ITS OWN READER. It is stored under kind `qualification_summary`,
+ * which the conversation-intelligence card never looks for, and that card gates
+ * its entire render on the separate `summary` row produced by the analysis
+ * worker. So a conversation whose ONLY intelligence is a handoff rendered
+ * nothing at all, and a request the customer was told had been passed on was
+ * invisible to every rep.
+ *
+ * Agency-scoped in the query, like every other read here: a conversationId from
+ * another tenant matches no row.
+ */
+export type HandoffSummary = {
+  text: string
+  suggestedAction: string | null
+  name: string | null
+  businessType: string | null
+  need: string | null
+  urgency: string | null
+  temperature: string | null
+  updatedAt: string | null
+}
+
+export async function getHandoffSummary(
+  agencyId: number,
+  conversationId: number,
+): Promise<HandoffSummary | null> {
+  const row = await db('conversation_intelligence')
+    .where({ agencyId, conversationId, kind: 'qualification_summary' })
+    .first('data', 'updatedAt')
+  if (!row) return null
+  const raw = typeof row.data === 'string' ? safeJson(row.data) : row.data
+  const d = (raw ?? {}) as Record<string, unknown>
+  const str = (v: unknown): string | null => {
+    const s = typeof v === 'string' ? v.trim() : ''
+    return s ? s : null
+  }
+  return {
+    text: str(d.text) ?? '',
+    suggestedAction: str(d.suggestedAction),
+    name: str(d.name),
+    businessType: str(d.businessType),
+    need: str(d.need),
+    urgency: str(d.urgency),
+    temperature: str(d.temperature),
+    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : (row.updatedAt ?? null),
+  }
+}

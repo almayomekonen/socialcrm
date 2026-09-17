@@ -9,7 +9,18 @@ import type { Qualification } from './qualification'
 
 export type Temperature = 'hot' | 'warm' | 'cold'
 
-const URGENT_RE = /דחוף|מיד|עכשיו|בהקדם|גבוה|urgent|asap|right now|high/i
+/**
+ * "מיידי" did NOT match the previous pattern: `מיד` is not a substring of
+ * `מיידי` (מ-י-י-ד-י). So a customer answering "כן אשמח במיידי!" produced a WARM
+ * lead instead of a hot one, and the urgency they stated was quietly downgraded
+ * in the very note a rep reads. postHandoff.detectUrgent already carried
+ * `מיידי`; this copy did not.
+ *
+ * The bare `מיד` is anchored on whitespace rather than `\b`, which is an ASCII
+ * word boundary and never matches beside a Hebrew letter.
+ */
+const URGENT_RE =
+  /דחוף|מייד|מיידי|מידי|(?:^|\s)מיד(?:$|\s|[,.!])|עכשיו|בהקדם|גבוה|urgent|asap|immediately|right now|high/i
 
 export function deriveTemperature(reason: string, q: Qualification): Temperature {
   if (reason === 'hot_signal') return 'hot'
@@ -47,6 +58,7 @@ export function buildSummary(args: {
       ? [
           '🤖 סיכום AI — לא נשלח ללקוח',
           `שם: ${F(q.name, 'לא נמסר')}`,
+          `סוג העסק: ${F(q.businessType, dash)}`,
           `צורך: ${F(q.need, dash)}`,
           `דחיפות: ${F(q.urgency, dash)}`,
           `תקציב: ${F(q.budget, dash)}`,

@@ -59,9 +59,26 @@ describe('handoffMessage (fixed templates, never AI-generated)', () => {
   it('qualified/en', () => expect(handoffMessage('qualified', 'en')).toContain('team'))
   it('hot_signal uses the qualified template', () => expect(handoffMessage('hot_signal', 'en')).toContain('continue with you'))
   it('human_request uses the qualified template', () =>
-    expect(handoffMessage('human_request', 'he')).toBe('מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.'))
-  it('max_turns uses the qualified template', () => expect(handoffMessage('max_turns', 'he')).toContain('יחזור אליך'))
-  it('uncertain/en', () => expect(handoffMessage('uncertain', 'en')).toBe('Someone from the team will continue with you from here.'))
+    expect(handoffMessage('human_request', 'he')).toBe('הפנייה שלך ממתינה לטיפול של מישהו מהצוות.'))
+  it('max_turns uses the qualified template', () =>
+    expect(handoffMessage('max_turns', 'he')).toContain('מהצוות'))
+  it('uncertain/en', () =>
+    expect(handoffMessage('uncertain', 'en')).toBe('Your request is with the team, waiting for someone to continue with you.'))
+
+  /**
+   * A handoff means the request is durably in the staff inbox, waiting. It does
+   * NOT mean anyone has committed to calling, or when. The previous copy
+   * promised both — "ויחזור אליך בהקדם" — and nothing in the system backed
+   * either, so these assertions now guard the absence of that promise.
+   */
+  it('promises no callback and no timing, in either language', () => {
+    for (const reason of ['qualified', 'uncertain', 'human_request', 'hot_signal', 'max_turns']) {
+      for (const lang of ['he', 'en'] as const) {
+        const t = handoffMessage(reason, lang)
+        expect(t, `${reason}/${lang}`).not.toMatch(/יחזור אלי|יחזרו אלי|בהקדם|תוך \d|get back to you|call you|shortly|within \d/i)
+      }
+    }
+  })
   it('uncertain/he does not say transferring to a rep', () => {
     const t = handoffMessage('uncertain', 'he')
     expect(t).not.toContain('אני מעביר אותך')

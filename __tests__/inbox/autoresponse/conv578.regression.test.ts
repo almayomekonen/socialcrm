@@ -26,7 +26,7 @@ const EXPLAIN_OFFER = 'רוצה שאסביר איך זה נראה בעבודה �
 const EXPLANATION =
   'SocialCRM מרכזת לידים מוואטסאפ ופייסבוק במקום אחד, עם סטטוס ומעקב לכל פנייה.'
 const ADVANCE_FALLBACK = 'מה הכי חשוב לך שנסדר עכשיו?'
-const HANDOFF = 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.'
+const HANDOFF = 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.'
 
 function replay578(opts?: { offerBeforeYes?: boolean }) {
   const offerBeforeYes = opts?.offerBeforeYes !== false

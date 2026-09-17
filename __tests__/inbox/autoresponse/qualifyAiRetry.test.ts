@@ -412,7 +412,7 @@ describe('qualify AI generation retry', () => {
     expect(recordTurn).not.toHaveBeenCalled()
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
     )
     expect(generateQualify).not.toHaveBeenCalled()
   })
@@ -536,7 +536,7 @@ describe('qualify AI generation retry', () => {
       }),
     )
     expect(send).not.toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
     )
   })
 })
@@ -568,7 +568,7 @@ describe('classifier is the sole commercial escalation authority', () => {
     expect(recordTurn).not.toHaveBeenCalled()
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
     )
     expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ body: generated }))
     expect(generateQualify).not.toHaveBeenCalled()
@@ -601,7 +601,7 @@ describe('classifier is the sole commercial escalation authority', () => {
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ body: generated }))
     expect(send).not.toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
     )
   })
 })
@@ -785,7 +785,7 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     expect(skipAutoResponseJob).not.toHaveBeenCalledWith(61, 'max_turns')
     expect(markEscalated).toHaveBeenCalledWith(382, 'human_request')
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
     )
   })
 
@@ -934,7 +934,7 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
       )
       expect(markEscalated).not.toHaveBeenCalled()
       expect(send).not.toHaveBeenCalledWith(
-        expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+        expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
       )
       expect(recordTurn).toHaveBeenCalledTimes(1)
     } finally {
@@ -957,7 +957,7 @@ describe('P0 ceiling override + P1 post-handoff + no-dash send', () => {
     expect(generateQualify).not.toHaveBeenCalled()
     expect(markEscalated).toHaveBeenCalledWith(382, 'human_request')
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.' }),
+      expect.objectContaining({ body: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.' }),
     )
   })
 })

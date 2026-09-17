@@ -143,7 +143,7 @@ const UNDERSTAND = {
       : `We understand the need you described: ${need}.`,
 }
 const CONNECT = {
-  he: 'אני מחבר אותך לאחד מאנשי הצוות שלנו שיחזור אליך בהקדם.',
+  he: 'אני מעביר אותך לאחד מאנשי הצוות שלנו; הפנייה ממתינה לטיפול.',
   en: `I'm connecting you with one of our team who'll get back to you shortly.`,
 }
 const GENERIC_BODY = {

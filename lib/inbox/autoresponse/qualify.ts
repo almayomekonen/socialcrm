@@ -48,14 +48,23 @@ export function detectOptOut(text: string): boolean {
   return OPTOUT_PATTERNS.some((re) => re.test(text))
 }
 
+/**
+ * WHAT A HANDOFF ACTUALLY GUARANTEES: the request is now durably in the staff
+ * inbox, marked as waiting for a rep. It does NOT guarantee that anyone has
+ * committed to calling, or when.
+ *
+ * The old copy promised both — "ויחזור אליך בהקדם" is a callback AND a time — and
+ * nothing in the system backs either. The wording now states the part that is
+ * true and verifiable.
+ */
 const HANDOFF = {
   qualified: {
-    he: 'מישהו מהצוות ימשיך איתך ויחזור אליך בהקדם.',
-    en: 'Someone from the team will continue with you and get back shortly.',
+    he: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.',
+    en: 'Your request is with the team, waiting for someone to continue with you.',
   },
   uncertain: {
-    he: 'מישהו מהצוות ימשיך איתך מכאן.',
-    en: 'Someone from the team will continue with you from here.',
+    he: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.',
+    en: 'Your request is with the team, waiting for someone to continue with you.',
   },
 }
 
@@ -216,6 +225,10 @@ const QualifySchema = z.object({
   extracted: z
     .object({
       name: z.string().nullable(),
+      businessType: z
+        .string()
+        .nullable()
+        .describe('סוג העסק של הלקוח כפי שנמסר ("מספרת כלבים", "מוסך"). לא שם העסק, ולא להמציא'),
       need: z.string().nullable(),
       urgency: z.string().nullable(),
       budget: z.string().nullable(),

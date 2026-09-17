@@ -41,6 +41,6 @@ export function decidePostHandoffInbound(text: string): PostHandoffInboundAction
 
 export function postHandoffStatusMessage(lang: 'he' | 'en'): string {
   return lang === 'en'
-    ? 'Yes, I passed the request to a teammate. They will get back to you shortly.'
-    : 'כן, העברתי את הבקשה לנציג. הוא יחזור אליך בהקדם.'
+    ? 'Yes, your request is with the team and waiting for a rep.'
+    : 'כן, הפנייה אצל הצוות וממתינה לטיפול נציג.'
 }
