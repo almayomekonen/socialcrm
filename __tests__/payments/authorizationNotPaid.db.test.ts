@@ -50,7 +50,6 @@ describe('an authorization-shaped charge response', () => {
         sum: 89,
         description: 'SocialCRM Pro מנוי חודשי',
         uniqueIdentifier: 1790000001,
-        groupIdentifier: 1790000001,
       })
       // A transactionId is present and the envelope is fine. Only statusCode 2
       // means the money moved, so this is unknown — never paid, never declined.

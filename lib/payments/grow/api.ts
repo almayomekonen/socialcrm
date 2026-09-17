@@ -126,17 +126,20 @@ export type ChargeTokenInput = {
   holder: CardHolder
   sum: number
   description: string
-  /** Sent as transactionUniqueIdentifier. Grow's real handling of a repeat is unverified (G7). */
-  uniqueIdentifier: number
   /**
-   * Sent as transactionGroupIdentifier, to GROUP the attempts of one billing
-   * period. It is not a duplicate-charge guard and must never be used as one —
-   * Grow's support guidance is explicit that it cannot be relied on for that.
-   * Double-charge prevention is ours: the unique (agencyId, periodKey, attempt)
-   * and one-success-per-period constraints, the unique providerTransactionId,
-   * and transactionUniqueIdentifier per attempt.
+   * Sent as transactionUniqueIdentifier — THE ONLY identifier on the wire.
+   *
+   * Grow confirmed in writing (2026-09-17) that createTransactionWithToken must
+   * carry exactly one of transactionUniqueIdentifier or
+   * transactionGroupIdentifier, never both. We send the unique one: it is what
+   * Grow actually rejects a repeat on (errorId 1010, observed), so it is the
+   * identifier that prevents a double charge.
+   *
+   * The charge row still carries a groupIdentifier and still groups the attempts
+   * of one billing period — that grouping is ours, used by insertNextAttempt,
+   * and it simply is not sent to Grow any more.
    */
-  groupIdentifier: number
+  uniqueIdentifier: number
 }
 
 export type TokenChargeResult =
@@ -147,7 +150,13 @@ export type TokenChargeResult =
 
 /**
  * createTransactionWithToken, one regular charge (paymentType 2, paymentNum 1),
- * sent exactly once.
+ * sent exactly once, carrying transactionUniqueIdentifier and NO
+ * transactionGroupIdentifier — Grow requires exactly one of the two.
+ *
+ * HISTORICAL NOTE. The sandbox evidence run of 2026-09-17 (transactionId 549236,
+ * and the 1010 refusal of the repeat) was sent BEFORE this instruction arrived
+ * and carried both identifiers. That is what happened and it is not rewritten
+ * here; the duplicate refusal keyed on the unique identifier either way.
  * - `paid`: statusCode 2 ("paid" in Grow's parameter-mapping table) with a
  *   transactionId — the documented success example.
  * - `unrecognized`: status 1 with any other shape. Undocumented for this call,
@@ -165,8 +174,9 @@ export async function chargeToken(input: ChargeTokenInput): Promise<TokenChargeR
     description: input.description,
     paymentType: 2,
     paymentNum: 1,
+    // EXACTLY ONE identifier, per Grow's written instruction of 2026-09-17.
+    // transactionGroupIdentifier is deliberately absent, not empty.
     transactionUniqueIdentifier: input.uniqueIdentifier,
-    transactionGroupIdentifier: input.groupIdentifier,
     ...holderFields(input.holder),
   })
   if (env.status !== 1) return { kind: 'grow_error', errorId: env.err?.id ?? null, errorMessage: env.err?.message ?? '' }

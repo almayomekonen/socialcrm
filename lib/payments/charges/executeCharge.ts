@@ -72,7 +72,6 @@ export async function executeCharge(chargeId: number, deps: ExecuteDeps = liveDe
       sum: charge.amount,
       description: CHARGE_DESCRIPTION,
       uniqueIdentifier: charge.id,
-      groupIdentifier: charge.groupIdentifier,
     })
   } catch (err) {
     const reason = err instanceof GrowTransportError ? `transport_${err.reason}` : 'unexpected_error'

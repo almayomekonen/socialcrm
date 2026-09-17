@@ -48,14 +48,38 @@ export type GrowProviderEvidence = {
  *     customer is told it may appear and that it clears (TOKEN_HOLD_NOTICE),
  *     and it is never described as a subscription charge.
  *
- * It says nothing about the PRODUCTION account, which is a different business
- * profile issued after Grow's review. Production gates stay closed.
+ * SECOND REPLY, same day, after the submission was sent:
+ *
+ *  4. "Send only ONE of transactionUniqueIdentifier or
+ *     transactionGroupIdentifier."  createTransactionWithToken now carries the
+ *     unique one and omits the group one entirely (lib/payments/grow/api.ts).
+ *  5. ApproveTransaction is NOT required for our use case — asked and answered.
+ *     Closed; not to be raised with Grow again.
+ *  6. The website has been forwarded for review. PENDING, not approved.
+ *
+ * HISTORY IS NOT REWRITTEN. The sandbox evidence run of 2026-09-17
+ * (transactionId 549236, and the 1010 refusal of its repeat) was sent BEFORE
+ * item 4 arrived and carried BOTH identifiers. That is what happened. The
+ * duplicate refusal keyed on the unique identifier either way, which is why the
+ * corrected payload keeps that one.
+ *
+ * WHAT THIS STILL DOES NOT COVER. It says nothing about the PRODUCTION account,
+ * which is a different business profile issued only after Grow's review. A
+ * written clarification is not execution evidence: production gates stay closed
+ * until a real production charge is observed, and an authorization-shaped or
+ * ambiguous response is never read as paid.
  */
 export const GROW_SUPPORT_CONFIRMATIONS = {
   environment: 'test' as const,
   approveTransactionRequired: false,
   tokenSaveIsAuthorizationHoldOnly: true,
   holdReleasedWithinDays: 10,
+  /** Exactly one identifier per token charge; we send transactionUniqueIdentifier. */
+  tokenChargeIdentifierCount: 1 as const,
+  /** Grow received the site for review on 2026-09-17. Not an approval. */
+  websiteReview: 'pending' as const,
+  /** Issued only after the review passes. */
+  productionCredentials: 'pending' as const,
   confirmedAt: '2026-09-17',
 } as const
 

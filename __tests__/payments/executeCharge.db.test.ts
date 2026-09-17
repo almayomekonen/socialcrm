@@ -51,7 +51,11 @@ describe('executeCharge', () => {
     const deps = charging(paid(agencyId))
     expect(await executeCharge(charge.id, deps)).toBe('succeeded')
     expect(deps.chargeToken).toHaveBeenCalledTimes(1)
-    expect(deps.chargeToken).toHaveBeenCalledWith(expect.objectContaining({ cardToken: 'card-token-plain', sum: 89, uniqueIdentifier: charge.id, groupIdentifier: charge.groupIdentifier }))
+    // Exactly one identifier reaches Grow, and it is the attempt's own id.
+    // The group identifier stays on the charge row; it is not sent (2026-09-17).
+    expect(deps.chargeToken).toHaveBeenCalledWith(expect.objectContaining({ cardToken: 'card-token-plain', sum: 89, uniqueIdentifier: charge.id }))
+    expect(deps.chargeToken.mock.calls[0][0]).not.toHaveProperty('groupIdentifier')
+    expect(charge.groupIdentifier).toBeTruthy()
     expect(await chargeRow(charge.id)).toMatchObject({ status: 'succeeded', providerTransactionId: `tx-${agencyId}` })
     expect(await db('agencies').where({ id: agencyId }).first()).toMatchObject({ plan: 'pro', planReason: `grow:tx-${agencyId}` })
     const sub = await db('subscriptions').where({ agencyId }).first()

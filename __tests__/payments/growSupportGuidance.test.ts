@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { classifyTokenChargeError, DUPLICATE_IDENTIFIER_ERROR_ID } from '@/lib/payments/grow/tokenErrors'
+import {
+  GROW_SUPPORT_CONFIRMATIONS,
+  isTokenChargeDispatchEstablished,
+  isTokenChargeReconciliationEstablished,
+} from '@/lib/payments/grow/providerEvidence'
 
 /**
  * Grow support's integration guidance, pinned so it cannot be undone by a later
@@ -34,10 +39,27 @@ describe('duplicate unique identifier (1010) is reconciled, never recharged', ()
 })
 
 describe('transactionGroupIdentifier is not a duplicate-charge guard', () => {
-  it('is documented as grouping only, with our own constraints named as the guard', () => {
+  /**
+   * This used to assert that api.ts DOCUMENTED the group identifier as
+   * grouping-only. Grow has since instructed that a token charge carry exactly
+   * one identifier, so the field is not sent at all — a stronger guarantee than
+   * a comment, and the assertion is raised to match rather than relaxed.
+   */
+  it('is never sent on a token charge: the request builder names only the unique one', () => {
     const api = read('lib/payments/grow/api.ts')
-    expect(api).toContain('not a duplicate-charge guard')
-    expect(api).toContain('transactionUniqueIdentifier per attempt')
+    const start = api.indexOf("postGrowForm('createTransactionWithToken'")
+    expect(start).toBeGreaterThan(-1)
+    // The request object literal only — up to the closing `})` of the call.
+    const call = api.slice(start, api.indexOf('})', start))
+    expect(call).toContain('transactionUniqueIdentifier: input.uniqueIdentifier')
+    // As an object KEY, not as prose: the comment above the field names it too.
+    expect(call).not.toMatch(/^\s*transactionGroupIdentifier\s*:/m)
+  })
+
+  it('is still ours for grouping the attempts of a period, in the database', () => {
+    // Removing it from the wire must not remove it from the charge row: that is
+    // what keeps a retry attached to the period it belongs to.
+    expect(read('db/payments/charges.ts')).toContain('groupIdentifier')
   })
 
   it('nothing decides an outcome from the group identifier', () => {
@@ -126,5 +148,24 @@ describe('Grow’s written confirmations (2026-09-17) are recorded, not remember
   it('production evidence stays closed — a test-account answer is not a production one', async () => {
     const { isTokenSaveVerificationEstablished } = await import('@/lib/payments/grow/providerEvidence')
     expect(isTokenSaveVerificationEstablished('production')).toBe(false)
+  })
+})
+
+describe("Grow's 2026-09-17 replies, as recorded", () => {
+  it('a token charge carries exactly one identifier, and it is the unique one', () => {
+    expect(GROW_SUPPORT_CONFIRMATIONS.tokenChargeIdentifierCount).toBe(1)
+    expect(GROW_SUPPORT_CONFIRMATIONS.approveTransactionRequired).toBe(false)
+  })
+
+  it('a written clarification is not approval: the site review and credentials stay pending', () => {
+    expect(GROW_SUPPORT_CONFIRMATIONS.websiteReview).toBe('pending')
+    expect(GROW_SUPPORT_CONFIRMATIONS.productionCredentials).toBe('pending')
+  })
+
+  it('and it is not execution evidence either — production gates remain shut', () => {
+    // The whole point: Grow saying "ApproveTransaction is not required" does not
+    // open a gate. Only an observed production charge does.
+    expect(isTokenChargeDispatchEstablished('production')).toBe(false)
+    expect(isTokenChargeReconciliationEstablished('production')).toBe(false)
   })
 })

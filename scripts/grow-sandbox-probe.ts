@@ -184,8 +184,10 @@ async function main(): Promise<void> {
     const entry = processState(state, args[0])
     if (!entry.cardToken) throw new Error('no cardToken recorded for this process: run `info` first')
     const uniqueIdentifier = positiveInt(args[1], 'uniqueId')
-    const groupIdentifier = positiveInt(args[2], 'groupId')
-    const sum = args[3] === undefined ? 1 : positiveInt(args[3], 'sum')
+    // Grow takes exactly one identifier on a token charge, so the probe no
+    // longer accepts a group id. The 2026-09-17 evidence run predates that
+    // instruction and sent both — see lib/payments/grow/api.ts.
+    const sum = args[2] === undefined ? 1 : positiveInt(args[2], 'sum')
     if (sum > MAX_PROBE_SUM) throw new Error(`sum must be at most ${MAX_PROBE_SUM}`)
     const result = await chargeToken({
       cardToken: entry.cardToken,
@@ -193,9 +195,8 @@ async function main(): Promise<void> {
       sum,
       description: CHARGE_DESCRIPTION,
       uniqueIdentifier,
-      groupIdentifier,
     })
-    record(`charge ${args[0]} ${uniqueIdentifier} ${groupIdentifier} ${sum}`, { clientClassification: result.kind, result: sanitizeGrowEvidence(result, secrets()) })
+    record(`charge ${args[0]} ${uniqueIdentifier} ${sum}`, { clientClassification: result.kind, result: sanitizeGrowEvidence(result, secrets()) })
     return
   }
 

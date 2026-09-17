@@ -185,7 +185,7 @@ describe('getPaymentProcessInfo', () => {
 })
 
 describe('chargeToken (createTransactionWithToken)', () => {
-  const input = { cardToken: 'ct', holder, sum: 89, description: 'SocialCRM Pro מנוי חודשי', uniqueIdentifier: 1790000001, groupIdentifier: 1790000001 }
+  const input = { cardToken: 'ct', holder, sum: 89, description: 'SocialCRM Pro מנוי חודשי', uniqueIdentifier: 1790000001 }
 
   it('reports paid only for statusCode 2 ("paid" in parameter-mapping), using the documented response example', async () => {
     fetchMock.mockResolvedValue(
@@ -205,7 +205,33 @@ describe('chargeToken (createTransactionWithToken)', () => {
     expect(form.get('paymentNum')).toBe('1')
     expect(form.get('sum')).toBe('89')
     expect(form.get('transactionUniqueIdentifier')).toBe('1790000001')
-    expect(form.get('transactionGroupIdentifier')).toBe('1790000001')
+  })
+
+  /**
+   * Grow, in writing on 2026-09-17: a token charge must carry exactly ONE of
+   * transactionUniqueIdentifier or transactionGroupIdentifier, never both.
+   *
+   * We send the unique one, because that is the identifier Grow actually
+   * refuses a repeat on — errorId 1010, observed in the sandbox run. The group
+   * identifier still exists on the charge row and still groups the attempts of
+   * one billing period; it simply never reaches Grow.
+   *
+   * `absent`, not empty: a present-but-blank field is still a second identifier
+   * as far as the request is concerned.
+   */
+  it('sends transactionUniqueIdentifier ONLY — no group identifier, not even an empty one', async () => {
+    fetchMock.mockResolvedValue(growResponse({ status: 1, err: '', data: { statusCode: 2, transactionId: 1 } }))
+    await chargeToken(input)
+    const { form } = sent()
+    expect(form.get('transactionUniqueIdentifier')).toBe('1790000001')
+    expect(form.has('transactionGroupIdentifier')).toBe(false)
+    expect([...form.keys()].filter((k) => k.toLowerCase().includes('identifier'))).toEqual(['transactionUniqueIdentifier'])
+  })
+
+  it('carries the identifier exactly, never rounded', async () => {
+    fetchMock.mockResolvedValue(growResponse({ status: 1, err: '', data: { statusCode: 2, transactionId: 1 } }))
+    await chargeToken({ ...input, uniqueIdentifier: 9007199254740991 })
+    expect(sent().form.get('transactionUniqueIdentifier')).toBe('9007199254740991')
   })
 
   it.each([
