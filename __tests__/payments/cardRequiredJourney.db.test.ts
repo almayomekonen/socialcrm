@@ -3,6 +3,9 @@ import { db } from '@/config/db'
 import { startTrialInTransaction, getAgencyTrial } from '@/db/trial'
 import { welcomeCardStage } from '@/lib/payments/cardTrial/availability'
 import { isCardSetupEligible } from '@/lib/payments/cardTrial/startCardSetup'
+import { confirmCardSetup } from '@/lib/payments/cardTrial/confirmCardSetup'
+import { encryptSecret } from '@/lib/crypto/secrets'
+import { seedUser } from './helpers/billingFixtures'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { seedAgency, seedMethod, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'
 
@@ -86,6 +89,66 @@ describe('no second trial, and no second clock', () => {
     await seedMethod(agencyId)
     expect(await startTrialInTransaction(db, agencyId)).toBe(false)
     expect((await trialOf(agencyId))!.trialEndsAt.getTime()).toBeLessThan(Date.now())
+  })
+})
+
+describe('the first activation: the clock is created BY the verified card, not before it', () => {
+  /**
+   * The ordering the product promises, pinned end to end. It is NOT enough that
+   * "exactly one trial exists" — a trial that already existed and a card added
+   * later satisfies that and violates the requirement. This asserts the clock
+   * did not exist before the verified confirmation and does exist after it.
+   */
+  const verified = (cardToken: string) =>
+    async () => ({
+      kind: 'verified' as const,
+      card: { cardToken, cardSuffix: '4580', cardBrand: 'Visa', cardExp: '1230', setupTransactionId: 'tx1', setupTransactionToken: 'tt1', setupStatusCode: '11' },
+    })
+
+  async function pendingSetup() {
+    const agencyId = await seedAgency()
+    const userId = await seedUser(agencyId)
+    const methodId = await seedMethod(agencyId, {
+      status: 'pending', cardToken: null, confirmedAt: null, cardSuffix: null, cardBrand: null,
+      createdByUserId: userId, setupProcessId: `proc-${agencyId}`, setupProcessToken: encryptSecret('ptok'),
+    })
+    return { agencyId, methodId, processId: `proc-${agencyId}` }
+  }
+  const callback = (processId: string) => ({
+    processId, processToken: 'ptok', cardToken: 'ct-first', reference: null,
+    transactionId: null, transactionToken: null, statusCode: null, sum: null, cardSuffix: null, cardBrand: null, cardExp: null,
+  })
+
+  it('no trial before, exactly one trial after, and it starts at verification', async () => {
+    const s = await pendingSetup()
+    expect((await trialOf(s.agencyId))?.trialStartedAt).toBeFalsy()
+
+    const before = Date.now()
+    const out = await confirmCardSetup(callback(s.processId), { verify: verified('ct-first'), runtimeMode: () => 'sandbox' })
+    expect(out).toMatchObject({ kind: 'confirmed', trialStarted: true })
+
+    const row = (await trialOf(s.agencyId))!
+    expect(row.trialStartedAt).toBeTruthy()
+    // The clock begins at the verification, not at some earlier moment.
+    expect(new Date(row.trialStartedAt).getTime()).toBeGreaterThanOrEqual(before - 5000)
+    const days = (new Date(row.trialEndsAt).getTime() - new Date(row.trialStartedAt).getTime()) / 86_400_000
+    expect(Math.round(days)).toBe(7)
+  })
+
+  it('a duplicate callback and a recovery both leave that one clock exactly where it was', async () => {
+    const s = await pendingSetup()
+    await confirmCardSetup(callback(s.processId), { verify: verified('ct-first'), runtimeMode: () => 'sandbox' })
+    const first = (await trialOf(s.agencyId))!
+
+    // Grow resends; and the recovery path re-confirms the same process.
+    const again = await confirmCardSetup(callback(s.processId), { verify: verified('ct-first'), runtimeMode: () => 'sandbox' })
+    expect(again).toMatchObject({ kind: 'already_processed' })
+
+    const after = (await trialOf(s.agencyId))!
+    expect(after.trialStartedAt).toEqual(first.trialStartedAt)
+    expect(after.trialEndsAt).toEqual(first.trialEndsAt)
+    const cards = await db('billing_payment_methods').where({ agencyId: s.agencyId, status: 'active' })
+    expect(cards).toHaveLength(1)
   })
 })
 
