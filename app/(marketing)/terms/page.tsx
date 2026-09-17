@@ -111,7 +111,7 @@ export default function TermsPage() {
               <p className='text-gray-600 leading-relaxed'>
                 המידע שנמסר בעת ההרשמה והשימוש משמש לצורך הפעלת השירות בלבד, ואינו נמכר או מועבר לצדדים שלישיים למטרות
                 שיווק. הפירוט המלא נמצא ב
-                <a href='/privacy' className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
+                <a href='/privacy' className='tap-44 font-semibold hover:underline' style={{ color: '#3f20f5' }}>
                   מדיניות הפרטיות
                 </a>
                 .
@@ -158,7 +158,7 @@ export default function TermsPage() {
                   {/* dir="ltr": an RTL paragraph reorders the segments of a bare
                       phone number, so the reader would see a different number. */}
                   <dd>
-                    <a href={BUSINESS_PHONE_HREF} className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
+                    <a href={BUSINESS_PHONE_HREF} className='tap-44 font-semibold hover:underline' style={{ color: '#3f20f5' }}>
                       <span dir='ltr' className='inline-block'>
                         {BUSINESS_PHONE_DISPLAY}
                       </span>
@@ -168,7 +168,7 @@ export default function TermsPage() {
                 <div>
                   <dt className='font-semibold text-gray-700'>אימייל</dt>
                   <dd>
-                    <a href={`mailto:${BUSINESS_EMAIL}`} className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
+                    <a href={`mailto:${BUSINESS_EMAIL}`} className='tap-44 font-semibold hover:underline' style={{ color: '#3f20f5' }}>
                       {BUSINESS_EMAIL}
                     </a>
                   </dd>
