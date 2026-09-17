@@ -4,6 +4,7 @@ import { chargeToken } from '@/lib/payments/grow/api'
 import { GrowTransportError } from '@/lib/payments/grow/http'
 import { classifyTokenChargeError } from '@/lib/payments/grow/tokenErrors'
 import { isTokenChargeDispatchEstablished } from '@/lib/payments/grow/providerEvidence'
+import { assertGrowRuntime } from '@/lib/payments/grow/config'
 import { CHARGE_DESCRIPTION } from '@/lib/payments/cardTrial/terms'
 import { markPaymentMethodStatus } from '@/db/payments/paymentMethods'
 import { insertNextAttempt, markChargeFailed, markChargeUnknown, releaseUndispatchedClaim, type ChargeRow } from '@/db/payments/charges'
@@ -30,7 +31,17 @@ export type ExecuteOutcome = 'succeeded' | 'already_recorded' | 'failed_final' |
 export type ExecuteDeps = { chargeToken: typeof chargeToken; dispatchAllowed: () => boolean }
 
 const LOG = '[SubscriptionCharge]'
-const liveDeps: ExecuteDeps = { chargeToken, dispatchAllowed: () => isTokenChargeDispatchEstablished() }
+const liveDeps: ExecuteDeps = {
+  chargeToken,
+  dispatchAllowed: () => {
+    // Evidence is per environment; a runtime we may not call Grow from never dispatches.
+    try {
+      return isTokenChargeDispatchEstablished(assertGrowRuntime().mode)
+    } catch {
+      return false
+    }
+  },
+}
 
 /**
  * Called only after the failure has COMMITTED, so the email can never describe a

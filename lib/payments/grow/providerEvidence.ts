@@ -29,9 +29,9 @@ export type GrowProviderEvidence = {
    */
   tokenSaveVerification: { sandbox: TokenSaveEvidence; production: TokenSaveEvidence }
   /** createTransactionWithToken success shape and duplicate-identifier behaviour observed. */
-  tokenChargeDispatch: { evidenceRef: string | null }
-  /** getTokenTransactionsByExternalIdentifiers response shape observed (its response is undocumented). */
-  tokenChargeReconciliation: { evidenceRef: string | null }
+  tokenChargeDispatch: { sandbox: { evidenceRef: string | null }; production: { evidenceRef: string | null } }
+  /** getTokenTransactionsByExternalIdentifiers response shape observed (undocumented). */
+  tokenChargeReconciliation: { sandbox: { evidenceRef: string | null }; production: { evidenceRef: string | null } }
 }
 
 /**
@@ -73,8 +73,20 @@ export const GROW_PROVIDER_EVIDENCE: GrowProviderEvidence = {
     /** Closed. No production identifiers exist, so nothing has been observed. */
     production: { acceptedStatusCodes: [], evidenceRef: null },
   },
-  tokenChargeDispatch: { evidenceRef: null },
-  tokenChargeReconciliation: { evidenceRef: null },
+  /**
+   * Observed on the sandbox account 2026-09-17, agency 6 / card 11 (Grow's
+   * documented test card): one ₪1 createTransactionWithToken returned
+   * kind "paid", statusCode 2, transactionId 549236, with an asmachta; the same
+   * transactionUniqueIdentifier sent again was refused with error 1010
+   * ("מזהה עסקה יחודי כבר קיים עבור בית העסק").
+   */
+  tokenChargeDispatch: { sandbox: { evidenceRef: 'charge_probe@2026-09-17:tx549236+dup1010' }, production: { evidenceRef: null } },
+  /**
+   * Same run: the lookup returned status 1 with exactly one transaction —
+   * statusCode 2, transactionId 549236, sum "1". Only that case is established;
+   * see interpretTokenLookup, which answers `undetermined` for everything else.
+   */
+  tokenChargeReconciliation: { sandbox: { evidenceRef: 'charge_probe@2026-09-17:lookup-shape' }, production: { evidenceRef: null } },
 }
 
 export function isTokenSaveVerificationEstablished(mode: GrowMode, e: GrowProviderEvidence = GROW_PROVIDER_EVIDENCE): boolean {
@@ -86,10 +98,10 @@ export function acceptedTokenSaveStatusCodes(mode: GrowMode, e: GrowProviderEvid
   return e.tokenSaveVerification[mode].acceptedStatusCodes
 }
 
-export function isTokenChargeDispatchEstablished(e: GrowProviderEvidence = GROW_PROVIDER_EVIDENCE): boolean {
-  return e.tokenChargeDispatch.evidenceRef !== null
+export function isTokenChargeDispatchEstablished(mode: GrowMode, e: GrowProviderEvidence = GROW_PROVIDER_EVIDENCE): boolean {
+  return e.tokenChargeDispatch[mode].evidenceRef !== null
 }
 
-export function isTokenChargeReconciliationEstablished(e: GrowProviderEvidence = GROW_PROVIDER_EVIDENCE): boolean {
-  return e.tokenChargeReconciliation.evidenceRef !== null
+export function isTokenChargeReconciliationEstablished(mode: GrowMode, e: GrowProviderEvidence = GROW_PROVIDER_EVIDENCE): boolean {
+  return e.tokenChargeReconciliation[mode].evidenceRef !== null
 }

@@ -41,7 +41,13 @@ const RECONCILE_BATCH = 10
 const liveDeps: PassDeps = {
   execute: (chargeId) => executeCharge(chargeId),
   reconcile: (limit) => reconcileUnknownCharges(limit),
-  dispatchAllowed: () => isTokenChargeDispatchEstablished(),
+  dispatchAllowed: () => {
+    try {
+      return isTokenChargeDispatchEstablished(assertGrowRuntime().mode)
+    } catch {
+      return false
+    }
+  },
   clock: () => Date.now(),
 }
 

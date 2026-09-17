@@ -58,11 +58,11 @@ describe('reconciliationSubject', () => {
     const pm = await seedMethod(agencyId)
     await seedSubscription(agencyId)
     const chargeId = await seedCharge(agencyId, pm, { status: 'unknown', dispatchedAt: new Date() })
-    // Gate closed: a subject resolves, but no verdict is invented from an
-    // undocumented lookup response.
+    // The subject resolves, and then the runtime refuses: a test environment
+    // may not call Grow, so no verdict is reached and none is invented.
     expect(await growChargeReconciler(await chargeRow(chargeId))).toEqual({
       kind: 'undetermined',
-      reason: 'provider_evidence_missing',
+      reason: 'runtime_not_allowed',
     })
   })
 })

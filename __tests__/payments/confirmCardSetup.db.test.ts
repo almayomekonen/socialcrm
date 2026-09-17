@@ -5,7 +5,7 @@ import { confirmCardSetup, type ConfirmDeps } from '@/lib/payments/cardTrial/con
 import type { GrowProviderEvidence } from '@/lib/payments/grow/providerEvidence'
 
 /** Sandbox token-save is OPEN in the committed evidence; this represents 'closed'. */
-const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
+const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } }, tokenChargeReconciliation: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } } }
 import { createGrowTokenSaveVerifier, verifyTokenSaveWithGrow, type TokenSaveVerification } from '@/lib/payments/cardTrial/verifyTokenSave'
 import type { GrowCallback } from '@/lib/payments/grow/callbackPayload'
 import { seedAgency, seedMethod, seedSubscription, seedUser, seedCharge, cleanupBilling, hoursFromNow } from './helpers/billingFixtures'

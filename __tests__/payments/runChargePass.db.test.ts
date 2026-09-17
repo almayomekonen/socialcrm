@@ -10,6 +10,10 @@ beforeEach(() => {
   vi.stubEnv('VERCEL_ENV', '')
   vi.stubEnv('NEXT_PUBLIC_VERCEL_ENV', '')
   vi.stubEnv('GROW_SANDBOX_ISOLATED_DATA', 'true')
+  // No identifiers: the live reconciler must be unable to address Grow at all,
+  // so this suite can never reach the provider over the network.
+  vi.stubEnv('GROW_USER_ID', '')
+  vi.stubEnv('GROW_PAGE_CODE_TOKEN', '')
 })
 afterEach(async () => {
   vi.unstubAllEnvs()
@@ -71,7 +75,9 @@ describe('reconcileUnknownCharges', () => {
   it('the live reconciler leaves unknown outcomes untouched: no retry, no success, on a guess', async () => {
     const { agencyId, pm } = await dueTrial()
     const id = await seedCharge(agencyId, pm, { status: 'unknown', dispatchedAt: new Date() })
-    expect(await growChargeReconciler((await db('billing_charges').where({ id }).first()) as never)).toEqual({ kind: 'undetermined', reason: 'provider_evidence_missing' })
+    // It cannot ask Grow anything here, and an unaskable question is not an
+    // answer: undetermined, and the row is left exactly as dispatched.
+    expect(await growChargeReconciler((await db('billing_charges').where({ id }).first()) as never)).toEqual({ kind: 'undetermined', reason: 'provider_not_configured' })
     const summary = await reconcileUnknownCharges(50)
     expect(summary.undetermined).toBeGreaterThanOrEqual(1)
     expect(await db('billing_charges').where({ agencyId })).toHaveLength(1)

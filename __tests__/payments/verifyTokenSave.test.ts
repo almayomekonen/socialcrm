@@ -16,8 +16,8 @@ import { GrowTransportError } from '@/lib/payments/grow/http'
  */
 const LOCAL_TEST_EVIDENCE: GrowProviderEvidence = {
   tokenSaveVerification: { sandbox: { acceptedStatusCodes: ['FIXTURE-SAVED'], evidenceRef: 'LOCAL TEST DOUBLE — not sandbox evidence' }, production: { acceptedStatusCodes: [], evidenceRef: null } },
-  tokenChargeDispatch: { evidenceRef: null },
-  tokenChargeReconciliation: { evidenceRef: null },
+  tokenChargeDispatch: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } },
+  tokenChargeReconciliation: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } },
 }
 
 const tx = (over: Partial<GrowProcessTransaction> = {}): GrowProcessTransaction => ({
@@ -48,7 +48,7 @@ describe('a closed gate observes, and still grants nothing', () => {
    * opening it needs the statusCode Grow returns for a token-only save, and
    * nothing was allowed to look.
    */
-  const CLOSED = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
+  const CLOSED = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } }, tokenChargeReconciliation: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } } }
   const saved: GrowProcessTransaction[] = [
     { transactionId: 't1', transactionToken: 'tt', statusCode: '11', sum: '1', cardToken: 'TOKEN-SECRET-VALUE', cardSuffix: '4242', cardBrand: 'Visa', cardExp: '1230' },
   ]
@@ -91,13 +91,13 @@ describe('a closed gate observes, and still grants nothing', () => {
 })
 
 /** Sandbox token-save is OPEN in the committed evidence; this represents 'closed'. */
-const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { evidenceRef: null }, tokenChargeReconciliation: { evidenceRef: null } }
+const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } }, tokenChargeReconciliation: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } } }
 
 describe('provider evidence gates', () => {
   it('charging stays closed, and production token-save stays closed: nothing provider-dependent is enabled without sandbox evidence', () => {
     expect(isTokenSaveVerificationEstablished('production')).toBe(false)
-    expect(isTokenChargeDispatchEstablished()).toBe(false)
-    expect(isTokenChargeReconciliationEstablished()).toBe(false)
+    expect(isTokenChargeDispatchEstablished('production')).toBe(false)
+    expect(isTokenChargeReconciliationEstablished('production')).toBe(false)
     // Sandbox is open on real observed evidence; production stays shut.
     expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.acceptedStatusCodes).toEqual([])
     expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.evidenceRef).toBeNull()

@@ -2,6 +2,10 @@ import { db } from '@/config/db'
 import { isTokenChargeReconciliationEstablished } from '@/lib/payments/grow/providerEvidence'
 import { insertNextAttempt, listUnknownCharges, markChargeFailed, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
 import { decryptCardToken, getPaymentMethodById } from '@/db/payments/paymentMethods'
+import { assertGrowRuntime } from '@/lib/payments/grow/config'
+import { lookupTokenTransactionsRaw } from '@/lib/payments/grow/api'
+import { GrowTransportError } from '@/lib/payments/grow/http'
+import { interpretTokenLookup } from '@/lib/payments/grow/interpretTokenLookup'
 import { tryExactGrowIdentifier } from '@/lib/payments/grow/identifiers'
 import { applySuccessfulCharge } from './applySuccessfulCharge'
 
@@ -62,10 +66,40 @@ export const growChargeReconciler: ChargeReconciler = async (charge) => {
   // identified there is nothing to ask about, whatever the gate says.
   const subject = await reconciliationSubject(charge)
   if ('error' in subject) return { kind: 'undetermined', reason: subject.error }
-  if (!isTokenChargeReconciliationEstablished()) return { kind: 'undetermined', reason: 'provider_evidence_missing' }
-  // Gate open, interpreter still absent: Grow does not document this response,
-  // and a verdict invented here would settle or re-charge real money.
-  return { kind: 'undetermined', reason: 'lookup_interpreter_not_implemented' }
+
+  let mode
+  try {
+    mode = assertGrowRuntime().mode
+  } catch {
+    return { kind: 'undetermined', reason: 'runtime_not_allowed' }
+  }
+  if (!isTokenChargeReconciliationEstablished(mode)) return { kind: 'undetermined', reason: 'provider_evidence_missing' }
+
+  let env
+  try {
+    env = await lookupTokenTransactionsRaw({ cardToken: subject.cardToken, identifier: { uniqueIdentifier: subject.uniqueIdentifier } })
+  } catch (err) {
+    // A lookup we could not complete says nothing about the money.
+    if (err instanceof GrowTransportError) return { kind: 'undetermined', reason: `transport_${err.reason}` }
+    // No identifiers for this mode: the lookup cannot even be addressed, which
+    // is a configuration fact and not a statement about the charge. Named
+    // separately from a lookup that ran and failed (verifyTokenSave does the
+    // same), so an unconfigured runtime is never read as a provider problem.
+    if (String(err).startsWith('Error: grow.config.')) return { kind: 'undetermined', reason: 'provider_not_configured' }
+    return { kind: 'undetermined', reason: 'lookup_failed' }
+  }
+
+  const verdict = interpretTokenLookup(env, { sum: charge.amount })
+  if (verdict.kind === 'undetermined') return verdict
+  return {
+    kind: 'paid',
+    paid: {
+      transactionId: verdict.transactionId,
+      transactionToken: verdict.transactionToken,
+      asmachta: verdict.asmachta,
+      statusCode: verdict.statusCode,
+    },
+  }
 }
 
 export async function reconcileUnknownCharges(limit: number, reconcile: ChargeReconciler = growChargeReconciler): Promise<ReconcileSummary> {
