@@ -16,7 +16,7 @@ import { CHARGE_DESCRIPTION } from '@/lib/payments/cardTrial/terms'
  *
  * Every limit is deliberate:
  *   - staging + sandbox only, via assertGrowRuntime and an explicit APP_ENV check;
- *   - Bearer CRON_SECRET, compared in constant time — never unauthenticated;
+ *   - Bearer CHARGE_PROBE_SECRET, compared in constant time — never unauthenticated;
  *   - pinned to ONE agency, ONE payment method and ONE amount, all constants
  *     below, so it cannot be pointed at another card or a larger sum;
  *   - DURABLY single-use: the attempt identifier is written to analytics_events
@@ -33,7 +33,10 @@ const LOG = '[ChargeProbe]'
 type Step = 'charge' | 'duplicate' | 'lookup'
 
 function authorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET ?? ''
+  // A dedicated secret, not CRON_SECRET: the cron value cannot be read back out
+  // of the secret store, so it could not be presented, and reusing it would
+  // widen what one leaked string can do.
+  const secret = process.env.CHARGE_PROBE_SECRET ?? ''
   if (secret.length < 16) return false
   const presented = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
   return presented.length > 0 && safeEqual(presented, secret)
