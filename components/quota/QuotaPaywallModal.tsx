@@ -2,7 +2,7 @@
 
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
-import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
+import { PRICING } from '@/lib/pricing'
 import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 
 export type QuotaPaywallState = {
@@ -38,9 +38,8 @@ export default function QuotaPaywallModal({ state, onClose }: Props) {
 
         <div className='bg-gray-50 border border-gray-200 rounded-lg px-4 py-3'>
           <p className='text-base font-semibold'>Pro · ₪{PRICING.monthly} לחודש</p>
-          <p className='text-xs text-gray-600 mt-0.5'>
-            או ₪{PRICING.annual} לשנה (₪{ANNUAL_MONTHLY_EQUIVALENT} לחודש בלבד) — חיסכון ₪{ANNUAL_SAVINGS} בשנה
-          </p>
+          {/* Monthly only. This release sells one thing, so an annual price
+              here would be a number the customer cannot actually buy. */}
           <p className='text-xs text-gray-600 mt-0.5'>לידים ללא הגבלה</p>
         </div>
 

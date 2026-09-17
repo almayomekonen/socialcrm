@@ -13,38 +13,43 @@ import { Switch } from '@/components/lumen/ui/switch';
 import { cn } from '@/components/lumen/utils';
 
 import Logo from '../layout/logo';
-import {
-  PRICING,
-  ANNUAL_MONTHLY_EQUIVALENT,
-  ANNUAL_DISCOUNT_PERCENT,
-} from '@/lib/pricing';
+import { PRICING } from '@/lib/pricing';
 
+/**
+ * Two columns, one product. The left column is the seven-day trial, not a free
+ * plan: an account without a verified card has NO product access
+ * (lib/trial: NEVER_STARTED and TRIAL_EXPIRED both resolve to no access), so a
+ * "free forever, no credit card" column would describe a state the system does
+ * not have. Inside the trial the lead quota is bypassed entirely
+ * (lib/quota assertLeadQuota → effective plan 'pro'), so the trial really is
+ * the full product.
+ *
+ * Monthly only. Annual purchasing left with Payment Links.
+ */
 const pricingPlans = {
   individual: {
-    title: 'חינם',
-    subtitle: 'להתחיל בלי כרטיס אשראי',
-    description: 'לבעל עסק שמנהל לידים לבד',
+    title: 'שבעה ימי התנסות',
+    subtitle: 'המערכת המלאה',
+    description: 'נדרש כרטיס אשראי · לא מתבצע חיוב',
     monthlyPrice: 0,
-    annualPrice: 0,
     popular: false,
     features: [
-      { name: 'עד 50 לידים', included: true },
+      { name: 'כל מה שיש ב-Pro, שבעה ימים', included: true },
+      { name: 'לידים ללא הגבלה', included: true },
       { name: 'חיבור לפייסבוק, אינסטגרם ווואטסאפ', included: true },
       { name: 'סטטוסים, נציגים ותאריכי מעקב', included: true },
       { name: 'ייבוא מאקסל, ייצוא לאקסל ו-PDF', included: true },
-      { name: 'לידים ללא הגבלה', included: false },
-      { name: 'תקציר חכם ופעולה מומלצת', included: false },
-      { name: 'טיוטות להודעות מעקב', included: false },
-      { name: 'שאלות חופשיות על הליד', included: false },
+      { name: 'תקציר חכם ופעולה מומלצת', included: true },
+      { name: 'טיוטות להודעות מעקב', included: true },
+      { name: 'שאלות חופשיות על הליד', included: true },
     ],
-    cta: { text: 'ההרשמה לוקחת פחות מדקה', button: 'התחל בחינם' },
+    cta: { text: `בתום שבעה ימים ${PRICING.currency}${PRICING.monthly} לחודש · אפשר לבטל לפני החיוב הראשון`, button: 'להתחיל התנסות' },
   },
   team: {
     title: 'Pro',
     subtitle: 'כשהלידים מתחילים להצטבר',
     description: 'לעסק או לצוות מכירות',
     monthlyPrice: PRICING.monthly,
-    annualPrice: ANNUAL_MONTHLY_EQUIVALENT,
     popular: true,
     features: [
       { name: 'לידים ללא הגבלה', included: true },
@@ -56,7 +61,7 @@ const pricingPlans = {
       { name: 'חלוקת עמלות על עסקה משותפת', included: true },
       { name: 'מחיר אחד לסביבת העבודה', included: true },
     ],
-    cta: { text: 'בלי תוספת לכל נציג', button: 'שדרגו ל-Pro' },
+    cta: { text: 'בלי תוספת לכל נציג · חיוב חודשי עד לביטול', button: 'שדרגו ל-Pro' },
   },
 };
 
@@ -69,8 +74,6 @@ const pricingPlans = {
  */
 export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' | 'h2' } = {}) {
   const Heading = headingLevel
-  // Annual purchasing was removed with Payment Links; monthly is the only plan.
-  const isAnnual = false;
 
   return (
     <section className="section-padding relative overflow-hidden">
@@ -110,8 +113,8 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
               וממשיכים רק אם זה עובד לכם.
             </Heading>
             <p className="text-muted-foreground/70 mt-3 hidden text-lg leading-relaxed md:block lg:mt-4">
-              שבעה ימים עם כל מה שיש במערכת, כולל ה-AI המלא. בלי כרטיס אשראי,
-              בלי התחייבות.
+              שבעה ימים עם כל מה שיש במערכת, כולל ה-AI המלא. נדרש כרטיס אשראי
+              כדי להתחיל, ולא מתבצע חיוב במהלך ההתנסות.
             </p>
           </div>
 
@@ -164,7 +167,7 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-semibold">{PRICING.currency}</span>
                       <span className="text-5xl md:text-6xl">
-                        {isAnnual ? plan.annualPrice : plan.monthlyPrice}
+                        {plan.monthlyPrice}
                       </span>
                       <span className="text-2xl">/לחודש</span>
                     </div>

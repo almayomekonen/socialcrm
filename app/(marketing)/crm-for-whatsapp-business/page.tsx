@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
 import { buildPageMetadata } from '@/lib/seo/metadata'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbSchema, webPageSchema } from '@/lib/seo/schemas'
@@ -48,7 +49,7 @@ const faqItems = [
   {
     question: 'האם יש עלות?',
     answer:
-      'מתחילים בחינם. ניתן להירשם ולעבוד עם המערכת ללא עלות, בלי כרטיס אשראי. שדרוג נדרש רק כשהעסק מתרחב לנפחים גדולים יותר או לתכונות צוות מתקדמות.',
+      TRIAL_OFFER_FAQ_ANSWER,
   },
   {
     question: 'האם יש שיוך לידים בין נציגים?',

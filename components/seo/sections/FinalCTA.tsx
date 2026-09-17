@@ -45,7 +45,7 @@ export function FinalCTA() {
             כל הפיצ׳רים
           </Link>
         </div>
-        <p className='text-white/50 text-sm mt-2'>ללא כרטיס אשראי. ללא התחייבות.</p>
+        <p className='text-white/50 text-sm mt-2'>שבעה ימים ללא חיוב. נדרש כרטיס אשראי. אפשר לבטל לפני החיוב הראשון.</p>
       </div>
     </section>
   )

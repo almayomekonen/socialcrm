@@ -2,7 +2,7 @@
 
 import { Check } from 'lucide-react'
 import { Btn } from '@/lib/btns/Btn'
-import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
+import { PRICING } from '@/lib/pricing'
 import LeadEntryToasts from './LeadEntryToasts'
 import CardTrialSetupForm from './CardTrialSetupForm'
 import { upgradeHref } from '@/lib/entitlement/upgradeHref'
@@ -59,13 +59,9 @@ export default function TrialExpiredScreen({ leadCount = 0, leadNames = [], card
             ₪{PRICING.monthly}
             <span className='text-base font-normal text-white/50 mr-1'>/חודש</span>
           </p>
-          {/* Card-token billing is monthly only, so the annual offer is not
-              available in the reactivation flow and must not be advertised there. */}
-          {!cardReactivation && (
-            <p className='text-xs text-white/50 mt-1'>
-              או ₪{PRICING.annual} לשנה (₪{ANNUAL_MONTHLY_EQUIVALENT} לחודש בלבד) חיסכון ₪{ANNUAL_SAVINGS} בשנה
-            </p>
-          )}
+          {/* Monthly only, in every path. Card-token billing is the only way to
+              pay in this release, so an annual price on the screen that exists
+              to take payment would advertise something nobody can buy. */}
         </div>
 
         <ul className='list-none space-y-2.5'>

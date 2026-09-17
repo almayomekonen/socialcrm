@@ -1,6 +1,6 @@
 import { formatDate } from '@/lib/dates'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
-import { ANNUAL_SAVINGS, PRICING } from '@/lib/pricing'
+import { PRICING } from '@/lib/pricing'
 import { formatBillingDate } from '@/lib/payments/cardTrial/firstCharge'
 
 type Props = {
@@ -66,7 +66,10 @@ export default function TrialStatusCard({ startedAt, endsAt, daysRemaining, card
         <div className='flex items-center justify-between gap-4 flex-wrap'>
           <p className='text-sm text-gray-600'>
             בסיום תקופת הניסיון הגישה תושהה עד לשדרוג, כל הלידים והנתונים שלך נשמרים.
-            <span className='block text-xs text-gray-500 mt-0.5'>מסלול שנתי חוסך ₪{ANNUAL_SAVINGS} בשנה — פרטים בחבילות למטה.</span>
+            {/* No annual upsell: this release sells a monthly subscription and
+                nothing else, so an annual saving here points at a plan the
+                customer cannot actually buy. */}
+            <span className='block text-xs text-gray-500 mt-0.5'>המנוי הוא ₪{PRICING.monthly} לחודש, עד לביטול.</span>
           </p>
           <UpgradeBtn source='billing_trial_card' />
         </div>

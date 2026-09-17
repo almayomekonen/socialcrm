@@ -275,7 +275,7 @@ export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCa
             />
 
             <p className='text-xs text-gray-400 text-center -mt-2'>
-              7 ימים ללא עלות · ללא כרטיס אשראי · לאחר מכן תוכל לבחור אם להמשיך
+              7 ימים ללא חיוב · נדרש כרטיס אשראי · אפשר לבטל לפני החיוב הראשון
             </p>
           </>
         )}

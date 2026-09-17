@@ -13,6 +13,7 @@ import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
 import { startCardSetup } from '@/actions/paymentMethod'
 import type { CardTrialView } from '@/lib/payments/cardTrial/cardTrialView'
+import { PRICING } from '@/lib/pricing'
 
 const view = (over: Partial<CardTrialView> = {}): CardTrialView => ({
   hasActiveCard: true,
@@ -146,15 +147,24 @@ describe('expired trial recovery', () => {
     expect(screen.queryByText('שדרג עכשיו')).toBeNull()
   })
 
-  it('never advertises the annual plan in a monthly-only card flow', () => {
+  /**
+   * This used to assert the opposite for the no-card branch: that an agency
+   * without a card WAS shown the annual price. That was true while Payment
+   * Links sold annual. They are gone, this release sells a monthly
+   * subscription and nothing else, and there is no path that takes annual
+   * money — so advertising it on the screen whose whole job is to take payment
+   * offers a plan nobody can buy. Neither branch may mention it now.
+   */
+  it('never advertises the annual plan, in either branch', () => {
     render(<TrialExpiredScreen cardReactivation={{ reason: 'ended' }} />)
     expect(document.body.textContent).not.toContain('לשנה')
     cleanup()
     render(<TrialExpiredScreen />)
-    expect(document.body.textContent).toContain('לשנה')
+    expect(document.body.textContent).not.toContain('לשנה')
+    expect(document.body.textContent).toContain(`₪${PRICING.monthly}`)
   })
 
-  it('a no-card agency still gets the Payment-Link upgrade', () => {
+  it('a no-card agency is still offered the upgrade, now via the billing screen', () => {
     render(<TrialExpiredScreen />)
     expect(screen.getByText('שדרג עכשיו')).toBeTruthy()
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
