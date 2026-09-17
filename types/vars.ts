@@ -97,8 +97,19 @@ export function resolveBaseUrl(): string {
    */
   const deployment = process.env.VERCEL_ENV
   if (deployment && deployment !== 'production') {
+    // APP_HOST is marked sensitive in Vercel, so it exists at RUNTIME but not
+    // during the build. Server actions (sendToken) read it; statically
+    // prerendered pages cannot, which is why the next two fallbacks matter.
     const configured = originFromHost(process.env.APP_HOST)
     if (configured && configured !== PRODUCTION_ORIGIN) return configured
+
+    // A branch-scoped NEXT_PUBLIC_APP_URL is readable at build time and names
+    // the stable alias. Accepted only when it is NOT the production origin —
+    // the shared Production+Preview value is, and that is the original bug.
+    const declared = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL)?.trim().replace(/\/$/, '')
+    if (declared && declared !== PRODUCTION_ORIGIN) return declared
+
+    // Last resort: this deployment's own URL. Never production, by construction.
     const own = originFromHost(process.env.VERCEL_URL)
     if (own) return own
   }

@@ -83,3 +83,25 @@ describe('resolveBaseUrl', () => {
     expect(resolveBaseUrl()).toBe('http://localhost:3000')
   })
 })
+
+describe('build-time resolution (APP_HOST is sensitive and absent during a build)', () => {
+  it('uses a branch-scoped NEXT_PUBLIC_APP_URL when it is not the production origin', () => {
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    vi.stubEnv('APP_HOST', '')
+    vi.stubEnv('APP_URL', '')
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', `https://${STAGING}`)
+    vi.stubEnv('VERCEL_URL', 'socialcrm-abc123-almayos-projects.vercel.app')
+    expect(resolveBaseUrl()).toBe(`https://${STAGING}`)
+  })
+
+  it('rejects the SHARED production value and falls back to the deployment URL', () => {
+    // This is the original defect: NEXT_PUBLIC_APP_URL is a shared
+    // Production+Preview variable holding the production origin.
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    vi.stubEnv('APP_HOST', '')
+    vi.stubEnv('APP_URL', PROD)
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', PROD)
+    vi.stubEnv('VERCEL_URL', 'socialcrm-abc123-almayos-projects.vercel.app')
+    expect(resolveBaseUrl()).toBe('https://socialcrm-abc123-almayos-projects.vercel.app')
+  })
+})
