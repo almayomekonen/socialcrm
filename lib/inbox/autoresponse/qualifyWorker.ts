@@ -45,6 +45,7 @@ import {
   conversationCloser,
   countConsecutiveAiOutbounds,
   decideConversationControl,
+  inboundContainsRealQuestion,
   isConfirmedHandoffOffer,
   isExplicitReopen,
   outboundOffersHandoff,
@@ -191,7 +192,28 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata', 'sequence')
   const recent = rows.slice().reverse()
   const lastMsg = recent[recent.length - 1]
-  const lastInbound = [...recent].reverse().find((m) => m.direction === 'inbound')
+  /**
+   * The newest inbound the agent can actually READ.
+   *
+   * An image, voice note or sticker persists with empty `text`, and the agent
+   * answers the newest inbound — so in production conversation 7224 the customer
+   * wrote "תודה רבה" and then sent two photos, which made `lastInboundText` an
+   * empty string. The thank-you was never seen, the courtesy reply never fired,
+   * and every later job skipped. Any text message followed by an attachment had
+   * the same fate.
+   *
+   * Among the messages still awaiting a reply (everything after our last
+   * outbound), take the newest one that HAS text. If none of them do — the
+   * customer sent only an attachment — fall back to the newest, which keeps the
+   * existing low-information handling rather than answering something older.
+   */
+  const lastOutboundSeq = Number(
+    [...recent].reverse().find((m) => m.direction === 'outbound')?.sequence ?? 0,
+  )
+  const unanswered = recent.filter((m) => m.direction === 'inbound' && Number(m.sequence ?? 0) > lastOutboundSeq)
+  const lastInbound =
+    [...unanswered].reverse().find((m) => String(m.text ?? '').trim()) ??
+    [...recent].reverse().find((m) => m.direction === 'inbound')
   const lastOutbound = [...recent].reverse().find((m) => m.direction === 'outbound')
   const humanTookOver = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) !== 'auto_response')
   const agentSpokeInWindow = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) === 'auto_response')
@@ -543,7 +565,10 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   }
   const summaryBlock = formatSummaryBlock(conversationSummary)
 
-  const questionPolicy = questionPolicyForSalesMove(salesMove, { discoveryBudgetExhausted })
+  const questionPolicy = questionPolicyForSalesMove(salesMove, {
+    discoveryBudgetExhausted,
+    inboundWasQuestion: inboundContainsRealQuestion(lastInboundText),
+  })
   const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
   waTrace('GENERATE_QUALIFY_START', genTrace, {
     transcriptLength: qTranscript.length,
