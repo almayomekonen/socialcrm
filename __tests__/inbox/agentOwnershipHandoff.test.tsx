@@ -78,7 +78,10 @@ describe('a handed-off conversation is visible and actionable', () => {
   it('says the agent is waiting, and does not promise anyone will call', () => {
     render(<AgentOwnershipClient conversationId={1} humanOwned handedOff handoff={HANDOFF} />)
     const text = document.body.textContent ?? ''
-    expect(text).toContain('הסוכן לא ישלח הודעות נוספות')
+    // "הסוכן לא ישלח הודעות נוספות" was wrong: the agent MAY still send one
+    // courtesy line. The banner now states who owns the work instead.
+    expect(text).toContain('המשך הטיפול בידי הצוות')
+    expect(text).not.toContain('לא ישלח הודעות נוספות')
     expect(text).not.toMatch(/יחזור אלי|בהקדם/)
   })
 })

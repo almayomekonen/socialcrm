@@ -59,7 +59,7 @@ export default function AgentOwnershipClient({ conversationId, humanOwned, hande
 
   const status = humanOwned
     ? handedOff
-      ? 'הפנייה הועברה אליכם. הסוכן לא ישלח הודעות נוספות.'
+      ? 'הפנייה הועברה אליכם. המשך הטיפול בידי הצוות.'
       : 'אתם עונים בשיחה הזו. הסוכן לא ישלח הודעות עד שתחזירו לו אותה.'
     : 'הסוכן עונה בשיחה הזו.'
 

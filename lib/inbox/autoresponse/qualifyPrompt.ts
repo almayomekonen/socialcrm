@@ -261,7 +261,8 @@ export function buildQualifyUser(args: {
     )
     lines.push(
       'אסור להצהיר שביצעת העברה, שמסרת לצוות או שעדכנת מישהו. אתה/את לא מבצע/ת את הפעולה הזו בהודעה. ' +
-        'אסור גם להבטיח שיחזרו אליו/ה או מתי.',
+        'אסור גם להבטיח שיחזרו אליו/ה או מתי — אף אחד לא התחייב לחזור. ' +
+        'מותר לשאול מתי נוח שיחזרו, אבל אסור להבטיח שזה יקרה.',
     )
   }
   lines.push(formatCognitionMemory(args.qualification.cognition, productMode ? 'product' : 'discover'))

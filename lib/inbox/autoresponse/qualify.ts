@@ -59,12 +59,12 @@ export function detectOptOut(text: string): boolean {
  */
 const HANDOFF = {
   qualified: {
-    he: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.',
-    en: 'Your request is with the team, waiting for someone to continue with you.',
+    he: 'הפנייה שלך ממתינה כעת לטיפול הצוות.',
+    en: 'Your request is now waiting for the team to pick up.',
   },
   uncertain: {
-    he: 'הפנייה שלך ממתינה לטיפול של מישהו מהצוות.',
-    en: 'Your request is with the team, waiting for someone to continue with you.',
+    he: 'הפנייה שלך ממתינה כעת לטיפול הצוות.',
+    en: 'Your request is now waiting for the team to pick up.',
   },
 }
 

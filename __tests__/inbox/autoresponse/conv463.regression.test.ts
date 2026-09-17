@@ -74,7 +74,7 @@ describe('production conversation 463 regression (lead 1419)', () => {
       expect(post.action).toBe('send')
       turnCount += 1
     }
-    expect(handoffMessage('max_turns', 'he')).toBe('הפנייה שלך ממתינה לטיפול של מישהו מהצוות.')
+    expect(handoffMessage('max_turns', 'he')).toBe('הפנייה שלך ממתינה כעת לטיפול הצוות.')
     expect(turnCount).toBe(5)
   })
 

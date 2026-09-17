@@ -87,6 +87,36 @@ const TRANSFER_CLAIM = [
   /\b(?:i(?:'ll| will)? (?:pass|forward|hand)(?: this| it| you| the request)?|i(?:'ve| have) (?:passed|forwarded|handed))\b/i,
 ]
 
+/**
+ * A PROMISE that someone will get back to the customer.
+ *
+ * Nothing in the system commits a person to calling, so the agent cannot say one
+ * will. A handoff means the request is durably in the staff inbox and waiting —
+ * that is the only claim the code can support, and it is what the canned handoff
+ * copy says once the handoff has actually persisted.
+ *
+ * ASKING is allowed, PROMISING is not. "מתי נוח שיחזרו אלייך?" plans a callback
+ * the customer chooses; "אדם מהצוות יחזור אלייך" asserts one will happen.
+ *
+ * Two signals separate them, and BOTH are needed: the ש prefix marking a Hebrew
+ * subordinate clause, and the presence of an interrogative. The lookbehind alone
+ * was not enough — in "מתי נוח לך שאדם מהצוות יחזור אלייך?" the ש sits on the
+ * noun, not the verb, so the verb still looked like a promise.
+ */
+// Anchored on whitespace: the bare substring matched "רשמתי" (ר-ש-מ-ת-י), which
+// exempted an outright promise because the word happens to end in מ-ת-י.
+const CALLBACK_QUESTION = /(?:^|\s)מתי(?:\s|$|[?,])|when would|what time/i
+const CALLBACK_PROMISE = [
+  /(?<!ש)(?:יחזור|יחזרו|נחזור|אחזור)\s+אלי(?:ך|יך|כם|כן)/,
+  // Infinitive form: "אבקש מאדם מהצוות לחזור אלייך" arranges a callback just as
+  // firmly, and slipped past the conjugated pattern above.
+  /(?:אבקש|אדאג|נדאג|אסדר|נסדר|אעביר בקשה)[^.!?\n]{0,40}לחזור\s+אלי(?:ך|יך|כם|כן)/,
+  // Any callback with a TIME attached, however phrased. "בהקדם" is the promise
+  // the code cannot keep.
+  /(?:יחזור|יחזרו|לחזור|חוזרים)\s+אלי(?:ך|יך|כם|כן)[^.!?\n]{0,24}(?:בהקדם|בקרוב|מייד|מיידי|היום|מחר|תוך)/,
+  /\b(?:i|we|they)(?:'ll| will)\s+(?:get back to you|call you|contact you|be in touch)\b/i,
+]
+
 const FABRICATED_ACTION = [
   /שלחתי לך|שלחנו לך|צירפתי|העברתי את הפרטים ל(?!צוות)|פתחתי לך|יצרתי לך/,
   /\bi(?:'ve| have)? (?:sent|attached|emailed|created|opened|filed) (?:you|your)/i,
@@ -352,6 +382,9 @@ export function validateAutoResponse(
   if (!opts?.escalating && TRANSFER_CLAIM.some((re) => re.test(t))) {
     return { ok: false, violation: 'unsupported_transfer_claim', details }
   }
+  if (!opts?.escalating && !CALLBACK_QUESTION.test(t) && CALLBACK_PROMISE.some((re) => re.test(t))) {
+    return { ok: false, violation: 'unsupported_callback_promise', details }
+  }
   if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
   return { ok: true, details }
 }
@@ -373,7 +406,11 @@ export function classifyViolation(violation: string): ViolationKind {
   // A claimed transfer is a truthfulness failure, not a shape one, so it gets
   // the safety path: regenerate once, and if the model insists, hand to a human
   // — which is what the customer was being promised anyway.
-  return violation === 'forbidden' || violation === 'unsupported_transfer_claim' ? 'safety' : 'shape'
+  return violation === 'forbidden' ||
+    violation === 'unsupported_transfer_claim' ||
+    violation === 'unsupported_callback_promise'
+    ? 'safety'
+    : 'shape'
 }
 
 /**

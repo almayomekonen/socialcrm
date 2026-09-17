@@ -4,6 +4,9 @@ import { getHandoffSummary, upsertManyConversationIntelligence, getMaxMessageSeq
 import { enqueueAutoResponse } from '@/db/autoResponseJobs'
 import { markHumanActiveByConversation } from '@/db/conversationHumanPresence'
 import { decideCourtesyClose, isCourtesyMessage, COURTESY_KIND } from '@/lib/inbox/autoresponse/courtesyClose'
+import { readHumanPresence, takeOverConversationByRep } from '@/db/conversationHumanPresence'
+import { authorizeAgentSend } from '@/lib/inbox/autoresponse/humanPresence'
+import { detectOptOut } from '@/lib/inbox/autoresponse/qualify'
 import { buildSummary } from '@/lib/inbox/autoresponse/summary'
 import { isConfirmedHandoffOffer } from '@/lib/inbox/autoresponse/conversationControl'
 
@@ -258,6 +261,79 @@ describe('courtesy after a REAL handoff', () => {
 
   it('opt-out blocks it', () => {
     expect(decideCourtesyClose(facts({ optOut: true }))).toEqual({ send: false, reason: 'opted_out' })
+  })
+})
+
+/**
+ * The courtesy attempt now runs BEFORE the pre-generation gate for escalated
+ * conversations, so it no longer inherits that gate's stops. Each one is
+ * therefore re-verified here against a real database, at the boundary the send
+ * actually passes through.
+ */
+describe('running before the pre-generation gate did not lose its protections', () => {
+  it('an opt-out message is still recognised and still blocks', async () => {
+    await persistHandoff(conversationId, agencyId)
+    // NOTE: detectOptOut does NOT recognise "הסירו אותי" / "תסירו אותי מהרשימה".
+    // Pre-existing, unrelated to this change, and recorded rather than widened
+    // mid-release — opt-out wording is its own decision.
+    for (const t of ['תפסיקו לשלוח לי הודעות', 'הפסיקו', 'אל תשלחו לי הודעות', 'stop', 'unsubscribe']) {
+      expect(detectOptOut(t), t).toBe(true)
+      expect(
+        decideCourtesyClose({
+          inboundText: 'תודה רבה',
+          agentHasSpoken: true,
+          humanTookOver: false,
+          optOut: detectOptOut(t),
+          alreadySentCourtesy: false,
+        }).send,
+      ).toBe(false)
+    }
+  })
+
+  it('an opted-out conversation is refused at the send boundary too', async () => {
+    await db('conversation_ai_state')
+      .insert({ conversationId, agencyId, aiState: 'opted_out', stoppedReason: 'opt_out' })
+      .onConflict('conversationId')
+      .merge({ aiState: 'opted_out', stoppedReason: 'opt_out' })
+    const verdict = authorizeAgentSend(await readHumanPresence(conversationId), new Date().toISOString())
+    expect(verdict).toEqual({ authorized: false, reason: 'opted_out' })
+  })
+
+  it('TAKEOVER DURING PROCESSING — the courtesy send is refused after the decision', async () => {
+    await persistHandoff(conversationId, agencyId)
+    const turnStartedAt = new Date().toISOString()
+
+    // The worker decides to send the courtesy line…
+    expect(
+      decideCourtesyClose({
+        inboundText: 'תודה רבה',
+        agentHasSpoken: true,
+        humanTookOver: false,
+        optOut: false,
+        alreadySentCourtesy: false,
+      }).send,
+    ).toBe(true)
+    expect(authorizeAgentSend(await readHumanPresence(conversationId), turnStartedAt).authorized).toBe(true)
+
+    // …and a rep takes the conversation over while the job is still processing.
+    expect(await takeOverConversationByRep({ conversationId, agencyId })).toBe(true)
+
+    // sendIreOutbound re-reads presence immediately before Meta, so the already
+    // decided courtesy line never leaves.
+    expect(authorizeAgentSend(await readHumanPresence(conversationId), turnStartedAt)).toEqual({
+      authorized: false,
+      reason: 'human_active',
+    })
+  })
+
+  it('a rep typing during the turn also refuses it', async () => {
+    await persistHandoff(conversationId, agencyId)
+    const turnStartedAt = new Date().toISOString()
+    await db('conversation_ai_state')
+      .where({ conversationId })
+      .update({ humanTypingAt: db.fn.now(), humanTypingUntil: db.raw("now() + interval '12 seconds'") })
+    const verdict = authorizeAgentSend(await readHumanPresence(conversationId), turnStartedAt)
+    expect(verdict.authorized).toBe(false)
   })
 })
 

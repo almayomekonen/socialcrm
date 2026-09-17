@@ -52,18 +52,18 @@ describe('detectLang', () => {
 describe('handoffMessage (fixed templates, never AI-generated)', () => {
   it('qualified/he does not summarize or use generic filler', () => {
     const t = handoffMessage('qualified', 'he')
-    expect(t).toContain('מהצוות')
+    expect(t).toContain('הצוות')
     expect(t).not.toContain('מעולה')
     expect(t).not.toContain('מספיק מידע')
   })
   it('qualified/en', () => expect(handoffMessage('qualified', 'en')).toContain('team'))
-  it('hot_signal uses the qualified template', () => expect(handoffMessage('hot_signal', 'en')).toContain('continue with you'))
+  it('hot_signal uses the qualified template', () => expect(handoffMessage('hot_signal', 'en')).toContain('waiting for the team'))
   it('human_request uses the qualified template', () =>
-    expect(handoffMessage('human_request', 'he')).toBe('הפנייה שלך ממתינה לטיפול של מישהו מהצוות.'))
+    expect(handoffMessage('human_request', 'he')).toBe('הפנייה שלך ממתינה כעת לטיפול הצוות.'))
   it('max_turns uses the qualified template', () =>
-    expect(handoffMessage('max_turns', 'he')).toContain('מהצוות'))
+    expect(handoffMessage('max_turns', 'he')).toContain('הצוות'))
   it('uncertain/en', () =>
-    expect(handoffMessage('uncertain', 'en')).toBe('Your request is with the team, waiting for someone to continue with you.'))
+    expect(handoffMessage('uncertain', 'en')).toBe('Your request is now waiting for the team to pick up.'))
 
   /**
    * A handoff means the request is durably in the staff inbox, waiting. It does
@@ -82,6 +82,6 @@ describe('handoffMessage (fixed templates, never AI-generated)', () => {
   it('uncertain/he does not say transferring to a rep', () => {
     const t = handoffMessage('uncertain', 'he')
     expect(t).not.toContain('אני מעביר אותך')
-    expect(t).toContain('מהצוות')
+    expect(t).toContain('הצוות')
   })
 })

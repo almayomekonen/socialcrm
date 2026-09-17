@@ -28,6 +28,7 @@ import { shouldInvokeSalesAi } from '@/lib/inbox/autoresponse/gptEligibility'
 import { isConfirmedHandoffOffer, outboundOffersHandoff } from '@/lib/inbox/autoresponse/conversationControl'
 import { courtesyLine, decideCourtesyClose } from '@/lib/inbox/autoresponse/courtesyClose'
 import { handoffMessage } from '@/lib/inbox/autoresponse/qualify'
+import { classifyViolation } from '@/lib/inbox/autoresponse/validate'
 import { questionPolicyForSalesMove, validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
 import { mergeQualification, type Qualification } from '@/lib/inbox/autoresponse/qualification'
 
@@ -173,6 +174,8 @@ async function runScenario(s: Scenario) {
 
   const dropped: string[] = []
   const rejected: string[] = []
+  const generationFailures: string[] = []
+  const outcomes: Array<'first_draft' | 'regenerated' | 'guardrail_handoff'> = []
   const replies: Array<{ afterTurn: number; text: string }> = []
 
   for (const [turnIndex, customerText] of s.customerTurns.entries()) {
@@ -267,19 +270,73 @@ async function runScenario(s: Scenario) {
       return null
     }
 
-    const validation = validateAutoResponse(gen.reply, {
+    const validateOpts = {
       questionPolicy: questionPolicyForSalesMove(salesMove),
       groundedFacts: groundedFactsFor(s.identity),
       greetingTurn: !agentHasSpoken,
-    })
-    const verdict = validation.ok ? 'ok' : `REJECTED (${'violation' in validation ? validation.violation : ''})`
-    if (!validation.ok) rejected.push(`"${gen.reply}" → ${verdict}`)
+    }
 
-    console.log(`  🤖 ${gen.reply}`)
-    console.log(`     [${eligibility.reason} · ${salesMove} · validator ${verdict}]`)
+    /**
+     * THE REAL RECOVERY PATH, not the first draft.
+     *
+     * qualifyWorker does not send a rejected draft: it regenerates once, and if
+     * the second attempt also fails it hands the conversation to a person. An
+     * earlier version of this harness recorded the first draft as the reply even
+     * when the validator had rejected it, which is how "19/20 answered" could sit
+     * beside three rejected drafts — the rejected drafts were being counted as
+     * successful turns. The customer-facing outcome is what is reported now.
+     */
+    let finalText = gen.reply
+    let outcome: 'first_draft' | 'regenerated' | 'guardrail_handoff' = 'first_draft'
+    let validation = validateAutoResponse(gen.reply, validateOpts)
+    if (!validation.ok) {
+      const violation = 'violation' in validation ? validation.violation : 'invalid'
+      rejected.push(`turn ${turnIndex} first draft → ${violation}: "${gen.reply}"`)
+      const gen2 = await generateQualifyTurn({
+        agencyId: AGENCY_ID,
+        transcript: transcript.map((m) => ({ direction: m.direction, text: m.text })),
+        qualification,
+        collectFields: { required: [], optional: [] },
+        guidance: s.identity.guidance,
+        businessIdentityBlock: formatBusinessIdentityBlock(s.identity),
+        productKnowledgeBlock: null,
+        salesMove,
+        salesStrategy,
+        summaryBlock: null,
+        greetingLine: null,
+        bypassAllowlist: true,
+        answeringOurRequest:
+          eligibility.reason === 'ANSWERS_OPEN_QUESTION' || eligibility.reason === 'ENGAGED_CONTENT',
+        handoffAlreadyOffered: outboundOffersHandoff(previousOutbound),
+        regenerationReason: classifyViolation(violation) === 'safety' ? 'safety_validation' : 'shape_validation',
+      })
+      const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, validateOpts)
+      if (gen2.ok !== false && gen2Valid?.ok) {
+        finalText = gen2.reply
+        validation = gen2Valid
+        outcome = 'regenerated'
+      } else {
+        // Durable handoff: the canned copy, and the conversation is escalated.
+        finalText = handoffMessage('guardrail', 'he')
+        validation = validateAutoResponse(finalText, { ...validateOpts, escalating: true })
+        outcome = 'guardrail_handoff'
+        if (gen2.ok === false) {
+          generationFailures.push(`turn ${turnIndex} regeneration unavailable: ${gen2.skipReason}`)
+        } else {
+          rejected.push(
+            `turn ${turnIndex} SECOND draft → ${'violation' in gen2Valid! ? gen2Valid!.violation : '?'}: "${gen2.reply}"`,
+          )
+        }
+        handedOff = true
+      }
+    }
+    outcomes.push(outcome)
 
-    transcript.push({ direction: 'outbound', text: gen.reply })
-    replies.push({ afterTurn: turnIndex, text: gen.reply })
+    console.log(`  🤖 ${finalText}`)
+    console.log(`     [${eligibility.reason} · ${salesMove} · ${outcome}]`)
+
+    transcript.push({ direction: 'outbound', text: finalText })
+    replies.push({ afterTurn: turnIndex, text: finalText })
     qualification = mergeQualification(qualification, gen.extracted, { corrected: gen.corrected })
     agentHasSpoken = true
     previousCustomerText = customerText
@@ -304,8 +361,16 @@ async function runScenario(s: Scenario) {
   // A rejection here is the FIRST draft being refused. In production the worker
   // regenerates and only falls back to a safe holding reply if the second draft
   // fails too, so this counts guardrail activity, not messages sent.
-  console.log(`  first drafts rejected   : ${rejected.length}`)
+  const count = (k: string) => outcomes.filter((o) => o === k).length
+  console.log(`  clean on first draft    : ${count('first_draft')}`)
+  console.log(`  recovered by regenerating: ${count('regenerated')}`)
+  console.log(`  ended in durable handoff : ${count('guardrail_handoff')}`)
+  console.log(`  validator rejections     : ${rejected.length}`)
   for (const r of rejected) console.log(`    ${r}`)
+  if (generationFailures.length) {
+    console.log(`  generation failures      : ${generationFailures.length}`)
+    for (const g of generationFailures) console.log(`    ${g}`)
+  }
   console.log(`  re-asked something already answered : ${reAsked.length ? reAsked.map((p) => p.label).join('; ') : 'none ✓'}`)
   console.log(`  greeted more than once  : ${greetedTwice.length ? `✗ ${greetedTwice.length}` : 'none ✓'}`)
 
@@ -325,6 +390,10 @@ async function runScenario(s: Scenario) {
     dropped,
     unintended: unintended.length,
     rejected: rejected.length,
+    firstDraft: outcomes.filter((o) => o === 'first_draft').length,
+    regenerated: outcomes.filter((o) => o === 'regenerated').length,
+    guardrail: outcomes.filter((o) => o === 'guardrail_handoff').length,
+    genFailures: generationFailures.length,
     reAsked: reAsked.map((p) => p.label),
     greetedTwice: greetedTwice.length,
   }
@@ -387,8 +456,8 @@ async function main() {
     const ok = r.unintended === 0 && r.reAsked.length === 0 && r.greetedTwice === 0
     console.log(
       `  ${ok ? '✓' : '✗'} ${r.name.padEnd(10)} answered ${r.answered}/${r.expected}` +
-        `  unintended drops ${r.unintended}  re-asks ${r.reAsked.length}` +
-        `  double-greetings ${r.greetedTwice}  first drafts rejected ${r.rejected}`,
+        `  clean ${r.firstDraft} · regenerated ${r.regenerated} · handoff ${r.guardrail}` +
+        `  re-asks ${r.reAsked.length}  drops ${r.unintended}  genFail ${r.genFailures}`,
     )
   }
   console.log('\nOne run of a non-deterministic system. Re-run before widening a pilot')
