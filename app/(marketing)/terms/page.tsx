@@ -2,6 +2,14 @@ import { buildPageMetadata } from '@/lib/seo/metadata'
 import { Section, Container } from '@/components/marketing/system'
 import { PRICING } from '@/lib/pricing'
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
+import {
+  BUSINESS_ADDRESS,
+  BUSINESS_EMAIL,
+  BUSINESS_OPERATOR,
+  BUSINESS_PHONE_DISPLAY,
+  BUSINESS_PHONE_HREF,
+  BUSINESS_TRADE_NAME,
+} from '@/lib/businessContact'
 
 export const metadata = buildPageMetadata({
   path: '/terms',
@@ -127,13 +135,45 @@ export default function TermsPage() {
             </div>
 
             <div>
-              <h2 className='text-xl font-semibold mb-3'>יצירת קשר</h2>
-              <p className='text-gray-600 leading-relaxed whitespace-pre-line'>
-                {'מפעיל השירות:\nאלמיהו מקונן (עוסק פטור)\n\nשם מסחרי:\nSocialCRM\n\nאימייל:\n'}
-                <a href='mailto:alamayo274@gmail.com' className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
-                  alamayo274@gmail.com
-                </a>
-              </p>
+              <h2 className='text-xl font-semibold mb-3'>פרטי בית העסק ויצירת קשר</h2>
+              <dl className='text-gray-600 leading-relaxed flex flex-col gap-3'>
+                <div>
+                  <dt className='font-semibold text-gray-700'>מפעיל השירות</dt>
+                  <dd>{BUSINESS_OPERATOR}</dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-gray-700'>שם מסחרי</dt>
+                  <dd>{BUSINESS_TRADE_NAME}</dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-gray-700'>כתובת</dt>
+                  {/* Grow's checklist requires the business address on the site
+                      or in the תקנון. This is the copy that satisfies it. */}
+                  <dd>
+                    <address className='not-italic'>{BUSINESS_ADDRESS}</address>
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-gray-700'>טלפון</dt>
+                  {/* dir="ltr": an RTL paragraph reorders the segments of a bare
+                      phone number, so the reader would see a different number. */}
+                  <dd>
+                    <a href={BUSINESS_PHONE_HREF} className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
+                      <span dir='ltr' className='inline-block'>
+                        {BUSINESS_PHONE_DISPLAY}
+                      </span>
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt className='font-semibold text-gray-700'>אימייל</dt>
+                  <dd>
+                    <a href={`mailto:${BUSINESS_EMAIL}`} className='font-semibold hover:underline' style={{ color: '#3f20f5' }}>
+                      {BUSINESS_EMAIL}
+                    </a>
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
         </div>
