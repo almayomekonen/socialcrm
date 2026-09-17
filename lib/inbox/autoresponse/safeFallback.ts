@@ -27,7 +27,7 @@ const ACKNOWLEDGEMENT: Record<FallbackLang, string> = {
 }
 
 const CANNOT_ANSWER: Record<FallbackLang, string> = {
-  he: 'אני רוצה לתת לך תשובה מדויקת ולא לנחש, אז אעביר את זה למישהו מהצוות. מתי נוח לך שיחזרו אלייך?',
+  he: 'אני רוצה לתת לך תשובה מדויקת ולא לנחש. מתי נוח לך שאדם מהצוות יחזור אלייך?',
   en: 'I want to give you an accurate answer rather than guess, so let me pass this to someone from the team. When is a good time to reach you?',
 }
 

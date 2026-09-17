@@ -974,21 +974,25 @@ describe('conversation control stop policy (worker)', () => {
     }
   }
 
-  it('sticky product + תודה רבה closes silently with no GPT', async () => {
+  it('sticky product + תודה רבה closes with ONE courtesy line and no GPT', async () => {
+    // Was: closed in silence. A customer who thanks the business and hears
+    // nothing back reads that as rudeness rather than restraint. Everything this
+    // test actually protected is unchanged — no model call, no qualification
+    // recorded, and the conversation still closes. Only the silence moved.
     tableRows.messageList = [inbound('תודה רבה')]
     getOrCreateAiState.mockResolvedValue({
       aiState: 'ai_qualifying',
       aiTurnCount: 4,
       qualification: { cognition: { salesStrategy: 'product_fit' } },
     })
-    const send = vi.fn()
+    const send = vi.fn(async () => ({ ok: true as const, wamid: 'w' }))
     const generateQualify = vi.fn()
     const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
-    expect(outcome).toBe('skipped')
-    expect(generateQualify).not.toHaveBeenCalled()
-    expect(send).not.toHaveBeenCalled()
+    expect(outcome).toBe('sent')
+    expect(generateQualify, 'a pleasantry must never cost a model call').not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(1)
     expect(markClosed).toHaveBeenCalledWith(382, 'acknowledgement')
-    expect(recordTurn).not.toHaveBeenCalled()
+    expect(recordTurn, 'a pleasantry is not a turn').not.toHaveBeenCalled()
   })
 
   it('סבבה תודה אחי after a sticky product answer closes silently with no GPT', async () => {

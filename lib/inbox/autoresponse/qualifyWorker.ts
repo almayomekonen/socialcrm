@@ -45,7 +45,9 @@ import {
   conversationCloser,
   countConsecutiveAiOutbounds,
   decideConversationControl,
+  isConfirmedHandoffOffer,
   isExplicitReopen,
+  outboundOffersHandoff,
 } from './conversationControl'
 import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
 import { formatBusinessIdentityBlock, groundedFactsFor, loadBusinessIdentity } from './businessIdentity'
@@ -67,6 +69,12 @@ import { humanTypingBlocksTurn } from './humanPresence'
 import { runImmediateHumanHandoff } from './immediateHandoff'
 import { scheduleNoResponseWarning } from './processNoResponseJob'
 import { isNoResponseWarningMessage, metadataKind } from './noResponseClose'
+import {
+  COURTESY_KIND,
+  courtesyLine,
+  decideCourtesyClose,
+  isCourtesyMessage,
+} from './courtesyClose'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -317,7 +325,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
     { action: control.action, reason: 'reason' in control ? control.reason : null, salesMove, closeOfferPending },
   )
-  if (control.action === 'HANDOFF_TO_HUMAN') {
+  // ── An offer the customer accepted IS a handoff request ────────────────────
+  // Without this, "להעביר את הפנייה שלך לצוות?" → "כן אשמח במיידי!" classified
+  // as DISCOVERY, decidePostGeneration returned `send`, and the model wrote
+  // "אעביר את הפנייה לצוות" in free text while nothing was transferred: no
+  // escalation, no operator summary, no state change. The customer was told a
+  // thing had happened that had not. Running the real handoff here makes the
+  // sentence true, and writes the summary that carries the urgency.
+  const handoffAccepted = isConfirmedHandoffOffer({ previousOutbound, inboundText: lastInboundText })
+  if (control.action === 'HANDOFF_TO_HUMAN' || handoffAccepted) {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     return runImmediateHumanHandoff({
@@ -330,6 +346,47 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
   if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
+    // ── One warm line for "thank you" ────────────────────────────────────────
+    // The conversation is closing either way; this only decides whether it
+    // closes politely or silently. No model call, no question, no pitch — so
+    // there is nothing for the customer to answer and no exchange to continue.
+    const courtesy = decideCourtesyClose({
+      inboundText: lastInboundText,
+      agentHasSpoken,
+      humanTookOver,
+      optOut,
+      alreadySentCourtesy: recent.some((m) => m.direction === 'outbound' && isCourtesyMessage(m.metadata)),
+    })
+    waTrace(
+      'COURTESY_CLOSE',
+      { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+      { send: courtesy.send, reason: 'reason' in courtesy ? courtesy.reason : null },
+    )
+    if (courtesy.send) {
+      const gate = outboundGate()
+      if (gate.allowed === false) return doSkip(gate.reason)
+      const r = await sendIreOutbound(job, ctx, deps.send, courtesyLine(lang, conv.id), {
+        source: 'auto_response',
+        reason: job.reason,
+        phase: 2,
+        kind: COURTESY_KIND,
+      })
+      if (r.ok === false) {
+        if (r.settled) return 'failed'
+        return doSkip(r.reason)
+      }
+      await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
+      // Closing, exactly as the silent path would have. Ownership is untouched
+      // and no qualification is recorded: a pleasantry is not a turn.
+      await markClosed(conv.id, control.reason)
+      await completeAutoResponseJob(job.id, r.messageId)
+      await track({
+        agencyId: job.agencyId,
+        event: 'auto_response_sent',
+        props: { conversationId: conv.id, reason: `courtesy_${control.reason}` },
+      })
+      return 'sent'
+    }
     await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
     await markClosed(conv.id, control.reason)
     return doSkip(`closed_${control.reason}`)
@@ -470,6 +527,19 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     responseProfile,
     greetingLine,
     summaryBlock,
+    /**
+     * The customer supplied content in a conversation we are already in.
+     *
+     * Covers ENGAGED_CONTENT as well as ANSWERS_OPEN_QUESTION, because the agent
+     * does not reliably end its request with a question mark: in a real-model
+     * replay it wrote "כדי להתקדם, כתבו לי מספר טלפון…", so the reply came back
+     * as ENGAGED_CONTENT, the narrower flag never fired, and the model
+     * re-explained the product to someone who had just answered it. Re-pitching
+     * is wrong on either turn, so the directive applies to both.
+     */
+    answeringOurRequest:
+      gptEligibility.reason === 'ANSWERS_OPEN_QUESTION' || gptEligibility.reason === 'ENGAGED_CONTENT',
+    handoffAlreadyOffered: outboundOffersHandoff(previousOutbound),
   }
   // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
   // Best effort only. Whatever happens here, the outbound guard re-checks.

@@ -290,6 +290,8 @@ export async function generateQualifyTurn(args: {
   responseProfile?: ResponseProfile | null
   greetingLine?: string | null
   summaryBlock?: string | null
+  answeringOurRequest?: boolean
+  handoffAlreadyOffered?: boolean
   trace?: WaTraceCtx
   bypassAllowlist?: boolean
   /** Aborts the provider call when a human rep starts typing mid-generation. */

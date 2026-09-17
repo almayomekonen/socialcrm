@@ -15,11 +15,40 @@ const ok = (text: string, opts?: Parameters<typeof validateAutoResponse>[1]) =>
  * failed, two generations later the job skipped as `validation_failed`, and the
  * customer received nothing.
  */
+/**
+ * A generated reply may not claim it transferred the request. The claim is only
+ * true on an escalating turn, and a generated turn never is — production
+ * transcript 11:59 said "אעביר את הפנייה לצוות" with no escalation behind it.
+ */
+describe('a generated reply cannot claim a transfer', () => {
+  const claims = [
+    'אעביר את הפנייה לצוות.',
+    'העברתי את הפרטים לצוות.',
+    'בשמחה, אעביר את הפנייה לצוות ואציין שביקשת שיחזרו אלייך בהקדם.',
+    "I'll pass this on to the team.",
+  ]
+  for (const text of claims) {
+    it(`rejects: ${text}`, () => {
+      const r = validateAutoResponse(text, { questionPolicy: 'zero_or_one' })
+      expect(r.ok).toBe(false)
+      expect('violation' in r ? r.violation : '').toBe('unsupported_transfer_claim')
+    })
+  }
+
+  it('but allows it on the turn that really escalates', () => {
+    const r = validateAutoResponse('אעביר את הפנייה לצוות.', {
+      questionPolicy: 'zero_or_one',
+      escalating: true,
+    })
+    expect(r.ok).toBe(true)
+  })
+})
+
 describe('guardrail allows ordinary scheduling talk', () => {
   const allowed = [
     'אפשר לתאם פגישה, מתי נוח לך?',
     'אנחנו עובדים עם פגישות בתיאום מראש.',
-    'התורים אצלנו נקבעים מראש, אעביר את הבקשה לצוות.',
+    'התורים אצלנו נקבעים מראש, ואדם מהצוות יחזור אלייך לתיאום.',
     'יש לנו שעות קבלה בבוקר ואחר הצהריים.',
     'אפשר גם מחר, אבדוק מול הצוות ונחזור אלייך.',
     'הבדיקה זמינה אצלנו, נצטרך לתאם מולך.',

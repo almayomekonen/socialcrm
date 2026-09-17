@@ -11,6 +11,7 @@ import {
   isBusinessPainSignal,
   isProductFit,
   isProductQuestion,
+  isShortAffirmative,
   outboundAsksQuestion,
   detectHumanRequest,
   detectHotSignal,
@@ -326,4 +327,51 @@ export function decideConversationControl(args: {
 
 export function conversationCloser(lang: 'he' | 'en'): string {
   return lang === 'en' ? 'No problem, thanks.' : 'אין בעיה, תודה.'
+}
+
+/**
+ * Did WE offer to hand the conversation to a person, and did the customer just
+ * say yes?
+ *
+ * WHY THIS EXISTS. Escalation used to require `salesMove === 'HANDOFF_REQUEST'`,
+ * which only fires when the CUSTOMER asks for a person unprompted. When the
+ * agent offers — "להעביר את הפנייה שלך לצוות שימשיך איתך?" — and the customer
+ * answers "כן אשמח במיידי!", that classifies as DISCOVERY and
+ * `decidePostGeneration` returns `send`. So the agent wrote "אעביר את הפנייה
+ * לצוות" in free text and NOTHING WAS TRANSFERRED: no escalation, no summary,
+ * no state change. The customer was told a thing had happened that had not.
+ *
+ * An offer the customer accepted is a handoff request. It is the same request,
+ * arrived at from the other side of the sentence.
+ */
+const HANDOFF_OFFER_RE =
+  /להעביר (?:את )?(?:ה?פנייה|אותך|אות[ךה])|שאעביר|אעביר (?:את )?(?:ה?פנייה|אותך)|להעביר לצוות|לחבר אותך|pass (?:you|this|the request) (?:on |along )?to|transfer you|hand (?:you|this) over/i
+
+/** Did this outbound offer to bring in a person, as a question? */
+export function outboundOffersHandoff(text?: string | null): boolean {
+  const t = (text ?? '').trim()
+  if (!t) return false
+  return HANDOFF_OFFER_RE.test(t) && outboundAsksQuestion(t)
+}
+
+/**
+ * The customer accepted an offered handoff.
+ *
+ * Requires BOTH halves — an offer that was a question, and an affirmative reply.
+ * A bare "כן" after a product question is not a transfer request, and a message
+ * mentioning transfers with no offer outstanding is not an acceptance.
+ */
+export function isConfirmedHandoffOffer(args: { previousOutbound?: string | null; inboundText: string }): boolean {
+  if (!outboundOffersHandoff(args.previousOutbound)) return false
+  const t = (args.inboundText ?? '').trim()
+  if (!t) return false
+  if (isConversationDecline(t) || isDeadEndUtterance(t)) return false
+  // `\b` is an ASCII word boundary in JS, so it never matches after a Hebrew
+  // letter — `/^\s*כן\b/` silently failed on "כן אשמח". Anchor on whitespace.
+  return (
+    isShortAffirmative(t) ||
+    /^\s*כן(?:\s|$|[,!.…])/.test(t) ||
+    /^\s*(?:בטח|בהחלט|מעולה|אשמח)(?:\s|$|[,!.…])/.test(t) ||
+    /\b(?:yes|sure|please do|go ahead|ok(?:ay)? please)\b/i.test(t)
+  )
 }
