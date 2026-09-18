@@ -173,7 +173,7 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                     </div>
                     <Button className="h-10 !pl-5.5" asChild>
                       {isFreePlan ? (
-                        <Link href="/auth">
+                        <Link href="/auth/register">
                           {plan.cta.button}
                           <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
                             <ChevronRight className="size-4 rtl:rotate-180" />

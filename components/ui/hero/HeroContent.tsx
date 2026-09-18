@@ -21,7 +21,7 @@ export function HeroContent() {
 
       <div className='mt-8 flex flex-wrap items-center gap-3'>
         <Btn
-          href='/auth'
+          href='/auth/register'
           lbl='התחל בחינם'
           className='h-auto rounded-xl bg-[#3f20f5] hover:bg-[#3f20f5] px-7 py-3.5 font-bold text-white transition-transform duration-200 hover:scale-105'
         />

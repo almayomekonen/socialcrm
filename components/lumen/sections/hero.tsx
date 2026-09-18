@@ -128,7 +128,7 @@ export default function Hero() {
             size="lg"
             className="mt-2 rounded-full !ps-5.5 before:rounded-full"
           >
-            <Link href="/auth">
+            <Link href="/auth/register">
             התחל בחינם
             <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
               <ChevronRight className="size-4 rtl:rotate-180" />

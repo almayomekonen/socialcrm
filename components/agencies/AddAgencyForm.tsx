@@ -94,8 +94,9 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
           with the terms checkbox + terms link. `/terms` is a real route. */}
       <AuthControlRow
         checkboxId='terms'
-        checkboxLabel='אני מסכים לתנאים'
+        checkboxLabel='אני מסכים לתנאי השימוש'
         actionLabel='תנאי השימוש'
+        checkboxRequired
         href='/terms'
       />
       {error && <p className='text-destructive text-sm'>{error}</p>}
