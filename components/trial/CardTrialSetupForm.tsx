@@ -110,8 +110,25 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
           checked={storageAccepted}
           onChange={(e) => setStorageAccepted(e.target.checked)}
         />
-        <a href='/terms' target='_blank' rel='noreferrer' className='text-xs text-gray-500 underline self-start'>
-          תנאי השימוש
+        {/*
+          Grow's site review could not find a link to the תקנון on the payment
+          screen. It was here, but at text-xs in grey under two full-width
+          consent rows it read as a footnote. Same position, same route —
+          legible now, and it names what it opens.
+
+          No `required` attribute on the checkboxes above: this screen has no
+          <form>, it submits through a click handler, so the attribute would be
+          inert decoration. Both consents are enforced on the SERVER
+          (terms_required / card_storage_consent_required) and refused there,
+          which is the guarantee that actually holds.
+        */}
+        <a
+          href='/terms'
+          target='_blank'
+          rel='noreferrer'
+          className='tap-44 self-start text-sm font-medium text-primary-text underline underline-offset-2'
+        >
+          קריאת תנאי השימוש והתקנון
         </a>
       </div>
 
