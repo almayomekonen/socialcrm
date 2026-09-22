@@ -5,7 +5,12 @@ import { Btn } from '@/lib/btns/Btn'
 import { Input, Checkbox } from '@/lib/form'
 import { startCardSetup } from '@/actions/paymentMethod'
 import { trackTrialStartClicked, trackTrialStartFailed } from '@/actions/trial'
-import { CARD_TRIAL_CONSENT_LABEL, CARD_STORAGE_CONSENT_LABEL, cardTrialDisclosureLines } from '@/lib/payments/cardTrial/terms'
+import {
+  CARD_TRIAL_CONSENT_LABEL,
+  CARD_TRIAL_CONSENT_LINK_TEXT,
+  CARD_STORAGE_CONSENT_LABEL,
+  cardTrialDisclosureLines,
+} from '@/lib/payments/cardTrial/terms'
 import type { PaymentMethodPurpose } from '@/db/payments/paymentMethods'
 
 /**
@@ -39,6 +44,37 @@ export type CardTrialSetupFormProps = {
   submitLabel: string
   /** Injected in tests; defaults to a real navigation to Grow's hosted page. */
   onRedirect?: (url: string) => void
+}
+
+/**
+ * The subscription consent, with "תנאי השימוש והתקנון" as a link to /terms.
+ *
+ * The sentence is SLICED from CARD_TRIAL_CONSENT_LABEL rather than retyped, so
+ * what the customer reads cannot drift from what is recorded against
+ * CARD_TRIAL_TERMS_VERSION.
+ *
+ * Clicking the link does not tick the box. Per the HTML spec a label runs no
+ * activation behaviour for events targeted at an interactive descendant, and an
+ * <a href> is interactive content; stopPropagation is belt-and-braces for any
+ * React handler added to the row later. Neither prevents the navigation.
+ */
+function SubscriptionConsentLabel() {
+  const [before, after] = CARD_TRIAL_CONSENT_LABEL.split(CARD_TRIAL_CONSENT_LINK_TEXT)
+  return (
+    <>
+      {before}
+      <a
+        href='/terms'
+        target='_blank'
+        rel='noreferrer'
+        onClick={(e) => e.stopPropagation()}
+        className='text-primary-text underline underline-offset-2'
+      >
+        {CARD_TRIAL_CONSENT_LINK_TEXT}
+      </a>
+      {after}
+    </>
+  )
 }
 
 export default function CardTrialSetupForm({ purpose, defaultFullName = '', submitLabel, onRedirect }: CardTrialSetupFormProps) {
@@ -104,7 +140,11 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
       </div>
 
       <div className='flex flex-col gap-1.5'>
-        <Checkbox lbl={CARD_TRIAL_CONSENT_LABEL} checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+        <Checkbox
+          lbl={<SubscriptionConsentLabel />}
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+        />
         <Checkbox
           lbl={CARD_STORAGE_CONSENT_LABEL}
           checked={storageAccepted}

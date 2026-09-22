@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { CARD_TRIAL_CONSENT_LABEL, CARD_TRIAL_CONSENT_LINK_TEXT, CARD_STORAGE_CONSENT_LABEL } from '@/lib/payments/cardTrial/terms'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('@/actions/paymentMethod', () => ({ startCardSetup: vi.fn(), getCardSetupStatus: vi.fn() }))
@@ -47,9 +48,41 @@ describe('welcome modal — card-required variant', () => {
 
   it('separates subscription consent from Grow card-storage consent, and links the terms', () => {
     render(<WelcomeTrialModal cardSetup={cardSetup} />)
-    expect(screen.getByText(/אני מאשר\/ת את תנאי המנוי/)).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'תנאי השימוש' }).getAttribute('href')).toBe('/terms')
+
+    // The sentence the customer agrees to, rendered exactly as it is recorded.
+    expect(document.body.textContent).toContain(CARD_TRIAL_CONSENT_LABEL)
+    expect(document.body.textContent).toContain(CARD_STORAGE_CONSENT_LABEL)
+
+    // "תנאי השימוש והתקנון" inside that sentence is a link to the real terms.
+    const inline = screen.getByRole('link', { name: CARD_TRIAL_CONSENT_LINK_TEXT })
+    expect(inline.getAttribute('href')).toBe('/terms')
+    expect(inline.getAttribute('target')).toBe('_blank')
+
     expect(document.body.textContent).toContain('בעמוד המאובטח של Grow')
+  })
+
+  /**
+   * The link sits inside the checkbox's <label>. Per the HTML spec a label runs
+   * no activation behaviour for events targeted at an interactive descendant,
+   * so opening the terms must not silently tick the consent — which would be
+   * consent the customer never gave.
+   */
+  it('opening the terms link does not tick the consent', () => {
+    render(<WelcomeTrialModal cardSetup={cardSetup} />)
+    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    expect(boxes.every((b) => !b.checked)).toBe(true)
+
+    fireEvent.click(screen.getByRole('link', { name: CARD_TRIAL_CONSENT_LINK_TEXT }))
+    expect(boxes.every((b) => !b.checked)).toBe(true)
+  })
+
+  it('the consent checkboxes still toggle when the customer clicks them', () => {
+    render(<WelcomeTrialModal cardSetup={cardSetup} />)
+    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    fireEvent.click(boxes[0])
+    expect(boxes[0].checked).toBe(true)
+    fireEvent.click(boxes[0])
+    expect(boxes[0].checked).toBe(false)
   })
 
   it('refuses to open the payment page without consent', async () => {

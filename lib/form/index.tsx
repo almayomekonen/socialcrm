@@ -154,7 +154,12 @@ const selectableBoxClasses =
   'has-[:checked]:bg-solid/5 grid grid-cols-[16px_1fr] items-center gap-4 min-h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto'
 
 interface CheckboxProps extends ComponentProps<'input'> {
-  lbl: string
+  /**
+   * ReactNode, not string: a consent label may need an inline link inside the
+   * sentence (see CardTrialSetupForm). A plain string is still a ReactNode, so
+   * every existing caller is unaffected.
+   */
+  lbl: React.ReactNode
 }
 
 export function Checkbox({ lbl, className, ...props }: CheckboxProps) {

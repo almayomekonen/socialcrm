@@ -11,7 +11,13 @@ import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
  */
 
 /** Bump when the customer-facing terms below change; stored with each card setup. */
-export const CARD_TRIAL_TERMS_VERSION = '2026-09-15'
+/**
+ * Bumped 2026-09-22 with the subscription-consent wording below, which now
+ * names the תקנון explicitly and carries an inline link to it. Rows recorded
+ * under '2026-09-15' keep that value: the version says WHICH sentence the
+ * customer agreed to, so rewriting it on old rows would misattribute consent.
+ */
+export const CARD_TRIAL_TERMS_VERSION = '2026-09-22'
 
 /** Owner decision: trials convert to monthly only. */
 export const CARD_TRIAL_PERIOD = 'monthly' as const
@@ -66,7 +72,18 @@ export function cardTrialDisclosureLines(): string[] {
 }
 
 /** The label of the explicit subscription consent — separate from Grow's card-storage checkbox. */
-export const CARD_TRIAL_CONSENT_LABEL = 'אני מאשר/ת את תנאי המנוי: חיוב חודשי אוטומטי בתום תקופת הניסיון, עד לביטול'
+export const CARD_TRIAL_CONSENT_LABEL =
+  'אני מאשר/ת את תנאי השימוש והתקנון, לרבות חיוב חודשי אוטומטי בתום תקופת הניסיון, עד לביטול.'
+
+/**
+ * The span of CARD_TRIAL_CONSENT_LABEL the form turns into a link to /terms.
+ *
+ * Kept as a slice of the label rather than a second copy of the words, so the
+ * sentence the customer reads is always the sentence recorded against
+ * CARD_TRIAL_TERMS_VERSION. A plain string here, not JSX: this module is
+ * imported by server code (startCardSetup) and must stay free of React.
+ */
+export const CARD_TRIAL_CONSENT_LINK_TEXT = 'תנאי השימוש והתקנון'
 
 /**
  * The SECOND, separate consent: permission to keep the card on file and charge

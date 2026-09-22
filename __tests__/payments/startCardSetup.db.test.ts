@@ -1,4 +1,5 @@
 import { describe, it, expect, afterAll, afterEach, beforeEach, vi } from 'vitest'
+import { CARD_TRIAL_TERMS_VERSION } from '@/lib/payments/cardTrial/terms'
 import { db } from '@/config/db'
 import { Roles } from '@/types/roles'
 import { startCardSetupForUser } from '@/lib/payments/cardTrial/startCardSetup'
@@ -96,7 +97,9 @@ describe('startCardSetupForUser', () => {
     expect(call.notifyUrl).toBe('https://staging.example.com/api/payments/grow/notify')
     expect(call.reference).toMatch(/^[0-9a-f]{32}$/)
     const row = await db('billing_payment_methods').where({ agencyId: r.agencyId }).first()
-    expect(row).toMatchObject({ status: 'pending', purpose: 'trial_start', reference: call.reference, providerMode: 'sandbox', termsVersion: '2026-09-15' })
+    // Pinned to the constant, not a literal: the version moves with the wording,
+    // and what matters is that the row records the sentence actually shown.
+    expect(row).toMatchObject({ status: 'pending', purpose: 'trial_start', reference: call.reference, providerMode: 'sandbox', termsVersion: CARD_TRIAL_TERMS_VERSION })
     expect(row.termsAcceptedAt).not.toBeNull()
     expect(row.setupProcessToken).not.toBe('ptok-plain')
     expect(await getCardSetupStateForAgency(r.agencyId)).toEqual({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: true })
