@@ -12,9 +12,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 vi.hoisted(() => {
   process.env.FACEBOOK_MESSENGER_ENABLED = '1'
+  // The gate needs BOTH the flag and an allowlist match.
+  process.env.FACEBOOK_MESSENGER_AGENCY_ALLOWLIST = 'all'
 })
 
 import { db } from '@/config/db'
+import { resolveMessengerPeer } from '@/modules/messenger/sendGuards'
 import {
   countUnreadMessengerConversations,
   listMessengerConversations,
@@ -41,7 +44,7 @@ beforeAll(async () => {
     page_id: PAGE,
     page_name: 'P',
     page_access_token: 'x',
-    granted_scopes: JSON.stringify(['pages_messaging']),
+    granted_scopes: JSON.stringify(['pages_messaging', 'pages_manage_metadata', 'pages_show_list']),
   })
 
   const [c] = await db('messenger_conversations')
@@ -258,6 +261,30 @@ describe('unread count', () => {
     await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: new Date() })
     const [other] = await db('agencies').insert({ name: '__test_unread_other__' }).returning('id')
     expect(await countUnreadMessengerConversations(Number(other.id), userId)).toBe(0)
+    await db('agencies').where({ id: Number(other.id) }).delete()
+  })
+})
+
+describe('resolveMessengerPeer — the read-side sender-action path', () => {
+  it('resolves the Page and PSID while the window is open', async () => {
+    await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: new Date() })
+    const peer = await resolveMessengerPeer(agencyId, conversationId)
+    expect(peer).not.toBeNull()
+    expect(peer!.pageId).toBe(PAGE)
+    expect(peer!.psid).toBe('__paging_psid__')
+  })
+
+  it('returns null OUTSIDE the window — Meta would refuse a sender action anyway', async () => {
+    await db('messenger_conversations')
+      .where({ id: conversationId })
+      .update({ lastInboundAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+    expect(await resolveMessengerPeer(agencyId, conversationId)).toBeNull()
+  })
+
+  it('never resolves another tenant\'s conversation, even with a valid id', async () => {
+    await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: new Date() })
+    const [other] = await db('agencies').insert({ name: '__test_peer_other__' }).returning('id')
+    expect(await resolveMessengerPeer(Number(other.id), conversationId)).toBeNull()
     await db('agencies').where({ id: Number(other.id) }).delete()
   })
 })

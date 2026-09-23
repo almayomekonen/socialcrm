@@ -1,5 +1,6 @@
 'use server'
 
+import { after } from 'next/server'
 import { db } from '@/config/db'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { MESSENGER_TEXT_MAX, type MessengerSendFailure } from '@/lib/facebook/messenger/rules'
@@ -7,7 +8,13 @@ import { describeRichContent, validateRichContent } from '@/lib/facebook/messeng
 import { asContent, getMessengerSavedReply } from '@/db/messengerSavedReplies'
 import { sendMessengerMessage, sendMessengerText } from '@/lib/facebook/messenger/send'
 import { sendMessengerSenderAction } from '@/lib/facebook/messenger/senderAction'
-import { authorizeMessengerSend, failFromGraph, markMessengerRead, recordOutbound } from './sendGuards'
+import {
+  authorizeMessengerSend,
+  failFromGraph,
+  markMessengerRead,
+  recordOutbound,
+  resolveMessengerPeer,
+} from './sendGuards'
 import { listMessengerMessagePage } from './queries'
 import type { MessengerMessage } from './types'
 
@@ -152,7 +159,17 @@ export async function loadOlderMessengerMessages(
   return { ok: true, messages: page.messages, hasMore: page.hasMore }
 }
 
-/** Opening a conversation marks it read for THIS user only. Free action (no send, no spend). */
+/**
+ * Opening a conversation marks it read for THIS user only. Free action (no send,
+ * no spend).
+ *
+ * It also tells Meta the message was SEEN, which is what puts the read
+ * indicator on the customer's side — the same signal they get from any other
+ * Messenger client. Fire-and-forget and never surfaced: a failed sender action
+ * is not something a rep can act on, and it must never make "open a
+ * conversation" fail. Skipped outside the 24-hour window, where Meta would
+ * refuse it anyway.
+ */
 export async function markMessengerConversationRead(conversationId: number): Promise<{ ok: boolean }> {
   const user = await requireAgencyUser()
   const id = Number(conversationId)
@@ -160,5 +177,15 @@ export async function markMessengerConversationRead(conversationId: number): Pro
   const owned = await db('messenger_conversations').where({ id, agencyId: user.agencyId }).first('id')
   if (!owned) return { ok: false }
   await markMessengerRead(id, user.agencyId, user.id)
+
+  after(async () => {
+    try {
+      const peer = await resolveMessengerPeer(user.agencyId, id)
+      if (!peer) return
+      await sendMessengerSenderAction({ ...peer, action: 'mark_seen' })
+    } catch {
+      // Display nicety on the customer's side only.
+    }
+  })
   return { ok: true }
 }
