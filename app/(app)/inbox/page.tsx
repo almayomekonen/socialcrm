@@ -14,6 +14,7 @@ import MobileInboxRoute from '@/modules/inbox/mobile/MobileInboxRoute'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxLiveModeLog from '@/components/summary/InboxLiveModeLog'
 import InboxToolbar from '@/modules/inbox/components/InboxToolbar'
+import { countUnreadMessengerConversations } from '@/modules/messenger/queries'
 import InboxWorkspace from '@/modules/inbox/components/InboxWorkspace'
 import InboxEmptyState from '@/modules/inbox/components/InboxEmptyState'
 import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
@@ -61,6 +62,13 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     selectedConversationId ? getInboxConversationById(user.agencyId, selectedConversationId) : Promise.resolve(null),
   ])
 
+  // The WhatsApp inbox is where a rep spends the day; without this they would
+  // never learn a Messenger customer wrote unless they opened that tab.
+  const messengerEnabled = isFacebookMessengerEnabledForAgency(user.agencyId)
+  const messengerUnread = messengerEnabled
+    ? await countUnreadMessengerConversations(user.agencyId, user.id).catch(() => 0)
+    : 0
+
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
   const refreshMs = getInboxRefreshIntervalMs(deltaSyncEnabled)
 
@@ -84,7 +92,8 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
             filters={filters}
             selectedConversation={selectedConversationId}
             smartCounts={smartCounts}
-            showMessenger={isFacebookMessengerEnabledForAgency(user.agencyId)}
+            showMessenger={messengerEnabled}
+            messengerUnread={messengerUnread}
           />
           <InboxConversationList selectedConversationId={selectedConversationId} />
         </aside>

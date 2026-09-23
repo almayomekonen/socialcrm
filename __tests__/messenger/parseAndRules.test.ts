@@ -3,7 +3,9 @@
  * 24-hour window, Send API error mapping, and the lead source key.
  */
 import { describe, expect, it } from 'vitest'
-import { echoSource, parseMessagingEvent } from '@/lib/facebook/messenger/parseMessagingEvent'
+import { echoSource, parseMessagingEvent,
+  messengerEventKey,
+} from '@/lib/facebook/messenger/parseMessagingEvent'
 import {
   MESSENGER_WINDOW_MS,
   messengerLeadSource,
@@ -34,7 +36,13 @@ describe('parseMessagingEvent', () => {
       text: 'היי',
       attachments: [],
       timestamp: new Date(1_790_000_000_000),
+      quickReplyPayload: null,
     })
+  })
+
+  it('a quick-reply tap is an ordinary inbound message that also carries its payload', () => {
+    const e = parseMessagingEvent(PAGE, inbound({ text: 'כן', quick_reply: { payload: 'YES_PLEASE' } }))
+    expect(e).toMatchObject({ kind: 'inbound', text: 'כן', quickReplyPayload: 'YES_PLEASE' })
   })
 
   it('echo: PSID is the RECIPIENT, and the app id is carried for source labelling', () => {
@@ -57,11 +65,56 @@ describe('parseMessagingEvent', () => {
     ).toEqual({ kind: 'ignored', reason: 'wrong_page' })
   })
 
-  it('reads, deliveries and postbacks are not messages', () => {
-    expect(parseMessagingEvent(PAGE, { sender: { id: PSID }, recipient: { id: PAGE }, read: { watermark: 1 } })).toMatchObject({
+  it('a read receipt is its own kind, never a message (it must not move the send window)', () => {
+    expect(
+      parseMessagingEvent(PAGE, { sender: { id: PSID }, recipient: { id: PAGE }, read: { watermark: 1_790_000_000_000 } }),
+    ).toEqual({ kind: 'read', pageId: PAGE, psid: PSID, timestamp: null, watermark: new Date(1_790_000_000_000) })
+  })
+
+  it('a delivery receipt carries the watermark and any mids Meta listed', () => {
+    expect(
+      parseMessagingEvent(PAGE, {
+        sender: { id: PSID },
+        recipient: { id: PAGE },
+        delivery: { watermark: 1_790_000_000_000, mids: ['m1', 'm2'] },
+      }),
+    ).toMatchObject({ kind: 'delivery', psid: PSID, watermark: new Date(1_790_000_000_000), mids: ['m1', 'm2'] })
+  })
+
+  it('a watermark that is not a usable timestamp is dropped rather than stamped as now()', () => {
+    for (const bad of [0, -1, 'x', null, undefined, Number.NaN]) {
+      expect(parseMessagingEvent(PAGE, { sender: { id: PSID }, read: { watermark: bad } })).toMatchObject({
+        kind: 'ignored',
+      })
+    }
+  })
+
+  it('postback, referral and reaction each parse to their own kind', () => {
+    expect(
+      parseMessagingEvent(PAGE, { sender: { id: PSID }, postback: { title: 'התחל', payload: 'GET_STARTED' } }),
+    ).toMatchObject({ kind: 'postback', title: 'התחל', payload: 'GET_STARTED' })
+    expect(
+      parseMessagingEvent(PAGE, { sender: { id: PSID }, referral: { ref: 'promo7', source: 'ADS', type: 'OPEN_THREAD' } }),
+    ).toMatchObject({ kind: 'referral', ref: 'promo7', source: 'ADS', refType: 'OPEN_THREAD' })
+    expect(
+      parseMessagingEvent(PAGE, { sender: { id: PSID }, reaction: { action: 'react', emoji: '❤', mid: 'm9' } }),
+    ).toMatchObject({ kind: 'reaction', action: 'react', emoji: '❤', targetMid: 'm9' })
+  })
+
+  it('a non-message event sent BY the Page is not treated as a customer signal', () => {
+    expect(parseMessagingEvent(PAGE, { sender: { id: PAGE }, read: { watermark: 1_790_000_000_000 } })).toEqual({
       kind: 'ignored',
       reason: 'not_a_message',
     })
+  })
+
+  it('dedupe keys are stable per event and differ across events', () => {
+    const read = parseMessagingEvent(PAGE, { sender: { id: PSID }, read: { watermark: 1_790_000_000_000 } })
+    const again = parseMessagingEvent(PAGE, { sender: { id: PSID }, read: { watermark: 1_790_000_000_000 } })
+    const later = parseMessagingEvent(PAGE, { sender: { id: PSID }, read: { watermark: 1_790_000_009_999 } })
+    expect(messengerEventKey(read)).toBe(messengerEventKey(again))
+    expect(messengerEventKey(read)).not.toBe(messengerEventKey(later))
+    expect(messengerEventKey({ kind: 'ignored', reason: 'malformed' })).toBeNull()
   })
 
   it('never throws on hostile input', () => {
@@ -86,10 +139,28 @@ describe('parseMessagingEvent', () => {
     )
     expect(e.kind === 'inbound' && e.attachments).toEqual([
       { type: 'image', url: 'https://lookaside.fbsbx.com/x.jpg' },
+      // http:// is not kept: it is not something we will render or link to.
       { type: 'file', url: null },
-      { type: 'unsupported', url: null },
-      { type: 'unsupported', url: 'https://example.com' },
+      // A template/fallback is SHARED CONTENT, not an unrenderable blob. Saying
+      // "unsupported" would hide from the rep that the customer sent a link.
+      { type: 'share', url: null, title: null },
+      { type: 'share', url: 'https://example.com', title: null },
     ])
+  })
+
+  it('a sticker is flagged so the thread can render it as a sticker, not as a photo', () => {
+    const e = parseMessagingEvent(
+      PAGE,
+      inbound({ attachments: [{ type: 'image', payload: { url: 'https://cdn.example/s.png', sticker_id: 369239263222822 } }] }),
+    )
+    expect(e.kind === 'inbound' && e.attachments).toEqual([
+      { type: 'image', url: 'https://cdn.example/s.png', sticker: true },
+    ])
+  })
+
+  it('a genuinely unknown attachment type is still kept with an explicit marker', () => {
+    const e = parseMessagingEvent(PAGE, inbound({ attachments: [{ type: 'location', payload: {} }] }))
+    expect(e.kind === 'inbound' && e.attachments).toEqual([{ type: 'unsupported', url: null }])
   })
 
   it('echo source: our app, the Page inbox (both documented id forms), or another app', () => {

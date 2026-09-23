@@ -22,7 +22,11 @@ function preview(text: string, attachments: MessengerAttachment[]): string {
  * contact's name once rather than on every message.
  */
 export async function findOrCreateMessengerConversation(
-  trx: Knex.Transaction,
+  // Accepts a plain Knex too: the INSERT ... ON CONFLICT is atomic on its own,
+  // so it is correct outside a transaction (the history import and tests use it
+  // that way). It is still called inside one wherever a bump must be atomic
+  // with it.
+  trx: Knex.Transaction | Knex,
   input: { agencyId: number; pageId: string; psid: string },
 ): Promise<{ id: number; created: boolean }> {
   const [row] = await trx('messenger_conversations')
@@ -89,8 +93,12 @@ export async function recordSentMessengerMessage(
     text: string
     sentByUserId: number
     at: Date
+    /** What we sent, when it was media. Meta returns no CDN url on send, so the
+     *  url is null here and the echo webhook fills it in. */
+    attachments?: MessengerAttachment[]
   },
 ): Promise<{ created: boolean }> {
+  const attachments = input.attachments ?? []
   const [row] = await trx('messenger_messages')
     .insert({
       conversationId: input.conversationId,
@@ -100,11 +108,13 @@ export async function recordSentMessengerMessage(
       direction: 'outbound',
       source: 'socialcrm',
       text: input.text,
-      attachments: JSON.stringify([]),
+      attachments: JSON.stringify(attachments),
       sentByUserId: input.sentByUserId,
       channelTimestamp: input.at,
     })
     .onConflict(['pageId', 'mid'])
+    // The echo may already hold a CDN url we cannot produce; merging our empty
+    // list over it would blank the attachment the rep just sent.
     .merge({ sentByUserId: input.sentByUserId, source: 'socialcrm' })
     .returning(['id', trx.raw('(xmax = 0) as created')])
   return { created: row?.created === true || row?.created === 't' }
@@ -151,4 +161,39 @@ export async function setMessengerCustomerNameIfMissing(conversationId: number, 
     .where({ id: conversationId, agencyId })
     .whereNull('customerName')
     .update({ customerName: name.slice(0, 200), updatedAt: db.fn.now() })
+}
+
+/** What the User Profile API told us about a contact. 'transient' is never stored. */
+export type MessengerProfileStatus = 'ok' | 'denied' | 'unavailable'
+
+/**
+ * Record the outcome of a profile lookup.
+ *
+ * The NAME is only ever filled in, never blanked: a rep may have come to
+ * recognise a conversation by it, and a later refusal (Meta outage, the person
+ * tightening their privacy settings) must not erase it. The PICTURE is the
+ * opposite — its URL expires, so it is replaced on every successful refresh and
+ * cleared when Meta stops returning one, because showing a dead image is worse
+ * than showing initials.
+ *
+ * `profileFetchedAt` is stamped for every recorded outcome including `denied`,
+ * which is what stops the refresh loop from asking again.
+ */
+export async function saveMessengerProfile(input: {
+  conversationId: number
+  agencyId: number
+  name: string | null
+  picUrl: string | null
+  status: MessengerProfileStatus
+  at: Date
+}): Promise<void> {
+  await db('messenger_conversations')
+    .where({ id: input.conversationId, agencyId: input.agencyId })
+    .update({
+      customerName: db.raw(`COALESCE("customerName", ?)`, [input.name ? input.name.slice(0, 200) : null]),
+      profilePicUrl: input.picUrl,
+      profileStatus: input.status,
+      profileFetchedAt: input.at,
+      updatedAt: db.fn.now(),
+    })
 }

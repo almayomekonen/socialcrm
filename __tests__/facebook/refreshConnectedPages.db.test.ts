@@ -86,7 +86,7 @@ describe('refreshConnectedPages', () => {
     expect(colleague).toMatchObject({ page_access_token: 'COLLEAGUE-TOKEN', page_name: 'Colleague' })
 
     expect(subscribeBodies).toHaveLength(1)
-    expect(subscribeBodies[0].get('subscribed_fields')).toBe('leadgen,feed,messages,message_echoes')
+    expect(subscribeBodies[0].get('subscribed_fields')).toBe('leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions')
     expect(subscribeBodies[0].get('access_token')).toBe('NEW-TOKEN')
   })
 

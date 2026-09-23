@@ -1,11 +1,8 @@
 import { db } from '@/config/db'
 import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
-import { echoSource, parseMessagingEvent } from '@/lib/facebook/messenger/parseMessagingEvent'
-import {
-  bumpMessengerConversation,
-  findOrCreateMessengerConversation,
-  insertMessengerMessage,
-} from '@/db/messenger'
+import { echoSource, messengerEventKey, parseMessagingEvent } from '@/lib/facebook/messenger/parseMessagingEvent'
+import { bumpMessengerConversation, findOrCreateMessengerConversation, insertMessengerMessage } from '@/db/messenger'
+import { applyMessengerWatermark, insertMessengerEvent } from '@/db/messengerEvents'
 
 /**
  * SERVER-INTERNAL — called only from the signature-verified Facebook webhook.
@@ -46,6 +43,19 @@ export type MessengerIngestResult =
        */
       inbound?: { conversationId: number; agencyId: number; messageId: number; occurredAt: Date; storedAt: Date }
     }
+  | {
+      /**
+       * A delivery/read receipt, postback, referral or reaction: recorded, but
+       * never a new message. It must not notify and must not move the 24-hour
+       * window — only the customer WRITING does that.
+       */
+      status: 'signal'
+      kind: 'delivery' | 'read' | 'postback' | 'referral' | 'reaction'
+      conversationId: number
+      agencyId: number
+      /** Rows touched (watermark) or 1/0 (event stored / already known). */
+      applied: number
+    }
   | { status: 'ignored'; reason: string }
 
 export async function ingestMessengerEvent(
@@ -66,7 +76,52 @@ export async function ingestMessengerEvent(
   }
   if (!isFacebookMessengerEnabledForAgency(agencyId)) return { status: 'ignored', reason: 'not_enabled' }
 
-  // Narrowed by the `ignored` return above; `kind` is now inbound | echo.
+  // ── Non-message events ────────────────────────────────────────────────────
+  // Handled before the message path so the message path keeps its exact shape.
+  if (event.kind !== 'inbound' && event.kind !== 'echo') {
+    return db.transaction(async (trx) => {
+      // A signal about a conversation we have never seen is not worth creating
+      // one for — there is nothing to attach it to and no message to mark.
+      const existing = await trx('messenger_conversations')
+        .where({ agencyId, pageId, psid: event.psid })
+        .first('id')
+      if (!existing) return { status: 'ignored', reason: 'no_conversation' } as const
+      const conversationId = Number(existing.id)
+
+      if (event.kind === 'delivery' || event.kind === 'read') {
+        const applied = await applyMessengerWatermark(trx, {
+          conversationId,
+          agencyId,
+          field: event.kind === 'delivery' ? 'deliveredAt' : 'readAt',
+          watermark: event.watermark,
+        })
+        return { status: 'signal', kind: event.kind, conversationId, agencyId, applied } as const
+      }
+
+      const eventKey = messengerEventKey(event)
+      if (!eventKey) return { status: 'ignored', reason: 'no_event_key' } as const
+      const occurredAt = event.timestamp ?? new Date()
+      const detail =
+        event.kind === 'postback'
+          ? { title: event.title, payload: event.payload ?? event.referralRef, targetMid: null }
+          : event.kind === 'referral'
+            ? { title: event.source, payload: event.ref ?? event.refType, targetMid: null }
+            : { title: event.action, payload: event.emoji, targetMid: event.targetMid }
+
+      const id = await insertMessengerEvent(trx, {
+        conversationId,
+        agencyId,
+        pageId,
+        kind: event.kind,
+        eventKey,
+        ...detail,
+        occurredAt,
+      })
+      return { status: 'signal', kind: event.kind, conversationId, agencyId, applied: id === null ? 0 : 1 } as const
+    })
+  }
+
+  // Narrowed above; `kind` is now inbound | echo.
   const direction: 'inbound' | 'outbound' = event.kind === 'inbound' ? 'inbound' : 'outbound'
   const source =
     event.kind === 'inbound' ? 'customer' : echoSource((event as { appId: string | null }).appId, process.env.META_APP_ID)

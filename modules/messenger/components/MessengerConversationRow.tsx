@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { formatBusinessDate as formatDate } from '@/lib/today/time'
-import LeadAvatar from '@/components/ui/lead-avatar'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
+import MessengerAvatar from './MessengerAvatar'
 import type { MessengerConversationListItem } from '../types'
 
 /**
@@ -27,7 +27,7 @@ export default function MessengerConversationRow({
         selected ? 'bg-primary-soft' : 'hover:bg-gray-50'
       }`}
     >
-      <LeadAvatar name={name} size='sm' />
+      <MessengerAvatar name={name} picUrl={item.profilePicUrl} size='sm' />
       <div className='min-w-0 flex-1'>
         <div className='flex items-center justify-between gap-2'>
           <span className={`truncate text-sm text-gray-900 ${unread ? 'font-bold' : 'font-medium'}`}>{name}</span>

@@ -136,14 +136,14 @@ describe('Messenger fields — a granted, rolled-out Page converges', () => {
   it('repair subscribes messages,message_echoes and re-sends leadgen,feed in the same call', async () => {
     const posts = graph(['leadgen', 'feed'])
     const result = await repairFacebookConnection('PG1')
-    expect(posts).toEqual(['leadgen,feed,messages,message_echoes'])
+    expect(posts).toEqual(['leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions'])
     expect(result.repaired).toBe(true)
     expect(result.status.subscribed).toBe(true)
     expect(result.status.missingFields).toEqual([])
   })
 
   it('repair does not touch a Page already subscribed to everything it needs', async () => {
-    const posts = graph(['leadgen', 'feed', 'messages', 'message_echoes'])
+    const posts = graph(['leadgen', 'feed', 'messages', 'message_echoes', 'message_deliveries', 'message_reads', 'messaging_postbacks', 'messaging_referrals', 'message_reactions'])
     const result = await repairFacebookConnection('PG1')
     expect(posts).toEqual([])
     expect(result.repaired).toBe(false)
@@ -175,24 +175,74 @@ describe('Messenger fields — a granted, rolled-out Page converges', () => {
       return jsonRes(200, appsWithFields(['feed']))
     }) as unknown as typeof fetch
     const result = await repairFacebookConnection('PG1')
-    expect(posts).toEqual(['leadgen,feed,messages,message_echoes', 'leadgen,feed'])
+    // Backs off one tier at a time. Here Meta refuses anything containing
+    // `messages`, so both Messenger tiers fail and only Lead Ads is restored.
+    expect(posts).toEqual(['leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions', 'leadgen,feed,messages,message_echoes', 'leadgen,feed'])
     expect(result.repaired).toBe(true)
     expect(result.status.subscribed).toBe(true)
-    expect(result.status.missingFields).toEqual(['messages', 'message_echoes'])
+    expect(result.status.missingFields).toEqual([
+      'messages',
+      'message_echoes',
+      'message_deliveries',
+      'message_reads',
+      'messaging_postbacks',
+      'messaging_referrals',
+      'message_reactions',
+    ])
+    // Core Messenger is gone too, so this Page really is broken for messaging.
+    expect(result.status.missingEssentialFields).toEqual(['messages', 'message_echoes'])
+  })
+
+  it('a refused ENHANCEMENT field costs only the enhancement — core Messenger survives', async () => {
+    const posts: string[] = []
+    global.fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'POST') {
+        const fields = new URLSearchParams(String(init?.body)).get('subscribed_fields') ?? ''
+        posts.push(fields)
+        // Meta dislikes only the reactions field, as a future Graph version might.
+        return fields.includes('message_reactions') ? jsonRes(400, { error: { code: 100 } }) : jsonRes(200, { success: true })
+      }
+      return jsonRes(200, appsWithFields(['leadgen', 'feed']))
+    }) as unknown as typeof fetch
+
+    const result = await repairFacebookConnection('PG1')
+    expect(posts).toEqual(['leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions', 'leadgen,feed,messages,message_echoes'])
+    expect(result.repaired).toBe(true)
+    expect(result.status.subscribed).toBe(true)
+    // Messaging works; only the enhancements are absent, and nothing essential is.
+    expect(result.status.missingEssentialFields).toEqual([])
+    expect(result.status.missingFields).toEqual([
+      'message_deliveries',
+      'message_reads',
+      'messaging_postbacks',
+      'messaging_referrals',
+      'message_reactions',
+    ])
   })
 
   it('a network error or Graph outage on the POST never triggers the Lead Ads-only fallback', async () => {
     const posts = graph(['feed'], 503)
     const result = await repairFacebookConnection('PG1')
-    expect(posts).toEqual(['leadgen,feed,messages,message_echoes'])
+    expect(posts).toEqual(['leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions'])
     expect(result.repaired).toBe(false)
   })
 
   it('a refused re-subscribe is not reported as repaired and keeps the missing fields', async () => {
     const posts = graph(['leadgen', 'feed'], 400)
     const result = await repairFacebookConnection('PG1')
-    expect(posts).toHaveLength(1)
+    // Full set, then the core tier — both refused. Lead Ads is already
+    // subscribed here, so the last tier is not attempted.
+    expect(posts).toEqual(['leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions', 'leadgen,feed,messages,message_echoes'])
     expect(result.repaired).toBe(false)
-    expect(result.status.missingFields).toEqual(['messages', 'message_echoes'])
+    expect(result.status.missingFields).toEqual([
+      'messages',
+      'message_echoes',
+      'message_deliveries',
+      'message_reads',
+      'messaging_postbacks',
+      'messaging_referrals',
+      'message_reactions',
+    ])
+    expect(result.status.missingEssentialFields).toEqual(['messages', 'message_echoes'])
   })
 })

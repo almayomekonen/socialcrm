@@ -71,7 +71,9 @@ class NotificationEnqueueFailed extends Error {
   }
 }
 
-export async function processMessengerEvent(row: MessengerEventRow): Promise<'stored' | 'duplicate' | 'ignored' | 'failed'> {
+export type MessengerEventOutcome = 'stored' | 'signal' | 'duplicate' | 'ignored' | 'failed'
+
+export async function processMessengerEvent(row: MessengerEventRow): Promise<MessengerEventOutcome> {
   try {
     const result = await ingestMessengerEvent(row.pageId, row.payload, { expectedAgencyId: row.agencyId })
     if (result.status === 'stored') {
@@ -94,6 +96,12 @@ export async function processMessengerEvent(row: MessengerEventRow): Promise<'st
       }
       await settleMessengerEvent(row.id, 'processed', 'duplicate')
       return 'duplicate'
+    }
+    // A receipt, postback, referral or reaction: applied, never announced.
+    // Only a customer's MESSAGE is news; a read receipt is not.
+    if (result.status === 'signal') {
+      await settleMessengerEvent(row.id, 'processed', `${result.kind}:${result.applied}`)
+      return 'signal'
     }
     await settleMessengerEvent(row.id, 'ignored', result.reason)
     return 'ignored'
@@ -147,7 +155,9 @@ export async function runMessengerEventWorker(opts: MessengerWorkerOptions = {})
     for (const row of rows) {
       if (row.attempts > 1) summary.retried++
       const outcome = await processMessengerEvent(row)
-      if (outcome === 'stored') summary.processed++
+      // A receipt/postback/reaction is real processed work, counted with stored
+      // messages so `processed` still means "the receipt is done".
+      if (outcome === 'stored' || outcome === 'signal') summary.processed++
       else if (outcome === 'duplicate') summary.duplicates++
       else if (outcome === 'ignored') summary.ignored++
       else summary.failed++

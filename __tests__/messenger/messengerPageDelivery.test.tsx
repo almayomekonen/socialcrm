@@ -25,6 +25,7 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   usePathname: () => '/inbox/messenger',
+  useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('next/server', () => ({ after: h.after }))
 vi.mock('@/components/summary/ConversationRefreshPoller', () => ({

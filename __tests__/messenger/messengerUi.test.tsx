@@ -4,16 +4,22 @@
  * attachments and the unsupported-message fallback, unread rows, and no emoji.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/inbox/messenger',
+  useSearchParams: () => new URLSearchParams(),
+}))
 vi.mock('@/lib/useAction', () => ({
   useAction: () => ({ loading: false, error: null, setError: vi.fn(), run: (fn: () => unknown) => fn(), accessDenied: false }),
 }))
+const sendMessengerReply = vi.fn(async () => ({ ok: true }) as { ok: boolean; reason?: string })
 vi.mock('@/modules/messenger/actions', () => ({
-  sendMessengerReply: vi.fn(async () => ({ ok: true })),
+  sendMessengerReply: (...args: unknown[]) => sendMessengerReply(...(args as [])),
   markMessengerConversationRead: vi.fn(async () => ({ ok: true })),
+  sendMessengerTyping: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock('@/modules/messenger/leadActions', () => ({
   createLeadFromMessengerConversation: vi.fn(),
@@ -26,7 +32,11 @@ import MessengerComposer from '@/modules/messenger/components/MessengerComposer'
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
 import MessengerConversationRow from '@/modules/messenger/components/MessengerConversationRow'
 import MessengerEmptyState from '@/modules/messenger/components/MessengerEmptyState'
-import type { MessengerConversationListItem, MessengerMessage } from '@/modules/messenger/types'
+import type {
+  MessengerConversationEvent,
+  MessengerConversationListItem,
+  MessengerMessage,
+} from '@/modules/messenger/types'
 
 afterEach(() => cleanup())
 
@@ -41,6 +51,8 @@ const conversation: MessengerConversationListItem = {
   lastMessageText: 'כמה עולה?',
   lastDirection: 'inbound',
   unread: true,
+  profilePicUrl: null,
+  profileStatus: null,
 }
 
 const msg = (over: Partial<MessengerMessage>): MessengerMessage => ({
@@ -50,6 +62,8 @@ const msg = (over: Partial<MessengerMessage>): MessengerMessage => ({
   text: 'כמה עולה?',
   attachments: [],
   timestamp: new Date('2026-09-14T10:00:00Z'),
+  deliveredAt: null,
+  readAt: null,
   ...over,
 })
 
@@ -63,6 +77,143 @@ describe('InboxChannelSwitch — Messenger tab', () => {
   it('shows Messenger next to שיחות and תגובות when enabled', () => {
     render(<InboxChannelSwitch active='whatsapp' showMessenger />)
     expect(screen.getByRole('link', { name: /Messenger/ })).toHaveAttribute('href', '/inbox/messenger')
+  })
+})
+
+describe('conversation events in the timeline', () => {
+  const ev = (over: Partial<MessengerConversationEvent>): MessengerConversationEvent => ({
+    id: 1,
+    kind: 'postback',
+    title: null,
+    payload: null,
+    targetMessageId: null,
+    occurredAt: new Date('2026-09-14T10:01:00Z'),
+    ...over,
+  })
+
+  const renderWithEvents = (messages: MessengerMessage[], events: MessengerConversationEvent[]) =>
+    render(
+      <MessengerThread
+        conversation={conversation}
+        messages={messages}
+        hasMoreMessages={false}
+        events={events}
+        savedReplies={[]}
+        windowOpen
+        windowHint={null}
+        canSend
+        permissionPrompt={<p>PROMPT</p>}
+      />,
+    )
+
+  it('shows the button label the customer actually saw', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ title: 'קבל הצעת מחיר', payload: 'QUOTE' })])
+    expect(screen.getByText('בחר: קבל הצעת מחיר')).toBeInTheDocument()
+  })
+
+  it('falls back to a plain description rather than inventing a label', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ id: 2, payload: 'GET_STARTED' })])
+    expect(screen.getByText('התחיל שיחה')).toBeInTheDocument()
+  })
+
+  it('names the entry point a referral came from', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ id: 3, kind: 'referral', title: 'ADS', payload: 'promo7' })])
+    expect(screen.getByText('הגיע ממודעה (promo7)')).toBeInTheDocument()
+  })
+
+  it('a reaction renders on its message, never as a timeline entry', () => {
+    renderWithEvents(
+      [msg({ id: 7, direction: 'outbound', source: 'socialcrm', text: 'שלחנו הצעה' })],
+      [ev({ id: 4, kind: 'reaction', title: 'react', payload: '❤', targetMessageId: 7 })],
+    )
+    expect(screen.getByText('❤')).toBeInTheDocument()
+    // It must not read as the customer having written again.
+    expect(screen.queryByText(/בחר:/)).not.toBeInTheDocument()
+  })
+
+  it('a reaction whose message is not loaded is dropped, not shown detached', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ id: 5, kind: 'reaction', payload: '❤', targetMessageId: null })])
+    expect(screen.queryByText('❤')).not.toBeInTheDocument()
+  })
+})
+
+describe('composer drafts and attachments', () => {
+  afterEach(() => {
+    sendMessengerReply.mockReset()
+    sendMessengerReply.mockResolvedValue({ ok: true })
+    try {
+      sessionStorage.clear()
+    } catch {
+      /* jsdom without storage */
+    }
+  })
+
+  it('a failed send keeps the typed text — the rep retries, never retypes', async () => {
+    sendMessengerReply.mockResolvedValue({ ok: false, reason: 'rate_limited' })
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    const box = screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement
+
+    fireEvent.change(box, { target: { value: 'שלום, אשמח לעזור' } })
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    await screen.findByRole('alert')
+
+    expect(box.value).toBe('שלום, אשמח לעזור')
+    expect(screen.getByRole('alert').textContent).toContain('מגביל')
+  })
+
+  it('a draft survives the composer being remounted by a background refresh', () => {
+    const { unmount } = render(<MessengerComposer conversationId={77} windowOpen windowHint={null} />)
+    fireEvent.change(screen.getByLabelText('תשובה ב-Messenger'), { target: { value: 'טיוטה' } })
+    unmount()
+    cleanup()
+
+    render(<MessengerComposer conversationId={77} windowOpen windowHint={null} />)
+    expect((screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement).value).toBe('טיוטה')
+  })
+
+  it('a draft belongs to its own conversation and never leaks into another', () => {
+    render(<MessengerComposer conversationId={1} windowOpen windowHint={null} />)
+    fireEvent.change(screen.getByLabelText('תשובה ב-Messenger'), { target: { value: 'של שיחה 1' } })
+    cleanup()
+
+    render(<MessengerComposer conversationId={2} windowOpen windowHint={null} />)
+    expect((screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('a successful send clears the draft so it cannot be sent twice', async () => {
+    render(<MessengerComposer conversationId={9} windowOpen windowHint={null} />)
+    const box = screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement
+    fireEvent.change(box, { target: { value: 'נשלח' } })
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    await vi.waitFor(() => expect(box.value).toBe(''))
+    expect(sessionStorage.getItem('messenger:draft:9')).toBeNull()
+  })
+
+  it('choosing a file shows it, offers removal, and relabels the text box as a caption', () => {
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    const input = document.querySelector('input[type=file]') as HTMLInputElement
+    const file = new File(['x'], 'quote.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+
+    expect(screen.getByText('quote.pdf')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'הסר את הקובץ' })).toBeInTheDocument()
+    expect(screen.getByLabelText('כיתוב לקובץ (לא חובה)')).toBeInTheDocument()
+  })
+
+  it('an oversized file is refused locally, with the limit named, before any upload', () => {
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    const input = document.querySelector('input[type=file]') as HTMLInputElement
+    const big = new File(['x'], 'huge.mp4', { type: 'video/mp4' })
+    Object.defineProperty(big, 'size', { value: 26 * 1024 * 1024 })
+    fireEvent.change(input, { target: { files: [big] } })
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('25MB')
+  })
+
+  it('the attach control has an accessible name (it is icon-only)', () => {
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    expect(screen.getByRole('button', { name: 'צרף קובץ' })).toBeInTheDocument()
   })
 })
 
@@ -93,6 +244,9 @@ describe('MessengerThread', () => {
         windowHint={null}
         canSend={canSend}
         permissionPrompt={<p>PROMPT</p>}
+        hasMoreMessages={false}
+        events={[]}
+        savedReplies={[]}
       />,
     )
 
@@ -112,8 +266,62 @@ describe('MessengerThread', () => {
       msg({ id: 3, text: '', attachments: [{ type: 'unsupported', url: null }] }),
     ])
     expect(screen.getByAltText('תמונה שהתקבלה ב-Messenger')).toHaveAttribute('referrerpolicy', 'no-referrer')
-    expect(screen.getByRole('link', { name: 'פתח קובץ מצורף' })).toHaveAttribute('rel', 'noopener noreferrer')
+    const file = screen.getByRole('link', { name: 'הורד קובץ מצורף' })
+    expect(file).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(file).toHaveAttribute('download')
     expect(screen.getAllByText(/סוג הודעה שלא ניתן להציג כאן/).length).toBeGreaterThan(0)
+  })
+
+  it('audio and video are playable in place rather than linking out to Facebook', () => {
+    renderThread([
+      msg({ id: 1, text: '', attachments: [{ type: 'audio', url: 'https://lookaside.fbsbx.com/a.mp4' }] }),
+      msg({ id: 2, text: '', attachments: [{ type: 'video', url: 'https://lookaside.fbsbx.com/v.mp4' }] }),
+    ])
+    expect(screen.getByLabelText('הקלטה שהתקבלה ב-Messenger')).toHaveAttribute('controls')
+    expect(screen.getByLabelText('סרטון שהתקבל ב-Messenger')).toHaveAttribute('controls')
+  })
+
+  it('a sticker renders as a sticker, and shared content shows its link', () => {
+    renderThread([
+      msg({ id: 1, text: '', attachments: [{ type: 'image', url: 'https://cdn.example/s.png', sticker: true }] }),
+      msg({ id: 2, text: '', attachments: [{ type: 'share', url: 'https://example.com/x', title: 'מאמר' }] }),
+    ])
+    expect(screen.getByAltText('מדבקה')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'מאמר' })).toHaveAttribute('href', 'https://example.com/x')
+  })
+
+  it('delivery state is shown only when Meta reported it — never assumed', () => {
+    renderThread([
+      msg({ id: 1, direction: 'outbound', source: 'socialcrm', text: 'א' }),
+      msg({ id: 2, direction: 'outbound', source: 'socialcrm', text: 'ב', deliveredAt: new Date() }),
+      msg({ id: 3, direction: 'outbound', source: 'socialcrm', text: 'ג', deliveredAt: new Date(), readAt: new Date() }),
+    ])
+    expect(screen.getByText('נשלח — ממתין לאישור מסירה')).toBeInTheDocument()
+    expect(screen.getByText('נמסר')).toBeInTheDocument()
+    expect(screen.getByText('נקרא')).toBeInTheDocument()
+  })
+
+  it('an inbound message never shows a delivery state', () => {
+    renderThread([msg({ id: 1, direction: 'inbound', deliveredAt: new Date(), readAt: new Date() })])
+    expect(screen.queryByText('נמסר')).not.toBeInTheDocument()
+    expect(screen.queryByText('נקרא')).not.toBeInTheDocument()
+  })
+
+  it('a real profile picture is used, and a broken one falls back to initials without a broken image', async () => {
+    const { default: MessengerAvatar } = await import('@/modules/messenger/components/MessengerAvatar')
+    const { container } = render(<MessengerAvatar name='דנה לוי' picUrl='https://cdn.example/p.jpg' />)
+    const img = container.querySelector('img')
+    expect(img).toHaveAttribute('src', 'https://cdn.example/p.jpg')
+    fireEvent.error(img!)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toContain('דל')
+  })
+
+  it('with no picture the avatar is initials, never a placeholder photo', async () => {
+    const { default: MessengerAvatar } = await import('@/modules/messenger/components/MessengerAvatar')
+    const { container } = render(<MessengerAvatar name='דנה לוי' picUrl={null} />)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toContain('דל')
   })
 
   it('without pages_messaging the composer is replaced by the permission prompt', () => {
@@ -135,6 +343,9 @@ describe('MessengerThread', () => {
         windowHint={null}
         canSend
         permissionPrompt={null}
+      hasMoreMessages={false}
+      events={[]}
+      savedReplies={[]}
       />,
     )
     expect(screen.getByRole('link', { name: 'פתח את הליד: דנה לוי' })).toHaveAttribute('href', '/clients/44/summary')

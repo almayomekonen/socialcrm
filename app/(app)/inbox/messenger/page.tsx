@@ -9,15 +9,25 @@ import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import { messengerWindow, messengerWindowHint } from '@/lib/facebook/messenger/rules'
 import { checkMessengerDelivery, pendingMessengerDeliveryChecks } from '@/lib/facebook/messenger/deliveryCheck'
+import { refreshMessengerProfiles } from '@/lib/facebook/messenger/profile'
 import { FACEBOOK_NOTICES, type ConnectionNotice } from '@/lib/connections/messages'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
-import { getMessengerConversation, listMessengerConversations, listMessengerMessages } from '@/modules/messenger/queries'
+import {
+  getMessengerConversation,
+  listMessengerConversationEvents,
+  listMessengerConversations,
+  listMessengerMessagePage,
+} from '@/modules/messenger/queries'
 import MessengerConversationRow from '@/modules/messenger/components/MessengerConversationRow'
 import MessengerEmptyState, { type MessengerEmptyKind } from '@/modules/messenger/components/MessengerEmptyState'
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
+import MessengerProfileAccessNotice from '@/modules/messenger/components/MessengerProfileAccessNotice'
+import MessengerSearch from '@/modules/messenger/components/MessengerSearch'
+import MessengerImportHistory from '@/modules/messenger/components/MessengerImportHistory'
+import { listMessengerSavedReplies } from '@/db/messengerSavedReplies'
 
 /**
  * Messenger inside שיחות — a channel tab next to WhatsApp and comments, no new
@@ -32,7 +42,7 @@ import MessengerThread from '@/modules/messenger/components/MessengerThread'
  */
 export const metadata: Metadata = { title: 'Messenger' }
 
-type SearchParams = { c?: string; permission?: string }
+type SearchParams = { c?: string; permission?: string; q?: string }
 
 const REFRESH_MS = 10_000
 
@@ -83,11 +93,28 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   )
   if (messagingPageIds.size === 0) return shell(permissionPrompt)
 
+  const query = typeof sp.q === 'string' ? sp.q.trim().slice(0, 100) : ''
   const selectedId = Number(sp.c)
   const [conversations, selected] = await Promise.all([
-    listMessengerConversations(agencyId, user.id),
+    listMessengerConversations(agencyId, user.id, query),
     Number.isInteger(selectedId) && selectedId > 0 ? getMessengerConversation(agencyId, user.id, selectedId) : null,
   ])
+  // FILTERED-EMPTY IS NOT SYSTEM-EMPTY (ux-guidelines §11). A search that matched
+  // nothing keeps the full UI and says so inside the list; only an agency with no
+  // conversations at all gets the page-level onboarding state below.
+  if (conversations.length === 0 && query) {
+    return shell(
+      <div className='overflow-hidden rounded-lg border border-gray-200 bg-white'>
+        <div className='border-b border-gray-100 p-2 px-3'>
+          <MessengerSearch initial={query} />
+        </div>
+        <p role='status' className='px-3 py-6 text-center text-sm text-gray-500'>
+          לא נמצאו שיחות התואמות לחיפוש.
+        </p>
+      </div>,
+    )
+  }
+
   // No conversation yet: one page-level state, not an empty list beside an empty thread.
   if (conversations.length === 0) {
     // "No messages yet" promises that messages WILL arrive. A recorded grant does
@@ -103,6 +130,13 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     if (delivery.includes('not_subscribed')) {
       return shell(<>{poller}{promptFor(FACEBOOK_NOTICES.messenger_not_subscribed)}</>)
     }
+    // An admin with a working Page can pull in the conversations it already had,
+    // rather than staring at an empty inbox until someone writes again. Offered
+    // only here — once there are conversations, this is no longer the question.
+    const importOffer =
+      isAdmin(user.role as Roles) && delivery.includes('ready') ? (
+        <MessengerImportHistory pageId={messagingPages[0].page_id} />
+      ) : null
     return shell(
       <>
         {poller}
@@ -110,10 +144,28 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
           <p role='status' className='text-sm text-green-600'>ההרשאה אושרה. הודעות Messenger חדשות יופיעו כאן.</p>
         )}
         <MessengerEmptyState kind='no-conversations' compact={mobile} />
+        {importOffer}
       </>,
     )
   }
-  const messages = selected ? await listMessengerMessages(agencyId, selected.id) : []
+  const [page, events, savedReplies] = selected
+    ? await Promise.all([
+        listMessengerMessagePage(agencyId, selected.id),
+        listMessengerConversationEvents(agencyId, selected.id),
+        listMessengerSavedReplies(agencyId),
+      ])
+    : [{ messages: [], hasMore: false }, [], []]
+  const messages = page.messages
+
+  // Names and pictures come from Meta, cost a Graph call, and are never worth
+  // delaying the inbox for. Refreshed AFTER the response, bounded per pass, and
+  // skipped entirely for contacts Meta has already refused (profile.ts).
+  after(() => refreshMessengerProfiles({ agencyId }))
+
+  // One quiet admin-only line when Meta refuses profile access outright, so the
+  // reason initials are showing is visible to the person who can act on it —
+  // and invisible to everyone who cannot. Never blocks messaging.
+  const profileAccessDenied = conversations.some((c) => c.profileStatus === 'denied')
 
   // The window is decided here, once, on the server — never re-derived in client render.
   const now = new Date()
@@ -122,12 +174,18 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     <MessengerThread
       conversation={selected}
       messages={messages}
+      hasMoreMessages={page.hasMore}
+      events={events}
+      savedReplies={savedReplies}
       windowOpen={replyWindow!.open}
       windowHint={messengerWindowHint(replyWindow!, now)}
       canSend={messagingPageIds.has(selected.pageId)}
       permissionPrompt={permissionPrompt}
     />
   ) : null
+
+  const profileNotice =
+    profileAccessDenied && isAdmin(user.role as Roles) ? <MessengerProfileAccessNotice /> : null
 
   const list = (
     <nav aria-label='שיחות Messenger'>
@@ -144,6 +202,8 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
         <div className='[&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
           <InboxChannelSwitch active='messenger' showMessenger />
         </div>
+        {!selected && <MessengerSearch initial={query} />}
+        {profileNotice}
         {selected ? (
           <>
             <Link href='/inbox/messenger' className='inline-flex min-h-11 items-center text-sm text-primary'>
@@ -162,9 +222,11 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
       <ConversationRefreshPoller intervalMs={REFRESH_MS} />
       <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
-        <div className='shrink-0 border-b border-gray-100 p-2 px-3'>
+        <div className='shrink-0 space-y-2 border-b border-gray-100 p-2 px-3'>
           <InboxChannelSwitch active='messenger' showMessenger />
+          <MessengerSearch initial={query} />
         </div>
+        {profileNotice}
         <div className='min-h-0 flex-1 overflow-y-auto'>{list}</div>
       </aside>
       <section aria-label='שיחה' className='flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>

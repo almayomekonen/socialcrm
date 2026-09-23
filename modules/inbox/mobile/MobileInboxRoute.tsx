@@ -12,6 +12,7 @@ import { relativeTimeHe } from './relativeTime'
 import { statusStyle } from '@/lib/leads/statusStyles'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
+import { countUnreadMessengerConversations } from '@/modules/messenger/queries'
 import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 
 /**
@@ -169,10 +170,15 @@ export default async function MobileInboxRoute({
   const page = await listInboxConversations(agencyId, userId, { filters: { q: q || null } })
   const nowMs = Date.now()
 
+  const messengerEnabled = isFacebookMessengerEnabledForAgency(agencyId)
+  // Mobile has no Messenger tab of its own; this badge is the only place a rep
+  // on the phone learns that a Messenger customer wrote.
+  const messengerUnread = messengerEnabled ? await countUnreadMessengerConversations(agencyId, userId).catch(() => 0) : 0
+
   return (
     <div>
       <div className='border-b border-gray-200 bg-white px-3 py-2 [&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
-        <InboxChannelSwitch active='whatsapp' showMessenger={isFacebookMessengerEnabledForAgency(agencyId)} />
+        <InboxChannelSwitch active='whatsapp' showMessenger={messengerEnabled} messengerUnread={messengerUnread} />
       </div>
       <ConversationListMobile
         items={page.items}

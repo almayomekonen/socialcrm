@@ -19,6 +19,7 @@ import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
 import CommentsStatusFilter, { PAGE_STATUS_FILTERS } from '@/modules/facebookComments/components/CommentsStatusFilter'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
+import { countUnreadMessengerConversations } from '@/modules/messenger/queries'
 import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInboxMobile'
 
@@ -48,6 +49,10 @@ export default async function FacebookCommentsPage({
 
   const enabled = isFacebookCommentsEnabledForAgency(user.agencyId)
   const showMessenger = isFacebookMessengerEnabledForAgency(user.agencyId)
+  // A rep reading comments still needs to know a Messenger customer wrote.
+  const messengerUnread = showMessenger
+    ? await countUnreadMessengerConversations(user.agencyId, user.id).catch(() => 0)
+    : 0
   const mobile = await isMobileWorkspaceRequest(user.agencyId)
 
   // Dark launch: show the shell + honest empty state. Do not query or pretend
@@ -60,7 +65,7 @@ export default async function FacebookCommentsPage({
       <div className='grid gap-3 p-3 sm:p-4'>
         <header className='flex flex-wrap items-center justify-between gap-2'>
           <h1 className='text-lg font-semibold text-gray-900'>תגובות מפייסבוק</h1>
-          <InboxChannelSwitch active='facebook' showMessenger={showMessenger} />
+          <InboxChannelSwitch active='facebook' showMessenger={showMessenger} messengerUnread={messengerUnread} />
         </header>
         <CommentsEmptyState kind='not-enabled' />
       </div>
@@ -143,7 +148,7 @@ export default async function FacebookCommentsPage({
     <div className='grid gap-3 p-3 sm:p-4'>
       <header className='flex flex-wrap items-center justify-between gap-2'>
         <h1 className='text-lg font-semibold text-gray-900'>תגובות מפייסבוק</h1>
-        <InboxChannelSwitch active='facebook' showMessenger={showMessenger} />
+        <InboxChannelSwitch active='facebook' showMessenger={showMessenger} messengerUnread={messengerUnread} />
       </header>
 
       {!connection && <CommentsEmptyState kind='not-connected' />}

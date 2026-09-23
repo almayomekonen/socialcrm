@@ -18,6 +18,9 @@ import { getWhatsappConnectionForAgency } from '@/db/whatsapp'
 import { getInAppBrowser } from '@/lib/device'
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
+import MessengerEntryPoints from '@/components/settings/messenger/MessengerEntryPoints'
+import { loadMessengerSection } from '@/components/settings/messenger/messengerSectionData'
+import MessengerSavedReplies from '@/components/settings/messenger/MessengerSavedReplies'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
 import { BRAND } from './brandColors'
 
@@ -120,6 +123,8 @@ export default async function LeadSourcesSection({
 
   const inAppBrowser = await getInAppBrowser()
 
+  const messenger = await loadMessengerSection(user, fbConnection)
+
   return (
     <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
       <AccordionItem
@@ -162,6 +167,36 @@ export default async function LeadSourcesSection({
           />
         </Suspense>
       </AccordionItem>
+      {messenger.visible && (
+        <AccordionItem
+          id='messenger'
+          bodyClass='p-6'
+          title='הודעת פתיחה ותפריט ב-Messenger'
+          icon='facebook'
+          iconClassName={BRAND.facebook}
+        >
+          <Suspense fallback={null}>
+            <MessengerEntryPoints
+              pageId={messenger.pageId}
+              initial={messenger.profile}
+              readFailed={messenger.readFailed}
+            />
+          </Suspense>
+        </AccordionItem>
+      )}
+      {messenger.visible && (
+        <AccordionItem
+          id='messenger-replies'
+          bodyClass='p-6'
+          title='תשובות שמורות ב-Messenger'
+          icon='facebook'
+          iconClassName={BRAND.facebook}
+        >
+          <Suspense fallback={null}>
+            <MessengerSavedReplies initial={messenger.savedReplies} />
+          </Suspense>
+        </AccordionItem>
+      )}
       {templatesEnabled && (
         <AccordionItem
           id='templates'
