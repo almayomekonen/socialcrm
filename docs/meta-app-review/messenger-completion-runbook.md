@@ -36,12 +36,49 @@ Migrations are applied **manually, before the deploy**, never by the build
 2. Confirm what would run:
      npx knex --knexfile knexfile.cjs migrate:list      # against production DATABASE_URL
    Expect exactly the three migrations above as Pending.
+   ⚠ This currently FAILS — see §2a.
 3. npm run migrate                                 # against production DATABASE_URL
 4. Record the applied filenames + the commit SHA in the deployment report.
 5. Merge the PR → Vercel deploys main.
 6. Meta App Dashboard → Webhooks → Page: add the five fields in §3.
 7. Within the hour, the connection-health cron re-subscribes each Page (§4).
 ```
+
+Use the **direct** Neon host for migrations, never `-pooler` (drop `-pooler`
+from the hostname).
+
+### 2a. Blocker: production is ahead of `main` (found 2026-09-23)
+
+`knex_migrations` batch 48 records three billing migrations that exist ONLY on
+the unmerged branch `feat/card-required-trial`:
+
+```
+20260916000001_create_billing_payment_methods.cjs
+20260916000002_create_billing_charges.cjs
+20260916000003_card_storage_consent.cjs
+```
+
+Their tables are live in production. Because those files are absent from `main`,
+knex aborts with *"The migration directory is corrupt, the following files are
+missing"* and **will not migrate production from this branch, or from main.**
+That is knex's protection against a deleted migration; it cannot distinguish
+that from "the files are on a branch nobody merged".
+
+There is also a filename-number collision — `main` uses `20260916000001` and
+`...002` for different migrations, and production records both pairs (batch 47
+and batch 48). Do not author a new migration at that timestamp.
+
+**The real fix is to merge `feat/card-required-trial`.** Note that it is 69
+commits including auth, billing charges and marketing changes, so merging it is
+a product deployment, not a schema tidy-up — it needs its own decision, not a
+drive-by merge to unblock a migration.
+
+**One-off workaround**, if Messenger must ship before that: run
+`migrate.latest()` programmatically with `disableMigrationsListValidation: true`
+and assert that the only pending migrations are the three `20260923*` ones. The
+billing migrations cannot be re-run by this — `migrate:latest` only considers
+files present in the directory. Do not commit that config; it steps around the
+divergence rather than fixing it, and the next person hits the same wall.
 
 **Why migrations first:** the code reads `deliveredAt`, `profileStatus`,
 `historyImportedAt` and `messenger_saved_replies`. Deploying before migrating

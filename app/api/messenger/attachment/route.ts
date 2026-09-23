@@ -50,6 +50,22 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) return NextResponse.json({ ok: false, reason: 'empty' }, { status: 400 })
   if (caption.length > MESSENGER_TEXT_MAX) return NextResponse.json({ ok: false, reason: 'too_long' }, { status: 400 })
 
+  // AUTHORIZE BEFORE INSPECTING THE CONTENT. The body has to be parsed first to
+  // learn which conversation this is, but nothing about the file is judged until
+  // the caller has been shown to be entitled to send to it — otherwise an
+  // unauthenticated or expired caller learns "your file is too large" from an
+  // endpoint they may not use at all, and an expired subscriber is told about
+  // their file instead of their subscription.
+  //
+  // Throws for an expired subscription (requireProductAccess), which Next turns
+  // into an error response — the same entitlement behaviour as the text action.
+  const guard = await authorizeMessengerSend(conversationId)
+  if ('reason' in guard) {
+    const status = guard.reason === 'not_found' ? 404 : guard.reason === 'window_closed' ? 409 : 403
+    return NextResponse.json({ ok: false, reason: guard.reason }, { status })
+  }
+  const { ctx } = guard
+
   // Re-validated server-side with the same pure rule the composer used. The
   // composer's check is a courtesy to the rep; this one is the control.
   const check = checkMessengerAttachment({ size: file.size, type: file.type, name: file.name })
@@ -67,15 +83,6 @@ export async function POST(request: Request) {
       { status: 413 },
     )
   }
-
-  // Throws for an expired subscription (requireProductAccess), which Next turns
-  // into an error response — the same entitlement behaviour as the text action.
-  const guard = await authorizeMessengerSend(conversationId)
-  if ('reason' in guard) {
-    const status = guard.reason === 'not_found' ? 404 : guard.reason === 'window_closed' ? 409 : 403
-    return NextResponse.json({ ok: false, reason: guard.reason }, { status })
-  }
-  const { ctx } = guard
 
   const sent = await sendMessengerAttachment({
     pageId: ctx.pageId,
