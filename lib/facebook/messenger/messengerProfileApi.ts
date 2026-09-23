@@ -180,3 +180,30 @@ export async function saveMessengerProfile(input: {
   if ('error' in result) return { error: result.error }
   return { saved: true }
 }
+
+/**
+ * Validate a configuration before it is sent.
+ *
+ * Meta enforces these limits too, but its refusal arrives as an opaque code
+ * after a round trip that also spends one of the ten calls per ten minutes.
+ * Checking here turns it into a sentence the admin can act on, for free.
+ *
+ * It lives in this module and NOT in profileActions.ts because that file is
+ * `'use server'`, where every export must be an async function — a synchronous
+ * one fails the build, not the typecheck. It is pure anyway, so this is its
+ * natural home and the settings form can share it.
+ */
+export function validateMessengerProfile(config: MessengerProfileConfig): string | null {
+  if (config.greeting.length > GREETING_MAX) return `הודעת הפתיחה ארוכה מדי (עד ${GREETING_MAX} תווים)`
+  const items = config.menuItems.filter((i) => i.title.trim())
+  if (items.length > MENU_MAX_ITEMS) return `אפשר עד ${MENU_MAX_ITEMS} פריטים בתפריט`
+  if (items.some((i) => i.title.trim().length > MENU_TITLE_MAX)) {
+    return `שם פריט בתפריט ארוך מדי (עד ${MENU_TITLE_MAX} תווים)`
+  }
+  // A menu-only conversation with no menu leaves the customer unable to say
+  // anything at all.
+  if (config.composerInputDisabled && items.length === 0) {
+    return 'אי אפשר לחסום הקלדה בלי תפריט — הפונה לא יוכל לכתוב כלום'
+  }
+  return null
+}

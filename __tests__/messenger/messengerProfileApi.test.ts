@@ -15,9 +15,9 @@ import {
   messengerProfileFieldsToDelete,
   parseMessengerProfile,
   saveMessengerProfile,
+  validateMessengerProfile,
   type MessengerProfileConfig,
 } from '@/lib/facebook/messenger/messengerProfileApi'
-import { validateMessengerProfile } from '@/modules/messenger/profileActions'
 
 const config = (over: Partial<MessengerProfileConfig> = {}): MessengerProfileConfig => ({
   ...EMPTY_MESSENGER_PROFILE,

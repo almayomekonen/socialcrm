@@ -28,8 +28,11 @@ import { authorizeMessengerSend, failFromGraph, recordOutbound } from '@/modules
  * The file is never written to disk and never given a public URL; it is streamed
  * to Meta (see lib/facebook/messenger/sendAttachment.ts).
  */
-export const runtime = 'nodejs'
 // Media, not JSON: a large upload on a slow connection needs more than the default.
+//
+// No `export const runtime`: this project builds with `cacheComponents`, which
+// rejects that route-segment config outright (and the Node runtime, which this
+// needs for the multipart stream to Meta, is the default anyway).
 export const maxDuration = 60
 
 export async function POST(request: Request) {
