@@ -89,8 +89,12 @@ export async function recordSentMessengerMessage(
     text: string
     sentByUserId: number
     at: Date
+    /** What we sent, when it was media. Meta returns no CDN url on send, so the
+     *  url is null here and the echo webhook fills it in. */
+    attachments?: MessengerAttachment[]
   },
 ): Promise<{ created: boolean }> {
+  const attachments = input.attachments ?? []
   const [row] = await trx('messenger_messages')
     .insert({
       conversationId: input.conversationId,
@@ -100,11 +104,13 @@ export async function recordSentMessengerMessage(
       direction: 'outbound',
       source: 'socialcrm',
       text: input.text,
-      attachments: JSON.stringify([]),
+      attachments: JSON.stringify(attachments),
       sentByUserId: input.sentByUserId,
       channelTimestamp: input.at,
     })
     .onConflict(['pageId', 'mid'])
+    // The echo may already hold a CDN url we cannot produce; merging our empty
+    // list over it would blank the attachment the rep just sent.
     .merge({ sentByUserId: input.sentByUserId, source: 'socialcrm' })
     .returning(['id', trx.raw('(xmax = 0) as created')])
   return { created: row?.created === true || row?.created === 't' }

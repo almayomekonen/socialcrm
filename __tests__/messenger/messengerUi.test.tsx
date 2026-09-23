@@ -11,9 +11,11 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 vi.mock('@/lib/useAction', () => ({
   useAction: () => ({ loading: false, error: null, setError: vi.fn(), run: (fn: () => unknown) => fn(), accessDenied: false }),
 }))
+const sendMessengerReply = vi.fn(async () => ({ ok: true }) as { ok: boolean; reason?: string })
 vi.mock('@/modules/messenger/actions', () => ({
-  sendMessengerReply: vi.fn(async () => ({ ok: true })),
+  sendMessengerReply: (...args: unknown[]) => sendMessengerReply(...(args as [])),
   markMessengerConversationRead: vi.fn(async () => ({ ok: true })),
+  sendMessengerTyping: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock('@/modules/messenger/leadActions', () => ({
   createLeadFromMessengerConversation: vi.fn(),
@@ -67,6 +69,86 @@ describe('InboxChannelSwitch — Messenger tab', () => {
   it('shows Messenger next to שיחות and תגובות when enabled', () => {
     render(<InboxChannelSwitch active='whatsapp' showMessenger />)
     expect(screen.getByRole('link', { name: /Messenger/ })).toHaveAttribute('href', '/inbox/messenger')
+  })
+})
+
+describe('composer drafts and attachments', () => {
+  afterEach(() => {
+    sendMessengerReply.mockReset()
+    sendMessengerReply.mockResolvedValue({ ok: true })
+    try {
+      sessionStorage.clear()
+    } catch {
+      /* jsdom without storage */
+    }
+  })
+
+  it('a failed send keeps the typed text — the rep retries, never retypes', async () => {
+    sendMessengerReply.mockResolvedValue({ ok: false, reason: 'rate_limited' })
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    const box = screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement
+
+    fireEvent.change(box, { target: { value: 'שלום, אשמח לעזור' } })
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    await screen.findByRole('alert')
+
+    expect(box.value).toBe('שלום, אשמח לעזור')
+    expect(screen.getByRole('alert').textContent).toContain('מגביל')
+  })
+
+  it('a draft survives the composer being remounted by a background refresh', () => {
+    const { unmount } = render(<MessengerComposer conversationId={77} windowOpen windowHint={null} />)
+    fireEvent.change(screen.getByLabelText('תשובה ב-Messenger'), { target: { value: 'טיוטה' } })
+    unmount()
+    cleanup()
+
+    render(<MessengerComposer conversationId={77} windowOpen windowHint={null} />)
+    expect((screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement).value).toBe('טיוטה')
+  })
+
+  it('a draft belongs to its own conversation and never leaks into another', () => {
+    render(<MessengerComposer conversationId={1} windowOpen windowHint={null} />)
+    fireEvent.change(screen.getByLabelText('תשובה ב-Messenger'), { target: { value: 'של שיחה 1' } })
+    cleanup()
+
+    render(<MessengerComposer conversationId={2} windowOpen windowHint={null} />)
+    expect((screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('a successful send clears the draft so it cannot be sent twice', async () => {
+    render(<MessengerComposer conversationId={9} windowOpen windowHint={null} />)
+    const box = screen.getByLabelText('תשובה ב-Messenger') as HTMLTextAreaElement
+    fireEvent.change(box, { target: { value: 'נשלח' } })
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+    await vi.waitFor(() => expect(box.value).toBe(''))
+    expect(sessionStorage.getItem('messenger:draft:9')).toBeNull()
+  })
+
+  it('choosing a file shows it, offers removal, and relabels the text box as a caption', () => {
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    const input = document.querySelector('input[type=file]') as HTMLInputElement
+    const file = new File(['x'], 'quote.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+
+    expect(screen.getByText('quote.pdf')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'הסר את הקובץ' })).toBeInTheDocument()
+    expect(screen.getByLabelText('כיתוב לקובץ (לא חובה)')).toBeInTheDocument()
+  })
+
+  it('an oversized file is refused locally, with the limit named, before any upload', () => {
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    const input = document.querySelector('input[type=file]') as HTMLInputElement
+    const big = new File(['x'], 'huge.mp4', { type: 'video/mp4' })
+    Object.defineProperty(big, 'size', { value: 26 * 1024 * 1024 })
+    fireEvent.change(input, { target: { files: [big] } })
+    fireEvent.click(screen.getByRole('button', { name: 'שלח הודעה' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('25MB')
+  })
+
+  it('the attach control has an accessible name (it is icon-only)', () => {
+    render(<MessengerComposer conversationId={12} windowOpen windowHint={null} />)
+    expect(screen.getByRole('button', { name: 'צרף קובץ' })).toBeInTheDocument()
   })
 })
 

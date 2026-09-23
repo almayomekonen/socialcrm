@@ -1,116 +1,69 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { db } from '@/config/db'
-import { requireAgencyUser, requireProductAccess } from '@/lib/requireUser'
-import { parseGrantedScopes } from '@/db/facebook'
-import { bumpMessengerConversation, recordSentMessengerMessage } from '@/db/messenger'
-import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
-import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
-import { describeGraphError } from '@/lib/facebook/graphClient'
-import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
+import { requireAgencyUser } from '@/lib/requireUser'
+import { MESSENGER_TEXT_MAX, type MessengerSendFailure } from '@/lib/facebook/messenger/rules'
 import { sendMessengerText } from '@/lib/facebook/messenger/send'
-import { markNotificationsReadByCollapseKey } from '@/db/notifications/reads'
-import { messengerConversationInboundKey } from '@/lib/notifications/collapseKeys'
-import {
-  MESSENGER_TEXT_MAX,
-  messengerWindow,
-  sendFailureFromGraph,
-  type MessengerSendFailure,
-} from '@/lib/facebook/messenger/rules'
+import { sendMessengerSenderAction } from '@/lib/facebook/messenger/senderAction'
+import { authorizeMessengerSend, failFromGraph, markMessengerRead, recordOutbound } from './sendGuards'
 
-export type MessengerSendResult = { ok: true } | { ok: false; reason: MessengerSendFailure }
+export type MessengerSendResult = { ok: true } | { ok: false; reason: MessengerSendFailure; detail?: string }
 
 /**
- * Reply in a Messenger conversation as the Page.
+ * Sending in a Messenger conversation.
  *
- * Server-side, in order: product access (an outbound message, like a WhatsApp
- * send — its entitlement error propagates to `useAction`); rollout gate;
- * conversation owned by the caller's agency; the 24-hour window measured from
- * the customer's last message; the conversation's own Page inside the same
- * agency, with `pages_messaging` in its recorded grant. Only then is Meta
- * called. The PSID and the token never come from, or go to, the client.
+ * Every send — text or media — goes through `authorizeMessengerSend`, which is
+ * the single place the entitlement, rollout gate, tenancy, 24-hour window, Page
+ * grant and token are checked. See modules/messenger/sendGuards.ts for why that
+ * is one function and not a copy per action.
  */
-export async function sendMessengerReply(conversationId: number, text: string): Promise<MessengerSendResult> {
-  const user = await requireProductAccess()
-  if (!isFacebookMessengerEnabledForAgency(user.agencyId)) return { ok: false, reason: 'not_enabled' }
 
+/** Reply with text inside the standard messaging window. */
+export async function sendMessengerReply(conversationId: number, text: string): Promise<MessengerSendResult> {
   const body = typeof text === 'string' ? text.trim() : ''
   if (!body) return { ok: false, reason: 'empty' }
   if (body.length > MESSENGER_TEXT_MAX) return { ok: false, reason: 'too_long' }
 
-  const id = Number(conversationId)
-  if (!Number.isInteger(id) || id <= 0) return { ok: false, reason: 'not_found' }
-  const conversation = await db('messenger_conversations').where({ id, agencyId: user.agencyId }).first()
-  if (!conversation) return { ok: false, reason: 'not_found' }
+  const guard = await authorizeMessengerSend(conversationId)
+  if ('reason' in guard) return { ok: false, reason: guard.reason }
+  const { ctx } = guard
 
-  if (!messengerWindow(conversation.lastInboundAt, new Date()).open) return { ok: false, reason: 'window_closed' }
+  const sent = await sendMessengerText({
+    pageId: ctx.pageId,
+    pageAccessToken: ctx.pageAccessToken,
+    psid: ctx.psid,
+    text: body,
+  })
+  if ('error' in sent) return failFromGraph(sent.error, ctx)
 
-  const connection = await db('facebook_pages')
-    .where({ page_id: conversation.pageId, agency_id: user.agencyId })
-    .first()
-  if (!connection) return { ok: false, reason: 'reconnect_required' }
-  if (!hasFeatureScopes(parseGrantedScopes(connection.granted_scopes), 'messenger')) {
-    return { ok: false, reason: 'permission_missing' }
-  }
-
-  let pageAccessToken: string
-  try {
-    pageAccessToken = resolvePageAccessToken(connection.page_access_token)
-  } catch {
-    console.error('[MessengerSend] Page token could not be opened')
-    return { ok: false, reason: 'meta_error' }
-  }
-
-  const sent = await sendMessengerText({ pageId: conversation.pageId, pageAccessToken, psid: conversation.psid, text: body })
-  if ('error' in sent) {
-    const reason = sendFailureFromGraph(sent.error)
-    console.warn('[MessengerSend] Meta refused the message', { reason, detail: describeGraphError(sent.error) })
-    if (reason === 'reconnect_required') await markFacebookDisconnectedAndNotify(connection).catch(() => {})
-    return { ok: false, reason }
-  }
-
-  // Recorded from Meta's response. Whichever of this and the `message_echoes`
-  // webhook lands second converges on the same ("pageId", mid) row; if the echo
-  // won the race, this attributes the sender instead of losing it.
-  const now = new Date()
-  try {
-    await db.transaction(async (trx) => {
-      const { created } = await recordSentMessengerMessage(trx, {
-        conversationId: id,
-        agencyId: user.agencyId,
-        pageId: conversation.pageId,
-        mid: sent.mid,
-        text: body,
-        sentByUserId: user.id,
-        at: now,
-      })
-      if (created) {
-        await bumpMessengerConversation(trx, { conversationId: id, direction: 'outbound', at: now, text: body, attachments: [] })
-      }
-    })
-  } catch (err) {
-    // Delivered to Messenger already; the echo webhook will still record it.
-    console.error('[MessengerSend] Sent, but local record failed:', err instanceof Error ? err.message : 'unknown')
-  }
-
-  await markRead(id, user.agencyId, user.id).catch(() => {})
-  revalidatePath('/inbox/messenger')
+  await recordOutbound(ctx, { mid: sent.mid, text: body, attachments: [] })
   return { ok: true }
 }
 
-async function markRead(conversationId: number, agencyId: number, userId: number) {
-  await db('messenger_conversation_reads')
-    .insert({ conversationId, userId, agencyId, lastReadAt: new Date() })
-    .onConflict(['conversationId', 'userId'])
-    .merge({ lastReadAt: new Date() })
-  // Read or answered here ⇒ the bell row for it is done, so the customer's NEXT
-  // message is a new notification (toast / push) instead of a silent collapse.
-  await markNotificationsReadByCollapseKey({
-    agencyId,
-    userId,
-    collapseKey: messengerConversationInboundKey(conversationId),
-  }).catch(() => {})
+/**
+ * Show the customer a typing indicator while a rep composes.
+ *
+ * Deliberately fire-and-forget and never surfaced: a sender action carries no
+ * content, and a failed one is not something a rep can or should act on. It
+ * reuses the full authorization chain anyway — it is still a call made to a
+ * customer on a Page's behalf, and "it's only a typing dot" is exactly how an
+ * unscoped Meta call gets written.
+ */
+export async function sendMessengerTyping(conversationId: number, on: boolean): Promise<{ ok: boolean }> {
+  try {
+    const guard = await authorizeMessengerSend(conversationId)
+    if ('reason' in guard) return { ok: false }
+    const { ctx } = guard
+    const result = await sendMessengerSenderAction({
+      pageId: ctx.pageId,
+      pageAccessToken: ctx.pageAccessToken,
+      psid: ctx.psid,
+      action: on ? 'typing_on' : 'typing_off',
+    })
+    return { ok: !('error' in result) }
+  } catch {
+    return { ok: false }
+  }
 }
 
 /** Opening a conversation marks it read for THIS user only. Free action (no send, no spend). */
@@ -120,6 +73,6 @@ export async function markMessengerConversationRead(conversationId: number): Pro
   if (!Number.isInteger(id) || id <= 0) return { ok: false }
   const owned = await db('messenger_conversations').where({ id, agencyId: user.agencyId }).first('id')
   if (!owned) return { ok: false }
-  await markRead(id, user.agencyId, user.id)
+  await markMessengerRead(id, user.agencyId, user.id)
   return { ok: true }
 }

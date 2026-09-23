@@ -30,6 +30,8 @@ export function messengerWindow(lastInboundAt: Date | string | null, now: Date):
 
 export type MessengerSendFailure =
   | 'not_enabled'
+  /** The chosen file is not something we will send (size/type). Decided locally, never by Meta. */
+  | 'invalid_file'
   | 'not_found'
   | 'empty'
   | 'too_long'
