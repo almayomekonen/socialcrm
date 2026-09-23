@@ -169,3 +169,45 @@ export async function recordOutbound(
   await markMessengerRead(ctx.conversationId, ctx.agencyId, ctx.userId).catch(() => {})
   revalidatePath('/inbox/messenger')
 }
+
+/**
+ * Resolve the Page + PSID for a conversation WITHOUT an entitlement check.
+ *
+ * Deliberately not `authorizeMessengerSend`: that calls `requireProductAccess`,
+ * which throws for a lapsed subscription. Marking a conversation seen is not
+ * billable outbound work — it is the read side — and an expired customer
+ * opening their inbox must not hit an entitlement error. It is still fully
+ * tenant-scoped and still requires the Page's `pages_messaging` grant.
+ *
+ * Returns null whenever the action is not possible, so callers stay quiet.
+ */
+export async function resolveMessengerPeer(
+  agencyId: number,
+  conversationId: number,
+): Promise<{ pageId: string; psid: string; pageAccessToken: string } | null> {
+  if (!isFacebookMessengerEnabledForAgency(agencyId)) return null
+  const id = Number(conversationId)
+  if (!Number.isInteger(id) || id <= 0) return null
+
+  const conversation = await db('messenger_conversations').where({ id, agencyId }).first()
+  if (!conversation) return null
+  // Meta refuses a sender action to someone outside the window, so skipping is
+  // both correct and one less pointless Graph call against the Page's quota.
+  if (!messengerWindow(conversation.lastInboundAt, new Date()).open) return null
+
+  const connection = await db('facebook_pages')
+    .where({ page_id: conversation.pageId, agency_id: agencyId })
+    .first()
+  if (!connection) return null
+  if (!hasFeatureScopes(parseGrantedScopes(connection.granted_scopes), 'messenger')) return null
+
+  try {
+    return {
+      pageId: conversation.pageId,
+      psid: conversation.psid,
+      pageAccessToken: resolvePageAccessToken(connection.page_access_token),
+    }
+  } catch {
+    return null
+  }
+}
