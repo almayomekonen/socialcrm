@@ -93,7 +93,11 @@ async function evaluate(pageId: string): Promise<MessengerDelivery> {
       return status.errors.includes('permission_missing') ? 'not_subscribed' : 'unknown'
     }
     if (status.missingFields === undefined) return 'unknown'
-    return status.subscribed && status.missingFields.length === 0 ? 'ready' : 'not_subscribed'
+    // Judged on the ESSENTIAL fields only. A Page missing just an enhancement
+    // (delivery receipts, reactions) still receives and sends messages, and must
+    // not be shown a reconnect prompt for a capability nobody asked for.
+    const missingEssential = status.missingEssentialFields ?? status.missingFields
+    return status.subscribed && missingEssential.length === 0 ? 'ready' : 'not_subscribed'
   } catch {
     // e.g. a sealed token this deployment cannot open: a deployment fault, not the customer's.
     return 'unknown'

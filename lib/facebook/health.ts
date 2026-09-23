@@ -1,8 +1,12 @@
 import { db } from '@/config/db'
 import { GRAPH_BASE as GRAPH_API } from '@/lib/facebook/graph'
-import { FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS, FACEBOOK_PAGE_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
+import {
+  FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS,
+  FACEBOOK_PAGE_WEBHOOK_FIELDS,
+  messengerCoreFields,
+} from '@/lib/facebook/pageWebhookFields'
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
-import { fieldsForPageRow, subscribePageWebhooks } from '@/lib/facebook/pageSubscription'
+import { essentialFieldsForPageRow, fieldsForPageRow, subscribePageWebhooks } from '@/lib/facebook/pageSubscription'
 
 const FETCH_TIMEOUT_MS = 6000
 
@@ -28,6 +32,13 @@ export interface FacebookHealthStatus {
    * subscribed"; a Messenger field missing here does not make a Page unhealthy.
    */
   missingFields?: string[]
+  /**
+   * The subset of `missingFields` whose absence actually BREAKS something —
+   * leadgen/feed, and (when Messenger is due) `messages`/`message_echoes`.
+   * Enhancement fields like `message_reactions` never appear here, so a Page
+   * that Meta will not grant one of them is not reported to the rep as broken.
+   */
+  missingEssentialFields?: string[]
 }
 
 /**
@@ -84,11 +95,13 @@ export async function checkFacebookConnection(
   pageId: string,
   pageAccessToken: string,
   expectedFields: readonly string[] = FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS,
+  essentialFields: readonly string[] = FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS,
 ): Promise<FacebookHealthStatus> {
   const errors: string[] = []
   let tokenValid = false
   let subscribed = false
   let missingFields: string[] | undefined
+  let missingEssentialFields: string[] | undefined
 
   // ONE read answers both questions — does Meta accept the token, and what is the
   // Page subscribed to. It used to be the identical request sent twice, which
@@ -125,6 +138,7 @@ export async function checkFacebookConnection(
     // SocialCRM requires leadgen (Lead Ads) AND feed (comments); expectedFields adds Messenger when due.
     const fields = subscribedFieldsFromApps(apps)
     missingFields = expectedFields.filter((f) => !fields.has(f))
+    missingEssentialFields = essentialFields.filter((f) => !fields.has(f))
     if (hasRequiredWebhookFields(fields)) {
       subscribed = true
       console.log(`[FacebookHealth] Subscription active [pageId=${pageId}]`)
@@ -137,7 +151,7 @@ export async function checkFacebookConnection(
 
   const needsReconnect = !tokenValid
 
-  return { tokenValid, permissionsOk: tokenValid, subscribed, needsReconnect, errors, missingFields }
+  return { tokenValid, permissionsOk: tokenValid, subscribed, needsReconnect, errors, missingFields, missingEssentialFields }
 }
 
 export async function repairFacebookConnection(pageId: string): Promise<{
@@ -169,7 +183,8 @@ export async function repairFacebookConnection(pageId: string): Promise<{
   // and checking only leadgen,feed would never subscribe it: turning the
   // Messenger rollout on does not touch a Page by itself (incident 2026-09-14).
   const fields = fieldsForPageRow(connection)
-  const status = await checkFacebookConnection(pageId, pageAccessToken, fields.split(','))
+  const essential = essentialFieldsForPageRow(connection)
+  const status = await checkFacebookConnection(pageId, pageAccessToken, fields.split(','), essential.split(','))
 
   if (status.needsReconnect) {
     console.warn(`[FacebookRepair] Reconnect required [pageId=${pageId}] — errors: ${status.errors.join(', ')}`)
@@ -187,16 +202,36 @@ export async function repairFacebookConnection(pageId: string): Promise<{
       return { repaired: true, needsReconnect: false, status }
     }
     console.error(`[FacebookRepair] Re-subscription failed [pageId=${pageId}] status=${sub.status}`)
-    // A refused Messenger field must never cost Lead Ads: when leadgen/feed are
-    // missing too, restore those on their own.
+    // TIERED FALLBACK. Meta replaces the whole set and rejects the whole call for
+    // one bad name, so back off one tier at a time rather than all the way:
+    //   full set → leadgen,feed + core Messenger → leadgen,feed
+    // A refused enhancement (say `message_reactions`) then costs that
+    // enhancement, not the rep's ability to receive messages, and never Lead Ads.
     // Only for a refusal (4xx): a network error or a Graph outage would otherwise
-    // drop Messenger fields the Page may still have.
-    if (!status.subscribed && fields !== FACEBOOK_PAGE_WEBHOOK_FIELDS && sub.status >= 400 && sub.status < 500) {
+    // drop fields the Page may still have.
+    const refused = sub.status >= 400 && sub.status < 500
+    const core = messengerCoreFields()
+    if (refused && fields !== core && core !== FACEBOOK_PAGE_WEBHOOK_FIELDS) {
+      const mid = await subscribePageWebhooks(pageId, pageAccessToken, core)
+      if (mid.ok) {
+        console.warn(`[FacebookRepair] Enhancement fields refused; subscribed ${core} [pageId=${pageId}]`)
+        status.subscribed = true
+        status.missingFields = fields.split(',').filter((f) => !core.split(',').includes(f))
+        status.missingEssentialFields = []
+        status.errors = status.errors.filter((e) => e !== 'not_subscribed')
+        return { repaired: true, needsReconnect: false, status }
+      }
+    }
+    if (!status.subscribed && fields !== FACEBOOK_PAGE_WEBHOOK_FIELDS && refused) {
       const base = await subscribePageWebhooks(pageId, pageAccessToken, FACEBOOK_PAGE_WEBHOOK_FIELDS)
       if (base.ok) {
         console.warn(`[FacebookRepair] Restored ${FACEBOOK_PAGE_WEBHOOK_FIELDS} only [pageId=${pageId}]`)
         status.subscribed = true
-        status.missingFields = fields.split(',').filter((f) => !(FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS as readonly string[]).includes(f))
+        const restored = FACEBOOK_PAGE_REQUIRED_WEBHOOK_FIELDS as readonly string[]
+        status.missingFields = fields.split(',').filter((f) => !restored.includes(f))
+        // leadgen/feed are subscribed again as of this call, so they are no
+        // longer missing; what remains essential-but-absent is Messenger's core.
+        status.missingEssentialFields = essential.split(',').filter((f) => !restored.includes(f))
         status.errors = status.errors.filter((e) => e !== 'not_subscribed')
         return { repaired: true, needsReconnect: false, status }
       }

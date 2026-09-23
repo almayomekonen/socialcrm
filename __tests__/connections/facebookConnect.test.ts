@@ -206,7 +206,7 @@ describe('Facebook connect — token hygiene (App Review hardening)', () => {
     vi.stubEnv('FACEBOOK_MESSENGER_AGENCY_ALLOWLIST', String(AGENCY))
     mockFetch({ subscribedOk: true })
     await POST(req(validBody))
-    expect(subscribeBody()).toBe('leadgen,feed,messages,message_echoes')
+    expect(subscribeBody()).toBe('leadgen,feed,messages,message_echoes,message_deliveries,message_reads,messaging_postbacks,messaging_referrals,message_reactions')
 
     pendingState.value = defaultPending()
     mockFetch({ subscribedOk: true })

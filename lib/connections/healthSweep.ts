@@ -2,7 +2,7 @@ import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { db } from '@/config/db'
 import { checkFacebookConnection, repairFacebookConnection } from '@/lib/facebook/health'
 import { fieldsForPageRow } from '@/lib/facebook/pageSubscription'
-import { missingAppMessengerFields } from '@/lib/facebook/appWebhookSubscription'
+import { appMessengerSubscriptionGaps } from '@/lib/facebook/appWebhookSubscription'
 import { markFacebookDisconnectedAndNotify } from '@/lib/facebook/integrationNotifications'
 import { resolveWhatsappHealth } from '@/lib/whatsapp/operationalStatus'
 import { notifyEvent } from '@/lib/notifications/emit'
@@ -121,9 +121,21 @@ async function sweepFacebook(result: HealthSweepResult): Promise<{ agency_id: nu
  */
 async function checkAppMessengerSubscription(pages: { agency_id: number; granted_scopes: unknown }[]): Promise<void> {
   if (!pages.some((p) => fieldsForPageRow(p).split(',').includes('messages'))) return
-  const missing = await missingAppMessengerFields()
-  if (missing && missing.length > 0) {
-    console.error('[healthSweep][facebook] Meta app Page webhook subscription is missing Messenger fields', { missing })
+  const gaps = await appMessengerSubscriptionGaps()
+  if (!gaps) return
+  // Core missing ⇒ no Messenger event reaches us at all, for any Page.
+  if (gaps.core.length > 0) {
+    console.error('[healthSweep][facebook] Meta app Page webhook subscription is missing Messenger fields', {
+      missing: gaps.core,
+    })
+  }
+  // Signals missing ⇒ messaging works; receipts, postbacks, referrals and
+  // reactions do not. A dashboard tick-box, not an outage.
+  if (gaps.signals.length > 0) {
+    console.warn('[healthSweep][facebook] Meta app is not subscribed to Messenger signal fields', {
+      missing: gaps.signals,
+      effect: 'delivery/read receipts, postbacks, referrals and reactions will not arrive',
+    })
   }
 }
 

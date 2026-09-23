@@ -1,5 +1,5 @@
 import { GRAPH_BASE } from '@/lib/facebook/graph'
-import { MESSENGER_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
+import { MESSENGER_SIGNAL_FIELDS, MESSENGER_WEBHOOK_FIELDS } from '@/lib/facebook/pageWebhookFields'
 
 /**
  * The APP half of Messenger delivery: Meta dashboard → Webhooks → Page.
@@ -28,6 +28,39 @@ export async function missingAppMessengerFields(fetchImpl: typeof fetch = fetch)
       (Array.isArray(page?.fields) ? page.fields : []).map((f) => (f as { name?: unknown })?.name),
     )
     return MESSENGER_WEBHOOK_FIELDS.filter((f) => !have.has(f))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The same read, split by consequence.
+ *
+ * `core` missing ⇒ Messenger receives NOTHING for every Page on the app.
+ * `signals` missing ⇒ messaging works, but delivery/read receipts, postbacks
+ * (Get Started, persistent menu), referrals and reactions never arrive. That is
+ * a dashboard tick-box an operator can fix, and it must be logged at a level
+ * that does not read as an outage.
+ */
+export async function appMessengerSubscriptionGaps(
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ core: string[]; signals: string[] } | null> {
+  const appId = process.env.META_APP_ID?.trim()
+  const appSecret = process.env.META_APP_SECRET
+  if (!appId || !appSecret) return null
+  try {
+    const res = await fetchImpl(`${GRAPH_BASE}/${encodeURIComponent(appId)}/subscriptions`, {
+      headers: { Authorization: `Bearer ${appId}|${appSecret}` },
+      signal: AbortSignal.timeout(6_000),
+    })
+    const data = (await res.json().catch(() => null)) as { data?: unknown } | null
+    if (!res.ok || !Array.isArray(data?.data)) return null
+    const page = (data.data as { object?: unknown; fields?: unknown }[]).find((s) => s?.object === 'page')
+    const have = new Set((Array.isArray(page?.fields) ? page.fields : []).map((f) => (f as { name?: unknown })?.name))
+    return {
+      core: MESSENGER_WEBHOOK_FIELDS.filter((f) => !have.has(f)),
+      signals: MESSENGER_SIGNAL_FIELDS.filter((f) => !have.has(f)),
+    }
   } catch {
     return null
   }

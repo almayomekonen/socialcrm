@@ -29,6 +29,7 @@ const h = vi.hoisted(() => ({
   disconnectCalls: [] as unknown[],
   notifications: [] as unknown[],
   appMissing: null as string[] | null,
+  appSignalsMissing: [] as string[],
   order: [] as string[],
 }))
 
@@ -62,9 +63,9 @@ vi.mock('@/lib/facebook/health', () => ({
 }))
 
 vi.mock('@/lib/facebook/appWebhookSubscription', () => ({
-  missingAppMessengerFields: async () => {
+  appMessengerSubscriptionGaps: async () => {
     h.order.push('app-subscription')
-    return h.appMissing
+    return h.appMissing === null ? null : { core: h.appMissing, signals: h.appSignalsMissing }
   },
 }))
 
@@ -116,7 +117,18 @@ describe('Page-level Messenger fields', () => {
     ]
     await sweep()
     expect(h.expectedFields).toEqual([
-      ['leadgen', 'feed', 'messages', 'message_echoes'],
+      [
+        'leadgen',
+        'feed',
+        'messages',
+        'message_echoes',
+        // Enhancements: receipts, postbacks, referrals, reactions.
+        'message_deliveries',
+        'message_reads',
+        'messaging_postbacks',
+        'messaging_referrals',
+        'message_reactions',
+      ],
       // Agency 64 is outside the Messenger rollout: Lead Ads and comments only.
       ['leadgen', 'feed'],
     ])
@@ -142,6 +154,25 @@ describe('Page-level Messenger fields', () => {
 })
 
 describe('App-level Messenger subscription (Meta dashboard)', () => {
+  it('a missing ENHANCEMENT field is a warning, not an error — messaging still works', async () => {
+    h.appMissing = []
+    h.appSignalsMissing = ['message_deliveries', 'message_reads']
+    h.pages = [{ ...FB_PAGE, granted_scopes: MESSAGING }]
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warns = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await sweep()
+
+    // Nothing is broken, so nothing is logged as broken.
+    expect(errors).not.toHaveBeenCalledWith(expect.stringContaining('missing Messenger fields'), expect.anything())
+    expect(warns).toHaveBeenCalledWith(
+      expect.stringContaining('not subscribed to Messenger signal fields'),
+      expect.objectContaining({ missing: ['message_deliveries', 'message_reads'] }),
+    )
+    errors.mockRestore()
+    warns.mockRestore()
+  })
+
   it('logs for operators once per pass when the app lacks the Messenger fields — after WhatsApp', async () => {
     h.appMissing = ['messages', 'message_echoes']
     h.pages = [

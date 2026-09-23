@@ -1,6 +1,6 @@
 import { GRAPH_BASE } from '@/lib/facebook/graph'
 import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
-import { pageWebhookFields } from '@/lib/facebook/pageWebhookFields'
+import { pageEssentialFieldList, pageWebhookFields } from '@/lib/facebook/pageWebhookFields'
 import { parseGrantedScopes } from '@/db/facebook'
 
 /**
@@ -38,4 +38,15 @@ export function fieldsForPageRow(row: { agency_id: number; granted_scopes: unkno
     grantedScopes: parseGrantedScopes(row.granted_scopes),
     messengerEnabled: isFacebookMessengerEnabledForAgency(row.agency_id),
   })
+}
+
+/**
+ * The fields whose absence means this Page's Messenger is BROKEN — the set the
+ * readiness verdict judges against. See pageEssentialFieldList.
+ */
+export function essentialFieldsForPageRow(row: { agency_id: number; granted_scopes: unknown }): string {
+  return pageEssentialFieldList({
+    grantedScopes: parseGrantedScopes(row.granted_scopes),
+    messengerEnabled: isFacebookMessengerEnabledForAgency(row.agency_id),
+  }).join(',')
 }
