@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatBusinessDate as formatDate } from '@/lib/today/time'
 import { loadOlderMessengerMessages } from '../actions'
-import type { MessengerMessage } from '../types'
+import type { MessengerConversationEvent, MessengerMessage } from '../types'
 import MessengerBubble from './MessengerBubble'
+import MessengerEventLine from './MessengerEventLine'
 
 /**
  * The scrolling message history, with "load earlier".
@@ -27,11 +28,14 @@ export default function MessengerMessageList({
   conversationId,
   initial,
   hasMoreInitially,
+  events = [],
 }: {
   conversationId: number
   /** Oldest-first, as the server produced it. */
   initial: MessengerMessage[]
   hasMoreInitially: boolean
+  /** Postbacks, referrals and reactions for this conversation, oldest-first. */
+  events?: MessengerConversationEvent[]
 }) {
   const [older, setOlder] = useState<MessengerMessage[]>([])
   const [hasMore, setHasMore] = useState(hasMoreInitially)
@@ -74,10 +78,37 @@ export default function MessengerMessageList({
     }
   }
 
-  // Day separators are decided over the WHOLE list, so a separator is not
+  // Reactions attach to their message; postbacks and referrals are timeline
+  // entries of their own.
+  const reactionsFor = new Map<number, MessengerConversationEvent[]>()
+  const timelineEvents: MessengerConversationEvent[] = []
+  for (const e of events) {
+    if (e.kind === 'reaction') {
+      if (e.targetMessageId === null) continue
+      const list = reactionsFor.get(e.targetMessageId) ?? []
+      list.push(e)
+      reactionsFor.set(e.targetMessageId, list)
+    } else {
+      timelineEvents.push(e)
+    }
+  }
+
+  // One chronological stream, so a "tapped Get Started" sits where it happened
+  // rather than above or below the whole conversation.
+  type Row = { at: Date; message?: MessengerMessage; event?: MessengerConversationEvent }
+  const stream: Row[] = [
+    ...messages.map((m) => ({ at: m.timestamp, message: m })),
+    // Only events at or after the oldest loaded message: an event older than the
+    // history on screen would otherwise appear to precede nothing.
+    ...timelineEvents
+      .filter((e) => !messages[0] || e.occurredAt >= messages[0].timestamp)
+      .map((e) => ({ at: e.occurredAt, event: e })),
+  ].sort((a, b) => a.at.getTime() - b.at.getTime())
+
+  // Day separators are decided over the WHOLE stream, so a separator is not
   // repeated when an older page happens to start on the same day.
-  const rows = messages
-    .map((m, i) => ({ m, newDay: i === 0 || formatDate(messages[i - 1].timestamp) !== formatDate(m.timestamp) }))
+  const rows = stream
+    .map((r, i) => ({ r, newDay: i === 0 || formatDate(stream[i - 1].at) !== formatDate(r.at) }))
     .reverse()
 
   return (
@@ -86,19 +117,23 @@ export default function MessengerMessageList({
       aria-label='הודעות השיחה'
       className='flex min-h-0 flex-1 flex-col-reverse overflow-y-auto px-4 py-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]'
     >
-      {rows.map(({ m, newDay }) => (
-        <div key={m.id} className='mt-1.5'>
+      {rows.map(({ r, newDay }) => (
+        <div key={r.message ? `m${r.message.id}` : `e${r.event!.id}`} className='mt-1.5'>
           {newDay && (
             <div className='flex justify-center pb-1.5 pt-2.5'>
               <span
                 suppressHydrationWarning
                 className='rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-gray-500'
               >
-                {formatDate(m.timestamp)}
+                {formatDate(r.at)}
               </span>
             </div>
           )}
-          <MessengerBubble message={m} />
+          {r.message ? (
+            <MessengerBubble message={r.message} reactions={reactionsFor.get(r.message.id) ?? []} />
+          ) : (
+            <MessengerEventLine event={r.event!} />
+          )}
         </div>
       ))}
 

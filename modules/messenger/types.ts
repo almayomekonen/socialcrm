@@ -43,3 +43,27 @@ export type MessengerMessage = {
   deliveredAt: Date | null
   readAt: Date | null
 }
+
+/**
+ * A non-message event in a conversation: a button/menu tap, an entry point the
+ * customer arrived through, or a reaction to something the Page sent.
+ *
+ * Kept apart from MessengerMessage on purpose — see the migration and
+ * parseMessagingEvent for why a reaction must never be stored as a message.
+ */
+export type MessengerConversationEvent = {
+  id: number
+  kind: 'postback' | 'referral' | 'reaction' | 'optin'
+  /** Postback button label, referral source, or the reaction action. */
+  title: string | null
+  /** Postback payload, referral ref, or the emoji. */
+  payload: string | null
+  /**
+   * For a reaction: the id of OUR message row it refers to, resolved on the
+   * server. Meta's `mid` is deliberately not sent to the client — the UI
+   * addresses a message by row id, exactly as it addresses a conversation.
+   * Null when the reaction arrived before the message it refers to.
+   */
+  targetMessageId: number | null
+  occurredAt: Date
+}

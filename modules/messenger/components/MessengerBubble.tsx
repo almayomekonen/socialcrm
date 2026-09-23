@@ -1,4 +1,4 @@
-import type { MessengerMessage } from '../types'
+import type { MessengerConversationEvent, MessengerMessage } from '../types'
 import { formatBusinessTime as formatTime } from '@/lib/today/time'
 import type { MessengerAttachment } from '@/lib/facebook/messenger/parseMessagingEvent'
 import MessengerMessageStatus from './MessengerMessageStatus'
@@ -88,7 +88,18 @@ function Attachment({ a }: { a: MessengerAttachment }) {
 }
 
 
-export default function MessengerBubble({ message: m }: { message: MessengerMessage }) {
+export default function MessengerBubble({
+  message: m,
+  reactions = [],
+}: {
+  message: MessengerMessage
+  /**
+   * Reactions Meta reported for THIS message. Rendered on the bubble rather
+   * than as a timeline entry: a reaction is a comment on something, not a thing
+   * said, and it must never look like the customer wrote again.
+   */
+  reactions?: MessengerConversationEvent[]
+}) {
   const inbound = m.direction === 'inbound'
   const label = SOURCE_LABEL[m.source]
   return (
@@ -116,6 +127,18 @@ export default function MessengerBubble({ message: m }: { message: MessengerMess
           </span>
         </div>
         {label && <p className='mt-0.5 text-[10px] text-gray-500'>{label}</p>}
+        {reactions.length > 0 && (
+          <p className='mt-0.5 flex items-center gap-1'>
+            <span className='sr-only'>תגובות להודעה:</span>
+            {reactions.map((r) => (
+              <span key={r.id} className='rounded-full bg-white px-1.5 py-0.5 text-[11px] leading-none shadow-sm ring-1 ring-gray-200'>
+                {/* Meta's own emoji, never one we chose. A reaction with no
+                    emoji (Meta sends the type only) is shown as a neutral mark. */}
+                {r.payload || '•'}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
     </div>
   )

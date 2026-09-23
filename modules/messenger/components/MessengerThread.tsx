@@ -1,5 +1,5 @@
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
-import type { MessengerConversationListItem, MessengerMessage } from '../types'
+import type { MessengerConversationEvent, MessengerConversationListItem, MessengerMessage } from '../types'
 import MessengerAvatar from './MessengerAvatar'
 import MessengerComposer from './MessengerComposer'
 import MessengerLeadActions from './MessengerLeadActions'
@@ -18,6 +18,7 @@ export default function MessengerThread({
   conversation,
   messages,
   hasMoreMessages,
+  events,
   windowOpen,
   windowHint,
   canSend,
@@ -27,6 +28,8 @@ export default function MessengerThread({
   /** First page, oldest-first. */
   messages: MessengerMessage[]
   hasMoreMessages: boolean
+  /** Postbacks, referrals and reactions, oldest-first. */
+  events: MessengerConversationEvent[]
   windowOpen: boolean
   windowHint: string | null
   /** False when the Page's grant lacks pages_messaging — then `permissionPrompt` explains. */
@@ -57,6 +60,7 @@ export default function MessengerThread({
         conversationId={conversation.id}
         initial={messages}
         hasMoreInitially={hasMoreMessages}
+        events={events}
       />
 
       <div className='shrink-0 border-t border-gray-100 bg-white px-3 py-2.5'>

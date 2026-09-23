@@ -1,7 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import type { MessengerAttachment } from '@/lib/facebook/messenger/parseMessagingEvent'
-import type { MessengerConversationListItem, MessengerMessage } from './types'
+import type { MessengerConversationEvent, MessengerConversationListItem, MessengerMessage } from './types'
 
 /**
  * Messenger inbox read layer.
@@ -198,4 +198,39 @@ async function listMessengerMessagesRaw(
       deliveredAt: r.deliveredAt ?? null,
       readAt: r.readAt ?? null,
     }))
+}
+
+/** How many conversation events are shown alongside a thread. */
+const EVENT_LIMIT = 100
+
+/**
+ * Postbacks, referrals and reactions for one conversation.
+ *
+ * Tenant-scoped like every other read. Bounded: a thread that somehow collected
+ * thousands of reactions must not turn opening it into an unbounded scan.
+ */
+export async function listMessengerConversationEvents(
+  agencyId: number,
+  conversationId: number,
+): Promise<MessengerConversationEvent[]> {
+  const rows = (await db('messenger_events as e')
+    // LEFT JOIN: a reaction can outrun the echo of the message it refers to, and
+    // an unresolvable target must not drop the event.
+    .leftJoin('messenger_messages as m', function () {
+      this.on('m.mid', '=', 'e.targetMid').andOn('m.pageId', '=', 'e.pageId')
+    })
+    .where({ 'e.agencyId': agencyId, 'e.conversationId': conversationId })
+    .orderBy([{ column: 'e.occurredAt', order: 'desc' }, { column: 'e.id', order: 'desc' }])
+    .limit(EVENT_LIMIT)
+    .select('e.id', 'e.kind', 'e.title', 'e.payload', 'e.occurredAt', 'm.id as targetMessageId')) as {
+    id: number | string
+    kind: MessengerConversationEvent['kind']
+    title: string | null
+    payload: string | null
+    targetMessageId: number | string | null
+    occurredAt: Date
+  }[]
+  return rows
+    .map((r) => ({ ...r, id: Number(r.id), targetMessageId: r.targetMessageId ? Number(r.targetMessageId) : null }))
+    .reverse()
 }

@@ -15,7 +15,12 @@ import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
-import { getMessengerConversation, listMessengerConversations, listMessengerMessagePage } from '@/modules/messenger/queries'
+import {
+  getMessengerConversation,
+  listMessengerConversationEvents,
+  listMessengerConversations,
+  listMessengerMessagePage,
+} from '@/modules/messenger/queries'
 import MessengerConversationRow from '@/modules/messenger/components/MessengerConversationRow'
 import MessengerEmptyState, { type MessengerEmptyKind } from '@/modules/messenger/components/MessengerEmptyState'
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
@@ -133,7 +138,12 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       </>,
     )
   }
-  const page = selected ? await listMessengerMessagePage(agencyId, selected.id) : { messages: [], hasMore: false }
+  const [page, events] = selected
+    ? await Promise.all([
+        listMessengerMessagePage(agencyId, selected.id),
+        listMessengerConversationEvents(agencyId, selected.id),
+      ])
+    : [{ messages: [], hasMore: false }, []]
   const messages = page.messages
 
   // Names and pictures come from Meta, cost a Graph call, and are never worth
@@ -154,6 +164,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       conversation={selected}
       messages={messages}
       hasMoreMessages={page.hasMore}
+      events={events}
       windowOpen={replyWindow!.open}
       windowHint={messengerWindowHint(replyWindow!, now)}
       canSend={messagingPageIds.has(selected.pageId)}

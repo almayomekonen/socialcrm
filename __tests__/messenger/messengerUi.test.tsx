@@ -32,7 +32,11 @@ import MessengerComposer from '@/modules/messenger/components/MessengerComposer'
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
 import MessengerConversationRow from '@/modules/messenger/components/MessengerConversationRow'
 import MessengerEmptyState from '@/modules/messenger/components/MessengerEmptyState'
-import type { MessengerConversationListItem, MessengerMessage } from '@/modules/messenger/types'
+import type {
+  MessengerConversationEvent,
+  MessengerConversationListItem,
+  MessengerMessage,
+} from '@/modules/messenger/types'
 
 afterEach(() => cleanup())
 
@@ -73,6 +77,62 @@ describe('InboxChannelSwitch — Messenger tab', () => {
   it('shows Messenger next to שיחות and תגובות when enabled', () => {
     render(<InboxChannelSwitch active='whatsapp' showMessenger />)
     expect(screen.getByRole('link', { name: /Messenger/ })).toHaveAttribute('href', '/inbox/messenger')
+  })
+})
+
+describe('conversation events in the timeline', () => {
+  const ev = (over: Partial<MessengerConversationEvent>): MessengerConversationEvent => ({
+    id: 1,
+    kind: 'postback',
+    title: null,
+    payload: null,
+    targetMessageId: null,
+    occurredAt: new Date('2026-09-14T10:01:00Z'),
+    ...over,
+  })
+
+  const renderWithEvents = (messages: MessengerMessage[], events: MessengerConversationEvent[]) =>
+    render(
+      <MessengerThread
+        conversation={conversation}
+        messages={messages}
+        hasMoreMessages={false}
+        events={events}
+        windowOpen
+        windowHint={null}
+        canSend
+        permissionPrompt={<p>PROMPT</p>}
+      />,
+    )
+
+  it('shows the button label the customer actually saw', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ title: 'קבל הצעת מחיר', payload: 'QUOTE' })])
+    expect(screen.getByText('בחר: קבל הצעת מחיר')).toBeInTheDocument()
+  })
+
+  it('falls back to a plain description rather than inventing a label', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ id: 2, payload: 'GET_STARTED' })])
+    expect(screen.getByText('התחיל שיחה')).toBeInTheDocument()
+  })
+
+  it('names the entry point a referral came from', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ id: 3, kind: 'referral', title: 'ADS', payload: 'promo7' })])
+    expect(screen.getByText('הגיע ממודעה (promo7)')).toBeInTheDocument()
+  })
+
+  it('a reaction renders on its message, never as a timeline entry', () => {
+    renderWithEvents(
+      [msg({ id: 7, direction: 'outbound', source: 'socialcrm', text: 'שלחנו הצעה' })],
+      [ev({ id: 4, kind: 'reaction', title: 'react', payload: '❤', targetMessageId: 7 })],
+    )
+    expect(screen.getByText('❤')).toBeInTheDocument()
+    // It must not read as the customer having written again.
+    expect(screen.queryByText(/בחר:/)).not.toBeInTheDocument()
+  })
+
+  it('a reaction whose message is not loaded is dropped, not shown detached', () => {
+    renderWithEvents([msg({ id: 1 })], [ev({ id: 5, kind: 'reaction', payload: '❤', targetMessageId: null })])
+    expect(screen.queryByText('❤')).not.toBeInTheDocument()
   })
 })
 
@@ -184,6 +244,7 @@ describe('MessengerThread', () => {
         canSend={canSend}
         permissionPrompt={<p>PROMPT</p>}
         hasMoreMessages={false}
+        events={[]}
       />,
     )
 
@@ -281,6 +342,7 @@ describe('MessengerThread', () => {
         canSend
         permissionPrompt={null}
       hasMoreMessages={false}
+      events={[]}
       />,
     )
     expect(screen.getByRole('link', { name: 'פתח את הליד: דנה לוי' })).toHaveAttribute('href', '/clients/44/summary')
