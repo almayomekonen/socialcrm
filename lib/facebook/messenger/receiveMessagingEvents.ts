@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
-import { parseMessagingEvent } from '@/lib/facebook/messenger/parseMessagingEvent'
+import { messengerEventKey, parseMessagingEvent } from '@/lib/facebook/messenger/parseMessagingEvent'
 import { recordMessengerEvents, type NewMessengerEvent } from '@/db/messengerWebhookEvents'
 import { describeDbError } from '@/lib/system/dbErrorInfo'
 
@@ -28,14 +28,18 @@ export type MessengerReceiveResult =
 type Entry = { id?: unknown; messaging?: unknown }
 
 export async function receiveMessagingEvents(entries: unknown): Promise<MessengerReceiveResult> {
-  const candidates: { pageId: string; kind: 'inbound' | 'echo'; mid: string; raw: unknown }[] = []
+  const candidates: { pageId: string; kind: NewMessengerEvent['kind']; eventKey: string; raw: unknown }[] = []
   for (const entry of Array.isArray(entries) ? (entries as Entry[]) : []) {
     const pageId = typeof entry?.id === 'string' ? entry.id : null
     if (!pageId || !Array.isArray(entry.messaging)) continue
     for (const raw of entry.messaging) {
       const event = parseMessagingEvent(pageId, raw)
       if (event.kind === 'ignored') continue
-      candidates.push({ pageId, kind: event.kind, mid: event.mid, raw })
+      // Messages key on Meta's mid; receipts, postbacks, referrals and reactions
+      // carry no id, so the key is derived from their content.
+      const eventKey = messengerEventKey(event)
+      if (!eventKey) continue
+      candidates.push({ pageId, kind: event.kind, eventKey, raw })
     }
   }
   if (candidates.length === 0) return { outcome: 'none' }
@@ -55,7 +59,7 @@ export async function receiveMessagingEvents(entries: unknown): Promise<Messenge
       const agencyId = agencyByPage.get(c.pageId)
       if (agencyId === undefined) unknownPage++
       else if (!isFacebookMessengerEnabledForAgency(agencyId)) notEnabled++
-      else events.push({ agencyId, pageId: c.pageId, eventKey: `mid:${c.mid}`, kind: c.kind, payload: c.raw })
+      else events.push({ agencyId, pageId: c.pageId, eventKey: c.eventKey, kind: c.kind, payload: c.raw })
     }
     const ignored = candidates.length - events.length
     // Counts only. Without this line a delivery Meta made and we chose not to store

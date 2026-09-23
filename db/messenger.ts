@@ -152,3 +152,97 @@ export async function setMessengerCustomerNameIfMissing(conversationId: number, 
     .whereNull('customerName')
     .update({ customerName: name.slice(0, 200), updatedAt: db.fn.now() })
 }
+
+/** What the User Profile API told us about a contact. 'transient' is never stored. */
+export type MessengerProfileStatus = 'ok' | 'denied' | 'unavailable'
+
+/**
+ * Record the outcome of a profile lookup.
+ *
+ * The NAME is only ever filled in, never blanked: a rep may have come to
+ * recognise a conversation by it, and a later refusal (Meta outage, the person
+ * tightening their privacy settings) must not erase it. The PICTURE is the
+ * opposite — its URL expires, so it is replaced on every successful refresh and
+ * cleared when Meta stops returning one, because showing a dead image is worse
+ * than showing initials.
+ *
+ * `profileFetchedAt` is stamped for every recorded outcome including `denied`,
+ * which is what stops the refresh loop from asking again.
+ */
+export async function saveMessengerProfile(input: {
+  conversationId: number
+  agencyId: number
+  name: string | null
+  picUrl: string | null
+  status: MessengerProfileStatus
+  at: Date
+}): Promise<void> {
+  await db('messenger_conversations')
+    .where({ id: input.conversationId, agencyId: input.agencyId })
+    .update({
+      customerName: db.raw(`COALESCE("customerName", ?)`, [input.name ? input.name.slice(0, 200) : null]),
+      profilePicUrl: input.picUrl,
+      profileStatus: input.status,
+      profileFetchedAt: input.at,
+      updatedAt: db.fn.now(),
+    })
+}
+
+/**
+ * Apply a `message_deliveries` / `message_reads` watermark.
+ *
+ * Meta reports these as "everything up to this timestamp", not per message, so
+ * this stamps every OUTBOUND message at or before the watermark that does not
+ * already carry one. COALESCE keeps the first event's time: a later, broader
+ * watermark must not restate when an older message was delivered.
+ *
+ * Inbound messages are untouched — a read receipt is about what the CUSTOMER
+ * has seen, which only applies to what the Page sent.
+ */
+export async function applyMessengerWatermark(
+  trx: Knex.Transaction | Knex,
+  input: { conversationId: number; agencyId: number; field: 'deliveredAt' | 'readAt'; watermark: Date },
+): Promise<number> {
+  const column = input.field
+  return trx('messenger_messages')
+    .where({ conversationId: input.conversationId, agencyId: input.agencyId, direction: 'outbound' })
+    .whereRaw(`COALESCE("channelTimestamp", "createdAt") <= ?`, [input.watermark])
+    .whereNull(column)
+    .update({ [column]: input.watermark })
+}
+
+/**
+ * Store a postback, referral or reaction. Keyed by ("pageId", "eventKey") so a
+ * Meta redelivery is a no-op, exactly like a message's (pageId, mid).
+ */
+export async function insertMessengerEvent(
+  trx: Knex.Transaction | Knex,
+  input: {
+    conversationId: number
+    agencyId: number
+    pageId: string
+    kind: 'postback' | 'referral' | 'reaction' | 'optin'
+    eventKey: string
+    title: string | null
+    payload: string | null
+    targetMid: string | null
+    occurredAt: Date
+  },
+): Promise<number | null> {
+  const rows = await trx('messenger_events')
+    .insert({
+      conversationId: input.conversationId,
+      agencyId: input.agencyId,
+      pageId: input.pageId,
+      kind: input.kind,
+      eventKey: input.eventKey,
+      title: input.title,
+      payload: input.payload,
+      targetMid: input.targetMid,
+      occurredAt: input.occurredAt,
+    })
+    .onConflict(['pageId', 'eventKey'])
+    .ignore()
+    .returning('id')
+  return rows.length > 0 ? Number((rows[0] as { id: number | string }).id) : null
+}

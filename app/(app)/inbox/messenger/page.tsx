@@ -9,6 +9,7 @@ import { getInAppBrowser, isMobileWorkspaceRequest } from '@/lib/device'
 import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import { messengerWindow, messengerWindowHint } from '@/lib/facebook/messenger/rules'
 import { checkMessengerDelivery, pendingMessengerDeliveryChecks } from '@/lib/facebook/messenger/deliveryCheck'
+import { refreshMessengerProfiles } from '@/lib/facebook/messenger/profile'
 import { FACEBOOK_NOTICES, type ConnectionNotice } from '@/lib/connections/messages'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
@@ -18,6 +19,7 @@ import { getMessengerConversation, listMessengerConversations, listMessengerMess
 import MessengerConversationRow from '@/modules/messenger/components/MessengerConversationRow'
 import MessengerEmptyState, { type MessengerEmptyKind } from '@/modules/messenger/components/MessengerEmptyState'
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
+import MessengerProfileAccessNotice from '@/modules/messenger/components/MessengerProfileAccessNotice'
 
 /**
  * Messenger inside שיחות — a channel tab next to WhatsApp and comments, no new
@@ -115,6 +117,16 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   }
   const messages = selected ? await listMessengerMessages(agencyId, selected.id) : []
 
+  // Names and pictures come from Meta, cost a Graph call, and are never worth
+  // delaying the inbox for. Refreshed AFTER the response, bounded per pass, and
+  // skipped entirely for contacts Meta has already refused (profile.ts).
+  after(() => refreshMessengerProfiles({ agencyId }))
+
+  // One quiet admin-only line when Meta refuses profile access outright, so the
+  // reason initials are showing is visible to the person who can act on it —
+  // and invisible to everyone who cannot. Never blocks messaging.
+  const profileAccessDenied = conversations.some((c) => c.profileStatus === 'denied')
+
   // The window is decided here, once, on the server — never re-derived in client render.
   const now = new Date()
   const replyWindow = selected ? messengerWindow(selected.lastInboundAt, now) : null
@@ -128,6 +140,9 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       permissionPrompt={permissionPrompt}
     />
   ) : null
+
+  const profileNotice =
+    profileAccessDenied && isAdmin(user.role as Roles) ? <MessengerProfileAccessNotice /> : null
 
   const list = (
     <nav aria-label='שיחות Messenger'>
@@ -144,6 +159,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
         <div className='[&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
           <InboxChannelSwitch active='messenger' showMessenger />
         </div>
+        {profileNotice}
         {selected ? (
           <>
             <Link href='/inbox/messenger' className='inline-flex min-h-11 items-center text-sm text-primary'>
@@ -165,6 +181,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
         <div className='shrink-0 border-b border-gray-100 p-2 px-3'>
           <InboxChannelSwitch active='messenger' showMessenger />
         </div>
+        {profileNotice}
         <div className='min-h-0 flex-1 overflow-y-auto'>{list}</div>
       </aside>
       <section aria-label='שיחה' className='flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>

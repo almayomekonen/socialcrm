@@ -2,7 +2,9 @@ import { formatBusinessDate as formatDate, formatBusinessTime as formatTime } fr
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import type { MessengerAttachment } from '@/lib/facebook/messenger/parseMessagingEvent'
 import type { MessengerConversationListItem, MessengerMessage } from '../types'
+import MessengerAvatar from './MessengerAvatar'
 import MessengerComposer from './MessengerComposer'
+import MessengerMessageStatus from './MessengerMessageStatus'
 import MessengerLeadActions from './MessengerLeadActions'
 import MessengerReadMarker from './MessengerReadMarker'
 
@@ -17,9 +19,41 @@ const SOURCE_LABEL: Record<MessengerMessage['source'], string | null> = {
 
 const UNSUPPORTED = 'סוג הודעה שלא ניתן להציג כאן. אפשר לראות אותה בתיבת ההודעות של הדף ב-Meta Business Suite.'
 
+/**
+ * One received attachment.
+ *
+ * Every branch renders SOMETHING truthful. An attachment Meta sent without a
+ * usable URL still produces a visible marker, because silently dropping it
+ * would make the thread read as if the customer sent nothing — the one failure
+ * that loses a rep the plot of a conversation.
+ *
+ * Audio and video are played in place: a rep triaging a voice note should not
+ * have to leave for Facebook. `preload='metadata'` keeps the list cheap.
+ */
 function Attachment({ a }: { a: MessengerAttachment }) {
-  if (a.type === 'unsupported' || !a.url) return <p className='text-xs text-gray-500 italic'>{UNSUPPORTED}</p>
+  // Shared link / structured template: no media, but there IS content.
+  if (a.type === 'share') {
+    if (!a.url) return <p className='text-xs italic text-gray-500'>{a.title || 'תוכן משותף'}</p>
+    return (
+      <a
+        href={a.url}
+        target='_blank'
+        rel='noopener noreferrer nofollow'
+        className='block text-sm text-primary underline underline-offset-2'
+      >
+        {a.title || 'תוכן משותף'}
+      </a>
+    )
+  }
+
+  if (a.type === 'unsupported' || !a.url) return <p className='text-xs italic text-gray-500'>{UNSUPPORTED}</p>
+
   if (a.type === 'image') {
+    // A sticker is not a photo: no bubble chrome, no link-out, smaller.
+    if (a.sticker) {
+      /* eslint-disable-next-line @next/next/no-img-element -- Meta CDN URL, not a static asset */
+      return <img src={a.url} alt='מדבקה' loading='lazy' referrerPolicy='no-referrer' className='max-h-28' />
+    }
     return (
       <a href={a.url} target='_blank' rel='noopener noreferrer' className='block'>
         {/* eslint-disable-next-line @next/next/no-img-element -- Meta CDN URL, not a static asset */}
@@ -27,10 +61,26 @@ function Attachment({ a }: { a: MessengerAttachment }) {
       </a>
     )
   }
-  const label = a.type === 'video' ? 'פתח סרטון' : a.type === 'audio' ? 'פתח הקלטה' : 'פתח קובץ מצורף'
+
+  if (a.type === 'audio') {
+    return <audio controls preload='metadata' src={a.url} className='mt-1 max-w-full' aria-label='הקלטה שהתקבלה ב-Messenger' />
+  }
+
+  if (a.type === 'video') {
+    return (
+      <video controls preload='metadata' src={a.url} className='mt-1 max-h-60 rounded-lg' aria-label='סרטון שהתקבל ב-Messenger' />
+    )
+  }
+
   return (
-    <a href={a.url} target='_blank' rel='noopener noreferrer' className='text-sm text-primary underline underline-offset-2'>
-      {label}
+    <a
+      href={a.url}
+      target='_blank'
+      rel='noopener noreferrer'
+      download
+      className='text-sm text-primary underline underline-offset-2'
+    >
+      הורד קובץ מצורף
     </a>
   )
 }
@@ -66,12 +116,15 @@ export default function MessengerThread({
       <MessengerReadMarker conversationId={conversation.id} latestMessageId={messages.at(-1)?.id ?? null} />
 
       <header className='flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-2.5'>
-        <div className='min-w-0'>
+        <div className='flex min-w-0 items-center gap-2.5'>
+          <MessengerAvatar name={name} picUrl={conversation.profilePicUrl} size='md' />
+          <div className='min-w-0'>
           <p className='truncate text-base font-semibold text-gray-900'>{name}</p>
           <p className='inline-flex items-center gap-1 text-xs text-gray-500'>
             <ChannelIcon channel='messenger' className='size-3' />
             Messenger
           </p>
+          </div>
         </div>
         <MessengerLeadActions conversationId={conversation.id} leadId={conversation.leadId} leadName={conversation.leadName} />
       </header>
@@ -105,8 +158,11 @@ export default function MessengerThread({
                         {m.text || UNSUPPORTED}
                       </p>
                     )}
-                    <span dir='ltr' suppressHydrationWarning className='shrink-0 pb-px text-[10px] tabular-nums text-gray-500'>
-                      {formatTime(m.timestamp)}
+                    <span dir='ltr' className='flex shrink-0 items-center gap-1 pb-px'>
+                      <span suppressHydrationWarning className='text-[10px] tabular-nums text-gray-500'>
+                        {formatTime(m.timestamp)}
+                      </span>
+                      <MessengerMessageStatus message={m} />
                     </span>
                   </div>
                   {label && <p className='mt-0.5 text-[10px] text-gray-500'>{label}</p>}

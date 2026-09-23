@@ -36,6 +36,8 @@ function conversationSelect(knex: Knex, agencyId: number, userId: number) {
       'mc.lastInboundAt',
       'mc.lastMessageText',
       'mc.lastDirection',
+      'mc.profilePicUrl',
+      'mc.profileStatus',
       knex.raw(`NULLIF(TRIM(CONCAT_WS(' ', c."firstName", c."lastName")), '') as "leadName"`),
       knex.raw(
         `("mc"."lastInboundAt" IS NOT NULL AND ("r"."lastReadAt" IS NULL OR "mc"."lastInboundAt" > "r"."lastReadAt")) as unread`,
@@ -59,7 +61,7 @@ export function listMessengerMessagesQuery(knex: Knex, agencyId: number, convers
     .where({ agencyId, conversationId })
     .orderByRaw('COALESCE("channelTimestamp", "createdAt") DESC, id DESC')
     .limit(MESSAGE_LIMIT)
-    .select('id', 'direction', 'source', 'text', 'attachments', 'channelTimestamp', 'createdAt')
+    .select('id', 'direction', 'source', 'text', 'attachments', 'channelTimestamp', 'createdAt', 'deliveredAt', 'readAt')
 }
 
 type ConversationRow = Omit<MessengerConversationListItem, 'unread'> & { unread: boolean | string }
@@ -93,6 +95,8 @@ export async function listMessengerMessages(agencyId: number, conversationId: nu
     attachments: unknown
     channelTimestamp: Date | null
     createdAt: Date
+    deliveredAt: Date | null
+    readAt: Date | null
   }[]
   return rows
     .map((r) => ({
@@ -102,6 +106,8 @@ export async function listMessengerMessages(agencyId: number, conversationId: nu
       text: r.text,
       attachments: parseAttachments(r.attachments),
       timestamp: r.channelTimestamp ?? r.createdAt,
+      deliveredAt: r.deliveredAt ?? null,
+      readAt: r.readAt ?? null,
     }))
     .reverse()
 }

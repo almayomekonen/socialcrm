@@ -4,7 +4,7 @@
  * attachments and the unsupported-message fallback, unread rows, and no emoji.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
@@ -41,6 +41,8 @@ const conversation: MessengerConversationListItem = {
   lastMessageText: 'כמה עולה?',
   lastDirection: 'inbound',
   unread: true,
+  profilePicUrl: null,
+  profileStatus: null,
 }
 
 const msg = (over: Partial<MessengerMessage>): MessengerMessage => ({
@@ -50,6 +52,8 @@ const msg = (over: Partial<MessengerMessage>): MessengerMessage => ({
   text: 'כמה עולה?',
   attachments: [],
   timestamp: new Date('2026-09-14T10:00:00Z'),
+  deliveredAt: null,
+  readAt: null,
   ...over,
 })
 
@@ -112,8 +116,62 @@ describe('MessengerThread', () => {
       msg({ id: 3, text: '', attachments: [{ type: 'unsupported', url: null }] }),
     ])
     expect(screen.getByAltText('תמונה שהתקבלה ב-Messenger')).toHaveAttribute('referrerpolicy', 'no-referrer')
-    expect(screen.getByRole('link', { name: 'פתח קובץ מצורף' })).toHaveAttribute('rel', 'noopener noreferrer')
+    const file = screen.getByRole('link', { name: 'הורד קובץ מצורף' })
+    expect(file).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(file).toHaveAttribute('download')
     expect(screen.getAllByText(/סוג הודעה שלא ניתן להציג כאן/).length).toBeGreaterThan(0)
+  })
+
+  it('audio and video are playable in place rather than linking out to Facebook', () => {
+    renderThread([
+      msg({ id: 1, text: '', attachments: [{ type: 'audio', url: 'https://lookaside.fbsbx.com/a.mp4' }] }),
+      msg({ id: 2, text: '', attachments: [{ type: 'video', url: 'https://lookaside.fbsbx.com/v.mp4' }] }),
+    ])
+    expect(screen.getByLabelText('הקלטה שהתקבלה ב-Messenger')).toHaveAttribute('controls')
+    expect(screen.getByLabelText('סרטון שהתקבל ב-Messenger')).toHaveAttribute('controls')
+  })
+
+  it('a sticker renders as a sticker, and shared content shows its link', () => {
+    renderThread([
+      msg({ id: 1, text: '', attachments: [{ type: 'image', url: 'https://cdn.example/s.png', sticker: true }] }),
+      msg({ id: 2, text: '', attachments: [{ type: 'share', url: 'https://example.com/x', title: 'מאמר' }] }),
+    ])
+    expect(screen.getByAltText('מדבקה')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'מאמר' })).toHaveAttribute('href', 'https://example.com/x')
+  })
+
+  it('delivery state is shown only when Meta reported it — never assumed', () => {
+    renderThread([
+      msg({ id: 1, direction: 'outbound', source: 'socialcrm', text: 'א' }),
+      msg({ id: 2, direction: 'outbound', source: 'socialcrm', text: 'ב', deliveredAt: new Date() }),
+      msg({ id: 3, direction: 'outbound', source: 'socialcrm', text: 'ג', deliveredAt: new Date(), readAt: new Date() }),
+    ])
+    expect(screen.getByText('נשלח — ממתין לאישור מסירה')).toBeInTheDocument()
+    expect(screen.getByText('נמסר')).toBeInTheDocument()
+    expect(screen.getByText('נקרא')).toBeInTheDocument()
+  })
+
+  it('an inbound message never shows a delivery state', () => {
+    renderThread([msg({ id: 1, direction: 'inbound', deliveredAt: new Date(), readAt: new Date() })])
+    expect(screen.queryByText('נמסר')).not.toBeInTheDocument()
+    expect(screen.queryByText('נקרא')).not.toBeInTheDocument()
+  })
+
+  it('a real profile picture is used, and a broken one falls back to initials without a broken image', async () => {
+    const { default: MessengerAvatar } = await import('@/modules/messenger/components/MessengerAvatar')
+    const { container } = render(<MessengerAvatar name='דנה לוי' picUrl='https://cdn.example/p.jpg' />)
+    const img = container.querySelector('img')
+    expect(img).toHaveAttribute('src', 'https://cdn.example/p.jpg')
+    fireEvent.error(img!)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toContain('דל')
+  })
+
+  it('with no picture the avatar is initials, never a placeholder photo', async () => {
+    const { default: MessengerAvatar } = await import('@/modules/messenger/components/MessengerAvatar')
+    const { container } = render(<MessengerAvatar name='דנה לוי' picUrl={null} />)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toContain('דל')
   })
 
   it('without pages_messaging the composer is replaced by the permission prompt', () => {

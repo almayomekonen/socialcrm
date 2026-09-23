@@ -18,6 +18,14 @@ export type MessengerConversationListItem = {
   lastDirection: 'inbound' | 'outbound' | null
   /** The customer wrote after this user last opened the conversation. */
   unread: boolean
+  /**
+   * Meta CDN URL for the customer's picture, or null. A CACHE, not a fact: the
+   * URL expires, so the UI must fall back to initials when it fails to load and
+   * must never treat its absence as "this person has no picture".
+   */
+  profilePicUrl: string | null
+  /** null = never asked. 'denied' = Meta refuses this app profile access at all. */
+  profileStatus: 'ok' | 'denied' | 'unavailable' | null
 }
 
 export type MessengerMessage = {
@@ -27,4 +35,11 @@ export type MessengerMessage = {
   text: string
   attachments: MessengerAttachment[]
   timestamp: Date
+  /**
+   * Only ever set from a Meta `message_deliveries` / `message_reads` event.
+   * null means "no such event seen" — NOT "not delivered". The UI must stay
+   * silent rather than claim a state Meta never reported.
+   */
+  deliveredAt: Date | null
+  readAt: Date | null
 }

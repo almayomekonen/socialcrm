@@ -26,7 +26,8 @@ export type NewMessengerEvent = {
   agencyId: number
   pageId: string
   eventKey: string
-  kind: 'inbound' | 'echo'
+  /** Widened in 20260923000001 alongside the table's CHECK constraint. */
+  kind: 'inbound' | 'echo' | 'delivery' | 'read' | 'postback' | 'referral' | 'reaction'
   payload: unknown
 }
 

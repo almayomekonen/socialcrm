@@ -159,13 +159,20 @@ describe('inbound messages', () => {
     expect(await messagesFor(PAGE_A)).toHaveLength(2)
   })
 
-  it('M4: an unsupported attachment is kept with a marker, never dropped', async () => {
+  it('M4: a template attachment is stored as shared content, never dropped', async () => {
     await deliver(inbound({ mid: 'm_tpl', text: '', attachments: [{ type: 'template', payload: {} }] }))
     const [msg] = await messagesFor(PAGE_A)
     const attachments = typeof msg.attachments === 'string' ? JSON.parse(msg.attachments) : msg.attachments
-    expect(attachments).toEqual([{ type: 'unsupported', url: null }])
+    expect(attachments).toEqual([{ type: 'share', url: null, title: null }])
     const [conv] = await conversationsFor(PAGE_A)
     expect(conv.lastMessageText).toBe('[קובץ מצורף]')
+  })
+
+  it('M4b: an attachment type we do not know is still kept with an explicit marker', async () => {
+    await deliver(inbound({ mid: 'm_loc', text: '', attachments: [{ type: 'location', payload: {} }] }))
+    const msg = (await messagesFor(PAGE_A)).find((m) => m.mid === 'm_loc')
+    const attachments = typeof msg.attachments === 'string' ? JSON.parse(msg.attachments) : msg.attachments
+    expect(attachments).toEqual([{ type: 'unsupported', url: null }])
   })
 })
 
