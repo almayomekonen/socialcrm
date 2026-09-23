@@ -47,38 +47,58 @@ Migrations are applied **manually, before the deploy**, never by the build
 Use the **direct** Neon host for migrations, never `-pooler` (drop `-pooler`
 from the hostname).
 
-### 2a. Blocker: production is ahead of `main` (found 2026-09-23)
+### 2a. RESOLVED: production was ahead of `main` (2026-09-23)
 
-`knex_migrations` batch 48 records three billing migrations that exist ONLY on
-the unmerged branch `feat/card-required-trial`:
+`knex_migrations` batch 48 recorded three billing migrations that existed only
+on the unmerged branch `feat/card-required-trial`, so knex aborted with *"The
+migration directory is corrupt, the following files are missing"* and refused to
+migrate production from this branch or from `main`.
+
+**Resolution:** the three files were copied into `migrations/` **byte-identical**
+to the versions on `feat/card-required-trial` (sha256 verified). They are already
+recorded in `knex_migrations`, so knex skips them — nothing was re-run, no
+billing data was touched, and no migration history was rewritten. Because the
+copies are byte-identical, merging `feat/card-required-trial` later will not
+conflict on them.
+
+They are self-contained: `billing_payment_methods` references only `agencies`
+and `users`; `billing_charges` references `billing_payment_methods`;
+`card_storage_consent` alters it. Filename sort puts them in dependency order,
+and a fresh database built from baseline + every migration was verified to
+produce all three tables plus both `cardStorageConsent*` columns — so the CI
+schema invariant still holds.
+
+**The filename-number collision remains** — `main` and the card branch both use
+`20260916000001` and `...002` for different migrations, and production records
+both pairs (batch 47 and batch 48). Knex keys on the full filename so both ran
+correctly, but **do not author a new migration at that timestamp.**
+
+### 2b. Production migration applied — 2026-09-23
+
+Applied with the normal mechanism (`npm run migrate`, list validation **enabled**)
+against the DIRECT Neon host.
 
 ```
-20260916000001_create_billing_payment_methods.cjs
-20260916000002_create_billing_charges.cjs
-20260916000003_card_storage_consent.cjs
+Batch 49 run: 3 migrations
+  20260923000001_messenger_profiles_and_receipts.cjs
+  20260923000002_messenger_history_import.cjs
+  20260923000003_messenger_saved_replies.cjs
 ```
 
-Their tables are live in production. Because those files are absent from `main`,
-knex aborts with *"The migration directory is corrupt, the following files are
-missing"* and **will not migrate production from this branch, or from main.**
-That is knex's protection against a deleted migration; it cannot distinguish
-that from "the files are on a branch nobody merged".
+Pre-flight: target confirmed (`neondb`, 97 agencies / 768 clients); restore point
+recorded (115 migrations, batch 48, 116 tables, 2026-09-23T09:46:00Z UTC);
+rollback cost measured as **zero** — `messenger_webhook_events` held 9 rows, all
+`inbound`/`echo`, so the `down()` DELETE would remove none, and both new tables
+did not yet exist.
 
-There is also a filename-number collision — `main` uses `20260916000001` and
-`...002` for different migrations, and production records both pairs (batch 47
-and batch 48). Do not author a new migration at that timestamp.
+Verified after: `knex migrate:list` reports **no pending migrations**; 118
+recorded (was 115); both new tables and all six new columns present; the widened
+`messenger_webhook_events_kind_check` accepts all seven kinds; nine new indexes
+created; agencies/clients/messages counts unchanged; `billing_payment_methods`
+and `billing_charges` untouched.
 
-**The real fix is to merge `feat/card-required-trial`.** Note that it is 69
-commits including auth, billing charges and marketing changes, so merging it is
-a product deployment, not a schema tidy-up — it needs its own decision, not a
-drive-by merge to unblock a migration.
-
-**One-off workaround**, if Messenger must ship before that: run
-`migrate.latest()` programmatically with `disableMigrationsListValidation: true`
-and assert that the only pending migrations are the three `20260923*` ones. The
-billing migrations cannot be re-run by this — `migrate:latest` only considers
-files present in the directory. Do not commit that config; it steps around the
-divergence rather than fixing it, and the next person hits the same wall.
+**Application code was NOT deployed.** The schema is ahead of `main` by design —
+every change is additive, so the running build simply ignores it.
 
 **Why migrations first:** the code reads `deliveredAt`, `profileStatus`,
 `historyImportedAt` and `messenger_saved_replies`. Deploying before migrating
