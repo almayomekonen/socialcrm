@@ -9,7 +9,7 @@ import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { PENDING_PAGES_COOKIE, readPendingPages, toClientPages } from '@/lib/facebook/pendingPages'
-import { getFacebookCommentTextCapability, parseGrantedScopes } from '@/db/facebook'
+import { getFacebookCommentTextCapability } from '@/db/facebook'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
 import { checkMessagingReady } from '@/lib/whatsapp/registration'
@@ -19,9 +19,7 @@ import { getInAppBrowser } from '@/lib/device'
 import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/templates/TemplatesSection'
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import MessengerEntryPoints from '@/components/settings/messenger/MessengerEntryPoints'
-import { getMessengerProfile, EMPTY_MESSENGER_PROFILE } from '@/lib/facebook/messenger/messengerProfileApi'
-import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
-import { isAdmin, type Roles } from '@/types/roles'
+import { loadMessengerSection } from '@/components/settings/messenger/messengerSectionData'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
 import { BRAND } from './brandColors'
 
@@ -124,41 +122,7 @@ export default async function LeadSourcesSection({
 
   const inAppBrowser = await getInAppBrowser()
 
-  /**
-   * Messenger entry points — greeting and persistent menu.
-   *
-   * Shown only when there is something to configure AND someone who may: the
-   * agency is in the Messenger rollout, the Page's grant actually carries
-   * `pages_messaging`, and the viewer is an admin. A rep cannot change a
-   * Page-wide setting, so showing them a form they cannot submit would be a
-   * dead control.
-   *
-   * The current settings are read here, once per page render, because Meta
-   * allows only 10 messenger_profile calls per 10 minutes per Page.
-   */
-  const messengerEligible =
-    !!fbConnection &&
-    isFacebookMessengerEnabledForAgency(user.agencyId) &&
-    isAdmin(user.role as Roles) &&
-    hasFeatureScopes(parseGrantedScopes(fbConnection.granted_scopes), 'messenger')
-
-  let messengerProfile = EMPTY_MESSENGER_PROFILE
-  let messengerReadFailed = false
-  if (messengerEligible) {
-    try {
-      const read = await getMessengerProfile({
-        pageId: fbConnection.page_id,
-        pageAccessToken: resolvePageAccessToken(fbConnection.page_access_token),
-      })
-      if ('error' in read) messengerReadFailed = true
-      else messengerProfile = read.profile
-    } catch {
-      // A sealed token this deployment cannot open is a deployment fault, not
-      // the customer's; the section says so rather than rendering empty fields
-      // that would silently overwrite live settings on save.
-      messengerReadFailed = true
-    }
-  }
+  const messenger = await loadMessengerSection(user, fbConnection)
 
   return (
     <UrlSyncedAccordion className='accordion border rounded-lg bg-white'>
@@ -202,7 +166,7 @@ export default async function LeadSourcesSection({
           />
         </Suspense>
       </AccordionItem>
-      {messengerEligible && (
+      {messenger.visible && (
         <AccordionItem
           id='messenger'
           bodyClass='p-6'
@@ -212,9 +176,9 @@ export default async function LeadSourcesSection({
         >
           <Suspense fallback={null}>
             <MessengerEntryPoints
-              pageId={fbConnection.page_id}
-              initial={messengerProfile}
-              readFailed={messengerReadFailed}
+              pageId={messenger.pageId}
+              initial={messenger.profile}
+              readFailed={messenger.readFailed}
             />
           </Suspense>
         </AccordionItem>

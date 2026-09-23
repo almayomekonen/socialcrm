@@ -1,13 +1,8 @@
 import { db } from '@/config/db'
 import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import { echoSource, messengerEventKey, parseMessagingEvent } from '@/lib/facebook/messenger/parseMessagingEvent'
-import {
-  applyMessengerWatermark,
-  bumpMessengerConversation,
-  findOrCreateMessengerConversation,
-  insertMessengerEvent,
-  insertMessengerMessage,
-} from '@/db/messenger'
+import { bumpMessengerConversation, findOrCreateMessengerConversation, insertMessengerMessage } from '@/db/messenger'
+import { applyMessengerWatermark, insertMessengerEvent } from '@/db/messengerEvents'
 
 /**
  * SERVER-INTERNAL — called only from the signature-verified Facebook webhook.
