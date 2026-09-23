@@ -15,11 +15,12 @@ import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
-import { getMessengerConversation, listMessengerConversations, listMessengerMessages } from '@/modules/messenger/queries'
+import { getMessengerConversation, listMessengerConversations, listMessengerMessagePage } from '@/modules/messenger/queries'
 import MessengerConversationRow from '@/modules/messenger/components/MessengerConversationRow'
 import MessengerEmptyState, { type MessengerEmptyKind } from '@/modules/messenger/components/MessengerEmptyState'
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
 import MessengerProfileAccessNotice from '@/modules/messenger/components/MessengerProfileAccessNotice'
+import MessengerSearch from '@/modules/messenger/components/MessengerSearch'
 
 /**
  * Messenger inside שיחות — a channel tab next to WhatsApp and comments, no new
@@ -34,7 +35,7 @@ import MessengerProfileAccessNotice from '@/modules/messenger/components/Messeng
  */
 export const metadata: Metadata = { title: 'Messenger' }
 
-type SearchParams = { c?: string; permission?: string }
+type SearchParams = { c?: string; permission?: string; q?: string }
 
 const REFRESH_MS = 10_000
 
@@ -85,11 +86,28 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   )
   if (messagingPageIds.size === 0) return shell(permissionPrompt)
 
+  const query = typeof sp.q === 'string' ? sp.q.trim().slice(0, 100) : ''
   const selectedId = Number(sp.c)
   const [conversations, selected] = await Promise.all([
-    listMessengerConversations(agencyId, user.id),
+    listMessengerConversations(agencyId, user.id, query),
     Number.isInteger(selectedId) && selectedId > 0 ? getMessengerConversation(agencyId, user.id, selectedId) : null,
   ])
+  // FILTERED-EMPTY IS NOT SYSTEM-EMPTY (ux-guidelines §11). A search that matched
+  // nothing keeps the full UI and says so inside the list; only an agency with no
+  // conversations at all gets the page-level onboarding state below.
+  if (conversations.length === 0 && query) {
+    return shell(
+      <div className='overflow-hidden rounded-lg border border-gray-200 bg-white'>
+        <div className='border-b border-gray-100 p-2 px-3'>
+          <MessengerSearch initial={query} />
+        </div>
+        <p role='status' className='px-3 py-6 text-center text-sm text-gray-500'>
+          לא נמצאו שיחות התואמות לחיפוש.
+        </p>
+      </div>,
+    )
+  }
+
   // No conversation yet: one page-level state, not an empty list beside an empty thread.
   if (conversations.length === 0) {
     // "No messages yet" promises that messages WILL arrive. A recorded grant does
@@ -115,7 +133,8 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       </>,
     )
   }
-  const messages = selected ? await listMessengerMessages(agencyId, selected.id) : []
+  const page = selected ? await listMessengerMessagePage(agencyId, selected.id) : { messages: [], hasMore: false }
+  const messages = page.messages
 
   // Names and pictures come from Meta, cost a Graph call, and are never worth
   // delaying the inbox for. Refreshed AFTER the response, bounded per pass, and
@@ -134,6 +153,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     <MessengerThread
       conversation={selected}
       messages={messages}
+      hasMoreMessages={page.hasMore}
       windowOpen={replyWindow!.open}
       windowHint={messengerWindowHint(replyWindow!, now)}
       canSend={messagingPageIds.has(selected.pageId)}
@@ -159,6 +179,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
         <div className='[&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
           <InboxChannelSwitch active='messenger' showMessenger />
         </div>
+        {!selected && <MessengerSearch initial={query} />}
         {profileNotice}
         {selected ? (
           <>
@@ -178,8 +199,9 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
       <ConversationRefreshPoller intervalMs={REFRESH_MS} />
       <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
-        <div className='shrink-0 border-b border-gray-100 p-2 px-3'>
+        <div className='shrink-0 space-y-2 border-b border-gray-100 p-2 px-3'>
           <InboxChannelSwitch active='messenger' showMessenger />
+          <MessengerSearch initial={query} />
         </div>
         {profileNotice}
         <div className='min-h-0 flex-1 overflow-y-auto'>{list}</div>

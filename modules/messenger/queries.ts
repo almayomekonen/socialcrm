@@ -16,7 +16,36 @@ import type { MessengerConversationListItem, MessengerMessage } from './types'
  */
 
 export const MESSENGER_LIST_LIMIT = 50
-const MESSAGE_LIMIT = 300
+
+/**
+ * Messages loaded with the thread. Older ones are fetched on demand by
+ * `listOlderMessengerMessages`, which is why this is a page size and not a
+ * ceiling on history.
+ */
+export const MESSENGER_MESSAGE_PAGE = 50
+
+/**
+ * Free-text filter over a conversation list.
+ *
+ * Matches the contact's name, the linked ליד's name, and the last message —
+ * the three things a rep actually remembers about a conversation. Applied in
+ * SQL so the result is the agency's WHOLE history, not the 50 rows that happen
+ * to be on screen; a search that silently only looked at the current page would
+ * report "nothing found" for a conversation that exists.
+ *
+ * `%` and `_` are escaped so a customer whose name contains one cannot turn the
+ * pattern into a wildcard.
+ */
+function applySearch(q: Knex.QueryBuilder, knex: Knex, search: string) {
+  const term = search.trim().slice(0, 100)
+  if (!term) return q
+  const pattern = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+  return q.andWhere((w) => {
+    w.whereRaw(`"mc"."customerName" ILIKE ? ESCAPE '\\'`, [pattern])
+      .orWhereRaw(`"mc"."lastMessageText" ILIKE ? ESCAPE '\\'`, [pattern])
+      .orWhereRaw(`TRIM(CONCAT_WS(' ', "c"."firstName", "c"."lastName")) ILIKE ? ESCAPE '\\'`, [pattern])
+  })
+}
 
 function conversationSelect(knex: Knex, agencyId: number, userId: number) {
   return knex('messenger_conversations as mc')
@@ -45,33 +74,67 @@ function conversationSelect(knex: Knex, agencyId: number, userId: number) {
     )
 }
 
-export function listMessengerConversationsQuery(knex: Knex, agencyId: number, userId: number) {
-  return conversationSelect(knex, agencyId, userId)
+export function listMessengerConversationsQuery(knex: Knex, agencyId: number, userId: number, search = '') {
+  const q = conversationSelect(knex, agencyId, userId)
     .orderByRaw('"mc"."lastMessageAt" DESC NULLS LAST, "mc"."id" DESC')
     .limit(MESSENGER_LIST_LIMIT)
+  return applySearch(q, knex, search)
 }
 
 export function getMessengerConversationQuery(knex: Knex, agencyId: number, userId: number, conversationId: number) {
   return conversationSelect(knex, agencyId, userId).andWhere('mc.id', conversationId).first()
 }
 
-/** Newest MESSAGE_LIMIT messages, returned oldest-first for reading. */
-export function listMessengerMessagesQuery(knex: Knex, agencyId: number, conversationId: number) {
-  return knex('messenger_messages')
+/**
+ * One page of messages, newest first, optionally older than a cursor.
+ *
+ * The cursor is a row id, not a timestamp: two messages can share a
+ * `channelTimestamp` (Meta's resolution is seconds), and a timestamp cursor
+ * would then either skip one or return it twice. Ordering is by
+ * COALESCE(channelTimestamp, createdAt) then id — the same expression the
+ * index is built on — so the sort is total and the page boundary is stable.
+ */
+export function listMessengerMessagesQuery(
+  knex: Knex,
+  agencyId: number,
+  conversationId: number,
+  opts: { beforeId?: number; limit?: number } = {},
+) {
+  const q = knex('messenger_messages')
     .where({ agencyId, conversationId })
     .orderByRaw('COALESCE("channelTimestamp", "createdAt") DESC, id DESC')
-    .limit(MESSAGE_LIMIT)
+    .limit(opts.limit ?? MESSENGER_MESSAGE_PAGE)
     .select('id', 'direction', 'source', 'text', 'attachments', 'channelTimestamp', 'createdAt', 'deliveredAt', 'readAt')
+  if (opts.beforeId) {
+    q.andWhereRaw(
+      `(COALESCE("channelTimestamp", "createdAt"), id) <
+       (SELECT COALESCE("channelTimestamp", "createdAt"), id FROM messenger_messages WHERE id = ?)`,
+      [opts.beforeId],
+    )
+  }
+  return q
 }
 
-type ConversationRow = Omit<MessengerConversationListItem, 'unread'> & { unread: boolean | string }
+type ConversationRow = Omit<MessengerConversationListItem, 'unread' | 'id'> & {
+  id: number | string
+  unread: boolean | string
+}
 
+/**
+ * `id` is a bigserial, which node-postgres returns as a STRING to avoid losing
+ * precision past 2^53. The type has always said `number`, so every consumer has
+ * been quietly holding a string — harmless where it is interpolated into a URL,
+ * not harmless the first time someone compares it with `===` to a number or
+ * sorts by it. Coerced here, the same way message ids already are.
+ *
+ * `unread` is a raw SQL boolean, which some drivers hand back as 't'.
+ */
 function mapConversation(row: ConversationRow): MessengerConversationListItem {
-  return { ...row, unread: row.unread === true || row.unread === 't' }
+  return { ...row, id: Number(row.id), unread: row.unread === true || row.unread === 't' }
 }
 
-export async function listMessengerConversations(agencyId: number, userId: number) {
-  const rows = (await listMessengerConversationsQuery(db, agencyId, userId)) as ConversationRow[]
+export async function listMessengerConversations(agencyId: number, userId: number, search = '') {
+  const rows = (await listMessengerConversationsQuery(db, agencyId, userId, search)) as ConversationRow[]
   return rows.map(mapConversation)
 }
 
@@ -86,8 +149,34 @@ function parseAttachments(raw: unknown): MessengerAttachment[] {
   return Array.isArray(value) ? (value as MessengerAttachment[]) : []
 }
 
+/**
+ * A page of messages, oldest-first for reading, plus whether older ones exist.
+ *
+ * `hasMore` is derived by asking for ONE row beyond the page and discarding it.
+ * The alternative — a COUNT over the conversation — costs a second scan on
+ * every thread open to answer a question only the boundary needs.
+ */
+export async function listMessengerMessagePage(
+  agencyId: number,
+  conversationId: number,
+  opts: { beforeId?: number; limit?: number } = {},
+): Promise<{ messages: MessengerMessage[]; hasMore: boolean }> {
+  const limit = opts.limit ?? MESSENGER_MESSAGE_PAGE
+  const rows = await listMessengerMessagesRaw(agencyId, conversationId, { ...opts, limit: limit + 1 })
+  const hasMore = rows.length > limit
+  return { messages: rows.slice(0, limit).reverse(), hasMore }
+}
+
 export async function listMessengerMessages(agencyId: number, conversationId: number): Promise<MessengerMessage[]> {
-  const rows = (await listMessengerMessagesQuery(db, agencyId, conversationId)) as {
+  return (await listMessengerMessagePage(agencyId, conversationId)).messages
+}
+
+async function listMessengerMessagesRaw(
+  agencyId: number,
+  conversationId: number,
+  opts: { beforeId?: number; limit?: number },
+): Promise<MessengerMessage[]> {
+  const rows = (await listMessengerMessagesQuery(db, agencyId, conversationId, opts)) as {
     id: number | string
     direction: MessengerMessage['direction']
     source: MessengerMessage['source']
@@ -109,5 +198,4 @@ export async function listMessengerMessages(agencyId: number, conversationId: nu
       deliveredAt: r.deliveredAt ?? null,
       readAt: r.readAt ?? null,
     }))
-    .reverse()
 }

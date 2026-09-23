@@ -7,7 +7,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/inbox/messenger',
+  useSearchParams: () => new URLSearchParams(),
+}))
 vi.mock('@/lib/useAction', () => ({
   useAction: () => ({ loading: false, error: null, setError: vi.fn(), run: (fn: () => unknown) => fn(), accessDenied: false }),
 }))
@@ -179,6 +183,7 @@ describe('MessengerThread', () => {
         windowHint={null}
         canSend={canSend}
         permissionPrompt={<p>PROMPT</p>}
+        hasMoreMessages={false}
       />,
     )
 
@@ -275,6 +280,7 @@ describe('MessengerThread', () => {
         windowHint={null}
         canSend
         permissionPrompt={null}
+      hasMoreMessages={false}
       />,
     )
     expect(screen.getByRole('link', { name: 'פתח את הליד: דנה לוי' })).toHaveAttribute('href', '/clients/44/summary')

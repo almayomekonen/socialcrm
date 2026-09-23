@@ -6,6 +6,8 @@ import { MESSENGER_TEXT_MAX, type MessengerSendFailure } from '@/lib/facebook/me
 import { sendMessengerText } from '@/lib/facebook/messenger/send'
 import { sendMessengerSenderAction } from '@/lib/facebook/messenger/senderAction'
 import { authorizeMessengerSend, failFromGraph, markMessengerRead, recordOutbound } from './sendGuards'
+import { listMessengerMessagePage } from './queries'
+import type { MessengerMessage } from './types'
 
 export type MessengerSendResult = { ok: true } | { ok: false; reason: MessengerSendFailure; detail?: string }
 
@@ -64,6 +66,29 @@ export async function sendMessengerTyping(conversationId: number, on: boolean): 
   } catch {
     return { ok: false }
   }
+}
+
+/**
+ * Older messages in a conversation, for the "load earlier" control.
+ *
+ * A read, so it takes `requireAgencyUser` rather than `requireProductAccess`:
+ * scrolling back through history an agency already owns is not billable work,
+ * and an expired subscription must not erase the record of what was said.
+ * Ownership is still checked — the conversation must belong to the caller's
+ * agency before a single row is read.
+ */
+export async function loadOlderMessengerMessages(
+  conversationId: number,
+  beforeId: number,
+): Promise<{ ok: true; messages: MessengerMessage[]; hasMore: boolean } | { ok: false }> {
+  const user = await requireAgencyUser()
+  const id = Number(conversationId)
+  const cursor = Number(beforeId)
+  if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(cursor) || cursor <= 0) return { ok: false }
+  const owned = await db('messenger_conversations').where({ id, agencyId: user.agencyId }).first('id')
+  if (!owned) return { ok: false }
+  const page = await listMessengerMessagePage(user.agencyId, id, { beforeId: cursor })
+  return { ok: true, messages: page.messages, hasMore: page.hasMore }
 }
 
 /** Opening a conversation marks it read for THIS user only. Free action (no send, no spend). */
