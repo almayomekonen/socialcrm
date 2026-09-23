@@ -1,5 +1,6 @@
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import type { MessengerConversationEvent, MessengerConversationListItem, MessengerMessage } from '../types'
+import type { MessengerSavedReply } from '@/db/messengerSavedReplies'
 import MessengerAvatar from './MessengerAvatar'
 import MessengerComposer from './MessengerComposer'
 import MessengerLeadActions from './MessengerLeadActions'
@@ -23,6 +24,7 @@ export default function MessengerThread({
   windowHint,
   canSend,
   permissionPrompt,
+  savedReplies,
 }: {
   conversation: MessengerConversationListItem
   /** First page, oldest-first. */
@@ -35,6 +37,8 @@ export default function MessengerThread({
   /** False when the Page's grant lacks pages_messaging — then `permissionPrompt` explains. */
   canSend: boolean
   permissionPrompt: React.ReactNode
+  /** Agency snippets for the composer picker. */
+  savedReplies: MessengerSavedReply[]
 }) {
   const name = conversation.leadName ?? conversation.customerName ?? 'פונה מ-Messenger'
 
@@ -65,7 +69,12 @@ export default function MessengerThread({
 
       <div className='shrink-0 border-t border-gray-100 bg-white px-3 py-2.5'>
         {canSend ? (
-          <MessengerComposer conversationId={conversation.id} windowOpen={windowOpen} windowHint={windowHint} />
+          <MessengerComposer
+            conversationId={conversation.id}
+            windowOpen={windowOpen}
+            windowHint={windowHint}
+            savedReplies={savedReplies}
+          />
         ) : (
           permissionPrompt
         )}

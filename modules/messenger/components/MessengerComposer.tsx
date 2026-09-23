@@ -7,10 +7,12 @@ import { useAction } from '@/lib/useAction'
 import { toast } from '@/lib/toast'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { MESSENGER_TEXT_MAX, type MessengerSendFailure } from '@/lib/facebook/messenger/rules'
-import { sendMessengerReply } from '../actions'
+import { sendMessengerReply, sendMessengerSavedReply } from '../actions'
 import { useAttachmentUpload } from '../useAttachmentUpload'
 import { useMessengerDraft, useMessengerTyping } from '../useComposerState'
 import MessengerAttachmentTray from './MessengerAttachmentTray'
+import MessengerSavedReplyPicker from './MessengerSavedReplyPicker'
+import type { MessengerSavedReply } from '@/db/messengerSavedReplies'
 
 const FAILURE_COPY: Record<MessengerSendFailure, string> = {
   not_enabled: 'Messenger אינו זמין בחשבון הזה',
@@ -45,10 +47,13 @@ export default function MessengerComposer({
   conversationId,
   windowOpen,
   windowHint,
+  savedReplies = [],
 }: {
   conversationId: number
   windowOpen: boolean
   windowHint: string | null
+  /** This agency's snippets. Empty ⇒ the picker does not render at all. */
+  savedReplies?: MessengerSavedReply[]
 }) {
   const router = useRouter()
   const fileInput = useRef<HTMLInputElement | null>(null)
@@ -80,6 +85,21 @@ export default function MessengerComposer({
   const clearFile = () => {
     setFile(null)
     if (fileInput.current) fileInput.current.value = ''
+  }
+
+  /** A structured reply goes as-is; its buttons cannot survive a textarea. */
+  const sendSaved = (reply: MessengerSavedReply) => {
+    setFailure(null)
+    stopTyping()
+    void run(async () => {
+      const result = await sendMessengerSavedReply(conversationId, reply.id)
+      if ('reason' in result) {
+        setFailure(result.detail ?? FAILURE_COPY[result.reason] ?? FAILURE_COPY.meta_error)
+        return
+      }
+      toast('success', 'התשובה נשלחה ב-Messenger')
+      router.refresh()
+    })
   }
 
   const send = () => {
@@ -138,6 +158,14 @@ export default function MessengerComposer({
             setFailure(null)
             setFile(e.target.files?.[0] ?? null)
           }}
+        />
+        <MessengerSavedReplyPicker
+          replies={savedReplies}
+          disabled={busy}
+          // Plain text becomes a starting point the rep edits; the draft is
+          // replaced rather than appended, because a snippet is a whole answer.
+          onInsert={(reply) => setDraft(reply.body.slice(0, MESSENGER_TEXT_MAX))}
+          onSend={sendSaved}
         />
         <button
           type='button'

@@ -27,6 +27,7 @@ import MessengerThread from '@/modules/messenger/components/MessengerThread'
 import MessengerProfileAccessNotice from '@/modules/messenger/components/MessengerProfileAccessNotice'
 import MessengerSearch from '@/modules/messenger/components/MessengerSearch'
 import MessengerImportHistory from '@/modules/messenger/components/MessengerImportHistory'
+import { listMessengerSavedReplies } from '@/db/messengerSavedReplies'
 
 /**
  * Messenger inside שיחות — a channel tab next to WhatsApp and comments, no new
@@ -147,12 +148,13 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       </>,
     )
   }
-  const [page, events] = selected
+  const [page, events, savedReplies] = selected
     ? await Promise.all([
         listMessengerMessagePage(agencyId, selected.id),
         listMessengerConversationEvents(agencyId, selected.id),
+        listMessengerSavedReplies(agencyId),
       ])
-    : [{ messages: [], hasMore: false }, []]
+    : [{ messages: [], hasMore: false }, [], []]
   const messages = page.messages
 
   // Names and pictures come from Meta, cost a Graph call, and are never worth
@@ -174,6 +176,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       messages={messages}
       hasMoreMessages={page.hasMore}
       events={events}
+      savedReplies={savedReplies}
       windowOpen={replyWindow!.open}
       windowHint={messengerWindowHint(replyWindow!, now)}
       canSend={messagingPageIds.has(selected.pageId)}

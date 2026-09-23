@@ -3,7 +3,9 @@
 import { db } from '@/config/db'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { MESSENGER_TEXT_MAX, type MessengerSendFailure } from '@/lib/facebook/messenger/rules'
-import { sendMessengerText } from '@/lib/facebook/messenger/send'
+import { describeRichContent, validateRichContent } from '@/lib/facebook/messenger/structured'
+import { asContent, getMessengerSavedReply } from '@/db/messengerSavedReplies'
+import { sendMessengerMessage, sendMessengerText } from '@/lib/facebook/messenger/send'
 import { sendMessengerSenderAction } from '@/lib/facebook/messenger/senderAction'
 import { authorizeMessengerSend, failFromGraph, markMessengerRead, recordOutbound } from './sendGuards'
 import { listMessengerMessagePage } from './queries'
@@ -66,6 +68,65 @@ export async function sendMessengerTyping(conversationId: number, on: boolean): 
   } catch {
     return { ok: false }
   }
+}
+
+/**
+ * Send a saved reply — text, and whatever structure it carries (quick replies,
+ * buttons, an attachment by URL).
+ *
+ * The client names the reply by ID ONLY. Its content is read from the row on
+ * the server, so a rep cannot craft an arbitrary structured payload through
+ * this endpoint, and the buttons a customer sees are always ones an admin
+ * wrote.
+ *
+ * `text` is an optional override for the body — the rep edits the snippet in
+ * the composer before sending it, which is the whole reason a saved reply is a
+ * starting point and not a macro.
+ */
+export async function sendMessengerSavedReply(
+  conversationId: number,
+  savedReplyId: number,
+  text?: string,
+): Promise<MessengerSendResult> {
+  const guard = await authorizeMessengerSend(conversationId)
+  if ('reason' in guard) return { ok: false, reason: guard.reason }
+  const { ctx } = guard
+
+  const reply = await getMessengerSavedReply(ctx.agencyId, Number(savedReplyId))
+  if (!reply) return { ok: false, reason: 'not_found' }
+
+  const body = (typeof text === 'string' ? text : reply.body).trim()
+  if (body.length > MESSENGER_TEXT_MAX) return { ok: false, reason: 'too_long' }
+
+  const content = asContent(reply)
+  // Re-validated at send: a reply stored before a limit changed, or edited
+  // directly in the database, must not reach Meta as an opaque refusal.
+  const check = validateRichContent(content)
+  if ('error' in check) return { ok: false, reason: 'invalid_file', detail: check.error }
+  // A button template REQUIRES text; without it there is nothing to attach
+  // buttons to and Meta refuses the whole message.
+  if (!body && content.buttons?.length) {
+    return { ok: false, reason: 'empty', detail: 'לתשובה עם כפתורים צריך גם טקסט' }
+  }
+  if (!body && !content.attachment) return { ok: false, reason: 'empty' }
+
+  const sent = await sendMessengerMessage({
+    pageId: ctx.pageId,
+    pageAccessToken: ctx.pageAccessToken,
+    psid: ctx.psid,
+    text: body,
+    content,
+  })
+  if ('error' in sent) return failFromGraph(sent.error, ctx)
+
+  await recordOutbound(ctx, {
+    mid: sent.mid,
+    text: describeRichContent(body, content),
+    // Recorded without a URL for a Meta-hosted asset; an attachment sent BY URL
+    // is one we can legitimately show, because we are the ones who supplied it.
+    attachments: content.attachment ? [{ type: content.attachment.type, url: content.attachment.url }] : [],
+  })
+  return { ok: true }
 }
 
 /**

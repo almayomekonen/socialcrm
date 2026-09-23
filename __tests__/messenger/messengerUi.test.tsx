@@ -98,6 +98,7 @@ describe('conversation events in the timeline', () => {
         messages={messages}
         hasMoreMessages={false}
         events={events}
+        savedReplies={[]}
         windowOpen
         windowHint={null}
         canSend
@@ -245,6 +246,7 @@ describe('MessengerThread', () => {
         permissionPrompt={<p>PROMPT</p>}
         hasMoreMessages={false}
         events={[]}
+        savedReplies={[]}
       />,
     )
 
@@ -343,6 +345,7 @@ describe('MessengerThread', () => {
         permissionPrompt={null}
       hasMoreMessages={false}
       events={[]}
+      savedReplies={[]}
       />,
     )
     expect(screen.getByRole('link', { name: 'פתח את הליד: דנה לוי' })).toHaveAttribute('href', '/clients/44/summary')

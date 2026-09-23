@@ -20,6 +20,7 @@ import TemplatesSection, { TemplatesHeaderBadge } from '@/components/settings/te
 import { isTemplatesEnabledForAgency } from '@/lib/whatsapp/templates/flag'
 import MessengerEntryPoints from '@/components/settings/messenger/MessengerEntryPoints'
 import { loadMessengerSection } from '@/components/settings/messenger/messengerSectionData'
+import MessengerSavedReplies from '@/components/settings/messenger/MessengerSavedReplies'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
 import { BRAND } from './brandColors'
 
@@ -180,6 +181,19 @@ export default async function LeadSourcesSection({
               initial={messenger.profile}
               readFailed={messenger.readFailed}
             />
+          </Suspense>
+        </AccordionItem>
+      )}
+      {messenger.visible && (
+        <AccordionItem
+          id='messenger-replies'
+          bodyClass='p-6'
+          title='תשובות שמורות ב-Messenger'
+          icon='facebook'
+          iconClassName={BRAND.facebook}
+        >
+          <Suspense fallback={null}>
+            <MessengerSavedReplies initial={messenger.savedReplies} />
           </Suspense>
         </AccordionItem>
       )}

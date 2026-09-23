@@ -9,6 +9,7 @@ import {
   getMessengerProfile,
   type MessengerProfileConfig,
 } from '@/lib/facebook/messenger/messengerProfileApi'
+import { listMessengerSavedReplies, type MessengerSavedReply } from '@/db/messengerSavedReplies'
 
 /**
  * Whether the Messenger entry-points section belongs on this settings page, and
@@ -25,7 +26,13 @@ import {
 
 export type MessengerSectionData =
   | { visible: false }
-  | { visible: true; pageId: string; profile: MessengerProfileConfig; readFailed: boolean }
+  | {
+      visible: true
+      pageId: string
+      profile: MessengerProfileConfig
+      readFailed: boolean
+      savedReplies: MessengerSavedReply[]
+    }
 
 type PageRow = { page_id: string; granted_scopes: unknown; page_access_token: string } | null | undefined
 
@@ -43,17 +50,23 @@ export async function loadMessengerSection(
     hasFeatureScopes(parseGrantedScopes(page.granted_scopes), 'messenger')
   if (!eligible) return { visible: false }
 
+  // Saved replies are OUR data and always readable; they must not be lost
+  // because Meta was slow, so they are fetched independently of the profile.
+  const savedReplies = await listMessengerSavedReplies(user.agencyId).catch(() => [])
+
   try {
     const read = await getMessengerProfile({
       pageId: page.page_id,
       pageAccessToken: resolvePageAccessToken(page.page_access_token),
     })
-    if ('error' in read) return { visible: true, pageId: page.page_id, profile: EMPTY_MESSENGER_PROFILE, readFailed: true }
-    return { visible: true, pageId: page.page_id, profile: read.profile, readFailed: false }
+    if ('error' in read) {
+      return { visible: true, pageId: page.page_id, profile: EMPTY_MESSENGER_PROFILE, readFailed: true, savedReplies }
+    }
+    return { visible: true, pageId: page.page_id, profile: read.profile, readFailed: false, savedReplies }
   } catch {
     // A sealed token this deployment cannot open is a deployment fault, not the
     // customer's. The section says so rather than rendering empty fields that
     // would silently overwrite live settings on save.
-    return { visible: true, pageId: page.page_id, profile: EMPTY_MESSENGER_PROFILE, readFailed: true }
+    return { visible: true, pageId: page.page_id, profile: EMPTY_MESSENGER_PROFILE, readFailed: true, savedReplies }
   }
 }
