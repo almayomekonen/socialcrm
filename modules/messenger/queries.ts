@@ -240,3 +240,30 @@ export async function listMessengerConversationEvents(
     .map((r) => ({ ...r, id: Number(r.id), targetMessageId: r.targetMessageId ? Number(r.targetMessageId) : null }))
     .reverse()
 }
+
+/**
+ * How many Messenger conversations this user has not opened since the customer
+ * last wrote.
+ *
+ * WHY A SEPARATE COUNT, and not folded into the global inbox badge. That badge
+ * counts unread WhatsApp CONVERSATIONS and is owned by `inbox_conversations`;
+ * adding Messenger to it would merge two channels behind one number a rep
+ * cannot act on without guessing which inbox to open, and would give one live
+ * signal two owners (frontend-experience-guidelines §14). This number belongs to
+ * the Messenger tab, which is where acting on it begins.
+ *
+ * Unread means exactly what the row list means by it: the customer wrote after
+ * this user last opened the conversation. Per user, not per agency — a teammate
+ * reading a thread does not mark it read for everyone.
+ */
+export async function countUnreadMessengerConversations(agencyId: number, userId: number): Promise<number> {
+  const [row] = await db('messenger_conversations as mc')
+    .leftJoin('messenger_conversation_reads as r', function () {
+      this.on('r.conversationId', '=', 'mc.id').andOn('r.userId', '=', db.raw('?', [userId]))
+    })
+    .where('mc.agencyId', agencyId)
+    .whereNotNull('mc.lastInboundAt')
+    .whereRaw('("r"."lastReadAt" IS NULL OR "mc"."lastInboundAt" > "r"."lastReadAt")')
+    .count<{ count: string }[]>('mc.id as count')
+  return Number(row?.count ?? 0)
+}

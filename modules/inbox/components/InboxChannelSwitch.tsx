@@ -22,9 +22,17 @@ const TABS: { id: InboxChannelTab; href: string; label: string }[] = [
 export default function InboxChannelSwitch({
   active,
   showMessenger = false,
+  messengerUnread = 0,
 }: {
   active: InboxChannelTab
   showMessenger?: boolean
+  /**
+   * Unread Messenger conversations for THIS user. Its own signal, deliberately
+   * not merged into the global inbox badge — that one counts WhatsApp, and a
+   * single number across two inboxes cannot be acted on without guessing which
+   * to open. Zero renders nothing: a badge showing 0 is noise.
+   */
+  messengerUnread?: number
 }) {
   const tabs = TABS.filter((tab) => tab.id !== 'messenger' || showMessenger || active === 'messenger')
   return (
@@ -44,6 +52,15 @@ export default function InboxChannelSwitch({
           >
             <ChannelIcon channel={tab.id} className='size-3.5' />
             {tab.label}
+            {tab.id === 'messenger' && messengerUnread > 0 && (
+              <span
+                // The count is in the accessible name, so it is not colour-only.
+                aria-label={`${messengerUnread} שיחות שלא נקראו`}
+                className='inline-flex min-w-4 items-center justify-center rounded-full bg-success px-1 text-[10px] font-semibold leading-4 text-white'
+              >
+                {messengerUnread > 99 ? '99+' : messengerUnread}
+              </span>
+            )}
           </Link>
         )
       })}

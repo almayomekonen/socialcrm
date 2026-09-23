@@ -16,6 +16,7 @@ vi.hoisted(() => {
 
 import { db } from '@/config/db'
 import {
+  countUnreadMessengerConversations,
   listMessengerConversations,
   listMessengerMessagePage,
   MESSENGER_LIST_LIMIT,
@@ -220,5 +221,43 @@ describe('conversation search', () => {
     expect(found.map((c) => c.id)).toEqual([oldId])
 
     await db('messenger_conversations').whereIn('id', [...filler, oldId]).delete()
+  })
+})
+
+describe('unread count', () => {
+  it('counts a conversation the customer wrote in and this user has not opened', async () => {
+    await db('messenger_conversation_reads').where({ agencyId }).delete()
+    await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: new Date() })
+
+    expect(await countUnreadMessengerConversations(agencyId, userId)).toBe(1)
+  })
+
+  it('stops counting it once THIS user has read it', async () => {
+    await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: new Date('2026-09-20T10:00:00Z') })
+    await db('messenger_conversation_reads')
+      .insert({ conversationId, userId, agencyId, lastReadAt: new Date('2026-09-20T11:00:00Z') })
+      .onConflict(['conversationId', 'userId'])
+      .merge({ lastReadAt: new Date('2026-09-20T11:00:00Z') })
+
+    expect(await countUnreadMessengerConversations(agencyId, userId)).toBe(0)
+
+    // A teammate reading it does not mark it read for everyone else.
+    const [mate] = await db('users').insert({ firstName: 'T', role: 'AGNT', agencyId }).returning('id')
+    expect(await countUnreadMessengerConversations(agencyId, Number(mate.id))).toBe(1)
+    await db('users').where({ id: Number(mate.id) }).delete()
+  })
+
+  it('a conversation the customer never wrote in is not unread', async () => {
+    await db('messenger_conversation_reads').where({ agencyId }).delete()
+    await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: null })
+    expect(await countUnreadMessengerConversations(agencyId, userId)).toBe(0)
+  })
+
+  it('never counts another agency\'s conversations', async () => {
+    await db('messenger_conversation_reads').where({ agencyId }).delete()
+    await db('messenger_conversations').where({ id: conversationId }).update({ lastInboundAt: new Date() })
+    const [other] = await db('agencies').insert({ name: '__test_unread_other__' }).returning('id')
+    expect(await countUnreadMessengerConversations(Number(other.id), userId)).toBe(0)
+    await db('agencies').where({ id: Number(other.id) }).delete()
   })
 })

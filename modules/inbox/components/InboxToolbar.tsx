@@ -49,12 +49,15 @@ export default function InboxToolbar({
   selectedConversation,
   smartCounts,
   showMessenger = false,
+  messengerUnread = 0,
 }: {
   filters: InboxListFilters
   selectedConversation: number | null
   smartCounts: InboxSmartCounts
   /** Messenger rollout gate, resolved server-side by the page. */
   showMessenger?: boolean
+  /** Unread Messenger conversations for this user; resolved on the server. */
+  messengerUnread?: number
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -93,7 +96,7 @@ export default function InboxToolbar({
   return (
     <div className='shrink-0 space-y-2 border-b border-gray-100 p-2'>
       <div className='px-1'>
-        <InboxChannelSwitch active='whatsapp' showMessenger={showMessenger} />
+        <InboxChannelSwitch active='whatsapp' showMessenger={showMessenger} messengerUnread={messengerUnread} />
       </div>
 
       {visibleSections.length > 0 && (
