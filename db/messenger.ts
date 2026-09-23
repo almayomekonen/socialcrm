@@ -22,7 +22,11 @@ function preview(text: string, attachments: MessengerAttachment[]): string {
  * contact's name once rather than on every message.
  */
 export async function findOrCreateMessengerConversation(
-  trx: Knex.Transaction,
+  // Accepts a plain Knex too: the INSERT ... ON CONFLICT is atomic on its own,
+  // so it is correct outside a transaction (the history import and tests use it
+  // that way). It is still called inside one wherever a bump must be atomic
+  // with it.
+  trx: Knex.Transaction | Knex,
   input: { agencyId: number; pageId: string; psid: string },
 ): Promise<{ id: number; created: boolean }> {
   const [row] = await trx('messenger_conversations')

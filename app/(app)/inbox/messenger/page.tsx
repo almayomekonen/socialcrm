@@ -26,6 +26,7 @@ import MessengerEmptyState, { type MessengerEmptyKind } from '@/modules/messenge
 import MessengerThread from '@/modules/messenger/components/MessengerThread'
 import MessengerProfileAccessNotice from '@/modules/messenger/components/MessengerProfileAccessNotice'
 import MessengerSearch from '@/modules/messenger/components/MessengerSearch'
+import MessengerImportHistory from '@/modules/messenger/components/MessengerImportHistory'
 
 /**
  * Messenger inside שיחות — a channel tab next to WhatsApp and comments, no new
@@ -128,6 +129,13 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     if (delivery.includes('not_subscribed')) {
       return shell(<>{poller}{promptFor(FACEBOOK_NOTICES.messenger_not_subscribed)}</>)
     }
+    // An admin with a working Page can pull in the conversations it already had,
+    // rather than staring at an empty inbox until someone writes again. Offered
+    // only here — once there are conversations, this is no longer the question.
+    const importOffer =
+      isAdmin(user.role as Roles) && delivery.includes('ready') ? (
+        <MessengerImportHistory pageId={messagingPages[0].page_id} />
+      ) : null
     return shell(
       <>
         {poller}
@@ -135,6 +143,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
           <p role='status' className='text-sm text-green-600'>ההרשאה אושרה. הודעות Messenger חדשות יופיעו כאן.</p>
         )}
         <MessengerEmptyState kind='no-conversations' compact={mobile} />
+        {importOffer}
       </>,
     )
   }

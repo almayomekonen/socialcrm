@@ -15,7 +15,11 @@ vi.hoisted(() => {
 })
 
 import { db } from '@/config/db'
-import { listMessengerConversations, listMessengerMessagePage } from '@/modules/messenger/queries'
+import {
+  listMessengerConversations,
+  listMessengerMessagePage,
+  MESSENGER_LIST_LIMIT,
+} from '@/modules/messenger/queries'
 
 const PAGE = '__paging_page__'
 let agencyId = 0
@@ -108,6 +112,34 @@ describe('message paging', () => {
     expect(page.hasMore).toBe(false)
   })
 
+  it('a cursor from another conversation positions nothing, rather than leaking its place', async () => {
+    // The cursor row is resolved inside the same agency AND conversation, so a
+    // foreign id cannot be used to probe where another thread's messages sit.
+    const [other] = await db('messenger_conversations')
+      .insert({ agencyId, pageId: PAGE, psid: '__cursor_probe__' })
+      .returning('id')
+    const otherConv = Number(other.id)
+    const [foreign] = await db('messenger_messages')
+      .insert({
+        conversationId: otherConv,
+        agencyId,
+        pageId: PAGE,
+        mid: 'm_foreign',
+        direction: 'inbound',
+        source: 'customer',
+        text: 'x',
+        attachments: JSON.stringify([]),
+        channelTimestamp: new Date('2026-09-20T08:00:30Z'),
+      })
+      .returning('id')
+
+    const page = await listMessengerMessagePage(agencyId, conversationId, { beforeId: Number(foreign.id), limit: 50 })
+    expect(page.messages).toEqual([])
+
+    await db('messenger_messages').where({ conversationId: otherConv }).delete()
+    await db('messenger_conversations').where({ id: otherConv }).delete()
+  })
+
   it('never reads across tenants, even with a valid conversation id', async () => {
     const [other] = await db('agencies').insert({ name: '__test_paging_other__' }).returning('id')
     const page = await listMessengerMessagePage(Number(other.id), conversationId, { limit: 50 })
@@ -150,8 +182,23 @@ describe('conversation search', () => {
   })
 
   it('searches the agency\'s whole history, not only what a page would show', async () => {
-    // A conversation old enough to fall outside the first list page must still
-    // be findable — this is the whole reason the filter is applied in SQL.
+    // The list page is 50. Bury the target under MORE than that many newer
+    // conversations, so a filter applied over the loaded page (rather than in
+    // SQL) would genuinely fail to find it — which is the bug this guards.
+    const filler: number[] = []
+    for (let i = 0; i < MESSENGER_LIST_LIMIT + 10; i++) {
+      const [row] = await db('messenger_conversations')
+        .insert({
+          agencyId,
+          pageId: PAGE,
+          psid: `__filler_${i}__`,
+          customerName: `ממלא ${i}`,
+          lastMessageAt: new Date(Date.parse('2026-09-21T00:00:00Z') + i * 1000),
+        })
+        .returning('id')
+      filler.push(Number(row.id))
+    }
+
     const [old] = await db('messenger_conversations')
       .insert({
         agencyId,
@@ -163,9 +210,15 @@ describe('conversation search', () => {
       .returning('id')
     const oldId = Number(old.id)
 
+    // Not on the first unfiltered page...
+    const firstPage = await listMessengerConversations(agencyId, userId, '')
+    expect(firstPage).toHaveLength(MESSENGER_LIST_LIMIT)
+    expect(firstPage.map((c) => c.id)).not.toContain(oldId)
+
+    // ...but the search still finds it.
     const found = await listMessengerConversations(agencyId, userId, 'קדומי')
     expect(found.map((c) => c.id)).toEqual([oldId])
 
-    await db('messenger_conversations').where({ id: oldId }).delete()
+    await db('messenger_conversations').whereIn('id', [...filler, oldId]).delete()
   })
 })

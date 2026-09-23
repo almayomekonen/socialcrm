@@ -19,10 +19,15 @@ import MessengerEventLine from './MessengerEventLine'
  *
  * WHY THIS IS A CLIENT COMPONENT. Only "load earlier" needs state; the page
  * still renders the first page on the server, so the thread is complete and
- * readable before any JavaScript runs. `older` is kept separately from
- * `initial` so a background `router.refresh()` — which the inbox does every 10
- * seconds — brings new messages in without discarding the history the rep has
- * already scrolled back through.
+ * readable before any JavaScript runs.
+ *
+ * WHY IT ACCUMULATES RATHER THAN CONCATENATING. `initial` is the newest page,
+ * and the inbox re-renders it every 10 seconds. As new messages arrive, older
+ * ones drop off the bottom of that page — so holding only (fetched-earlier +
+ * current page) loses exactly the messages that fell between them, tearing a
+ * silent hole in the middle of a conversation the rep is reading. Everything
+ * ever seen is therefore kept, merged with the current page, deduped by id and
+ * re-sorted. The cost is memory proportional to what was actually read.
  */
 export default function MessengerMessageList({
   conversationId,
@@ -37,7 +42,7 @@ export default function MessengerMessageList({
   /** Postbacks, referrals and reactions for this conversation, oldest-first. */
   events?: MessengerConversationEvent[]
 }) {
-  const [older, setOlder] = useState<MessengerMessage[]>([])
+  const [seen, setSeen] = useState<MessengerMessage[]>([])
   const [hasMore, setHasMore] = useState(hasMoreInitially)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -47,12 +52,33 @@ export default function MessengerMessageList({
   useEffect(() => {
     if (conversation.current === conversationId) return
     conversation.current = conversationId
-    setOlder([])
+    setSeen([])
     setHasMore(hasMoreInitially)
     setFailed(false)
   }, [conversationId, hasMoreInitially])
 
-  const messages = [...older, ...initial]
+  // Absorb each server page as it arrives, so messages that later fall off the
+  // bottom of the newest page are still held. Returning `prev` unchanged when
+  // there is nothing new keeps this from re-rendering on every poll.
+  useEffect(() => {
+    setSeen((prev) => {
+      const known = new Set(prev.map((m) => m.id))
+      const added = initial.filter((m) => !known.has(m.id))
+      return added.length > 0 ? [...prev, ...added] : prev
+    })
+  }, [initial])
+
+  // Everything read so far, plus the current page. Deduped by id (the server
+  // page and the accumulator overlap by design) and ordered the same way the
+  // server orders: event time, then id — which is total even when Meta gives two
+  // messages the same second.
+  const byId = new Map<number, MessengerMessage>()
+  for (const m of seen) byId.set(m.id, m)
+  // The server's copy wins: it carries fresher delivery/read state.
+  for (const m of initial) byId.set(m.id, m)
+  const messages = [...byId.values()].sort(
+    (a, b) => a.timestamp.getTime() - b.timestamp.getTime() || a.id - b.id,
+  )
   const oldestId = messages[0]?.id
 
   const loadOlder = async () => {
@@ -65,11 +91,9 @@ export default function MessengerMessageList({
         setFailed(true)
         return
       }
-      // Guard against a double-tap racing two loads onto the same cursor.
-      setOlder((prev) => {
-        const known = new Set([...prev, ...initial].map((m) => m.id))
-        return [...result.messages.filter((m) => !known.has(m.id)), ...prev]
-      })
+      // Appended; the merge above dedupes and orders, so a double-tap racing two
+      // loads onto the same cursor cannot produce a repeat.
+      setSeen((prev) => [...prev, ...result.messages])
       setHasMore(result.hasMore)
     } catch {
       setFailed(true)

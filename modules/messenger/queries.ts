@@ -106,10 +106,16 @@ export function listMessengerMessagesQuery(
     .limit(opts.limit ?? MESSENGER_MESSAGE_PAGE)
     .select('id', 'direction', 'source', 'text', 'attachments', 'channelTimestamp', 'createdAt', 'deliveredAt', 'readAt')
   if (opts.beforeId) {
+    // The cursor row is looked up INSIDE the same agency and conversation. A
+    // cursor from elsewhere then resolves to nothing and the page comes back
+    // empty, rather than positioning this conversation's page by another
+    // tenant's timestamp — which would leak that timestamp's ordering by
+    // observation, even though the rows returned are always tenant-scoped.
     q.andWhereRaw(
       `(COALESCE("channelTimestamp", "createdAt"), id) <
-       (SELECT COALESCE("channelTimestamp", "createdAt"), id FROM messenger_messages WHERE id = ?)`,
-      [opts.beforeId],
+       (SELECT COALESCE("channelTimestamp", "createdAt"), id FROM messenger_messages
+        WHERE id = ? AND "agencyId" = ? AND "conversationId" = ?)`,
+      [opts.beforeId, agencyId, conversationId],
     )
   }
   return q

@@ -8,6 +8,7 @@ import { parseGrantedScopes } from '@/db/facebook'
 import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { describeGraphError } from '@/lib/facebook/graphClient'
+import { importMessengerHistory } from '@/lib/facebook/messenger/importHistory'
 import {
   EMPTY_MESSENGER_PROFILE,
   GREETING_MAX,
@@ -149,4 +150,36 @@ export async function updateMessengerProfile(
   }
   revalidatePath('/settings/integrations')
   return { ok: true }
+}
+
+export type MessengerImportOutcome =
+  | { ok: true; conversations: number; messages: number; hasMore: boolean }
+  | { ok: false; reason: MessengerProfileFailure }
+
+/**
+ * Import the Page's existing Messenger conversations.
+ *
+ * ADMIN ONLY and explicit — never automatic. It is a burst of Graph calls
+ * against the Page's shared rate limit (the same limit Lead Ads intake uses), so
+ * it happens when a person asks for it, not on a timer and not on connect.
+ *
+ * What it can recover is capped by Meta at the 20 most recent messages per
+ * conversation; `importMessengerHistory` documents why, and the UI says so
+ * rather than implying the threads are complete.
+ */
+export async function importMessengerConversations(pageId: string): Promise<MessengerImportOutcome> {
+  const auth = await authorize(pageId)
+  if ('reason' in auth) return { ok: false, reason: auth.reason }
+
+  const user = await requireAgencyUser()
+  const result = await importMessengerHistory({
+    agencyId: user.agencyId,
+    pageId: auth.pageId,
+    pageAccessToken: auth.pageAccessToken,
+  })
+  if (result.failure) {
+    return { ok: false, reason: result.failure === 'permission' ? 'permission_missing' : result.failure === 'rate_limited' ? 'rate_limited' : 'meta_error' }
+  }
+  revalidatePath('/inbox/messenger')
+  return { ok: true, conversations: result.conversations, messages: result.messages, hasMore: result.hasMore }
 }
