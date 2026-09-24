@@ -47,6 +47,9 @@ export default async function AutoResponseMobile({
   // Saying "פעיל" then would be a false statement about the business, so the
   // gap is named here rather than papered over (care-charter Laws 1-3).
   const channelOff = master && !(channel?.enabled ?? false)
+  // The message shown below is the AI agent's. While a questionnaire answers,
+  // it is not what the customer receives, and the phone must not claim it is.
+  const questionnaire = channel?.responder === 'questionnaire'
 
   return (
     <div className='flex flex-col gap-4 px-4 pb-8 pt-3'>
@@ -55,6 +58,13 @@ export default async function AutoResponseMobile({
       {channelOff && (
         <p className='rounded-xl border border-warning-border bg-warning-bg px-3.5 py-3 text-[13px] leading-relaxed text-warning-text'>
           ערוץ הוואטסאפ כבוי, כך שגם כשהמענה האוטומטי פעיל לא נשלחות הודעות. אפשר להפעיל אותו מהמחשב.
+        </p>
+      )}
+
+      {questionnaire && (
+        <p className='rounded-xl border border-warning-border bg-warning-bg px-3.5 py-3 text-[13px] leading-relaxed text-warning-text'>
+          הפניות בוואטסאפ נענות כרגע בשאלון קבוע שהוגדר עבורכם, ולא בהודעה שמופיעה כאן. כיבוי המענה האוטומטי עוצר גם
+          את השאלון.
         </p>
       )}
 

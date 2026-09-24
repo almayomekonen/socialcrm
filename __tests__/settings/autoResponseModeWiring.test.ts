@@ -43,7 +43,7 @@ describe('mode is actually written now', () => {
 
   it('reads mode and agentInstructions back', () => {
     const src = read('db/autoResponseSettings.ts')
-    expect(src).toMatch(/'guidance',\s*\n\s*'agentInstructions',\s*\n\s*'businessProfile',\s*\n\s*'mode',/)
+    expect(src).toMatch(/'guidance',\s*\n\s*'agentInstructions',\s*\n\s*'businessProfile',(\s*\n\s*'\w+',)*\s*\n\s*'mode',/)
     expect(src).toContain('agentInstructions: row.agentInstructions ?? null')
   })
 })

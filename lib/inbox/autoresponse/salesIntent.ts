@@ -77,6 +77,21 @@ const BUYING_INTENT_PATTERNS: RegExp[] = [
   /how (do|can) i (start|begin|buy)|get started|sign ?up/i,
 ]
 
+/**
+ * ONLY the explicit ask for a person, without the meeting vocabulary.
+ *
+ * The questionnaire needs this narrower question. `detectHumanRequest` also
+ * treats "פגישה" and "לקבוע שיחה" as a handoff, which is right for a sales
+ * agent and wrong inside a script whose own questions invite answers like
+ * "פגישה עסקית" — that answer would hand the conversation to a rep instead of
+ * being recorded. Meeting talk is sales intent; this is a request for a person.
+ */
+export function isExplicitPersonRequest(text: string): boolean {
+  const t = (text ?? '').trim()
+  if (!t) return false
+  return EXPLICIT_PERSON_PATTERNS.some((re) => re.test(t))
+}
+
 export function detectHumanRequest(text: string, opts?: HumanRequestOpts): boolean {
   const t = (text ?? '').trim()
   if (!t) return false

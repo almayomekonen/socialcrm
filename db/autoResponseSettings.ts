@@ -4,7 +4,7 @@
  * Additive, read/write only — no business logic.
  */
 import { db } from '@/config/db'
-import { parseBusinessProfile, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfile'
+import { parseBusinessProfile, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfileParse'
 import {
   parseReplyMode,
   clampDelaySeconds,
@@ -37,6 +37,22 @@ export interface AutoResponseSettings {
   agentInstructions: string | null
   /** Structured profile derived from `guidance` on save. Null until derived. */
   businessProfile: BusinessProfile | null
+  /**
+   * WHICH ENGINE ANSWERS: the AI agent, or the deterministic questionnaire.
+   *
+   * Separate from `mode` on purpose. The owner-facing save derives `mode` from
+   * `replyMode`, and an unrecognised `mode` is read back as 'acknowledge' — so a
+   * questionnaire expressed as a third `mode` value would be one owner save, or
+   * one rollback, away from sending an AI reply. This column is never written by
+   * `upsertChannelSettings`; only the staff config path sets it.
+   *
+   * Optional on the type, never on a row `getChannelSettings` returns: absent
+   * means the agent, which is what every caller that predates the questionnaire
+   * should mean, including a settings object built in a test.
+   */
+  responder?: 'agent' | 'questionnaire'
+  /** The questionnaire definition, unvalidated here. Parsed by the worker. */
+  questionnaire?: unknown
   // Qualifier (P0b additive). Defaults reproduce one-shot acknowledge behavior.
   mode: 'acknowledge' | 'qualify'
   maxTurns: number
@@ -57,6 +73,8 @@ interface SettingsRow {
   guidance: string | null
   agentInstructions: string | null
   businessProfile: unknown
+  responder: string | null
+  questionnaire: unknown
   mode: string | null
   maxTurns: number | null
   collectFields: CollectFields | string | null
@@ -89,6 +107,8 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
       'guidance',
       'agentInstructions',
       'businessProfile',
+      'responder',
+      'questionnaire',
       'mode',
       'maxTurns',
       'collectFields',
@@ -108,6 +128,11 @@ export async function getChannelSettings(agencyId: number, channel: string): Pro
     guidance: row.guidance,
     agentInstructions: row.agentInstructions ?? null,
     businessProfile: parseBusinessProfile(row.businessProfile),
+    // Anything that is not exactly 'questionnaire' is the agent, so a database
+    // that predates the column, or a value nobody recognises, keeps today's
+    // behaviour rather than silencing a business.
+    responder: row.responder === 'questionnaire' ? 'questionnaire' : 'agent',
+    questionnaire: row.questionnaire ?? null,
     mode: row.mode === 'qualify' ? 'qualify' : 'acknowledge',
     maxTurns: row.maxTurns ?? 5,
     collectFields: (typeof cf === 'string' ? JSON.parse(cf) : (cf ?? DEFAULT_COLLECT)) as CollectFields,

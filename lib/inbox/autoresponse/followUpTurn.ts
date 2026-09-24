@@ -85,8 +85,14 @@ export type FollowUpDecision =
   | { enqueue: true; triggerSequence: number }
   | { enqueue: false; reason: string }
 
+const TURN_JOB_REASONS: ReadonlySet<string> = new Set(['first_contact', 'qualify_turn', 'questionnaire_turn'])
+
 export function decideFollowUpTurn(f: FollowUpFacts): FollowUpDecision {
-  if (f.jobReason !== 'first_contact' && f.jobReason !== 'qualify_turn') {
+  // A questionnaire turn takes the same follow-up rule as a qualify turn: a
+  // message that landed while the turn was running is covered by no job, and
+  // one more turn is exactly what should happen. It terminates for the same
+  // reason — the trigger sequence only moves when the customer writes again.
+  if (!TURN_JOB_REASONS.has(f.jobReason)) {
     return { enqueue: false, reason: 'not_a_turn_job' }
   }
   if (f.outcome === 'failed' || f.outcome === 'error') {

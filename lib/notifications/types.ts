@@ -39,6 +39,13 @@ export const NOTIFICATION_TYPES = [
   'sla.breached',
   'subscription.cancellation_requested',
   /**
+   * A deterministic WhatsApp questionnaire finished, or stopped and is waiting
+   * for a person. Its own type rather than `lead.hot`, which means something
+   * else: this one carries no judgement about the lead, only the fact that a
+   * set of answers is sitting there and nobody has looked at it yet.
+   */
+  'lead.questionnaire_handoff',
+  /**
    * The one AI-originated type. Emitted ONLY by a conclusion that passed the
    * deterministic Value Bar and every condition of the Vigilance Notification
    * Exception (ai-safety-boundaries.md §9.1, DA-001). Its registry entry ships
@@ -123,6 +130,8 @@ export type NotificationPayload = {
    * Required for that type; absent elsewhere.
    */
   assignedUserId?: number | null
+  /** `lead.questionnaire_handoff`: did the customer answer every question? */
+  complete?: boolean
   /** How many leads one bulk assignment moved. Counted at the emission site. */
   assignedCount?: number | null
   /**

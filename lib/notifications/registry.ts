@@ -113,6 +113,25 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     channels: TOAST_THEN_PUSH_WHEN_AWAY,
   },
 
+  /**
+   * A questionnaire is waiting for a person. Shares the arrival collapse key
+   * with lead.created and lead.hot on purpose: one lead that arrived once is
+   * one row in the bell, upgraded in place, not a second thing to work.
+   */
+  'lead.questionnaire_handoff': {
+    type: 'lead.questionnaire_handoff',
+    category: 'leads',
+    enabled: true,
+    basePriority: 'high',
+    collapseKey: keys.arrivalKey,
+    title: copy.leadQuestionnaireHandoffTitle,
+    body: copy.noBody,
+    entity: leadEntity,
+    deepLink: leadLink,
+    recipients: 'handler_or_admin',
+    channels: TOAST_THEN_PUSH_WHEN_AWAY,
+  },
+
   'lead.assigned': {
     type: 'lead.assigned',
     category: 'leads',

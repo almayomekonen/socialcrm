@@ -43,8 +43,16 @@ const GUARDED_SEND_SITES: Record<string, string> = {
   'worker.ts': 'acknowledge-mode first contact, which does not route through ireSend',
 }
 
+/**
+ * RECURSIVE. The agent tree gained a subdirectory (the deterministic
+ * questionnaire), and a scan of the top level only would have exempted every
+ * file in it from the guarantee below — which is precisely the kind of gap this
+ * test exists to prevent.
+ */
 function agentSources(): string[] {
-  return readdirSync(AGENT_DIR).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts'))
+  return readdirSync(AGENT_DIR, { recursive: true, encoding: 'utf8' }).filter(
+    (f) => f.endsWith('.ts') && !f.endsWith('.d.ts'),
+  )
 }
 
 function bodyWithoutTypeRefs(file: string): string {

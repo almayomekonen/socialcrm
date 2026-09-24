@@ -2,6 +2,7 @@ import { requireAgencyUser } from '@/lib/requireUser'
 import { getAiState } from '@/db/conversationAiState'
 import { getHandoffSummary } from '@/db/conversationIntelligence'
 import { getChannelSettings, getMasterEnabled } from '@/db/autoResponseSettings'
+import { readSessionForConversation } from '@/db/questionnaireSessions'
 import { isHumanOwned } from '@/lib/inbox/autoresponse/agentOwnership'
 import AgentOwnershipClient from './AgentOwnershipClient'
 
@@ -21,14 +22,21 @@ export default async function AgentOwnership({ conversationId }: { conversationI
   const user = await requireAgencyUser().catch(() => null)
   if (!user?.agencyId) return null
 
-  const [master, settings, state, handoff] = await Promise.all([
+  const [master, settings, state, handoff, session] = await Promise.all([
     getMasterEnabled(user.agencyId).catch(() => false),
     getChannelSettings(user.agencyId, 'whatsapp').catch(() => null),
     getAiState(conversationId).catch(() => null),
     getHandoffSummary(user.agencyId, conversationId).catch(() => null),
+    readSessionForConversation(user.agencyId, conversationId).catch(() => null),
   ])
   if (!master || !settings?.enabled) return null
   if (!state || state.agencyId !== user.agencyId) return null
+
+  // Who is actually answering here. A conversation that ran a questionnaire
+  // keeps saying so after the business is switched back, because the thread the
+  // rep is reading was produced by the script, not by the agent.
+  const questionnaireMode = settings?.responder === 'questionnaire' || session != null
+  const questionnaireActive = session?.status === 'active'
 
   const humanOwned = isHumanOwned(state.aiState)
   // A handed-off conversation is WAITING FOR A REP, and that is the whole point
@@ -48,6 +56,8 @@ export default async function AgentOwnership({ conversationId }: { conversationI
       conversationId={conversationId}
       humanOwned={humanOwned}
       handedOff={awaitingRep}
+      questionnaireMode={questionnaireMode}
+      questionnaireActive={questionnaireActive}
       handoff={
         awaitingRep && handoff
           ? {
@@ -56,6 +66,7 @@ export default async function AgentOwnership({ conversationId }: { conversationI
               need: handoff.need,
               urgency: handoff.urgency,
               temperature: handoff.temperature,
+              fields: handoff.fields,
             }
           : null
       }

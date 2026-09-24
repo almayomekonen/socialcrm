@@ -74,6 +74,15 @@ export type InsertOutboundMessageInput = {
    */
   type?: InboxMessageType
   payload?: Record<string, unknown>
+  /**
+   * Row metadata written in the INSERT itself, e.g. `{ source: 'auto_response' }`.
+   *
+   * Callers have historically merged this with a second UPDATE after the row
+   * exists, which leaves a window where an automated message is untagged — and
+   * an untagged outbound reads as a human takeover everywhere in the agent.
+   * Optional; omitting it keeps the previous behaviour exactly.
+   */
+  metadata?: Record<string, unknown>
 }
 
 type InsertChannelMessageInput = {
@@ -93,6 +102,7 @@ type InsertChannelMessageInput = {
   channelTimestamp: Date | null
   sentByUserId: number | null
   errorReason?: string | null
+  metadata?: Record<string, unknown>
 }
 
 async function insertChannelMessage(trx: Knex.Transaction, input: InsertChannelMessageInput): Promise<InsertMessageResult> {
@@ -124,7 +134,7 @@ async function insertChannelMessage(trx: Knex.Transaction, input: InsertChannelM
       sentByUserId: input.sentByUserId,
       channelTimestamp: input.channelTimestamp,
       sequence,
-      metadata: JSON.stringify({}),
+      metadata: JSON.stringify(input.metadata ?? {}),
     })
     .onConflict(['channel', 'externalId'])
     .ignore()
@@ -190,6 +200,7 @@ export async function insertOutboundMessage(
     rawPayload: null,
     channelTimestamp: input.channelTimestamp,
     sentByUserId: input.sentByUserId,
+    metadata: input.metadata,
   })
 }
 

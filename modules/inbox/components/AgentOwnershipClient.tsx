@@ -22,6 +22,8 @@ export type HandoffSummaryView = {
   need: string | null
   urgency: string | null
   temperature: string | null
+  /** Label/value rows written by a deterministic questionnaire, if any. */
+  fields?: Array<{ label: string; value: string }> | null
 }
 
 type Props = {
@@ -35,6 +37,17 @@ type Props = {
    * whose absence used to hide these entirely.
    */
   handoff?: HandoffSummaryView | null
+  /**
+   * This business answers with a fixed questionnaire, not the AI agent.
+   *
+   * It changes what the line can honestly say. "הסוכן עונה בשיחה הזו" is wrong
+   * for a script, and "החזרת המענה לסוכן" offers something that will not
+   * happen: a questionnaire that has ended does not resume, so the control is
+   * withheld rather than left there to be pressed for nothing.
+   */
+  questionnaireMode?: boolean
+  /** True while a questionnaire is still running on this conversation. */
+  questionnaireActive?: boolean
 }
 
 const ERROR_COPY: Record<string, string> = {
@@ -45,7 +58,14 @@ const ERROR_COPY: Record<string, string> = {
   'invalid-input': 'לא הצלחנו לעדכן. נסו שוב.',
 }
 
-export default function AgentOwnershipClient({ conversationId, humanOwned, handedOff, handoff = null }: Props) {
+export default function AgentOwnershipClient({
+  conversationId,
+  humanOwned,
+  handedOff,
+  handoff = null,
+  questionnaireMode = false,
+  questionnaireActive = false,
+}: Props) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
@@ -60,16 +80,25 @@ export default function AgentOwnershipClient({ conversationId, humanOwned, hande
   const status = humanOwned
     ? handedOff
       ? 'הפנייה הועברה אליכם. המשך הטיפול בידי הצוות.'
-      : 'אתם עונים בשיחה הזו. הסוכן לא ישלח הודעות עד שתחזירו לו אותה.'
-    : 'הסוכן עונה בשיחה הזו.'
+      : questionnaireMode
+        ? 'אתם עונים בשיחה הזו. השאלון לא ישלח הודעות נוספות.'
+        : 'אתם עונים בשיחה הזו. הסוכן לא ישלח הודעות עד שתחזירו לו אותה.'
+    : questionnaireMode
+      ? 'שאלון אוטומטי עונה בשיחה הזו.'
+      : 'הסוכן עונה בשיחה הזו.'
 
   // name / business type / request / urgency — only what the customer actually
   // said. A field nobody supplied is omitted rather than shown as a dash.
-  const details: Array<{ label: string; value: string }> = []
-  if (handoff?.name) details.push({ label: 'שם', value: handoff.name })
-  if (handoff?.businessType) details.push({ label: 'סוג העסק', value: handoff.businessType })
-  if (handoff?.need) details.push({ label: 'הפנייה', value: handoff.need })
-  if (handoff?.urgency) details.push({ label: 'דחיפות', value: handoff.urgency })
+  // A questionnaire supplies its own labels, because its questions are the
+  // business's own. Everything else uses the four the agent extracts.
+  const details: Array<{ label: string; value: string }> =
+    handoff?.fields && handoff.fields.length ? [...handoff.fields] : []
+  if (!details.length) {
+    if (handoff?.name) details.push({ label: 'שם', value: handoff.name })
+    if (handoff?.businessType) details.push({ label: 'סוג העסק', value: handoff.businessType })
+    if (handoff?.need) details.push({ label: 'הפנייה', value: handoff.need })
+    if (handoff?.urgency) details.push({ label: 'דחיפות', value: handoff.urgency })
+  }
 
   return (
     <div className='mx-4 my-2 shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3'>
@@ -109,14 +138,14 @@ export default function AgentOwnershipClient({ conversationId, humanOwned, hande
             </p>
           ) : null}
         </div>
-        {humanOwned ? (
+        {humanOwned && questionnaireMode && !questionnaireActive ? null : humanOwned ? (
           <button
             type='button'
             onClick={() => run(returnToAgent)}
             disabled={pending}
             className='shrink-0 text-xs font-medium text-blue-600 hover:underline disabled:opacity-60'
           >
-            {pending ? 'מעדכן…' : 'החזרת המענה לסוכן'}
+            {pending ? 'מעדכן…' : questionnaireMode ? 'החזרת המענה לשאלון' : 'החזרת המענה לסוכן'}
           </button>
         ) : (
           <button

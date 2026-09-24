@@ -55,6 +55,14 @@ function forProvider(withLabel: (label: string) => string, fallback: string, ctx
 
 export const leadCreatedTitle = (ctx: EventContext): string => withName('ליד חדש', ctx)
 export const leadHotTitle = (ctx: EventContext): string => withName('ליד חם', ctx)
+/**
+ * Two outcomes, two sentences, both stating only what happened. A questionnaire
+ * that stopped early is not a failure to report back to the rep; it is a lead
+ * with some answers on it and a person now expected.
+ */
+export const leadQuestionnaireHandoffTitle = (ctx: EventContext): string =>
+  withName(ctx.payload.complete === true ? 'שאלון הושלם' : 'פנייה ממתינה לנציג', ctx)
+
 export const leadAssignedTitle = (ctx: EventContext): string => withName('ליד שויך אליך', ctx)
 /**
  * Counted, never guessed: the number comes from the emission site (Law 1). With

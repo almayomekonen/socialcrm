@@ -6,6 +6,7 @@ import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpir
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoResponseSettingsForm'
+import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
 
 export const metadata: Metadata = { title: 'מענה אוטומטי' }
@@ -54,6 +55,7 @@ export default async function AutoResponseSettingsPage() {
           />
         </div>
       )}
+      <QuestionnaireModeNotice active={channel?.responder === 'questionnaire'} />
       <AutoResponseSettingsForm
         masterEnabled={master}
         channelEnabled={channel?.enabled ?? false}

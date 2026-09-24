@@ -1,7 +1,13 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
+import { QUESTIONNAIRE_ROUTED_SQL } from './questionnaireJobs'
 
-export type AutoResponseReason = 'first_contact' | 'qualify_turn' | 'no_response_warning' | 'no_response_close'
+export type AutoResponseReason =
+  | 'first_contact'
+  | 'qualify_turn'
+  | 'no_response_warning'
+  | 'no_response_close'
+  | 'questionnaire_turn'
 
 export const NO_RESPONSE_JOB_REASONS: AutoResponseReason[] = ['no_response_warning', 'no_response_close']
 
@@ -91,21 +97,30 @@ export async function enqueueAutoResponse(
   return Number(row.id)
 }
 
+/**
+ * The AI worker's claim. It deliberately cannot see questionnaire work: the
+ * `NOT (…)` below is the other half of the routing boundary defined in
+ * db/questionnaireJobs.ts. A business on the questionnaire, or a conversation
+ * with a live session, is invisible here — which is what makes "a questionnaire
+ * turn never reaches a model" a property of the query rather than a promise
+ * made by a branch somewhere downstream.
+ */
 export async function claimAutoResponseJobs(workerId: string, limit: number): Promise<AutoResponseJob[]> {
   const res = await db.raw(
     `
-    UPDATE auto_response_jobs j
+    UPDATE auto_response_jobs t
        SET status = 'processing', "lockedAt" = now(), "lockedBy" = ?,
            attempts = attempts + 1, "updatedAt" = now()
-     WHERE j.id IN (
-       SELECT id FROM auto_response_jobs
-        WHERE status = 'pending' AND "notBefore" <= now()
-        ORDER BY "notBefore" ASC
+     WHERE t.id IN (
+       SELECT j.id FROM auto_response_jobs j
+        WHERE j.status = 'pending' AND j."notBefore" <= now()
+          AND NOT ${QUESTIONNAIRE_ROUTED_SQL}
+        ORDER BY j."notBefore" ASC
         FOR UPDATE SKIP LOCKED
         LIMIT ?
      )
-     RETURNING j.id, j."agencyId", j."conversationId", j."leadId", j.channel, j.reason,
-               j."triggerSequence", j.attempts, j."maxAttempts", j."createdAt"
+     RETURNING t.id, t."agencyId", t."conversationId", t."leadId", t.channel, t.reason,
+               t."triggerSequence", t.attempts, t."maxAttempts", t."createdAt"
   `,
     [workerId, limit],
   )

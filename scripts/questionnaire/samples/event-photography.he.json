@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "language": "he",
+  "summaryTitle": "שאלון וואטסאפ",
+  "maxInvalidAttempts": 2,
+  "expireAfterHours": 24,
+  "welcome": "שלום, תודה שפניתם אלינו. כדי שנוכל להכין עבורכם הצעה מתאימה, נשאל כמה שאלות קצרות.",
+  "closing": "תודה! קיבלנו את הפרטים. נציג יחזור אליכם בהקדם.",
+  "handoff": "תודה, העברנו את הפרטים שלכם לנציג שיחזור אליכם.",
+  "steps": [
+    {
+      "id": "services",
+      "type": "choice",
+      "multi": true,
+      "label": "שירותים",
+      "prompt": "אילו שירותים מעניינים אתכם?",
+      "options": [
+        { "id": "stills", "label": "צילום סטילס" },
+        { "id": "video", "label": "וידאו" },
+        { "id": "drone", "label": "צילום רחפן" },
+        { "id": "magnets", "label": "מגנטים" },
+        { "id": "album", "label": "אלבום דיגיטלי" }
+      ]
+    },
+    {
+      "id": "event_type",
+      "type": "choice",
+      "label": "סוג האירוע",
+      "prompt": "מה סוג האירוע?",
+      "options": [
+        { "id": "wedding", "label": "חתונה" },
+        { "id": "mitzvah", "label": "בר מצווה או בת מצווה" },
+        { "id": "brit", "label": "ברית או בריתה" },
+        { "id": "other", "label": "אירוע אחר" }
+      ]
+    },
+    {
+      "id": "wedding_coverage",
+      "type": "choice",
+      "label": "היקף הכיסוי",
+      "prompt": "איזה כיסוי אתם מחפשים לחתונה?",
+      "when": { "step": "event_type", "anyOf": ["wedding"] },
+      "options": [
+        { "id": "full", "label": "חבילת חתונה מלאה" },
+        { "id": "partial", "label": "כיסוי חלקי" }
+      ]
+    },
+    {
+      "id": "event_date",
+      "type": "text",
+      "label": "תאריך האירוע",
+      "prompt": "מה תאריך האירוע? אפשר גם תאריך משוער."
+    },
+    {
+      "id": "guests",
+      "type": "text",
+      "label": "מספר אורחים",
+      "prompt": "כמה אורחים צפויים בערך?"
+    },
+    {
+      "id": "area",
+      "type": "text",
+      "label": "אזור",
+      "prompt": "באיזו עיר או אזור מתקיים האירוע?"
+    }
+  ]
+}

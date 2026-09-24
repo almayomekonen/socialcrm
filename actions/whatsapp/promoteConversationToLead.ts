@@ -6,6 +6,7 @@ import { db } from '@/config/db'
 import { upsertLead } from '@/actions/clients'
 import { attachConversationToLead } from '@/db/inboxConversations'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
+import { isQuestionnaireConversation } from '@/db/questionnaireSessions'
 import { parseWhatsappLead } from '@/lib/adapters/whatsappLead'
 import {
   enqueueInboundAutoResponse,
@@ -36,13 +37,16 @@ async function afterLink(agencyId: number, conversationId: number, leadId: numbe
   let delaySeconds = 0
   await db.transaction(async (trx) => {
     await attachConversationToLead(trx, { conversationId, agencyId, leadId })
-    await enqueueConversationAnalysis(trx, {
-      conversationId,
-      agencyId,
-      channel: 'whatsapp',
-      triggerSequence: 0,
-      reason: 'new_message',
-    })
+    // A questionnaire conversation costs no model calls, here as everywhere else.
+    if (!(await isQuestionnaireConversation(trx, agencyId, conversationId))) {
+      await enqueueConversationAnalysis(trx, {
+        conversationId,
+        agencyId,
+        channel: 'whatsapp',
+        triggerSequence: 0,
+        reason: 'new_message',
+      })
+    }
     // IRE only for an unanswered inbound. Leadless ingest correctly skipped
     // enqueue; promotion is the moment this becomes a sales conversation.
     const unanswered = await findLatestUnansweredInbound(trx, conversationId)

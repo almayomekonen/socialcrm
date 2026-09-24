@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAutomationSecret, isAutomationAuthorized } from '@/lib/automation/apiAuth'
 import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
+import { runQuestionnaireWorker } from '@/lib/inbox/autoresponse/questionnaire/worker'
 
 export const maxDuration = 60
 
@@ -23,7 +24,16 @@ async function handle(req: NextRequest) {
   }
 
   const result = await runAutoResponseWorker()
-  return NextResponse.json({ ok: true, ...result })
+  // The second drain for the same table. Its claim takes only questionnaire
+  // work, so the two never compete for a job. Isolated: a failure here must not
+  // turn a successful agent drain into a 500 that the cron will retry.
+  let questionnaire = { claimed: 0, sent: 0, skipped: 0, failed: 0 }
+  try {
+    questionnaire = await runQuestionnaireWorker()
+  } catch (err) {
+    console.error('[questionnaire] cron drain failed', { reason: (err as Error)?.message })
+  }
+  return NextResponse.json({ ok: true, ...result, questionnaire })
 }
 
 export async function GET(req: NextRequest) {

@@ -7,9 +7,11 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'ut
 describe('auto_response_jobs claim contract', () => {
   it('claims only pending jobs whose notBefore is due', () => {
     const src = read('db/autoResponseJobs.ts')
-    expect(src).toContain(`status = 'pending' AND "notBefore" <= now()`)
+    // Aliased as `j` since the claim gained the questionnaire-routing predicate
+    // (db/questionnaireJobs.ts). The filter itself is unchanged.
+    expect(src).toContain(`j.status = 'pending' AND j."notBefore" <= now()`)
     expect(src).toContain('FOR UPDATE SKIP LOCKED')
-    expect(src).toContain('ORDER BY "notBefore" ASC')
+    expect(src).toContain('ORDER BY j."notBefore" ASC')
   })
 
   it('keeps at most one in-flight job per conversation', () => {
@@ -106,7 +108,8 @@ describe('auto-response delay source of truth', () => {
     const helper = read('lib/inbox/autoresponse/enqueueInboundAutoResponse.ts')
     const ingest = read('lib/inbox/ingestWhatsappInbound.ts')
     expect(settings).toMatch(/\.first\([\s\S]*'delaySeconds'/)
-    expect(helper).toContain(".first('mode', 'delaySeconds')")
+    // 'responder' joined the same read: one query decides the job's reason.
+    expect(helper).toContain(".first('mode', 'delaySeconds', 'responder')")
     expect(ingest).toContain('enqueueInboundAutoResponse')
   })
 })

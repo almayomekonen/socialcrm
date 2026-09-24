@@ -71,6 +71,11 @@ function makeTrx() {
   const trx: any = vi.fn(() => trx)
   trx.where = vi.fn(() => trx)
   trx.first = vi.fn().mockResolvedValue({ mode: 'off', delaySeconds: 0 })
+  // The real knex transaction has .raw(); the ingest path uses it to ask
+  // whether this conversation belongs to the deterministic questionnaire
+  // (which suppresses the Copilot analysis job). Answering "no" keeps this
+  // suite's subject unchanged: an ordinary AI-agency conversation.
+  trx.raw = vi.fn().mockResolvedValue({ rows: [{ hit: false }] })
   trx.__marker = 'ingest-trx'
   return trx
 }

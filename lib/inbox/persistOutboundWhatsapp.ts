@@ -3,6 +3,7 @@ import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inbox
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertOutboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
+import { isQuestionnaireConversation } from '@/db/questionnaireSessions'
 
 export type PersistOutboundWhatsappInput = {
   agencyId: number
@@ -14,6 +15,25 @@ export type PersistOutboundWhatsappInput = {
   sentByUserId: number | null
   wamid: string
   text: string
+  /**
+   * Written INSIDE the insert, not merged afterwards.
+   *
+   * `metadata.source` is what tells the rest of the system an automation sent
+   * this message rather than a person. Every existing caller sets it with a
+   * second UPDATE after this function returns, which leaves a window: a process
+   * that dies in between leaves an untagged row, and an untagged outbound reads
+   * as a human takeover — silencing the automation on that conversation for
+   * good. Passing it here closes that window. Optional, so callers that do not
+   * pass it behave exactly as before.
+   */
+  metadata?: Record<string, unknown>
+  /**
+   * Skip the Copilot analysis job for this message.
+   *
+   * Analysis is an LLM call. A questionnaire conversation must not incur one,
+   * and the guarantee has to hold at the point the job would be created.
+   */
+  skipAnalysis?: boolean
 }
 
 export type PersistOutboundWhatsappResult = {
@@ -65,11 +85,17 @@ export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInpu
       text: input.text,
       sentByUserId: input.sentByUserId,
       channelTimestamp: new Date(),
+      metadata: input.metadata,
     })
 
     await bumpConversationOnOutbound(trx, conversationId, new Date(), input.text)
 
-    if (inserted) {
+    // Same rule as the inbound path: a questionnaire conversation never buys a
+    // model call. Checked here as well as at the caller so a rep's own reply in
+    // such a thread does not quietly re-introduce one.
+    const analysisAllowed =
+      input.skipAnalysis !== true && !(await isQuestionnaireConversation(trx, input.agencyId, conversationId))
+    if (inserted && analysisAllowed) {
       await enqueueConversationAnalysis(trx, {
         conversationId,
         agencyId: input.agencyId,

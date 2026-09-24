@@ -531,6 +531,8 @@ function safeJson(s: string): unknown {
  * Agency-scoped in the query, like every other read here: a conversationId from
  * another tenant matches no row.
  */
+export type HandoffSummaryField = { label: string; value: string }
+
 export type HandoffSummary = {
   text: string
   suggestedAction: string | null
@@ -540,6 +542,17 @@ export type HandoffSummary = {
   urgency: string | null
   temperature: string | null
   updatedAt: string | null
+  /**
+   * Label/value rows supplied by the writer instead of the four fixed fields
+   * above. The deterministic questionnaire uses this: its questions are the
+   * business's own, so there is no fixed set of names to map them onto, and
+   * inventing one would mean showing "צורך" over an answer about a wedding date.
+   */
+  fields: HandoffSummaryField[]
+  /** 'questionnaire' when a deterministic script produced this, else null. */
+  source: string | null
+  /** False while the questionnaire is still in progress. */
+  complete: boolean | null
 }
 
 export async function getHandoffSummary(
@@ -556,6 +569,16 @@ export async function getHandoffSummary(
     const s = typeof v === 'string' ? v.trim() : ''
     return s ? s : null
   }
+  const rawFields = Array.isArray(d.fields) ? (d.fields as unknown[]) : []
+  const fields: HandoffSummaryField[] = rawFields
+    .map((f) => {
+      const row = (f ?? {}) as Record<string, unknown>
+      const label = str(row.label)
+      const value = str(row.value)
+      return label && value ? { label, value } : null
+    })
+    .filter((f): f is HandoffSummaryField => f !== null)
+
   return {
     text: str(d.text) ?? '',
     suggestedAction: str(d.suggestedAction),
@@ -565,5 +588,8 @@ export async function getHandoffSummary(
     urgency: str(d.urgency),
     temperature: str(d.temperature),
     updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : (row.updatedAt ?? null),
+    fields,
+    source: str(d.source),
+    complete: typeof d.complete === 'boolean' ? d.complete : null,
   }
 }

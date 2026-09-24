@@ -61,10 +61,22 @@ export async function enqueueInboundAutoResponse(
 ): Promise<EnqueueInboundAutoResponseResult> {
   const arSettings = await trx('auto_response_settings')
     .where({ agencyId: args.agencyId, channel: 'whatsapp' })
-    .first('mode', 'delaySeconds')
+    .first('mode', 'delaySeconds', 'responder')
   const delayRaw = Number(arSettings?.delaySeconds ?? 0)
   const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
-  const reason: AutoResponseReason = arSettings?.mode === 'qualify' ? 'qualify_turn' : 'first_contact'
+  /**
+   * The questionnaire needs a per-turn job, like qualify, rather than the
+   * once-per-conversation `first_contact`. The reason is a label, for
+   * observability and for the follow-up rule; WHICH WORKER gets the job is
+   * decided later, at claim time, from the configuration as it stands then
+   * (db/questionnaireJobs.ts).
+   */
+  const reason: AutoResponseReason =
+    arSettings?.responder === 'questionnaire'
+      ? 'questionnaire_turn'
+      : arSettings?.mode === 'qualify'
+        ? 'qualify_turn'
+        : 'first_contact'
   await skipPendingNoResponseJobs(trx, args.conversationId)
   const jobId = await enqueueAutoResponse(trx, {
     agencyId: args.agencyId,

@@ -6,6 +6,10 @@ const runWorker = vi.hoisted(() =>
 )
 
 vi.mock('@/lib/inbox/autoresponse/worker', () => ({ runAutoResponseWorker: runWorker }))
+// The route drains BOTH claims. The questionnaire's is mocked here so this
+// suite stays about the agent's drain and touches no database.
+const runQuestionnaire = vi.hoisted(() => vi.fn(async () => ({ claimed: 0, sent: 0, skipped: 0, failed: 0 })))
+vi.mock('@/lib/inbox/autoresponse/questionnaire/worker', () => ({ runQuestionnaireWorker: runQuestionnaire }))
 vi.mock('@/lib/automation/apiAuth', () => ({
   getAutomationSecret: () => 'test-cron',
   isAutomationAuthorized: (req: NextRequest, secret: string) =>
@@ -36,6 +40,7 @@ describe('GET /api/cron/send-auto-responses', () => {
       sent: 1,
       skipped: 1,
       failed: 0,
+      questionnaire: { claimed: 0, sent: 0, skipped: 0, failed: 0 },
     })
   })
 

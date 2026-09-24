@@ -5,6 +5,7 @@ import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertInboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 import { enqueueInboundAutoResponse } from '@/lib/inbox/autoresponse/enqueueInboundAutoResponse'
+import { isQuestionnaireConversation } from '@/db/questionnaireSessions'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { notifyEvent } from '@/lib/notifications/emit'
 
@@ -90,8 +91,12 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
         .where({ id: conversationId, agencyId: input.agencyId })
         .first('isPersonal')
       const isPersonal = convFlags?.isPersonal === true
+      // A questionnaire conversation is answered deterministically and must cost
+      // nothing in model calls, so it gets no Copilot analysis job either. The
+      // check is scoped to this conversation; the agency's other AI is untouched.
+      const questionnaire = await isQuestionnaireConversation(trx, input.agencyId, conversationId)
       // Copilot analysis stays Lead-only. IRE may run for non-personal Contacts.
-      if (input.leadId != null && input.leadId > 0) {
+      if (!questionnaire && input.leadId != null && input.leadId > 0) {
         await enqueueConversationAnalysis(trx, {
           conversationId,
           agencyId: input.agencyId,

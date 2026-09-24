@@ -18,6 +18,20 @@ export type SendWhatsappTextFailure = {
   type?: string
   /** Graph `fbtrace_id` when present. */
   fbtraceId?: string
+  /**
+   * TRUE WHEN WE DO NOT KNOW WHETHER THE CUSTOMER RECEIVED THE MESSAGE.
+   *
+   * A Graph error is an answer: Meta rejected the message and nothing was
+   * delivered. A timeout or a dropped connection is not an answer — the request
+   * may well have been accepted, and the reply may be on the customer's phone
+   * already. The two must not be treated alike, because "send it again" is
+   * right for the first and can duplicate a real message in the second.
+   *
+   * Callers that act on this must have a stated recovery policy. The
+   * questionnaire's is: never resend automatically, and hand the conversation
+   * to a person.
+   */
+  ambiguous?: boolean
 }
 
 export type SendWhatsappTextResult = SendWhatsappTextSuccess | SendWhatsappTextFailure
@@ -51,6 +65,15 @@ export async function sendWhatsappText(args: {
   to: string
   body: string
   trace?: WaTraceCtx
+  /**
+   * Abandon the Graph call after this many milliseconds. Optional, and unset
+   * for every existing caller, so their behaviour is unchanged: they wait as
+   * long as the platform lets them. A worker that holds a lease does not have
+   * that luxury — once the lease expires another worker may claim the same job,
+   * and two live requests for one message is the situation to avoid. The
+   * resulting failure is reported as `ambiguous`.
+   */
+  timeoutMs?: number
 }): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, body } = args
   // Normalize the recipient to E.164 (Israeli local → 972…). The number reaching
@@ -62,9 +85,13 @@ export async function sendWhatsappText(args: {
     recipient,
     messageLength: (body ?? '').length,
   })
+  const timeoutMs = Number(args.timeoutMs)
+  const signal =
+    Number.isFinite(timeoutMs) && timeoutMs > 0 ? AbortSignal.timeout(Math.floor(timeoutMs)) : undefined
   try {
     const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
       method: 'POST',
+      signal,
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -132,6 +159,14 @@ export async function sendWhatsappText(args: {
     return { ok: true, wamid }
   } catch (err) {
     console.error('[WhatsappSend] fetch failed', err)
-    return { ok: false, error: (err as Error)?.message || 'network-error' }
+    const name = (err as Error)?.name
+    const timedOut = name === 'TimeoutError' || name === 'AbortError'
+    // The request left this process. Whether Meta accepted it is unknown, and
+    // saying otherwise here would make a duplicate look safe upstream.
+    return {
+      ok: false,
+      error: timedOut ? 'send-timeout' : (err as Error)?.message || 'network-error',
+      ambiguous: true,
+    }
   }
 }

@@ -22,12 +22,21 @@ export async function sendIreOutbound(
   ctx: IreOutboundCtx,
   send: typeof sendWhatsappText,
   text: string,
-  metadata: { source: string; reason: string; phase: number; kind?: string } = {
+  metadata: { source: string; reason: string; phase: number; kind?: string; [key: string]: unknown } = {
     source: 'auto_response',
     reason: job.reason,
     phase: 2,
   },
-): Promise<{ ok: true; messageId: number; sequence: number } | { ok: false; reason: string; settled?: true }> {
+  opts: {
+    /** Abandon the Graph call after this long. See sendWhatsappText.timeoutMs. */
+    timeoutMs?: number
+    /** Do not enqueue the Copilot analysis job for this message (an LLM call). */
+    skipAnalysis?: boolean
+  } = {},
+): Promise<
+  | { ok: true; messageId: number; sequence: number }
+  | { ok: false; reason: string; settled?: true; ambiguous?: true }
+> {
   const body = finalizeCustomerFacingText(text)
   const connection = await db('whatsapp_connections')
     .where({ phone_number_id: ctx.conv.businessPhoneNumberId, agency_id: job.agencyId })
@@ -63,6 +72,7 @@ export async function sendIreOutbound(
     to,
     body,
     trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
+    ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
   })
   if (sent.ok === false) {
     await applyIreWhatsappSendFailure(job, sent, {
@@ -72,8 +82,19 @@ export async function sendIreOutbound(
       sentByUserId,
       text: body,
     })
-    return { ok: false, reason: formatWhatsappSendFailure(sent), settled: true }
+    // `ambiguous` travels with the failure: a timeout or a dropped connection
+    // may still have been delivered, and a caller that resends on it can put a
+    // second copy of the same message on the customer's phone.
+    return {
+      ok: false,
+      reason: formatWhatsappSendFailure(sent),
+      settled: true,
+      ...(sent.ambiguous ? { ambiguous: true as const } : {}),
+    }
   }
+  // The tag goes in with the row. It used to be merged by a second UPDATE, and
+  // a process that died in between left an outbound that every reader treats as
+  // a human takeover — permanently silencing the automation on that thread.
   const res = await persistOutboundWhatsapp({
     agencyId: job.agencyId,
     leadId: job.leadId,
@@ -83,11 +104,8 @@ export async function sendIreOutbound(
     sentByUserId,
     wamid: sent.wamid,
     text: body,
+    metadata,
+    skipAnalysis: opts.skipAnalysis === true,
   })
-  await db('inbox_messages')
-    .where({ id: res.messageId })
-    .update({
-      metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify(metadata)]),
-    })
   return { ok: true, messageId: res.messageId, sequence: Number(res.sequence) || 0 }
 }
