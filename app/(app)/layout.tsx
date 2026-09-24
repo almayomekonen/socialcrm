@@ -41,6 +41,7 @@ import { after } from 'next/server'
 import WelcomeTrialModal from '@/components/trial/WelcomeTrialModal'
 import { welcomeCardStage } from '@/lib/payments/cardTrial/availability'
 import { isCardRequiredTrialEnabledForAgency } from '@/lib/payments/grow/config'
+import { hasBillingPath } from '@/lib/payments/cardTrial/availability'
 import { cardReactivationFor } from '@/lib/payments/cardTrial/cardTrialView'
 import TrialExpiredScreen from '@/components/trial/TrialExpiredScreen'
 import WorkspaceTeaser from '@/components/trial/WorkspaceTeaser'
@@ -351,6 +352,11 @@ async function LayoutContent({ children }) {
                       }
                     : undefined
                 }
+                /* No card flow for this account yet, and Payment Links are
+                   gone, so there is no way to bill a trial we start now.
+                   startTrial refuses for the same reason; this tells the
+                   customer the truth instead of showing a button that fails. */
+                trialOpensLater={!hasBillingPath(user.agencyId)}
               />
             )}
             {/* Registration attribution. UNCONDITIONAL on purpose: it must sit

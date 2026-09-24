@@ -7,8 +7,9 @@ import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startTrialForAgency, recordWelcomeModalSeen } from '@/db/trial'
 import { isMobileRequest } from '@/lib/device'
 import { isCardRequiredTrialEnabledForAgency } from '@/lib/payments/grow/config'
+import { hasBillingPath } from '@/lib/payments/cardTrial/availability'
 
-export type StartTrialResult = { ok: true; started: boolean } | { error: 'unauthorized' | 'card_required' }
+export type StartTrialResult = { ok: true; started: boolean } | { error: 'unauthorized' | 'card_required' | 'billing_not_available' }
 
 export async function startTrial(): Promise<StartTrialResult> {
   let user
@@ -22,6 +23,23 @@ export async function startTrial(): Promise<StartTrialResult> {
   // Card-required trials start ONLY from the verified Grow callback. The DB
   // write point enforces this too; refusing here keeps a stale client honest.
   if (isCardRequiredTrialEnabledForAgency(user.agencyId)) return { error: 'card_required' }
+
+  /**
+   * NEVER OPEN A TRIAL WE CANNOT BILL.
+   *
+   * Reaching here means this agency is not being asked for a card, so this
+   * would be the old click-to-start trial. Payment Links were the only way such
+   * a trial ever converted and this release removes them, so on day seven there
+   * is no stored card to charge and no link to send: the customer would lose
+   * access having been told they were on a trial.
+   *
+   * Everything below is the legacy activation path. It stays because it is
+   * still correct — it simply has no billing path to run into right now, and
+   * once the card-required flow is global the branch above catches everyone
+   * and this one is never reached again. Existing trials are untouched: this
+   * refuses to START one and changes no dates.
+   */
+  if (!hasBillingPath(user.agencyId)) return { error: 'billing_not_available' }
 
   const { started } = await startTrialForAgency(user.agencyId, user.id)
 

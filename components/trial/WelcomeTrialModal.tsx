@@ -52,7 +52,14 @@ export type WelcomeCardSetup = {
   stage: 'setup' | 'awaiting' | 'unavailable'
 }
 
-export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCardSetup }) {
+export default function WelcomeTrialModal({
+  cardSetup,
+  trialOpensLater = false,
+}: {
+  cardSetup?: WelcomeCardSetup
+  /** No billing path yet: show the honest wait instead of a start button. */
+  trialOpensLater?: boolean
+}) {
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -262,6 +269,18 @@ export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCa
           ) : (
             <p className='text-sm text-gray-600 text-center'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>
           )
+        ) : trialOpensLater ? (
+          /*
+           * No card flow for this account yet and no Payment Link to fall back
+           * on, so a trial started now could never be billed. Saying so is the
+           * honest alternative to a button that would fail server-side — and it
+           * promises nothing about a date we do not control.
+           */
+          <div role='status' className='space-y-2 text-center'>
+            <p className='text-sm font-semibold text-gray-900'>תקופת הניסיון תיפתח כאן בקרוב</p>
+            <p className='text-sm text-gray-600'>אנחנו משלימים את חיבור התשלומים. החשבון שלכם שמור, לא בוצע חיוב, ואין צורך בשום פעולה.</p>
+            <p className='text-xs text-gray-500'>נעדכן אתכם ברגע שאפשר יהיה להתחיל.</p>
+          </div>
         ) : (
           <>
             {/* Dominant, full-width primary action — the ONLY trial trigger */}

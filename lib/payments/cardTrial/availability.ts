@@ -1,4 +1,4 @@
-import { assertGrowRuntime, getGrowApiConfig, publicAppOrigin } from '@/lib/payments/grow/config'
+import { assertGrowRuntime, getGrowApiConfig, isCardRequiredTrialEnabledForAgency, publicAppOrigin } from '@/lib/payments/grow/config'
 import { isGrowLocalMockEnabled } from '@/lib/payments/grow/localMock'
 import { isCardSetupEligible } from './startCardSetup'
 import { getLatestPaymentMethod, type PaymentMethodPurpose } from '@/db/payments/paymentMethods'
@@ -79,3 +79,20 @@ export async function welcomeCardStage(agencyId: number): Promise<WelcomeCardSta
   if (latest?.status === 'active') return 'awaiting'
   return isCardBillingAvailable() ? 'setup' : 'unavailable'
 }
+
+/**
+ * Is there any way to bill this agency if we start a trial for it?
+ *
+ * After Payment Links a saved card is the only billing path, and a card is
+ * asked for exactly where the card-required flow is enabled — globally, or for
+ * an allowlisted account during the production validation window.
+ *
+ * So this is the "never open a trial we cannot bill" rule. A click-to-start
+ * trial opened outside that set would reach day seven with no stored card to
+ * charge and no link to send: the customer loses access having been told they
+ * were on a trial. It changes nothing for trials that already exist.
+ */
+export function hasBillingPath(agencyId: number): boolean {
+  return isCardRequiredTrialEnabledForAgency(agencyId)
+}
+

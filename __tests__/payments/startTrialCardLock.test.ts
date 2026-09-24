@@ -28,9 +28,27 @@ describe('startTrial with card-required trials', () => {
     expect(startTrialForAgency).not.toHaveBeenCalled()
   })
 
-  it('keeps click-to-start when the flag is off', async () => {
-    expect(await startTrial()).toEqual({ ok: true, started: true })
-    expect(startTrialForAgency).toHaveBeenCalledWith(2, 1)
+  /**
+   * This used to assert that click-to-start still worked when the flag was off.
+   * Payment Links were what made that safe — they were the only way such a
+   * trial ever converted — and this release removes them. A trial started here
+   * would reach day seven with no stored card to charge and no link to send, so
+   * it is refused at the source rather than handed out and broken later.
+   */
+  it('refuses click-to-start when there is no billing path at all', async () => {
+    vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', '')
+    vi.stubEnv('CARD_TRIAL_PILOT_AGENCY_IDS', '')
+    expect(await startTrial()).toEqual({ error: 'billing_not_available' })
+    // Nothing is written: no trial row, so no dates to undo.
+    expect(startTrialForAgency).not.toHaveBeenCalled()
+  })
+
+  it('starts for an allowlisted account during validation, because that one CAN be billed', async () => {
+    vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', '')
+    vi.stubEnv('CARD_TRIAL_PILOT_AGENCY_IDS', '2')
+    // Agency 2 is asked for a card, so the card-required branch owns it.
+    expect(await startTrial()).toEqual({ error: 'card_required' })
+    expect(startTrialForAgency).not.toHaveBeenCalled()
   })
 
   it('records whether the click came from the card-required variant', async () => {
