@@ -123,6 +123,15 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
+  /**
+   * A second `next dev` for the same project refuses to start because both would
+   * take the dev lock inside the build directory. Setting NEXT_DIST_DIR gives a
+   * throwaway instance (the local card-trial demo walkthrough) its own build
+   * directory, so it can run alongside whatever is already on :3000 without
+   * touching it. Unset — everywhere except that opt-in — this is '.next',
+   * exactly as before.
+   */
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   images: {
     // Hosts the purchased Lumen template's marketing sections load avatars and
     // logos from. Matches its own next.config; marketing surface only.

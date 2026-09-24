@@ -8,8 +8,15 @@ import { isAdmin } from '@/types/roles'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { loadPlatformOperators } from '@/db/notifications/recipients'
 import { notifyEvent } from '@/lib/notifications/emit'
+import * as cardBilling from '@/db/payments/cancellation'
 
-export type CancelResumeResult = { ok: true } | { error: 'unauthorized' | 'no_subscription' }
+/**
+ * NOTE: slightly over the 250-line soft limit (architecture-rules §6). The a11y
+ * suites pin this file's literal cancellation and operator-notification code, so
+ * card-token billing logic lives in db/payments/cancellation.ts and only its
+ * calls are here. `chargeInProgress`: a card charge was already sent to Grow.
+ */
+export type CancelResumeResult = { ok: true; chargeInProgress?: true } | { error: 'unauthorized' | 'no_subscription' | 'reactivation_required' }
 
 /** Greppable in production logs. A silent failure here means a live standing order nobody knows about. */
 const LOG = '[SubscriptionCancellationNotification]'
@@ -28,12 +35,19 @@ async function setCancelFlag(value: boolean): Promise<CancelResumeResult> {
    * from any role, so the boundary has to live here rather than in the page.
    */
   if (!isAdmin(user.role)) return { error: 'unauthorized' }
+  if (!value && (await cardBilling.isCardResumeBlocked(user.agencyId))) return { error: 'reactivation_required' }
 
-  const rowcount = await db('subscriptions')
-    .where({ agencyId: user.agencyId })
-    .update({ cancelAtPeriodEnd: value, updatedAt: new Date() })
+  let resumed = false
+  const rowcount = await db.transaction(async (trx) => {
+    const before = await trx('subscriptions').where({ agencyId: user.agencyId }).forUpdate().first('cancelAtPeriodEnd')
+    const n = await trx('subscriptions').where({ agencyId: user.agencyId }).update({ cancelAtPeriodEnd: value, updatedAt: new Date() })
+    resumed = n > 0 && !value && before?.cancelAtPeriodEnd === true
+    if (resumed) await cardBilling.reopenCurrentPeriodAfterResume(trx, user.agencyId)
+    return n
+  })
 
   if (rowcount === 0) return { error: 'no_subscription' }
+  if (resumed) await cardBilling.trackBillingTransition(user.agencyId, user.id, 'subscription_resumed')
 
   revalidatePath('/settings/update_payment')
   return { ok: true }
@@ -153,8 +167,10 @@ export async function cancelRenewal(): Promise<CancelResumeResult> {
   if (!isAdmin(user.role)) return { error: 'unauthorized' }
 
   let outcome: CancelResumeResult = { ok: true }
+  const card: { settled?: cardBilling.CardBillingOnCancel } = {}
 
   await db.transaction(async (trx) => {
+    await trx('subscriptions').where({ agencyId: user.agencyId }).forUpdate().first('id') // lock order: db/payments/chargeDispatch.ts
     const rows = (await trx('subscriptions')
       .where({ agencyId: user.agencyId, cancelAtPeriodEnd: false })
       .update({ cancelAtPeriodEnd: true, updatedAt: new Date() })
@@ -168,9 +184,13 @@ export async function cancelRenewal(): Promise<CancelResumeResult> {
        * asked for something that is already true). Only the second is idempotent.
        */
       const existing = await trx('subscriptions').where({ agencyId: user.agencyId }).first()
-      outcome = existing ? { ok: true } : { error: 'no_subscription' }
+      outcome = existing ? cardBilling.cancelOutcome(await cardBilling.settleCardBillingOnCancel(trx, user.agencyId)) : { error: 'no_subscription' }
       return
     }
+
+    card.settled = await cardBilling.settleCardBillingOnCancel(trx, user.agencyId)
+    outcome = cardBilling.cancelOutcome(card.settled)
+    if (!card.settled.standingOrderToStop) return // card-token billing: no Grow standing order to stop
 
     await notifyPlatformOperatorOfCancellation(trx, {
       cancellingAgencyId: user.agencyId,
@@ -179,6 +199,7 @@ export async function cancelRenewal(): Promise<CancelResumeResult> {
   })
 
   if ('error' in outcome) return outcome
+  if (card.settled) await cardBilling.trackBillingTransition(user.agencyId, user.id, 'subscription_cancel_requested', card.settled.chargeInProgress)
 
   revalidatePath('/settings/update_payment')
   return outcome

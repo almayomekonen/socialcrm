@@ -3,6 +3,10 @@
  *
  * Mirrors the pattern from __tests__/payments-upgrade-route.test.ts:
  * mock requireAgencyUser, use the real DB for the subscriptions row.
+ *
+ * Both actions are admin-only (44749e4a): authorized cases act as an ADMIN.
+ * Non-admin refusal is covered in __tests__/settings/phase2ActionGuards.test.ts;
+ * the no-session and suspended refusals stay here.
  */
 import { vi } from 'vitest'
 
@@ -19,6 +23,7 @@ vi.mock('@/lib/requireUser', async () => {
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { db } from '@/config/db'
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
+import { Roles } from '@/types/roles'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
 
 const TEST_TAG = '__sub_actions_' + Date.now() + '_'
@@ -75,7 +80,7 @@ describe('cancelRenewal', () => {
 
   it('returns no_subscription when the caller has no subscriptions row', async () => {
     const agencyId = await seedAgencyWithoutSubscription()
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId, role: Roles.ADMIN } as any)
 
     const result = await cancelRenewal()
 
@@ -89,7 +94,7 @@ describe('cancelRenewal', () => {
   it('sets cancelAtPeriodEnd=true and bumps updatedAt for an existing row', async () => {
     const agencyId = await seedAgencyWithSubscription(false)
     const before = await db('subscriptions').where({ agencyId }).first()
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId, role: Roles.ADMIN } as any)
 
     await new Promise((r) => setTimeout(r, 10))
 
@@ -103,7 +108,7 @@ describe('cancelRenewal', () => {
 
   it('is idempotent — applying cancel twice keeps cancelAtPeriodEnd=true', async () => {
     const agencyId = await seedAgencyWithSubscription(true)
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId, role: Roles.ADMIN } as any)
 
     const result = await cancelRenewal()
     expect(result).toEqual({ ok: true })
@@ -115,7 +120,7 @@ describe('cancelRenewal', () => {
   it('only mutates the callers own agencyId (scope check)', async () => {
     const myAgencyId = await seedAgencyWithSubscription(false)
     const otherAgencyId = await seedAgencyWithSubscription(false)
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId: myAgencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId: myAgencyId, role: Roles.ADMIN } as any)
 
     await cancelRenewal()
 
@@ -138,7 +143,7 @@ describe('resumeRenewal', () => {
 
   it('sets cancelAtPeriodEnd=false for an existing row', async () => {
     const agencyId = await seedAgencyWithSubscription(true)
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId, role: Roles.ADMIN } as any)
 
     const result = await resumeRenewal()
     expect(result).toEqual({ ok: true })
@@ -149,7 +154,7 @@ describe('resumeRenewal', () => {
 
   it('returns no_subscription when no row exists', async () => {
     const agencyId = await seedAgencyWithoutSubscription()
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId, role: Roles.ADMIN } as any)
 
     const result = await resumeRenewal()
     expect(result).toEqual({ error: 'no_subscription' })
@@ -157,7 +162,7 @@ describe('resumeRenewal', () => {
 
   it('is idempotent — applying resume twice keeps cancelAtPeriodEnd=false', async () => {
     const agencyId = await seedAgencyWithSubscription(false)
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId } as any)
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce({ id: 1, agencyId, role: Roles.ADMIN } as any)
 
     const result = await resumeRenewal()
     expect(result).toEqual({ ok: true })

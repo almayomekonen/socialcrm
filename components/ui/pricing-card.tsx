@@ -108,7 +108,6 @@ const PricingComponent: React.FC<PricingComponentProps> = ({
         </p>
       </header>
 
-      <CycleToggle billingCycle={billingCycle} onCycleChange={onCycleChange} />
 
       <section aria-labelledby='pricing-plans' className='mt-2'>
         <div className='grid gap-6 md:grid-cols-2 max-w-3xl mx-auto'>
@@ -264,11 +263,10 @@ export default function PricingPageComponent() {
       router.push('/auth')
       return
     }
-    // Pro: the exact same upgrade mechanism as the billing page. The route
-    // owns auth (anonymous → login redirect), annual-link gating, intent
-    // recording, and analytics — the page only forwards the selection.
-    const period = selectedCycle === 'annually' ? 'annual' : 'monthly'
-    window.location.href = `/api/payments/upgrade?period=${period}&source=marketing_pricing`
+    // Pro: the retired-checkout shim, kept because it owns the anonymous →
+    // login redirect. It now lands on the billing screen, where a card is
+    // saved. No period is sent: this release sells monthly only.
+    window.location.href = '/api/payments/upgrade?source=marketing_pricing'
   }
 
   return (

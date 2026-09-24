@@ -4,6 +4,7 @@ import { isDevBypassAgency } from '@/lib/auth/devBypass'
 import { getTrialState, hasActiveProductAccess } from '@/lib/trial'
 import { FREE_LEAD_LIMIT } from './constants'
 import { Plan, QuotaExceededError, QuotaStatus } from './types'
+import { CONVERSION_GRACE_ENDS_AT_SQL } from '@/db/payments/conversionGrace'
 
 export { FREE_LEAD_LIMIT } from './constants'
 export { QuotaExceededError } from './types'
@@ -50,6 +51,7 @@ export async function getEffectiveLeadPlan(agencyId: number, q: Knex = db): Prom
       'agencies.trialEndsAt',
       'agencies.planReason',
       'subscriptions.expiresAt',
+      q.raw(`${CONVERSION_GRACE_ENDS_AT_SQL} AS "conversionGraceEndsAt"`),
     )
     .first()
   if (!row) return 'free'

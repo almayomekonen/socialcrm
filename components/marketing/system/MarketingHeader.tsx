@@ -34,7 +34,9 @@ const LINKS = [
   { label: 'מחירים', href: '/pricing' },
 ]
 
-const CTA = { label: 'התחל בחינם', href: '/auth' }
+// The primary CTA is for a NEW visitor: it must open the signup page where
+// details are entered and the terms are accepted, not the sign-in box.
+const CTA = { label: 'התחל בחינם', href: '/auth/register' }
 
 function Logo() {
   return (

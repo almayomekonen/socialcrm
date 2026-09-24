@@ -18,6 +18,8 @@ import { EVENT_CONTENT } from './content/event'
 import { EDUCATIONAL } from './content/educational'
 import { contentToAutomation } from './contentToAutomation'
 import { resolveNextEducational } from './journey'
+import { cardTrialStarted, cardTrialChargeReminder } from './cardTrial'
+import { subscriptionPaymentFailed } from './cardBilling'
 
 // Welcome keeps its rich transactional template + legacy WELCOME_EMAIL_ENABLED
 // gate. It is the one automation that is not content-driven, on purpose.
@@ -55,6 +57,9 @@ const educationalJourney: Automation = {
 
 export const AUTOMATIONS: Automation[] = [
   welcome,
+  cardTrialStarted,
+  cardTrialChargeReminder,
+  subscriptionPaymentFailed,
   ...EVENT_CONTENT.map(contentToAutomation),
   ...STATE_CONTENT.map(contentToAutomation),
   educationalJourney,

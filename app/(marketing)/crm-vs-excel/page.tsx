@@ -161,7 +161,7 @@ export default function CRMvsExcelPage() {
                   ראה את כל הפיצ׳רים
                 </Link>
                 <Btn
-                  href='/auth'
+                  href='/auth/register'
                   lbl='עוברים למערכת בחינם'
                   className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}

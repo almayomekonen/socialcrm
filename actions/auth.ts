@@ -7,7 +7,7 @@ import { db } from '@/config/db'
 import { Roles } from '@/types/roles'
 import { createCookie, getUser, getUserByEmail, getUserByFacebookSub, revokeUserSessions } from '../db/auth'
 import { genToken } from '@/lib/funcs'
-import { baseUrl } from '@/types/vars'
+import { resolveBaseUrl } from '@/types/vars'
 import { sendEmail } from '@/lib/email/sender'
 import { renderEmail } from '@/lib/email/render'
 import MagicLinkEmail from '@/emails/templates/MagicLinkEmail'
@@ -231,7 +231,14 @@ export async function sendToken(email: string): Promise<{ ok: true } | { ok: fal
   const tokenExpiry = new Date(Date.now() + MAGIC_LINK_EXPIRY_MINUTES * 60 * 1000)
   await db('users').where({ id: user.id }).update({ otp: { token, tokenExpiry } })
 
-  const magicLink = `${baseUrl}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
+  /**
+   * Resolved per request, never from the module-level constant. That constant is
+   * computed when the module is first evaluated, which for a prerendered page is
+   * BUILD time — and APP_HOST, the variable that names the staging origin, is
+   * marked sensitive and does not exist during a build. Calling it here pins the
+   * link to the environment that is actually issuing the token.
+   */
+  const magicLink = `${resolveBaseUrl()}/api/magic?token=${token}&email=${encodeURIComponent(email)}`
 
   const html = await renderEmail(MagicLinkEmail({ magicUrl: magicLink, expiresInMinutes: MAGIC_LINK_EXPIRY_MINUTES }))
 

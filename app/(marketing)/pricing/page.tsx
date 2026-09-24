@@ -4,15 +4,16 @@ import Navbar from '@/components/lumen/layout/navbar'
 import Footer from '@/components/lumen/layout/footer'
 import Pricing from '@/components/lumen/sections/pricing'
 import PricingTable from '@/components/lumen/sections/pricing-table'
-import { PRICING, ANNUAL_MONTHLY_EQUIVALENT } from '@/lib/pricing'
+import { PRICING } from '@/lib/pricing'
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 
 export const metadata = buildPageMetadata({
   path: '/pricing',
   title: `מחירים | SocialCRM | ${PRICING.currency}${PRICING.monthly} לחודש`,
   description:
-    `מתחילים בשבעה ימי התנסות עם כל המערכת, בלי כרטיס אשראי. אחר כך ${PRICING.currency}${PRICING.monthly} לחודש, או ${PRICING.currency}${PRICING.annual} לשנה (${PRICING.currency}${ANNUAL_MONTHLY_EQUIVALENT} לחודש). כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם AI שמכיר כל ליד.`,
+    `${TRIAL_LENGTH_DAYS} ימי התנסות עם כל המערכת. נדרש כרטיס אשראי, ולא מתבצע חיוב במהלך ההתנסות. אחר כך ${PRICING.currency}${PRICING.monthly} לחודש עד לביטול. כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם AI שמכיר כל ליד.`,
   ogTitle: `מחירים | SocialCRM`,
-  ogDescription: `שבעה ימי התנסות מלאה בלי כרטיס אשראי, ואז ${PRICING.currency}${PRICING.monthly} לחודש.`,
+  ogDescription: `${TRIAL_LENGTH_DAYS} ימי התנסות מלאה ללא חיוב, ואז ${PRICING.currency}${PRICING.monthly} לחודש.`,
 })
 
 /**

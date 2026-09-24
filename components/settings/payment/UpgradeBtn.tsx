@@ -1,6 +1,7 @@
 'use client'
 
 import { Btn } from '@/lib/btns/Btn'
+import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 
 type Props = { lbl?: string; variant?: 'solid' | 'outline'; className?: string; source?: string }
 
@@ -13,7 +14,7 @@ export default function UpgradeBtn({ lbl = 'שדרג למסלול Pro', variant 
       className={className}
       onClick={() => {
         // Optional analytics attribution; default URL unchanged for existing callers.
-        window.location.href = source ? `/api/payments/upgrade?source=${encodeURIComponent(source)}` : '/api/payments/upgrade'
+        window.location.href = upgradeHref(source ?? 'billing_page')
       }}
     />
   )

@@ -76,7 +76,7 @@ describe('compact action lock', () => {
     const strip = screen.getByTestId('subscription-expired-inline')
     expect(strip.textContent).toContain('שליחת הודעות מושהית')
     const renew = screen.getByRole('link', { name: 'חידוש מנוי' })
-    expect(renew.getAttribute('href')).toContain('/api/payments/upgrade')
+    expect(renew.getAttribute('href')).toContain('/settings/update_payment')
     expect(renew.getAttribute('href')).toContain('source=whatsapp_composer')
   })
 

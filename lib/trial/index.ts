@@ -11,6 +11,12 @@ export type TrialRow = {
   planReason?: string | null
   /** subscriptions.expiresAt — LEFT JOINed server-side; NEVER from the client. */
   expiresAt?: Date | string | null
+  /**
+   * Card-required trial only: when the first charge attempt may still be
+   * resolving after trialEndsAt (db/payments/conversionGrace.ts). NULL/absent
+   * for every agency without an active card — behaviour unchanged.
+   */
+  conversionGraceEndsAt?: Date | string | null
 }
 
 export type TrialState = {
@@ -72,6 +78,9 @@ export function getTrialState(row: TrialRow, now: Date): TrialState {
   if (now.getTime() < endsAt.getTime()) {
     const daysRemaining = Math.ceil((endsAt.getTime() - now.getTime()) / DAY_MS)
     return { status: 'TRIAL_ACTIVE', endsAt, daysRemaining }
+  }
+  if (row.conversionGraceEndsAt && now.getTime() < new Date(row.conversionGraceEndsAt).getTime()) {
+    return { status: 'TRIAL_ACTIVE', endsAt, daysRemaining: 0 }
   }
   return { status: 'TRIAL_EXPIRED', endsAt, daysRemaining: 0 }
 }

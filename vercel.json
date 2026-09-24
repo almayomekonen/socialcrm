@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/messenger-events",
       "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/cron/subscription-charges",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

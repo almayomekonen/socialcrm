@@ -7,15 +7,19 @@ import { getSubscriptionView } from '@/lib/quota/subscription'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import Packages from '@/components/settings/payment/Packages'
-import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
 import ProPlanCard from '@/components/settings/payment/ProPlanCard'
 import SubscriptionUsage from '@/components/settings/payment/SubscriptionUsage'
 import BillingHistory from '@/components/settings/payment/BillingHistory'
 import TrialStatusCard from '@/components/trial/TrialStatusCard'
+import CardOnFileSummary from '@/components/trial/CardOnFileSummary'
+import { getCardTrialView } from '@/lib/payments/cardTrial/cardTrialView'
 import Icon from '@/lib/Icon'
+import { PRICING } from '@/lib/pricing'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
-import { isAnnualLinkConfigured } from '@/lib/payments/link'
+import { isCardBillingAvailable, billingSetupPurpose } from '@/lib/payments/cardTrial/availability'
+import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
+import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
 
 type SearchParams = Promise<{ mode?: string | string[] }>
 
@@ -38,6 +42,13 @@ type SearchParams = Promise<{ mode?: string | string[] }>
  * digits, per-charge amounts and invoice documents are absent because this
  * system does not record them — see PaymentMethodRow and BillingHistory.
  */
+/** One label per purpose: the button says exactly what pressing it does. */
+const SETUP_LABEL = {
+  trial_start: 'הוספת כרטיס והפעלת הניסיון',
+  reactivate: 'עדכון אמצעי תשלום והמשך',
+  card_update: 'החלפת הכרטיס השמור',
+} as const
+
 export default async function page({ searchParams }: { searchParams?: SearchParams }) {
   const sp = searchParams ? await searchParams : {}
   const isLocalMode = sp.mode === 'local'
@@ -58,6 +69,8 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const isPro = plan === 'pro'
   const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
 
+  // Card-token billing facts (empty for every Payment-Link or no-card agency).
+  const cardView = await getCardTrialView(user.agencyId)
   const trialRow = isPro ? null : await getAgencyTrial(user.agencyId)
   const trial = trialRow ? getTrialState(trialRow, new Date()) : null
   const trialActive = trial?.status === 'TRIAL_ACTIVE'
@@ -69,6 +82,12 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
 
   // Usage only describes a subscription, so it is read only when there is one.
   const usage = isPro ? await getPlanUsage(user.agencyId, plan) : null
+
+  // The only way to pay is a saved card. Offer a setup only when the provider
+  // can actually complete one AND this agency is eligible for some purpose —
+  // otherwise say so plainly instead of rendering a button that leads nowhere.
+  const setupPurpose = cardView.cardBilled ? null : await billingSetupPurpose(user.agencyId)
+  const canStartSetup = isCardBillingAvailable() && setupPurpose !== null
 
   return (
     <div>
@@ -89,11 +108,15 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
         </div>
       )}
 
+      {cardView.cardBilled && <CardOnFileSummary view={cardView} />}
+
       {trialActive && trial?.endsAt && trialRow?.trialStartedAt && (
         <TrialStatusCard
           startedAt={new Date(trialRow.trialStartedAt)}
           endsAt={trial.endsAt}
           daysRemaining={trial.daysRemaining ?? 0}
+          cardBilled={cardView.cardBilled}
+          cancelAtPeriodEnd={cardView.cancelAtPeriodEnd}
         />
       )}
 
@@ -105,11 +128,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
               <SubscriptionExpiredState mode='inline' source='billing_page' />
             </div>
           )}
-          <ProPlanCard
-            subscription={subscription}
-            annualAvailable={isAnnualLinkConfigured()}
-            hasAccess={productAccess.hasAccess}
-          />
+          <ProPlanCard subscription={subscription} hasAccess={productAccess.hasAccess} />
         </>
       ) : (
         <div className='mb-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
@@ -120,10 +139,10 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
                 <p className='text-sm text-gray-500'>סטטוס: פעיל</p>
               </div>
               <a
-                href='#packages'
+                href='#card-setup'
                 className='flex items-center min-w-fit justify-center font-medium rounded-md h-10 px-4 bg-solid text-white hover:bg-solid/85'
               >
-                בחר מסלול להמשך
+                הוספת אמצעי תשלום
               </a>
             </>
           ) : (
@@ -132,7 +151,12 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
                 <p className='text-lg font-semibold'>תוכנית: Free</p>
                 <p className='text-sm text-gray-500'>סטטוס: לא פעיל</p>
               </div>
-              <UpgradeBtn />
+              <a
+                href='#card-setup'
+                className='flex items-center min-w-fit justify-center font-medium rounded-md h-10 px-4 bg-solid text-white hover:bg-solid/85'
+              >
+                הוספת אמצעי תשלום
+              </a>
             </>
           )}
         </div>
@@ -142,12 +166,26 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
 
       <BillingHistory charges={charges} />
 
+      {!cardView.cardBilled && (
+        <section id='card-setup' className='mt-12 scroll-mt-6'>
+          <h2 className='text-xl font-bold'>אמצעי תשלום</h2>
+          <p className='mt-1 text-sm text-gray-500'>המנוי מחויב ב־₪{PRICING.monthly} לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.</p>
+          <div className='mt-4'>
+            {canStartSetup && setupPurpose ? (
+              <CardTrialSetupForm purpose={setupPurpose} submitLabel={SETUP_LABEL[setupPurpose]} />
+            ) : (
+              <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
+            )}
+          </div>
+        </section>
+      )}
+
       {!isPro && (
         <>
           <h2 id='packages' className='text-xl font-bold mt-12 scroll-mt-6'>
             חבילות
           </h2>
-          <Packages plan={plan} annualAvailable={isAnnualLinkConfigured()} trialActive={trialActive} />
+          <Packages plan={plan} trialActive={trialActive} />
         </>
       )}
 

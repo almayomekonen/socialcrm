@@ -5,6 +5,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackTrialStartClicked, trackTrialStartFailed, trackWelcomeModalSeen } from '@/actions/trial'
+import CardTrialSetupForm from './CardTrialSetupForm'
 import { trackStartTrial } from '@/lib/facebook/pixelEvents'
 import { useActivationCelebration } from './ActivationCelebrationContext'
 
@@ -34,7 +35,24 @@ const BENEFITS: { icon: IconNames; title: string; sub: string }[] = [
  * single trigger that starts the trial. Because it is non-dismissible, the
  * dialog traps keyboard focus itself (ModalPop has no trap of its own).
  */
-export default function WelcomeTrialModal() {
+/**
+ * `cardSetup` present ⇒ the card-required variant (CARD_REQUIRED_TRIAL_ENABLED,
+ * resolved on the SERVER in the (app) layout). The trial then starts only after
+ * Grow's callback is verified, so this variant never calls startTrial().
+ */
+export type WelcomeCardSetup = {
+  defaultFullName: string
+  canManageBilling: boolean
+  /**
+   * 'setup' offers the form. 'awaiting' means a card is already saved and being
+   * verified — the account is not activated and must not be told otherwise, and
+   * must not be handed the form again (a second setup supersedes the pending
+   * one). 'unavailable' means no setup can complete right now.
+   */
+  stage: 'setup' | 'awaiting' | 'unavailable'
+}
+
+export default function WelcomeTrialModal({ cardSetup }: { cardSetup?: WelcomeCardSetup }) {
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -187,7 +205,9 @@ export default function WelcomeTrialModal() {
           <p id='welcome-trial-subtitle' className='text-sm text-gray-600'>
             הצעד הבא: להכניס את הלידים שלכם למערכת
           </p>
-          <p className='text-xs text-gray-400'>ללא עלות · ללא כרטיס אשראי</p>
+          <p className='text-xs text-gray-400'>
+            {cardSetup ? 'ללא עלות בתקופת הניסיון · נדרש כרטיס אשראי · לא יבוצע חיוב היום' : 'ללא עלות · ללא כרטיס אשראי'}
+          </p>
         </div>
 
         {/* 2×2 benefit grid — distinct icon tiles.
@@ -224,19 +244,41 @@ export default function WelcomeTrialModal() {
           </p>
         )}
 
-        {/* Dominant, full-width primary action — the ONLY trial trigger */}
-        <Btn
-          variant='solid'
-          size='large'
-          className='w-full justify-center'
-          lbl={pending ? 'רק רגע...' : 'הפעל את ה-Pro שלי'}
-          onClick={onStart}
-          disabled={pending}
-        />
+        {cardSetup ? (
+          cardSetup.stage === 'awaiting' ? (
+            <div role='status' className='space-y-2 text-center'>
+              <p className='text-sm font-semibold text-gray-900'>הכרטיס נשמר. אנחנו מאמתים אותו מול חברת הסליקה.</p>
+              <p className='text-sm text-gray-600'>תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.</p>
+              <p className='text-xs text-gray-500'>האימות נמשך בדרך כלל מספר שניות. אפשר לרענן את העמוד.</p>
+            </div>
+          ) : cardSetup.stage === 'unavailable' ? (
+            <div role='status' className='space-y-2 text-center'>
+              <p className='text-sm font-semibold text-gray-900'>לא ניתן להוסיף אמצעי תשלום כרגע</p>
+              <p className='text-sm text-gray-600'>מערכת התשלומים אינה זמינה זמנית, ולכן לא ניתן להתחיל את תקופת הניסיון והגישה למערכת עדיין לא נפתחה. לא בוצע חיוב.</p>
+              <p className='text-xs text-gray-500'>אפשר לנסות שוב מאוחר יותר, או לפנות אלינו ונטפל בזה.</p>
+            </div>
+          ) : cardSetup.canManageBilling ? (
+            <CardTrialSetupForm purpose='trial_start' defaultFullName={cardSetup.defaultFullName} submitLabel='הוספת כרטיס והפעלת הניסיון' />
+          ) : (
+            <p className='text-sm text-gray-600 text-center'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>
+          )
+        ) : (
+          <>
+            {/* Dominant, full-width primary action — the ONLY trial trigger */}
+            <Btn
+              variant='solid'
+              size='large'
+              className='w-full justify-center'
+              lbl={pending ? 'רק רגע...' : 'הפעל את ה-Pro שלי'}
+              onClick={onStart}
+              disabled={pending}
+            />
 
-        <p className='text-xs text-gray-400 text-center -mt-2'>
-          7 ימים ללא עלות · ללא כרטיס אשראי · לאחר מכן תוכל לבחור אם להמשיך
-        </p>
+            <p className='text-xs text-gray-400 text-center -mt-2'>
+              7 ימים ללא חיוב · נדרש כרטיס אשראי · אפשר לבטל לפני החיוב הראשון
+            </p>
+          </>
+        )}
       </div>
     </ModalPop>
   )

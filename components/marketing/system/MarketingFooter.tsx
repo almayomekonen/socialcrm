@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BUSINESS_ADDRESS, BUSINESS_PHONE_DISPLAY, BUSINESS_PHONE_HREF } from '@/lib/businessContact'
 import { Container } from './Container'
 
 /**
@@ -74,6 +75,17 @@ export function MarketingFooter() {
             <p className='mkt-caption mt-6 whitespace-pre-line text-mkt-faint'>
               {'מופעל על ידי:\nאלמיהו מקונן (עוסק פטור)\n\nשם מסחרי:\nSocialCRM'}
             </p>
+            {/* Grow site-approval checklist: contact phone and business address.
+                dir="ltr" on the number so RTL bidi cannot reorder its segments. */}
+            <div className='mkt-caption mt-6 flex flex-col gap-1 text-mkt-muted'>
+              <a href={BUSINESS_PHONE_HREF} className='tap-44 hover:text-mkt-fg'>
+                טלפון:{' '}
+                <span dir='ltr' className='inline-block'>
+                  {BUSINESS_PHONE_DISPLAY}
+                </span>
+              </a>
+              <address className='not-italic'>{BUSINESS_ADDRESS}</address>
+            </div>
             <div className='mt-6 flex items-center gap-4'>
               {SOCIAL.map((s) => (
                 <Link
