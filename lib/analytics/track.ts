@@ -40,8 +40,6 @@ export type AnalyticsEventName =
   | 'card_setup_started'
   | 'card_setup_confirmed'
   | 'card_save_observed'
-  /** TEMPORARY, with app/api/internal/grow-onecharge: the single attempt identifier, written before dispatch. */
-  | 'grow_onecharge_attempt'
   | 'card_setup_failed'
   | 'subscription_charge_succeeded'
   | 'subscription_charge_failed'
