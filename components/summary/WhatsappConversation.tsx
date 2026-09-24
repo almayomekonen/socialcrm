@@ -5,6 +5,7 @@ import WhatsappReplyDraft from '@/components/summary/WhatsappReplyDraft'
 import WhatsappNewMessageNotifier from '@/components/summary/WhatsappNewMessageNotifier'
 import WhatsappConversationHeader from '@/components/summary/WhatsappConversationHeader'
 import WhatsappMessageStatus from '@/components/summary/WhatsappMessageStatus'
+import LinkifiedText from '@/components/summary/LinkifiedText'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
@@ -130,7 +131,7 @@ export default function WhatsappConversation({
                     )}
                     <div className='flex items-end gap-2'>
                       <p className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'>
-                        {m.text || (m.attachment ? '' : m.type === 'text' ? '—' : UNSUPPORTED_MESSAGE_NOTICE)}
+                        <LinkifiedText>{m.text || (m.attachment ? '' : m.type === 'text' ? '—' : UNSUPPORTED_MESSAGE_NOTICE)}</LinkifiedText>
                       </p>
                       {/* A photo and a voice note carry the time inside the media itself,
                           so repeating it under the bubble would show it twice. */}
