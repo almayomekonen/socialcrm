@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "language": "he",
+  "summaryTitle": "שאלון וואטסאפ",
+  "maxInvalidAttempts": 2,
+  "expireAfterHours": 24,
+  "welcome": "היי, ברוך הבא ל־SocialCRM. כדי שנוכל להבין מה מתאים לכם, נשאל כמה שאלות קצרות.",
+  "closing": "תודה! קיבלנו את הפרטים. נציג מהצוות יחזור אליכם בהקדם.",
+  "handoff": "תודה, העברנו את הפרטים שלכם לנציג שיחזור אליכם.",
+  "steps": [
+    {
+      "id": "business_field",
+      "type": "text",
+      "label": "תחום העסק",
+      "prompt": "במה העסק שלכם עוסק?"
+    },
+    {
+      "id": "lead_sources",
+      "type": "choice",
+      "multi": true,
+      "label": "מקורות הפניות",
+      "prompt": "מאיפה מגיעות אליכם הפניות היום?",
+      "options": [
+        { "id": "whatsapp", "label": "וואטסאפ" },
+        { "id": "facebook", "label": "פייסבוק" },
+        { "id": "instagram", "label": "אינסטגרם" },
+        { "id": "phone", "label": "טלפון" },
+        { "id": "referrals", "label": "המלצות ולקוחות קיימים" }
+      ]
+    },
+    {
+      "id": "current_tool",
+      "type": "choice",
+      "label": "ניהול הפניות היום",
+      "prompt": "איך אתם מנהלים את הפניות היום?",
+      "options": [
+        { "id": "excel", "label": "אקסל" },
+        { "id": "memory", "label": "מחברת או בראש" },
+        { "id": "other_system", "label": "מערכת אחרת" },
+        { "id": "none", "label": "לא מנהלים בכלל" }
+      ]
+    },
+    {
+      "id": "volume",
+      "type": "text",
+      "label": "כמות פניות בחודש",
+      "prompt": "כמה פניות חדשות אתם מקבלים בחודש בערך?"
+    },
+    {
+      "id": "goal",
+      "type": "choice",
+      "label": "מה חשוב לשפר",
+      "prompt": "מה הכי חשוב לכם לשפר?",
+      "options": [
+        { "id": "no_misses", "label": "לא לפספס פניות" },
+        { "id": "followups", "label": "מעקב ותזכורות" },
+        { "id": "one_place", "label": "ריכוז כל הערוצים" },
+        { "id": "reports", "label": "דוחות וניתוח" }
+      ]
+    },
+    {
+      "id": "business_name",
+      "type": "text",
+      "label": "שם העסק",
+      "prompt": "מה שם העסק?"
+    }
+  ]
+}
