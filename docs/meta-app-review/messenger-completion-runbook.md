@@ -4,10 +4,16 @@ Covers the `feat/messenger-complete` branch. Sits beside `rollout-runbook.md`,
 which remains the source of truth for the original Meta App Review rollout
 (sealing, per-agency flags, token revocation).
 
-**Status of this branch: NOT production-ready.** Everything below is implemented
-and covered by automated tests; none of it has been exercised against a real
-Page, a real customer or a real Meta delivery. See *Live verification* — that
-gate has not been passed.
+**Status: RELEASED 2026-09-24** on main `fa4f9ba3`, deployed as
+`socialcrm-lz1if84k7` (aliased to `getsocialcrm.com`), with
+`FACEBOOK_MESSENGER_AGENCY_ALLOWLIST=all`.
+
+**But "released" is not "verified".** Only inbound text, outbound text and echo
+dedupe have ever been exercised against a real Page and a real person (7 customer
++ 2 SocialCRM messages, 2026-09-15). Everything else — media, delivery/read
+receipts, reactions, postbacks, templates, quick replies, saved replies, history
+import, the entry points — is implemented and covered by automated tests and has
+never handled a real Meta delivery. §7 is still open.
 
 ---
 
@@ -114,31 +120,25 @@ but pointless, and it muddies the first live verification.
 
 ## 3. Meta dashboard: the app-level half (REQUIRED)
 
-Verified against the live app on 2026-09-23 via
-`GET /{app-id}/subscriptions` with an app access token:
+Applied 2026-09-24 via `POST /{app-id}/subscriptions` with an app access token.
+The page object now carries all nine fields:
 
 ```
-page object fields today: feed, leadgen, message_echoes, messages
+feed, leadgen, messages, message_echoes,
+message_deliveries, message_reads, messaging_postbacks,
+messaging_referrals, message_reactions
 ```
 
-The five new fields are **missing at the app level**:
+Verified after: `feed` and `leadgen` **preserved**, `callback_url` unchanged
+(`https://socialcrm.vercel.app/api/webhooks/facebook`), `active: true`, and the
+separate `whatsapp_business_account` subscription untouched (13 fields, its own
+callback).
 
-```
-message_deliveries     MISSING
-message_reads          MISSING
-messaging_postbacks    MISSING
-messaging_referrals    MISSING
-message_reactions      MISSING
-```
-
-Until they are ticked in **App Dashboard → Webhooks → Page**, Meta sends none of
-them — no matter what each Page is subscribed to. Page-level subscription is the
-other half, not a substitute. This is the same two-sided failure as the
-2026-09-14 incident.
-
-This was deliberately **not** changed from here: it is a production
-configuration change to a live app, and it re-verifies the callback URL against
-production.
+Pre-flight before the write: the existing callback was confirmed to echo a
+`hub.challenge` using the **production** `META_VERIFY_TOKEN`. Note that the copy
+in `.env.production.local` is STALE and differs from Vercel's — use the Vercel
+value. A POST **replaces** the whole field set, which is why every existing field
+was re-sent in the same call.
 
 After ticking them, `lib/connections/healthSweep.ts` stops emitting
 `"Meta app is not subscribed to Messenger signal fields"`.
