@@ -20,7 +20,6 @@ import { getTrialState } from '@/lib/trial'
 import { isCardBillingAvailable, billingSetupPurpose, describeCardBillingAvailability } from '@/lib/payments/cardTrial/availability'
 import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
-import CardSetupPanel from '@/components/billing/CardSetupPanel'
 
 type SearchParams = Promise<{ mode?: string | string[] }>
 
@@ -50,13 +49,6 @@ type SearchParams = Promise<{ mode?: string | string[] }>
  * in CardBillingControls. So here it always means "add a first card", and
  * "החלפת הכרטיס השמור" would name a card that does not exist.
  */
-/** Heading per state — a comped account is not starting a trial. */
-const SETUP_TITLE = {
-  trial_start: 'הוספת כרטיס והפעלת תקופת הניסיון',
-  reactivate: 'חידוש הגישה למערכת',
-  card_update: 'שמירת כרטיס לחשבון',
-} as const
-
 const SETUP_LABEL = {
   trial_start: 'הוספת כרטיס והפעלת הניסיון',
   reactivate: 'עדכון אמצעי תשלום והמשך',
@@ -201,20 +193,10 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
 
       {!cardView.cardBilled && (
         <section id='card-setup' className='mt-12 scroll-mt-6'>
-          {canStartSetup && setupPurpose ? (
-            <CardSetupPanel
-              eyebrow='SocialCRM Pro'
-              title={SETUP_TITLE[setupPurpose]}
-              /* The lead is account-specific: promising ₪89 a month to a
-                 comped account would be false, so that state says what is
-                 actually true of it. */
-              lead={
-                setupPurpose === 'card_update'
-                  ? 'הגישה שלכם נשמרת כפי שהיא. הכרטיס נשמר לשימוש עתידי בלבד, ולא נקבע חיוב.'
-                  : `המנוי מחויב ב־₪${PRICING.monthly} לחודש מהכרטיס השמור, ואפשר לבטל בכל רגע.`
-              }
-              footnote='פרטי הכרטיס נשמרים אצל ספק הסליקה Grow ואינם נשמרים אצלנו.'
-            >
+          <h2 className='text-xl font-bold'>אמצעי תשלום</h2>
+          <p className='mt-1 text-sm text-gray-500'>המנוי מחויב ב־₪{PRICING.monthly} לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.</p>
+          <div className='mt-4'>
+            {canStartSetup && setupPurpose ? (
               <CardTrialSetupForm
                 purpose={setupPurpose}
                 /* Entitled already, adding a first card: no trial, no ₪89, and
@@ -222,15 +204,10 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
                 mode={setupPurpose === 'card_update' ? 'entitled' : 'subscription'}
                 submitLabel={SETUP_LABEL[setupPurpose]}
               />
-            </CardSetupPanel>
-          ) : (
-            <>
-              <h2 className='text-xl font-bold'>אמצעי תשלום</h2>
-              <div className='mt-4'>
-                <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
-              </div>
-            </>
-          )}
+            ) : (
+              <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
+            )}
+          </div>
         </section>
       )}
 

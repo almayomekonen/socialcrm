@@ -138,15 +138,15 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
         />
       </div>
 
-      {/* Required disclosures. Same lines, same order, given a surface of
-          their own so the price and the renewal read before the buttons. */}
-      <div className='billing-disclosure'>
+      <div className='rounded-lg border border-gray-200 bg-gray-50 p-3 flex flex-col gap-1.5'>
         {(mode === 'entitled' ? entitledCardAddLines() : cardTrialDisclosureLines()).map((line) => (
-          <p key={line}>{line}</p>
+          <p key={line} className='text-sm text-gray-700 leading-snug'>
+            {line}
+          </p>
         ))}
       </div>
 
-      <div className='billing-consent'>
+      <div className='flex flex-col gap-1.5'>
         {/* An entitled account is agreeing to nothing about a subscription,
             so it is not asked to. needsTerms() is false for this purpose. */}
         {mode === 'subscription' && (
@@ -177,7 +177,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
           href='/terms'
           target='_blank'
           rel='noreferrer'
-          className='tap-44 self-start text-sm font-medium text-primary-text underline underline-offset-2 hover:text-primary'
+          className='tap-44 self-start text-sm font-medium text-primary-text underline underline-offset-2'
         >
           קריאת תנאי השימוש והתקנון
         </a>
@@ -192,7 +192,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
       <Btn
         variant='solid'
         size='large'
-        className='w-full justify-center transition-transform duration-150 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100'
+        className='w-full justify-center'
         lbl={pending ? 'רק רגע...' : submitLabel}
         onClick={submit}
         disabled={pending}
