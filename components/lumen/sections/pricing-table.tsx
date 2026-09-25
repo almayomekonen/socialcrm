@@ -4,8 +4,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { useState } from 'react';
 
 import Noise from '@/components/lumen/noise';
-import { PRICING, ANNUAL_MONTHLY_EQUIVALENT } from '@/lib/pricing';
-import { FREE_LEAD_LIMIT } from '@/lib/quota/constants';
+import { PRICING } from '@/lib/pricing';
 import { Badge } from '@/components/lumen/ui/badge';
 import { Button } from '@/components/lumen/ui/button';
 import {
@@ -28,13 +27,16 @@ interface FeatureSection {
 const PER_MONTH = `/לחודש`;
 const money = (n: number) => `${PRICING.currency}${n}${PER_MONTH}`;
 
+/**
+ * The left column is the seven-day trial, not a free plan. An account without a
+ * verified card has no product access at all, and inside the trial the lead
+ * quota is bypassed — so the two columns are deliberately almost identical.
+ * That IS the offer: the trial is Pro, for seven days, for nothing. What
+ * differs is how long it lasts and what happens at the end.
+ */
 const pricingPlans = [
-  { name: 'חינם', price: money(0), yearlyPrice: money(0) },
-  {
-    name: 'Pro',
-    price: money(PRICING.monthly),
-    yearlyPrice: money(ANNUAL_MONTHLY_EQUIVALENT),
-  },
+  { name: 'שבעה ימי התנסות', price: money(0) },
+  { name: 'Pro', price: money(PRICING.monthly) },
 ];
 
 /**
@@ -47,17 +49,14 @@ const comparisonFeatures: FeatureSection[] = [
     category: 'מחיר',
     features: [
       { name: 'תשלום חודשי', free: money(0), pro: money(PRICING.monthly) },
-      {
-        name: 'בתשלום שנתי',
-        free: money(0),
-        pro: money(ANNUAL_MONTHLY_EQUIVALENT),
-      },
+      { name: 'משך', free: 'שבעה ימים', pro: 'חודשי, עד לביטול' },
+      { name: 'נדרש כרטיס אשראי', free: true, pro: true },
     ],
   },
   {
     category: 'לידים ומקורות',
     features: [
-      { name: 'לידים במערכת', free: `עד ${FREE_LEAD_LIMIT}`, pro: 'ללא הגבלה' },
+      { name: 'לידים במערכת', free: 'ללא הגבלה', pro: 'ללא הגבלה' },
       { name: 'חיבור לפייסבוק, אינסטגרם ווואטסאפ', free: true, pro: true },
       { name: 'ייבוא לידים מאקסל', free: true, pro: true },
       { name: 'ייצוא לאקסל ו-PDF', free: true, pro: true },
@@ -68,18 +67,18 @@ const comparisonFeatures: FeatureSection[] = [
     features: [
       { name: 'סטטוסים ותאריכי מעקב', free: true, pro: true },
       { name: 'שיחות וואטסאפ מחוברות לליד', free: true, pro: true },
-      { name: 'שיוך לידים לנציגים', free: false, pro: true },
-      { name: 'חלוקת עמלות על עסקה משותפת', free: false, pro: true },
-      { name: 'מחיר אחד לכל סביבת העבודה', free: false, pro: true },
+      { name: 'שיוך לידים לנציגים', free: true, pro: true },
+      { name: 'חלוקת עמלות על עסקה משותפת', free: true, pro: true },
+      { name: 'מחיר אחד לכל סביבת העבודה', free: true, pro: true },
     ],
   },
   {
     category: 'AI',
     features: [
-      { name: 'תקציר חכם על כל ליד', free: false, pro: true },
-      { name: 'פעולה מומלצת עם הסיבה שלה', free: false, pro: true },
-      { name: 'טיוטות להודעות מעקב', free: false, pro: true },
-      { name: 'שאלות חופשיות על הליד', free: false, pro: true },
+      { name: 'תקציר חכם על כל ליד', free: true, pro: true },
+      { name: 'פעולה מומלצת עם הסיבה שלה', free: true, pro: true },
+      { name: 'טיוטות להודעות מעקב', free: true, pro: true },
+      { name: 'שאלות חופשיות על הליד', free: true, pro: true },
     ],
   },
 ];

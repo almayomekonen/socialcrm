@@ -7,6 +7,7 @@ import { renderContentItem } from '@/lib/emailAutomations/contentToAutomation'
 import { renderEmail, renderEmailText } from '@/lib/email/render'
 import { sendEmail } from '@/lib/email/sender'
 import type { Recipient } from '@/lib/emailAutomations/types'
+import { NextResponse as Res } from 'next/server'
 
 // Fixed preview recipient — every preview goes here, never to a real user.
 const PREVIEW_TO = 'alamayo274@gmail.com'
@@ -54,4 +55,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, automation: key, error: res.error }, { status: 502 })
   }
   return NextResponse.json({ ok: true, automation: key, to: PREVIEW_TO, id: res.id })
+}
+
+/**
+ * RENDER-ONLY preview (no send, no database write): returns the email's HTML so
+ * it can be read in a browser. Supports the dynamic automations too — pass
+ * ?agencyId= for the ones whose copy contains that agency's first-charge date.
+ * Blocked in production, like the POST above.
+ */
+export async function GET(req: NextRequest) {
+  if (IS_PROD || process.env.VERCEL_ENV) return new NextResponse('Not found', { status: 404 })
+  const key = req.nextUrl.searchParams.get('automation')
+  const agencyId = Number(req.nextUrl.searchParams.get('agencyId') ?? 0)
+  const recipient: Recipient = { userId: 0, agencyId, email: PREVIEW_TO, firstName: 'דוד' }
+
+  const automation = AUTOMATIONS.find((a) => a.key === key)
+  const item = key ? CONTENT_BY_KEY.get(key) : undefined
+  if (!automation && !item) {
+    return Res.json({ ok: false, error: 'unknown_automation', supported: [...PREVIEWABLE, ...AUTOMATIONS.filter((a) => a.resolve).map((a) => a.key)] }, { status: 400 })
+  }
+
+  const resolved = automation?.resolve ? await automation.resolve(recipient) : null
+  if (automation?.resolve && !resolved) {
+    return Res.json({ ok: false, error: 'nothing_to_render', hint: 'pass ?agencyId= of a card-trial agency with a trial end date' }, { status: 400 })
+  }
+  const element = resolved ? resolved.template : item ? renderContentItem(item, recipient) : automation!.template(recipient)
+  const html = await renderEmail(element)
+  return new NextResponse(html, { headers: { 'content-type': 'text/html; charset=utf-8' } })
 }

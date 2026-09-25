@@ -3,6 +3,7 @@ import { JsonLd } from '@/components/seo/JsonLd'
 import { ShellFrame } from '@/components/marketing/system/ShellChrome'
 import { organizationSchema, softwareApplicationSchema, websiteSchema } from '@/lib/seo/schemas'
 import AttributionCapture from '@/components/analytics/AttributionCapture'
+import SkipLink from '@/components/layout/SkipLink'
 
 /**
  * The marketing shell.
@@ -30,6 +31,10 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           cookie. Mounted on the shell so every marketing entry point is
           covered, including the legal pages people land on from ads. */}
       <AttributionCapture />
+      {/* First focusable element on every marketing page, so a keyboard user
+          can bypass the header. Same component the app and support shells use —
+          its tokens come from the global @theme, so it styles identically here. */}
+      <SkipLink />
       {/* `ShellFrame` owns header, <main> and footer together: the Lumen shell
           wraps all three in one `.lumen` div, which a header/footer pair
           rendered as separate siblings could not express. */}

@@ -17,6 +17,8 @@ config/backup/
 
 # next.js
 /.next/
+# throwaway build dir for the local demo instance (NEXT_DIST_DIR)
+/.next-demo/
 /out/
 
 # production

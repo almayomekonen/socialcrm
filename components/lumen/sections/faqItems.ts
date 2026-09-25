@@ -1,3 +1,5 @@
+import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing';
+
 /**
  * The FAQ entries, in a plain module.
  *
@@ -36,6 +38,6 @@ export const FAQ_ITEMS = [
     id: 'faq-5',
     question: 'כמה זה עולה?',
     answer:
-      'המערכת חינמית עד 50 לידים, ללא כרטיס אשראי. תוכנית Pro מסירה את מגבלת הלידים ופותחת את שכבת ה-AI, במחיר אחד לכל סביבת העבודה — בלי תוספת לכל נציג.',
+      TRIAL_OFFER_FAQ_ANSWER,
   },
 ];

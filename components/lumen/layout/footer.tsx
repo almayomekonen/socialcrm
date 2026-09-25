@@ -7,6 +7,7 @@ import Noise from '@/components/lumen/noise';
 
 import Logo from './logo';
 import { NAV_LINKS } from './navbar';
+import { BUSINESS_ADDRESS, BUSINESS_PHONE_DISPLAY, BUSINESS_PHONE_HREF } from '@/lib/businessContact';
 
 // Create footer sections from NAV_LINKS and add blog links
 const FOOTER_SECTIONS = [
@@ -107,9 +108,31 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-15 flex flex-col items-center justify-between gap-4 md:mt-20 md:flex-row">
+        <div className="mt-15 flex flex-col items-center justify-between gap-6 md:mt-20 md:flex-row">
 
-          <div className="flex gap-6">
+          {/*
+            Contact details, required by Grow's site-approval checklist: a phone
+            shown clearly on the home page, and the business address on the site
+            or in the תקנון. Both appear on every page this footer serves.
+
+            The number is forced dir="ltr" — in an RTL paragraph a bare
+            "053-531-7356" has its segments reordered by the bidi algorithm and
+            a customer would read a different number than the one we dial.
+          */}
+          <div className="text-muted-foreground flex flex-col items-center gap-1 text-sm md:items-start">
+            <a
+              href={BUSINESS_PHONE_HREF}
+              className="hover:text-foreground tap-44 transition-colors"
+            >
+              טלפון:{' '}
+              <span dir="ltr" className="inline-block">
+                {BUSINESS_PHONE_DISPLAY}
+              </span>
+            </a>
+            <address className="not-italic">{BUSINESS_ADDRESS}</address>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-6">
             <Link
               href="/"
               className="text-muted-foreground hover:text-foreground tap-44 text-sm transition-colors"

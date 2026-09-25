@@ -1,4 +1,5 @@
 import { buildPageMetadata } from '@/lib/seo/metadata'
+import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { buildFAQSchema, type FAQItem } from '@/components/seo/FAQ'
 
@@ -77,7 +78,7 @@ const faqItems: FAQItem[] = [
   {
     question: 'כמה זה עולה?',
     answer:
-      'המערכת חינמית עד 50 לידים, ללא כרטיס אשראי. תוכנית Pro מסירה את מגבלת הלידים ופותחת את שכבת ה-AI, במחיר אחד לכל סביבת העבודה — בלי תוספת לכל נציג.',
+      TRIAL_OFFER_FAQ_ANSWER,
   },
 ]
 

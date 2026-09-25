@@ -22,6 +22,13 @@ import Link from 'next/link'
  * `new FormData(form)`, which collects only named controls, so this row cannot
  * change the payload reaching `sendToken` or `addAgency`.
  *
+ * `checkboxRequired` is opt-in per screen, and only the signup row sets it.
+ * Grow's site-approval checklist requires the customer to actively accept the
+ * terms before proceeding, and until now this checkbox accepted nothing: no
+ * name, no required, no state — it rendered, and submitting past it untouched
+ * worked. Sign-in's remember-me must stay optional, hence the prop rather than
+ * a blanket change.
+ *
  * Visual spec (size-4 · rounded-[4px] · border-input · primary when checked)
  * is transcribed from Lumen's `checkbox.tsx` into `.auth-surface` in
  * `lib/css/auth.css`, the same way the Input and Label specs already are.
@@ -30,19 +37,22 @@ type AuthControlRowProps = {
   checkboxId: string
   checkboxLabel: string
   actionLabel: string
+  /** Blocks submit until ticked. Signup only; never sign-in's remember-me. */
+  checkboxRequired?: boolean
 } & ({ href: string; onAction?: never } | { href?: never; onAction: () => void })
 
 export default function AuthControlRow({
   checkboxId,
   checkboxLabel,
   actionLabel,
+  checkboxRequired = false,
   href,
   onAction,
 }: AuthControlRowProps) {
   return (
     <div className='auth-control-row flex items-center justify-between'>
       <div className='flex items-center gap-1.5'>
-        <input id={checkboxId} type='checkbox' />
+        <input id={checkboxId} type='checkbox' required={checkboxRequired} aria-required={checkboxRequired || undefined} />
         <label htmlFor={checkboxId}>{checkboxLabel}</label>
       </div>
       {href ? (

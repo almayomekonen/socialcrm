@@ -1,5 +1,7 @@
 import { db } from '@/config/db'
 import type { Recipient } from './types'
+import { cardTrialChargeSoonQuery } from '@/db/payments/cardTrialEmails'
+import { areSubscriptionChargesEnabled } from '@/lib/payments/grow/config'
 
 const OWNER_SELECT = ['u.id as userId', 'u.agencyId as agencyId', 'u.email as email', 'u.firstName as firstName']
 
@@ -57,9 +59,27 @@ export function inactiveOwnerCandidates(): Promise<Recipient[]> {
   return owners().whereRaw(`u."createdAt" <= NOW() - INTERVAL '14 days'`) as Promise<Recipient[]>
 }
 
+/**
+ * The no-card "upgrade before access closes" reminder. Card-trial agencies are
+ * excluded: their access does not close, they are charged automatically, and
+ * they get card_trial_charge_reminder instead (lib/emailAutomations/cardTrial.ts).
+ */
 export function ownersTrialEnding(): Promise<Recipient[]> {
   return owners()
     .join('_trial_status as ts', 'ts.agencyId', 'u.agencyId')
     .where('ts.status', 'TRIAL_ACTIVE')
-    .where('ts.daysRemaining', '<=', 3) as Promise<Recipient[]>
+    .where('ts.daysRemaining', '<=', 3)
+    .whereNotExists((q) =>
+      q.select(1).from('billing_payment_methods as pm').whereRaw('pm."agencyId" = u."agencyId" AND pm."confirmedAt" IS NOT NULL'),
+    ) as Promise<Recipient[]>
+}
+
+/**
+ * Owners whose card trial is charged in ~2 days — see db/payments/cardTrialEmails.ts.
+ * Empty while token charges are disabled: an email must never announce a charge
+ * the system would not make.
+ */
+export async function ownersCardTrialChargeSoon(): Promise<Recipient[]> {
+  if (!areSubscriptionChargesEnabled()) return []
+  return (await cardTrialChargeSoonQuery()) as unknown as Recipient[]
 }

@@ -152,3 +152,28 @@ describe('purity', () => {
     expect(JSON.parse(JSON.stringify(row))).toEqual(snapshot)
   })
 })
+
+describe('card-trial conversion grace', () => {
+  const ended = (grace: number | null): TrialRow => ({
+    ...base,
+    trialStartedAt: hoursFromNow(-170),
+    trialEndsAt: hoursFromNow(-0.5),
+    conversionGraceEndsAt: grace === null ? null : hoursFromNow(grace),
+  })
+
+  it('keeps the trial active while the first charge attempt is resolving', () => {
+    expect(getTrialState(ended(0.5), NOW)).toEqual({ status: 'TRIAL_ACTIVE', endsAt: hoursFromNow(-0.5), daysRemaining: 0 })
+  })
+
+  it('expires once the grace window has passed', () => {
+    expect(getTrialState(ended(-0.1), NOW).status).toBe('TRIAL_EXPIRED')
+  })
+
+  it('expires exactly as before when there is no grace (no card)', () => {
+    expect(getTrialState(ended(null), NOW).status).toBe('TRIAL_EXPIRED')
+  })
+
+  it('never outranks LEGACY', () => {
+    expect(getTrialState({ ...ended(0.5), trialExempt: true }, NOW).status).toBe('LEGACY')
+  })
+})

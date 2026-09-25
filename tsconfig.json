@@ -39,7 +39,9 @@
     "components/auth/Login.tsx",
     "components/hafaka/HafakaHeader.tsx",
     "app/(app)/clients/[clientId]/savings/masleka.js",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-demo/types/**/*.ts",
+    ".next-demo/dev/types/**/*.ts"
   ],
   "exclude": [
     // Purchased design reference (Lumen). Read-only symlink, never built,

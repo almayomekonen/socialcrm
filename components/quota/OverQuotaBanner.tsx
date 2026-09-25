@@ -1,4 +1,5 @@
 'use client'
+import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 
 export default function OverQuotaBanner({ count }: { count: number }) {
   if (!count || count <= 0) return null
@@ -9,7 +10,7 @@ export default function OverQuotaBanner({ count }: { count: number }) {
         יש לך {count} לידים חדשים שמחכים שדרג כדי לראות אותם
       </p>
       <a
-        href='/api/payments/upgrade'
+        href={upgradeHref('over_quota_banner')}
         target='_blank'
         rel='noopener noreferrer'
         className='shrink-0 rounded-md bg-solid px-4 py-2 text-sm font-semibold text-white hover:bg-solid/85'

@@ -2,13 +2,16 @@
  * THE billing destination, in one place.
  *
  * Every renewal affordance in the product points here: the expired states, the
- * billing card, the manage-plan modal and the Pro toast. It is the EXISTING
- * upgrade route, not a new mechanism — this module only stops the same URL from
- * being spelled out at a dozen call sites, so `source` attribution stays
- * consistent and the destination can never drift apart between surfaces.
+ * billing card, the manage-plan modal, the quota paywall and the Pro toast.
  *
- * `source` is analytics attribution on the existing route, nothing more.
+ * It used to be `/api/payments/upgrade`, which built a Grow Payment Link and
+ * redirected to it. Payment Links are gone, so this is now the billing screen
+ * itself, where a card is saved and the subscription starts. That route still
+ * exists and still redirects here, for bookmarks and already-sent emails, but
+ * nothing in the product should take the extra hop.
+ *
+ * `source` is analytics attribution, nothing more.
  */
 export function upgradeHref(source: string): string {
-  return `/api/payments/upgrade?source=${encodeURIComponent(source)}`
+  return `/settings/update_payment?source=${encodeURIComponent(source)}`
 }
