@@ -21,6 +21,39 @@ import { getLatestPaymentMethod, type PaymentMethodPurpose } from '@/db/payments
  * and a callback arriving while they are closed is recorded honestly as
  * awaiting evidence rather than claimed as success.
  */
+/**
+ * WHY card billing is or is not available, as a non-sensitive reason code.
+ *
+ * `isCardBillingAvailable` answers yes/no and swallows the cause, which is
+ * correct for rendering but useless when a screen says "not right now" and
+ * nobody can tell whether that is a missing credential, the wrong environment
+ * or an ineligible account. Production had exactly that problem: the page
+ * logged nothing, so the only way to distinguish the cases was to guess.
+ *
+ * Returns the thrown error's CODE only — `grow.runtime.env_mode_mismatch`,
+ * `grow.config.user_id_missing` and friends. Those strings name a condition;
+ * none of them contains a credential, a token or an identifier.
+ */
+export function describeCardBillingAvailability(): { ok: boolean; reason: string } {
+  if (isGrowLocalMockEnabled()) return { ok: true, reason: 'local_mock' }
+  try {
+    assertGrowRuntime()
+  } catch (err) {
+    return { ok: false, reason: String(err instanceof Error ? err.message : err) }
+  }
+  try {
+    getGrowApiConfig()
+  } catch (err) {
+    return { ok: false, reason: String(err instanceof Error ? err.message : err) }
+  }
+  try {
+    publicAppOrigin()
+  } catch (err) {
+    return { ok: false, reason: String(err instanceof Error ? err.message : err) }
+  }
+  return { ok: true, reason: 'ok' }
+}
+
 export function isCardBillingAvailable(): boolean {
   // The local demo replaces the provider wholesale; it fails closed anywhere
   // that is not a developer machine.

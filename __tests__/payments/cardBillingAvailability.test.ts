@@ -57,9 +57,23 @@ describe('the billing screen never offers a retired checkout', () => {
 
   it('shows a temporary-unavailability state instead of a dead-end CTA', () => {
     expect(page).toContain('PaymentsUnavailableNotice')
-    expect(page).toContain('isCardBillingAvailable()')
+    // Gates on the same provider check, now via the variant that also reports
+    // WHY — production showed this notice and logged nothing, so the cause
+    // could not be told apart from a missing credential without guessing.
+    expect(page).toContain('describeCardBillingAvailability()')
     // Offered only when the provider can complete it AND a purpose applies.
     expect(page).toContain('canStartSetup && setupPurpose')
+  })
+
+  it('records a non-sensitive reason when it declines to offer a setup', () => {
+    expect(page).toContain("console.warn('[CardSetup] setup not offered'")
+    for (const field of ['providerAvailable', 'providerReason', 'trialStatus', 'setupPurpose']) {
+      expect(page).toContain(field)
+    }
+    // Condition codes only. Nothing that could carry a credential or a card.
+    for (const secret of ['cardToken', 'GROW_USER_ID', 'GROW_PAGE_CODE_TOKEN', 'processToken']) {
+      expect(page).not.toContain(secret)
+    }
   })
 
   it('links to no Payment Link anywhere', () => {
