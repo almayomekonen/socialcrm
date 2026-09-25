@@ -21,7 +21,8 @@
 //   2. The CTA — the single trial trigger — is present, enabled and operable.
 //   3. Tab cycles inside the dialog and never escapes it.
 //   4. Mobile-safety classes are applied: reduced padding, safe-area bottom
-//      inset, dvh height cap, single-column benefit grid.
+//      inset, dvh height cap, single-column stacking of the only
+//      two-column content (the cardholder name/phone row).
 //   5. TRIAL LOGIC IS UNCHANGED: startTrial() is called exactly once per click,
 //      with no arguments, and the modal closes only on success.
 //   6. The Meta StartTrial pixel fires ONLY on a genuine started:true.
@@ -45,6 +46,9 @@ vi.mock('@/actions/trial', () => ({
   // the dialog's mobile safety, and telemetry must never affect either.
   trackTrialStartClicked: async () => {},
   trackTrialStartFailed: async () => {},
+}))
+vi.mock('@/actions/paymentMethod', () => ({
+  startCardSetup: async () => ({ ok: true as const, url: 'https://sandbox.meshulam.co.il/far?l=test' }),
 }))
 vi.mock('@/lib/facebook/pixelEvents', () => ({
   trackStartTrial: () => trackStartTrial(),
@@ -111,10 +115,18 @@ describe('WelcomeTrialModal — mobile safety', () => {
     expect(cls).toContain('mobile:max-h-[92dvh]')
   })
 
-  test('4b. the benefit grid collapses to one column on phones', () => {
-    render(<WelcomeTrialModal />)
-    // ModalPop portals to document.body, so the render `container` is empty —
-    // query from the dialog itself.
+  test('4b. the two-column row collapses to one column on phones', () => {
+    /*
+     * WAS: the 2x2 benefit grid. That grid was removed when the welcome modal
+     * was simplified to one headline, one sentence and the form — it was
+     * marketing tiles above a non-dismissible decision.
+     *
+     * The obligation it encoded did not go anywhere: whatever content sits in
+     * two columns must stack on a phone. The cardholder name/phone row is now
+     * the only such content, so the assertion moves to it rather than being
+     * dropped. Same guarantee, surviving element.
+     */
+    render(<WelcomeTrialModal cardSetup={{ defaultFullName: '', canManageBilling: true, stage: 'setup' }} />)
     const grid = dialog().querySelector('.grid')
     expect(grid).not.toBeNull()
     expect(grid!.className).toContain('grid-cols-2')
