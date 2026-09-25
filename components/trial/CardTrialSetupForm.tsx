@@ -6,6 +6,7 @@ import { Input, Checkbox } from '@/lib/form'
 import { startCardSetup } from '@/actions/paymentMethod'
 import { trackTrialStartClicked, trackTrialStartFailed } from '@/actions/trial'
 import {
+  entitledCardAddLines,
   CARD_TRIAL_CONSENT_LABEL,
   CARD_TRIAL_CONSENT_LINK_TEXT,
   CARD_STORAGE_CONSENT_LABEL,
@@ -40,6 +41,12 @@ const ERRORS: Record<string, string> = {
 
 export type CardTrialSetupFormProps = {
   purpose: PaymentMethodPurpose
+  /**
+   * 'entitled' = an account that already has access adding a first card. It is
+   * shown no trial and no ₪89, because it has neither, and it is asked only for
+   * the card-storage consent.
+   */
+  mode?: 'subscription' | 'entitled'
   defaultFullName?: string
   submitLabel: string
   /** Injected in tests; defaults to a real navigation to Grow's hosted page. */
@@ -77,7 +84,7 @@ function SubscriptionConsentLabel() {
   )
 }
 
-export default function CardTrialSetupForm({ purpose, defaultFullName = '', submitLabel, onRedirect }: CardTrialSetupFormProps) {
+export default function CardTrialSetupForm({ purpose, mode = 'subscription', defaultFullName = '', submitLabel, onRedirect }: CardTrialSetupFormProps) {
   const [fullName, setFullName] = useState(defaultFullName)
   const [phone, setPhone] = useState('')
   const [accepted, setAccepted] = useState(false)
@@ -132,7 +139,7 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
       </div>
 
       <div className='rounded-lg border border-gray-200 bg-gray-50 p-3 flex flex-col gap-1.5'>
-        {cardTrialDisclosureLines().map((line) => (
+        {(mode === 'entitled' ? entitledCardAddLines() : cardTrialDisclosureLines()).map((line) => (
           <p key={line} className='text-sm text-gray-700 leading-snug'>
             {line}
           </p>
@@ -140,11 +147,15 @@ export default function CardTrialSetupForm({ purpose, defaultFullName = '', subm
       </div>
 
       <div className='flex flex-col gap-1.5'>
-        <Checkbox
-          lbl={<SubscriptionConsentLabel />}
-          checked={accepted}
-          onChange={(e) => setAccepted(e.target.checked)}
-        />
+        {/* An entitled account is agreeing to nothing about a subscription,
+            so it is not asked to. needsTerms() is false for this purpose. */}
+        {mode === 'subscription' && (
+          <Checkbox
+            lbl={<SubscriptionConsentLabel />}
+            checked={accepted}
+            onChange={(e) => setAccepted(e.target.checked)}
+          />
+        )}
         <Checkbox
           lbl={CARD_STORAGE_CONSENT_LABEL}
           checked={storageAccepted}

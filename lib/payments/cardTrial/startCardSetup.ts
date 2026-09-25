@@ -67,7 +67,29 @@ export async function isCardSetupEligible(agencyId: number, purpose: PaymentMeth
     if (status === 'NEVER_STARTED') return true
     return status === 'TRIAL_ACTIVE' && (await getActivePaymentMethod(agencyId)) === null
   }
-  if (purpose === 'card_update') return (await getActivePaymentMethod(agencyId)) !== null
+  if (purpose === 'card_update') {
+    if ((await getActivePaymentMethod(agencyId)) !== null) return true
+    /**
+     * ADDING A FIRST CARD TO AN ALREADY-ENTITLED ACCOUNT.
+     *
+     * The three purposes assumed a card either exists (card_update), is about
+     * to start a trial (trial_start), or is being restored after one expired
+     * (reactivate). An account that is PAID or LEGACY with no card on file
+     * matched none of them and could never add one — which is exactly how a
+     * manually granted Pro workspace (planReason 'manual:owner-comp') ends up
+     * on a billing screen that offers it nothing.
+     *
+     * PAID and LEGACY only, deliberately. TRIAL_ACTIVE-without-a-card is
+     * already trial_start's case and must stay there: that customer IS
+     * converting at ₪89 and has to accept the subscription terms, which this
+     * purpose does not ask for.
+     *
+     * Gated on the rollout flag like every other card path, so the validation
+     * window stays restricted to the allowlisted account.
+     */
+    if (!isCardRequiredTrialEnabledForAgency(agencyId)) return false
+    return status === 'PAID' || status === 'LEGACY'
+  }
   return status === 'TRIAL_EXPIRED' && (await getLatestConfirmedPaymentMethod(agencyId)) !== null
 }
 
