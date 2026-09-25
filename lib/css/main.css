@@ -527,3 +527,187 @@ html:has([data-mobile-workspace]) body {
     transition: none;
   }
 }
+
+/*
+ * CARD-SETUP PANEL
+ *
+ * The split layout shared by the welcome modal and the billing page. Written
+ * here rather than as utility soup so the two surfaces cannot drift apart, and
+ * so the RTL and reduced-motion rules live next to the thing they govern.
+ *
+ * The document is RTL: the art child comes first in the DOM and therefore
+ * renders on the RIGHT, with the form on the LEFT. No direction-specific
+ * margins are used anywhere below — only logical properties — so nothing has
+ * to be mirrored by hand.
+ */
+.billing-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+  box-shadow:
+    0 1px 2px rgb(10 37 64 / 0.04),
+    0 12px 32px -12px rgb(10 37 64 / 0.10);
+}
+
+/* Desktop: art on the right (first child, RTL), form on the left. */
+@media (min-width: 900px) {
+  .billing-panel {
+    grid-template-columns: 0.82fr 1fr;
+  }
+}
+
+.billing-panel__art {
+  display: none;
+  position: relative;
+  background: linear-gradient(180deg, #f7f8fe 0%, #eef0fb 100%);
+  border-inline-start: 1px solid var(--color-border);
+}
+@media (min-width: 900px) {
+  .billing-panel__art {
+    display: block;
+  }
+}
+.billing-panel__art-svg {
+  position: absolute;
+  inset: 0;
+  block-size: 100%;
+  inline-size: 100%;
+}
+
+.billing-panel__form {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+@media (min-width: 900px) {
+  .billing-panel__form {
+    padding: 40px;
+  }
+}
+
+.billing-panel__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.billing-panel__eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--color-primary-text);
+  text-transform: uppercase;
+}
+.billing-panel__title {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
+}
+@media (min-width: 900px) {
+  .billing-panel__title {
+    font-size: 28px;
+  }
+}
+.billing-panel__lead {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #55606e;
+}
+.billing-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.billing-panel__foot {
+  padding-block-start: 4px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #6b7684;
+}
+
+/*
+ * Disclosure block. The legally required lines — price, renewal, the ₪1 hold,
+ * cancellation — are the opposite of decoration, so they get a surface of
+ * their own rather than being dropped in as grey body text.
+ */
+.billing-disclosure {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fbfcfe;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.billing-disclosure p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #3d4855;
+}
+/* The price line carries the commitment; it should read first. */
+.billing-disclosure p:first-child {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+/* Consent rows: a real hit area and a visible resting border, not bare text. */
+.billing-consent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.billing-consent > label {
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.billing-consent > label:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+  background: #fcfcff;
+}
+.billing-consent > label:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.billing-consent > label input[type='checkbox'] {
+  margin-block-start: 2px;
+}
+.billing-consent > label p {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #33404e;
+}
+
+/*
+ * A single slow drift on the scattered conversation marks, so the panel is not
+ * dead but never asks to be watched. Removed outright for reduced motion —
+ * not slowed, removed.
+ */
+.billing-art-drift {
+  animation: billing-art-drift 14s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+@keyframes billing-art-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .billing-art-drift {
+    animation: none;
+  }
+}
