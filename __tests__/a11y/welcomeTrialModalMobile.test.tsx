@@ -29,6 +29,7 @@
 // Runs without a database: `npm run test:a11y` (VITEST_NO_DB=1).
 
 import { describe, afterEach, test, expect, vi } from 'vitest'
+import { readFileSync } from 'fs'
 import React from 'react'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 
@@ -101,14 +102,29 @@ describe('WelcomeTrialModal — mobile safety', () => {
     expect(d.contains(document.activeElement)).toBe(true)
   })
 
-  test('4a. the dialog surface applies the mobile padding + safe-area inset', () => {
+  /**
+   * The split layout moved the padding off the dialog and onto the form
+   * column, so the dialog itself can bleed the artwork to its edge. The two
+   * guarantees are unchanged and simply live one level in: the safe-area inset
+   * and the scrolling are now properties of .welcome-split__form, asserted in
+   * lib/css/main.css, while the dialog keeps the dvh cap.
+   */
+  test('4a. the dialog caps height in dvh and hands padding to the form column', () => {
     render(<WelcomeTrialModal />)
     const cls = dialog().className
-    expect(cls).toContain('mobile:p-5')
-    // The CTA must never sit under the home indicator, where the OS swipe wins.
-    expect(cls).toContain('env(safe-area-inset-bottom')
     // dvh, not vh — mobile browser chrome must not clip the CTA.
     expect(cls).toContain('mobile:max-h-[92dvh]')
+    // The dialog is the surface; the column owns the padding.
+    expect(cls).toContain('!p-0')
+    expect(document.querySelector('.welcome-split__form')).toBeTruthy()
+  })
+
+  test('4a2. the safe-area inset and internal scroll survive, on the form column', () => {
+    const css = readFileSync(`${process.cwd()}/lib/css/main.css`, 'utf8')
+    const block = css.slice(css.indexOf('.welcome-split__form'))
+    // The CTA must never sit under the home indicator, where the OS swipe wins.
+    expect(block).toContain('env(safe-area-inset-bottom')
+    expect(block).toContain('overflow-y: auto')
   })
 
   test('4b. the benefit grid collapses to one column on phones', () => {
@@ -121,9 +137,12 @@ describe('WelcomeTrialModal — mobile safety', () => {
     expect(grid!.className).toContain('mobile:grid-cols-1')
   })
 
-  test('4c. the dialog still scrolls internally, so the CTA is reachable when short', () => {
+  test('4c. content still scrolls internally, so the CTA is reachable when short', () => {
     render(<WelcomeTrialModal />)
-    expect(dialog().className).toContain('overflow-y-auto')
+    // The scrolling region is the form column now, not the dialog.
+    expect(document.querySelector('.welcome-split__form')).toBeTruthy()
+    const css = readFileSync(`${process.cwd()}/lib/css/main.css`, 'utf8')
+    expect(css.slice(css.indexOf('.welcome-split__form'))).toContain('max-block-size: 86dvh')
   })
 
   test('5. TRIAL LOGIC UNCHANGED: startTrial() called exactly once, with no args', async () => {

@@ -711,3 +711,67 @@ html:has([data-mobile-workspace]) body {
     animation: none;
   }
 }
+
+/*
+ * WELCOME SPLIT
+ *
+ * The first screen after registration. The dialog itself is the surface — it
+ * carries no padding — so this grid can bleed the artwork to the edge instead
+ * of nesting a panel inside a modal.
+ *
+ * RTL: the art child is first in the DOM and therefore lands on the RIGHT,
+ * with the form on the LEFT. Logical properties throughout; nothing mirrored.
+ */
+.welcome-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  inline-size: 100%;
+}
+@media (min-width: 900px) {
+  .welcome-split {
+    grid-template-columns: 0.74fr 1fr;
+    min-block-size: 560px;
+  }
+}
+
+.welcome-split__art {
+  display: none;
+  position: relative;
+  background: linear-gradient(180deg, #f7f8fe 0%, #eef0fb 100%);
+  border-inline-start: 1px solid var(--color-border);
+}
+@media (min-width: 900px) {
+  .welcome-split__art {
+    display: block;
+  }
+}
+.welcome-split__art-svg {
+  position: absolute;
+  inset: 0;
+  block-size: 100%;
+  inline-size: 100%;
+}
+
+.welcome-split__form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+  /* The dialog no longer scrolls for us, so this column does. */
+  max-block-size: 86dvh;
+  overflow-y: auto;
+}
+@media (min-width: 900px) {
+  .welcome-split__form {
+    padding: 40px;
+    gap: 22px;
+  }
+}
+@media (max-width: 899px) {
+  .welcome-split__form {
+    padding: 20px;
+    /* Keep the CTA clear of the home indicator, as before. */
+    padding-block-end: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+    gap: 16px;
+  }
+}

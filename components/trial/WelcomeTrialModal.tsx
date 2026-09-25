@@ -6,6 +6,7 @@ import { Btn } from '@/lib/btns/Btn'
 import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackTrialStartClicked, trackTrialStartFailed, trackWelcomeModalSeen } from '@/actions/trial'
 import CardTrialSetupForm from './CardTrialSetupForm'
+import BillingArtwork from '@/components/billing/BillingArtwork'
 import { trackStartTrial } from '@/lib/facebook/pixelEvents'
 import { useActivationCelebration } from './ActivationCelebrationContext'
 
@@ -190,11 +191,24 @@ export default function WelcomeTrialModal({
        * The dialog still scrolls internally, so the CTA is reachable even on the
        * shortest supported screen.
        */
-      className='mobile:max-h-[92dvh] mobile:w-[calc(100dvw-1.5rem)] mobile:p-5 mobile:pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]'
+      /**
+       * The dialog IS the split surface now, so it carries no padding of its
+       * own — the two columns own their spacing and the artwork bleeds to the
+       * edge instead of floating in a card inside a card. Mobile keeps the
+       * measured safe-area and dvh guards from before; only the padding moves,
+       * from the dialog to the form column.
+       */
+      className='w-full max-w-[960px] !p-0 overflow-hidden mobile:max-h-[92dvh] mobile:w-[calc(100dvw-1.5rem)]'
     >
-      <div ref={dialogRef} className='flex flex-col gap-6 mobile:gap-4 w-full max-w-[640px]'>
+      <div ref={dialogRef} className='welcome-split'>
+        {/* Decorative half. RTL: first child renders on the RIGHT. Not rendered
+            at all below 900px — see .welcome-split__art. */}
+        <div className='welcome-split__art' aria-hidden='true'>
+          <BillingArtwork className='welcome-split__art-svg' />
+        </div>
+        <div className='welcome-split__form'>
         {/* Header: premium pill → headline → supporting → restrained trust copy */}
-        <div className='flex flex-col items-center text-center gap-2.5'>
+        <div className='flex flex-col items-start text-start gap-2.5 mobile:items-center mobile:text-center'>
           <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
             SOCIALCRM PRO
           </span>
@@ -298,6 +312,7 @@ export default function WelcomeTrialModal({
             </p>
           </>
         )}
+        </div>
       </div>
     </ModalPop>
   )
