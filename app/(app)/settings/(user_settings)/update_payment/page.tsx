@@ -20,7 +20,6 @@ import { getTrialState } from '@/lib/trial'
 import { isCardBillingAvailable, billingSetupPurpose, describeCardBillingAvailability } from '@/lib/payments/cardTrial/availability'
 import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
-import CardSetupPanel from '@/components/billing/CardSetupPanel'
 
 type SearchParams = Promise<{ mode?: string | string[] }>
 
@@ -200,36 +199,46 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       <BillingHistory charges={charges} />
 
       {!cardView.cardBilled && (
-        <section id='card-setup' className='mt-12 scroll-mt-6'>
+        <section id='card-setup' className='mt-10 scroll-mt-6'>
           {canStartSetup && setupPurpose ? (
-            <CardSetupPanel
-              eyebrow='SocialCRM Pro'
-              title={SETUP_TITLE[setupPurpose]}
-              /* The lead is account-specific: promising ₪89 a month to a
-                 comped account would be false, so that state says what is
-                 actually true of it. */
-              lead={
-                setupPurpose === 'card_update'
-                  ? 'הגישה שלכם נשמרת כפי שהיא. הכרטיס נשמר לשימוש עתידי בלבד, ולא נקבע חיוב.'
-                  : `המנוי מחויב ב־₪${PRICING.monthly} לחודש מהכרטיס השמור, ואפשר לבטל בכל רגע.`
-              }
-              footnote='פרטי הכרטיס נשמרים אצל ספק הסליקה Grow ואינם נשמרים אצלנו.'
-            >
-              <CardTrialSetupForm
-                purpose={setupPurpose}
-                /* Entitled already, adding a first card: no trial, no ₪89, and
-                   no subscription consent — none of them are true here. */
-                mode={setupPurpose === 'card_update' ? 'entitled' : 'subscription'}
-                submitLabel={SETUP_LABEL[setupPurpose]}
-              />
-            </CardSetupPanel>
+            /*
+             * Same container as every card above it — max-w-3xl, p-6, white,
+             * rounded-lg, 1px gray-200 — so its left and right edges line up
+             * exactly with the plan and trial cards rather than breaking out
+             * of the page's column.
+             */
+            <div className='max-w-3xl rounded-lg border border-gray-200 bg-white p-6' dir='rtl'>
+              <div className='flex flex-col gap-1.5'>
+                <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-text'>SocialCRM Pro</p>
+                <h2 className='text-lg font-semibold text-ink'>{SETUP_TITLE[setupPurpose]}</h2>
+                <p className='text-sm leading-relaxed text-gray-600'>
+                  {setupPurpose === 'card_update'
+                    ? 'הגישה שלכם נשמרת כפי שהיא. הכרטיס נשמר לשימוש עתידי בלבד, ולא נקבע חיוב.'
+                    : `המנוי מחויב ב־₪${PRICING.monthly} לחודש מהכרטיס השמור, ואפשר לבטל בכל רגע.`}
+                </p>
+              </div>
+
+              <div className='mt-5'>
+                <CardTrialSetupForm
+                  purpose={setupPurpose}
+                  /* Entitled already, adding a first card: no trial, no ₪89, and
+                     no subscription consent — none of them are true here. */
+                  mode={setupPurpose === 'card_update' ? 'entitled' : 'subscription'}
+                  submitLabel={SETUP_LABEL[setupPurpose]}
+                />
+              </div>
+
+              <p className='mt-4 border-t border-gray-100 pt-3 text-xs leading-relaxed text-gray-500'>
+                פרטי הכרטיס נשמרים אצל ספק הסליקה Grow ואינם נשמרים אצלנו.
+              </p>
+            </div>
           ) : (
-            <>
-              <h2 className='text-xl font-bold'>אמצעי תשלום</h2>
-              <div className='mt-4'>
+            <div className='max-w-3xl'>
+              <h2 className='text-lg font-semibold text-ink'>אמצעי תשלום</h2>
+              <div className='mt-3'>
                 <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
               </div>
-            </>
+            </div>
           )}
         </section>
       )}
