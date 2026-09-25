@@ -17,7 +17,7 @@ import Icon from '@/lib/Icon'
 import { PRICING } from '@/lib/pricing'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
-import { isCardBillingAvailable, billingSetupPurpose } from '@/lib/payments/cardTrial/availability'
+import { isCardBillingAvailable, billingSetupPurpose, describeCardBillingAvailability } from '@/lib/payments/cardTrial/availability'
 import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
 
@@ -87,7 +87,26 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   // can actually complete one AND this agency is eligible for some purpose —
   // otherwise say so plainly instead of rendering a button that leads nowhere.
   const setupPurpose = cardView.cardBilled ? null : await billingSetupPurpose(user.agencyId)
-  const canStartSetup = isCardBillingAvailable() && setupPurpose !== null
+  const availability = describeCardBillingAvailability()
+  const canStartSetup = availability.ok && setupPurpose !== null
+
+  /**
+   * When the screen is about to say "not right now", say WHY in the log.
+   *
+   * Booleans and condition codes only — no credential, token or card data. This
+   * exists because production showed the notice and logged nothing, so the
+   * cause could not be told apart from a missing variable without guessing.
+   */
+  if (!canStartSetup) {
+    console.warn('[CardSetup] setup not offered', {
+      agencyId: user.agencyId,
+      providerAvailable: availability.ok,
+      providerReason: availability.reason,
+      trialStatus: trial?.status ?? null,
+      alreadyCardBilled: cardView.cardBilled,
+      setupPurpose,
+    })
+  }
 
   return (
     <div>
