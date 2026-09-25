@@ -96,3 +96,31 @@ export const CARD_STORAGE_CONSENT_LABEL =
   'אני מאשר/ת שפרטי הכרטיס יישמרו באופן מאובטח אצל ספק הסליקה Grow, ושניתן יהיה לחייב אותו בעתיד עבור המנוי'
 
 export const CARD_STORAGE_CONSENT_VERSION = '2026-09-16'
+
+/**
+ * What an already-entitled account is told when it adds a first card.
+ *
+ * The ordinary disclosure promises a seven-day trial and a ₪89 charge at the
+ * end of it. For a manually granted Pro workspace both are false: there is no
+ * trial to convert and no charge scheduled, because conversion scheduling skips
+ * plan='pro' and renewals only follow a paid period that a token charge
+ * started. Showing it the standard text would be a plain untruth on the screen
+ * where the customer decides whether to trust us with a card.
+ */
+export function entitledCardAddLines(): string[] {
+  return [
+    'הגישה שלכם ל-Pro נשמרת כפי שהיא, ואינה תלויה בכרטיס.',
+    TOKEN_HOLD_NOTICE,
+    'לא נקבע חיוב ולא ייווצר מנוי בעקבות שמירת הכרטיס.',
+    'הכרטיס נשמר לשימוש עתידי בלבד, ואפשר להסירו או להחליפו בכל עת.',
+  ]
+}
+
+/**
+ * The single consent this state asks for: permission to KEEP the card. It must
+ * not mention a monthly charge at the end of a trial, because neither exists
+ * here. Subscription terms are deliberately not requested — needsTerms() is
+ * already false for this purpose, so the server does not expect them either.
+ */
+export const ENTITLED_CARD_STORAGE_CONSENT_LABEL = CARD_STORAGE_CONSENT_LABEL
+

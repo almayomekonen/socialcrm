@@ -43,10 +43,16 @@ type SearchParams = Promise<{ mode?: string | string[] }>
  * system does not record them — see PaymentMethodRow and BillingHistory.
  */
 /** One label per purpose: the button says exactly what pressing it does. */
+/**
+ * `card_update` reaches THIS page only when there is no card on file — the page
+ * computes no purpose at all once `cardBilled` is true, and replacement lives
+ * in CardBillingControls. So here it always means "add a first card", and
+ * "החלפת הכרטיס השמור" would name a card that does not exist.
+ */
 const SETUP_LABEL = {
   trial_start: 'הוספת כרטיס והפעלת הניסיון',
   reactivate: 'עדכון אמצעי תשלום והמשך',
-  card_update: 'החלפת הכרטיס השמור',
+  card_update: 'שמירת כרטיס לחשבון',
 } as const
 
 export default async function page({ searchParams }: { searchParams?: SearchParams }) {
@@ -191,7 +197,13 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
           <p className='mt-1 text-sm text-gray-500'>המנוי מחויב ב־₪{PRICING.monthly} לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.</p>
           <div className='mt-4'>
             {canStartSetup && setupPurpose ? (
-              <CardTrialSetupForm purpose={setupPurpose} submitLabel={SETUP_LABEL[setupPurpose]} />
+              <CardTrialSetupForm
+                purpose={setupPurpose}
+                /* Entitled already, adding a first card: no trial, no ₪89, and
+                   no subscription consent — none of them are true here. */
+                mode={setupPurpose === 'card_update' ? 'entitled' : 'subscription'}
+                submitLabel={SETUP_LABEL[setupPurpose]}
+              />
             ) : (
               <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
             )}
