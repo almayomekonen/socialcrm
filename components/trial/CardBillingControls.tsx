@@ -24,12 +24,14 @@ import { CARD_TRIAL_AMOUNT } from '@/lib/payments/cardTrial/terms'
 
 type Props = {
   cancelAtPeriodEnd: boolean
+  /** Pro from an explicit grant: no renewal to stop, no cancellation to make. */
+  granted?: boolean
   /** True when a charge is already with Grow and cannot be stopped. */
   chargeInProgress?: boolean
   onReplaceRedirect?: (url: string) => void
 }
 
-export default function CardBillingControls({ cancelAtPeriodEnd, chargeInProgress = false, onReplaceRedirect }: Props) {
+export default function CardBillingControls({ cancelAtPeriodEnd, granted = false, chargeInProgress = false, onReplaceRedirect }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [replacing, setReplacing] = useState(false)
   const [storageAccepted, setStorageAccepted] = useState(false)
@@ -114,7 +116,13 @@ export default function CardBillingControls({ cancelAtPeriodEnd, chargeInProgres
         </p>
       )}
       <div className='flex items-center gap-2 flex-wrap'>
-        {cancelAtPeriodEnd ? (
+        {granted ? (
+          /* The card is real and replaceable; the subscription actions beside it
+             are not — there is no renewal to resume and no charge to cancel
+             before. Offering either would act on a subscription that does not
+             exist. */
+          <Btn variant='outline' lbl='החלפת כרטיס' disabled={pending} onClick={() => setReplacing(true)} />
+        ) : cancelAtPeriodEnd ? (
           <Btn variant='solid' lbl={pending ? 'טוען...' : 'חידוש המנוי'} disabled={pending} onClick={() => run(resumeRenewal)} />
         ) : (
           <>
