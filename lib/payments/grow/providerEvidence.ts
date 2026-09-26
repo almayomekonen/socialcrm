@@ -123,13 +123,43 @@ export const GROW_PROVIDER_EVIDENCE: GrowProviderEvidence = {
    * transactionUniqueIdentifier sent again was refused with error 1010
    * ("מזהה עסקה יחודי כבר קיים עבור בית העסק").
    */
-  tokenChargeDispatch: { sandbox: { evidenceRef: 'charge_probe@2026-09-17:tx549236+dup1010' }, production: { evidenceRef: null } },
+  /**
+   * PRODUCTION OPENED 2026-09-26 by one authorised ₪1 diagnostic charge on
+   * agency 103 / payment method 4 (Mastercard 0675, the card verified the same
+   * day). createTransactionWithToken returned kind "paid", statusCode 2,
+   * transactionId 86188972, asmachta 519923953, against
+   * transactionUniqueIdentifier 1790450486 — sent alone, with no
+   * transactionGroupIdentifier, per Grow's instruction of 2026-09-17, and
+   * captured off the wire rather than assumed.
+   *
+   * It was a real capture, not the hold a token save produces: Grow's own
+   * lookup reports status "שולם". No duplicate was attempted — the sandbox 1010
+   * refusal already established that behaviour, and repeating it here would
+   * have meant a second real charge to learn nothing new.
+   */
+  tokenChargeDispatch: {
+    sandbox: { evidenceRef: 'charge_probe@2026-09-17:tx549236+dup1010' },
+    production: { evidenceRef: 'diagnostic_charge@2026-09-26:tx86188972' },
+  },
   /**
    * Same run: the lookup returned status 1 with exactly one transaction —
    * statusCode 2, transactionId 549236, sum "1". Only that case is established;
    * see interpretTokenLookup, which answers `undetermined` for everything else.
    */
-  tokenChargeReconciliation: { sandbox: { evidenceRef: 'charge_probe@2026-09-17:lookup-shape' }, production: { evidenceRef: null } },
+  /**
+   * Same run, read back independently: getTokenTransactionsByExternalIdentifiers
+   * on identifier 1790450486 returned status 1 with exactly one transaction —
+   * statusCode 2, sum "1", transactionId 86188972, cardSuffix 0675 —
+   * and interpretTokenLookup read it as "paid", agreeing with the dispatch
+   * response it exists to check. That agreement is the point: the lookup is
+   * what the system trusts when a dispatch answer is ambiguous or never
+   * arrives, so it had to be observed resolving a KNOWN case correctly before
+   * it could be relied on for an unknown one.
+   */
+  tokenChargeReconciliation: {
+    sandbox: { evidenceRef: 'charge_probe@2026-09-17:lookup-shape' },
+    production: { evidenceRef: 'diagnostic_charge@2026-09-26:lookup-tx86188972' },
+  },
 }
 
 export function isTokenSaveVerificationEstablished(mode: GrowMode, e: GrowProviderEvidence = GROW_PROVIDER_EVIDENCE): boolean {
