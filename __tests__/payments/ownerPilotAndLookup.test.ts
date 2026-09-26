@@ -62,8 +62,25 @@ describe('the owner pilot widens who is asked for a card, and nothing else', () 
   })
 
   it('never opens a provider-evidence gate', () => {
+    /*
+     * The production save gate is OPEN since 2026-09-25 — but on an observed
+     * production save, not on this allowlist. So the assertion is no longer
+     * "every gate is shut"; it is that the allowlist MOVES no gate. Taking each
+     * reading with the pilot on and off is what actually proves that, and it
+     * keeps proving it whatever the evidence file says later.
+     */
+    const read = () => ({
+      save: isTokenSaveVerificationEstablished('production'),
+      dispatch: isTokenChargeDispatchEstablished('production'),
+      reconcile: isTokenChargeReconciliationEstablished('production'),
+    })
+    pilot('')
+    const without = read()
     pilot('42')
-    expect(isTokenSaveVerificationEstablished('production')).toBe(false)
+    expect(read()).toEqual(without)
+
+    // And the two gates that authorise MONEY have still never been executed in
+    // production, allowlist or not.
     expect(isTokenChargeDispatchEstablished('production')).toBe(false)
     expect(isTokenChargeReconciliationEstablished('production')).toBe(false)
   })

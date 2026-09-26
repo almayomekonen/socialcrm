@@ -145,9 +145,25 @@ describe('Grow’s written confirmations (2026-09-17) are recorded, not remember
     expect(cardTrialDisclosureLines()).toContain(TOKEN_HOLD_NOTICE)
   })
 
-  it('production evidence stays closed — a test-account answer is not a production one', async () => {
-    const { isTokenSaveVerificationEstablished } = await import('@/lib/payments/grow/providerEvidence')
-    expect(isTokenSaveVerificationEstablished('production')).toBe(false)
+  it('what opened the production save gate was an observation, not this answer', async () => {
+    const { isTokenSaveVerificationEstablished, acceptedTokenSaveStatusCodes, GROW_PROVIDER_EVIDENCE } = await import(
+      '@/lib/payments/grow/providerEvidence'
+    )
+    /*
+     * WAS: "production evidence stays closed". It is open now — opened on
+     * 2026-09-25 by a real production card save whose statusCode we read back
+     * with our own credentials. The rule the old assertion protected is
+     * unchanged and still tested here: the gate may only ever be opened by an
+     * EXECUTED observation, never by Grow saying something in writing.
+     */
+    expect(isTokenSaveVerificationEstablished('production')).toBe(true)
+    expect(acceptedTokenSaveStatusCodes('production')).toEqual(['11'])
+
+    // The reference names an observation of the production account, not a
+    // sandbox run and not a support reply.
+    const ref = GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.evidenceRef ?? ''
+    expect(ref).toContain('card_save_observed')
+    expect(ref).not.toContain('charge_probe')
   })
 })
 

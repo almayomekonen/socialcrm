@@ -20,8 +20,8 @@ describe('deriveStatus (pure)', () => {
 const TEST_TAG = '__sub_view_' + Date.now() + '_'
 const created: number[] = []
 
-async function seedAgency(plan: 'free' | 'pro'): Promise<number> {
-  const [row] = await db('agencies').insert({ name: TEST_TAG + Math.random(), plan }).returning('id')
+async function seedAgency(plan: 'free' | 'pro', planReason?: string): Promise<number> {
+  const [row] = await db('agencies').insert({ name: TEST_TAG + Math.random(), plan, ...(planReason ? { planReason } : {}) }).returning('id')
   const id = typeof row === 'number' ? row : row.id
   created.push(id)
   return id
@@ -46,8 +46,61 @@ describe('getSubscriptionView (db)', () => {
       expiresAt: null,
       cancelAtPeriodEnd: false,
       status: 'active',
+      billingPeriod: 'monthly',
       manageable: false,
+      source: 'none',
     })
+  })
+
+  /*
+   * AGENCY 103, THE CASE THIS EXISTS FOR.
+   *
+   * A manual Pro grant beside a leftover subscriptions row from the Payment
+   * Links era — cancelAtPeriodEnd true, expiresAt in the past. Read as current
+   * state, that row told the owner a cancellation had been received, that they
+   * were paying ₪89 a month, and that access had already ended, all while they
+   * held an open-ended comp. The row is history and must be left alone; it just
+   * stops being mistaken for the present.
+   */
+  it('an explicit grant beside a stale subscription row reports the GRANT, not the row', async () => {
+    const agencyId = await seedAgency('pro', 'manual:owner-comp')
+    const expiredAt = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+    await db('subscriptions').insert({
+      agencyId,
+      planStartedAt: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000),
+      expiresAt: expiredAt,
+      cancelAtPeriodEnd: true,
+      billingPeriod: 'monthly',
+    })
+
+    const view = await getSubscriptionView(agencyId)
+
+    expect(view.source).toBe('grant')
+    expect(view.status).toBe('active')
+    expect(view.cancelAtPeriodEnd).toBe(false)
+    expect(view.expiresAt).toBeNull()
+    expect(view.manageable).toBe(false)
+
+    // The history itself is untouched.
+    const row = await db('subscriptions').where({ agencyId }).first()
+    expect(row.cancelAtPeriodEnd).toBe(true)
+    expect(new Date(row.expiresAt).getTime()).toBe(expiredAt.getTime())
+  })
+
+  it('a grow-prepaid agency is still driven by its subscription row', async () => {
+    const agencyId = await seedAgency('pro', 'grow:direct-debit')
+    await db('subscriptions').insert({
+      agencyId,
+      planStartedAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      cancelAtPeriodEnd: true,
+    })
+
+    const view = await getSubscriptionView(agencyId)
+
+    expect(view.source).toBe('subscription')
+    expect(view.status).toBe('cancelling')
+    expect(view.manageable).toBe(true)
   })
 
   it('returns manageable=true with row data when a subscriptions row exists', async () => {

@@ -94,13 +94,24 @@ describe('a closed gate observes, and still grants nothing', () => {
 const CLOSED_EVIDENCE: GrowProviderEvidence = { tokenSaveVerification: { sandbox: { acceptedStatusCodes: [], evidenceRef: null }, production: { acceptedStatusCodes: [], evidenceRef: null } }, tokenChargeDispatch: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } }, tokenChargeReconciliation: { sandbox: { evidenceRef: null }, production: { evidenceRef: null } } }
 
 describe('provider evidence gates', () => {
-  it('charging stays closed, and production token-save stays closed: nothing provider-dependent is enabled without sandbox evidence', () => {
-    expect(isTokenSaveVerificationEstablished('production')).toBe(false)
+  it('saving is open on observed evidence; CHARGING is still closed in both environments', () => {
+    /*
+     * The production save gate opened on 2026-09-25 from a real card save on
+     * agency 103 (statusCode "11", sum "1", token present). What this case
+     * guards is the separation that opening it must not blur: proving a card
+     * can be SAVED proves nothing about charging it. Both money gates are
+     * unexecuted in production and must stay shut until a real charge is
+     * observed there.
+     */
+    expect(isTokenSaveVerificationEstablished('production')).toBe(true)
+    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.acceptedStatusCodes).toEqual(['11'])
+    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.evidenceRef).not.toBeNull()
+
     expect(isTokenChargeDispatchEstablished('production')).toBe(false)
     expect(isTokenChargeReconciliationEstablished('production')).toBe(false)
-    // Sandbox is open on real observed evidence; production stays shut.
-    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.acceptedStatusCodes).toEqual([])
-    expect(GROW_PROVIDER_EVIDENCE.tokenSaveVerification.production.evidenceRef).toBeNull()
+    expect(GROW_PROVIDER_EVIDENCE.tokenChargeDispatch.production.evidenceRef).toBeNull()
+    expect(GROW_PROVIDER_EVIDENCE.tokenChargeReconciliation.production.evidenceRef).toBeNull()
+
     expect(isTokenSaveVerificationEstablished('sandbox')).toBe(true)
   })
 

@@ -49,6 +49,9 @@ export default function ProPlanCard({
   const expired = !hasAccess
   const cancelling = !expired && subscription.status === 'cancelling'
   const annual = subscription.billingPeriod === 'annual'
+  /* An explicit grant has no billing period, no renewal and nothing to cancel.
+     Naming a price here would invent a charge that will never be made. */
+  const granted = subscription.source === 'grant'
 
   const dateLabel = expired ? 'המנוי הסתיים ב' : cancelling ? 'גישה ל־Pro עד' : 'החידוש הבא'
   const periodLabel = annual ? 'שנתית' : 'חודשית'
@@ -74,7 +77,7 @@ export default function ProPlanCard({
 
           <div className='flex flex-col gap-2'>
             <p className='text-sm text-gray-500'>
-              תקופת חיוב: {periodLabel} · {priceLabel}
+              {granted ? 'גישה מלאה ל־Pro · ללא חיוב ובלי תאריך סיום' : `תקופת חיוב: ${periodLabel} · ${priceLabel}`}
             </p>
 
             {subscription.expiresAt && (
