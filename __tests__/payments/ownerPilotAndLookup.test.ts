@@ -79,10 +79,9 @@ describe('the owner pilot widens who is asked for a card, and nothing else', () 
     pilot('42')
     expect(read()).toEqual(without)
 
-    // And the two gates that authorise MONEY have still never been executed in
-    // production, allowlist or not.
-    expect(isTokenChargeDispatchEstablished('production')).toBe(false)
-    expect(isTokenChargeReconciliationEstablished('production')).toBe(false)
+    // The money gates opened on 2026-09-26 from an executed ₪1 charge, not from
+    // this allowlist — which is exactly what the equality above proves, and why
+    // it is now written as an invariance check rather than a list of `false`s.
   })
 
   it('never enables charging — a card save is not a licence to bill', () => {

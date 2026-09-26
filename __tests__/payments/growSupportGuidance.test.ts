@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { classifyTokenChargeError, DUPLICATE_IDENTIFIER_ERROR_ID } from '@/lib/payments/grow/tokenErrors'
 import {
   GROW_SUPPORT_CONFIRMATIONS,
+  GROW_PROVIDER_EVIDENCE,
   isTokenChargeDispatchEstablished,
   isTokenChargeReconciliationEstablished,
 } from '@/lib/payments/grow/providerEvidence'
@@ -178,10 +179,21 @@ describe("Grow's 2026-09-17 replies, as recorded", () => {
     expect(GROW_SUPPORT_CONFIRMATIONS.productionCredentials).toBe('pending')
   })
 
-  it('and it is not execution evidence either — production gates remain shut', () => {
-    // The whole point: Grow saying "ApproveTransaction is not required" does not
-    // open a gate. Only an observed production charge does.
-    expect(isTokenChargeDispatchEstablished('production')).toBe(false)
-    expect(isTokenChargeReconciliationEstablished('production')).toBe(false)
+  it('and it is not what opened the money gates — an executed charge was', () => {
+    /*
+     * The rule is unchanged: Grow saying "ApproveTransaction is not required"
+     * opens nothing. What opened dispatch and reconciliation on 2026-09-26 was
+     * one authorised ₪1 charge on the production account, read back by the
+     * lookup. The reference names that run, so a future reader can tell the two
+     * kinds of evidence apart.
+     */
+    expect(isTokenChargeDispatchEstablished('production')).toBe(true)
+    expect(isTokenChargeReconciliationEstablished('production')).toBe(true)
+    for (const ref of [
+      GROW_PROVIDER_EVIDENCE.tokenChargeDispatch.production.evidenceRef ?? '',
+      GROW_PROVIDER_EVIDENCE.tokenChargeReconciliation.production.evidenceRef ?? '',
+    ]) {
+      expect(ref).toContain('diagnostic_charge@2026-09-26')
+    }
   })
 })
