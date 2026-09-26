@@ -36,14 +36,25 @@ function businessDayIndex(date: Date): number {
   return Date.UTC(get('year'), get('month') - 1, get('day')) / MS_PER_DAY
 }
 
-/** Whole calendar days from `now` until `date`. Never negative. */
+/**
+ * Whole calendar days from `now` until `date`. SIGNED: negative for a date that
+ * has passed.
+ *
+ * It used to clamp at zero, which turned every past date into "0 days away" and
+ * therefore into "היום". On 26 September the billing centre rendered a period
+ * that ended on the 22nd as "22 בספטמבר · היום" — a date and a relative label
+ * contradicting each other on the same line. Clamping hid the past instead of
+ * describing it.
+ */
 export function daysUntil(date: Date, now: Date = new Date()): number {
-  return Math.max(0, businessDayIndex(date) - businessDayIndex(now))
+  return businessDayIndex(date) - businessDayIndex(now)
 }
 
-/** "היום" / "בעוד יום" / "בעוד 27 ימים". */
+/** "לפני 4 ימים" / "אתמול" / "היום" / "בעוד יום" / "בעוד 27 ימים". */
 export function relativeDaysLabel(days: number): string {
   if (days === 0) return 'היום'
   if (days === 1) return 'בעוד יום'
+  if (days === -1) return 'אתמול'
+  if (days < -1) return `לפני ${Math.abs(days)} ימים`
   return `בעוד ${days} ימים`
 }
