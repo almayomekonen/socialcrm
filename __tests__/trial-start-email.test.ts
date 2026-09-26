@@ -1,5 +1,5 @@
 /**
- * actions/trial.startTrial — the immediate "Pro trial started" email trigger.
+ * actions/trial.startTrial — now a pair of refusals, not a trial starter.
  *
  * Fully mocked / DB-free (VITEST_NO_DB-safe): the DB transition, the email
  * dispatcher, and next/{cache,server} are all stubbed. Proves the wiring
@@ -7,7 +7,7 @@
  * authenticated activator, and never let email delivery fail or roll back the
  * trial.
  */
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 // after() runs its callback (post-response). We invoke it and swallow any
@@ -44,48 +44,68 @@ beforeEach(() => {
   vi.mocked(dispatchLifecycleEvent).mockResolvedValue(undefined)
 })
 
-describe('startTrial → trial.started email', () => {
-  it('started=true schedules EXACTLY ONE trial.started event to the activator', async () => {
+afterEach(() => vi.unstubAllEnvs())
+
+/*
+ * WHAT CHANGED, AND WHY THESE TESTS DID.
+ *
+ * These three cases asserted the click-to-start trial and its trial.started
+ * email. Two guards since closed that path from both sides:
+ *
+ *   flag ON  → card_required          (a card-required trial starts only from
+ *                                      Grow's verified callback)
+ *   flag OFF → billing_not_available  ("never open a trial we cannot bill" —
+ *                                      Payment Links were the only way a
+ *                                      no-card trial ever converted)
+ *
+ * hasBillingPath() and isCardRequiredTrialEnabledForAgency() read the same
+ * flag, so startTrialForAgency() is now unreachable from this action and
+ * trial.started can no longer fire from it. The card flow sends its own email:
+ * app/api/payments/grow/notify dispatches trial.card_started after
+ * confirmCardSetup succeeds.
+ *
+ * So the cases are rewritten to assert the refusals, rather than deleted. What
+ * they protect is the part that still matters and is easy to regress: neither
+ * refusal may touch the database or send anything. A future change that lets
+ * this action start a trial again, or email about one it did not start, fails
+ * here.
+ */
+describe('startTrial → refuses, writes nothing, sends nothing', () => {
+  it('flag ON: card_required — a card-required trial starts only from Grow’s verified callback', async () => {
+    vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', 'true')
     vi.mocked(requireAgencyUser).mockResolvedValueOnce(ACTIVATOR)
-    vi.mocked(startTrialForAgency).mockResolvedValueOnce({ started: true })
 
     const res = await startTrial()
 
-    expect(res).toEqual({ ok: true, started: true })
-    expect(dispatchLifecycleEvent).toHaveBeenCalledTimes(1)
-    const [event, recipient] = vi.mocked(dispatchLifecycleEvent).mock.calls[0]
-    expect(event).toBe('trial.started')
-    // Recipient is the authenticated activator; firstName derived from name.
-    expect(recipient).toEqual({
-      userId: 7,
-      agencyId: 3,
-      email: 'activator@example.com',
-      firstName: 'דוד',
-    })
-  })
-
-  it('started=false (refresh / re-view / double-click / already-started / PAID / expired) schedules NONE', async () => {
-    vi.mocked(requireAgencyUser).mockResolvedValueOnce(ACTIVATOR)
-    vi.mocked(startTrialForAgency).mockResolvedValueOnce({ started: false })
-
-    const res = await startTrial()
-
-    expect(res).toEqual({ ok: true, started: false })
+    expect(res).toEqual({ error: 'card_required' })
+    expect(startTrialForAgency).not.toHaveBeenCalled()
     expect(dispatchLifecycleEvent).not.toHaveBeenCalled()
   })
 
-  it('email dispatch failure cannot fail or roll back trial activation', async () => {
+  it('flag OFF: billing_not_available — never open a trial we cannot bill', async () => {
+    vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', '')
+    vi.stubEnv('CARD_TRIAL_PILOT_AGENCY_IDS', '')
     vi.mocked(requireAgencyUser).mockResolvedValueOnce(ACTIVATOR)
-    vi.mocked(startTrialForAgency).mockResolvedValueOnce({ started: true })
-    vi.mocked(dispatchLifecycleEvent).mockRejectedValueOnce(new Error('email provider down'))
 
-    // Must resolve normally — no throw despite the rejected dispatch.
     const res = await startTrial()
 
-    expect(res).toEqual({ ok: true, started: true })
-    // The trial transition ran exactly once and was not re-attempted/undone.
-    expect(startTrialForAgency).toHaveBeenCalledTimes(1)
-    expect(startTrialForAgency).toHaveBeenCalledWith(3, 7)
+    expect(res).toEqual({ error: 'billing_not_available' })
+    expect(startTrialForAgency).not.toHaveBeenCalled()
+    expect(dispatchLifecycleEvent).not.toHaveBeenCalled()
+  })
+
+  it('the pilot allowlist is card_required too — one agency cannot be offered click-to-start', async () => {
+    // The allowlist widens WHO is asked for a card. An agency on it must not
+    // find a second, no-card way in: that is the trial with no billable card.
+    vi.stubEnv('CARD_REQUIRED_TRIAL_ENABLED', '')
+    vi.stubEnv('CARD_TRIAL_PILOT_AGENCY_IDS', String(ACTIVATOR.agencyId))
+    vi.mocked(requireAgencyUser).mockResolvedValueOnce(ACTIVATOR)
+
+    const res = await startTrial()
+
+    expect(res).toEqual({ error: 'card_required' })
+    expect(startTrialForAgency).not.toHaveBeenCalled()
+    expect(dispatchLifecycleEvent).not.toHaveBeenCalled()
   })
 
   it('unauthorized callers get no trial and no email (gating unchanged)', async () => {

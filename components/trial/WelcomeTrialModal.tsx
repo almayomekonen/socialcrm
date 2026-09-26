@@ -3,20 +3,45 @@
 import { useEffect, useRef, useState } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
-import Icon, { type IconNames } from '@/lib/Icon'
 import { startTrial, trackTrialStartClicked, trackTrialStartFailed, trackWelcomeModalSeen } from '@/actions/trial'
 import CardTrialSetupForm from './CardTrialSetupForm'
 import { trackStartTrial } from '@/lib/facebook/pixelEvents'
 import { useActivationCelebration } from './ActivationCelebrationContext'
+import { useDialogFocusTrap } from '@/hooks/useDialogFocusTrap'
 
-// One-time Pro activation benefits, shown as a 2×2 grid. Distinct existing
-// icons only — no new icon library.
-const BENEFITS: { icon: IconNames; title: string; sub: string }[] = [
-  { icon: 'comment-dots', title: 'כל הלידים והשיחות', sub: 'הכול במקום אחד' },
-  { icon: 'brain', title: 'AI חכם ומתקדם', sub: 'כל יכולות ה־AI פתוחות' },
-  { icon: 'calendar', title: 'כל כלי העבודה שלך', sub: 'וואטסאפ, משימות, יומן וקבצים' },
-  { icon: 'gem', title: 'Pro מלא ל־7 ימים', sub: 'כל יכולות ה־Pro פתוחות עבורך' },
-]
+
+/**
+ * ONE headline and ONE sentence per state, in a single table.
+ *
+ * The defect this replaces: a fixed header — "SocialCRM Pro פתוח לכם ל־7 ימים"
+ * over "ללא עלות · ללא כרטיס אשראי" — rendered above whichever body applied,
+ * so an account with no billing path read that Pro was open to it, that no card
+ * was needed, and then that the trial had not opened yet. Three claims, two of
+ * them false, on the one screen a new customer cannot dismiss.
+ *
+ * Keeping the copy beside the state it belongs to is what stops a state from
+ * inheriting another's promise. Nothing here says a trial is running: the trial
+ * begins when Grow's callback is verified, never when this modal renders.
+ */
+type View = 'setup' | 'awaiting' | 'unavailable' | 'later' | 'start'
+
+const COPY: Record<View, { title: string; sub: string }> = {
+  setup: { title: 'מתחילים עם SocialCRM Pro', sub: '7 ימים ללא עלות. נדרש אימות כרטיס, והיום לא יבוצע חיוב.' },
+  awaiting: { title: 'הכרטיס נשמר, ואנחנו מאמתים אותו', sub: 'תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.' },
+  unavailable: { title: 'לא ניתן להתחיל כרגע', sub: 'מערכת התשלומים אינה זמינה זמנית, ולכן תקופת הניסיון עדיין לא נפתחה. לא בוצע חיוב.' },
+  later: { title: 'תקופת הניסיון תיפתח כאן בקרוב', sub: 'אנחנו משלימים את חיבור התשלומים. החשבון שלכם שמור, לא בוצע חיוב, ואין צורך בשום פעולה.' },
+  /* Click-to-start, no card. Unreachable while hasBillingPath() and the card
+     variant share one flag, but it is a real no-card path, so it is the one
+     state where "ללא כרטיס אשראי" is true and it keeps saying so. */
+  start: { title: 'מתחילים עם SocialCRM Pro', sub: 'הצעד הבא: להכניס את הלידים שלכם למערכת.' },
+}
+
+/** A closing line for the states that have no action to offer. */
+const TAIL: Record<'awaiting' | 'unavailable' | 'later', string> = {
+  awaiting: 'האימות נמשך בדרך כלל מספר שניות. אפשר לרענן את העמוד.',
+  unavailable: 'אפשר לנסות שוב מאוחר יותר, או לפנות אלינו ונטפל בזה.',
+  later: 'נעדכן אתכם ברגע שאפשר יהיה להתחיל.',
+}
 
 /**
  * Shown whenever trial status is NEVER_STARTED. Device gating is the SERVER's
@@ -75,51 +100,7 @@ export default function WelcomeTrialModal({
     trackWelcomeModalSeen().catch(() => {})
   }, [open])
 
-  // Initial focus + focus trap. ModalPop mounts its portal one effect-tick
-  // after `open` flips, so the initial focus retries via rAF until the
-  // dialog exists in the DOM.
-  useEffect(() => {
-    if (!open) return
-    let raf = 0
-    const focusables = () => {
-      const dialog = dialogRef.current
-      if (!dialog) return []
-      return Array.from(dialog.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])"))
-    }
-    const tryInitialFocus = () => {
-      const els = focusables()
-      if (els.length > 0) els[0].focus()
-      else raf = requestAnimationFrame(tryInitialFocus)
-    }
-    tryInitialFocus()
-
-    function onKeydown(e: KeyboardEvent) {
-      if (e.key !== 'Tab') return
-      const dialog = dialogRef.current
-      const els = focusables()
-      if (!dialog || els.length === 0) return
-      const first = els[0]
-      const last = els[els.length - 1]
-      const active = document.activeElement as HTMLElement | null
-      if (!active || !dialog.contains(active)) {
-        e.preventDefault()
-        first.focus()
-        return
-      }
-      if (e.shiftKey && active === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKeydown)
-    return () => {
-      cancelAnimationFrame(raf)
-      document.removeEventListener('keydown', onKeydown)
-    }
-  }, [open])
+  useDialogFocusTrap(open, dialogRef)
 
   async function onStart() {
     if (pending) return
@@ -162,6 +143,19 @@ export default function WelcomeTrialModal({
     }
   }
 
+  const view: View = cardSetup
+    ? cardSetup.stage === 'awaiting'
+      ? 'awaiting'
+      : cardSetup.stage === 'unavailable'
+        ? 'unavailable'
+        : 'setup'
+    : trialOpensLater
+      ? 'later'
+      : 'start'
+
+  /** Nothing to do here but read — no form, no button. */
+  const informational = view === 'awaiting' || view === 'unavailable' || view === 'later'
+
   return (
     <ModalPop
       open={open}
@@ -175,15 +169,8 @@ export default function WelcomeTrialModal({
        *
        * This dialog is the ONLY way into the product for a NEVER_STARTED agency
        * and it is non-dismissible, so a bad fit here costs the whole signup.
-       *
-       * Scope, measured rather than assumed: the pre-change dialog was NOT
-       * broken — the CTA was reachable at every tested viewport down to
-       * 360×480, because ModalPop already scrolls. What follows is hardening
-       * and legibility, not a lockout fix. The one thing here that IS a real
-       * defect fix is the safe-area inset, which headless Chromium cannot
-       * reproduce (env() resolves to 0) and only appears on notched hardware.
        *   · p-5 instead of p-8 — at 360px, `p-8` spends 64px of a 360px viewport
-       *     on padding and squeezes the benefit grid past its text's minimum.
+       *     on padding.
        *   · safe-area bottom padding so the CTA never sits under the home
        *     indicator, where the OS swipe wins the gesture and the tap is eaten.
        *   · max-h/w in dvh/dvw so mobile browser chrome cannot clip the CTA.
@@ -192,95 +179,43 @@ export default function WelcomeTrialModal({
        */
       className='mobile:max-h-[92dvh] mobile:w-[calc(100dvw-1.5rem)] mobile:p-5 mobile:pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]'
     >
-      <div ref={dialogRef} className='flex flex-col gap-6 mobile:gap-4 w-full max-w-[640px]'>
-        {/* Header: premium pill → headline → supporting → restrained trust copy */}
-        <div className='flex flex-col items-center text-center gap-2.5'>
+      {/*
+        Narrower than the 640px it replaced: with the feature grid gone the only
+        two-column content left is the name/phone row, and a shorter measure is
+        what makes Hebrew body copy readable rather than scanned.
+      */}
+      <div ref={dialogRef} className='flex flex-col gap-5 w-full max-w-[560px] mobile:gap-4'>
+        <div className='flex flex-col items-start gap-2 text-start'>
           <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
             SOCIALCRM PRO
           </span>
-          {/*
-            NOT "מוכן". This modal is the first thing 19 of 19 production
-            agencies have seen, it is non-dismissible, and at this moment the
-            workspace has zero לידים. "ה־SocialCRM Pro שלך מוכן" was true about
-            the entitlement and false about the user's business — they went
-            looking for the part that was ready and left. It names what is OPEN,
-            then points at the next real step.
-          */}
-          <h2 id='welcome-trial-title' className='text-2xl font-bold leading-snug mobile:text-xl'>
-            SocialCRM Pro פתוח לכם ל־7 ימים
+          <h2 id='welcome-trial-title' className='text-[22px] font-bold leading-snug text-gray-900 mobile:text-xl'>
+            {COPY[view].title}
           </h2>
-          <p id='welcome-trial-subtitle' className='text-sm text-gray-600'>
-            הצעד הבא: להכניס את הלידים שלכם למערכת
+          <p id='welcome-trial-subtitle' className='text-sm leading-relaxed text-gray-600'>
+            {COPY[view].sub}
           </p>
-          <p className='text-xs text-gray-400'>
-            {cardSetup ? 'ללא עלות בתקופת הניסיון · נדרש כרטיס אשראי · לא יבוצע חיוב היום' : 'ללא עלות · ללא כרטיס אשראי'}
-          </p>
-        </div>
-
-        {/* 2×2 benefit grid — distinct icon tiles.
-            One column on phones. MEASURED at 360px (headless Chromium, real
-            compiled CSS): a two-column cell is 142px wide, which leaves the
-            title just 68px and wraps every one of the four to 2 lines —
-            "כל כלי העבודה שלך" to 3. One column gives each title 118–160px and
-            all four fit on a single line.
-            Cost, stated honestly: the grid grows 238px → 256px at 360px and
-            188px → 256px at 430px. The CTA remains reachable at every tested
-            viewport (it always was — the dialog scrolls); this buys legibility,
-            not access. On a 430×390 landscape phone it does push the CTA
-            further below the fold — see the Phase 1 known limitations. */}
-        <div className='grid grid-cols-2 gap-3 mobile:grid-cols-1 mobile:gap-2'>
-          {BENEFITS.map((b) => (
-            <div
-              key={b.title}
-              className='flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 mobile:items-center mobile:gap-2.5 mobile:p-2.5'
-            >
-              <span className='flex size-9 items-center justify-center rounded-lg flex-none bg-primary-tint mobile:size-8'>
-                <Icon name={b.icon} type='reg' className='size-4 bg-primary' />
-              </span>
-              <div className='min-w-0'>
-                <p className='text-sm font-semibold text-gray-900 leading-tight'>{b.title}</p>
-                <p className='text-xs text-gray-500 leading-snug mt-0.5'>{b.sub}</p>
-              </div>
-            </div>
-          ))}
         </div>
 
         {error && (
-          <p className='text-sm text-red-500 text-center' role='alert'>
+          <p className='text-sm text-red-500' role='alert'>
             {error}
           </p>
         )}
 
-        {cardSetup ? (
-          cardSetup.stage === 'awaiting' ? (
-            <div role='status' className='space-y-2 text-center'>
-              <p className='text-sm font-semibold text-gray-900'>הכרטיס נשמר. אנחנו מאמתים אותו מול חברת הסליקה.</p>
-              <p className='text-sm text-gray-600'>תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.</p>
-              <p className='text-xs text-gray-500'>האימות נמשך בדרך כלל מספר שניות. אפשר לרענן את העמוד.</p>
-            </div>
-          ) : cardSetup.stage === 'unavailable' ? (
-            <div role='status' className='space-y-2 text-center'>
-              <p className='text-sm font-semibold text-gray-900'>לא ניתן להוסיף אמצעי תשלום כרגע</p>
-              <p className='text-sm text-gray-600'>מערכת התשלומים אינה זמינה זמנית, ולכן לא ניתן להתחיל את תקופת הניסיון והגישה למערכת עדיין לא נפתחה. לא בוצע חיוב.</p>
-              <p className='text-xs text-gray-500'>אפשר לנסות שוב מאוחר יותר, או לפנות אלינו ונטפל בזה.</p>
-            </div>
-          ) : cardSetup.canManageBilling ? (
+        {view === 'setup' && cardSetup ? (
+          cardSetup.canManageBilling ? (
+            /* The disclosure, both consents and the terms link live in the form
+               and are recorded against CARD_TRIAL_TERMS_VERSION. Nothing here
+               summarises or shortens them. */
             <CardTrialSetupForm purpose='trial_start' defaultFullName={cardSetup.defaultFullName} submitLabel='הוספת כרטיס והפעלת הניסיון' />
           ) : (
-            <p className='text-sm text-gray-600 text-center'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>
+            <p className='text-sm text-gray-600'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>
           )
-        ) : trialOpensLater ? (
-          /*
-           * No card flow for this account yet and no Payment Link to fall back
-           * on, so a trial started now could never be billed. Saying so is the
-           * honest alternative to a button that would fail server-side — and it
-           * promises nothing about a date we do not control.
-           */
-          <div role='status' className='space-y-2 text-center'>
-            <p className='text-sm font-semibold text-gray-900'>תקופת הניסיון תיפתח כאן בקרוב</p>
-            <p className='text-sm text-gray-600'>אנחנו משלימים את חיבור התשלומים. החשבון שלכם שמור, לא בוצע חיוב, ואין צורך בשום פעולה.</p>
-            <p className='text-xs text-gray-500'>נעדכן אתכם ברגע שאפשר יהיה להתחיל.</p>
-          </div>
+        ) : informational ? (
+          <p role='status' className='text-sm text-gray-500'>
+            {TAIL[view as 'awaiting' | 'unavailable' | 'later']}
+          </p>
         ) : (
           <>
             {/* Dominant, full-width primary action — the ONLY trial trigger */}
@@ -292,10 +227,7 @@ export default function WelcomeTrialModal({
               onClick={onStart}
               disabled={pending}
             />
-
-            <p className='text-xs text-gray-400 text-center -mt-2'>
-              7 ימים ללא חיוב · נדרש כרטיס אשראי · אפשר לבטל לפני החיוב הראשון
-            </p>
+            <p className='text-xs text-gray-400 -mt-2'>7 ימים ללא עלות · ללא כרטיס אשראי · אפשר לבטל בכל עת</p>
           </>
         )}
       </div>
