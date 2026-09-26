@@ -94,8 +94,27 @@ export const GROW_PROVIDER_EVIDENCE: GrowProviderEvidence = {
      * That matches Grow's documented token-save example exactly.
      */
     sandbox: { acceptedStatusCodes: ['11'], evidenceRef: 'card_save_observed@2026-09-16T21:15:26Z' },
-    /** Closed. No production identifiers exist, so nothing has been observed. */
-    production: { acceptedStatusCodes: [], evidenceRef: null },
+    /**
+     * OPENED 2026-09-25 from a real production save by the owner (agency 103,
+     * purpose card_update, setup process 351551…).
+     *
+     * getPaymentProcessInfo, called with our PRODUCTION credentials, returned
+     * the same shape eleven times while the return page polled — statusCode
+     * "11", sum "1", one transaction, a cardToken present, cardExp MMYY:
+     *
+     *   card_save_observed@2026-09-25T15:26:25Z … 15:26:56Z (agency 103)
+     *
+     * That is an authorization hold with a token saved and nothing captured,
+     * which is what Grow documents for "Get Token Only" and what sandbox
+     * returned — now observed on the production account rather than inferred
+     * from it. The repetition is not eleven card saves: it is one save, re-read
+     * by each poll, which is itself evidence that the response is stable.
+     *
+     * THIS OPENS EXACTLY ONE GATE. Charging and reconciliation have still never
+     * been executed in production and stay closed below: a card that can be
+     * saved is not a card that has been proven billable.
+     */
+    production: { acceptedStatusCodes: ['11'], evidenceRef: 'card_save_observed@2026-09-25T15:26:56Z' },
   },
   /**
    * Observed on the sandbox account 2026-09-17, agency 6 / card 11 (Grow's
