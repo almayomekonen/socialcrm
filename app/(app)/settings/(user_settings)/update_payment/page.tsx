@@ -18,6 +18,7 @@ import { PRICING } from '@/lib/pricing'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { isCardBillingAvailable, billingSetupPurpose, describeCardBillingAvailability } from '@/lib/payments/cardTrial/availability'
+import { refreshCardSetupState } from '@/lib/payments/cardTrial/recoverCardSetup'
 import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
 
@@ -74,6 +75,19 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const plan = await getAgencyPlan(user.agencyId)
   const isPro = plan === 'pro'
   const subscription = isPro ? await getSubscriptionView(user.agencyId) : null
+
+  /*
+   * Finish a save whose callback already arrived BEFORE deciding what to show.
+   *
+   * Without this the page read a stale row: agency 103 saved a card, the
+   * callback was recorded, the evidence gate was shut at that moment, and the
+   * row stayed 'pending'. The only thing that ever asked again was the Grow
+   * return page's poll, so coming back here showed the add-a-card form — which
+   * reads as "it didn't work" and invites a second entry that supersedes the
+   * first. Same verified idempotent path as that poll; it forges nothing and
+   * activates nothing the provider has not confirmed.
+   */
+  await refreshCardSetupState(user.agencyId)
 
   // Card-token billing facts (empty for every Payment-Link or no-card agency).
   const cardView = await getCardTrialView(user.agencyId)
@@ -194,7 +208,11 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       {!cardView.cardBilled && (
         <section id='card-setup' className='mt-12 scroll-mt-6'>
           <h2 className='text-xl font-bold'>אמצעי תשלום</h2>
-          <p className='mt-1 text-sm text-gray-500'>המנוי מחויב ב־₪{PRICING.monthly} לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.</p>
+          <p className='mt-1 text-sm text-gray-500'>
+            {subscription?.source === 'grant'
+              ? 'הכרטיס יישמר לשימוש עתידי. לא ייווצר מנוי ולא יבוצע חיוב.'
+              : `המנוי מחויב ב־₪${PRICING.monthly} לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.`}
+          </p>
           <div className='mt-4'>
             {canStartSetup && setupPurpose ? (
               <CardTrialSetupForm

@@ -94,12 +94,17 @@ export default function ProPlanCard({
           </div>
         </div>
 
-        <div className='flex shrink-0 flex-col items-end gap-3 mobile:w-full mobile:items-start'>
-          <ManagePlanLauncher subscription={clientView} />
-        </div>
+        {/* Nothing to manage on a grant: no renewal to stop, no period to
+            cancel. Left in place for every real subscription, including the
+            legacy rows with no subscriptions record. */}
+        {!granted && (
+          <div className='flex shrink-0 flex-col items-end gap-3 mobile:w-full mobile:items-start'>
+            <ManagePlanLauncher subscription={clientView} />
+          </div>
+        )}
       </div>
 
-      <PaymentMethodRow state={expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />
+      <PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />
     </div>
   )
 }

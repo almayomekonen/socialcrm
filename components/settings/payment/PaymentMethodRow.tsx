@@ -37,12 +37,16 @@ import Icon from '@/lib/Icon'
  * true — the request is recorded — and stops there. When provider cancellation
  * is genuinely confirmed, a definite sentence becomes available again.
  */
-export type PaymentMethodState = 'renewing' | 'cancelling' | 'expired'
+export type PaymentMethodState = 'renewing' | 'cancelling' | 'expired' | 'granted'
 
 const CHARGE_COPY: Record<PaymentMethodState, string> = {
   renewing: 'החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון',
   cancelling: 'בקשת הביטול נקלטה',
   expired: 'חידוש המנוי יחייב את הכרטיס ששימש לתשלום האחרון',
+  /* An explicit grant has no subscription and no scheduled charge. Every other
+     line here names a charge — past, next or conditional — and all three would
+     be inventions on this account. */
+  granted: 'הכרטיס שמור לשימוש עתידי. לא נקבע חיוב.',
 }
 
 export default function PaymentMethodRow({ state = 'renewing' }: { state?: PaymentMethodState }) {
