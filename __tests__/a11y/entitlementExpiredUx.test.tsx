@@ -875,10 +875,22 @@ describe('billing never promises a charge that is not coming', () => {
     expect(container.textContent).toContain('החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון')
   })
 
-  it('the card drives all three states from subscription state, not the plan name', () => {
+  it('the card drives every state from subscription state, not the plan name', () => {
     const src = read('components/settings/payment/ProPlanCard.tsx')
-    expect(src).toContain("<PaymentMethodRow state={expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />")
+    /*
+     * A fourth state joined the three: 'granted'. An explicit Pro grant has no
+     * subscription, so "next charge" / "cancellation received" / "renewing will
+     * charge" are all inventions on it — see PaymentMethodRow.
+     *
+     * The guarantee is unchanged and still pinned below: the row is chosen from
+     * entitlement and subscription state, never from the plan NAME, and
+     * `expired` still comes from hasAccess rather than agencies.plan.
+     */
+    expect(src).toContain(
+      "<PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />",
+    )
     expect(src).toContain('const expired = !hasAccess')
+    expect(src).toContain("const granted = subscription.source === 'grant'")
   })
 })
 

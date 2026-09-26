@@ -3,6 +3,7 @@ import { assertGrowRuntime } from '@/lib/payments/grow/config'
 import { decryptSetupProcessToken, getLatestPaymentMethod } from '@/db/payments/paymentMethods'
 import { confirmCardSetup, type ConfirmOutcome } from './confirmCardSetup'
 import { verifyTokenSaveWithGrow } from './verifyTokenSave'
+import { getCardSetupStateForAgency, type CardSetupState } from './setupStatus'
 
 /**
  * Finish a setup whose callback already arrived but could not be verified then —
@@ -57,4 +58,34 @@ export async function recoverPendingCardSetup(
     },
     { verify: deps.verify, runtimeMode: () => runtime.mode },
   )
+}
+
+/**
+ * Read the setup state, finishing a recoverable one first.
+ *
+ * A save whose callback arrived while the evidence gate was shut sits at
+ * 'pending' forever unless something asks again — Grow does not resend an
+ * update it already got a 200 for. Until now the only thing that asked was the
+ * Grow return page's poll, so once the customer navigated away from it the
+ * attempt could only be revived by returning to a URL they no longer had. The
+ * billing centre, the one page they DO come back to, showed them the
+ * add-a-card form instead, which reads as "your save didn't happen" and invites
+ * a second card entry that supersedes the first.
+ *
+ * So this is the shared entry point: the return page's poll and the billing
+ * page both call it. Recovery itself is unchanged — the same verified,
+ * idempotent path (recoverPendingCardSetup, then confirmCardSetup), agency
+ * scoped, forging nothing. A failure never fails the caller; it returns the
+ * true current state, which is what it was going to show anyway.
+ */
+export async function refreshCardSetupState(agencyId: number): Promise<CardSetupState> {
+  const current = await getCardSetupStateForAgency(agencyId)
+  if (current.state !== 'verifying' || !current.callbackReceived) return current
+  try {
+    await recoverPendingCardSetup(agencyId)
+  } catch (err) {
+    console.error('[CardSetup] recovery attempt failed', { agencyId, err: String(err) })
+    return current
+  }
+  return await getCardSetupStateForAgency(agencyId)
 }

@@ -3,7 +3,7 @@
 import { requireAgencyUser, AuthError } from '@/lib/requireUser'
 import { startCardSetupForUser, type StartCardSetupInput, type StartCardSetupResult } from '@/lib/payments/cardTrial/startCardSetup'
 import { getCardSetupStateForAgency, type CardSetupState } from '@/lib/payments/cardTrial/setupStatus'
-import { recoverPendingCardSetup } from '@/lib/payments/cardTrial/recoverCardSetup'
+import { refreshCardSetupState } from '@/lib/payments/cardTrial/recoverCardSetup'
 
 const PURPOSES = new Set(['trial_start', 'card_update', 'reactivate'])
 
@@ -48,15 +48,7 @@ export async function startCardSetup(input: StartCardSetupInput): Promise<StartC
 export async function getCardSetupStatus(): Promise<CardSetupState> {
   try {
     const user = await requireAgencyUser()
-    const current = await getCardSetupStateForAgency(user.agencyId)
-    if (current.state !== 'verifying' || !current.callbackReceived) return current
-    try {
-      await recoverPendingCardSetup(user.agencyId)
-    } catch (err) {
-      console.error('[CardSetup] recovery attempt failed', { agencyId: user.agencyId, err: String(err) })
-      return current
-    }
-    return await getCardSetupStateForAgency(user.agencyId)
+    return await refreshCardSetupState(user.agencyId)
   } catch (err) {
     if (err instanceof AuthError) return { state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false }
     throw err
