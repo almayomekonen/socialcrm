@@ -147,7 +147,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
         </div>
       )}
 
-      {cardView.cardBilled && <CardOnFileSummary view={cardView} />}
+      {cardView.cardBilled && <CardOnFileSummary view={cardView} granted={subscription?.source === 'grant'} />}
 
       {trialActive && trial?.endsAt && trialRow?.trialStartedAt && (
         <TrialStatusCard
