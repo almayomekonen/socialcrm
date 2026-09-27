@@ -115,7 +115,10 @@ describe('WelcomeTrialModal — mobile safety', () => {
   test('4a. the dialog surface applies the mobile padding + safe-area inset', () => {
     render(<WelcomeTrialModal />)
     const cls = dialog().className
-    expect(cls).toContain('mobile:p-5')
+    // Reduced padding, not a specific number: p-8 spent 64px of a 360px
+    // viewport on whitespace. p-4 is the current value after the short-screen
+    // pass; what matters is that it is smaller than the desktop padding.
+    expect(cls).toContain('mobile:p-4')
     // The CTA must never sit under the home indicator, where the OS swipe wins.
     expect(cls).toContain('env(safe-area-inset-bottom')
     // dvh, not vh — mobile browser chrome must not clip the CTA.

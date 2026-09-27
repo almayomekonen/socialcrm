@@ -105,7 +105,7 @@ function EmphasisedLine({ line }: { line: string }) {
     <p className='text-sm leading-relaxed text-gray-700'>
       {line.split(pattern).map((part, i) =>
         tokens.includes(part) ? (
-          <strong key={i} className='font-semibold text-gray-900'>
+          <strong key={i} className='text-[0.95rem] font-bold text-gray-900'>
             {part}
           </strong>
         ) : (
@@ -151,7 +151,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
   }
 
   return (
-    <div className='flex flex-col gap-4'>
+    <div className='flex flex-col gap-4 mobile:gap-3'>
       <div className='grid grid-cols-2 gap-3 mobile:grid-cols-1'>
         <Input
           lbl='שם מלא כפי שמופיע בכרטיס'
@@ -170,7 +170,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
         />
       </div>
 
-      <div className='flex flex-col gap-2 rounded-xl bg-primary-tint/60 p-4 ring-1 ring-info-border/60'>
+      <div className='flex flex-col gap-2 rounded-xl bg-primary-tint/60 p-4 ring-1 ring-info-border/60 mobile:gap-1.5 mobile:p-3'>
         {(mode === 'entitled' ? entitledCardAddLines() : cardTrialDisclosureLines()).map((line) => (
           <EmphasisedLine key={line} line={line} />
         ))}
@@ -181,14 +181,14 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
             so it is not asked to. needsTerms() is false for this purpose. */}
         {mode === 'subscription' && (
           <Checkbox
-            className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent'
+            className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5'
             lbl={<SubscriptionConsentLabel />}
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
           />
         )}
         <Checkbox
-          className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent'
+          className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5'
           lbl={CARD_STORAGE_CONSENT_LABEL}
           checked={storageAccepted}
           onChange={(e) => setStorageAccepted(e.target.checked)}
