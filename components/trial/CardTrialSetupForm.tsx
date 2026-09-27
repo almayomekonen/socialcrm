@@ -48,6 +48,8 @@ export type CardTrialSetupFormProps = {
    */
   mode?: 'subscription' | 'entitled'
   defaultFullName?: string
+  /** Prefill from an abandoned attempt. Never a consent — those always start unticked. */
+  defaultPhone?: string
   submitLabel: string
   /** Injected in tests; defaults to a real navigation to Grow's hosted page. */
   onRedirect?: (url: string) => void
@@ -84,9 +86,9 @@ function SubscriptionConsentLabel() {
   )
 }
 
-export default function CardTrialSetupForm({ purpose, mode = 'subscription', defaultFullName = '', submitLabel, onRedirect }: CardTrialSetupFormProps) {
+export default function CardTrialSetupForm({ purpose, mode = 'subscription', defaultFullName = '', defaultPhone = '', submitLabel, onRedirect }: CardTrialSetupFormProps) {
   const [fullName, setFullName] = useState(defaultFullName)
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState(defaultPhone)
   const [accepted, setAccepted] = useState(false)
   const [storageAccepted, setStorageAccepted] = useState(false)
   const [pending, setPending] = useState(false)

@@ -202,18 +202,20 @@ describe('what an unactivated account is shown', () => {
     vi.stubEnv('GROW_PAGE_CODE_TOKEN', 'p')
     vi.stubEnv('APP_HOST', 'staging.example.com')
     vi.stubEnv('VERCEL_ENV', 'preview')
-    expect(await welcomeCardStage(agencyId)).toBe('setup')
+    expect((await welcomeCardStage(agencyId)).stage).toBe('setup')
   })
 
   it('says the card is being verified rather than offering the form again', async () => {
     const agencyId = await seedAgency()
-    await seedMethod(agencyId, { status: 'pending', cardToken: null, confirmedAt: null, setupProcessId: `p-${agencyId}` })
-    expect(await welcomeCardStage(agencyId)).toBe('awaiting')
+    // A callback is what makes it "being verified" — a bare pending row is only
+    // a setup that was started. See abandonedCardSetup.db.test.ts.
+    await seedMethod(agencyId, { status: 'pending', cardToken: null, confirmedAt: null, setupProcessId: `p-${agencyId}`, lastCallbackAt: new Date() })
+    expect((await welcomeCardStage(agencyId)).stage).toBe('awaiting')
   })
 
   it('never strands a new registration behind a form that cannot complete', async () => {
     const agencyId = await seedAgency()
     vi.stubEnv('GROW_USER_ID', '') // provider not configured
-    expect(await welcomeCardStage(agencyId)).toBe('unavailable')
+    expect((await welcomeCardStage(agencyId)).stage).toBe('unavailable')
   })
 })
