@@ -124,6 +124,12 @@ async function LayoutContent({ children }) {
    * lib/auth/expiredWorkspacePreview.ts. Unset by default, matching nobody.
    */
   const previewExpiredWorkspace = canPreviewExpiredWorkspace(user.email)
+  /* Read once, fresh, per render: an abandoned setup shows the form again while
+     a callback that lands in the meantime moves this to 'awaiting' by itself. */
+  const welcomeCard =
+    trialStatus === 'NEVER_STARTED' && isCardRequiredTrialEnabledForAgency(user.agencyId)
+      ? await welcomeCardStage(user.agencyId)
+      : null
   const trialExpired =
     (trialStatus === 'TRIAL_EXPIRED' && !owner && !previewExpiredWorkspace) || previewPaywall
   let leadPreview = { total: 0, names: [] as string[] }
@@ -344,11 +350,14 @@ async function LayoutContent({ children }) {
             {trialStatus === 'NEVER_STARTED' && (
               <WelcomeTrialModal
                 cardSetup={
-                  isCardRequiredTrialEnabledForAgency(user.agencyId)
+                  welcomeCard
                     ? {
-                        defaultFullName: user.name ?? '',
+                        // The name they typed for the abandoned attempt beats the
+                        // account name: it is what is on the card.
+                        defaultFullName: welcomeCard.resume?.fullName || user.name || '',
+                        defaultPhone: welcomeCard.resume?.phone ?? '',
                         canManageBilling: isAdmin(user.role),
-                        stage: await welcomeCardStage(user.agencyId),
+                        stage: welcomeCard.stage,
                       }
                     : undefined
                 }

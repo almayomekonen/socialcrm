@@ -104,13 +104,54 @@ export async function billingSetupPurpose(agencyId: number): Promise<PaymentMeth
  */
 export type WelcomeCardStage = 'setup' | 'awaiting' | 'unavailable'
 
-export async function welcomeCardStage(agencyId: number): Promise<WelcomeCardStage> {
+export type WelcomeCardState = {
+  stage: WelcomeCardStage
+  /**
+   * An abandoned setup's holder details, so the customer does not retype them.
+   * Consent is deliberately NOT carried over — see the form, which starts both
+   * boxes unticked every time and is refused by the server without them.
+   */
+  resume: { fullName: string; phone: string } | null
+}
+
+/**
+ * A PENDING ROW IS NOT A SAVED CARD.
+ *
+ * The row is written when the customer presses the button — BEFORE Grow's page
+ * even opens, let alone before a card is typed. Treating `pending` as "awaiting
+ * verification" therefore told anyone who opened the hosted page and closed it
+ * "הכרטיס נשמר, ואנחנו מאמתים אותו": a card-saved claim backed by nothing, and
+ * a dead end, because the only way out of `awaiting` is a callback that is
+ * never coming. Agency 157 sat there with row 8 pending, no callback, no token.
+ *
+ * The evidence that separates the two is `lastCallbackAt` — Grow having
+ * actually called us. Without it the setup was started and not completed, which
+ * is an ordinary reason to show the form again.
+ *
+ * NOTHING IS WRITTEN HERE. Returning to the form does not mark the row
+ * cancelled, because a closed window is not proof of cancellation: the customer
+ * may have completed the save a moment before closing, and Grow's callback may
+ * be in flight. The row stays `pending` and claimable, so a callback arriving
+ * now still completes it through the ordinary verified path, and the next
+ * render — reading this same state fresh — moves to 'awaiting' on its own.
+ */
+export async function welcomeCardStage(agencyId: number): Promise<WelcomeCardState> {
   const latest = await getLatestPaymentMethod(agencyId)
-  if (latest?.status === 'pending') return 'awaiting'
+
+  // Grow called back: genuinely awaiting verification.
+  if (latest?.status === 'pending' && latest.lastCallbackAt) return { stage: 'awaiting', resume: null }
+
   // An 'active' card with no trial started is a verified setup whose trial write
   // has not landed yet — still awaiting, never a fresh form.
-  if (latest?.status === 'active') return 'awaiting'
-  return isCardBillingAvailable() ? 'setup' : 'unavailable'
+  if (latest?.status === 'active') return { stage: 'awaiting', resume: null }
+
+  // Started and not completed: offer the form again, prefilled.
+  const resume =
+    latest?.status === 'pending' && !latest.lastCallbackAt
+      ? { fullName: latest.holder.fullName, phone: latest.holder.phone }
+      : null
+
+  return { stage: isCardBillingAvailable() ? 'setup' : 'unavailable', resume }
 }
 
 /**

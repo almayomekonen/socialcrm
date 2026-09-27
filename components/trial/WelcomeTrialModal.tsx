@@ -67,6 +67,8 @@ const TAIL: Record<'awaiting' | 'unavailable' | 'later', string> = {
  */
 export type WelcomeCardSetup = {
   defaultFullName: string
+  /** From an abandoned attempt, so it is not retyped. Consent is never carried over. */
+  defaultPhone?: string
   canManageBilling: boolean
   /**
    * 'setup' offers the form. 'awaiting' means a card is already saved and being
@@ -208,7 +210,12 @@ export default function WelcomeTrialModal({
             /* The disclosure, both consents and the terms link live in the form
                and are recorded against CARD_TRIAL_TERMS_VERSION. Nothing here
                summarises or shortens them. */
-            <CardTrialSetupForm purpose='trial_start' defaultFullName={cardSetup.defaultFullName} submitLabel='הוספת כרטיס והפעלת הניסיון' />
+            <CardTrialSetupForm
+              purpose='trial_start'
+              defaultFullName={cardSetup.defaultFullName}
+              defaultPhone={cardSetup.defaultPhone}
+              submitLabel='הוספת כרטיס והפעלת הניסיון'
+            />
           ) : (
             <p className='text-sm text-gray-600'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>
           )
