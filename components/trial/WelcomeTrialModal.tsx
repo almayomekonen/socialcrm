@@ -26,7 +26,7 @@ import { useDialogFocusTrap } from '@/hooks/useDialogFocusTrap'
 type View = 'setup' | 'awaiting' | 'unavailable' | 'later' | 'start'
 
 const COPY: Record<View, { title: string; sub: string }> = {
-  setup: { title: 'מתחילים עם SocialCRM Pro', sub: '7 ימים ללא עלות. נדרש אימות כרטיס, והיום לא יבוצע חיוב.' },
+  setup: { title: 'מתחילים עם 7 ימי ניסיון', sub: 'תקופת הניסיון מתחילה רק לאחר אימות הכרטיס. היום לא יבוצע חיוב.' },
   awaiting: { title: 'הכרטיס נשמר, ואנחנו מאמתים אותו', sub: 'תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.' },
   unavailable: { title: 'לא ניתן להתחיל כרגע', sub: 'מערכת התשלומים אינה זמינה זמנית, ולכן תקופת הניסיון עדיין לא נפתחה. לא בוצע חיוב.' },
   later: { title: 'תקופת הניסיון תיפתח כאן בקרוב', sub: 'אנחנו משלימים את חיבור התשלומים. החשבון שלכם שמור, לא בוצע חיוב, ואין צורך בשום פעולה.' },
@@ -188,8 +188,13 @@ export default function WelcomeTrialModal({
       */}
       <div ref={dialogRef} className='flex flex-col gap-5 w-full max-w-[560px] mobile:gap-4'>
         <div className='flex flex-col items-start gap-2 text-start'>
-          <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
-            SOCIALCRM PRO
+          {/* The app mark, not the <Logo> component: that one wraps itself in a
+              link to "/", and this dialog is non-dismissible — a way out of it
+              hiding in the header is the one thing it must not have. */}
+          <span className='inline-flex select-none items-center gap-2 rounded-full border border-info-border bg-primary-tint px-2.5 py-1'>
+            <img src='/media/fav.svg' alt='' aria-hidden='true' className='size-4 shrink-0' />
+            <span className='text-xs font-semibold text-gray-900'>SocialCRM</span>
+            <span className='text-xs font-medium text-primary-text'>Pro</span>
           </span>
           <h2 id='welcome-trial-title' className='text-[22px] font-bold leading-snug text-gray-900 mobile:text-xl'>
             {COPY[view].title}

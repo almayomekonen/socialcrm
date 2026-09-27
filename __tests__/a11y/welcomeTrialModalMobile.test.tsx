@@ -71,7 +71,14 @@ afterEach(() => {
 })
 
 function dialog() {
-  return screen.getByRole('dialog', { name: /SocialCRM Pro/ })
+  /*
+   * Matched by ROLE and the fact that it HAS an accessible name, not by the
+   * words in it. The headline is per-state copy and has changed twice now; what
+   * this suite guarantees is that the dialog is a named dialog, which
+   * getByRole enforces on its own. Pinning the sentence made a copy edit look
+   * like an accessibility regression.
+   */
+  return screen.getByRole('dialog', { name: /.+/ })
 }
 
 describe('WelcomeTrialModal — mobile safety', () => {
