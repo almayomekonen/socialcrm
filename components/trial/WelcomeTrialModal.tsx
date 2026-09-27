@@ -26,7 +26,7 @@ import { useDialogFocusTrap } from '@/hooks/useDialogFocusTrap'
 type View = 'setup' | 'awaiting' | 'unavailable' | 'later' | 'start'
 
 const COPY: Record<View, { title: string; sub: string }> = {
-  setup: { title: 'מתחילים עם SocialCRM Pro', sub: '7 ימים ללא עלות. נדרש אימות כרטיס, והיום לא יבוצע חיוב.' },
+  setup: { title: 'מתחילים עם 7 ימי ניסיון', sub: 'תקופת הניסיון מתחילה רק לאחר אימות הכרטיס. היום לא יבוצע חיוב.' },
   awaiting: { title: 'הכרטיס נשמר, ואנחנו מאמתים אותו', sub: 'תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.' },
   unavailable: { title: 'לא ניתן להתחיל כרגע', sub: 'מערכת התשלומים אינה זמינה זמנית, ולכן תקופת הניסיון עדיין לא נפתחה. לא בוצע חיוב.' },
   later: { title: 'תקופת הניסיון תיפתח כאן בקרוב', sub: 'אנחנו משלימים את חיבור התשלומים. החשבון שלכם שמור, לא בוצע חיוב, ואין צורך בשום פעולה.' },
@@ -179,17 +179,32 @@ export default function WelcomeTrialModal({
        * The dialog still scrolls internally, so the CTA is reachable even on the
        * shortest supported screen.
        */
-      className='mobile:max-h-[92dvh] mobile:w-[calc(100dvw-1.5rem)] mobile:p-5 mobile:pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]'
+      className='mobile:max-h-[92dvh] mobile:w-[calc(100dvw-1.5rem)] mobile:p-4 mobile:pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]'
     >
       {/*
         Narrower than the 640px it replaced: with the feature grid gone the only
         two-column content left is the name/phone row, and a shorter measure is
         what makes Hebrew body copy readable rather than scanned.
       */}
-      <div ref={dialogRef} className='flex flex-col gap-5 w-full max-w-[560px] mobile:gap-4'>
-        <div className='flex flex-col items-start gap-2 text-start'>
-          <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
-            SOCIALCRM PRO
+      <div ref={dialogRef} className='flex flex-col gap-5 w-full max-w-[560px] mobile:gap-3'>
+        <div className='flex flex-col items-start gap-2 text-start mobile:gap-1.5'>
+          {/*
+            The app mark, not the <Logo> component: that one wraps itself in a
+            link to "/", and this dialog is non-dismissible — a way out of it
+            hiding in the header is the one thing it must not have.
+
+            dir='ltr' because this is a Latin lockup inside an RTL dialog. Left
+            to the page direction the flex order reverses and it reads
+            "Pro SocialCRM ◆", with the mark stranded on the wrong side of its
+            own wordmark. The container is still start-aligned, so the lockup
+            sits on the RTL content edge while reading left to right within
+            itself — which is how a Latin brand name is set in Hebrew text.
+          */}
+          <span dir='ltr' className='inline-flex select-none items-center gap-2'>
+            <img src='/media/fav.svg' alt='' aria-hidden='true' className='size-5 shrink-0' />
+            <span className='text-sm font-semibold tracking-tight text-gray-900'>SocialCRM</span>
+            <span aria-hidden='true' className='text-gray-300'>|</span>
+            <span className='text-sm font-medium text-primary-text'>Pro</span>
           </span>
           <h2 id='welcome-trial-title' className='text-[22px] font-bold leading-snug text-gray-900 mobile:text-xl'>
             {COPY[view].title}
