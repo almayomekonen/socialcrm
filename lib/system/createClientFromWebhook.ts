@@ -124,7 +124,9 @@ export async function createLeadFromWebhook({
   let insertError: DbErrorInfo | null = null
   const lead = await insertLeadSystem({
     firstName,
-    lastName,
+    // `clients.lastName` is NOT NULL: a missing surname is '', never null (a null
+    // here failed the insert and lost the lead).
+    lastName: lastName ?? '',
     phone,
     email,
     idNum: `FB_${leadId}`,
