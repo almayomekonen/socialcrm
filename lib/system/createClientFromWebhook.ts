@@ -69,6 +69,14 @@ export async function createLeadFromWebhook({
   const channel = channelFromPlatform(attribution?.platform)
   const leadSource = leadSourceFor(channel, leadId)
 
+  // Answers belong to THIS submission (its leadgen id), on whichever lead it
+  // lands — new, or existing via dedup. Idempotent per leadgen id.
+  const keepAnswers = async (lead: { id: number | string }) => {
+    if (formAnswers?.length) {
+      await recordLeadFormAnswers({ agencyId, leadId: Number(lead.id), leadgenId: leadId, answers: formAnswers })
+    }
+  }
+
   /**
    * DEDUP MUST MIRROR THE UNIQUE INDEXES, OR THE LEAD IS DESTROYED.
    *
@@ -100,6 +108,7 @@ export async function createLeadFromWebhook({
     .first()
   if (existingByLeadId) {
     console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by leadId — skipping. lead id: ${existingByLeadId.id}`)
+    await keepAnswers(existingByLeadId)
     return existingByLeadId
   }
 
@@ -109,6 +118,7 @@ export async function createLeadFromWebhook({
     const existingByPhone = await db('clients').where({ agencyId, phone }).first()
     if (existingByPhone) {
       console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by phone — skipping. lead id: ${existingByPhone.id}`)
+      await keepAnswers(existingByPhone)
       return existingByPhone
     }
   }
@@ -119,6 +129,7 @@ export async function createLeadFromWebhook({
     const existingByEmail = await db('clients').where({ agencyId, email }).first()
     if (existingByEmail) {
       console.log(`[FacebookWebhook][dedup][leadId=${leadId}] Duplicate by email — skipping. lead id: ${existingByEmail.id}`)
+      await keepAnswers(existingByEmail)
       return existingByEmail
     }
   }
@@ -134,7 +145,10 @@ export async function createLeadFromWebhook({
     lastName: lastName ?? '',
     phone,
     email,
-    idNum: `FB_${leadId}`,
+    // No idNum: add_zeros_trigger truncates `FB_{id}` to 9 chars, so two leads
+    // sharing 6 leading digits collided and the second was lost. The id lives
+    // whole in leadSource; existing FB_ values are left as-is (nothing reads them).
+    idNum: null,
     lead: true,
     leadSource,
     agencyId,
@@ -194,9 +208,7 @@ export async function createLeadFromWebhook({
       leadId: Number(lead.id),
     })
   }
-  if (formAnswers?.length) {
-    await recordLeadFormAnswers({ agencyId, leadId: Number(lead.id), leadgenId: leadId, answers: formAnswers })
-  }
+  await keepAnswers(lead)
 
   // First delivered value: a real inbound Facebook lead was persisted (once per agency).
   await trackFirstRealLeadOnce(agencyId, 'facebook')

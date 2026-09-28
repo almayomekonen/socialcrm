@@ -67,6 +67,22 @@ afterAll(async () => {
   await db.destroy()
 })
 
+describe('Lead Ads internal id', () => {
+  it('a new Lead Ads lead carries no synthetic idNum', async () => {
+    const lead = await ingest([{ name: 'full_name', values: ['בלי מזהה'] }])
+    expect(lead.idNum).toBeNull()
+  })
+
+  it('two leads whose Meta ids share their first 6 digits are BOTH saved (the truncation collision)', async () => {
+    const prefix = '171717'
+    const a = await ingest([{ name: 'full_name', values: ['ראשון'] }], `${prefix}1111111111`)
+    const b = await ingest([{ name: 'full_name', values: ['שני'] }], `${prefix}2222222222`)
+    expect(a).toBeTruthy()
+    expect(b).toBeTruthy()
+    expect(Number(a.id)).not.toBe(Number(b.id))
+  })
+})
+
 describe('lead_form_answers', () => {
   it('stores every answer with the new lead, in form order', async () => {
     const lead = await ingest(REALISTIC_FIELD_DATA)
@@ -92,10 +108,30 @@ describe('lead_form_answers', () => {
     expect((await formAnswersForLead(agencyA, Number(first.id))).find((a) => a.key === 'budget')?.values).toEqual(['first'])
   })
 
-  it('is write-once: a second write for the same lead is ignored', async () => {
-    const lead = await ingest([{ name: 'full_name', values: ['שני כהן'] }, { name: 'q', values: ['original'] }])
-    await recordLeadFormAnswers({ agencyId: agencyA, leadId: Number(lead.id), leadgenId: 'x', answers: [{ key: 'q', values: ['overwrite'] }] })
+  it('is write-once per submission: the same leadgen id never overwrites', async () => {
+    const leadgenId = nextLeadId()
+    const lead = await ingest([{ name: 'full_name', values: ['שני כהן'] }, { name: 'q', values: ['original'] }], leadgenId)
+    await recordLeadFormAnswers({ agencyId: agencyA, leadId: Number(lead.id), leadgenId, answers: [{ key: 'q', values: ['overwrite'] }] })
+    expect(await db('lead_form_answers').where({ leadId: lead.id })).toHaveLength(1)
     expect((await formAnswersForLead(agencyA, Number(lead.id))).find((a) => a.key === 'q')?.values).toEqual(['original'])
+  })
+
+  it('a NEW submission matching an existing lead by phone keeps its answers on that lead', async () => {
+    const phone = [{ name: 'phone_number', values: ['0526543210'] }]
+    const first = await ingest([{ name: 'full_name', values: ['אור לוי'] }, ...phone, { name: 'budget', values: ['5,000'] }])
+    const second = await ingest([{ name: 'full_name', values: ['אור לוי'] }, ...phone, { name: 'budget', values: ['9,000'] }])
+    expect(Number(second.id)).toBe(Number(first.id))
+    expect(await db('lead_form_answers').where({ leadId: first.id })).toHaveLength(2)
+    // The newest submission is what the owner sees.
+    expect((await formAnswersForLead(agencyA, Number(first.id))).find((a) => a.key === 'budget')?.values).toEqual(['9,000'])
+  })
+
+  it('a new submission matching by email keeps its answers too', async () => {
+    const email = [{ name: 'email', values: [`match-${Date.now()}@example.test`] }]
+    const first = await ingest([{ name: 'full_name', values: ['נגה'] }, ...email, { name: 'q', values: ['a'] }])
+    const second = await ingest([{ name: 'full_name', values: ['נגה'] }, ...email, { name: 'q', values: ['b'] }])
+    expect(Number(second.id)).toBe(Number(first.id))
+    expect(await db('lead_form_answers').where({ leadId: first.id })).toHaveLength(2)
   })
 
   it('another agency cannot read them', async () => {
