@@ -4,6 +4,8 @@ import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { getInAppBrowser } from '@/lib/device'
 import { CLIENT_CONNECT_FAILURE_REASONS } from '@/lib/connections/connectFailure'
+import { EMBEDDED_SIGNUP_STEPS } from '@/lib/whatsapp/coexistenceEvents'
+import { hasServerConnectOutcomeSince } from '@/lib/analytics/connectOutcome'
 
 /**
  * Client bridge for the activation milestone: a rep acted on a lead.
@@ -76,6 +78,26 @@ const BLOCKED_REASONS = new Set<LeadContactBlockedReason>([
 ])
 const CHANNELS = new Set<LeadContactChannel>(['whatsapp_api', 'whatsapp_native', 'phone'])
 const CONNECT_FAILURE_REASONS = new Set<string>(CLIENT_CONNECT_FAILURE_REASONS)
+const SIGNUP_STEPS = new Set<string>(EMBEDDED_SIGNUP_STEPS)
+const MAX_CONNECT_ELAPSED_MS = 86_400_000
+const ABANDONED_LOOKBACK_SLACK_MS = 5_000
+
+/**
+ * The detail a connect failure may carry: the Meta screen it stopped on, Meta's
+ * numeric error id, and how long it ran. Each field is kept only if it passes
+ * its own check — a bad field is dropped, never the failure itself. Meta's error
+ * TEXT is deliberately not accepted: it is shown to the customer, not stored.
+ */
+function connectFailureDetail(props: Record<string, unknown> | undefined): Record<string, string | number> {
+  const detail: Record<string, string | number> = {}
+  if (typeof props?.step === 'string' && SIGNUP_STEPS.has(props.step)) detail.step = props.step
+  if (typeof props?.metaErrorId === 'string' && /^\d{1,20}$/.test(props.metaErrorId)) detail.metaErrorId = props.metaErrorId
+  const elapsed = props?.elapsedMs
+  if (typeof elapsed === 'number' && Number.isFinite(elapsed) && elapsed >= 0) {
+    detail.elapsedMs = Math.min(Math.round(elapsed), MAX_CONNECT_ELAPSED_MS)
+  }
+  return detail
+}
 
 /**
  * TIER 1. Telemetry is measurement, not a customer capability: it costs
@@ -122,8 +144,22 @@ export async function recordLeadActionEvent(
         }
       : props
 
+  const connectDetail = isConnectFailure ? connectFailureDetail(props) : {}
+  // `abandoned` must be bounded to its attempt, or it cannot be checked below.
+  if (reason === 'abandoned' && typeof connectDetail.elapsedMs !== 'number') return
+
   try {
     const user = await requireBasicCrmAccess()
+    /**
+     * An abandoned attempt whose page was reloaded while the server was
+     * finishing it already has an outcome — success or a server-stage failure.
+     * Recording `abandoned` too would contradict it, so it is dropped. The
+     * slack covers the gap between the click and the server's own clock.
+     */
+    if (reason === 'abandoned') {
+      const since = new Date(Date.now() - Number(connectDetail.elapsedMs) - ABANDONED_LOOKBACK_SLACK_MS)
+      if (await hasServerConnectOutcomeSince(user.agencyId, since)) return
+    }
     /**
      * WhatsApp connect events carry ONLY server-built props. `inApp` comes from
      * this request's own User-Agent (the Server Action POST is the same browser),
@@ -135,7 +171,7 @@ export async function recordLeadActionEvent(
       event === 'whatsapp_connect_started'
         ? { inApp: await inApp() }
         : isConnectFailure
-          ? { reason, stage: 'client', inApp: await inApp() }
+          ? { reason, stage: 'client', inApp: await inApp(), ...connectDetail }
           : safeProps
     await track({ agencyId: user.agencyId, userId: user.id, event, props: eventProps })
   } catch {

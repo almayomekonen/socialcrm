@@ -1,11 +1,14 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { clientConnectFailureReason } from '@/lib/connections/connectFailure'
+import { beginConnectAttempt, reportAbandonedConnectAttempt } from '@/lib/connections/connectAttemptTelemetry'
 import {
+  cancelledResult,
   createEmbeddedSignupGate,
+  parseEmbeddedSignupCancel,
   parseEmbeddedSignupMessage,
   type EmbeddedSignupGate,
+  type EmbeddedSignupResult,
 } from '@/lib/facebook/embeddedSignupSession'
 import {
   ensureFacebookSdkScript,
@@ -79,7 +82,14 @@ const SESSION_INFO_WAIT_MS = 8_000
  */
 const LAUNCH_TIMEOUT_MS = 300_000
 
-export type EmbeddedSignupResult = { ok: boolean; error?: string; messagingReady?: boolean; reason?: string }
+/**
+ * After the login callback comes back without a code, how long to wait for
+ * Meta's CANCEL message saying why. Meta does not document which arrives first;
+ * one second is invisible to the customer and keeps the reason when it trails.
+ */
+const CANCEL_DETAIL_GRACE_MS = 1_000
+
+export type { EmbeddedSignupResult }
 
 export function useEmbeddedSignup(appId: string, configId: string, graphVersion: string) {
   const gateRef = useRef<EmbeddedSignupGate | null>(null)
@@ -93,11 +103,16 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
     ensureFacebookSdkScript()
   }, [appId])
 
+  // An attempt left open by a reload or navigation is reported on this visit —
+  // the only moment it can be. See pendingConnectAttempt.ts.
+  useEffect(reportAbandonedConnectAttempt, [])
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const session = parseEmbeddedSignupMessage(event.origin, event.data)
-      if (!session) return
-      gateRef.current?.acceptSession(session)
+      if (session) return gateRef.current?.acceptSession(session)
+      const cancel = parseEmbeddedSignupCancel(event.origin, event.data)
+      if (cancel) gateRef.current?.acceptCancel(cancel)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
@@ -162,8 +177,9 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
             void (async () => {
               const code = response?.authResponse?.code
               if (!code) {
-                gate.cancel()
-                return settle({ ok: false, error: 'cancelled' })
+                gate.cancel(CANCEL_DETAIL_GRACE_MS)
+                const ended = await gate.outcome
+                return settle(cancelledResult(ended.kind === 'cancelled' ? ended.detail : undefined))
               }
               gate.acceptCode(code)
               // Wait for session-info if it has not already arrived. The timer
@@ -172,7 +188,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
               const timer = setTimeout(() => gate.expire(), SESSION_INFO_WAIT_MS)
               const outcome = await gate.outcome
               clearTimeout(timer)
-              if (outcome.kind === 'cancelled') return settle({ ok: false, error: 'cancelled' })
+              if (outcome.kind === 'cancelled') return settle(cancelledResult(outcome.detail))
               if (outcome.kind === 'error') return settle({ ok: false, error: outcome.error })
               try {
                 const res = await fetch('/api/whatsapp/embedded-signup', {
@@ -223,11 +239,8 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
    * here, so FB.login still runs inside the click task; only the report waits.
    */
   const launch = useCallback((): Promise<EmbeddedSignupResult> => {
-    return launchFlow().then((result) => {
-      const reason = clientConnectFailureReason(result)
-      if (reason) void recordLeadActionEvent('whatsapp_connect_failed', { reason })
-      return result
-    })
+    const attempt = beginConnectAttempt()
+    return launchFlow().then(attempt.finish)
   }, [launchFlow])
 
   return { launch }

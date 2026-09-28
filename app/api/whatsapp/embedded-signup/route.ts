@@ -29,6 +29,15 @@ function fail(agencyId: number, userId: number, reason: WaReason, stage: string,
   return NextResponse.json({ ok: false, error: WA_REASON_NOTICE_CODE[reason], reason }, { status })
 }
 
+/**
+ * Record a failure for the exits whose responses predate `fail` and keep their
+ * original body. The browser maps those bodies to no known reason, so without
+ * this neither side reported the attempt. Recording only — no response change.
+ */
+function recordFailure(agencyId: number, userId: number, reason: 'INVALID_BODY' | 'MISSING_CODE' | 'SAVE_FAILED', stage: string) {
+  track({ agencyId, userId, event: 'whatsapp_connect_failed', props: { reason, stage } })
+}
+
 export async function POST(req: NextRequest) {
   // The Embedded Signup path is the sibling of /api/auth/whatsapp/connect and
   // writes the same `whatsapp_connections` row, so it carries the same admin
@@ -44,6 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
+    recordFailure(agencyId, user.id, 'INVALID_BODY', 'request')
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
@@ -53,6 +63,7 @@ export async function POST(req: NextRequest) {
   let phoneNumberId = body.phoneNumberId
 
   if (!code) {
+    recordFailure(agencyId, user.id, 'MISSING_CODE', 'request')
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
   // A WABA id is required to subscribe the app for inbound messages. Without it
@@ -157,6 +168,7 @@ export async function POST(req: NextRequest) {
       })
   } catch (err) {
     console.error('[WA EmbeddedSignup] DB upsert failed:', err)
+    recordFailure(agencyId, user.id, 'SAVE_FAILED', 'persist')
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 

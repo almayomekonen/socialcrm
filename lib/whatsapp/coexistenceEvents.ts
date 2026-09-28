@@ -31,3 +31,22 @@ export const ES_EVENT_FINISH_COEXISTENCE = 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARD
 
 /** Which flavour of onboarding the browser reported completing. */
 export type OnboardingType = 'cloud_api' | 'coexistence'
+
+/** Meta's event when the customer leaves the flow early or reports an error in it. */
+export const ES_EVENT_CANCEL = 'CANCEL'
+
+/**
+ * The screens Meta names in a CANCEL event's `current_step`. Anything else is
+ * recorded as OTHER, so a new Meta screen never puts an arbitrary string into
+ * analytics. Source: Embedded Signup "Abandoned Flow Screens".
+ */
+export const EMBEDDED_SIGNUP_STEPS = [
+  'BUSINESS_ACCOUNT_SELECTION',
+  'WABA_PHONE_PROFILE_PICKER',
+  'WHATSAPP_BUSINESS_PROFILE_SETUP',
+  'PHONE_NUMBER_SETUP',
+  'PHONE_NUMBER_VERIFICATION',
+  'PERMISSIONS',
+  'OTHER',
+] as const
+export type EmbeddedSignupStep = (typeof EMBEDDED_SIGNUP_STEPS)[number]

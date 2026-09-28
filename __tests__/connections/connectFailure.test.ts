@@ -48,8 +48,11 @@ describe('clientConnectFailureReason', () => {
       { ok: false, error: 'config' },
       { ok: false, error: 'network' },
       { ok: false, error: 'missing_details' },
+      { ok: false, error: 'cancelled', cancel: { errorReported: true, errorMessage: 'x' } },
     ].map(clientConnectFailureReason)
-    expect(new Set(produced)).toEqual(new Set(CLIENT_CONNECT_FAILURE_REASONS))
+    // `abandoned` is not produced by this mapper: it is reported on the next
+    // visit by useEmbeddedSignup from lib/connections/pendingConnectAttempt.ts.
+    expect(new Set([...produced, 'abandoned'])).toEqual(new Set(CLIENT_CONNECT_FAILURE_REASONS))
   })
 })
 

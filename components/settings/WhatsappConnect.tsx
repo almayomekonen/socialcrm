@@ -7,7 +7,7 @@ import { useAction } from '@/lib/useAction'
 import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
-import { WHATSAPP_NOTICES, whatsappNotice } from '@/lib/connections/messages'
+import { whatsappHealthNotice, whatsappNotice } from '@/lib/connections/messages'
 import { whatsappLaunchNoticeCode } from '@/lib/connections/connectFailure'
 import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
@@ -38,16 +38,6 @@ type Props = {
   inAppBrowser?: InAppBrowser
 }
 
-function noticeForHealth(status: WhatsappHealthPrimary) {
-  if (status === 'registration_pending' || status === 'inbound_only') return WHATSAPP_NOTICES.not_ready
-  if (status === 'restricted') return WHATSAPP_NOTICES.restricted
-  if (status === 'token') return WHATSAPP_NOTICES.expired
-  if (status === 'webhook') return WHATSAPP_NOTICES.webhook
-  if (status === 'throttled') return WHATSAPP_NOTICES.throttled
-  if (status === 'unknown') return WHATSAPP_NOTICES.needs_verification
-  return null
-}
-
 export default function WhatsappConnect({
   connection,
   pendingPhones,
@@ -64,6 +54,8 @@ export default function WhatsappConnect({
   const urlError = searchParams.get('wa_error')
 
   const [selectedPhoneId, setSelectedPhoneId] = useState('')
+  // Meta's own words when its window showed an error; rendered by `meta_error`.
+  const [metaMessage, setMetaMessage] = useState<string | null>(null)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
   /**
@@ -90,6 +82,7 @@ export default function WhatsappConnect({
         router.refresh()
         return
       }
+      setMetaMessage(result.cancel?.errorMessage ?? null)
       setError(whatsappLaunchNoticeCode(result, !!connection))
     })
 
@@ -128,7 +121,7 @@ export default function WhatsappConnect({
     // "חלון ההתחברות לא נפתח", not silently look like a fresh reconnect prompt.
     // `whatsappNotice` returns null for cancelled/denied, so dismissing Meta's
     // popup correctly leaves the health notice in place.
-    const notice = whatsappNotice(error) ?? noticeForHealth(status)
+    const notice = whatsappNotice(error, metaMessage) ?? whatsappHealthNotice(status)
     const canReconnect = status === 'unknown' || status === 'token' || status === 'webhook'
     // NO history control lives here, by design.
     //
@@ -228,7 +221,7 @@ export default function WhatsappConnect({
   }
 
   // State A: Not connected
-  const notice = whatsappNotice(error ?? disconnectError ?? urlError)
+  const notice = whatsappNotice(error ?? disconnectError ?? urlError, metaMessage)
 
   return (
     <div className='grid gap-4'>
