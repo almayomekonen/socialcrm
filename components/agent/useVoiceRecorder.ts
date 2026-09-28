@@ -24,6 +24,13 @@ import { VOICE_MAX_RECORDING_MS, VOICE_MIN_UPLOAD_BYTES, pickRecorderMimeType } 
  * The browser's MediaRecorder picks the container (WebM on Chrome/Firefox, MP4
  * on Safari); the server checks it from the bytes. Audio never leaves memory
  * except in the one upload, and the server does not keep it.
+ *
+ * NOTE: ~320 lines, over the 250 soft limit, intentionally. It is one state
+ * machine whose refs (stream, recorder, timer, audio context, upload) are torn
+ * down together by stop, cancel, errors and unmount; splitting the level meter
+ * or the upload into sibling hooks would spread that single teardown across
+ * files. Pure rules already live in lib/agent/voice/limits.ts. Next addition:
+ * extract the level meter into its own hook first.
  */
 
 export type VoiceStatus = 'idle' | 'requesting' | 'recording' | 'transcribing'
