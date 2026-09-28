@@ -46,7 +46,7 @@ vi.mock('@/lib/whatsapp/registration', () => ({
 
 import { POST } from '@/app/api/whatsapp/embedded-signup/route'
 import { getUser } from '@/db/auth'
-import { trackOncePerAgency } from '@/lib/analytics/track'
+import { track, trackOncePerAgency } from '@/lib/analytics/track'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
 
 const AGENCY = 69
@@ -266,5 +266,51 @@ describe('WhatsApp Embedded Signup — persistence gate', () => {
 
     expect(analyticsCalls('whatsapp_signup_completed')).toHaveLength(1)
     expect(analyticsCalls('whatsapp_phone_discovered')).toHaveLength(1)
+  })
+})
+
+/**
+ * Three exits returned an error to the browser and recorded nothing: the client
+ * maps these bodies to no known reason, so neither side reported the attempt.
+ * The responses are unchanged; each exit now leaves one failure record.
+ */
+describe('every server exit leaves an outcome', () => {
+  function failures() {
+    return vi.mocked(track).mock.calls.map((c) => c[0]).filter((e) => e.event === 'whatsapp_connect_failed')
+  }
+  beforeEach(() => vi.mocked(track).mockClear())
+
+  it('an unreadable body is recorded, response unchanged', async () => {
+    const bad = { json: async () => { throw new Error('bad json') } } as unknown as import('next/server').NextRequest
+    const r = await POST(bad)
+    expect(r.status).toBe(400)
+    expect(await r.json()).toEqual({ error: 'Invalid body' })
+    expect(failures()).toEqual([
+      { agencyId: AGENCY, userId: USER, event: 'whatsapp_connect_failed', props: { reason: 'INVALID_BODY', stage: 'request' } },
+    ])
+  })
+
+  it('a missing OAuth code is recorded, response unchanged', async () => {
+    mockFetch({ subscribedOk: true })
+    const r = await POST(req({ wabaId: 'W1' }))
+    expect(await r.json()).toEqual({ error: 'Missing fields' })
+    expect(failures().map((e) => e.props)).toEqual([{ reason: 'MISSING_CODE', stage: 'request' }])
+  })
+
+  it('a failed save is recorded, response unchanged, nothing persisted', async () => {
+    mockFetch({ subscribedOk: true })
+    const merge = h.db('whatsapp_connections') as unknown as { merge: unknown }
+    const original = merge.merge
+    merge.merge = async () => {
+      throw new Error('db down')
+    }
+    try {
+      const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
+      expect(r.status).toBe(500)
+      expect(await r.json()).toEqual({ error: 'DB error' })
+      expect(failures().map((e) => e.props)).toEqual([{ reason: 'SAVE_FAILED', stage: 'persist' }])
+    } finally {
+      merge.merge = original
+    }
   })
 })

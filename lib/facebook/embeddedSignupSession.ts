@@ -2,8 +2,11 @@
 // is reachable from `useEmbeddedSignup` ('use client'), and importing the
 // server-only module here pulls db/auth.ts and knex into the browser bundle.
 import {
+  EMBEDDED_SIGNUP_STEPS,
+  ES_EVENT_CANCEL,
   ES_EVENT_FINISH,
   ES_EVENT_FINISH_COEXISTENCE,
+  type EmbeddedSignupStep,
   type OnboardingType,
 } from '@/lib/whatsapp/coexistenceEvents'
 
@@ -25,15 +28,50 @@ export type EmbeddedSignupSession = {
   onboardingType: OnboardingType
 }
 
+/**
+ * Why Meta says the flow ended without finishing: either the screen the customer
+ * left on, or an error Meta showed them and they reported from inside the flow.
+ */
+export type EmbeddedSignupCancel = {
+  step?: EmbeddedSignupStep
+  errorReported: boolean
+  /** Meta's own wording, shown to the customer. Never stored in analytics. */
+  errorMessage?: string
+  errorId?: string
+  sessionId?: string
+}
+
+/** What one launch of Embedded Signup resolved to. Re-exported by useEmbeddedSignup. */
+export type EmbeddedSignupResult = {
+  ok: boolean
+  error?: string
+  messagingReady?: boolean
+  reason?: string
+  /** Meta's own account of a cancel: the screen left, or the error shown. */
+  cancel?: EmbeddedSignupCancel
+}
+
+/** A cancelled launch, carrying Meta's reason only when Meta gave one. */
+export function cancelledResult(detail?: EmbeddedSignupCancel): EmbeddedSignupResult {
+  return detail ? { ok: false, error: 'cancelled', cancel: detail } : { ok: false, error: 'cancelled' }
+}
+
 export type EmbeddedSignupOutcome =
   | { kind: 'ready'; code: string; session: EmbeddedSignupSession }
-  | { kind: 'cancelled' }
+  | { kind: 'cancelled'; detail?: EmbeddedSignupCancel }
   | { kind: 'error'; error: string }
 
 export type EmbeddedSignupGate = {
   acceptSession: (session: EmbeddedSignupSession) => void
   acceptCode: (code: string) => void
-  cancel: () => void
+  /** Meta's CANCEL message. Order relative to the login callback is not guaranteed. */
+  acceptCancel: (detail: EmbeddedSignupCancel) => void
+  /**
+   * The login callback came back without a code. Settles as cancelled — at once
+   * if Meta already said why, otherwise after `graceMs` so a CANCEL message
+   * arriving just behind the callback is not lost.
+   */
+  cancel: (graceMs?: number) => void
   /** Safety valve after the OAuth code exists but session-info never arrived. */
   expire: () => void
   outcome: Promise<EmbeddedSignupOutcome>
@@ -58,7 +96,8 @@ export function hasUsableWaba(session: EmbeddedSignupSession | null | undefined)
   return typeof session?.waba_id === 'string' && session.waba_id.length > 0
 }
 
-export function parseEmbeddedSignupMessage(origin: string, data: unknown): EmbeddedSignupSession | null {
+/** A `WA_EMBEDDED_SIGNUP` message from a Facebook origin, or null. */
+function readSignupMessage(origin: string, data: unknown): Record<string, unknown> | null {
   if (!isFacebookOrigin(origin)) return null
   let parsed: unknown = data
   if (typeof parsed === 'string') {
@@ -69,6 +108,42 @@ export function parseEmbeddedSignupMessage(origin: string, data: unknown): Embed
     }
   }
   if (!parsed || typeof parsed !== 'object') return null
+  const msg = parsed as Record<string, unknown>
+  return msg.type === 'WA_EMBEDDED_SIGNUP' ? msg : null
+}
+
+const MAX_META_ERROR_LENGTH = 300
+const STEP_SET = new Set<string>(EMBEDDED_SIGNUP_STEPS)
+
+/**
+ * Meta's CANCEL message: `{ data: { current_step } }` when the customer left a
+ * screen, `{ data: { error_message, error_id, session_id } }` when they reported
+ * an error Meta showed them. Values are bounded here because they come from
+ * another window.
+ */
+export function parseEmbeddedSignupCancel(origin: string, data: unknown): EmbeddedSignupCancel | null {
+  const msg = readSignupMessage(origin, data)
+  if (!msg || msg.event !== ES_EVENT_CANCEL) return null
+  const d = (msg.data && typeof msg.data === 'object' ? msg.data : {}) as Record<string, unknown>
+
+  if (typeof d.error_message === 'string' && d.error_message.trim()) {
+    const cancel: EmbeddedSignupCancel = {
+      errorReported: true,
+      errorMessage: d.error_message.trim().slice(0, MAX_META_ERROR_LENGTH),
+    }
+    if (typeof d.error_id === 'string' && /^\d{1,20}$/.test(d.error_id)) cancel.errorId = d.error_id
+    if (typeof d.session_id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(d.session_id)) cancel.sessionId = d.session_id
+    return cancel
+  }
+  if (typeof d.current_step === 'string') {
+    return { step: (STEP_SET.has(d.current_step) ? d.current_step : 'OTHER') as EmbeddedSignupStep, errorReported: false }
+  }
+  return { errorReported: false }
+}
+
+export function parseEmbeddedSignupMessage(origin: string, data: unknown): EmbeddedSignupSession | null {
+  const parsed = readSignupMessage(origin, data)
+  if (!parsed) return null
   const msg = parsed as {
     type?: string
     event?: string
@@ -86,15 +161,20 @@ export function parseEmbeddedSignupMessage(origin: string, data: unknown): Embed
 export function createEmbeddedSignupGate(): EmbeddedSignupGate {
   let session: EmbeddedSignupSession | null = null
   let code: string | null = null
+  let cancelDetail: EmbeddedSignupCancel | null = null
+  let cancelPending = false
+  let graceTimer: ReturnType<typeof setTimeout> | undefined
   let settled = false
   let settle!: (outcome: EmbeddedSignupOutcome) => void
   const outcome = new Promise<EmbeddedSignupOutcome>((resolve) => {
     settle = (next) => {
       if (settled) return
       settled = true
+      if (graceTimer !== undefined) clearTimeout(graceTimer)
       resolve(next)
     }
   })
+  const settleCancelled = () => settle(cancelDetail ? { kind: 'cancelled', detail: cancelDetail } : { kind: 'cancelled' })
 
   const tryReady = () => {
     if (code && session && hasUsableWaba(session)) {
@@ -117,8 +197,16 @@ export function createEmbeddedSignupGate(): EmbeddedSignupGate {
       code = next
       tryReady()
     },
-    cancel() {
-      settle({ kind: 'cancelled' })
+    acceptCancel(detail) {
+      if (settled) return
+      cancelDetail = detail
+      if (cancelPending) settleCancelled()
+    },
+    cancel(graceMs = 0) {
+      if (settled) return
+      if (cancelDetail || graceMs <= 0) return settleCancelled()
+      cancelPending = true
+      graceTimer = setTimeout(settleCancelled, graceMs)
     },
     expire() {
       if (settled) return

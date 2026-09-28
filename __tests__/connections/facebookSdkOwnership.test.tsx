@@ -21,14 +21,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 
-vi.mock('@/lib/facebook/embeddedSignupSession', () => ({
-  createEmbeddedSignupGate: () => ({
-    cancel: vi.fn(),
-    expire: vi.fn(),
-    acceptCode: vi.fn(),
-    acceptSession: vi.fn(),
-    outcome: new Promise(() => {}),
-  }),
+vi.mock('@/lib/facebook/embeddedSignupSession', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/facebook/embeddedSignupSession')>()),
+  // Like the real gate, `cancel` settles the outcome; nothing else ever does here.
+  createEmbeddedSignupGate: () => {
+    let settle: (o: { kind: 'cancelled' }) => void = () => {}
+    const outcome = new Promise((resolve) => {
+      settle = resolve
+    })
+    return {
+      cancel: vi.fn(() => settle({ kind: 'cancelled' })),
+      expire: vi.fn(),
+      acceptCode: vi.fn(),
+      acceptSession: vi.fn(),
+      acceptCancel: vi.fn(),
+      outcome,
+    }
+  },
   parseEmbeddedSignupMessage: () => null,
 }))
 

@@ -75,6 +75,47 @@ describe('whatsapp_connect_failed (client)', () => {
   })
 })
 
+describe('whatsapp_connect_failed carries Meta’s explanation, validated', () => {
+  it('accepts meta_error and abandoned as reasons', async () => {
+    await recordLeadActionEvent('whatsapp_connect_failed', { reason: 'meta_error' })
+    await recordLeadActionEvent('whatsapp_connect_failed', { reason: 'abandoned' })
+    expect(h.tracked.map((t) => t.props?.reason)).toEqual(['meta_error', 'abandoned'])
+  })
+
+  it('keeps a known step, a numeric Meta error id and a bounded duration', async () => {
+    await recordLeadActionEvent('whatsapp_connect_failed', {
+      reason: 'cancelled',
+      step: 'PHONE_NUMBER_VERIFICATION',
+      metaErrorId: '524126',
+      elapsedMs: 1234.6,
+    })
+    expect(h.tracked[0].props).toEqual({
+      reason: 'cancelled',
+      stage: 'client',
+      inApp: null,
+      step: 'PHONE_NUMBER_VERIFICATION',
+      metaErrorId: '524126',
+      elapsedMs: 1235,
+    })
+  })
+
+  it('drops invalid detail fields but still records the failure', async () => {
+    await recordLeadActionEvent('whatsapp_connect_failed', {
+      reason: 'cancelled',
+      step: '<script>',
+      metaErrorId: 'abc',
+      elapsedMs: -5,
+      errorMessage: 'free text never stored',
+    })
+    expect(h.tracked[0].props).toEqual({ reason: 'cancelled', stage: 'client', inApp: null })
+  })
+
+  it('caps a duration at 24 hours', async () => {
+    await recordLeadActionEvent('whatsapp_connect_failed', { reason: 'abandoned', elapsedMs: 10 * 86_400_000 })
+    expect(h.tracked[0].props?.elapsedMs).toBe(86_400_000)
+  })
+})
+
 describe('neighbouring events are unchanged', () => {
   it('whatsapp_connect_started carries only the server-detected in-app browser', async () => {
     h.inApp = 'facebook'
