@@ -2,6 +2,8 @@ import { getUser } from '@/db/auth'
 import { listConversationMessages } from '@/db/inboxMessages'
 import { getInboxConversationByLeadId } from '@/modules/inbox/queries'
 import { CAPTURED_FIELD_LABELS } from './inboundLeadCopy'
+import { formAnswersForLead } from '@/db/leadFormAnswers'
+import { displayableFormAnswers, formAnswerLabel } from '@/lib/facebook/leadFormAnswers'
 
 /**
  * Shared data helpers for the inbound-lead context surface.
@@ -88,5 +90,26 @@ export async function loadWhatsAppInboundPreview(
   } catch (err) {
     console.error('[InboundLeadContext] inbox read failed; showing copy only', { leadId, err: String(err) })
     return { conversationId: null, preview: null }
+  }
+}
+
+/** One row of "תשובות מהטופס": the question as the owner reads it, and the answer(s). */
+export type FormAnswerRow = { label: string; values: string[] }
+
+/**
+ * The Lead Ads answers to show beside a Facebook / Instagram ליד — every
+ * question except the contact details the lead already displays. Agency-scoped
+ * through the session, like every read here; any failure shows nothing rather
+ * than breaking the lead page. Leads created before answers were stored have
+ * none.
+ */
+export async function loadLeadFormAnswers(leadId: number): Promise<FormAnswerRow[]> {
+  try {
+    const user = await getUser()
+    if (!user?.agencyId) return []
+    const answers = await formAnswersForLead(user.agencyId, leadId)
+    return displayableFormAnswers(answers).map((a) => ({ label: formAnswerLabel(a.key), values: a.values }))
+  } catch {
+    return []
   }
 }

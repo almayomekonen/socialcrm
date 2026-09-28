@@ -14,6 +14,8 @@ import {
 } from '@/lib/facebook/leadAttribution'
 import { recordLeadAttribution } from '@/db/leadAttribution'
 import type { DbErrorInfo } from '@/lib/system/dbErrorInfo'
+import { recordLeadFormAnswers } from '@/db/leadFormAnswers'
+import type { LeadFormAnswer } from '@/lib/facebook/leadFormAnswers'
 
 type WebhookLeadInput = {
   firstName: string
@@ -29,6 +31,8 @@ type WebhookLeadInput = {
    * which is the exact behaviour every lead had before Instagram separation.
    */
   attribution?: LeadAttribution
+  /** Every form answer, normalised (lib/facebook/leadFormAnswers.ts). Stored once, for a new lead. */
+  formAnswers?: LeadFormAnswer[]
   /**
    * Receives a PII-free description of the DB failure when — and only when —
    * this function is about to return null. The webhook route persists it into
@@ -47,6 +51,7 @@ export async function createLeadFromWebhook({
   agencyId,
   userId,
   attribution,
+  formAnswers,
   onInsertError,
 }: WebhookLeadInput) {
   // Normalize phone → 972XXXXXXXXX before any dedup check or insert
@@ -188,6 +193,9 @@ export async function createLeadFromWebhook({
       agencyId,
       leadId: Number(lead.id),
     })
+  }
+  if (formAnswers?.length) {
+    await recordLeadFormAnswers({ agencyId, leadId: Number(lead.id), leadgenId: leadId, answers: formAnswers })
   }
 
   // First delivered value: a real inbound Facebook lead was persisted (once per agency).

@@ -3,6 +3,8 @@ import Icon from '@/lib/Icon'
 import type { IconNames } from '@/lib/Icon'
 import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
 import type { MobileProvenanceModel, ProvenanceVisual } from './leadProvenanceModel'
+import type { FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
+import LeadFormAnswersList from '@/components/clients/LeadFormAnswersList'
 
 /**
  * Mobile-native provenance card. Same information as desktop inbound context,
@@ -22,7 +24,14 @@ const VISUAL: Record<ProvenanceVisual, { icon: IconNames; type: 'reg' | 'sol'; w
   other: { icon: 'circle-info', type: 'sol', wrap: 'bg-gray-100', mark: 'bg-gray-600' },
 }
 
-export default function LeadProvenanceCard({ model }: { model: MobileProvenanceModel }) {
+export default function LeadProvenanceCard({
+  model,
+  formAnswers = [],
+}: {
+  model: MobileProvenanceModel
+  /** Lead Ads only: the customer's answers beyond name/phone/email. */
+  formAnswers?: FormAnswerRow[]
+}) {
   const visual = VISUAL[model.visual]
   const hasMeta = model.capturedLabels.length > 0 || !!model.capturedAt
 
@@ -80,6 +89,8 @@ export default function LeadProvenanceCard({ model }: { model: MobileProvenanceM
           ) : null}
         </div>
       ) : null}
+
+      <LeadFormAnswersList rows={formAnswers} />
 
       {model.conversationId ? (
         <Link

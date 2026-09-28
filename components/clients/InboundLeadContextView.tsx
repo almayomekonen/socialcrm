@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import Icon from '@/lib/Icon'
 import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
-import { facebookCapturedFieldLabels } from '@/lib/leads/inboundLeadContextData'
+import { facebookCapturedFieldLabels, type FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
+import LeadFormAnswersList from '@/components/clients/LeadFormAnswersList'
 
 /**
  * Presentational, side-effect-free view for the "this lead arrived automatically"
@@ -12,7 +13,7 @@ import { facebookCapturedFieldLabels } from '@/lib/leads/inboundLeadContextData'
  * role='status', not dismissible, no one-shot state.
  */
 type Props = {
-  channel: 'whatsapp' | 'facebook'
+  channel: 'whatsapp' | 'facebook' | 'instagram'
   /** WhatsApp only: the linked conversation id, when one exists. */
   conversationId?: number | null
   /** WhatsApp only: the customer's FIRST inbound message text, when usable. */
@@ -32,7 +33,15 @@ type Props = {
    * "נקלט אצלך", never "נשלח"/"מילא".
    */
   capturedAt?: string | null
+  /** Lead Ads only: the customer's answers beyond name/phone/email. */
+  formAnswers?: FormAnswerRow[]
 }
+
+/** Lead Ads channel mark and headline — Facebook and Instagram share the card. */
+const FORM_CHANNEL = {
+  facebook: { icon: 'facebook', wrap: 'bg-[#1877F2]/10', mark: 'bg-[#1877F2]', headline: INBOUND_LEAD_COPY.facebookHeadline },
+  instagram: { icon: 'instagram', wrap: 'bg-[#E4405F]/10', mark: 'bg-[#E4405F]', headline: INBOUND_LEAD_COPY.instagramHeadline },
+} as const
 
 export function InboundLeadContextView({
   channel,
@@ -42,18 +51,20 @@ export function InboundLeadContextView({
   hasPhone,
   hasEmail,
   capturedAt,
+  formAnswers = [],
 }: Props) {
-  if (channel === 'facebook') {
+  if (channel === 'facebook' || channel === 'instagram') {
+    const form = FORM_CHANNEL[channel]
     // Evidence labels for the categories actually present — never the values.
     const capturedLabels = facebookCapturedFieldLabels(hasName, hasPhone, hasEmail)
     return (
       <section dir='rtl' className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
         <div className='flex items-start gap-3'>
-          <span className='flex size-8 flex-none items-center justify-center rounded-lg bg-[#1877F2]/10'>
-            <Icon name='facebook' type='reg' aria-hidden className='size-4 bg-[#1877F2]' />
+          <span className={`flex size-8 flex-none items-center justify-center rounded-lg ${form.wrap}`}>
+            <Icon name={form.icon} type='reg' aria-hidden className={`size-4 ${form.mark}`} />
           </span>
           <div className='min-w-0 flex-1'>
-            <h2 className='text-sm font-semibold text-ink'>{INBOUND_LEAD_COPY.facebookHeadline}</h2>
+            <h2 className='text-sm font-semibold text-ink'>{form.headline}</h2>
             <p className='mt-0.5 text-sm text-gray-600'>{INBOUND_LEAD_COPY.facebookBody}</p>
 
             {capturedLabels.length > 0 || capturedAt ? (
@@ -71,6 +82,8 @@ export function InboundLeadContextView({
                 ) : null}
               </div>
             ) : null}
+
+            <LeadFormAnswersList rows={formAnswers} />
           </div>
         </div>
       </section>

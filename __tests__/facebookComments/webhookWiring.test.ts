@@ -313,3 +313,31 @@ describe('webhook wiring — signature verification is unchanged', () => {
     expect(h.state.commentInserts).toHaveLength(0)
   })
 })
+
+// ──────────────────────────── LEADGEN → FORM ANSWERS ─────────────────────────
+
+describe('webhook wiring — every Lead Ads answer reaches the lead', () => {
+  it('WW-FA: the full field_data is normalised and handed to createLeadFromWebhook', async () => {
+    const fieldData = [
+      { name: 'full_name', values: ['דוד כהן'] },
+      { name: 'phone_number', values: ['+972501234567'] },
+      { name: 'מה_התקציב_שלך?', values: ['5,000–10,000 ₪'] },
+      { name: 'אילו_שירותים_מעניינים_אותך?', values: ['צילום', 'וידאו'] },
+    ]
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ field_data: fieldData }),
+      text: async () => '{}',
+    })) as unknown as typeof fetch
+
+    await POST(req({ entry: [{ id: PAGE, changes: [leadgen('LEAD_FA')] }] }))
+
+    expect(vi.mocked(createLeadFromWebhook).mock.calls[0][0].formAnswers).toEqual([
+      { key: 'full_name', values: ['דוד כהן'] },
+      { key: 'phone_number', values: ['+972501234567'] },
+      { key: 'מה_התקציב_שלך?', values: ['5,000–10,000 ₪'] },
+      { key: 'אילו_שירותים_מעניינים_אותך?', values: ['צילום', 'וידאו'] },
+    ])
+  })
+})

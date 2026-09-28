@@ -1,4 +1,4 @@
-import { loadWhatsAppInboundPreview } from '@/lib/leads/inboundLeadContextData'
+import { loadLeadFormAnswers, loadWhatsAppInboundPreview, type FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
 import { inboundChannelFromSource } from '@/lib/leads/leadSourceLabel'
 import type { MobileLeadDetail } from '@/modules/leads/queries'
 import LeadProvenanceCard from './LeadProvenanceCard'
@@ -17,6 +17,8 @@ export default async function LeadProvenance({ lead }: { lead: MobileLeadDetail 
     conversationId = wa.conversationId
     preview = wa.preview
   }
+  const formAnswers: FormAnswerRow[] =
+    inbound === 'facebook' || inbound === 'instagram' ? await loadLeadFormAnswers(lead.id) : []
 
   const model = buildMobileProvenanceModel({
     leadSource: lead.leadSource,
@@ -31,5 +33,5 @@ export default async function LeadProvenance({ lead }: { lead: MobileLeadDetail 
     preview,
   })
 
-  return <LeadProvenanceCard model={model} />
+  return <LeadProvenanceCard model={model} formAnswers={formAnswers} />
 }

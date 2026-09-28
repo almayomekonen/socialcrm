@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse, after } from 'next/server'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
+import { normalizeFormAnswers } from '@/lib/facebook/leadFormAnswers'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { db } from '@/config/db'
 import { repairFacebookConnection } from '@/lib/facebook/health'
@@ -202,6 +203,8 @@ async function processSingleLead(leadId: string, pageId: string, changeValue?: u
     agencyId: connection.agency_id,
     userId: connection.user_id,
     attribution,
+    // Every question the customer answered, not only name/phone/email.
+    formAnswers: normalizeFormAnswers(metaData.field_data),
     onInsertError: (detail) => {
       insertErrorDetail = detail
     },

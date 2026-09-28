@@ -168,3 +168,39 @@ describe('InboundLeadContextView — semantics', () => {
     expect(screen.queryByLabelText('סגירה')).toBeNull() // no close control
   })
 })
+
+describe('InboundLeadContextView — Lead Ads form answers', () => {
+  const answers = [
+    { label: 'עיר', values: ['חיפה'] },
+    { label: 'אילו שירותים מעניינים אותך?', values: ['צילום', 'וידאו'] },
+    { label: 'הערות', values: [] },
+  ]
+
+  it('shows each question with its answer(s), and marks an empty one', () => {
+    render(<InboundLeadContextView channel='facebook' hasName hasPhone formAnswers={answers} />)
+    expect(screen.getByText('תשובות מהטופס')).toBeTruthy()
+    expect(screen.getByText('עיר')).toBeTruthy()
+    expect(screen.getByText('חיפה')).toBeTruthy()
+    expect(screen.getByText('צילום · וידאו')).toBeTruthy()
+    expect(screen.getByText('לא נענה')).toBeTruthy()
+  })
+
+  it('renders the customer’s answer as TEXT, never markup', () => {
+    const { container } = render(
+      <InboundLeadContextView channel='facebook' formAnswers={[{ label: 'q', values: ['<img src=x onerror=alert(1)>'] }]} />,
+    )
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeTruthy()
+  })
+
+  it('no answers → no answers block (older leads, or a form with only contact fields)', () => {
+    render(<InboundLeadContextView channel='facebook' hasName formAnswers={[]} />)
+    expect(screen.queryByText('תשובות מהטופס')).toBeNull()
+  })
+
+  it('an Instagram form gets the same card, headed Instagram', () => {
+    render(<InboundLeadContextView channel='instagram' hasName formAnswers={answers} />)
+    expect(screen.getByText('הליד הזה הגיע אליך אוטומטית מ־Instagram')).toBeTruthy()
+    expect(screen.getByText('חיפה')).toBeTruthy()
+  })
+})
