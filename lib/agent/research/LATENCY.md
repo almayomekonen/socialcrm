@@ -10,8 +10,12 @@
 | — research phase alone | 10 | 20.0s | — | — | 39.3s |
 | CRM-only benchmark, evaluable cases | 30 | 19.5s | 18.2s | 28.0s | 29.2s |
 
-The research deadline is **90s** (`deadlineMs: 90000`), separate from the 40s the
-CRM path uses. p95 sits at 78% of it.
+The research deadline WAS **90s** (`deadlineMs: 90000`) when this was measured, separate
+from the 40s the CRM path uses; p95 sat at 78% of it. It is now **45s**, because the
+route running it has `maxDuration = 60` — past 60s the platform killed the run with no
+answer. Against these measurements (p50 48.2s, p95 70.4s) roughly half of research
+questions now end as a clean `deadline` answer; getting them back means raising the
+route's `maxDuration` first (see `REQUEST_DEADLINE_MS` in lib/agent/budget.ts).
 
 ## The one decomposition already available
 

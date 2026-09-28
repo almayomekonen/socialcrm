@@ -108,14 +108,20 @@ export function admitsResearch(question: string | null | undefined): ResearchAdm
 /**
  * Wall clock for a research run.
  *
- * MEASURED, NOT CHOSEN: one topic took 33.8s and a two-company comparison took
- * 72.9s against the same hosted tool (see `harvest.ts` for the full measurement).
- * 90s clears the slower of the two with headroom; anything near the CRM ceiling
- * would guarantee a deadline failure on exactly the questions this phase adds.
+ * BOUNDED BY THE PLATFORM, NOT BY THE SLOWEST SEARCH. It was 90s, chosen to
+ * clear a measured 72.9s two-company comparison (33.8s for one topic; see
+ * `harvest.ts`) — but the route that runs it has `maxDuration = 60`, so a
+ * research run past 60s was not given more time: the platform killed it, the
+ * stream ended with no answer, and an action mid-execution was left for
+ * reconciliation.
  *
- * THE CRM DEADLINE IS UNCHANGED at 40s. A research run is a different kind of
- * request with a different bargain — the rep asked to look something up and can
- * see that it is happening — and lengthening the ordinary path to accommodate it
- * would slow every question the product is actually judged on.
+ * 45s fits inside REQUEST_DEADLINE_MS (50s) with 5s left for any proposed
+ * action, and FINALIZE_RESERVE_MS after that to close the stream. It clears
+ * the measured single-topic search; the slowest multi-company comparison now
+ * ends as a clean `deadline` answer the rep can narrow, instead of a silent
+ * kill. Raising it requires raising `maxDuration` first — deadline.test.ts
+ * fails otherwise.
+ *
+ * THE CRM DEADLINE IS UNCHANGED at 40s.
  */
-export const RESEARCH_DEADLINE_MS = 90_000
+export const RESEARCH_DEADLINE_MS = 45_000

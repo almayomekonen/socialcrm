@@ -33,6 +33,29 @@ export const DEFAULT_MAX_STEPS = 6
 /** Wall-clock ceiling across all steps. */
 export const DEFAULT_DEADLINE_MS = 40_000
 
+/**
+ * THE REQUEST'S OWN CLOCK, derived from the platform's.
+ *
+ * The /api/ai/agent routes export `maxDuration = 60`; past that the platform
+ * kills the function mid-flight — no final stream event, and an action caught
+ * mid-execution left for reconciliation. Every internal deadline therefore has
+ * to END INSIDE that limit with time to spare, not merely be "about" it.
+ * `__tests__/ai/agent/deadline.test.ts` asserts the routes and this constant
+ * stay equal.
+ */
+export const ROUTE_MAX_DURATION_MS = 60_000
+
+/** Kept back from the route limit to persist the outcome and close the stream cleanly. */
+export const FINALIZE_RESERVE_MS = 10_000
+
+/**
+ * The latest moment any work in one request may still be running —
+ * investigation AND action execution. Measured from the request's start, so
+ * a slow investigation leaves the action less time rather than granting it a
+ * fresh budget.
+ */
+export const REQUEST_DEADLINE_MS = ROUTE_MAX_DURATION_MS - FINALIZE_RESERVE_MS
+
 /** Consecutive identical results that end the investigation. */
 const NO_NEW_INFO_LIMIT = 2
 

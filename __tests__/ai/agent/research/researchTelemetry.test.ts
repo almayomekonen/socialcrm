@@ -220,8 +220,12 @@ describe('research failure reasons name the earliest real cause', () => {
 // ── bounds ──────────────────────────────────────────────────────────────────
 
 describe('research bounds stay separate from the CRM ones', () => {
-  it('keeps the measured 90s research deadline', () => {
-    expect(RESEARCH_DEADLINE_MS).toBe(90_000)
+  it('keeps the research deadline longer than the CRM one, but inside the route limit (F4)', () => {
+    // Was 90s — past the route's 60s maxDuration, so the platform, not the
+    // application, ended slow research runs. See deadline.test.ts.
+    expect(RESEARCH_DEADLINE_MS).toBe(45_000)
+    expect(RESEARCH_DEADLINE_MS).toBeGreaterThan(DEFAULT_DEADLINE_MS)
+    expect(RESEARCH_DEADLINE_MS).toBeLessThan(60_000)
   })
 
   it('leaves the CRM deadline at 40s', () => {

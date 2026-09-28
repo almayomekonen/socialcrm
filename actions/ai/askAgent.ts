@@ -3,6 +3,7 @@
 import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
 import { resolveAgentScope } from '@/lib/agent/scope'
 import { submitProposedAction, submitProposedBatch } from '@/lib/agent/actions/bridge'
+import { REQUEST_DEADLINE_MS } from '@/lib/agent/budget'
 import { recordAgentInvestigation, type AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult } from '@/lib/agent/types'
 
@@ -81,6 +82,16 @@ export async function askAgent(
   if (!trimmed) return { ok: false, reason: 'error', message: 'empty-question' }
 
   /**
+   * The request's own start. Any action this request submits must finish by
+   * `requestStartedAt + REQUEST_DEADLINE_MS` — inside the route's maxDuration
+   * with a reserve to close the stream — however long the investigation took.
+   * Past that, the runtime refuses to START the mutation
+   * (`deadline-before-execution`), which is a known outcome, rather than the
+   * platform killing it half-done.
+   */
+  const requestStartedAt = Date.now()
+
+  /**
    * Resolved ONCE, here, and handed down. `runAgentInvestigation` would resolve
    * it itself, but this function needs the same authority afterwards to submit
    * any proposed action — and resolving twice would mean the scope that
@@ -129,6 +140,7 @@ export async function askAgent(
 
   const authorization = {
     scope,
+    deadlineAtMs: requestStartedAt + REQUEST_DEADLINE_MS,
     agentRunId: result.investigationId,
     userMessage: trimmed,
     priorAssistantMessage,

@@ -497,3 +497,34 @@ describe('trace completeness', () => {
     expect(dump).not.toContain('דוד ממתין לתשובה.')
   })
 })
+
+// ── F4 · the research clock ends inside the route limit ───────────────────────
+
+describe('F4 · a research run ends at its own deadline, before the platform would', () => {
+  it('a model that never answers is cancelled at RESEARCH_DEADLINE_MS and reported as a deadline', async () => {
+    const { RESEARCH_DEADLINE_MS } = await import('@/lib/agent/research/admission')
+    const { ROUTE_MAX_DURATION_MS } = await import('@/lib/agent/budget')
+    vi.useFakeTimers()
+    try {
+      // A provider that hangs until it is cancelled — as a slow hosted search does.
+      generateTextSpy.mockImplementation(
+        (args: { abortSignal: AbortSignal }) =>
+          new Promise((_, reject) => args.abortSignal.addEventListener('abort', () => reject(args.abortSignal.reason))),
+      )
+      let settled: unknown = undefined
+      // "מתחרים" is a research marker, so this run gets the research deadline.
+      const run = runAgentInvestigation({ question: 'מה המתחרים שלי עושים בשוק?' }).then((r) => (settled = r))
+
+      await vi.advanceTimersByTimeAsync(RESEARCH_DEADLINE_MS - 1)
+      expect(settled).toBeUndefined()
+
+      await vi.advanceTimersByTimeAsync(1)
+      await run
+      expect(settled).toMatchObject({ ok: false, reason: 'deadline', message: 'deadline' })
+      // …and that happened strictly before the function would have been killed.
+      expect(RESEARCH_DEADLINE_MS).toBeLessThan(ROUTE_MAX_DURATION_MS)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
