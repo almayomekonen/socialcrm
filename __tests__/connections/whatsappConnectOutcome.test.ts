@@ -41,12 +41,8 @@ describe('parseEmbeddedSignupCancel', () => {
   })
 
   it('reads an error the customer reported inside the flow, stringified or not', () => {
-    const expected = {
-      errorReported: true,
-      errorMessage: 'You have guessed too many times.',
-      errorId: '524126',
-      sessionId: 'f34b51dab5e0498',
-    }
+    // session_id is deliberately not kept: nothing uses it, so nothing holds it.
+    const expected = { errorReported: true, errorMessage: 'You have guessed too many times.', errorId: '524126' }
     expect(parseEmbeddedSignupCancel(FB, REPORTED)).toEqual(expected)
     expect(parseEmbeddedSignupCancel(FB, JSON.stringify(REPORTED))).toEqual(expected)
   })
@@ -61,7 +57,18 @@ describe('parseEmbeddedSignupCancel', () => {
     const parsed = parseEmbeddedSignupCancel(FB, msg)
     expect(parsed?.errorMessage).toHaveLength(300)
     expect(parsed?.errorId).toBeUndefined()
-    expect(parsed?.sessionId).toBeUndefined()
+    expect(parsed).not.toHaveProperty('sessionId')
+  })
+
+  it('strips control and bidi-override characters and collapses whitespace', () => {
+    const raw = 'Try\u202Eagain\u0000 in\n\n an\u2066 hour.\u200F'
+    const msg = { ...REPORTED, data: { error_message: raw } }
+    expect(parseEmbeddedSignupCancel(FB, msg)?.errorMessage).toBe('Try again in an hour.')
+  })
+
+  it('an error report that is empty after cleaning is not an error report', () => {
+    const msg = { ...REPORTED, data: { error_message: '\u202E\u0000  ' } }
+    expect(parseEmbeddedSignupCancel(FB, msg)).toEqual({ errorReported: false })
   })
 
   it('ignores other origins, other events, and junk', () => {

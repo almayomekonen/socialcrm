@@ -8,6 +8,11 @@
  * `pagehide` is unreliable (the request is cut off with the page), so the start
  * leaves a marker and the NEXT visit to a connect surface reports it.
  *
+ * sessionStorage, not localStorage: the marker belongs to one tab. It survives
+ * that tab's reload or navigation, and no other tab can read — and wrongly
+ * report — an attempt that is still open elsewhere. Closing the tab loses it;
+ * that attempt cannot be reported.
+ *
  * Pure over a Storage-like object so it runs in tests without a browser, and it
  * never throws: storage can be blocked, and analytics must not break a page.
  */
@@ -46,10 +51,10 @@ export function takeAbandonedAttempt(storage: StorageLike, now: number): { since
   }
 }
 
-/** localStorage when it is reachable; null on the server or when it is blocked. */
+/** This tab's sessionStorage when reachable; null on the server or when blocked. */
 export function browserStorage(): StorageLike | null {
   try {
-    return typeof window === 'undefined' ? null : window.localStorage
+    return typeof window === 'undefined' ? null : window.sessionStorage
   } catch {
     return null
   }

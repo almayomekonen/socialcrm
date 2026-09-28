@@ -1,4 +1,5 @@
 import { META_FEATURE_NOTICES } from '@/lib/connections/metaFeatureNotices'
+import { metaSignupErrorNextStep } from '@/lib/connections/metaSignupErrorSteps'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 /**
  * Approved user-facing copy for the Facebook and WhatsApp connection flows.
@@ -262,12 +263,14 @@ export const WHATSAPP_NOTICES: Record<string, ConnectionNotice> = {
   /**
    * Meta showed an error inside its own window and the customer reported it
    * (Embedded Signup CANCEL with `error_message`). Retrying unchanged usually
-   * fails the same way, so the explanation carries Meta's words — see
-   * `whatsappMetaErrorNotice`.
+   * fails the same way, so the explanation carries Meta's words and, for an
+   * error Meta documents, the next step comes from `metaSignupErrorSteps.ts` —
+   * see `whatsappNotice`. The title stays neutral: the owner needs the step, not
+   * a verdict on who stopped what.
    */
   meta_error: {
     tone: 'error',
-    title: 'Meta עצרה את החיבור לוואטסאפ',
+    title: 'לא הצלחנו להשלים את החיבור לוואטסאפ',
     explanation: 'בחלון ההרשמה של Meta הוצגה שגיאה, ולכן החיבור לא הושלם.',
     nextStep: 'לפעול לפי ההודעה של Meta ואז לנסות שוב. אם ההודעה מבקשת להמתין, כדאי לחזור לחיבור מאוחר יותר.',
     action: SHARED.retry,
@@ -434,17 +437,23 @@ export function facebookNotice(code: string | null | undefined): ConnectionNotic
 /**
  * Resolve a WhatsApp notice. Silent codes return null by design.
  *
- * `metaMessage` is the error text Meta showed inside its own window. It is used
- * only by `meta_error`, where it replaces the generic explanation so the owner
- * reads Meta's actual reason (e.g. "try again in an hour") next to our next step.
+ * `metaMessage` is the error text Meta showed inside its own window, already
+ * cleaned and bounded by `parseEmbeddedSignupCancel`. It is used only by
+ * `meta_error`: it replaces the generic explanation, and a documented Meta error
+ * also gets its own next step. React renders it as text, never as markup.
  */
 export function whatsappNotice(code: string | null | undefined, metaMessage?: string | null): ConnectionNotice | null {
   if (!code) return null
   if (SILENT_WHATSAPP_CODES.has(code)) return null
   if (code === 'meta_error' && metaMessage) {
-    // Meta's text is often English inside a right-to-left line. First-strong
-    // isolate (U+2068 … U+2069) keeps its quotes and full stop in place.
-    return { ...WHATSAPP_NOTICES.meta_error, explanation: `ההודעה שהוצגה בחלון של Meta: ⁨"${metaMessage}"⁩` }
+    const base = WHATSAPP_NOTICES.meta_error
+    return {
+      ...base,
+      // Meta's text is often English inside a right-to-left line. First-strong
+      // isolate (U+2068 … U+2069) keeps its quotes and full stop in place.
+      explanation: `ההודעה שהוצגה בחלון של Meta: ⁨"${metaMessage}"⁩`,
+      nextStep: metaSignupErrorNextStep(metaMessage) ?? base.nextStep,
+    }
   }
   return WHATSAPP_NOTICES[code] ?? WHATSAPP_NOTICES.token
 }

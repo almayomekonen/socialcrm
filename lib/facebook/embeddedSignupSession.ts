@@ -35,10 +35,13 @@ export type EmbeddedSignupSession = {
 export type EmbeddedSignupCancel = {
   step?: EmbeddedSignupStep
   errorReported: boolean
-  /** Meta's own wording, shown to the customer. Never stored in analytics. */
+  /**
+   * Meta's own wording, shown to the customer. Cleaned (no control or bidi
+   * formatting characters), bounded, and never stored or logged.
+   */
   errorMessage?: string
+  /** Meta's numeric support id for the report. The only part that is stored. */
   errorId?: string
-  sessionId?: string
 }
 
 /** What one launch of Embedded Signup resolved to. Re-exported by useEmbeddedSignup. */
@@ -114,25 +117,30 @@ function readSignupMessage(origin: string, data: unknown): Record<string, unknow
 
 const MAX_META_ERROR_LENGTH = 300
 const STEP_SET = new Set<string>(EMBEDDED_SIGNUP_STEPS)
+// C0/C1 controls, and the bidi marks, embeddings, overrides and isolates that
+// could reorder the surrounding Hebrew line. Plain text is all that is kept.
+const UNSAFE_TEXT = /[\u0000-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/g
+
+/** Meta's error text as one bounded line of plain text; empty when nothing is left. */
+function cleanMetaText(raw: string): string {
+  return raw.replace(UNSAFE_TEXT, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_META_ERROR_LENGTH)
+}
 
 /**
  * Meta's CANCEL message: `{ data: { current_step } }` when the customer left a
  * screen, `{ data: { error_message, error_id, session_id } }` when they reported
- * an error Meta showed them. Values are bounded here because they come from
- * another window.
+ * an error Meta showed them. Values are cleaned and bounded here because they
+ * come from another window; `session_id` is not kept because nothing uses it.
  */
 export function parseEmbeddedSignupCancel(origin: string, data: unknown): EmbeddedSignupCancel | null {
   const msg = readSignupMessage(origin, data)
   if (!msg || msg.event !== ES_EVENT_CANCEL) return null
   const d = (msg.data && typeof msg.data === 'object' ? msg.data : {}) as Record<string, unknown>
 
-  if (typeof d.error_message === 'string' && d.error_message.trim()) {
-    const cancel: EmbeddedSignupCancel = {
-      errorReported: true,
-      errorMessage: d.error_message.trim().slice(0, MAX_META_ERROR_LENGTH),
-    }
+  const errorMessage = typeof d.error_message === 'string' ? cleanMetaText(d.error_message) : ''
+  if (errorMessage) {
+    const cancel: EmbeddedSignupCancel = { errorReported: true, errorMessage }
     if (typeof d.error_id === 'string' && /^\d{1,20}$/.test(d.error_id)) cancel.errorId = d.error_id
-    if (typeof d.session_id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(d.session_id)) cancel.sessionId = d.session_id
     return cancel
   }
   if (typeof d.current_step === 'string') {

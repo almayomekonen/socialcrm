@@ -45,7 +45,7 @@ describe('not connected (State A)', () => {
     render(<WhatsappConnect {...base} connection={null} status='unknown' />)
     await clickConnect(/חבר וואטסאפ עסקי/)
 
-    expect(screen.getByText('Meta עצרה את החיבור לוואטסאפ')).toBeInTheDocument()
+    expect(screen.getByText('לא הצלחנו להשלים את החיבור לוואטסאפ')).toBeInTheDocument()
     // Isolated (U+2068 … U+2069) so an English message keeps its punctuation in RTL.
     expect(screen.getByText(`ההודעה שהוצגה בחלון של Meta: ⁨"${META_TEXT}"⁩`)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /לנסות שוב/ })).toBeEnabled()
@@ -80,11 +80,38 @@ describe('not connected (State A)', () => {
       .mockResolvedValueOnce({ ok: false, error: 'cancelled' })
     render(<WhatsappConnect {...base} connection={null} status='unknown' />)
     await clickConnect(/חבר וואטסאפ עסקי/)
-    expect(screen.getByText('Meta עצרה את החיבור לוואטסאפ')).toBeInTheDocument()
+    expect(screen.getByText('לא הצלחנו להשלים את החיבור לוואטסאפ')).toBeInTheDocument()
     await clickConnect(/לנסות שוב/)
 
     expect(screen.queryByText(new RegExp(META_TEXT.slice(0, 20)))).not.toBeInTheDocument()
     expect(screen.getByText('החיבור לוואטסאפ לא הושלם')).toBeInTheDocument()
+  })
+})
+
+describe('Meta’s text is shown safely, with the matching next step', () => {
+  async function showMetaError(errorMessage: string) {
+    H.launch = vi.fn(async () => ({ ok: false, error: 'cancelled', cancel: { errorReported: true, errorMessage } }))
+    const view = render(<WhatsappConnect {...base} connection={null} status='unknown' />)
+    await clickConnect(/חבר וואטסאפ עסקי/)
+    return view
+  }
+
+  it('renders markup in Meta’s text as plain text, never as elements', async () => {
+    const hostile = '<img src=x onerror="alert(1)"><b>bold</b>'
+    const { container } = await showMetaError(hostile)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('b')).toBeNull()
+    expect(screen.getByText(new RegExp('<img src=x'))).toBeInTheDocument()
+  })
+
+  it('a documented Meta error gets its own next step', async () => {
+    await showMetaError(META_TEXT)
+    expect(screen.getByText(/להמתין כ-12 שעות/)).toBeInTheDocument()
+  })
+
+  it('an unrecognised Meta error keeps the general next step', async () => {
+    await showMetaError('משהו אחר לגמרי')
+    expect(screen.getByText(/לפעול לפי ההודעה של Meta/)).toBeInTheDocument()
   })
 })
 
@@ -94,7 +121,7 @@ describe('reconnecting a saved connection (State C)', () => {
     render(<WhatsappConnect {...base} connection={{ phoneNumberId: '1' }} status='token' />)
     await clickConnect(/לחבר מחדש/)
 
-    expect(screen.getByText('Meta עצרה את החיבור לוואטסאפ')).toBeInTheDocument()
+    expect(screen.getByText('לא הצלחנו להשלים את החיבור לוואטסאפ')).toBeInTheDocument()
     expect(screen.queryByText('החיבור לוואטסאפ פג')).not.toBeInTheDocument()
   })
 })

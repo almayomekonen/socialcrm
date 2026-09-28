@@ -5,6 +5,7 @@ import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { getInAppBrowser } from '@/lib/device'
 import { CLIENT_CONNECT_FAILURE_REASONS } from '@/lib/connections/connectFailure'
 import { EMBEDDED_SIGNUP_STEPS } from '@/lib/whatsapp/coexistenceEvents'
+import { hasServerConnectOutcomeSince } from '@/lib/analytics/connectOutcome'
 
 /**
  * Client bridge for the activation milestone: a rep acted on a lead.
@@ -79,6 +80,7 @@ const CHANNELS = new Set<LeadContactChannel>(['whatsapp_api', 'whatsapp_native',
 const CONNECT_FAILURE_REASONS = new Set<string>(CLIENT_CONNECT_FAILURE_REASONS)
 const SIGNUP_STEPS = new Set<string>(EMBEDDED_SIGNUP_STEPS)
 const MAX_CONNECT_ELAPSED_MS = 86_400_000
+const ABANDONED_LOOKBACK_SLACK_MS = 5_000
 
 /**
  * The detail a connect failure may carry: the Meta screen it stopped on, Meta's
@@ -142,8 +144,22 @@ export async function recordLeadActionEvent(
         }
       : props
 
+  const connectDetail = isConnectFailure ? connectFailureDetail(props) : {}
+  // `abandoned` must be bounded to its attempt, or it cannot be checked below.
+  if (reason === 'abandoned' && typeof connectDetail.elapsedMs !== 'number') return
+
   try {
     const user = await requireBasicCrmAccess()
+    /**
+     * An abandoned attempt whose page was reloaded while the server was
+     * finishing it already has an outcome — success or a server-stage failure.
+     * Recording `abandoned` too would contradict it, so it is dropped. The
+     * slack covers the gap between the click and the server's own clock.
+     */
+    if (reason === 'abandoned') {
+      const since = new Date(Date.now() - Number(connectDetail.elapsedMs) - ABANDONED_LOOKBACK_SLACK_MS)
+      if (await hasServerConnectOutcomeSince(user.agencyId, since)) return
+    }
     /**
      * WhatsApp connect events carry ONLY server-built props. `inApp` comes from
      * this request's own User-Agent (the Server Action POST is the same browser),
@@ -155,7 +171,7 @@ export async function recordLeadActionEvent(
       event === 'whatsapp_connect_started'
         ? { inApp: await inApp() }
         : isConnectFailure
-          ? { reason, stage: 'client', inApp: await inApp(), ...connectFailureDetail(props) }
+          ? { reason, stage: 'client', inApp: await inApp(), ...connectDetail }
           : safeProps
     await track({ agencyId: user.agencyId, userId: user.id, event, props: eventProps })
   } catch {
