@@ -29,7 +29,7 @@ export default function AgentVoiceStatus({
     // While recording, the level meter occupies the strip beside the action
     // button (end-12, w-16), so the row stops short of it; transcribing has no meter.
     <div
-      className={`absolute bottom-2 start-3 z-10 flex h-9 items-center gap-2 text-sm ${recording ? 'end-[7.5rem]' : 'end-14'}`}
+      className={`absolute bottom-2 start-3 z-10 flex h-9 items-center gap-2 text-sm ${recording ? 'end-[7.5rem]' : 'end-14'} in-[[data-mobile-workspace]]:static in-[[data-mobile-workspace]]:min-w-0 in-[[data-mobile-workspace]]:flex-1`}
       role='status'
       aria-live='polite'
     >

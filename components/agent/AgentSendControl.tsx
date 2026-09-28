@@ -52,6 +52,8 @@ export default function AgentSendControl({
         aria-hidden={!recording}
         className={cn(
           'absolute bottom-2 end-12 z-10 flex h-8 items-center justify-end gap-[3px]',
+          // Mobile: in flow, in the composer's bottom row (see AgentPromptInput).
+          'in-[[data-mobile-workspace]]:static in-[[data-mobile-workspace]]:shrink-0',
           'transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
           recording ? 'w-16 translate-x-0 opacity-100' : 'pointer-events-none w-0 translate-x-4 opacity-0',
         )}
@@ -76,6 +78,10 @@ export default function AgentSendControl({
         aria-label={label}
         className={cn(
           'tap-44 absolute bottom-2 end-2 z-10 flex size-9 items-center justify-center rounded-md',
+          // Mobile: an in-flow item of the composer's bottom row, so it can never
+          // sit outside the input. `relative` (not `static`) keeps it the anchor
+          // for its own 44px `.tap-44` hit area; `inset-auto` drops the offsets.
+          'in-[[data-mobile-workspace]]:relative in-[[data-mobile-workspace]]:inset-auto in-[[data-mobile-workspace]]:shrink-0',
           'bg-solid text-white outline-none transition-all duration-300',
           'hover:bg-solid/85 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40',
         )}
