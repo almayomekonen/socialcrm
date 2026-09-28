@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { formatDate, formatTime } from '@/lib/dates'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
+import { lastCountedDirection } from '@/lib/inbox/humanReply'
 import WhatsappReplyDraft from '@/components/summary/WhatsappReplyDraft'
 import WhatsappNewMessageNotifier from '@/components/summary/WhatsappNewMessageNotifier'
 import WhatsappConversationHeader from '@/components/summary/WhatsappConversationHeader'
@@ -45,7 +46,6 @@ export default function WhatsappConversation({
     }
   }
 
-  const last = messages.length > 0 ? messages[messages.length - 1] : null
 
   const thread = messages
     .map((m, i) => {
@@ -68,7 +68,7 @@ export default function WhatsappConversation({
         conversationId={conversationId}
         isPersonal={isPersonal}
         showDelete={showDelete}
-        lastDirection={last?.direction ?? null}
+        lastDirection={lastCountedDirection(messages)}
         lastActivityAt={latestInbound?.timestamp ?? null}
       />
 

@@ -4,6 +4,8 @@ import { ensureParticipant } from '@/db/inboxParticipants'
 import { insertOutboundMessage } from '@/db/inboxMessages'
 import { enqueueConversationAnalysis } from '@/db/conversationIntelligence'
 import { isQuestionnaireConversation } from '@/db/questionnaireSessions'
+import { clearConversationAttention } from '@/db/notifications/conversationAttention'
+import { isHumanOutbound } from '@/lib/inbox/humanReply'
 
 export type PersistOutboundWhatsappInput = {
   agencyId: number
@@ -89,6 +91,13 @@ export async function persistOutboundWhatsapp(input: PersistOutboundWhatsappInpu
     })
 
     await bumpConversationOnOutbound(trx, conversationId, new Date(), input.text)
+
+    // A person answered: "waiting for a person" notifications about this chat
+    // are no longer true. AI, questionnaire and automation sends are not people.
+    const source = typeof input.metadata?.source === 'string' ? input.metadata.source : null
+    if (inserted && isHumanOutbound({ source, sentByUserId: input.sentByUserId })) {
+      await clearConversationAttention(trx, { agencyId: input.agencyId, conversationId })
+    }
 
     // Same rule as the inbound path: a questionnaire conversation never buys a
     // model call. Checked here as well as at the caller so a rep's own reply in

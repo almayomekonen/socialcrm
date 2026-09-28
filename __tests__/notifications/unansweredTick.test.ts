@@ -21,6 +21,8 @@ import type { NotificationFeedItem } from '@/modules/notifications/types'
 const notifyEvent = vi.fn()
 const isNotificationsEnabled = vi.fn()
 const findUnansweredConversations = vi.fn()
+const findPendingHandoffs = vi.fn()
+const quietHoursByAgency = vi.fn()
 
 vi.mock('@/lib/notifications/emit', () => ({
   notifyEvent: (...args: unknown[]) => notifyEvent(...args),
@@ -37,6 +39,8 @@ vi.mock('@/db/notifications/unanswered', async () => {
   return {
     ...actual,
     findUnansweredConversations: (...args: unknown[]) => findUnansweredConversations(...args),
+    findPendingHandoffs: (...args: unknown[]) => findPendingHandoffs(...args),
+    quietHoursByAgency: (...args: unknown[]) => quietHoursByAgency(...args),
   }
 })
 
@@ -69,6 +73,10 @@ beforeEach(() => {
   isNotificationsEnabled.mockReturnValue(true)
   findUnansweredConversations.mockReset()
   findUnansweredConversations.mockResolvedValue([])
+  findPendingHandoffs.mockReset()
+  findPendingHandoffs.mockResolvedValue([])
+  quietHoursByAgency.mockReset()
+  quietHoursByAgency.mockResolvedValue(new Map())
 })
 
 describe('threshold constant', () => {
@@ -78,14 +86,17 @@ describe('threshold constant', () => {
 })
 
 describe('candidate SQL shape', () => {
-  it('requires open + inbound + aged lastInboundAt + non-terminal lead + no later outbound', () => {
+  it('requires open + aged lastInboundAt within a day + non-terminal lead + no later HUMAN reply', () => {
     const cutoff = new Date(NOW_MS - UNANSWERED_THRESHOLD_MS)
     const { sql, bindings } = findUnansweredConversationsQuery(cutoff, 200).toSQL()
     const lower = sql.toLowerCase()
     expect(lower).toContain('inbox_conversations')
     expect(lower).toContain(`cv.state = 'open'`)
-    expect(lower).toContain(`cv."lastdirection" = 'inbound'`)
+    // No `lastDirection = 'inbound'` filter any more: after an AI handoff the
+    // last message is the AI's, and that conversation is exactly the one to remind.
+    expect(lower).not.toContain(`cv."lastdirection" = 'inbound'`)
     expect(lower).toContain('cv."lastinboundat" <=')
+    expect(lower).toContain('cv."lastinboundat" >=')
     expect(lower).toContain(`status is distinct from 'closed'`)
     expect(lower).toContain(`status is distinct from 'lost'`)
     expect(lower).toContain(`direction = 'inbound'`)
@@ -94,7 +105,7 @@ describe('candidate SQL shape', () => {
     expect(lower).toContain('limit')
     expect(lower).not.toContain('lastreadat')
     expect(lower).not.toContain('quiet')
-    expect(bindings).toEqual([cutoff, 200])
+    expect(bindings).toEqual([cutoff, new Date(NOW_MS - 24 * 60 * 60 * 1000), 200])
   })
 })
 
@@ -234,19 +245,71 @@ describe('tickUnansweredNotifications', () => {
     expect(lower).toContain(`'lost'`)
   })
 
-  it('13 — bot/autoresponse outbound clears candidate via NOT EXISTS outbound', async () => {
-    // Any outbound (sentByUserId null or not, status failed or not) is still
-    // direction=outbound — SQL does not filter sentByUserId or status.
+  // 13/14 CHANGED 2026-09-28 (deliberately). They pinned "any outbound — bot,
+  // automation or failed — is an answer". That rule silenced the reminder for
+  // every conversation the AI handed to a person. Only a human reply counts
+  // now; behaviour is proven against Postgres in unanswered.db.test.ts.
+  it('13 — only a HUMAN reply (SocialCRM or the WhatsApp Business app) clears a handed-off chat', async () => {
     const { sql } = findUnansweredConversationsQuery(new Date(NOW_MS), 10).toSQL()
     const lower = sql.toLowerCase()
-    expect(lower).toContain(`o.direction = 'outbound'`)
-    expect(lower).not.toContain('sentbyuserid')
-    expect(lower).not.toContain(`status = 'failed'`)
+    expect(lower).toContain(`'smb_message_echo'`)
+    expect(lower).toContain('"sentbyuserid" is not null')
+    expect(lower).toContain(`'escalated', 'human_active'`)
   })
 
-  it('14 — failed outbound follows existing outbound semantics (no status filter)', async () => {
+  it('14 — a failed reply is not an answer', async () => {
     const { sql } = findUnansweredConversationsQuery(new Date(NOW_MS), 10).toSQL()
-    expect(sql.toLowerCase()).not.toMatch(/o\.status/)
+    expect(sql.toLowerCase()).toContain(`h.status is distinct from 'failed'`)
+  })
+
+  it('15 — a pending handoff emits lead.handoff, keyed by when it happened', async () => {
+    const escalatedAt = new Date(NOW_MS - 60_000)
+    findPendingHandoffs.mockResolvedValue([
+      { conversationId: CONV, agencyId: AGENCY, leadId: LEAD, escalatedAt, firstName: 'דנה', lastName: 'לוי' },
+    ])
+    await tickUnansweredNotifications({ nowMs: NOW_MS })
+    const event = notifyEvent.mock.calls[0][0] as NotificationEvent
+    expect(event).toMatchObject({
+      type: 'lead.handoff',
+      entityType: 'conversation',
+      entityId: CONV,
+      payload: { leadId: LEAD, leadName: 'דנה לוי', escalatedAt: escalatedAt.toISOString() },
+    })
+    expect(eventKeyForEvent(event)).toBe(
+      `lead.handoff:${AGENCY}:conversation:${CONV}:at:${escalatedAt.toISOString()}`,
+    )
+  })
+
+  it('16 — a handoff with no ליד is still emitted, with no name', async () => {
+    findPendingHandoffs.mockResolvedValue([
+      { conversationId: CONV, agencyId: AGENCY, leadId: null, escalatedAt: new Date(NOW_MS), firstName: null, lastName: null },
+    ])
+    await tickUnansweredNotifications({ nowMs: NOW_MS })
+    expect(notifyEvent.mock.calls[0][0].payload).toMatchObject({ leadId: null, leadName: null })
+  })
+
+  it('17 — inside the agency’s quiet hours nothing is sent; it is sent once they end', async () => {
+    // NOW_MS is 12:00 UTC = 15:00 Asia/Jerusalem.
+    findUnansweredConversations.mockResolvedValue([candidate()])
+    quietHoursByAgency.mockResolvedValue(new Map([[AGENCY, { tz: 'Asia/Jerusalem', startHour: 14, endHour: 16 }]]))
+    const quiet = await tickUnansweredNotifications({ nowMs: NOW_MS })
+    expect(quiet.deferred).toBe(1)
+    expect(notifyEvent).not.toHaveBeenCalled()
+
+    const later = await tickUnansweredNotifications({ nowMs: NOW_MS + 60 * 60 * 1000 })
+    expect(later.enqueued).toBe(1)
+  })
+
+  it('19 — a failing handoff finder does not cost the reminders', async () => {
+    findPendingHandoffs.mockRejectedValue(new Error('relation does not exist'))
+    findUnansweredConversations.mockResolvedValue([candidate()])
+    expect((await tickUnansweredNotifications({ nowMs: NOW_MS })).enqueued).toBe(1)
+  })
+
+  it('18 — another agency’s quiet hours do not hold this one back', async () => {
+    findUnansweredConversations.mockResolvedValue([candidate()])
+    quietHoursByAgency.mockResolvedValue(new Map([[AGENCY + 1, { tz: 'Asia/Jerusalem', startHour: 0, endHour: 23 }]]))
+    expect((await tickUnansweredNotifications({ nowMs: NOW_MS })).enqueued).toBe(1)
   })
 
   it('kill switch off → no finder / no emit', async () => {

@@ -106,6 +106,8 @@ export const messageInboundTitle = (ctx: EventContext): string => withName('הו
 export const messageInboundMultipleTitle = (ctx: EventContext): string =>
   withName(`${Math.max(ctx.groupCount, 2)} הודעות חדשות`, ctx)
 
+/** The AI told the customer a person will answer. Says only that; no customer text. */
+export const leadHandoffTitle = (ctx: EventContext): string => withName('פנייה ממתינה לנציג', ctx)
 export const messageUnansweredTitle = (ctx: EventContext): string => withName('הודעה ממתינה למענה', ctx)
 
 /**

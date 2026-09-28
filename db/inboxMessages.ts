@@ -1,4 +1,5 @@
 import type { Knex } from 'knex'
+import { isHumanOutbound } from '@/lib/inbox/humanReply'
 import { db } from '@/config/db'
 import { getUser } from '@/db/auth'
 import { failureTextForCategory, normalizeFailureCategory, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
@@ -314,6 +315,12 @@ export type LeadWhatsappMessage = {
   failureCategory: WhatsappErrorCategory | null
   /** Safe media metadata for an inbound file. Null for text and unsupported types. */
   attachment: InboxMessageAttachment | null
+  /**
+   * Outbound only: was this sent by a PERSON (SocialCRM or the WhatsApp Business
+   * app) rather than the AI, the questionnaire or an automation? See
+   * lib/inbox/humanReply.ts. Absent on inbound rows and on older projections.
+   */
+  byPerson?: boolean
 }
 
 /** Compact status projection for the sync delta (status changes mutate old rows). */
@@ -335,6 +342,8 @@ const LEAD_MESSAGE_COLUMNS = [
   'm.errorReason',
   'm.channelTimestamp',
   'm.createdAt',
+  'm.metadata',
+  'm.sentByUserId',
 ] as const
 
 function toIso(v: unknown): string {
@@ -371,6 +380,15 @@ export function mapLeadWhatsappMessageRow(r: Record<string, unknown>): LeadWhats
     failureText: failureTextForRow(status, r.errorReason),
     failureCategory: failureCategoryForRow(status, r.errorReason),
     attachment: toSafeAttachment(r.type, r.payload),
+    ...(r.direction === 'outbound'
+      ? {
+          byPerson: isHumanOutbound({
+            source: (r.metadata as { source?: string } | null)?.source ?? null,
+            sentByUserId: r.sentByUserId == null ? null : Number(r.sentByUserId),
+            status,
+          }),
+        }
+      : {}),
   }
 }
 

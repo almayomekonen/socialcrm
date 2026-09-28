@@ -65,24 +65,26 @@ export const NOTIFICATION_OWNERSHIP: Record<ExpectationKind, NotificationType | 
    * this detector its voice.
    *
    * `lib/notifications/unansweredTick.ts` runs every minute and enqueues on
-   * exactly this fact: open conversation, lead not closed/lost,
-   * `lastDirection = 'inbound'`, inbound head older than 30 minutes, no outbound
-   * after it. The rep is already told, so the AI must not say it again —
-   * Condition 13, the same reasoning that silences `followup.overdue`.
+   * exactly this fact: open conversation, lead not closed/lost, latest customer
+   * message older than 30 minutes, no HUMAN reply after it (lib/inbox/humanReply
+   * — an auto-response is not one). The rep is already told, so the AI must not
+   * say it again — Condition 13, the same reasoning that silences
+   * `followup.overdue`.
    *
-   * THE ONE CASE THE DETERMINISTIC TICK MISSES is deliberately NOT grounds to
-   * claim ownership is absent. The tick clears on ANY outbound including an
-   * auto-response, whereas this detector's `lastHumanOutboundAt` excludes the
-   * auto-response marker — so an AI-acknowledged, human-unanswered conversation
-   * signals here and is silent there. Ownership is declared per EXPECTATION, not
-   * per instance; claiming `null` to capture that minority would license the AI
-   * to duplicate the tick on the majority, which is the precise failure this
+   * REVISITED 2026-09-28, when the tick began distinguishing human from
+   * automated outbound (the commit this note asked for). Ownership stays with
+   * the tick, and is now stronger: an AI-acknowledged conversation that was
+   * handed to a person (`escalated`) or taken over (`human_active`) is reminded
+   * by the tick too. The remaining difference is deliberate: while the AI is
+   * still qualifying (`ai_qualifying`, its reply after the message) the tick is
+   * silent because nobody promised the customer a person yet, whereas this
+   * detector may signal. Ownership is declared per EXPECTATION, not per
+   * instance; claiming `null` for that minority would license the AI to
+   * duplicate the tick on the majority, which is the precise failure this
    * record exists to prevent.
    *
    * The signal still earns its keep without surfacing: it reaches M3–M6, feeds
-   * the world model and lands in `ai_shadow_coverage`. If the tick is ever
-   * changed to distinguish human from automated outbound, this entry must be
-   * revisited in the same commit.
+   * the world model and lands in `ai_shadow_coverage`.
    */
   'conversation.unanswered': 'message.unanswered',
   /**

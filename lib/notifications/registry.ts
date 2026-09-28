@@ -252,6 +252,27 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
   },
 
   /**
+   * The AI handed a WhatsApp conversation to a person and nobody has answered
+   * yet (see NOTIFICATION_TYPES). The same urgency and channels as
+   * `lead.questionnaire_handoff`, and filed under `leads` like it — a handoff is
+   * the moment a ליד needs a person, not one more message. The link opens the
+   * conversation itself. No ליד yet → the admins, who route unowned work.
+   */
+  'lead.handoff': {
+    type: 'lead.handoff',
+    category: 'leads',
+    enabled: true,
+    basePriority: 'high',
+    collapseKey: keys.conversationHandoffKey,
+    title: copy.leadHandoffTitle,
+    body: copy.noBody,
+    entity: conversationEntity,
+    deepLink: conversationLink,
+    recipients: 'lead_handler_or_admins',
+    channels: TOAST_THEN_PUSH_WHEN_AWAY,
+  },
+
+  /**
    * A customer's Messenger message. Same urgency and channels as a WhatsApp
    * arrival. Recipients: the linked ליד's נציג (admins when unassigned), or the
    * agency admins while the conversation has no ליד yet — every agency member can
