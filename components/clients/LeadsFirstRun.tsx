@@ -78,16 +78,28 @@ export default function LeadsFirstRun({
       data-leads-empty=''
       className='flex min-h-full w-full flex-col items-center justify-center px-6 py-16'
     >
-      <div className='w-full max-w-2xl'>
-        <header className='mb-9 text-center'>
-          <h1 className='text-4xl font-bold tracking-tight text-ink'>
-            {metaConnected ? C.connected.headline : C.headline}
-          </h1>
-          <p className='mx-auto mt-3 max-w-xl text-lg leading-relaxed text-gray-600'>
-            {metaConnected ? C.connected.subhead : C.subhead}
-          </p>
-        </header>
+      {/*
+        The headline gets its own measure, wider than the card column.
 
+        At 36px it needs 789px to sit on one line; the shared max-w-2xl column
+        is 672px, so "הלידים" dropped to a second line on a desktop with room to
+        spare. Widening the column itself would have re-laid-out the cards, so
+        the header is a sibling of it instead and carries its own max-width.
+
+        w-full with a max-width, never a fixed width or nowrap: below lg this
+        is exactly the old 2xl measure and the headline wraps naturally, and at
+        no width can it exceed its container and overflow.
+      */}
+      <header className='mb-9 w-full max-w-2xl text-center lg:max-w-[52rem]'>
+        <h1 className='text-4xl font-bold tracking-tight text-ink'>
+          {metaConnected ? C.connected.headline : C.headline}
+        </h1>
+        <p className='mx-auto mt-3 max-w-xl text-lg leading-relaxed text-gray-600'>
+          {metaConnected ? C.connected.subhead : C.subhead}
+        </p>
+      </header>
+
+      <div className='w-full max-w-2xl'>
         {/* PATH 1 — the leads the business already has.
             PROMOTED TO FIRST, and marked `recommended`.
 
