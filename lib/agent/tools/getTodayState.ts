@@ -5,6 +5,7 @@ import { buildTodayBrief } from '@/lib/today/service'
 import { readerScope } from './readerScope'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
+import { entityRef } from '../evidence'
 import type { EvidenceCollector } from '../evidence'
 
 /**
@@ -24,6 +25,17 @@ import type { EvidenceCollector } from '../evidence'
  *
  * The item count is deliberately NOT capped: the Today engine is data-driven by
  * design, and truncating it here would make the Agent understate the workload.
+ *
+ * SCOPE OF THE DESCRIPTION, and why it is worded so defensively. It previously
+ * read "call this first for any what-needs-attention / what-should-I-do
+ * question" — which is the phrasing of a broad business-judgement question, so
+ * the model called this and stopped. Evaluation caught it: asked "מה הבעיה הכי
+ * גדולה שלי?" on a tenant with 8 queue items, 11 leads with no next step and 11
+ * gone cold, the answer came from the queue alone and never saw either
+ * structural problem. Today is a DAILY view; a stale lead can be absent from it
+ * entirely, so a non-empty queue is not evidence that these are the biggest
+ * problems in the business. The description now says so and names the tool to
+ * pair with.
  */
 /** Metric ids, shared by the evidence ledger and the model-facing payload. */
 const METRIC_TOTAL = 'today.total'
@@ -35,7 +47,7 @@ export const TODAY_METRIC_IDS = [METRIC_TOTAL, METRIC_REMAINING] as const
 export function makeGetTodayState(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
-      'The rep\'s current work queue: every lead that needs action today, already prioritised and deduplicated by the CRM, plus the totals and today\'s meetings. Call this first for any "what needs attention / what should I do / what is waiting" question. Takes no arguments.',
+      'TODAY\'S WORK QUEUE ONLY: the leads needing action today, already prioritised and deduplicated by the CRM, plus today\'s totals and meetings. Use it for "what do I have today", "what is waiting right now", "what is on my plate". It is a DAILY view, NOT a measure of business health — a lead that is stale, has no next step, or has gone cold may be absent from it entirely. So a non-empty queue does NOT mean these are the business\'s biggest problems. For any broad judgement question — the biggest problem, what to focus on, what is being missed, where the business is leaking — pair this with get_lead_health, because answering from this queue alone will miss every structural issue. Takes no arguments.',
     inputSchema: z.object({}),
     execute: async () => {
       const verdict = deps.budget.canStep('get_today_state', '')
@@ -65,6 +77,8 @@ export function makeGetTodayState(deps: { scope: AgentScope; evidence: EvidenceC
       const payload = {
         items: brief.items.map((i) => ({
           leadId: i.id,
+          /** Cite THIS string. See `entityRef` — the format is given, not inferred. */
+          evidenceRef: entityRef('lead', i.id),
           name: i.name,
           state: i.state,
           reason: i.reason,

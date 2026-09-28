@@ -18,6 +18,13 @@ import type { StopReason } from './types'
  * deliberately NOT terminal: the model may still make a different, useful call.
  *
  * No clock read of its own — `now` is injected so every rule is testable.
+ *
+ * `onStep` is an OBSERVER, never a participant. It fires only after a call has
+ * been allowed and the step consumed, it cannot change the verdict, and it is
+ * wrapped so a throwing observer can never fail an investigation. It lives here
+ * rather than inside each tool because `canStep` is the one line every tool
+ * already runs first — so progress reporting covers all six tools, and any tool
+ * added later, without touching one of them.
  */
 
 /** Hard cap on tool calls in one investigation. */
@@ -25,6 +32,29 @@ export const DEFAULT_MAX_STEPS = 6
 
 /** Wall-clock ceiling across all steps. */
 export const DEFAULT_DEADLINE_MS = 40_000
+
+/**
+ * THE REQUEST'S OWN CLOCK, derived from the platform's.
+ *
+ * The /api/ai/agent routes export `maxDuration = 60`; past that the platform
+ * kills the function mid-flight — no final stream event, and an action caught
+ * mid-execution left for reconciliation. Every internal deadline therefore has
+ * to END INSIDE that limit with time to spare, not merely be "about" it.
+ * `__tests__/ai/agent/deadline.test.ts` asserts the routes and this constant
+ * stay equal.
+ */
+export const ROUTE_MAX_DURATION_MS = 60_000
+
+/** Kept back from the route limit to persist the outcome and close the stream cleanly. */
+export const FINALIZE_RESERVE_MS = 10_000
+
+/**
+ * The latest moment any work in one request may still be running —
+ * investigation AND action execution. Measured from the request's start, so
+ * a slow investigation leaves the action less time rather than granting it a
+ * fresh budget.
+ */
+export const REQUEST_DEADLINE_MS = ROUTE_MAX_DURATION_MS - FINALIZE_RESERVE_MS
 
 /** Consecutive identical results that end the investigation. */
 const NO_NEW_INFO_LIMIT = 2
@@ -46,6 +76,12 @@ export type CreateBudgetOptions = {
   deadlineMs?: number
   /** Injectable clock. Defaults to Date.now. */
   now?: () => number
+  /**
+   * Notified when a tool call is ALLOWED, with the tool's name and the step
+   * number it consumed. Never called for a refusal. Purely for observability —
+   * the streaming route turns these into progress events.
+   */
+  onStep?: (event: { tool: string; step: number }) => void
 }
 
 export function createBudget(opts?: CreateBudgetOptions): Budget {
@@ -86,6 +122,13 @@ export function createBudget(opts?: CreateBudgetOptions): Budget {
 
       seenCalls.add(key)
       steps++
+      // Observation only. A throwing listener must not turn a healthy tool call
+      // into a failed investigation.
+      try {
+        opts?.onStep?.({ tool: toolName, step: steps })
+      } catch {
+        /* ignored by design */
+      }
       return { allowed: true }
     },
 

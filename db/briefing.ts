@@ -23,6 +23,16 @@ export type Scope = { user: { role: Roles }; gotPermIds: number[]; agencyId?: nu
  * `sla.open_loop` observations on exactly that null. Sessionless callers build
  * this type instead, so `?? (await getAgencyId())` is unreachable for them and
  * the fallback survives only for the interactive callers it was written for.
+ *
+ * EVERY reader here now honours `s.agencyId` first. The six segment readers below
+ * (`getFollowUpsDueToday` and friends) previously called `getAgencyId()`
+ * unconditionally, ignoring the field this type exists to carry — so a caller
+ * that supplied an agency was silently overruled by the session cookie. That was
+ * invisible while the only callers were interactive, where the two values agree;
+ * it becomes a correctness bug the moment an Agent tool calls them, because the
+ * tool layer's whole isolation guarantee is that the agency comes from the
+ * server-resolved closure and from nowhere else. Interactive behaviour is
+ * unchanged byte for byte: those callers pass no `agencyId` and still fall back.
  */
 export type SessionlessScope = Scope & { agencyId: number }
 
@@ -100,7 +110,7 @@ function toList(rows: Row[]): BriefingLeadList {
 }
 
 export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> {
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereNotNull('nextFollowUpAt')
@@ -114,7 +124,7 @@ export async function getFollowUpsDueToday(s: Scope): Promise<BriefingLeadList> 
 }
 
 export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLeadList> {
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereNotIn('status', ['closed', 'lost'])
@@ -132,7 +142,7 @@ export async function getLeadsNotContactedRecently(s: Scope): Promise<BriefingLe
 }
 
 export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const rows: Row[] = await scopedLeads(agencyId, plan, s)
     .whereRaw(`"createdAt" >= ${WEEK_START_SQL}`)
@@ -149,7 +159,7 @@ export async function getNewLeadsThisWeek(s: Scope): Promise<BriefingLeadList> {
 }
 
 export async function getOverdueTaskSummary(s: Scope): Promise<BriefingLeadList> {
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const sub = scopedLeads(agencyId, plan, s).select('id')
   const rows: Row[] = await db('tasks as t')
@@ -206,14 +216,14 @@ export function promisedButWaitingQuery(agencyId: number, plan: string, s: Scope
 }
 
 export async function getPromisedButWaiting(s: Scope): Promise<BriefingLeadList> {
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const rows = (await promisedButWaitingQuery(agencyId, plan, s)) as Row[]
   return toList(rows)
 }
 
 export async function getUnreadInboxSummary(s: Scope): Promise<{ conversations: number; unread: number }> {
-  const agencyId = await getAgencyId()
+  const agencyId = s.agencyId ?? (await getAgencyId())
   const plan = await getEffectiveLeadPlan(agencyId)
   const sub = scopedLeads(agencyId, plan, s).select('id')
   const row = (await db('inbox_conversations')

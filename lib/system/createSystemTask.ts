@@ -18,17 +18,29 @@ export async function createSystemTask({
   clientId,
   title,
   userId,
+  dueDate,
 }: {
   clientId: number
   title: string
   userId: number
+  /**
+   * `YYYY-MM-DD`. Optional and defaulted to today, so every existing caller —
+   * the inbound-lead webhooks — behaves exactly as before. It exists because the
+   * Agent's `create_task` action must be able to honour "a task for tomorrow",
+   * and duplicating this insert to add one column would give the product two
+   * definitions of what creating a task means.
+   *
+   * `tasks."dueDate"` is a DATE column: it stores no time of day, and nothing
+   * here pretends otherwise.
+   */
+  dueDate?: string
 }): Promise<number> {
   const res = await db('tasks')
     .insert({
       clientId,
       title,
       userId,
-      dueDate: new Date().toISOString().split('T')[0],
+      dueDate: dueDate ?? new Date().toISOString().split('T')[0],
       tasks: [] as any,
       notes: [] as any,
       files: [],

@@ -38,6 +38,26 @@ const inferenceClaim = z.object({
   evidence: z.array(z.string()),
 })
 
+const productClaim = z.object({
+  claimClass: z.literal('PRODUCT'),
+  text: z.string().min(1),
+  productEvidence: z.array(z.string()),
+})
+
+/**
+ * An external statement, grounded in a page the search actually consulted.
+ *
+ * Its evidence field is named apart from `entityEvidence` for the same reason
+ * every other class's is: promoting "a competitor raised prices" to a FACT then
+ * costs the model a differently-shaped object the validator can detect, rather
+ * than one relabelled string it cannot.
+ */
+const sourcedClaim = z.object({
+  claimClass: z.literal('SOURCED'),
+  text: z.string().min(1),
+  sourceEvidence: z.array(z.string()),
+})
+
 const recommendationClaim = z.object({
   claimClass: z.literal('RECOMMENDATION'),
   text: z.string().min(1),
@@ -67,12 +87,124 @@ export const agentClaimSchema = z.union([
   observationClaim,
   inferenceClaim,
   recommendationClaim,
+  productClaim,
+  sourcedClaim,
 ])
+
+/**
+ * The ONE thing the model may propose doing, as opposed to saying.
+ *
+ * IT IS A PROPOSAL AND NOTHING ELSE. Emitting this executes nothing: the payload
+ * is parsed by `parseActionProposal`, which discards any identity it carries,
+ * and then handed to the Action Runtime, which decides. A model that fills this
+ * in has asked a question, not performed a mutation.
+ *
+ * CONCRETE, NOT GENERIC, and that is a provider constraint as much as a design
+ * one. OpenAI Structured Outputs rejects an open `additionalProperties` record,
+ * so `args` cannot be `z.record(...)` here; it must name its fields. Each
+ * registered action therefore gets its own literal-tagged branch, and the union
+ * below is a PLAIN one rather than `z.discriminatedUnion` for the reason stated
+ * on `agentClaimSchema`: zod emits `oneOf` for the discriminated form and that
+ * provider permits only `anyOf`.
+ *
+ * `evidenceRefs` is required for the same reason every claim carries evidence:
+ * an action proposed on nothing is a guess about someone's business.
+ */
+const createTaskProposal = z.object({
+  actionType: z.literal('create_task'),
+  args: z.object({
+    /** A lead id that appeared in a tool result. Never a name, never invented. */
+    clientId: z.number(),
+    title: z.string(),
+    /** `YYYY-MM-DD`. The column stores no time of day. */
+    dueDate: z.string(),
+  }),
+  /** Refs from this investigation — `lead:161`. The runtime records them. */
+  evidenceRefs: z.array(z.string()),
+})
+
+const createFollowUpProposal = z.object({
+  actionType: z.literal('create_follow_up'),
+  args: z.object({
+    clientId: z.number(),
+    /** `YYYY-MM-DD`. SocialCRM follow-ups are a DAY, not a time. */
+    at: z.string(),
+    /** Nullable rather than optional — Structured Outputs drops optional keys. */
+    note: z.union([z.string(), z.null()]),
+  }),
+  evidenceRefs: z.array(z.string()),
+})
+
+const createMeetingProposal = z.object({
+  actionType: z.literal('create_meeting'),
+  args: z.object({
+    clientId: z.number(),
+    title: z.string(),
+    /** `YYYY-MM-DD` in the business timezone. */
+    date: z.string(),
+    /**
+     * `HH:MM`, 24-hour, in the business timezone.
+     *
+     * A meeting is the ONE action where a time is really persisted — the row
+     * holds `start_at`/`end_at` as instants and its own timezone. The task and
+     * follow-up rule that time is not stored does not apply here.
+     */
+    startTime: z.string(),
+    durationMinutes: z.number(),
+    note: z.union([z.string(), z.null()]),
+  }),
+  evidenceRefs: z.array(z.string()),
+})
+
+/**
+ * ONE action, applied to MANY leads the investigation actually found.
+ *
+ * The model chooses the set and the shared arguments; the application expands
+ * that into N independent `create_task` proposals, each with its own identity,
+ * its own idempotency key, its own policy check and its own verification. There
+ * is no batch mutation — there is a plan made of ordinary actions.
+ *
+ * `targets` is a list of LEAD IDS, and every one of them has to appear in this
+ * run's evidence (see `groundedBatch`). A batch is the most expensive place a
+ * hallucinated id could land, because it lands N times.
+ *
+ * Only `create_task` for now. Batching a follow-up would overwrite dates reps
+ * set by hand, and batching a meeting would put N events on a calendar — both
+ * deserve their own review rather than arriving as a side effect of this one.
+ */
+const createTaskBatchProposal = z.object({
+  actionType: z.literal('create_task'),
+  /** Lead ids from tool results. Never names, never invented. */
+  targets: z.array(z.number()),
+  /** Shared by every task in the batch. */
+  args: z.object({ title: z.string(), dueDate: z.string() }),
+  evidenceRefs: z.array(z.string()),
+})
 
 export const agentAnswerSchema = z.object({
   headline: z.string().min(1),
   claims: z.array(agentClaimSchema),
   unknown: z.string().nullable(),
+  /**
+   * The business diagnosis. Nullable rather than optional for the same reason
+   * `unknown` is: OpenAI Structured Outputs requires every property in
+   * `required`, so an optional key would be dropped from the emitted schema and
+   * the model would never be asked for it.
+   *
+   * A plain enum union rather than `z.enum(...).nullable()` so the emitted JSON
+   * Schema stays `anyOf`-shaped, which is what that provider accepts.
+   */
+  businessState: z.union([z.literal('URGENT'), z.literal('AT_RISK'), z.literal('OPPORTUNITY'), z.literal('HEALTHY'), z.null()]),
+  /**
+   * Null for every question that is not an explicit instruction to create a
+   * task — which is almost all of them. Nullable rather than optional for the
+   * same reason `unknown` and `businessState` are: Structured Outputs requires
+   * every property in `required`, so an optional key would be dropped from the
+   * emitted schema and never asked for.
+   */
+  proposedAction: z.union([createTaskProposal, createFollowUpProposal, createMeetingProposal, z.null()]),
+  /** Null unless the user asked for one action across several leads. */
+  proposedBatch: z.union([createTaskBatchProposal, z.null()]),
 })
 
 /**

@@ -187,7 +187,27 @@ describe('the admitted model and config drive the call', () => {
   it('sends the system prompt and the caller question', async () => {
     await runAgentInvestigation({ question: 'מה דורש טיפול?' })
     expect(String(lastCall().system)).toContain('SocialCRM')
-    expect(lastCall().prompt).toBe('מה דורש טיפול?')
+    // `messages`, not `prompt`: the request carries the conversation so a
+    // follow-up has a referent. With no history the array is a single user
+    // message — exactly what `prompt` desugars to, so a first question is the
+    // same request it always was.
+    expect(lastCall().prompt).toBeUndefined()
+    expect(lastCall().messages).toEqual([{ role: 'user', content: 'מה דורש טיפול?' }])
+  })
+
+  it('places prior turns before the new question, oldest first', async () => {
+    await runAgentInvestigation({
+      question: 'ומה עם יוסי?',
+      history: [
+        { role: 'user', content: 'מי צריך טיפול?' },
+        { role: 'assistant', content: 'שלושה לידים ממתינים.' },
+      ],
+    })
+    expect(lastCall().messages).toEqual([
+      { role: 'user', content: 'מי צריך טיפול?' },
+      { role: 'assistant', content: 'שלושה לידים ממתינים.' },
+      { role: 'user', content: 'ומה עם יוסי?' },
+    ])
   })
 
   it('bounds the loop with stopWhen at the step ceiling', async () => {
@@ -203,22 +223,47 @@ describe('the admitted model and config drive the call', () => {
     expect(lastCall().output).toBeDefined()
   })
 
-  it('forwards the caller abort signal', async () => {
+  it('forwards caller cancellation to the model call', async () => {
+    // The model now receives a COMBINED signal — the caller's cancellation
+    // chained with the run's own wall-clock deadline — so identity is no longer
+    // the contract. What matters is that aborting the caller aborts what the
+    // provider is holding, which is what this asserts. The deadline half is
+    // covered in wallClock.test.ts.
     const ac = new AbortController()
     await runAgentInvestigation({ question: 'q', abortSignal: ac.signal })
-    expect(lastCall().abortSignal).toBe(ac.signal)
+    const forwarded = lastCall().abortSignal as unknown as AbortSignal
+    expect(forwarded).toBeInstanceOf(AbortSignal)
+    // Deliberately NOT the caller's own object any more.
+    expect(forwarded).not.toBe(ac.signal)
+    expect(forwarded.aborted).toBe(false)
+
+    // And the chain is released when the run ends: aborting afterwards must not
+    // reach back into a finished investigation. Propagation WHILE in flight is
+    // proven in wallClock.test.ts.
+    ac.abort()
+    expect(forwarded.aborted).toBe(false)
+  })
+
+  it('starts already-cancelled when the caller signal is', async () => {
+    await runAgentInvestigation({ question: 'q', abortSignal: AbortSignal.abort() })
+    expect((lastCall().abortSignal as unknown as AbortSignal).aborted).toBe(true)
   })
 })
 
 // ── Tools, scope and isolation ────────────────────────────────────────────────
 
 describe('tools carry authority from the scope, never from the model', () => {
-  it('hands the model exactly the four read-only tools', async () => {
+  it('hands the model exactly the nine read-only tools', async () => {
     await runAgentInvestigation({ question: 'q' })
     expect(Object.keys(lastCall().tools as object).sort()).toEqual([
       'find_lead',
+      'get_activity_trends',
+      'get_business_summary',
       'get_conversation',
+      'get_follow_up_health',
       'get_lead',
+      'get_lead_health',
+      'get_lead_segment',
       'get_today_state',
     ])
   })
@@ -450,5 +495,36 @@ describe('trace completeness', () => {
     const dump = JSON.stringify(agentTrace.mock.calls)
     expect(dump).not.toContain('SECRET-QUESTION-TEXT')
     expect(dump).not.toContain('דוד ממתין לתשובה.')
+  })
+})
+
+// ── F4 · the research clock ends inside the route limit ───────────────────────
+
+describe('F4 · a research run ends at its own deadline, before the platform would', () => {
+  it('a model that never answers is cancelled at RESEARCH_DEADLINE_MS and reported as a deadline', async () => {
+    const { RESEARCH_DEADLINE_MS } = await import('@/lib/agent/research/admission')
+    const { ROUTE_MAX_DURATION_MS } = await import('@/lib/agent/budget')
+    vi.useFakeTimers()
+    try {
+      // A provider that hangs until it is cancelled — as a slow hosted search does.
+      generateTextSpy.mockImplementation(
+        (args: { abortSignal: AbortSignal }) =>
+          new Promise((_, reject) => args.abortSignal.addEventListener('abort', () => reject(args.abortSignal.reason))),
+      )
+      let settled: unknown = undefined
+      // "מתחרים" is a research marker, so this run gets the research deadline.
+      const run = runAgentInvestigation({ question: 'מה המתחרים שלי עושים בשוק?' }).then((r) => (settled = r))
+
+      await vi.advanceTimersByTimeAsync(RESEARCH_DEADLINE_MS - 1)
+      expect(settled).toBeUndefined()
+
+      await vi.advanceTimersByTimeAsync(1)
+      await run
+      expect(settled).toMatchObject({ ok: false, reason: 'deadline', message: 'deadline' })
+      // …and that happened strictly before the function would have been killed.
+      expect(RESEARCH_DEADLINE_MS).toBeLessThan(ROUTE_MAX_DURATION_MS)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

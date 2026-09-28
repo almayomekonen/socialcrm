@@ -33,9 +33,27 @@ vi.mock('next/headers', () => ({
   headers: vi.fn(() => ({ get: vi.fn(() => null) })),
 }))
 
+/**
+ * One spy behind every entry point, so `setCurrentUser` configures them all at
+ * once and each action gets the same authenticated user.
+ *
+ * `requireBasicCrmAccess` was missing here. `actions/calendar/list.ts` began
+ * calling it in commit 2c800a71 ("refine expired subscription crm access") and
+ * this mock was not updated, so every `listUpcomingMeetings` test failed on the
+ * mock rather than on the behaviour it was written to check. The gates differ in
+ * PRODUCTION — basic-CRM access and full product access are different
+ * entitlement checks — but they return the same `AuthenticatedAgencyUser`, and
+ * these tests mock authorization away entirely to assert SCOPING, which is why
+ * aliasing is right here and would not be right anywhere that tests entitlement.
+ */
 vi.mock('@/lib/requireUser', () => {
   const requireAgencyUser = vi.fn()
-  return { requireUser: vi.fn(), requireAgencyUser, requireProductAccess: requireAgencyUser }
+  return {
+    requireUser: vi.fn(),
+    requireAgencyUser,
+    requireBasicCrmAccess: requireAgencyUser,
+    requireProductAccess: requireAgencyUser,
+  }
 })
 
 vi.mock('@/db/meetings', () => ({

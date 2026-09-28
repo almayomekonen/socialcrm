@@ -7,6 +7,7 @@ import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
+import { entityRef } from '../evidence'
 import type { EvidenceCollector } from '../evidence'
 
 const MAX_RECENT_TASKS = 5
@@ -116,6 +117,8 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
       const payload = {
         found: true as const,
         leadId,
+        /** Cite THIS string for the lead itself. Metrics are cited by name. */
+        evidenceRef: entityRef('lead', leadId),
         /** The metric IDENTIFIERS behind the numbers below, so a measurement is citable. */
         metrics,
         name: named.name,

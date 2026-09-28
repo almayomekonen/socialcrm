@@ -14,7 +14,7 @@ import NavBadge from './NavBadge'
 import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 import { NAV_RAIL_EDU, navEduForHref } from '@/lib/education/types'
 
-export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
+export default function Nav({ user, inboxUnread = 0, isOwner = false, agentEnabled = false }) {
   const pathname = usePathname()
   // Live unread (delta-sync). null when disabled → fall back to the server-rendered count.
   const liveUnread = useAwarenessCount()
@@ -58,7 +58,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
             </button>
           </div>
           <nav aria-label='ניווט ראשי' className='mt-8 p-8'>
-            {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
+            {getNavLinks(user, effectiveUnread, isOwner, agentEnabled).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -92,7 +92,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
           className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}
         >
           <div className='w-full'>
-            {getNavLinks(user, effectiveUnread, isOwner).map((link, i) => {
+            {getNavLinks(user, effectiveUnread, isOwner, agentEnabled).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -126,7 +126,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false }) {
   )
 }
 
-function getNavLinks(user, inboxUnread = 0, isOwner = false) {
+function getNavLinks(user, inboxUnread = 0, isOwner = false, agentEnabled = false) {
   if (!user) return []
   const admin = isAdmin(user.role)
   const notOffice = user.role !== Roles.OFFICE
@@ -135,6 +135,17 @@ function getNavLinks(user, inboxUnread = 0, isOwner = false) {
     notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
     notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
     notOffice && { icon: 'comments', href: '/inbox', title: 'שיחות', badge: inboxUnread },
+    /*
+     * The AI workspace, as a destination rather than a panel. It sits after
+     * שיחות because that is where the working day actually reaches it: the rep
+     * has just seen what came in and is asking what to do about it.
+     *
+     * `sparkles` is the mark the assistant already used in the header trigger
+     * and its empty state — the same idea keeps the same icon.
+     */
+    // Hidden unless the rollout flag names this agency: /agent 404s otherwise,
+    // and a nav item that leads to a 404 is worse than no nav item.
+    notOffice && agentEnabled && { icon: 'sparkles', href: '/agent', title: 'הסוכן שלך' },
     { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
     {
       icon: 'chart-pie',

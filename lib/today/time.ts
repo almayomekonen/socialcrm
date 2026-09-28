@@ -79,3 +79,50 @@ export function formatBusinessDateTime(value: Date | string | number, tz: string
   if (Number.isNaN(d.getTime())) return ''
   return new Intl.DateTimeFormat('he-IL', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }).format(d).replaceAll('.', '/')
 }
+
+/**
+ * The wall-clock time in `tz` for an instant, expressed as the epoch ms you would
+ * get by reading those same digits as UTC. Only useful as the inverse below.
+ */
+function wallClockMs(ms: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(ms))
+  const p = Object.fromEntries(parts.map((x) => [x.type, x.value])) as Record<string, string>
+  // Some engines render midnight as hour 24 under hour12:false.
+  const hour = p.hour === '24' ? '00' : p.hour
+  return Date.parse(`${p.year}-${p.month}-${p.day}T${hour}:${p.minute}:${p.second}Z`)
+}
+
+/**
+ * `2026-09-07` + `10:00` in the business timezone → the real UTC instant.
+ *
+ * THE INVERSE OF EVERY OTHER HELPER HERE, and the one a meeting needs: a rep who
+ * says "מחר ב-10" means ten in the morning where they are, and the row has to
+ * hold the instant that corresponds to. `new Date('2026-09-07T10:00')` on a
+ * Vercel server is 10:00 UTC — 13:00 in Jerusalem — so the meeting would be
+ * three hours late, every time, invisibly.
+ *
+ * SOLVED BY CONVERGENCE, not by an offset table. The offset is whatever the
+ * `Intl` database says it is at the instant in question, which is the only
+ * DST-correct answer; guessing, correcting by the error, and repeating settles
+ * in one step for ordinary times and two across a transition. Three passes is
+ * one more than any real case needs.
+ *
+ * Returns NaN for input it cannot parse, so a caller must check rather than
+ * silently persisting an Invalid Date.
+ */
+export function businessInstantMs(dateStr: string, timeStr: string, tz: string = BUSINESS_TZ): number {
+  const target = Date.parse(`${dateStr}T${timeStr}:00Z`)
+  if (Number.isNaN(target)) return Number.NaN
+  let guess = target
+  for (let i = 0; i < 3; i++) guess += target - wallClockMs(guess, tz)
+  return guess
+}
