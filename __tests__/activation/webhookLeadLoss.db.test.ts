@@ -38,6 +38,7 @@ vi.mock('@/db/leadAttribution', () => ({ recordLeadAttribution: vi.fn() }))
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { db } from '@/config/db'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
+import { parseFacebookLead } from '@/lib/adapters/facebookLead'
 
 let agencyA = 0
 let agencyB = 0
@@ -152,6 +153,32 @@ describe('webhook dedup against the real unique indexes', () => {
     expect(Number(res.agencyId), 'never another tenant’s row').toBe(agencyA)
     const [{ count }] = await db('clients').where({ agencyId: agencyA }).count({ count: '*' })
     expect(Number(count), 'a genuinely new lead').toBe(1)
+  })
+
+  // Production 2026-07-31 → 09-27: 29 Lead Ads leads dead in webhook_failures
+  // (22 of them agency 108), 11 with "sqlstate=23502 column=lastName". A one-word
+  // name gave lastName null and `clients.lastName` is NOT NULL, so the lead was
+  // never saved. Driven through the parser and the insert, as the webhook does.
+  it('a ONE-WORD name is saved, not lost to the NOT NULL lastName column', async () => {
+    const parsed = parseFacebookLead([
+      { name: 'full_name', values: ['נועה'] },
+      { name: 'phone_number', values: ['0521112233'] },
+    ])
+    const res = await createLeadFromWebhook({ ...parsed, leadId: nextLeadId(), agencyId: agencyA, userId: userA })
+    expect(res).toBeTruthy()
+    expect(res.firstName).toBe('נועה')
+    expect(res.lastName).toBe('')
+  })
+
+  it('a form with first_name / last_name fields keeps both names', async () => {
+    const parsed = parseFacebookLead([
+      { name: 'first_name', values: ['דנה'] },
+      { name: 'last_name', values: ['לוי'] },
+      { name: 'email', values: ['dana@example.test'] },
+    ])
+    const res = await createLeadFromWebhook({ ...parsed, leadId: nextLeadId(), agencyId: agencyA, userId: userA })
+    expect(res).toBeTruthy()
+    expect([res.firstName, res.lastName]).toEqual(['דנה', 'לוי'])
   })
 
   it('a clean lead still inserts, so dedup has not become over-eager', async () => {
