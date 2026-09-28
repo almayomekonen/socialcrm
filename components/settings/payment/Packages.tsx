@@ -11,18 +11,32 @@ import { packages, type Pkg } from '@/lib/plans'
  * per-seat math, no enterprise tier on this surface.
  *
  * Annual purchasing was removed with Payment Links: this release sells one
- * thing, ₪89 a month on a saved card. The card itself is added in the
- * `#card-setup` section of the billing page, so the Pro CTA scrolls there
- * rather than opening a checkout.
+ * thing, ₪89 a month on a saved card. The card is added in the `#card-setup`
+ * section of the billing page, so the Pro CTA scrolls there rather than opening
+ * a checkout — but ONLY when that section exists.
+ *
+ * THE DEAD CONTROL THIS FIXES. #card-setup is rendered only when no card is
+ * billed. An account that already has a verified card therefore scrolled to an
+ * element that was not in the DOM: getElementById returned null, the optional
+ * chain swallowed it, and the button did nothing at all — no action, no
+ * navigation, no feedback. Production agency 157 hit exactly that, mid-trial
+ * with a saved card and renewal cancelled.
+ *
+ * The fix is not a second resume path. Resuming a cancelled subscription is
+ * owned by CardBillingControls, which routes through resumeRenewal and its
+ * isCardResumeBlocked guard — the guard that stops a resume after access has
+ * ended from being charged immediately without warning. Duplicating that here
+ * would bypass it, so when a card exists this surface offers no action and
+ * defers to the card section above it.
  */
 
-type PackagesProps = { plan?: string; trialActive?: boolean }
+type PackagesProps = { plan?: string; trialActive?: boolean; cardBilled?: boolean }
 
-export default function Packages({ plan = 'free', trialActive = false }: PackagesProps) {
+export default function Packages({ plan = 'free', trialActive = false, cardBilled = false }: PackagesProps) {
   return (
     <div className='my-6 grid md:grid-cols-2 gap-6 max-w-3xl'>
       {packages.map((pkg) => (
-        <PackageCard key={pkg.id} pkg={pkg} currentPlan={plan} trialActive={trialActive} />
+        <PackageCard key={pkg.id} pkg={pkg} currentPlan={plan} trialActive={trialActive} cardBilled={cardBilled} />
       ))}
     </div>
   )
@@ -32,10 +46,12 @@ function PackageCard({
   pkg,
   currentPlan,
   trialActive,
+  cardBilled,
 }: {
   pkg: Pkg
   currentPlan: string
   trialActive: boolean
+  cardBilled: boolean
 }) {
   const isProPlan = currentPlan === 'pro'
   const isProCard = pkg.id === 'pro'
@@ -115,7 +131,9 @@ function PackageCard({
           >
             פעיל
           </p>
-        ) : isProCard ? (
+        ) : isProCard && !cardBilled ? (
+          /* Only rendered when #card-setup exists — the same condition the page
+             uses to render it — so this scroll can never be a silent no-op. */
           <Btn
             lbl='שדרג ל-Pro'
             className='w-full bg-white text-gray-900 hover:bg-gray-100'

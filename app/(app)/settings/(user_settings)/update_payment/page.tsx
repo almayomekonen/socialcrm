@@ -207,7 +207,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
           <h2 id='packages' className='text-xl font-bold mt-12 scroll-mt-6'>
             חבילות
           </h2>
-          <Packages plan={plan} trialActive={trialActive} />
+          <Packages plan={plan} trialActive={trialActive} cardBilled={cardView.cardBilled} />
         </>
       )}
 
