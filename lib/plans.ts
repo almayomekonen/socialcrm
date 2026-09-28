@@ -10,27 +10,36 @@ import { PRICING } from './pricing'
  */
 
 export type Pkg = {
-  id: 'free' | 'pro'
+  id: 'pro'
   name: string
   pricePerMonth: number
   tagline: string
   included: string[]
 }
 
+/**
+ * NO FREE TIER IS OFFERED HERE, BECAUSE THERE IS NONE TO FALL BACK TO.
+ *
+ * This surface used to show a "Free" card promising "לידים ללא הגבלה" and
+ * "ה-CRM כולו חינמי לתמיד". Neither survives contact with what an expired
+ * account actually gets:
+ *
+ *   · Access. app/(app)/layout.tsx renders WorkspaceTeaser INSTEAD of the
+ *     workspace and its page children once trialStatus is TRIAL_EXPIRED — the
+ *     CRM is never streamed to an account without access, and
+ *     requireProductAccess enforces the same server-side. There is no free
+ *     workspace to land in.
+ *   · Leads. Even where the free plan does apply, assertLeadQuota caps visible
+ *     leads at FREE_LEAD_LIMIT (50) — the opposite of unlimited.
+ *
+ * The one population with free-tier access is LEGACY (trialExempt)
+ * grandfathered agencies, which is not what a customer finishing a trial
+ * becomes. Advertising Free to them was an offer the product does not keep.
+ *
+ * Limits and entitlements are deliberately unchanged: this removes a claim,
+ * not a capability.
+ */
 export const packages: Pkg[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    pricePerMonth: 0,
-    tagline: 'ה-CRM כולו חינמי לתמיד.',
-    included: [
-      'לידים ללא הגבלה',
-      'משתמשים ללא הגבלה',
-      'חיבור פייסבוק, אינסטגרם ו-וואטסאפ',
-      'ייבוא לידים מאקסל',
-      '10 פעולות AI בחודש במצב מהיר',
-    ],
-  },
   {
     id: 'pro',
     name: 'Pro',

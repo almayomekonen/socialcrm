@@ -34,10 +34,15 @@ type PackagesProps = { plan?: string; trialActive?: boolean; cardBilled?: boolea
 
 export default function Packages({ plan = 'free', trialActive = false, cardBilled = false }: PackagesProps) {
   return (
-    <div className='my-6 grid md:grid-cols-2 gap-6 max-w-3xl'>
+    <div className='my-6 grid gap-6 max-w-md'>
       {packages.map((pkg) => (
         <PackageCard key={pkg.id} pkg={pkg} currentPlan={plan} trialActive={trialActive} cardBilled={cardBilled} />
       ))}
+      {/* Stated only where it is true. A LEGACY (trialExempt) agency is also
+          plan 'free' and reaches this surface, and has no trial to end. */}
+      {trialActive && (
+        <p className='text-sm text-gray-500'>ללא מנוי פעיל, הגישה למערכת נפסקת בתום תקופת הניסיון.</p>
+      )}
     </div>
   )
 }
@@ -55,12 +60,12 @@ function PackageCard({
 }) {
   const isProPlan = currentPlan === 'pro'
   const isProCard = pkg.id === 'pro'
-  // During an active Pro trial the user is on Pro-by-trial: the Pro card wears a
-  // trial badge and NO card is the "current paid plan" (so Free is never marked
-  // current). trialActive is only ever true while plan is still 'free', so the
-  // paid state below (isProPlan) is unaffected.
+  // During an active Pro trial the user is on Pro-by-trial: the card wears a
+  // trial badge and is not the "current paid plan". trialActive is only ever
+  // true while plan is still 'free', so isProPlan below is unaffected.
   const proTrialBadge = trialActive && isProCard
-  const isThisPlan = !trialActive && ((pkg.id === 'pro' && isProPlan) || (pkg.id === 'free' && !isProPlan))
+  // Only Pro is offered here now, so the free half of this test is gone with it.
+  const isThisPlan = !trialActive && isProPlan
 
   const headlinePrice = pkg.pricePerMonth
   const headlineSuffix = ' / לחודש'
