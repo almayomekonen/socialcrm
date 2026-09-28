@@ -188,3 +188,94 @@ describe('the model never claims the task exists', () => {
     expect(AGENT_SYSTEM_PROMPT).toMatch(/המערכת מריצה את הפעולה אחרי התשובה שלך/)
   })
 })
+
+/**
+ * F1 — ORDINARY QUESTIONS MUST NEVER READ AS ORDERS.
+ *
+ * Verified in the audit by executing the classifier: each message below came
+ * out EXPLICIT_COMMAND, which lets a LOW_RISK_WRITE the model proposes run with
+ * no approval card. Root causes, each pinned separately so a fix to one cannot
+ * hide a regression in another: no trailing word boundary ("בצורה" ⊃ "צור"),
+ * every prefix letter accepted ("שקבעתי" ⊃ "קבע"), ambiguous verbs counted
+ * anywhere in the sentence ("open leads"), and "?" not treated as a question.
+ */
+describe('F1 — a question or a description is not an instruction', () => {
+  it('the four messages the audit reproduced are proposals, not commands', () => {
+    for (const message of [
+      'איזה לידים לא מטופלים בצורה טובה',
+      'אילו לידים שקבעתי להם פגישה השבוע?',
+      'יש צורך לחזור לדני?',
+      'show my open leads',
+    ]) {
+      expect(intentOf(message), message).toBe('AGENT_PROPOSAL')
+    }
+  })
+
+  it('a verb buried inside another word never counts', () => {
+    for (const message of [
+      'הלידים לא מטופלים בצורה טובה',   // בצורה ⊃ צור
+      'הלידים שקבעתי להם פגישה',        // שקבעתי ⊃ קבע
+      'אין צורך לחזור לדני',            // צורך ⊃ צור
+      'הלידים שפתחתי אתמול',            // שפתחתי ⊃ פתח
+      'the address of Dani',            // address ⊃ add
+      'check the settings page',        // settings ⊃ set
+    ]) {
+      expect(intentOf(message), message).toBe('AGENT_PROPOSAL')
+    }
+  })
+
+  it('a prefix letter other than ו does not make a verb an order', () => {
+    // "שקבע" is "that set", "הקבע" is not a command — only "וקבע" ("and set") is.
+    expect(intentOf('הליד שקבע איתי פגישה')).toBe('AGENT_PROPOSAL')
+    expect(intentOf('ליד שעשה לי בעיות')).toBe('AGENT_PROPOSAL')
+  })
+
+  it('an ambiguous verb in the middle of a sentence is not an order', () => {
+    for (const message of [
+      'show my open leads',
+      'list leads I did not add yet',
+      'אני רוצה לראות את הלידים שקבע יוסי',
+      'לידים עם משימה פתוחה',
+      // Mid-sentence "וקבע" is also past tense ("and he set"): ambiguous, so it
+      // fails safe to a proposal — one approval click, never a silent write.
+      'בדקתי את דני וקבע לו פגישה למחר',
+    ]) {
+      expect(intentOf(message), message).toBe('AGENT_PROPOSAL')
+    }
+  })
+
+  it('any question — by first word or by "?" — is a proposal, whatever verb it carries', () => {
+    for (const message of [
+      'איזה לידים צריכים טיפול',
+      'אילו פגישות יש לי מחר',
+      'יש ליד בשם דני?',
+      'תיצור משימה לדני?',
+      'which leads should I call?',
+      'can you create a task for Dani',
+    ]) {
+      expect(intentOf(message), message).toBe('AGENT_PROPOSAL')
+    }
+  })
+
+  it('a word that merely contains an affirmation is not agreement', () => {
+    const suggestion = 'כדאי ליצור משימת מעקב לדני.'
+    expect(intentOf('yesterday I spoke with Dani', suggestion)).toBe('AGENT_PROPOSAL')
+    expect(intentOf('לכן אני לא בטוח', suggestion)).toBe('AGENT_PROPOSAL') // לכן ⊃ כן
+  })
+
+  it('real instructions are still instructions', () => {
+    for (const message of [
+      'תיצור לי משימה להתקשר ליוסי',
+      'צור משימה להתקשר לדנה',
+      'קבע פגישה עם דני מחר ב-10',
+      'דני, צור לו משימת מעקב',
+      'בבקשה תקבע לדני פגישה מחר',
+      'את הפגישה תקבע למחר ב-10',
+      'create a task to call Dani',
+      'please schedule a meeting with Dani tomorrow',
+      'open a task for Dani',
+    ]) {
+      expect(intentOf(message), message).toBe('EXPLICIT_COMMAND')
+    }
+  })
+})

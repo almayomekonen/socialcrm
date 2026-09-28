@@ -42,17 +42,35 @@ export type IntentVerdict = {
 const PROPOSAL: IntentVerdict = { intent: 'AGENT_PROPOSAL', reason: 'no-explicit-instruction' }
 
 /**
- * Imperative verbs that mean "do it now".
+ * Imperative verbs that mean "do it now", in two groups because they are not
+ * equally unambiguous.
  *
- * Second-person future used as a command (תיצור) and bare imperative (צור) —
- * the two forms Hebrew actually uses for instructions. Infinitives are absent on
- * purpose: "ליצור" appears in "כדאי ליצור", which is a suggestion, not an order.
+ * Infinitives are absent from both on purpose: "ליצור" appears in "כדאי
+ * ליצור", which is a suggestion, not an order.
+ *
+ * SECOND-PERSON FUTURE (תיצור, תקבע) is how Hebrew gives an instruction, and in
+ * a rep's message it means nothing else — so it counts anywhere in its clause:
+ * "את הפגישה תקבע למחר".
  */
-const COMMAND_VERBS = [
-  'תיצור', 'תצור', 'צור', 'תפתח', 'פתח', 'תוסיף', 'הוסף', 'תזכיר', 'תרשום', 'רשום',
-  'קבע', 'תקבע', 'תשים', 'שים', 'עשה', 'תעשה', 'בצע', 'תבצע', 'תעדכן', 'עדכן',
+const SECOND_PERSON_COMMANDS = [
+  'תיצור', 'תצור', 'תפתח', 'תוסיף', 'תזכיר', 'תרשום', 'תקבע', 'תשים', 'תעשה', 'תבצע', 'תעדכן',
+]
+
+/**
+ * BARE IMPERATIVES AND ENGLISH VERBS are also ordinary words: "קבע" is "he set",
+ * "פתח" is "an opening", "open" is an adjective in "show my open leads", "set"
+ * is a noun. Anywhere in a sentence they would turn questions into orders — and
+ * an order is what lets a write run WITHOUT an approval card. So they count only
+ * where an imperative actually sits: at the start of a clause ("קבע משימה",
+ * "דני, צור משימה", "create a task").
+ */
+const CLAUSE_INITIAL_COMMANDS = [
+  'צור', 'פתח', 'הוסף', 'רשום', 'קבע', 'שים', 'עשה', 'בצע', 'עדכן',
   'create', 'add', 'open', 'schedule', 'make', 'set', 'remind',
 ]
+
+/** Courtesy words that may precede the verb without changing what the clause is. */
+const CLAUSE_LEAD_INS = ['בבקשה', 'עכשיו', 'רק', 'גם', 'please', 'pls', 'kindly', 'now', 'just', 'also']
 
 /**
  * Affirmations — the second half of "agent suggests, user agrees".
@@ -76,14 +94,24 @@ const HEDGES = [
   'האם', 'צריך ש', 'רעיון', 'שקול', 'maybe', 'should i', 'recommend', 'suggest', 'perhaps',
 ]
 
-/** Openers that make the whole sentence a question rather than an order. */
-const INTERROGATIVE_OPENERS = ['האם', 'מה ', 'איך', 'למה', 'מתי', 'מי ', 'כמה', 'what', 'how', 'why', 'when', 'should']
+/**
+ * First words that make the whole message a question rather than an order.
+ * Matched as a whole first word, so "מהר" is not "מה" and "whatever" is not
+ * "what". Deliberately generous: a question misread as a proposal costs one
+ * approval click; a question misread as an order writes without asking.
+ */
+const INTERROGATIVE_OPENERS = [
+  'האם', 'מה', 'מהו', 'מהי', 'איך', 'למה', 'מדוע', 'מתי', 'מי', 'כמה', 'איזה', 'איזו', 'אילו', 'איפה', 'היכן', 'יש',
+  'what', 'how', 'why', 'when', 'should', 'which', 'who', 'where', 'is', 'are', 'do', 'does', 'did',
+  'can', 'could', 'would', 'will',
+]
 
 /**
  * Hebrew glues prefixes onto words (ו/ה/ש/ל/ב/כ/מ), so a bare `includes` would
  * match inside unrelated words and a naive `\b` does not work on Hebrew at all.
  * This treats a token as present when it is preceded by a boundary or by one of
- * those prefix letters.
+ * those prefix letters. HEDGES ONLY: a false positive here demotes to a
+ * proposal, which is the safe direction. Never used for anything that grants.
  */
 function hasToken(text: string, token: string): boolean {
   const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -91,6 +119,56 @@ function hasToken(text: string, token: string): boolean {
 }
 
 const hasAny = (text: string, tokens: string[]) => tokens.some((t) => hasToken(text, t))
+
+/**
+ * The strict matcher for anything that GRANTS: the token must be a whole word,
+ * bounded on BOTH sides, with at most the conjunction ו in front ("ותיצור").
+ *
+ * The permissive `hasToken` above had no trailing boundary and accepted every
+ * prefix letter, which is how "בצורה" contained "צור", "שקבעתי" contained
+ * "קבע", "צורך" contained "צור", and "yesterday" contained "yes". Each of those
+ * turned an ordinary message into an explicit command.
+ */
+const WORD_EDGE = `[\\s,.!?"'׳״:;()\\-–—]`
+function hasWord(text: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|${WORD_EDGE})ו?${escaped}(?=$|${WORD_EDGE})`, 'i').test(text)
+}
+
+const hasAnyWord = (text: string, tokens: string[]) => tokens.some((t) => hasWord(text, t))
+
+function words(clause: string): string[] {
+  return clause
+    .split(/\s+/)
+    .map((w) => w.replace(/^["'׳״(]+|["'׳״)]+$/g, '').toLowerCase())
+    .filter(Boolean)
+}
+
+function isVerb(word: string, verbs: readonly string[]): boolean {
+  return verbs.includes(word) || (word.startsWith('ו') && verbs.includes(word.slice(1)))
+}
+
+/**
+ * Does the message carry an instruction? Per clause: a second-person command
+ * anywhere in it, or a bare imperative / English verb as its first real word.
+ */
+function hasCommand(text: string): boolean {
+  for (const clause of text.split(/[\n,.!;:?()]+|\s[-–—]\s/)) {
+    const w = words(clause)
+    let i = 0
+    while (i < w.length && CLAUSE_LEAD_INS.includes(w[i])) i++
+    if (i < w.length && (isVerb(w[i], CLAUSE_INITIAL_COMMANDS) || isVerb(w[i], SECOND_PERSON_COMMANDS))) return true
+    if (w.some((x) => isVerb(x, SECOND_PERSON_COMMANDS))) return true
+  }
+  return false
+}
+
+/** A question asks; it does not instruct — by its first word, or by a "?" anywhere. */
+function isQuestion(text: string): boolean {
+  if (text.includes('?')) return true
+  const first = words(text)[0] ?? ''
+  return INTERROGATIVE_OPENERS.includes(first)
+}
 
 export type IntentInput = {
   /** The authenticated request's own question. Never model output. */
@@ -149,14 +227,11 @@ export function deriveActionIntent(input: IntentInput): IntentVerdict {
   if (hasAny(text, HEDGES)) return { intent: 'AGENT_PROPOSAL', reason: 'hedged-request' }
 
   // A question asks; it does not instruct.
-  const opener = text.toLowerCase()
-  if (INTERROGATIVE_OPENERS.some((q) => opener.startsWith(q))) {
-    return { intent: 'AGENT_PROPOSAL', reason: 'interrogative' }
-  }
+  if (isQuestion(text)) return { intent: 'AGENT_PROPOSAL', reason: 'interrogative' }
 
-  if (hasAny(text, COMMAND_VERBS)) return { intent: 'EXPLICIT_COMMAND', reason: 'imperative-verb' }
+  if (hasCommand(text)) return { intent: 'EXPLICIT_COMMAND', reason: 'imperative-verb' }
 
-  if (hasAny(text, AFFIRMATIONS)) {
+  if (hasAnyWord(text, AFFIRMATIONS)) {
     // "כן, תעשה" only means yes if something was said to agree with.
     if (!input.priorAssistantMessage?.trim()) {
       return { intent: 'AGENT_PROPOSAL', reason: 'affirmation-without-context' }
@@ -183,7 +258,8 @@ export function deriveActionIntent(input: IntentInput): IntentVerdict {
     const priorText = (prior ?? '').trim()
     if (!priorText) continue
     if (hasAny(priorText, HEDGES)) continue
-    if (hasAny(priorText, COMMAND_VERBS)) {
+    if (isQuestion(priorText)) continue
+    if (hasCommand(priorText)) {
       return { intent: 'EXPLICIT_COMMAND', reason: 'continues-prior-command' }
     }
   }
