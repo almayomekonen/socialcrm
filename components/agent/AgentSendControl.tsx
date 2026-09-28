@@ -7,14 +7,16 @@ import { ArrowUpIcon, MicIcon, StopIcon } from './promptIcons'
 /**
  * The composer's one action control, plus the level meter that shares its corner.
  *
- * ONE BUTTON, THREE FACES. Send, dictate and stop are the same circle: all three
- * glyphs are stacked and cross-faded with a small counter-rotation, so the
+ * ONE BUTTON, FOUR FACES. Send, record, stop and busy are the same circle: all
+ * four glyphs are stacked and cross-faded with a small counter-rotation, so the
  * control morphs in place instead of swapping elements. A row of three separate
  * buttons would be three tap targets for what is always exactly one available
  * action.
  *
  * The meter bars are heights driven by live microphone levels — see
- * `useVoiceInput`, which has no simulated mode. When nothing is recording the
+ * `useVoiceRecorder`, which has no simulated mode. `busy` covers the permission
+ * prompt and the transcription: the button is disabled, so neither can be
+ * started twice. When nothing is recording the
  * strip collapses to zero width rather than hiding, so the button does not jump.
  */
 export default function AgentSendControl({
@@ -24,7 +26,7 @@ export default function AgentSendControl({
   disabled,
   onClick,
 }: {
-  mode: 'send' | 'mic' | 'stop' | 'idle'
+  mode: 'send' | 'mic' | 'stop' | 'busy' | 'idle'
   levels: number[]
   recording: boolean
   disabled: boolean
@@ -34,9 +36,15 @@ export default function AgentSendControl({
     { key: 'send', icon: <ArrowUpIcon />, rotate: 'rotate-45' },
     { key: 'mic', icon: <MicIcon />, rotate: '-rotate-45' },
     { key: 'stop', icon: <StopIcon />, rotate: 'rotate-45' },
+    {
+      key: 'busy',
+      icon: <span aria-hidden='true' className='size-4 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none' />,
+      rotate: '-rotate-45',
+    },
   ] as const
 
-  const label = mode === 'send' ? 'שליחה' : mode === 'stop' ? 'עצירת ההקלטה' : 'הקלדה קולית'
+  const label =
+    mode === 'send' ? 'שליחה' : mode === 'stop' ? 'עצירת ההקלטה ותמלול' : mode === 'busy' ? 'ממתין…' : 'הקלטה קולית'
 
   return (
     <>

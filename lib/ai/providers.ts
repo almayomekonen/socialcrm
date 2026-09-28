@@ -36,6 +36,16 @@ function getOpenAI() {
   return openaiProvider
 }
 
+/**
+ * The same configured OpenAI provider the model chain uses, for the one
+ * capability the chain does not model: speech-to-text (/agent voice input).
+ * Null when no OpenAI key is configured. Server-side only — the key never
+ * leaves this module.
+ */
+export function getOpenAIProvider() {
+  return getOpenAI()
+}
+
 export function getModel(role: ModelRole): ResolvedModel | null {
   const env = getAiEnv()
 
