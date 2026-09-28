@@ -3,7 +3,9 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { isAgentEnabled } from '@/lib/ai/flags'
+import { layoutProbeRequested } from '@/lib/agent/layoutProbeGate'
 import AgentWorkspace from '@/components/agent/AgentWorkspace'
+import AgentLayoutProbe from '@/components/agent/AgentLayoutProbe'
 
 export const metadata: Metadata = {
   title: 'הסוכן שלך',
@@ -42,10 +44,10 @@ export const metadata: Metadata = {
  * `isAgentEnabled` is the EXISTING mechanism, reused unchanged — absence blocks,
  * because `parseAgencyAllowlist(undefined)` returns an empty list. No new flag.
  */
-export default function AgentPage() {
+export default function AgentPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   return (
     <Suspense fallback={<AgentCanvasFallback />}>
-      <AgentGate />
+      <AgentGate searchParams={searchParams} />
     </Suspense>
   )
 }
@@ -53,11 +55,21 @@ export default function AgentPage() {
 /**
  * The rollout check, and the only part of this route that touches the database.
  * Isolated here so its await cannot block the shell above it.
+ *
+ * TEMPORARY: `?agentdebug=1` adds the real-device layout probe, for platform
+ * owners only (deny-by-default email allowlist). Everyone else, and every
+ * request without the parameter, gets exactly the page as before.
  */
-async function AgentGate() {
+async function AgentGate({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getUser()
   if (!isAgentEnabled(user?.agencyId)) notFound()
-  return <AgentWorkspace />
+  const probe = layoutProbeRequested(await searchParams, user?.email)
+  return (
+    <>
+      <AgentWorkspace />
+      {probe && <AgentLayoutProbe build={process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) ?? 'local'} />}
+    </>
+  )
 }
 
 /**
