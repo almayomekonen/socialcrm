@@ -37,6 +37,17 @@ import { useAgentConversation } from './useAgentConversation'
  * The composer is `sticky`, not `fixed`: fixed would escape the mobile shell and
  * sit on top of the tab bar, and would need the safe-area inset re-solved here.
  * Sticky stays inside the scroll region the shell already sized correctly.
+ *
+ * MOBILE: header → content (the ONE scroller) → composer → tab bar. Inside the
+ * mobile shell this page owns its scrolling (`data-mobile-scroll-owner`, which
+ * turns the shell's `main` into a non-scrolling column). The content region
+ * scrolls, the composer is a plain in-flow footer below it — so on a real
+ * iPhone, where Safari's toolbars leave ~550–660px, the composer can no longer
+ * sit on top of the suggestions or the thread. Every mobile rule is keyed to
+ * the shell (`in-[[data-mobile-workspace]]:`), never to a width breakpoint: the
+ * shell is chosen by device on the server, and desktop never renders it, so the
+ * desktop layout above is untouched. The content wrapper is `display: contents`
+ * outside the shell for the same reason.
  */
 export default function AgentWorkspace() {
   const { turns, busy, ask, reset , decide, decideBatch } = useAgentConversation()
@@ -57,29 +68,53 @@ export default function AgentWorkspace() {
   }, [turns])
 
   const started = turns.length > 0
+  const startedRef = useRef(started)
+  useEffect(() => { startedRef.current = started }, [started])
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Mobile: when the content region SHRINKS — the iOS keyboard opening, the
+  // composer expanding to type — keep the latest answer in view, but only if the
+  // rep was already reading the end. Desktop never fires this: there the region
+  // is `display: contents` and has no box to resize.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let atEnd = true
+    const onScroll = () => { atEnd = el.scrollHeight - el.clientHeight - el.scrollTop < 24 }
+    const ro = new ResizeObserver(() => { if (atEnd && startedRef.current) el.scrollTop = el.scrollHeight })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    ro.observe(el)
+    return () => { ro.disconnect(); el.removeEventListener('scroll', onScroll) }
+  }, [])
 
   return (
-    <div className='flex min-h-full flex-1 flex-col'>
-      {started && (
-        <div className='mx-auto flex w-full max-w-3xl justify-end px-4 pb-2 pt-2 desktop:px-0'>
-          <button
-            type='button'
-            onClick={reset}
-            className='tap-44 rounded-md border bg-white px-3 py-1.5 text-[13px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none'
-          >
-            שיחה חדשה
-          </button>
-        </div>
-      )}
-
-      {/* The conversation canvas. Centred vertically while empty so the intro
-          and the composer read as one composition; top-aligned once there is a
-          conversation, so answers do not drift down the screen as they arrive. */}
+    <div data-mobile-scroll-owner className='flex min-h-full flex-1 flex-col in-[[data-mobile-workspace]]:min-h-0'>
       <div
-        className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 desktop:px-0 ${started ? 'justify-start pt-2' : 'justify-center'}`}
+        ref={scrollRef}
+        data-agent-scroll
+        className='contents in-[[data-mobile-workspace]]:flex in-[[data-mobile-workspace]]:min-h-0 in-[[data-mobile-workspace]]:flex-1 in-[[data-mobile-workspace]]:flex-col in-[[data-mobile-workspace]]:overflow-y-auto in-[[data-mobile-workspace]]:overscroll-contain'
       >
-        {started ? <AgentThread turns={turns} onDecide={decide} onDecideBatch={decideBatch} /> : <AgentIntro onPick={submit} />}
-        <div ref={endRef} />
+        {started && (
+          <div className='mx-auto flex w-full max-w-3xl justify-end px-4 pb-2 pt-2 desktop:px-0'>
+            <button
+              type='button'
+              onClick={reset}
+              className='tap-44 rounded-md border bg-white px-3 py-1.5 text-[13px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none'
+            >
+              שיחה חדשה
+            </button>
+          </div>
+        )}
+
+        {/* The conversation canvas. Centred vertically while empty so the intro
+            and the composer read as one composition; top-aligned once there is a
+            conversation, so answers do not drift down the screen as they arrive. */}
+        <div
+          className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 desktop:px-0 ${started ? 'justify-start pt-2' : 'justify-center'}`}
+        >
+          {started ? <AgentThread turns={turns} onDecide={decide} onDecideBatch={decideBatch} /> : <AgentIntro onPick={submit} />}
+          <div ref={endRef} />
+        </div>
       </div>
 
       {/*
@@ -92,10 +127,13 @@ export default function AgentWorkspace() {
         same colour as the page is invisible except for the one thing it is for:
         hiding what scrolls beneath it.
       */}
-      <div className='sticky bottom-0 z-10 bg-gray pt-10'>
-        <div className='mx-auto w-full max-w-3xl px-4 pb-4 desktop:px-0'>
+      <div
+        data-agent-composer
+        className='sticky bottom-0 z-10 bg-gray pt-10 in-[[data-mobile-workspace]]:static in-[[data-mobile-workspace]]:shrink-0 in-[[data-mobile-workspace]]:pt-2'
+      >
+        <div className='mx-auto w-full max-w-3xl px-4 pb-4 desktop:px-0 in-[[data-mobile-workspace]]:pb-2'>
           <AgentPromptInput value={input} onChange={setInput} onSubmit={submit} />
-          <p className='mt-3 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-gray-600'>
+          <p className='mt-3 in-[[data-mobile-workspace]]:mt-1.5 text-center text-[12px] font-medium leading-relaxed tracking-[0.01em] text-gray-600'>
             {busy ? 'הסוכן בודק את הנתונים שלך' : 'הסוכן עונה על סמך הנתונים של העסק שלך בלבד.'}
           </p>
         </div>
