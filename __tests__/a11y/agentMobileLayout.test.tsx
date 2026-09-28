@@ -201,3 +201,60 @@ describe('/agent keeps the latest answer in view when the content region shrinks
     expect(el.scrollTop).toBe(0)
   })
 })
+
+describe('mobile composer: the mic/send control is an in-flow row item, never absolute geometry', () => {
+  afterEach(cleanup)
+
+  test('the action button: in flow (`relative`, offsets dropped), still anchoring its own 44px hit area', () => {
+    const control = src('components/agent/AgentSendControl.tsx')
+    expect(control).toContain("'in-[[data-mobile-workspace]]:relative in-[[data-mobile-workspace]]:inset-auto in-[[data-mobile-workspace]]:shrink-0'")
+    // NOT `static`: `.tap-44::after` is absolutely positioned and needs the
+    // button itself as its containing block, or the hit area lands on the card.
+    expect(control).not.toMatch(/in-\[\[data-mobile-workspace\]\]:static[^']*tap-44|tap-44[^']*in-\[\[data-mobile-workspace\]\]:static/)
+  })
+
+  test('the card is a flex row on mobile, and every bottom-row piece is in flow', async () => {
+    const { default: AgentPromptInput } = await import('@/components/agent/AgentPromptInput')
+    const { container } = render(
+      <div data-mobile-workspace>
+        <AgentPromptInput value='טיוטה' onChange={() => {}} onSubmit={() => {}} />
+      </div>,
+    )
+    const card = container.querySelector('textarea')!.parentElement!
+    for (const t of ['in-[[data-mobile-workspace]]:flex', 'in-[[data-mobile-workspace]]:items-end', 'in-[[data-mobile-workspace]]:py-1.5']) {
+      expect(tokens(card)).toContain(t)
+    }
+    const controlsRow = container.querySelector('button[aria-label="הוספת תמונה"]')!.parentElement!
+    expect(tokens(controlsRow)).toContain('in-[[data-mobile-workspace]]:static')
+    expect(tokens(controlsRow)).toContain('in-[[data-mobile-workspace]]:flex-1')
+    // Idle: the controls row is shown (not display:none) on mobile.
+    expect(tokens(controlsRow)).not.toContain('in-[[data-mobile-workspace]]:hidden')
+    // The text layers still reserve the action button's inline end in RTL.
+    expect(tokens(container.querySelector('textarea')!)).toContain('pe-14')
+  })
+
+  test('while voice is busy the status row takes the controls slot (both in flow, never overlapping)', () => {
+    const status = src('components/agent/AgentVoiceStatus.tsx')
+    expect(status).toContain('in-[[data-mobile-workspace]]:static in-[[data-mobile-workspace]]:min-w-0 in-[[data-mobile-workspace]]:flex-1')
+    expect(src('components/agent/AgentPromptInput.tsx')).toContain("voiceBusy && 'in-[[data-mobile-workspace]]:hidden'")
+  })
+})
+
+describe('mobile intro: a compact chat empty state, not the desktop hero', () => {
+  afterEach(cleanup)
+
+  test('compact on mobile, extra-compact on short screens, desktop classes untouched', async () => {
+    const { default: RealIntro } = await vi.importActual<typeof import('@/components/agent/AgentIntro')>('@/components/agent/AgentIntro')
+    const { container } = render(
+      <div data-mobile-workspace>
+        <RealIntro onPick={() => {}} />
+      </div>,
+    )
+    const h1 = container.querySelector('h1')!
+    expect(tokens(h1)).toEqual(expect.arrayContaining(['mt-6', 'text-[32px]', 'desktop:text-[42px]', 'in-[[data-mobile-workspace]]:mt-3', 'in-[[data-mobile-workspace]]:text-[26px]']))
+    const description = [...container.querySelectorAll('p')].find((p) => p.textContent?.includes('אני כאן'))!
+    expect(tokens(description)).toContain('in-[[data-mobile-workspace]]:[@media(max-height:620px)]:hidden')
+    const suggestion = container.querySelector('button')!
+    expect(tokens(suggestion)).toEqual(expect.arrayContaining(['py-4', 'in-[[data-mobile-workspace]]:py-3']))
+  })
+})

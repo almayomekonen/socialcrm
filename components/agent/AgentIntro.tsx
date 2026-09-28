@@ -21,28 +21,35 @@ import { AGENT_SUGGESTIONS } from './agentSuggestions'
  * design system defines it as the AI / selection highlight, so the identity
  * comes from the existing token rather than from a private palette.
  */
+/*
+ * MOBILE (inside the mobile shell only — desktop classes are untouched): a
+ * compact chat empty state. Tighter icon/title/gaps everywhere, and on SHORT
+ * screens (under 620px of layout height — where the compact intro plus header,
+ * composer and tab bar stops fitting) the description line goes and the gaps
+ * tighten further. The content region scrolls naturally below that.
+ */
 export default function AgentIntro({ onPick }: { onPick: (prompt: string) => void }) {
   return (
     <div className='flex flex-col items-center px-1 text-center'>
       {/* Solid white, deliberately: the one opaque object on the page, so the
           eye lands on the mark before it reads the title. */}
-      <span className='flex size-14 items-center justify-center rounded-md border bg-primary-tint'>
-        <Icon name='sparkles' type='sol' className='size-6 bg-primary' />
+      <span className='flex size-14 items-center justify-center rounded-md border bg-primary-tint in-[[data-mobile-workspace]]:size-11'>
+        <Icon name='sparkles' type='sol' className='size-6 bg-primary in-[[data-mobile-workspace]]:size-5' />
       </span>
 
-      <h1 className='mt-6 text-[32px] font-semibold leading-tight tracking-[-0.02em] text-ink desktop:text-[42px]'>
+      <h1 className='mt-6 text-[32px] font-semibold leading-tight tracking-[-0.02em] text-ink desktop:text-[42px] in-[[data-mobile-workspace]]:mt-3 in-[[data-mobile-workspace]]:text-[26px]'>
         הסוכן שלך
       </h1>
-      <p className='mt-2.5 text-[17px] font-semibold tracking-[-0.01em] text-ink desktop:text-[19px]'>
+      <p className='mt-2.5 text-[17px] font-semibold tracking-[-0.01em] text-ink desktop:text-[19px] in-[[data-mobile-workspace]]:mt-1 in-[[data-mobile-workspace]]:text-[15px]'>
         העוזר החכם של העסק שלך
       </p>
-      <p className='mt-3 max-w-lg text-[15px] font-medium leading-relaxed text-gray-600 desktop:text-base'>
+      <p className='mt-3 max-w-lg text-[15px] font-medium leading-relaxed text-gray-600 desktop:text-base in-[[data-mobile-workspace]]:mt-2 in-[[data-mobile-workspace]]:text-[14px] in-[[data-mobile-workspace]]:[@media(max-height:620px)]:hidden'>
         אני כאן כדי לעזור לך לנהל את העסק, להבין מה קורה ולטפל במה שחשוב.
       </p>
 
-      <p className='mt-10 text-[12px] font-semibold tracking-[0.1em] text-gray-600'>מה תרצה לעשות?</p>
+      <p className='mt-10 text-[12px] font-semibold tracking-[0.1em] text-gray-600 in-[[data-mobile-workspace]]:mt-5 in-[[data-mobile-workspace]]:[@media(max-height:620px)]:mt-3'>מה תרצה לעשות?</p>
 
-      <div className='mt-4 grid w-full max-w-2xl gap-2.5 desktop:grid-cols-2'>
+      <div className='mt-4 grid w-full max-w-2xl gap-2.5 desktop:grid-cols-2 in-[[data-mobile-workspace]]:mt-2.5 in-[[data-mobile-workspace]]:gap-2'>
         {AGENT_SUGGESTIONS.map((s) => (
           <button
             key={s}
@@ -50,6 +57,8 @@ export default function AgentIntro({ onPick }: { onPick: (prompt: string) => voi
             onClick={() => onPick(s)}
             className={[
               'press rounded-md border bg-white px-5 py-4 text-start text-[15px] font-medium text-ink',
+              // Mobile: a compact chat empty state, not the desktop hero (≥44px tall).
+              'in-[[data-mobile-workspace]]:py-3 in-[[data-mobile-workspace]]:text-[14px]',
               'transition-colors duration-200 motion-reduce:transition-none',
               // The accent is the design system's own "AI / selection highlight";
               // it is the agent's identity here, not a new palette.

@@ -268,6 +268,12 @@ export default function AgentPromptInput({
             'relative z-10 w-full rounded-md border bg-white',
             'transition-[border-color] duration-200 focus-within:border-primary',
             expanded ? 'cursor-text' : 'cursor-default',
+            /* Mobile: the bottom row (controls or voice status, level meter,
+               action button) is a real flex row in flow at the bottom of the
+               card, not absolute pieces — nothing in it can land outside the
+               input. The text layers above it stay as they are; their `pe-14`
+               still reserves the action button's inline end. */
+            'in-[[data-mobile-workspace]]:flex in-[[data-mobile-workspace]]:items-end in-[[data-mobile-workspace]]:gap-1 in-[[data-mobile-workspace]]:px-2 in-[[data-mobile-workspace]]:py-1.5',
           )}
         >
           <textarea
@@ -317,6 +323,9 @@ export default function AgentPromptInput({
             className={cn(
               'absolute bottom-2 start-3 end-14 z-10 flex items-center gap-0 transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
               expanded && !voiceBusy ? 'pointer-events-auto translate-y-0 opacity-100 blur-0' : 'pointer-events-none translate-y-2 opacity-0 blur-sm',
+              'in-[[data-mobile-workspace]]:static in-[[data-mobile-workspace]]:min-w-0 in-[[data-mobile-workspace]]:flex-1',
+              // The voice status row takes this slot while voice is busy.
+              voiceBusy && 'in-[[data-mobile-workspace]]:hidden',
             )}
           >
             <AgentScopeSelect scopes={scopes} value={scope} onChange={setScope} open={scopeOpen} onOpenChange={setScopeOpen} />
