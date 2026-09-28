@@ -13,6 +13,7 @@
  * approval card comes out.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { enableAgentFor, restoreAgentRollout } from './_agentRollout'
 
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
@@ -66,6 +67,7 @@ async function seedAgency(agencyId: number, adminId: number): Promise<number> {
 }
 
 beforeAll(async () => {
+  enableAgentFor([AGENCY_A, AGENCY_B])
   registerDomainActions()
   LEAD_A = await seedAgency(AGENCY_A, ADMIN_A)
   LEAD_B = await seedAgency(AGENCY_B, ADMIN_B)
@@ -84,6 +86,7 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
+  restoreAgentRollout()
   await db('clients').whereIn('id', [LEAD_A, LEAD_B, LEAD_OWNED]).del()
   await db('users').whereIn('id', [ADMIN_A, ADMIN_B, REP_A]).del()
   await db('agencies').whereIn('id', [AGENCY_A, AGENCY_B]).del()

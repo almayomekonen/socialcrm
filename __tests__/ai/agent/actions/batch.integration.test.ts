@@ -8,6 +8,7 @@
  * every interesting failure, which a mock cannot do.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { enableAgentFor, restoreAgentRollout } from './_agentRollout'
 
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
@@ -66,6 +67,7 @@ async function seedLead(agencyId: number, createdById: number, userId?: number):
 }
 
 beforeAll(async () => {
+  enableAgentFor([AGENCY_A, AGENCY_B])
   registerDomainActions()
   for (const [agencyId, adminId] of [[AGENCY_A, ADMIN_A], [AGENCY_B, ADMIN_B]] as const) {
     await db('agencies').insert({
@@ -90,6 +92,7 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
+  restoreAgentRollout()
   await db('clients').whereIn('id', [...LEADS_A, LEAD_B, LEAD_OWNED]).del()
   await db('users').whereIn('id', [ADMIN_A, ADMIN_B, REP_A]).del()
   await db('agencies').whereIn('id', [AGENCY_A, AGENCY_B]).del()

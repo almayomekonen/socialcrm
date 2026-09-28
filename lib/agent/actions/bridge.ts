@@ -4,6 +4,7 @@ import { createDbActionStore, findActionByActionId, hasRecentlyExecutedAction, l
 import { loadApprovalGrants, recordApprovalDecision } from '@/db/agentActionApprovals'
 import { registerDomainActions } from './domain'
 import { deriveActionIntent } from './intent'
+import { isAgentEnabled } from '@/lib/ai/flags'
 import { parseActionProposal } from './proposal'
 import { createActionRuntime } from './runtime'
 import { DEFAULT_DEADLINE_MS } from '../budget'
@@ -164,7 +165,7 @@ export async function submitProposedAction(input: {
 }
 
 export type ActionDecisionResult =
-  | { ok: false; reason: 'not-found' | 'args-changed' }
+  | { ok: false; reason: 'not-found' | 'args-changed' | 'not-proposer' | 'agent-disabled' }
   | { ok: true; outcome: ActionOutcome }
 
 /**
@@ -184,9 +185,17 @@ export async function decideOnAction(input: {
   nowMs?: number
 }): Promise<ActionDecisionResult> {
   const nowMs = input.nowMs ?? Date.now()
+  // ROLLOUT IS RE-CHECKED AT DECISION TIME (F3). A card can outlive the rollout
+  // that produced it; taking an agency off /agent must stop its pending actions
+  // too, not only new questions. Checked before anything is read or written.
+  if (!isAgentEnabled(input.scope.agencyId)) return { ok: false, reason: 'agent-disabled' }
   // Agency-scoped read: an action id from another tenant simply does not exist.
   const record = await findActionByActionId(input.scope.agencyId, input.actionId)
   if (!record) return { ok: false, reason: 'not-found' }
+  // ONLY THE PROPOSER DECIDES (F2). The action was proposed in one rep's
+  // conversation, on that rep's question; a colleague holding its id is not
+  // that rep. Refused before a grant — or a rejection — is ever recorded.
+  if (record.userId !== input.scope.userId) return { ok: false, reason: 'not-proposer' }
   if (record.argsHash !== input.argsHash) return { ok: false, reason: 'args-changed' }
 
   await recordApprovalDecision({
@@ -291,7 +300,7 @@ export async function submitProposedBatch(input: {
 }
 
 export type BatchDecisionResult =
-  | { ok: false; reason: 'not-found' | 'batch-changed' }
+  | { ok: false; reason: 'not-found' | 'batch-changed' | 'not-proposer' | 'agent-disabled' }
   | { ok: true; outcome: BatchOutcome }
 
 /**
@@ -319,9 +328,15 @@ export async function decideOnBatch(input: {
   const nowMs = input.nowMs ?? Date.now()
   const actor = scopeToActor(input.scope)
 
+  // Rollout re-checked at decision time (F3) — see decideOnAction.
+  if (!isAgentEnabled(input.scope.agencyId)) return { ok: false, reason: 'agent-disabled' }
+
   // Agency-scoped: a plan id from another tenant simply does not exist.
   const records = await listActionsForPlan(input.scope.agencyId, input.planId)
   if (records.length === 0) return { ok: false, reason: 'not-found' }
+  // Only the proposer decides (F2) — every member, not just the first, so a
+  // plan can never be decided by someone who proposed none of it.
+  if (records.some((r) => r.userId !== input.scope.userId)) return { ok: false, reason: 'not-proposer' }
 
   const storedHash = planHashOf(records.map((r) => ({ actionType: r.actionType, argsHash: r.argsHash })))
   if (storedHash !== input.planHash) return { ok: false, reason: 'batch-changed' }

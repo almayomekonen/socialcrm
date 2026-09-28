@@ -14,6 +14,7 @@
  * everything except the decision that matters.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { enableAgentFor, restoreAgentRollout } from './_agentRollout'
 import { z } from 'zod'
 
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
@@ -62,6 +63,7 @@ async function seed(agencyId: number, userId: number): Promise<number> {
 const tasksIn = (leadId: number) => db('tasks').where({ clientId: leadId })
 
 beforeAll(async () => {
+  enableAgentFor([AGENCY_A, AGENCY_B])
   registerDomainActions()
   // A high-risk neighbour, so "explicit does not override the top of the ladder"
   // is proven against a real registry entry rather than asserted about one.
@@ -85,6 +87,7 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
+  restoreAgentRollout()
   await db('clients').whereIn('id', [LEAD_A, LEAD_B]).del()
   await db('users').whereIn('id', [USER_A, USER_B]).del()
   await db('agencies').whereIn('id', [AGENCY_A, AGENCY_B]).del()
