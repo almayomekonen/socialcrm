@@ -1,6 +1,7 @@
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { db } from '@/config/db'
 import { parseFacebookLead } from '@/lib/adapters/facebookLead'
+import { normalizeFormAnswers } from '@/lib/facebook/leadFormAnswers'
 import { createLeadFromWebhook } from '@/lib/system/createClientFromWebhook'
 import { fetchLeadWithTimeout } from '@/lib/facebook/leadNodeFetch'
 import { buildLeadAttribution, leadSourceCandidates, LEAD_MINIMAL_GRAPH_FIELDS } from '@/lib/facebook/leadAttribution'
@@ -121,6 +122,7 @@ async function attemptOne(row: WebhookFailureRow): Promise<AttemptOutcome> {
       webhookValue: null,
       graphNode: node,
     }),
+    formAnswers: normalizeFormAnswers(node.field_data),
   })
 
   if (!lead) return { kind: 'transient', error: 'createLeadFromWebhook returned null' }

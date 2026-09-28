@@ -2,6 +2,7 @@ import { inboundChannelFromSource } from '@/lib/leads/leadSourceLabel'
 import {
   facebookFieldPresence,
   formatCaptureAt,
+  loadLeadFormAnswers,
   loadWhatsAppInboundPreview,
 } from '@/lib/leads/inboundLeadContextData'
 import { InboundLeadContextView } from './InboundLeadContextView'
@@ -43,21 +44,24 @@ export default async function InboundLeadContext({
   email?: string | null
 }) {
   const channel = inboundChannelFromSource(leadSource)
-  if (channel === 'facebook') {
+  // Lead Ads: Facebook and Instagram forms arrive through the same webhook and
+  // carry the same evidence, plus the customer's full form answers.
+  if (channel === 'facebook' || channel === 'instagram') {
     // Evidence = which detail categories the lead currently holds. Presence-based
     // (no per-field provenance); the ingestion name placeholder does not count.
     const { hasName, hasPhone, hasEmail } = facebookFieldPresence({ firstName, lastName, phone, email })
     return (
       <InboundLeadContextView
-        channel='facebook'
+        channel={channel}
         hasName={hasName}
         hasPhone={hasPhone}
         hasEmail={hasEmail}
         capturedAt={formatCaptureAt(createdAt)}
+        formAnswers={await loadLeadFormAnswers(leadId)}
       />
     )
   }
-  if (channel !== 'whatsapp') return null // manual / plain / instagram / unknown → nothing
+  if (channel !== 'whatsapp') return null // manual / plain / unknown → nothing
 
   const { conversationId, preview } = await loadWhatsAppInboundPreview(leadId)
   return <InboundLeadContextView channel='whatsapp' conversationId={conversationId} preview={preview} />
