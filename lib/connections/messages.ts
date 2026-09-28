@@ -442,7 +442,9 @@ export function whatsappNotice(code: string | null | undefined, metaMessage?: st
   if (!code) return null
   if (SILENT_WHATSAPP_CODES.has(code)) return null
   if (code === 'meta_error' && metaMessage) {
-    return { ...WHATSAPP_NOTICES.meta_error, explanation: `ההודעה שהוצגה בחלון של Meta: "${metaMessage}"` }
+    // Meta's text is often English inside a right-to-left line. First-strong
+    // isolate (U+2068 … U+2069) keeps its quotes and full stop in place.
+    return { ...WHATSAPP_NOTICES.meta_error, explanation: `ההודעה שהוצגה בחלון של Meta: ⁨"${metaMessage}"⁩` }
   }
   return WHATSAPP_NOTICES[code] ?? WHATSAPP_NOTICES.token
 }

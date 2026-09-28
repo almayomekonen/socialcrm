@@ -46,7 +46,8 @@ describe('not connected (State A)', () => {
     await clickConnect(/חבר וואטסאפ עסקי/)
 
     expect(screen.getByText('Meta עצרה את החיבור לוואטסאפ')).toBeInTheDocument()
-    expect(screen.getByText(`ההודעה שהוצגה בחלון של Meta: "${META_TEXT}"`)).toBeInTheDocument()
+    // Isolated (U+2068 … U+2069) so an English message keeps its punctuation in RTL.
+    expect(screen.getByText(`ההודעה שהוצגה בחלון של Meta: ⁨"${META_TEXT}"⁩`)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /לנסות שוב/ })).toBeEnabled()
   })
 
