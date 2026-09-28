@@ -25,6 +25,7 @@ Status: **built, off everywhere, never enabled for a live business.**
 | --- | --- | --- |
 | `WA_QUESTIONNAIRE_ENABLED` | unset | Master switch. Anything other than `1` means the questionnaire never speaks. |
 | `WA_QUESTIONNAIRE_AGENCY_IDS` | unset | Comma-separated agency ids, or `all`. Empty means **no** agency. |
+| `WA_QUESTIONNAIRE_INTERACTIVE_AGENCY_IDS` | unset | Tap-to-select (reply buttons / list) for these agency ids, or `all`. Empty means **no** agency: every question is numbered text, as before. Requires the two flags above. |
 
 Absence blocks, in two deliberate steps, exactly like `WA_CONTACTS_*` and
 `SMART_REPLY_AGENT_*`. Both are read per call, so a change takes effect on the

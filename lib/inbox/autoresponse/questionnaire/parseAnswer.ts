@@ -21,9 +21,9 @@ export function classifyInboundKind(type: string, text: string): InboundKind {
   if (type === 'audio') return 'voice'
   if (type === 'reaction' || type === 'system' || type === 'unknown') return 'ignorable'
   if (typeof text === 'string' && text.trim()) return 'text'
-  // Interactive and button replies persist with empty text today (their content
-  // lives in `payload`). Treated as media until the interactive upgrade lands,
-  // which is the honest answer: we cannot read them yet.
+  // A tapped reply button / list row arrives with its title as text (see
+  // parseWhatsappMessage) and is read above, as 'text', by its id. What is left
+  // here is an interactive or template-button reply with no readable title.
   if (type === 'image' || type === 'document' || type === 'video' || type === 'sticker') return 'media'
   if (type === 'location' || type === 'contacts' || type === 'interactive' || type === 'button') return 'media'
   return 'ignorable'

@@ -45,7 +45,17 @@ export function parseWhatsappMessage(raw: unknown): ParsedWhatsappMessage {
 
     // Text body for text messages; empty string otherwise (content lives in payload).
     const textNode = m.text as { body?: unknown } | undefined
-    const text = type === 'text' && typeof textNode?.body === 'string' ? textNode.body : ''
+    let text = type === 'text' && typeof textNode?.body === 'string' ? textNode.body : ''
+
+    // A tapped reply button or list row: its TITLE is what the customer chose,
+    // so it becomes the message text — the inbox shows the answer and the
+    // conversation preview is not blank. The id stays in `payload` and is what
+    // the questionnaire resolves (questionnaire/interactive.ts).
+    if (type === 'interactive') {
+      const node = m.interactive as { button_reply?: { title?: unknown }; list_reply?: { title?: unknown } } | undefined
+      const title = node?.button_reply?.title ?? node?.list_reply?.title
+      if (typeof title === 'string') text = title.trim()
+    }
 
     // Capture the type-specific content object as payload (e.g. m.image, m.location).
     const content = m[rawType]

@@ -18,7 +18,7 @@
  * a message the customer already has; staying silent would strand them. Asking
  * a person is the only honest third option.
  *
- * NOTE: ~290 lines, over the 250-line soft limit, and deliberately not split
+ * NOTE: ~305 lines, over the 250-line soft limit, and deliberately not split
  * further. What remains after `finalize.ts` and `types.ts` were extracted is a
  * single linear sequence — gather the facts, decide, check the window, ask or
  * end — and the order of those steps IS the correctness argument documented
@@ -36,12 +36,13 @@ import {
   startSession,
   consumeUpTo,
 } from '@/db/questionnaireSessions'
-import { canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import { canUseQuestionnaireInteractive, canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
 import { resolveWhatsappServiceWindow } from '@/lib/inbox/whatsappServiceWindow'
 import { queryLatestInboundAt } from '@/lib/inbox/whatsappComposerContext'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { sendIreOutbound } from '../ireSend'
-import { parseQuestionnaireDefinition, type QuestionnaireDefinition } from './definition'
+import { findStep, parseQuestionnaireDefinition, type QuestionnaireDefinition } from './definition'
+import { interactiveSender, planInteractive, tappedSelectionId } from './interactive'
 import { classifyInboundKind } from './parseAnswer'
 import { persistQuestionTurn } from './effects'
 import { finalizeTerminal, parkForReview } from './finalize'
@@ -112,7 +113,7 @@ export async function processQuestionnaireJob(
     .where({ conversationId: job.conversationId, agencyId: job.agencyId })
     .orderBy('sequence', 'desc')
     .limit(MAX_TRANSCRIPT)
-    .select('direction', 'type', 'text', 'sequence', 'metadata', 'sentByUserId')
+    .select('direction', 'type', 'text', 'payload', 'sequence', 'metadata', 'sentByUserId')
   const transcript = rows.slice().reverse()
 
   const lastConsumed = session?.status === 'active' ? session.lastConsumedSequence : 0
@@ -122,6 +123,7 @@ export async function processQuestionnaireJob(
       sequence: Number(m.sequence),
       kind: classifyInboundKind(String(m.type ?? 'unknown'), String(m.text ?? '')),
       text: String(m.text ?? ''),
+      selectedId: tappedSelectionId(String(m.type ?? ''), m.payload) ?? undefined,
     }))
 
   const aiStateRow = await db('conversation_ai_state').where({ conversationId: job.conversationId }).first('aiState')
@@ -209,6 +211,10 @@ export async function processQuestionnaireJob(
     })
     if (!claimed) return skip('send_claim_held')
 
+    // Tap-to-select where the agency has it and the question fits; numbered
+    // text otherwise, and as the fallback if Meta rejects the interactive one.
+    const plan = canUseQuestionnaireInteractive(job.agencyId) ? planInteractive(findStep(definition, decision.stepId)) : null
+    const send = plan ? interactiveSender(plan, { sendText: deps.send, sendInteractive: deps.sendInteractive }) : deps.send
     const sent = await sendIreOutbound(
       job,
       {
@@ -220,9 +226,16 @@ export async function processQuestionnaireJob(
         },
         lead: { userId: (lead?.userId as number | null) ?? null, handlerId: (lead?.handlerId as number | null) ?? null },
       },
-      deps.send,
+      send,
       decision.text,
-      { source: 'auto_response', reason: job.reason, phase: 1, kind: 'questionnaire', questionnaireTurnKey: turnKey },
+      {
+        source: 'auto_response',
+        reason: job.reason,
+        phase: 1,
+        kind: 'questionnaire',
+        questionnaireTurnKey: turnKey,
+        ...(plan ? { interactive: plan.kind } : {}),
+      },
       { timeoutMs: QUESTIONNAIRE_SEND_TIMEOUT_MS, skipAnalysis: true },
     )
 

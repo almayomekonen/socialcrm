@@ -34,7 +34,7 @@ export async function runQuestionnaireWorker(
   const limit = opts.limit ?? 5
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS
   const workerId = opts.workerId ?? `qw-${process.pid}-${Date.now()}`
-  const deps: QuestionnaireDeps = { send: opts.deps?.send ?? sendWhatsappText }
+  const deps: QuestionnaireDeps = { send: opts.deps?.send ?? sendWhatsappText, sendInteractive: opts.deps?.sendInteractive }
 
   await reclaimStaleAutoResponseJobs(leaseMs)
   const jobs = await claimQuestionnaireJobs(workerId, limit)

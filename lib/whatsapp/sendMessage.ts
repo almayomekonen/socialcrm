@@ -59,7 +59,7 @@ export function formatWhatsappSendFailure(failure: SendWhatsappTextFailure): str
   return parts.join(' ')
 }
 
-export async function sendWhatsappText(args: {
+export type SendWhatsappArgs = {
   phoneNumberId: string
   accessToken: string
   to: string
@@ -74,7 +74,31 @@ export async function sendWhatsappText(args: {
    * resulting failure is reported as `ambiguous`.
    */
   timeoutMs?: number
-}): Promise<SendWhatsappTextResult> {
+}
+
+export async function sendWhatsappText(args: SendWhatsappArgs): Promise<SendWhatsappTextResult> {
+  return postWhatsappMessage(args, { type: 'text', text: { preview_url: false, body: args.body } })
+}
+
+/**
+ * An interactive message (reply buttons or a list) — Meta's `type: 'interactive'`.
+ * https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/interactive-reply-buttons-messages
+ * https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/interactive-list-messages
+ *
+ * Same transport, result shape and `ambiguous` rule as `sendWhatsappText`:
+ * a Graph error means nothing was delivered; a timeout means we do not know.
+ * `args.body` is only used for the trace; the content is `interactive`.
+ */
+export async function sendWhatsappInteractive(
+  args: SendWhatsappArgs & { interactive: Record<string, unknown> },
+): Promise<SendWhatsappTextResult> {
+  return postWhatsappMessage(args, { type: 'interactive', interactive: args.interactive })
+}
+
+async function postWhatsappMessage(
+  args: SendWhatsappArgs,
+  content: Record<string, unknown>,
+): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, body } = args
   // Normalize the recipient to E.164 (Israeli local → 972…). The number reaching
   // Meta and the trace must be the normalized one, or Meta returns 131026.
@@ -100,8 +124,7 @@ export async function sendWhatsappText(args: {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: recipient,
-        type: 'text',
-        text: { preview_url: false, body },
+        ...content,
       }),
     })
 

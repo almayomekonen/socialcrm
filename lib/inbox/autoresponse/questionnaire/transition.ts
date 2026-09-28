@@ -18,7 +18,7 @@
  * An input this file cannot read produces a re-prompt or a handoff, never a
  * guess and never a fallback to the AI agent.
  *
- * NOTE: ~290 lines, over the 250-line soft limit, intentionally. It is one pure
+ * NOTE: ~325 lines, over the 250-line soft limit, intentionally. It is one pure
  * function and its helpers: every rule of the conversation in one place, read
  * top to bottom in priority order. Splitting it by rule would scatter a
  * decision table that only makes sense as a whole, and the priority between
@@ -39,6 +39,7 @@ import {
   parseFreeText,
   type InboundKind,
 } from './parseAnswer'
+import { parseSelectionId } from './interactive'
 import { renderOpening, renderQuestion, renderReprompt, renderRestart, type RepromptReason } from './render'
 
 export type QuestionnaireSessionStatus =
@@ -64,6 +65,11 @@ export type InboundInput = {
   sequence: number
   kind: InboundKind
   text: string
+  /**
+   * A tapped reply button / list row: `<stepId>.<optionId>` (interactive.ts).
+   * Its `text` is the option's label, for the inbox; the id is what counts.
+   */
+  selectedId?: string
 }
 
 export type TurnFacts = {
@@ -133,7 +139,9 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   if (!inputs.length) return { kind: 'none', reason: 'no_pending_inbound', consumeThrough: null }
 
   // ── Commands, scanned across everything that arrived this turn ────────────
-  const commands = inputs.filter((i) => i.kind === 'text').map((i) => detectCommand(i.text))
+  // Typed text only: a tapped option is never a command, even if an owner
+  // labelled an option "נציג".
+  const commands = inputs.filter((i) => i.kind === 'text' && !i.selectedId).map((i) => detectCommand(i.text))
   if (commands.includes('opt_out')) {
     return terminal('opt_out', 'opted_out', null, answers, consumeThrough, false, false)
   }
@@ -209,21 +217,37 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   if (step.type === 'choice') {
     // Newest readable selection wins: a customer who writes "2" and then "no, 3"
     // has corrected themselves, and the correction is the answer.
+    // A tap is resolved by its id, never its label, and only for THIS question:
+    // a tap on an earlier question's buttons is stale and answers nothing.
     for (let i = textInputs.length - 1; i >= 0; i--) {
-      const parsed = parseChoice(textInputs[i].text, step)
+      const input = textInputs[i]
+      if (input.selectedId) {
+        const tapped = parseSelectionId(input.selectedId)
+        if (tapped?.stepId === step.id && step.options.some((o) => o.id === tapped.optionId)) {
+          return advance(facts, active, step, { [step.id]: [tapped.optionId] }, consumeThrough as number)
+        }
+        continue
+      }
+      const parsed = parseChoice(input.text, step)
       if (parsed.ok) {
         return advance(facts, active, step, { [step.id]: parsed.optionIds }, consumeThrough as number)
       }
     }
-    const lastParse = parseChoice(textInputs[textInputs.length - 1].text, step)
+    const typed = textInputs.filter((i) => !i.selectedId)
+    const lastParse = typed.length ? parseChoice(typed[typed.length - 1].text, step) : null
     // `=== false` rather than `!`: this codebase's TS does not narrow a
     // discriminated union on the negation.
     const reason: RepromptReason =
-      lastParse.ok === false && lastParse.reason === 'too_many' ? 'invalid_multi' : 'invalid_choice'
+      lastParse?.ok === false && lastParse.reason === 'too_many' ? 'invalid_multi' : 'invalid_choice'
     return reprompt(facts, active, step, reason, answers, consumeThrough as number)
   }
 
-  const joined = joinTextInputs(textInputs.map((i) => i.text))
+  // A free-text question is answered by typing; a stale tap is not an answer.
+  const typedText = textInputs.filter((i) => !i.selectedId)
+  if (!typedText.length) {
+    return reprompt(facts, active, step, 'invalid_text', answers, consumeThrough as number)
+  }
+  const joined = joinTextInputs(typedText.map((i) => i.text))
   const parsed = parseFreeText(joined)
   if (!parsed.ok) {
     return reprompt(facts, active, step, 'invalid_text', answers, consumeThrough as number)
