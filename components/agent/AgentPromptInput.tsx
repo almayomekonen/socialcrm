@@ -18,8 +18,10 @@ import AgentScopeSelect from './AgentScopeSelect'
 import MorphingText from './MorphingText'
 import { AttachmentPreview, AttachmentThumb, type Attachment } from './AgentAttachments'
 import AgentSendControl from './AgentSendControl'
-import { DepthBarsIcon, PlusIcon } from './promptIcons'
-import { useVoiceInput } from './useVoiceInput'
+import AgentVoiceStatus from './AgentVoiceStatus'
+import { DepthBarsIcon, MicIcon, PlusIcon } from './promptIcons'
+import { useVoiceRecorder } from './useVoiceRecorder'
+import { mergeTranscriptIntoDraft } from '@/lib/agent/voice/limits'
 
 const SPRING = 'max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
 const SMOOTH = 'max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.15s ease-out'
@@ -76,7 +78,14 @@ export default function AgentPromptInput({
   useEffect(() => { valueRef.current = value }, [value])
 
   const setValue = useCallback((next: string) => { setSmooth(true); onChange(next) }, [onChange])
-  const voice = useVoiceInput({ onTranscript: setValue, getBaseline: () => valueRef.current })
+  /**
+   * Voice is an input method: the transcript is merged into whatever is already
+   * in the box (never replacing it) and stops there. The rep reads, edits and
+   * sends it through `submit()` like anything typed.
+   */
+  const voice = useVoiceRecorder({ onTranscript: (text) => setValue(mergeTranscriptIntoDraft(valueRef.current, text)) })
+  const voiceBusy = voice.status !== 'idle'
+  const recording = voice.status === 'recording'
 
   const hasAttachments = attachments.length > 0
   const hasValue = value.trim() !== '' || hasAttachments
@@ -113,12 +122,14 @@ export default function AgentPromptInput({
     setTimeout(updateFades, 0)
   }, [value, expanded, updateFades])
 
+  // A live mic expands the composer too, so the voice status row sits in the
+  // bottom-controls slot instead of on top of the collapsed placeholder.
   useEffect(() => {
-    if (hasValue && !expanded) { setSmooth(false); setExpanded(true) }
-  }, [hasValue, expanded])
+    if ((hasValue || voiceBusy) && !expanded) { setSmooth(false); setExpanded(true) }
+  }, [hasValue, voiceBusy, expanded])
 
   useEffect(() => {
-    if (!expanded || voice.recording) return
+    if (!expanded || voiceBusy) return
     const t = setTimeout(() => {
       const el = textareaRef.current
       if (!el) return
@@ -126,7 +137,7 @@ export default function AgentPromptInput({
       el.setSelectionRange(el.value.length, el.value.length)
     }, 50)
     return () => clearTimeout(t)
-  }, [expanded, voice.recording])
+  }, [expanded, voiceBusy])
 
   useEffect(() => {
     if (!scopeOpen) return
@@ -141,11 +152,12 @@ export default function AgentPromptInput({
 
   function handleBlur(e: FocusEvent<HTMLDivElement>) {
     if (rootRef.current?.contains(e.relatedTarget as Node)) return
-    if (!hasValue && !voice.recording) { setSmooth(false); setExpanded(false); setScopeOpen(false) }
+    if (!hasValue && !voiceBusy) { setSmooth(false); setExpanded(false); setScopeOpen(false) }
   }
 
   function submit() {
-    if (!hasValue) return
+    // Nothing is sent while the mic is live or a transcript is still coming.
+    if (!hasValue || voiceBusy) return
     setSmooth(false)
     onSubmit(value, { scope, depth: depths[depthIndex], attachments: attachments.map((a) => a.file) })
     onChange('')
@@ -186,19 +198,22 @@ export default function AgentPromptInput({
    * refused microphone), so the button has nothing to do and says so by being
    * disabled rather than offering a mic that cannot record.
    */
-  const mode: 'send' | 'mic' | 'stop' | 'idle' = voice.recording
+  const mode: 'send' | 'mic' | 'stop' | 'busy' | 'idle' = recording
     ? 'stop'
-    : hasValue
-      ? 'send'
-      : voice.supported
-        ? 'mic'
-        : 'idle'
+    : voiceBusy
+      ? 'busy'
+      : hasValue
+        ? 'send'
+        : voice.supported
+          ? 'mic'
+          : 'idle'
 
   function actionClick(e: MouseEvent) {
     e.preventDefault()
-    if (voice.recording) voice.stop()
+    if (recording) voice.stop()
+    else if (voiceBusy) return
     else if (hasValue) submit()
-    else if (voice.supported) voice.start()
+    else if (voice.supported) void voice.start()
   }
 
   return (
@@ -239,7 +254,7 @@ export default function AgentPromptInput({
             hairline border, rounded-md, and the standard focus outline. */}
         <div
           onMouseDown={(e) => {
-            if (expanded && e.target !== textareaRef.current && !voice.recording) {
+            if (expanded && e.target !== textareaRef.current && !voiceBusy) {
               e.preventDefault()
               textareaRef.current?.focus()
             }
@@ -258,7 +273,7 @@ export default function AgentPromptInput({
           <textarea
             ref={textareaRef}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => { voice.clearError(); setValue(e.target.value) }}
             onScroll={updateFades}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
@@ -267,7 +282,7 @@ export default function AgentPromptInput({
             placeholder={placeholder}
             aria-label='שאל את הסוכן'
             enterKeyHint='send'
-            disabled={voice.recording}
+            disabled={voiceBusy}
             style={{ transition: smooth ? 'height 0.15s ease-out' : 'opacity 0.3s ease-out, transform 0.3s ease-out, height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
             /* 16px so iOS Safari does not zoom the page on focus. */
             className={cn(
@@ -297,11 +312,11 @@ export default function AgentPromptInput({
             {placeholder}
           </button>
 
-          {/* Bottom controls. Hidden while recording so the meter has the room. */}
+          {/* Bottom controls. Hidden while voice input is busy: the voice status row takes their place. */}
           <div
             className={cn(
               'absolute bottom-2 start-3 end-14 z-10 flex items-center gap-0 transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]',
-              expanded && !voice.recording ? 'pointer-events-auto translate-y-0 opacity-100 blur-0' : 'pointer-events-none translate-y-2 opacity-0 blur-sm',
+              expanded && !voiceBusy ? 'pointer-events-auto translate-y-0 opacity-100 blur-0' : 'pointer-events-none translate-y-2 opacity-0 blur-sm',
             )}
           >
             <AgentScopeSelect scopes={scopes} value={scope} onChange={setScope} open={scopeOpen} onOpenChange={setScopeOpen} />
@@ -317,26 +332,52 @@ export default function AgentPromptInput({
               <span className='select-none text-xs font-semibold'><MorphingText text={depths[depthIndex]} /></span>
             </button>
 
+            {voice.supported && hasValue && (
+              /* With a draft in the box the action button is "send", so recording
+                 more lives here; the transcript is appended to the draft. */
+              <button
+                type='button'
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => { e.stopPropagation(); void voice.start() }}
+                aria-label='הקלטה קולית'
+                className='ms-auto flex size-7 items-center justify-center rounded-md text-gray-600 outline-none transition-colors duration-200 hover:bg-gray-100 hover:text-ink focus-visible:ring-2 focus-visible:ring-primary'
+              >
+                <MicIcon />
+              </button>
+            )}
+
             <button
               type='button'
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }}
               disabled={attachments.length >= maxAttachments}
               aria-label='הוספת תמונה'
-              className='ms-auto flex size-7 items-center justify-center rounded-md text-gray-600 outline-none transition-colors duration-200 hover:bg-gray-100 hover:text-ink focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-40'
+              className={cn(
+                voice.supported && hasValue ? '' : 'ms-auto',
+                'flex size-7 items-center justify-center rounded-md text-gray-600 outline-none transition-colors duration-200 hover:bg-gray-100 hover:text-ink focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-40',
+              )}
             >
               <PlusIcon />
             </button>
           </div>
 
+          <AgentVoiceStatus status={voice.status} elapsedMs={voice.elapsedMs} onCancel={voice.cancel} />
+
           <AgentSendControl
             mode={mode}
             levels={voice.levels}
-            recording={voice.recording}
-            disabled={mode === 'idle'}
+            recording={recording}
+            disabled={mode === 'idle' || mode === 'busy'}
             onClick={actionClick}
           />
         </div>
+
+        {/* Voice failures, under the box. The draft above is never touched. */}
+        {voice.errorMessage && (
+          <p role='alert' className='mt-1.5 px-1 text-start text-xs text-red-700'>
+            {voice.errorMessage}
+          </p>
+        )}
       </div>
 
       {preview && <AttachmentPreview attachment={preview.attachment} originRect={preview.rect} onClose={() => setPreview(null)} />}

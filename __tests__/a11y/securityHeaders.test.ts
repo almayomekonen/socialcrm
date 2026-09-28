@@ -109,3 +109,16 @@ describe('the pre-existing headers still ship', () => {
     expect(headers[key]).toContain(expected)
   })
 })
+
+describe('Permissions-Policy allows the microphone to this origin only (/agent voice input)', () => {
+  test('microphone=(self): first-party pages may ask; no iframe or third party can', () => {
+    expect(headers['Permissions-Policy']).toContain('microphone=(self)')
+    expect(headers['Permissions-Policy']).not.toMatch(/microphone=\(\*\)|microphone=\*/)
+  })
+
+  test('everything else stays denied', () => {
+    for (const denied of ['camera=()', 'geolocation=()', 'payment=()']) {
+      expect(headers['Permissions-Policy']).toContain(denied)
+    }
+  })
+})

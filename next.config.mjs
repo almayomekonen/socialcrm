@@ -114,7 +114,13 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  // microphone=(self): /agent voice input records from the page itself. `()`
+  // denied it to every origin including ours, so getUserMedia was refused
+  // outright. Scoped to the app's own origin (no iframe or third party gets it),
+  // and still behind the browser's own permission prompt. It must be site-wide,
+  // not per-route: a client-side navigation to /agent keeps the policy of the
+  // document the rep first loaded.
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), payment=()' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   { key: 'Content-Security-Policy', value: contentSecurityPolicy },
   { key: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicyCandidate },
