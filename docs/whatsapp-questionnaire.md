@@ -5,7 +5,7 @@ AI agent: a welcome, its services as a numbered menu, one question at a time,
 and a handoff to a נציג with the answers written up. No model is involved at any
 point, by construction rather than by policy.
 
-Status: **built, off everywhere, never enabled for a live business.**
+Status: **live for agency 103 since 2026-09-24** (`responder = 'questionnaire'`, verified in the production database 2026-09-28); off for every other agency. Tap-to-select (reply buttons / list) is built and **off everywhere** until a real test number has tapped through a questionnaire.
 
 ---
 
@@ -25,6 +25,7 @@ Status: **built, off everywhere, never enabled for a live business.**
 | --- | --- | --- |
 | `WA_QUESTIONNAIRE_ENABLED` | unset | Master switch. Anything other than `1` means the questionnaire never speaks. |
 | `WA_QUESTIONNAIRE_AGENCY_IDS` | unset | Comma-separated agency ids, or `all`. Empty means **no** agency. |
+| `WA_QUESTIONNAIRE_INTERACTIVE_AGENCY_IDS` | unset | Tap-to-select (reply buttons / list) for these agency ids, or `all`. Empty means **no** agency: every question is numbered text, as before. Requires the two flags above. |
 
 Absence blocks, in two deliberate steps, exactly like `WA_CONTACTS_*` and
 `SMART_REPLY_AGENT_*`. Both are read per call, so a change takes effect on the
@@ -105,7 +106,8 @@ pnpm exec vitest run __tests__/inbox/questionnaire --no-file-parallelism
 | First message on a fresh conversation | Welcome + first menu + how to reach a person. |
 | A readable answer | Next question; conditional questions are skipped when they do not apply. |
 | An unreadable answer | The same question again, with a plain reason. After `maxInvalidAttempts` (default 2), handoff to a person. |
-| Photo, file, location, interactive reply | A request to answer in text. Counts toward the invalid limit. |
+| A tapped reply button / list row | Read by its option id (`<stepId>.<optionId>`). A tap on an earlier question's buttons is not an answer and counts toward the invalid limit. |
+| Photo, file, location | A request to answer in text. Counts toward the invalid limit. |
 | Voice note | Says it cannot listen, asks for text. Nothing is transcribed. |
 | Reaction, or an unknown type | Consumed silently. |
 | "נציג" / "תעבירו אותי" | Handoff, with the partial answers. |

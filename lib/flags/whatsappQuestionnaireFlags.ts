@@ -41,3 +41,16 @@ export function canUseWhatsappQuestionnaire(agencyId: number | null | undefined)
   if (!isWhatsappQuestionnaireEnabled()) return false
   return isWhatsappQuestionnaireAgencyAllowlisted(agencyId)
 }
+
+/**
+ * Tap-to-select: send a choice question as WhatsApp reply buttons or a list
+ * instead of a numbered text menu. Its own allowlist, ABSENT BY DEFAULT: until a
+ * real test number has tapped through a whole questionnaire, no agency gets it.
+ * Numbered text remains the fallback either way, and typed numbers and labels
+ * are always accepted. Only meaningful where the questionnaire itself may speak.
+ */
+export function canUseQuestionnaireInteractive(agencyId: number | null | undefined): boolean {
+  if (!canUseWhatsappQuestionnaire(agencyId)) return false
+  const list = parseAllowlist(process.env.WA_QUESTIONNAIRE_INTERACTIVE_AGENCY_IDS)
+  return list === 'all' ? true : list.has(Number(agencyId))
+}

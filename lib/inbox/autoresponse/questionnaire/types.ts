@@ -4,7 +4,7 @@
  * Its own module so `processJob` and `finalize` can depend on the same
  * constants without importing each other, which would be a cycle.
  */
-import type { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
+import type { sendWhatsappInteractive, sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 
 /**
  * Abandon a Graph call before the 60s job lease can hand the same job to a
@@ -14,4 +14,8 @@ import type { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 export const QUESTIONNAIRE_SEND_TIMEOUT_MS = 20_000
 
 export type QuestionnaireOutcome = 'sent' | 'skipped' | 'failed'
-export type QuestionnaireDeps = { send: typeof sendWhatsappText }
+export type QuestionnaireDeps = {
+  send: typeof sendWhatsappText
+  /** Tap-to-select sends (interactive.ts). Defaults to the real Graph call. */
+  sendInteractive?: typeof sendWhatsappInteractive
+}
