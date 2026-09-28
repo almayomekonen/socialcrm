@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { clearConversationAttention } from '@/db/notifications/conversationAttention'
 import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inboxConversations'
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { ATTACHMENT_MEDIA_TYPES, insertOutboundMessage } from '@/db/inboxMessages'
@@ -157,6 +158,10 @@ async function persistOne(
       .update({
         metadata: db.raw(`metadata || ?::jsonb`, [JSON.stringify({ source: ECHO_SOURCE })]),
       })
+
+    // The owner answered from the WhatsApp Business app: that is a human reply,
+    // so "waiting for a person" notifications about this chat are resolved.
+    await clearConversationAttention(trx, { agencyId, conversationId })
 
     return 'persisted'
   })

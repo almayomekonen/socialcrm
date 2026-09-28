@@ -4,7 +4,12 @@
  *
  * Every string literal here matches a database CHECK constraint exactly, so a
  * value that typechecks is a value the database will accept. Lowercase because
- * that is what the migrations declare.
+ * that is what the migrations declare. (`type` and `entityType` themselves have
+ * no CHECK; the category, priority, channel and status literals do.)
+ *
+ * NOTE ON SIZE (architecture-rules.md §6): over the 250-line soft limit on
+ * purpose, for the same reason as registry.ts — one vocabulary whose members
+ * are documented side by side; splitting it would scatter the contract.
  */
 
 /**
@@ -27,6 +32,14 @@ export const NOTIFICATION_TYPES = [
   'message.inbound',
   'message.inbound_multiple',
   'message.unanswered',
+  /**
+   * The AI handed a WhatsApp conversation to a person (the customer asked for
+   * one, or qualification finished) and no person has answered since. Emitted
+   * by the unanswered tick, never at the handoff site, so AI-worker retries and
+   * concurrent jobs cannot duplicate it. Questionnaire handoffs keep
+   * `lead.questionnaire_handoff`.
+   */
+  'lead.handoff',
   /** Its own type, not message.inbound: Messenger has its own tables, links and recipients. */
   'message.messenger_inbound',
   'comment.received',
@@ -130,6 +143,12 @@ export type NotificationPayload = {
    * Required for that type; absent elsewhere.
    */
   assignedUserId?: number | null
+  /**
+   * `lead.handoff`: when the conversation was handed to a person
+   * (`conversation_ai_state.escalatedAt`, ISO). The event-key discriminator: one
+   * notification per handoff, and a later handoff in the same chat is news.
+   */
+  escalatedAt?: string | null
   /** `lead.questionnaire_handoff`: did the customer answer every question? */
   complete?: boolean
   /** How many leads one bulk assignment moved. Counted at the emission site. */

@@ -39,6 +39,7 @@ export const leadStatusKey = (ctx: EventContext): string => `lead:${ctx.entityId
 export const leadActivityKey = (ctx: EventContext): string => `lead:${ctx.entityId}:activity`
 export const conversationInboundKey = (ctx: EventContext): string => `conversation:${ctx.entityId}:inbound`
 export const conversationUnansweredKey = (ctx: EventContext): string => `conversation:${ctx.entityId}:unanswered`
+export const conversationHandoffKey = (ctx: EventContext): string => `conversation:${ctx.entityId}:handoff`
 export const followupKey = (ctx: EventContext): string => `lead:${ctx.entityId}:followup`
 /**
  * Its own prefix: a Messenger conversation id can equal a WhatsApp conversation id.

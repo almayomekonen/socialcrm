@@ -91,6 +91,19 @@ export function messageUnansweredEventKey(event: NotificationEvent): string {
 }
 
 /**
+ * One notification per handoff: identity is the conversation plus the moment it
+ * was escalated, read from the database. Every tick that finds the same handoff
+ * collapses to it; a later handoff in the same conversation is a new event.
+ */
+export function leadHandoffEventKey(event: NotificationEvent): string {
+  const at = event.payload?.escalatedAt
+  if (typeof at !== 'string' || !at || Number.isNaN(Date.parse(at))) {
+    throw new Error('lead.handoff eventKey requires payload.escalatedAt')
+  }
+  return eventKeyFor(event, `at:${new Date(at).toISOString()}`)
+}
+
+/**
  * Assignment is repeatable — a lead can move from A to B to C — so identity
  * includes the assignee. Retrying the same transfer to the same user collapses
  * to one job (`to:{userId}`); a later transfer to a different user is news.
@@ -191,6 +204,7 @@ export function eventKeyForEvent(event: NotificationEvent): string {
   if (event.type === 'lead.status_changed') return statusChangedEventKey(event)
   if (event.type === 'message.inbound' || event.type === 'message.messenger_inbound') return messageInboundEventKey(event)
   if (event.type === 'message.unanswered') return messageUnansweredEventKey(event)
+  if (event.type === 'lead.handoff') return leadHandoffEventKey(event)
   if (event.type === 'lead.assigned') return leadAssignedEventKey(event)
   if (event.type === 'integration.disconnected') return integrationDisconnectedEventKey(event)
   if (event.type === 'integration.ingestion_failed') return integrationIngestionFailedEventKey(event)
