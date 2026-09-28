@@ -18,6 +18,7 @@ import { PRICING } from '@/lib/pricing'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { isCardBillingAvailable, billingSetupPurpose, describeCardBillingAvailability } from '@/lib/payments/cardTrial/availability'
+import PlanStatusBox from '@/components/settings/payment/PlanStatusBox'
 import { refreshCardSetupState } from '@/lib/payments/cardTrial/recoverCardSetup'
 import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
@@ -170,35 +171,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
           <ProPlanCard subscription={subscription} hasAccess={productAccess.hasAccess} />
         </>
       ) : (
-        <div className='mb-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
-          {trialActive ? (
-            <>
-              <div>
-                <p className='text-lg font-semibold'>מסלול נוכחי: Pro</p>
-                <p className='text-sm text-gray-500'>סטטוס: פעיל</p>
-              </div>
-              <a
-                href='#card-setup'
-                className='flex items-center min-w-fit justify-center font-medium rounded-md h-10 px-4 bg-solid text-white hover:bg-solid/85'
-              >
-                הוספת אמצעי תשלום
-              </a>
-            </>
-          ) : (
-            <>
-              <div>
-                <p className='text-lg font-semibold'>תוכנית: Free</p>
-                <p className='text-sm text-gray-500'>סטטוס: לא פעיל</p>
-              </div>
-              <a
-                href='#card-setup'
-                className='flex items-center min-w-fit justify-center font-medium rounded-md h-10 px-4 bg-solid text-white hover:bg-solid/85'
-              >
-                הוספת אמצעי תשלום
-              </a>
-            </>
-          )}
-        </div>
+        <PlanStatusBox trialActive={trialActive} canAddFirstCard={!cardView.cardBilled} />
       )}
 
       {usage && <SubscriptionUsage usage={usage} />}

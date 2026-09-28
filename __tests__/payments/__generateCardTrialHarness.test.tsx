@@ -76,6 +76,17 @@ describe.skipIf(!ENABLED)('generate card-trial harness', () => {
         <TrialStatusCard startedAt={new Date('2026-09-16T09:00:00Z')} endsAt={FIRST_CHARGE} daysRemaining={5} cardBilled />
       </div>,
     )
+    // The corrected post-save screen: a verified card, so the plan box carries
+    // NO first-card CTA and card management lives in the summary below it.
+    const PlanStatusBox = (await import('@/components/settings/payment/PlanStatusBox')).default
+    await dump(
+      '8-billing-post-save',
+      <div className='p-6 flex flex-col'>
+        <PlanStatusBox trialActive canAddFirstCard={false} />
+        <CardOnFileSummary view={view()} />
+        <TrialStatusCard startedAt={new Date('2026-09-28T05:25:28Z')} endsAt={FIRST_CHARGE} daysRemaining={7} cardBilled />
+      </div>,
+    )
     await dump(
       '5-billing-cancelled',
       <div className='p-6 flex flex-col'>
