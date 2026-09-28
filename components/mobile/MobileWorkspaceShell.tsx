@@ -31,6 +31,9 @@ import { useVisibleViewportHeight } from './useVisibleViewportHeight'
  *
  * List pages still scroll in `main`. A WhatsApp thread makes `main` a flex
  * column with overflow hidden so the message list is the only scroller.
+ * `data-mobile-scroll-owner` is the same opt-in without hiding the header: the
+ * page (the /agent workspace) scrolls its own content region and keeps its
+ * composer outside it, so nothing it owns scrolls underneath the composer.
  *
  * `main` also drops `overscroll-contain` for the duration of a thread. On a list
  * page `main` IS the scroller, so containing its overscroll is correct. Inside a
@@ -100,7 +103,7 @@ export default function MobileWorkspaceShell({
            neutralisation in main.css — see the rule there for why it is needed. */}
         <div
           data-mobile-workspace
-          className='flex min-h-0 flex-1 flex-col overflow-hidden bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overscroll-auto'
+          className='flex min-h-0 flex-1 flex-col overflow-hidden bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overscroll-auto has-[[data-mobile-scroll-owner]]:[&_#main-content]:overflow-hidden has-[[data-mobile-scroll-owner]]:[&_#main-content]:overscroll-auto'
         >
           <MobileHeader title={title} onBack={isTab ? undefined : true} action={headerAction} />
 

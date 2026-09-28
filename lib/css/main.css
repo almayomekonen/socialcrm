@@ -145,11 +145,23 @@ html {
  * pseudo-element extends the touchable region symmetrically beyond it.
  *
  * Absolute px again: `size-11` rendered 41.25px precisely because it was rem.
+ *
+ * `position: relative` is only a DEFAULT, so it lives in the components layer:
+ * a positioning utility on the same element (`absolute`, `fixed`, `sticky`)
+ * must win. Unlayered, it beat every utility — on touch devices only, since the
+ * whole block is `pointer: coarse` — and knocked the /agent composer's
+ * `absolute` send/mic button into normal flow, out of the input and over the
+ * placeholder. Desktop and viewport-only emulation never matched, so it only
+ * showed on a real phone.
  */
-@media (pointer: coarse) {
-  .tap-44 {
-    position: relative;
+@layer components {
+  @media (pointer: coarse) {
+    .tap-44 {
+      position: relative;
+    }
   }
+}
+@media (pointer: coarse) {
   .tap-44::after {
     content: '';
     position: absolute;
