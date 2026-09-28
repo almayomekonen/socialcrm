@@ -1,5 +1,16 @@
-import { containsUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
-import { CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type Claim } from './types'
+import { matchUnsupportedBusinessClaim } from '@/lib/copilot/general/unsupportedClaims'
+import { BUSINESS_STATES, CLAIM_CLASSES, claimRefs, withClaimRefs, type AgentAnswer, type BusinessState, type Claim, type ProposedAction, type ProposedBatch } from './types'
+import { parseEntityRef } from './evidence'
+/**
+ * The state gate lives in ./businessState, not here. It is a rule about what a
+ * DIAGNOSIS may assert given what survived, which is a different question from
+ * whether a claim is supportable — and it now needs the evidence collector, not
+ * just the kept claims, to tell "no problem found" from "did not look".
+ */
+import { groundedBusinessState } from './businessState'
+import { groundedProposal } from './proposalGate'
+import { groundedBatch } from './batchGate'
+import { isProductTopic } from './product/knowledge'
 import type { EvidenceCollector } from './evidence'
 
 /**
@@ -71,6 +82,11 @@ export type ValidatedAgentAnswer = {
   headline: string
   claims: Claim[]
   unknown: string | null
+  businessState: BusinessState | null
+  /** Survives only if its target is a lead the tools actually returned. */
+  proposedAction: ProposedAction | null
+  /** Survives only if EVERY target is a lead the tools actually returned. */
+  proposedBatch: ProposedBatch | null
   diagnostics: AgentTrustDiagnostics
 }
 
@@ -86,6 +102,8 @@ export type RejectionReason = 'malformed' | 'unsupported-claim' | 'no-supportabl
  * rule — without carrying the content.
  */
 export type AgentTrustCounts = {
+  /** How many claims the model PROPOSED, before any were judged. */
+  proposedClaims: number
   droppedClaims: number
   strippedRefs: number
   byReason: Record<DropReason, number>
@@ -105,15 +123,29 @@ export type AgentValidation = {
   answer: ValidatedAgentAnswer | null
   /** null when the answer was accepted. */
   rejection: RejectionReason | null
+  /**
+   * WHICH blocklist rule fired, for an `unsupported-claim` refusal — `RULE_17`
+   * and so on. Null for every other outcome.
+   *
+   * It exists because the gate deliberately never persists the prose it
+   * destroyed, so without it a refusal is the same opaque record for
+   * twenty-six different problems. The id names OUR phrase, never the user's
+   * text, which is what makes it safe to trace and to store.
+   */
+  rejectionRuleId: string | null
   counts: AgentTrustCounts
 }
 
 function zeroCounts(): AgentTrustCounts {
-  return { droppedClaims: 0, strippedRefs: 0, byReason: { 'no-valid-evidence': 0, 'inference-not-hedged': 0 } }
+  return { proposedClaims: 0, droppedClaims: 0, strippedRefs: 0, byReason: { 'no-valid-evidence': 0, 'inference-not-hedged': 0 } }
 }
 
-function refused(rejection: RejectionReason, counts: AgentTrustCounts = zeroCounts()): AgentValidation {
-  return { answer: null, rejection, counts }
+function refused(
+  rejection: RejectionReason,
+  counts: AgentTrustCounts = zeroCounts(),
+  rejectionRuleId: string | null = null,
+): AgentValidation {
+  return { answer: null, rejection, rejectionRuleId, counts }
 }
 
 /** Strip the `refId=` prefix the model may echo from a payload label, and trim. */
@@ -136,14 +168,69 @@ function uniq(values: string[]): string[] {
   return out
 }
 
-/** Does this ref resolve to a real ENTITY (lead / conversation / message)? */
+/**
+ * Does this ref resolve to a real ENTITY (lead / conversation / message)?
+ *
+ * TWO ACCEPTED FORMS, ONE MEANING. `lead:161` is the canonical form tools now
+ * emit and the prompt states; `161` is the bare id that every existing tool and
+ * test already produces. Both resolve to the same evidence.
+ *
+ * A QUALIFIED REF IS CHECKED AGAINST ITS OWN KIND AND NOTHING ELSE. That is what
+ * keeps the kind meaningful: `lead:161` asks the collector for a LEAD 161, and
+ * if the collector holds only a message 161 it does not resolve. Stripping the
+ * prefix and trying all three kinds would have made `lead:161` and
+ * `message:161` interchangeable, which is a weaker contract than the one this
+ * codebase had before the fix.
+ *
+ * An UNRECOGNISED prefix parses as null and falls through to the bare lookup,
+ * where it cannot match: `customer:161` is asked for as the literal id
+ * `"customer:161"` and no tool ever emitted that. So a made-up entity kind fails
+ * closed rather than quietly resolving on its digits.
+ */
 function resolvesAsEntity(ref: string, evidence: EvidenceCollector): boolean {
+  const qualified = parseEntityRef(ref)
+  if (qualified) return evidence.has(qualified.kind, qualified.id)
   return evidence.has('lead', ref) || evidence.has('conversation', ref) || evidence.has('message', ref)
 }
 
 /** Does this ref name a metric the collector actually produced? */
 function resolvesAsMetric(ref: string, evidence: EvidenceCollector): boolean {
   return evidence.hasMetric(ref)
+}
+
+/**
+ * Does this ref name a real product topic?
+ *
+ * Checked against the canonical registry rather than the evidence collector,
+ * because product knowledge is not gathered per investigation — it is a
+ * server-owned constant, identical for every agency, and carries no customer
+ * data. There is nothing to scope and nothing a tool could have fetched.
+ *
+ * It is still a MEMBERSHIP CHECK, not a waiver: `product.invented_feature` fails
+ * exactly as an invented lead id does. What a PRODUCT claim cannot do is carry a
+ * business number, because no topic holds one — a claim that tried would have to
+ * cite CRM evidence, and would then be a FACT or an OBSERVATION and be judged as
+ * one.
+ */
+function resolvesAsProduct(ref: string): boolean {
+  return isProductTopic(ref)
+}
+
+/**
+ * Does this ref name a page the search actually consulted in THIS run?
+ *
+ * Checked against the run's own collector, exactly like an entity — and unlike
+ * PRODUCT, which is a server-owned constant. External evidence is gathered per
+ * investigation, so a source that was not harvested this run cannot be cited
+ * this run, and a source harvested for another agency's question never entered
+ * this collector at all.
+ *
+ * A source ref is opaque to the model: `src_3` means nothing except by lookup.
+ * That is deliberate — an id the model could construct from a URL it read on a
+ * page would be an id it could invent.
+ */
+function resolvesAsSource(ref: string, evidence: EvidenceCollector): boolean {
+  return evidence.hasSource(ref)
 }
 
 /**
@@ -157,8 +244,21 @@ function refResolver(claim: Claim): (ref: string, evidence: EvidenceCollector) =
       return resolvesAsEntity
     case 'OBSERVATION':
       return resolvesAsMetric
+    case 'PRODUCT':
+      return (ref) => resolvesAsProduct(ref)
+    case 'SOURCED':
+      return resolvesAsSource
+    /**
+     * INFERENCE and RECOMMENDATION accept ANY of the three worlds, because a
+     * judgement may legitimately rest on a row, a measurement or a publication —
+     * and joining internal to external is precisely what an inference is for.
+     * They remain the only classes that can span them, and INFERENCE additionally
+     * has to hedge, so "the market is slowing" can never be asserted flatly as
+     * the cause of a lead dip.
+     */
     default:
-      return (ref, evidence) => resolvesAsEntity(ref, evidence) || resolvesAsMetric(ref, evidence)
+      return (ref, evidence) =>
+        resolvesAsEntity(ref, evidence) || resolvesAsMetric(ref, evidence) || resolvesAsSource(ref, evidence)
   }
 }
 
@@ -173,6 +273,9 @@ function isWellFormed(answer: AgentAnswer | null | undefined): answer is AgentAn
   if (typeof answer.headline !== 'string' || answer.headline.trim() === '') return false
   if (!Array.isArray(answer.claims)) return false
   if (answer.unknown !== null && typeof answer.unknown !== 'string') return false
+  // Absent is fine (an older payload); a present value must be a real state.
+  const state = (answer as AgentAnswer).businessState
+  if (state != null && !(BUSINESS_STATES as readonly string[]).includes(state)) return false
   return answer.claims.every(
     (c) =>
       c &&
@@ -192,6 +295,23 @@ function isWellFormed(answer: AgentAnswer | null | undefined): answer is AgentAn
 export function validateAgentAnswerDetailed(
   answer: AgentAnswer,
   evidence: EvidenceCollector,
+  opts?: {
+    /**
+     * Refuse an answer that proposed NO claims at all.
+     *
+     * The autonomous path sets this. There, the system has already established
+     * that a specific expectation was violated, so a "finding" asserting nothing
+     * is not a finding — it is a wasted run, and surfacing it would put an empty
+     * notification in front of an operator. The interactive path leaves it off,
+     * because there a claimless answer is usually a greeting or an honest
+     * "I cannot determine this", both of which are useful replies to a person
+     * who asked a question.
+     *
+     * It has no effect on claims that WERE proposed: those are judged the same
+     * way on both paths.
+     */
+    requireClaim?: boolean
+  },
 ): AgentValidation {
   if (!isWellFormed(answer)) return refused('malformed')
 
@@ -199,7 +319,11 @@ export function validateAgentAnswerDetailed(
   // Matches the Copilot gate's stance — this is not repairable per-claim,
   // because the headline and the unknown line are the model's own prose.
   const prose = [answer.headline, ...answer.claims.map((c) => c.text), answer.unknown ?? ''].join('\n')
-  if (containsUnsupportedBusinessClaim(prose)) return refused('unsupported-claim')
+  const banned = matchUnsupportedBusinessClaim(prose)
+  if (banned) {
+    // The rule id and the shape of what was proposed — never the prose itself.
+    return refused('unsupported-claim', { ...zeroCounts(), proposedClaims: answer.claims.length }, banned.id)
+  }
 
   const kept: Claim[] = []
   const dropped: DroppedClaim[] = []
@@ -230,6 +354,7 @@ export function validateAgentAnswerDetailed(
   }
 
   const counts: AgentTrustCounts = {
+    proposedClaims: answer.claims.length,
     droppedClaims: dropped.length,
     strippedRefs: strippedRefs.length,
     byReason: {
@@ -238,18 +363,43 @@ export function validateAgentAnswerDetailed(
     },
   }
 
-  // Never rescue an answer with nothing supportable left. The counts survive the
-  // refusal so the reason is answerable afterwards.
-  if (kept.length === 0) return refused('no-supportable-claim', counts)
+  /**
+   * Nothing survived — but WHY decides whether that is a refusal.
+   *
+   * If claims were proposed and every one was destroyed, the answer rested on
+   * things that are not true and must not be shown. That is the original rule
+   * and it is unchanged.
+   *
+   * If the model proposed NO claims at all, nothing was destroyed and there is
+   * nothing unsupported to hide. That is a greeting, or an honest "I cannot
+   * determine this" — and refusing it was a real defect: a live run produced four
+   * answers whose `unknown` correctly explained that conversion rate and revenue
+   * are not available, and all four were discarded, so the rep saw a generic
+   * error instead of the accurate explanation the model had actually written.
+   *
+   * The distinction is exactly `dropped.length`, which is why it can be made
+   * safely: an unsupported claim still cannot reach the user by this path,
+   * because a claim that was never proposed cannot be one.
+   *
+   * `requireClaim` restores the stricter rule for the autonomous path — see the
+   * option's own note.
+   */
+  if (kept.length === 0 && (dropped.length > 0 || opts?.requireClaim === true)) {
+    return refused('no-supportable-claim', counts)
+  }
 
   return {
+    rejection: null,
+    rejectionRuleId: null,
     answer: {
       headline: answer.headline,
       claims: kept,
       unknown: answer.unknown,
+      businessState: groundedBusinessState(answer.businessState ?? null, kept, evidence),
+      proposedAction: groundedProposal(answer.proposedAction ?? null, evidence),
+      proposedBatch: groundedBatch(answer.proposedBatch ?? null, evidence),
       diagnostics: { dropped, strippedRefs },
     },
-    rejection: null,
     counts,
   }
 }

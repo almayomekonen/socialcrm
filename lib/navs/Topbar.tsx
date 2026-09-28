@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { twMerge } from 'tailwind-merge'
 import { usePathname } from 'next/navigation'
 import Icon from '@/lib/Icon'
-import CopilotTopbarTrigger from '@/components/copilot/CopilotTopbarTrigger'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import HelpTrigger from '@/components/education/HelpTrigger'
 import { HEADER_EDU } from '@/lib/education/types'
@@ -16,6 +15,7 @@ const WORKSPACE_TITLES: Record<string, WorkspaceIdentity> = {
   '/leads': { primary: 'לידים', secondary: 'ניהול ומעקב לידים' },
   '/clients': { primary: 'לקוחות', secondary: 'ניהול קשרי לקוחות' },
   '/inbox': { primary: 'שיחות', secondary: 'תיבת שיחות' },
+  '/agent': { primary: 'הסוכן שלך', secondary: 'העוזר החכם של העסק שלך' },
   '/tasks': { primary: 'משימות', secondary: 'המשימות שלך להיום' },
   '/sum_sales': { primary: 'ביצועים', secondary: 'תובנות ומדדים' },
 }
@@ -47,10 +47,16 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
         <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop' aria-label='פתיחת תפריט'>
           <Icon name='bars' type='reg' />
         </button>
-        {/* Inline-start cluster (visual right in RTL): copilot, notifications,
-            help, then user identity. System-level workspace controls, not nav. */}
+        {/* Inline-start cluster (visual right in RTL): notifications, help, then
+            user identity. System-level workspace controls, not nav.
+
+            The copilot trigger used to open this cluster. It is gone with the
+            side panel it toggled: the assistant is now a navigation destination
+            (הסוכן שלך), and a header button that opens a second, different AI
+            surface is exactly the competing experience that replacement was
+            meant to end. `CopilotTopbarTrigger` itself is left in the tree —
+            unmounted, not deleted. */}
         <div className='hidden desktop:flex items-center gap-3'>
-          <CopilotTopbarTrigger />
           <NotificationBell />
           <HelpTrigger />
           <UserNAgency user={user} isPro={isPro} trialDaysRemaining={trialDaysRemaining} />

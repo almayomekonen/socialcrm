@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const getLeadTotals = vi.hoisted(() => vi.fn())
+const getOverdueFollowUps = vi.hoisted(() => vi.fn())
+const getLeadsWithoutNextStep = vi.hoisted(() => vi.fn())
+const getActivityWindow = vi.hoisted(() => vi.fn())
 import { createEvidenceCollector, type EvidenceCollector } from '@/lib/agent/evidence'
 import { createBudget } from '@/lib/agent/budget'
 import { validateAgentAnswer } from '@/lib/agent/validate'
@@ -14,6 +19,7 @@ const listAgentConversationMessages = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/today/service', () => ({ buildTodayBrief }))
 vi.mock('@/db/briefing', () => ({ getNamedLeadById, getLeadsByName }))
+vi.mock('@/db/agentBusiness', () => ({ getLeadTotals, getOverdueFollowUps, getLeadsWithoutNextStep, getActivityWindow }))
 vi.mock('@/db/aiSummaries', () => ({ getLeadIntelligenceInputs }))
 vi.mock('@/db/agentConversation', () => ({
   findLatestLeadConversation,
@@ -266,10 +272,24 @@ describe('get_conversation message-id contract', () => {
     expect(Object.keys((out.messages as Record<string, unknown>[])[0]).sort()).toEqual([
       'at',
       'direction',
+      'evidenceRef',
       'id',
       'sequence',
       'text',
     ])
+  })
+
+  it('ACCEPTS a FACT citing the canonical message reference', async () => {
+    const d = deps()
+    const out0 = await run(buildAgentTools(d).get_conversation, { leadId: 1527 })
+    const ref = (out0.messages as Record<string, unknown>[])[0]!.evidenceRef as string
+    expect(ref).toMatch(/^message:/)
+    expect(
+      validateAgentAnswer(
+        { headline: 'x', claims: [{ claimClass: 'FACT', text: 'הלקוח כתב שלום.', entityEvidence: [ref] }], unknown: null },
+        d.evidence,
+      ),
+    ).not.toBeNull()
   })
 
   it('ACCEPTS a FACT citing a real message id', async () => {

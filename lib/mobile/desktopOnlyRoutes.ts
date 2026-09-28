@@ -242,6 +242,19 @@ export const MOBILE_READY_ROUTES: Record<string, string> = {
   // Precisely the summary tab, not the whole subtree: its sibling tabs
   // (tasks / files / billing) are desktop-only and listed above.
   '/clients/[clientId]/summary': 'ליד — LeadDetailMobile, branched in the summary page; the /clients LIST is desktop-only',
+  /**
+   * הסוכן שלך — ONE responsive component on both device classes, not a phone
+   * branch of a desktop page. There is no table, no grid and no column set to
+   * degrade: a centred single column, a stack of suggestion buttons and a
+   * composer pinned to the bottom of the scroller, which is already the shape a
+   * phone wants. Listing it as a desktop handoff would take away a screen that
+   * works and leave a "עוד" row that goes nowhere.
+   *
+   * Reached from the sidebar on desktop and from the "עוד" hub on a phone — the
+   * mobile tab bar is full at five (see MobileTabBar) and this does not displace
+   * a tab.
+   */
+  '/agent': 'הסוכן שלך — AgentWorkspace, one responsive component; no desktop-only branch to gate',
   '/m': 'עוד — the mobile settings hub. Phone-only by server gate; desktop is redirected away',
   '/settings': 'Reached directly from עוד. SettingsChrome drops the desktop nav column on a phone',
   '/settings/integrations':

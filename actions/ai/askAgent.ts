@@ -1,6 +1,8 @@
 'use server'
 
-import { runAgentInvestigation } from '@/lib/agent/run'
+import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
+import { resolveAgentScope } from '@/lib/agent/scope'
+import { submitProposedAction, submitProposedBatch } from '@/lib/agent/actions/bridge'
 import { recordAgentInvestigation, type AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentResult } from '@/lib/agent/types'
 
@@ -34,6 +36,19 @@ import type { AgentResult } from '@/lib/agent/types'
 const MAX_QUESTION_CHARS = 1_000
 
 /**
+ * Prior turns forwarded to the model, newest kept.
+ *
+ * Six is three exchanges — enough for "מי צריך טיפול" → "ומה דחוף" → "ומה עם
+ * יוסי", which is the depth follow-ups actually reach — and bounded so a long
+ * session cannot grow the prompt without limit. Each turn is capped too: an
+ * assistant headline is one sentence and a question is already capped, but the
+ * cap is applied here rather than trusted because this list arrives from a
+ * request.
+ */
+const MAX_HISTORY_TURNS = 6
+const MAX_TURN_CHARS = 600
+
+/**
  * The durable record, and the guard around it.
  *
  * The loop calls this only AFTER validation, and never for an admission denial —
@@ -57,13 +72,106 @@ async function persistQuietly(record: AgentInvestigationInput): Promise<void> {
  * read. Everything else — agency, permissions, entitlement, budget, model,
  * investigation id — stays server-derived and is unreachable from a request.
  */
-export async function askAgent(question: string, abortSignal?: AbortSignal): Promise<AgentResult> {
+export async function askAgent(
+  question: string,
+  abortSignal?: AbortSignal,
+  options?: { history?: AgentTurn[]; onProgress?: (e: { tool: string; step: number }) => void },
+): Promise<AgentResult> {
   const trimmed = (question ?? '').trim()
   if (!trimmed) return { ok: false, reason: 'error', message: 'empty-question' }
 
-  return runAgentInvestigation({
+  /**
+   * Resolved ONCE, here, and handed down. `runAgentInvestigation` would resolve
+   * it itself, but this function needs the same authority afterwards to submit
+   * any proposed action — and resolving twice would mean the scope that
+   * investigated and the scope that acts are two separate reads of the session,
+   * which is a difference nobody would notice until it mattered.
+   */
+  const scope = await resolveAgentScope()
+
+  const history = sanitiseHistory(options?.history)
+
+  const result = await runAgentInvestigation({
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
+    history,
+    onProgress: options?.onProgress,
     abortSignal,
+    scope,
     onPersist: persistQuietly,
   })
+
+  if (result.ok !== true) return result
+
+  /**
+   * The proposal reaches the Action Runtime here and nowhere else.
+   *
+   * Deliberately OUTSIDE `runAgentInvestigation`: that function owns the model's
+   * wall clock, and a mutation racing a deadline is how an execution becomes
+   * UNKNOWN for no reason. For `create_task` this call ends at
+   * AWAITING_APPROVAL, so the request returns having written an action row and
+   * changed nothing in the CRM.
+   */
+  const proposal = result.answer.proposedAction
+  const batch = result.answer.proposedBatch
+  if (!proposal && !batch) return { ...result, actionOutcome: null, batchOutcome: null }
+
+  /**
+   * THE AUTHORIZATION INPUTS, and note what they are: the rep's own question and
+   * the assistant turn before it. Both are values this function already held
+   * before any model ran. Nothing derived from the model's output decides
+   * whether the action executes — that is the whole reason intent lives here and
+   * not on the proposal.
+   */
+  const reversed = [...history].reverse()
+  const priorAssistantMessage = reversed.find((t) => t.role === 'assistant')?.content ?? null
+  /** The rep's own turns, newest first — never the assistant's. */
+  const priorUserMessages = reversed.filter((t) => t.role === 'user').map((t) => t.content)
+
+  const authorization = {
+    scope,
+    agentRunId: result.investigationId,
+    userMessage: trimmed,
+    priorAssistantMessage,
+    priorUserMessages,
+  }
+
+  /**
+   * A BATCH TAKES PRECEDENCE, and only one of the two ever runs.
+   *
+   * The schema permits both fields, so a model could fill in each; executing
+   * both would mean a rep who asked for one thing got two mutations. The batch
+   * is the more specific request — nothing emits it by accident — so it wins,
+   * and the single proposal is dropped rather than run alongside it.
+   *
+   * Neither path costs a model call. The batch is expanded deterministically
+   * into N ordinary actions; there is no conversation per mutation.
+   */
+  if (batch) {
+    const batchOutcome = await submitProposedBatch({ batch, ...authorization })
+    return { ...result, actionOutcome: null, batchOutcome }
+  }
+
+  const actionOutcome = await submitProposedAction({ proposal: proposal!, ...authorization })
+  return { ...result, actionOutcome, batchOutcome: null }
+}
+
+/**
+ * Bound and normalise caller-supplied turns.
+ *
+ * It caps count and length and drops anything that is not one of the two roles
+ * or not a non-empty string. It deliberately does NOT attempt to verify that an
+ * assistant turn is something this system actually said — that is unverifiable
+ * from a request, and the trust boundary does not depend on it: history is
+ * prompt context, and every claim in the answer is still validated against the
+ * evidence collected in THIS run. See `RunAgentInput.history`.
+ */
+function sanitiseHistory(history?: AgentTurn[]): AgentTurn[] {
+  if (!Array.isArray(history)) return []
+  return history
+    .filter((t): t is AgentTurn => {
+      if (!t || (t.role !== 'user' && t.role !== 'assistant')) return false
+      return typeof t.content === 'string' && t.content.trim().length > 0
+    })
+    .slice(-MAX_HISTORY_TURNS)
+    .map((t) => ({ role: t.role, content: t.content.trim().slice(0, MAX_TURN_CHARS) }))
 }

@@ -52,6 +52,8 @@ function titleFor(pathname: string): { title: string; isTab: boolean } {
   // Lead detail is a stack screen, not a tab. The page itself shows the name;
   // the header only has to say which kind of record this is.
   if (pathname.startsWith('/clients/')) return { title: 'ליד', isTab: false }
+  // Reached from "עוד", so it is a stack screen and keeps its back arrow.
+  if (pathname.startsWith('/agent')) return { title: 'הסוכן שלך', isTab: false }
   const tab = MOBILE_TABS.find((t) => isTabActive(pathname, t.href))
   if (tab && TAB_HREFS.has(tab.href as string)) {
     // A tab screen is a destination, not a stack — no back arrow.

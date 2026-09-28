@@ -29,6 +29,8 @@ export type MoreItem = {
   adminOnly?: boolean
   /** Requires the AI-inspector flag in addition to ADMIN. */
   inspectorOnly?: boolean
+  /** Requires the agent rollout flag. The destination 404s without it. */
+  agentOnly?: boolean
 }
 
 export const MORE_SECTION_LABELS: Record<MoreSection, string> = {
@@ -48,6 +50,20 @@ export const MORE_ITEMS: MoreItem[] = [
   { section: 'profile', title: 'פרטי נציג', subtitle: 'פרטי הקשר שלך', href: '/settings/update_user_details', icon: 'user-pen', adminOnly: true },
 
   // ---- WORKSPACE ----
+  /*
+   * הסוכן שלך lives HERE, not in the tab bar.
+   *
+   * The bar is full at five and the ceiling is a real one (see MobileTabBar):
+   * a sixth 72px slot at 360px starts truncating Hebrew labels, and dropping
+   * the label instead fails both the ambiguous-icon rule and the
+   * accessible-name rule. Displacing an existing tab was the alternative and is
+   * worse — each of the five is daily work, this is not yet.
+   *
+   * It still satisfies this file's own rule: the row lands directly on the
+   * agent, which is a real screen with a phone presentation, not a menu and not
+   * a desktop handoff.
+   */
+  { section: 'workspace', title: 'הסוכן שלך', subtitle: 'העוזר החכם של העסק שלך', href: '/agent', icon: 'sparkles', agentOnly: true },
   { section: 'workspace', title: 'אינטגרציות', subtitle: 'וואטסאפ, פייסבוק ואינסטגרם', href: '/settings/integrations', icon: 'plug' },
   { section: 'workspace', title: 'צוותים', subtitle: 'חלוקת הנציגים לצוותים', href: '/settings/edit_teams', icon: 'users', adminOnly: true },
   { section: 'workspace', title: 'משתמשים', subtitle: 'נציגים והזמנות', href: '/settings/edit_users', icon: 'user-pen', adminOnly: true },
@@ -100,11 +116,12 @@ export const MORE_ITEMS: MoreItem[] = [
  * second authorization rule, and every destination still enforces its own
  * server-side checks regardless of what this returns.
  */
-export function visibleMoreItems(opts: { role: string; inspectorEnabled: boolean }): MoreItem[] {
+export function visibleMoreItems(opts: { role: string; inspectorEnabled: boolean; agentEnabled?: boolean }): MoreItem[] {
   const isAdmin = opts.role === 'ADMIN'
   return MORE_ITEMS.filter((item) => {
     if (item.adminOnly && !isAdmin) return false
     if (item.inspectorOnly && !opts.inspectorEnabled) return false
+    if (item.agentOnly && !opts.agentEnabled) return false
     return true
   })
 }

@@ -1,0 +1,10 @@
+{
+  "//": "Runner-only tsconfig. `server-only` is a build-time bundler guard that Next resolves and tsx cannot; the repo already stubs it for Vitest (__tests__/stubs/server-only.ts) and this maps the same stub for `npx tsx`. It changes nothing about the app build or `npx tsc --noEmit`, which use the root tsconfig.",
+  "extends": "../../../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../../../../*"],
+      "server-only": ["../../../stubs/server-only.ts"]
+    }
+  }
+}

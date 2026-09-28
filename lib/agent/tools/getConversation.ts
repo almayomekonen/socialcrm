@@ -11,6 +11,7 @@ import {
 } from '@/db/agentConversation'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
+import { entityRef } from '../evidence'
 import type { EvidenceCollector } from '../evidence'
 
 const MIN_LIMIT = 10
@@ -101,6 +102,7 @@ export function makeGetConversation(deps: { scope: AgentScope; evidence: Evidenc
       const payload = {
         found: true as const,
         leadId,
+        evidenceRef: entityRef('lead', leadId),
         leadName: named.name,
         conversationId: conversation.conversationId,
         /** True size of the thread, so a bounded window never reads as the whole story. */
@@ -111,6 +113,8 @@ export function makeGetConversation(deps: { scope: AgentScope; evidence: Evidenc
           // `sequence` and asked to cite `id` — every message claim was dropped
           // (inv_mt8mev3v_x24g97: 19 messages read, 3 claims, 3 dropped).
           id: m.id,
+          /** Cite THIS string for a message. */
+          evidenceRef: entityRef('message', m.id),
           sequence: m.sequence,
           direction: m.direction,
           text: m.text,

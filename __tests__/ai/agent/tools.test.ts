@@ -10,6 +10,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const getLeadTotals = vi.hoisted(() => vi.fn())
+const getOverdueFollowUps = vi.hoisted(() => vi.fn())
+const getLeadsWithoutNextStep = vi.hoisted(() => vi.fn())
+const getActivityWindow = vi.hoisted(() => vi.fn())
+
 const buildTodayBrief = vi.hoisted(() => vi.fn())
 const getNamedLeadById = vi.hoisted(() => vi.fn())
 const getLeadIntelligenceInputs = vi.hoisted(() => vi.fn())
@@ -18,6 +23,7 @@ const listAgentConversationMessages = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/today/service', () => ({ buildTodayBrief }))
 vi.mock('@/db/briefing', () => ({ getNamedLeadById }))
+vi.mock('@/db/agentBusiness', () => ({ getLeadTotals, getOverdueFollowUps, getLeadsWithoutNextStep, getActivityWindow }))
 vi.mock('@/db/aiSummaries', () => ({ getLeadIntelligenceInputs }))
 vi.mock('@/db/agentConversation', () => ({
   findLatestLeadConversation,
@@ -123,8 +129,8 @@ beforeEach(() => {
 // ─── Tool surface & scope safety ────────────────────────────────────────────
 
 describe('agent tool surface', () => {
-  it('exposes exactly the four read-only tools', () => {
-    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_conversation', 'get_lead', 'get_today_state'])
+  it('exposes exactly the nine read-only tools', () => {
+    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_today_state'])
   })
 
   it('no tool input schema accepts a scope field', () => {
@@ -172,7 +178,7 @@ describe('get_today_state', () => {
   it('projects only the HEAD-stable BriefItem fields — no WIP-dependent fields', async () => {
     const out = await run(buildAgentTools(deps()).get_today_state, {})
     const item = (out.items as Record<string, unknown>[])[0]
-    expect(Object.keys(item).sort()).toEqual(['leadId', 'name', 'reason', 'state', 'targetSurface'])
+    expect(Object.keys(item).sort()).toEqual(['evidenceRef', 'leadId', 'name', 'reason', 'state', 'targetSurface'])
     for (const wip of ['conversationId', 'href', 'waitingFor', 'windowHint']) {
       expect(item).not.toHaveProperty(wip)
     }

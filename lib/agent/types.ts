@@ -57,8 +57,68 @@ export type EvidenceRef =
       n: number
       measuredOn?: { kind: EvidenceEntityKind; refId: string }
     }
+  /**
+   * A page the hosted web search actually consulted. THE ONLY EXTERNAL EVIDENCE.
+   *
+   * Harvested from the provider's own output after the search ran — never from
+   * the model, which cannot add a URL it did not receive, and never before the
+   * search returns.
+   *
+   * IT IS NOT AN ENTITY, and that is the whole security boundary. `source` is
+   * absent from `EvidenceEntityKind`, so `evidence.has()` cannot be asked for
+   * one, `parseEntityRef` refuses `source:...`, and the action gates — which ask
+   * `has('lead', id)` — have no argument that a source could satisfy. External
+   * content can support a sentence; it can never select a row to write to.
+   *
+   * WHAT IT DELIBERATELY OMITS is retrieved page text. Storing attacker-
+   * controlled prose so it can be replayed into a later prompt is the injection
+   * surface this design exists to avoid; the model read the page during the
+   * search and the citation is what survives.
+   */
+  | {
+      kind: 'source'
+      /** Short, stable, model-citable: `src_1`. Assigned at harvest, never by the model. */
+      refId: string
+      url: string
+      title: string
+      /** Publisher identity, derived from the URL we were given — never from page content. */
+      domain: string
+      /**
+       * How this page reached us. Both are admissible evidence; neither changes
+       * what a SOURCED claim must do to survive validation.
+       *
+       * `opened` — the provider actually fetched it (`openPage` action).
+       * `cited`  — the model attributed the answer to it (`url_citation`).
+       *
+       * A page can be opened without being cited, which is the case Phase 4e
+       * exists for. Search-engine hits (`action.sources`) set neither, because
+       * they are never admitted.
+       */
+      opened?: boolean
+      cited?: boolean
+      /**
+       * The publisher's own name, when the provider supplies one.
+       *
+       * OPTIONAL AND USUALLY ABSENT, deliberately. The hosted search returns
+       * `{id, url, title}` and no publisher field, so today this is never set and
+       * `domain` is the honest stand-in — "according to cio.com" is true, and
+       * "according to CIO" would be us deciding what the domain is called.
+       * The field exists so a provider that starts returning one can be carried
+       * through without reshaping the evidence ref; it is never inferred.
+       */
+      publisher?: string
+      /** ISO. The only time claim we can honestly support; publication date is not available. */
+      retrievedAt: string
+    }
 
-/** The entity kinds addressable by `EvidenceCollector.has`. */
+/**
+ * The entity kinds addressable by `EvidenceCollector.has`.
+ *
+ * `source` and `metric` are deliberately absent: each has its own accessor
+ * (`hasSource`, `hasMetric`) because each grounds a different class of claim.
+ * Widening this union is the single edit that would let external content ground
+ * a FACT or an action — see the note on the `source` ref above.
+ */
 export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
 
 /**
@@ -78,13 +138,22 @@ export type EvidenceEntityKind = 'lead' | 'conversation' | 'message'
  *   OBSERVATION    metricEvidence — metric names that exist WITH their sample size
  *   INFERENCE      evidence (either kind) AND a hedge in the prose
  *   RECOMMENDATION evidence (either kind)
+ *   PRODUCT        productEvidence — canonical product topic ids
+ *
+ * PRODUCT IS A DIFFERENT KNOWLEDGE DOMAIN, not a loosened one. A statement about
+ * what SocialCRM does is not a statement about this customer's rows, so demanding
+ * CRM evidence for it was a category error — that is why "למה המערכת הזו טובה?"
+ * came back as "לא מצאתי מספיק נתונים". It still has to cite: a PRODUCT claim
+ * names a topic in `lib/agent/product/knowledge`, and a topic that does not exist
+ * fails exactly as an invented lead id does. What changes is WHICH source has to
+ * hold the reference, never whether one is required.
  *
  * Promoting an inference to a FACT therefore means moving refs into
  * `entityEvidence` and having them resolve to real entities; promoting it to an
  * OBSERVATION means naming a metric the collector actually holds. Mislabelling
  * costs fabrication the validator can detect, rather than a relabel it cannot.
  */
-export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION'] as const
+export const CLAIM_CLASSES = ['FACT', 'OBSERVATION', 'INFERENCE', 'RECOMMENDATION', 'PRODUCT', 'SOURCED'] as const
 export type ClaimClass = (typeof CLAIM_CLASSES)[number]
 
 /** Something read directly from source rows. Cites the rows. */
@@ -111,6 +180,41 @@ export type InferenceClaim = {
   evidence: string[]
 }
 
+/**
+ * Something true about SocialCRM itself — capability, terminology, how to start.
+ *
+ * Grounded in the canonical topics, never in the customer's data. It can never
+ * carry a business number: no product topic holds one, so a claim that tried
+ * would have to cite CRM evidence and would be a FACT or an OBSERVATION instead.
+ */
+export type ProductClaim = {
+  claimClass: 'PRODUCT'
+  text: string
+  /** Product topic ids. Must exist in the canonical registry. */
+  productEvidence: string[]
+}
+
+/**
+ * Something the world says, read from a page the search actually consulted.
+ *
+ * THE COUNTERPART TO `FACT`, AND KEPT APART FROM IT ON PURPOSE. A FACT is a row
+ * in this customer's database; a SOURCED claim is someone else's publication.
+ * Collapsing them would let "a competitor raised prices" wear the same badge as
+ * "this lead has waited six days", and only one of those is something we can
+ * actually stand behind.
+ *
+ * It cites `sourceEvidence` — source refIds that must resolve in THIS run's
+ * collector. It can carry a number, unlike PRODUCT, because a page can state
+ * one; what it cannot do is present that number as the customer's own, since a
+ * claim about the customer's data has to cite the customer's data.
+ */
+export type SourcedClaim = {
+  claimClass: 'SOURCED'
+  text: string
+  /** Source refIds. Must resolve against harvested sources — never entities. */
+  sourceEvidence: string[]
+}
+
 /** Proposed next action. Advice, never asserted as fact. */
 export type RecommendationClaim = {
   claimClass: 'RECOMMENDATION'
@@ -119,7 +223,7 @@ export type RecommendationClaim = {
   evidence: string[]
 }
 
-export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim
+export type Claim = FactClaim | ObservationClaim | InferenceClaim | RecommendationClaim | ProductClaim | SourcedClaim
 
 /** The refs a claim cites, whatever its class calls the field. */
 export function claimRefs(claim: Claim): string[] {
@@ -128,6 +232,10 @@ export function claimRefs(claim: Claim): string[] {
       return claim.entityEvidence
     case 'OBSERVATION':
       return claim.metricEvidence
+    case 'PRODUCT':
+      return claim.productEvidence
+    case 'SOURCED':
+      return claim.sourceEvidence
     default:
       return claim.evidence
   }
@@ -140,9 +248,81 @@ export function withClaimRefs(claim: Claim, refs: string[]): Claim {
       return { ...claim, entityEvidence: refs }
     case 'OBSERVATION':
       return { ...claim, metricEvidence: refs }
+    case 'PRODUCT':
+      return { ...claim, productEvidence: refs }
+    case 'SOURCED':
+      return { ...claim, sourceEvidence: refs }
     default:
       return { ...claim, evidence: refs }
   }
+}
+
+/**
+ * The agent's read on the business right now — its diagnosis, not its report.
+ *
+ * It exists so the model has to COMMIT to one, which is the difference between
+ * an advisor and a dashboard: "nothing is urgent" and "nothing is worth doing"
+ * are different findings, and a surface with no word for the gap between them
+ * defaults to the first and stops there.
+ *
+ *   URGENT       something needs attention now
+ *   AT_RISK      no fire, but a pattern that becomes one if ignored
+ *   OPPORTUNITY  no problem, and still a clearly better use of the next hour
+ *   HEALTHY      no risk and no opportunity the evidence can actually support
+ *
+ * `null` when the question was not about the business at all — a greeting or a
+ * product question has no business state, and inventing one would be noise.
+ *
+ * NOT a claim, and deliberately not evidence-cited: it is a label over claims
+ * that carry their own evidence. The validator still refuses to let it assert
+ * pressure out of nothing — see the downgrade rule in ./validate.
+ */
+export const BUSINESS_STATES = ['URGENT', 'AT_RISK', 'OPPORTUNITY', 'HEALTHY'] as const
+export type BusinessState = (typeof BUSINESS_STATES)[number]
+
+/**
+ * An action the model is ASKING to perform. It has performed nothing.
+ *
+ * Kept out of `Claim` deliberately: a claim is something asserted to be true
+ * about the business, and "I would like to create a task" is neither true nor
+ * false yet. Only an `ActionOutcome` from the Action Runtime can say whether
+ * anything happened.
+ */
+export type ProposedAction =
+  | {
+      actionType: 'create_task'
+      args: { clientId: number; title: string; dueDate: string }
+      evidenceRefs: string[]
+    }
+  | {
+      actionType: 'create_follow_up'
+      /** A follow-up is lead state, so the lead IS the target. Date-level only. */
+      args: { clientId: number; at: string; note?: string | null }
+      evidenceRefs: string[]
+    }
+  | {
+      actionType: 'create_meeting'
+      /** The one action that really persists a time of day. */
+      args: {
+        clientId: number
+        title: string
+        date: string
+        startTime: string
+        durationMinutes: number
+        note?: string | null
+      }
+      evidenceRefs: string[]
+    }
+
+/**
+ * One action across many leads. Expanded by the application into N ordinary
+ * `ActionProposal`s — never executed as a single bulk mutation.
+ */
+export type ProposedBatch = {
+  actionType: 'create_task'
+  targets: number[]
+  args: { title: string; dueDate: string }
+  evidenceRefs: string[]
 }
 
 export type AgentAnswer = {
@@ -151,6 +331,12 @@ export type AgentAnswer = {
   claims: Claim[]
   /** Honest statement of what could not be determined, or null. */
   unknown: string | null
+  /** The business diagnosis, or null for a non-business question. */
+  businessState?: BusinessState | null
+  /** A request to act, or null. Never evidence that acting happened. */
+  proposedAction?: ProposedAction | null
+  /** A request to act on several leads at once, or null. */
+  proposedBatch?: ProposedBatch | null
 }
 
 /** Why an investigation ended. Recorded on every run for observability. */
@@ -182,6 +368,24 @@ export type AgentResult =
       steps: number
       stopReason: StopReason
       investigationId: string
+      /**
+       * The Action Runtime's verdict on `answer.proposedAction`, or null when the
+       * answer proposed nothing.
+       *
+       * THIS IS THE ONLY FIELD THAT MAY SAY ANYTHING HAPPENED. The answer's prose
+       * is the model's; this is the application's, and the two are kept apart on
+       * purpose — a headline saying a task was created alongside an outcome of
+       * AWAITING_APPROVAL means the prose is wrong, not that the task exists.
+       */
+      actionOutcome?: import('./actions/types').ActionOutcome | null
+      /**
+       * The Action Runtime's verdict on `answer.proposedBatch`, or null.
+       *
+       * An aggregation of N independent outcomes — never a single bulk result.
+       * Like `actionOutcome`, this and not the prose is what may say anything
+       * happened.
+       */
+      batchOutcome?: import('./actions/batch').BatchOutcome | null
       /**
        * What this investigation actually cost, in USD.
        *
@@ -222,5 +426,10 @@ export type AgentResult =
       droppedClaims?: number
       strippedRefs?: number
       /** The validator's own rejection reason, so a refusal says WHY. */
-      rejection?: string | null
+      rejection?: string
+      /**
+       * Which blocklist rule fired, for an `unsupported-claim` refusal —
+       * `RULE_17` and so on. Names our own phrase, never the user's text.
+       */
+      rejectionRuleId?: string | null | null
     }

@@ -8,17 +8,15 @@ import { Roles, isAdmin } from '@/types/roles'
 import Topbar from '@/lib/navs/Topbar'
 import Nav from '@/lib/navs/Nav'
 import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
-import { CopilotProvider } from '@/lib/copilot/useCopilot'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
-import { isGeneralModeEnabled, isAgentEnabled } from '@/lib/ai/flags'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
+import { isAgentEnabled } from '@/lib/ai/flags'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import { NotificationProvider } from '@/modules/notifications/NotificationContext'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
 import { countUnreadNotifications } from '@/db/notifications/feed'
 import { CrmSyncHealthProvider } from '@/lib/polling/CrmSyncHealthContext'
-import CopilotShell from '@/components/copilot/CopilotShell'
 import WorkspaceGrid from '@/components/layout/WorkspaceGrid'
 import { isOnboarded } from '@/lib/activation/onboarding'
 import { getActiveDeviceOverride, getDeviceClass, isMobileRequest } from '@/lib/device'
@@ -153,10 +151,6 @@ async function LayoutContent({ children }) {
   const productAccess = await getAgencyProductAccess(user.agencyId)
 
   const copilotEnabled = isCopilotEnabledForUser(user)
-  const generalModeEnabled = isGeneralModeEnabled(user.agencyId)
-  // Agent rollout, resolved server-side beside General Mode. Defaults OFF until
-  // AGENT_AGENCY_IDS names the agency, so this changes nothing on its own.
-  const agentEnabled = isAgentEnabled(user.agencyId)
 
   let inboxUnread = 0
   if (user.agencyId && user.role !== Roles.OFFICE) {
@@ -164,6 +158,16 @@ async function LayoutContent({ children }) {
   }
 
   const deltaSyncEnabled = isInboxDeltaSyncEnabled()
+
+  /**
+   * The agent rollout, resolved once and handed to the nav.
+   *
+   * `/agent` and `POST /api/ai/agent/stream` both 404 for an agency outside
+   * `AGENT_AGENCY_IDS`, so the nav entry has to agree with them — a link to a
+   * 404 is worse than no link. Absence blocks: with the env unset the allowlist
+   * parses to an empty list and this is false for everyone.
+   */
+  const agentEnabled = isAgentEnabled(user.agencyId)
 
   /**
    * WORKSPACE REACHED. The denominator for every in-product metric, and the one
@@ -248,7 +252,9 @@ async function LayoutContent({ children }) {
     <NotificationProvider enabled={notificationsEnabled} initialUnread={notificationUnread}>
     <UserProvider user={user}>
       <PosProvider>
-        <CopilotProvider enabled={copilotEnabled}>
+          {/* The panel's open/closed provider is gone with the panel. The CONTEXT
+              store stays: lead routes still publish their context through it
+              (`CopilotLeadContext`), and that is data, not panel UX. */}
           <CopilotContextStoreProvider>
             <ActivationCelebrationProvider>
             <EducationMount
@@ -311,10 +317,10 @@ async function LayoutContent({ children }) {
                  * desktop request cannot reach this branch, so the mobile chrome
                  * is absent from its HTML entirely (architecture-rules.md §9).
                  *
-                 * CopilotShell is deliberately not mounted. It is a desktop panel
-                 * (33 components) and Phase 11 owns its mobile form; shipping it
-                 * here would cost bundle weight on the exact devices that can
-                 * least afford it, for a surface with no mobile design yet.
+                 * The desktop-only copilot panel this branch used to exclude no
+                 * longer exists on either shell. The assistant is a route now
+                 * (`/agent`), reached from the sidebar on desktop and from "עוד"
+                 * on a phone, so both shells get the same one.
                  */
                 <MobileWorkspaceShell notificationCount={notificationUnread} conversationCount={inboxUnread}>
                   {children}
@@ -331,11 +337,10 @@ async function LayoutContent({ children }) {
                     trialDaysRemaining={trialStatus === 'TRIAL_ACTIVE' ? trialDaysRemaining : null}
                   />
                   <WorkspaceGrid>
-                    <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} />
+                    <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} agentEnabled={agentEnabled} />
                     <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
                       {children}
                     </main>
-                    <CopilotShell generalModeEnabled={generalModeEnabled} agentEnabled={agentEnabled} />
                   </WorkspaceGrid>
                 </>
               )}
@@ -381,7 +386,6 @@ async function LayoutContent({ children }) {
             </EducationMount>
             </ActivationCelebrationProvider>
           </CopilotContextStoreProvider>
-        </CopilotProvider>
       </PosProvider>
     </UserProvider>
     </NotificationProvider>

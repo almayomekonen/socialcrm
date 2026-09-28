@@ -45,7 +45,7 @@ describe('emitted JSON Schema is OpenAI Structured Outputs compatible', () => {
     const items = js.properties.claims.items
     expect(Object.keys(items)).toContain('anyOf')
     expect(Object.keys(items)).not.toContain('oneOf')
-    expect((items.anyOf as unknown[]).length).toBe(4)
+    expect((items.anyOf as unknown[]).length).toBe(6)
   })
 
   it('sets additionalProperties:false on every object', () => {
@@ -63,7 +63,7 @@ describe('emitted JSON Schema is OpenAI Structured Outputs compatible', () => {
   })
 })
 
-describe('the four claim variants remain structurally distinct', () => {
+describe('the six claim variants remain structurally distinct', () => {
   it('each variant keeps its own claimClass literal and evidence field name', () => {
     const js = emitted() as { properties: { claims: { items: { anyOf: Record<string, never>[] } } } }
     const shapes = js.properties.claims.items.anyOf.map((v) => {
@@ -73,11 +73,22 @@ describe('the four claim variants remain structurally distinct', () => {
         evidenceField: Object.keys(props).find((k) => k !== 'claimClass' && k !== 'text'),
       }
     })
+    // PRODUCT carries its OWN field name for the same reason every other class
+    // does: relabelling a CRM fact as product knowledge has to cost moving refs
+    // into a differently-named field that resolves against a different source,
+    // not editing one string.
+    //
+    // SOURCED is the sixth, and the one where the property matters most. It is
+    // the only class whose evidence comes from outside the tenant, so promoting
+    // a web page to a CRM FACT must cost moving refs from `sourceEvidence` into
+    // `entityEvidence` — where they resolve against the collector and fail.
     expect(shapes).toEqual([
       { claimClass: 'FACT', evidenceField: 'entityEvidence' },
       { claimClass: 'OBSERVATION', evidenceField: 'metricEvidence' },
       { claimClass: 'INFERENCE', evidenceField: 'evidence' },
       { claimClass: 'RECOMMENDATION', evidenceField: 'evidence' },
+      { claimClass: 'PRODUCT', evidenceField: 'productEvidence' },
+      { claimClass: 'SOURCED', evidenceField: 'sourceEvidence' },
     ])
   })
 })
@@ -88,6 +99,7 @@ describe('parse semantics are unchanged by the union swap', () => {
     [{ claimClass: 'OBSERVATION', text: 'x', metricEvidence: ['m'] }],
     [{ claimClass: 'INFERENCE', text: 'ייתכן', evidence: ['1'] }],
     [{ claimClass: 'RECOMMENDATION', text: 'x', evidence: ['1'] }],
+    [{ claimClass: 'PRODUCT', text: 'x', productEvidence: ['core_value'] }],
   ])('accepts a well-formed %o', (claim) => {
     expect(agentClaimSchema.safeParse(claim).success).toBe(true)
   })
@@ -107,10 +119,21 @@ describe('parse semantics are unchanged by the union swap', () => {
       headline: 'ליד אחד ממתין.',
       claims: [{ claimClass: 'FACT', text: 'דוד ממתין.', entityEvidence: ['42'] }],
       unknown: null,
+      businessState: null,
+      // Required for the same reason the two above are — see the note below.
+      proposedAction: null,
+      proposedBatch: null,
     }
     expect(agentAnswerSchema.safeParse(ok).success).toBe(true)
     expect(agentAnswerSchema.safeParse({ ...ok, unknown: 'לא ידוע' }).success).toBe(true)
+    expect(agentAnswerSchema.safeParse({ ...ok, businessState: 'OPPORTUNITY' }).success).toBe(true)
+    // Both keys are REQUIRED, not optional: OpenAI Structured Outputs drops a
+    // property that is not in `required`, so an optional one would never be asked
+    // for and the model would simply not answer it.
     expect(agentAnswerSchema.safeParse({ headline: 'x', claims: [] }).success).toBe(false)
-    expect(agentAnswerSchema.safeParse({ headline: '', claims: [], unknown: null }).success).toBe(false)
+    expect(agentAnswerSchema.safeParse({ headline: 'x', claims: [], unknown: null }).success).toBe(false)
+    expect(agentAnswerSchema.safeParse({ headline: '', claims: [], unknown: null, businessState: null }).success).toBe(false)
+    // And it must be one of the four states.
+    expect(agentAnswerSchema.safeParse({ ...ok, businessState: 'PANIC' }).success).toBe(false)
   })
 })
