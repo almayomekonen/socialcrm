@@ -144,3 +144,16 @@ export async function markClosed(conversationId: number, reason: string): Promis
 export async function markStopped(conversationId: number, aiState: AiState, reason: string): Promise<void> {
   await patch(conversationId, { aiState, stoppedReason: reason })
 }
+
+/**
+ * A closed conversation the customer legitimately reopened, and the agent has
+ * just answered: it is the agent's again. Only `closed` moves — the WHERE clause
+ * makes it impossible to lift an opt-out or a human's ownership through here,
+ * whatever the caller believed a moment earlier.
+ */
+export async function reopenClosedConversation(conversationId: number): Promise<boolean> {
+  const n = await db('conversation_ai_state')
+    .where({ conversationId, aiState: 'closed' })
+    .update({ aiState: 'ai_qualifying', stoppedReason: null, updatedAt: db.fn.now() })
+  return Number(n) > 0
+}

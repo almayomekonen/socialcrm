@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { Bot, UserRound } from 'lucide-react'
 import { returnToAgent, takeOverConversation } from '@/actions/inbox/agentOwnership'
 
@@ -48,6 +49,12 @@ type Props = {
   questionnaireMode?: boolean
   /** True while a questionnaire is still running on this conversation. */
   questionnaireActive?: boolean
+  /**
+   * The AI reply is switched on, but this agency's plan does not include it, so
+   * nothing is answering automatically. Informational only: there is no
+   * ownership decision to offer, so no button.
+   */
+  pausedForPlan?: boolean
 }
 
 const ERROR_COPY: Record<string, string> = {
@@ -65,6 +72,7 @@ export default function AgentOwnershipClient({
   handoff = null,
   questionnaireMode = false,
   questionnaireActive = false,
+  pausedForPlan = false,
 }: Props) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -75,6 +83,24 @@ export default function AgentOwnershipClient({
       const res = await action(conversationId)
       if (!res.ok) setError(ERROR_COPY[res.reason ?? 'failed'] ?? ERROR_COPY.failed)
     })
+  }
+
+  if (pausedForPlan) {
+    return (
+      <div className='mx-4 my-2 shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3'>
+        <div className='flex items-start gap-3'>
+          <Bot aria-hidden className='mt-0.5 size-4 shrink-0 text-gray-500' />
+          <div className='min-w-0 flex-1'>
+            <p className='text-sm text-gray-900'>
+              המענה האוטומטי מושהה: התוכנית הנוכחית לא כוללת מענה AI, ולכן הלקוח לא קיבל תשובה אוטומטית.
+            </p>
+            <Link href='/settings/auto-response' className='mt-1 inline-block text-xs font-medium text-blue-600 hover:underline'>
+              לפרטים בהגדרות המענה האוטומטי
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const status = humanOwned

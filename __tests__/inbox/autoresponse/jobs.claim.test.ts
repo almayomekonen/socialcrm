@@ -109,7 +109,9 @@ describe('auto-response delay source of truth', () => {
     const ingest = read('lib/inbox/ingestWhatsappInbound.ts')
     expect(settings).toMatch(/\.first\([\s\S]*'delaySeconds'/)
     // 'responder' joined the same read: one query decides the job's reason.
-    expect(helper).toContain(".first('mode', 'delaySeconds', 'responder')")
+    // 'replyMode' joined it too: the same row decides whether the reply needs AI
+    // (reliability/entitlement.ts), so no second settings read is made.
+    expect(helper).toContain(".first('mode', 'delaySeconds', 'responder', 'replyMode')")
     expect(ingest).toContain('enqueueInboundAutoResponse')
   })
 })
