@@ -90,6 +90,62 @@ describe('mapDealImportRows — deal spreadsheet mapping', () => {
   })
 })
 
+/**
+ * The exact header row of a real payment-processor export ("עסקאות" sheet), the
+ * file that first failed with "לא זיהינו עמודות מתאימות". Values are synthetic.
+ */
+const PAYMENT_EXPORT_HEADERS = [
+  'חודש חיוב', 'תאריך חיוב', 'שם בית העסק', 'שם', 'כתובת מייל', 'טלפון', 'אמצעי תשלום', 'סוג תשלום',
+  'סטטוס', 'תשלומים', 'שולם', 'עמלת אשראי', 'מע"מ', 'סה"כ העברה לבנק', 'אסמכתא', 'אסמכתת מס״ב',
+  'מקור תשלום', 'תיאור עסקה', 'תאריך זיכוי לבנק', 'סוג כרטיס', 'כרטיס לקוח', 'האם הופקה חשבונית',
+  'אוטומטי', 'שם עמוד פנימי', 'חשבון המעביר', 'שם בעל החשבון', 'שם לחשבונית', 'תעודת זהות', 'כתובת',
+]
+function exportRow(o: { date: string; name: string; email?: string; phone: string; status: string; paid: number; desc: string }) {
+  return [
+    'ספטמבר', o.date, 'עסק לדוגמה', o.name, o.email ?? '', o.phone, 'אשראי', 'הו"ק',
+    o.status, 'תשלום 1 מתוך 8', o.paid, 1, 0.2, o.paid - 1.2, '500000001', null,
+    'עמוד קבוע', o.desc, '10/10/2026', 'ישראלי Visa', '1234', 'לא הופקה', 'לא', null, '', null, '', '', '',
+  ]
+}
+
+describe('mapDealImportRows — payment-processor export (real header row)', () => {
+  it('recognises the export and maps amount, date, status, contact and deal name from the right columns', () => {
+    const res = mapDealImportRows(PAYMENT_EXPORT_HEADERS, [
+      exportRow({ date: '28/09/26', name: 'דנה לוי', phone: '0521112233', status: 'חוייב', paid: 1500, desc: 'תשלום עבור ליווי' }),
+      exportRow({ date: '21/08/26', name: 'יוסי כהן', email: 'Yossi@Example.com', phone: '0524445566', status: 'העסקה הוכחשה', paid: 89, desc: 'מנוי חודשי' }),
+      // The chargeback reversal line: a negative amount is not a deal.
+      exportRow({ date: '31/08/26', name: 'יוסי כהן', phone: '0524445566', status: 'הכחשת עסקה', paid: -89, desc: 'מנוי חודשי' }),
+    ])
+    expect(res.error).toBeUndefined()
+    expect(res.data).toEqual([
+      {
+        row: 2, amount: 1500, status: 'שולם', saleDt: '2026-09-28', prdct: 'תשלום עבור ליווי', notes: null,
+        phone: '0521112233', email: null, firstName: 'דנה', lastName: 'לוי',
+      },
+      {
+        row: 3, amount: 89, status: 'בוטל', saleDt: '2026-08-21', prdct: 'מנוי חודשי', notes: null,
+        phone: '0524445566', email: 'yossi@example.com', firstName: 'יוסי', lastName: 'כהן',
+      },
+    ])
+    // 'שם בית העסק' (the merchant) and 'תאריך זיכוי לבנק' (payout date) are NOT used.
+    expect(res.data.every((r) => r.firstName !== 'עסק')).toBe(true)
+    expect(res.wrongData).toEqual([{ row: 4, reason: 'סכום חסר או לא תקין', label: 'יוסי כהן' }])
+  })
+
+  it('still rejects a charged row whose amount is missing', () => {
+    const row = exportRow({ date: '28/09/26', name: 'דנה', phone: '0521112233', status: 'חוייב', paid: 0, desc: 'x' })
+    const res = mapDealImportRows(PAYMENT_EXPORT_HEADERS, [row])
+    expect(res.data).toEqual([])
+    expect(res.wrongData[0].reason).toBe('סכום חסר או לא תקין')
+  })
+
+  it('normalises whitespace, NBSP and quote marks in headers', () => {
+    const res = mapDealImportRows(['  כתובת\u00a0 מייל ', 'שולם', 'שלב_בצנרת', 'תיאור "עסקה"'], [['a@b.co', 100, 'סגור', 'x']])
+    expect(res.error).toBeUndefined()
+    expect(res.data[0]).toMatchObject({ email: 'a@b.co', amount: 100, status: 'שולם', prdct: 'x' })
+  })
+})
+
 describe('field parsers', () => {
   it('status accepts stored, display, legacy and English values', () => {
     expect(parseStatus('במו״מ')).toBe('במו"מ')
@@ -97,6 +153,8 @@ describe('field parsers', () => {
     expect(parseStatus('הושלם')).toBe('שולם')
     expect(parseStatus('Paid')).toBe('שולם')
     expect(parseStatus('')).toBe('חדש')
+    expect(parseStatus('חוייב')).toBe('שולם')
+    expect(parseStatus('העסקה הוכחשה')).toBe('בוטל')
     expect(parseStatus('xyz')).toBeNull()
   })
 
@@ -105,6 +163,9 @@ describe('field parsers', () => {
     expect(parseSaleDate('5.3.2026')).toBe('2026-03-05')
     expect(parseSaleDate('')).toBeNull()
     expect(parseSaleDate('13/13/2026')).toBeUndefined()
+    // DD/MM/YY (payment exports) → 20YY, still calendar-validated.
+    expect(parseSaleDate('28/09/26')).toBe('2026-09-28')
+    expect(parseSaleDate('31/02/26')).toBeUndefined()
   })
 
   it('amount strips currency formatting', () => {
