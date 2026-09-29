@@ -26,7 +26,7 @@ export default function MeshuklalSchumPie({ data, goalsAndTotals, rawFilter, cla
 
   return (
     <div className=' flex items-start gap-2 overflow-x-auto '>
-      <div className='flex flex-nowrap items-end gap-0 bg-white px-6 py-4 rounded-lg border '>
+      <div className='flex flex-nowrap items-start gap-0 bg-white px-6 py-4 rounded-lg border '>
         <MultiPie 
           className={`${className} w-fit  2xl:w-auto border-none p-0 rounded-none`}
           data={[

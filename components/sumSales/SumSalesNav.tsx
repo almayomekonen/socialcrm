@@ -5,6 +5,7 @@ import { Route } from 'next'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import FilterBtn from '@/components/filter/FilterBtn'
+import { usePersistedPerformanceFilter } from './usePersistedPerformanceFilter'
 
 export default function SumSalesNav({
   user,
@@ -22,6 +23,7 @@ export default function SumSalesNav({
 
   const searchParams = useSearchParams()
   const rawFilter = searchParams.get('filter')
+  usePersistedPerformanceFilter(user?.id, pathname, rawFilter)
 
   const filter = rawFilter ? '?filter=' + rawFilter : ''
 

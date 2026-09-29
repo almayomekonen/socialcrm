@@ -1,5 +1,6 @@
 import { getUser } from '@/db/auth'
 import { getPerms, getPermsAndFilter } from '@/db/filter'
+import { resolvePerformanceFilter } from '@/lib/filter/resolvePerformanceFilter'
 import GeneralTable from '@/components/sumSales/GeneralTable'
 import { getTablePref } from '@/db/salesTbl'
 import { getSumBranchesByTeams } from '@/db/sumSales'
@@ -12,7 +13,7 @@ export default async function TeamsPage({ searchParams }) {
   // TODO: remove this - is just for enabling the filters
   user.role = Roles.GM
 
-  let { filter } = await searchParams
+  let filter = await resolvePerformanceFilter(user?.id, (await searchParams).filter)
   const { sqlFilter, rawFilter, gotPermTeams } = await getPermsAndFilter({ user, filter })
 
   const tblData = await getSumBranchesByTeams(sqlFilter)
