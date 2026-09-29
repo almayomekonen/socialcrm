@@ -15,7 +15,7 @@ import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './func
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import UploadClientData from '@/components/settings/UploadClientData'
+import UploadDealsData from '@/components/sales/UploadDealsData'
 import ModalPop from '@/lib/modals/ModalPop'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { searchContacts } from '@/actions/clients'
@@ -228,6 +228,16 @@ export default function SalesTable({ props }: SaleTableProps) {
             )}
             <ShowColumns config={config} />
             <ExportTable dataToFetch={getDealDataToExport} columns={columns} />
+            {/* Icon-only in the tablet band (like the export buttons beside it), so the label does not squeeze the column picker. */}
+            <Btn
+              lbl='ייבוא עסקאות'
+              aria-label='ייבוא עסקאות'
+              title='ייבוא עסקאות'
+              icon='file-import'
+              variant='outline'
+              className='tablet:size-10 tablet:shrink-0 tablet:p-0 tablet:[&>span]:hidden'
+              onClick={() => setOpenUpload(true)}
+            />
             {hasLeads && <Btn lbl='הוסף עסקה' icon='plus' onClick={() => (setOpenForm(true), setCurSale(null))} className='ms-4' />}
           </div>
         </div>
@@ -242,8 +252,8 @@ export default function SalesTable({ props }: SaleTableProps) {
         )}
       </div>
 
-      <ModalPop open={openUpload} label='העלאת לידים' pos='middle' onClose={() => setOpenUpload(false)}>
-        <UploadClientData />
+      <ModalPop open={openUpload} label='ייבוא עסקאות' pos='middle' onClose={() => setOpenUpload(false)}>
+        {openUpload && <UploadDealsData />}
       </ModalPop>
 
       <ActionsMenu id='saleActions'>
