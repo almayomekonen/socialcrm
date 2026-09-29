@@ -43,12 +43,27 @@ function getBaseQuery(serializedSql) {
   return db.from(db.raw(`(${serializedSql.sql}) as source_table`, serializedSql.bindings))
 }
 
-function formatPieData(rawData: DbRow[]) {
+/** The catch-all slice every branch's product list ends with. */
+const OTHER_PRDCT = 'אחר'
+
+/**
+ * A product outside its branch's predefined list — free text from an import, or
+ * a legacy value — is counted under that branch's `אחר` slice. Without this the
+ * product pies only read the listed names, so such rows added ₪0 to them while
+ * still counting in the branch totals. The stored `prdct` is left untouched.
+ */
+function pieProduct(branch: string, prdct: string): string {
+  const list = prdctOptByBranch[branch]?.prdctList
+  return list && !list.includes(prdct) ? OTHER_PRDCT : prdct
+}
+
+export function formatPieData(rawData: DbRow[]) {
   const groupedData: GroupedData = {}
   const totals: Record<string, { annualValue: number; cmsn: number }> = {}
 
   for (const row of rawData) {
-    const { branch, prdct, prdctType, annualValue, cmsn } = row
+    const { branch, prdctType, annualValue, cmsn } = row
+    const prdct = pieProduct(branch, row.prdct)
 
     if (!groupedData[branch]) groupedData[branch] = {}
     if (!groupedData[branch][prdctType]) groupedData[branch][prdctType] = {}

@@ -306,6 +306,27 @@ describe('importDeals — rows written', () => {
     expect(su[0]).toMatchObject({ userId: repId, prcnt: 100, amount: 1200 })
   })
 
+  it('dates a historical deal by its own date (saleDt AND offrDt), not the import day', async () => {
+    await makeLead(agencyId, { phone: '0541110030' })
+    await makeLead(agencyId, { phone: '0541110031' })
+    await run(H, [
+      ['', '0541110030', '', 1500, 'שולם', '10/12/25', 'SEO'],
+      ['', '0541110031', '', 700, 'שולם', '', 'SEO'], // undated row: today, as before
+    ])
+    const rows = (
+      await db.raw(
+        `SELECT s.amount, to_char(s."saleDt", 'YYYY-MM-DD') AS sale, to_char(s."offrDt", 'YYYY-MM-DD') AS offr,
+                to_char(now(), 'YYYY-MM-DD') AS today
+         FROM sales s WHERE s."agencyId" = ? ORDER BY s.amount DESC`,
+        [agencyId],
+      )
+    ).rows
+    expect(rows[0]).toMatchObject({ amount: 1500, sale: '2025-12-10', offr: '2025-12-10' })
+    expect(rows[0].offr).not.toBe(rows[0].today)
+    expect(rows[1].sale).toBeNull()
+    expect(rows[1].offr).toBe(rows[1].today)
+  })
+
   it('is visible to the importing rep under the real permission filter, and not to an unrelated rep', async () => {
     await makeLead(agencyId, { phone: '0541110013' })
     await run(H, [['', '0541110013', '', 500, '', '', '']])
