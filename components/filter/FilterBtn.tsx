@@ -1,5 +1,6 @@
 import { addSavedFilters } from '@/actions/filter'
-import { redirect } from 'next/navigation'
+import { redirect, usePathname } from 'next/navigation'
+import { clearPersistedFilter, isPerformanceFilterPath } from '@/lib/filter/performanceFilter'
 import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
 import Title from '@/lib/Title'
@@ -8,6 +9,9 @@ import { FilterChips } from '@/components/sumSales/FilterChips'
 import { getFormData2 } from '@/lib/form/funcs'
 
 export default function FilterBtn({ user, filter }) {
+  const pathname = usePathname()
+  // Reset on Performance also forgets the remembered active filter.
+  const onReset = () => isPerformanceFilterPath(pathname) && user?.id && clearPersistedFilter(user.id)
   const tmp = Array.isArray(user?.savedFilters) ? user?.savedFilters : []
 
   const savedFilters = [
@@ -39,6 +43,7 @@ export default function FilterBtn({ user, filter }) {
           aria-label='ניקוי סינון'
           href='?'
           scroll={false}
+          onClick={onReset}
           className='rounded-s-none  rounded-e-none shadow-none'
         />
         <Select

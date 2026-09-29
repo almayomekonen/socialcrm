@@ -4,7 +4,8 @@ import React from 'react'
 export default function KetzevShnatiNTkufa({ ketzevShnati }) {
   return (
     <div className='text-sm'>
-      <p className='mb-1 lg:mb-[9px] pb-1 border-b w-28 font-bold  '>קצב שנתי</p>
+      {/* Same header box as the MultiPie legend header (mb-2 pb-1 border-b), so both top-anchored columns share one header line and one row grid. */}
+      <p className='mb-2 pb-1 border-b w-28 font-bold'>קצב שנתי</p>
 
       {/* Data rows */}
       {Object.entries(ketzevShnati).map(([category, value]: [string, any]) => {

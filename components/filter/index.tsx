@@ -13,6 +13,8 @@ import { Route } from 'next'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import { getFormData2 } from '@/lib/form/funcs'
 import { searchContacts } from '@/actions/clients'
+import { useUser } from '@/lib/hooksNEvents'
+import { clearPersistedFilter, isPerformanceFilterPath } from '@/lib/filter/performanceFilter'
 
 type Props = {
   props: {
@@ -23,7 +25,11 @@ type Props = {
   }
 }
 export default function Filter({ props }: Props) {
-  const show = getShow(usePathname())
+  const pathname = usePathname()
+  const show = getShow(pathname)
+  const user = useUser()
+  // Reset on Performance also forgets the remembered active filter.
+  const onReset = () => isPerformanceFilterPath(pathname) && user?.id && clearPersistedFilter(user.id)
   const router = useRouter()
   const { users, teams, handlers } = props || ({} as any)
   const rawFilter = (props?.rawFilter ?? {}) as any
@@ -142,7 +148,7 @@ export default function Filter({ props }: Props) {
         </section>
 
         <section className='sticky bottom-0 left-0 grid grid-cols-2 gap-4 bg-white py-4 mt-4'>
-          <Btn variant='outline' lbl='איפוס סינונים' type='button' href='?' icon='eraser' />
+          <Btn variant='outline' lbl='איפוס סינונים' type='button' href='?' icon='eraser' onClick={onReset} />
           <Btn lbl='סינון' icon='filter' />
         </section>
       </form>
