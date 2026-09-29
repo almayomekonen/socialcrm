@@ -18,7 +18,7 @@
  * a message the customer already has; staying silent would strand them. Asking
  * a person is the only honest third option.
  *
- * NOTE: ~305 lines, over the 250-line soft limit, and deliberately not split
+ * NOTE: ~310 lines, over the 250-line soft limit, and deliberately not split
  * further. What remains after `finalize.ts` and `types.ts` were extracted is a
  * single linear sequence — gather the facts, decide, check the window, ask or
  * end — and the order of those steps IS the correctness argument documented
@@ -47,6 +47,7 @@ import { classifyInboundKind } from './parseAnswer'
 import { persistQuestionTurn } from './effects'
 import { finalizeTerminal, parkForReview } from './finalize'
 import { decideQuestionnaireTurn, type InboundInput } from './transition'
+import { deferForTypingHold } from './typingDefer'
 import { QUESTIONNAIRE_SEND_TIMEOUT_MS, type QuestionnaireDeps, type QuestionnaireOutcome } from './types'
 import { waTrace } from '../waTrace'
 
@@ -249,6 +250,12 @@ export async function processQuestionnaireJob(
       }
       await releaseSendClaim(job.agencyId, live.id)
       if (sent.settled) return 'failed'
+      if (sent.reason === 'human_typing') {
+        // A hold that began before this turn: ask once it lapses, not never.
+        const notBefore = await deferForTypingHold(job)
+        waTrace('QUESTIONNAIRE_TURN', trace, { outcome: 'deferred', reason: sent.reason, notBefore: notBefore.toISOString() })
+        return 'deferred'
+      }
       return skip(sent.reason)
     }
     sentMessageId = sent.messageId

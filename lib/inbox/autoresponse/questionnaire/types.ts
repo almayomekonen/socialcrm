@@ -13,7 +13,8 @@ import type { sendWhatsappInteractive, sendWhatsappText } from '@/lib/whatsapp/s
  */
 export const QUESTIONNAIRE_SEND_TIMEOUT_MS = 20_000
 
-export type QuestionnaireOutcome = 'sent' | 'skipped' | 'failed'
+/** `deferred`: back to pending for after a pre-turn typing hold (typingDefer.ts). */
+export type QuestionnaireOutcome = 'sent' | 'skipped' | 'failed' | 'deferred'
 export type QuestionnaireDeps = {
   send: typeof sendWhatsappText
   /** Tap-to-select sends (interactive.ts). Defaults to the real Graph call. */
