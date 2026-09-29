@@ -199,3 +199,28 @@ CLAUDE.md and claude/ai/\* override every skill.
 
 Pilot artifacts land in docs/superpowers/ (gitignored). Pilot feature: Smart
 Lead Summary. Expansion to Phase 2 requires validating workflow quality first.
+
+---
+
+## 16. NEON COST SAFETY RULE
+
+NEON COST SAFETY RULE:
+Never create a new Neon database branch as part of a normal deployment, preview deployment, PR, commit, feature branch, or development task. Reuse the existing development/staging database unless explicit database isolation is required. Creating a Neon branch requires an intentional reason. Temporary branches must have an automatic cleanup mechanism and expiration policy. Never modify or delete the production database/branch during cleanup.
+
+Before introducing infrastructure that creates cloud resources automatically, evaluate whether resources accumulate over time and incur recurring costs.
+
+Known cause (2026-09-28): the Vercel Neon integration resource `neon-rose-ribbon`
+(Neon project `steep-king-36810887`) had its deployment action ("create a database
+branch for each deployment") enabled for Preview + Production, which created a
+branch per preview git branch and never deleted them (~50 extra branch-months,
+~$77/month). That setting must stay OFF. Do not re-enable it. Since 2026-09-29 the
+resource is connected to Production only; Preview has its own `DATABASE_URL`.
+
+Permanent Neon branches (allowlist — nothing else is permanent):
+- `main` (`br-soft-cell-amhmdjh1`, endpoint `ep-winter-star-am2xo52z`) — production, protected
+- `preview-shared` (`br-fancy-mouse-amlasz65`, endpoint `ep-divine-pine-am0rjm7e`) — the
+  single persistent Preview/Development database, protected. Every preview deployment
+  uses it through the Preview-scoped `DATABASE_URL`. It is a copy of production data.
+- the `card-trial-staging` resource (separate Neon project), only while it is in use
+
+Any other branch is temporary: it needs an owner, a reason, and a deletion date.
