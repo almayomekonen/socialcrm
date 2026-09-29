@@ -210,7 +210,9 @@ async function writeImport(
       prdct: r.prdct,
       amount: r.amount,
       saleDt: r.saleDt,
-      offrDt: now,
+      // A historical deal is dated when it happened, not when it was imported:
+      // Performance filters its period on offrDt. Only an undated row gets today.
+      offrDt: r.saleDt ?? now,
       notes: r.notes,
       clientId: r.clientId,
       handlerId: user.id,
