@@ -33,19 +33,19 @@ export type DealMappingResult = { data: DealImportRow[]; wrongData: RejectedDeal
 type Field = 'amount' | 'phone' | 'email' | 'name' | 'firstName' | 'lastName' | 'status' | 'saleDt' | 'prdct' | 'notes'
 
 const HEADER_ALIASES: Record<string, Field> = {
-  'סכום': 'amount', 'סכום עסקה': 'amount', 'סכום העסקה': 'amount', 'מחיר': 'amount',
+  'סכום': 'amount', 'סכום עסקה': 'amount', 'סכום העסקה': 'amount', 'מחיר': 'amount', 'שולם': 'amount',
   amount: 'amount', price: 'amount', total: 'amount', value: 'amount', 'deal amount': 'amount',
   'טלפון': 'phone', 'נייד': 'phone', 'מספר טלפון': 'phone', 'מס טלפון': 'phone',
   phone: 'phone', mobile: 'phone', 'phone number': 'phone',
-  'מייל': 'email', 'אימייל': 'email', 'דואר אלקטרוני': 'email', email: 'email', 'e-mail': 'email',
+  'מייל': 'email', 'אימייל': 'email', 'כתובת מייל': 'email', 'דואר אלקטרוני': 'email', email: 'email', 'e-mail': 'email',
   'שם': 'name', 'שם מלא': 'name', 'שם לקוח': 'name', 'לקוח': 'name', 'שם ליד': 'name', 'ליד': 'name',
   name: 'name', 'full name': 'name', customer: 'name', 'customer name': 'name', client: 'name', lead: 'name',
   'שם פרטי': 'firstName', 'first name': 'firstName', firstname: 'firstName',
   'שם משפחה': 'lastName', 'last name': 'lastName', lastname: 'lastName',
   'סטטוס': 'status', 'שלב': 'status', 'שלב בצנרת': 'status', status: 'status', stage: 'status',
-  'תאריך': 'saleDt', 'תאריך עסקה': 'saleDt', 'תאריך סגירה': 'saleDt',
+  'תאריך': 'saleDt', 'תאריך עסקה': 'saleDt', 'תאריך סגירה': 'saleDt', 'תאריך חיוב': 'saleDt',
   date: 'saleDt', 'deal date': 'saleDt', 'sale date': 'saleDt', 'close date': 'saleDt',
-  'שם עסקה': 'prdct', 'עסקה': 'prdct', 'שירות': 'prdct', 'מוצר': 'prdct', 'מוצר / שירות': 'prdct',
+  'שם עסקה': 'prdct', 'עסקה': 'prdct', 'תיאור עסקה': 'prdct', 'שירות': 'prdct', 'מוצר': 'prdct', 'מוצר / שירות': 'prdct',
   deal: 'prdct', 'deal name': 'prdct', product: 'prdct', service: 'prdct', transaction: 'prdct',
   'הערות': 'notes', 'הערה': 'notes', notes: 'notes', note: 'notes',
 }
@@ -61,6 +61,12 @@ const STATUS_ALIASES: Record<string, string> = {
   'סגור': 'שולם',
   'אבוד': 'בוטל',
   'ממתין לפרטים': 'חדש',
+  // Payment-processor exports (e.g. a Grow/Meshulam "עסקאות" sheet): a charged
+  // payment is a paid deal; a charged-back one is a cancelled deal.
+  'חוייב': 'שולם',
+  'חויב': 'שולם',
+  'העסקה הוכחשה': 'בוטל',
+  'הכחשת עסקה': 'בוטל',
   new: 'חדש',
   'in progress': 'בהצעה', proposal: 'בהצעה',
   negotiation: 'במו"מ',
@@ -73,8 +79,18 @@ const STATUS_ALIASES: Record<string, string> = {
 const MAX_DEAL_AMOUNT = 10_000_000
 const DEFAULT_STATUS = 'חדש'
 
+/**
+ * Header spellings vary in ways that carry no meaning: surrounding or doubled
+ * whitespace (incl. NBSP), `_` for space, and ASCII vs Hebrew quote marks
+ * (`סה"כ` / `סה״כ` / `סהכ`). All are folded away before the alias lookup.
+ */
 function normalizeHeader(raw: unknown): string {
-  return typeof raw === 'string' ? raw.trim().toLowerCase().replace(/_/g, ' ') : ''
+  if (typeof raw !== 'string') return ''
+  return raw
+    .replace(/["'״׳]/g, '')
+    .replace(/[_\s\u00a0]+/g, ' ')
+    .trim()
+    .toLowerCase()
 }
 
 function cell(raw: unknown): string {
@@ -114,7 +130,7 @@ function ymd(y: number, m: number, d: number): string | null {
  * Blank → null (a deal without a date is allowed, like the manual form); a value
  * that is not a real date → undefined (the row is rejected). Accepts Excel date
  * serials, which is how `sheet_to_json` returns a date-formatted cell, and the
- * text forms DD/MM/YYYY, DD.MM.YYYY and YYYY-MM-DD. Computed in UTC so the
+ * text forms DD/MM/YYYY, DD/MM/YY, DD.MM.YYYY and YYYY-MM-DD. Computed in UTC so the
  * server's timezone cannot shift the day.
  */
 export function parseSaleDate(raw: unknown): string | null | undefined {
@@ -127,8 +143,9 @@ export function parseSaleDate(raw: unknown): string | null | undefined {
   if (!v) return null
   let m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
   if (m) return ymd(+m[1], +m[2], +m[3]) ?? undefined
-  m = v.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/)
-  if (m) return ymd(+m[3], +m[2], +m[1]) ?? undefined
+  // DD/MM/YYYY, or DD/MM/YY as payment exports write it (YY → 20YY).
+  m = v.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{2}|\d{4})$/)
+  if (m) return ymd(m[3].length === 2 ? 2000 + +m[3] : +m[3], +m[2], +m[1]) ?? undefined
   return undefined
 }
 
@@ -176,9 +193,12 @@ export function isRejected(r: DealImportRow | RejectedDealRow): r is RejectedDea
   return 'reason' in r
 }
 
+/** HEADER_ALIASES keyed by the same normalisation the sheet headers get. */
+const ALIASES = new Map(Object.entries(HEADER_ALIASES).map(([k, v]) => [normalizeHeader(k), v]))
+
 /** Map a sheet's header row + data rows into deal rows. */
 export function mapDealImportRows(headers: unknown[], rows: unknown[][]): DealMappingResult {
-  const fields = (headers ?? []).map((h) => HEADER_ALIASES[normalizeHeader(h)] ?? null)
+  const fields = (headers ?? []).map((h) => ALIASES.get(normalizeHeader(h)) ?? null)
 
   if (!fields.includes('amount') || !(fields.includes('phone') || fields.includes('email'))) {
     return {
