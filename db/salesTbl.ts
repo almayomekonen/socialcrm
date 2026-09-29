@@ -31,15 +31,17 @@ export async function getDealTableData(
   const query = sql.clone().toSQL()
   const sqlExport = await encrypt({ sql: query.sql, bindings: query.bindings })
 
+  // The summary cards (count + revenue) come from THIS query too, so they always
+  // describe exactly the rows the table shows under the active filter.
   const [countRes, tblData] = await Promise.all([
-    sql.clone().count('id').first(),
+    sql.clone().count('id as count').sum('amount as revenue').first(),
     sql
       .limit(tableLimit)
       .offset((pageNum - 1) * tableLimit)
       .orderBy('updatedAt', 'desc'),
   ])
 
-  return { tblData, count: countRes?.count || 0, sqlExport }
+  return { tblData, count: countRes?.count || 0, revenue: Number(countRes?.revenue) || 0, sqlExport }
 }
 
 export async function getTotalDealCount(gotPermIds: number[]) {

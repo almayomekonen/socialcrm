@@ -42,7 +42,7 @@ export default async function SalesPage({ searchParams }) {
 
   const handlers = isAdmin(user.role) ? gotPermUsers : allPermUsers
 
-  const [{ tblData, count, sqlExport }, allUsers, hasLeads] = await Promise.all([
+  const [{ tblData, count, revenue, sqlExport }, allUsers, hasLeads] = await Promise.all([
     getDealTableData(sqlFilter, { pageNum, tableLimit }),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
     hasAnyLeads(user.agencyId, gotPermIds, user.role),
@@ -64,9 +64,8 @@ export default async function SalesPage({ searchParams }) {
       }}
     >
       <div className='shrink-0'>
-        <Suspense fallback={<DashboardSummaryFallback />}>
-          <DashboardSummary user={user} />
-        </Suspense>
+        {/* Same filtered query as the table below — the cards follow the active filter. */}
+        <DashboardSummary count={count} revenue={revenue} rawFilter={rawFilter} />
       </div>
 
       <div className='shrink-0'>
@@ -88,20 +87,5 @@ export default async function SalesPage({ searchParams }) {
       </Suspense>
 
     </Provider>
-  )
-}
-
-function DashboardSummaryFallback() {
-  return (
-    <div className='mb-6'>
-      <div className='grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6'>
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className='num-box animate-pulse'>
-            <div className='h-3 bg-gray-200 rounded w-24 mb-3' />
-            <div className='h-7 bg-gray-200 rounded w-16' />
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
