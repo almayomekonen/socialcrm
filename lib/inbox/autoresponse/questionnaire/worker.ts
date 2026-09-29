@@ -26,6 +26,7 @@ export type QuestionnaireWorkerResult = {
   sent: number
   skipped: number
   failed: number
+  deferred: number
 }
 
 export async function runQuestionnaireWorker(
@@ -43,6 +44,7 @@ export async function runQuestionnaireWorker(
   let sent = 0
   let skipped = 0
   let failed = 0
+  let deferred = 0
 
   for (const job of jobs) {
     const startedAt = Date.now()
@@ -51,6 +53,7 @@ export async function runQuestionnaireWorker(
       outcome = await processQuestionnaireJob(job, deps)
       if (outcome === 'sent') sent++
       else if (outcome === 'skipped') skipped++
+      else if (outcome === 'deferred') deferred++
       else failed++
     } catch (err) {
       await failAutoResponseJob(job.id, String(err))
@@ -96,5 +99,5 @@ export async function runQuestionnaireWorker(
     }
   }
 
-  return { claimed: jobs.length, sent, skipped, failed }
+  return { claimed: jobs.length, sent, skipped, failed, deferred }
 }
