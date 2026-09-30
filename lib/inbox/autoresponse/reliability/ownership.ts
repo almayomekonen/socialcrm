@@ -25,6 +25,10 @@ import { isHumanOutbound } from '@/lib/inbox/humanReply'
  * ended; only a human outbound ABOVE it can take the conversation again.
  * Sequences are allocated per conversation under a row lock, so the order is
  * exact and independent of any clock.
+ *
+ * SHARED. The AI worker (qualifyWorker.ts) and the questionnaire
+ * (questionnaire/processJob.ts) both decide takeover here; what each responder
+ * DOES once a person owns the conversation stays its own.
  */
 
 export type TranscriptRow = {

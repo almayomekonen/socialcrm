@@ -18,7 +18,7 @@
  * a message the customer already has; staying silent would strand them. Asking
  * a person is the only honest third option.
  *
- * NOTE: ~310 lines, over the 250-line soft limit, and deliberately not split
+ * NOTE: ~325 lines, over the 250-line soft limit, and deliberately not split
  * further. What remains after `finalize.ts` and `types.ts` were extracted is a
  * single linear sequence — gather the facts, decide, check the window, ask or
  * end — and the order of those steps IS the correctness argument documented
@@ -37,6 +37,7 @@ import {
   consumeUpTo,
 } from '@/db/questionnaireSessions'
 import { canUseQuestionnaireInteractive, canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import { canUseAgentReliability } from '@/lib/flags/agentReliabilityFlags'
 import { resolveWhatsappServiceWindow } from '@/lib/inbox/whatsappServiceWindow'
 import { queryLatestInboundAt } from '@/lib/inbox/whatsappComposerContext'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
@@ -50,6 +51,7 @@ import { decideQuestionnaireTurn, type InboundInput } from './transition'
 import { deferForTypingHold } from './typingDefer'
 import { QUESTIONNAIRE_SEND_TIMEOUT_MS, type QuestionnaireDeps, type QuestionnaireOutcome } from './types'
 import { waTrace } from '../waTrace'
+import { humanTookOverSinceEpoch, ownershipEpochSequence } from '../reliability/ownership'
 
 const TERMINAL_LEAD_STATUSES = ['closed', 'lost']
 const MAX_TRANSCRIPT = 60
@@ -114,7 +116,7 @@ export async function processQuestionnaireJob(
     .where({ conversationId: job.conversationId, agencyId: job.agencyId })
     .orderBy('sequence', 'desc')
     .limit(MAX_TRANSCRIPT)
-    .select('direction', 'type', 'text', 'payload', 'sequence', 'metadata', 'sentByUserId')
+    .select('direction', 'type', 'text', 'payload', 'sequence', 'metadata', 'sentByUserId', 'status')
   const transcript = rows.slice().reverse()
 
   const lastConsumed = session?.status === 'active' ? session.lastConsumedSequence : 0
@@ -127,7 +129,14 @@ export async function processQuestionnaireJob(
       selectedId: tappedSelectionId(String(m.type ?? ''), m.payload) ?? undefined,
     }))
 
-  const aiStateRow = await db('conversation_ai_state').where({ conversationId: job.conversationId }).first('aiState')
+  const aiStateRow = await db('conversation_ai_state')
+    .where({ conversationId: job.conversationId })
+    .first('aiState', 'qualification')
+  // Ownership is the AI agent's rule (reliability/ownership.ts) for agencies in
+  // the reliability rollout: a person's outbound, after the last return-to-agent.
+  const humanTookOver = canUseAgentReliability(job.agencyId)
+    ? humanTookOverSinceEpoch(transcript, ownershipEpochSequence(aiStateRow?.qualification))
+    : transcript.some((m) => m.direction === 'outbound' && isHumanAuthored(m))
 
   const decision = decideQuestionnaireTurn({
     definition,
@@ -136,7 +145,7 @@ export async function processQuestionnaireJob(
     now: new Date(),
     routedToQuestionnaire: routed,
     aiState: (aiStateRow?.aiState as never) ?? 'new',
-    humanTookOver: transcript.some((m) => m.direction === 'outbound' && isHumanAuthored(m)),
+    humanTookOver,
     hasPriorOutbound: transcript.some((m) => m.direction === 'outbound'),
     leadStatusTerminal: Boolean(lead?.status && TERMINAL_LEAD_STATUSES.includes(String(lead.status))),
   })
@@ -289,7 +298,10 @@ export async function processQuestionnaireJob(
   waTrace('QUESTIONNAIRE_TURN', trace, { outcome: 'sent', reason: decision.reason, stepId: decision.stepId })
   return 'sent'
 }
-/** An outbound nobody automated: a rep's own reply, or an echo from the business phone. */
+/**
+ * An outbound nobody automated: a rep's own reply, or an echo from the business
+ * phone. The rule for agencies outside the reliability rollout, kept verbatim.
+ */
 function isHumanAuthored(row: Record<string, unknown>): boolean {
   const meta = row.metadata
   let source = ''

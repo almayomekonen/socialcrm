@@ -8,7 +8,8 @@
  *
  * WHAT IT GATES, per agency:
  *   · human takeover is decided by the canonical `isHumanOutbound` rule and only
- *     counts messages after the last "return to agent" (ownership epoch);
+ *     counts messages after the last "return to agent" (ownership epoch),
+ *     for the AI agent and the questionnaire alike;
  *   · a reopened closed conversation resumes as `ai_qualifying`;
  *   · a greeting-only first message and a media-only message get a
  *     deterministic reply instead of silence (no model call);
