@@ -4,6 +4,7 @@ import { getHandoffSummary } from '@/db/conversationIntelligence'
 import { getChannelSettings, getMasterEnabled } from '@/db/autoResponseSettings'
 import { readSessionForConversation } from '@/db/questionnaireSessions'
 import { isHumanOwned } from '@/lib/inbox/autoresponse/agentOwnership'
+import { aiRepliesPausedForPlan } from '@/lib/inbox/autoresponse/reliability/entitlement'
 import AgentOwnershipClient from './AgentOwnershipClient'
 
 /**
@@ -30,6 +31,12 @@ export default async function AgentOwnership({ conversationId }: { conversationI
     readSessionForConversation(user.agencyId, conversationId).catch(() => null),
   ])
   if (!master || !settings?.enabled) return null
+  // The owner turned the AI reply on, but the plan does not include it: say so
+  // here, in the thread where the unanswered customer is. Static, per thread,
+  // derived live from the entitlement — no notification, nothing to spam.
+  if (await aiRepliesPausedForPlan(user.agencyId, settings).catch(() => false)) {
+    return <AgentOwnershipClient conversationId={conversationId} humanOwned={false} handedOff={false} pausedForPlan />
+  }
   if (!state || state.agencyId !== user.agencyId) return null
 
   // Who is actually answering here. A conversation that ran a questionnaire

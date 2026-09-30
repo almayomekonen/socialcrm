@@ -157,6 +157,10 @@ export async function takeOverConversationByRep(args: {
  * Returns to `ai_qualifying`, never `new`: the agent has spoken here, and `new`
  * would re-arm the first-contact greeting for someone twenty messages deep.
  * `aiTurnCount` is untouched for the same reason.
+ *
+ * Also stamps the ownership epoch (`qualification.ownership.sinceSequence`):
+ * without it the rep's earlier messages, still in the transcript window, read
+ * as a fresh takeover and paused the agent again on the next customer message.
  */
 export async function returnConversationToAgent(args: {
   conversationId: number
@@ -166,6 +170,19 @@ export async function returnConversationToAgent(args: {
     `UPDATE conversation_ai_state s
         SET "aiState"       = 'ai_qualifying',
             "stoppedReason" = NULL,
+            -- The ownership epoch. Human replies up to this sequence belong to
+            -- the period the rep is ending now; only a later one takes the
+            -- conversation again (lib/inbox/autoresponse/reliability/ownership.ts).
+            qualification   = jsonb_set(
+                                COALESCE(s.qualification, '{}'::jsonb),
+                                '{ownership}',
+                                jsonb_build_object(
+                                  'sinceSequence',
+                                  (SELECT COALESCE(MAX(m.sequence), 0) FROM inbox_messages m WHERE m."conversationId" = c.id),
+                                  'returnedAt', now()
+                                ),
+                                true
+                              ),
             "updatedAt"     = now()
        FROM inbox_conversations c
       WHERE s."conversationId" = c.id

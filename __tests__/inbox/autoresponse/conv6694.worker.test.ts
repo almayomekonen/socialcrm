@@ -258,7 +258,9 @@ describe('the protections around the widened gate still hold', () => {
     // not auto_response. The agent must go quiet and stay quiet.
     tableRows.messageList = [
       msg('inbound', THE_MESSAGE),
-      msg('outbound', 'היי, אני אלמיו, אשמח לעזור', { source: 'manual' }),
+      // A rep's reply as SocialCRM persists it: the sending user, no source.
+      // (No production row has ever carried `source: 'manual'`.)
+      { ...msg('outbound', 'היי, אני אלמיו, אשמח לעזור'), sentByUserId: 7 },
       msg('inbound', 'היי מה קורה?'),
     ]
     const generateQualify = vi.fn()

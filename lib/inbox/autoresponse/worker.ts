@@ -34,6 +34,8 @@ import { hasPriorOutbound } from '@/db/inboxMessages'
 import { assertIreSendAllowed } from './ireSendGate'
 import { assertAgentSendAllowed } from './agentSendGuard'
 import { enqueueFollowUpTurnIfOwed } from './followUpTurn'
+import { aiRepliesPausedForPlan } from './reliability/entitlement'
+import { AI_NOT_ENTITLED } from './reliability/reasons'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
 const DEFAULT_LEASE_MS = 60_000
@@ -100,6 +102,10 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
   }
   if (isPositiveLeadId(job.leadId) && !lead) return doSkip('lead_gone')
   if (lead?.status && TERMINAL_STATUSES.includes(lead.status)) return doSkip('lead_terminal')
+  // No model may be called for an agency whose plan does not include the AI
+  // reply (reliability rollout). Skipped, not failed: retrying cannot succeed,
+  // and a dead job is exactly the silent loss this prevents.
+  if (await aiRepliesPausedForPlan(job.agencyId, settings)) return doSkip(AI_NOT_ENTITLED)
 
   // Qualify mode (opt-in per agency) branches to its own processor; acknowledge
   // mode (everything below) is unchanged.

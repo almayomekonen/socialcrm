@@ -10,7 +10,16 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
-import { getOrCreateAiState, recordTurn, mergeOnly, markEscalated, markHumanActive, markStopped, markClosed } from '@/db/conversationAiState'
+import {
+  getOrCreateAiState,
+  recordTurn,
+  mergeOnly,
+  markEscalated,
+  markHumanActive,
+  markStopped,
+  markClosed,
+  reopenClosedConversation,
+} from '@/db/conversationAiState'
 import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { recordTurnClassification } from '@/db/conversationTurnClassification'
@@ -70,6 +79,10 @@ import { humanTypingBlocksTurn } from './humanPresence'
 import { runImmediateHumanHandoff } from './immediateHandoff'
 import { scheduleNoResponseWarning } from './processNoResponseJob'
 import { isNoResponseWarningMessage, metadataKind } from './noResponseClose'
+import { canUseAgentReliability } from '@/lib/flags/agentReliabilityFlags'
+import { humanTookOverSinceEpoch, legacyHumanTookOver, ownershipEpochSequence } from './reliability/ownership'
+import { decideDeterministicTurn, readableInboundText } from './reliability/silence'
+import { sendDeterministicTurn } from './reliability/deterministicTurn'
 import {
   COURTESY_KIND,
   courtesyLine,
@@ -183,14 +196,22 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
 
   // Global backstop (env). Per-agency instant levers are the DB flags.
   if (isQualifierEnabled() === false) return doSkip('qualifier_killed')
+  // Ownership + silence correctness (reliability/*), per agency.
+  const reliability = canUseAgentReliability(job.agencyId)
 
   // ── Gather facts (recent transcript drives batch + turn-taking + takeover) ──
   const rows = await db('inbox_messages')
     .where({ conversationId: conv.id })
     .orderBy('sequence', 'desc')
     .limit(MAX_TRANSCRIPT)
-    .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata', 'sequence')
-  const recent = rows.slice().reverse()
+    .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata', 'sequence', 'type', 'payload', 'status')
+  // Under reliability an image/document/video caption is the customer's text.
+  const recent = reliability
+    ? rows
+        .slice()
+        .reverse()
+        .map((m) => (m.direction === 'inbound' ? { ...m, text: readableInboundText(m) } : m))
+    : rows.slice().reverse()
   const lastMsg = recent[recent.length - 1]
   /**
    * The newest inbound the agent can actually READ.
@@ -215,10 +236,15 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     [...unanswered].reverse().find((m) => String(m.text ?? '').trim()) ??
     [...recent].reverse().find((m) => m.direction === 'inbound')
   const lastOutbound = [...recent].reverse().find((m) => m.direction === 'outbound')
-  const humanTookOver = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) !== 'auto_response')
   const agentSpokeInWindow = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) === 'auto_response')
 
   const aiState = await getOrCreateAiState(conv.id, job.agencyId)
+  // Human takeover. Under reliability: only a PERSON's outbound (isHumanOutbound)
+  // written after the last return-to-agent. Legacy: any outbound not written by
+  // the agent — which also caught automation templates and pre-return replies.
+  const humanTookOver = reliability
+    ? humanTookOverSinceEpoch(recent, ownershipEpochSequence(aiState.qualification))
+    : legacyHumanTookOver(recent)
   // Human Presence, read once for the cheap pre-generation stop. Covers both a
   // live signal AND a keystroke already inside this turn, so a job the cron picks
   // up minutes later does not spend an AI call on a reply the boundary will then
@@ -271,7 +297,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       reopenEligible,
     })
 
-  const lang = detectLang(lastInboundText)
+  // A turn with no readable text (media only) is not English: it is unknown, and
+  // this product speaks Hebrew by default. Legacy kept the old default.
+  const lang = reliability && !lastInboundText.trim() ? 'he' : detectLang(lastInboundText)
 
   // ── First greeting ────────────────────────────────────────────────────────
   // Decided deterministically here and handed to the model as a verbatim line.
@@ -412,6 +440,35 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       lastInboundText,
       greetingLine: (await resolveGreeting()).line,
     })
+  }
+
+  // ── Never silent, never a model call: media-only input, and an opener ──────
+  // Runs after every stop above (ownership, typing, opt-out, window, quiet
+  // hours, cap, closed) and before any AI decision, so it can only answer where
+  // the agent was already allowed to speak.
+  if (reliability) {
+    const firstContact = !agentHasSpoken && aiState.aiState === 'new'
+    const deterministic = decideDeterministicTurn({
+      pending: unanswered,
+      firstContact,
+      greetingLine: firstContact ? (await resolveGreeting()).line : null,
+      lang,
+      lastOutbound,
+    })
+    if (deterministic) {
+      const gate = outboundGate()
+      if (gate.allowed === false) return doSkip(gate.reason)
+      return sendDeterministicTurn({
+        job,
+        ctx,
+        send: deps.send,
+        turn: deterministic,
+        skip: async (reason) => {
+          await doSkip(reason)
+          return 'skipped'
+        },
+      })
+    }
   }
 
   const control = decideConversationControl({
@@ -869,6 +926,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return doSkip(r.reason)
   }
   await recordTurn(conv.id, persistExtracted, gen.corrected)
+  // A legitimately reopened conversation is the agent's again, instead of
+  // staying `closed` and needing every later message to re-qualify as a reopen.
+  if (reliability && aiState.aiState === 'closed' && reopenEligible) await reopenClosedConversation(conv.id)
   await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount + 1)
   await completeAutoResponseJob(job.id, r.messageId)
   if (isPositiveLeadId(job.leadId)) {

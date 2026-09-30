@@ -119,7 +119,13 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
         waTrace(
           'JOB_CREATED',
           { conversationId, agencyId: input.agencyId, jobId: enqueued.jobId, messageId, triggerSequence: sequence },
-          { jobId: enqueued.jobId, reason: enqueued.reason, triggerSequence: sequence, enqueued: enqueued.jobId != null },
+          {
+            jobId: enqueued.jobId,
+            reason: enqueued.reason,
+            triggerSequence: sequence,
+            enqueued: enqueued.jobId != null,
+            suppressed: enqueued.suppressed ?? null,
+          },
         )
       }
 

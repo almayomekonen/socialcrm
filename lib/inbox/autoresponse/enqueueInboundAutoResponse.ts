@@ -1,5 +1,7 @@
 import type { Knex } from 'knex'
 import { enqueueAutoResponse, skipPendingNoResponseJobs, type AutoResponseReason } from '@/db/autoResponseJobs'
+import { aiRepliesPausedForPlan } from './reliability/entitlement'
+import { AI_NOT_ENTITLED } from './reliability/reasons'
 
 export type UnansweredInbound = {
   id: number
@@ -44,6 +46,8 @@ export type EnqueueInboundAutoResponseResult = {
   jobId: number | null
   reason: AutoResponseReason
   delaySeconds: number
+  /** Why no job was created on purpose (not the ordinary duplicate/guard refusals). */
+  suppressed?: typeof AI_NOT_ENTITLED
 }
 
 /**
@@ -61,7 +65,7 @@ export async function enqueueInboundAutoResponse(
 ): Promise<EnqueueInboundAutoResponseResult> {
   const arSettings = await trx('auto_response_settings')
     .where({ agencyId: args.agencyId, channel: 'whatsapp' })
-    .first('mode', 'delaySeconds', 'responder')
+    .first('mode', 'delaySeconds', 'responder', 'replyMode')
   const delayRaw = Number(arSettings?.delaySeconds ?? 0)
   const delaySeconds = Number.isFinite(delayRaw) ? Math.min(Math.max(Math.floor(delayRaw), 0), 3600) : 0
   /**
@@ -78,6 +82,11 @@ export async function enqueueInboundAutoResponse(
         ? 'qualify_turn'
         : 'first_contact'
   await skipPendingNoResponseJobs(trx, args.conversationId)
+  // A job the router is certain to refuse is not created (reliability rollout).
+  // The message itself is already persisted and notified by the caller.
+  if (await aiRepliesPausedForPlan(args.agencyId, arSettings)) {
+    return { jobId: null, reason, delaySeconds, suppressed: AI_NOT_ENTITLED }
+  }
   const jobId = await enqueueAutoResponse(trx, {
     agencyId: args.agencyId,
     conversationId: args.conversationId,

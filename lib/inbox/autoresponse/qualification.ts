@@ -69,8 +69,17 @@ export type ConversationCognition = {
   desiredOutcome?: string
 }
 
+/**
+ * Ownership epoch, written only by `returnConversationToAgent`: the highest
+ * message sequence at the moment a rep handed the conversation back. Human
+ * outbounds at or below it belong to the period the rep just ended and no
+ * longer count as a takeover (reliability/ownership.ts). Never model output.
+ */
+export type OwnershipEpoch = { sinceSequence: number; returnedAt?: string }
+
 export type Qualification = Partial<Record<QualificationField, string>> & {
   cognition?: ConversationCognition
+  ownership?: OwnershipEpoch
 }
 
 const isEmpty = (v: unknown): boolean => v == null || String(v).trim() === ''
@@ -152,6 +161,9 @@ export function mergeQualification(
   }
   const cognition = mergeCognition(current.cognition, extracted.cognition, opts?.corrected)
   if (cognition) out.cognition = cognition
+  // Not the agent's to change: carried through every merge untouched, so a
+  // recorded turn can never erase (or forge) the last return-to-agent.
+  if (current.ownership) out.ownership = current.ownership
   return out
 }
 

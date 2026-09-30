@@ -48,6 +48,7 @@ vi.mock('@/db/conversationAiState', () => ({
   markHumanActive: vi.fn(),
   markStopped: vi.fn(),
   markClosed,
+  reopenClosedConversation: vi.fn(),
 }))
 vi.mock('@/db/conversationIntelligence', () => ({
   upsertManyConversationIntelligence: vi.fn(),
@@ -284,7 +285,8 @@ describe('qualify AI generation retry', () => {
         sentByUserId: 332,
         channelTimestamp: new Date(),
         createdAt: new Date(),
-        metadata: { source: 'manual' },
+        // A rep's reply as SocialCRM persists it: the sending user, no source.
+        metadata: null,
       },
       {
         direction: 'inbound',
