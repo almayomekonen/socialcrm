@@ -1,6 +1,6 @@
 import { getUser } from '@/db/auth'
 import { getPermsAndFilter } from '@/db/filter'
-import { resolvePerformanceFilter } from '@/lib/filter/resolvePerformanceFilter'
+import { resolveActiveFilter } from '@/lib/filter/resolveActiveFilter'
 import AllNumbox from '@/components/sumSales/AllNumbox'
 import { getGoalsAndTotals } from '@/db/sumSales'
 import SumSalesPie from '@/components/sumSales/SumSalesPie'
@@ -9,7 +9,7 @@ import { getPieData } from '@/db/sum_pie'
 export default async function SumSalePage({ searchParams }) {
   const user = await getUser()
 
-  const filter = await resolvePerformanceFilter(user?.id, (await searchParams).filter)
+  const filter = await resolveActiveFilter('performance', user?.id, (await searchParams).filter)
 
   const { rawFilter, sqlFilter, gotPermUsers, gotPermTeams } = await getPermsAndFilter({
     user,

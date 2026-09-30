@@ -1,11 +1,13 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import FilterBtn from '../filter/FilterBtn'
+import { usePersistedActiveFilter } from '@/components/filter/usePersistedActiveFilter'
 
 export default function SalesNav({ user, isSystemEmpty = false }) {
   const searchParams = useSearchParams()
   const rawFilter = searchParams.get('filter')
+  usePersistedActiveFilter(user?.id, usePathname(), rawFilter)
 
   let jsonObj = {}
   try { if (rawFilter) jsonObj = JSON.parse(rawFilter) } catch { /* keep empty filter */ }

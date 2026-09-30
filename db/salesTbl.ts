@@ -44,6 +44,35 @@ export async function getDealTableData(
   return { tblData, count: countRes?.count || 0, revenue: Number(countRes?.revenue) || 0, sqlExport }
 }
 
+/**
+ * Whether ANY deal exists in this agency within the user's permission scope —
+ * no filter applied. The deals page asks this only when the filtered table came
+ * back empty, to tell "no deals at all" (onboarding) from "the filter matches
+ * nothing" (normal filtered UI). Same scoping as the table: admins see the whole
+ * agency, everyone else the deals of the users they have permission for.
+ */
+export async function hasAnyDeals(agencyId: number, gotPermIds: number[] | undefined): Promise<boolean> {
+  // Base tables, not the aggregating _sales view: `"userIds" && ids` there is
+  // exactly "some sale_users row of this sale belongs to one of ids".
+  const query = db('sales').where('sales.agencyId', agencyId)
+  const ids = (gotPermIds ?? []).map(Number).filter(Number.isInteger)
+  if (ids.length) {
+    query.whereExists(db('sale_users').whereRaw('sale_users."saleId" = sales.id').whereIn('sale_users.userId', ids))
+  }
+  const row = await query.select(db.raw('1')).first()
+  return !!row
+}
+
+/**
+ * The deals page's onboarding ("no deals yet") decision: the filtered table is
+ * empty AND the user's scope has no deals at all. Existence is only checked when
+ * the table is empty, so the usual case costs no extra query.
+ */
+export async function isDealsSystemEmpty(rowsShown: number, agencyId: number, gotPermIds: number[] | undefined): Promise<boolean> {
+  if (rowsShown > 0) return false
+  return !(await hasAnyDeals(agencyId, gotPermIds))
+}
+
 export async function getTotalDealCount(gotPermIds: number[]) {
   const query = db('_sales')
   if (gotPermIds?.length) {

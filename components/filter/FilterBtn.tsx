@@ -1,6 +1,6 @@
 import { addSavedFilters } from '@/actions/filter'
 import { redirect, usePathname } from 'next/navigation'
-import { clearPersistedFilter, isPerformanceFilterPath } from '@/lib/filter/performanceFilter'
+import { clearPersistedFilter, filterSectionForPath } from '@/lib/filter/activeFilter'
 import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
 import Title from '@/lib/Title'
@@ -10,8 +10,9 @@ import { getFormData2 } from '@/lib/form/funcs'
 
 export default function FilterBtn({ user, filter }) {
   const pathname = usePathname()
-  // Reset on Performance also forgets the remembered active filter.
-  const onReset = () => isPerformanceFilterPath(pathname) && user?.id && clearPersistedFilter(user.id)
+  // Reset also forgets the remembered filter — of THIS section only.
+  const section = filterSectionForPath(pathname)
+  const onReset = () => section && user?.id && clearPersistedFilter(section, user.id)
   const tmp = Array.isArray(user?.savedFilters) ? user?.savedFilters : []
 
   const savedFilters = [

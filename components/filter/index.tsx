@@ -14,7 +14,7 @@ import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import { getFormData2 } from '@/lib/form/funcs'
 import { searchContacts } from '@/actions/clients'
 import { useUser } from '@/lib/hooksNEvents'
-import { clearPersistedFilter, isPerformanceFilterPath } from '@/lib/filter/performanceFilter'
+import { clearPersistedFilter, filterSectionForPath } from '@/lib/filter/activeFilter'
 
 type Props = {
   props: {
@@ -28,8 +28,9 @@ export default function Filter({ props }: Props) {
   const pathname = usePathname()
   const show = getShow(pathname)
   const user = useUser()
-  // Reset on Performance also forgets the remembered active filter.
-  const onReset = () => isPerformanceFilterPath(pathname) && user?.id && clearPersistedFilter(user.id)
+  // Reset also forgets the remembered filter — of THIS section only.
+  const section = filterSectionForPath(pathname)
+  const onReset = () => section && user?.id && clearPersistedFilter(section, user.id)
   const router = useRouter()
   const { users, teams, handlers } = props || ({} as any)
   const rawFilter = (props?.rawFilter ?? {}) as any
