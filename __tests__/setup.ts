@@ -36,6 +36,12 @@ process.env.SECRETS_ENC_KEY = process.env.SECRETS_ENC_KEY || Buffer.alloc(32, 7)
 process.env.MOBILE_JWT_SECRET =
   process.env.MOBILE_JWT_SECRET || 'test-only-mobile-key-not-a-real-secret-xxxxxxxx'
 
+// ChatGPT / MCP signing key and public origin. The key differs from both keys
+// above for the same reason; the origin is a fixed fake https host. MCP itself
+// stays OFF unless a test sets MCP_ENABLED — absence blocks, as in production.
+process.env.MCP_JWT_SECRET = process.env.MCP_JWT_SECRET || 'test-only-mcp-key-not-a-real-secret-xxxxxxxxxxx'
+process.env.MCP_PUBLIC_ORIGIN = process.env.MCP_PUBLIC_ORIGIN || 'https://crm.test'
+
 // ── Per-file data isolation (skipped entirely when there is no database) ──────
 if (process.env.VITEST_NO_DB !== '1') {
   beforeAll(async () => {
