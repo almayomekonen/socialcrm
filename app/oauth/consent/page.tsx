@@ -11,15 +11,16 @@ import { CONSENT_EXPIRED, isPendingRequestUsed } from '@/lib/oauth/server/consen
 import ConsentCard from '@/components/oauth/ConsentCard'
 import ConsentMessage from '@/components/oauth/ConsentMessage'
 
-export const metadata: Metadata = { title: 'חיבור ChatGPT' }
+export const metadata: Metadata = { title: 'חיבור אפליקציה ל-SocialCRM' }
 
-const UNAVAILABLE = 'לא ניתן לחבר את ChatGPT לחשבון הזה כרגע.'
-const NEEDS_ACCESS = 'כדי לחבר את ChatGPT צריך מנוי פעיל או תקופת ניסיון פעילה.'
-const INELIGIBLE: Record<ConsentIneligibleReason, { message: string; billing: boolean }> = {
+// `client` is the validated clientName from the signed pending request.
+const UNAVAILABLE = (client: string) => `לא ניתן לחבר את ${client} לחשבון הזה כרגע.`
+const NEEDS_ACCESS = (client: string) => `כדי לחבר את ${client} צריך מנוי פעיל או תקופת ניסיון פעילה.`
+const INELIGIBLE: Record<ConsentIneligibleReason, { message: (client: string) => string; billing: boolean }> = {
   no_user: { message: UNAVAILABLE, billing: false },
   no_agency: { message: UNAVAILABLE, billing: false },
   suspended: { message: UNAVAILABLE, billing: false },
-  not_allowlisted: { message: 'החיבור ל-ChatGPT עדיין לא זמין בחשבון שלך.', billing: false },
+  not_allowlisted: { message: (client) => `החיבור ל-${client} עדיין לא זמין בחשבון שלך.`, billing: false },
   trial_not_started: { message: NEEDS_ACCESS, billing: true },
   subscription_required: { message: NEEDS_ACCESS, billing: true },
 }
@@ -43,7 +44,7 @@ export default async function ConsentPage() {
   const eligible = await checkConsentEligibility(Number(user.id))
   if ('reason' in eligible) {
     const { message, billing } = INELIGIBLE[eligible.reason]
-    return <ConsentMessage message={message} showBilling={billing} />
+    return <ConsentMessage message={message(pending.clientName)} showBilling={billing} clientName={pending.clientName} />
   }
 
   const agency = await db('agencies').where({ id: eligible.user.agencyId }).first('name')

@@ -156,3 +156,50 @@ describe('/oauth/consent page', () => {
     for (const leak of ['suspend', 'allowlist', String(agencyId), String(userId)]) expect(msg.toLowerCase()).not.toContain(leak)
   })
 })
+
+describe('/oauth/consent page — client-aware copy', () => {
+  it('a Claude request shows the Claude card (validated name and host from the signed request)', async () => {
+    h.cookieValue.current = (
+      await signPendingRequest({
+        clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+        clientName: 'Claude',
+        redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+        codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+        scopes: ['crm.leads.read' as const, 'crm.conversations.read' as const],
+        resource: 'https://crm.test/api/mcp',
+        state: 'claude-state',
+      })
+    ).token
+    const el = await render()
+    expect(el.type).toBe(ConsentCard)
+    expect(el.props).toMatchObject({ clientName: 'Claude', redirectHost: 'claude.ai' })
+  })
+
+  it('an ineligible Claude request names Claude in the message and title, never ChatGPT', async () => {
+    h.cookieValue.current = (
+      await signPendingRequest({
+        clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+        clientName: 'Claude',
+        redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+        codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+        scopes: ['crm.leads.read' as const, 'crm.conversations.read' as const],
+        resource: 'https://crm.test/api/mcp',
+        state: 'claude-state',
+      })
+    ).token
+    vi.stubEnv('MCP_AGENCY_ALLOWLIST', '999999')
+    const el = await render()
+    expect(el.type).toBe(ConsentMessage)
+    expect(el.props.clientName).toBe('Claude')
+    expect(String(el.props.message)).toContain('Claude')
+    expect(String(el.props.message)).not.toContain('ChatGPT')
+  })
+
+  it('with no valid pending request the message is client-neutral', async () => {
+    h.cookieValue.current = undefined
+    const el = await render()
+    expect(el.props.clientName).toBeUndefined()
+    expect(String(el.props.message)).not.toContain('ChatGPT')
+    expect(String(el.props.message)).not.toContain('Claude')
+  })
+})

@@ -81,8 +81,8 @@ describe('CIMD resolver — happy path', () => {
     }
   })
 
-  it('reads the trusted host list from env, defaulting to chatgpt.com, and drops IP/loopback entries', () => {
-    expect(trustedClientHosts({} as NodeJS.ProcessEnv)).toEqual(['chatgpt.com'])
+  it('reads the trusted host list from env, defaulting to chatgpt.com and claude.ai, and drops IP/loopback entries', () => {
+    expect(trustedClientHosts({} as NodeJS.ProcessEnv)).toEqual(['chatgpt.com', 'claude.ai'])
     expect(
       trustedClientHosts({ MCP_TRUSTED_CLIENT_ID_HOSTS: ' ChatGPT.com , example.org ' } as unknown as NodeJS.ProcessEnv),
     ).toEqual(['chatgpt.com', 'example.org'])
@@ -472,5 +472,82 @@ describe('CIMD resolver — cache', () => {
       ok: false,
       reason: 'client_id_not_allowed',
     })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────── Claude ──
+describe('CIMD resolver — Claude (default trust policy)', () => {
+  const CLAUDE_ID = 'https://claude.ai/oauth/mcp-oauth-client-metadata'
+  // Exact body of GET https://claude.ai/oauth/mcp-oauth-client-metadata observed at
+  // the Task 12 checkpoint (200, application/json, cache-control: public, max-age=300).
+  const CLAUDE_DOC = {
+    client_id: CLAUDE_ID,
+    client_name: 'Claude',
+    client_uri: 'https://claude.ai',
+    redirect_uris: ['https://claude.ai/api/mcp/auth_callback'],
+    grant_types: ['authorization_code', 'refresh_token', 'urn:ietf:params:oauth:grant-type:jwt-bearer'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'none',
+  }
+  // No trustedHosts injected: these run against the DEFAULT policy.
+  const defaults = (fetch: FetchFn) => ({ fetch })
+
+  it("accepts Claude's published document verbatim; the extra jwt-bearer grant is ignored", async () => {
+    const f = vi.fn(async () => json(CLAUDE_DOC, { 'cache-control': 'public, max-age=300' }))
+    expect(await resolveClient(CLAUDE_ID, defaults(f))).toEqual({
+      ok: true,
+      client: { clientId: CLAUDE_ID, clientName: 'Claude', redirectUris: ['https://claude.ai/api/mcp/auth_callback'] },
+    })
+    expect(fetched(f)).toEqual([CLAUDE_ID])
+  })
+
+  it('ChatGPT still resolves under the default policy', async () => {
+    const f = vi.fn(async () => json(DOC))
+    expect((await resolveClient(ID, defaults(f))).ok).toBe(true)
+  })
+
+  it.each([
+    ['suffix look-alike', 'https://claude.ai.evil.com/oauth/mcp-oauth-client-metadata'],
+    ['prefix look-alike', 'https://evilclaude.ai/oauth/mcp-oauth-client-metadata'],
+    ['subdomain (not explicitly allowed)', 'https://api.claude.ai/oauth/mcp-oauth-client-metadata'],
+    ['other TLD', 'https://claude.com/oauth/mcp-oauth-client-metadata'],
+    ['uppercase host', 'https://CLAUDE.ai/oauth/mcp-oauth-client-metadata'],
+    ['trailing dot', 'https://claude.ai./oauth/mcp-oauth-client-metadata'],
+    ['explicit default port', 'https://claude.ai:443/oauth/mcp-oauth-client-metadata'],
+    ['other port', 'https://claude.ai:8443/oauth/mcp-oauth-client-metadata'],
+    ['userinfo', 'https://x@claude.ai/oauth/mcp-oauth-client-metadata'],
+    ['userinfo pointing elsewhere', 'https://claude.ai@evil.com/oauth/mcp-oauth-client-metadata'],
+    ['http', 'http://claude.ai/oauth/mcp-oauth-client-metadata'],
+    ['root path', 'https://claude.ai/'],
+    ['query', 'https://claude.ai/oauth/mcp-oauth-client-metadata?x=1'],
+    ['IP literal', 'https://160.79.104.10/oauth/mcp-oauth-client-metadata'],
+  ])('rejects %s without fetching', async (_n, id) => {
+    const f = vi.fn()
+    expect(await resolveClient(id, defaults(f))).toEqual({ ok: false, reason: 'client_id_not_allowed' })
+    expect(f).not.toHaveBeenCalled()
+  })
+
+  it('a Claude document with a changed redirect URI or client_id is still validated, not trusted', async () => {
+    const mismatch = vi.fn(async () => json({ ...CLAUDE_DOC, client_id: 'https://claude.ai/oauth/other' }))
+    expect(await resolveClient(CLAUDE_ID, defaults(mismatch))).toEqual({ ok: false, reason: 'client_id_mismatch' })
+    __resetCimdCacheForTests()
+    const httpRedirect = vi.fn(async () => json({ ...CLAUDE_DOC, redirect_uris: ['http://claude.ai/api/mcp/auth_callback'] }))
+    expect(await resolveClient(CLAUDE_ID, defaults(httpRedirect))).toEqual({ ok: false, reason: 'invalid_document' })
+    __resetCimdCacheForTests()
+    const secret = vi.fn(async () => json({ ...CLAUDE_DOC, token_endpoint_auth_method: 'client_secret_basic' }))
+    expect(await resolveClient(CLAUDE_ID, defaults(secret))).toEqual({ ok: false, reason: 'unsupported_auth_method' })
+  })
+
+  it('a redirect from claude.ai may not leave the trusted hosts', async () => {
+    const f = vi.fn().mockResolvedValueOnce(hop('https://evil.com/c.json'))
+    expect(await resolveClient(CLAUDE_ID, defaults(f))).toEqual({ ok: false, reason: 'redirect_not_allowed' })
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('an operator override of MCP_TRUSTED_CLIENT_ID_HOSTS replaces the defaults (Claude no longer trusted)', async () => {
+    vi.stubEnv('MCP_TRUSTED_CLIENT_ID_HOSTS', 'chatgpt.com')
+    const f = vi.fn()
+    expect(await resolveClient(CLAUDE_ID, defaults(f))).toEqual({ ok: false, reason: 'client_id_not_allowed' })
+    vi.unstubAllEnvs()
   })
 })

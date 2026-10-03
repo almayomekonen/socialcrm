@@ -3,7 +3,7 @@ import { SCOPE_LABELS_HE, type McpScopeName } from '@/lib/oauth/server/config'
 
 type Props = {
   clientName: string
-  /** Host only (e.g. chatgpt.com) — shown so the user sees where access goes. */
+  /** Host only (e.g. chatgpt.com, claude.ai) — shown so the user sees where access goes. */
   redirectHost: string
   userName: string
   agencyName: string
@@ -12,7 +12,9 @@ type Props = {
 }
 
 /**
- * The ChatGPT consent screen. Card container copied from CalendarConnect so it
+ * The MCP client consent screen (ChatGPT, Claude, …). Every client-specific word
+ * comes from the validated clientName in the signed pending request — never from
+ * browser input. Card container copied from CalendarConnect so it
  * is the product's existing card, not a new one. One form, two labelled submit
  * buttons; the server reads `decision` and the hidden csrf value.
  */

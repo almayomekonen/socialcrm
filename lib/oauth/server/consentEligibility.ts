@@ -4,7 +4,7 @@ import { canUseMcp } from '@/lib/flags/mcpFlags'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 
 /**
- * May this signed-in user connect ChatGPT right now?
+ * May this signed-in user connect an MCP client (ChatGPT, Claude) right now?
  *
  * Every fact is read from the database for the session's user id — never from
  * the pending cookie (which carries no identity) or from cached session claims.

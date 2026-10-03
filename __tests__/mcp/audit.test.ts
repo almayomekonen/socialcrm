@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sanitizeParams } from '@/lib/mcp/audit'
+import { sanitizeParams, auditSourceFor } from '@/lib/mcp/audit'
 
 describe('sanitizeParams', () => {
   it('keeps ids, limits, booleans and allowlisted enum fields', () => {
@@ -67,5 +67,21 @@ describe('sanitizeParams', () => {
   it('handles non-object input safely', () => {
     expect(sanitizeParams(null as never)).toEqual({})
     expect(sanitizeParams('text' as never)).toEqual({})
+  })
+})
+
+describe('auditSourceFor', () => {
+  it('maps trusted client hosts to fixed labels and everything else to mcp', () => {
+    expect(auditSourceFor('https://chatgpt.com/oauth/client.json')).toBe('chatgpt')
+    expect(auditSourceFor('https://claude.ai/oauth/mcp-oauth-client-metadata')).toBe('claude')
+    expect(auditSourceFor('https://future-client.example/client.json')).toBe('mcp')
+    expect(auditSourceFor('https://claude.ai.evil.com/x')).toBe('mcp')
+    expect(auditSourceFor('not a url')).toBe('mcp')
+  })
+
+  it('never returns the raw client id', () => {
+    for (const id of ['https://claude.ai/oauth/mcp-oauth-client-metadata', 'https://x.example/c.json']) {
+      expect(auditSourceFor(id)).not.toContain('/')
+    }
   })
 })

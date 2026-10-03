@@ -299,3 +299,56 @@ describe('pending cookie deletion is a real deletion', () => {
     expect(header).not.toMatch(/Domain=/i)
   })
 })
+
+describe('POST /api/oauth/consent — Claude', () => {
+  it('approval for Claude: grant + code bound to the Claude client, redirect to the Claude callback with iss', async () => {
+    const { token, pending } = await signPendingRequest({
+      clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+      clientName: 'Claude',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+      scopes: ['crm.leads.read' as const, 'crm.conversations.read' as const],
+      resource: 'https://crm.test/api/mcp',
+      state: 'claude-state',
+    })
+    const res = await post({ token, csrf: pending.csrf, decision: 'approve' })
+    expect(res.status).toBe(303)
+    const loc = res.headers.get('location')!
+    expect(new URL(loc).origin + new URL(loc).pathname).toBe('https://claude.ai/api/mcp/auth_callback')
+    expect(new URL(loc).searchParams.get('state')).toBe('claude-state')
+    expect(readAuthorizationResponseIssuer(loc, 'https://crm.test')).toEqual({ ok: true })
+    expect(await db('oauth_grants').first('client_id', 'client_name')).toEqual({
+      client_id: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+      client_name: 'Claude',
+    })
+    expect(
+      await consumeAuthorizationCode(new URL(loc).searchParams.get('code')!, {
+        clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+        redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: P.resource,
+        codeVerifier: V,
+      }),
+    ).toMatchObject({ ok: true })
+  })
+
+  it('a ChatGPT and a Claude connection for the same user are separate grants', async () => {
+    const a = await signPendingRequest(P)
+    await post({ token: a.token, csrf: a.pending.csrf, decision: 'approve' })
+    const b = await signPendingRequest({
+      clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+      clientName: 'Claude',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+      scopes: ['crm.leads.read' as const, 'crm.conversations.read' as const],
+      resource: 'https://crm.test/api/mcp',
+      state: 'claude-state',
+    })
+    await post({ token: b.token, csrf: b.pending.csrf, decision: 'approve' })
+    expect((await db('oauth_grants').whereNull('revoked_at').pluck('client_name')).sort()).toEqual(['ChatGPT', 'Claude'])
+  })
+
+  it('error copy never names a specific client', async () => {
+    const res = await post({ token: 'garbage', csrf: 'x', decision: 'approve' })
+    expect(await res.text()).not.toContain('ChatGPT')
+  })
+})

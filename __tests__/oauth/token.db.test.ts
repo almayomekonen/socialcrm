@@ -618,3 +618,68 @@ describe('POST /api/oauth/revoke', () => {
     expect((await rv([['token', 'x']])).status).toBe(404)
   })
 })
+
+describe('authorization_code — Claude (public client, no authentication)', () => {
+  it('exchanges a Claude code with no client authentication and refreshes', async () => {
+    const CLAUDE_ID = 'https://claude.ai/oauth/mcp-oauth-client-metadata'
+    const CLAUDE_CB = 'https://claude.ai/api/mcp/auth_callback'
+    const g = await upsertActiveGrant({
+      userId,
+      agencyId,
+      clientId: CLAUDE_ID,
+      clientName: 'Claude',
+      resource: RES,
+      scopes: BOTH,
+      sessionVersion: 0,
+    })
+    const code = await issueAuthorizationCode({
+      grantId: g.id,
+      requestJti: randomUUID(),
+      clientId: CLAUDE_ID,
+      redirectUri: CLAUDE_CB,
+      codeChallenge: C,
+      scopes: BOTH,
+      resource: RES,
+    })
+    const res = await post(token, [
+      ['grant_type', 'authorization_code'],
+      ['code', code],
+      ['code_verifier', V],
+      ['client_id', CLAUDE_ID],
+      ['redirect_uri', CLAUDE_CB],
+      ['resource', RES],
+    ])
+    expect(res.status).toBe(200)
+    const b = await res.json()
+    expect(await verifyMcpAccessToken(b.access_token)).toMatchObject({ clientId: CLAUDE_ID, grantId: g.id })
+    const r = await post(token, [
+      ['grant_type', 'refresh_token'],
+      ['refresh_token', b.refresh_token],
+      ['client_id', CLAUDE_ID],
+    ])
+    expect(r.status).toBe(200)
+  })
+
+  it('a Claude code cannot be exchanged as ChatGPT (client mismatch burns it)', async () => {
+    const CLAUDE_ID = 'https://claude.ai/oauth/mcp-oauth-client-metadata'
+    const g = await upsertActiveGrant({
+      userId,
+      agencyId,
+      clientId: CLAUDE_ID,
+      clientName: 'Claude',
+      resource: RES,
+      scopes: BOTH,
+      sessionVersion: 0,
+    })
+    const code = await issueAuthorizationCode({
+      grantId: g.id,
+      requestJti: randomUUID(),
+      clientId: CLAUDE_ID,
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      codeChallenge: C,
+      scopes: BOTH,
+      resource: RES,
+    })
+    expect((await err(await post(token, exchangePairs(code)))).error).toBe('invalid_grant')
+  })
+})

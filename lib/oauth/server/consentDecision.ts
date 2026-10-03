@@ -24,8 +24,8 @@ export type ConsentOutcome =
   | { kind: 'redirect'; location: string; clearPending: true }
   | { kind: 'error'; status: 400 | 401 | 500; message: string; clearPending: boolean }
 
-export const CONSENT_EXPIRED = 'בקשת החיבור פגה או כבר טופלה. חזור ל-ChatGPT ונסה שוב.'
-const BAD_REQUEST = 'הבקשה לא תקינה. חזור ל-ChatGPT ונסה שוב.'
+export const CONSENT_EXPIRED = 'בקשת החיבור פגה או כבר טופלה. חזור לאפליקציה שממנה התחלת ונסה שוב.'
+const BAD_REQUEST = 'הבקשה לא תקינה. חזור לאפליקציה שממנה התחלת ונסה שוב.'
 const LOGIN_REQUIRED = 'יש להתחבר ל-SocialCRM כדי לאשר את החיבור.'
 
 export async function isPendingRequestUsed(jti: string): Promise<boolean> {

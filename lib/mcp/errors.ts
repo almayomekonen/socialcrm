@@ -22,7 +22,7 @@ const MESSAGES: Record<McpErrorCode, string> = {
   insufficient_scope: 'This connection is not authorized for this tool. Reconnect SocialCRM and approve the requested access.',
   product_access_required:
     "The user's SocialCRM account does not currently have product access. Ask them to open SocialCRM to activate or renew it.",
-  feature_not_enabled: 'The ChatGPT connection is not enabled for this SocialCRM account.',
+  feature_not_enabled: 'This connection is not enabled for this SocialCRM account.',
   rate_limited: 'Too many requests. Wait before trying again.',
   server_error: 'SocialCRM could not complete this request. Try again later.',
 }

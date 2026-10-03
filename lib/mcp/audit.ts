@@ -58,11 +58,18 @@ export type AuditRow = {
   durationMs: number
 }
 
-const sourceOf = (clientId: string): string => {
+/**
+ * The audit `source`: a short fixed label derived on the server from the
+ * client_id host — never the raw client_id (stored in its own column), never
+ * anything the client controls beyond which trusted host it is.
+ */
+const SOURCE_BY_HOST: Record<string, string> = { 'chatgpt.com': 'chatgpt', 'claude.ai': 'claude' }
+
+export function auditSourceFor(clientId: string): string {
   try {
-    return new URL(clientId).hostname === 'chatgpt.com' ? 'chatgpt' : 'other'
+    return SOURCE_BY_HOST[new URL(clientId).hostname] ?? 'mcp'
   } catch {
-    return 'other'
+    return 'mcp'
   }
 }
 
@@ -74,7 +81,7 @@ export async function writeAudit(r: AuditRow): Promise<void> {
     user_id: r.userId,
     grant_id: r.grantId,
     client_id: r.clientId,
-    source: sourceOf(r.clientId),
+    source: auditSourceFor(r.clientId),
     tool: r.tool,
     kind: 'read',
     target_type: r.targetType ?? null,

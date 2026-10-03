@@ -6,7 +6,7 @@
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
-export const GENERIC_OAUTH_ERROR = 'לא ניתן להשלים את החיבור. חזור ל-ChatGPT ונסה שוב.'
+export const GENERIC_OAUTH_ERROR = 'לא ניתן להשלים את החיבור. חזור לאפליקציה שממנה התחלת ונסה שוב.'
 
 export function oauthErrorPage(status: number, message: string = GENERIC_OAUTH_ERROR): Response {
   const html =

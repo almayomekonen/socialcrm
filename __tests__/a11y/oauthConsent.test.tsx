@@ -93,3 +93,21 @@ describe('oauth layout', () => {
     expect(container.querySelectorAll('main')).toHaveLength(1)
   })
 })
+
+describe('client-aware consent copy', () => {
+  it('Claude: heading and approve button name Claude; ChatGPT appears nowhere', () => {
+    const { container } = render(<ConsentCard {...props} clientName='Claude' redirectHost='claude.ai' />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('חיבור Claude ל-SocialCRM')
+    expect(screen.getByRole('button', { name: 'אשר חיבור ל-Claude' })).toBeInTheDocument()
+    expect(screen.getByText('claude.ai')).toBeInTheDocument()
+    expect(container.textContent).not.toContain('ChatGPT')
+  })
+
+  it('ConsentMessage names the client when known, and is neutral otherwise', () => {
+    const { unmount } = render(<ConsentMessage message='x' clientName='Claude' />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('חיבור Claude ל-SocialCRM')
+    unmount()
+    render(<ConsentMessage message='x' />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('חיבור אפליקציה ל-SocialCRM')
+  })
+})

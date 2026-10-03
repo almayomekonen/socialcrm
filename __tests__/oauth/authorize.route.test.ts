@@ -221,3 +221,41 @@ describe('GET /api/oauth/authorize — success', () => {
     expect(a!.csrf).not.toBe(b!.csrf)
   })
 })
+
+describe('GET /api/oauth/authorize — Claude', () => {
+  const CLAUDE_ID = 'https://claude.ai/oauth/mcp-oauth-client-metadata'
+  const CLAUDE_CB = 'https://claude.ai/api/mcp/auth_callback'
+  beforeEach(() => {
+    h.resolveClient.mockImplementation(async (id: string) =>
+      id === CLAUDE_ID
+        ? { ok: true, client: { clientId: id, clientName: 'Claude', redirectUris: [CLAUDE_CB] } }
+        : { ok: false, reason: 'client_id_not_allowed' },
+    )
+  })
+
+  it('the exact request Claude sent at the checkpoint → pending cookie for Claude → /oauth/consent', async () => {
+    const res = await call({ client_id: CLAUDE_ID, redirect_uri: CLAUDE_CB, state: 'claude-state' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/oauth/consent')
+    expect(await verifyPendingRequest(pendingFrom(res))).toMatchObject({
+      clientId: CLAUDE_ID,
+      clientName: 'Claude',
+      redirectUri: CLAUDE_CB,
+      scopes: ['crm.leads.read', 'crm.conversations.read'],
+      state: 'claude-state',
+    })
+  })
+
+  it("Claude with ChatGPT's redirect_uri (or any other) → local 400, no redirect", async () => {
+    const res = await call({ client_id: CLAUDE_ID, redirect_uri: REDIRECT })
+    expect(res.status).toBe(400)
+    expect(res.headers.get('location')).toBeNull()
+  })
+
+  it('errors after trust go to the Claude callback with iss', async () => {
+    const loc = (await call({ client_id: CLAUDE_ID, redirect_uri: CLAUDE_CB, scope: 'full_access' })).headers.get('location')!
+    expect(new URL(loc).origin + new URL(loc).pathname).toBe(CLAUDE_CB)
+    expect(new URL(loc).searchParams.get('error')).toBe('invalid_scope')
+    expect(readAuthorizationResponseIssuer(loc, 'https://crm.test')).toEqual({ ok: true })
+  })
+})

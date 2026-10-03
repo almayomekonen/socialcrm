@@ -370,3 +370,29 @@ describe('runTool — rate limits (DB count on mcp_audit_events)', () => {
     expect((await run({ auth: ok(other) })).isError).toBeUndefined()
   })
 })
+
+describe('runTool — audit source per client', () => {
+  it('a Claude grant is audited with source=claude and its client_id in its own column', async () => {
+    const CLAUDE_ID = 'https://claude.ai/oauth/mcp-oauth-client-metadata'
+    const g = await upsertActiveGrant({
+      userId,
+      agencyId,
+      clientId: CLAUDE_ID,
+      clientName: 'Claude',
+      resource: RES,
+      scopes: ['crm.leads.read'],
+      sessionVersion: 0,
+    })
+    await runTool(ctx({ auth: ok(principal({ grantId: g.id, clientId: CLAUDE_ID })) }), async () => ({
+      data: { ok: true },
+      resultCount: 0,
+    }))
+    const [row] = await rows()
+    expect(row).toMatchObject({ source: 'claude', client_id: CLAUDE_ID })
+  })
+
+  it('a ChatGPT grant is audited with source=chatgpt', async () => {
+    await runTool(ctx(), async () => ({ data: { ok: true }, resultCount: 0 }))
+    expect((await rows())[0].source).toBe('chatgpt')
+  })
+})

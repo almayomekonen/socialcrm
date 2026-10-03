@@ -191,3 +191,36 @@ describe('pending authorization cookie — cookie attributes', () => {
     expect(pendingCookieOptions().secure).toBe(false)
   })
 })
+
+describe('pending authorization cookie — Claude', () => {
+  it('round-trips a Claude resume state (claude.ai is a default trusted client host)', async () => {
+    const { token, pending } = await signPendingRequest({
+      clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+      clientName: 'Claude',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+      scopes: ['crm.leads.read' as const, 'crm.conversations.read' as const],
+      resource: 'https://crm.test/api/mcp',
+      state: 'claude-state',
+    })
+    expect(await verifyPendingRequest(token)).toEqual(pending)
+    expect(pending).toMatchObject({ clientName: 'Claude', redirectUri: 'https://claude.ai/api/mcp/auth_callback' })
+  })
+
+  it('still rejects a look-alike Claude client id', async () => {
+    await expect(
+      signPendingRequest({
+        ...{
+          clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+          clientName: 'Claude',
+          redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+          codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+          scopes: ['crm.leads.read' as const, 'crm.conversations.read' as const],
+          resource: 'https://crm.test/api/mcp',
+          state: 'claude-state',
+        },
+        clientId: 'https://claude.ai.evil.com/x.json',
+      }),
+    ).rejects.toThrow()
+  })
+})

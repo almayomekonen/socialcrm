@@ -5,7 +5,7 @@ import { z } from 'zod'
  * Client ID Metadata Document resolver — NOT a general URL fetcher.
  *
  * The only network call it makes is to an https URL on an EXACT allowlisted
- * hostname (default chatgpt.com): no IP literals, no loopback names, no port, no
+ * hostname (default: chatgpt.com, claude.ai): no IP literals, no loopback names, no port, no
  * userinfo, no query or fragment, a non-root path, and the string must already be
  * in canonical form. That allowlist IS the SSRF boundary — we never connect to a
  * host we did not name. Redirects are followed manually, at most twice, and every
@@ -55,7 +55,9 @@ function isLoopbackOrIp(host: string): boolean {
 }
 
 export function trustedClientHosts(env: NodeJS.ProcessEnv = process.env): string[] {
-  const raw = env.MCP_TRUSTED_CLIENT_ID_HOSTS?.trim() || 'chatgpt.com'
+  // The two MCP clients we have verified end to end: ChatGPT and Claude. Exact
+  // hostnames only — subdomains and look-alikes are rejected by allowedUrl.
+  const raw = env.MCP_TRUSTED_CLIENT_ID_HOSTS?.trim() || 'chatgpt.com,claude.ai'
   return raw
     .split(',')
     .map((h) => h.trim().toLowerCase())
