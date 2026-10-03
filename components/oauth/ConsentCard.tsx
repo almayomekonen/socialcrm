@@ -1,4 +1,4 @@
-import { Btn } from '@/lib/btns/Btn'
+import ConsentDecisionForm from './ConsentDecisionForm'
 import { SCOPE_LABELS_HE, type McpScopeName } from '@/lib/oauth/server/config'
 
 type Props = {
@@ -15,17 +15,13 @@ type Props = {
  * The MCP client consent screen (ChatGPT, Claude, …). Every client-specific word
  * comes from the validated clientName in the signed pending request — never from
  * browser input. Card container copied from CalendarConnect so it
- * is the product's existing card, not a new one. One form, two labelled submit
- * buttons; the server reads `decision` and the hidden csrf value.
+ * is the product's existing card, not a new one. The form itself (native POST,
+ * hidden csrf + decision, single-submission guard) is ConsentDecisionForm.
  */
 export default function ConsentCard({ clientName, redirectHost, userName, agencyName, scopes, csrf }: Props) {
   return (
     <div className='mx-auto mt-16 max-w-md px-4'>
-      <form
-        method='post'
-        action='/api/oauth/consent'
-        className='rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'
-      >
+      <ConsentDecisionForm clientName={clientName} csrf={csrf}>
         <h1 className='text-lg font-bold'>חיבור {clientName} ל-SocialCRM</h1>
         <p className='text-sm text-gray-600'>
           {clientName} · <span className='font-medium text-gray-800'>{redirectHost}</span>
@@ -50,12 +46,7 @@ export default function ConsentCard({ clientName, redirectHost, userName, agency
         <p className='text-sm text-gray-600'>
           {clientName} לא יקבל מספרי טלפון או כתובות אימייל, לא יוכל לשנות נתונים ולא ישלח הודעות WhatsApp.
         </p>
-        <input type='hidden' name='csrf' value={csrf} />
-        <div className='mt-auto flex items-center justify-end gap-3'>
-          <Btn as='submit' name='decision' value='deny' lbl='ביטול' variant='outline' icon='xmark' />
-          <Btn as='submit' name='decision' value='approve' lbl={`אשר חיבור ל-${clientName}`} icon='check' />
-        </div>
-      </form>
+      </ConsentDecisionForm>
     </div>
   )
 }
