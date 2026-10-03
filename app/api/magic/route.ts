@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/config/db'
 import { createCookie, getUserByEmail, revokeUserSessions } from '@/db/auth'
+import { postLoginDestinationFromCookie } from '@/lib/oauth/server/postLoginDestination'
+import { PENDING_COOKIE } from '@/lib/oauth/server/pendingRequest'
 
 export async function GET(request: NextRequest) {
   const start = Date.now()
@@ -35,9 +37,11 @@ export async function GET(request: NextRequest) {
   await createCookie(user.id)
 
   console.log(`[AUTH] route=magic_verify email=${email} ms=${Date.now() - start} result=success`)
+  // '/dashboard', or '/oauth/consent' when a validated ChatGPT authorization is pending.
+  const location = await postLoginDestinationFromCookie(request.cookies.get(PENDING_COOKIE)?.value)
   return new Response(null, {
     status: 302,
-    headers: { Location: '/dashboard' },
+    headers: { Location: location },
   })
 }
 

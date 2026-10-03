@@ -39,7 +39,7 @@ export type McpAccessClaims = {
  * short, or shared with the web-session or mobile key (Task 2 blocks this at
  * boot in production; this is the per-call backstop).
  */
-function mcpKey(): Uint8Array {
+export function mcpSigningKey(): Uint8Array {
   const s = process.env.MCP_JWT_SECRET ?? ''
   if (s.length < MIN_SECRET_LENGTH || s === process.env.JWT_SECRET || s === process.env.MOBILE_JWT_SECRET) {
     throw new Error('MCP_JWT_SECRET is missing, too short, or shared with another signing key')
@@ -84,7 +84,7 @@ export async function signMcpAccessToken(
     .setIssuedAt(now)
     .setNotBefore(now)
     .setExpirationTime(now + ACCESS_TOKEN_TTL_SECONDS)
-    .sign(mcpKey())
+    .sign(mcpSigningKey())
 }
 
 function toClaims(p: JWTPayload): McpAccessClaims | null {
@@ -108,7 +108,7 @@ function toClaims(p: JWTPayload): McpAccessClaims | null {
 export async function verifyMcpAccessToken(token: string): Promise<McpAccessClaims | null> {
   if (typeof token !== 'string' || token === '') return null
   try {
-    const { payload } = await jwtVerify(token, mcpKey(), {
+    const { payload } = await jwtVerify(token, mcpSigningKey(), {
       algorithms: ['HS256'], // never inferred from the header
       typ: TYP_HEADER,
       issuer: issuer(),
