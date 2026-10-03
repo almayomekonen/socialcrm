@@ -57,9 +57,7 @@ export default function MessengerImportHistory({ pageId }: { pageId: string }) {
 
   return (
     <div className='grid gap-1.5'>
-      <Btn onClick={start} disabled={loading} variant='outline'>
-        {loading ? 'מייבא שיחות…' : 'ייבא שיחות קיימות מהדף'}
-      </Btn>
+      <Btn lbl={loading ? 'מייבא שיחות…' : 'ייבא שיחות קיימות מהדף'} onClick={start} disabled={loading} variant='outline' />
       <p className='text-[11px] leading-relaxed text-gray-500'>
         פייסבוק מאפשר לייבא רק את ההודעות האחרונות בכל שיחה (עד 20), ולא את כל ההיסטוריה.
       </p>
