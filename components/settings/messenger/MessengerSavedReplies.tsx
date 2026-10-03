@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Btn } from '@/lib/btns/Btn'
 import { useAction } from '@/lib/useAction'
 import { toast } from '@/lib/toast'
@@ -150,9 +150,14 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
                   </p>
                 )}
               </div>
-              <Btn variant='outline' size='small' onClick={() => setDraft(toDraft(reply))} disabled={loading}>
-                ערוך
-              </Btn>
+              <Btn
+                variant='outline'
+                size='small'
+                lbl='ערוך'
+                aria-label={`ערוך את ${reply.title}`}
+                onClick={() => setDraft(toDraft(reply))}
+                disabled={loading}
+              />
               <button
                 type='button'
                 onClick={() => remove(reply)}
@@ -170,10 +175,7 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
 
       {!draft && (
         <div>
-          <Btn variant='outline' onClick={() => setDraft({ ...EMPTY })} disabled={loading}>
-            <Plus aria-hidden className='size-4' />
-            הוסף תשובה שמורה
-          </Btn>
+          <Btn variant='outline' icon='plus' lbl='הוסף תשובה שמורה' onClick={() => setDraft({ ...EMPTY })} disabled={loading} />
         </div>
       )}
 
@@ -232,12 +234,12 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
                 <Btn
                   variant='ghost'
                   size='small'
+                  icon='plus'
+                  lbl='הוסף תשובה מהירה'
+                  className='justify-self-start'
                   onClick={() => setField('quickReplies', [...draft.quickReplies, ''])}
                   disabled={loading}
-                >
-                  <Plus aria-hidden className='size-3.5' />
-                  הוסף תשובה מהירה
-                </Btn>
+                />
               )}
             </div>
           </fieldset>
@@ -279,12 +281,12 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
                 <Btn
                   variant='ghost'
                   size='small'
+                  icon='plus'
+                  lbl='הוסף כפתור'
+                  className='justify-self-start'
                   onClick={() => setField('buttons', [...draft.buttons, { title: '', url: '' }])}
                   disabled={loading}
-                >
-                  <Plus aria-hidden className='size-3.5' />
-                  הוסף כפתור
-                </Btn>
+                />
               )}
             </div>
           </fieldset>
@@ -311,7 +313,7 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
                 onChange={(e) => setField('attachmentType', e.target.value as Draft['attachmentType'])}
                 disabled={loading}
                 aria-label='סוג הקובץ המצורף'
-                className='rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
+                className='rounded-md border border-gray-200 bg-white py-1.5 ps-2 pe-7 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
               >
                 <option value='file'>קובץ</option>
                 <option value='image'>תמונה</option>
@@ -328,12 +330,16 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
           )}
 
           <div className='flex gap-2'>
-            <Btn onClick={save} disabled={loading}>
-              {loading ? 'שומר…' : 'שמור תשובה שמורה'}
-            </Btn>
-            <Btn variant='ghost' onClick={() => { setDraft(null); setError(null) }} disabled={loading}>
-              ביטול
-            </Btn>
+            <Btn lbl={loading ? 'שומר…' : 'שמור תשובה שמורה'} onClick={save} disabled={loading} />
+            <Btn
+              variant='ghost'
+              lbl='ביטול'
+              onClick={() => {
+                setDraft(null)
+                setError(null)
+              }}
+              disabled={loading}
+            />
           </div>
         </div>
       )}
