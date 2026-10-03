@@ -17,6 +17,7 @@ export type RevokeReason =
   | 'refresh_reuse'
   | 'session_revoked'
   | 'user_suspended'
+  | 'user_missing'
   | 'agency_changed'
   | 'not_allowlisted'
   | 'client_revoked'
