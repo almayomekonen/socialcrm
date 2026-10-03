@@ -183,3 +183,11 @@ export function pendingCookieOptions() {
     maxAge: PENDING_TTL_SECONDS,
   }
 }
+
+/**
+ * Deletion with the SAME name, path and flags as the original, so the browser
+ * removes that cookie instead of creating a second variant beside it.
+ */
+export function clearedPendingCookieOptions() {
+  return { ...pendingCookieOptions(), maxAge: 0, expires: new Date(0) }
+}
