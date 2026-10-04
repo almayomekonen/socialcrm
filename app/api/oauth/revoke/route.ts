@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { isMcpEnabled } from '@/lib/flags/mcpFlags'
 import { parseOAuthForm, OPAQUE_TOKEN_RE } from '@/lib/oauth/server/tokenEndpoint'
 import { revokeRefreshFamilyByToken } from '@/lib/oauth/server/refreshTokens'
+import { errorClass } from '@/lib/oauth/server/logSafe'
 
 const NO_STORE = { 'cache-control': 'no-store', pragma: 'no-cache' }
 
@@ -37,7 +38,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (OPAQUE_TOKEN_RE.test(token)) await revokeRefreshFamilyByToken(token)
     return new NextResponse(null, { status: 200, headers: NO_STORE })
   } catch (e) {
-    console.error('[oauth/revoke] failed', { reason: (e as Error)?.message })
+    console.error('[oauth/revoke] failed', errorClass(e))
     return NextResponse.json({ error: 'server_error' }, { status: 500, headers: NO_STORE })
   }
 }

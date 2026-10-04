@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isMcpEnabled } from '@/lib/flags/mcpFlags'
 import { handleTokenRequest } from '@/lib/oauth/server/tokenEndpoint'
+import { errorClass } from '@/lib/oauth/server/logSafe'
 
 const NO_STORE = { 'cache-control': 'no-store', pragma: 'no-cache' }
 
@@ -17,7 +18,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (out.basicChallenge) headers['www-authenticate'] = 'Basic realm="SocialCRM"'
     return NextResponse.json(out.body, { status: out.status, headers })
   } catch (e) {
-    console.error('[oauth/token] failed', { reason: (e as Error)?.message })
+    console.error('[oauth/token] failed', errorClass(e))
     return NextResponse.json({ error: 'server_error' }, { status: 500, headers: NO_STORE })
   }
 }

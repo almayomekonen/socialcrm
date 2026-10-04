@@ -5,6 +5,7 @@ import { buildAuthorizationRedirect } from '@/lib/oauth/server/authorizeResponse
 import { signPendingRequest, PENDING_COOKIE, pendingCookieOptions } from '@/lib/oauth/server/pendingRequest'
 import { OAUTH_CONSENT_PATH } from '@/lib/oauth/server/postLoginDestination'
 import { oauthErrorPage } from '@/lib/oauth/server/errorPage'
+import { errorClass } from '@/lib/oauth/server/logSafe'
 
 const NO_STORE = { 'cache-control': 'no-store' }
 
@@ -39,7 +40,7 @@ export async function GET(req: Request): Promise<Response> {
     res.cookies.set(PENDING_COOKIE, token, pendingCookieOptions())
     return res
   } catch (e) {
-    console.error('[oauth/authorize] failed', { reason: (e as Error)?.message })
+    console.error('[oauth/authorize] failed', errorClass(e))
     return oauthErrorPage(500)
   }
 }

@@ -5,6 +5,7 @@ import { publicOrigin } from '@/lib/oauth/server/config'
 import { PENDING_COOKIE, clearedPendingCookieOptions } from '@/lib/oauth/server/pendingRequest'
 import { decideConsent } from '@/lib/oauth/server/consentDecision'
 import { oauthErrorPage } from '@/lib/oauth/server/errorPage'
+import { errorClass } from '@/lib/oauth/server/logSafe'
 
 /**
  * The consent form's POST target.
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (outcome.clearPending) res.cookies.set(PENDING_COOKIE, '', clearedPendingCookieOptions())
     return res
   } catch (e) {
-    console.error('[oauth/consent] failed', { reason: (e as Error)?.message })
+    console.error('[oauth/consent] failed', errorClass(e))
     return oauthErrorPage(500)
   }
 }

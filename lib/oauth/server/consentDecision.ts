@@ -6,6 +6,7 @@ import { checkConsentEligibility } from './consentEligibility'
 import { upsertActiveGrant } from './grants'
 import { issueAuthorizationCode } from './authorizationCodes'
 import { buildAuthorizationRedirect } from './authorizeResponse'
+import { errorClass } from './logSafe'
 
 /**
  * The consent decision, independent of HTTP plumbing.
@@ -108,7 +109,7 @@ export async function decideConsent(input: {
     }
   } catch (e) {
     if (isUniqueViolation(e)) return { kind: 'error', status: 400, message: CONSENT_EXPIRED, clearPending: true }
-    console.error('[oauth/consent] approval failed', { reason: (e as Error)?.message })
+    console.error('[oauth/consent] approval failed', errorClass(e))
     return {
       kind: 'redirect',
       location: buildAuthorizationRedirect(pending.redirectUri, { error: 'server_error', state: pending.state }),
