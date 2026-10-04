@@ -1,13 +1,24 @@
 import 'server-only'
 import { db } from '@/config/db'
 import { canUseMcp } from '@/lib/flags/mcpFlags'
-import { MCP_READ_SCOPES, isMcpScope, mcpResource, type McpScopeName } from './config'
+import { mcpResource, type McpScopeName } from './config'
 import { isThisResource } from './redirectUri'
 import { sha256Hex } from './hash'
 import { consumeAuthorizationCode } from './authorizationCodes'
 import { issueRefreshToken, rotateRefreshToken } from './refreshTokens'
 import { getActiveGrant, revokeGrant, type Grant, type RevokeReason } from './grants'
 import { signMcpAccessToken, ACCESS_TOKEN_TTL_SECONDS } from './accessToken'
+import {
+  OPAQUE_RE,
+  VERIFIER_RE,
+  canonicalScopes,
+  fail,
+  isClientIdSyntax,
+  isRedirectUriSyntax,
+  parseOAuthForm,
+  parseRequestedScope,
+  type TokenOutcome,
+} from './tokenRequest'
 
 /**
  * OAuth 2.1 token endpoint logic (public clients only).
@@ -24,100 +35,7 @@ import { signMcpAccessToken, ACCESS_TOKEN_TTL_SECONDS } from './accessToken'
  * hashes, session versions, suspension or database details.
  */
 
-export type TokenOutcome = { status: number; body: Record<string, unknown>; basicChallenge?: boolean }
-
-const MAX_BODY_BYTES = 8 * 1024
 const REFRESH_PER_HOUR = 120
-const OPAQUE_RE = /^[A-Za-z0-9_-]{43}$/ // our codes and refresh tokens: 32 random bytes, base64url
-const VERIFIER_RE = /^[A-Za-z0-9\-._~]{43,128}$/ // RFC 7636 §4.1
-const SENSITIVE = [
-  'grant_type',
-  'code',
-  'refresh_token',
-  'code_verifier',
-  'redirect_uri',
-  'client_id',
-  'resource',
-  'scope',
-  'client_assertion',
-  'client_assertion_type',
-  'client_secret',
-  'token',
-  'token_type_hint',
-]
-const CLIENT_AUTH_PARAMS = ['client_secret', 'client_assertion', 'client_assertion_type']
-
-const fail = (error: string, description: string, status = 400, basicChallenge = false): TokenOutcome => ({
-  status,
-  body: { error, error_description: description },
-  basicChallenge,
-})
-
-/**
- * Shared by the token and revocation endpoints: form-encoded only, bounded,
- * no repeated security-sensitive parameter, no client authentication material
- * (Phase A supports token_endpoint_auth_method=none only).
- */
-export function parseOAuthForm(input: {
-  contentType: string | null
-  hasAuthorizationHeader: boolean
-  body: string
-}): { ok: true; form: URLSearchParams } | { ok: false; outcome: TokenOutcome } {
-  const media = (input.contentType ?? '').split(';')[0].trim().toLowerCase()
-  if (media !== 'application/x-www-form-urlencoded')
-    return { ok: false, outcome: fail('invalid_request', 'form-encoded body required') }
-  if (Buffer.byteLength(input.body, 'utf8') > MAX_BODY_BYTES)
-    return { ok: false, outcome: fail('invalid_request', 'request too large') }
-  const form = new URLSearchParams(input.body)
-  for (const name of SENSITIVE) {
-    if (form.getAll(name).length > 1) return { ok: false, outcome: fail('invalid_request', 'repeated parameter') }
-  }
-  if (input.hasAuthorizationHeader) {
-    return { ok: false, outcome: fail('invalid_client', 'client authentication is not supported', 401, true) }
-  }
-  if (CLIENT_AUTH_PARAMS.some((p) => form.has(p))) {
-    return { ok: false, outcome: fail('invalid_client', 'client authentication is not supported', 401) }
-  }
-  return { ok: true, form }
-}
-
-function isClientIdSyntax(v: string): boolean {
-  try {
-    const u = new URL(v)
-    return v.length <= 2048 && u.href === v && u.protocol === 'https:' && !u.username && !u.password && !u.hash
-  } catch {
-    return false
-  }
-}
-
-function isRedirectUriSyntax(v: string): boolean {
-  if (v.length > 2048 || /[\s\\#]/.test(v)) return false
-  try {
-    const u = new URL(v)
-    if (u.username || u.password) return false
-    if (u.protocol === 'https:') return true
-    return (
-      u.protocol === 'http:' &&
-      (u.hostname === '127.0.0.1' || u.hostname === 'localhost') &&
-      process.env.MCP_ALLOW_LOOPBACK_REDIRECTS === '1' &&
-      process.env.NODE_ENV !== 'production'
-    )
-  } catch {
-    return false
-  }
-}
-
-/** undefined = not requested; null = malformed/unknown (rejected, never repaired). */
-function parseRequestedScope(raw: string | null): McpScopeName[] | undefined | null {
-  if (raw === null || raw === '') return undefined
-  const parts = raw.split(' ')
-  if (parts.some((p) => p === '' || !isMcpScope(p))) return null
-  if (new Set(parts).size !== parts.length) return null
-  return parts as McpScopeName[]
-}
-
-/** Canonical OAuth form: a fixed order, only known scopes, never added ones. */
-const canonicalScopes = (list: readonly string[]): McpScopeName[] => MCP_READ_SCOPES.filter((s) => list.includes(s))
 
 /**
  * DB facts that must still hold for a grant to mint tokens. On failure the
@@ -249,4 +167,5 @@ export async function handleTokenRequest(input: {
   return tokensFor(valid.grant, canonicalScopes(rot.scopes), rot.token)
 }
 
-export { OPAQUE_RE as OPAQUE_TOKEN_RE }
+// Re-exported for existing importers (the revocation route).
+export { parseOAuthForm, OPAQUE_RE as OPAQUE_TOKEN_RE, type TokenOutcome }
