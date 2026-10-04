@@ -76,18 +76,18 @@ describe('consent form — hydrated, single submission', () => {
     expect(rec.sent).toEqual([{ decision: ['deny'], csrf: ['c'.repeat(32)] }])
   })
 
-  it('the buttons are already disabled when the browser builds the form data (no second decision from the submitter)', () => {
+  it('the submitter is never disabled, so it always serializes its decision (no hidden decision input exists)', () => {
     render(<ConsentCard {...props} />)
     const { form, approve, deny } = parts()
+    expect(form.querySelector('input[name="decision"]')).toBeNull()
     const seen: boolean[] = []
     const probe = () => seen.push(approve.matches(':disabled'), deny.matches(':disabled'))
     document.addEventListener('submit', probe)
     const rec = recordSubmissions()
-    // No act(): nothing React renders may run between the handler and the probe.
     submit(form, approve)
     rec.stop()
     document.removeEventListener('submit', probe)
-    expect(seen).toEqual([true, true])
+    expect(seen).toEqual([false, false])
     expect(rec.sent[0].decision).toEqual(['approve'])
   })
 
@@ -155,7 +155,7 @@ describe('consent form — hydrated, single submission', () => {
     expect(rec.sent).toHaveLength(1)
   })
 
-  it('after the first submission both buttons are disabled, the form is busy and a pending status is shown', () => {
+  it('after the first submission both buttons are aria-disabled (never `disabled`), the form is busy and a pending status is shown', () => {
     render(<ConsentCard {...props} />)
     const { form, approve, deny } = parts()
     const rec = recordSubmissions()
@@ -164,10 +164,13 @@ describe('consent form — hydrated, single submission', () => {
     expect(form).toHaveAttribute('aria-busy', 'true')
     const buttons = screen.getAllByRole('button')
     expect(buttons).toHaveLength(2)
-    for (const b of buttons) expect(b).toBeDisabled()
+    for (const b of buttons) {
+      expect(b).toHaveAttribute('aria-disabled', 'true')
+      expect(b).not.toHaveAttribute('disabled')
+    }
     expect(screen.getByRole('status')).toHaveTextContent('מחבר את Claude…')
-    expect(approve).toBeDisabled()
-    expect(deny).toBeDisabled()
+    expect(approve).toHaveAttribute('aria-disabled', 'true')
+    expect(deny).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('Deny shows its own pending wording', () => {
@@ -218,9 +221,9 @@ describe('consent form — no JavaScript (server-rendered markup only)', () => {
     host.remove()
   })
 
-  it('the hidden decision input is disabled, so it never adds an empty decision', () => {
+  it('there is no hidden decision input, so nothing can add an empty decision', () => {
     const { host, form } = staticForm()
-    expect(form.querySelector('input[type="hidden"][name="decision"]')).toBeDisabled()
+    expect(form.querySelector('input[name="decision"]')).toBeNull()
     expect(new FormData(form).getAll('decision')).toEqual([])
     host.remove()
   })
