@@ -1,5 +1,8 @@
 import { getCalendarConnectionByUserId } from '@/db/googleCalendarConnections'
 import CalendarConnect from '@/components/settings/CalendarConnect'
+import AiConnections from '@/components/settings/AiConnections'
+import { canUseMcp } from '@/lib/flags/mcpFlags'
+import { listAiConnections } from '@/lib/oauth/server/connections'
 import { INTEGRATIONS } from './catalog'
 import IntegrationCard from './IntegrationCard'
 
@@ -22,8 +25,11 @@ import IntegrationCard from './IntegrationCard'
  * round-trip returns to whatever page mounted them.
  */
 
-export default async function ConnectedToolsSection({ user }: { user: { id: number } }) {
+export default async function ConnectedToolsSection({ user }: { user: { id: number; agencyId: number } }) {
   const conn = await getCalendarConnectionByUserId(user.id)
+  // AI connections appear only where MCP is enabled for this agency, and list
+  // only the session user's own active grants.
+  const aiConnections = canUseMcp(user.agencyId) ? await listAiConnections(user.id, user.agencyId) : null
 
   const calendarState: 'not_connected' | 'connected' | 'reauth_required' = !conn
     ? 'not_connected'
@@ -36,6 +42,7 @@ export default async function ConnectedToolsSection({ user }: { user: { id: numb
   return (
     <div className='grid max-w-3xl grid-cols-2 gap-4 mobile:grid-cols-1'>
       <CalendarConnect state={calendarState} email={conn?.google_email ?? null} lastError={conn?.last_error ?? null} />
+      {aiConnections && <AiConnections connections={aiConnections} />}
       {INTEGRATIONS.map((integration) => (
         <IntegrationCard key={integration.id} integration={integration} />
       ))}

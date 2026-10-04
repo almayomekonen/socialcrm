@@ -168,6 +168,32 @@ export async function revokeGrant(id: number, reason: RevokeReason, conn: Conn =
   })
 }
 
+/**
+ * Revoke a grant only if it belongs to this user (and agency) — the Settings
+ * disconnect path. Ownership is checked and the revocation applied in ONE
+ * transaction with the row locked, so a grant id from the client can never
+ * revoke someone else's grant. Same effect as revokeGrant: the grant and all
+ * of its refresh tokens are revoked, and an existing revocation (reason and
+ * time) is never overwritten. Idempotent.
+ */
+export async function revokeGrantForUser(
+  userId: number,
+  agencyId: number,
+  grantId: number,
+  reason: RevokeReason,
+): Promise<'revoked' | 'already_revoked' | 'not_found'> {
+  return db.transaction(async (t) => {
+    const row = (await t('oauth_grants')
+      .where({ id: grantId, user_id: userId, agency_id: agencyId })
+      .forUpdate()
+      .first('id', 'revoked_at')) as { id: number; revoked_at: Date | null } | undefined
+    if (!row) return 'not_found'
+    const wasActive = row.revoked_at === null
+    await revokeGrant(grantId, reason, t)
+    return wasActive ? 'revoked' : 'already_revoked'
+  })
+}
+
 export async function listActiveGrantsForUser(userId: number): Promise<Grant[]> {
   const rows = (await db('oauth_grants')
     .where({ user_id: userId })
