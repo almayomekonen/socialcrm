@@ -153,6 +153,64 @@ describe('get_conversation — visibility', () => {
   })
 })
 
+describe('get_conversation — customerName exposure', () => {
+  const UNLINKED_KEYS = [
+    'channel',
+    'conversationId',
+    'customerName',
+    'intelligenceStatus',
+    'intelligenceUpdatedAt',
+    'intent',
+    'lastInboundAt',
+    'lastMessageAt',
+    'lead',
+    'state',
+    'summary',
+    'temperature',
+    'url',
+    'waitingForReply',
+  ]
+
+  it('a linked conversation never exposes customerName, for any role that can see it, with or without messages', async () => {
+    for (const u of [r1, a1, g1, m1]) {
+      for (const includeMessages of [false, true]) {
+        const r = await call(u, A, 'get_conversation', { conversationId: S.C1, includeMessages })
+        expect(r.isError).toBeFalsy()
+        expect(r.structuredContent).not.toHaveProperty('customerName')
+        expect(JSON.stringify(r)).not.toContain('Profile Name')
+      }
+    }
+  })
+
+  it('unlinked: ADMIN and GM get the masked customerName and nothing else new', async () => {
+    for (const u of [a1, g1]) {
+      const r = await call(u, A, 'get_conversation', { conversationId: S.CU })
+      expect(r.structuredContent!.customerName).toBe('Walk-in [phone hidden]')
+      expect(Object.keys(r.structuredContent!).sort()).toEqual(UNLINKED_KEYS)
+      expectNoIdentifiers(r)
+    }
+  })
+
+  it('unlinked: lower roles still cannot open it, so the name never reaches them', async () => {
+    for (const u of [m1, r1, o1, e1]) {
+      const r = await call(u, A, 'get_conversation', { conversationId: S.CU })
+      expect(errCode(r)).toBe('not_found')
+      expect(JSON.stringify(r)).not.toContain('Walk-in')
+    }
+  })
+
+  it('no other conversation tool returns customerName', async () => {
+    const lists = [
+      await call(a1, A, 'get_lead_conversations', { leadId: S.L1 }),
+      await call(a1, A, 'get_unanswered_conversations', {}),
+    ]
+    for (const r of lists) {
+      expect(JSON.stringify(r.structuredContent)).not.toContain('customerName')
+      expect(JSON.stringify(r)).not.toContain('Walk-in')
+    }
+  })
+})
+
 describe('get_conversation — messages', () => {
   it('default: metadata and stored intelligence, no messages key at all', async () => {
     const r = await call(r1, A, 'get_conversation', { conversationId: S.C1 })

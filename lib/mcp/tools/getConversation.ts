@@ -27,7 +27,8 @@ export const getConversationInput = z
 export const getConversationOutput = z.object({
   ...conversationBaseShape,
   lead: z.object(leadRefShape).nullable(),
-  customerName: z.string().nullable(),
+  /** Unlinked conversations only (ADMIN/GM); absent when a lead is linked. */
+  customerName: z.string().nullable().optional(),
   messages: z.array(messageShape).optional(),
   messagesTruncated: z.boolean().optional(),
 })
@@ -68,8 +69,12 @@ export const getConversation: McpToolDef = {
     const data: Record<string, unknown> = {
       ...conversationBase(h, waiting.has(id), intel.get(id)),
       lead: lead ? leadRef(Number(lead.id), personName(lead.firstName, lead.lastName)) : null,
-      customerName: untrustedText(h.customerName, 120),
     }
+    // The WhatsApp profile name is returned only for an UNLINKED conversation —
+    // reachable by ADMIN/GM only (authorizedConversation) — where it is the only
+    // way to tell who is writing. A linked conversation already has the lead's
+    // name; a second, customer-chosen name is not exposed.
+    if (!lead) data.customerName = untrustedText(h.customerName, 120)
     if (!args.includeMessages) return { data, resultCount: 1 }
     const { rows, truncated } = await listMessagesForMcp(p.agencyId, id, args.messageLimit)
     data.messages = rows.map(presentMessage)

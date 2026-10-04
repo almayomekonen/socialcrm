@@ -33,11 +33,9 @@ These are **best-effort controls, not a guarantee that outputs contain no person
 6. **Audit never stores text.** `mcp_audit_events.params` keeps ids, numbers, booleans and allow-listed enum values only; every other string (search text, notes, hostile input) is stored as `{len}`. Message text and summaries are never written.
 7. **Personal conversations are excluded** from every MCP tool (approved Phase A boundary), matching the product's exclusion of personal threads from AI analysis, auto-responses and notifications.
 
-### `customerName` (open privacy decision)
+### `customerName` (decided)
 
-`get_conversation` returns `customerName`, the customer's WhatsApp profile display name (scrubbed of phone/email shapes). For **unlinked** conversations — visible only to ADMIN/GM — it is the only human-readable identification of who is writing. For **linked** conversations it duplicates (and may differ from) the lead's name, which is already returned.
-
-Recommendation: keep it for unlinked conversations and omit it for linked ones in a follow-up change — it removes a second, customer-chosen name from the common path without losing anything an admin needs. Not changed in Phase A pending a product decision.
+`customerName` is the customer's WhatsApp profile display name (scrubbed of phone/email shapes). `get_conversation` returns it **only for unlinked conversations**, which only ADMIN and GM can open — there it is the only human-readable identification of who is writing. For **linked** conversations the field is absent: the lead's name is already returned, and a second, customer-chosen name is not exposed. No other tool returns it.
 
 ## Logging
 

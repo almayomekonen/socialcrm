@@ -54,7 +54,7 @@ WhatsApp only (`inbox_conversations`). Personal threads are never returned. Link
 ### `get_conversation`
 
 - Inputs: `conversationId`, `includeMessages` (default false), `messageLimit` 1–50 (default 20).
-- Output: conversation + `lead` (or null when unlinked) + `customerName` (WhatsApp profile name, scrubbed). Only with `includeMessages=true`: `messages` (newest `messageLimit`, returned oldest-first) and `messagesTruncated`. Each message: `messageId`, `author` (`customer` | `business` | `automation`), `type`, `sentAt`, `text` (≤1000 chars, stricter scrubbing; contact cards and locations return no text), `contentTruncated`.
+- Output: conversation + `lead` (or null when unlinked). `customerName` (WhatsApp profile name, scrubbed) is returned **only for unlinked conversations** (ADMIN/GM); it is absent when a lead is linked. Only with `includeMessages=true`: `messages` (newest `messageLimit`, returned oldest-first) and `messagesTruncated`. Each message: `messageId`, `author` (`customer` | `business` | `automation`), `type`, `sentAt`, `text` (≤1000 chars, stricter scrubbing; contact cards and locations return no text), `contentTruncated`.
 - Rate limit: `includeMessages=true` also counts against the hourly message-read limit (120 per grant).
 
 ### `get_unanswered_conversations`
