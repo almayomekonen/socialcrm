@@ -7,16 +7,22 @@ type Decision = 'approve' | 'deny'
 type Props = { clientName: string; csrf: string; children: ReactNode }
 
 /**
- * The consent form's single-submission guard (UX / race prevention — the
- * server's single-use checks remain the security boundary).
+ * The consent form: a native POST to /api/oauth/consent that works with or
+ * without JavaScript (the server's single-use checks remain the security
+ * boundary; this is UX / race prevention).
  *
- * A native POST to /api/oauth/consent, exactly as before. On the FIRST submit:
- *   1. a ref lock is taken synchronously — React state alone would let a rapid
- *      second click through before the next render;
- *   2. the clicked button's decision is copied into a hidden `decision` input,
- *      because the browser builds the form data AFTER the submit event, and a
- *      button React has just disabled would be left out of it;
- *   3. both buttons are disabled and a pending status is shown.
+ * Without JavaScript: the clicked submit button carries `decision` itself
+ * (name/value), and the hidden `decision` input is disabled, so it is left out
+ * of the form data. Exactly one `decision` reaches the server.
+ *
+ * Hydrated, on the FIRST submit, synchronously inside the submit event (before
+ * the browser builds the form data):
+ *   1. a ref lock is taken — React state alone would let a rapid second click
+ *      through before the next render;
+ *   2. the decision is copied into the hidden input, which is enabled;
+ *   3. both buttons are disabled on the DOM directly, so the submitter is left
+ *      out of the form data and the hidden input is the only `decision`. React
+ *      state then renders the same disabled state plus a pending status.
  * Any later submit while locked is prevented. A submit without a recognised
  * submitter is prevented and does not lock.
  */
@@ -33,7 +39,11 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
       return
     }
     locked.current = true
-    if (decisionInput.current) decisionInput.current.value = decision
+    if (decisionInput.current) {
+      decisionInput.current.value = decision
+      decisionInput.current.disabled = false
+    }
+    for (const b of e.currentTarget.querySelectorAll<HTMLButtonElement>('button[name="decision"]')) b.disabled = true
     setPending(decision)
   }
 
@@ -47,15 +57,32 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
     >
       {children}
       <input type='hidden' name='csrf' value={csrf} />
-      <input ref={decisionInput} type='hidden' name='decision' defaultValue='' />
+      <input ref={decisionInput} type='hidden' name='decision' defaultValue='' disabled={pending === null} />
       {pending ? (
         <p role='status' className='text-sm text-gray-600'>
           {pending === 'approve' ? `מחבר את ${clientName}…` : 'מבטל…'}
         </p>
       ) : null}
       <div className='mt-auto flex items-center justify-end gap-3'>
-        <Btn as='submit' data-decision='deny' lbl='ביטול' variant='outline' icon='xmark' disabled={pending !== null} />
-        <Btn as='submit' data-decision='approve' lbl={`אשר חיבור ל-${clientName}`} icon='check' disabled={pending !== null} />
+        <Btn
+          as='submit'
+          name='decision'
+          value='deny'
+          data-decision='deny'
+          lbl='ביטול'
+          variant='outline'
+          icon='xmark'
+          disabled={pending !== null}
+        />
+        <Btn
+          as='submit'
+          name='decision'
+          value='approve'
+          data-decision='approve'
+          lbl={`אשר חיבור ל-${clientName}`}
+          icon='check'
+          disabled={pending !== null}
+        />
       </div>
     </form>
   )

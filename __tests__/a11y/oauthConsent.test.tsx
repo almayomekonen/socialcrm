@@ -39,15 +39,16 @@ describe('ConsentCard', () => {
     ] as const) {
       expect(b.tagName).toBe('BUTTON')
       expect(b).toHaveAttribute('type', 'submit')
-      // The decision travels in a hidden input filled at submit time (see
-      // ConsentDecisionForm); the button only says which decision it is.
+      // Without JavaScript the button itself carries the decision; hydrated, the
+      // hidden input does (see ConsentDecisionForm).
       expect(b).toHaveAttribute('data-decision', v)
-      expect(b).not.toHaveAttribute('name')
+      expect(b).toHaveAttribute('name', 'decision')
+      expect(b).toHaveAttribute('value', v)
       expect(b).not.toBeDisabled()
       expect(b).not.toHaveAttribute('tabindex', '-1')
     }
     expect(container.querySelector('input[type="hidden"][name="csrf"]')).toHaveValue('c'.repeat(32))
-    expect(container.querySelector('input[type="hidden"][name="decision"]')).toHaveValue('')
+    expect(container.querySelector('input[type="hidden"][name="decision"]')).toBeDisabled()
   })
 
   it('shows the redirect host, the account context and the scopes in plain language', () => {
