@@ -23,7 +23,7 @@ export async function seedAgency(name: string): Promise<number> {
 
 export async function seedUser(
   agencyId: number,
-  role: 'ADMIN' | 'GM' | 'MNGR' | 'AGNT' | 'OFFICE',
+  role: 'ADMIN' | 'GM' | 'MNGR' | 'AGNT' | 'OFFICE' | 'EXT',
   firstName: string,
   lastName = 'Test',
 ): Promise<number> {

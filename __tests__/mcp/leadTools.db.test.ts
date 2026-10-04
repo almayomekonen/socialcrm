@@ -31,13 +31,13 @@ afterAll(async () => {
 })
 
 describe('tools/list', () => {
-  it('lists exactly the four read-only lead tools with scope metadata', async () => {
+  it('lists the four read-only lead tools with scope metadata', async () => {
+    const LEAD_TOOLS = ['get_lead', 'get_leads_needing_followup', 'get_today_brief', 'search_leads']
     const c = await connectTools(await as(r1, A))
-    const { tools } = await c.listTools()
+    const all = (await c.listTools()).tools
     await c.close()
-    expect(tools.map((t) => t.name).sort()).toEqual(
-      ['get_lead', 'get_leads_needing_followup', 'get_today_brief', 'search_leads'].sort(),
-    )
+    const tools = all.filter((t) => LEAD_TOOLS.includes(t.name))
+    expect(tools.map((t) => t.name).sort()).toEqual(LEAD_TOOLS)
     for (const t of tools) {
       expect(t.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false })
       expect(t._meta).toEqual({ securitySchemes: [{ type: 'oauth2', scopes: ['crm.leads.read'] }] })

@@ -49,3 +49,6 @@ export const issuer = (): string => publicOrigin()
 export const mcpResource = (): string => `${publicOrigin()}/api/mcp`
 export const protectedResourceMetadataUrl = (): string => `${publicOrigin()}/.well-known/oauth-protected-resource/api/mcp`
 export const leadUrl = (leadId: number): string => `${publicOrigin()}/clients/${leadId}`
+/** The inbox deep link the app itself uses (`/inbox?conversation=<id>`), from a trusted internal id only. */
+export const conversationUrl = (conversationId: number): string =>
+  `${publicOrigin()}/inbox?conversation=${encodeURIComponent(String(Math.trunc(conversationId)))}`
