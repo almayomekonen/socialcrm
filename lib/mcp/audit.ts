@@ -1,17 +1,24 @@
 import 'server-only'
 import { db } from '@/config/db'
+import { LEAD_STATUSES } from './present'
 
 /**
  * mcp_audit_events: one row per MCP tool call.
  *
  * sanitizeParams keeps only what is safe and useful for an audit trail: ids,
- * limits and booleans, plus the values of a FIXED set of enum fields when they
- * look like enum values. Every other string — search text, message text, names,
- * phone numbers, anything — is stored as {len} only. Key names must look like
- * identifiers (an attacker-chosen key is dropped), and size is capped.
+ * limits and booleans, plus the values of a FIXED set of enum fields. Where the
+ * allowed values are known (status, bucket) only those exact values are kept,
+ * so invalid input such as a name typed into `status` is never stored; `intent`
+ * keeps its shape check until its tool defines the values. Every other string —
+ * search text, message text, names, phone numbers, anything — is stored as {len}
+ * only. Key names must look like identifiers (an attacker-chosen key is
+ * dropped), and size is capped.
  */
-const ENUM_KEYS = new Set(['status', 'bucket', 'intent'])
-const ENUM_VALUE_RE = /^[a-z_]{1,32}$/
+const ENUM_ALLOWED: Record<string, ReadonlySet<string> | RegExp> = {
+  status: new Set(LEAD_STATUSES),
+  bucket: new Set(['overdue', 'upcoming']),
+  intent: /^[a-z_]{1,32}$/,
+}
 const KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
 const MAX_KEYS = 20
 const MAX_ARRAY = 10
@@ -20,7 +27,11 @@ const MAX_ABS_NUMBER = 1e12
 function clean(key: string, v: unknown): unknown {
   if (typeof v === 'boolean') return v
   if (typeof v === 'number') return Number.isFinite(v) && Math.abs(v) <= MAX_ABS_NUMBER ? v : undefined
-  if (typeof v === 'string') return ENUM_KEYS.has(key) && ENUM_VALUE_RE.test(v) ? v : { len: v.length }
+  if (typeof v === 'string') {
+    const allowed = Object.hasOwn(ENUM_ALLOWED, key) ? ENUM_ALLOWED[key] : undefined
+    const keep = allowed instanceof RegExp ? allowed.test(v) : allowed ? allowed.has(v) : false
+    return keep ? v : { len: v.length }
+  }
   return undefined
 }
 

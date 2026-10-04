@@ -84,4 +84,19 @@ describe('auditSourceFor', () => {
       expect(auditSourceFor(id)).not.toContain('/')
     }
   })
+
+  it('status and bucket keep only real values; a name typed into them is stored as {len}', () => {
+    expect(sanitizeParams({ status: ['qualified', 'David', 'new'], bucket: 'today' })).toEqual({
+      status: [{ len: 9 }, { len: 5 }, 'new'],
+      bucket: { len: 5 },
+    })
+  })
+
+  it('prototype-named keys are treated as ordinary keys', () => {
+    expect(sanitizeParams({ constructor: 'x', toString: 'yy', hasOwnProperty: 1 })).toEqual({
+      constructor: { len: 1 },
+      toString: { len: 2 },
+      hasOwnProperty: 1,
+    })
+  })
 })

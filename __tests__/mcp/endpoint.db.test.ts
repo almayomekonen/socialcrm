@@ -122,11 +122,22 @@ describe('POST /api/mcp — HTTP layer', () => {
     expect(h.authenticate).not.toHaveBeenCalled()
   })
 
-  it('tools/list without a token is allowed (the committed registry is empty)', async () => {
-    expect(MCP_TOOLS).toEqual([])
+  it('tools/list without a token is allowed and lists the committed read-only lead tools', async () => {
+    const names = ['search_leads', 'get_lead', 'get_leads_needing_followup', 'get_today_brief']
+    expect(MCP_TOOLS.map((t) => t.name)).toEqual(names)
     const res = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     expect(res.status).toBe(200)
-    expect((await res.json()).result.tools).toEqual([])
+    const tools = (await res.json()).result.tools as { name: string; annotations: unknown; _meta: unknown }[]
+    expect(tools.map((t) => t.name)).toEqual(names)
+    for (const t of tools) {
+      expect(t.annotations).toMatchObject({ readOnlyHint: true })
+      expect(t._meta).toEqual({ securitySchemes: [{ type: 'oauth2', scopes: ['crm.leads.read'] }] })
+    }
+  })
+
+  it('an empty registry still answers tools/list (server-level handler)', async () => {
+    const c = await client({ ok: true, principal: principal() }, [])
+    expect((await c.listTools()).tools).toEqual([])
   })
 
   it('an invalid bearer token → HTTP 401 with an invalid_token challenge naming the PRM', async () => {
