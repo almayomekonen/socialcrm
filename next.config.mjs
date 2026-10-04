@@ -42,8 +42,20 @@
  */
 const REPORT_URI = 'report-uri /api/security/csp-report'
 
-/** Directives shared by both policies. Differences live in the two consts below. */
-const cspBase = [
+/**
+ * `form-action` per route. Everywhere: 'self'. On /oauth/consent the form posts
+ * to our own origin and the response 303-redirects to the OAuth client's
+ * registered callback; browsers apply form-action to that redirect chain, so the
+ * page must also allow the callback origins of the two supported clients —
+ * exactly these two, no wildcards. This is not authorization: the server only
+ * ever redirects to the redirect_uri validated against the client's CIMD
+ * document and stored in the signed pending request.
+ */
+const FORM_ACTION_DEFAULT = "'self'"
+export const FORM_ACTION_OAUTH_CONSENT = "'self' https://chatgpt.com https://claude.ai"
+
+/** Directives shared by both policies. Differences live in the two builders below. */
+const cspBase = (formAction) => [
   "default-src 'self'",
   // 'unsafe-inline' is still required: Next injects inline bootstrap scripts,
   // and Tailwind plus React style props produce inline style attributes.
@@ -63,19 +75,22 @@ const cspBase = [
   // injection, form hijacking and object/plugin injection.
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  `form-action ${formAction}`,
   "object-src 'none'",
 ]
 
 /** ENFORCED. Permissive connect-src until authenticated surfaces are measured. */
-const contentSecurityPolicy = [...cspBase, "connect-src 'self' https:", REPORT_URI].join('; ')
+const buildContentSecurityPolicy = (formAction) => [...cspBase(formAction), "connect-src 'self' https:", REPORT_URI].join('; ')
+const contentSecurityPolicy = buildContentSecurityPolicy(FORM_ACTION_DEFAULT)
 
 /** CANDIDATE, reported only. The narrow connect-src we intend to enforce next. */
-const contentSecurityPolicyCandidate = [
-  ...cspBase,
-  "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://connect.facebook.net https://www.facebook.com https://*.amazonaws.com https://*.on.aws",
-  REPORT_URI,
-].join('; ')
+const buildContentSecurityPolicyCandidate = (formAction) =>
+  [
+    ...cspBase(formAction),
+    "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://connect.facebook.net https://www.facebook.com https://*.amazonaws.com https://*.on.aws",
+    REPORT_URI,
+  ].join('; ')
+const contentSecurityPolicyCandidate = buildContentSecurityPolicyCandidate(FORM_ACTION_DEFAULT)
 
 /**
  * CROSS-ORIGIN ISOLATION IS DELIBERATELY NOT ENABLED.
@@ -177,6 +192,21 @@ const nextConfig = {
       // The magic-link token travels in the query string; never send that URL
       // as a Referer to anything, not even same-origin subresources.
       { source: '/api/magic', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] },
+      /**
+       * OAuth consent: the SAME two CSP keys, re-set with the consent form-action.
+       * Next.js applies matching rules in order and a later rule's value for the
+       * same key REPLACES the earlier one, so this page carries exactly one
+       * enforced and one report-only policy — never an extra, stricter
+       * `form-action 'self'` policy that would still block the callback
+       * redirect (verified against the running server; see the test).
+       */
+      {
+        source: '/oauth/consent',
+        headers: [
+          { key: 'Content-Security-Policy', value: buildContentSecurityPolicy(FORM_ACTION_OAUTH_CONSENT) },
+          { key: 'Content-Security-Policy-Report-Only', value: buildContentSecurityPolicyCandidate(FORM_ACTION_OAUTH_CONSENT) },
+        ],
+      },
       /**
        * DEVICE-DEPENDENT RESPONSES VARY ON THE USER-AGENT.
        *

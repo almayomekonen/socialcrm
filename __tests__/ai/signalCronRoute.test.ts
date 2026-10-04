@@ -157,6 +157,13 @@ describe('the cron entry', () => {
       // leases, retention). An integration cron with no part in the signal
       // pipeline, and inert unless FACEBOOK_MESSENGER_ENABLED records receipts.
       { path: '/api/cron/messenger-events', schedule: '*/1 * * * *' },
+      // Billing (05a33aaa, 2026-09-16): the subscription charge pass. A payments
+      // cron with no part in the signal pipeline; this pin was not updated when
+      // it was scheduled.
+      { path: '/api/cron/subscription-charges', schedule: '*/5 * * * *' },
+      // MCP Phase A: the daily OAuth/MCP retention sweep. Deletes only expired
+      // OAuth rows and old MCP audit events; no part of the signal pipeline.
+      { path: '/api/cron/oauth-sweep', schedule: '17 3 * * *' },
     ])
   })
 })
