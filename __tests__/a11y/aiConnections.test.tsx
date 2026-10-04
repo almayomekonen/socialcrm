@@ -31,11 +31,49 @@ describe('AiConnections', () => {
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('חיבורי AI')
   })
 
-  it('empty: says not connected and where the connection starts; no button', () => {
-    render(<AiConnections connections={[]} />)
-    expect(screen.getByText('לא מחובר')).toBeInTheDocument()
-    expect(screen.getByText('החיבור מתבצע מתוך Claude או ChatGPT')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).toBeNull()
+  it('empty: says not connected yet and where the connection starts; no button while closed', () => {
+    render(<AiConnections connections={[]} mcpUrl='https://getsocialcrm.com/api/mcp' />)
+    expect(screen.getByText('לא מחובר עדיין')).toBeInTheDocument()
+    expect(screen.getByText('החיבור מתחיל מתוך Claude או ChatGPT.')).toBeInTheDocument()
+    expect(screen.getByText('חברו את SocialCRM ל-Claude או ChatGPT כדי לשאול על לידים, מעקבים ושיחות.')).toBeInTheDocument()
+    expect(screen.getByText('הגישה מוגבלת לנתונים שאתם מורשים לראות. מספרי טלפון ואימיילים אינם נשלחים.')).toBeInTheDocument()
+    // The only button (copy) lives inside the closed disclosure, which browsers
+    // hide until it is opened; there is no connect/disconnect button.
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.map((b) => b.textContent)).toEqual(['העתקה'])
+    expect(buttons[0].closest('details')).not.toHaveAttribute('open')
+  })
+
+  it('"איך מתחברים?" is a closed native disclosure with the four steps and the MCP URL', () => {
+    const { container } = render(<AiConnections connections={[]} mcpUrl='https://getsocialcrm.com/api/mcp' />)
+    const details = container.querySelector('details')!
+    expect(details).not.toHaveAttribute('open')
+    const summary = details.querySelector('summary')!
+    expect(summary).toHaveTextContent('איך מתחברים?')
+    fireEvent.click(summary)
+    details.open = true
+    const steps = within(details).getAllByRole('listitem')
+    expect(steps).toHaveLength(4)
+    expect(steps[0]).toHaveTextContent('פותחים את Claude או ChatGPT')
+    expect(steps[1]).toHaveTextContent('מוסיפים חיבור MCP חדש')
+    expect(steps[2]).toHaveTextContent('מזינים:')
+    expect(within(steps[2]).getByText('https://getsocialcrm.com/api/mcp')).toHaveAttribute('dir', 'ltr')
+    expect(steps[3]).toHaveTextContent('מתחברים ל-SocialCRM ומאשרים הרשאה')
+  })
+
+  it('the copy button copies the exact MCP URL and confirms', () => {
+    const writeText = vi.fn()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const { container } = render(<AiConnections connections={[]} mcpUrl='https://getsocialcrm.com/api/mcp' />)
+    container.querySelector('details')!.open = true
+    fireEvent.click(screen.getByRole('button', { name: 'העתקה' }))
+    expect(writeText).toHaveBeenCalledWith('https://getsocialcrm.com/api/mcp')
+    expect(H.toast).toHaveBeenCalledWith('success', 'הועתק')
+  })
+
+  it('without a configured URL the step still reads correctly and nothing breaks', () => {
+    const { container } = render(<AiConnections connections={[]} />)
+    expect(container.querySelector('details')).toHaveTextContent('מזינים את כתובת החיבור של SocialCRM')
   })
 
   it('lists each connection with its own labelled disconnect button and Hebrew scope labels', () => {
