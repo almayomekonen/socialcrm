@@ -4,6 +4,8 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 
 type Decision = 'approve' | 'deny'
+// Visual busy state without the `disabled` attribute (see below).
+const BUSY = 'aria-disabled:pointer-events-none aria-disabled:opacity-50'
 type Props = { clientName: string; csrf: string; children: ReactNode }
 
 /**
@@ -11,24 +13,25 @@ type Props = { clientName: string; csrf: string; children: ReactNode }
  * without JavaScript (the server's single-use checks remain the security
  * boundary; this is UX / race prevention).
  *
- * Without JavaScript: the clicked submit button carries `decision` itself
- * (name/value), and the hidden `decision` input is disabled, so it is left out
- * of the form data. Exactly one `decision` reaches the server.
+ * EXACTLY ONE `decision` ALWAYS COMES FROM THE CLICKED BUTTON (name/value),
+ * with or without JavaScript. Nothing in the form is mutated between the submit
+ * event and the browser building the form data, so there is no dependency on
+ * when React commits:
+ *   - there is no hidden `decision` input — an earlier one was rewritten to ''
+ *     by React's re-render (for type=hidden, value and defaultValue are the same
+ *     attribute), which committed in a microtask BEFORE the browser serialized
+ *     the form, so production received decision='';
+ *   - the buttons are never given the `disabled` attribute — a disabled
+ *     submitter is left out of the form data.
  *
- * Hydrated, on the FIRST submit, synchronously inside the submit event (before
- * the browser builds the form data):
- *   1. a ref lock is taken — React state alone would let a rapid second click
- *      through before the next render;
- *   2. the decision is copied into the hidden input, which is enabled;
- *   3. both buttons are disabled on the DOM directly, so the submitter is left
- *      out of the form data and the hidden input is the only `decision`. React
- *      state then renders the same disabled state plus a pending status.
- * Any later submit while locked is prevented. A submit without a recognised
- * submitter is prevented and does not lock.
+ * Hydrated, the FIRST submit takes a synchronous ref lock (React state alone
+ * would let a rapid second click through) and shows the pending state with
+ * aria-disabled + a status line. Every later submit while locked is prevented,
+ * whichever button or key triggers it. A submit without a recognised submitter
+ * is prevented and does not lock.
  */
 export default function ConsentDecisionForm({ clientName, csrf, children }: Props) {
   const locked = useRef(false)
-  const decisionInput = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<Decision | null>(null)
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -39,11 +42,6 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
       return
     }
     locked.current = true
-    if (decisionInput.current) {
-      decisionInput.current.value = decision
-      decisionInput.current.disabled = false
-    }
-    for (const b of e.currentTarget.querySelectorAll<HTMLButtonElement>('button[name="decision"]')) b.disabled = true
     setPending(decision)
   }
 
@@ -57,7 +55,6 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
     >
       {children}
       <input type='hidden' name='csrf' value={csrf} />
-      <input ref={decisionInput} type='hidden' name='decision' defaultValue='' disabled={pending === null} />
       {pending ? (
         <p role='status' className='text-sm text-gray-600'>
           {pending === 'approve' ? `מחבר את ${clientName}…` : 'מבטל…'}
@@ -72,7 +69,9 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
           lbl='ביטול'
           variant='outline'
           icon='xmark'
-          disabled={pending !== null}
+          disabled={false}
+          aria-disabled={pending !== null ? true : undefined}
+          className={BUSY}
         />
         <Btn
           as='submit'
@@ -81,7 +80,9 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
           data-decision='approve'
           lbl={`אשר חיבור ל-${clientName}`}
           icon='check'
-          disabled={pending !== null}
+          disabled={false}
+          aria-disabled={pending !== null ? true : undefined}
+          className={BUSY}
         />
       </div>
     </form>

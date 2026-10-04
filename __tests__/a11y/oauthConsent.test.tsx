@@ -39,8 +39,8 @@ describe('ConsentCard', () => {
     ] as const) {
       expect(b.tagName).toBe('BUTTON')
       expect(b).toHaveAttribute('type', 'submit')
-      // Without JavaScript the button itself carries the decision; hydrated, the
-      // hidden input does (see ConsentDecisionForm).
+      // The clicked button itself carries the decision, with or without JavaScript
+      // (see ConsentDecisionForm).
       expect(b).toHaveAttribute('data-decision', v)
       expect(b).toHaveAttribute('name', 'decision')
       expect(b).toHaveAttribute('value', v)
@@ -48,7 +48,8 @@ describe('ConsentCard', () => {
       expect(b).not.toHaveAttribute('tabindex', '-1')
     }
     expect(container.querySelector('input[type="hidden"][name="csrf"]')).toHaveValue('c'.repeat(32))
-    expect(container.querySelector('input[type="hidden"][name="decision"]')).toBeDisabled()
+    // The clicked button is the only carrier of the decision.
+    expect(container.querySelector('input[name="decision"]')).toBeNull()
   })
 
   it('shows the redirect host, the account context and the scopes in plain language', () => {
