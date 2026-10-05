@@ -3,14 +3,13 @@ import { resolveWhatsappOutboundTargetForConversation } from '@/lib/inbox/whatsa
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { recordHumanTakeover } from '@/lib/inbox/humanTakeover'
 import { sendWhatsappInteractive } from '@/lib/whatsapp/sendMessage'
-import { RSVP_BODY, RSVP_BUTTONS, RSVP_INTERACTIVE, isAllowedRecipient } from '@/lib/weddingRsvp/config'
+import { RSVP_BODY, RSVP_INTERACTIVE, RSVP_STORED_TEXT, isAllowedRecipient } from '@/lib/weddingRsvp/config'
 
 export type SendWeddingRsvpResult =
   | { ok: true; wamid: string; messageId: number; to: string }
   | { ok: false; error: string; code?: string }
 
-/** What the conversation shows for the outbound: the body plus the two choices. */
-export const RSVP_STORED_TEXT = `${RSVP_BODY}\n\n${RSVP_BUTTONS.map((b) => `[${b.title}]`).join(' ')}`
+export { RSVP_STORED_TEXT }
 
 /**
  * Send the RSVP to ONE conversation. No loops, no lists: one conversation id in,

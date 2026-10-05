@@ -28,9 +28,20 @@ export const RSVP_INTERACTIVE = {
 
 export const REPLY_ATTENDING = 'מעולה ❤️ כמה אנשים תגיעו בסך הכול?'
 export const REPLY_NOT_ATTENDING = 'תודה שעדכנת ❤️'
+export const REPLY_THANKS = 'תודה רבה ❤️ נתראה בחתונה!'
+
+/** What the conversation shows for the RSVP outbound: the body plus the two choices. */
+export const RSVP_STORED_TEXT = `${RSVP_BODY}\n\n${RSVP_BUTTONS.map((b) => `[${b.title}]`).join(' ')}`
 
 /** `metadata.source` on the automatic follow-ups, so they never read as a human reply. */
 export const WEDDING_RSVP_SOURCE = 'wedding_rsvp'
+
+/** A head-count answer only counts within this long of the question being asked. */
+export const HEAD_COUNT_ANSWER_WINDOW_HOURS = 24
+export const HEAD_COUNT_MAX = 30
+
+/** Second key of pg_advisory_xact_lock(conversationId, namespace); quota uses 12345. */
+export const WEDDING_RSVP_LOCK_NAMESPACE = 20261118
 
 /**
  * Hard recipient allowlist. Test phase: Keren only. Both the send and the
