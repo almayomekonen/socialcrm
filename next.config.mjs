@@ -65,7 +65,10 @@ const cspBase = (formAction) => [
   "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "frame-src 'self' https://accounts.google.com https://content.googleapis.com https://docs.google.com https://www.facebook.com https://staticxx.facebook.com",
+  // business.facebook.com: Meta's ad preview iframe (/ads/api/preview_iframe.php),
+  // the host GET /{ad}/previews returns for our app — proven live by the enforced
+  // policy's frame-src report on /sum_sales/ads (2026-10-06).
+  "frame-src 'self' https://accounts.google.com https://content.googleapis.com https://docs.google.com https://www.facebook.com https://business.facebook.com https://staticxx.facebook.com",
   // pdf.js loads its worker from same-origin /copilot/pdf.worker.min.mjs, and
   // falls back to a blob: worker when that path fails. Without this, worker-src
   // inherits default-src 'self' and the fallback dies.
