@@ -94,12 +94,15 @@ export default function CommentsList({
   }
 
   return (
-    // A readable column, aligned to the start (right in RTL) under the filter —
-    // full-width cards on a wide screen make 1,300px lines of comment text.
-    <div className='grid w-full max-w-3xl gap-3'>
-      <ul className='grid gap-3' aria-label='תגובות מפייסבוק'>
+    // The whole workspace width, as a card grid: one column, two once the FEED
+    // (not the viewport — the sidebar and padding are already subtracted) is
+    // 56rem wide, so each card keeps a readable ~440px minimum.
+    <div className='@container/feed grid w-full gap-3'>
+      {/* items-start: a card is as tall as its content. Stretching to the row's
+          tallest card left text-only cards mostly empty. */}
+      <ul className='grid grid-cols-1 items-start gap-3 @4xl/feed:grid-cols-2' aria-label='תגובות מפייסבוק'>
         {all.map((c) => (
-          <li key={c.commentId} data-comment-id={c.commentId} data-post-id={c.postId}>
+          <li key={c.commentId} data-comment-id={c.commentId} data-post-id={c.postId} className='min-w-0'>
             <CommentCard
               comment={c}
               post={postByKey.get(`${c.pageId}:${c.postId}`)}
