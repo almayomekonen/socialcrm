@@ -45,18 +45,48 @@ export type FeedCommentEvent = {
   /**
    * Whether Meta actually sent text.
    *
-   * False today for every comment — `message` is gated behind
-   * `pages_read_user_content` (pending App Review). Also false on a `remove`,
-   * where the body is legitimately gone. Keeping this separate from an empty
+   * `message` is gated behind `pages_read_user_content` (approved; a Page whose
+   * token predates the grant still delivers none until it reconnects). Also
+   * false on a `remove`, where the body is legitimately gone. Keeping this separate from an empty
    * string is what lets the UI say "not available yet" instead of implying the
    * commenter wrote nothing.
    */
   messageAvailable: boolean
   createdTime: Date | null
   verb: FeedCommentVerb
+  /**
+   * A photo or video the commenter attached, as delivered on the webhook
+   * (`photo` / `video`). https only; a photo wins when both are present.
+   */
+  attachment: { type: 'photo' | 'video'; url: string } | null
+  /**
+   * What the webhook says about the POST (`value.post`): its permalink — only a
+   * facebook.com https URL is kept — and Meta's `status_type`. Context, never
+   * tenancy.
+   */
+  post: { permalinkUrl: string | null; statusType: string | null }
 }
 
 const KNOWN_VERBS: readonly string[] = ['add', 'edited', 'remove', 'hide', 'unhide']
+
+/** An absolute https URL, or null. */
+function httpsUrl(v: unknown): string | null {
+  const s = str(v)
+  if (!s) return null
+  try {
+    return new URL(s).protocol === 'https:' ? s : null
+  } catch {
+    return null
+  }
+}
+
+/** A permalink only when it points at Facebook itself. */
+function facebookPermalink(v: unknown): string | null {
+  const s = httpsUrl(v)
+  if (!s) return null
+  const host = new URL(s).hostname
+  return host === 'facebook.com' || host.endsWith('.facebook.com') ? s : null
+}
 
 /** A non-empty string, or null. Rejects numbers, objects and empty strings. */
 function str(v: unknown): string | null {
@@ -86,6 +116,9 @@ export function parseFeedComment(pageId: string, value: unknown): FeedCommentEve
   if (!commentId || !postId) return null
 
   const from = record(v.from)
+  const post = record(v.post)
+  const photo = httpsUrl(v.photo)
+  const video = httpsUrl(v.video)
   const parentId = str(v.parent_id)
   const message = typeof v.message === 'string' ? v.message : ''
   const rawVerb = typeof v.verb === 'string' ? v.verb : ''
@@ -110,5 +143,7 @@ export function parseFeedComment(pageId: string, value: unknown): FeedCommentEve
     messageAvailable: message.length > 0,
     createdTime,
     verb: KNOWN_VERBS.includes(rawVerb) ? (rawVerb as FeedCommentVerb) : 'unknown',
+    attachment: photo ? { type: 'photo', url: photo } : video ? { type: 'video', url: video } : null,
+    post: { permalinkUrl: facebookPermalink(post.permalink_url), statusType: str(post.status_type) },
   }
 }

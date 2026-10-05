@@ -178,13 +178,20 @@ describe('ingestFacebookComment — idempotency', () => {
     await ingestFacebookComment(PAGE, comment())
     await ingestFacebookComment(PAGE, comment())
 
-    expect(h.state.merges).toHaveLength(3)
-    expect(h.state.conflictTargets).toEqual([
+    // Each delivery also refreshes the post-context cache under its own key;
+    // the COMMENT row is still deduped on (pageId, commentId), once per delivery.
+    const commentTargets = h.state.conflictTargets.filter((t) => JSON.stringify(t) === '["pageId","commentId"]')
+    const postTargets = h.state.conflictTargets.filter((t) => JSON.stringify(t) === '["agencyId","pageId","postId"]')
+    expect(postTargets).toHaveLength(3)
+    expect(h.state.conflictTargets).toHaveLength(6)
+    expect(commentTargets).toEqual([
       ['pageId', 'commentId'],
       ['pageId', 'commentId'],
       ['pageId', 'commentId'],
     ])
-    expect(h.state.inserts.every((r) => r.commentId === COMMENT && r.pageId === PAGE)).toBe(true)
+    const commentInserts = h.state.inserts.filter((r) => 'commentId' in r)
+    expect(commentInserts).toHaveLength(3)
+    expect(commentInserts.every((r) => r.commentId === COMMENT && r.pageId === PAGE)).toBe(true)
   })
 
   it('an edited redelivery refreshes the text but never the tenancy', async () => {
@@ -277,11 +284,22 @@ describe('ingestFacebookComment — verbs', () => {
 // ──────────────────────────── SAFETY INVARIANTS ─────────────────────────────
 
 describe('ingestFacebookComment — safety invariants', () => {
+  it('a failing post-context write never costs the comment or its notification', async () => {
+    const { notifyEvent } = await import('@/lib/notifications/emit')
+    vi.mocked(notifyEvent).mockClear()
+    h.state.throwOnTable = 'facebook_page_posts'
+
+    expect(await ingestFacebookComment(PAGE, comment())).toBe('ingested')
+    expect(h.state.inserts.some((r) => r.commentId === COMMENT)).toBe(true)
+    expect(notifyEvent).toHaveBeenCalledTimes(1)
+  })
+
   it('never creates a Lead — Task 3 does not touch the clients table', async () => {
     await ingestFacebookComment(PAGE, comment())
 
     expect(h.state.tablesTouched).not.toContain('clients')
-    expect(h.state.tablesTouched).toEqual(['facebook_pages', 'facebook_page_comments'])
+    // The post-context cache is the only addition, and it comes AFTER the comment.
+    expect(h.state.tablesTouched).toEqual(['facebook_pages', 'facebook_page_comments', 'facebook_page_posts'])
   })
 
   it.each([null, undefined, 'x', 0, [], { item: 'comment' }])(

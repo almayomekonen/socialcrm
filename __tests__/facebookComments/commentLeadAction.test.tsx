@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * "צור ליד" in a comment row, end to end on the client.
+ * "המר לליד" in a comment row, end to end on the client.
  *
  * The outcome is confirmed by the action's result, says whether a ליד was
  * created or an existing one linked, links to the actual record, is announced,
@@ -19,6 +19,7 @@ vi.mock('@/lib/toast', () => ({ toast: vi.fn() }))
 vi.mock('@/lib/entitlement/EntitlementContext', () => ({ useAccessDenied: () => false }))
 vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.fn() }))
 vi.mock('@/modules/facebookComments/replyActions', () => ({ replyToComment: vi.fn(async () => ({ ok: true, replyId: 'r1' })) }))
+vi.mock('@/modules/facebookComments/listActions', () => ({ loadMoreComments: vi.fn(async () => ({ ok: false })) }))
 
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsListMobile from '@/modules/facebookComments/mobile/CommentsListMobile'
@@ -50,7 +51,7 @@ const converted = vi.mocked(convertCommentToLead)
 
 const click = async () => {
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: /צור ליד/ }))
+    fireEvent.click(screen.getByRole('button', { name: /המר לליד/ }))
   })
 }
 
@@ -78,7 +79,7 @@ describe('creating a ליד — outcomes', () => {
     expect(screen.getByRole('status')).toHaveTextContent('הליד נוצר בהצלחה')
     expect(screen.getByText('הומר לליד')).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'פתח ליד' })).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: /צור ליד/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /המר לליד/ })).not.toBeInTheDocument()
     expect(toast).not.toHaveBeenCalled() // one signal in the default view
   })
 
@@ -143,7 +144,7 @@ describe('creating a ליד — failures and retries', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('בדוק את החיבור ונסה שוב')
     expect(screen.getByRole('alert').textContent).not.toContain('fetch failed')
-    expect(screen.getByRole('button', { name: 'צור ליד' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'המר לליד' })).toBeEnabled()
   })
 
   it('names every failure reason in Hebrew; none is blank or raw', async () => {
@@ -162,7 +163,7 @@ describe('creating a ליד — failures and retries', () => {
     converted.mockImplementationOnce(() => new Promise((r) => (resolve = r)))
     render(<CommentsList comments={[item()]} />)
 
-    const button = screen.getByRole('button', { name: /צור ליד/ })
+    const button = screen.getByRole('button', { name: /המר לליד/ })
     await act(async () => {
       fireEvent.click(button)
       fireEvent.click(button)
@@ -205,7 +206,7 @@ describe('creating a ליד — under "פתוחות", where the row leaves the l
 describe('which rows get the ליד slot', () => {
   it('a comment marked converted WITHOUT a ליד (an old failed click) can be converted again, with no false badge', () => {
     render(<CommentsList comments={[item({ status: 'converted', convertedLeadId: null })]} />)
-    expect(screen.getByRole('button', { name: 'צור ליד' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'המר לליד' })).toBeInTheDocument()
     expect(screen.queryByText('הומר לליד')).not.toBeInTheDocument()
   })
 
@@ -221,7 +222,7 @@ describe('which rows get the ליד slot', () => {
     )
     expect(screen.getAllByRole('link', { name: 'פתח ליד' })).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'פתח ליד' })).toHaveAttribute('href', '/clients/42/summary')
-    expect(screen.queryByRole('button', { name: /צור ליד/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /המר לליד/ })).not.toBeInTheDocument()
   })
 
   it('rules in one place', () => {
@@ -258,7 +259,7 @@ describe('status filter and filtered-empty', () => {
       <CommentsInboxMobile
         emptyKind='no-converted'
         comments={[]}
-        awaitingText={false}
+       
         statusFilter={<CommentsStatusFilter active='converted' />}
       />,
     )

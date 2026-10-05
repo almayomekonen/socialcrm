@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 
 /**
@@ -6,10 +7,9 @@ import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
  * `not-enabled` is the dark-launch / preview state: the UI is reachable for
  * inspection, but ingest stays gated, so there is nothing to list yet.
  *
- * `awaiting-text` is the honest state while Meta App Review is pending: the
- * comments arrive, but we are not permitted to read what they say. Saying that
- * plainly beats rendering empty bubbles that look like broken data — and it is
- * the difference between a user trusting the screen and doubting it.
+ * The old "awaiting App Review" state is gone: Meta approved
+ * `pages_read_user_content`, and a comment that still arrives without text says
+ * so on its own card ("תוכן התגובה לא התקבל מפייסבוק").
  *
  * Mirrors `modules/inbox/components/InboxEmptyState.tsx` in structure and tone.
  */
@@ -35,11 +35,12 @@ const COPY = {
     title: 'עדיין לא נוצרו לידים מתגובות',
     body: 'כשיוצרים ליד מתגובה, היא מופיעה כאן עם קישור לליד.',
   },
-  'awaiting-text': {
-    title: 'תוכן התגובות עדיין לא זמין',
-    body: 'אנחנו מקבלים את התגובות ואת שם המגיב, אבל פייסבוק עדיין לא מאפשר לקרוא את תוכן ההודעה.',
-  },
 } as const
+
+/** The one next step a state offers, when it has one (ux-guidelines §4). */
+const ACTION: Partial<Record<keyof typeof COPY, { href: string; label: string }>> = {
+  'not-connected': { href: '/settings/integrations', label: 'חבר את דף הפייסבוק' },
+}
 
 export type CommentsEmptyKind = keyof typeof COPY
 
@@ -52,6 +53,7 @@ export default function CommentsEmptyState({
   compact?: boolean
 }) {
   const copy = COPY[kind]
+  const action = ACTION[kind]
 
   return (
     <div className='flex flex-col items-center justify-center px-6 py-10 text-center'>
@@ -66,6 +68,14 @@ export default function CommentsEmptyState({
       </span>
       <p className='mt-3 text-base font-medium text-gray-700'>{copy.title}</p>
       <p className='mt-1 max-w-md text-sm text-gray-500'>{copy.body}</p>
+      {action && (
+        <Link
+          href={action.href}
+          className='mt-3 text-sm font-medium text-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+        >
+          {action.label}
+        </Link>
+      )}
     </div>
   )
 }
