@@ -50,6 +50,18 @@ export default function CommentsList({
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
 
+  // Changing the filter (?status=) re-renders THIS instance with new props:
+  // pages and the cursor loaded under the previous filter must not carry over.
+  // Reset during render — React's pattern for state that depends on a prop.
+  const [loadedFor, setLoadedFor] = useState(status)
+  if (loadedFor !== status) {
+    setLoadedFor(status)
+    setMore({ items: [], replies: [], posts: [] })
+    setCursor(null)
+    setExhausted(false)
+    setFailed(false)
+  }
+
   const firstIds = new Set(comments.map((c) => c.commentId))
   const all = [...comments, ...more.items.filter((c) => !firstIds.has(c.commentId))]
   const threads = groupRepliesByThread([...replies, ...more.replies])

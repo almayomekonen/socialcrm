@@ -7,10 +7,9 @@ import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
  * `not-enabled` is the dark-launch / preview state: the UI is reachable for
  * inspection, but ingest stays gated, so there is nothing to list yet.
  *
- * `needs-reconnect` replaces the old "awaiting App Review" state now that Meta
- * approved `pages_read_user_content`: comments arrive, but a Page whose token
- * predates the grant still delivers no text. Saying so — with the one action
- * that fixes it — beats empty bubbles that look like broken data.
+ * The old "awaiting App Review" state is gone: Meta approved
+ * `pages_read_user_content`, and a comment that still arrives without text says
+ * so on its own card ("תוכן התגובה לא התקבל מפייסבוק").
  *
  * Mirrors `modules/inbox/components/InboxEmptyState.tsx` in structure and tone.
  */
@@ -36,18 +35,11 @@ const COPY = {
     title: 'עדיין לא נוצרו לידים מתגובות',
     body: 'כשיוצרים ליד מתגובה, היא מופיעה כאן עם קישור לליד.',
   },
-  // A connected Page whose token predates `pages_read_user_content`: an issued
-  // token never gains a scope, so only reconnecting brings comment text.
-  'needs-reconnect': {
-    title: 'תוכן התגובות לא מגיע מאחד הדפים',
-    body: 'פייסבוק שולח את תוכן התגובות רק אחרי חיבור מחדש של הדף. החיבור מחדש לוקח פחות מדקה.',
-  },
 } as const
 
 /** The one next step a state offers, when it has one (ux-guidelines §4). */
 const ACTION: Partial<Record<keyof typeof COPY, { href: string; label: string }>> = {
   'not-connected': { href: '/settings/integrations', label: 'חבר את דף הפייסבוק' },
-  'needs-reconnect': { href: '/settings/integrations', label: 'חבר מחדש את הדף' },
 }
 
 export type CommentsEmptyKind = keyof typeof COPY

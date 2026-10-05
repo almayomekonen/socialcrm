@@ -304,3 +304,33 @@ describe('mobile structure', () => {
     expect(container.querySelector('article .min-w-0')).toBeTruthy()
   })
 })
+
+describe('load more — filter changes', () => {
+  it('switching the filter drops pages loaded under the previous one (the same list instance is reused)', async () => {
+    more.mockResolvedValueOnce({
+      ok: true,
+      items: [item({ id: 2, commentId: 'C_ALL_ONLY', message: 'נטען תחת הכל' })],
+      replies: [],
+      posts: [],
+      nextCursor: { receivedAt: '2026-09-01T00:00:00.000Z', id: 1 },
+    })
+    const cursor = { receivedAt: '2026-10-01T00:00:00.000Z', id: 5 }
+    const { rerender } = render(<CommentsList comments={[item()]} nextCursor={cursor} status='all' />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'טען עוד תגובות' }))
+    })
+    expect(screen.getByText('נטען תחת הכל')).toBeInTheDocument()
+
+    // Navigating to ?status=open re-renders the SAME component with new props.
+    const openCursor = { receivedAt: '2026-10-02T00:00:00.000Z', id: 9 }
+    rerender(<CommentsList comments={[item()]} nextCursor={openCursor} status='open' />)
+    expect(screen.queryByText('נטען תחת הכל')).not.toBeInTheDocument()
+
+    more.mockResolvedValueOnce({ ok: true, items: [], replies: [], posts: [], nextCursor: null })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'טען עוד תגובות' }))
+    })
+    // The next page under "open" starts from the cursor the server issued for "open".
+    expect(more).toHaveBeenLastCalledWith('open', openCursor)
+  })
+})

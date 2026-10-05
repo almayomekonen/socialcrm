@@ -11,7 +11,6 @@ import type { CommentListItem, CommentPost, CommentReply, CommentsCursor, Commen
 export default function CommentsInboxMobile({
   emptyKind,
   comments,
-  needsReconnect = false,
   replies = [],
   posts = [],
   replyablePageIds = [],
@@ -24,8 +23,6 @@ export default function CommentsInboxMobile({
 }: {
   emptyKind: CommentsEmptyKind | null
   comments: CommentListItem[]
-  /** A connected Page's token predates comment-text access. */
-  needsReconnect?: boolean
   replies?: CommentReply[]
   posts?: CommentPost[]
   replyablePageIds?: string[]
@@ -54,7 +51,6 @@ export default function CommentsInboxMobile({
 
       {comments.length > 0 && (
         <>
-          {needsReconnect && <CommentsEmptyState kind='needs-reconnect' compact />}
           {replyPrompt}
           <CommentsListMobile
             comments={comments}

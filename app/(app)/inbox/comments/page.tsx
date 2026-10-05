@@ -7,7 +7,6 @@ import { after } from 'next/server'
 import { countOpenComments } from '@/modules/facebookComments/queries'
 import { loadCommentsFeedPage, type CommentsFeedPage } from '@/modules/facebookComments/feed'
 import { refreshCommentContext } from '@/lib/facebook/comments/enrich'
-import { hasCommentTextCapability } from '@/lib/facebook/comments/capability'
 import { parseGrantedScopes } from '@/db/facebook'
 import {
   hasFeatureScopes,
@@ -100,11 +99,10 @@ export default async function FacebookCommentsPage({
   const shownIds = page.items.map((c) => c.id)
   if (shownIds.length > 0) after(() => refreshCommentContext({ agencyId, commentRowIds: shownIds }))
 
-  // Comment text needs `pages_read_user_content` on the Page's token; a token
-  // issued before the grant never gains it, so such a Page must reconnect.
-  const needsReconnect =
-    page.items.some((c) => !c.messageAvailable) &&
-    pages.some((p) => !hasCommentTextCapability(parseGrantedScopes(p.granted_scopes)))
+  // No page-level "reconnect for text" notice: production shows comment text
+  // arriving on the webhook for Pages whose recorded grant lacks
+  // pages_read_user_content (2026-10-05 audit), so the grant does not predict
+  // text. A comment without text says so on its own card.
 
   // Replies are their own rollout: without it no reply form and no permission prompt appear.
   const repliesEnabled = isFacebookCommentRepliesEnabledForAgency(user.agencyId)
@@ -132,9 +130,7 @@ export default async function FacebookCommentsPage({
     <p role='status' className='text-sm text-green-600'>ההרשאה אושרה. אפשר להשיב לתגובות מכאן.</p>
   ) : null
 
-  // Exactly one page-level state at a time (ux-guidelines §11). "needs-reconnect"
-  // is not an empty state — comments exist, so the notice sits ABOVE the list
-  // to explain the missing text rather than replacing the data.
+  // Exactly one page-level state at a time (ux-guidelines §11).
   // Zero rows under a narrowing filter is filtered-empty, not "no comments yet".
   const noRowsKind = status === 'open' ? 'no-open' : status === 'converted' ? 'no-converted' : 'no-comments'
   // System-empty (no comments at all) shows no filter; filtered-empty keeps it (ux-guidelines §11).
@@ -149,7 +145,6 @@ export default async function FacebookCommentsPage({
         statusFilter={connection && statusFilter}
         leavesViewOnConvert={status === 'open'}
         comments={connection ? page.items : []}
-        needsReconnect={needsReconnect}
         replies={replies}
         posts={page.posts}
         replyablePageIds={replyablePageIds}
@@ -176,7 +171,6 @@ export default async function FacebookCommentsPage({
 
       {connection && page.items.length > 0 && (
         <>
-          {needsReconnect && <CommentsEmptyState kind='needs-reconnect' />}
           {replyPrompt}
           <CommentsList
             comments={page.items}

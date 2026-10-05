@@ -359,14 +359,19 @@ describe('CommentsEmptyState', () => {
     expect(screen.getByText(/אין עדיין תגובות/)).toBeInTheDocument()
   })
 
-  it('a Page whose token predates comment-text access is told to reconnect, with the way to do it', () => {
-    render(<CommentsEmptyState kind='needs-reconnect' />)
-    expect(screen.getByText(/תוכן התגובות לא מגיע/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'חבר מחדש את הדף' })).toHaveAttribute('href', '/settings/integrations')
+  it('the not-connected state offers the one next step: connect the Page', () => {
+    render(<CommentsEmptyState kind='not-connected' />)
+    expect(screen.getByRole('link', { name: 'חבר את דף הפייסבוק' })).toHaveAttribute('href', '/settings/integrations')
+  })
+
+  it('makes no "reconnect to get text" claim — production shows text arriving without that grant', () => {
+    const src = readFileSync(join(process.cwd(), 'app/(app)/inbox/comments/page.tsx'), 'utf8')
+    expect(src).not.toContain('needs-reconnect')
+    expect(src).not.toContain('hasCommentTextCapability')
   })
 
   it('uses no emoji anywhere', () => {
-    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'no-open', 'no-converted', 'needs-reconnect'] as const) {
+    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'no-open', 'no-converted'] as const) {
       const { unmount } = render(<CommentsEmptyState kind={kind} />)
       expect(document.body.textContent ?? '').not.toMatch(/\p{Extended_Pictographic}/u)
       unmount()
