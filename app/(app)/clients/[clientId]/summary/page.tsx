@@ -12,6 +12,7 @@ import FollowUpControl from '@/components/leads/FollowUpControl'
 import OutcomeControl from '@/components/leads/OutcomeControl'
 import FirstLeadCallout from '@/components/clients/FirstLeadCallout'
 import InboundLeadContext from '@/components/clients/InboundLeadContext'
+import LeadAdAttribution from '@/components/clients/LeadAdAttribution'
 import { STATUS_STYLES } from '@/lib/leads/statusStyles'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
 import { formatDate } from '@/lib/dates'
@@ -92,6 +93,10 @@ export default async function page({ params, searchParams }) {
           phone={lead?.phone ?? null}
           email={lead?.email ?? null}
         />
+      </Suspense>
+      {/* Which Meta campaign / ad this lead came from — only when Meta said so. */}
+      <Suspense fallback={null}>
+        <LeadAdAttribution leadId={Number(clientId)} />
       </Suspense>
       <Suspense fallback={null}>
         <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt}>

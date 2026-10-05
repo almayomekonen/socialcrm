@@ -48,7 +48,15 @@ export type GraphRequest = {
   body?: Record<string, unknown>
   timeoutMs?: number
   fetchImpl?: typeof fetch
+  /**
+   * Graph/Marketing API version for THIS call (e.g. 'v26.0'). Omitted → the
+   * app-wide GRAPH_VERSION, exactly as before. Lets one integration (ads)
+   * move to a current version without changing every other Meta call.
+   */
+  version?: string
 }
+
+const VERSION = /^v\d{1,3}\.\d$/
 
 const DEFAULT_TIMEOUT_MS = 8000
 
@@ -94,10 +102,12 @@ export function describeGraphError(error: MetaGraphError): string {
   return `kind=${error.kind} status=${error.status} code=${error.code ?? '-'} subcode=${error.subcode ?? '-'}`
 }
 
-function buildUrl(path: string, query: Query | undefined, token: string): string {
+function buildUrl(path: string, query: Query | undefined, token: string, version?: string): string {
   if (!path.startsWith('/') || path.includes('?') || /access_token/i.test(path)) {
     throw new Error('invalid_graph_path')
   }
+  if (version !== undefined && !VERSION.test(version)) throw new Error('invalid_graph_version')
+  const base = version ? `https://graph.facebook.com/${version}` : GRAPH_BASE
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries(query ?? {})) {
     if (v === undefined || v === null) continue
@@ -107,11 +117,11 @@ function buildUrl(path: string, query: Query | undefined, token: string): string
   const proof = appSecretProof(token)
   if (proof) params.set('appsecret_proof', proof)
   const qs = params.toString()
-  return `${GRAPH_BASE}${path}${qs ? `?${qs}` : ''}`
+  return `${base}${path}${qs ? `?${qs}` : ''}`
 }
 
 export async function graphRequest<T = unknown>(req: GraphRequest): Promise<GraphResult<T>> {
-  const url = buildUrl(req.path, req.query, req.token)
+  const url = buildUrl(req.path, req.query, req.token, req.version)
   const doFetch = req.fetchImpl ?? fetch
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), req.timeoutMs ?? DEFAULT_TIMEOUT_MS)

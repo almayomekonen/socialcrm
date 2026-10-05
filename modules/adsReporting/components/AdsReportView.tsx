@@ -11,6 +11,8 @@ import AdsResultsTable from './AdsResultsTable'
 import AdsDailyTrend from './AdsDailyTrend'
 import AdsDrillLink from './AdsDrillLink'
 import AdsRetryButton from './AdsRetryButton'
+import AdsIntelligence from './AdsIntelligence'
+import type { AdsIntelligenceData } from '@/lib/facebook/ads/intelligence'
 
 /**
  * A report with delivery: context line, account summary, daily trend, and either
@@ -21,10 +23,13 @@ export default function AdsReportView({
   report,
   breakdown,
   account,
+  intel = null,
 }: {
   report: AdsReport & { totals: NonNullable<AdsReport['totals']> }
   breakdown: AdsResult<AdsBreakdown> | null
   account: { name: string; currency: string | null; timezone: string | null }
+  /** Meta ↔ SocialCRM sections; absent → the report renders exactly as before. */
+  intel?: AdsIntelligenceData | null
 }) {
   const { totals, previous, campaigns } = report
   const attribution = attributionLabel(totals.attribution)
@@ -33,7 +38,7 @@ export default function AdsReportView({
   const showLeads = (totals.leads ?? 0) > 0 || campaigns.some((c) => c.result.kind === 'leads')
 
   return (
-    <div className='grid gap-6'>
+    <div className='grid grid-cols-[minmax(0,1fr)] gap-6'>
       <dl className='flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600'>
         {report.period && (
           <div className='flex gap-1'>
@@ -77,6 +82,8 @@ export default function AdsReportView({
       )}
 
       <AdsSummaryCards totals={totals} previous={comparedTotals} campaigns={campaigns} currency={account.currency} />
+
+      {intel && <AdsIntelligence data={intel} campaigns={campaigns} breakdown={breakdown} currency={account.currency} />}
 
       <AdsDailyTrend daily={report.daily} currency={account.currency} showLeads={showLeads} />
 
@@ -128,6 +135,7 @@ export default function AdsReportView({
       <p className='text-xs text-gray-500'>
         הנתונים נמשכים ישירות מ-Meta. לידים ורכישות הם המרות ש-Meta מייחסת למודעות לפי הגדרות הייחוס שלה — לא לידים או מכירות
         שאומתו ב-SocialCRM. קליקים על קישור נספרים לפי חלון של יום אחד מקליק. נתונים מהיממה האחרונה עשויים להשתנות.
+        {intel && ' המספרים תחת "ב-SocialCRM" הם לידים שנקלטו כאן עם מזהה הקמפיין או המודעה מ-Meta, לפי היום שבו Meta יצרה אותם.'}
       </p>
     </div>
   )

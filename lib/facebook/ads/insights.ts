@@ -1,5 +1,7 @@
 import { describeGraphError, graphRequest, type MetaGraphError } from '@/lib/facebook/graphClient'
 import { toNumber } from '@/lib/facebook/ads/metrics'
+import { ADS_API_VERSION } from '@/lib/facebook/ads/apiVersion'
+import { readObjects } from '@/lib/facebook/ads/perObject'
 
 /**
  * Read-only access to Meta's Marketing API through `ads_read`: the accounts this
@@ -56,6 +58,7 @@ export async function listAdAccounts(token: string): Promise<AdsResult<AdAccount
       path: '/me/adaccounts',
       token,
       query: { fields: 'id,name,currency,timezone_name,account_status', limit: 100, after },
+      version: ADS_API_VERSION,
     })
     if ('error' in result) return adsFail(result.error, 'list ad accounts')
     for (const a of result.data.data ?? []) {
@@ -96,6 +99,7 @@ export async function readInsights(
       token,
       query: { limit: INSIGHTS_PAGE_SIZE, ...query, after },
       timeoutMs: 15000,
+      version: ADS_API_VERSION,
     })
     if ('error' in res) return adsFail(res.error, opts.what)
     const batch = res.data.data ?? []
@@ -106,27 +110,30 @@ export async function readInsights(
   return { ok: true, value: rows }
 }
 
+/** Status lookups per report: beyond this, the remaining rows show their status as "—". */
+export const MAX_STATUS_LOOKUPS = 100
+
 /**
  * Delivery status for objects Meta just returned in insights (ids never come from
- * the URL here). Multi-id lookup, 50 ids per call. A failure is not fatal: the
- * report still shows Meta's numbers, with the status unknown ("—").
+ * the URL here). One `GET /{id}?fields=effective_status` per object (see
+ * perObject.ts for why not `/?ids=`). A failure is not fatal: the report still
+ * shows Meta's numbers, with the status unknown ("—").
  */
 export async function readStatuses(token: string, ids: string[]): Promise<Map<string, string> | null> {
   const statuses = new Map<string, string>()
-  const valid = [...new Set(ids.filter(isAdObjectId))]
-  for (let i = 0; i < valid.length; i += 50) {
-    const res = await graphRequest<Record<string, { effective_status?: unknown }>>({
-      path: '/',
-      token,
-      query: { ids: valid.slice(i, i + 50).join(','), fields: 'effective_status' },
-    })
-    if ('error' in res) {
-      adsFail(res.error, 'delivery status')
-      return null
-    }
-    for (const [id, obj] of Object.entries(res.data ?? {})) {
-      if (typeof obj?.effective_status === 'string') statuses.set(id, obj.effective_status)
-    }
+  const valid = ids.filter(isAdObjectId)
+  const { values, error } = await readObjects<{ effective_status?: unknown }>(
+    token,
+    valid,
+    { fields: 'effective_status' },
+    { max: MAX_STATUS_LOOKUPS },
+  )
+  if (error) {
+    adsFail(error, 'delivery status')
+    return null
+  }
+  for (const [id, obj] of values) {
+    if (typeof obj.effective_status === 'string') statuses.set(id, obj.effective_status)
   }
   return statuses
 }

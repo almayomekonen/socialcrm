@@ -14,6 +14,8 @@ export type AdConnection = {
   token: string
   grantedScopes: string[]
   tokenExpiresAt: Date | null
+  /** The account this user last chose. A hint only — always re-verified against `/me/adaccounts`. */
+  selectedAccountId: string | null
 }
 
 export async function saveAdConnection(input: {
@@ -46,7 +48,21 @@ export async function getAdConnection(agencyId: number, userId: number): Promise
     token: resolvePageAccessToken(row.accessToken),
     grantedScopes: parseGrantedScopes(row.grantedScopes),
     tokenExpiresAt: row.tokenExpiresAt ? new Date(row.tokenExpiresAt) : null,
+    selectedAccountId: typeof row.selectedAccountId === 'string' && row.selectedAccountId ? row.selectedAccountId : null,
   }
+}
+
+/**
+ * Remember the account a user chose. Called only AFTER the server verified the
+ * id against the accounts Meta lists for this connection's token; scoped to the
+ * (agency, user) row, so it can never touch another user's connection.
+ */
+export async function setSelectedAdAccount(agencyId: number, userId: number, accountId: string): Promise<void> {
+  if (!/^act_\d+$/.test(accountId)) return
+  await db('facebook_ad_connections')
+    .where({ agencyId, userId })
+    .whereRaw(`"selectedAccountId" IS DISTINCT FROM ?`, [accountId])
+    .update({ selectedAccountId: accountId, updatedAt: new Date() })
 }
 
 export async function deleteAdConnection(agencyId: number, userId: number): Promise<void> {
