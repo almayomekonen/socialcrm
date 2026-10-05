@@ -55,6 +55,17 @@ describe('Content-Security-Policy', () => {
     expect(csp).toContain("form-action 'self'")
   })
 
+  test("frames Meta's ad preview host exactly — proven frame-src violation, and nothing broader", () => {
+    // frame-src https://business.facebook.com, observed live on /sum_sales/ads:
+    // Meta's /{ad}/previews iframe. Named hosts only, never a facebook wildcard.
+    for (const policy of [headers['Content-Security-Policy'], headers['Content-Security-Policy-Report-Only']]) {
+      const frameSrc = policy.split('; ').find((d) => d.startsWith('frame-src '))!.split(' ')
+      expect(frameSrc).toContain('https://business.facebook.com')
+      expect(frameSrc.some((s) => s.includes('*'))).toBe(false)
+      expect(frameSrc).not.toContain('https:')
+    }
+  })
+
   test('lets the pdf.js worker load, including its blob: fallback', () => {
     expect(headers['Content-Security-Policy']).toContain("worker-src 'self' blob:")
   })
