@@ -38,7 +38,12 @@ vi.mock('@/db/facebookAds', () => ({
     if (h.connectionThrows) throw new Error('seal could not be opened')
     return h.connection
   },
+  setSelectedAdAccount: async () => {},
 }))
+// The snapshot cache starts empty, so every read below goes to the (mocked) Meta reads.
+vi.mock('@/db/adsSnapshots', () => ({ readSnapshot: async () => null, writeSnapshot: async () => {} }))
+// Meta ↔ SocialCRM context is covered by its own tests; here the report states are under test.
+vi.mock('@/lib/facebook/ads/intelligence', () => ({ loadAdsIntelligence: async () => null, loadCrmOnlyCampaigns: async () => [] }))
 vi.mock('@/lib/device', () => ({ getInAppBrowser: async () => null }))
 vi.mock('@/lib/facebook/ads/insights', async (importActual) => {
   const actual = await importActual<typeof import('@/lib/facebook/ads/insights')>()

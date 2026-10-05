@@ -7,9 +7,15 @@ import { isFacebookAdsReportingEnabledForAgency } from '@/lib/facebook/permissio
 import { adsRangeLabel, parseAdsRange } from '@/lib/facebook/ads/dateRange'
 import { businessDateString } from '@/lib/today/time'
 import { getInAppBrowser, type InAppBrowser } from '@/lib/device'
-import { isAdObjectId, listAdAccounts } from '@/lib/facebook/ads/insights'
-import { getAdsReport } from '@/lib/facebook/ads/report'
-import { getAdsBreakdown } from '@/lib/facebook/ads/breakdown'
+import { isAdObjectId, listAdAccounts, type AdAccount, type AdsResult } from '@/lib/facebook/ads/insights'
+import { getAdsReport, type AdsReport } from '@/lib/facebook/ads/report'
+import { getAdsBreakdown, type AdsBreakdown } from '@/lib/facebook/ads/breakdown'
+import { rangeDays, rangeKey } from '@/lib/facebook/ads/dateRange'
+import { cachedAdsRead, reportTtlMs } from '@/lib/facebook/ads/cached'
+import { loadAdsIntelligence, loadCrmOnlyCampaigns } from '@/lib/facebook/ads/intelligence'
+import { setSelectedAdAccount } from '@/db/facebookAds'
+import { readSnapshot, writeSnapshot } from '@/db/adsSnapshots'
+import AdsCrmOnlySection from '@/modules/adsReporting/components/AdsCrmOnlySection'
 import type { AdsSelectionQuery } from '@/lib/facebook/ads/selection'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import MetaPermissionButton from '@/components/settings/MetaPermissionButton'
@@ -68,7 +74,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
   if (!isFacebookAdsReportingEnabledForAgency(user.agencyId)) redirect('/sum_sales')
 
   const page = (body: React.ReactNode) => (
-    <div className='grid gap-4 py-6'>
+    <div className='grid grid-cols-[minmax(0,1fr)] gap-4 py-6'>
       <h1 className='title'>ביצועי מודעות</h1>
       {body}
     </div>
@@ -90,32 +96,96 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
     ads_error: one(raw.ads_error),
   }
   const inAppBrowser = await getInAppBrowser()
-  let connection: Awaited<ReturnType<typeof getAdConnection>> = null
-  try {
-    connection = await getAdConnection(user.agencyId, user.id)
-  } catch {
-    return page(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
-  }
-
-  if (!connection) return page(<Notice inAppBrowser={inAppBrowser} kind={noConnectionNotice(sp.ads_error)} />)
-  if (!connection.grantedScopes.includes('ads_read')) return page(<Notice inAppBrowser={inAppBrowser} kind='declined' />)
-  if (connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now()) return page(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
-
-  const disconnect = <DisconnectAdsButton />
-  const accounts = await listAdAccounts(connection.token)
-  if ('reason' in accounts) return page(<Notice inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[accounts.reason]} extra={disconnect} />)
-  if (accounts.value.length === 0) return page(<Notice inAppBrowser={inAppBrowser} kind='no_accounts' extra={disconnect} />)
-
-  // Only an account Meta listed for THIS token can be read; anything else falls back to the first.
-  const account = accounts.value.find((a) => a.id === sp.account) ?? accounts.value[0]
+  const agencyId: number = user.agencyId
   // The business's calendar day (Asia/Jerusalem), computed once on the server.
   const today = businessDateString(Date.now())
   const { range, invalid } = parseAdsRange(sp, today)
 
-  const [report, breakdown] = await Promise.all([
-    getAdsReport(connection.token, account.id, range, { today: todayIn(account.timezone) ?? today }),
-    sp.campaign ? getAdsBreakdown(connection.token, account.id, range, { campaignId: sp.campaign, adsetId: sp.adset }) : null,
+  // Without a usable ad connection, SocialCRM still shows what it truthfully
+  // knows: Lead Ads leads per campaign, from the ids Meta put on each lead.
+  const withCrmOnly = async (notice: React.ReactNode) => {
+    const period = rangeDays(range, today)
+    const groups = await loadCrmOnlyCampaigns(agencyId, period)
+    return page(
+      <>
+        {notice}
+        <AdsCrmOnlySection groups={groups} period={period} />
+      </>,
+    )
+  }
+
+  let connection: Awaited<ReturnType<typeof getAdConnection>> = null
+  try {
+    connection = await getAdConnection(agencyId, user.id)
+  } catch {
+    return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
+  }
+
+  if (!connection) return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind={noConnectionNotice(sp.ads_error)} />)
+  if (!connection.grantedScopes.includes('ads_read')) return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='declined' />)
+  if (connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now()) {
+    return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
+  }
+
+  const disconnect = <DisconnectAdsButton />
+  const listed = await listAdAccounts(connection.token)
+  let accounts: AdAccount[]
+  let accountsFromCache = false
+  if ('reason' in listed) {
+    // A transient Meta failure may fall back to THIS connection's remembered,
+    // previously verified account; an auth/permission failure never does.
+    const transient = listed.reason === 'rate_limited' || listed.reason === 'meta_error'
+    const remembered =
+      transient && connection.selectedAccountId
+        ? await readSnapshot<AdAccount>({ agencyId, accountId: connection.selectedAccountId, kind: 'account' }, 'meta').catch(() => null)
+        : null
+    if (!remembered) return page(<Notice inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[listed.reason]} extra={disconnect} />)
+    accounts = [remembered.payload]
+    accountsFromCache = true
+  } else {
+    accounts = listed.value
+  }
+  if (accounts.length === 0) return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='no_accounts' extra={disconnect} />)
+
+  // Only an account Meta listed for THIS token can be read: the URL's choice, else
+  // the remembered one, else the first. Ids from anywhere else are never used.
+  const account =
+    accounts.find((a) => a.id === sp.account) ?? accounts.find((a) => a.id === connection.selectedAccountId) ?? accounts[0]
+  if (!accountsFromCache) {
+    if (account.id !== connection.selectedAccountId) await setSelectedAdAccount(agencyId, user.id, account.id).catch(() => {})
+    await writeSnapshot({ agencyId, accountId: account.id, kind: 'account' }, 'meta', account).catch(() => {})
+  }
+
+  const rk = rangeKey(range, today)
+  const scope = { agencyId, accountId: account.id }
+  const [reportRead, breakdownRead] = await Promise.all([
+    cachedAdsRead({ ...scope, kind: 'report' }, rk, reportTtlMs(rk), () =>
+      getAdsReport(connection.token, account.id, range, { today: todayIn(account.timezone) ?? today }),
+    ),
+    sp.campaign
+      ? cachedAdsRead({ ...scope, kind: 'breakdown' }, `${rk}|${sp.campaign}|${sp.adset ?? ''}`, reportTtlMs(rk), () =>
+          getAdsBreakdown(connection.token, account.id, range, { campaignId: sp.campaign!, adsetId: sp.adset }),
+        )
+      : null,
   ])
+  const report: AdsResult<AdsReport> = 'value' in reportRead ? { ok: true, value: reportRead.value.value } : reportRead
+  const breakdown: AdsResult<AdsBreakdown> | null =
+    breakdownRead === null ? null : 'value' in breakdownRead ? { ok: true, value: breakdownRead.value.value } : breakdownRead
+  const intel =
+    'value' in report && report.value.totals
+      ? await loadAdsIntelligence({
+          agencyId,
+          accountId: account.id,
+          token: connection.token,
+          range,
+          rangeKey: rk,
+          report: report.value,
+          breakdown: breakdown && 'value' in breakdown ? breakdown.value : null,
+          timezone: account.timezone,
+          currency: account.currency,
+          freshness: 'value' in reportRead ? { fetchedAt: reportRead.value.fetchedAt, stale: reportRead.value.stale } : null,
+        })
+      : null
 
   const body =
     'reason' in report ? (
@@ -128,6 +198,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
         report={{ ...report.value, totals: report.value.totals }}
         breakdown={breakdown}
         account={{ name: account.name, currency: account.currency, timezone: account.timezone }}
+        intel={intel}
       />
     )
 
@@ -139,7 +210,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
       renderedLabel={`${account.name} · ${adsRangeLabel(range)}`}
       controls={
         <div className='flex flex-wrap items-end justify-between gap-3'>
-          <AdsReportControls accounts={accounts.value.map(({ id, name }) => ({ id, name }))} accountId={account.id} today={today} />
+          <AdsReportControls accounts={accounts.map(({ id, name }) => ({ id, name }))} accountId={account.id} today={today} />
           {disconnect}
         </div>
       }
