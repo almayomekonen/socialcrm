@@ -21,6 +21,7 @@ vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({
 }))
 vi.mock('@/lib/inbox/persistOutboundWhatsapp', () => ({ persistOutboundWhatsapp: h.persist }))
 vi.mock('@/lib/inbox/humanTakeover', () => ({ recordHumanTakeover: h.takeover }))
+vi.mock('@/lib/weddingRsvp/history', () => ({ findLatestOutbound: vi.fn(), withConversationLock: vi.fn() }))
 vi.mock('@/lib/whatsapp/sendMessage', () => ({ sendWhatsappText: h.sendText, sendWhatsappInteractive: h.sendInteractive }))
 
 const { getWeddingRsvpChoice } = await import('@/lib/weddingRsvp/choice')
@@ -117,7 +118,7 @@ describe('sendWeddingRsvp', () => {
 })
 
 describe('routeWeddingRsvpReply', () => {
-  const base = { agencyId: 103, conversationId: 7224, leadId: 1591 }
+  const base = { agencyId: 103, conversationId: 7224, leadId: 1591, messageId: 50 }
 
   it('is a no-op for non-wedding messages', async () => {
     expect(await routeWeddingRsvpReply({ ...base, rawMessage: tap('other') })).toEqual({ handled: false })
@@ -128,7 +129,7 @@ describe('routeWeddingRsvpReply', () => {
     const r = await routeWeddingRsvpReply({ ...base, rawMessage: tap('wedding_rsvp_attending') })
     expect(r).toEqual({ handled: true, choice: 'attending', replied: true })
     expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: KEREN, body: REPLY_ATTENDING }))
-    expect(h.persist).toHaveBeenCalledWith(expect.objectContaining({ text: REPLY_ATTENDING, sentByUserId: null, metadata: { source: WEDDING_RSVP_SOURCE } }))
+    expect(h.persist).toHaveBeenCalledWith(expect.objectContaining({ text: REPLY_ATTENDING, sentByUserId: null, metadata: { step: 'attending', source: WEDDING_RSVP_SOURCE } }))
   })
   it('not attending → thanks', async () => {
     await routeWeddingRsvpReply({ ...base, rawMessage: tap('wedding_rsvp_not_attending') })
