@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
@@ -11,20 +11,36 @@ import { CopyRow } from '@/components/settings/connections/SetupGuidePanel'
 import type { AiConnectionView } from '@/lib/oauth/server/connections'
 
 /**
- * חיבורי AI — the signed-in user's own connected AI apps (Claude, ChatGPT, …),
- * one row each, each with its own disconnect. Card shell copied from
- * CalendarConnect so it sits in the כלים מחוברים grid as the same component
- * family. No connect button: a connection always starts inside the AI app.
- * Everything shown is precomputed on the server (dates included).
+ * חיבורי AI — one row per AI app (Claude, ChatGPT, and any other connected MCP
+ * client), each with its logo, name, status and its own action. Card shell
+ * copied from CalendarConnect so it sits in the כלים מחוברים grid as the same
+ * component family. Everything shown is precomputed on the server (dates
+ * included).
+ *
+ * There is no connect button: a connection always starts inside the AI app.
+ * A not-connected row offers "הוראות חיבור", which opens the ONE shared
+ * "איך מתחברים?" disclosure below the list instead of repeating the steps.
  */
+
+type Provider = { label: string; logo: string | null }
+
+// Logos are local, transparent PNGs (public/media/social-icons). The provider
+// name sits right beside each logo, so the image is decorative (alt='').
+const KNOWN_PROVIDERS: Provider[] = [
+  { label: 'Claude', logo: '/media/social-icons/claude-color.png' },
+  { label: 'ChatGPT', logo: '/media/social-icons/openai.png' },
+]
+
+const HOWTO_ID = 'ai-connections-howto'
+
 /**
  * "איך מתחברים?" — a closed-by-default native <details> (same pattern as
- * PlanIncludesDisclosure), so the card stays compact and the steps work without
- * JavaScript. The URL is the server-configured MCP resource, passed in.
+ * PlanIncludesDisclosure): compact, keyboard-operable, its expanded state is
+ * exposed by the browser, and the steps work without JavaScript.
  */
-function HowToConnect({ mcpUrl }: { mcpUrl: string | null }) {
+function HowToConnect({ mcpUrl, detailsRef }: { mcpUrl: string | null; detailsRef: React.RefObject<HTMLDetailsElement | null> }) {
   return (
-    <details className='group/howto'>
+    <details ref={detailsRef} id={HOWTO_ID} className='group/howto'>
       <summary className='flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm text-solid [&::-webkit-details-marker]:hidden'>
         <Icon
           name='chevron-down'
@@ -43,6 +59,20 @@ function HowToConnect({ mcpUrl }: { mcpUrl: string | null }) {
   )
 }
 
+function ProviderLogo({ src }: { src: string | null }) {
+  // Fixed 28px box, object-contain: never stretched or cropped. Unknown
+  // clients get a neutral placeholder of the same size so names stay aligned.
+  return (
+    <span className='flex size-7 shrink-0 items-center justify-center'>
+      {src ? (
+        <img src={src} alt='' aria-hidden='true' className='max-h-7 max-w-7 object-contain' />
+      ) : (
+        <Icon name='plug' type='reg' className='size-5 bg-gray-400' />
+      )}
+    </span>
+  )
+}
+
 export default function AiConnections({
   connections,
   mcpUrl = null,
@@ -53,6 +83,7 @@ export default function AiConnections({
   const router = useRouter()
   const [pending, setPending] = useState<AiConnectionView | null>(null)
   const [, startTransition] = useTransition()
+  const howToRef = useRef<HTMLDetailsElement | null>(null)
 
   async function handleDisconnect() {
     const target = pending
@@ -68,9 +99,27 @@ export default function AiConnections({
     }
   }
 
+  function openHowTo() {
+    const d = howToRef.current
+    if (!d) return
+    d.open = true
+    d.querySelector('summary')?.focus()
+  }
+
+  // Claude and ChatGPT always appear; any other connected MCP client follows.
+  const rows: { provider: Provider; connection: AiConnectionView | null }[] = [
+    ...KNOWN_PROVIDERS.map((provider) => ({
+      provider,
+      connection: connections.find((c) => c.clientLabel === provider.label) ?? null,
+    })),
+    ...connections
+      .filter((c) => !KNOWN_PROVIDERS.some((p) => p.label === c.clientLabel))
+      .map((c) => ({ provider: { label: c.clientLabel, logo: null }, connection: c })),
+  ]
+
   return (
-    // Spans both grid columns from tablet up, so the card stays short and a
-    // scope label fits on one line on desktop; one column on mobile.
+    // Spans both grid columns from tablet up (Calendar and Drive share the row
+    // above), so the card stays short; one column on mobile.
     <div className='col-span-2 mobile:col-span-1 rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2.5'>
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
@@ -85,35 +134,48 @@ export default function AiConnections({
         <p className='text-xs text-gray-500'>הגישה מוגבלת לנתונים שאתם מורשים לראות. מספרי טלפון ואימיילים אינם נשלחים.</p>
       </div>
 
-      {connections.length === 0 ? (
-        <div className='flex flex-wrap items-baseline gap-x-3 gap-y-1'>
-          <span className='text-sm text-gray-400'>לא מחובר עדיין</span>
-          <span className='text-sm text-gray-600'>החיבור מתחיל מתוך Claude או ChatGPT.</span>
-        </div>
-      ) : (
-        <ul className='flex flex-col gap-4'>
-          {connections.map((c) => (
-            <li key={c.grantId} className='flex flex-col gap-2 border-t border-gray-100 pt-4 first:border-t-0 first:pt-0'>
-              <div className='flex items-center justify-between gap-3'>
-                <span className='min-w-0 text-sm text-gray-600'>
-                  <span className='font-medium text-gray-800'>{c.clientLabel}</span> · מחובר מאז {c.connectedOn} · שימוש אחרון{' '}
-                  {c.lastUsedOn ?? '—'}
-                </span>
-                <Btn lbl={`נתק את ${c.clientLabel}`} variant='outline' onClick={() => setPending(c)} />
+      <ul className='divide-y divide-gray-100 rounded-md border border-gray-100'>
+        {rows.map(({ provider, connection }) => (
+          <li key={provider.label} className='flex flex-col gap-2 px-4 py-3'>
+            <div className='flex items-center gap-3'>
+              <ProviderLogo src={provider.logo} />
+              <div className='min-w-0 flex-1'>
+                <p className='text-sm font-medium text-gray-800'>{provider.label}</p>
+                {connection ? (
+                  <div className='flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500'>
+                    <span className='inline-flex items-center gap-1 font-medium text-green-700'>
+                      <Icon name='check' type='reg' className='size-3 bg-green-600' />
+                      מחובר
+                    </span>
+                    <span>· מאז {connection.connectedOn}</span>
+                    <span>· שימוש אחרון {connection.lastUsedOn ?? '—'}</span>
+                  </div>
+                ) : (
+                  <div className='text-xs text-gray-500'>
+                    <span className='text-gray-400'>לא מחובר עדיין</span> · החיבור מתחיל מתוך {provider.label}
+                  </div>
+                )}
               </div>
-              <ul className='list-disc ps-5 text-xs text-gray-600'>
-                {c.scopeLabels.map((label) => (
+              {connection ? (
+                <Btn lbl={`נתק את ${provider.label}`} variant='outline' onClick={() => setPending(connection)} />
+              ) : (
+                <Btn lbl='הוראות חיבור' variant='outline' size='small' aria-controls={HOWTO_ID} onClick={openHowTo} />
+              )}
+            </div>
+            {connection && connection.scopeLabels.length > 0 && (
+              <ul className='list-disc ps-[3.25rem] text-xs text-gray-600'>
+                {connection.scopeLabels.map((label) => (
                   <li key={label} className='desktop:whitespace-nowrap'>
                     {label}
                   </li>
                 ))}
               </ul>
-            </li>
-          ))}
-        </ul>
-      )}
+            )}
+          </li>
+        ))}
+      </ul>
 
-      <HowToConnect mcpUrl={mcpUrl} />
+      <HowToConnect mcpUrl={mcpUrl} detailsRef={howToRef} />
 
       <ConfirmPop
         open={pending !== null}

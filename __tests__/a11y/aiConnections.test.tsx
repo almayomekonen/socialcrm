@@ -31,17 +31,35 @@ describe('AiConnections', () => {
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('חיבורי AI')
   })
 
-  it('empty: says not connected yet and where the connection starts; no button while closed', () => {
-    render(<AiConnections connections={[]} mcpUrl='https://getsocialcrm.com/api/mcp' />)
-    expect(screen.getByText('לא מחובר עדיין')).toBeInTheDocument()
-    expect(screen.getByText('החיבור מתחיל מתוך Claude או ChatGPT.')).toBeInTheDocument()
+  it('empty: both providers are listed with their logo, "not connected yet" and where the connection starts', () => {
+    const { container } = render(<AiConnections connections={[]} mcpUrl='https://getsocialcrm.com/api/mcp' />)
     expect(screen.getByText('חברו את SocialCRM ל-Claude או ChatGPT כדי לשאול על לידים, מעקבים ושיחות.')).toBeInTheDocument()
     expect(screen.getByText('הגישה מוגבלת לנתונים שאתם מורשים לראות. מספרי טלפון ואימיילים אינם נשלחים.')).toBeInTheDocument()
-    // The only button (copy) lives inside the closed disclosure, which browsers
-    // hide until it is opened; there is no connect/disconnect button.
-    const buttons = screen.getAllByRole('button')
-    expect(buttons.map((b) => b.textContent)).toEqual(['העתקה'])
-    expect(buttons[0].closest('details')).not.toHaveAttribute('open')
+    expect(screen.getAllByText('לא מחובר עדיין')).toHaveLength(2)
+    expect(screen.getByText(/החיבור מתחיל מתוך Claude/)).toBeInTheDocument()
+    expect(screen.getByText(/החיבור מתחיל מתוך ChatGPT/)).toBeInTheDocument()
+    // Local, transparent logo assets; decorative because the name is adjacent.
+    const logos = Array.from(container.querySelectorAll('img'))
+    expect(logos.map((i) => i.getAttribute('src'))).toEqual([
+      '/media/social-icons/claude-color.png',
+      '/media/social-icons/openai.png',
+    ])
+    for (const i of logos) expect(i).toHaveAttribute('alt', '')
+    // No direct-connect button: the flow starts inside the AI app.
+    expect(screen.queryByRole('button', { name: /^חבר/ })).toBeNull()
+  })
+
+  it('"הוראות חיבור" on a not-connected row opens the ONE shared disclosure', () => {
+    const { container } = render(<AiConnections connections={[]} mcpUrl='https://getsocialcrm.com/api/mcp' />)
+    expect(container.querySelectorAll('details')).toHaveLength(1)
+    const details = container.querySelector('details')!
+    const help = screen.getAllByRole('button', { name: 'הוראות חיבור' })
+    expect(help).toHaveLength(2)
+    for (const b of help) expect(b).toHaveAttribute('aria-controls', details.id)
+    expect(details).not.toHaveAttribute('open')
+    fireEvent.click(help[1])
+    expect(details.open).toBe(true)
+    expect(document.activeElement).toBe(details.querySelector('summary'))
   })
 
   it('"איך מתחברים?" is a closed native disclosure with the four steps and the MCP URL', () => {
@@ -76,13 +94,34 @@ describe('AiConnections', () => {
     expect(container.querySelector('details')).toHaveTextContent('מזינים את כתובת החיבור של SocialCRM')
   })
 
-  it('lists each connection with its own labelled disconnect button and Hebrew scope labels', () => {
+  it('lists each connection with its own labelled disconnect button, status, dates and Hebrew scope labels', () => {
     render(<AiConnections connections={[conn(1, 'Claude'), conn(2, 'ChatGPT')]} />)
     expect(screen.getByRole('button', { name: 'נתק את Claude' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'נתק את ChatGPT' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'הוראות חיבור' })).toBeNull()
+    expect(screen.getAllByText('מחובר')).toHaveLength(2)
+    expect(screen.getAllByText('· מאז 4.10.2026')).toHaveLength(2)
+    expect(screen.getAllByText('· שימוש אחרון —')).toHaveLength(2)
     expect(screen.getAllByText('צפייה בלידים שלך, במעקבים ובסיכום היומי')).toHaveLength(2)
-    expect(screen.getAllByText(/מחובר מאז 4\.10\.2026 · שימוש אחרון —/)).toHaveLength(2)
     expect(document.body.textContent).not.toMatch(/crm\.(leads|conversations)\.read/)
+  })
+
+  it('mixed: Claude connected, ChatGPT not connected yet with its help action', () => {
+    render(<AiConnections connections={[conn(1, 'Claude')]} />)
+    const rows = screen.getAllByRole('listitem').filter((li) => li.querySelector('img'))
+    expect(rows).toHaveLength(2)
+    expect(within(rows[0]).getByText('Claude')).toBeInTheDocument()
+    expect(within(rows[0]).getByRole('button', { name: 'נתק את Claude' })).toBeInTheDocument()
+    expect(within(rows[1]).getByText('ChatGPT')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('לא מחובר עדיין')).toBeInTheDocument()
+    expect(within(rows[1]).getByRole('button', { name: 'הוראות חיבור' })).toBeInTheDocument()
+  })
+
+  it('an unknown MCP client is listed with its name and a neutral placeholder, no logo image', () => {
+    const { container } = render(<AiConnections connections={[conn(9, 'Other App')]} />)
+    expect(screen.getByText('Other App')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'נתק את Other App' })).toBeInTheDocument()
+    expect(container.querySelectorAll('img')).toHaveLength(2)
   })
 
   it('disconnect asks first, names the app and the consequence, then disconnects only that grant', async () => {
