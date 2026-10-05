@@ -30,6 +30,7 @@ import { findClientsByPhoneCore } from '@/lib/whatsapp/matchLeadByPhone'
 import { resolveInboundLeadDecision } from '@/lib/whatsapp/resolveInboundLead'
 import { attachConversationToLead, getConversationMemory } from '@/db/inboxConversations'
 import { shouldPromoteContactToLead } from '@/lib/inbox/autoresponse/contactLeadPromotion'
+import { routeWeddingRsvpReply } from '@/lib/weddingRsvp/handleReply'
 
 export type InboundWebhookConnection = {
   agency_id: number | string
@@ -157,6 +158,12 @@ export async function handleInboundWebhookMessage(args: {
       await attachConversationToLead(db, { conversationId: result.conversationId, agencyId, leadId }).catch((err) => {
         console.error(`[WhatsappWebhook][attach][msgId=${messageId}]`, err)
       })
+    }
+
+    // TEMPORARY wedding RSVP hook (lib/weddingRsvp). Returns at once unless the
+    // message is a tap on one of its two reply buttons; never throws.
+    if (result.inserted && message.type === 'interactive') {
+      await routeWeddingRsvpReply({ agencyId, conversationId: result.conversationId, leadId, rawMessage: message })
     }
 
     if (result.inserted && result.ireEnqueued) {
