@@ -3,10 +3,12 @@ import type { AdCreative } from '@/lib/facebook/ads/creatives'
 import type { CrmOutcome } from '@/lib/facebook/ads/crmOutcomes'
 import { CrmLine, MetaLine } from './AdsOutcomeLines'
 import AdCreativeImage from './AdCreativeImage'
+import AdVideoPreview from './AdVideoPreview'
 
 /**
  * Ads as recognisable cards: the creative first, then Meta's numbers and the
- * SocialCRM outcomes of the leads that carry this ad's id.
+ * SocialCRM outcomes of the leads that carry this ad's id. With `videoPreview`,
+ * a video ad's thumbnail opens Meta's preview of the ad (image ads stay static).
  */
 
 export type CreativeCardRow = {
@@ -24,6 +26,7 @@ export default function AdsCreativeGrid({
   creatives,
   outcomes,
   currency,
+  videoPreview = false,
 }: {
   title: string
   hint?: string
@@ -31,6 +34,7 @@ export default function AdsCreativeGrid({
   creatives: Record<string, AdCreative>
   outcomes: Record<string, CrmOutcome>
   currency: string | null
+  videoPreview?: boolean
 }) {
   if (rows.length === 0) return null
   return (
@@ -48,7 +52,11 @@ export default function AdsCreativeGrid({
               data-ad-id={row.id}
               className='@container min-w-0 rounded-lg border border-gray-200 bg-white p-3 shadow-xs'
             >
-              <AdCreativeImage url={creative?.imageUrl ?? null} isVideo={creative?.isVideo ?? false} name={row.name} />
+              {videoPreview && creative?.isVideo ? (
+                <AdVideoPreview adId={row.id} url={creative.imageUrl} name={row.name} />
+              ) : (
+                <AdCreativeImage url={creative?.imageUrl ?? null} isVideo={creative?.isVideo ?? false} name={row.name} />
+              )}
               <h3 className='mt-2 truncate text-sm font-semibold text-gray-900' title={row.name}>
                 {row.name}
               </h3>
