@@ -8,7 +8,7 @@
  * an explicit explanation of why the text is missing.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
@@ -17,6 +17,7 @@ vi.mock('@/lib/useAction', () => ({
 }))
 vi.mock('@/modules/facebookComments/actions', () => ({ convertCommentToLead: vi.fn(async () => ({ ok: true, leadId: 7, created: true })) }))
 vi.mock('@/modules/facebookComments/replyActions', () => ({ replyToComment: vi.fn(async () => ({ ok: true, replyId: 'r1' })) }))
+vi.mock('@/modules/facebookComments/listActions', () => ({ loadMoreComments: vi.fn(async () => ({ ok: false })) }))
 
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
 import CommentsEmptyState from '@/modules/facebookComments/components/CommentsEmptyState'
@@ -51,7 +52,7 @@ describe('CommentsList — message availability', () => {
   it('shows an intentional explanation when Meta withheld the text', () => {
     render(<CommentsList comments={[item()]} />)
 
-    expect(screen.getByText(/תוכן התגובה עדיין לא זמין/)).toBeInTheDocument()
+    expect(screen.getByText(/תוכן התגובה לא התקבל מפייסבוק/)).toBeInTheDocument()
     // Never a blank or broken-looking bubble.
     expect(screen.queryByText('undefined')).not.toBeInTheDocument()
     expect(screen.queryByText('null')).not.toBeInTheDocument()
@@ -61,13 +62,13 @@ describe('CommentsList — message availability', () => {
     render(<CommentsList comments={[item({ message: 'כמה עולה?', messageAvailable: true })]} />)
 
     expect(screen.getByText('כמה עולה?')).toBeInTheDocument()
-    expect(screen.queryByText(/עדיין לא זמין/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/לא התקבל מפייסבוק/)).not.toBeInTheDocument()
   })
 
   it('treats an empty message with messageAvailable=true as genuinely empty, not unavailable', () => {
     render(<CommentsList comments={[item({ message: '', messageAvailable: true })]} />)
 
-    expect(screen.queryByText(/עדיין לא זמין/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/לא התקבל מפייסבוק/)).not.toBeInTheDocument()
   })
 })
 
@@ -146,19 +147,19 @@ describe('CommentsList — status states', () => {
     expect(screen.queryByText('נמחקה בפייסבוק')).not.toBeInTheDocument()
   })
 
-  it('offers "צור ליד" on a live, unconverted comment', () => {
+  it('offers "המר לליד" on a live, unconverted comment', () => {
     render(<CommentsList comments={[item({ status: 'open', convertedLeadId: null })]} />)
-    expect(screen.getByRole('button', { name: /צור ליד/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /המר לליד/ })).toBeInTheDocument()
   })
 
-  it('hides "צור ליד" once the comment is converted', () => {
+  it('hides "המר לליד" once the comment is converted', () => {
     render(<CommentsList comments={[item({ status: 'converted', convertedLeadId: 42 })]} />)
-    expect(screen.queryByRole('button', { name: /צור ליד/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /המר לליד/ })).not.toBeInTheDocument()
   })
 
-  it('hides "צור ליד" for a comment deleted on Facebook', () => {
+  it('hides "המר לליד" for a comment deleted on Facebook', () => {
     render(<CommentsList comments={[item({ status: 'deleted' })]} />)
-    expect(screen.queryByRole('button', { name: /צור ליד/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /המר לליד/ })).not.toBeInTheDocument()
   })
 
   it('links to the created ליד after conversion, using the standard lead route', () => {
@@ -221,9 +222,13 @@ describe('CommentsList — reply thread and in-app replies', () => {
 
   it('offers the reply form only on Pages whose grant allows replies', () => {
     const { rerender } = render(<CommentsList comments={[item()]} />)
+    expect(screen.queryByRole('button', { name: 'ענה לתגובה' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'פרסם תשובה' })).not.toBeInTheDocument()
 
     rerender(<CommentsList comments={[item()]} replyablePageIds={[base.pageId]} />)
+    // Collapsed by default: no permanently open textarea on every card.
+    expect(screen.queryByPlaceholderText('כתוב תשובה בשם הדף...')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'ענה לתגובה' }))
     expect(screen.getByRole('button', { name: 'פרסם תשובה' })).toBeDisabled()
     expect(screen.getByPlaceholderText('כתוב תשובה בשם הדף...')).toBeInTheDocument()
   })
@@ -252,7 +257,7 @@ describe('InboxChannelSwitch', () => {
 
 describe('CommentsInboxMobile', () => {
   it('reuses the existing switch and empty state — no second comments API', () => {
-    render(<CommentsInboxMobile emptyKind='not-enabled' comments={[]} awaitingText={false} />)
+    render(<CommentsInboxMobile emptyKind='not-enabled' comments={[]} />)
     expect(screen.getByTestId('facebook-comments-mobile')).toBeTruthy()
     expect(screen.getByRole('link', { name: /תגובות/ })).toHaveAttribute('href', '/inbox/comments')
     expect(screen.getByText(/תגובות בפייסבוק/)).toBeInTheDocument()
@@ -262,7 +267,7 @@ describe('CommentsInboxMobile', () => {
     const { container } = render(
       <CommentsInboxMobile
         emptyKind={null}
-        awaitingText={false}
+       
         comments={[
           item({ commentId: 'TOP', messageAvailable: true, message: 'שאלה' }),
           item({ commentId: 'CONV', convertedLeadId: 55, status: 'converted', messageAvailable: true, message: 'הומר' }),
@@ -285,8 +290,9 @@ describe('CommentsInboxMobile', () => {
         ]}
       />,
     )
+    // The commenter's avatar is a face, not a capsule — it is the one round element.
     const capsules = [...container.querySelectorAll('[class*="rounded-full"]')].filter(
-      (el) => !/\bsize-1\b/.test(el.className),
+      (el) => !/\bsize-1\b/.test(el.className) && !/\bsize-10\b/.test(el.className),
     )
     expect(capsules).toHaveLength(0)
     expect(container.querySelector('.rounded-md')).toBeTruthy()
@@ -298,7 +304,7 @@ describe('CommentsInboxMobile', () => {
     render(
       <CommentsInboxMobile
         emptyKind={null}
-        awaitingText={false}
+       
         comments={[
           item({ commentId: 'TOP', isTopLevel: true, messageAvailable: true, message: 'שאלה על המחיר' }),
           item({
@@ -323,7 +329,7 @@ describe('desktop protection — comments page still mounts the desktop grid', (
     const src = readFileSync(join(process.cwd(), 'app/(app)/inbox/comments/page.tsx'), 'utf8')
     expect(src).toContain('isMobileWorkspaceRequest')
     expect(src).toContain('CommentsInboxMobile')
-    expect(src).toContain('listPageComments')
+    expect(src).toContain('loadCommentsFeedPage')
     expect(src).toContain("className='grid gap-3 p-3 sm:p-4'")
     expect(src).toContain('CommentsList')
   })
@@ -353,14 +359,14 @@ describe('CommentsEmptyState', () => {
     expect(screen.getByText(/אין עדיין תגובות/)).toBeInTheDocument()
   })
 
-  it('explains the pending permission honestly rather than showing a void', () => {
-    render(<CommentsEmptyState kind='awaiting-text' />)
-    expect(screen.getByText(/תוכן התגובות עדיין לא זמין/)).toBeInTheDocument()
-    expect(screen.getByText(/פייסבוק/)).toBeInTheDocument()
+  it('a Page whose token predates comment-text access is told to reconnect, with the way to do it', () => {
+    render(<CommentsEmptyState kind='needs-reconnect' />)
+    expect(screen.getByText(/תוכן התגובות לא מגיע/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'חבר מחדש את הדף' })).toHaveAttribute('href', '/settings/integrations')
   })
 
   it('uses no emoji anywhere', () => {
-    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'no-open', 'no-converted', 'awaiting-text'] as const) {
+    for (const kind of ['not-enabled', 'not-connected', 'no-comments', 'no-open', 'no-converted', 'needs-reconnect'] as const) {
       const { unmount } = render(<CommentsEmptyState kind={kind} />)
       expect(document.body.textContent ?? '').not.toMatch(/\p{Extended_Pictographic}/u)
       unmount()

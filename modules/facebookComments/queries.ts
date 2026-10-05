@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import {
   COMMENT_STATUSES,
   type CommentListItem,
+  type CommentPost,
   type CommentReply,
   type CommentsCursor,
   type CommentsPage,
@@ -39,6 +40,9 @@ const SELECTED_COLUMNS = [
   'convertedLeadId',
   'createdTime',
   'receivedAt',
+  'authorPictureUrl',
+  'attachmentType',
+  'attachmentUrl',
 ] as const
 
 /** A querystring is user input; anything unrecognised collapses to the default. */
@@ -130,6 +134,30 @@ export async function listCommentReplies(
 ): Promise<CommentReply[]> {
   if (roots.length === 0) return []
   return ((await listCommentRepliesQuery(db, agencyId, roots)) as CommentReply[]).reverse()
+}
+
+/**
+ * Post context for a set of comments — a SEPARATE query, not a join, so the
+ * list query keeps reading one table under one tenant predicate. Keyed by
+ * (pageId, postId) inside the agency: a post id is only meaningful on its Page.
+ */
+export function listCommentPostsQuery(knex: Knex, agencyId: number, keys: { pageId: string; postId: string }[]) {
+  return knex('facebook_page_posts')
+    .where({ agencyId })
+    .whereIn(
+      ['pageId', 'postId'],
+      keys.map((k) => [k.pageId, k.postId]),
+    )
+    .select('pageId', 'postId', 'message', 'pictureUrl', 'permalinkUrl', 'fetchStatus')
+}
+
+export async function listCommentPosts(
+  agencyId: number,
+  keys: { pageId: string; postId: string }[],
+): Promise<CommentPost[]> {
+  const unique = [...new Map(keys.map((k) => [`${k.pageId}:${k.postId}`, k])).values()]
+  if (unique.length === 0) return []
+  return (await listCommentPostsQuery(db, agencyId, unique)) as CommentPost[]
 }
 
 export async function listPageComments(

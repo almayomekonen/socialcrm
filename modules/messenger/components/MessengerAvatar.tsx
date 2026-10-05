@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import LeadAvatar from '@/components/ui/lead-avatar'
+import { useImageFailed } from '@/lib/useImageFailed'
 
 /**
  * The customer's real Facebook picture, with initials as the fallback.
@@ -30,7 +30,8 @@ export default function MessengerAvatar({
   picUrl: string | null
   size?: 'sm' | 'md' | 'lg'
 }) {
-  const [broken, setBroken] = useState(false)
+  // Also catches a URL that already failed before hydration (see useImageFailed).
+  const { failed: broken, ref, onError } = useImageFailed()
 
   if (!picUrl || broken) return <LeadAvatar name={name} size={size} />
 
@@ -46,7 +47,8 @@ export default function MessengerAvatar({
       // Meta's CDN does not want our origin, and we do not want to leak the
       // conversation URL to it.
       referrerPolicy='no-referrer'
-      onError={() => setBroken(true)}
+      ref={ref}
+      onError={onError}
       className={`${px} shrink-0 rounded-full bg-primary-tint object-cover`}
     />
   )

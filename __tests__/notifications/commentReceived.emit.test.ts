@@ -164,7 +164,9 @@ describe('ingestFacebookComment → notifyEvent(comment.received)', () => {
     await ingestFacebookComment(PAGE, comment())
 
     expect(notifyEvent).toHaveBeenCalledTimes(1)
-    expect(h.state.conflictTargets).toEqual([
+    // The comment row is deduped on (pageId, commentId); the post-context cache
+    // upsert that follows each delivery uses its own key and never notifies.
+    expect(h.state.conflictTargets.filter((t) => JSON.stringify(t) === '["pageId","commentId"]')).toEqual([
       ['pageId', 'commentId'],
       ['pageId', 'commentId'],
     ])

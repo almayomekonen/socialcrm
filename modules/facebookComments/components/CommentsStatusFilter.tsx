@@ -19,23 +19,37 @@ const OPTIONS: { value: CommentStatusFilter; label: string; href: string }[] = [
 /** The only `?status=` values the Comments Inbox page accepts. */
 export const PAGE_STATUS_FILTERS: readonly CommentStatusFilter[] = OPTIONS.map((o) => o.value)
 
-export default function CommentsStatusFilter({ active }: { active: CommentStatusFilter }) {
+export default function CommentsStatusFilter({
+  active,
+  openCount = null,
+}: {
+  active: CommentStatusFilter
+  /** Server-counted open comments (countOpenComments); null hides the badge. */
+  openCount?: number | null
+}) {
   return (
     <nav aria-label='סינון תגובות' className='flex flex-wrap items-center gap-1.5'>
       {OPTIONS.map((o) => {
         const isActive = o.value === active
+        const count = o.value === 'open' && openCount ? openCount : null
         return (
           <Link
             key={o.value}
             href={o.href}
             aria-current={isActive ? 'page' : undefined}
-            className={`rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               isActive
                 ? 'border-info-border bg-primary-tint text-primary-text font-medium'
                 : 'border-gray-200 text-gray-500 hover:bg-gray-50'
             }`}
           >
             {o.label}
+            {count !== null && (
+              <span className='rounded-full bg-white px-1.5 text-[10px] font-semibold tabular-nums text-primary-text'>
+                <span className='sr-only'>, </span>
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
           </Link>
         )
       })}

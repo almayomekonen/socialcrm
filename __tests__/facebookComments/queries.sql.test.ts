@@ -12,6 +12,7 @@ import {
   listPageCommentsQuery,
   countOpenCommentsQuery,
   listCommentRepliesQuery,
+  listCommentPostsQuery,
   COMMENTS_PAGE_SIZE,
 } from '@/modules/facebookComments/queries'
 
@@ -126,6 +127,9 @@ describe('listPageCommentsQuery — ordering and pagination', () => {
       'convertedLeadId',
       'createdTime',
       'receivedAt',
+      'authorPictureUrl',
+      'attachmentType',
+      'attachmentUrl',
     ]) {
       expect(sql).toContain(`"${col}"`)
     }
@@ -168,5 +172,28 @@ describe('listCommentRepliesQuery — thread read', () => {
     expect(sql.toLowerCase()).toContain('not "status" = ?')
     expect(bindings).toContain('deleted')
     expect(sql.toLowerCase()).toContain('order by coalesce("createdtime", "receivedat") desc, "id" desc')
+  })
+})
+
+describe('listCommentPostsQuery — post context', () => {
+  const keys = [{ pageId: 'P1', postId: 'P1_9' }]
+
+  it('is tenant-scoped and keyed by (pageId, postId), a separate read — never a join on the list', () => {
+    const { sql, bindings } = listCommentPostsQuery(db, AGENCY, keys).toSQL()
+    expect(sql).toContain('from "facebook_page_posts"')
+    expect(sql).toContain('"agencyId" = ?')
+    expect(bindings[0]).toBe(AGENCY)
+    expect(sql).toMatch(/\("pageId", "postId"\) in/)
+    expect(sql.toLowerCase()).not.toContain('join')
+  })
+
+  it('never selects a token or anything beyond what the card renders', () => {
+    const { sql } = listCommentPostsQuery(db, AGENCY, keys).toSQL()
+    expect(sql).not.toMatch(/token/i)
+  })
+
+  it('the comments list itself still reads one table', () => {
+    const { sql } = listPageCommentsQuery(db, AGENCY, {}).toSQL()
+    expect(sql).not.toContain('facebook_page_posts')
   })
 })

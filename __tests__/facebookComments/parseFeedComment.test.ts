@@ -41,6 +41,8 @@ describe('parseFeedComment — happy path', () => {
       messageAvailable: false,
       createdTime: new Date(1786364410 * 1000),
       verb: 'add',
+      attachment: null,
+      post: { permalinkUrl: null, statusType: null },
     })
   })
 
@@ -232,5 +234,35 @@ describe('parseFeedComment — missing and hostile input', () => {
 
     expect(a).toEqual(b)
     expect(JSON.stringify(input)).toBe(snapshot)
+  })
+})
+
+describe('parseFeedComment — attachment and post context from the webhook', () => {
+  it('keeps an attached photo (preferred) or video, https only', () => {
+    expect(parseFeedComment(PAGE, { ...base, photo: 'https://scontent.xx.fbcdn.net/a.jpg', video: 'https://v.fb/x' })!.attachment).toEqual({
+      type: 'photo',
+      url: 'https://scontent.xx.fbcdn.net/a.jpg',
+    })
+    expect(parseFeedComment(PAGE, { ...base, video: 'https://video.xx.fbcdn.net/v.mp4' })!.attachment).toEqual({
+      type: 'video',
+      url: 'https://video.xx.fbcdn.net/v.mp4',
+    })
+    expect(parseFeedComment(PAGE, { ...base, photo: 'http://insecure/a.jpg' })!.attachment).toBeNull()
+    expect(parseFeedComment(PAGE, { ...base, photo: 'javascript:alert(1)' })!.attachment).toBeNull()
+  })
+
+  it("keeps the post's permalink only when it is Facebook's, plus its status_type", () => {
+    const ok = parseFeedComment(PAGE, {
+      ...base,
+      post: { permalink_url: 'https://www.facebook.com/x/posts/1', status_type: 'added_photos', id: 'ignored' },
+    })!
+    expect(ok.post).toEqual({ permalinkUrl: 'https://www.facebook.com/x/posts/1', statusType: 'added_photos' })
+    const evil = parseFeedComment(PAGE, { ...base, post: { permalink_url: 'https://facebook.com.evil.example/x' } })!
+    expect(evil.post.permalinkUrl).toBeNull()
+  })
+
+  it('never reads tenancy from the post object', () => {
+    const e = parseFeedComment(PAGE, { ...base, post: { id: 'OTHER_PAGE_1', page_id: 'OTHER_PAGE' } })!
+    expect(e.pageId).toBe(PAGE)
   })
 })

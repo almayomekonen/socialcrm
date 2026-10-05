@@ -1,132 +1,122 @@
-import { formatDateTime } from '@/lib/dates'
-import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
-import LeadAvatar from '@/components/ui/lead-avatar'
-import ConvertCommentButton from './ConvertCommentButton'
-import CommentThread from './CommentThread'
-import CommentReplyForm from './CommentReplyForm'
-import { facebookCommentUrl } from '@/lib/facebook/comments/links'
+'use client'
+
+import { useState } from 'react'
+import { Btn } from '@/lib/btns/Btn'
 import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thread'
-import { badgeStatus, hasLeadSlot } from '../rowState'
-import type { CommentListItem, CommentReply, CommentStatus } from '../types'
+import CommentCard from './CommentCard'
+import { loadMoreComments } from '../listActions'
+import type { CommentListItem, CommentPost, CommentReply, CommentsCursor, CommentStatusFilter } from '../types'
 
 /**
- * Comment rows for the Comments Inbox.
+ * The comments inbox feed: one card per comment, newest first, and "טען עוד
+ * תגובות" while the server reports another page.
  *
- * Row anatomy follows `modules/inbox/components/InboxConversationRow.tsx` —
- * avatar, name, timestamp, body, channel footer — so the two Inbox surfaces
- * read as one product rather than two.
- *
- * NO CONTACT DETAILS ARE SHOWN OR IMPLIED. A Facebook comment carries a display
- * name and a page-scoped id: no phone, no email. Rendering a call or mail
- * affordance here would be inventing data.
+ * Every card renders from data the server already loaded for its page —
+ * comments, threads and posts in three queries — so nothing here calls Graph.
+ * Later pages are appended; a comment already on screen (e.g. after a refresh
+ * shifted the first page) is never shown twice.
  */
-
-const STATUS_BADGE: Partial<Record<CommentStatus, { label: string; cls: string }>> = {
-  converted: { label: 'הומר לליד', cls: 'bg-green-50 text-green-700' },
-  ignored: { label: 'התעלמת', cls: 'bg-gray-100 text-gray-600' },
-  deleted: { label: 'נמחקה בפייסבוק', cls: 'bg-gray-100 text-gray-500' },
-}
-
 export default function CommentsList({
   comments,
   replies = [],
+  posts = [],
   replyablePageIds = [],
   leavesViewOnConvert = false,
+  nextCursor = null,
+  status = 'all',
+  touch = false,
 }: {
   comments: CommentListItem[]
   /** Thread entries for the listed comments (see listCommentReplies). */
   replies?: CommentReply[]
+  /** Post context for the listed comments (see listCommentPosts). */
+  posts?: CommentPost[]
   /** Pages whose recorded grant includes the reply permission. */
   replyablePageIds?: string[]
   /** The list is filtered to open comments: a converted row drops out on refresh. */
   leavesViewOnConvert?: boolean
+  nextCursor?: CommentsCursor | null
+  status?: CommentStatusFilter
+  /** Phone: larger tap targets. */
+  touch?: boolean
 }) {
-  const threads = groupRepliesByThread(replies)
+  const [more, setMore] = useState<{ items: CommentListItem[]; replies: CommentReply[]; posts: CommentPost[] }>({
+    items: [],
+    replies: [],
+    posts: [],
+  })
+  const [cursor, setCursor] = useState<CommentsCursor | null>(null)
+  const [exhausted, setExhausted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  const firstIds = new Set(comments.map((c) => c.commentId))
+  const all = [...comments, ...more.items.filter((c) => !firstIds.has(c.commentId))]
+  const threads = groupRepliesByThread([...replies, ...more.replies])
+  const postByKey = new Map([...posts, ...more.posts].map((p) => [`${p.pageId}:${p.postId}`, p]))
   const replyable = new Set(replyablePageIds)
+  const next = exhausted ? null : (cursor ?? nextCursor)
+
+  const loadMore = async () => {
+    if (loading || !next) return
+    setLoading(true)
+    setFailed(false)
+    try {
+      const res = await loadMoreComments(status, next)
+      if (!('items' in res)) {
+        setFailed(true)
+        return
+      }
+      setMore((m) => ({
+        items: [...m.items, ...res.items],
+        replies: [...m.replies, ...res.replies],
+        posts: [...m.posts, ...res.posts],
+      }))
+      setCursor(res.nextCursor)
+      if (!res.nextCursor) setExhausted(true)
+    } catch {
+      setFailed(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <ul className='divide-y divide-gray-100 rounded-md border border-gray-200 bg-white'>
-      {comments.map((c) => {
-        // createdTime is nullable (Meta may omit created_time); receivedAt is
-        // not, so the row always has an honest timestamp to show.
-        const when = c.createdTime ?? c.receivedAt
-        const shown = badgeStatus(c)
-        const badge = shown ? STATUS_BADGE[shown] : undefined
-        const thread = threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []
-        const facebookUrl = facebookCommentUrl(c.postId, c.commentId)
-
-        return (
-          <li
-            key={c.commentId}
-            data-comment-id={c.commentId}
-            data-post-id={c.postId}
-            className='flex gap-2.5 px-3 py-2.5'
-          >
-            <LeadAvatar name={c.authorName} size='sm' />
-
-            <div className='min-w-0 flex-1'>
-              <div className='flex flex-wrap items-center justify-between gap-x-2 gap-y-1'>
-                <span className='truncate text-sm font-medium text-gray-900'>
-                  {c.authorName ?? 'מגיב מפייסבוק'}
-                </span>
-                <time className='shrink-0 text-[11px] tabular-nums text-gray-400' dateTime={when.toISOString()}>
-                  {formatDateTime(when)}
-                </time>
-              </div>
-
-              {c.messageAvailable ? (
-                <p className='mt-0.5 text-sm break-words whitespace-pre-wrap text-gray-700'>{c.message}</p>
-              ) : (
-                // Deliberate, not broken: Meta withholds comment text until
-                // pages_read_user_content is granted.
-                <p className='mt-0.5 text-sm text-gray-400 italic'>תוכן התגובה עדיין לא זמין</p>
-              )}
-
-              <div className='mt-1 flex flex-wrap items-center gap-x-2 gap-y-1'>
-                <span className='inline-flex items-center gap-1 text-xs text-gray-500'>
-                  <ChannelIcon channel='facebook' className='size-3' />
-                  פייסבוק
-                </span>
-                {!c.isTopLevel && <span className='text-[11px] text-gray-500'>תגובה לתגובה</span>}
-                {badge && (
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>
-                    {badge.label}
-                  </span>
-                )}
-
-                {/* The ליד slot: "צור ליד" for a live, unconverted comment, "פתח ליד"
-                    (the standard /clients/{id}/summary route) once linked. One
-                    component in one position, so a click's confirmation survives
-                    the refresh that follows it. See rowState for who gets one. */}
-                {hasLeadSlot(c) && (
-                  <ConvertCommentButton
-                    commentId={c.commentId}
-                    convertedLeadId={c.convertedLeadId}
-                    leavesViewOnConvert={leavesViewOnConvert}
-                  />
-                )}
-
-                {/* The post the comment was left on, opened at this comment. External. */}
-                {facebookUrl && (
-                  <a
-                    href={facebookUrl}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='text-[11px] text-primary underline underline-offset-2'
-                  >
-                    פתח את הפוסט בפייסבוק
-                  </a>
-                )}
-              </div>
-
-              <CommentThread replies={thread} excludeCommentId={c.commentId} />
-
-              {c.status !== 'deleted' && replyable.has(c.pageId) && (
-                <CommentReplyForm commentId={c.commentId} authorName={c.authorName} />
-              )}
-            </div>
+    // A readable column, aligned to the start (right in RTL) under the filter —
+    // full-width cards on a wide screen make 1,300px lines of comment text.
+    <div className='grid w-full max-w-3xl gap-3'>
+      <ul className='grid gap-3' aria-label='תגובות מפייסבוק'>
+        {all.map((c) => (
+          <li key={c.commentId} data-comment-id={c.commentId} data-post-id={c.postId}>
+            <CommentCard
+              comment={c}
+              post={postByKey.get(`${c.pageId}:${c.postId}`)}
+              thread={threads.get(`${c.pageId}:${threadRootId(c)}`) ?? []}
+              canReply={replyable.has(c.pageId)}
+              leavesViewOnConvert={leavesViewOnConvert}
+              touch={touch}
+            />
           </li>
-        )
-      })}
-    </ul>
+        ))}
+      </ul>
+
+      {next && (
+        <div className={`flex flex-col items-center gap-1.5 ${touch ? '[&_button]:min-h-11' : ''}`}>
+          <Btn
+            variant='outline'
+            lbl={loading ? 'טוען תגובות...' : 'טען עוד תגובות'}
+            icon={loading ? 'spinner' : undefined}
+            iconClassName={loading ? 'animate-spin' : undefined}
+            disabled={loading}
+            onClick={loadMore}
+          />
+          {failed && (
+            <p role='alert' className='text-xs text-error-text'>
+              לא הצלחנו לטעון עוד תגובות. נסה שוב.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
