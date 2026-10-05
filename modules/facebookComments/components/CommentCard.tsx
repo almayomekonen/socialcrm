@@ -91,7 +91,7 @@ export default function CommentCard({
   return (
     <article
       aria-label={`תגובה מאת ${c.authorName ?? 'מגיב מפייסבוק'}`}
-      className='rounded-lg border border-gray-200 bg-white p-3.5 shadow-xs sm:p-4'
+      className='flex flex-col rounded-lg border border-gray-200 bg-white p-3.5 shadow-xs sm:p-4'
     >
       <header className='flex items-start gap-3'>
         <MessengerAvatar name={c.authorName} picUrl={c.authorPictureUrl ?? null} size='md' />
@@ -136,34 +136,36 @@ export default function CommentCard({
 
       <CommentThread replies={fullThread} excludeCommentId={c.commentId} />
 
-      {(hasLeadSlot(c) || (replyable && !composing)) && (
-        <div
-          className={`mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 ${touch ? '[&_a]:min-h-11 [&_button]:min-h-11' : ''}`}
-        >
-          {/* The ליד slot — see rowState for who gets one. */}
-          {hasLeadSlot(c) && (
-            <ConvertCommentButton
-              commentId={c.commentId}
-              convertedLeadId={c.convertedLeadId}
-              leavesViewOnConvert={leavesViewOnConvert}
-            />
-          )}
-          {replyable && !composing && (
-            <Btn variant='outline' size='small' lbl='ענה לתגובה' onClick={() => setComposing(true)} />
-          )}
-        </div>
-      )}
+      <div>
+        {(hasLeadSlot(c) || (replyable && !composing)) && (
+          <div
+            className={`mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 ${touch ? '[&_a]:min-h-11 [&_button]:min-h-11' : ''}`}
+          >
+            {/* The ליד slot — see rowState for who gets one. */}
+            {hasLeadSlot(c) && (
+              <ConvertCommentButton
+                commentId={c.commentId}
+                convertedLeadId={c.convertedLeadId}
+                leavesViewOnConvert={leavesViewOnConvert}
+              />
+            )}
+            {replyable && !composing && (
+              <Btn variant='outline' size='small' lbl='ענה לתגובה' onClick={() => setComposing(true)} />
+            )}
+          </div>
+        )}
 
-      {replyable && composing && (
-        <div className={touch ? '[&_button]:min-h-11' : ''}>
-          <CommentReplyForm
-            commentId={c.commentId}
-            authorName={c.authorName}
-            onSent={onSent}
-            onCancel={() => setComposing(false)}
-          />
-        </div>
-      )}
+        {replyable && composing && (
+          <div className={touch ? '[&_button]:min-h-11' : ''}>
+            <CommentReplyForm
+              commentId={c.commentId}
+              authorName={c.authorName}
+              onSent={onSent}
+              onCancel={() => setComposing(false)}
+            />
+          </div>
+        )}
+      </div>
     </article>
   )
 }

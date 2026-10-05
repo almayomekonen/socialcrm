@@ -334,3 +334,57 @@ describe('load more — filter changes', () => {
     expect(more).toHaveBeenLastCalledWith('open', openCursor)
   })
 })
+
+describe('card grid and the post image', () => {
+  it('lays cards out as a grid on the feed width: one column, two once the feed is wide — never capped to a narrow column', () => {
+    const { container } = render(<CommentsList comments={[item(), item({ id: 2, commentId: 'C2' })]} />)
+    const feed = container.querySelector('[class*="@container/feed"]')!
+    expect(feed).toBeTruthy()
+    expect(feed.className).not.toMatch(/max-w-3xl/)
+    const grid = screen.getByRole('list', { name: 'תגובות מפייסבוק' })
+    expect(grid.className).toMatch(/\bgrid-cols-1\b/)
+    expect(grid.className).toContain('@4xl/feed:grid-cols-2')
+  })
+
+  it('cards are as tall as their content — a short card is never stretched into dead space', () => {
+    const { container } = render(<CommentsList comments={[item()]} replyablePageIds={[PAGE]} />)
+    expect(screen.getByRole('list', { name: 'תגובות מפייסבוק' }).className).toMatch(/\bitems-start\b/)
+    expect(container.querySelector('article')!.className).not.toMatch(/\bh-full\b/)
+  })
+
+  it('keeps the commenter avatar at its existing size', () => {
+    const { container } = render(<CommentsList comments={[item({ authorPictureUrl: 'https://scontent.xx.fbcdn.net/dana.jpg' })]} />)
+    expect(container.querySelector('article header img')!.className).toMatch(/\bsize-10\b/)
+  })
+
+  it('the post image spans the card, keeps its aspect ratio, and is capped without stretching or cropping', () => {
+    const { container } = render(<CommentsList comments={[item()]} posts={[post()]} />)
+    const img = container.querySelector('[data-post-image] img')!
+    expect(img).toHaveAttribute('src', 'https://scontent.xx.fbcdn.net/post.jpg')
+    for (const cls of ['w-full', 'h-auto', 'max-h-64', 'object-contain']) expect(img.className).toContain(cls)
+    expect(img.className).not.toMatch(/size-12|object-cover/)
+  })
+
+  it('clicking the image opens the post; the text link stays the single accessible link', () => {
+    const { container } = render(<CommentsList comments={[item()]} posts={[post()]} />)
+    const imageLink = container.querySelector('a[data-post-image]')!
+    expect(imageLink).toHaveAttribute('href', 'https://www.facebook.com/1175908668934802_122113311069337165?comment_id=987654321')
+    expect(imageLink).toHaveAttribute('target', '_blank')
+    expect(imageLink).toHaveAttribute('tabindex', '-1')
+    expect(imageLink).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getAllByRole('link', { name: 'פתח את הפוסט בפייסבוק' })).toHaveLength(1)
+  })
+
+  it('a post without an image shows no empty image frame', () => {
+    const { container } = render(<CommentsList comments={[item()]} posts={[post({ pictureUrl: null })]} />)
+    expect(container.querySelector('[data-post-image]')).toBeNull()
+    expect(screen.getByText('מבצע סוף עונה על כל הקולקציה')).toBeInTheDocument()
+  })
+
+  it('a post image that no longer loads leaves the excerpt and link, not a broken frame', () => {
+    const { container } = render(<CommentsList comments={[item()]} posts={[post()]} />)
+    fireEvent.error(container.querySelector('[data-post-image] img')!)
+    expect(container.querySelector('[data-post-image]')).toBeNull()
+    expect(screen.getByRole('link', { name: 'פתח את הפוסט בפייסבוק' })).toBeInTheDocument()
+  })
+})
