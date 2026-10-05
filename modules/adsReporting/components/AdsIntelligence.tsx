@@ -71,6 +71,7 @@ export default function AdsIntelligence({
               creatives={data.creatives}
               outcomes={data.outcomes.ad}
               currency={currency}
+              videoPreview
             />
           )}
         </>
