@@ -44,10 +44,11 @@ export default async function ConnectedToolsSection({ user }: { user: { id: numb
   return (
     <div className='grid max-w-3xl grid-cols-2 gap-4 mobile:grid-cols-1'>
       <CalendarConnect state={calendarState} email={conn?.google_email ?? null} lastError={conn?.last_error ?? null} />
-      {aiConnections && <AiConnections connections={aiConnections} mcpUrl={mcpUrl} />}
       {INTEGRATIONS.map((integration) => (
         <IntegrationCard key={integration.id} integration={integration} />
       ))}
+      {/* Last, spanning both columns: Calendar and Drive share the row above it. */}
+      {aiConnections && <AiConnections connections={aiConnections} mcpUrl={mcpUrl} />}
     </div>
   )
 }
