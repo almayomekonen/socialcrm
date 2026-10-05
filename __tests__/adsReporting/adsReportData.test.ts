@@ -10,6 +10,7 @@ vi.hoisted(() => {
 
 import { getAdsReport } from '@/lib/facebook/ads/report'
 import { getAdsBreakdown } from '@/lib/facebook/ads/breakdown'
+import { MAX_STATUS_LOOKUPS } from '@/lib/facebook/ads/insights'
 
 type Call = { url: URL; init: RequestInit }
 let calls: Call[] = []
@@ -27,7 +28,11 @@ function mockGraph(handler: Handler) {
 
 const act = (type: string, value: number) => ({ action_type: type, value: String(value) })
 const q = (c: Call, k: string) => c.url.searchParams.get(k)
-const isStatusLookup = (u: URL) => u.searchParams.has('ids')
+// One object per request: GET /{vNN.N}/{id}?fields=effective_status (Graph v26 removed `GET /?ids=`).
+const isStatusLookup = (u: URL) => u.searchParams.get('fields') === 'effective_status'
+const lookedUpId = (u: URL) => u.pathname.split('/').pop()!
+/** A per-object status response, from an { id: status } table. */
+const statusOf = (table: Record<string, string>) => (u: URL) => ({ body: { id: lookedUpId(u), effective_status: table[lookedUpId(u)] } })
 
 const TOTALS = {
   date_start: '2026-08-16', date_stop: '2026-09-14',
@@ -42,7 +47,7 @@ const CAMPAIGNS = [
 
 function happy(overrides: Partial<Record<'previous' | 'daily' | 'status' | 'campaign', { status: number; body: unknown }>> = {}): Handler {
   return (u) => {
-    if (isStatusLookup(u)) return overrides.status ?? { body: { 111: { effective_status: 'ACTIVE' }, 222: { effective_status: 'PAUSED' } } }
+    if (isStatusLookup(u)) return overrides.status ?? statusOf({ 111: 'ACTIVE', 222: 'PAUSED' })(u)
     const level = u.searchParams.get('level')
     if (level === 'campaign') return overrides.campaign ?? { body: { data: CAMPAIGNS } }
     if (u.searchParams.get('time_increment') === '1') return overrides.daily ?? { body: { data: [{ date_start: '2026-08-16', spend: '30', impressions: '1500', inline_link_clicks: '20' }] } }
@@ -165,19 +170,22 @@ describe('getAdsReport — partial failures are flagged, never shown as zero', (
     expect(await getAdsReport('T', 'act_9', RANGE)).toEqual({ ok: false, reason: 'rate_limited' })
   })
 
-  it('status lookups batch ids 50 at a time, only ids Meta returned', async () => {
+  it('status lookups read one object per request (no root ids list), only ids Meta returned, capped', async () => {
     const many = Array.from({ length: 120 }, (_, i) => ({ campaign_id: String(1000 + i), campaign_name: `c${i}`, objective: 'OUTCOME_TRAFFIC', spend: '1', impressions: '10' }))
-    mockGraph((u) => (u.searchParams.get('level') === 'campaign' ? { body: { data: many } } : isStatusLookup(u) ? { body: {} } : happy()(u)))
+    mockGraph((u) => (u.searchParams.get('level') === 'campaign' ? { body: { data: many } } : isStatusLookup(u) ? statusOf({})(u) : happy()(u)))
     await getAdsReport('T', 'act_9', RANGE)
     const lookups = calls.filter((c) => isStatusLookup(c.url))
-    expect(lookups.map((c) => q(c, 'ids')!.split(',').length)).toEqual([50, 50, 20])
+    expect(lookups).toHaveLength(MAX_STATUS_LOOKUPS)
+    expect(lookups.every((c) => !c.url.searchParams.has('ids') && /^\/v\d+\.\d\/\d+$/.test(c.url.pathname))).toBe(true)
+    expect(new Set(lookups.map((c) => lookedUpId(c.url))).size).toBe(MAX_STATUS_LOOKUPS)
+    expect(lookups.every((c) => Number(lookedUpId(c.url)) >= 1000 && Number(lookedUpId(c.url)) < 1120)).toBe(true)
   })
 })
 
 describe('getAdsBreakdown — drill-down stays inside the verified account', () => {
   it('ad sets of a campaign: filtered on campaign.id through the account’s own insights edge', async () => {
     mockGraph((u) => (isStatusLookup(u)
-      ? { body: { 501: { effective_status: 'ACTIVE' } } }
+      ? statusOf({ 501: 'ACTIVE' })(u)
       : { body: { data: [
           { adset_id: '501', adset_name: 'Tel Aviv 25-45', campaign_id: '111', campaign_name: 'Leads Sept', objective: 'OUTCOME_LEADS', spend: '400', impressions: '9000', actions: [act('lead', 16)] },
           { adset_id: '999', adset_name: 'other campaign', campaign_id: '777', objective: 'OUTCOME_LEADS', spend: '1' },

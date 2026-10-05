@@ -1,14 +1,16 @@
-import { graphRequest } from '@/lib/facebook/graphClient'
 import { readSnapshots, writeSnapshot } from '@/db/adsSnapshots'
 import { adsFail, isAdObjectId } from '@/lib/facebook/ads/insights'
 import { CREATIVE_TTL_MS, STALE_MAX_MS } from '@/lib/facebook/ads/cached'
+import { readObjects } from '@/lib/facebook/ads/perObject'
 
 /**
  * What an ad looks like, so the report can show it instead of an id.
  *
- * Two documented `ads_read` reads (Ad Creative reference, checked 2026-10-06):
- *   1. GET /?ids={ad ids}&fields=creative{id}          — each ad's creative
- *   2. GET /?ids={creative ids}&fields=image_url,thumbnail_url,object_type,video_id
+ * Two documented `ads_read` reads per ad (Ad Creative reference, checked
+ * 2026-10-06), one object per request (perObject.ts — `GET /?ids=` is removed
+ * from Graph API on 2026-10-27):
+ *   1. GET /{ad id}?fields=creative{id}                — the ad's creative
+ *   2. GET /{creative id}?fields=image_url,thumbnail_url,object_type,video_id
  *        &thumbnail_width=600&thumbnail_height=600     — "URL for a thumbnail image
  *        for this ad creative", sized by the documented thumbnail_* parameters.
  *
@@ -26,7 +28,6 @@ export type AdCreative = {
 }
 
 export const MAX_CREATIVE_ADS = 60
-const BATCH = 50
 const THUMB_PX = 600
 
 const https = (v: unknown): string | null => {
@@ -47,42 +48,33 @@ export function creativeOf(node: Record<string, unknown> | undefined): AdCreativ
 }
 
 async function fetchCreatives(token: string, adIds: string[]): Promise<Map<string, AdCreative> | null> {
+  const ads = await readObjects<{ creative?: { id?: unknown } }>(
+    token,
+    adIds,
+    { fields: 'creative{id}' },
+    { max: MAX_CREATIVE_ADS },
+  )
+  if (ads.error) {
+    adsFail(ads.error, 'ad creatives')
+    return null
+  }
   const creativeOfAd = new Map<string, string>()
-  for (let i = 0; i < adIds.length; i += BATCH) {
-    const res = await graphRequest<Record<string, { creative?: { id?: unknown } }>>({
-      path: '/',
-      token,
-      query: { ids: adIds.slice(i, i + BATCH).join(','), fields: 'creative{id}' },
-    })
-    if ('error' in res) {
-      adsFail(res.error, 'ad creatives')
-      return null
-    }
-    for (const [adId, ad] of Object.entries(res.data ?? {})) {
-      const cid = ad?.creative?.id
-      if (typeof cid === 'string' && isAdObjectId(cid)) creativeOfAd.set(adId, cid)
-    }
+  for (const [adId, ad] of ads.values) {
+    const cid = ad.creative?.id
+    if (typeof cid === 'string' && isAdObjectId(cid)) creativeOfAd.set(adId, cid)
   }
 
-  const creativeIds = [...new Set(creativeOfAd.values())]
-  const nodes = new Map<string, Record<string, unknown>>()
-  for (let i = 0; i < creativeIds.length; i += BATCH) {
-    const res = await graphRequest<Record<string, Record<string, unknown>>>({
-      path: '/',
-      token,
-      query: {
-        ids: creativeIds.slice(i, i + BATCH).join(','),
-        fields: 'image_url,thumbnail_url,object_type,video_id',
-        thumbnail_width: THUMB_PX,
-        thumbnail_height: THUMB_PX,
-      },
-    })
-    if ('error' in res) {
-      adsFail(res.error, 'creative images')
-      return null
-    }
-    for (const [id, node] of Object.entries(res.data ?? {})) nodes.set(id, node)
+  const creatives = await readObjects<Record<string, unknown>>(
+    token,
+    [...new Set(creativeOfAd.values())],
+    { fields: 'image_url,thumbnail_url,object_type,video_id', thumbnail_width: THUMB_PX, thumbnail_height: THUMB_PX },
+    { max: MAX_CREATIVE_ADS },
+  )
+  if (creatives.error) {
+    adsFail(creatives.error, 'creative images')
+    return null
   }
+  const nodes = creatives.values
 
   const out = new Map<string, AdCreative>()
   for (const adId of adIds) {

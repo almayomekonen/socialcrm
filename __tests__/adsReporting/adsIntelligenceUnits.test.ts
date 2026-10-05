@@ -59,21 +59,38 @@ describe('creativeOf — creative image mapping', () => {
   })
 })
 
-describe('getAdCreatives — two documented reads, cached per ad', () => {
-  const okAds = () => ({ ok: true, data: { '11': { creative: { id: '901' } }, '12': { creative: { id: '902' } } } })
-  const okCreatives = () => ({
-    ok: true,
-    data: { '901': { image_url: 'https://cdn/a.jpg' }, '902': { thumbnail_url: 'https://cdn/v.jpg', object_type: 'VIDEO' } },
-  })
+describe('getAdCreatives — two documented reads per ad, one object per request, cached per ad', () => {
+  // GET /{id} per object (Graph v26 removed `GET /?ids=`); responses keyed by the object asked for.
+  const objects: Record<string, unknown> = {
+    '/11': { id: '11', creative: { id: '901' } },
+    '/12': { id: '12', creative: { id: '902' } },
+    '/901': { id: '901', image_url: 'https://cdn/a.jpg' },
+    '/902': { id: '902', thumbnail_url: 'https://cdn/v.jpg', object_type: 'VIDEO' },
+  }
+  const perObject = (req: { path: string }) => Promise.resolve({ ok: true, data: objects[req.path] })
 
-  it('reads ad → creative → image, asking for a 600px thumbnail, and caches each ad', async () => {
-    h.graph.mockResolvedValueOnce(okAds()).mockResolvedValueOnce(okCreatives())
+  it('reads ad → creative → image per object, on the ads API version, asking for a 600px thumbnail', async () => {
+    h.graph.mockImplementation(perObject)
     const out = await getAdCreatives(SCOPE, 'TOKEN', ['11', '12'], NOW)
     expect(out.get('11')).toEqual({ imageUrl: 'https://cdn/a.jpg', isVideo: false })
     expect(out.get('12')).toEqual({ imageUrl: 'https://cdn/v.jpg', isVideo: true })
-    expect(h.graph.mock.calls[0][0].query).toMatchObject({ ids: '11,12', fields: 'creative{id}' })
-    expect(h.graph.mock.calls[1][0].query).toMatchObject({ ids: '901,902', thumbnail_width: 600, thumbnail_height: 600 })
+    const reqs = h.graph.mock.calls.map((c) => c[0])
+    expect(reqs.map((r) => r.path).sort()).toEqual(['/11', '/12', '/901', '/902'])
+    expect(reqs.every((r) => r.version === 'v26.0' && !('ids' in (r.query ?? {})))).toBe(true)
+    expect(reqs.filter((r) => r.path === '/11')[0].query).toEqual({ fields: 'creative{id}' })
+    expect(reqs.filter((r) => r.path === '/901')[0].query).toMatchObject({ thumbnail_width: 600, thumbnail_height: 600 })
     expect(h.writes.map((w) => w.key).sort()).toEqual(['11', '12'])
+  })
+
+  it('an ad Meta says is gone (100/33) gets the fallback; the others still load', async () => {
+    h.graph.mockImplementation((req: { path: string }) =>
+      req.path === '/12'
+        ? Promise.resolve({ ok: false, error: { kind: 'graph', status: 400, code: 100, subcode: 33, type: null, message: null } })
+        : perObject(req),
+    )
+    const out = await getAdCreatives(SCOPE, 'TOKEN', ['11', '12'], NOW)
+    expect(out.get('11')?.imageUrl).toBe('https://cdn/a.jpg')
+    expect(out.get('12')).toEqual({ imageUrl: null, isVideo: false })
   })
 
   it('a fresh cached creative costs no Graph call', async () => {
