@@ -18,6 +18,41 @@ No polished Builder UI.
 
 ---
 
+## 0. Implementation notes (PR1 as built, 2026-10-06)
+
+Where the implementation deliberately differs from the design below:
+
+- **Publish is not activation.** Publish writes the revision row and the live copy
+  (`auto_response_settings.questionnaire`, only when a settings row exists). It never
+  writes `responder` / `enabled`, and never creates a settings row (§12).
+- **No `processJob` refactor (§10).**
+  - Every decision function the simulator needs was already pure and shared:
+    `inboundInputs`, `firstAskedAt`, `decideQuestionnaireTurn` (matching, validation,
+    not-set, customer questions, corrections, bursts, branching, endings) and the
+    renderers.
+  - The only logic production runs in SQL is the session bookkeeping. The simulator
+    mirrors it (`builder/simulate.ts`), and the parity test against the real worker
+    guards it (`builderParity.db.test.ts`, 14 scenarios). A mutation check confirmed
+    the test catches a divergence.
+  - The deployed runtime is unchanged.
+- **Builder field names.** A custom ending's condition is `sentWhen` (not `when`), so
+  no engine word reaches the API.
+- **The draft is stored in runtime form.** Save therefore refuses what the V1 runtime
+  cannot hold, rather than dropping it:
+  - more than one condition on a question;
+  - a custom ending without exactly one condition;
+  - "not understood" messages on a choice question.
+- **Staff script:**
+  - `--publish` publishes only, through the service.
+  - `--enable` checks the settings row exists, publishes through the service, then
+    routes the agency as a separate explicit step.
+  - It refuses over an owner draft unless `--discard-draft` is given.
+- **Immutability:** enforced by the trigger. The only escape is a transaction-local
+  purge (`SET LOCAL questionnaire.allow_purge = 'on'`), which permits DELETE only, never
+  UPDATE. It exists for agency deletion and test cleanup.
+- **`openDraft` refuses `history_missing`** if a live definition exists with no
+  recorded revision (i.e. before the backfill), instead of guessing.
+
 ## 1. Decisions recorded
 
 | Decision | Status |
@@ -454,12 +489,12 @@ BEGIN
      WHERE id = :draftId AND status = 'draft' AND "draftVersion" = :expectedVersion
     · rowCount ≠ 1 → ROLLBACK, version_conflict
     (the trigger allows this: OLD.status is 'draft')
- 5. INSERT INTO auto_response_settings ("agencyId", channel, questionnaire, responder, "updatedBy", "updatedAt")
-    VALUES (:agencyId, 'whatsapp', :definition, 'questionnaire', :userId, now())
-    ON CONFLICT ("agencyId", channel) DO UPDATE
-       SET questionnaire = EXCLUDED.questionnaire, responder = 'questionnaire',
-           "updatedBy" = EXCLUDED."updatedBy", "updatedAt" = now()
-    -- a new row keeps enabled = false (column default): publishing never turns sending on
+ 5. UPDATE auto_response_settings
+       SET questionnaire = :definition, "updatedBy" = :userId, "updatedAt" = now()
+     WHERE "agencyId" = :agencyId AND channel = 'whatsapp'
+    -- ONLY the live definition. `responder`, `enabled` and the master switch are never written:
+    -- publishing is not activation (decision 2026-10-06). No settings row → none is created;
+    -- the revision exists, and a future activation flow writes the live copy when it turns routing on.
 COMMIT
 after commit: track('questionnaire_published', { revision, source })  -- best effort, outside the transaction
 ```
@@ -468,8 +503,15 @@ after commit: track('questionnaire_published', { revision, source })  -- best ef
 - Any failure rolls back everything, so there is no partial publish.
 - The unique `(agencyId, channel, revision)` index is the last-line guard against a
   duplicate revision number.
-- Publishing does not bypass the runtime rollout gate (`WA_QUESTIONNAIRE_AGENCY_IDS`)
-  or the owner's switches.
+- **Publishing never changes routing.** It does not set `responder`, `enabled` or the
+  master switch, and does not create a settings row (decision 2026-10-06: publish ≠
+  activate).
+  - An agency already routed to the questionnaire runs the new revision for new
+    conversations.
+  - An agency on the AI agent stays on the AI agent, with the new definition stored
+    and inert.
+  - A new agency gets only the revision row.
+- Publishing does not bypass the runtime rollout gate (`WA_QUESTIONNAIRE_AGENCY_IDS`).
 
 ## 13. Idempotency
 
@@ -614,9 +656,10 @@ these same controls in a later PR.
    - the closing;
    - summary `תאריך: טרם נקבע`.
 6. `publishQuestionnaireDraft` → `revision: 1`.
-   - A settings row is created with `responder = 'questionnaire'` and `enabled = false`.
-   - **Nothing sends** until the owner turns the channel on, and the agency is in the
-     runtime rollout gate.
+   - **No settings row is created and routing is untouched**, so nothing customer-facing
+     starts.
+   - A future activation flow copies the current revision into settings and switches
+     routing.
 
 ---
 
@@ -717,8 +760,8 @@ consumers, `tsc`, `next build`.
 | The `processJob` refactor changes runtime behaviour | Pure extraction; all existing worker, race, pinning and ownership DB suites must pass unchanged |
 | The conversion is lossy for a future runtime field | Round-trip test on all real definitions fails loudly when a field is added without a Builder counterpart |
 | The simulator diverges from production | Shared functions only; the parity corpus runs both paths |
-| Publishing for a new agency surprises the settings page (a row now exists, `enabled = false`) | **Unverified:** PR1 must check how `auto-response/page.tsx` and `AutoResponseMobile` render a row created by publish, and cover it with a test |
-| Publish always sets `responder = 'questionnaire'`, so it re-activates an agency staff had switched back to the agent | Intended ("publish" means "this is the questionnaire"); the confirmation names it; switches still gate sending |
+| Publishing for a new agency surprises the settings page | Resolved by design: publish creates no settings row. Tested through the page's real read path (`getMasterEnabled` / `getChannelSettings`) and the mobile component |
+| Publish reactivates an agency staff switched back to the agent | Resolved by design: publish never writes `responder`; tested for all three cases |
 | A trigger in the schema | Included in the CI schema check; `down()` drops it |
 | Self-service publish to agencies outside the runtime gate | Publishing never bypasses `WA_QUESTIONNAIRE_AGENCY_IDS`; the Builder has its own absence-blocks flag |
 
