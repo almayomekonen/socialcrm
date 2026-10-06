@@ -13,6 +13,7 @@
 import { detectOptOut } from '../optOutDetect'
 import { isExplicitPersonRequest } from '../salesIntent'
 import type { QuestionnaireChoiceStep } from './definition'
+import { matchAliases, stepHasAliases } from './aliasMatch'
 
 /** What kind of thing the customer sent, from inbox_messages.type. */
 export type InboundKind = 'text' | 'voice' | 'media' | 'ignorable'
@@ -74,18 +75,35 @@ function asciiDigits(text: string): string {
   })
 }
 
-export type ChoiceParse = { ok: true; optionIds: string[] } | { ok: false; reason: 'unreadable' | 'too_many' }
+/** `via: 'alias'`: read from the customer's own words, so the caller keeps them (aliasMatch.ts). */
+export type ChoiceParse =
+  | { ok: true; optionIds: string[]; via?: 'alias' }
+  | { ok: false; reason: 'unreadable' | 'too_many' }
 
 /**
  * A numbered menu answer: "2", "2.", "2)", "1,3", "1 3", or the option's own
  * label typed out. Every token must resolve, because a message like "2 ואולי 5"
  * is a person thinking out loud, not a selection, and guessing which half they
  * meant is exactly the behaviour this feature exists to avoid.
+ *
+ * A step whose options list aliases also reads a natural reply that names
+ * exactly one option ("רק בערב אחרי העבודה"); see aliasMatch.ts.
  */
 export function parseChoice(text: string, step: QuestionnaireChoiceStep): ChoiceParse {
   const normalized = asciiDigits(normalizeForMatch(text))
   if (!normalized) return { ok: false, reason: 'unreadable' }
 
+  // Only a step whose options list aliases reads natural answers; every other
+  // step keeps the numbered-menu rule above, unchanged.
+  const numbered = parseNumbered(normalized, step)
+  if (numbered.ok === false && numbered.reason === 'too_many') return numbered
+  if (numbered.ok || !stepHasAliases(step)) return numbered
+  const ids = matchAliases(normalized, step)
+  if (ids.length === 1 || (ids.length > 1 && step.multi === true)) return { ok: true, optionIds: ids, via: 'alias' }
+  return { ok: false, reason: 'unreadable' }
+}
+
+function parseNumbered(normalized: string, step: QuestionnaireChoiceStep): ChoiceParse {
   const labelMatch = matchLabel(normalized, step)
   if (labelMatch) return { ok: true, optionIds: [labelMatch] }
 

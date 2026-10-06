@@ -21,6 +21,7 @@
  */
 import { z } from 'zod'
 import { hasCustomerFacingDash } from '../customerFacingText'
+import { aliasTokens } from './aliasMatch'
 
 export const QUESTIONNAIRE_SCHEMA_VERSION = 1
 
@@ -49,6 +50,12 @@ const conditionSchema = z.object({
 const optionSchema = z.object({
   id: ID,
   label: customerText(24, 'option label'),
+  /**
+   * Words a customer may use for this option instead of its number or label
+   * (aliasMatch.ts). Never shown to the customer, so the dash rule does not
+   * apply. Optional: without any, the step reads only numbers and labels.
+   */
+  aliases: z.array(z.string().trim().min(1).max(40)).max(40).optional(),
 })
 
 const baseStep = {
@@ -119,6 +126,30 @@ export const questionnaireDefinitionSchema = z
           ids.add(option.id)
           labels.add(label)
         })
+        // One alias, two options: a reply containing it would select neither.
+        const aliasOwner = new Map<string, string>()
+        step.options.forEach((option, optionIndex) => {
+          for (const alias of option.aliases ?? []) {
+            const key = aliasTokens(alias).join(' ')
+            if (!key) {
+              ctx.addIssue({
+                code: 'custom',
+                message: `empty alias in option '${option.id}' of step '${step.id}'`,
+                path: ['steps', index, 'options', optionIndex, 'aliases'],
+              })
+              continue
+            }
+            const owner = aliasOwner.get(key)
+            if (owner && owner !== option.id) {
+              ctx.addIssue({
+                code: 'custom',
+                message: `alias '${alias}' belongs to both '${owner}' and '${option.id}' in step '${step.id}'`,
+                path: ['steps', index, 'options', optionIndex, 'aliases'],
+              })
+            }
+            aliasOwner.set(key, option.id)
+          }
+        })
       }
 
       if (!step.when) return
@@ -155,6 +186,15 @@ export const questionnaireDefinitionSchema = z
       })
     })
   })
+
+/**
+ * Where a choice answer read from natural words (aliasMatch.ts) keeps those
+ * words, beside the option id: `answers["timing:raw"] = ["רק בערב אחרי העבודה"]`.
+ * A step id cannot contain ':', so this key can never be mistaken for a step.
+ */
+export function rawAnswerKey(stepId: string): string {
+  return `${stepId}:raw`
+}
 
 export type QuestionnaireDefinition = z.infer<typeof questionnaireDefinitionSchema>
 export type QuestionnaireStep = QuestionnaireDefinition['steps'][number]

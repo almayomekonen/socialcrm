@@ -9,7 +9,7 @@
  * cannot keep: no callback time, no "someone will call you in X minutes". What
  * the business promises is its own `closing` text, which it wrote.
  */
-import type { QuestionnaireDefinition, QuestionnaireStep } from './definition'
+import { rawAnswerKey, type QuestionnaireDefinition, type QuestionnaireStep } from './definition'
 
 /** Shown under every menu so asking for a person never requires guessing. */
 export const HUMAN_HINT = 'לשיחה עם נציג כתבו: נציג'
@@ -75,7 +75,7 @@ export function renderSummary(
 ): string {
   const lines: string[] = [opts.complete ? definition.summaryTitle : `${definition.summaryTitle} (לא הושלם)`]
   for (const step of definition.steps) {
-    const value = summaryValue(step, answers[step.id])
+    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)])
     if (value) lines.push(`${step.label}: ${value}`)
   }
   return lines.join('\n')
@@ -88,17 +88,21 @@ export function summaryFields(
 ): Array<{ label: string; value: string }> {
   const fields: Array<{ label: string; value: string }> = []
   for (const step of definition.steps) {
-    const value = summaryValue(step, answers[step.id])
+    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)])
     if (value) fields.push({ label: step.label, value })
   }
   return fields
 }
 
-function summaryValue(step: QuestionnaireStep, stored: string[] | undefined): string | null {
+function summaryValue(step: QuestionnaireStep, stored: string[] | undefined, raw?: string[]): string | null {
   if (!stored || !stored.length) return null
   if (step.type === 'text') return stored[0]?.trim() || null
   const labels = stored
     .map((id) => step.options.find((o) => o.id === id)?.label)
     .filter((l): l is string => Boolean(l))
-  return labels.length ? labels.join(', ') : null
+  if (!labels.length) return null
+  // An answer read from natural words shows those words too, so the rep sees
+  // "ערב (רק בערב אחרי העבודה)" rather than only the option.
+  const said = raw?.[0]?.trim()
+  return said ? `${labels.join(', ')} (${said})` : labels.join(', ')
 }

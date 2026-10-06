@@ -18,7 +18,7 @@
  * An input this file cannot read produces a re-prompt or a handoff, never a
  * guess and never a fallback to the AI agent.
  *
- * NOTE: ~325 lines, over the 250-line soft limit, intentionally. It is one pure
+ * NOTE: ~330 lines, over the 250-line soft limit, intentionally. It is one pure
  * function and its helpers: every rule of the conversation in one place, read
  * top to bottom in priority order. Splitting it by rule would scatter a
  * decision table that only makes sense as a whole, and the priority between
@@ -29,12 +29,14 @@ import type { AiState } from '../qualification'
 import {
   findStep,
   nextStepAfter,
+  rawAnswerKey,
   type QuestionnaireDefinition,
   type QuestionnaireStep,
 } from './definition'
 import {
   detectCommand,
   joinTextInputs,
+  normalizeForMatch,
   parseChoice,
   parseFreeText,
   type InboundKind,
@@ -230,7 +232,9 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
       }
       const parsed = parseChoice(input.text, step)
       if (parsed.ok) {
-        return advance(facts, active, step, { [step.id]: parsed.optionIds }, consumeThrough as number)
+        // Read from the customer's own words: keep them for the rep, too.
+        const raw = parsed.via === 'alias' ? { [rawAnswerKey(step.id)]: [normalizeForMatch(input.text).slice(0, 300)] } : {}
+        return advance(facts, active, step, { [step.id]: parsed.optionIds, ...raw }, consumeThrough as number)
       }
     }
     const typed = textInputs.filter((i) => !i.selectedId)
