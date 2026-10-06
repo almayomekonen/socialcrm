@@ -12,7 +12,7 @@ import {
   isWeddingAgency,
 } from '@/lib/weddingRsvp/config'
 import { countInvitesSent, withInviteLock } from '@/lib/weddingRsvp/inviteData'
-import { ensureInviteRecipient } from '@/lib/weddingRsvp/inviteRecipient'
+import { ensureInviteRecipient, type CreateInviteLead } from '@/lib/weddingRsvp/inviteRecipient'
 
 export type SendWeddingInviteResult =
   | {
@@ -47,6 +47,14 @@ export async function sendWeddingInvite(args: {
   phone: string
   firstName: string
   lastName: string
+  /**
+   * The caller's id for this send (the Wedding Manager's invitation UUID). Stored as
+   * `metadata.weddingInvitationId` on the persisted message — the key for replay
+   * protection and for status lookups by the integration.
+   */
+  correlationId?: string
+  /** Lead creation override (the signed integration has no session). */
+  createLead?: CreateInviteLead
 }): Promise<SendWeddingInviteResult> {
   if (!isWeddingAgency(args.agencyId)) return { ok: false, error: 'agency-not-allowed' }
   const waId = toIsraeliWhatsappRecipient(args.phone)
@@ -57,7 +65,14 @@ export async function sendWeddingInvite(args: {
   return withInviteLock(args.agencyId, waId, async (): Promise<SendWeddingInviteResult> => {
     if ((await countInvitesSent(args.agencyId, waId)) > 0) return { ok: false, error: 'already-invited' }
 
-    const ensured = await ensureInviteRecipient({ ...args, waId, firstName, lastName: args.lastName.trim() })
+    const ensured = await ensureInviteRecipient({
+      agencyId: args.agencyId,
+      userId: args.userId,
+      waId,
+      firstName,
+      lastName: args.lastName.trim(),
+      createLead: args.createLead,
+    })
     if (ensured.ok === false) return { ok: false, error: ensured.error }
     const { recipient } = ensured
 
@@ -89,7 +104,11 @@ export async function sendWeddingInvite(args: {
       sentByUserId: args.userId,
       wamid: sent.wamid,
       text: INVITE_STORED_TEXT,
-      metadata: { kind: INVITE_KIND, template: INVITE_TEMPLATE_NAME },
+      metadata: {
+        kind: INVITE_KIND,
+        template: INVITE_TEMPLATE_NAME,
+        ...(args.correlationId ? { weddingInvitationId: args.correlationId } : {}),
+      },
     })
     return {
       ok: true,
