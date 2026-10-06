@@ -100,6 +100,50 @@ describe('sendWeddingInvite — brand-new number', () => {
   })
 })
 
+describe('sendWeddingInvite — open recipients (no allowlist)', () => {
+  it('a valid Israeli mobile that was never on the old allowlist is sent to', async () => {
+    const NADAV = '972545862701'
+    h.resolveTarget.mockResolvedValue(target(NADAV))
+    const r = await sendWeddingInvite({ ...input, phone: '054-586-2701', firstName: 'נדב', lastName: 'גטהון' })
+    expect(r).toMatchObject({ ok: true, to: NADAV })
+    expect(h.withInviteLock).toHaveBeenCalledWith(103, NADAV, expect.any(Function))
+    expect(h.sendTemplate).toHaveBeenCalledTimes(1)
+    expect(h.sendTemplate).toHaveBeenCalledWith(expect.objectContaining({ to: NADAV, headerImage: { link: INVITE_IMAGE_URL } }))
+  })
+
+  it('a previous FAILED attempt does not block a retry (the counter only sees non-failed sends)', async () => {
+    // countInvitesSent excludes status 'failed' (pinned in inviteData.db.test.ts); 0 here = only failures exist.
+    h.countInvitesSent.mockResolvedValue(0)
+    h.findConversationForWaId.mockResolvedValue({ id: 13142, leadId: 2351, businessPhoneNumberId: 'PN_1' })
+    h.resolveTarget.mockResolvedValue({ ...target(), target: { ...target().target, leadId: 2351 } })
+    expect(await sendWeddingInvite(input)).toMatchObject({ ok: true, conversationId: 13142, leadId: 2351, leadCreated: false })
+    expect(h.sendTemplate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('sendWeddingInvite — parallel calls', () => {
+  it('two simultaneous requests for one guest send exactly once', async () => {
+    // A real mutex in place of the advisory lock, and a counter the persisted send updates.
+    let chain = Promise.resolve()
+    h.withInviteLock.mockImplementation((_a: number, _w: string, fn: () => Promise<unknown>) => {
+      const run = chain.then(fn)
+      chain = run.then(() => undefined, () => undefined)
+      return run
+    })
+    let sentCount = 0
+    h.countInvitesSent.mockImplementation(async () => sentCount)
+    h.persist.mockImplementation(async () => {
+      sentCount++
+      return { conversationId: 5000, messageId: 77, sequence: 1 }
+    })
+    const results = await Promise.all([sendWeddingInvite(input), sendWeddingInvite(input)])
+    expect(results.filter((r) => r.ok)).toHaveLength(1)
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, error: 'already-invited' }])
+    expect(h.sendTemplate).toHaveBeenCalledTimes(1)
+    expect(h.upsertLead).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('sendWeddingInvite — reuse, never duplicate', () => {
   it('reuses the existing conversation and its lead', async () => {
     h.findConversationForWaId.mockResolvedValue({ id: 4000, leadId: 800, businessPhoneNumberId: 'PN_1' })
@@ -141,12 +185,19 @@ describe('sendWeddingInvite — refusals send nothing', () => {
     expect(h.persist).not.toHaveBeenCalled()
   }
 
-  it('invalid / non-mobile / non-allowlisted numbers never reach the DB', async () => {
-    expect(await sendWeddingInvite({ ...input, phone: '12345' })).toEqual({ ok: false, error: 'invalid-phone' })
-    expect(await sendWeddingInvite({ ...input, phone: '039999999' })).toEqual({ ok: false, error: 'invalid-phone' })
-    expect(await sendWeddingInvite({ ...input, phone: '0509319883' })).toEqual({ ok: false, error: 'recipient-not-allowed' })
+  it('invalid numbers and a missing name never reach the DB', async () => {
+    for (const phone of ['12345', '039999999', '0123456789', '05458627011', '+44 7954 072224', '', 'abc']) {
+      expect(await sendWeddingInvite({ ...input, phone })).toEqual({ ok: false, error: 'invalid-phone' })
+    }
     expect(await sendWeddingInvite({ ...input, firstName: '  ' })).toEqual({ ok: false, error: 'missing-name' })
     expect(h.withInviteLock).not.toHaveBeenCalled()
+    expect(h.sendTemplate).not.toHaveBeenCalled()
+  })
+
+  it('any agency other than the wedding agency is refused before anything else', async () => {
+    expect(await sendWeddingInvite({ ...input, agencyId: 149 })).toEqual({ ok: false, error: 'agency-not-allowed' })
+    expect(h.withInviteLock).not.toHaveBeenCalled()
+    expect(h.upsertLead).not.toHaveBeenCalled()
     expect(h.sendTemplate).not.toHaveBeenCalled()
   })
 
@@ -168,9 +219,9 @@ describe('sendWeddingInvite — refusals send nothing', () => {
     await refuses('ambiguous-connection')
   })
 
-  it('resolved target that is not allowlisted → refuse', async () => {
+  it('resolved conversation number differing from the requested number → refuse', async () => {
     h.resolveTarget.mockResolvedValue(target('972509319883'))
-    await refuses('recipient-not-allowed')
+    await refuses('recipient-mismatch')
   })
 
   it('Meta rejection → no persist, code surfaced', async () => {
