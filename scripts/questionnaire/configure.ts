@@ -62,6 +62,9 @@ function renderAll(definition: QuestionnaireDefinition): string[] {
     out.push(renderQuestion(step))
   }
   out.push(definition.closing)
+  for (const variant of definition.closingVariants ?? []) {
+    out.push(`[closing when ${variant.when.step} is ${variant.when.anyOf.join(' or ')}]\n${variant.text}`)
+  }
   out.push(definition.handoff)
   return out
 }

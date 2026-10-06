@@ -21,7 +21,8 @@
  */
 import { z } from 'zod'
 import { hasCustomerFacingDash } from '../customerFacingText'
-import { aliasTokens } from './aliasMatch'
+import { checkAliasCollisions } from './aliasMatch'
+import { checkClosingVariants } from './closing'
 
 export const QUESTIONNAIRE_SCHEMA_VERSION = 1
 
@@ -87,6 +88,11 @@ export const questionnaireDefinitionSchema = z
     language: z.literal('he'),
     welcome: customerText(900, 'welcome'),
     closing: customerText(900, 'closing'),
+    /** Closing chosen by a stored choice answer; first match wins (closing.ts). */
+    closingVariants: z
+      .array(z.object({ when: conditionSchema, text: customerText(900, 'closing variant') }))
+      .max(10)
+      .optional(),
     handoff: customerText(900, 'handoff'),
     /** Title of the rep-facing summary note, e.g. "שאלון וואטסאפ הושלם". */
     summaryTitle: customerText(80, 'summaryTitle'),
@@ -95,6 +101,7 @@ export const questionnaireDefinitionSchema = z
     steps: z.array(stepSchema).min(1).max(12),
   })
   .superRefine((def, ctx) => {
+    checkClosingVariants(def, ctx)
     const seen = new Map<string, number>()
     def.steps.forEach((step, index) => {
       if (seen.has(step.id)) {
@@ -126,30 +133,7 @@ export const questionnaireDefinitionSchema = z
           ids.add(option.id)
           labels.add(label)
         })
-        // One alias, two options: a reply containing it would select neither.
-        const aliasOwner = new Map<string, string>()
-        step.options.forEach((option, optionIndex) => {
-          for (const alias of option.aliases ?? []) {
-            const key = aliasTokens(alias).join(' ')
-            if (!key) {
-              ctx.addIssue({
-                code: 'custom',
-                message: `empty alias in option '${option.id}' of step '${step.id}'`,
-                path: ['steps', index, 'options', optionIndex, 'aliases'],
-              })
-              continue
-            }
-            const owner = aliasOwner.get(key)
-            if (owner && owner !== option.id) {
-              ctx.addIssue({
-                code: 'custom',
-                message: `alias '${alias}' belongs to both '${owner}' and '${option.id}' in step '${step.id}'`,
-                path: ['steps', index, 'options', optionIndex, 'aliases'],
-              })
-            }
-            aliasOwner.set(key, option.id)
-          }
-        })
+        checkAliasCollisions(step, index, ctx)
       }
 
       if (!step.when) return

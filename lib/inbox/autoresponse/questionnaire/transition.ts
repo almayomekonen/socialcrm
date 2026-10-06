@@ -42,6 +42,7 @@ import {
   type InboundKind,
 } from './parseAnswer'
 import { parseSelectionId } from './interactive'
+import { closingFor } from './closing'
 import { renderOpening, renderQuestion, renderReprompt, renderRestart, type RepromptReason } from './render'
 
 export type QuestionnaireSessionStatus =
@@ -269,7 +270,7 @@ function advance(
   const answers = { ...session.answers, ...answer }
   const next = nextStepAfter(facts.definition, answers, step.id)
   if (!next) {
-    return terminal('completed', 'completed', facts.definition.closing, answers, consumeThrough, true, true)
+    return terminal('completed', 'completed', closingFor(facts.definition, answers), answers, consumeThrough, true, true)
   }
   return {
     kind: 'question',

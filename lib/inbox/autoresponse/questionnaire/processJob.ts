@@ -105,11 +105,15 @@ export async function processQuestionnaireJob(
     canUseWhatsappQuestionnaire(job.agencyId) &&
     parsedDefinition.ok
 
-  // A live session still needs a definition to be wound down gracefully; fall
-  // back to the one it started with, which it froze for exactly this reason.
-  const definition: QuestionnaireDefinition | null = parsedDefinition.ok
-    ? parsedDefinition.definition
-    : sessionDefinition(session?.definition)
+  // A live session finishes on the definition it started with, which it froze
+  // at its first question. Menu numbers and branches only mean something
+  // against the menu the customer was actually shown: after an edit, "5" may
+  // name a different option. A changed definition applies from the next
+  // conversation. The frozen copy also winds a session down if the current
+  // definition stops validating.
+  const pinned = session?.status === 'active' ? sessionDefinition(session.definition) : null
+  const definition: QuestionnaireDefinition | null =
+    pinned ?? (parsedDefinition.ok ? parsedDefinition.definition : sessionDefinition(session?.definition))
   if (!definition) return skip(routed ? 'definition_invalid' : 'not_routed')
 
   const rows = await db('inbox_messages')
