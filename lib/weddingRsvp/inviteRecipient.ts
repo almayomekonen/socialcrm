@@ -19,12 +19,44 @@ export type InviteRecipientResult = { ok: true; recipient: InviteRecipient } | {
  *        connected number, keyed on the 972… wa_id exactly as the webhook stores
  *        Meta's `from` — so the guest's reply lands in the same conversation.
  */
+/** Creates the guest's Lead; returns its id, or null when it could not be created. */
+export type CreateInviteLead = (input: { agencyId: number; userId: number; waId: string; firstName: string; lastName: string }) => Promise<number | null>
+
+/**
+ * Default lead creation: the normal `upsertLead` create path (session, quota,
+ * field whitelist). status/userId/handlerId explicit, as in
+ * modules/messenger/leadActions.ts: the column defaults ('true', NULL) hide a ליד
+ * from every status tab and rep filter.
+ */
+export const createLeadViaSession: CreateInviteLead = async (input) => {
+  const created = (await upsertLead(
+    input.userId,
+    {
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.waId,
+      lead: true,
+      status: 'new',
+      userId: input.userId,
+      handlerId: input.userId,
+      leadSource: 'wedding_invite',
+    },
+    null,
+    false,
+    'manual',
+  )) as { id?: unknown } | null
+  const id = Number(created?.id)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
 export async function ensureInviteRecipient(args: {
   agencyId: number
   userId: number
   waId: string
   firstName: string
   lastName: string
+  /** How to create a missing Lead. Defaults to the session path; the signed integration passes its own. */
+  createLead?: CreateInviteLead
 }): Promise<InviteRecipientResult> {
   const existing = await findConversationForWaId(args.agencyId, args.waId)
 
@@ -36,26 +68,8 @@ export async function ensureInviteRecipient(args: {
     if (matches.length === 1) {
       leadId = matches[0].id
     } else {
-      // status/userId/handlerId explicit, as in modules/messenger/leadActions.ts: the
-      // column defaults ('true', NULL) hide a ליד from every status tab and rep filter.
-      const created = (await upsertLead(
-        args.userId,
-        {
-          firstName: args.firstName,
-          lastName: args.lastName,
-          phone: args.waId,
-          lead: true,
-          status: 'new',
-          userId: args.userId,
-          handlerId: args.userId,
-          leadSource: 'wedding_invite',
-        },
-        null,
-        false,
-        'manual',
-      )) as { id?: unknown } | null
-      const id = Number(created?.id)
-      if (!Number.isFinite(id) || id <= 0) return { ok: false, error: 'lead-create-failed' }
+      const id = await (args.createLead ?? createLeadViaSession)(args)
+      if (id == null) return { ok: false, error: 'lead-create-failed' }
       leadId = id
       leadCreated = true
     }
