@@ -90,6 +90,10 @@ const choiceStepSchema = z.object({
 const textStepSchema = z.object({
   ...baseStep,
   type: z.literal('text'),
+  /** Optional deterministic check on the reply (validateAnswer.ts). Absent: any non-empty reply. */
+  validate: z.enum(['date', 'meaningful']).optional(),
+  /** Sent instead of the generic re-ask when `validate` rejects a reply. */
+  invalidPrompt: customerText(900, 'invalidPrompt').optional(),
 })
 
 const stepSchema = z.discriminatedUnion('type', [choiceStepSchema, textStepSchema])
@@ -184,14 +188,7 @@ export const questionnaireDefinitionSchema = z
     })
   })
 
-/**
- * Where a choice answer read from natural words (aliasMatch.ts) keeps those
- * words, beside the option id: `answers["timing:raw"] = ["רק בערב אחרי העבודה"]`.
- * A step id cannot contain ':', so this key can never be mistaken for a step.
- */
-export function rawAnswerKey(stepId: string): string {
-  return `${stepId}:raw`
-}
+export { answerStateKey, rawAnswerKey } from './answerKeys'
 
 export type QuestionnaireDefinition = z.infer<typeof questionnaireDefinitionSchema>
 export type QuestionnaireStep = QuestionnaireDefinition['steps'][number]

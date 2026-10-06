@@ -231,7 +231,7 @@ describe('drone / real estate, end to end', () => {
     await turn(t, 'היי')
     expect(await turn(t, 'צריך רחפן לצילום נכס')).toEqual(['באיזו עיר תרצו לבצע את הצילום / ההטסה?'])
     expect(await turn(t, 'חולון')).toEqual([expect.stringContaining('האם יש לכם אישור הטסה באזור?')])
-    expect(await turn(t, 'כן')).toEqual(['לאיזה תאריך תרצו לתאם את הצילום? 📅'])
+    expect(await turn(t, 'כן')).toEqual(['לאיזה תאריך תרצו לתאם את הצילום? 📅\nאפשר לכתוב תאריך מדויק או משוער. אם עדיין לא נקבע תאריך, כתבו: לא נקבע'])
     const closing = await turn(t, '20.10.2026')
     expect(closing[0]).toContain('להמשך בדיקה ותיאום הצילום')
     expect(closing[0]).toContain(SITE)
@@ -289,5 +289,30 @@ describe('a definition changed mid-conversation', () => {
 
     const fresh = await makeTenant('pinned-new')
     expect((await turn(fresh, 'היי'))[0]).toContain('איזה אירוע או שירות צילום אתם מחפשים?')
+  })
+})
+
+describe('a non-answer to the date question (production reproducer)', () => {
+  it('"לתאריך" is re-asked once, does not advance, and "לא נקבע" then moves on as not_set', async () => {
+    const t = await makeTenant('date-check')
+    await turn(t, 'היי')
+    await turn(t, 'חתונה')
+
+    const reask = await turn(t, 'לתאריך') // turn() drains twice: a retry must add nothing
+    expect(reask).toEqual([
+      'לא הצלחתי לזהות תאריך 📅\nאפשר לכתוב תאריך מדויק או משוער. אם עדיין לא נקבע תאריך, כתבו: לא נקבע',
+    ])
+    let session = await sessionRow(t)
+    expect(session).toMatchObject({ status: 'active', currentStepId: 'event_date_celebration', invalidCount: 1 })
+    expect(session?.answers).toEqual({ event_type: ['wedding'] })
+
+    expect(await turn(t, 'לא נקבע')).toEqual(['איפה האירוע יתקיים? אפשר לכתוב עיר או שם של אולם'])
+    session = await sessionRow(t)
+    expect(session).toMatchObject({ currentStepId: 'event_location', invalidCount: 0 })
+    expect(session?.answers).toMatchObject({ event_date_celebration: ['לא נקבע'], 'event_date_celebration:state': ['not_set'] })
+
+    const summary = await getHandoffSummary(t.agencyId, t.conversationId)
+    expect(summary?.fields).toContainEqual({ label: 'תאריך האירוע', value: 'טרם נקבע' })
+    await noModelWork(t)
   })
 })

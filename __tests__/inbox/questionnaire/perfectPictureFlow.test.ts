@@ -21,7 +21,7 @@ const pp: QuestionnaireDefinition = parsed.definition
 
 const CONGRATS = 'קודם כל המון מזל טוב 🎉'
 const SITE = 'https://picture-perfect.co.il'
-const DATE_Q = 'מה תאריך האירוע? אם עוד לא נקבע סופית, אפשר לכתוב תאריך משוער 📅'
+const DATE_Q = 'מה תאריך האירוע? 📅\nאפשר לכתוב תאריך מדויק או משוער. אם עדיין לא נקבע תאריך, כתבו: לא נקבע'
 const LOCATION_Q = 'איפה האירוע יתקיים? אפשר לכתוב עיר או שם של אולם'
 const SERVICE_Q = 'איזה שירות צילום אתם מחפשים?'
 const EVENT_DONE = 'צוות Perfect Picture יעבור על הבקשה ויחזור אליכם להמשך בדיקת זמינות והתאמת הצעה לאירוע 📸'
@@ -159,7 +159,7 @@ describe('drone / real estate', () => {
     expect(run.sent[1]).toBe('באיזו עיר תרצו לבצע את הצילום / ההטסה?')
     expect(run.sent[2]).toContain('האם יש לכם אישור הטסה באזור?')
     expect(run.sent[2]).toContain('3. לא יודע')
-    expect(run.sent[3]).toBe('לאיזה תאריך תרצו לתאם את הצילום? 📅')
+    expect(run.sent[3]).toBe('לאיזה תאריך תרצו לתאם את הצילום? 📅\nאפשר לכתוב תאריך מדויק או משוער. אם עדיין לא נקבע תאריך, כתבו: לא נקבע')
     const closing = run.sent[run.sent.length - 1]
     expect(closing).toContain(DRONE_DONE)
     expect(closing).toContain(SITE)

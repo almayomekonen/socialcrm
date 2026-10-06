@@ -18,7 +18,7 @@
  * An input this file cannot read produces a re-prompt or a handoff, never a
  * guess and never a fallback to the AI agent.
  *
- * NOTE: ~330 lines, over the 250-line soft limit, intentionally. It is one pure
+ * NOTE: ~340 lines, over the 250-line soft limit, intentionally. It is one pure
  * function and its helpers: every rule of the conversation in one place, read
  * top to bottom in priority order. Splitting it by rule would scatter a
  * decision table that only makes sense as a whole, and the priority between
@@ -29,6 +29,7 @@ import type { AiState } from '../qualification'
 import {
   findStep,
   nextStepAfter,
+  answerStateKey,
   rawAnswerKey,
   type QuestionnaireDefinition,
   type QuestionnaireStep,
@@ -43,6 +44,7 @@ import {
 } from './parseAnswer'
 import { parseSelectionId } from './interactive'
 import { closingFor } from './closing'
+import { checkTextAnswer } from './validateAnswer'
 import { renderOpening, renderQuestion, renderReprompt, renderRestart, type RepromptReason } from './render'
 
 export type QuestionnaireSessionStatus =
@@ -257,7 +259,13 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   if (!parsed.ok) {
     return reprompt(facts, active, step, 'invalid_text', answers, consumeThrough as number)
   }
-  return advance(facts, active, step, { [step.id]: [parsed.value] }, consumeThrough as number)
+  // Opt-in per question; without `validate` every non-empty reply is the answer.
+  const checked = checkTextAnswer(step.validate, parsed.value)
+  if (!checked.ok) {
+    return reprompt(facts, active, step, 'invalid_text', answers, consumeThrough as number)
+  }
+  const state = checked.notSet ? { [answerStateKey(step.id)]: ['not_set'] } : {}
+  return advance(facts, active, step, { [step.id]: [parsed.value], ...state }, consumeThrough as number)
 }
 
 function advance(

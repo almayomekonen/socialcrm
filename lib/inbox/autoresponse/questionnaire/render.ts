@@ -10,6 +10,7 @@
  * the business promises is its own `closing` text, which it wrote.
  */
 import {
+  answerStateKey,
   rawAnswerKey,
   type QuestionnaireDefinition,
   type QuestionnaireOption,
@@ -39,6 +40,9 @@ export function renderStep(step: QuestionnaireStep): string {
   return lines.join('\n')
 }
 
+/** How the rep reads an answer whose state is `not_set` (validateAnswer.ts). */
+export const NOT_SET_SUMMARY = 'טרם נקבע'
+
 /** One numbered menu line. The icon, when there is one, is decoration after the label. */
 export function menuLine(option: QuestionnaireOption, index: number): string {
   return option.icon ? `${index + 1}. ${option.label} ${option.icon}` : `${index + 1}. ${option.label}`
@@ -64,6 +68,9 @@ const REPROMPT_LINE: Record<RepromptReason, string> = {
 }
 
 export function renderReprompt(step: QuestionnaireStep, reason: RepromptReason): string {
+  // A question with its own re-ask says exactly that, and nothing it already
+  // said once (a greeting in its prompt is not repeated).
+  if (reason === 'invalid_text' && step.type === 'text' && step.invalidPrompt) return step.invalidPrompt
   return [REPROMPT_LINE[reason], '', renderQuestion(step)].join('\n')
 }
 
@@ -85,7 +92,7 @@ export function renderSummary(
 ): string {
   const lines: string[] = [opts.complete ? definition.summaryTitle : `${definition.summaryTitle} (לא הושלם)`]
   for (const step of definition.steps) {
-    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)])
+    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
     if (value) lines.push(`${step.label}: ${value}`)
   }
   return lines.join('\n')
@@ -98,14 +105,21 @@ export function summaryFields(
 ): Array<{ label: string; value: string }> {
   const fields: Array<{ label: string; value: string }> = []
   for (const step of definition.steps) {
-    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)])
+    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
     if (value) fields.push({ label: step.label, value })
   }
   return fields
 }
 
-function summaryValue(step: QuestionnaireStep, stored: string[] | undefined, raw?: string[]): string | null {
+function summaryValue(
+  step: QuestionnaireStep,
+  stored: string[] | undefined,
+  raw?: string[],
+  state?: string[],
+): string | null {
   if (!stored || !stored.length) return null
+  // Said plainly, never as the customer's phrasing of "we don't know yet".
+  if (state?.[0] === 'not_set') return NOT_SET_SUMMARY
   if (step.type === 'text') return stored[0]?.trim() || null
   const labels = stored
     .map((id) => step.options.find((o) => o.id === id)?.label)
