@@ -9,7 +9,12 @@
  * cannot keep: no callback time, no "someone will call you in X minutes". What
  * the business promises is its own `closing` text, which it wrote.
  */
-import { rawAnswerKey, type QuestionnaireDefinition, type QuestionnaireStep } from './definition'
+import {
+  rawAnswerKey,
+  type QuestionnaireDefinition,
+  type QuestionnaireOption,
+  type QuestionnaireStep,
+} from './definition'
 
 /** Shown under every menu so asking for a person never requires guessing. */
 export const HUMAN_HINT = 'לשיחה עם נציג כתבו: נציג'
@@ -29,9 +34,14 @@ export function renderStep(step: QuestionnaireStep): string {
   if (step.multi === true) lines.push('אפשר לבחור יותר מאחד, למשל: 1,3')
   lines.push('')
   step.options.forEach((option, index) => {
-    lines.push(`${index + 1}. ${option.label}`)
+    lines.push(menuLine(option, index))
   })
   return lines.join('\n')
+}
+
+/** One numbered menu line. The icon, when there is one, is decoration after the label. */
+export function menuLine(option: QuestionnaireOption, index: number): string {
+  return option.icon ? `${index + 1}. ${option.label} ${option.icon}` : `${index + 1}. ${option.label}`
 }
 
 /** First message of a conversation: the welcome and the first question together. */

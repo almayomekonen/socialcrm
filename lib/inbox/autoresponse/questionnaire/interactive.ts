@@ -28,6 +28,7 @@ import {
   type SendWhatsappTextResult,
 } from '@/lib/whatsapp/sendMessage'
 import type { QuestionnaireStep } from './definition'
+import { menuLine } from './render'
 
 const BUTTON_MAX = 3
 const BUTTON_TITLE_MAX = 20
@@ -68,7 +69,7 @@ export function parseSelectionId(id: string | null | undefined): { stepId: strin
  * replace them. The prompt, any reprompt line and the "נציג" hint stay.
  */
 export function interactiveBody(text: string, step: Extract<QuestionnaireStep, { type: 'choice' }>): string {
-  const optionLines = new Set(step.options.map((o, i) => `${i + 1}. ${o.label}`))
+  const optionLines = new Set(step.options.map((o, i) => menuLine(o, i)))
   return text
     .split('\n')
     .filter((line) => !optionLines.has(line.trim()))

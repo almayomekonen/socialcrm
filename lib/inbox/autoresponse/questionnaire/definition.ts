@@ -57,6 +57,19 @@ const optionSchema = z.object({
    * apply. Optional: without any, the step reads only numbers and labels.
    */
   aliases: z.array(z.string().trim().min(1).max(40)).max(40).optional(),
+  /**
+   * Presentation only: shown after the label in the text menu, e.g. "1. בוקר ☀️".
+   * Never part of matching, the stored answer or the rep's summary, which all
+   * use the id and the plain label. No letters or digits, so it cannot carry
+   * meaning of its own.
+   */
+  icon: z
+    .string()
+    .trim()
+    .min(1)
+    .max(8)
+    .refine((v) => !/[\p{L}\p{N}]/u.test(v), { message: 'option icon must not contain letters or digits' })
+    .optional(),
 })
 
 const baseStep = {

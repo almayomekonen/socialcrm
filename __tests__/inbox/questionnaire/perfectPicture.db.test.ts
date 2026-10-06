@@ -199,7 +199,7 @@ describe('bar mitzvah, end to end', () => {
 
     const session = await sessionRow(t)
     expect(session?.status).toBe('completed')
-    expect(session?.definitionRevision).toBe(2)
+    expect(session?.definitionRevision).toBe(DEF.revision)
     expect(session?.answers).toEqual({
       event_type: ['bar_bat_mitzvah'],
       'event_type:raw': ['אני מתכנן בר מצווה לבן שלי'],

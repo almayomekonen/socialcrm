@@ -131,6 +131,8 @@ function matchLabel(normalized: string, step: QuestionnaireChoiceStep): string |
   const candidate = normalized.toLowerCase()
   for (const option of step.options) {
     if (option.label.trim().toLowerCase() === candidate) return option.id
+    // The menu line copied back, icon included, is still the label.
+    if (option.icon && normalizeForMatch(`${option.label} ${option.icon}`).toLowerCase() === candidate) return option.id
   }
   return null
 }

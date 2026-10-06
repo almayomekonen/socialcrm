@@ -246,3 +246,72 @@ describe('safety', () => {
     expect(d).toMatchObject({ kind: 'terminal', status: 'human_took_over', text: null })
   })
 })
+
+describe('closing links: each route gets only its own', () => {
+  const WISEPAGE = 'https://wisepage.wwcrm.co.il/picture-perfect'
+  const flows: Array<[string, string[], string | null]> = [
+    ['wedding', ['היי', 'אנחנו מתחתנים', 'יוני', 'חיפה', 'סטילס'], WISEPAGE],
+    ['bar mitzvah', ['היי', 'בר מצווה', 'מאי', 'רחובות', 'הכל'], SITE],
+    ['henna', ['היי', 'אנחנו עושים חינה', 'מאי', 'נתניה', 'וידאו'], SITE],
+    ['drone', ['היי', 'צריך רחפן לצילום נכס', 'חולון', 'כן', 'מחר'], SITE],
+    ['brit', ['היי', 'יש לנו ברית', 'מחר', 'ראשון לציון', 'סטילס'], null],
+    ['business', ['היי', 'יש לנו אירוע חברה', '3.12', 'תל אביב', 'סטילס'], null],
+    ['other', ['היי', 'אירוע אחר', 'יום הולדת', 'מאי', 'חולון', 'סטילס'], null],
+  ]
+  it.each(flows)('%s', (_, messages, url) => {
+    const run = converse(messages)
+    expect(run.last).toMatchObject({ kind: 'terminal', status: 'completed' })
+    const closing = run.sent[run.sent.length - 1]
+    for (const link of [SITE, WISEPAGE]) {
+      expect(closing.includes(link), link).toBe(link === url)
+    }
+    if (url === WISEPAGE) expect(closing).toContain('מוזמנים בינתיים להתרשם מחבילות ועבודות לחתונה 💍')
+  })
+})
+
+describe('icons are presentation only', () => {
+  it('the menus show one icon per option', () => {
+    const entry = converse(['היי']).sent[0]
+    for (const line of ['1. חתונה 💍', '2. בר / בת מצווה 🎉', '3. ברית / בריתה 👶', '4. חינה 🪬', '5. צילום רחפן / נדל״ן 🚁', '6. אירוע עסקי 💼', '7. אירוע אחר ✨']) {
+      expect(entry).toContain(line)
+    }
+    const service = converse(['היי', 'חתונה', 'יוני', 'חיפה']).sent[3]
+    for (const line of ['1. סטילס 📸', '2. וידאו 🎥', '3. מגנטים בהתאמה אישית 🧲', '4. עמדת צילום מפוארת 🤳', '5. הכל ✨', '6. אחר 📝']) {
+      expect(service).toContain(line)
+    }
+    const permit = converse(['היי', 'רחפן', 'חולון']).sent[2]
+    for (const line of ['1. כן ✅', '2. לא ❌', '3. לא יודע 🤷']) expect(permit).toContain(line)
+  })
+
+  it.each([
+    ['a number', '1'],
+    ['the label without the icon', 'חתונה'],
+    ['the menu line copied back', 'חתונה 💍'],
+  ])('%s selects wedding and stores no icon and no raw text', (_, reply) => {
+    const run = converse(['היי', reply, 'יוני', 'חיפה', 'סטילס'])
+    expect(answersOf(run)).toMatchObject({ event_type: ['wedding'] })
+    expect(answersOf(run)['event_type:raw']).toBeUndefined()
+    const summary = renderSummary(pp, answersOf(run), { complete: true })
+    expect(summary).toContain('סוג האירוע / השירות: חתונה\n')
+    expect(summary).not.toMatch(/💍|📸/)
+  })
+
+  it('natural answers, multi select and "אחר" still work behind the icons', () => {
+    expect(answersOf(converse(['היי', 'אני מתכנן בר מצווה', 'מאי', 'רחובות', 'סטילס ווידאו']))).toMatchObject({
+      event_type: ['bar_bat_mitzvah'],
+      service: ['stills', 'video'],
+    })
+    expect(answersOf(converse(['היי', 'חתונה', 'יוני', 'חיפה', 'מגנטים'])).service).toEqual(['magnets'])
+    expect(answersOf(converse(['היי', 'חתונה', 'יוני', 'חיפה', 'הכל'])).service).toEqual(['all'])
+    const other = converse(['היי', 'חתונה', 'יוני', 'חיפה', 'אחר', 'צילום משפחתי'])
+    expect(other.sent[4]).toBe('בשמחה, כתבו לנו בקצרה איזה שירות צילום אתם מחפשים.')
+    expect(answersOf(other)).toMatchObject({ service: ['other'], service_other: ['צילום משפחתי'] })
+    expect(answersOf(converse(['היי', 'צריך רחפן לצילום נכס', 'חולון', 'אין לי מושג', 'מחר'])).drone_permit).toEqual(['unknown'])
+  })
+
+  it('an icon with letters in it is rejected', () => {
+    const bad = JSON.parse(raw)
+    bad.steps[0].options[0].icon = 'VIP'
+    expect(parseQuestionnaireDefinition(bad).ok).toBe(false)
+  })
+})
