@@ -96,6 +96,8 @@ const textStepSchema = z.object({
   allowNotSet: z.boolean().optional(),
   /** Sent instead of the generic re-ask when `validate` rejects a reply. */
   invalidPrompt: customerText(900, 'invalidPrompt').optional(),
+  /** The question asked again after a customer's own question, minus one-time words. */
+  reaskPrompt: customerText(900, 'reaskPrompt').optional(),
 })
 
 const stepSchema = z.discriminatedUnion('type', [choiceStepSchema, textStepSchema])

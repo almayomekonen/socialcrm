@@ -159,15 +159,17 @@ describe('D. questions instead of answers', () => {
     ])
     expect(r.decisions.map((d) => d.reason)).toEqual([
       'started',
-      'reprompt_invalid_choice',
+      'customer_question',
       'answered',
       'answered', // the date question's answer contains a date: kept, in their words
-      'reprompt_invalid_text',
+      'customer_question',
       'answered',
-      'reprompt_invalid_choice',
+      'customer_question',
       'completed',
     ])
-    expect(r.sent[4].startsWith('נשמח לענות על כל שאלה בהמשך')).toBe(true)
+    // Questions are acknowledged, never counted as invalid answers.
+    expect(r.sent[4].startsWith('שאלה טובה, נציג מהצוות יענה עליה בהמשך.')).toBe(true)
+    expect(r.decisions.every((d) => d.kind !== 'question' || d.invalidCount === 0)).toBe(true)
     expect(r.session?.answers).toMatchObject({
       event_type: ['wedding'],
       event_date_celebration: ['אתם פנויים ב-18.11?'],
@@ -181,7 +183,7 @@ describe('E. rapid bursts answer one question, and nothing lands on the wrong on
   it('a burst at the entry question answers only the entry question', () => {
     const r = play(['היי', { texts: ['חתונה', '18.11', 'רחובות'] }])
     expect(r.final).toMatchObject({ kind: 'question', stepId: 'event_date_celebration' })
-    expect(r.session?.answers).toEqual({ event_type: ['wedding'] })
+    expect(r.session?.answers).toEqual({ event_type: ['wedding'], ':unplaced': ['18.11', 'רחובות'] })
   })
 
   it('a non-answer and its correction in one burst: the correction is not lost', () => {
@@ -197,7 +199,7 @@ describe('F. a change of mind about an earlier answer', () => {
     expect(r.decisions[3]).toMatchObject({ kind: 'question', reason: 'reprompt_invalid_text', stepId: 'event_location' })
     expect(r.session?.answers.event_location).toEqual(['רחובות'])
     expect(r.session?.answers[':corrections']).toEqual(['טעיתי 19.11'])
-    expect(summaryOf(r)).toContain('תיקון מהלקוח: טעיתי 19.11')
+    expect(summaryOf(r)).toContain('תיקון מהלקוח (תאריך האירוע): טעיתי 19.11')
   })
 
   it('"זו בעצם חינה" at the date question re-asks the date and is kept', () => {

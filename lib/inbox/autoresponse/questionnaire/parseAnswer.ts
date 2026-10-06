@@ -30,7 +30,15 @@ export function classifyInboundKind(type: string, text: string): InboundKind {
   return 'ignorable'
 }
 
-export type QuestionnaireCommand = 'opt_out' | 'human' | 'restart' | null
+export type QuestionnaireCommand = 'opt_out' | 'human' | 'restart' | 'decline' | null
+
+/**
+ * "Not interested", as the WHOLE message. Inside a questionnaire this means
+ * "stop asking me", not "never message me again": it is not an opt-out and
+ * records no compliance stop. Anything longer ("לא מעוניין בוידאו") is an answer
+ * to read, not a command.
+ */
+const DECLINE = /^(?:תודה\s*,?\s*)?(?:לא|ממש לא)\s+(?:מעוניין|מעוניינת|מעוניינים|רלוונטי|רלוונטית)(?:\s*,?\s*תודה)?[.!]*$/
 
 const RESTART_PATTERNS: RegExp[] = [
   /^התחלה מחדש$/,
@@ -53,6 +61,7 @@ export function detectCommand(text: string): QuestionnaireCommand {
   if (isExplicitPersonRequest(raw) && !declinesPerson(normalizeForMatch(raw))) return 'human'
   const normalized = normalizeForMatch(raw)
   if (RESTART_PATTERNS.some((re) => re.test(normalized))) return 'restart'
+  if (DECLINE.test(normalized)) return 'decline'
   return null
 }
 

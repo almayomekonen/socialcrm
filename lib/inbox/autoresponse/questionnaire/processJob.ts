@@ -18,7 +18,7 @@
  * a message the customer already has; staying silent would strand them. Asking
  * a person is the only honest third option.
  *
- * NOTE: ~325 lines, over the 250-line soft limit, and deliberately not split
+ * NOTE: ~335 lines, over the 250-line soft limit, and deliberately not split
  * further. What remains after `finalize.ts` and `types.ts` were extracted is a
  * single linear sequence — gather the facts, decide, check the window, ask or
  * end — and the order of those steps IS the correctness argument documented
@@ -49,7 +49,7 @@ import { decideQuestionnaireTurn, type InboundInput } from './transition'
 import { deferForTypingHold } from './typingDefer'
 import { QUESTIONNAIRE_SEND_TIMEOUT_MS, type QuestionnaireDeps, type QuestionnaireOutcome } from './types'
 import { waTrace } from '../waTrace'
-import { humanSpokeIn, humanSpokeSince, inboundInputs, sessionDefinition, TRANSCRIPT_COLUMNS } from './turnFacts'
+import { firstAskedAt, humanSpokeIn, humanSpokeSince, inboundInputs, sessionDefinition, TRANSCRIPT_COLUMNS } from './turnFacts'
 
 const TERMINAL_LEAD_STATUSES = ['closed', 'lost']
 const MAX_TRANSCRIPT = 60
@@ -143,6 +143,7 @@ export async function processQuestionnaireJob(
     humanTookOver,
     hasPriorOutbound: transcript.some((m) => m.direction === 'outbound'),
     leadStatusTerminal: Boolean(lead?.status && TERMINAL_LEAD_STATUSES.includes(String(lead.status))),
+    firstAskedAt: session?.status === 'active' ? firstAskedAt(transcript, session.id, session.currentStepId) : 0,
   })
   waTrace('QUESTIONNAIRE_DECISION', trace, {
     kind: decision.kind,
@@ -189,6 +190,24 @@ export async function processQuestionnaireJob(
       props: { conversationId: job.conversationId, reason: `questionnaire_${decision.reason}` },
     })
     return 'sent'
+  }
+
+  // ── Messages that predate the open question: keep them, send nothing ──────
+  if (decision.kind === 'record') {
+    if (session?.status !== 'active') return skip('session_unavailable')
+    await persistQuestionTurn({
+      agencyId: job.agencyId,
+      conversationId: job.conversationId,
+      sessionId: session.id,
+      version: session.version,
+      leadId,
+      definition,
+      stepId: decision.stepId,
+      answers: decision.answers,
+      invalidCount: decision.invalidCount,
+      lastConsumedSequence: decision.consumeThrough,
+    })
+    return skip('recorded_early_messages')
   }
 
   // ── A question ───────────────────────────────────────────────────────────
@@ -246,6 +265,7 @@ export async function processQuestionnaireJob(
         phase: 1,
         kind: 'questionnaire',
         questionnaireTurnKey: turnKey,
+        questionnaireStepId: decision.stepId,
         ...(plan ? { interactive: plan.kind } : {}),
       },
       { timeoutMs: QUESTIONNAIRE_SEND_TIMEOUT_MS, skipAnalysis: true },

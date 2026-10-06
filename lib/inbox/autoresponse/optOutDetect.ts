@@ -41,9 +41,23 @@ const REMOVAL_PATTERNS: RegExp[] = [
  */
 const QUOTED_SPAN = /["'״’«][^"'״’»\n]{0,80}["'״’»]/g
 
+/**
+ * A removal or stop verb that is itself negated: "אני לא רוצה להסיר", "לא
+ * להסיר", "אין צורך להסיר", "אל תפסיקו". These say the opposite of an opt-out,
+ * and `להסיר` / `תפסיק` alone used to match them.
+ *
+ * Deliberately narrow, because this is a compliance stop: the negation must sit
+ * directly on the verb, with at most one wanting/asking word between, and no
+ * punctuation. "לא, להסיר אותי" (a comma: "no — remove me") still opts out,
+ * and so does every phrase that does not contain one of these exact shapes.
+ * Only the negated span is removed; anything else in the message is still read.
+ */
+const NEGATED_STOP =
+  /(?:^|\s)(?:לא|אל|אין צורך|אין)\s+(?:(?:רוצה|רוצים|מבקש|מבקשת|מבקשים|צריך|צריכה|צריכים)\s+)?(?:להסיר|להוריד|להפסיק|תסירו|תסיר|תפסיקו|תפסיק)(?=\s|$|[.,!?])/g
+
 /** Customer opt-out / unsubscribe request → permanent stop + compliance. */
 export function detectOptOut(text: string): boolean {
-  const t = text ?? ''
+  const t = (text ?? '').replace(NEGATED_STOP, ' ')
   if (OPTOUT_PATTERNS.some((re) => re.test(t))) return true
   return REMOVAL_PATTERNS.some((re) => re.test(t.replace(QUOTED_SPAN, ' ')))
 }

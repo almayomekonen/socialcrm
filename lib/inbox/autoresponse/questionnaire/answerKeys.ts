@@ -27,3 +27,13 @@ export function answerStateKey(stepId: string): string {
  * past answer, so the words are kept here and shown to the rep.
  */
 export const CORRECTIONS_KEY = ':corrections'
+
+/** Questions the customer asked us instead of answering; a rep answers them. */
+export const QUESTIONS_KEY = ':questions'
+
+/**
+ * Messages that said something but answered no open question: sent together
+ * with an answer, or before the question was asked. Kept for the rep, never
+ * guessed into a field.
+ */
+export const UNPLACED_KEY = ':unplaced'

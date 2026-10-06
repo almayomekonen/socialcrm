@@ -18,7 +18,7 @@
  * An input this file cannot read produces a re-prompt or a handoff, never a
  * guess and never a fallback to the AI agent.
  *
- * NOTE: ~345 lines, over the 250-line soft limit, intentionally. It is one pure
+ * NOTE: ~330 lines, over the 250-line soft limit, intentionally. It is one pure
  * function and its helpers: every rule of the conversation in one place, read
  * top to bottom in priority order. Splitting it by rule would scatter a
  * decision table that only makes sense as a whole, and the priority between
@@ -26,27 +26,15 @@
  * being visible.
  */
 import type { AiState } from '../qualification'
-import {
-  findStep,
-  nextStepAfter,
-  answerStateKey,
-  rawAnswerKey,
-  type QuestionnaireDefinition,
-  type QuestionnaireStep,
-} from './definition'
-import {
-  detectCommand,
-  joinTextInputs,
-  normalizeForMatch,
-  parseChoice,
-  parseFreeText,
-  type InboundKind,
-} from './parseAnswer'
-import { parseSelectionId } from './interactive'
+import { findStep, nextStepAfter, type QuestionnaireDefinition, type QuestionnaireStep } from './definition'
+import { detectCommand, type InboundKind } from './parseAnswer'
 import { closingFor } from './closing'
-import { checkTextAnswer, withCorrections } from './validateAnswer'
-import { replyAddsWords } from './aliasMatch'
-import { renderOpening, renderQuestion, renderReprompt, renderRestart, type RepromptReason } from './render'
+import { QUESTIONS_KEY } from './answerKeys'
+import { readTurn, withExtras } from './readTurn'
+import { renderOpening, renderQuestion, renderQuestionAck, renderReprompt, renderRestart, type RepromptReason } from './render'
+
+/** Questions a customer may ask before a person takes over (the next one hands off); never invalid answers. */
+export const MAX_CUSTOMER_QUESTIONS = 3
 
 export type QuestionnaireSessionStatus =
   | 'active'
@@ -91,10 +79,24 @@ export type TurnFacts = {
   /** Any earlier outbound at all, which means this is not a fresh conversation. */
   hasPriorOutbound: boolean
   leadStatusTerminal: boolean
+  /**
+   * Sequence of the message that FIRST asked the current question (not a
+   * re-ask). Earlier messages cannot answer it (readTurn.ts). 0 when unknown.
+   */
+  firstAskedAt?: number
 }
 
 export type TurnDecision =
   | { kind: 'none'; reason: string; consumeThrough: number | null }
+  /** Save what arrived, send nothing: the open question is unchanged. */
+  | {
+      kind: 'record'
+      reason: string
+      stepId: string
+      answers: Record<string, string[]>
+      invalidCount: number
+      consumeThrough: number
+    }
   | {
       kind: 'question'
       reason: string
@@ -153,6 +155,11 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   }
   if (commands.includes('human')) {
     return terminal('human_request', 'handed_off', definition.handoff, answers, consumeThrough, true, false)
+  }
+  // "לא מעוניין" as the whole message: stop asking, say nothing, let a rep decide.
+  // Not an opt-out: no compliance stop is recorded (parseAnswer.ts).
+  if (active && commands.includes('decline')) {
+    return terminal('declined', 'handed_off', null, answers, consumeThrough, true, false)
   }
 
   // ── No session yet: may this conversation start one? ──────────────────────
@@ -220,68 +227,53 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   }
 
   // ── The answer itself ────────────────────────────────────────────────────
-  if (step.type === 'choice') {
-    // Newest readable selection wins: a customer who writes "2" and then "no, 3"
-    // has corrected themselves, and the correction is the answer.
-    // A tap is resolved by its id, never its label, and only for THIS question:
-    // a tap on an earlier question's buttons is stale and answers nothing.
-    for (let i = textInputs.length - 1; i >= 0; i--) {
-      const input = textInputs[i]
-      if (input.selectedId) {
-        const tapped = parseSelectionId(input.selectedId)
-        if (tapped?.stepId === step.id && step.options.some((o) => o.id === tapped.optionId)) {
-          return advance(facts, active, step, { [step.id]: [tapped.optionId] }, consumeThrough as number)
-        }
-        continue
-      }
-      const parsed = parseChoice(input.text, step)
-      if (parsed.ok) {
-        // Read from the customer's own words: keep them for the rep when they add something.
-        const keep = parsed.via === 'alias' && replyAddsWords(input.text, step, parsed.optionIds)
-        const raw = keep ? { [rawAnswerKey(step.id)]: [normalizeForMatch(input.text).slice(0, 300)] } : {}
-        return advance(facts, active, step, { [step.id]: parsed.optionIds, ...raw }, consumeThrough as number)
-      }
-    }
-    const typed = textInputs.filter((i) => !i.selectedId)
-    const lastParse = typed.length ? parseChoice(typed[typed.length - 1].text, step) : null
-    // `=== false` rather than `!`: this codebase's TS does not narrow a
-    // discriminated union on the negation.
-    const reason: RepromptReason =
-      lastParse?.ok === false && lastParse.reason === 'too_many' ? 'invalid_multi' : 'invalid_choice'
-    const noted = withCorrections(answers, typed.map((i) => i.text))
-    return reprompt(facts, active, step, reason, noted, consumeThrough as number)
+  // One message, one candidate; nothing joined, nothing lost (readTurn.ts).
+  const read = readTurn(step, textInputs, facts.firstAskedAt ?? 0)
+  const kept = withExtras(answers, read.extras)
+  if (read.kind === 'answer') return advance(facts, kept, step, read.answer, consumeThrough as number)
+  if (read.kind === 'question') return customerQuestion(facts, active, step, kept, consumeThrough as number)
+  if (read.kind === 'early_only') {
+    // Everything predates this question: keep it for the rep, say nothing.
+    return { kind: 'record', reason: 'early_messages', stepId: step.id, answers: kept, invalidCount: active.invalidCount, consumeThrough: consumeThrough as number }
   }
+  return reprompt(facts, active, step, read.reason, kept, consumeThrough as number)
+}
 
-  // A free-text question is answered by typing; a stale tap is not an answer.
-  const typedText = textInputs.filter((i) => !i.selectedId)
-  if (!typedText.length) {
-    return reprompt(facts, active, step, 'invalid_text', answers, consumeThrough as number)
+/**
+ * The customer asked us something. Not a malformed answer, so it does not count
+ * toward maxInvalidAttempts: acknowledge, ask again. A person answers questions,
+ * so after a few the conversation is handed to one.
+ */
+function customerQuestion(
+  facts: TurnFacts,
+  session: SessionSnapshot,
+  step: QuestionnaireStep,
+  answers: Record<string, string[]>,
+  consumeThrough: number,
+): TurnDecision {
+  if ((answers[QUESTIONS_KEY]?.length ?? 0) > MAX_CUSTOMER_QUESTIONS) {
+    return terminal('customer_questions', 'handed_off', facts.definition.handoff, answers, consumeThrough, true, false)
   }
-  const joined = joinTextInputs(typedText.map((i) => i.text))
-  const parsed = parseFreeText(joined)
-  if (!parsed.ok) {
-    return reprompt(facts, active, step, 'invalid_text', answers, consumeThrough as number)
+  return {
+    kind: 'question',
+    reason: 'customer_question',
+    text: renderQuestionAck(step),
+    stepId: step.id,
+    answers,
+    invalidCount: session.invalidCount,
+    consumeThrough,
+    startsSession: false,
   }
-  // Opt-in per question; without `validate` every non-empty reply is the answer.
-  // A rejected correction ("טעיתי 19.11") is kept for the rep, never lost and
-  // never filed under this question.
-  const checked = checkTextAnswer(step, parsed.value)
-  if (!checked.ok) {
-    const noted = withCorrections(answers, typedText.map((i) => i.text))
-    return reprompt(facts, active, step, 'invalid_text', noted, consumeThrough as number)
-  }
-  const state = checked.notSet ? { [answerStateKey(step.id)]: ['not_set'] } : {}
-  return advance(facts, active, step, { [step.id]: [parsed.value], ...state }, consumeThrough as number)
 }
 
 function advance(
   facts: TurnFacts,
-  session: SessionSnapshot,
+  base: Record<string, string[]>,
   step: QuestionnaireStep,
   answer: Record<string, string[]>,
   consumeThrough: number,
 ): TurnDecision {
-  const answers = { ...session.answers, ...answer }
+  const answers = { ...base, ...answer }
   const next = nextStepAfter(facts.definition, answers, step.id)
   if (!next) {
     return terminal('completed', 'completed', closingFor(facts.definition, answers), answers, consumeThrough, true, true)

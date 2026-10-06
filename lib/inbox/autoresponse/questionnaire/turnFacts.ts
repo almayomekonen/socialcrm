@@ -93,6 +93,25 @@ function isHumanAuthored(row: Row): boolean {
   return true
 }
 
+/**
+ * Sequence of the message that FIRST asked this session's open question, from
+ * the step id each questionnaire send records. 0 when unknown (sent before the
+ * id was recorded), which keeps the older rule: every pending message is a
+ * candidate answer.
+ */
+export function firstAskedAt(transcript: readonly Row[], sessionId: number, stepId: string | null): number {
+  if (!stepId) return 0
+  for (const m of transcript) {
+    if (m.direction !== 'outbound') continue
+    const meta = (typeof m.metadata === 'string' ? safeJson(m.metadata) : m.metadata) as
+      | { questionnaireStepId?: unknown; questionnaireTurnKey?: unknown }
+      | null
+    const turnKey = typeof meta?.questionnaireTurnKey === 'string' ? meta.questionnaireTurnKey : ''
+    if (meta?.questionnaireStepId === stepId && turnKey.startsWith(`${sessionId}:`)) return Number(m.sequence)
+  }
+  return 0
+}
+
 export function sessionDefinition(value: unknown): QuestionnaireDefinition | null {
   const parsed = parseQuestionnaireDefinition(value ?? null)
   return parsed.ok ? parsed.definition : null

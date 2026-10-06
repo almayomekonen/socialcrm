@@ -9,9 +9,12 @@
  * cannot keep: no callback time, no "someone will call you in X minutes". What
  * the business promises is its own `closing` text, which it wrote.
  */
+import { stepsNeedingVerification } from './correctionTarget'
+import { QUESTIONS_KEY, UNPLACED_KEY } from './answerKeys'
 import {
   answerStateKey,
   CORRECTIONS_KEY,
+  findStep,
   rawAnswerKey,
   type QuestionnaireDefinition,
   type QuestionnaireOption,
@@ -28,6 +31,7 @@ export const SYSTEM_LINES = {
   mediaOnly: 'כרגע אפשר להשיב כאן בהודעת טקסט בלבד.',
   voiceOnly: 'אין באפשרותנו להאזין להודעות קוליות.',
   restarted: 'מתחילים מחדש.',
+  questionAck: 'שאלה טובה, נציג מהצוות יענה עליה בהמשך.',
 } as const
 
 export function renderStep(step: QuestionnaireStep): string {
@@ -45,6 +49,11 @@ export function renderStep(step: QuestionnaireStep): string {
 export const NOT_SET_SUMMARY = 'טרם נקבע'
 /** How the rep reads a correction the engine could not apply to an earlier answer. */
 export const CORRECTION_LABEL = 'תיקון מהלקוח'
+const DISPUTED_NOTE = 'הלקוח שלח תיקון, דורש אימות'
+const VERIFY_TITLE = 'כולל תיקון מהלקוח, דורש אימות'
+const UNATTRIBUTED = 'לא שויך לשאלה'
+const QUESTION_LABEL = 'שאלה מהלקוח'
+const UNPLACED_LABEL = 'הודעה נוספת מהלקוח'
 
 /** One numbered menu line. The icon, when there is one, is decoration after the label. */
 export function menuLine(option: QuestionnaireOption, index: number): string {
@@ -77,6 +86,15 @@ export function renderReprompt(step: QuestionnaireStep, reason: RepromptReason):
   return [REPROMPT_LINE[reason], '', renderQuestion(step)].join('\n')
 }
 
+/**
+ * The customer asked us something: say a person will answer it, then ask our
+ * question again, without anything the question said only once (a greeting).
+ */
+export function renderQuestionAck(step: QuestionnaireStep): string {
+  const again = step.type === 'text' && step.reaskPrompt ? step.reaskPrompt : renderQuestion(step)
+  return [SYSTEM_LINES.questionAck, '', again].join('\n')
+}
+
 export function renderRestart(definition: QuestionnaireDefinition, step: QuestionnaireStep): string {
   return [SYSTEM_LINES.restarted, '', renderQuestion(step)].join('\n')
 }
@@ -93,26 +111,35 @@ export function renderSummary(
   answers: Record<string, string[]>,
   opts: { complete: boolean },
 ): string {
-  const lines: string[] = [opts.complete ? definition.summaryTitle : `${definition.summaryTitle} (לא הושלם)`]
-  for (const step of definition.steps) {
-    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
-    if (value) lines.push(`${step.label}: ${value}`)
-  }
-  for (const said of answers[CORRECTIONS_KEY] ?? []) lines.push(`${CORRECTION_LABEL}: ${said}`)
-  return lines.join('\n')
+  const title = opts.complete ? definition.summaryTitle : `${definition.summaryTitle} (לא הושלם)`
+  const flagged = (answers[CORRECTIONS_KEY]?.length ?? 0) > 0 ? `${title} (${VERIFY_TITLE})` : title
+  return [flagged, ...summaryFields(definition, answers).map((f) => `${f.label}: ${f.value}`)].join('\n')
 }
 
-/** Structured rows for the inbox banner: the same data, unformatted. */
+/**
+ * Structured rows for the inbox banner, and the lines of the summary note. After
+ * the answers: corrections (and, where one clearly targets an answer, a flag on
+ * that answer), the customer's own questions, and messages that answered no
+ * question. Nothing the customer wrote is dropped from what the rep reads.
+ */
 export function summaryFields(
   definition: QuestionnaireDefinition,
   answers: Record<string, string[]>,
 ): Array<{ label: string; value: string }> {
+  const corrections = answers[CORRECTIONS_KEY] ?? []
+  const disputed = stepsNeedingVerification(definition, answers, corrections)
   const fields: Array<{ label: string; value: string }> = []
   for (const step of definition.steps) {
     const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
-    if (value) fields.push({ label: step.label, value })
+    if (value) fields.push({ label: step.label, value: disputed.has(step.id) ? `${value} (${DISPUTED_NOTE})` : value })
   }
-  for (const said of answers[CORRECTIONS_KEY] ?? []) fields.push({ label: CORRECTION_LABEL, value: said })
+  for (const said of corrections) {
+    const target = [...disputed].find(([, c]) => c === said)?.[0]
+    const label = target ? `${CORRECTION_LABEL} (${findStep(definition, target)?.label})` : `${CORRECTION_LABEL} (${UNATTRIBUTED})`
+    fields.push({ label, value: said })
+  }
+  for (const asked of answers[QUESTIONS_KEY] ?? []) fields.push({ label: QUESTION_LABEL, value: asked })
+  for (const extra of answers[UNPLACED_KEY] ?? []) fields.push({ label: UNPLACED_LABEL, value: extra })
   return fields
 }
 

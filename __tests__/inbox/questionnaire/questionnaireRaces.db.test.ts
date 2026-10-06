@@ -238,24 +238,31 @@ describe('duplicate webhook deliveries', () => {
 })
 
 describe('the customer writes while a turn is running', () => {
-  it('the message is not lost: a follow-up turn answers it, against the right question', async () => {
+  it('a message typed before the next question arrived is kept for the rep, never filed under it', async () => {
     const t = await makeTenant('gap')
     await customerSays(t, 'היי')
     await settle()
     await customerSays(t, 'חתונה')
     await settle()
     await customerSays(t, '18.11')
-    // While the location question is being sent, the customer already answers it.
+    // While the location question is being sent, the customer already writes:
+    // they have not seen the location question, so this is not its answer.
     sendImpl = async () => {
       sendImpl = okSend
       await customerSays(t, 'רחובות')
       return okSend()
     }
+    const before = sent.length
     await settle()
+    expect(sent.length - before).toBe(1) // the location question, once; the follow-up turn says nothing
     const session = await sessionRow(t)
-    expect(session?.currentStepId).toBe('service')
-    expect(session?.answers).toMatchObject({ event_date_celebration: ['18.11'], event_location: ['רחובות'] })
-    expect(sent.map((m) => m.body).filter((b) => b.includes('איזה שירות צילום'))).toHaveLength(1)
+    expect(session?.currentStepId).toBe('event_location')
+    expect(session?.answers).toMatchObject({ event_date_celebration: ['18.11'], ':unplaced': ['רחובות'] })
+    expect(session?.answers.event_location).toBeUndefined()
+    const recorded = await db('auto_response_jobs').where({ conversationId: t.conversationId, skipReason: 'recorded_early_messages' }).first('id')
+    expect(recorded).toBeTruthy()
+    const summary = await getHandoffSummary(t.agencyId, t.conversationId)
+    expect(summary?.fields).toContainEqual({ label: 'הודעה נוספת מהלקוח', value: 'רחובות' })
   })
 })
 
@@ -322,6 +329,13 @@ describe('captions and bursts through the real ingest', () => {
     expect(sent.length - before).toBe(1)
     const session = await sessionRow(t)
     expect(session?.currentStepId).toBe('event_date_celebration')
-    expect(session?.answers).toEqual({ event_type: ['wedding'] })
+    // Nothing filed under a question it did not answer, and nothing lost.
+    expect(session?.answers).toEqual({ event_type: ['wedding'], ':unplaced': ['18.11', 'רחובות'] })
+    const summary = await getHandoffSummary(t.agencyId, t.conversationId)
+    expect(summary?.fields).toEqual([
+      { label: 'סוג האירוע / השירות', value: 'חתונה' },
+      { label: 'הודעה נוספת מהלקוח', value: '18.11' },
+      { label: 'הודעה נוספת מהלקוח', value: 'רחובות' },
+    ])
   })
 })

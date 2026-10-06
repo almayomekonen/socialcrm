@@ -128,10 +128,21 @@ const CORRECTION_MARKERS = new Set(['טעיתי', 'טעות', 'תיקון', 'ה�
 
 /** A question put to us, rather than an answer to ours. */
 export function isQuestionToUs(text: string, words: readonly string[]): boolean {
-  if (!words.length) return false
+  // A bare "מה?" or "מתי?" is confusion, not a question for a rep.
+  if (words.length < 2) return false
   if (OPENING_INTERROGATIVES.has(words[0]) && words.length > 1) return true
   if (!/[?؟]/.test(text)) return false
   return ASKING_OPENERS.has(words[0]) || words.some((w) => INTERROGATIVES.has(w))
+}
+
+/**
+ * Nothing but fillers and punctuation ("שלום", "?", "אוקי"): not worth keeping
+ * for the rep. A number is never filler: "18.11" or "300" may be exactly the
+ * detail the rep needs.
+ */
+export function isFillerOnly(text: string): boolean {
+  const words = aliasTokens(text)
+  return !words.some((w) => /\d/.test(w) || !inSet(w, NON_ANSWERS))
 }
 
 export function isCorrection(words: readonly string[]): boolean {
@@ -144,7 +155,8 @@ export function checkTextAnswer(rules: Rules, value: string): TextCheck {
   if (rules.validate === 'date') {
     if (isDateLike(value, words)) return { ok: true }
     if (rules.allowNotSet && isNotSet(words)) return { ok: true, notSet: true }
-    return { ok: false, reason: isCorrection(words) ? 'correction' : 'not_an_answer' }
+    if (isCorrection(words)) return { ok: false, reason: 'correction' }
+    return { ok: false, reason: isQuestionToUs(value, words) ? 'question' : 'not_an_answer' }
   }
   if (rules.allowNotSet && isNotSet(words)) return { ok: true, notSet: true }
   if (isCorrection(words)) return { ok: false, reason: 'correction' }
