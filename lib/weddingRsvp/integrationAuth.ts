@@ -48,3 +48,12 @@ export function verifyIntegrationRequest(
     return { ok: false, status: 400, error: 'invalid-json' }
   }
 }
+
+/**
+ * Sending is a SEPARATE switch from the integration itself: with only the secret
+ * configured, the integration is read-only (statuses, RSVP, export) and
+ * send-invitation refuses. Sending needs WEDDING_INTEGRATION_SEND_ENABLED=true.
+ */
+export function integrationSendEnabled(): boolean {
+  return process.env.WEDDING_INTEGRATION_SEND_ENABLED === 'true'
+}
