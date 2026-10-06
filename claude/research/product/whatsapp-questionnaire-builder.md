@@ -1,11 +1,25 @@
 ---
 domain: product
-status: proposed
+status: approved
 last_updated: 2026-10-06
 related: []
 ---
 
 # WhatsApp Questionnaire Builder
+
+> **Decisions (Creative Director, 2026-10-06).**
+> - **Approved:** the conversation editor (§5); mobile V1 = view, simulate, and
+>   enable/disable where safe, with editing desktop-first (§5.11); up/down reordering in
+>   V1 with no drag-and-drop dependency, but explicit stable ordering in the data model
+>   (§5.12).
+> - **Not approved:** the new revision table. Storage is decided in
+>   `docs/questionnaire-builder-pr1.md` after comparing it with reusing existing
+>   storage.
+> - **Location answer type:** decide the smallest solution (likely a Builder preset),
+>   not a new runtime primitive by default.
+> - **Multiple conditions:** deferred. The domain boundary must not assume exactly one.
+> - **External product observations (§2.2):** non-authoritative inspiration only. No
+>   approved decision rests on them.
 
 **Question:** How does a business owner build the deterministic WhatsApp
 questionnaire themselves, without staff, and without learning the engine?
@@ -115,10 +129,11 @@ of these changes themselves, in the words they used.
     necessary: a session freezes its definition, because "5" means a different option
     once a menu changes (§1.2, version pinning).
 
-### 2.2 Outside SocialCRM
+### 2.2 Outside SocialCRM (non-authoritative inspiration)
 
-This section draws on product knowledge and was **not re-inspected in this session**.
-Verify it before moving to `approved`.
+**Not evidence.** Recalled product impressions, not verified against current public
+documentation. No decision in this document depends on them; every decision rests on
+§1, §2.1 and the production behaviour of the runtime. Kept only as inspiration.
 
 - **Typeform:**
   - One question per card. The editor list mirrors the respondent's sequence, with a
@@ -143,6 +158,10 @@ Verify it before moving to `approved`.
 
 ## 3. Common Pattern
 
+Points 1–4 are what SocialCRM's own evidence shows: the four Perfect Picture revisions
+(§1.3), the automation builder (§2.1) and `AgentPreview`. The outside products of §2.2
+are consistent with them but carry no weight.
+
 1. **The editor mirrors what the respondent experiences.** The products owners rate
    easiest (Typeform, Tally) show the sequence the customer will walk. They don't show
    a graph.
@@ -151,8 +170,9 @@ Verify it before moving to `approved`.
 3. **Advanced settings exist but are collapsed by default.** The first question works
    with defaults.
 4. **A preview is always one glance away. A test run is one click away.**
-5. **Graph builders win on raw power and lose the non-technical owner.** SocialCRM's own
-   automation spec reached the same conclusion and refused a canvas permanently.
+5. **A visual graph is refused.** SocialCRM's own automation spec refused a canvas
+   permanently (RTL bias, complexity), and Perfect Picture's branching was fully
+   expressible as sentences on questions (§7.2).
 
 ---
 
@@ -592,5 +612,5 @@ B only edits. Starting from blank:
    automations are edit-in-place (§6.2).
 5. Prioritise runtime gaps #5 (location preset) and #1 (AND conditions) for V1 or
    defer them (§6.4).
-6. Confirm the external-product evidence (§2.2) is re-inspected before status moves to
-   `approved`.
+6. ~~Confirm the external-product evidence~~. Resolved: relabelled as non-authoritative
+   inspiration; no decision depends on it.
