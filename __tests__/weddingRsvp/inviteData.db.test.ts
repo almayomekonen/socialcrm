@@ -80,6 +80,16 @@ describe('countInvitesSent', () => {
     expect(await countInvitesSent(agencyId, GUEST)).toBe(1)
   })
 
+  it('a delivered or read invite counts; failed ones alongside it do not add to the count', async () => {
+    await addOutbound(INVITE_STORED_TEXT, { metadata: { kind: INVITE_KIND }, status: 'failed' })
+    await addOutbound(INVITE_STORED_TEXT, { metadata: { kind: INVITE_KIND }, status: 'failed' })
+    expect(await countInvitesSent(agencyId, GUEST)).toBe(0) // only failures → retry allowed
+    await addOutbound(INVITE_STORED_TEXT, { metadata: { kind: INVITE_KIND }, status: 'delivered' })
+    expect(await countInvitesSent(agencyId, GUEST)).toBe(1)
+    await addOutbound(INVITE_STORED_TEXT, { metadata: { kind: INVITE_KIND }, status: 'read' })
+    expect(await countInvitesSent(agencyId, GUEST)).toBe(2)
+  })
+
   it('ignores a failed send, another number, and another agency', async () => {
     await addOutbound(INVITE_STORED_TEXT, { metadata: { kind: INVITE_KIND }, status: 'failed' })
     expect(await countInvitesSent(agencyId, GUEST)).toBe(0)

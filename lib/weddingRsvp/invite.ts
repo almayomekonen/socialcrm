@@ -9,7 +9,7 @@ import {
   INVITE_STORED_TEXT,
   INVITE_TEMPLATE_LANGUAGE,
   INVITE_TEMPLATE_NAME,
-  isAllowedRecipient,
+  isWeddingAgency,
 } from '@/lib/weddingRsvp/config'
 import { countInvitesSent, withInviteLock } from '@/lib/weddingRsvp/inviteData'
 import { ensureInviteRecipient } from '@/lib/weddingRsvp/inviteRecipient'
@@ -35,7 +35,8 @@ const ISRAELI_MOBILE = /^9725\d{8}$/
  * phone number. A template, so it needs no open 24-hour window; works for a number
  * SocialCRM has never seen. Everything runs under one advisory lock per guest:
  *
- *   validate + allowlist → already invited by any path? refuse → find/create Lead
+ *   wedding agency only → validate the Israeli mobile → already invited (a non-failed
+ *   send by any path)? refuse → find/create Lead
  *   and conversation → human takeover (the AI agent must not answer a wedding
  *   guest) → SEND → persist only on a wamid. The existing `statuses` webhook then
  *   moves the stored row through sent → delivered → read by its wamid.
@@ -47,9 +48,9 @@ export async function sendWeddingInvite(args: {
   firstName: string
   lastName: string
 }): Promise<SendWeddingInviteResult> {
+  if (!isWeddingAgency(args.agencyId)) return { ok: false, error: 'agency-not-allowed' }
   const waId = toIsraeliWhatsappRecipient(args.phone)
   if (!ISRAELI_MOBILE.test(waId)) return { ok: false, error: 'invalid-phone' }
-  if (!isAllowedRecipient(waId)) return { ok: false, error: 'recipient-not-allowed' }
   const firstName = args.firstName.trim()
   if (!firstName) return { ok: false, error: 'missing-name' }
 
@@ -63,7 +64,8 @@ export async function sendWeddingInvite(args: {
     const resolved = await resolveWhatsappOutboundTargetForConversation(args.agencyId, recipient.leadId, recipient.conversationId)
     if (resolved.ok === false) return { ok: false, error: resolved.reason }
     const { target } = resolved
-    if (!isAllowedRecipient(target.customerWaId)) return { ok: false, error: 'recipient-not-allowed' }
+    // The send goes to the conversation's number; it must be the number asked for.
+    if (toIsraeliWhatsappRecipient(target.customerWaId) !== waId) return { ok: false, error: 'recipient-mismatch' }
 
     await recordHumanTakeover({ agencyId: args.agencyId, leadId: recipient.leadId, conversationId: recipient.conversationId })
 

@@ -77,8 +77,21 @@ export const INVITE_KIND = 'wedding_invite'
 export const WEDDING_INVITE_LOCK_NAMESPACE = 20261119
 
 /**
- * Hard recipient allowlist. Both the sends (RSVP, invite) and the automatic
- * follow-up replies refuse any wa_id not listed here.
+ * The only agency the wedding module serves (the couple's own workspace). The
+ * invite endpoint refuses every other agency, so no other tenant can send this
+ * template or create leads through it.
+ */
+export const WEDDING_AGENCY_ID = 103
+
+export function isWeddingAgency(agencyId: number | null | undefined): boolean {
+  return agencyId === WEDDING_AGENCY_ID
+}
+
+/**
+ * Hard recipient allowlist for the RSVP path ONLY: the interactive RSVP send and
+ * its automatic follow-up replies refuse any wa_id not listed here. The template
+ * INVITE is not allowlisted — it goes to any valid Israeli mobile, gated by the
+ * session, product access and WEDDING_AGENCY_ID instead.
  *   972535316943 — Keren (RSVP test)
  *   972535353219 — Avraham Bogale (first template invite)
  */
