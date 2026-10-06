@@ -7,6 +7,8 @@ import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
  *   1. delete `lib/weddingRsvp/` and `app/api/wedding-rsvp/`
  *   2. delete `__tests__/weddingRsvp/`
  *   3. remove the one `routeWeddingRsvpReply` hook in `lib/whatsapp/handleInboundWebhookMessage.ts`
+ *   4. delete `public/wedding/` (the invitation card)
+ * The image-header support in `lib/whatsapp/sendTemplateMessage.ts` is generic and stays.
  * No schema, no flags, no env vars. Replies live in inbox_messages like any other message.
  */
 
@@ -44,10 +46,43 @@ export const HEAD_COUNT_MAX = 30
 export const WEDDING_RSVP_LOCK_NAMESPACE = 20261118
 
 /**
- * Hard recipient allowlist. Test phase: Keren only. Both the send and the
- * automatic follow-up replies refuse any wa_id not listed here.
+ * The approved Meta template `wedding_invite` (Hebrew, MARKETING): an IMAGE header
+ * (the invitation card) and a static body — no body variables. A template, so it
+ * delivers to a guest with no open 24-hour window.
  */
-export const ALLOWED_WA_IDS: ReadonlySet<string> = new Set(['972535316943'])
+export const INVITE_TEMPLATE_NAME = 'wedding_invite'
+export const INVITE_TEMPLATE_LANGUAGE = 'he'
+
+/**
+ * The invitation card, served as a static file of this app. Meta fetches the
+ * header image from this URL on every send, so it must be public, HTTPS and
+ * permanent: a file in `public/` on the production domain is all three, and it
+ * cannot expire the way a Cloud API media id (30 days) or a Meta CDN link would.
+ * The random suffix keeps it from being guessed; it is not a secret.
+ */
+export const INVITE_IMAGE_PATH = '/wedding/invite-b80c5796602c.jpg'
+export const INVITE_IMAGE_URL = `https://getsocialcrm.com${INVITE_IMAGE_PATH}`
+
+export const INVITE_BODY =
+  'שמחים ונרגשים להזמינכם לחגוג איתנו את היום המאושר בחיינו – החתונה שלנו! 💍\n' +
+  'נשמח מאוד לראותכם לצידנו 🤗❤️💕\n\nבאהבה גדולה,\nפסיקה ואלמיהו'
+
+/** What the conversation shows for the invite: the card marker plus the template body. */
+export const INVITE_STORED_TEXT = `[תמונת ההזמנה]\n${INVITE_BODY}`
+
+/** metadata.kind on the stored invite. Not `source`: a rep's send stays a human reply. */
+export const INVITE_KIND = 'wedding_invite'
+
+/** Second key of pg_advisory_xact_lock(hashtext(waId), namespace) for invites. */
+export const WEDDING_INVITE_LOCK_NAMESPACE = 20261119
+
+/**
+ * Hard recipient allowlist. Both the sends (RSVP, invite) and the automatic
+ * follow-up replies refuse any wa_id not listed here.
+ *   972535316943 — Keren (RSVP test)
+ *   972535353219 — Avraham Bogale (first template invite)
+ */
+export const ALLOWED_WA_IDS: ReadonlySet<string> = new Set(['972535316943', '972535353219'])
 
 export function isAllowedRecipient(waId: string | null | undefined): boolean {
   if (!waId) return false

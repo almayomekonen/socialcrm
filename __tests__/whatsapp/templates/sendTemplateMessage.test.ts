@@ -59,6 +59,37 @@ describe('sendWhatsappTemplate — payload', () => {
   })
 })
 
+describe('sendWhatsappTemplate — image header', () => {
+  const bodyOf = (spy: { mock: { calls: unknown[][] } }) =>
+    JSON.parse(String((spy.mock.calls[0][1] as RequestInit).body))
+
+  it('without headerImage the payload is identical to before (no header component)', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(res(200, { messages: [{ id: 'wamid.A' }] }))
+    await sendWhatsappTemplate(base)
+    expect(bodyOf(spy).template.components).toEqual([
+      { type: 'body', parameters: [{ type: 'text', text: 'דוד' }, { type: 'text', text: 'סושיאל' }] },
+    ])
+  })
+
+  it('a link image becomes a header component, placed before the body', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(res(200, { messages: [{ id: 'wamid.B' }] }))
+    await sendWhatsappTemplate({ ...base, headerImage: { link: 'https://example.com/i.jpg' } })
+    expect(bodyOf(spy).template.components).toEqual([
+      { type: 'header', parameters: [{ type: 'image', image: { link: 'https://example.com/i.jpg' } }] },
+      { type: 'body', parameters: [{ type: 'text', text: 'דוד' }, { type: 'text', text: 'סושיאל' }] },
+    ])
+  })
+
+  it('an image-header template with a static body sends only the header', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(res(200, { messages: [{ id: 'wamid.C' }] }))
+    const out = await sendWhatsappTemplate({ ...base, params: [], headerImage: { id: 'MEDIA_1' } })
+    expect(out).toEqual({ ok: true, wamid: 'wamid.C' })
+    expect(bodyOf(spy).template.components).toEqual([
+      { type: 'header', parameters: [{ type: 'image', image: { id: 'MEDIA_1' } }] },
+    ])
+  })
+})
+
 describe('sendWhatsappTemplate — failure envelope', () => {
   it('returns a structured failure with the Graph code (never throws)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
