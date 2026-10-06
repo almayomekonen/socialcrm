@@ -23,6 +23,18 @@ const PUBLIC_ROUTES = [
   '/data-deletion',
 ]
 
+/**
+ * OAuth / MCP discovery documents (ChatGPT connector). EXACT paths only — no
+ * prefix match, no other /.well-known path. Public metadata with no tenant data
+ * (and 404 while MCP is disabled); it must be fetchable without a session or
+ * OAuth discovery fails.
+ */
+export const OAUTH_DISCOVERY_PATHS: ReadonlySet<string> = new Set([
+  '/.well-known/oauth-authorization-server',
+  '/.well-known/oauth-protected-resource',
+  '/.well-known/oauth-protected-resource/api/mcp',
+])
+
 export async function proxy(request: NextRequest) {
   const user = request.cookies.get('user')?.value
   const { pathname } = request.nextUrl
@@ -40,6 +52,7 @@ export async function proxy(request: NextRequest) {
   // Push service worker (public/sw.js) — push + notificationclick only, no secrets.
   // Must be fetchable without a session so registration/update cannot 302 to /auth.
   if (pathname === '/sw.js') return NextResponse.next()
+  if (OAUTH_DISCOVERY_PATHS.has(pathname)) return NextResponse.next()
 
   // Allow public marketing pages (exact match or nested paths)
   if (PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()

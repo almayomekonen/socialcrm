@@ -6,7 +6,7 @@
  *  1. `isFacebookCommentsEnabledForAgency` — OUR rollout switch. Absence blocks
  *     (kill switch + agency allowlist), mirroring `lib/automations/flags.ts`.
  *  2. `hasCommentTextCapability` — META'S gate. Comment text requires
- *     `pages_read_user_content`, which is pending App Review. Verified in
+ *     `pages_read_user_content` (approved by Meta; was pending until 2026-10). Verified in
  *     production 2026-08-10: with only pages_show_list + pages_manage_metadata +
  *     leads_retrieval, the feed webhook delivers comment_id / post_id / from,
  *     but never `message`.

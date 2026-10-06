@@ -55,6 +55,8 @@ async function upsertFacebookPageComment(row: {
   createdTime: Date | null
   receivedAt: Date
   updatedAt: Date
+  attachmentType: 'photo' | 'video' | null
+  attachmentUrl: string | null
 }): Promise<{ id: number; inserted: boolean }> {
   const rows = await db('facebook_page_comments')
     .insert(row)
@@ -65,6 +67,8 @@ async function upsertFacebookPageComment(row: {
       // from the Graph response before its webhook echo arrived).
       ...(row.messageAvailable ? { message: row.message, messageAvailable: true } : {}),
       ...(row.authorName ? { authorName: row.authorName } : {}),
+      // Same rule for an attachment: refreshed when sent, never blanked.
+      ...(row.attachmentUrl ? { attachmentType: row.attachmentType, attachmentUrl: row.attachmentUrl } : {}),
       // Once known to be the Page's own comment, always the Page's: a later
       // event that omits `from` must never turn a reply back into a work item.
       authorIsPage: db.raw('facebook_page_comments."authorIsPage" OR EXCLUDED."authorIsPage"'),
@@ -80,6 +84,35 @@ async function upsertFacebookPageComment(row: {
   // pg may return boolean true, or 't'/'f' depending on driver path.
   const inserted = saved.inserted === true || saved.inserted === 't' || saved.inserted === 1
   return { id: Number(saved.id), inserted }
+}
+
+/**
+ * Keep what the webhook said about the POST (permalink, status_type) in the
+ * post cache, so the inbox can link to it before any Graph enrichment ran.
+ *
+ * Runs after the comment is stored and notified, in its own try: post context
+ * is a nicety, and failing it must never cost the comment. COALESCE keeps a
+ * value already known when this delivery omits it; the Graph-fetched fields
+ * (message, picture, fetchStatus) are never touched here.
+ */
+async function recordPostFromWebhook(
+  agencyId: number,
+  pageId: string,
+  postId: string,
+  post: { permalinkUrl: string | null; statusType: string | null },
+): Promise<void> {
+  try {
+    await db('facebook_page_posts')
+      .insert({ agencyId, pageId, postId, permalinkUrl: post.permalinkUrl, statusType: post.statusType, updatedAt: new Date() })
+      .onConflict(['agencyId', 'pageId', 'postId'])
+      .merge({
+        permalinkUrl: db.raw('COALESCE(EXCLUDED."permalinkUrl", facebook_page_posts."permalinkUrl")'),
+        statusType: db.raw('COALESCE(EXCLUDED."statusType", facebook_page_posts."statusType")'),
+        updatedAt: new Date(),
+      })
+  } catch (err) {
+    console.error('[FacebookComments] Post context not recorded:', err instanceof Error ? err.message : 'unknown')
+  }
 }
 
 export async function ingestFacebookComment(pageId: string, value: unknown): Promise<IngestResult> {
@@ -129,6 +162,8 @@ export async function ingestFacebookComment(pageId: string, value: unknown): Pro
       createdTime: event.createdTime,
       receivedAt: now,
       updatedAt: now,
+      attachmentType: event.attachment?.type ?? null,
+      attachmentUrl: event.attachment?.url ?? null,
     }
 
     // ── Idempotency. ──────────────────────────────────────────────────────
@@ -164,6 +199,8 @@ export async function ingestFacebookComment(pageId: string, value: unknown): Pro
         },
       })
     }
+
+    await recordPostFromWebhook(agencyId, pageId, event.postId, event.post)
 
     return 'ingested'
   } catch (err) {

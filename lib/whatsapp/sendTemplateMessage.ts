@@ -24,15 +24,28 @@ export type SendWhatsappTemplateArgs = {
   language: string
   /** Positional body params in `{{1}},{{2}}…` order; each must be non-empty. */
   params: string[]
+  /**
+   * The image for a template whose HEADER is an IMAGE. Meta requires it on every
+   * send of such a template (the example image from review is never reused) and
+   * rejects the send without it. Either a public HTTPS `link` Meta can fetch, or
+   * the `id` of media uploaded to Cloud API. Omitted for every other template, in
+   * which case the payload is exactly what it was before this field existed.
+   */
+  headerImage?: TemplateHeaderImage
   trace?: WaTraceCtx
 }
 
+export type TemplateHeaderImage = { link: string } | { id: string }
+
 export async function sendWhatsappTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsappTextResult> {
-  const { phoneNumberId, accessToken, to, name, language, params } = args
+  const { phoneNumberId, accessToken, to, name, language, params, headerImage } = args
   // Same normalization as the text path — the number reaching Meta must be E.164.
   const recipient = toIsraeliWhatsappRecipient(to)
-  const components =
-    params.length > 0 ? [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text })) }] : []
+  // Meta's component order: header before body.
+  const components = [
+    ...(headerImage ? [{ type: 'header', parameters: [{ type: 'image', image: headerImage }] }] : []),
+    ...(params.length > 0 ? [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text })) }] : []),
+  ]
 
   waTrace('WHATSAPP_SEND_REQUEST', args.trace ?? {}, {
     phone_number_id: phoneNumberId,
@@ -41,6 +54,7 @@ export async function sendWhatsappTemplate(args: SendWhatsappTemplateArgs): Prom
     kind: 'template',
     templateName: name,
     paramCount: params.length,
+    headerImage: headerImage ? ('link' in headerImage ? 'link' : 'id') : null,
   })
 
   try {

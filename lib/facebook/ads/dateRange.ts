@@ -7,10 +7,11 @@
  * 37-month lookback (https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/).
  */
 
-export const ADS_RANGE_PRESETS = ['last_7d', 'last_30d', 'this_month', 'last_month'] as const
+export const ADS_RANGE_PRESETS = ['today', 'last_7d', 'last_30d', 'this_month', 'last_month'] as const
 export type AdsRangePreset = (typeof ADS_RANGE_PRESETS)[number]
 
 export const ADS_RANGE_LABEL: Record<AdsRangePreset | 'custom', string> = {
+  today: 'היום',
   last_7d: '7 ימים אחרונים',
   last_30d: '30 ימים אחרונים',
   this_month: 'החודש',
@@ -63,4 +64,45 @@ export function insightsRangeParams(range: AdsRange): Record<string, string> {
 
 export function adsRangeLabel(range: AdsRange): string {
   return range.kind === 'preset' ? ADS_RANGE_LABEL[range.preset] : `${range.since} – ${range.until}`
+}
+
+const addDays = (day: string, n: number) => {
+  const d = new Date(`${day}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * A range as explicit calendar days, following Meta's own preset definitions
+ * (`last_7d` / `last_30d` are the N full days BEFORE today; `this_month` runs
+ * to today). Used only where there is no Meta response to take the period from
+ * — the SocialCRM-only view — and the resolved dates are always printed there.
+ */
+export function rangeDays(range: AdsRange, today: string): { since: string; until: string } {
+  if (range.kind === 'custom') return { since: range.since, until: range.until }
+  switch (range.preset) {
+    case 'today':
+      return { since: today, until: today }
+    case 'last_7d':
+      return { since: addDays(today, -7), until: addDays(today, -1) }
+    case 'last_30d':
+      return { since: addDays(today, -30), until: addDays(today, -1) }
+    case 'this_month':
+      return { since: `${today.slice(0, 8)}01`, until: today }
+    case 'last_month': {
+      const firstThis = `${today.slice(0, 8)}01`
+      const lastPrev = addDays(firstThis, -1)
+      return { since: `${lastPrev.slice(0, 8)}01`, until: lastPrev }
+    }
+  }
+}
+
+/**
+ * Stable cache key for a range. A preset's days move every midnight, so the key
+ * carries the day it was asked on — "last_7d" today is a different question
+ * from "last_7d" yesterday. Starts with the preset, so "today" keys match a
+ * shorter freshness window.
+ */
+export function rangeKey(range: AdsRange, today: string): string {
+  return range.kind === 'preset' ? `${range.preset}@${today}` : `custom:${range.since}:${range.until}`
 }

@@ -5,7 +5,8 @@ import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import { isAdmin } from '@/types/roles'
 import { getPermsAndFilter } from '@/db/filter'
-import { getDealTableData } from '@/db/salesTbl'
+import { getDealTableData, isDealsSystemEmpty } from '@/db/salesTbl'
+import { resolveActiveFilter } from '@/lib/filter/resolveActiveFilter'
 import { hasAnyLeads } from '@/db/clients'
 import { Provider } from '@/lib/hooksNEvents'
 import { getUsers } from '@/db/usersNTeams'
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
 }
 
 export default async function SalesPage({ searchParams }) {
-  const { filter, saleId, isFav, pageNum, tableLimit } = await searchParams
+  const { filter: urlFilter, saleId, isFav, pageNum, tableLimit } = await searchParams
   const user = await getUser()
   if (!user) redirect('/auth')
 
@@ -34,6 +35,9 @@ export default async function SalesPage({ searchParams }) {
    * of them (architecture-rules.md §9).
    */
   if (await isMobileWorkspaceRequest(user.agencyId)) return <MobileDesktopOnly section='deals' />
+
+  // Explicit ?filter= wins; otherwise the user's remembered deals filter; otherwise the default.
+  const filter = await resolveActiveFilter('deals', user.id, urlFilter)
 
   const { rawFilter, sqlFilter, gotPermUsers, gotPermTeams, gotPermIds, allPermUsers } = await getPermsAndFilter({
     user,
@@ -48,7 +52,9 @@ export default async function SalesPage({ searchParams }) {
     hasAnyLeads(user.agencyId, gotPermIds, user.role),
   ])
 
-  const isSystemEmpty = tblData.length === 0 && !filter
+  // Onboarding only when the user's scope has NO deals at all — not when the
+  // active (possibly remembered) filter just matches nothing.
+  const isSystemEmpty = await isDealsSystemEmpty(tblData.length, user.agencyId, gotPermIds)
 
   const formProps = { user, officeGotPerm: gotPermUsers, saleId, allUsers }
 

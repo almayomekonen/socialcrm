@@ -3,14 +3,16 @@ import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
-import { listCommentReplies, listPageComments } from '@/modules/facebookComments/queries'
+import { after } from 'next/server'
+import { countOpenComments } from '@/modules/facebookComments/queries'
+import { loadCommentsFeedPage, type CommentsFeedPage } from '@/modules/facebookComments/feed'
+import { refreshCommentContext } from '@/lib/facebook/comments/enrich'
 import { parseGrantedScopes } from '@/db/facebook'
 import {
   hasFeatureScopes,
   isFacebookCommentRepliesEnabledForAgency,
   isFacebookMessengerEnabledForAgency,
 } from '@/lib/facebook/permissions'
-import { threadRootId } from '@/lib/facebook/comments/thread'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import { FACEBOOK_NOTICES } from '@/lib/connections/messages'
@@ -59,7 +61,7 @@ export default async function FacebookCommentsPage({
   // rows exist — ingest remains blocked until the agency is allowlisted.
   if (!enabled) {
     if (mobile) {
-      return <CommentsInboxMobile emptyKind='not-enabled' comments={[]} awaitingText={false} showMessenger={showMessenger} />
+      return <CommentsInboxMobile emptyKind='not-enabled' comments={[]} showMessenger={showMessenger} />
     }
     return (
       <div className='grid gap-3 p-3 sm:p-4'>
@@ -86,17 +88,27 @@ export default async function FacebookCommentsPage({
     .where({ agency_id: user.agencyId })
     .select('page_id', 'granted_scopes')) as { page_id: string; granted_scopes: unknown }[]
   const connection = pages[0] ?? null
-  const page = connection ? await listPageComments(user.agencyId, { status }) : { items: [], nextCursor: null }
+  const agencyId: number = user.agencyId
+  const [page, openCount] = connection
+    ? await Promise.all([loadCommentsFeedPage(agencyId, { status }), countOpenComments(agencyId).catch(() => null)])
+    : [{ items: [], replies: [], posts: [], nextCursor: null } as CommentsFeedPage, null]
+  const { replies } = page
+
+  // Who wrote it and what post it was on: read from Graph AFTER the response,
+  // bounded, only for the comments this render shows (lib/facebook/comments/enrich.ts).
+  const shownIds = page.items.map((c) => c.id)
+  if (shownIds.length > 0) after(() => refreshCommentContext({ agencyId, commentRowIds: shownIds }))
+
+  // No page-level "reconnect for text" notice: production shows comment text
+  // arriving on the webhook for Pages whose recorded grant lacks
+  // pages_read_user_content (2026-10-05 audit), so the grant does not predict
+  // text. A comment without text says so on its own card.
 
   // Replies are their own rollout: without it no reply form and no permission prompt appear.
   const repliesEnabled = isFacebookCommentRepliesEnabledForAgency(user.agencyId)
   const replyablePageIds = repliesEnabled
     ? pages.filter((p) => hasFeatureScopes(parseGrantedScopes(p.granted_scopes), 'comment_replies')).map((p) => p.page_id)
     : []
-  const replies = await listCommentReplies(
-    user.agencyId,
-    page.items.map((c) => ({ pageId: c.pageId, commentId: threadRootId(c) })),
-  )
 
   // One prompt, above the list, only when there are comments to reply to and a
   // Page that cannot. Returning from a declined consent says so plainly.
@@ -118,14 +130,12 @@ export default async function FacebookCommentsPage({
     <p role='status' className='text-sm text-green-600'>ההרשאה אושרה. אפשר להשיב לתגובות מכאן.</p>
   ) : null
 
-  // Exactly one page-level state at a time (ux-guidelines §11). "awaiting-text"
-  // is not an empty state — comments exist, so the notice sits ABOVE the list
-  // to explain the blanks rather than replacing the data.
-  const awaitingText = page.items.length > 0 && page.items.every((c) => !c.messageAvailable)
+  // Exactly one page-level state at a time (ux-guidelines §11).
   // Zero rows under a narrowing filter is filtered-empty, not "no comments yet".
   const noRowsKind = status === 'open' ? 'no-open' : status === 'converted' ? 'no-converted' : 'no-comments'
   // System-empty (no comments at all) shows no filter; filtered-empty keeps it (ux-guidelines §11).
-  const statusFilter = status !== 'all' || page.items.length > 0 ? <CommentsStatusFilter active={status} /> : null
+  const statusFilter =
+    status !== 'all' || page.items.length > 0 ? <CommentsStatusFilter active={status} openCount={openCount} /> : null
 
   if (mobile) {
     const emptyKind = !connection ? 'not-connected' : page.items.length === 0 ? noRowsKind : null
@@ -135,11 +145,13 @@ export default async function FacebookCommentsPage({
         statusFilter={connection && statusFilter}
         leavesViewOnConvert={status === 'open'}
         comments={connection ? page.items : []}
-        awaitingText={awaitingText}
         replies={replies}
+        posts={page.posts}
         replyablePageIds={replyablePageIds}
         replyPrompt={replyPrompt}
         showMessenger={showMessenger}
+        nextCursor={page.nextCursor}
+        status={status}
       />
     )
   }
@@ -159,13 +171,15 @@ export default async function FacebookCommentsPage({
 
       {connection && page.items.length > 0 && (
         <>
-          {awaitingText && <CommentsEmptyState kind='awaiting-text' />}
           {replyPrompt}
           <CommentsList
             comments={page.items}
             replies={replies}
+            posts={page.posts}
             replyablePageIds={replyablePageIds}
             leavesViewOnConvert={status === 'open'}
+            nextCursor={page.nextCursor}
+            status={status}
           />
         </>
       )}

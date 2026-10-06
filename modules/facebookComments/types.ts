@@ -30,7 +30,8 @@ export type CommentListItem = {
   authorName: string | null
   message: string
   /**
-   * False until Meta grants `pages_read_user_content`. NOT the same as an empty
+   * False when Meta sent no text (before `pages_read_user_content`, or a Page token
+   * that predates the grant). NOT the same as an empty
    * comment — the UI must say "not available yet" rather than render a void.
    */
   messageAvailable: boolean
@@ -38,6 +39,26 @@ export type CommentListItem = {
   convertedLeadId: number | null
   createdTime: Date | null
   receivedAt: Date
+  /** A picture Meta returned for this commenter, or null (initials are shown). Expiring CDN URL. */
+  authorPictureUrl?: string | null
+  /** A photo or video the commenter attached, from the webhook. */
+  attachmentType?: 'photo' | 'video' | null
+  attachmentUrl?: string | null
+}
+
+/**
+ * The post a comment was left on, as far as we know it. Every field is
+ * optional in practice: a legacy comment has no row at all, and a row may hold
+ * only the webhook's permalink until enrichment reaches it.
+ */
+export type CommentPost = {
+  pageId: string
+  postId: string
+  message: string | null
+  pictureUrl: string | null
+  permalinkUrl: string | null
+  /** 'unavailable' — Meta says the post is gone. null — not fetched yet. */
+  fetchStatus: 'ok' | 'unavailable' | 'denied' | null
 }
 
 /**
@@ -66,6 +87,11 @@ export type CommentReply = {
   authorIsPage: boolean
   /** Set only when the reply was sent from inside SocialCRM. */
   sentByUserId: number | null
+  /**
+   * Client-only: a reply this browser just published, shown before the refresh
+   * brings the stored row. Never read from or written to the database.
+   */
+  sentHere?: boolean
   message: string
   messageAvailable: boolean
   status: CommentStatus

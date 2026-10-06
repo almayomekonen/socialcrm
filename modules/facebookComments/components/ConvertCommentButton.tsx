@@ -10,7 +10,7 @@ import { toast } from '@/lib/toast'
 import { convertCommentToLead } from '../actions'
 
 /**
- * The ליד slot of one comment row: "צור ליד" while the comment has no ליד,
+ * The ליד slot of one comment card: "המר לליד" while the comment has no ליד,
  * "פתח ליד" once it is linked. ONE component for both, rendered at the same place
  * in the row, so the outcome of a click survives the page refresh the action
  * triggers (its revalidatePath re-renders the list with the comment converted).
@@ -48,7 +48,9 @@ type Outcome = { kind: 'created' | 'existing'; leadId: number } | { kind: 'error
 
 const leadHref = (leadId: number) => `/clients/${leadId}/summary`
 const successCopy = (kind: 'created' | 'existing') => (kind === 'created' ? 'הליד נוצר בהצלחה' : 'התגובה כבר מקושרת לליד קיים')
-const linkCls = 'text-xs font-medium text-primary underline underline-offset-2'
+// "פתח ליד" is navigation (a real <a>), drawn like the outline Btn beside it.
+const linkCls =
+  'inline-flex h-9 items-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 hover:bg-gray-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
 
 export default function ConvertCommentButton({
   commentId,
@@ -123,10 +125,9 @@ export default function ConvertCommentButton({
       )}
       {!success && !convertedLeadId && (
         <Btn
-          lbl={loading ? 'יוצר ליד...' : 'צור ליד'}
+          lbl={loading ? 'ממיר לליד...' : 'המר לליד'}
           icon={loading ? 'spinner' : undefined}
           iconClassName={loading ? 'animate-spin' : undefined}
-          variant='outline'
           size='small'
           className='w-fit'
           disabled={loading}

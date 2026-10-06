@@ -1,5 +1,9 @@
 import { getCalendarConnectionByUserId } from '@/db/googleCalendarConnections'
 import CalendarConnect from '@/components/settings/CalendarConnect'
+import AiConnections from '@/components/settings/AiConnections'
+import { canUseMcp } from '@/lib/flags/mcpFlags'
+import { listAiConnections } from '@/lib/oauth/server/connections'
+import { mcpResource } from '@/lib/oauth/server/config'
 import { INTEGRATIONS } from './catalog'
 import IntegrationCard from './IntegrationCard'
 
@@ -22,8 +26,12 @@ import IntegrationCard from './IntegrationCard'
  * round-trip returns to whatever page mounted them.
  */
 
-export default async function ConnectedToolsSection({ user }: { user: { id: number } }) {
+export default async function ConnectedToolsSection({ user }: { user: { id: number; agencyId: number } }) {
   const conn = await getCalendarConnectionByUserId(user.id)
+  // AI connections appear only where MCP is enabled for this agency, and list
+  // only the session user's own active grants.
+  const aiConnections = canUseMcp(user.agencyId) ? await listAiConnections(user.id, user.agencyId) : null
+  const mcpUrl = aiConnections ? safeMcpUrl() : null
 
   const calendarState: 'not_connected' | 'connected' | 'reauth_required' = !conn
     ? 'not_connected'
@@ -39,6 +47,17 @@ export default async function ConnectedToolsSection({ user }: { user: { id: numb
       {INTEGRATIONS.map((integration) => (
         <IntegrationCard key={integration.id} integration={integration} />
       ))}
+      {/* Last, spanning both columns: Calendar and Drive share the row above it. */}
+      {aiConnections && <AiConnections connections={aiConnections} mcpUrl={mcpUrl} />}
     </div>
   )
+}
+
+/** The configured MCP endpoint for the "how to connect" steps; never breaks the page if the origin is misconfigured. */
+function safeMcpUrl(): string | null {
+  try {
+    return mcpResource()
+  } catch {
+    return null
+  }
 }

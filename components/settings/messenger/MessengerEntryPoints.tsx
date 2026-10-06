@@ -142,9 +142,7 @@ export default function MessengerEntryPoints({
       )}
 
       <div>
-        <Btn onClick={save} disabled={loading}>
-          {loading ? 'שומר…' : 'שמור שינויים'}
-        </Btn>
+        <Btn lbl={loading ? 'שומר…' : 'שמור שינויים'} onClick={save} disabled={loading} />
       </div>
     </div>
   )

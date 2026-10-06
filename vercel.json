@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/subscription-charges",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/oauth-sweep",
+      "schedule": "17 3 * * *"
     }
   ]
 }

@@ -2,28 +2,29 @@ import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 import CommentsEmptyState, { type CommentsEmptyKind } from '@/modules/facebookComments/components/CommentsEmptyState'
 import CommentsListMobile from './CommentsListMobile'
 import type { ReactNode } from 'react'
-import type { CommentListItem, CommentReply } from '../types'
+import type { CommentListItem, CommentPost, CommentReply, CommentsCursor, CommentStatusFilter } from '../types'
 
 /**
- * Phone Comments Inbox. Same rows and empty states as desktop `/inbox/comments`;
- * chrome is phone-sized and rectangular (CRM activity, not chat). No second
- * query and no new comment model.
+ * Phone Comments Inbox. Same cards and empty states as desktop `/inbox/comments`;
+ * chrome is phone-sized. No second query and no new comment model.
  */
 export default function CommentsInboxMobile({
   emptyKind,
   comments,
-  awaitingText,
   replies = [],
+  posts = [],
   replyablePageIds = [],
   replyPrompt = null,
   statusFilter = null,
   leavesViewOnConvert = false,
   showMessenger = false,
+  nextCursor = null,
+  status = 'all',
 }: {
   emptyKind: CommentsEmptyKind | null
   comments: CommentListItem[]
-  awaitingText: boolean
   replies?: CommentReply[]
+  posts?: CommentPost[]
   replyablePageIds?: string[]
   /** The reply-permission notice + CTA, built by the route; null when not needed. */
   replyPrompt?: ReactNode
@@ -31,6 +32,8 @@ export default function CommentsInboxMobile({
   statusFilter?: ReactNode
   leavesViewOnConvert?: boolean
   showMessenger?: boolean
+  nextCursor?: CommentsCursor | null
+  status?: CommentStatusFilter
 }) {
   return (
     <div data-testid='facebook-comments-mobile' className='flex flex-col gap-3 p-3'>
@@ -48,13 +51,15 @@ export default function CommentsInboxMobile({
 
       {comments.length > 0 && (
         <>
-          {awaitingText && <CommentsEmptyState kind='awaiting-text' compact />}
           {replyPrompt}
           <CommentsListMobile
             comments={comments}
             replies={replies}
+            posts={posts}
             replyablePageIds={replyablePageIds}
             leavesViewOnConvert={leavesViewOnConvert}
+            nextCursor={nextCursor}
+            status={status}
           />
         </>
       )}

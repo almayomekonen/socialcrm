@@ -3,7 +3,7 @@ import type { CommentListItem, CommentStatus } from './types'
 type Row = Pick<CommentListItem, 'status' | 'convertedLeadId'>
 
 /**
- * Whether a comment row gets the ליד slot ("צור ליד", or "פתח ליד" once linked).
+ * Whether a comment row gets the ליד slot ("המר לליד", or "פתח ליד" once linked).
  *
  * A linked comment always keeps its link — also after Facebook deletes it. An
  * unlinked one can be converted unless it is deleted or ignored; that includes a

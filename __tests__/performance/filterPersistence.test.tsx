@@ -24,17 +24,22 @@ vi.mock('next/headers', () => ({
 }))
 vi.mock('@/actions/filter', () => ({ addSavedFilters: vi.fn() }))
 
-import {
-  clearPersistedFilter,
-  isPerformanceFilterPath,
-  parsePersistedFilter,
-  performanceFilterCookie,
-  persistFilter,
-  readPersistedFilter,
-} from '@/lib/filter/performanceFilter'
-import { resolvePerformanceFilter } from '@/lib/filter/resolvePerformanceFilter'
-import { usePersistedPerformanceFilter } from '@/components/sumSales/usePersistedPerformanceFilter'
+import * as active from '@/lib/filter/activeFilter'
+import { resolveActiveFilter } from '@/lib/filter/resolveActiveFilter'
+import { usePersistedActiveFilter } from '@/components/filter/usePersistedActiveFilter'
 import FilterBtn from '@/components/filter/FilterBtn'
+
+// Performance now runs on the shared section-aware helper; these bindings keep
+// every Performance assertion below unchanged (no-regression check).
+const P = 'performance' as const
+const { parsePersistedFilter } = active
+const isPerformanceFilterPath = (p: string) => active.filterSectionForPath(p) === P
+const performanceFilterCookie = (u: number) => active.activeFilterCookie(P, u)
+const persistFilter = (u: number, f: string) => active.persistFilter(P, u, f)
+const readPersistedFilter = (u: number) => active.readPersistedFilter(P, u)
+const clearPersistedFilter = (u: number) => active.clearPersistedFilter(P, u)
+const resolvePerformanceFilter = (u: number, f: string | undefined) => resolveActiveFilter(P, u, f)
+const usePersistedPerformanceFilter = usePersistedActiveFilter
 
 const AUGUST = JSON.stringify({ dateRange: 'מותאם אישית', start: '2026-08-01', end: '2026-08-31', userIds: [7], userNames: ['דנה'], action: 'מכירה' })
 const SEPTEMBER = JSON.stringify({ dateRange: 'החודש הנוכחי', action: 'מכירה' })

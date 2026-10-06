@@ -16,6 +16,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { verifyFacebookAccessToken } from '@/lib/auth/verifyFacebookAccessToken'
 import { clearFacebookLoginProof, setFacebookLoginProof } from '@/lib/auth/fbLoginProof'
 import { resolveFacebookLogin } from '@/lib/auth/resolveFacebookLogin'
+import { postLoginDestination } from '@/lib/oauth/server/postLoginDestination'
 import {
   canUseFacebookUserAuth,
   isFacebookUserAuthOpenToNewAgencies,
@@ -102,7 +103,8 @@ export async function checkUser(input: { credential?: string }) {
 
   await createCookie(userExist.id)
   console.log(`[AUTH] route=google_check email=${email} ms=${Date.now() - start} result=success`)
-  redirect('/dashboard')
+  // '/dashboard', or '/oauth/consent' when a validated ChatGPT authorization is pending.
+  redirect(await postLoginDestination())
 }
 
 export async function checkFacebookUser(input: { accessToken?: string }) {
@@ -176,7 +178,8 @@ export async function checkFacebookUser(input: { accessToken?: string }) {
   await clearFacebookLoginProof()
   await createCookie(resolution.userId)
   console.log(`[AUTH] route=facebook_check email=${email} ms=${Date.now() - start} result=success`)
-  redirect('/dashboard')
+  // '/dashboard', or '/oauth/consent' when a validated ChatGPT authorization is pending.
+  redirect(await postLoginDestination())
 }
 
 export async function isUserExists(email: string) {
