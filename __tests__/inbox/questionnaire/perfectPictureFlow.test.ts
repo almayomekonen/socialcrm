@@ -156,7 +156,7 @@ describe('corporate event', () => {
 describe('drone / real estate', () => {
   const run = converse(['היי', 'צריך רחפן לצילום נכס', 'חולון', 'כן', '20.10.2026'])
   it('takes the drone branch: city, permission, date, then its own closing with the website', () => {
-    expect(run.sent[1]).toBe('באיזו עיר תרצו לבצע את הצילום / ההטסה?')
+    expect(run.sent[1]).toBe('איפה תרצו לבצע את הצילום / ההטסה? אפשר לכתוב עיר, אזור או כמה מקומות')
     expect(run.sent[2]).toContain('האם יש לכם אישור הטסה באזור?')
     expect(run.sent[2]).toContain('3. לא יודע')
     expect(run.sent[3]).toBe('לאיזה תאריך תרצו לתאם את הצילום? 📅\nאפשר לכתוב תאריך מדויק או משוער. אם עדיין לא נקבע תאריך, כתבו: לא נקבע')

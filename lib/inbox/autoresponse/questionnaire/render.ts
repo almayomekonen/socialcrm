@@ -11,6 +11,7 @@
  */
 import {
   answerStateKey,
+  CORRECTIONS_KEY,
   rawAnswerKey,
   type QuestionnaireDefinition,
   type QuestionnaireOption,
@@ -42,6 +43,8 @@ export function renderStep(step: QuestionnaireStep): string {
 
 /** How the rep reads an answer whose state is `not_set` (validateAnswer.ts). */
 export const NOT_SET_SUMMARY = 'טרם נקבע'
+/** How the rep reads a correction the engine could not apply to an earlier answer. */
+export const CORRECTION_LABEL = 'תיקון מהלקוח'
 
 /** One numbered menu line. The icon, when there is one, is decoration after the label. */
 export function menuLine(option: QuestionnaireOption, index: number): string {
@@ -95,6 +98,7 @@ export function renderSummary(
     const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
     if (value) lines.push(`${step.label}: ${value}`)
   }
+  for (const said of answers[CORRECTIONS_KEY] ?? []) lines.push(`${CORRECTION_LABEL}: ${said}`)
   return lines.join('\n')
 }
 
@@ -108,6 +112,7 @@ export function summaryFields(
     const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
     if (value) fields.push({ label: step.label, value })
   }
+  for (const said of answers[CORRECTIONS_KEY] ?? []) fields.push({ label: CORRECTION_LABEL, value: said })
   return fields
 }
 

@@ -20,3 +20,10 @@ export function rawAnswerKey(stepId: string): string {
 export function answerStateKey(stepId: string): string {
   return `${stepId}:state`
 }
+
+/**
+ * Not a step's answer: what the customer wrote to correct an EARLIER answer
+ * ("טעיתי 19.11") while a later question was open. The engine cannot edit a
+ * past answer, so the words are kept here and shown to the rep.
+ */
+export const CORRECTIONS_KEY = ':corrections'

@@ -37,21 +37,19 @@ import {
   consumeUpTo,
 } from '@/db/questionnaireSessions'
 import { canUseQuestionnaireInteractive, canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
-import { canUseAgentReliability } from '@/lib/flags/agentReliabilityFlags'
 import { resolveWhatsappServiceWindow } from '@/lib/inbox/whatsappServiceWindow'
 import { queryLatestInboundAt } from '@/lib/inbox/whatsappComposerContext'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { sendIreOutbound } from '../ireSend'
 import { findStep, parseQuestionnaireDefinition, type QuestionnaireDefinition } from './definition'
-import { interactiveSender, planInteractive, tappedSelectionId } from './interactive'
-import { classifyInboundKind } from './parseAnswer'
+import { interactiveSender, planInteractive } from './interactive'
 import { persistQuestionTurn } from './effects'
 import { finalizeTerminal, parkForReview } from './finalize'
 import { decideQuestionnaireTurn, type InboundInput } from './transition'
 import { deferForTypingHold } from './typingDefer'
 import { QUESTIONNAIRE_SEND_TIMEOUT_MS, type QuestionnaireDeps, type QuestionnaireOutcome } from './types'
 import { waTrace } from '../waTrace'
-import { humanTookOverSinceEpoch, ownershipEpochSequence } from '../reliability/ownership'
+import { humanSpokeIn, humanSpokeSince, inboundInputs, sessionDefinition, TRANSCRIPT_COLUMNS } from './turnFacts'
 
 const TERMINAL_LEAD_STATUSES = ['closed', 'lost']
 const MAX_TRANSCRIPT = 60
@@ -120,27 +118,20 @@ export async function processQuestionnaireJob(
     .where({ conversationId: job.conversationId, agencyId: job.agencyId })
     .orderBy('sequence', 'desc')
     .limit(MAX_TRANSCRIPT)
-    .select('direction', 'type', 'text', 'payload', 'sequence', 'metadata', 'sentByUserId', 'status')
+    .select(TRANSCRIPT_COLUMNS)
   const transcript = rows.slice().reverse()
+  const transcriptEnd = transcript.reduce((max, m) => Math.max(max, Number(m.sequence)), 0)
 
   const lastConsumed = session?.status === 'active' ? session.lastConsumedSequence : 0
-  const inputs: InboundInput[] = transcript
-    .filter((m) => m.direction === 'inbound' && Number(m.sequence) > lastConsumed)
-    .map((m) => ({
-      sequence: Number(m.sequence),
-      kind: classifyInboundKind(String(m.type ?? 'unknown'), String(m.text ?? '')),
-      text: String(m.text ?? ''),
-      selectedId: tappedSelectionId(String(m.type ?? ''), m.payload) ?? undefined,
-    }))
+  const inputs: InboundInput[] = inboundInputs(transcript, lastConsumed)
 
   const aiStateRow = await db('conversation_ai_state')
     .where({ conversationId: job.conversationId })
     .first('aiState', 'qualification')
-  // Ownership is the AI agent's rule (reliability/ownership.ts) for agencies in
-  // the reliability rollout: a person's outbound, after the last return-to-agent.
-  const humanTookOver = canUseAgentReliability(job.agencyId)
-    ? humanTookOverSinceEpoch(transcript, ownershipEpochSequence(aiStateRow?.qualification))
-    : transcript.some((m) => m.direction === 'outbound' && isHumanAuthored(m))
+  const humanTookOver = humanSpokeIn(transcript, job.agencyId, aiStateRow?.qualification)
+  // Immediately before any send: did the owner answer from their phone while this turn ran?
+  const stillOurs = async () =>
+    !(await humanSpokeSince(job.agencyId, job.conversationId, transcriptEnd, aiStateRow?.qualification))
 
   const decision = decideQuestionnaireTurn({
     definition,
@@ -159,6 +150,10 @@ export async function processQuestionnaireJob(
     routed,
     sessionStatus: session?.status ?? null,
     inputs: inputs.length,
+    // Ids and flags only, never what the customer wrote.
+    revision: definition.revision,
+    stepId: session?.status === 'active' ? session.currentStepId : null,
+    ...decisionShape(decision),
   })
 
   if (decision.kind === 'none') {
@@ -175,14 +170,14 @@ export async function processQuestionnaireJob(
   if (resolveWhatsappServiceWindow(latestInboundAt) !== 'OPEN') {
     if (decision.kind === 'terminal') {
       // Still record it. The rep gets the answers; only the message is lost.
-      await finalizeTerminal(job, conv, definition, decision, { deliver: false, deps, leadId })
+      await finalizeTerminal(job, conv, definition, decision, { deliver: false, deps, leadId, stillOurs })
       return skip('outside_window_saved')
     }
     return skip('outside_window')
   }
 
   if (decision.kind === 'terminal') {
-    const outcome = await finalizeTerminal(job, conv, definition, decision, { deliver: true, deps, leadId })
+    const outcome = await finalizeTerminal(job, conv, definition, decision, { deliver: true, deps, leadId, stillOurs })
     if (outcome === 'ambiguous') {
       await skipAutoResponseJob(job.id, 'terminal_send_ambiguous')
       return 'skipped'
@@ -217,6 +212,9 @@ export async function processQuestionnaireJob(
   // than asking the same question twice.
   let sentMessageId: number | null = already?.messageId ?? null
   if (!already) {
+    // 'human_active', not a new reason: the follow-up rule must not re-enqueue
+    // a conversation a person has just taken (followUpTurn.ts).
+    if (!(await stillOurs())) return skip('human_active')
     const claimed = await claimSend({
       agencyId: job.agencyId,
       sessionId: live.id,
@@ -302,28 +300,16 @@ export async function processQuestionnaireJob(
   waTrace('QUESTIONNAIRE_TURN', trace, { outcome: 'sent', reason: decision.reason, stepId: decision.stepId })
   return 'sent'
 }
-/**
- * An outbound nobody automated: a rep's own reply, or an echo from the business
- * phone. The rule for agencies outside the reliability rollout, kept verbatim.
- */
-function isHumanAuthored(row: Record<string, unknown>): boolean {
-  const meta = row.metadata
-  let source = ''
-  try {
-    const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta
-    source = (parsed as { source?: string } | null)?.source ?? ''
-  } catch {
-    source = ''
-  }
-  if (source === 'auto_response') return false
-  // An automation's template send carries no source and no user. That is a
-  // machine talking, not a person taking over, and treating it as takeover
-  // would stop the questionnaire the first time an unrelated automation fired.
-  if (!source && row.sentByUserId == null) return false
-  return true
-}
 
-function sessionDefinition(value: unknown): QuestionnaireDefinition | null {
-  const parsed = parseQuestionnaireDefinition(value ?? null)
-  return parsed.ok ? parsed.definition : null
+/** What a decision did, for the trace: where it went and how the answer was read. */
+function decisionShape(decision: ReturnType<typeof decideQuestionnaireTurn>): Record<string, unknown> {
+  if (decision.kind === 'none') return {}
+  const keys = Object.keys(decision.answers)
+  return {
+    nextStepId: decision.kind === 'question' ? decision.stepId : null,
+    status: decision.kind === 'terminal' ? decision.status : 'active',
+    naturalAnswers: keys.filter((k) => k.endsWith(':raw')).length,
+    notSetAnswers: keys.filter((k) => k.endsWith(':state')).length,
+    corrections: decision.answers[':corrections']?.length ?? 0,
+  }
 }

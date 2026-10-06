@@ -92,6 +92,8 @@ const textStepSchema = z.object({
   type: z.literal('text'),
   /** Optional deterministic check on the reply (validateAnswer.ts). Absent: any non-empty reply. */
   validate: z.enum(['date', 'meaningful']).optional(),
+  /** With `validate`: also accept an explicit "not decided yet", stored as `not_set`. */
+  allowNotSet: z.boolean().optional(),
   /** Sent instead of the generic re-ask when `validate` rejects a reply. */
   invalidPrompt: customerText(900, 'invalidPrompt').optional(),
 })
@@ -126,6 +128,9 @@ export const questionnaireDefinitionSchema = z
       }
       seen.set(step.id, index)
 
+      if (step.type === 'text' && step.allowNotSet && !step.validate) {
+        ctx.addIssue({ code: 'custom', message: `step '${step.id}': allowNotSet needs validate`, path: ['steps', index] })
+      }
       if (step.type === 'choice') {
         const ids = new Set<string>()
         const labels = new Set<string>()
@@ -188,7 +193,7 @@ export const questionnaireDefinitionSchema = z
     })
   })
 
-export { answerStateKey, rawAnswerKey } from './answerKeys'
+export { answerStateKey, CORRECTIONS_KEY, rawAnswerKey } from './answerKeys'
 
 export type QuestionnaireDefinition = z.infer<typeof questionnaireDefinitionSchema>
 export type QuestionnaireStep = QuestionnaireDefinition['steps'][number]

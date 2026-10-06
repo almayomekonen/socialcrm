@@ -36,6 +36,8 @@ export function aliasTokens(text: string): string[] {
   return (text ?? '')
     .toLowerCase()
     .replace(/[֑-ֽֿ-ׇ]/g, '')
+    // "חתונהההה": a letter typed three or more times is one letter.
+    .replace(/(\p{L})\1{2,}/gu, '$1')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .split(' ')
@@ -128,4 +130,16 @@ export function checkAliasCollisions(step: QuestionnaireChoiceStep, index: numbe
       aliasOwner.set(key, option.id)
     }
   })
+}
+
+/**
+ * Whether a natural reply says more than its own selection. "חתונה!!!", "1. חתונה 💍"
+ * or a bare alias add nothing a rep needs, so no raw text is kept for them;
+ * "בר מצווה לבן שלי" does (bar, not bat; a son), so it is.
+ */
+export function replyAddsWords(text: string, step: QuestionnaireChoiceStep, optionIds: readonly string[]): boolean {
+  const said = aliasTokens(text).filter((w) => !/^\d+$/.test(w)).join(' ')
+  if (!said) return false
+  const chosen = step.options.filter((o) => optionIds.includes(o.id))
+  return !chosen.some((o) => [o.label, ...(o.aliases ?? [])].some((phrase) => aliasTokens(phrase).join(' ') === said))
 }

@@ -26,7 +26,13 @@ export async function finalizeTerminal(
   conv: Record<string, unknown>,
   definition: QuestionnaireDefinition,
   decision: Extract<TurnDecision, { kind: 'terminal' }>,
-  opts: { deliver: boolean; deps: QuestionnaireDeps; leadId: number | null },
+  opts: {
+    deliver: boolean
+    deps: QuestionnaireDeps
+    leadId: number | null
+    /** False when a person spoke while this turn ran: the goodbye is theirs to say. */
+    stillOurs?: () => Promise<boolean>
+  },
 ): Promise<'done' | 'ambiguous'> {
   const session = await readSessionForConversation(job.agencyId, job.conversationId)
   let leadId = opts.leadId
@@ -70,6 +76,7 @@ export async function finalizeTerminal(
   }
 
   if (!opts.deliver || !decision.text) return 'done'
+  if (opts.stillOurs && !(await opts.stillOurs())) return 'done'
 
   const sent = await sendIreOutbound(
     job,

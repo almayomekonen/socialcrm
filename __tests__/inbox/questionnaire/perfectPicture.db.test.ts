@@ -229,7 +229,7 @@ describe('drone / real estate, end to end', () => {
   it('takes the drone branch and closes with the drone text and the website', async () => {
     const t = await makeTenant('drone')
     await turn(t, 'היי')
-    expect(await turn(t, 'צריך רחפן לצילום נכס')).toEqual(['באיזו עיר תרצו לבצע את הצילום / ההטסה?'])
+    expect(await turn(t, 'צריך רחפן לצילום נכס')).toEqual(['איפה תרצו לבצע את הצילום / ההטסה? אפשר לכתוב עיר, אזור או כמה מקומות'])
     expect(await turn(t, 'חולון')).toEqual([expect.stringContaining('האם יש לכם אישור הטסה באזור?')])
     expect(await turn(t, 'כן')).toEqual(['לאיזה תאריך תרצו לתאם את הצילום? 📅\nאפשר לכתוב תאריך מדויק או משוער. אם עדיין לא נקבע תאריך, כתבו: לא נקבע'])
     const closing = await turn(t, '20.10.2026')
@@ -239,7 +239,7 @@ describe('drone / real estate, end to end', () => {
     const summary = await getHandoffSummary(t.agencyId, t.conversationId)
     expect(summary?.fields).toEqual([
       { label: 'סוג האירוע / השירות', value: 'צילום רחפן / נדל״ן (צריך רחפן לצילום נכס)' },
-      { label: 'עיר', value: 'חולון' },
+      { label: 'מיקום הצילום', value: 'חולון' },
       { label: 'אישור הטסה', value: 'כן' },
       { label: 'תאריך הצילום', value: '20.10.2026' },
     ])

@@ -50,10 +50,24 @@ export function detectCommand(text: string): QuestionnaireCommand {
   const raw = (text ?? '').trim()
   if (!raw) return null
   if (detectOptOut(raw)) return 'opt_out'
-  if (isExplicitPersonRequest(raw)) return 'human'
+  if (isExplicitPersonRequest(raw) && !declinesPerson(normalizeForMatch(raw))) return 'human'
   const normalized = normalizeForMatch(raw)
   if (RESTART_PATTERNS.some((re) => re.test(normalized))) return 'restart'
   return null
+}
+
+/**
+ * "אני לא רוצה נציג", "בלי נציג", "לא צריך נציג": the word is there, the request
+ * is not. Only a negation directly governing the person counts ("לא, נציג
+ * בבקשה" still asks for one), so this can only ever keep a handoff that the
+ * customer refused from happening, never suppress one they asked for in words
+ * this does not list.
+ */
+const DECLINES_PERSON =
+  /(?:^|\s)(?:לא|בלי|ללא|אין צורך)\s+(?:(?:רוצה|רוצים|צריך|צריכה|צריכים|מעוניין|מעוניינת|לדבר|עם|את)\s+){0,3}[בלה]?(?:נציג|בן אדם|בנאדם|אדם אמיתי)/
+
+function declinesPerson(text: string): boolean {
+  return DECLINES_PERSON.test(text)
 }
 
 /** Strip bidi marks, keycap decorations and repeated whitespace. */
@@ -95,13 +109,19 @@ export function parseChoice(text: string, step: QuestionnaireChoiceStep): Choice
 
   // Only a step whose options list aliases reads natural answers; every other
   // step keeps the numbered-menu rule above, unchanged.
-  const numbered = parseNumbered(normalized, step)
+  const numbered = parseNumbered(normalized.replace(MENU_WORD, ''), step)
   if (numbered.ok === false && numbered.reason === 'too_many') return numbered
   if (numbered.ok || !stepHasAliases(step)) return numbered
+  // A question is not a selection, even when it names options: "מה ההבדל בין
+  // סטילס לוידאו?" or "יש לי אישור?" must be asked again, never answered for them.
+  if (/[?؟]/.test(normalized)) return { ok: false, reason: 'unreadable' }
   const ids = matchAliases(normalized, step)
   if (ids.length === 1 || (ids.length > 1 && step.multi === true)) return { ok: true, optionIds: ids, via: 'alias' }
   return { ok: false, reason: 'unreadable' }
 }
+
+/** "מספר 2", "אפשרות 2": the number is the answer. */
+const MENU_WORD = /^(?:מספר|אפשרות|אופציה)\s+(?=\d)/
 
 function parseNumbered(normalized: string, step: QuestionnaireChoiceStep): ChoiceParse {
   const labelMatch = matchLabel(normalized, step)
