@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 /**
  * "A fixed questionnaire is answering for you."
  *
@@ -12,19 +14,35 @@
  * master toggle above stops every automatic reply, questionnaire included.
  *
  * Renders nothing at all for everybody else, so no existing page changes.
+ *
+ * In the Questionnaire Builder rollout the owner CAN change the questionnaire,
+ * so the last line points at the Builder instead of at us. Outside it, the
+ * notice is exactly what it was.
  */
-export default function QuestionnaireModeNotice({ active }: { active: boolean }) {
+export default function QuestionnaireModeNotice({ active, builderHref }: { active: boolean; builderHref?: string }) {
   if (!active) return null
 
   return (
     <div className='mb-6 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3'>
       <p className='text-sm font-medium text-gray-900'>שאלון אוטומטי פעיל בוואטסאפ</p>
       <p className='mt-1 text-sm leading-relaxed text-gray-700'>
-        הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם. השאלון מוגדר עבורכם על ידי צוות SocialCRM, ולכן
-        ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.
+        {builderHref
+          ? 'הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם, ולכן ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.'
+          : 'הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם. השאלון מוגדר עבורכם על ידי צוות SocialCRM, ולכן ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.'}
       </p>
       <p className='mt-1 text-sm leading-relaxed text-gray-700'>
-        כדי לעצור את המענה האוטומטי כולו, כבו את המענה האוטומטי למעלה. לשינוי השאלון, פנו אלינו.
+        כדי לעצור את המענה האוטומטי כולו, כבו את המענה האוטומטי למעלה.{' '}
+        {builderHref ? (
+          <>
+            לשינוי השאלון:{' '}
+            <Link href={builderHref} className='font-medium text-ink underline underline-offset-2'>
+              שאלון וואטסאפ
+            </Link>
+            .
+          </>
+        ) : (
+          'לשינוי השאלון, פנו אלינו.'
+        )}
       </p>
     </div>
   )

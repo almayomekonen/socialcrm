@@ -6,6 +6,7 @@ import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import SettingsChrome from '@/components/settings/SettingsChrome'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 
 export default async function SettingLayout({ children }) {
   const user = await getUser()
@@ -19,6 +20,8 @@ export default async function SettingLayout({ children }) {
    */
   const mobileWorkspace = (await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)
   const automationsVisible = user.role === 'ADMIN' && isAutomationsAgencyAllowlisted(user.agencyId)
+  // Absent, not disabled, outside the Builder rollout: the route 404s there too.
+  const questionnaireBuilderVisible = user.role === 'ADMIN' && canUseQuestionnaireBuilder(user.agencyId)
 
   return (
     <SettingsChrome
@@ -62,6 +65,9 @@ export default async function SettingLayout({ children }) {
                 depends on the data; only the sidebar entry is withheld.
               */}
               <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
+              {questionnaireBuilderVisible && (
+                <SettingsLink href='/settings/questionnaire' icon='clipboard-list' title='שאלון וואטסאפ' />
+              )}
               {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title='אוטומציות' />}
               {automationsVisible && (
                 <SettingsLink href='/settings/automation-templates' icon='layer-group' title='תבניות אוטומציה' />

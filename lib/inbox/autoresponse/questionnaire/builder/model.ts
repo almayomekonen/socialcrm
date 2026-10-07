@@ -20,11 +20,18 @@
 import { z } from 'zod'
 
 const ID = z.string().regex(/^[a-z0-9_]{1,40}$/)
+/**
+ * The browser's name for an entity the server has not identified yet. Lets an
+ * unsaved option be referenced by a condition ("אחר" and its follow-up, added
+ * together). Resolved to a fresh server id by ids.ts and never stored.
+ */
+export const REF = z.string().regex(/^new_[a-z0-9]{1,20}$/)
 const text = (max: number) => z.string().max(max)
 
 export const builderOptionSchema = z.object({
   /** Absent: a new option; the server assigns its id. */
   id: ID.optional(),
+  ref: REF.optional(),
   label: text(24),
   icon: z.string().max(8).optional(),
   /** Other ways customers write this option ("אנחנו מתחתנים"). */
@@ -57,6 +64,7 @@ export const answerSpecSchema = z.discriminatedUnion('kind', [
 
 export const builderQuestionSchema = z.object({
   id: ID.optional(),
+  ref: REF.optional(),
   /** The short name the rep reads in the summary ("תאריך האירוע"). */
   label: text(40),
   /** What the customer sees. */
