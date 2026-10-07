@@ -262,8 +262,8 @@ describe('publish never changes routing', () => {
     expect(await getQuestionnaireBuilderState()).toMatchObject({ ok: true, published: null, draft: null, live: { hasSettings: false, routedToQuestionnaire: false } })
     const d = await openQuestionnaireDraft()
     if (!d.ok) throw new Error(JSON.stringify(d))
-    expect(d.ready).toBe(false) // an honest, incomplete start
-    expect(d.issues).toContainEqual(expect.objectContaining({ code: 'no_questions' }))
+    expect(d.ready).toBe(false) // an honest, incomplete start: a first question whose answers the owner writes
+    expect(d.issues.map((i) => i.code)).toEqual(['missing_text', 'missing_text'])
 
     const saved = await saveQuestionnaireDraft({ draftId: d.draftId, expectedVersion: 1, questionnaire: SALON })
     if (!saved.ok) throw new Error(JSON.stringify(saved))

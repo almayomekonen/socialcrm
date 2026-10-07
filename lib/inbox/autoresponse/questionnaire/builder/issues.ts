@@ -48,6 +48,10 @@ export function describeIssue(issue: BuilderIssue, questionnaire: BuilderQuestio
       return `השאלה ${question} תלויה בשאלה שנמחקה או שמופיעה אחריה.`
     case 'condition_on_non_choice':
       return `השאלה ${question} תלויה בשאלה שאין בה אפשרויות לבחירה.`
+    case 'condition_needs_answer':
+      return issue.endingIndex !== undefined
+        ? 'בסיום השונה צריך לבחור לפחות תשובה אחת שאחריה הוא נשלח.'
+        : `בשאלה ${question} צריך לבחור לפחות תשובה אחת שאחריה היא מופיעה.`
     case 'condition_on_deleted_option':
       return `השאלה ${question} תלויה באפשרות שנמחקה.`
     case 'ending_condition_on_deleted_option':

@@ -2,6 +2,7 @@
  * Reading the Builder's state: the published questionnaire, the draft, the live
  * routing switches and which revisions live sessions are pinned to. Read-only.
  */
+import { db } from '@/config/db'
 import { getChannelSettings, getMasterEnabled } from '@/db/autoResponseSettings'
 import {
   QUESTIONNAIRE_CHANNEL,
@@ -49,12 +50,25 @@ export async function getBuilderState(ctx: BuilderContext) {
   }
 }
 
+/**
+ * Who published each revision, by name, when it was a person of this agency.
+ * Staff publishes and backfilled revisions have no publisher, and a user of
+ * another agency is never named here.
+ */
+async function publisherNames(agencyId: number, ids: number[]): Promise<Map<number, string>> {
+  if (!ids.length) return new Map()
+  const rows = await db('users').where({ agencyId }).whereIn('id', ids).select('id', 'name')
+  return new Map(rows.map((r: { id: number; name: string | null }) => [Number(r.id), (r.name ?? '').trim()]))
+}
+
 export async function listRevisions(ctx: BuilderContext) {
   const [rows, active] = await Promise.all([listPublished(ctx.agencyId), countActiveSessionsByRevision(ctx.agencyId)])
+  const names = await publisherNames(ctx.agencyId, [...new Set(rows.map((r) => r.publishedBy).filter((n): n is number => n != null))])
   return rows.map((r) => ({
     revision: r.revision as number,
     publishedAt: r.publishedAt as string,
     publishedBy: r.publishedBy,
+    publishedByName: (r.publishedBy != null && names.get(r.publishedBy)) || null,
     source: r.source,
     activeSessions: active.find((a) => a.revision === r.revision)?.count ?? 0,
   }))

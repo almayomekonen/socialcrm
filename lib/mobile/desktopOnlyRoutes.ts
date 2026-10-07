@@ -268,6 +268,8 @@ export const MOBILE_READY_ROUTES: Record<string, string> = {
    */
   '/settings/auto-response':
     'מענה אוטומטי — AutoResponseMobile (status + read-only message + master kill switch), branched in the auto-response page',
+  '/settings/questionnaire':
+    'שאלון וואטסאפ — QuestionnaireMobile (live status + test conversation; editing stated as desk work), branched in the questionnaire page',
   /**
    * NOT a desktop handoff, deliberately — the §5 question, answered by reading
    * the code rather than by assuming.

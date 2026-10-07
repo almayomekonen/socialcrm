@@ -6,6 +6,7 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { isAgentEnabled, isCopilotInspectorEnabled } from '@/lib/ai/flags'
 import MobileMoreView from '@/components/mobile/MobileMoreView'
 import { visibleMoreItems } from '@/components/mobile/moreDestinations'
+import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 
 export const metadata: Metadata = { title: 'עוד' }
 
@@ -32,6 +33,7 @@ export default async function MobileMorePage() {
     role: user.role,
     inspectorEnabled: user.role === 'ADMIN' && isCopilotInspectorEnabled(),
     agentEnabled: isAgentEnabled(user.agencyId),
+    questionnaireBuilderEnabled: canUseQuestionnaireBuilder(user.agencyId),
   })
 
   return <MobileMoreView name={user.name || user.email} email={user.email} items={items} />

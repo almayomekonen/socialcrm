@@ -8,6 +8,7 @@ import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoResponseSettingsForm'
 import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
+import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 
 export const metadata: Metadata = { title: 'מענה אוטומטי' }
 
@@ -55,7 +56,10 @@ export default async function AutoResponseSettingsPage() {
           />
         </div>
       )}
-      <QuestionnaireModeNotice active={channel?.responder === 'questionnaire'} />
+      <QuestionnaireModeNotice
+        active={channel?.responder === 'questionnaire'}
+        builderHref={canUseQuestionnaireBuilder(user.agencyId) ? '/settings/questionnaire' : undefined}
+      />
       <AutoResponseSettingsForm
         masterEnabled={master}
         channelEnabled={channel?.enabled ?? false}

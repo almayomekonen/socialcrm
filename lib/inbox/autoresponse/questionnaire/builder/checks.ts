@@ -15,6 +15,7 @@ import { MAX_RENDERED_MESSAGE_CHARS, nextStepAfter, parseQuestionnaireDefinition
 import type { QuestionnaireDefinition } from '../definition'
 import { renderOpening, renderQuestion } from '../render'
 import type { ConvertError } from './convert'
+import { OTHER_LABEL } from './editorBase'
 import type { IdError } from './ids'
 
 export type IssueCode =
@@ -28,6 +29,7 @@ export type IssueCode =
   | 'condition_on_later_or_missing_question'
   | 'condition_on_non_choice'
   | 'condition_on_deleted_option'
+  | 'condition_needs_answer'
   | 'ending_condition_on_non_choice'
   | 'ending_condition_on_deleted_option'
   | 'icon_invalid'
@@ -78,6 +80,7 @@ function codeFor(message: string, zodCode: string, path: readonly (string | numb
   if (message.includes('unknown option')) return 'condition_on_deleted_option'
   if (message.includes('not a choice question')) return 'condition_on_non_choice'
   if (message.includes('not an earlier step')) return 'condition_on_later_or_missing_question'
+  if (zodCode === 'too_small' && path[path.length - 1] === 'anyOf') return 'condition_needs_answer'
   if (zodCode === 'too_small' && path.length === 1 && path[0] === 'steps') return 'no_questions'
   if (zodCode === 'too_small' && path[path.length - 1] === 'options') return 'too_few_options'
   if (zodCode === 'too_big') return 'too_many_items'
@@ -88,7 +91,14 @@ function codeFor(message: string, zodCode: string, path: readonly (string | numb
 function fromSchema(definition: QuestionnaireDefinition): BuilderIssue[] {
   const result = questionnaireDefinitionSchema.safeParse(definition)
   if (result.success) return []
-  return result.error.issues.map((issue) => {
+  const emptyLabel = (path: readonly PropertyKey[]) => {
+    const step = typeof path[1] === 'number' ? definition.steps[path[1]] : undefined
+    const option = step?.type === 'choice' && typeof path[3] === 'number' ? step.options[path[3]] : undefined
+    return option !== undefined && option.label.trim() === ''
+  }
+  // Two blank answers are "missing", not "the same name twice": one problem, said once.
+  const issues = result.error.issues.filter((i) => !(i.message.includes('duplicate option label') && emptyLabel(i.path)))
+  return issues.map((issue) => {
     const path = issue.path.filter((p): p is string | number => typeof p !== 'symbol')
     const out: BuilderIssue = { code: codeFor(issue.message, issue.code, path), severity: 'error' }
     if (path[0] === 'steps' && typeof path[1] === 'number') {
@@ -133,7 +143,7 @@ function builderChecks(definition: QuestionnaireDefinition): BuilderIssue[] {
   for (const step of definition.steps) {
     if (step.type !== 'choice') continue
     for (const option of step.options) {
-      if (!/(^|\s)אחר(\s|$)/.test(option.label)) continue
+      if (!OTHER_LABEL.test(option.label)) continue
       const followed = definition.steps.some((s) => s.when?.step === step.id && s.when.anyOf.includes(option.id))
       if (!followed) issues.push({ code: 'other_without_follow_up', severity: 'warning', questionId: step.id, optionId: option.id })
     }

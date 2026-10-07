@@ -23,7 +23,7 @@
  * service window, duplicate deliveries.
  */
 import type { AiState } from '../../qualification'
-import type { QuestionnaireDefinition } from '../definition'
+import { findStep, type QuestionnaireDefinition } from '../definition'
 import { decideQuestionnaireTurn, type SessionSnapshot, type TurnDecision } from '../transition'
 import { firstAskedAt, inboundInputs } from '../turnFacts'
 import { renderSummary, summaryFields } from '../render'
@@ -39,13 +39,29 @@ export type SimulatedTurn = {
   explanation: TurnExplanation
 }
 
+/**
+ * One answer the turn recorded. A choice question reports the options it
+ * matched (`optionIds`); a text question reports what was kept (`text`). The two
+ * never share a field: a free-text answer is not an option id.
+ */
+export type RecognizedAnswer = {
+  questionId: string
+  /** Choice questions only: the option ids matched. */
+  optionIds?: string[]
+  /** Text questions only: the answer as stored for the rep. */
+  text?: string
+  /** The customer's own words, when an option was read from natural phrasing. */
+  fromWords?: string
+  notSet?: true
+}
+
 /** Why the turn went the way it did — read off the decision, never recomputed. */
 export type TurnExplanation = {
   outcome: TurnDecision['kind']
   reason: string
   nextQuestionId: string | null
   attempts: number | null
-  recognized: Array<{ questionId: string; optionIds?: string[]; text?: string; fromWords?: string; notSet?: true }>
+  recognized: RecognizedAnswer[]
   keptForRep: { unplaced: string[]; questions: string[]; corrections: string[] }
 }
 
@@ -58,14 +74,20 @@ export type SimulationResult = {
 
 const EXTRA_KEYS = { unplaced: ':unplaced', questions: ':questions', corrections: ':corrections' } as const
 
-function explain(before: Record<string, string[]>, decision: TurnDecision): TurnExplanation {
+function explain(definition: QuestionnaireDefinition, before: Record<string, string[]>, decision: TurnDecision): TurnExplanation {
   const after = decision.kind === 'none' ? before : decision.answers
-  const recognized: TurnExplanation['recognized'] = []
+  const recognized: RecognizedAnswer[] = []
   for (const key of Object.keys(after)) {
     if (key.includes(':') || before[key]) continue
     const raw = after[`${key}:raw`]?.[0]
     const notSet = after[`${key}:state`]?.[0] === 'not_set'
-    recognized.push({ questionId: key, optionIds: after[key], ...(raw ? { fromWords: raw } : {}), ...(notSet ? { notSet: true as const } : {}) })
+    const choice = findStep(definition, key)?.type === 'choice'
+    recognized.push({
+      questionId: key,
+      ...(choice ? { optionIds: after[key] } : { text: after[key]?.[0] ?? '' }),
+      ...(raw ? { fromWords: raw } : {}),
+      ...(notSet ? { notSet: true as const } : {}),
+    })
   }
   const added = (k: string) => (after[k] ?? []).filter((v) => !(before[k] ?? []).includes(v))
   return {
@@ -172,7 +194,7 @@ export function simulateConversation(definition: QuestionnaireDefinition, turns:
         aiState = nextAiState(aiState, 'active_turn')
       }
     }
-    out.push({ customer: [...messages], replies, explanation: explain(before, decision) })
+    out.push({ customer: [...messages], replies, explanation: explain(definition, before, decision) })
   }
 
   const answers = session?.answers ?? {}

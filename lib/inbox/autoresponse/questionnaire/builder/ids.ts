@@ -13,12 +13,23 @@
  *
  * Existing semantic ids ("event_type", "wedding") are kept forever; only new
  * entities get generated ones. Array order is the stable order.
+ *
+ * A new entity may carry a `ref`: the browser's temporary name for it, so a
+ * condition can point at an option that has no id yet ("אחר" and its
+ * follow-up question, created together). Every condition naming a ref is
+ * rewritten to the fresh id here, and the ref is dropped. A ref is never kept
+ * as an id, so the rule above still holds: identities are minted only here.
  */
 import { randomBytes } from 'node:crypto'
 import type { QuestionnaireDefinition } from '../definition'
 import type { BuilderQuestionnaire, IdentifiedQuestionnaire } from './model'
 
 export type IdError = { code: 'unknown_id' | 'duplicate_id'; id: string; questionId?: string }
+
+/** ref → the id the server assigned, so an editor can adopt ids without reloading. */
+export type AssignedIds = Record<string, string>
+
+type Condition = { questionId: string; anyOf: string[] }
 
 function fresh(prefix: 'q' | 'o', taken: Set<string>): string {
   for (;;) {
@@ -33,7 +44,7 @@ function fresh(prefix: 'q' | 'o', taken: Set<string>): string {
 export function assignIds(
   previous: QuestionnaireDefinition | null,
   incoming: BuilderQuestionnaire,
-): { ok: true; questionnaire: IdentifiedQuestionnaire } | { ok: false; error: IdError } {
+): { ok: true; questionnaire: IdentifiedQuestionnaire; assigned: AssignedIds } | { ok: false; error: IdError } {
   const knownQuestions = new Set((previous?.steps ?? []).map((s) => s.id))
   const knownOptions = new Map<string, Set<string>>()
   for (const s of previous?.steps ?? []) {
@@ -49,9 +60,30 @@ export function assignIds(
     seen.add(q.id)
   }
 
-  const questions: IdentifiedQuestionnaire['questions'] = []
+  // A ref names one new entity, and never shadows an id that already exists.
+  const refs = new Set<string>()
+  const knownIds = new Set([...knownQuestions, ...[...knownOptions.values()].flatMap((o) => [...o])])
+  const claim = (ref: string | undefined, hasId: boolean): IdError | null => {
+    if (ref === undefined || hasId) return null
+    if (refs.has(ref) || knownIds.has(ref)) return { code: 'duplicate_id', id: ref }
+    refs.add(ref)
+    return null
+  }
   for (const q of incoming.questions) {
+    const bad = claim(q.ref, Boolean(q.id))
+    if (bad) return { ok: false, error: bad }
+    if (q.answer.kind !== 'single_choice' && q.answer.kind !== 'multi_choice') continue
+    for (const o of q.answer.options) {
+      const badOption = claim(o.ref, Boolean(o.id))
+      if (badOption) return { ok: false, error: badOption }
+    }
+  }
+
+  const assigned: AssignedIds = {}
+  const questions: IdentifiedQuestionnaire['questions'] = []
+  for (const { ref, ...q } of incoming.questions) {
     const id = q.id ?? fresh('q', takenQuestions)
+    if (ref !== undefined && !q.id) assigned[ref] = id
     if (q.answer.kind !== 'single_choice' && q.answer.kind !== 'multi_choice') {
       questions.push({ ...q, id, answer: q.answer })
       continue
@@ -67,8 +99,25 @@ export function assignIds(
         seenOptions.add(o.id)
       }
     }
-    for (const o of q.answer.options) options.push({ ...o, id: o.id ?? fresh('o', takenOptions) })
+    for (const { ref: optionRef, ...o } of q.answer.options) {
+      const optionId = o.id ?? fresh('o', takenOptions)
+      if (optionRef !== undefined && !o.id) assigned[optionRef] = optionId
+      options.push({ ...o, id: optionId })
+    }
     questions.push({ ...q, id, answer: { kind: q.answer.kind, options } })
   }
-  return { ok: true, questionnaire: { ...incoming, questions } }
+
+  const resolve = (c: Condition): Condition => ({
+    questionId: assigned[c.questionId] ?? c.questionId,
+    anyOf: c.anyOf.map((o) => assigned[o] ?? o),
+  })
+  const resolved = questions.map((q) =>
+    q.shownWhen.mode === 'all' ? { ...q, shownWhen: { mode: 'all' as const, conditions: q.shownWhen.conditions.map(resolve) } } : q,
+  )
+  const custom = incoming.endings.custom.map((e) => ({ ...e, sentWhen: { mode: 'all' as const, conditions: e.sentWhen.conditions.map(resolve) } }))
+  return {
+    ok: true,
+    questionnaire: { ...incoming, questions: resolved, endings: { ...incoming.endings, custom } },
+    assigned,
+  }
 }

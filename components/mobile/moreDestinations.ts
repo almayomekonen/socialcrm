@@ -31,6 +31,8 @@ export type MoreItem = {
   inspectorOnly?: boolean
   /** Requires the agent rollout flag. The destination 404s without it. */
   agentOnly?: boolean
+  /** Requires the Questionnaire Builder rollout (QUESTIONNAIRE_BUILDER_AGENCY_IDS). The destination 404s without it. */
+  questionnaireBuilderOnly?: boolean
 }
 
 export const MORE_SECTION_LABELS: Record<MoreSection, string> = {
@@ -87,6 +89,20 @@ export const MORE_ITEMS: MoreItem[] = [
    * own `isAdmin` check; it hides the row, it does not enforce anything.
    */
   { section: 'system', title: 'מענה אוטומטי', subtitle: 'מענה אוטומטי בוואטסאפ', href: '/settings/auto-response', icon: 'comments', adminOnly: true },
+  /*
+   * שאלון וואטסאפ has a real phone screen (QuestionnaireMobile): the live
+   * version's status and the test conversation. Editing is stated as desk work
+   * on that screen. Only agencies in the Builder rollout see the row.
+   */
+  {
+    section: 'system',
+    title: 'שאלון וואטסאפ',
+    subtitle: 'מצב השאלון ובדיקה',
+    href: '/settings/questionnaire',
+    icon: 'clipboard-list',
+    adminOnly: true,
+    questionnaireBuilderOnly: true,
+  },
   { section: 'system', title: 'אבטחה', subtitle: 'היסטוריית כניסות והתנתקות', href: '/settings/update_security', icon: 'shield', adminOnly: true },
   { section: 'system', title: 'הגדרות מערכת', subtitle: 'ברירות מחדל', href: '/settings/update_default', icon: 'folders', adminOnly: true },
   /*
@@ -116,12 +132,18 @@ export const MORE_ITEMS: MoreItem[] = [
  * second authorization rule, and every destination still enforces its own
  * server-side checks regardless of what this returns.
  */
-export function visibleMoreItems(opts: { role: string; inspectorEnabled: boolean; agentEnabled?: boolean }): MoreItem[] {
+export function visibleMoreItems(opts: {
+  role: string
+  inspectorEnabled: boolean
+  agentEnabled?: boolean
+  questionnaireBuilderEnabled?: boolean
+}): MoreItem[] {
   const isAdmin = opts.role === 'ADMIN'
   return MORE_ITEMS.filter((item) => {
     if (item.adminOnly && !isAdmin) return false
     if (item.inspectorOnly && !opts.inspectorEnabled) return false
     if (item.agentOnly && !opts.agentEnabled) return false
+    if (item.questionnaireBuilderOnly && !opts.questionnaireBuilderEnabled) return false
     return true
   })
 }

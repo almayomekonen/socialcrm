@@ -30,13 +30,13 @@ import {
   updateDraftVersioned,
   type RevisionRow,
 } from '@/db/questionnaireRevisions'
-import { hasCustomerFacingDash, finalizeCustomerFacingText } from '../../customerFacingText'
 import type { QuestionnaireDefinition } from '../definition'
 import { checkDefinitionForPublish, convertErrorIssue, type BuilderIssue } from './checks'
 import { toDefinition } from './convert'
-import { assignIds } from './ids'
+import { assignIds, type AssignedIds } from './ids'
 import { builderQuestionnaireSchema, type BuilderQuestionnaire, type BuilderQuestionnaireInput } from './model'
 import { emptyQuestionnaire } from './skeleton'
+import { normalizeCustomerText } from './normalize'
 import { MAX_SIMULATED_TURNS, simulateConversation, type SimulationResult } from './simulate'
 import { draftState, type DraftState } from './draftState'
 
@@ -100,33 +100,6 @@ export async function openDraft(ctx: BuilderContext, opts: { fromRevision?: numb
   return { ok: true, ...draftState(row) }
 }
 
-/** Customer-facing text cannot contain a dash (the send path rewrites them); store what will be sent. */
-function normalizeCustomerText(q: BuilderQuestionnaire): BuilderQuestionnaire {
-  const n = (s: string) => (hasCustomerFacingDash(s) ? finalizeCustomerFacingText(s) : s)
-  const nOpt = (s: string | undefined) => (s === undefined ? undefined : n(s))
-  return {
-    ...q,
-    opening: n(q.opening),
-    handoffMessage: n(q.handoffMessage),
-    summaryTitle: n(q.summaryTitle),
-    endings: { standard: n(q.endings.standard), custom: q.endings.custom.map((e) => ({ ...e, message: n(e.message) })) },
-    questions: q.questions.map((question) => ({
-      ...question,
-      label: n(question.label),
-      prompt: n(question.prompt),
-      messages: Object.fromEntries(
-        Object.entries(question.messages ?? {})
-          .filter(([, v]) => v !== undefined)
-          .map(([k, v]) => [k, nOpt(v)]),
-      ),
-      answer:
-        question.answer.kind === 'single_choice' || question.answer.kind === 'multi_choice'
-          ? { ...question.answer, options: question.answer.options.map((o) => ({ ...o, label: n(o.label) })) }
-          : question.answer,
-    })),
-  }
-}
-
 async function whyNotWritable(ctx: BuilderContext, draftId: number, expectedVersion: number): Promise<Failure> {
   const row = await getRowById(ctx.agencyId, draftId)
   if (!row) return { ok: false, reason: 'not_found' }
@@ -142,7 +115,7 @@ async function whyNotWritable(ctx: BuilderContext, draftId: number, expectedVers
 export async function saveDraft(
   ctx: BuilderContext,
   input: { draftId: number; expectedVersion: number; questionnaire: BuilderQuestionnaireInput },
-): Promise<({ ok: true } & DraftState) | Failure> {
+): Promise<({ ok: true; assigned: AssignedIds } & DraftState) | Failure> {
   const parsed = builderQuestionnaireSchema.safeParse(input.questionnaire)
   if (!parsed.success) return { ok: false, reason: 'invalid_draft', issues: [{ code: 'invalid', severity: 'error' }] }
 
@@ -164,7 +137,7 @@ export async function saveDraft(
     userId: ctx.userId,
   })
   if (!saved) return whyNotWritable(ctx, input.draftId, input.expectedVersion)
-  return { ok: true, ...draftState(saved) }
+  return { ok: true, assigned: ids.assigned, ...draftState(saved) }
 }
 
 export async function discardDraft(ctx: BuilderContext, input: { draftId: number; expectedVersion: number }): Promise<{ ok: true } | Failure> {
