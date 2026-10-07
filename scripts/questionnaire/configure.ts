@@ -5,14 +5,26 @@
  * back off one. It targets an AGENCY ID — never an email, a name or anything
  * else that could match the wrong tenant.
  *
- *   pnpm mig questionnaire/configure.ts -- --agency 123 --file <path> --dry-run
- *   pnpm mig questionnaire/configure.ts -- --agency 123 --file <path> --enable
- *   pnpm mig questionnaire/configure.ts -- --agency 123 --disable
- *   pnpm mig questionnaire/configure.ts -- --agency 123 --show
+ *   tsx scripts/questionnaire/configure.ts --agency 123 --file <path> [--dry-run]
+ *   tsx scripts/questionnaire/configure.ts --agency 123 --file <path> --publish [--discard-draft]
+ *   tsx scripts/questionnaire/configure.ts --agency 123 --file <path> --enable  [--discard-draft]
+ *   tsx scripts/questionnaire/configure.ts --agency 123 --disable
+ *   tsx scripts/questionnaire/configure.ts --agency 123 --show
  *
  * --dry-run is the default: it validates, prints every message the customer
  * would receive, and writes nothing. Nothing about this script sends WhatsApp
  * messages or touches a live conversation.
+ *
+ * ONE PUBLICATION PATH. --publish and --enable never write the questionnaire
+ * themselves: they call the Questionnaire Builder's publish service, which
+ * records an immutable revision and updates the live copy in one transaction
+ * (lib/inbox/autoresponse/questionnaire/builder/publish.ts). It refuses while
+ * the owner has a Builder draft open, unless --discard-draft says so.
+ *
+ * PUBLISH IS NOT ACTIVATION. --publish leaves routing exactly as it is.
+ * --enable publishes and THEN, as a separate, explicit step, routes the agency
+ * to the questionnaire (responder = 'questionnaire'), as this script always
+ * has. --disable routes it back to the agent and deletes nothing.
  *
  * ENABLING HERE IS NOT ENOUGH, deliberately. The questionnaire also needs
  * WA_QUESTIONNAIRE_ENABLED=1 and the agency on WA_QUESTIONNAIRE_AGENCY_IDS, plus
@@ -26,11 +38,14 @@ import { parseQuestionnaireDefinition, type QuestionnaireDefinition } from '@/li
 import { MAX_RENDERED_MESSAGE_CHARS } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import { renderOpening, renderQuestion, renderSummary } from '@/lib/inbox/autoresponse/questionnaire/render'
 import { nextStepAfter } from '@/lib/inbox/autoresponse/questionnaire/definition'
+import { publishDefinition } from '@/lib/inbox/autoresponse/questionnaire/builder/publish'
+import { getDraft, getLatestPublished, listPublished } from '@/db/questionnaireRevisions'
 
 type Args = {
   agencyId: number
   file: string | null
-  mode: 'dry-run' | 'enable' | 'disable' | 'show'
+  mode: 'dry-run' | 'publish' | 'enable' | 'disable' | 'show'
+  discardDraft: boolean
 }
 
 function parseArgs(argv: string[]): Args {
@@ -48,8 +63,10 @@ function parseArgs(argv: string[]): Args {
       ? 'show'
       : argv.includes('--enable')
         ? 'enable'
-        : 'dry-run'
-  return { agencyId, file: get('--file'), mode }
+        : argv.includes('--publish')
+          ? 'publish'
+          : 'dry-run'
+  return { agencyId, file: get('--file'), mode, discardDraft: argv.includes('--discard-draft') }
 }
 
 /** Every message this definition can produce, in order. */
@@ -85,7 +102,13 @@ async function main(): Promise<void> {
   console.log(`  env gate: WA_QUESTIONNAIRE_ENABLED=${process.env.WA_QUESTIONNAIRE_ENABLED ?? '(unset)'} ` +
     `WA_QUESTIONNAIRE_AGENCY_IDS=${process.env.WA_QUESTIONNAIRE_AGENCY_IDS ?? '(unset)'}`)
 
+  const [latest, draft] = await Promise.all([getLatestPublished(args.agencyId), getDraft(args.agencyId)])
+  console.log(`  published revisions: newest ${latest?.revision ?? 'none'}; owner draft open: ${draft ? `yes (version ${draft.draftVersion})` : 'no'}`)
+
   if (args.mode === 'show') {
+    for (const r of await listPublished(args.agencyId)) {
+      console.log(`    revision ${r.revision} · ${r.source} · ${r.publishedAt}${r.publishedBy ? ` · user ${r.publishedBy}` : ''}`)
+    }
     const parsed = parseQuestionnaireDefinition(channel?.questionnaire ?? null)
     if (parsed.ok === false) {
       console.log('  stored questionnaire: none (or invalid)')
@@ -144,35 +167,51 @@ async function main(): Promise<void> {
   }
 
   if (args.mode === 'dry-run') {
-    console.log('\nDRY RUN. Nothing was written. Re-run with --enable to store this.')
+    console.log(`\nDRY RUN. Nothing was written. --publish would create revision ${(latest?.revision ?? 0) + 1}; --enable would also route the agency to it.`)
     return
   }
 
-  await db.transaction(async (trx) => {
-    const existing = await trx('auto_response_settings')
-      .where({ agencyId: args.agencyId, channel: 'whatsapp' })
-      .first('agencyId')
-    if (!existing) {
-      throw new Error(
-        `agency ${args.agencyId} has no auto_response_settings row for whatsapp. ` +
-          'The owner must save Auto Response settings once before a questionnaire can be attached.',
-      )
-    }
-    await trx('auto_response_settings')
-      .where({ agencyId: args.agencyId, channel: 'whatsapp' })
-      .update({
-        questionnaire: JSON.stringify(definition),
-        responder: 'questionnaire',
-        updatedAt: trx.fn.now(),
-      })
-  })
+  if (args.mode === 'enable' && !channel) {
+    // Checked BEFORE publishing so --enable never stops half way.
+    throw new Error(
+      `agency ${args.agencyId} has no auto_response_settings row for whatsapp. ` +
+        'The owner must save Auto Response settings once before a questionnaire can be routed. Nothing written.',
+    )
+  }
 
-  console.log('\nSTORED. responder = questionnaire.')
-  console.log('  Still required before a customer sees anything:')
-  console.log('    · WA_QUESTIONNAIRE_ENABLED=1')
-  console.log(`    · WA_QUESTIONNAIRE_AGENCY_IDS includes ${args.agencyId}`)
-  console.log('    · agencies.autoResponseEnabled = true (the owner\'s switch)')
-  console.log('    · auto_response_settings.enabled = true for whatsapp')
+  const published = await publishDefinition({ agencyId: args.agencyId, definition, discardDraft: args.discardDraft })
+  if (published.ok === false) {
+    console.error(`\nNOT PUBLISHED (${published.reason}). Nothing was written.`)
+    if (published.reason === 'owner_draft_exists') console.error('  The owner has a Builder draft open. Re-run with --discard-draft to replace it deliberately.')
+    process.exitCode = 1
+    return
+  }
+  console.log(`\nPUBLISHED revision ${published.revision} (routing unchanged).`)
+
+  if (args.mode === 'enable') {
+    await db('auto_response_settings')
+      .where({ agencyId: args.agencyId, channel: 'whatsapp' })
+      .update({ responder: 'questionnaire', updatedAt: db.fn.now() })
+    console.log('ROUTED: responder = questionnaire.')
+  }
+
+  // Read back what the runtime will actually read.
+  const after = await db('auto_response_settings')
+    .where({ agencyId: args.agencyId, channel: 'whatsapp' })
+    .first('responder', 'enabled', 'questionnaire')
+  const live = parseQuestionnaireDefinition(after?.questionnaire ?? null)
+  console.log(
+    after
+      ? `  live copy: revision ${live.ok ? live.definition.revision : 'invalid'} · responder ${after.responder} · channel ${after.enabled ? 'on' : 'off'}`
+      : '  live copy: none (no settings row; routing is off until the agency is activated)',
+  )
+  if (args.mode === 'enable') {
+    console.log('  Still required before a customer sees anything:')
+    console.log('    · WA_QUESTIONNAIRE_ENABLED=1')
+    console.log(`    · WA_QUESTIONNAIRE_AGENCY_IDS includes ${args.agencyId}`)
+    console.log("    · agencies.autoResponseEnabled = true (the owner's switch)")
+    console.log('    · auto_response_settings.enabled = true for whatsapp')
+  }
 }
 
 main()

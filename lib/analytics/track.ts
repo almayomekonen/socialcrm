@@ -58,6 +58,8 @@ export type AnalyticsEventName =
   | 'auto_response_skipped'
   | 'auto_response_escalated'
   | 'auto_response_draft'
+  // A questionnaire revision was published (Builder or staff). Not activation.
+  | 'questionnaire_published'
   // Generation failed validation twice and a safe holding reply went out
   // instead of silence. Counts the recovery path, not an error.
   | 'auto_response_recovered'
