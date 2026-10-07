@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { EditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import { describeCondition } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
 import { conditionOf, keyOf } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
@@ -30,6 +31,16 @@ export default function WhatsAppPreview({
   const when = focused ? describeCondition(model, conditionOf(focused)) : null
   const endingIndex = focus?.kind === 'ending' ? focus.index : -1
   const ending = endingIndex >= 0 ? view.endings.custom[endingIndex] : view.endings.standard
+  // The message being edited is kept on screen inside the preview, however long the opening is.
+  const focusRef = useRef<HTMLDivElement>(null)
+  const focusKey = focus ? (focus.kind === 'question' ? focus.key : `ending-${focus.index}`) : ''
+  useEffect(() => {
+    try {
+      focusRef.current?.scrollIntoView?.({ block: 'nearest' })
+    } catch {
+      /* not scrollable here */
+    }
+  }, [focusKey])
 
   return (
     <section aria-labelledby='questionnaire-preview-title' className='flex flex-col gap-3'>
@@ -49,19 +60,19 @@ export default function WhatsAppPreview({
         )}
 
         {showFocused && (
-          <>
+          <div ref={focusRef} className='flex flex-col gap-2.5'>
             <p className='mt-2 text-center text-xs text-gray-500'>{when ? `בהמשך, כאשר ${when}:` : 'בהמשך השיחה:'}</p>
             <ChatBubble from='business' text={view.messages[keyOf(focused)]} label='הודעה מהעסק' />
-          </>
+          </div>
         )}
 
         {ending && (
-          <>
+          <div ref={endingIndex >= 0 ? focusRef : undefined} className='flex flex-col gap-2.5'>
             <p className='mt-2 text-center text-xs text-gray-500'>
               {endingIndex >= 0 ? 'בסוף השאלון, בסיום השונה הזה:' : 'בסוף השאלון:'}
             </p>
             <ChatBubble from='business' text={ending} label='הודעת הסיום' />
-          </>
+          </div>
         )}
       </div>
     </section>

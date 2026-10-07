@@ -47,7 +47,8 @@ export function emptyQuestionnaire(businessName: string | null): QuestionnaireDe
       {
         id: 'request_type',
         type: 'choice',
-        label: 'סוג הפנייה',
+        // Follows the question until the owner names it (editorOps.autoLabel).
+        label: 'במה נוכל לעזור',
         prompt: 'במה נוכל לעזור?',
         options: [
           { id: 'option_1', label: '' },

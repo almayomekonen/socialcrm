@@ -33,7 +33,7 @@ export default function PhrasingsEditor({
 
   return (
     <details className='group'>
-      <summary className='cursor-pointer text-sm text-gray-700 underline-offset-2 hover:underline'>
+      <summary className='cursor-pointer text-xs text-gray-600 underline-offset-2 hover:underline'>
         איך עוד לקוחות עשויים לכתוב את זה?
         {phrasings.length > 0 && <span className='text-gray-500'> ({phrasings.length})</span>}
       </summary>

@@ -1,10 +1,13 @@
 /**
- * A condition said as a sentence: "סוג האירוע הוא חתונה או חינה".
+ * A condition said as a sentence: 'הלקוח בחר חתונה או חינה בשאלה "סוג האירוע"'.
  *
  * The editor never shows a condition any other way: no ids, no "when", no
  * "anyOf". The meaning matches the runtime (definition.ts `nextStepAfter`):
- * the condition holds when ANY of the chosen answers was given, which reads as
- * "הוא X או Y" for a single choice and "נבחר X או Y" for several.
+ * the condition holds when ANY of the chosen answers was given.
+ *
+ * The answer comes first and the question is quoted, because a question's name
+ * is often the question itself ("איזה שירות מעניין אותך"): "X הוא Y" reads
+ * wrong for those, "הלקוח בחר Y בשאלה X" reads right for every name.
  */
 import { keyOf, optionsOf, type Condition } from './editorBase'
 import type { BuilderQuestionnaire } from './model'
@@ -29,8 +32,6 @@ export function describeCondition(m: BuilderQuestionnaire, condition: Condition 
         .find((o) => keyOf(o) === k)
         ?.label.trim() || 'תשובה שנמחקה',
   )
-  if (!labels.length) return `${questionName(source)}: עוד לא נבחרה תשובה`
-  return source.answer.kind === 'multi_choice'
-    ? `בשאלה "${questionName(source)}" נבחר ${joinOr(labels)}`
-    : `${questionName(source)} הוא ${joinOr(labels)}`
+  if (!labels.length) return `בשאלה "${questionName(source)}" עוד לא נבחרה תשובה`
+  return `הלקוח בחר ${joinOr(labels)} בשאלה "${questionName(source)}"`
 }

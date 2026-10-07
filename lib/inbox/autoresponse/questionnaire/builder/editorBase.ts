@@ -13,6 +13,11 @@ export function keyOf(entity: Keyed): string {
   return entity.id ?? entity.ref ?? ''
 }
 
+/** A stable React key: unchanged when a save gives a new entity its server id. */
+export function reactKey(entity: Keyed): string {
+  return entity.ref ?? entity.id ?? ''
+}
+
 export function newRef(): string {
   return `new_${Math.random().toString(36).slice(2, 12).padEnd(10, '0')}`
 }
@@ -79,11 +84,11 @@ export function release(m: BuilderQuestionnaire, questionKey: string, optionKeys
  */
 export function adoptIds(m: BuilderQuestionnaire, assigned: Record<string, string>): BuilderQuestionnaire {
   if (!Object.keys(assigned).length) return m
-  const swap = <T extends { id?: string; ref?: string }>(e: T): T => {
-    if (e.id || !e.ref || !assigned[e.ref]) return e
-    const { ref, ...rest } = e
-    return { ...rest, id: assigned[ref] } as T
-  }
+  // The ref stays beside the new id: it is the entity's render key (reactKey),
+  // so a card the owner is typing in is not remounted when its save lands.
+  // The server ignores a ref on an entity that has an id (ids.ts).
+  const swap = <T extends { id?: string; ref?: string }>(e: T): T =>
+    e.id || !e.ref || !assigned[e.ref] ? e : { ...e, id: assigned[e.ref] }
   const cond = (c: Condition): Condition => ({
     questionId: assigned[c.questionId] ?? c.questionId,
     anyOf: c.anyOf.map((o) => assigned[o] ?? o),

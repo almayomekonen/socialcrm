@@ -26,10 +26,13 @@ export default function RevisionHistory({
   open,
   onClose,
   onRestore,
+  answering,
 }: {
   open: boolean
   onClose: () => void
   onRestore: (revision: number) => void
+  /** Whether the newest version is what WhatsApp customers actually receive. */
+  answering: boolean
 }) {
   const [revisions, setRevisions] = useState<Revision[] | null>(null)
   const [error, setError] = useState(false)
@@ -58,7 +61,8 @@ export default function RevisionHistory({
         <div>
           <h2 className='text-lg font-semibold text-ink'>היסטוריית הגרסאות</h2>
           <p className='mt-1 text-sm text-gray-600'>
-            כל פרסום יוצר גרסה חדשה. אפשר ליצור טיוטה מגרסה קודמת, לערוך אותה ולפרסם אותה כגרסה חדשה.
+            כל פרסום שומר גרסה חדשה, וגרסאות קודמות נשארות כאן. &quot;יצירת טיוטה מגרסה זו&quot; מעתיקה גרסה לעריכה. היא תגיע
+            ללקוחות רק אחרי שתפרסמו אותה, כגרסה חדשה.
           </p>
         </div>
 
@@ -82,7 +86,7 @@ export default function RevisionHistory({
                     גרסה {r.revision}
                     {r.revision === live && (
                       <span className='ms-2 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-800'>
-                        הגרסה הנוכחית
+                        {answering ? 'פעילה בוואטסאפ' : 'הגרסה האחרונה שפורסמה'}
                       </span>
                     )}
                   </p>

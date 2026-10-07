@@ -126,9 +126,39 @@ export type LiveRouting = { routedToQuestionnaire: boolean; channelEnabled: bool
  */
 export function liveStatusText(liveRevision: number | null, routing: LiveRouting): string {
   if (liveRevision === null) return 'השאלון עוד לא פורסם. הלקוחות לא מקבלים אותו.'
-  const answering = routing.routedToQuestionnaire && routing.channelEnabled && routing.masterEnabled
-  if (answering) return `גרסה ${liveRevision} עונה לפניות חדשות בוואטסאפ.`
+  if (isAnswering(routing)) return `גרסה ${liveRevision} עונה לפניות חדשות בוואטסאפ.`
   if (routing.routedToQuestionnaire)
     return `גרסה ${liveRevision} פורסמה, אבל המענה האוטומטי כבוי כרגע, ולכן הלקוחות לא מקבלים אותה.`
   return `גרסה ${liveRevision} פורסמה, אבל השאלון עוד לא מופעל בוואטסאפ. להפעלה, פנו אלינו.`
+}
+
+/**
+ * A problem said inside its own card, where the question is already obvious:
+ * "כתבו מה לשאול את הלקוח", not "חסר טקסט בנוסח השאלה בשאלה …". Anything
+ * without a short form keeps the full sentence (issues.ts).
+ */
+export function cardIssueText(issue: { code: string; field?: string; text: string }): string {
+  if (issue.code === 'missing_text' && issue.field === 'prompt') return 'כתבו מה לשאול את הלקוח.'
+  if (issue.code === 'missing_text' && issue.field === 'label') return 'כתבו שם קצר לסיכום.'
+  return issue.text
+}
+
+/** Whether customers actually receive the published questionnaire right now. */
+export function isAnswering(routing: LiveRouting): boolean {
+  return routing.routedToQuestionnaire && routing.channelEnabled && routing.masterEnabled
+}
+
+/**
+ * The publish confirmation. Publishing is not switching on, so it promises new
+ * conversations only when the questionnaire is actually answering in WhatsApp.
+ */
+export function publishConfirmText(revision: number, routing: LiveRouting): string {
+  return isAnswering(routing)
+    ? `לפרסם את השאלון כגרסה ${revision}?\nשיחות חדשות יקבלו את הגרסה הזו. שיחות שכבר התחילו ימשיכו בגרסה שבה התחילו.`
+    : `לפרסם את השאלון כגרסה ${revision}?\nהשאלון עדיין לא מופעל בוואטסאפ, ולכן לקוחות לא יקבלו אותו עד שיופעל. הפרסום שומר את הגרסה כגרסה המוכנה.`
+}
+
+/** Rows for a message box so the whole message is visible (a link on its last line included). */
+export function rowsFor(text: string, min = 2, max = 10): number {
+  return Math.min(max, Math.max(min, text.split('\n').length + 1))
 }

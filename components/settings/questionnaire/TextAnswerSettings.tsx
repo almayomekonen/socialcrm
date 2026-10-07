@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Checkbox, Select } from '@/lib/form'
 import { keyOf, setAnswerKind, setNotSetAllowed, updateQuestion } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
@@ -18,7 +18,16 @@ type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
  * The two messages are optional and hidden until asked for: a normal question
  * needs neither, and the runtime's own fallback lines are sensible.
  */
-export default function TextAnswerSettings({ question, edit }: { question: BuilderQuestion; edit: Edit }) {
+export default function TextAnswerSettings({
+  question,
+  edit,
+  leading,
+}: {
+  question: BuilderQuestion
+  edit: Edit
+  /** The answer-type select, drawn on the same line as the check. */
+  leading: ReactNode
+}) {
   const id = useId()
   const key = keyOf(question)
   const messages = question.messages ?? {}
@@ -28,7 +37,9 @@ export default function TextAnswerSettings({ question, edit }: { question: Build
   const location = base === 'meaningful' && (chosen === null ? looksLikeLocation : chosen === 'location')
   const check: TextCheck = location ? 'location' : base
   const notSetAllowed = 'notSetAllowed' in question.answer ? question.answer.notSetAllowed : false
-  const [advancedOpen, setAdvancedOpen] = useState(Boolean(messages.notUnderstood || messages.askAgainAfterQuestion))
+  const custom = Boolean(messages.notUnderstood || messages.askAgainAfterQuestion)
+  // Closed by default even when set: a loaded questionnaire should read short.
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const pick = (next: TextCheck) => {
     setChosen(next)
@@ -47,7 +58,6 @@ export default function TextAnswerSettings({ question, edit }: { question: Build
         ? located
         : updateQuestion(located, key, { messages: { ...messages, notUnderstood: LOCATION_PRESET.notUnderstood } })
     })
-    if (next === 'date' || next === 'location') setAdvancedOpen(true)
   }
 
   const setMessage = (field: 'notUnderstood' | 'askAgainAfterQuestion', value: string) =>
@@ -55,13 +65,18 @@ export default function TextAnswerSettings({ question, edit }: { question: Build
 
   return (
     <div className='grid gap-3'>
-      <Select
-        lbl='בדיקת התשובה'
-        value={check}
-        onChange={(e) => pick(e.target.value as TextCheck)}
-        options={TEXT_CHECKS.map((c) => ({ id: c.value, name: c.label }))}
-      />
-      <p className='-mt-1 text-xs text-gray-500'>{TEXT_CHECKS.find((c) => c.value === check)?.hint}</p>
+      <div className='grid gap-x-4 gap-y-3 sm:grid-cols-2'>
+        {leading}
+        <div>
+          <Select
+            lbl='בדיקת התשובה'
+            value={check}
+            onChange={(e) => pick(e.target.value as TextCheck)}
+            options={TEXT_CHECKS.map((c) => ({ id: c.value, name: c.label }))}
+          />
+          <p className='mt-1 text-xs text-gray-500'>{TEXT_CHECKS.find((c) => c.value === check)?.hint}</p>
+        </div>
+      </div>
 
       {check !== 'none' && (
         <Checkbox
@@ -78,9 +93,10 @@ export default function TextAnswerSettings({ question, edit }: { question: Build
             aria-expanded={advancedOpen}
             aria-controls={`${id}-messages`}
             onClick={() => setAdvancedOpen((o) => !o)}
-            className='text-sm text-gray-700 underline underline-offset-2'
+            className='text-xs text-gray-600 underline underline-offset-2'
           >
             {advancedOpen ? 'הסתרת ההודעות כשהתשובה לא ברורה' : 'מה נשלח כשהתשובה לא ברורה?'}
+            {!advancedOpen && custom && <span className='text-gray-500 no-underline'> (הוגדר נוסח משלכם)</span>}
           </button>
           {advancedOpen && (
             <div id={`${id}-messages`} className='mt-2 grid gap-3'>

@@ -31,6 +31,7 @@ export function describeIssue(issue: BuilderIssue, questionnaire: BuilderQuestio
   const field = issue.field ? FIELD[issue.field] ?? 'שדה' : 'שדה'
   switch (issue.code) {
     case 'missing_text':
+      if (issue.optionId) return `בשאלה ${question} יש אפשרות בלי שם.`
       return `חסר טקסט ב${field}${q ? ` בשאלה ${question}` : ''}.`
     case 'too_long':
       return `${field}${q ? ` בשאלה ${question}` : ''} ארוך מדי.`

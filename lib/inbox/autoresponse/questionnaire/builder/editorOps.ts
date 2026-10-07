@@ -15,7 +15,7 @@
 import type { AnswerSpec, BuilderEnding, BuilderQuestion, BuilderQuestionnaire } from './model'
 import { isChoice, keyOf, mapQuestion, newOption, newRef, release, type Condition, type QuestionKind } from './editorBase'
 
-export { keyOf, newRef, OTHER_LABEL, optionsOf, conditionOf, dependentsOf, adoptIds } from './editorBase'
+export { keyOf, reactKey, newRef, OTHER_LABEL, optionsOf, conditionOf, dependentsOf, adoptIds } from './editorBase'
 export type { Keyed, Condition, Dependents, QuestionKind } from './editorBase'
 
 // ── Questions ────────────────────────────────────────────────────────────────
@@ -44,6 +44,31 @@ export function moveQuestion(m: BuilderQuestionnaire, key: string, by: -1 | 1): 
   const questions = [...m.questions]
   ;[questions[from], questions[to]] = [questions[to], questions[from]]
   return { ...m, questions }
+}
+
+/**
+ * The short name the נציג reads in the summary, derived from the question:
+ * its first line, without emoji or end punctuation, at most 40 characters.
+ * The owner can overwrite it; until they do, it follows the question.
+ */
+export function autoLabel(prompt: string): string {
+  const line =
+    prompt
+      .split('\n')
+      .map((l) => l.replace(/\p{Extended_Pictographic}|\uFE0F/gu, '').trim())
+      .find(Boolean) ?? ''
+  const bare = line.replace(/[?!.:,\s]+$/u, '').replace(/\s+/g, ' ')
+  if (bare.length <= 40) return bare
+  const cut = bare.slice(0, 40)
+  return cut.slice(0, cut.lastIndexOf(' ') > 20 ? cut.lastIndexOf(' ') : 40).trim()
+}
+
+/** Change what the customer sees; a label that was following the question keeps following it. */
+export function setPrompt(m: BuilderQuestionnaire, key: string, prompt: string): BuilderQuestionnaire {
+  return mapQuestion(m, key, (q) => {
+    const following = !q.label.trim() || q.label === autoLabel(q.prompt)
+    return { ...q, prompt, ...(following ? { label: autoLabel(prompt) } : {}) }
+  })
 }
 
 export function updateQuestion(

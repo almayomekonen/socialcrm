@@ -185,8 +185,10 @@ describe('first run', () => {
     expect(within(card(1)).getByDisplayValue('במה נוכל לעזור?')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'הוספת שאלה' })).toBeTruthy()
     expect(screen.getByText('השאלון עוד לא פורסם. הלקוחות לא מקבלים אותו.')).toBeTruthy()
-    // The empty answers are pointed out on the card, in Hebrew.
-    expect(within(card(1)).getAllByText(/חסר טקסט/).length).toBe(2)
+    // A blank to fill in, not a wall of red: nothing is flagged until the owner has been there.
+    expect(within(card(1)).queryByText('כתבו שם לאפשרות.')).toBeNull()
+    fireEvent.focusOut(within(card(1)).getByLabelText('שם האפשרות 1'), { relatedTarget: null })
+    expect(within(card(1)).getAllByText('כתבו שם לאפשרות.')).toHaveLength(2)
   })
 
   it('a salon builds opening → service → preferred date → ending, with autosave, and it is ready', async () => {
@@ -199,7 +201,8 @@ describe('first run', () => {
     fireEvent.change(within(c2).getByLabelText('סוג התשובה'), { target: { value: 'free' } })
     fireEvent.change(within(c2).getByLabelText('בדיקת התשובה'), { target: { value: 'date' } })
     fireEvent.change(within(c2).getByLabelText('נוסח השאלה'), { target: { value: 'לאיזה תאריך תרצו לקבוע?' } })
-    fireEvent.change(within(c2).getByLabelText('שם קצר לסיכום שהנציג מקבל'), { target: { value: 'תאריך מועדף' } })
+    // No separate naming step: the summary name follows the question.
+    expect((within(c2).getByLabelText('שם קצר לסיכום שהנציג מקבל') as HTMLInputElement).value).toBe('לאיזה תאריך תרצו לקבוע')
     await saved()
     expect(checkDefinitionForPublish(S.server.def).ready).toBe(true)
     expect(S.server.def.steps.map((s) => s.type)).toEqual(['choice', 'text'])
@@ -214,7 +217,7 @@ describe('editing a question', () => {
     mount(start(emptyQuestionnaire('סלון דנה')))
     fireEvent.change(within(card(1)).getByLabelText('נוסח השאלה'), { target: { value: 'איזה טיפול?' } })
     fireEvent.change(within(card(1)).getByLabelText('שם האפשרות 1'), { target: { value: 'חתונה' } })
-    fireEvent.change(within(card(1)).getAllByLabelText('אייקון (רשות)')[0], { target: { value: '💍' } })
+    fireEvent.change(within(card(1)).getByLabelText('אייקון לאפשרות 1 (רשות)'), { target: { value: '💍' } })
     expect(within(preview()).getByText(/איזה טיפול\?/).textContent).toContain('1. חתונה 💍')
   })
 
@@ -248,8 +251,12 @@ describe('editing a question', () => {
     fireEvent.change(within(c1).getByLabelText('שם האפשרות 1'), { target: { value: 'תספורת' } })
     fireEvent.change(within(c1).getByLabelText('שם האפשרות 2'), { target: { value: 'צבע' } })
     fireEvent.click(within(c1).getByLabelText('אפשר ללקוח לבחור "אחר"'))
-    expect(within(c1).getByLabelText('מה נשאל כשהלקוח בוחר "אחר"?')).toBeTruthy()
-    expect(within(card(2)).getByText(/השאלה תופיע כאשר:/).parentElement?.textContent).toContain('סוג הפנייה הוא אחר')
+    // Said in words, with a way to the follow-up; never a second copy of its text to edit.
+    expect(c1.textContent).toContain('כשלקוח בוחר "אחר", נשאל אותו גם: "בשמחה, ספרו לנו בקצרה במה מדובר."')
+    expect(within(c1).queryByRole('textbox', { name: /מה נשאל/ })).toBeNull()
+    expect(within(c1).getByRole('button', { name: 'עריכת שאלת ההמשך (שאלה 2)' })).toBeTruthy()
+    expect(card(2).textContent).toContain('השאלה תופיע כאשר: הלקוח בחר אחר בשאלה "במה נוכל לעזור"')
+    expect(card(2).className).toContain('ms-8')
     await saved()
     const [first, followUp] = S.server.def.steps
     const otherId = first.type === 'choice' ? first.options[2].id : ''
@@ -264,6 +271,11 @@ describe('editing a question', () => {
     expect([...check.options].map((o) => o.text)).toEqual(['ללא בדיקה מיוחדת', 'תאריך', 'תשובה משמעותית', 'מיקום / מקום'])
     fireEvent.change(check, { target: { value: 'location' } })
     expect((within(card(1)).getByLabelText('אפשר לענות "עדיין לא נקבע"') as HTMLInputElement).checked).toBe(true)
+    // The preset's message is set but folded away; it opens on request.
+    expect(within(card(1)).queryByLabelText('כשלא הבנו את התשובה')).toBeNull()
+    const more = within(card(1)).getByRole('button', { name: /מה נשלח כשהתשובה לא ברורה\?/ })
+    expect(more.textContent).toContain('(הוגדר נוסח משלכם)')
+    fireEvent.click(more)
     expect((within(card(1)).getByLabelText('כשלא הבנו את התשובה') as HTMLTextAreaElement).value).toContain('מיקום')
     expect(check.value).toBe('location')
   })
@@ -271,10 +283,17 @@ describe('editing a question', () => {
   it('branching is a sentence; never "when", ids or JSON', () => {
     mount(start(emptyQuestionnaire('x')))
     fireEvent.change(within(card(1)).getByLabelText('שם האפשרות 1'), { target: { value: 'חתונה' } })
+    fireEvent.change(within(card(1)).getByLabelText('שם האפשרות 2'), { target: { value: 'שיער' } })
     fireEvent.click(screen.getByRole('button', { name: 'הוספת שאלה' }))
-    fireEvent.click(within(card(2)).getByLabelText('רק לפי תשובה קודמת'))
-    fireEvent.click(within(card(2)).getByLabelText('חתונה'))
-    expect(card(2).textContent).toContain('השאלה תופיע כאשר: סוג הפנייה הוא חתונה')
+    // A business that never branches sees one quiet line; one click goes straight to "which answers?".
+    expect(card(2).textContent).toContain('מופיעה תמיד.')
+    expect(within(card(2)).queryByRole('combobox', { name: 'לפי התשובה לשאלה' })).toBeNull()
+    fireEvent.click(within(card(2)).getByRole('button', { name: 'להציג רק לפי תשובה קודמת' }))
+    fireEvent.click(within(card(2)).getByRole('checkbox', { name: 'חתונה' }))
+    // Still open after the first tick, so a second answer can be added.
+    fireEvent.click(within(card(2)).getByRole('checkbox', { name: 'שיער' }))
+    fireEvent.click(within(card(2)).getByRole('button', { name: 'סיום' }))
+    expect(card(2).textContent).toContain('השאלה תופיע כאשר: הלקוח בחר חתונה או שיער בשאלה "במה נוכל לעזור"')
     expect(document.body.textContent).not.toMatch(/\bwhen\b|anyOf|request_type|option_1/)
   })
 
@@ -307,7 +326,7 @@ describe('endings', () => {
     expect((screen.getByLabelText('הודעת הסיום') as HTMLTextAreaElement).value).toContain('צוות Perfect Picture')
     const custom = screen.getAllByText(/^סיום שונה \d$/)
     expect(custom).toHaveLength(3)
-    expect(document.body.textContent).toContain('נשלח כאשר: סוג האירוע / השירות הוא חתונה')
+    expect(document.body.textContent).toContain('נשלח כאשר: הלקוח בחר חתונה בשאלה "סוג האירוע / השירות"')
     expect(document.body.textContent).toContain('נבדק מלמעלה למטה')
     fireEvent.focus(screen.getAllByLabelText('ההודעה')[2])
     expect(within(preview()).getByText(/wisepage\.wwcrm\.co\.il\/picture-perfect/)).toBeTruthy()
@@ -315,7 +334,9 @@ describe('endings', () => {
 
   it('a new conditional ending with no answer ticked is pointed out until one is', () => {
     mount(start(pilot))
-    fireEvent.click(screen.getByRole('button', { name: 'הוספת סיום שונה לפי תשובה' }))
+    const add = screen.getByRole('button', { name: 'הוספת סיום שונה לפי תשובה' })
+    fireEvent.click(add)
+    fireEvent.focusOut(add, { relatedTarget: null })
     expect(screen.getByText('בסיום השונה צריך לבחור לפחות תשובה אחת שאחריה הוא נשלח.')).toBeTruthy()
   })
 })
@@ -328,7 +349,7 @@ describe('real questionnaires load as they are', () => {
     expect(screen.getAllByRole('article')).toHaveLength(10)
     const c1 = card(1)
     expect((within(c1).getByLabelText('אפשר ללקוח לבחור "אחר"') as HTMLInputElement).checked).toBe(true)
-    expect((within(c1).getAllByLabelText('אייקון (רשות)')[0] as HTMLInputElement).value).toBe('💍')
+    expect((within(c1).getByLabelText('אייקון לאפשרות 1 (רשות)') as HTMLInputElement).value).toBe('💍')
     const phrasings = within(c1).getAllByText('איך עוד לקוחות עשויים לכתוב את זה?', { exact: false })[0].closest('details')!
     expect(phrasings.open).toBe(false)
     expect(phrasings.textContent).toContain('(6)')
@@ -338,7 +359,10 @@ describe('real questionnaires load as they are', () => {
     const service = screen.getByRole('article', { name: /· שירות צילום$/ })
     expect((within(service).getByLabelText('סוג התשובה') as HTMLSelectElement).value).toBe('multi')
     expect(screen.getAllByText(/^סיום שונה \d$/)).toHaveLength(3)
-    expect(document.body.textContent).toContain('השאלה תופיע כאשר: סוג האירוע / השירות הוא צילום רחפן / נדל״ן')
+    expect(document.body.textContent).toContain('השאלה תופיע כאשר: הלקוח בחר צילום רחפן / נדל״ן בשאלה "סוג האירוע / השירות"')
+    // Conditional questions are indented under the route they belong to; no condition editor is open by default.
+    expect(screen.getByRole('article', { name: /· אישור הטסה$/ }).className).toContain('ms-8')
+    expect(screen.queryAllByRole('combobox', { name: 'לפי התשובה לשאלה' })).toHaveLength(0)
     expect(screen.queryByText(/חסר טקסט|יש בעיה/)).toBeNull()
     await new Promise((r) => setTimeout(r, 1000))
     expect(A.save).not.toHaveBeenCalled()
@@ -401,7 +425,11 @@ describe('publishing', () => {
     mount(start(emptyQuestionnaire('x')))
     fireEvent.click(screen.getByRole('button', { name: 'פרסום' }))
     const alert = await screen.findByText('לפני הפרסום צריך לתקן כמה דברים בשאלון. הם מסומנים למטה.')
-    expect(alert.parentElement?.textContent).toMatch(/חסר טקסט/)
+    expect(alert.parentElement?.textContent).toMatch(/יש אפשרות בלי שם/)
+    // Every problem is now shown on its card, and the list leads there.
+    expect(within(card(1)).getAllByText('כתבו שם לאפשרות.')).toHaveLength(2)
+    fireEvent.click(within(alert.parentElement as HTMLElement).getAllByRole('button', { name: 'מעבר לשאלה' })[0])
+    expect(document.activeElement).toBe(within(card(1)).getByLabelText('שם האפשרות 1'))
     expect(A.publish).not.toHaveBeenCalled()
   })
 })
@@ -416,7 +444,7 @@ describe('revision history', () => {
     const dialog = await screen.findByRole('dialog', { name: 'היסטוריית הגרסאות' })
     await within(dialog).findByText('גרסה 2')
     expect(within(dialog).getAllByRole('listitem')).toHaveLength(2)
-    expect(within(dialog).getByText('הגרסה הנוכחית')).toBeTruthy()
+    expect(within(dialog).getByText('פעילה בוואטסאפ')).toBeTruthy()
     expect(within(dialog).getByText(/דנה כהן/)).toBeTruthy()
     expect(within(dialog).getByText(/הגרסה שהייתה פעילה כשהתחלנו לשמור היסטוריה/)).toBeTruthy()
     fireEvent.click(within(dialog).getAllByRole('button', { name: 'יצירת טיוטה מגרסה זו' })[1])
@@ -475,3 +503,72 @@ describe('accessibility', () => {
     expect(chrome.replace(/"[^"]*"/g, '')).not.toMatch(/\p{Extended_Pictographic}/u)
   })
 })
+
+// ── Review fixes (PR2 UX review) ─────────────────────────────────────────────
+
+describe('an unavailable control says why, to everyone', () => {
+  it('is focusable, announced as unavailable, described by its reason, and shows the reason when used', () => {
+    mount(start(emptyQuestionnaire('x')))
+    const remove = within(card(1)).getByRole('button', { name: /מחיקת האפשרות אפשרות 1/ })
+    // Not `disabled` (a disabled button cannot take keyboard focus) and no hover-only title.
+    expect((remove as HTMLButtonElement).disabled).toBe(false)
+    expect(remove.getAttribute('title')).toBeNull()
+    expect(remove.getAttribute('aria-disabled')).toBe('true')
+    const why = document.getElementById(remove.getAttribute('aria-describedby') as string)!
+    expect(why.textContent).toBe('בשאלת בחירה צריכות להיות לפחות שתי אפשרויות.')
+    expect(why.className).toContain('sr-only')
+    remove.focus()
+    expect(document.activeElement).toBe(remove)
+    fireEvent.click(remove)
+    expect(why.className).not.toContain('sr-only')
+    expect(optionsOf(S.server.def)).toHaveLength(2) // nothing removed
+  })
+
+  it('no control in the Builder explains itself with a hover-only title', () => {
+    mount(start(pp, [pp]), 1)
+    expect(document.querySelectorAll('main [title], [role="article"] [title], article [title]').length).toBe(0)
+  })
+})
+
+describe('publishing is honest about whether customers get it', () => {
+  it('when WhatsApp is not answering with the questionnaire, the confirmation says so', async () => {
+    render(
+      <QuestionnaireBuilder
+        initialDraft={start(pilot, [pilot])}
+        liveRevision={1}
+        routing={{ routedToQuestionnaire: false, channelEnabled: true, masterEnabled: true }}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'פרסום' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('השאלון עדיין לא מופעל בוואטסאפ, ולכן לקוחות לא יקבלו אותו עד שיופעל.')
+    expect(dialog.textContent).not.toContain('שיחות חדשות יקבלו')
+  })
+})
+
+describe('typing is never interrupted by autosave', () => {
+  it('a new question keeps its DOM (and the cursor) when its save assigns server ids', async () => {
+    mount(start(pilot, [pilot]), 1)
+    fireEvent.click(screen.getByRole('button', { name: 'הוספת שאלה' }))
+    const box = within(card(7)).getByLabelText('נוסח השאלה')
+    box.focus()
+    fireEvent.change(box, { target: { value: 'מה התקציב?' } })
+    await saved()
+    expect(S.server.def.steps[6].id).toMatch(/^q_/)
+    expect(within(card(7)).getByLabelText('נוסח השאלה')).toBe(box)
+    expect(document.activeElement).toBe(box)
+  })
+})
+
+describe('branching stays out of the way', () => {
+  it('a question with nothing before it to depend on shows no branching control at all', () => {
+    mount(start(emptyQuestionnaire('x')))
+    expect(card(1).textContent).not.toContain('מופיעה תמיד')
+    expect(within(card(1)).queryByRole('button', { name: 'להציג רק לפי תשובה קודמת' })).toBeNull()
+  })
+})
+
+function optionsOf(def: QuestionnaireDefinition) {
+  const step = def.steps[0]
+  return step.type === 'choice' ? step.options : []
+}

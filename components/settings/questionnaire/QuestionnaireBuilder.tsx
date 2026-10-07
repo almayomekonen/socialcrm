@@ -1,25 +1,18 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Btn } from '@/lib/btns/Btn'
+import { useEffect, useMemo, useState } from 'react'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
-import AutoResponseTextField from '@/components/settings/autoResponse/AutoResponseTextField'
 import { useQuestionnaireDraft } from '@/hooks/useQuestionnaireDraft'
 import { useQuestionnaireRelease } from '@/hooks/useQuestionnaireRelease'
-import { addQuestion, keyOf } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import { deriveEditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { DraftState } from '@/lib/inbox/autoresponse/questionnaire/builder/draftState'
 import BuilderHeader, { type LiveRouting } from './BuilderHeader'
-import type { ConfirmRequest } from './builderCopy'
+import { isAnswering, publishConfirmText, type ConfirmRequest } from './builderCopy'
 import BuilderAlerts from './BuilderAlerts'
-import EndingsSection from './EndingsSection'
-import QuestionCard from './QuestionCard'
+import EditorColumn from './EditorColumn'
 import QuestionnaireSimulator from './QuestionnaireSimulator'
 import RevisionHistory from './RevisionHistory'
 import WhatsAppPreview, { type PreviewFocus } from './WhatsAppPreview'
-import ExtraMessages from './ExtraMessages'
-
-const MAX_QUESTIONS = 12
 
 /**
  * The Questionnaire Builder: the conversation on the right, what WhatsApp will
@@ -46,6 +39,17 @@ export default function QuestionnaireBuilder({
   const { model, edit } = draft
   const view = useMemo(() => (model ? deriveEditorView(model) : null), [model])
   const canEdit = draft.phase === 'ready'
+  // Problems show where the owner has been, and everywhere once publishing was refused.
+  const [revealLatched, setRevealLatched] = useState(false)
+  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set())
+  const touch = (part: string) => setTouched((t) => (t.has(part) ? t : new Set([...t, part])))
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const blocked = release.state.kind === 'blocked'
+  useEffect(() => {
+    if (blocked) setRevealLatched(true)
+  }, [blocked])
+  // Same render as the refusal: the problems list and the marked cards appear together.
+  const revealAll = revealLatched || blocked
 
   const restore = (revision: number) =>
     setConfirmRequest({
@@ -91,73 +95,25 @@ export default function QuestionnaireBuilder({
           <p className='rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 desktop:hidden'>
             עריכת השאלון זמינה במסך רחב, במחשב. כאן אפשר לבדוק את השאלון ולראות את מצבו.
           </p>
-          {/* One simulator and one preview, placed by the layout: below 1000px the
+          {/* One simulator and one preview, placed by the layout. From 1200px the
+              preview sits beside the editor; 1000-1199px gives the editor the
+              full width and folds the preview behind a button; below 1000px the
               editor is not offered (desk work), the test conversation is. */}
-          <div className='grid gap-6 desktop:grid-cols-[minmax(0,1fr)_clamp(280px,34%,400px)]'>
-            <fieldset disabled={!canEdit} className='hidden min-w-0 gap-5 desktop:grid'>
-              <legend className='sr-only'>עריכת השאלון</legend>
-              <section className='rounded-lg border border-gray-200 bg-white p-5' onFocusCapture={() => setFocus(null)}>
-                <AutoResponseTextField
-                  id='questionnaire-opening'
-                  label='הודעת הפתיחה'
-                  hint='נשלחת ללקוח בהודעה הראשונה, יחד עם השאלה הראשונה'
-                  value={model.opening}
-                  onChange={(v) => edit((m) => ({ ...m, opening: v }))}
-                  placeholder='למשל: היי, תודה שפניתם אלינו.'
-                  maxLength={900}
-                  sent
-                  error={view.issues['']?.find((i) => i.field === 'opening')?.text}
-                />
-              </section>
+          <div className='grid gap-6 min-[1200px]:grid-cols-[minmax(0,1fr)_clamp(300px,34%,400px)]'>
+            <EditorColumn
+              model={model}
+              view={view}
+              edit={edit}
+              canEdit={canEdit}
+              revealAll={revealAll}
+              touched={touched}
+              onLeave={touch}
+              onFocus={setFocus}
+              confirm={setConfirmRequest}
+              announce={setAnnouncement}
+            />
 
-              <section aria-labelledby='questionnaire-questions' className='grid gap-4'>
-                <h2 id='questionnaire-questions' className='text-base font-semibold text-ink'>
-                  השאלות
-                </h2>
-                {model.questions.map((q, index) => (
-                  <QuestionCard
-                    key={keyOf(q)}
-                    model={model}
-                    question={q}
-                    index={index}
-                    issues={view.issues[keyOf(q)] ?? []}
-                    edit={edit}
-                    confirm={setConfirmRequest}
-                    onFocus={() => setFocus({ kind: 'question', key: keyOf(q) })}
-                    announce={setAnnouncement}
-                  />
-                ))}
-                {view.issues['']?.some((i) => i.code === 'no_questions') && (
-                  <p className='text-sm text-gray-600'>אין עדיין שאלות. הוסיפו את השאלה הראשונה.</p>
-                )}
-                <div>
-                  <Btn
-                    type='button'
-                    variant='outline'
-                    icon='plus'
-                    lbl='הוספת שאלה'
-                    onClick={() => {
-                      edit(addQuestion)
-                      setAnnouncement('נוספה שאלה חדשה בסוף הרשימה')
-                    }}
-                    disabled={model.questions.length >= MAX_QUESTIONS}
-                    title={model.questions.length >= MAX_QUESTIONS ? 'אפשר עד 12 שאלות בשאלון' : undefined}
-                  />
-                </div>
-              </section>
-
-              <EndingsSection
-                model={model}
-                edit={edit}
-                endingIssues={view.endingIssues}
-                standardIssues={view.issues['']?.filter((i) => i.field === 'standardEnding') ?? []}
-                confirm={setConfirmRequest}
-                onFocusEnding={(index) => setFocus(index < 0 ? null : { kind: 'ending', index })}
-              />
-              <ExtraMessages model={model} edit={edit} issues={view.issues[''] ?? []} />
-            </fieldset>
-
-            <aside className='min-w-0 self-start desktop:sticky desktop:top-4'>
+            <aside className='order-first min-w-0 self-start min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:order-none'>
               {panel === 'test' && draft.meta ? (
                 <QuestionnaireSimulator
                   model={model}
@@ -168,7 +124,17 @@ export default function QuestionnaireBuilder({
                 />
               ) : (
                 <div className='hidden desktop:block'>
-                  <WhatsAppPreview model={model} view={view} focus={focus} />
+                  <button
+                    type='button'
+                    aria-expanded={previewOpen}
+                    onClick={() => setPreviewOpen((o) => !o)}
+                    className='mb-3 text-sm font-medium text-ink underline underline-offset-2 min-[1200px]:hidden'
+                  >
+                    {previewOpen ? 'הסתרת מה הלקוח יקבל' : 'מה הלקוח יקבל? הצגת ההודעות'}
+                  </button>
+                  <div className={previewOpen ? '' : 'hidden min-[1200px]:block'}>
+                    <WhatsAppPreview model={model} view={view} focus={focus} />
+                  </div>
                 </div>
               )}
             </aside>
@@ -176,16 +142,17 @@ export default function QuestionnaireBuilder({
         </>
       )}
 
-      <RevisionHistory open={historyOpen} onClose={() => setHistoryOpen(false)} onRestore={restore} />
+      <RevisionHistory
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onRestore={restore}
+        answering={isAnswering(routing)}
+      />
       <ConfirmPop
         open={rs.kind === 'confirm' || rs.kind === 'publishing'}
         onClose={release.dismiss}
         onConfirm={release.confirmPublish}
-        msg={
-          rs.kind === 'confirm'
-            ? `לפרסם את השאלון כגרסה ${rs.nextRevision}?\nשיחות חדשות יקבלו את הגרסה הזו. שיחות שכבר התחילו ימשיכו בגרסה שבה התחילו.`
-            : 'מפרסם…'
-        }
+        msg={rs.kind === 'confirm' ? publishConfirmText(rs.nextRevision, routing) : 'מפרסם…'}
         confirmLbl={rs.kind === 'confirm' ? `פרסום גרסה ${rs.nextRevision}` : 'מפרסם…'}
       />
       <ConfirmPop

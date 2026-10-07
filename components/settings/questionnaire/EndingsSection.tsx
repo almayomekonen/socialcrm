@@ -1,6 +1,6 @@
 'use client'
 
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import {
   addEnding,
@@ -13,8 +13,10 @@ import {
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import AutoResponseTextField from '@/components/settings/autoResponse/AutoResponseTextField'
+import { describeCondition } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
 import ConditionEditor from './ConditionEditor'
-import type { ConfirmRequest } from './builderCopy'
+import LimitedButton from './LimitedButton'
+import { rowsFor, type ConfirmRequest } from './builderCopy'
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
 
@@ -40,11 +42,16 @@ export default function EndingsSection({
   onFocusEnding: (index: number) => void
 }) {
   const id = useId()
+  const [editing, setEditing] = useState<number | null>(null)
   const sources = conditionSources(model, '')
   const custom = model.endings.custom
 
   return (
-    <section aria-labelledby={`${id}-title`} className='grid gap-4 rounded-lg border border-gray-200 bg-white p-5'>
+    <section
+      id='questionnaire-endings'
+      aria-labelledby={`${id}-title`}
+      className='grid scroll-mt-24 gap-4 rounded-lg border border-gray-200 bg-white p-5'
+    >
       <div>
         <h2 id={`${id}-title`} className='text-base font-semibold text-ink'>
           סיום השיחה
@@ -62,7 +69,7 @@ export default function EndingsSection({
           placeholder='למשל: מעולה, קיבלנו את הפרטים. נחזור אליכם בהקדם.'
           maxLength={900}
           sent
-          rows={3}
+          rows={rowsFor(model.endings.standard, 3)}
           error={standardIssues[0]?.text}
         />
       </div>
@@ -118,15 +125,44 @@ export default function EndingsSection({
                   />
                 </div>
               </div>
-              <ConditionEditor
-                model={model}
-                sources={sources}
-                condition={condition}
-                onChange={(c) => c && edit((m) => updateEnding(m, index, { condition: c }))}
-                allowAlways={false}
-                legend='מתי נשלח הסיום הזה'
-                sentencePrefix='נשלח כאשר:'
-              />
+              {/* The rule reads as a sentence; the picker opens on request, or while no answer is ticked. */}
+              {editing === index || !condition?.anyOf.length ? (
+                <div className='grid gap-2'>
+                  <ConditionEditor
+                    model={model}
+                    sources={sources}
+                    condition={condition}
+                    onChange={(c) => c && edit((m) => updateEnding(m, index, { condition: c }))}
+                    allowAlways={false}
+                    legend='מתי נשלח הסיום הזה'
+                    sentencePrefix='נשלח כאשר:'
+                  />
+                  {condition?.anyOf.length ? (
+                    <div>
+                      <button
+                        type='button'
+                        onClick={() => setEditing(null)}
+                        className='text-sm font-medium text-ink underline underline-offset-2'
+                      >
+                        סיום
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className='flex flex-wrap items-baseline gap-x-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800'>
+                  <span>
+                    <span className='font-medium'>נשלח כאשר:</span> {describeCondition(model, condition)}
+                  </span>
+                  <button
+                    type='button'
+                    onClick={() => setEditing(index)}
+                    className='text-xs text-gray-600 underline underline-offset-2'
+                  >
+                    שינוי
+                  </button>
+                </p>
+              )}
               <AutoResponseTextField
                 id={`${id}-custom-${index}`}
                 label='ההודעה'
@@ -136,7 +172,7 @@ export default function EndingsSection({
                 placeholder=''
                 maxLength={900}
                 sent
-                rows={4}
+                rows={rowsFor(ending.message, 3)}
               />
               {issues.length > 0 && (
                 <ul className='grid gap-1'>
@@ -152,15 +188,17 @@ export default function EndingsSection({
         })}
 
         <div>
-          <Btn
-            type='button'
+          <LimitedButton
             size='small'
             variant='outline'
             icon='plus'
             lbl='הוספת סיום שונה לפי תשובה'
-            disabled={!sources.length || custom.length >= 10}
-            title={
-              !sources.length ? 'צריך קודם שאלה עם אפשרויות לבחירה' : custom.length >= 10 ? 'אפשר עד 10 סיומים שונים' : undefined
+            blockedReason={
+              !sources.length
+                ? 'כדי לשלוח סיום שונה לפי תשובה, צריכה להיות בשאלון שאלה עם אפשרויות לבחירה.'
+                : custom.length >= 10
+                  ? 'אפשר עד 10 סיומים שונים.'
+                  : null
             }
             onClick={() => edit((m) => addEnding(m, { questionId: keyOf(sources[0]), anyOf: [] }))}
           />

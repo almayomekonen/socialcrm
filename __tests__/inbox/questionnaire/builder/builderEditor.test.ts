@@ -27,6 +27,9 @@ import {
   moveQuestion,
   optionsOf,
   otherOf,
+  reactKey,
+  setPrompt,
+  autoLabel,
   removeOption,
   removeQuestion,
   setAnswerKind,
@@ -150,7 +153,13 @@ describe('a new option can be referenced before it has an id (refs)', () => {
     const res = assignIds(stored, edited)
     if (res.ok === false) throw new Error(res.error.code)
     const adopted = adoptIds(edited, res.assigned)
-    expect(JSON.stringify(adopted)).not.toContain('new_')
+    // Every reference now names the server id; the ref stays only as the render key.
+    const refsIn = (c: { questionId: string; anyOf: string[] }) => [c.questionId, ...c.anyOf].filter((x) => x.startsWith('new_'))
+    expect(adopted.questions.flatMap((x) => (x.shownWhen.mode === 'all' ? x.shownWhen.conditions.flatMap(refsIn) : []))).toEqual(
+      [],
+    )
+    expect(adopted.questions.every((x) => x.id)).toBe(true)
+    expect(reactKey(otherOf(adopted, 'service')!.option)).toBe(otherOf(edited, 'service')!.option.ref)
     const other = otherOf(adopted, 'service')!
     expect(other.option.id).toBe(res.assigned[otherOf(edited, 'service')!.option.ref!])
     expect(conditionOf(other.followUp!)?.anyOf).toEqual([other.option.id])
@@ -354,7 +363,7 @@ describe('editor operations', () => {
     const on = enableOther(salon(), 'service')
     const other = otherOf(on, 'service')!
     expect(on.questions.map(keyOf).indexOf(keyOf(other.followUp!))).toBe(1)
-    expect(describeCondition(on, conditionOf(other.followUp!))).toBe('שירות הוא אחר')
+    expect(describeCondition(on, conditionOf(other.followUp!))).toBe('הלקוח בחר אחר בשאלה "שירות"')
     expect(enableOther(on, 'service')).toBe(on)
     expect(disableOther(on, 'service')).toEqual(salon())
   })
@@ -371,6 +380,31 @@ describe('editor operations', () => {
     m = moveEnding(m, 0, 1)
     expect(m.endings.custom.map((e) => e.message)).toEqual([salon().endings.standard, 'לתספורת: https://example.com'])
     expect(deriveEditorView(m).endings.custom[1]).toBe('לתספורת: https://example.com')
+  })
+})
+
+describe('the summary label follows the question until the owner names it', () => {
+  it('derives a clean short name, and stops following once edited', () => {
+    expect(autoLabel('קודם כל המון מזל טוב 🎉\n\nמה תאריך האירוע? 📅')).toBe('קודם כל המון מזל טוב')
+    expect(autoLabel('איזה שירות מעניין אותך?')).toBe('איזה שירות מעניין אותך')
+    expect(autoLabel('א'.repeat(30) + ' ' + 'ב'.repeat(30)).length).toBeLessThanOrEqual(40)
+    let m = addQuestion(salon())
+    const k = keyOf(m.questions[2])
+    m = setPrompt(m, k, 'מה התקציב?')
+    expect(q(m, k).label).toBe('מה התקציב')
+    m = setPrompt(m, k, 'מה התקציב שלכם?')
+    expect(q(m, k).label).toBe('מה התקציב שלכם')
+    m = updateQuestion(m, k, { label: 'תקציב' })
+    m = setPrompt(m, k, 'כמה תרצו להשקיע?')
+    expect(q(m, k).label).toBe('תקציב')
+  })
+
+  it('a new question needs no separate naming step to be ready', () => {
+    let m = addQuestion(salon())
+    const k = keyOf(m.questions[2])
+    m = setAnswerKind(m, k, 'date')
+    m = setPrompt(m, k, 'מתי נוח לכם?')
+    expect(deriveEditorView(m).ready).toBe(true)
   })
 })
 
@@ -402,10 +436,12 @@ describe('Perfect Picture (agency 158) through the editor, unpublished', () => {
 
   it('conditional questions read as sentences', () => {
     expect(describeCondition(m, conditionOf(q(m, 'event_date_celebration')))).toBe(
-      'סוג האירוע / השירות הוא חתונה, בר / בת מצווה, ברית / בריתה או חינה',
+      'הלקוח בחר חתונה, בר / בת מצווה, ברית / בריתה או חינה בשאלה "סוג האירוע / השירות"',
     )
-    expect(describeCondition(m, conditionOf(q(m, 'drone_permit')))).toBe('סוג האירוע / השירות הוא צילום רחפן / נדל״ן')
-    expect(describeCondition(m, conditionOf(q(m, 'service_other')))).toBe('בשאלה "שירות צילום" נבחר אחר')
+    expect(describeCondition(m, conditionOf(q(m, 'drone_permit')))).toBe(
+      'הלקוח בחר צילום רחפן / נדל״ן בשאלה "סוג האירוע / השירות"',
+    )
+    expect(describeCondition(m, conditionOf(q(m, 'service_other')))).toBe('הלקוח בחר אחר בשאלה "שירות צילום"')
   })
 
   it('date / location with "not decided", multi-select services, the drone branch, and three conditional endings', () => {
@@ -415,9 +451,9 @@ describe('Perfect Picture (agency 158) through the editor, unpublished', () => {
     expect(q(m, 'service').answer.kind).toBe('multi_choice')
     expect(['drone_city', 'drone_permit', 'drone_date'].every((id) => conditionOf(q(m, id))?.anyOf.join() === 'drone')).toBe(true)
     expect(m.endings.custom.map((e) => describeCondition(m, e.sentWhen.conditions[0]))).toEqual([
-      'סוג האירוע / השירות הוא צילום רחפן / נדל״ן',
-      'סוג האירוע / השירות הוא בר / בת מצווה או חינה',
-      'סוג האירוע / השירות הוא חתונה',
+      'הלקוח בחר צילום רחפן / נדל״ן בשאלה "סוג האירוע / השירות"',
+      'הלקוח בחר בר / בת מצווה או חינה בשאלה "סוג האירוע / השירות"',
+      'הלקוח בחר חתונה בשאלה "סוג האירוע / השירות"',
     ])
   })
 })

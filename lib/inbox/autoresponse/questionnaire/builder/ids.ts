@@ -19,6 +19,8 @@
  * follow-up question, created together). Every condition naming a ref is
  * rewritten to the fresh id here, and the ref is dropped. A ref is never kept
  * as an id, so the rule above still holds: identities are minted only here.
+ * A ref on an entity that already has an id (the editor keeps it as a render
+ * key) is ignored.
  */
 import { randomBytes } from 'node:crypto'
 import type { QuestionnaireDefinition } from '../definition'

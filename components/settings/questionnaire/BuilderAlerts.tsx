@@ -6,6 +6,7 @@ import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnair
 import type { ConflictKind } from '@/hooks/useQuestionnaireDraft'
 import type { ReleaseState } from '@/hooks/useQuestionnaireRelease'
 import { CONFLICT_COPY, FAILURE_COPY } from './builderCopy'
+import { focusCard } from './focusCard'
 
 /**
  * The three things that stop the owner, each said once and plainly: another
@@ -50,7 +51,22 @@ export default function BuilderAlerts({
               {release.issues
                 .filter((i) => i.severity === 'error')
                 .map((i, n) => (
-                  <li key={n}>{describeIssue(i, model)}</li>
+                  <li key={n}>
+                    {describeIssue(i, model)}{' '}
+                    {(i.questionId || i.endingIndex !== undefined) && (
+                      <button
+                        type='button'
+                        onClick={() =>
+                          i.questionId
+                            ? focusCard(i.questionId)
+                            : document.getElementById('questionnaire-endings')?.scrollIntoView({ block: 'center' })
+                        }
+                        className='font-medium underline underline-offset-2'
+                      >
+                        {i.questionId ? 'מעבר לשאלה' : 'מעבר לסיום'}
+                      </button>
+                    )}
+                  </li>
                 ))}
             </ul>
           )}

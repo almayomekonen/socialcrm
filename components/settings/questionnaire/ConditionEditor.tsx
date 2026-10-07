@@ -96,8 +96,8 @@ export default function ConditionEditor({
             options={sources.map((q) => ({ id: keyOf(q), name: questionName(q) }))}
           />
           {source && (
-            <div role='group' aria-label='התשובות שבהן זה קורה' className='grid gap-1.5'>
-              <p className='text-sm text-gray-700'>כשהלקוח בחר:</p>
+            <div role='group' aria-label='התשובות שבהן זה קורה' className='flex flex-wrap gap-x-5 gap-y-1.5'>
+              <p className='w-full text-sm text-gray-700'>כשהלקוח בחר:</p>
               {optionsOf(source).map((o) => (
                 <label key={keyOf(o)} className='flex items-center gap-2 text-sm'>
                   <input
