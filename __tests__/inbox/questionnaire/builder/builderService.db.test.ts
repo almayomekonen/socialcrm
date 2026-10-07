@@ -271,6 +271,7 @@ describe('publish never changes routing', () => {
     expect(saved.questionnaire.questions.every((q) => /^q_[a-z0-9]{8}$/.test(q.id as string))).toBe(true)
     expect(saved.view.questions.map((q) => q.answerSummary)).toEqual(['בחירה אחת · 3 אפשרויות', 'תאריך · אפשר להמשיך גם בלי תאריך'])
 
+    expect(await simulateQuestionnaireDraft({ turns: [Array.from({ length: 11 }, () => 'היי')] })).toEqual({ ok: false, reason: 'bad_input' })
     const sim = await simulateQuestionnaireDraft({ turns: [['היי'], ['שיער'], ['עדיין לא נקבע']] })
     if (!sim.ok) throw new Error(JSON.stringify(sim))
     expect(sim.status).toBe('completed')

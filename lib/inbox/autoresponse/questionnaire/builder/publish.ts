@@ -131,10 +131,13 @@ export async function publishDefinition(args: {
       await deleteDraftVersioned({ agencyId: args.agencyId, id: draft.id, expectedVersion: draft.draftVersion }, trx)
     }
     const latest = await getLatestPublished(args.agencyId, trx)
-    const { row } = await insertDraft(
+    const { row, created } = await insertDraft(
       { agencyId: args.agencyId, definition: parsed.definition, baseRevision: latest?.revision ?? null, userId: null, source: 'staff' },
       trx,
     )
+    // An owner opened a draft between the check above and this insert: the
+    // insert returned THEIR draft. Never publish it under the staff definition.
+    if (!created) return { ok: false, reason: 'owner_draft_exists' }
     return publishLocked(trx, ctx, row.id, row.draftVersion)
   })
   if (result.ok) {

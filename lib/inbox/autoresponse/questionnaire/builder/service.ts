@@ -41,6 +41,9 @@ import { MAX_SIMULATED_TURNS, simulateConversation, type SimulationResult } from
 import { draftState, type DraftState } from './draftState'
 
 export type BuilderContext = { agencyId: number; userId: number | null }
+
+/** A burst is a handful of messages; a test turn of thousands is not a conversation. */
+const MAX_MESSAGES_PER_TURN = 10
 export type { DraftState } from './draftState'
 
 export type Failure =
@@ -158,7 +161,7 @@ export async function saveDraft(
     id: input.draftId,
     expectedVersion: input.expectedVersion,
     definition: converted.definition,
-    userId: ctx.userId ?? 0,
+    userId: ctx.userId,
   })
   if (!saved) return whyNotWritable(ctx, input.draftId, input.expectedVersion)
   return { ok: true, ...draftState(saved) }
@@ -182,7 +185,9 @@ export async function simulate(
   input: { draftId?: number; revision?: number; turns: unknown },
 ): Promise<({ ok: true } & SimulationResult) | Failure> {
   const turns = input.turns
-  if (!Array.isArray(turns) || !turns.every((t) => Array.isArray(t) && t.length > 0 && t.every((m) => typeof m === 'string' && m.length <= 1000))) {
+  const wellFormed = (t: unknown) =>
+    Array.isArray(t) && t.length > 0 && t.length <= MAX_MESSAGES_PER_TURN && t.every((m) => typeof m === 'string' && m.length <= 1000)
+  if (!Array.isArray(turns) || !turns.every(wellFormed)) {
     return { ok: false, reason: 'bad_input' }
   }
   if (turns.length > MAX_SIMULATED_TURNS) return { ok: false, reason: 'too_long' }

@@ -120,7 +120,7 @@ export async function updateDraftVersioned(args: {
   id: number
   expectedVersion: number
   definition: unknown
-  userId: number
+  userId: number | null
 }): Promise<RevisionRow | null> {
   const rows = await db('questionnaire_revisions')
     .where({ ...scope(args.agencyId), id: args.id, status: 'draft', draftVersion: args.expectedVersion })
