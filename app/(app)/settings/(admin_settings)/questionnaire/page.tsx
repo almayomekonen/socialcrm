@@ -63,5 +63,14 @@ export default async function QuestionnaireBuilderPage() {
     )
   }
 
-  return <QuestionnaireBuilder initialDraft={state.draft} liveRevision={state.published?.revision ?? null} routing={routing} />
+  // The Flow view is a prototype behind its own switch; unset, the Builder is exactly PR2.
+  const flowEnabled = process.env.QUESTIONNAIRE_FLOW_EDITOR === '1'
+  return (
+    <QuestionnaireBuilder
+      initialDraft={state.draft}
+      liveRevision={state.published?.revision ?? null}
+      routing={routing}
+      flowEnabled={flowEnabled}
+    />
+  )
 }

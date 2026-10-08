@@ -28,6 +28,7 @@ export default function QuestionnaireSimulator({
   prepare,
   onClose,
   autoFocus = false,
+  onNotReady,
 }: {
   model: BuilderQuestionnaire
   target: { draftId: number } | { revision: number }
@@ -36,6 +37,8 @@ export default function QuestionnaireSimulator({
   onClose?: () => void
   /** The editor opens it on request, so the cursor goes straight to the message box. */
   autoFocus?: boolean
+  /** The draft cannot be tested yet: the editor should show what to fix. */
+  onNotReady?: () => void
 }) {
   const id = useId()
   const [sent, setSent] = useState<string[]>([])
@@ -65,6 +68,7 @@ export default function QuestionnaireSimulator({
       const next = [...sent, text]
       const res = await simulateQuestionnaireDraft({ ...target, turns: next.map((m) => [m]) })
       if (res.ok === false) {
+        if (res.reason === 'not_ready') onNotReady?.()
         setError(SIMULATE_COPY[res.reason] ?? 'הבדיקה לא הצליחה. נסו שוב.')
         return
       }

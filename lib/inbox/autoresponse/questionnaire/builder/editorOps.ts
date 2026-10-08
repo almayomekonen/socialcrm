@@ -13,23 +13,57 @@
  * so before it happens.
  */
 import type { AnswerSpec, BuilderEnding, BuilderQuestion, BuilderQuestionnaire } from './model'
-import { isChoice, keyOf, mapQuestion, newOption, newRef, release, type Condition, type QuestionKind } from './editorBase'
+import { conditionOf, isChoice, keyOf, mapQuestion, newOption, newRef, release, type Condition, type QuestionKind } from './editorBase'
 
 export { keyOf, reactKey, newRef, OTHER_LABEL, optionsOf, conditionOf, dependentsOf, adoptIds } from './editorBase'
 export type { Keyed, Condition, Dependents, QuestionKind } from './editorBase'
 
 // ── Questions ────────────────────────────────────────────────────────────────
 
-export function addQuestion(m: BuilderQuestionnaire): BuilderQuestionnaire {
-  const question: BuilderQuestion = {
-    ref: newRef(),
+/** The kinds the "+ הוספת שאלה" menu offers. Free text checks for a real answer by default. */
+export type NewQuestionKind = 'single_choice' | 'multi_choice' | 'text'
+
+function blankQuestion(kind: NewQuestionKind, ref: string): BuilderQuestion {
+  return {
+    ref,
     label: '',
     prompt: '',
-    answer: { kind: 'single_choice', options: [newOption(), newOption()] },
+    answer: kind === 'text' ? { kind: 'text', notSetAllowed: false } : { kind, options: [newOption(), newOption()] },
     shownWhen: { mode: 'always' },
     messages: {},
   }
-  return { ...m, questions: [...m.questions, question] }
+}
+
+/** A new question at the end of the conversation (before the ending). */
+export function addQuestion(m: BuilderQuestionnaire, kind: NewQuestionKind = 'single_choice', ref: string = newRef()): BuilderQuestionnaire {
+  return { ...m, questions: [...m.questions, blankQuestion(kind, ref)] }
+}
+
+/**
+ * "If the customer chooses X, ask them this too": a question shown only after
+ * one answer, placed right after the question it follows (after any follow-ups
+ * that answer already has), so it is asked next on that route. The owner never
+ * builds the condition; this is the whole of it.
+ */
+export function addFollowUp(
+  m: BuilderQuestionnaire,
+  questionKey: string,
+  optionKey: string,
+  kind: NewQuestionKind = 'text',
+  ref: string = newRef(),
+): BuilderQuestionnaire {
+  const at = m.questions.findIndex((q) => keyOf(q) === questionKey)
+  if (at < 0) return m
+  let insert = at + 1
+  while (insert < m.questions.length) {
+    const c = conditionOf(m.questions[insert])
+    if (!c || c.questionId !== questionKey || !c.anyOf.includes(optionKey)) break
+    insert++
+  }
+  const question = { ...blankQuestion(kind, ref), shownWhen: { mode: 'all' as const, conditions: [{ questionId: questionKey, anyOf: [optionKey] }] } }
+  const questions = [...m.questions]
+  questions.splice(insert, 0, question)
+  return { ...m, questions }
 }
 
 export function removeQuestion(m: BuilderQuestionnaire, key: string): BuilderQuestionnaire {

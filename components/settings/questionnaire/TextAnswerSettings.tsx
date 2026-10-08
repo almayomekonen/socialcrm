@@ -4,7 +4,8 @@ import { useId, useState, type ReactNode } from 'react'
 import { Checkbox, Select } from '@/lib/form'
 import { keyOf, setAnswerKind, setNotSetAllowed, updateQuestion } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
-import { DATE_PRESET, LOCATION_PRESET, TEXT_CHECKS, textCheckOf, type TextCheck } from './builderCopy'
+import { TEXT_CHECKS, textCheckOf, type TextCheck } from './builderCopy'
+import { applyTextCheck } from './answerCheck'
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
 
@@ -43,22 +44,9 @@ export default function TextAnswerSettings({
 
   const pick = (next: TextCheck) => {
     setChosen(next)
-    edit((m) => {
-      if (next === 'none') return setAnswerKind(m, key, 'text_unchecked')
-      if (next === 'date') {
-        const dated = setAnswerKind(m, key, 'date')
-        return messages.notUnderstood
-          ? dated
-          : updateQuestion(dated, key, { messages: { ...messages, notUnderstood: DATE_PRESET.notUnderstood } })
-      }
-      const meaningful = setAnswerKind(m, key, 'text')
-      if (next !== 'location') return meaningful
-      const located = setNotSetAllowed(meaningful, key, true)
-      return messages.notUnderstood
-        ? located
-        : updateQuestion(located, key, { messages: { ...messages, notUnderstood: LOCATION_PRESET.notUnderstood } })
-    })
+    edit((m) => applyTextCheck(m, key, next))
   }
+
 
   const setMessage = (field: 'notUnderstood' | 'askAgainAfterQuestion', value: string) =>
     edit((m) => updateQuestion(m, key, { messages: { ...messages, [field]: value.length ? value : undefined } }))
