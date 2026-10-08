@@ -62,6 +62,51 @@ describe('allowlist', () => {
   })
 })
 
+describe('allowlist — Psika (controlled RSVP test)', () => {
+  const PSIKA = '972537736636'
+  it('allows Psika in E.164, +E.164 and local form; the existing recipients stay; others are refused', () => {
+    expect(isAllowedRecipient(PSIKA)).toBe(true)
+    expect(isAllowedRecipient('+972537736636')).toBe(true)
+    expect(isAllowedRecipient('0537736636')).toBe(true)
+    expect(isAllowedRecipient('972535316943')).toBe(true) // Keren unchanged
+    expect(isAllowedRecipient('972535353219')).toBe(true) // Avraham unchanged
+    expect(isAllowedRecipient('972537736637')).toBe(false) // one digit off
+    expect(isAllowedRecipient('972501234567')).toBe(false)
+  })
+  it('the list is exactly the three intended recipients — nothing broader', async () => {
+    const { ALLOWED_WA_IDS } = await import('@/lib/weddingRsvp/config')
+    expect([...ALLOWED_WA_IDS].sort()).toEqual(['972535316943', '972535353219', '972537736636'])
+  })
+  it('sendWeddingRsvp sends once to Psika’s conversation', async () => {
+    h.convRow = { id: 14868, leadId: 9001, customerWaId: PSIKA }
+    h.resolveTarget.mockResolvedValue(target(PSIKA))
+    const r = await sendWeddingRsvp({ agencyId: 103, conversationId: 14868, sentByUserId: 332 })
+    expect(r).toMatchObject({ ok: true })
+    expect(h.sendInteractive).toHaveBeenCalledTimes(1)
+    expect(h.sendInteractive).toHaveBeenCalledWith(expect.objectContaining({ to: PSIKA }))
+  })
+  it('the automatic attending reply (head-count question) is allowed for Psika', async () => {
+    h.resolveTarget.mockResolvedValue(target(PSIKA))
+    const r = await routeWeddingRsvpReply({ agencyId: 103, conversationId: 14868, leadId: 9001, messageId: 60, rawMessage: { ...tap('wedding_rsvp_attending'), from: PSIKA } })
+    expect(r).toEqual({ handled: true, choice: 'attending', replied: true })
+    expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: PSIKA, body: REPLY_ATTENDING }))
+  })
+  it('the not-attending thank-you is allowed for Psika', async () => {
+    h.resolveTarget.mockResolvedValue(target(PSIKA))
+    await routeWeddingRsvpReply({ agencyId: 103, conversationId: 14868, leadId: 9001, messageId: 61, rawMessage: { ...tap('wedding_rsvp_not_attending'), from: PSIKA } })
+    expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: PSIKA, body: REPLY_NOT_ATTENDING }))
+  })
+  it('a non-allowlisted number still gets no RSVP and no automatic reply', async () => {
+    h.convRow = { id: 99, leadId: 1, customerWaId: '972501234567' }
+    expect(await sendWeddingRsvp({ agencyId: 103, conversationId: 99, sentByUserId: 332 })).toEqual({ ok: false, error: 'recipient-not-allowed' })
+    h.resolveTarget.mockResolvedValue(target('972501234567'))
+    const r = await routeWeddingRsvpReply({ agencyId: 103, conversationId: 99, leadId: 1, messageId: 62, rawMessage: { ...tap('wedding_rsvp_attending'), from: '972501234567' } })
+    expect(r).toMatchObject({ replied: false, reason: 'recipient-not-allowed' })
+    expect(h.sendInteractive).not.toHaveBeenCalled()
+    expect(h.sendText).not.toHaveBeenCalled()
+  })
+})
+
 describe('getWeddingRsvpChoice', () => {
   it('maps only our two button ids', () => {
     expect(getWeddingRsvpChoice(tap('wedding_rsvp_attending'))).toBe('attending')
