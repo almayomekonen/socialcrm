@@ -106,6 +106,24 @@ describe('routeWeddingRsvpReply — head count', () => {
     )
   })
 
+  it('Psika: a valid head count gets the thank-you (allowlisted)', async () => {
+    const PSIKA = '972537736636'
+    h.resolveTarget.mockResolvedValue({
+      ok: true,
+      target: { leadId: 9001, leadName: 'P', businessPhoneNumberId: 'PN_1', accessToken: 'tok', wabaId: null, customerWaId: PSIKA, customerName: 'Psika' },
+    })
+    const r = await routeWeddingRsvpReply({ ...base, rawMessage: text('2', PSIKA) })
+    expect(r).toEqual({ handled: true, headCount: 2, replied: true })
+    expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: PSIKA, body: REPLY_THANKS }))
+    expect(h.persist).toHaveBeenCalledWith(expect.objectContaining({ metadata: { step: 'thanks', headCount: 2, source: WEDDING_RSVP_SOURCE } }))
+  })
+
+  it('a non-allowlisted number answering with a head count gets nothing', async () => {
+    const r = await routeWeddingRsvpReply({ ...base, rawMessage: text('2', '972501234567') })
+    expect(r).toMatchObject({ handled: false })
+    expect(h.sendText).not.toHaveBeenCalled()
+  })
+
   it('a second number after the thank-you gets nothing', async () => {
     await routeWeddingRsvpReply({ ...base, rawMessage: text('4') })
     const second = await routeWeddingRsvpReply({ ...base, messageId: 103, rawMessage: text('5') })

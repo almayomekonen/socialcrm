@@ -94,8 +94,9 @@ export function isWeddingAgency(agencyId: number | null | undefined): boolean {
  * session, product access and WEDDING_AGENCY_ID instead.
  *   972535316943 — Keren (RSVP test)
  *   972535353219 — Avraham Bogale (first template invite)
+ *   972537736636 — Psika (first controlled RSVP test, 2026-10-08)
  */
-export const ALLOWED_WA_IDS: ReadonlySet<string> = new Set(['972535316943', '972535353219'])
+export const ALLOWED_WA_IDS: ReadonlySet<string> = new Set(['972535316943', '972535353219', '972537736636'])
 
 export function isAllowedRecipient(waId: string | null | undefined): boolean {
   if (!waId) return false
