@@ -6,6 +6,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { useQuestionnaireDraft } from '@/hooks/useQuestionnaireDraft'
 import { useQuestionnaireRelease } from '@/hooks/useQuestionnaireRelease'
 import { deriveEditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
+import { keyOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { DraftState } from '@/lib/inbox/autoresponse/questionnaire/builder/draftState'
 import BuilderHeader, { type LiveRouting } from './BuilderHeader'
 import { isAnswering, publishConfirmText, type ConfirmRequest } from './builderCopy'
@@ -36,7 +37,7 @@ export default function QuestionnaireBuilder({
   initialDraft: DraftState | null
   liveRevision: number | null
   routing: LiveRouting
-  /** The Flow view prototype (QUESTIONNAIRE_FLOW_EDITOR=1); absent, only the Conversation view exists. */
+  /** The Flow view (QUESTIONNAIRE_FLOW_EDITOR=1); absent, only the Conversation (list) view exists. */
   flowEnabled?: boolean
 }) {
   const draft = useQuestionnaireDraft(initialDraft)
@@ -44,11 +45,13 @@ export default function QuestionnaireBuilder({
   const [panel, setPanel] = useState<'preview' | 'test'>('preview')
   const [mode, setMode] = useState<'flow' | 'conversation'>(flowEnabled ? 'flow' : 'conversation')
   const [flowPanel, setFlowPanel] = useState<FlowPanel>('none')
-  // The question being worked on in the map: the list opens on it.
+  // The question being worked on in the map, by render key (it survives a save
+  // giving the question its server id): the list opens on it, under its key of the moment.
   const [flowSelection, setFlowSelection] = useState<string | null>(null)
   const switchTo = (next: 'flow' | 'conversation') => {
     setMode(next)
-    if (next === 'conversation' && flowSelection) setTimeout(() => focusCard(flowSelection), 50)
+    const selected = draft.model?.questions.find((q) => reactKey(q) === flowSelection)
+    if (next === 'conversation' && selected) setTimeout(() => focusCard(keyOf(selected)), 50)
   }
   const [historyOpen, setHistoryOpen] = useState(false)
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null)

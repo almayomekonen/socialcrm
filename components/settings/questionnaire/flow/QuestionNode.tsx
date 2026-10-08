@@ -16,10 +16,8 @@ import {
   otherOf,
   removeQuestion,
   setAnswerKind,
-  setNotSetAllowed,
   setPrompt,
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
-import { applyTextCheck, currentTextCheck } from '../answerCheck'
 import { answerTypeOf, cardIssueText, consequenceText, type AnswerType } from '../builderCopy'
 import FlowOptionRow from './FlowOptionRow'
 import FlowTextAnswer from './FlowTextAnswer'
@@ -29,11 +27,6 @@ import { useFlowEditor } from './flowContext'
 export type QuestionNodeData = { questionKey: string; nodeId: string }
 
 const TYPE_LABELS: Record<AnswerType, string> = { single: 'בחירה של תשובה אחת', multi: 'בחירה של כמה תשובות', free: 'תשובה חופשית' }
-const EXPECT = [
-  { value: 'any', label: 'כל תשובה' },
-  { value: 'date', label: 'תאריך' },
-  { value: 'location', label: 'מיקום / מקום' },
-] as const
 
 /**
  * A question as a piece of the conversation: what the customer is asked, the
@@ -102,7 +95,6 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
     return <QuestionSummary question={question} number={index + 1} onlyFor={onlyFor} issues={issues} onEdit={() => select(data.nodeId)} routed={(o, side) => routedOptions.has(`${key}:${o}-${side}`)} />
   }
 
-  const expect = currentTextCheck(question)
   return (
     <div
       dir='rtl'

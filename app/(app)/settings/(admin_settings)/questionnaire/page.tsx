@@ -63,7 +63,9 @@ export default async function QuestionnaireBuilderPage() {
     )
   }
 
-  // The Flow view is a prototype behind its own switch; unset, the Builder is exactly PR2.
+  // The Flow view (תרשים / רשימה) is behind its own switch; unset, only the list
+  // view exists. Shared Builder improvements (icon chooser, phrase teaching in
+  // the test chat) apply to the list view either way.
   const flowEnabled = process.env.QUESTIONNAIRE_FLOW_EDITOR === '1'
   return (
     <QuestionnaireBuilder

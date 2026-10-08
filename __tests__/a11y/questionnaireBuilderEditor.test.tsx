@@ -575,3 +575,47 @@ function optionsOf(def: QuestionnaireDefinition) {
   const step = def.steps[0]
   return step.type === 'choice' ? step.options : []
 }
+
+describe('Flow and List edit one draft (QUESTIONNAIRE_FLOW_EDITOR)', () => {
+  // React Flow measures boxes in the browser; jsdom is given sizes (see questionnaireFlow.test.tsx).
+  const saved_ = { RO: globalThis.ResizeObserver, DM: (globalThis as Record<string, unknown>).DOMMatrixReadOnly }
+  beforeEach(() => {
+    globalThis.ResizeObserver = class {
+      constructor(private cb: (entries: Array<{ target: Element }>) => void) {}
+      observe(target: Element) {
+        this.cb([{ target, contentRect: { width: 1200, height: 800 } } as never])
+      }
+      unobserve() {}
+      disconnect() {}
+    } as never
+    ;(globalThis as Record<string, unknown>).DOMMatrixReadOnly = class {
+      m22 = 1
+    }
+  })
+  afterEach(() => {
+    globalThis.ResizeObserver = saved_.RO
+    ;(globalThis as Record<string, unknown>).DOMMatrixReadOnly = saved_.DM
+  })
+
+  it('flag off: no view tabs and no map, only the list (the canvas code is never loaded)', async () => {
+    mount(start(emptyQuestionnaire('סלון')))
+    await act(async () => {})
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'הוספת שאלה לפני הסיום' })).toBeNull()
+    expect(screen.queryByText('טוען את מפת השאלון…')).toBeNull()
+    expect(card(1)).toBeTruthy()
+  })
+
+  it('the question selected in the map is the one the list opens on, even after its save assigned a server id', async () => {
+    render(<QuestionnaireBuilder initialDraft={start(emptyQuestionnaire('סלון'))} liveRevision={null} routing={ROUTED} flowEnabled />)
+    fireEvent.click(await screen.findByRole('button', { name: 'הוספת שאלה לפני הסיום' }, { timeout: 3000 }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /תשובה חופשית/ }))
+    await act(async () => {})
+    fireEvent.change(screen.getByLabelText('מה נשאל את הלקוח'), { target: { value: 'מתי האירוע?' } })
+    await saved()
+    expect(S.server.def.steps[1].id).toMatch(/^q_/)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'רשימה' }))
+    await waitFor(() => expect(card(2).contains(document.activeElement)).toBe(true))
+  })
+})

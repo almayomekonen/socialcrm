@@ -47,14 +47,14 @@ export default function FlowWorkspace({
   /** The test refused an unfinished draft: reveal every problem. */
   onNotReady: () => void
   openConversation: () => void
-  /** The question being worked on, so switching to the list can land on it. */
-  onSelectQuestion?: (questionKey: string | null) => void
+  /** The question being worked on (render key), so switching to the list can land on it. */
+  onSelectQuestion?: (questionReactKey: string | null) => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const select = (nodeId: string | null) => {
     setSelected(nodeId)
     const q = nodeId ? model.questions.find((x) => reactKey(x) === nodeId) : undefined
-    onSelectQuestion?.(q ? keyOf(q) : null)
+    onSelectQuestion?.(q ? reactKey(q) : null)
   }
   const side = panel !== 'none'
   // Closing the panel returns the cursor to what opened it ("בדיקת השאלון" / "איך זה ייראה ללקוח?").

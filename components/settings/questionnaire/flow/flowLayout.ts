@@ -1,7 +1,7 @@
 /**
  * Where each box sits on the canvas. Presentation only: computed from the
  * flow map and the boxes' measured sizes, never saved, never read by the
- * runtime. The owner can drag boxes; "סידור מחדש" returns to this layout.
+ * runtime. Boxes are not draggable, so this is always where they sit.
  *
  * Top to bottom, the order a conversation is read. dagre orders siblings left
  * to right in insertion order; the result is mirrored so the first answer's

@@ -46,8 +46,8 @@ type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'foc
 /**
  * The Flow view: the conversation drawn as a map. Boxes are edited in place;
  * arrows come from the draft (flowGraph.ts) and cannot be drawn or deleted by
- * hand. Dragging moves a box and nothing else: order and conditions belong to
- * the draft and change only through named actions.
+ * hand, and boxes cannot be dragged: where a box sits is computed, and order
+ * and conditions change only through named actions.
  */
 export default function FlowCanvas(props: Props) {
   return (

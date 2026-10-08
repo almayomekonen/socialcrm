@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from 'react'
 import { Checkbox, Select } from '@/lib/form'
-import { keyOf, setAnswerKind, setNotSetAllowed, updateQuestion } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { keyOf, setNotSetAllowed, updateQuestion } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import { TEXT_CHECKS, textCheckOf, type TextCheck } from './builderCopy'
 import { applyTextCheck } from './answerCheck'
@@ -46,7 +46,6 @@ export default function TextAnswerSettings({
     setChosen(next)
     edit((m) => applyTextCheck(m, key, next))
   }
-
 
   const setMessage = (field: 'notUnderstood' | 'askAgainAfterQuestion', value: string) =>
     edit((m) => updateQuestion(m, key, { messages: { ...messages, [field]: value.length ? value : undefined } }))
