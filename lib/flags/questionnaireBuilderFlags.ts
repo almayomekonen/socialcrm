@@ -17,3 +17,24 @@ export function canUseQuestionnaireBuilder(agencyId: number | null | undefined):
     .map((s) => Number(s.trim()))
     .some((n) => Number.isFinite(n) && n > 0 && n === agencyId)
 }
+
+/**
+ * The Flow view (תרשים / רשימה) inside the Builder, rolled out per agency.
+ *
+ * Requires BOTH: the agency can use the Builder (above) AND it is listed in
+ * `QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS`. Listing an agency here never grants
+ * the Builder itself.
+ *
+ * An explicit list of agency ids, nothing else: absent or empty means no
+ * agency; entries that are not plain digits (`all`, `*`, `true`, `0x67`, `1e2`)
+ * are ignored, so no value can open it to everyone. `1` is agency 1, never
+ * "on". Whitespace and duplicates are harmless. Read per call, never cached.
+ */
+export function canUseQuestionnaireFlowEditor(agencyId: number | null | undefined): boolean {
+  if (!agencyId || !Number.isSafeInteger(agencyId) || agencyId <= 0) return false
+  if (!canUseQuestionnaireBuilder(agencyId)) return false
+  return (process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .some((s) => /^\d+$/.test(s) && Number(s) === agencyId)
+}
