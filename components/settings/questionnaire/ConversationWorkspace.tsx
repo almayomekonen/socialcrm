@@ -5,6 +5,7 @@ import type { EditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import type { ConfirmRequest } from './builderCopy'
 import EditorColumn from './EditorColumn'
+import { addPhrasing } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import QuestionnaireSimulator from './QuestionnaireSimulator'
 import WhatsAppPreview, { type PreviewFocus } from './WhatsAppPreview'
 
@@ -67,7 +68,10 @@ export default function ConversationWorkspace({
       />
       <aside className='order-first min-w-0 self-start min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:order-none'>
         {testing && draftId !== null ? (
-          <QuestionnaireSimulator model={model} target={{ draftId }} prepare={flush} onClose={stopTesting} onNotReady={onNotReady} autoFocus />
+          <QuestionnaireSimulator model={model} target={{ draftId }} prepare={flush} onClose={stopTesting} onNotReady={onNotReady}
+              onTeach={(t) => edit((m) => addPhrasing(m, t.questionId, t.optionId, t.phrase))}
+              autoFocus
+            />
         ) : (
           <div className='hidden desktop:block'>
             <button

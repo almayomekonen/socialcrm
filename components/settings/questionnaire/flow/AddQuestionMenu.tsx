@@ -10,10 +10,15 @@ const KINDS: Array<{ kind: NewQuestionKind; label: string; hint: string }> = [
   { kind: 'text', label: 'תשובה חופשית', hint: 'הלקוח כותב במילים שלו' },
 ]
 
-/** "+ הוספת שאלה": pick how the customer answers; the question is added at the end and connected. */
+/** "+ הוספת שאלה לפני הסיום": pick how the customer answers; the question is added last and connected. */
 export default function AddQuestionMenu({ onAdd, disabledReason }: { onAdd: (kind: NewQuestionKind) => void; disabledReason: string | null }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Opened from the keyboard or the mouse, the first choice takes focus.
+  useEffect(() => {
+    if (open) ref.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -33,7 +38,7 @@ export default function AddQuestionMenu({ onAdd, disabledReason }: { onAdd: (kin
       <Btn
         type='button'
         icon='plus'
-        lbl='הוספת שאלה'
+        lbl='הוספת שאלה לפני הסיום'
         aria-expanded={open}
         aria-haspopup='menu'
         aria-disabled={disabledReason ? true : undefined}

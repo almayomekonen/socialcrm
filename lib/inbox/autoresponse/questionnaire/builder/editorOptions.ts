@@ -109,3 +109,16 @@ export function disableOther(m: BuilderQuestionnaire, questionKey: string): Buil
     isChoice(q.answer) ? { ...q, answer: { ...q.answer, options: q.answer.options.filter((o) => keyOf(o) !== optionKey) } } : q,
   )
 }
+
+/** Teach an answer one more way customers write it (no duplicates; an empty phrase is ignored). */
+export function addPhrasing(m: BuilderQuestionnaire, questionKey: string, optionKey: string, phrase: string): BuilderQuestionnaire {
+  const value = phrase.trim()
+  if (!value) return m
+  return mapQuestion(m, questionKey, (q) => {
+    if (!isChoice(q.answer)) return q
+    const options = q.answer.options.map((o) =>
+      keyOf(o) === optionKey && !o.phrasings.includes(value) ? { ...o, phrasings: [...o.phrasings, value] } : o,
+    )
+    return { ...q, answer: { ...q.answer, options } }
+  })
+}

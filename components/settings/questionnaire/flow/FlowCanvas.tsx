@@ -14,7 +14,6 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Btn } from '@/lib/btns/Btn'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
 import { addQuestion, keyOf, newRef, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import AddQuestionMenu from './AddQuestionMenu'
@@ -22,12 +21,27 @@ import EndingsNode from './EndingsNode'
 import OpeningNode from './OpeningNode'
 import QuestionNode from './QuestionNode'
 import { FlowEditorContext, type FlowEditor } from './flowContext'
-import { layoutFlow, type Point, type Size } from './flowLayout'
+import { layoutFlow, type Size } from './flowLayout'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
 const MAX_QUESTIONS = 12
 
-type Props = Omit<FlowEditor, 'reveal' | 'routedOptions'> & { selectedKey: string | null }
+/** React Flow's screen-reader strings, in the product's language. */
+const HEBREW_ARIA = {
+  'node.a11yDescription.default': 'לחצו Enter כדי לבחור את התיבה. בתוך התיבה, Tab עובר בין השדות.',
+  'node.a11yDescription.keyboardDisabled': 'בתוך התיבה, Tab עובר בין השדות.',
+  'node.a11yDescription.ariaLiveMessage': () => '',
+  'edge.a11yDescription.default': 'חץ בשיחה',
+  'controls.ariaLabel': 'שליטה בתצוגת התרשים',
+  'controls.zoomIn.ariaLabel': 'הגדלה',
+  'controls.zoomOut.ariaLabel': 'הקטנה',
+  'controls.fitView.ariaLabel': 'הצגת כל התרשים',
+  'controls.interactive.ariaLabel': 'נעילת התרשים',
+  'minimap.ariaLabel': 'מפה מוקטנת',
+  'handle.ariaLabel': 'נקודת חיבור',
+}
+
+type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'focusDone'> & { selectedKey: string | null }
 
 /**
  * The Flow view: the conversation drawn as a map. Boxes are edited in place;
@@ -59,8 +73,9 @@ function Canvas({ selectedKey, ...editor }: Props) {
     return q ? keyOf(q) : nodeId
   }
   const [sizes, setSizes] = useState<Record<string, Size>>({})
-  const [moved, setMoved] = useState<Record<string, Point>>({})
   const [pendingReveal, setPendingReveal] = useState<string | null>(null)
+  // A box just created opens with the cursor in its question text.
+  const [focusRequest, setFocusRequest] = useState<string | null>(null)
   const [fitted, setFitted] = useState(false)
 
   const structure = `${ids.join('|')}#${graph.edges.map((e) => e.id).join('|')}`
@@ -72,12 +87,12 @@ function Canvas({ selectedKey, ...editor }: Props) {
   const nodes: Node[] = ids.map((id) => ({
     id,
     type: id === OPENING ? 'opening' : id === ENDINGS ? 'endings' : 'question',
-    position: moved[id] ?? layout[id],
+    position: layout[id],
     data: { questionKey: keyOfNode(id), nodeId: id },
     selected: id === selectedKey,
     ...(sizes[id] ? { measured: sizes[id] } : {}),
   }))
-  const centre = (id: string) => (moved[id] ?? layout[id]).x + (sizes[id]?.width ?? 300) / 2
+  const centre = (id: string) => layout[id].x + (sizes[id]?.width ?? 300) / 2
   const side = (from: string, to: string) => (centre(to) > centre(from) ? 'r' : 'l')
   const edges: Edge[] = flowEdges.map((e) => ({
     id: e.id,
@@ -94,10 +109,8 @@ function Canvas({ selectedKey, ...editor }: Props) {
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const nextSizes: Record<string, Size> = {}
-    const nextMoved: Record<string, Point> = {}
     for (const c of changes) {
       if (c.type === 'dimensions' && c.dimensions) nextSizes[c.id] = c.dimensions
-      if (c.type === 'position' && c.position) nextMoved[c.id] = c.position
     }
     if (Object.keys(nextSizes).length) {
       setSizes((s) => {
@@ -105,7 +118,6 @@ function Canvas({ selectedKey, ...editor }: Props) {
         return changed ? { ...s, ...nextSizes } : s
       })
     }
-    if (Object.keys(nextMoved).length) setMoved((m) => ({ ...m, ...nextMoved }))
   }, [])
 
   // First view: everything fits once the boxes have been measured.
@@ -130,8 +142,21 @@ function Canvas({ selectedKey, ...editor }: Props) {
     setPendingReveal(null)
   }, [pendingReveal, sizes, flow])
 
-  const routedOptions = useMemo(() => new Set(graph.edges.filter((e) => e.option).map((e) => `${e.source}:${e.option}`)), [graph])
-  const context: FlowEditor = { ...editor, reveal: setPendingReveal, routedOptions }
+  // "question:option-side" for each answer arrow, so only the dot an arrow leaves from is drawn.
+  const routedOptions = new Set(
+    flowEdges.filter((e) => e.option).map((e) => `${keyOfNode(e.source)}:${e.option}-${side(e.source, e.target)}`),
+  )
+  const reveal = useCallback((nodeId: string) => {
+    setPendingReveal(nodeId)
+    setFocusRequest(nodeId)
+  }, [])
+  const context: FlowEditor = {
+    ...editor,
+    reveal,
+    routedOptions,
+    focusRequest,
+    focusDone: () => setFocusRequest(null),
+  }
   const full = model.questions.length >= MAX_QUESTIONS
 
   return (
@@ -148,7 +173,15 @@ function Canvas({ selectedKey, ...editor }: Props) {
             if (!(e.target as HTMLElement).closest('button, input, textarea, select, label, summary, a')) select(n.id)
           }}
           onPaneClick={() => select(null)}
+          // Boxes sit where the conversation puts them. Moving one would look like
+          // reordering the questionnaire, which it is not; order changes only
+          // through "הקדמת / דחיית השאלה".
+          nodesDraggable={false}
           nodesConnectable={false}
+          // The box wrappers are not Tab stops: each box's own "עריכה" button and
+          // fields are, so keyboard users move between things that do something.
+          nodesFocusable={false}
+          ariaLabelConfig={HEBREW_ARIA}
           edgesFocusable={false}
           deleteKeyCode={null}
           panOnScroll
@@ -168,12 +201,9 @@ function Canvas({ selectedKey, ...editor }: Props) {
                   edit((m) => addQuestion(m, kind, ref))
                   announce('נוספה שאלה חדשה לפני הסיום')
                   select(ref)
-                  setPendingReveal(ref)
+                  reveal(ref)
                 }}
               />
-              {Object.keys(moved).length > 0 && (
-                <Btn type='button' variant='outline' lbl='סידור מחדש' onClick={() => setMoved({})} />
-              )}
             </div>
           </Panel>
         </ReactFlow>

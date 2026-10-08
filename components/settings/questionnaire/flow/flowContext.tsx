@@ -27,8 +27,11 @@ export type FlowEditor = {
   select: (nodeId: string | null) => void
   /** Bring a box into view after it was created. */
   reveal: (nodeId: string) => void
-  /** "question:option" for answers that have a route of their own (their dot is shown). */
+  /** "question:option-l|r" for answers with a route of their own: the side its dot is drawn on. */
   routedOptions: ReadonlySet<string>
+  /** A box that was just created and should take the cursor; cleared once it has. */
+  focusRequest: string | null
+  focusDone: () => void
   /** Switch to the Conversation view (for what the canvas does not edit). */
   openConversation: () => void
 }

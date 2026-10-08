@@ -217,7 +217,9 @@ describe('editing a question', () => {
     mount(start(emptyQuestionnaire('סלון דנה')))
     fireEvent.change(within(card(1)).getByLabelText('נוסח השאלה'), { target: { value: 'איזה טיפול?' } })
     fireEvent.change(within(card(1)).getByLabelText('שם האפשרות 1'), { target: { value: 'חתונה' } })
-    fireEvent.change(within(card(1)).getByLabelText('אייקון לאפשרות 1 (רשות)'), { target: { value: '💍' } })
+    // The icon is chosen from a small palette, not typed into a bare box.
+    fireEvent.click(within(card(1)).getByRole('button', { name: /^הוספת אייקון לתשובה חתונה$/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'בחירת האייקון 💍' }))
     expect(within(preview()).getByText(/איזה טיפול\?/).textContent).toContain('1. חתונה 💍')
   })
 
@@ -349,7 +351,7 @@ describe('real questionnaires load as they are', () => {
     expect(screen.getAllByRole('article')).toHaveLength(10)
     const c1 = card(1)
     expect((within(c1).getByLabelText('אפשר ללקוח לבחור "אחר"') as HTMLInputElement).checked).toBe(true)
-    expect((within(c1).getByLabelText('אייקון לאפשרות 1 (רשות)') as HTMLInputElement).value).toBe('💍')
+    expect(within(c1).getByRole('button', { name: 'אייקון לתשובה חתונה: 💍. שינוי' })).toBeTruthy()
     const phrasings = within(c1).getAllByText('איך עוד לקוחות עשויים לכתוב את זה?', { exact: false })[0].closest('details')!
     expect(phrasings.open).toBe(false)
     expect(phrasings.textContent).toContain('(6)')
@@ -496,7 +498,8 @@ describe('accessibility', () => {
         expect(named, `${role} without a name: ${el.outerHTML.slice(0, 120)}`).toBeTruthy()
       }
     }
-    const chrome = [...document.querySelectorAll('h1,h2,h3,h4,legend,label,button,summary')]
+    // An answer's chosen icon (the owner's content) is shown on its icon button; that is not chrome.
+    const chrome = [...document.querySelectorAll('h1,h2,h3,h4,legend,label,button:not([aria-label^="אייקון לתשובה"]),summary')]
       .map((e) => e.textContent ?? '')
       .join(' ')
     // Option labels quoted in names are user content; strip quoted text before checking.

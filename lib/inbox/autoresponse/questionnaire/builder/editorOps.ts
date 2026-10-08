@@ -154,6 +154,6 @@ export function conditionSources(m: BuilderQuestionnaire, key: string): BuilderQ
   return m.questions.slice(0, index < 0 ? m.questions.length : index).filter((q) => isChoice(q.answer))
 }
 
-export { addOption, updateOption, removeOption, otherOf, enableOther, disableOther } from './editorOptions'
+export { addOption, addPhrasing, updateOption, removeOption, otherOf, enableOther, disableOther } from './editorOptions'
 export { addEnding, updateEnding, removeEnding, moveEnding } from './editorEndings'
 export type { BuilderEnding }

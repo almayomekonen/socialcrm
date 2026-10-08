@@ -26,8 +26,8 @@ export default function QuestionSummary({
   onlyFor: string | null
   issues: EditorIssue[]
   onEdit: () => void
-  /** Option keys whose answer leads somewhere of its own. */
-  routed: (optionKey: string) => boolean
+  /** Whether this answer's own route leaves from this side ('l' or 'r'). */
+  routed: (optionKey: string, side: 'l' | 'r') => boolean
 }) {
   const options = optionsOf(question)
   const errors = issues.filter((i) => i.severity === 'error')
@@ -67,14 +67,14 @@ export default function QuestionSummary({
                 position={Position.Left}
                 id={`opt-${keyOf(o)}-l`}
                 isConnectable={false}
-                className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routed(keyOf(o)) ? '' : '!opacity-0'}`}
+                className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routed(keyOf(o), 'l') ? '' : '!opacity-0'}`}
               />
               <Handle
                 type='source'
                 position={Position.Right}
                 id={`opt-${keyOf(o)}-r`}
                 isConnectable={false}
-                className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routed(keyOf(o)) ? '' : '!opacity-0'}`}
+                className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routed(keyOf(o), 'r') ? '' : '!opacity-0'}`}
               />
             </li>
           ))}

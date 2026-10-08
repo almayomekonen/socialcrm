@@ -19,20 +19,23 @@ export function applyTextCheck(m: BuilderQuestionnaire, key: string, next: TextC
   const q = m.questions.find((x) => keyOf(x) === key)
   if (!q) return m
   const messages = q.messages ?? {}
-  if (next === 'none') return setAnswerKind(m, key, 'text_unchecked')
+  // Leaving date/location drops their preset wording (the owner's own wording stays).
+  const presets: string[] = [DATE_PRESET.notUnderstood, LOCATION_PRESET.notUnderstood]
+  const plain = (model: BuilderQuestionnaire) =>
+    messages.notUnderstood && presets.includes(messages.notUnderstood)
+      ? updateQuestion(model, key, { messages: { ...messages, notUnderstood: undefined } })
+      : model
+  const own = Boolean(messages.notUnderstood && !presets.includes(messages.notUnderstood))
+  if (next === 'none') return plain(setAnswerKind(m, key, 'text_unchecked'))
+  if (next === 'meaningful') return plain(setAnswerKind(m, key, 'text'))
   if (next === 'date') {
     // The preset's message invites "לא נקבע", so the answer it invites is accepted.
     const dated = setNotSetAllowed(setAnswerKind(m, key, 'date'), key, true)
-    return messages.notUnderstood
-      ? dated
-      : updateQuestion(dated, key, { messages: { ...messages, notUnderstood: DATE_PRESET.notUnderstood } })
+    return own ? dated : updateQuestion(dated, key, { messages: { ...messages, notUnderstood: DATE_PRESET.notUnderstood } })
   }
   const meaningful = setAnswerKind(m, key, 'text')
-  if (next !== 'location') return meaningful
   const located = setNotSetAllowed(meaningful, key, true)
-  return messages.notUnderstood
-    ? located
-    : updateQuestion(located, key, { messages: { ...messages, notUnderstood: LOCATION_PRESET.notUnderstood } })
+  return own ? located : updateQuestion(located, key, { messages: { ...messages, notUnderstood: LOCATION_PRESET.notUnderstood } })
 }
 
 /** How a free-text question reads today, location recognised by its message (as the Conversation view does). */

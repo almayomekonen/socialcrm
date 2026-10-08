@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { questionName } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
 import {
@@ -10,6 +11,7 @@ import {
   enableOther,
   keyOf,
   moveQuestion,
+  reactKey,
   optionsOf,
   otherOf,
   removeQuestion,
@@ -20,6 +22,7 @@ import {
 import { applyTextCheck, currentTextCheck } from '../answerCheck'
 import { answerTypeOf, cardIssueText, consequenceText, type AnswerType } from '../builderCopy'
 import FlowOptionRow from './FlowOptionRow'
+import FlowTextAnswer from './FlowTextAnswer'
 import QuestionSummary from './QuestionSummary'
 import { useFlowEditor } from './flowContext'
 
@@ -39,10 +42,30 @@ const EXPECT = [
  * except a deletion that changes other questions.
  */
 export default function QuestionNode({ data, selected }: NodeProps & { data: QuestionNodeData }) {
-  const { model, edit, confirm, announce, issuesFor, leave, select, routedOptions } = useFlowEditor()
-  const key = data.questionKey
-  const index = model.questions.findIndex((q) => keyOf(q) === key)
+  const { model, edit, confirm, announce, issuesFor, leave, select, reveal, routedOptions, focusRequest, focusDone } = useFlowEditor()
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+  // Just created ("+ הוספת שאלה" / "+ שאלת המשך"): the cursor goes straight to the question.
+  // A new box stays invisible until React Flow has measured it, and focusing an
+  // invisible field does nothing, so try for a few frames until focus lands.
+  useEffect(() => {
+    if (!selected || focusRequest !== data.nodeId) return
+    let frames = 0
+    let handle = 0
+    const attempt = () => {
+      const el = promptRef.current
+      el?.focus({ preventScroll: true })
+      if (el && document.activeElement === el) return focusDone()
+      if (++frames < 30) handle = requestAnimationFrame(attempt)
+    }
+    attempt()
+    return () => cancelAnimationFrame(handle)
+  }, [selected, focusRequest, data.nodeId, focusDone])
+  // Found by the render key, which never changes: React Flow hands a box its
+  // data one render late, so a draft key that a save just replaced would miss
+  // for a moment and remount the box (losing the cursor mid-typing).
+  const index = model.questions.findIndex((q) => reactKey(q) === data.nodeId)
   const question = model.questions[index]
+  const key = question ? keyOf(question) : data.questionKey
   if (!question) return null
   const type = answerTypeOf(question.answer.kind)
   const options = optionsOf(question)
@@ -76,7 +99,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
     })
 
   if (!selected) {
-    return <QuestionSummary question={question} number={index + 1} onlyFor={onlyFor} issues={issues} onEdit={() => select(data.nodeId)} routed={(o) => routedOptions.has(`${key}:${o}`)} />
+    return <QuestionSummary question={question} number={index + 1} onlyFor={onlyFor} issues={issues} onEdit={() => select(data.nodeId)} routed={(o, side) => routedOptions.has(`${key}:${o}-${side}`)} />
   }
 
   const expect = currentTextCheck(question)
@@ -124,6 +147,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
         מה נשאל את הלקוח
       </label>
       <textarea
+        ref={promptRef}
         id={`${key}-prompt`}
         value={question.prompt}
         rows={Math.min(6, Math.max(2, question.prompt.split('\n').length))}
@@ -147,34 +171,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
       </select>
 
       {type === 'free' ? (
-        <div className='grid gap-1.5'>
-          <label className='text-xs text-gray-600' htmlFor={`${key}-expect`}>
-            איזו תשובה אנחנו מצפים לקבל?
-          </label>
-          <select
-            id={`${key}-expect`}
-            value={expect === 'date' || expect === 'location' ? expect : 'any'}
-            onChange={(e) => edit((m) => (e.target.value === 'any' ? m : applyTextCheck(m, key, e.target.value as 'date' | 'location')))}
-            className='nodrag h-8 rounded-md border border-gray-200 bg-white pe-7 ps-2 text-xs'
-          >
-            {EXPECT.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {(expect === 'date' || expect === 'location') && (
-            <label className='nodrag flex items-center gap-2 text-xs text-gray-700'>
-              <input
-                type='checkbox'
-                className='size-4 accent-solid'
-                checked={'notSetAllowed' in question.answer && question.answer.notSetAllowed}
-                onChange={(e) => edit((m) => setNotSetAllowed(m, key, e.target.checked))}
-              />
-              אפשר לענות "עדיין לא נקבע"
-            </label>
-          )}
-        </div>
+        <FlowTextAnswer questionKey={key} />
       ) : (
         <div className='grid gap-2'>
           <ol className='grid gap-2' aria-label='התשובות ללקוח'>
@@ -217,6 +214,22 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
               אפשר לבחור "אחר"
             </label>
           </div>
+          {other?.followUp && (
+            <p className='rounded-md bg-gray-50 px-2 py-1.5 text-xs text-gray-700'>
+              מי שבוחר "{other.option.label}" יישאל: "{other.followUp.prompt.trim() || 'שאלת המשך'}"{' '}
+              <button
+                type='button'
+                onClick={() => {
+                  const target = other.followUp?.ref ?? other.followUp?.id ?? ''
+                  select(target)
+                  reveal(target)
+                }}
+                className='nodrag font-medium text-ink underline underline-offset-2'
+              >
+                עריכה
+              </button>
+            </p>
+          )}
         </div>
       )}
 

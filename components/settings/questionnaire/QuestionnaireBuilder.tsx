@@ -10,6 +10,7 @@ import type { DraftState } from '@/lib/inbox/autoresponse/questionnaire/builder/
 import BuilderHeader, { type LiveRouting } from './BuilderHeader'
 import { isAnswering, publishConfirmText, type ConfirmRequest } from './builderCopy'
 import BuilderAlerts from './BuilderAlerts'
+import { focusCard } from './focusCard'
 import ConversationWorkspace from './ConversationWorkspace'
 import type { FlowPanel } from './flow/FlowWorkspace'
 import RevisionHistory from './RevisionHistory'
@@ -43,6 +44,12 @@ export default function QuestionnaireBuilder({
   const [panel, setPanel] = useState<'preview' | 'test'>('preview')
   const [mode, setMode] = useState<'flow' | 'conversation'>(flowEnabled ? 'flow' : 'conversation')
   const [flowPanel, setFlowPanel] = useState<FlowPanel>('none')
+  // The question being worked on in the map: the list opens on it.
+  const [flowSelection, setFlowSelection] = useState<string | null>(null)
+  const switchTo = (next: 'flow' | 'conversation') => {
+    setMode(next)
+    if (next === 'conversation' && flowSelection) setTimeout(() => focusCard(flowSelection), 50)
+  }
   const [historyOpen, setHistoryOpen] = useState(false)
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -117,8 +124,8 @@ export default function QuestionnaireBuilder({
             <div role='tablist' aria-label='תצוגת העריכה' className='hidden w-fit rounded-lg border border-gray-200 bg-white p-1 desktop:flex'>
               {(
                 [
-                  ['flow', 'זרימה'],
-                  ['conversation', 'שיחה'],
+                  ['flow', 'תרשים'],
+                  ['conversation', 'רשימה'],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -126,7 +133,7 @@ export default function QuestionnaireBuilder({
                   type='button'
                   role='tab'
                   aria-selected={mode === value}
-                  onClick={() => setMode(value)}
+                  onClick={() => switchTo(value)}
                   className={`rounded-md px-4 py-1.5 text-sm ${mode === value ? 'bg-solid text-white' : 'text-gray-700 hover:bg-gray-100'}`}
                 >
                   {label}
@@ -135,7 +142,7 @@ export default function QuestionnaireBuilder({
             </div>
           )}
           {mode === 'flow' ? (
-            <div className='hidden desktop:block'>
+            <div>
               <FlowWorkspace
                 model={model}
                 view={view}
@@ -149,7 +156,8 @@ export default function QuestionnaireBuilder({
                 draftId={draft.meta?.draftId ?? null}
                 flush={draft.flush}
                 onNotReady={() => setRevealLatched(true)}
-                openConversation={() => setMode('conversation')}
+                openConversation={() => switchTo('conversation')}
+                onSelectQuestion={setFlowSelection}
               />
             </div>
           ) : (

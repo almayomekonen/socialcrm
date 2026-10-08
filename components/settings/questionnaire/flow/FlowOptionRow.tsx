@@ -13,6 +13,7 @@ import {
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderOption } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import PhrasingsEditor from '../PhrasingsEditor'
+import IconChooser from '../IconChooser'
 import { consequenceText } from '../builderCopy'
 import { useFlowEditor } from './flowContext'
 
@@ -66,17 +67,6 @@ export default function FlowOptionRow({
         <span aria-hidden='true' className='w-5 shrink-0 text-xs font-semibold text-gray-500'>
           {number}.
         </span>
-        <label className='sr-only' htmlFor={`${reactKey(option)}-icon`}>
-          אייקון לתשובה {number}
-        </label>
-        <input
-          id={`${reactKey(option)}-icon`}
-          value={option.icon ?? ''}
-          maxLength={8}
-          placeholder='☺'
-          onChange={(e) => edit((m) => updateOption(m, questionKey, optionKey, { icon: e.target.value }))}
-          className='nodrag h-8 w-10 shrink-0 rounded-md border border-transparent bg-gray-50 text-center text-sm hover:border-gray-200 focus:border-gray-200 focus:bg-white focus:outline-2 focus:outline-primary'
-        />
         <label className='sr-only' htmlFor={`${reactKey(option)}-label`}>
           תשובה {number}
         </label>
@@ -88,6 +78,11 @@ export default function FlowOptionRow({
           aria-invalid={invalid}
           onChange={(e) => edit((m) => updateOption(m, questionKey, optionKey, { label: e.target.value }))}
           className='nodrag h-8 min-w-0 flex-1 rounded-md border border-transparent bg-gray-50 px-2 text-sm hover:border-gray-200 focus:border-gray-200 focus:bg-white focus:outline-2 focus:outline-primary aria-invalid:border-red-400'
+        />
+        <IconChooser
+          icon={option.icon}
+          answerName={name}
+          onChange={(icon) => edit((m) => updateOption(m, questionKey, optionKey, { icon: icon ?? '' }))}
         />
         {canRemove && (
           <button
@@ -122,6 +117,7 @@ export default function FlowOptionRow({
         <PhrasingsEditor
           phrasings={option.phrasings}
           optionLabel={option.label}
+          summaryLabel={option.phrasings.length ? 'ניסוחים של לקוחות' : '+ איך לקוחות יכולים לנסח את זה?'}
           onChange={(phrasings) => edit((m) => updateOption(m, questionKey, optionKey, { phrasings }))}
         />
       </div>
@@ -131,7 +127,7 @@ export default function FlowOptionRow({
         position={Position.Left}
         id={`opt-${optionKey}-l`}
         isConnectable={false}
-        className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routedOptions.has(`${questionKey}:${optionKey}`) ? '' : '!opacity-0'}`}
+        className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routedOptions.has(`${questionKey}:${optionKey}-l`) ? '' : '!opacity-0'}`}
         style={{ top: 16 }}
       />
       <Handle
@@ -139,7 +135,7 @@ export default function FlowOptionRow({
         position={Position.Right}
         id={`opt-${optionKey}-r`}
         isConnectable={false}
-        className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routedOptions.has(`${questionKey}:${optionKey}`) ? '' : '!opacity-0'}`}
+        className={`!size-2 !min-h-0 !min-w-0 !border-0 !bg-indigo-400 ${routedOptions.has(`${questionKey}:${optionKey}-r`) ? '' : '!opacity-0'}`}
         style={{ top: 16 }}
       />
     </li>
