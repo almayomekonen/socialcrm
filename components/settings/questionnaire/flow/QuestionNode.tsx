@@ -23,6 +23,7 @@ import FlowOptionRow from './FlowOptionRow'
 import FlowTextAnswer from './FlowTextAnswer'
 import QuestionSummary from './QuestionSummary'
 import { useFlowEditor } from './flowContext'
+import { focusAfterRemoval } from './removalFocus'
 
 export type QuestionNodeData = { questionKey: string; nodeId: string }
 
@@ -35,7 +36,7 @@ const TYPE_LABELS: Record<AnswerType, string> = { single: 'בחירה של תש�
  * except a deletion that changes other questions.
  */
 export default function QuestionNode({ data, selected }: NodeProps & { data: QuestionNodeData }) {
-  const { model, edit, confirm, announce, issuesFor, leave, select, reveal, routedOptions, focusRequest, focusDone } = useFlowEditor()
+  const { model, edit, confirm, announce, issuesFor, leave, select, reveal, routedOptions, focusRequest, focusDone, returnFocusTo } = useFlowEditor()
   const promptRef = useRef<HTMLTextAreaElement>(null)
   // Just created ("+ הוספת שאלה" / "+ שאלת המשך"): the cursor goes straight to the question.
   // A new box stays invisible until React Flow has measured it, and focusing an
@@ -86,8 +87,11 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
       confirmLbl: 'מחיקת השאלה',
       destructive: true,
       run: () => {
+        const next = focusAfterRemoval(model, key)
         edit((m) => removeQuestion(m, key))
         announce(`השאלה "${name}" נמחקה`)
+        select(null)
+        returnFocusTo(next)
       },
     })
 

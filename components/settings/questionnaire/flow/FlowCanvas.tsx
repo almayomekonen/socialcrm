@@ -21,7 +21,8 @@ import EndingsNode from './EndingsNode'
 import OpeningNode from './OpeningNode'
 import QuestionNode from './QuestionNode'
 import { FlowEditorContext, type FlowEditor } from './flowContext'
-import { layoutFlow, type Size } from './flowLayout'
+import { DEFAULT_SIZE, layoutFlow, stepPositionFor, type Size } from './flowLayout'
+import { ADD_QUESTION } from './removalFocus'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
 const MAX_QUESTIONS = 12
@@ -41,7 +42,7 @@ const HEBREW_ARIA = {
   'handle.ariaLabel': 'נקודת חיבור',
 }
 
-type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'focusDone'> & { selectedKey: string | null }
+type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'focusDone' | 'returnFocusTo'> & { selectedKey: string | null }
 
 /**
  * The Flow view: the conversation drawn as a map. Boxes are edited in place;
@@ -76,6 +77,8 @@ function Canvas({ selectedKey, ...editor }: Props) {
   const [pendingReveal, setPendingReveal] = useState<string | null>(null)
   // A box just created opens with the cursor in its question text.
   const [focusRequest, setFocusRequest] = useState<string | null>(null)
+  // After a deletion: the box (or "+ הוספת שאלה") that takes the cursor instead.
+  const [returnFocus, setReturnFocus] = useState<string | null>(null)
   const [fitted, setFitted] = useState(false)
 
   const structure = `${ids.join('|')}#${graph.edges.map((e) => e.id).join('|')}`
@@ -102,6 +105,9 @@ function Canvas({ selectedKey, ...editor }: Props) {
     sourceHandle: e.option ? `opt-${e.option}-${side(e.source, e.target)}` : 'next',
     targetHandle: 'in',
     type: 'smoothstep',
+    ...(e.option
+      ? {}
+      : { pathOptions: { stepPosition: stepPositionFor(layout[e.source].y + (sizes[e.source] ?? DEFAULT_SIZE).height, layout[e.target].y) } }),
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
     style: e.option ? { stroke: '#6366f1', strokeWidth: 1.75 } : { stroke: '#9ca3af', strokeWidth: 1.5 },
     focusable: false,
@@ -142,6 +148,30 @@ function Canvas({ selectedKey, ...editor }: Props) {
     setPendingReveal(null)
   }, [pendingReveal, sizes, flow])
 
+  // The confirmation dialog hands the cursor back to the deleted box's ×,
+  // which no longer exists; once the map has re-rendered, it goes to the
+  // chosen surviving control instead (a few frames: the box may be re-measured).
+  useEffect(() => {
+    if (!returnFocus) return
+    let frames = 0
+    let handle = 0
+    const find = () =>
+      returnFocus === ADD_QUESTION
+        ? document.querySelector<HTMLElement>('.react-flow button[aria-haspopup="menu"]')
+        : [...document.querySelectorAll<HTMLElement>('.react-flow__node')]
+            .find((n) => n.getAttribute('data-id') === returnFocus)
+            ?.querySelector<HTMLElement>('button[aria-label^="עריכת"]')
+    const attempt = () => {
+      const el = find()
+      el?.focus({ preventScroll: true })
+      if (el && document.activeElement === el) return setReturnFocus(null)
+      if (++frames < 30) handle = requestAnimationFrame(attempt)
+      else setReturnFocus(null)
+    }
+    handle = requestAnimationFrame(attempt)
+    return () => cancelAnimationFrame(handle)
+  }, [returnFocus])
+
   // "question:option-side" for each answer arrow, so only the dot an arrow leaves from is drawn.
   const routedOptions = new Set(
     flowEdges.filter((e) => e.option).map((e) => `${keyOfNode(e.source)}:${e.option}-${side(e.source, e.target)}`),
@@ -156,6 +186,10 @@ function Canvas({ selectedKey, ...editor }: Props) {
     routedOptions,
     focusRequest,
     focusDone: () => setFocusRequest(null),
+    returnFocusTo: (nodeId: string) => {
+      if (nodeId !== ADD_QUESTION) setPendingReveal(nodeId)
+      setReturnFocus(nodeId)
+    },
   }
   const full = model.questions.length >= MAX_QUESTIONS
 
