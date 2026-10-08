@@ -576,7 +576,7 @@ function optionsOf(def: QuestionnaireDefinition) {
   return step.type === 'choice' ? step.options : []
 }
 
-describe('Flow and List edit one draft (QUESTIONNAIRE_FLOW_EDITOR)', () => {
+describe('Flow and List edit one draft (flowEnabled)', () => {
   // React Flow measures boxes in the browser; jsdom is given sizes (see questionnaireFlow.test.tsx).
   const saved_ = { RO: globalThis.ResizeObserver, DM: (globalThis as Record<string, unknown>).DOMMatrixReadOnly }
   beforeEach(() => {

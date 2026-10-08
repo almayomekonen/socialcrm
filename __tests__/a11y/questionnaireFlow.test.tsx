@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Flow view prototype (QUESTIONNAIRE_FLOW_EDITOR): the conversation as a
+// The Flow view (QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS): the conversation as a
 // map over the SAME draft the Conversation view edits. React Flow measures
 // boxes in the browser; jsdom is given sizes the way React Flow's own testing
 // guide does (ResizeObserver, offset sizes, DOMMatrixReadOnly).
@@ -271,7 +271,11 @@ describe('polish: the test chat teaches phrases', () => {
       fireEvent.change(input, { target: { value: t } })
       await act(async () => fireEvent.keyDown(input, { key: 'Enter' }))
     }
-    expect(screen.getByRole('note').textContent).toContain('תחת "איך לקוחות יכולים לנסח את זה?"')
+    // One sentence for both views: it names neither view's own label.
+    const note = screen.getByRole('note').textContent ?? ''
+    expect(note).toContain('אפשר להוסיף את הניסוח הזה לתשובה המתאימה')
+    expect(note).not.toContain('איך לקוחות יכולים לנסח את זה?')
+    expect(note).not.toContain('איך עוד לקוחות עשויים לכתוב את זה?')
     expect(addPhrasing).toBeTypeOf('function')
   })
 })

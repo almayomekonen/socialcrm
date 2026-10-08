@@ -37,7 +37,7 @@ export default function QuestionnaireBuilder({
   initialDraft: DraftState | null
   liveRevision: number | null
   routing: LiveRouting
-  /** The Flow view (QUESTIONNAIRE_FLOW_EDITOR=1); absent, only the Conversation (list) view exists. */
+  /** The Flow view, decided on the server (canUseQuestionnaireFlowEditor); false, only the Conversation (list) view exists. */
   flowEnabled?: boolean
 }) {
   const draft = useQuestionnaireDraft(initialDraft)

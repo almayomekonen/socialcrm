@@ -54,7 +54,9 @@ vi.mock('@/actions/questionnaire/builderPublish', () => ({
   simulateQuestionnaireDraft: vi.fn(),
   listQuestionnaireRevisions: vi.fn(),
 }))
-vi.mock('@/components/settings/questionnaire/QuestionnaireBuilder', () => ({ default: () => <p>desktop editor</p> }))
+vi.mock('@/components/settings/questionnaire/QuestionnaireBuilder', () => ({
+  default: ({ flowEnabled }: { flowEnabled?: boolean }) => <p data-flow={String(Boolean(flowEnabled))}>desktop editor</p>,
+}))
 
 import QuestionnaireBuilderPage from '@/app/(app)/settings/(admin_settings)/questionnaire/page'
 import SettingLayout from '@/app/(app)/settings/layout'
@@ -62,7 +64,7 @@ import QuestionnaireMobile from '@/components/settings/questionnaire/Questionnai
 import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
 import { visibleMoreItems } from '@/components/mobile/moreDestinations'
 import { MOBILE_READY_ROUTES } from '@/lib/mobile/desktopOnlyRoutes'
-import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
+import { canUseQuestionnaireBuilder, canUseQuestionnaireFlowEditor } from '@/lib/flags/questionnaireBuilderFlags'
 
 const state = {
   published: {
@@ -91,6 +93,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   delete process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS
+  delete process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS
 })
 
 async function renderPage() {
@@ -104,6 +107,73 @@ describe('the rollout flag', () => {
     process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS = '103, 158'
     expect(canUseQuestionnaireBuilder(158)).toBe(true)
     expect(canUseQuestionnaireBuilder(63)).toBe(false)
+  })
+})
+
+describe('the Flow view rollout (QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS)', () => {
+  const flow = (env: string | undefined, ...agencies: number[]) => {
+    process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS = '1, 63, 103, 158'
+    if (env === undefined) delete process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS
+    else process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS = env
+    return agencies.map((a) => canUseQuestionnaireFlowEditor(a))
+  }
+
+  it('absent or empty: nobody', () => {
+    expect(flow(undefined, 103, 158, 63)).toEqual([false, false, false])
+    expect(flow('', 103, 158, 63)).toEqual([false, false, false])
+    expect(flow('  ,  ', 103, 158, 63)).toEqual([false, false, false])
+  })
+
+  it('an explicit list: exactly the listed agencies', () => {
+    expect(flow('103', 103, 158, 63)).toEqual([true, false, false])
+    expect(flow('103,158', 103, 158, 63)).toEqual([true, true, false])
+    expect(flow(' 103, 158 ', 103, 158, 63)).toEqual([true, true, false])
+    expect(flow('103,103', 103, 158, 63)).toEqual([true, false, false])
+    expect(flow('103,hello,158', 103, 158, 63)).toEqual([true, true, false])
+  })
+
+  it('nothing reads as "everyone": all, *, true, 1 (agency 1 only), 0x67, 1e2, 103.0', () => {
+    for (const env of ['all', '*', 'true', 'TRUE', 'yes', 'on'])
+      expect(flow(env, 103, 158, 63)).toEqual([false, false, false])
+    expect(flow('1', 1, 103, 158, 63)).toEqual([true, false, false, false])
+    expect(flow('0x67,1e2,103.0,+103,-103', 103, 100)).toEqual([false, false])
+  })
+
+  it('fails closed without a usable agency', () => {
+    process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS = '103'
+    for (const a of [null, undefined, 0, -103, Number.NaN, 103.5]) expect(canUseQuestionnaireFlowEditor(a)).toBe(false)
+  })
+
+  it('requires the Builder too: a Flow entry alone grants nothing', () => {
+    process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS = '103'
+    process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS = '103,158'
+    expect(canUseQuestionnaireFlowEditor(103)).toBe(true)
+    expect(canUseQuestionnaireFlowEditor(158)).toBe(false)
+    delete process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS
+    expect(canUseQuestionnaireFlowEditor(103)).toBe(false)
+  })
+
+  it('the page decides from the signed-in agency: 103 gets the Flow view, 158 only the list', async () => {
+    process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS = '103,158'
+    process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS = '103'
+    H.user = { ...H.user, agencyId: 103 }
+    await renderPage()
+    expect(screen.getByText('desktop editor').dataset.flow).toBe('true')
+    cleanup()
+    H.user = { ...H.user, agencyId: 158 }
+    await renderPage()
+    expect(screen.getByText('desktop editor').dataset.flow).toBe('false')
+  })
+
+  it('a Flow entry never opens the Builder page itself', async () => {
+    process.env.QUESTIONNAIRE_BUILDER_AGENCY_IDS = '103'
+    process.env.QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS = '158'
+    await expect(renderPage()).rejects.toThrow('NEXT_NOT_FOUND')
+  })
+
+  it('without the Flow list, the Builder still works, list view only', async () => {
+    await renderPage()
+    expect(screen.getByText('desktop editor').dataset.flow).toBe('false')
   })
 })
 

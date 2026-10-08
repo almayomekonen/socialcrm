@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import { ProductAccessError, requireAgencyUser } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
-import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
+import { canUseQuestionnaireBuilder, canUseQuestionnaireFlowEditor } from '@/lib/flags/questionnaireBuilderFlags'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { authorizeBuilder } from '@/lib/inbox/autoresponse/questionnaire/builder/authorize'
 import { getBuilderState } from '@/lib/inbox/autoresponse/questionnaire/builder/service'
@@ -63,10 +63,12 @@ export default async function QuestionnaireBuilderPage() {
     )
   }
 
-  // The Flow view (תרשים / רשימה) is behind its own switch; unset, only the list
-  // view exists. Shared Builder improvements (icon chooser, phrase teaching in
-  // the test chat) apply to the list view either way.
-  const flowEnabled = process.env.QUESTIONNAIRE_FLOW_EDITOR === '1'
+  // The Flow view (תרשים / רשימה): only agencies listed in
+  // QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS, decided here from the authorised
+  // agency, never by the client. Otherwise only the list view exists. Shared
+  // Builder improvements (icon chooser, phrase teaching in the test chat) apply
+  // to the list view either way.
+  const flowEnabled = canUseQuestionnaireFlowEditor(ctx.agencyId)
   return (
     <QuestionnaireBuilder
       initialDraft={state.draft}
