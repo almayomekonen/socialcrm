@@ -15,13 +15,13 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
-import { addQuestion, keyOf, newRef, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addQuestion, keyOf, newRef, optionsOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import AddQuestionMenu from './AddQuestionMenu'
 import EndingsNode from './EndingsNode'
 import OpeningNode from './OpeningNode'
 import QuestionNode from './QuestionNode'
 import { FlowEditorContext, type FlowEditor } from './flowContext'
-import { DEFAULT_SIZE, layoutFlow, stepPositionFor, type Size } from './flowLayout'
+import { DEFAULT_SIZE, edgeRoutes, layoutFlow, type Size } from './flowLayout'
 import { ADD_QUESTION } from './removalFocus'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
@@ -97,6 +97,11 @@ function Canvas({ selectedKey, ...editor }: Props) {
   }))
   const centre = (id: string) => layout[id].x + (sizes[id]?.width ?? 300) / 2
   const side = (from: string, to: string) => (centre(to) > centre(from) ? 'r' : 'l')
+  const routes = edgeRoutes(
+    flowEdges.map((e) => (e.option ? { ...e, side: side(e.source, e.target) } : e)),
+    (id) => ({ top: layout[id].y, bottom: layout[id].y + (sizes[id] ?? DEFAULT_SIZE).height }),
+    (source, option) => optionsOf(model.questions.find((x) => reactKey(x) === source) ?? model.questions[0]).findIndex((o) => keyOf(o) === option),
+  )
   const edges: Edge[] = flowEdges.map((e) => ({
     id: e.id,
     source: e.source,
@@ -105,9 +110,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
     sourceHandle: e.option ? `opt-${e.option}-${side(e.source, e.target)}` : 'next',
     targetHandle: 'in',
     type: 'smoothstep',
-    ...(e.option
-      ? {}
-      : { pathOptions: { stepPosition: stepPositionFor(layout[e.source].y + (sizes[e.source] ?? DEFAULT_SIZE).height, layout[e.target].y) } }),
+    pathOptions: routes[e.id],
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
     style: e.option ? { stroke: '#6366f1', strokeWidth: 1.75 } : { stroke: '#9ca3af', strokeWidth: 1.5 },
     focusable: false,

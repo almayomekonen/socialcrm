@@ -44,13 +44,53 @@ export function layoutFlow(nodeIds: string[], edges: FlowEdge[], sizes: Record<s
 }
 
 /**
- * Where a "continue" arrow turns sideways (React Flow's smoothstep
- * stepPosition, 0..1 of the way down). An arrow that skips rows turns just
- * above the box it reaches, in the free gap, so it runs down its own lane
- * instead of crossing behind a box it does not go to. Short arrows turn
- * halfway, as before.
+ * Lanes for the arrows, so two arrows never draw over each other. Presentation
+ * only: which box an arrow joins is the map's; this only says where its
+ * bends go (React Flow smoothstep `offset` and `stepPosition`).
+ *
+ * In the gap above a row of boxes, measured up from the boxes it reaches:
+ *   - an answer's own arrow (blue) leaves its dot sideways and runs in the
+ *     lowest band: 16, 28, 40… px, one lane per answer leaving the same side
+ *     of the same question (the upper answer takes the outer lane, so they
+ *     do not cross);
+ *   - a "continue" arrow (gray) to the next row turns right under its box;
+ *   - a "continue" arrow that skips rows turns above the answer lanes, so it
+ *     runs down its own column instead of behind a box it does not go to.
+ * A straight arrow has no bend and is unchanged.
  */
-export function stepPositionFor(sourceBottom: number, targetTop: number): number {
-  const span = targetTop - sourceBottom
-  return span > RANK_GAP * 2 ? 1 - RANK_GAP / 2 / span : 0.5
+const GRAY_OFFSET = 10
+const ANSWER_LANE = 16
+const ANSWER_LANE_STEP = 12
+const LONG_TURN = 46
+
+export type RoutedEdge = { id: string; source: string; target: string; option?: string; side?: 'l' | 'r' }
+export type EdgeRoute = { offset: number; stepPosition?: number }
+
+export function edgeRoutes(
+  edges: RoutedEdge[],
+  box: (id: string) => { top: number; bottom: number },
+  optionIndex: (source: string, option: string) => number,
+): Record<string, EdgeRoute> {
+  const routes: Record<string, EdgeRoute> = {}
+  const siblings = new Map<string, RoutedEdge[]>()
+  for (const e of edges) {
+    if (e.option) {
+      const group = `${e.source}|${e.side ?? 'l'}`
+      siblings.set(group, [...(siblings.get(group) ?? []), e])
+      continue
+    }
+    // smoothstep turns at stepPosition between the two points `offset` away from the boxes.
+    const from = box(e.source).bottom + GRAY_OFFSET
+    const to = box(e.target).top - GRAY_OFFSET
+    const longArrow = to - from > RANK_GAP * 2
+    const turn = longArrow ? box(e.target).top - LONG_TURN : from
+    routes[e.id] = { offset: GRAY_OFFSET, stepPosition: to > from ? Math.min(1, Math.max(0, (turn - from) / (to - from))) : 0.5 }
+  }
+  for (const group of siblings.values()) {
+    const ordered = [...group].sort((a, b) => optionIndex(a.source, a.option as string) - optionIndex(b.source, b.option as string))
+    ordered.forEach((e, i) => {
+      routes[e.id] = { offset: ANSWER_LANE + ANSWER_LANE_STEP * (ordered.length - 1 - i) }
+    })
+  }
+  return routes
 }
