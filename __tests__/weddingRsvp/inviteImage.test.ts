@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, statSync } from 'fs'
+import { createHash } from 'crypto'
 import { join } from 'path'
 import { INVITE_IMAGE_PATH, INVITE_IMAGE_URL } from '@/lib/weddingRsvp/config'
 
@@ -24,8 +25,13 @@ describe('wedding invite header image', () => {
   it('exists in public/ as a real JPEG within Meta’s 5 MB image limit', () => {
     const { size } = statSync(file)
     expect(size).toBeGreaterThan(1024)
-    expect(size).toBeLessThanOrEqual(5 * 1024 * 1024)
+    expect(size).toBeLessThanOrEqual(5_000_000) // Meta's "5 MB", read conservatively (decimal)
     const head = readFileSync(file).subarray(0, 3)
     expect([...head]).toEqual([0xff, 0xd8, 0xff])
+  })
+
+  it('is immutable: the filename suffix is the first 12 hex chars of the file SHA-256', () => {
+    const sha = createHash('sha256').update(readFileSync(file)).digest('hex')
+    expect(INVITE_IMAGE_PATH).toBe(`/wedding/invite-${sha.slice(0, 12)}.jpg`)
   })
 })

@@ -77,9 +77,12 @@ export const INVITE_TEMPLATE_LANGUAGE = 'he'
  * header image from this URL on every send, so it must be public, HTTPS and
  * permanent: a file in `public/` on the production domain is all three, and it
  * cannot expire the way a Cloud API media id (30 days) or a Meta CDN link would.
- * The random suffix keeps it from being guessed; it is not a secret.
+ * The suffix is the first 12 hex characters of the file's SHA-256, so the URL is
+ * immutable: a new image is a new file (Meta never reuses a cached copy of an old one).
+ * Current: one high-quality derivative of the original Canva master (3513×5000 →
+ * 2160×3074, JPEG q95, 4:4:4). The previous invite-b80c5796602c.jpg stays in public/.
  */
-export const INVITE_IMAGE_PATH = '/wedding/invite-b80c5796602c.jpg'
+export const INVITE_IMAGE_PATH = '/wedding/invite-3a3a392be0f9.jpg'
 export const INVITE_IMAGE_URL = `https://getsocialcrm.com${INVITE_IMAGE_PATH}`
 
 export const INVITE_BODY =
