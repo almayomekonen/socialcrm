@@ -13,8 +13,13 @@ import { createHmac, timingSafeEqual } from 'crypto'
 
 export const MAX_SKEW_SECONDS = 300
 
+/**
+ * Surrounding whitespace in the CONFIGURED value (a pasted trailing newline/space)
+ * is configuration noise, not key material, and is ignored. Only the env value is
+ * normalized — the signature and timestamp headers are compared exactly as sent.
+ */
 export function integrationSecret(): string | null {
-  const s = process.env.WEDDING_INTEGRATION_SECRET
+  const s = process.env.WEDDING_INTEGRATION_SECRET?.trim()
   return s && s.length >= 32 ? s : null
 }
 
