@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   takeover: vi.fn(),
   sendText: vi.fn(),
   sendInteractive: vi.fn(),
+  hasRsvpRequest: vi.fn(),
 }))
 
 vi.mock('@/config/db', () => ({
@@ -23,6 +24,7 @@ vi.mock('@/lib/inbox/persistOutboundWhatsapp', () => ({ persistOutboundWhatsapp:
 vi.mock('@/lib/inbox/humanTakeover', () => ({ recordHumanTakeover: h.takeover }))
 vi.mock('@/lib/weddingRsvp/history', () => ({ findLatestOutbound: vi.fn(), withConversationLock: vi.fn() }))
 vi.mock('@/lib/whatsapp/sendMessage', () => ({ sendWhatsappText: h.sendText, sendWhatsappInteractive: h.sendInteractive }))
+vi.mock('@/lib/weddingRsvp/rsvpRequestData', () => ({ conversationHasRsvpRequest: h.hasRsvpRequest }))
 
 const { getWeddingRsvpChoice } = await import('@/lib/weddingRsvp/choice')
 const { sendWeddingRsvp, RSVP_STORED_TEXT } = await import('@/lib/weddingRsvp/sendRsvp')
@@ -51,6 +53,7 @@ beforeEach(() => {
   h.persist.mockResolvedValue({ conversationId: 7224, messageId: 1, sequence: 1 })
   h.sendText.mockResolvedValue({ ok: true, wamid: 'wamid.reply' })
   h.sendInteractive.mockResolvedValue({ ok: true, wamid: 'wamid.rsvp' })
+  h.hasRsvpRequest.mockResolvedValue(false)
 })
 
 describe('allowlist', () => {
@@ -107,15 +110,40 @@ describe('allowlist — Psika (controlled RSVP test)', () => {
   })
 })
 
+describe('template-asked guests (not on the allowlist)', () => {
+  const GUEST = '972545550099'
+  it('a template quick-reply "מגיע/ה" gets the head-count question when this conversation had a template RSVP request', async () => {
+    h.hasRsvpRequest.mockResolvedValue(true)
+    h.resolveTarget.mockResolvedValue(target(GUEST))
+    const r = await routeWeddingRsvpReply({ agencyId: 103, conversationId: 555, leadId: 77, messageId: 70, rawMessage: { id: 'wamid.t', from: GUEST, type: 'button', button: { payload: 'wedding_rsvp_attending', text: 'מגיע/ה' } } })
+    expect(r).toEqual({ handled: true, choice: 'attending', replied: true })
+    expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: GUEST, body: REPLY_ATTENDING }))
+  })
+  it('without a template RSVP request in the conversation, the same tap gets nothing', async () => {
+    h.hasRsvpRequest.mockResolvedValue(false)
+    h.resolveTarget.mockResolvedValue(target(GUEST))
+    const r = await routeWeddingRsvpReply({ agencyId: 103, conversationId: 556, leadId: 78, messageId: 71, rawMessage: { id: 'wamid.t', from: GUEST, type: 'button', button: { payload: 'wedding_rsvp_attending', text: 'מגיע/ה' } } })
+    expect(r).toMatchObject({ replied: false, reason: 'recipient-not-allowed' })
+    expect(h.sendText).not.toHaveBeenCalled()
+  })
+})
+
 describe('getWeddingRsvpChoice', () => {
   it('maps only our two button ids', () => {
     expect(getWeddingRsvpChoice(tap('wedding_rsvp_attending'))).toBe('attending')
     expect(getWeddingRsvpChoice(tap('wedding_rsvp_not_attending'))).toBe('not_attending')
   })
+  it('maps the wedding_rsvp TEMPLATE quick replies (our payloads, or the labels when sent without payloads)', () => {
+    expect(getWeddingRsvpChoice({ type: 'button', button: { payload: 'wedding_rsvp_attending', text: 'מגיע/ה' } })).toBe('attending')
+    expect(getWeddingRsvpChoice({ type: 'button', button: { payload: 'wedding_rsvp_not_attending', text: 'לצערי לא' } })).toBe('not_attending')
+    expect(getWeddingRsvpChoice({ type: 'button', button: { payload: 'מגיע/ה', text: 'מגיע/ה' } })).toBe('attending')
+    expect(getWeddingRsvpChoice({ type: 'button', button: { payload: 'לצערי לא', text: 'לצערי לא' } })).toBe('not_attending')
+  })
   it('ignores everything else', () => {
     expect(getWeddingRsvpChoice(tap('some_other_button'))).toBeNull()
     expect(getWeddingRsvpChoice({ type: 'text', text: { body: 'wedding_rsvp_attending' } })).toBeNull()
-    expect(getWeddingRsvpChoice({ type: 'button', button: { payload: 'wedding_rsvp_attending' } })).toBeNull()
+    expect(getWeddingRsvpChoice({ type: 'button', button: { payload: 'some_other_payload', text: 'x' } })).toBeNull()
+    expect(getWeddingRsvpChoice({ type: 'button', button: { text: 'מגיע/ה' } })).toBeNull() // no payload → not ours
     expect(getWeddingRsvpChoice({ type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: 'wedding_rsvp_attending' } } })).toBeNull()
     expect(getWeddingRsvpChoice(null)).toBeNull()
   })

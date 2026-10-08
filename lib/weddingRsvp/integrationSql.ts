@@ -9,3 +9,14 @@ export const waSql = (a: string) => `(CASE WHEN regexp_replace(${a}."customerWaI
 export const INVITE_TEXT_SQL = (m: string) => `(${m}.metadata->>'kind' = 'wedding_invite'
   OR regexp_replace(${m}.text || ${m}.payload::text || COALESCE(${m}."rawPayload"::text, ''), '[^א-ת]', '', 'g') LIKE '%להזמינכםלחגוג%'
   OR (${m}.payload::text || COALESCE(${m}."rawPayload"::text, '')) ILIKE '%happy and excited to invite you%')`
+
+/**
+ * SQL: the wedding RSVP choice of an inbound message aliased `m`, normalized to our
+ * button ids. Free-form taps carry button_reply.id; template quick replies carry
+ * button.payload (our id — or the visible label when sent without payloads).
+ */
+export const RSVP_CHOICE_SQL = `(CASE
+  WHEN m.type = 'interactive' THEN m.payload->'button_reply'->>'id'
+  WHEN m.type = 'button' AND m.payload->>'payload' IN ('wedding_rsvp_attending', 'מגיע/ה') THEN 'wedding_rsvp_attending'
+  WHEN m.type = 'button' AND m.payload->>'payload' IN ('wedding_rsvp_not_attending', 'לצערי לא') THEN 'wedding_rsvp_not_attending'
+END)`

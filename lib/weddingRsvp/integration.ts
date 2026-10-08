@@ -4,7 +4,7 @@ import { getQuotaStatus } from '@/lib/quota'
 import { WEDDING_AGENCY_ID, WEDDING_RSVP_ATTENDING, WEDDING_RSVP_NOT_ATTENDING } from '@/lib/weddingRsvp/config'
 import { sendWeddingInvite } from '@/lib/weddingRsvp/invite'
 import type { CreateInviteLead } from '@/lib/weddingRsvp/inviteRecipient'
-import { waSql } from '@/lib/weddingRsvp/integrationSql'
+import { RSVP_CHOICE_SQL, waSql } from '@/lib/weddingRsvp/integrationSql'
 
 /**
  * The Wedding Manager integration — the SocialCRM side of the contract in
@@ -25,7 +25,7 @@ const MAX_ITEMS = 200
 // Acting user
 // ---------------------------------------------------------------------------
 
-async function integrationUserId(): Promise<number | null> {
+export async function integrationUserId(): Promise<number | null> {
   const id = Number(process.env.WEDDING_INTEGRATION_USER_ID)
   if (!Number.isInteger(id) || id <= 0) return null
   const row = await db('users').where({ id, agencyId: WEDDING_AGENCY_ID }).first('id')
@@ -33,7 +33,7 @@ async function integrationUserId(): Promise<number | null> {
 }
 
 /** No session here: the signed integration creates Leads through the system path. */
-const createLeadForIntegration: CreateInviteLead = async (input) => {
+export const createLeadForIntegration: CreateInviteLead = async (input) => {
   const quota = await getQuotaStatus(input.agencyId)
   const overQuota = quota.plan === 'free' && quota.limit !== null && quota.used >= quota.limit
   const lead = await insertLeadSystem({
@@ -182,10 +182,12 @@ async function rsvpForPhones(phones: string[]) {
     .join('inbox_conversations as c', 'c.id', 'm.conversationId')
     .where('m.agencyId', WEDDING_AGENCY_ID)
     .andWhere('m.direction', 'inbound')
-    .andWhere('m.type', 'interactive')
-    .whereRaw(`m.payload->'button_reply'->>'id' IN (?, ?)`, [WEDDING_RSVP_ATTENDING, WEDDING_RSVP_NOT_ATTENDING])
+    // Free-form buttons arrive as `interactive` (button_reply.id); template quick
+    // replies as `button` (payload = our id, or the label if sent without payloads).
+    .whereIn('m.type', ['interactive', 'button'])
+    .whereRaw(`${RSVP_CHOICE_SQL} IN (?, ?)`, [WEDDING_RSVP_ATTENDING, WEDDING_RSVP_NOT_ATTENDING])
     .whereRaw(`${waSql('c')} = ANY(?)`, [phones])
-    .select(db.raw(`${waSql('c')} AS phone`), db.raw(`m.payload->'button_reply'->>'id' AS choice`), 'm.createdAt')
+    .select(db.raw(`${waSql('c')} AS phone`), db.raw(`${RSVP_CHOICE_SQL} AS choice`), 'm.createdAt')
     .orderBy('m.createdAt', 'asc')
   const thanks = await db('inbox_messages as m')
     .join('inbox_conversations as c', 'c.id', 'm.conversationId')

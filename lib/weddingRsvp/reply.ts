@@ -1,13 +1,14 @@
 import { resolveWhatsappOutboundTargetForConversation } from '@/lib/inbox/whatsappOutboundTarget'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
-import { WEDDING_RSVP_SOURCE, isAllowedRecipient } from '@/lib/weddingRsvp/config'
+import { WEDDING_RSVP_SOURCE } from '@/lib/weddingRsvp/config'
+import { followUpAllowed } from '@/lib/weddingRsvp/followUpAccess'
 
 export type ReplyOutcome = { replied: true } | { replied: false; reason: string }
 
 /**
  * One automatic follow-up text in an existing conversation: resolve the target,
- * enforce the allowlist, SEND, persist only on a wamid with metadata.source
+ * enforce followUpAllowed (allowlist, or a template RSVP request here), SEND, persist only on a wamid with metadata.source
  * 'wedding_rsvp' (so it never reads as a human reply).
  */
 export async function replyInConversation(args: {
@@ -22,7 +23,7 @@ export async function replyInConversation(args: {
   const resolved = await resolveWhatsappOutboundTargetForConversation(args.agencyId, args.leadId, args.conversationId)
   if (resolved.ok === false) return { replied: false, reason: resolved.reason }
   const { target } = resolved
-  if (!isAllowedRecipient(target.customerWaId)) return { replied: false, reason: 'recipient-not-allowed' }
+  if (!(await followUpAllowed(target.customerWaId, args.conversationId))) return { replied: false, reason: 'recipient-not-allowed' }
 
   const sent = await sendWhatsappText({
     phoneNumberId: target.businessPhoneNumberId,

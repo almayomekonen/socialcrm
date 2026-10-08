@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyIntegrationRequest } from '@/lib/weddingRsvp/integrationAuth'
 import { invitationStatuses, parseStatusQuery } from '@/lib/weddingRsvp/integration'
+import { parseRsvpRequestQuery, rsvpRequestStatuses } from '@/lib/weddingRsvp/integrationRsvp'
 
 /**
  * Wedding Manager → SocialCRM: current delivery status (+ RSVP) for up to 200
@@ -14,5 +15,7 @@ export async function POST(req: NextRequest) {
   const query = parseStatusQuery(auth.body)
   if (!query) return NextResponse.json({ error: 'invalid-input' }, { status: 400 })
 
-  return NextResponse.json(await invitationStatuses(query))
+  // rsvpRequests is optional: older callers that do not send it get the same response as before (+ an empty list).
+  const [statuses, rsvpRequests] = await Promise.all([invitationStatuses(query), rsvpRequestStatuses(parseRsvpRequestQuery(auth.body))])
+  return NextResponse.json({ ...statuses, rsvpRequests })
 }

@@ -162,7 +162,7 @@ export async function handleInboundWebhookMessage(args: {
 
     // TEMPORARY wedding RSVP hook (lib/weddingRsvp). Returns at once unless the
     // message is a tap on its buttons or a head-count answer; never throws.
-    if (result.inserted && (message.type === 'interactive' || message.type === 'text')) {
+    if (result.inserted && (message.type === 'interactive' || message.type === 'button' || message.type === 'text')) {
       await routeWeddingRsvpReply({
         agencyId,
         conversationId: result.conversationId,

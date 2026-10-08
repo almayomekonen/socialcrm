@@ -1,4 +1,5 @@
-import { REPLY_ATTENDING, REPLY_NOT_ATTENDING, REPLY_THANKS, isAllowedRecipient } from '@/lib/weddingRsvp/config'
+import { REPLY_ATTENDING, REPLY_NOT_ATTENDING, REPLY_THANKS } from '@/lib/weddingRsvp/config'
+import { followUpAllowed } from '@/lib/weddingRsvp/followUpAccess'
 import { getWeddingRsvpChoice, type WeddingRsvpChoice } from '@/lib/weddingRsvp/choice'
 import { isHeadCountAnswer, parseHeadCount } from '@/lib/weddingRsvp/headCount'
 import { findLatestOutbound, withConversationLock } from '@/lib/weddingRsvp/history'
@@ -10,12 +11,12 @@ export type WeddingRsvpRouteResult =
   | { handled: true; headCount: number; replied: boolean; reason?: string }
 
 /**
- * Webhook hook. Called for every NEWLY inserted inbound `interactive` or `text`
+ * Webhook hook. Called for every NEWLY inserted inbound `interactive`, `button` or `text`
  * message (a webhook retry is never "newly inserted", so it never re-enters).
  * Returns `{ handled: false }` for everything that is not part of the RSVP flow:
  *
  *   tap 'מגיע/ה'      → REPLY_ATTENDING (head-count question)
- *   tap 'לא מגיע/ה'   → REPLY_NOT_ATTENDING
+ *   tap 'לא מגיע/ה' / template 'לצערי לא' → REPLY_NOT_ATTENDING
  *   number, while the head-count question is still the latest outbound → REPLY_THANKS, once
  *
  * The inbound itself is already stored by the normal ingest. Never throws.
@@ -42,7 +43,7 @@ export async function routeWeddingRsvpReply(args: {
   // Cheap, DB-free filters first: every text message in the product passes here.
   const headCount = parseHeadCount(args.rawMessage)
   if (headCount == null) return { handled: false }
-  if (!isAllowedRecipient((args.rawMessage as { from?: string }).from)) return { handled: false }
+  if (!(await followUpAllowed((args.rawMessage as { from?: string }).from, args.conversationId))) return { handled: false }
 
   try {
     return await withConversationLock(args.conversationId, async () => {
