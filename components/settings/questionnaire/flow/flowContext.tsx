@@ -32,6 +32,8 @@ export type FlowEditor = {
   /** A box that was just created and should take the cursor; cleared once it has. */
   focusRequest: string | null
   focusDone: () => void
+  /** After a deletion: put the cursor on this box's "עריכה" (or on "+ הוספת שאלה" for 'add'). */
+  returnFocusTo: (nodeId: string) => void
   /** Switch to the Conversation view (for what the canvas does not edit). */
   openConversation: () => void
 }

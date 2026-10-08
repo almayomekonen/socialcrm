@@ -6,6 +6,7 @@ import { simulateQuestionnaireDraft } from '@/actions/questionnaire/builderPubli
 import { explainKept, explainReason, explainRecognized } from '@/lib/inbox/autoresponse/questionnaire/builder/explainText'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import type { SimulatedTurn } from '@/lib/inbox/autoresponse/questionnaire/builder/simulate'
+import { useRefocusAfterTurn } from '@/hooks/useRefocusAfterTurn'
 import ChatBubble from './ChatBubble'
 import TeachPhrase from './TeachPhrase'
 import type { PhraseSuggestion } from '@/lib/inbox/autoresponse/questionnaire/builder/phraseSuggestion'
@@ -56,6 +57,10 @@ export default function QuestionnaireSimulator({
   const [summary, setSummary] = useState<{ title: string; fields: Array<{ label: string; value: string }> } | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const restartRef = useRef<HTMLButtonElement>(null)
+  const sectionRef = useRef<HTMLElement>(null)
+  const completed = useRef(false)
+  const refocus = useRefocusAfterTurn(sectionRef, inputRef, restartRef)
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
@@ -80,6 +85,7 @@ export default function QuestionnaireSimulator({
       setTurns(res.turns)
       setStatus(res.status === 'completed' ? 'השאלון הסתיים. כך הנציג יקבל את הסיכום:' : null)
       setSummary(res.status === 'completed' ? res.summary : null)
+      completed.current = res.status === 'completed'
       return true
     } catch {
       setError('הבדיקה לא הצליחה. נסו שוב.')
@@ -99,6 +105,7 @@ export default function QuestionnaireSimulator({
     if (!text || pending) return
     setNotice(null)
     if (await run([...sent, text])) setInput('')
+    refocus(completed.current)
   }
 
   /**
@@ -110,6 +117,8 @@ export default function QuestionnaireSimulator({
     onTeach(s)
     setNotice(`נוסף לניסוחים של "${s.optionLabel}". השיחה נבדקה שוב עם הניסוח החדש.`)
     await run(sent)
+    // The note (and its button) is gone once the phrase is understood.
+    refocus(completed.current)
   }
 
   const restart = () => {
@@ -119,17 +128,18 @@ export default function QuestionnaireSimulator({
     setSummary(null)
     setError(null)
     setNotice(null)
+    completed.current = false
     inputRef.current?.focus()
   }
 
   return (
-    <section aria-labelledby={`${id}-title`} className='flex flex-col gap-3'>
+    <section ref={sectionRef} aria-labelledby={`${id}-title`} className='flex flex-col gap-3'>
       <div className='flex flex-wrap items-baseline justify-between gap-2'>
         <h2 id={`${id}-title`} className='text-base font-semibold text-ink'>
           בדיקת השאלון
         </h2>
         <div className='flex items-center gap-3.5'>
-          <button type='button' onClick={restart} className='text-sm text-gray-600 underline underline-offset-2'>
+          <button ref={restartRef} type='button' onClick={restart} className='text-sm text-gray-600 underline underline-offset-2'>
             שיחה חדשה
           </button>
           {onClose && (
@@ -222,7 +232,11 @@ export default function QuestionnaireSimulator({
               void send()
             }
           }}
-          disabled={pending}
+          // Read-only, not disabled, while a turn is checked: a disabled field
+          // drops the cursor to the page, and the owner would have to find
+          // the box again after every reply.
+          readOnly={pending}
+          aria-busy={pending}
           placeholder='כתבו כאן כמו לקוח…'
           className='min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:outline-2 focus:outline-offset-0 focus:outline-primary'
         />

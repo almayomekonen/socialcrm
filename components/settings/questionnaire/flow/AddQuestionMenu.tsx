@@ -23,7 +23,12 @@ export default function AddQuestionMenu({ onAdd, disabledReason }: { onAdd: (kin
   useEffect(() => {
     if (!open) return
     const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false)
+      if (e instanceof KeyboardEvent) {
+        if (e.key !== 'Escape') return
+        // Dismissed from the keyboard: back to the button that opened the menu.
+        setOpen(false)
+        ref.current?.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')?.focus()
+      } else if (!ref.current?.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', close)
     document.addEventListener('keydown', close)
