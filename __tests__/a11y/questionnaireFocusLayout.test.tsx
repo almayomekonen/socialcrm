@@ -22,12 +22,12 @@ import FlowWorkspace from '@/components/settings/questionnaire/flow/FlowWorkspac
 import QuestionnaireSimulator from '@/components/settings/questionnaire/QuestionnaireSimulator'
 import PhrasingsEditor from '@/components/settings/questionnaire/PhrasingsEditor'
 import { focusAfterRemoval, ADD_QUESTION } from '@/components/settings/questionnaire/flow/removalFocus'
-import { layoutFlow } from '@/components/settings/questionnaire/flow/flowLayout'
+import { DEFAULT_SIZE, edgeRoutes, layoutFlow, type RoutedEdge } from '@/components/settings/questionnaire/flow/flowLayout'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
 import { simulateConversation } from '@/lib/inbox/autoresponse/questionnaire/builder/simulate'
 import { previewDefinition, deriveEditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import { toBuilder } from '@/lib/inbox/autoresponse/questionnaire/builder/convert'
-import { addFollowUp, keyOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addFollowUp, keyOf, optionsOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 
 beforeAll(() => {
@@ -339,6 +339,65 @@ describe('3. a follow-up sits next to the question that asks it', () => {
       const before = JSON.stringify(buildFlow(m))
       layout(m)
       expect(JSON.stringify(buildFlow(m))).toBe(before)
+    }
+  })
+})
+
+describe('4. arrows never draw over each other', () => {
+  // The same inputs FlowCanvas gives edgeRoutes: measured boxes (default size
+  // here), the side an answer's arrow leaves from, and the answers' order.
+  function routed(m: BuilderQuestionnaire) {
+    const g = buildFlow(m)
+    const ids = [OPENING, ...g.questions, ENDINGS]
+    const pos = layoutFlow(ids, g.edges, {})
+    const box = (id: string) => ({ top: pos[id].y, bottom: pos[id].y + DEFAULT_SIZE.height })
+    const centre = (id: string) => pos[id].x + DEFAULT_SIZE.width / 2
+    const edges: RoutedEdge[] = g.edges.map((e) => (e.option ? { ...e, side: centre(e.target) > centre(e.source) ? 'r' : 'l' } : e))
+    const order = (source: string, option: string) =>
+      optionsOf(m.questions.find((q) => keyOf(q) === source)!).findIndex((o) => keyOf(o) === option)
+    return { g, edges, box, routes: edgeRoutes(edges, box, order) }
+  }
+  // Where an arrow runs sideways in the gap above its target (React Flow smoothstep geometry).
+  const sideways = (r: ReturnType<typeof routed>, id: string) => {
+    const e = r.edges.find((x) => x.id === id)!
+    const { offset, stepPosition } = r.routes[id]
+    if (e.option) return r.box(e.target).top - offset
+    const from = r.box(e.source).bottom + offset
+    const to = r.box(e.target).top - offset
+    return from + (to - from) * (stepPosition ?? 0.5)
+  }
+
+  it("agency 103: the continue arrow and the 'help' answer's arrow turn in clearly separate bands (were 12px apart)", () => {
+    const r = routed(support())
+    const gray = 'q_kind->q_field'
+    const blue = r.edges.find((e) => e.option === 'o_help')!.id
+    expect(r.edges.find((e) => e.id === gray)).toBeTruthy()
+    // React Flow's defaults (offset 20, turn halfway) put them (gap - 40) / 2 apart: 12px for a 64px gap.
+    const gap = r.box(r.edges.find((e) => e.id === blue)!.target).top - r.box('q_kind').bottom
+    expect((gap - 40) / 2).toBeLessThan(16)
+    expect(Math.abs(sideways(r, gray) - sideways(r, blue))).toBeGreaterThanOrEqual(30)
+  })
+
+  it('answers leaving the same side of a question get their own lanes, the upper answer outermost', () => {
+    const r = routed(pp())
+    const groups = new Map<string, Array<{ id: string; option: string }>>()
+    for (const e of r.edges) if (e.option) groups.set(`${e.source}|${e.side}`, [...(groups.get(`${e.source}|${e.side}`) ?? []), { id: e.id, option: e.option }])
+    const shared = [...groups.values()].filter((g) => g.length > 1)
+    expect(shared.length).toBeGreaterThan(0)
+    for (const group of shared) {
+      const offsets = group.map((e) => r.routes[e.id].offset)
+      expect(new Set(offsets).size).toBe(group.length)
+      const byOrder = [...group].sort((a, b) => optionsOf(pp().questions[0]).findIndex((o) => keyOf(o) === a.option) - optionsOf(pp().questions[0]).findIndex((o) => keyOf(o) === b.option))
+      expect(r.routes[byOrder[0].id].offset).toBeGreaterThan(r.routes[byOrder[byOrder.length - 1].id].offset)
+    }
+  })
+
+  it('routing only bends arrows: every edge keeps its source and target, and nothing else is added', () => {
+    for (const m of [support(), pp()]) {
+      const r = routed(m)
+      expect(Object.keys(r.routes).sort()).toEqual(r.g.edges.map((e) => e.id).sort())
+      for (const route of Object.values(r.routes)) expect(Object.keys(route).every((k) => k === 'offset' || k === 'stepPosition')).toBe(true)
+      expect(JSON.stringify(buildFlow(m))).toBe(JSON.stringify(r.g))
     }
   })
 })
