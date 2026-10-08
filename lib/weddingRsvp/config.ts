@@ -28,6 +28,25 @@ export const RSVP_INTERACTIVE = {
   action: { buttons: RSVP_BUTTONS.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.title } })) },
 }
 
+/**
+ * The approved Meta template `wedding_rsvp` (id 1007491119041456, Hebrew, MARKETING,
+ * APPROVED): static body, two QUICK_REPLY buttons. A template, so — unlike the
+ * free-form RSVP above — it needs no open 24-hour window. Sent ONLY through the
+ * signed Wedding Manager integration. Our button ids go out as the quick-reply
+ * payloads, so a tap comes back as `type: 'button'` carrying the same ids the
+ * free-form buttons use; the labels are the template's own.
+ */
+export const RSVP_TEMPLATE_NAME = 'wedding_rsvp'
+export const RSVP_TEMPLATE_LANGUAGE = 'he'
+export const RSVP_TEMPLATE_BUTTON_LABELS = ['מגיע/ה', 'לצערי לא'] as const
+export const RSVP_TEMPLATE_PAYLOADS = [WEDDING_RSVP_ATTENDING, WEDDING_RSVP_NOT_ATTENDING] as const
+export const RSVP_TEMPLATE_BODY =
+  'אורחים, משפחה וחברים יקרים ❤️\nתזכורת לקראת החתונה של פסיקה ואלמיהו שתתקיים ביום רביעי, 18.11.2026 💍🎉\nאנחנו מתרגשים ומתקרבים ליום הגדול ונשמח לקבל את אישור הגעתכם.\nלחצו על אחד הכפתורים למטה לאישור הגעה 👇\nמחכים לחגוג איתכם ❤️\nפסיקה ואלמיהו'
+export const RSVP_TEMPLATE_STORED_TEXT = `${RSVP_TEMPLATE_BODY}\n\n${RSVP_TEMPLATE_BUTTON_LABELS.map((b) => `[${b}]`).join(' ')}`
+/** metadata.kind of a persisted template RSVP request (the marker every check reads). */
+export const RSVP_REQUEST_KIND = 'wedding_rsvp_request'
+export const WEDDING_RSVP_REQUEST_LOCK_NAMESPACE = 20261120
+
 export const REPLY_ATTENDING = 'מעולה ❤️ כמה אנשים תגיעו בסך הכול?'
 export const REPLY_NOT_ATTENDING = 'תודה שעדכנת ❤️'
 export const REPLY_THANKS = 'תודה רבה ❤️ נתראה בחתונה!'

@@ -12,11 +12,13 @@ const h = vi.hoisted(() => ({
   sendText: vi.fn(),
   findLatestOutbound: vi.fn(),
   withConversationLock: vi.fn(),
+  hasRsvpRequest: vi.fn(async () => false),
 }))
 
 vi.mock('@/lib/inbox/whatsappOutboundTarget', () => ({ resolveWhatsappOutboundTargetForConversation: h.resolveTarget }))
 vi.mock('@/lib/inbox/persistOutboundWhatsapp', () => ({ persistOutboundWhatsapp: h.persist }))
 vi.mock('@/lib/whatsapp/sendMessage', () => ({ sendWhatsappText: h.sendText }))
+vi.mock('@/lib/weddingRsvp/rsvpRequestData', () => ({ conversationHasRsvpRequest: h.hasRsvpRequest }))
 vi.mock('@/lib/weddingRsvp/history', () => ({
   findLatestOutbound: h.findLatestOutbound,
   withConversationLock: h.withConversationLock,
@@ -116,6 +118,18 @@ describe('routeWeddingRsvpReply — head count', () => {
     expect(r).toEqual({ handled: true, headCount: 2, replied: true })
     expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: PSIKA, body: REPLY_THANKS }))
     expect(h.persist).toHaveBeenCalledWith(expect.objectContaining({ metadata: { step: 'thanks', headCount: 2, source: WEDDING_RSVP_SOURCE } }))
+  })
+
+  it('a template-asked guest (not allowlisted) answering the head-count question gets the thank-you', async () => {
+    const GUEST = '972545550099'
+    h.hasRsvpRequest.mockResolvedValueOnce(true).mockResolvedValueOnce(true)
+    h.resolveTarget.mockResolvedValue({
+      ok: true,
+      target: { leadId: 77, leadName: 'G', businessPhoneNumberId: 'PN_1', accessToken: 'tok', wabaId: null, customerWaId: GUEST, customerName: 'G' },
+    })
+    const r = await routeWeddingRsvpReply({ ...base, rawMessage: text('3', GUEST) })
+    expect(r).toEqual({ handled: true, headCount: 3, replied: true })
+    expect(h.sendText).toHaveBeenCalledWith(expect.objectContaining({ to: GUEST, body: REPLY_THANKS }))
   })
 
   it('a non-allowlisted number answering with a head count gets nothing', async () => {

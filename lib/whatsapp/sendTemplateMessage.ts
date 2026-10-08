@@ -32,19 +32,32 @@ export type SendWhatsappTemplateArgs = {
    * which case the payload is exactly what it was before this field existed.
    */
   headerImage?: TemplateHeaderImage
+  /**
+   * Payloads for a template's QUICK_REPLY buttons, in button order. Meta echoes the
+   * payload back on the inbound `type: 'button'` message, so the receiver can tell
+   * which button was tapped without relying on the visible label. Omitted for
+   * every other template (payload unchanged).
+   */
+  quickReplyPayloads?: string[]
   trace?: WaTraceCtx
 }
 
 export type TemplateHeaderImage = { link: string } | { id: string }
 
 export async function sendWhatsappTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsappTextResult> {
-  const { phoneNumberId, accessToken, to, name, language, params, headerImage } = args
+  const { phoneNumberId, accessToken, to, name, language, params, headerImage, quickReplyPayloads } = args
   // Same normalization as the text path — the number reaching Meta must be E.164.
   const recipient = toIsraeliWhatsappRecipient(to)
   // Meta's component order: header before body.
   const components = [
     ...(headerImage ? [{ type: 'header', parameters: [{ type: 'image', image: headerImage }] }] : []),
     ...(params.length > 0 ? [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text })) }] : []),
+    ...(quickReplyPayloads ?? []).map((payload, index) => ({
+      type: 'button',
+      sub_type: 'quick_reply',
+      index: String(index),
+      parameters: [{ type: 'payload', payload }],
+    })),
   ]
 
   waTrace('WHATSAPP_SEND_REQUEST', args.trace ?? {}, {

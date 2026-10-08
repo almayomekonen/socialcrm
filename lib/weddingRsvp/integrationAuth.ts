@@ -57,3 +57,11 @@ export function verifyIntegrationRequest(
 export function integrationSendEnabled(): boolean {
   return process.env.WEDDING_INTEGRATION_SEND_ENABLED === 'true'
 }
+
+/**
+ * The template-RSVP send (send-rsvp-request) has its OWN switch, independent of
+ * invitations: WEDDING_INTEGRATION_RSVP_SEND_ENABLED=true. Off by default.
+ */
+export function integrationRsvpSendEnabled(): boolean {
+  return process.env.WEDDING_INTEGRATION_RSVP_SEND_ENABLED === 'true'
+}
