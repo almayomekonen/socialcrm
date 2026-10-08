@@ -61,6 +61,16 @@ function identify(m: BuilderQuestionnaire): IdentifiedQuestionnaire {
 
 const send = (text: string) => finalizeCustomerFacingText(text)
 
+/**
+ * The unsaved draft as the runtime definition it would be saved as (unsaved
+ * entities under their ref). Null only mid-edit, when the converter refuses it.
+ * Shared by the preview and the flow map, so both read the same thing.
+ */
+export function previewDefinition(model: BuilderQuestionnaire): QuestionnaireDefinition | null {
+  const converted = toDefinition(identify(normalizeCustomerText(model)), 1)
+  return converted.ok ? converted.definition : null
+}
+
 export function deriveEditorView(model: BuilderQuestionnaire): EditorView {
   const identified = identify(normalizeCustomerText(model))
   const converted = toDefinition(identified, 1)

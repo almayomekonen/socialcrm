@@ -1,18 +1,26 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { useQuestionnaireDraft } from '@/hooks/useQuestionnaireDraft'
 import { useQuestionnaireRelease } from '@/hooks/useQuestionnaireRelease'
 import { deriveEditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
+import { keyOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { DraftState } from '@/lib/inbox/autoresponse/questionnaire/builder/draftState'
 import BuilderHeader, { type LiveRouting } from './BuilderHeader'
 import { isAnswering, publishConfirmText, type ConfirmRequest } from './builderCopy'
 import BuilderAlerts from './BuilderAlerts'
-import EditorColumn from './EditorColumn'
-import QuestionnaireSimulator from './QuestionnaireSimulator'
+import { focusCard } from './focusCard'
+import ConversationWorkspace from './ConversationWorkspace'
+import type { FlowPanel } from './flow/FlowWorkspace'
 import RevisionHistory from './RevisionHistory'
-import WhatsAppPreview, { type PreviewFocus } from './WhatsAppPreview'
+
+// The canvas library loads only when the Flow view is opened.
+const FlowWorkspace = dynamic(() => import('./flow/FlowWorkspace'), {
+  ssr: false,
+  loading: () => <p className='text-sm text-gray-500'>טוען את מפת השאלון…</p>,
+})
 
 /**
  * The Questionnaire Builder: the conversation on the right, what WhatsApp will
@@ -24,15 +32,27 @@ export default function QuestionnaireBuilder({
   initialDraft,
   liveRevision: initialLive,
   routing,
+  flowEnabled = false,
 }: {
   initialDraft: DraftState | null
   liveRevision: number | null
   routing: LiveRouting
+  /** The Flow view (QUESTIONNAIRE_FLOW_EDITOR=1); absent, only the Conversation (list) view exists. */
+  flowEnabled?: boolean
 }) {
   const draft = useQuestionnaireDraft(initialDraft)
   const release = useQuestionnaireRelease(draft, initialLive)
   const [panel, setPanel] = useState<'preview' | 'test'>('preview')
-  const [focus, setFocus] = useState<PreviewFocus>(null)
+  const [mode, setMode] = useState<'flow' | 'conversation'>(flowEnabled ? 'flow' : 'conversation')
+  const [flowPanel, setFlowPanel] = useState<FlowPanel>('none')
+  // The question being worked on in the map, by render key (it survives a save
+  // giving the question its server id): the list opens on it, under its key of the moment.
+  const [flowSelection, setFlowSelection] = useState<string | null>(null)
+  const switchTo = (next: 'flow' | 'conversation') => {
+    setMode(next)
+    const selected = draft.model?.questions.find((q) => reactKey(q) === flowSelection)
+    if (next === 'conversation' && selected) setTimeout(() => focusCard(keyOf(selected)), 50)
+  }
   const [historyOpen, setHistoryOpen] = useState(false)
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -43,13 +63,18 @@ export default function QuestionnaireBuilder({
   const [revealLatched, setRevealLatched] = useState(false)
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set())
   const touch = (part: string) => setTouched((t) => (t.has(part) ? t : new Set([...t, part])))
-  const [previewOpen, setPreviewOpen] = useState(false)
   const blocked = release.state.kind === 'blocked'
   useEffect(() => {
     if (blocked) setRevealLatched(true)
   }, [blocked])
   // Same render as the refusal: the problems list and the marked cards appear together.
   const revealAll = revealLatched || blocked
+  // Flow boxes read problems by part: a question key, or 'opening' / 'endings' (questionnaire-wide ones).
+  const issuesFor = (part: string) =>
+    !view || !(revealAll || touched.has(part)) ? [] : part === 'opening' || part === 'endings' ? (view.issues[''] ?? []) : (view.issues[part] ?? [])
+  const testing = mode === 'flow' ? flowPanel === 'test' : panel === 'test'
+  const toggleTest = () =>
+    mode === 'flow' ? setFlowPanel((p) => (p === 'test' ? 'none' : 'test')) : setPanel((p) => (p === 'test' ? 'preview' : 'test'))
 
   const restore = (revision: number) =>
     setConfirmRequest({
@@ -58,6 +83,7 @@ export default function QuestionnaireBuilder({
       run: () => {
         setHistoryOpen(false)
         setPanel('preview')
+        setFlowPanel('none')
         void release.restore(revision)
       },
     })
@@ -70,8 +96,10 @@ export default function QuestionnaireBuilder({
         routing={routing}
         saveStatus={draft.saveStatus}
         canEdit={canEdit}
-        testing={panel === 'test'}
-        onTest={() => setPanel((p) => (p === 'test' ? 'preview' : 'test'))}
+        testing={testing}
+        onTest={toggleTest}
+        onPreview={mode === 'flow' ? () => setFlowPanel((p) => (p === 'preview' ? 'none' : 'preview')) : undefined}
+        previewing={mode === 'flow' && flowPanel === 'preview'}
         onHistory={() => setHistoryOpen(true)}
         onPublish={() => void release.requestPublish()}
         publishBusy={rs.kind === 'checking' || rs.kind === 'publishing'}
@@ -95,50 +123,64 @@ export default function QuestionnaireBuilder({
           <p className='rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 desktop:hidden'>
             עריכת השאלון זמינה במסך רחב, במחשב. כאן אפשר לבדוק את השאלון ולראות את מצבו.
           </p>
-          {/* One simulator and one preview, placed by the layout. From 1200px the
-              preview sits beside the editor; 1000-1199px gives the editor the
-              full width and folds the preview behind a button; below 1000px the
-              editor is not offered (desk work), the test conversation is. */}
-          <div className='grid gap-6 min-[1200px]:grid-cols-[minmax(0,1fr)_clamp(300px,34%,400px)]'>
-            <EditorColumn
+          {flowEnabled && (
+            <div role='tablist' aria-label='תצוגת העריכה' className='hidden w-fit rounded-lg border border-gray-200 bg-white p-1 desktop:flex'>
+              {(
+                [
+                  ['flow', 'תרשים'],
+                  ['conversation', 'רשימה'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type='button'
+                  role='tab'
+                  aria-selected={mode === value}
+                  onClick={() => switchTo(value)}
+                  className={`rounded-md px-4 py-1.5 text-sm ${mode === value ? 'bg-solid text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {mode === 'flow' ? (
+            <div>
+              <FlowWorkspace
+                model={model}
+                view={view}
+                edit={edit}
+                confirm={setConfirmRequest}
+                announce={setAnnouncement}
+                issuesFor={issuesFor}
+                leave={touch}
+                panel={flowPanel}
+                setPanel={setFlowPanel}
+                draftId={draft.meta?.draftId ?? null}
+                flush={draft.flush}
+                onNotReady={() => setRevealLatched(true)}
+                openConversation={() => switchTo('conversation')}
+                onSelectQuestion={setFlowSelection}
+              />
+            </div>
+          ) : (
+            <ConversationWorkspace
               model={model}
               view={view}
               edit={edit}
               canEdit={canEdit}
               revealAll={revealAll}
               touched={touched}
-              onLeave={touch}
-              onFocus={setFocus}
+              touch={touch}
               confirm={setConfirmRequest}
               announce={setAnnouncement}
+              testing={panel === 'test'}
+              stopTesting={() => setPanel('preview')}
+              draftId={draft.meta?.draftId ?? null}
+              flush={draft.flush}
+              onNotReady={() => setRevealLatched(true)}
             />
-
-            <aside className='order-first min-w-0 self-start min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:order-none'>
-              {panel === 'test' && draft.meta ? (
-                <QuestionnaireSimulator
-                  model={model}
-                  target={{ draftId: draft.meta.draftId }}
-                  prepare={draft.flush}
-                  onClose={() => setPanel('preview')}
-                  autoFocus
-                />
-              ) : (
-                <div className='hidden desktop:block'>
-                  <button
-                    type='button'
-                    aria-expanded={previewOpen}
-                    onClick={() => setPreviewOpen((o) => !o)}
-                    className='mb-3 text-sm font-medium text-ink underline underline-offset-2 min-[1200px]:hidden'
-                  >
-                    {previewOpen ? 'הסתרת מה הלקוח יקבל' : 'מה הלקוח יקבל? הצגת ההודעות'}
-                  </button>
-                  <div className={previewOpen ? '' : 'hidden min-[1200px]:block'}>
-                    <WhatsAppPreview model={model} view={view} focus={focus} />
-                  </div>
-                </div>
-              )}
-            </aside>
-          </div>
+          )}
         </>
       )}
 

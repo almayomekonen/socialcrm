@@ -7,6 +7,8 @@ import { explainKept, explainReason, explainRecognized } from '@/lib/inbox/autor
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import type { SimulatedTurn } from '@/lib/inbox/autoresponse/questionnaire/builder/simulate'
 import ChatBubble from './ChatBubble'
+import TeachPhrase from './TeachPhrase'
+import type { PhraseSuggestion } from '@/lib/inbox/autoresponse/questionnaire/builder/phraseSuggestion'
 import { SIMULATE_COPY } from './builderCopy'
 
 /**
@@ -28,6 +30,8 @@ export default function QuestionnaireSimulator({
   prepare,
   onClose,
   autoFocus = false,
+  onNotReady,
+  onTeach,
 }: {
   model: BuilderQuestionnaire
   target: { draftId: number } | { revision: number }
@@ -36,6 +40,10 @@ export default function QuestionnaireSimulator({
   onClose?: () => void
   /** The editor opens it on request, so the cursor goes straight to the message box. */
   autoFocus?: boolean
+  /** The draft cannot be tested yet: the editor should show what to fix. */
+  onNotReady?: () => void
+  /** Editing a draft: offer to teach a phrase the test did not recognise (owner-only, outside the chat). */
+  onTeach?: (s: PhraseSuggestion) => void
 }) {
   const id = useId()
   const [sent, setSent] = useState<string[]>([])
@@ -44,6 +52,7 @@ export default function QuestionnaireSimulator({
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [summary, setSummary] = useState<{ title: string; fields: Array<{ label: string; value: string }> } | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -52,29 +61,29 @@ export default function QuestionnaireSimulator({
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
-  async function send() {
-    const text = input.trim()
-    if (!text || pending) return
+  /** Run (or re-run) the whole conversation so far through the real simulator. */
+  async function run(messages: string[]): Promise<boolean> {
     setError(null)
     setPending(true)
     try {
       if (prepare && !(await prepare())) {
         setError('לא הצלחנו לשמור את השינויים האחרונים, ולכן הבדיקה לא רצה.')
-        return
+        return false
       }
-      const next = [...sent, text]
-      const res = await simulateQuestionnaireDraft({ ...target, turns: next.map((m) => [m]) })
+      const res = await simulateQuestionnaireDraft({ ...target, turns: messages.map((m) => [m]) })
       if (res.ok === false) {
+        if (res.reason === 'not_ready') onNotReady?.()
         setError(SIMULATE_COPY[res.reason] ?? 'הבדיקה לא הצליחה. נסו שוב.')
-        return
+        return false
       }
-      setSent(next)
+      setSent(messages)
       setTurns(res.turns)
-      setInput('')
       setStatus(res.status === 'completed' ? 'השאלון הסתיים. כך הנציג יקבל את הסיכום:' : null)
       setSummary(res.status === 'completed' ? res.summary : null)
+      return true
     } catch {
       setError('הבדיקה לא הצליחה. נסו שוב.')
+      return false
     } finally {
       setPending(false)
       try {
@@ -85,12 +94,31 @@ export default function QuestionnaireSimulator({
     }
   }
 
+  async function send() {
+    const text = input.trim()
+    if (!text || pending) return
+    setNotice(null)
+    if (await run([...sent, text])) setInput('')
+  }
+
+  /**
+   * The owner taught a phrase: the same conversation is run again at once, so
+   * they see it continue down the right route instead of resending anything.
+   */
+  async function teach(s: PhraseSuggestion) {
+    if (!onTeach) return
+    onTeach(s)
+    setNotice(`נוסף לניסוחים של "${s.optionLabel}". השיחה נבדקה שוב עם הניסוח החדש.`)
+    await run(sent)
+  }
+
   const restart = () => {
     setSent([])
     setTurns([])
     setStatus(null)
     setSummary(null)
     setError(null)
+    setNotice(null)
     inputRef.current?.focus()
   }
 
@@ -133,6 +161,7 @@ export default function QuestionnaireSimulator({
               <ChatBubble key={`r${n}`} from='business' text={r} label='תשובת השאלון' />
             ))}
             {turn.replies.length === 0 && <p className='self-end text-xs text-gray-500'>השאלון לא שלח הודעה בתור הזה.</p>}
+            {onTeach && <TeachPhrase model={model} turn={turn} onTeach={(t) => void teach(t)} />}
             <details className='self-end max-w-[88%] text-xs text-gray-600'>
               <summary className='cursor-pointer underline-offset-2 hover:underline'>למה המערכת בחרה בזה?</summary>
               <div className='mt-1 grid gap-1 rounded-md border border-gray-200 bg-white p-2'>
@@ -147,6 +176,11 @@ export default function QuestionnaireSimulator({
             </details>
           </div>
         ))}
+        {notice && (
+          <p role='status' className='rounded-md bg-indigo-50 px-3 py-2 text-xs text-indigo-950'>
+            {notice}
+          </p>
+        )}
         {status && <p className='mt-2 text-center text-xs text-gray-600'>{status}</p>}
         {summary && (
           <div className='rounded-md border border-gray-200 bg-white p-3 text-sm'>

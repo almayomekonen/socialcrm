@@ -63,5 +63,16 @@ export default async function QuestionnaireBuilderPage() {
     )
   }
 
-  return <QuestionnaireBuilder initialDraft={state.draft} liveRevision={state.published?.revision ?? null} routing={routing} />
+  // The Flow view (תרשים / רשימה) is behind its own switch; unset, only the list
+  // view exists. Shared Builder improvements (icon chooser, phrase teaching in
+  // the test chat) apply to the list view either way.
+  const flowEnabled = process.env.QUESTIONNAIRE_FLOW_EDITOR === '1'
+  return (
+    <QuestionnaireBuilder
+      initialDraft={state.draft}
+      liveRevision={state.published?.revision ?? null}
+      routing={routing}
+      flowEnabled={flowEnabled}
+    />
+  )
 }

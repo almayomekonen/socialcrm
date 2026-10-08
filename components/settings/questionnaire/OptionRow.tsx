@@ -5,6 +5,7 @@ import type { BuilderOption } from '@/lib/inbox/autoresponse/questionnaire/build
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import LimitedButton from './LimitedButton'
 import PhrasingsEditor from './PhrasingsEditor'
+import IconChooser from './IconChooser'
 
 /**
  * One answer option, on one line: its number as WhatsApp shows it, its name,
@@ -66,17 +67,8 @@ export default function OptionRow({
           onChange={(phrasings) => onChange({ phrasings })}
         />
       </div>
-      <div>
-        <label htmlFor={`${id}-icon`} className='sr-only'>
-          אייקון לאפשרות {number} (רשות)
-        </label>
-        <input
-          id={`${id}-icon`}
-          value={option.icon ?? ''}
-          maxLength={8}
-          onChange={(e) => onChange({ icon: e.target.value })}
-          className='h-9 w-full rounded-md border border-gray-200 bg-white px-1 text-center text-sm focus:outline-2 focus:outline-primary'
-        />
+      <div className='flex justify-center'>
+        <IconChooser icon={option.icon} answerName={name} onChange={(icon) => onChange({ icon: icon ?? '' })} />
       </div>
       <LimitedButton
         size='icon'

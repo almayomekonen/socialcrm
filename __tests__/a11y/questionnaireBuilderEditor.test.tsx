@@ -217,7 +217,9 @@ describe('editing a question', () => {
     mount(start(emptyQuestionnaire('סלון דנה')))
     fireEvent.change(within(card(1)).getByLabelText('נוסח השאלה'), { target: { value: 'איזה טיפול?' } })
     fireEvent.change(within(card(1)).getByLabelText('שם האפשרות 1'), { target: { value: 'חתונה' } })
-    fireEvent.change(within(card(1)).getByLabelText('אייקון לאפשרות 1 (רשות)'), { target: { value: '💍' } })
+    // The icon is chosen from a small palette, not typed into a bare box.
+    fireEvent.click(within(card(1)).getByRole('button', { name: /^הוספת אייקון לתשובה חתונה$/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'בחירת האייקון 💍' }))
     expect(within(preview()).getByText(/איזה טיפול\?/).textContent).toContain('1. חתונה 💍')
   })
 
@@ -349,7 +351,7 @@ describe('real questionnaires load as they are', () => {
     expect(screen.getAllByRole('article')).toHaveLength(10)
     const c1 = card(1)
     expect((within(c1).getByLabelText('אפשר ללקוח לבחור "אחר"') as HTMLInputElement).checked).toBe(true)
-    expect((within(c1).getByLabelText('אייקון לאפשרות 1 (רשות)') as HTMLInputElement).value).toBe('💍')
+    expect(within(c1).getByRole('button', { name: 'אייקון לתשובה חתונה: 💍. שינוי' })).toBeTruthy()
     const phrasings = within(c1).getAllByText('איך עוד לקוחות עשויים לכתוב את זה?', { exact: false })[0].closest('details')!
     expect(phrasings.open).toBe(false)
     expect(phrasings.textContent).toContain('(6)')
@@ -496,7 +498,8 @@ describe('accessibility', () => {
         expect(named, `${role} without a name: ${el.outerHTML.slice(0, 120)}`).toBeTruthy()
       }
     }
-    const chrome = [...document.querySelectorAll('h1,h2,h3,h4,legend,label,button,summary')]
+    // An answer's chosen icon (the owner's content) is shown on its icon button; that is not chrome.
+    const chrome = [...document.querySelectorAll('h1,h2,h3,h4,legend,label,button:not([aria-label^="אייקון לתשובה"]),summary')]
       .map((e) => e.textContent ?? '')
       .join(' ')
     // Option labels quoted in names are user content; strip quoted text before checking.
@@ -572,3 +575,47 @@ function optionsOf(def: QuestionnaireDefinition) {
   const step = def.steps[0]
   return step.type === 'choice' ? step.options : []
 }
+
+describe('Flow and List edit one draft (QUESTIONNAIRE_FLOW_EDITOR)', () => {
+  // React Flow measures boxes in the browser; jsdom is given sizes (see questionnaireFlow.test.tsx).
+  const saved_ = { RO: globalThis.ResizeObserver, DM: (globalThis as Record<string, unknown>).DOMMatrixReadOnly }
+  beforeEach(() => {
+    globalThis.ResizeObserver = class {
+      constructor(private cb: (entries: Array<{ target: Element }>) => void) {}
+      observe(target: Element) {
+        this.cb([{ target, contentRect: { width: 1200, height: 800 } } as never])
+      }
+      unobserve() {}
+      disconnect() {}
+    } as never
+    ;(globalThis as Record<string, unknown>).DOMMatrixReadOnly = class {
+      m22 = 1
+    }
+  })
+  afterEach(() => {
+    globalThis.ResizeObserver = saved_.RO
+    ;(globalThis as Record<string, unknown>).DOMMatrixReadOnly = saved_.DM
+  })
+
+  it('flag off: no view tabs and no map, only the list (the canvas code is never loaded)', async () => {
+    mount(start(emptyQuestionnaire('סלון')))
+    await act(async () => {})
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'הוספת שאלה לפני הסיום' })).toBeNull()
+    expect(screen.queryByText('טוען את מפת השאלון…')).toBeNull()
+    expect(card(1)).toBeTruthy()
+  })
+
+  it('the question selected in the map is the one the list opens on, even after its save assigned a server id', async () => {
+    render(<QuestionnaireBuilder initialDraft={start(emptyQuestionnaire('סלון'))} liveRevision={null} routing={ROUTED} flowEnabled />)
+    fireEvent.click(await screen.findByRole('button', { name: 'הוספת שאלה לפני הסיום' }, { timeout: 3000 }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /תשובה חופשית/ }))
+    await act(async () => {})
+    fireEvent.change(screen.getByLabelText('מה נשאל את הלקוח'), { target: { value: 'מתי האירוע?' } })
+    await saved()
+    expect(S.server.def.steps[1].id).toMatch(/^q_/)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'רשימה' }))
+    await waitFor(() => expect(card(2).contains(document.activeElement)).toBe(true))
+  })
+})

@@ -13,6 +13,8 @@ export default function BuilderHeader({
   saveStatus,
   onTest,
   testing,
+  onPreview,
+  previewing = false,
   onHistory,
   onPublish,
   publishBusy,
@@ -23,6 +25,9 @@ export default function BuilderHeader({
   saveStatus: SaveStatus
   onTest: () => void
   testing: boolean
+  /** Flow view only: "how will this look to the customer?" opens the production preview. */
+  onPreview?: () => void
+  previewing?: boolean
   onHistory: () => void
   onPublish: () => void
   publishBusy: boolean
@@ -40,6 +45,9 @@ export default function BuilderHeader({
         </p>
       </div>
       <div className='flex flex-wrap items-center gap-2'>
+        {onPreview && (
+          <Btn type='button' variant='outline' icon='eye' lbl='איך זה ייראה ללקוח?' onClick={onPreview} aria-pressed={previewing} />
+        )}
         <Btn
           type='button'
           variant='outline'

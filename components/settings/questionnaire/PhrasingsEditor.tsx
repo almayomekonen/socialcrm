@@ -15,10 +15,13 @@ export default function PhrasingsEditor({
   phrasings,
   onChange,
   optionLabel,
+  summaryLabel,
 }: {
   phrasings: string[]
   onChange: (next: string[]) => void
   optionLabel: string
+  /** The toggle's words; default is the Conversation view's question. */
+  summaryLabel?: string
 }) {
   const id = useId()
   const [text, setText] = useState('')
@@ -34,7 +37,7 @@ export default function PhrasingsEditor({
   return (
     <details className='group'>
       <summary className='cursor-pointer text-xs text-gray-600 underline-offset-2 hover:underline'>
-        איך עוד לקוחות עשויים לכתוב את זה?
+        {summaryLabel ?? 'איך עוד לקוחות עשויים לכתוב את זה?'}
         {phrasings.length > 0 && <span className='text-gray-500'> ({phrasings.length})</span>}
       </summary>
       <div className='mt-2 grid gap-2 ps-1'>

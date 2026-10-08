@@ -35,3 +35,12 @@ export function describeCondition(m: BuilderQuestionnaire, condition: Condition 
   if (!labels.length) return `בשאלה "${questionName(source)}" עוד לא נבחרה תשובה`
   return `הלקוח בחר ${joinOr(labels)} בשאלה "${questionName(source)}"`
 }
+
+/** The short form for a box that says who it is for: "אם הלקוח בחר חתונה או חינה". */
+export function chosenSentence(m: BuilderQuestionnaire, condition: Condition | null): string | null {
+  if (!condition) return null
+  const source = m.questions.find((q) => keyOf(q) === condition.questionId)
+  if (!source) return null
+  const labels = condition.anyOf.map((k) => optionsOf(source).find((o) => keyOf(o) === k)?.label.trim() || 'תשובה שנמחקה')
+  return labels.length ? `אם הלקוח בחר ${joinOr(labels)}` : null
+}
