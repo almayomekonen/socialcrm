@@ -23,6 +23,7 @@ import QuestionNode from './QuestionNode'
 import { FlowEditorContext, type FlowEditor } from './flowContext'
 import { DEFAULT_SIZE, edgeRoutes, layoutFlow, type Size } from './flowLayout'
 import { ADD_QUESTION } from './removalFocus'
+import { useKeepOpenBoxInView } from './keepOpenBoxInView'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
 const MAX_QUESTIONS = 12
@@ -143,6 +144,9 @@ function Canvas({ selectedKey, ...editor }: Props) {
       void flow.setViewport({ x, y: 24 - bounds.y * zoom, zoom })
     }
   }, [allMeasured, fitted, flow])
+
+  // A box opened for editing stays on screen (a just-created box is revealed by the effect after this).
+  useKeepOpenBoxInView(selectedKey, pendingReveal, (id) => (layout[id] && sizes[id] ? { ...layout[id], ...sizes[id] } : null))
 
   // A box just created is brought into view once it exists and is measured.
   useEffect(() => {

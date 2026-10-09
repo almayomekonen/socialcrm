@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { useState } from 'react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 
 const SIM = vi.hoisted(() => ({ simulate: vi.fn() }))
@@ -22,6 +22,7 @@ import FlowWorkspace from '@/components/settings/questionnaire/flow/FlowWorkspac
 import QuestionnaireSimulator from '@/components/settings/questionnaire/QuestionnaireSimulator'
 import PhrasingsEditor from '@/components/settings/questionnaire/PhrasingsEditor'
 import { focusAfterRemoval, ADD_QUESTION } from '@/components/settings/questionnaire/flow/removalFocus'
+import { panToShow } from '@/components/settings/questionnaire/flow/keepOpenBoxInView'
 import { DEFAULT_SIZE, edgeRoutes, layoutFlow, type RoutedEdge } from '@/components/settings/questionnaire/flow/flowLayout'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
 import { simulateConversation } from '@/lib/inbox/autoresponse/questionnaire/builder/simulate'
@@ -399,5 +400,71 @@ describe('4. arrows never draw over each other', () => {
       for (const route of Object.values(r.routes)) expect(Object.keys(route).every((k) => k === 'offset' || k === 'stepPosition')).toBe(true)
       expect(JSON.stringify(buildFlow(m))).toBe(JSON.stringify(r.g))
     }
+  })
+})
+
+describe('5. a box opened for editing stays on screen (F1)', () => {
+  const view = { width: 1000, height: 600 }
+  const at = { x: 0, y: 0, zoom: 1 }
+
+  it('panToShow: the smallest pan that shows the box, or nothing when it already shows', () => {
+    // Opened low: its bottom is past the canvas, so the map moves up just enough (24px margin).
+    expect(panToShow({ x: 100, y: 450, width: 300, height: 400 }, at, view)).toEqual({ x: 0, y: -274, zoom: 1 })
+    // Above the canvas: moves down.
+    expect(panToShow({ x: 100, y: -100, width: 300, height: 200 }, at, view)).toEqual({ x: 0, y: 124, zoom: 1 })
+    // Already fully visible: the map stays where it is.
+    expect(panToShow({ x: 100, y: 100, width: 300, height: 200 }, at, view)).toBeNull()
+    // Taller than the canvas: shown from its top, where the question is.
+    expect(panToShow({ x: 100, y: 500, width: 300, height: 900 }, at, view)).toEqual({ x: 0, y: -476, zoom: 1 })
+    // Off to the side: moves sideways only, at the same zoom.
+    expect(panToShow({ x: 1100, y: 100, width: 300, height: 200 }, { x: 0, y: 0, zoom: 0.8 }, view)).toEqual({ x: -144, y: 0, zoom: 0.8 })
+  })
+
+  const viewport = () => {
+    const m = (document.querySelector('.react-flow__viewport') as HTMLElement).style.transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(([\d.]+)\)/)!
+    return { x: +m[1], y: +m[2], zoom: +m[3] }
+  }
+  const nodeIdOf = (n: number) => (editButton(n).closest('.react-flow__node') as HTMLElement).getAttribute('data-id')!
+  const boxTop = (id: string) => {
+    const node = [...document.querySelectorAll<HTMLElement>('.react-flow__node')].find((x) => x.getAttribute('data-id') === id)!
+    const y = +node.style.transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/)![2]
+    const v = viewport()
+    return y * v.zoom + v.y
+  }
+  const canvasHeight = () => (document.querySelector('.react-flow') as HTMLElement).offsetHeight
+  // Reduced motion: the pan is applied at once (the animated pan makes the same move over 200ms).
+  const reducedMotion = (query: string) => ({ matches: query.includes('reduce'), media: query, addEventListener() {}, removeEventListener() {} })
+  const realMatchMedia = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = reducedMotion as never
+  })
+  afterEach(() => {
+    window.matchMedia = realMatchMedia
+  })
+
+  it('opening a box low on the map brings it into view (it used to open below the canvas edge)', async () => {
+    render(<Harness initial={pp()} />)
+    await frames()
+    const id = nodeIdOf(10)
+    expect(boxTop(id)).toBeGreaterThan(canvasHeight())
+    await act(async () => fireEvent.click(editButton(10)))
+    await act(async () => new Promise((r) => setTimeout(r, 700)))
+    const top = boxTop(id)
+    expect(top).toBeGreaterThanOrEqual(0)
+    expect(top).toBeLessThan(canvasHeight())
+  })
+
+  it('opening a box that is already fully on screen does not move the map', async () => {
+    render(<Harness initial={pp()} />)
+    await frames()
+    // Open question 10 once (the map brings it into view), close it, open it again.
+    await act(async () => fireEvent.click(editButton(10)))
+    await act(async () => new Promise((r) => setTimeout(r, 700)))
+    await act(async () => fireEvent.click(document.querySelector('.react-flow__pane') as HTMLElement))
+    await frames()
+    const before = viewport()
+    await act(async () => fireEvent.click(editButton(10)))
+    await act(async () => new Promise((r) => setTimeout(r, 700)))
+    expect(viewport()).toEqual(before)
   })
 })
