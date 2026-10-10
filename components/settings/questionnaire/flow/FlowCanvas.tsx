@@ -15,8 +15,9 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
-import { addQuestion, keyOf, newRef, optionsOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addQuestion, keyOf, newRef, optionsOf, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import AddQuestionMenu from './AddQuestionMenu'
+import FlowEmptyState from './FlowEmptyState'
 import EndingsNode from './EndingsNode'
 import OpeningNode from './OpeningNode'
 import QuestionNode from './QuestionNode'
@@ -199,6 +200,14 @@ function Canvas({ selectedKey, ...editor }: Props) {
     },
   }
   const full = model.questions.length >= MAX_QUESTIONS
+  // One way to add a question, from "+ הוספת שאלה לפני הסיום" or the empty state's "הוספת השאלה הראשונה".
+  const addAtEnd = (kind: NewQuestionKind) => {
+    const ref = newRef()
+    edit((m) => addQuestion(m, kind, ref))
+    announce('נוספה שאלה חדשה לפני הסיום')
+    select(ref)
+    reveal(ref)
+  }
 
   return (
     <FlowEditorContext.Provider value={context}>
@@ -233,20 +242,17 @@ function Canvas({ selectedKey, ...editor }: Props) {
         >
           <Background gap={24} size={1} />
           <Controls showInteractive={false} position='bottom-right' />
-          <Panel position='top-right'>
-            <div dir='rtl' className='flex items-center gap-2'>
-              <AddQuestionMenu
-                disabledReason={full ? 'אפשר עד 12 שאלות בשאלון.' : null}
-                onAdd={(kind) => {
-                  const ref = newRef()
-                  edit((m) => addQuestion(m, kind, ref))
-                  announce('נוספה שאלה חדשה לפני הסיום')
-                  select(ref)
-                  reveal(ref)
-                }}
-              />
-            </div>
-          </Panel>
+          {model.questions.length === 0 ? (
+            <Panel position='bottom-center'>
+              <FlowEmptyState onAdd={addAtEnd} />
+            </Panel>
+          ) : (
+            <Panel position='top-right'>
+              <div dir='rtl' className='flex items-center gap-2'>
+                <AddQuestionMenu disabledReason={full ? 'אפשר עד 12 שאלות בשאלון.' : null} onAdd={addAtEnd} />
+              </div>
+            </Panel>
+          )}
         </ReactFlow>
       </div>
     </FlowEditorContext.Provider>
