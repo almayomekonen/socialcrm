@@ -128,9 +128,17 @@ async function persistOne(
        * returns `{ body }`, and persisting that would both duplicate the message
        * body into a second column and change what every existing outbound text
        * row looks like — a change this fix has no reason to make.
+       *
+       * A reaction keeps its `{ message_id, emoji }` too: without it the
+       * owner's reaction is stored as a reaction to nothing, and the thread
+       * cannot say which message it was or what the emoji was.
        */
       type: echo.type,
-      payload: ATTACHMENT_MEDIA_TYPES.has(echo.type) ? echo.payload : {},
+      payload: ATTACHMENT_MEDIA_TYPES.has(echo.type) || echo.type === 'reaction' ? echo.payload : {},
+      // The message the owner quoted, for the thread's quote strip. An echo is
+      // stored without a raw payload, so this is the only place it survives.
+      // New rows only; nothing is backfilled.
+      ...(echo.replyToExternalId ? { metadata: { replyTo: { id: echo.replyToExternalId } } } : {}),
       // NULL: no SocialCRM user sent this. The column is how the IRE tells
       // "any outbound" from "a person replied through the product", and naming
       // an arbitrary user here would be a lie about who acted.

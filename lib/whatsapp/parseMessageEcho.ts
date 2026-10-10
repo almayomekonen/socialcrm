@@ -34,6 +34,13 @@ export type ParsedMessageEcho = ParsedWhatsappMessage & {
   customerWaId: string
   /** The business's own number as Meta reported it. Provenance only. */
   businessWaId: string | null
+  /**
+   * The message this echo replies to (`context.id`), when the owner quoted one
+   * in the WhatsApp Business app. Carried exactly as Meta sent it: never
+   * decoded or normalized. A context without an `id` (a forwarded marker) is
+   * not a reply.
+   */
+  replyToExternalId: string | null
 }
 
 /** A non-empty string, or null. */
@@ -61,7 +68,11 @@ export function parseMessageEcho(raw: unknown): ParsedMessageEcho | null {
   // rather than inserted and duplicated on the next delivery.
   if (!parsed.externalId) return null
 
-  return { ...parsed, customerWaId, businessWaId: str(echo.from) }
+  const context = echo.context
+  const replyToExternalId =
+    typeof context === 'object' && context !== null && !Array.isArray(context) ? str((context as Record<string, unknown>).id) : null
+
+  return { ...parsed, customerWaId, businessWaId: str(echo.from), replyToExternalId }
 }
 
 /**
