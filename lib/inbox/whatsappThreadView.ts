@@ -76,7 +76,9 @@ export function quotePreview(target: LeadWhatsappMessage): string {
 
 function reactionKey(m: LeadWhatsappMessage): string {
   const r = m.reaction
-  const target = r?.targetId != null ? `id:${r.targetId}` : r?.targetRef ? `ref:${r.targetRef}` : `row:${m.id}`
+  // The ref first: every reaction to the same message has the same ref, whether or not that
+  // message was in the table when the row was read; `targetId` can differ between reads.
+  const target = r?.targetRef ? `ref:${r.targetRef}` : r?.targetId != null ? `id:${r.targetId}` : `row:${m.id}`
   return `${m.direction}|${target}`
 }
 

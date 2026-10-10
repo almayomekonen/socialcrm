@@ -45,6 +45,18 @@ describe('reactions', () => {
     expect(kinds([reaction(2, '👍', { ref: 'x' }), reaction(3, null, { ref: 'x' })])).toEqual([])
   })
 
+  it('a reaction read before its message arrived and a later one to the same message are one reaction, not two', () => {
+    // First paint: the customer's 👍 is read while its message is not yet in the table
+    // (targetId null). A later sync brings the message and the customer's change to ❤️,
+    // now resolved (targetId set). Both carry the same opaque ref, so ❤️ replaces 👍.
+    const list = [reaction(2, '👍', { id: null, ref: 'same' }), msg(5), reaction(3, '❤️', { id: 5, ref: 'same' })]
+    expect(kinds(list)).toEqual(['m5'])
+    expect(on(list, 5)).toEqual([{ emoji: '❤️', byBusiness: false }])
+    // And a later removal, resolved either way, removes it.
+    expect(kinds([...list, reaction(4, null, { id: 5, ref: 'same' })])).toEqual(['m5'])
+    expect(on([...list, reaction(4, null, { id: 5, ref: 'same' })], 5)).toEqual([])
+  })
+
   it('the customer and the business each keep their own reaction on a message', () => {
     expect(on([msg(1), reaction(2, '👍', { id: 1 }), reaction(3, '🙏', { id: 1 }, { direction: 'outbound' })], 1)).toEqual([
       { emoji: '👍', byBusiness: false },
