@@ -619,3 +619,148 @@ describe('Flow and List edit one draft (flowEnabled)', () => {
     await waitFor(() => expect(card(2).contains(document.activeElement)).toBe(true))
   })
 })
+
+// ── The 12-question limit, on every way of adding one ────────────────────────
+//
+// A follow-up and "אחר" add a question too. Before, they skipped the limit:
+// the editor held a 13th question, the save refused it, and every later edit
+// failed to save with a generic message. Now they stop at 12 like "הוספת
+// שאלה" does, say why, and leave the draft (and the save) alone.
+
+describe('12 questions: every way of adding one stops and says why; nothing is saved', () => {
+  const LIMIT = 'אפשר עד 12 שאלות בשאלון.'
+  /** A choice question, then text questions: `count` in all. */
+  const sized = (count: number, labels = ['תספורת', 'צבע']): QuestionnaireDefinition => {
+    const parsed = parseQuestionnaireDefinition({
+      schemaVersion: 1, revision: 1, language: 'he', welcome: 'היי', closing: 'תודה', handoff: 'נציג', summaryTitle: 'סיכום',
+      expireAfterHours: 24, maxInvalidAttempts: 2,
+      steps: [
+        { id: 'q_kind', type: 'choice', label: 'סוג', prompt: 'במה נוכל לעזור?', options: labels.map((label, i) => ({ id: `o_${i}`, label })) },
+        ...Array.from({ length: count - 1 }, (_, i) => ({ id: `q_${i + 2}`, type: 'text', label: `שאלה ${i + 2}`, prompt: `שאלה ${i + 2}?`, validate: 'meaningful' })),
+      ],
+    })
+    if (parsed.ok === false) throw new Error(parsed.errors.join(', '))
+    return parsed.definition
+  }
+  const questionCards = () => screen.queryAllByRole('article', { name: /^שאלה \d+/ })
+  const describedBy = (el: HTMLElement) => document.getElementById(el.getAttribute('aria-describedby') ?? '')
+  /** Past the autosave delay: no save was attempted, and no save failure is shown. */
+  const nothingSaved = async () => {
+    await act(async () => new Promise((r) => setTimeout(r, 1000)))
+    expect(S.calls.filter((c) => c.startsWith('save'))).toEqual([])
+    expect(screen.queryByText(/השמירה נכשלה/)).toBeNull()
+  }
+
+  describe('List', () => {
+    it('"הוספת שאלה" at 12: unavailable, says why when used, adds nothing', async () => {
+      mount(start(sized(12)))
+      const add = screen.getByRole('button', { name: 'הוספת שאלה' })
+      expect(add.getAttribute('aria-disabled')).toBe('true')
+      fireEvent.click(add)
+      expect(describedBy(add)?.textContent).toBe(LIMIT)
+      expect(describedBy(add)?.className).not.toContain('sr-only')
+      expect(questionCards()).toHaveLength(12)
+      await nothingSaved()
+    })
+
+    it('"אחר" at 12: the switch is unavailable and says why (it brings a follow-up question)', async () => {
+      mount(start(sized(12)))
+      const other = within(card(1)).getByLabelText('אפשר ללקוח לבחור "אחר"') as HTMLInputElement
+      expect(other.disabled).toBe(true)
+      expect(describedBy(other)?.textContent).toBe(`${LIMIT} "אחר" מוסיף שאלת המשך.`)
+      fireEvent.click(other)
+      expect(within(card(1)).queryByDisplayValue('אחר')).toBeNull()
+      expect(questionCards()).toHaveLength(12)
+      await nothingSaved()
+    })
+
+    it('"הוספת שאלת המשך" for an existing "אחר" at 12: says why, adds nothing', async () => {
+      mount(start(sized(12, ['תספורת', 'צבע', 'אחר'])))
+      const link = within(card(1)).getByRole('button', { name: 'הוספת שאלת המשך' })
+      expect(link.getAttribute('aria-disabled')).toBe('true')
+      fireEvent.click(link)
+      expect(describedBy(link)?.textContent).toBe(LIMIT)
+      expect(describedBy(link)?.className).not.toContain('sr-only')
+      expect(questionCards()).toHaveLength(12)
+      await nothingSaved()
+    })
+
+    it('at 11, "אחר" adds its follow-up as the 12th question, it saves, and then adding is closed', async () => {
+      mount(start(sized(11)))
+      fireEvent.click(within(card(1)).getByLabelText('אפשר ללקוח לבחור "אחר"'))
+      expect(questionCards()).toHaveLength(12)
+      await saved()
+      expect(S.server.def.steps).toHaveLength(12)
+      expect(S.server.def.steps[1].when?.step).toBe('q_kind')
+      expect(screen.queryByText(/השמירה נכשלה/)).toBeNull()
+      expect(screen.getByRole('button', { name: 'הוספת שאלה' }).getAttribute('aria-disabled')).toBe('true')
+    })
+  })
+
+  describe('Flow (flowEnabled)', () => {
+    const saved_ = { RO: globalThis.ResizeObserver, DM: (globalThis as Record<string, unknown>).DOMMatrixReadOnly }
+    const sizes = ['offsetWidth', 'offsetHeight'].map((k) => [k, Object.getOwnPropertyDescriptor(HTMLElement.prototype, k)] as const)
+    beforeEach(() => {
+      // React Flow shows a box only once it has a size; jsdom measures nothing.
+      Object.defineProperties(HTMLElement.prototype, {
+        offsetWidth: { configurable: true, get: () => 300 },
+        offsetHeight: { configurable: true, get: () => 200 },
+      })
+      globalThis.ResizeObserver = class {
+        constructor(private cb: (entries: Array<{ target: Element }>) => void) {}
+        observe(target: Element) {
+          this.cb([{ target, contentRect: { width: 1200, height: 800 } } as never])
+        }
+        unobserve() {}
+        disconnect() {}
+      } as never
+      ;(globalThis as Record<string, unknown>).DOMMatrixReadOnly = class {
+        m22 = 1
+      }
+    })
+    afterEach(() => {
+      globalThis.ResizeObserver = saved_.RO
+      ;(globalThis as Record<string, unknown>).DOMMatrixReadOnly = saved_.DM
+      for (const [k, d] of sizes) if (d) Object.defineProperty(HTMLElement.prototype, k, d)
+    })
+    const openFirstBox = async (def: QuestionnaireDefinition) => {
+      render(<QuestionnaireBuilder initialDraft={start(def)} liveRevision={null} routing={ROUTED} flowEnabled />)
+      fireEvent.click(await screen.findByRole('button', { name: /^עריכת שאלה 1:/ }, { timeout: 3000 }))
+      await act(async () => {})
+    }
+    const followUpButtons = () => screen.getAllByRole('button', { name: '+ שאלת המשך אם בוחרים בזה' })
+    const boxes = () => document.querySelectorAll('.react-flow__node-question').length
+
+    it('at 12: "+ שאלת המשך", "אחר" and "+ הוספת שאלה לפני הסיום" all say why and add nothing', async () => {
+      await openFirstBox(sized(12))
+      const follow = followUpButtons()[0]
+      expect(follow.getAttribute('aria-disabled')).toBe('true')
+      fireEvent.click(follow)
+      expect(describedBy(follow)?.textContent).toBe(LIMIT)
+      expect(describedBy(follow)?.className).not.toContain('sr-only')
+
+      const other = screen.getByLabelText('אפשר לבחור "אחר"') as HTMLInputElement
+      expect(other.disabled).toBe(true)
+      expect(describedBy(other)?.textContent).toBe(`${LIMIT} "אחר" מוסיף שאלת המשך.`)
+
+      expect(screen.getByRole('button', { name: 'הוספת שאלה לפני הסיום' }).getAttribute('aria-disabled')).toBe('true')
+      expect(screen.queryAllByRole('button', { name: /^הוספת שאלה אחרי / })).toHaveLength(0)
+      expect(boxes()).toBe(12)
+      await nothingSaved()
+    })
+
+    it('at 11: "+ שאלת המשך" adds the 12th question, it saves, and the next one is closed', async () => {
+      await openFirstBox(sized(11))
+      fireEvent.click(followUpButtons()[0])
+      await act(async () => {})
+      expect(boxes()).toBe(12)
+      await saved()
+      expect(S.server.def.steps).toHaveLength(12)
+      expect(S.server.def.steps[1].when).toEqual({ step: 'q_kind', anyOf: ['o_0'] })
+      expect(screen.queryByText(/השמירה נכשלה/)).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: /^עריכת שאלה 1:/ }))
+      await act(async () => {})
+      expect(followUpButtons().every((b) => b.getAttribute('aria-disabled') === 'true')).toBe(true)
+    })
+  })
+})

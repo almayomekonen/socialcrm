@@ -7,8 +7,6 @@ import {
   addOption,
   conditionOf,
   dependentsOf,
-  disableOther,
-  enableOther,
   keyOf,
   moveQuestion,
   reactKey,
@@ -20,6 +18,7 @@ import {
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import { answerTypeOf, cardIssueText, consequenceText, type AnswerType } from '../builderCopy'
 import FlowOptionRow from './FlowOptionRow'
+import FlowOtherToggle from './FlowOtherToggle'
 import FlowTextAnswer from './FlowTextAnswer'
 import QuestionSummary from './QuestionSummary'
 import { useFlowEditor } from './flowContext'
@@ -194,27 +193,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
                 + הוספת תשובה
               </button>
             )}
-            <label className='flex items-center gap-1.5 text-xs text-gray-700'>
-              <input
-                type='checkbox'
-                className='size-4 accent-solid'
-                checked={other !== null}
-                disabled={!other && options.length >= 10}
-                onChange={(e) =>
-                  e.target.checked
-                    ? edit((m) => enableOther(m, key))
-                    : other?.followUp
-                      ? confirm({
-                          msg: `להסיר את "${other.option.label}"?\nגם שאלת ההמשך שלה תימחק.`,
-                          confirmLbl: `הסרת "${other.option.label}"`,
-                          destructive: true,
-                          run: () => edit((m) => disableOther(m, key)),
-                        })
-                      : edit((m) => disableOther(m, key))
-                }
-              />
-              אפשר לבחור "אחר"
-            </label>
+            <FlowOtherToggle questionKey={key} optionCount={options.length} />
           </div>
           {other?.followUp && (
             <p className='rounded-md bg-gray-50 px-2 py-1.5 text-xs text-gray-700'>
