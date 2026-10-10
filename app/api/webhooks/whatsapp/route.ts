@@ -6,6 +6,7 @@ import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
 import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatus'
 import { isCoexistenceWebhookField, processCoexistenceWebhook } from '@/lib/whatsapp/coexistence'
 import { db } from '@/config/db'
+import { track } from '@/lib/analytics/track'
 
 export const maxDuration = 60
 
@@ -174,6 +175,21 @@ export async function POST(req: NextRequest) {
       const from = message.from as string | undefined
       if (!messageId || !from) {
         console.warn('[WhatsappWebhook] Missing required fields — ignoring one message')
+        // Observability for the sender WhatsApp may stop identifying by phone
+        // once users adopt usernames (`from` omitted, `from_user_id` present).
+        // Privacy-safe: no content, no phone, no user id, no message id.
+        if (!from) {
+          await track({
+            agencyId: Number(connection.agency_id),
+            event: 'whatsapp_sender_unresolved',
+            props: {
+              reason: 'missing_from',
+              hasUserId: typeof message.from_user_id === 'string' && message.from_user_id.length > 0,
+              hasMessageId: Boolean(messageId),
+              messageType: typeof message.type === 'string' ? message.type.slice(0, 32) : null,
+            },
+          })
+        }
         continue
       }
       console.log(

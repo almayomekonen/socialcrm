@@ -4,6 +4,7 @@ import { findOrCreateConversation, bumpConversationOnOutbound } from '@/db/inbox
 import { ensureParticipant } from '@/db/inboxParticipants'
 import { ATTACHMENT_MEDIA_TYPES, insertOutboundMessage } from '@/db/inboxMessages'
 import { parseMessageEchoes, echoPhoneNumberId, type ParsedMessageEcho } from '@/lib/whatsapp/parseMessageEcho'
+import { recordConversationCustomerUserId } from '@/lib/inbox/customerUserId'
 
 /**
  * Persist WhatsApp Coexistence message echoes — the business's own outbound
@@ -214,6 +215,17 @@ export async function ingestWhatsappEchoes(value: unknown): Promise<IngestEchoRe
       const outcome = await persistOne(agencyId, phoneNumberId, echo)
       if (outcome === 'persisted') result.persisted += 1
       else result.duplicates += 1
+      // The customer's business-scoped user id, next to the phone-keyed
+      // conversation the echo just used (lib/inbox/customerUserId.ts). After the
+      // transaction, best-effort: it never costs the echo and changes no routing.
+      if (echo.customerUserId) {
+        await recordConversationCustomerUserId({
+          agencyId,
+          businessPhoneNumberId: phoneNumberId,
+          customerWaId: echo.customerWaId,
+          customerUserId: echo.customerUserId,
+        })
+      }
     } catch (err) {
       result.errored += 1
       console.error('[WhatsappEcho] persist failed', { phoneNumberId, err: String(err) })
