@@ -15,6 +15,7 @@ import type { BuilderOption } from '@/lib/inbox/autoresponse/questionnaire/build
 import PhrasingsEditor from '../PhrasingsEditor'
 import IconChooser from '../IconChooser'
 import { consequenceText } from '../builderCopy'
+import OptionLabelLimit, { optionLabelDescribedBy, useOptionLabelInput } from '../OptionLabelLimit'
 import { useFlowEditor } from './flowContext'
 
 /**
@@ -40,6 +41,9 @@ export default function FlowOptionRow({
 }) {
   const { model, edit, reveal, select, announce, confirm, routedOptions } = useFlowEditor()
   const optionKey = keyOf(option)
+  const inputId = `${reactKey(option)}-label`
+  const singleChoice = model.questions.find((q) => keyOf(q) === questionKey)?.answer.kind === 'single_choice'
+  const labelInput = useOptionLabelInput((label) => edit((m) => updateOption(m, questionKey, optionKey, { label })))
   const name = option.label.trim() || `אפשרות ${number}`
   const followUps = model.questions.filter((q) => {
     const c = conditionOf(q)
@@ -67,16 +71,16 @@ export default function FlowOptionRow({
         <span aria-hidden='true' className='w-5 shrink-0 text-xs font-semibold text-gray-500'>
           {number}.
         </span>
-        <label className='sr-only' htmlFor={`${reactKey(option)}-label`}>
+        <label className='sr-only' htmlFor={inputId}>
           תשובה {number}
         </label>
         <input
-          id={`${reactKey(option)}-label`}
+          id={inputId}
           value={option.label}
-          maxLength={24}
           placeholder='כתבו תשובה'
           aria-invalid={invalid}
-          onChange={(e) => edit((m) => updateOption(m, questionKey, optionKey, { label: e.target.value }))}
+          aria-describedby={optionLabelDescribedBy(inputId, option.label, singleChoice)}
+          onChange={(e) => labelInput.change(e.target.value)}
           className='nodrag h-8 min-w-0 flex-1 rounded-md border border-transparent bg-gray-50 px-2 text-sm hover:border-gray-200 focus:border-gray-200 focus:bg-white focus:outline-2 focus:outline-primary aria-invalid:border-red-400'
         />
         <IconChooser
@@ -94,6 +98,9 @@ export default function FlowOptionRow({
             ×
           </button>
         )}
+      </div>
+      <div className='ps-6'>
+        <OptionLabelLimit id={inputId} label={option.label} refused={labelInput.refused} singleChoice={singleChoice} />
       </div>
       <div className='flex flex-wrap items-center gap-x-3 ps-6'>
         {followUps.length > 0 ? (

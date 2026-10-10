@@ -29,12 +29,13 @@ import {
 } from '@/lib/whatsapp/sendMessage'
 import type { QuestionnaireStep } from './definition'
 import { menuLine } from './render'
+import { WHATSAPP_LIST_ROW_TITLE_MAX } from './limits'
 
 const BUTTON_MAX = 3
 const BUTTON_TITLE_MAX = 20
 const BUTTON_BODY_MAX = 1024
 const LIST_ROWS_MAX = 10
-const LIST_ROW_TITLE_MAX = 24
+const LIST_ROW_TITLE_MAX = WHATSAPP_LIST_ROW_TITLE_MAX
 const LIST_BODY_MAX = 4096
 /** Shown on the list's open button (≤20) and as its one section title (≤24). */
 export const LIST_BUTTON_TEXT = 'בחירת תשובה'

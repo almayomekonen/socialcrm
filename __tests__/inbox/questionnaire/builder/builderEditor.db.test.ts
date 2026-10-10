@@ -126,6 +126,57 @@ describe('the editor against the real save', () => {
     expect(t.agencyId).toBeGreaterThan(0)
   })
 
+  it('a 30-char answer ("באמצעות Excel או Google Sheets") and a 40-char one survive save, reload and the simulator whole; 41 is refused, not cut', async () => {
+    await makeAgency('long-answer', null)
+    const long = 'באמצעות Excel או Google Sheets'
+    const forty = 'א'.repeat(40)
+    const opened = await openQuestionnaireDraft()
+    if (opened.ok === false) throw new Error(JSON.stringify(opened))
+    const first = opened.questionnaire.questions[0]
+    const withLabels = (labels: string[]) => ({
+      ...opened.questionnaire,
+      questions: [
+        {
+          ...first,
+          answer: {
+            kind: 'single_choice' as const,
+            options: (first.answer as { options: Array<{ id?: string; label: string; phrasings: string[] }> }).options.map((o, i) => ({ ...o, label: labels[i] })),
+          },
+        },
+        ...opened.questionnaire.questions.slice(1),
+      ],
+    })
+    const saved = await saveQuestionnaireDraft({ draftId: opened.draftId, expectedVersion: 1, questionnaire: withLabels([long, forty]) })
+    if (saved.ok === false) throw new Error(JSON.stringify(saved))
+    expect(saved.ready).toBe(true)
+
+    // Stored as typed.
+    const stored = await db('questionnaire_revisions').where({ id: opened.draftId }).first()
+    expect(stored.definition.steps[0].options.map((o: { label: string }) => o.label)).toEqual([long, forty])
+
+    // Reloaded as typed.
+    const reopened = await openQuestionnaireDraft()
+    if (reopened.ok === false) throw new Error(JSON.stringify(reopened))
+    expect(reopened.draftId).toBe(opened.draftId)
+    const labels = (reopened.questionnaire.questions[0].answer as { options: Array<{ label: string }> }).options.map((o) => o.label)
+    expect(labels).toEqual([long, forty])
+
+    // The simulator shows it whole and reads the choice.
+    const sim = await simulateQuestionnaireDraft({ draftId: opened.draftId, turns: [['היי'], ['1']] })
+    if (sim.ok === false) throw new Error(JSON.stringify(sim))
+    expect(sim.turns[0].replies.join('\n')).toContain(`1. ${long}`)
+    expect(sim.turns[1].explanation.recognized).toContainEqual(expect.objectContaining({ questionId: stored.definition.steps[0].id, optionIds: [stored.definition.steps[0].options[0].id] }))
+
+    // 41 characters: the save is refused, and what was stored is untouched (never shortened to fit).
+    const tooLong = await saveQuestionnaireDraft({
+      draftId: opened.draftId,
+      expectedVersion: 2,
+      questionnaire: adoptIds(withLabels([long, 'א'.repeat(41)]), saved.assigned),
+    })
+    expect(tooLong.ok).toBe(false)
+    expect((await db('questionnaire_revisions').where({ id: opened.draftId }).first()).definition).toEqual(stored.definition)
+  })
+
   it('a dashed agency name never reaches the first-run opening', async () => {
     await makeAgency('Demo — Yuton', null)
     const opened = await openQuestionnaireDraft()

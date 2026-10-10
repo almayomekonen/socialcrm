@@ -38,6 +38,16 @@ describe('planInteractive — Meta limits', () => {
     expect(planInteractive(choice(Array.from({ length: 10 }, (_, i) => `אפשרות ${i}`)))?.kind).toBe('list')
   })
 
+  it('a label over 24 chars (up to the 40 a questionnaire allows) → numbered text, with the label whole', () => {
+    const long = 'באמצעות Excel או Google Sheets' // 30 chars
+    expect(planInteractive(choice(['a'.repeat(24), 'b']))?.kind).toBe('list')
+    expect(planInteractive(choice(['a'.repeat(25), 'b']))).toBeNull()
+    const step = choice([long, 'ידנית'])
+    expect(planInteractive(step)).toBeNull()
+    expect(planInteractive(choice(['כן', 'א'.repeat(40)]))).toBeNull()
+    expect(renderQuestion(step)).toContain(`1. ${long}`)
+  })
+
   it('multi-select, free text and no step stay numbered text', () => {
     expect(planInteractive(choice(['a', 'b'], { multi: true }))).toBeNull()
     expect(planInteractive({ id: 't', type: 'text', label: 'x', prompt: 'x' } as never)).toBeNull()
