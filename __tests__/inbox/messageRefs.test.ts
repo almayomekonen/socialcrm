@@ -48,16 +48,22 @@ describe('captions', () => {
 describe('reactions', () => {
   it('carry the emoji and our own target row id', () => {
     const m = mapLeadWhatsappMessageRow(row({ type: 'reaction', payload: { message_id: 'wamid.X', emoji: '👍' }, reactionTargetId: '41' }))
-    expect(m.reaction).toEqual({ emoji: '👍', targetId: 41 })
+    expect(m.reaction).toEqual({ emoji: '👍', targetId: 41, targetRef: null })
   })
 
   it('a removed reaction (emoji omitted by WhatsApp) has a null emoji', () => {
     const m = mapLeadWhatsappMessageRow(row({ type: 'reaction', payload: { message_id: 'wamid.X' }, reactionTargetId: '41' }))
-    expect(m.reaction).toEqual({ emoji: null, targetId: 41 })
+    expect(m.reaction).toEqual({ emoji: null, targetId: 41, targetRef: null })
   })
 
   it('an unmatched target stays null; nothing is guessed', () => {
-    expect(mapLeadWhatsappMessageRow(row({ type: 'reaction', payload: { message_id: 'wamid.Y', emoji: '❤️' } })).reaction).toEqual({ emoji: '❤️', targetId: null })
+    expect(mapLeadWhatsappMessageRow(row({ type: 'reaction', payload: { message_id: 'wamid.Y', emoji: '❤️' } })).reaction).toEqual({ emoji: '❤️', targetId: null, targetRef: null })
+  })
+
+  it('carries the opaque target ref computed in SQL, never the WhatsApp id', () => {
+    const m = mapLeadWhatsappMessageRow(row({ type: 'reaction', payload: { message_id: 'wamid.X', emoji: '👍' }, reactionTargetRef: 'abcdef0123456789' }))
+    expect(m.reaction?.targetRef).toBe('abcdef0123456789')
+    expect(JSON.stringify(m)).not.toContain('wamid.')
   })
 
   it('an emoji with control characters is cleaned; an implausibly long one is dropped', () => {

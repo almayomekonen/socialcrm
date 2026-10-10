@@ -79,14 +79,19 @@ for (const [name, read] of [
   describe(name, () => {
     it('resolves a reaction to its target in the same conversation', async () => {
       const m = byId(await read())
-      expect(m.get(ids.react)?.reaction).toEqual({ emoji: '👍', targetId: ids.t1 })
-      expect(m.get(ids.removed)?.reaction).toEqual({ emoji: null, targetId: ids.t1 })
+      expect(m.get(ids.react)?.reaction).toMatchObject({ emoji: '👍', targetId: ids.t1 })
+      expect(m.get(ids.removed)?.reaction).toMatchObject({ emoji: null, targetId: ids.t1 })
+      // Two reactions to the same message share one opaque ref; it is not the WhatsApp id.
+      const ref = m.get(ids.react)?.reaction?.targetRef
+      expect(ref).toMatch(/^[0-9a-f]{16}$/)
+      expect(m.get(ids.removed)?.reaction?.targetRef).toBe(ref)
+      expect(m.get(ids.reactMissing)?.reaction?.targetRef).not.toBe(ref)
     })
 
     it('an unknown target, or one in ANOTHER conversation, stays null', async () => {
       const m = byId(await read())
-      expect(m.get(ids.reactMissing)?.reaction).toEqual({ emoji: '❤️', targetId: null })
-      expect(m.get(ids.reactCross)?.reaction).toEqual({ emoji: '😂', targetId: null })
+      expect(m.get(ids.reactMissing)?.reaction).toMatchObject({ emoji: '❤️', targetId: null })
+      expect(m.get(ids.reactCross)?.reaction).toMatchObject({ emoji: '😂', targetId: null })
     })
 
     it('a reply resolves its quoted message; a missing one is null; a forward marker is not a reply', async () => {

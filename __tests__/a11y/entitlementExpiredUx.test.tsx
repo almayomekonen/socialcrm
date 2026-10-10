@@ -445,13 +445,18 @@ describe('production audit follow-ups', () => {
    */
   it('message text is never gated by entitlement — the em-dash is absence, not suppression', () => {
     const src = read('components/summary/WhatsappConversation.tsx')
-    expect(src).toContain('{m.text ||')
-    expect(src).toContain("'—'")
+    // The body comes from the shared thread view (text, else caption); '—' marks an empty text message.
+    expect(src).toContain('const body = messageBody(m)')
+    expect(src).toContain("{body ?? '—'}")
     // The renderer must not consult entitlement for message BODIES.
-    const textLine = src.indexOf('{m.text ||')
+    const textLine = src.indexOf("{body ?? '—'}")
     const before = src.slice(0, textLine)
     expect(before).not.toContain('useAccessDenied')
     expect(before).not.toContain('hasAccess')
+    // Nor does the shared helper that decides the body.
+    const view = read('lib/inbox/whatsappThreadView.ts')
+    expect(view).not.toContain('useAccessDenied')
+    expect(view).not.toContain('hasAccess')
   })
 
   it('the education tour does not open over a paywall', () => {

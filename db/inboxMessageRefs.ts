@@ -30,6 +30,8 @@ export const MESSAGE_REF_SELECT_SQL = `
       AND t."externalId" = m.payload->>'message_id'
       AND t.id <> m.id
     LIMIT 1) AS "reactionTargetId",
+  (CASE WHEN m.type = 'reaction' AND m.payload->>'message_id' IS NOT NULL
+    THEN left(md5(m."conversationId"::text || ':' || (m.payload->>'message_id')), 16) END) AS "reactionTargetRef",
   (COALESCE(m."rawPayload"->'context'->>'id', m.metadata->'replyTo'->>'id') IS NOT NULL) AS "hasReplyContext",
   (SELECT t.id FROM inbox_messages t
     WHERE t."conversationId" = m."conversationId"
@@ -73,6 +75,13 @@ export type MessageReaction = {
   emoji: string | null
   /** Our row id of the message reacted to, or null when it is not in this conversation's thread. */
   targetId: number | null
+  /**
+   * Opaque, non-reversible key of the reacted-to message within this
+   * conversation (a hash computed in SQL), so the thread can tell that two
+   * reactions point at the same message even when that message is not in the
+   * thread: the latest one wins. Never the WhatsApp id itself.
+   */
+  targetRef: string | null
 }
 
 export type MessageReplyTo = {
@@ -90,7 +99,13 @@ export function messageRefsForRow(r: Record<string, unknown>): {
   return {
     ...(caption ? { caption } : {}),
     ...(r.type === 'reaction'
-      ? { reaction: { emoji: sanitizeReactionEmoji(r.payload), targetId: asId(r.reactionTargetId) } }
+      ? {
+          reaction: {
+            emoji: sanitizeReactionEmoji(r.payload),
+            targetId: asId(r.reactionTargetId),
+            targetRef: typeof r.reactionTargetRef === 'string' ? r.reactionTargetRef : null,
+          },
+        }
       : {}),
     ...(r.hasReplyContext === true && r.type !== 'reaction' ? { replyTo: { targetId: asId(r.replyTargetId) } } : {}),
   }

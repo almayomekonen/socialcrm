@@ -10,7 +10,9 @@ import LinkifiedText from '@/components/summary/LinkifiedText'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
-import { isAudioAttachment, isImageAttachment, UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
+import { bubbleMediaLayout, buildThreadEntries, entryMeta, messageBody } from '@/lib/inbox/whatsappThreadView'
+import WhatsappQuoteStrip from '@/components/summary/WhatsappQuoteStrip'
+import { WhatsappReactionChips, WhatsappReactionNote } from '@/components/summary/WhatsappReactions'
 
 const WALLPAPER =
   'bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]'
@@ -47,12 +49,16 @@ export default function WhatsappConversation({
   }
 
 
-  const thread = messages
-    .map((m, i) => {
-      const prev = i > 0 ? messages[i - 1] : null
-      const newDay = !prev || formatDate(prev.timestamp) !== formatDate(m.timestamp)
-      const groupStart = newDay || !prev || prev.direction !== m.direction
-      return { m, newDay, groupStart }
+  // Reactions sit on their message or on a line of their own, never as bubbles
+  // (lib/inbox/whatsappThreadView.ts, shared with the mobile thread).
+  const entries = buildThreadEntries(messages)
+  const thread = entries
+    .map((entry, i) => {
+      const { timestamp, direction } = entryMeta(entry)
+      const prev = i > 0 ? entryMeta(entries[i - 1]) : null
+      const newDay = !prev || formatDate(prev.timestamp) !== formatDate(timestamp)
+      const groupStart = newDay || !prev || prev.direction !== direction
+      return { entry, timestamp, direction, newDay, groupStart }
     })
     .reverse()
 
@@ -90,24 +96,34 @@ export default function WhatsappConversation({
           aria-label='הודעות השיחה'
           className={`flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-4 py-3 ${WALLPAPER}`}
         >
-          {thread.map(({ m, newDay, groupStart }) => {
-            const inbound = m.direction === 'inbound'
+          {thread.map(({ entry, timestamp, direction, newDay, groupStart }) => {
+            const inbound = direction === 'inbound'
+            const daySeparator = newDay && (
+              <div className='flex justify-center pb-1.5 pt-2.5'>
+                <span
+                  suppressHydrationWarning
+                  className='rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-gray-500'
+                >
+                  {formatDate(timestamp)}
+                </span>
+              </div>
+            )
+            if (entry.kind === 'reaction') {
+              return (
+                <div key={entry.key} className={newDay ? '' : 'mt-1'}>
+                  {daySeparator}
+                  <WhatsappReactionNote emoji={entry.emoji} byBusiness={entry.byBusiness} alignEnd={!inbound} />
+                </div>
+              )
+            }
+            const m = entry.message
+            const body = messageBody(m)
             // A photo IS the bubble: the picture fills it and carries the time in
             // its corner, so the bubble drops its padding and its own time row.
-            const photoBubble = isImageAttachment(m.attachment?.mimeType) && !m.text
-            const mediaCarriesTime = photoBubble || isAudioAttachment(m.attachment?.mimeType)
+            const { photoBubble, mediaCarriesTime } = bubbleMediaLayout(m)
             return (
-              <div key={m.id} className={newDay ? '' : groupStart ? 'mt-2' : 'mt-0.5'}>
-                {newDay && (
-                  <div className='flex justify-center pb-1.5 pt-2.5'>
-                    <span
-                      suppressHydrationWarning
-                      className='rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-gray-500'
-                    >
-                      {formatDate(m.timestamp)}
-                    </span>
-                  </div>
-                )}
+              <div key={entry.key} className={newDay ? '' : groupStart ? 'mt-2' : 'mt-0.5'}>
+                {daySeparator}
                 <div className={`flex ${inbound ? 'justify-start' : 'justify-end'}`}>
                   <div
                     id={`msg-${m.id}`}
@@ -122,6 +138,7 @@ export default function WhatsappConversation({
                     }`}
                   >
                     <span className='sr-only'>{inbound ? 'הודעה נכנסת' : 'הודעה שנשלחה מהמערכת'}</span>
+                    {entry.quote && <WhatsappQuoteStrip quote={entry.quote} />}
                     {m.attachment && (
                       <WhatsappAttachment
                         messageId={m.id}
@@ -131,7 +148,7 @@ export default function WhatsappConversation({
                     )}
                     <div className='flex items-end gap-2'>
                       <p className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'>
-                        <LinkifiedText>{m.text || (m.attachment ? '' : m.type === 'text' ? '—' : UNSUPPORTED_MESSAGE_NOTICE)}</LinkifiedText>
+                        <LinkifiedText>{body ?? '—'}</LinkifiedText>
                       </p>
                       {/* A photo and a voice note carry the time inside the media itself,
                           so repeating it under the bubble would show it twice. */}
@@ -151,6 +168,7 @@ export default function WhatsappConversation({
                     )}
                   </div>
                 </div>
+                <WhatsappReactionChips reactions={entry.reactions} alignEnd={!inbound} />
               </div>
             )
           })}

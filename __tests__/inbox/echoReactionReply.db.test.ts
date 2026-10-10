@@ -95,7 +95,7 @@ describe('shown in the thread', () => {
     const list = await listConversationMessages(conversationId)
     const customer = (await row('wamid.__echo_customer')).id
     const react = list.find((m) => m.type === 'reaction')
-    expect(react?.reaction).toEqual({ emoji: '👍', targetId: Number(customer) })
+    expect(react?.reaction).toMatchObject({ emoji: '👍', targetId: Number(customer) })
     const reply = list.find((m) => m.text === 'תשובה')
     expect(reply?.replyTo).toEqual({ targetId: Number(customer) })
   })
