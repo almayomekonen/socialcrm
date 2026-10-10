@@ -9,6 +9,8 @@ import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import WhatsappComposerPanel, { type WhatsappComposerFacts } from '@/components/inbox/WhatsappComposerPanel'
 import { useComposerTypingSignal } from '@/modules/inbox/client/useComposerTypingSignal'
+import { buildThreadEntries } from '@/lib/inbox/whatsappThreadView'
+import { WhatsappReactionNote } from '@/components/summary/WhatsappReactions'
 import MessageBubbleMobile, { MessageActionSheet } from './MessageBubbleMobile'
 
 /**
@@ -108,16 +110,26 @@ export default function ConversationThreadMobile({
           <p className='py-10 text-center text-sm text-gray-500'>אין הודעות בשיחה הזו עדיין.</p>
         ) : (
           <ul className='flex flex-col gap-2'>
-            {messages.map((m) => (
-              <MessageBubbleMobile
-                key={m.id}
-                message={m}
-                onOpen={() => {
-                  const t = m.text?.trim()
-                  if (t) setActionText(t)
-                }}
-              />
-            ))}
+            {/* Reactions sit on their message or on a line of their own, never as
+                bubbles (lib/inbox/whatsappThreadView.ts, shared with desktop). */}
+            {buildThreadEntries(messages).map((entry) =>
+              entry.kind === 'reaction' ? (
+                <li key={entry.key}>
+                  <WhatsappReactionNote emoji={entry.emoji} byBusiness={entry.byBusiness} alignEnd={entry.direction === 'inbound'} />
+                </li>
+              ) : (
+                <MessageBubbleMobile
+                  key={entry.key}
+                  message={entry.message}
+                  reactions={entry.reactions}
+                  quote={entry.quote}
+                  onOpen={() => {
+                    const t = entry.message.text?.trim()
+                    if (t) setActionText(t)
+                  }}
+                />
+              ),
+            )}
           </ul>
         )}
       </div>

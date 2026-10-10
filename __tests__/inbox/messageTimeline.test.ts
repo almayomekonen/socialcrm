@@ -78,7 +78,7 @@ describe('timeline key', () => {
 
 describe('sequence is no longer chronological truth', () => {
   const READERS: [string, string][] = [
-    ['db/inboxMessages.ts', 'thread readers'],
+    ['db/inboxMessageReads.ts', 'thread readers'],
     ['db/conversationIntelligence.ts', 'AI analysis transcript'],
     ['db/agentConversation.ts', 'agent conversation read'],
   ]
@@ -98,7 +98,7 @@ describe('sequence is no longer chronological truth', () => {
 })
 
 describe('live delta', () => {
-  const delta = codeOf('db/inboxMessages.ts')
+  const delta = codeOf('db/inboxMessageReads.ts')
     .split('export async function getConversationMessagesAfter')[1]
     .split('export async function')[0]
 
@@ -121,7 +121,7 @@ describe('live delta', () => {
 })
 
 describe('full thread render', () => {
-  const full = codeOf('db/inboxMessages.ts')
+  const full = codeOf('db/inboxMessageReads.ts')
     .split('export async function listConversationMessages')[1]
     .split('export async function')[0]
 
@@ -131,7 +131,7 @@ describe('full thread render', () => {
   })
 
   it('T7b: the lead-page thread keeps conversation grouping, orders within by occurrence', () => {
-    const lead = codeOf('db/inboxMessages.ts')
+    const lead = codeOf('db/inboxMessageReads.ts')
       .split('export async function listLeadWhatsappMessages')[1]
       .split('export async function')[0]
     expect(lead).toContain("`cv.id ASC, ${messageTimelineOrderSql('m')}`")
@@ -209,7 +209,7 @@ describe('markers', () => {
   })
 
   it('T12b: the literal is not scattered — one definition, referenced by helper', () => {
-    for (const p of ['db/ai/leadFacts.ts', 'db/today/facts.ts', 'db/briefing.ts', 'lib/inbox/waitingReplySql.ts', 'db/inboxMessages.ts']) {
+    for (const p of ['db/ai/leadFacts.ts', 'db/today/facts.ts', 'db/briefing.ts', 'lib/inbox/waitingReplySql.ts', 'db/inboxMessageReads.ts']) {
       expect(codeOf(p)).not.toContain("'whatsapp_history'")
       expect(codeOf(p)).toContain('notHistorySql')
     }

@@ -3,7 +3,9 @@
 import BottomSheet from '@/components/mobile/BottomSheet'
 import Icon, { type IconNames } from '@/lib/Icon'
 import WhatsappAttachment from '@/components/summary/WhatsappAttachment'
-import { isAudioAttachment, isImageAttachment, UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
+import { bubbleMediaLayout, messageBody, type ThreadQuote, type ThreadReaction } from '@/lib/inbox/whatsappThreadView'
+import WhatsappQuoteStrip from '@/components/summary/WhatsappQuoteStrip'
+import { WhatsappReactionChips } from '@/components/summary/WhatsappReactions'
 import { toast } from '@/lib/toast'
 import useLongPress from '@/components/mobile/useLongPress'
 import { formatTime } from '@/lib/dates'
@@ -23,9 +25,15 @@ const TICK: Partial<Record<InboxMessageStatus, { icon: IconNames; tone: string; 
 export function MessageBubbleMobile({
   message,
   onOpen,
+  reactions = [],
+  quote = null,
 }: {
   message: LeadWhatsappMessage
   onOpen: () => void
+  /** Reactions on this message (lib/inbox/whatsappThreadView.ts). */
+  reactions?: ThreadReaction[]
+  /** What this reply quotes, when it is a reply. */
+  quote?: ThreadQuote | null
 }) {
   const outbound = message.direction === 'outbound'
   const longPress = useLongPress(onOpen, Boolean(message.text?.trim()))
@@ -35,12 +43,11 @@ export function MessageBubbleMobile({
    * An unsupported type must never render as an empty bubble — that is exactly
    * what made a received PDF look like nothing had arrived.
    */
-  const body = message.text || (message.attachment || message.type === 'text' ? '' : UNSUPPORTED_MESSAGE_NOTICE)
-  const photoBubble = isImageAttachment(message.attachment?.mimeType) && !message.text
-  const mediaCarriesTime = photoBubble || isAudioAttachment(message.attachment?.mimeType)
+  const body = messageBody(message) ?? ''
+  const { photoBubble, mediaCarriesTime } = bubbleMediaLayout(message)
 
   return (
-    <li className={`flex ${outbound ? 'justify-start' : 'justify-end'}`}>
+    <li className={`flex flex-col gap-1 ${outbound ? 'items-start' : 'items-end'}`}>
       <div
         data-testid='message-bubble'
         data-direction={message.direction}
@@ -56,6 +63,7 @@ export function MessageBubbleMobile({
         {...longPress}
       >
         <span className='sr-only'>{outbound ? 'הודעה שנשלחה מהמערכת' : 'הודעה נכנסת'}</span>
+        {quote && <WhatsappQuoteStrip quote={quote} />}
         {message.attachment && (
           <WhatsappAttachment
             messageId={message.id}
@@ -87,6 +95,7 @@ export function MessageBubbleMobile({
           <p className='mt-1 text-[11px] leading-snug text-error-text'>{message.failureText}</p>
         )}
       </div>
+      <WhatsappReactionChips reactions={reactions} alignEnd={!outbound} />
     </li>
   )
 }
