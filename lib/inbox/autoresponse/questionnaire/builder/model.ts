@@ -18,6 +18,7 @@
  * the publish check's job (checks.ts), which uses the real runtime schema.
  */
 import { z } from 'zod'
+import { OPTION_LABEL_MAX } from '../limits'
 
 const ID = z.string().regex(/^[a-z0-9_]{1,40}$/)
 /**
@@ -32,7 +33,7 @@ export const builderOptionSchema = z.object({
   /** Absent: a new option; the server assigns its id. */
   id: ID.optional(),
   ref: REF.optional(),
-  label: text(24),
+  label: text(OPTION_LABEL_MAX),
   icon: z.string().max(8).optional(),
   /** Other ways customers write this option ("אנחנו מתחתנים"). */
   phrasings: z.array(text(40)).max(40).default([]),

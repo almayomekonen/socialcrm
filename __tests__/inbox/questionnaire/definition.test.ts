@@ -50,13 +50,26 @@ describe('the shipped sample', () => {
 })
 
 describe('limits that keep an interactive upgrade possible', () => {
-  it('rejects an option label longer than a WhatsApp list row title (24 chars)', () => {
+  it('accepts an option label up to 40 chars, longer than a WhatsApp list row (24): it is sent as the numbered menu', () => {
     const def = sample()
     ;(def.steps as Array<Record<string, unknown>>)[0].options = [
-      { id: 'a', label: 'א'.repeat(25) },
+      { id: 'a', label: 'באמצעות Excel או Google Sheets' },
+      { id: 'b', label: 'א'.repeat(40) },
+    ]
+    expect(errorsOf(def)).toEqual([])
+    const parsed = parseQuestionnaireDefinition(def)
+    if (!parsed.ok) throw new Error('expected a valid definition')
+    const step = parsed.definition.steps[0] as { options: Array<{ label: string }> }
+    expect(step.options[0].label).toBe('באמצעות Excel או Google Sheets')
+  })
+
+  it('rejects an option label longer than 40 chars, never shortens it', () => {
+    const def = sample()
+    ;(def.steps as Array<Record<string, unknown>>)[0].options = [
+      { id: 'a', label: 'א'.repeat(41) },
       { id: 'b', label: 'ב' },
     ]
-    expect(errorsOf(def).join(' ')).toContain('at most 24 characters')
+    expect(errorsOf(def).join(' ')).toContain('at most 40 characters')
   })
 
   it('rejects more than 10 options in one question', () => {

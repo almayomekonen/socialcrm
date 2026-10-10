@@ -6,13 +6,12 @@
  * validation at read time silences the questionnaire for that business; it never
  * falls back to the AI agent.
  *
- * THE LIMITS ARE NOT ARBITRARY. They are the current Meta interactive-message
- * limits, applied now so that a later upgrade from numbered text menus to an
- * interactive list needs no configuration rewrite:
- *   · list message: at most 10 rows, row title at most 24 characters, row id at
- *     most 200 characters
- *   · reply buttons: at most 3, title at most 20 characters
- * Option labels are therefore capped at 24 and options at 10 per question.
+ * THE LIMITS ARE NOT ARBITRARY. Options are capped at 10 per question, the
+ * Meta list message's row limit. Option labels are capped at OPTION_LABEL_MAX
+ * (40, limits.ts): longer than Meta's list row title (24), so an owner can
+ * write "באמצעות Excel או Google Sheets". A question with a label over 24 is
+ * sent as the numbered text menu instead of a list or buttons (interactive.ts
+ * checks every label against Meta's own limits before choosing a format).
  *
  * NO DASHES. Every customer-facing string passes through
  * finalizeCustomerFacingText before it is sent, which rewrites dashes into
@@ -23,6 +22,7 @@ import { z } from 'zod'
 import { hasCustomerFacingDash } from '../customerFacingText'
 import { checkAliasCollisions } from './aliasMatch'
 import { checkClosingVariants } from './closing'
+import { OPTION_LABEL_MAX } from './limits'
 
 export const QUESTIONNAIRE_SCHEMA_VERSION = 1
 
@@ -50,7 +50,7 @@ const conditionSchema = z.object({
 
 const optionSchema = z.object({
   id: ID,
-  label: customerText(24, 'option label'),
+  label: customerText(OPTION_LABEL_MAX, 'option label'),
   /**
    * Words a customer may use for this option instead of its number or label
    * (aliasMatch.ts). Never shown to the customer, so the dash rule does not

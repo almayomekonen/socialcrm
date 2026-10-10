@@ -37,7 +37,7 @@ const sendInteractive = (async (args: { body: string; interactive: Record<string
 const agencies: number[] = []
 type Tenant = { agencyId: number; leadId: number; conversationId: number; phoneNumberId: string; customerWaId: string }
 
-async function makeTenant(suffix: string): Promise<Tenant> {
+async function makeTenant(suffix: string, def: unknown = DEF): Promise<Tenant> {
   const [a] = await db('agencies').insert({ name: `q-int-${suffix}`, autoResponseEnabled: true, plan: 'pro' }).returning('id')
   const agencyId = Number(a.id)
   agencies.push(agencyId)
@@ -48,7 +48,7 @@ async function makeTenant(suffix: string): Promise<Tenant> {
   await db('whatsapp_connections').insert({ user_id: userId, agency_id: agencyId, phone_number_id: phoneNumberId, access_token: 't' })
   await db('auto_response_settings').insert({
     agencyId, channel: 'whatsapp', enabled: true, mode: 'acknowledge', responder: 'questionnaire',
-    questionnaire: JSON.stringify(DEF), updatedBy: userId,
+    questionnaire: JSON.stringify(def), updatedBy: userId,
   })
   const [c] = await db('clients')
     .insert({ firstName: 'פונה', lastName: 'חדש', phone: customerWaId, agencyId, userId, handlerId: userId, createdById: userId, status: 'new' })
@@ -104,6 +104,28 @@ afterAll(async () => {
 })
 
 describe('tap-to-select, the whole path', () => {
+  it('a single-choice question with a label over 24 chars goes out as the numbered text menu, label whole, and is answered', async () => {
+    const long = 'באמצעות Excel או Google Sheets'
+    const def = structuredClone(DEF)
+    def.steps.find((s: { id: string }) => s.id === 'event_type').options[0].label = long
+    const t = await makeTenant('long-label', def)
+    await says(t, 'היי')
+    await drain()
+    await says(t, '1,2')
+    await drain()
+    // event_type would be a list; one label is past Meta's row title limit, so it is text.
+    expect(last().kind).toBe('text')
+    expect(last().body).toContain(`1. ${long}`)
+    expect(out.some((o) => o.kind === 'interactive')).toBe(false)
+    const outbound = await db('inbox_messages').where({ conversationId: t.conversationId, direction: 'outbound' }).orderBy('sequence', 'desc').first()
+    expect(outbound.text).toContain(`1. ${long}`)
+    expect(outbound.metadata?.interactive).toBeUndefined()
+
+    await says(t, '1')
+    await drain()
+    expect((await session(t)).answers.event_type).toEqual(['wedding'])
+  })
+
   it('multi-select stays text; single-select becomes a list, then buttons; taps are answers', async () => {
     const t = await makeTenant('full')
     await says(t, 'היי')

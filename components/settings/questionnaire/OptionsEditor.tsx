@@ -84,6 +84,7 @@ export default function OptionsEditor({
               option={o}
               number={i + 1}
               issues={optionIssues(keyOf(o))}
+              singleChoice={question.answer.kind === 'single_choice'}
               removeBlockedReason={options.length > 2 ? null : 'בשאלת בחירה צריכות להיות לפחות שתי אפשרויות.'}
               onChange={(patch) => edit((m) => updateOption(m, qKey, keyOf(o), patch))}
               onRemove={() => remove(keyOf(o), o.label)}

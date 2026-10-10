@@ -6,6 +6,7 @@ import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder
 import LimitedButton from './LimitedButton'
 import PhrasingsEditor from './PhrasingsEditor'
 import IconChooser from './IconChooser'
+import OptionLabelLimit, { optionLabelDescribedBy, useOptionLabelInput } from './OptionLabelLimit'
 
 /**
  * One answer option, on one line: its number as WhatsApp shows it, its name,
@@ -24,9 +25,11 @@ export default function OptionRow({
   onRemove,
   removeBlockedReason,
   issues,
+  singleChoice,
 }: {
   option: BuilderOption
   number: number
+  singleChoice: boolean
   onChange: (patch: Partial<Pick<BuilderOption, 'label' | 'icon' | 'phrasings'>>) => void
   onRemove: () => void
   removeBlockedReason: string | null
@@ -36,6 +39,8 @@ export default function OptionRow({
   const name = option.label.trim() || `אפשרות ${number}`
   const errorId = `${id}-error`
   const missing = issues.some((i) => i.code === 'missing_text')
+  const labelInput = useOptionLabelInput((label) => onChange({ label }))
+  const describedBy = [issues.length ? errorId : null, optionLabelDescribedBy(id, option.label, singleChoice)].filter(Boolean).join(' ')
 
   return (
     <li className='grid grid-cols-[1.5rem_minmax(0,1fr)_4.5rem_2.5rem] items-start gap-x-2 gap-y-1'>
@@ -49,11 +54,10 @@ export default function OptionRow({
         <input
           id={`${id}-label`}
           value={option.label}
-          maxLength={24}
-          onChange={(e) => onChange({ label: e.target.value })}
+          onChange={(e) => labelInput.change(e.target.value)}
           placeholder='למשל: חתונה'
           aria-invalid={issues.length > 0}
-          aria-describedby={issues.length ? errorId : undefined}
+          aria-describedby={describedBy}
           className='h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-2 focus:outline-primary aria-invalid:border-red-500'
         />
         {issues.length > 0 && (
@@ -61,6 +65,7 @@ export default function OptionRow({
             {missing ? 'כתבו שם לאפשרות.' : issues.map((i) => i.text).join(' ')}
           </p>
         )}
+        <OptionLabelLimit id={id} label={option.label} refused={labelInput.refused} singleChoice={singleChoice} />
         <PhrasingsEditor
           phrasings={option.phrasings}
           optionLabel={option.label}
