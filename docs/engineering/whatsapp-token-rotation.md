@@ -8,27 +8,36 @@ personal identifier belongs in this file.
 
 - Each connection's token is stored only in `whatsapp_connections.access_token`.
   Values written by the manual-attach path are encrypted with AES-256-GCM
-  (`SECRETS_ENC_KEY`) behind the `scm1.` prefix
+  (`SECRETS_ENC_KEY`, `lib/crypto/secrets.ts`) behind the `scm1.` prefix
   (`lib/whatsapp/connectionToken.ts`). A value without the prefix is read as
   plaintext.
 - No environment variable holds a WhatsApp token.
-- Every send reads the token from the row at send time
-  (`lib/inbox/whatsappOutboundTarget.ts`). Replacing the stored value takes
-  effect on the next send. No deploy or restart is needed.
-- Inbound webhooks are verified with `META_APP_SECRET`, not with this token. An
-  expired token stops outbound sends only: inbox replies, templates, wedding
-  invitations and RSVP requests, automated replies, template sync and media
-  download.
+- Code that uses the token reads it from the row when it runs; for sends, see
+  `lib/inbox/whatsappOutboundTarget.ts`. Replacing the stored value takes effect
+  on the next use. No deploy or restart is needed.
+- Inbound webhooks are verified with `META_APP_SECRET`, not with this token, so
+  they keep arriving if the token expires. An expired token breaks everything
+  that calls Meta with it:
+  - outbound sends: inbox replies, templates, wedding invitations and RSVP
+    requests, automated replies;
+  - template management: create, discard and sync;
+  - the WhatsApp health check;
+  - inbound media download.
 
 ## Procedure
 
 This applies only to the single manually attached `cloud_api` connection pinned
 by the `MANUAL_ATTACH_*` constants (agency, WABA, phone number, app) in
-`lib/whatsapp/attachExistingWaba.ts`. It does not cover Embedded Signup or
-Coexistence connections: the path refuses any other agency, WABA, phone number or
-`onboarding_type`, and those connections get new tokens by reconnecting. The
-application path is `attachExistingWabaForUser`. When the pinned phone is already
-attached to the same agency and WABA, it replaces only `access_token`.
+`lib/whatsapp/attachExistingWaba.ts`. It does not cover other WhatsApp
+connections, such as Embedded Signup or Coexistence: the path refuses any other
+agency, WABA, phone number or `onboarding_type`. The application entry point is
+`attachExistingWabaForUser`. When the pinned phone is already attached to the
+same agency and WABA, it replaces only `access_token`.
+
+There are two routes for the write: the **in-app route** (the application's
+internal endpoint) and the **operator-script route** (a one-off script that
+calls `attachExistingWabaForUser` with injected dependencies). Steps 1–3, 5 and
+6 apply to both; step 4 applies to the operator-script route only.
 
 1. **Issue the token (operator, in Meta).** Go to Business Settings → Users →
    System users and select the system user that already has the WABA assigned
@@ -47,28 +56,48 @@ attached to the same agency and WABA, it replaces only `access_token`.
    semantics, so an existing backup is never overwritten, then confirm the
    file's permissions and contents by reading it back. If any step fails, abort
    before writing to the database.
-4. **Prove the key before writing.** The local `SECRETS_ENC_KEY` must decrypt the
-   connection's current production value. With AES-GCM, that shows the new value
-   will be readable by production. If it does not decrypt, refuse.
-5. **Replace the token.** Use `attachExistingWabaForUser`: it re-runs the Graph
-   checks, then performs one update of `access_token` only. The update is pinned
-   to the row `id`, `phone_number_id`, `agency_id`, `waba_id` and
-   `onboarding_type = 'cloud_api'`, and must affect exactly one row. Block the
-   insert path.
-   - In the application, this path is behind `WA_MANUAL_ATTACH_ENABLED` and the
-     internal route `POST /api/internal/whatsapp/attach`. Using it means an
-     environment change plus a redeploy to turn the switch on, and the same again
-     to turn it off.
-   - From an operator script, inject the dependencies instead. `@/config/db`
-     loads `.env.local`, so a script that writes to production must use its own
-     database client and must not rely on the default dependencies.
+4. **Operator-script route only: check the key.** A script encrypts the new
+   token with whatever `SECRETS_ENC_KEY` it loads, so before writing, confirm
+   that key decrypts the connection's current stored value. With AES-GCM, a
+   successful decrypt means the script holds the key that encrypted the current
+   value. Since production is reading the current value, a value encrypted with
+   the same key is expected to be readable by production too, but that is an
+   expectation: only the post-write live send confirms it. If it does not
+   decrypt, refuse. This check only works while an operator machine holds the
+   key used for production values, which is itself an open weakness (see the
+   security follow-up below). Once keys are separated, use the in-app route,
+   where the production runtime encrypts with its own configured key.
+5. **Replace the token.**
+   - **Application implementation.** `attachExistingWabaForUser` re-runs the
+     Graph checks, then calls `rotateToken`. In the default dependencies, that
+     is a single update of `access_token` filtered by `phone_number_id`,
+     `agency_id`, `waba_id` and `onboarding_type = 'cloud_api'`. Any result
+     other than exactly one affected row is reported as a failure.
+   - **In-app route.** Set `WA_MANUAL_ATTACH_ENABLED=1` exactly (any other value
+     is off) in the production environment and redeploy. Call
+     `POST /api/internal/whatsapp/attach` from a session with the ADMIN role in
+     agency 103. Then remove the switch and redeploy again.
+   - **Operator-script route.** Inject the dependencies instead of using the
+     defaults. `config/db.ts` loads `.env.local` with `override: true` whenever
+     it is imported, including indirectly through
+     `lib/whatsapp/attachExistingWaba.ts`. (It loads `.env.test` under
+     `NODE_ENV=test`, or the file named by `APP_ENV_FILE`.) That replaces
+     values already exported in the shell, including `DATABASE_URL` and
+     `SECRETS_ENC_KEY`. A production script must therefore use its own explicit
+     database client, and must treat the key in that `.env.local` as the one
+     that will encrypt. The 2026-10-10 script additionally pinned the update to
+     the row `id` and blocked the insert path.
 6. **Verify after the write.**
    - The stored value decrypts to the new token, and `debug_token` passes on it.
-   - Restore the backup automatically if the stored value does not match or the
-     check fails.
-   - The WhatsApp health check (`resolveWhatsappHealth`) reports `operational`.
-   - One approved production send is delivered. Use a plain-text reply inside
-     the 24-hour window, never a Marketing template.
+   - The 2026-10-10 script also restored the backup automatically if the stored
+     value did not match or the check failed.
+   - The WhatsApp health check, `resolveWhatsappHealth`
+     (`lib/whatsapp/operationalStatus.ts`), reports `operational`. Run outside
+     the app, it needs injected database dependencies for the same
+     `config/db.ts` reason.
+   - One approved production send is delivered. This is the check that proves
+     the production runtime itself can use the new token. Use a plain-text reply
+     inside the 24-hour window, never a Marketing template.
 7. **Close out.** Record the rotation below. The old token keeps working until
    its own expiry unless it is revoked; revocation is a separate, approved step.
    The backup may be deleted only with operator approval after the rollback
@@ -81,24 +110,31 @@ attached to the same agency and WABA, it replaces only `access_token`.
 - **Connection:** agency 103's manually attached `cloud_api` connection, the
   only one the manual-attach path accepts. Its WABA, phone number and app are
   pinned by the `MANUAL_ATTACH_*` constants in
-  `lib/whatsapp/attachExistingWaba.ts`, so identifiers are not repeated here. On
-  2026-10-10, exactly one production `whatsapp_connections` row matched them. The
-  Preview database is a copy of production, so it may hold a matching row too;
-  this rotation changed production only.
-- **Why:** the token was a 60-day system-user token issued 2026-09-01, set to
-  expire 2026-10-31 12:41 UTC. The expiry was fixed when the token was
-  generated; nothing in the code sets it.
+  `lib/whatsapp/attachExistingWaba.ts`, so identifiers are not repeated here.
+  On 2026-10-10, exactly one production `whatsapp_connections` row matched them.
+  According to `CLAUDE.md`, the Preview database is a copy of production, so it
+  may hold a matching row too; it was not queried. This rotation changed
+  production only.
+- **Route:** operator-script route (single guarded update pinned to the row
+  `id`). No environment change and no deploy.
+- **Why:** the old token was issued 2026-09-01 and set to expire 2026-10-31
+  12:41 UTC. Its lifetime of exactly 60 days, worked out from those two
+  timestamps, suggests the 60-day option was chosen when it was generated; that
+  choice itself was not observed. Nothing in the code sets token expiry.
 - **New token:** same system user and app, issued 2026-10-10 14:34:13 UTC,
   never expires. Both WhatsApp permissions confirmed.
 - **Pre-write validation:** `debug_token` and the full Graph check passed. The
-  local key decrypted the current production value.
+  script's key decrypted the current production value.
 - **Write:** exactly one row updated. Afterwards, the other connection rows had
   unchanged identity and contained neither the old nor the new token.
 - **Post-write verification:**
   - The stored value decrypts to the new token, and `debug_token` passes.
-  - The health check reports `operational` (inbound ready, outbound ready).
-  - A plain-text production inbox reply to an approved internal test recipient
-    was accepted by Meta and reached `delivered`, with no send error.
+  - The health check, run locally against production data and Meta (not inside
+    the production runtime), reports `operational` (inbound ready, outbound
+    ready).
+  - Production sending itself: a plain-text reply sent from the production
+    inbox to an approved internal test recipient was accepted by Meta and
+    reached `delivered`, with no send error.
 - **Deployment:** none required. No environment-variable or code change.
 - **Old token:** not revoked. It expires 2026-10-31 12:41 UTC.
 - **Rollback:** an encrypted backup of the previous value is held locally by the
@@ -114,20 +150,40 @@ attached to the same agency and WABA, it replaces only `access_token`.
 ## Security follow-up: `SECRETS_ENC_KEY`
 
 Open and not started. It needs an investigation, an impact assessment, and an
-approved rotation plan before anything changes.
+approved rotation plan before anything changes. `lib/crypto/secrets.ts` reads a
+single key, with no fallback key.
 
-- **Shared key.** The production `SECRETS_ENC_KEY` (Production and Preview,
-  created 2026-05-24, never rotated) has the same value as the key in local
-  development `.env.local` files. This was proven when a local process
-  decrypted a production-stored value. Anyone with a developer environment file
-  and production database access can read every encrypted credential. A token
-  that never expires (above) raises the stakes.
-- **Preview database.** The Preview/Development database (`preview-shared`) is a
-  copy of production data, so it holds values encrypted with the production key.
-  A separate Preview-scoped `SECRETS_ENC_KEY` has existed since 2026-09-16.
-  Whether its value differs from production's has not been verified. Either way,
-  access to the Preview database plus the production key exposes production
-  credentials.
+- **Shared key, verified so far:**
+  - In Vercel, the `SECRETS_ENC_KEY` entry for Production and Preview was
+    created 2026-05-24, and its last-updated time equals its creation time. That
+    suggests it has not been changed, but metadata alone does not prove it was
+    never rotated.
+  - Directly verified: the key in two local `.env.local` files on one developer
+    machine (the repository and one worktree; the two files hold the same value)
+    decrypted agency 103's production-stored WhatsApp token value. It decrypted
+    the value before this rotation, and it decrypted the new value, which that
+    same local key had encrypted. No other production-stored values were tested
+    for this record.
+  - Not directly verified: which key the Production runtime holds. The
+    Production `SECRETS_ENC_KEY` is a sensitive variable and its value cannot be
+    read, so no value or fingerprint comparison was done.
+  - Inference, not proof: after the rotation, production delivered a send
+    through the code path that decrypts this stored value. Because the value had
+    been encrypted with the local key, the runtime most likely holds the same
+    key. Confirm it with a deliberate check (for example a fingerprint
+    comparison performed inside the runtime) before relying on it.
+  - Other developer environments were not checked.
+- **Inferred impact.** Anyone who holds that key and can read the production
+  database can decrypt every value encrypted with it. That includes the agency
+  103 WhatsApp token above, which never expires.
+- **Preview.** Every Preview deployment uses the same Vercel entry as Production,
+  except deployments of the `feat/card-required-trial` branch, which have their
+  own branch-scoped `SECRETS_ENC_KEY` entry (since 2026-09-16, value not
+  compared).
+  - `CLAUDE.md` documents the Preview/Development database (`preview-shared`) as
+    a copy of production data. If so, it holds production-encrypted values that
+    ordinary Preview deployments can decrypt with the shared key. Its contents
+    were not queried for this record.
 - **Values to re-encrypt on rotation.** Everything written through
   `encryptSecret` (`lib/crypto/secrets.ts`):
   - WhatsApp connection tokens (`scm1.`, `lib/whatsapp/connectionToken.ts`).
@@ -140,11 +196,12 @@ approved rotation plan before anything changes.
   - Short-lived Facebook pending-pages cookie envelopes
     (`lib/facebook/pendingPages.ts`). These expire on their own, but in-flight
     ones break at cutover.
-  The rotation needs a re-encryption step (decrypt with the old key, encrypt with
-  the new one) or a dual-key read window. Production, Preview and local must end
-  up with separate keys.
+  Because the helper reads only one key, the rotation needs either a one-time
+  re-encryption step (decrypt with the old key, encrypt with the new one) or a
+  code change that adds a temporary dual-key read window. Production, Preview
+  and local must end up with separate keys.
 - **Unencrypted tokens.** On 2026-10-10, five `whatsapp_connections` rows stored
-  their tokens as plaintext. All are Embedded Signup or Coexistence connections;
-  the reader accepts both formats by design. Legacy `facebook_pages` rows may
-  also be plaintext until their Page is reconnected. Decide whether to encrypt
-  them as part of the same plan.
+  their tokens as plaintext: four Coexistence connections, and one legacy row
+  with no `onboarding_type` and no WABA. The reader accepts both formats by
+  design. Legacy `facebook_pages` rows may also be plaintext until their Page is
+  reconnected. Decide whether to encrypt them as part of the same plan.
