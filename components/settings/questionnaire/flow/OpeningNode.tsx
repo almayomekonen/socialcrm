@@ -2,7 +2,9 @@
 
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { rowsFor } from '../builderCopy'
+import { OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
 import { useFlowEditor } from './flowContext'
+import ArrowInsertButton from './ArrowInsertButton'
 
 /**
  * Where the conversation starts: the customer writes, and this is the first
@@ -25,6 +27,7 @@ export default function OpeningNode({ selected }: NodeProps) {
           {model.opening.trim() || 'עוד לא נכתבה הודעת פתיחה'}
         </p>
         <Handle type='source' position={Position.Bottom} id='next' isConnectable={false} className='!opacity-0' />
+        <ArrowInsertButton nodeId={OPENING} />
       </div>
     )
   }
@@ -48,6 +51,7 @@ export default function OpeningNode({ selected }: NodeProps) {
       />
       {missing && <p className='text-xs text-red-700'>כתבו הודעת פתיחה.</p>}
       <Handle type='source' position={Position.Bottom} id='next' isConnectable={false} className='!opacity-0' />
+        <ArrowInsertButton nodeId={OPENING} />
     </div>
   )
 }

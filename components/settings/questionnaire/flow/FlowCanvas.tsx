@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Background,
   Controls,
@@ -8,23 +8,22 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
-  useReactFlow,
   type Edge,
   type Node,
   type NodeChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
-import { addQuestion, keyOf, newRef, optionsOf, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addQuestion, insertQuestion, keyOf, newRef, optionsOf, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import AddQuestionMenu from './AddQuestionMenu'
 import FlowEmptyState from './FlowEmptyState'
+import { useArrowInsert } from './useArrowInsert'
 import EndingsNode from './EndingsNode'
 import OpeningNode from './OpeningNode'
 import QuestionNode from './QuestionNode'
 import { FlowEditorContext, type FlowEditor } from './flowContext'
 import { DEFAULT_SIZE, edgeRoutes, layoutFlow, type Size } from './flowLayout'
-import { ADD_QUESTION } from './removalFocus'
-import { useKeepOpenBoxInView } from './keepOpenBoxInView'
+import { useCanvasViewport } from './useCanvasViewport'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
 const MAX_QUESTIONS = 12
@@ -44,19 +43,13 @@ const HEBREW_ARIA = {
   'handle.ariaLabel': 'נקודת חיבור',
 }
 
-type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'focusDone' | 'returnFocusTo'> & { selectedKey: string | null }
+type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'focusDone' | 'returnFocusTo' | 'insertAfter'> & { selectedKey: string | null }
 
 /**
  * The Flow view: the conversation drawn as a map. Boxes are edited in place;
  * arrows come from the draft (flowGraph.ts) and cannot be drawn or deleted by
  * hand, and boxes cannot be dragged: where a box sits is computed, and order
  * and conditions change only through named actions.
- *
- * NOTE (architecture-rules §6/§8): this file is over the 250-line soft limit
- * and not yet extracted. It is the canvas orchestrator; its viewport, focus
- * and selection effects are the natural extraction (a useCanvasViewport-style
- * hook), owed on the next change to this file. The owner deferred
- * line-count-only refactors (2026-10-09), so it was not split for size alone.
  */
 export default function FlowCanvas(props: Props) {
   return (
@@ -68,7 +61,6 @@ export default function FlowCanvas(props: Props) {
 
 function Canvas({ selectedKey, ...editor }: Props) {
   const { model, edit, select, announce } = editor
-  const flow = useReactFlow()
   const graph = useMemo(() => buildFlow(model), [model])
   // Boxes are identified by the render key, which survives a save giving a new
   // question its server id; the draft (and the map) speak in draft keys.
@@ -82,18 +74,13 @@ function Canvas({ selectedKey, ...editor }: Props) {
     return q ? keyOf(q) : nodeId
   }
   const [sizes, setSizes] = useState<Record<string, Size>>({})
-  const [pendingReveal, setPendingReveal] = useState<string | null>(null)
-  // A box just created opens with the cursor in its question text.
-  const [focusRequest, setFocusRequest] = useState<string | null>(null)
-  // After a deletion: the box (or "+ הוספת שאלה") that takes the cursor instead.
-  const [returnFocus, setReturnFocus] = useState<string | null>(null)
-  const [fitted, setFitted] = useState(false)
 
   const structure = `${ids.join('|')}#${graph.edges.map((e) => e.id).join('|')}`
   const sizeKey = ids.map((id) => (sizes[id] ? `${Math.round(sizes[id].width)}x${Math.round(sizes[id].height)}` : '?')).join('|')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const flowEdges = useMemo(() => graph.edges.map((e) => ({ ...e, source: nodeIdOf(e.source), target: nodeIdOf(e.target) })), [graph, nodeIdOf])
   const layout = useMemo(() => layoutFlow(ids, flowEdges, sizes), [structure, sizeKey])
+  const { reveal, focusRequest, focusDone, returnFocusTo } = useCanvasViewport({ ids, sizes, layout, selectedKey })
 
   const nodes: Node[] = ids.map((id) => ({
     id,
@@ -110,6 +97,25 @@ function Canvas({ selectedKey, ...editor }: Props) {
     (id) => ({ top: layout[id].y, bottom: layout[id].y + (sizes[id] ?? DEFAULT_SIZE).height }),
     (source, option) => optionsOf(model.questions.find((x) => reactKey(x) === source) ?? model.questions[0]).findIndex((o) => keyOf(o) === option),
   )
+  // "+ הוספת שאלה" on each continue arrow: the question is inserted where the arrow is (insertQuestion).
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const arrows = useArrowInsert(canvasRef, (edgeId, kind) => {
+    const e = flowEdges.find((x) => x.id === edgeId)
+    if (!e) return
+    const ref = newRef()
+    const at = { after: e.source === OPENING ? null : keyOfNode(e.source), before: e.target === ENDINGS ? null : keyOfNode(e.target) }
+    edit((m) => insertQuestion(m, at, kind, ref))
+    announce('נוספה שאלה חדשה')
+    select(ref)
+    reveal(ref)
+  })
+  const canInsert = model.questions.length > 0 && model.questions.length < MAX_QUESTIONS
+  const insertAfter = (nodeId: string) => {
+    const e = canInsert ? flowEdges.find((x) => x.source === nodeId && !x.option) : undefined
+    if (!e) return null
+    const where = nodeId === OPENING ? 'אחרי הודעת הפתיחה' : `אחרי שאלה ${ids.indexOf(nodeId)}`
+    return { where, open: arrows.openEdge === e.id, onOpen: (button: HTMLButtonElement) => arrows.openFor(e.id, button) }
+  }
   const edges: Edge[] = flowEdges.map((e) => ({
     id: e.id,
     source: e.source,
@@ -137,73 +143,18 @@ function Canvas({ selectedKey, ...editor }: Props) {
     }
   }, [])
 
-  // First view: everything fits once the boxes have been measured.
-  const allMeasured = ids.every((id) => sizes[id])
-  useEffect(() => {
-    if (allMeasured && !fitted) {
-      setFitted(true)
-      // Start where the conversation starts, at a size that can be read; never
-      // shrink a long questionnaire into an unreadable overview.
-      const bounds = flow.getNodesBounds(ids)
-      const box = document.querySelector('.react-flow')?.getBoundingClientRect()
-      const zoom = box ? Math.max(0.75, Math.min(1, (box.width - 48) / bounds.width)) : 1
-      const x = box ? (box.width - bounds.width * zoom) / 2 - bounds.x * zoom : 0
-      void flow.setViewport({ x, y: 24 - bounds.y * zoom, zoom })
-    }
-  }, [allMeasured, fitted, flow])
-
-  // A box opened for editing stays on screen (a just-created box is revealed by the effect after this).
-  useKeepOpenBoxInView(selectedKey, pendingReveal, (id) => (layout[id] && sizes[id] ? { ...layout[id], ...sizes[id] } : null))
-
-  // A box just created is brought into view once it exists and is measured.
-  useEffect(() => {
-    if (!pendingReveal || !sizes[pendingReveal]) return
-    void flow.fitView({ nodes: [{ id: pendingReveal }], maxZoom: 1, duration: 300, padding: 0.4 })
-    setPendingReveal(null)
-  }, [pendingReveal, sizes, flow])
-
-  // The confirmation dialog hands the cursor back to the deleted box's ×,
-  // which no longer exists; once the map has re-rendered, it goes to the
-  // chosen surviving control instead (a few frames: the box may be re-measured).
-  useEffect(() => {
-    if (!returnFocus) return
-    let frames = 0
-    let handle = 0
-    const find = () =>
-      returnFocus === ADD_QUESTION
-        ? document.querySelector<HTMLElement>('.react-flow button[aria-haspopup="menu"]')
-        : [...document.querySelectorAll<HTMLElement>('.react-flow__node')]
-            .find((n) => n.getAttribute('data-id') === returnFocus)
-            ?.querySelector<HTMLElement>('button[aria-label^="עריכת"]')
-    const attempt = () => {
-      const el = find()
-      el?.focus({ preventScroll: true })
-      if (el && document.activeElement === el) return setReturnFocus(null)
-      if (++frames < 30) handle = requestAnimationFrame(attempt)
-      else setReturnFocus(null)
-    }
-    handle = requestAnimationFrame(attempt)
-    return () => cancelAnimationFrame(handle)
-  }, [returnFocus])
-
   // "question:option-side" for each answer arrow, so only the dot an arrow leaves from is drawn.
   const routedOptions = new Set(
     flowEdges.filter((e) => e.option).map((e) => `${keyOfNode(e.source)}:${e.option}-${side(e.source, e.target)}`),
   )
-  const reveal = useCallback((nodeId: string) => {
-    setPendingReveal(nodeId)
-    setFocusRequest(nodeId)
-  }, [])
   const context: FlowEditor = {
     ...editor,
     reveal,
     routedOptions,
     focusRequest,
-    focusDone: () => setFocusRequest(null),
-    returnFocusTo: (nodeId: string) => {
-      if (nodeId !== ADD_QUESTION) setPendingReveal(nodeId)
-      setReturnFocus(nodeId)
-    },
+    focusDone,
+    insertAfter,
+    returnFocusTo,
   }
   const full = model.questions.length >= MAX_QUESTIONS
   // One way to add a question, from "+ הוספת שאלה לפני הסיום" or the empty state's "הוספת השאלה הראשונה".
@@ -217,7 +168,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
 
   return (
     <FlowEditorContext.Provider value={context}>
-      <div dir='ltr' className='h-[calc(100vh-15rem)] min-h-[560px] w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50'>
+      <div ref={canvasRef} dir='ltr' className='relative h-[calc(100vh-15rem)] min-h-[560px] w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50'>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -229,6 +180,8 @@ function Canvas({ selectedKey, ...editor }: Props) {
             if (!(e.target as HTMLElement).closest('button, input, textarea, select, label, summary, a')) select(n.id)
           }}
           onPaneClick={() => select(null)}
+          // The arrow menu belongs to where the "+" was; moving the map closes it.
+          onMoveStart={arrows.close}
           // Boxes sit where the conversation puts them. Moving one would look like
           // reordering the questionnaire, which it is not; order changes only
           // through "הקדמת / דחיית השאלה".
@@ -260,6 +213,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
             </Panel>
           )}
         </ReactFlow>
+        {arrows.menu}
       </div>
     </FlowEditorContext.Provider>
   )

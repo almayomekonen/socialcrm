@@ -66,6 +66,40 @@ export function addFollowUp(
   return { ...m, questions }
 }
 
+/**
+ * "+ הוספת שאלה" on a "continue" arrow of the map (from `after` to `before`):
+ * a question asked at exactly that point of the conversation, to exactly the
+ * customers who travel that arrow, and to nobody else.
+ *
+ * The runtime has no "go to": the next question is the next one in order that
+ * the customer qualifies for. So the new question is placed, and shares
+ * eligibility, like this:
+ *   - before a question: immediately before it, with ITS condition (everyone
+ *     who reaches it is asked the new one first);
+ *   - before the ending: last, with the condition of the question the arrow
+ *     leaves (only customers whose conversation ends there are asked).
+ * In a questionnaire without conditions that is simply "between the two".
+ * `after`/`before` are question keys, or null for the opening/the ending.
+ */
+export function insertQuestion(
+  m: BuilderQuestionnaire,
+  arrow: { after: string | null; before: string | null },
+  kind: NewQuestionKind = 'single_choice',
+  ref: string = newRef(),
+): BuilderQuestionnaire {
+  const index = arrow.before === null ? m.questions.length : m.questions.findIndex((q) => keyOf(q) === arrow.before)
+  if (index < 0) return m
+  const like = arrow.before !== null ? m.questions[index] : arrow.after !== null ? m.questions.find((q) => keyOf(q) === arrow.after) : undefined
+  const condition = like ? conditionOf(like) : null
+  const question = {
+    ...blankQuestion(kind, ref),
+    ...(condition ? { shownWhen: { mode: 'all' as const, conditions: [{ questionId: condition.questionId, anyOf: [...condition.anyOf] }] } } : {}),
+  }
+  const questions = [...m.questions]
+  questions.splice(index, 0, question)
+  return { ...m, questions }
+}
+
 export function removeQuestion(m: BuilderQuestionnaire, key: string): BuilderQuestionnaire {
   const released = release(m, key)
   return { ...released, questions: released.questions.filter((q) => keyOf(q) !== key) }
