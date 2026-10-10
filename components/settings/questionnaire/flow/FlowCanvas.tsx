@@ -51,6 +51,12 @@ type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'foc
  * arrows come from the draft (flowGraph.ts) and cannot be drawn or deleted by
  * hand, and boxes cannot be dragged: where a box sits is computed, and order
  * and conditions change only through named actions.
+ *
+ * NOTE (architecture-rules §6/§8): this file is over the 250-line soft limit
+ * and not yet extracted. It is the canvas orchestrator; its viewport, focus
+ * and selection effects are the natural extraction (a useCanvasViewport-style
+ * hook), owed on the next change to this file. The owner deferred
+ * line-count-only refactors (2026-10-09), so it was not split for size alone.
  */
 export default function FlowCanvas(props: Props) {
   return (
