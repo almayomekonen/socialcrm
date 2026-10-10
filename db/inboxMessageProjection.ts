@@ -8,6 +8,7 @@
 import { isHumanOutbound } from '@/lib/inbox/humanReply'
 import { failureTextForCategory, normalizeFailureCategory, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 import type { InboxMessageDirection, InboxMessageStatus, InboxMessageType } from '@/db/inboxMessages'
+import { messageRefsForRow, type MessageReaction, type MessageReplyTo } from '@/db/inboxMessageRefs'
 
 /**
  * The ONLY attachment shape a client ever sees.
@@ -88,6 +89,12 @@ export type LeadWhatsappMessage = {
    * lib/inbox/humanReply.ts. Absent on inbound rows and on older projections.
    */
   byPerson?: boolean
+  /** A media caption (image, video, document), sanitized. Absent when there is none. `text` is unchanged. */
+  caption?: string
+  /** Reaction rows only: the emoji (null = removed) and the message it reacts to, if in this thread. */
+  reaction?: MessageReaction
+  /** A reply quoting another message; `targetId` null when the quoted message is not in this thread. */
+  replyTo?: MessageReplyTo
 }
 
 /** Compact status projection for the sync delta (status changes mutate old rows). */
@@ -156,5 +163,6 @@ export function mapLeadWhatsappMessageRow(r: Record<string, unknown>): LeadWhats
           }),
         }
       : {}),
+    ...messageRefsForRow(r),
   }
 }

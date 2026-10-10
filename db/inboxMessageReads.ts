@@ -7,6 +7,7 @@
  * (db/inboxMessageProjection.ts), so first paint and the poller cannot drift.
  */
 import { db } from '@/config/db'
+import { MESSAGE_REF_SELECT_SQL } from '@/db/inboxMessageRefs'
 import { getUser } from '@/db/auth'
 import { messageTimelineOrderSql, notHistorySql } from '@/lib/inbox/messageTimeline'
 import type { InboxMessageStatus } from '@/db/inboxMessages'
@@ -32,7 +33,7 @@ export async function listLeadWhatsappMessages(leadId: number): Promise<LeadWhat
     // chronological rather than arrival-ordered. The grouping is a deliberate
     // layout choice and is unchanged; only the inner order moved off `sequence`.
     .orderByRaw(`cv.id ASC, ${messageTimelineOrderSql('m')}`)
-    .select(...LEAD_MESSAGE_COLUMNS)
+    .select(...LEAD_MESSAGE_COLUMNS, db.raw(MESSAGE_REF_SELECT_SQL))
 
   return rows.map(mapLeadWhatsappMessageRow)
 }
@@ -57,7 +58,7 @@ export async function getConversationMessagesAfter(
     // `getConversationOutboundStatuses`, which is also id-ordered, and
     // redesigning it is not part of this phase.
     .orderBy('m.id', 'asc')
-    .select(...LEAD_MESSAGE_COLUMNS)
+    .select(...LEAD_MESSAGE_COLUMNS, db.raw(MESSAGE_REF_SELECT_SQL))
 
   return rows.map(mapLeadWhatsappMessageRow)
 }
@@ -73,7 +74,7 @@ export async function listConversationMessages(conversationId: number): Promise<
     // Full render INCLUDES history (product Decision 2) and places it
     // chronologically, which is the whole point of importing an archive.
     .orderByRaw(messageTimelineOrderSql('m'))
-    .select(...LEAD_MESSAGE_COLUMNS)
+    .select(...LEAD_MESSAGE_COLUMNS, db.raw(MESSAGE_REF_SELECT_SQL))
 
   return rows.map(mapLeadWhatsappMessageRow)
 }
