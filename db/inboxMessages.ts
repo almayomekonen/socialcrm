@@ -1,9 +1,30 @@
 import type { Knex } from 'knex'
-import { isHumanOutbound } from '@/lib/inbox/humanReply'
-import { db } from '@/config/db'
-import { getUser } from '@/db/auth'
-import { failureTextForCategory, normalizeFailureCategory, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
-import { messageTimelineOrderSql, notHistorySql } from '@/lib/inbox/messageTimeline'
+import type { WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
+
+/**
+ * inbox_messages: the message types and every WRITE path.
+ *
+ * The client projection lives in db/inboxMessageProjection.ts and the thread
+ * reads in db/inboxMessageReads.ts; both are re-exported here so callers keep
+ * importing from '@/db/inboxMessages'.
+ */
+export {
+  ATTACHMENT_MEDIA_TYPES,
+  mapLeadWhatsappMessageRow,
+  sanitizeAttachmentFilename,
+  sanitizeAttachmentMime,
+  toSafeAttachment,
+  type InboxMessageAttachment,
+  type LeadWhatsappMessage,
+  type LeadWhatsappMessageStatus,
+} from '@/db/inboxMessageProjection'
+export {
+  getConversationMessagesAfter,
+  getConversationOutboundStatuses,
+  hasPriorOutbound,
+  listConversationMessages,
+  listLeadWhatsappMessages,
+} from '@/db/inboxMessageReads'
 
 export type InboxMessageDirection = 'inbound' | 'outbound'
 export type InboxMessageStatus = 'received' | 'sent' | 'delivered' | 'read' | 'failed'
@@ -240,270 +261,4 @@ export async function insertHistoryMessage(
     // other outbound, and naming a user here would be a lie about who acted.
     sentByUserId: null,
   })
-}
-
-/**
- * The ONLY attachment shape a client ever sees.
- *
- * Deliberately excludes the WhatsApp media id, Meta's media `url`, `sha256` and
- * the raw payload. The media id is the capability to fetch the file; it stays
- * server-side and is re-derived by the download route from the message row, so
- * a leaked client payload can never be replayed against Graph.
- */
-export type InboxMessageAttachment = {
-  filename: string | null
-  mimeType: string | null
-}
-
-/** Message types that can carry a fetchable media file. */
-export const ATTACHMENT_MEDIA_TYPES: ReadonlySet<string> = new Set([
-  'document',
-  'image',
-  'audio',
-  'video',
-  'sticker',
-])
-
-const MAX_FILENAME_CHARS = 120
-
-/**
- * A customer controls this string. Stripping CR/LF and control characters here
- * — not only at the response — is what stops a filename like
- * `x.pdf\r\nSet-Cookie: …` from becoming a header injection downstream.
- */
-export function sanitizeAttachmentFilename(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null
-  const cleaned = raw.replace(/[\r\n\t\u0000-\u001F\u007F]/g, '').trim()
-  return cleaned ? cleaned.slice(0, MAX_FILENAME_CHARS) : null
-}
-
-/** Accept only a well-formed `type/subtype`; parameters (`; charset=…`) dropped. */
-export function sanitizeAttachmentMime(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null
-  const bare = raw.split(';')[0].trim().toLowerCase()
-  return /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(bare) ? bare : null
-}
-
-/**
- * Row payload → the safe client shape. Returns null unless the message is a
- * supported media type AND carries a media id, because without an id the file
- * can never be fetched and an "open" action would be a lie.
- */
-export function toSafeAttachment(type: unknown, payload: unknown): InboxMessageAttachment | null {
-  if (typeof type !== 'string' || !ATTACHMENT_MEDIA_TYPES.has(type)) return null
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
-  const p = payload as Record<string, unknown>
-  const mediaId = typeof p.id === 'string' ? p.id.trim() : ''
-  if (!mediaId) return null
-  return {
-    filename: sanitizeAttachmentFilename(p.filename),
-    mimeType: sanitizeAttachmentMime(p.mime_type),
-  }
-}
-
-export type LeadWhatsappMessage = {
-  id: number
-  direction: InboxMessageDirection
-  type: InboxMessageType
-  text: string
-  timestamp: string
-  /** Real delivery state. Outbound `sent` means Meta ACCEPTED it, not that it arrived. */
-  status: InboxMessageStatus
-  /** Rep-facing Hebrew, resolved server-side. Non-null only when status is 'failed'. */
-  failureText: string | null
-  /** Allowlisted failure category (the persisted errorReason key). Null unless failed. */
-  failureCategory: WhatsappErrorCategory | null
-  /** Safe media metadata for an inbound file. Null for text and unsupported types. */
-  attachment: InboxMessageAttachment | null
-  /**
-   * Outbound only: was this sent by a PERSON (SocialCRM or the WhatsApp Business
-   * app) rather than the AI, the questionnaire or an automation? See
-   * lib/inbox/humanReply.ts. Absent on inbound rows and on older projections.
-   */
-  byPerson?: boolean
-}
-
-/** Compact status projection for the sync delta (status changes mutate old rows). */
-export type LeadWhatsappMessageStatus = {
-  id: number
-  status: InboxMessageStatus
-  failureText: string | null
-  failureCategory: WhatsappErrorCategory | null
-}
-
-/** Columns every thread read selects. One list so the three readers cannot drift. */
-const LEAD_MESSAGE_COLUMNS = [
-  'm.id',
-  'm.direction',
-  'm.type',
-  'm.text',
-  'm.payload',
-  'm.status',
-  'm.errorReason',
-  'm.channelTimestamp',
-  'm.createdAt',
-  'm.metadata',
-  'm.sentByUserId',
-] as const
-
-function toIso(v: unknown): string {
-  return v instanceof Date ? v.toISOString() : v ? String(v) : ''
-}
-
-/** Rep-facing failure copy for a row, resolved once, server-side. Null unless failed. */
-function failureTextForRow(status: InboxMessageStatus, errorReason: unknown): string | null {
-  return status === 'failed' ? failureTextForCategory((errorReason as string | null) ?? 'generic') : null
-}
-
-/** Allowlisted failure category for a row (errorReason IS the key). Null unless failed. */
-function failureCategoryForRow(status: InboxMessageStatus, errorReason: unknown): WhatsappErrorCategory | null {
-  return status === 'failed' ? normalizeFailureCategory(errorReason as string | null) : null
-}
-
-/**
- * The single row → LeadWhatsappMessage mapper.
- *
- * Every read path goes through this. Failure copy is resolved HERE, on the
- * server, because a Client Component must render a decision, not make one
- * (architecture-rules §11) — and because three copies of this mapping is how
- * first paint and the poller drift apart.
- */
-export function mapLeadWhatsappMessageRow(r: Record<string, unknown>): LeadWhatsappMessage {
-  const status = r.status as InboxMessageStatus
-  return {
-    id: Number(r.id),
-    direction: r.direction as InboxMessageDirection,
-    type: r.type as InboxMessageType,
-    text: (r.text as string) ?? '',
-    timestamp: toIso(r.channelTimestamp ?? r.createdAt),
-    status,
-    failureText: failureTextForRow(status, r.errorReason),
-    failureCategory: failureCategoryForRow(status, r.errorReason),
-    attachment: toSafeAttachment(r.type, r.payload),
-    ...(r.direction === 'outbound'
-      ? {
-          byPerson: isHumanOutbound({
-            source: (r.metadata as { source?: string } | null)?.source ?? null,
-            sentByUserId: r.sentByUserId == null ? null : Number(r.sentByUserId),
-            status,
-          }),
-        }
-      : {}),
-  }
-}
-
-export async function listLeadWhatsappMessages(leadId: number): Promise<LeadWhatsappMessage[]> {
-  const user = await getUser()
-  if (!user?.agencyId) return []
-
-  const rows = await db('inbox_messages as m')
-    .join('inbox_conversations as cv', 'cv.id', 'm.conversationId')
-    .where('cv.leadId', leadId)
-    .andWhere('m.agencyId', user.agencyId)
-    .andWhere('m.channel', 'whatsapp')
-    // Conversations stay grouped (cv.id), and WITHIN a conversation the order is
-    // chronological rather than arrival-ordered. The grouping is a deliberate
-    // layout choice and is unchanged; only the inner order moved off `sequence`.
-    .orderByRaw(`cv.id ASC, ${messageTimelineOrderSql('m')}`)
-    .select(...LEAD_MESSAGE_COLUMNS)
-
-  return rows.map(mapLeadWhatsappMessageRow)
-}
-
-/** Thread delta: messages newer than `afterId` for a conversation, agency-scoped. */
-export async function getConversationMessagesAfter(
-  conversationId: number,
-  afterId: number,
-  agencyId: number,
-): Promise<LeadWhatsappMessage[]> {
-  const rows = await db('inbox_messages as m')
-    .where('m.conversationId', conversationId)
-    .andWhere('m.agencyId', agencyId)
-    .andWhere('m.id', '>', afterId)
-    // Imported history never enters the delta. The cursor is `id`, and an
-    // imported archive receives the HIGHEST ids in its conversation, so without
-    // this an import would stream a customer's months-old messages at every
-    // already-open browser as though they had just arrived. History becomes
-    // visible on the next full thread load, in its correct chronological place.
-    .andWhereRaw(notHistorySql('m'))
-    // The cursor stays id-based on purpose: it pairs with
-    // `getConversationOutboundStatuses`, which is also id-ordered, and
-    // redesigning it is not part of this phase.
-    .orderBy('m.id', 'asc')
-    .select(...LEAD_MESSAGE_COLUMNS)
-
-  return rows.map(mapLeadWhatsappMessageRow)
-}
-
-export async function listConversationMessages(conversationId: number): Promise<LeadWhatsappMessage[]> {
-  const user = await getUser()
-  if (!user?.agencyId) return []
-
-  const rows = await db('inbox_messages as m')
-    .join('inbox_conversations as cv', 'cv.id', 'm.conversationId')
-    .where('cv.id', conversationId)
-    .andWhere('m.agencyId', user.agencyId)
-    // Full render INCLUDES history (product Decision 2) and places it
-    // chronologically, which is the whole point of importing an archive.
-    .orderByRaw(messageTimelineOrderSql('m'))
-    .select(...LEAD_MESSAGE_COLUMNS)
-
-  return rows.map(mapLeadWhatsappMessageRow)
-}
-
-/**
- * Outbound delivery states for an open conversation.
- *
- * The thread delta is `id > afterId` and can only ever see NEW rows; a status
- * change mutates an OLD one. This projection is how those changes reach the
- * client. Capped at the 60 most recent outbound messages — beyond that a rep is
- * scrolled into history, not watching for delivery.
- *
- * DELIBERATELY STILL id-ORDERED, unlike the thread readers. This is not a
- * chronological render; it is the companion of the id-based delta cursor above,
- * and the two must agree on what "recent" means or the client can be handed a
- * status for a message it has not received. When the cursor is redesigned this
- * moves with it. Imported history is outbound-and-`sent` with no failure, so it
- * can only dilute this window, never misreport a delivery state.
- */
-export async function getConversationOutboundStatuses(
-  conversationId: number,
-  agencyId: number,
-): Promise<LeadWhatsappMessageStatus[]> {
-  const rows = await db('inbox_messages as m')
-    .where('m.conversationId', conversationId)
-    .andWhere('m.agencyId', agencyId)
-    .andWhere('m.channel', 'whatsapp')
-    .andWhere('m.direction', 'outbound')
-    .orderBy('m.id', 'desc')
-    .limit(60)
-    .select('m.id', 'm.status', 'm.errorReason')
-
-  return rows.map((r) => {
-    const status = r.status as InboxMessageStatus
-    return {
-      id: Number(r.id),
-      status,
-      failureText: failureTextForRow(status, r.errorReason),
-      failureCategory: failureCategoryForRow(status, r.errorReason),
-    }
-  })
-}
-
-/**
- * Has the business already sent anything on this conversation — an agent reply
- * or a human one?
- *
- * Used by the first-greeting decision. It asks the table rather than scanning
- * the worker's in-memory transcript because that transcript is capped
- * (MAX_TRANSCRIPT): past the cap an early greeting would fall out of the window
- * and the same customer would be welcomed a second time.
- *
- * An existence check, not a COUNT: the greeting only cares whether the number is
- * zero, and `.first('id')` is the same query shape the worker already uses for
- * `outboundExists`.
- */
-export async function hasPriorOutbound(conversationId: number): Promise<boolean> {
-  const row = await db('inbox_messages').where({ conversationId, direction: 'outbound' }).first('id')
-  return Boolean(row)
 }
