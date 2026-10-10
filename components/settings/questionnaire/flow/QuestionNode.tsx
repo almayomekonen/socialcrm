@@ -24,6 +24,7 @@ import FlowTextAnswer from './FlowTextAnswer'
 import QuestionSummary from './QuestionSummary'
 import { useFlowEditor } from './flowContext'
 import { focusAfterRemoval } from './removalFocus'
+import ArrowInsertButton from './ArrowInsertButton'
 
 export type QuestionNodeData = { questionKey: string; nodeId: string }
 
@@ -96,7 +97,12 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
     })
 
   if (!selected) {
-    return <QuestionSummary question={question} number={index + 1} onlyFor={onlyFor} issues={issues} onEdit={() => select(data.nodeId)} routed={(o, side) => routedOptions.has(`${key}:${o}-${side}`)} />
+    return (
+      <>
+        <QuestionSummary question={question} number={index + 1} onlyFor={onlyFor} issues={issues} onEdit={() => select(data.nodeId)} routed={(o, side) => routedOptions.has(`${key}:${o}-${side}`)} />
+        <ArrowInsertButton nodeId={data.nodeId} />
+      </>
+    )
   }
 
   return (
@@ -238,6 +244,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
       )}
       {issues.some((i) => i.optionId && i.code === 'missing_text') && <p className='text-xs text-red-700'>כתבו שם לכל תשובה.</p>}
       <Handle type='source' position={Position.Bottom} id='next' isConnectable={false} className='!opacity-0' />
+      <ArrowInsertButton nodeId={data.nodeId} />
     </div>
   )
 }

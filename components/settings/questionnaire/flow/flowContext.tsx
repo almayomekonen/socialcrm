@@ -32,6 +32,8 @@ export type FlowEditor = {
   /** A box that was just created and should take the cursor; cleared once it has. */
   focusRequest: string | null
   focusDone: () => void
+  /** "+ הוספת שאלה" on the continue arrow leaving this box, or null when there is none to offer. */
+  insertAfter: (nodeId: string) => { where: string; open: boolean; onOpen: (button: HTMLButtonElement) => void } | null
   /** After a deletion: put the cursor on this box's "עריכה" (or on "+ הוספת שאלה" for 'add'). */
   returnFocusTo: (nodeId: string) => void
   /** Switch to the Conversation view (for what the canvas does not edit). */
