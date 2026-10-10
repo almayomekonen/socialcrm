@@ -13,9 +13,9 @@
  * so before it happens.
  */
 import type { AnswerSpec, BuilderEnding, BuilderQuestion, BuilderQuestionnaire } from './model'
-import { conditionOf, isChoice, keyOf, mapQuestion, newOption, newRef, release, type Condition, type QuestionKind } from './editorBase'
+import { conditionOf, isChoice, keyOf, mapQuestion, newOption, newRef, questionsFull, release, type Condition, type QuestionKind } from './editorBase'
 
-export { keyOf, reactKey, newRef, OTHER_LABEL, optionsOf, conditionOf, dependentsOf, adoptIds } from './editorBase'
+export { keyOf, reactKey, newRef, OTHER_LABEL, optionsOf, conditionOf, dependentsOf, adoptIds, MAX_QUESTIONS, questionsFull } from './editorBase'
 export type { Keyed, Condition, Dependents, QuestionKind } from './editorBase'
 
 // ── Questions ────────────────────────────────────────────────────────────────
@@ -34,8 +34,9 @@ function blankQuestion(kind: NewQuestionKind, ref: string): BuilderQuestion {
   }
 }
 
-/** A new question at the end of the conversation (before the ending). */
+/** A new question at the end of the conversation (before the ending). Unchanged when full. */
 export function addQuestion(m: BuilderQuestionnaire, kind: NewQuestionKind = 'single_choice', ref: string = newRef()): BuilderQuestionnaire {
+  if (questionsFull(m)) return m
   return { ...m, questions: [...m.questions, blankQuestion(kind, ref)] }
 }
 
@@ -53,7 +54,7 @@ export function addFollowUp(
   ref: string = newRef(),
 ): BuilderQuestionnaire {
   const at = m.questions.findIndex((q) => keyOf(q) === questionKey)
-  if (at < 0) return m
+  if (at < 0 || questionsFull(m)) return m
   let insert = at + 1
   while (insert < m.questions.length) {
     const c = conditionOf(m.questions[insert])
@@ -88,7 +89,7 @@ export function insertQuestion(
   ref: string = newRef(),
 ): BuilderQuestionnaire {
   const index = arrow.before === null ? m.questions.length : m.questions.findIndex((q) => keyOf(q) === arrow.before)
-  if (index < 0) return m
+  if (index < 0 || questionsFull(m)) return m
   const like = arrow.before !== null ? m.questions[index] : arrow.after !== null ? m.questions.find((q) => keyOf(q) === arrow.after) : undefined
   const condition = like ? conditionOf(like) : null
   const question = {

@@ -14,7 +14,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
-import { addQuestion, insertQuestion, keyOf, newRef, optionsOf, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addQuestion, insertQuestion, keyOf, newRef, optionsOf, questionsFull, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { QUESTIONS_FULL } from '../builderCopy'
 import AddQuestionMenu from './AddQuestionMenu'
 import FlowEmptyState from './FlowEmptyState'
 import { useArrowInsert } from './useArrowInsert'
@@ -26,7 +27,6 @@ import { DEFAULT_SIZE, edgeRoutes, layoutFlow, type Size } from './flowLayout'
 import { useCanvasViewport } from './useCanvasViewport'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
-const MAX_QUESTIONS = 12
 
 /** React Flow's screen-reader strings, in the product's language. */
 const HEBREW_ARIA = {
@@ -109,7 +109,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
     select(ref)
     reveal(ref)
   })
-  const canInsert = model.questions.length > 0 && model.questions.length < MAX_QUESTIONS
+  const canInsert = model.questions.length > 0 && !questionsFull(model)
   const insertAfter = (nodeId: string) => {
     const e = canInsert ? flowEdges.find((x) => x.source === nodeId && !x.option) : undefined
     if (!e) return null
@@ -156,7 +156,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
     insertAfter,
     returnFocusTo,
   }
-  const full = model.questions.length >= MAX_QUESTIONS
+  const full = questionsFull(model)
   // One way to add a question, from "+ הוספת שאלה לפני הסיום" or the empty state's "הוספת השאלה הראשונה".
   const addAtEnd = (kind: NewQuestionKind) => {
     const ref = newRef()
@@ -208,7 +208,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
           ) : (
             <Panel position='top-right'>
               <div dir='rtl' className='flex items-center gap-2'>
-                <AddQuestionMenu disabledReason={full ? 'אפשר עד 12 שאלות בשאלון.' : null} onAdd={addAtEnd} />
+                <AddQuestionMenu disabledReason={full ? QUESTIONS_FULL : null} onAdd={addAtEnd} />
               </div>
             </Panel>
           )}

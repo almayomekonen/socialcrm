@@ -8,7 +8,7 @@
  * loads one, so the runtime sees nothing it has not always run.
  */
 import type { BuilderOption, BuilderQuestion, BuilderQuestionnaire } from './model'
-import { OTHER_LABEL, conditionOf, isChoice, keyOf, mapQuestion, newOption, newRef, optionsOf, release } from './editorBase'
+import { OTHER_LABEL, conditionOf, isChoice, keyOf, mapQuestion, newOption, newRef, optionsOf, questionsFull, release } from './editorBase'
 
 export function addOption(m: BuilderQuestionnaire, questionKey: string): BuilderQuestionnaire {
   return mapQuestion(m, questionKey, (q) => {
@@ -68,13 +68,14 @@ export function otherOf(
 /**
  * Turn on "אפשר ללקוח לבחור 'אחר'": the option (last), and its follow-up right
  * after the question. An existing "אחר" without a follow-up gets one.
+ * Unchanged when the questionnaire is full: the follow-up is a question.
  */
 export function enableOther(m: BuilderQuestionnaire, questionKey: string): BuilderQuestionnaire {
   const index = m.questions.findIndex((q) => keyOf(q) === questionKey)
   const question = m.questions[index]
   if (!question || !isChoice(question.answer)) return m
   const existing = otherOf(m, questionKey)
-  if (existing?.followUp) return m
+  if (existing?.followUp || questionsFull(m)) return m
 
   let next = m
   let optionKey = existing ? keyOf(existing.option) : ''

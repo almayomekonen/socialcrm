@@ -22,6 +22,18 @@ export function newRef(): string {
   return `new_${Math.random().toString(36).slice(2, 12).padEnd(10, '0')}`
 }
 
+/**
+ * The most questions a questionnaire may have: the same 12 the Builder model
+ * (model.ts) and the runtime definition (../definition.ts) accept. Every
+ * operation that adds a question checks it first and changes nothing when the
+ * questionnaire is full, so the editor never holds a draft the save refuses.
+ */
+export const MAX_QUESTIONS = 12
+
+export function questionsFull(m: BuilderQuestionnaire): boolean {
+  return m.questions.length >= MAX_QUESTIONS
+}
+
 /** "אחר" as a word of its own: the same rule the publish check uses (checks.ts). */
 export const OTHER_LABEL = /(^|\s)אחר(\s|$)/
 

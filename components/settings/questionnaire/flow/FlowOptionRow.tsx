@@ -7,6 +7,7 @@ import {
   dependentsOf,
   keyOf,
   newRef,
+  questionsFull,
   reactKey,
   removeOption,
   updateOption,
@@ -14,7 +15,8 @@ import {
 import type { BuilderOption } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import PhrasingsEditor from '../PhrasingsEditor'
 import IconChooser from '../IconChooser'
-import { consequenceText } from '../builderCopy'
+import { QUESTIONS_FULL, consequenceText } from '../builderCopy'
+import { useLimitedAction } from '../LimitedButton'
 import OptionLabelLimit, { optionLabelDescribedBy, useOptionLabelInput } from '../OptionLabelLimit'
 import { useFlowEditor } from './flowContext'
 
@@ -64,6 +66,8 @@ export default function FlowOptionRow({
     select(ref)
     reveal(ref)
   }
+  // A follow-up is a question: at 12 the action says so instead of adding one (editorBase.ts MAX_QUESTIONS).
+  const follow = useLimitedAction(questionsFull(model) ? QUESTIONS_FULL : null, addFollow)
 
   return (
     <li className='relative grid gap-1'>
@@ -115,9 +119,16 @@ export default function FlowOptionRow({
             ממשיך לשאלת המשך
           </button>
         ) : (
-          <button type='button' onClick={addFollow} className='nodrag text-xs font-medium text-primary hover:underline'>
-            + שאלת המשך אם בוחרים בזה
-          </button>
+          <>
+            <button
+              type='button'
+              {...follow.buttonProps}
+              className={`nodrag text-xs font-medium text-primary hover:underline ${follow.blocked ? 'cursor-not-allowed opacity-50' : ''}`}
+            >
+              + שאלת המשך אם בוחרים בזה
+            </button>
+            {follow.reason}
+          </>
         )}
       </div>
       <div className='nodrag ps-6'>

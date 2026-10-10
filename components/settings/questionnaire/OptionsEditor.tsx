@@ -10,15 +10,16 @@ import {
   reactKey,
   optionsOf,
   otherOf,
+  questionsFull,
   removeOption,
   updateOption,
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import OptionRow from './OptionRow'
-import LimitedButton from './LimitedButton'
+import LimitedButton, { useLimitedAction } from './LimitedButton'
 import { focusCard } from './focusCard'
-import { consequenceText, type ConfirmRequest } from './builderCopy'
+import { QUESTIONS_FULL, consequenceText, otherBlockedReason, type ConfirmRequest } from './builderCopy'
 
 const MAX_OPTIONS = 10
 
@@ -50,6 +51,10 @@ export default function OptionsEditor({
   const full = options.length >= MAX_OPTIONS
   const optionIssues = (optionKey: string) => issues.filter((i) => i.optionId === optionKey)
   const followUpNumber = other?.followUp ? model.questions.indexOf(other.followUp) + 1 : null
+  // "אחר" comes with a follow-up question, so at 12 questions it cannot be turned on (editorBase.ts MAX_QUESTIONS).
+  const questionsAreFull = questionsFull(model)
+  const otherBlocked = otherBlockedReason({ hasOther: other !== null, optionsFull: full, questionsFull: questionsAreFull })
+  const addOtherFollowUp = useLimitedAction(questionsAreFull ? QUESTIONS_FULL : null, () => edit((m) => enableOther(m, qKey)))
 
   /** Remove an option (or "אחר" with its follow-up), saying first what else it changes. */
   const remove = (optionKey: string, label: string) => {
@@ -106,15 +111,15 @@ export default function OptionsEditor({
           <Switch
             lbl='אפשר ללקוח לבחור "אחר"'
             checked={other !== null}
-            disabled={!other && full}
-            aria-describedby={!other && full ? `${qKey}-other-full` : undefined}
+            disabled={otherBlocked !== null}
+            aria-describedby={otherBlocked ? `${qKey}-other-full` : undefined}
             onChange={(e) =>
               e.target.checked ? edit((m) => enableOther(m, qKey)) : other && remove(keyOf(other.option), other.option.label)
             }
           />
-          {!other && full && (
+          {otherBlocked && (
             <p id={`${qKey}-other-full`} className='text-xs text-gray-600'>
-              כדי להוסיף "אחר" צריך קודם להסיר אפשרות (עד 10 בשאלה).
+              {otherBlocked}
             </p>
           )}
         </div>
@@ -138,11 +143,12 @@ export default function OptionsEditor({
               כשלקוח בוחר "{other.option.label}", כדאי לשאול אותו לפרטים.{' '}
               <button
                 type='button'
-                onClick={() => edit((m) => enableOther(m, qKey))}
-                className='font-medium text-ink underline underline-offset-2'
+                {...addOtherFollowUp.buttonProps}
+                className={`font-medium text-ink underline underline-offset-2 ${addOtherFollowUp.blocked ? 'cursor-not-allowed opacity-50' : ''}`}
               >
                 הוספת שאלת המשך
-              </button>
+              </button>{' '}
+              {addOtherFollowUp.reason}
             </>
           )}
         </p>

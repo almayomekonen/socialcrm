@@ -6,6 +6,21 @@
  */
 import type { QuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 
+/** Why no question can be added (MAX_QUESTIONS, editorBase.ts). */
+export const QUESTIONS_FULL = 'אפשר עד 12 שאלות בשאלון.'
+
+/**
+ * Why "אחר" cannot be turned on, or null when it can (or is on already). It
+ * adds an option and a follow-up question, so it needs room for both. Shared
+ * by the List switch and the map's checkbox, so they say the same thing.
+ */
+export function otherBlockedReason(state: { hasOther: boolean; optionsFull: boolean; questionsFull: boolean }): string | null {
+  if (state.hasOther) return null
+  if (state.optionsFull) return 'כדי להוסיף "אחר" צריך קודם להסיר אפשרות (עד 10 בשאלה).'
+  if (state.questionsFull) return `${QUESTIONS_FULL} "אחר" מוסיף שאלת המשך.`
+  return null
+}
+
 /** "איך הלקוח יכול לענות" — the three V1 question types. */
 export type AnswerType = 'single' | 'multi' | 'free'
 

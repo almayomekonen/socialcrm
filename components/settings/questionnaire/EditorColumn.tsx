@@ -1,17 +1,15 @@
 'use client'
 
 import AutoResponseTextField from '@/components/settings/autoResponse/AutoResponseTextField'
-import { addQuestion, keyOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addQuestion, keyOf, questionsFull, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { EditorIssue, EditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
-import { rowsFor, type ConfirmRequest } from './builderCopy'
+import { QUESTIONS_FULL, rowsFor, type ConfirmRequest } from './builderCopy'
 import EndingsSection from './EndingsSection'
 import ExtraMessages from './ExtraMessages'
 import LimitedButton from './LimitedButton'
 import QuestionCard from './QuestionCard'
 import type { PreviewFocus } from './WhatsAppPreview'
-
-const MAX_QUESTIONS = 12
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
 
@@ -98,7 +96,7 @@ export default function EditorColumn({
             variant='outline'
             icon='plus'
             lbl='הוספת שאלה'
-            blockedReason={model.questions.length >= MAX_QUESTIONS ? 'אפשר עד 12 שאלות בשאלון.' : null}
+            blockedReason={questionsFull(model) ? QUESTIONS_FULL : null}
             onClick={() => {
               edit(addQuestion)
               announce('נוספה שאלה חדשה בסוף הרשימה')
