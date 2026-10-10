@@ -15,8 +15,9 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
-import { addQuestion, keyOf, newRef, optionsOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { addQuestion, keyOf, newRef, optionsOf, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import AddQuestionMenu from './AddQuestionMenu'
+import FlowEmptyState from './FlowEmptyState'
 import EndingsNode from './EndingsNode'
 import OpeningNode from './OpeningNode'
 import QuestionNode from './QuestionNode'
@@ -50,6 +51,12 @@ type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'foc
  * arrows come from the draft (flowGraph.ts) and cannot be drawn or deleted by
  * hand, and boxes cannot be dragged: where a box sits is computed, and order
  * and conditions change only through named actions.
+ *
+ * NOTE (architecture-rules §6/§8): this file is over the 250-line soft limit
+ * and not yet extracted. It is the canvas orchestrator; its viewport, focus
+ * and selection effects are the natural extraction (a useCanvasViewport-style
+ * hook), owed on the next change to this file. The owner deferred
+ * line-count-only refactors (2026-10-09), so it was not split for size alone.
  */
 export default function FlowCanvas(props: Props) {
   return (
@@ -199,6 +206,14 @@ function Canvas({ selectedKey, ...editor }: Props) {
     },
   }
   const full = model.questions.length >= MAX_QUESTIONS
+  // One way to add a question, from "+ הוספת שאלה לפני הסיום" or the empty state's "הוספת השאלה הראשונה".
+  const addAtEnd = (kind: NewQuestionKind) => {
+    const ref = newRef()
+    edit((m) => addQuestion(m, kind, ref))
+    announce('נוספה שאלה חדשה לפני הסיום')
+    select(ref)
+    reveal(ref)
+  }
 
   return (
     <FlowEditorContext.Provider value={context}>
@@ -233,20 +248,17 @@ function Canvas({ selectedKey, ...editor }: Props) {
         >
           <Background gap={24} size={1} />
           <Controls showInteractive={false} position='bottom-right' />
-          <Panel position='top-right'>
-            <div dir='rtl' className='flex items-center gap-2'>
-              <AddQuestionMenu
-                disabledReason={full ? 'אפשר עד 12 שאלות בשאלון.' : null}
-                onAdd={(kind) => {
-                  const ref = newRef()
-                  edit((m) => addQuestion(m, kind, ref))
-                  announce('נוספה שאלה חדשה לפני הסיום')
-                  select(ref)
-                  reveal(ref)
-                }}
-              />
-            </div>
-          </Panel>
+          {model.questions.length === 0 ? (
+            <Panel position='bottom-center'>
+              <FlowEmptyState onAdd={addAtEnd} />
+            </Panel>
+          ) : (
+            <Panel position='top-right'>
+              <div dir='rtl' className='flex items-center gap-2'>
+                <AddQuestionMenu disabledReason={full ? 'אפשר עד 12 שאלות בשאלון.' : null} onAdd={addAtEnd} />
+              </div>
+            </Panel>
+          )}
         </ReactFlow>
       </div>
     </FlowEditorContext.Provider>
