@@ -3,6 +3,6 @@
  * with the consent: ANY change to the text must bump the version.
  */
 export const OWNER_WA_CONSENT = {
-  version: 'v1',
-  text: 'אני מאשר/ת לקבל מ-SocialCRM תזכורות בוואטסאפ על לידים שמחכים למענה, למספר שממנו אשלח את קוד ההפעלה. אפשר להפסיק בכל רגע: לשלוח "הסר" או לכבות בדף הזה.',
+  version: 'v2',
+  text: 'אני מאשר/ת לקבל מ-SocialCRM תזכורות בוואטסאפ על לידים שמחכים למענה, למספר שממנו אשלח את קוד ההפעלה. אפשר להפסיק בכל רגע: לשלוח "הסר" למספר של SocialCRM או לכבות בדף הזה.',
 } as const

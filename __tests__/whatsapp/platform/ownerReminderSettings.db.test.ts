@@ -31,6 +31,7 @@ import { db } from '@/config/db'
 import { startWhatsappReminderActivation, turnOffWhatsappReminders } from '@/actions/whatsappReminders'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { hashActivationCode } from '@/lib/whatsapp/platform/keys'
+import { OWNER_WA_CONSENT } from '@/lib/whatsapp/platform/consentText'
 
 const agencies: number[] = []
 let A: number
@@ -86,13 +87,22 @@ describe('starting activation', () => {
     expect(res.code).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/)
     expect(res.waMeHref).toBe(`https://wa.me/972500000000?text=${encodeURIComponent(`הפעלת תזכורות SocialCRM: ${res.code}`)}`)
     const r = await row(A, ua)
-    expect(r).toMatchObject({ status: 'pending', consentTextVersion: 'v1', consentSource: 'settings', phoneE164: null })
+    expect(r).toMatchObject({ status: 'pending', consentTextVersion: 'v2', consentSource: 'settings', phoneE164: null })
+    expect(r.consentTextVersion).toBe(OWNER_WA_CONSENT.version)
     expect(r.consentAt).toBeTruthy()
     expect(r.activationCodeHash).toBe(hashActivationCode(res.code.replace('-', '')))
     expect(JSON.stringify(r)).not.toContain(res.code.replace('-', ''))
     // The input's userId / agencyId were ignored.
     expect(await row(A, ub)).toBeUndefined()
     expect(await db('owner_whatsapp_recipients').where({ agencyId: EXCLUDED })).toHaveLength(0)
+  })
+
+  it('a new consent records the current text version (v2), replacing an older one on the same row', async () => {
+    as(ua, A)
+    await db('owner_whatsapp_recipients').insert({ agencyId: A, userId: ua, status: 'opted_out', consentAt: db.fn.now(), consentTextVersion: 'v1', consentSource: 'settings' })
+    const res = await startWhatsappReminderActivation({ consent: true })
+    expect(res).toHaveProperty('ok', true)
+    expect(await row(A, ua)).toMatchObject({ status: 'pending', consentTextVersion: 'v2' })
   })
 
   it('needs the consent box ticked: nothing is written without it', async () => {

@@ -12,6 +12,7 @@ vi.mock('@/actions/whatsappReminders', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 
 import WhatsappReminderCard from '@/components/settings/whatsappReminders/WhatsappReminderCard'
+import { OWNER_WA_CONSENT } from '@/lib/whatsapp/platform/consentText'
 
 const EMOJI = /\p{Extended_Pictographic}/u
 
@@ -35,6 +36,18 @@ describe('WhatsappReminderCard', () => {
     expect(actions.start).toHaveBeenCalledWith({ consent: true })
     expect(screen.getByRole('button', { name: 'שליחת הקוד בוואטסאפ' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'בדיקה אם התזכורות פעילות' })).toBeInTheDocument()
+  })
+
+  it('displays exactly the v2 consent text, which names the sender, the purpose and where to send "הסר"', () => {
+    expect(OWNER_WA_CONSENT.version).toBe('v2')
+    expect(OWNER_WA_CONSENT.text).toBe(
+      'אני מאשר/ת לקבל מ-SocialCRM תזכורות בוואטסאפ על לידים שמחכים למענה, למספר שממנו אשלח את קוד ההפעלה. אפשר להפסיק בכל רגע: לשלוח "הסר" למספר של SocialCRM או לכבות בדף הזה.',
+    )
+    for (const state of ['off', 'opted_out', 'pending'] as const) {
+      const { unmount } = render(<WhatsappReminderCard initial={{ state, maskedPhone: null }} />)
+      expect(screen.getByRole('checkbox', { name: OWNER_WA_CONSENT.text })).toBeInTheDocument()
+      unmount()
+    }
   })
 
   it('active: shows only the masked number and a way to turn off', () => {

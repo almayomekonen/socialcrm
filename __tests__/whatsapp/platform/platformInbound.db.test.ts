@@ -42,7 +42,7 @@ async function user(agencyId: number, extra: Record<string, unknown> = {}): Prom
   return Number(u.id)
 }
 async function pending(agencyId: number, userId: number, code: string, ttlMs = 15 * 60_000) {
-  await startOwnActivation({ agencyId, userId, codeHash: hashActivationCode(code), expiresAt: new Date(Date.now() + ttlMs), consentTextVersion: 'v1' })
+  await startOwnActivation({ agencyId, userId, codeHash: hashActivationCode(code), expiresAt: new Date(Date.now() + ttlMs), consentTextVersion: 'v2' })
 }
 const recipient = (agencyId: number, userId: number) => db('owner_whatsapp_recipients').where({ agencyId, userId }).first()
 const msg = (body: string, opts: { from?: string | null; ts?: number; id?: string; type?: string } = {}) => ({
@@ -95,7 +95,7 @@ describe('migration', () => {
   it('an active row must carry a verified number', async () => {
     const u = await user(A)
     await expect(
-      db('owner_whatsapp_recipients').insert({ agencyId: A, userId: u, status: 'active', consentAt: db.fn.now(), consentTextVersion: 'v1', consentSource: 'settings' }),
+      db('owner_whatsapp_recipients').insert({ agencyId: A, userId: u, status: 'active', consentAt: db.fn.now(), consentTextVersion: 'v2', consentSource: 'settings' }),
     ).rejects.toThrow()
   })
 })
