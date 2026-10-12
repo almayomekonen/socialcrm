@@ -7,6 +7,7 @@ import {
   setPlatformInboundKind,
 } from '@/db/platformWhatsappInbound'
 import { ownerWhatsappReminderAgencyIds } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { parsePlatformStatus, recordPlatformStatus } from '@/db/platformWhatsappMessageStatus'
 import { parsePlatformCommand } from './commands'
 import { hashActivationCode, hashPlatformSender } from './keys'
 
@@ -15,8 +16,9 @@ import { hashActivationCode, hashPlatformSender } from './keys'
  *
  * NEVER enters the agency pipeline: no conversation, message, lead, bot, job or
  * notification is created, and nothing is sent (this module makes no network
- * call). Statuses and every non-message field are ignored: PR A sends nothing,
- * so there is nothing for them to describe.
+ * call). Delivery statuses are recorded by message id for the owner reminders
+ * this number sends (`owner_whatsapp_message_status`, forward-only); every other
+ * non-message field is ignored.
  *
  * ONE TRANSACTION PER MESSAGE, under a per-sender advisory lock:
  *   1. record the message id (a redelivery stops here, changing nothing);
@@ -39,7 +41,7 @@ export type PlatformMessageOutcome =
   | 'ignored'
   | 'skipped'
 
-type Change = { field?: unknown; value?: { messages?: unknown } & Record<string, unknown> }
+type Change = { field?: unknown; value?: { messages?: unknown; statuses?: unknown } & Record<string, unknown> }
 
 const phoneDigits = (raw: unknown): string | null => (typeof raw === 'string' && /^[1-9]\d{7,14}$/.test(raw) ? raw : null)
 
@@ -101,6 +103,17 @@ export async function processPlatformChanges(changes: Change[]): Promise<{ ok: b
   let failed = 0
   for (const change of changes) {
     if (change?.field !== 'messages') continue
+    const statuses = Array.isArray(change.value?.statuses) ? (change.value.statuses as unknown[]) : []
+    for (const raw of statuses) {
+      const event = parsePlatformStatus(raw)
+      if (!event) continue
+      try {
+        await recordPlatformStatus(event)
+      } catch (err) {
+        failed++
+        console.error('[WhatsappWebhook][platform] status not saved', { code: (err as { code?: string })?.code ?? null })
+      }
+    }
     const messages = Array.isArray(change.value?.messages) ? (change.value.messages as Record<string, any>[]) : []
     for (const message of messages) {
       try {
