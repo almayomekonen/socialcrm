@@ -49,7 +49,19 @@ describe('the answer to Meta for a delivery with platform changes', () => {
     for (const f of ['smb_message_echoes', 'history', 'smb_app_state_sync', 'message_template_status_update', 'message_template_quality_update']) {
       expect(isReplayUnprovenAgencyField(f)).toBe(true)
     }
-    for (const f of ['messages', 'statuses']) expect(isReplayUnprovenAgencyField(f)).toBe(false)
+    expect(isReplayUnprovenAgencyField('messages')).toBe(false)
+  })
+
+  it('delivery statuses arrive under the `messages` field (value.statuses), so a status-only agency part is safe to repeat: 500', () => {
+    const body = {
+      entry: [
+        { id: 'WABA_A', changes: [{ field: 'messages', value: { metadata: { phone_number_id: 'AGENCY' }, statuses: [{ id: 'wamid.out', status: 'delivered' }] } }] },
+        entry('W2', change('messages', PLATFORM)),
+      ],
+    }
+    const split = splitPlatformWebhook(body, PLATFORM)
+    expect(split.agencyFields).toEqual(['messages'])
+    expect(platformBatchResponse({ agencyStatus: 200, platformOk: false, agencyFields: split.agencyFields }).status).toBe(500)
   })
 
   it('platform saved: the agency answer, or 200 when there was no agency part', () => {

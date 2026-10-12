@@ -1,8 +1,11 @@
-import { createHmac } from 'crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '@/config/db'
 import { startOwnActivation } from '@/db/ownerWhatsappRecipients'
 import { hashActivationCode } from '@/lib/whatsapp/platform/keys'
+import {
+  CUSTOMER, OWNER, PLATFORM, PN_A, SECRET, agencyEcho, agencyHistory, agencyInbound, agencySideEffects as sideEffectsOf,
+  agencyStatus, agencyTemplateStatus, delivery, platformEcho, platformMessage, platformStatus, signed,
+} from './mixedBatchFixtures'
 
 /**
  * The webhook route with REAL agency handling and REAL platform handling, on a
@@ -51,12 +54,22 @@ vi.mock('@/lib/whatsapp/coexistence', async (importOriginal) => {
   }
 })
 vi.mock('@/lib/inbox/autoresponse/kickWorker', () => ({ runAutoResponseKick: vi.fn() }))
+// The three agency handlers, wrapped so their calls are counted while the REAL
+// implementation still runs.
+const agencyHandlers = vi.hoisted(() => ({ inbound: 0, statuses: 0, templates: 0 }))
+vi.mock('@/lib/whatsapp/handleInboundWebhookMessage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/whatsapp/handleInboundWebhookMessage')>()
+  return { ...actual, handleInboundWebhookMessage: vi.fn(async (...a: Parameters<typeof actual.handleInboundWebhookMessage>) => (agencyHandlers.inbound++, actual.handleInboundWebhookMessage(...a))) }
+})
+vi.mock('@/lib/inbox/ingestWhatsappStatuses', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/inbox/ingestWhatsappStatuses')>()
+  return { ...actual, ingestWhatsappStatuses: vi.fn(async (...a: Parameters<typeof actual.ingestWhatsappStatuses>) => (agencyHandlers.statuses++, actual.ingestWhatsappStatuses(...a))) }
+})
+vi.mock('@/lib/whatsapp/templates/ingestStatus', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/whatsapp/templates/ingestStatus')>()
+  return { ...actual, ingestTemplateStatusUpdate: vi.fn(async (...a: Parameters<typeof actual.ingestTemplateStatusUpdate>) => (agencyHandlers.templates++, actual.ingestTemplateStatusUpdate(...a))) }
+})
 
-const SECRET = 'test-app-secret-mixed'
-const PLATFORM = '1000000000001'
-const PN_A = '__mixed_pn_a'
-const OWNER = '972500000081'
-const CUSTOMER = '972500000082'
 const fetchSpy = vi.spyOn(globalThis, 'fetch')
 const errorSpy = vi.spyOn(console, 'error')
 let agencyA: number
@@ -65,50 +78,8 @@ let seq = 0
 
 const { POST } = await import('@/app/api/webhooks/whatsapp/route')
 
-function signed(body: unknown): Request {
-  const raw = JSON.stringify(body)
-  const sig = 'sha256=' + createHmac('sha256', SECRET).update(raw).digest('hex')
-  return new Request('https://getsocialcrm.com/api/webhooks/whatsapp', {
-    method: 'POST',
-    headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json' },
-    body: raw,
-  })
-}
 const post = (body: unknown) => POST(signed(body) as never)
-const entry = (id: string, field: string, value: Record<string, unknown>) => ({ id, changes: [{ field, value }] })
-const agencyInbound = (wamid: string) =>
-  entry('WABA_A', 'messages', {
-    messaging_product: 'whatsapp',
-    metadata: { display_phone_number: '15550000001', phone_number_id: PN_A },
-    contacts: [{ profile: { name: 'לקוח' }, wa_id: CUSTOMER }],
-    messages: [{ from: CUSTOMER, id: wamid, timestamp: '1760000000', type: 'text', text: { body: 'שלום, אפשר פרטים?' } }],
-  })
-const agencyEcho = (wamid: string) =>
-  entry('WABA_A', 'smb_message_echoes', {
-    messaging_product: 'whatsapp',
-    metadata: { display_phone_number: '15550000001', phone_number_id: PN_A },
-    message_echoes: [{ from: '15550000001', to: CUSTOMER, id: wamid, timestamp: '1760000000', type: 'text', text: { body: 'תשובה מהטלפון' } }],
-  })
-const agencyHistory = () => entry('WABA_A', 'history', { messaging_product: 'whatsapp', metadata: { phone_number_id: PN_A }, history: [] })
-const platformMessage = (wamid: string, body: string, ts = 1_760_000_100) =>
-  entry('WABA_PLATFORM', 'messages', {
-    messaging_product: 'whatsapp',
-    metadata: { display_phone_number: '15550000099', phone_number_id: PLATFORM },
-    messages: [{ from: OWNER, id: wamid, timestamp: String(ts), type: 'text', text: { body } }],
-  })
-const delivery = (...entries: unknown[]) => ({ object: 'whatsapp_business_account', entry: entries })
-
-/** Every agency-side table a delivery can write to, for agency A. */
-async function agencySideEffects() {
-  const scoped = async (t: string) => Number((await db(t).where({ agencyId: agencyA }).count<{ c: string }>('* as c').first())?.c ?? 0)
-  const tables = ['inbox_conversations', 'inbox_messages', 'clients', 'auto_response_jobs', 'notifications', 'notification_jobs', 'tasks', 'conversation_ai_state', 'analytics_events']
-  const out: Record<string, number> = {}
-  for (const t of tables) {
-    const cols = await db(t).columnInfo().catch(() => ({}))
-    out[t] = 'agencyId' in cols ? await scoped(t) : -1
-  }
-  return out
-}
+const agencySideEffects = () => sideEffectsOf(agencyA)
 const platformRows = (wamid: string) => db('platform_whatsapp_inbound').where({ wamid })
 const ownerRow = () => db('owner_whatsapp_recipients').where({ agencyId: agencyA, userId: ownerUser }).first()
 
@@ -127,10 +98,11 @@ beforeEach(async () => {
   platformFail.next = 0
   coexistence.mode = 'real'
   coexistence.calls = []
+  agencyHandlers.inbound = agencyHandlers.statuses = agencyHandlers.templates = 0
   fetchSpy.mockClear()
   errorSpy.mockClear()
   await db('owner_whatsapp_recipients').where({ agencyId: agencyA }).del()
-  await startOwnActivation({ agencyId: agencyA, userId: ownerUser, codeHash: hashActivationCode('MNPQ2345'), expiresAt: new Date(Date.now() + 600_000), consentTextVersion: 'v1' })
+  await startOwnActivation({ agencyId: agencyA, userId: ownerUser, codeHash: hashActivationCode('MNPQ2345'), expiresAt: new Date(Date.now() + 600_000), consentTextVersion: 'v2' })
 })
 
 afterAll(async () => {
@@ -171,6 +143,52 @@ describe('platform save fails after a successful agency part that is safe to rep
     expect(again.status).toBe(200)
     expect(await agencySideEffects()).toEqual(afterFirst)
     expect(await platformRows(`wamid.__mixed_pl_${seq}`)).toHaveLength(1)
+  })
+})
+
+describe('platform save fails after a successful agency part that is safe to repeat (delivery statuses)', () => {
+  it('answers 500; the redelivery leaves the status where it was and adds no agency side effect', async () => {
+    // An outbound message of agency A that Meta reports on (as the composer would have stored it).
+    const inId = `wamid.__mixed_in_${++seq}`
+    expect((await post(delivery(agencyInbound(inId)))).status).toBe(200)
+    const { id: _id, ...src } = await db('inbox_messages').where({ agencyId: agencyA, externalId: inId }).first()
+    const outId = `wamid.__mixed_out_${seq}`
+    await db('inbox_messages').insert({ ...src, sequence: Number(src.sequence) + 1, externalId: outId, direction: 'outbound', status: 'sent' })
+    const platformId = `wamid.__mixed_pl_${seq}`
+    const body = delivery(agencyStatus(outId, 'delivered'), platformMessage(platformId, 'MNPQ-2345', 1_760_009_000))
+    platformFail.next = 1
+
+    const first = await post(body)
+    expect(first.status).toBe(500)
+    expect(agencyHandlers.statuses).toBe(1)
+    expect((await db('inbox_messages').where({ externalId: outId }).first('status')).status).toBe('delivered')
+    const afterFirst = await agencySideEffects()
+    expect(await platformRows(platformId)).toHaveLength(0)
+
+    const retry = await post(body)
+    expect(retry.status).toBe(200)
+    expect(agencyHandlers.statuses).toBe(2)
+    expect((await db('inbox_messages').where({ externalId: outId }).first('status')).status).toBe('delivered')
+    expect(await agencySideEffects()).toEqual(afterFirst)
+    expect(await platformRows(platformId)).toHaveLength(1)
+    expect((await ownerRow()).status).toBe('active')
+  })
+})
+
+describe('platform save fails after a successful agency template-status change (NOT proven safe to repeat)', () => {
+  it('answers 200, runs the template handler once, logs the platform event as NOT saved', async () => {
+    const platformId = `wamid.__mixed_pl_${++seq}`
+    const before = await agencySideEffects()
+    platformFail.next = 1
+
+    const res = await post(delivery(agencyTemplateStatus(), platformMessage(platformId, 'MNPQ-2345')))
+    expect(res.status).toBe(200)
+    expect(agencyHandlers.templates).toBe(1)
+    expect(await platformRows(platformId)).toHaveLength(0)
+    expect((await ownerRow()).status).toBe('pending')
+    expect(await agencySideEffects()).toEqual(before)
+    const logged = errorSpy.mock.calls.find((c) => String(c[0]).includes('[WhatsappWebhook][platform] event NOT saved'))
+    expect(logged?.[1]).toEqual({ unsavedMessages: 1, agencyFields: ['message_template_status_update'] })
   })
 })
 
@@ -254,8 +272,12 @@ describe('routing', () => {
 
   it('platform-only traffic never reaches the agency path and makes no network call', async () => {
     const before = await agencySideEffects()
-    expect((await post(delivery(platformMessage(`wamid.__mixed_pl_${++seq}`, 'MNPQ-2345')))).status).toBe(200)
+    const plId = `wamid.__mixed_pl_${++seq}`
+    const body = delivery(platformMessage(plId, 'MNPQ-2345', 1_760_009_100), platformStatus(plId), platformEcho(`wamid.__mixed_pe_${seq}`))
+    expect((await post(body)).status).toBe(200)
+    expect(agencyHandlers).toEqual({ inbound: 0, statuses: 0, templates: 0 })
     expect(coexistence.calls).toEqual([])
+    expect((await ownerRow()).status).toBe('active')
     expect(await agencySideEffects()).toEqual(before)
     expect(fetchSpy).not.toHaveBeenCalled()
   })
