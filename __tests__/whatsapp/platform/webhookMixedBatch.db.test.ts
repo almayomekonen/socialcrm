@@ -1,0 +1,274 @@
+import { createHmac } from 'crypto'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '@/config/db'
+import { startOwnActivation } from '@/db/ownerWhatsappRecipients'
+import { hashActivationCode } from '@/lib/whatsapp/platform/keys'
+
+/**
+ * The webhook route with REAL agency handling and REAL platform handling, on a
+ * real PostgreSQL. Two things are made to fail on demand, each by wrapping the
+ * real implementation: the platform save (`processPlatformChanges`) and the
+ * agency Coexistence handler (`processCoexistenceWebhook`).
+ *
+ * The Gate 1 rule under test:
+ *   - agency first, then platform;
+ *   - platform save fails after a successful agency part that is safe to repeat
+ *     (messages): 500, and the redelivery adds no agency side effect;
+ *   - platform save fails after a successful agency part that is NOT proven safe
+ *     to repeat (Coexistence, template lifecycle): 200, logged as NOT saved;
+ *   - the agency part fails: its own answer stands; nothing is duplicated.
+ *
+ * NOTE: over the 250-line soft limit on purpose. Every case shares the signed
+ * delivery builders and the two failure switches; one file keeps the whole
+ * Gate 1 rule readable in one place.
+ */
+
+const platformFail = vi.hoisted(() => ({ next: 0 }))
+vi.mock('@/lib/whatsapp/platform/inbound', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/whatsapp/platform/inbound')>()
+  return {
+    ...actual,
+    processPlatformChanges: vi.fn(async (changes: Parameters<typeof actual.processPlatformChanges>[0]) => {
+      if (platformFail.next > 0) {
+        platformFail.next--
+        return { ok: false, failed: 1, outcomes: [] }
+      }
+      return actual.processPlatformChanges(changes)
+    }),
+  }
+})
+const coexistence = vi.hoisted(() => ({ mode: 'real' as 'real' | 'fail' | 'throw', calls: [] as string[] }))
+vi.mock('@/lib/whatsapp/coexistence', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/whatsapp/coexistence')>()
+  return {
+    ...actual,
+    processCoexistenceWebhook: vi.fn(async (field: string, value: unknown) => {
+      coexistence.calls.push(field)
+      if (coexistence.mode === 'fail') return { ok: false, field, reason: 'history_durable_write_failed' }
+      if (coexistence.mode === 'throw') throw new Error('forced agency failure')
+      return actual.processCoexistenceWebhook(field, value)
+    }),
+  }
+})
+vi.mock('@/lib/inbox/autoresponse/kickWorker', () => ({ runAutoResponseKick: vi.fn() }))
+
+const SECRET = 'test-app-secret-mixed'
+const PLATFORM = '1000000000001'
+const PN_A = '__mixed_pn_a'
+const OWNER = '972500000081'
+const CUSTOMER = '972500000082'
+const fetchSpy = vi.spyOn(globalThis, 'fetch')
+const errorSpy = vi.spyOn(console, 'error')
+let agencyA: number
+let ownerUser: number
+let seq = 0
+
+const { POST } = await import('@/app/api/webhooks/whatsapp/route')
+
+function signed(body: unknown): Request {
+  const raw = JSON.stringify(body)
+  const sig = 'sha256=' + createHmac('sha256', SECRET).update(raw).digest('hex')
+  return new Request('https://getsocialcrm.com/api/webhooks/whatsapp', {
+    method: 'POST',
+    headers: { 'x-hub-signature-256': sig, 'content-type': 'application/json' },
+    body: raw,
+  })
+}
+const post = (body: unknown) => POST(signed(body) as never)
+const entry = (id: string, field: string, value: Record<string, unknown>) => ({ id, changes: [{ field, value }] })
+const agencyInbound = (wamid: string) =>
+  entry('WABA_A', 'messages', {
+    messaging_product: 'whatsapp',
+    metadata: { display_phone_number: '15550000001', phone_number_id: PN_A },
+    contacts: [{ profile: { name: 'לקוח' }, wa_id: CUSTOMER }],
+    messages: [{ from: CUSTOMER, id: wamid, timestamp: '1760000000', type: 'text', text: { body: 'שלום, אפשר פרטים?' } }],
+  })
+const agencyEcho = (wamid: string) =>
+  entry('WABA_A', 'smb_message_echoes', {
+    messaging_product: 'whatsapp',
+    metadata: { display_phone_number: '15550000001', phone_number_id: PN_A },
+    message_echoes: [{ from: '15550000001', to: CUSTOMER, id: wamid, timestamp: '1760000000', type: 'text', text: { body: 'תשובה מהטלפון' } }],
+  })
+const agencyHistory = () => entry('WABA_A', 'history', { messaging_product: 'whatsapp', metadata: { phone_number_id: PN_A }, history: [] })
+const platformMessage = (wamid: string, body: string, ts = 1_760_000_100) =>
+  entry('WABA_PLATFORM', 'messages', {
+    messaging_product: 'whatsapp',
+    metadata: { display_phone_number: '15550000099', phone_number_id: PLATFORM },
+    messages: [{ from: OWNER, id: wamid, timestamp: String(ts), type: 'text', text: { body } }],
+  })
+const delivery = (...entries: unknown[]) => ({ object: 'whatsapp_business_account', entry: entries })
+
+/** Every agency-side table a delivery can write to, for agency A. */
+async function agencySideEffects() {
+  const scoped = async (t: string) => Number((await db(t).where({ agencyId: agencyA }).count<{ c: string }>('* as c').first())?.c ?? 0)
+  const tables = ['inbox_conversations', 'inbox_messages', 'clients', 'auto_response_jobs', 'notifications', 'notification_jobs', 'tasks', 'conversation_ai_state', 'analytics_events']
+  const out: Record<string, number> = {}
+  for (const t of tables) {
+    const cols = await db(t).columnInfo().catch(() => ({}))
+    out[t] = 'agencyId' in cols ? await scoped(t) : -1
+  }
+  return out
+}
+const platformRows = (wamid: string) => db('platform_whatsapp_inbound').where({ wamid })
+const ownerRow = () => db('owner_whatsapp_recipients').where({ agencyId: agencyA, userId: ownerUser }).first()
+
+beforeAll(async () => {
+  process.env.META_APP_SECRET = SECRET
+  process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = PLATFORM
+  const [a] = await db('agencies').insert({ name: '__test_mixed_batch__', autoResponseEnabled: false, plan: 'pro' }).returning('id')
+  agencyA = Number(a.id)
+  process.env.OWNER_WA_REMINDERS_AGENCY_IDS = String(agencyA)
+  const [u] = await db('users').insert({ firstName: 'Mixed', role: 'ADMIN', agencyId: agencyA }).returning('id')
+  ownerUser = Number(u.id)
+  await db('whatsapp_connections').insert({ user_id: ownerUser, agency_id: agencyA, phone_number_id: PN_A, access_token: 'x' })
+})
+
+beforeEach(async () => {
+  platformFail.next = 0
+  coexistence.mode = 'real'
+  coexistence.calls = []
+  fetchSpy.mockClear()
+  errorSpy.mockClear()
+  await db('owner_whatsapp_recipients').where({ agencyId: agencyA }).del()
+  await startOwnActivation({ agencyId: agencyA, userId: ownerUser, codeHash: hashActivationCode('MNPQ2345'), expiresAt: new Date(Date.now() + 600_000), consentTextVersion: 'v1' })
+})
+
+afterAll(async () => {
+  for (const k of ['META_APP_SECRET', 'PLATFORM_WHATSAPP_PHONE_NUMBER_ID', 'OWNER_WA_REMINDERS_AGENCY_IDS']) delete process.env[k]
+  for (const t of ['notification_jobs', 'notifications', 'analytics_events', 'auto_response_jobs', 'conversation_analysis_jobs', 'conversation_ai_state', 'tasks', 'inbox_messages', 'inbox_participants', 'inbox_conversations']) {
+    const cols = await db(t).columnInfo().catch(() => ({}))
+    if ('agencyId' in cols) await db(t).where({ agencyId: agencyA }).del()
+  }
+  await db('clients').where({ agencyId: agencyA }).del()
+  await db('owner_whatsapp_recipients').where({ agencyId: agencyA }).del()
+  await db('platform_whatsapp_inbound').del()
+  await db('whatsapp_connections').where({ agency_id: agencyA }).del()
+  await db('users').where({ agencyId: agencyA }).del()
+  await db('agencies').where({ id: agencyA }).del()
+  fetchSpy.mockRestore()
+  errorSpy.mockRestore()
+})
+
+describe('platform save fails after a successful agency part that is safe to repeat (messages)', () => {
+  it('answers 500; the redelivery saves the platform change once and adds no agency side effect', async () => {
+    const body = delivery(agencyInbound(`wamid.__mixed_in_${++seq}`), platformMessage(`wamid.__mixed_pl_${seq}`, 'MNPQ-2345'))
+    platformFail.next = 1
+
+    const first = await post(body)
+    expect(first.status).toBe(500)
+    const afterFirst = await agencySideEffects()
+    expect(afterFirst.inbox_messages).toBeGreaterThan(0)
+    expect((await ownerRow()).status).toBe('pending')
+    expect(await platformRows(`wamid.__mixed_pl_${seq}`)).toHaveLength(0)
+
+    const retry = await post(body)
+    expect(retry.status).toBe(200)
+    expect(await agencySideEffects()).toEqual(afterFirst)
+    expect((await ownerRow()).status).toBe('active')
+    expect(await platformRows(`wamid.__mixed_pl_${seq}`)).toHaveLength(1)
+
+    const again = await post(body)
+    expect(again.status).toBe(200)
+    expect(await agencySideEffects()).toEqual(afterFirst)
+    expect(await platformRows(`wamid.__mixed_pl_${seq}`)).toHaveLength(1)
+  })
+})
+
+describe('platform save fails after a successful agency part NOT proven safe to repeat (Coexistence)', () => {
+  it('answers 200, logs the event as NOT saved without content or numbers, and does not claim it was saved', async () => {
+    const echoId = `wamid.__mixed_echo_${++seq}`
+    const platformId = `wamid.__mixed_pl_${seq}`
+    platformFail.next = 1
+
+    const res = await post(delivery(agencyEcho(echoId), platformMessage(platformId, 'הסר')))
+    expect(res.status).toBe(200)
+    expect(coexistence.calls).toEqual(['smb_message_echoes'])
+    expect(await db('inbox_messages').where({ agencyId: agencyA, externalId: echoId })).toHaveLength(1)
+    expect(await platformRows(platformId)).toHaveLength(0)
+
+    const logged = errorSpy.mock.calls.find((c) => String(c[0]).includes('[WhatsappWebhook][platform] event NOT saved'))
+    expect(logged).toBeTruthy()
+    expect(logged?.[1]).toEqual({ unsavedMessages: 1, agencyFields: ['smb_message_echoes'] })
+    const text = JSON.stringify(logged)
+    for (const secret of [OWNER, CUSTOMER, 'הסר', platformId, echoId, 'תשובה']) expect(text).not.toContain(secret)
+  })
+})
+
+describe('the agency part fails', () => {
+  it('a refused Coexistence delivery keeps its 503; the platform change is saved once across the redelivery', async () => {
+    const platformId = `wamid.__mixed_pl_${++seq}`
+    const body = delivery(agencyHistory(), platformMessage(platformId, 'MNPQ-2345'))
+    const before = await agencySideEffects()
+    coexistence.mode = 'fail'
+
+    const first = await post(body)
+    expect(first.status).toBe(503)
+    expect((await ownerRow()).status).toBe('active')
+    expect(await platformRows(platformId)).toHaveLength(1)
+
+    coexistence.mode = 'real'
+    const retry = await post(body)
+    expect(retry.status).toBe(200)
+    expect(coexistence.calls).toEqual(['history', 'history'])
+    expect(await platformRows(platformId)).toHaveLength(1)
+    expect((await ownerRow()).status).toBe('active')
+    expect(await agencySideEffects()).toEqual(before)
+  })
+
+  it('an exception in the agency path propagates as before; the platform change is saved on the redelivery', async () => {
+    const platformId = `wamid.__mixed_pl_${++seq}`
+    const body = delivery(agencyHistory(), platformMessage(platformId, 'MNPQ-2345'))
+    coexistence.mode = 'throw'
+    await expect(post(body)).rejects.toThrow('forced agency failure')
+    expect(await platformRows(platformId)).toHaveLength(0)
+
+    coexistence.mode = 'real'
+    expect((await post(body)).status).toBe(200)
+    expect(await platformRows(platformId)).toHaveLength(1)
+    expect((await ownerRow()).status).toBe('active')
+  })
+
+  it('a platform failure on top of an agency failure still answers with the agency failure, so Meta redelivers both', async () => {
+    coexistence.mode = 'fail'
+    platformFail.next = 1
+    const res = await post(delivery(agencyHistory(), platformMessage(`wamid.__mixed_pl_${++seq}`, 'הסר')))
+    expect(res.status).toBe(503)
+    expect(errorSpy.mock.calls.some((c) => String(c[0]).includes('event NOT saved'))).toBe(false)
+  })
+})
+
+describe('routing', () => {
+  it('a platform change in a later entry is processed, and the agency change in the first entry is handled as before', async () => {
+    const inId = `wamid.__mixed_in_${++seq}`
+    const plId = `wamid.__mixed_pl_${seq}`
+    expect((await post(delivery(agencyInbound(inId), platformMessage(plId, 'הסר')))).status).toBe(200)
+    expect(await db('inbox_messages').where({ agencyId: agencyA, externalId: inId })).toHaveLength(1)
+    expect(await platformRows(plId)).toHaveLength(1)
+  })
+
+  it('a platform change first no longer hides the agency change behind it', async () => {
+    const inId = `wamid.__mixed_in_${++seq}`
+    expect((await post(delivery(platformMessage(`wamid.__mixed_pl_${seq}`, 'תודה'), agencyInbound(inId)))).status).toBe(200)
+    expect(await db('inbox_messages').where({ agencyId: agencyA, externalId: inId })).toHaveLength(1)
+  })
+
+  it('platform-only traffic never reaches the agency path and makes no network call', async () => {
+    const before = await agencySideEffects()
+    expect((await post(delivery(platformMessage(`wamid.__mixed_pl_${++seq}`, 'MNPQ-2345')))).status).toBe(200)
+    expect(coexistence.calls).toEqual([])
+    expect(await agencySideEffects()).toEqual(before)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('with the platform number unset, its traffic takes the agency path exactly as today (no connection: ignored)', async () => {
+    delete process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID
+    try {
+      const plId = `wamid.__mixed_pl_${++seq}`
+      expect((await post(delivery(platformMessage(plId, 'הסר')))).status).toBe(200)
+      expect(await platformRows(plId)).toHaveLength(0)
+      expect((await ownerRow()).status).toBe('pending')
+    } finally {
+      process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = PLATFORM
+    }
+  })
+})
