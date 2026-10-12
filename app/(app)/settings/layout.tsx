@@ -7,6 +7,7 @@ import SettingsChrome from '@/components/settings/SettingsChrome'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
+import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderFlags'
 
 export default async function SettingLayout({ children }) {
   const user = await getUser()
@@ -22,6 +23,8 @@ export default async function SettingLayout({ children }) {
   const automationsVisible = user.role === 'ADMIN' && isAutomationsAgencyAllowlisted(user.agencyId)
   // Absent, not disabled, outside the Builder rollout: the route 404s there too.
   const questionnaireBuilderVisible = user.role === 'ADMIN' && canUseQuestionnaireBuilder(user.agencyId)
+  // Every role: a reminder goes to the lead's handler, whoever that is. Absent outside the rollout.
+  const whatsappRemindersVisible = canUseOwnerWhatsappReminders(user.agencyId)
 
   return (
     <SettingsChrome
@@ -38,6 +41,9 @@ export default async function SettingLayout({ children }) {
             no matter how many integrations ship.
           */}
           <SettingsLink href='/settings/integrations' icon='plug' title='אינטגרציות' />
+          {whatsappRemindersVisible && (
+            <SettingsLink href='/settings/whatsapp_reminders' icon='bell' title='תזכורות בוואטסאפ' />
+          )}
 
           {/*
             Reachable by EVERY role, deliberately outside the ADMIN block below:
