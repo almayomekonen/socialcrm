@@ -209,6 +209,7 @@ export const SETTINGS_MOBILE_BACKLOG: Record<string, string> = {
   '/settings/quote-templates': 'תבניות הצעות מחיר — desktop builder',
   '/settings/edit_tmplts': 'תבניות משימות — desktop builder',
   '/settings/edit_promotions': 'קמפיינים — desktop surface',
+  '/settings/whatsapp_reminders': 'תזכורות בוואטסאפ — single stacked card behind a per-agency rollout, not linked from עוד',
 }
 
 /**

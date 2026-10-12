@@ -46,3 +46,14 @@ export function decryptSecret(blob: string): string {
   const dec = Buffer.concat([decipher.update(enc), decipher.final()])
   return dec.toString('utf8')
 }
+
+/**
+ * A 32-byte key for one named purpose, derived (HKDF-SHA256) from
+ * SECRETS_ENC_KEY. Lets a feature key an HMAC without adding a secret, while
+ * keeping each purpose's output unrelated to every other's and to the
+ * encryption key itself. Changing the purpose string changes every value
+ * derived from it, so purposes are versioned (`...-v1`).
+ */
+export function deriveSecretSubkey(purpose: string): Buffer {
+  return Buffer.from(crypto.hkdfSync('sha256', getKey(), Buffer.alloc(0), purpose, 32))
+}
