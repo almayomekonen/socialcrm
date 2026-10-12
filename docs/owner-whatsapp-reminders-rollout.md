@@ -55,43 +55,72 @@ Preview deployments must never receive these values.
 - `20261012120000_owner_whatsapp_consent.cjs` (PR A): recipients, platform inbound log.
 - `20261013120000_owner_whatsapp_reminders.cjs` (PR B): reminders, deliveries, message statuses.
 
-Both are additive. Apply manually, before the steps that need them, following
+Both are additive. Apply both manually, before any platform variable or the
+allowlist is set (activation step 3), following
 `claude/release-deployment-workflow.md` §8b (`migrate:list` first). Until PR A's
 migration is applied, every new server instance logs "Missing migrations
 detected in production"; that is expected and harmless.
 
 PR #134 (`20261010120000`) sorts before both; Knex applies it whenever it lands.
 
+> **Migration order is mandatory.** Never configure `PLATFORM_WHATSAPP_PHONE_NUMBER_ID`
+> or `OWNER_WA_REMINDERS_AGENCY_IDS` in Production until **both** PR A's and PR B's
+> migrations are applied. Once either is set, the platform webhook branch writes
+> to `platform_whatsapp_inbound`, `owner_whatsapp_recipients` and
+> `owner_whatsapp_message_status`, and the reminders cron queries the reminder
+> tables every minute. Before the migrations those tables do not exist: inbound
+> and status writes fail (and Meta is asked to redeliver), and the cron errors
+> every minute. This supersedes the activation order in PR #135's description.
+
 ## Activation sequence (each step its own approval)
 
+0. **Merge PR B.** It must be merged, and its production deployment live,
+   before any step below. The deployment is inert: no variable in this file is
+   set yet.
 1. **Meta: System User.** In business portfolio `1484134075940912`: a System
    User with WABA `2060714354527399` (full control) and app `962521689620138`
    assigned; a never-expiring token with `whatsapp_business_messaging` and
    `whatsapp_business_management`.
 2. **Meta: template.** Submit `lead_followup_alert` exactly as above; wait for
    APPROVED **and** category UTILITY.
-3. **Production environment (no sending).** Set `PLATFORM_WHATSAPP_ACCESS_TOKEN`
-   (sensitive) and `PLATFORM_WHATSAPP_WABA_ID` in **Production only**.
-   `OWNER_WA_REMINDERS_SEND_ENABLED` stays unset, the allowlist stays empty.
-4. **Production migrations.** Apply PR A's and PR B's migrations.
+3. **Production migrations.** Apply PR A's (`20261012120000`) and PR B's
+   (`20261013120000`) migrations, `migrate:list` first. Nothing below may start
+   until both are applied (see the warning above).
+4. **Production environment for readiness (no sending, no agency).** In
+   **Production only**, set `PLATFORM_WHATSAPP_ACCESS_TOKEN` (sensitive),
+   `PLATFORM_WHATSAPP_WABA_ID` and, now that both migrations are applied,
+   `PLATFORM_WHATSAPP_PHONE_NUMBER_ID`. `OWNER_WA_REMINDERS_SEND_ENABLED` stays
+   unset; `OWNER_WA_REMINDERS_AGENCY_IDS` and `PLATFORM_WHATSAPP_WA_ME_NUMBER`
+   stay unset. With the allowlist empty the only effects are: messages to the
+   platform number are logged without content, keyword opt-outs are honoured,
+   and delivery statuses are recorded. No settings page, no activation, no
+   reminder, no send.
 5. **Redeploy** the current production deployment so the variables load.
-6. **Readiness check (read-only).**
+6. **Readiness check (read-only, sending disabled).**
    `curl -s -H "Authorization: Bearer $CRON_SECRET" https://getsocialcrm.com/api/internal/owner-wa/readiness`
-   It only makes GET calls to Meta. Required: `ready: true` (token SYSTEM_USER
-   with messaging granted on the WABA; phone CONNECTED, `can_send_message`
-   AVAILABLE, quality not RED; template APPROVED, UTILITY, one body variable and
-   a URL button variable). It cannot prove Meta will accept a send (payment
-   method, business-verification limits).
-7. **Consent on, pilot agency only.** Set `PLATFORM_WHATSAPP_PHONE_NUMBER_ID`,
+   It only makes GET calls to Meta and never sends; sending stays disabled
+   (`OWNER_WA_REMINDERS_SEND_ENABLED` unset) throughout. It needs the three
+   variables from step 4. Required: `ready: true` (token SYSTEM_USER with
+   messaging granted on the WABA; phone CONNECTED, `can_send_message` AVAILABLE,
+   quality not RED; template APPROVED, UTILITY, one body variable and a URL
+   button variable). It cannot prove Meta will accept a send (payment method,
+   business-verification limits). Do not continue unless it is ready.
+7. **Consent on, agency 103 only.** Only after steps 3 to 6: set
    `PLATFORM_WHATSAPP_WA_ME_NUMBER` and `OWNER_WA_REMINDERS_AGENCY_IDS=103`;
    redeploy. The owner activates their own phone from settings. Nothing is sent.
 8. **Dry run.** With sending still off, watch `[OwnerWaReminder][tick] dry run`
-   logs (candidates, wouldRemind, noRecipients) for a day. No rows are written.
+   logs (candidates, wouldRemind, noRecipients) for a day. No reminder rows are
+   written.
 9. **First real send.** Set `OWNER_WA_REMINDERS_SEND_ENABLED=1`; redeploy.
    Verify on the owner's own phone: one reminder for a real agency 103 hand-off,
    the button opens the conversation, a delivery row `sent` with a wamid, and a
-   `delivered`/`read` status in `owner_whatsapp_message_status`. Then a human
-   reply must prevent the next one.
+   `delivered`/`read` status in `owner_whatsapp_message_status`.
+   Then verify the human-reply rule on a **separate** eligible hand-off in a
+   **different** conversation: answer it from SocialCRM or the WhatsApp
+   Business app within 120 minutes, and confirm no reminder and no reminder row
+   is created for it. Do not reuse the conversation that was just reminded: its
+   12-hour cooldown and per-escalation dedup would suppress a reminder anyway,
+   so the test would prove nothing.
 10. **Expansion** agency by agency, each approved separately. Never `158`.
 
 ## Verification queries (read-only)
