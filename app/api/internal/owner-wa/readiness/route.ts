@@ -7,8 +7,6 @@ import { checkOwnerReminderReadiness } from '@/lib/whatsapp/platform/readiness'
  * lib/whatsapp/platform/readiness.ts). GET only, CRON_SECRET only. It reads
  * Meta and never sends or changes anything.
  */
-export const dynamic = 'force-dynamic'
-
 function authorized(req: NextRequest, secret: string): boolean {
   const given = req.headers.get('authorization') ?? ''
   const expected = `Bearer ${secret}`
