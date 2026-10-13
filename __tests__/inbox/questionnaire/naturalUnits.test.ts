@@ -13,6 +13,8 @@ import { OTHER_LABEL as BUILDER_OTHER_LABEL } from '@/lib/inbox/autoresponse/que
 import { parseQuestionnaireDefinition, type QuestionnaireChoiceStep } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import { allOptionIds, isAllKeyword, mentionsAll } from '@/lib/inbox/autoresponse/questionnaire/allKeyword'
 import { matchAliases } from '@/lib/inbox/autoresponse/questionnaire/aliasMatch'
+import { parseChoice } from '@/lib/inbox/autoresponse/questionnaire/parseAnswer'
+import { readAsOther } from '@/lib/inbox/autoresponse/questionnaire/otherFallback'
 import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
 const choice = (id: string): QuestionnaireChoiceStep => {
@@ -162,5 +164,51 @@ describe('phrasings in context (natural)', () => {
   it('flag off: any negation still empties the whole match (today)', () => {
     expect(matchAliases('אולי בעתיד אינסטגרם, כרגע רק וואטסאפ', choice('source'))).toEqual(['whatsapp', 'instagram'])
     expect(matchAliases('לא אינסטגרם, רק וואטסאפ', choice('source'))).toEqual([])
+  })
+})
+
+describe('parseChoice (natural)', () => {
+  const p = (t: string, id: string) => parseChoice(t, choice(id), { natural: true })
+  it('reads "all" only where allowed', () => {
+    expect(p('הכל', 'needs')).toEqual({ ok: true, optionIds: ['leads', 'auto', 'follow', 'team'], via: 'alias' })
+    expect(p('הכל', 'industry')).toEqual({ ok: false, reason: 'unreadable' })
+    expect(p('הכל', 'team')).toEqual({ ok: false, reason: 'unreadable' })
+  })
+  it('names two options on a single question: ambiguous, nothing chosen', () => {
+    expect(p('בבוקר או בערב', 'timing')).toEqual({ ok: false, reason: 'ambiguous', candidateIds: ['morning', 'evening'] })
+    expect(p('עובדים איתי שלושה אבל בפניות מטפל רק אני', 'team')).toEqual({
+      ok: false,
+      reason: 'ambiguous',
+      candidateIds: ['solo', 'small'],
+    })
+  })
+  it('keycaps and bidi marks still read as numbers / the keyword', () => {
+    expect(p('1️⃣ 3️⃣', 'source')).toEqual({ ok: true, optionIds: ['whatsapp', 'facebook'] })
+    expect(p('\u200fהכל\u200f', 'source').ok).toBe(true)
+  })
+  it('flag off: unchanged', () => {
+    expect(parseChoice('הכל', choice('needs'))).toEqual({ ok: false, reason: 'unreadable' })
+    expect(parseChoice('בבוקר או בערב', choice('timing'))).toEqual({ ok: false, reason: 'unreadable' })
+  })
+})
+
+describe('"אחר" fallback', () => {
+  it.each(['צילום אירועים', 'אני צלם אירועים', 'שירותי צילום'])('accepts %s as אחר with the words', (t) => {
+    expect(readAsOther(t, choice('industry'))).toEqual({ optionId: 'other', raw: t })
+  })
+  it.each([
+    ['a question', 'מה המחיר?'],
+    ['filler', 'שלום'],
+    ['punctuation', '?'],
+    ['a number', '7'],
+    ['an "all" reply', 'לא הכל'],
+    ['a correction', 'טעיתי בתשובה הקודמת'],
+    ['seven words', 'אני עושה צילום אירועים בעיקר חתונות גדולות'],
+  ])('refuses %s', (_, t) => expect(readAsOther(t, choice('industry'))).toBeNull())
+  it('never on a question without "אחר"', () => {
+    expect(readAsOther('אני עובד עם עסקים בכל הארץ', choice('team'))).toBeNull()
+  })
+  it('never when a phrasing matched (that is a selection or an ambiguity)', () => {
+    expect(readAsOther('ניהול צוות', choice('needs'))).toBeNull()
   })
 })
