@@ -25,6 +25,7 @@ import {
   SYSTEM_LINES,
 } from '@/lib/inbox/autoresponse/questionnaire/render'
 import { hasCustomerFacingDash } from '@/lib/inbox/autoresponse/customerFacingText'
+import { simulateConversation } from '@/lib/inbox/autoresponse/questionnaire/builder/simulate'
 import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
 const choice = (id: string): QuestionnaireChoiceStep => {
@@ -338,5 +339,15 @@ describe('render (natural)', () => {
     expect(s).toContain('צוות: לא נבחרה אפשרות (אני עובד עם עסקים בכל הארץ)')
     expect(s).toContain('חזרה: טלפונית …ב14 או אחרי 17')
     expect(s).toContain('מקור: WhatsApp (בעיקר וואטסאפ; גם קצת אתר)')
+  })
+})
+
+describe('Builder test chat matches production', () => {
+  it('reads "צילום אירועים" only when the agency has natural answers', () => {
+    const turns = [['שלום'], ['1'], ['צילום אירועים']]
+    const on = simulateConversation(naturalDefinition(), turns, { naturalAnswers: true })
+    const off = simulateConversation(naturalDefinition(), turns)
+    expect(JSON.stringify(on.turns.at(-1))).toContain('כמה אנשים מטפלים בפניות?')
+    expect(JSON.stringify(off.turns.at(-1))).toContain('לא זיהינו את הבחירה.')
   })
 })

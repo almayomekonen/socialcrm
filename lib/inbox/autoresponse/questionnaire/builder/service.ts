@@ -18,6 +18,7 @@
  * freeze the current one.
  */
 import { db } from '@/config/db'
+import { canUseQuestionnaireNaturalAnswers } from '@/lib/flags/whatsappQuestionnaireFlags'
 import { getChannelSettings } from '@/db/autoResponseSettings'
 import {
   QUESTIONNAIRE_CHANNEL,
@@ -179,7 +180,10 @@ export async function simulate(
   // A definition the worker would refuse cannot be simulated: the result would be a lie.
   const check = checkDefinitionForPublish(definition)
   if (!check.ready) return { ok: false, reason: 'not_ready', issues: check.issues }
-  return { ok: true, ...simulateConversation(definition, turns as string[][]) }
+  return {
+    ok: true,
+    ...simulateConversation(definition, turns as string[][], { naturalAnswers: canUseQuestionnaireNaturalAnswers(ctx.agencyId) }),
+  }
 }
 
 // Publishing lives in publish.ts: one transaction, one path.
