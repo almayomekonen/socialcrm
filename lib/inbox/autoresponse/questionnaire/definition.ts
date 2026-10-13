@@ -84,6 +84,12 @@ const choiceStepSchema = z.object({
   ...baseStep,
   type: z.literal('choice'),
   multi: z.boolean().optional(),
+  /**
+   * "הכל" selects every option except "אחר" (allKeyword.ts). The owner's call,
+   * per question: whether "everything" is meaningful depends on what the
+   * options mean, which no label rule can tell. Multi-select only.
+   */
+  acceptsAll: z.boolean().optional(),
   options: z.array(optionSchema).min(2).max(10),
 })
 
@@ -157,6 +163,13 @@ export const questionnaireDefinitionSchema = z
           ids.add(option.id)
           labels.add(label)
         })
+        if (step.acceptsAll === true && step.multi !== true) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `step '${step.id}': acceptsAll needs multi`,
+            path: ['steps', index, 'acceptsAll'],
+          })
+        }
         checkAliasCollisions(step, index, ctx)
       }
 

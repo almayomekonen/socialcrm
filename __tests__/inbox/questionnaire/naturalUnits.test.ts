@@ -10,8 +10,9 @@ import {
   preAnswerOtherFollowUp,
 } from '@/lib/inbox/autoresponse/questionnaire/otherOption'
 import { OTHER_LABEL as BUILDER_OTHER_LABEL } from '@/lib/inbox/autoresponse/questionnaire/builder/editorBase'
-import type { QuestionnaireChoiceStep } from '@/lib/inbox/autoresponse/questionnaire/definition'
-import { naturalDefinition } from './fixtures/naturalDefinition'
+import { parseQuestionnaireDefinition, type QuestionnaireChoiceStep } from '@/lib/inbox/autoresponse/questionnaire/definition'
+import { allOptionIds, isAllKeyword, mentionsAll } from '@/lib/inbox/autoresponse/questionnaire/allKeyword'
+import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
 const choice = (id: string): QuestionnaireChoiceStep => {
   const s = naturalDefinition().steps.find((x) => x.id === id)
@@ -103,5 +104,33 @@ describe('other option', () => {
     const def = naturalDefinition()
     expect(nextUnansweredStep(def, { industry: ['other'], industry_other: ['צילום'] }, 'industry')?.id).toBe('team')
     expect(nextUnansweredStep(def, { industry: ['other'] }, 'industry')?.id).toBe('industry_other')
+  })
+})
+
+describe('"all"', () => {
+  it.each(['הכל', 'הכול', 'כולם', 'כולן', 'את הכל', 'את הכול', 'כל האפשרויות', 'All', 'הכל תודה', 'הכל תודה רבה', 'הכל!', 'הכלללל', '\u200fהכל\u200f'])(
+    'reads %s as all',
+    (t) => expect(isAllKeyword(t)).toBe(true),
+  )
+  it.each(['לא הכל', 'כמעט הכל', 'הכל חוץ מפייסבוק', 'הכל חוץ מ־3', 'בכל הארץ', 'הכל טוב', 'הכל בסדר', 'הכל?', 'תודה', ''])(
+    'does not read %s as all',
+    (t) => expect(isAllKeyword(t)).toBe(false),
+  )
+  it('notices a reply that talks about all of it', () => {
+    expect(mentionsAll('לא הכל')).toBe(true)
+    expect(mentionsAll('בכל הארץ')).toBe(false)
+  })
+  it('selects every option except "אחר"-type ones, only where the owner allowed it', () => {
+    expect(allOptionIds(choice('needs'))).toEqual(['leads', 'auto', 'follow', 'team'])
+    expect(allOptionIds(choice('source'))).toEqual(['whatsapp', 'instagram', 'facebook'])
+    expect(allOptionIds(choice('industry'))).toBeNull() // multi, not allowed
+    expect(allOptionIds(choice('team'))).toBeNull() // single
+  })
+  it('refuses acceptsAll on a single-select question', () => {
+    const raw = structuredClone(NATURAL_DEFINITION_RAW) as unknown as { steps: Array<Record<string, unknown>> }
+    raw.steps.find((s) => s.id === 'team')!.acceptsAll = true
+    const parsed = parseQuestionnaireDefinition(raw)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.errors.join()).toContain('acceptsAll needs multi')
   })
 })

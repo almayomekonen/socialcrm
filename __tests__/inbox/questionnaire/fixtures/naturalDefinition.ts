@@ -19,6 +19,7 @@ export const NATURAL_DEFINITION_RAW = {
       id: 'needs',
       type: 'choice',
       multi: true,
+      acceptsAll: true,
       label: 'צורך',
       prompt: 'איך נוכל לעזור?',
       options: [
@@ -87,6 +88,7 @@ export const NATURAL_DEFINITION_RAW = {
       id: 'source',
       type: 'choice',
       multi: true,
+      acceptsAll: true,
       label: 'מקור',
       prompt: 'מאיפה מגיעות הפניות?',
       options: [
