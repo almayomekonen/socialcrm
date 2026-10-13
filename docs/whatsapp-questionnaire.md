@@ -26,6 +26,7 @@ Status: **live for agency 103 since 2026-09-24** (`responder = 'questionnaire'`,
 | `WA_QUESTIONNAIRE_ENABLED` | unset | Master switch. Anything other than `1` means the questionnaire never speaks. |
 | `WA_QUESTIONNAIRE_AGENCY_IDS` | unset | Comma-separated agency ids, or `all`. Empty means **no** agency. |
 | `WA_QUESTIONNAIRE_INTERACTIVE_AGENCY_IDS` | unset | Tap-to-select (reply buttons / list) for these agency ids, or `all`. Empty means **no** agency: every question is numbered text, as before. Requires the two flags above. |
+| `WA_QUESTIONNAIRE_NATURAL_AGENCY_IDS` | unset | Natural-answer reading for these agency ids, or `all` (§6a). Empty means **no** agency: answers are read exactly as before, and the Builder does not show "לקוח יכול לענות 'הכל'". Requires the two master flags. Spec: `docs/superpowers/specs/2026-10-13-questionnaire-natural-answers-design.md` (local only). |
 
 Absence blocks, in two deliberate steps, exactly like `WA_CONTACTS_*` and
 `SMART_REPLY_AGENT_*`. Both are read per call, so a change takes effect on the
@@ -89,7 +90,13 @@ Any one of them missing means silence, never an AI reply.
 # .env.local
 WA_QUESTIONNAIRE_ENABLED=1
 WA_QUESTIONNAIRE_AGENCY_IDS=<your local agency id>
+# optional: natural-answer reading (§6a)
+WA_QUESTIONNAIRE_NATURAL_AGENCY_IDS=<your local agency id>
 ```
+
+With natural answers on, check it in the Builder's test chat: "צילום אירועים" at
+a question that has "אחר" moves on, and a multi-select question shows the
+"לקוח יכול לענות 'הכל'" switch.
 
 Then configure a definition with the script against your local database and send
 yourself messages, or run the suites below, which exercise the whole path with
@@ -121,6 +128,27 @@ pnpm exec vitest run __tests__/inbox/questionnaire --no-file-parallelism
 | The business is switched back to the agent mid-conversation | Handoff with the partial answers. Never continued by the AI. |
 | The definition changes mid-conversation | No effect: the session runs on the copy it froze when it started. |
 | Outside the 24h window | Nothing is sent, and no template is ever sent. Answers are still saved. |
+
+## 6a. Natural answers (flagged)
+
+Only for agencies in `WA_QUESTIONNAIRE_NATURAL_AGENCY_IDS`. Still deterministic,
+still no model. Questions, order, single/multi rules and CRM writes are
+unchanged; only how a reply is read changes.
+
+| Reply | Behaviour |
+| --- | --- |
+| "הכל", "הכול", "כולם", "את הכל" as the whole message | On a multi-select question marked "לקוח יכול לענות 'הכל'": every option except "אחר". Anywhere else: kept, not selected. An option the owner named "הכל" always wins. |
+| Several numbers in separate messages, one turn | Multi-select: all of them. Single-select: the newest, as before. |
+| Phrasings | Matched only on the current question; a "לא", "חוץ מ", "במקום" or a hedge ("אולי", "בעתיד") drops only the option it governs. |
+| Two options named on a single-select question | "התכוונת ל־N או ל־M?" with their menu numbers; nothing chosen. |
+| Up to 6 words, no option named, question has "אחר" | "אחר" + the customer's words; its follow-up question is answered with them and skipped. |
+| Longer, or no "אחר" on the question | Kept on that question (`<step>:note`, up to 1,000 characters; the full message stays in the inbox) and "תודה, רשמנו את מה שכתבת…" with the menu. Counts toward the attempt limit. |
+| "אני נציג מכירות" | Not a request for a person. |
+| "תתקשרו אליי ב14" / "תחזרו אלי מחר" at a free-text question | The answer, not a handoff. A bare "תחזרו אליי" still hands off. |
+| Any handoff | The words of that turn are kept on the open question. |
+
+The rep's summary shows notes under their question: `תחום: אחר (…)`,
+`צוות: לא נבחרה אפשרות (…)`.
 
 ## 7. Delivery honesty
 
@@ -159,6 +187,10 @@ In order, fastest first:
 2. `configure.ts --disable`. New conversations go back to the agent; live
    sessions are handed to a rep on their next turn.
 3. Remove the agency from `WA_QUESTIONNAIRE_AGENCY_IDS` (needs a deployment).
+   To undo only natural-answer reading, remove it from
+   `WA_QUESTIONNAIRE_NATURAL_AGENCY_IDS` instead: new turns read answers as
+   before; stored notes and "accepts all" switches stay and are inert. No data
+   migration either way.
 4. **Code rollback — do step 1 or 2 FIRST.** Older code does not know the
    `responder` column, so its claim has no questionnaire predicate and the
    agency's jobs would go to the AI worker.
@@ -177,12 +209,19 @@ In order, fastest first:
 - [ ] `SELECT count(*) FROM conversation_analysis_jobs WHERE "conversationId" = …` is 0
 - [ ] `SELECT count(*) FROM ai_runs WHERE "agencyId" = … AND "createdAt" > <enable time>` is 0
 - [ ] the settings page shows the read-only questionnaire notice
+- [ ] natural answers (agency in `WA_QUESTIONNAIRE_NATURAL_AGENCY_IDS`), from a
+      test phone: "הכל" on an "accepts all" question selects every option but
+      "אחר"; "צילום אירועים" at a question with "אחר" moves on; a 15-word reply
+      is acknowledged and appears under its question in the summary; replies the
+      bot cannot place, past the definition's attempt limit, hand off with all
+      of them in the summary
 
 ## Where the code lives
 
 | Concern | File |
 | --- | --- |
 | Definition + validation | `lib/inbox/autoresponse/questionnaire/definition.ts` |
+| Natural answers ("הכל", "אחר", guards, notes) | `allKeyword.ts`, `otherOption.ts`, `otherFallback.ts`, `aliasGuards.ts`, `stepNotes.ts` |
 | Reading the customer's reply | `…/parseAnswer.ts` |
 | The state machine | `…/transition.ts` |
 | All customer-facing copy | `…/render.ts` |
