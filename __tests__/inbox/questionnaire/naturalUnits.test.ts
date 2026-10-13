@@ -15,6 +15,8 @@ import { allOptionIds, isAllKeyword, mentionsAll } from '@/lib/inbox/autorespons
 import { matchAliases } from '@/lib/inbox/autoresponse/questionnaire/aliasMatch'
 import { detectCommand, parseChoice } from '@/lib/inbox/autoresponse/questionnaire/parseAnswer'
 import { readAsOther } from '@/lib/inbox/autoresponse/questionnaire/otherFallback'
+import { readTurn } from '@/lib/inbox/autoresponse/questionnaire/readTurn'
+import type { InboundInput } from '@/lib/inbox/autoresponse/questionnaire/transition'
 import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
 const choice = (id: string): QuestionnaireChoiceStep => {
@@ -134,7 +136,7 @@ describe('"all"', () => {
     raw.steps.find((s) => s.id === 'team')!.acceptsAll = true
     const parsed = parseQuestionnaireDefinition(raw)
     expect(parsed.ok).toBe(false)
-    if (!parsed.ok) expect(parsed.errors.join()).toContain('acceptsAll needs multi')
+    if (parsed.ok === false) expect(parsed.errors.join()).toContain('acceptsAll needs multi')
   })
 })
 
@@ -236,5 +238,53 @@ describe('commands in context', () => {
   })
   it('opt-out still outranks everything', () => {
     expect(detectCommand('תפסיקו לשלוח לי', textCtx)).toBe('opt_out')
+  })
+})
+
+const ins = (...texts: string[]): InboundInput[] => texts.map((text, i) => ({ sequence: 10 + i, kind: 'text', text }))
+
+describe('readTurn (natural)', () => {
+  const r = (id: string, inputs: InboundInput[], firstAskedAt = 0) => readTurn(step(id), inputs, firstAskedAt, { natural: true })
+  it('unions separate numbers on a multi question', () => {
+    expect(r('needs', ins('1', '2', '3'))).toMatchObject({ kind: 'answer', answer: { needs: ['leads', 'auto', 'follow'] } })
+  })
+  it('unions a tapped row with a typed number', () => {
+    const tap: InboundInput = { sequence: 10, kind: 'text', text: 'Instagram', selectedId: 'source.instagram' }
+    const typed: InboundInput = { sequence: 11, kind: 'text', text: '3' }
+    expect(r('source', [tap, typed])).toMatchObject({ kind: 'answer', answer: { source: ['instagram', 'facebook'] } })
+  })
+  it('keeps newest-wins on a single question', () => {
+    expect(r('team', ins('1', '2'))).toMatchObject({ kind: 'answer', answer: { team: ['small'] } })
+  })
+  it('a long reply that names nothing is noted against the question', () => {
+    const long = 'אני עושה צילום אירועים בעיקר חתונות ובר מצוות באזור המרכז ולפעמים גם צילומי משפחה'
+    const out = r('industry', ins(long))
+    expect(out).toMatchObject({ kind: 'invalid', reason: 'noted' })
+    expect(out.extras.notes).toEqual([long])
+    expect(out.extras.unplaced).toEqual([])
+  })
+  it('two options on a single question: ambiguous, words noted', () => {
+    const out = r('timing', ins('בבוקר או בערב'))
+    expect(out).toMatchObject({ kind: 'invalid', reason: 'ambiguous', candidateIds: ['morning', 'evening'] })
+    expect(out.extras.notes).toEqual(['בבוקר או בערב'])
+  })
+  it('a message sent before the question was asked stays unplaced, never in this note', () => {
+    const early: InboundInput = { sequence: 5, kind: 'text', text: 'אני עושה צילום אירועים בעיקר חתונות ובר מצוות באזור המרכז' }
+    const out = r('industry', [early], 8)
+    expect(out.kind).toBe('early_only')
+    expect(out.extras.notes).toEqual([])
+    expect(out.extras.unplaced).toHaveLength(1)
+  })
+  it('a text answer over 300 characters keeps the rest in the note', () => {
+    const out = r('contact', ins('א'.repeat(1200)))
+    expect(out.kind).toBe('answer')
+    if (out.kind === 'answer') expect(out.answer.contact[0]).toHaveLength(300)
+    expect(out.extras.notes[0].startsWith('…')).toBe(true)
+    expect(out.extras.notes[0]).toHaveLength(901)
+  })
+  it('flag off: no notes, no union', () => {
+    const off = readTurn(step('needs'), ins('1', '2', '3'), 0)
+    expect(off).toMatchObject({ kind: 'answer', answer: { needs: ['follow'] } })
+    expect(off.extras.notes).toEqual([])
   })
 })

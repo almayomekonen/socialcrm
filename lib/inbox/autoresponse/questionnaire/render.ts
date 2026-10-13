@@ -69,7 +69,7 @@ export function renderQuestion(step: QuestionnaireStep): string {
   return step.type === 'choice' ? [renderStep(step), '', HUMAN_HINT].join('\n') : renderStep(step)
 }
 
-export type RepromptReason = 'invalid_choice' | 'invalid_multi' | 'invalid_text' | 'media' | 'voice'
+export type RepromptReason = 'invalid_choice' | 'invalid_multi' | 'invalid_text' | 'media' | 'voice' | 'ambiguous' | 'noted'
 
 const REPROMPT_LINE: Record<RepromptReason, string> = {
   invalid_choice: SYSTEM_LINES.invalidChoice,
@@ -77,6 +77,8 @@ const REPROMPT_LINE: Record<RepromptReason, string> = {
   invalid_text: SYSTEM_LINES.invalidText,
   media: SYSTEM_LINES.mediaOnly,
   voice: SYSTEM_LINES.voiceOnly,
+  ambiguous: SYSTEM_LINES.invalidChoice,
+  noted: SYSTEM_LINES.invalidChoice,
 }
 
 export function renderReprompt(step: QuestionnaireStep, reason: RepromptReason): string {
