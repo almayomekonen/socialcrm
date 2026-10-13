@@ -12,6 +12,7 @@ import {
   otherOf,
   questionsFull,
   removeOption,
+  setAllowAll,
   updateOption,
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
@@ -38,12 +39,15 @@ export default function OptionsEditor({
   edit,
   issues,
   confirm,
+  allowAllEnabled = false,
 }: {
   model: BuilderQuestionnaire
   question: BuilderQuestion
   edit: Edit
   issues: EditorIssue[]
   confirm: (request: ConfirmRequest) => void
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }) {
   const qKey = keyOf(question)
   const options = optionsOf(question)
@@ -121,6 +125,13 @@ export default function OptionsEditor({
             <p id={`${qKey}-other-full`} className='text-xs text-gray-600'>
               {otherBlocked}
             </p>
+          )}
+          {allowAllEnabled && question.answer.kind === 'multi_choice' && (
+            <Switch
+              lbl={'לקוח יכול לענות "הכל"'}
+              checked={question.answer.allowAll === true}
+              onChange={(e) => edit((m) => setAllowAll(m, qKey, e.target.checked))}
+            />
           )}
         </div>
       </div>

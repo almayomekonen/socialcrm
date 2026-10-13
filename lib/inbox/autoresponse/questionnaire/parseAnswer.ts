@@ -14,6 +14,7 @@ import { detectOptOut } from '../optOutDetect'
 import { isExplicitPersonRequest } from '../salesIntent'
 import type { QuestionnaireChoiceStep } from './definition'
 import { matchAliases, stepHasAliases } from './aliasMatch'
+import { allOptionIds, isAllKeyword } from './allKeyword'
 
 /** What kind of thing the customer sent, from inbox_messages.type. */
 export type InboundKind = 'text' | 'voice' | 'media' | 'ignorable'
@@ -54,11 +55,34 @@ const RESTART_PATTERNS: RegExp[] = [
  * outranks everything, and asking for a person outranks continuing the script.
  * Restart is last because it is the only one that keeps the conversation going.
  */
-export function detectCommand(text: string): QuestionnaireCommand {
+export type CommandContext = { natural?: boolean; stepType?: 'choice' | 'text' }
+
+/** "אני נציג מכירות", "עובד כנציג": the word describes the customer; it does not ask for one. */
+const SELF_AS_REP = /(?:^|\s)(?:אני|אנחנו|בתור)\s+נציג(?:ה|ים|ות)?|(?:^|\s)[וש]?כנציג(?:ה|ים|ות)?/g
+/** "תתקשרו אליי ב14": at a free-text question, how to reach them is the answer. */
+const CALLBACK = /תתקשרו(?:\s+אלי(?:י|נו)?)?|תחזרו\s+אלי(?:י|נו)?|שיחזרו?\s+אלי(?:י|נו)?/g
+/** What makes a callback an answer rather than a request: a when or a how. */
+const CALLBACK_DETAIL = /\d|בבוקר|בצהריים|בצהרים|בערב|מחר|היום|טלפונית|בטלפון|בוואטסאפ|בווטסאפ|בשעה|אחרי/
+
+/**
+ * A request for a person, read in context under natural answers: remove what
+ * only LOOKS like one (a self-description; a callback with its time at a text
+ * question) and ask again. Anything still asking for a person, in the shared
+ * vocabulary, still hands off. Without natural answers: exactly the shared rule.
+ */
+function asksForPerson(raw: string, ctx: CommandContext): boolean {
+  if (!isExplicitPersonRequest(raw)) return false
+  if (!ctx.natural) return true
+  let rest = raw.replace(SELF_AS_REP, ' ')
+  if (ctx.stepType === 'text' && CALLBACK_DETAIL.test(raw)) rest = rest.replace(CALLBACK, ' ')
+  return isExplicitPersonRequest(rest)
+}
+
+export function detectCommand(text: string, ctx: CommandContext = {}): QuestionnaireCommand {
   const raw = (text ?? '').trim()
   if (!raw) return null
   if (detectOptOut(raw)) return 'opt_out'
-  if (isExplicitPersonRequest(raw) && !declinesPerson(normalizeForMatch(raw))) return 'human'
+  if (asksForPerson(raw, ctx) && !declinesPerson(normalizeForMatch(raw))) return 'human'
   const normalized = normalizeForMatch(raw)
   if (RESTART_PATTERNS.some((re) => re.test(normalized))) return 'restart'
   if (DECLINE.test(normalized)) return 'decline'
@@ -102,6 +126,8 @@ function asciiDigits(text: string): string {
 export type ChoiceParse =
   | { ok: true; optionIds: string[]; via?: 'alias' }
   | { ok: false; reason: 'unreadable' | 'too_many' }
+  /** Natural reading: a single-select reply naming exactly two options. Nothing is chosen for them. */
+  | { ok: false; reason: 'ambiguous'; candidateIds: string[] }
 
 /**
  * A numbered menu answer: "2", "2.", "2)", "1,3", "1 3", or the option's own
@@ -110,22 +136,34 @@ export type ChoiceParse =
  * meant is exactly the behaviour this feature exists to avoid.
  *
  * A step whose options list aliases also reads a natural reply that names
- * exactly one option ("רק בערב אחרי העבודה"); see aliasMatch.ts.
+ * exactly one option ("רק בערב אחרי העבודה"); see aliasMatch.ts. Under natural
+ * answers it also reads "הכל" where the owner allowed it (allKeyword.ts), and
+ * reports a single-select reply naming two options as ambiguous.
  */
-export function parseChoice(text: string, step: QuestionnaireChoiceStep): ChoiceParse {
+export function parseChoice(text: string, step: QuestionnaireChoiceStep, opts: { natural?: boolean } = {}): ChoiceParse {
   const normalized = asciiDigits(normalizeForMatch(text))
   if (!normalized) return { ok: false, reason: 'unreadable' }
 
-  // Only a step whose options list aliases reads natural answers; every other
-  // step keeps the numbered-menu rule above, unchanged.
   const numbered = parseNumbered(normalized.replace(MENU_WORD, ''), step)
   if (numbered.ok === false && numbered.reason === 'too_many') return numbered
-  if (numbered.ok || !stepHasAliases(step)) return numbered
+  if (numbered.ok) return numbered
+  // "הכל", only where the owner allowed it, and never over an option the owner
+  // named that way (agency 158 offers "הכל" as an option of its own): that
+  // option is matched by its phrasings below. Anywhere else it is read as words.
+  if (opts.natural && isAllKeyword(normalized)) {
+    const all = allOptionIds(step)
+    const named = stepHasAliases(step) && matchAliases(normalized, step, { natural: true }).length > 0
+    if (all && !named) return { ok: true, optionIds: all, via: 'alias' }
+  }
+  // Only a step whose options list aliases reads natural answers; every other
+  // step keeps the numbered-menu rule above, unchanged.
+  if (!stepHasAliases(step)) return numbered
   // A question is not a selection, even when it names options: "מה ההבדל בין
   // סטילס לוידאו?" or "יש לי אישור?" must be asked again, never answered for them.
   if (/[?؟]/.test(normalized)) return { ok: false, reason: 'unreadable' }
-  const ids = matchAliases(normalized, step)
+  const ids = matchAliases(normalized, step, { natural: opts.natural })
   if (ids.length === 1 || (ids.length > 1 && step.multi === true)) return { ok: true, optionIds: ids, via: 'alias' }
+  if (opts.natural && ids.length === 2) return { ok: false, reason: 'ambiguous', candidateIds: ids }
   return { ok: false, reason: 'unreadable' }
 }
 

@@ -32,6 +32,7 @@ export default function EditorColumn({
   onFocus,
   confirm,
   announce,
+  allowAllEnabled = false,
 }: {
   model: BuilderQuestionnaire
   view: EditorView
@@ -43,6 +44,8 @@ export default function EditorColumn({
   onFocus: (focus: PreviewFocus) => void
   confirm: (request: ConfirmRequest) => void
   announce: (message: string) => void
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }) {
   const shown = (part: string, issues: EditorIssue[] | undefined) => (revealAll || touched.has(part) ? (issues ?? []) : [])
   const general = view.issues[''] ?? []
@@ -88,6 +91,7 @@ export default function EditorColumn({
             onFocus={() => onFocus({ kind: 'question', key: keyOf(q) })}
             onLeave={() => onLeave(keyOf(q))}
             announce={announce}
+            allowAllEnabled={allowAllEnabled}
           />
         ))}
         {model.questions.length === 0 && <p className='text-sm text-gray-600'>אין עדיין שאלות. הוסיפו את השאלה הראשונה.</p>}

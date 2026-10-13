@@ -54,7 +54,12 @@ export const shownWhenSchema = z.discriminatedUnion('mode', [
 /** How the customer answers. */
 export const answerSpecSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('single_choice'), options: z.array(builderOptionSchema).max(10) }),
-  z.object({ kind: z.literal('multi_choice'), options: z.array(builderOptionSchema).max(10) }),
+  z.object({
+    kind: z.literal('multi_choice'),
+    options: z.array(builderOptionSchema).max(10),
+    /** "לקוח יכול לענות 'הכל'": the runtime `acceptsAll` (allKeyword.ts). Absent means no. */
+    allowAll: z.boolean().optional(),
+  }),
   /** Free text, checked only for obvious non-answers. */
   z.object({ kind: z.literal('text'), notSetAllowed: z.boolean().default(false) }),
   /** A date or period; "not decided yet" optionally accepted. */
@@ -118,7 +123,7 @@ export type IdentifiedQuestionnaire = Omit<BuilderQuestionnaire, 'questions'> & 
     Omit<BuilderQuestion, 'id' | 'answer'> & {
       id: string
       answer:
-        | { kind: 'single_choice' | 'multi_choice'; options: Array<BuilderOption & { id: string }> }
+        | { kind: 'single_choice' | 'multi_choice'; options: Array<BuilderOption & { id: string }>; allowAll?: boolean }
         | Exclude<AnswerSpec, { kind: 'single_choice' | 'multi_choice' }>
     }
   >

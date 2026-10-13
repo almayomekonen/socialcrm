@@ -112,7 +112,12 @@ function nextAiState(current: AiState, intent: 'active_turn' | 'escalate' | 'opt
   return intent === 'escalate' ? 'escalated' : 'ai_qualifying'
 }
 
-export function simulateConversation(definition: QuestionnaireDefinition, turns: readonly string[][]): SimulationResult {
+export function simulateConversation(
+  definition: QuestionnaireDefinition,
+  turns: readonly string[][],
+  /** The agency's natural-answers flag, so the test chat reads replies as production will. */
+  opts: { naturalAnswers?: boolean } = {},
+): SimulationResult {
   const rows: Row[] = []
   let sequence = 0
   let session: SessionSnapshot | null = null
@@ -135,6 +140,7 @@ export function simulateConversation(definition: QuestionnaireDefinition, turns:
       hasPriorOutbound: rows.some((r) => r.direction === 'outbound'),
       leadStatusTerminal: false,
       firstAskedAt: active ? firstAskedAt(rows, active.id, active.currentStepId) : 0,
+      naturalAnswers: opts.naturalAnswers === true,
     })
     const before = active ? active.answers : {}
     const replies: string[] = []

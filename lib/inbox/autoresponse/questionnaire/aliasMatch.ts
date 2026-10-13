@@ -21,6 +21,7 @@
  */
 import type { z } from 'zod'
 import type { QuestionnaireChoiceStep } from './definition'
+import { CLAUSE_BREAKS, EXCLUDING, GUARD_REACH, HEDGING, NEGATING, OTHER_LABEL } from './aliasGuards'
 
 const PREFIX_RE = /^[והבלמשכ]{1,2}$/
 
@@ -78,9 +79,11 @@ export function stepHasAliases(step: QuestionnaireChoiceStep): boolean {
 /**
  * The ids of every option the reply names, in menu order. Empty when it names
  * none, or when a negation sits just before a match ("לא צריך וידאו"), because
- * reading past a "no" is exactly the guess we refuse to make.
+ * reading past a "no" is exactly the guess we refuse to make. Under natural
+ * answers the guard is per match instead (aliasGuards.ts): "אולי אינסטגרם,
+ * כרגע רק וואטסאפ" keeps WhatsApp and drops only the hedged Instagram.
  */
-export function matchAliases(text: string, step: QuestionnaireChoiceStep): string[] {
+export function matchAliases(text: string, step: QuestionnaireChoiceStep, opts: { natural?: boolean } = {}): string[] {
   const words = aliasTokens(text)
   if (!words.length) return []
   const hits: Hit[] = []
@@ -95,13 +98,49 @@ export function matchAliases(text: string, step: QuestionnaireChoiceStep): strin
     (h) => !hits.some((o) => o.start <= h.start && o.end >= h.end && o.end - o.start > h.end - h.start),
   )
   const covered = (i: number) => kept.some((h) => i >= h.start && i < h.end)
-  const negated = kept.some((h) => {
-    for (let i = Math.max(0, h.start - NEGATION_REACH); i < h.start; i++) {
-      if (NEGATIONS.has(words[i]) && !covered(i)) return true
+  const guarded = (h: Hit, guard: (w: string) => boolean, reach: number) => {
+    for (let i = Math.max(0, h.start - reach); i < h.start; i++) {
+      if (!covered(i) && guard(words[i])) return true
     }
     return false
-  })
-  if (negated) return []
+  }
+  if (opts.natural) {
+    // Natural reading (aliasGuards.ts). An exclusion anywhere selects nothing.
+    if (words.some((w, i) => !covered(i) && EXCLUDING.has(w))) return []
+    // A "no" or a hedge drops the match it governs; a "no" also drops every
+    // match listed right after it ("לא X או Y"), up to the first real word.
+    // A hedge governs only the NEAREST match after it.
+    const hedgedBy = (h: Hit) => {
+      for (let i = h.start - 1; i >= Math.max(0, h.start - GUARD_REACH); i--) {
+        if (covered(i)) return false
+        if (HEDGING.has(words[i])) return true
+      }
+      return false
+    }
+    // A "no" governs its whole clause: every match after it until a contrast word.
+    const inNegatedClause = (h: Hit) => {
+      for (let i = h.start - 1; i >= 0; i--) {
+        if (covered(i)) continue
+        if (CLAUSE_BREAKS.has(words[i])) return false
+        if (NEGATING.has(words[i])) return true
+      }
+      return false
+    }
+    const ordered = [...kept].sort((a, b) => a.start - b.start)
+    const isOther = (h: Hit) => OTHER_LABEL.test(step.options.find((o) => o.id === h.optionId)?.label.trim() ?? '')
+    const negated = new Set<Hit>()
+    const hedged = new Set<Hit>()
+    ordered.forEach((h, k) => {
+      const previous = ordered[k - 1]
+      // "לא חתונה, משהו אחר": "אחר" right after a negated option is the contrast, not the list.
+      const contrast = isOther(h) && previous !== undefined && negated.has(previous) && previous.end === h.start
+      if (!contrast && inNegatedClause(h)) negated.add(h)
+      else if (hedgedBy(h)) hedged.add(h)
+    })
+    const live = ordered.filter((h) => !negated.has(h) && !hedged.has(h))
+    return step.options.filter((o) => live.some((h) => h.optionId === o.id)).map((o) => o.id)
+  }
+  if (kept.some((h) => guarded(h, (w) => NEGATIONS.has(w), NEGATION_REACH))) return []
   return step.options.filter((o) => kept.some((h) => h.optionId === o.id)).map((o) => o.id)
 }
 

@@ -170,6 +170,15 @@ export function setAnswerKind(m: BuilderQuestionnaire, key: string, kind: Questi
   })
 }
 
+/** "לקוח יכול לענות 'הכל'": multi-select only; a single-select question has no such switch. */
+export function setAllowAll(m: BuilderQuestionnaire, key: string, allowed: boolean): BuilderQuestionnaire {
+  return mapQuestion(m, key, (q) => {
+    if (q.answer.kind !== 'multi_choice') return q
+    const { allowAll: _previous, ...answer } = q.answer
+    return { ...q, answer: allowed ? { ...answer, allowAll: true } : answer }
+  })
+}
+
 export function setNotSetAllowed(m: BuilderQuestionnaire, key: string, allowed: boolean): BuilderQuestionnaire {
   return mapQuestion(m, key, (q) =>
     q.answer.kind === 'text' || q.answer.kind === 'date' ? { ...q, answer: { ...q.answer, notSetAllowed: allowed } } : q,

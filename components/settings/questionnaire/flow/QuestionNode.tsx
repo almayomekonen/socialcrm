@@ -19,6 +19,7 @@ import {
 import { answerTypeOf, cardIssueText, consequenceText, type AnswerType } from '../builderCopy'
 import FlowOptionRow from './FlowOptionRow'
 import FlowOtherToggle from './FlowOtherToggle'
+import FlowAllToggle from './FlowAllToggle'
 import FlowTextAnswer from './FlowTextAnswer'
 import QuestionSummary from './QuestionSummary'
 import { useFlowEditor } from './flowContext'
@@ -36,7 +37,8 @@ const TYPE_LABELS: Record<AnswerType, string> = { single: 'בחירה של תש�
  * except a deletion that changes other questions.
  */
 export default function QuestionNode({ data, selected }: NodeProps & { data: QuestionNodeData }) {
-  const { model, edit, confirm, announce, issuesFor, leave, select, reveal, routedOptions, focusRequest, focusDone, returnFocusTo } = useFlowEditor()
+  const { model, edit, confirm, announce, issuesFor, leave, select, reveal, routedOptions, focusRequest, focusDone, returnFocusTo, allowAllEnabled } =
+    useFlowEditor()
   const promptRef = useRef<HTMLTextAreaElement>(null)
   // Just created ("+ הוספת שאלה" / "+ שאלת המשך"): the cursor goes straight to the question.
   // A new box stays invisible until React Flow has measured it, and focusing an
@@ -194,6 +196,9 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
               </button>
             )}
             <FlowOtherToggle questionKey={key} optionCount={options.length} />
+            {allowAllEnabled && question.answer.kind === 'multi_choice' && (
+              <FlowAllToggle questionKey={key} allowAll={question.answer.allowAll === true} />
+            )}
           </div>
           {other?.followUp && (
             <p className='rounded-md bg-gray-50 px-2 py-1.5 text-xs text-gray-700'>

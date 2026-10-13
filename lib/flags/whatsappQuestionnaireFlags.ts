@@ -54,3 +54,16 @@ export function canUseQuestionnaireInteractive(agencyId: number | null | undefin
   const list = parseAllowlist(process.env.WA_QUESTIONNAIRE_INTERACTIVE_AGENCY_IDS)
   return list === 'all' ? true : list.has(Number(agencyId))
 }
+
+/**
+ * Natural-answer reading (docs/superpowers/specs/2026-10-13-questionnaire-natural-answers-design.md):
+ * "הכל" where the owner allows it, "אחר" with the customer's words, phrasings
+ * checked in context, long replies kept against their question. Its own
+ * allowlist, ABSENT BY DEFAULT: an empty list means every agency reads answers
+ * exactly as before. Only meaningful where the questionnaire itself may speak.
+ */
+export function canUseQuestionnaireNaturalAnswers(agencyId: number | null | undefined): boolean {
+  if (!canUseWhatsappQuestionnaire(agencyId)) return false
+  const list = parseAllowlist(process.env.WA_QUESTIONNAIRE_NATURAL_AGENCY_IDS)
+  return list === 'all' ? true : list.has(Number(agencyId))
+}

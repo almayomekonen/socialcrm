@@ -33,12 +33,15 @@ export default function QuestionnaireBuilder({
   liveRevision: initialLive,
   routing,
   flowEnabled = false,
+  allowAllEnabled = false,
 }: {
   initialDraft: DraftState | null
   liveRevision: number | null
   routing: LiveRouting
   /** The Flow view, decided on the server (canUseQuestionnaireFlowEditor); false, only the Conversation (list) view exists. */
   flowEnabled?: boolean
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }) {
   const draft = useQuestionnaireDraft(initialDraft)
   const release = useQuestionnaireRelease(draft, initialLive)
@@ -161,6 +164,7 @@ export default function QuestionnaireBuilder({
                 onNotReady={() => setRevealLatched(true)}
                 openConversation={() => switchTo('conversation')}
                 onSelectQuestion={setFlowSelection}
+                allowAllEnabled={allowAllEnabled}
               />
             </div>
           ) : (
@@ -179,6 +183,7 @@ export default function QuestionnaireBuilder({
               draftId={draft.meta?.draftId ?? null}
               flush={draft.flush}
               onNotReady={() => setRevealLatched(true)}
+              allowAllEnabled={allowAllEnabled}
             />
           )}
         </>
