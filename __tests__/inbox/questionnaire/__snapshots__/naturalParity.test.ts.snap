@@ -1,0 +1,1207 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`flag-off parity > decides every spec input exactly as origin/main does 1`] = `
+[
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכול",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "כולם",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "את הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל תודה",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "follow",
+      ],
+    },
+    "consumeThrough": 4,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+        "auto",
+        "follow",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "לא הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "כמעט הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל בסדר",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל?",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "לא זיהינו את הבחירה.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "team",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+        "team",
+      ],
+      "needs:raw": [
+        "ניהול צוות ולידים",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      ":questions": [
+        "כמה זה עולה?",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "customer_question",
+    "startsSession": false,
+    "stepId": "needs",
+    "text": "שאלה טובה, נציג מהצוות יענה עליה בהמשך.
+
+איך נוכל לעזור?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. ניהול פניות ולידים
+2. מענה אוטומטי בוואטסאפ
+3. מעקב אחרי לקוחות
+4. ניהול צוות ומשימות
+5. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "צילום אירועים",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "אני צלם אירועים",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "שירותי צילום",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "אני עושה צילום אירועים בעיקר חתונות ובר מצוות באזור המרכז ולפעמים גם צילומי משפחה",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הא",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "לא זיהינו את הבחירה.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":questions": [
+        "מה המחיר?",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "customer_question",
+    "startsSession": false,
+    "stepId": "industry",
+    "text": "שאלה טובה, נציג מהצוות יענה עליה בהמשך.
+
+באיזה תחום העסק?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. שירותים וייעוץ
+2. יופי וטיפוח
+3. נדלן
+4. אחר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "team": [
+        "solo",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "process",
+    "text": "איך אתם מנהלים היום את הפניות?
+
+1. ישירות בוואטסאפ
+2. Excel
+3. אין לנו תהליך מסודר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "team": [
+        "solo",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "process",
+    "text": "איך אתם מנהלים היום את הפניות?
+
+1. ישירות בוואטסאפ
+2. Excel
+3. אין לנו תהליך מסודר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "אני עובד עם עסקים בכל הארץ",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "team",
+    "text": "לא זיהינו את הבחירה.
+
+כמה אנשים מטפלים בפניות?
+
+1. רק אני
+2. 2 עד 3 אנשים
+3. 4 עד 10 אנשים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "team",
+    "text": "לא זיהינו את הבחירה.
+
+כמה אנשים מטפלים בפניות?
+
+1. רק אני
+2. 2 עד 3 אנשים
+3. 4 עד 10 אנשים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "אני לא עובד לבד, יש לי חמישה עובדים",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "team",
+    "text": "לא זיהינו את הבחירה.
+
+כמה אנשים מטפלים בפניות?
+
+1. רק אני
+2. 2 עד 3 אנשים
+3. 4 עד 10 אנשים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "עובדים איתי שלושה אבל בפניות מטפל רק אני",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "team",
+    "text": "לא זיהינו את הבחירה.
+
+כמה אנשים מטפלים בפניות?
+
+1. רק אני
+2. 2 עד 3 אנשים
+3. 4 עד 10 אנשים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "team": [
+        "solo",
+      ],
+      "team:raw": [
+        "רוב הזמן אני לבד, לפעמים בעונה אחת עוזרת לי",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "process",
+    "text": "איך אתם מנהלים היום את הפניות?
+
+1. ישירות בוואטסאפ
+2. Excel
+3. אין לנו תהליך מסודר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "וואטסאפ",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "team",
+    "text": "לא זיהינו את הבחירה.
+
+כמה אנשים מטפלים בפניות?
+
+1. רק אני
+2. 2 עד 3 אנשים
+3. 4 עד 10 אנשים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "process",
+    "text": "לא זיהינו את הבחירה.
+
+איך אתם מנהלים היום את הפניות?
+
+1. ישירות בוואטסאפ
+2. Excel
+3. אין לנו תהליך מסודר
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "challenge": [
+        "slow",
+      ],
+      "challenge:raw": [
+        "אני לא מספיק לענות לכולם",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "source",
+    "text": "מאיפה מגיעות הפניות?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. WhatsApp
+2. Instagram
+3. Facebook
+4. מקורות אחרים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "source": [
+        "instagram",
+        "facebook",
+      ],
+      "source:raw": [
+        "בעיקר אינסטגרם וקצת פייסבוק",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "timing",
+    "text": "מתי נוח לדבר?
+
+1. בוקר
+2. צהריים
+3. ערב
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "source": [
+        "facebook",
+      ],
+    },
+    "consumeThrough": 3,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "timing",
+    "text": "מתי נוח לדבר?
+
+1. בוקר
+2. צהריים
+3. ערב
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "source": [
+        "whatsapp",
+        "facebook",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "timing",
+    "text": "מתי נוח לדבר?
+
+1. בוקר
+2. צהריים
+3. ערב
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "source",
+    "text": "לא זיהינו את הבחירה.
+
+מאיפה מגיעות הפניות?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. WhatsApp
+2. Instagram
+3. Facebook
+4. מקורות אחרים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "source": [
+        "whatsapp",
+        "instagram",
+      ],
+      "source:raw": [
+        "אולי בעתיד אינסטגרם, כרגע רק וואטסאפ",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "timing",
+    "text": "מתי נוח לדבר?
+
+1. בוקר
+2. צהריים
+3. ערב
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "הכל חוץ מפייסבוק",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "source",
+    "text": "לא זיהינו את הבחירה.
+
+מאיפה מגיעות הפניות?
+אפשר לבחור יותר מאחד, למשל: 1,3
+
+1. WhatsApp
+2. Instagram
+3. Facebook
+4. מקורות אחרים
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+      "source": [
+        "whatsapp",
+        "instagram",
+        "facebook",
+      ],
+      "source:raw": [
+        "הלקוחות כותבים לי בעיקר בוואטסאפ אבל גם הרבה מגיעים דרך פייסבוק ומדי פעם מישהו מאינסטגרם שראה פרסום",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 0,
+    "kind": "question",
+    "reason": "answered",
+    "startsSession": false,
+    "stepId": "timing",
+    "text": "מתי נוח לדבר?
+
+1. בוקר
+2. צהריים
+3. ערב
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      ":unplaced": [
+        "בבוקר או בערב",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "consumeThrough": 2,
+    "invalidCount": 1,
+    "kind": "question",
+    "reason": "reprompt_invalid_choice",
+    "startsSession": false,
+    "stepId": "timing",
+    "text": "לא זיהינו את הבחירה.
+
+מתי נוח לדבר?
+
+1. בוקר
+2. צהריים
+3. ערב
+
+לשיחה עם נציג כתבו: נציג",
+  },
+  {
+    "answers": {
+      "contact": [
+        "טלפונית ב14",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": true,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "completed",
+    "status": "completed",
+    "text": "תודה, קיבלנו את הפרטים.",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": false,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "human_request",
+    "status": "handed_off",
+    "text": "נציג יחזור אליך כאן.",
+  },
+  {
+    "answers": {
+      "contact": [
+        "צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הארץ עם צוות קטן צילום אירועים בכל הא",
+      ],
+      "needs": [
+        "leads",
+      ],
+    },
+    "complete": true,
+    "consumeThrough": 2,
+    "escalate": true,
+    "kind": "terminal",
+    "reason": "completed",
+    "status": "completed",
+    "text": "תודה, קיבלנו את הפרטים.",
+  },
+]
+`;
