@@ -147,10 +147,13 @@ export function parseChoice(text: string, step: QuestionnaireChoiceStep, opts: {
   const numbered = parseNumbered(normalized.replace(MENU_WORD, ''), step)
   if (numbered.ok === false && numbered.reason === 'too_many') return numbered
   if (numbered.ok) return numbered
-  // "הכל", only where the owner allowed it. Elsewhere it is read as words.
+  // "הכל", only where the owner allowed it, and never over an option the owner
+  // named that way (agency 158 offers "הכל" as an option of its own): that
+  // option is matched by its phrasings below. Anywhere else it is read as words.
   if (opts.natural && isAllKeyword(normalized)) {
     const all = allOptionIds(step)
-    return all ? { ok: true, optionIds: all, via: 'alias' } : { ok: false, reason: 'unreadable' }
+    const named = stepHasAliases(step) && matchAliases(normalized, step, { natural: true }).length > 0
+    if (all && !named) return { ok: true, optionIds: all, via: 'alias' }
   }
   // Only a step whose options list aliases reads natural answers; every other
   // step keeps the numbered-menu rule above, unchanged.

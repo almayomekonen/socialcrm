@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { canUseQuestionnaireNaturalAnswers } from '@/lib/flags/whatsappQuestionnaireFlags'
 import { noteKey, rawAnswerKey } from '@/lib/inbox/autoresponse/questionnaire/answerKeys'
@@ -197,6 +199,21 @@ describe('parseChoice (natural)', () => {
     expect(p('1️⃣ 3️⃣', 'source')).toEqual({ ok: true, optionIds: ['whatsapp', 'facebook'] })
     expect(p('\u200fהכל\u200f', 'source').ok).toBe(true)
   })
+  it('an option the owner named "הכל" always wins (agency 158 has one)', () => {
+    const def = naturalDefinition((raw) => {
+      const team = raw.steps.find((x) => x.id === 'team') as { options: Array<{ id: string; label: string; aliases?: string[] }> }
+      team.options.push({ id: 'everything', label: 'הכל', aliases: ['הכל', 'הכול', 'כל החבילה'] })
+      const needs = raw.steps.find((x) => x.id === 'needs') as { options: Array<{ id: string; label: string; aliases?: string[] }> }
+      needs.options[1].aliases = ['הכול']
+      return raw
+    })
+    const at = (id: string) => def.steps.find((x) => x.id === id) as QuestionnaireChoiceStep
+    expect(parseChoice('הכל', at('team'), { natural: true })).toEqual({ ok: true, optionIds: ['everything'] })
+    expect(parseChoice('הכול', at('team'), { natural: true })).toMatchObject({ ok: true, optionIds: ['everything'] })
+    expect(parseChoice('כל החבילה', at('team'), { natural: true })).toMatchObject({ ok: true, optionIds: ['everything'] })
+    // acceptsAll AND an option phrased "הכול": the owner's explicit option wins.
+    expect(parseChoice('הכול', at('needs'), { natural: true })).toMatchObject({ ok: true, optionIds: ['auto'] })
+  })
   it('flag off: unchanged', () => {
     expect(parseChoice('הכל', choice('needs'))).toEqual({ ok: false, reason: 'unreadable' })
     expect(parseChoice('בבוקר או בערב', choice('timing'))).toEqual({ ok: false, reason: 'unreadable' })
@@ -349,5 +366,26 @@ describe('Builder test chat matches production', () => {
     const off = simulateConversation(naturalDefinition(), turns)
     expect(JSON.stringify(on.turns.at(-1))).toContain('כמה אנשים מטפלים בפניות?')
     expect(JSON.stringify(off.turns.at(-1))).toContain('לא זיהינו את הבחירה.')
+  })
+})
+
+describe('real questionnaires keep every answer they read today', () => {
+  const dir = path.join(process.cwd(), 'scripts/questionnaire/samples')
+  it.each(fs.readdirSync(dir).filter((f) => f.endsWith('.json')))('%s: labels and phrasings select the same option', (file) => {
+    const parsed = parseQuestionnaireDefinition(fs.readFileSync(path.join(dir, file), 'utf8'))
+    if (parsed.ok === false) throw new Error(parsed.errors.join(', '))
+    let checked = 0
+    for (const s of parsed.definition.steps) {
+      if (s.type !== 'choice') continue
+      for (const o of s.options) {
+        for (const said of [o.label, ...(o.aliases ?? [])]) {
+          const today = parseChoice(said, s)
+          if (today.ok === false) continue
+          expect(parseChoice(said, s, { natural: true }), `${file} ${s.id} "${said}"`).toMatchObject({ ok: true, optionIds: today.optionIds })
+          checked++
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
   })
 })

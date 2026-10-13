@@ -16,6 +16,9 @@ import type { QuestionnaireDefinition } from '../definition'
 import { renderOpening, renderQuestion } from '../render'
 import type { ConvertError } from './convert'
 import { OTHER_LABEL } from './editorBase'
+import { isExplicitPersonRequest } from '../../salesIntent'
+import { aliasTokens } from '../aliasMatch'
+import { isAllKeyword } from '../allKeyword'
 import type { IdError } from './ids'
 
 export type IssueCode =
@@ -36,6 +39,9 @@ export type IssueCode =
   | 'message_too_long'
   | 'unreachable_question'
   | 'other_without_follow_up'
+  | 'phrasing_is_command'
+  | 'phrasing_is_all'
+  | 'phrasing_is_filler'
   | 'conditions_more_than_one_not_supported_yet'
   | 'ending_needs_one_condition'
   | 'messages_not_supported_for_choice'
@@ -125,6 +131,20 @@ function unreachable(definition: QuestionnaireDefinition): string[] {
   return definition.steps.filter((s) => !reachable.has(s.id)).map((s) => s.id)
 }
 
+/**
+ * One word that is never an answer on its own: "אני" alone matches "אני עובד
+ * עם עסקים בכל הארץ". Yes/no words are deliberately absent: "כן" and "יש" are
+ * exactly right on a yes/no question (agency 158's drone permit).
+ */
+const LONE_FILLERS = new Set(['אני', 'אנחנו', 'את', 'אתה', 'אתם', 'הוא', 'היא', 'הם', 'זה', 'זאת', 'רק', 'גם', 'משהו'])
+
+function phrasingIssue(alias: string, acceptsAll: boolean): IssueCode | null {
+  if (isExplicitPersonRequest(alias)) return 'phrasing_is_command'
+  if (isAllKeyword(alias)) return acceptsAll ? 'phrasing_is_all' : null
+  const words = aliasTokens(alias)
+  return words.length === 1 && LONE_FILLERS.has(words[0]) ? 'phrasing_is_filler' : null
+}
+
 function builderChecks(definition: QuestionnaireDefinition): BuilderIssue[] {
   const issues: BuilderIssue[] = []
   for (const id of unreachable(definition)) issues.push({ code: 'unreachable_question', severity: 'error', questionId: id })
@@ -146,6 +166,21 @@ function builderChecks(definition: QuestionnaireDefinition): BuilderIssue[] {
       if (!OTHER_LABEL.test(option.label)) continue
       const followed = definition.steps.some((s) => s.when?.step === step.id && s.when.anyOf.includes(option.id))
       if (!followed) issues.push({ code: 'other_without_follow_up', severity: 'warning', questionId: step.id, optionId: option.id })
+    }
+  }
+
+  // Phrasings that cannot work as answers: a command always wins; "הכל" on an
+  // option makes the question's own "accepts all" switch unreachable (an option
+  // named "הכל" without that switch is fine, and agency 158 has one); a lone
+  // pronoun or filler ("אני") matches sentences that say nothing about the
+  // option. Suggestions, never blockers.
+  for (const step of definition.steps) {
+    if (step.type !== 'choice') continue
+    for (const option of step.options) {
+      for (const alias of option.aliases ?? []) {
+        const code = phrasingIssue(alias, step.acceptsAll === true)
+        if (code) issues.push({ code, severity: 'warning', questionId: step.id, optionId: option.id, field: 'phrasings' })
+      }
     }
   }
   return issues

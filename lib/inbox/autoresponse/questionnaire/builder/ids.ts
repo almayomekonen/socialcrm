@@ -106,7 +106,8 @@ export function assignIds(
       if (optionRef !== undefined && !o.id) assigned[optionRef] = optionId
       options.push({ ...o, id: optionId })
     }
-    questions.push({ ...q, id, answer: { kind: q.answer.kind, options } })
+    const allowAll = q.answer.kind === 'multi_choice' && q.answer.allowAll === true ? { allowAll: true } : {}
+    questions.push({ ...q, id, answer: { kind: q.answer.kind, options, ...allowAll } })
   }
 
   const resolve = (c: Condition): Condition => ({

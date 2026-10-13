@@ -50,6 +50,7 @@ export default function QuestionCard({
   onFocus,
   onLeave,
   announce,
+  allowAllEnabled = false,
 }: {
   model: BuilderQuestionnaire
   question: BuilderQuestion
@@ -61,6 +62,8 @@ export default function QuestionCard({
   /** Focus left the card: from now on its problems are shown. */
   onLeave: () => void
   announce: (message: string) => void
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }) {
   const id = useId()
   const key = keyOf(question)
@@ -200,7 +203,14 @@ export default function QuestionCard({
         ) : (
           <>
             <div className='sm:max-w-[calc(50%-0.5rem)]'>{typeSelect}</div>
-            <OptionsEditor model={model} question={question} edit={edit} issues={issues} confirm={confirm} />
+            <OptionsEditor
+              model={model}
+              question={question}
+              edit={edit}
+              issues={issues}
+              confirm={confirm}
+              allowAllEnabled={allowAllEnabled}
+            />
           </>
         )}
       </section>

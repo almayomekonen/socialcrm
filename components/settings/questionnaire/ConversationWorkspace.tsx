@@ -33,6 +33,7 @@ export default function ConversationWorkspace({
   draftId,
   flush,
   onNotReady,
+  allowAllEnabled = false,
 }: {
   model: BuilderQuestionnaire
   view: EditorView
@@ -49,6 +50,8 @@ export default function ConversationWorkspace({
   flush: () => Promise<boolean>
   /** The test refused an unfinished draft: reveal every problem. */
   onNotReady: () => void
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }) {
   const [focus, setFocus] = useState<PreviewFocus>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -65,6 +68,7 @@ export default function ConversationWorkspace({
         onFocus={setFocus}
         confirm={confirm}
         announce={announce}
+        allowAllEnabled={allowAllEnabled}
       />
       <aside className='order-first min-w-0 self-start min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:order-none'>
         {testing && draftId !== null ? (
