@@ -240,7 +240,7 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   const read = readTurn(step, textInputs, facts.firstAskedAt ?? 0, { natural })
   const kept = withExtras(answers, read.extras, natural ? step.id : undefined)
   if (read.kind === 'answer') {
-    const answer = natural ? preAnswerOtherFollowUp(definition, step, read.answer) : read.answer
+    const answer = natural ? preAnswerOtherFollowUp(definition, step, read.answer, read.otherSaid) : read.answer
     return advance(facts, kept, step, answer, consumeThrough as number)
   }
   if (read.kind === 'question') return customerQuestion(facts, active, step, kept, consumeThrough as number)

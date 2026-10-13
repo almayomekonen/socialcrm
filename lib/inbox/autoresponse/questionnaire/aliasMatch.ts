@@ -21,7 +21,7 @@
  */
 import type { z } from 'zod'
 import type { QuestionnaireChoiceStep } from './definition'
-import { EXCLUDING, GUARD_REACH, HEDGING } from './aliasGuards'
+import { EXCLUDING, GUARD_REACH, HEDGING, LIST_JOINERS, NEGATING, OTHER_LABEL } from './aliasGuards'
 
 const PREFIX_RE = /^[והבלמשכ]{1,2}$/
 
@@ -105,9 +105,34 @@ export function matchAliases(text: string, step: QuestionnaireChoiceStep, opts: 
     return false
   }
   if (opts.natural) {
-    // Natural reading (aliasGuards.ts): a "no", an exclusion or a hedge drops
-    // the match it governs, and nothing else in the message.
-    const live = kept.filter((h) => !guarded(h, (w) => EXCLUDING.has(w) || HEDGING.has(w), GUARD_REACH))
+    // Natural reading (aliasGuards.ts). An exclusion anywhere selects nothing.
+    if (words.some((w, i) => !covered(i) && EXCLUDING.has(w))) return []
+    // A "no" or a hedge drops the match it governs; a "no" also drops every
+    // match listed right after it ("לא X או Y"), up to the first real word.
+    // A guard governs only the NEAREST match after it: "לא חתונה, משהו אחר"
+    // negates the wedding, not "משהו אחר".
+    const governedBy = (h: Hit, guard: (w: string) => boolean) => {
+      for (let i = h.start - 1; i >= Math.max(0, h.start - GUARD_REACH); i--) {
+        if (covered(i)) return false
+        if (guard(words[i])) return true
+      }
+      return false
+    }
+    const ordered = [...kept].sort((a, b) => a.start - b.start)
+    const isOther = (h: Hit) => OTHER_LABEL.test(step.options.find((o) => o.id === h.optionId)?.label.trim() ?? '')
+    const negated = new Set<Hit>()
+    const hedged = new Set<Hit>()
+    ordered.forEach((h, k) => {
+      const previous = ordered[k - 1]
+      const listedAfterNegated =
+        previous !== undefined &&
+        negated.has(previous) &&
+        !isOther(h) &&
+        words.slice(previous.end, h.start).every((w) => LIST_JOINERS.has(w))
+      if (listedAfterNegated || governedBy(h, (w) => NEGATING.has(w))) negated.add(h)
+      else if (governedBy(h, (w) => HEDGING.has(w))) hedged.add(h)
+    })
+    const live = ordered.filter((h) => !negated.has(h) && !hedged.has(h))
     return step.options.filter((o) => live.some((h) => h.optionId === o.id)).map((o) => o.id)
   }
   if (kept.some((h) => guarded(h, (w) => NEGATIONS.has(w), NEGATION_REACH))) return []

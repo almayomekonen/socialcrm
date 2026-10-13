@@ -15,6 +15,18 @@ import { isFillerOnly } from './validateAnswer'
 export const NOTE_MAX_CHARS = 1000
 const CUT = '…'
 
+/** At most `max` characters, marked with "…" when cut, never splitting an emoji in half. */
+export function capText(text: string, max: number): string {
+  if (text.length <= max) return text
+  let head = text.slice(0, Math.max(0, max - 1))
+  if (/[\uD800-\uDBFF]$/.test(head)) head = head.slice(0, -1)
+  return `${head}${CUT}`
+}
+
+/** "נציג", "אפשר לדבר עם מישהו", "בבקשה": the request itself, which tells the rep nothing. */
+const PERSON_REQUEST =
+  /אפשר לדבר עם|לדבר עם|אפשר לדבר|נציג(?:ה|ים)?|בן אדם|בנאדם|אדם אמיתי|מישהו|תעביר(?:י)? אותי|תחבר(?:י)? אותי|בבקשה|אפשר|רוצה|אני/g
+
 export function appendNote(
   answers: Record<string, string[]>,
   stepId: string,
@@ -29,7 +41,7 @@ export function appendNote(
     if (!text || next.includes(text)) continue
     const room = NOTE_MAX_CHARS - used
     if (room <= 1) break
-    const kept = text.length <= room ? text : `${text.slice(0, room - 1)}${CUT}`
+    const kept = capText(text, room)
     next.push(kept)
     used += kept.length
   }
@@ -44,5 +56,8 @@ export function noteText(answers: Record<string, string[]>, stepId: string): str
 
 /** From a turn that asked for a person: the messages that said more than the request itself. */
 export function handoffWords(texts: readonly string[]): string[] {
-  return texts.filter((t) => t.trim() && !isFillerOnly(t))
+  return texts.filter((t) => {
+    const rest = normalizeForMatch(t).replace(PERSON_REQUEST, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+    return rest !== '' && !isFillerOnly(rest)
+  })
 }

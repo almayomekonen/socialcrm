@@ -39,12 +39,13 @@ import type { QuestionnaireChoiceStep, QuestionnaireStep } from './definition'
 import type { InboundInput } from './transition'
 import type { RepromptReason } from './render'
 import { readAsOther } from './otherFallback'
-import { appendNote, NOTE_MAX_CHARS } from './stepNotes'
+import { appendNote, capText, NOTE_MAX_CHARS } from './stepNotes'
 
 export type TurnExtras = { corrections: string[]; questions: string[]; unplaced: string[]; notes: string[] }
 
 export type ReadOutcome =
-  | { kind: 'answer'; answer: Record<string, string[]>; extras: TurnExtras }
+  /** `otherSaid`: the words the "אחר" fallback read as this answer, if it did (answers its follow-up). */
+  | { kind: 'answer'; answer: Record<string, string[]>; extras: TurnExtras; otherSaid?: string }
   | { kind: 'question'; extras: TurnExtras }
   | { kind: 'invalid'; reason: RepromptReason; extras: TurnExtras; candidateIds?: string[] }
   | { kind: 'early_only'; extras: TurnExtras }
@@ -57,6 +58,8 @@ type AnswerReading = {
   answer: Record<string, string[]>
   /** Natural answers: what a text answer said past its 300-character cap. */
   overflow?: string
+  /** Natural answers: this reading is the "אחר" fallback, in these words. */
+  otherSaid?: string
 }
 type Reading =
   | AnswerReading
@@ -71,7 +74,7 @@ function readChoice(step: QuestionnaireChoiceStep, input: InboundInput, early: b
   const parsed = parseChoice(input.text, step, { natural: opts.natural })
   if (parsed.ok) {
     const keep = parsed.via === 'alias' && replyAddsWords(input.text, step, parsed.optionIds)
-    const said = opts.natural ? normalizeForMatch(input.text).slice(0, NOTE_MAX_CHARS) : clip(input.text)
+    const said = opts.natural ? capText(normalizeForMatch(input.text), NOTE_MAX_CHARS) : clip(input.text)
     return { input, early, as: 'answer', answer: { [step.id]: parsed.optionIds, ...(keep ? { [rawAnswerKey(step.id)]: [said] } : {}) } }
   }
   if (isCorrection(words)) return { input, early, as: 'correction' }
@@ -80,7 +83,10 @@ function readChoice(step: QuestionnaireChoiceStep, input: InboundInput, early: b
   if (opts.natural && parsed.ok === false && parsed.reason === 'ambiguous') return { input, early, as: 'ambiguous', candidateIds: parsed.candidateIds }
   if (opts.natural) {
     const other = readAsOther(input.text, step)
-    if (other) return { input, early, as: 'answer', answer: { [step.id]: [other.optionId], [rawAnswerKey(step.id)]: [other.raw] } }
+    if (other) {
+      const answer = { [step.id]: [other.optionId], [rawAnswerKey(step.id)]: [other.raw] }
+      return { input, early, as: 'answer', answer, otherSaid: other.raw }
+    }
   }
   const tooMany = parsed.ok === false && parsed.reason === 'too_many'
   return { input, early, as: 'other', ...(tooMany ? { tooMany: true as const } : {}) }
@@ -128,7 +134,7 @@ function unionAnswer(step: QuestionnaireChoiceStep, readings: readonly AnswerRea
   const raws = readings.flatMap((r) => r.answer[rawAnswerKey(step.id)] ?? [])
   return {
     [step.id]: step.options.map((o) => o.id).filter((id) => chosen.has(id)),
-    ...(raws.length ? { [rawAnswerKey(step.id)]: [raws.join('; ').slice(0, NOTE_MAX_CHARS)] } : {}),
+    ...(raws.length ? { [rawAnswerKey(step.id)]: [capText(raws.join('; '), NOTE_MAX_CHARS)] } : {}),
   }
 }
 
@@ -160,9 +166,10 @@ export function readTurn(
 
   if (winner) {
     const multi = step.type === 'choice' && step.multi === true
-    const answer =
-      opts.natural && multi && candidates.length > 1 ? unionAnswer(step as QuestionnaireChoiceStep, candidates) : winner.answer
-    return { kind: 'answer', answer, extras }
+    const union = opts.natural && multi && candidates.length > 1
+    const answer = union ? unionAnswer(step as QuestionnaireChoiceStep, candidates) : winner.answer
+    const otherSaid = union ? candidates.find((c) => c.otherSaid)?.otherSaid : winner.otherSaid
+    return { kind: 'answer', answer, extras, ...(otherSaid ? { otherSaid } : {}) }
   }
   const current = readings.filter((r) => !r.early)
   if (!current.length) return { kind: 'early_only', extras }

@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   decideQuestionnaireTurn,
@@ -138,10 +140,16 @@ describe('must not accept or guess', () => {
   it('needs: אני נציג מכירות → not a handoff, אחר (D2)', () =>
     expect(answers(decide('needs', ['אני נציג מכירות'])).needs).toEqual(['other']))
   it('נציג → handoff', () => expect(decide('needs', ['נציג'])).toMatchObject({ kind: 'terminal', reason: 'human_request' }))
-  it('אפשר לדבר עם מישהו? → handoff, words kept on the open question', () => {
+  it('אפשר לדבר עם מישהו? → handoff; the request alone is not kept as a note', () => {
     const d = decide('industry', ['אפשר לדבר עם מישהו?'])
     expect(d).toMatchObject({ kind: 'terminal', reason: 'human_request' })
-    expect(answers(d)[noteKey('industry')]).toEqual(['אפשר לדבר עם מישהו?'])
+    expect(answers(d)[noteKey('industry')]).toBeUndefined()
+  })
+  it('a handoff message with more to say is kept on the open question', () => {
+    const t = 'אני צריך שמישהו יסביר לי איך זה עובד עם הצוות שלי, נציג בבקשה'
+    const d = decide('industry', [t])
+    expect(d).toMatchObject({ kind: 'terminal', reason: 'human_request' })
+    expect(answers(d)[noteKey('industry')]).toEqual([t])
   })
   it('contact: תחזרו אליי → handoff', () => expect(decide('contact', ['תחזרו אליי'])).toMatchObject({ reason: 'human_request' }))
 })
@@ -163,5 +171,79 @@ describe('review focus', () => {
     const d = decide('industry', [LONG_15], { session: session('industry', { invalidCount: 3 }) })
     expect(d).toMatchObject({ kind: 'terminal', reason: 'invalid_limit', escalate: true })
     expect(answers(d)[noteKey('industry')]).toEqual([LONG_15])
+  })
+})
+
+/**
+ * Code review, 2026-10-13: inputs that must never select an option. Run on the
+ * 103-shaped fixture and on agency 158's real definition.
+ */
+const SAMPLE_158 = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), 'scripts/questionnaire/samples/perfect-picture.he.json'), 'utf8'),
+)
+const decide158 = (stepId: string, texts: string[]) =>
+  decide(stepId, texts, {
+    definition: naturalDefinition(() => SAMPLE_158),
+    session: session(stepId, { answers: { event_type: ['wedding'] } }),
+  })
+
+describe('never selects what the customer excluded (review 1)', () => {
+  it.each([
+    ['source', 'לא משתמשים באינסטגרם או בפייסבוק'],
+    ['source', 'אין לנו אינסטגרם פייסבוק או וואטסאפ'],
+    ['source', 'במקום וואטסאפ אנחנו משתמשים באינסטגרם'],
+    ['source', 'הכל חוץ מפייסבוק'],
+  ])('fixture %s: %s → nothing selected', (s, t) => expectNoted(decide(s, [t]), s, t))
+  it.each(['הכל חוץ מוידאו', 'הכל בלי מגנטים', 'הכל מלבד העמדה', 'לא וידאו ולא מגנטים'])('158 service: %s → nothing selected', (t) => {
+    const d = decide158('service', [t])
+    expect(d).toMatchObject({ kind: 'question', reason: 'reprompt_noted' })
+    expect(answers(d).service).toBeUndefined()
+  })
+  it('a hedge or negation stops at a clause break: the rest still counts', () => {
+    expect(answers(decide('source', ['אולי בעתיד אינסטגרם, כרגע רק וואטסאפ'])).source).toEqual(['whatsapp'])
+    expect(answers(decide('source', ['לא אינסטגרם, אבל הרבה וואטסאפ'])).source).toEqual(['whatsapp'])
+  })
+  it('158 keeps every answer it reads today', () => {
+    expect(answers(decide158('service', ['הכל'])).service).toEqual(['all'])
+    expect(answers(decide158('service', ['כל החבילה'])).service).toEqual(['all'])
+    expect(answers(decide158('service', ['סטילס ווידאו'])).service).toEqual(['stills', 'video'])
+    expect(answers(decide158('drone_permit', ['אין לי מושג'])).drone_permit).toEqual(['unknown'])
+    expect(answers(decide158('drone_permit', ['אין אישור'])).drone_permit).toEqual(['no'])
+  })
+})
+
+describe('never becomes "אחר" (review 2)', () => {
+  it.each([
+    'אין לי מושג', 'לא בטוח', 'עוד לא החלטתי', 'תלוי', 'שניהם', 'גם וגם', 'כל מה שיש', 'השני', 'האפשרות השלישית', 'שלוש',
+    'היי אני דני', 'סליחה', 'כמובן', 'שנייה בודק', 'אני רוצה הצעת מחיר', 'שלום, ראיתי את הפרסום',
+  ])('fixture industry: %s → not אחר, follow-up not filled', (t) => {
+    const d = decide('industry', [t])
+    expect(answers(d).industry).toBeUndefined()
+    expect(answers(d).industry_other).toBeUndefined()
+  })
+  it.each(['אני רוצה הצעת מחיר', 'שלום, ראיתי את הפרסום'])('158 event_type: %s → not אחר', (t) => {
+    const d = decide158('event_type', [t])
+    expect(answers(d).event_type).toEqual(['wedding']) // the session's earlier answer, untouched
+    expect(answers(d).event_other).toBeUndefined()
+  })
+})
+
+describe('the follow-up is answered only by the customer\'s own "אחר" (review 3)', () => {
+  it('a typed "אחר" number next to another answer still asks the follow-up', () => {
+    const def = naturalDefinition((raw) => {
+      const industry = raw.steps.find((s) => s.id === 'industry') as { options: Array<{ aliases?: string[] }> }
+      industry.options[0].aliases = ['ייעוץ']
+      return raw
+    })
+    const d = decide('industry', ['4', 'ייעוץ לעסקים קטנים'], { definition: def })
+    expect(answers(d).industry).toEqual(['services', 'other'])
+    expect(answers(d).industry_other).toBeUndefined()
+    expect(d).toMatchObject({ kind: 'question', stepId: 'industry_other' })
+  })
+  it('158: "אחר" by its own phrasing still asks the follow-up', () => {
+    const d = decide158('event_type', ['לא חתונה, משהו אחר'])
+    expect(answers(d).event_type).toEqual(['other'])
+    expect(answers(d).event_other).toBeUndefined()
+    expect(d).toMatchObject({ kind: 'question', stepId: 'event_other' })
   })
 })

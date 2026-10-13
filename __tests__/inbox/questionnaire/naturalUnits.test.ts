@@ -3,7 +3,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { canUseQuestionnaireNaturalAnswers } from '@/lib/flags/whatsappQuestionnaireFlags'
 import { noteKey, rawAnswerKey } from '@/lib/inbox/autoresponse/questionnaire/answerKeys'
-import { appendNote, handoffWords, NOTE_MAX_CHARS, noteText } from '@/lib/inbox/autoresponse/questionnaire/stepNotes'
+import { appendNote, capText, handoffWords, NOTE_MAX_CHARS, noteText } from '@/lib/inbox/autoresponse/questionnaire/stepNotes'
 import {
   nextUnansweredStep,
   OTHER_LABEL,
@@ -87,11 +87,17 @@ describe('step notes', () => {
     const a = { x: ['1'] }
     expect(appendNote(a, 'industry', ['', '   '])).toBe(a)
   })
-  it('keeps a handoff message that says more than the request', () => {
-    expect(handoffWords(['נציג', 'אפשר לדבר עם מישהו?', 'אני צריך עזרה עם הפניות שלי, נציג בבקשה'])).toEqual([
-      'אפשר לדבר עם מישהו?',
-      'אני צריך עזרה עם הפניות שלי, נציג בבקשה',
-    ])
+  it('keeps a handoff message only when it says more than the request itself', () => {
+    expect(
+      handoffWords(['נציג', 'אפשר נציג?', 'אפשר לדבר עם מישהו?', 'נציג בבקשה', 'אני צריך עזרה עם הפניות שלי, נציג בבקשה']),
+    ).toEqual(['אני צריך עזרה עם הפניות שלי, נציג בבקשה'])
+  })
+  it('cuts with a visible mark and never splits an emoji', () => {
+    expect(capText('abcdef', 10)).toBe('abcdef')
+    expect(capText('abcdef', 4)).toBe('abc…')
+    const cut = capText('ab😀cd', 4)
+    expect(cut).toBe('ab…')
+    expect(capText('😀'.repeat(600), NOTE_MAX_CHARS).length).toBeLessThanOrEqual(NOTE_MAX_CHARS)
   })
 })
 
@@ -107,14 +113,12 @@ describe('other option', () => {
     expect(otherFollowUpOf(naturalDefinition(), 'industry', 'other')?.id).toBe('industry_other')
     expect(otherFollowUpOf(naturalDefinition(), 'needs', 'other')).toBeNull()
   })
-  it('pre-answers the follow-up only when the customer\'s words chose "אחר"', () => {
+  it('pre-answers the follow-up only with the words the "אחר" fallback read', () => {
     const def = naturalDefinition()
-    const viaWords = { industry: ['other'], [rawAnswerKey('industry')]: ['צילום אירועים'] }
-    expect(preAnswerOtherFollowUp(def, step('industry'), viaWords).industry_other).toEqual(['צילום אירועים'])
-    expect(preAnswerOtherFollowUp(def, step('industry'), { industry: ['other'] }).industry_other).toBeUndefined()
-    expect(
-      preAnswerOtherFollowUp(def, step('industry'), { industry: ['services'], [rawAnswerKey('industry')]: ['x'] }).industry_other,
-    ).toBeUndefined()
+    const chose = { industry: ['other'], [rawAnswerKey('industry')]: ['צילום אירועים'] }
+    expect(preAnswerOtherFollowUp(def, step('industry'), chose, 'צילום אירועים').industry_other).toEqual(['צילום אירועים'])
+    expect(preAnswerOtherFollowUp(def, step('industry'), chose, undefined).industry_other).toBeUndefined()
+    expect(preAnswerOtherFollowUp(def, step('industry'), { industry: ['services'] }, 'x').industry_other).toBeUndefined()
   })
   it('skips a pre-answered step', () => {
     const def = naturalDefinition()
@@ -162,7 +166,11 @@ describe('phrasings in context (natural)', () => {
   })
   it('drops only the negated, excluded or hedged match', () => {
     expect(m('אולי בעתיד אינסטגרם, כרגע רק וואטסאפ', 'source')).toEqual(['whatsapp'])
-    expect(m('במקום וואטסאפ אנחנו משתמשים באינסטגרם', 'source')).toEqual(['instagram'])
+    // An exclusion anywhere selects nothing (code review 2026-10-13).
+    expect(m('במקום וואטסאפ אנחנו משתמשים באינסטגרם', 'source')).toEqual([])
+    expect(m('לא משתמשים באינסטגרם או בפייסבוק', 'source')).toEqual([])
+    expect(m('אין לנו אינסטגרם פייסבוק או וואטסאפ', 'source')).toEqual([])
+    expect(m('לא אינסטגרם, אבל הרבה וואטסאפ', 'source')).toEqual(['whatsapp'])
     expect(m('הכל חוץ מפייסבוק', 'source')).toEqual([])
     expect(m('אני לא עובד לבד, יש לי חמישה עובדים', 'team')).toEqual([])
   })

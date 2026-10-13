@@ -4,7 +4,6 @@
  * Not a new primitive; the same label rule the Builder and its publish check
  * use, defined once here.
  */
-import { rawAnswerKey } from './answerKeys'
 import {
   nextStepAfter,
   type QuestionnaireChoiceStep,
@@ -13,8 +12,10 @@ import {
   type QuestionnaireStep,
 } from './definition'
 
-/** "אחר" as a word of its own. */
-export const OTHER_LABEL = /(^|\s)אחר(\s|$)/
+import { OTHER_LABEL } from './aliasGuards'
+
+/** "אחר" as a word of its own (defined import-free in aliasGuards.ts). */
+export { OTHER_LABEL }
 
 export function otherOptionOf(step: QuestionnaireChoiceStep): QuestionnaireOption | null {
   return step.options.find((o) => OTHER_LABEL.test(o.label.trim())) ?? null
@@ -35,20 +36,22 @@ export function otherFollowUpOf(
 
 /**
  * The customer already said what their "אחר" is ("צילום אירועים"): that is the
- * follow-up's answer, so it is not asked again. Only when the words chose
- * "אחר" (a raw answer exists); a typed number still gets the follow-up.
+ * follow-up's answer, so it is not asked again. Only the words the "אחר"
+ * fallback read (`otherSaid`, readTurn.ts) count: a typed number, a phrasing of
+ * the "אחר" option ("משהו אחר"), or another option's words beside it still get
+ * the follow-up (code review 2026-10-13).
  */
 export function preAnswerOtherFollowUp(
   definition: QuestionnaireDefinition,
   step: QuestionnaireStep,
   answer: Record<string, string[]>,
+  otherSaid: string | undefined,
 ): Record<string, string[]> {
-  if (step.type !== 'choice') return answer
+  if (step.type !== 'choice' || !otherSaid) return answer
   const other = otherOptionOf(step)
-  const raw = answer[rawAnswerKey(step.id)]?.[0]
-  if (!other || !raw || !(answer[step.id] ?? []).includes(other.id)) return answer
+  if (!other || !(answer[step.id] ?? []).includes(other.id)) return answer
   const followUp = otherFollowUpOf(definition, step.id, other.id)
-  return followUp ? { ...answer, [followUp.id]: [raw] } : answer
+  return followUp ? { ...answer, [followUp.id]: [otherSaid] } : answer
 }
 
 /** nextStepAfter, past any step whose answer is already there. */
