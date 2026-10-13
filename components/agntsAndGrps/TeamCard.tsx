@@ -32,6 +32,7 @@ export default function TeamCard({ teams, users, mngrs, offices }) {
         <h1 className='title'>עריכת צוותים</h1>
         <Btn lbl='הוספת צוות' icon='plus' onClick={() => setCurTeam(true)} />
       </div>
+      {!teams?.length && <div className='flex items-center justify-center h-64 text-gray-400'>אין צוותים עדיין</div>}
       <div className='grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-4'>
         {teams?.map((team) => (
           <div className='bg-white p-6 rounded-lg shadow-md' key={team.id}>
