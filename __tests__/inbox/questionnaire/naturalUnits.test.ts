@@ -12,6 +12,7 @@ import {
 import { OTHER_LABEL as BUILDER_OTHER_LABEL } from '@/lib/inbox/autoresponse/questionnaire/builder/editorBase'
 import { parseQuestionnaireDefinition, type QuestionnaireChoiceStep } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import { allOptionIds, isAllKeyword, mentionsAll } from '@/lib/inbox/autoresponse/questionnaire/allKeyword'
+import { matchAliases } from '@/lib/inbox/autoresponse/questionnaire/aliasMatch'
 import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
 const choice = (id: string): QuestionnaireChoiceStep => {
@@ -132,5 +133,34 @@ describe('"all"', () => {
     const parsed = parseQuestionnaireDefinition(raw)
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) expect(parsed.errors.join()).toContain('acceptsAll needs multi')
+  })
+})
+
+describe('phrasings in context (natural)', () => {
+  const m = (t: string, id: string) => matchAliases(t, choice(id), { natural: true })
+  it('longest phrase wins, a separately named option still counts', () => {
+    expect(m('ניהול צוות', 'needs')).toEqual(['team'])
+    expect(m('ניהול צוות ולידים', 'needs')).toEqual(['leads', 'team'])
+  })
+  it('a negation inside the phrase is the phrase', () => {
+    expect(m('אני לא מספיק לענות לכולם', 'challenge')).toEqual(['slow'])
+  })
+  it('drops only the negated, excluded or hedged match', () => {
+    expect(m('אולי בעתיד אינסטגרם, כרגע רק וואטסאפ', 'source')).toEqual(['whatsapp'])
+    expect(m('במקום וואטסאפ אנחנו משתמשים באינסטגרם', 'source')).toEqual(['instagram'])
+    expect(m('הכל חוץ מפייסבוק', 'source')).toEqual([])
+    expect(m('אני לא עובד לבד, יש לי חמישה עובדים', 'team')).toEqual([])
+  })
+  it('reads several options in a long reply', () => {
+    expect(
+      m('הלקוחות כותבים לי בעיקר בוואטסאפ אבל גם הרבה מגיעים דרך פייסבוק ומדי פעם מישהו מאינסטגרם שראה פרסום', 'source'),
+    ).toEqual(['whatsapp', 'instagram', 'facebook'])
+  })
+  it("never reads another question's phrasing", () => {
+    expect(m('וואטסאפ', 'team')).toEqual([])
+  })
+  it('flag off: any negation still empties the whole match (today)', () => {
+    expect(matchAliases('אולי בעתיד אינסטגרם, כרגע רק וואטסאפ', choice('source'))).toEqual(['whatsapp', 'instagram'])
+    expect(matchAliases('לא אינסטגרם, רק וואטסאפ', choice('source'))).toEqual([])
   })
 })

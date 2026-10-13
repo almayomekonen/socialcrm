@@ -21,6 +21,7 @@
  */
 import type { z } from 'zod'
 import type { QuestionnaireChoiceStep } from './definition'
+import { EXCLUDING, GUARD_REACH, HEDGING } from './aliasGuards'
 
 const PREFIX_RE = /^[והבלמשכ]{1,2}$/
 
@@ -78,9 +79,11 @@ export function stepHasAliases(step: QuestionnaireChoiceStep): boolean {
 /**
  * The ids of every option the reply names, in menu order. Empty when it names
  * none, or when a negation sits just before a match ("לא צריך וידאו"), because
- * reading past a "no" is exactly the guess we refuse to make.
+ * reading past a "no" is exactly the guess we refuse to make. Under natural
+ * answers the guard is per match instead (aliasGuards.ts): "אולי אינסטגרם,
+ * כרגע רק וואטסאפ" keeps WhatsApp and drops only the hedged Instagram.
  */
-export function matchAliases(text: string, step: QuestionnaireChoiceStep): string[] {
+export function matchAliases(text: string, step: QuestionnaireChoiceStep, opts: { natural?: boolean } = {}): string[] {
   const words = aliasTokens(text)
   if (!words.length) return []
   const hits: Hit[] = []
@@ -95,13 +98,19 @@ export function matchAliases(text: string, step: QuestionnaireChoiceStep): strin
     (h) => !hits.some((o) => o.start <= h.start && o.end >= h.end && o.end - o.start > h.end - h.start),
   )
   const covered = (i: number) => kept.some((h) => i >= h.start && i < h.end)
-  const negated = kept.some((h) => {
-    for (let i = Math.max(0, h.start - NEGATION_REACH); i < h.start; i++) {
-      if (NEGATIONS.has(words[i]) && !covered(i)) return true
+  const guarded = (h: Hit, guard: (w: string) => boolean, reach: number) => {
+    for (let i = Math.max(0, h.start - reach); i < h.start; i++) {
+      if (!covered(i) && guard(words[i])) return true
     }
     return false
-  })
-  if (negated) return []
+  }
+  if (opts.natural) {
+    // Natural reading (aliasGuards.ts): a "no", an exclusion or a hedge drops
+    // the match it governs, and nothing else in the message.
+    const live = kept.filter((h) => !guarded(h, (w) => EXCLUDING.has(w) || HEDGING.has(w), GUARD_REACH))
+    return step.options.filter((o) => live.some((h) => h.optionId === o.id)).map((o) => o.id)
+  }
+  if (kept.some((h) => guarded(h, (w) => NEGATIONS.has(w), NEGATION_REACH))) return []
   return step.options.filter((o) => kept.some((h) => h.optionId === o.id)).map((o) => o.id)
 }
 
