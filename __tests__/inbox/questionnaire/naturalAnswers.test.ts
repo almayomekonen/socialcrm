@@ -1,0 +1,167 @@
+import { describe, expect, it } from 'vitest'
+import {
+  decideQuestionnaireTurn,
+  type SessionSnapshot,
+  type TurnDecision,
+  type TurnFacts,
+} from '@/lib/inbox/autoresponse/questionnaire/transition'
+import { noteKey, rawAnswerKey } from '@/lib/inbox/autoresponse/questionnaire/answerKeys'
+import { SYSTEM_LINES } from '@/lib/inbox/autoresponse/questionnaire/render'
+import { LONG_1200, LONG_15, naturalDefinition } from './fixtures/naturalDefinition'
+
+/**
+ * Spec §8 (docs/superpowers/specs/2026-10-13-questionnaire-natural-answers-
+ * design.md) through the real decision function, flag on. "Noted" means:
+ * nothing selected, the words kept on this question, an acknowledged re-ask.
+ */
+const session = (stepId: string, over: Partial<SessionSnapshot> = {}): SessionSnapshot => ({
+  id: 1,
+  status: 'active',
+  currentStepId: stepId,
+  answers: { needs: ['leads'] },
+  invalidCount: 0,
+  lastConsumedSequence: 1,
+  lastPromptAt: '2026-10-13T06:00:00.000Z',
+  version: 0,
+  ...over,
+})
+const decide = (stepId: string, texts: string[], over: Partial<TurnFacts> = {}): TurnDecision =>
+  decideQuestionnaireTurn({
+    definition: naturalDefinition(),
+    session: session(stepId),
+    inputs: texts.map((text, i) => ({ sequence: 2 + i, kind: 'text' as const, text })),
+    now: new Date('2026-10-13T06:05:00.000Z'),
+    routedToQuestionnaire: true,
+    aiState: 'ai_qualifying',
+    humanTookOver: false,
+    hasPriorOutbound: true,
+    leadStatusTerminal: false,
+    naturalAnswers: true,
+    ...over,
+  })
+const answers = (d: TurnDecision): Record<string, string[]> => ('answers' in d ? d.answers : {})
+const expectNoted = (d: TurnDecision, stepId: string, said: string) => {
+  expect(d).toMatchObject({ kind: 'question', reason: 'reprompt_noted', stepId })
+  expect(answers(d)[noteKey(stepId)]).toContain(said)
+  if (stepId !== 'needs') expect(answers(d)[stepId]).toBeUndefined()
+  if (d.kind === 'question') expect(d.text.startsWith(SYSTEM_LINES.noted)).toBe(true)
+}
+
+describe('must accept', () => {
+  it.each(['הכל', 'הכול', 'כולם', 'את הכל', 'הכל תודה'])('needs: %s selects all except אחר', (t) => {
+    const d = decide('needs', [t])
+    expect(d).toMatchObject({ kind: 'question', reason: 'answered', stepId: 'industry' })
+    expect(answers(d).needs).toEqual(['leads', 'auto', 'follow', 'team'])
+    expect(answers(d)[rawAnswerKey('needs')]).toEqual([t])
+  })
+  it('needs: separate 1 / 2 / 3', () => expect(answers(decide('needs', ['1', '2', '3'])).needs).toEqual(['leads', 'auto', 'follow']))
+  it('source: separate 1 / 3', () => expect(answers(decide('source', ['1', '3'])).source).toEqual(['whatsapp', 'facebook']))
+  it('source: בעיקר אינסטגרם וקצת פייסבוק', () =>
+    expect(answers(decide('source', ['בעיקר אינסטגרם וקצת פייסבוק'])).source).toEqual(['instagram', 'facebook']))
+  it('challenge: אני לא מספיק לענות לכולם', () =>
+    expect(answers(decide('challenge', ['אני לא מספיק לענות לכולם'])).challenge).toEqual(['slow']))
+  it.each(['צילום אירועים', 'אני צלם אירועים', 'שירותי צילום'])('industry: %s is אחר, follow-up answered and skipped', (t) => {
+    const d = decide('industry', [t])
+    expect(d).toMatchObject({ kind: 'question', reason: 'answered', stepId: 'team' })
+    expect(answers(d).industry).toEqual(['other'])
+    expect(answers(d).industry_other).toEqual([t])
+  })
+  it.each(['עצמאי', 'לבד'])('team: %s', (t) => expect(answers(decide('team', [t])).team).toEqual(['solo']))
+  it.each(['טלפונית ב14', 'תתקשרו אליי ב14', 'תחזרו אלי מחר בבוקר'])('contact: %s completes', (t) => {
+    const d = decide('contact', [t])
+    expect(d).toMatchObject({ kind: 'terminal', reason: 'completed', complete: true })
+    expect(answers(d).contact).toEqual([t])
+  })
+})
+
+describe('long natural-language replies', () => {
+  it('industry: 15 words, no phrasing → noted', () => expectNoted(decide('industry', [LONG_15]), 'industry', LONG_15))
+  it('source: 20 words naming two channels → all named, words kept', () => {
+    const t = 'הלקוחות כותבים לי בעיקר בוואטסאפ אבל גם הרבה מגיעים דרך פייסבוק ומדי פעם מישהו מאינסטגרם שראה פרסום'
+    const d = decide('source', [t])
+    expect(answers(d).source).toEqual(['whatsapp', 'instagram', 'facebook'])
+    expect(answers(d)[rawAnswerKey('source')]).toEqual([t])
+  })
+  it('team: a long reply naming one option once', () => {
+    expect(answers(decide('team', ['רוב הזמן אני לבד, לפעמים בעונה אחת עוזרת לי'])).team).toEqual(['solo'])
+  })
+  it('1,200 characters: no crash, note capped, nothing selected', () => {
+    const d = decide('industry', [LONG_1200])
+    expect(d).toMatchObject({ reason: 'reprompt_noted' })
+    expect(answers(d)[noteKey('industry')].join('').length).toBeLessThanOrEqual(1000)
+    expect(answers(d).industry).toBeUndefined()
+  })
+  it('1,200 characters at a text question: answer keeps 300, the rest goes to the note', () => {
+    const d = decide('contact', [LONG_1200])
+    expect(d).toMatchObject({ kind: 'terminal', reason: 'completed' })
+    expect(answers(d).contact[0]).toHaveLength(300)
+    expect(answers(d)[noteKey('contact')][0].startsWith('…')).toBe(true)
+  })
+})
+
+describe('overlapping and contextual phrasings', () => {
+  it('ניהול צוות → team only', () => expect(answers(decide('needs', ['ניהול צוות'])).needs).toEqual(['team']))
+  it('ניהול צוות ולידים → both', () => expect(answers(decide('needs', ['ניהול צוות ולידים'])).needs).toEqual(['leads', 'team']))
+  it('two options on a single question → clarify, nothing chosen', () => {
+    const d = decide('team', ['עובדים איתי שלושה אבל בפניות מטפל רק אני'])
+    expect(d).toMatchObject({ kind: 'question', reason: 'reprompt_ambiguous', stepId: 'team' })
+    if (d.kind === 'question') expect(d.text.startsWith('התכוונת ל־1. רק אני או ל־2. 2 עד 3 אנשים?')).toBe(true)
+    expect(answers(d).team).toBeUndefined()
+  })
+  it('negated phrasing → noted', () =>
+    expectNoted(decide('team', ['אני לא עובד לבד, יש לי חמישה עובדים']), 'team', 'אני לא עובד לבד, יש לי חמישה עובדים'))
+  it('hedged channel dropped', () =>
+    expect(answers(decide('source', ['אולי בעתיד אינסטגרם, כרגע רק וואטסאפ'])).source).toEqual(['whatsapp']))
+  it('exclusion → noted', () => expectNoted(decide('source', ['הכל חוץ מפייסבוק']), 'source', 'הכל חוץ מפייסבוק'))
+  it("another question's phrasing → noted", () => expectNoted(decide('team', ['וואטסאפ']), 'team', 'וואטסאפ'))
+})
+
+describe('must not accept or guess', () => {
+  it('team: אני עובד עם עסקים בכל הארץ → noted', () =>
+    expectNoted(decide('team', ['אני עובד עם עסקים בכל הארץ']), 'team', 'אני עובד עם עסקים בכל הארץ'))
+  it.each([['team'], ['industry'], ['process']])('%s: הכל → noted', (s) => expectNoted(decide(s, ['הכל']), s, 'הכל'))
+  it.each(['לא הכל', 'כמעט הכל', 'הכל בסדר', 'הכל?'])('needs: %s is never all and never אחר', (t) => {
+    const d = decide('needs', [t])
+    expect(d).toMatchObject({ reason: 'reprompt_noted' })
+    expect(answers(d).needs).toEqual(['leads']) // the session's earlier answer, untouched
+  })
+  it('timing: בבוקר או בערב → clarify', () => expect(decide('timing', ['בבוקר או בערב'])).toMatchObject({ reason: 'reprompt_ambiguous' }))
+  it.each(['שלום', 'אוקי', '?'])('industry: %s → guided re-ask, nothing kept', (t) => {
+    const d = decide('industry', [t])
+    expect(d).toMatchObject({ reason: 'reprompt_invalid_choice' })
+    expect(answers(d)[noteKey('industry')]).toBeUndefined()
+    if (d.kind === 'question') expect(d.text.startsWith(SYSTEM_LINES.invalidChoiceGuided)).toBe(true)
+  })
+  it('industry: מה המחיר? → question ack', () => expect(decide('industry', ['מה המחיר?'])).toMatchObject({ reason: 'customer_question' }))
+  it('team: אני נציג מכירות → not a handoff, noted', () =>
+    expectNoted(decide('team', ['אני נציג מכירות']), 'team', 'אני נציג מכירות'))
+  it('needs: אני נציג מכירות → not a handoff, אחר (D2)', () =>
+    expect(answers(decide('needs', ['אני נציג מכירות'])).needs).toEqual(['other']))
+  it('נציג → handoff', () => expect(decide('needs', ['נציג'])).toMatchObject({ kind: 'terminal', reason: 'human_request' }))
+  it('אפשר לדבר עם מישהו? → handoff, words kept on the open question', () => {
+    const d = decide('industry', ['אפשר לדבר עם מישהו?'])
+    expect(d).toMatchObject({ kind: 'terminal', reason: 'human_request' })
+    expect(answers(d)[noteKey('industry')]).toEqual(['אפשר לדבר עם מישהו?'])
+  })
+  it('contact: תחזרו אליי → handoff', () => expect(decide('contact', ['תחזרו אליי'])).toMatchObject({ reason: 'human_request' }))
+})
+
+describe('review focus', () => {
+  it('a session pinned before acceptsAll existed: הכל is noted, never selected', () => {
+    const old = naturalDefinition((raw) => ({ ...raw, steps: raw.steps.map((s) => ({ ...s, acceptsAll: undefined })) }))
+    const d = decide('needs', ['הכל'], { definition: old })
+    expect(d).toMatchObject({ reason: 'reprompt_noted' })
+    expect(answers(d).needs).toEqual(['leads'])
+  })
+  it("restart after notes: today's semantics (answers reset)", () => {
+    const d = decide('team', ['התחלה מחדש'], {
+      session: session('team', { answers: { needs: ['leads'], [noteKey('industry')]: ['x y z'] } }),
+    })
+    expect(d).toMatchObject({ kind: 'question', reason: 'restarted', answers: {} })
+  })
+  it('the attempt limit still ends a loop, and keeps the note', () => {
+    const d = decide('industry', [LONG_15], { session: session('industry', { invalidCount: 3 }) })
+    expect(d).toMatchObject({ kind: 'terminal', reason: 'invalid_limit', escalate: true })
+    expect(answers(d)[noteKey('industry')]).toEqual([LONG_15])
+  })
+})
