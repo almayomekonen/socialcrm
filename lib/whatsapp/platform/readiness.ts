@@ -67,8 +67,10 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
           messagingGrantedOnWaba: !messaging?.target_ids || messaging.target_ids.includes(wabaId),
         }
       : graphError(r)
-    const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && !!messaging &&
-      (!messaging.target_ids || messaging.target_ids.includes(wabaId))
+    // An expiring token would pass and later stop sending silently: only a
+    // never-expiring System User token (debug_token expires_at === 0) is ready.
+    const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId &&
+      d.expires_at === 0 && !!messaging && (!messaging.target_ids || messaging.target_ids.includes(wabaId))
     checks.push({ name: 'token', ok, detail })
   }
 

@@ -62,6 +62,8 @@ describe('readiness (read-only)', () => {
   it.each([
     ['token', { debug: { data: { ...good.debug.data, type: 'USER' } } }],
     ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: ['999'] }] } } }],
+    ['token', { debug: { data: { ...good.debug.data, expires_at: 1793000000 } } }],
+    ['token', { debug: { data: { ...good.debug.data, expires_at: undefined } } }],
     ['phone', { phone: { ...good.phone, health_status: { can_send_message: 'BLOCKED' } } }],
     ['phone', { phone: { ...good.phone, quality_rating: 'RED' } }],
     ['template', { template: { data: [{ ...good.template.data[0], status: 'PENDING' }] } }],
