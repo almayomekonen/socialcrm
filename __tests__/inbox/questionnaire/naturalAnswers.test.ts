@@ -247,3 +247,34 @@ describe('the follow-up is answered only by the customer\'s own "אחר" (review
     expect(d).toMatchObject({ kind: 'question', stepId: 'event_other' })
   })
 })
+
+describe('re-review: a negation governs its clause', () => {
+  it.each([
+    'לא עובדים עם אינסטגרם או עם פייסבוק',
+    'לא מגיעים מאינסטגרם או דרך פייסבוק',
+    'לא משתמשים באינסטגרם וכמובן גם בפייסבוק',
+    'לא באמת משתמשים הרבה באינסטגרם',
+  ])('fixture source: %s → nothing selected', (t) => expectNoted(decide('source', [t]), 'source', t))
+  it('158 service: "לא צריך וידאו או משהו אחר" → nothing selected (the "או" continues the list)', () => {
+    const d = decide158('service', ['לא צריך וידאו או משהו אחר'])
+    expect(answers(d).service).toBeUndefined()
+  })
+  it('a contrast word ends the negation', () => {
+    expect(answers(decide('source', ['לא אינסטגרם, אבל בעיקר וואטסאפ'])).source).toEqual(['whatsapp'])
+    expect(answers(decide('source', ['לא מאינסטגרם, רק מפייסבוק'])).source).toEqual(['facebook'])
+  })
+  it('"לא X, משהו אחר" still selects אחר', () => {
+    expect(answers(decide158('event_type', ['לא חתונה, משהו אחר'])).event_type).toEqual(['other'])
+  })
+})
+
+describe('re-review: more non-answers never become "אחר"', () => {
+  it.each(['יש לי שאלה', 'רציתי לברר משהו', 'קשה לי להגיד', 'תגיד אתה', 'הכי זול', 'דחוף'])('158 event_type: %s → not אחר', (t) => {
+    const d = decide158('event_type', [t])
+    expect(answers(d).event_type).toEqual(['wedding'])
+    expect(answers(d).event_other).toBeUndefined()
+  })
+  it.each(['משרד פרסום', 'ארוחות בוקר'])('a real industry containing a common word is still אחר: %s', (t) => {
+    expect(answers(decide('industry', [t])).industry).toEqual(['other'])
+  })
+})

@@ -12,8 +12,14 @@
  */
 export const EXCLUDING = new Set(['חוץ', 'מלבד', 'פרט', 'במקום', 'בלי', 'ובלי', 'ללא'])
 
-/** "לא", "אין": the match it governs, and every match listed right after it. */
+/**
+ * "לא", "אין": every match after it in the same clause ("לא עובדים עם
+ * אינסטגרם או עם פייסבוק"), until a contrast word or the end of the message.
+ */
 export const NEGATING = new Set(['לא', 'ולא', 'שלא', 'אין', 'ואין', 'שאין'])
+
+/** "אבל", "רק", "כרגע", "בעיקר": a new clause; a negation before it stops here. */
+export const CLAUSE_BREAKS = new Set(['אבל', 'אלא', 'רק', 'כרגע', 'בעיקר', 'ובעיקר', 'אך', 'דווקא'])
 
 /** "אולי", "בעתיד", "מתלבט", "לא בטוח": considering, not answering. Governs the next match only. */
 export const HEDGING = new Set([
@@ -31,14 +37,12 @@ export const HEDGING = new Set([
   'בטוחה',
 ])
 
-/** Words that only join a list: a negation carries across them ("לא X או Y"). */
-export const LIST_JOINERS = new Set(['או', 'ואו', 'גם', 'וגם', 'ו'])
 
 /**
  * "אחר" as a word of its own (the Builder's and the engine's rule; otherOption.ts
  * re-exports it). Kept here, import-free, because aliasMatch.ts needs it: "לא
- * חתונה, משהו אחר" contrasts with the negated option, it does not continue the
- * list, so a negation never carries onto an "אחר" option.
+ * חתונה, משהו אחר" (nothing between the two) contrasts with the negated option,
+ * so the negation stops there; "לא וידאו או משהו אחר" continues the list.
  */
 export const OTHER_LABEL = /(^|\s)אחר(\s|$)/
 

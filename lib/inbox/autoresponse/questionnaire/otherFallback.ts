@@ -35,14 +35,21 @@ const MENU_POINTERS = new Set([
 /** Not decided, not sure, give me a moment. */
 const UNSURE = new Set([
   'מושג', 'בטוח', 'בטוחה', 'בטוחים', 'תלוי', 'החלטתי', 'החלטנו', 'יודע', 'יודעת', 'יודעים', 'בודק', 'בודקת', 'בודקים',
-  'שנייה', 'רגע', 'אולי', 'מתלבט', 'מתלבטת', 'מתלבטים',
+  'שנייה', 'רגע', 'אולי', 'מתלבט', 'מתלבטת', 'מתלבטים', 'קשה', 'להגיד',
 ])
 /** Greetings, apologies, assent: talking to us, not answering. */
 const SMALL_TALK = new Set([
-  'היי', 'הי', 'שלום', 'אהלן', 'הלו', 'סליחה', 'כמובן', 'בטח', 'ברור', 'תודה', 'אוקי', 'אוקיי', 'כן', 'נכון', 'בוקר', 'ערב',
+  'היי', 'הי', 'שלום', 'אהלן', 'הלו', 'סליחה', 'כמובן', 'בטח', 'ברור', 'תודה', 'אוקי', 'אוקיי', 'כן', 'נכון', 'תגיד',
+  'תגידי', 'תגידו',
 ])
-/** A request rather than a value: pricing, "I saw the ad". */
-const REQUESTS = new Set(['מחיר', 'מחירים', 'הצעת', 'הצעה', 'עולה', 'עלות', 'ראיתי', 'פרסום', 'מודעה', 'פרטים'])
+/**
+ * A request rather than a value: a question, pricing, urgency, "I saw the ad".
+ * Not "פרסום", "בוקר", "ערב": they are also industries ("משרד פרסום").
+ */
+const REQUESTS = new Set([
+  'מחיר', 'מחירים', 'הצעת', 'הצעה', 'עולה', 'עלות', 'זול', 'הכי', 'דחוף', 'דחופה', 'ראיתי', 'מודעה', 'פרטים',
+  'שאלה', 'שאלות', 'לשאול', 'לברר', 'רציתי',
+])
 
 function isNotAnOtherValue(words: readonly string[]): boolean {
   return words.some(

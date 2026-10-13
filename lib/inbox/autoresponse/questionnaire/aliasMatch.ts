@@ -21,7 +21,7 @@
  */
 import type { z } from 'zod'
 import type { QuestionnaireChoiceStep } from './definition'
-import { EXCLUDING, GUARD_REACH, HEDGING, LIST_JOINERS, NEGATING, OTHER_LABEL } from './aliasGuards'
+import { CLAUSE_BREAKS, EXCLUDING, GUARD_REACH, HEDGING, NEGATING, OTHER_LABEL } from './aliasGuards'
 
 const PREFIX_RE = /^[והבלמשכ]{1,2}$/
 
@@ -109,12 +109,20 @@ export function matchAliases(text: string, step: QuestionnaireChoiceStep, opts: 
     if (words.some((w, i) => !covered(i) && EXCLUDING.has(w))) return []
     // A "no" or a hedge drops the match it governs; a "no" also drops every
     // match listed right after it ("לא X או Y"), up to the first real word.
-    // A guard governs only the NEAREST match after it: "לא חתונה, משהו אחר"
-    // negates the wedding, not "משהו אחר".
-    const governedBy = (h: Hit, guard: (w: string) => boolean) => {
+    // A hedge governs only the NEAREST match after it.
+    const hedgedBy = (h: Hit) => {
       for (let i = h.start - 1; i >= Math.max(0, h.start - GUARD_REACH); i--) {
         if (covered(i)) return false
-        if (guard(words[i])) return true
+        if (HEDGING.has(words[i])) return true
+      }
+      return false
+    }
+    // A "no" governs its whole clause: every match after it until a contrast word.
+    const inNegatedClause = (h: Hit) => {
+      for (let i = h.start - 1; i >= 0; i--) {
+        if (covered(i)) continue
+        if (CLAUSE_BREAKS.has(words[i])) return false
+        if (NEGATING.has(words[i])) return true
       }
       return false
     }
@@ -124,13 +132,10 @@ export function matchAliases(text: string, step: QuestionnaireChoiceStep, opts: 
     const hedged = new Set<Hit>()
     ordered.forEach((h, k) => {
       const previous = ordered[k - 1]
-      const listedAfterNegated =
-        previous !== undefined &&
-        negated.has(previous) &&
-        !isOther(h) &&
-        words.slice(previous.end, h.start).every((w) => LIST_JOINERS.has(w))
-      if (listedAfterNegated || governedBy(h, (w) => NEGATING.has(w))) negated.add(h)
-      else if (governedBy(h, (w) => HEDGING.has(w))) hedged.add(h)
+      // "לא חתונה, משהו אחר": "אחר" right after a negated option is the contrast, not the list.
+      const contrast = isOther(h) && previous !== undefined && negated.has(previous) && previous.end === h.start
+      if (!contrast && inNegatedClause(h)) negated.add(h)
+      else if (hedgedBy(h)) hedged.add(h)
     })
     const live = ordered.filter((h) => !negated.has(h) && !hedged.has(h))
     return step.options.filter((o) => live.some((h) => h.optionId === o.id)).map((o) => o.id)
