@@ -17,6 +17,14 @@ import { detectCommand, parseChoice } from '@/lib/inbox/autoresponse/questionnai
 import { readAsOther } from '@/lib/inbox/autoresponse/questionnaire/otherFallback'
 import { readTurn } from '@/lib/inbox/autoresponse/questionnaire/readTurn'
 import type { InboundInput } from '@/lib/inbox/autoresponse/questionnaire/transition'
+import {
+  HUMAN_HINT,
+  renderClarify,
+  renderReprompt,
+  renderSummary,
+  SYSTEM_LINES,
+} from '@/lib/inbox/autoresponse/questionnaire/render'
+import { hasCustomerFacingDash } from '@/lib/inbox/autoresponse/customerFacingText'
 import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
 const choice = (id: string): QuestionnaireChoiceStep => {
@@ -286,5 +294,49 @@ describe('readTurn (natural)', () => {
     const off = readTurn(step('needs'), ins('1', '2', '3'), 0)
     expect(off).toMatchObject({ kind: 'answer', answer: { needs: ['follow'] } })
     expect(off.extras.notes).toEqual([])
+  })
+})
+
+describe('render (natural)', () => {
+  it('guides instead of saying the answer was not recognised', () => {
+    expect(renderReprompt(step('industry'), 'invalid_choice', { natural: true }).startsWith(SYSTEM_LINES.invalidChoiceGuided)).toBe(true)
+    expect(renderReprompt(step('industry'), 'invalid_choice').startsWith('לא זיהינו את הבחירה.')).toBe(true)
+  })
+  it('acknowledges a noted reply and shows the menu', () => {
+    const t = renderReprompt(step('industry'), 'noted', { natural: true })
+    expect(t.startsWith(SYSTEM_LINES.noted)).toBe(true)
+    expect(t).toContain('4. אחר')
+  })
+  it('asks only about the two options, with their menu numbers', () => {
+    expect(renderClarify(choice('timing'), ['morning', 'evening'])).toBe(`התכוונת ל־1. בוקר או ל־3. ערב?\n\n${HUMAN_HINT}`)
+    expect(renderReprompt(step('timing'), 'ambiguous', { natural: true, candidateIds: ['morning', 'evening'] })).toContain(
+      'התכוונת ל־1. בוקר',
+    )
+  })
+  it('no new line contains a dash the send path would rewrite', () => {
+    for (const line of [SYSTEM_LINES.invalidChoiceGuided, SYSTEM_LINES.noted, renderClarify(choice('timing'), ['morning', 'evening'])]) {
+      expect(hasCustomerFacingDash(line)).toBe(false)
+    }
+  })
+  it('shows notes under their question', () => {
+    const s = renderSummary(
+      naturalDefinition(),
+      {
+        needs: ['leads'],
+        industry: ['other'],
+        [noteKey('industry')]: ['צילום אירועים, בעיקר חתונות'],
+        [noteKey('team')]: ['אני עובד עם עסקים בכל הארץ'],
+        contact: ['טלפונית'],
+        [noteKey('contact')]: ['…ב14 או אחרי 17'],
+        source: ['whatsapp'],
+        [rawAnswerKey('source')]: ['בעיקר וואטסאפ'],
+        [noteKey('source')]: ['גם קצת אתר'],
+      },
+      { complete: false },
+    )
+    expect(s).toContain('תחום: אחר (צילום אירועים, בעיקר חתונות)')
+    expect(s).toContain('צוות: לא נבחרה אפשרות (אני עובד עם עסקים בכל הארץ)')
+    expect(s).toContain('חזרה: טלפונית …ב14 או אחרי 17')
+    expect(s).toContain('מקור: WhatsApp (בעיקר וואטסאפ; גם קצת אתר)')
   })
 })

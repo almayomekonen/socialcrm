@@ -17,9 +17,11 @@ import {
   findStep,
   rawAnswerKey,
   type QuestionnaireDefinition,
+  type QuestionnaireChoiceStep,
   type QuestionnaireOption,
   type QuestionnaireStep,
 } from './definition'
+import { noteText } from './stepNotes'
 
 /** Shown under every menu so asking for a person never requires guessing. */
 export const HUMAN_HINT = 'לשיחה עם נציג כתבו: נציג'
@@ -32,6 +34,10 @@ export const SYSTEM_LINES = {
   voiceOnly: 'אין באפשרותנו להאזין להודעות קוליות.',
   restarted: 'מתחילים מחדש.',
   questionAck: 'שאלה טובה, נציג מהצוות יענה עליה בהמשך.',
+  /** Natural answers: a re-ask that never calls a reasonable answer wrong. */
+  invalidChoiceGuided: 'אפשר לבחור מספר מהרשימה, או לכתוב במילים שלך.',
+  /** Natural answers: their words were kept; which option is closest? */
+  noted: 'תודה, רשמנו את מה שכתבת. כדי להמשיך, איזו אפשרות הכי קרובה?',
 } as const
 
 export function renderStep(step: QuestionnaireStep): string {
@@ -47,6 +53,9 @@ export function renderStep(step: QuestionnaireStep): string {
 
 /** How the rep reads an answer whose state is `not_set` (validateAnswer.ts). */
 export const NOT_SET_SUMMARY = 'טרם נקבע'
+/** A question with a note but no answer, as the rep reads it (stepNotes.ts). */
+export const NO_OPTION_SUMMARY = 'לא נבחרה אפשרות'
+export const NO_ANSWER_SUMMARY = 'ללא תשובה'
 /** How the rep reads a correction the engine could not apply to an earlier answer. */
 export const CORRECTION_LABEL = 'תיקון מהלקוח'
 const DISPUTED_NOTE = 'הלקוח שלח תיקון, דורש אימות'
@@ -78,14 +87,28 @@ const REPROMPT_LINE: Record<RepromptReason, string> = {
   media: SYSTEM_LINES.mediaOnly,
   voice: SYSTEM_LINES.voiceOnly,
   ambiguous: SYSTEM_LINES.invalidChoice,
-  noted: SYSTEM_LINES.invalidChoice,
+  noted: SYSTEM_LINES.noted,
 }
 
-export function renderReprompt(step: QuestionnaireStep, reason: RepromptReason): string {
+export type RepromptOpts = { natural?: boolean; candidateIds?: readonly string[] }
+
+export function renderReprompt(step: QuestionnaireStep, reason: RepromptReason, opts: RepromptOpts = {}): string {
   // A question with its own re-ask says exactly that, and nothing it already
   // said once (a greeting in its prompt is not repeated).
   if (reason === 'invalid_text' && step.type === 'text' && step.invalidPrompt) return step.invalidPrompt
-  return [REPROMPT_LINE[reason], '', renderQuestion(step)].join('\n')
+  if (reason === 'ambiguous' && step.type === 'choice' && opts.candidateIds) return renderClarify(step, opts.candidateIds)
+  const line = reason === 'invalid_choice' && opts.natural ? SYSTEM_LINES.invalidChoiceGuided : REPROMPT_LINE[reason]
+  return [line, '', renderQuestion(step)].join('\n')
+}
+
+/** Two options named on a single-select question: ask which, by their own menu numbers. */
+export function renderClarify(step: QuestionnaireChoiceStep, candidateIds: readonly string[]): string {
+  const named = candidateIds
+    .map((id) => step.options.findIndex((o) => o.id === id))
+    .filter((i) => i >= 0)
+    .map((i) => `${i + 1}. ${step.options[i].label}`)
+  if (named.length !== 2) return [SYSTEM_LINES.invalidChoiceGuided, '', renderQuestion(step)].join('\n')
+  return [`התכוונת ל־${named[0]} או ל־${named[1]}?`, '', HUMAN_HINT].join('\n')
 }
 
 /**
@@ -132,7 +155,13 @@ export function summaryFields(
   const disputed = stepsNeedingVerification(definition, answers, corrections)
   const fields: Array<{ label: string; value: string }> = []
   for (const step of definition.steps) {
-    const value = summaryValue(step, answers[step.id], answers[rawAnswerKey(step.id)], answers[answerStateKey(step.id)])
+    const value = summaryValue(
+      step,
+      answers[step.id],
+      answers[rawAnswerKey(step.id)],
+      answers[answerStateKey(step.id)],
+      noteText(answers, step.id),
+    )
     if (value) fields.push({ label: step.label, value: disputed.has(step.id) ? `${value} (${DISPUTED_NOTE})` : value })
   }
   for (const said of corrections) {
@@ -150,17 +179,23 @@ function summaryValue(
   stored: string[] | undefined,
   raw?: string[],
   state?: string[],
+  note?: string | null,
 ): string | null {
-  if (!stored || !stored.length) return null
+  const empty = step.type === 'choice' ? NO_OPTION_SUMMARY : NO_ANSWER_SUMMARY
+  if (!stored || !stored.length) return note ? `${empty} (${note})` : null
   // Said plainly, never as the customer's phrasing of "we don't know yet".
-  if (state?.[0] === 'not_set') return NOT_SET_SUMMARY
-  if (step.type === 'text') return stored[0]?.trim() || null
+  if (state?.[0] === 'not_set') return note ? `${NOT_SET_SUMMARY} (${note})` : NOT_SET_SUMMARY
+  if (step.type === 'text') {
+    const said = stored[0]?.trim()
+    if (!said) return note ? `${empty} (${note})` : null
+    return note ? `${said} ${note}` : said
+  }
   const labels = stored
     .map((id) => step.options.find((o) => o.id === id)?.label)
     .filter((l): l is string => Boolean(l))
-  if (!labels.length) return null
+  if (!labels.length) return note ? `${empty} (${note})` : null
   // An answer read from natural words shows those words too, so the rep sees
-  // "ערב (רק בערב אחרי העבודה)" rather than only the option.
-  const said = raw?.[0]?.trim()
+  // "ערב (רק בערב אחרי העבודה)" rather than only the option; a note follows them.
+  const said = [raw?.[0]?.trim(), note].filter(Boolean).join('; ')
   return said ? `${labels.join(', ')} (${said})` : labels.join(', ')
 }
