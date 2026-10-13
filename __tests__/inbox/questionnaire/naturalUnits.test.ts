@@ -13,7 +13,7 @@ import { OTHER_LABEL as BUILDER_OTHER_LABEL } from '@/lib/inbox/autoresponse/que
 import { parseQuestionnaireDefinition, type QuestionnaireChoiceStep } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import { allOptionIds, isAllKeyword, mentionsAll } from '@/lib/inbox/autoresponse/questionnaire/allKeyword'
 import { matchAliases } from '@/lib/inbox/autoresponse/questionnaire/aliasMatch'
-import { parseChoice } from '@/lib/inbox/autoresponse/questionnaire/parseAnswer'
+import { detectCommand, parseChoice } from '@/lib/inbox/autoresponse/questionnaire/parseAnswer'
 import { readAsOther } from '@/lib/inbox/autoresponse/questionnaire/otherFallback'
 import { NATURAL_DEFINITION_RAW, naturalDefinition } from './fixtures/naturalDefinition'
 
@@ -210,5 +210,31 @@ describe('"אחר" fallback', () => {
   })
   it('never when a phrasing matched (that is a selection or an ambiguity)', () => {
     expect(readAsOther('ניהול צוות', choice('needs'))).toBeNull()
+  })
+})
+
+describe('commands in context', () => {
+  const choiceCtx = { natural: true, stepType: 'choice' as const }
+  const textCtx = { natural: true, stepType: 'text' as const }
+  it.each(['אני נציג מכירות', 'אנחנו נציגים של חברה', 'עובד כנציג שירות'])('self-description %s is not a request', (t) => {
+    expect(detectCommand(t, choiceCtx)).toBeNull()
+  })
+  it.each(['נציג', 'אפשר נציג', 'לדבר עם נציג', 'תעביר אותי לנציג', 'אפשר לדבר עם מישהו?', 'אני נציג, אפשר לדבר עם מישהו?'])(
+    '%s still asks for a person',
+    (t) => expect(detectCommand(t, choiceCtx)).toBe('human'),
+  )
+  it.each(['טלפונית ב14', 'תתקשרו אליי ב14', 'תחזרו אלי מחר בבוקר', 'שיחזרו אליי בערב'])('%s at a text question is the answer', (t) => {
+    expect(detectCommand(t, textCtx)).toBeNull()
+  })
+  it('a bare callback is still a handoff, and so is one at a choice question', () => {
+    expect(detectCommand('תחזרו אליי', textCtx)).toBe('human')
+    expect(detectCommand('תתקשרו אליי ב14', choiceCtx)).toBe('human')
+  })
+  it('flag off: unchanged', () => {
+    expect(detectCommand('אני נציג מכירות')).toBe('human')
+    expect(detectCommand('תתקשרו אליי ב14', { stepType: 'text' })).toBe('human')
+  })
+  it('opt-out still outranks everything', () => {
+    expect(detectCommand('תפסיקו לשלוח לי', textCtx)).toBe('opt_out')
   })
 })

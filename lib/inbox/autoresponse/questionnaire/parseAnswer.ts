@@ -55,11 +55,34 @@ const RESTART_PATTERNS: RegExp[] = [
  * outranks everything, and asking for a person outranks continuing the script.
  * Restart is last because it is the only one that keeps the conversation going.
  */
-export function detectCommand(text: string): QuestionnaireCommand {
+export type CommandContext = { natural?: boolean; stepType?: 'choice' | 'text' }
+
+/** "אני נציג מכירות", "עובד כנציג": the word describes the customer; it does not ask for one. */
+const SELF_AS_REP = /(?:^|\s)(?:אני|אנחנו|בתור)\s+נציג(?:ה|ים|ות)?|(?:^|\s)[וש]?כנציג(?:ה|ים|ות)?/g
+/** "תתקשרו אליי ב14": at a free-text question, how to reach them is the answer. */
+const CALLBACK = /תתקשרו(?:\s+אלי(?:י|נו)?)?|תחזרו\s+אלי(?:י|נו)?|שיחזרו?\s+אלי(?:י|נו)?/g
+/** What makes a callback an answer rather than a request: a when or a how. */
+const CALLBACK_DETAIL = /\d|בבוקר|בצהריים|בצהרים|בערב|מחר|היום|טלפונית|בטלפון|בוואטסאפ|בווטסאפ|בשעה|אחרי/
+
+/**
+ * A request for a person, read in context under natural answers: remove what
+ * only LOOKS like one (a self-description; a callback with its time at a text
+ * question) and ask again. Anything still asking for a person, in the shared
+ * vocabulary, still hands off. Without natural answers: exactly the shared rule.
+ */
+function asksForPerson(raw: string, ctx: CommandContext): boolean {
+  if (!isExplicitPersonRequest(raw)) return false
+  if (!ctx.natural) return true
+  let rest = raw.replace(SELF_AS_REP, ' ')
+  if (ctx.stepType === 'text' && CALLBACK_DETAIL.test(raw)) rest = rest.replace(CALLBACK, ' ')
+  return isExplicitPersonRequest(rest)
+}
+
+export function detectCommand(text: string, ctx: CommandContext = {}): QuestionnaireCommand {
   const raw = (text ?? '').trim()
   if (!raw) return null
   if (detectOptOut(raw)) return 'opt_out'
-  if (isExplicitPersonRequest(raw) && !declinesPerson(normalizeForMatch(raw))) return 'human'
+  if (asksForPerson(raw, ctx) && !declinesPerson(normalizeForMatch(raw))) return 'human'
   const normalized = normalizeForMatch(raw)
   if (RESTART_PATTERNS.some((re) => re.test(normalized))) return 'restart'
   if (DECLINE.test(normalized)) return 'decline'
