@@ -1,7 +1,28 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { canUseQuestionnaireNaturalAnswers } from '@/lib/flags/whatsappQuestionnaireFlags'
-import { noteKey } from '@/lib/inbox/autoresponse/questionnaire/answerKeys'
+import { noteKey, rawAnswerKey } from '@/lib/inbox/autoresponse/questionnaire/answerKeys'
 import { appendNote, handoffWords, NOTE_MAX_CHARS, noteText } from '@/lib/inbox/autoresponse/questionnaire/stepNotes'
+import {
+  nextUnansweredStep,
+  OTHER_LABEL,
+  otherFollowUpOf,
+  otherOptionOf,
+  preAnswerOtherFollowUp,
+} from '@/lib/inbox/autoresponse/questionnaire/otherOption'
+import { OTHER_LABEL as BUILDER_OTHER_LABEL } from '@/lib/inbox/autoresponse/questionnaire/builder/editorBase'
+import type { QuestionnaireChoiceStep } from '@/lib/inbox/autoresponse/questionnaire/definition'
+import { naturalDefinition } from './fixtures/naturalDefinition'
+
+const choice = (id: string): QuestionnaireChoiceStep => {
+  const s = naturalDefinition().steps.find((x) => x.id === id)
+  if (!s || s.type !== 'choice') throw new Error(id)
+  return s
+}
+const step = (id: string) => {
+  const s = naturalDefinition().steps.find((x) => x.id === id)
+  if (!s) throw new Error(id)
+  return s
+}
 
 /**
  * The natural-answers building blocks, one concern per describe block
@@ -54,5 +75,33 @@ describe('step notes', () => {
       'אפשר לדבר עם מישהו?',
       'אני צריך עזרה עם הפניות שלי, נציג בבקשה',
     ])
+  })
+})
+
+describe('other option', () => {
+  it('is the Builder rule, one definition', () => {
+    expect(BUILDER_OTHER_LABEL).toBe(OTHER_LABEL)
+  })
+  it('finds "אחר" but not "מקורות אחרים"', () => {
+    expect(otherOptionOf(choice('industry'))?.id).toBe('other')
+    expect(otherOptionOf(choice('source'))).toBeNull()
+  })
+  it('finds the follow-up the Builder creates', () => {
+    expect(otherFollowUpOf(naturalDefinition(), 'industry', 'other')?.id).toBe('industry_other')
+    expect(otherFollowUpOf(naturalDefinition(), 'needs', 'other')).toBeNull()
+  })
+  it('pre-answers the follow-up only when the customer\'s words chose "אחר"', () => {
+    const def = naturalDefinition()
+    const viaWords = { industry: ['other'], [rawAnswerKey('industry')]: ['צילום אירועים'] }
+    expect(preAnswerOtherFollowUp(def, step('industry'), viaWords).industry_other).toEqual(['צילום אירועים'])
+    expect(preAnswerOtherFollowUp(def, step('industry'), { industry: ['other'] }).industry_other).toBeUndefined()
+    expect(
+      preAnswerOtherFollowUp(def, step('industry'), { industry: ['services'], [rawAnswerKey('industry')]: ['x'] }).industry_other,
+    ).toBeUndefined()
+  })
+  it('skips a pre-answered step', () => {
+    const def = naturalDefinition()
+    expect(nextUnansweredStep(def, { industry: ['other'], industry_other: ['צילום'] }, 'industry')?.id).toBe('team')
+    expect(nextUnansweredStep(def, { industry: ['other'] }, 'industry')?.id).toBe('industry_other')
   })
 })
