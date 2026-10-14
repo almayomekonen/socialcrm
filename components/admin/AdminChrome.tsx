@@ -14,7 +14,7 @@ export default function AdminChrome({
   unresolvedCount,
   children,
 }: {
-  active: 'home' | 'support'
+  active: 'home' | 'support' | 'whatsapp'
   /** Unresolved Support requests — shown only when > 0 and on a clean badge. */
   unresolvedCount?: number
   children: ReactNode
@@ -40,6 +40,9 @@ export default function AdminChrome({
           <AdminNavLink href='/admin/support' active={active === 'support'}>
             תמיכה
             {badge}
+          </AdminNavLink>
+          <AdminNavLink href='/admin/whatsapp' active={active === 'whatsapp'}>
+            וואטסאפ
           </AdminNavLink>
         </nav>
       </div>
