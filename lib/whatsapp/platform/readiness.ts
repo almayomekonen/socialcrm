@@ -7,6 +7,7 @@ import {
   platformWhatsappWabaId,
 } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { REMINDER_TEMPLATE, SEND_TIMEOUT_MS } from '@/lib/ownerWhatsappReminders/constants'
+import { attachReadinessDiagnostics, managementGrantedOnWaba } from './readinessDiagnostics'
 
 /**
  * READ-ONLY readiness of the owner-reminder sender. Every Graph call here is a
@@ -65,6 +66,7 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
           isValid: d.is_valid === true, type: d.type ?? null, appMatches: String(d.app_id) === appId,
           neverExpires: d.expires_at === 0, scopes: d.scopes ?? [],
           messagingGrantedOnWaba: !messaging?.target_ids || messaging.target_ids.includes(wabaId),
+          managementGrantedOnWaba: managementGrantedOnWaba(d.granular_scopes, wabaId),
         }
       : graphError(r)
     const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && !!messaging &&
@@ -91,5 +93,6 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
     checks.push({ name: 'template', ok: tpl.status === 'APPROVED' && tpl.category === 'UTILITY' && detail.bodyVariables === 1 && detail.urlButtonHasVariable, detail })
   } else checks.push({ name: 'template', ok: false, detail: t.status === 200 ? { found: false } : graphError(t) })
 
+  attachReadinessDiagnostics(checks, { phone: p, template: t })
   return { ready: checks.every((c) => c.ok), checks }
 }

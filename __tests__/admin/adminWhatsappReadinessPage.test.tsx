@@ -34,8 +34,9 @@ function mockMeta() {
     if (u.includes('debug_token')) {
       return new Response(JSON.stringify({ data: { is_valid: true, type: 'SYSTEM_USER', app_id: '962521689620138', expires_at: 0, scopes: ['whatsapp_business_messaging', 'whatsapp_business_management'], granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: ['2000000000002'] }] } }), { status: 200 })
     }
-    if (u.includes('message_templates')) return new Response(JSON.stringify({ error: { code: 190, message: META_ERROR_TEXT } }), { status: 401 })
-    return new Response(JSON.stringify({ status: 'CONNECTED', quality_rating: 'GREEN', name_status: 'AVAILABLE_WITHOUT_REVIEW', display_phone_number: '+972 54-922-1572', health_status: { can_send_message: 'LIMITED' } }), { status: 200 })
+    if (u.includes('message_templates')) return new Response(JSON.stringify({ error: { code: 190, error_subcode: 33, type: 'OAuthException', fbtrace_id: 'AtraceID_123', message: META_ERROR_TEXT } }), { status: 401 })
+    return new Response(JSON.stringify({ status: 'CONNECTED', quality_rating: 'GREEN', name_status: 'AVAILABLE_WITHOUT_REVIEW', display_phone_number: '+972 54-922-1572',
+      health_status: { can_send_message: 'BLOCKED', entities: [{ entity_type: 'WABA', id: '2000000000002', can_send_message: 'BLOCKED', errors: [{ error_code: 141006, error_description: 'payment issue' }] }] } }), { status: 200 })
   })
 }
 const render = async () => renderToStaticMarkup(await AdminWhatsappReadiness())
@@ -73,7 +74,9 @@ describe('a platform owner', () => {
     expect(vi.mocked(connection)).toHaveBeenCalled()
     for (const label of ['הגדרות בשרת', 'טוקן הגישה', 'מספר הטלפון', 'תבנית lead_followup_alert', 'לא מוכן לשליחה']) expect(html).toContain(label)
     expect(html).toContain('SYSTEM_USER')
-    expect(html).toContain('LIMITED')
+    expect(html).toContain('BLOCKED (141006)')
+    expect(html).toContain('OAuthException')
+    expect(html).toContain('AtraceID_123')
     expect(meta).toHaveBeenCalledTimes(3)
     for (const [url, init] of meta.mock.calls) {
       expect((init as RequestInit).method).toBe('GET')
@@ -86,7 +89,7 @@ describe('a platform owner', () => {
     session.user = { id: 1, email: 'owner@crm.test' }
     mockMeta()
     const html = await render()
-    for (const s of [TOKEN, APP_SECRET, `${ENV.META_APP_ID}|`, META_ERROR_TEXT, '972', 'display_phone_number', 'granular_scopes']) expect(html).not.toContain(s)
+    for (const s of [TOKEN, APP_SECRET, `${ENV.META_APP_ID}|`, META_ERROR_TEXT, '972', 'display_phone_number', 'granular_scopes', '2000000000002', 'payment issue']) expect(html).not.toContain(s)
   })
 
   it('a network failure renders failed checks, never the error text', async () => {
