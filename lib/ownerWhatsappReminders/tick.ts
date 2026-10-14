@@ -18,7 +18,8 @@ import { sendClaimedDelivery, type DeliveryResult } from './sendDelivery'
  * app/api/cron/owner-wa-reminders.
  *
  * OFF BY DEFAULT, IN LAYERS:
- *   - no platform number or an empty allowlist: returns at once, no query;
+ *   - no platform number or an empty allowlist: logs a single 'disabled' line
+ *     (a boolean and a count only) and returns at once, no query;
  *   - OWNER_WA_REMINDERS_SEND_ENABLED !== '1' (the kill switch): DRY RUN. It
  *     finds candidates and recipients and logs counts, and writes NOTHING (so a
  *     dry run can never use up a cooldown or a reminder);
@@ -44,7 +45,10 @@ export async function tickOwnerWhatsappReminders(opts?: { now?: Date }): Promise
   const summary: ReminderTickSummary = { mode: 'disabled', candidates: 0, scheduled: 0, noRecipients: 0, wouldRemind: 0, reaped: 0, paused: false, sends: {} }
   const phoneNumberId = platformWhatsappPhoneNumberId()
   const agencyIds = ownerWhatsappReminderAgencyIds()
-  if (!phoneNumberId || !agencyIds.length) return summary
+  if (!phoneNumberId || !agencyIds.length) {
+    console.log('[OwnerWaReminder][tick] disabled', { platformNumberConfigured: !!phoneNumberId, allowlistedAgencies: agencyIds.length })
+    return summary
+  }
 
   const token = platformWhatsappAccessToken()
   const live = isOwnerWhatsappReminderSendEnabled() && !!token

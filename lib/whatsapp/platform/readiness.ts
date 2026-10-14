@@ -17,7 +17,9 @@ import { attachReadinessDiagnostics, managementGrantedOnWaba } from './readiness
  *   config    which settings are present (booleans; agency ids are not secret)
  *   token     debug_token: valid, SYSTEM_USER, this app, never expires,
  *             whatsapp_business_messaging granted on this WABA
- *   phone     CONNECTED, can_send_message AVAILABLE, quality not RED
+ *   phone     CONNECTED, quality not RED, can_send_message AVAILABLE or
+ *             LIMITED; BLOCKED fails. Reasons for LIMITED/BLOCKED are in
+ *             detail.healthEntities
  *   template  lead_followup_alert (he) APPROVED, UTILITY, one body variable,
  *             a URL button whose link takes one variable
  *
@@ -74,11 +76,11 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
     checks.push({ name: 'token', ok, detail })
   }
 
-  const p = await graphGet(`${phoneId}?fields=status,quality_rating,messaging_limit_tier,name_status,code_verification_status,health_status`, token)
+  const p = await graphGet(`${phoneId}?fields=status,quality_rating,whatsapp_business_manager_messaging_limit,name_status,code_verification_status,health_status`, token)
   if (p.status === 200 && p.body) {
     const canSend = p.body.health_status?.can_send_message ?? null
-    const detail = { status: p.body.status ?? null, qualityRating: p.body.quality_rating ?? null, messagingLimitTier: p.body.messaging_limit_tier ?? null, nameStatus: p.body.name_status ?? null, canSendMessage: canSend }
-    checks.push({ name: 'phone', ok: p.body.status === 'CONNECTED' && canSend === 'AVAILABLE' && p.body.quality_rating !== 'RED', detail })
+    const detail = { status: p.body.status ?? null, qualityRating: p.body.quality_rating ?? null, messagingLimitTier: p.body.whatsapp_business_manager_messaging_limit ?? null, nameStatus: p.body.name_status ?? null, canSendMessage: canSend }
+    checks.push({ name: 'phone', ok: p.body.status === 'CONNECTED' && (canSend === 'AVAILABLE' || canSend === 'LIMITED') && p.body.quality_rating !== 'RED', detail })
   } else checks.push({ name: 'phone', ok: false, detail: graphError(p) })
 
   const t = await graphGet(`${wabaId}/message_templates?name=${REMINDER_TEMPLATE.name}&fields=name,status,category,language,components`, token)
