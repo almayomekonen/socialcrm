@@ -188,10 +188,11 @@ Closed leads are considered clients.
 ## 15. SUPERPOWERS — PHASE 1 (PILOT)
 
 Active skills: brainstorming, writing-plans, requesting-code-review,
-receiving-code-review, systematic-debugging, verification-before-completion.
+receiving-code-review, systematic-debugging, verification-before-completion,
+subagent-driven-development, dispatching-parallel-agents, using-git-worktrees
+(the last three under the Tech Lead model in §17).
 
-Disabled for Phase 1: test-driven-development, subagent-driven-development,
-using-git-worktrees, dispatching-parallel-agents, executing-plans,
+Disabled for Phase 1: test-driven-development, executing-plans,
 finishing-a-development-branch, writing-skills.
 
 The disabled list overrides the using-superpowers "you MUST invoke" pressure.
@@ -224,3 +225,32 @@ Permanent Neon branches (allowlist — nothing else is permanent):
 - the `card-trial-staging` resource (separate Neon project), only while it is in use
 
 Any other branch is temporary: it needs an owner, a reason, and a deletion date.
+
+---
+
+## 17. PARALLEL DEVELOPMENT — TECH LEAD MODEL (DEFAULT FOR NON-TRIVIAL FEATURES)
+
+For any non-trivial feature, the session acting as Tech Lead plans the work and,
+where it is genuinely faster and safe, runs it in parallel with worker agents.
+A small, single-file or tightly coupled change stays single-agent.
+
+The Tech Lead:
+
+1. Plans the feature and splits it into independent tasks with explicit
+   contracts (files each task owns, interfaces, data shapes, what it must not touch).
+2. Sizes concurrency to the work: the number of truly independent tasks, their
+   dependencies, machine resources (disk, builds) and integration risk. Usually
+   2–3 workers; more only when tasks are independent and resources allow.
+3. Gives each worker its own git worktree and branch from the agreed base. Workers
+   commit locally, never push, never build unless told, and stay in their worktree.
+4. Reviews every worker diff against CLAUDE.md and claude/*.md, resolves overlaps
+   deliberately on an integration branch, and verifies the whole feature (typecheck,
+   build, relevant tests, regression against the base) before reporting.
+5. Reports what each worker did, what was verified, and what remains.
+
+Unchanged by this section: every approval gate in this file and in
+claude/release-deployment-workflow.md (merge, deploy, production configuration,
+migrations, external services), the Git rules (never develop on main, never rewrite
+another branch), sensitive-area rules (§7), and the no-cost-surprise rules (§16).
+Remove worker worktrees and their build output once their branches are integrated.
+
