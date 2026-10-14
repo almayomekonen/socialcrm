@@ -76,10 +76,10 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
     checks.push({ name: 'token', ok, detail })
   }
 
-  const p = await graphGet(`${phoneId}?fields=status,quality_rating,messaging_limit_tier,name_status,code_verification_status,health_status`, token)
+  const p = await graphGet(`${phoneId}?fields=status,quality_rating,whatsapp_business_manager_messaging_limit,name_status,code_verification_status,health_status`, token)
   if (p.status === 200 && p.body) {
     const canSend = p.body.health_status?.can_send_message ?? null
-    const detail = { status: p.body.status ?? null, qualityRating: p.body.quality_rating ?? null, messagingLimitTier: p.body.messaging_limit_tier ?? null, nameStatus: p.body.name_status ?? null, canSendMessage: canSend }
+    const detail = { status: p.body.status ?? null, qualityRating: p.body.quality_rating ?? null, messagingLimitTier: p.body.whatsapp_business_manager_messaging_limit ?? null, nameStatus: p.body.name_status ?? null, canSendMessage: canSend }
     checks.push({ name: 'phone', ok: p.body.status === 'CONNECTED' && (canSend === 'AVAILABLE' || canSend === 'LIMITED') && p.body.quality_rating !== 'RED', detail })
   } else checks.push({ name: 'phone', ok: false, detail: graphError(p) })
 
