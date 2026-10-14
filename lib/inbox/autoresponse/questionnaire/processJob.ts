@@ -18,7 +18,7 @@
  * a message the customer already has; staying silent would strand them. Asking
  * a person is the only honest third option.
  *
- * NOTE: ~335 lines, over the 250-line soft limit, and deliberately not split
+ * NOTE: ~340 lines, over the 250-line soft limit, and deliberately not split
  * further. What remains after `finalize.ts` and `types.ts` were extracted is a
  * single linear sequence — gather the facts, decide, check the window, ask or
  * end — and the order of those steps IS the correctness argument documented
@@ -36,7 +36,11 @@ import {
   startSession,
   consumeUpTo,
 } from '@/db/questionnaireSessions'
-import { canUseQuestionnaireInteractive, canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import {
+  canUseQuestionnaireInteractive,
+  canUseQuestionnaireNaturalAnswers,
+  canUseWhatsappQuestionnaire,
+} from '@/lib/flags/whatsappQuestionnaireFlags'
 import { resolveWhatsappServiceWindow } from '@/lib/inbox/whatsappServiceWindow'
 import { queryLatestInboundAt } from '@/lib/inbox/whatsappComposerContext'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
@@ -144,6 +148,7 @@ export async function processQuestionnaireJob(
     hasPriorOutbound: transcript.some((m) => m.direction === 'outbound'),
     leadStatusTerminal: Boolean(lead?.status && TERMINAL_LEAD_STATUSES.includes(String(lead.status))),
     firstAskedAt: session?.status === 'active' ? firstAskedAt(transcript, session.id, session.currentStepId) : 0,
+    naturalAnswers: canUseQuestionnaireNaturalAnswers(job.agencyId),
   })
   waTrace('QUESTIONNAIRE_DECISION', trace, {
     kind: decision.kind,

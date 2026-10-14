@@ -9,8 +9,8 @@
  * loudly instead of being silently dropped.
  *
  * Canonical form: an absent boolean and `false` mean the same to the runtime,
- * so `multi`, `allowNotSet` and an empty phrasing list are written only when
- * they say something.
+ * so `multi`, `acceptsAll`, `allowNotSet` and an empty phrasing list are
+ * written only when they say something.
  */
 import type { QuestionnaireDefinition, QuestionnaireStep } from '../definition'
 import { QUESTIONNAIRE_SCHEMA_VERSION } from '../definition'
@@ -32,6 +32,7 @@ function answerOf(step: QuestionnaireStep): AnswerSpec {
         ...(o.icon !== undefined ? { icon: o.icon } : {}),
         phrasings: [...(o.aliases ?? [])],
       })),
+      ...(step.multi === true && step.acceptsAll === true ? { allowAll: true } : {}),
     }
   }
   if (step.validate === 'date') return { kind: 'date', notSetAllowed: step.allowNotSet === true }
@@ -108,6 +109,7 @@ export function toDefinition(
         ...base,
         type: 'choice',
         ...(a.kind === 'multi_choice' ? { multi: true } : {}),
+        ...(a.kind === 'multi_choice' && a.allowAll === true ? { acceptsAll: true } : {}),
         options: a.options.map((o) => ({
           id: o.id,
           label: o.label,

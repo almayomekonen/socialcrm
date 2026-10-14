@@ -37,3 +37,14 @@ export const QUESTIONS_KEY = ':questions'
  * guessed into a field.
  */
 export const UNPLACED_KEY = ':unplaced'
+
+/**
+ * Words about THIS question that answered none of its options: a long
+ * description, an "all" the question does not accept, the words of a handoff
+ * message. Kept against the question so the rep reads them in context
+ * (stepNotes.ts). Never written by an answer, so a later selection cannot
+ * overwrite it.
+ */
+export function noteKey(stepId: string): string {
+  return `${stepId}:note`
+}

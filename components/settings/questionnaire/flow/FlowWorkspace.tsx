@@ -32,6 +32,7 @@ export default function FlowWorkspace({
   onNotReady,
   openConversation,
   onSelectQuestion,
+  allowAllEnabled = false,
 }: {
   model: BuilderQuestionnaire
   view: EditorView
@@ -49,6 +50,8 @@ export default function FlowWorkspace({
   openConversation: () => void
   /** The question being worked on (render key), so switching to the list can land on it. */
   onSelectQuestion?: (questionReactKey: string | null) => void
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const select = (nodeId: string | null) => {
@@ -95,6 +98,7 @@ export default function FlowWorkspace({
           select={select}
           selectedKey={selected}
           openConversation={openConversation}
+          allowAllEnabled={allowAllEnabled}
         />
       </div>
       {side && (

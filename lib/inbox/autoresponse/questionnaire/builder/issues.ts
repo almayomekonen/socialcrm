@@ -69,6 +69,12 @@ export function describeIssue(issue: BuilderIssue, questionnaire: BuilderQuestio
       return `אף לקוח לא יגיע לשאלה ${question}.`
     case 'other_without_follow_up':
       return `כשלקוח בוחר ${optionName}, כדאי לשאול אותו לפרטים.`
+    case 'phrasing_is_command':
+      return `בשאלה ${question} יש ניסוח שהמערכת קוראת כבקשה לנציג, ולכן הוא לא יזוהה כתשובה.`
+    case 'phrasing_is_all':
+      return `בשאלה ${question} יש אפשרות שמזוהה כ"הכל", ולכן "לקוח יכול לענות 'הכל'" לא יפעל בה. הלקוח יקבל את האפשרות הזאת.`
+    case 'phrasing_is_filler':
+      return `בשאלה ${question} יש ניסוח כללי מדי, שעלול להתאים גם למשפטים שלא קשורים לתשובה.`
     case 'conditions_more_than_one_not_supported_yet':
       return 'כרגע אפשר להגדיר תנאי אחד בלבד.'
     case 'messages_not_supported_for_choice':

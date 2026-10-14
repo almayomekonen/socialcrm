@@ -4,6 +4,7 @@ import { isMobileWorkspaceRequest } from '@/lib/device'
 import { ProductAccessError, requireAgencyUser } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { canUseQuestionnaireBuilder, canUseQuestionnaireFlowEditor } from '@/lib/flags/questionnaireBuilderFlags'
+import { canUseQuestionnaireNaturalAnswers } from '@/lib/flags/whatsappQuestionnaireFlags'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { authorizeBuilder } from '@/lib/inbox/autoresponse/questionnaire/builder/authorize'
 import { getBuilderState } from '@/lib/inbox/autoresponse/questionnaire/builder/service'
@@ -69,12 +70,16 @@ export default async function QuestionnaireBuilderPage() {
   // Builder improvements (icon chooser, phrase teaching in the test chat) apply
   // to the list view either way.
   const flowEnabled = canUseQuestionnaireFlowEditor(ctx.agencyId)
+  // "לקוח יכול לענות 'הכל'" only where natural-answer reading is on for this
+  // agency: elsewhere the switch would do nothing.
+  const allowAllEnabled = canUseQuestionnaireNaturalAnswers(ctx.agencyId)
   return (
     <QuestionnaireBuilder
       initialDraft={state.draft}
       liveRevision={state.published?.revision ?? null}
       routing={routing}
       flowEnabled={flowEnabled}
+      allowAllEnabled={allowAllEnabled}
     />
   )
 }

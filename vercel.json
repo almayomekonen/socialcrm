@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/oauth-sweep",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/cron/owner-wa-reminders",
+      "schedule": "*/1 * * * *"
     }
   ]
 }

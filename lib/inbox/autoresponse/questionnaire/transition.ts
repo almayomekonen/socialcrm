@@ -18,7 +18,7 @@
  * An input this file cannot read produces a re-prompt or a handoff, never a
  * guess and never a fallback to the AI agent.
  *
- * NOTE: ~330 lines, over the 250-line soft limit, intentionally. It is one pure
+ * NOTE: ~350 lines, over the 250-line soft limit, intentionally. It is one pure
  * function and its helpers: every rule of the conversation in one place, read
  * top to bottom in priority order. Splitting it by rule would scatter a
  * decision table that only makes sense as a whole, and the priority between
@@ -32,6 +32,8 @@ import { closingFor } from './closing'
 import { QUESTIONS_KEY } from './answerKeys'
 import { readTurn, withExtras } from './readTurn'
 import { renderOpening, renderQuestion, renderQuestionAck, renderReprompt, renderRestart, type RepromptReason } from './render'
+import { nextUnansweredStep, preAnswerOtherFollowUp } from './otherOption'
+import { appendNote, handoffWords } from './stepNotes'
 
 /** Questions a customer may ask before a person takes over (the next one hands off); never invalid answers. */
 export const MAX_CUSTOMER_QUESTIONS = 3
@@ -84,6 +86,8 @@ export type TurnFacts = {
    * re-ask). Earlier messages cannot answer it (readTurn.ts). 0 when unknown.
    */
   firstAskedAt?: number
+  /** Natural-answer reading (flag, spec 2026-10-13). Absent or false: exactly today's reading. */
+  naturalAnswers?: boolean
 }
 
 export type TurnDecision =
@@ -125,6 +129,8 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   const active = session && session.status === 'active' ? session : null
   const consumeThrough = inputs.length ? Math.max(...inputs.map((i) => i.sequence)) : null
   const answers = active ? { ...active.answers } : {}
+  const natural = facts.naturalAnswers === true
+  const openStep = active ? findStep(definition, active.currentStepId) : null
 
   // ── Routing withdrawn ────────────────────────────────────────────────────
   // The business was switched back to the agent, the flag was pulled, or the
@@ -149,12 +155,15 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
   // ── Commands, scanned across everything that arrived this turn ────────────
   // Typed text only: a tapped option is never a command, even if an owner
   // labelled an option "נציג".
-  const commands = inputs.filter((i) => i.kind === 'text' && !i.selectedId).map((i) => detectCommand(i.text))
+  const typed = inputs.filter((i) => i.kind === 'text' && !i.selectedId)
+  const commands = typed.map((i) => detectCommand(i.text, { natural, stepType: openStep?.type }))
   if (commands.includes('opt_out')) {
     return terminal('opt_out', 'opted_out', null, answers, consumeThrough, false, false)
   }
   if (commands.includes('human')) {
-    return terminal('human_request', 'handed_off', definition.handoff, answers, consumeThrough, true, false)
+    // Natural answers: what the customer said in that turn stays with the open question.
+    const kept = natural && openStep ? appendNote(answers, openStep.id, handoffWords(typed.map((i) => i.text))) : answers
+    return terminal('human_request', 'handed_off', definition.handoff, kept, consumeThrough, true, false)
   }
   // "לא מעוניין" as the whole message: stop asking, say nothing, let a rep decide.
   // Not an opt-out: no compliance stop is recorded (parseAnswer.ts).
@@ -228,15 +237,18 @@ export function decideQuestionnaireTurn(facts: TurnFacts): TurnDecision {
 
   // ── The answer itself ────────────────────────────────────────────────────
   // One message, one candidate; nothing joined, nothing lost (readTurn.ts).
-  const read = readTurn(step, textInputs, facts.firstAskedAt ?? 0)
-  const kept = withExtras(answers, read.extras)
-  if (read.kind === 'answer') return advance(facts, kept, step, read.answer, consumeThrough as number)
+  const read = readTurn(step, textInputs, facts.firstAskedAt ?? 0, { natural })
+  const kept = withExtras(answers, read.extras, natural ? step.id : undefined)
+  if (read.kind === 'answer') {
+    const answer = natural ? preAnswerOtherFollowUp(definition, step, read.answer, read.otherSaid) : read.answer
+    return advance(facts, kept, step, answer, consumeThrough as number)
+  }
   if (read.kind === 'question') return customerQuestion(facts, active, step, kept, consumeThrough as number)
   if (read.kind === 'early_only') {
     // Everything predates this question: keep it for the rep, say nothing.
     return { kind: 'record', reason: 'early_messages', stepId: step.id, answers: kept, invalidCount: active.invalidCount, consumeThrough: consumeThrough as number }
   }
-  return reprompt(facts, active, step, read.reason, kept, consumeThrough as number)
+  return reprompt(facts, active, step, read.reason, kept, consumeThrough as number, read.candidateIds)
 }
 
 /**
@@ -274,7 +286,9 @@ function advance(
   consumeThrough: number,
 ): TurnDecision {
   const answers = { ...base, ...answer }
-  const next = nextStepAfter(facts.definition, answers, step.id)
+  const next = facts.naturalAnswers
+    ? nextUnansweredStep(facts.definition, answers, step.id)
+    : nextStepAfter(facts.definition, answers, step.id)
   if (!next) {
     return terminal('completed', 'completed', closingFor(facts.definition, answers), answers, consumeThrough, true, true)
   }
@@ -297,6 +311,7 @@ function reprompt(
   reason: RepromptReason,
   answers: Record<string, string[]>,
   consumeThrough: number,
+  candidateIds?: string[],
 ): TurnDecision {
   const invalidCount = session.invalidCount + 1
   if (invalidCount > facts.definition.maxInvalidAttempts) {
@@ -305,7 +320,7 @@ function reprompt(
   return {
     kind: 'question',
     reason: `reprompt_${reason}`,
-    text: renderReprompt(step, reason),
+    text: renderReprompt(step, reason, { natural: facts.naturalAnswers === true, candidateIds }),
     stepId: step.id,
     answers,
     invalidCount,

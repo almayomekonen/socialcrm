@@ -38,6 +38,8 @@ export type FlowEditor = {
   returnFocusTo: (nodeId: string) => void
   /** Switch to the Conversation view (for what the canvas does not edit). */
   openConversation: () => void
+  /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
+  allowAllEnabled?: boolean
 }
 
 export const FlowEditorContext = createContext<FlowEditor | null>(null)

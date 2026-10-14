@@ -34,8 +34,8 @@ export function questionsFull(m: BuilderQuestionnaire): boolean {
   return m.questions.length >= MAX_QUESTIONS
 }
 
-/** "אחר" as a word of its own: the same rule the publish check uses (checks.ts). */
-export const OTHER_LABEL = /(^|\s)אחר(\s|$)/
+/** "אחר" as a word of its own: the same rule the engine and the publish check use (../otherOption.ts). */
+export { OTHER_LABEL } from '../otherOption'
 
 export const isChoice = (a: AnswerSpec): a is Extract<AnswerSpec, { options: BuilderOption[] }> =>
   a.kind === 'single_choice' || a.kind === 'multi_choice'

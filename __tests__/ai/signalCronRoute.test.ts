@@ -164,6 +164,11 @@ describe('the cron entry', () => {
       // MCP Phase A: the daily OAuth/MCP retention sweep. Deletes only expired
       // OAuth rows and old MCP audit events; no part of the signal pipeline.
       { path: '/api/cron/oauth-sweep', schedule: '17 3 * * *' },
+      // Owner WhatsApp reminders (PR B): one reminder per unanswered hand-off from
+      // the platform number. No part of the signal pipeline; inert unless the
+      // platform number and an agency allowlist are set, and sends only with
+      // OWNER_WA_REMINDERS_SEND_ENABLED=1.
+      { path: '/api/cron/owner-wa-reminders', schedule: '*/1 * * * *' },
     ])
   })
 })

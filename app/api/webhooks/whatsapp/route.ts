@@ -7,6 +7,9 @@ import { ingestTemplateStatusUpdate } from '@/lib/whatsapp/templates/ingestStatu
 import { isCoexistenceWebhookField, processCoexistenceWebhook } from '@/lib/whatsapp/coexistence'
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
+import { platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { splitPlatformWebhook } from '@/lib/whatsapp/platform/webhookBatch'
+import { handleDeliveryWithPlatformChanges } from '@/lib/whatsapp/platform/delivery'
 
 export const maxDuration = 60
 
@@ -57,6 +60,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // SocialCRM's own number (owner reminders) is never an agency's number: its
+  // changes are taken out here and never reach the agency path below. Unset
+  // PLATFORM_WHATSAPP_PHONE_NUMBER_ID, or no change for it, and the agency path
+  // gets the original body, exactly as before.
+  const split = splitPlatformWebhook(body, platformWhatsappPhoneNumberId())
+  if (!split.platform.length) return handleAgencyPayload(body)
+  return handleDeliveryWithPlatformChanges(split, handleAgencyPayload)
+}
+
+async function handleAgencyPayload(body: any): Promise<NextResponse> {
   const change = body?.entry?.[0]?.changes?.[0]
 
   // Coexistence webhooks, handled FIRST and terminally — before the `value`
