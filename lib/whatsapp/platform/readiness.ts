@@ -16,7 +16,11 @@ import { REMINDER_TEMPLATE, SEND_TIMEOUT_MS } from '@/lib/ownerWhatsappReminders
  *   config    which settings are present (booleans; agency ids are not secret)
  *   token     debug_token: valid, SYSTEM_USER, this app, never expires,
  *             whatsapp_business_messaging granted on this WABA
- *   phone     CONNECTED, can_send_message AVAILABLE, quality not RED
+ *   phone     CONNECTED, quality not RED, and can_send_message AVAILABLE or
+ *             LIMITED (Meta: LIMITED "meets messaging requirements, but has some
+ *             limitations", e.g. the 250/day cap of an unverified business or an
+ *             unapproved display name). BLOCKED never passes. The reasons for a
+ *             LIMITED or BLOCKED status are reported in `limitedBy`.
  *   template  lead_followup_alert (he) APPROVED, UTILITY, one body variable,
  *             a URL button whose link takes one variable
  *
@@ -37,6 +41,25 @@ async function graphGet(path: string, token: string): Promise<{ status: number; 
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * Why messaging is not fully AVAILABLE: each health entity whose
+ * `can_send_message` is LIMITED or BLOCKED, with Meta's error codes and
+ * `additional_info`. Calling (`can_receive_call_sip`) is ignored: it is not part
+ * of messaging health. No ids beyond the entity's own, no secrets.
+ */
+export function healthLimitations(health: unknown): { entity: string; id: string | null; canSendMessage: string; errorCodes: number[]; info: string[] }[] {
+  const entities = ((health as { entities?: unknown[] } | null)?.entities ?? []) as Record<string, any>[]
+  return entities
+    .filter((e) => e?.can_send_message === 'LIMITED' || e?.can_send_message === 'BLOCKED')
+    .map((e) => ({
+      entity: String(e.entity_type ?? 'UNKNOWN'),
+      id: e.id == null ? null : String(e.id),
+      canSendMessage: String(e.can_send_message),
+      errorCodes: ((e.errors ?? []) as { error_code?: unknown }[]).map((x) => Number(x.error_code)).filter(Number.isFinite),
+      info: ((e.additional_info ?? []) as unknown[]).filter((x): x is string => typeof x === 'string'),
+    }))
 }
 
 const graphError = (r: { status: number; body: any }) => ({ httpStatus: r.status, code: r.body?.error?.code ?? null, message: r.body?.error?.message ?? null })
@@ -75,8 +98,12 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
   const p = await graphGet(`${phoneId}?fields=status,quality_rating,messaging_limit_tier,name_status,code_verification_status,health_status`, token)
   if (p.status === 200 && p.body) {
     const canSend = p.body.health_status?.can_send_message ?? null
-    const detail = { status: p.body.status ?? null, qualityRating: p.body.quality_rating ?? null, messagingLimitTier: p.body.messaging_limit_tier ?? null, nameStatus: p.body.name_status ?? null, canSendMessage: canSend }
-    checks.push({ name: 'phone', ok: p.body.status === 'CONNECTED' && canSend === 'AVAILABLE' && p.body.quality_rating !== 'RED', detail })
+    const detail = {
+      status: p.body.status ?? null, qualityRating: p.body.quality_rating ?? null, messagingLimitTier: p.body.messaging_limit_tier ?? null,
+      nameStatus: p.body.name_status ?? null, canSendMessage: canSend, limited: canSend === 'LIMITED', limitedBy: healthLimitations(p.body.health_status),
+    }
+    const sendable = canSend === 'AVAILABLE' || canSend === 'LIMITED'
+    checks.push({ name: 'phone', ok: p.body.status === 'CONNECTED' && sendable && p.body.quality_rating !== 'RED', detail })
   } else checks.push({ name: 'phone', ok: false, detail: graphError(p) })
 
   const t = await graphGet(`${wabaId}/message_templates?name=${REMINDER_TEMPLATE.name}&fields=name,status,category,language,components`, token)

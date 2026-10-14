@@ -101,7 +101,9 @@ PR #134 (`20261010120000`) sorts before both; Knex applies it whenever it lands.
    It only makes GET calls to Meta and never sends; sending stays disabled
    (`OWNER_WA_REMINDERS_SEND_ENABLED` unset) throughout. It needs the three
    variables from step 4. Required: `ready: true` (token SYSTEM_USER with
-   messaging granted on the WABA; phone CONNECTED, `can_send_message` AVAILABLE,
+   messaging granted on the WABA; phone CONNECTED, `can_send_message` AVAILABLE
+   or LIMITED (never BLOCKED; a LIMITED result lists its reasons in `limitedBy`,
+   e.g. business verification `141010` or an unapproved display name),
    quality not RED; template APPROVED, UTILITY, one body variable and a URL
    button variable). It cannot prove Meta will accept a send (payment method,
    business-verification limits). Do not continue unless it is ready.

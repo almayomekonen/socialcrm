@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkOwnerReminderReadiness } from '@/lib/whatsapp/platform/readiness'
+import { checkOwnerReminderReadiness, healthLimitations } from '@/lib/whatsapp/platform/readiness'
 
 /**
  * The readiness check reads Meta and never sends: every request is a GET, none
@@ -72,6 +72,45 @@ describe('readiness (read-only)', () => {
     const result = await checkOwnerReminderReadiness()
     expect(result.ready).toBe(false)
     expect(result.checks.find((c) => c.name === name)?.ok).toBe(false)
+  })
+
+  // The entity mix Meta returned for the platform number on 2026-10-12 (ids are fixtures).
+  const limitedHealth = {
+    can_send_message: 'LIMITED',
+    entities: [
+      { entity_type: 'PHONE_NUMBER', id: '1000000000001', can_send_message: 'LIMITED', can_receive_call_sip: 'BLOCKED',
+        errors: [{ error_code: 138024, error_description: 'WhatsApp Business calling cannot use SIP because it is not enabled' }],
+        additional_info: ['Your display name has not been approved yet. Your message limit will increase after the display name is approved.'] },
+      { entity_type: 'WABA', id: '2000000000002', can_send_message: 'AVAILABLE' },
+      { entity_type: 'BUSINESS', id: '3000000000003', can_send_message: 'LIMITED', errors: [{ error_code: 141010, error_description: 'The Business has not passed business verification.' }] },
+      { entity_type: 'APP', id: '962521689620138', can_send_message: 'AVAILABLE', can_receive_call_sip: 'BLOCKED', errors: [{ error_code: 138025 }] },
+    ],
+  }
+
+  it('LIMITED (unverified business, unapproved display name) can still send: ready, with the reasons reported', async () => {
+    mockGraph({ phone: { ...good.phone, health_status: limitedHealth } } as never)
+    const result = await checkOwnerReminderReadiness()
+    expect(result.ready).toBe(true)
+    const phone = result.checks.find((c) => c.name === 'phone')!
+    expect(phone.ok).toBe(true)
+    expect(phone.detail).toMatchObject({ canSendMessage: 'LIMITED', limited: true })
+    expect(phone.detail.limitedBy).toEqual([
+      { entity: 'PHONE_NUMBER', id: '1000000000001', canSendMessage: 'LIMITED', errorCodes: [138024], info: [limitedHealth.entities[0].additional_info![0]] },
+      { entity: 'BUSINESS', id: '3000000000003', canSendMessage: 'LIMITED', errorCodes: [141010], info: [] },
+    ])
+  })
+
+  it('BLOCKED never passes, and its reasons are reported too', async () => {
+    const blocked = { can_send_message: 'BLOCKED', entities: [{ entity_type: 'WABA', id: '2000000000002', can_send_message: 'BLOCKED', errors: [{ error_code: 368 }] }] }
+    mockGraph({ phone: { ...good.phone, health_status: blocked } } as never)
+    const phone = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'phone')!
+    expect(phone.ok).toBe(false)
+    expect(phone.detail.limitedBy).toEqual([{ entity: 'WABA', id: '2000000000002', canSendMessage: 'BLOCKED', errorCodes: [368], info: [] }])
+  })
+
+  it('AVAILABLE is not marked limited; calling-only blocks are ignored', () => {
+    expect(healthLimitations({ can_send_message: 'AVAILABLE', entities: [{ entity_type: 'APP', id: '1', can_send_message: 'AVAILABLE', can_receive_call_sip: 'BLOCKED' }] })).toEqual([])
+    expect(healthLimitations(null)).toEqual([])
   })
 
   it('without configuration it makes no Graph call at all', async () => {
