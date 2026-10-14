@@ -44,4 +44,38 @@ describe('toReadinessView', () => {
     expect(toReadinessView({ ready: true, checks: [] }).ready).toBe(false)
     expect(toReadinessView({} as never)).toEqual({ ready: false, checks: [] })
   })
+
+  it('renders the new diagnostics, filtered: subcode, type, trace id, management grant and blocked entities', () => {
+    const v = toReadinessView({
+      ready: false,
+      checks: [
+        { name: 'token', ok: true, detail: { isValid: true, managementGrantedOnWaba: false } },
+        { name: 'phone', ok: false, detail: { canSendMessage: 'BLOCKED', healthEntities: [
+          { entity: 'WABA', canSendMessage: 'BLOCKED', errorCodes: [141006] },
+          { entity: 'BUSINESS', canSendMessage: 'LIMITED', errorCodes: [] },
+          { entity: 'APP', canSendMessage: 'AVAILABLE', errorCodes: [1] },
+          { entity: 'bad id 2060714354527399', canSendMessage: 'BLOCKED', errorCodes: ['x', 7], id: '2060714354527399', description: 'payment failed' },
+        ] } },
+        { name: 'template', ok: false, detail: { httpStatus: 400, code: 100, errorSubcode: 33, errorType: 'GraphMethodException', fbtraceId: 'AtraceID_123', message: 'Unsupported get request 2060714354527399' } },
+      ],
+    })
+    const token = v.checks.find((c) => c.name === 'token')!
+    expect(token.fields.find((f) => f.key === 'managementGrantedOnWaba')?.value).toBe(false)
+    const phone = v.checks.find((c) => c.name === 'phone')!
+    expect(phone.fields.filter((f) => f.key.startsWith('health_')).map((f) => [f.label, f.value])).toEqual([
+      ['מצב שליחה: WABA', 'BLOCKED (141006)'],
+      ['מצב שליחה: BUSINESS', 'LIMITED'],
+      ['מצב שליחה: UNEXPECTED', 'BLOCKED (7)'],
+    ])
+    const tpl = v.checks.find((c) => c.name === 'template')!
+    expect(tpl.fields.map((f) => [f.key, f.value])).toEqual([['httpStatus', 400], ['code', 100], ['errorSubcode', 33], ['errorType', 'GraphMethodException'], ['fbtraceId', 'AtraceID_123']])
+    const text = JSON.stringify(v)
+    for (const s of ['2060714354527399', 'payment failed', 'Unsupported', 'description']) expect(text).not.toContain(s)
+  })
+
+  it('drops diagnostics of the wrong shape', () => {
+    const v = toReadinessView({ ready: false, checks: [{ name: 'template', ok: false, detail: { errorSubcode: '33', errorType: 'Bad Type!', fbtraceId: 'x' } }] })
+    expect(v.checks[0].fields).toEqual([])
+  })
 })
+
