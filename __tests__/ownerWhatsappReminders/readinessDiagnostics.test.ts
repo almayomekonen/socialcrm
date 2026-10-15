@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { graphErrorMeta, healthEntityDiagnostics, scopeGrantOnWaba, tokenUserIdFrom } from '@/lib/whatsapp/platform/readinessDiagnostics'
+import { graphErrorMeta, healthEntityDiagnostics, meIdentity, scopeGrantOnWaba, tokenUserIdFrom, tokenUserNameFrom } from '@/lib/whatsapp/platform/readinessDiagnostics'
 import { checkOwnerReminderReadiness } from '@/lib/whatsapp/platform/readiness'
 
 /**
@@ -60,6 +60,28 @@ describe('tokenUserIdFrom', () => {
   it('drops anything that is not a plain numeric id', () => {
     for (const v of [undefined, null, '', '1234', '1'.repeat(21), '6159533868124O', ' 61595338681240', 'EAAG_token_like_value_0123456789', -61595338681240, 1.5, { id: '61595338681240' }])
       expect(tokenUserIdFrom(v)).toBeNull()
+  })
+})
+
+describe('tokenUserNameFrom', () => {
+  it('keeps 1-80 letters (any script), digits, spaces and . _ - ( )', () => {
+    for (const v of ['Socialcrm Intelligence', 'a', 'SocialCRM (prod) system_user-1.2', 'מערכת SocialCRM', 'x'.repeat(80)]) expect(tokenUserNameFrom(v)).toBe(v)
+  })
+  it('drops markup, URLs, quotes, control characters, symbols-only and over-long names', () => {
+    for (const v of [undefined, null, '', ' ', '...', '()', '<script>x</script>', 'https://evil.test', 'a/b', "O'Brien", 'a"b', 'tab\there', 'line\nbreak', 'x'.repeat(81), 'EAAG token=abc', 42, { name: 'x' }])
+      expect(tokenUserNameFrom(v)).toBeNull()
+  })
+})
+
+describe('meIdentity', () => {
+  it('a 200 keeps only the sanitized id and name', () => {
+    expect(meIdentity({ status: 200, body: { id: '122099730999511289', name: 'Socialcrm Intelligence', extra: 'secret-ish' } })).toEqual({ tokenMeId: '122099730999511289', tokenUserName: 'Socialcrm Intelligence' })
+    expect(meIdentity({ status: 200, body: { id: 'abc', name: '<b>x</b>' } })).toEqual({ tokenMeId: null, tokenUserName: null })
+  })
+  it('a failure keeps only HTTP status, Graph code and subcode', () => {
+    expect(meIdentity({ status: 400, body: { error: { code: 100, error_subcode: 33, type: 'GraphMethodException', message: PROVIDER_TEXT, fbtrace_id: 'Atrace_me_1' } } })).toEqual({ meHttpStatus: 400, meCode: 100, meErrorSubcode: 33 })
+    expect(meIdentity({ status: 0, body: { error: { message: 'timeout' } } })).toEqual({ meHttpStatus: 0, meCode: null, meErrorSubcode: null })
+    expect(meIdentity({ status: 200, body: { error: { code: 190, message: 'x' } } })).toEqual({ meHttpStatus: 200, meCode: 190, meErrorSubcode: null })
   })
 })
 

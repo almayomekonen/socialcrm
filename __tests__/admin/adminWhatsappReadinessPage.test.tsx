@@ -34,6 +34,7 @@ function mockMeta() {
     if (u.includes('debug_token')) {
       return new Response(JSON.stringify({ data: { is_valid: true, type: 'SYSTEM_USER', app_id: '962521689620138', expires_at: 0, scopes: ['whatsapp_business_messaging', 'whatsapp_business_management'], granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: ['2000000000002'] }] } }), { status: 200 })
     }
+    if (u.includes('/me?')) return new Response(JSON.stringify({ id: '122099730999511289', name: 'Socialcrm Intelligence' }), { status: 200 })
     if (u.includes('message_templates')) return new Response(JSON.stringify({ error: { code: 190, error_subcode: 33, type: 'OAuthException', fbtrace_id: 'AtraceID_123', message: META_ERROR_TEXT } }), { status: 401 })
     return new Response(JSON.stringify({ status: 'CONNECTED', quality_rating: 'GREEN', name_status: 'AVAILABLE_WITHOUT_REVIEW', display_phone_number: '+972 54-922-1572',
       health_status: { can_send_message: 'BLOCKED', entities: [{ entity_type: 'WABA', id: '2000000000002', can_send_message: 'BLOCKED', errors: [{ error_code: 141006, error_description: 'payment issue' }] }] } }), { status: 200 })
@@ -77,7 +78,9 @@ describe('a platform owner', () => {
     expect(html).toContain('BLOCKED (141006)')
     expect(html).toContain('OAuthException')
     expect(html).toContain('AtraceID_123')
-    expect(meta).toHaveBeenCalledTimes(3)
+    expect(html).toContain('122099730999511289')
+    expect(html).toContain('Socialcrm Intelligence')
+    expect(meta).toHaveBeenCalledTimes(4)
     for (const [url, init] of meta.mock.calls) {
       expect((init as RequestInit).method).toBe('GET')
       expect(String(url)).not.toMatch(/\/messages(\?|$)/)
@@ -90,6 +93,18 @@ describe('a platform owner', () => {
     mockMeta()
     const html = await render()
     for (const s of [TOKEN, APP_SECRET, `${ENV.META_APP_ID}|`, META_ERROR_TEXT, '972', 'display_phone_number', 'granular_scopes', '2000000000002', 'payment issue']) expect(html).not.toContain(s)
+  })
+
+  it('a failed /me shows only status, code and subcode, never its error text or the token', async () => {
+    session.user = { id: 1, email: 'owner@crm.test' }
+    const base = mockMeta().getMockImplementation()!
+    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) =>
+      String(url).includes('/me?')
+        ? new Response(JSON.stringify({ error: { code: 100, error_subcode: 33, type: 'GraphMethodException', fbtrace_id: 'AtraceID_me', message: `${META_ERROR_TEXT} ${TOKEN}` } }), { status: 400 })
+        : base(url, init))
+    const html = await render()
+    expect(html).toContain('קוד משנה של /me')
+    for (const s of [TOKEN, META_ERROR_TEXT, 'AtraceID_me']) expect(html).not.toContain(s)
   })
 
   it('a network failure renders failed checks, never the error text', async () => {

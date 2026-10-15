@@ -16,6 +16,9 @@ import type { ReadinessCheck } from './readiness'
  *                    target_ids, so nothing proves the WABA is assigned).
  *   tokenUserId      debug_token's user_id (the System User the token belongs
  *                    to), only as a 5-20 digit string. Not a secret.
+ *   me identity      GET /me with the token: its id (5-20 digits) and name
+ *                    (1-80 letters, digits, spaces and . _ - ( ) only). On a
+ *                    failure, only HTTP status, Graph code and subcode.
  *
  * Every value is sanitized here as well as in the view (defence in depth).
  */
@@ -57,6 +60,30 @@ const USER_ID = /^\d{5,20}$/
 export function tokenUserIdFrom(userId: unknown): string | null {
   const v = typeof userId === 'number' && Number.isSafeInteger(userId) && userId > 0 ? String(userId) : userId
   return typeof v === 'string' && USER_ID.test(v) ? v : null
+}
+
+const USER_NAME = /^[\p{L}\p{N} ._()-]{1,80}$/u
+const HAS_LETTER_OR_DIGIT = /[\p{L}\p{N}]/u
+
+/** A display name only if it is 1-80 allowlisted characters with at least one letter or digit, else null. */
+export function tokenUserNameFrom(name: unknown): string | null {
+  return typeof name === 'string' && USER_NAME.test(name) && HAS_LETTER_OR_DIGIT.test(name) ? name : null
+}
+
+export type MeIdentity =
+  | { tokenMeId: string | null; tokenUserName: string | null }
+  | { meHttpStatus: number | null; meCode: number | null; meErrorSubcode: number | null }
+
+/** The token's own identity from GET /me: sanitized id and name, or only status/code/subcode on failure. */
+export function meIdentity(r: { status: number; body: unknown }): MeIdentity {
+  const body = (r.body ?? null) as { id?: unknown; name?: unknown; error?: { code?: unknown } } | null
+  if (r.status === 200 && body && !body.error) return { tokenMeId: tokenUserIdFrom(body.id), tokenUserName: tokenUserNameFrom(body.name) }
+  const code = body?.error?.code
+  return {
+    meHttpStatus: Number.isSafeInteger(r.status) ? r.status : null,
+    meCode: typeof code === 'number' && Number.isSafeInteger(code) ? code : null,
+    meErrorSubcode: graphErrorMeta(body).errorSubcode,
+  }
 }
 
 export type WabaGrant = 'GRANTED' | 'NOT_GRANTED' | 'UNKNOWN'
