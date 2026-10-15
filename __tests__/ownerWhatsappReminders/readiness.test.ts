@@ -62,6 +62,11 @@ describe('readiness (read-only)', () => {
   it.each([
     ['token', { debug: { data: { ...good.debug.data, type: 'USER' } } }],
     ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: ['999'] }] } } }],
+    // A grant that does not name the WABA is UNKNOWN, never a pass.
+    ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging' }] } } }],
+    ['token', { debug: { data: { ...good.debug.data, granular_scopes: undefined } } }],
+    ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: 'not-a-list' }] } } }],
+    ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_management', target_ids: ['2000000000002'] }] } } }],
     ['phone', { phone: { ...good.phone, health_status: { can_send_message: 'BLOCKED' } } }],
     ['phone', { phone: { ...good.phone, quality_rating: 'RED' } }],
     ['template', { template: { data: [{ ...good.template.data[0], status: 'PENDING' }] } }],

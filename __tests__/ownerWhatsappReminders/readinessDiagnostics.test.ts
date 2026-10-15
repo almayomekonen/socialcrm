@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { graphErrorMeta, healthEntityDiagnostics, managementGrantedOnWaba } from '@/lib/whatsapp/platform/readinessDiagnostics'
+import { graphErrorMeta, healthEntityDiagnostics, scopeGrantOnWaba, tokenUserIdFrom } from '@/lib/whatsapp/platform/readinessDiagnostics'
 import { checkOwnerReminderReadiness } from '@/lib/whatsapp/platform/readiness'
 
 /**
@@ -52,13 +52,37 @@ describe('graphErrorMeta', () => {
   })
 })
 
-describe('managementGrantedOnWaba', () => {
-  it('true with no target restriction or with the WABA targeted; false otherwise', () => {
-    expect(managementGrantedOnWaba([{ scope: 'whatsapp_business_management' }], WABA)).toBe(true)
-    expect(managementGrantedOnWaba([{ scope: 'whatsapp_business_management', target_ids: [WABA] }], WABA)).toBe(true)
-    expect(managementGrantedOnWaba([{ scope: 'whatsapp_business_management', target_ids: ['999'] }], WABA)).toBe(false)
-    expect(managementGrantedOnWaba([{ scope: 'whatsapp_business_messaging', target_ids: [WABA] }], WABA)).toBe(false)
-    expect(managementGrantedOnWaba(undefined, WABA)).toBe(false)
+describe('tokenUserIdFrom', () => {
+  it('keeps a 5-20 digit id, as a string', () => {
+    expect(tokenUserIdFrom('61595338681240')).toBe('61595338681240')
+    expect(tokenUserIdFrom(61595338681240)).toBe('61595338681240')
+  })
+  it('drops anything that is not a plain numeric id', () => {
+    for (const v of [undefined, null, '', '1234', '1'.repeat(21), '6159533868124O', ' 61595338681240', 'EAAG_token_like_value_0123456789', -61595338681240, 1.5, { id: '61595338681240' }])
+      expect(tokenUserIdFrom(v)).toBeNull()
+  })
+})
+
+describe('scopeGrantOnWaba', () => {
+  const M = 'whatsapp_business_management'
+  it('GRANTED only when the WABA is in the scope\'s target_ids', () => {
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: [WABA] }], M, WABA)).toBe('GRANTED')
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: [Number(WABA)] }], M, WABA)).toBe('GRANTED')
+  })
+  it('UNKNOWN, never GRANTED, when the scope carries no target_ids', () => {
+    expect(scopeGrantOnWaba([{ scope: M }], M, WABA)).toBe('UNKNOWN')
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: null }], M, WABA)).toBe('UNKNOWN')
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: WABA }], M, WABA)).toBe('UNKNOWN')
+  })
+  it('UNKNOWN when granular_scopes is missing or malformed', () => {
+    expect(scopeGrantOnWaba(undefined, M, WABA)).toBe('UNKNOWN')
+    expect(scopeGrantOnWaba({ scope: M }, M, WABA)).toBe('UNKNOWN')
+  })
+  it('NOT_GRANTED when the scope is absent or targets other assets only', () => {
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: ['999'] }], M, WABA)).toBe('NOT_GRANTED')
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: [] }], M, WABA)).toBe('NOT_GRANTED')
+    expect(scopeGrantOnWaba([{ scope: 'whatsapp_business_messaging', target_ids: [WABA] }], M, WABA)).toBe('NOT_GRANTED')
+    expect(scopeGrantOnWaba([], M, WABA)).toBe('NOT_GRANTED')
   })
 })
 
@@ -69,10 +93,10 @@ describe('through checkOwnerReminderReadiness (Graph mocked)', () => {
   const phone = { status: 'CONNECTED', quality_rating: 'GREEN', name_status: 'AVAILABLE_WITHOUT_REVIEW', messaging_limit_tier: 'TIER_250', health_status: blockedHealth }
   const templateError = { error: { code: 100, error_subcode: 33, type: 'GraphMethodException', fbtrace_id: 'AtraceID_123', message: PROVIDER_TEXT } }
 
-  function mockGraph(over: { phone?: unknown } = {}) {
+  function mockGraph(over: { phone?: unknown; debug?: unknown } = {}) {
     return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       const u = String(url)
-      if (u.includes('debug_token')) return new Response(JSON.stringify(debug), { status: 200 })
+      if (u.includes('debug_token')) return new Response(JSON.stringify(over.debug ?? debug), { status: 200 })
       if (u.includes('message_templates')) return new Response(JSON.stringify(templateError), { status: 400 })
       return new Response(JSON.stringify(over.phone ?? phone), { status: 200 })
     })
@@ -90,8 +114,23 @@ describe('through checkOwnerReminderReadiness (Graph mocked)', () => {
   it('adds management-on-WABA (false here) separately from the scope-name check', async () => {
     mockGraph()
     const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
-    expect(token.detail).toMatchObject({ messagingGrantedOnWaba: true, managementGrantedOnWaba: false })
+    expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'GRANTED', managementGrantedOnWaba: 'NOT_GRANTED' })
     expect(token.detail.scopes).toContain('whatsapp_business_management')
+  })
+
+  it('a scope without target_ids is UNKNOWN, not GRANTED, and the token check fails on it', async () => {
+    const untargeted = { data: { ...debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging' }, { scope: 'whatsapp_business_management' }] } }
+    mockGraph({ debug: untargeted })
+    const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
+    expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'UNKNOWN', managementGrantedOnWaba: 'UNKNOWN' })
+    expect(token.ok).toBe(false)
+  })
+
+  it('reports the token\'s System User id from debug_token, digits only', async () => {
+    mockGraph({ debug: { data: { ...debug.data, user_id: '61595338681240' } } })
+    const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
+    expect(token.detail.tokenUserId).toBe('61595338681240')
+    expect(token.ok).toBe(true)
   })
 
   it('reports which entities block or limit the phone', async () => {

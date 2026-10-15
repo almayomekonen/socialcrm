@@ -8,7 +8,9 @@ import type { ReadinessCheck } from './readiness'
  *
  *   strings   only enum-like values (A–Z, 0–9, _), else 'UNEXPECTED'
  *   numbers   only safe integers
- *   scopes    reduced to two booleans for the two required permissions
+ *   scopes    reduced to two booleans for the two required permissions;
+ *             WABA grants only as GRANTED / NOT_GRANTED / UNKNOWN
+ *   user id   the token's System User id, digits only (not a secret)
  *   errors    HTTP status, Meta error code, subcode, type and trace id; never
  *             the message
  *   health    each LIMITED/BLOCKED health entity as "STATUS (codes)": entity
@@ -38,6 +40,9 @@ const TRACE_ID = /^[A-Za-z0-9_-]{6,64}$/
 const ENTITY = /^[A-Z][A-Z_]{0,39}$/
 const asPattern = (re: RegExp) => (v: unknown): string | null => (typeof v === 'string' && re.test(v) ? v : null)
 const has = (scopes: unknown, scope: string): boolean | null => (Array.isArray(scopes) ? scopes.includes(scope) : null)
+const GRANTS = ['GRANTED', 'NOT_GRANTED', 'UNKNOWN']
+const USER_ID = /^\d{5,20}$/
+const asGrant = (v: unknown): string | null => (v == null ? null : typeof v === 'string' && GRANTS.includes(v) ? v : 'UNEXPECTED')
 
 type Spec = { key: string; label: string; read: (d: Record<string, unknown>) => ReadinessFieldValue | null }
 
@@ -64,10 +69,11 @@ const SPECS: Record<ReadinessCheck['name'], Spec[]> = {
     { key: 'type', label: 'סוג טוקן', read: (d) => asEnum(d.type) },
     { key: 'appMatches', label: 'שייך לאפליקציה הנכונה', read: (d) => asBool(d.appMatches) },
     { key: 'neverExpires', label: 'ללא תפוגה', read: (d) => asBool(d.neverExpires) },
+    { key: 'tokenUserId', label: 'מזהה System User של הטוקן', read: (d) => asPattern(USER_ID)(d.tokenUserId) },
     { key: 'hasMessagingScope', label: 'הרשאת whatsapp_business_messaging', read: (d) => has(d.scopes, 'whatsapp_business_messaging') },
     { key: 'hasManagementScope', label: 'הרשאת whatsapp_business_management', read: (d) => has(d.scopes, 'whatsapp_business_management') },
-    { key: 'messagingGrantedOnWaba', label: 'הרשאת שליחה על חשבון ה-WhatsApp', read: (d) => asBool(d.messagingGrantedOnWaba) },
-    { key: 'managementGrantedOnWaba', label: 'הרשאת ניהול על חשבון ה-WhatsApp', read: (d) => asBool(d.managementGrantedOnWaba) },
+    { key: 'messagingGrantedOnWaba', label: 'הרשאת שליחה על חשבון ה-WhatsApp', read: (d) => asGrant(d.messagingGrantedOnWaba) },
+    { key: 'managementGrantedOnWaba', label: 'הרשאת ניהול על חשבון ה-WhatsApp', read: (d) => asGrant(d.managementGrantedOnWaba) },
     ...errorFields,
   ],
   phone: [

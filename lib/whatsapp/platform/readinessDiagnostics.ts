@@ -9,8 +9,13 @@ import type { ReadinessCheck } from './readiness'
  *                    No entity ids, no error_description, no additional_info.
  *   error meta       Graph error subcode, type and fbtrace_id (Meta's opaque
  *                    trace id for support tickets). Never the error message.
- *   management       whether whatsapp_business_management is granted on the
- *                    configured WABA (granular_scopes target list).
+ *   grants           whether a scope is granted on the configured WABA, from
+ *                    debug_token granular_scopes: GRANTED (the WABA is in
+ *                    target_ids), NOT_GRANTED (scope absent, or target_ids
+ *                    without the WABA) or UNKNOWN (the scope carries no
+ *                    target_ids, so nothing proves the WABA is assigned).
+ *   tokenUserId      debug_token's user_id (the System User the token belongs
+ *                    to), only as a 5-20 digit string. Not a secret.
  *
  * Every value is sanitized here as well as in the view (defence in depth).
  */
@@ -46,12 +51,27 @@ export function graphErrorMeta(body: unknown): { errorSubcode: number | null; er
   }
 }
 
-/** True only when whatsapp_business_management is granted with no target restriction or with the WABA among its targets. */
-export function managementGrantedOnWaba(granularScopes: unknown, wabaId: string): boolean {
-  const list = (Array.isArray(granularScopes) ? granularScopes : []) as { scope?: unknown; target_ids?: unknown }[]
-  const management = list.find((g) => g?.scope === 'whatsapp_business_management')
-  if (!management) return false
-  return !Array.isArray(management.target_ids) || management.target_ids.map(String).includes(wabaId)
+const USER_ID = /^\d{5,20}$/
+
+/** debug_token's user_id as a digits-only string, else null. Nothing else from the token's data. */
+export function tokenUserIdFrom(userId: unknown): string | null {
+  const v = typeof userId === 'number' && Number.isSafeInteger(userId) && userId > 0 ? String(userId) : userId
+  return typeof v === 'string' && USER_ID.test(v) ? v : null
+}
+
+export type WabaGrant = 'GRANTED' | 'NOT_GRANTED' | 'UNKNOWN'
+
+/**
+ * Whether `scope` is granted on `wabaId`. A scope without a target_ids list is
+ * UNKNOWN, never GRANTED: its absence does not show the WABA is assigned to
+ * the token's System User.
+ */
+export function scopeGrantOnWaba(granularScopes: unknown, scope: string, wabaId: string): WabaGrant {
+  if (!Array.isArray(granularScopes)) return 'UNKNOWN'
+  const grant = (granularScopes as { scope?: unknown; target_ids?: unknown }[]).find((g) => g?.scope === scope)
+  if (!grant) return 'NOT_GRANTED'
+  if (!Array.isArray(grant.target_ids)) return 'UNKNOWN'
+  return grant.target_ids.map(String).includes(wabaId) ? 'GRANTED' : 'NOT_GRANTED'
 }
 
 /**

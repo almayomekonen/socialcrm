@@ -8,7 +8,7 @@ const result = {
   ready: false,
   checks: [
     { name: 'config', ok: true, detail: { phoneNumberId: true, wabaId: true, accessToken: true, appId: true, appSecret: true, sendEnabled: false, allowlistedAgencies: [103], token: TOKEN } },
-    { name: 'token', ok: true, detail: { isValid: true, type: 'SYSTEM_USER', appMatches: true, neverExpires: true, scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'], messagingGrantedOnWaba: true, input_token: TOKEN } },
+    { name: 'token', ok: true, detail: { isValid: true, type: 'SYSTEM_USER', appMatches: true, neverExpires: true, scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'], messagingGrantedOnWaba: 'GRANTED', input_token: TOKEN } },
     { name: 'phone', ok: false, detail: { status: 'CONNECTED', qualityRating: 'GREEN', canSendMessage: 'LIMITED', nameStatus: 'AVAILABLE_WITHOUT_REVIEW', messagingLimitTier: 'TIER_250', raw: { display_phone_number: '+972 54-922-1572' } } },
     { name: 'template', ok: false, detail: { httpStatus: 400, code: 100, message: `Invalid OAuth access token ${TOKEN}` } },
     { name: 'unknown_future_check', ok: true, detail: { secret: TOKEN } },
@@ -16,6 +16,19 @@ const result = {
 }
 
 describe('toReadinessView', () => {
+  it('shows the token\'s System User id only as a 5-20 digit string', () => {
+    const view = (tokenUserId: unknown) => toReadinessView({ ready: false, checks: [{ name: 'token', ok: false, detail: { tokenUserId } }] }).checks[0].fields
+    expect(view('61595338681240')).toEqual([{ key: 'tokenUserId', label: expect.any(String), value: '61595338681240' }])
+    for (const bad of ['EAAG_token_like_value_0123456789', '61595338681240 ', '<b>1</b>', '1234', 61595338681240, null]) expect(view(bad)).toEqual([])
+  })
+
+  it('shows each WABA grant as GRANTED, NOT_GRANTED or UNKNOWN; booleans and anything else are not trusted', () => {
+    const v = toReadinessView({ ready: false, checks: [{ name: 'token', ok: true, detail: { messagingGrantedOnWaba: 'UNKNOWN', managementGrantedOnWaba: true } }] })
+    expect(v.checks[0].fields.map((f) => [f.key, f.value])).toEqual([['messagingGrantedOnWaba', 'UNKNOWN'], ['managementGrantedOnWaba', 'UNEXPECTED']])
+    const w = toReadinessView({ ready: false, checks: [{ name: 'token', ok: true, detail: { managementGrantedOnWaba: '2060714354527399' } }] })
+    expect(JSON.stringify(w)).not.toContain('2060714354527399')
+  })
+
   it('keeps only allowlisted fields, in order, with booleans, enums and integers', () => {
     const v = toReadinessView(result)
     expect(v.checks.map((c) => [c.name, c.ok])).toEqual([['config', true], ['token', true], ['phone', false], ['template', false]])
@@ -23,7 +36,7 @@ describe('toReadinessView', () => {
       ['phoneNumberId', true], ['wabaId', true], ['accessToken', true], ['appId', true], ['appSecret', true], ['sendEnabled', false], ['allowlistedAgencyCount', 1],
     ])
     expect(v.checks[1].fields.map((f) => [f.key, f.value])).toEqual([
-      ['isValid', true], ['type', 'SYSTEM_USER'], ['appMatches', true], ['neverExpires', true], ['hasMessagingScope', true], ['hasManagementScope', true], ['messagingGrantedOnWaba', true],
+      ['isValid', true], ['type', 'SYSTEM_USER'], ['appMatches', true], ['neverExpires', true], ['hasMessagingScope', true], ['hasManagementScope', true], ['messagingGrantedOnWaba', 'GRANTED'],
     ])
     expect(v.checks[3].fields.map((f) => [f.key, f.value])).toEqual([['httpStatus', 400], ['code', 100]])
   })
@@ -49,7 +62,7 @@ describe('toReadinessView', () => {
     const v = toReadinessView({
       ready: false,
       checks: [
-        { name: 'token', ok: true, detail: { isValid: true, managementGrantedOnWaba: false } },
+        { name: 'token', ok: true, detail: { isValid: true, managementGrantedOnWaba: 'NOT_GRANTED' } },
         { name: 'phone', ok: false, detail: { canSendMessage: 'BLOCKED', healthEntities: [
           { entity: 'WABA', canSendMessage: 'BLOCKED', errorCodes: [141006] },
           { entity: 'BUSINESS', canSendMessage: 'LIMITED', errorCodes: [] },
@@ -60,7 +73,7 @@ describe('toReadinessView', () => {
       ],
     })
     const token = v.checks.find((c) => c.name === 'token')!
-    expect(token.fields.find((f) => f.key === 'managementGrantedOnWaba')?.value).toBe(false)
+    expect(token.fields.find((f) => f.key === 'managementGrantedOnWaba')?.value).toBe('NOT_GRANTED')
     const phone = v.checks.find((c) => c.name === 'phone')!
     expect(phone.fields.filter((f) => f.key.startsWith('health_')).map((f) => [f.label, f.value])).toEqual([
       ['מצב שליחה: WABA', 'BLOCKED (141006)'],
