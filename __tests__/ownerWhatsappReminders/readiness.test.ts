@@ -22,12 +22,14 @@ const good = {
     { type: 'BODY', text: 'עדכון מ-SocialCRM: יש ליד שממתין למענה שלך כבר {{1}}. אפשר להמשיך את השיחה ישירות ב-SocialCRM.' },
     { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'פתיחת השיחה', url: 'https://getsocialcrm.com/inbox?conversation={{1}}' }] },
   ] }] },
+  me: { status: 200, body: { id: '122099730999511289', name: 'Socialcrm Intelligence' } as unknown },
 }
 
 function mockGraph(over: Partial<typeof good> = {}) {
   const r = { ...good, ...over }
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
     const u = String(url)
+    if (u.includes('/me?')) return new Response(JSON.stringify(r.me.body), { status: r.me.status })
     const body = u.includes('debug_token') ? r.debug : u.includes('message_templates') ? r.template : r.phone
     return new Response(JSON.stringify(body), { status: 200 })
   })
@@ -45,11 +47,37 @@ describe('readiness (read-only)', () => {
     const result = await checkOwnerReminderReadiness()
     expect(result.checks.map((c) => [c.name, c.ok])).toEqual([['config', true], ['token', true], ['phone', true], ['template', true]])
     expect(result.ready).toBe(true)
-    expect(spy).toHaveBeenCalledTimes(3)
+    expect(spy).toHaveBeenCalledTimes(4)
     for (const [url, init] of spy.mock.calls) {
       expect((init as RequestInit).method).toBe('GET')
       expect(String(url)).not.toMatch(/\/messages(\?|$)/)
     }
+  })
+
+  it('reports the token\'s /me id and name on the token check', async () => {
+    mockGraph()
+    const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
+    expect(token.detail).toMatchObject({ tokenMeId: '122099730999511289', tokenUserName: 'Socialcrm Intelligence' })
+  })
+
+  it.each([
+    ['an HTTP 400 with a Graph error', { status: 400, body: { error: { code: 100, error_subcode: 33, type: 'GraphMethodException', message: `Unsupported get request ${TOKEN}` } } }],
+    ['an HTTP 500 without a body', { status: 500, body: null }],
+    ['a 200 with unusable values', { status: 200, body: { id: 'not-an-id', name: '<script>x</script>' } }],
+  ])('/me never changes any check\'s pass/fail: %s', async (_label, me) => {
+    mockGraph({ me })
+    const result = await checkOwnerReminderReadiness()
+    expect(result.checks.map((c) => [c.name, c.ok])).toEqual([['config', true], ['token', true], ['phone', true], ['template', true]])
+    expect(result.ready).toBe(true)
+  })
+
+  it('a failed /me keeps only HTTP status, code and subcode', async () => {
+    mockGraph({ me: { status: 400, body: { error: { code: 100, error_subcode: 33, type: 'GraphMethodException', message: `Unsupported get request ${TOKEN}`, fbtrace_id: 'AtraceID_me' } } } })
+    const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
+    expect(token.detail).toMatchObject({ meHttpStatus: 400, meCode: 100, meErrorSubcode: 33 })
+    expect(token.detail).not.toHaveProperty('tokenUserName')
+    const text = JSON.stringify(token.detail)
+    for (const s of [TOKEN, 'Unsupported', 'GraphMethodException', 'AtraceID_me']) expect(text).not.toContain(s)
   })
 
   it('the result contains no token or secret', async () => {

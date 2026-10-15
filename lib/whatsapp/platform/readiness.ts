@@ -7,7 +7,7 @@ import {
   platformWhatsappWabaId,
 } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { REMINDER_TEMPLATE, SEND_TIMEOUT_MS } from '@/lib/ownerWhatsappReminders/constants'
-import { attachReadinessDiagnostics, scopeGrantOnWaba, tokenUserIdFrom } from './readinessDiagnostics'
+import { attachReadinessDiagnostics, meIdentity, scopeGrantOnWaba, tokenUserIdFrom } from './readinessDiagnostics'
 
 /**
  * READ-ONLY readiness of the owner-reminder sender. Every Graph call here is a
@@ -19,6 +19,7 @@ import { attachReadinessDiagnostics, scopeGrantOnWaba, tokenUserIdFrom } from '.
  *             whatsapp_business_messaging GRANTED on this WABA (its
  *             target_ids name the WABA; a grant without target_ids is
  *             UNKNOWN and fails). Also reports the token's System User id
+ *             and, from GET /me, its id and name (never affects pass/fail)
  *   phone     CONNECTED, quality not RED, can_send_message AVAILABLE or
  *             LIMITED; BLOCKED fails. Reasons for LIMITED/BLOCKED are in
  *             detail.healthEntities
@@ -73,7 +74,9 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
         }
       : graphError(r)
     const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && messagingGrant === 'GRANTED'
-    checks.push({ name: 'token', ok, detail })
+    // Who the token belongs to, by name. Diagnostic only: it never changes `ok`.
+    const me = meIdentity(await graphGet('me?fields=id,name', token))
+    checks.push({ name: 'token', ok, detail: { ...detail, ...me } })
   }
 
   const p = await graphGet(`${phoneId}?fields=status,quality_rating,whatsapp_business_manager_messaging_limit,name_status,code_verification_status,health_status`, token)

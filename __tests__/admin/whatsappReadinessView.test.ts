@@ -22,6 +22,14 @@ describe('toReadinessView', () => {
     for (const bad of ['EAAG_token_like_value_0123456789', '61595338681240 ', '<b>1</b>', '1234', 61595338681240, null]) expect(view(bad)).toEqual([])
   })
 
+  it('shows the /me id and name only when they pass the allowlist', () => {
+    const view = (detail: Record<string, unknown>) => toReadinessView({ ready: false, checks: [{ name: 'token', ok: false, detail }] }).checks[0].fields.map((f) => [f.key, f.value])
+    expect(view({ tokenMeId: '122099730999511289', tokenUserName: 'Socialcrm Intelligence' })).toEqual([['tokenMeId', '122099730999511289'], ['tokenUserName', 'Socialcrm Intelligence']])
+    expect(view({ tokenMeId: TOKEN, tokenUserName: `<img src=x> ${TOKEN}` })).toEqual([])
+    expect(view({ meHttpStatus: 400, meCode: 100, meErrorSubcode: 33, message: 'Unsupported get request' })).toEqual([['meHttpStatus', 400], ['meCode', 100], ['meErrorSubcode', 33]])
+    expect(view({ meHttpStatus: '400', meCode: 'x' })).toEqual([])
+  })
+
   it('shows each WABA grant as GRANTED, NOT_GRANTED or UNKNOWN; booleans and anything else are not trusted', () => {
     const v = toReadinessView({ ready: false, checks: [{ name: 'token', ok: true, detail: { messagingGrantedOnWaba: 'UNKNOWN', managementGrantedOnWaba: true } }] })
     expect(v.checks[0].fields.map((f) => [f.key, f.value])).toEqual([['messagingGrantedOnWaba', 'UNKNOWN'], ['managementGrantedOnWaba', 'UNEXPECTED']])

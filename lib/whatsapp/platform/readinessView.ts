@@ -1,4 +1,5 @@
 import type { ReadinessCheck } from './readiness'
+import { tokenUserNameFrom } from './readinessDiagnostics'
 
 /**
  * What the platform-owner readiness page may render: an explicit allowlist of
@@ -10,7 +11,9 @@ import type { ReadinessCheck } from './readiness'
  *   numbers   only safe integers
  *   scopes    reduced to two booleans for the two required permissions;
  *             WABA grants only as GRANTED / NOT_GRANTED / UNKNOWN
- *   user id   the token's System User id, digits only (not a secret)
+ *   user id   the token's System User id, digits only (not a secret); from
+ *             /me its id (digits) and name (allowlisted characters only), or
+ *             only HTTP status, code and subcode when /me fails
  *   errors    HTTP status, Meta error code, subcode, type and trace id; never
  *             the message
  *   health    each LIMITED/BLOCKED health entity as "STATUS (codes)": entity
@@ -70,6 +73,11 @@ const SPECS: Record<ReadinessCheck['name'], Spec[]> = {
     { key: 'appMatches', label: 'שייך לאפליקציה הנכונה', read: (d) => asBool(d.appMatches) },
     { key: 'neverExpires', label: 'ללא תפוגה', read: (d) => asBool(d.neverExpires) },
     { key: 'tokenUserId', label: 'מזהה System User של הטוקן', read: (d) => asPattern(USER_ID)(d.tokenUserId) },
+    { key: 'tokenMeId', label: 'מזהה הטוקן לפי /me', read: (d) => asPattern(USER_ID)(d.tokenMeId) },
+    { key: 'tokenUserName', label: 'שם ה-System User לפי /me', read: (d) => tokenUserNameFrom(d.tokenUserName) },
+    { key: 'meHttpStatus', label: 'סטטוס HTTP של /me', read: (d) => asInt(d.meHttpStatus) },
+    { key: 'meCode', label: 'קוד שגיאה של /me', read: (d) => asInt(d.meCode) },
+    { key: 'meErrorSubcode', label: 'קוד משנה של /me', read: (d) => asInt(d.meErrorSubcode) },
     { key: 'hasMessagingScope', label: 'הרשאת whatsapp_business_messaging', read: (d) => has(d.scopes, 'whatsapp_business_messaging') },
     { key: 'hasManagementScope', label: 'הרשאת whatsapp_business_management', read: (d) => has(d.scopes, 'whatsapp_business_management') },
     { key: 'messagingGrantedOnWaba', label: 'הרשאת שליחה על חשבון ה-WhatsApp', read: (d) => asGrant(d.messagingGrantedOnWaba) },
