@@ -7,7 +7,7 @@ import {
   platformWhatsappWabaId,
 } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { REMINDER_TEMPLATE, SEND_TIMEOUT_MS } from '@/lib/ownerWhatsappReminders/constants'
-import { attachReadinessDiagnostics, managementGrantedOnWaba } from './readinessDiagnostics'
+import { attachReadinessDiagnostics, scopeGrantOnWaba, tokenUserIdFrom } from './readinessDiagnostics'
 
 /**
  * READ-ONLY readiness of the owner-reminder sender. Every Graph call here is a
@@ -16,7 +16,9 @@ import { attachReadinessDiagnostics, managementGrantedOnWaba } from './readiness
  *
  *   config    which settings are present (booleans; agency ids are not secret)
  *   token     debug_token: valid, SYSTEM_USER, this app, never expires,
- *             whatsapp_business_messaging granted on this WABA
+ *             whatsapp_business_messaging GRANTED on this WABA (its
+ *             target_ids name the WABA; a grant without target_ids is
+ *             UNKNOWN and fails). Also reports the token's System User id
  *   phone     CONNECTED, quality not RED, can_send_message AVAILABLE or
  *             LIMITED; BLOCKED fails. Reasons for LIMITED/BLOCKED are in
  *             detail.healthEntities
@@ -61,18 +63,16 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
   if (appId && appSecret) {
     const r = await graphGet(`debug_token?input_token=${encodeURIComponent(token)}`, `${appId}|${appSecret}`)
     const d = r.body?.data
-    const granted = (d?.granular_scopes ?? []) as { scope: string; target_ids?: string[] }[]
-    const messaging = granted.find((g) => g.scope === 'whatsapp_business_messaging')
+    const messagingGrant = scopeGrantOnWaba(d?.granular_scopes, 'whatsapp_business_messaging', wabaId)
     const detail = d
       ? {
           isValid: d.is_valid === true, type: d.type ?? null, appMatches: String(d.app_id) === appId,
-          neverExpires: d.expires_at === 0, scopes: d.scopes ?? [],
-          messagingGrantedOnWaba: !messaging?.target_ids || messaging.target_ids.includes(wabaId),
-          managementGrantedOnWaba: managementGrantedOnWaba(d.granular_scopes, wabaId),
+          neverExpires: d.expires_at === 0, scopes: d.scopes ?? [], tokenUserId: tokenUserIdFrom(d.user_id),
+          messagingGrantedOnWaba: messagingGrant,
+          managementGrantedOnWaba: scopeGrantOnWaba(d.granular_scopes, 'whatsapp_business_management', wabaId),
         }
       : graphError(r)
-    const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && !!messaging &&
-      (!messaging.target_ids || messaging.target_ids.includes(wabaId))
+    const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && messagingGrant === 'GRANTED'
     checks.push({ name: 'token', ok, detail })
   }
 
