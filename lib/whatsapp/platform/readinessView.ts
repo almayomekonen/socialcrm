@@ -10,7 +10,8 @@ import { tokenUserNameFrom } from './readinessDiagnostics'
  *   strings   only enum-like values (A–Z, 0–9, _), else 'UNEXPECTED'
  *   numbers   only safe integers
  *   scopes    reduced to two booleans for the two required permissions;
- *             WABA grants only as GRANTED / NOT_GRANTED / UNKNOWN
+ *             WABA grants only as GRANTED / NOT_GRANTED / ALL_TARGETS /
+ *             UNKNOWN
  *   user id   the token's System User id, digits only (not a secret); from
  *             /me its id (digits) and name (allowlisted characters only), or
  *             only HTTP status, code and subcode when /me fails
@@ -43,7 +44,7 @@ const TRACE_ID = /^[A-Za-z0-9_-]{6,64}$/
 const ENTITY = /^[A-Z][A-Z_]{0,39}$/
 const asPattern = (re: RegExp) => (v: unknown): string | null => (typeof v === 'string' && re.test(v) ? v : null)
 const has = (scopes: unknown, scope: string): boolean | null => (Array.isArray(scopes) ? scopes.includes(scope) : null)
-const GRANTS = ['GRANTED', 'NOT_GRANTED', 'UNKNOWN']
+const GRANTS = ['GRANTED', 'NOT_GRANTED', 'ALL_TARGETS', 'UNKNOWN']
 const USER_ID = /^\d{5,20}$/
 const asGrant = (v: unknown): string | null => (v == null ? null : typeof v === 'string' && GRANTS.includes(v) ? v : 'UNEXPECTED')
 
@@ -82,6 +83,7 @@ const SPECS: Record<ReadinessCheck['name'], Spec[]> = {
     { key: 'hasManagementScope', label: 'הרשאת whatsapp_business_management', read: (d) => has(d.scopes, 'whatsapp_business_management') },
     { key: 'messagingGrantedOnWaba', label: 'הרשאת שליחה על חשבון ה-WhatsApp', read: (d) => asGrant(d.messagingGrantedOnWaba) },
     { key: 'managementGrantedOnWaba', label: 'הרשאת ניהול על חשבון ה-WhatsApp', read: (d) => asGrant(d.managementGrantedOnWaba) },
+    { key: 'wabaReadable', label: 'קריאה מחשבון ה-WhatsApp הצליחה (לא מוכיח הרשאת שליחה)', read: (d) => asBool(d.wabaReadable) },
     ...errorFields,
   ],
   phone: [

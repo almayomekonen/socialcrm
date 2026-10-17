@@ -30,6 +30,13 @@ describe('toReadinessView', () => {
     expect(view({ meHttpStatus: '400', meCode: 'x' })).toEqual([])
   })
 
+  it('shows ALL_TARGETS as its own grant value, and the WABA read only as a boolean', () => {
+    const v = toReadinessView({ ready: false, checks: [{ name: 'token', ok: true, detail: { messagingGrantedOnWaba: 'ALL_TARGETS', wabaReadable: true } }] })
+    expect(v.checks[0].fields.map((f) => [f.key, f.value])).toEqual([['messagingGrantedOnWaba', 'ALL_TARGETS'], ['wabaReadable', true]])
+    const w = toReadinessView({ ready: false, checks: [{ name: 'token', ok: true, detail: { wabaReadable: 'yes' } }] })
+    expect(w.checks[0].fields).toEqual([])
+  })
+
   it('shows each WABA grant as GRANTED, NOT_GRANTED or UNKNOWN; booleans and anything else are not trusted', () => {
     const v = toReadinessView({ ready: false, checks: [{ name: 'token', ok: true, detail: { messagingGrantedOnWaba: 'UNKNOWN', managementGrantedOnWaba: true } }] })
     expect(v.checks[0].fields.map((f) => [f.key, f.value])).toEqual([['messagingGrantedOnWaba', 'UNKNOWN'], ['managementGrantedOnWaba', 'UNEXPECTED']])

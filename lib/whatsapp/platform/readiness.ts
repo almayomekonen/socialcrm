@@ -17,9 +17,12 @@ import { attachReadinessDiagnostics, meIdentity, scopeGrantOnWaba, tokenUserIdFr
  *   config    which settings are present (booleans; agency ids are not secret)
  *   token     debug_token: valid, SYSTEM_USER, this app, never expires,
  *             whatsapp_business_messaging GRANTED on this WABA (its
- *             target_ids name the WABA; a grant without target_ids is
- *             UNKNOWN and fails). Also reports the token's System User id
- *             and, from GET /me, its id and name (never affects pass/fail)
+ *             target_ids name the WABA), or ALL_TARGETS (Meta omitted
+ *             target_ids) AND the template GET below read this WABA with
+ *             HTTP 200. That read proves read access to the WABA, not
+ *             messaging permission. UNKNOWN and NOT_GRANTED fail. Also
+ *             reports the token's System User id and, from GET /me, its id
+ *             and name (never affects pass/fail)
  *   phone     CONNECTED, quality not RED, can_send_message AVAILABLE or
  *             LIMITED; BLOCKED fails. Reasons for LIMITED/BLOCKED are in
  *             detail.healthEntities
@@ -61,6 +64,10 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
   checks.push({ name: 'config', ok: !!(phoneId && wabaId && token && appId && appSecret), detail: config })
   if (!phoneId || !wabaId || !token) return { ready: false, checks }
 
+  // Also the token check's evidence that this token can READ this WABA.
+  const t = await graphGet(`${wabaId}/message_templates?name=${REMINDER_TEMPLATE.name}&fields=name,status,category,language,components`, token)
+  const wabaReadable = t.status === 200
+
   if (appId && appSecret) {
     const r = await graphGet(`debug_token?input_token=${encodeURIComponent(token)}`, `${appId}|${appSecret}`)
     const d = r.body?.data
@@ -70,10 +77,12 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
           isValid: d.is_valid === true, type: d.type ?? null, appMatches: String(d.app_id) === appId,
           neverExpires: d.expires_at === 0, scopes: d.scopes ?? [], tokenUserId: tokenUserIdFrom(d.user_id),
           messagingGrantedOnWaba: messagingGrant,
+          wabaReadable,
           managementGrantedOnWaba: scopeGrantOnWaba(d.granular_scopes, 'whatsapp_business_management', wabaId),
         }
       : graphError(r)
-    const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && messagingGrant === 'GRANTED'
+    const grantOk = messagingGrant === 'GRANTED' || (messagingGrant === 'ALL_TARGETS' && wabaReadable)
+    const ok = !!d && d.is_valid === true && d.type === 'SYSTEM_USER' && String(d.app_id) === appId && grantOk
     // Who the token belongs to, by name. Diagnostic only: it never changes `ok`.
     const me = meIdentity(await graphGet('me?fields=id,name', token))
     checks.push({ name: 'token', ok, detail: { ...detail, ...me } })
@@ -86,7 +95,6 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
     checks.push({ name: 'phone', ok: p.body.status === 'CONNECTED' && (canSend === 'AVAILABLE' || canSend === 'LIMITED') && p.body.quality_rating !== 'RED', detail })
   } else checks.push({ name: 'phone', ok: false, detail: graphError(p) })
 
-  const t = await graphGet(`${wabaId}/message_templates?name=${REMINDER_TEMPLATE.name}&fields=name,status,category,language,components`, token)
   const tpl = ((t.body?.data ?? []) as any[]).find((x) => x.name === REMINDER_TEMPLATE.name && x.language === REMINDER_TEMPLATE.language)
   if (tpl) {
     const body = (tpl.components ?? []).find((c: any) => c.type === 'BODY')?.text ?? ''
