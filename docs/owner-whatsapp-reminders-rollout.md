@@ -44,6 +44,7 @@ code changes nothing: with the defaults, the feature is off.
 | `PLATFORM_WHATSAPP_ACCESS_TOKEN` | PR B | unset | **Sensitive.** System User token for WABA `2060714354527399`. Production only |
 | `PLATFORM_WHATSAPP_WABA_ID` | PR B | unset | Readiness check only (template status) |
 | `OWNER_WA_REMINDERS_SEND_ENABLED` | PR B | unset | **Kill switch.** Exactly `1` sends; anything else is a dry run that logs counts and writes nothing |
+| `OWNER_WA_ONE_OFF_RECIPIENT_ID` | one-off test | unset | The one agency-103 recipient row the one-off test route may send to. Unset: the route answers 404. Remove after the test |
 
 Existing and reused: `CRON_SECRET` (cron and readiness auth), `META_APP_ID` and
 `META_APP_SECRET` (readiness `debug_token` only).
@@ -125,6 +126,45 @@ PR #134 (`20261010120000`) sorts before both; Knex applies it whenever it lands.
    12-hour cooldown and per-escalation dedup would suppress a reminder anyway,
    so the test would prove nothing.
 10. **Expansion** agency by agency, each approved separately. Never `158`.
+
+## One-off test send (agency 103 only, single use)
+
+`POST /api/internal/owner-wa/one-off-send` sends ONE real `lead_followup_alert`
+to the recipient row named by `OWNER_WA_ONE_OFF_RECIPIENT_ID`, about one real
+hand-off, without `OWNER_WA_REMINDERS_SEND_ENABLED`
+(`lib/ownerWhatsappReminders/oneOffSend.ts`).
+
+- **Gates:** 404 unless the variable is set; `CRON_SECRET` bearer; body exactly
+  `{ "conversationId": <id> }` (no recipient or number is accepted). Agency 103
+  is a code constant and must be in `OWNER_WA_REMINDERS_AGENCY_IDS`. The
+  recipient must be `active`, verified, not suspended, and selectable by the
+  cron's own rules for that hand-off. The conversation must be eligible now
+  (escalated 120 minutes to 24 hours ago, open, no human reply, lead not
+  closed/lost, no cooldown). Refused inside quiet hours.
+- **Single use:** refused once the recipient has any delivery row.
+  Concurrent requests serialise on an advisory lock; exactly one reaches Meta.
+- **No transaction during the Meta request.** The delivery is committed as
+  `sending` first (the cron never claims `sending`), consent and eligibility are
+  re-read immediately before the request, and the outcome is written after it.
+  Timeout, network error or 5xx is `unknown`; a rate limit is `failed`. Nothing
+  is retried. An interrupted attempt stays `sending` and is reaped to `unknown`
+  by the cron when live: never resent.
+- **Residual race:** an opt-out committed after that last read and before Meta
+  receives the request cannot stop this one send (at most the 8-second request
+  bound). The cron avoids this by holding the recipient row lock during the
+  request; this path deliberately does not.
+
+Use (each step its own approval): set the variable in Production only, redeploy,
+create a real hand-off in agency 103 from a phone that is not the recipient,
+wait 120 minutes without replying, then:
+
+```
+curl -s -X POST -H "Authorization: Bearer $CRON_SECRET" -H 'Content-Type: application/json' \
+  -d '{"conversationId": <id>}' https://getsocialcrm.com/api/internal/owner-wa/one-off-send
+```
+
+Then unset the variable and redeploy. API acceptance is `outcome: "sent"` with a
+`wamid`; delivery is only `delivered`/`read` in `owner_whatsapp_message_status`.
 
 ## Verification queries (read-only)
 

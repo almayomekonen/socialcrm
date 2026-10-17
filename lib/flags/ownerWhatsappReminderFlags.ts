@@ -29,6 +29,12 @@
  *   Exactly `1` sends. Anything else (including unset) is a dry run: the tick
  *   computes what it would do, logs counts, and writes nothing.
  *
+ * OWNER_WA_ONE_OFF_RECIPIENT_ID (one-off test send)
+ *   The id of the ONE agency-103 recipient row the internal one-off test route
+ *   may send to (lib/ownerWhatsappReminders/oneOffSend.ts). Unset means the
+ *   route answers 404. It never enables OWNER_WA_REMINDERS_SEND_ENABLED and is
+ *   removed again after the test.
+ *
  * Read per call, never cached at module scope.
  */
 
@@ -74,4 +80,12 @@ export function platformWhatsappWabaId(): string | null {
 /** The kill switch: only the exact value `1` sends. */
 export function isOwnerWhatsappReminderSendEnabled(): boolean {
   return process.env.OWNER_WA_REMINDERS_SEND_ENABLED === '1'
+}
+
+/** The one recipient row the one-off test route may send to, or null (route off). */
+export function ownerWhatsappOneOffRecipientId(): number | null {
+  const v = process.env.OWNER_WA_ONE_OFF_RECIPIENT_ID?.trim() ?? ''
+  if (!/^\d{1,12}$/.test(v)) return null
+  const n = Number(v)
+  return Number.isSafeInteger(n) && n > 0 ? n : null
 }

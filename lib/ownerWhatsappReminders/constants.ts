@@ -25,6 +25,8 @@ export const ACCOUNT_PAUSE_MS = 60 * 60 * 1000
 
 /** Advisory-lock namespace (int4) for per-conversation reminder work. */
 export const REMINDER_CONVERSATION_LOCK_NAMESPACE = 20261013
+/** Advisory-lock namespace (int4) serialising one-off test sends per recipient. */
+export const ONE_OFF_RECIPIENT_LOCK_NAMESPACE = 20261018
 
 /**
  * The template, as it must be submitted to Meta (UTILITY, Hebrew). Nothing in
