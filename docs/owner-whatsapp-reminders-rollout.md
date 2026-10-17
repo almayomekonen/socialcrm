@@ -173,6 +173,15 @@ template is unchanged; its `{{1}}` then states the true wait in minutes
 longer wait. Every other gate above applies unchanged, including single use.
 The cron and the standard one-off keep the 120-minute rule.
 
+**From /admin/whatsapp (no secret handled):** while `OWNER_WA_ONE_OFF_RECIPIENT_ID`
+is set, a platform owner sees "שליחת תזכורת בדיקה אחת" there. It calls the
+Server Action `actions/admin/ownerWaOneOff.ts`, which re-checks platform
+ownership itself (and refuses a suspended owner), accepts only a conversation
+id, fixes the mode to `immediate`, and runs the same `sendOneOffReminder`, so
+every gate and the single use above are shared with the route. Each attempt is
+audited as `owner_wa_one_off_send` (ids and outcome only). After any answer the
+control stays disabled; an `unknown` outcome must not be retried.
+
 ## Verification queries (read-only)
 
 ```sql

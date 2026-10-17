@@ -2,9 +2,11 @@ import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { getUser } from '@/db/auth'
 import { isPlatformOwner } from '@/lib/auth/platformOwner'
+import { ownerWhatsappOneOffRecipientId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { checkOwnerReminderReadiness } from '@/lib/whatsapp/platform/readiness'
 import { toReadinessView, type ReadinessView } from '@/lib/whatsapp/platform/readinessView'
 import AdminChrome from '@/components/admin/AdminChrome'
+import OneOffTestSend from './OneOffTestSend'
 import WhatsappReadinessView from './WhatsappReadinessView'
 
 /**
@@ -13,7 +15,8 @@ import WhatsappReadinessView from './WhatsappReadinessView'
  * secret. Same gate as every /admin page: a non-owner gets notFound() and no
  * Meta call is made. `connection()` makes every visit a fresh check (never
  * cached). checkOwnerReminderReadiness() is GET-only; only the allowlisted view
- * of its result is rendered.
+ * of its result is rendered. The one-off test send appears only while
+ * OWNER_WA_ONE_OFF_RECIPIENT_ID is set; its Server Action re-checks the owner.
  */
 export default async function AdminWhatsappReadiness() {
   await connection()
@@ -35,6 +38,7 @@ export default async function AdminWhatsappReadiness() {
         <p className='mt-1 text-sm text-gray-500'>מצב הטוקן, מספר הטלפון והתבנית כפי שהשרת רואה אותם עכשיו.</p>
       </header>
       <WhatsappReadinessView view={view} checkedAt={checkedAt} />
+      {ownerWhatsappOneOffRecipientId() && <OneOffTestSend />}
     </AdminChrome>
   )
 }
