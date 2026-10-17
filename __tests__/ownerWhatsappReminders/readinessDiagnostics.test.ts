@@ -91,10 +91,14 @@ describe('scopeGrantOnWaba', () => {
     expect(scopeGrantOnWaba([{ scope: M, target_ids: [WABA] }], M, WABA)).toBe('GRANTED')
     expect(scopeGrantOnWaba([{ scope: M, target_ids: [Number(WABA)] }], M, WABA)).toBe('GRANTED')
   })
-  it('UNKNOWN, never GRANTED, when the scope carries no target_ids', () => {
-    expect(scopeGrantOnWaba([{ scope: M }], M, WABA)).toBe('UNKNOWN')
+  it('ALL_TARGETS, never GRANTED, when Meta omits the target_ids property entirely', () => {
+    expect(scopeGrantOnWaba([{ scope: M }], M, WABA)).toBe('ALL_TARGETS')
+  })
+  it('UNKNOWN when target_ids is present but not a list, null included', () => {
     expect(scopeGrantOnWaba([{ scope: M, target_ids: null }], M, WABA)).toBe('UNKNOWN')
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: undefined }], M, WABA)).toBe('UNKNOWN')
     expect(scopeGrantOnWaba([{ scope: M, target_ids: WABA }], M, WABA)).toBe('UNKNOWN')
+    expect(scopeGrantOnWaba([{ scope: M, target_ids: { 0: WABA } }], M, WABA)).toBe('UNKNOWN')
   })
   it('UNKNOWN when granular_scopes is missing or malformed', () => {
     expect(scopeGrantOnWaba(undefined, M, WABA)).toBe('UNKNOWN')
@@ -140,11 +144,11 @@ describe('through checkOwnerReminderReadiness (Graph mocked)', () => {
     expect(token.detail.scopes).toContain('whatsapp_business_management')
   })
 
-  it('a scope without target_ids is UNKNOWN, not GRANTED, and the token check fails on it', async () => {
+  it('a scope without target_ids is ALL_TARGETS, not GRANTED, and fails when the WABA read fails (400 here)', async () => {
     const untargeted = { data: { ...debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging' }, { scope: 'whatsapp_business_management' }] } }
     mockGraph({ debug: untargeted })
     const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
-    expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'UNKNOWN', managementGrantedOnWaba: 'UNKNOWN' })
+    expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'ALL_TARGETS', managementGrantedOnWaba: 'ALL_TARGETS', wabaReadable: false })
     expect(token.ok).toBe(false)
   })
 

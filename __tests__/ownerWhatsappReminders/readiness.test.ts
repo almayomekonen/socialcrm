@@ -23,6 +23,7 @@ const good = {
     { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'פתיחת השיחה', url: 'https://getsocialcrm.com/inbox?conversation={{1}}' }] },
   ] }] },
   me: { status: 200, body: { id: '122099730999511289', name: 'Socialcrm Intelligence' } as unknown },
+  templateStatus: 200,
 }
 
 function mockGraph(over: Partial<typeof good> = {}) {
@@ -30,8 +31,8 @@ function mockGraph(over: Partial<typeof good> = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
     const u = String(url)
     if (u.includes('/me?')) return new Response(JSON.stringify(r.me.body), { status: r.me.status })
-    const body = u.includes('debug_token') ? r.debug : u.includes('message_templates') ? r.template : r.phone
-    return new Response(JSON.stringify(body), { status: 200 })
+    if (u.includes('message_templates')) return new Response(JSON.stringify(r.template), { status: r.templateStatus })
+    return new Response(JSON.stringify(u.includes('debug_token') ? r.debug : r.phone), { status: 200 })
   })
 }
 
@@ -90,9 +91,8 @@ describe('readiness (read-only)', () => {
   it.each([
     ['token', { debug: { data: { ...good.debug.data, type: 'USER' } } }],
     ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: ['999'] }] } } }],
-    // A grant that does not name the WABA is UNKNOWN, never a pass.
-    ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging' }] } } }],
     ['token', { debug: { data: { ...good.debug.data, granular_scopes: undefined } } }],
+    ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: null }] } } }],
     ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging', target_ids: 'not-a-list' }] } } }],
     ['token', { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_management', target_ids: ['2000000000002'] }] } } }],
     ['phone', { phone: { ...good.phone, health_status: { can_send_message: 'BLOCKED' } } }],
@@ -105,6 +105,45 @@ describe('readiness (read-only)', () => {
     const result = await checkOwnerReminderReadiness()
     expect(result.ready).toBe(false)
     expect(result.checks.find((c) => c.name === name)?.ok).toBe(false)
+  })
+
+  describe('ALL_TARGETS: Meta omitted target_ids ("applies to all")', () => {
+    const allTargets = { debug: { data: { ...good.debug.data, granular_scopes: [{ scope: 'whatsapp_business_messaging' }] } } }
+
+    it('passes the grant only because the template GET read this WABA with HTTP 200', async () => {
+      mockGraph(allTargets as never)
+      const result = await checkOwnerReminderReadiness()
+      const token = result.checks.find((c) => c.name === 'token')!
+      expect(token.ok).toBe(true)
+      expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'ALL_TARGETS', wabaReadable: true })
+      expect(result.ready).toBe(true)
+    })
+
+    it.each([403, 400, 500])('fails when the template GET returns HTTP %i', async (templateStatus) => {
+      mockGraph({ ...allTargets, templateStatus, template: { error: { code: 200, message: 'Permission denied' } } } as never)
+      const result = await checkOwnerReminderReadiness()
+      const token = result.checks.find((c) => c.name === 'token')!
+      expect(token.ok).toBe(false)
+      expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'ALL_TARGETS', wabaReadable: false })
+      expect(result.ready).toBe(false)
+    })
+
+    it('a WABA read never rescues UNKNOWN or NOT_GRANTED', async () => {
+      for (const granular_scopes of [undefined, [{ scope: 'whatsapp_business_messaging', target_ids: null }], [{ scope: 'whatsapp_business_messaging', target_ids: ['999'] }]]) {
+        mockGraph({ debug: { data: { ...good.debug.data, granular_scopes } } } as never)
+        const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
+        expect(token.ok).toBe(false)
+        expect(token.detail).toMatchObject({ wabaReadable: true })
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('GRANTED still passes without depending on the WABA read', async () => {
+      mockGraph({ templateStatus: 403, template: { error: { code: 200 } } } as never)
+      const token = (await checkOwnerReminderReadiness()).checks.find((c) => c.name === 'token')!
+      expect(token.ok).toBe(true)
+      expect(token.detail).toMatchObject({ messagingGrantedOnWaba: 'GRANTED', wabaReadable: false })
+    })
   })
 
   it('without configuration it makes no Graph call at all', async () => {

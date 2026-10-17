@@ -12,8 +12,10 @@ import type { ReadinessCheck } from './readiness'
  *   grants           whether a scope is granted on the configured WABA, from
  *                    debug_token granular_scopes: GRANTED (the WABA is in
  *                    target_ids), NOT_GRANTED (scope absent, or target_ids
- *                    without the WABA) or UNKNOWN (the scope carries no
- *                    target_ids, so nothing proves the WABA is assigned).
+ *                    without the WABA), ALL_TARGETS (Meta omitted target_ids,
+ *                    which debug_token documents as "applies to all"; it
+ *                    does not show this WABA is assigned) or UNKNOWN
+ *                    (granular_scopes or target_ids malformed, or null).
  *   tokenUserId      debug_token's user_id (the System User the token belongs
  *                    to), only as a 5-20 digit string. Not a secret.
  *   me identity      GET /me with the token: its id (5-20 digits) and name
@@ -86,17 +88,20 @@ export function meIdentity(r: { status: number; body: unknown }): MeIdentity {
   }
 }
 
-export type WabaGrant = 'GRANTED' | 'NOT_GRANTED' | 'UNKNOWN'
+export type WabaGrant = 'GRANTED' | 'NOT_GRANTED' | 'ALL_TARGETS' | 'UNKNOWN'
 
 /**
- * Whether `scope` is granted on `wabaId`. A scope without a target_ids list is
- * UNKNOWN, never GRANTED: its absence does not show the WABA is assigned to
- * the token's System User.
+ * Whether `scope` is granted on `wabaId`. Meta omits target_ids when a
+ * permission "applies to all" (debug_token reference): that is ALL_TARGETS,
+ * never GRANTED, because it does not show this WABA is assigned to the token's
+ * System User. A target_ids that is present but not an array (null included)
+ * is UNKNOWN.
  */
 export function scopeGrantOnWaba(granularScopes: unknown, scope: string, wabaId: string): WabaGrant {
   if (!Array.isArray(granularScopes)) return 'UNKNOWN'
   const grant = (granularScopes as { scope?: unknown; target_ids?: unknown }[]).find((g) => g?.scope === scope)
   if (!grant) return 'NOT_GRANTED'
+  if (!('target_ids' in grant)) return 'ALL_TARGETS'
   if (!Array.isArray(grant.target_ids)) return 'UNKNOWN'
   return grant.target_ids.map(String).includes(wabaId) ? 'GRANTED' : 'NOT_GRANTED'
 }
