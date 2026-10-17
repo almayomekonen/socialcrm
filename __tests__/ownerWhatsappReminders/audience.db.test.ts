@@ -13,6 +13,10 @@ import { MIN, PLATFORM, TOKEN, ago, agency, cleanup, conversation, deliveries, e
  * product access and an activated recipient, agency 158 never, access checked
  * at scheduling AND right before sending (failing closed), and every existing
  * safeguard unchanged. Escalations carry microseconds, as in production.
+ *
+ * NOTE: just over the 250-line soft limit on purpose: one flat list of
+ * independent rollout scenarios sharing the env, access and hand-off helpers;
+ * splitting it would duplicate those across files for no readability gain.
  */
 const trial = vi.hoisted(() => ({ fail: false }))
 vi.mock('@/db/trial', async (orig) => {
