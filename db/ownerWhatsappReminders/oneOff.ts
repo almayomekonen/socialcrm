@@ -33,11 +33,17 @@ export type OneOffRefusal =
 
 export type OneOffClaim = { deliveryId: number; reminderId: number; escalatedAt: Date }
 
+/** The cron's window, with the minimum wait set by the caller (the cron's own bindings are untouched). */
+function oneOffBindings(now: Date, agencyIds: number[], delayMs: number) {
+  return { ...windowBindings(now, agencyIds), delayCutoff: new Date(now.getTime() - delayMs) }
+}
+
 export async function claimOneOffDelivery(input: {
   recipientId: number
   agencyId: number
   conversationId: number
   agencyIds: number[]
+  delayMs: number
   now: Date
 }): Promise<{ ok: true; claim: OneOffClaim } | { ok: false; reason: OneOffRefusal }> {
   const { recipientId, agencyId, conversationId, now } = input
@@ -69,7 +75,7 @@ export async function claimOneOffDelivery(input: {
         WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId
           AND ${eligibilitySql('cv', 'ai', 'c')}
           AND ${cooldownSql('cv')}`,
-      { ...windowBindings(now, input.agencyIds), conversationId, agencyId },
+      { ...oneOffBindings(now, input.agencyIds, input.delayMs), conversationId, agencyId },
     )
     if (!rows.length) return { ok: false, reason: 'conversation_not_eligible' }
     const row = rows[0] as { customerWaId: string | null; escalatedAt: string | Date; handlerId: number | null }
@@ -108,6 +114,7 @@ export async function recheckBeforeSend(input: {
   conversationId: number
   claim: OneOffClaim
   agencyIds: number[]
+  delayMs: number
   now: Date
 }): Promise<{ ok: true; phoneE164: string } | { ok: false; reason: 'recipient_not_active' | 'no_longer_eligible' }> {
   const recipient = await db('owner_whatsapp_recipients as r')
@@ -127,7 +134,7 @@ export async function recheckBeforeSend(input: {
       WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAt
         AND ${eligibilitySql('cv', 'ai', 'c')}
         AND ${cooldownSql('cv', ':reminderId::bigint')}`,
-    { ...windowBindings(input.now, input.agencyIds), conversationId: input.conversationId, agencyId: input.agencyId, escalatedAt: input.claim.escalatedAt, reminderId: input.claim.reminderId },
+    { ...oneOffBindings(input.now, input.agencyIds, input.delayMs), conversationId: input.conversationId, agencyId: input.agencyId, escalatedAt: input.claim.escalatedAt, reminderId: input.claim.reminderId },
   )
   if (!rows.length) return { ok: false, reason: 'no_longer_eligible' }
   return { ok: true, phoneE164: recipient.phoneE164 }

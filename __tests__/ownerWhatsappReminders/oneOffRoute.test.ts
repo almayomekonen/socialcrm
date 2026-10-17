@@ -55,6 +55,8 @@ describe('one-off send route', () => {
     ['a string id', { conversationId: '5' }],
     ['a fractional id', { conversationId: 5.5 }],
     ['a zero id', { conversationId: 0 }],
+    ['an unknown mode', { conversationId: 5, mode: 'fast' }],
+    ['a mode with an override', { conversationId: 5, mode: 'immediate', to: '972500000000' }],
     ['no id', {}],
     ['an array', [5]],
     ['invalid JSON', '{'],
@@ -68,8 +70,14 @@ describe('one-off send route', () => {
     const { POST } = await route()
     const res = await POST(post({ conversationId: 5 }))
     expect(res.status).toBe(200)
-    expect(send).toHaveBeenCalledWith({ conversationId: 5 })
+    expect(send).toHaveBeenCalledWith({ conversationId: 5, mode: 'standard' })
     expect(await res.json()).toEqual({ ok: true, outcome: 'sent', deliveryId: 7, wamid: 'wamid.X' })
+  })
+
+  it('passes mode immediate through, and nothing else', async () => {
+    const { POST } = await route()
+    expect((await POST(post({ conversationId: 5, mode: 'immediate' }))).status).toBe(200)
+    expect(send).toHaveBeenCalledWith({ conversationId: 5, mode: 'immediate' })
   })
 
   it('409 for a refusal, 500 for an interrupted attempt', async () => {

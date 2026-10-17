@@ -6,8 +6,9 @@ import { sendOneOffReminder } from '@/lib/ownerWhatsappReminders/oneOffSend'
 /**
  * ONE owner reminder for a test (see lib/ownerWhatsappReminders/oneOffSend.ts).
  * POST only, CRON_SECRET only, 404 unless OWNER_WA_ONE_OFF_RECIPIENT_ID is set.
- * Body: exactly `{ "conversationId": <positive integer> }`. The recipient is
- * never taken from the request.
+ * Body: `{ "conversationId": <positive integer> }`, optionally with
+ * `"mode": "immediate"` (test: 1-minute minimum wait, wait stated in minutes).
+ * Nothing else is accepted; the recipient is never taken from the request.
  */
 
 function authorized(req: NextRequest, secret: string): boolean {
@@ -18,12 +19,13 @@ function authorized(req: NextRequest, secret: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b)
 }
 
-function conversationIdFrom(body: unknown): number | null {
+function parseBody(body: unknown): { conversationId: number; mode: 'standard' | 'immediate' } | null {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null
-  const keys = Object.keys(body)
-  if (keys.length !== 1 || keys[0] !== 'conversationId') return null
-  const id = (body as { conversationId: unknown }).conversationId
-  return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null
+  const { conversationId: id, mode, ...rest } = body as Record<string, unknown>
+  if (Object.keys(rest).length) return null
+  if (mode !== undefined && mode !== 'immediate') return null
+  if (!(typeof id === 'number' && Number.isSafeInteger(id) && id > 0)) return null
+  return { conversationId: id, mode: mode === 'immediate' ? 'immediate' : 'standard' }
 }
 
 export async function POST(req: NextRequest) {
@@ -32,12 +34,13 @@ export async function POST(req: NextRequest) {
   if (!secret) return new NextResponse('Internal Server Error', { status: 500 })
   if (!authorized(req, secret)) return new NextResponse('Forbidden', { status: 403 })
 
-  const conversationId = conversationIdFrom(await req.json().catch(() => null))
-  if (!conversationId) return NextResponse.json({ ok: false, reason: 'invalid_body' }, { status: 400 })
+  const parsed = parseBody(await req.json().catch(() => null))
+  if (!parsed) return NextResponse.json({ ok: false, reason: 'invalid_body' }, { status: 400 })
+  const { conversationId, mode } = parsed
 
   try {
-    const result = await sendOneOffReminder({ conversationId })
-    console.log('[OwnerWaReminder][one-off]', { conversationId, ...result })
+    const result = await sendOneOffReminder({ conversationId, mode })
+    console.log('[OwnerWaReminder][one-off]', { conversationId, mode, ...result })
     return NextResponse.json({ ok: result.outcome === 'sent', ...result }, { status: result.outcome === 'refused' ? 409 : 200 })
   } catch (err) {
     // An interrupted attempt leaves its delivery `sending`: it is never resent.
