@@ -27,6 +27,8 @@ export const ACCOUNT_PAUSE_MS = 60 * 60 * 1000
 export const REMINDER_CONVERSATION_LOCK_NAMESPACE = 20261013
 /** Advisory-lock namespace (int4) serialising one-off test sends per recipient. */
 export const ONE_OFF_RECIPIENT_LOCK_NAMESPACE = 20261018
+/** One-off test send, `immediate` mode only: the hand-off's minimum wait. The cron keeps REMINDER_DELAY_MS. */
+export const ONE_OFF_IMMEDIATE_DELAY_MS = 60_000
 
 /**
  * The template, as it must be submitted to Meta (UTILITY, Hebrew). Nothing in

@@ -166,6 +166,13 @@ curl -s -X POST -H "Authorization: Bearer $CRON_SECRET" -H 'Content-Type: applic
 Then unset the variable and redeploy. API acceptance is `outcome: "sent"` with a
 `wamid`; delivery is only `delivered`/`read` in `owner_whatsapp_message_status`.
 
+**Immediate test mode:** add `"mode": "immediate"` to the body to accept a
+hand-off that has waited at least 1 minute instead of 120. The approved
+template is unchanged; its `{{1}}` then states the true wait in minutes
+(`דקה`, `5 דקות`; hours from 60 minutes on), so the message never claims a
+longer wait. Every other gate above applies unchanged, including single use.
+The cron and the standard one-off keep the 120-minute rule.
+
 ## Verification queries (read-only)
 
 ```sql

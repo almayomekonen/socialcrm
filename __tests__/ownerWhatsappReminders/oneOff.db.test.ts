@@ -2,11 +2,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { db } from '@/config/db'
 import { claimOneOffDelivery, recheckBeforeSend } from '@/db/ownerWhatsappReminders/oneOff'
 import { ONE_OFF_AGENCY_ID, sendOneOffReminder } from '@/lib/ownerWhatsappReminders/oneOffSend'
-import { SENDING_LEASE_MS } from '@/lib/ownerWhatsappReminders/constants'
-import { tickOwnerWhatsappReminders } from '@/lib/ownerWhatsappReminders/tick'
-import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
+import { REMINDER_DELAY_MS } from '@/lib/ownerWhatsappReminders/constants'
 import { sendOwnerReminder } from '@/lib/whatsapp/platform/sendReminder'
-import { MIN, PLATFORM, TOKEN, ago, agency, cleanup, clearEnv, conversation, deliveries, escalate, message, mockGraph, recipient, resetBetweenTests, sentTo, setLiveEnv, user } from './reminderFixtures'
+import { MIN, PLATFORM, ago, agency, cleanup, clearEnv, conversation, deliveries, escalate, message, mockGraph, recipient, resetBetweenTests, sentTo, user } from './reminderFixtures'
+import { dueHandoff, json, liveCronLater, setOneOffEnv, stop } from './oneOffFixtures'
 
 /**
  * The one-off test send: agency 103 only, the one configured recipient, one
@@ -20,36 +19,6 @@ import { MIN, PLATFORM, TOKEN, ago, agency, cleanup, clearEnv, conversation, del
 const A = ONE_OFF_AGENCY_ID
 let B: number
 let seq = 0
-
-function setOneOffEnv(recipientId: number) {
-  process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = PLATFORM
-  process.env.PLATFORM_WHATSAPP_ACCESS_TOKEN = TOKEN
-  process.env.OWNER_WA_REMINDERS_AGENCY_IDS = String(A)
-  process.env.OWNER_WA_ONE_OFF_RECIPIENT_ID = String(recipientId)
-  delete process.env.OWNER_WA_REMINDERS_SEND_ENABLED
-}
-
-/** A due hand-off in agency 103 with one active ADMIN recipient. */
-async function dueHandoff(digits: string, opts: { escalatedAgo?: number; verifiedAt?: Date } = {}) {
-  const admin = await user(A)
-  const recipientId = await recipient(A, admin, digits, opts.verifiedAt)
-  const c = await conversation(A, { lead: false })
-  const escalatedAt = ago(opts.escalatedAgo ?? 121 * MIN)
-  await escalate(c, escalatedAt)
-  setOneOffEnv(recipientId)
-  return { c, admin, recipientId, escalatedAt }
-}
-
-const stop = (digits: string) =>
-  processPlatformMessage({ id: `wamid.__owr_oneoff_stop_${++seq}`, from: digits, timestamp: String(Math.floor(Date.now() / 1000)), type: 'text', text: { body: 'הסר' } })
-
-/** The cron, live, after the sending lease expired: it must never send any of these. */
-async function liveCronLater() {
-  setLiveEnv([A])
-  return tickOwnerWhatsappReminders({ now: new Date(Date.now() + SENDING_LEASE_MS + MIN) })
-}
-
-const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status })
 
 beforeAll(async () => {
   await agency('__owr_oneoff_103__', A)
@@ -244,10 +213,10 @@ describe('opt-out compatibility', () => {
   it('an opt-out committed after the claim and before the fresh read cancels the send', async () => {
     const h = await dueHandoff('972500000951')
     const now = new Date()
-    const claimed = await claimOneOffDelivery({ recipientId: h.recipientId, agencyId: A, conversationId: h.c.id, agencyIds: [A], now })
+    const claimed = await claimOneOffDelivery({ recipientId: h.recipientId, agencyId: A, conversationId: h.c.id, agencyIds: [A], delayMs: REMINDER_DELAY_MS, now })
     if (claimed.ok === false) throw new Error(claimed.reason)
     expect(await stop('972500000951')).toBe('opted_out')
-    expect(await recheckBeforeSend({ recipientId: h.recipientId, agencyId: A, conversationId: h.c.id, claim: claimed.claim, agencyIds: [A], now })).toEqual({ ok: false, reason: 'recipient_not_active' })
+    expect(await recheckBeforeSend({ recipientId: h.recipientId, agencyId: A, conversationId: h.c.id, claim: claimed.claim, agencyIds: [A], delayMs: REMINDER_DELAY_MS, now })).toEqual({ ok: false, reason: 'recipient_not_active' })
   })
 
   it('a settings opt-out before the call: refused, no request', async () => {
@@ -343,3 +312,4 @@ describe('process interruption', () => {
     expect(g.calls).toHaveLength(1)
   })
 })
+

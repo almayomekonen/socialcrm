@@ -10,7 +10,8 @@ import {
   platformWhatsappPhoneNumberId,
 } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendOwnerReminder } from '@/lib/whatsapp/platform/sendReminder'
-import { waitingTimeHebrew } from './waitingTime'
+import { ONE_OFF_IMMEDIATE_DELAY_MS, REMINDER_DELAY_MS } from './constants'
+import { waitingTimeHebrew, waitingTimeHebrewWithMinutes } from './waitingTime'
 
 /**
  * ONE real owner reminder, on request, for a test: agency 103 only, to the one
@@ -25,6 +26,11 @@ import { waitingTimeHebrew } from './waitingTime'
  *      NO transaction open;
  *   4. the outcome via the guarded `recordOutcome`. Never retried: a timeout,
  *      network error or 5xx is `unknown`, a rate limit is `failed`.
+ *
+ * Mode `standard` uses the cron's 120-minute minimum wait. Mode `immediate`
+ * (test only) accepts a hand-off waiting 1 minute and states the wait exactly,
+ * in minutes ("5 דקות"), in the same approved template's {{1}}. Every other
+ * rule is the same in both modes; the cron's own threshold never changes.
  *
  * Residual race: an opt-out committed after step 3's read and before Meta
  * receives the request (at most the 8-second request bound, in practice
@@ -44,11 +50,15 @@ export type OneOffResult =
   | { outcome: 'unknown'; deliveryId: number; reason: string }
   | { outcome: 'failed'; deliveryId: number; scope: string; code: string | null }
 
+export type OneOffMode = 'standard' | 'immediate'
+
 export async function sendOneOffReminder(
-  input: { conversationId: number; now?: Date },
+  input: { conversationId: number; mode?: OneOffMode; now?: Date },
   deps: { send: typeof sendOwnerReminder } = { send: sendOwnerReminder },
 ): Promise<OneOffResult> {
   const now = input.now ?? new Date()
+  const immediate = input.mode === 'immediate'
+  const delayMs = immediate ? ONE_OFF_IMMEDIATE_DELAY_MS : REMINDER_DELAY_MS
   const agencyId = ONE_OFF_AGENCY_ID
   const recipientId = ownerWhatsappOneOffRecipientId()
   if (!recipientId) return { outcome: 'refused', reason: 'not_configured' }
@@ -59,12 +69,12 @@ export async function sendOneOffReminder(
   if (!phoneNumberId || !accessToken) return { outcome: 'refused', reason: 'platform_not_configured' }
   if (withinQuietHours((await quietHoursByAgency([agencyId])).get(agencyId), now)) return { outcome: 'refused', reason: 'quiet_hours' }
 
-  const claimed = await claimOneOffDelivery({ recipientId, agencyId, conversationId: input.conversationId, agencyIds, now })
+  const claimed = await claimOneOffDelivery({ recipientId, agencyId, conversationId: input.conversationId, agencyIds, delayMs, now })
   if (claimed.ok === false) return { outcome: 'refused', reason: claimed.reason }
   const { claim } = claimed
   const deliveryId = claim.deliveryId
 
-  const fresh = await recheckBeforeSend({ recipientId, agencyId, conversationId: input.conversationId, claim, agencyIds, now })
+  const fresh = await recheckBeforeSend({ recipientId, agencyId, conversationId: input.conversationId, claim, agencyIds, delayMs, now })
   if (fresh.ok === false) {
     await recordOutcome(db, deliveryId, { status: 'cancelled', cancelReason: fresh.reason })
     await finalizeReminders()
@@ -75,7 +85,7 @@ export async function sendOneOffReminder(
     phoneNumberId,
     accessToken,
     toE164: fresh.phoneE164,
-    waitingText: waitingTimeHebrew(claim.escalatedAt, now),
+    waitingText: immediate ? waitingTimeHebrewWithMinutes(claim.escalatedAt, now) : waitingTimeHebrew(claim.escalatedAt, now),
     conversationId: input.conversationId,
     deliveryId,
   })
