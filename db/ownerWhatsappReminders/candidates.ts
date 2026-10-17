@@ -19,6 +19,13 @@ import type { ActiveRecipient } from '@/lib/ownerWhatsappReminders/selectRecipie
  * WhatsApp Business app; AI, automation, history and failed sends are not.
  */
 
+/**
+ * `escalatedAt` is for arithmetic (waiting time, recipient selection): a JS Date
+ * keeps milliseconds only. `escalatedAtExact` is PostgreSQL's own text of the
+ * timestamp, microseconds included, and is the ONLY value used to match or
+ * store the escalation in SQL (`= :x::timestamptz`, the reminders unique key).
+ * Round-tripping the Date instead never matches a real escalation.
+ */
 export type ReminderCandidate = {
   conversationId: number
   agencyId: number
@@ -26,6 +33,7 @@ export type ReminderCandidate = {
   handlerUserId: number | null
   customerWaId: string | null
   escalatedAt: Date
+  escalatedAtExact: string
 }
 
 /** The eligibility conditions, shared by the finder and the send-time re-check. */
@@ -76,7 +84,7 @@ export function cooldownSql(cv: string, excludeReminderSql = 'NULL'): string {
 export async function findReminderCandidates(now: Date, agencyIds: number[], limit: number): Promise<ReminderCandidate[]> {
   if (!agencyIds.length) return []
   const { rows } = await db.raw(
-    `SELECT cv.id AS "conversationId", cv."agencyId", cv."leadId", cv."customerWaId", ai."escalatedAt", c."handlerId"
+    `SELECT cv.id AS "conversationId", cv."agencyId", cv."leadId", cv."customerWaId", ai."escalatedAt", ai."escalatedAt"::text AS "escalatedAtExact", c."handlerId"
        FROM conversation_ai_state ai
        JOIN inbox_conversations cv ON cv.id = ai."conversationId" AND cv."agencyId" = ai."agencyId"
        LEFT JOIN clients c ON c.id = cv."leadId" AND c."agencyId" = cv."agencyId"
@@ -97,6 +105,7 @@ export async function findReminderCandidates(now: Date, agencyIds: number[], lim
     handlerUserId: r.handlerId == null ? null : Number(r.handlerId),
     customerWaId: (r.customerWaId as string | null) ?? null,
     escalatedAt: new Date(r.escalatedAt as string),
+    escalatedAtExact: String(r.escalatedAtExact),
   }))
 }
 

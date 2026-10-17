@@ -141,8 +141,14 @@ hand-off, without `OWNER_WA_REMINDERS_SEND_ENABLED`
   cron's own rules for that hand-off. The conversation must be eligible now
   (escalated 120 minutes to 24 hours ago, open, no human reply, lead not
   closed/lost, no cooldown). Refused inside quiet hours.
-- **Single use:** refused once the recipient has any delivery row.
-  Concurrent requests serialise on an advisory lock; exactly one reaches Meta.
+- **Single use:** refused once the recipient has any delivery row that is not
+  `cancelled` (`cancelled` is only ever written before a Meta request, so it
+  does not use up the allowance; `sending`, `sent`, `unknown`, `failed` and
+  `scheduled` do). Concurrent requests serialise on an advisory lock; exactly
+  one reaches Meta.
+- **Exact escalation time:** the hand-off is matched and stored with
+  PostgreSQL's exact `escalatedAt` (microseconds), never a JS `Date`
+  (milliseconds), in the cron and the one-off alike.
 - **No transaction during the Meta request.** The delivery is committed as
   `sending` first (the cron never claims `sending`), consent and eligibility are
   re-read immediately before the request, and the outcome is written after it.

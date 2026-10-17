@@ -22,6 +22,8 @@ export type ClaimedDelivery = {
   conversationId: number
   attempts: number
   escalatedAt: Date
+  /** PostgreSQL's exact text of the escalation; see ReminderCandidate. */
+  escalatedAtExact: string
 }
 
 /** A send that may have reached Meta is never repeated: stale `sending` becomes `unknown`. */
@@ -57,7 +59,7 @@ export async function claimDueDeliveries(now: Date, limit: number): Promise<Clai
            LIMIT :limit
            FOR UPDATE SKIP LOCKED
         )
-      RETURNING d.id, d."reminderId", d."recipientId", d."agencyId", d."conversationId", d.attempts, r."escalatedAt"`,
+      RETURNING d.id, d."reminderId", d."recipientId", d."agencyId", d."conversationId", d.attempts, r."escalatedAt", r."escalatedAt"::text AS "escalatedAtExact"`,
     { now, limit },
   )
   return rows.map((r: Record<string, unknown>) => ({
@@ -68,6 +70,7 @@ export async function claimDueDeliveries(now: Date, limit: number): Promise<Clai
     conversationId: Number(r.conversationId),
     attempts: Number(r.attempts),
     escalatedAt: new Date(r.escalatedAt as string),
+    escalatedAtExact: String(r.escalatedAtExact),
   }))
 }
 
@@ -101,10 +104,10 @@ export async function lockAndRecheck(
        FROM conversation_ai_state ai
        JOIN inbox_conversations cv ON cv.id = ai."conversationId" AND cv."agencyId" = ai."agencyId"
        LEFT JOIN clients c ON c.id = cv."leadId" AND c."agencyId" = cv."agencyId"
-      WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAt
+      WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAtExact::timestamptz
         AND ${eligibilitySql('cv', 'ai', 'c')}
         AND ${cooldownSql('cv', ':reminderId::bigint')}`,
-    { ...windowBindings(now, agencyIds), conversationId: d.conversationId, agencyId: d.agencyId, escalatedAt: d.escalatedAt, reminderId: d.reminderId },
+    { ...windowBindings(now, agencyIds), conversationId: d.conversationId, agencyId: d.agencyId, escalatedAtExact: d.escalatedAtExact, reminderId: d.reminderId },
   )
   if (!rows.length) return { ok: false, reason: 'no_longer_eligible' }
   return { ok: true, recipient: { phoneE164: recipient.phoneE164 } }

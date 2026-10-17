@@ -61,6 +61,26 @@ export async function escalate(conv: { id: number; agencyId: number }, at: Date)
     .merge({ aiState: 'escalated', escalatedAt: at })
 }
 
+/**
+ * An escalation written the way production writes it: by PostgreSQL, with
+ * microseconds (here `at` plus 493 µs). A JS Date can never hold this value, so
+ * any code path that round-trips it through a Date fails to match it.
+ */
+export async function escalateWithMicros(conv: { id: number; agencyId: number }, at: Date): Promise<void> {
+  await db.raw(
+    `INSERT INTO conversation_ai_state ("conversationId", "agencyId", "aiState", "escalatedAt", "escalationReason")
+     VALUES (?, ?, 'escalated', ?::timestamptz + interval '493 microseconds', 'human_request')
+     ON CONFLICT ("conversationId") DO UPDATE SET "aiState" = 'escalated', "escalatedAt" = EXCLUDED."escalatedAt"`,
+    [conv.id, conv.agencyId, at.toISOString()],
+  )
+}
+
+/** PostgreSQL's exact text of a conversation's escalation timestamp. */
+export async function exactEscalatedAt(conversationId: number): Promise<string> {
+  const { rows } = await db.raw('SELECT "escalatedAt"::text AS e FROM conversation_ai_state WHERE "conversationId" = ?', [conversationId])
+  return String(rows[0].e)
+}
+
 export async function message(conv: { id: number; agencyId: number }, m: { dir: 'inbound' | 'outbound'; at: Date; source?: string; userId?: number | null }) {
   await db('inbox_messages').insert({
     conversationId: conv.id, agencyId: conv.agencyId, channel: 'whatsapp', direction: m.dir,
