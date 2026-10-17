@@ -3,7 +3,7 @@ import { db } from '@/config/db'
 import { scheduleReminder } from '@/db/ownerWhatsappReminders/schedule'
 import { tickOwnerWhatsappReminders } from '@/lib/ownerWhatsappReminders/tick'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
-import { MIN, ago, agency, cleanup, conversation, deliveries, escalate, message, mockGraph, recipient, resetBetweenTests, setLiveEnv, user } from './reminderFixtures'
+import { MIN, ago, agency, cleanup, conversation, deliveries, escalate, exactEscalatedAt, message, mockGraph, recipient, resetBetweenTests, setLiveEnv, user } from './reminderFixtures'
 
 /**
  * Sending: the re-check under lock, opt-out ordering, concurrency, unknown
@@ -39,7 +39,7 @@ async function dueHandoff(digits: string) {
 async function scheduleOnly(h: Awaited<ReturnType<typeof dueHandoff>>) {
   const now = new Date()
   const out = await scheduleReminder({
-    candidate: { conversationId: h.c.id, agencyId: A, leadId: null, handlerUserId: null, customerWaId: h.c.customerWaId, escalatedAt: h.escalatedAt },
+    candidate: { conversationId: h.c.id, agencyId: A, leadId: null, handlerUserId: null, customerWaId: h.c.customerWaId, escalatedAt: h.escalatedAt, escalatedAtExact: await exactEscalatedAt(h.c.id) },
     recipientIds: [h.recipientId], agencyIds: [A], notBefore: new Date(now.getTime() + 60 * MIN), now,
   })
   expect(out).toBe('scheduled')

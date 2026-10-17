@@ -26,14 +26,14 @@ export async function scheduleReminder(input: {
          FROM conversation_ai_state ai
          JOIN inbox_conversations cv ON cv.id = ai."conversationId" AND cv."agencyId" = ai."agencyId"
          LEFT JOIN clients c ON c.id = cv."leadId" AND c."agencyId" = cv."agencyId"
-        WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAt
+        WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAtExact::timestamptz
           AND ${eligibilitySql('cv', 'ai', 'c')}
           AND ${cooldownSql('cv')}`,
-      { ...windowBindings(input.now, input.agencyIds), conversationId: candidate.conversationId, agencyId: candidate.agencyId, escalatedAt: candidate.escalatedAt },
+      { ...windowBindings(input.now, input.agencyIds), conversationId: candidate.conversationId, agencyId: candidate.agencyId, escalatedAtExact: candidate.escalatedAtExact },
     )
     if (!rows.length) return 'skipped'
     const inserted = await trx('owner_whatsapp_reminders')
-      .insert({ agencyId: candidate.agencyId, conversationId: candidate.conversationId, escalatedAt: candidate.escalatedAt, status: 'scheduled' })
+      .insert({ agencyId: candidate.agencyId, conversationId: candidate.conversationId, escalatedAt: candidate.escalatedAtExact, status: 'scheduled' })
       .onConflict(['conversationId', 'escalatedAt'])
       .ignore()
       .returning('id')

@@ -8,8 +8,9 @@ import { cooldownSql, eligibilitySql, loadActiveRecipients, windowBindings } fro
  * Unlike `sendClaimedDelivery`, no transaction stays open while Meta is called:
  *
  *   claimOneOffDelivery   ONE short transaction: serialise on the recipient,
- *                         refuse if the recipient ever had a delivery (single
- *                         use), re-check the recipient, the conversation and
+ *                         refuse if the recipient has any delivery that is not
+ *                         `cancelled` (single use: `cancelled` is only ever
+ *                         written before a Meta request), re-check the recipient, the conversation and
  *                         the recipient selection under the cron's conversation
  *                         lock, then insert the reminder and its delivery
  *                         DIRECTLY as `sending`. The cron only claims
@@ -31,7 +32,8 @@ export type OneOffRefusal =
   | 'recipient_not_selected'
   | 'already_reminded'
 
-export type OneOffClaim = { deliveryId: number; reminderId: number; escalatedAt: Date }
+/** `escalatedAtExact` is PostgreSQL's exact text of the escalation (see ReminderCandidate). */
+export type OneOffClaim = { deliveryId: number; reminderId: number; escalatedAt: Date; escalatedAtExact: string }
 
 /** The cron's window, with the minimum wait set by the caller (the cron's own bindings are untouched). */
 function oneOffBindings(now: Date, agencyIds: number[], delayMs: number) {
@@ -51,7 +53,10 @@ export async function claimOneOffDelivery(input: {
     // Concurrent one-off requests for this recipient queue here; the next one
     // sees the delivery the previous one committed and is refused.
     await trx.raw('SELECT pg_advisory_xact_lock(?::int, hashtext(?::text))', [ONE_OFF_RECIPIENT_LOCK_NAMESPACE, String(recipientId)])
-    if (await trx(DELIVERIES).where({ recipientId }).first('id')) return { ok: false, reason: 'already_used' }
+    // `cancelled` is written only before any Meta request (here and in the cron's
+    // sender), so it never uses up the allowance. Every other state might have
+    // reached Meta, or still could: sending, sent, unknown, failed, scheduled.
+    if (await trx(DELIVERIES).where({ recipientId }).whereNot({ status: 'cancelled' }).first('id')) return { ok: false, reason: 'already_used' }
 
     const recipient = await trx('owner_whatsapp_recipients as r')
       .join('users as u', function () {
@@ -68,7 +73,7 @@ export async function claimOneOffDelivery(input: {
     // The same lock the cron's scheduler and sender take for this conversation.
     await trx.raw('SELECT pg_advisory_xact_lock(?::int, hashtext(?::text))', [REMINDER_CONVERSATION_LOCK_NAMESPACE, String(conversationId)])
     const { rows } = await trx.raw(
-      `SELECT cv."customerWaId", ai."escalatedAt", c."handlerId"
+      `SELECT cv."customerWaId", ai."escalatedAt", ai."escalatedAt"::text AS "escalatedAtExact", c."handlerId"
          FROM conversation_ai_state ai
          JOIN inbox_conversations cv ON cv.id = ai."conversationId" AND cv."agencyId" = ai."agencyId"
          LEFT JOIN clients c ON c.id = cv."leadId" AND c."agencyId" = cv."agencyId"
@@ -78,8 +83,9 @@ export async function claimOneOffDelivery(input: {
       { ...oneOffBindings(now, input.agencyIds, input.delayMs), conversationId, agencyId },
     )
     if (!rows.length) return { ok: false, reason: 'conversation_not_eligible' }
-    const row = rows[0] as { customerWaId: string | null; escalatedAt: string | Date; handlerId: number | null }
+    const row = rows[0] as { customerWaId: string | null; escalatedAt: string | Date; escalatedAtExact: string; handlerId: number | null }
     const escalatedAt = new Date(row.escalatedAt)
+    const escalatedAtExact = String(row.escalatedAtExact)
 
     // The cron's own rules for who may receive a reminder about this hand-off.
     const selected = selectReminderRecipients({
@@ -91,7 +97,7 @@ export async function claimOneOffDelivery(input: {
     if (!selected.some((r) => r.recipientId === recipientId)) return { ok: false, reason: 'recipient_not_selected' }
 
     const inserted = await trx('owner_whatsapp_reminders')
-      .insert({ agencyId, conversationId, escalatedAt, status: 'scheduled' })
+      .insert({ agencyId, conversationId, escalatedAt: escalatedAtExact, status: 'scheduled' })
       .onConflict(['conversationId', 'escalatedAt'])
       .ignore()
       .returning('id')
@@ -100,7 +106,7 @@ export async function claimOneOffDelivery(input: {
     const [d] = await trx(DELIVERIES)
       .insert({ reminderId, recipientId, agencyId, conversationId, status: 'sending', attempts: 1, nextAttemptAt: now, lockedAt: trx.fn.now() })
       .returning('id')
-    return { ok: true, claim: { deliveryId: Number(d.id), reminderId, escalatedAt } }
+    return { ok: true, claim: { deliveryId: Number(d.id), reminderId, escalatedAt, escalatedAtExact } }
   })
 }
 
@@ -131,10 +137,10 @@ export async function recheckBeforeSend(input: {
        FROM conversation_ai_state ai
        JOIN inbox_conversations cv ON cv.id = ai."conversationId" AND cv."agencyId" = ai."agencyId"
        LEFT JOIN clients c ON c.id = cv."leadId" AND c."agencyId" = cv."agencyId"
-      WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAt
+      WHERE cv.id = :conversationId AND cv."agencyId" = :agencyId AND ai."escalatedAt" = :escalatedAtExact::timestamptz
         AND ${eligibilitySql('cv', 'ai', 'c')}
         AND ${cooldownSql('cv', ':reminderId::bigint')}`,
-    { ...oneOffBindings(input.now, input.agencyIds, input.delayMs), conversationId: input.conversationId, agencyId: input.agencyId, escalatedAt: input.claim.escalatedAt, reminderId: input.claim.reminderId },
+    { ...oneOffBindings(input.now, input.agencyIds, input.delayMs), conversationId: input.conversationId, agencyId: input.agencyId, escalatedAtExact: input.claim.escalatedAtExact, reminderId: input.claim.reminderId },
   )
   if (!rows.length) return { ok: false, reason: 'no_longer_eligible' }
   return { ok: true, phoneE164: recipient.phoneE164 }
