@@ -44,6 +44,13 @@ describe('toReadinessView', () => {
     expect(JSON.stringify(w)).not.toContain('2060714354527399')
   })
 
+  it('audience all: shows it as a boolean with the excluded count, and no allowlist count', () => {
+    const v = toReadinessView({ ready: false, checks: [{ name: 'config', ok: true, detail: { audienceAll: true, allowlistedAgencies: [], excludedAgencyCount: 1 } }] })
+    expect(v.checks[0].fields.map((f) => [f.key, f.value])).toEqual([['audienceAll', true], ['excludedAgencyCount', 1]])
+    const w = toReadinessView({ ready: false, checks: [{ name: 'config', ok: true, detail: { audienceAll: false, allowlistedAgencies: [103], excludedAgencyCount: 1 } }] })
+    expect(w.checks[0].fields.map((f) => [f.key, f.value])).toEqual([['audienceAll', false], ['allowlistedAgencyCount', 1], ['excludedAgencyCount', 1]])
+  })
+
   it('keeps only allowlisted fields, in order, with booleans, enums and integers', () => {
     const v = toReadinessView(result)
     expect(v.checks.map((c) => [c.name, c.ok])).toEqual([['config', true], ['token', true], ['phone', false], ['template', false]])

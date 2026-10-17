@@ -31,10 +31,12 @@ const ENV_KEYS = [
   'OWNER_WA_REMINDERS_AGENCY_IDS',
   'OWNER_WA_REMINDERS_SEND_ENABLED',
   'PLATFORM_WHATSAPP_ACCESS_TOKEN',
+  'OWNER_WA_REMINDERS_AUDIENCE',
+  'OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS',
 ] as const
 
 const DISABLED_MSG = '[OwnerWaReminder][tick] disabled'
-const DISABLED_SUMMARY = { mode: 'disabled', candidates: 0, scheduled: 0, noRecipients: 0, wouldRemind: 0, reaped: 0, paused: false, sends: {} }
+const DISABLED_SUMMARY = { mode: 'disabled', candidates: 0, scheduled: 0, noRecipients: 0, noAccess: 0, wouldRemind: 0, reaped: 0, paused: false, sends: {} }
 
 function expectNoDbCalls() {
   for (const fn of Object.values(db)) expect(fn).not.toHaveBeenCalled()
@@ -58,7 +60,7 @@ describe('owner WhatsApp reminders tick: disabled log line', () => {
     const summary = await tickOwnerWhatsappReminders()
     expect(summary).toEqual(DISABLED_SUMMARY)
     expect(logSpy).toHaveBeenCalledTimes(1)
-    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: false, allowlistedAgencies: 0 })
+    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: false, audience: 'list', allowlistedAgencies: 0 })
     expectNoDbCalls()
   })
 
@@ -67,7 +69,7 @@ describe('owner WhatsApp reminders tick: disabled log line', () => {
     const summary = await tickOwnerWhatsappReminders()
     expect(summary).toEqual(DISABLED_SUMMARY)
     expect(logSpy).toHaveBeenCalledTimes(1)
-    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: true, allowlistedAgencies: 0 })
+    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: true, audience: 'list', allowlistedAgencies: 0 })
     expectNoDbCalls()
   })
 
@@ -76,8 +78,37 @@ describe('owner WhatsApp reminders tick: disabled log line', () => {
     const summary = await tickOwnerWhatsappReminders()
     expect(summary).toEqual(DISABLED_SUMMARY)
     expect(logSpy).toHaveBeenCalledTimes(1)
-    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: false, allowlistedAgencies: 1 })
+    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: false, audience: 'list', allowlistedAgencies: 1 })
     expectNoDbCalls()
+  })
+
+  it('audience all, no platform number: still disabled', async () => {
+    process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
+    const summary = await tickOwnerWhatsappReminders()
+    expect(summary).toEqual(DISABLED_SUMMARY)
+    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: false, audience: 'all', allowlistedAgencies: null })
+    expectNoDbCalls()
+  })
+
+  it('an allowlist of only excluded agencies (158) is an empty audience: disabled', async () => {
+    process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = '1000000000001'
+    process.env.OWNER_WA_REMINDERS_AGENCY_IDS = '158'
+    expect(await tickOwnerWhatsappReminders()).toEqual(DISABLED_SUMMARY)
+    expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: true, audience: 'list', allowlistedAgencies: 0 })
+    expectNoDbCalls()
+  })
+
+  it('audience all with a platform number is not disabled (dry run without the send flag)', async () => {
+    process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = '1000000000001'
+    process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
+    db.findReminderCandidates.mockResolvedValue([])
+    db.loadActiveRecipients.mockResolvedValue(new Map())
+    db.quietHoursByAgency.mockResolvedValue(new Map())
+    const summary = await tickOwnerWhatsappReminders()
+    expect(summary.mode).toBe('dry_run')
+    expect(db.findReminderCandidates).toHaveBeenCalledWith(expect.any(Date), expect.objectContaining({ mode: 'all' }), expect.any(Number))
+    expect(db.scheduleReminder).not.toHaveBeenCalled()
+    expect(db.claimDueDeliveries).not.toHaveBeenCalled()
   })
 
   it('the logged object never carries the phone number id or agency ids', async () => {

@@ -1,5 +1,6 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
+import { isEmptyScope, scopeBindings, type AgencyScope } from '@/db/ownerWhatsappReminders/candidates'
 
 /**
  * owner_whatsapp_recipients: every state change is one guarded statement.
@@ -110,9 +111,10 @@ export async function optOutByPhone(trx: Knex.Transaction, phoneE164: string, me
  */
 export async function activateByCode(
   trx: Knex.Transaction,
-  input: { codeHash: string; phoneE164: string; messageTimestamp: number; agencyIds: number[] },
+  input: { codeHash: string; phoneE164: string; messageTimestamp: number; agencyIds: AgencyScope },
 ): Promise<{ agencyId: number; userId: number } | null> {
-  if (!input.agencyIds.length) return null
+  if (isEmptyScope(input.agencyIds)) return null
+  const scope = scopeBindings(input.agencyIds)
   const { rows } = await trx.raw(
     `UPDATE ${TABLE} r
         SET status = 'active', "phoneE164" = ?, "verifiedAt" = now(), "activationMessageTimestamp" = ?,
@@ -120,11 +122,12 @@ export async function activateByCode(
       WHERE r."activationCodeHash" = ?
         AND r."activationExpiresAt" > now()
         AND r.status = 'pending'
-        AND r."agencyId" = ANY(?::int[])
+        AND (?::boolean OR r."agencyId" = ANY(?::int[]))
+        AND NOT (r."agencyId" = ANY(?::int[]))
         AND EXISTS (SELECT 1 FROM users u
                      WHERE u.id = r."userId" AND u."agencyId" = r."agencyId" AND u.suspended IS NOT TRUE)
       RETURNING r."agencyId", r."userId"`,
-    [input.phoneE164, input.messageTimestamp, input.codeHash, `{${input.agencyIds.join(',')}}`],
+    [input.phoneE164, input.messageTimestamp, input.codeHash, scope.allAgencies, scope.agencyIds, scope.excludedAgencyIds],
   )
   const row = rows[0]
   return row ? { agencyId: Number(row.agencyId), userId: Number(row.userId) } : null

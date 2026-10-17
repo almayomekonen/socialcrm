@@ -2,6 +2,8 @@ import { db } from '@/config/db'
 import { lockAndRecheck, recordOutcome, type ClaimedDelivery } from '@/db/ownerWhatsappReminders/deliveries'
 import { nextAllowedAfterQuietHours, withinQuietHours } from '@/lib/inbox/autoresponse/noResponseClose'
 import { sendOwnerReminder } from '@/lib/whatsapp/platform/sendReminder'
+import type { AgencyScope } from '@/db/ownerWhatsappReminders/candidates'
+import { hasReminderProductAccess } from './productAccess'
 import { RATE_LIMIT_BACKOFF_MS } from './constants'
 import { waitingTimeHebrew } from './waitingTime'
 
@@ -17,7 +19,7 @@ export type DeliveryResult = 'sent' | 'unknown' | 'failed' | 'retry' | 'cancelle
  */
 export async function sendClaimedDelivery(input: {
   delivery: ClaimedDelivery
-  agencyIds: number[]
+  agencyIds: AgencyScope
   quietHours: QuietHours
   phoneNumberId: string
   accessToken: string
@@ -28,6 +30,12 @@ export async function sendClaimedDelivery(input: {
     const check = await lockAndRecheck(trx, d, input.agencyIds, now)
     if (check.ok === false) {
       await recordOutcome(trx, d.id, { status: 'cancelled', cancelReason: check.reason })
+      return 'cancelled'
+    }
+    // Product access, immediately before the send and failing closed: an
+    // agency whose trial ended after scheduling is never reminded.
+    if (!(await hasReminderProductAccess(d.agencyId, now))) {
+      await recordOutcome(trx, d.id, { status: 'cancelled', cancelReason: 'agency_no_access' })
       return 'cancelled'
     }
     if (withinQuietHours(input.quietHours, now)) {

@@ -1,7 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { ACCOUNT_PAUSE_MS, REMINDER_CONVERSATION_LOCK_NAMESPACE, SENDING_LEASE_MS } from '@/lib/ownerWhatsappReminders/constants'
-import { cooldownSql, eligibilitySql, windowBindings } from './candidates'
+import { cooldownSql, eligibilitySql, windowBindings, type AgencyScope } from './candidates'
 
 /**
  * The delivery lifecycle. Every transition is a guarded statement.
@@ -88,7 +88,7 @@ export type LockedRecipient = { phoneE164: string }
 export async function lockAndRecheck(
   trx: Knex.Transaction,
   d: ClaimedDelivery,
-  agencyIds: number[],
+  agencyIds: AgencyScope,
   now: Date,
 ): Promise<{ ok: true; recipient: LockedRecipient } | { ok: false; reason: string }> {
   await trx.raw('SELECT pg_advisory_xact_lock(?::int, hashtext(?::text))', [REMINDER_CONVERSATION_LOCK_NAMESPACE, String(d.conversationId)])

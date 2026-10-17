@@ -66,13 +66,15 @@ beforeEach(async () => {
   process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = '1000000000001'
   process.env.PLATFORM_WHATSAPP_WA_ME_NUMBER = '972500000000'
   process.env.OWNER_WA_REMINDERS_AGENCY_IDS = String(A)
+  delete process.env.OWNER_WA_REMINDERS_AUDIENCE
+  delete process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS
   session.access = true
   await db('owner_whatsapp_recipients').del()
   await db('platform_whatsapp_inbound').del()
 })
 
 afterAll(async () => {
-  for (const k of ['PLATFORM_WHATSAPP_PHONE_NUMBER_ID', 'PLATFORM_WHATSAPP_WA_ME_NUMBER', 'OWNER_WA_REMINDERS_AGENCY_IDS']) delete process.env[k]
+  for (const k of ['PLATFORM_WHATSAPP_PHONE_NUMBER_ID', 'PLATFORM_WHATSAPP_WA_ME_NUMBER', 'OWNER_WA_REMINDERS_AGENCY_IDS', 'OWNER_WA_REMINDERS_AUDIENCE', 'OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS']) delete process.env[k]
   await db('owner_whatsapp_recipients').del()
   await db('platform_whatsapp_inbound').del()
   await db('users').whereIn('agencyId', agencies).del()
@@ -193,5 +195,43 @@ describe('the settings page gate', () => {
     await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
     process.env.OWNER_WA_REMINDERS_AGENCY_IDS = String(A)
     await expect(page()).resolves.toBeTruthy()
+  })
+
+  it('audience all: renders for an agency in no list, never for 158 or an excluded agency', async () => {
+    const { default: page } = await import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page')
+    process.env.OWNER_WA_REMINDERS_AGENCY_IDS = ''
+    process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
+    as(ua, A)
+    await expect(page()).resolves.toBeTruthy()
+    as(u158, EXCLUDED)
+    await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
+    process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS = String(A)
+    as(ua, A)
+    await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
+  })
+
+  it('404s without product access (expired trial), whatever the audience', async () => {
+    const { default: page } = await import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page')
+    process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
+    const DAY = 86_400_000
+    await db('agencies').where({ id: A }).update({ plan: 'free', trialStartedAt: new Date(Date.now() - 10 * DAY), trialEndsAt: new Date(Date.now() - 3 * DAY) })
+    try {
+      as(ua, A)
+      await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
+    } finally {
+      await db('agencies').where({ id: A }).update({ plan: 'pro', trialStartedAt: null, trialEndsAt: null })
+    }
+  })
+})
+
+describe('starting activation in audience all', () => {
+  it('works for an agency in no explicit list; refused for 158', async () => {
+    process.env.OWNER_WA_REMINDERS_AGENCY_IDS = ''
+    process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
+    as(ua, A)
+    expect(await startWhatsappReminderActivation({ consent: true })).toMatchObject({ ok: true })
+    as(u158, EXCLUDED)
+    expect(await startWhatsappReminderActivation({ consent: true })).toEqual({ fail: true, msg: 'התזכורות אינן זמינות לחשבון זה' })
+    expect(await row(EXCLUDED, u158)).toBeUndefined()
   })
 })
