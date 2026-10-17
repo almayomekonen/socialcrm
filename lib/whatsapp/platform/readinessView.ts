@@ -66,7 +66,9 @@ const SPECS: Record<ReadinessCheck['name'], Spec[]> = {
     { key: 'appId', label: 'מזהה אפליקציה מוגדר', read: (d) => asBool(d.appId) },
     { key: 'appSecret', label: 'סוד אפליקציה מוגדר', read: (d) => asBool(d.appSecret) },
     { key: 'sendEnabled', label: 'שליחה מופעלת', read: (d) => asBool(d.sendEnabled) },
-    { key: 'allowlistedAgencyCount', label: 'סוכנויות ברשימת ההיתר', read: (d) => (Array.isArray(d.allowlistedAgencies) ? d.allowlistedAgencies.length : null) },
+    { key: 'audienceAll', label: 'פתוח לכל החשבונות הזכאים', read: (d) => asBool(d.audienceAll) },
+    { key: 'allowlistedAgencyCount', label: 'סוכנויות ברשימת ההיתר', read: (d) => (d.audienceAll === true ? null : Array.isArray(d.allowlistedAgencies) ? d.allowlistedAgencies.length : null) },
+    { key: 'excludedAgencyCount', label: 'סוכנויות מוחרגות', read: (d) => asInt(d.excludedAgencyCount) },
   ],
   token: [
     { key: 'isValid', label: 'טוקן תקף', read: (d) => asBool(d.isValid) },

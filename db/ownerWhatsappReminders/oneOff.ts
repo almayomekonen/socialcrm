@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { ONE_OFF_RECIPIENT_LOCK_NAMESPACE, REMINDER_CONVERSATION_LOCK_NAMESPACE } from '@/lib/ownerWhatsappReminders/constants'
 import { selectReminderRecipients } from '@/lib/ownerWhatsappReminders/selectRecipients'
-import { cooldownSql, eligibilitySql, loadActiveRecipients, windowBindings } from './candidates'
+import { cooldownSql, eligibilitySql, loadActiveRecipients, windowBindings, type AgencyScope } from './candidates'
 
 /**
  * Database steps of the one-off test send (lib/ownerWhatsappReminders/oneOffSend.ts).
@@ -36,7 +36,7 @@ export type OneOffRefusal =
 export type OneOffClaim = { deliveryId: number; reminderId: number; escalatedAt: Date; escalatedAtExact: string }
 
 /** The cron's window, with the minimum wait set by the caller (the cron's own bindings are untouched). */
-function oneOffBindings(now: Date, agencyIds: number[], delayMs: number) {
+function oneOffBindings(now: Date, agencyIds: AgencyScope, delayMs: number) {
   return { ...windowBindings(now, agencyIds), delayCutoff: new Date(now.getTime() - delayMs) }
 }
 
@@ -44,7 +44,7 @@ export async function claimOneOffDelivery(input: {
   recipientId: number
   agencyId: number
   conversationId: number
-  agencyIds: number[]
+  agencyIds: AgencyScope
   delayMs: number
   now: Date
 }): Promise<{ ok: true; claim: OneOffClaim } | { ok: false; reason: OneOffRefusal }> {
@@ -119,7 +119,7 @@ export async function recheckBeforeSend(input: {
   agencyId: number
   conversationId: number
   claim: OneOffClaim
-  agencyIds: number[]
+  agencyIds: AgencyScope
   delayMs: number
   now: Date
 }): Promise<{ ok: true; phoneE164: string } | { ok: false; reason: 'recipient_not_active' | 'no_longer_eligible' }> {

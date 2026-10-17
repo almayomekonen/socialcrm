@@ -1,7 +1,7 @@
 import { GRAPH_BASE } from '@/lib/facebook/graph'
 import {
   isOwnerWhatsappReminderSendEnabled,
-  ownerWhatsappReminderAgencyIds,
+  ownerWhatsappReminderAudience,
   platformWhatsappAccessToken,
   platformWhatsappPhoneNumberId,
   platformWhatsappWabaId,
@@ -50,6 +50,12 @@ async function graphGet(path: string, token: string): Promise<{ status: number; 
 
 const graphError = (r: { status: number; body: any }) => ({ httpStatus: r.status, code: r.body?.error?.code ?? null, message: r.body?.error?.message ?? null })
 
+/** The audience as booleans/counts/ids for the config check (agency ids are not secret). */
+function audienceDetail() {
+  const a = ownerWhatsappReminderAudience()
+  return { audienceAll: a.mode === 'all', allowlistedAgencies: a.mode === 'list' ? a.agencyIds : [], excludedAgencyCount: a.excludedIds.length }
+}
+
 export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; checks: ReadinessCheck[] }> {
   const phoneId = platformWhatsappPhoneNumberId()
   const wabaId = platformWhatsappWabaId()
@@ -59,7 +65,7 @@ export async function checkOwnerReminderReadiness(): Promise<{ ready: boolean; c
   const checks: ReadinessCheck[] = []
   const config = {
     phoneNumberId: !!phoneId, wabaId: !!wabaId, accessToken: !!token, appId: !!appId, appSecret: !!appSecret,
-    sendEnabled: isOwnerWhatsappReminderSendEnabled(), allowlistedAgencies: ownerWhatsappReminderAgencyIds(),
+    sendEnabled: isOwnerWhatsappReminderSendEnabled(), ...audienceDetail(),
   }
   checks.push({ name: 'config', ok: !!(phoneId && wabaId && token && appId && appSecret), detail: config })
   if (!phoneId || !wabaId || !token) return { ready: false, checks }

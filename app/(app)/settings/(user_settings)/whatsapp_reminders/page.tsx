@@ -3,13 +3,15 @@ import { getUser } from '@/db/auth'
 import { getOwnRecipient } from '@/db/ownerWhatsappRecipients'
 import AccordionItem from '@/lib/AccordionItem'
 import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { ownerReminderView } from '@/lib/whatsapp/platform/ownerReminderView'
 import WhatsappReminderCard from '@/components/settings/whatsappReminders/WhatsappReminderCard'
 
-/** Absent outside the rollout: the nav entry is not rendered and the route 404s. */
+/** Absent outside the audience or without product access: the nav entry is not rendered and the route 404s. */
 export default async function page() {
   const user = await getUser()
   if (!user?.agencyId || !canUseOwnerWhatsappReminders(user.agencyId)) notFound()
+  if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) notFound()
 
   const view = ownerReminderView(await getOwnRecipient(user.agencyId, user.id), new Date())
 

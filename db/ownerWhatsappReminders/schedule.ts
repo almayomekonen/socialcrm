@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { REMINDER_CONVERSATION_LOCK_NAMESPACE } from '@/lib/ownerWhatsappReminders/constants'
 import type { ReminderCandidate } from './candidates'
-import { cooldownSql, eligibilitySql, windowBindings } from './candidates'
+import { cooldownSql, eligibilitySql, windowBindings, type AgencyScope } from './candidates'
 
 /**
  * Create the reminder and one delivery per recipient, atomically, under the
@@ -13,7 +13,7 @@ import { cooldownSql, eligibilitySql, windowBindings } from './candidates'
 export async function scheduleReminder(input: {
   candidate: ReminderCandidate
   recipientIds: number[]
-  agencyIds: number[]
+  agencyIds: AgencyScope
   notBefore: Date
   now: Date
 }): Promise<'scheduled' | 'skipped'> {

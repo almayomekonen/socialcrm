@@ -20,6 +20,7 @@ const REFUSAL_COPY: Record<string, string> = {
   already_reminded: 'כבר נשלחה תזכורת על ההעברה הזו.',
   quiet_hours: 'עכשיו שעות שקטות של החשבון. אפשר לנסות אחריהן.',
   agency_not_allowlisted: 'החשבון אינו ברשימת ההיתר של התזכורות.',
+  agency_no_access: 'לחשבון אין כרגע גישה פעילה למוצר.',
   platform_not_configured: 'מספר הוואטסאפ של המערכת אינו מוגדר.',
   not_configured: 'בדיקת השליחה אינה מופעלת.',
 }

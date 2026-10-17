@@ -6,7 +6,7 @@ import {
   recordPlatformInbound,
   setPlatformInboundKind,
 } from '@/db/platformWhatsappInbound'
-import { ownerWhatsappReminderAgencyIds } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { ownerWhatsappReminderAudience } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { parsePlatformStatus, recordPlatformStatus } from '@/db/platformWhatsappMessageStatus'
 import { parsePlatformCommand } from './commands'
 import { hashActivationCode, hashPlatformSender } from './keys'
@@ -84,7 +84,7 @@ export async function processPlatformMessage(message: Record<string, any>): Prom
         codeHash: hashActivationCode(command.code),
         phoneE164: `+${from}`,
         messageTimestamp,
-        agencyIds: ownerWhatsappReminderAgencyIds(),
+        agencyIds: ownerWhatsappReminderAudience(),
       }))
     if (!rejected) return 'activated'
     await setPlatformInboundKind(trx, wamid, 'activation_rejected')

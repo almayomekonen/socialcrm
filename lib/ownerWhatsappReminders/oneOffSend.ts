@@ -4,13 +4,15 @@ import { claimOneOffDelivery, recheckBeforeSend, type OneOffRefusal } from '@/db
 import { finalizeReminders, recordOutcome } from '@/db/ownerWhatsappReminders/deliveries'
 import { withinQuietHours } from '@/lib/inbox/autoresponse/noResponseClose'
 import {
+  isOwnerWhatsappReminderAgency,
   ownerWhatsappOneOffRecipientId,
-  ownerWhatsappReminderAgencyIds,
+  ownerWhatsappReminderAudience,
   platformWhatsappAccessToken,
   platformWhatsappPhoneNumberId,
 } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendOwnerReminder } from '@/lib/whatsapp/platform/sendReminder'
 import { ONE_OFF_IMMEDIATE_DELAY_MS, REMINDER_DELAY_MS } from './constants'
+import { hasReminderProductAccess } from './productAccess'
 import { waitingTimeHebrew, waitingTimeHebrewWithMinutes } from './waitingTime'
 
 /**
@@ -41,7 +43,7 @@ import { waitingTimeHebrew, waitingTimeHebrewWithMinutes } from './waitingTime'
 
 export const ONE_OFF_AGENCY_ID = 103
 
-export type OneOffConfigRefusal = 'not_configured' | 'agency_not_allowlisted' | 'platform_not_configured' | 'quiet_hours'
+export type OneOffConfigRefusal = 'not_configured' | 'agency_not_allowlisted' | 'agency_no_access' | 'platform_not_configured' | 'quiet_hours'
 
 export type OneOffResult =
   | { outcome: 'refused'; reason: OneOffConfigRefusal | OneOffRefusal }
@@ -62,8 +64,11 @@ export async function sendOneOffReminder(
   const agencyId = ONE_OFF_AGENCY_ID
   const recipientId = ownerWhatsappOneOffRecipientId()
   if (!recipientId) return { outcome: 'refused', reason: 'not_configured' }
-  const agencyIds = ownerWhatsappReminderAgencyIds()
-  if (!agencyIds.includes(agencyId)) return { outcome: 'refused', reason: 'agency_not_allowlisted' }
+  // The same audience as the general feature (`all` or the explicit list),
+  // but this path itself stays fixed to agency 103 and its own recipient.
+  const agencyIds = ownerWhatsappReminderAudience()
+  if (!isOwnerWhatsappReminderAgency(agencyId, agencyIds)) return { outcome: 'refused', reason: 'agency_not_allowlisted' }
+  if (!(await hasReminderProductAccess(agencyId, now))) return { outcome: 'refused', reason: 'agency_no_access' }
   const phoneNumberId = platformWhatsappPhoneNumberId()
   const accessToken = platformWhatsappAccessToken()
   if (!phoneNumberId || !accessToken) return { outcome: 'refused', reason: 'platform_not_configured' }
@@ -75,10 +80,13 @@ export async function sendOneOffReminder(
   const deliveryId = claim.deliveryId
 
   const fresh = await recheckBeforeSend({ recipientId, agencyId, conversationId: input.conversationId, claim, agencyIds, delayMs, now })
-  if (fresh.ok === false) {
-    await recordOutcome(db, deliveryId, { status: 'cancelled', cancelReason: fresh.reason })
+  // Product access again, immediately before the Meta request (failing closed).
+  const cancelReason = fresh.ok === false ? fresh.reason : (await hasReminderProductAccess(agencyId, now)) ? null : 'agency_no_access'
+  if (fresh.ok === false || cancelReason !== null) {
+    const reason = cancelReason ?? 'agency_no_access'
+    await recordOutcome(db, deliveryId, { status: 'cancelled', cancelReason: reason })
     await finalizeReminders()
-    return { outcome: 'cancelled', deliveryId, reason: fresh.reason }
+    return { outcome: 'cancelled', deliveryId, reason }
   }
 
   const sent = await deps.send({

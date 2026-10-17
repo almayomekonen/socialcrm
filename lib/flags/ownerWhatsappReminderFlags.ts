@@ -13,9 +13,20 @@
  *   configuration rather than code.
  *
  * OWNER_WA_REMINDERS_AGENCY_IDS
- *   The agencies that may see the settings page and activate. Explicit ids
- *   only: absent or empty means none, and entries that are not plain digits
- *   (`all`, `*`, `true`) are ignored, so no value opens it to everyone.
+ *   The agencies that may see the settings page and activate, while the
+ *   audience is not `all`. Explicit ids only: absent or empty means none, and
+ *   entries that are not plain digits (`all`, `*`, `true`) are ignored, so no
+ *   value of THIS variable opens it to everyone.
+ *
+ * OWNER_WA_REMINDERS_AUDIENCE
+ *   Exactly `all` opens the feature to every agency (the general rollout).
+ *   Absent or any other value keeps the explicit-id list above. Product access
+ *   (PAID / TRIAL_ACTIVE / LEGACY) and each user's own verified consent are
+ *   still required everywhere; see lib/ownerWhatsappReminders/productAccess.ts.
+ *
+ * OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS
+ *   Agencies never included, in either mode (explicit ids, same parser). Agency
+ *   158 is excluded in code as well (ALWAYS_EXCLUDED_AGENCY_IDS), whatever this says.
  *
  * PLATFORM_WHATSAPP_ACCESS_TOKEN (PR B, sensitive)
  *   System User token for the platform WABA. Used only by the reminder sender
@@ -51,8 +62,8 @@ export function platformWhatsappWaMeNumber(): string | null {
   return digitsOnly(process.env.PLATFORM_WHATSAPP_WA_ME_NUMBER)
 }
 
-export function ownerWhatsappReminderAgencyIds(): number[] {
-  const ids = (process.env.OWNER_WA_REMINDERS_AGENCY_IDS ?? '')
+function parseAgencyIds(raw: string | undefined): number[] {
+  const ids = (raw ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter((s) => /^\d+$/.test(s))
@@ -61,11 +72,44 @@ export function ownerWhatsappReminderAgencyIds(): number[] {
   return [...new Set(ids)]
 }
 
-/** The settings page and activation: allowlisted agency AND a configured platform number. */
-export function canUseOwnerWhatsappReminders(agencyId: number | null | undefined): boolean {
+/** Never in the audience, in any mode, whatever the configuration says (product decision). */
+export const ALWAYS_EXCLUDED_AGENCY_IDS: readonly number[] = [158]
+
+/** The raw explicit-id list (OWNER_WA_REMINDERS_AGENCY_IDS). Prefer `ownerWhatsappReminderAudience()`. */
+export function ownerWhatsappReminderAgencyIds(): number[] {
+  return parseAgencyIds(process.env.OWNER_WA_REMINDERS_AGENCY_IDS)
+}
+
+/**
+ * Who the feature is open to. `all`: every agency except `excludedIds`.
+ * `list`: exactly `agencyIds`. Excluded ids always win, in both modes.
+ */
+export type OwnerWaAudience = { mode: 'all'; excludedIds: number[] } | { mode: 'list'; agencyIds: number[]; excludedIds: number[] }
+
+export function ownerWhatsappReminderAudience(): OwnerWaAudience {
+  const excludedIds = [...new Set([...ALWAYS_EXCLUDED_AGENCY_IDS, ...parseAgencyIds(process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS)])]
+  if (process.env.OWNER_WA_REMINDERS_AUDIENCE?.trim() === 'all') return { mode: 'all', excludedIds }
+  return { mode: 'list', agencyIds: ownerWhatsappReminderAgencyIds().filter((id) => !excludedIds.includes(id)), excludedIds }
+}
+
+/** True when at least one agency can be in the audience. */
+export function hasOwnerWhatsappReminderAudience(audience: OwnerWaAudience = ownerWhatsappReminderAudience()): boolean {
+  return audience.mode === 'all' || audience.agencyIds.length > 0
+}
+
+export function isOwnerWhatsappReminderAgency(agencyId: number | null | undefined, audience: OwnerWaAudience = ownerWhatsappReminderAudience()): boolean {
   if (!agencyId || !Number.isSafeInteger(agencyId) || agencyId <= 0) return false
+  if (audience.excludedIds.includes(agencyId)) return false
+  return audience.mode === 'all' || audience.agencyIds.includes(agencyId)
+}
+
+/**
+ * The settings page and activation: an agency in the audience AND a configured
+ * platform number. Product access is checked by the callers (it needs a read).
+ */
+export function canUseOwnerWhatsappReminders(agencyId: number | null | undefined): boolean {
   if (!platformWhatsappPhoneNumberId() || !platformWhatsappWaMeNumber()) return false
-  return ownerWhatsappReminderAgencyIds().includes(agencyId)
+  return isOwnerWhatsappReminderAgency(agencyId)
 }
 
 export function platformWhatsappAccessToken(): string | null {

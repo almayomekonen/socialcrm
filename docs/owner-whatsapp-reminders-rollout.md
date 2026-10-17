@@ -40,7 +40,9 @@ code changes nothing: with the defaults, the feature is off.
 |---|---|---|---|
 | `PLATFORM_WHATSAPP_PHONE_NUMBER_ID` | PR A | unset | Platform webhook branch and the sender's phone number id. Unset: everything is inert |
 | `PLATFORM_WHATSAPP_WA_ME_NUMBER` | PR A | unset | wa.me digits for the activation link |
-| `OWNER_WA_REMINDERS_AGENCY_IDS` | PR A | **empty** | Explicit agency ids. Empty: no settings page, no activation, no reminders. Pilot: `103`. Never `158` |
+| `OWNER_WA_REMINDERS_AGENCY_IDS` | PR A | **empty** | Explicit agency ids, used while the audience is not `all`. Empty: no settings page, no activation, no reminders. Pilot: `103`. `all`/`*` here open nothing |
+| `OWNER_WA_REMINDERS_AUDIENCE` | general rollout | unset | Exactly `all`: every agency (except the exclusions) with product access. Unset or any other value: the explicit list above |
+| `OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS` | general rollout | unset | Agencies never included, in either mode. `158` is also excluded in code (`ALWAYS_EXCLUDED_AGENCY_IDS`) |
 | `PLATFORM_WHATSAPP_ACCESS_TOKEN` | PR B | unset | **Sensitive.** System User token for WABA `2060714354527399`. Production only |
 | `PLATFORM_WHATSAPP_WABA_ID` | PR B | unset | Readiness check only (template status) |
 | `OWNER_WA_REMINDERS_SEND_ENABLED` | PR B | unset | **Kill switch.** Exactly `1` sends; anything else is a dry run that logs counts and writes nothing |
@@ -125,7 +127,8 @@ PR #134 (`20261010120000`) sorts before both; Knex applies it whenever it lands.
    is created for it. Do not reuse the conversation that was just reminded: its
    12-hour cooldown and per-escalation dedup would suppress a reminder anyway,
    so the test would prove nothing.
-10. **Expansion** agency by agency, each approved separately. Never `158`.
+10. **General rollout** (replaces agency-by-agency expansion; product decision
+    2026-10-18). See "General rollout" below. Agency `158` stays excluded.
 
 ## One-off test send (agency 103 only, single use)
 
@@ -187,6 +190,37 @@ id, fixes the mode to `immediate`, and runs the same `sendOneOffReminder`, so
 every gate and the single use above are shared with the route. Each attempt is
 audited as `owner_wa_one_off_send` (ids and outcome only). After any answer the
 control stays disabled; an `unknown` outcome must not be retried.
+
+## General rollout (all eligible agencies)
+
+Who receives reminders when `OWNER_WA_REMINDERS_AUDIENCE=all`:
+
+- an agency not in `OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS` and not `158`;
+- with product access (PAID, TRIAL_ACTIVE or LEGACY), checked when the cron
+  schedules AND again immediately before each send. The lookup FAILS CLOSED
+  (`lib/ownerWhatsappReminders/productAccess.ts`): a missing row or a read
+  error means no send; a delivery that loses access is `cancelled`
+  (`agency_no_access`) before any Meta request;
+- only for a user of that agency who activated reminders themselves (consent in
+  settings, code from their own phone). Nothing else changes: opt-out, tenant
+  isolation, quiet hours, the 120-minute rule, cooldown, per-escalation dedup
+  (exact timestamp), rate limits and the account pause all apply as before.
+
+The settings entry and page are shown only to agencies in the audience with
+product access. The one-off test send is unaffected (agency 103, its own
+variable) and is refused there too when 103 lacks access or is excluded.
+
+Order (each step its own approval; Production only, never Preview):
+
+1. Merge and deploy. Inert: the audience is still the explicit list.
+2. Set `OWNER_WA_REMINDERS_AUDIENCE=all` (and any extra exclusions), keep
+   `OWNER_WA_REMINDERS_SEND_ENABLED` unset, redeploy. The settings entry
+   appears for eligible agencies; the cron logs `dry run` counts
+   (`candidates`, `wouldRemind`, `noRecipients`, `noAccess`) and writes nothing.
+3. After a day of dry runs, step 9 above (`OWNER_WA_REMINDERS_SEND_ENABLED=1`).
+
+Rollback: unset `OWNER_WA_REMINDERS_AUDIENCE` (back to the explicit list), or
+unset the send flag (dry run), then redeploy.
 
 ## Verification queries (read-only)
 
