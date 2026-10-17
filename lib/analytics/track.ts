@@ -239,6 +239,13 @@ export type AnalyticsEventName =
    * from one who never came back.
    */
   | 'session_started'
+  /**
+   * A platform owner ran the one-off owner-reminder test from /admin/whatsapp
+   * (actions/admin/ownerWaOneOff.ts). Props: conversationId, outcome, and the
+   * refusal reason / failure scope+code / delivery id. Never a phone number,
+   * token, secret or message text.
+   */
+  | 'owner_wa_one_off_send'
 
 type TrackInput = {
   agencyId: number
