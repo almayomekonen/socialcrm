@@ -90,9 +90,10 @@ describe('owner WhatsApp reminders tick: disabled log line', () => {
     expectNoDbCalls()
   })
 
-  it('an allowlist of only excluded agencies (158) is an empty audience: disabled', async () => {
+  it('an allowlist of only excluded agencies is an empty audience: disabled', async () => {
     process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = '1000000000001'
     process.env.OWNER_WA_REMINDERS_AGENCY_IDS = '158'
+    process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS = '158'
     expect(await tickOwnerWhatsappReminders()).toEqual(DISABLED_SUMMARY)
     expect(logSpy).toHaveBeenCalledWith(DISABLED_MSG, { platformNumberConfigured: true, audience: 'list', allowlistedAgencies: 0 })
     expectNoDbCalls()

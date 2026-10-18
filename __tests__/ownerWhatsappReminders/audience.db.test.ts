@@ -10,7 +10,8 @@ import { MIN, PLATFORM, TOKEN, ago, agency, cleanup, conversation, deliveries, e
 
 /**
  * The general rollout (`OWNER_WA_REMINDERS_AUDIENCE=all`): every agency with
- * product access and an activated recipient, agency 158 never, access checked
+ * product access and an activated recipient (agency 158 included; exclusions
+ * only via OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS), access checked
  * at scheduling AND right before sending (failing closed), and every existing
  * safeguard unchanged. Escalations carry microseconds, as in production.
  *
@@ -26,7 +27,7 @@ vi.mock('@/db/trial', async (orig) => {
 
 let X: number
 let Y: number
-let EXCLUDED158: number
+let A158: number
 let seq = 0
 const DAY = 24 * 60 * MIN
 
@@ -68,12 +69,12 @@ const stop = (digits: string) =>
 beforeAll(async () => {
   X = await agency('__owr_aud_x__')
   Y = await agency('__owr_aud_y__')
-  EXCLUDED158 = await agency('__owr_aud_158__', 158)
+  A158 = await agency('__owr_aud_158__', 158)
 })
 beforeEach(async () => {
   await resetBetweenTests()
-  await db('auto_response_settings').whereIn('agencyId', [X, Y, EXCLUDED158]).del()
-  for (const id of [X, Y, EXCLUDED158]) await setAccess(id, 'paid')
+  await db('auto_response_settings').whereIn('agencyId', [X, Y, A158]).del()
+  for (const id of [X, Y, A158]) await setAccess(id, 'paid')
   trial.fail = false
   setAllEnv()
 })
@@ -96,12 +97,20 @@ describe('audience all', () => {
     expect(g.calls).toHaveLength(1)
   })
 
-  it('agency 158 is never a candidate, never scheduled, never sent', async () => {
-    await dueHandoff(EXCLUDED158, '972500002002')
+  it('agency 158 is reminded like any eligible agency (no exclusion in code)', async () => {
+    await dueHandoff(A158, '972500002002')
     const g = mockGraph()
-    expect(await findReminderCandidates(new Date(), { mode: 'all', excludedIds: [] }, 10)).toEqual([])
+    expect((await findReminderCandidates(new Date(), { mode: 'all', excludedIds: [] }, 10)).map((c) => c.agencyId)).toEqual([158])
     const tick = await tickOwnerWhatsappReminders()
-    expect(tick.candidates).toBe(0)
+    expect(tick).toMatchObject({ candidates: 1, scheduled: 1, sends: { sent: 1 } })
+    expect(sentTo(g.calls)).toEqual(['972500002002'])
+  })
+
+  it('agency 158 is excluded only when OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS names it', async () => {
+    await dueHandoff(A158, '972500002005')
+    setAllEnv({ excluded: '158' })
+    const g = mockGraph()
+    expect((await tickOwnerWhatsappReminders()).candidates).toBe(0)
     expect(g.calls).toEqual([])
     expect(await deliveries()).toEqual([])
   })
@@ -246,8 +255,8 @@ describe('activation in audience all', () => {
     expect(await activate(X, '972500002031')).toEqual({ outcome: 'activated', row: { status: 'active' } })
   })
 
-  it('agency 158 cannot', async () => {
-    expect(await activate(EXCLUDED158, '972500002032')).toEqual({ outcome: 'activation_rejected', row: { status: 'pending' } })
+  it('agency 158 can, like any eligible agency', async () => {
+    expect(await activate(A158, '972500002032')).toEqual({ outcome: 'activated', row: { status: 'active' } })
   })
 
   it('an excluded agency cannot', async () => {

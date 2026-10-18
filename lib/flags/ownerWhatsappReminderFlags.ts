@@ -25,8 +25,8 @@
  *   still required everywhere; see lib/ownerWhatsappReminders/productAccess.ts.
  *
  * OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS
- *   Agencies never included, in either mode (explicit ids, same parser). Agency
- *   158 is excluded in code as well (ALWAYS_EXCLUDED_AGENCY_IDS), whatever this says.
+ *   Agencies never included, in either mode (explicit ids, same parser). The
+ *   only exclusion list; no agency is excluded in code.
  *
  * PLATFORM_WHATSAPP_ACCESS_TOKEN (PR B, sensitive)
  *   System User token for the platform WABA. Used only by the reminder sender
@@ -72,9 +72,6 @@ function parseAgencyIds(raw: string | undefined): number[] {
   return [...new Set(ids)]
 }
 
-/** Never in the audience, in any mode, whatever the configuration says (product decision). */
-export const ALWAYS_EXCLUDED_AGENCY_IDS: readonly number[] = [158]
-
 /** The raw explicit-id list (OWNER_WA_REMINDERS_AGENCY_IDS). Prefer `ownerWhatsappReminderAudience()`. */
 export function ownerWhatsappReminderAgencyIds(): number[] {
   return parseAgencyIds(process.env.OWNER_WA_REMINDERS_AGENCY_IDS)
@@ -87,7 +84,7 @@ export function ownerWhatsappReminderAgencyIds(): number[] {
 export type OwnerWaAudience = { mode: 'all'; excludedIds: number[] } | { mode: 'list'; agencyIds: number[]; excludedIds: number[] }
 
 export function ownerWhatsappReminderAudience(): OwnerWaAudience {
-  const excludedIds = [...new Set([...ALWAYS_EXCLUDED_AGENCY_IDS, ...parseAgencyIds(process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS)])]
+  const excludedIds = parseAgencyIds(process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS)
   if (process.env.OWNER_WA_REMINDERS_AUDIENCE?.trim() === 'all') return { mode: 'all', excludedIds }
   return { mode: 'list', agencyIds: ownerWhatsappReminderAgencyIds().filter((id) => !excludedIds.includes(id)), excludedIds }
 }
