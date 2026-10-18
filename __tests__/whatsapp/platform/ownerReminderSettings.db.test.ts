@@ -197,14 +197,14 @@ describe('the settings page gate', () => {
     await expect(page()).resolves.toBeTruthy()
   })
 
-  it('audience all: renders for an agency in no list, never for 158 or an excluded agency', async () => {
+  it('audience all: renders for an agency in no list, 158 included; 404 for an excluded agency', async () => {
     const { default: page } = await import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page')
     process.env.OWNER_WA_REMINDERS_AGENCY_IDS = ''
     process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
     as(ua, A)
     await expect(page()).resolves.toBeTruthy()
     as(u158, EXCLUDED)
-    await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
+    await expect(page()).resolves.toBeTruthy()
     process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS = String(A)
     as(ua, A)
     await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
@@ -225,12 +225,15 @@ describe('the settings page gate', () => {
 })
 
 describe('starting activation in audience all', () => {
-  it('works for an agency in no explicit list; refused for 158', async () => {
+  it('works for an agency in no explicit list and for 158; refused only for an excluded agency', async () => {
     process.env.OWNER_WA_REMINDERS_AGENCY_IDS = ''
     process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
     as(ua, A)
     expect(await startWhatsappReminderActivation({ consent: true })).toMatchObject({ ok: true })
     as(u158, EXCLUDED)
+    expect(await startWhatsappReminderActivation({ consent: true })).toMatchObject({ ok: true })
+    await db('owner_whatsapp_recipients').del()
+    process.env.OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS = '158'
     expect(await startWhatsappReminderActivation({ consent: true })).toEqual({ fail: true, msg: 'התזכורות אינן זמינות לחשבון זה' })
     expect(await row(EXCLUDED, u158)).toBeUndefined()
   })

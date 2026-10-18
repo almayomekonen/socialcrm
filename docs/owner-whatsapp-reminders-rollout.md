@@ -42,7 +42,7 @@ code changes nothing: with the defaults, the feature is off.
 | `PLATFORM_WHATSAPP_WA_ME_NUMBER` | PR A | unset | wa.me digits for the activation link |
 | `OWNER_WA_REMINDERS_AGENCY_IDS` | PR A | **empty** | Explicit agency ids, used while the audience is not `all`. Empty: no settings page, no activation, no reminders. Pilot: `103`. `all`/`*` here open nothing |
 | `OWNER_WA_REMINDERS_AUDIENCE` | general rollout | unset | Exactly `all`: every agency (except the exclusions) with product access. Unset or any other value: the explicit list above |
-| `OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS` | general rollout | unset | Agencies never included, in either mode. `158` is also excluded in code (`ALWAYS_EXCLUDED_AGENCY_IDS`) |
+| `OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS` | general rollout | unset | Agencies never included, in either mode. The only exclusion list (no agency is excluded in code) |
 | `PLATFORM_WHATSAPP_ACCESS_TOKEN` | PR B | unset | **Sensitive.** System User token for WABA `2060714354527399`. Production only |
 | `PLATFORM_WHATSAPP_WABA_ID` | PR B | unset | Readiness check only (template status) |
 | `OWNER_WA_REMINDERS_SEND_ENABLED` | PR B | unset | **Kill switch.** Exactly `1` sends; anything else is a dry run that logs counts and writes nothing |
@@ -128,7 +128,8 @@ PR #134 (`20261010120000`) sorts before both; Knex applies it whenever it lands.
    12-hour cooldown and per-escalation dedup would suppress a reminder anyway,
    so the test would prove nothing.
 10. **General rollout** (replaces agency-by-agency expansion; product decision
-    2026-10-18). See "General rollout" below. Agency `158` stays excluded.
+    2026-10-18). See "General rollout" below. Agency `158` is included like
+    every other eligible agency (product decision 2026-10-18).
 
 ## One-off test send (agency 103 only, single use)
 
@@ -195,7 +196,7 @@ control stays disabled; an `unknown` outcome must not be retried.
 
 Who receives reminders when `OWNER_WA_REMINDERS_AUDIENCE=all`:
 
-- an agency not in `OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS` and not `158`;
+- an agency not in `OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS`;
 - with product access (PAID, TRIAL_ACTIVE or LEGACY), checked when the cron
   schedules AND again immediately before each send. The lookup FAILS CLOSED
   (`lib/ownerWhatsappReminders/productAccess.ts`): a missing row or a read

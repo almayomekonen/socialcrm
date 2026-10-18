@@ -3,18 +3,18 @@ import { db } from '@/config/db'
 import { humanOutboundSql } from '@/lib/inbox/humanReply'
 import { REMINDER_COOLDOWN_MS, REMINDER_DELAY_MS, REMINDER_MAX_AGE_MS } from '@/lib/ownerWhatsappReminders/constants'
 import type { ActiveRecipient } from '@/lib/ownerWhatsappReminders/selectRecipients'
-import { ALWAYS_EXCLUDED_AGENCY_IDS, type OwnerWaAudience } from '@/lib/flags/ownerWhatsappReminderFlags'
+import type { OwnerWaAudience } from '@/lib/flags/ownerWhatsappReminderFlags'
 
 /**
  * Which agencies a query may touch: an explicit id list, or the configured
- * audience (`all` = every agency). ALWAYS_EXCLUDED_AGENCY_IDS and the
- * audience's exclusions are applied in SQL in every case.
+ * audience (`all` = every agency). The audience's exclusions
+ * (OWNER_WA_REMINDERS_EXCLUDED_AGENCY_IDS) are applied in SQL.
  */
 export type AgencyScope = number[] | OwnerWaAudience
 
 export function scopeBindings(scope: AgencyScope): { allAgencies: boolean; agencyIds: string; excludedAgencyIds: string } {
   const list = Array.isArray(scope) ? scope : scope.mode === 'list' ? scope.agencyIds : []
-  const excluded = [...new Set([...ALWAYS_EXCLUDED_AGENCY_IDS, ...(Array.isArray(scope) ? [] : scope.excludedIds)])]
+  const excluded = Array.isArray(scope) ? [] : scope.excludedIds
   return {
     allAgencies: !Array.isArray(scope) && scope.mode === 'all',
     agencyIds: `{${list.join(',')}}`,
