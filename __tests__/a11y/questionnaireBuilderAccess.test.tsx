@@ -132,8 +132,14 @@ describe('the Flow view rollout (QUESTIONNAIRE_FLOW_EDITOR_AGENCY_IDS)', () => {
     expect(flow('103,hello,158', 103, 158, 63)).toEqual([true, true, false])
   })
 
-  it('nothing reads as "everyone": all, *, true, 1 (agency 1 only), 0x67, 1e2, 103.0', () => {
-    for (const env of ['all', '*', 'true', 'TRUE', 'yes', 'on'])
+  it('"all": every agency that has the Builder, nobody without it', () => {
+    expect(flow('all', 103, 158, 63)).toEqual([true, true, true])
+    expect(flow(' all ', 103, 158, 63)).toEqual([true, true, true])
+    expect(flow('all', 999)).toEqual([false])
+  })
+
+  it('nothing else reads as "everyone": *, true, 1 (agency 1 only), 0x67, 1e2, 103.0', () => {
+    for (const env of ['ALL', '*', 'true', 'TRUE', 'yes', 'on'])
       expect(flow(env, 103, 158, 63)).toEqual([false, false, false])
     expect(flow('1', 1, 103, 158, 63)).toEqual([true, false, false, false])
     expect(flow('0x67,1e2,103.0,+103,-103', 103, 100)).toEqual([false, false])
