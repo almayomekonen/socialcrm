@@ -10,13 +10,17 @@ import { ownerWhatsappReminderAudience } from '@/lib/flags/ownerWhatsappReminder
 import { parsePlatformStatus, recordPlatformStatus } from '@/db/platformWhatsappMessageStatus'
 import { parsePlatformCommand } from './commands'
 import { hashActivationCode, hashPlatformSender } from './keys'
+import { enqueueWaAssistantJob } from '@/db/waAssistantJobs'
+import { isWaAssistantAgency, waAssistantAgencyIds, WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
+import { matchAssistantSender } from '@/lib/waAssistant/identity'
 
 /**
  * Inbound traffic to the SocialCRM platform number (not an agency's number).
  *
- * NEVER enters the agency pipeline: no conversation, message, lead, bot, job or
+ * NEVER enters the agency pipeline: no conversation, message, lead, bot or
  * notification is created, and nothing is sent (this module makes no network
- * call). Delivery statuses are recorded by message id for the owner reminders
+ * call). The one job it may create is a WhatsApp assistant job (step 4), for
+ * the assistant's own worker; the reply happens there, never here. Delivery statuses are recorded by message id for the owner reminders
  * this number sends (`owner_whatsapp_message_status`, forward-only); every other
  * non-message field is ignored.
  *
@@ -24,7 +28,11 @@ import { hashActivationCode, hashPlatformSender } from './keys'
  *   1. record the message id (a redelivery stops here, changing nothing);
  *   2. an opt-out updates the recipients in the same transaction;
  *   3. an activation is checked against the rate limit and any later opt-out,
- *      then consumes its code in one guarded statement.
+ *      then consumes its code in one guarded statement;
+ *   4. anything else, from a number verified for EXACTLY ONE active recipient
+ *      in an agency with the assistant enabled, is queued for the assistant
+ *      (WA_ASSISTANT_AGENCY_IDS; absent = nothing is queued, as before). Opt-out
+ *      and activation always win: they are decided first and never queued.
  * A failure rolls the whole message back, including step 1, so a redelivery
  * processes it again. The caller decides what to answer Meta.
  */
@@ -40,6 +48,7 @@ export type PlatformMessageOutcome =
   | 'activation_rejected'
   | 'ignored'
   | 'skipped'
+  | 'assistant_queued'
 
 type Change = { field?: unknown; value?: { messages?: unknown; statuses?: unknown } & Record<string, unknown> }
 
@@ -75,6 +84,7 @@ export async function processPlatformMessage(message: Record<string, any>): Prom
       await optOutByPhone(trx, `+${from}`, messageTimestamp)
       return 'opted_out'
     }
+    if (command.kind === 'other') return (await queueForAssistant(trx, message, from, messageTimestamp)) ? 'assistant_queued' : 'ignored'
     if (command.kind !== 'activation' || !fromHash) return 'ignored'
 
     const rejected =
@@ -89,6 +99,30 @@ export async function processPlatformMessage(message: Record<string, any>): Prom
     if (!rejected) return 'activated'
     await setPlatformInboundKind(trx, wamid, 'activation_rejected')
     return 'activation_rejected'
+  })
+}
+
+/** Media the assistant answers with a short "text only" note; anything else (reactions, system events) is ignored. */
+const UNSUPPORTED_MEDIA = new Set(['audio', 'image', 'video', 'document', 'sticker', 'location', 'contacts'])
+
+async function queueForAssistant(trx: Parameters<typeof enqueueWaAssistantJob>[0], message: Record<string, any>, from: string | null, messageTimestamp: number): Promise<boolean> {
+  if (!from || waAssistantAgencyIds().length === 0) return false
+  const isText = message.type === 'text' && typeof message.text?.body === 'string'
+  if (!isText && !UNSUPPORTED_MEDIA.has(String(message.type))) return false
+  const match = await matchAssistantSender(trx, `+${from}`)
+  if (match.kind === 'ambiguous') {
+    console.log('[WhatsappWebhook][platform] assistant: number verified for several accounts; not answered', { count: match.count })
+    return false
+  }
+  if (match.kind !== 'match' || !isWaAssistantAgency(match.agencyId)) return false
+  return enqueueWaAssistantJob(trx, {
+    wamid: message.id,
+    recipientId: match.recipientId,
+    agencyId: match.agencyId,
+    userId: match.userId,
+    kind: isText ? 'text' : 'unsupported',
+    question: isText ? String(message.text.body).slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars) : null,
+    messageTimestamp,
   })
 }
 

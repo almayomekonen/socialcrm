@@ -246,6 +246,12 @@ export type AnalyticsEventName =
    * token, secret or message text.
    */
   | 'owner_wa_one_off_send'
+  /**
+   * One WhatsApp assistant message handled (lib/waAssistant/worker.ts). Props:
+   * jobId, status, refusalReason, stopReason, replyState, durationMs, costUsd.
+   * Never the question, the answer, a phone number or a lead name.
+   */
+  | 'wa_assistant_turn'
 
 type TrackInput = {
   agencyId: number

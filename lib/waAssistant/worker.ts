@@ -1,0 +1,184 @@
+import 'server-only'
+import { recordAgentInvestigation } from '@/db/agentInvestigation'
+import {
+  claimWaAssistantJobs,
+  finishWaAssistantJob,
+  markWaAssistantReplySending,
+  purgeWaAssistantText,
+  reapStaleWaAssistantJobs,
+  recentWaAssistantTurns,
+  waAssistantUsage,
+  type WaAssistantFinish,
+  type WaAssistantJob,
+} from '@/db/waAssistantJobs'
+import { runAgentInvestigation } from '@/lib/agent/run'
+import { track } from '@/lib/analytics/track'
+import { WA_ASSISTANT_LIMITS, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
+import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { sendPlatformText, sendPlatformTypingIndicator } from '@/lib/whatsapp/platform/sendText'
+import { resolveAssistantScope } from './identity'
+import { COPY, NO_ACTIONS_NOTE, refusalReply, renderAnswer } from './render'
+
+/**
+ * The WhatsApp assistant worker: one queued owner message -> at most one reply.
+ * Run right after the webhook (`after()`) and every minute by
+ * app/api/cron/wa-assistant as the backstop.
+ *
+ * Per job, in this order, and nothing is read before step 2 passes:
+ *   1. the 23-hour reply window (Meta's 24h service window, with a margin);
+ *   2. WHO: recipient, user, agency, product access and the Agent rollout,
+ *      re-checked from the database (./identity.ts);
+ *   3. limits: per sender per hour, per agency per day, durable daily spend;
+ *   4. the existing Agent (lib/agent/run.ts) with the read tools only, no web
+ *      research, a shorter clock, and the previous turns as context;
+ *   5. one reply, with `sending` committed first (`unknown` is never resent).
+ *
+ * WRITES: none. `answer.proposedAction` / `proposedBatch` are NEVER handed to
+ * the Action Runtime here; the reply says so instead of implying anything ran.
+ */
+
+export type WaAssistantDeps = {
+  runAgent?: typeof runAgentInvestigation
+  sendText?: typeof sendPlatformText
+  typing?: typeof sendPlatformTypingIndicator
+  now?: () => Date
+}
+
+export type WaAssistantTickSummary = { disabled: boolean; reaped: number; purged: number; claimed: number; outcomes: Record<string, number> }
+
+export async function runWaAssistantWorker(opts: { limit?: number } = {}, deps: WaAssistantDeps = {}): Promise<WaAssistantTickSummary> {
+  const now = deps.now ?? (() => new Date())
+  const summary: WaAssistantTickSummary = { disabled: false, reaped: 0, purged: 0, claimed: 0, outcomes: {} }
+  const phoneNumberId = platformWhatsappPhoneNumberId()
+  const accessToken = platformWhatsappAccessToken()
+  if (!phoneNumberId || !accessToken) {
+    summary.disabled = true
+    return summary
+  }
+  summary.reaped = await reapStaleWaAssistantJobs(now())
+  summary.purged = await purgeWaAssistantText(now())
+  const jobs = await claimWaAssistantJobs(opts.limit ?? WA_ASSISTANT_LIMITS.batch)
+  summary.claimed = jobs.length
+  for (const job of jobs) {
+    let status = 'failed'
+    try {
+      status = await processJob(job, { phoneNumberId, accessToken }, deps, now)
+    } catch (err) {
+      console.error('[WaAssistant][job] failed', { jobId: job.id, name: (err as Error)?.name ?? null })
+      await finishWaAssistantJob(job.id, { status: 'failed', stopReason: 'exception' }).catch(() => undefined)
+    }
+    summary.outcomes[status] = (summary.outcomes[status] ?? 0) + 1
+  }
+  return summary
+}
+
+type Platform = { phoneNumberId: string; accessToken: string }
+
+async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssistantDeps, now: () => Date): Promise<string> {
+  const startedAt = now()
+  const elapsed = () => now().getTime() - startedAt.getTime()
+
+  if (startedAt.getTime() - job.messageTimestamp * 1000 > WA_ASSISTANT_LIMITS.replyWindowMs) {
+    return finish(job, { status: 'expired', reply: { state: 'skipped' } })
+  }
+
+  const who = await resolveAssistantScope(job, startedAt)
+  if (who.ok === false) {
+    const text = refusalReply(who.reason)
+    const reply = text && who.phoneE164 ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' as const }
+    return finish(job, { status: 'refused', refusalReason: who.reason, reply, durationMs: elapsed() })
+  }
+
+  const usage = await waAssistantUsage(job, startedAt)
+  const limitReason =
+    usage.senderLastHour >= WA_ASSISTANT_LIMITS.perSenderPerHour ? 'sender_limit'
+    : usage.agencyToday >= WA_ASSISTANT_LIMITS.perAgencyPerDay ? 'agency_limit'
+    : usage.agencySpendTodayUsd >= waAssistantDailyUsdCap() ? 'spend_limit'
+    : null
+  if (limitReason) {
+    // Answer only the FIRST message over a count limit, so a limit cannot itself become a flood of replies.
+    const firstOver = limitReason === 'sender_limit' ? usage.senderLastHour === WA_ASSISTANT_LIMITS.perSenderPerHour : limitReason === 'agency_limit' ? usage.agencyToday === WA_ASSISTANT_LIMITS.perAgencyPerDay : true
+    const text = refusalReply(limitReason)
+    const reply = firstOver && text ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' as const }
+    return finish(job, { status: 'refused', refusalReason: limitReason, reply, durationMs: elapsed() })
+  }
+
+  if (job.kind === 'unsupported' || !job.question?.trim()) {
+    const text = job.kind === 'unsupported' ? COPY.unsupported : COPY.emptyQuestion
+    return finish(job, { status: 'answered', stopReason: job.kind, reply: await reply1(job, platform, who.phoneE164, text, deps), durationMs: elapsed() })
+  }
+
+  await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
+
+  const history = await recentWaAssistantTurns(job.recipientId, job.id, startedAt)
+  const result = await (deps.runAgent ?? runAgentInvestigation)({
+    question: job.question.trim().slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars),
+    history,
+    scope: who.scope,
+    maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
+    deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
+    disableResearch: true,
+    // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
+    skipInteractiveSpend: true,
+    onPersist: async (record) => {
+      try {
+        await recordAgentInvestigation(record)
+      } catch (e) {
+        console.error('[WaAssistant][persist] failed', { jobId: job.id, name: (e as Error)?.name ?? null })
+      }
+    },
+  })
+
+  if (result.ok !== true) {
+    const text = result.reason === 'deadline' ? COPY.timeout : result.reason === 'gate_denied' ? COPY.notAvailable : COPY.failed
+    return finish(job, {
+      status: 'failed',
+      stopReason: result.reason,
+      costUsd: result.costUsd ?? 0,
+      reply: await reply1(job, platform, who.phoneE164, text, deps),
+      durationMs: elapsed(),
+    })
+  }
+
+  const rendered = renderAnswer(result.answer)
+  const hasContent = (result.answer.claims?.length ?? 0) > 0 || !!result.answer.unknown
+  let text = hasContent ? rendered.text : COPY.noAnswer
+  if (result.answer.proposedAction || result.answer.proposedBatch) text = `${text}\n\n${NO_ACTIONS_NOTE}`
+  return finish(job, {
+    status: 'answered',
+    stopReason: result.stopReason,
+    answerHeadline: hasContent ? rendered.headline : null,
+    costUsd: result.costUsd,
+    reply: await reply1(job, platform, who.phoneE164, text, deps),
+    durationMs: elapsed(),
+  })
+}
+
+/** The one reply for this job. `sending` is committed first; a second attempt is impossible. */
+async function reply1(job: WaAssistantJob, platform: Platform, toE164: string, body: string, deps: WaAssistantDeps): Promise<NonNullable<WaAssistantFinish['reply']>> {
+  if (!(await markWaAssistantReplySending(job.id))) return { state: 'skipped' }
+  const outcome = await (deps.sendText ?? sendPlatformText)({ ...platform, toE164, body, replyToWamid: job.wamid, jobId: job.id })
+  if (outcome.kind === 'sent') return { state: 'sent', wamid: outcome.wamid }
+  if (outcome.kind === 'unknown') return { state: 'unknown', errorCode: outcome.reason }
+  return { state: 'failed', errorCode: outcome.code ?? outcome.scope }
+}
+
+async function finish(job: WaAssistantJob, f: WaAssistantFinish): Promise<string> {
+  await finishWaAssistantJob(job.id, f)
+  // Ids, outcomes, timing and cost only: never the question, the answer or a number.
+  await track({
+    agencyId: job.agencyId,
+    userId: job.userId,
+    event: 'wa_assistant_turn',
+    props: {
+      jobId: job.id,
+      status: f.status,
+      refusalReason: f.refusalReason ?? null,
+      stopReason: f.stopReason ?? null,
+      replyState: f.reply?.state ?? null,
+      durationMs: f.durationMs ?? null,
+      costUsd: f.costUsd ?? 0,
+    },
+  })
+  return f.status
+}

@@ -55,6 +55,10 @@
     {
       "path": "/api/cron/owner-wa-reminders",
       "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/cron/wa-assistant",
+      "schedule": "*/1 * * * *"
     }
   ]
 }
