@@ -13,6 +13,7 @@ import { hashActivationCode, hashPlatformSender } from './keys'
 import { enqueueWaAssistantJob } from '@/db/waAssistantJobs'
 import { isWaAssistantAgency, waAssistantAgencyIds, WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
 import { matchAssistantSender } from '@/lib/waAssistant/identity'
+import { DECISION_ID_RE } from '@/lib/waAssistant/meetings/copy'
 
 /**
  * Inbound traffic to the SocialCRM platform number (not an agency's number).
@@ -105,10 +106,18 @@ export async function processPlatformMessage(message: Record<string, any>): Prom
 /** Media the assistant answers with a short "text only" note; anything else (reactions, system events) is ignored. */
 const UNSUPPORTED_MEDIA = new Set(['audio', 'image', 'video', 'document', 'sticker', 'location', 'contacts'])
 
+/** A tap on one of the assistant's own confirmation buttons; any other interactive payload is ignored. */
+function decisionId(message: Record<string, any>): string | null {
+  if (message.type !== 'interactive' || message.interactive?.type !== 'button_reply') return null
+  const id = message.interactive?.button_reply?.id
+  return typeof id === 'string' && DECISION_ID_RE.test(id) ? id : null
+}
+
 async function queueForAssistant(trx: Parameters<typeof enqueueWaAssistantJob>[0], message: Record<string, any>, from: string | null, messageTimestamp: number): Promise<boolean> {
   if (!from || waAssistantAgencyIds().length === 0) return false
   const isText = message.type === 'text' && typeof message.text?.body === 'string'
-  if (!isText && !UNSUPPORTED_MEDIA.has(String(message.type))) return false
+  const decision = decisionId(message)
+  if (!isText && !decision && !UNSUPPORTED_MEDIA.has(String(message.type))) return false
   const match = await matchAssistantSender(trx, `+${from}`)
   if (match.kind === 'ambiguous') {
     console.log('[WhatsappWebhook][platform] assistant: number verified for several accounts; not answered', { count: match.count })
@@ -120,8 +129,8 @@ async function queueForAssistant(trx: Parameters<typeof enqueueWaAssistantJob>[0
     recipientId: match.recipientId,
     agencyId: match.agencyId,
     userId: match.userId,
-    kind: isText ? 'text' : 'unsupported',
-    question: isText ? String(message.text.body).slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars) : null,
+    kind: isText ? 'text' : decision ? 'decision' : 'unsupported',
+    question: isText ? String(message.text.body).slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars) : decision,
     messageTimestamp,
   })
 }

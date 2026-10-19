@@ -13,11 +13,16 @@ import {
 } from '@/db/waAssistantJobs'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
-import { WA_ASSISTANT_LIMITS, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
+import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
-import { sendPlatformText, sendPlatformTypingIndicator } from '@/lib/whatsapp/platform/sendText'
+import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
+import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
 import { resolveAssistantScope } from './identity'
 import { COPY, NO_ACTIONS_NOTE, fitReply, refusalReply, renderAnswer } from './render'
+import { proposeMeeting, type ProposeDeps } from './meetings/propose'
+import { decideMeeting, type DecideDeps } from './meetings/decide'
+import { MEETING_COPY } from './meetings/copy'
+import type { MeetingReply } from './meetings/types'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -33,8 +38,12 @@ import { COPY, NO_ACTIONS_NOTE, fitReply, refusalReply, renderAnswer } from './r
  *      research, a shorter clock, and the previous turns as context;
  *   5. one reply, with `sending` committed first (`unknown` is never resent).
  *
- * WRITES: none. `answer.proposedAction` / `proposedBatch` are NEVER handed to
- * the Action Runtime here; the reply says so instead of implying anything ran.
+ * WRITES: only `create_meeting`, only for an agency on
+ * WA_ASSISTANT_MEETINGS_AGENCY_IDS, and never on the owner's words alone: the
+ * proposal becomes a confirmation card (./meetings/propose.ts) and only a tap on
+ * its button executes it through the existing Action Runtime
+ * (./meetings/decide.ts). Every other proposal (and every proposal without that
+ * flag) is NEVER handed to the Action Runtime; the reply says so.
  */
 
 export type WaAssistantDeps = {
@@ -42,7 +51,11 @@ export type WaAssistantDeps = {
   sendText?: typeof sendPlatformText
   typing?: typeof sendPlatformTypingIndicator
   now?: () => Date
+  meetings?: { propose?: ProposeDeps; decide?: DecideDeps }
 }
+
+/** A typed "yes" while a card is open: pointed at the button, never treated as approval. */
+const BARE_AFFIRMATION = /^(כן|אשר|לאשר|מאשר|מאשרת|אישור|יאללה|סגור|בטח|ok|okay|אוקי|אוקיי)[\s!.]*$/iu
 
 export type WaAssistantTickSummary = { disabled: boolean; reaped: number; purged: number; claimed: number; outcomes: Record<string, number> }
 
@@ -103,6 +116,15 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     return finish(job, { status: 'refused', refusalReason: limitReason, reply, durationMs: elapsed() })
   }
 
+  const meetingsOn = isWaAssistantMeetingsAgency(job.agencyId)
+  if (job.kind === 'decision') {
+    const r = meetingsOn ? await decideMeeting({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.meetings?.decide }) : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
+    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
+  }
+  if (meetingsOn && job.kind === 'text' && BARE_AFFIRMATION.test(job.question?.trim() ?? '') && (await hasLiveWaApproval(job.recipientId, startedAt))) {
+    return finishMeeting(job, platform, who.phoneE164, { status: 'answered', stopReason: 'meeting_use_buttons', text: MEETING_COPY.useButtons, headline: null }, deps, { durationMs: elapsed() })
+  }
+
   if (job.kind === 'unsupported' || !job.question?.trim()) {
     const text = job.kind === 'unsupported' ? COPY.unsupported : COPY.emptyQuestion
     return finish(job, { status: 'answered', stopReason: job.kind, reply: await reply1(job, platform, who.phoneE164, text, deps), durationMs: elapsed() })
@@ -140,6 +162,12 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     })
   }
 
+  const proposed = result.answer.proposedAction
+  if (meetingsOn && proposed?.actionType === 'create_meeting' && !result.answer.proposedBatch) {
+    const r = await proposeMeeting({ job, scope: who.scope, proposal: proposed, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.meetings?.propose })
+    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
+  }
+
   const note = result.answer.proposedAction || result.answer.proposedBatch ? NO_ACTIONS_NOTE : null
   const rendered = renderAnswer(result.answer, { note })
   const hasContent = (result.answer.claims?.length ?? 0) > 0 || !!result.answer.unknown
@@ -154,10 +182,16 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   })
 }
 
+/** A meeting step's result: its one reply (if any) and the job's close. */
+async function finishMeeting(job: WaAssistantJob, platform: Platform, toE164: string, r: MeetingReply, deps: WaAssistantDeps, extra: { durationMs: number; costUsd?: number }): Promise<string> {
+  const reply = r.text ? await reply1(job, platform, toE164, r.text, deps, r.buttons) : { state: 'skipped' as const }
+  return finish(job, { status: r.status, stopReason: r.stopReason, answerHeadline: r.headline, costUsd: extra.costUsd ?? 0, reply, durationMs: extra.durationMs })
+}
+
 /** The one reply for this job. `sending` is committed first; a second attempt is impossible. */
-async function reply1(job: WaAssistantJob, platform: Platform, toE164: string, body: string, deps: WaAssistantDeps): Promise<NonNullable<WaAssistantFinish['reply']>> {
+async function reply1(job: WaAssistantJob, platform: Platform, toE164: string, body: string, deps: WaAssistantDeps, buttons?: ReplyButton[]): Promise<NonNullable<WaAssistantFinish['reply']>> {
   if (!(await markWaAssistantReplySending(job.id))) return { state: 'skipped' }
-  const outcome = await (deps.sendText ?? sendPlatformText)({ ...platform, toE164, body, replyToWamid: job.wamid, jobId: job.id })
+  const outcome = await (deps.sendText ?? sendPlatformText)({ ...platform, toE164, body, buttons, replyToWamid: job.wamid, jobId: job.id })
   if (outcome.kind === 'sent') return { state: 'sent', wamid: outcome.wamid }
   if (outcome.kind === 'unknown') return { state: 'unknown', errorCode: outcome.reason }
   return { state: 'failed', errorCode: outcome.code ?? outcome.scope }

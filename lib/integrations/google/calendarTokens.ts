@@ -3,7 +3,7 @@ import { decryptSecret, encryptSecret } from '@/lib/crypto/secrets'
 import { getCalendarConnectionByUserId, updateCalendarConnectionStatus } from '@/db/googleCalendarConnections'
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
-const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
+export const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
 const REFRESH_BUFFER_MS = 60_000
 

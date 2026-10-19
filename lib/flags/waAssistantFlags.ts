@@ -32,6 +32,22 @@ export function isWaAssistantAgency(agencyId: number | null | undefined): boolea
   return waAssistantAgencyIds().includes(agencyId)
 }
 
+/**
+ * WA_ASSISTANT_MEETINGS_AGENCY_IDS: agencies whose assistant may CREATE meetings
+ * (confirmation card → existing Action Runtime). ABSENCE BLOCKS, explicit ids
+ * only, and only for an agency that also has the assistant itself. Off, the
+ * assistant stays read-only exactly as before.
+ */
+export function isWaAssistantMeetingsAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  const ids = (process.env.WA_ASSISTANT_MEETINGS_AGENCY_IDS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^\d+$/.test(s))
+    .map(Number)
+  return ids.includes(agencyId as number)
+}
+
 const DEFAULT_DAILY_USD_CAP = 2
 
 export function waAssistantDailyUsdCap(): number {
