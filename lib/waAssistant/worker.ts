@@ -17,7 +17,7 @@ import { WA_ASSISTANT_LIMITS, waAssistantDailyUsdCap } from '@/lib/flags/waAssis
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText, sendPlatformTypingIndicator } from '@/lib/whatsapp/platform/sendText'
 import { resolveAssistantScope } from './identity'
-import { COPY, NO_ACTIONS_NOTE, refusalReply, renderAnswer } from './render'
+import { COPY, NO_ACTIONS_NOTE, fitReply, refusalReply, renderAnswer } from './render'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -140,10 +140,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     })
   }
 
-  const rendered = renderAnswer(result.answer)
+  const note = result.answer.proposedAction || result.answer.proposedBatch ? NO_ACTIONS_NOTE : null
+  const rendered = renderAnswer(result.answer, { note })
   const hasContent = (result.answer.claims?.length ?? 0) > 0 || !!result.answer.unknown
-  let text = hasContent ? rendered.text : COPY.noAnswer
-  if (result.answer.proposedAction || result.answer.proposedBatch) text = `${text}\n\n${NO_ACTIONS_NOTE}`
+  const text = hasContent ? rendered.text : fitReply(COPY.noAnswer, note)
   return finish(job, {
     status: 'answered',
     stopReason: result.stopReason,

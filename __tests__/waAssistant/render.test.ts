@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { APP_LINK, COPY, NO_ACTIONS_NOTE, redactContactDetails, refusalReply, renderAnswer } from '@/lib/waAssistant/render'
+import { APP_LINK, COPY, NO_ACTIONS_NOTE, fitReply, redactContactDetails, refusalReply, renderAnswer } from '@/lib/waAssistant/render'
+import { MAX_REPLY_CHARS, buildPlatformTextPayload } from '@/lib/whatsapp/platform/sendText'
 import { isWaAssistantAgency, waAssistantAgencyIds, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import type { AgentAnswer } from '@/lib/agent/types'
 
@@ -45,6 +46,22 @@ describe('renderAnswer', () => {
     const { text } = renderAnswer(answer({ claims: many }))
     expect(text.length).toBeLessThanOrEqual(1600)
     expect((text.match(/•/g) ?? []).length).toBeLessThanOrEqual(6)
+  })
+  it('a long answer with a proposal keeps NO_ACTIONS_NOTE through the final payload', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ claimClass: 'FACT' as const, text: `טענה ${i} ${'א'.repeat(400)}`, entityEvidence: ['lead:1'] }))
+    const { text } = renderAnswer(answer({ claims: many }), { note: NO_ACTIONS_NOTE })
+    expect(text.length).toBeLessThanOrEqual(MAX_REPLY_CHARS)
+    expect(text.endsWith(`\n\n${NO_ACTIONS_NOTE}`)).toBe(true)
+    const body = buildPlatformTextPayload({ toDigits: '972500000000', body: text }).text.body
+    expect(body).toBe(text)
+    expect(body.endsWith(NO_ACTIONS_NOTE)).toBe(true)
+  })
+  it('fitReply cuts only the body, and leaves short text untouched', () => {
+    expect(fitReply('קצר', NO_ACTIONS_NOTE)).toBe(`קצר\n\n${NO_ACTIONS_NOTE}`)
+    expect(fitReply('קצר')).toBe('קצר')
+    const out = fitReply('ב'.repeat(5000), NO_ACTIONS_NOTE)
+    expect(out.length).toBe(MAX_REPLY_CHARS)
+    expect(out).toContain(`…\n\n${NO_ACTIONS_NOTE}`)
   })
 })
 

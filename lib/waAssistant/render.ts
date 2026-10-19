@@ -28,7 +28,19 @@ function clean(text: string): string {
   return redactContactDetails(text.replace(/\s+/g, ' ').trim())
 }
 
-export function renderAnswer(answer: AgentAnswer): { text: string; headline: string } {
+/**
+ * `body`, then `note` (when given), within MAX_REPLY_CHARS. The note's room is
+ * reserved FIRST and only the body is cut, so the payload's own trim
+ * (sendText.ts) can never remove the note.
+ */
+export function fitReply(body: string, note?: string | null): string {
+  const suffix = note ? `\n\n${note}` : ''
+  const room = MAX_REPLY_CHARS - suffix.length
+  const fitted = body.length > room ? `${body.slice(0, room - 1)}…` : body
+  return fitted + suffix
+}
+
+export function renderAnswer(answer: AgentAnswer, opts: { note?: string | null } = {}): { text: string; headline: string } {
   const headline = clean(answer.headline || '')
   const lines: string[] = []
   if (headline) lines.push(`*${headline}*`)
@@ -36,9 +48,7 @@ export function renderAnswer(answer: AgentAnswer): { text: string; headline: str
   if (claims.length) lines.push('', ...claims.map((c) => `• ${c}`))
   if (answer.unknown) lines.push('', clean(answer.unknown))
   lines.push('', `לפרטים המלאים: ${APP_LINK}`)
-  let text = lines.join('\n')
-  if (text.length > MAX_REPLY_CHARS) text = `${text.slice(0, MAX_REPLY_CHARS - 1)}…`
-  return { text, headline: headline || 'תשובה' }
+  return { text: fitReply(lines.join('\n'), opts.note), headline: headline || 'תשובה' }
 }
 
 /**

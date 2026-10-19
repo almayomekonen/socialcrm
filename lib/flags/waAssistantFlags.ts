@@ -57,6 +57,11 @@ export const WA_ASSISTANT_LIMITS = {
   leaseMs: 3 * 60 * 1000,
   /** Question length kept and forwarded. */
   maxQuestionChars: 1000,
-  /** Jobs one worker pass handles. */
-  batch: 5,
+  /**
+   * Jobs one worker pass claims. ONE: a job can take ~46s (typing 3s + Agent
+   * 35s + send 8s) and both entry points stop at 60s, so a second claimed job
+   * would be killed mid-run and reaped later without a reply. Unclaimed jobs
+   * stay queued for the next kick or cron tick.
+   */
+  batch: 1,
 } as const

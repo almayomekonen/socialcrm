@@ -17,6 +17,11 @@ import { db } from '@/config/db'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { COPY, NO_ACTIONS_NOTE } from '@/lib/waAssistant/render'
+import { WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
+import { MAX_REPLY_CHARS, TYPING_TIMEOUT_MS, buildPlatformTextPayload } from '@/lib/whatsapp/platform/sendText'
+import { SEND_TIMEOUT_MS } from '@/lib/ownerWhatsappReminders/constants'
+import { maxDuration as cronMaxDuration } from '@/app/api/cron/wa-assistant/route'
+import { maxDuration as webhookMaxDuration } from '@/app/api/webhooks/whatsapp/route'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
 const A = 103
@@ -137,6 +142,43 @@ describe('a question, answered once', () => {
     await runWaAssistantWorker({}, h.deps)
     expect(h.sendText.mock.calls[0][0].body).toContain(NO_ACTIONS_NOTE)
     expect(await db('agent_actions').count<{ count: string }>('* as count').first()).toEqual({ count: '0' })
+  })
+
+  it('a LONG answer that proposes an action still ends with the note in what is sent', async () => {
+    await owner('972500006006')
+    await ask('972500006006', 'סכם לי את היום וקבע פגישה')
+    const claims = Array.from({ length: 6 }, (_, i) => ({ claimClass: 'FACT', text: `טענה ${i} ${'א'.repeat(400)}`, entityEvidence: ['lead:1'] }))
+    const h = harness(answer({ claims, proposedAction: { actionType: 'create_meeting', targetLeadId: 1, args: {}, evidenceRefs: ['lead:1'] } }))
+    await runWaAssistantWorker({}, h.deps)
+    const sent = h.sendText.mock.calls[0][0].body as string
+    const payload = buildPlatformTextPayload({ toDigits: '972500006006', body: sent }).text.body
+    expect(payload.endsWith(`\n\n${NO_ACTIONS_NOTE}`)).toBe(true)
+    expect(payload.length).toBeLessThanOrEqual(MAX_REPLY_CHARS)
+  })
+})
+
+describe('execution budget', () => {
+  it('one pass claims only what it can finish inside both entry points\' function limits', () => {
+    // The worker runs from the cron route and from the webhook route's `after()`.
+    const worstJobMs = TYPING_TIMEOUT_MS + WA_ASSISTANT_LIMITS.deadlineMs + SEND_TIMEOUT_MS
+    const limitMs = Math.min(cronMaxDuration, webhookMaxDuration) * 1000
+    expect(WA_ASSISTANT_LIMITS.batch).toBe(1)
+    expect(WA_ASSISTANT_LIMITS.batch * worstJobMs).toBeLessThan(limitMs)
+  })
+
+  it('with several senders waiting, a pass claims one job and leaves the rest queued', async () => {
+    await owner('972500006050')
+    await owner('972500006051')
+    await owner('972500006052')
+    const ids = [await ask('972500006050', 'א'), await ask('972500006051', 'ב'), await ask('972500006052', 'ג')]
+    const h = harness()
+    const s = await runWaAssistantWorker({}, h.deps)
+    expect(s.claimed).toBe(1)
+    expect(h.runAgent).toHaveBeenCalledTimes(1)
+    const states = await db('wa_assistant_jobs').whereIn('wamid', ids).pluck('status')
+    expect(states.filter((x) => x === 'answered')).toHaveLength(1)
+    expect(states.filter((x) => x === 'queued')).toHaveLength(2)
+    expect(await db('wa_assistant_jobs').where({ status: 'running' }).count<{ count: string }>('* as count').first()).toEqual({ count: '0' })
   })
 })
 

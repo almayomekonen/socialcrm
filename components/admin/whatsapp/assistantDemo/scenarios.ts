@@ -4,8 +4,9 @@
  * date or result here comes from any CRM, and nothing here is ever sent.
  *
  * `availability` says honestly what exists today:
- *   pilot  — the read-only assistant built in this branch answers this kind of
- *            question for real (agency 103, behind WA_ASSISTANT_AGENCY_IDS);
+ *   pilot  — the read-only assistant is built for this kind of question (agency
+ *            103, behind WA_ASSISTANT_AGENCY_IDS) but is NOT live yet, and its
+ *            answers have not been verified against a real model or Meta;
  *   future — the meeting workflow (Phase 2). Not built: no availability check,
  *            no Google sync from WhatsApp, no confirmation flow on WhatsApp.
  */

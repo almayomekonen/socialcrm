@@ -46,10 +46,15 @@ read). Phone numbers and emails are redacted from every reply.
 - Limits: 20 messages per sender per hour, 200 per agency per day, durable
   per-agency spend per UTC day (`WA_ASSISTANT_DAILY_USD_CAP`, default 2 USD).
   Only the first message over a count limit gets a "limit" reply.
-- Memory: question + answer headline only, last 3 exchanges, cleared 24 hours
-  after the message. No customer phone or email is stored.
+- Memory: `wa_assistant_jobs` keeps the question + answer headline only (last 3
+  exchanges are used as context); that text is cleared 24 hours after the
+  message, and the headline is redacted before it is stored.
+- Retention: every turn ALSO writes the Agent's own `agent_investigations`
+  record, exactly as the web Agent does. It keeps the question and the full
+  validated answer **indefinitely** and **unredacted** (redaction applies only to
+  the WhatsApp reply). It is not shown in any UI.
 - Audit: analytics event `wa_assistant_turn` (ids, outcome, timing, cost; never
-  text) and the Agent's own `agent_investigations` record.
+  text).
 - No writes: no Action Runtime call exists on this path.
 
 ## Configuration (Production only, each change its own approval)

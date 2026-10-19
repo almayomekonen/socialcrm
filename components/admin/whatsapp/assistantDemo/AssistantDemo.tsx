@@ -14,7 +14,7 @@ import { SCENARIOS, type DemoMeeting, type DemoScenario, type DemoStep } from '.
 type Shown = DemoStep | { kind: 'pending'; label: string }
 
 const AVAILABILITY_LABEL: Record<DemoScenario['availability'], string> = {
-  pilot: 'קיים בפיילוט: קריאה בלבד',
+  pilot: 'נבנה לפיילוט, עדיין לא פעיל · קריאה בלבד',
   future: 'עדיין לא קיים: שלב 2',
 }
 

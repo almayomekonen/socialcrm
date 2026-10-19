@@ -20,6 +20,7 @@ export type PlatformTextOutcome =
   | { kind: 'rejected'; scope: 'rate_limit' | 'account' | 'recipient' | 'other'; code: string | null; httpStatus: number }
 
 export const MAX_REPLY_CHARS = 1600
+export const TYPING_TIMEOUT_MS = 3_000
 
 export function buildPlatformTextPayload(input: { toDigits: string; body: string; replyToWamid?: string | null }) {
   return {
@@ -90,7 +91,7 @@ export async function sendPlatformTypingIndicator(input: { phoneNumberId: string
       input.phoneNumberId,
       input.accessToken,
       { messaging_product: 'whatsapp', status: 'read', message_id: input.inboundWamid, typing_indicator: { type: 'text' } },
-      3_000,
+      TYPING_TIMEOUT_MS,
     )
     if (!res.ok) console.log('[WaAssistant][typing] not accepted', { jobId: input.jobId, httpStatus: res.status })
   } catch {

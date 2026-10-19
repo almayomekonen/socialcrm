@@ -30,7 +30,7 @@ describe('SocialCRM AI WhatsApp demo', () => {
     const { container } = render(<AssistantDemo />)
     expect(screen.getByRole('note')).toHaveTextContent('הדמיה בלבד')
     expect(screen.getByRole('region', { name: 'שיחת הדמיה' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /סיכום יום.*קיים בפיילוט/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /סיכום יום.*נבנה לפיילוט, עדיין לא פעיל/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /קביעת פגישה.*עדיין לא קיים/ })).toBeInTheDocument()
     expect(container.textContent).not.toMatch(EMOJI)
   })
