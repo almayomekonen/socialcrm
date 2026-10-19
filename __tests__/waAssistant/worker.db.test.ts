@@ -5,6 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * turn, limits, the reply window, exactly one reply, nothing ever performed,
  * and bounded memory. The Agent, the sender and the typing indicator are
  * injected; nothing reaches Meta or a model.
+ *
+ * NOTE: over the 250-line soft limit on purpose: one flat list of independent
+ * scenarios sharing the harness, queueing and fixture helpers; splitting it
+ * would duplicate those across files for no readability gain.
  */
 const flags = vi.hoisted(() => ({ agent: true }))
 vi.mock('@/lib/ai/flags', async (orig) => ({ ...(await orig<typeof import('@/lib/ai/flags')>()), isAgentEnabled: () => flags.agent }))

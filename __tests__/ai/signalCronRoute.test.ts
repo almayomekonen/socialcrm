@@ -169,6 +169,10 @@ describe('the cron entry', () => {
       // platform number and an agency allowlist are set, and sends only with
       // OWNER_WA_REMINDERS_SEND_ENABLED=1.
       { path: '/api/cron/owner-wa-reminders', schedule: '*/1 * * * *' },
+      // WhatsApp assistant (pilot): the backstop drain for owner questions to the
+      // platform number, plus its lease reaper and 24-hour text purge. No part of
+      // the signal pipeline; inert unless WA_ASSISTANT_AGENCY_IDS names an agency.
+      { path: '/api/cron/wa-assistant', schedule: '*/1 * * * *' },
     ])
   })
 })
