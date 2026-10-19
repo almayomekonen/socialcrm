@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { processPlatformChanges } from './inbound'
+import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { platformBatchResponse, type WebhookSplit } from './webhookBatch'
 
 /**
@@ -29,6 +30,27 @@ export async function handleDeliveryWithPlatformChanges(
       agencyFields: split.agencyFields,
     })
   }
+  if (platform.outcomes.includes('assistant_queued')) kickAssistant()
   if (decision.useAgencyResponse && agencyResponse) return agencyResponse
   return NextResponse.json({ ok: decision.status < 300 }, { status: decision.status })
+}
+
+/**
+ * Answer the owner right after Meta gets its 200, not on the next cron tick.
+ * The job is already committed; if this cannot run (or fails), the minute-ly
+ * /api/cron/wa-assistant drains it.
+ */
+function kickAssistant(): void {
+  try {
+    after(async () => {
+      try {
+        const r = await runWaAssistantWorker()
+        console.log('[WaAssistant][kick]', { claimed: r.claimed, outcomes: r.outcomes })
+      } catch (err) {
+        console.error('[WaAssistant][kick] failed', { name: (err as Error)?.name ?? null })
+      }
+    })
+  } catch {
+    // Outside a request scope (tests, scripts): the cron is the drain.
+  }
 }

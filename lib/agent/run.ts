@@ -115,6 +115,13 @@ export type RunAgentInput = {
    */
   requireToolEvidence?: boolean
   /**
+   * Never admit hosted web research, whatever the question says. The WhatsApp
+   * assistant sets it: a research run takes 33-73s and costs a search, and an
+   * owner asking on WhatsApp is asking about their own CRM. Omitted, research
+   * admission is exactly as before.
+   */
+  disableResearch?: boolean
+  /**
    * PRIOR TURNS of this conversation, oldest first.
    *
    * What makes "ומה דחוף?" and "ומה עם יוסי?" answerable: without them each
@@ -178,7 +185,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
    * never receives the search tool — so "zero web searches on a CRM question" is
    * a property of what the model was handed, not of what it chose.
    */
-  const research = admitsResearch(input.question)
+  const research = input.disableResearch ? ({ admitted: false, marker: null } as const) : admitsResearch(input.question)
   /**
    * A research run gets its own wall clock. Measured hosted searches ran 33.8s
    * and 72.9s, so the 40s CRM ceiling would fail them by construction — and

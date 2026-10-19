@@ -1,0 +1,177 @@
+import type { Knex } from 'knex'
+import { db } from '@/config/db'
+import { WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
+
+/**
+ * wa_assistant_jobs: queue, memory, ledger and reply state for the WhatsApp
+ * assistant. Every transition is a guarded statement on the current status.
+ */
+
+const T = 'wa_assistant_jobs'
+
+export type WaAssistantJob = {
+  id: number
+  wamid: string
+  recipientId: number
+  agencyId: number
+  userId: number
+  kind: 'text' | 'unsupported'
+  question: string | null
+  messageTimestamp: number
+  attempts: number
+}
+
+/** Inside the platform-inbound transaction. False for a redelivery (no second job). */
+export async function enqueueWaAssistantJob(
+  trx: Knex.Transaction,
+  row: { wamid: string; recipientId: number; agencyId: number; userId: number; kind: 'text' | 'unsupported'; question: string | null; messageTimestamp: number },
+): Promise<boolean> {
+  const inserted = await trx(T).insert(row).onConflict('wamid').ignore().returning('id')
+  return inserted.length > 0
+}
+
+/** A `running` job past its lease was interrupted. Failed, never re-run; a reply mid-send becomes `unknown`. */
+export async function reapStaleWaAssistantJobs(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - WA_ASSISTANT_LIMITS.leaseMs)
+  const rows = await db(T)
+    .where({ status: 'running' })
+    .where('lockedAt', '<', cutoff)
+    .update({
+      status: 'failed',
+      stopReason: 'lease_expired',
+      replyState: db.raw(`CASE WHEN "replyState" = 'sending' THEN 'unknown' ELSE "replyState" END`),
+      lockedAt: null,
+      updatedAt: db.fn.now(),
+    })
+    .returning('id')
+  return rows.length
+}
+
+/**
+ * Claim up to `limit` queued jobs, at most ONE per recipient and never for a
+ * recipient that already has a running job: a sender's messages are answered
+ * one at a time, in order.
+ */
+export async function claimWaAssistantJobs(limit: number): Promise<WaAssistantJob[]> {
+  const { rows } = await db.raw(
+    `UPDATE ${T} j
+        SET status = 'running', attempts = j.attempts + 1, "lockedAt" = now(), "updatedAt" = now()
+      WHERE j.id IN (
+        SELECT q.id
+          FROM ${T} q
+         WHERE q.status = 'queued'
+           AND NOT EXISTS (SELECT 1 FROM ${T} r WHERE r."recipientId" = q."recipientId" AND r.status = 'running')
+           -- Only the recipient's OLDEST queued message. A concurrent claimer
+           -- still sees that older row as queued, so it can never take a newer one.
+           AND NOT EXISTS (
+             SELECT 1 FROM ${T} o
+              WHERE o."recipientId" = q."recipientId" AND o.status = 'queued'
+                AND (o."createdAt", o.id) < (q."createdAt", q.id)
+           )
+         ORDER BY q."createdAt", q.id
+         LIMIT :limit
+         FOR UPDATE SKIP LOCKED
+      )
+      RETURNING j.id, j.wamid, j."recipientId", j."agencyId", j."userId", j.kind, j.question, j."messageTimestamp", j.attempts`,
+    { limit },
+  )
+  return rows.map((r: Record<string, unknown>) => ({
+    id: Number(r.id),
+    wamid: String(r.wamid),
+    recipientId: Number(r.recipientId),
+    agencyId: Number(r.agencyId),
+    userId: Number(r.userId),
+    kind: r.kind as WaAssistantJob['kind'],
+    question: (r.question as string | null) ?? null,
+    messageTimestamp: Number(r.messageTimestamp),
+    attempts: Number(r.attempts),
+  }))
+}
+
+/** Prior exchanges for this recipient, oldest first, inside the memory window. */
+export async function recentWaAssistantTurns(recipientId: number, beforeJobId: number, now: Date): Promise<{ role: 'user' | 'assistant'; content: string }[]> {
+  const pairs = Math.ceil(WA_ASSISTANT_LIMITS.historyTurns / 2)
+  const rows = (await db(T)
+    .where({ recipientId, status: 'answered', kind: 'text' })
+    .where('id', '<', beforeJobId)
+    .where('createdAt', '>', new Date(now.getTime() - WA_ASSISTANT_LIMITS.historyMs))
+    .whereNotNull('question')
+    .orderBy('id', 'desc')
+    .limit(pairs)
+    .select('question', 'answerHeadline')) as { question: string; answerHeadline: string | null }[]
+  const turns: { role: 'user' | 'assistant'; content: string }[] = []
+  for (const r of rows.reverse()) {
+    turns.push({ role: 'user', content: r.question })
+    if (r.answerHeadline) turns.push({ role: 'assistant', content: r.answerHeadline })
+  }
+  return turns.slice(-WA_ASSISTANT_LIMITS.historyTurns)
+}
+
+/**
+ * Usage counters for the limits: messages received BEFORE this one (lower id),
+ * so "the first message over the limit" is well defined even while later
+ * messages are already queued. Spend counts every other job today.
+ */
+export async function waAssistantUsage(job: { id: number; recipientId: number; agencyId: number }, now: Date): Promise<{ senderLastHour: number; agencyToday: number; agencySpendTodayUsd: number }> {
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  const [sender, agency] = await Promise.all([
+    db(T).where({ recipientId: job.recipientId }).where('id', '<', job.id).where('createdAt', '>', hourAgo).count<{ count: string }>('id as count').first(),
+    db(T)
+      .where({ agencyId: job.agencyId })
+      .whereNot({ id: job.id })
+      .where('createdAt', '>=', dayStart)
+      .select(db.raw('count(*) FILTER (WHERE id < ?)::int AS count', [job.id]), db.raw('COALESCE(sum("costUsd"), 0)::float AS spend'))
+      .first(),
+  ])
+  return {
+    senderLastHour: Number(sender?.count ?? 0),
+    agencyToday: Number((agency as { count?: number } | undefined)?.count ?? 0),
+    agencySpendTodayUsd: Number((agency as { spend?: number } | undefined)?.spend ?? 0),
+  }
+}
+
+/** Commit `sending` BEFORE the Graph call. False when the reply was already attempted. */
+export async function markWaAssistantReplySending(jobId: number): Promise<boolean> {
+  const n = await db(T).where({ id: jobId, status: 'running' }).whereNull('replyState').update({ replyState: 'sending', updatedAt: db.fn.now() })
+  return n === 1
+}
+
+export type WaAssistantFinish = {
+  status: 'answered' | 'refused' | 'failed' | 'expired'
+  refusalReason?: string | null
+  stopReason?: string | null
+  answerHeadline?: string | null
+  costUsd?: number
+  durationMs?: number
+  reply?: { state: 'sent' | 'failed' | 'unknown' | 'skipped'; wamid?: string | null; errorCode?: string | null }
+}
+
+/** Close a running job. Guarded on `running`, so a reaped job is never overwritten. */
+export async function finishWaAssistantJob(jobId: number, f: WaAssistantFinish): Promise<void> {
+  await db(T)
+    .where({ id: jobId, status: 'running' })
+    .update({
+      status: f.status,
+      refusalReason: f.refusalReason ?? null,
+      stopReason: f.stopReason ?? null,
+      answerHeadline: f.answerHeadline ? f.answerHeadline.slice(0, 600) : null,
+      costUsd: f.costUsd ?? 0,
+      durationMs: f.durationMs ?? null,
+      ...(f.reply ? { replyState: f.reply.state, replyWamid: f.reply.wamid ?? null, replyErrorCode: f.reply.errorCode ?? null } : {}),
+      lockedAt: null,
+      updatedAt: db.fn.now(),
+    })
+}
+
+/** Memory is bounded in time: text older than the window is cleared, the ledger kept. */
+export async function purgeWaAssistantText(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - WA_ASSISTANT_LIMITS.historyMs)
+  const rows = await db(T)
+    .where('createdAt', '<', cutoff)
+    .where((q) => q.whereNotNull('question').orWhereNotNull('answerHeadline'))
+    .whereNotIn('status', ['queued', 'running'])
+    .update({ question: null, answerHeadline: null, updatedAt: db.fn.now() })
+    .returning('id')
+  return rows.length
+}
