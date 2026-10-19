@@ -33,6 +33,25 @@ export function buildPlatformTextPayload(input: { toDigits: string; body: string
   }
 }
 
+/** Meta's reply-button limits: body 1024 characters, up to 3 buttons, title 20, id 256. */
+export const MAX_BUTTON_BODY_CHARS = 1024
+export type ReplyButton = { id: string; title: string }
+
+export function buildPlatformButtonsPayload(input: { toDigits: string; body: string; buttons: readonly ReplyButton[]; replyToWamid?: string | null }) {
+  return {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: input.toDigits,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text: input.body.slice(0, MAX_BUTTON_BODY_CHARS) },
+      action: { buttons: input.buttons.slice(0, 3).map((b) => ({ type: 'reply', reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) } })) },
+    },
+    ...(input.replyToWamid ? { context: { message_id: input.replyToWamid } } : {}),
+  }
+}
+
 async function post(phoneNumberId: string, accessToken: string, payload: unknown, timeoutMs: number) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -56,10 +75,15 @@ export async function sendPlatformText(input: {
   toE164: string
   body: string
   replyToWamid?: string | null
+  /** Reply buttons (an interactive message) instead of plain text. Same outcomes, same never-resend rule. */
+  buttons?: readonly ReplyButton[]
   jobId: number
   timeoutMs?: number
 }): Promise<PlatformTextOutcome> {
-  const payload = buildPlatformTextPayload({ toDigits: input.toE164.replace(/\D/g, ''), body: input.body, replyToWamid: input.replyToWamid })
+  const toDigits = input.toE164.replace(/\D/g, '')
+  const payload = input.buttons?.length
+    ? buildPlatformButtonsPayload({ toDigits, body: input.body, buttons: input.buttons, replyToWamid: input.replyToWamid })
+    : buildPlatformTextPayload({ toDigits, body: input.body, replyToWamid: input.replyToWamid })
   let outcome: PlatformTextOutcome
   try {
     const { res, data } = await post(input.phoneNumberId, input.accessToken, payload, input.timeoutMs ?? SEND_TIMEOUT_MS)

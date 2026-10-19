@@ -15,7 +15,7 @@ export type WaAssistantJob = {
   recipientId: number
   agencyId: number
   userId: number
-  kind: 'text' | 'unsupported'
+  kind: 'text' | 'unsupported' | 'decision'
   question: string | null
   messageTimestamp: number
   attempts: number
@@ -24,7 +24,7 @@ export type WaAssistantJob = {
 /** Inside the platform-inbound transaction. False for a redelivery (no second job). */
 export async function enqueueWaAssistantJob(
   trx: Knex.Transaction,
-  row: { wamid: string; recipientId: number; agencyId: number; userId: number; kind: 'text' | 'unsupported'; question: string | null; messageTimestamp: number },
+  row: { wamid: string; recipientId: number; agencyId: number; userId: number; kind: 'text' | 'unsupported' | 'decision'; question: string | null; messageTimestamp: number },
 ): Promise<boolean> {
   const inserted = await trx(T).insert(row).onConflict('wamid').ignore().returning('id')
   return inserted.length > 0
