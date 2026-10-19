@@ -173,8 +173,17 @@ event, which runs whatever appointment automations the agency has configured.
    row, and the Google line is truthful.
 4. Check read-only: `wa_assistant_approvals` (status), `agent_actions`
    (`executionState`, `verificationState`), `meetings` (one row, `sync_status`).
-5. Before any customer-facing use, check the agency's `appointment_booked`
-   automations: they will fire as for any booked meeting.
+5. **Before step 3**, check the agency's `appointment_booked` automations. They
+   fire as for any booked meeting and can message the LEAD. Production has the
+   automation engine configured (`AUTOMATIONS_ENABLED`,
+   `AUTOMATIONS_AGENCY_ALLOWLIST`, `AUTOMATIONS_SEND_MODE`). Read-only:
+   ```sql
+   SELECT id, name, status, "activatedAt", action
+   FROM automation_definitions
+   WHERE "agencyId" = 103 AND "trigger" = 'appointment_booked' AND "deletedAt" IS NULL;
+   ```
+   If any row is active, the test lead must be one whose contact details reach
+   only you, or the automation should be paused for the test.
 
 **Rollback:** remove `WA_ASSISTANT_MEETINGS_AGENCY_IDS` and redeploy. The
 assistant is read-only again, and open cards get "not available". Created
