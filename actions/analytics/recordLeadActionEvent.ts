@@ -4,8 +4,9 @@ import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { track, type AnalyticsEventName } from '@/lib/analytics/track'
 import { getInAppBrowser } from '@/lib/device'
 import { CLIENT_CONNECT_FAILURE_REASONS } from '@/lib/connections/connectFailure'
-import { EMBEDDED_SIGNUP_STEPS } from '@/lib/whatsapp/coexistenceEvents'
+import { EMBEDDED_SIGNUP_STEPS, META_ERROR_ID, META_SESSION_ID } from '@/lib/whatsapp/coexistenceEvents'
 import { hasServerConnectOutcomeSince } from '@/lib/analytics/connectOutcome'
+import { CONNECT_ATTEMPT_ID } from '@/lib/connections/lateCancelDetail'
 
 /**
  * Client bridge for the activation milestone: a rep acted on a lead.
@@ -45,6 +46,11 @@ const CLIENT_EMITTABLE = new Set<AnalyticsEventName>([
    * from the client.
    */
   'whatsapp_connect_failed',
+  /**
+   * Meta's CANCEL ids for an attempt that already ended in the browser. Only
+   * validated ids are kept (see `connectFailureDetail`); never Meta's text.
+   */
+  'whatsapp_connect_cancel_detail',
   /**
    * THE CONTACT TRIAD. Client-emittable because the outcome of a contact attempt
    * is only knowable in the browser: the native-WhatsApp handoff is a plain
@@ -91,7 +97,9 @@ const ABANDONED_LOOKBACK_SLACK_MS = 5_000
 function connectFailureDetail(props: Record<string, unknown> | undefined): Record<string, string | number> {
   const detail: Record<string, string | number> = {}
   if (typeof props?.step === 'string' && SIGNUP_STEPS.has(props.step)) detail.step = props.step
-  if (typeof props?.metaErrorId === 'string' && /^\d{1,20}$/.test(props.metaErrorId)) detail.metaErrorId = props.metaErrorId
+  if (typeof props?.metaErrorId === 'string' && META_ERROR_ID.test(props.metaErrorId)) detail.metaErrorId = props.metaErrorId
+  if (typeof props?.metaSessionId === 'string' && META_SESSION_ID.test(props.metaSessionId)) detail.metaSessionId = props.metaSessionId
+  if (typeof props?.attemptId === 'string' && CONNECT_ATTEMPT_ID.test(props.attemptId)) detail.attemptId = props.attemptId
   const elapsed = props?.elapsedMs
   if (typeof elapsed === 'number' && Number.isFinite(elapsed) && elapsed >= 0) {
     detail.elapsedMs = Math.min(Math.round(elapsed), MAX_CONNECT_ELAPSED_MS)
@@ -121,8 +129,16 @@ export async function recordLeadActionEvent(
   const channel = props?.channel
   const intendedChannel = props?.intendedChannel
   const isConnectFailure = event === 'whatsapp_connect_failed'
+  const isCancelDetail = event === 'whatsapp_connect_cancel_detail'
   // A connect failure without a known reason is worthless — reject it outright.
   if (isConnectFailure && !CONNECT_FAILURE_REASONS.has(reason ?? '')) return
+  // Late cancel detail: a valid attempt id and at least one id, or nothing at all.
+  const cancelDetail = isCancelDetail ? connectFailureDetail(props) : {}
+  if (isCancelDetail) {
+    delete cancelDetail.elapsedMs
+    if (reason !== undefined || typeof cancelDetail.attemptId !== 'string') return
+    if (!cancelDetail.step && !cancelDetail.metaErrorId && !cancelDetail.metaSessionId) return
+  }
   if (!isConnectFailure && reason !== undefined && !BLOCKED_REASONS.has(reason as LeadContactBlockedReason)) return
   if (channel !== undefined && !CHANNELS.has(channel as LeadContactChannel)) return
   if (intendedChannel !== undefined && !CHANNELS.has(intendedChannel as LeadContactChannel)) return
@@ -172,7 +188,9 @@ export async function recordLeadActionEvent(
         ? { inApp: await inApp() }
         : isConnectFailure
           ? { reason, stage: 'client', inApp: await inApp(), ...connectDetail }
-          : safeProps
+          : isCancelDetail
+            ? { stage: 'client_late', ...cancelDetail }
+            : safeProps
     await track({ agencyId: user.agencyId, userId: user.id, event, props: eventProps })
   } catch {
     // Analytics must never break a flow; swallow auth/db hiccups.
