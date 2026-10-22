@@ -6,6 +6,8 @@ import {
   ES_EVENT_CANCEL,
   ES_EVENT_FINISH,
   ES_EVENT_FINISH_COEXISTENCE,
+  metaErrorId,
+  metaSessionId,
   type EmbeddedSignupStep,
   type OnboardingType,
 } from '@/lib/whatsapp/coexistenceEvents'
@@ -40,8 +42,13 @@ export type EmbeddedSignupCancel = {
    * formatting characters), bounded, and never stored or logged.
    */
   errorMessage?: string
-  /** Meta's numeric support id for the report. The only part that is stored. */
+  /** Meta's numeric support id for the report. Stored. */
   errorId?: string
+  /**
+   * Meta's opaque id for this Embedded Signup session, for a Meta support
+   * ticket. Stored. Not a credential and not customer data.
+   */
+  sessionId?: string
 }
 
 /** What one launch of Embedded Signup resolved to. Re-exported by useEmbeddedSignup. */
@@ -128,9 +135,10 @@ function cleanMetaText(raw: string): string {
 
 /**
  * Meta's CANCEL message: `{ data: { current_step } }` when the customer left a
- * screen, `{ data: { error_message, error_id, session_id } }` when they reported
+ * screen, `{ data: { error_message, error_code, session_id } }` when they reported
  * an error Meta showed them. Values are cleaned and bounded here because they
- * come from another window; `session_id` is not kept because nothing uses it.
+ * come from another window. The error code and `session_id` are kept whenever
+ * well-formed, with or without a message, for a Meta support ticket.
  */
 export function parseEmbeddedSignupCancel(origin: string, data: unknown): EmbeddedSignupCancel | null {
   const msg = readSignupMessage(origin, data)
@@ -138,15 +146,17 @@ export function parseEmbeddedSignupCancel(origin: string, data: unknown): Embedd
   const d = (msg.data && typeof msg.data === 'object' ? msg.data : {}) as Record<string, unknown>
 
   const errorMessage = typeof d.error_message === 'string' ? cleanMetaText(d.error_message) : ''
-  if (errorMessage) {
-    const cancel: EmbeddedSignupCancel = { errorReported: true, errorMessage }
-    if (typeof d.error_id === 'string' && /^\d{1,20}$/.test(d.error_id)) cancel.errorId = d.error_id
-    return cancel
-  }
-  if (typeof d.current_step === 'string') {
-    return { step: (STEP_SET.has(d.current_step) ? d.current_step : 'OTHER') as EmbeddedSignupStep, errorReported: false }
-  }
-  return { errorReported: false }
+  const cancel: EmbeddedSignupCancel = errorMessage
+    ? { errorReported: true, errorMessage }
+    : typeof d.current_step === 'string'
+      ? { step: (STEP_SET.has(d.current_step) ? d.current_step : 'OTHER') as EmbeddedSignupStep, errorReported: false }
+      : { errorReported: false }
+  // Meta's docs now say `error_code`; older payloads used `error_id`.
+  const errorId = metaErrorId(d.error_code) ?? metaErrorId(d.error_id)
+  if (errorId) cancel.errorId = errorId
+  const sessionId = metaSessionId(d.session_id)
+  if (sessionId) cancel.sessionId = sessionId
+  return cancel
 }
 
 export function parseEmbeddedSignupMessage(origin: string, data: unknown): EmbeddedSignupSession | null {

@@ -41,8 +41,8 @@ describe('parseEmbeddedSignupCancel', () => {
   })
 
   it('reads an error the customer reported inside the flow, stringified or not', () => {
-    // session_id is deliberately not kept: nothing uses it, so nothing holds it.
-    const expected = { errorReported: true, errorMessage: 'You have guessed too many times.', errorId: '524126' }
+    // session_id is kept (validated) for a Meta support ticket; the timestamp is not.
+    const expected = { errorReported: true, errorMessage: 'You have guessed too many times.', errorId: '524126', sessionId: 'f34b51dab5e0498' }
     expect(parseEmbeddedSignupCancel(FB, REPORTED)).toEqual(expected)
     expect(parseEmbeddedSignupCancel(FB, JSON.stringify(REPORTED))).toEqual(expected)
   })

@@ -191,6 +191,12 @@ export type AnalyticsEventName =
   | 'whatsapp_connected_operational'
   | 'whatsapp_connect_failed'
   /**
+   * Meta's CANCEL ids (screen, error id, session id) for a connect attempt that
+   * had already ended in the browser. Joined to its `whatsapp_connect_failed`
+   * by `attemptId`. Client-emitted; validated in recordLeadActionEvent.
+   */
+  | 'whatsapp_connect_cancel_detail'
+  /**
    * Terminal end of the WhatsApp lifecycle. The connection row is HARD
    * deleted, so once it is gone the database holds no trace of when the
    * disconnect happened, who did it, or from where — this event is the only

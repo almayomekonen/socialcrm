@@ -126,6 +126,37 @@ describe('whatsapp_connect_failed carries Meta’s explanation, validated', () =
   })
 })
 
+describe('attempt id and Meta session id', () => {
+  it('a failure keeps a valid attempt id and Meta session id, and drops malformed ones', async () => {
+    await recordLeadActionEvent('whatsapp_connect_failed', { reason: 'cancelled', attemptId: 'a1b2c3d4-0000-4000-8000-000000000001', metaSessionId: 'sess_1-A' })
+    await recordLeadActionEvent('whatsapp_connect_failed', { reason: 'cancelled', attemptId: 'x y', metaSessionId: '<b>' })
+    expect(h.tracked[0].props).toEqual({ reason: 'cancelled', stage: 'client', inApp: null, attemptId: 'a1b2c3d4-0000-4000-8000-000000000001', metaSessionId: 'sess_1-A' })
+    expect(h.tracked[1].props).toEqual({ reason: 'cancelled', stage: 'client', inApp: null })
+  })
+})
+
+describe('whatsapp_connect_cancel_detail (late Meta CANCEL)', () => {
+  const ATTEMPT = 'a1b2c3d4-0000-4000-8000-000000000001'
+  it('keeps the attempt id and validated ids only, stamped client_late', async () => {
+    await recordLeadActionEvent('whatsapp_connect_cancel_detail', {
+      attemptId: ATTEMPT, step: 'PHONE_NUMBER_SETUP', metaErrorId: '524126', metaSessionId: 'sessA1',
+      stage: 'server', inApp: 'instagram', elapsedMs: 5, errorMessage: 'Ineligible 0501234567', extra: 'x',
+    })
+    expect(h.tracked).toEqual([{ agencyId: 42, userId: 5, event: 'whatsapp_connect_cancel_detail', props: {
+      stage: 'client_late', attemptId: ATTEMPT, step: 'PHONE_NUMBER_SETUP', metaErrorId: '524126', metaSessionId: 'sessA1',
+    } }])
+  })
+
+  it('rejects a missing or malformed attempt id, an event with no valid id, and any reason', async () => {
+    await recordLeadActionEvent('whatsapp_connect_cancel_detail', { metaSessionId: 'sessA1' })
+    await recordLeadActionEvent('whatsapp_connect_cancel_detail', { attemptId: 'bad id!', metaSessionId: 'sessA1' })
+    await recordLeadActionEvent('whatsapp_connect_cancel_detail', { attemptId: ATTEMPT })
+    await recordLeadActionEvent('whatsapp_connect_cancel_detail', { attemptId: ATTEMPT, step: 'NOT_A_STEP', metaErrorId: 'abc', metaSessionId: 'has space' })
+    await recordLeadActionEvent('whatsapp_connect_cancel_detail', { attemptId: ATTEMPT, metaSessionId: 'sessA1', reason: 'cancelled' })
+    expect(h.tracked).toEqual([])
+  })
+})
+
 describe('abandoned never contradicts an outcome the server recorded', () => {
   it('is dropped when the server recorded a success or failure since the attempt began', async () => {
     h.serverOutcome = true

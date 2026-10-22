@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { beginConnectAttempt, reportAbandonedConnectAttempt } from '@/lib/connections/connectAttemptTelemetry'
+import { beginConnectAttempt, reportAbandonedConnectAttempt, reportLateCancel } from '@/lib/connections/connectAttemptTelemetry'
 import {
   cancelledResult,
   createEmbeddedSignupGate,
@@ -112,7 +112,9 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
       const session = parseEmbeddedSignupMessage(event.origin, event.data)
       if (session) return gateRef.current?.acceptSession(session)
       const cancel = parseEmbeddedSignupCancel(event.origin, event.data)
-      if (cancel) gateRef.current?.acceptCancel(cancel)
+      if (!cancel) return
+      gateRef.current?.acceptCancel(cancel)
+      reportLateCancel(cancel)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)

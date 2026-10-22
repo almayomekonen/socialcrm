@@ -50,3 +50,21 @@ export const EMBEDDED_SIGNUP_STEPS = [
   'OTHER',
 ] as const
 export type EmbeddedSignupStep = (typeof EMBEDDED_SIGNUP_STEPS)[number]
+
+/** Meta's numeric error code, string or number; anything else is dropped. */
+export const META_ERROR_ID = /^\d{1,20}$/
+/**
+ * Meta documents the session id's purpose (for support) and one example
+ * (`f34b51dab5e0498`), not its format: a conservative allowlist and bound, and
+ * a non-matching id is DROPPED, never rewritten (an altered id misleads support).
+ */
+export const META_SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/
+
+export function metaErrorId(raw: unknown): string | undefined {
+  const v = typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 ? String(raw) : raw
+  return typeof v === 'string' && META_ERROR_ID.test(v) ? v : undefined
+}
+
+export function metaSessionId(raw: unknown): string | undefined {
+  return typeof raw === 'string' && META_SESSION_ID.test(raw) ? raw : undefined
+}
