@@ -5,59 +5,62 @@ import type { BriefItem } from '@/lib/today/types'
 // Presentational (RSC). The single next action — the eye magnet. Today is a
 // pointer: the primary act is a plain tel: link (no client JS) and a link to the
 // lead workspace where outcomes are logged; the brief refreshes server-side on return.
+// The dark-card shades below have no theme token; they are tints of `ink`.
+const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+const primaryBtn = `inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary px-5 text-[15px] font-semibold whitespace-nowrap text-white transition-colors hover:bg-accent ${focusRing}`
+const outlineBtn = `inline-flex h-11 items-center justify-center rounded-[10px] border border-[#2c4566] px-4 text-[15px] font-semibold whitespace-nowrap text-white transition-colors hover:bg-[#16365a] ${focusRing}`
+
 export default function BriefMission({ item }: { item: BriefItem }) {
   const href = item.href ?? `/clients/${item.id}/summary`
   const openConversation = Boolean(item.conversationId || item.href?.startsWith('/inbox'))
+  const meta = [item.waitingFor ?? item.reason, item.windowHint, !openConversation ? item.phone : null]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <div className='rounded-2xl border border-border bg-gradient-to-b from-primary-tint to-surface p-6 shadow-md sm:p-7'>
-      <div className='flex items-center gap-1.5 text-primary-text'>
-        <Icon name='bolt' className='size-4 bg-primary-text' />
-        <span className='text-xs font-semibold tracking-wide'>
-          {openConversation ? 'צריך לטפל עכשיו' : 'המשימה הבאה'}
-        </span>
+    <section className='flex min-w-0 flex-[1_1_340px] flex-col justify-between gap-3.5 rounded-2xl bg-ink px-6 py-[22px] text-white'>
+      <div className='flex items-center gap-2 text-accent'>
+        <Icon name='bolt' className='size-4 bg-accent' />
+        <span className='text-sm font-semibold'>{openConversation ? 'צריך לטפל עכשיו' : 'המשימה הבאה'}</span>
       </div>
 
-      <Link
-        href={href}
-        className='mt-3 block truncate text-2xl font-semibold text-ink hover:underline sm:text-3xl'
-      >
-        {item.name || '—'}
-      </Link>
-      <p className='mt-2 text-sm text-gray-600 tabular-nums'>
-        {item.waitingFor ?? item.reason}
-        {!openConversation && item.phone ? ` · ${item.phone}` : ''}
-      </p>
-      {item.windowHint && <p className='mt-1 text-sm text-gray-500'>{item.windowHint}</p>}
+      <div className='min-w-0'>
+        <Link href={href} className={`block truncate text-[26px] font-bold text-white hover:underline ${focusRing}`}>
+          {item.name || '—'}
+        </Link>
+        <p className='mt-0.5 text-[15px] text-[#c7cbe6] tabular-nums'>{meta}</p>
+      </div>
 
-      <div className='mt-6 flex flex-wrap items-center gap-2.5'>
+      <div className='flex gap-2'>
         {openConversation ? (
-          <Link
-            href={href}
-            className='inline-flex h-11 items-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85'
-          >
-            פתח שיחה
-          </Link>
-        ) : (
           <>
+            <Link href={href} className={primaryBtn}>
+              פתח שיחה
+            </Link>
             {item.phone && (
               <a
                 href={`tel:${item.phone}`}
-                className='inline-flex h-11 items-center gap-2 rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85'
+                aria-label={`התקשר ל${item.name || 'ליד'}`}
+                className={`${outlineBtn} w-[46px] shrink-0 px-0`}
               >
+                <Icon name='phone' className='size-[18px] bg-white' />
+              </a>
+            )}
+          </>
+        ) : (
+          <>
+            {item.phone && (
+              <a href={`tel:${item.phone}`} className={primaryBtn}>
                 <Icon name='phone' className='size-4 bg-white' />
                 התקשר
               </a>
             )}
-            <Link
-              href={href}
-              className='inline-flex h-11 items-center rounded-md border border-gray-200 bg-white px-4 font-medium text-black hover:bg-gray-100/60'
-            >
+            <Link href={href} className={`${outlineBtn} ${item.phone ? '' : 'flex-1'}`}>
               פתח ליד
             </Link>
           </>
         )}
       </div>
-    </div>
+    </section>
   )
 }

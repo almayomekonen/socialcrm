@@ -51,7 +51,13 @@ export type BriefItem = {
   windowHint?: string | null
 }
 
-export type MeetingItem = { id: number; title: string | null; at: number }
+export type MeetingItem = {
+  id: number
+  title: string | null
+  at: number
+  /** "HH:mm" in the business timezone — precomputed server-side; null when `at` is invalid. */
+  timeLabel?: string | null
+}
 
 export type VolumeState = 'clear' | 'normal' | 'busy'
 export type StatusVerdict = 'covered' | 'active' | 'unconfirmed'
