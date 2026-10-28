@@ -9,8 +9,7 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
-import { canUseUiLocales } from '@/lib/flags/uiLocaleFlags'
-import { getServerT } from '@/lib/i18n/server'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
 
 export default async function SettingLayout({ children }) {
   const user = await getUser()
@@ -26,8 +25,11 @@ export default async function SettingLayout({ children }) {
   const automationsVisible = user.role === 'ADMIN' && isAutomationsAgencyAllowlisted(user.agencyId)
   // Absent, not disabled, outside the Builder rollout: the route 404s there too.
   const questionnaireBuilderVisible = user.role === 'ADMIN' && canUseQuestionnaireBuilder(user.agencyId)
-  // Every role: the interface language is personal. Absent outside the UI_LOCALE_* rollout.
-  const languageVisible = canUseUiLocales(user.agencyId)
+  // Every role: the interface language is personal. Shown exactly when the
+  // language page renders: both read `enabled` from the same request-memoised
+  // state, which is false outside the UI_LOCALE_* rollout AND when the locale
+  // read fails (e.g. a pending migration), so the link can never lead to a 404.
+  const languageVisible = (await getUiLocaleState(user)).enabled
   const t = await getServerT(user)
   // Every role: a reminder goes to the lead's handler, whoever that is. Absent
   // outside the audience and without product access (activation requires it).
