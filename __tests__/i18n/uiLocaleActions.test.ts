@@ -4,7 +4,8 @@ const session = { current: { id: 7, agencyId: 103, role: 'AGNT' } as any }
 const setUserUiLocale = vi.fn(async () => 1)
 const setAgencyUiLocale = vi.fn(async () => 1)
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+const refresh = vi.fn()
+vi.mock('next/cache', () => ({ refresh: () => refresh() }))
 vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: async () => session.current }))
 vi.mock('@/db/uiLocale', () => ({
   setUserUiLocale: (...a: any[]) => (setUserUiLocale as any)(...a),
@@ -26,9 +27,11 @@ afterEach(() => {
 })
 
 describe('setMyUiLocale', () => {
-  test('writes the caller own row, ids from the session', async () => {
+  test('writes the caller own row, ids from the session, then refreshes only the caller', async () => {
+    refresh.mockClear()
     await setMyUiLocale('en')
     expect(setUserUiLocale).toHaveBeenCalledWith(7, 103, 'en')
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 
   test('empty clears the personal choice', async () => {

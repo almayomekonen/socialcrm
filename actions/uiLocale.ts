@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { refresh } from 'next/cache'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { canUseUiLocales } from '@/lib/flags/uiLocaleFlags'
@@ -19,6 +19,11 @@ import { setAgencyUiLocale, setUserUiLocale } from '@/db/uiLocale'
  * nothing, and a lapsed customer must still be able to read their screen.
  *
  * `null` clears the choice ("use the business default" / "use the system default").
+ *
+ * `refresh()`, not `revalidatePath`: the preference is read per request and is
+ * never in a shared cache, so there is nothing to invalidate — the caller's
+ * router only needs to re-render. Revalidating the whole layout tree would
+ * discard cached data for every tenant to change one person's language.
  */
 
 function parseLocale(value: unknown): UiLocale | null {
@@ -32,7 +37,7 @@ export async function setMyUiLocale(value: unknown): Promise<void> {
   if (!canUseUiLocales(user.agencyId)) throw new Error('ui_locale_disabled')
   const locale = parseLocale(value)
   await setUserUiLocale(user.id, user.agencyId, locale)
-  revalidatePath('/', 'layout')
+  refresh()
 }
 
 export async function setAgencyDefaultUiLocale(value: unknown): Promise<void> {
@@ -41,5 +46,5 @@ export async function setAgencyDefaultUiLocale(value: unknown): Promise<void> {
   if (!canUseUiLocales(user.agencyId)) throw new Error('ui_locale_disabled')
   const locale = parseLocale(value)
   await setAgencyUiLocale(user.agencyId, locale)
-  revalidatePath('/', 'layout')
+  refresh()
 }

@@ -51,7 +51,9 @@ export default function SettingsChrome({ nav, children }: { nav: ReactNode; chil
 
   return (
     <div
-      {...regionAttrs(locale)}
+      // Only beside the desktop nav column: the mobile shell is not translated
+      // yet, so with `nav={null}` the whole chrome stays Hebrew.
+      {...(showNav ? regionAttrs(locale) : {})}
       className={`grid ${showNav ? 'grid-cols-[auto_1fr] mobile:grid-cols-1 mobile:gap-4' : 'grid-cols-1'} ${
         workspace ? 'min-h-full gap-6 ps-4' : showNav ? 'gap-12 px-4' : 'px-4'
       }`}
@@ -69,7 +71,7 @@ export default function SettingsChrome({ nav, children }: { nav: ReactNode; chil
         start its background and hairline 24px down and leave them short at the
         bottom, so the offset has to sit inside the panes, not above them.
       */}
-      <div className={workspace ? 'flex min-w-0 flex-col' : 'mt-6'} {...untranslatedAttrs(locale)}>
+      <div className={workspace ? 'flex min-w-0 flex-col' : 'mt-6'} {...(showNav ? untranslatedAttrs(locale) : {})}>
         {children}
       </div>
     </div>

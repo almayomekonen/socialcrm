@@ -6,7 +6,7 @@ import LanguageSettings from '@/components/settings/language/LanguageSettings'
 
 export default async function LanguagePage() {
   const user = await getUser()
-  const state = await getUiLocaleState()
+  const state = await getUiLocaleState(user)
   // Outside the UI_LOCALE_* rollout the page does not exist, like its nav item.
   if (!user || !state.enabled) notFound()
 
