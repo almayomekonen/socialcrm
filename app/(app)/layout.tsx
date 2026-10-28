@@ -238,8 +238,8 @@ async function LayoutContent({ children }) {
 
   // Interface language, resolved once here and passed down as data. Hebrew for
   // every agency outside the UI_LOCALE_* rollout, with no query run.
-  const { locale: uiLocale } = await getUiLocaleState()
-  const t = await getServerT()
+  const { locale: uiLocale } = await getUiLocaleState(user)
+  const t = await getServerT(user)
 
   return (
     <I18nProvider locale={uiLocale}>

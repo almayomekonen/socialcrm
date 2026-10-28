@@ -28,7 +28,7 @@ export default async function SettingLayout({ children }) {
   const questionnaireBuilderVisible = user.role === 'ADMIN' && canUseQuestionnaireBuilder(user.agencyId)
   // Every role: the interface language is personal. Absent outside the UI_LOCALE_* rollout.
   const languageVisible = canUseUiLocales(user.agencyId)
-  const t = await getServerT()
+  const t = await getServerT(user)
   // Every role: a reminder goes to the lead's handler, whoever that is. Absent
   // outside the audience and without product access (activation requires it).
   const whatsappRemindersVisible = canUseOwnerWhatsappReminders(user.agencyId) && (await getAgencyProductAccess(user.agencyId)).hasAccess
