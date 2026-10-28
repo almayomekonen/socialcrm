@@ -8,16 +8,18 @@ import HelpTrigger from '@/components/education/HelpTrigger'
 import { HEADER_EDU } from '@/lib/education/types'
 import { ProNameLine } from './ProNameLabel'
 import { getDisplayName } from '@/lib/users/displayName'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-type WorkspaceIdentity = { primary: string; secondary?: string }
+type WorkspaceIdentity = { primary: MessageKey; secondary?: MessageKey }
 
 const WORKSPACE_TITLES: Record<string, WorkspaceIdentity> = {
-  '/leads': { primary: 'לידים', secondary: 'ניהול ומעקב לידים' },
-  '/clients': { primary: 'לקוחות', secondary: 'ניהול קשרי לקוחות' },
-  '/inbox': { primary: 'שיחות', secondary: 'תיבת שיחות' },
-  '/agent': { primary: 'הסוכן שלך', secondary: 'העוזר החכם של העסק שלך' },
-  '/tasks': { primary: 'משימות', secondary: 'המשימות שלך להיום' },
-  '/sum_sales': { primary: 'ביצועים', secondary: 'תובנות ומדדים' },
+  '/leads': { primary: 'shell.workspace.leadsTitle', secondary: 'shell.workspace.leadsSubtitle' },
+  '/clients': { primary: 'shell.workspace.clientsTitle', secondary: 'shell.workspace.clientsSubtitle' },
+  '/inbox': { primary: 'shell.workspace.inboxTitle', secondary: 'shell.workspace.inboxSubtitle' },
+  '/agent': { primary: 'shell.workspace.agentTitle', secondary: 'shell.workspace.agentSubtitle' },
+  '/tasks': { primary: 'shell.workspace.tasksTitle', secondary: 'shell.workspace.tasksSubtitle' },
+  '/sum_sales': { primary: 'shell.workspace.performanceTitle', secondary: 'shell.workspace.performanceSubtitle' },
 }
 
 function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | null {
@@ -39,12 +41,13 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
   trialDaysRemaining?: number | null
 }) {
   const pathname = usePathname()
+  const t = useT()
   if (!user) return null
   const title = resolveWorkspaceTitle(pathname)
   return (
     <header data-edu={HEADER_EDU} className='w-full sticky top-0 z-888 ps-[50px]'>
       <div className='relative flex justify-between items-center h-10 wrap bg-white/90 backdrop-blur-lg border-b'>
-        <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop' aria-label='פתיחת תפריט'>
+        <button className='hover:bg-gray-100 p-2 rounded desktop:hidden' popoverTarget='navPop' aria-label={t('shell.nav.openMenu')}>
           <Icon name='bars' type='reg' />
         </button>
         {/* Inline-start cluster (visual right in RTL): notifications, help, then
@@ -68,10 +71,10 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
         {title && (
           <span className='hidden desktop:flex absolute inset-y-0 left-1/2 -translate-x-1/2 flex-col items-center justify-center pointer-events-none select-none'>
             <span className='text-base font-semibold tracking-tight text-gray-900 leading-tight'>
-              {title.primary}
+              {t(title.primary)}
             </span>
             {title.secondary && (
-              <span className='text-xs text-gray-500 leading-tight'>{title.secondary}</span>
+              <span className='text-xs text-gray-500 leading-tight'>{t(title.secondary)}</span>
             )}
           </span>
         )}

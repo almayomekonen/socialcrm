@@ -1,3 +1,4 @@
+import { he } from '@/lib/i18n/messages/he'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { getTour } from '@/lib/education/registry'
@@ -124,12 +125,16 @@ describe('overview navigation anchors', () => {
   })
 
   it('uses the real Hebrew labels from getNavLinks', () => {
+    // Nav labels come from the interface-language catalog; Hebrew is the source catalog.
     const nav = readFileSync('lib/navs/Nav.tsx', 'utf8')
+    const keys = ['today', 'leads', 'clients', 'inbox', 'deals', 'performance', 'tasks', 'calendar', 'settings'] as const
     const titles = ['היום', 'לידים', 'לקוחות', 'שיחות', 'עסקאות', 'ביצועים', 'משימות', 'פגישות', 'הגדרות']
-    for (const title of titles) {
-      expect(nav).toContain(`title: '${title}'`)
-    }
-    expect(nav).toContain("title: 'ניהול מערכת'")
+    keys.forEach((key, i) => {
+      expect(nav).toContain(`title: t('shell.nav.${key}')`)
+      expect(he.shell.nav[key]).toBe(titles[i])
+    })
+    expect(nav).toContain("title: t('shell.nav.admin')")
+    expect(he.shell.nav.admin).toBe('ניהול מערכת')
     expect(getTour('overview')!.steps.map((s) => s.title).slice(0, 9)).toEqual(titles)
   })
 

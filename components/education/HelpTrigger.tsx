@@ -3,6 +3,7 @@
 import Icon from '@/lib/Icon'
 import { HELP_TRIGGER_EDU } from '@/lib/education'
 import { useEducation } from './EducationProvider'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * HELP IS NOT A TOUR, AND ITS VISIBILITY IS NOT TOUR ELIGIBILITY.
@@ -29,6 +30,7 @@ import { useEducation } from './EducationProvider'
  */
 export default function HelpTrigger() {
   const { openHelp, helpOpen, surface } = useEducation()
+  const t = useT()
   if (surface !== 'desktop') return null
 
   return (
@@ -36,10 +38,10 @@ export default function HelpTrigger() {
       type='button'
       data-edu={HELP_TRIGGER_EDU}
       onClick={openHelp}
-      aria-label='עזרה'
+      aria-label={t('shell.help')}
       aria-expanded={helpOpen}
       aria-haspopup='dialog'
-      title='עזרה'
+      title={t('shell.help')}
       className={[
         'inline-flex items-center justify-center size-7 rounded-full transition-colors duration-150',
         'border focus:outline-none focus:ring-2 focus:ring-primary',

@@ -1,7 +1,8 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import { RoleLabels } from '@/types/roles'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 import { getDisplayName } from '@/lib/users/displayName'
 
 /**
@@ -46,18 +47,16 @@ export function ProNameLine({
   // get a pill.
   trialDaysRemaining?: number | null
 }) {
+  const t = useT()
   const name = getDisplayName(user)
-  const roleLabel = user?.role ? RoleLabels[user.role] || user.role : null
+  // `roles.*` holds RoleLabels' exact Hebrew; an unknown role falls back to its code, as before.
+  const roleKey = `roles.${user?.role}` as MessageKey
+  const roleLabel = user?.role ? (t(roleKey) !== roleKey ? t(roleKey) : user.role) : null
 
   // Paid keeps the exact existing pill. An active trial reuses the same pill,
-  // extending only its text (grammatical singular at 1 day). Everything else
+  // extending only its text (plural forms per language). Everything else
   // renders the original single <p>.
-  const trialPillText =
-    trialDaysRemaining == null
-      ? null
-      : trialDaysRemaining === 1
-        ? 'PRO · נותר יום'
-        : `PRO · נותרו ${trialDaysRemaining} ימים`
+  const trialPillText = trialDaysRemaining == null ? null : t('shell.trialPill', { count: trialDaysRemaining })
   const pillText = isPro ? 'PRO' : trialPillText
 
   if (!pillText) {

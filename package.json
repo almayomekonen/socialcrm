@@ -37,7 +37,9 @@
     "db:bootstrap": "node scripts/bootstrap-schema.cjs",
     "db:baseline": "node scripts/regenerate-baseline.cjs",
     "test:db": "NODE_ENV=test vitest run --no-file-parallelism",
-    "test:schema": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/schema"
+    "test:schema": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/schema",
+    "test:i18n": "NODE_ENV=test VITEST_NO_DB=1 vitest run __tests__/i18n --exclude '**/*.db.test.ts'",
+    "i18n:check": "tsx scripts/i18n-check.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.76",
