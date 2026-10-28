@@ -9,6 +9,8 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
+import { canUseUiLocales } from '@/lib/flags/uiLocaleFlags'
+import { getServerT } from '@/lib/i18n/server'
 
 export default async function SettingLayout({ children }) {
   const user = await getUser()
@@ -24,6 +26,9 @@ export default async function SettingLayout({ children }) {
   const automationsVisible = user.role === 'ADMIN' && isAutomationsAgencyAllowlisted(user.agencyId)
   // Absent, not disabled, outside the Builder rollout: the route 404s there too.
   const questionnaireBuilderVisible = user.role === 'ADMIN' && canUseQuestionnaireBuilder(user.agencyId)
+  // Every role: the interface language is personal. Absent outside the UI_LOCALE_* rollout.
+  const languageVisible = canUseUiLocales(user.agencyId)
+  const t = await getServerT()
   // Every role: a reminder goes to the lead's handler, whoever that is. Absent
   // outside the audience and without product access (activation requires it).
   const whatsappRemindersVisible = canUseOwnerWhatsappReminders(user.agencyId) && (await getAgencyProductAccess(user.agencyId)).hasAccess
@@ -33,7 +38,7 @@ export default async function SettingLayout({ children }) {
       nav={
         mobileWorkspace ? null : (
         <>
-          <SettingsLink href='/settings/self_edit' icon='user' title='פרופיל אישי' />
+          <SettingsLink href='/settings/self_edit' icon='user' title={t('settingsNav.profile')} />
           {/*
             One entry for every external system. It replaced ערוצי לידים, יומן
             Google and חיבורים, which between them held six systems across four
@@ -42,9 +47,9 @@ export default async function SettingLayout({ children }) {
             is carried by headings inside the page, so navigation stays one line
             no matter how many integrations ship.
           */}
-          <SettingsLink href='/settings/integrations' icon='plug' title='אינטגרציות' />
+          <SettingsLink href='/settings/integrations' icon='plug' title={t('settingsNav.integrations')} />
           {whatsappRemindersVisible && (
-            <SettingsLink href='/settings/whatsapp_reminders' icon='bell' title='תזכורות בוואטסאפ' />
+            <SettingsLink href='/settings/whatsapp_reminders' icon='bell' title={t('settingsNav.whatsappReminders')} />
           )}
 
           {/*
@@ -55,15 +60,16 @@ export default async function SettingLayout({ children }) {
             outside the (app) product gate so it also works when the workspace
             itself is blocked.
           */}
-          <SettingsLink href='/support' icon='life-ring' title='תמיכה' />
+          <SettingsLink href='/support' icon='life-ring' title={t('settingsNav.support')} />
+          {languageVisible && <SettingsLink href='/settings/language' icon='globe' title={t('settingsNav.language')} />}
 
           {user.role == 'ADMIN' && (
             <>
               <Seperator className='my-2' />
-              <SettingsLink href='/settings/edit_teams' icon='users' title='צוותים' />
-              <SettingsLink href='/settings/edit_users' icon='user-pen' title='משתמשים' />
+              <SettingsLink href='/settings/edit_teams' icon='users' title={t('settingsNav.teams')} />
+              <SettingsLink href='/settings/edit_users' icon='user-pen' title={t('settingsNav.users')} />
 
-              <SettingsLink href='/settings/edit_tmplts' icon='list-check' title='תבניות משימות' />
+              <SettingsLink href='/settings/edit_tmplts' icon='list-check' title={t('settingsNav.taskTemplates')} />
               {/*
                 תבניות הצעות מחיר is deliberately NOT a nav item. Quote templates
                 are configuration DATA that the quotation automation reads — not a
@@ -72,20 +78,20 @@ export default async function SettingLayout({ children }) {
                 stay reachable at /settings/quote-templates because the automation
                 depends on the data; only the sidebar entry is withheld.
               */}
-              <SettingsLink href='/settings/auto-response' icon='bolt' title='מענה אוטומטי' />
+              <SettingsLink href='/settings/auto-response' icon='bolt' title={t('settingsNav.autoResponse')} />
               {questionnaireBuilderVisible && (
-                <SettingsLink href='/settings/questionnaire' icon='clipboard-list' title='שאלון וואטסאפ' />
+                <SettingsLink href='/settings/questionnaire' icon='clipboard-list' title={t('settingsNav.questionnaire')} />
               )}
-              {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title='אוטומציות' />}
+              {automationsVisible && <SettingsLink href='/settings/automations' icon='envelope' title={t('settingsNav.automations')} />}
               {automationsVisible && (
-                <SettingsLink href='/settings/automation-templates' icon='layer-group' title='תבניות אוטומציה' />
+                <SettingsLink href='/settings/automation-templates' icon='layer-group' title={t('settingsNav.automationTemplates')} />
               )}
               <Seperator className='my-2' />
-              <SettingsLink href='/settings/update_agency' icon='diamond' title='פרטי העסק' />
-              <SettingsLink href='/settings/update_user_details' icon='user' title='פרטי נציג' />
-              <SettingsLink href='/settings/update_default' icon='folders' title='הגדרות מערכת' />
-              <SettingsLink href='/settings/update_security' icon='shield' title='אבטחה' />
-              <SettingsLink href='/settings/update_payment' icon='credit-card' title='מנוי ותשלום' />
+              <SettingsLink href='/settings/update_agency' icon='diamond' title={t('settingsNav.business')} />
+              <SettingsLink href='/settings/update_user_details' icon='user' title={t('settingsNav.repDetails')} />
+              <SettingsLink href='/settings/update_default' icon='folders' title={t('settingsNav.system')} />
+              <SettingsLink href='/settings/update_security' icon='shield' title={t('settingsNav.security')} />
+              <SettingsLink href='/settings/update_payment' icon='credit-card' title={t('settingsNav.billing')} />
               {inspectorVisible && <SettingsLink href='/settings/ai-inspector' icon='brain' title='AI Inspector' />}
             </>
           )}

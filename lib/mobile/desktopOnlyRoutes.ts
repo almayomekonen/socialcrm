@@ -200,6 +200,7 @@ export const SETTINGS_MOBILE_BACKLOG: Record<string, string> = {
   '/settings/update_payment': 'מנוי ותשלום — desktop form, linked from עוד',
   '/settings/update_security': 'אבטחה — desktop form, linked from עוד',
   '/settings/update_default': 'הגדרות מערכת — desktop form, linked from עוד',
+  '/settings/language': 'שפה — i18n Phase 1 translates the desktop shell only; not linked from עוד',
   '/settings/connections': 'חיבורים — desktop surface, not linked from עוד',
   '/settings/calendar': 'יומן — desktop surface, not linked from עוד',
   '/settings/facebook': 'פייסבוק — desktop surface, reached from integrations',

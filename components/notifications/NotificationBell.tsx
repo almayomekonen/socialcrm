@@ -8,7 +8,9 @@ import NavBadge from '@/lib/navs/NavBadge'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
 import { useNotifications } from '@/modules/notifications/NotificationContext'
 import { NOTIFICATIONS_EDU } from '@/lib/education/types'
-import { bellLabel, idsToStampSeen, renderedNotifications } from '@/modules/notifications/dropdown'
+import { idsToStampSeen, renderedNotifications } from '@/modules/notifications/dropdown'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 import NotificationPanel from './NotificationPanel'
 
 /**
@@ -34,6 +36,17 @@ import NotificationPanel from './NotificationPanel'
 const PANEL_PLACEMENT = { width: 340, estHeight: 420, gap: 6 }
 
 /**
+ * The bell's accessible name in the interface language. Same thresholds as
+ * `bellLabel` in modules/notifications/dropdown.ts, whose Hebrew output this
+ * reproduces exactly (held by __tests__/i18n/shell.test.tsx).
+ */
+export function bellLabelFor(t: Translator, unreadCount: number): string {
+  if (unreadCount <= 0) return t('shell.notifications.label')
+  if (unreadCount > 99) return t('shell.notifications.overflow')
+  return t('shell.notifications.unread', { count: unreadCount })
+}
+
+/**
  * Flag gate, deliberately a separate component from the bell itself.
  *
  * Everything the bell needs — router, floating menu, the seen-stamping effect —
@@ -48,6 +61,7 @@ export default function NotificationBell() {
 }
 
 function Bell() {
+  const t = useT()
   const { unreadCount, items, whileYouWereAway, markSeen, markRead, markAllRead } = useNotifications()
   const router = useRouter()
   const menu = useFloatingMenu(PANEL_PLACEMENT)
@@ -112,9 +126,9 @@ function Bell() {
         type='button'
         onClick={menu.toggle}
         data-edu={NOTIFICATIONS_EDU}
-        aria-label={bellLabel(unreadCount)}
+        aria-label={bellLabelFor(t, unreadCount)}
         aria-expanded={menu.open}
-        title='התראות'
+        title={t('shell.notifications.label')}
         className={[
           'relative inline-flex items-center justify-center size-7 rounded-full transition-colors duration-150',
           'border focus:outline-none focus:ring-2 focus:ring-primary',

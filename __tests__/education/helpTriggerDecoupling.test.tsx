@@ -12,6 +12,7 @@
 //
 // No DB: runs in the no-DB suite.
 
+import { he } from '@/lib/i18n/messages/he'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -204,7 +205,9 @@ describe('nothing outside the education system moved', () => {
   it('the trigger reuses the existing icon, with no new visual system', () => {
     const src = code('components/education/HelpTrigger.tsx')
     expect(src).toContain("name='circle-question'")
-    expect(src).toContain("aria-label='עזרה'")
+    // The accessible name comes from the interface-language catalog; in Hebrew it is still עזרה.
+    expect(src).toContain("aria-label={t('shell.help')}")
+    expect(he.shell.help).toBe('עזרה')
     expect(src).not.toMatch(/warning-bg|bg-red|toast/)
   })
 })

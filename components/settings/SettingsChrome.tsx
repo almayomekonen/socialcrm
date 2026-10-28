@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs, untranslatedAttrs } from '@/lib/i18n/config'
 
 /**
  * The settings chrome: the nav column and the content cell.
@@ -24,6 +26,10 @@ const WORKSPACE = new Set(['/settings/automations'])
 
 export default function SettingsChrome({ nav, children }: { nav: ReactNode; children: ReactNode }) {
   const pathname = usePathname()
+  // The grid and nav column follow the interface language, so the column sits on
+  // the same side as the app nav. The content cell stays Hebrew until each
+  // settings page is translated; the language page declares its own language.
+  const { locale } = useT()
   const workspace = WORKSPACE.has(pathname)
 
   /**
@@ -45,6 +51,7 @@ export default function SettingsChrome({ nav, children }: { nav: ReactNode; chil
 
   return (
     <div
+      {...regionAttrs(locale)}
       className={`grid ${showNav ? 'grid-cols-[auto_1fr] mobile:grid-cols-1 mobile:gap-4' : 'grid-cols-1'} ${
         workspace ? 'min-h-full gap-6 ps-4' : showNav ? 'gap-12 px-4' : 'px-4'
       }`}
@@ -62,7 +69,9 @@ export default function SettingsChrome({ nav, children }: { nav: ReactNode; chil
         start its background and hairline 24px down and leave them short at the
         bottom, so the offset has to sit inside the panes, not above them.
       */}
-      <div className={workspace ? 'flex min-w-0 flex-col' : 'mt-6'}>{children}</div>
+      <div className={workspace ? 'flex min-w-0 flex-col' : 'mt-6'} {...untranslatedAttrs(locale)}>
+        {children}
+      </div>
     </div>
   )
 }

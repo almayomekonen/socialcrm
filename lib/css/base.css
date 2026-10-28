@@ -53,6 +53,12 @@
     background-size: 12px;
     cursor: pointer;
 
+    /* The arrow sits at the inline END (the `pe-*` padding side). 8px from the
+       left is the end in RTL; in an LTR region (i18n) it moves to the right. */
+    &:dir(ltr) {
+      background-position: right 8px top 54%;
+    }
+
     &:disabled {
       background-image: none;
       opacity: 70%;

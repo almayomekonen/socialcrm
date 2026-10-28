@@ -7,6 +7,7 @@
 @claude/architecture-rules.md
 @claude/care-charter.md
 @claude/release-deployment-workflow.md
+@claude/i18n.md
 
 ---
 

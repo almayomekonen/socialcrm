@@ -50,6 +50,9 @@ import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { EntitlementProvider } from '@/lib/entitlement/EntitlementContext'
 import EntitlementRecovery from '@/components/entitlement/EntitlementRecovery'
 import RegistrationConversion from '@/components/analytics/RegistrationConversion'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { regionAttrs, untranslatedAttrs } from '@/lib/i18n/config'
 
 async function LayoutContent({ children }) {
   const user = await getUser()
@@ -233,7 +236,13 @@ async function LayoutContent({ children }) {
     notificationUnread = await countUnreadNotifications({ agencyId: user.agencyId, userId: user.id }).catch(() => 0)
   }
 
+  // Interface language, resolved once here and passed down as data. Hebrew for
+  // every agency outside the UI_LOCALE_* rollout, with no query run.
+  const { locale: uiLocale } = await getUiLocaleState()
+  const t = await getServerT()
+
   return (
+    <I18nProvider locale={uiLocale}>
     <EntitlementProvider
       value={{
         hasAccess: productAccess.hasAccess,
@@ -296,8 +305,12 @@ async function LayoutContent({ children }) {
               properties behind it are published only by the mobile shell, so
               desktop resolves exactly as before.
             */}
-            <div className='mobile-viewport-column flex flex-col min-h-0 items-stretch'>
-              <SkipLink />
+            {/* The shell (skip link, topbar, nav, grid) carries the interface
+                language; `main` re-declares Hebrew for page content that is
+                not translated yet. Both spread nothing for Hebrew. The mobile
+                shell is not translated in Phase 1, so it stays Hebrew whole. */}
+            <div className='mobile-viewport-column flex flex-col min-h-0 items-stretch' {...(mobileWorkspace ? {} : regionAttrs(uiLocale))}>
+              <SkipLink label={t('shell.skipToContent')} />
               <OAuthResultToast />
               {trialStatus === 'NEVER_STARTED' || trialExpired ? (
                 // Blocked (no active product access): render a presentation-only
@@ -338,7 +351,7 @@ async function LayoutContent({ children }) {
                   />
                   <WorkspaceGrid>
                     <Nav user={user} inboxUnread={inboxUnread} isOwner={isPlatformOwner(user.email)} agentEnabled={agentEnabled} />
-                    <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none'>
+                    <main id='main-content' tabIndex={-1} className='wrap mt-2 min-w-0 min-h-0 overflow-y-auto focus:outline-none' {...untranslatedAttrs(uiLocale)}>
                       {children}
                     </main>
                   </WorkspaceGrid>
@@ -392,6 +405,7 @@ async function LayoutContent({ children }) {
     </AwarenessProvider>
     </CrmSyncHealthProvider>
     </EntitlementProvider>
+    </I18nProvider>
   )
 }
 

@@ -13,9 +13,12 @@ import Loading from '@/components/ui/Loading'
 import NavBadge from './NavBadge'
 import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 import { NAV_RAIL_EDU, navEduForHref } from '@/lib/education/types'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 
 export default function Nav({ user, inboxUnread = 0, isOwner = false, agentEnabled = false }) {
   const pathname = usePathname()
+  const t = useT()
   // Live unread (delta-sync). null when disabled → fall back to the server-rendered count.
   const liveUnread = useAwarenessCount()
   const effectiveUnread = liveUnread ?? inboxUnread
@@ -38,7 +41,7 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false, agentEnabl
         <span className='rounded p-2'>
           <Icon name='arrow-right-from-bracket' className='bg-white' type='sol' />
         </span>
-        <p className='text-white font-semibold'>התנתקות</p>
+        <p className='text-white font-semibold'>{t('shell.nav.logout')}</p>
       </button>
     )
   }
@@ -46,19 +49,19 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false, agentEnabl
   return (
     <div className='z-999'>
       {isLoggingOut && (
-        <div className='fixed inset-0 z-9999 bg-white' role='status' aria-label='מתנתק'>
+        <div className='fixed inset-0 z-9999 bg-white' role='status' aria-label={t('shell.nav.loggingOut')}>
           <Loading />
         </div>
       )}
       <div popover='auto' id='navPop' className='h-full bg-dark desktop:hidden pop-bg'>
         <div>
           <div className='flex justify-start'>
-            <button popoverTarget='navPop' className='hover:bg-dark/50 rounded p-2 m-2' aria-label='סגירת תפריט'>
+            <button popoverTarget='navPop' className='hover:bg-dark/50 rounded p-2 m-2' aria-label={t('shell.nav.closeMenu')}>
               <Icon name='x' type='sol' className='bg-white' />
             </button>
           </div>
-          <nav aria-label='ניווט ראשי' className='mt-8 p-8'>
-            {getNavLinks(user, effectiveUnread, isOwner, agentEnabled).map((link, i) => {
+          <nav aria-label={t('shell.nav.label')} className='mt-8 p-8'>
+            {getNavLinks(t, user, effectiveUnread, isOwner, agentEnabled).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -87,12 +90,12 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false, agentEnabl
         className={`hidden desktop:block h-screen w-[50px] overflow-x-hidden fixed top-0 start-0 transition-all duration-300 ease-in-out hover:w-48 `}
       >
         <nav
-          aria-label='ניווט ראשי'
+          aria-label={t('shell.nav.label')}
           data-edu={NAV_RAIL_EDU}
           className={'bg-dark/90 backdrop-blur-lg px-2 h-full flex items-start justify-between flex-col pb-4 '}
         >
           <div className='w-full'>
-            {getNavLinks(user, effectiveUnread, isOwner, agentEnabled).map((link, i) => {
+            {getNavLinks(t, user, effectiveUnread, isOwner, agentEnabled).map((link, i) => {
               if (!link) return null
               const isActive = getIsActive(pathname, link.href)
               return (
@@ -126,15 +129,15 @@ export default function Nav({ user, inboxUnread = 0, isOwner = false, agentEnabl
   )
 }
 
-function getNavLinks(user, inboxUnread = 0, isOwner = false, agentEnabled = false) {
+function getNavLinks(t: Translator, user, inboxUnread = 0, isOwner = false, agentEnabled = false) {
   if (!user) return []
   const admin = isAdmin(user.role)
   const notOffice = user.role !== Roles.OFFICE
   return [
-    notOffice && { icon: 'house', href: '/dashboard', title: 'היום' },
-    notOffice && { icon: 'image-polaroid-user', href: '/leads', title: 'לידים' },
-    notOffice && { icon: 'user-check', href: '/clients', title: 'לקוחות' },
-    notOffice && { icon: 'comments', href: '/inbox', title: 'שיחות', badge: inboxUnread },
+    notOffice && { icon: 'house', href: '/dashboard', title: t('shell.nav.today') },
+    notOffice && { icon: 'image-polaroid-user', href: '/leads', title: t('shell.nav.leads') },
+    notOffice && { icon: 'user-check', href: '/clients', title: t('shell.nav.clients') },
+    notOffice && { icon: 'comments', href: '/inbox', title: t('shell.nav.inbox'), badge: inboxUnread },
     /*
      * The AI workspace, as a destination rather than a panel. It sits after
      * שיחות because that is where the working day actually reaches it: the rep
@@ -145,17 +148,17 @@ function getNavLinks(user, inboxUnread = 0, isOwner = false, agentEnabled = fals
      */
     // Hidden unless the rollout flag names this agency: /agent 404s otherwise,
     // and a nav item that leads to a 404 is worse than no nav item.
-    notOffice && agentEnabled && { icon: 'sparkles', href: '/agent', title: 'הסוכן שלך' },
-    { icon: 'dollar-sign', href: '/deals', title: 'עסקאות' },
+    notOffice && agentEnabled && { icon: 'sparkles', href: '/agent', title: t('shell.nav.agent') },
+    { icon: 'dollar-sign', href: '/deals', title: t('shell.nav.deals') },
     {
       icon: 'chart-pie',
       href: '/sum_sales',
-      title: 'ביצועים',
+      title: t('shell.nav.performance'),
     },
-    notOffice && { icon: 'list-check', href: '/tasks', title: 'משימות' },
-    notOffice && { icon: 'calendar', href: '/calendar', title: 'פגישות' },
-    notOffice && { icon: 'gear', href: '/settings/self_edit', title: 'הגדרות' },
+    notOffice && { icon: 'list-check', href: '/tasks', title: t('shell.nav.tasks') },
+    notOffice && { icon: 'calendar', href: '/calendar', title: t('shell.nav.calendar') },
+    notOffice && { icon: 'gear', href: '/settings/self_edit', title: t('shell.nav.settings') },
     // Platform-owner only (allowlisted email, resolved server-side in the layout).
-    isOwner && { icon: 'crown', href: '/admin', title: 'ניהול מערכת' },
+    isOwner && { icon: 'crown', href: '/admin', title: t('shell.nav.admin') },
   ] as { icon: IconNames; href: Route; title: string; badge?: number }[]
 }

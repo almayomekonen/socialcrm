@@ -63,6 +63,8 @@ type Job = {
 
 export interface User {
   id: number
+  /** Interface language (lib/i18n). NULL = no personal choice. Not the billing locale. */
+  uiLocale?: string | null
   idNum: string | null
   firstName: string
   lastName: string | null
@@ -126,6 +128,8 @@ export interface UserInfo {
 
 export interface Agency {
   id: number
+  /** Default interface language for users without one. NULL = Hebrew. Billing uses `locale`. */
+  uiLocale?: string | null
   name: string
   img: number | File | null
   pkg: string | null
