@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import RecommendedLeads from '@/components/home/RecommendedLeads'
@@ -16,8 +17,13 @@ import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import MobileToday from '@/modules/today/mobile/MobileToday'
 import MobileTodayEmpty from '@/modules/today/mobile/MobileTodayEmpty'
 import { modelFromBrief, modelFromSnapshot } from '@/modules/today/mobile/viewModel'
+import { getDashboardStats } from '@/db/reports/dashboardStats'
+import { parseDashboardRange } from '@/lib/dashboard/stats'
+import AnalyticsOverview from '@/components/home/dashboard/AnalyticsOverview'
+import FunnelCard from '@/components/home/dashboard/FunnelCard'
+import { AnalyticsOverviewSkeleton, FunnelSkeleton } from '@/components/home/dashboard/AnalyticsSkeleton'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams?: Promise<{ range?: string | string[] }> }) {
   const user = await getUser()
   if (!user) redirect('/auth')
 
@@ -68,10 +74,34 @@ export default async function DashboardPage() {
       // Mobile renders the SAME brief through the mobile presentation, so an
       // agency on v2 is never told to call one person on its phone and a
       // different one on its laptop.
-      return mobile ? (
-        <MobileToday model={modelFromBrief(brief)} whatsappConnected={whatsappConnected} />
-      ) : (
-        <TodayBriefView brief={brief} />
+      if (mobile) return <MobileToday model={modelFromBrief(brief)} whatsappConnected={whatsappConnected} />
+
+      // Desktop analytics (KPIs, charts, funnel) stream in after the brief. One
+      // promise feeds both boundaries; a failure renders an explicit error card
+      // instead of taking the brief down with it.
+      const range = parseDashboardRange((await searchParams)?.range)
+      const stats = getDashboardStats(
+        { user, scope: { user: { role: user.role }, gotPermIds, agencyId: user.agencyId }, agencyId: user.agencyId },
+        range,
+        Date.now(),
+      ).catch((err) => {
+        console.error('[dashboard] analytics failed', { agencyId: user.agencyId, error: err instanceof Error ? err.message : String(err) })
+        return null
+      })
+      return (
+        <TodayBriefView
+          brief={brief}
+          overview={
+            <Suspense key={range} fallback={<AnalyticsOverviewSkeleton />}>
+              <AnalyticsOverview stats={stats} />
+            </Suspense>
+          }
+          funnel={
+            <Suspense fallback={<FunnelSkeleton />}>
+              <FunnelCard stats={stats} />
+            </Suspense>
+          }
+        />
       )
     } catch (err) {
       logBriefFailure({

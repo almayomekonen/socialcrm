@@ -147,7 +147,12 @@ export default async function LeadsPage({ searchParams }) {
           {/* The tour yields while the import handoff owns the screen, so its
               overlay cannot cover `פתח את הליד הראשון`. Deferred, not cancelled:
               it starts on the next /leads visit once the params are gone. */}
-          <AutoTour id='pipeline' enabled={!pipelineYieldsToFirstImport(Number(params.firstImport) || 0)} />
+          {/* Also yields while ?add=1 / ?import=1 (the Today hero's buttons) opens
+              its dialog, so the tour never stacks on top of the requested one. */}
+          <AutoTour
+            id='pipeline'
+            enabled={!pipelineYieldsToFirstImport(Number(params.firstImport) || 0) && params.add !== '1' && params.import !== '1'}
+          />
           <div data-alert-region='crm-sync' className='shrink-0'>
             {/* Just imported: name what landed and hand the user into the
                 first-lead loop. One-shot, driven by the import redirect. */}

@@ -7,7 +7,7 @@ import type { MeetingItem } from '@/lib/today/types'
 
 export default function BriefMeetings({ meetings }: { meetings: MeetingItem[] }) {
   return (
-    <section className='flex min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-2xl border border-border bg-surface px-[22px] py-5'>
+    <section className='flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface px-[22px] py-5'>
       <div className='flex items-baseline justify-between'>
         <h2 className='text-lg font-bold text-ink'>פגישות היום</h2>
         <Link
@@ -25,7 +25,10 @@ export default function BriefMeetings({ meetings }: { meetings: MeetingItem[] })
                 {m.timeLabel}
               </span>
             )}
-            <span className='min-w-0 truncate text-[15px] font-semibold text-ink'>{m.title || 'פגישה'}</span>
+            <span className='min-w-0'>
+              <span className='block truncate text-[15px] font-semibold text-ink'>{m.title || 'פגישה'}</span>
+              {m.subtitle && <span className='block truncate text-[13px] text-gray-500'>{m.subtitle}</span>}
+            </span>
           </li>
         ))}
       </ul>

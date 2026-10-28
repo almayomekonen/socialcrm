@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 type Args = {
   enabled: boolean
@@ -14,9 +14,11 @@ type Args = {
  * `/leads?add=1` opens the add-lead form, `/leads?import=1` opens the upload.
  * Used by the Today hero's "הוסף ליד" / "ייבוא Excel" buttons. Fires once, then
  * strips the param so a refresh or back-navigation does not reopen the dialog.
+ * The strip uses the native History API (Next keeps useSearchParams in sync)
+ * rather than router.replace: no server re-render, so the page keeps the state
+ * it rendered with — e.g. the onboarding tour stays deferred behind the dialog.
  */
 export function useOpenDialogFromQuery({ enabled, openAdd, openImport }: Args) {
-  const router = useRouter()
   const pathname = usePathname()
   const search = useSearchParams()
   const firedRef = useRef(false)
@@ -35,6 +37,6 @@ export function useOpenDialogFromQuery({ enabled, openAdd, openImport }: Args) {
     next.delete('add')
     next.delete('import')
     const qs = next.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [enabled, search, router, pathname, openAdd, openImport])
+    window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname)
+  }, [enabled, search, pathname, openAdd, openImport])
 }

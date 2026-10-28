@@ -12,6 +12,7 @@ import {
   STATE_PRIORITY,
   TERMINAL_STATUSES,
 } from './constants'
+import { leadSourceLabel } from '@/lib/leads/leadSourceLabel'
 import { reasonFor } from './labels'
 import type { BriefItem, LeadFact, NowCtx, QualifyingState, TargetSurface } from './types'
 import { isWaitingForReply } from './waitingReply'
@@ -111,5 +112,6 @@ export function orderAndDedupe(facts: readonly LeadFact[], ctx: NowCtx): BriefIt
       state,
       reason: reasonFor(state),
       targetSurface: targetSurfaceFor(state),
+      source: fact.leadSource ? leadSourceLabel(fact.leadSource) : null,
     }))
 }

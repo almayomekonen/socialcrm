@@ -159,3 +159,20 @@ There is only ONE entity in the system: Lead.
 
 "Client" is not a separate entity.
 It is a Lead with status = "closed".
+
+---
+
+## 13. PRODUCT DECISION — /dashboard ANALYTICS (2026-10-28)
+
+**Decision (owner, in writing):** the desktop Today page (`/dashboard`) is explicitly allowed to show KPIs, charts, revenue and analytics alongside the Today brief.
+
+**Supersedes:** the 2026-07-20 rule that Today is a decision engine only ("no KPIs, charts, revenue or analytics on /dashboard"), including guardrail 1 of the "Today refresh & Leads report" spec v1.0.
+
+**Why:** the owner wants `/dashboard` to be a premium, data-rich CRM overview in which today's work and the business picture sit on one screen. The design direction is the owner's two "Dashboard Redesign" reference screenshots: greeting and progress, next-mission card, KPI row, new-vs-handled chart, lead-source donut, sales funnel, today's meetings, and the actionable leads list.
+
+**What still holds:**
+
+- The brief comes first. It renders before the analytics and never waits on them, and its rules are unchanged: deterministic qualifying states, no cap, and an honest "caught up" signal.
+- §11 of CLAUDE.md still applies to every metric: real data only, nothing fabricated, and a card with no data is hidden rather than shown as zero.
+- Each metric states its scope when the data is partial. For example, replies and response time cover WhatsApp/Messenger only, and Facebook and Instagram are grouped because they cannot be told apart.
+- Mobile Today (`MobileToday`) is unchanged.

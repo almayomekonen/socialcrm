@@ -34,6 +34,7 @@ export default function BriefHero({ brief }: { brief: TodayBrief }) {
     <section className='flex flex-[1_1_420px] flex-col justify-between gap-5 rounded-2xl border border-border bg-surface px-7 py-[26px]'>
       <div className='flex flex-wrap items-start justify-between gap-4'>
         <div className='min-w-0'>
+          {brief.dateLabel && <p className='mb-0.5 text-sm text-gray-500'>{brief.dateLabel}</p>}
           <h1 className='text-[30px] leading-tight font-extrabold tracking-[-0.4px] text-ink'>
             {brief.greeting}
             {brief.firstName ? `, ${brief.firstName}` : ''}

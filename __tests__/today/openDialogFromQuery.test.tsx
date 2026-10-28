@@ -2,17 +2,16 @@
 //
 // `/leads?add=1` and `/leads?import=1` — the Today hero's "הוסף ליד" / "ייבוא Excel"
 // buttons land here. The hook opens the matching existing dialog once and strips
-// the param, so a refresh or back-navigation does not reopen it.
+// the param (History API, no server re-render), so a refresh does not reopen it.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import React from 'react'
 import { render, cleanup } from '@testing-library/react'
 
-const replace = vi.fn()
+const replace = vi.spyOn(window.history, 'replaceState')
 let query = ''
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace }),
   usePathname: () => '/leads',
   useSearchParams: () => new URLSearchParams(query),
 }))
@@ -40,7 +39,7 @@ describe('useOpenDialogFromQuery', () => {
     render(<Probe />)
     expect(openAdd).toHaveBeenCalledTimes(1)
     expect(openImport).not.toHaveBeenCalled()
-    expect(replace).toHaveBeenCalledWith(`/leads?q=${encodeURIComponent('דני')}`, { scroll: false })
+    expect(replace).toHaveBeenCalledWith(null, '', `/leads?q=${encodeURIComponent('דני')}`)
   })
 
   it('?import=1 opens the upload dialog', () => {
@@ -48,7 +47,7 @@ describe('useOpenDialogFromQuery', () => {
     render(<Probe />)
     expect(openImport).toHaveBeenCalledTimes(1)
     expect(openAdd).not.toHaveBeenCalled()
-    expect(replace).toHaveBeenCalledWith('/leads', { scroll: false })
+    expect(replace).toHaveBeenCalledWith(null, '', '/leads')
   })
 
   it('fires once across re-renders', () => {
