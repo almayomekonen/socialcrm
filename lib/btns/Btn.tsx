@@ -1,6 +1,7 @@
 'use client'
 import { cva } from 'class-variance-authority'
 import { twMerge } from 'tailwind-merge'
+import { useT } from '@/lib/i18n/I18nProvider'
 import React, { ButtonHTMLAttributes } from 'react'
 import Link, { LinkProps, useLinkStatus } from 'next/link'
 import { useFormStatus } from 'react-dom'
@@ -108,6 +109,7 @@ export function Btn({
   ...props
 }: ButtonProps) {
   warnIfIconOnlyHasNoName(icon, lbl, as, props)
+  const t = useT()
 
   const buttonClasses = twMerge(buttonVariants({ variant, size, className }))
 
@@ -127,7 +129,7 @@ export function Btn({
     return (
       <button type='submit' className={buttonClasses} disabled={pending} {...props}>
         {<Icon name={iconName()} type={icnTYpe} className={iconClasses} flip={flipIcon} />}
-        {<span>{lbl || 'שמירה'}</span>}
+        {<span>{lbl || t('common.save')}</span>}
       </button>
     )
   }

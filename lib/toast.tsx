@@ -33,7 +33,7 @@ export let toast: (icon: PopIcon, msg?: string, durationMs?: number, onClick?: (
  */
 export let proToast: (opts: ProToast) => void = () => {}
 
-const defaultMsg: { [key in PopIcon]: string } = {
+const HEBREW_DEFAULTS: { [key in PopIcon]: string } = {
   success: 'בוצע בהצלחה!',
   error: 'אירעה שגיאה!',
   loading: 'טוען...',
@@ -42,6 +42,24 @@ const defaultMsg: { [key in PopIcon]: string } = {
   message: 'הודעה חדשה',
   // The pro variant always supplies its own copy; this is only the type's floor.
   pro: 'הפעולה זמינה עם Pro',
+}
+
+/**
+ * Text used when a caller passes no message. Hebrew unless the interface
+ * language provider overrides it: the toast lives in the root layout, outside
+ * that provider, so the provider pushes its defaults here instead. Every
+ * existing `toast(kind)` / `api(fn, data)` call keeps its signature.
+ */
+let defaultMsg: { [key in PopIcon]: string } = { ...HEBREW_DEFAULTS }
+
+export type ToastDefaults = Partial<Record<Exclude<PopIcon, 'hide'>, string>>
+
+export function setToastDefaults(msgs: ToastDefaults) {
+  defaultMsg = { ...HEBREW_DEFAULTS, ...msgs }
+}
+
+export function resetToastDefaults() {
+  defaultMsg = { ...HEBREW_DEFAULTS }
 }
 
 export default function ToastMsg() {

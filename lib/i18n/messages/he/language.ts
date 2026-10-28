@@ -1,0 +1,21 @@
+export const language = {
+  pageTitle: 'שפת הממשק',
+  intro: 'השפה של התפריטים, הכפתורים וההגדרות. שמות, הודעות ותוכן של לידים לא מתורגמים ונשארים כפי שנכתבו.',
+  personalTitle: 'השפה שלי',
+  personalHelp: 'חלה רק עליך, בכל מכשיר שאתה מחובר ממנו.',
+  personalLabel: 'שפת הממשק שלך',
+  useAgencyDefault: 'ברירת המחדל של העסק ({language})',
+  effectiveFromUser: 'מוצג כעת: {language}, לפי הבחירה האישית שלך',
+  effectiveFromAgency: 'מוצג כעת: {language}, לפי ברירת המחדל של העסק',
+  effectiveFromDefault: 'מוצג כעת: {language}, ברירת המחדל של המערכת',
+  savePersonal: 'שמור שפה',
+  savedPersonal: 'השפה עודכנה',
+  agencyTitle: 'שפת ברירת המחדל של העסק',
+  agencyHelp:
+    'נציגים שלא בחרו שפה אישית יראו את השפה הזו. נציג שבחר שפה אישית ימשיך לראות את השפה שבחר.',
+  agencyLabel: 'שפת ברירת המחדל',
+  agencyChangePreview: 'אחרי השמירה, נציגים בלי שפה אישית יראו את הממשק ב: {to} (במקום {from}).',
+  saveAgency: 'עדכן שפת ברירת מחדל',
+  savedAgency: 'שפת ברירת המחדל של העסק עודכנה',
+  saveError: 'לא ניתן לשמור את השפה. נסה שוב.',
+} as const

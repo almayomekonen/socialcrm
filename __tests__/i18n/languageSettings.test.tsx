@@ -6,7 +6,7 @@ import { I18nProvider } from '@/lib/i18n/I18nProvider'
 import type { LocaleSource } from '@/lib/i18n/resolve'
 
 vi.mock('@/actions/uiLocale', () => ({ setMyUiLocale: vi.fn(), setAgencyDefaultUiLocale: vi.fn() }))
-vi.mock('@/lib/toast', () => ({ toast: vi.fn() }))
+vi.mock('@/lib/toast', () => ({ toast: vi.fn(), setToastDefaults: vi.fn(), resetToastDefaults: vi.fn() }))
 
 const { default: LanguageSettings } = await import('@/components/settings/language/LanguageSettings')
 

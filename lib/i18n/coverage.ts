@@ -79,9 +79,14 @@ export function checkCatalogs(catalogs: Record<UiLocale, Messages>): CoverageIss
   return issues
 }
 
-/** Keys referenced in source. `roles.*` is looked up by role code, so it counts as used. */
+/**
+ * Keys referenced in source as string literals. Namespaces come from the
+ * catalog itself, so a new namespace is scanned without editing this file.
+ * `roles.*` is looked up by role code, so it counts as used.
+ */
 export function unusedKeys(catalog: Messages, sources: string[]): string[] {
   const used = new Set<string>()
-  for (const src of sources) for (const m of src.matchAll(/['"`]((?:shell|roles|settingsNav|language)\.[\w.]+)['"`]/g)) used.add(m[1])
+  const keyRx = new RegExp(`['"\`]((?:${Object.keys(catalog).join('|')})\\.[\\w.]+)['"\`]`, 'g')
+  for (const src of sources) for (const m of src.matchAll(keyRx)) used.add(m[1])
   return [...flatten(catalog).keys()].filter((key) => !used.has(key) && !key.startsWith('roles.'))
 }
